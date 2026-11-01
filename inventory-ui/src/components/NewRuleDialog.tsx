@@ -1,5 +1,7 @@
-import { useId, useState } from 'react'
+import { DateInput, Field, MoneyInput, RadioGroupField } from '@operai/ui'
+import { useId, useRef, useState } from 'react'
 import IrreversibleActionDialog from './IrreversibleActionDialog'
+import { useFocusFirstInvalid } from '../hooks/useFocusFirstInvalid'
 import { ApiError } from '../lib/api'
 import { formatDate } from '../lib/dates'
 import { amountToCents, formatMoney } from '../lib/money'
@@ -72,6 +74,8 @@ export default function NewRuleDialog({ entity, inForceRule, onSaved, onCancel }
   const [errors, setErrors] = useState<FieldErrors>({})
   const [generalError, setGeneralError] = useState<string | null>(null)
   const [submitting, setSubmitting] = useState(false)
+  const touched = useRef(new Set<FieldKey>())
+  const { ref: fieldsRef, focusFirstInvalid } = useFocusFirstInvalid()
 
   const clear = (key: FieldKey) =>
     setErrors((previous) => {
@@ -152,7 +156,11 @@ export default function NewRuleDialog({ entity, inForceRule, onSaved, onCancel }
   const submit = async () => {
     setGeneralError(null)
     const parsed = parse()
-    if ('errors' in parsed) return setErrors(parsed.errors)
+    if ('errors' in parsed) {
+      setErrors(parsed.errors)
+      focusFirstInvalid()
+      return
+    }
     setErrors({})
     setSubmitting(true)
     try {
@@ -180,24 +188,16 @@ export default function NewRuleDialog({ entity, inForceRule, onSaved, onCancel }
           formatDate(inForceRule.effectiveFrom),
         )
 
-  const ids = {
-    date: `${baseId}-date`,
-    life: `${baseId}-life`,
-    share: `${baseId}-share`,
-    threshold: `${baseId}-threshold`,
-    residual: `${baseId}-residual`,
+  const shareId = `${baseId}-share`
+
+  /** Blur of a field the person changed: show its own error now (design-system.md § Forms). */
+  const blurred = (key: FieldKey) => () => {
+    if (!touched.current.has(key)) return
+    const parsed = parse()
+    const issue = 'errors' in parsed ? parsed.errors[key] : undefined
+    if (issue !== undefined)
+      setErrors((previous) => (previous[key] !== undefined ? previous : { ...previous, [key]: issue }))
   }
-  const inputClass = 'border px-2 py-1.5 text-sm w-full'
-  const inputStyle = { borderColor: 'var(--rule)', backgroundColor: 'var(--ink)', color: 'var(--text)' }
-  const labelStyle = { color: 'var(--soft)' }
-  const describe = (key: FieldKey) => (errors[key] !== undefined ? `${ids[key]}-error` : undefined)
-  const invalid = (key: FieldKey) => (errors[key] !== undefined ? true : undefined)
-  const errorText = (key: FieldKey) =>
-    errors[key] === undefined ? null : (
-      <p id={`${ids[key]}-error`} className="text-xs" style={{ color: 'var(--red)' }}>
-        {errors[key]}
-      </p>
-    )
 
   return (
     <IrreversibleActionDialog
@@ -213,119 +213,95 @@ export default function NewRuleDialog({ entity, inForceRule, onSaved, onCancel }
       testIdPrefix="new-rule"
     >
       {inForceSummary !== null && (
-        <p data-testid="new-rule-in-force" className="text-xs" style={labelStyle}>
+        <p data-testid="new-rule-in-force" className="text-xs text-soft">
           {inForceSummary}
         </p>
       )}
 
-      <div className="flex flex-col gap-1">
-        <label htmlFor={ids.date} className="text-xs" style={labelStyle}>
-          {t.fields.effectiveFrom} ({t.required})
-        </label>
-        <input
-          id={ids.date}
-          type="date"
-          value={date}
-          aria-required="true"
-          aria-invalid={invalid('date')}
-          aria-describedby={describe('date')}
-          onChange={(event) => {
-            setDate(event.target.value)
-            clear('date')
-          }}
-          className={inputClass}
-          style={inputStyle}
-        />
-        {errorText('date')}
-      </div>
-
-      <div className="flex flex-col gap-1">
-        <label htmlFor={ids.life} className="text-xs" style={labelStyle}>
-          {t.fields.usefulLife} ({t.required})
-        </label>
-        <input
-          id={ids.life}
-          inputMode="numeric"
-          value={life}
-          aria-required="true"
-          aria-invalid={invalid('life')}
-          aria-describedby={describe('life')}
-          onChange={(event) => {
-            setLife(event.target.value)
-            clear('life')
-          }}
-          className={inputClass}
-          style={inputStyle}
-        />
-        {errorText('life')}
-      </div>
-
-      <div
-        role="radiogroup"
-        aria-labelledby={`${ids.share}-label`}
-        aria-describedby={describe('share')}
-        className="flex flex-col gap-1"
-      >
-        <span id={`${ids.share}-label`} className="text-xs" style={labelStyle}>
-          {t.fields.firstYearShare} ({t.required})
-        </span>
-        {SHARES.map((value) => (
-          <label key={value} className="flex items-center gap-2 text-sm" style={{ color: 'var(--text)' }}>
-            <input
-              type="radio"
-              name={ids.share}
-              value={value}
-              checked={share === value}
-              onChange={() => {
-                setShare(value)
-                clear('share')
+      <div ref={fieldsRef} className="contents">
+        <Field label={t.fields.effectiveFrom} required error={errors.date}>
+          {(control) => (
+            <DateInput
+              {...control}
+              value={date}
+              onChange={(event) => {
+                touched.current.add('date')
+                setDate(event.target.value)
+                clear('date')
               }}
+              onBlur={blurred('date')}
+              className="w-full"
             />
-            {strings.rules.firstYearShare[value]}
-          </label>
-        ))}
-        {errorText('share')}
-      </div>
+          )}
+        </Field>
 
-      <div className="flex flex-col gap-1">
-        <label htmlFor={ids.threshold} className="text-xs" style={labelStyle}>
-          {t.fields.thresholdIn(currency)} ({t.optional})
-        </label>
-        <input
-          id={ids.threshold}
-          inputMode="decimal"
-          value={threshold}
-          aria-invalid={invalid('threshold')}
-          aria-describedby={describe('threshold')}
-          onChange={(event) => {
-            setThreshold(event.target.value)
-            clear('threshold')
-          }}
-          className={inputClass}
-          style={inputStyle}
-        />
-        {errorText('threshold')}
-      </div>
+        <Field label={t.fields.usefulLife} required error={errors.life}>
+          {(control) => (
+            // Whole years, not money: a plain numeric field.
+            <input
+              {...control}
+              inputMode="numeric"
+              value={life}
+              onChange={(event) => {
+                touched.current.add('life')
+                setLife(event.target.value)
+                clear('life')
+              }}
+              onBlur={blurred('life')}
+              className="w-full input-figure"
+            />
+          )}
+        </Field>
 
-      <div className="flex flex-col gap-1">
-        <label htmlFor={ids.residual} className="text-xs" style={labelStyle}>
-          {t.fields.residualIn(currency)} ({t.required})
-        </label>
-        <input
-          id={ids.residual}
-          inputMode="decimal"
-          value={residual}
-          aria-required="true"
-          aria-invalid={invalid('residual')}
-          aria-describedby={describe('residual')}
-          onChange={(event) => {
-            setResidual(event.target.value)
-            clear('residual')
-          }}
-          className={inputClass}
-          style={inputStyle}
-        />
-        {errorText('residual')}
+        <RadioGroupField label={t.fields.firstYearShare} error={errors.share} required>
+          {SHARES.map((value) => (
+            <label key={value} className="flex items-center gap-2 text-sm text-text">
+              <input
+                type="radio"
+                name={shareId}
+                value={value}
+                checked={share === value}
+                onChange={() => {
+                  setShare(value)
+                  clear('share')
+                }}
+              />
+              {strings.rules.firstYearShare[value]}
+            </label>
+          ))}
+        </RadioGroupField>
+
+        <Field label={t.fields.thresholdIn(currency)} error={errors.threshold}>
+          {(control) => (
+            <MoneyInput
+              {...control}
+              value={threshold}
+              onChange={(event) => {
+                touched.current.add('threshold')
+                setThreshold(event.target.value)
+                clear('threshold')
+              }}
+              onBlur={blurred('threshold')}
+              className="w-full"
+            />
+          )}
+        </Field>
+
+        <Field label={t.fields.residualIn(currency)} required error={errors.residual}>
+          {(control) => (
+            <MoneyInput
+              {...control}
+              value={residual}
+              onChange={(event) => {
+                touched.current.add('residual')
+                setResidual(event.target.value)
+                clear('residual')
+              }}
+              onBlur={blurred('residual')}
+              className="w-full"
+            />
+          )}
+        </Field>
       </div>
     </IrreversibleActionDialog>
   )

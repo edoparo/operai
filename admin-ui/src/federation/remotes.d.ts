@@ -41,6 +41,25 @@ declare module 'shell/session' {
   export const getRefundApiBaseUrl: () => string
   export const signOut: (...args: unknown[]) => Promise<unknown>
   export const clearJwtCache: () => void
+
+  // shell/src/lib/session.ts's `Permission`/`PermissionsResult`/`usePermissions`
+  // — the suite's one source of the caller's effective permissions (INC-32);
+  // SectionNav reads it to hide the capability-gated Refund tab.
+  export interface Permission {
+    resource: string
+    action: string
+    conditions?: unknown
+  }
+
+  export interface PermissionsResult {
+    epoch: number
+    apps: string[]
+    roles: string[]
+    departments: string[]
+    permissions: Permission[]
+  }
+
+  export const usePermissions: () => PermissionsResult
 }
 
 declare module 'shell/tokens.css' {

@@ -49,8 +49,8 @@ describe('SubtotalsPanel', () => {
   it('shows only the requested figure by default, even when approvedCents is present', () => {
     render(<SubtotalsPanel subtotals={[eur]} />)
     const card = screen.getByTestId('subtotals-panel-card-EUR')
-    expect(card.textContent).toContain('9,10 €')
-    expect(card.textContent).not.toContain('8,00 €')
+    expect(card.textContent).toContain('EUR 9.10')
+    expect(card.textContent).not.toContain('EUR 8.00')
   })
 
   // AC-3.2 (amended 2026-09-08) applies to the totals card as well as the
@@ -60,10 +60,8 @@ describe('SubtotalsPanel', () => {
     render(<SubtotalsPanel subtotals={[eur]} showApproved />)
     const amount = screen.getByTestId('subtotals-approved-EUR')
     expect(amount.getAttribute('data-changed')).toBe('true')
-    expect(amount.textContent).toBe('8,00 €')
-    expect(screen.getByTestId('subtotals-approved-delta-EUR').textContent).toBe(
-      'requested 9,10 · −1,10',
-    )
+    expect(amount.textContent).toBe('EUR 8.00')
+    expect(screen.getByTestId('subtotals-approved-delta-EUR').textContent).toBe('requested 9.10 · −1.10')
   })
 
   // The totals figure is the one a reader checks the line column sums to, so
@@ -79,7 +77,7 @@ describe('SubtotalsPanel', () => {
     render(<SubtotalsPanel subtotals={[{ ...eur, approvedCents: eur.requestedCents }]} showApproved />)
     const amount = screen.getByTestId('subtotals-approved-EUR')
     expect(amount.getAttribute('data-changed')).toBe('false')
-    expect(amount.textContent).toBe('9,10 €')
+    expect(amount.textContent).toBe('EUR 9.10')
     expect(screen.queryByTestId('subtotals-approved-delta-EUR')).toBeNull()
 
     const card = screen.getByTestId('subtotals-panel-card-EUR')

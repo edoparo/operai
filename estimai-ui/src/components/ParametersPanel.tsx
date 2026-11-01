@@ -1,5 +1,7 @@
 import type { ChangeEvent } from 'react'
 import type { Parameters } from '../types'
+import { Card, Field } from '@operai/ui'
+import { strings } from '../strings'
 
 interface ParametersPanelProps {
   params: Parameters
@@ -14,83 +16,51 @@ interface ParametersPanelProps {
   readOnly?: boolean
 }
 
-export default function ParametersPanel({ params, onUpdate, readOnly = false }: ParametersPanelProps) {
-  const parameterFields = [
-    {
-      k: 'parallelism' as const,
-      label: 'Parallelism factor',
-      hint: '% of work runnable in parallel with FTE > 1',
-      step: 0.05,
-      max: 1,
-    },
-    {
-      k: 'sprintDays' as const,
-      label: 'Sprint duration (working days)',
-      hint: 'Drives planning/ceremony overhead calculation',
-      step: 1,
-    },
-    {
-      k: 'workingDaysMonth' as const,
-      label: 'Working days per month',
-      hint: 'Converts elapsed days into months',
-      step: 1,
-    },
-    {
-      k: 'qaDeployDays' as const,
-      label: 'QA Deploy per release (days)',
-      hint: 'Fixed deployment cost per release',
-      step: 0.5,
-    },
-    {
-      k: 'qaTestDays' as const,
-      label: 'QA Test per release (days)',
-      hint: 'Fixed QA testing cost per release',
-      step: 0.5,
-    },
-    {
-      k: 'pmDays' as const,
-      label: 'PM / Demand Mgmt per release (days)',
-      hint: 'Project management overhead per release',
-      step: 0.5,
-    },
-    {
-      k: 'aiCostCoef' as const,
-      label: 'AI cost coefficient',
-      hint: 'Cost per FTE per elapsed day (licences + infra). Default: 10.',
-      step: 1,
-    },
-    {
-      k: 'aiGain' as const,
-      label: 'AI productivity gain',
-      hint: 'Fraction of effort saved using AI tools (0.0–1.0). Default: 0.30 = 30%.',
-      step: 0.05,
-      max: 1,
-    },
-  ]
+const PARAMETER_FIELDS: ReadonlyArray<{
+  k: keyof Parameters & keyof typeof strings.parameters.fields
+  step: number
+  max?: number
+}> = [
+  { k: 'parallelism', step: 0.05, max: 1 },
+  { k: 'sprintDays', step: 1 },
+  { k: 'workingDaysMonth', step: 1 },
+  { k: 'qaDeployDays', step: 0.5 },
+  { k: 'qaTestDays', step: 0.5 },
+  { k: 'pmDays', step: 0.5 },
+  { k: 'aiCostCoef', step: 1 },
+  { k: 'aiGain', step: 0.05, max: 1 },
+]
 
+export default function ParametersPanel({ params, onUpdate, readOnly = false }: ParametersPanelProps) {
+  const t = strings.parameters
+
+  // INC-16: each parameter is a labelled control in a Field (label above,
+  // hint under, wired id/htmlFor + aria-describedby). INC-17: these are
+  // durations, factors and fractions — not money — so they stay
+  // type="number". The AI cost coefficient is a currency-neutral model rate,
+  // not an amount: a number input too. INC-33: one Card (title h2 — the
+  // view's heading under the editor's h1), not a bordered box per field.
   return (
-    <div className="max-w-2xl">
-      <h2 className="font-disp text-sm font-bold mb-4">Model Parameters</h2>
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-3 items-stretch">
-        {parameterFields.map(({ k, label, hint, step, max }) => (
-          <div key={k} className="bg-ink-soft border border-rule rounded-[10px] py-[13px] px-4 flex items-center gap-3">
-            <div className="flex-1 min-w-0">
-              <div className="text-[13px] font-medium mb-[2px]">{label}</div>
-              <div className="text-[11px] text-muted">{hint}</div>
-            </div>
-            <input
-              type="number"
-              value={params[k]}
-              readOnly={readOnly}
-              min={0}
-              max={max}
-              step={step}
-              onChange={(e: ChangeEvent<HTMLInputElement>) => onUpdate(k, e.target.value)}
-              className="w-20 shrink-0 text-right text-sm font-mono bg-acc-lo border-acc text-acc-hi"
-            />
-          </div>
+    <Card title={t.heading} headingLevel={2} className="max-w-2xl">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-4 items-start">
+        {PARAMETER_FIELDS.map(({ k, step, max }) => (
+          <Field key={k} label={t.fields[k].label} hint={t.fields[k].hint}>
+            {(control) => (
+              <input
+                {...control}
+                type="number"
+                value={params[k]}
+                readOnly={readOnly}
+                min={0}
+                max={max}
+                step={step}
+                onChange={(e: ChangeEvent<HTMLInputElement>) => onUpdate(k, e.target.value)}
+                className="font-mono"
+              />
+            )}
+          </Field>
         ))}
       </div>
-    </div>
+    </Card>
   )
 }

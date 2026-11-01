@@ -3,6 +3,10 @@ import { defineConfig } from 'vitest/config'
 
 export default defineConfig({
   resolve: {
+    // One React for the app and the library's source: operai-ui has its own
+    // node_modules locally (for Storybook), and without this the library's
+    // hooks would run against a second copy of React.
+    dedupe: ['react', 'react-dom'],
     // T15 (specs/003-suite-shell/tasks.md): App.tsx consumes the suite's
     // shared shell modules (`shell/session`, `shell/tokens.css`). These bare
     // specifiers only resolve at runtime via the `@module-federation/vite`
@@ -15,6 +19,8 @@ export default defineConfig({
     // / `refund/App` — see src/federation/__stubs__/* for why they're never
     // actually used for real values.
     alias: {
+      // The shared component library, compiled from source (ADR-0050; see vite.config.ts).
+      '@operai/ui': fileURLToPath(new URL('../operai-ui/src/index.ts', import.meta.url)),
       'shell/session': fileURLToPath(new URL('./src/federation/__stubs__/shellSession.ts', import.meta.url)),
       'shell/tokens.css': fileURLToPath(new URL('./src/federation/__stubs__/shellTokens.css', import.meta.url)),
     },

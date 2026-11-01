@@ -18,3 +18,14 @@ export const getAuthBaseUrl = () => (import.meta.env.VITE_AUTH_URL as string | u
 export const getRefundApiBaseUrl = () => (import.meta.env.VITE_REFUND_API_URL as string | undefined) ?? ''
 export const signOut = async () => undefined
 export const clearJwtCache = () => undefined
+
+// usePermissions — SectionNav's capability gate (INC-32). Defaults to the
+// shell's EMPTY_PERMISSIONS (no grants: the Refund tab stays hidden); tests
+// that need a grant override it with vi.mock('shell/session').
+export const usePermissions = () => ({
+  epoch: 0,
+  apps: [] as string[],
+  roles: [] as string[],
+  departments: [] as string[],
+  permissions: [] as { resource: string; action: string; conditions?: unknown }[],
+})

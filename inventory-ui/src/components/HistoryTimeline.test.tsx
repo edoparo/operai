@@ -116,7 +116,7 @@ describe('HistoryTimeline — events (AC-11.3)', () => {
     const [item] = await waitFor(() => entries())
     const time = item.querySelector('time')
     expect(time?.getAttribute('datetime')).toBe('2026-10-01T09:00:00Z')
-    expect(time?.textContent).toMatch(/^\d{2}\.\d{2}\.2026, \d{2}:\d{2}$/)
+    expect(time?.textContent).toMatch(/^\d{2}\.\d{2}\.2026 \d{2}:\d{2}$/)
     expect(item.textContent).toContain('Anna Rossi')
   })
 
@@ -145,7 +145,7 @@ describe('HistoryTimeline — events (AC-11.3)', () => {
       'Supplier: none → Digitec',
       'To verify: Yes → No',
       'Purchase date: 25.09.2026 → 26.09.2026',
-      'Purchase price: 998,15 CHF → 1000,00 CHF',
+      'Purchase price: CHF 998.15 → CHF 1,000.00',
       'Status: In stock → Assigned',
     ])
   })

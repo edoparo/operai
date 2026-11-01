@@ -158,9 +158,12 @@ describe('InvitationsPage', () => {
     expect(screen.getAllByText('accounting')).toHaveLength(2) // both fixtures share the same role
     expect(screen.getAllByText('Ada Lovelace')).toHaveLength(2) // both fixtures share the same inviter
     expect(screen.getAllByTestId('invitation-status-badge')).toHaveLength(2)
+    // INC-26: expiry and acceptance dates use the library's numeric date-time (local time).
+    expect(screen.getByText(/^Expires \d{2}\.\d{2}\.2099 \d{2}:\d{2}$/)).not.toBeNull()
+    expect(screen.getByText(/^Accepted 14\.07\.2026 \d{2}:\d{2}$/)).not.toBeNull()
   })
 
-  it('renders "No invitations yet." with a repeated "+ Invite user" affordance when empty', async () => {
+  it('renders "No invitations yet." when empty (the page header keeps the one "Invite user" action)', async () => {
     vi.mocked(adminApi.listInvitations).mockResolvedValue(pageOf([], 0))
 
     renderInvitationsPage()
@@ -168,7 +171,7 @@ describe('InvitationsPage', () => {
     await waitFor(() => {
       expect(screen.getByTestId('invitations-empty-state')).not.toBeNull()
     })
-    expect(screen.getByText('No invitations yet.')).not.toBeNull()
+    expect(screen.getByText('No invitations yet')).not.toBeNull()
   })
 
   it('renders an ErrorBanner with Retry on a load failure', async () => {

@@ -1,16 +1,10 @@
 /**
  * @vitest-environment jsdom
  *
- * Component tests for EntityBadge (T25, specs/015-hardware-inventory; carried
- * over from refund-ui, where it was T15 of specs/007).
- *
- * Post-close change (specs/007): currency is now a separately-stored,
- * independently-selectable line field, no longer derived from entity — this
- * badge shows the entity ONLY (see `EntityBadge.tsx`'s doc comment and
- * `CurrencyBadge.test.tsx` for the currency chip's own coverage).
- *
- * Covers: both variants render a glyph AND a text label naming the entity,
- * never color-only.
+ * Component tests for EntityBadge (T25, specs/015-hardware-inventory; INC-23).
+ * Covers: both variants render the entity's name as text (never colour only),
+ * no currency and no flag emoji (flags do not render on Windows), and both use
+ * the same neutral library badge — an entity is metadata, not a status.
  */
 
 import { afterEach, describe, expect, it } from 'vitest'
@@ -23,50 +17,38 @@ afterEach(() => {
 
 describe('EntityBadge', () => {
   it.each([
-    ['welld_it', 'WellD Italia', '🇮🇹'],
-    ['welld_ch', 'WellD CH', '🇨🇭'],
-  ] as const)('renders the %s variant with its glyph and entity-name label, no currency', (entity, label, glyph) => {
+    ['welld_it', 'WellD Italia'],
+    ['welld_ch', 'WellD CH'],
+  ] as const)('renders the %s variant with its entity-name label, no currency', (entity, label) => {
     render(<EntityBadge entity={entity} />)
 
     const badge = screen.getByTestId('entity-badge')
-    expect(badge.textContent).toBe(`${glyph}${label}`)
+    expect(badge.textContent).toBe(label)
     expect(badge.textContent).not.toMatch(/EUR|CHF|USD|GBP/)
   })
 
-  it('the glyph is aria-hidden (label text alone carries the accessible name)', () => {
-    render(<EntityBadge entity="welld_ch" />)
-
-    const badge = screen.getByTestId('entity-badge')
-    const glyphSpan = badge.querySelector('[aria-hidden="true"]')
-    expect(glyphSpan?.textContent).toBe('🇨🇭')
-  })
-
-  // This used to assert TWO distinct colours. An entity is neutral metadata —
-  // it is not good, not actionable, just true — so one shared neutral is the
-  // point now, and the flag glyph plus entity name tell the variants apart
-  // (ConditionChip's precedent: several kinds, one colour).
-  it('renders both variants in the same neutral colour', () => {
-    const colors = (['welld_it', 'welld_ch'] as const).map((entity) => {
-      const { container } = render(<EntityBadge entity={entity} />)
-      const badge = container.querySelector('[data-testid="entity-badge"]') as HTMLElement
-      const color = badge.style.color
-      cleanup()
-      return color
-    })
-
-    expect(new Set(colors).size).toBe(1)
-  })
-
-  // The reason for the change: green MEANS "approved" on these screens, and a
-  // WellD CH chip sat on the same row as a green approved figure carrying
-  // none of that meaning.
-  it('never uses the semantic approved/accent colours', () => {
+  it('carries no flag emoji or other glyph (INC-23)', () => {
     for (const entity of ['welld_it', 'welld_ch'] as const) {
-      const { container } = render(<EntityBadge entity={entity} />)
-      const badge = container.querySelector('[data-testid="entity-badge"]') as HTMLElement
-      expect(badge.style.color).not.toContain('--grn')
-      expect(badge.style.color).not.toContain('--acc')
+      render(<EntityBadge entity={entity} />)
+      const badge = screen.getByTestId('entity-badge')
+      expect(badge.textContent).not.toMatch(/\p{Regional_Indicator}/u)
+      expect(badge.querySelector('[aria-hidden="true"]')).toBeNull()
       cleanup()
     }
+  })
+
+  // An entity is neutral metadata — it is not good, not actionable, just true —
+  // so both variants share the neutral badge and the name tells them apart.
+  it('renders both variants as the same neutral badge, never a semantic tone', () => {
+    const classNames = (['welld_it', 'welld_ch'] as const).map((entity) => {
+      const { container } = render(<EntityBadge entity={entity} />)
+      const badge = container.querySelector('[data-testid="entity-badge"]') as HTMLElement
+      const className = badge.className
+      cleanup()
+      return className
+    })
+
+    expect(new Set(classNames).size).toBe(1)
+    expect(classNames[0]).toBe('badge')
   })
 })

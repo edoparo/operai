@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { Link, useNavigate } from '@tanstack/react-router'
+import { Button, Spinner, VisuallyHidden } from '@operai/ui'
 import { strings } from '../strings'
 import * as requestsApi from '../lib/requestsApi'
 import { ApiError } from '../lib/refundApi'
@@ -84,14 +85,10 @@ export default function NewRequestPage() {
 
       {state.status === 'creating' && (
         <div className="flex flex-col items-center gap-3 py-16" role="status" data-testid="new-request-spinner">
-          <span
-            className="inline-block w-6 h-6 border-2 rounded-full animate-spin motion-reduce:animate-none"
-            style={{ borderColor: 'var(--acc)', borderTopColor: 'transparent' }}
-            aria-hidden="true"
-          />
-          <p className="sr-only" aria-live="polite">
-            {t.creatingAnnouncement}
-          </p>
+          <span className="text-acc">
+            <Spinner size="md" />
+          </span>
+          <VisuallyHidden live>{t.creatingAnnouncement}</VisuallyHidden>
         </div>
       )}
 
@@ -101,25 +98,14 @@ export default function NewRequestPage() {
           data-testid="new-request-error"
           className="flex flex-col items-center gap-3 py-16 text-center"
         >
-          <p className="text-sm" style={{ color: 'var(--org)' }}>
-            {state.message}
-          </p>
+          {/* INC-20: orange — creating the draft happens on arrival, nothing in a
+              form is wrong, and "Try again" below retries the same step. */}
+          <p className="text-sm text-org-text">{state.message}</p>
           <div className="flex items-center gap-3">
-            <button
-              type="button"
-              onClick={() => setAttempt((n) => n + 1)}
-              data-testid="new-request-try-again"
-              className="text-sm py-1.5 px-3 font-medium border transition-opacity hover:opacity-80"
-              style={{ borderColor: 'var(--acc)', color: 'var(--acc)' }}
-            >
+            <Button variant="primary" onClick={() => setAttempt((n) => n + 1)} data-testid="new-request-try-again">
               {t.tryAgain}
-            </button>
-            <Link
-              to="/requests"
-              data-testid="new-request-back-link"
-              className="text-sm py-1.5 px-3 font-medium border transition-opacity hover:opacity-80"
-              style={{ borderColor: 'var(--rule)', color: 'var(--muted)' }}
-            >
+            </Button>
+            <Link to="/requests" data-testid="new-request-back-link" className="link text-sm">
               {t.backToMyRequests}
             </Link>
           </div>

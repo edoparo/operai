@@ -3,7 +3,7 @@
  * /admin/invitations` (AC-1.3 "active user exists" / AC-1.4 "live pending
  * invitation exists").
  *
- * Extracted out of InvitationsPage.tsx so every "+ Invite user" entry point
+ * Extracted out of InvitationsPage.tsx so every "Invite user" entry point
  * — the Invitations tab's own button (T12) and Screen U1's parallel entry
  * point on the Users list (design.md Screen U1 "New key elements", closed as
  * a design-fidelity gap after T12) — share one copy instead of each
@@ -15,13 +15,15 @@
  * discriminant field (design.md Gaps #1), so this pattern-matches the fixed
  * template text `invitations.routes.ts` actually emits.
  */
+import { strings } from '../strings'
+
 export const inviteConflictMessageFor = (detail: string | undefined): string => {
   const lower = (detail ?? '').toLowerCase()
   if (lower.includes('active user')) {
-    return 'This email already belongs to an existing user — use their user page to change roles or departments instead.'
+    return strings.users.invite.conflictActiveUser
   }
   if (lower.includes('pending invitation')) {
-    return 'An invitation is already pending for this email — resend it from the Invitations tab instead of creating a new one.'
+    return strings.users.invite.conflictPending
   }
-  return detail ?? 'This email cannot be invited right now.'
+  return detail ?? strings.users.invite.conflictFallback
 }

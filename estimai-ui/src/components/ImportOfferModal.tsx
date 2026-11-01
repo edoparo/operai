@@ -12,16 +12,25 @@
  * Presentational: all data and callbacks arrive via props. The container
  * (EstimatesPage / useImportOffer) owns the logic — this component only renders.
  *
+ * Frame: @operai/ui's `Dialog` (ADR-0050, INC-09) — modal, labelled by its
+ * title, Tab trapped over every enabled control (× included), focus returned
+ * to the trigger on close. Skip is `ghost`, Import all and the results-phase
+ * Close acknowledgement are `primary`.
+ *
  * A11y (design.md):
- *   • role="dialog" aria-modal="true" aria-labelledby="import-modal-title"
- *   • Focus trap: on open, primary action receives focus via autoFocus
- *   • Escape = Skip during offer phase; suppressed during importing phase
+ *   • role="dialog" aria-modal="true" aria-labelledby (the Dialog's title)
+ *   • Focus: the primary action on open and on each phase change
+ *   • Escape / backdrop / × = Skip during offer phase, Close in results;
+ *     all suppressed during importing (the Dialog is busy, × disabled)
  *   • aria-live="polite" results region announced once when results arrive
- *   • Status badges: glyph (✓ / !) + text, not colour alone
- *   • <table> with <th scope="col"> for results columns
+ *   • Status badges: the library StatusBadge (icon + text, not colour alone)
+ *   • results in the library DataTable (INC-14): caption, scope="col" headers,
+ *     the estimate name as the row header
  */
 
 import { useEffect, useRef } from 'react'
+import { Button, DataTable, Dialog, Spinner, StatusBadge } from '@operai/ui'
+import { strings } from '../strings'
 import type { EstimateImportResult } from '../lib/estimatesApi'
 import type { ProjectMeta } from '../types'
 
@@ -46,27 +55,25 @@ export type ImportOfferModalProps = {
   onClose: () => void
 }
 
+/** One results row: the outcome plus the local name it is matched back to. */
+type ResultRow = { rowId: string; name: string; result: EstimateImportResult }
+
 // ---------------------------------------------------------------------------
 // Sub-components
 // ---------------------------------------------------------------------------
 
-/** Single status badge — glyph + text so colour is never the only indicator. */
-const StatusBadge = ({ status }: { status: 'imported' | 'failed' }) => {
-  if (status === 'imported') {
-    return (
-      <span className="inline-flex items-center gap-1 text-[11px] font-medium text-grn bg-grn/10 px-1.5 py-0.5 rounded">
-        <span aria-hidden="true">✓</span>
-        <span>Imported</span>
-      </span>
-    )
-  }
-  return (
-    <span className="inline-flex items-center gap-1 text-[11px] font-medium text-org bg-org/10 px-1.5 py-0.5 rounded">
-      <span aria-hidden="true">!</span>
-      <span>Failed</span>
-    </span>
+const t = strings.importOffer
+
+/**
+ * An import outcome as a status (INC-23): imported = `active` (accepted, in
+ * effect), failed = `failed`. Icon + text, colour never the only signal.
+ */
+const ImportStatusBadge = ({ status }: { status: 'imported' | 'failed' }) =>
+  status === 'imported' ? (
+    <StatusBadge status="active">{t.imported}</StatusBadge>
+  ) : (
+    <StatusBadge status="failed">{t.failed}</StatusBadge>
   )
-}
 
 // ---------------------------------------------------------------------------
 // Component
@@ -84,26 +91,12 @@ export default function ImportOfferModal({
   const closeBtnRef = useRef<HTMLButtonElement>(null)
   const n = localEstimates.length
 
-  // Focus management: focus the primary action on mount and on phase change.
+  // Focus management on phase change (the Dialog handles the open-time focus):
+  // the results phase moves focus to its Close acknowledgement.
   useEffect(() => {
-    if (phase === 'offer' || phase === 'importing') {
-      primaryBtnRef.current?.focus()
-    } else {
-      closeBtnRef.current?.focus()
-    }
+    if (phase === 'results') closeBtnRef.current?.focus()
+    else if (phase === 'offer') primaryBtnRef.current?.focus()
   }, [phase])
-
-  // Keyboard handler: Escape = decline in offer phase; suppressed during importing.
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key !== 'Escape') return
-      if (phase === 'offer') onDecline()
-      if (phase === 'results') onClose()
-      // During 'importing': no action (Escape suppressed per design.md a11y spec)
-    }
-    window.addEventListener('keydown', onKey)
-    return () => window.removeEventListener('keydown', onKey)
-  }, [phase, onDecline, onClose])
 
   // Derived counts for the results phase.
   const importedCount = results?.filter((r) => r.status === 'imported').length ?? 0
@@ -111,188 +104,126 @@ export default function ImportOfferModal({
   const allSuccess = importedCount === totalCount && totalCount > 0
 
   // Results summary colour: green if all imported, amber otherwise.
-  const summaryClass = allSuccess ? 'text-grn' : 'text-org'
+  const summaryClass = allSuccess ? 'text-grn-text' : 'text-org-text'
 
   // Header title per phase.
   const title =
     phase === 'offer'
-      ? 'Import your local estimates'
+      ? t.titleOffer
       : phase === 'importing'
-        ? 'Importing estimates…'
+        ? t.titleImporting
         : allSuccess
-          ? 'Import complete'
-          : 'Import finished'
+          ? t.titleComplete
+          : t.titleFinished
 
   return (
-    <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm"
-      /* Clicking the backdrop = decline (only during offer phase; during importing
-         the close button is hidden so the backdrop also does nothing meaningful). */
-      onClick={phase === 'offer' ? onDecline : phase === 'results' ? onClose : undefined}
-      data-testid="import-offer-modal"
+    <Dialog
+      title={title}
+      onClose={phase === 'results' ? onClose : onDecline}
+      closeLabel={t.close}
+      busy={phase === 'importing'}
+      initialFocusRef={phase === 'results' ? closeBtnRef : primaryBtnRef}
+      testIdPrefix="import-offer"
+      backdropTestId="import-offer-modal"
     >
-      <div
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby="import-modal-title"
-        className="bg-ink-soft border border-rule rounded-lg shadow-2xl w-full max-w-md mx-4 flex flex-col"
-        onClick={(e) => e.stopPropagation()}
-      >
-        {/* ---------------------------------------------------------------- */}
-        {/* Header                                                           */}
-        {/* ---------------------------------------------------------------- */}
-        <div className="flex items-center justify-between px-5 pt-4 pb-3 border-b border-rule shrink-0">
-          <h2 id="import-modal-title" className="font-disp text-sm font-bold text-text">
-            {title}
-          </h2>
-          {/* Close / × button: hidden during importing to prevent premature cancel */}
-          {phase !== 'importing' && (
-            <button
-              onClick={phase === 'offer' ? onDecline : onClose}
-              className="text-muted hover:text-text text-lg leading-none transition-colors"
-              aria-label="Close"
-            >
-              ×
-            </button>
-          )}
-        </div>
+      <div className="dialog-body flex flex-col gap-4">
+        {/* PHASE: offer */}
+        {phase === 'offer' && (
+          <>
+            <p className="text-sm text-text leading-relaxed">
+              <span className="font-semibold text-acc-text">{t.count(n)}</span> {t.foundBody(n)}
+            </p>
 
-        {/* ---------------------------------------------------------------- */}
-        {/* Body                                                             */}
-        {/* ---------------------------------------------------------------- */}
-        <div className="px-5 py-4 flex flex-col gap-4">
-          {/* PHASE: offer */}
+            {/* Name preview — up to 3 names */}
+            {localEstimates.length > 0 && (
+              <ul className="flex flex-col gap-0.5 list-disc pl-4" aria-label={t.previewLabel}>
+                {localEstimates.slice(0, 3).map((p) => (
+                  <li key={p.id} className="text-2xs text-soft font-mono truncate">
+                    {p.name || t.untitled}
+                  </li>
+                ))}
+                {localEstimates.length > 3 && (
+                  <li className="text-2xs text-soft font-mono">{t.andMore(localEstimates.length - 3)}</li>
+                )}
+              </ul>
+            )}
+          </>
+        )}
+
+        {/* PHASE: importing */}
+        {phase === 'importing' && (
+          <div className="flex items-center gap-3 py-2" aria-live="polite">
+            <Spinner />
+            <span className="text-sm text-text">{t.importing(n)}</span>
+          </div>
+        )}
+
+        {/* PHASE: results */}
+        {phase === 'results' && results && (
+          <>
+            {/* aria-live region — announced once when results arrive */}
+            <p className={`text-sm font-medium ${summaryClass}`} aria-live="polite">
+              {t.summary(importedCount, totalCount)}
+            </p>
+
+            <DataTable
+              caption={t.caption}
+              columns={[
+                {
+                  id: 'estimate',
+                  header: t.colEstimate,
+                  rowHeader: true,
+                  render: (row: ResultRow) => <span className="font-medium text-text">{row.name}</span>,
+                },
+                {
+                  id: 'status',
+                  header: t.colStatus,
+                  render: ({ result }: ResultRow) => (
+                    <>
+                      <ImportStatusBadge status={result.status} />
+                      {result.status === 'failed' && result.error && (
+                        <div className="text-soft text-2xs mt-0.5">{result.error}</div>
+                      )}
+                    </>
+                  ),
+                },
+              ]}
+              rows={results.map((result, idx) => ({
+                rowId: result.localId ?? String(idx),
+                // Match result back to the local estimate by localId for the name.
+                name: localEstimates.find((p) => p.id === result.localId)?.name || result.localId || t.untitled,
+                result,
+              }))}
+              getRowKey={(row) => row.rowId}
+              testId="import-results-table"
+            />
+
+            <p className="text-2xs text-soft">{t.copiesKept}</p>
+          </>
+        )}
+      </div>
+
+      {/* Footer actions */}
+      {phase !== 'importing' && (
+        <div className="dialog-footer">
           {phase === 'offer' && (
             <>
-              <p className="text-sm text-text leading-relaxed">
-                <span className="font-semibold text-acc">
-                  {n} estimate{n !== 1 ? 's' : ''}
-                </span>{' '}
-                found in this browser that {n !== 1 ? 'are' : 'is'} not yet in your account. Import{' '}
-                {n !== 1 ? 'them' : 'it'} now to access from any device. Your local copies are always kept.
-              </p>
-
-              {/* Name preview — up to 3 names */}
-              {localEstimates.length > 0 && (
-                <ul className="flex flex-col gap-0.5">
-                  {localEstimates.slice(0, 3).map((p) => (
-                    <li key={p.id} className="text-[11px] text-soft font-mono truncate">
-                      · {p.name || 'Untitled'}
-                    </li>
-                  ))}
-                  {localEstimates.length > 3 && (
-                    <li className="text-[11px] text-muted font-mono">+ {localEstimates.length - 3} more</li>
-                  )}
-                </ul>
-              )}
+              <Button variant="ghost" onClick={onDecline}>
+                {t.skip}
+              </Button>
+              <Button ref={primaryBtnRef} variant="primary" onClick={onAccept}>
+                {t.importAll}
+              </Button>
             </>
-          )}
-
-          {/* PHASE: importing */}
-          {phase === 'importing' && (
-            <div className="flex items-center gap-3 py-2" aria-live="polite">
-              <span
-                className="inline-block w-4 h-4 border-2 border-acc border-t-transparent rounded-full animate-spin shrink-0"
-                aria-hidden="true"
-              />
-              <span className="text-sm text-text">
-                Importing {n} estimate{n !== 1 ? 's' : ''}…
-              </span>
-            </div>
-          )}
-
-          {/* PHASE: results */}
-          {phase === 'results' && results && (
-            <>
-              {/* aria-live region — announced once when results arrive */}
-              <p className={`text-sm font-medium ${summaryClass}`} aria-live="polite">
-                {importedCount} of {totalCount} imported successfully.
-              </p>
-
-              <div className="overflow-x-auto">
-                <table className="w-full text-[11px]">
-                  <thead>
-                    <tr className="border-b border-rule">
-                      <th
-                        scope="col"
-                        className="text-left py-1 px-2 text-[9px] font-mono text-soft uppercase tracking-wider"
-                      >
-                        Estimate
-                      </th>
-                      <th
-                        scope="col"
-                        className="text-left py-1 px-2 text-[9px] font-mono text-soft uppercase tracking-wider"
-                      >
-                        Status
-                      </th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {results.map((r, idx) => {
-                      // Match result back to the local estimate by localId for the name.
-                      const meta = localEstimates.find((p) => p.id === r.localId)
-                      const name = meta?.name || r.localId
-                      return (
-                        <tr key={r.localId ?? idx} className="border-b border-rule/50">
-                          <td className="py-1.5 px-2 font-medium text-text max-w-[200px] truncate">
-                            {name || 'Untitled'}
-                          </td>
-                          <td className="py-1.5 px-2">
-                            <StatusBadge status={r.status} />
-                            {r.status === 'failed' && r.error && (
-                              <div className="text-muted text-[10px] mt-0.5 truncate max-w-[180px]">{r.error}</div>
-                            )}
-                          </td>
-                        </tr>
-                      )
-                    })}
-                  </tbody>
-                </table>
-              </div>
-
-              <p className="text-[11px] text-muted">Your local copies have not been removed.</p>
-            </>
-          )}
-        </div>
-
-        {/* ---------------------------------------------------------------- */}
-        {/* Footer actions                                                   */}
-        {/* ---------------------------------------------------------------- */}
-        <div className="px-5 pb-4 pt-2 flex items-center justify-end gap-3 shrink-0">
-          {phase === 'offer' && (
-            <>
-              <button onClick={onDecline} className="text-sm text-muted hover:text-text transition-colors">
-                Skip for now
-              </button>
-              <button
-                ref={primaryBtnRef}
-                onClick={onAccept}
-                autoFocus
-                className="py-2 px-4 text-sm font-medium text-white bg-acc hover:bg-acc/90 transition-colors"
-              >
-                Import all
-              </button>
-            </>
-          )}
-
-          {phase === 'importing' && (
-            /* Invisible placeholder to keep footer height stable */
-            <span ref={primaryBtnRef as React.RefObject<HTMLSpanElement>} aria-hidden="true" />
           )}
 
           {phase === 'results' && (
-            <button
-              ref={closeBtnRef}
-              onClick={onClose}
-              autoFocus
-              data-testid="import-results-close"
-              className="py-2 px-4 text-sm font-medium border border-acc text-acc hover:bg-acc/10 transition-colors"
-            >
-              Close
-            </button>
+            <Button ref={closeBtnRef} variant="primary" onClick={onClose} data-testid="import-results-close">
+              {t.close}
+            </Button>
           )}
         </div>
-      </div>
-    </div>
+      )}
+    </Dialog>
   )
 }

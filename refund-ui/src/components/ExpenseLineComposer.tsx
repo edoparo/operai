@@ -5,12 +5,13 @@
  * — only once Expense type is `travel_km` — a required `km` field
  * (AC-1.2: "inapplicable — not shown/not required", not merely disabled).
  *
- * "Add line" stays disabled until every field required for the *current*
- * type is valid (ported pattern from `admin-ui/src/components/
- * InviteUserModal.tsx`'s disabled-until-valid submit) — `POST
- * /requests/:id/lines` has no partial-line endpoint, so there is no useful
- * "submit and see what's wrong" path here the way a modal-with-server-
- * validation has. On success the parent re-fetches/prepends the new line;
+ * Validation (INC-16, operai-ui/docs/design-system.md § Forms): every field is
+ * a `Field` (label, `*` required marker + `aria-required`, its own error under
+ * it with `aria-invalid`). Errors show on blur of a touched field and on
+ * "Add"; a failed "Add" moves focus to the first invalid field. "Add line" is
+ * disabled only while nothing has been typed yet (the date is pre-filled) —
+ * never as the only explanation of an error. `POST /requests/:id/lines` has no
+ * partial-line endpoint, so an invalid draft is never sent. On success the parent re-fetches/prepends the new line;
  * this component resets its own draft (back to today's date, everything
  * else blank) and stays mounted, open for rapid successive adds (design.md:
  * "the composer resets and stays open").
@@ -23,10 +24,10 @@
  * the two.
  *
  * A11y (design.md "## Accessibility"):
- *   - Every field has an explicit `<label htmlFor>`.
+ *   - Every field has an explicit `<label htmlFor>` (through `Field`).
  *   - The `km` field, when shown, carries `aria-required="true"` and a
  *     permanent "must be greater than 0" help association via
- *     `aria-describedby` (not just an on-error message).
+ *     `aria-describedby` (Field's hint — not just an on-error message).
  *   - The field's appearance/disappearance is announced via a local
  *     `aria-live="polite"` status line (mirrors `RoleEditor.tsx`'s
  *     `rule-composer-status` technique) — a sighted user sees the field
@@ -56,17 +57,19 @@
  * in-place line editor) is satisfied structurally, by absence.
  */
 
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import type { FormEvent } from 'react'
+import { Button, DateInput, Field, MoneyInput } from '@operai/ui'
 import { strings } from '../strings'
-import { EXPENSE_TYPES, requiresKm } from '../lib/expenseTypes'
+import { EXPENSE_TYPES, expenseTypeLabel, requiresKm } from '../lib/expenseTypes'
 import type { ExpenseType } from '../lib/expenseTypes'
 import type { Entity } from './EntityBadge'
 import type { Currency } from '../lib/money'
 import type { LinePayload } from '../lib/requestsApi'
 import { ApiError } from '../lib/refundApi'
 import type { LineDraftValue } from '../lib/lineDraft'
-import { emptyLineDraft, isLineDraftComplete, lineDraftToPayload } from '../lib/lineDraft'
+import { emptyLineDraft, isLineDraftBlank, lineDraftToPayload } from '../lib/lineDraft'
+import { useLineDraftValidation } from '../lib/useLineDraftValidation'
 import MileageAmountField from './MileageAmountField'
 import MotivoSuggestField from './MotivoSuggestField'
 import type { TripSuggestion } from '../lib/suggestionsApi'
@@ -90,6 +93,8 @@ export default function ExpenseLineComposer({ onAdd }: ExpenseLineComposerProps)
   const [kmStatus, setKmStatus] = useState('')
   /** Bumped after a successful add so `MotivoSuggestField` re-fetches its corpus and the trip just claimed is immediately suggestible (plan D6, AC-2.6). */
   const [corpusEpoch, setCorpusEpoch] = useState(0)
+  const formRef = useRef<HTMLFormElement>(null)
+  const validation = useLineDraftValidation(draft, formRef)
 
   const handleTypeChange = (value: string) => {
     const nextType = value as ExpenseType | ''
@@ -129,16 +134,21 @@ export default function ExpenseLineComposer({ onAdd }: ExpenseLineComposerProps)
     setKmStatus(t.suggestionApplied(suggestion.motivo, suggestion.km, badgeStrings[suggestion.entity]))
   }
 
-  const canAdd = isLineDraftComplete(draft) && !submitting
+  // INC-16: "Add" is disabled only while nothing has been typed yet; an
+  // incomplete draft is explained by per-field errors on submit, never by a
+  // silently disabled button.
+  const canAdd = !isLineDraftBlank(draft) && !submitting
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault()
     if (!canAdd) return
+    if (!validation.validate({ focus: true })) return
     setSubmitting(true)
     setError(null)
     try {
       await onAdd(lineDraftToPayload(draft))
       setDraft(emptyLineDraft())
+      validation.reset()
       setKmStatus('')
       setCorpusEpoch((epoch) => epoch + 1)
     } catch (err) {
@@ -149,75 +159,73 @@ export default function ExpenseLineComposer({ onAdd }: ExpenseLineComposerProps)
   }
 
   const showKm = draft.type !== '' && requiresKm(draft.type)
+  const motivoError = validation.errorFor('motivo')
 
   return (
     <form
+      ref={formRef}
+      noValidate
       onSubmit={(e) => void handleSubmit(e)}
       data-testid="expense-line-composer"
-      className="flex flex-col gap-3 rounded-md border p-4"
-      style={{ borderColor: 'var(--rule)', backgroundColor: 'var(--ink-soft)' }}
+      className="card"
     >
-      <h3 className="text-sm font-semibold" style={{ fontFamily: 'var(--disp)', color: 'var(--text)' }}>
-        {t.heading}
-      </h3>
+      <h3 className="card-title">{t.heading}</h3>
 
       <div className="grid gap-3" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))' }}>
-        <div className="flex flex-col gap-1">
-          <label htmlFor="composer-date" className="text-xs font-medium" style={{ color: 'var(--soft)' }}>
-            {t.dateLabel}
-          </label>
-          <input
-            id="composer-date"
-            type="date"
-            required
-            value={draft.date}
-            disabled={submitting}
-            onChange={(e) => setDraft((prev) => ({ ...prev, date: e.target.value }))}
-            data-testid="composer-date"
-            className="text-sm px-2.5 py-1.5 border rounded"
-            style={{
-              borderColor: 'var(--rule)',
-              color: 'var(--text)',
-              backgroundColor: 'var(--ink)',
-              colorScheme: 'dark',
-            }}
-          />
-        </div>
+        <Field label={t.dateLabel} error={validation.errorFor('date')} required>
+          {(control) => (
+            <DateInput
+              {...control}
+              value={draft.date}
+              disabled={submitting}
+              onChange={(e) => setDraft((prev) => ({ ...prev, date: e.target.value }))}
+              onBlur={validation.touch('date')}
+              data-testid="composer-date"
+            />
+          )}
+        </Field>
 
-        <div className="flex flex-col gap-1">
-          <label htmlFor="composer-type" className="text-xs font-medium" style={{ color: 'var(--soft)' }}>
-            {t.typeLabel}
-          </label>
-          <select
-            id="composer-type"
-            required
-            value={draft.type}
-            disabled={submitting}
-            onChange={(e) => handleTypeChange(e.target.value)}
-            data-testid="composer-type"
-            className="text-sm px-2.5 py-1.5 border rounded"
-            style={{ borderColor: 'var(--rule)', color: 'var(--text)', backgroundColor: 'var(--ink)' }}
-          >
-            <option value="">{t.typePlaceholder}</option>
-            {EXPENSE_TYPES.map((option) => (
-              <option key={option.id} value={option.id}>
-                {option.labelEn}
-              </option>
-            ))}
-          </select>
-        </div>
+        <Field label={t.typeLabel} error={validation.errorFor('type')} required>
+          {(control) => (
+            <select
+              {...control}
+              value={draft.type}
+              disabled={submitting}
+              onChange={(e) => handleTypeChange(e.target.value)}
+              onBlur={validation.touch('type')}
+              data-testid="composer-type"
+            >
+              <option value="">{t.typePlaceholder}</option>
+              {EXPENSE_TYPES.map((option) => (
+                <option key={option.id} value={option.id}>
+                  {expenseTypeLabel(option.id)}
+                </option>
+              ))}
+            </select>
+          )}
+        </Field>
 
-        <div className="flex flex-col gap-1">
-          <label htmlFor="composer-motivo" className="text-xs font-medium" style={{ color: 'var(--soft)' }}>
+        {/*
+          Field's own markup, written out (not `<Field>`): the combobox keeps
+          its fixed id `composer-motivo`, which it also uses as its test id and
+          as the prefix of its listbox/option/live-region ids — `Field` would
+          replace it with a generated one. Same classes, same wiring: label →
+          control, required marker + aria-required, error → aria-invalid +
+          aria-describedby.
+
+          ONE JSX node across both expense-type branches (never a
+          `showKm ? <MotivoSuggestField/> : <input/>` fork), so React
+          reconciles the same DOM element and the employee's focus, caret and
+          IME composition survive an expense-type change. `enabled` alone
+          switches the combobox behaviour on and off (AC-1.1).
+        */}
+        <div className="field">
+          <label htmlFor="composer-motivo" className="field-label">
             {t.motivoLabel}
+            <span aria-hidden="true" className="field-required">
+              *
+            </span>
           </label>
-          {/*
-            ONE JSX node across both expense-type branches (never a
-            `showKm ? <MotivoSuggestField/> : <input/>` fork), so React
-            reconciles the same DOM element and the employee's focus, caret and
-            IME composition survive an expense-type change. `enabled` alone
-            switches the combobox behaviour on and off (AC-1.1).
-          */}
           <MotivoSuggestField
             id="composer-motivo"
             value={draft.motivo}
@@ -227,7 +235,15 @@ export default function ExpenseLineComposer({ onAdd }: ExpenseLineComposerProps)
             disabled={submitting}
             required
             corpusEpoch={corpusEpoch}
+            invalid={motivoError !== undefined}
+            describedBy={motivoError ? 'composer-motivo-error' : undefined}
+            onFieldBlur={validation.touch('motivo')}
           />
+          {motivoError && (
+            <p id="composer-motivo-error" className="field-error">
+              {motivoError}
+            </p>
+          )}
         </div>
 
         {/* specs/009-mileage-rate AC-1.1: for travel_km, Amount is replaced by the
@@ -237,100 +253,82 @@ export default function ExpenseLineComposer({ onAdd }: ExpenseLineComposerProps)
             <MileageAmountField entity={draft.entity} date={draft.date} km={draft.km} />
           </div>
         ) : (
-          <div className="flex flex-col gap-1">
-            <label htmlFor="composer-amount" className="text-xs font-medium" style={{ color: 'var(--soft)' }}>
-              {t.amountLabel}
-            </label>
-            <input
-              id="composer-amount"
-              type="number"
-              step="0.01"
-              min="0"
-              required
-              value={draft.amount}
-              disabled={submitting}
-              onChange={(e) => setDraft((prev) => ({ ...prev, amount: e.target.value }))}
-              data-testid="composer-amount"
-              className="text-sm px-2.5 py-1.5 border rounded"
-              style={{ borderColor: 'var(--rule)', color: 'var(--text)', backgroundColor: 'var(--ink)' }}
-            />
-          </div>
+          <Field label={t.amountLabel} error={validation.errorFor('amount')} required>
+            {(control) => (
+              <MoneyInput
+                {...control}
+                value={draft.amount}
+                disabled={submitting}
+                onChange={(e) => setDraft((prev) => ({ ...prev, amount: e.target.value }))}
+                onBlur={validation.touch('amount')}
+                data-testid="composer-amount"
+              />
+            )}
+          </Field>
         )}
 
-        <div className="flex flex-col gap-1">
-          <label htmlFor="composer-entity" className="text-xs font-medium" style={{ color: 'var(--soft)' }}>
-            {t.entityLabel}
-          </label>
-          <select
-            id="composer-entity"
-            required
-            value={draft.entity}
-            disabled={submitting}
-            onChange={(e) => setDraft((prev) => ({ ...prev, entity: e.target.value as Entity | '' }))}
-            data-testid="composer-entity"
-            className="text-sm px-2.5 py-1.5 border rounded"
-            style={{ borderColor: 'var(--rule)', color: 'var(--text)', backgroundColor: 'var(--ink)' }}
-          >
-            <option value="">{t.entityPlaceholder}</option>
-            {ENTITY_OPTIONS.map((entity) => (
-              <option key={entity} value={entity}>
-                {badgeStrings[entity]}
-              </option>
-            ))}
-          </select>
-        </div>
+        <Field label={t.entityLabel} error={validation.errorFor('entity')} required>
+          {(control) => (
+            <select
+              {...control}
+              value={draft.entity}
+              disabled={submitting}
+              onChange={(e) => setDraft((prev) => ({ ...prev, entity: e.target.value as Entity | '' }))}
+              onBlur={validation.touch('entity')}
+              data-testid="composer-entity"
+            >
+              <option value="">{t.entityPlaceholder}</option>
+              {ENTITY_OPTIONS.map((entity) => (
+                <option key={entity} value={entity}>
+                  {badgeStrings[entity]}
+                </option>
+              ))}
+            </select>
+          )}
+        </Field>
 
         {/* specs/009-mileage-rate AC-1.6: for travel_km, currency is entity-designated,
             never independently selectable — the select is absent, not disabled. */}
         {!showKm && (
-          <div className="flex flex-col gap-1">
-            <label htmlFor="composer-currency" className="text-xs font-medium" style={{ color: 'var(--soft)' }}>
-              {t.currencyLabel}
-            </label>
-            <select
-              id="composer-currency"
-              required
-              value={draft.currency}
-              disabled={submitting}
-              onChange={(e) => setDraft((prev) => ({ ...prev, currency: e.target.value as Currency | '' }))}
-              data-testid="composer-currency"
-              className="text-sm px-2.5 py-1.5 border rounded"
-              style={{ borderColor: 'var(--rule)', color: 'var(--text)', backgroundColor: 'var(--ink)' }}
-            >
-              <option value="">{t.currencyPlaceholder}</option>
-              {CURRENCY_OPTIONS.map((currency) => (
-                <option key={currency} value={currency}>
-                  {currencyStrings[currency]}
-                </option>
-              ))}
-            </select>
-          </div>
+          <Field label={t.currencyLabel} error={validation.errorFor('currency')} required>
+            {(control) => (
+              <select
+                {...control}
+                value={draft.currency}
+                disabled={submitting}
+                onChange={(e) => setDraft((prev) => ({ ...prev, currency: e.target.value as Currency | '' }))}
+                onBlur={validation.touch('currency')}
+                data-testid="composer-currency"
+              >
+                <option value="">{t.currencyPlaceholder}</option>
+                {CURRENCY_OPTIONS.map((currency) => (
+                  <option key={currency} value={currency}>
+                    {currencyStrings[currency]}
+                  </option>
+                ))}
+              </select>
+            )}
+          </Field>
         )}
 
+        {/* A distance is a quantity, not money: it stays `type="number"` (INC-17). */}
         {showKm && (
-          <div className="flex flex-col gap-1">
-            <label htmlFor="composer-km" className="text-xs font-medium" style={{ color: 'var(--soft)' }}>
-              {t.kmLabel}
-            </label>
-            <input
-              id="composer-km"
-              type="number"
-              min="1"
-              step="1"
-              required
-              aria-required="true"
-              aria-describedby="composer-km-help"
-              value={draft.km}
-              disabled={submitting}
-              onChange={(e) => setDraft((prev) => ({ ...prev, km: e.target.value }))}
-              data-testid="composer-km"
-              className="text-sm px-2.5 py-1.5 border rounded"
-              style={{ borderColor: 'var(--rule)', color: 'var(--text)', backgroundColor: 'var(--ink)' }}
-            />
-            <p id="composer-km-help" className="text-[11px]" style={{ color: 'var(--muted)' }}>
-              {t.kmHelp}
-            </p>
-          </div>
+          <Field label={t.kmLabel} hint={t.kmHelp} error={validation.errorFor('km')} required>
+            {(control) => (
+              <input
+                {...control}
+                type="number"
+                min="1"
+                step="1"
+                className="input-figure"
+                value={draft.km}
+                disabled={submitting}
+                onChange={(e) => setDraft((prev) => ({ ...prev, km: e.target.value }))}
+                onBlur={validation.touch('km')}
+                data-testid="composer-km"
+              />
+            )}
+          </Field>
         )}
       </div>
 
@@ -340,21 +338,21 @@ export default function ExpenseLineComposer({ onAdd }: ExpenseLineComposerProps)
       </p>
 
       {error && (
-        <p role="alert" data-testid="composer-error" className="text-xs" style={{ color: 'var(--red)' }}>
+        <p role="alert" data-testid="composer-error" className="form-error">
           {error}
         </p>
       )}
 
       <div>
-        <button
+        <Button
           type="submit"
+          variant="secondary"
           disabled={!canAdd}
+          busy={submitting}
           data-testid="composer-add-button"
-          className="py-1.5 px-3 text-sm font-medium border transition-opacity hover:opacity-80 disabled:opacity-40 disabled:cursor-not-allowed"
-          style={{ borderColor: 'var(--acc)', color: 'var(--acc)' }}
         >
           {submitting ? t.addingLabel : t.addButton}
-        </button>
+        </Button>
       </div>
     </form>
   )

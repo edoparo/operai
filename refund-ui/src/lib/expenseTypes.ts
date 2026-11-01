@@ -23,6 +23,9 @@
  * switch needs no re-derivation from spec.md.
  */
 
+import { resolveLocale } from '@operai/ui'
+import type { Locale } from '@operai/ui'
+
 export type ExpenseType =
   | 'travel_highway'
   | 'travel_km'
@@ -45,30 +48,30 @@ export type ExpenseTypeOption = {
 
 /** Order matches spec.md's domain-language table (#1–#12). */
 export const EXPENSE_TYPES: readonly ExpenseTypeOption[] = [
-  { id: 'travel_highway', labelEn: 'Travel — highway', labelIt: 'spese di viaggio (autostrada)' },
-  { id: 'travel_km', labelEn: 'Travel — mileage (km)', labelIt: 'spese di viaggio (km)' },
-  { id: 'travel_parking', labelEn: 'Travel — parking', labelIt: 'spese di viaggio (parcheggio)' },
-  { id: 'travel_train', labelEn: 'Travel — train', labelIt: 'spese di viaggio (treno)' },
+  { id: 'travel_highway', labelEn: 'Travel — highway', labelIt: 'Spese di viaggio (autostrada)' },
+  { id: 'travel_km', labelEn: 'Travel — mileage (km)', labelIt: 'Spese di viaggio (km)' },
+  { id: 'travel_parking', labelEn: 'Travel — parking', labelIt: 'Spese di viaggio (parcheggio)' },
+  { id: 'travel_train', labelEn: 'Travel — train', labelIt: 'Spese di viaggio (treno)' },
   {
     id: 'travel_other_public_transport',
     labelEn: 'Travel — other public transport',
-    labelIt: 'spese di viaggio (altri mezzi pubblici)',
+    labelIt: 'Spese di viaggio (altri mezzi pubblici)',
   },
-  { id: 'company_manuals', labelEn: 'Company manuals', labelIt: 'spese manualistica societaria' },
-  { id: 'stationery', labelEn: 'Stationery', labelIt: 'spese di cancelleria' },
+  { id: 'company_manuals', labelEn: 'Company manuals', labelIt: 'Spese manualistica societaria' },
+  { id: 'stationery', labelEn: 'Stationery', labelIt: 'Spese di cancelleria' },
   {
     id: 'representation_meals',
     labelEn: 'Representation — meals',
-    labelIt: 'spese di rappresentanza (pranzi/cene/aperitivi)',
+    labelIt: 'Spese di rappresentanza (pranzi/cene/aperitivi)',
   },
   {
     id: 'representation_gifts',
     labelEn: 'Representation — gifts',
-    labelIt: 'spese di rappresentanza (regali)',
+    labelIt: 'Spese di rappresentanza (regali)',
   },
-  { id: 'office_material', labelEn: 'Office material', labelIt: 'spese materiale ufficio' },
-  { id: 'postal', labelEn: 'Postal', labelIt: 'spese postali' },
-  { id: 'telephone', labelEn: 'Telephone', labelIt: 'spese telefoniche' },
+  { id: 'office_material', labelEn: 'Office material', labelIt: 'Spese materiale ufficio' },
+  { id: 'postal', labelEn: 'Postal', labelIt: 'Spese postali' },
+  { id: 'telephone', labelEn: 'Telephone', labelIt: 'Spese telefoniche' },
 ] as const
 
 /**
@@ -80,6 +83,17 @@ export const EXPENSE_TYPES: readonly ExpenseTypeOption[] = [
  * `ExpenseLineComposer`/`ExpenseLineRow` (T16) drive their conditional field
  * off this rather than re-hardcoding the literal `'travel_km'` string.
  */
+/**
+ * An expense type's label in the person's language (INC-25). `labelEn` is the
+ * canonical document label shared with refund-api's PDFs
+ * (documentLabels.parity.test.ts); `labelIt` its Italian name.
+ */
+export const expenseTypeLabel = (type: ExpenseType, locale: Locale = resolveLocale()): string => {
+  const option = EXPENSE_TYPES.find((o) => o.id === type)
+  if (!option) return type
+  return locale === 'it' ? option.labelIt : option.labelEn
+}
+
 export const KM_REQUIRED_TYPE: ExpenseType = 'travel_km'
 
 /** True only for the one expense type that requires (and accepts) `km`. */

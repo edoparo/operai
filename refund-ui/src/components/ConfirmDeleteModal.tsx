@@ -5,13 +5,13 @@
  * copy) … used as-is"; Component inventory: "ConfirmDeleteModal — Reuse
  * (ported pattern) — admin-ui/src/components/ConfirmDeleteModal.tsx").
  *
- * Ported pattern: `refund-ui` cannot import admin-ui's source across the
- * Module Federation boundary (ADR-0006), so this is a near-verbatim
- * re-authoring of `admin-ui/src/components/ConfirmDeleteModal.tsx` (itself
- * ported from `estimai-ui`) — same props shape, same idle/deleting/error
- * states, same focus-trap and keyboard contract, generalised from "role"/
- * "department" to any named entity (here: a draft refund request) via
- * `entityLabel` + `itemName`. Used as-is by T16's "Delete request" flow —
+ Now a thin adapter over @operai/ui's `ConfirmDialog` (ADR-0050), which
+ * owns the frame, the focus trap, the keyboard contract and the look; this
+ * file keeps refund-ui's props, copy and test ids so no call site changed.
+ * It replaced a re-authoring of `admin-ui/src/components/ConfirmDeleteModal.tsx`
+ * (a remote cannot import another remote's source, ADR-0006 — the reason the
+ * shared library exists). Generalised to any named entity (here: a draft
+ * refund request) via `entityLabel` + `itemName`. Used as-is by T16's "Delete request" flow —
  * design.md does not ask for an extended variant here (unlike `ApproveDialog`,
  * T18's ported+extended sibling).
  *
@@ -26,20 +26,21 @@
  *
  * A11y:
  *   • role="alertdialog" aria-modal="true" aria-labelledby + aria-describedby
- *   • Focus trap: Tab cycles only between Cancel and Delete while open.
+ *   • Focus trap over the dialog's buttons (×, Cancel, confirm).
  *   • Default focus: "Cancel" (safe default — avoids accidental destruction).
- *   • Escape = Cancel; no delete is triggered.
+ *   • Escape / backdrop = Cancel, except while deleting; focus returns to the trigger.
  *
  * States:
  *   • idle      — title + body + Cancel + Delete buttons
- *   • deleting  — "Deleting…" + spinner, both buttons disabled
+ *   • deleting  — "Deleting…" + spinner, both buttons disabled, not dismissible
  *   • error     — inline error text between body and footer; both buttons re-enabled
  *
  * T18 extension (specs/007-refund-service/tasks.md, design.md Component
  * inventory: "ApproveDialog — Reuse (ported, extended) — ConfirmDeleteModal's
  * shell, ported + a new non-destructive tone='positive' variant … the same
  * kind of backward-compatible prop extension specs/006 already applied to
- * this component's body prop"): `tone`/`title`/`confirmLabel`/
+ * this component's body prop"): `tone` (`positive` = the
+ * library's `primary` confirm button, `destructive` = `danger`)/`title`/`confirmLabel`/
  * `confirmingLabel`/`testIdPrefix` are all optional, defaulting to this
  * component's original hard-delete behavior verbatim — every existing call
  * site (and every test above) is untouched. `ApproveDialog.tsx` is a thin
@@ -47,13 +48,9 @@
  * `testIdPrefix` so an "Approve" flow's tests never read "confirm-delete-*".
  */
 
-import { useEffect, useRef } from 'react'
 import type { ReactNode } from 'react'
+import { ConfirmDialog } from '@operai/ui'
 import { strings } from '../strings'
-
-// ---------------------------------------------------------------------------
-// Types
-// ---------------------------------------------------------------------------
 
 export type ConfirmDeleteModalTone = 'destructive' | 'positive'
 
@@ -68,11 +65,11 @@ export type ConfirmDeleteModalProps = {
   errorMessage: string | null
   /** Called when the user confirms deletion (clicks "Delete"). */
   onConfirm: () => void
-  /** Called when the user cancels (clicks "Cancel", "×", or presses Escape). */
+  /** Called when the user cancels (clicks "Cancel", "×", the backdrop, or presses Escape). */
   onCancel: () => void
   /** Overrides the default body copy. Omit to keep the default hard-delete wording. */
   body?: ReactNode
-  /** Recolors the confirm button (`--grn` for a non-destructive action like Approve). Defaults to `'destructive'` (`--red`) — this component's original behavior. */
+  /** `positive` for a non-destructive confirmation like Approve (primary button); defaults to `destructive` (danger button). */
   tone?: ConfirmDeleteModalTone
   /** Overrides the default `t.title(entityLabel)` heading. */
   title?: ReactNode
@@ -80,13 +77,9 @@ export type ConfirmDeleteModalProps = {
   confirmLabel?: string
   /** Overrides the default "Deleting…" in-flight label. */
   confirmingLabel?: string
-  /** Namespaces every `data-testid`/internal id this dialog renders. Defaults to `'confirm-delete'`. */
+  /** Namespaces every `data-testid` this dialog renders (`-modal`, `-cancel`, `-confirm`, `-error`). Defaults to `'confirm-delete'`. */
   testIdPrefix?: string
 }
-
-// ---------------------------------------------------------------------------
-// Component
-// ---------------------------------------------------------------------------
 
 export default function ConfirmDeleteModal({
   entityLabel,
@@ -102,141 +95,24 @@ export default function ConfirmDeleteModal({
   confirmingLabel,
   testIdPrefix = 'confirm-delete',
 }: ConfirmDeleteModalProps) {
-  const cancelBtnRef = useRef<HTMLButtonElement>(null)
-  const deleteBtnRef = useRef<HTMLButtonElement>(null)
   const t = strings.components.confirmDeleteModal
-  const confirmColor = tone === 'positive' ? 'var(--grn)' : 'var(--red)'
-  const titleId = `${testIdPrefix}-title`
-  const bodyId = `${testIdPrefix}-body`
-
-  // Focus Cancel on mount — safe default.
-  useEffect(() => {
-    cancelBtnRef.current?.focus()
-  }, [])
-
-  // Keyboard: Escape = Cancel; Tab / Shift+Tab trapped within the two buttons.
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') {
-        e.preventDefault()
-        onCancel()
-        return
-      }
-
-      if (e.key !== 'Tab') return
-
-      const focusable = [cancelBtnRef.current, deleteBtnRef.current].filter(
-        (el): el is HTMLButtonElement => el !== null && !el.disabled,
-      )
-      if (focusable.length === 0) return
-
-      const first = focusable[0]
-      const last = focusable[focusable.length - 1]
-
-      if (e.shiftKey) {
-        if (document.activeElement === first) {
-          e.preventDefault()
-          last.focus()
-        }
-      } else {
-        if (document.activeElement === last) {
-          e.preventDefault()
-          first.focus()
-        }
-      }
-    }
-
-    window.addEventListener('keydown', onKey)
-    return () => window.removeEventListener('keydown', onKey)
-  }, [onCancel])
-
-  const displayName = itemName || t.untitledFallback
 
   return (
-    <div
-      className="fixed inset-0 z-50 flex items-center justify-center backdrop-blur-sm"
-      style={{ backgroundColor: 'rgba(0, 0, 0, 0.6)' }}
-      onClick={onCancel}
-      data-testid={`${testIdPrefix}-modal`}
+    <ConfirmDialog
+      title={title ?? t.title(entityLabel)}
+      tone={tone === 'positive' ? 'primary' : 'danger'}
+      confirmLabel={confirmLabel ?? t.deleteLabel}
+      busyLabel={confirmingLabel ?? t.deletingLabel}
+      cancelLabel={t.cancelLabel}
+      closeLabel={t.cancelAriaLabel}
+      busy={isDeleting}
+      error={errorMessage}
+      onConfirm={onConfirm}
+      onCancel={onCancel}
+      testIdPrefix={testIdPrefix}
+      backdropTestId={`${testIdPrefix}-modal`}
     >
-      <div
-        role="alertdialog"
-        aria-modal="true"
-        aria-labelledby={titleId}
-        aria-describedby={bodyId}
-        className="border rounded-lg shadow-2xl w-full max-w-sm mx-4 p-5"
-        style={{ backgroundColor: 'var(--ink-soft)', borderColor: 'var(--rule)' }}
-        onClick={(e) => e.stopPropagation()}
-      >
-        {/* Header */}
-        <div className="flex items-center justify-between mb-3">
-          <h2 id={titleId} className="text-sm font-bold" style={{ fontFamily: 'var(--disp)', color: 'var(--text)' }}>
-            {title ?? t.title(entityLabel)}
-          </h2>
-          <button
-            onClick={onCancel}
-            disabled={isDeleting}
-            className="text-lg leading-none transition-opacity hover:opacity-80 disabled:opacity-40 disabled:cursor-not-allowed"
-            style={{ color: 'var(--muted)' }}
-            aria-label={t.cancelAriaLabel}
-          >
-            ×
-          </button>
-        </div>
-
-        {/* Body — a <div>, not a <p>, so an overriding `body` can nest block
-            content without invalid markup; aria-describedby targets it either way. */}
-        <div id={bodyId} className="text-sm leading-relaxed mb-4" style={{ color: 'var(--text)' }}>
-          {body ?? <p>{t.defaultBody(displayName)}</p>}
-        </div>
-
-        {/* Inline error (between body and footer) */}
-        {errorMessage && (
-          <p
-            className="text-sm mb-3"
-            style={{ color: 'var(--org)' }}
-            role="alert"
-            data-testid={`${testIdPrefix}-error`}
-          >
-            {errorMessage}
-          </p>
-        )}
-
-        {/* Footer */}
-        <div className="flex items-center justify-end gap-3">
-          <button
-            ref={cancelBtnRef}
-            onClick={onCancel}
-            disabled={isDeleting}
-            data-testid={`${testIdPrefix}-cancel`}
-            className="py-2 px-4 text-sm font-medium border transition-opacity hover:opacity-80 disabled:opacity-40 disabled:cursor-not-allowed"
-            style={{ borderColor: 'var(--rule)', color: 'var(--muted)' }}
-          >
-            {t.cancelLabel}
-          </button>
-          <button
-            ref={deleteBtnRef}
-            onClick={onConfirm}
-            disabled={isDeleting}
-            data-testid={`${testIdPrefix}-confirm`}
-            className="py-2 px-4 text-sm font-medium border transition-opacity hover:opacity-80 disabled:opacity-40 disabled:cursor-not-allowed"
-            style={{ color: confirmColor, borderColor: confirmColor }}
-          >
-            {isDeleting ? (
-              <span className="flex items-center gap-2">
-                <span
-                  className="inline-block w-3 h-3 border-2 rounded-full animate-spin motion-reduce:animate-none"
-                  style={{ borderColor: confirmColor, borderTopColor: 'transparent' }}
-                  aria-hidden="true"
-                />
-                {confirmingLabel ?? t.deletingLabel}
-              </span>
-            ) : (
-              (confirmLabel ?? t.deleteLabel)
-            )}
-          </button>
-        </div>
-      </div>
-    </div>
+      {body ?? <p>{t.defaultBody(itemName || t.untitledFallback)}</p>}
+    </ConfirmDialog>
   )
 }

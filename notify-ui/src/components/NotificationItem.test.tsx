@@ -41,6 +41,7 @@
 
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { cleanup, fireEvent, render, screen } from '@testing-library/react'
+import { formatDateTime, formatRelative } from '@operai/ui'
 import NotificationItem from './NotificationItem'
 import type { Notification } from '../lib/notificationsApi'
 
@@ -77,28 +78,45 @@ describe('NotificationItem', () => {
     expect(screen.getByTestId('notification-origin-notif-1').textContent).toBe('EstimAI')
     expect(screen.getByText('Severity: Success')).not.toBeNull()
 
-    const icon = screen.getByText('✓')
-    expect(icon.getAttribute('aria-hidden')).toBe('true')
+    // The severity icon is the library's decorative SVG (INC-31), never a glyph.
+    const icon = screen.getByTestId('notification-item-notif-1').querySelector('svg.icon')
+    expect(icon?.getAttribute('aria-hidden')).toBe('true')
 
     const time = document.querySelector('time')
     expect(time).not.toBeNull()
     expect(time?.getAttribute('dateTime')).toBe('2026-07-10T08:00:00.000Z')
   })
 
+  it('shows the time through the suite formatters: relative text, absolute dd.mm.yyyy hh:mm title (INC-26)', () => {
+    const createdAt = new Date(Date.now() - 3 * 60 * 60 * 1000).toISOString()
+    render(<NotificationItem notification={{ ...baseNotification, createdAt }} wasUnread={false} />)
+
+    const time = document.querySelector('time')
+    expect(time?.textContent).toBe(formatRelative(createdAt))
+    expect(time?.textContent).toBe('3 hours ago')
+    expect(time?.getAttribute('title')).toBe(formatDateTime(createdAt))
+    expect(time?.getAttribute('title')).toMatch(/^\d{2}\.\d{2}\.\d{4} \d{2}:\d{2}$/)
+  })
+
   it("renders each severity's own icon + sr-only label", () => {
-    const cases: Array<[Notification['severity'], string, string]> = [
-      ['info', 'ⓘ', 'Severity: Info'],
-      ['success', '✓', 'Severity: Success'],
-      ['warning', '⚠', 'Severity: Warning'],
-      ['error', '✕', 'Severity: Error'],
+    // Each severity draws a different library icon: compare the SVG shapes.
+    const cases: Array<[Notification['severity'], string]> = [
+      ['info', 'Severity: Info'],
+      ['success', 'Severity: Success'],
+      ['warning', 'Severity: Warning'],
+      ['error', 'Severity: Error'],
     ]
 
-    for (const [severity, icon, label] of cases) {
+    const shapes = new Set<string>()
+    for (const [severity, label] of cases) {
       render(<NotificationItem notification={{ ...baseNotification, severity }} wasUnread={false} />)
-      expect(screen.getByText(icon)).not.toBeNull()
+      const icon = screen.getByTestId('notification-item-notif-1').querySelector('svg.icon')
+      expect(icon?.getAttribute('aria-hidden')).toBe('true')
+      shapes.add(icon?.innerHTML ?? '')
       expect(screen.getByText(label)).not.toBeNull()
       cleanup()
     }
+    expect(shapes.size).toBe(cases.length)
   })
 
   // (B) Was-unread affordance

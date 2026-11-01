@@ -1,0 +1,11 @@
+/* Storybook gets the same stylesheet the shell builds: Tailwind, then the
+   library's tokens, scanning the library's own source. */
+@import 'tailwindcss';
+@import '../src/styles/tokens.css';
+
+@source '../src';
+
+/* Storybook mounts stories in #storybook-root, not #root. */
+#storybook-root {
+  min-height: 100%;
+}

@@ -9,7 +9,7 @@
  * (`row-${line.id}-attachments-seam`).
  *
  * Two modes:
- *   - `edit` (Screen R2 draft): "+ Attach files" (hidden multi-file input,
+ *   - `edit` (Screen R2 draft): "Attach files" (hidden multi-file input,
  *     `EstimatesPage.tsx`'s ref+button-click trigger convention). Each
  *     selected file is checked client-side first (≤10 MiB,
  *     pdf/jpeg/png — `lib/attachmentsApi.ts`'s `validateFileForUpload`); a
@@ -44,6 +44,7 @@
 
 import { useRef, useState } from 'react'
 import type { ChangeEvent } from 'react'
+import { Button, Icon, VisuallyHidden } from '@operai/ui'
 import { strings } from '../strings'
 import type { Attachment } from '../lib/requestsApi'
 import { validateFileForUpload } from '../lib/attachmentsApi'
@@ -92,6 +93,9 @@ export default function AttachmentList({
   const [removingId, setRemovingId] = useState<string | null>(null)
   const [removeConfirmId, setRemoveConfirmId] = useState<string | null>(null)
   const [removeError, setRemoveError] = useState<string | null>(null)
+  // INC-19: the file appearing in / leaving the list is the visible
+  // confirmation; this always-mounted polite region says it to a screen reader.
+  const [announcement, setAnnouncement] = useState('')
   const fileInputRef = useRef<HTMLInputElement>(null)
   const attachmentPendingRemoval = attachments.find((a) => a.id === removeConfirmId) ?? null
 
@@ -131,6 +135,7 @@ export default function AttachmentList({
     try {
       const attachment = await onUpload(file)
       updateItem(localId, { localId, fileName: file.name, status: 'stored', attachment })
+      setAnnouncement(t.uploadedAnnouncement(file.name))
     } catch (err) {
       // Keep the raw cause in the console — the inline reason is user-facing
       // copy, this is what an operator actually needs to debug.
@@ -176,11 +181,13 @@ export default function AttachmentList({
 
   const handleRemoveConfirm = async () => {
     if (!removeConfirmId || !onRemove) return
+    const removedName = attachmentPendingRemoval?.fileName
     setRemovingId(removeConfirmId)
     setRemoveError(null)
     try {
       await onRemove(removeConfirmId)
       setRemoveConfirmId(null)
+      if (removedName) setAnnouncement(t.removedAnnouncement(removedName))
     } catch (err) {
       setRemoveError(err instanceof ApiError ? (err.detail ?? err.title) : t.removeConfirmError)
     } finally {
@@ -210,24 +217,28 @@ export default function AttachmentList({
 
   return (
     <div className="flex flex-col gap-2" data-testid={`attachment-list-${lineId}`}>
+      {mode === 'edit' && (
+        <VisuallyHidden live data-testid={`attachment-list-${lineId}-announcement`}>
+          {announcement}
+        </VisuallyHidden>
+      )}
       {hasAnyRows && (
         <ul className="flex flex-col gap-1.5">
           {attachments.map((attachment) => (
             <li key={attachment.id} className="flex items-center gap-2">
               <AttachmentDownloadLink attachment={attachment} onDownload={onDownload} />
               {mode === 'edit' && (
-                <button
-                  type="button"
+                <Button
+                  variant="ghost"
+                  iconOnly
                   onClick={() => handleRemoveClick(attachment.id)}
                   disabled={removingId === attachment.id}
                   aria-label={t.removeLabel(attachment.fileName)}
                   title={t.removeTitle}
                   data-testid={`attachment-remove-${attachment.id}`}
-                  className="text-sm leading-none transition-opacity hover:opacity-80 disabled:opacity-40"
-                  style={{ color: 'var(--muted)' }}
                 >
-                  ×
-                </button>
+                  <Icon name="close" />
+                </Button>
               )}
             </li>
           ))}
@@ -240,26 +251,25 @@ export default function AttachmentList({
                 className="flex items-center gap-2 text-xs"
                 data-testid={`attachment-upload-${item.localId}`}
               >
-                <span style={{ color: 'var(--text)' }}>{item.fileName}</span>
+                <span className="text-text">{item.fileName}</span>
                 <span
+                  className={`${isTerminalIssue ? 'text-red-text' : 'text-soft'}`}
                   aria-live="polite"
                   role={isTerminalIssue ? 'alert' : undefined}
                   data-testid={`attachment-upload-${item.localId}-status`}
-                  style={{ color: isTerminalIssue ? 'var(--red)' : 'var(--muted)' }}
                 >
                   {statusLabel(item)}
                 </span>
                 {isTerminalIssue && (
-                  <button
-                    type="button"
+                  <Button
+                    variant="ghost"
+                    iconOnly
                     onClick={() => dismissUploadItem(item.localId)}
                     aria-label={t.dismissLabel(item.fileName)}
                     data-testid={`attachment-upload-${item.localId}-dismiss`}
-                    className="text-sm leading-none transition-opacity hover:opacity-80"
-                    style={{ color: 'var(--muted)' }}
                   >
-                    ×
-                  </button>
+                    <Icon name="close" />
+                  </Button>
                 )}
               </li>
             )
@@ -269,15 +279,14 @@ export default function AttachmentList({
 
       {mode === 'edit' && (
         <div>
-          <button
-            type="button"
+          <Button
+            variant="secondary"
+            size="sm"
             onClick={() => fileInputRef.current?.click()}
             data-testid={`attachment-attach-button-${lineId}`}
-            className="text-[11px] font-medium border px-2 py-1 transition-opacity hover:opacity-80"
-            style={{ borderColor: 'var(--rule)', color: 'var(--soft)' }}
           >
             {t.attachButton}
-          </button>
+          </Button>
           <input
             ref={fileInputRef}
             type="file"
@@ -292,7 +301,7 @@ export default function AttachmentList({
 
       {attachmentPendingRemoval && (
         <ConfirmDeleteModal
-          entityLabel="attachment"
+          entityLabel={t.removeConfirmEntityLabel}
           itemName={attachmentPendingRemoval.fileName}
           title={t.removeConfirmTitle}
           body={<p>{t.removeConfirmBody(attachmentPendingRemoval.fileName)}</p>}

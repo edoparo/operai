@@ -33,7 +33,7 @@
  *   (K) Bulk delete (T11, AC-6.3): confirming calls `bulkDeleteUsers` with
  *       the selected ids, and a persistent `BulkDeleteResultPanel` (not a
  *       toast) renders the skipped users with their server-supplied reasons.
- *   (L) "+ Invite user" (design.md Screen U1, closed post-T12): the button
+ *   (L) "Invite user" (design.md Screen U1, closed post-T12): the button
  *       opens the SAME `InviteUserModal` the Invitations tab uses; submitting
  *       calls the SAME `adminApi.createInvitation`, closes the modal on 201,
  *       and announces the outcome (aria-live) — mirrors
@@ -368,6 +368,9 @@ describe('UsersPage', () => {
     await waitFor(() => {
       expect(adminApi.listUsers).toHaveBeenCalledTimes(2)
     })
+    // INC-19: the delete is confirmed above the list.
+    expect(screen.getByTestId('users-success').textContent).toBe('Deleted Ada Lovelace')
+    expect(screen.getByTestId('users-success-banner').getAttribute('role')).toBe('status')
   })
 
   it('Cancel on the delete confirm closes it without calling deleteUser', async () => {
@@ -609,7 +612,7 @@ describe('UsersPage', () => {
     })
   })
 
-  // (L) "+ Invite user" (design.md Screen U1, closed post-T12)
+  // (L) "Invite user" (design.md Screen U1, closed post-T12)
   describe('invite user', () => {
     it('opens the SAME InviteUserModal used on the Invitations tab, submits, and calls createInvitation', async () => {
       vi.mocked(adminApi.listUsers).mockResolvedValue(pageOf([userA, userB]))

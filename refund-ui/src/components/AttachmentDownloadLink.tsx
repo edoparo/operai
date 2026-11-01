@@ -52,8 +52,7 @@ export default function AttachmentDownloadLink({ attachment, onDownload }: Attac
         disabled={state === 'minting'}
         aria-label={t.downloadLabel(attachment.fileName)}
         data-testid={`attachment-download-${attachment.id}`}
-        className="text-xs underline underline-offset-2 transition-opacity hover:opacity-80 disabled:opacity-40"
-        style={{ color: 'var(--acc)' }}
+        className="link text-xs disabled:opacity-40"
       >
         <span aria-hidden="true">📎</span> {attachment.fileName}
       </button>
@@ -61,8 +60,7 @@ export default function AttachmentDownloadLink({ attachment, onDownload }: Attac
         <span
           role="alert"
           data-testid={`attachment-download-${attachment.id}-error`}
-          className="text-[11px]"
-          style={{ color: 'var(--red)' }}
+          className="field-error"
         >
           {t.downloadError}
         </span>

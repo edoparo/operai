@@ -256,6 +256,8 @@ describe('AC-2.3 — editing after a selection', () => {
     await waitFor(() => expect(addressApi.putAddress).toHaveBeenCalled())
     const [, body] = vi.mocked(addressApi.putAddress).mock.calls[0]
     expect(body).toMatchObject({ city: 'Winterthur' }) // the EDITED value, not the suggestion's
+    // INC-19: the save is confirmed beside the form.
+    await waitFor(() => expect(screen.getByTestId('address-save-success').textContent).toBe('Address saved.'))
   })
 })
 
@@ -464,6 +466,23 @@ describe('AC-1.4 — completeness validation', () => {
     expect(screen.getByTestId('address-error-houseNumber')).toBeTruthy()
     expect(screen.queryByTestId('address-error-street')).toBeNull()
     expect(streetInput().value).toBe('Via Test') // the in-progress edit survives
+    // INC-16: each error marks its field invalid, and focus moves to the first
+    // invalid field in form order (house number comes before city).
+    expect(houseNumberInput().getAttribute('aria-invalid')).toBe('true')
+    expect(cityInput().getAttribute('aria-invalid')).toBe('true')
+    expect(document.activeElement).toBe(houseNumberInput())
+  })
+
+  it('marks the four required components with aria-required and no "(required)"/"(optional)" label text', async () => {
+    setupLoaded(noAddress)
+    await renderSection()
+
+    expect(streetInput().getAttribute('aria-required')).toBe('true')
+    expect(houseNumberInput().getAttribute('aria-required')).toBe('true')
+    expect(cityInput().getAttribute('aria-required')).toBe('true')
+    expect(countryInput().getAttribute('aria-required')).toBe('true')
+    expect(postalCodeInput().hasAttribute('aria-required')).toBe(false)
+    expect(screen.getByTestId('address-section').textContent).not.toMatch(/\((required|optional)\)/)
   })
 })
 
@@ -530,6 +549,11 @@ describe('AC-5.3 — address history panel', () => {
     expect(entry.textContent).toContain('usr_admin')
     expect(entry.textContent).toContain('No address on file')
     expect(entry.textContent).toContain('Bahnhofstrasse 12b, 8001 Zürich, Zürich, Switzerland')
+    // INC-26: the library's numeric date-time (dd.mm.yyyy hh:mm, local time), never toLocaleString.
+    expect(entry.textContent).toMatch(/03\.08\.2026 \d{2}:\d{2}/)
+    // INC-31: the previous → new arrow is an SVG icon, not a Unicode glyph.
+    expect(entry.textContent).not.toContain('→')
+    expect(entry.querySelector('svg')).not.toBeNull()
   })
 
   it('renders the empty state when there is no history yet', async () => {

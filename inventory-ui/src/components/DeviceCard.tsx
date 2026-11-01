@@ -1,3 +1,4 @@
+import { Button, VisuallyHidden, listRowClassName, listRowMetaClassName } from '@operai/ui'
 import { formatDate } from '../lib/dates'
 import type { MyDevice } from '../lib/types'
 import { strings } from '../strings'
@@ -55,57 +56,49 @@ export default function DeviceCard({
   ].filter((part): part is string => part !== null && part !== '')
 
   return (
-    <li
-      data-testid="device-card"
-      data-kind={kind}
-      className="flex flex-col gap-3 rounded-md border px-4 py-3"
-      style={{ borderColor: 'var(--rule)', backgroundColor: 'var(--ink-soft)' }}
-    >
-      <div>
+    <div data-testid="device-card" data-kind={kind} className={`${listRowClassName} flex-wrap`}>
+      <div className="min-w-0 flex-1">
         <h3
           tabIndex={-1}
           data-device-heading={device.assetId}
-          className="text-sm font-semibold focus:outline-none focus-visible:ring-2"
-          style={{ color: 'var(--text)' }}
+          className="text-sm font-semibold focus:outline-none focus-visible:ring-2 text-text"
         >
           {device.description}
         </h3>
-        <p className="mt-0.5 text-xs" style={{ color: 'var(--soft)' }}>
-          {meta.join(' · ')}
-        </p>
+        <p className={`mt-0.5 ${listRowMetaClassName}`}>{meta.join(' · ')}</p>
       </div>
 
       {kind === 'pending' && (
         <div className="flex flex-col gap-2 sm:flex-row">
-          <button
-            type="button"
+          <Button
+            variant="primary"
+            className={BUTTON_LAYOUT}
             onClick={() => {
               if (!busy) onConfirm?.()
             }}
             aria-disabled={busy || undefined}
             aria-busy={busy || undefined}
-            className={`btn btn-primary ${BUTTON_LAYOUT}`}
           >
-            {busy ? t.confirming : t.confirm} <span className="sr-only">{t.forDevice(device.description)}</span>
-          </button>
-          <button
-            type="button"
+            {busy ? t.confirming : t.confirm} <VisuallyHidden>{t.forDevice(device.description)}</VisuallyHidden>
+          </Button>
+          <Button
+            variant="secondary"
+            className={BUTTON_LAYOUT}
             onClick={() => {
               if (!busy) onDecline?.()
             }}
             aria-disabled={busy || undefined}
-            className={`btn btn-secondary ${BUTTON_LAYOUT}`}
           >
-            {t.decline} <span className="sr-only">{t.forDevice(device.description)}</span>
-          </button>
+            {t.decline} <VisuallyHidden>{t.forDevice(device.description)}</VisuallyHidden>
+          </Button>
         </div>
       )}
 
       {errorMessage !== null && (
-        <p role="alert" className="text-sm" style={{ color: 'var(--org)' }}>
+        <p role="alert" className="form-error basis-full">
           {errorMessage}
         </p>
       )}
-    </li>
+    </div>
   )
 }

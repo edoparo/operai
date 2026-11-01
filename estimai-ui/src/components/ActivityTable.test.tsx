@@ -1,15 +1,15 @@
 /**
  * @vitest-environment jsdom
  *
- * Tests for the "+ Add Activity" affordance placement.
+ * Tests for the "Add activity" affordance placement.
  *
- * Bug: the only "+ Add Activity" button lived in the section header at the top
+ * Bug: the only "Add activity" button lived in the section header at the top
  * of the table. With many activities the user had to scroll all the way back up
  * to add another row. A second button is now rendered at the BOTTOM of the table
  * so the action is reachable after scrolling through a long list.
  *
  * Covers:
- *   (A) both a top and a bottom "+ Add Activity" button are rendered.
+ *   (A) both a top and a bottom "Add activity" button are rendered.
  *   (B) clicking the bottom button invokes onAdd (same handler as the top one).
  */
 
@@ -52,8 +52,8 @@ const renderTable = (onAdd = vi.fn()) => {
 
 afterEach(() => cleanup())
 
-describe('ActivityTable — "+ Add Activity" is reachable at the bottom', () => {
-  it('renders a top AND a bottom "+ Add Activity" button (A)', () => {
+describe('ActivityTable — "Add activity" is reachable at the bottom', () => {
+  it('renders a top AND a bottom "Add activity" button (A)', () => {
     renderTable()
     const buttons = screen.getAllByRole('button', { name: /add activity/i })
     // One in the header, one appended below the table body.
@@ -78,7 +78,7 @@ describe('ActivityTable — "+ Add Activity" is reachable at the bottom', () => 
 //     likewise absent entirely, replaced by plain text
 //   - the drag handle is empty/non-interactive
 //   - the per-row delete "×" cell is empty (not a disabled button)
-//   - both "+ Add Activity" buttons are absent
+//   - both "Add activity" buttons are absent
 // ---------------------------------------------------------------------------
 
 const renderTableReadOnly = () => {
@@ -138,7 +138,7 @@ describe('ActivityTable — readOnly (viewer) gating (T17, AC-3.1/AC-3.2)', () =
     expect(screen.queryByTitle('Delete activity')).toBeNull()
   })
 
-  it('renders neither the header nor the footer "+ Add Activity" button', () => {
+  it('renders neither the header nor the footer "Add activity" button', () => {
     renderTableReadOnly()
     expect(screen.queryAllByRole('button', { name: /add activity/i }).length).toBe(0)
   })

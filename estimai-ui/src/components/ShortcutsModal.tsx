@@ -1,79 +1,77 @@
-import { useEffect } from 'react'
+import type { ReactNode } from 'react'
+import { Dialog, Icon } from '@operai/ui'
+import { strings } from '../strings'
 
 interface Props {
   onClose: () => void
 }
 
-function Kbd({ children }: { children: React.ReactNode }) {
+function Kbd({ children }: { children: ReactNode }) {
   return (
-    <kbd className="inline-flex items-center justify-center min-w-[1.6rem] px-1.5 py-0.5 rounded border border-rule bg-ink-mid font-mono text-[10px] text-text leading-none">
+    <kbd className="inline-flex items-center justify-center min-w-[1.6rem] px-1.5 py-0.5 rounded border border-rule bg-ink-mid font-mono text-2xs text-text leading-none">
       {children}
     </kbd>
   )
 }
 
-function Row({ keys, label }: { keys: React.ReactNode[]; label: string }) {
+function Row({ keys, label }: { keys: ReactNode[]; label: string }) {
   return (
     <div className="flex items-center gap-3">
       <div className="flex items-center gap-1 w-40 shrink-0 flex-wrap">
         {keys.map((k, i) => (
           <span key={i} className="flex items-center gap-1">
-            {i > 0 && <span className="text-muted text-[10px]">/</span>}
+            {i > 0 && (
+              <span className="text-soft text-2xs" aria-hidden="true">
+                /
+              </span>
+            )}
             <Kbd>{k}</Kbd>
           </span>
         ))}
       </div>
-      <span className="text-[12px] text-soft">{label}</span>
+      <span className="text-xs text-soft">{label}</span>
     </div>
   )
 }
 
+/**
+ * Keyboard shortcuts reference — on @operai/ui's `Dialog` (modal, labelled,
+ * Escape/backdrop/× close, focus trapped and returned to the trigger). Arrow
+ * keys are `Icon`s with an accessible name (INC-31), never arrow glyphs.
+ */
 export default function ShortcutsModal({ onClose }: Props) {
-  useEffect(() => {
-    function onKey(e: KeyboardEvent) {
-      if (e.key === 'Escape') onClose()
-    }
-    window.addEventListener('keydown', onKey)
-    return () => window.removeEventListener('keydown', onKey)
-  }, [onClose])
+  const t = strings.shortcuts
+  const k = t.keys
+  const arrow = (name: 'chevron-up' | 'chevron-down' | 'chevron-left' | 'chevron-right', label: string) => (
+    <Icon name={name} label={label} />
+  )
+  const withShift = (key: string) => `${k.shift} ${key}`
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm" onClick={onClose}>
-      <div
-        className="bg-ink-soft border border-rule rounded-lg shadow-2xl w-full max-w-sm mx-4 p-5"
-        onClick={(e) => e.stopPropagation()}
-      >
-        <div className="flex items-center justify-between mb-4">
-          <h2 className="font-disp text-sm font-bold text-text">Keyboard Shortcuts</h2>
-          <button onClick={onClose} className="text-muted hover:text-text text-lg leading-none transition-colors">
-            ×
-          </button>
-        </div>
+    <Dialog title={t.title} size="sm" onClose={onClose} closeLabel={t.close} testIdPrefix="shortcuts">
+      <div className="dialog-body flex flex-col gap-4">
+        <section>
+          <h3 className="text-2xs font-mono uppercase tracking-widest text-soft mb-2">{t.gridHeading}</h3>
+          <div className="flex flex-col gap-2">
+            <Row keys={[k.tab, withShift(k.tab)]} label={t.rows.nextPrevCell} />
+            <Row keys={[k.enter, arrow('chevron-down', k.down)]} label={t.rows.down} />
+            <Row keys={[arrow('chevron-up', k.up)]} label={t.rows.up} />
+            <Row keys={[arrow('chevron-right', k.right), arrow('chevron-left', k.left)]} label={t.rows.sideways} />
+          </div>
+        </section>
 
-        <div className="flex flex-col gap-4">
-          <section>
-            <p className="text-[9px] font-mono uppercase tracking-widest text-muted mb-2">Grid navigation</p>
-            <div className="flex flex-col gap-2">
-              <Row keys={['Tab', '⇧ Tab']} label="Next / prev cell" />
-              <Row keys={['Enter', '↓']} label="Move down one row" />
-              <Row keys={['↑']} label="Move up one row" />
-              <Row keys={['→', '←']} label="Move right / left (number & select always; text at edge)" />
-            </div>
-          </section>
+        <div className="border-t border-rule" />
 
-          <div className="border-t border-rule" />
-
-          <section>
-            <p className="text-[9px] font-mono uppercase tracking-widest text-muted mb-2">General</p>
-            <div className="flex flex-col gap-2">
-              <Row keys={['⇧ ?']} label="Toggle this shortcuts panel" />
-              <Row keys={['⇧ H']} label="Toggle health warnings" />
-              <Row keys={['⇧ N']} label="Create new activity" />
-              <Row keys={['Esc']} label="Close panel" />
-            </div>
-          </section>
-        </div>
+        <section>
+          <h3 className="text-2xs font-mono uppercase tracking-widest text-soft mb-2">{t.generalHeading}</h3>
+          <div className="flex flex-col gap-2">
+            <Row keys={[withShift('?')]} label={t.rows.togglePanel} />
+            <Row keys={[withShift('H')]} label={t.rows.toggleHealth} />
+            <Row keys={[withShift('N')]} label={t.rows.newActivity} />
+            <Row keys={[k.esc]} label={t.rows.closePanel} />
+          </div>
+        </section>
       </div>
-    </div>
+    </Dialog>
   )
 }

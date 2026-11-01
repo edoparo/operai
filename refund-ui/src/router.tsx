@@ -51,10 +51,17 @@ export function createAppRouter(basepath?: string) {
   })
 
   // Screen R1 (My requests) — T14 placeholder, real screen T16.
+  //
+  // `validateSearch` carries the same one-shot `confirmation` flash message as
+  // `reviewRoute` below: deleting a draft navigates here, and this destination
+  // says it (INC-19).
   const requestsRoute = createRoute({
     getParentRoute: () => rootRoute,
     path: '/requests',
     component: MyRequestsPage,
+    validateSearch: (search: Record<string, unknown>): { confirmation?: string } => ({
+      confirmation: typeof search.confirmation === 'string' ? search.confirmation : undefined,
+    }),
   })
 
   // `/requests/new` — a sibling of `requestsRoute` under the same root (not

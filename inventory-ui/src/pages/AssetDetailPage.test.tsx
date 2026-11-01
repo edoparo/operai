@@ -199,7 +199,7 @@ describe('the summary (AC-3.6)', () => {
     expect(value('Category')).toBe('Laptop')
     expect(value('Serial number')).toBe('SN123')
     expect(value('Purchase date')).toBe('25.09.2026')
-    expect(value('Purchase price')).toBe('998,15 CHF')
+    expect(value('Purchase price')).toBe('CHF 998.15')
     expect(value('Held by')).toBe('Anna Rossi')
     expect(value('Location / note')).toBe('Zurich office, shelf 3')
     expect(value('Supplier')).toBe('Digitec')

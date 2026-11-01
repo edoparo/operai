@@ -1,0 +1,88 @@
+/** strings.invitations — the Invitations list. */
+export const en = {
+  heading: 'Invitations',
+  loadError: 'Could not load invitations.',
+  catalogLoadError: 'Could not load roles/departments.',
+  caption: 'Invitations',
+  searchLabel: 'Search invitations by email',
+  searchPlaceholder: 'Search by email…',
+  filterLabel: 'Filter by status',
+  filterAll: 'All',
+  empty: {
+    title: 'No invitations yet',
+    body: 'Invite someone with “Invite user”; the invitation is listed here until it is accepted.',
+  },
+  emptyFiltered: {
+    title: 'No invitations found',
+    body: 'No invitations match your search/filter.',
+  },
+  columns: {
+    state: 'State',
+    invitedBy: 'Invited by',
+    expires: 'Expires',
+  },
+  expiry: {
+    accepted: (date: string) => `Accepted ${date}`,
+    revoked: (date: string) => `Revoked (was due ${date})`,
+    expired: (date: string) => `Expired ${date}`,
+    expires: (date: string) => `Expires ${date}`,
+  },
+  resend: 'Resend',
+  resending: 'Resending…',
+  resendLabel: (email: string) => `Resend invitation to ${email}`,
+  resent: (email: string) => `New link sent to ${email}, expires in 72 hours`,
+  resendFailed: 'Could not resend this invitation.',
+  revoke: 'Revoke',
+  revokeLabel: (email: string) => `Revoke invitation to ${email}`,
+  revokeTitle: 'Delete invitation?',
+  revokeBody: (email: string) =>
+    `Revoke the invitation to ${email}? Its link stops working immediately. This can’t be undone — inviting them again requires sending a brand-new invitation.`,
+  revoked: (email: string) => `Invitation to ${email} revoked`,
+  revokeFailed: 'Could not revoke this invitation.',
+  emailFailed: 'Email failed',
+  noActions: 'No actions available',
+}
+
+export const it: typeof en = {
+  heading: 'Inviti',
+  loadError: 'Impossibile caricare gli inviti.',
+  catalogLoadError: 'Impossibile caricare ruoli e reparti.',
+  caption: 'Inviti',
+  searchLabel: 'Cerca inviti per email',
+  searchPlaceholder: 'Cerca per email…',
+  filterLabel: 'Filtra per stato',
+  filterAll: 'Tutti',
+  empty: {
+    title: 'Ancora nessun invito',
+    body: 'Invitare qualcuno con “Invita utente”: l’invito resta in elenco finché non viene accettato.',
+  },
+  emptyFiltered: {
+    title: 'Nessun invito trovato',
+    body: 'Nessun invito corrisponde alla ricerca o al filtro.',
+  },
+  columns: {
+    state: 'Stato',
+    invitedBy: 'Invitato da',
+    expires: 'Scadenza',
+  },
+  expiry: {
+    accepted: (date: string) => `Accettato il ${date}`,
+    revoked: (date: string) => `Revocato (scadeva il ${date})`,
+    expired: (date: string) => `Scaduto il ${date}`,
+    expires: (date: string) => `Scade il ${date}`,
+  },
+  resend: 'Invia di nuovo',
+  resending: 'Invio…',
+  resendLabel: (email: string) => `Invia di nuovo l’invito a ${email}`,
+  resent: (email: string) => `Nuovo link inviato a ${email}, scade tra 72 ore`,
+  resendFailed: 'Impossibile inviare di nuovo questo invito.',
+  revoke: 'Revoca',
+  revokeLabel: (email: string) => `Revoca l’invito a ${email}`,
+  revokeTitle: 'Eliminare l’invito?',
+  revokeBody: (email: string) =>
+    `Revocare l’invito a ${email}? Il link smette subito di funzionare. L’operazione non è reversibile: per invitare di nuovo la persona servirà un nuovo invito.`,
+  revoked: (email: string) => `Invito a ${email} revocato`,
+  revokeFailed: 'Impossibile revocare questo invito.',
+  emailFailed: 'Email non inviata',
+  noActions: 'Nessuna azione disponibile',
+}

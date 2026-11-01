@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { Link, useNavigate } from '@tanstack/react-router'
+import { Button, Card, Field, PageHeader, StatePanel, VisuallyHidden } from '@operai/ui'
 import { strings } from '../strings'
 import * as batchesApi from '../lib/batchesApi'
 import type { CandidatePreview } from '../lib/batchesApi'
@@ -38,7 +39,7 @@ import BatchEmployeeGroupList from '../components/BatchEmployeeGroupList'
  *         `preview`); "Compile this batch" enabled.
  *   Err — ErrorBanner + Retry (a genuine network/5xx failure).
  *   PD  — PermissionDenied (AC-1.8, no `request:review` at all), no Retry —
- *         defense-in-depth for a direct URL (Screen B1's own "+ Compile" is
+ *         defense-in-depth for a direct URL (Screen B1's own "Compile" is
  *         itself gated, design.md F1 step 6).
  *
  * Compile confirm reuses `ConfirmDeleteModal` directly with `tone="positive"`
@@ -195,19 +196,15 @@ export default function CompileBatchPage() {
 
   return (
     <section aria-labelledby="refund-compile-batch-heading" data-testid="refund-compile-batch-page">
-      <div className="flex items-center justify-between gap-4">
-        <h2 id="refund-compile-batch-heading" className="text-lg font-semibold" style={{ fontFamily: 'var(--disp)' }}>
-          {t.heading}
-        </h2>
-        <Link
-          to="/batches"
-          data-testid="compile-batch-cancel-link"
-          className="text-sm underline underline-offset-2"
-          style={{ color: 'var(--acc)' }}
-        >
-          {t.cancelLink}
-        </Link>
-      </div>
+      <PageHeader
+        title={t.heading}
+        titleId="refund-compile-batch-heading"
+        actions={
+          <Link to="/batches" data-testid="compile-batch-cancel-link" className="link text-sm">
+            {t.cancelLink}
+          </Link>
+        }
+      />
 
       {previewState.status === 'forbidden' ? (
         <div className="mt-4">
@@ -215,54 +212,36 @@ export default function CompileBatchPage() {
         </div>
       ) : (
         <>
-          <div className="mt-4" data-testid="compile-batch-cutoff-row">
-            <label
-              htmlFor="compile-batch-cutoff"
-              className="block text-sm font-medium mb-1"
-              style={{ color: 'var(--text)' }}
-            >
-              {t.cutoffLabel}
-            </label>
-            <div className="flex flex-wrap items-center gap-3">
-              <input
-                id="compile-batch-cutoff"
-                type="datetime-local"
-                value={cutoffInput}
-                onChange={(e) => {
-                  setCutoffInput(e.target.value)
-                  setCutoffEdited(true)
-                }}
-                aria-describedby="compile-batch-cutoff-help"
-                data-testid="compile-batch-cutoff-input"
-                className="text-sm px-2.5 py-1.5 rounded-md border"
-                style={{
-                  borderColor: 'var(--rule)',
-                  backgroundColor: 'var(--ink-soft)',
-                  color: 'var(--text)',
-                  colorScheme: 'dark',
-                }}
-              />
-              <button
-                type="button"
-                onClick={handlePreviewClick}
-                data-testid="compile-batch-preview-button"
-                className="py-1.5 px-3 text-sm font-medium border transition-opacity hover:opacity-80"
-                style={{ borderColor: 'var(--acc)', color: 'var(--acc)' }}
-              >
-                {t.previewButton}
-              </button>
-            </div>
-            <p id="compile-batch-cutoff-help" className="text-xs max-w-sm mt-1" style={{ color: 'var(--muted)' }}>
-              {t.cutoffHelp}
-            </p>
-          </div>
+          {/* A cutoff is a date AND time (`datetime-local`), not a calendar date, so
+              it is not a `DateInput`; it is still a `Field` (INC-16/17): the
+              library sizes it, the help text describes it. */}
+          <Card className="mt-4">
+            <Field label={t.cutoffLabel} hint={t.cutoffHelp} testId="compile-batch-cutoff-row">
+              {(control) => (
+                <div className="flex flex-wrap items-center gap-3">
+                  <input
+                    {...control}
+                    type="datetime-local"
+                    className="input-figure"
+                    value={cutoffInput}
+                    onChange={(e) => {
+                      setCutoffInput(e.target.value)
+                      setCutoffEdited(true)
+                    }}
+                    data-testid="compile-batch-cutoff-input"
+                  />
+                  <Button variant="secondary" onClick={handlePreviewClick} data-testid="compile-batch-preview-button">
+                    {t.previewButton}
+                  </Button>
+                </div>
+              )}
+            </Field>
+          </Card>
 
           <div className="mt-4">
             {previewState.status === 'loading' && (
               <>
-                <p className="sr-only" aria-live="polite">
-                  {t.loadingAnnouncement}
-                </p>
+                <VisuallyHidden live>{t.loadingAnnouncement}</VisuallyHidden>
                 <SkeletonListRows />
               </>
             )}
@@ -270,35 +249,30 @@ export default function CompileBatchPage() {
             {previewState.status === 'error' && <ErrorBanner message={previewState.message} onRetry={handleRetry} />}
 
             {previewState.status === 'loaded' && previewState.preview.requestCount === 0 && (
-              <p
-                className="text-sm py-16 text-center"
-                style={{ color: 'var(--muted)' }}
-                data-testid="compile-batch-empty-state"
-                aria-live="polite"
-              >
-                {t.empty}
-              </p>
+              <StatePanel title={t.empty.heading} role="status" testId="compile-batch-empty-state">
+                {t.empty.body}
+              </StatePanel>
             )}
 
             {previewState.status === 'loaded' && previewState.preview.requestCount > 0 && (
               <div className="flex flex-col gap-4" data-testid="compile-batch-preview">
-                <BatchSubtotalsPanel subtotals={previewState.preview.subtotals} />
+                <Card title={t.totalsHeading}>
+                  <BatchSubtotalsPanel subtotals={previewState.preview.subtotals} />
+                </Card>
                 <BatchEmployeeGroupList mode="preview" groups={previewState.preview.employees} />
               </div>
             )}
           </div>
 
           <div className="mt-4">
-            <button
-              type="button"
+            <Button
+              variant="primary"
               onClick={handleCompileOpen}
               disabled={!canCompile}
               data-testid="compile-batch-compile-button"
-              className="py-2 px-4 text-sm font-medium border transition-opacity hover:opacity-80 disabled:opacity-40 disabled:cursor-not-allowed"
-              style={{ borderColor: 'var(--grn)', color: 'var(--grn)' }}
             >
               {t.compileButton}
-            </button>
+            </Button>
           </div>
         </>
       )}

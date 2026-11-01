@@ -5,10 +5,20 @@
  * dialog (T34) both need it and no task's `touch:` list owned it (reported as
  * drift on T32, as T29 did for `categories`).
  */
-export const disposalReasons = {
+const en = {
   sold: 'Sold',
   ceded_to_employee: 'Ceded to an employee',
   scrapped: 'Scrapped',
   returned_to_vendor: 'Returned to the vendor',
   lost: 'Written off as lost',
-} as const
+}
+
+const it: typeof en = {
+  sold: 'Venduto',
+  ceded_to_employee: 'Ceduto a un dipendente',
+  scrapped: 'Rottamato',
+  returned_to_vendor: 'Restituito al fornitore',
+  lost: 'Stralciato per smarrimento',
+}
+
+export const disposalReasons = { en, it }

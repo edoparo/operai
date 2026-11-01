@@ -20,8 +20,8 @@
  * filters, browser back) — an echo of what this field just committed is ignored.
  */
 
+import { Card, Field } from '@operai/ui'
 import { useEffect, useRef, useState } from 'react'
-import type { ReactNode } from 'react'
 import { strings } from '../strings'
 import type { AssetCategory, AssetStatus, Entity } from '../lib/types'
 
@@ -61,20 +61,9 @@ export type AssetFilterBarProps = {
 const STATUSES = Object.keys(strings.badges.assetStatus) as AssetStatus[]
 const CATEGORIES = Object.keys(strings.categories) as AssetCategory[]
 
-// The bar is a card on `--ink-soft` (the Refund composer's pattern), so its controls sit on `--ink`.
-const CONTROL_CLASS = 'w-full rounded-md border px-2.5 py-1.5 text-sm'
-const CONTROL_STYLE = { borderColor: 'var(--rule)', backgroundColor: 'var(--ink)', color: 'var(--text)' }
-
-function Field({ id, label, children }: { id: string; label: string; children: ReactNode }) {
-  return (
-    <div className="flex flex-col gap-1">
-      <label htmlFor={id} className="text-xs font-medium" style={{ color: 'var(--soft)' }}>
-        {label}
-      </label>
-      {children}
-    </div>
-  )
-}
+// Each filter is a labelled field in Field's markup (INC-16); the controls take the suite's form size from
+// tokens.css, never a skin of their own (INC-17). Fixed ids: "Clear filters" focuses `asset-filter-q`.
+const CONTROL_CLASS = 'w-full'
 
 type SelectProps<V extends string> = {
   id: string
@@ -88,20 +77,21 @@ type SelectProps<V extends string> = {
 function SelectFilter<V extends string>({ id, label, value, options, anyLabel, onChange }: SelectProps<V>) {
   return (
     <Field id={id} label={label}>
-      <select
-        id={id}
-        value={value ?? ''}
-        onChange={(event) => onChange(event.target.value === '' ? undefined : (event.target.value as V))}
-        className={CONTROL_CLASS}
-        style={CONTROL_STYLE}
-      >
-        <option value="">{anyLabel}</option>
-        {options.map((option) => (
-          <option key={option.value} value={option.value}>
-            {option.label}
-          </option>
-        ))}
-      </select>
+      {(control) => (
+        <select
+          {...control}
+          value={value ?? ''}
+          onChange={(event) => onChange(event.target.value === '' ? undefined : (event.target.value as V))}
+          className={CONTROL_CLASS}
+        >
+          <option value="">{anyLabel}</option>
+          {options.map((option) => (
+            <option key={option.value} value={option.value}>
+              {option.label}
+            </option>
+          ))}
+        </select>
+      )}
     </Field>
   )
 }
@@ -148,27 +138,28 @@ function TextFilter({ id, label, value, placeholder, debounceMs, commitOnEnter =
 
   return (
     <Field id={id} label={label}>
-      <input
-        id={id}
-        type="text"
-        value={draft}
-        placeholder={placeholder}
-        autoComplete="off"
-        onChange={(event) => {
-          const text = event.target.value
-          setDraft(text)
-          cancelTimer()
-          timer.current = setTimeout(() => commit(text), debounceMs)
-        }}
-        onKeyDown={(event) => {
-          if (commitOnEnter && event.key === 'Enter') {
-            event.preventDefault()
-            commit(draft)
-          }
-        }}
-        className={CONTROL_CLASS}
-        style={CONTROL_STYLE}
-      />
+      {(control) => (
+        <input
+          {...control}
+          type="text"
+          value={draft}
+          placeholder={placeholder}
+          autoComplete="off"
+          onChange={(event) => {
+            const text = event.target.value
+            setDraft(text)
+            cancelTimer()
+            timer.current = setTimeout(() => commit(text), debounceMs)
+          }}
+          onKeyDown={(event) => {
+            if (commitOnEnter && event.key === 'Enter') {
+              event.preventDefault()
+              commit(draft)
+            }
+          }}
+          className={CONTROL_CLASS}
+        />
+      )}
     </Field>
   )
 }
@@ -186,94 +177,90 @@ export default function AssetFilterBar({
   const holderListed = holderOptions.some((option) => option.id === values.holderUserId)
 
   return (
-    <form
-      role="search"
-      aria-label={t.landmarkLabel}
-      onSubmit={(event) => event.preventDefault()}
-      className="flex flex-col gap-3 rounded-md border p-4"
-      style={{ borderColor: 'var(--rule)', backgroundColor: 'var(--ink-soft)' }}
-      data-testid="asset-filter-bar"
-    >
-      <h3 className="text-sm font-semibold" style={{ fontFamily: 'var(--disp)', color: 'var(--text)' }}>
-        {t.heading}
-      </h3>
+    <Card title={t.heading}>
+      <form
+        role="search"
+        aria-label={t.landmarkLabel}
+        onSubmit={(event) => event.preventDefault()}
+        data-testid="asset-filter-bar"
+      >
+        <div className="grid items-end gap-3" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))' }}>
+          <TextFilter
+            id="asset-filter-q"
+            label={t.search}
+            value={values.q}
+            placeholder={t.searchPlaceholder}
+            debounceMs={debounceMs}
+            onCommit={(q) => onChange({ q })}
+          />
 
-      <div className="grid items-end gap-3" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))' }}>
-        <TextFilter
-          id="asset-filter-q"
-          label={t.search}
-          value={values.q}
-          placeholder={t.searchPlaceholder}
-          debounceMs={debounceMs}
-          onCommit={(q) => onChange({ q })}
-        />
-
-        <SelectFilter<AssetStatus>
-          id="asset-filter-status"
-          label={t.status}
-          value={values.status}
-          options={STATUSES.map((value) => ({ value, label: strings.badges.assetStatus[value] }))}
-          anyLabel={t.any}
-          onChange={(status) => onChange({ status })}
-        />
-
-        <SelectFilter<AssetCategory>
-          id="asset-filter-category"
-          label={t.category}
-          value={values.category}
-          options={CATEGORIES.map((value) => ({ value, label: strings.categories[value] }))}
-          anyLabel={t.any}
-          onChange={(category) => onChange({ category })}
-        />
-
-        {entities.length > 1 && (
-          <SelectFilter<Entity>
-            id="asset-filter-entity"
-            label={t.entity}
-            value={values.entity}
-            options={entities.map((value) => ({ value, label: strings.common.entity[value] }))}
+          <SelectFilter<AssetStatus>
+            id="asset-filter-status"
+            label={t.status}
+            value={values.status}
+            options={STATUSES.map((value) => ({ value, label: strings.badges.assetStatus[value] }))}
             anyLabel={t.any}
-            onChange={(entity) => onChange({ entity })}
+            onChange={(status) => onChange({ status })}
           />
-        )}
 
-        {canFilterByHolder && (
-          <SelectFilter<string>
-            id="asset-filter-holder"
-            label={t.holder}
-            value={values.holderUserId}
-            options={[
-              ...holderOptions.map((option) => ({ value: option.id, label: option.label })),
-              ...(values.holderUserId !== undefined && !holderListed && !holderLoading
-                ? [{ value: values.holderUserId, label: t.holderUnknown }]
-                : []),
-            ]}
-            anyLabel={holderLoading ? t.holderLoading : t.holderAny}
-            onChange={(holderUserId) => onChange({ holderUserId })}
+          <SelectFilter<AssetCategory>
+            id="asset-filter-category"
+            label={t.category}
+            value={values.category}
+            options={CATEGORIES.map((value) => ({ value, label: strings.categories[value] }))}
+            anyLabel={t.any}
+            onChange={(category) => onChange({ category })}
           />
-        )}
 
-        <div className="flex items-center gap-2 pb-2">
-          <input
-            id="asset-filter-to-verify"
-            type="checkbox"
-            checked={values.toVerify}
-            onChange={(event) => onChange({ toVerify: event.target.checked })}
+          {entities.length > 1 && (
+            <SelectFilter<Entity>
+              id="asset-filter-entity"
+              label={t.entity}
+              value={values.entity}
+              options={entities.map((value) => ({ value, label: strings.common.entity[value] }))}
+              anyLabel={t.any}
+              onChange={(entity) => onChange({ entity })}
+            />
+          )}
+
+          {canFilterByHolder && (
+            <SelectFilter<string>
+              id="asset-filter-holder"
+              label={t.holder}
+              value={values.holderUserId}
+              options={[
+                ...holderOptions.map((option) => ({ value: option.id, label: option.label })),
+                ...(values.holderUserId !== undefined && !holderListed && !holderLoading
+                  ? [{ value: values.holderUserId, label: t.holderUnknown }]
+                  : []),
+              ]}
+              anyLabel={holderLoading ? t.holderLoading : t.holderAny}
+              onChange={(holderUserId) => onChange({ holderUserId })}
+            />
+          )}
+
+          <div className="flex items-center gap-2 pb-2">
+            <input
+              id="asset-filter-to-verify"
+              type="checkbox"
+              checked={values.toVerify}
+              onChange={(event) => onChange({ toVerify: event.target.checked })}
+            />
+            <label htmlFor="asset-filter-to-verify" className="text-sm text-text">
+              {t.toVerify}
+            </label>
+          </div>
+
+          <TextFilter
+            id="asset-filter-invoice-ref"
+            label={t.invoiceRef}
+            value={values.invoiceRef}
+            debounceMs={debounceMs}
+            commitOnEnter
+            onCommit={(invoiceRef) => onChange({ invoiceRef })}
           />
-          <label htmlFor="asset-filter-to-verify" className="text-sm" style={{ color: 'var(--text)' }}>
-            {t.toVerify}
-          </label>
         </div>
-
-        <TextFilter
-          id="asset-filter-invoice-ref"
-          label={t.invoiceRef}
-          value={values.invoiceRef}
-          debounceMs={debounceMs}
-          commitOnEnter
-          onCommit={(invoiceRef) => onChange({ invoiceRef })}
-        />
-      </div>
-    </form>
+      </form>
+    </Card>
   )
 }

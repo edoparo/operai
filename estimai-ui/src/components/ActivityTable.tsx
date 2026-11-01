@@ -17,6 +17,18 @@ import { computeActivityNums } from '../lib/activityNums'
 import { deriveOP } from '../hooks/useEstimator'
 import { type WarningCode } from '../lib/healthWarnings'
 import WarningBadge from './WarningBadge'
+import { Button, Icon } from '@operai/ui'
+import { en, it, strings } from '../strings'
+import { oneDecimal, percent } from '../lib/figures'
+
+const t = strings.activities
+
+/**
+ * The name a new activity gets (strings.editor.defaults) in EITHER language:
+ * an activity added by a colleague working in the other language is still
+ * flagged as "rename me".
+ */
+const UNNAMED_ACTIVITY = new Set([en.editor.defaults.activityName, it.editor.defaults.activityName])
 
 interface ActivityTableProps {
   activities: Activity[]
@@ -39,9 +51,9 @@ interface ActivityTableProps {
    * AT-readable, keyboard grid navigation for reading still works); the
    * Profile/Release `<select>` columns (no native `readOnly`) render as
    * plain text spans in the same grid column instead; the drag handle
-   * renders empty/non-interactive; the per-row delete "×" cell renders
-   * empty (column kept for grid-template stability); "+ Add Activity" (both
-   * the header and footer buttons) is absent; the "＋ New release…" option
+   * renders empty/non-interactive; the per-row delete cell renders
+   * empty (column kept for grid-template stability); "Add activity" (both
+   * the header and footer buttons) is absent; the "New release…" option
    * never exists in the Release column because that column isn't a
    * `<select>` at all in this mode.
    */
@@ -62,6 +74,17 @@ const CENTER_COLS = new Set(['notes'])
 const NAV_COL_MAX = 9
 
 const columnHelper = createColumnHelper<Activity>()
+
+/** The legend under the grid: each column abbreviation, its colour in the grid, and what it means. */
+const LEGEND: ReadonlyArray<{ key: keyof typeof en.activities.legend; colorClass: string }> = [
+  { key: 'o', colorClass: 'text-grn' },
+  { key: 'ml', colorClass: 'text-text' },
+  { key: 'p', colorClass: 'text-red-text' },
+  { key: 'pert', colorClass: 'text-acc-hi' },
+  { key: 'risk', colorClass: 'text-org-text' },
+  { key: 'expected', colorClass: 'text-text font-bold' },
+  { key: 'aiGain', colorClass: 'text-acc-hi' },
+]
 const NEW_RELEASE_SENTINEL = '__new__'
 
 type NavHandler = (e: React.KeyboardEvent<HTMLElement>, row: number, col: number, isText: boolean) => void
@@ -107,8 +130,9 @@ function EpicCell({
         navRef.current(e, rowIdx, 0, true)
       }}
       data-cell={`${rowIdx}-0`}
-      placeholder="Epic…"
-      className="py-0.75 px-1.25 text-[11px]"
+      placeholder={t.epicPlaceholder}
+      aria-label={t.columns.epic}
+      className="py-0.75 px-1.25 text-2xs"
     />
   )
 }
@@ -152,24 +176,20 @@ function MLCell({
       {showTip && (
         <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-1.5 z-50 pointer-events-none">
           <div className="bg-ink border border-rule rounded px-2 py-1 shadow-lg whitespace-nowrap">
-            <div className="flex items-center gap-1.5 font-mono text-[10px]">
-              <span className="text-muted">O</span>
-              <span className="text-grn font-semibold">{derived.o.toFixed(1)}</span>
-              <span className="text-muted/40">·</span>
-              <span className="text-muted">P</span>
-              <span className="text-red font-semibold">{derived.p.toFixed(1)}</span>
+            <div className="flex items-center gap-1.5 font-mono text-2xs">
+              <span className="text-soft">{t.columns.o}</span>
+              <span className="text-grn font-semibold">{oneDecimal(derived.o)}</span>
+              <span className="text-muted/40" aria-hidden="true">
+                ·
+              </span>
+              <span className="text-soft">{t.columns.p}</span>
+              <span className="text-red-text font-semibold">{oneDecimal(derived.p)}</span>
             </div>
           </div>
           {/* Caret */}
           <div
-            className="absolute top-full left-1/2 -translate-x-1/2"
-            style={{
-              width: 0,
-              height: 0,
-              borderLeft: '5px solid transparent',
-              borderRight: '5px solid transparent',
-              borderTop: '5px solid var(--rule)',
-            }}
+            className="absolute top-full left-1/2 -translate-x-1/2 border-l-5 border-l-transparent border-r-5 border-r-transparent border-t-5 border-t-rule"
+            style={{ width: 0, height: 0 }}
           />
         </div>
       )}
@@ -221,7 +241,11 @@ function AiGainCell({
       />
       {!focused && (
         <span className="text-right py-0.75 px-1.25 text-xs text-acc-hi w-full select-none">
-          {displayPct !== '' ? `${displayPct}%` : <span className="text-muted/50">{placeholderPct}%</span>}
+          {stored !== undefined ? (
+            percent(stored)
+          ) : (
+            <span className="text-soft">{percent(globalAiGain)}</span>
+          )}
         </span>
       )}
     </div>
@@ -259,14 +283,16 @@ function NotesCell({
   return (
     <div className="relative flex items-center justify-center">
       <button
+        type="button"
         onClick={handleOpen}
-        className={`text-[12px] leading-none transition-colors select-none ${
+        className={`text-xs leading-none transition-colors select-none ${
           hasNote ? 'text-acc-hi/70 hover:text-acc-hi' : 'text-muted/25 hover:text-muted/60'
         }`}
-        title={hasNote ? value : 'Add note'}
+        title={hasNote ? value : t.addNote}
+        aria-label={hasNote ? value : t.addNote}
         tabIndex={-1}
       >
-        💬
+        <Icon name="message" />
       </button>
       {open && (
         <input
@@ -283,8 +309,9 @@ function NotesCell({
             navRef.current(e, rowIdx, 8, true)
           }}
           data-cell={`${rowIdx}-8`}
-          placeholder="Add a note…"
-          className="absolute right-0 top-1/2 -translate-y-1/2 z-20 w-52 py-0.75 px-2 text-[11px] text-soft bg-ink border border-acc/40 rounded shadow-lg"
+          placeholder={t.notePlaceholder}
+          aria-label={t.columns.notes}
+          className="absolute right-0 top-1/2 -translate-y-1/2 z-20 w-52 py-0.75 px-2 text-2xs text-soft bg-ink border border-acc/40 rounded shadow-lg"
         />
       )}
     </div>
@@ -325,9 +352,9 @@ function SortableRow({
         {...listeners}
         className="flex items-center justify-center cursor-grab active:cursor-grabbing text-muted hover:text-soft select-none touch-none"
         style={{ fontSize: 14 }}
-        title="Drag to reorder"
+        title={t.dragToReorder}
       >
-        ⠿
+        <Icon name="grip" />
       </div>
       {children}
     </div>
@@ -445,7 +472,7 @@ const ActivityTable = memo(function ActivityTable({
           if (colIdx < NAV_COL_MAX) focusCell(rowIdx, colIdx + 1)
           else if (rowIdx < maxRow) focusCell(rowIdx + 1, 0)
           // T17: Tab past the last cell of the last row must not silently add a
-          // row for a viewer — there is no visible "+ Add Activity" button to
+          // row for a viewer — there is no visible "Add activity" button to
           // match this fallback, so it would be a hidden mutation path.
           else if (!readOnlyRef.current) onAddRef.current(currentEpic())
         }
@@ -499,15 +526,15 @@ const ActivityTable = memo(function ActivityTable({
     () => [
       columnHelper.display({
         id: 'num',
-        header: '#',
+        header: t.columns.num,
         cell: (info) => (
-          <div className="font-mono text-[10px] text-muted text-center select-none">
+          <div className="font-mono text-2xs text-muted text-center select-none">
             {activityNumsRef.current.get(info.row.original.id) ?? ''}
           </div>
         ),
       }),
       columnHelper.accessor('epic', {
-        header: 'Epic',
+        header: t.columns.epic,
         cell: (info) => (
           <EpicCell
             id={info.row.original.id}
@@ -520,10 +547,10 @@ const ActivityTable = memo(function ActivityTable({
         ),
       }),
       columnHelper.accessor('act', {
-        header: 'Activity',
+        header: t.columns.activity,
         cell: (info) => {
           const rowIdx = visibleRowIdxRef.current.get(info.row.original.id) ?? 0
-          const isUnnamed = info.getValue() === 'New activity'
+          const isUnnamed = UNNAMED_ACTIVITY.has(info.getValue())
           return (
             <input
               value={info.getValue()}
@@ -533,15 +560,16 @@ const ActivityTable = memo(function ActivityTable({
               }
               onKeyDown={(e) => navRef.current(e, rowIdx, 1, true)}
               data-cell={`${rowIdx}-1`}
-              placeholder="Activity…"
-              className={`py-0.75 px-1.25 text-xs ${isUnnamed ? 'text-org/70 italic' : ''}`}
-              title={isUnnamed ? 'Rename this activity before sharing with a client' : undefined}
+              placeholder={t.activityPlaceholder}
+              aria-label={t.columns.activity}
+              className={`py-0.75 px-1.25 text-xs ${isUnnamed ? 'text-org-text italic' : ''}`}
+              title={isUnnamed ? t.unnamedTitle : undefined}
             />
           )
         },
       }),
       columnHelper.accessor('prof', {
-        header: 'Profile',
+        header: t.columns.profile,
         cell: (info) => {
           const rowIdx = visibleRowIdxRef.current.get(info.row.original.id) ?? 0
           // T17 (design.md S5): <select> has no native readOnly — a viewer sees
@@ -553,7 +581,7 @@ const ActivityTable = memo(function ActivityTable({
                 tabIndex={0}
                 onKeyDown={(e) => navRef.current(e, rowIdx, 2, false)}
                 data-cell={`${rowIdx}-2`}
-                className="block py-0.75 px-1.25 text-[11px] truncate"
+                className="block py-0.75 px-1.25 text-2xs truncate"
               >
                 {info.getValue()}
               </span>
@@ -567,7 +595,8 @@ const ActivityTable = memo(function ActivityTable({
               }
               onKeyDown={(e) => navRef.current(e, rowIdx, 2, false)}
               data-cell={`${rowIdx}-2`}
-              className="py-0.75 px-1.25 text-[11px]"
+              aria-label={t.columns.profile}
+              className="py-0.75 px-1.25 text-2xs"
             >
               {PROFILES.map((p) => (
                 <option key={p}>{p}</option>
@@ -577,7 +606,7 @@ const ActivityTable = memo(function ActivityTable({
         },
       }),
       columnHelper.accessor('o', {
-        header: 'O',
+        header: t.columns.o,
         cell: (info) => {
           const rowIdx = visibleRowIdxRef.current.get(info.row.original.id) ?? 0
           return (
@@ -598,7 +627,7 @@ const ActivityTable = memo(function ActivityTable({
         },
       }),
       columnHelper.accessor('ml', {
-        header: 'ML',
+        header: t.columns.ml,
         cell: (info) => (
           <MLCell
             id={info.row.original.id}
@@ -611,7 +640,7 @@ const ActivityTable = memo(function ActivityTable({
         ),
       }),
       columnHelper.accessor('p', {
-        header: 'P',
+        header: t.columns.p,
         cell: (info) => {
           const rowIdx = visibleRowIdxRef.current.get(info.row.original.id) ?? 0
           return (
@@ -626,25 +655,25 @@ const ActivityTable = memo(function ActivityTable({
               }
               onKeyDown={(e) => navRef.current(e, rowIdx, 5, false)}
               data-cell={`${rowIdx}-5`}
-              className="text-right py-0.75 px-1.25 text-red text-xs"
+              className="text-right py-0.75 px-1.25 text-red-text text-xs"
             />
           )
         },
       }),
       columnHelper.display({
         id: 'pert',
-        header: 'PERT',
+        header: t.columns.pert,
         cell: (info) => {
           const row = info.row.original
           return (
             <div className="text-right font-mono text-xs text-acc-hi pr-0.75">
-              {pertCalc(row.o, row.ml, row.p).toFixed(1)}
+              {oneDecimal(pertCalc(row.o, row.ml, row.p))}
             </div>
           )
         },
       }),
       columnHelper.accessor('risk', {
-        header: 'Risk',
+        header: t.columns.risk,
         cell: (info) => {
           const rowIdx = visibleRowIdxRef.current.get(info.row.original.id) ?? 0
           const risky = Number(info.getValue()) > 0
@@ -660,23 +689,23 @@ const ActivityTable = memo(function ActivityTable({
               }
               onKeyDown={(e) => navRef.current(e, rowIdx, 6, false)}
               data-cell={`${rowIdx}-6`}
-              className={`text-right py-0.75 px-1.25 text-xs ${risky ? 'text-org' : 'text-text'}`}
+              className={`text-right py-0.75 px-1.25 text-xs ${risky ? 'text-org-text' : 'text-text'}`}
             />
           )
         },
       }),
       columnHelper.display({
         id: 'expected',
-        header: 'Exp.',
+        header: t.columns.expected,
         cell: (info) => {
           const row = info.row.original
           const exp = pertCalc(row.o, row.ml, row.p) + (Number(row.risk) || 0)
-          return <div className="text-right font-mono text-[13px] font-semibold pr-0.75">{exp.toFixed(1)}</div>
+          return <div className="text-right font-mono text-sm font-semibold pr-0.75">{oneDecimal(exp)}</div>
         },
       }),
       columnHelper.display({
         id: 'aiGain',
-        header: 'AI%',
+        header: t.columns.aiGain,
         cell: (info) => {
           const row = info.row.original
           const rowIdx = visibleRowIdxRef.current.get(row.id) ?? 0
@@ -698,7 +727,7 @@ const ActivityTable = memo(function ActivityTable({
         },
       }),
       columnHelper.accessor('notes', {
-        header: '💬',
+        header: () => <Icon name="message" label={t.columns.notes} />,
         cell: (info) => {
           const rowIdx = visibleRowIdxRef.current.get(info.row.original.id) ?? 0
           return (
@@ -714,7 +743,7 @@ const ActivityTable = memo(function ActivityTable({
         },
       }),
       columnHelper.accessor('release', {
-        header: 'Release',
+        header: t.columns.release,
         cell: (info) => {
           const rowIdx = visibleRowIdxRef.current.get(info.row.original.id) ?? 0
           // T17 (design.md S5): same rationale as the Profile column above —
@@ -727,7 +756,7 @@ const ActivityTable = memo(function ActivityTable({
                 tabIndex={0}
                 onKeyDown={(e) => navRef.current(e, rowIdx, 9, false)}
                 data-cell={`${rowIdx}-9`}
-                className="block py-0.75 px-1.25 text-[11px] truncate"
+                className="block py-0.75 px-1.25 text-2xs truncate"
               >
                 {info.getValue()}
               </span>
@@ -747,12 +776,13 @@ const ActivityTable = memo(function ActivityTable({
               }}
               onKeyDown={(e) => navRef.current(e, rowIdx, 9, false)}
               data-cell={`${rowIdx}-9`}
-              className="py-0.75 px-1.25 text-[11px]"
+              aria-label={t.columns.release}
+              className="py-0.75 px-1.25 text-2xs"
             >
               {releaseNamesRef.current.map((r) => (
                 <option key={r}>{r}</option>
               ))}
-              <option value={NEW_RELEASE_SENTINEL}>＋ New release…</option>
+              <option value={NEW_RELEASE_SENTINEL}>{t.newRelease}</option>
             </select>
           )
         },
@@ -766,7 +796,7 @@ const ActivityTable = memo(function ActivityTable({
           return (
             <div className="flex items-center gap-0.5">
               {ws.map((code) => (
-                <WarningBadge key={code} code={code} className="text-[11px]" />
+                <WarningBadge key={code} code={code} className="text-2xs" />
               ))}
             </div>
           )
@@ -780,13 +810,17 @@ const ActivityTable = memo(function ActivityTable({
           // removed — an empty cell, never a disabled button.
           if (readOnlyRef.current) return null
           return (
-            <button
+            <Button
+              variant="ghost"
+              size="sm"
+              iconOnly
               onClick={() => onDeleteRef.current(info.row.original.id)}
-              className="bg-transparent text-[15px] py-0 text-muted/0 group-hover:text-muted hover:!text-red focus:text-muted transition-colors"
-              title="Delete activity"
+              className="opacity-0 group-hover:opacity-100 focus-visible:opacity-100 transition-opacity"
+              title={t.deleteActivity}
+              aria-label={t.deleteActivity}
             >
-              ×
-            </button>
+              <Icon name="trash" />
+            </Button>
           )
         },
       }),
@@ -906,41 +940,42 @@ const ActivityTable = memo(function ActivityTable({
     <>
       <div className="flex justify-between items-center mb-3">
         <div className="flex items-center gap-2">
-          <h2 className="font-disp text-sm font-bold">Activity Detail</h2>
+          <h2 className="font-disp text-sm font-bold">{t.heading}</h2>
           {epicOrder.length > 0 && (
-            <button
+            <Button
+              variant="ghost"
+              size="sm"
               onClick={toggleAllEpics}
-              className="bg-transparent text-[10px] text-muted hover:text-soft py-0.5 px-1.5 border border-rule rounded"
-              title={allCollapsed ? 'Expand all epics' : 'Collapse all epics'}
+              title={allCollapsed ? t.expandAllTitle : t.collapseAllTitle}
             >
-              {allCollapsed ? '▶ Expand all' : '▼ Collapse all'}
-            </button>
+              {allCollapsed ? t.expandAll : t.collapseAll}
+            </Button>
           )}
         </div>
         {!readOnly && (
-          <button
-            onClick={() => onAdd(currentEpic())}
-            className="bg-acc text-white py-1.5 px-3.25 font-medium text-xs"
-            title="Add activity (Shift+N)"
-          >
-            + Add Activity
-          </button>
+          <Button variant="primary" size="sm" onClick={() => onAdd(currentEpic())} title={t.addActivityTitle}>
+            {t.addActivity}
+          </Button>
         )}
       </div>
 
       {releaseNames.length > 1 && (
         <div className="flex items-center gap-1.5 mb-3 flex-wrap">
-          <span className="text-[10px] text-muted font-mono uppercase tracking-wide shrink-0">Release:</span>
+          <span className="text-2xs text-soft font-mono uppercase tracking-wide shrink-0">{t.releaseFilter}</span>
           {releaseNames.map((name) => {
             const active = filteredReleases.has(name)
             return (
+              // A filter chip, not a button visually: kept as a plain toggle
+              // (aria-pressed) with the global focus ring.
               <button
                 key={name}
+                type="button"
                 onClick={() => toggleRelease(name)}
-                className={`text-[11px] py-0.5 px-2.5 rounded-full border transition-colors ${
+                aria-pressed={active}
+                className={`text-2xs py-0.5 px-2.5 rounded-full border transition-colors ${
                   active
-                    ? 'bg-acc/15 border-acc/60 text-acc-hi'
-                    : 'bg-transparent border-rule text-muted hover:border-soft hover:text-soft'
+                    ? 'bg-acc/15 border-acc/60 text-acc-text'
+                    : 'bg-transparent border-rule text-soft hover:border-soft hover:text-text'
                 }`}
               >
                 {name}
@@ -948,12 +983,9 @@ const ActivityTable = memo(function ActivityTable({
             )
           })}
           {filteredReleases.size > 0 && (
-            <button
-              onClick={() => setFilteredReleases(new Set())}
-              className="text-[10px] text-muted/60 hover:text-muted ml-1 underline underline-offset-2"
-            >
-              clear
-            </button>
+            <Button variant="ghost" size="sm" className="ml-1" onClick={() => setFilteredReleases(new Set())}>
+              {t.clearFilter}
+            </Button>
           )}
         </div>
       )}
@@ -979,7 +1011,7 @@ const ActivityTable = memo(function ActivityTable({
           }, [])}
         >
           <div
-            className="grid gap-0.75 py-1.5 px-2 bg-ink-mid rounded-t-md text-[9px] text-soft font-mono uppercase tracking-[0.06em]"
+            className="grid gap-0.75 py-1.5 px-2 bg-ink-mid rounded-t-md text-2xs text-soft font-mono uppercase tracking-[0.06em]"
             style={{ gridTemplateColumns: COL_W }}
           >
             <div />
@@ -999,7 +1031,7 @@ const ActivityTable = memo(function ActivityTable({
 
           {(() => {
             const epicRows = epicOrder.map(({ epicKey, groupId }) => {
-              const label = epicKey || '(no epic)'
+              const label = epicKey || t.noEpic
               const epicActs = epicGroups.get(epicKey) ?? []
               const isCollapsed = collapsedEpics.has(epicKey)
               const subtotal = epicActs.reduce((s, a) => s + pertCalc(a.o, a.ml, a.p) + (Number(a.risk) || 0), 0)
@@ -1015,13 +1047,13 @@ const ActivityTable = memo(function ActivityTable({
                     }`}
                     onClick={() => toggleEpic(epicKey)}
                   >
-                    <span className="text-[9px] text-acc w-2.5 shrink-0">{isCollapsed ? '▶' : '▼'}</span>
-                    <span className="text-[11px] font-semibold text-acc-hi flex-1 truncate">{label}</span>
-                    <span className="text-[10px] text-muted shrink-0">
-                      {epicActs.length} {epicActs.length === 1 ? 'activity' : 'activities'}
+                    <span className="text-2xs text-acc-text w-2.5 shrink-0 inline-flex">
+                      <Icon name={isCollapsed ? 'chevron-right' : 'chevron-down'} />
                     </span>
-                    <span className="text-[11px] font-mono font-semibold text-text ml-3 shrink-0">
-                      Exp. {subtotal.toFixed(1)} d
+                    <span className="text-2xs font-semibold text-acc-hi flex-1 truncate">{label}</span>
+                    <span className="text-2xs text-soft shrink-0">{t.activityCount(epicActs.length)}</span>
+                    <span className="text-2xs font-mono font-semibold text-text ml-3 shrink-0">
+                      {t.epicSubtotal(oneDecimal(subtotal))}
                     </span>
                   </div>
 
@@ -1034,7 +1066,7 @@ const ActivityTable = memo(function ActivityTable({
                         act.id === focusedActId
                           ? 'bg-acc/[0.06] border-l-acc'
                           : risky
-                            ? 'bg-[rgba(245,166,35,.04)] border-l-org'
+                            ? 'bg-org/4 border-l-org'
                             : idx % 2 === 0
                               ? 'bg-ink-soft border-l-transparent'
                               : 'bg-ink border-l-transparent'
@@ -1090,38 +1122,29 @@ const ActivityTable = memo(function ActivityTable({
           })()}
 
           {!readOnly && (
-            <button
-              onClick={() => onAdd(currentEpic())}
-              className="w-full py-2 text-xs font-medium text-acc-hi bg-ink-soft hover:bg-ink-mid border-t border-rule rounded-b-md transition-colors"
-              title="Add activity (Shift+N)"
-            >
-              + Add Activity
-            </button>
+            <div className="border-t border-rule bg-ink-soft rounded-b-md p-1">
+              <Button
+                variant="ghost"
+                size="sm"
+                className="w-full"
+                onClick={() => onAdd(currentEpic())}
+                title={t.addActivityTitle}
+              >
+                {t.addActivity}
+              </Button>
+            </div>
           )}
         </div>
       </div>
 
-      <div className="flex gap-4 mt-3 text-[11px] text-soft font-mono flex-wrap">
-        <span>
-          <span className="text-grn">O</span> = Optimistic
-        </span>
-        <span>ML = Most Likely (auto-derives O &amp; P)</span>
-        <span>
-          <span className="text-red">P</span> = Pessimistic
-        </span>
-        <span>
-          <span className="text-acc-hi">PERT</span> = (O+4×ML+P)/6
-        </span>
-        <span>
-          <span className="text-org">Risk</span> = buffer days
-        </span>
-        <span>
-          <strong className="text-text">Exp.</strong> = PERT+Risk
-        </span>
-        <span>
-          <span className="text-acc-hi">AI%</span> = per-activity gain (blank = global default)
-        </span>
-      </div>
+      <dl className="flex gap-4 mt-3 text-2xs text-soft font-mono flex-wrap">
+        {LEGEND.map(({ key, colorClass }) => (
+          <div key={key} className="flex gap-1">
+            <dt className={colorClass}>{t.columns[key]}</dt>
+            <dd>{t.legend[key]}</dd>
+          </div>
+        ))}
+      </dl>
     </>
   )
 })

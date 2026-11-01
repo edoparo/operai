@@ -1,4 +1,5 @@
-import { describe, expect, it, vi } from 'vitest'
+import { describe, expect, it } from 'vitest'
+import { formatDate as formatDateIntl } from '@operai/ui'
 import { formatDate, formatDateTime, todayIsoDate } from './dates'
 
 describe('formatDate', () => {
@@ -22,31 +23,18 @@ describe('formatDate', () => {
     expect(formatDate('2026-08-11T10:00:00.000Z')).toMatch(/^\d{2}\.\d{2}\.\d{4}$/)
   })
 
-  // A date-only value must never be shifted by the viewer's timezone.
-  // `new Date('2026-08-11')` is UTC midnight, so an implementation that parses
-  // it shows 10.08.2026 anywhere west of UTC. CH/IT and CI are at or east of
-  // UTC, where that bug is invisible — so asserting the formatted output would
-  // pass here while being broken for anyone travelling.
-  //
-  // Asserting the INVARIANT instead: the date-only path must not construct a
-  // Date at all. Making the constructor throw proves it TZ-independently,
-  // where reassigning process.env.TZ mid-run would have proved nothing (Node
-  // reads it once at startup).
-  it('never constructs a Date for a date-only value, so no timezone can shift it', () => {
-    const RealDate = globalThis.Date
-    vi.stubGlobal(
-      'Date',
-      class {
-        constructor() {
-          throw new Error('formatDate must not parse a date-only value')
-        }
-      },
-    )
-    try {
-      expect(formatDate('2026-08-11')).toBe('11.08.2026')
-    } finally {
-      vi.stubGlobal('Date', RealDate)
-    }
+  // A date-only value must never be shifted by the viewer's timezone:
+  // `new Date('2026-08-11')` is UTC midnight, which reads 10.08.2026 anywhere
+  // west of UTC. The library formatter builds the LOCAL calendar day from the
+  // string's own fields, so the day survives every zone.
+  it('is the same calendar day as the string says, whatever the time zone', () => {
+    expect(formatDate('2026-08-11')).toBe('11.08.2026')
+    expect(formatDate('2026-01-01')).toBe('01.01.2026')
+    expect(formatDate('2026-12-31')).toBe('31.12.2026')
+  })
+
+  it('is the suite formatter (INC-26), not a local copy', () => {
+    expect(formatDate('2026-08-11')).toBe(formatDateIntl('2026-08-11'))
   })
 
   it('never emits a month name — the format is all-numeric', () => {
@@ -59,10 +47,10 @@ describe('formatDate', () => {
 })
 
 describe('formatDateTime', () => {
-  it('formats a timestamp as DD.MM.YYYY, HH:mm with the same date shape as formatDate', () => {
+  it('formats a timestamp as DD.MM.YYYY HH:mm with the same date shape as formatDate', () => {
     const result = formatDateTime('2026-07-16T10:30:00.000Z')
-    expect(result).toMatch(/^\d{2}\.\d{2}\.\d{4}, \d{2}:\d{2}$/)
-    expect(result.split(',')[0]).toBe(formatDate('2026-07-16T10:30:00.000Z'))
+    expect(result).toMatch(/^\d{2}\.\d{2}\.\d{4} \d{2}:\d{2}$/)
+    expect(result.split(' ')[0]).toBe(formatDate('2026-07-16T10:30:00.000Z'))
   })
 
   // 24-hour, not a locale-derived 12-hour clock — AM/PM is exactly the

@@ -1,4 +1,5 @@
 import { Link, Outlet } from '@tanstack/react-router'
+import { TabNav, ToolLayout, tabLinkClassName } from '@operai/ui'
 import { usePermissions } from 'shell/session'
 import { strings } from '../strings'
 
@@ -44,7 +45,14 @@ import { strings } from '../strings'
  * remain the actual enforcement — a deep link typed/followed by a
  * non-accounting user still lands on `PermissionDenied`, exactly as before.
  * Do not remove that handling on the strength of this nav change.
+  *
+ * Layout from @operai/ui (ADR-0050): `ToolLayout` (tool title + tabs + the
+ * page column — a <div>, not a second <main>: the shell's layout owns the
+ * page's one main landmark) and `TabNav`. TanStack Router's <Link> sets
+ * `aria-current="page"` on the active tab; the library's `.tab-link` styles
+ * it, so no activeProps are needed.
  */
+
 export default function RefundShell() {
   const { permissions } = usePermissions()
   const canReview = permissions.some(
@@ -52,56 +60,27 @@ export default function RefundShell() {
   )
 
   return (
-    <div className="min-h-screen" style={{ color: 'var(--text)', fontFamily: 'var(--body)' }}>
-      <header style={{ borderBottom: '1px solid var(--rule)', backgroundColor: 'var(--ink-soft)' }}>
-        <div className="mx-auto max-w-5xl px-6 py-4">
-          <h1 className="text-xl font-bold" style={{ fontFamily: 'var(--disp)' }}>
-            {strings.appTitle}
-          </h1>
-        </div>
-        <nav aria-label={strings.nav.landmarkLabel}>
-          <ul className="mx-auto flex max-w-5xl gap-1 px-6">
-            <li>
-              <Link
-                to="/requests"
-                className="inline-block border-b-2 border-transparent px-3 py-3 text-sm font-medium transition-colors hover:text-[var(--text)]"
-                style={{ color: 'var(--soft)' }}
-                activeProps={{ style: { color: 'var(--acc)', borderColor: 'var(--acc)' } }}
-              >
-                {strings.nav.myRequests}
-              </Link>
-            </li>
-            {canReview && (
-              <li>
-                <Link
-                  to="/review"
-                  className="inline-block border-b-2 border-transparent px-3 py-3 text-sm font-medium transition-colors hover:text-[var(--text)]"
-                  style={{ color: 'var(--soft)' }}
-                  activeProps={{ style: { color: 'var(--acc)', borderColor: 'var(--acc)' } }}
-                >
-                  {strings.nav.reviewQueue}
-                </Link>
-              </li>
-            )}
-            {canReview && (
-              <li>
-                <Link
-                  to="/batches"
-                  className="inline-block border-b-2 border-transparent px-3 py-3 text-sm font-medium transition-colors hover:text-[var(--text)]"
-                  style={{ color: 'var(--soft)' }}
-                  activeProps={{ style: { color: 'var(--acc)', borderColor: 'var(--acc)' } }}
-                >
-                  {strings.nav.monthlyProcessing}
-                </Link>
-              </li>
-            )}
-          </ul>
-        </nav>
-      </header>
-
-      <main className="mx-auto max-w-5xl px-6 py-8">
-        <Outlet />
-      </main>
-    </div>
+    <ToolLayout
+      title={strings.appTitle}
+      nav={
+        <TabNav label={strings.nav.landmarkLabel}>
+          <Link to="/requests" className={tabLinkClassName}>
+            {strings.nav.myRequests}
+          </Link>
+          {canReview && (
+            <Link to="/review" className={tabLinkClassName}>
+              {strings.nav.reviewQueue}
+            </Link>
+          )}
+          {canReview && (
+            <Link to="/batches" className={tabLinkClassName}>
+              {strings.nav.monthlyProcessing}
+            </Link>
+          )}
+        </TabNav>
+      }
+    >
+      <Outlet />
+    </ToolLayout>
   )
 }

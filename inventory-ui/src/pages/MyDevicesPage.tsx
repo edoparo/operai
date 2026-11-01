@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
+import { Banner, Card, ListRows, StatePanel, ToolLayout, VisuallyHidden } from '@operai/ui'
 import ConfirmDialog from '../components/ConfirmDialog'
 import DeviceCard from '../components/DeviceCard'
 import ErrorBanner from '../components/ErrorBanner'
@@ -157,127 +158,97 @@ export default function MyDevicesPage() {
   const waiting: MyPending[] = data?.pending ?? []
 
   return (
-    <section
-      aria-labelledby="devices-heading"
-      data-testid="inventory-my-devices-page"
-      className="mx-auto flex max-w-3xl flex-col gap-6 px-6 py-8"
-    >
-      <h1
-        id="devices-heading"
-        ref={headingRef}
-        tabIndex={-1}
-        data-testid="devices-heading"
-        className="text-lg font-semibold focus:outline-none focus-visible:ring-2"
-        style={{ fontFamily: 'var(--disp)', color: 'var(--text)' }}
+    // The tool frame (INC-12): ToolLayout, whose focusable h1 labels the section
+    // and takes focus after the last decline.
+    <section aria-labelledby="devices-heading" data-testid="inventory-my-devices-page">
+      <ToolLayout
+        title={t.heading}
+        titleId="devices-heading"
+        titleRef={headingRef}
+        focusableTitle
+        titleTestId="devices-heading"
       >
-        {t.heading}
-      </h1>
+        <div className="flex flex-col gap-6">
+          <VisuallyHidden live role="status" data-testid="devices-status">
+            {statusLine}
+          </VisuallyHidden>
 
-      <p role="status" aria-live="polite" data-testid="devices-status" className="sr-only">
-        {statusLine}
-      </p>
-
-      {notice !== null && (
-        <p
-          role="alert"
-          data-testid="devices-notice"
-          className="rounded-md border px-4 py-3 text-sm"
-          style={{
-            borderColor: 'var(--org)',
-            backgroundColor: 'color-mix(in srgb, var(--org) 10%, transparent)',
-            color: 'var(--org)',
-          }}
-        >
-          {notice}
-        </p>
-      )}
-
-      {fetchError !== null ? (
-        <ErrorBanner
-          message={
-            fetchError instanceof ApiError ? (fetchError.detail ?? strings.errors.unknown) : strings.errors.network
-          }
-          onRetry={() => setAttempt((n) => n + 1)}
-        />
-      ) : data === null ? (
-        <div>
-          <p role="status" aria-live="polite" className="sr-only" data-testid="devices-loading">
-            {t.loading}
-          </p>
-          <SkeletonListRows />
-        </div>
-      ) : waiting.length === 0 && devices.length === 0 ? (
-        <p data-testid="devices-empty" className="text-sm" style={{ color: 'var(--soft)' }}>
-          {t.empty}
-        </p>
-      ) : (
-        <>
-          {waiting.length > 0 && (
-            <section aria-labelledby="devices-pending-heading" className="flex flex-col gap-3">
-              <h2
-                id="devices-pending-heading"
-                className="text-base font-semibold"
-                style={{ fontFamily: 'var(--disp)', color: 'var(--text)' }}
-              >
-                {t.pendingHeading(waiting.length)}
-              </h2>
-              <ul className="flex flex-col gap-2">
-                {waiting.map((item) => (
-                  <DeviceCard
-                    key={item.assignmentId}
-                    device={item}
-                    kind="pending"
-                    busy={busyId === item.assignmentId}
-                    errorMessage={cardError?.assignmentId === item.assignmentId ? cardError.message : null}
-                    onConfirm={() => void confirm(item)}
-                    onDecline={() => {
-                      setCardError(null)
-                      setDeclining({ pending: item, busy: false, error: null })
-                    }}
-                  />
-                ))}
-              </ul>
-            </section>
+          {notice !== null && (
+            <Banner tone="warning" data-testid="devices-notice">
+              {notice}
+            </Banner>
           )}
 
-          <section aria-labelledby="devices-held-heading" className="flex flex-col gap-3">
-            <h2
-              id="devices-held-heading"
-              className="text-base font-semibold"
-              style={{ fontFamily: 'var(--disp)', color: 'var(--text)' }}
-            >
-              {t.heldHeading(devices.length)}
-            </h2>
-            {devices.length === 0 ? (
-              <p className="text-sm" style={{ color: 'var(--soft)' }}>
-                {t.heldEmpty}
-              </p>
-            ) : (
-              <ul className="flex flex-col gap-2">
-                {devices.map((device) => (
-                  <DeviceCard key={device.assetId} device={device} kind="held" />
-                ))}
-              </ul>
-            )}
-          </section>
-        </>
-      )}
+          {fetchError !== null ? (
+            <ErrorBanner
+              message={
+                fetchError instanceof ApiError ? (fetchError.detail ?? strings.errors.unknown) : strings.errors.network
+              }
+              onRetry={() => setAttempt((n) => n + 1)}
+            />
+          ) : data === null ? (
+            <div>
+              <VisuallyHidden live role="status" data-testid="devices-loading">
+                {t.loading}
+              </VisuallyHidden>
+              <SkeletonListRows />
+            </div>
+          ) : waiting.length === 0 && devices.length === 0 ? (
+            <StatePanel testId="devices-empty" headingLevel={2} title={t.empty} />
+          ) : (
+            <>
+              {waiting.length > 0 && (
+                <Card headingLevel={2} title={t.pendingHeading(waiting.length)}>
+                  <ListRows label={t.pendingHeading(waiting.length)}>
+                    {waiting.map((item) => (
+                      <DeviceCard
+                        key={item.assignmentId}
+                        device={item}
+                        kind="pending"
+                        busy={busyId === item.assignmentId}
+                        errorMessage={cardError?.assignmentId === item.assignmentId ? cardError.message : null}
+                        onConfirm={() => void confirm(item)}
+                        onDecline={() => {
+                          setCardError(null)
+                          setDeclining({ pending: item, busy: false, error: null })
+                        }}
+                      />
+                    ))}
+                  </ListRows>
+                </Card>
+              )}
 
-      {declining !== null && (
-        <ConfirmDialog
-          entityLabel={t.declineDialog.entityLabel}
-          itemName={declining.pending.description}
-          isDeleting={declining.busy}
-          errorMessage={declining.error}
-          title={t.declineDialog.title(declining.pending.description)}
-          body={<p>{t.declineDialog.body}</p>}
-          confirmLabel={t.declineDialog.confirm}
-          confirmingLabel={t.declineDialog.confirming}
-          onConfirm={() => void decline(declining.pending)}
-          onCancel={() => setDeclining(null)}
-          testIdPrefix="decline-assignment"
-        />
-      )}
+              <Card headingLevel={2} title={t.heldHeading(devices.length)}>
+                {devices.length === 0 ? (
+                  <StatePanel title={t.heldEmpty} />
+                ) : (
+                  <ListRows label={t.heldHeading(devices.length)}>
+                    {devices.map((device) => (
+                      <DeviceCard key={device.assetId} device={device} kind="held" />
+                    ))}
+                  </ListRows>
+                )}
+              </Card>
+            </>
+          )}
+
+          {declining !== null && (
+            <ConfirmDialog
+              entityLabel={t.declineDialog.entityLabel}
+              itemName={declining.pending.description}
+              isDeleting={declining.busy}
+              errorMessage={declining.error}
+              title={t.declineDialog.title(declining.pending.description)}
+              body={<p>{t.declineDialog.body}</p>}
+              confirmLabel={t.declineDialog.confirm}
+              confirmingLabel={t.declineDialog.confirming}
+              onConfirm={() => void decline(declining.pending)}
+              onCancel={() => setDeclining(null)}
+              testIdPrefix="decline-assignment"
+            />
+          )}
+        </div>
+      </ToolLayout>
     </section>
   )
 }

@@ -2,6 +2,7 @@ import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 import { federation } from '@module-federation/vite'
 import { readFileSync } from 'node:fs'
+import { fileURLToPath } from 'node:url'
 
 // T14 (specs/005-notification-center/tasks.md): notify-ui — the notification
 // center's dedicated Module Federation REMOTE (plan.md "Architecture →
@@ -28,7 +29,16 @@ const pkg = JSON.parse(readFileSync(new URL('./package.json', import.meta.url), 
 // shell/session + shell/tokens.css from there.
 const shellRemoteUrl = process.env['SHELL_REMOTE_URL'] ?? 'http://localhost:5173/remoteEntry.js'
 
+// @operai/ui (operai-ui/, ADR-0050) is compiled from SOURCE by this build; `dedupe`
+// keeps the library's own `react` imports on this project's copy (Module Federation
+// singleton), since operai-ui/node_modules does not exist on Vercel.
+const operaiUiEntry = fileURLToPath(new URL('../operai-ui/src/index.ts', import.meta.url))
+
 export default defineConfig({
+  resolve: {
+    alias: { '@operai/ui': operaiUiEntry },
+    dedupe: ['react', 'react-dom'],
+  },
   plugins: [
     react(),
     federation({

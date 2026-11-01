@@ -167,11 +167,14 @@ export default function MileageAmountField({ entity, date, km }: MileageAmountFi
           ? t.blocked(entityLabels[displaySettled.entity])
           : t.fetchError
 
-  const statusColor = isError ? 'var(--red)' : isBlocked ? 'var(--org)' : 'var(--text)'
+  // INC-20: both are orange. A failed rate lookup is a failed LOAD that the
+  // next change of entity/date/km retries — nothing in the form to fix, so not
+  // red; "no rate configured" is a genuine warning (it blocks submission).
+  const statusColor = isError || isBlocked ? 'text-org-text' : 'text-text'
 
   return (
     <div className="flex flex-col gap-1" data-testid="mileage-amount-field">
-      <span className="text-xs font-medium" style={{ color: 'var(--soft)' }}>
+      <span className="text-xs font-medium text-soft">
         {t.label}
       </span>
       <div className="flex flex-wrap items-center gap-2">
@@ -180,8 +183,7 @@ export default function MileageAmountField({ entity, date, km }: MileageAmountFi
           role={isError ? 'alert' : 'status'}
           aria-live="polite"
           data-testid="mileage-amount-status"
-          className="text-sm"
-          style={{ color: statusColor }}
+          className={`text-sm ${statusColor}`}
         >
           {statusText}
         </p>
@@ -189,8 +191,7 @@ export default function MileageAmountField({ entity, date, km }: MileageAmountFi
           <span
             aria-hidden="true"
             data-testid="mileage-amount-loading"
-            className="text-[11px]"
-            style={{ color: 'var(--muted)' }}
+            className="text-2xs text-soft"
           >
             {t.calculating}
           </span>

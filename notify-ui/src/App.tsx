@@ -45,15 +45,12 @@ import { createAppRouter } from './router'
  * properties are present regardless of whether this component runs inside
  * the shell (which already loads the same tokens globally — a harmless
  * duplicate `<style>` injection) or standalone (src/main.tsx, dev/test
- * bootstrap — where it's the ONLY source of the palette). Components here
- * follow admin-ui's convention (plain CSS custom properties via inline
- * `style={{ color: 'var(--x)' }}`, not Tailwind's palette-specific utility
- * classes) since notify-ui's own build never processes `shell/tokens.css`'s
- * `@theme` block through Tailwind's compiler — see design.md's Component
- * inventory section for the two-conventions-coexist rationale. Standard
- * Tailwind utilities (layout/spacing/type-scale — `mx-auto`, `px-6`,
- * `text-3xl`, …) are unaffected and used freely, since those ship with
- * Tailwind itself and need no local `@theme`.
+ * bootstrap — where it's the ONLY source of the palette).
+ * Colours and fonts are Tailwind token utilities (`text-soft`, `bg-ink-mid`,
+ * `font-disp`, …), the suite's one styling dialect (ADR-0051): the shell's
+ * single Tailwind sheet scans this source with the shared `@theme`, and the
+ * standalone build's index.css imports the same tokens. Never inline
+ * `var(--…)` styles; lint rejects them.
  */
 const router = createAppRouter('/notify')
 

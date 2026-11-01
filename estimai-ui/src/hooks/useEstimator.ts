@@ -1,5 +1,6 @@
 import { useMemo } from 'react'
 import type { Activity, Release, Parameters, ReleaseResult, ReleaseSummary, Totals } from '../types'
+import { PROFILES } from '../types'
 
 /**
  * PERT calculation: (O + 4*ML + P) / 6
@@ -106,7 +107,7 @@ export function useEstimator(acts: Activity[], releases: Release[], params: Para
   const byProfile = useMemo(() => {
     const m: Record<string, number> = {}
     acts.forEach((a) => {
-      const k = a.prof || 'Developer'
+      const k = a.prof || PROFILES[0]
       m[k] = (m[k] || 0) + pertCalc(a.o, a.ml, a.p) + (Number(a.risk) || 0)
     })
     return Object.entries(m).sort((a, b) => b[1] - a[1])

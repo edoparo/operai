@@ -17,7 +17,7 @@
  *
  * WHAT THIS TEST PROVES — the full round-trip against the live stack:
  *   1. Sign in via a seeded better-auth session (shell owns the guard).
- *   2. CREATE: `/estimai/estimates` → "+ New estimate" → POST /estimates.
+ *   2. CREATE: `/estimai/estimates` → "New estimate" → POST /estimates.
  *   3. SAVE: type a project name + add an activity → debounced PUT /estimates/{id}.
  *   4. RELOAD: back to the list → GET /estimates shows the saved estimate.
  *   5. REOPEN: Open the row → GET /estimates/{id} → editor shows persisted
@@ -55,7 +55,7 @@ test.describe('EstimAI persistence journey inside the shell (AC-4.1)', () => {
     await expect(page).toHaveURL(/\/estimai\/estimates$/, { timeout: 15_000 })
 
     // ── Step 2: Create a new estimate ────────────────────────────────────────
-    const newBtn = page.getByRole('button', { name: '+ New estimate' })
+    const newBtn = page.getByRole('button', { name: 'New estimate' })
     await expect(newBtn, 'New estimate button must be visible').toBeVisible({ timeout: 15_000 })
     await newBtn.click()
 
@@ -101,7 +101,7 @@ test.describe('EstimAI persistence journey inside the shell (AC-4.1)', () => {
     ).not.toContainText('Save failed')
 
     // ── Step 6: Reload the list; the estimate appears ────────────────────────
-    await page.getByRole('button', { name: 'My Estimates' }).first().click()
+    await page.getByRole('link', { name: 'Back to estimates' }).first().click()
     await expect(page).toHaveURL(/\/estimai\/estimates$/, { timeout: 10_000 })
     await page.waitForLoadState('networkidle')
 
@@ -139,12 +139,12 @@ test.describe('EstimAI persistence journey inside the shell (AC-4.1)', () => {
     ).toHaveValue(ACTIVITY_NAME, { timeout: 10_000 })
 
     await expect(
-      page.getByText('Total Man/Days'),
+      page.getByText('Total man-days'),
       'MetricsBar must render computed values (proves useEstimator ran)',
     ).toBeVisible({ timeout: 10_000 })
 
     // ── Step 8: Delete the estimate ──────────────────────────────────────────
-    await page.getByRole('button', { name: 'My Estimates' }).first().click()
+    await page.getByRole('link', { name: 'Back to estimates' }).first().click()
     await expect(page).toHaveURL(/\/estimai\/estimates$/, { timeout: 10_000 })
     await page.waitForLoadState('networkidle')
 
@@ -177,7 +177,7 @@ test.describe('EstimAI persistence journey inside the shell (AC-4.1)', () => {
     await page.goto('/estimai/estimates')
     await page.waitForLoadState('networkidle')
 
-    const newBtn = page.getByRole('button', { name: '+ New estimate' })
+    const newBtn = page.getByRole('button', { name: 'New estimate' })
     await expect(newBtn).toBeVisible({ timeout: 15_000 })
     await newBtn.click()
     await expect(page).toHaveURL(/\/estimai\/estimates\/[a-z0-9]+$/, { timeout: 15_000 })
@@ -191,7 +191,7 @@ test.describe('EstimAI persistence journey inside the shell (AC-4.1)', () => {
       { timeout: AUTOSAVE_WAIT_MS },
     )
 
-    await page.getByRole('button', { name: 'My Estimates' }).first().click()
+    await page.getByRole('link', { name: 'Back to estimates' }).first().click()
     await expect(page).toHaveURL(/\/estimai\/estimates$/, { timeout: 10_000 })
     await page.waitForLoadState('networkidle')
 

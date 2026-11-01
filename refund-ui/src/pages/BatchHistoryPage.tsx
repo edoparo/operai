@@ -1,5 +1,14 @@
 import { useCallback, useEffect, useState } from 'react'
 import { Link } from '@tanstack/react-router'
+import {
+  ListRows,
+  PageHeader,
+  StatePanel,
+  VisuallyHidden,
+  buttonClassName,
+  listRowClassName,
+  listRowMetaClassName,
+} from '@operai/ui'
 import { strings } from '../strings'
 import * as batchesApi from '../lib/batchesApi'
 import type { BatchSummary } from '../lib/batchesApi'
@@ -22,7 +31,7 @@ import BatchStatusBadge from '../components/BatchStatusBadge'
  * States (design.md "L/E/P/Err/PD"):
  *   L   — SkeletonListRows + an sr-only aria-live loading announcement.
  *   E   — a true first-time zero-batches-ever state (distinct from PD — a
- *         real, successful, empty result), + the same "+ Compile new batch"
+ *         real, successful, empty result), + the same "Compile new batch"
  *         CTA the populated header also shows.
  *   P   — the row list (cutoff, `BatchStatusBadge`, request count,
  *         per-currency totals, compact email-status indicator); each row
@@ -35,7 +44,7 @@ import BatchStatusBadge from '../components/BatchStatusBadge'
  * No pagination — `GET /batches` is a bare array in plan.md's contract
  * (design.md Gap #6, carried from 007's own Gap #6).
  *
- * "+ Compile new batch" is visible regardless of the caller's exact
+ * "Compile new batch" is visible regardless of the caller's exact
  * capabilities (design.md F8 step 3 — mirrors `RefundShell`'s Gap #7
  * reasoning: refund-ui has no cheap client-side way to know if THIS caller
  * specifically holds `request:review`; a harmless dead end caught by
@@ -95,30 +104,29 @@ export default function BatchHistoryPage() {
 
   return (
     <section aria-labelledby="refund-batch-history-heading" data-testid="refund-batch-history-page">
-      <div className="flex items-center justify-between gap-4">
-        <h2 id="refund-batch-history-heading" className="text-lg font-semibold" style={{ fontFamily: 'var(--disp)' }}>
-          {t.heading}
-        </h2>
-        {listState.status !== 'forbidden' && (
-          <Link
-            to="/batches/new"
-            data-testid="batch-history-new-button"
-            className="text-sm py-1.5 px-3 font-medium transition-opacity hover:opacity-90"
-            style={{ color: 'white', backgroundColor: 'var(--acc)' }}
-          >
-            {t.newBatchButton}
-          </Link>
-        )}
-      </div>
+      <PageHeader
+        title={t.heading}
+        titleId="refund-batch-history-heading"
+        actions={
+          listState.status !== 'forbidden' && (
+            // Was a white label on --acc (4.3:1, below AA); the primary button uses --acc-solid.
+            <Link
+              to="/batches/new"
+              data-testid="batch-history-new-button"
+              className={buttonClassName({ variant: 'primary' })}
+            >
+              {t.newBatchButton}
+            </Link>
+          )
+        }
+      />
 
-      <div className="mt-4">
+      <div>
         {listState.status === 'forbidden' && <PermissionDenied />}
 
         {listState.status === 'loading' && (
           <>
-            <p className="sr-only" aria-live="polite">
-              {t.loadingAnnouncement}
-            </p>
+            <VisuallyHidden live>{t.loadingAnnouncement}</VisuallyHidden>
             <SkeletonListRows />
           </>
         )}
@@ -126,20 +134,14 @@ export default function BatchHistoryPage() {
         {listState.status === 'error' && <ErrorBanner message={listState.message} onRetry={handleRetry} />}
 
         {listState.status === 'loaded' && listState.items.length === 0 && (
-          <div className="flex flex-col items-center gap-3 py-16 text-center" data-testid="batch-history-empty-state">
-            <h3 className="text-base font-semibold" style={{ fontFamily: 'var(--disp)', color: 'var(--text)' }}>
-              {t.empty.heading}
-            </h3>
-            <p className="max-w-md text-sm leading-relaxed" style={{ color: 'var(--muted)' }}>
-              {t.empty.body}
-            </p>
-            {/* No CTA here — the header's "+ Compile new batch" already serves this;
-                a centered second button would be redundant. */}
-          </div>
+          // No action here — the header's "Compile new batch" already serves this.
+          <StatePanel title={t.empty.heading} testId="batch-history-empty-state">
+            {t.empty.body}
+          </StatePanel>
         )}
 
         {listState.status === 'loaded' && listState.items.length > 0 && (
-          <div className="flex flex-col gap-2" data-testid="batch-history-list">
+          <ListRows testId="batch-history-list">
             {listState.items.map((batch) => {
               const cutoff = formatDateTime(batch.cutoff)
               const preview = formatBatchSubtotalsPreview(batch.subtotals)
@@ -150,34 +152,21 @@ export default function BatchHistoryPage() {
                   key={batch.id}
                   data-testid={`batch-history-row-${batch.id}`}
                   aria-label={t.row.openLabel(cutoff, strings.badges.batchStatus[batch.status])}
-                  className="flex flex-wrap items-center justify-between gap-3 px-4 py-3 rounded-md border text-left transition-colors hover:opacity-90"
-                  style={{ borderColor: 'var(--rule)', backgroundColor: 'var(--ink-soft)' }}
+                  className={`${listRowClassName} flex-wrap`}
                 >
-                  <div className="flex items-center gap-3">
+                  <span className="flex items-center gap-3">
                     <BatchStatusBadge status={batch.status} />
-                    <span className="text-xs" style={{ color: 'var(--muted)' }}>
-                      {t.row.cutoffLabel(cutoff)}
-                    </span>
-                    <span className="text-xs" style={{ color: 'var(--muted)' }}>
-                      {t.row.countLabel(batch.requestCount)}
-                    </span>
-                    <span
-                      className="text-xs"
-                      style={{ color: 'var(--muted)' }}
-                      data-testid={`batch-history-row-${batch.id}-email`}
-                    >
+                    <span className={listRowMetaClassName}>{t.row.cutoffLabel(cutoff)}</span>
+                    <span className={listRowMetaClassName}>{t.row.countLabel(batch.requestCount)}</span>
+                    <span className={listRowMetaClassName} data-testid={`batch-history-row-${batch.id}-email`}>
                       {emailLabels[batch.emailStatus ?? 'notAttempted']}
                     </span>
-                  </div>
-                  {preview && (
-                    <span className="text-sm font-mono" style={{ color: 'var(--text)' }}>
-                      {preview}
-                    </span>
-                  )}
+                  </span>
+                  {preview && <span className="text-sm font-mono">{preview}</span>}
                 </Link>
               )
             })}
-          </div>
+          </ListRows>
         )}
       </div>
     </section>

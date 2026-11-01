@@ -1,6 +1,6 @@
-import { useEffect, useState } from 'react'
-import Combobox from './Combobox'
-import type { ComboboxOption } from './Combobox'
+import { useEffect, useRef, useState } from 'react'
+import { Button, Combobox, Field } from '@operai/ui'
+import type { ComboboxOption } from '@operai/ui'
 import FormModal from './FormModal'
 import { ApiError } from '../lib/api'
 import { createAssignment } from '../lib/assignmentsApi'
@@ -68,6 +68,8 @@ export default function AssignDialog({ asset, onAssigned, onCancel, onConflict }
   const [selected, setSelected] = useState<ComboboxOption | null>(null)
   const [submitting, setSubmitting] = useState(false)
   const [generalError, setGeneralError] = useState<string | null>(null)
+  const [holderError, setHolderError] = useState<string | null>(null)
+  const pickerRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
     const controller = new AbortController()
@@ -96,7 +98,12 @@ export default function AssignDialog({ asset, onAssigned, onCancel, onConflict }
   const liveText = loading ? t.loading : failure !== null ? failure : options.length === 0 ? t.empty : ''
 
   const submit = async () => {
-    if (selected === null) return
+    if (selected === null) {
+      // Text typed but nobody picked: say so on the field and put the person back there (INC-16).
+      setHolderError(t.holderRequired)
+      pickerRef.current?.querySelector<HTMLInputElement>('[role="combobox"]')?.focus()
+      return
+    }
     setGeneralError(null)
     setSubmitting(true)
     try {
@@ -129,48 +136,56 @@ export default function AssignDialog({ asset, onAssigned, onCancel, onConflict }
       submitLabel={t.submit}
       submittingLabel={t.submitting}
       submitting={submitting}
-      canSubmit={selected !== null}
+      canSubmit={selected !== null || query.trim() !== ''}
       generalError={generalError}
       onSubmit={() => void submit()}
       onCancel={onCancel}
       testIdPrefix="assign-asset"
     >
-      <div className="flex flex-col gap-1">
-        <label htmlFor="assign-holder" className="text-xs" style={{ color: 'var(--soft)' }}>
-          {t.holder}
-        </label>
-        <Combobox
-          id="assign-holder"
-          testId="assign-holder"
-          value={query}
-          onValueChange={(value) => {
-            setQuery(value)
-            setSelected(null)
-            setOpen(true)
-          }}
-          options={options}
-          onSelect={(option) => {
-            setSelected(option)
-            setQuery(option.label)
-          }}
-          isOpen={open}
-          onOpenChange={setOpen}
-          onFocus={() => setOpen(true)}
-          onBlur={() => setOpen(false)}
-          placeholder={t.holderPlaceholder}
-          emptyState={emptyMessage}
-          liveRegionText={liveText}
-        />
+      <div ref={pickerRef} className="flex flex-col gap-2">
+        <Field label={t.holder} required error={holderError ?? undefined}>
+          {(control) => (
+            <Combobox
+              id={control.id}
+              testId="assign-holder"
+              value={query}
+              onValueChange={(value) => {
+                setQuery(value)
+                setSelected(null)
+                setHolderError(null)
+                setOpen(true)
+              }}
+              options={options}
+              onSelect={(option) => {
+                setSelected(option)
+                setQuery(option.label)
+                setHolderError(null)
+              }}
+              isOpen={open}
+              onOpenChange={setOpen}
+              onFocus={() => setOpen(true)}
+              onBlur={() => setOpen(false)}
+              placeholder={t.holderPlaceholder}
+              emptyState={emptyMessage}
+              liveRegionText={liveText}
+              ariaInvalid={control['aria-invalid']}
+              ariaDescribedBy={control['aria-describedby']}
+              ariaRequired={control['aria-required']}
+            />
+          )}
+        </Field>
         {failure !== null && (
-          <button
+          <Button
             type="button"
             onClick={() => {
               setAttempt((n) => n + 1)
             }}
-            className="btn btn-secondary btn-sm self-start"
+            variant="secondary"
+            size="sm"
+            className="self-start"
           >
             {t.retry}
-          </button>
+          </Button>
         )}
       </div>
     </FormModal>

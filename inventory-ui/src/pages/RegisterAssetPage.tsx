@@ -1,4 +1,5 @@
 import { Link, useNavigate } from '@tanstack/react-router'
+import { Banner, Button, DateInput, Field, MoneyInput, PageHeader, StatePanel, VisuallyHidden } from '@operai/ui'
 import { useEffect, useRef, useState } from 'react'
 import type { FormEvent, ReactNode } from 'react'
 import ErrorBanner from '../components/ErrorBanner'
@@ -128,36 +129,21 @@ const optional = (raw: string): string | undefined => {
   return text === '' ? undefined : text
 }
 
-const inputClass = 'w-full rounded border px-2 py-1.5 text-sm'
-const inputStyle = { borderColor: 'var(--rule)', backgroundColor: 'var(--ink-soft)', color: 'var(--text)' }
-
-function Label({ htmlFor, text, required }: { htmlFor: string; text: string; required?: boolean }) {
+/** A field's error line: the message, plus a link to the conflicting asset when the server named one. */
+function issueText(error: FieldIssue | undefined): ReactNode {
+  if (error === undefined) return undefined
   return (
-    <label htmlFor={htmlFor} className="text-xs font-medium" style={{ color: 'var(--soft)' }}>
-      {text} ({required ? strings.register.required : strings.register.optional})
-    </label>
-  )
-}
-
-function FieldError({ field, error }: { field: FieldKey; error: FieldIssue | undefined }): ReactNode {
-  if (error === undefined) return null
-  return (
-    <p
-      id={`${FIELD_IDS[field]}-error`}
-      data-testid={`register-error-${field}`}
-      className="text-xs"
-      style={{ color: 'var(--org)' }}
-    >
+    <>
       {error.message}
       {error.conflictAssetId !== undefined && (
         <>
           {' '}
-          <Link to="/assets/$id" params={{ id: error.conflictAssetId }} className="underline">
+          <Link to="/assets/$id" params={{ id: error.conflictAssetId }} className="link">
             {strings.register.validation.conflictLink}
           </Link>
         </>
       )}
-    </p>
+    </>
   )
 }
 
@@ -171,6 +157,8 @@ export default function RegisterAssetPage() {
   const [failure, setFailure] = useState<Failure | null>(null)
   const [submitting, setSubmitting] = useState(false)
   const [summaryFocus, setSummaryFocus] = useState(0)
+  const [showSummary, setShowSummary] = useState(false)
+  const touched = useRef(new Set<keyof FormValues>())
   const inFlight = useRef(false)
   const summaryRef = useRef<HTMLDivElement>(null)
 
@@ -200,9 +188,9 @@ export default function RegisterAssetPage() {
           )
         ) : (
           <>
-            <p role="status" aria-live="polite" className="sr-only">
+            <VisuallyHidden live role="status">
               {strings.register.loadingScope}
-            </p>
+            </VisuallyHidden>
             <SkeletonListRows />
           </>
         )}
@@ -214,12 +202,8 @@ export default function RegisterAssetPage() {
   if (entities.length === 0) {
     return (
       <section aria-labelledby="register-heading" data-testid={PAGE_TEST_ID}>
-        <h2 id="register-heading" className="text-lg font-semibold" style={{ fontFamily: 'var(--disp)' }}>
-          {strings.register.heading}
-        </h2>
-        <p className="mt-2 text-sm" style={{ color: 'var(--soft)' }}>
-          {strings.register.noEntity}
-        </p>
+        <PageHeader title={strings.register.heading} titleId="register-heading" />
+        <StatePanel title={strings.register.noEntity} />
       </section>
     )
   }
@@ -230,6 +214,7 @@ export default function RegisterAssetPage() {
   const priceCents = parsePrice(values.price)
 
   const set = <K extends keyof FormValues>(key: K, value: FormValues[K], clears?: FieldKey) => {
+    touched.current.add(key)
     setValues((previous) => ({ ...previous, [key]: value }))
     if (clears !== undefined && errors[clears] !== undefined) {
       setErrors((previous) => {
@@ -262,8 +247,8 @@ export default function RegisterAssetPage() {
     serials: quantity === 1 || quantity === null ? strings.register.fields.serial : strings.register.fields.serials,
   }
 
-  /** Validates the form; returns the request or the field errors. */
-  const validate = (): { input: RegisterAssetsInput } | { errors: FieldErrors } => {
+  /** The client-side field errors of the form as it stands. */
+  const check = (): FieldErrors => {
     const v = strings.register.validation
     const found: FieldErrors = {}
     if (entity === '') found.entity = { message: v.entityRequired }
@@ -279,6 +264,13 @@ export default function RegisterAssetPage() {
     } else if (new Set(lines).size !== lines.length) {
       found.serials = { message: v.serialDuplicate }
     }
+    return found
+  }
+
+  /** Validates the form; returns the request or the field errors. */
+  const validate = (): { input: RegisterAssetsInput } | { errors: FieldErrors } => {
+    const found = check()
+    const lines = serialLines(values.serials)
 
     if (
       Object.keys(found).length > 0 ||
@@ -370,6 +362,7 @@ export default function RegisterAssetPage() {
     if ('errors' in result) {
       setErrors(result.errors)
       setFailure(null)
+      setShowSummary(true)
       setSummaryFocus((n) => n + 1)
       return
     }
@@ -393,7 +386,10 @@ export default function RegisterAssetPage() {
       const explained = explain(error, result.input.entity)
       setErrors(explained.fields)
       setFailure(explained.failure)
-      if (Object.keys(explained.fields).length > 0) setSummaryFocus((n) => n + 1)
+      if (Object.keys(explained.fields).length > 0) {
+        setShowSummary(true)
+        setSummaryFocus((n) => n + 1)
+      }
     } finally {
       inFlight.current = false
       setSubmitting(false)
@@ -413,102 +409,91 @@ export default function RegisterAssetPage() {
 
   const jump = (key: FieldKey) => document.getElementById(FIELD_IDS[key])?.focus()
 
-  const describedBy = (key: FieldKey, hasHint = false): string | undefined => {
-    const ids = [errors[key] ? `${FIELD_IDS[key]}-error` : null, hasHint ? `${FIELD_IDS[key]}-hint` : null].filter(
-      (id): id is string => id !== null,
+  /**
+   * Blur of a field the person has typed in: show (or clear) that field's own error now, without waiting for
+   * submit (design-system.md § Forms). Untouched fields stay quiet until the first submit; a server-side error
+   * (a serial conflict, a closed year) stays until the field changes.
+   */
+  const blurred = (key: FieldKey & keyof FormValues) => () => {
+    if (!touched.current.has(key)) return
+    const issue = check()[key]
+    // Typing already cleared this field's error (`set`), so one still here came from the server: keep it.
+    setErrors((previous) =>
+      previous[key] !== undefined || issue === undefined ? previous : { ...previous, [key]: issue },
     )
-    return ids.length > 0 ? ids.join(' ') : undefined
   }
-
-  const aria = (key: FieldKey, hasHint = false) => ({
-    'aria-invalid': errors[key] ? (true as const) : undefined,
-    'aria-describedby': describedBy(key, hasHint),
-  })
 
   const received = strings.register.fields
 
   return (
     <section aria-labelledby="register-heading" data-testid={PAGE_TEST_ID} className="max-w-2xl">
-      <h2 id="register-heading" className="text-lg font-semibold" style={{ fontFamily: 'var(--disp)' }}>
-        {strings.register.heading}
-      </h2>
+      <PageHeader title={strings.register.heading} titleId="register-heading" />
 
-      <form onSubmit={onSubmit} noValidate className="mt-4 flex flex-col gap-4">
-        {summaryItems.length > 0 && (
-          <div
+      <form onSubmit={onSubmit} noValidate className="flex flex-col gap-4">
+        {showSummary && summaryItems.length > 0 && (
+          // Danger: these are errors to fix (INC-20). Focusable so a failed submit can move focus here (the
+          // error-summary pattern).
+          <Banner
             ref={summaryRef}
-            role="alert"
+            tone="danger"
             tabIndex={-1}
             data-testid="register-summary"
-            className="rounded-md border px-4 py-3 text-sm focus:outline-none focus-visible:ring-2"
-            style={{
-              borderColor: 'var(--org)',
-              backgroundColor: 'color-mix(in srgb, var(--org) 10%, transparent)',
-              color: 'var(--org)',
-            }}
+            title={strings.register.validation.summaryHeading}
           >
-            <p className="mb-2 font-medium">{strings.register.validation.summaryHeading}</p>
-            <ul className="flex flex-col gap-1">
-              {summaryItems.map((item) => (
-                <li key={item.key}>
-                  <a
-                    href={`#${FIELD_IDS[item.key]}`}
-                    onClick={(event) => {
-                      event.preventDefault()
-                      jump(item.key)
-                    }}
-                    className="underline underline-offset-2"
-                  >
-                    {item.label}
-                  </a>
-                  {': '}
-                  <span>{item.message}</span>
-                </li>
-              ))}
-            </ul>
-          </div>
+            <div>
+              <ul className="flex flex-col gap-1">
+                {summaryItems.map((item) => (
+                  <li key={item.key}>
+                    <a
+                      href={`#${FIELD_IDS[item.key]}`}
+                      onClick={(event) => {
+                        event.preventDefault()
+                        jump(item.key)
+                      }}
+                      className="link"
+                    >
+                      {item.label}
+                    </a>
+                    {': '}
+                    <span>{item.message}</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          </Banner>
         )}
 
         {failure?.kind === 'text' && (
-          <p
-            role="alert"
-            data-testid="register-form-error"
-            className="rounded-md border px-4 py-3 text-sm"
-            style={{
-              borderColor: 'var(--org)',
-              backgroundColor: 'color-mix(in srgb, var(--org) 10%, transparent)',
-              color: 'var(--org)',
-            }}
-          >
+          <Banner tone="danger" data-testid="register-form-error">
             {failure.text}
-          </p>
+          </Banner>
         )}
         {failure?.kind === 'unavailable' && <ErrorBanner variant="authUnavailable" onRetry={() => void submit()} />}
 
         <fieldset disabled={submitting} className="flex min-w-0 flex-col gap-4 border-0 p-0">
-          <div className="flex flex-col gap-1">
-            {entities.length === 1 ? (
-              <>
-                <span className="text-xs font-medium" style={{ color: 'var(--soft)' }}>
-                  {received.entity}
-                </span>
-                <p data-testid="register-entity-fixed" className="text-sm" style={{ color: 'var(--text)' }}>
-                  {strings.common.entity[entities[0]]}
-                </p>
-                <p className="text-xs" style={{ color: 'var(--soft)' }}>
-                  {strings.register.entityReadOnly}
-                </p>
-              </>
-            ) : (
-              <>
-                <Label htmlFor={FIELD_IDS.entity} text={received.entity} required />
+          {entities.length === 1 ? (
+            <div className="field">
+              <span className="field-label">{received.entity}</span>
+              <p data-testid="register-entity-fixed" className="text-sm text-text">
+                {strings.common.entity[entities[0]]}
+              </p>
+              <p className="field-hint">{strings.register.entityReadOnly}</p>
+            </div>
+          ) : (
+            <Field
+              id={FIELD_IDS.entity}
+              label={received.entity}
+              required
+              error={issueText(errors.entity)}
+              errorTestId="register-error-entity"
+            >
+              {(control) => (
                 <select
-                  id={FIELD_IDS.entity}
+                  {...control}
                   value={values.entity}
                   onChange={(event) => set('entity', event.target.value as Entity | '', 'entity')}
-                  className={inputClass}
-                  style={inputStyle}
-                  {...aria('entity')}
+                  onBlur={blurred('entity')}
+                  className="w-full"
                 >
                   <option value="">{received.entityPlaceholder}</option>
                   {entities.map((value) => (
@@ -517,139 +502,155 @@ export default function RegisterAssetPage() {
                     </option>
                   ))}
                 </select>
-                <FieldError field="entity" error={errors.entity} />
-              </>
-            )}
-          </div>
-
-          <div className="flex flex-col gap-1">
-            <Label htmlFor={FIELD_IDS.category} text={received.category} required />
-            <select
-              id={FIELD_IDS.category}
-              value={values.category}
-              onChange={(event) => set('category', event.target.value as AssetCategory | '', 'category')}
-              className={inputClass}
-              style={inputStyle}
-              {...aria('category')}
-            >
-              <option value="">{received.categoryPlaceholder}</option>
-              {CATEGORIES.map((value) => (
-                <option key={value} value={value}>
-                  {strings.categories[value]}
-                </option>
-              ))}
-            </select>
-            <FieldError field="category" error={errors.category} />
-          </div>
-
-          <div className="flex flex-col gap-1">
-            <Label htmlFor={FIELD_IDS.description} text={received.description} required />
-            <input
-              id={FIELD_IDS.description}
-              type="text"
-              value={values.description}
-              onChange={(event) => set('description', event.target.value, 'description')}
-              className={inputClass}
-              style={inputStyle}
-              {...aria('description')}
-            />
-            <FieldError field="description" error={errors.description} />
-          </div>
-
-          <div className="flex flex-col gap-1">
-            <Label htmlFor={FIELD_IDS.purchaseDate} text={received.purchaseDate} required />
-            <input
-              id={FIELD_IDS.purchaseDate}
-              type="date"
-              value={values.purchaseDate}
-              onChange={(event) => set('purchaseDate', event.target.value, 'purchaseDate')}
-              className={inputClass}
-              style={inputStyle}
-              {...aria('purchaseDate')}
-            />
-            <FieldError field="purchaseDate" error={errors.purchaseDate} />
-          </div>
-
-          <div className="flex flex-col gap-1">
-            <Label htmlFor={FIELD_IDS.price} text={labels.price} required />
-            <div className="flex items-center gap-2">
-              <input
-                id={FIELD_IDS.price}
-                type="text"
-                inputMode="decimal"
-                value={values.price}
-                onChange={(event) => set('price', event.target.value, 'price')}
-                className={inputClass}
-                style={{ ...inputStyle, fontFamily: 'var(--mono)' }}
-                {...aria('price')}
-              />
-              {currency !== null && (
-                <span aria-hidden="true" className="text-sm" style={{ color: 'var(--soft)' }}>
-                  {currency}
-                </span>
               )}
-            </div>
-            <FieldError field="price" error={errors.price} />
-          </div>
+            </Field>
+          )}
+
+          <Field
+            id={FIELD_IDS.category}
+            label={received.category}
+            required
+            error={issueText(errors.category)}
+            errorTestId="register-error-category"
+          >
+            {(control) => (
+              <select
+                {...control}
+                value={values.category}
+                onChange={(event) => set('category', event.target.value as AssetCategory | '', 'category')}
+                onBlur={blurred('category')}
+                className="w-full"
+              >
+                <option value="">{received.categoryPlaceholder}</option>
+                {CATEGORIES.map((value) => (
+                  <option key={value} value={value}>
+                    {strings.categories[value]}
+                  </option>
+                ))}
+              </select>
+            )}
+          </Field>
+
+          <Field
+            id={FIELD_IDS.description}
+            label={received.description}
+            required
+            error={issueText(errors.description)}
+            errorTestId="register-error-description"
+          >
+            {(control) => (
+              <input
+                {...control}
+                type="text"
+                value={values.description}
+                onChange={(event) => set('description', event.target.value, 'description')}
+                onBlur={blurred('description')}
+                className="w-full"
+              />
+            )}
+          </Field>
+
+          <Field
+            id={FIELD_IDS.purchaseDate}
+            label={received.purchaseDate}
+            required
+            error={issueText(errors.purchaseDate)}
+            errorTestId="register-error-purchaseDate"
+          >
+            {(control) => (
+              <DateInput
+                {...control}
+                value={values.purchaseDate}
+                onChange={(event) => set('purchaseDate', event.target.value, 'purchaseDate')}
+                onBlur={blurred('purchaseDate')}
+                className="w-full"
+              />
+            )}
+          </Field>
+
+          <Field
+            id={FIELD_IDS.price}
+            label={labels.price}
+            required
+            error={issueText(errors.price)}
+            errorTestId="register-error-price"
+          >
+            {(control) => (
+              <div className="flex items-center gap-2">
+                <MoneyInput
+                  {...control}
+                  value={values.price}
+                  onChange={(event) => set('price', event.target.value, 'price')}
+                  onBlur={blurred('price')}
+                  className="w-full"
+                />
+                {currency !== null && (
+                  <span aria-hidden="true" className="text-sm text-soft">
+                    {currency}
+                  </span>
+                )}
+              </div>
+            )}
+          </Field>
 
           <div className="flex flex-col gap-1">
-            <Label htmlFor={FIELD_IDS.quantity} text={received.quantity} required />
-            <input
+            <Field
               id={FIELD_IDS.quantity}
-              type="number"
-              min={1}
-              max={MAX_QUANTITY}
-              step={1}
-              value={values.quantity}
-              onChange={(event) => set('quantity', event.target.value, 'quantity')}
-              className={inputClass}
-              style={inputStyle}
-              {...aria('quantity', true)}
-            />
-            <p id={`${FIELD_IDS.quantity}-hint`} className="text-xs" style={{ color: 'var(--soft)' }}>
-              {received.quantityHint}
-            </p>
-            <FieldError field="quantity" error={errors.quantity} />
-            <p
-              aria-live="polite"
-              data-testid="register-breakdown"
-              className="text-sm"
-              style={{ color: 'var(--text)', fontFamily: 'var(--mono)' }}
+              label={received.quantity}
+              required
+              hint={received.quantityHint}
+              error={issueText(errors.quantity)}
+              errorTestId="register-error-quantity"
             >
+              {(control) => (
+                // A count, not money: a number input is right here (INC-17 keeps non-money quantities numeric).
+                <input
+                  {...control}
+                  type="number"
+                  min={1}
+                  max={MAX_QUANTITY}
+                  step={1}
+                  value={values.quantity}
+                  onChange={(event) => set('quantity', event.target.value, 'quantity')}
+                  onBlur={blurred('quantity')}
+                  className="w-full"
+                />
+              )}
+            </Field>
+            <p aria-live="polite" data-testid="register-breakdown" className="text-sm text-text font-mono">
               {breakdown ?? ''}
             </p>
           </div>
 
-          <div className="flex flex-col gap-1">
-            <Label htmlFor={FIELD_IDS.serials} text={labels.serials} />
-            {quantity !== null && quantity > 1 ? (
-              <>
+          <Field
+            id={FIELD_IDS.serials}
+            label={labels.serials}
+            hint={quantity !== null && quantity > 1 ? received.serialsHint(quantity) : undefined}
+            error={issueText(errors.serials)}
+            errorTestId="register-error-serials"
+          >
+            {(control) =>
+              quantity !== null && quantity > 1 ? (
                 <textarea
-                  id={FIELD_IDS.serials}
+                  {...control}
                   rows={Math.min(quantity, 8)}
                   value={values.serials}
                   onChange={(event) => set('serials', event.target.value, 'serials')}
-                  className={inputClass}
-                  style={{ ...inputStyle, fontFamily: 'var(--mono)' }}
-                  {...aria('serials', true)}
+                  onBlur={blurred('serials')}
+                  className="w-full input-figure"
                 />
-                <p id={`${FIELD_IDS.serials}-hint`} className="text-xs" style={{ color: 'var(--soft)' }}>
-                  {received.serialsHint(quantity)}
-                </p>
-              </>
-            ) : (
-              <input
-                id={FIELD_IDS.serials}
-                type="text"
-                value={values.serials}
-                onChange={(event) => set('serials', event.target.value, 'serials')}
-                className={inputClass}
-                style={inputStyle}
-                {...aria('serials')}
-              />
-            )}
-            <FieldError field="serials" error={errors.serials} />
-          </div>
+              ) : (
+                <input
+                  {...control}
+                  type="text"
+                  value={values.serials}
+                  onChange={(event) => set('serials', event.target.value, 'serials')}
+                  onBlur={blurred('serials')}
+                  className="w-full"
+                />
+              )
+            }
+          </Field>
 
           <div className="flex flex-col gap-1">
             <div className="flex items-center gap-2">
@@ -660,71 +661,71 @@ export default function RegisterAssetPage() {
                 onChange={(event) => set('notReceived', event.target.checked)}
                 aria-describedby="register-received-hint"
               />
-              <label htmlFor="register-received" className="text-sm" style={{ color: 'var(--text)' }}>
+              <label htmlFor="register-received" className="text-sm text-text">
                 {received.notReceived}
               </label>
             </div>
-            <p id="register-received-hint" className="text-xs" style={{ color: 'var(--soft)' }}>
+            <p id="register-received-hint" className="field-hint">
               {received.notReceivedHint}
             </p>
           </div>
 
-          <div className="flex flex-col gap-1">
-            <Label htmlFor="register-supplier" text={received.supplier} />
-            <SupplierField
-              id="register-supplier"
-              value={values.supplier}
-              onChange={(value) => set('supplier', value)}
-              inputClassName={inputClass}
-              inputStyle={inputStyle}
-            />
-          </div>
+          <Field id="register-supplier" label={received.supplier}>
+            {(control) => (
+              <SupplierField
+                id={control.id}
+                value={values.supplier}
+                onChange={(value) => set('supplier', value)}
+                ariaDescribedBy={control['aria-describedby']}
+              />
+            )}
+          </Field>
 
-          <div className="flex flex-col gap-1">
-            <Label htmlFor="register-invoice-ref" text={received.invoiceRef} />
-            <input
-              id="register-invoice-ref"
-              type="text"
-              value={values.invoiceRef}
-              onChange={(event) => set('invoiceRef', event.target.value)}
-              className={inputClass}
-              style={inputStyle}
-            />
-          </div>
+          <Field id="register-invoice-ref" label={received.invoiceRef}>
+            {(control) => (
+              <input
+                {...control}
+                type="text"
+                value={values.invoiceRef}
+                onChange={(event) => set('invoiceRef', event.target.value)}
+                className="w-full"
+              />
+            )}
+          </Field>
 
-          <div className="flex flex-col gap-1">
-            <Label htmlFor="register-location-note" text={received.locationNote} />
-            <input
-              id="register-location-note"
-              type="text"
-              value={values.locationNote}
-              onChange={(event) => set('locationNote', event.target.value)}
-              className={inputClass}
-              style={inputStyle}
-            />
-          </div>
+          <Field id="register-location-note" label={received.locationNote}>
+            {(control) => (
+              <input
+                {...control}
+                type="text"
+                value={values.locationNote}
+                onChange={(event) => set('locationNote', event.target.value)}
+                className="w-full"
+              />
+            )}
+          </Field>
         </fieldset>
 
-        <div className="flex items-center gap-3">
-          <button
+        {/* Submit on the right, Cancel (ghost) to its left (design-system.md § Forms). */}
+        <div className="flex items-center justify-end gap-3">
+          <Button
+            variant="ghost"
+            onClick={() => void navigate({ to: '/assets', state: { focusRegister: true } as never })}
+          >
+            {strings.register.cancel}
+          </Button>
+          <Button
             type="submit"
+            variant="primary"
             aria-busy={submitting || undefined}
             aria-disabled={submitting || undefined}
-            className="btn btn-primary"
           >
             {submitting
               ? strings.register.submitting
               : quantity !== null && quantity > 1
                 ? strings.register.submitMany(quantity)
                 : strings.register.submit}
-          </button>
-          <button
-            type="button"
-            onClick={() => void navigate({ to: '/assets', state: { focusRegister: true } as never })}
-            className="btn btn-ghost"
-          >
-            {strings.register.cancel}
-          </button>
+          </Button>
         </div>
       </form>
     </section>

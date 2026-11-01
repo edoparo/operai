@@ -26,10 +26,23 @@
  *   • Escape = Cancel; no submit is triggered.
  *   • Every field error is role="alert" + aria-invalid + aria-describedby,
  *     identical to CreateRoleModal.tsx's Name field.
+  *
+ * Built on @operai/ui's `FormDialog` (ADR-0050, INC-09): the library owns
+ * the frame, the focus trap (every enabled control, × included), Escape /
+ * backdrop = Cancel (never while submitting), focus return and the buttons.
+ *
+ * Fields (INC-16/17): each a library `Field`; the rate a `MoneyInput` parsed
+ * with `parseDecimal(text, 6)` — exact integer micros, the rate API's
+ * precision (ADR-0025), comma or dot — and the date a `DateInput`. A touched
+ * field is validated on blur; when the page reports a field error (a failed
+ * submit, or a 422) focus moves to the first invalid field.
  */
 
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, useState } from 'react'
+import { DateInput, Field, FormDialog, MoneyInput } from '@operai/ui'
 import type { MileageRateEntity } from '../lib/ratesApi'
+import { validateRate, validateValidFrom } from '../lib/rateValidation'
+import { strings } from '../strings'
 
 export type AddRateEntryModalProps = {
   entity: MileageRateEntity
@@ -43,7 +56,7 @@ export type AddRateEntryModalProps = {
   onCancel: () => void
   /** Whether the `POST /rates` request is currently in-flight. */
   submitting: boolean
-  /** Field-level error under the Rate field; null = none. */
+  /** Field-level error under the Rate field (failed submit or 422); null = none. */
   rateError: string | null
   /** Field-level error under the Valid-from field; null = none. */
   validFromError: string | null
@@ -65,225 +78,107 @@ export default function AddRateEntryModal({
   validFromError,
   generalError,
 }: AddRateEntryModalProps) {
-  const rateInputRef = useRef<HTMLInputElement>(null)
-  const validFromInputRef = useRef<HTMLInputElement>(null)
-  const cancelBtnRef = useRef<HTMLButtonElement>(null)
-  const submitBtnRef = useRef<HTMLButtonElement>(null)
-
-  // Focus the Rate field on mount — the form's natural first control.
-  useEffect(() => {
-    rateInputRef.current?.focus()
-  }, [])
-
-  // Keyboard: Escape = Cancel; Tab / Shift+Tab trapped within the 4 controls.
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') {
-        e.preventDefault()
-        onCancel()
-        return
-      }
-
-      if (e.key !== 'Tab') return
-
-      const focusable = [
-        rateInputRef.current,
-        validFromInputRef.current,
-        cancelBtnRef.current,
-        submitBtnRef.current,
-      ].filter((el): el is HTMLInputElement | HTMLButtonElement => el !== null && !el.disabled)
-      if (focusable.length === 0) return
-
-      const first = focusable[0]
-      const last = focusable[focusable.length - 1]
-      if (!first || !last) return
-
-      if (e.shiftKey) {
-        if (document.activeElement === first) {
-          e.preventDefault()
-          last.focus()
-        }
-      } else {
-        if (document.activeElement === last) {
-          e.preventDefault()
-          first.focus()
-        }
-      }
-    }
-
-    window.addEventListener('keydown', onKey)
-    return () => window.removeEventListener('keydown', onKey)
-  }, [onCancel])
-
   const canSubmit = rate.trim().length > 0 && validFrom.trim().length > 0 && !submitting
 
+  const rateRef = useRef<HTMLInputElement>(null)
+  const validFromRef = useRef<HTMLInputElement>(null)
+
+  // Blur validation of a touched field; cleared as soon as the value changes.
+  const [rateBlurError, setRateBlurError] = useState<string | null>(null)
+  const [validFromBlurError, setValidFromBlurError] = useState<string | null>(null)
+
+  const shownRateError = rateError ?? rateBlurError
+  const shownValidFromError = validFromError ?? validFromBlurError
+
+  // A failed submit (or a 422) moves focus to the first invalid field.
+  useEffect(() => {
+    if (rateError) rateRef.current?.focus()
+    else if (validFromError) validFromRef.current?.focus()
+  }, [rateError, validFromError])
+
   return (
-    <div
-      className="fixed inset-0 z-50 flex items-center justify-center backdrop-blur-sm"
-      style={{ backgroundColor: 'rgba(0, 0, 0, 0.6)' }}
-      onClick={onCancel}
-      data-testid={`add-rate-modal-${entity}`}
+    <FormDialog
+      // Entity is shown read-only in the title, never editable (design.md F5 step 3).
+      title={strings.rates.addDialog.title(entityLabel)}
+      // Irreversibility notice — AC-4.7: a rate entry can never be edited or deleted.
+      description={strings.rates.addDialog.description}
+      size="sm"
+      submitLabel={strings.rates.addRateEntry}
+      busyLabel={strings.rates.addDialog.busy}
+      cancelLabel={strings.common.actions.cancel}
+      closeLabel={strings.common.actions.cancel}
+      busy={submitting}
+      canSubmit={canSubmit}
+      error={null}
+      onSubmit={onSubmit}
+      onCancel={onCancel}
+      testIdPrefix="add-rate"
+      backdropTestId={`add-rate-modal-${entity}`}
     >
-      <div
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby="add-rate-title"
-        className="border rounded-lg shadow-2xl w-full max-w-sm mx-4 p-5"
-        style={{ backgroundColor: 'var(--ink-soft)', borderColor: 'var(--rule)' }}
-        onClick={(e) => e.stopPropagation()}
+      <Field
+        label={strings.rates.addDialog.rate}
+        required
+        error={
+          shownRateError && (
+            <span role="alert" data-testid="add-rate-value-error">
+              {shownRateError}
+            </span>
+          )
+        }
       >
-        <form
-          onSubmit={(e) => {
-            e.preventDefault()
-            if (canSubmit) onSubmit()
-          }}
-        >
-          {/* Header — entity is shown read-only, never editable (design.md F5 step 3). */}
-          <div className="flex items-center justify-between mb-3">
-            <h2
-              id="add-rate-title"
-              className="text-sm font-bold"
-              style={{ fontFamily: 'var(--disp)', color: 'var(--text)' }}
-            >
-              Add rate entry — {entityLabel}
-            </h2>
-            <button
-              type="button"
-              onClick={onCancel}
-              disabled={submitting}
-              className="text-lg leading-none transition-opacity hover:opacity-80 disabled:opacity-40 disabled:cursor-not-allowed"
-              style={{ color: 'var(--muted)' }}
-              aria-label="Cancel"
-            >
-              ×
-            </button>
-          </div>
+        {(control) => (
+          <MoneyInput
+            {...control}
+            ref={rateRef}
+            value={rate}
+            onChange={(e) => {
+              setRateBlurError(null)
+              onRateChange(e.target.value)
+            }}
+            onBlur={() => {
+              if (rate.trim() !== '') setRateBlurError(validateRate(rate))
+            }}
+            disabled={submitting}
+            data-testid="add-rate-value"
+          />
+        )}
+      </Field>
 
-          {/* Irreversibility notice — AC-4.7: a rate entry can never be edited or deleted. */}
-          <p className="text-xs mb-3" style={{ color: 'var(--soft)' }}>
-            This entry cannot be edited or deleted once saved — a correction is always a new entry.
-          </p>
+      <Field
+        label={strings.rates.addDialog.validFrom}
+        required
+        hint={strings.rates.addDialog.validFromHint}
+        error={
+          shownValidFromError && (
+            <span role="alert" data-testid="add-rate-valid-from-error">
+              {shownValidFromError}
+            </span>
+          )
+        }
+      >
+        {(control) => (
+          <DateInput
+            {...control}
+            ref={validFromRef}
+            value={validFrom}
+            onChange={(e) => {
+              setValidFromBlurError(null)
+              onValidFromChange(e.target.value)
+            }}
+            onBlur={() => {
+              if (validFrom.trim() !== '') setValidFromBlurError(validateValidFrom(validFrom))
+            }}
+            disabled={submitting}
+            data-testid="add-rate-valid-from"
+          />
+        )}
+      </Field>
 
-          {/* Body */}
-          <div className="flex flex-col gap-3 mb-4">
-            <div className="flex flex-col gap-1">
-              <label htmlFor="add-rate-value" className="text-xs font-medium" style={{ color: 'var(--soft)' }}>
-                Rate per km{' '}
-                <span aria-hidden="true" style={{ color: 'var(--red)' }}>
-                  *
-                </span>
-                <span className="sr-only">(required)</span>
-              </label>
-              <input
-                ref={rateInputRef}
-                id="add-rate-value"
-                type="number"
-                inputMode="decimal"
-                step="0.01"
-                min="0"
-                value={rate}
-                onChange={(e) => onRateChange(e.target.value)}
-                disabled={submitting}
-                required
-                aria-invalid={rateError !== null}
-                aria-describedby={rateError ? 'add-rate-value-error' : undefined}
-                data-testid="add-rate-value"
-                className="text-sm px-2.5 py-1.5 border rounded"
-                style={{
-                  borderColor: rateError ? 'var(--red)' : 'var(--rule)',
-                  color: 'var(--text)',
-                  backgroundColor: 'var(--ink)',
-                }}
-              />
-              {rateError && (
-                <p
-                  id="add-rate-value-error"
-                  role="alert"
-                  data-testid="add-rate-value-error"
-                  className="text-xs"
-                  style={{ color: 'var(--red)' }}
-                >
-                  {rateError}
-                </p>
-              )}
-            </div>
-
-            <div className="flex flex-col gap-1">
-              <label htmlFor="add-rate-valid-from" className="text-xs font-medium" style={{ color: 'var(--soft)' }}>
-                Valid from{' '}
-                <span aria-hidden="true" style={{ color: 'var(--red)' }}>
-                  *
-                </span>
-                <span className="sr-only">(required)</span>
-              </label>
-              <input
-                ref={validFromInputRef}
-                id="add-rate-valid-from"
-                type="date"
-                value={validFrom}
-                onChange={(e) => onValidFromChange(e.target.value)}
-                disabled={submitting}
-                required
-                aria-invalid={validFromError !== null}
-                aria-describedby={validFromError ? 'add-rate-valid-from-error' : undefined}
-                data-testid="add-rate-valid-from"
-                className="text-sm px-2.5 py-1.5 border rounded"
-                style={{
-                  borderColor: validFromError ? 'var(--red)' : 'var(--rule)',
-                  color: 'var(--text)',
-                  backgroundColor: 'var(--ink)',
-                  colorScheme: 'dark',
-                }}
-              />
-              {validFromError && (
-                <p
-                  id="add-rate-valid-from-error"
-                  role="alert"
-                  data-testid="add-rate-valid-from-error"
-                  className="text-xs"
-                  style={{ color: 'var(--red)' }}
-                >
-                  {validFromError}
-                </p>
-              )}
-              <p className="text-xs" style={{ color: 'var(--muted)' }}>
-                Past, present, or future dates are all accepted.
-              </p>
-            </div>
-
-            {generalError && (
-              <p role="alert" data-testid="add-rate-general-error" className="text-xs" style={{ color: 'var(--red)' }}>
-                {generalError}
-              </p>
-            )}
-          </div>
-
-          {/* Footer */}
-          <div className="flex items-center justify-end gap-3">
-            <button
-              ref={cancelBtnRef}
-              type="button"
-              onClick={onCancel}
-              disabled={submitting}
-              data-testid="add-rate-cancel"
-              className="py-2 px-4 text-sm font-medium border transition-opacity hover:opacity-80 disabled:opacity-40 disabled:cursor-not-allowed"
-              style={{ borderColor: 'var(--rule)', color: 'var(--muted)' }}
-            >
-              Cancel
-            </button>
-            <button
-              ref={submitBtnRef}
-              type="submit"
-              disabled={!canSubmit}
-              data-testid="add-rate-submit"
-              className="py-2 px-4 text-sm font-medium border transition-opacity hover:opacity-80 disabled:opacity-40 disabled:cursor-not-allowed"
-              style={{ color: 'var(--acc)', borderColor: 'var(--acc)' }}
-            >
-              {submitting ? 'Adding…' : 'Add rate entry'}
-            </button>
-          </div>
-        </form>
-      </div>
-    </div>
+      {generalError && (
+        <p role="alert" data-testid="add-rate-general-error" className="form-error">
+          {generalError}
+        </p>
+      )}
+    </FormDialog>
   )
 }

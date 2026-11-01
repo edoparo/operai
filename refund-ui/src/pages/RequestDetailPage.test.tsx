@@ -156,6 +156,10 @@ describe('RequestDetailPage — draft variant', () => {
       expect(requestsApi.addLine).toHaveBeenCalledWith('req-1', expect.objectContaining({ motivo: 'Pens' })),
     )
     await waitFor(() => expect(screen.getByTestId('expense-line-row-line-1')).not.toBeNull())
+    // INC-19: the add confirms where the person acted.
+    const toast = screen.getByTestId('toast-banner')
+    expect(toast.getAttribute('role')).toBe('status')
+    expect(toast.textContent).toContain('Expense line added')
   })
 
   it('disables Submit and shows the blocked note at zero lines', async () => {
@@ -224,6 +228,8 @@ describe('RequestDetailPage — draft variant', () => {
 
     await waitFor(() => expect(requestsApi.remove).toHaveBeenCalledWith('req-1'))
     await waitFor(() => expect(window.location.pathname).toBe('/requests'))
+    // INC-19: the destination (My requests) says it — carried as its one-shot confirmation.
+    expect(new URLSearchParams(window.location.search).get('confirmation')).toBe('Draft request deleted')
   })
 })
 
@@ -330,6 +336,8 @@ describe('RequestDetailPage — draft: summary rows + confirm-on-delete (post-cl
 
     await waitFor(() => expect(requestsApi.removeLine).toHaveBeenCalledWith('req-1', 'line-1'))
     await waitFor(() => expect(requestsApi.get).toHaveBeenCalledTimes(2))
+    // INC-19: the delete confirms where the person acted.
+    await waitFor(() => expect(screen.getByTestId('toast-banner').textContent).toContain('Expense line deleted'))
   })
 
   it('line delete: canceling the confirm modal never calls the delete API', async () => {
@@ -440,13 +448,13 @@ describe('RequestDetailPage — approved variant', () => {
 
     await waitFor(() => expect(screen.getByTestId('request-detail-approved')).not.toBeNull())
     expect(screen.getByTestId('monthly-processing-note')).not.toBeNull()
-    expect(screen.getByTestId('expense-line-row-line-1').textContent).toContain('8,00 €')
-    expect(screen.getByTestId('subtotals-panel-card-EUR').textContent).toContain('8,00 €')
+    expect(screen.getByTestId('expense-line-row-line-1').textContent).toContain('EUR 8.00')
+    expect(screen.getByTestId('subtotals-panel-card-EUR').textContent).toContain('EUR 8.00')
   })
 })
 
 describe('RequestDetailPage — rejected variant', () => {
-  it('shows the rejection motivation and a "+ New request" link, and no MonthlyProcessingNote', async () => {
+  it('shows the rejection motivation and a "New request" link, and no MonthlyProcessingNote', async () => {
     const rejectedRequest = {
       ...baseRequest,
       status: 'rejected' as const,
@@ -467,7 +475,7 @@ describe('RequestDetailPage — rejected variant', () => {
 })
 
 describe('RequestDetailPage — paid variant (T13, specs/008-refund-monthly-processing)', () => {
-  it('shows the "Paid on <date>" line, requested+approved per line, no MonthlyProcessingNote, and no "+ New request" link', async () => {
+  it('shows the "Paid on <date>" line, requested+approved per line, no MonthlyProcessingNote, and no "New request" link', async () => {
     const paidRequest = {
       ...baseRequest,
       status: 'paid' as const,
@@ -484,7 +492,7 @@ describe('RequestDetailPage — paid variant (T13, specs/008-refund-monthly-proc
 
     await waitFor(() => expect(screen.getByTestId('request-detail-paid')).not.toBeNull())
     expect(screen.getByTestId('request-detail-paid-line').textContent).toMatch(/paid on/i)
-    expect(screen.getByTestId('expense-line-row-line-1').textContent).toContain('8,00 €')
+    expect(screen.getByTestId('expense-line-row-line-1').textContent).toContain('EUR 8.00')
     expect(screen.queryByTestId('monthly-processing-note')).toBeNull()
     expect(screen.queryByTestId('request-detail-new-request-link')).toBeNull()
   })

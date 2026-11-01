@@ -23,7 +23,7 @@
  * longer for the more consequential ones, but always finite) and pauses on
  * hover/keyboard-focus, resuming on mouse-leave/blur (WCAG 2.2.1 "timing adjustable" —
  * a toast a screen-reader/keyboard user has tabbed onto to read/act on must not vanish
- * out from under them). Manual dismiss (AC-5.3, the "×" button or Escape while any part
+ * out from under them). Manual dismiss (AC-5.3, the close button or Escape while any part
  * of the toast has focus) removes the toast from state immediately and permanently — it
  * is not re-added by anything, so it never reappears.
  *
@@ -40,7 +40,9 @@
  */
 import { useEffect, useRef, useState, type KeyboardEvent } from 'react'
 import { Link } from '@tanstack/react-router'
+import { Button, Icon, type IconName } from '@operai/ui'
 import { subscribeToasts, type Notification, type NotificationSeverity, type ToastEvent } from '../lib/notifications'
+import { strings } from '../strings'
 
 /** Visually cap concurrent toasts; anything beyond this queues (design.md "Stacking"). */
 const MAX_VISIBLE_TOASTS = 4
@@ -71,12 +73,12 @@ const ARIA_LIVE: Record<NotificationSeverity, 'polite' | 'assertive'> = {
   error: 'assertive',
 }
 
-/** Aria-hidden decorative glyph per severity (design.md table). */
-const SEVERITY_ICON: Record<NotificationSeverity, string> = {
-  info: 'ⓘ',
-  success: '✓',
-  warning: '⚠',
-  error: '✕',
+/** Aria-hidden decorative icon per severity (design.md table) — library icons, not Unicode glyphs (INC-31). */
+const SEVERITY_ICON: Record<NotificationSeverity, IconName> = {
+  info: 'info',
+  success: 'check-circle',
+  warning: 'alert',
+  error: 'x-circle',
 }
 
 /** Accent border color token per severity (design.md table). */
@@ -226,31 +228,22 @@ function Toast({ item, onDismiss }: { item: ToastItem; onDismiss: () => void }) 
       }`}
     >
       <div className="flex items-start gap-2">
-        <span aria-hidden="true" className={`shrink-0 text-base leading-none ${SEVERITY_ICON_CLASS[severity]}`}>
-          {SEVERITY_ICON[severity]}
+        <span aria-hidden="true" className={`mt-0.5 shrink-0 text-base leading-none ${SEVERITY_ICON_CLASS[severity]}`}>
+          <Icon name={SEVERITY_ICON[severity]} />
         </span>
-        <span className="sr-only">Severity: {severity}</span>
+        <span className="sr-only">{strings.toast.severity(strings.toast.severities[severity])}</span>
         <div className="min-w-0 flex-1">
           <p className="text-sm font-semibold text-text">{notification.title}</p>
           <p className="mt-0.5 text-sm text-soft">{notification.body}</p>
           {notification.link && (
-            <Link
-              to={notification.link.href}
-              onClick={onDismiss}
-              className="mt-1 inline-block text-sm text-acc underline underline-offset-2 hover:text-acc-hi"
-            >
-              {notification.link.label ?? 'Open'}
+            <Link to={notification.link.href} onClick={onDismiss} className="link mt-1 inline-block text-sm">
+              {notification.link.label ?? strings.toast.open}
             </Link>
           )}
         </div>
-        <button
-          type="button"
-          onClick={onDismiss}
-          aria-label="Dismiss notification"
-          className="shrink-0 text-base leading-none text-muted transition-colors hover:text-text"
-        >
-          ×
-        </button>
+        <Button variant="ghost" iconOnly onClick={onDismiss} aria-label={strings.toast.dismiss} className="shrink-0">
+          <Icon name="close" />
+        </Button>
       </div>
     </div>
   )

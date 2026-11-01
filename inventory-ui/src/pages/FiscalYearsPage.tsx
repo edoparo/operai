@@ -1,5 +1,6 @@
 import { Link } from '@tanstack/react-router'
-import { useEffect, useId, useState } from 'react'
+import { Card, PageHeader, StatePanel, StatusBadge, VisuallyHidden } from '@operai/ui'
+import { useEffect, useState } from 'react'
 import DataTable from '../components/DataTable'
 import EntityBadge from '../components/EntityBadge'
 import ErrorBanner from '../components/ErrorBanner'
@@ -10,14 +11,15 @@ import { useScope } from '../hooks/useScope'
 import { ApiError } from '../lib/api'
 import { formatDate } from '../lib/dates'
 import { listFiscalYears } from '../lib/fiscalYearsApi'
+import { FISCAL_YEAR_STATE_MEANING } from '../lib/statusMeanings'
 import type { Entity, FiscalYearSummary } from '../lib/types'
 import { strings } from '../strings'
 
 /**
  * FiscalYearsPage — T5, `/years` (T38, specs/015-hardware-inventory; design.md T5,
  * F12; AC-8.1): one section per entity of `GET /scope`'s `ledger` list, each a
- * table of that entity's fiscal years, newest first — year, Open / Closed (text
- * with a glyph, never colour alone), the closed-on date, and a link to the year's
+ * table of that entity's fiscal years, newest first — year, Open / Closed (a
+ * StatusBadge: label + icon, never colour alone), the closed-on date, and a link to the year's
  * detail. `ledger:manage` only (a UX gate; the server's 403 is the real one) —
  * without it the page renders `PermissionDenied` and calls nothing.
  *
@@ -43,18 +45,15 @@ const errorBanner = (error: unknown, retry: () => void) =>
   )
 
 function StatusCell({ status }: { status: FiscalYearSummary['status'] }) {
-  const [glyph, label] = status === 'closed' ? ['■', strings.years.status.closed] : ['◌', strings.years.status.open]
   return (
-    <span className="inline-flex items-center gap-1">
-      <span aria-hidden="true">{glyph}</span>
-      <span>{label}</span>
-    </span>
+    <StatusBadge status={FISCAL_YEAR_STATE_MEANING[status]}>
+      {status === 'closed' ? strings.years.status.closed : strings.years.status.open}
+    </StatusBadge>
   )
 }
 
 function YearsSection({ entity }: { entity: Entity }) {
   const t = strings.years
-  const headingId = useId()
   const entityName = strings.common.entity[entity]
   const [attempt, setAttempt] = useState(0)
   const [outcome, setOutcome] = useState<Outcome | null>(null)
@@ -87,18 +86,14 @@ function YearsSection({ entity }: { entity: Entity }) {
   } else if (current === null) {
     content = (
       <div className="flex flex-col gap-2">
-        <p role="status" className="sr-only">
+        <VisuallyHidden live role="status">
           {t.sectionLoading(entityName)}
-        </p>
+        </VisuallyHidden>
         <SkeletonListRows />
       </div>
     )
   } else if (current.years.length === 0) {
-    content = (
-      <p className="text-sm" style={{ color: 'var(--soft)' }}>
-        {t.empty(entityName)}
-      </p>
-    )
+    content = <StatePanel title={t.empty(entityName)} />
   } else {
     const ordered = [...current.years].sort((a, b) => b.year - a.year)
     content = (
@@ -120,8 +115,7 @@ function YearsSection({ entity }: { entity: Entity }) {
                 to="/years/$entity/$year"
                 params={{ entity, year: String(row.year) }}
                 aria-label={t.openLinkLabel(row.year, entityName)}
-                className="underline"
-                style={{ color: 'var(--acc)' }}
+                className="link"
               >
                 {t.openLink}
               </Link>
@@ -136,17 +130,17 @@ function YearsSection({ entity }: { entity: Entity }) {
   }
 
   return (
-    <section aria-labelledby={headingId} data-testid={`fiscal-years-section-${entity}`} className="flex flex-col gap-3">
-      <h3
-        id={headingId}
-        className="flex items-center gap-2 text-base font-semibold"
-        style={{ fontFamily: 'var(--disp)', color: 'var(--text)' }}
-      >
-        {t.sectionHeading(entityName)}
-        <EntityBadge entity={entity} />
-      </h3>
+    <Card
+      data-testid={`fiscal-years-section-${entity}`}
+      title={
+        <span className="flex items-center gap-2">
+          {t.sectionHeading(entityName)}
+          <EntityBadge entity={entity} />
+        </span>
+      }
+    >
       {content}
-    </section>
+    </Card>
   )
 }
 
@@ -169,18 +163,14 @@ export default function FiscalYearsPage() {
   } else if (scope.status !== 'ready' || scope.scope === null) {
     content = (
       <div className="flex flex-col gap-2">
-        <p role="status" className="sr-only">
+        <VisuallyHidden live role="status">
           {t.loading}
-        </p>
+        </VisuallyHidden>
         <SkeletonListRows />
       </div>
     )
   } else if (scope.scope.ledger.length === 0) {
-    content = (
-      <p className="text-sm" style={{ color: 'var(--soft)' }}>
-        {t.noEntity}
-      </p>
-    )
+    content = <StatePanel title={t.noEntity} />
   } else {
     content = (
       <div className="flex flex-col gap-8">
@@ -193,9 +183,7 @@ export default function FiscalYearsPage() {
 
   return (
     <section data-testid={PAGE_TEST_ID} aria-labelledby="fiscal-years-heading" className="flex flex-col gap-4">
-      <h2 id="fiscal-years-heading" className="text-lg font-semibold" style={{ fontFamily: 'var(--disp)' }}>
-        {t.heading}
-      </h2>
+      <PageHeader title={t.heading} titleId="fiscal-years-heading" className="mb-0" />
       {content}
     </section>
   )

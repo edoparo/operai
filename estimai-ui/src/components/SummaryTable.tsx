@@ -4,6 +4,9 @@ import type { Parameters, Release, ReleaseSummary, Totals } from '../types'
 import { type WarningCode } from '../lib/healthWarnings'
 import FormulaPopover from './FormulaPopover'
 import WarningBadge from './WarningBadge'
+import { Button, Card, FactList, Icon } from '@operai/ui'
+import { strings } from '../strings'
+import { decimal, oneDecimal, percent, whole } from '../lib/figures'
 
 interface SummaryTableProps {
   summary: ReleaseSummary[]
@@ -20,7 +23,7 @@ interface SummaryTableProps {
    * context's single `canEdit` gate (`!canEdit`). Defaults to `false` so
    * every pre-existing call site keeps its exact prior full-edit behaviour.
    * Release name/FTE inputs become `readOnly` (not `disabled`); the
-   * "+ Release" pill and each release's "×" delete button are absent.
+   * "Add release" pill and each release's delete button are absent.
    */
   readOnly?: boolean
 }
@@ -35,7 +38,7 @@ interface ThProps {
 function Th({ children, right, ai, tip }: ThProps) {
   return (
     <th
-      className={`py-2 px-2.5 text-[9px] font-mono uppercase tracking-[0.06em] border-b border-rule bg-ink-mid whitespace-nowrap ${right ? 'text-right' : 'text-left'} ${ai ? 'text-[#b47fff]/70' : 'text-soft'}`}
+      className={`py-2 px-2.5 text-2xs font-mono uppercase tracking-[0.06em] border-b border-rule bg-ink-mid align-bottom ${right ? 'text-right' : 'text-left'} ${ai ? 'text-ai/70' : 'text-soft'}`}
     >
       <span className="inline-flex items-center gap-0.5">
         {children}
@@ -76,11 +79,13 @@ export default function SummaryTable({
   readOnly = false,
 }: SummaryTableProps) {
   const [showAI, setShowAI] = useState(false)
+  const t = strings.summary
+  const c = t.columns
 
   return (
     <>
       <div className="flex gap-2.5 mb-[18px] flex-wrap items-center">
-        <h2 className="font-disp text-sm font-bold mr-2">Release Summary</h2>
+        <h2 className="font-disp text-sm font-bold mr-2">{t.heading}</h2>
         {releases.map((rel) => {
           const ws = releaseWarnings.get(rel.id)
           return (
@@ -92,9 +97,12 @@ export default function SummaryTable({
                 value={rel.name}
                 readOnly={readOnly}
                 onChange={(e: ChangeEvent<HTMLInputElement>) => onUpdateRelease(rel.id, 'name', e.target.value)}
+                aria-label={t.releaseName}
                 className="w-[106px] text-xs font-medium"
               />
-              <span className="text-[10px] text-muted">FTE</span>
+              <span className="text-2xs text-soft" aria-hidden="true">
+                {t.fte}
+              </span>
               <input
                 type="number"
                 value={rel.fte}
@@ -102,45 +110,43 @@ export default function SummaryTable({
                 min={1}
                 step={1}
                 onChange={(e: ChangeEvent<HTMLInputElement>) => onUpdateRelease(rel.id, 'fte', e.target.value)}
+                aria-label={t.fte}
                 className="w-11 text-right"
               />
               {ws?.map((code) => (
-                <WarningBadge key={code} code={code} className="text-[11px]" />
+                <WarningBadge key={code} code={code} className="text-2xs" />
               ))}
               {!readOnly && releases.length > 1 && (
-                <button onClick={() => onDeleteRelease(rel.id)} className="bg-transparent text-muted text-sm">
-                  ×
-                </button>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  iconOnly
+                  onClick={() => onDeleteRelease(rel.id)}
+                  aria-label={t.deleteReleaseNamed(rel.name)}
+                  title={t.deleteRelease}
+                >
+                  <Icon name="trash" />
+                </Button>
               )}
             </div>
           )
         })}
         {!readOnly && (
-          <button
-            onClick={onAddRelease}
-            className="bg-transparent text-soft py-[9px] px-[13px] border border-dashed border-rule rounded-[10px] text-xs"
-          >
-            + Release
-          </button>
+          <Button size="sm" onClick={onAddRelease}>
+            {t.addRelease}
+          </Button>
         )}
 
         <div className="flex-1" />
 
-        <button
-          onClick={() => setShowAI((v) => !v)}
-          className={`flex items-center gap-1.5 py-[7px] px-3 text-[11px] border rounded transition-colors ${
-            showAI
-              ? 'border-[#b47fff]/50 text-[#b47fff] bg-[#b47fff]/8'
-              : 'border-rule text-muted hover:text-soft hover:border-soft/40'
-          }`}
-        >
-          <span className="text-[10px]">{showAI ? '✦' : '✦'}</span>
-          {showAI ? 'Hide AI comparison' : 'Show AI comparison'}
-        </button>
+        <Button size="sm" onClick={() => setShowAI((v) => !v)} aria-pressed={showAI}>
+          {showAI ? t.hideAi : t.showAi}
+        </Button>
       </div>
 
       <div className="overflow-x-auto">
         <table className="text-xs w-full" style={{ tableLayout: 'fixed' }}>
+          <caption className="visually-hidden">{t.caption}</caption>
           <colgroup>
             {((): React.ReactNode => {
               const frBase = [2, 0.5, 1, 1, 1, 1, 1, 0.8, 0.8, 0.8, 1]
@@ -152,54 +158,47 @@ export default function SummaryTable({
           </colgroup>
           <thead>
             <tr>
-              <Th>Release</Th>
-              <Th right tip="Number of people working on this release in parallel.">
-                FTE
+              <Th>{c.release}</Th>
+              <Th right tip={t.tips.fte}>
+                {c.fte}
               </Th>
-              <Th right tip="Sum of Expected effort (PERT + risk buffer) for all activities, plus QA and PM overhead.">
-                Ind. M/D
+              <Th right tip={t.tips.ind}>
+                {c.ind}
               </Th>
-              <Th right tip="Sprint coordination cost: FTE × (Ind. M/D ÷ Sprint duration) ÷ 8.">
-                Planning
+              <Th right tip={t.tips.planning}>
+                {c.planning}
               </Th>
-              <Th right tip="Total effort before parallelism adjustment: Ind. M/D + Planning days.">
-                Baseline
+              <Th right tip={t.tips.baseline}>
+                {c.baseline}
               </Th>
-              <Th
-                right
-                tip="Calendar days after team parallelism: ROUND(Baseline × (1 − parallelism × (FTE−1) / FTE))."
-              >
-                Elapsed d
+              <Th right tip={t.tips.elapsed}>
+                {c.elapsed}
               </Th>
-              <Th right tip="Total person-days of effort: Elapsed days × FTE.">
-                Total M/D
+              <Th right tip={t.tips.totalMd}>
+                {c.totalMd}
               </Th>
-              <Th right tip="Rough calendar duration: Elapsed days ÷ working days per month.">
-                Months
+              <Th right tip={t.tips.months}>
+                {c.months}
               </Th>
-              <Th right tip="Best-case elapsed days — full pipeline run on Optimistic (O) estimates only.">
-                Best
+              <Th right tip={t.tips.best}>
+                {c.best}
               </Th>
-              <Th right tip="Worst-case elapsed days — full pipeline run on Pessimistic (P) estimates only.">
-                Worst
+              <Th right tip={t.tips.worst}>
+                {c.worst}
               </Th>
-              <Th right tip="Spread between best and worst case. Wide range signals high estimation uncertainty.">
-                Range
+              <Th right tip={t.tips.range}>
+                {c.range}
               </Th>
               {showAI && (
                 <>
-                  <Th right ai tip="Estimated AI tooling cost: AI cost coefficient × FTE × Elapsed days.">
-                    AI Cost
+                  <Th right ai tip={t.tips.aiCost}>
+                    {c.aiCost}
                   </Th>
-                  <Th
-                    right
-                    ai
-                    tip="Elapsed days after reducing each activity's expected effort by the AI productivity gain."
-                  >
-                    AI-assisted d
+                  <Th right ai tip={t.tips.aiElapsed}>
+                    {c.aiElapsed}
                   </Th>
-                  <Th right ai tip="Total person-days with AI assistance: AI-assisted elapsed × FTE.">
-                    Total M/D (AI)
+                  <Th right ai tip={t.tips.aiTotalMd}>
+                    {c.aiTotalMd}
                   </Th>
                 </>
               )}
@@ -214,116 +213,132 @@ export default function SummaryTable({
                     <span className="flex items-center gap-1.5">
                       {s.name}
                       {ws?.map((code) => (
-                        <WarningBadge key={code} code={code} className="text-[11px]" />
+                        <WarningBadge key={code} code={code} className="text-2xs" />
                       ))}
                     </span>
                   </Td>
                   <Td right colorClass="text-soft">
-                    {s.fte}
+                    {decimal(s.fte)}
                   </Td>
                   {s.res ? (
                     <>
-                      <Td right>{s.res.ind}</Td>
+                      <Td right>{decimal(s.res.ind, 1)}</Td>
                       <Td right colorClass="text-soft">
-                        {s.res.plan.toFixed(1)}
+                        {oneDecimal(s.res.plan)}
                       </Td>
                       <Td right colorClass="text-soft">
-                        {s.res.base}
+                        {decimal(s.res.base, 1)}
                       </Td>
                       <Td right bold colorClass="text-acc-hi">
-                        {s.res.el}
+                        {whole(s.res.el)}
                         <FormulaPopover
                           text={[
-                            `Ind. ${s.res.ind} d + Planning ${s.res.plan.toFixed(1)} d = Baseline ${s.res.base} d`,
-                            `ROUND(${s.res.base} × (1 − ${params.parallelism} × ${s.fte - 1}/${s.fte} FTE)) = ${s.res.el} d`,
+                            t.formula.baseline(decimal(s.res.ind, 1), oneDecimal(s.res.plan), decimal(s.res.base, 1)),
+                            t.formula.elapsed(
+                              decimal(s.res.base, 1),
+                              decimal(params.parallelism),
+                              decimal(s.fte - 1),
+                              decimal(s.fte),
+                              whole(s.res.el),
+                            ),
                           ].join('\n')}
                         />
                       </Td>
                       <Td right bold>
-                        {s.res.tm}
+                        {whole(s.res.tm)}
                       </Td>
                       <Td right colorClass="text-grn">
-                        {s.res.mo}
+                        {decimal(s.res.mo)}
                       </Td>
                       <Td right colorClass="text-grn">
-                        {s.res.best}
+                        {whole(s.res.best)}
                       </Td>
-                      <Td right colorClass="text-red">
-                        {s.res.worst}
+                      <Td right colorClass="text-red-text">
+                        {whole(s.res.worst)}
                       </Td>
                       <td className="py-2.5 px-2.5 text-right">
-                        <span className="font-mono text-[11px] bg-[rgba(245,166,35,0.12)] text-org py-[3px] px-[7px] rounded">
-                          {s.res.best}–{s.res.worst}d
+                        <span className="font-mono text-2xs bg-org/12 text-org-text py-[3px] px-[7px] rounded">
+                          {t.range(whole(s.res.best), whole(s.res.worst))}
                         </span>
                       </td>
                       {showAI && (
                         <>
-                          <Td right bold colorClass="text-[#b47fff]">
-                            {s.res.aiCost.toLocaleString()}
+                          <Td right bold colorClass="text-ai">
+                            {whole(s.res.aiCost)}
                           </Td>
-                          <Td right bold colorClass="text-[#b47fff]">
-                            {s.res.aiElapsed}
+                          <Td right bold colorClass="text-ai">
+                            {whole(s.res.aiElapsed)}
                             <FormulaPopover
                               text={[
-                                `Expected ${s.res.sumExp} d × (1 − ${Math.round(params.aiGain * 100)}% AI gain) = ${s.res.sumAiExp} d`,
-                                `Same pipeline → ${s.res.aiElapsed} d elapsed  (saves ${s.res.el - s.res.aiElapsed} d vs ${s.res.el} d standard)`,
+                                t.formula.aiExpected(
+                                  decimal(s.res.sumExp),
+                                  percent(params.aiGain),
+                                  decimal(s.res.sumAiExp),
+                                ),
+                                t.formula.aiElapsed(
+                                  whole(s.res.aiElapsed),
+                                  whole(s.res.el - s.res.aiElapsed),
+                                  whole(s.res.el),
+                                ),
                               ].join('\n')}
                             />
                           </Td>
-                          <Td right bold colorClass="text-[#b47fff]">
-                            {s.res.aiTotalMD}
+                          <Td right bold colorClass="text-ai">
+                            {whole(s.res.aiTotalMD)}
                           </Td>
                         </>
                       )}
                     </>
                   ) : (
-                    <td colSpan={showAI ? 12 : 9} className="py-2.5 px-2.5 text-center text-muted text-[11px] italic">
-                      No activities assigned
+                    <td colSpan={showAI ? 12 : 9} className="py-2.5 px-2.5 text-center text-soft text-2xs italic">
+                      {t.noActivities}
                     </td>
                   )}
                 </tr>
               )
             })}
             <tr className="bg-ink-mid border-t-2 border-acc">
-              <td className="py-2.5 px-2.5 font-disp font-bold text-[11px]">TOTAL</td>
+              <th scope="row" className="py-2.5 px-2.5 font-disp font-bold text-2xs text-left uppercase">
+                {t.total}
+              </th>
               <td />
               <Td right bold>
-                {totals.ind.toFixed(1)}
+                {oneDecimal(totals.ind)}
               </Td>
               <td />
               <Td right bold>
-                {totals.base.toFixed(1)}
+                {oneDecimal(totals.base)}
               </Td>
               <Td right bold colorClass="text-acc-hi" className="text-sm">
-                {totals.el}
+                {whole(totals.el)}
               </Td>
               <Td right bold className="text-sm">
-                {totals.tm}
+                {whole(totals.tm)}
               </Td>
               <Td right bold colorClass="text-grn">
-                {totals.mo}
+                {decimal(totals.mo)}
               </Td>
               <Td right bold colorClass="text-grn">
-                {totals.best}
+                {whole(totals.best)}
               </Td>
-              <Td right bold colorClass="text-red">
-                {totals.worst}
+              <Td right bold colorClass="text-red-text">
+                {whole(totals.worst)}
               </Td>
               <td className="py-2.5 px-2.5 text-right">
-                <span className="font-mono text-xs bg-[rgba(245,166,35,0.15)] text-org py-1 px-[9px] rounded font-semibold">
-                  {totals.best}–{totals.worst}d
+                <span className="font-mono text-xs bg-org/15 text-org-text py-1 px-[9px] rounded font-semibold">
+                  {t.range(whole(totals.best), whole(totals.worst))}
                 </span>
               </td>
               {showAI && (
                 <>
-                  <Td right bold colorClass="text-[#b47fff]" className="text-sm">
-                    {totals.aiCost.toLocaleString()}
+                  <Td right bold colorClass="text-ai" className="text-sm">
+                    {whole(totals.aiCost)}
                   </Td>
-                  <Td right bold colorClass="text-[#b47fff]" className="text-sm">
-                    {totals.aiElapsed}
+                  <Td right bold colorClass="text-ai" className="text-sm">
+                    {whole(totals.aiElapsed)}
                   </Td>
-                  <Td right bold colorClass="text-[#b47fff]" className="text-sm">
-                    {totals.aiTotalMD}
+                  <Td right bold colorClass="text-ai" className="text-sm">
+                    {whole(totals.aiTotalMD)}
                   </Td>
                 </>
               )}
@@ -332,18 +347,17 @@ export default function SummaryTable({
         </table>
       </div>
 
-      <h2 className="font-disp text-sm font-bold mt-6 mb-2.5">By Specialist Profile</h2>
-      <div className="grid gap-2.5" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(140px, 1fr))' }}>
-        {byProfile.map(([prof, days]) => (
-          <div key={prof} className="bg-ink-soft border border-rule rounded-[10px] py-[11px] px-[15px]">
-            <div className="text-[10px] text-soft mb-1">{prof}</div>
-            <div className="font-mono text-[19px] text-acc-hi">
-              {days.toFixed(1)}
-              <span className="text-[10px] text-muted ml-[3px]">days</span>
-            </div>
-          </div>
-        ))}
-      </div>
+      {/* INC-33: label/value pairs in a FactList inside a Card (title h2: a
+          section of the Summary view, under the editor's h1). */}
+      <Card title={t.byProfile} headingLevel={2} className="mt-6" data-testid="summary-by-profile">
+        <FactList
+          items={byProfile.map(([prof, days]) => ({
+            id: prof,
+            term: prof,
+            value: <span className="font-mono text-acc-hi">{t.days(oneDecimal(days))}</span>,
+          }))}
+        />
+      </Card>
     </>
   )
 }

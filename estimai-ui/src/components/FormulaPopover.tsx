@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { createPortal } from 'react-dom'
+import { Icon } from '@operai/ui'
 
 interface Props {
   text: string
@@ -12,7 +13,7 @@ export default function FormulaPopover({ text }: Props) {
   return (
     <span className="inline-flex items-center ml-1 align-middle">
       <span
-        className="text-[9px] text-muted/60 cursor-help select-none hover:text-muted transition-colors"
+        className="inline-flex text-2xs text-soft/60 cursor-help select-none hover:text-soft transition-colors"
         onMouseEnter={(e) => {
           const r = e.currentTarget.getBoundingClientRect()
           const onLeft = r.left < window.innerWidth / 2
@@ -20,13 +21,13 @@ export default function FormulaPopover({ text }: Props) {
         }}
         onMouseLeave={() => setAnchor(null)}
       >
-        ⓘ
+        <Icon name="info" />
       </span>
       {anchor &&
         createPortal(
           <span
             style={{ position: 'fixed', transform: 'translateY(-100%)', ...anchor }}
-            className="w-max max-w-72 bg-ink-mid border border-rule text-[10.5px] text-soft font-mono
+            className="w-max max-w-72 bg-ink-mid border border-rule text-2xs text-soft font-mono
             leading-relaxed px-2.5 py-1.5 rounded shadow-xl z-9999 whitespace-pre-line pointer-events-none"
           >
             {text}

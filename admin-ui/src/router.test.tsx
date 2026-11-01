@@ -14,22 +14,11 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { cleanup, render, screen, within } from '@testing-library/react'
 import { RouterProvider } from '@tanstack/react-router'
 
-// ---------------------------------------------------------------------------
-// Module mock — adminApi.getMe() (T11, specs/009-mileage-rate). SectionNav.tsx
-// (mounted by AdminShell, the root route component every test in this file
-// renders through) now calls `adminApi.getMe()` on mount to resolve its
-// proactive `rate:read` gate (design.md F7). Every existing test here
-// predates that call and never cared about its result — a bare `vi.fn()`
-// resolves to `undefined` by default, which would crash `.then()` inside
-// SectionNav's effect, so `beforeEach` below gives it a default "no grants"
-// resolution (mirrors `EMPTY_PERMISSIONS`) that every pre-existing test
-// implicitly relies on (Mileage Rates stays hidden); the one test that needs
-// `rate:read` granted overrides it locally with `mockResolvedValueOnce`.
-// ---------------------------------------------------------------------------
-
-vi.mock('./lib/adminApi', async (importOriginal) => {
-  const original = await importOriginal<typeof import('./lib/adminApi')>()
-  return { ...original, getMe: vi.fn() }
+// SectionNav reads its "Refund" gate from shell/session's usePermissions()
+// (INC-32); the stub defaults to no grants, the /rates test grants rate:read.
+vi.mock('shell/session', async (importOriginal) => {
+  const original = await importOriginal<typeof import('shell/session')>()
+  return { ...original, usePermissions: vi.fn() }
 })
 
 // ---------------------------------------------------------------------------
@@ -54,14 +43,8 @@ const importRouter = () => import('./router?t=' + Date.now())
 // ---------------------------------------------------------------------------
 
 beforeEach(async () => {
-  const adminApi = await import('./lib/adminApi')
-  vi.mocked(adminApi.getMe).mockResolvedValue({
-    epoch: 0,
-    apps: ['admin'],
-    roles: [],
-    departments: [],
-    permissions: [],
-  })
+  const session = await import('shell/session')
+  vi.mocked(session.usePermissions).mockReturnValue({ epoch: 0, apps: [], roles: [], departments: [], permissions: [] })
 })
 
 afterEach(() => {
@@ -190,15 +173,14 @@ describe('the four sections route client-side', () => {
 // ---------------------------------------------------------------------------
 // /rates — Screen ADM-1 (T11, specs/009-mileage-rate). A separate describe
 // block (not folded into the it.each table above) because reaching it with
-// its nav link ACTIVE requires `adminApi.getMe()` to resolve `rate:read` —
+// its nav link ACTIVE requires `usePermissions()` to hold `rate:read` —
 // every other test above relies on the `beforeEach` default (no grants,
-// Mileage Rates stays hidden); this test overrides that default locally.
+// Refund stays hidden); this test overrides that default locally.
 // ---------------------------------------------------------------------------
 
 describe('/rates section (T11, specs/009-mileage-rate)', () => {
   it('with rate:read granted, visiting /rates renders MileageRatesPage and activates the "Refund" nav link', async () => {
-    const adminApi = await import('./lib/adminApi')
-    vi.mocked(adminApi.getMe).mockResolvedValue({
+    const grants = {
       epoch: 1,
       apps: ['admin'],
       roles: ['admin'],
@@ -207,7 +189,9 @@ describe('/rates section (T11, specs/009-mileage-rate)', () => {
         { resource: 'rate', action: 'read', conditions: null },
         { resource: 'rate', action: 'manage', conditions: null },
       ],
-    })
+    }
+    const session = await import('shell/session')
+    vi.mocked(session.usePermissions).mockReturnValue(grants)
 
     window.history.pushState(null, '', '/rates')
     const { createAppRouter } = await importRouter()

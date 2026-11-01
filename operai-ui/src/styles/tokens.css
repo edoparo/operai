@@ -1,0 +1,1464 @@
+/*
+ * Operai shared design tokens — @operai/ui (operai-ui/, ADR-0050).
+ *
+ * Single source of truth for the suite's design system: the DM Sans / DM
+ * Mono / Syne type family, the dark-ink color palette (+ light-theme
+ * override), the Tailwind v4 `@theme` token block that turns the palette
+ * into utility classes (`bg-ink`, `text-text`, `border-rule`, …), and the
+ * component classes (`.btn`, `.card`, `.badge`, `.banner`, `.dialog`,
+ * `.data-table`, `.tab-link`, `.field`, …) the React components in
+ * ../components render. Rules for using them: operai-ui/docs/design-system.md.
+ *
+ * Moved here from shell/src/styles/tokens.css (ADR-0050). That file still
+ * exists as a one-line `@import` of this one, so the shell's federated
+ * `./tokens.css` export and every remote's `import 'shell/tokens.css'` keep
+ * working unchanged.
+ *
+ * This is the SINGLE OWNER of the suite's global CSS. The shell imports it
+ * (shell/src/index.css) right after `@import "tailwindcss";`, and the shell's
+ * Tailwind `@source`-scans every remote's `src/` — so the shell emits ONE
+ * Tailwind sheet that carries every remote's utility classes generated from
+ * the shared `@theme` below. In-shell, a federated remote's exposed root
+ * therefore ships NO Tailwind of its own (estimai-ui/src/App.tsx,
+ * refund-ui/src/App.tsx): a second full Tailwind sheet on the page produced a
+ * cross-sheet `@layer utilities` cascade where the later sheet's plain
+ * utilities clobbered the earlier sheet's variant utilities (`sm:*`, `hover:*`,
+ * `focus:*`) — the double-header / broken-responsive bug. One owner, one sheet,
+ * no cross-sheet cascade. See docs/adr/0006 (Remote CSS strategy addendum).
+ *
+ * This file is the design system's home: the `@theme` token block AND the
+ * global base layer (scrollbar, form-control resets) live here so every remote
+ * renders identical chrome and form controls. Each remote keeps its own copy of
+ * the SAME rules in `src/index.css` purely for its STANDALONE build
+ * (`src/main.tsx`, dev/test outside the shell) — keep the two in sync.
+ *
+ * Also exposed via Module Federation as `./tokens.css` (see the `exposes` entry
+ * in shell/vite.config.ts) so a remote consuming it at runtime (refund-ui's
+ * App reads the palette CSS vars via `var(--…)`) gets the shared custom
+ * properties even where Tailwind's build-time utilities aren't available — see
+ * specs/003-suite-shell/plan.md's federation contract.
+ *
+ * Consuming stylesheet must `@import "tailwindcss";` BEFORE importing this
+ * file, so the `@theme` block below extends Tailwind's generated theme
+ * rather than being processed before Tailwind exists.
+ */
+
+@import url('https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Syne:wght@700;800&family=DM+Sans:wght@300;400;500&display=swap');
+
+/* Tailwind utilities from the tokens (`text-soft`, `bg-ink-mid`,
+   `border-rule`, `bg-org/10`, `font-mono`, …). `inline` makes each utility
+   read the custom property itself (`color: var(--soft)`), so the light theme
+   and data-theme switches below only redefine the plain properties: one
+   definition per token, no second `--color-*` copy to keep in sync (ADR-0051).
+   `--color-*: initial` drops Tailwind's default palette, so `text-gray-500`
+   or `bg-white` do not exist: only the suite's tokens are colours. */
+@theme inline {
+  --color-*: initial;
+  --color-white: #fff;
+  --color-black: #000;
+  --color-transparent: transparent;
+  --color-current: currentColor;
+  --color-ink: var(--ink);
+  --color-ink-soft: var(--ink-soft);
+  --color-ink-mid: var(--ink-mid);
+  --color-rule: var(--rule);
+  --color-muted: var(--muted);
+  --color-dim: var(--dim);
+  --color-text: var(--text);
+  --color-soft: var(--soft);
+  --color-acc: var(--acc);
+  --color-acc-hi: var(--acc-hi);
+  --color-acc-lo: var(--acc-lo);
+  --color-acc-solid: var(--acc-solid);
+  --color-acc-solid-hi: var(--acc-solid-hi);
+  --color-acc-text: var(--acc-text);
+  --color-grn: var(--grn);
+  --color-grn-text: var(--grn-text);
+  --color-org: var(--org);
+  --color-org-text: var(--org-text);
+  --color-red: var(--red);
+  --color-red-text: var(--red-text);
+  --color-ai: var(--ai);
+
+  --font-mono: var(--mono);
+  --font-disp: var(--disp);
+  --font-body: var(--body);
+
+  /* Type scale (INC-06): Tailwind's steps plus one, 2xs. Arbitrary sizes
+     (`text-[13px]`) are a lint error; 11px is the floor.
+       2xs 11  captions, badges, table headers, tags
+       xs  12  labels, hints, secondary text
+       sm  14  body, controls
+       base 16 empty/denied state titles
+       lg  18  page titles
+       xl  20  tool titles
+       2xl 24  rare display figures */
+  --text-2xs: 0.6875rem;
+  --text-2xs--line-height: 1.4;
+}
+
+:root {
+  --ink: #0d0d14;
+  --ink-soft: #13131e;
+  --ink-mid: #1c1c2a;
+  --rule: #252536;
+  --muted: #5a5a7a;
+  --dim: #3a3a54;
+  --text: #ddddf0;
+  --soft: #8888aa;
+  --acc: #5b6af7;
+  --acc-hi: #8b96ff;
+  --acc-lo: rgba(91, 106, 247, 0.14);
+  --grn: #2ec27e;
+  --org: #f5a623;
+  --red: #f55a5a;
+  /* Tone colours as TEXT (badge labels, banner titles, inline errors). The
+     base tones are fills, borders and glyphs; as small text --acc is 4.47:1 on
+     --ink and every light-theme tone is below 4.5:1, so text uses these
+     (>= 4.6:1 on --ink-soft and on the tone's own 10% tint, both themes). */
+  --acc-text: #8b96ff;
+  /* EstimAI's AI accent (AI-assisted figures). Text-safe in both themes:
+     6.8:1 on --ink dark, 5.6:1 light. */
+  --ai: #b47fff;
+  --grn-text: #2ec27e;
+  --org-text: #f5a623;
+  --red-text: #f55a5a;
+  /* Accent as a FILLED background under white text: 5.0:1 (--acc is 4.3:1,
+     below WCAG AA for 13px text). Same value in both themes. */
+  --acc-solid: #4f5ef0;
+  --acc-solid-hi: #4453e0;
+  /* Keyboard focus ring, for every focusable element (see the :focus-visible
+     rule in @layer base). --acc-hi is theme-aware (#8b96ff dark, #3d4ce0
+     light): >= 5.2:1 against --ink, --ink-soft and --ink-mid in both themes,
+     over the 3:1 non-text floor. A tinted ring (`ring-acc/50`) is under 2:1
+     on dark ink: do not use one. */
+  --focus-ring: var(--acc-hi);
+  --mono: 'DM Mono', monospace;
+  --disp: 'Syne', sans-serif;
+  --body: 'DM Sans', sans-serif;
+  /* Chevron drawn on every <select>; a data URI cannot read var(--soft), so
+     the light theme overrides the whole image below. */
+  --select-chevron: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12' fill='none' stroke='%238888aa' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M2.5 4.5 6 8l3.5-3.5'/%3E%3C/svg%3E");
+}
+
+/* ── Light theme variables ─────────────────────────────────────────────────── */
+/* Explicit override via data-theme="light" on <html>                          */
+[data-theme='light'] {
+  --ink: #f8f8fc;
+  --ink-soft: #f0f0f8;
+  --ink-mid: #e8e8f4;
+  --rule: #d4d4ec;
+  --muted: #8888aa;
+  --dim: #b8b8d4;
+  --text: #0d0d14;
+  --soft: #60608a;
+  --acc: #5b6af7;
+  --acc-hi: #3d4ce0;
+  --acc-lo: rgba(91, 106, 247, 0.1);
+  --grn: #1a9e5c;
+  --org: #c47a0e;
+  --red: #d93636;
+  --acc-text: #3d4ce0;
+  --ai: #7d3fd6;
+  --grn-text: #137044;
+  --org-text: #8f5408;
+  --red-text: #b02626;
+  --select-chevron: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12' fill='none' stroke='%2360608a' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M2.5 4.5 6 8l3.5-3.5'/%3E%3C/svg%3E");
+}
+
+/* System preference: light (only when not explicitly forced to dark)          */
+@media (prefers-color-scheme: light) {
+  :root:not([data-theme='dark']) {
+    --ink: #f8f8fc;
+    --ink-soft: #f0f0f8;
+    --ink-mid: #e8e8f4;
+    --rule: #d4d4ec;
+    --muted: #8888aa;
+    --dim: #b8b8d4;
+    --text: #0d0d14;
+    --soft: #60608a;
+    --acc: #5b6af7;
+    --acc-hi: #3d4ce0;
+    --acc-lo: rgba(91, 106, 247, 0.1);
+    --grn: #1a9e5c;
+    --org: #c47a0e;
+    --red: #d93636;
+    --acc-text: #3d4ce0;
+    --ai: #7d3fd6;
+  --ai: #7d3fd6;
+    --grn-text: #137044;
+    --org-text: #8f5408;
+    --red-text: #b02626;
+    --select-chevron: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12' fill='none' stroke='%2360608a' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M2.5 4.5 6 8l3.5-3.5'/%3E%3C/svg%3E");
+  }
+}
+
+/* Native controls (date pickers, scrollbars) follow the theme: dark by
+   default, light under the light theme. Never set colorScheme inline. */
+:root {
+  color-scheme: dark;
+}
+
+[data-theme='light'] {
+  color-scheme: light;
+}
+
+@media (prefers-color-scheme: light) {
+  :root:not([data-theme='dark']) {
+    color-scheme: light;
+  }
+}
+
+html,
+body,
+#root {
+  height: 100%;
+  background: var(--ink);
+  color: var(--text);
+  font-family: var(--body), serif;
+}
+
+::-webkit-scrollbar {
+  width: 5px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--ink-soft);
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--dim);
+  border-radius: 3px;
+}
+
+@layer base {
+  input,
+  select,
+  textarea {
+    font-family: var(--body), serif;
+    background: var(--ink-mid);
+    border: 1px solid var(--rule);
+    color: var(--text);
+    border-radius: 6px;
+    padding: 5px 8px;
+    font-size: 12px;
+    outline: none;
+    transition: border-color 0.15s;
+  }
+
+  input:focus,
+  select:focus,
+  textarea:focus {
+    border-color: var(--acc);
+    box-shadow: 0 0 0 2px rgba(91, 106, 247, 0.18);
+  }
+
+  /* Keyboard focus, suite-wide (INC-04; moved here from inventory-ui, where it
+     only reached the standalone build). Excluded: text fields, which show
+     focus with their accent border and glow above, and tabindex="-1"
+     elements, which are programmatic focus targets (the shell's <main> skip
+     target, a dialog frame, a heading focused after navigation), never tab
+     stops: they keep the browser's own behaviour, unchanged. In @layer base, so a component class (.btn, .tab-link) or a
+     utility (`focus-visible:outline-none` with a `focus-visible:ring-*`) on the
+     element still wins. */
+  :focus-visible:not(input, select, textarea, [tabindex='-1']) {
+    outline: 2px solid var(--focus-ring);
+    outline-offset: 2px;
+  }
+
+  input[type='number'] {
+    font-family: var(--mono), monospace;
+  }
+
+  button {
+    font-family: var(--body), serif;
+    cursor: pointer;
+    border: none;
+    border-radius: 6px;
+    font-size: 13px;
+    transition: all 0.15s;
+  }
+}
+
+/* ── Buttons ─────────────────────────────────────────────────────────────────
+ * The suite's ONE button vocabulary — see operai-ui/docs/design-system.md § Buttons for
+ * which variant to use when. Works on <button>, <a> and router <Link> alike
+ * (a link styled as a button gets no help from the `button` base rule above,
+ * which is how square-cornered link-buttons crept in).
+ *
+ *   .btn + exactly one of  .btn-primary | .btn-secondary | .btn-ghost | .btn-danger
+ *   optional size          .btn-sm
+ *   optional shape         .btn-icon   (square, icon-only; needs an aria-label)
+ *
+ * In `@layer components`, so a Tailwind utility on the same element still wins
+ * (margin, width, `self-start`, …). Do not restyle colour, border or radius
+ * with utilities or inline styles — add a variant here instead.
+ */
+@layer components {
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    padding: 6px 12px;
+    border: 1px solid transparent;
+    border-radius: 6px;
+    font-family: var(--body), sans-serif;
+    font-size: 13px;
+    font-weight: 500;
+    line-height: 1.4;
+    text-decoration: none;
+    white-space: nowrap;
+    cursor: pointer;
+    transition:
+      background-color 0.15s,
+      border-color 0.15s,
+      color 0.15s,
+      opacity 0.15s;
+  }
+
+  .btn:focus-visible {
+    outline: 2px solid var(--focus-ring);
+    outline-offset: 2px;
+  }
+
+  /* `aria-disabled` keeps the control focusable so its reason can be read out;
+     both spellings look the same. */
+  .btn:disabled,
+  .btn[aria-disabled='true'] {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+
+  /* Busy keeps full contrast (dimming a primary button drops its label under
+     4.5:1); the spinner and the "Saving…" label say it is working. */
+  .btn[aria-busy='true'] {
+    cursor: progress;
+  }
+
+  .btn-sm {
+    padding: 3px 10px;
+    font-size: 12px;
+  }
+
+  .btn-icon {
+    width: 28px;
+    height: 28px;
+    padding: 0;
+    font-size: 16px;
+    line-height: 1;
+  }
+
+  /* ── Card ──────────────────────────────────────────────────────────────────
+   * A titled group of related content on a page: one section of a detail
+   * screen, a filter bar, a composer. See operai-ui/docs/design-system.md § Cards. */
+  .card {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+    padding: 16px 18px;
+    border: 1px solid var(--rule);
+    border-radius: 8px;
+    background: var(--ink-soft);
+  }
+
+  .card-title {
+    font-family: var(--disp), sans-serif;
+    font-size: 14px;
+    font-weight: 700;
+    color: var(--text);
+  }
+
+  /* The one main action of a screen or dialog. */
+  .btn-primary {
+    background: var(--acc-solid);
+    color: #fff;
+  }
+
+  .btn-primary:hover:not(:disabled):not([aria-disabled='true']) {
+    background: var(--acc-solid-hi);
+  }
+
+  /* Every other action that still needs to read as a button. */
+  .btn-secondary {
+    background: var(--ink-mid);
+    border-color: var(--dim);
+    color: var(--text);
+  }
+
+  .btn-secondary:hover:not(:disabled):not([aria-disabled='true']) {
+    border-color: var(--soft);
+  }
+
+  /* Low-emphasis: cancel, close, toolbar actions. */
+  .btn-ghost {
+    background: transparent;
+    color: var(--soft);
+  }
+
+  .btn-ghost:hover:not(:disabled):not([aria-disabled='true']) {
+    background: var(--ink-mid);
+    color: var(--text);
+  }
+
+  /* Destructive or irreversible. The label stays in the text colour (red text
+     fails contrast in the light theme); the red is in the border and tint. */
+  .btn-danger {
+    background: color-mix(in srgb, var(--red) 14%, transparent);
+    border-color: var(--red);
+    color: var(--text);
+  }
+
+  .btn-danger:hover:not(:disabled):not([aria-disabled='true']) {
+    background: color-mix(in srgb, var(--red) 24%, transparent);
+  }
+}
+
+/* ── Checkbox and radio ──────────────────────────────────────────────────────
+ * The native controls ignore the palette, and the `input` base rule above
+ * gives them text-field padding. Every checkbox and radio is drawn here
+ * instead: a 16px box (or circle) that fills with the solid accent when
+ * checked. Unlayered, like the select chevron, so a padding or border utility
+ * on the element cannot distort it; margin utilities still apply. The white
+ * mark is the same in both themes because the fill under it is. */
+input[type='checkbox'],
+input[type='radio'] {
+  appearance: none;
+  -webkit-appearance: none;
+  flex-shrink: 0;
+  width: 16px;
+  height: 16px;
+  padding: 0;
+  border: 1.5px solid var(--soft);
+  border-radius: 4px;
+  background: var(--ink) center / 16px 16px no-repeat;
+  vertical-align: middle;
+  cursor: pointer;
+  transition:
+    background-color 0.15s,
+    border-color 0.15s;
+}
+
+input[type='radio'] {
+  border-radius: 50%;
+}
+
+input[type='checkbox']:hover:not(:disabled),
+input[type='radio']:hover:not(:disabled) {
+  border-color: var(--acc-hi);
+}
+
+input[type='checkbox']:focus,
+input[type='radio']:focus {
+  box-shadow: none;
+}
+
+input[type='checkbox']:focus-visible,
+input[type='radio']:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 2px;
+}
+
+input[type='checkbox']:checked,
+input[type='checkbox']:indeterminate,
+input[type='radio']:checked {
+  border-color: var(--acc-solid);
+  background-color: var(--acc-solid);
+}
+
+input[type='checkbox']:checked {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='none' stroke='%23fff' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M3.75 8.25 6.75 11.25 12.25 5'/%3E%3C/svg%3E");
+}
+
+input[type='checkbox']:indeterminate {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='none' stroke='%23fff' stroke-width='2' stroke-linecap='round'%3E%3Cpath d='M4.25 8h7.5'/%3E%3C/svg%3E");
+}
+
+input[type='radio']:checked {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Ccircle cx='8' cy='8' r='3' fill='%23fff'/%3E%3C/svg%3E");
+}
+
+input[type='checkbox']:disabled,
+input[type='radio']:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* ── Select chevron ──────────────────────────────────────────────────────────
+ * The native arrow sits flush against the right border and ignores padding, so
+ * every single-line <select> draws its own, 10px from the edge, with room
+ * reserved for it. Deliberately OUTSIDE any @layer: an unlayered rule beats
+ * Tailwind's utilities, so a `px-3` on the element cannot pull the text back
+ * under the chevron. List boxes (`multiple`, `size`) keep the native control. */
+select:not([multiple]):not([size]) {
+  appearance: none;
+  -webkit-appearance: none;
+  background-image: var(--select-chevron);
+  background-repeat: no-repeat;
+  background-position: right 10px center;
+  background-size: 12px 12px;
+  padding-right: 30px;
+}
+
+/* ════════════════════════════════════════════════════════════════════════════
+ * @operai/ui component classes (ADR-0050)
+ *
+ * The React components in operai-ui/src/components render these classes and
+ * nothing else: no Tailwind utilities, no inline colours. A component therefore
+ * looks the same in the shell's sheet, in a remote's standalone build and in
+ * Storybook, whichever Tailwind scan produced the page. Each block names the
+ * component that owns it; operai-ui/docs/design-system.md has the usage rules.
+ *
+ * In `@layer components`, like .btn and .card: a layout utility on the same
+ * element still wins. Text never uses a bare tone colour (see --acc-text).
+ * ════════════════════════════════════════════════════════════════════════════ */
+
+@layer components {
+  /* ── Icon — <Icon> (INC-31) ── sits on the text baseline, never shrinks. */
+  .icon {
+    display: inline-block;
+    flex-shrink: 0;
+    vertical-align: -0.125em;
+  }
+
+  /* ── Accessibility helper — <VisuallyHidden> ──────────────────────────── */
+  .visually-hidden {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0;
+  }
+
+  /* ── Tool layout — <ToolLayout>, <TabNav> ────────────────────────────────
+   * A tool's own frame inside the shell chrome: the tool title (the page's
+   * one h1), its tab row, and the routed content. */
+  .tool-header {
+    border-bottom: 1px solid var(--rule);
+    background: var(--ink-soft);
+  }
+
+  .tool-container {
+    width: 100%;
+    max-width: var(--tool-width, 64rem);
+    margin-inline: auto;
+    padding-inline: 24px;
+  }
+
+  /* Width scale (INC-12): one of three columns per tool, via ToolLayout. */
+  .tool-width-narrow {
+    --tool-width: 40rem;
+  }
+
+  .tool-width-wide {
+    --tool-width: 90rem;
+  }
+
+  .tool-title {
+    padding-block: 16px;
+    font-family: var(--disp), sans-serif;
+    font-size: 20px;
+    font-weight: 700;
+    color: var(--text);
+  }
+
+  .tool-title:focus {
+    outline: none;
+  }
+
+  .tool-main {
+    padding-block: 32px;
+    color: var(--text);
+    font-family: var(--body), sans-serif;
+  }
+
+  .tab-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+
+  .tab-list-end {
+    margin-left: auto;
+  }
+
+  /* On a router <Link> or a plain <a>. Active = aria-current="page" (TanStack
+     Router sets it on an active Link) or data-status="active". */
+  .tab-link {
+    display: inline-block;
+    padding: 12px;
+    border-bottom: 2px solid transparent;
+    font-size: 14px;
+    font-weight: 500;
+    color: var(--soft);
+    text-decoration: none;
+    transition:
+      color 0.15s,
+      border-color 0.15s;
+  }
+
+  .tab-link:hover {
+    color: var(--text);
+  }
+
+  /* <Tabs> renders tab-links as buttons: reset the button base. */
+  button.tab-link {
+    background: transparent;
+    border-radius: 0;
+    font-family: var(--body), sans-serif;
+  }
+
+  .tab-link[aria-current='page'],
+  .tab-link[data-status='active'],
+  .tab-link[aria-selected='true'] {
+    color: var(--acc-text);
+    border-bottom-color: var(--acc);
+  }
+
+  .tab-link:focus-visible {
+    outline: 2px solid var(--focus-ring);
+    outline-offset: -2px;
+  }
+
+  /* ── Page header — <PageHeader> ──────────────────────────────────────── */
+  .page-header {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 12px 16px;
+    margin-bottom: 16px;
+  }
+
+  .page-header-back {
+    flex-basis: 100%;
+    font-size: 13px;
+  }
+
+  .page-title-row {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 12px;
+    min-width: 0;
+  }
+
+  .page-title {
+    font-family: var(--disp), sans-serif;
+    font-size: 18px;
+    font-weight: 700;
+    color: var(--text);
+  }
+
+  .page-description {
+    margin-top: 4px;
+    font-size: 14px;
+    color: var(--soft);
+  }
+
+  .page-actions {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px;
+  }
+
+  /* Inline navigation ("Back to requests", a name in a table): a text link,
+     never a button (design-system.md § Buttons rule 4). */
+  .link {
+    color: var(--acc-text);
+    text-decoration: underline;
+    text-underline-offset: 2px;
+  }
+
+  .link:hover {
+    color: var(--text);
+  }
+
+  .link:focus-visible {
+    outline: 2px solid var(--focus-ring);
+    outline-offset: 2px;
+    border-radius: 2px;
+  }
+
+  /* ── Card extras — <Card> ──────────────────────────────────────────────── */
+  .card-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+  }
+
+  /* ── Badge — <Badge> ─────────────────────────────────────────────────────
+   * Glyph + label + tone: colour is never the only signal. */
+  .badge {
+    --badge-tone: var(--soft);
+    --badge-text: var(--soft);
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 2px 6px;
+    border-radius: 4px;
+    background: color-mix(in srgb, var(--badge-tone) 10%, transparent);
+    color: var(--badge-text);
+    font-size: 11px;
+    font-weight: 500;
+    line-height: 1.4;
+    white-space: nowrap;
+  }
+
+  .badge-accent {
+    --badge-tone: var(--acc);
+    --badge-text: var(--acc-text);
+  }
+
+  .badge-success {
+    --badge-tone: var(--grn);
+    --badge-text: var(--grn-text);
+  }
+
+  .badge-warning {
+    --badge-tone: var(--org);
+    --badge-text: var(--org-text);
+  }
+
+  .badge-danger {
+    --badge-tone: var(--red);
+    --badge-text: var(--red-text);
+  }
+
+  /* Neutral (default) and muted share the readable --soft label; muted only
+     drops the tint, for a settled or voided state. */
+  .badge-muted {
+    background: transparent;
+    box-shadow: inset 0 0 0 1px var(--rule);
+  }
+
+  /* ── Banner — <Banner> ───────────────────────────────────────────────────
+   * An inline message about the page: a failed load with Retry, a save
+   * confirmation, a notice. The tone is in the border, the tint and the
+   * title; the body stays in --text so it is readable in both themes. */
+  .banner {
+    --banner-tone: var(--acc);
+    --banner-text: var(--acc-text);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    padding: 12px 16px;
+    border: 1px solid var(--banner-tone);
+    border-radius: 6px;
+    background: color-mix(in srgb, var(--banner-tone) 10%, transparent);
+    color: var(--text);
+    font-size: 14px;
+    line-height: 1.5;
+  }
+
+  .banner-compact {
+    padding: 8px 12px;
+    border-width: 0 0 0 2px;
+    border-radius: 2px;
+  }
+
+  .banner-success {
+    --banner-tone: var(--grn);
+    --banner-text: var(--grn-text);
+  }
+
+  .banner-warning {
+    --banner-tone: var(--org);
+    --banner-text: var(--org-text);
+  }
+
+  .banner-danger {
+    --banner-tone: var(--red);
+    --banner-text: var(--red-text);
+  }
+
+  .banner-content {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    min-width: 0;
+  }
+
+  .banner-title {
+    font-weight: 600;
+    color: var(--banner-text);
+  }
+
+  .banner-content ul {
+    margin: 4px 0 0;
+    padding-left: 18px;
+    list-style: disc;
+  }
+
+  .banner-actions {
+    display: flex;
+    flex-shrink: 0;
+    align-items: center;
+    gap: 8px;
+  }
+
+  /* ── Dialog — <Dialog>, <ConfirmDialog>, <FormDialog> ───────────────────
+   * The BACKDROP scrolls, never the dialog: a dialog with its own overflow
+   * clips anything a field pops out of it (inventory's holder picker). */
+  .dialog-backdrop {
+    position: fixed;
+    inset: 0;
+    z-index: 50;
+    display: flex;
+    overflow-y: auto;
+    padding: 16px;
+    background: rgba(0, 0, 0, 0.6);
+    backdrop-filter: blur(4px);
+  }
+
+  .dialog {
+    width: 100%;
+    max-width: 28rem;
+    margin: auto;
+    padding: 20px;
+    border: 1px solid var(--rule);
+    border-radius: 8px;
+    background: var(--ink-soft);
+    color: var(--text);
+    box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+  }
+
+  .dialog-sm {
+    max-width: 24rem;
+  }
+
+  .dialog-lg {
+    max-width: 40rem;
+  }
+
+  .dialog-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    margin-bottom: 12px;
+  }
+
+  .dialog-title {
+    font-family: var(--disp), sans-serif;
+    font-size: 14px;
+    font-weight: 700;
+    color: var(--text);
+  }
+
+  .dialog-title:focus {
+    outline: none;
+  }
+
+  .dialog-description {
+    margin-bottom: 12px;
+    font-size: 12px;
+    color: var(--soft);
+  }
+
+  .dialog-body {
+    margin-bottom: 16px;
+    font-size: 14px;
+    line-height: 1.6;
+    color: var(--text);
+  }
+
+  /* A <fieldset> body: disabled as a group while the dialog is busy. */
+  .dialog-fields {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    min-width: 0;
+    margin: 0 0 16px;
+    padding: 0;
+    border: 0;
+  }
+
+  /* ConfirmDialog's acknowledgement: the checkbox that enables Confirm. */
+  .dialog-acknowledge {
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
+    margin-bottom: 16px;
+    font-size: 14px;
+    line-height: 1.5;
+    color: var(--text);
+  }
+
+  .dialog-acknowledge input {
+    margin-top: 3px;
+  }
+
+  .dialog-footer {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 12px;
+  }
+
+  /* ── Menu — <Menu> ── a button that opens a short list of actions or links. */
+  .menu {
+    position: relative;
+    flex-shrink: 0;
+  }
+
+  .menu-trigger {
+    display: flex;
+    align-items: center;
+    border-radius: 6px;
+  }
+
+  .menu-trigger-round {
+    border-radius: 9999px;
+  }
+
+  .menu-list {
+    position: absolute;
+    left: 0;
+    z-index: 50;
+    min-width: 10rem;
+    max-width: 15rem;
+    margin-top: 8px;
+    padding: 4px 0;
+    border: 1px solid var(--rule);
+    border-radius: 8px;
+    background: var(--ink-soft);
+    box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+  }
+
+  .menu-list-end {
+    left: auto;
+    right: 0;
+  }
+
+  .menu-header {
+    padding: 8px 12px;
+    border-bottom: 1px solid var(--rule);
+    font-size: 12px;
+    font-weight: 500;
+    color: var(--text);
+    overflow-wrap: anywhere;
+  }
+
+  .menu-header-secondary {
+    font-family: var(--mono);
+    font-size: 11px;
+    font-weight: 400;
+    color: var(--soft);
+  }
+
+  .menu-item {
+    display: block;
+    width: 100%;
+    padding: 8px 12px;
+    font-size: 13px;
+    text-align: left;
+    color: var(--soft);
+    text-decoration: none;
+    transition: color 0.15s, background-color 0.15s;
+  }
+
+  .menu-item:hover,
+  .menu-item:focus-visible {
+    color: var(--text);
+    background: var(--ink-mid);
+  }
+
+  .menu-item:focus-visible {
+    outline-offset: -2px;
+  }
+
+  /* ── Drawer — <Drawer> ── a modal panel from the right edge. */
+  .drawer-backdrop {
+    position: fixed;
+    inset: 0;
+    z-index: 50;
+    display: flex;
+    justify-content: flex-end;
+    background: rgba(0, 0, 0, 0.4);
+  }
+
+  .drawer {
+    display: flex;
+    flex-direction: column;
+    width: min(24rem, 100vw);
+    height: 100%;
+    border-left: 1px solid var(--rule);
+    background: var(--ink-soft);
+    color: var(--text);
+    box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+    animation: op-drawer-in 0.15s ease-out;
+  }
+
+  .drawer:focus {
+    outline: none;
+  }
+
+  .drawer-header {
+    display: flex;
+    flex-shrink: 0;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 16px 20px;
+    border-bottom: 1px solid var(--rule);
+  }
+
+  .drawer-description {
+    margin-top: 2px;
+    font-size: 11px;
+    color: var(--soft);
+  }
+
+  .drawer-body {
+    flex: 1;
+    overflow-y: auto;
+    padding: 20px;
+    font-size: 12px;
+    color: var(--soft);
+  }
+
+  /* ── Form field — <Field> ────────────────────────────────────────────── */
+  .field {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    min-width: 0;
+  }
+
+  .radio-options {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px 16px;
+    font-size: 14px;
+  }
+
+  .radio-options label {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  /* CheckboxGroupField: a <fieldset> of checkboxes, one per line. */
+  .checkbox-group {
+    margin: 0;
+    padding: 0;
+    border: 0;
+  }
+
+  .checkbox-options {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    font-size: 14px;
+    color: var(--text);
+  }
+
+  .checkbox-options-scroll {
+    max-height: 8rem;
+    overflow-y: auto;
+  }
+
+  .checkbox-options label {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .checkbox-group-empty {
+    font-size: 14px;
+    color: var(--soft);
+  }
+
+  .field-label {
+    font-size: 12px;
+    font-weight: 500;
+    color: var(--soft);
+  }
+
+  .field-required {
+    margin-left: 2px;
+    color: var(--red-text);
+  }
+
+  .field-hint {
+    font-size: 12px;
+    color: var(--soft);
+  }
+
+  .field-error {
+    font-size: 12px;
+    color: var(--red-text);
+  }
+
+  .field :is(input, select, textarea)[aria-invalid='true'] {
+    border-color: var(--red);
+  }
+
+  /* Form controls inside a Field are the form size (INC-17): 14px text, more
+     padding. A bare control (a filter in a toolbar, an input in a dense table
+     row) keeps the compact base size. Do not override either per app. */
+  .field :is(input:not([type='checkbox'], [type='radio']), select, textarea) {
+    padding: 6px 10px;
+    font-size: 14px;
+  }
+
+  /* Figures typed into a field: amounts, dates, quantities (MoneyInput, DateInput). */
+  .input-figure {
+    font-family: var(--mono), monospace;
+    font-variant-numeric: tabular-nums;
+  }
+
+  /* An error that belongs to a form or a dialog, not to one field. */
+  .form-error {
+    font-size: 13px;
+    color: var(--red-text);
+  }
+
+  /* ── Combobox — <Combobox> ───────────────────────────────────────────── */
+  .combobox {
+    position: relative;
+  }
+
+  .combobox-input {
+    width: 100%;
+  }
+
+  .combobox-input[aria-invalid='true'] {
+    border-color: var(--red);
+  }
+
+  .combobox-input[aria-disabled='true'] {
+    opacity: 0.6;
+    cursor: not-allowed;
+  }
+
+  .combobox-listbox {
+    position: absolute;
+    z-index: 10;
+    width: 100%;
+    max-height: 16rem;
+    margin-top: 4px;
+    overflow-y: auto;
+    border: 1px solid var(--rule);
+    border-radius: 6px;
+    background: var(--ink-soft);
+    box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.3);
+    font-size: 14px;
+  }
+
+  .combobox-option {
+    padding: 8px 12px;
+    color: var(--text);
+    cursor: pointer;
+  }
+
+  .combobox-option[aria-selected='true'] {
+    background: var(--acc-lo);
+  }
+
+  .combobox-option-secondary,
+  .combobox-empty {
+    font-size: 12px;
+    color: var(--soft);
+  }
+
+  .combobox-empty {
+    padding: 8px 12px;
+  }
+
+  /* A row the app adds after the options (an attribution, a hint). */
+  .combobox-footer {
+    padding: 6px 12px;
+    border-top: 1px solid var(--rule);
+    font-size: 11px;
+    color: var(--soft);
+  }
+
+  /* ── Data table — <DataTable> ────────────────────────────────────────── */
+  .table-region {
+    overflow-x: auto;
+  }
+
+  .table-region:focus-visible {
+    outline: 2px solid var(--focus-ring);
+    outline-offset: 2px;
+  }
+
+  .data-table {
+    width: 100%;
+    border-collapse: collapse;
+  }
+
+  .data-table thead th {
+    padding: 6px 8px;
+    border-bottom: 1px solid var(--rule);
+    font-family: var(--mono), monospace;
+    font-size: 11px;
+    font-weight: 500;
+    letter-spacing: 0.05em;
+    text-align: left;
+    text-transform: uppercase;
+    white-space: nowrap;
+    color: var(--soft);
+  }
+
+  .data-table tbody :is(td, th) {
+    padding: 6px 8px;
+    border-bottom: 1px solid color-mix(in srgb, var(--rule) 50%, transparent);
+    font-size: 14px;
+    font-weight: 400;
+    text-align: left;
+    color: var(--text);
+  }
+
+  .data-table tbody th {
+    font-weight: 500;
+  }
+
+  .data-table tbody th:focus-visible {
+    outline: 2px solid var(--focus-ring);
+    outline-offset: -2px;
+  }
+
+  .data-table :is(td, th).is-numeric {
+    text-align: right;
+    font-family: var(--mono), monospace;
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+  }
+
+  .data-table tbody tr.data-table-detail > td {
+    background: var(--ink-soft);
+  }
+
+  .data-table tbody tr.is-interactive:hover {
+    background: var(--ink-soft);
+  }
+
+  /* ── Fact list — <FactList> ──────────────────────────────────────────────
+   * Label/value pairs on an auto-filling grid (design-system.md § Cards). */
+  .fact-list {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(170px, 1fr));
+    gap: 12px 16px;
+    margin: 0;
+  }
+
+  .fact-list dt {
+    font-family: var(--mono), monospace;
+    font-size: 11px;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    color: var(--soft);
+  }
+
+  .fact-list dd {
+    margin: 2px 0 0;
+    font-size: 14px;
+    color: var(--text);
+  }
+
+  /* ── State panel — <StatePanel> ──────────────────────────────────────────
+   * Empty list, permission denied, not found: a centred heading and body in
+   * place of the content. */
+  .state-panel {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+    padding: 64px 24px;
+    text-align: center;
+  }
+
+  .state-panel-title {
+    font-family: var(--disp), sans-serif;
+    font-size: 16px;
+    font-weight: 700;
+    color: var(--text);
+  }
+
+  .state-panel-title:focus {
+    outline: none;
+  }
+
+  .state-panel-body {
+    max-width: 28rem;
+    font-size: 14px;
+    line-height: 1.6;
+    color: var(--soft);
+  }
+
+  .state-panel-action {
+    margin-top: 8px;
+  }
+
+  /* ── Loading — <Skeleton>, <SkeletonRows>, <Spinner> ───────────────────── */
+  .skeleton {
+    display: block;
+    border-radius: 4px;
+    background: var(--ink-mid);
+    animation: op-pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+  }
+
+  .skeleton-rows {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .skeleton-row {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    padding: 12px 16px;
+    border: 1px solid var(--rule);
+    border-radius: 6px;
+    background: var(--ink-soft);
+  }
+
+  .skeleton-row-text {
+    display: flex;
+    flex: 1;
+    flex-direction: column;
+    gap: 6px;
+  }
+
+  .skeleton-row-actions {
+    display: flex;
+    flex-shrink: 0;
+    gap: 4px;
+  }
+
+  .spinner {
+    display: inline-block;
+    flex-shrink: 0;
+    width: 12px;
+    height: 12px;
+    border: 2px solid currentColor;
+    border-top-color: transparent;
+    border-radius: 50%;
+    animation: op-spin 0.8s linear infinite;
+  }
+
+  .spinner-md {
+    width: 16px;
+    height: 16px;
+  }
+
+  .spinner-lg {
+    width: 24px;
+    height: 24px;
+    border-width: 3px;
+  }
+
+  .page-title:focus {
+    outline: none;
+  }
+
+  /* ── Paging — <Pagination>, <LoadMore> (INC-15) ─────────────────────── */
+  .pagination {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    padding: 8px 4px;
+  }
+
+  .pagination-status {
+    font-size: 12px;
+    color: var(--soft);
+  }
+
+  .load-more {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+    margin-top: 16px;
+  }
+
+  .load-more-error {
+    font-size: 14px;
+    color: var(--org-text);
+  }
+
+  /* ── List row link — <ListRow> ───────────────────────────────────────────
+   * A whole-row link in a card-style list (My requests, Batch history). */
+  .list-rows {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+
+  .list-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    padding: 12px 16px;
+    border: 1px solid var(--rule);
+    border-radius: 6px;
+    background: var(--ink-soft);
+    color: var(--text);
+    text-decoration: none;
+    transition: border-color 0.15s;
+  }
+
+  /* A row link, or a row that holds its own link plus actions (open + delete):
+     add `is-interactive` to the row in the second case. */
+  a.list-row:hover,
+  .list-row.is-interactive:hover {
+    border-color: var(--dim);
+  }
+
+  a.list-row:focus-visible {
+    outline: 2px solid var(--focus-ring);
+    outline-offset: 2px;
+  }
+
+  .list-row-meta {
+    font-size: 12px;
+    color: var(--soft);
+  }
+}
+
+@keyframes op-pulse {
+  50% {
+    opacity: 0.5;
+  }
+}
+
+@keyframes op-drawer-in {
+  from {
+    transform: translateX(16px);
+    opacity: 0;
+  }
+}
+
+@keyframes op-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .skeleton,
+  .spinner,
+  .drawer {
+    animation: none;
+  }
+}

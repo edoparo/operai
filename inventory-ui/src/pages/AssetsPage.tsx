@@ -1,4 +1,5 @@
 import { Link, useNavigate, useRouterState, useSearch } from '@tanstack/react-router'
+import { Banner, Button, PageHeader, StatePanel, StatusBadge, VisuallyHidden, buttonClassName } from '@operai/ui'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import type { ReactNode } from 'react'
 import AssetFilterBar from '../components/AssetFilterBar'
@@ -18,6 +19,7 @@ import { listAssets } from '../lib/assetsApi'
 import { listDirectory } from '../lib/directoryApi'
 import { formatDate } from '../lib/dates'
 import { formatMoney } from '../lib/money'
+import { TO_VERIFY_MEANING } from '../lib/statusMeanings'
 import type {
   AssetCategory,
   AssetListFilters,
@@ -123,6 +125,7 @@ export default function AssetsPage() {
   const moreController = useRef<AbortController | null>(null)
   const pendingFocusId = useRef<string | null>(null)
   const registerRef = useRef<HTMLAnchorElement>(null)
+  const [dismissedFlash, setDismissedFlash] = useState<LocationState | null>(null)
 
   useEffect(() => {
     const controller = new AbortController()
@@ -298,15 +301,10 @@ export default function AssetsPage() {
       rowHeader: true,
       render: (asset) => (
         <div className="flex flex-col gap-0.5">
-          <Link
-            to="/assets/$id"
-            params={{ id: asset.id }}
-            data-asset-link={asset.id}
-            className="underline underline-offset-2"
-          >
+          <Link to="/assets/$id" params={{ id: asset.id }} data-asset-link={asset.id} className="link">
             {asset.description}
           </Link>
-          <span className="text-xs font-normal" style={{ color: 'var(--soft)' }}>
+          <span className="text-xs font-normal text-soft">
             {[
               strings.categories[asset.category] ?? asset.category,
               asset.serialNumber,
@@ -316,20 +314,9 @@ export default function AssetsPage() {
               .join(' · ')}
           </span>
           {asset.toVerify && (
-            <span
-              data-testid="to-verify-chip"
-              className="w-fit rounded border px-1.5 py-0.5 text-[11px] font-medium"
-              style={{
-                color: 'var(--text)',
-                borderColor: 'var(--org)',
-                backgroundColor: 'color-mix(in srgb, var(--org) 10%, transparent)',
-              }}
-            >
-              <span aria-hidden="true" style={{ color: 'var(--org)' }}>
-                ⚑{' '}
-              </span>
+            <StatusBadge status={TO_VERIFY_MEANING} data-testid="to-verify-chip" className="w-fit">
               {strings.assets.toVerifyChip}
-            </span>
+            </StatusBadge>
           )}
         </div>
       ),
@@ -350,9 +337,7 @@ export default function AssetsPage() {
         <div className="flex flex-col items-start gap-1">
           <AssetStatusBadge status={asset.status} />
           {asset.pendingAssignment !== null && (
-            <span className="text-[11px]" style={{ color: 'var(--soft)' }}>
-              {strings.assets.awaitingConfirmation}
-            </span>
+            <span className="text-2xs text-soft">{strings.assets.awaitingConfirmation}</span>
           )}
         </div>
       ),
@@ -392,46 +377,34 @@ export default function AssetsPage() {
   } else if (items === null) {
     content = (
       <div>
-        <p role="status" aria-live="polite" className="sr-only" data-testid="assets-loading">
+        <VisuallyHidden live role="status" data-testid="assets-loading">
           {strings.assets.loading}
-        </p>
+        </VisuallyHidden>
         <SkeletonListRows />
       </div>
     )
   } else if (items.length === 0) {
     content =
       activeFilters.length > 0 ? (
-        <div data-testid="assets-empty-filtered" className="py-8 text-center text-sm">
-          <p style={{ color: 'var(--text)' }}>
-            {onlyToVerify ? strings.assets.empty.nothingToVerify : strings.assets.empty.filtered}
-          </p>
-          {!onlyToVerify && (
-            <button
-              type="button"
-              onClick={clearFilters}
-              className="btn btn-secondary mt-3"
-            >
-              {strings.assets.filters.clear}
-            </button>
-          )}
-        </div>
+        <StatePanel
+          testId="assets-empty-filtered"
+          title={onlyToVerify ? strings.assets.empty.nothingToVerify : strings.assets.empty.filtered}
+          action={
+            !onlyToVerify && (
+              <Button onClick={clearFilters} variant="secondary">
+                {strings.assets.filters.clear}
+              </Button>
+            )
+          }
+        />
       ) : (
-        <div data-testid="assets-empty" className="py-8 text-center text-sm">
-          <p style={{ color: 'var(--text)' }}>
-            {canManageAssets ? strings.assets.empty.manager : strings.assets.empty.accountant}
-          </p>
-          {canManageAssets && (
-            <Link
-              to="/assets/new"
-              className="btn btn-secondary mt-3"
-            >
-              {strings.assets.registerAction}
-            </Link>
-          )}
-          <p className="mt-3 text-xs" style={{ color: 'var(--soft)' }}>
-            {strings.assets.empty.scopeNote}
-          </p>
-        </div>
+        // The Register action is already in the page header: the empty state does not repeat it.
+        <StatePanel
+          testId="assets-empty"
+          title={canManageAssets ? strings.assets.empty.manager : strings.assets.empty.accountant}
+        >
+          {strings.assets.empty.scopeNote}
+        </StatePanel>
       )
   } else {
     content = (
@@ -466,29 +439,40 @@ export default function AssetsPage() {
         ? messageForError(directoryError)
         : null
 
-  const registeredCount = typeof locationState.registeredCount === 'number' ? locationState.registeredCount : null
+  // The confirmation belongs to this arrival (this history entry's state): dismissing it, or its 3s timer, hides it
+  // for this entry only, so a later registration that lands here again is confirmed again.
+  const registeredCount =
+    typeof locationState.registeredCount === 'number' && dismissedFlash !== locationState
+      ? locationState.registeredCount
+      : null
 
   return (
     <section aria-labelledby="assets-heading" data-testid="inventory-assets-page" className="flex flex-col gap-4">
-      <div className="flex items-center justify-between gap-4">
-        <h2 id="assets-heading" className="text-lg font-semibold" style={{ fontFamily: 'var(--disp)' }}>
-          {strings.assets.heading}
-        </h2>
-        {canManageAssets && (
-          <Link
-            ref={registerRef}
-            to="/assets/new"
-            className="btn btn-primary"
-          >
-            {strings.assets.registerAction}
-          </Link>
-        )}
-      </div>
+      <PageHeader
+        title={strings.assets.heading}
+        titleId="assets-heading"
+        className="mb-0"
+        actions={
+          canManageAssets && (
+            <Link ref={registerRef} to="/assets/new" className={buttonClassName({ variant: 'primary' })}>
+              {strings.assets.registerAction}
+            </Link>
+          )
+        }
+      />
 
       {registeredCount !== null && (
-        <p role="status" data-testid="assets-flash" className="text-sm" style={{ color: 'var(--grn)' }}>
+        <Banner
+          tone="success"
+          compact
+          autoDismiss
+          onDismiss={() => setDismissedFlash(locationState)}
+          dismissLabel={strings.common.errorBanner.dismissLabel}
+          dismissTestId="assets-flash-dismiss"
+          data-testid="assets-flash"
+        >
           {strings.assets.registered(registeredCount)}
-        </p>
+        </Banner>
       )}
 
       <AssetFilterBar
@@ -506,13 +490,7 @@ export default function AssetsPage() {
         </div>
       )}
 
-      <p
-        role="status"
-        aria-live="polite"
-        data-testid="assets-count"
-        className="text-sm"
-        style={{ color: 'var(--soft)' }}
-      >
+      <p role="status" aria-live="polite" data-testid="assets-count" className="text-sm text-soft">
         {items !== null && items.length > 0 ? strings.assets.shown(items.length, nextCursor !== null) : ''}
       </p>
 

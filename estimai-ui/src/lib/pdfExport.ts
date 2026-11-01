@@ -3,6 +3,18 @@ import autoTable from 'jspdf-autotable'
 import type { ReleaseSummary, Totals, Parameters, Activity } from '../types'
 import { renderGanttPng } from './ganttChart'
 import { svgToDataUrl } from './logoUtils'
+import { formatDate } from '@operai/ui'
+import { EXPORT_LOCALE, exportCopy } from '../strings/exportCopy'
+import { decimal, oneDecimal, percent, whole } from './figures'
+
+/*
+ * The PDF is a client document: its copy is English (strings/exportCopy.ts),
+ * its figures formatted with the English locale, its date the suite's numeric
+ * dd.mm.yyyy (INC-25/26/27 decision, see exportCopy.ts).
+ */
+const x = exportCopy
+const n0 = (value: number) => whole(value, EXPORT_LOCALE)
+const n1 = (value: number) => oneDecimal(value, EXPORT_LOCALE)
 
 // ── A4 layout constants (mm) ──────────────────────────────────────────────────
 const PAGE_W = 210
@@ -83,28 +95,28 @@ export async function exportPdf({ name, author, acts, summary, totals, params }:
   doc.setFont('helvetica', 'bold')
   doc.setFontSize(13)
   doc.setTextColor('#ffffff')
-  doc.text('EstimAI', ML + LOGO_MM + 2.5, 15)
+  doc.text(x.product, ML + LOGO_MM + 2.5, 15)
 
   // Project name centred (weight 600 ≈ bold in PDF)
   doc.setFont('helvetica', 'bold')
   doc.setFontSize(10)
   doc.setTextColor('#ffffff')
-  doc.text(name || 'Untitled', PAGE_W / 2 + 12, 15, { align: 'center', maxWidth: 90 })
+  doc.text(name || x.untitled, PAGE_W / 2 + 12, 15, { align: 'center', maxWidth: 90 })
 
   // Author + date (right-aligned, stacked, muted)
-  const dateStr = new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })
+  const dateStr = formatDate(new Date())
   doc.setFont('helvetica', 'normal')
   doc.setFontSize(7)
   doc.setTextColor(SOFT)
   if (author) doc.text(author, PAGE_W - MR, 10.5, { align: 'right' })
-  doc.text(`Estimate date: ${dateStr}`, PAGE_W - MR, 17, { align: 'right' })
+  doc.text(x.pdf.estimateDate(dateStr), PAGE_W - MR, 17, { align: 'right' })
 
   // ── KPI strip ─────────────────────────────────────────────────────────────
   const kpis: { label: string; value: string; color: string }[] = [
-    { label: 'Total Elapsed', value: `${totals.el} d`, color: ACC },
-    { label: 'Man-days', value: `${totals.tm}`, color: ACC },
-    { label: 'Duration', value: `${totals.mo.toFixed(1)} mo`, color: GRN },
-    { label: 'Range', value: `${totals.best}–${totals.worst} d`, color: ORG },
+    { label: x.pdf.kpis.elapsed, value: x.days(n0(totals.el)), color: ACC },
+    { label: x.pdf.kpis.manDays, value: n0(totals.tm), color: ACC },
+    { label: x.pdf.kpis.duration, value: x.months(n1(totals.mo)), color: GRN },
+    { label: x.pdf.kpis.range, value: x.days(`${n0(totals.best)}–${n0(totals.worst)}`), color: ORG },
   ]
   const kpiW = CW / kpis.length
   kpis.forEach(({ label, value, color }, i) => {
@@ -124,38 +136,38 @@ export async function exportPdf({ name, author, acts, summary, totals, params }:
   doc.line(ML, 43.5, PAGE_W - MR, 43.5)
 
   // ── Release summary ───────────────────────────────────────────────────────
-  secHeading(48, 'RELEASE SUMMARY')
+  secHeading(48, x.pdf.releaseSummary)
 
   const bodyRows: string[][] = summary.map((s) => {
-    if (!s.res) return [s.name, String(s.fte), '—', '—', '—', '—', '—', '—']
+    if (!s.res) return [s.name, decimal(s.fte, 2, EXPORT_LOCALE), ...Array<string>(6).fill(x.empty)]
     const { el, tm, mo, best, worst } = s.res
     return [
       s.name,
-      String(s.fte),
-      String(el),
-      String(tm),
-      mo.toFixed(1),
-      String(best),
-      String(worst),
-      `${best}–${worst} d`,
+      decimal(s.fte, 2, EXPORT_LOCALE),
+      n0(el),
+      n0(tm),
+      n1(mo),
+      n0(best),
+      n0(worst),
+      x.days(`${n0(best)}–${n0(worst)}`),
     ]
   })
   const totalRowIndex = bodyRows.length
   bodyRows.push([
-    'TOTAL',
+    x.total,
     '',
-    String(totals.el),
-    String(totals.tm),
-    totals.mo.toFixed(1),
-    String(totals.best),
-    String(totals.worst),
-    `${totals.best}–${totals.worst} d`,
+    n0(totals.el),
+    n0(totals.tm),
+    n1(totals.mo),
+    n0(totals.best),
+    n0(totals.worst),
+    x.days(`${n0(totals.best)}–${n0(totals.worst)}`),
   ])
 
   autoTable(doc, {
     startY: 52,
     margin: { left: ML, right: MR },
-    head: [['Release', 'FTE', 'Elapsed d', 'M/D', 'Months', 'Best', 'Worst', 'Range']],
+    head: [x.pdf.summaryHeader],
     body: bodyRows,
     styles: {
       font: 'helvetica',
@@ -208,7 +220,7 @@ export async function exportPdf({ name, author, acts, summary, totals, params }:
       const ganttMmH = (ganttMmW * GANTT_ORIG_H) / GANTT_ORIG_W
 
       curY += 8
-      secHeading(curY, 'RELEASE TIMELINE')
+      secHeading(curY, x.pdf.releaseTimeline)
       curY += 5
 
       doc.addImage(`data:image/png;base64,${ganttPng}`, 'PNG', ML, curY, ganttMmW, ganttMmH)
@@ -231,19 +243,19 @@ export async function exportPdf({ name, author, acts, summary, totals, params }:
       curY += 6
     }
 
-    secHeading(curY, 'ACTIVITY SUMMARY')
+    secHeading(curY, x.pdf.activitySummary)
     curY += 5
 
     const actRows = activeActs.map((a) => {
       const pert = pertLocal(a.o, a.ml, a.p)
-      const exp = +(pert + (Number(a.risk) || 0)).toFixed(1)
-      return [a.epic || '—', a.act || '—', a.release || '—', exp]
+      const exp = n1(pert + (Number(a.risk) || 0))
+      return [a.epic || x.empty, a.act || x.empty, a.release || x.empty, exp]
     })
 
     autoTable(doc, {
       startY: curY,
       margin: { left: ML, right: MR },
-      head: [['Epic', 'Activity', 'Release', 'Expected d']],
+      head: [x.pdf.activityHeader],
       body: actRows,
       styles: {
         font: 'helvetica',
@@ -291,19 +303,19 @@ export async function exportPdf({ name, author, acts, summary, totals, params }:
   doc.setFont('helvetica', 'bold')
   doc.setFontSize(6.5)
   doc.setTextColor(BORDER_ACC)
-  doc.text('ESTIMATION PARAMETERS', ML + 4, paramY + 4.5)
+  doc.text(x.pdf.parametersHeading, ML + 4, paramY + 4.5)
 
   const pItems = [
-    `Sprint: ${params.sprintDays ?? 10} d`,
-    `Parallelism: ${Math.round((params.parallelism ?? 0.7) * 100)}%`,
-    `AI gain: ${Math.round((params.aiGain ?? 0.3) * 100)}%`,
-    `Working days/mo: ${params.workingDaysMonth ?? 20}`,
-    `AI cost coef: ${params.aiCostCoef ?? 10}`,
+    x.pdf.parameters.sprint(decimal(params.sprintDays ?? 10, 2, EXPORT_LOCALE)),
+    x.pdf.parameters.parallelism(percent(params.parallelism ?? 0.7, EXPORT_LOCALE)),
+    x.pdf.parameters.aiGain(percent(params.aiGain ?? 0.3, EXPORT_LOCALE)),
+    x.pdf.parameters.workingDays(decimal(params.workingDaysMonth ?? 20, 2, EXPORT_LOCALE)),
+    x.pdf.parameters.aiCostCoef(decimal(params.aiCostCoef ?? 10, 2, EXPORT_LOCALE)),
   ]
   doc.setFont('helvetica', 'normal')
   doc.setFontSize(7.5)
   doc.setTextColor(HDR)
-  doc.text(pItems.join('   ·   '), ML + 4, paramY + 10.5)
+  doc.text(pItems.join(x.pdf.separator), ML + 4, paramY + 10.5)
 
   // ── Footer ────────────────────────────────────────────────────────────────
   const footerLineY = PAGE_H - FOOTER_H + 2
@@ -313,7 +325,7 @@ export async function exportPdf({ name, author, acts, summary, totals, params }:
   doc.setFont('helvetica', 'normal')
   doc.setFontSize(7)
   doc.setTextColor(MUTED)
-  doc.text('Generated by EstimAI  ·  aiscream', PAGE_W / 2, footerLineY + 4, { align: 'center' })
+  doc.text(x.pdf.footer, PAGE_W / 2, footerLineY + 4, { align: 'center' })
 
-  doc.save(`${(name || 'estimate').replace(/\s+/g, '_')}_estimate.pdf`)
+  doc.save(`${(name || x.fileStem).replace(/\s+/g, '_')}_${x.fileStem}.pdf`)
 }

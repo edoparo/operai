@@ -13,6 +13,7 @@
     "refund-ui",
     "inventory-ui",
     "notify-ui",
-    "admin-ui"
+    "admin-ui",
+    "operai-ui"
   ]
 }

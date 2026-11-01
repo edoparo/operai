@@ -43,7 +43,7 @@ describe('BatchSubtotalsPanel', () => {
   it('renders the approved total via formatMoney, never a bare number', () => {
     render(<BatchSubtotalsPanel subtotals={[eur]} />)
     const card = screen.getByTestId('batch-subtotals-panel-card-EUR')
-    expect(card.textContent).toContain('9,10 €')
+    expect(card.textContent).toContain('EUR 9.10')
   })
 
   it('renders the CurrencyBadge inside each card', () => {

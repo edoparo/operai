@@ -1,5 +1,5 @@
 /**
- * SubtotalsPanel — one card per **currency** present in a request's
+ * SubtotalsPanel — the request's Totals card: one figure group per **currency** present in a request's
  * `subtotals[]`, never a blended total and never a synthesized zero-value
  * card for an absent currency (T16, specs/007-refund-service/tasks.md;
  * design.md F3 step 3: "always renders … as independent per-currency
@@ -28,6 +28,8 @@
  * "never a bare number a screen reader could misread as unitless").
  */
 
+import type { ReactNode } from 'react'
+import { Card } from '@operai/ui'
 import { strings } from '../strings'
 import { describeApprovedAmount, formatMoney } from '../lib/money'
 import type { Subtotal } from '../lib/subtotals'
@@ -37,6 +39,8 @@ export type SubtotalsPanelProps = {
   subtotals: readonly Subtotal[]
   /** Show the approved figure alongside requested (only once a decision exists). */
   showApproved?: boolean
+  /** A footnote under the figures, inside the card (the monthly-processing note). */
+  footnote?: ReactNode
 }
 
 /**
@@ -49,19 +53,14 @@ export type SubtotalsPanelProps = {
  */
 function ApprovedFigure({ subtotal }: { subtotal: Subtotal }) {
   const t = strings.pages.requestDetail.lines
-  const amount = describeApprovedAmount(
-    subtotal.requestedCents,
-    subtotal.approvedCents,
-    subtotal.currency,
-  )
+  const amount = describeApprovedAmount(subtotal.requestedCents, subtotal.approvedCents, subtotal.currency)
 
   return (
     <div className="flex items-start justify-between gap-3">
-      <dt style={{ color: 'var(--soft)' }}>{t.approvedLabel}</dt>
+      <dt className="text-soft">{t.approvedLabel}</dt>
       <div className="text-right">
         <dd
-          className="font-mono tabular-nums"
-          style={{ color: 'var(--grn)' }}
+          className="font-mono tabular-nums text-grn-text"
           data-testid={`subtotals-approved-${subtotal.currency}`}
           data-changed={amount.changed ? 'true' : 'false'}
         >
@@ -72,8 +71,7 @@ function ApprovedFigure({ subtotal }: { subtotal: Subtotal }) {
             lines above it. An inline parenthetical would move it. */}
         {amount.changed && (
           <dd
-            className="font-mono tabular-nums text-[11px]"
-            style={{ color: 'var(--soft)' }}
+            className="font-mono tabular-nums text-2xs text-soft"
             data-testid={`subtotals-approved-delta-${subtotal.currency}`}
           >
             {t.approvedDeltaNote(amount.requested, amount.delta)}
@@ -84,38 +82,36 @@ function ApprovedFigure({ subtotal }: { subtotal: Subtotal }) {
   )
 }
 
-export default function SubtotalsPanel({ subtotals, showApproved = false }: SubtotalsPanelProps) {
+export default function SubtotalsPanel({ subtotals, showApproved = false, footnote }: SubtotalsPanelProps) {
   const t = strings.pages.requestDetail.lines
 
   if (subtotals.length === 0) return null
 
+  // One `Card` for the totals section (INC-33); each currency is a figure
+  // group inside it, side by side, never a nested bordered panel.
   return (
-    <div
-      data-testid="subtotals-panel"
-      className="grid gap-3"
-      style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))' }}
-    >
-      {subtotals.map((s) => (
-        <div
-          key={s.currency}
-          data-testid={`subtotals-panel-card-${s.currency}`}
-          className="flex flex-col gap-2 rounded-md border px-3 py-2.5"
-          style={{ borderColor: 'var(--rule)', backgroundColor: 'var(--ink-soft)' }}
-        >
-          <CurrencyBadge currency={s.currency} />
-          <dl className="flex flex-col gap-1 text-sm">
-            {!showApproved && (
-              <div className="flex items-center justify-between gap-3">
-                <dt style={{ color: 'var(--soft)' }}>{t.requestedLabel}</dt>
-                <dd className="font-mono tabular-nums" style={{ color: 'var(--text)' }}>
-                  {formatMoney(s.requestedCents, s.currency)}
-                </dd>
-              </div>
-            )}
-            {showApproved && <ApprovedFigure subtotal={s} />}
-          </dl>
-        </div>
-      ))}
-    </div>
+    <Card title={strings.pages.requestDetail.totalsHeading}>
+      <div
+        data-testid="subtotals-panel"
+        className="grid gap-4"
+        style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))' }}
+      >
+        {subtotals.map((s) => (
+          <div key={s.currency} data-testid={`subtotals-panel-card-${s.currency}`} className="flex flex-col gap-2">
+            <CurrencyBadge currency={s.currency} />
+            <dl className="flex flex-col gap-1 text-sm">
+              {!showApproved && (
+                <div className="flex items-center justify-between gap-3">
+                  <dt className="text-soft">{t.requestedLabel}</dt>
+                  <dd className="font-mono tabular-nums text-text">{formatMoney(s.requestedCents, s.currency)}</dd>
+                </div>
+              )}
+              {showApproved && <ApprovedFigure subtotal={s} />}
+            </dl>
+          </div>
+        ))}
+      </div>
+      {footnote}
+    </Card>
   )
 }

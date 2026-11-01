@@ -4,7 +4,7 @@
  * GuardrailDialog, FormModal and the entity / currency chips. Ported from
  * refund-ui's `components` and `badges` strings, reworded for this tool.
  */
-export const common = {
+const en = {
   errorBanner: {
     defaultRetryLabel: 'Retry',
     dismissLabel: 'Dismiss',
@@ -54,4 +54,55 @@ export const common = {
     EUR: 'EUR',
     CHF: 'CHF',
   },
-} as const
+}
+
+const it: typeof en = {
+  errorBanner: {
+    defaultRetryLabel: 'Riprova',
+    dismissLabel: 'Chiudi',
+  },
+  authUnavailable: {
+    heading: 'Servizio di autorizzazione non disponibile',
+    body: 'Al momento non è possibile verificare i permessi di accesso. Non è stato modificato nulla.',
+  },
+  permissionDenied: {
+    heading: 'Non si dispone dei permessi per accedere a questa sezione.',
+    body: "Se non è previsto, contattare l'amministratore.",
+  },
+  skeletonListRows: {
+    loadingLabel: 'Caricamento…',
+  },
+  confirmDialog: {
+    title: (entityLabel: string) => `Eliminare ${entityLabel}?`,
+    cancelLabel: 'Annulla',
+    cancelAriaLabel: 'Annulla',
+    deleteLabel: 'Elimina',
+    deletingLabel: 'Eliminazione…',
+    untitledFallback: 'Senza titolo',
+    defaultBody: (itemName: string) =>
+      `‘${itemName}’ verrà eliminato definitivamente. L'operazione non può essere annullata.`,
+  },
+  supplierField: {
+    suggestions: (n: number) =>
+      n === 1 ? '1 fornitore suggerito disponibile' : `${n} fornitori suggeriti disponibili`,
+  },
+  guardrailDialog: {
+    defaultAcknowledgeLabel: 'OK',
+  },
+  formModal: {
+    cancelLabel: 'Annulla',
+    closeAriaLabel: 'Chiudi',
+    defaultSubmitLabel: 'Salva',
+    defaultSubmittingLabel: 'Salvataggio…',
+  },
+  entity: {
+    welld_it: 'WellD Italia',
+    welld_ch: 'WellD CH',
+  },
+  currency: {
+    EUR: 'EUR',
+    CHF: 'CHF',
+  },
+}
+
+export const common = { en, it }

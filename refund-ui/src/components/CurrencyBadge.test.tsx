@@ -4,8 +4,7 @@
  * Component tests for CurrencyBadge (post-close change, specs/007-refund-
  * service — currency split from entity, see `EntityBadge.tsx`'s doc
  * comment). Covers: every currency renders its ISO code as text (never
- * color-only), a decorative glyph is aria-hidden when one exists, and each
- * variant is distinctly colored.
+ * color-only) and no symbol glyph that duplicates it, in one neutral tone.
  */
 
 import { afterEach, describe, expect, it } from 'vitest'
@@ -17,16 +16,16 @@ afterEach(() => {
 })
 
 describe('CurrencyBadge', () => {
-  it.each([
-    ['EUR', '€'],
-    ['USD', '$'],
-    ['GBP', '£'],
-  ] as const)('renders the %s variant with its glyph and code label', (currency, glyph) => {
-    render(<CurrencyBadge currency={currency} />)
+  it.each([['EUR'], ['USD'], ['GBP']] as const)(
+    'renders the %s variant as its code label alone, no symbol glyph (INC-23)',
+    (currency) => {
+      render(<CurrencyBadge currency={currency} />)
 
-    const badge = screen.getByTestId('currency-badge')
-    expect(badge.textContent).toBe(`${glyph}${currency}`)
-  })
+      const badge = screen.getByTestId('currency-badge')
+      expect(badge.textContent).toBe(currency)
+      expect(badge.querySelector('[aria-hidden="true"]')).toBeNull()
+    },
+  )
 
   // Regression: the CHF chip read "CHF CHF" on the request page, because the
   // Swiss franc's `glyph` was the literal string 'CHF' — the same value as its
@@ -60,14 +59,6 @@ describe('CurrencyBadge', () => {
     }
   })
 
-  it('the glyph is aria-hidden (the code text alone carries the accessible name)', () => {
-    render(<CurrencyBadge currency="USD" />)
-
-    const badge = screen.getByTestId('currency-badge')
-    const glyphSpan = badge.querySelector('[aria-hidden="true"]')
-    expect(glyphSpan?.textContent).toBe('$')
-  })
-
   // This used to assert FOUR distinct colours. Currency is neutral metadata —
   // it is not good, not bad, not actionable — so one shared neutral is the
   // point now, and the ISO code is what tells the variants apart (pinned by
@@ -76,7 +67,7 @@ describe('CurrencyBadge', () => {
     const colors = (['EUR', 'CHF', 'USD', 'GBP'] as const).map((currency) => {
       const { container } = render(<CurrencyBadge currency={currency} />)
       const badge = container.querySelector('[data-testid="currency-badge"]') as HTMLElement
-      const color = badge.style.color
+      const color = badge.className
       cleanup()
       return color
     })
@@ -91,10 +82,10 @@ describe('CurrencyBadge', () => {
     for (const currency of ['EUR', 'CHF', 'USD', 'GBP'] as const) {
       const { container } = render(<CurrencyBadge currency={currency} />)
       const badge = container.querySelector('[data-testid="currency-badge"]') as HTMLElement
-      expect(badge.style.color).not.toContain('--grn')
-      expect(badge.style.color).not.toContain('--acc')
-      expect(badge.style.color).not.toContain('--red')
-      expect(badge.style.color).not.toContain('--org')
+      expect(badge.className).not.toContain('badge-success')
+      expect(badge.className).not.toContain('badge-accent')
+      expect(badge.className).not.toContain('badge-danger')
+      expect(badge.className).not.toContain('badge-warning')
       cleanup()
     }
   })

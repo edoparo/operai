@@ -25,22 +25,15 @@
  * loading state) — the empty state is the direct, synchronous result of the
  * route's `beforeLoad`/render, so no separate loading treatment is needed.
  */
-import { useEffect, useRef } from 'react'
+import { StatePanel } from '@operai/ui'
+import { strings } from '../strings'
 
 export function NoAccessScreen() {
-  const headingRef = useRef<HTMLHeadingElement>(null)
-
-  useEffect(() => {
-    headingRef.current?.focus()
-  }, [])
-
   return (
-    <div className="flex h-full flex-col items-center justify-center gap-2 px-6 py-16 text-center">
-      <h1 ref={headingRef} tabIndex={-1} className="font-disp text-lg font-semibold text-text outline-none">
-        No apps available yet
-      </h1>
-      <p className="max-w-sm text-sm text-muted">Ask your administrator to grant you access to a tool.</p>
-    </div>
+    // h1: a standalone screen with no ToolLayout around it (e2e selects the heading at level 1).
+    <StatePanel title={strings.noAccess.title} headingLevel={1} focusOnMount testId="no-access-screen">
+      {strings.noAccess.body}
+    </StatePanel>
   )
 }
 

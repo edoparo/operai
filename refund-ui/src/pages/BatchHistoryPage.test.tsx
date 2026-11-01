@@ -100,7 +100,7 @@ describe('BatchHistoryPage — loading / error / PD', () => {
     await waitFor(() => expect(screen.getByTestId('batch-history-list')).not.toBeNull())
   })
 
-  it('shows PermissionDenied with no Retry, and hides "+ Compile new batch" (AC-8.3)', async () => {
+  it('shows PermissionDenied with no Retry, and hides "Compile new batch" (AC-8.3)', async () => {
     vi.mocked(batchesApi.list).mockRejectedValue(new ApiError({ type: 'about:blank', title: 'Forbidden', status: 403 }))
     renderBatchHistoryPage()
 
@@ -116,7 +116,7 @@ describe('BatchHistoryPage — empty', () => {
     renderBatchHistoryPage()
 
     await waitFor(() => expect(screen.getByTestId('batch-history-empty-state')).not.toBeNull())
-    // The header "+ Compile new batch" is the only CTA — no redundant centered button below the message.
+    // The header "Compile new batch" is the only CTA — no redundant centered button below the message.
     expect(screen.getByTestId('batch-history-new-button').getAttribute('href')).toBe('/batches/new')
     expect(screen.queryByTestId('batch-history-empty-new-button')).toBeNull()
   })
@@ -136,7 +136,7 @@ describe('BatchHistoryPage — populated (AC-8.2: every status listed)', () => {
     expect(screen.getByTestId('batch-history-row-batch-1').getAttribute('href')).toBe('/batches/batch-1')
 
     // Per-currency preview + compact email-status indicator both render.
-    expect(screen.getByTestId('batch-history-row-batch-1').textContent).toContain('50,00 €')
+    expect(screen.getByTestId('batch-history-row-batch-1').textContent).toContain('EUR 50.00')
     expect(screen.getByTestId('batch-history-row-batch-3-email').textContent).toMatch(/failed/i)
   })
 })

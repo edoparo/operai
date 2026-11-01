@@ -7,76 +7,43 @@
  * third decimal.
  */
 import { describe, expect, it } from 'vitest'
-import { amountToCents, formatMoney, formatMoneyAmount } from './money'
+import { amountToCents, centsToInput, formatMoney } from './money'
 
-describe('formatMoney — EUR', () => {
-  it('formats whole euros with two zero decimals', () => {
-    expect(formatMoney(10000, 'EUR')).toBe('100,00 €')
+// Display is @operai/ui's formatter since INC-27 (its own tests cover the
+// locales); these pin what inventory shows through it, in English (the test
+// browser's language), and the integer-cents contract.
+describe('formatMoney (the suite formatter, re-exported)', () => {
+  it('shows the ISO code and two decimals, with grouping', () => {
+    expect(formatMoney(10000, 'EUR')).toBe('EUR 100.00')
+    expect(formatMoney(4550, 'CHF')).toBe('CHF 45.50')
+    expect(formatMoney(129900000, 'EUR')).toBe('EUR 1,299,000.00')
   })
 
-  it('formats a mixed cents amount', () => {
-    expect(formatMoney(4550, 'EUR')).toBe('45,50 €')
+  it('pads single-digit cents (off-by-100 guard) and formats zero', () => {
+    expect(formatMoney(5, 'EUR')).toBe('EUR 0.05')
+    expect(formatMoney(0, 'CHF')).toBe('CHF 0.00')
   })
 
-  it('pads single-digit cents to two decimal places (off-by-100 guard)', () => {
-    expect(formatMoney(5, 'EUR')).toBe('0,05 €')
+  it('signs a negative amount with a real minus sign', () => {
+    expect(formatMoney(-2600, 'EUR')).toBe('−EUR 26.00')
   })
 
-  it('formats zero', () => {
-    expect(formatMoney(0, 'EUR')).toBe('0,00 €')
+  it('follows Italian conventions in Italian', () => {
+    expect(formatMoney(1234550, 'EUR', 'it')).toBe('12.345,50 EUR')
   })
 
-  it('formats a large amount without thousands separators or float drift', () => {
-    expect(formatMoney(999999, 'EUR')).toBe('9999,99 €')
-  })
-
-  it('signs a negative amount', () => {
-    expect(formatMoney(-2600, 'EUR')).toBe('-26,00 €')
-  })
-})
-
-describe('formatMoney — CHF', () => {
-  it('formats whole Swiss francs with two zero decimals', () => {
-    expect(formatMoney(10000, 'CHF')).toBe('100,00 CHF')
-  })
-
-  it('formats a mixed cents amount', () => {
-    expect(formatMoney(4550, 'CHF')).toBe('45,50 CHF')
-  })
-
-  it('pads single-digit cents to two decimal places (off-by-100 guard)', () => {
-    expect(formatMoney(5, 'CHF')).toBe('0,05 CHF')
-  })
-
-  it('formats zero', () => {
-    expect(formatMoney(0, 'CHF')).toBe('0,00 CHF')
+  it('throws on a non-integer or non-finite cents value rather than mis-rendering an amount', () => {
+    expect(() => formatMoney(45.5, 'EUR')).toThrow()
+    expect(() => formatMoney(Number.NaN, 'EUR')).toThrow()
+    expect(() => formatMoney(Number.POSITIVE_INFINITY, 'CHF')).toThrow()
   })
 })
 
-describe('formatMoney — integer-cents contract', () => {
-  it('throws on a non-integer cents value rather than silently mis-rendering an amount', () => {
-    expect(() => formatMoney(45.5, 'EUR')).toThrow(RangeError)
-  })
-
-  it('throws on a non-finite cents value', () => {
-    expect(() => formatMoney(Number.NaN, 'EUR')).toThrow(RangeError)
-    expect(() => formatMoney(Number.POSITIVE_INFINITY, 'CHF')).toThrow(RangeError)
-  })
-
-  it('never produces float-division drift for values that are awkward in IEEE 754 (e.g. 3 cents)', () => {
-    expect(formatMoney(3, 'EUR')).toBe('0,03 €')
-    expect(formatMoney(103, 'CHF')).toBe('1,03 CHF')
-  })
-})
-
-describe('formatMoneyAmount', () => {
-  it('formats minor units without a currency label', () => {
-    expect(formatMoneyAmount(15400)).toBe('154,00')
-    expect(formatMoneyAmount(-5)).toBe('-0,05')
-  })
-
-  it('throws on a non-integer value', () => {
-    expect(() => formatMoneyAmount(1.5)).toThrow(RangeError)
+describe('centsToInput', () => {
+  it('prefills an amount field with two decimals and no thousands separator, parseable back exactly', () => {
+    expect(centsToInput(15400)).toBe('154.00')
+    expect(centsToInput(129900000)).toBe('1299000.00')
+    expect(amountToCents(centsToInput(129905))).toBe(129905)
   })
 })
 

@@ -1,40 +1,34 @@
+import type { IconName } from '@operai/ui'
 import type { Activity, Release, ReleaseSummary } from '../types'
+import { strings } from '../strings'
 
 export type WarningCode = 'no-profile' | 'high-risk' | 'no-activities' | 'wide-range'
 
+const COPY_KEY = {
+  'no-profile': 'noProfile',
+  'high-risk': 'highRisk',
+  'no-activities': 'noActivities',
+  'wide-range': 'wideRange',
+} as const satisfies Record<WarningCode, keyof typeof strings.health.codes>
+
+/**
+ * How each warning looks (INC-31: a library `Icon`, never a Unicode glyph)
+ * and what it says (strings.health.codes). `alert` + orange for the two that
+ * signal uncertainty, `info` + soft for the two that point at missing data.
+ */
+const LOOK: Record<WarningCode, { icon: IconName; colorClass: string }> = {
+  'no-profile': { icon: 'info', colorClass: 'text-soft' },
+  'high-risk': { icon: 'alert', colorClass: 'text-org-text' },
+  'no-activities': { icon: 'info', colorClass: 'text-soft' },
+  'wide-range': { icon: 'alert', colorClass: 'text-org-text' },
+}
+
 export const WARNING_META: Record<
   WarningCode,
-  { icon: string; colorClass: string; title: string; description: string }
-> = {
-  'no-profile': {
-    icon: '⊘',
-    colorClass: 'text-muted',
-    title: 'No profile assigned',
-    description:
-      'This activity has no specialist profile (e.g. Backend Dev, Designer). Assign one so the effort is attributed to the right role.',
-  },
-  'high-risk': {
-    icon: '⚠',
-    colorClass: 'text-org',
-    title: 'Risk buffer exceeds the PERT estimate',
-    description:
-      'The risk buffer is larger than the activity’s own PERT estimate — over half of the expected effort is contingency. Re-check the optimistic / most-likely / pessimistic values, or split the activity to reduce uncertainty.',
-  },
-  'no-activities': {
-    icon: '⊘',
-    colorClass: 'text-muted',
-    title: 'Release has no activities',
-    description:
-      'No activities are linked to this release, so it contributes nothing to the estimate. Add activities to it, or remove the empty release.',
-  },
-  'wide-range': {
-    icon: '⚠',
-    colorClass: 'text-org',
-    title: 'Worst case is more than 2× the best case',
-    description:
-      'The pessimistic total is more than double the optimistic total, signalling high uncertainty in this release. Tighten the estimates or break large activities into smaller ones.',
-  },
-}
+  { icon: IconName; colorClass: string; title: string; description: string }
+> = Object.fromEntries(
+  (Object.keys(LOOK) as WarningCode[]).map((code) => [code, { ...LOOK[code], ...strings.health.codes[COPY_KEY[code]] }]),
+) as Record<WarningCode, { icon: IconName; colorClass: string; title: string; description: string }>
 
 function pertCalc(o: number, ml: number, p: number): number {
   return ((Number(o) || 0) + 4 * (Number(ml) || 0) + (Number(p) || 0)) / 6

@@ -1,5 +1,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import { useNavigate } from '@tanstack/react-router'
+import { Button, DataTable, PageHeader, StatePanel, formatNumber } from '@operai/ui'
+import type { DataTableColumn } from '@operai/ui'
 import * as adminApi from '../lib/adminApi'
 import type { Role } from '../lib/adminApi'
 import { ApiError } from '../lib/adminApi'
@@ -9,6 +11,11 @@ import ConfirmDeleteModal from '../components/ConfirmDeleteModal'
 import CreateRoleModal from '../components/CreateRoleModal'
 import SystemBadge from '../components/SystemBadge'
 import PermissionDenied from '../components/PermissionDenied'
+import SuccessBanner from '../components/SuccessBanner'
+import { setFlash, useFlash } from '../lib/flash'
+import { strings } from '../strings'
+
+const t = strings.roles
 
 /**
  * RolesPage — Screen A1 (Roles list) + Modal M1 (Create role) — T17,
@@ -17,7 +24,7 @@ import PermissionDenied from '../components/PermissionDenied'
  * Replaces T14's placeholder with the real screen: a table (Name /
  * Description / System badge / rule count / Edit-Delete — design.md's "Key
  * elements" for Screen A1), sourced from `adminApi.listRoles()` (plan.md
- * `GET /admin/roles`). "+ New role" opens Modal M1 (name+description) →
+ * `GET /admin/roles`). "New role" opens Modal M1 (name+description) →
  * `POST /admin/roles` → navigates to Screen A2 (the role editor, T18) for
  * the new id (design.md F2 step 2). System roles get a `SystemBadge` and a
  * guardrailed, non-native-disabled Delete action (design.md: "disabled
@@ -30,10 +37,10 @@ import PermissionDenied from '../components/PermissionDenied'
  * States mirror every other admin-ui list screen (design.md "L/E/P/Err",
  * same shape as AuditPage.tsx/T21):
  *   L    — SkeletonListRows while the list loads.
- *   E    — "No roles yet" + "+ New role" (design.md: "never a dead end" —
+ *   E    — "No roles yet" + "New role" (design.md: "never a dead end" —
  *          this state shouldn't realistically occur post-bootstrap, T11,
  *          but is still designed defensively).
- *   P    — the table + "+ New role".
+ *   P    — the table + "New role".
  *   Err  — ErrorBanner + Retry (mirrors EstimatesPage's list-error pattern).
  *   403  — PermissionDenied in place of the table (design.md Screen A1:
  *          "only reachable per F7's race-condition path").
@@ -74,7 +81,7 @@ const errorMessageFor = (error: unknown): string => {
   if (error instanceof ApiError) {
     return error.detail ?? error.title
   }
-  return 'Could not load the roles list.'
+  return t.loadError
 }
 
 export default function RolesPage() {
@@ -83,6 +90,8 @@ export default function RolesPage() {
   const [reloadToken, setReloadToken] = useState(0)
   const [createModal, setCreateModal] = useState<CreateModalState>({ open: false })
   const [deleteModal, setDeleteModal] = useState<DeleteModalState>({ open: false })
+  // INC-19: a delete here, or one made in the role editor (handed over as a flash).
+  const [success, setSuccess] = useFlash('roles')
 
   // See the module doc comment above re: why this is a Promise chain, not
   // an async function called from the effect (react-hooks/set-state-in-effect).
@@ -149,17 +158,19 @@ export default function RolesPage() {
     try {
       const role = await adminApi.createRole({ name: name.trim(), description: description.trim() || null })
       setCreateModal({ open: false })
+      // INC-19: the editor this navigates to confirms the creation.
+      setFlash(`role:${role.id}`, t.created(role.name))
       navigate({ to: '/roles/$id', params: { id: role.id } })
     } catch (error) {
       if (error instanceof ApiError && error.status === 409) {
         setCreateModal((prev) =>
           prev.open
-            ? { ...prev, submitting: false, nameError: error.detail ?? 'A role with this name already exists.' }
+            ? { ...prev, submitting: false, nameError: error.detail ?? t.nameTaken }
             : prev,
         )
       } else {
         setCreateModal((prev) =>
-          prev.open ? { ...prev, submitting: false, generalError: 'Could not create the role. Try again.' } : prev,
+          prev.open ? { ...prev, submitting: false, generalError: t.createFailed } : prev,
         )
       }
     }
@@ -185,6 +196,7 @@ export default function RolesPage() {
     try {
       await adminApi.deleteRole(role.id)
       setDeleteModal({ open: false })
+      setSuccess(t.deleted(role.name))
       setReloadToken((token) => token + 1)
     } catch (error) {
       setDeleteModal((prev) =>
@@ -193,12 +205,53 @@ export default function RolesPage() {
               ...prev,
               isDeleting: false,
               error:
-                error instanceof ApiError ? (error.detail ?? 'Delete failed. Try again.') : 'Delete failed. Try again.',
+                error instanceof ApiError
+                  ? (error.detail ?? strings.common.deleteFailed)
+                  : strings.common.deleteFailed,
             }
           : prev,
       )
     }
-  }, [deleteModal])
+  }, [deleteModal, setSuccess])
+
+  // INC-14: the library DataTable — the role name is the row header.
+  const roleColumns: DataTableColumn<Role>[] = [
+    { id: 'name', header: strings.common.fields.name, rowHeader: true, render: (role) => role.name },
+    {
+      id: 'description',
+      header: strings.common.fields.description,
+      render: (role) => role.description || strings.common.emptyValue,
+    },
+    { id: 'system', header: t.columns.system, render: (role) => role.isSystem && <SystemBadge /> },
+    {
+      id: 'rules',
+      header: t.columns.rules,
+      numeric: true,
+      render: (role) => (role.ruleCount == null ? strings.common.emptyValue : formatNumber(role.ruleCount)),
+    },
+    {
+      id: 'actions',
+      header: <span className="sr-only">{strings.common.actionsColumn}</span>,
+      render: (role) => (
+        <div className="flex items-center gap-1 justify-end">
+          <Button size="sm" onClick={() => handleOpenEditor(role.id)} data-testid={`role-edit-${role.id}`}>
+            {strings.common.actions.edit}
+          </Button>
+          <Button
+            variant="danger"
+            size="sm"
+            aria-disabled={role.isSystem}
+            title={role.isSystem ? strings.badges.systemTitle : undefined}
+            onClick={() => handleDeleteRequest(role)}
+            data-testid={`role-delete-${role.id}`}
+          >
+            {strings.common.actions.delete}
+            {role.isSystem && <span className="sr-only">{strings.common.disabledReason(strings.badges.systemTitle)}</span>}
+          </Button>
+        </div>
+      ),
+    },
+  ]
 
   // ---------------------------------------------------------------------------
   // Render
@@ -222,7 +275,7 @@ export default function RolesPage() {
 
       {deleteModal.open && (
         <ConfirmDeleteModal
-          entityLabel="role"
+          title={t.deleteTitle}
           itemName={deleteModal.role.name}
           isDeleting={deleteModal.isDeleting}
           errorMessage={deleteModal.error}
@@ -231,114 +284,43 @@ export default function RolesPage() {
         />
       )}
 
-      <div className="flex items-center justify-between gap-4">
-        <h2 id="admin-roles-heading" className="text-lg font-semibold" style={{ fontFamily: 'var(--disp)' }}>
-          Roles
-        </h2>
-        {listState.status !== 'forbidden' && (
-          <button
-            type="button"
-            onClick={handleCreateOpen}
-            data-testid="roles-new-button"
-            className="text-sm py-1.5 px-3 font-medium transition-opacity hover:opacity-90"
-            style={{ color: 'white', backgroundColor: 'var(--acc)' }}
-          >
-            + New role
-          </button>
-        )}
-      </div>
+      <PageHeader
+        title={t.heading}
+        titleId="admin-roles-heading"
+        actions={
+          listState.status !== 'forbidden' && (
+            <Button variant="primary" onClick={handleCreateOpen} data-testid="roles-new-button">
+              {t.newRole}
+            </Button>
+          )
+        }
+      />
 
-      <div className="mt-4">
-        {listState.status === 'forbidden' && <PermissionDenied />}
+      <SuccessBanner message={success} onDismiss={() => setSuccess(null)} testId="roles-success" className="mb-4" />
 
-        {listState.status === 'loading' && <SkeletonListRows rows={4} />}
+      <div>
+        {listState.status === 'forbidden' && <PermissionDenied headingLevel={3} />}
+
+        {listState.status === 'loading' && <SkeletonListRows rows={4} label={strings.common.loading} />}
 
         {listState.status === 'error' && <ErrorBanner message={listState.message} onRetry={handleRetry} />}
 
         {listState.status === 'loaded' && listState.roles.length === 0 && (
-          <div className="flex flex-col items-center gap-3 py-10 text-center" data-testid="roles-empty-state">
-            <p className="text-sm" style={{ color: 'var(--soft)' }}>
-              No roles yet.
-            </p>
-            <button
-              type="button"
-              onClick={handleCreateOpen}
-              className="text-sm py-1.5 px-3 font-medium transition-opacity hover:opacity-90"
-              style={{ color: 'white', backgroundColor: 'var(--acc)' }}
-            >
-              + New role
-            </button>
-          </div>
+          // No repeated action: the page header's "New role" is the one primary (design-system.md).
+          <StatePanel title={t.empty.title} testId="roles-empty-state">
+            {t.empty.body}
+          </StatePanel>
         )}
 
         {listState.status === 'loaded' && listState.roles.length > 0 && (
-          <div className="overflow-x-auto">
-            <table className="w-full text-[11px]" data-testid="roles-table">
-              <thead>
-                <tr className="border-b" style={{ borderColor: 'var(--rule)' }}>
-                  {(['Name', 'Description', 'System', 'Rules'] as const).map((label) => (
-                    <th
-                      key={label}
-                      scope="col"
-                      className="text-left py-1.5 px-2 text-[9px] font-mono uppercase tracking-wider"
-                      style={{ color: 'var(--soft)' }}
-                    >
-                      {label}
-                    </th>
-                  ))}
-                  <th scope="col" className="py-1.5 px-2">
-                    <span className="sr-only">Actions</span>
-                  </th>
-                </tr>
-              </thead>
-              <tbody>
-                {listState.roles.map((role) => (
-                  <tr
-                    key={role.id}
-                    data-testid={`role-row-${role.id}`}
-                    className="border-b"
-                    style={{ borderColor: 'color-mix(in srgb, var(--rule) 50%, transparent)' }}
-                  >
-                    <td className="py-1.5 px-2 font-medium" style={{ color: 'var(--text)' }}>
-                      {role.name}
-                    </td>
-                    <td className="py-1.5 px-2" style={{ color: 'var(--text)' }}>
-                      {role.description || '—'}
-                    </td>
-                    <td className="py-1.5 px-2">{role.isSystem && <SystemBadge />}</td>
-                    <td className="py-1.5 px-2" style={{ color: 'var(--text)' }}>
-                      {role.ruleCount ?? '—'}
-                    </td>
-                    <td className="py-1.5 px-2">
-                      <div className="flex items-center gap-1 justify-end">
-                        <button
-                          type="button"
-                          onClick={() => handleOpenEditor(role.id)}
-                          data-testid={`role-edit-${role.id}`}
-                          className="py-1 px-2.5 text-[11px] font-medium border transition-opacity hover:opacity-80"
-                          style={{ borderColor: 'var(--rule)', color: 'var(--text)' }}
-                        >
-                          Edit
-                        </button>
-                        <button
-                          type="button"
-                          aria-disabled={role.isSystem}
-                          title={role.isSystem ? "System roles can't be deleted" : undefined}
-                          onClick={() => handleDeleteRequest(role)}
-                          data-testid={`role-delete-${role.id}`}
-                          className="py-1 px-2.5 text-[11px] font-medium border transition-opacity hover:opacity-80 aria-disabled:opacity-40 aria-disabled:cursor-not-allowed"
-                          style={{ borderColor: 'var(--rule)', color: 'var(--text)' }}
-                        >
-                          Delete
-                          {role.isSystem && <span className="sr-only"> — System roles can't be deleted</span>}
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+          <DataTable
+            caption={t.caption}
+            columns={roleColumns}
+            rows={listState.roles}
+            getRowKey={(role) => role.id}
+            testId="roles-table"
+            rowTestIdPrefix="role-row"
+          />
         )}
       </div>
     </section>

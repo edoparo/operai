@@ -21,7 +21,7 @@
  *       banner and re-fetches the roles catalog (listRoles called again).
  *   (F) Members: removing a member calls putDepartmentMembers with the
  *       remaining ids; an empty member list shows "No members yet.".
- *   (G) Add member (user-search picker): opens on "+ Add member", searches
+ *   (G) Add member (user-search picker): opens on "Add member", searches
  *       via listUsers({q, pageSize}), and adding a result calls
  *       putDepartmentMembers with the existing+new id set and closes the
  *       picker. Empty search results and search errors render inline.
@@ -215,6 +215,25 @@ describe('DepartmentDetail — save details', () => {
         description: 'Builds the product',
       })
     })
+    // INC-19: confirmed beside the Save button.
+    await waitFor(() => expect(screen.getByTestId('department-details-success').textContent).toBe('Details saved'))
+  })
+
+  it('an emptied name is a field error on save, focused, never sent (INC-16)', async () => {
+    vi.mocked(adminApi.getDepartment).mockResolvedValue(deptDetail)
+    vi.mocked(adminApi.listRoles).mockResolvedValue([roleEngineer])
+
+    await renderAt('dept-eng')
+    await waitFor(() => expect(screen.getByTestId('department-details-section')).not.toBeNull())
+
+    const input = screen.getByTestId('department-name-input')
+    fireEvent.change(input, { target: { value: '' } })
+    fireEvent.click(screen.getByTestId('department-save-details'))
+
+    expect(screen.getByTestId('department-name-error').textContent).toBe('Name is required.')
+    expect(input.getAttribute('aria-invalid')).toBe('true')
+    expect(document.activeElement).toBe(input)
+    expect(adminApi.patchDepartment).not.toHaveBeenCalled()
   })
 
   it('shows a 409 inline error on rename conflict', async () => {

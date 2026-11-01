@@ -29,11 +29,12 @@
  *       (same `useSession()` convention as Screen U1); a 422 (last-admin
  *       guard) surfaces via GuardrailDialog, not an inline dialog error.
  *   (I) Address section visibility (T12, specs/012-employee-address, AC-4.2):
- *       with `getMe().roles` lacking `admin`, `AddressSection` is ABSENT from
- *       the DOM (`queryByTestId('address-section')` is `null`) — not merely
- *       disabled, and no `GET /admin/users/:id/address` call is ever made for
- *       such a caller. With `roles: ['admin']` it renders. A failed
- *       `getMe()` call also hides it (fails closed, UX-only).
+ *       with `usePermissions().roles` lacking `admin`, `AddressSection` is
+ *       ABSENT from the DOM (`queryByTestId('address-section')` is `null`) —
+ *       not merely disabled, and no `GET /admin/users/:id/address` call is
+ *       ever made for such a caller. With `roles: ['admin']` it renders. The
+ *       shell's EMPTY_PERMISSIONS (what a failed `/authz/me` yields) also
+ *       hides it (fails closed, UX-only).
  *
  * Strategy mirrors ../pages/AuditPage.test.tsx: `../lib/adminApi` mocked at
  * module level, keeping the real `ApiError` class via `importOriginal`. A
@@ -48,6 +49,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { RouterProvider, createRootRoute, createRoute, createRouter } from '@tanstack/react-router'
 import UserDetail from './UserDetail'
+import { clearFlash, peekFlash } from '../lib/flash'
 import type { Department, Role, UserDetail as UserDetailData } from '../lib/adminApi'
 
 // ---------------------------------------------------------------------------
@@ -65,14 +67,13 @@ vi.mock('../lib/adminApi', async (importOriginal) => {
     putUserRoles: vi.fn(),
     putUserDepartments: vi.fn(),
     deleteUser: vi.fn(),
-    getMe: vi.fn(),
   }
 })
 
 // AddressSection (T11) fetches its own data independently of everything
 // above — mocked here purely so the (I) "visible" case doesn't issue a real
 // network call; every other test in this file never renders the section at
-// all (getMe defaults to no roles, see beforeEach) so these are unused there.
+// all (usePermissions defaults to no roles, see beforeEach) so these are unused there.
 vi.mock('../lib/addressApi', async (importOriginal) => {
   const original = await importOriginal<typeof import('../lib/addressApi')>()
   return {
@@ -82,15 +83,24 @@ vi.mock('../lib/addressApi', async (importOriginal) => {
   }
 })
 
+type Permissions = {
+  epoch: number
+  apps: string[]
+  roles: string[]
+  departments: string[]
+  permissions: { resource: string; action: string; conditions?: unknown }[]
+}
+
 const useSessionMock = vi.fn(() => ({ data: null as { user?: { id?: string } } | null }))
+const usePermissionsMock = vi.fn((): Permissions => NO_GRANTS)
 vi.mock('shell/session', () => ({
   useSession: () => useSessionMock(),
+  usePermissions: () => usePermissionsMock(),
 }))
 
 import * as adminApi from '../lib/adminApi'
 import { ApiError } from '../lib/adminApi'
 import * as addressApi from '../lib/addressApi'
-import type { EffectivePermissions } from '../lib/adminApi'
 
 // ---------------------------------------------------------------------------
 // Test router harness
@@ -170,7 +180,18 @@ const setupLoaded = () => {
 // Setup / teardown
 // ---------------------------------------------------------------------------
 
-const noAdminPermissions: EffectivePermissions = { epoch: 0, apps: [], roles: [], departments: [], permissions: [] }
+// The shell's EMPTY_PERMISSIONS — what usePermissions() yields before /authz/me
+// resolves or when it fails.
+const NO_GRANTS: Permissions = { epoch: 0, apps: [], roles: [], departments: [], permissions: [] }
+
+// A signed-in, non-admin caller with real grants (just not the `admin` role).
+const employeePermissions: Permissions = {
+  epoch: 1,
+  apps: ['admin'],
+  roles: ['employee'],
+  departments: [],
+  permissions: [{ resource: 'user', action: 'read', conditions: null }],
+}
 
 beforeEach(() => {
   vi.stubEnv('VITE_AUTH_URL', 'http://auth.test')
@@ -180,7 +201,7 @@ beforeEach(() => {
   // Default: AddressSection stays hidden (AC-4.2) — every test besides the
   // dedicated "address section visibility" describe block below re-pins this
   // explicitly only when it needs the section visible.
-  vi.mocked(adminApi.getMe).mockResolvedValue(noAdminPermissions)
+  usePermissionsMock.mockReturnValue(NO_GRANTS)
 })
 
 afterEach(() => {
@@ -251,6 +272,10 @@ describe('UserDetail', () => {
       expect(adminApi.patchUser).toHaveBeenCalledWith('user-1', { entity: 'welld_ch', jobTitle: 'Staff Engineer' })
     })
     expect(screen.queryByTestId('attributes-error')).toBeNull()
+    // INC-19: confirmed beside the section's Save button.
+    await waitFor(() => {
+      expect(screen.getByTestId('attributes-success').textContent).toBe('Attributes saved')
+    })
   })
 
   // (D) Role assignment
@@ -400,6 +425,9 @@ describe('UserDetail', () => {
       await waitFor(() => {
         expect(screen.getByTestId('users-page-stub')).not.toBeNull()
       })
+      // INC-19: the users list it returns to confirms the delete.
+      expect(peekFlash('users')).toBe('Deleted Ada Lovelace')
+      clearFlash('users')
     })
 
     it('Cancel closes the delete confirm without calling deleteUser', async () => {
@@ -470,25 +498,24 @@ describe('UserDetail', () => {
 
   // (I) Address section visibility — T12, specs/012-employee-address, AC-4.2
   describe('address section visibility (AC-4.2)', () => {
-    it('is absent from the DOM when getMe().roles lacks "admin" — not merely disabled', async () => {
+    it('is absent from the DOM when usePermissions().roles lacks "admin" — not merely disabled', async () => {
       setupLoaded()
-      vi.mocked(adminApi.getMe).mockResolvedValue(noAdminPermissions)
+      usePermissionsMock.mockReturnValue(employeePermissions)
 
       renderUserDetail('user-1')
 
       await waitFor(() => {
         expect(screen.getByTestId('user-detail-name')).not.toBeNull()
       })
-      // Give the independent getMe() effect a tick to resolve.
-      await waitFor(() => expect(adminApi.getMe).toHaveBeenCalled())
+      expect(usePermissionsMock).toHaveBeenCalled()
 
       expect(screen.queryByTestId('address-section')).toBeNull()
       expect(addressApi.getAddress).not.toHaveBeenCalled()
     })
 
-    it('renders when getMe().roles includes "admin"', async () => {
+    it('renders when usePermissions().roles includes "admin"', async () => {
       setupLoaded()
-      vi.mocked(adminApi.getMe).mockResolvedValue({
+      usePermissionsMock.mockReturnValue({
         epoch: 1,
         apps: ['admin'],
         roles: ['admin'],
@@ -508,18 +535,18 @@ describe('UserDetail', () => {
       await waitFor(() => expect(addressApi.getAddress).toHaveBeenCalledWith('user-1'))
     })
 
-    it('fails closed (hidden, not a crash) when getMe() itself rejects', async () => {
+    it('fails closed (hidden, not a crash) on the shell EMPTY_PERMISSIONS — its result for any /authz/me failure', async () => {
       setupLoaded()
-      vi.mocked(adminApi.getMe).mockRejectedValue(new Error('network error'))
+      usePermissionsMock.mockReturnValue(NO_GRANTS)
 
       renderUserDetail('user-1')
 
       await waitFor(() => {
         expect(screen.getByTestId('user-detail-name')).not.toBeNull()
       })
-      await waitFor(() => expect(adminApi.getMe).toHaveBeenCalled())
 
       expect(screen.queryByTestId('address-section')).toBeNull()
+      expect(addressApi.getAddress).not.toHaveBeenCalled()
     })
   })
 })

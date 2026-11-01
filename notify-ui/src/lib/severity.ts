@@ -3,6 +3,9 @@
  * specs/005-notification-center/tasks.md, design.md "Screens & states →
  * Notification center page" / "Component inventory").
  *
+ * Labels come from the strings module (INC-24) and the icons are library
+ * `Icon` names, not Unicode glyphs (INC-31).
+ *
  * `SEVERITY_META` maps notify-api's severity enum (notifications.schemas.ts
  * `SeveritySchema`, shell/src/lib/notifications.ts `NotificationSeverity`) to
  * an aria-hidden glyph + an accessible label + a design-token accent color —
@@ -23,32 +26,30 @@
  * shell.
  */
 
+import type { IconName } from '@operai/ui'
+import { strings } from '../strings'
+
 export type NotificationSeverity = 'info' | 'success' | 'warning' | 'error'
 
 export interface SeverityMeta {
-  /** aria-hidden glyph rendered next to the title. */
-  icon: string
+  /** aria-hidden library icon rendered next to the title. */
+  icon: IconName
   /** Human-readable label — read by assistive tech as "Severity: <label>". */
   label: string
-  /** CSS custom property token for the accent color (design.md's severity table). */
-  token: string
+  /** Token utility for the icon's accent colour (design.md's severity table; ADR-0051). */
+  iconClassName: string
 }
 
 export const SEVERITY_META: Record<NotificationSeverity, SeverityMeta> = {
-  info: { icon: 'ⓘ', label: 'Info', token: 'var(--acc)' },
-  success: { icon: '✓', label: 'Success', token: 'var(--grn)' },
-  warning: { icon: '⚠', label: 'Warning', token: 'var(--org)' },
-  error: { icon: '✕', label: 'Error', token: 'var(--red)' },
+  info: { icon: 'info', label: strings.severities.info, iconClassName: 'text-acc' },
+  success: { icon: 'check-circle', label: strings.severities.success, iconClassName: 'text-grn' },
+  warning: { icon: 'alert', label: strings.severities.warning, iconClassName: 'text-org' },
+  error: { icon: 'x-circle', label: strings.severities.error, iconClassName: 'text-red' },
 }
 
 export type NotificationOriginApp = 'estimai' | 'refund' | 'admin' | 'inventory'
 
-export const ORIGIN_APP_LABELS: Record<NotificationOriginApp, string> = {
-  estimai: 'EstimAI',
-  refund: 'Refund',
-  admin: 'Admin',
-  inventory: 'Inventory',
-}
+export const ORIGIN_APP_LABELS: Record<NotificationOriginApp, string> = strings.originApps
 
 /** Falls back to the raw id for a not-yet-known origin app rather than throwing (forward-compat: a new tool id shipped before this lookup is updated should still render, not crash the center). */
 export function originAppLabel(originApp: string): string {

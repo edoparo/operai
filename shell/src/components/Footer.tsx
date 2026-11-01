@@ -19,22 +19,23 @@
  * build-time define AboutModal already reads, rather than a second version mechanism.
  */
 import { APP_AUTHOR, APP_AUTHOR_URL, APP_NAME, APP_VERSION, LEGAL_URL } from '../lib/appInfo'
+import { strings } from '../strings'
 
 export default function Footer() {
   return (
-    <div className="flex items-center justify-between gap-4 px-4 py-3 text-[11px] text-muted">
+    <div className="flex items-center justify-between gap-4 px-4 py-3 text-2xs text-muted">
       <a
         href={LEGAL_URL}
         target="_blank"
         rel="noreferrer"
         className="text-muted hover:text-acc underline underline-offset-2 transition-colors"
       >
-        Legal information
+        {strings.footer.legal}
       </a>
 
       <div className="flex items-center gap-3 font-mono">
         <span>
-          {APP_NAME} <span data-testid="app-version">v{APP_VERSION}</span>
+          {APP_NAME} <span data-testid="app-version">{strings.footer.version(APP_VERSION)}</span>
         </span>
         <span aria-hidden="true" className="text-dim">
           &middot;

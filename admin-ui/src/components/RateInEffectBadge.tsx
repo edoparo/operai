@@ -1,24 +1,16 @@
+import { StatusBadge } from '@operai/ui'
+import { RATE_IN_EFFECT_MEANING } from '../lib/statusMeaning'
+import { strings } from '../strings'
+
 /**
  * RateInEffectBadge — marks the mileage-rate history row that is currently
- * "in effect" (T11, specs/009-mileage-rate, design.md Screen ADM-1: "the
- * `inEffectToday` row carries the `RateInEffectBadge` in the Status column
- * (glyph+text, never color-only)").
- *
- * NEW, small component — no existing badge fits this domain (invitation
- * status ≠ system-role ≠ "currently in effect"). Clones the established
- * glyph+text+color recipe already in this repo (`SystemBadge.tsx`,
- * `InvitationStatusBadge.tsx`) — colour is never the only signal.
+ * "in effect" (T11, specs/009-mileage-rate, design.md Screen ADM-1). A library
+ * `StatusBadge` (INC-23, meaning `active`).
  */
-
 export default function RateInEffectBadge() {
   return (
-    <span
-      data-testid="rate-in-effect-badge"
-      className="inline-flex items-center gap-1 whitespace-nowrap text-[11px] font-medium px-1.5 py-0.5 rounded"
-      style={{ color: 'var(--grn)', backgroundColor: 'color-mix(in srgb, var(--grn) 10%, transparent)' }}
-    >
-      <span aria-hidden="true">✓</span>
-      <span>In effect</span>
-    </span>
+    <StatusBadge status={RATE_IN_EFFECT_MEANING} data-testid="rate-in-effect-badge">
+      {strings.badges.rateInEffect}
+    </StatusBadge>
   )
 }

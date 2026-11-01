@@ -172,7 +172,7 @@ describe('the picker', () => {
 })
 
 describe('assigning (AC-2.1)', () => {
-  it('keeps Assign disabled until a person is picked', async () => {
+  it('keeps Assign disabled while nothing is typed, and enabled once a person is picked', async () => {
     await renderDialog()
     expect(submit().disabled).toBe(true)
 
@@ -188,7 +188,20 @@ describe('assigning (AC-2.1)', () => {
 
     fireEvent.change(picker(), { target: { value: 'Anna Ros' } })
 
-    expect(submit().disabled).toBe(true)
+    // The choice is gone: Assign now explains that on the field (a disabled button alone would not, INC-16),
+    // returns focus to the picker and sends nothing.
+    fireEvent.click(submit())
+    expect(createAssignment).not.toHaveBeenCalled()
+    expect(picker().getAttribute('aria-invalid')).toBe('true')
+    expect(document.getElementById(picker().getAttribute('aria-describedby')!)!.textContent).toBe(
+      'Pick a person from the list.',
+    )
+    expect(document.activeElement).toBe(picker())
+  })
+
+  it('marks the holder required, without "(required)" in its name', async () => {
+    await renderDialog()
+    expect(picker().getAttribute('aria-required')).toBe('true')
   })
 
   it('assigns the picked person and hands the updated asset to onAssigned', async () => {

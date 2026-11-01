@@ -66,7 +66,13 @@ describe('LoadMore', () => {
       button.focus()
 
       rerender(
-        <LoadMore hasMore={true} isLoading={true} onLoadMore={vi.fn()} label="Load more" loadingLabel="Loading more…" />,
+        <LoadMore
+          hasMore={true}
+          isLoading={true}
+          onLoadMore={vi.fn()}
+          label="Load more"
+          loadingLabel="Loading more…"
+        />,
       )
 
       const busy = screen.getByRole('button')
@@ -91,7 +97,7 @@ describe('LoadMore', () => {
 
       const status = screen.getByRole('status')
       expect(status.textContent).toBe('25 more assets loaded')
-      expect(status.className).toContain('sr-only')
+      expect(status.className).toContain('visually-hidden')
     })
 
     it('keeps the status region mounted after the button is removed, so the last announcement is still read', () => {

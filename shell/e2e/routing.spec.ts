@@ -23,17 +23,17 @@ test.describe('AC-3.2: selecting a tool updates the URL and is reload-safe', () 
       timeout: 15_000,
     })
 
-    await page.getByRole('link', { name: 'Refund (Rimborsi)' }).click()
+    await page.getByRole('link', { name: 'Refund', exact: true }).click()
 
     await expect(page).toHaveURL(/\/refund$/, { timeout: 15_000 })
-    await expect(page.getByRole('heading', { name: 'Refund (Rimborsi)' })).toBeVisible({
+    await expect(page.getByRole('heading', { name: 'Refund', exact: true })).toBeVisible({
       timeout: 15_000,
     })
 
     await page.reload()
 
     await expect(page).toHaveURL(/\/refund$/, { timeout: 15_000 })
-    await expect(page.getByRole('heading', { name: 'Refund (Rimborsi)' })).toBeVisible({
+    await expect(page.getByRole('heading', { name: 'Refund', exact: true })).toBeVisible({
       timeout: 15_000,
     })
   })
@@ -42,7 +42,7 @@ test.describe('AC-3.2: selecting a tool updates the URL and is reload-safe', () 
     page,
   }) => {
     await page.goto('/refund')
-    await expect(page.getByRole('heading', { name: 'Refund (Rimborsi)' })).toBeVisible({
+    await expect(page.getByRole('heading', { name: 'Refund', exact: true })).toBeVisible({
       timeout: 15_000,
     })
 
@@ -75,12 +75,12 @@ test.describe('AC-3.3: deep-linking directly at a tool resolves that tool first,
   test('deep-linking to /refund shows Refund immediately, never EstimAI', async ({ page }) => {
     await page.goto('/refund')
 
-    await expect(page.getByRole('heading', { name: 'Refund (Rimborsi)' })).toBeVisible({
+    await expect(page.getByRole('heading', { name: 'Refund', exact: true })).toBeVisible({
       timeout: 15_000,
     })
     // EstimAI's stable anchor must never have appeared.
     await expect(page.getByRole('button', { name: /import json/i })).toHaveCount(0)
-    await expect(page.getByRole('link', { name: 'Refund (Rimborsi)' })).toHaveAttribute(
+    await expect(page.getByRole('link', { name: 'Refund', exact: true })).toHaveAttribute(
       'aria-current',
       'page',
     )
@@ -94,7 +94,7 @@ test.describe('AC-3.3: deep-linking directly at a tool resolves that tool first,
     await expect(page.getByRole('button', { name: /import json/i })).toBeVisible({
       timeout: 15_000,
     })
-    await expect(page.getByRole('heading', { name: 'Refund (Rimborsi)' })).toHaveCount(0)
+    await expect(page.getByRole('heading', { name: 'Refund', exact: true })).toHaveCount(0)
     await expect(page.getByRole('link', { name: 'EstimAI' })).toHaveAttribute(
       'aria-current',
       'page',

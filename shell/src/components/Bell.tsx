@@ -34,7 +34,9 @@
  *     doesn't churn on every SSE push (design.md: "confuse repeated-visit navigation").
  */
 import { Link } from '@tanstack/react-router'
+import { Icon, buttonClassName } from '@operai/ui'
 import { useUnreadCount } from '../lib/notifications'
+import { strings } from '../strings'
 
 // See file doc above: widened to `string` on purpose, not the literal "/notify".
 const NOTIFY_PATH: string = '/notify'
@@ -54,7 +56,7 @@ function formatUnreadAnnouncement(count: number): string {
   if (count <= 0) {
     return ''
   }
-  return count === 1 ? '1 unread notification' : `${count} unread notifications`
+  return strings.bell.unread(count)
 }
 
 export default function Bell() {
@@ -65,28 +67,17 @@ export default function Bell() {
     <>
       <Link
         to={NOTIFY_PATH}
-        aria-label="Notifications"
-        className="relative w-7 h-7 rounded-full border border-rule text-muted hover:border-acc/50 hover:text-acc transition-colors flex items-center justify-center shrink-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-acc/50"
+        aria-label={strings.bell.label}
+        // Same shape as the ThemeToggle beside it (a secondary icon-only
+        // `.btn`): a navigation link that sits in the header's control row.
+        className={buttonClassName({ variant: 'secondary', iconOnly: true, className: 'relative shrink-0' })}
       >
-        {/* Bell glyph — new SVG, following Sidebar.tsx's stroke-icon convention
-            (viewBox 0 0 24 24, stroke=currentColor, strokeWidth 1.75, aria-hidden). */}
-        <svg
-          className="h-4 w-4 shrink-0"
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          strokeWidth={1.75}
-          strokeLinecap="round"
-          strokeLinejoin="round"
-          aria-hidden="true"
-        >
-          <path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9" />
-          <path d="M13.73 21a2 2 0 0 1-3.46 0" />
-        </svg>
+        {/* The library bell (INC-31); decorative — the link's aria-label names it. */}
+        <Icon name="bell" size={16} />
         {badgeCount !== null && (
           <span
             aria-hidden="true"
-            className="absolute -top-1 -right-1 flex h-4 min-w-[16px] items-center justify-center rounded-full bg-acc px-1 text-[10px] font-mono font-bold leading-none text-white transition-all duration-150 motion-reduce:transition-none"
+            className="absolute -top-1 -right-1 flex h-4 min-w-[16px] items-center justify-center rounded-full bg-acc-solid px-1 text-2xs font-mono font-bold leading-none text-white transition-all duration-150 motion-reduce:transition-none"
           >
             {badgeCount}
           </span>

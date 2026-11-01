@@ -86,8 +86,8 @@ async function composeAndSubmit(
   if (!isMileage) await page.getByTestId('composer-amount').fill(line.amount)
   await page.getByTestId('composer-entity').selectOption(line.entity)
   if (line.km) await page.getByTestId('composer-km').fill(line.km)
-  // `composer-currency` has no default, so `composer-add-button` stays disabled until it is
-  // chosen (lineDraft.ts); hidden for travel_km, whose amount is computed.
+  // `composer-currency` has no default, so the line cannot be added until it is chosen
+  // (lineDraft.ts; an Add without it shows a field error); hidden for travel_km, whose amount is computed.
   if (!isMileage) await page.getByTestId('composer-currency').selectOption(line.entity === 'welld_ch' ? 'CHF' : 'EUR')
   await page.getByTestId('composer-add-button').click()
   await expect(page.locator('[data-testid^="expense-line-row-"]')).toHaveCount(1, { timeout: 10_000 })
@@ -214,9 +214,9 @@ test.describe('specs/008-refund-monthly-processing T15: headline journeys', () =
     const previewGroups = acctPage.getByTestId(EMPLOYEE_GROUP)
     await expect(previewGroups).toHaveCount(2)
     // shown twice by design: the batch grand subtotal and the employee's own group
-    await expect(acctPage.getByText('75,00 €').first()).toBeVisible()
+    await expect(acctPage.getByText('EUR 75.00').first()).toBeVisible()
     // shown twice by design: the batch grand subtotal and the employee's own group
-    await expect(acctPage.getByText('45,00 CHF').first()).toBeVisible()
+    await expect(acctPage.getByText('CHF 45.00').first()).toBeVisible()
 
     await acctPage.getByTestId('compile-batch-compile-button').click()
     await expect(acctPage.getByTestId('compile-batch-confirm-modal')).toBeVisible({ timeout: 10_000 })
@@ -230,9 +230,9 @@ test.describe('specs/008-refund-monthly-processing T15: headline journeys', () =
 
     // AC-1.6/2.1: per-employee, per-currency subtotals never blended, on the REAL persisted batch.
     // shown twice by design: the batch grand subtotal and the employee's own group
-    await expect(acctPage.getByText('75,00 €').first()).toBeVisible()
+    await expect(acctPage.getByText('EUR 75.00').first()).toBeVisible()
     // shown twice by design: the batch grand subtotal and the employee's own group
-    await expect(acctPage.getByText('45,00 CHF').first()).toBeVisible()
+    await expect(acctPage.getByText('CHF 45.00').first()).toBeVisible()
     const detailGroups = acctPage.getByTestId(EMPLOYEE_GROUP)
     await expect(detailGroups).toHaveCount(2)
 

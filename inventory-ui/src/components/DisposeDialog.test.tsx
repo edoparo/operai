@@ -46,7 +46,7 @@ const renderDialog = async (over: Partial<AssetView> = {}) => {
   return await screen.findByRole('alertdialog')
 }
 
-const dateField = () => screen.getByLabelText('Disposal date') as HTMLInputElement
+const dateField = () => screen.getByLabelText(/^Disposal date\*?$/) as HTMLInputElement
 const reasonRadio = (label: string) => screen.getByRole('radio', { name: label }) as HTMLInputElement
 const salePrice = () => screen.queryByLabelText('Sale price, CHF', { exact: false }) as HTMLInputElement | null
 const acknowledge = () => fireEvent.click(screen.getByRole('checkbox'))
@@ -117,7 +117,7 @@ describe('the form (F10)', () => {
 
     const consequence = document.getElementById(dialog.getAttribute('aria-describedby')!)!.textContent!
     expect(consequence).toContain("MacBook Pro 14 comes off WellD CH's books on 05.10.2026.")
-    expect(consequence).toContain('Its book value becomes 0,00 CHF')
+    expect(consequence).toContain('Its book value becomes CHF 0.00')
     expect(consequence).toContain('it is removed from Anna Rossi')
     expect(consequence).toContain('This cannot be undone.')
   })
@@ -180,6 +180,42 @@ describe('validation before any request', () => {
 
     expect(salePrice()!.getAttribute('aria-invalid')).toBe('true')
     expect(disposeAsset).not.toHaveBeenCalled()
+  })
+
+  it('moves focus to the first invalid field: the reason group, on its first radio (INC-16)', async () => {
+    await renderDialog()
+    acknowledge()
+    confirm()
+
+    await waitFor(() => expect(document.activeElement).toBe(reasonRadio('Sold')))
+  })
+
+  it('moves focus to an emptied date before the reason', async () => {
+    await renderDialog()
+    fireEvent.change(dateField(), { target: { value: '' } })
+    acknowledge()
+    confirm()
+
+    await waitFor(() => expect(document.activeElement).toBe(dateField()))
+  })
+
+  it('checks the sale price when it loses focus', async () => {
+    await renderDialog()
+    fill('Sold')
+    fireEvent.change(salePrice()!, { target: { value: '12,345' } })
+    fireEvent.blur(salePrice()!)
+
+    expect(salePrice()!.getAttribute('aria-invalid')).toBe('true')
+  })
+
+  it('marks the date and the reason group required; the optional sale price is unmarked and no label says (optional)', async () => {
+    const dialog = await renderDialog()
+    fill('Sold')
+
+    expect(dateField().getAttribute('aria-required')).toBe('true')
+    expect(screen.getByRole('radiogroup', { name: 'Reason' }).getAttribute('aria-required')).toBe('true')
+    expect(salePrice()!.getAttribute('aria-required')).toBeNull()
+    expect(dialog.textContent).not.toMatch(/\((required|optional)\)/)
   })
 })
 

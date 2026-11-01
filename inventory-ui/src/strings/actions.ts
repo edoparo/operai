@@ -5,7 +5,7 @@
  * callouts, and the Assign dialog. Templates with `{name}` placeholders go
  * through `fillTemplate`; the API-code messages live in `strings.errors`.
  */
-export const actions = {
+const en = {
   groupLabel: 'Asset actions',
 
   receive: 'Mark as received',
@@ -80,6 +80,8 @@ export const actions = {
       `${asset} is offered to the person you pick. It stays in stock until they confirm they received it.`,
     holder: 'Holder',
     holderPlaceholder: 'Search by name or email',
+    /** Typed text that matches no pick yet: the field error on Assign. */
+    holderRequired: 'Pick a person from the list.',
     loading: 'Loading users…',
     empty: 'No active users match',
     submit: 'Assign',
@@ -89,4 +91,89 @@ export const actions = {
     optionDetail: (email: string, entity: string | null) => (entity === null ? email : `${email}, ${entity}`),
     optionNoName: 'Unnamed user',
   },
-} as const
+}
+
+const it: typeof en = {
+  groupLabel: 'Azioni sul bene',
+
+  receive: 'Segna come ricevuto',
+  assign: 'Assegna...',
+  repair: 'Segna in riparazione',
+  repairDone: 'Riparazione completata',
+  return: 'Registra reso',
+  lost: 'Segna come smarrito',
+  found: 'Segna come ritrovato',
+
+  done: {
+    received: 'Segnato come ricevuto.',
+    assigned: (name: string) => `Assegnazione proposta. In attesa di conferma da ${name}.`,
+    cancelled: 'Assegnazione annullata.',
+    returned: 'Reso registrato.',
+    repair: 'Segnato in riparazione.',
+    repairDone: 'Riparazione completata.',
+    lost: 'Segnato come smarrito.',
+    found: 'Segnato come ritrovato.',
+  },
+
+  someone: "un'altra persona",
+  changedGeneric: 'Questo bene è stato modificato da un altro utente. La pagina è stata aggiornata.',
+  conflictTitle: 'Questo bene è cambiato',
+
+  pending: {
+    cancel: 'Annulla assegnazione',
+    text: (name: string, date: string, age: string) => `In attesa di conferma da ${name}, proposto il ${date}, ${age}`,
+    textNoAge: (name: string, date: string) => `In attesa di conferma da ${name}, proposto il ${date}`,
+    ageToday: 'oggi',
+    ageDays: (days: number) => (days === 1 ? '1 giorno fa' : `${days} giorni fa`),
+  },
+
+  holderDeleted: {
+    named: (name: string) =>
+      `L'account di ${name} è stato eliminato. Registrare il reso per riportare il bene in magazzino.`,
+    unnamed: "L'account dell'assegnatario è stato eliminato. Registrare il reso per riportare il bene in magazzino.",
+  },
+
+  returnDialog: {
+    entityLabel: 'reso',
+    title: (description: string) => `Registrare il reso di ${description}?`,
+    body: (holder: string) => `${holder} non risulta più assegnatario e il bene torna in magazzino.`,
+    holderFallback: "L'assegnatario",
+    confirm: 'Registra reso',
+    confirming: 'Registrazione…',
+  },
+
+  lostDialog: {
+    entityLabel: 'bene',
+    title: (description: string) => `Segnare ${description} come smarrito?`,
+    body: "I beni smarriti restano a bilancio. L'assegnatario viene rimosso e non viene ripristinato da Segna come ritrovato.",
+    confirm: 'Segna come smarrito',
+    confirming: 'Aggiornamento…',
+  },
+
+  cancelDialog: {
+    entityLabel: 'assegnazione',
+    title: (description: string) => `Annullare l'assegnazione di ${description}?`,
+    body: (name: string) =>
+      `A ${name} non verrà più chiesto di confermare questo dispositivo. Il bene resta in magazzino senza assegnatario e può essere assegnato di nuovo.`,
+    confirm: 'Annulla assegnazione',
+    confirming: 'Annullamento…',
+  },
+
+  assignDialog: {
+    title: 'Assegna bene',
+    description: (asset: string) =>
+      `${asset} viene proposto alla persona selezionata. Resta in magazzino finché non ne conferma la ricezione.`,
+    holder: 'Assegnatario',
+    holderPlaceholder: 'Cerca per nome o email',
+    holderRequired: "Selezionare una persona dall'elenco.",
+    loading: 'Caricamento utenti…',
+    empty: 'Nessun utente attivo corrispondente',
+    submit: 'Assegna',
+    submitting: 'Assegnazione…',
+    retry: 'Riprova',
+    optionDetail: (email: string, entity: string | null) => (entity === null ? email : `${email}, ${entity}`),
+    optionNoName: 'Utente senza nome',
+  },
+}
+
+export const actions = { en, it }

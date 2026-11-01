@@ -40,6 +40,7 @@ const APP_DIRS = [
   'inventory-ui',
   'notify-ui',
   'admin-ui',
+  'operai-ui',
 ]
 
 const ALL_ZERO_SHA = '0000000000000000000000000000000000000000'

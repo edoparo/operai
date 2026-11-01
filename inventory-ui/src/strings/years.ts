@@ -3,7 +3,7 @@
  * inventory; design.md T5, F12; AC-8.1). The year detail, the roll-forward
  * statement and the Close year dialog keep their copy in `yearDetail.ts`.
  */
-export const years = {
+const en = {
   heading: 'Fiscal years',
   loading: 'Loading fiscal years',
   /** The page's h3 per entity: "Fiscal years for WellD CH". */
@@ -27,4 +27,28 @@ export const years = {
   /** The row's link: visible text "Open", named with the year and entity out of context. */
   openLink: 'Open',
   openLinkLabel: (year: number, entity: string) => `Open fiscal year ${year} for ${entity}`,
-} as const
+}
+
+const it: typeof en = {
+  heading: 'Esercizi',
+  loading: 'Caricamento esercizi',
+  sectionHeading: (entity: string) => `Esercizi per ${entity}`,
+  sectionLoading: (entity: string) => `Caricamento esercizi per ${entity}`,
+  caption: (entity: string) => `Esercizi per ${entity}, dal più recente`,
+  empty: (entity: string) => `Nessun esercizio. Un esercizio compare quando ${entity} ha dei beni.`,
+  noEntity: 'Nessuna entità di competenza per gli esercizi. Rivolgersi a un amministratore.',
+  retry: 'Riprova',
+
+  columns: {
+    year: 'Esercizio',
+    status: 'Stato',
+    closedOn: 'Chiuso il',
+    open: 'Dettagli',
+  },
+  status: { open: 'Aperto', closed: 'Chiuso' },
+  notClosed: '—',
+  openLink: 'Apri',
+  openLinkLabel: (year: number, entity: string) => `Apri l'esercizio ${year} per ${entity}`,
+}
+
+export const years = { en, it }

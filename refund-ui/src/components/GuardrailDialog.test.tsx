@@ -35,8 +35,8 @@ describe('GuardrailDialog', () => {
 
     const dialog = screen.getByRole('alertdialog')
     expect(dialog.getAttribute('aria-modal')).toBe('true')
-    expect(dialog.getAttribute('aria-labelledby')).toBe('guardrail-dialog-title')
-    expect(dialog.getAttribute('aria-describedby')).toBe('guardrail-dialog-message')
+    expect(document.getElementById(dialog.getAttribute('aria-labelledby')!)).not.toBeNull()
+    expect(document.getElementById(dialog.getAttribute('aria-describedby')!)).not.toBeNull()
     expect(screen.getByText(baseProps.title)).not.toBeNull()
     expect(screen.getByText(baseProps.message)).not.toBeNull()
     // No destructive/"proceed anyway" affordance — only one button.

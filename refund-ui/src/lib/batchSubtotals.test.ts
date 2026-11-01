@@ -12,14 +12,14 @@ describe('formatBatchSubtotalsPreview', () => {
   })
 
   it('renders a single currency as one segment', () => {
-    expect(formatBatchSubtotalsPreview([eur])).toBe('9,10 €')
+    expect(formatBatchSubtotalsPreview([eur])).toBe('EUR 9.10')
   })
 
   it('joins multiple currencies with a separator, never blending them into one figure', () => {
-    expect(formatBatchSubtotalsPreview([eur, chf])).toBe('9,10 € · 50,00 CHF')
+    expect(formatBatchSubtotalsPreview([eur, chf])).toBe('EUR 9.10 · CHF 50.00')
   })
 
   it('joins more than two currencies, e.g. EUR + CHF + USD', () => {
-    expect(formatBatchSubtotalsPreview([eur, chf, usd])).toBe('9,10 € · 50,00 CHF · 20,00 $')
+    expect(formatBatchSubtotalsPreview([eur, chf, usd])).toBe('EUR 9.10 · CHF 50.00 · USD 20.00')
   })
 })

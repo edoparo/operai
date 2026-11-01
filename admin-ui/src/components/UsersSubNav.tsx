@@ -1,4 +1,6 @@
 import { Link } from '@tanstack/react-router'
+import { TabNav, tabLinkClassName } from '@operai/ui'
+import { strings } from '../strings'
 
 // The two Users-section views, in the order design.md's Screen U1/U2 uses
 // consistently ("Active users" | "Invitations"). `to` paths are relative to
@@ -6,8 +8,8 @@ import { Link } from '@tanstack/react-router'
 // them with the router's `basepath` automatically, same as ../components/
 // SectionNav.tsx's own `SECTIONS` list.
 const VIEWS = [
-  { to: '/users', label: 'Active users' },
-  { to: '/users/invitations', label: 'Invitations' },
+  { to: '/users', label: strings.nav.activeUsers },
+  { to: '/users/invitations', label: strings.nav.invitations },
 ] as const
 
 /**
@@ -41,25 +43,20 @@ const VIEWS = [
  */
 export default function UsersSubNav() {
   return (
-    <nav aria-label="Users section views" className="mb-4">
-      <ul className="flex gap-1">
+    <div className="mb-4">
+      <TabNav label={strings.nav.usersViewsLabel}>
         {VIEWS.map((view) => (
-          <li key={view.to}>
-            <Link
-              to={view.to}
-              activeOptions={view.to === '/users' ? { exact: true } : undefined}
-              data-testid={`users-subnav-${view.to === '/users' ? 'active' : 'invitations'}`}
-              className="inline-block border-b-2 border-transparent px-3 py-2 text-sm font-medium transition-colors hover:text-[var(--text)]"
-              style={{ color: 'var(--soft)' }}
-              activeProps={{
-                style: { color: 'var(--acc)', borderColor: 'var(--acc)' },
-              }}
-            >
-              {view.label}
-            </Link>
-          </li>
+          <Link
+            key={view.to}
+            to={view.to}
+            activeOptions={view.to === '/users' ? { exact: true } : undefined}
+            data-testid={`users-subnav-${view.to === '/users' ? 'active' : 'invitations'}`}
+            className={tabLinkClassName}
+          >
+            {view.label}
+          </Link>
         ))}
-      </ul>
-    </nav>
+      </TabNav>
+    </div>
   )
 }

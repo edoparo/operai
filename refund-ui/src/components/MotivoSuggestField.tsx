@@ -116,6 +116,15 @@ export type MotivoSuggestFieldProps = {
   required?: boolean
   /** Bumped by the parent after a successful add → invalidates the cached corpus (plan D6). */
   corpusEpoch: number
+  /**
+   * INC-16 — the field wiring the parent's `.field` markup owns (the same
+   * convention `Field` hands its control): the error's id, whether the value is
+   * invalid, and a blur callback that marks the field touched. Passed straight
+   * to the input; nothing about the combobox changes.
+   */
+  describedBy?: string
+  invalid?: boolean
+  onFieldBlur?: () => void
 }
 
 export default function MotivoSuggestField({
@@ -127,6 +136,9 @@ export default function MotivoSuggestField({
   disabled,
   required = false,
   corpusEpoch,
+  describedBy,
+  invalid = false,
+  onFieldBlur,
 }: MotivoSuggestFieldProps) {
   const t = strings.components.motivoSuggest
   const entityLabels = strings.badges.entity
@@ -404,7 +416,13 @@ export default function MotivoSuggestField({
         onChange={(e) => handleChange(e.target.value)}
         onKeyDown={handleKeyDown}
         onFocus={enabled ? () => setFocused(true) : undefined}
-        onBlur={enabled ? handleBlur : undefined}
+        onBlur={(event) => {
+          if (enabled) handleBlur(event)
+          onFieldBlur?.()
+        }}
+        aria-required={required || undefined}
+        aria-invalid={invalid || undefined}
+        aria-describedby={describedBy}
         data-testid={id}
         // AC-1.1: when the expense type is not `travel_km` NONE of the
         // combobox wiring is rendered — not the roles, and not
@@ -417,8 +435,9 @@ export default function MotivoSuggestField({
         aria-autocomplete={enabled ? 'list' : undefined}
         aria-activedescendant={enabled && activeIndex >= 0 ? optionId(activeIndex) : undefined}
         autoComplete={enabled ? 'off' : undefined}
-        className="text-sm px-2.5 py-1.5 border rounded"
-        style={{ borderColor: 'var(--rule)', color: 'var(--text)', backgroundColor: 'var(--ink)' }}
+        // Fills the field's width like every other control in a `.field`
+        // (the wrapper <div> is what the flex column stretches).
+        className="w-full"
       />
 
       {/*
@@ -441,17 +460,8 @@ export default function MotivoSuggestField({
           aria-label={t.listboxLabel}
           data-testid={listboxId}
           onMouseLeave={() => setHovered(-1)}
-          className="absolute z-10 mt-1 border rounded-md shadow-lg overflow-y-auto"
-          style={{
-            top: '100%',
-            left: 0,
-            width: 'max(100%, 20rem)',
-            maxWidth: 'calc(100vw - 1.5rem)',
-            maxHeight: 'min(18rem, 50vh)',
-            backgroundColor: 'var(--ink-mid)',
-            borderColor: 'var(--rule)',
-            overscrollBehavior: 'contain',
-          }}
+          className="absolute z-10 mt-1 border rounded-md shadow-lg overflow-y-auto bg-ink-mid border-rule"
+          style={{ top: '100%', left: 0, width: 'max(100%, 20rem)', maxWidth: 'calc(100vw - 1.5rem)', maxHeight: 'min(18rem, 50vh)', overscrollBehavior: 'contain' }}
         >
           {matches.map((suggestion, index) => {
             const isActive = index === activeIndex
@@ -470,18 +480,7 @@ export default function MotivoSuggestField({
                 onMouseDown={(e) => e.preventDefault()}
                 onMouseEnter={() => setHovered(index)}
                 onClick={() => pick(suggestion)}
-                className="px-3 py-2 cursor-pointer"
-                style={{
-                  // Two signals for the active option — tint AND a left accent
-                  // bar — so it is never conveyed by colour alone (WCAG 1.4.1).
-                  // The transparent-to-accent border swap causes no layout shift.
-                  borderLeft: isActive ? '3px solid var(--acc)' : '3px solid transparent',
-                  backgroundColor: isActive
-                    ? 'var(--acc-lo)'
-                    : index === hovered
-                      ? 'color-mix(in srgb, var(--acc) 6%, transparent)'
-                      : 'transparent',
-                }}
+                className={`px-3 py-2 cursor-pointer border-l-3 ${isActive ? 'border-l-acc bg-acc-lo' : index === hovered ? 'border-l-transparent bg-acc/6' : 'border-l-transparent bg-transparent'}`}
               >
                 {/*
                   Line 1 — identity: the motivo VERBATIM as originally typed
@@ -490,8 +489,7 @@ export default function MotivoSuggestField({
                 */}
                 <div
                   title={suggestion.motivo}
-                  className="text-sm overflow-hidden text-ellipsis whitespace-nowrap"
-                  style={{ color: 'var(--text)' }}
+                  className="text-sm overflow-hidden text-ellipsis whitespace-nowrap text-text"
                 >
                   {suggestion.motivo}
                 </div>
@@ -502,7 +500,7 @@ export default function MotivoSuggestField({
                   order, right-aligned so the counts form a visibly
                   non-increasing ladder down the list (AC-1.7).
                 */}
-                <div className="flex items-center justify-between gap-2 text-[11px]" style={{ color: 'var(--soft)' }}>
+                <div className="flex items-center justify-between gap-2 text-2xs text-soft">
                   <span className="flex items-center gap-2">
                     <span>{t.km(suggestion.km)}</span>
                     <EntityBadge entity={suggestion.entity} />

@@ -1,17 +1,17 @@
 /**
  * @vitest-environment jsdom
  *
- * Integration test for the saveError → <ToastBanner> render wiring in
+ * Integration test for the saveError → <Banner> render wiring in
  * EstimatorApp.tsx (Gap-1, specs/001-estimate-persistence, AC-1.3 render layer).
  *
  * The production path under test:
  *   EstimatorProvider sets saveError (on estimatesApi.update rejection)
  *   → EstimatorApp reads saveError from context via useEstimatorContext()
- *   → {saveError && <ToastBanner message={saveError} onDismiss={clearSaveError} />}
+ *   → {saveError && <Banner message={saveError} onDismiss={clearSaveError} />}
  *     renders role="alert" in the DOM
  *
  * Non-vacuousness guarantee:
- *   Removing the `{saveError && <ToastBanner …/>}` line from EstimatorApp.tsx
+ *   Removing the `{saveError && <Banner …/>}` line from EstimatorApp.tsx
  *   causes screen.getByRole('alert') to throw → test FAILS.
  *   The assertion is on the real EstimatorApp render path, not on a stub.
  *
@@ -31,7 +31,8 @@
  */
 
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { render, screen, act, cleanup } from '@testing-library/react'
+import type { ReactNode } from 'react'
+import { render, screen, act, cleanup, fireEvent, within } from '@testing-library/react'
 import type { Parameters, Release, Activity } from './types'
 
 // ---------------------------------------------------------------------------
@@ -39,6 +40,12 @@ import type { Parameters, Release, Activity } from './types'
 // ---------------------------------------------------------------------------
 
 vi.mock('@tanstack/react-router', () => ({
+  // Header's back-to-list control is a router <Link> (INC-13).
+  Link: ({ to, className, children }: { to: string; className?: string; children: ReactNode }) => (
+    <a href={to} className={className}>
+      {children}
+    </a>
+  ),
   useNavigate: () => vi.fn(),
   // T18 (specs/013-estimate-sharing/tasks.md) added a `useRouter()` call to
   // EstimatorApp.tsx (ConflictBanner's "Reload latest" → router.invalidate())
@@ -157,16 +164,16 @@ afterEach(() => {
 })
 
 // ---------------------------------------------------------------------------
-// Test: saveError → <ToastBanner role="alert"> render wiring (AC-1.3)
+// Test: saveError → <Banner role="alert"> render wiring (AC-1.3)
 //
 // NON-VACUOUS: this test FAILS if the line
-//   {saveError && <ToastBanner message={saveError} onDismiss={clearSaveError} />}
+//   {saveError && <Banner message={saveError} onDismiss={clearSaveError} />}
 // is removed from EstimatorApp.tsx — because screen.getByRole('alert') will
 // throw "Unable to find an accessible element with role 'alert'".
 // ---------------------------------------------------------------------------
 
-describe('EstimatorApp: saveError → ToastBanner render wiring (AC-1.3)', () => {
-  it('renders role="alert" ToastBanner with the error message when estimatesApi.update rejects', async () => {
+describe('EstimatorApp: saveError → save-feedback Banner render wiring (AC-1.3)', () => {
+  it('renders role="alert" Banner with the error message when estimatesApi.update rejects', async () => {
     const errorDetail = 'Unexpected server error. Your work is safe in this tab.'
 
     // Arrange: update always rejects with an ApiError whose detail matches what
@@ -209,8 +216,8 @@ describe('EstimatorApp: saveError → ToastBanner render wiring (AC-1.3)', () =>
       await vi.runAllTimersAsync()
     })
 
-    // Assert: the ToastBanner must be visible with role="alert" and the error text.
-    // This assertion FAILS if EstimatorApp's `{saveError && <ToastBanner …/>}` is removed.
+    // Assert: the Banner must be visible with role="alert" and the error text.
+    // This assertion FAILS if EstimatorApp's `{saveError && <Banner …/>}` is removed.
     const alert = screen.getByRole('alert')
     expect(alert).toBeDefined()
     expect(alert.textContent).toContain(errorDetail)
@@ -218,11 +225,11 @@ describe('EstimatorApp: saveError → ToastBanner render wiring (AC-1.3)', () =>
 })
 
 // ---------------------------------------------------------------------------
-// Test: showSavedToast → success <ToastBanner role="status"> render wiring
+// Test: showSavedToast → success <Banner role="status"> render wiring
 // (content-app auto-save "changes stored" feedback)
 //
 // NON-VACUOUS: this test FAILS if EstimatorApp's
-//   {!saveError && showSavedToast && <ToastBanner tone="success" …/>}
+//   {!saveError && showSavedToast && <Banner tone="success" …/>}
 // is removed — screen.getByRole('status') throws.
 // ---------------------------------------------------------------------------
 
@@ -249,7 +256,7 @@ const mockUpdateResponse = {
 // these tests locate the toast by its copy text rather than `getByRole('status')`
 // alone, then assert the role/aria-live on that specific element.
 
-describe('EstimatorApp: showSavedToast → success ToastBanner render wiring', () => {
+describe('EstimatorApp: showSavedToast → success save-feedback Banner render wiring', () => {
   it('shows a role="status" success toast after a successful auto-save', async () => {
     vi.mocked(estimatesApi.update).mockResolvedValue(mockUpdateResponse)
 
@@ -284,11 +291,64 @@ describe('EstimatorApp: showSavedToast → success ToastBanner render wiring', (
     expect(toast?.getAttribute('role')).toBe('status')
     expect(toast?.getAttribute('aria-live')).toBe('polite')
 
-    // The success toast auto-dismisses ~2s later (ToastBanner's own timer).
+    // The success Banner auto-dismisses 3s later (library Banner's
+    // autoDismiss, INC-19) — still there just before.
     await act(async () => {
-      await vi.advanceTimersByTimeAsync(2000)
+      await vi.advanceTimersByTimeAsync(2999)
+    })
+    expect(screen.queryByText('Changes stored')).not.toBeNull()
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(1)
     })
     expect(screen.queryByText('Changes stored')).toBeNull()
+  })
+
+  // Ported from the deleted local ToastBanner's own tests (INC-19): the
+  // failed-save Banner is red, persistent, and its × clears it.
+  it('keeps the failed-save Banner (danger) until dismissed, and its Dismiss clears it', async () => {
+    vi.mocked(estimatesApi.update).mockRejectedValue(
+      new estimatesApi.ApiError({
+        type: 'https://httpstatuses.com/500',
+        title: 'Internal Server Error',
+        status: 500,
+        detail: 'Save failed (500). Your work is safe in this tab.',
+      }),
+    )
+
+    render(
+      <EstimatorProvider
+        estimateId="est-toast-dismiss-test"
+        initialName="Original Name"
+        initialAuthor="Test Author"
+        initialParams={fixtureParams}
+        initialReleases={[fixtureRelease]}
+        initialActs={fixtureActs}
+      >
+        <NameChangeTrigger />
+        <EstimatorApp />
+      </EstimatorProvider>,
+    )
+
+    await act(async () => {
+      screen.getByTestId('trigger-edit').click()
+    })
+    await act(async () => {
+      await vi.runAllTimersAsync()
+    })
+
+    const banner = screen.getByTestId('save-error-banner')
+    expect(banner.getAttribute('role')).toBe('alert')
+    expect(banner.className).toContain('banner-danger')
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(10_000)
+    })
+    expect(screen.queryByTestId('save-error-banner')).not.toBeNull()
+
+    await act(async () => {
+      screen.getByRole('button', { name: 'Dismiss' }).click()
+    })
+    expect(screen.queryByTestId('save-error-banner')).toBeNull()
   })
 
   it('never shows the success toast alongside the error toast', async () => {
@@ -394,7 +454,9 @@ describe('EstimatorApp: toolbar composition — Collaborators is the only sharin
 
     const collabBtn = screen.getByTestId('collaborators-button')
     expect(collabBtn.getAttribute('aria-label')).toBeNull()
-    expect(collabBtn.textContent).toBe(`👥 ${strings.sharing.toolbar.collaborators}`)
+    // INC-31: the people icon is an SVG (aria-hidden), no longer a 👥 glyph in the text.
+    expect(collabBtn.textContent).toBe(strings.sharing.toolbar.collaborators)
+    expect(collabBtn.querySelector('svg[aria-hidden="true"]')).not.toBeNull()
   })
 
   it('collaborator (viewer): the chip renders in place of the Collaborators button', () => {
@@ -428,5 +490,37 @@ describe('EstimatorApp: toolbar composition — Collaborators is the only sharin
     })
 
     expect(navigator.clipboard.writeText).not.toHaveBeenCalled()
+  })
+})
+
+describe('EstimatorApp: heading and view tabs (INC-30, INC-32)', () => {
+  afterEach(() => cleanup())
+
+  it('has one h1 — the tool title with the estimate name — and the views as h2s under it', () => {
+    renderToolbar('owner', null, 0)
+    const h1s = screen.getAllByRole('heading', { level: 1 })
+    expect(h1s).toHaveLength(1)
+    expect(h1s[0].textContent).toContain(strings.toolTitle)
+    // Arriving on the editor replaces the page: focus lands on its h1 (useFocusOnMount).
+    expect(document.activeElement).toBe(h1s[0])
+  })
+
+  it('switches views through a real tablist: aria-selected, arrow keys, a labelled tabpanel', () => {
+    renderToolbar('owner', null, 0)
+    const tablist = screen.getByRole('tablist', { name: strings.editor.tabsLabel })
+    const tabs = within(tablist).getAllByRole('tab')
+    // A tab may carry its health-warning count after the label.
+    expect(tabs).toHaveLength(3)
+    ;[strings.editor.tabActivities, strings.editor.tabSummary, strings.editor.tabParameters].forEach((label, i) =>
+      expect(tabs[i].textContent?.startsWith(label)).toBe(true),
+    )
+    expect(tabs[0].getAttribute('aria-selected')).toBe('true')
+    expect(screen.getByRole('tabpanel', { name: new RegExp(`^${strings.editor.tabActivities}`) })).toBeDefined()
+
+    fireEvent.keyDown(tabs[0], { key: 'ArrowRight' })
+    const summaryTab = screen.getByRole('tab', { name: new RegExp(`^${strings.editor.tabSummary}`) })
+    expect(summaryTab.getAttribute('aria-selected')).toBe('true')
+    expect(screen.getByRole('tabpanel', { name: new RegExp(`^${strings.editor.tabSummary}`) })).toBeDefined()
+    expect(screen.getByRole('heading', { level: 2, name: strings.summary.heading })).toBeDefined()
   })
 })

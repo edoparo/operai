@@ -2,7 +2,8 @@
  * Pagination — shared paginated-list control (T15, specs/004-auth-roles-permissions,
  * design.md "Pagination control (shared within admin-ui)").
  *
- * Genuinely NEW primitive — design.md is explicit that no existing screen in
+ * Now an adapter over @operai/ui's Pagination (INC-15). Originally a
+ * genuinely NEW primitive — design.md is explicit that no existing screen in
  * the repo paginates (`EstimatesPage`'s list is unpaginated), so there is no
  * pattern to port here. Built once, reused by the Users list (Screen C1,
  * `GET /admin/users`) and the Audit log (Screen D1) — both later tasks
@@ -24,6 +25,10 @@
  * the current page and re-fetches on `onPageChange`.
  */
 
+import { Pagination as LibraryPagination } from '@operai/ui'
+import type { PaginationStatus } from '@operai/ui'
+import { strings } from '../strings'
+
 export type PaginationProps = {
   /** Current 1-based page number. */
   page: number
@@ -35,58 +40,29 @@ export type PaginationProps = {
   onPageChange: (page: number) => void
 }
 
+/** admin-ui's status copy — unchanged from the local control this adapter replaced (INC-15). */
+const statusText = ({ page, totalPages, rangeStart, rangeEnd, total }: PaginationStatus): string =>
+  total === 0
+    ? strings.common.pagination.statusEmpty(page, totalPages)
+    : strings.common.pagination.status(page, totalPages, rangeStart, rangeEnd, total)
+
+/**
+ * Thin adapter over @operai/ui's `Pagination` (INC-15): admin-ui's offset
+ * endpoints all report a total, so they page with Previous/Next. Supplies
+ * admin-ui's copy; the behaviour (aria-disabled bounds, polite status, the
+ * `pagination-*` test ids) is the library's.
+ */
 export default function Pagination({ page, pageSize, total, onPageChange }: PaginationProps) {
-  const totalPages = Math.max(1, Math.ceil(total / pageSize))
-  const currentPage = Math.min(Math.max(1, page), totalPages)
-
-  const isFirstPage = currentPage <= 1
-  const isLastPage = currentPage >= totalPages
-
-  const rangeStart = total === 0 ? 0 : (currentPage - 1) * pageSize + 1
-  const rangeEnd = Math.min(currentPage * pageSize, total)
-
-  const goToPrevious = () => {
-    if (isFirstPage) return
-    onPageChange(currentPage - 1)
-  }
-
-  const goToNext = () => {
-    if (isLastPage) return
-    onPageChange(currentPage + 1)
-  }
-
-  const statusText =
-    total === 0
-      ? `Page ${currentPage} of ${totalPages} — Showing 0 of 0`
-      : `Page ${currentPage} of ${totalPages} — Showing ${rangeStart}–${rangeEnd} of ${total}`
-
   return (
-    <nav aria-label="Pagination" data-testid="pagination" className="flex items-center justify-between gap-4 px-1 py-2">
-      <button
-        type="button"
-        onClick={goToPrevious}
-        aria-disabled={isFirstPage}
-        data-testid="pagination-previous"
-        className="text-sm font-medium border px-3 py-1.5 transition-opacity hover:opacity-80 aria-disabled:opacity-40 aria-disabled:cursor-not-allowed"
-        style={{ borderColor: 'var(--rule)', color: 'var(--text)' }}
-      >
-        Previous
-      </button>
-
-      <p aria-live="polite" className="text-xs" style={{ color: 'var(--soft)' }} data-testid="pagination-status">
-        {statusText}
-      </p>
-
-      <button
-        type="button"
-        onClick={goToNext}
-        aria-disabled={isLastPage}
-        data-testid="pagination-next"
-        className="text-sm font-medium border px-3 py-1.5 transition-opacity hover:opacity-80 aria-disabled:opacity-40 aria-disabled:cursor-not-allowed"
-        style={{ borderColor: 'var(--rule)', color: 'var(--text)' }}
-      >
-        Next
-      </button>
-    </nav>
+    <LibraryPagination
+      page={page}
+      pageSize={pageSize}
+      total={total}
+      onPageChange={onPageChange}
+      label={strings.common.pagination.label}
+      previousLabel={strings.common.pagination.previous}
+      nextLabel={strings.common.pagination.next}
+      status={statusText}
+    />
   )
 }

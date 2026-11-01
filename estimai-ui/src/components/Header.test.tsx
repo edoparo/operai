@@ -18,12 +18,18 @@
 
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { render, screen, cleanup, fireEvent } from '@testing-library/react'
+import type { ReactNode } from 'react'
 import Header from './Header'
 
 const navigateMock = vi.fn()
 
 vi.mock('@tanstack/react-router', () => ({
   useNavigate: () => navigateMock,
+  Link: ({ to, className, children }: { to: string; className?: string; children: ReactNode }) => (
+    <a href={to} className={className}>
+      {children}
+    </a>
+  ),
 }))
 
 afterEach(() => {
@@ -47,7 +53,7 @@ describe('Header', () => {
     expect(screen.queryByRole('dialog')).toBeNull()
   })
 
-  it('keeps the tool-scoped controls: project name, save-status, My Estimates', () => {
+  it('keeps the tool-scoped controls: project name, save-status, back to estimates', () => {
     render(<Header name="My Project" saveStatus="saving" onNameChange={() => {}} />)
 
     // Single project-name input — one desktop-only row (no separate mobile row,
@@ -58,9 +64,11 @@ describe('Header', () => {
     // Save-status indicator reflects the saveStatus prop.
     expect(screen.getByText('Saving…')).toBeDefined()
 
-    // Exactly one "My Estimates" nav button.
-    const myEstimatesButtons = screen.getAllByRole('button', { name: /My Estimates/i })
-    expect(myEstimatesButtons.length).toBe(1)
+    // Exactly one "Back to estimates" nav link (INC-13: inline navigation is a
+    // text link, no longer a "☰ My Estimates" button).
+    const backLinks = screen.getAllByRole('link', { name: /Back to estimates/i })
+    expect(backLinks.length).toBe(1)
+    expect(backLinks[0].getAttribute('href')).toBe('/estimates')
   })
 
   it('calls onNameChange when the project-name input changes', () => {
@@ -95,7 +103,7 @@ describe('Header — readOnly (viewer) gating (T17, AC-3.1/AC-3.2)', () => {
   it('omits the save-status indicator entirely when readOnly (not shown blank)', () => {
     render(<Header name="Shared Project" saveStatus="saved" onNameChange={() => {}} readOnly />)
 
-    expect(screen.queryByText('✓ Saved')).toBeNull()
+    expect(screen.queryByText('Saved')).toBeNull()
     expect(screen.queryByText('Saving…')).toBeNull()
     expect(screen.queryByText('Save failed')).toBeNull()
   })
@@ -106,7 +114,7 @@ describe('Header — readOnly (viewer) gating (T17, AC-3.1/AC-3.2)', () => {
     const nameInput = screen.getByPlaceholderText('Project name…') as HTMLInputElement
     expect(nameInput.readOnly).toBe(false)
     // The save-status indicator is still present for an editor/owner.
-    expect(screen.getByText('✓ Saved')).toBeDefined()
+    expect(screen.getByText('Saved')).toBeDefined()
   })
 })
 
@@ -117,17 +125,21 @@ describe('Header — readOnly (viewer) gating (T17, AC-3.1/AC-3.2)', () => {
 // ---------------------------------------------------------------------------
 
 describe('Header — the 4th "conflict" save-status state (T18, AC-4.2)', () => {
-  it('renders "Not saving — reload to continue" instead of falling through to "✓ Saved"', () => {
+  it('renders "Not saving — reload to continue" instead of falling through to "Saved"', () => {
     render(<Header name="My Project" saveStatus="conflict" onNameChange={() => {}} />)
 
     expect(screen.getByText('Not saving — reload to continue')).toBeDefined()
-    expect(screen.queryByText('✓ Saved')).toBeNull()
+    expect(screen.queryByText('Saved')).toBeNull()
   })
 
-  it('renders the 4th state in the same error tone (text-org) as "Save failed" (design.md S4)', () => {
+  it('renders the 4th state in the same error tone as "Save failed" (design.md S4; red per INC-20)', () => {
     render(<Header name="My Project" saveStatus="conflict" onNameChange={() => {}} />)
     const conflictSpan = screen.getByText('Not saving — reload to continue')
 
-    expect(conflictSpan.className).toContain('text-org')
+    expect(conflictSpan.className).toContain('text-red-text')
+
+    cleanup()
+    render(<Header name="My Project" saveStatus="error" onNameChange={() => {}} />)
+    expect(screen.getByText('Save failed').className).toContain('text-red-text')
   })
 })

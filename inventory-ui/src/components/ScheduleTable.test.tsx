@@ -44,15 +44,15 @@ describe('every schedule year (AC-5.8)', () => {
         .map((cell) => cell.textContent),
     )
     expect(within(rows()[0]).getByRole('rowheader').textContent).toBe('2026')
-    expect(first).toEqual(['332,72 CHF', '665,43 CHF', 'Closed'])
-    expect(second).toEqual(['332,71 CHF', '332,72 CHF', 'Open'])
-    expect(third).toEqual(['331,72 CHF', '1,00 CHF', 'Open'])
+    expect(first).toEqual(['CHF 332.72', 'CHF 665.43', 'Closed'])
+    expect(second).toEqual(['CHF 332.71', 'CHF 332.72', 'Open'])
+    expect(third).toEqual(['CHF 331.72', 'CHF 1.00', 'Open'])
     expect(within(rows()[2]).getByRole('rowheader').textContent).toBe('2028')
   })
 
   it('uses the euro sign for an EUR asset', () => {
     render(<ScheduleTable ledger={ledger()} currency="EUR" disposal={null} />)
-    expect(within(rows()[0]).getAllByRole('cell')[0].textContent).toBe('332,72 €')
+    expect(within(rows()[0]).getAllByRole('cell')[0].textContent).toBe('EUR 332.72')
   })
 
   it('is a captioned table with column headers and a keyboard-scrollable region', () => {
@@ -95,7 +95,7 @@ describe('a disposed asset', () => {
       within(last)
         .getAllByRole('cell')
         .map((cell) => cell.textContent),
-    ).toEqual(['—', '0,00 CHF', 'Disposed'])
+    ).toEqual(['—', 'CHF 0.00', 'Disposed'])
   })
 
   it('has no Disposed row for a live asset', () => {

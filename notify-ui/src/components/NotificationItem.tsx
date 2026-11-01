@@ -1,6 +1,8 @@
-import type { CSSProperties, MouseEvent } from 'react'
+import type { MouseEvent } from 'react'
+import { Badge, Icon, cx, formatDateTime, formatRelative, listRowClassName } from '@operai/ui'
 import { navigateSuite } from 'shell/session'
 import { SEVERITY_META, originAppLabel } from '../lib/severity'
+import { strings } from '../strings'
 import type { Notification } from '../lib/notificationsApi'
 
 /**
@@ -11,12 +13,16 @@ import type { Notification } from '../lib/notificationsApi'
  *   - title (heavier weight when `wasUnread` this session)
  *   - body (the row *is* the detail — no separate detail screen in v1)
  *   - origin-app tag
- *   - a `<time>` with a relative label, exact ISO `dateTime`, and an
- *     absolute human-formatted `title` attribute
+ *   - a `<time>` with a relative label (`formatRelative`), exact ISO
+ *     `dateTime`, and the absolute date and time (`formatDateTime`) as its
+ *     `title` — the suite's formatters, in the person's language (INC-26)
  *   - the "was-unread" affordance (design.md, AC-3.2/3.3) — NOT color-only:
  *     a visible "New" tag, a heavier title weight, a `--acc` left-border
  *     accent, AND a sr-only "New: " prefix so the cue survives for
  *     assistive-tech users who perceive none of the visual channels.
+ *
+ * The row is one `ListRows` row (INC-33): the page renders the list, this
+ * component renders the row element (`list-row`) without its own `<li>`.
  *
  * When the notification carries a `link` (AC-2.5, AC-4.3) the entire row is
  * a real `<a href>` (design.md Accessibility: "the whole row itself is the
@@ -68,101 +74,54 @@ export interface NotificationItemProps {
   wasUnread: boolean
 }
 
-function formatRelativeTime(iso: string, now: number = Date.now()): string {
-  const then = new Date(iso).getTime()
-  const diffSec = Math.max(0, Math.round((now - then) / 1000))
-  if (diffSec < 60) return 'just now'
-  const diffMin = Math.round(diffSec / 60)
-  if (diffMin < 60) return `${diffMin}m ago`
-  const diffHour = Math.round(diffMin / 60)
-  if (diffHour < 24) return `${diffHour}h ago`
-  const diffDay = Math.round(diffHour / 24)
-  return `${diffDay}d ago`
-}
-
-function formatAbsoluteTime(iso: string): string {
-  return new Intl.DateTimeFormat('en-GB', {
-    day: '2-digit',
-    month: 'short',
-    year: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit',
-    hour12: false,
-  }).format(new Date(iso))
-}
-
 export default function NotificationItem({ notification, wasUnread }: NotificationItemProps) {
   const meta = SEVERITY_META[notification.severity]
 
-  // Generic Tailwind utilities only (no custom-color utility classes like
-  // `border-acc`/`text-org`) — notify-ui's own build never processes
-  // shell/tokens.css's `@theme` block (design.md Component inventory: it
-  // follows admin-ui's convention, inline `style={{ ... var(--x) }}` for
-  // every accent color, plain `hover:opacity-*` for interactive feedback).
-  const rowClassName = 'flex items-start gap-3 rounded-md border px-4 py-3 transition-opacity hover:opacity-90'
-  // `borderLeftColor`/`borderLeftWidth` are ALWAYS present (never added/
-  // removed between renders) — only their VALUE toggles with `wasUnread`.
-  // Mixing a shorthand (`borderColor`) with a longhand that's only
-  // sometimes present makes React warn ("Removing a style property during
-  // rerender... don't mix shorthand and non-shorthand properties") the
-  // instant a row's `wasUnread` flips (e.g. the "Mark all as read" click).
-  const rowStyle: CSSProperties = {
-    borderColor: 'var(--rule)',
-    backgroundColor: 'var(--ink-soft)',
-    borderLeftWidth: wasUnread ? '2px' : '1px',
-    borderLeftColor: wasUnread ? 'var(--acc)' : 'var(--rule)',
-  }
+  // The library list row (INC-33): border, padding, surface and — for a row
+  // that is a link — the hover border. An unread row gets a 2px accent left
+  // border, which a utility keeps over the row's hover colour.
+  const rowClassName = cx(listRowClassName, 'items-start justify-start gap-3', wasUnread && 'border-l-2 border-l-acc')
 
   const body = (
     <>
       {wasUnread && (
         <span className="sr-only" data-testid={`notification-new-prefix-${notification.id}`}>
-          New:{' '}
+          {`${strings.item.newPrefix} `}
         </span>
       )}
-      <span aria-hidden="true" className="mt-0.5 shrink-0 text-base leading-none" style={{ color: meta.token }}>
-        {meta.icon}
+      <span aria-hidden="true" className={`mt-0.5 shrink-0 text-base leading-none ${meta.iconClassName}`}>
+        <Icon name={meta.icon} />
       </span>
-      <span className="sr-only">{`Severity: ${meta.label}`}</span>
+      <span className="sr-only">{strings.item.severity(meta.label)}</span>
 
       <span className="flex min-w-0 flex-1 flex-col gap-0.5">
         <span className="flex items-center gap-2">
           {wasUnread && (
-            <span
-              aria-hidden="true"
-              data-testid={`notification-new-tag-${notification.id}`}
-              className="rounded-full border px-1.5 py-0 text-[10px] leading-tight"
-              style={{ borderColor: 'var(--acc)', color: 'var(--acc)' }}
-            >
-              New
-            </span>
+            <Badge tone="accent" aria-hidden="true" data-testid={`notification-new-tag-${notification.id}`}>
+              {strings.item.newTag}
+            </Badge>
           )}
           <span
-            className={wasUnread ? 'font-semibold' : 'font-normal'}
-            style={{ color: 'var(--text)' }}
+            className={`${wasUnread ? 'font-semibold' : 'font-normal'} text-text`}
             data-testid={`notification-title-${notification.id}`}
           >
             {notification.title}
           </span>
         </span>
 
-        <span className="text-sm" style={{ color: 'var(--soft)' }}>
-          {notification.body}
-        </span>
+        <span className="text-sm text-soft">{notification.body}</span>
 
-        <span className="flex items-center gap-2 text-xs" style={{ color: 'var(--soft)' }}>
+        <span className="flex items-center gap-2 text-xs text-soft">
           <span className="font-mono uppercase tracking-wider" data-testid={`notification-origin-${notification.id}`}>
             {originAppLabel(notification.originApp)}
           </span>
-          <time dateTime={notification.createdAt} title={formatAbsoluteTime(notification.createdAt)}>
-            {formatRelativeTime(notification.createdAt)}
+          <time dateTime={notification.createdAt} title={formatDateTime(notification.createdAt)}>
+            {formatRelative(notification.createdAt)}
           </time>
         </span>
 
         {notification.link?.label && (
-          <span className="mt-1 text-sm font-medium" style={{ color: 'var(--acc)' }}>
-            {notification.link.label}
-          </span>
+          <span className="mt-1 text-sm font-medium text-acc">{notification.link.label}</span>
         )}
       </span>
     </>
@@ -191,25 +150,20 @@ export default function NotificationItem({ notification, wasUnread }: Notificati
     }
 
     return (
-      <li role="listitem">
-        <a
-          href={link.href}
-          onClick={handleClick}
-          data-testid={`notification-item-${notification.id}`}
-          className={rowClassName}
-          style={rowStyle}
-        >
-          {body}
-        </a>
-      </li>
+      <a
+        href={link.href}
+        onClick={handleClick}
+        data-testid={`notification-item-${notification.id}`}
+        className={rowClassName}
+      >
+        {body}
+      </a>
     )
   }
 
   return (
-    <li role="listitem">
-      <div data-testid={`notification-item-${notification.id}`} className={rowClassName} style={rowStyle}>
-        {body}
-      </div>
-    </li>
+    <div data-testid={`notification-item-${notification.id}`} className={rowClassName}>
+      {body}
+    </div>
   )
 }

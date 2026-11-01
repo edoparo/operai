@@ -1,4 +1,5 @@
-import { useEffect, useId, useState } from 'react'
+import { useEffect, useState } from 'react'
+import { Button, Card, PageHeader, StatePanel, StatusBadge, VisuallyHidden } from '@operai/ui'
 import DataTable from '../components/DataTable'
 import EntityBadge from '../components/EntityBadge'
 import ErrorBanner from '../components/ErrorBanner'
@@ -11,6 +12,8 @@ import { ApiError } from '../lib/api'
 import { formatDate, todayIsoDate } from '../lib/dates'
 import { formatMoney } from '../lib/money'
 import { listRules } from '../lib/rulesApi'
+import { RULE_STATE_MEANING } from '../lib/statusMeanings'
+import type { RuleState } from '../lib/statusMeanings'
 import type { Currency, Entity, Identity, Rule, RulesList } from '../lib/types'
 import { strings } from '../strings'
 
@@ -27,7 +30,7 @@ import { strings } from '../strings'
  * skeleton, `ErrorBanner` + Retry (the 503 variant for an `auth` outage),
  * `PermissionDenied` for a 403, and an empty note. The Status column says "In
  * force" (from `inForceId`, never computed here), "Scheduled" (effective date after
- * today) or "Superseded" — text with a glyph, never colour alone. After a save the
+ * today) or "Superseded" — a StatusBadge (label + icon), never colour alone. After a save the
  * section reloads (keeping the old rows on screen meanwhile), the page announces
  * "Rule added. It applies to purchases from {date}." and focus moves to the new
  * row's header cell.
@@ -53,23 +56,12 @@ type Outcome =
   | { key: string; entity: Entity; ok: false; error: unknown }
 
 function StatusCell({ rule, inForceId, today }: { rule: Rule; inForceId: string; today: string }) {
-  const t = strings.rules.status
-  const [glyph, label] =
-    rule.id === inForceId ? ['✓', t.inForce] : rule.effectiveFrom > today ? ['◷', t.scheduled] : ['–', t.superseded]
-  return (
-    <span
-      className="inline-flex items-center gap-1"
-      style={rule.id === inForceId ? { color: 'var(--grn)' } : undefined}
-    >
-      <span aria-hidden="true">{glyph}</span>
-      <span>{label}</span>
-    </span>
-  )
+  const state: RuleState = rule.id === inForceId ? 'inForce' : rule.effectiveFrom > today ? 'scheduled' : 'superseded'
+  return <StatusBadge status={RULE_STATE_MEANING[state]}>{strings.rules.status[state]}</StatusBadge>
 }
 
 function RulesSection({ entity, announce }: { entity: Entity; announce: (message: string) => void }) {
   const t = strings.rules
-  const headingId = useId()
   const entityName = strings.common.entity[entity]
   const currency = CURRENCY_OF[entity]
   const [attempt, setAttempt] = useState(0)
@@ -113,18 +105,14 @@ function RulesSection({ entity, announce }: { entity: Entity; announce: (message
   } else if (shown === null || !shown.ok) {
     content = (
       <div className="flex flex-col gap-2">
-        <p role="status" className="sr-only">
+        <VisuallyHidden live role="status">
           {t.sectionLoading(entityName)}
-        </p>
+        </VisuallyHidden>
         <SkeletonListRows />
       </div>
     )
   } else if (shown.list.rules.length === 0) {
-    content = (
-      <p className="text-sm" style={{ color: 'var(--soft)' }}>
-        {t.empty(entityName)}
-      </p>
-    )
+    content = <StatePanel title={t.empty(entityName)} />
   } else {
     const { rules, inForceId } = shown.list
     const today = todayIsoDate()
@@ -169,27 +157,23 @@ function RulesSection({ entity, announce }: { entity: Entity; announce: (message
     shown !== null && shown.ok ? (shown.list.rules.find((r) => r.id === shown.list.inForceId) ?? null) : null
 
   return (
-    <section aria-labelledby={headingId} data-testid={`rules-section-${entity}`} className="flex flex-col gap-3">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <h3
-          id={headingId}
-          className="flex items-center gap-2 text-base font-semibold"
-          style={{ fontFamily: 'var(--disp)', color: 'var(--text)' }}
-        >
+    <Card
+      data-testid={`rules-section-${entity}`}
+      title={
+        <span className="flex items-center gap-2">
           {t.sectionHeading(entityName)}
           <EntityBadge entity={entity} />
-        </h3>
-        {shown !== null && shown.ok && (
-          <button
-            type="button"
-            onClick={() => setAdding(true)}
-            className="btn btn-secondary"
-          >
+        </span>
+      }
+      action={
+        shown !== null &&
+        shown.ok && (
+          <Button onClick={() => setAdding(true)} variant="secondary" size="sm">
             {t.newRule(entityName)}
-          </button>
-        )}
-      </div>
-
+          </Button>
+        )
+      }
+    >
       {content}
 
       {adding && (
@@ -205,7 +189,7 @@ function RulesSection({ entity, announce }: { entity: Entity; announce: (message
           }}
         />
       )}
-    </section>
+    </Card>
   )
 }
 
@@ -239,18 +223,14 @@ export default function RulesPage() {
   } else if (scope.status !== 'ready' || scope.scope === null) {
     content = (
       <div className="flex flex-col gap-2">
-        <p role="status" className="sr-only">
+        <VisuallyHidden live role="status">
           {t.loading}
-        </p>
+        </VisuallyHidden>
         <SkeletonListRows />
       </div>
     )
   } else if (scope.scope.ledger.length === 0) {
-    content = (
-      <p className="text-sm" style={{ color: 'var(--soft)' }}>
-        {t.noEntity}
-      </p>
-    )
+    content = <StatePanel title={t.noEntity} />
   } else {
     content = (
       <div className="flex flex-col gap-8">
@@ -263,12 +243,10 @@ export default function RulesPage() {
 
   return (
     <section data-testid={PAGE_TEST_ID} aria-labelledby="rules-heading" className="flex flex-col gap-4">
-      <h2 id="rules-heading" className="text-lg font-semibold" style={{ fontFamily: 'var(--disp)' }}>
-        {t.heading}
-      </h2>
-      <p role="status" className="sr-only">
+      <PageHeader title={t.heading} titleId="rules-heading" className="mb-0" />
+      <VisuallyHidden live role="status">
         {statusLine}
-      </p>
+      </VisuallyHidden>
       {content}
     </section>
   )

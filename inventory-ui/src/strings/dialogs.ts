@@ -3,4 +3,8 @@
  * (specs/015-hardware-inventory/tasks.md). Created empty by T24 so that no
  * later task edits `strings.ts`; add keys here, never inline in a component.
  */
-export const dialogs = {} as const
+const en = {}
+
+const it: typeof en = {}
+
+export const dialogs = { en, it }

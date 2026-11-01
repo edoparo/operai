@@ -145,6 +145,8 @@ describe('AuditPage', () => {
     expect(screen.getByText('user_role.revoke')).not.toBeNull()
     // Null actor renders a human-readable fallback, not a blank cell.
     expect(screen.getByText('Deleted user')).not.toBeNull()
+    // INC-26: the timestamp is the library's numeric date-time (dd.mm.yyyy hh:mm, local time).
+    expect(screen.getByText(/^10\.07\.2026 \d{2}:\d{2}$/)).not.toBeNull()
 
     // Skeleton must be gone once loaded.
     expect(screen.queryByTestId('skeleton-list-rows')).toBeNull()

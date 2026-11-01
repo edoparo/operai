@@ -5,7 +5,7 @@
  * `ledger`, `invoice`, `history`). Templates with `{name}` placeholders go
  * through `fillTemplate`.
  */
-export const assetDetail = {
+const en = {
   loading: 'Loading asset',
   none: '—',
   /** Polite line after registering; the register page navigates here with `{ registeredCount: 1 }`. */
@@ -82,4 +82,81 @@ export const assetDetail = {
     conflictLink: 'View the asset that uses it',
     forbidden: 'You are not allowed to change these details.',
   },
-} as const
+}
+
+const it: typeof en = {
+  loading: 'Caricamento bene',
+  none: '—',
+  registered: 'Bene registrato.',
+  saved: 'Dettagli salvati.',
+  verified: 'Segnato come verificato.',
+
+  backToAssets: 'Torna ai beni',
+  notFound: {
+    heading: 'Bene non trovato',
+    body: 'Questo bene non esiste oppure non rientra nelle entità di propria competenza.',
+    back: 'Torna ai beni',
+  },
+
+  disposed: {
+    banner: (date: string) => `Dismesso il ${date}. Questo bene non può più essere modificato.`,
+    reason: (reason: string) => `Motivo: ${reason}`,
+  },
+
+  refreshFailed: 'Impossibile aggiornare la pagina. I dettagli riportati potrebbero non essere aggiornati.',
+
+  conflictTitle: 'Questo bene è cambiato',
+
+  facts: {
+    heading: 'Dettagli',
+    entity: 'Entità',
+    currency: 'Valuta',
+    category: 'Categoria',
+    serial: 'Numero di serie',
+    purchaseDate: 'Data di acquisto',
+    purchasePrice: 'Prezzo di acquisto',
+    holder: 'Assegnatario',
+    location: 'Ubicazione / nota',
+    supplier: 'Fornitore',
+  },
+
+  toVerify: {
+    chip: 'Da verificare',
+    hint: 'Questo bene è stato importato con dettagli da controllare.',
+    action: 'Segna come verificato',
+    acting: 'Aggiornamento…',
+    failed: 'Impossibile segnare il bene come verificato. Riprovare.',
+  },
+
+  editAction: 'Modifica dettagli',
+  editInvoiceAction: 'Modifica dati fattura',
+
+  edit: {
+    title: 'Modifica bene',
+    titleInvoice: 'Modifica dati fattura',
+    submit: 'Salva modifiche',
+    submitting: 'Salvataggio…',
+    required: 'Campo obbligatorio.',
+    entityNote: 'Entità e valuta non possono essere modificate.',
+    fields: {
+      category: 'Categoria',
+      description: 'Descrizione',
+      serial: 'Numero di serie',
+      purchaseDate: 'Data di acquisto',
+      purchasePriceIn: (currency: string) => `Prezzo di acquisto, ${currency}`,
+      supplier: 'Fornitore',
+      invoiceRef: 'Riferimento fattura',
+      location: 'Ubicazione / nota',
+    },
+    priceInvalid: 'Inserire un prezzo maggiore di 0, con al massimo due decimali.',
+    dateInvalid: 'Inserire la data di acquisto.',
+    unlinkWarning: (fileName: string) =>
+      `Salvando un riferimento fattura diverso, il file della fattura ${fileName} viene scollegato da questo bene.`,
+    yearClosedEditNoYear:
+      'Prezzo e data di acquisto non possono essere modificati perché il relativo esercizio è chiuso.',
+    conflictLink: 'Visualizza il bene che lo utilizza',
+    forbidden: 'Non si dispone dei permessi per modificare questi dettagli.',
+  },
+}
+
+export const assetDetail = { en, it }

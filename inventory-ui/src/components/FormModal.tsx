@@ -25,10 +25,14 @@
  *   - a `generalError` is a `role="alert"` above the footer;
  *   - closing returns focus to the element that had it when the dialog opened,
  *     if it is still in the page.
+ *
+ * Now a thin adapter over @operai/ui's `FormDialog` (ADR-0050), which was
+ * extracted from this component: same props, copy and data-testids
+ * (`-backdrop`, `-cancel`, `-submit`, `-error`; the × is `-close`).
  */
 
-import { useEffect, useId, useRef } from 'react'
 import type { ReactNode } from 'react'
+import { FormDialog } from '@operai/ui'
 import { strings } from '../strings'
 
 export type FormModalProps = {
@@ -55,8 +59,6 @@ export type FormModalProps = {
   testIdPrefix?: string
 }
 
-const FOCUSABLE = 'a[href], button, input, select, textarea, [tabindex]:not([tabindex="-1"])'
-
 export default function FormModal({
   title,
   description,
@@ -71,162 +73,23 @@ export default function FormModal({
   testIdPrefix = 'form-modal',
 }: FormModalProps) {
   const t = strings.common.formModal
-  const baseId = useId()
-  const titleId = `${baseId}-title`
-  const descriptionId = `${baseId}-description`
-  const dialogRef = useRef<HTMLDivElement>(null)
-  const bodyRef = useRef<HTMLFieldSetElement>(null)
-  const cancelBtnRef = useRef<HTMLButtonElement>(null)
-
-  // Remember what had focus (the trigger) and give it back on close. Declared
-  // before the focus-first-field effect so it reads the trigger, not the dialog.
-  useEffect(() => {
-    const trigger = document.activeElement
-    return () => {
-      if (trigger instanceof HTMLElement && trigger !== document.body && trigger.isConnected) trigger.focus()
-    }
-  }, [])
-
-  // Default focus: the first field (or the one marked data-autofocus), else Cancel.
-  useEffect(() => {
-    const body = bodyRef.current
-    const field =
-      body?.querySelector<HTMLElement>('[data-autofocus]:not(:disabled)') ??
-      body?.querySelector<HTMLElement>(
-        'input:not([type="hidden"]):not(:disabled), select:not(:disabled), textarea:not(:disabled)',
-      )
-    ;(field ?? cancelBtnRef.current)?.focus()
-  }, [])
-
-  // Keyboard: Escape = Cancel (unless in flight); Tab trapped over the real focusable set.
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') {
-        e.preventDefault()
-        if (!submitting) onCancel()
-        return
-      }
-
-      if (e.key !== 'Tab') return
-
-      const dialog = dialogRef.current
-      if (!dialog) return
-      const focusable = Array.from(dialog.querySelectorAll<HTMLElement>(FOCUSABLE)).filter(
-        (el) => !el.matches(':disabled') && !(el instanceof HTMLInputElement && el.type === 'hidden'),
-      )
-      if (focusable.length === 0) return
-
-      const first = focusable[0]
-      const last = focusable[focusable.length - 1]
-      const active = document.activeElement
-
-      if (!(active instanceof Node) || !dialog.contains(active)) {
-        e.preventDefault()
-        first.focus()
-      } else if (e.shiftKey) {
-        if (active === first) {
-          e.preventDefault()
-          last.focus()
-        }
-      } else if (active === last) {
-        e.preventDefault()
-        first.focus()
-      }
-    }
-
-    window.addEventListener('keydown', onKey)
-    return () => window.removeEventListener('keydown', onKey)
-  }, [onCancel, submitting])
 
   return (
-    <div
-      // The BACKDROP scrolls, not the dialog: a dialog with its own `overflow`
-      // clips anything a field pops out of it (the holder picker's listbox was
-      // cut at the dialog's bottom edge). `m-auto` on the dialog centres it and,
-      // unlike `items-center`, keeps its top reachable when it is taller than
-      // the viewport.
-      className="fixed inset-0 z-50 flex overflow-y-auto p-4 backdrop-blur-sm"
-      style={{ backgroundColor: 'rgba(0, 0, 0, 0.6)' }}
-      onClick={() => {
-        if (!submitting) onCancel()
-      }}
-      data-testid={`${testIdPrefix}-backdrop`}
+    <FormDialog
+      title={title}
+      description={description}
+      submitLabel={submitLabel ?? t.defaultSubmitLabel}
+      busyLabel={submittingLabel ?? t.defaultSubmittingLabel}
+      cancelLabel={t.cancelLabel}
+      closeLabel={t.closeAriaLabel}
+      busy={submitting}
+      canSubmit={canSubmit}
+      error={generalError}
+      onSubmit={onSubmit}
+      onCancel={onCancel}
+      testIdPrefix={testIdPrefix}
     >
-      <div
-        ref={dialogRef}
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby={titleId}
-        aria-describedby={description ? descriptionId : undefined}
-        className="border rounded-lg shadow-2xl w-full max-w-md m-auto p-5"
-        style={{ backgroundColor: 'var(--ink-soft)', borderColor: 'var(--rule)' }}
-        onClick={(e) => e.stopPropagation()}
-      >
-        <form
-          onSubmit={(e) => {
-            e.preventDefault()
-            if (canSubmit && !submitting) onSubmit()
-          }}
-        >
-          <div className="flex items-center justify-between mb-3">
-            <h2 id={titleId} className="text-sm font-bold" style={{ fontFamily: 'var(--disp)', color: 'var(--text)' }}>
-              {title}
-            </h2>
-            <button
-              type="button"
-              onClick={onCancel}
-              disabled={submitting}
-              className="btn btn-ghost btn-icon"
-              aria-label={t.closeAriaLabel}
-            >
-              ×
-            </button>
-          </div>
-
-          {description && (
-            <div id={descriptionId} className="text-xs mb-3" style={{ color: 'var(--soft)' }}>
-              {description}
-            </div>
-          )}
-
-          <fieldset ref={bodyRef} disabled={submitting} className="m-0 mb-4 flex min-w-0 flex-col gap-3 border-0 p-0">
-            {children}
-          </fieldset>
-
-          {generalError && (
-            <p
-              role="alert"
-              data-testid={`${testIdPrefix}-error`}
-              className="text-xs mb-3"
-              style={{ color: 'var(--red)' }}
-            >
-              {generalError}
-            </p>
-          )}
-
-          <div className="flex items-center justify-end gap-3">
-            <button
-              ref={cancelBtnRef}
-              type="button"
-              onClick={onCancel}
-              disabled={submitting}
-              data-testid={`${testIdPrefix}-cancel`}
-              className="btn btn-ghost"
-            >
-              {t.cancelLabel}
-            </button>
-            <button
-              type="submit"
-              disabled={!canSubmit || submitting}
-              aria-busy={submitting || undefined}
-              data-testid={`${testIdPrefix}-submit`}
-              className="btn btn-primary"
-            >
-              {submitting ? (submittingLabel ?? t.defaultSubmittingLabel) : (submitLabel ?? t.defaultSubmitLabel)}
-            </button>
-          </div>
-        </form>
-      </div>
-    </div>
+      {children}
+    </FormDialog>
   )
 }

@@ -5,9 +5,10 @@
  * tasks.md, design.md Component inventory / Accessibility → "Estimates list
  * (S6)").
  *
- * Covers: both variants render a glyph AND a text label naming the access
- * level, the glyph is aria-hidden so the visible text label alone carries
- * the accessible name ("Editor"/"Viewer"), and never color alone.
+ * Covers: both variants render an icon AND a text label naming the access
+ * level (INC-31: an SVG icon, never a Unicode glyph), the icon is
+ * aria-hidden so the visible text label alone carries the accessible name
+ * ("Editor"/"Viewer"), and never color alone.
  */
 
 import { afterEach, describe, expect, it } from 'vitest'
@@ -21,13 +22,14 @@ afterEach(() => {
 
 describe('AccessLevelBadge', () => {
   it.each([
-    ['editor', strings.sharing.dialog.levelEditor, '✎'],
-    ['viewer', strings.sharing.dialog.levelViewer, '👁'],
-  ] as const)('renders the %s variant with its glyph and label text', (level, label, glyph) => {
+    ['editor', strings.sharing.dialog.levelEditor],
+    ['viewer', strings.sharing.dialog.levelViewer],
+  ] as const)('renders the %s variant with its icon and label text', (level, label) => {
     render(<AccessLevelBadge level={level} />)
 
     const badge = screen.getByTestId('access-level-badge')
-    expect(badge.textContent).toBe(`${glyph}${label}`)
+    expect(badge.textContent).toBe(label)
+    expect(badge.querySelector('svg')).not.toBeNull()
   })
 
   it('the glyph is aria-hidden — the visible text label alone carries the accessible name', () => {
@@ -35,7 +37,8 @@ describe('AccessLevelBadge', () => {
 
     const badge = screen.getByTestId('access-level-badge')
     const glyphSpan = badge.querySelector('[aria-hidden="true"]')
-    expect(glyphSpan?.textContent).toBe('✎')
+    expect(glyphSpan?.querySelector('svg')).not.toBeNull()
+    expect(glyphSpan?.textContent).toBe('')
 
     // The label text renders outside the aria-hidden glyph span, so it is
     // exposed to assistive tech as ordinary text content (not aria-label-only).
@@ -51,7 +54,7 @@ describe('AccessLevelBadge', () => {
     const colors = (['editor', 'viewer'] as const).map((level) => {
       const { container } = render(<AccessLevelBadge level={level} />)
       const badge = container.querySelector('[data-testid="access-level-badge"]') as HTMLElement
-      const color = badge.style.color
+      const color = badge.className
       cleanup()
       return color
     })

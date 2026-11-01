@@ -1,103 +1,45 @@
 /**
- * money — `formatMoney(cents, currency)`, refund-ui's single shared
- * cents↔display formatter (T14, specs/007-refund-service/tasks.md; directly
- * answers plan.md's R7 risk: "money as cents mis-formatting in UI (off-by-100)
- * … single shared cents↔display formatter, unit-tested per currency").
+ * money — refund-ui's money display (T14, specs/007; plan.md R7: one shared
+ * cents → display formatter). INC-27: the formatting itself is the suite's
+ * `formatMoney`/`formatAmount` from `@operai/ui` (Intl, the resolved locale:
+ * `EUR 1,234.50` in English, `1234,50 EUR` in Italian); this module only
+ * keeps refund's own contract on top of it — integer cents in, a RangeError
+ * for anything else (money is not a place to guess) — and the two refund
+ * compositions (`describeApprovedAmount`, `formatRatePerKm`).
  *
- * Input is always **integer minor units** (cents/centesimi) — refund-api
- * never puts a `Decimal`/float amount on the wire (plan.md "Money handling").
- * Output format is plan.md's own literal spec ("## Money handling": "the UI
- * formats cents → `x,xx €`/`x,xx CHF`") — a COMMA decimal separator (the
- * Italian/European convention this suite's users expect), followed by the
- * currency symbol/code, space-separated. Extended (post-close change,
- * specs/007) to the full four-currency set a line's now-independent
- * `currency` field can carry — `USD`/`GBP` follow the exact same
- * comma-decimal + suffix convention as `EUR`/`CHF`, deliberately NOT the
- * `$45.50`/`£45.50` prefix convention those currencies use natively, so every
- * amount in the UI reads consistently regardless of currency.
- *
- * Deliberately NOT `Intl.NumberFormat`: that API's output depends on the
- * runtime's bundled ICU data (full-icu vs. small-icu), which differs between
- * local dev, CI, and various deploy targets — the same `cents` input could
- * render different punctuation in different environments. Formatting by
- * hand with integer arithmetic (no float division at all) is both
- * deterministic across every environment AND exactly correct for money: no
- * `cents / 100` float step exists that could ever introduce a rounding
- * artifact (e.g. `999999 / 100` in IEEE 754 double arithmetic risks
- * `9999.990000000002`-style drift for some inputs — irrelevant to display
- * here only because `toFixed(2)` would mask it, but avoiding the float step
- * entirely removes the class of bug rather than papering over it).
+ * Input is always integer minor units: refund-api never puts a float amount on
+ * the wire (ADR-0025). Parsing typed amounts is `parseDecimal`'s job
+ * (`lineDraft.ts`), never this module's.
  */
+
+import { formatAmount, formatMoney as formatMoneyIntl, formatNumber } from '@operai/ui'
+import { strings } from '../strings'
 
 export type Currency = 'EUR' | 'CHF' | 'USD' | 'GBP'
 
-const CURRENCY_SUFFIX: Record<Currency, string> = {
-  EUR: '€',
-  CHF: 'CHF',
-  USD: '$',
-  GBP: '£',
+const assertCents = (name: string, cents: number) => {
+  if (!Number.isInteger(cents)) {
+    throw new RangeError(`${name}: cents must be an integer, got ${cents}`)
+  }
 }
 
 /**
- * Formats an integer amount of minor units (cents/centesimi) as
- * `x,xx €`/`x,xx CHF` — always exactly two decimal digits, comma-separated,
- * with an explicit currency label so the value is never a bare, unitless
- * number (design.md Accessibility: "never a bare number a screen reader
- * could misread as unitless").
- *
- * `cents` must be a finite integer (refund-api's `Int` columns guarantee
- * this on the wire; a non-integer or non-finite input is a programmer error
- * and throws rather than silently rendering a wrong amount — money is not a
- * place to guess).
+ * An amount with its ISO currency code — never a bare, unitless number
+ * (design.md Accessibility).
  */
 export const formatMoney = (cents: number, currency: Currency): string => {
-  if (!Number.isInteger(cents)) {
-    throw new RangeError(`formatMoney: cents must be an integer, got ${cents}`)
-  }
-
-  const negative = cents < 0
-  const absCents = Math.abs(cents)
-  const whole = Math.trunc(absCents / 100)
-  const remainder = absCents % 100
-  const decimals = remainder.toString().padStart(2, '0')
-
-  return `${negative ? '-' : ''}${whole},${decimals} ${CURRENCY_SUFFIX[currency]}`
+  assertCents('formatMoney', cents)
+  return formatMoneyIntl(cents, currency)
 }
 
 /**
- * Formats a per-km mileage rate for display, e.g. `"0,70 CHF/km"` — mirrors
- * `formatMoney`'s comma-decimal + currency-suffix convention (specs/009-
- * mileage-rate, T12/T13/T14: a single shared formatter for both the
- * employee's live `km × rate = amount` breakdown (`MileageAmountField`, F1
- * AC-1.8) and accounting's "Rate applied" display (`ExpenseLineRow`'s
- * `summaryCore`, F4 AC-6.4), so the two surfaces always read identically.
- *
- * `ratePerKm` is `refund-api`'s own already-formatted decimal STRING
- * (plan.md "## API contracts": `GET /rates/effective` → `"ratePerKm":
- * "0.70"`; the `mileage.appliedRate.ratePerKm` line field is the same
- * shape) — this only re-punctuates it (dot → comma) and appends the
- * unit-suffixed currency; it never re-derives the value from
- * `ratePerKmMicros` itself (that division is `computeMileageAmountCents`'s
- * job, not display formatting).
- */
-/**
- * Formats minor units WITHOUT a currency label — `154,00`.
- *
- * Only for a value that sits beside one already carrying its currency, where
- * repeating it three times ("154,00 CHF (requested 180,00 CHF, −26,00 CHF)")
- * is noise. Never use it for a standalone figure: the accessibility rule this
- * module exists to enforce is that a money value is never a bare, unitless
- * number, and this deliberately breaks that on its own.
+ * Minor units WITHOUT a currency — only for a value that sits beside one
+ * already carrying its currency ("requested 180.00 · −26.00" under
+ * "CHF 154.00"). Never for a standalone figure.
  */
 export const formatMoneyAmount = (cents: number): string => {
-  if (!Number.isInteger(cents)) {
-    throw new RangeError(`formatMoneyAmount: cents must be an integer, got ${cents}`)
-  }
-  const negative = cents < 0
-  const absCents = Math.abs(cents)
-  const whole = Math.trunc(absCents / 100)
-  const decimals = (absCents % 100).toString().padStart(2, '0')
-  return `${negative ? '-' : ''}${whole},${decimals}`
+  assertCents('formatMoneyAmount', cents)
+  return formatAmount(cents)
 }
 
 /**
@@ -156,5 +98,22 @@ export const describeApprovedAmount = (
   }
 }
 
-export const formatRatePerKm = (ratePerKm: string, currency: Currency): string =>
-  `${ratePerKm.replace('.', ',')} ${CURRENCY_SUFFIX[currency]}/km`
+/**
+ * A per-km mileage rate, e.g. `CHF 0.70/km` (en) / `0,70 CHF/km` (it) — the
+ * same currency placement as `formatMoney`, so the employee's live
+ * `km × rate = amount` breakdown and accounting's "Rate applied" read alike
+ * (specs/009). `ratePerKm` is refund-api's own decimal STRING ("0.70"); its
+ * precision is kept (never rounded to two places), and the value is never
+ * re-derived from micros here — that is `computeMileageAmountCents`'s job.
+ */
+export const formatRatePerKm = (ratePerKm: string, currency: Currency): string => {
+  const decimals = ratePerKm.split('.')[1]?.length ?? 0
+  const rate = formatNumber(Number(ratePerKm), {
+    style: 'currency',
+    currency,
+    currencyDisplay: 'code',
+    minimumFractionDigits: Math.max(2, decimals),
+    maximumFractionDigits: Math.max(2, decimals),
+  }).replace(/[\u00a0\u202f]/g, ' ')
+  return strings.units.perKm(rate)
+}

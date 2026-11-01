@@ -16,6 +16,7 @@
  * against without inventing a shape T17 would have to change.
  */
 
+import { strings } from '../strings'
 import { apiFetch } from 'shell/session'
 import type { Entity } from '../components/EntityBadge'
 import type { RequestStatus } from '../components/RequestStatusBadge'
@@ -279,7 +280,7 @@ export const exportPdf = async (id: string): Promise<Blob> => {
     }
     throw new ApiError({
       type: body.type ?? `https://httpstatuses.com/${response.status}`,
-      title: body.title ?? 'Export failed',
+      title: body.title ?? strings.components.requestExportLink.genericError,
       status: response.status,
       detail: body.detail,
       instance: body.instance,

@@ -21,10 +21,13 @@
  * Presentational: all data arrives via props; the caller (../pages/UsersPage.tsx)
  * owns when this mounts/unmounts and what happens on dismiss.
  *
- * A11y: the dismiss "×" mirrors `ErrorBanner.tsx`'s existing
- * `aria-label="Dismiss"` affordance — the ONLY way this panel disappears
- * before the admin navigates away (design.md).
+ * A11y: the icon-only dismiss button (`aria-label` from strings) is the ONLY
+ * way this panel disappears before the admin navigates away (design.md).
+ * The panel is a library `Card` (INC-33) whose title is an h3 under the page's h2.
  */
+
+import { Button, Card, Icon } from '@operai/ui'
+import { strings } from '../strings'
 
 export type BulkDeleteSkipItem = {
   userId: string
@@ -53,31 +56,27 @@ export default function BulkDeleteResultPanel({
   skipped,
   onDismiss,
 }: BulkDeleteResultPanelProps) {
+  const t = strings.users.bulk
   return (
-    <div
+    <Card
       role="status"
       data-testid="bulk-delete-result-panel"
-      className="mb-4 p-4 border rounded-md"
-      style={{ borderColor: 'var(--rule)', backgroundColor: 'var(--ink-soft)' }}
-    >
-      <div className="flex items-center justify-between gap-4">
-        <h3 className="text-sm font-semibold" style={{ color: 'var(--text)' }}>
-          Bulk delete result
-        </h3>
-        <button
-          type="button"
+      className="mb-4"
+      title={t.resultTitle}
+      action={
+        <Button
+          variant="ghost"
+          iconOnly
           onClick={onDismiss}
-          aria-label="Dismiss"
+          aria-label={strings.common.actions.dismiss}
           data-testid="bulk-delete-result-dismiss"
-          className="text-base leading-none transition-opacity hover:opacity-80"
-          style={{ color: 'var(--muted)' }}
         >
-          ×
-        </button>
-      </div>
-
-      <p className="mt-1 text-sm" style={{ color: 'var(--text)' }} data-testid="bulk-delete-result-summary">
-        Deleted {deletedCount} of {totalCount} selected {totalCount === 1 ? 'user' : 'users'}.
+          <Icon name="close" />
+        </Button>
+      }
+    >
+      <p className="text-sm text-text" data-testid="bulk-delete-result-summary">
+        {t.resultSummary(deletedCount, totalCount)}
       </p>
 
       {skipped.length > 0 && (
@@ -85,15 +84,14 @@ export default function BulkDeleteResultPanel({
           {skipped.map((item) => (
             <li
               key={item.userId}
-              className="text-sm"
-              style={{ color: 'var(--org)' }}
+              className="text-sm text-org-text"
               data-testid={`bulk-delete-result-skipped-${item.userId}`}
             >
-              {item.label} — skipped: {item.reason}
+              {t.skipped(item.label, item.reason)}
             </li>
           ))}
         </ul>
       )}
-    </div>
+    </Card>
   )
 }

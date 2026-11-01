@@ -1,6 +1,6 @@
 /**
- * strings — every user-facing string of inventory-ui, English only at launch
- * (specs/015 design.md Resolutions G12/Q1). Components import `strings` and
+ * strings — every user-facing string of inventory-ui, in English and Italian
+ * (INC-24/25; specs/015 design.md Resolutions G12/Q1 shipped English first). Components import `strings` and
  * never inline copy; `lib/noHardcodedStrings.test.ts` enforces that over all of
  * `src/`.
  *
@@ -15,6 +15,7 @@
  * `actions` are as named. `common` holds shared labels and `invoice`/`ledger`
  * the asset detail regions; `notFound` the router fallback.
  */
+import { selectStrings } from '@operai/ui'
 import { actions } from './strings/actions'
 import { assetDetail } from './strings/assetDetail'
 import { assets } from './strings/assets'
@@ -36,27 +37,55 @@ import { rules } from './strings/rules'
 import { years } from './strings/years'
 import { yearDetail } from './strings/yearDetail'
 
-export const strings = {
-  actions,
-  assetDetail,
-  assets,
-  badges,
-  categories,
-  common,
-  dialogs,
-  disposalReasons,
-  empty,
-  errors,
-  history,
-  invoice,
-  ledger,
-  myDevices,
-  nav,
-  notFound,
-  register,
-  rules,
-  yearDetail,
-  years,
-} as const
+/** The English catalog: the reference every other language is checked against. */
+export const en = {
+  actions: actions.en,
+  assetDetail: assetDetail.en,
+  assets: assets.en,
+  badges: badges.en,
+  categories: categories.en,
+  common: common.en,
+  dialogs: dialogs.en,
+  disposalReasons: disposalReasons.en,
+  empty: empty.en,
+  errors: errors.en,
+  history: history.en,
+  invoice: invoice.en,
+  ledger: ledger.en,
+  myDevices: myDevices.en,
+  nav: nav.en,
+  notFound: notFound.en,
+  register: register.en,
+  rules: rules.en,
+  yearDetail: yearDetail.en,
+  years: years.en,
+}
 
-export type Strings = typeof strings
+/** The Italian catalog (INC-25): typed as the English, so a missing key does not compile. */
+export const it: typeof en = {
+  actions: actions.it,
+  assetDetail: assetDetail.it,
+  assets: assets.it,
+  badges: badges.it,
+  categories: categories.it,
+  common: common.it,
+  dialogs: dialogs.it,
+  disposalReasons: disposalReasons.it,
+  empty: empty.it,
+  errors: errors.it,
+  history: history.it,
+  invoice: invoice.it,
+  ledger: ledger.it,
+  myDevices: myDevices.it,
+  nav: nav.it,
+  notFound: notFound.it,
+  register: register.it,
+  rules: rules.it,
+  yearDetail: yearDetail.it,
+  years: years.it,
+}
+
+/** The catalog for the person's language, resolved once by @operai/ui (`resolveLocale`). */
+export const strings = selectStrings({ en, it })
+
+export type Strings = typeof en

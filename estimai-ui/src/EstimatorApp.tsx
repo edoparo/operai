@@ -9,7 +9,7 @@ import ActivityTable from './components/ActivityTable'
 import SummaryTable from './components/SummaryTable'
 import ParametersPanel from './components/ParametersPanel'
 import { pertCalc } from './hooks/useEstimator'
-import { SAVED_TOAST_MESSAGE, useEstimatorContext } from './context/EstimatorContext'
+import { useEstimatorContext } from './context/EstimatorContext'
 import { strings } from './strings'
 import { exportPdf } from './lib/pdfExport'
 import { renderGanttPng } from './lib/ganttChart'
@@ -20,11 +20,29 @@ import ShortcutsModal from './components/ShortcutsModal'
 import HealthWarningsModal from './components/HealthWarningsModal'
 import TemplatePicker from './components/TemplatePicker'
 import HelpDrawer from './components/HelpDrawer'
-import ToastBanner from './components/ToastBanner'
 import ConflictBanner from './components/ConflictBanner'
 import CollaboratorsDialog from './components/CollaboratorsDialog'
 import { formatIdentity } from './lib/identity'
 import * as estimatesApi from './lib/estimatesApi'
+import {
+  Banner,
+  Button,
+  ConfirmDialog,
+  Icon,
+  StatePanel,
+  Tabs,
+  VisuallyHidden,
+  formatDate,
+  tabPanelProps,
+  useFocusOnMount,
+} from '@operai/ui'
+import { EXPORT_LOCALE, exportCopy } from './strings/exportCopy'
+import { whole } from './lib/figures'
+
+type EditorTab = 'activities' | 'summary' | 'parameters'
+
+/** Ids of the editor's view tabs and their panels (`Tabs` + `tabPanelProps`). */
+const TABS_ID = 'estimai-editor'
 import { Analytics } from '@vercel/analytics/react'
 import { SpeedInsights } from '@vercel/speed-insights/react'
 
@@ -50,12 +68,21 @@ export default function EstimatorApp() {
   const navigate = useNavigate()
   const router = useRouter()
 
-  const [tab, setTab] = useState<'activities' | 'summary' | 'parameters'>('activities')
+  const [tab, setTab] = useState<EditorTab>('activities')
+  // INC-30: arriving on the editor (from the list, or after "Reload latest"
+  // remounts it) replaces the page, so focus moves to its h1.
+  const headingRef = useFocusOnMount<HTMLHeadingElement>()
   const [showShortcuts, setShowShortcuts] = useState(false)
   const [showHealthWarnings, setShowHealthWarnings] = useState(false)
   const [showHelp, setShowHelp] = useState(false)
   const [showCollaborators, setShowCollaborators] = useState(false)
   const [dismissedPicker, setDismissedPicker] = useState(false)
+  // Release pending deletion — confirmed in a ConfirmDialog (INC-18), never window.confirm().
+  const [releaseToDelete, setReleaseToDelete] = useState<string | null>(null)
+  // INC-19: leaving a shared estimate confirms here, where the person acted.
+  const [leftNotice, setLeftNotice] = useState(false)
+  // INC-18/20: a failed "Save as a copy" is a failed save → red Banner.
+  const [saveAsCopyError, setSaveAsCopyError] = useState<string | null>(null)
 
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
@@ -129,17 +156,17 @@ export default function EstimatorApp() {
   // cost escape hatch that never risks the server's refusal again, since it
   // creates a brand-new estimate rather than retrying the guarded PUT.
   const handleSaveAsCopy = useCallback(() => {
+    setSaveAsCopyError(null)
     void estimatesApi
       .create({ name, author, content: { params, releases, acts } })
       .then((created) => {
         navigate({ to: '/estimates/$estimateId', params: { estimateId: created.id } })
       })
       .catch((err: unknown) => {
-        // No designed inline failure state for this escape hatch (design.md
-        // leaves it unspecified) — the ConflictBanner simply stays up so the
-        // user can retry either action; logged so a real failure isn't
-        // silently invisible.
+        // The ConflictBanner stays up so the user can retry either action;
+        // the failure itself is said in a danger Banner under it (INC-20).
         console.error('Save as a copy failed:', err)
+        setSaveAsCopyError(strings.editor.saveAsCopyFailed)
       })
   }, [name, author, params, releases, acts, navigate])
 
@@ -154,61 +181,44 @@ export default function EstimatorApp() {
 
   const rnames = useMemo(() => releases.map((r) => r.name), [releases])
 
-  const handleDeleteRelease = useCallback(
-    (id: string) => {
-      const rel = releases.find((r) => r.id === id)
-      const count = acts.filter((a) => a.release === rel?.name).length
-      const label = rel?.name || 'this release'
-      const msg =
-        count > 0
-          ? `Delete "${label}" and its ${count} ${count === 1 ? 'activity' : 'activities'}?`
-          : `Delete "${label}"?`
-      if (!confirm(msg)) return
-      delRel(id)
-    },
-    [releases, acts, delRel],
-  )
+  const handleDeleteRelease = useCallback((id: string) => setReleaseToDelete(id), [])
+
+  const releaseDeleteBody = useMemo(() => {
+    if (releaseToDelete === null) return null
+    const rel = releases.find((r) => r.id === releaseToDelete)
+    const count = acts.filter((a) => a.release === rel?.name).length
+    return strings.editor.deleteReleaseBody(rel?.name || strings.editor.thisRelease, count)
+  }, [releaseToDelete, releases, acts])
 
   const warnings = useMemo(() => computeHealthWarnings(acts, releases, summary), [acts, releases, summary])
 
+  // Exports are client documents: English copy (strings/exportCopy.ts), the
+  // suite's numeric date, numeric cells left as numbers for the spreadsheet.
   const exportXLSX = useCallback(() => {
+    const x = exportCopy
     const wb = XLSX.utils.book_new()
     XLSX.utils.book_append_sheet(
       wb,
       XLSX.utils.aoa_to_sheet([
-        ['Parameter', 'Value'],
-        ['Project', name],
-        ['Author', author],
-        ['Date', new Date().toLocaleDateString()],
+        x.parameters.header,
+        [x.parameters.project, name],
+        [x.parameters.author, author],
+        [x.parameters.date, formatDate(new Date())],
         [],
-        ['Parallelism factor', params.parallelism],
-        ['Sprint duration (days)', params.sprintDays],
-        ['Working days / month', params.workingDaysMonth],
-        ['QA Deploy per release', params.qaDeployDays],
-        ['QA Test per release', params.qaTestDays],
-        ['PM overhead per release', params.pmDays],
+        [x.parameters.parallelism, params.parallelism],
+        [x.parameters.sprintDays, params.sprintDays],
+        [x.parameters.workingDaysMonth, params.workingDaysMonth],
+        [x.parameters.qaDeployDays, params.qaDeployDays],
+        [x.parameters.qaTestDays, params.qaTestDays],
+        [x.parameters.pmDays, params.pmDays],
       ]),
-      'Parameters',
+      x.sheets.parameters,
     )
     const nums = computeActivityNums(acts)
     XLSX.utils.book_append_sheet(
       wb,
       XLSX.utils.aoa_to_sheet([
-        [
-          '#',
-          'Epic',
-          'Activity',
-          'Profile',
-          'Optimistic',
-          'Most Likely',
-          'Pessimistic',
-          'PERT',
-          'Risk Buffer',
-          'Expected',
-          'AI Gain %',
-          'Notes',
-          'Release',
-        ],
+        x.detailHeader,
         ...acts.map((a) => {
           const pv = pertCalc(a.o, a.ml, a.p)
           const actGain =
@@ -232,27 +242,12 @@ export default function EstimatorApp() {
           ]
         }),
       ]),
-      'Detail',
+      x.sheets.detail,
     )
     XLSX.utils.book_append_sheet(
       wb,
       XLSX.utils.aoa_to_sheet([
-        [
-          'Release',
-          'FTE',
-          'Ind. M/D',
-          'Planning',
-          'Baseline',
-          'Elapsed Days',
-          'Total M/D',
-          'Months',
-          'Best',
-          'Worst',
-          'Range',
-          'AI Cost',
-          'AI-assisted Elapsed',
-          'Total M/D (AI)',
-        ],
+        x.summaryHeader,
         ...summary.map((s) =>
           s.res
             ? [
@@ -266,43 +261,44 @@ export default function EstimatorApp() {
                 s.res.mo,
                 s.res.best,
                 s.res.worst,
-                `${s.res.best}–${s.res.worst} days`,
+                x.daysRange(whole(s.res.best, EXPORT_LOCALE), whole(s.res.worst, EXPORT_LOCALE)),
                 s.res.aiCost,
                 s.res.aiElapsed,
                 s.res.aiTotalMD,
               ]
-            : [s.name, s.fte, ...Array(12).fill('—')],
+            : [s.name, s.fte, ...Array(12).fill(x.empty)],
         ),
         [
-          'TOTAL',
+          x.total,
           '',
-          totals.ind.toFixed(1),
+          +totals.ind.toFixed(1),
           '',
-          totals.base.toFixed(1),
+          +totals.base.toFixed(1),
           totals.el,
           totals.tm,
           totals.mo,
           totals.best,
           totals.worst,
-          `${totals.best}–${totals.worst} days`,
+          x.daysRange(whole(totals.best, EXPORT_LOCALE), whole(totals.worst, EXPORT_LOCALE)),
           totals.aiCost,
           totals.aiElapsed,
           totals.aiTotalMD,
         ],
       ]),
-      'Summary',
+      x.sheets.summary,
     )
-    XLSX.writeFile(wb, `${name.replace(/\s+/g, '_')}_estimate.xlsx`)
+    XLSX.writeFile(wb, `${name.replace(/\s+/g, '_')}_${x.fileStem}.xlsx`)
   }, [acts, summary, totals, params, name, author])
 
   const exportClient = useCallback(async () => {
     const wdm = params.workingDaysMonth || 20
     const active = summary.filter((s) => s.res)
 
+    const x = exportCopy
     const wb = new ExcelJS.Workbook()
-    wb.creator = author || 'EstimAI'
+    wb.creator = author || x.product
     wb.created = new Date()
-    const ws = wb.addWorksheet('Estimate')
+    const ws = wb.addWorksheet(x.sheets.client)
 
     // ── Column widths ──────────────────────────────────────────────────
     ws.columns = [
@@ -326,7 +322,7 @@ export default function EstimatorApp() {
     })
 
     const nameCell = ws.getCell('B1')
-    nameCell.value = name || 'Untitled'
+    nameCell.value = name || x.untitled
     nameCell.font = { bold: true, size: 12 }
     nameCell.alignment = { vertical: 'middle' }
 
@@ -338,20 +334,13 @@ export default function EstimatorApp() {
     }
 
     const dateCell = ws.getCell('E1')
-    dateCell.value = new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })
+    dateCell.value = formatDate(new Date())
     dateCell.alignment = { horizontal: 'right', vertical: 'middle' }
     dateCell.font = { size: 9, color: { argb: 'FF888888' } }
 
     // ── Table header (row 3) ───────────────────────────────────────────
-    const TABLE_HEADERS = [
-      'Release',
-      'Duration (months)',
-      'Best case (months)',
-      'Worst case (months)',
-      'Effort (man-days)',
-    ]
     const headerRow = ws.getRow(3)
-    TABLE_HEADERS.forEach((h, i) => {
+    x.clientHeader.forEach((h, i) => {
       const cell = headerRow.getCell(i + 1)
       cell.value = h
       cell.font = { bold: true, color: { argb: 'FFFFFFFF' } }
@@ -379,7 +368,7 @@ export default function EstimatorApp() {
     // ── Total row ──────────────────────────────────────────────────────
     const totalRow = ws.getRow(nextRow)
     const totalVals = [
-      'TOTAL',
+      x.total,
       +totals.mo.toFixed(1),
       +(totals.best / wdm).toFixed(1),
       +(totals.worst / wdm).toFixed(1),
@@ -416,7 +405,7 @@ export default function EstimatorApp() {
     const url = URL.createObjectURL(blob)
     const a = document.createElement('a')
     a.href = url
-    a.download = `${name.replace(/\s+/g, '_') || 'estimate'}_client.xlsx`
+    a.download = `${name.replace(/\s+/g, '_') || x.fileStem}_client.xlsx`
     a.click()
     URL.revokeObjectURL(url)
   }, [summary, totals, params, name, author])
@@ -427,6 +416,14 @@ export default function EstimatorApp() {
 
   return (
     <div className="min-h-full w-full">
+      {/* INC-30: the editor's h1. The sticky header has no room for a visible
+          title (its centre is the editable name), so the h1 is visually
+          hidden: the tool title plus the estimate's name. The views' own
+          headings (Activity detail, Release summary, Model parameters) are
+          h2s under it. */}
+      <h1 ref={headingRef} tabIndex={-1} className="visually-hidden" data-testid="estimai-editor-heading">
+        {strings.editor.heading(name)}
+      </h1>
       <Header name={name} saveStatus={saveStatus} onNameChange={setName} readOnly={readOnly} />
 
       <MetricsBar
@@ -437,34 +434,41 @@ export default function EstimatorApp() {
       />
 
       <div className="flex items-end gap-px px-5.5 pt-2.5 pb-0 border-b border-rule bg-ink-soft">
-        {(
-          [
-            ['activities', 'Activities', warnings.activityCount],
-            ['summary', 'Summary', warnings.releaseCount],
-            ['parameters', 'Parameters', 0],
-          ] as const
-        ).map(([k, l, warnCount]) => (
-          <button
-            key={k}
-            onClick={() => setTab(k)}
-            className={`py-1.75 px-3.5 rounded-t-md rounded-b-none transition-all flex items-center gap-1.5 ${
-              tab === k
-                ? 'bg-acc text-white font-medium border-b-2 border-acc'
-                : 'bg-transparent text-muted font-normal border-b-2 border-transparent'
-            }`}
-          >
-            {l}
-            {warnCount > 0 && (
-              <span
-                className={`inline-flex items-center justify-center w-4 h-4 rounded-full text-[9px] font-bold leading-none ${
-                  tab === k ? 'bg-white/20 text-white' : 'bg-org/20 text-org'
-                }`}
-              >
-                {warnCount}
+        {/* INC-30/INC-32: the three views of the SAME estimate are an in-page
+            switch → the library Tabs (a real tablist: one tab stop, arrow
+            keys, aria-selected), each view a tabpanel (tabPanelProps). */}
+        <Tabs<EditorTab>
+          label={strings.editor.tabsLabel}
+          idPrefix={TABS_ID}
+          value={tab}
+          onChange={setTab}
+          testId="estimai-editor-tabs"
+          tabs={(
+            [
+              ['activities', strings.editor.tabActivities, warnings.activityCount],
+              ['summary', strings.editor.tabSummary, warnings.releaseCount],
+              ['parameters', strings.editor.tabParameters, 0],
+            ] as const
+          ).map(([id, label, warnCount]) => ({
+            id,
+            label: (
+              <span className="inline-flex items-center gap-1.5">
+                {label}
+                {warnCount > 0 && (
+                  <>
+                    <span
+                      aria-hidden="true"
+                      className="inline-flex items-center justify-center w-4 h-4 rounded-full text-2xs font-bold leading-none bg-org/20 text-org-text"
+                    >
+                      {warnCount}
+                    </span>
+                    <VisuallyHidden>{strings.editor.tabWarnings(warnCount)}</VisuallyHidden>
+                  </>
+                )}
               </span>
-            )}
-          </button>
-        ))}
+            ),
+          }))}
+        />
         <div className="flex-1" />
         <div className="flex items-center gap-1 mb-1">
           {/* Sharing an estimate is account-based only: the owner opens
@@ -474,71 +478,62 @@ export default function EstimatorApp() {
               payload in a URL fragment + /share page) that used to sit here
               was removed on 2026-08-09 — see specs/013's US-8 amendment. */}
           {access === 'owner' ? (
-            <button
+            <Button
+              size="sm"
               onClick={() => setShowCollaborators(true)}
-              className="py-1 px-2.5 text-[11px] font-medium text-muted border border-rule hover:text-text hover:border-text/40 transition-colors flex items-center gap-1"
-              title="Manage collaborators"
+              title={strings.editor.manageCollaborators}
               aria-label={
                 collaboratorCount ? strings.sharing.toolbar.collaboratorsWithCount(collaboratorCount) : undefined
               }
               data-testid="collaborators-button"
             >
-              <span aria-hidden="true">👥</span> {strings.sharing.toolbar.collaborators}
+              <Icon name="users" />
+              {strings.sharing.toolbar.collaborators}
               {!!collaboratorCount && (
                 <span
                   aria-hidden="true"
-                  className="inline-flex items-center justify-center w-4 h-4 rounded-full text-[9px] font-bold leading-none bg-muted/20 text-muted"
+                  className="inline-flex items-center justify-center w-4 h-4 rounded-full text-2xs font-bold leading-none bg-muted/20 text-soft"
                 >
                   {collaboratorCount}
                 </span>
               )}
-            </button>
+            </Button>
           ) : (
-            <button
+            <Button
+              variant="ghost"
+              size="sm"
               onClick={() => setShowCollaborators(true)}
-              className="py-1 px-2.5 text-[11px] font-medium text-muted border border-rule rounded-full hover:text-text hover:border-text/40 transition-colors flex items-center gap-1"
-              title="View collaboration details"
+              title={strings.editor.viewCollaboration}
               data-testid="collaborators-chip"
             >
               {strings.sharing.toolbar.sharedByChip(
                 formatIdentity(owner ?? { status: 'unknown', name: null }),
                 accessLevelLabel(access),
               )}
-            </button>
+            </Button>
           )}
           <div className="w-px h-4 bg-rule mx-0.5" />
-          <button
-            onClick={exportClient}
-            className="py-1 px-2.5 text-[11px] font-medium text-acc-hi border border-acc/30 hover:border-acc hover:text-acc transition-colors flex items-center gap-1"
-            title="Clean export for the client — no internal details"
-          >
-            <span>↓</span> Client
-          </button>
-          <button
-            onClick={exportPDF}
-            className="py-1 px-2.5 text-[11px] font-medium text-muted border border-rule hover:text-text hover:border-text/40 transition-colors flex items-center gap-1"
-            title="Export PDF with summary, Gantt, and QR code"
-          >
-            <span>↓</span> PDF
-          </button>
+          <Button size="sm" onClick={exportClient} title={strings.editor.exportClientTitle}>
+            {strings.editor.exportClient}
+          </Button>
+          <Button size="sm" onClick={exportPDF} title={strings.editor.exportPdfTitle}>
+            {strings.editor.exportPdf}
+          </Button>
+          <Button size="sm" onClick={exportXLSX}>
+            {strings.editor.exportExcel}
+          </Button>
           <div className="w-px h-4 bg-rule mx-0.5" />
-          <button
-            onClick={exportXLSX}
-            className="py-1 px-2.5 text-[11px] font-medium text-muted border border-rule hover:text-text hover:border-text/40 transition-colors flex items-center gap-1"
+          <Button
+            variant="ghost"
+            size="sm"
+            iconOnly
+            onClick={() => setShowHelp(true)}
+            aria-haspopup="dialog"
+            title={strings.editor.modelReference}
+            aria-label={strings.editor.modelReference}
           >
-            <span>↓</span> Excel
-          </button>
-          <div className="w-px h-4 bg-rule mx-0.5" />
-          <button
-            onClick={() => setShowHelp((v) => !v)}
-            className={`w-6 h-6 rounded-full text-[11px] font-bold border transition-colors flex items-center justify-center ${
-              showHelp ? 'border-acc bg-acc/10 text-acc' : 'border-rule text-muted hover:border-acc/50 hover:text-acc'
-            }`}
-            title="Model reference"
-            aria-label="Model reference"
-          >
-            ?
-          </button>
+            <Icon name="help" />
+          </Button>
         </div>
       </div>
 
@@ -548,26 +543,77 @@ export default function EstimatorApp() {
           showSavedToast the moment it enters `conflict`, but the explicit
           branch here makes that exclusivity a render-time guarantee too). */}
       {conflict ? (
-        <ConflictBanner conflict={conflict} onReloadLatest={handleReloadLatest} onSaveAsCopy={handleSaveAsCopy} />
+        <>
+          <ConflictBanner conflict={conflict} onReloadLatest={handleReloadLatest} onSaveAsCopy={handleSaveAsCopy} />
+          {saveAsCopyError && (
+            <Banner
+              tone="danger"
+              className="mx-5.5 mt-2"
+              onDismiss={() => setSaveAsCopyError(null)}
+              dismissLabel={strings.editor.dismiss}
+              data-testid="save-as-copy-error"
+            >
+              {saveAsCopyError}
+            </Banner>
+          )}
+        </>
       ) : (
         <>
-          {saveError && <ToastBanner message={saveError} onDismiss={clearSaveError} />}
+          {/* Library Banner (INC-19): a failed save is red and stays until
+              dismissed; "Changes stored" is a compact success that dismisses
+              itself. Never the shell's ToastHost. */}
+          {saveError && (
+            <Banner
+              tone="danger"
+              compact
+              className="mx-5.5 mt-2"
+              onDismiss={clearSaveError}
+              dismissLabel={strings.editor.dismiss}
+              data-testid="save-error-banner"
+            >
+              {saveError}
+            </Banner>
+          )}
           {!saveError && showSavedToast && (
-            <ToastBanner tone="success" message={SAVED_TOAST_MESSAGE} onDismiss={dismissSavedToast} />
+            <Banner
+              tone="success"
+              compact
+              autoDismiss
+              className="mx-5.5 mt-2"
+              onDismiss={dismissSavedToast}
+              dismissLabel={strings.editor.dismiss}
+              data-testid="save-success-banner"
+            >
+              {strings.editor.savedToast}
+            </Banner>
+          )}
+          {leftNotice && (
+            <Banner
+              tone="success"
+              compact
+              autoDismiss
+              className="mx-5.5 mt-2"
+              onDismiss={() => setLeftNotice(false)}
+              dismissLabel={strings.editor.dismiss}
+              data-testid="left-estimate-notice"
+            >
+              {strings.sharing.dialog.leftNotice}
+            </Banner>
           )}
         </>
       )}
 
-      <main className="flex-1 p-5 px-5.5 overflow-x-auto">
+      {/* Not a <main>: the shell's layout owns the page's one main landmark (INC-29). */}
+      <div className="flex-1 p-5 px-5.5 overflow-x-auto" {...tabPanelProps(TABS_ID, tab)}>
         {tab === 'activities' &&
           (acts.length === 0 && !canEdit ? (
             // T17 (design.md S5): TemplatePicker's whole contract is content
             // creation — the wrong verb for a viewer. A small inline state
             // replaces it; no call to action, because there is none
             // available to a viewer.
-            <div className="flex flex-col items-center px-5.5 py-12 gap-8">
-              <p className="text-muted text-sm">{strings.sharing.emptyActivitiesViewer}</p>
-            </div>
+            <StatePanel title={strings.sharing.emptyActivitiesViewer.title} testId="viewer-empty-activities">
+              {strings.sharing.emptyActivitiesViewer.body}
+            </StatePanel>
           ) : acts.length === 0 && !dismissedPicker ? (
             <TemplatePicker
               onSelect={(t) => {
@@ -605,7 +651,7 @@ export default function EstimatorApp() {
           />
         )}
         {tab === 'parameters' && <ParametersPanel params={params} onUpdate={updP} readOnly={readOnly} />}
-      </main>
+      </div>
 
       {/* Shortcuts affordance, pinned to the bottom of the SCROLLPORT, not the
           viewport. It used to be `fixed bottom-0 right-0`, which anchored it to
@@ -620,16 +666,18 @@ export default function EstimatorApp() {
           anything against the viewport — that space belongs to the shell
           (ADR-0006). */}
       <footer className="sticky bottom-0 z-10 flex justify-end px-4 py-2 pointer-events-none">
-        <button
+        <Button
+          variant="ghost"
+          size="sm"
+          className="pointer-events-auto font-mono"
           onClick={() => setShowShortcuts((v) => !v)}
-          className="pointer-events-auto flex items-center gap-1.5 text-[11px] text-muted hover:text-soft transition-colors font-mono"
-          title="Keyboard shortcuts (Shift+?)"
+          title={strings.editor.shortcutsTitle}
         >
-          <kbd className="inline-flex items-center px-1 py-0.5 rounded border border-rule bg-ink-mid text-[10px] leading-none">
-            ⇧?
+          <kbd className="inline-flex items-center px-1 py-0.5 rounded border border-rule bg-ink-mid text-2xs leading-none">
+            {strings.editor.shortcutsKey}
           </kbd>
-          <span>shortcuts</span>
-        </button>
+          <span>{strings.editor.shortcuts}</span>
+        </Button>
       </footer>
 
       {showHealthWarnings && (
@@ -641,6 +689,25 @@ export default function EstimatorApp() {
           onClose={() => setShowHealthWarnings(false)}
         />
       )}
+      {releaseToDelete !== null && releaseDeleteBody !== null && (
+        <ConfirmDialog
+          title={strings.editor.deleteReleaseTitle}
+          confirmLabel={strings.confirmDelete.confirm}
+          busyLabel={strings.confirmDelete.busy}
+          cancelLabel={strings.confirmDelete.cancel}
+          closeLabel={strings.confirmDelete.close}
+          busy={false}
+          error={null}
+          onConfirm={() => {
+            delRel(releaseToDelete)
+            setReleaseToDelete(null)
+          }}
+          onCancel={() => setReleaseToDelete(null)}
+          testIdPrefix="release-delete"
+        >
+          <p>{releaseDeleteBody}</p>
+        </ConfirmDialog>
+      )}
       {showShortcuts && <ShortcutsModal onClose={() => setShowShortcuts(false)} />}
       {showHelp && <HelpDrawer onClose={() => setShowHelp(false)} />}
       {showCollaborators && (
@@ -649,6 +716,7 @@ export default function EstimatorApp() {
           access={access}
           owner={owner}
           onClose={() => setShowCollaborators(false)}
+          onLeft={() => setLeftNotice(true)}
         />
       )}
 

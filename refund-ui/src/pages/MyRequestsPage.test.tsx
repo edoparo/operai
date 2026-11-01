@@ -27,10 +27,17 @@ function pendingPromise<T>(): Promise<T> {
   return new Promise(() => {})
 }
 
-function renderMyRequestsPage() {
-  window.history.pushState(null, '', '/requests')
+function renderMyRequestsPage(initialPath = '/requests') {
+  window.history.pushState(null, '', initialPath)
   const rootRoute = createRootRoute()
-  const requestsRoute = createRoute({ getParentRoute: () => rootRoute, path: '/requests', component: MyRequestsPage })
+  const requestsRoute = createRoute({
+    getParentRoute: () => rootRoute,
+    path: '/requests',
+    component: MyRequestsPage,
+    validateSearch: (search: Record<string, unknown>): { confirmation?: string } => ({
+      confirmation: typeof search.confirmation === 'string' ? search.confirmation : undefined,
+    }),
+  })
   const newRequestRoute = createRoute({ getParentRoute: () => rootRoute, path: '/requests/new', component: () => null })
   const requestDetailRoute = createRoute({
     getParentRoute: () => rootRoute,
@@ -76,7 +83,7 @@ describe('MyRequestsPage — list states', () => {
     renderMyRequestsPage()
 
     await waitFor(() => expect(screen.getByTestId('my-requests-empty-state')).not.toBeNull())
-    // The header "+ New request" is the only CTA — no centered button in the empty state.
+    // The header "New request" is the only CTA — no centered button in the empty state.
     expect(screen.getByTestId('my-requests-new-button').getAttribute('href')).toBe('/requests/new')
     expect(screen.queryByTestId('my-requests-empty-new-button')).toBeNull()
   })
@@ -90,7 +97,7 @@ describe('MyRequestsPage — list states', () => {
     expect(screen.getByTestId(`my-requests-row-${draftItem.id}`).textContent).toContain('Draft')
     const submittedRow = screen.getByTestId(`my-requests-row-${submittedItem.id}`)
     expect(submittedRow.textContent).toContain('Awaiting decision')
-    expect(submittedRow.textContent).toContain('45,50 €')
+    expect(submittedRow.textContent).toContain('EUR 45.50')
   })
 
   it('renders each row as a link to /requests/$id', async () => {
@@ -120,7 +127,7 @@ describe('MyRequestsPage — list states', () => {
     expect(requestsApi.list).toHaveBeenCalledTimes(2)
   })
 
-  it('renders PermissionDenied on a 403, no "+ New request" button, no Retry', async () => {
+  it('renders PermissionDenied on a 403, no "New request" button, no Retry', async () => {
     vi.mocked(requestsApi.list).mockRejectedValue(
       new ApiError({ type: 'about:blank', title: 'Forbidden', status: 403, detail: 'No refund access.' }),
     )
@@ -130,5 +137,29 @@ describe('MyRequestsPage — list states', () => {
     await waitFor(() => expect(screen.getByTestId('permission-denied')).not.toBeNull())
     expect(screen.queryByTestId('my-requests-new-button')).toBeNull()
     expect(screen.queryByTestId('error-banner-retry')).toBeNull()
+  })
+})
+
+describe('MyRequestsPage — one-shot confirmation (INC-19)', () => {
+  it('announces and shows a `confirmation` search param (e.g. after deleting a draft), then strips it', async () => {
+    vi.mocked(requestsApi.list).mockResolvedValue([])
+
+    renderMyRequestsPage('/requests?confirmation=' + encodeURIComponent('Draft request deleted'))
+
+    await waitFor(() =>
+      expect(screen.getByTestId('my-requests-live-message').textContent).toBe('Draft request deleted'),
+    )
+    expect(screen.getByTestId('my-requests-confirmation').textContent).toContain('Draft request deleted')
+    await waitFor(() => expect(window.location.search).toBe(''))
+  })
+
+  it('shows no confirmation without the search param', async () => {
+    vi.mocked(requestsApi.list).mockResolvedValue([])
+
+    renderMyRequestsPage()
+
+    await waitFor(() => expect(screen.getByTestId('my-requests-empty-state')).not.toBeNull())
+    expect(screen.queryByTestId('my-requests-confirmation')).toBeNull()
+    expect(screen.getByTestId('my-requests-live-message').textContent).toBe('')
   })
 })

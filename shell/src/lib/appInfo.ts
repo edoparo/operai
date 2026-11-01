@@ -7,10 +7,13 @@
  * Centralised here so no UI copy is hardcoded in components (see project CLAUDE.md).
  */
 
+import { strings } from '../strings'
+
+/** The product name — the same in every language. */
 export const APP_NAME = 'Operai'
-export const APP_DESCRIPTION =
-  'AI-assisted software consulting toolsuite — estimation, review, retrospectives, and proposals, all in one place.'
-export const APP_TAGLINE = 'AI tools built by craftspeople, for craftspeople.'
+/** Copy, so it lives in the strings module (INC-24); re-exported here for existing callers. */
+export const APP_DESCRIPTION = strings.app.description
+export const APP_TAGLINE = strings.app.tagline
 export const APP_AUTHOR = 'wellD'
 export const APP_AUTHOR_URL = 'https://welld.ch'
 

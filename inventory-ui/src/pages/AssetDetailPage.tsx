@@ -1,4 +1,15 @@
 import { Link, useParams, useRouterState } from '@tanstack/react-router'
+import {
+  Banner,
+  Button,
+  Card,
+  FactList,
+  Icon,
+  PageHeader,
+  StatusBadge,
+  VisuallyHidden,
+  useFocusOnMount,
+} from '@operai/ui'
 import { useEffect, useRef, useState } from 'react'
 import AssetActions from '../components/AssetActions'
 import AssetStatusBadge from '../components/AssetStatusBadge'
@@ -17,6 +28,7 @@ import { ApiError } from '../lib/api'
 import { getAsset, updateAsset } from '../lib/assetsApi'
 import { formatDate } from '../lib/dates'
 import { formatMoney } from '../lib/money'
+import { TO_VERIFY_MEANING } from '../lib/statusMeanings'
 import { toInventoryError } from '../lib/types'
 import type { AssetView, Identity } from '../lib/types'
 import { strings } from '../strings'
@@ -58,28 +70,23 @@ const conflictMessage = (kind: 'asset_disposed' | 'not_found'): string =>
   kind === 'asset_disposed' ? strings.errors.asset_disposed : strings.assetDetail.notFound.body
 
 function NotFound() {
-  const headingRef = useRef<HTMLHeadingElement>(null)
-  useEffect(() => {
-    headingRef.current?.focus()
-  }, [])
+  const headingRef = useFocusOnMount<HTMLHeadingElement>()
   const t = strings.assetDetail.notFound
   return (
     <section aria-labelledby="asset-not-found-heading" data-testid="asset-not-found" className="flex flex-col gap-3">
-      <h2
-        id="asset-not-found-heading"
-        ref={headingRef}
-        tabIndex={-1}
-        className="text-lg font-semibold focus:outline-none"
-        style={{ fontFamily: 'var(--disp)' }}
-      >
-        {t.heading}
-      </h2>
-      <p className="text-sm" style={{ color: 'var(--soft)' }}>
-        {t.body}
-      </p>
-      <Link to="/assets" className="text-sm underline" style={{ color: 'var(--acc)' }}>
-        {t.back}
-      </Link>
+      <PageHeader
+        back={
+          <Link to="/assets" className="link">
+            <Icon name="arrow-left" /> {t.back}
+          </Link>
+        }
+        title={t.heading}
+        titleId="asset-not-found-heading"
+        headingRef={headingRef}
+        focusableHeading
+        description={t.body}
+        className="mb-0"
+      />
     </section>
   )
 }
@@ -214,9 +221,9 @@ export default function AssetDetailPage() {
   if (asset === null) {
     return (
       <div data-testid="inventory-asset-detail-page">
-        <p role="status" aria-live="polite" className="sr-only" data-testid="asset-loading">
+        <VisuallyHidden live role="status" data-testid="asset-loading">
           {t.loading}
-        </p>
+        </VisuallyHidden>
         <SkeletonListRows />
       </div>
     )
@@ -224,82 +231,56 @@ export default function AssetDetailPage() {
 
   const disposed = asset.status === 'disposed'
   const canEdit = !disposed && (capabilities.canManageAssets || capabilities.canManageLedger)
-  const sectionStyle = { fontFamily: 'var(--disp)', color: 'var(--text)' }
-
-  const fact = (label: string, value: string) => (
-    <div className="flex min-w-0 flex-col gap-0.5">
-      <dt className="text-xs" style={{ color: 'var(--soft)' }}>
-        {label}
-      </dt>
-      <dd className="text-sm" style={{ color: 'var(--text)', overflowWrap: 'anywhere' }}>
-        {value}
-      </dd>
-    </div>
-  )
 
   return (
     <section aria-labelledby="asset-heading" data-testid="inventory-asset-detail-page" className="flex flex-col gap-5">
-      <Link to="/assets" className="self-start text-sm underline" style={{ color: 'var(--acc)' }}>
-        {t.backToAssets}
-      </Link>
       <header data-testid="asset-header" className="flex flex-col gap-3">
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <h2
-            id="asset-heading"
-            ref={headingRef}
-            tabIndex={-1}
-            className="text-xl font-semibold focus:outline-none focus-visible:ring-2"
-            style={sectionStyle}
-          >
-            {asset.description}
-          </h2>
-          {canEdit && (
-            <button
-              type="button"
-              onClick={() => setEditing(true)}
-              className="btn btn-secondary"
-            >
-              {capabilities.canManageAssets ? t.editAction : t.editInvoiceAction}
-            </button>
-          )}
-        </div>
+        <PageHeader
+          className="mb-0"
+          back={
+            <Link to="/assets" className="link">
+              <Icon name="arrow-left" /> {t.backToAssets}
+            </Link>
+          }
+          title={asset.description}
+          titleId="asset-heading"
+          status={<AssetStatusBadge status={asset.status} />}
+          headingRef={headingRef}
+          focusableHeading
+          actions={
+            canEdit && (
+              <Button onClick={() => setEditing(true)} variant="secondary">
+                {capabilities.canManageAssets ? t.editAction : t.editInvoiceAction}
+              </Button>
+            )
+          }
+        />
         <div className="flex flex-wrap items-center gap-2">
-          <AssetStatusBadge status={asset.status} />
           <EntityBadge entity={asset.entity} />
           <CurrencyBadge currency={asset.currency} />
           {asset.toVerify && (
-            <span
-              data-testid="to-verify-chip"
-              className="inline-flex items-center gap-1 whitespace-nowrap rounded border px-1.5 py-0.5 text-[11px] font-medium"
-              style={{
-                color: 'var(--text)',
-                borderColor: 'var(--org)',
-                backgroundColor: 'color-mix(in srgb, var(--org) 10%, transparent)',
-              }}
-            >
-              <span aria-hidden="true" style={{ color: 'var(--org)' }}>
-                ⚑
-              </span>
-              <span>{t.toVerify.chip}</span>
-            </span>
+            <StatusBadge status={TO_VERIFY_MEANING} data-testid="to-verify-chip">
+              {t.toVerify.chip}
+            </StatusBadge>
           )}
         </div>
         {asset.toVerify && (
-          <div className="flex flex-wrap items-center gap-3 text-sm" style={{ color: 'var(--soft)' }}>
+          <div className="flex flex-wrap items-center gap-3 text-sm text-soft">
             <span>{t.toVerify.hint}</span>
             {capabilities.canManageAssets && !disposed && (
-              <button
+              <Button
                 type="button"
                 onClick={() => void markVerified()}
                 disabled={verifying}
                 aria-busy={verifying || undefined}
-                className="btn btn-secondary btn-sm"
+                variant="secondary"
+                size="sm"
               >
                 {verifying ? t.toVerify.acting : t.toVerify.action}
-              </button>
+              </Button>
             )}
             {verifyError && (
-              <span role="alert" data-testid="to-verify-error" style={{ color: 'var(--red)' }}>
+              <span className="text-red-text" role="alert" data-testid="to-verify-error">
                 {t.toVerify.failed}
               </span>
             )}
@@ -307,30 +288,24 @@ export default function AssetDetailPage() {
         )}
       </header>
 
-      <p role="status" aria-live="polite" data-testid="asset-status" className="sr-only">
+      <VisuallyHidden live role="status" data-testid="asset-status">
         {statusLine}
-      </p>
+      </VisuallyHidden>
 
       {notice !== null && (
-        <p
-          role="alert"
-          data-testid="asset-notice"
-          className="rounded-md border px-4 py-3 text-sm"
-          style={{ borderColor: 'var(--org)', color: 'var(--org)' }}
-        >
+        <Banner tone="warning" data-testid="asset-notice">
           {notice}
-        </p>
+        </Banner>
       )}
 
       {disposed && asset.disposal !== null && (
-        <div
+        <Banner
+          tone="info"
           data-testid="asset-disposed-banner"
-          className="flex flex-col gap-1 rounded-md border px-4 py-3 text-sm"
-          style={{ borderColor: 'var(--rule)', color: 'var(--text)' }}
+          title={t.disposed.banner(formatDate(asset.disposal.disposedOn))}
         >
-          <p>{t.disposed.banner(formatDate(asset.disposal.disposedOn))}</p>
-          <p style={{ color: 'var(--soft)' }}>{t.disposed.reason(strings.disposalReasons[asset.disposal.reason])}</p>
-        </div>
+          {t.disposed.reason(strings.disposalReasons[asset.disposal.reason])}
+        </Banner>
       )}
 
       {!disposed && (
@@ -343,20 +318,23 @@ export default function AssetDetailPage() {
         />
       )}
 
-      <section aria-labelledby="asset-facts-heading" data-testid="asset-facts" className="card">
-        <h3 id="asset-facts-heading" className="card-title">
-          {t.facts.heading}
-        </h3>
-        <dl className="grid gap-x-6 gap-y-4" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(170px, 1fr))' }}>
-          {fact(t.facts.category, strings.categories[asset.category])}
-          {fact(t.facts.serial, orDash(asset.serialNumber))}
-          {fact(t.facts.purchaseDate, formatDate(asset.purchaseDate))}
-          {fact(t.facts.purchasePrice, formatMoney(asset.purchasePriceCents, asset.currency))}
-          {fact(t.facts.holder, holderLabel(asset.holder))}
-          {fact(t.facts.location, orDash(asset.locationNote))}
-          {fact(t.facts.supplier, orDash(asset.supplier))}
-        </dl>
-      </section>
+      <Card title={t.facts.heading} data-testid="asset-facts">
+        <FactList
+          items={[
+            { id: 'category', term: t.facts.category, value: strings.categories[asset.category] },
+            { id: 'serial', term: t.facts.serial, value: orDash(asset.serialNumber) },
+            { id: 'purchaseDate', term: t.facts.purchaseDate, value: formatDate(asset.purchaseDate) },
+            {
+              id: 'purchasePrice',
+              term: t.facts.purchasePrice,
+              value: formatMoney(asset.purchasePriceCents, asset.currency),
+            },
+            { id: 'holder', term: t.facts.holder, value: holderLabel(asset.holder) },
+            { id: 'location', term: t.facts.location, value: orDash(asset.locationNote) },
+            { id: 'supplier', term: t.facts.supplier, value: orDash(asset.supplier) },
+          ]}
+        />
+      </Card>
 
       <InvoiceFilePanel
         asset={asset}

@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react'
+import { StatePanel } from '@operai/ui'
 import { strings } from '../strings'
 
 /**
@@ -17,26 +17,16 @@ import { strings } from '../strings'
  * matches none of refund-ui's five routes at all (e.g. a typo'd URL).
  */
 export default function NotFoundPage() {
-  const headingRef = useRef<HTMLHeadingElement>(null)
-
-  useEffect(() => {
-    headingRef.current?.focus()
-  }, [])
-
   return (
     <section aria-labelledby="refund-not-found-heading" data-testid="refund-not-found-page">
-      <h2
-        id="refund-not-found-heading"
-        ref={headingRef}
-        tabIndex={-1}
-        className="text-lg font-semibold outline-none"
-        style={{ fontFamily: 'var(--disp)' }}
+      <StatePanel
+        title={strings.pages.notFound.heading}
+        titleId="refund-not-found-heading"
+        headingLevel={2}
+        focusOnMount
       >
-        {strings.pages.notFound.heading}
-      </h2>
-      <p className="mt-2 text-sm" style={{ color: 'var(--soft)' }}>
         {strings.pages.notFound.body}
-      </p>
+      </StatePanel>
     </section>
   )
 }

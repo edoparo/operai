@@ -17,6 +17,15 @@
  *   - a failed load is an inline alert, and the button stays as the retry.
  */
 
+import { LoadMore as LibraryLoadMore } from '@operai/ui'
+
+/*
+ * Now a thin adapter over @operai/ui's `LoadMore` (INC-15), which was extracted
+ * from this component: same props, copy and data-testid. The library draws the
+ * failed-load message in the warning tone (`--org-text`, retryable, INC-20) and
+ * the busy button with a spinner.
+ */
+
 export type LoadMoreProps = {
   /** True while the server has a `nextCursor`. */
   hasMore: boolean
@@ -34,39 +43,6 @@ export type LoadMoreProps = {
   testId?: string
 }
 
-export default function LoadMore({
-  hasMore,
-  isLoading,
-  onLoadMore,
-  label,
-  loadingLabel,
-  announcement = '',
-  errorMessage = null,
-  testId = 'load-more',
-}: LoadMoreProps) {
-  return (
-    <div className="mt-4 flex flex-col items-center gap-2" data-testid={testId}>
-      {errorMessage && (
-        <p role="alert" className="text-sm" style={{ color: 'var(--org)' }}>
-          {errorMessage}
-        </p>
-      )}
-      {hasMore && (
-        <button
-          type="button"
-          onClick={() => {
-            if (!isLoading) onLoadMore()
-          }}
-          aria-disabled={isLoading || undefined}
-          aria-busy={isLoading || undefined}
-          className="btn btn-secondary"
-        >
-          {isLoading ? loadingLabel : label}
-        </button>
-      )}
-      <p role="status" aria-live="polite" className="sr-only">
-        {announcement}
-      </p>
-    </div>
-  )
+export default function LoadMore({ isLoading, errorMessage = null, ...rest }: LoadMoreProps) {
+  return <LibraryLoadMore loading={isLoading} error={errorMessage} {...rest} />
 }

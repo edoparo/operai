@@ -3,7 +3,7 @@
  * inventory; design.md § D1, F14, Q3 as resolved). No money copy lives here by
  * design (AC-4.2): the view shows no price, book value or entity.
  */
-export const myDevices = {
+const en = {
   heading: 'My devices',
   loading: 'Loading your devices',
 
@@ -39,4 +39,40 @@ export const myDevices = {
     confirming: 'Declining…',
     failed: 'We could not decline this device. Try again.',
   },
-} as const
+}
+
+const it: typeof en = {
+  heading: 'I miei dispositivi',
+  loading: 'Caricamento dei propri dispositivi',
+
+  pendingHeading: (count: number) => `In attesa di conferma (${count})`,
+  heldHeading: (count: number) => `Dispositivi in uso (${count})`,
+  heldEmpty: 'Nessun dispositivo in uso.',
+  empty: 'Nessun dispositivo assegnato e nessuna conferma in attesa.',
+
+  card: {
+    offered: (date: string) => `proposto il ${date}`,
+    assigned: (date: string) => `assegnato il ${date}`,
+    confirm: 'Confermo la ricezione del dispositivo',
+    confirming: 'Conferma…',
+    decline: 'Rifiuta',
+    forDevice: (description: string) => `– ${description}`,
+    confirmFailed: 'Impossibile registrare la conferma. Riprovare.',
+  },
+
+  confirmed: (description: string) => `Confermato: ${description}`,
+  declined: (description: string) => `Rifiutato: ${description}`,
+
+  noLongerOpen: "Questa assegnazione non è più aperta. L'elenco è stato aggiornato.",
+
+  declineDialog: {
+    entityLabel: 'assegnazione',
+    title: (description: string) => `Rifiutare ${description}?`,
+    body: "Il responsabile dell'inventario verrà informato che il dispositivo non è stato ricevuto. Il dispositivo torna in magazzino.",
+    confirm: 'Rifiuta dispositivo',
+    confirming: 'Rifiuto…',
+    failed: 'Impossibile rifiutare il dispositivo. Riprovare.',
+  },
+}
+
+export const myDevices = { en, it }

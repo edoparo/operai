@@ -46,14 +46,12 @@ import {
 const runId = `${Date.now()}-${Math.floor(Math.random() * 1e6)}`
 
 const ENTITY_LABEL: Record<InventoryEntity, string> = { welld_ch: 'WellD CH', welld_it: 'WellD Italia' }
-/** The ISO code, as the export prints it. */
+/** The ISO code, as the export and the UI print it (@operai/ui formatMoney shows the code, never a symbol). */
 const CURRENCY: Record<InventoryEntity, string> = { welld_ch: 'CHF', welld_it: 'EUR' }
-/** How the UI suffixes an amount (inventory-ui lib/money.ts): `€` for EUR, the code for CHF. */
-const SUFFIX: Record<InventoryEntity, string> = { welld_ch: 'CHF', welld_it: '€' }
 
-/** The suite's money format (inventory-ui lib/money.ts): `1234,56 CHF`. */
-const money = (cents: number, suffix: string) =>
-  `${cents < 0 ? '-' : ''}${Math.trunc(Math.abs(cents) / 100)},${String(Math.abs(cents) % 100).padStart(2, '0')} ${suffix}`
+/** The suite's money format in English (@operai/ui formatMoney, INC-27): `CHF 1,234.56`, `−CHF 5.00`. */
+const money = (cents: number, code: string) =>
+  `${cents < 0 ? '−' : ''}${code} ${Math.trunc(Math.abs(cents) / 100).toLocaleString('en-GB')}.${String(Math.abs(cents) % 100).padStart(2, '0')}`
 
 interface FiscalYearView {
   status: 'open' | 'closed'
@@ -161,7 +159,7 @@ test.describe('specs/015 T45: ledger journey', () => {
     const schedule = page.getByRole('table', { name: 'Depreciation schedule' })
     await expect(schedule).toBeVisible()
     await expect(schedule.getByRole('row', { name: new RegExp(`^${year}\\b`) })).toBeVisible()
-    await expect(page.getByTestId('ledger-book-value')).toContainText(SUFFIX[entity])
+    await expect(page.getByTestId('ledger-book-value')).toContainText(CURRENCY[entity])
 
     // 2. Dispose of the other asset (AC-7.x): the dialog states the consequence and needs an acknowledgement.
     await page.goto(`/inventory/assets/${sold.id}`)
@@ -216,7 +214,7 @@ test.describe('specs/015 T45: ledger journey', () => {
     expect(rf.purchasesCents).toBeGreaterThanOrEqual(120000 + 45000)
     for (const cents of Object.values(rf)) {
       await expect(page.getByRole('table', { name: /Roll-forward of fiscal year/ })).toContainText(
-        money(cents, SUFFIX[entity]),
+        money(cents, CURRENCY[entity]),
       )
     }
 

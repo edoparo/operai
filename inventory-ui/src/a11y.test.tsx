@@ -10,21 +10,18 @@
  *    every other axe rule (WCAG A/AA and best practice) stays on. Contrast is
  *    covered by check 2, which does the arithmetic from the real tokens instead.
  *    Pages that sit in the tool layout are rendered inside the real
- *    `InventoryShell` (h1, nav landmark, `<main>`); `MyDevicesPage` and the
- *    dialogs get a bare `<main>`, as the host shell provides one around them.
+ *    `InventoryShell` (h1, nav landmark), itself inside a `<main>` as the host shell
+ *    provides one around every remote (ADR-0006); `MyDevicesPage` and the dialogs
+ *    get a bare `<main>` for the same reason.
  *
  * 2. CONTRAST. The six `AssetStatusBadge` variants and the "To verify" chip (on both
- *    pages that show it) must reach 4.5:1 for their label on their 10% tint, in the
- *    light and the dark theme, and the focus ring 3:1. What each element paints is
- *    read from the RENDERED component (its label colour, its tint token, its glyph
- *    and border colour); the colour values come at test time from the shell's
- *    `tokens.css` (the single owner of the Operai palette, read-only here) and from
- *    this app's `index.css`, then the WCAG 2.x relative-luminance ratio is computed.
- *    The label is printed in `--text`, not in the status colour: the shell's status
- *    tokens miss 4.5:1 as 11px text on a tint of themselves in several themes, so the
- *    status colour is kept for the glyph, the border and the tint, and status is still
- *    carried by text + glyph + colour, never colour alone. The glyph and border are
- *    measured and printed too (WCAG 1.4.11; see the note on that describe block).
+ *    pages that show it) must reach 4.5:1 for their label on their background, in the
+ *    light and the dark theme, and the focus ring 3:1. Since INC-23 every badge is the
+ *    library's `StatusBadge`: what it paints is read from the RENDERED element (its
+ *    `.badge-<tone>` class) and resolved through the real `.badge*` rules and colour
+ *    values in @operai/ui's `tokens.css` (read-only here), then the WCAG 2.x
+ *    relative-luminance ratio is computed. Status is carried by label + icon + colour,
+ *    never colour alone (asserted too).
  */
 
 import { readFileSync } from 'node:fs'
@@ -311,10 +308,16 @@ const checkAxe = async (root: Element = document.body): Promise<Violation[]> => 
   }))
 }
 
-/** The page mounted inside the real tool layout, at the route it lives on. */
+/** The page mounted inside the real tool layout (inside the host shell's `<main>`), at the route it lives on. */
 const renderInShell = (path: string, routePath: string, page: () => React.ReactNode) => {
   const history = createMemoryHistory({ initialEntries: [path] })
-  const rootRoute = createRootRoute({ component: InventoryShell })
+  const rootRoute = createRootRoute({
+    component: () => (
+      <main>
+        <InventoryShell />
+      </main>
+    ),
+  })
   const stub = (p: string) => createRoute({ getParentRoute: () => rootRoute, path: p, component: () => <p>stub</p> })
   const routeTree = rootRoute.addChildren([
     createRoute({ getParentRoute: () => rootRoute, path: routePath, component: page }),
@@ -666,7 +669,8 @@ type Theme = 'dark' | 'light'
 type Rgb = [number, number, number]
 
 const read = (relative: string) => readFileSync(new URL(relative, import.meta.url), 'utf8')
-const TOKENS_CSS = read('../../shell/src/styles/tokens.css')
+// The suite's tokens live in @operai/ui since ADR-0050 (shell/src/styles/tokens.css only @imports them).
+const TOKENS_CSS = read('../../operai-ui/src/styles/tokens.css')
 const INDEX_CSS = read('./index.css')
 
 /** The declarations of the first rule whose selector line matches `selector`. */
@@ -683,7 +687,7 @@ const declarationsOf = (css: string, selector: RegExp): Record<string, string> =
 // Dark is the base `:root` palette; light is the explicit `[data-theme="light"]` override.
 const PALETTE: Record<Theme, Record<string, string>> = {
   dark: declarationsOf(TOKENS_CSS, /^:root\s*\{/m),
-  light: declarationsOf(TOKENS_CSS, /^\[data-theme="light"\]\s*\{/m),
+  light: declarationsOf(TOKENS_CSS, /^\[data-theme=["']light["']\]\s*\{/m),
 }
 
 const resolveToken = (theme: Theme, value: string, depth = 0): string => {
@@ -710,14 +714,12 @@ const contrast = (a: Rgb, b: Rgb) => {
   const [hi, lo] = [luminance(a), luminance(b)].sort((x, y) => y - x)
   return (hi + 0.05) / (lo + 0.05)
 }
-/** `color-mix(in srgb, fg <alpha>%, transparent)` painted over an opaque `bg`. */
+/** `color-mix(in srgb, fg <alpha>%, transparent)` (a `bg-x/<alpha>` utility) painted over an opaque `bg`. */
 const over = (fg: Rgb, bg: Rgb, alpha: number): Rgb => fg.map((value, i) => value * alpha + bg[i] * (1 - alpha)) as Rgb
 
-/** The tint every status badge and chip paints behind its label (asserted against the rendered element below). */
+/** The tint the library badge paints behind its label: `color-mix(in srgb, var(--badge-tone) 10%, transparent)`. */
 const TINT = 0.1
 const LABEL_MIN = 4.5
-/** WCAG 1.4.11: the floor for a graphical object that is required to understand the content. */
-const GRAPHIC_MIN = 3
 const RING_MIN = 3
 
 const STATUSES: readonly AssetStatus[] = ['ordered', 'in_stock', 'assigned', 'in_repair', 'lost', 'disposed']
@@ -727,28 +729,35 @@ const THEMES: readonly Theme[] = ['dark', 'light']
 const SURFACES = ['--ink', '--ink-soft'] as const
 type Surface = (typeof SURFACES)[number]
 
-/** What one rendered badge or chip paints, as theme-token names read off the real DOM. */
-type Painted = { label: string; glyph: string; border: string; tint: string }
+/** What one rendered badge or chip paints, as theme-token names: its label colour and its tint (none for `muted`). */
+type Painted = { tone: string; label: string; tinted: boolean }
 
-const tokenName = (value: string, what: string): string => {
-  const name = /^var\((--[\w-]+)\)$/.exec(value)?.[1]
-  if (name === undefined) throw new Error(`${what} is not a theme token: "${value}"`)
-  return name
+/** `var(--acc-text)` → `--acc-text`. */
+const tokenName = (value: string | undefined, what: string): string => {
+  const match = /^var\((--[\w-]+)\)$/.exec(value ?? '')
+  if (match === null) throw new Error(`${what}: expected var(--token), got "${value}"`)
+  return match[1]
 }
 
+/** The library's `.badge` rule: the neutral tone and label, which a `.badge-<tone>` rule overrides. */
+const BADGE_BASE = declarationsOf(TOKENS_CSS, /^\s*\.badge\s*\{/m)
+
+/**
+ * What a rendered badge paints, read off the real DOM and the real tokens.css (INC-23: the
+ * library `Badge` paints through its `.badge` / `.badge-<tone>` classes, which set
+ * `--badge-tone` (the tint) and `--badge-text` (the label)). Also asserts the non-colour
+ * signal: an aria-hidden icon beside the label.
+ */
 const paintedBy = (element: HTMLElement): Painted => {
-  const style = element.getAttribute('style') ?? ''
-  const mix = /color-mix\(in srgb, var\((--[\w-]+)\) (\d+)%, transparent\)/.exec(style)
-  if (mix === null) throw new Error(`no 10% token tint in: ${style}`)
-  // Mirrors TINT: if the component ever changes its tint, this fails before any ratio is trusted.
-  expect(Number(mix[2]) / 100).toBe(TINT)
-  const glyph = element.querySelector<HTMLElement>('[aria-hidden="true"]')
-  if (glyph === null) throw new Error('no glyph')
+  expect(element.classList.contains('badge')).toBe(true)
+  expect(element.getAttribute('style')).toBeNull()
+  const toneClass = Array.from(element.classList).find((name) => /^badge-[a-z]+$/.test(name))
+  const own = toneClass ? declarationsOf(TOKENS_CSS, new RegExp(`^\\s*\\.${toneClass}\\s*\\{`, 'm')) : {}
+  if (element.querySelector('[aria-hidden="true"] svg') === null) throw new Error('no icon')
   return {
-    label: tokenName(element.style.color, 'label colour'),
-    glyph: tokenName(glyph.style.color, 'glyph colour'),
-    border: tokenName(element.style.borderColor, 'border colour'),
-    tint: mix[1],
+    tone: tokenName(own['--badge-tone'] ?? BADGE_BASE['--badge-tone'], 'tone'),
+    label: tokenName(own['--badge-text'] ?? BADGE_BASE['--badge-text'], 'label'),
+    tinted: toneClass !== 'badge-muted',
   }
 }
 
@@ -776,18 +785,22 @@ const paintedChip = async (page: ChipPage): Promise<Painted> => {
   return painted
 }
 
-const tintOn = (theme: Theme, painted: Painted, surface: Surface) =>
-  over(token(theme, painted.tint), token(theme, surface), TINT)
+/** The background under the label: the 10% tint over the surface, or the bare surface for `muted`. */
+const backgroundOn = (theme: Theme, painted: Painted, surface: Surface) =>
+  painted.tinted ? over(token(theme, painted.tone), token(theme, surface), TINT) : token(theme, surface)
 const labelRatio = (theme: Theme, painted: Painted, surface: Surface) =>
-  contrast(token(theme, painted.label), tintOn(theme, painted, surface))
-const glyphRatio = (theme: Theme, painted: Painted, surface: Surface) =>
-  contrast(token(theme, painted.glyph), tintOn(theme, painted, surface))
-const borderRatio = (theme: Theme, painted: Painted, surface: Surface) =>
-  contrast(token(theme, painted.border), token(theme, surface))
+  contrast(token(theme, painted.label), backgroundOn(theme, painted, surface))
 
 const round = (value: number) => Number(value.toFixed(2))
 
-describe('contrast — label on its 10% tint (WCAG 1.4.3, >= 4.5:1), every badge variant and the To verify chip', () => {
+describe('contrast — label on its badge background (WCAG 1.4.3, >= 4.5:1), every badge variant and the To verify chip', () => {
+  it('the library badge still paints a 10% tint of its tone (the TINT this test assumes)', () => {
+    expect(TOKENS_CSS).toMatch(
+      /\.badge\s*\{[^}]*background:\s*color-mix\(in srgb, var\(--badge-tone\) 10%, transparent\)/,
+    )
+    expect(TOKENS_CSS).toMatch(/\.badge-muted\s*\{[^}]*background:\s*transparent/)
+  })
+
   it('measured ratios (printed for the report)', async () => {
     const subjects: [string, Painted][] = [
       ...STATUSES.map((status): [string, Painted] => [status, paintedBadge(status)]),
@@ -799,11 +812,9 @@ describe('contrast — label on its 10% tint (WCAG 1.4.3, >= 4.5:1), every badge
         subject,
         theme,
         label: painted.label,
+        tone: painted.tinted ? painted.tone : '(no tint)',
         labelOnInk: round(labelRatio(theme, painted, '--ink')),
         labelOnInkSoft: round(labelRatio(theme, painted, '--ink-soft')),
-        glyph: painted.glyph,
-        glyphOnTint: round(glyphRatio(theme, painted, '--ink')),
-        borderOnInk: round(borderRatio(theme, painted, '--ink')),
       })),
     )
     console.table(table)
@@ -814,9 +825,7 @@ describe('contrast — label on its 10% tint (WCAG 1.4.3, >= 4.5:1), every badge
     for (const theme of THEMES) {
       for (const surface of SURFACES) {
         it(`${status} in the ${theme} theme on ${surface} reaches ${LABEL_MIN}:1`, () => {
-          const painted = paintedBadge(status)
-          expect(painted.label).toBe('--text')
-          expect(labelRatio(theme, painted, surface)).toBeGreaterThanOrEqual(LABEL_MIN)
+          expect(labelRatio(theme, paintedBadge(status), surface)).toBeGreaterThanOrEqual(LABEL_MIN)
         })
       }
     }
@@ -826,19 +835,17 @@ describe('contrast — label on its 10% tint (WCAG 1.4.3, >= 4.5:1), every badge
     for (const theme of THEMES) {
       for (const surface of SURFACES) {
         it(`the To verify chip on ${page} in the ${theme} theme on ${surface} reaches ${LABEL_MIN}:1`, async () => {
-          const painted = await paintedChip(page)
-          expect(painted.label).toBe('--text')
-          expect(labelRatio(theme, painted, surface)).toBeGreaterThanOrEqual(LABEL_MIN)
+          expect(labelRatio(theme, await paintedChip(page), surface)).toBeGreaterThanOrEqual(LABEL_MIN)
         })
       }
     }
   }
 
-  it('is not satisfied by accident: the status colour as text WOULD miss 4.5:1 somewhere (why the label uses --text)', () => {
+  it('is not satisfied by accident: the tone itself as text WOULD miss 4.5:1 somewhere (why labels use the *-text tokens)', () => {
     const asText = STATUSES.flatMap((status) =>
       THEMES.map((theme) => {
         const painted = paintedBadge(status)
-        return contrast(token(theme, painted.glyph), tintOn(theme, painted, '--ink'))
+        return contrast(token(theme, painted.tone), backgroundOn(theme, painted, '--ink'))
       }),
     )
     expect(Math.min(...asText)).toBeLessThan(LABEL_MIN)
@@ -846,40 +853,45 @@ describe('contrast — label on its 10% tint (WCAG 1.4.3, >= 4.5:1), every badge
 })
 
 /*
- * WCAG 1.4.11 (non-text contrast, 3:1) covers graphical objects that are REQUIRED to understand the
- * content. The status glyph is not: the label printed beside it carries the same information (and
- * the glyph is aria-hidden), so it is exempt; its ratio is printed in the table above for the record
- * and is below 3:1 on the light tint for assigned / in repair / To verify (2.9). The badge border is
- * the component's visible boundary and does reach 3:1 against the page in both themes, so that one is
- * asserted and cannot regress.
+ * WCAG 1.4.1 (use of colour): no badge carries its state by colour alone. Each status maps to one
+ * meaning of the suite's dictionary (lib/statusMeanings), whose icon sits, aria-hidden, beside the
+ * label; six statuses, six meanings, six icons.
  */
-describe('contrast — the status border against the page (>= 3:1)', () => {
-  for (const status of STATUSES) {
-    for (const theme of THEMES) {
-      for (const surface of SURFACES) {
-        it(`${status} in the ${theme} theme on ${surface}`, () => {
-          expect(borderRatio(theme, paintedBadge(status), surface)).toBeGreaterThanOrEqual(GRAPHIC_MIN)
-        })
-      }
+describe('non-colour signal — every badge variant carries its own icon beside its label', () => {
+  it('six statuses render six different icons and six different labels', () => {
+    const icons = new Set<string>()
+    const labels = new Set<string>()
+    for (const status of STATUSES) {
+      const { unmount } = render(<AssetStatusBadge status={status} />)
+      const badge = screen.getByTestId('asset-status-badge')
+      icons.add(badge.querySelector('[aria-hidden="true"]')?.innerHTML ?? '')
+      labels.add(badge.textContent ?? '')
+      unmount()
     }
-  }
+    expect(icons.size).toBe(6)
+    expect(labels.size).toBe(6)
+  })
 
-  for (const theme of THEMES) {
-    for (const surface of SURFACES) {
-      it(`the To verify chip in the ${theme} theme on ${surface}`, async () => {
-        expect(borderRatio(theme, await paintedChip('AssetDetailPage'), surface)).toBeGreaterThanOrEqual(GRAPHIC_MIN)
-      })
-    }
-  }
+  it('the To verify chip carries an icon too', async () => {
+    const painted = await paintedChip('AssetDetailPage')
+    expect(painted.tinted).toBe(true)
+  })
 })
 
 describe('contrast — the focus ring (>= 3:1 against the surfaces it is drawn on)', () => {
-  const ringToken = /--focus-ring\s*:\s*([^;]+);/.exec(INDEX_CSS)?.[1].trim()
+  // The ring moved from inventory-ui's standalone index.css to the suite's
+  // tokens (INC-04), so it exists inside the shell too.
+  const ringToken = /--focus-ring\s*:\s*([^;]+);/.exec(TOKENS_CSS)?.[1].trim()
   const SURFACES = ['--ink', '--ink-soft', '--ink-mid'] as const
 
-  it('index.css declares a --focus-ring token and a :focus-visible outline that uses it', () => {
+  it('tokens.css declares a --focus-ring token and a global :focus-visible outline that uses it', () => {
     expect(ringToken).toBeDefined()
-    expect(INDEX_CSS).toMatch(/:focus-visible\s*\{[^}]*outline:[^;}]*var\(--focus-ring\)/)
+    expect(TOKENS_CSS).toMatch(/:focus-visible[^{]*\{[^}]*outline:[^;}]*var\(--focus-ring\)/)
+  })
+
+  it('index.css (standalone only) does not define a ring of its own', () => {
+    expect(INDEX_CSS).not.toMatch(/--focus-ring\s*:/)
+    expect(INDEX_CSS).not.toMatch(/:focus-visible/)
   })
 
   it('measured ratios (printed for the report)', () => {

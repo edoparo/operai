@@ -20,10 +20,8 @@
  * only real recovery is navigating away, which the still-live shell chrome
  * already allows (design.md).
  *
- * A11y: the heading receives programmatic focus on mount (`tabIndex={-1}` +
- * `ref.current?.focus()`), the same technique `ShellLayout` already uses for
- * its skip-link target and `GuardrailDialog`/`ConfirmDeleteModal` use for
- * their default-focused action — so assistive tech announces the state
+ * A11y: the library `StatePanel` (`role="alert"`, `focusOnMount`, INC-30)
+ * moves focus to the heading on mount, so assistive tech announces the state
  * immediately instead of requiring the user to explore the page to discover
  * why the screen's content disappeared. The container is `role="alert"` so
  * the announcement fires the moment this component is inserted, even before
@@ -46,49 +44,29 @@
  * case; omitted, every existing call site (`<PermissionDenied />`) is
  * unaffected.
  *
- * Styling note: colors/fonts use the shared stylesheet's plain CSS custom
- * properties (`var(--text)`, `var(--muted)`, `var(--disp)`, …) rather than
- * Tailwind's palette-specific utility classes — admin-ui's own build never
- * processes `shell/tokens.css`'s `@theme` block through Tailwind's compiler
- * (see `ConfirmDeleteModal.tsx`'s styling note). Generic layout/spacing/
- * type-scale Tailwind utilities are used freely.
  */
 
-import { useEffect, useRef } from 'react'
+import { StatePanel } from '@operai/ui'
+import { strings } from '../strings'
 
 export type PermissionDeniedProps = {
   /** Overrides the generic "If this is unexpected…" body copy. Omit for the default. */
   message?: string
+  /** 2 when it replaces a whole page (no PageHeader above it), 3 under a page's own header. */
+  headingLevel?: 2 | 3
 }
 
-export default function PermissionDenied({ message }: PermissionDeniedProps = {}) {
-  const headingRef = useRef<HTMLHeadingElement>(null)
-
-  // Focus the heading on mount — same technique ShellLayout uses for its
-  // skip-link target (design.md "Accessibility — Permission-denied /
-  // no-access states").
-  useEffect(() => {
-    headingRef.current?.focus()
-  }, [])
-
+export default function PermissionDenied({ message, headingLevel = 2 }: PermissionDeniedProps = {}) {
   return (
-    <div
+    <StatePanel
       role="alert"
-      data-testid="permission-denied"
-      className="flex flex-col items-center justify-center gap-2 px-6 py-16 text-center"
+      focusOnMount
+      headingLevel={headingLevel}
+      title={strings.common.permissionDenied.title}
+      testId="permission-denied"
+      headingTestId="permission-denied-heading"
     >
-      <h2
-        ref={headingRef}
-        tabIndex={-1}
-        data-testid="permission-denied-heading"
-        className="text-lg font-bold focus:outline-none"
-        style={{ fontFamily: 'var(--disp)', color: 'var(--text)' }}
-      >
-        You no longer have admin access.
-      </h2>
-      <p className="max-w-md text-sm leading-relaxed" style={{ color: 'var(--muted)' }}>
-        {message ?? 'If this is unexpected, contact your administrator.'}
-      </p>
-    </div>
+      {message ?? strings.common.permissionDenied.body}
+    </StatePanel>
   )
 }

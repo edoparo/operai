@@ -55,8 +55,8 @@ test.describe('MF shared React singleton holds across a real navigation cycle', 
       timeout: 15_000,
     })
 
-    await page.getByRole('link', { name: 'Refund (Rimborsi)' }).click()
-    await expect(page.getByRole('heading', { name: 'Refund (Rimborsi)' })).toBeVisible({
+    await page.getByRole('link', { name: 'Refund', exact: true }).click()
+    await expect(page.getByRole('heading', { name: 'Refund', exact: true })).toBeVisible({
       timeout: 15_000,
     })
     // Refund's App calls useSession() from the federated shell/session

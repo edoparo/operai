@@ -15,6 +15,7 @@ import {
   revalidatePermissions,
 } from './lib/session'
 import { readLastToolId, recordLastTool, resolveLastToolPath, TOOLS, type ToolId } from './lib/tools'
+import { strings } from './strings'
 
 // ---------------------------------------------------------------------------
 // Shell router — the integration keystone (T9, specs/003-suite-shell).
@@ -374,28 +375,28 @@ const estimaiRoute = createRoute({
   getParentRoute: () => shellRoute,
   path: '/estimai/$',
   beforeLoad: createToolAccessBeforeLoad('estimai'),
-  component: () => <RemoteMount loader={loadEstimaiApp} moduleLabel="EstimAI" />,
+  component: () => <RemoteMount loader={loadEstimaiApp} moduleLabel={strings.tools.estimai} />,
 })
 
 const refundRoute = createRoute({
   getParentRoute: () => shellRoute,
   path: '/refund/$',
   beforeLoad: createToolAccessBeforeLoad('refund'),
-  component: () => <RemoteMount loader={loadRefundApp} moduleLabel="Refund" />,
+  component: () => <RemoteMount loader={loadRefundApp} moduleLabel={strings.tools.refund} />,
 })
 
 const adminRoute = createRoute({
   getParentRoute: () => shellRoute,
   path: '/admin/$',
   beforeLoad: createToolAccessBeforeLoad('admin'),
-  component: () => <RemoteMount loader={loadAdminApp} moduleLabel="Admin" />,
+  component: () => <RemoteMount loader={loadAdminApp} moduleLabel={strings.tools.admin} />,
 })
 
 const inventoryRoute = createRoute({
   getParentRoute: () => shellRoute,
   path: '/inventory/$',
   beforeLoad: createToolAccessBeforeLoad('inventory'),
-  component: () => <RemoteMount loader={loadInventoryApp} moduleLabel="Inventory" />,
+  component: () => <RemoteMount loader={loadInventoryApp} moduleLabel={strings.tools.inventory} />,
 })
 
 // ---------------------------------------------------------------------------
@@ -422,7 +423,7 @@ const inventoryRoute = createRoute({
 const devicesRoute = createRoute({
   getParentRoute: () => shellRoute,
   path: '/devices',
-  component: () => <RemoteMount loader={loadMyDevices} moduleLabel="My devices" />,
+  component: () => <RemoteMount loader={loadMyDevices} moduleLabel={strings.tools.myDevices} />,
 })
 
 // ---------------------------------------------------------------------------
@@ -444,7 +445,7 @@ const devicesRoute = createRoute({
 const notifyRoute = createRoute({
   getParentRoute: () => shellRoute,
   path: '/notify/$',
-  component: () => <RemoteMount loader={loadNotifyApp} moduleLabel="Notifications" />,
+  component: () => <RemoteMount loader={loadNotifyApp} moduleLabel={strings.tools.notifications} />,
 })
 
 // ---------------------------------------------------------------------------

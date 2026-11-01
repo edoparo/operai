@@ -203,8 +203,9 @@ export type UserPatchInput = {
 // --- Effective permissions (GET /authz/me + GET /admin/users/:id/permissions) --
 
 /**
- * `GET /authz/me` response (AC-4.1) — also what `GET /admin/users/:id/permissions`
- * returns for an arbitrary user ("same shape as `/authz/me` minus identity" —
+ * `GET /admin/users/:id/permissions` response — the `GET /authz/me` shape
+ * (AC-4.1; the caller's own is read through `shell/session`'s `usePermissions()`)
+ * for an arbitrary user ("same shape as `/authz/me` minus identity" —
  * plan.md; there is no identity field in either response, the `:id` in the URL
  * is the only identity carried).
  */
@@ -413,17 +414,6 @@ const sendJson = async <T>(path: string, method: string, body: unknown): Promise
   }
   return response.json() as Promise<T>
 }
-
-// ---------------------------------------------------------------------------
-// Caller-facing
-// ---------------------------------------------------------------------------
-
-/**
- * GET /authz/me
- * The caller's own live effective permissions (AC-4.1, AC-3.3, AC-4.4).
- * Throws ApiError on 401 (no session).
- */
-export const getMe = async (): Promise<EffectivePermissions> => getJson<EffectivePermissions>('/authz/me')
 
 // ---------------------------------------------------------------------------
 // Admin — roles

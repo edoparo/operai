@@ -1,11 +1,17 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import type { FormEvent } from 'react'
 import { getRouteApi, Link } from '@tanstack/react-router'
+import { Button, Card, CheckboxGroupField, Field, Icon, PageHeader } from '@operai/ui'
 import * as adminApi from '../lib/adminApi'
 import type { DepartmentDetail as DepartmentDetailData, Role, UserSummary } from '../lib/adminApi'
 import { ApiError } from '../lib/adminApi'
 import SkeletonListRows from '../components/SkeletonListRows'
 import ErrorBanner from '../components/ErrorBanner'
+import SuccessBanner from '../components/SuccessBanner'
+import { useFlash } from '../lib/flash'
+import { strings } from '../strings'
+
+const t = strings.departments.detail
 
 /**
  * DepartmentDetail — Screen B2 (design.md "Department detail", T19,
@@ -86,6 +92,15 @@ export default function DepartmentDetail() {
   const [rolesSaving, setRolesSaving] = useState(false)
   const [rolesError, setRolesError] = useState<string | null>(null)
 
+  // --- Success feedback (INC-19) ---
+  // "created", handed over by DepartmentsPage (flash), shows under the header.
+  const [created, setCreated] = useFlash(`department:${id}`)
+  const [membersSuccess, setMembersSuccess] = useState<string | null>(null)
+  const [detailsSuccess, setDetailsSuccess] = useState<string | null>(null)
+  const [rolesSuccess, setRolesSuccess] = useState<string | null>(null)
+  const [nameError, setNameError] = useState<string | null>(null)
+  const nameInputRef = useRef<HTMLInputElement>(null)
+
   // --- Members ---
   const [membersError, setMembersError] = useState<string | null>(null)
   const [removingMemberId, setRemovingMemberId] = useState<string | null>(null)
@@ -116,7 +131,7 @@ export default function DepartmentDetail() {
       })
       .catch((error: unknown) => {
         if (!cancelled) {
-          setState({ status: 'error', message: errorMessageFor(error, 'Could not load this department.') })
+          setState({ status: 'error', message: errorMessageFor(error, t.loadError) })
         }
       })
 
@@ -139,7 +154,7 @@ export default function DepartmentDetail() {
       })
       .catch((error: unknown) => {
         if (!cancelled) {
-          setRolesCatalog({ status: 'error', message: errorMessageFor(error, 'Could not load roles.') })
+          setRolesCatalog({ status: 'error', message: errorMessageFor(error, t.rolesLoadError) })
         }
       })
 
@@ -152,6 +167,12 @@ export default function DepartmentDetail() {
 
   // --- Save name/description ---
   const handleSaveDetails = useCallback(async () => {
+    setDetailsSuccess(null)
+    if (nameDraft.trim().length === 0) {
+      setNameError(strings.common.nameRequired)
+      nameInputRef.current?.focus()
+      return
+    }
     setDetailsSaving(true)
     setDetailsError(null)
     try {
@@ -164,11 +185,12 @@ export default function DepartmentDetail() {
       )
       setNameDraft(updated.name)
       setDescriptionDraft(updated.description ?? '')
+      setDetailsSuccess(t.detailsSaved)
     } catch (error) {
       setDetailsError(
         error instanceof ApiError && error.status === 409
-          ? (error.detail ?? 'A department with this name already exists.')
-          : errorMessageFor(error, 'Could not save changes.'),
+          ? (error.detail ?? strings.departments.nameTaken)
+          : errorMessageFor(error, t.saveFailed),
       )
     } finally {
       setDetailsSaving(false)
@@ -183,21 +205,23 @@ export default function DepartmentDetail() {
   const handleSaveRoles = useCallback(async () => {
     setRolesSaving(true)
     setRolesError(null)
+    setRolesSuccess(null)
     try {
       const updated = await adminApi.putDepartmentRoles(id, selectedRoleIds)
       setState({ status: 'loaded', department: updated })
       setSelectedRoleIds(updated.roleIds)
+      setRolesSuccess(t.rolesSaved)
     } catch (error) {
       if (error instanceof ApiError && error.status === 422) {
-        setRolesError(error.detail ?? 'One or more selected roles no longer exist. Reloading roles…')
+        setRolesError(error.detail ?? t.rolesStale)
         try {
           const roles = await adminApi.listRoles()
           setRolesCatalog({ status: 'loaded', roles })
         } catch (reloadError) {
-          setRolesCatalog({ status: 'error', message: errorMessageFor(reloadError, 'Could not reload roles.') })
+          setRolesCatalog({ status: 'error', message: errorMessageFor(reloadError, t.rolesReloadFailed) })
         }
       } else {
-        setRolesError(errorMessageFor(error, 'Could not save roles.'))
+        setRolesError(errorMessageFor(error, t.rolesSaveFailed))
       }
     } finally {
       setRolesSaving(false)
@@ -214,8 +238,10 @@ export default function DepartmentDetail() {
       try {
         const updated = await adminApi.putDepartmentMembers(id, remaining)
         setState({ status: 'loaded', department: updated })
+        const removed = state.department.members.find((m) => m.id === userId)
+        setMembersSuccess(t.removed(removed?.name ?? removed?.email ?? t.memberFallback))
       } catch (error) {
-        setMembersError(errorMessageFor(error, 'Could not remove this member.'))
+        setMembersError(errorMessageFor(error, t.removeFailed))
       } finally {
         setRemovingMemberId(null)
       }
@@ -245,7 +271,7 @@ export default function DepartmentDetail() {
         setPickerStatus('loaded')
       } catch (error) {
         setPickerStatus('error')
-        setPickerMessage(errorMessageFor(error, 'Could not search users.'))
+        setPickerMessage(errorMessageFor(error, t.picker.searchFailed))
       }
     },
     [pickerQuery],
@@ -262,8 +288,9 @@ export default function DepartmentDetail() {
         const updated = await adminApi.putDepartmentMembers(id, [...currentIds, user.id])
         setState({ status: 'loaded', department: updated })
         setPickerOpen(false)
+        setMembersSuccess(t.added(user.name ?? user.email))
       } catch (error) {
-        setMembersError(errorMessageFor(error, 'Could not add this member.'))
+        setMembersError(errorMessageFor(error, t.addFailed))
       } finally {
         setAddingUserId(null)
       }
@@ -273,301 +300,255 @@ export default function DepartmentDetail() {
 
   return (
     <section aria-labelledby="department-detail-heading" data-testid="department-detail-page">
-      <Link
-        to="/departments"
-        className="text-xs font-medium hover:underline"
-        style={{ color: 'var(--soft)' }}
-        data-testid="department-detail-back-link"
-      >
-        ← Back to Departments
-      </Link>
+      <PageHeader
+        title={state.status === 'loaded' ? state.department.name : t.titleFallback}
+        titleId="department-detail-heading"
+        back={
+          <Link to="/departments" className="link" data-testid="department-detail-back-link">
+            <Icon name="arrow-left" /> {t.back}
+          </Link>
+        }
+      />
 
-      {state.status === 'loading' && (
-        <div className="mt-4">
-          <SkeletonListRows rows={3} />
-        </div>
-      )}
+      <SuccessBanner message={created} onDismiss={() => setCreated(null)} testId="department-created" className="mb-4" />
 
-      {state.status === 'error' && (
-        <div className="mt-4">
-          <ErrorBanner message={state.message} onRetry={handleRetry} />
-        </div>
-      )}
+      {state.status === 'loading' && <SkeletonListRows rows={3} />}
+
+      {state.status === 'error' && <ErrorBanner message={state.message} onRetry={handleRetry} />}
 
       {state.status === 'loaded' && (
-        <>
-          <h2
-            id="department-detail-heading"
-            className="text-lg font-semibold mt-2"
-            style={{ fontFamily: 'var(--disp)' }}
-          >
-            {state.department.name}
-          </h2>
-
+        <div className="flex flex-col gap-4">
           {/* --- Name / description --- */}
-          <div
-            className="mt-4 p-4 border rounded-md"
-            style={{ borderColor: 'var(--rule)', backgroundColor: 'var(--ink-soft)' }}
-            data-testid="department-details-section"
-          >
-            <div className="mb-3">
-              <label
-                htmlFor="department-name-input"
-                className="block text-xs font-medium mb-1"
-                style={{ color: 'var(--soft)' }}
+          <Card title={t.detailsTitle} data-testid="department-details-section">
+            <div className="flex flex-col gap-3 mb-3">
+              <Field
+                label={strings.common.fields.name}
+                required
+                error={
+                  nameError && (
+                    <span role="alert" data-testid="department-name-error">
+                      {nameError}
+                    </span>
+                  )
+                }
               >
-                Name
-              </label>
-              <input
-                id="department-name-input"
-                type="text"
-                value={nameDraft}
-                disabled={detailsSaving}
-                onChange={(e) => setNameDraft(e.target.value)}
-                className="w-full text-sm px-3 py-2 border rounded disabled:opacity-60"
-                style={{ borderColor: 'var(--rule)', backgroundColor: 'var(--ink)', color: 'var(--text)' }}
-                data-testid="department-name-input"
-              />
-            </div>
-            <div className="mb-3">
-              <label
-                htmlFor="department-description-input"
-                className="block text-xs font-medium mb-1"
-                style={{ color: 'var(--soft)' }}
-              >
-                Description
-              </label>
-              <textarea
-                id="department-description-input"
-                value={descriptionDraft}
-                disabled={detailsSaving}
-                onChange={(e) => setDescriptionDraft(e.target.value)}
-                rows={2}
-                className="w-full text-sm px-3 py-2 border rounded disabled:opacity-60"
-                style={{ borderColor: 'var(--rule)', backgroundColor: 'var(--ink)', color: 'var(--text)' }}
-                data-testid="department-description-input"
-              />
+                {(control) => (
+                  <input
+                    {...control}
+                    ref={nameInputRef}
+                    type="text"
+                    value={nameDraft}
+                    disabled={detailsSaving}
+                    onChange={(e) => {
+                      setNameError(null)
+                      setNameDraft(e.target.value)
+                    }}
+                    onBlur={() => {
+                      if (nameDraft.trim().length === 0) setNameError(strings.common.nameRequired)
+                    }}
+                    className="w-full"
+                    data-testid="department-name-input"
+                  />
+                )}
+              </Field>
+              <Field label={strings.common.fields.description}>
+                {(control) => (
+                  <textarea
+                    {...control}
+                    value={descriptionDraft}
+                    disabled={detailsSaving}
+                    onChange={(e) => setDescriptionDraft(e.target.value)}
+                    rows={2}
+                    className="w-full"
+                    data-testid="department-description-input"
+                  />
+                )}
+              </Field>
             </div>
             {detailsError && (
-              <p
-                role="alert"
-                className="text-sm mb-3"
-                style={{ color: 'var(--org)' }}
-                data-testid="department-details-error"
-              >
+              <p role="alert" className="form-error mb-3" data-testid="department-details-error">
                 {detailsError}
               </p>
             )}
-            <button
-              type="button"
+            <Button
               onClick={() => void handleSaveDetails()}
-              disabled={detailsSaving || nameDraft.trim().length === 0}
+              disabled={detailsSaving}
+              busy={detailsSaving}
               data-testid="department-save-details"
-              className="text-sm py-1.5 px-3 font-medium border transition-opacity hover:opacity-80 disabled:opacity-40 disabled:cursor-not-allowed"
-              style={{ borderColor: 'var(--acc)', color: 'var(--acc)' }}
             >
-              {detailsSaving ? 'Saving…' : 'Save details'}
-            </button>
-          </div>
+              {detailsSaving ? strings.common.actions.saving : t.saveDetails}
+            </Button>
+            <SuccessBanner
+              message={detailsSuccess}
+              onDismiss={() => setDetailsSuccess(null)}
+              testId="department-details-success"
+              className="mt-3"
+            />
+          </Card>
 
           {/* --- Roles conferred --- */}
-          <div
-            className="mt-4 p-4 border rounded-md"
-            style={{ borderColor: 'var(--rule)', backgroundColor: 'var(--ink-soft)' }}
-            data-testid="department-roles-section"
-          >
-            <h3 className="text-sm font-semibold mb-2" style={{ color: 'var(--text)' }}>
-              Roles conferred
-            </h3>
-            <p className="text-xs mb-3" style={{ color: 'var(--soft)' }}>
-              Members of this department inherit every role selected below.
-            </p>
+          <Card title={t.rolesTitle} data-testid="department-roles-section">
+            <p className="text-xs mb-3 text-soft">{t.rolesHint}</p>
 
             {rolesCatalog.status === 'loading' && <SkeletonListRows rows={2} />}
 
             {rolesCatalog.status === 'error' && <ErrorBanner message={rolesCatalog.message} onRetry={handleRetry} />}
 
             {rolesCatalog.status === 'loaded' && rolesCatalog.roles.length === 0 && (
-              <p className="text-sm" style={{ color: 'var(--soft)' }} data-testid="department-roles-empty">
-                No roles exist yet — create one in the Roles section.
+              <p className="text-sm text-soft" data-testid="department-roles-empty">
+                {t.rolesEmpty}
               </p>
             )}
 
             {rolesCatalog.status === 'loaded' && rolesCatalog.roles.length > 0 && (
-              <fieldset data-testid="department-roles-list">
-                <legend className="sr-only">Roles conferred by this department</legend>
-                <div className="flex flex-col gap-1.5">
-                  {rolesCatalog.roles.map((role) => (
-                    <label key={role.id} className="flex items-center gap-2 text-sm" style={{ color: 'var(--text)' }}>
-                      <input
-                        type="checkbox"
-                        checked={selectedRoleIds.includes(role.id)}
-                        disabled={rolesSaving}
-                        onChange={() => toggleRole(role.id)}
-                        data-testid={`role-checkbox-${role.id}`}
-                      />
-                      {role.name}
-                    </label>
-                  ))}
-                </div>
-              </fieldset>
+              <CheckboxGroupField
+                label={t.rolesLegend}
+                hideLabel
+                options={rolesCatalog.roles.map((role) => ({ id: role.id, label: role.name }))}
+                selected={selectedRoleIds}
+                onToggle={(id) => toggleRole(id)}
+                disabled={rolesSaving}
+                testId="department-roles-list"
+                optionTestIdPrefix="role-checkbox"
+              />
             )}
 
             {rolesError && (
-              <p
-                role="alert"
-                className="text-sm mt-3"
-                style={{ color: 'var(--org)' }}
-                data-testid="department-roles-error"
-              >
+              <p role="alert" className="form-error mt-3" data-testid="department-roles-error">
                 {rolesError}
               </p>
             )}
 
             {rolesCatalog.status === 'loaded' && rolesCatalog.roles.length > 0 && (
-              <button
-                type="button"
+              <Button
                 onClick={() => void handleSaveRoles()}
                 disabled={rolesSaving}
+                busy={rolesSaving}
                 data-testid="department-save-roles"
-                className="mt-3 text-sm py-1.5 px-3 font-medium border transition-opacity hover:opacity-80 disabled:opacity-40 disabled:cursor-not-allowed"
-                style={{ borderColor: 'var(--acc)', color: 'var(--acc)' }}
+                className="mt-3"
               >
-                {rolesSaving ? 'Saving…' : 'Save roles'}
-              </button>
+                {rolesSaving ? strings.common.actions.saving : t.saveRoles}
+              </Button>
             )}
-          </div>
+            <SuccessBanner
+              message={rolesSuccess}
+              onDismiss={() => setRolesSuccess(null)}
+              testId="department-roles-success"
+              className="mt-3"
+            />
+          </Card>
 
           {/* --- Members --- */}
-          <div
-            className="mt-4 p-4 border rounded-md"
-            style={{ borderColor: 'var(--rule)', backgroundColor: 'var(--ink-soft)' }}
+          <Card
+            title={t.membersTitle}
             data-testid="department-members-section"
+            action={
+              <Button size="sm" onClick={openPicker} data-testid="department-add-member-button">
+                {t.addMember}
+              </Button>
+            }
           >
-            <div className="flex items-center justify-between mb-2">
-              <h3 className="text-sm font-semibold" style={{ color: 'var(--text)' }}>
-                Members
-              </h3>
-              <button
-                type="button"
-                onClick={openPicker}
-                data-testid="department-add-member-button"
-                className="text-xs font-medium py-1 px-2 border transition-opacity hover:opacity-80"
-                style={{ borderColor: 'var(--acc)', color: 'var(--acc)' }}
-              >
-                + Add member
-              </button>
-            </div>
+            <SuccessBanner
+              message={membersSuccess}
+              onDismiss={() => setMembersSuccess(null)}
+              testId="department-members-success"
+              className="mb-2"
+            />
 
             {membersError && (
-              <p
-                role="alert"
-                className="text-sm mb-2"
-                style={{ color: 'var(--org)' }}
-                data-testid="department-members-error"
-              >
+              <p role="alert" className="form-error mb-2" data-testid="department-members-error">
                 {membersError}
               </p>
             )}
 
             {state.department.members.length === 0 ? (
-              <p className="text-sm" style={{ color: 'var(--soft)' }} data-testid="department-members-empty">
-                No members yet.
+              <p className="text-sm text-soft" data-testid="department-members-empty">
+                {t.membersEmpty}
               </p>
             ) : (
-              <ul className="flex flex-col gap-1.5" data-testid="department-members-list">
+              <ul className="flex flex-col gap-1.5" aria-label={t.membersLabel} data-testid="department-members-list">
                 {state.department.members.map((member) => (
                   <li
                     key={member.id}
                     className="flex items-center justify-between gap-3 text-sm"
                     data-testid={`department-member-${member.id}`}
                   >
-                    <span style={{ color: 'var(--text)' }}>
-                      {member.name ?? member.email} <span style={{ color: 'var(--soft)' }}>({member.email})</span>
-                    </span>
-                    <button
-                      type="button"
+                    <MemberName name={member.name ?? member.email} email={member.email} />
+                    <Button
+                      variant="danger"
+                      size="sm"
                       onClick={() => void handleRemoveMember(member.id)}
                       disabled={removingMemberId === member.id}
-                      aria-label={`Remove ${member.name ?? member.email} from this department`}
+                      busy={removingMemberId === member.id}
+                      aria-label={t.removeMember(member.name ?? member.email)}
                       data-testid={`department-remove-member-${member.id}`}
-                      className="text-xs font-medium py-1 px-2 border transition-opacity hover:opacity-80 disabled:opacity-40 disabled:cursor-not-allowed"
-                      style={{ borderColor: 'var(--rule)', color: 'var(--muted)' }}
                     >
-                      {removingMemberId === member.id ? 'Removing…' : 'Remove'}
-                    </button>
+                      {removingMemberId === member.id ? strings.common.actions.removing : strings.common.actions.remove}
+                    </Button>
                   </li>
                 ))}
               </ul>
             )}
 
             {/* --- Add-member user-search picker (inline, per design.md: "reuses
-                the Users-list search pattern, not a new pattern" — not a modal) --- */}
+                the Users-list search pattern, not a new pattern" — not a modal,
+                and not a nested card: a bordered area inside the Members card) --- */}
             {pickerOpen && (
-              <div
-                className="mt-3 p-3 border rounded-md"
-                style={{ borderColor: 'var(--rule)', backgroundColor: 'var(--ink)' }}
-                data-testid="department-member-picker"
-              >
+              <div className="mt-3 p-3 border rounded-md border-rule bg-ink" data-testid="department-member-picker">
                 <div className="flex items-center justify-between mb-2">
-                  <p className="text-xs font-medium" style={{ color: 'var(--soft)' }}>
-                    Search users by name or email
-                  </p>
-                  <button
-                    type="button"
+                  <p className="text-xs font-medium text-soft">{t.picker.hint}</p>
+                  <Button
+                    variant="ghost"
+                    iconOnly
                     onClick={closePicker}
-                    aria-label="Close user search"
+                    aria-label={t.picker.close}
                     data-testid="department-picker-close"
-                    className="text-base leading-none hover:opacity-80"
-                    style={{ color: 'var(--muted)' }}
                   >
-                    ×
-                  </button>
+                    <Icon name="close" />
+                  </Button>
                 </div>
 
                 <form onSubmit={(e) => void handlePickerSearch(e)} className="flex items-center gap-2 mb-2">
                   <label htmlFor="department-picker-query" className="sr-only">
-                    Search users
+                    {t.picker.queryLabel}
                   </label>
                   <input
                     id="department-picker-query"
                     type="text"
                     value={pickerQuery}
                     onChange={(e) => setPickerQuery(e.target.value)}
-                    className="flex-1 text-sm px-3 py-1.5 border rounded"
-                    style={{ borderColor: 'var(--rule)', backgroundColor: 'var(--ink-soft)', color: 'var(--text)' }}
+                    className="flex-1"
                     data-testid="department-picker-query-input"
                   />
-                  <button
+                  <Button
                     type="submit"
+                    size="sm"
                     disabled={pickerStatus === 'loading'}
+                    busy={pickerStatus === 'loading'}
                     data-testid="department-picker-search-button"
-                    className="text-xs font-medium py-1.5 px-2.5 border transition-opacity hover:opacity-80 disabled:opacity-40 disabled:cursor-not-allowed"
-                    style={{ borderColor: 'var(--acc)', color: 'var(--acc)' }}
                   >
-                    {pickerStatus === 'loading' ? 'Searching…' : 'Search'}
-                  </button>
+                    {pickerStatus === 'loading' ? strings.common.actions.searching : strings.common.actions.search}
+                  </Button>
                 </form>
 
                 {pickerStatus === 'error' && pickerMessage && (
-                  <p
-                    role="alert"
-                    className="text-sm"
-                    style={{ color: 'var(--org)' }}
-                    data-testid="department-picker-message"
-                  >
+                  <p role="alert" className="text-sm text-org-text" data-testid="department-picker-message">
                     {pickerMessage}
                   </p>
                 )}
 
                 {pickerStatus === 'loaded' && pickerResults.length === 0 && (
-                  <p className="text-sm" style={{ color: 'var(--soft)' }} data-testid="department-picker-empty">
-                    No users match your search.
+                  <p className="text-sm text-soft" data-testid="department-picker-empty">
+                    {t.picker.empty}
                   </p>
                 )}
 
                 {pickerStatus === 'loaded' && pickerResults.length > 0 && (
-                  <ul className="flex flex-col gap-1.5" data-testid="department-picker-results">
+                  <ul
+                    className="flex flex-col gap-1.5"
+                    aria-label={t.picker.resultsLabel}
+                    data-testid="department-picker-results"
+                  >
                     {pickerResults.map((user) => {
                       const alreadyMember = state.department.members.some((m) => m.id === user.id)
                       return (
@@ -576,19 +557,20 @@ export default function DepartmentDetail() {
                           className="flex items-center justify-between gap-3 text-sm"
                           data-testid={`department-picker-result-${user.id}`}
                         >
-                          <span style={{ color: 'var(--text)' }}>
-                            {user.name ?? user.email} <span style={{ color: 'var(--soft)' }}>({user.email})</span>
-                          </span>
-                          <button
-                            type="button"
+                          <MemberName name={user.name ?? user.email} email={user.email} />
+                          <Button
+                            size="sm"
                             onClick={() => void handleAddMember(user)}
                             disabled={alreadyMember || addingUserId === user.id}
+                            busy={addingUserId === user.id}
                             data-testid={`department-picker-add-${user.id}`}
-                            className="text-xs font-medium py-1 px-2 border transition-opacity hover:opacity-80 disabled:opacity-40 disabled:cursor-not-allowed"
-                            style={{ borderColor: 'var(--acc)', color: 'var(--acc)' }}
                           >
-                            {alreadyMember ? 'Already a member' : addingUserId === user.id ? 'Adding…' : 'Add'}
-                          </button>
+                            {alreadyMember
+                              ? t.picker.alreadyMember
+                              : addingUserId === user.id
+                                ? strings.common.actions.adding
+                                : strings.common.actions.add}
+                          </Button>
                         </li>
                       )
                     })}
@@ -596,9 +578,18 @@ export default function DepartmentDetail() {
                 )}
               </div>
             )}
-          </div>
-        </>
+          </Card>
+        </div>
       )}
     </section>
+  )
+}
+
+/** A person's name with their email beside it, muted. */
+function MemberName({ name, email }: { name: string; email: string }) {
+  return (
+    <span className="text-text">
+      {name} <span className="text-soft">({email})</span>
+    </span>
   )
 }

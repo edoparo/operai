@@ -35,15 +35,12 @@ import { createAppRouter } from './router'
  * placeholder did (ADR-0001/ADR-0006): imports `shell/tokens.css` as a
  * side-effect so the shared Operai fonts + palette CSS custom properties are
  * present regardless of whether this component runs inside the shell or
- * standalone (src/main.tsx). `RefundShell` and every page below consume that
- * palette via plain CSS custom properties (`var(--text)`, `var(--soft)`,
- * `var(--disp)`, …) rather than Tailwind's palette-specific utility classes,
- * for the same reason documented on the placeholder's original App.tsx:
- * those utilities only exist in a build that processed the tokens' `@theme`
- * block through Tailwind's compiler at BUILD time, and `shell/tokens.css` is
- * consumed here as a RUNTIME federated import that this project's own
- * Tailwind build never sees. Standard Tailwind utilities (layout/spacing/
- * type-scale) are unaffected and used freely.
+ * standalone (src/main.tsx).
+ * Colours and fonts are Tailwind token utilities (`text-soft`, `bg-ink-mid`,
+ * `font-disp`, …), the suite's one styling dialect (ADR-0051): the shell's
+ * single Tailwind sheet scans this source with the shared `@theme`, and the
+ * standalone build's index.css imports the same tokens. Never inline
+ * `var(--…)` styles; lint rejects them.
  *
  * No explicit `useSession()`/"signed in as" demonstration here (unlike the
  * T15 placeholder) — `RefundShell` mirrors `AdminShell`'s posture exactly:

@@ -40,7 +40,7 @@ describe('DataTable', () => {
     const table = screen.getByRole('table', { name: 'Assets, status in stock' })
     const caption = table.querySelector('caption')
     expect(caption?.textContent).toBe('Assets, status in stock')
-    expect(caption?.className).toContain('sr-only')
+    expect(caption?.className).toContain('visually-hidden')
   })
 
   it('renders every column header as <th scope="col"> in order', () => {
@@ -68,19 +68,17 @@ describe('DataTable', () => {
 
     const header = screen.getByRole('columnheader', { name: 'Price' })
     const cell = screen.getByRole('cell', { name: '2499,00 CHF' })
+    // The library's `is-numeric` class: right-aligned, DM Mono, tabular figures (tokens.css `.data-table`).
     for (const element of [header, cell]) {
-      expect(element.className).toContain('text-right')
+      expect(element.classList.contains('is-numeric')).toBe(true)
     }
-    expect(cell.className).toContain('tabular-nums')
-    expect(cell.getAttribute('style')).toContain('var(--mono)')
   })
 
   it('leaves non-numeric cells left-aligned and out of the mono face', () => {
     renderTable()
 
     const rowHeader = screen.getByRole('rowheader', { name: 'MacBook Pro 14' })
-    expect(rowHeader.className).not.toContain('text-right')
-    expect(rowHeader.getAttribute('style') ?? '').not.toContain('var(--mono)')
+    expect(rowHeader.classList.contains('is-numeric')).toBe(false)
   })
 
   it('wraps the table in a keyboard-focusable, labelled scroll region', () => {
@@ -88,7 +86,7 @@ describe('DataTable', () => {
 
     const region = screen.getByRole('region', { name: 'Assets, status in stock' })
     expect(region.getAttribute('tabindex')).toBe('0')
-    expect(region.className).toContain('overflow-x-auto')
+    expect(region.className).toContain('table-region')
     expect(within(region).getByRole('table')).not.toBeNull()
   })
 

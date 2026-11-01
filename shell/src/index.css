@@ -16,3 +16,7 @@
 @source "../../refund-ui/src";
 @source "../../admin-ui/src";
 @source "../../inventory-ui/src";
+@source "../../notify-ui/src";
+/* The shared component library (ADR-0050). Its components render only the
+   classes in its tokens.css, but a page may compose them with utilities. */
+@source "../../operai-ui/src";

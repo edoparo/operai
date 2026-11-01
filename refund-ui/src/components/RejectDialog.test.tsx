@@ -31,7 +31,7 @@ describe('RejectDialog', () => {
 
     const dialog = screen.getByRole('alertdialog')
     expect(dialog.getAttribute('aria-modal')).toBe('true')
-    expect(dialog.getAttribute('aria-labelledby')).toBe('reject-dialog-title')
+    expect(document.getElementById(dialog.getAttribute('aria-labelledby')!)?.textContent).toBe('Reject this request?')
     expect(dialog.getAttribute('aria-describedby')).toBe('reject-dialog-body')
     expect(screen.getByText(/Alice is notified immediately/)).not.toBeNull()
   })
@@ -70,7 +70,9 @@ describe('RejectDialog', () => {
     expect(onConfirm).not.toHaveBeenCalled()
   })
 
-  it('traps Tab focus across [textarea, Cancel, Confirm] once Confirm is enabled', () => {
+  // The library trap covers every enabled control; the header's × is the
+  // first stop and the textarea the second.
+  it('traps Tab focus across [×, textarea, Cancel, Confirm] once Confirm is enabled', () => {
     render(<RejectDialog {...baseProps} />)
 
     fireEvent.change(screen.getByTestId('reject-dialog-motivation'), { target: { value: 'Missing receipt.' } })
@@ -79,13 +81,16 @@ describe('RejectDialog', () => {
     const cancelBtn = screen.getByTestId('reject-dialog-cancel')
     const confirmBtn = screen.getByTestId('reject-dialog-confirm')
 
+    const closeBtn = screen.getByTestId('reject-dialog-close')
+
     confirmBtn.focus()
     fireEvent.keyDown(window, { key: 'Tab' })
-    expect(document.activeElement).toBe(textarea)
+    expect(document.activeElement).toBe(closeBtn)
 
-    textarea.focus()
+    closeBtn.focus()
     fireEvent.keyDown(window, { key: 'Tab', shiftKey: true })
     expect(document.activeElement).toBe(confirmBtn)
+    void textarea
 
     void cancelBtn
   })

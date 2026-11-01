@@ -202,6 +202,47 @@ describe('NewRuleDialog — validation before any request (AC-6.4)', () => {
     expect(createRule).not.toHaveBeenCalled()
     expect(screen.getByText('Choose the first-year share.')).toBeTruthy()
   })
+
+  it('moves focus to the first invalid field after a failed Confirm (INC-16)', async () => {
+    submitWith(() => {
+      type(/Useful life/, '0')
+      type(/Residual value/, '-5')
+    })
+
+    await waitFor(() => expect(document.activeElement).toBe(screen.getByLabelText(/Useful life/)))
+  })
+
+  it('focuses the first radio of the share group when the share is the first invalid field', async () => {
+    renderDialog()
+    type(/Effective from/, '2027-01-01')
+    type(/Useful life/, '3')
+    type(/Residual value/, '1')
+    acknowledge()
+    fireEvent.click(confirm())
+
+    await waitFor(() => expect(document.activeElement).toBe(screen.getByRole('radio', { name: 'Full' })))
+  })
+
+  it('checks a changed field when it loses focus', () => {
+    renderDialog()
+    type(/Residual value/, '1.234')
+    const residual = screen.getByLabelText(/Residual value/)
+    fireEvent.blur(residual)
+
+    expect(residual.getAttribute('aria-invalid')).toBe('true')
+    expect(createRule).not.toHaveBeenCalled()
+  })
+
+  it('marks required fields with aria-required and "*", the optional threshold with neither, and no label says (required)', () => {
+    renderDialog()
+
+    for (const label of [/Effective from/, /Useful life/, /Residual value/]) {
+      expect(screen.getByLabelText(label).getAttribute('aria-required')).toBe('true')
+    }
+    expect(screen.getByRole('radiogroup', { name: 'First-year share' }).getAttribute('aria-required')).toBe('true')
+    expect(screen.getByLabelText(/Low-value threshold/).getAttribute('aria-required')).toBeNull()
+    expect(screen.getByRole('alertdialog').textContent).not.toMatch(/\((required|optional)\)/)
+  })
 })
 
 describe('NewRuleDialog — server errors (AC-6.3, AC-6.4)', () => {

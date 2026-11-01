@@ -97,11 +97,11 @@ async function whenListLoaded(page: Page, action: () => Promise<unknown>): Promi
   await listLoaded
 }
 
-/** Creates a brand-new estimate via the "+ New estimate" → blank-template path, names it, adds one activity, and waits for the first autosave to land. Returns the estimate id. */
+/** Creates a brand-new estimate via the "New estimate" → blank-template path, names it, adds one activity, and waits for the first autosave to land. Returns the estimate id. */
 async function createNamedEstimate(page: Page, name: string, activityName: string): Promise<string> {
   await whenListLoaded(page, () => page.goto('/estimai/estimates'))
 
-  const newBtn = page.getByRole('button', { name: '+ New estimate' })
+  const newBtn = page.getByRole('button', { name: 'New estimate' })
   await expect(newBtn, 'New estimate button must be visible').toBeVisible({ timeout: 15_000 })
   await newBtn.click()
 
@@ -281,7 +281,7 @@ test.describe('specs/013-estimate-sharing T25: headline journeys', () => {
     await ownerPage.getByLabel('Close').click()
 
     // ─── Collaborator (now editor, next request per AC-5.1): saves successfully ──
-    await whenListLoaded(collabPage, () => collabPage.getByRole('button', { name: 'My Estimates' }).first().click())
+    await whenListLoaded(collabPage, () => collabPage.getByRole('link', { name: 'Back to estimates' }).first().click())
     await expect(collabPage).toHaveURL(/\/estimai\/estimates$/, { timeout: 10_000 })
 
     const sharedRowAsEditor = collabPage.getByTestId('estimate-row-shared').filter({ hasText: estimateName })
@@ -323,7 +323,7 @@ test.describe('specs/013-estimate-sharing T25: headline journeys', () => {
     await ownerPage.getByLabel('Close').click()
 
     // ─── Collaborator: the estimate disappears from their list (AC-5.2) ─────
-    await whenListLoaded(collabPage, () => collabPage.getByRole('button', { name: 'My Estimates' }).first().click())
+    await whenListLoaded(collabPage, () => collabPage.getByRole('link', { name: 'Back to estimates' }).first().click())
     await expect(collabPage).toHaveURL(/\/estimai\/estimates$/, { timeout: 10_000 })
     await expect(
       collabPage.getByTestId('estimate-row-shared').filter({ hasText: estimateName }),
@@ -337,7 +337,7 @@ test.describe('specs/013-estimate-sharing T25: headline journeys', () => {
     expect(directGetAfterRevoke.status, 'Revoked collaborator\'s GET must 404 (AC-1.6 denial taxonomy)').toBe(404)
 
     // ─── Cleanup: owner deletes the estimate ─────────────────────────────────
-    await whenListLoaded(ownerPage, () => ownerPage.getByRole('button', { name: 'My Estimates' }).first().click())
+    await whenListLoaded(ownerPage, () => ownerPage.getByRole('link', { name: 'Back to estimates' }).first().click())
     await expect(ownerPage).toHaveURL(/\/estimai\/estimates$/, { timeout: 10_000 })
     // The editor's save step above renamed the estimate, so match on the
     // Delete button's fixed prefix rather than the original `estimateName`.
@@ -423,9 +423,10 @@ test.describe('specs/013-estimate-sharing T25: headline journeys', () => {
     await expect(banner).toHaveAttribute('role', 'alert')
     await expect(banner.getByRole('button', { name: 'Reload latest' })).toBeVisible()
     await expect(banner.getByRole('button', { name: 'Save as a copy instead' })).toBeVisible()
-    // Never a dismiss "×" on this banner (design.md — it must not be
-    // "fixable" by adding one back later).
-    await expect(banner.getByRole('button', { name: '×' })).toHaveCount(0)
+    // Never a dismiss/close control on this banner (design.md — it must not be
+    // "fixable" by adding one back later). Close buttons are icon-only with an
+    // accessible name now (INC-31), so look for that name, not a "×" glyph.
+    await expect(banner.getByRole('button', { name: /^(close|dismiss)$/i })).toHaveCount(0)
 
     // Header's 4th save-status state makes the suppression visible.
     await expect(tab2.getByText('Not saving — reload to continue')).toBeVisible({ timeout: 5_000 })
@@ -452,7 +453,7 @@ test.describe('specs/013-estimate-sharing T25: headline journeys', () => {
 
     // ─── Cleanup ──────────────────────────────────────────────────────────────
     await tab1.bringToFront()
-    await whenListLoaded(tab1, () => tab1.getByRole('button', { name: 'My Estimates' }).first().click())
+    await whenListLoaded(tab1, () => tab1.getByRole('link', { name: 'Back to estimates' }).first().click())
     await expect(tab1).toHaveURL(/\/estimai\/estimates$/, { timeout: 10_000 })
     const deleteBtn = tab1.getByRole('button', { name: /^Delete "/ })
     if (await deleteBtn.count()) {

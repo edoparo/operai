@@ -9,8 +9,8 @@
  * badge shows the entity ONLY (see `EntityBadge.tsx`'s doc comment and
  * `CurrencyBadge.test.tsx` for the currency chip's own coverage).
  *
- * Covers: both variants render a glyph AND a text label naming the entity,
- * never color-only.
+ * Covers: both variants render a text label naming the entity, never
+ * color-only, and no flag emoji.
  */
 
 import { afterEach, describe, expect, it } from 'vitest'
@@ -23,33 +23,33 @@ afterEach(() => {
 
 describe('EntityBadge', () => {
   it.each([
-    ['welld_it', 'WellD Italia', '🇮🇹'],
-    ['welld_ch', 'WellD CH', '🇨🇭'],
-  ] as const)('renders the %s variant with its glyph and entity-name label, no currency', (entity, label, glyph) => {
+    ['welld_it', 'WellD Italia'],
+    ['welld_ch', 'WellD CH'],
+  ] as const)('renders the %s variant with its entity-name label, no currency', (entity, label) => {
     render(<EntityBadge entity={entity} />)
 
     const badge = screen.getByTestId('entity-badge')
-    expect(badge.textContent).toBe(`${glyph}${label}`)
+    expect(badge.textContent).toBe(label)
     expect(badge.textContent).not.toMatch(/EUR|CHF|USD|GBP/)
   })
 
-  it('the glyph is aria-hidden (label text alone carries the accessible name)', () => {
+  it('carries no flag emoji or other glyph (flags do not render on Windows, INC-23)', () => {
     render(<EntityBadge entity="welld_ch" />)
 
     const badge = screen.getByTestId('entity-badge')
-    const glyphSpan = badge.querySelector('[aria-hidden="true"]')
-    expect(glyphSpan?.textContent).toBe('🇨🇭')
+    expect(badge.querySelector('[aria-hidden="true"]')).toBeNull()
+    expect(badge.textContent).not.toMatch(/\p{Extended_Pictographic}|\p{Regional_Indicator}/u)
   })
 
   // This used to assert TWO distinct colours. An entity is neutral metadata —
   // it is not good, not actionable, just true — so one shared neutral is the
-  // point now, and the flag glyph plus entity name tell the variants apart
+  // point now, and the entity name tells the variants apart
   // (ConditionChip's precedent: several kinds, one colour).
   it('renders both variants in the same neutral colour', () => {
     const colors = (['welld_it', 'welld_ch'] as const).map((entity) => {
       const { container } = render(<EntityBadge entity={entity} />)
       const badge = container.querySelector('[data-testid="entity-badge"]') as HTMLElement
-      const color = badge.style.color
+      const color = badge.className
       cleanup()
       return color
     })
@@ -64,8 +64,8 @@ describe('EntityBadge', () => {
     for (const entity of ['welld_it', 'welld_ch'] as const) {
       const { container } = render(<EntityBadge entity={entity} />)
       const badge = container.querySelector('[data-testid="entity-badge"]') as HTMLElement
-      expect(badge.style.color).not.toContain('--grn')
-      expect(badge.style.color).not.toContain('--acc')
+      expect(badge.className).not.toContain('badge-success')
+      expect(badge.className).not.toContain('badge-accent')
       cleanup()
     }
   })

@@ -1,5 +1,6 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
-import { getRouteApi, useNavigate } from '@tanstack/react-router'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { getRouteApi, useNavigate, Link } from '@tanstack/react-router'
+import { Button, Card, Field, Icon, PageHeader } from '@operai/ui'
 import * as adminApi from '../lib/adminApi'
 import type {
   AttributeCondition,
@@ -21,7 +22,12 @@ import GuardrailDialog from '../components/GuardrailDialog'
 import PermissionDenied from '../components/PermissionDenied'
 import SystemBadge from '../components/SystemBadge'
 import ConditionChip from '../components/ConditionChip'
+import SuccessBanner from '../components/SuccessBanner'
+import { setFlash, useFlash } from '../lib/flash'
 import type { ConditionChipKind } from '../components/ConditionChip'
+import { strings } from '../strings'
+
+const t = strings.roles.editor
 
 /**
  * RoleEditor — Screen A2 (Role editor / rule builder, "the hardest screen"
@@ -62,18 +68,8 @@ import type { ConditionChipKind } from '../components/ConditionChip'
 
 const route = getRouteApi('/roles/$id')
 
-const ATTRIBUTE_LABELS: Record<AttributeConditionKey, string> = {
-  entity: 'Entity',
-  department: 'Department',
-  jobTitle: 'Job title',
-  'self-approval': 'Self-approval restriction',
-}
+const ATTRIBUTE_LABELS: Record<AttributeConditionKey, string> = t.attributeLabels
 
-// The affirmative "scope to the actor's own attribute" group (match:"user").
-// Deliberately does NOT include 'self-approval' (specs/010, ADR-0026) — that
-// condition is the opposite polarity (match:"deny") and gets its own,
-// independent composer toggle (AC-1.1), never folded into this checkbox
-// group or its chip presentation (AC-1.4).
 const ATTRIBUTE_KEYS: AttributeConditionKey[] = ['entity', 'department', 'jobTitle']
 
 /** The self-approval condition's catalog key (specs/010-self-approval-control, ADR-0026). */
@@ -83,16 +79,7 @@ const SELF_APPROVAL_KEY: AttributeConditionKey = 'self-approval'
 // same house pattern SystemBadge / disabled buttons use). An attribute
 // condition SCOPES the grant to records matching the user's own attribute
 // value instead of granting it globally.
-const ATTRIBUTE_HELP: Record<AttributeConditionKey, string> = {
-  entity:
-    "Scope this permission to the user's own entity (e.g. WellD CH or WellD Italia). Checked: they can act only on records matching their entity — for a refund request, one whose lines include their entity. Unchecked: it applies to every entity. A user with no entity set matches nothing.",
-  department:
-    "Scope this permission to the user's own department. Checked: they can act only on records matching their department. Unchecked: it applies regardless of department. A user with no department set matches nothing.",
-  jobTitle:
-    "Scope this permission to the user's own job title. Checked: they can act only on records matching their job title. Unchecked: it applies regardless of job title. A user with no job title set matches nothing.",
-  'self-approval':
-    'Segregation of duties: when checked, a user holding this role cannot approve a refund request they themselves submitted — the attempt is denied even if every other condition on this rule would otherwise allow it. Unchecked: self-approval is permitted, as today.',
-}
+const ATTRIBUTE_HELP: Record<AttributeConditionKey, string> = t.attributeHelp
 
 const humanizeAppId = (appId: string): string =>
   appId.length === 0 ? appId : appId.charAt(0).toUpperCase() + appId.slice(1)
@@ -195,6 +182,12 @@ export default function RoleEditor() {
   const [deleteError, setDeleteError] = useState<string | null>(null)
   const [guardrail, setGuardrail] = useState<{ title: string; message: string } | null>(null)
 
+  // INC-19: "created" (handed over by RolesPage), then each save's confirmation.
+  const [created, setCreated] = useFlash(`role:${id}`)
+  const [headerSuccess, setHeaderSuccess] = useState<string | null>(null)
+  const [rulesSuccess, setRulesSuccess] = useState<string | null>(null)
+  const nameInputRef = useRef<HTMLInputElement>(null)
+
   // --- Fetch role ---
   useEffect(() => {
     let cancelled = false
@@ -214,7 +207,7 @@ export default function RoleEditor() {
         if (error instanceof ApiError && error.status === 403) {
           setRoleState({ status: 'forbidden' })
         } else {
-          setRoleState({ status: 'error', message: errorMessageFor(error, 'Could not load this role.') })
+          setRoleState({ status: 'error', message: errorMessageFor(error, t.loadError) })
         }
       })
 
@@ -242,7 +235,7 @@ export default function RoleEditor() {
         } else {
           setCatalogState({
             status: 'error',
-            message: errorMessageFor(error, 'Could not load the permission catalog.'),
+            message: errorMessageFor(error, t.catalogLoadError),
           })
         }
       })
@@ -266,6 +259,12 @@ export default function RoleEditor() {
 
   const handleSaveHeader = useCallback(async () => {
     if (!headerEdit) return
+    setHeaderSuccess(null)
+    if (headerEdit.name.trim() === '') {
+      setHeaderSave({ saving: false, nameError: strings.common.nameRequired, generalError: null })
+      nameInputRef.current?.focus()
+      return
+    }
     setHeaderSave({ saving: true, nameError: null, generalError: null })
     try {
       const updated = await adminApi.patchRole(id, {
@@ -277,15 +276,16 @@ export default function RoleEditor() {
       )
       setHeaderEdit({ name: updated.name, description: updated.description ?? '' })
       setHeaderSave({ saving: false, nameError: null, generalError: null })
+      setHeaderSuccess(t.detailsSaved)
     } catch (error) {
       if (error instanceof ApiError && error.status === 409) {
         setHeaderSave({
           saving: false,
-          nameError: error.detail ?? 'A role with this name already exists.',
+          nameError: error.detail ?? strings.roles.nameTaken,
           generalError: null,
         })
       } else {
-        setHeaderSave({ saving: false, nameError: null, generalError: 'Could not save changes. Try again.' })
+        setHeaderSave({ saving: false, nameError: null, generalError: t.saveFailed })
       }
     }
   }, [headerEdit, id])
@@ -296,17 +296,19 @@ export default function RoleEditor() {
     setDeleteError(null)
     try {
       await adminApi.deleteRole(id)
+      // INC-19: the roles list this returns to confirms the delete.
+      setFlash('roles', roleState.status === 'loaded' ? strings.roles.deleted(roleState.role.name) : strings.roles.deletedFallback)
       navigate({ to: '/roles' })
     } catch (error) {
       setDeleting(false)
       if (error instanceof ApiError && error.status === 422) {
         setDeleteModalOpen(false)
-        setGuardrail({ title: "Can't delete a system role", message: error.detail ?? "System roles can't be deleted." })
+        setGuardrail({ title: t.systemRoleTitle, message: error.detail ?? t.systemRoleMessage })
       } else {
-        setDeleteError('Delete failed. Try again.')
+        setDeleteError(strings.common.deleteFailed)
       }
     }
-  }, [id, navigate])
+  }, [id, navigate, roleState])
 
   // --- Rule composer ---
   const catalog = catalogState.status === 'loaded' ? catalogState.catalog : null
@@ -343,7 +345,7 @@ export default function RoleEditor() {
       ownership: 'any',
       attributes: new Set(),
       selfApproval: false,
-      statusMessage: 'Action reset. Choose an action to see its available conditions.',
+      statusMessage: t.actionReset,
     }))
   }, [])
 
@@ -351,7 +353,7 @@ export default function RoleEditor() {
     (value: string) => {
       const supported: ConditionType[] =
         selectedResource?.actions.find((a) => a.key === value)?.supportedConditions ?? []
-      const labels = supported.map((c) => (c === 'ownership' ? 'ownership' : ATTRIBUTE_LABELS[c].toLowerCase()))
+      const labels = supported.map((c) => (c === 'ownership' ? t.ownershipCondition : ATTRIBUTE_LABELS[c].toLowerCase()))
       setComposer((prev) => ({
         ...prev,
         actionKey: value || null,
@@ -359,7 +361,7 @@ export default function RoleEditor() {
         attributes: new Set(),
         selfApproval: false,
         statusMessage:
-          labels.length > 0 ? `Conditions available: ${labels.join(', ')}.` : 'This action has no conditions.',
+          labels.length > 0 ? t.conditionsAvailable(labels.join(', ')) : t.noConditions,
       }))
     },
     [selectedResource],
@@ -432,18 +434,17 @@ export default function RoleEditor() {
   const handleSaveRules = useCallback(async () => {
     if (!draftRules) return
     setSaveRulesState({ saving: true, error: null })
+    setRulesSuccess(null)
     try {
       const updated = await adminApi.putRoleRules(id, draftRules)
       setRoleState({ status: 'loaded', role: updated })
       setDraftRules(updated.rules)
       setSaveRulesState({ saving: false, error: null })
+      setRulesSuccess(t.rulesSaved)
     } catch (error) {
       setSaveRulesState({
         saving: false,
-        error: errorMessageFor(
-          error,
-          'One or more rules reference a permission that no longer exists — reload the catalog and try again.',
-        ),
+        error: errorMessageFor(error, t.rulesStale),
       })
     }
   }, [draftRules, id])
@@ -461,12 +462,16 @@ export default function RoleEditor() {
     return <PermissionDenied />
   }
 
+  const backLink = (
+    <Link to="/roles" data-testid="back-to-roles-link" className="link">
+      <Icon name="arrow-left" /> {t.back}
+    </Link>
+  )
+
   if (roleState.status === 'loading' || catalogState.status === 'loading') {
     return (
       <section aria-labelledby="role-editor-heading" data-testid="role-editor-page">
-        <h2 id="role-editor-heading" className="sr-only">
-          Role editor
-        </h2>
+        <PageHeader title={t.title} titleId="role-editor-heading" back={backLink} />
         <SkeletonListRows rows={3} />
       </section>
     )
@@ -475,9 +480,7 @@ export default function RoleEditor() {
   if (roleState.status === 'error') {
     return (
       <section aria-labelledby="role-editor-heading" data-testid="role-editor-page">
-        <h2 id="role-editor-heading" className="sr-only">
-          Role editor
-        </h2>
+        <PageHeader title={t.title} titleId="role-editor-heading" back={backLink} />
         <ErrorBanner message={roleState.message} onRetry={handleRoleRetry} />
       </section>
     )
@@ -489,13 +492,32 @@ export default function RoleEditor() {
 
   return (
     <section aria-labelledby="role-editor-heading" data-testid="role-editor-page">
-      <h2 id="role-editor-heading" className="sr-only">
-        {role.name}
-      </h2>
+      <PageHeader
+        title={t.title}
+        titleId="role-editor-heading"
+        back={backLink}
+        status={role.isSystem ? <SystemBadge /> : undefined}
+        actions={
+          <Button
+            variant="danger"
+            aria-disabled={role.isSystem}
+            title={role.isSystem ? strings.badges.systemTitle : undefined}
+            onClick={() => {
+              if (!role.isSystem) setDeleteModalOpen(true)
+            }}
+            data-testid="role-delete-button"
+          >
+            {t.deleteRole}
+            {role.isSystem && (
+              <span className="sr-only">{strings.common.disabledReason(strings.badges.systemTitle)}</span>
+            )}
+          </Button>
+        }
+      />
 
       {deleteModalOpen && (
         <ConfirmDeleteModal
-          entityLabel="role"
+          title={strings.roles.deleteTitle}
           itemName={role.name}
           isDeleting={deleting}
           errorMessage={deleteError}
@@ -511,411 +533,360 @@ export default function RoleEditor() {
         <GuardrailDialog title={guardrail.title} message={guardrail.message} onAcknowledge={() => setGuardrail(null)} />
       )}
 
-      {/* Header */}
-      <div className="flex items-start justify-between gap-4">
-        <div className="flex-1 flex flex-col gap-2">
-          <div className="flex items-center gap-2 flex-wrap">
-            <input
-              type="text"
-              value={headerEdit?.name ?? role.name}
-              onChange={(e) => handleNameInputChange(e.target.value, role)}
-              aria-label="Role name"
-              data-testid="role-name-input"
-              className="text-lg font-semibold px-2 py-1 border rounded"
-              style={{
-                fontFamily: 'var(--disp)',
-                borderColor: headerSave.nameError ? 'var(--red)' : 'transparent',
-                color: 'var(--text)',
-                backgroundColor: 'transparent',
-              }}
-            />
-            {role.isSystem && <SystemBadge />}
-          </div>
-          <textarea
-            value={headerEdit?.description ?? role.description ?? ''}
-            onChange={(e) => handleDescriptionInputChange(e.target.value, role)}
-            aria-label="Role description"
-            data-testid="role-description-input"
-            rows={2}
-            className="text-sm px-2 py-1 border rounded resize-none"
-            style={{ borderColor: 'var(--rule)', color: 'var(--text)', backgroundColor: 'transparent' }}
-          />
-          {headerSave.nameError && (
-            <p role="alert" data-testid="role-name-error" className="text-xs" style={{ color: 'var(--red)' }}>
-              {headerSave.nameError}
-            </p>
-          )}
-          {headerSave.generalError && (
-            <p role="alert" className="text-xs" style={{ color: 'var(--red)' }}>
-              {headerSave.generalError}
-            </p>
-          )}
-          <div>
-            <button
-              type="button"
-              onClick={() => void handleSaveHeader()}
-              disabled={headerSave.saving}
-              data-testid="role-header-save"
-              className="text-xs font-medium py-1 px-2.5 border transition-opacity hover:opacity-80 disabled:opacity-40 disabled:cursor-not-allowed"
-              style={{ borderColor: 'var(--rule)', color: 'var(--text)' }}
+      <SuccessBanner message={created} onDismiss={() => setCreated(null)} testId="role-created" className="mb-4" />
+
+      <div className="flex flex-col gap-4">
+        {/* Details — name and description, saved together (INC-16: library Fields) */}
+        <Card title={t.detailsTitle}>
+          <div className="flex flex-col gap-3 max-w-md">
+            <Field
+              label={strings.common.fields.name}
+              required
+              error={
+                headerSave.nameError && (
+                  <span role="alert" data-testid="role-name-error">
+                    {headerSave.nameError}
+                  </span>
+                )
+              }
             >
-              {headerSave.saving ? 'Saving…' : 'Save details'}
-            </button>
-          </div>
-        </div>
-
-        <button
-          type="button"
-          aria-disabled={role.isSystem}
-          title={role.isSystem ? "System roles can't be deleted" : undefined}
-          onClick={() => {
-            if (!role.isSystem) setDeleteModalOpen(true)
-          }}
-          data-testid="role-delete-button"
-          className="py-1.5 px-3 text-sm font-medium border transition-opacity hover:opacity-80 aria-disabled:opacity-40 aria-disabled:cursor-not-allowed"
-          style={{ borderColor: 'var(--red)', color: 'var(--red)' }}
-        >
-          Delete role
-          {role.isSystem && <span className="sr-only"> — System roles can't be deleted</span>}
-        </button>
-      </div>
-
-      {/* Rule list */}
-      <div className="mt-6">
-        <h3 className="text-sm font-semibold" style={{ color: 'var(--text)' }}>
-          Rules
-        </h3>
-
-        {rules.length === 0 && (
-          <p data-testid="rules-empty-state" className="text-sm mt-2" style={{ color: 'var(--soft)' }}>
-            No rules yet — every user with this role has no permissions until you add one.
-          </p>
-        )}
-
-        {rules.length > 0 && (
-          <ul data-testid="role-rules-list" className="flex flex-col gap-2 mt-2">
-            {rules.map((rule, index) => {
-              const label = `${labelForResource(catalog, rule.resource)} · ${labelForAction(catalog, rule.resource, rule.action)}`
-              return (
-                <li
-                  key={`${rule.resource}-${rule.action}-${index}`}
-                  data-testid={`role-rule-${index}`}
-                  className="flex items-center justify-between gap-3 px-3 py-2 border rounded"
-                  style={{ borderColor: 'var(--rule)' }}
-                >
-                  <div className="flex items-center gap-2 flex-wrap">
-                    <span className="text-sm font-medium" style={{ color: 'var(--text)' }}>
-                      {label}
-                    </span>
-                    {chipsForConditions(rule.conditions).map((kind, chipIndex) => (
-                      <ConditionChip key={`${kind}-${chipIndex}`} kind={kind} />
-                    ))}
-                  </div>
-                  {catalogReady && (
-                    <button
-                      type="button"
-                      onClick={() => handleRemoveRule(index)}
-                      data-testid={`role-rule-remove-${index}`}
-                      aria-label={`Remove rule ${label}`}
-                      className="text-lg leading-none transition-opacity hover:opacity-80"
-                      style={{ color: 'var(--muted)' }}
-                    >
-                      ×
-                    </button>
-                  )}
-                </li>
-              )
-            })}
-          </ul>
-        )}
-      </div>
-
-      {/* Rule composer */}
-      {catalogState.status === 'error' && (
-        <div className="mt-4">
-          <ErrorBanner message={catalogState.message} onRetry={handleCatalogRetry} />
-        </div>
-      )}
-
-      {catalogReady && catalogState.status === 'loaded' && (
-        <div className="mt-4">
-          {!composer.open && (
-            <button
-              type="button"
-              onClick={handleComposerOpen}
-              data-testid="rule-composer-toggle"
-              className="text-sm py-1.5 px-3 font-medium border transition-opacity hover:opacity-80"
-              style={{ borderColor: 'var(--acc)', color: 'var(--acc)' }}
-            >
-              + Add rule
-            </button>
-          )}
-
-          {composer.open && (
-            <div className="border rounded p-4 mt-2" style={{ borderColor: 'var(--rule)' }} data-testid="rule-composer">
-              <fieldset className="flex flex-col gap-3">
-                <legend className="text-sm font-semibold mb-1" style={{ color: 'var(--text)' }}>
-                  Resource &amp; action
-                </legend>
-
-                <div className="flex flex-col gap-1">
-                  <label
-                    htmlFor="rule-composer-resource"
-                    className="text-xs font-medium"
-                    style={{ color: 'var(--soft)' }}
-                  >
-                    Resource
-                  </label>
-                  <select
-                    id="rule-composer-resource"
-                    data-testid="rule-composer-resource"
-                    value={composer.resourceChoice ?? ''}
-                    onChange={(e) => handleResourceChange(e.target.value)}
-                    className="text-sm px-2.5 py-1.5 border rounded"
-                    style={{ borderColor: 'var(--rule)', color: 'var(--text)', backgroundColor: 'var(--ink)' }}
-                  >
-                    <option value="" disabled>
-                      Select a resource…
-                    </option>
-                    {catalogState.catalog.map((app) => (
-                      <optgroup key={app.appId} label={humanizeAppId(app.appId)}>
-                        {app.resources.map((res) => (
-                          <option key={`${app.appId}::${res.key}`} value={`${app.appId}::${res.key}`}>
-                            {res.label}
-                          </option>
-                        ))}
-                      </optgroup>
-                    ))}
-                  </select>
-                </div>
-
-                <div className="flex flex-col gap-1">
-                  <label
-                    htmlFor="rule-composer-action"
-                    className="text-xs font-medium"
-                    style={{ color: 'var(--soft)' }}
-                  >
-                    Action
-                  </label>
-                  <select
-                    id="rule-composer-action"
-                    data-testid="rule-composer-action"
-                    value={composer.actionKey ?? ''}
-                    onChange={(e) => handleActionChange(e.target.value)}
-                    disabled={!selectedResource}
-                    className="text-sm px-2.5 py-1.5 border rounded"
-                    style={{ borderColor: 'var(--rule)', color: 'var(--text)', backgroundColor: 'var(--ink)' }}
-                  >
-                    <option value="" disabled>
-                      Select an action…
-                    </option>
-                    {selectedResource?.actions.map((action) => (
-                      <option key={action.key} value={action.key}>
-                        {action.label}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-              </fieldset>
-
-              {/* AC-2.3 a11y hotspot: announces Action-reset / available-conditions changes */}
-              <p aria-live="polite" data-testid="rule-composer-status" className="sr-only">
-                {composer.statusMessage}
+              {(control) => (
+                <input
+                  {...control}
+                  ref={nameInputRef}
+                  type="text"
+                  value={headerEdit?.name ?? role.name}
+                  onChange={(e) => handleNameInputChange(e.target.value, role)}
+                  data-testid="role-name-input"
+                />
+              )}
+            </Field>
+            <Field label={strings.common.fields.description}>
+              {(control) => (
+                <textarea
+                  {...control}
+                  value={headerEdit?.description ?? role.description ?? ''}
+                  onChange={(e) => handleDescriptionInputChange(e.target.value, role)}
+                  data-testid="role-description-input"
+                  rows={2}
+                  className="resize-none"
+                />
+              )}
+            </Field>
+            {headerSave.generalError && (
+              <p role="alert" className="form-error">
+                {headerSave.generalError}
               </p>
+            )}
+            <div>
+              <Button
+                size="sm"
+                onClick={() => void handleSaveHeader()}
+                disabled={headerSave.saving}
+                busy={headerSave.saving}
+                data-testid="role-header-save"
+              >
+                {headerSave.saving ? strings.common.actions.saving : t.saveDetails}
+              </Button>
+            </div>
+            <SuccessBanner message={headerSuccess} onDismiss={() => setHeaderSuccess(null)} testId="role-header-success" />
+          </div>
+        </Card>
 
-              <fieldset className="mt-4 flex flex-col gap-3">
-                <legend className="text-sm font-semibold mb-1" style={{ color: 'var(--text)' }}>
-                  Conditions
-                </legend>
+        {/* Rules — the draft list, the composer and Save / Discard */}
+        <Card title={t.rulesTitle}>
+          {rules.length === 0 && (
+            <p data-testid="rules-empty-state" className="text-sm text-soft">
+              {t.rulesEmpty}
+            </p>
+          )}
 
-                {!selectedAction && (
-                  <p className="text-xs" style={{ color: 'var(--soft)' }}>
-                    Choose a resource and action first.
-                  </p>
-                )}
-
-                {selectedAction &&
-                  !supportsOwnership &&
-                  availableAttributeKeys.length === 0 &&
-                  !supportsSelfApproval && (
-                    <p data-testid="rule-composer-no-conditions" className="text-xs" style={{ color: 'var(--soft)' }}>
-                      This action has no conditions.
-                    </p>
-                  )}
-
-                {selectedAction && supportsOwnership && (
-                  <div>
-                    <span
-                      id="rule-composer-ownership-label"
-                      className="text-xs font-medium"
-                      style={{ color: 'var(--soft)' }}
-                    >
-                      Ownership
-                    </span>
-                    <div
-                      role="radiogroup"
-                      aria-labelledby="rule-composer-ownership-label"
-                      className="flex items-center gap-4 mt-1"
-                    >
-                      <label className="flex items-center gap-1.5 text-sm" style={{ color: 'var(--text)' }}>
-                        <input
-                          type="radio"
-                          name="rule-composer-ownership"
-                          checked={composer.ownership === 'any'}
-                          onChange={() => handleOwnershipChange('any')}
-                          data-testid="rule-composer-ownership-any"
-                        />
-                        Any records
-                      </label>
-                      <label className="flex items-center gap-1.5 text-sm" style={{ color: 'var(--text)' }}>
-                        <input
-                          type="radio"
-                          name="rule-composer-ownership"
-                          checked={composer.ownership === 'own'}
-                          onChange={() => handleOwnershipChange('own')}
-                          data-testid="rule-composer-ownership-own"
-                        />
-                        Own records only
-                      </label>
-                    </div>
-                  </div>
-                )}
-
-                {selectedAction && availableAttributeKeys.length > 0 && (
-                  <fieldset>
-                    <legend className="text-xs font-medium" style={{ color: 'var(--soft)' }}>
-                      Attribute conditions
-                    </legend>
-                    <div className="flex items-center gap-4 mt-1">
-                      {availableAttributeKeys.map((key) => (
-                        <div key={key} className="flex items-center gap-1">
-                          <label className="flex items-center gap-1.5 text-sm" style={{ color: 'var(--text)' }}>
-                            <input
-                              type="checkbox"
-                              checked={composer.attributes.has(key)}
-                              onChange={() => handleAttributeToggle(key)}
-                              data-testid={`rule-composer-attr-${key}`}
-                            />
-                            {ATTRIBUTE_LABELS[key]}
-                          </label>
-                          {/* Help affordance — native `title` tooltip (house pattern); outside the
-                              <label> so clicking/focusing it never toggles the checkbox. */}
-                          <span
-                            role="img"
-                            tabIndex={0}
-                            aria-label={`${ATTRIBUTE_LABELS[key]} condition — ${ATTRIBUTE_HELP[key]}`}
-                            title={ATTRIBUTE_HELP[key]}
-                            data-testid={`rule-composer-attr-${key}-help`}
-                            className="inline-flex items-center justify-center w-4 h-4 rounded-full text-[10px] font-semibold cursor-help select-none"
-                            style={{ border: '1px solid var(--rule)', color: 'var(--soft)' }}
-                          >
-                            ?
-                          </span>
-                        </div>
+          {rules.length > 0 && (
+            <ul data-testid="role-rules-list" aria-label={t.rulesLabel} className="flex flex-col gap-2">
+              {rules.map((rule, index) => {
+                const label = t.ruleLabel(
+                  labelForResource(catalog, rule.resource),
+                  labelForAction(catalog, rule.resource, rule.action),
+                )
+                return (
+                  <li
+                    key={`${rule.resource}-${rule.action}-${index}`}
+                    data-testid={`role-rule-${index}`}
+                    className="flex items-center justify-between gap-3 px-3 py-2 border rounded border-rule bg-ink"
+                  >
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span className="text-sm font-medium text-text">{label}</span>
+                      {chipsForConditions(rule.conditions).map((kind, chipIndex) => (
+                        <ConditionChip key={`${kind}-${chipIndex}`} kind={kind} />
                       ))}
                     </div>
-                  </fieldset>
-                )}
-
-                {/*
-                 * Self-approval restriction (specs/010-self-approval-control T4,
-                 * ADR-0026) — deliberately its OWN fieldset, separate from the
-                 * entity/department/jobTitle group above (AC-1.1): opposite
-                 * polarity (`match:"deny"` vs `match:"user"`), independently
-                 * toggleable, and composes with — never replaces — the entity
-                 * condition (AC-1.3/AC-2.4).
-                 */}
-                {selectedAction && supportsSelfApproval && (
-                  <fieldset>
-                    <legend className="text-xs font-medium" style={{ color: 'var(--soft)' }}>
-                      Segregation of duties
-                    </legend>
-                    <div className="flex items-center gap-1 mt-1">
-                      <label className="flex items-center gap-1.5 text-sm" style={{ color: 'var(--text)' }}>
-                        <input
-                          type="checkbox"
-                          checked={composer.selfApproval}
-                          onChange={handleSelfApprovalToggle}
-                          data-testid="rule-composer-self-approval"
-                        />
-                        Cannot approve own request
-                      </label>
-                      {/* Help affordance — same house pattern as the attribute-condition tooltips above. */}
-                      <span
-                        role="img"
-                        tabIndex={0}
-                        aria-label={`Self-approval restriction condition — ${ATTRIBUTE_HELP['self-approval']}`}
-                        title={ATTRIBUTE_HELP['self-approval']}
-                        data-testid="rule-composer-self-approval-help"
-                        className="inline-flex items-center justify-center w-4 h-4 rounded-full text-[10px] font-semibold cursor-help select-none"
-                        style={{ border: '1px solid var(--rule)', color: 'var(--soft)' }}
+                    {catalogReady && (
+                      <Button
+                        variant="ghost"
+                        iconOnly
+                        onClick={() => handleRemoveRule(index)}
+                        data-testid={`role-rule-remove-${index}`}
+                        aria-label={t.removeRule(label)}
                       >
-                        ?
-                      </span>
-                    </div>
-                  </fieldset>
-                )}
-              </fieldset>
+                        <Icon name="close" />
+                      </Button>
+                    )}
+                  </li>
+                )
+              })}
+            </ul>
+          )}
 
-              <div className="flex items-center justify-end gap-3 mt-4">
-                <button
-                  type="button"
-                  onClick={handleComposerCancel}
-                  data-testid="rule-composer-cancel"
-                  className="py-1.5 px-3 text-sm font-medium border transition-opacity hover:opacity-80"
-                  style={{ borderColor: 'var(--rule)', color: 'var(--muted)' }}
-                >
-                  Cancel
-                </button>
-                <button
-                  type="button"
-                  onClick={handleAddRule}
-                  disabled={!selectedResource || !selectedAction}
-                  data-testid="rule-composer-add"
-                  className="py-1.5 px-3 text-sm font-medium border transition-opacity hover:opacity-80 disabled:opacity-40 disabled:cursor-not-allowed"
-                  style={{ borderColor: 'var(--acc)', color: 'var(--acc)' }}
-                >
-                  Add rule
-                </button>
-              </div>
+          {/* Rule composer */}
+          {catalogState.status === 'error' && (
+            <div className="mt-4">
+              <ErrorBanner message={catalogState.message} onRetry={handleCatalogRetry} />
             </div>
           )}
-        </div>
-      )}
 
-      {/* Footer — Save / Discard */}
-      <div className="mt-4">
-        {saveRulesState.error && (
-          <div className="mb-2">
-            <ErrorBanner
-              message={saveRulesState.error}
-              onRetry={handleReloadCatalogAfterStaleSave}
-              retryLabel="Reload catalog"
+          {catalogReady && catalogState.status === 'loaded' && (
+            <div className="mt-4">
+              {!composer.open && (
+                <Button onClick={handleComposerOpen} data-testid="rule-composer-toggle">
+                  {t.addRule}
+                </Button>
+              )}
+
+              {composer.open && (
+                <div className="border rounded p-4 mt-2 border-rule bg-ink" data-testid="rule-composer">
+                  <fieldset className="flex flex-col gap-3">
+                    <legend className="text-sm font-semibold mb-1 text-text">{t.resourceAndAction}</legend>
+
+                    <Field label={t.resource}>
+                      {(control) => (
+                        <select
+                          {...control}
+                          data-testid="rule-composer-resource"
+                          value={composer.resourceChoice ?? ''}
+                          onChange={(e) => handleResourceChange(e.target.value)}
+                        >
+                          <option value="" disabled>
+                            {t.selectResource}
+                          </option>
+                          {catalogState.catalog.map((app) => (
+                            <optgroup key={app.appId} label={humanizeAppId(app.appId)}>
+                              {app.resources.map((res) => (
+                                <option key={`${app.appId}::${res.key}`} value={`${app.appId}::${res.key}`}>
+                                  {res.label}
+                                </option>
+                              ))}
+                            </optgroup>
+                          ))}
+                        </select>
+                      )}
+                    </Field>
+
+                    <Field label={t.action}>
+                      {(control) => (
+                        <select
+                          {...control}
+                          data-testid="rule-composer-action"
+                          value={composer.actionKey ?? ''}
+                          onChange={(e) => handleActionChange(e.target.value)}
+                          disabled={!selectedResource}
+                        >
+                          <option value="" disabled>
+                            {t.selectAction}
+                          </option>
+                          {selectedResource?.actions.map((action) => (
+                            <option key={action.key} value={action.key}>
+                              {action.label}
+                            </option>
+                          ))}
+                        </select>
+                      )}
+                    </Field>
+                  </fieldset>
+
+                  {/* AC-2.3 a11y hotspot: announces Action-reset / available-conditions changes */}
+                  <p aria-live="polite" data-testid="rule-composer-status" className="sr-only">
+                    {composer.statusMessage}
+                  </p>
+
+                  <fieldset className="mt-4 flex flex-col gap-3">
+                    <legend className="text-sm font-semibold mb-1 text-text">{t.conditions}</legend>
+
+                    {!selectedAction && <p className="text-xs text-soft">{t.chooseFirst}</p>}
+
+                    {selectedAction &&
+                      !supportsOwnership &&
+                      availableAttributeKeys.length === 0 &&
+                      !supportsSelfApproval && (
+                        <p data-testid="rule-composer-no-conditions" className="text-xs text-soft">
+                          {t.noConditions}
+                        </p>
+                      )}
+
+                    {selectedAction && supportsOwnership && (
+                      <div>
+                        <span id="rule-composer-ownership-label" className="text-xs font-medium text-soft">
+                          {t.ownership}
+                        </span>
+                        <div
+                          role="radiogroup"
+                          aria-labelledby="rule-composer-ownership-label"
+                          className="flex items-center gap-4 mt-1"
+                        >
+                          <label className="flex items-center gap-1.5 text-sm text-text">
+                            <input
+                              type="radio"
+                              name="rule-composer-ownership"
+                              checked={composer.ownership === 'any'}
+                              onChange={() => handleOwnershipChange('any')}
+                              data-testid="rule-composer-ownership-any"
+                            />
+                            {t.anyRecords}
+                          </label>
+                          <label className="flex items-center gap-1.5 text-sm text-text">
+                            <input
+                              type="radio"
+                              name="rule-composer-ownership"
+                              checked={composer.ownership === 'own'}
+                              onChange={() => handleOwnershipChange('own')}
+                              data-testid="rule-composer-ownership-own"
+                            />
+                            {t.ownRecordsOnly}
+                          </label>
+                        </div>
+                      </div>
+                    )}
+
+                    {selectedAction && availableAttributeKeys.length > 0 && (
+                      <fieldset>
+                        <legend className="text-xs font-medium text-soft">{t.attributeConditions}</legend>
+                        <div className="flex items-center gap-4 mt-1">
+                          {availableAttributeKeys.map((attribute) => (
+                            <div key={attribute} className="flex items-center gap-1">
+                              <label className="flex items-center gap-1.5 text-sm text-text">
+                                <input
+                                  type="checkbox"
+                                  checked={composer.attributes.has(attribute)}
+                                  onChange={() => handleAttributeToggle(attribute)}
+                                  data-testid={`rule-composer-attr-${attribute}`}
+                                />
+                                {ATTRIBUTE_LABELS[attribute]}
+                              </label>
+                              {/* Help affordance — outside the <label> so focusing it never toggles the checkbox. */}
+                              <ConditionHelp
+                                label={t.helpLabel(ATTRIBUTE_LABELS[attribute], ATTRIBUTE_HELP[attribute])}
+                                help={ATTRIBUTE_HELP[attribute]}
+                                testId={`rule-composer-attr-${attribute}-help`}
+                              />
+                            </div>
+                          ))}
+                        </div>
+                      </fieldset>
+                    )}
+
+                    {/*
+                     * Self-approval restriction (specs/010-self-approval-control T4,
+                     * ADR-0026) — deliberately its OWN fieldset, separate from the
+                     * entity/department/jobTitle group above (AC-1.1): opposite
+                     * polarity (`match:"deny"` vs `match:"user"`), independently
+                     * toggleable, and composes with — never replaces — the entity
+                     * condition (AC-1.3/AC-2.4).
+                     */}
+                    {selectedAction && supportsSelfApproval && (
+                      <fieldset>
+                        <legend className="text-xs font-medium text-soft">{t.segregation}</legend>
+                        <div className="flex items-center gap-1 mt-1">
+                          <label className="flex items-center gap-1.5 text-sm text-text">
+                            <input
+                              type="checkbox"
+                              checked={composer.selfApproval}
+                              onChange={handleSelfApprovalToggle}
+                              data-testid="rule-composer-self-approval"
+                            />
+                            {t.cannotApproveOwn}
+                          </label>
+                          <ConditionHelp
+                            label={t.helpLabel(ATTRIBUTE_LABELS['self-approval'], ATTRIBUTE_HELP['self-approval'])}
+                            help={ATTRIBUTE_HELP['self-approval']}
+                            testId="rule-composer-self-approval-help"
+                          />
+                        </div>
+                      </fieldset>
+                    )}
+                  </fieldset>
+
+                  <div className="flex items-center justify-end gap-3 mt-4">
+                    <Button variant="ghost" onClick={handleComposerCancel} data-testid="rule-composer-cancel">
+                      {strings.common.actions.cancel}
+                    </Button>
+                    <Button
+                      onClick={handleAddRule}
+                      disabled={!selectedResource || !selectedAction}
+                      data-testid="rule-composer-add"
+                    >
+                      {t.addRule}
+                    </Button>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Footer — Save / Discard */}
+          <div className="mt-4">
+            {saveRulesState.error && (
+              <div className="mb-2">
+                {/* A failed save: red (INC-20), with the catalog reload as its remedy. */}
+                <ErrorBanner
+                  tone="danger"
+                  message={saveRulesState.error}
+                  onRetry={handleReloadCatalogAfterStaleSave}
+                  retryLabel={t.reloadCatalog}
+                />
+              </div>
+            )}
+            <div className="flex items-center gap-3">
+              <Button
+                variant="primary"
+                onClick={() => void handleSaveRules()}
+                disabled={saveRulesState.saving || !catalogReady}
+                busy={saveRulesState.saving}
+                data-testid="role-save-rules"
+              >
+                {saveRulesState.saving ? strings.common.actions.saving : t.saveRules}
+              </Button>
+              <Button variant="ghost" onClick={handleDiscardRules} data-testid="role-discard-rules">
+                {t.discard}
+              </Button>
+            </div>
+            <SuccessBanner
+              message={rulesSuccess}
+              onDismiss={() => setRulesSuccess(null)}
+              testId="role-rules-success"
+              className="mt-2"
             />
           </div>
-        )}
-        <div className="flex items-center gap-3">
-          <button
-            type="button"
-            onClick={() => void handleSaveRules()}
-            disabled={saveRulesState.saving || !catalogReady}
-            data-testid="role-save-rules"
-            className="py-1.5 px-3 text-sm font-medium text-white transition-opacity hover:opacity-90 disabled:opacity-40 disabled:cursor-not-allowed"
-            style={{ backgroundColor: 'var(--acc)' }}
-          >
-            {saveRulesState.saving ? 'Saving…' : 'Save rules'}
-          </button>
-          <button
-            type="button"
-            onClick={handleDiscardRules}
-            data-testid="role-discard-rules"
-            className="py-1.5 px-3 text-sm font-medium border transition-opacity hover:opacity-80"
-            style={{ borderColor: 'var(--rule)', color: 'var(--muted)' }}
-          >
-            Discard changes
-          </button>
-        </div>
+        </Card>
       </div>
     </section>
+  )
+}
+
+/**
+ * A condition's help: a focusable, named help icon whose native `title`
+ * tooltip carries the explanation (house pattern), outside the checkbox's
+ * <label> so focusing it never toggles the checkbox.
+ */
+function ConditionHelp({ label, help, testId }: { label: string; help: string; testId: string }) {
+  return (
+    <span
+      role="img"
+      tabIndex={0}
+      aria-label={label}
+      title={help}
+      data-testid={testId}
+      className="inline-flex items-center cursor-help text-soft"
+    >
+      <Icon name="help" />
+    </span>
   )
 }

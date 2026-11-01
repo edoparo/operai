@@ -1,4 +1,5 @@
 import { useRef, useState } from 'react'
+import { Button } from '@operai/ui'
 import type { FiscalYearView } from '../lib/types'
 import { strings } from '../strings'
 
@@ -68,20 +69,20 @@ export default function ExportYearButton({ view }: ExportYearButtonProps) {
 
   return (
     <div className="flex flex-col items-start gap-1">
-      <button
+      <Button
         type="button"
         aria-busy={phase === 'busy' ? true : undefined}
         onClick={() => void run()}
         data-testid="export-year-button"
-        className="btn btn-secondary"
+        variant="secondary"
       >
         {t.button}
-      </button>
-      <p role="status" className="text-xs" style={{ color: 'var(--soft)' }}>
+      </Button>
+      <p role="status" className="text-xs text-soft">
         {phase === 'busy' ? t.preparing : phase === 'ready' ? t.ready : ''}
       </p>
       {phase === 'failed' && (
-        <p role="alert" className="text-xs" style={{ color: 'var(--org)' }}>
+        <p role="alert" className="text-xs text-org-text">
           {t.failed}
         </p>
       )}

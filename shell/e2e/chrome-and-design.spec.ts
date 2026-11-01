@@ -32,28 +32,22 @@ test.describe('AC-1.2: shared chrome persists across a tool switch', () => {
     // reload/navigation occurred (a document reload would reset `window`).
     await page.evaluate(() => {
       document.querySelector('header[role="banner"]')?.setAttribute('data-e2e-stable', 'header')
-      document
-        .querySelector('nav[aria-label="Tool navigation"]')
-        ?.setAttribute('data-e2e-stable', 'sidebar')
+      document.querySelector('nav[aria-label="Tool navigation"]')?.setAttribute('data-e2e-stable', 'sidebar')
       document.querySelector('footer[role="contentinfo"]')?.setAttribute('data-e2e-stable', 'footer')
       ;(window as unknown as { __e2eNoReload: boolean }).__e2eNoReload = true
     })
 
-    await page.getByRole('link', { name: 'Refund (Rimborsi)' }).click()
+    await page.getByRole('link', { name: 'Refund', exact: true }).click()
 
     await expect(page).toHaveURL(/\/refund/, { timeout: 15_000 })
-    await expect(page.getByRole('heading', { name: 'Refund (Rimborsi)' })).toBeVisible({
+    await expect(page.getByRole('heading', { name: 'Refund', exact: true })).toBeVisible({
       timeout: 15_000,
     })
 
     // Chrome landmarks were never torn down.
     await expect(page.locator('header[role="banner"][data-e2e-stable="header"]')).toHaveCount(1)
-    await expect(
-      page.locator('nav[aria-label="Tool navigation"][data-e2e-stable="sidebar"]'),
-    ).toHaveCount(1)
-    await expect(page.locator('footer[role="contentinfo"][data-e2e-stable="footer"]')).toHaveCount(
-      1,
-    )
+    await expect(page.locator('nav[aria-label="Tool navigation"][data-e2e-stable="sidebar"]')).toHaveCount(1)
+    await expect(page.locator('footer[role="contentinfo"][data-e2e-stable="footer"]')).toHaveCount(1)
 
     // No full document reload happened.
     const noReloadMarkerSurvived = await page.evaluate(
@@ -69,7 +63,7 @@ test.describe('AC-1.2: shared chrome persists across a tool switch', () => {
 
   test('switching Refund -> EstimAI likewise keeps the chrome mounted', async ({ page }) => {
     await page.goto('/refund')
-    await expect(page.getByRole('heading', { name: 'Refund (Rimborsi)' })).toBeVisible({
+    await expect(page.getByRole('heading', { name: 'Refund', exact: true })).toBeVisible({
       timeout: 15_000,
     })
 
@@ -125,13 +119,13 @@ test.describe('AC-1.3: remotes render in the shared Operai design system', () =>
     page,
   }) => {
     await page.goto('/refund')
-    const heading = page.getByRole('heading', { name: 'Refund (Rimborsi)' })
+    const heading = page.getByRole('heading', { name: 'Refund', exact: true })
     await expect(heading).toBeVisible({ timeout: 15_000 })
 
-    // Refund's own root component (refund-ui/src/App.tsx) sets this heading's
-    // font-family inline via `var(--disp)` — a CSS custom property it never
-    // defines itself, only the shell-exposed `shell/tokens.css` (federated
-    // module, T3) defines it. A resolved "Syne" here is direct proof the
+    // Refund's tool title (the library's ToolLayout) takes its font from the
+    // `--disp` token — a CSS custom property refund-ui never defines itself;
+    // only the shell-exposed `shell/tokens.css` (federated module, T3; the
+    // library's tokens since ADR-0050) defines it. A resolved "Syne" here is direct proof the
     // remote is rendering with the SAME shared token file as the shell
     // chrome, not a local copy or unstyled fallback.
     const headingFont = await heading.evaluate((el) => getComputedStyle(el).fontFamily)

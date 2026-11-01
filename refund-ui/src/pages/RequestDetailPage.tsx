@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { getRouteApi, Link, useNavigate } from '@tanstack/react-router'
+import { Button, Card, Icon, PageHeader, VisuallyHidden, buttonClassName, useFocusOnMount } from '@operai/ui'
 import { strings } from '../strings'
 import * as requestsApi from '../lib/requestsApi'
 import type { Attachment, LinePayload, RefundRequestDetail } from '../lib/requestsApi'
@@ -14,6 +15,7 @@ import GuardrailDialog from '../components/GuardrailDialog'
 import RequestStatusBadge from '../components/RequestStatusBadge'
 import ExpenseLineComposer from '../components/ExpenseLineComposer'
 import ExpenseLineRow from '../components/ExpenseLineRow'
+import LinesCard from '../components/LinesCard'
 import type { LineSaveOutcome } from '../components/ExpenseLineRow'
 import ToastBanner from '../components/ToastBanner'
 import SubtotalsPanel from '../components/SubtotalsPanel'
@@ -37,7 +39,7 @@ const route = getRouteApi('/requests/$id')
  *                   RequestStatusBadge "Awaiting decision"; Withdraw only.
  *   - `approved`  — requested + approved per line and per currency;
  *                   MonthlyProcessingNote (only here — AC-4.2).
- *   - `rejected`  — rejection-motivation block; "+ New request" link.
+ *   - `rejected`  — rejection-motivation block; "New request" link.
  *   - `paid`      — (T13, specs/008-refund-monthly-processing/tasks.md,
  *                   design.md F5) the SAME requested+approved layout as
  *                   `approved` (reuses `ExpenseLineRow`'s `readOnlyApproved`
@@ -45,7 +47,7 @@ const route = getRouteApi('/requests/$id')
  *                   `paid` adds a fact on top of the already-final approved
  *                   figures, it doesn't alter them) PLUS a "Paid on `<date>`"
  *                   line reading `paidAt`; MonthlyProcessingNote and
- *                   "+ New request" are structurally absent (not
+ *                   "New request" are structurally absent (not
  *                   conditionally hidden), same discipline `draft`/
  *                   `submitted` already get for MonthlyProcessingNote.
  *   - L    — SkeletonListRows while `GET /requests/:id` is in flight.
@@ -120,7 +122,8 @@ export default function RequestDetailPage() {
   // (Submit/Withdraw/Delete-request, which stay inline per design.md).
   const [lineSaveToast, setLineSaveToast] = useState<LineSaveOutcome | null>(null)
 
-  const headingRef = useRef<HTMLHeadingElement>(null)
+  // The not-found heading takes focus when that state replaces the page (INC-30).
+  const headingRef = useFocusOnMount<HTMLHeadingElement>(pageState.status === 'notFound')
   const rowNodesRef = useRef(new Map<string, HTMLDivElement>())
 
   // ---------------------------------------------------------------------------
@@ -152,20 +155,13 @@ export default function RequestDetailPage() {
     }
   }, [id, reloadToken, t.loadErrorFallback])
 
-  // Focus the record-not-found heading on mount too (mirrors NotFoundPage.tsx).
-  useEffect(() => {
-    if (pageState.status === 'notFound') {
-      headingRef.current?.focus()
-    }
-  }, [pageState.status])
-
   // Focus the status heading right after a submit/withdraw transition completes.
   useEffect(() => {
     if (justTransitioned) {
       headingRef.current?.focus()
       setJustTransitioned(false)
     }
-  }, [justTransitioned])
+  }, [justTransitioned, headingRef])
 
   const handleRetry = useCallback(() => {
     setReloadToken((n) => n + 1)
@@ -185,36 +181,50 @@ export default function RequestDetailPage() {
   // shared GuardrailDialog instead of propagating to the caller.
   // ---------------------------------------------------------------------------
 
+  /** Resolves `true` when the mutation landed, `false` when a 409 guardrail took over (nothing to confirm). */
   const runLineMutation = useCallback(
-    async (action: () => Promise<unknown>): Promise<void> => {
+    async (action: () => Promise<unknown>): Promise<boolean> => {
       try {
         await action()
       } catch (err) {
         if (err instanceof ApiError && err.status === 409) {
           setGuardrail({ title: t.guardrail.title, message: t.guardrail.message })
           await reloadRequest()
-          return
+          return false
         }
         throw err
       }
       await reloadRequest()
+      return true
     },
     [reloadRequest, t.guardrail.message, t.guardrail.title],
   )
 
+  // INC-19: an added or deleted line confirms in the same page-level compact
+  // banner a line edit uses ("Changes stored"), right under the composer.
   const handleAddLine = useCallback(
-    (payload: LinePayload) => runLineMutation(() => requestsApi.addLine(id, payload)),
-    [id, runLineMutation],
+    async (payload: LinePayload) => {
+      if (await runLineMutation(() => requestsApi.addLine(id, payload))) {
+        setLineSaveToast({ tone: 'success', message: t.lines.addedToast })
+      }
+    },
+    [id, runLineMutation, t.lines.addedToast],
   )
 
   const handleUpdateLine = useCallback(
-    (lineId: string, payload: LinePayload) => runLineMutation(() => requestsApi.updateLine(id, lineId, payload)),
+    async (lineId: string, payload: LinePayload) => {
+      await runLineMutation(() => requestsApi.updateLine(id, lineId, payload))
+    },
     [id, runLineMutation],
   )
 
   const handleDeleteLine = useCallback(
-    (lineId: string) => runLineMutation(() => requestsApi.removeLine(id, lineId)),
-    [id, runLineMutation],
+    async (lineId: string) => {
+      if (await runLineMutation(() => requestsApi.removeLine(id, lineId))) {
+        setLineSaveToast({ tone: 'success', message: t.lines.deletedToast })
+      }
+    },
+    [id, runLineMutation, t.lines.deletedToast],
   )
 
   const handleLineSaveOutcome = useCallback((outcome: LineSaveOutcome) => setLineSaveToast(outcome), [])
@@ -266,8 +276,9 @@ export default function RequestDetailPage() {
   )
 
   const handleRemoveAttachment = useCallback(
-    (lineId: string, attachmentId: string) =>
-      runLineMutation(() => attachmentsApi.removeAttachment(id, lineId, attachmentId)),
+    async (lineId: string, attachmentId: string) => {
+      await runLineMutation(() => attachmentsApi.removeAttachment(id, lineId, attachmentId))
+    },
     [id, runLineMutation],
   )
 
@@ -352,7 +363,8 @@ export default function RequestDetailPage() {
     try {
       await requestsApi.remove(pageState.request.id)
       setDeleteModal({ open: false })
-      void navigate({ to: '/requests' })
+      // INC-19: the destination says it (My requests' one-shot confirmation).
+      void navigate({ to: '/requests', search: { confirmation: t.deleteRequest.confirmation } })
     } catch (err) {
       if (err instanceof ApiError && err.status === 409) {
         setDeleteModal({ open: false })
@@ -360,11 +372,19 @@ export default function RequestDetailPage() {
         await reloadRequest()
       } else {
         setDeleteModal((prev) =>
-          prev.open ? { ...prev, isDeleting: false, error: errorMessageFor(err, 'Delete failed. Try again.') } : prev,
+          prev.open ? { ...prev, isDeleting: false, error: errorMessageFor(err, t.deleteRequest.genericError) } : prev,
         )
       }
     }
-  }, [pageState, navigate, reloadRequest, t.guardrail.message, t.guardrail.title])
+  }, [
+    pageState,
+    navigate,
+    reloadRequest,
+    t.guardrail.message,
+    t.guardrail.title,
+    t.deleteRequest.confirmation,
+    t.deleteRequest.genericError,
+  ])
 
   // ---------------------------------------------------------------------------
   // Render
@@ -385,47 +405,34 @@ export default function RequestDetailPage() {
           request, so it belongs beside the title rather than inside one of the
           body sections. Approved-only, matching the endpoint's
           archivable-status gate. */}
-      {pageState.status === 'loaded' ? (
-        <div className="flex items-center justify-between gap-3">
-          <div className="flex min-w-0 items-center gap-3">
-            <h2
-              id="refund-request-detail-heading"
-              ref={headingRef}
-              tabIndex={-1}
-              className="text-lg font-semibold outline-none"
-              style={{ fontFamily: 'var(--disp)' }}
-            >
-              {t.heading}
-            </h2>
-            <RequestStatusBadge status={pageState.request.status} />
-          </div>
+      <PageHeader
+        title={pageState.status === 'notFound' ? t.notFound.heading : t.heading}
+        titleId="refund-request-detail-heading"
+        headingRef={pageState.status === 'loaded' || pageState.status === 'notFound' ? headingRef : undefined}
+        focusableHeading={pageState.status === 'loaded' || pageState.status === 'notFound'}
+        status={pageState.status === 'loaded' && <RequestStatusBadge status={pageState.request.status} />}
+        back={
+          pageState.status !== 'notFound' && (
+            <Link to="/requests" className="link inline-flex items-center gap-1" data-testid="request-detail-back">
+              <Icon name="arrow-left" />
+              {t.notFound.backLink}
+            </Link>
+          )
+        }
+        actions={
+          pageState.status === 'loaded' &&
+          pageState.request.status === 'approved' && <RequestExportLink requestId={pageState.request.id} />
+        }
+      />
 
-          {pageState.request.status === 'approved' && (
-            <RequestExportLink requestId={pageState.request.id} />
-          )}
-        </div>
-      ) : (
-        <h2
-          id="refund-request-detail-heading"
-          ref={pageState.status === 'notFound' ? headingRef : undefined}
-          tabIndex={pageState.status === 'notFound' ? -1 : undefined}
-          className="text-lg font-semibold outline-none"
-          style={{ fontFamily: 'var(--disp)' }}
-        >
-          {pageState.status === 'notFound' ? t.notFound.heading : t.heading}
-        </h2>
-      )}
-
-      <p aria-live="polite" className="sr-only" data-testid="request-detail-live-message">
+      <VisuallyHidden live data-testid="request-detail-live-message">
         {liveMessage}
-      </p>
+      </VisuallyHidden>
 
       <div className="mt-4 flex flex-col gap-4">
         {pageState.status === 'loading' && (
           <>
-            <p className="sr-only" aria-live="polite">
-              {t.loadingAnnouncement}
-            </p>
+            <VisuallyHidden live>{t.loadingAnnouncement}</VisuallyHidden>
             <SkeletonListRows />
           </>
         )}
@@ -434,15 +441,8 @@ export default function RequestDetailPage() {
 
         {pageState.status === 'notFound' && (
           <div data-testid="request-detail-not-found">
-            <p className="text-sm" style={{ color: 'var(--muted)' }}>
-              {t.notFound.body}
-            </p>
-            <Link
-              to="/requests"
-              data-testid="request-detail-not-found-back"
-              className="mt-3 inline-block text-sm underline underline-offset-2"
-              style={{ color: 'var(--acc)' }}
-            >
+            <p className="text-sm text-soft">{t.notFound.body}</p>
+            <Link to="/requests" data-testid="request-detail-not-found-back" className="link mt-3 inline-block text-sm">
               {t.notFound.backLink}
             </Link>
           </div>
@@ -456,38 +456,30 @@ export default function RequestDetailPage() {
               <ToastBanner tone={lineSaveToast.tone} message={lineSaveToast.message} onDismiss={dismissLineSaveToast} />
             )}
 
-            <div className="flex flex-col gap-2 pt-1 border-t" style={{ borderColor: 'var(--rule)' }}>
-              <h3
-                className="text-sm font-semibold"
-                style={{ fontFamily: 'var(--disp)', color: 'var(--text)' }}
-                data-testid="request-detail-lines-heading"
-              >
-                {t.lines.sectionHeading(pageState.request.lines.length)}
-              </h3>
-
-              {pageState.request.lines.length === 0 ? (
-                <p className="text-sm" style={{ color: 'var(--soft)' }} data-testid="request-detail-lines-empty">
+            <LinesCard
+              title={t.lines.sectionHeading(pageState.request.lines.length)}
+              headingTestId="request-detail-lines-heading"
+              empty={
+                <p className="text-sm text-soft" data-testid="request-detail-lines-empty">
                   {t.lines.emptyDraft}
                 </p>
-              ) : (
-                <div className="flex flex-col gap-2">
-                  {pageState.request.lines.map((line) => (
-                    <ExpenseLineRow
-                      key={line.id}
-                      line={line}
-                      mode="edit"
-                      onCommit={(payload) => handleUpdateLine(line.id, payload)}
-                      onDelete={() => handleDeleteLine(line.id)}
-                      onSaveOutcome={handleLineSaveOutcome}
-                      onUploadAttachment={(file) => handleUploadAttachment(line.id, file)}
-                      onRemoveAttachment={(attachmentId) => handleRemoveAttachment(line.id, attachmentId)}
-                      onDownloadAttachment={(attachmentId) => handleDownloadAttachment(line.id, attachmentId)}
-                      registerRef={registerRowRef(line.id)}
-                    />
-                  ))}
-                </div>
-              )}
-            </div>
+              }
+            >
+              {pageState.request.lines.map((line) => (
+                <ExpenseLineRow
+                  key={line.id}
+                  line={line}
+                  mode="edit"
+                  onCommit={(payload) => handleUpdateLine(line.id, payload)}
+                  onDelete={() => handleDeleteLine(line.id)}
+                  onSaveOutcome={handleLineSaveOutcome}
+                  onUploadAttachment={(file) => handleUploadAttachment(line.id, file)}
+                  onRemoveAttachment={(attachmentId) => handleRemoveAttachment(line.id, attachmentId)}
+                  onDownloadAttachment={(attachmentId) => handleDownloadAttachment(line.id, attachmentId)}
+                  registerRef={registerRowRef(line.id)}
+                />
+              ))}
+            </LinesCard>
 
             <SubtotalsPanel subtotals={pageState.request.subtotals} />
 
@@ -496,56 +488,38 @@ export default function RequestDetailPage() {
             )}
 
             {actionError && (
-              <p
-                role="alert"
-                data-testid="request-detail-action-error"
-                className="text-sm"
-                style={{ color: 'var(--red)' }}
-              >
+              <p role="alert" data-testid="request-detail-action-error" className="text-sm text-red-text">
                 {actionError}
               </p>
             )}
 
             <div className="flex items-center gap-3">
-              <button
-                type="button"
+              <Button
+                variant="primary"
                 onClick={() => void handleSubmit()}
                 disabled={pageState.request.lines.length === 0 || submitting}
                 data-testid="request-detail-submit"
-                className="py-1.5 px-3 text-sm font-medium border transition-opacity hover:opacity-80 disabled:opacity-40 disabled:cursor-not-allowed"
-                style={{ borderColor: 'var(--acc)', color: 'var(--acc)' }}
+                busy={submitting}
               >
                 {submitting ? t.submit.submittingLabel : t.submit.button}
-              </button>
+              </Button>
               {pageState.request.lines.length === 0 && (
-                <p
-                  className="text-xs"
-                  style={{ color: 'var(--muted)' }}
-                  data-testid="request-detail-submit-blocked-note"
-                >
+                <p className="text-xs text-soft" data-testid="request-detail-submit-blocked-note">
                   {t.submit.blockedNote}
                 </p>
               )}
-              <button
-                type="button"
-                onClick={handleDeleteRequestOpen}
-                data-testid="request-detail-delete-request"
-                className="py-1.5 px-3 text-sm font-medium border transition-opacity hover:opacity-80"
-                style={{ borderColor: 'var(--rule)', color: 'var(--muted)' }}
-              >
+              <Button variant="ghost" onClick={handleDeleteRequestOpen} data-testid="request-detail-delete-request">
                 {t.deleteRequest.button}
-              </button>
+              </Button>
             </div>
           </div>
         )}
 
         {pageState.status === 'loaded' && pageState.request.status === 'submitted' && (
           <div data-testid="request-detail-submitted" className="flex flex-col gap-4">
-            <p className="text-sm" style={{ color: 'var(--soft)' }}>
-              {t.statusBadges.submittedNote}
-            </p>
+            <p className="text-sm text-soft">{t.statusBadges.submittedNote}</p>
             <SubtotalsPanel subtotals={pageState.request.subtotals} />
-            <div className="flex flex-col gap-2">
+            <LinesCard title={t.lines.sectionHeading(pageState.request.lines.length)}>
               {pageState.request.lines.map((line) => (
                 <ExpenseLineRow
                   key={line.id}
@@ -555,28 +529,22 @@ export default function RequestDetailPage() {
                   registerRef={registerRowRef(line.id)}
                 />
               ))}
-            </div>
+            </LinesCard>
             {actionError && (
-              <p
-                role="alert"
-                data-testid="request-detail-action-error"
-                className="text-sm"
-                style={{ color: 'var(--red)' }}
-              >
+              <p role="alert" data-testid="request-detail-action-error" className="text-sm text-red-text">
                 {actionError}
               </p>
             )}
             <div>
-              <button
-                type="button"
+              <Button
+                variant="secondary"
                 onClick={() => void handleWithdraw()}
                 disabled={withdrawing}
                 data-testid="request-detail-withdraw"
-                className="py-1.5 px-3 text-sm font-medium border transition-opacity hover:opacity-80 disabled:opacity-40"
-                style={{ borderColor: 'var(--acc)', color: 'var(--acc)' }}
+                busy={withdrawing}
               >
                 {withdrawing ? t.withdraw.withdrawingLabel : t.withdraw.button}
-              </button>
+              </Button>
             </div>
           </div>
         )}
@@ -588,11 +556,8 @@ export default function RequestDetailPage() {
                 It used to be a bordered accent panel at the very bottom of the
                 page — the loudest thing on screen, saying the same sentence on
                 every approved request forever. */}
-            <div className="flex flex-col gap-1.5">
-              <SubtotalsPanel subtotals={pageState.request.subtotals} showApproved />
-              <MonthlyProcessingNote />
-            </div>
-            <div className="flex flex-col gap-2">
+            <SubtotalsPanel subtotals={pageState.request.subtotals} showApproved footnote={<MonthlyProcessingNote />} />
+            <LinesCard title={t.lines.sectionHeading(pageState.request.lines.length)}>
               {pageState.request.lines.map((line) => (
                 <ExpenseLineRow
                   key={line.id}
@@ -602,24 +567,17 @@ export default function RequestDetailPage() {
                   registerRef={registerRowRef(line.id)}
                 />
               ))}
-            </div>
+            </LinesCard>
           </div>
         )}
 
         {pageState.status === 'loaded' && pageState.request.status === 'rejected' && (
           <div data-testid="request-detail-rejected" className="flex flex-col gap-4">
-            <div
-              className="px-4 py-3 rounded-md border text-sm"
-              style={{ borderColor: 'var(--red)', backgroundColor: 'color-mix(in srgb, var(--red) 8%, transparent)' }}
-              data-testid="request-detail-rejection-motivation"
-            >
-              <p className="font-medium mb-1" style={{ color: 'var(--red)' }}>
-                {t.rejected.motivationHeading}
-              </p>
-              <p style={{ color: 'var(--text)' }}>{pageState.request.rejectionMotivation}</p>
-            </div>
+            <Card title={t.rejected.motivationHeading} data-testid="request-detail-rejection-motivation">
+              <p className="text-sm">{pageState.request.rejectionMotivation}</p>
+            </Card>
             <SubtotalsPanel subtotals={pageState.request.subtotals} />
-            <div className="flex flex-col gap-2">
+            <LinesCard title={t.lines.sectionHeading(pageState.request.lines.length)}>
               {pageState.request.lines.map((line) => (
                 <ExpenseLineRow
                   key={line.id}
@@ -629,12 +587,11 @@ export default function RequestDetailPage() {
                   registerRef={registerRowRef(line.id)}
                 />
               ))}
-            </div>
+            </LinesCard>
             <Link
               to="/requests/new"
               data-testid="request-detail-new-request-link"
-              className="inline-block text-sm py-1.5 px-3 font-medium transition-opacity hover:opacity-90 self-start"
-              style={{ color: 'white', backgroundColor: 'var(--acc)' }}
+              className={buttonClassName({ variant: 'primary', className: 'self-start' })}
             >
               {t.rejected.newRequestLink}
             </Link>
@@ -644,12 +601,12 @@ export default function RequestDetailPage() {
         {pageState.status === 'loaded' && pageState.request.status === 'paid' && (
           <div data-testid="request-detail-paid" className="flex flex-col gap-4">
             {pageState.request.paidAt && (
-              <p className="text-sm" style={{ color: 'var(--grn)' }} data-testid="request-detail-paid-line">
+              <p className="text-sm text-grn-text" data-testid="request-detail-paid-line">
                 {t.paid.paidLine(formatDate(pageState.request.paidAt))}
               </p>
             )}
             <SubtotalsPanel subtotals={pageState.request.subtotals} showApproved />
-            <div className="flex flex-col gap-2">
+            <LinesCard title={t.lines.sectionHeading(pageState.request.lines.length)}>
               {pageState.request.lines.map((line) => (
                 <ExpenseLineRow
                   key={line.id}
@@ -659,7 +616,7 @@ export default function RequestDetailPage() {
                   registerRef={registerRowRef(line.id)}
                 />
               ))}
-            </div>
+            </LinesCard>
           </div>
         )}
       </div>

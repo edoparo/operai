@@ -42,7 +42,9 @@ describe('App (notify-ui, mounted under /notify)', () => {
     render(<App />)
 
     const heading = await screen.findByTestId('notify-center-heading')
-    expect(heading.textContent).toBe('Notifications')
+    expect(heading.textContent).toBe('Inbox')
+    // The tool frame's title (ToolLayout) is the page's one h1.
+    expect(screen.getByRole('heading', { level: 1 }).textContent).toBe('Notifications')
     expect(window.location.pathname).toBe('/notify')
   })
 

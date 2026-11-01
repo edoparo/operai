@@ -20,7 +20,7 @@
  * fixture content, then walk all three tabs asserting:
  *   - viewer: every input/textarea is readOnly (never disabled — still
  *     focusable/AT-readable per design.md's Accessibility section), zero
- *     enabled <select> elements, zero "+ Add Activity" / "+ Release" /
+ *     enabled <select> elements, zero "Add activity" / "Add release" /
  *     per-row delete / drag-handle controls, and clicking every rendered
  *     button never invokes a mutating callback (defense in depth beyond
  *     the per-component unit tests).
@@ -34,6 +34,7 @@
  */
 
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import type { ReactNode } from 'react'
 import { render, screen, cleanup, fireEvent } from '@testing-library/react'
 import type { Parameters, Release, Activity } from './types'
 import type { EstimateAccess } from './lib/estimatesApi'
@@ -43,6 +44,12 @@ import type { EstimateAccess } from './lib/estimatesApi'
 // ---------------------------------------------------------------------------
 
 vi.mock('@tanstack/react-router', () => ({
+  // Header's back-to-list control is a router <Link> (INC-13).
+  Link: ({ to, className, children }: { to: string; className?: string; children: ReactNode }) => (
+    <a href={to} className={className}>
+      {children}
+    </a>
+  ),
   useNavigate: () => vi.fn(),
   useRouter: () => ({ invalidate: vi.fn() }),
   Outlet: () => null,
@@ -203,17 +210,17 @@ describe('T17 named early check — viewer mount has zero enabled mutating contr
     expect(screen.queryByText('⠿')).toBeNull()
   })
 
-  it('summary tab: readOnly release name/FTE, no "+ Release", no release delete', () => {
+  it('summary tab: readOnly release name/FTE, no "Add release", no release delete', () => {
     renderEditor('viewer')
-    fireEvent.click(screen.getByRole('button', { name: /^summary/i }))
+    fireEvent.click(screen.getByRole('tab', { name: /^summary/i }))
 
     assertAllTextControlsReadOnly()
-    expect(screen.queryByRole('button', { name: /^\+ release$/i })).toBeNull()
+    expect(screen.queryByRole('button', { name: /^add release$/i })).toBeNull()
   })
 
   it('parameters tab: every model-parameter input is readOnly', () => {
     renderEditor('viewer')
-    fireEvent.click(screen.getByRole('button', { name: /^parameters/i }))
+    fireEvent.click(screen.getByRole('tab', { name: /^parameters/i }))
 
     assertAllTextControlsReadOnly()
   })
@@ -223,7 +230,7 @@ describe('T17 named early check — viewer mount has zero enabled mutating contr
 
     const nameInput = screen.getByPlaceholderText('Project name…') as HTMLInputElement
     expect(nameInput.readOnly).toBe(true)
-    expect(screen.queryByText('✓ Saved')).toBeNull()
+    expect(screen.queryByText('Saved')).toBeNull()
     expect(screen.queryByText('Saving…')).toBeNull()
   })
 
@@ -237,7 +244,7 @@ describe('T17 named early check — viewer mount has zero enabled mutating contr
     const EXPORT_BUTTON_NAME = /client|pdf|excel/i
 
     for (const tabName of ['Activities', 'Summary', 'Parameters']) {
-      fireEvent.click(screen.getByRole('button', { name: new RegExp(`^${tabName}`, 'i') }))
+      fireEvent.click(screen.getByRole('tab', { name: new RegExp(`^${tabName}`, 'i') }))
       for (const btn of screen.queryAllByRole('button')) {
         if (EXPORT_BUTTON_NAME.test(btn.textContent ?? '')) continue
         fireEvent.click(btn)
@@ -297,11 +304,11 @@ describe.each(['owner', 'editor'] as const)('T17/AC-3.2 — %s mount keeps every
     }
   })
 
-  it('summary tab: "+ Release" present, release delete absent only because there is a single release (unrelated to access)', () => {
+  it('summary tab: "Add release" present, release delete absent only because there is a single release (unrelated to access)', () => {
     renderEditor(access)
-    fireEvent.click(screen.getByRole('button', { name: /^summary/i }))
+    fireEvent.click(screen.getByRole('tab', { name: /^summary/i }))
 
-    expect(screen.getByRole('button', { name: /^\+ release$/i })).toBeDefined()
+    expect(screen.getByRole('button', { name: /^add release$/i })).toBeDefined()
   })
 
   it('the Header project-name input is editable and the save-status indicator is present', () => {
@@ -309,7 +316,7 @@ describe.each(['owner', 'editor'] as const)('T17/AC-3.2 — %s mount keeps every
 
     const nameInput = screen.getByPlaceholderText('Project name…') as HTMLInputElement
     expect(nameInput.readOnly).toBe(false)
-    expect(screen.getByText(/✓ Saved|Saving…/)).toBeDefined()
+    expect(screen.getByText(/Saved|Saving…/)).toBeDefined()
   })
 })
 
@@ -322,14 +329,14 @@ describe.each(['owner', 'editor'] as const)('T17/AC-3.2 — %s mount keeps every
 describe('T17 — computed values are identical regardless of access level', () => {
   it('the Metrics bar renders identical totals for viewer and owner mounts of the same content', () => {
     const { unmount } = renderEditor('viewer')
-    // Total Man/Days is the first metric tile; grab its value by proximity
+    // Total man-days is the first metric tile; grab its value by proximity
     // to its label rather than a brittle full-text match.
-    const viewerTotalLabel = screen.getByText('Total Man/Days')
+    const viewerTotalLabel = screen.getByText('Total man-days')
     const viewerTotalValue = viewerTotalLabel.parentElement?.textContent
     unmount()
 
     renderEditor('owner')
-    const ownerTotalLabel = screen.getByText('Total Man/Days')
+    const ownerTotalLabel = screen.getByText('Total man-days')
     const ownerTotalValue = ownerTotalLabel.parentElement?.textContent
 
     expect(viewerTotalValue).toBe(ownerTotalValue)

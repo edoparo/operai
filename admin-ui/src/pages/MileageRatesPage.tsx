@@ -1,8 +1,10 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import * as adminApi from '../lib/adminApi'
+import { usePermissions } from 'shell/session'
+import { Button, Card, DataTable, FactList, Field, PageHeader, StatePanel, formatDate, formatDateTime, formatNumber } from '@operai/ui'
+import type { DataTableColumn } from '@operai/ui'
 import * as ratesApi from '../lib/ratesApi'
 import { ApiError } from '../lib/ratesApi'
-import type { MileageRateEntity, RatesResult } from '../lib/ratesApi'
+import type { MileageRateCurrency, MileageRateEntity, RateEntry, RatesResult } from '../lib/ratesApi'
 import * as settingsApi from '../lib/settingsApi'
 import { ApiError as SettingsApiError, ACCOUNTING_DISTRIBUTION_EMAIL_KEY } from '../lib/settingsApi'
 import type { SettingResult } from '../lib/settingsApi'
@@ -11,6 +13,11 @@ import ErrorBanner from '../components/ErrorBanner'
 import PermissionDenied from '../components/PermissionDenied'
 import RateInEffectBadge from '../components/RateInEffectBadge'
 import AddRateEntryModal from '../components/AddRateEntryModal'
+import { validateRate, validateValidFrom } from '../lib/rateValidation'
+import SuccessBanner from '../components/SuccessBanner'
+import { strings } from '../strings'
+
+const t = strings.rates
 
 /**
  * MileageRatesPage — Screen ADM-1 (Mileage Rates) + Modal ADM-M1 (Add rate
@@ -21,7 +28,7 @@ import AddRateEntryModal from '../components/AddRateEntryModal'
  * siblings (RolesPage/DepartmentsPage) are single-table, this is TWO
  * independent per-entity tables (WellD CH, WellD Italia — AC-2.3's
  * independence reflected structurally, not just logically) each with its
- * own "+ Add rate entry" action (design.md F5). No edit/delete affordance
+ * own "Add rate entry" action (design.md F5). No edit/delete affordance
  * anywhere (AC-4.7, mirrors AuditPage.tsx's own precedent for a non-mutable
  * record type) — the "Added by"/"Added on" columns already visible on every
  * row double as the audit view (AC-5.3, F6 — same payload, no separate tab).
@@ -38,18 +45,17 @@ import AddRateEntryModal from '../components/AddRateEntryModal'
  *          SectionNav.tsx hiding the nav entry entirely).
  *   Err  — ErrorBanner + Retry (mirrors RolesPage.tsx/AuditPage.tsx).
  *   Empty (per entity) — "No rate configured yet for {entity}." (no CTA of
- *          its own — the entity header's "+ Add rate entry" button already
+ *          its own — the entity header's "Add rate entry" button already
  *          serves this, so a second button here would be redundant).
  *   Populated (per entity) — Rate / Valid from / Added by / Added on /
  *          Status table; the `inEffectToday` row carries `RateInEffectBadge`.
  *
- * `rate:manage` (whether "+ Add rate entry" renders at all — design.md F5
- * step 2) is resolved via `adminApi.getMe()` — the SAME `GET /authz/me` call
- * SectionNav.tsx uses for its own proactive `rate:read` nav gate — fetched
- * independently here (this screen's own data-fetch, matching every other
- * admin-ui screen's "each page owns its own fetch" convention) and fails
- * CLOSED (button hidden, not a crash) if that call itself fails: UX-only,
- * never the actual security boundary (that is refund-api's server-side
+ * `rate:manage` (whether "Add rate entry" renders at all — design.md F5
+ * step 2) is derived at render from `shell/session`'s `usePermissions()` (the
+ * shell's cached `GET /authz/me`, the same seam SectionNav.tsx uses for its
+ * `rate:read` nav gate; INC-32). A failed permissions fetch resolves to no
+ * grants, so the button fails CLOSED (hidden, not a crash): UX-only, never
+ * the actual security boundary (that is refund-api's server-side
  * `rate:manage` gate on `POST /rates`, plan.md Security section).
  *
  * Fetch pattern: an explicit Promise chain rather than an async/await helper
@@ -57,16 +63,14 @@ import AddRateEntryModal from '../components/AddRateEntryModal'
  * documented rationale (`react-hooks/set-state-in-effect` static analysis).
  */
 
-const ENTITY_CONFIG: Record<MileageRateEntity, { label: string; flag: string }> = {
-  welld_ch: { label: 'WellD CH', flag: '🇨🇭' },
-  welld_it: { label: 'WellD Italia', flag: '🇮🇹' },
-}
+// Entity names come from strings; no flag emoji (they do not render on Windows — INC-23).
+const ENTITY_LABEL: Record<MileageRateEntity, string> = strings.common.entities
 
 const ENTITY_ORDER: MileageRateEntity[] = ['welld_ch', 'welld_it']
 
 type ListState =
   | { status: 'loading' }
-  | { status: 'loaded'; result: RatesResult; canManage: boolean }
+  | { status: 'loaded'; result: RatesResult }
   | { status: 'error'; message: string }
   | { status: 'forbidden' }
 
@@ -87,30 +91,31 @@ type AddModalState =
  * State for the accounting-distribution-email panel (T6,
  * specs/011-refund-settings/tasks.md, refs AC-1.1, AC-3.2, AC-5.3).
  *
- * `hidden` covers both "getMe() says no settings:read" (the proactive path,
- * AC-3.2) and "GET /settings/:key came back 403 anyway" (the reactive path,
- * mirrors the rate section's `forbidden` handling but as an outright absence
+ * `hidden` is the reactive path: "GET /settings/:key came back 403 anyway"
+ * (mirrors the rate section's `forbidden` handling but as an outright absence
  * rather than a PermissionDenied block — AC-3.2 requires the section not be
- * shown at all, not shown-then-blocked).
+ * shown at all, not shown-then-blocked). The proactive path (no
+ * `settings:read` in `usePermissions()`, AC-3.2) is derived at render and
+ * never fetches.
  */
 type SettingsState =
   | { status: 'hidden' }
   | { status: 'loading' }
-  | { status: 'loaded'; setting: SettingResult; canManage: boolean }
+  | { status: 'loaded'; setting: SettingResult }
   | { status: 'error'; message: string }
 
 const errorMessageFor = (error: unknown): string => {
   if (error instanceof ApiError) {
     return error.detail ?? error.title
   }
-  return 'Could not load the mileage rates.'
+  return t.loadError
 }
 
 const settingsErrorMessageFor = (error: unknown): string => {
   if (error instanceof SettingsApiError) {
     return error.detail ?? error.title
   }
-  return 'Could not load the accounting distribution email.'
+  return t.settings.loadError
 }
 
 /** Whether `permissions` contains the given (resource, action) pair. */
@@ -133,38 +138,41 @@ const hasCapability = (
 const mapAddRateError = (error: ApiError): { rateError: string | null; validFromError: string | null } => {
   const detail = (error.detail ?? '').toLowerCase()
   if (detail.includes('date') || detail.includes('validfrom') || detail.includes('valid from')) {
-    return { rateError: null, validFromError: error.detail ?? 'Enter a valid date.' }
+    return { rateError: null, validFromError: error.detail ?? t.validFromError }
   }
-  return { rateError: error.detail ?? 'Enter a rate greater than 0.', validFromError: null }
+  return { rateError: error.detail ?? t.rateError, validFromError: null }
 }
 
-const formatDateOnly = (isoDate: string): string => {
-  try {
-    return new Date(`${isoDate}T00:00:00`).toLocaleDateString(undefined, {
-      day: 'numeric',
-      month: 'short',
-      year: 'numeric',
-    })
-  } catch {
-    return isoDate
-  }
-}
+/**
+ * A rate per km for display: integer micros of the currency unit (ADR-0025)
+ * as a locale number with at least two decimals and up to the six micros
+ * carry, with the currency per km — "CHF 0.81/km" (INC-27).
+ */
+const formatRatePerKm = (micros: number, currency: MileageRateCurrency): string =>
+  t.perKm(formatNumber(micros / 1_000_000, { minimumFractionDigits: 2, maximumFractionDigits: 6 }), currency)
 
-const formatTimestamp = (iso: string): string => {
-  try {
-    return new Date(iso).toLocaleString(undefined, {
-      day: 'numeric',
-      month: 'short',
-      year: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit',
-    })
-  } catch {
-    return '—'
-  }
-}
+const rateColumns = (currency: MileageRateCurrency): DataTableColumn<RateEntry>[] => [
+  {
+    id: 'rate',
+    header: t.columns.rate,
+    rowHeader: true,
+    numeric: true,
+    render: (entry) => formatRatePerKm(entry.ratePerKmMicros, currency),
+  },
+  { id: 'validFrom', header: t.columns.validFrom, render: (entry) => formatDate(entry.validFrom) },
+  { id: 'addedBy', header: t.columns.addedBy, render: (entry) => entry.createdByEmail },
+  { id: 'addedOn', header: t.columns.addedOn, render: (entry) => formatDateTime(entry.createdAt) },
+  { id: 'status', header: t.columns.status, render: (entry) => entry.inEffectToday && <RateInEffectBadge /> },
+]
 
 export default function MileageRatesPage() {
+  // Capabilities from the shell's cached permissions (INC-32) — derived at
+  // render; until they resolve, or on any failure, they are empty (no grants).
+  const { permissions } = usePermissions()
+  const canManageRates = hasCapability(permissions, 'rate', 'manage')
+  const canReadSettings = hasCapability(permissions, 'settings', 'read')
+  const canManageSettings = hasCapability(permissions, 'settings', 'manage')
+
   const [listState, setListState] = useState<ListState>({ status: 'loading' })
   const [reloadToken, setReloadToken] = useState(0)
   const [addModal, setAddModal] = useState<AddModalState>({ open: false })
@@ -179,12 +187,17 @@ export default function MileageRatesPage() {
   const [emailInput, setEmailInput] = useState('')
   const [emailSaving, setEmailSaving] = useState(false)
   const [emailFormError, setEmailFormError] = useState<string | null>(null)
+  const emailInputRef = useRef<HTMLInputElement>(null)
+
+  // INC-19 confirmations: per entity for a new rate entry, and for the email setting.
+  const [rateSuccess, setRateSuccess] = useState<{ entity: MileageRateEntity; message: string } | null>(null)
+  const [emailSuccess, setEmailSuccess] = useState<string | null>(null)
 
   // The button that opened the currently-open modal — focus returns here on
   // a successful add (design.md ADM-M1 "Success" state: "focus returns to
-  // the entity's '+ Add rate entry' button — new focus-return behavior").
+  // the entity's 'Add rate entry' button — new focus-return behavior").
   // A plain ref (not a per-entity map) so it tracks whichever entity's header
-  // "+ Add rate entry" button was actually clicked.
+  // "Add rate entry" button was actually clicked.
   const lastTriggerRef = useRef<HTMLButtonElement | null>(null)
 
   // See the module doc comment above re: why this is a Promise chain, not
@@ -197,16 +210,8 @@ export default function MileageRatesPage() {
         if (!cancelled) setListState({ status: 'loading' })
       })
       .then(() => ratesApi.listRates())
-      .then((result) =>
-        adminApi
-          .getMe()
-          .then((me) => ({ result, canManage: hasCapability(me.permissions, 'rate', 'manage') }))
-          // A failed permission check hides the manage affordance rather than
-          // failing the whole screen — fail closed, UX-only (see doc comment).
-          .catch(() => ({ result, canManage: false })),
-      )
-      .then(({ result, canManage }) => {
-        if (!cancelled) setListState({ status: 'loaded', result, canManage })
+      .then((result) => {
+        if (!cancelled) setListState({ status: 'loaded', result })
       })
       .catch((error: unknown) => {
         if (cancelled) return
@@ -231,33 +236,25 @@ export default function MileageRatesPage() {
   // ---------------------------------------------------------------------------
 
   // Same Promise-chain rationale as the rate-list effect above
-  // (react-hooks/set-state-in-effect). Visibility is gated on `settings:read`
-  // via `adminApi.getMe()` — the SAME `GET /authz/me` call the rate section
-  // uses, fetched independently here (this panel's own data-fetch). A failed
-  // capability check, OR the capability being absent, hides the panel
-  // entirely (AC-3.2 — "not shown at all", not a PermissionDenied block) —
-  // fails CLOSED, UX-only; the real boundary is refund-api's server-side
-  // `settings:read`/`settings:manage` gate (plan.md Security section).
+  // (react-hooks/set-state-in-effect). Only fetches when `settings:read` is
+  // held (from `usePermissions()`); without it the panel is not rendered at
+  // all (AC-3.2 — "not shown at all", not a PermissionDenied block), and a
+  // failed permissions fetch yields no grants — fails CLOSED, UX-only; the
+  // real boundary is refund-api's server-side `settings:read`/`settings:manage`
+  // gate (plan.md Security section).
   useEffect(() => {
+    if (!canReadSettings) return
     let cancelled = false
 
     Promise.resolve()
       .then(() => {
         if (!cancelled) setSettingsState({ status: 'loading' })
       })
-      .then(() => adminApi.getMe().catch(() => null))
-      .then((me) => {
-        if (!me || !hasCapability(me.permissions, 'settings', 'read')) {
-          if (!cancelled) setSettingsState({ status: 'hidden' })
-          return null
-        }
-        const canManage = hasCapability(me.permissions, 'settings', 'manage')
-        return settingsApi.getSetting(ACCOUNTING_DISTRIBUTION_EMAIL_KEY).then((setting) => ({ setting, canManage }))
-      })
-      .then((loaded) => {
-        if (cancelled || !loaded) return
-        setSettingsState({ status: 'loaded', setting: loaded.setting, canManage: loaded.canManage })
-        setEmailInput(loaded.setting.value ?? '')
+      .then(() => settingsApi.getSetting(ACCOUNTING_DISTRIBUTION_EMAIL_KEY))
+      .then((setting) => {
+        if (cancelled) return
+        setSettingsState({ status: 'loaded', setting })
+        setEmailInput(setting.value ?? '')
         setEmailFormError(null)
       })
       .catch((error: unknown) => {
@@ -272,7 +269,13 @@ export default function MileageRatesPage() {
     return () => {
       cancelled = true
     }
-  }, [settingsReloadToken])
+  }, [settingsReloadToken, canReadSettings])
+
+  // A failed save moves focus to the field its error describes (INC-16) —
+  // in an effect, once the input is enabled again.
+  useEffect(() => {
+    if (emailFormError) emailInputRef.current?.focus()
+  }, [emailFormError])
 
   const handleSettingsRetry = useCallback(() => {
     setSettingsReloadToken((token) => token + 1)
@@ -281,6 +284,7 @@ export default function MileageRatesPage() {
   const handleEmailInputChange = useCallback((value: string) => {
     setEmailInput(value)
     setEmailFormError(null)
+    setEmailSuccess(null)
   }, [])
 
   const handleEmailSave = useCallback(async () => {
@@ -291,6 +295,7 @@ export default function MileageRatesPage() {
       const setting = await settingsApi.putSetting(ACCOUNTING_DISTRIBUTION_EMAIL_KEY, trimmed === '' ? null : trimmed)
       setSettingsState((prev) => (prev.status === 'loaded' ? { ...prev, setting } : prev))
       setEmailInput(setting.value ?? '')
+      setEmailSuccess(setting.value ? t.settings.saved : t.settings.cleared)
     } catch (error) {
       // Leaves the shown current value unchanged (AC-1.3) — settingsState is
       // only ever updated on a successful write, above.
@@ -307,6 +312,7 @@ export default function MileageRatesPage() {
       const setting = await settingsApi.putSetting(ACCOUNTING_DISTRIBUTION_EMAIL_KEY, null)
       setSettingsState((prev) => (prev.status === 'loaded' ? { ...prev, setting } : prev))
       setEmailInput('')
+      setEmailSuccess(t.settings.cleared)
     } catch (error) {
       setEmailFormError(settingsErrorMessageFor(error))
     } finally {
@@ -350,13 +356,14 @@ export default function MileageRatesPage() {
 
     // Client-side pre-check (design.md ADM-M1: "Field error … or client-side
     // pre-check" both render the same field-level message).
-    const rateValue = Number(rate)
-    if (!Number.isFinite(rateValue) || rateValue <= 0) {
-      setAddModal((prev) => (prev.open ? { ...prev, rateError: 'Enter a rate greater than 0.' } : prev))
-      return
-    }
-    if (!/^\d{4}-\d{2}-\d{2}$/.test(validFrom)) {
-      setAddModal((prev) => (prev.open ? { ...prev, validFromError: 'Enter a valid date.' } : prev))
+    // INC-17: the rate is parsed exactly into integer micros (ADR-0025's rate
+    // precision, up to 6 decimals), comma or dot, never through a float. Both
+    // fields are checked so every error shows at once; the modal then focuses
+    // the first invalid one.
+    const rateError = validateRate(rate)
+    const validFromError = validateValidFrom(validFrom)
+    if (rateError || validFromError) {
+      setAddModal((prev) => (prev.open ? { ...prev, rateError, validFromError } : prev))
       return
     }
 
@@ -364,8 +371,10 @@ export default function MileageRatesPage() {
       prev.open ? { ...prev, submitting: true, rateError: null, validFromError: null, generalError: null } : prev,
     )
     try {
-      await ratesApi.addRate({ entity, ratePerKm: rate, validFrom })
+      // refund-api takes a dot-decimal string and derives the micros itself.
+      await ratesApi.addRate({ entity, ratePerKm: rate.trim().replace(',', '.'), validFrom })
       setAddModal({ open: false })
+      setRateSuccess({ entity, message: t.added(ENTITY_LABEL[entity]) })
       lastTriggerRef.current?.focus()
       setReloadToken((token) => token + 1)
     } catch (error) {
@@ -374,7 +383,7 @@ export default function MileageRatesPage() {
         setAddModal((prev) => (prev.open ? { ...prev, submitting: false, rateError, validFromError } : prev))
       } else {
         setAddModal((prev) =>
-          prev.open ? { ...prev, submitting: false, generalError: 'Could not add this rate entry. Try again.' } : prev,
+          prev.open ? { ...prev, submitting: false, generalError: t.addFailed } : prev,
         )
       }
     }
@@ -384,14 +393,14 @@ export default function MileageRatesPage() {
   // Render
   // ---------------------------------------------------------------------------
 
-  const canManage = listState.status === 'loaded' && listState.canManage
+  const settingsHidden = !canReadSettings || settingsState.status === 'hidden'
 
   return (
     <section aria-labelledby="admin-rates-heading" data-testid="admin-rates-page">
       {addModal.open && (
         <AddRateEntryModal
           entity={addModal.entity}
-          entityLabel={ENTITY_CONFIG[addModal.entity].label}
+          entityLabel={ENTITY_LABEL[addModal.entity]}
           rate={addModal.rate}
           validFrom={addModal.validFrom}
           onRateChange={handleRateChange}
@@ -405,146 +414,77 @@ export default function MileageRatesPage() {
         />
       )}
 
-      <h2 id="admin-rates-heading" className="text-lg font-semibold" style={{ fontFamily: 'var(--disp)' }}>
-        Mileage Rates
-      </h2>
-      <p className="mt-2 text-sm" style={{ color: 'var(--soft)' }}>
-        Two entirely independent per-km rate series, one per entity. A new entry never edits or removes a past one —
-        history accumulates, and an already-submitted claim keeps the rate that applied to it forever.
-      </p>
+      <PageHeader title={t.heading} titleId="admin-rates-heading" description={t.description} />
 
-      <div className="mt-4">
-        {listState.status === 'forbidden' && (
-          <PermissionDenied message="You don't have permission to view mileage rates." />
-        )}
+      <div className="flex flex-col gap-4">
+        {listState.status === 'forbidden' && <PermissionDenied headingLevel={3} message={t.forbidden} />}
 
-        {listState.status === 'loading' && (
-          <div className="flex flex-col gap-8">
-            {ENTITY_ORDER.map((entity) => (
-              <div key={entity}>
-                <h3 className="text-base font-semibold" style={{ fontFamily: 'var(--disp)' }}>
-                  <span aria-hidden="true">{ENTITY_CONFIG[entity].flag}</span> {ENTITY_CONFIG[entity].label}
-                </h3>
-                <div className="mt-2">
-                  <SkeletonListRows rows={3} />
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
+        {listState.status === 'loading' &&
+          ENTITY_ORDER.map((entity, index) => (
+            <Card key={entity} title={ENTITY_LABEL[entity]}>
+              {/* One announcement for the whole screen, on the first card. */}
+              <SkeletonListRows rows={3} label={index === 0 ? t.loading : null} />
+            </Card>
+          ))}
 
         {listState.status === 'error' && <ErrorBanner message={listState.message} onRetry={handleRetry} />}
 
-        {listState.status === 'loaded' && (
-          <div className="flex flex-col gap-8">
-            {listState.result.entities.map((entityRates) => {
-              const config = ENTITY_CONFIG[entityRates.entity]
-              const headingId = `rates-${entityRates.entity}-heading`
+        {listState.status === 'loaded' &&
+          listState.result.entities.map((entityRates) => {
+            const label = ENTITY_LABEL[entityRates.entity]
 
-              return (
-                <div key={entityRates.entity} data-testid={`rates-section-${entityRates.entity}`}>
-                  <div className="flex items-center justify-between gap-4">
-                    <h3 id={headingId} className="text-base font-semibold" style={{ fontFamily: 'var(--disp)' }}>
-                      <span aria-hidden="true">{config.flag}</span> {config.label}
-                    </h3>
-                    {canManage && (
-                      <button
-                        type="button"
-                        onClick={(e) => handleAddOpen(entityRates.entity, e.currentTarget)}
-                        data-testid={`add-rate-button-${entityRates.entity}`}
-                        className="text-sm py-1.5 px-3 font-medium transition-opacity hover:opacity-90"
-                        style={{ color: 'white', backgroundColor: 'var(--acc)' }}
-                      >
-                        + Add rate entry
-                      </button>
-                    )}
-                  </div>
+            return (
+              <Card
+                key={entityRates.entity}
+                title={label}
+                data-testid={`rates-section-${entityRates.entity}`}
+                action={
+                  canManageRates && (
+                    <Button
+                      size="sm"
+                      onClick={(e) => handleAddOpen(entityRates.entity, e.currentTarget)}
+                      data-testid={`add-rate-button-${entityRates.entity}`}
+                    >
+                      {t.addRateEntry}
+                    </Button>
+                  )
+                }
+              >
+                {rateSuccess?.entity === entityRates.entity && (
+                  <SuccessBanner
+                    message={rateSuccess.message}
+                    onDismiss={() => setRateSuccess(null)}
+                    testId={`rates-success-${entityRates.entity}`}
+                    className="mb-2"
+                  />
+                )}
 
-                  <div className="mt-2">
-                    {entityRates.entries.length === 0 && (
-                      <div
-                        className="flex flex-col items-center gap-3 py-8 text-center"
-                        data-testid={`rates-empty-${entityRates.entity}`}
-                      >
-                        <p className="text-sm" style={{ color: 'var(--soft)' }}>
-                          No rate configured yet for {config.label}.
-                        </p>
-                        {/* No CTA here — the entity header's "+ Add rate entry" button already covers this (avoids a redundant second button). */}
-                      </div>
-                    )}
+                {entityRates.entries.length === 0 && (
+                  // No CTA here — the card's "Add rate entry" action already covers this.
+                  <StatePanel title={t.empty.title} headingLevel={4} testId={`rates-empty-${entityRates.entity}`}>
+                    {t.empty.body(label)}
+                  </StatePanel>
+                )}
 
-                    {entityRates.entries.length > 0 && (
-                      <div className="overflow-x-auto">
-                        <table
-                          className="w-full text-[11px]"
-                          aria-labelledby={headingId}
-                          data-testid={`rates-table-${entityRates.entity}`}
-                        >
-                          <thead>
-                            <tr className="border-b" style={{ borderColor: 'var(--rule)' }}>
-                              {(['Rate', 'Valid from', 'Added by', 'Added on', 'Status'] as const).map((label) => (
-                                <th
-                                  key={label}
-                                  scope="col"
-                                  className="text-left py-1.5 px-2 text-[9px] font-mono uppercase tracking-wider"
-                                  style={{ color: 'var(--soft)' }}
-                                >
-                                  {label}
-                                </th>
-                              ))}
-                            </tr>
-                          </thead>
-                          <tbody>
-                            {entityRates.entries.map((entry) => (
-                              <tr
-                                key={entry.id}
-                                data-testid={`rate-row-${entry.id}`}
-                                className="border-b"
-                                style={{ borderColor: 'color-mix(in srgb, var(--rule) 50%, transparent)' }}
-                              >
-                                <td className="py-1.5 px-2 font-medium" style={{ color: 'var(--text)' }}>
-                                  {entry.ratePerKm} {entityRates.currency}/km
-                                </td>
-                                <td className="py-1.5 px-2 whitespace-nowrap" style={{ color: 'var(--text)' }}>
-                                  {formatDateOnly(entry.validFrom)}
-                                </td>
-                                <td className="py-1.5 px-2" style={{ color: 'var(--text)' }}>
-                                  {entry.createdByEmail}
-                                </td>
-                                <td className="py-1.5 px-2 whitespace-nowrap" style={{ color: 'var(--text)' }}>
-                                  {formatTimestamp(entry.createdAt)}
-                                </td>
-                                <td className="py-1.5 px-2">{entry.inEffectToday && <RateInEffectBadge />}</td>
-                              </tr>
-                            ))}
-                          </tbody>
-                        </table>
-                      </div>
-                    )}
-                  </div>
-                </div>
-              )
-            })}
-          </div>
-        )}
-      </div>
+                {entityRates.entries.length > 0 && (
+                  <DataTable
+                    caption={t.caption(label)}
+                    columns={rateColumns(entityRates.currency)}
+                    rows={entityRates.entries}
+                    getRowKey={(entry) => entry.id}
+                    testId={`rates-table-${entityRates.entity}`}
+                    rowTestIdPrefix="rate-row"
+                  />
+                )}
+              </Card>
+            )
+          })}
 
-      {settingsState.status !== 'hidden' && (
-        <div
-          className="mt-10"
-          role="region"
-          aria-labelledby="admin-settings-heading"
-          data-testid="accounting-email-panel"
-        >
-          <h2 id="admin-settings-heading" className="text-lg font-semibold" style={{ fontFamily: 'var(--disp)' }}>
-            Accounting distribution email
-          </h2>
-          <p className="mt-2 text-sm" style={{ color: 'var(--soft)' }}>
-            The email address that receives each monthly refund batch. Leave it blank to pause sending.
-          </p>
+        {!settingsHidden && (
+          <Card title={t.settings.title} data-testid="accounting-email-panel">
+            <p className="text-sm text-soft mb-4">{t.settings.description}</p>
 
-          <div className="mt-4">
-            {settingsState.status === 'loading' && <SkeletonListRows rows={2} />}
+            {settingsState.status === 'loading' && <SkeletonListRows rows={2} label={t.settings.loading} />}
 
             {settingsState.status === 'error' && (
               <ErrorBanner message={settingsState.message} onRetry={handleSettingsRetry} />
@@ -552,88 +492,80 @@ export default function MileageRatesPage() {
 
             {settingsState.status === 'loaded' && (
               <div className="flex flex-col gap-4">
-                <div>
-                  <span className="text-[9px] font-mono uppercase tracking-wider" style={{ color: 'var(--soft)' }}>
-                    Current value
-                  </span>
-                  <p
-                    className="mt-1 text-sm font-medium"
-                    data-testid="accounting-email-current-value"
-                    style={{ color: settingsState.setting.configured ? 'var(--text)' : 'var(--soft)' }}
-                  >
-                    {settingsState.setting.configured ? settingsState.setting.value : 'Not configured'}
-                  </p>
-                </div>
+                <FactList
+                  items={[
+                    {
+                      id: 'current',
+                      term: t.settings.currentValue,
+                      value: (
+                        <span
+                          className={settingsState.setting.configured ? 'text-text' : 'text-soft'}
+                          data-testid="accounting-email-current-value"
+                        >
+                          {settingsState.setting.configured ? settingsState.setting.value : t.settings.notConfigured}
+                        </span>
+                      ),
+                    },
+                  ]}
+                />
 
-                {settingsState.canManage && (
+                <SuccessBanner
+                  message={emailSuccess}
+                  onDismiss={() => setEmailSuccess(null)}
+                  testId="accounting-email-success"
+                />
+
+                {canManageSettings && (
                   <form
-                    className="flex flex-wrap items-start gap-2"
+                    className="flex flex-col gap-2"
                     onSubmit={(e) => {
                       e.preventDefault()
                       void handleEmailSave()
                     }}
                   >
-                    <div className="flex flex-col gap-1">
-                      <label htmlFor="accounting-email-input" className="sr-only">
-                        Accounting distribution email
-                      </label>
-                      <input
-                        id="accounting-email-input"
-                        // NOT type="email" — the browser's own constraint
-                        // validation would silently swallow the submit event
-                        // for a malformed value, short-circuiting AC-1.3's
-                        // server-validated 422 path (the source of truth for
-                        // "well-formed", not the input element).
-                        type="text"
-                        value={emailInput}
-                        onChange={(e) => handleEmailInputChange(e.target.value)}
-                        placeholder="accounting@welld.ch"
-                        data-testid="accounting-email-input"
-                        disabled={emailSaving}
-                        className="w-72 max-w-full text-sm py-1.5 px-2 border rounded"
-                        style={{ borderColor: 'var(--rule)', color: 'var(--text)', backgroundColor: 'var(--bg)' }}
-                      />
-                      {emailFormError && (
-                        <p
-                          role="alert"
-                          data-testid="accounting-email-error"
-                          className="text-xs"
-                          style={{ color: 'var(--org)' }}
-                        >
-                          {emailFormError}
-                        </p>
+                    <Field
+                      label={t.settings.emailAddress}
+                      error={
+                        emailFormError && (
+                          <span role="alert" data-testid="accounting-email-error">
+                            {emailFormError}
+                          </span>
+                        )
+                      }
+                      className="w-72 max-w-full"
+                    >
+                      {(control) => (
+                        <input
+                          {...control}
+                          ref={emailInputRef}
+                          type="text"
+                          value={emailInput}
+                          onChange={(e) => handleEmailInputChange(e.target.value)}
+                          placeholder={t.settings.placeholder}
+                          data-testid="accounting-email-input"
+                          disabled={emailSaving}
+                        />
                       )}
+                    </Field>
+                    <div className="flex items-center gap-2">
+                      <Button type="submit" variant="primary" disabled={emailSaving} data-testid="accounting-email-save">
+                        {strings.common.actions.save}
+                      </Button>
+                      <Button
+                        disabled={emailSaving || !settingsState.setting.configured}
+                        onClick={() => void handleEmailClear()}
+                        data-testid="accounting-email-clear"
+                      >
+                        {strings.common.actions.clear}
+                      </Button>
                     </div>
-                    <button
-                      type="submit"
-                      disabled={emailSaving}
-                      data-testid="accounting-email-save"
-                      className="text-sm py-1.5 px-3 font-medium transition-opacity hover:opacity-90 disabled:opacity-50"
-                      style={{ color: 'white', backgroundColor: 'var(--acc)' }}
-                    >
-                      Save
-                    </button>
-                    <button
-                      type="button"
-                      disabled={emailSaving || !settingsState.setting.configured}
-                      onClick={() => void handleEmailClear()}
-                      data-testid="accounting-email-clear"
-                      className="text-sm py-1.5 px-3 font-medium border transition-opacity hover:opacity-80 disabled:opacity-50"
-                      style={{ borderColor: 'var(--rule)', color: 'var(--text)' }}
-                    >
-                      Clear
-                    </button>
                   </form>
                 )}
 
                 <div>
-                  <h3 className="text-base font-semibold" style={{ fontFamily: 'var(--disp)' }}>
-                    Change history
-                  </h3>
+                  <h4 className="text-sm font-semibold text-text">{t.settings.historyTitle}</h4>
                   {settingsState.setting.history.length === 0 && (
-                    <p className="mt-2 text-sm" style={{ color: 'var(--soft)' }}>
-                      No changes recorded yet.
-                    </p>
+                    <p className="mt-2 text-sm text-soft">{t.settings.historyEmpty}</p>
                   )}
                   {settingsState.setting.history.length > 0 && (
                     <ul className="mt-2 flex flex-col gap-1.5" data-testid="accounting-email-history">
@@ -641,11 +573,13 @@ export default function MileageRatesPage() {
                         <li
                           key={`${entry.changedAt}-${index}`}
                           data-testid={`accounting-email-history-item-${index}`}
-                          className="text-[11px]"
-                          style={{ color: 'var(--text)' }}
+                          className="text-2xs text-text"
                         >
-                          {entry.value ?? 'Not configured'} — {entry.changedByEmail} —{' '}
-                          {formatTimestamp(entry.changedAt)}
+                          {t.settings.historyItem(
+                            entry.value ?? t.settings.notConfigured,
+                            entry.changedByEmail,
+                            formatDateTime(entry.changedAt),
+                          )}
                         </li>
                       ))}
                     </ul>
@@ -653,9 +587,9 @@ export default function MileageRatesPage() {
                 </div>
               </div>
             )}
-          </div>
-        </div>
-      )}
+          </Card>
+        )}
+      </div>
     </section>
   )
 }

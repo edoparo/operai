@@ -11,6 +11,7 @@
  * the shell has no such parent — ThemeToggle owns `useTheme()` itself and is a
  * self-contained, prop-less control that can be dropped directly into the header slot.
  */
+import { Button, Icon } from '@operai/ui'
 import { useTheme, THEME_CYCLE, THEME_ICON, THEME_LABEL } from '../hooks/useTheme'
 
 export default function ThemeToggle() {
@@ -21,13 +22,15 @@ export default function ThemeToggle() {
   }
 
   return (
-    <button
+    <Button
+      variant="secondary"
+      iconOnly
       onClick={cycleTheme}
-      className="w-7 h-7 rounded-full text-[12px] border border-rule text-muted hover:border-acc/50 hover:text-acc transition-colors flex items-center justify-center shrink-0"
+      className="shrink-0"
       title={THEME_LABEL[theme]}
       aria-label={THEME_LABEL[theme]}
     >
-      {THEME_ICON[theme]}
-    </button>
+      <Icon name={THEME_ICON[theme]} size={16} />
+    </Button>
   )
 }

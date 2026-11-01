@@ -1,14 +1,17 @@
 import { Link } from '@tanstack/react-router'
-import { useId, useState } from 'react'
+import { DateInput, Field, MoneyInput } from '@operai/ui'
+import type { FieldControlProps } from '@operai/ui'
+import { useId, useRef, useState } from 'react'
 import type { ReactNode } from 'react'
 import FormModal from './FormModal'
 import SupplierField from './SupplierField'
 import { ApiError } from '../lib/api'
 import { updateAsset } from '../lib/assetsApi'
-import { amountToCents, formatMoneyAmount } from '../lib/money'
+import { amountToCents, centsToInput } from '../lib/money'
 import { toInventoryError, validationField } from '../lib/types'
 import type { AssetCategory, AssetPatch, AssetView } from '../lib/types'
 import type { InventoryCapabilities } from '../hooks/useInventoryCapabilities'
+import { useFocusFirstInvalid } from '../hooks/useFocusFirstInvalid'
 import { strings } from '../strings'
 import { fillTemplate } from '../strings/errors'
 
@@ -87,7 +90,7 @@ const initialForm = (asset: AssetView): Form => ({
   description: asset.description,
   serialNumber: asset.serialNumber ?? '',
   purchaseDate: asset.purchaseDate,
-  purchasePrice: formatMoneyAmount(asset.purchasePriceCents),
+  purchasePrice: centsToInput(asset.purchasePriceCents),
   supplier: asset.supplier ?? '',
   invoiceRef: asset.invoiceRef ?? '',
   locationNote: asset.locationNote ?? '',
@@ -107,8 +110,11 @@ export default function EditAssetDialog({ asset, capabilities, onSaved, onCancel
   const [yearClosed, setYearClosed] = useState<{ year: number | undefined } | null>(null)
   const [generalError, setGeneralError] = useState<string | null>(null)
   const [submitting, setSubmitting] = useState(false)
+  const touched = useRef(new Set<FieldKey>())
+  const { ref: fieldsRef, focusFirstInvalid } = useFocusFirstInvalid()
 
   const set = (key: FieldKey, value: string) => {
+    touched.current.add(key)
     setForm((previous) => ({ ...previous, [key]: value }))
     setErrors((previous) => {
       if (previous[key] === undefined) return previous
@@ -194,6 +200,7 @@ export default function EditAssetDialog({ asset, capabilities, onSaved, onCancel
     setYearClosed(null)
     if (Object.keys(invalid).length > 0) {
       setErrors(invalid)
+      focusFirstInvalid()
       return
     }
     setErrors({})
@@ -207,40 +214,37 @@ export default function EditAssetDialog({ asset, capabilities, onSaved, onCancel
     }
   }
 
-  const fieldId = (key: FieldKey) => `${baseId}-${key}`
-  const describedBy = (key: FieldKey, extra: (string | false)[] = []) => {
-    const ids = [errors[key] !== undefined && `${fieldId(key)}-error`, ...extra].filter(Boolean)
-    return ids.length > 0 ? ids.join(' ') : undefined
-  }
-
-  const renderError = (key: FieldKey): ReactNode => {
+  /** The field's error, with a link to the conflicting asset when the server named one. */
+  const errorOf = (key: FieldKey): ReactNode => {
     const error = errors[key]
-    if (error === undefined) return null
+    if (error === undefined) return undefined
     return (
-      <p id={`${fieldId(key)}-error`} className="text-xs" style={{ color: 'var(--red)' }}>
+      <>
         {error.message}
         {error.linkAssetId !== undefined && (
           <>
             {' '}
-            <Link to="/assets/$id" params={{ id: error.linkAssetId }} className="underline">
+            <Link to="/assets/$id" params={{ id: error.linkAssetId }} className="link">
               {t.conflictLink}
             </Link>
           </>
         )}
-      </p>
+      </>
     )
   }
 
-  const inputProps = (key: FieldKey, extra: (string | false)[] = []) => ({
-    id: fieldId(key),
-    'aria-invalid': errors[key] !== undefined ? (true as const) : undefined,
-    'aria-describedby': describedBy(key, extra),
-    className: 'border px-2 py-1.5 text-sm w-full',
-    style: { borderColor: 'var(--rule)', backgroundColor: 'var(--ink)', color: 'var(--text)' },
-  })
+  /** Field's own description (its error) plus the notices that also explain this field. */
+  const describe = (control: FieldControlProps, extra: (string | false)[] = []) =>
+    [control['aria-describedby'], ...extra].filter(Boolean).join(' ') || undefined
 
-  const labelClass = 'flex flex-col gap-1 text-xs'
-  const labelStyle = { color: 'var(--soft)' }
+  /** Blur of a field the person changed: show its client-side error now (design-system.md § Forms). */
+  const blurred = (key: FieldKey) => () => {
+    if (!touched.current.has(key)) return
+    const issue = buildPatch().invalid[key]
+    if (issue !== undefined)
+      setErrors((previous) => (previous[key] !== undefined ? previous : { ...previous, [key]: issue }))
+  }
+
   const yearClosedRef = yearClosed !== null && yearClosedId
 
   return (
@@ -256,13 +260,8 @@ export default function EditAssetDialog({ asset, capabilities, onSaved, onCancel
       testIdPrefix="edit-asset"
     >
       {yearClosed !== null && (
-        <p
-          id={yearClosedId}
-          role="alert"
-          data-testid="edit-year-closed"
-          className="text-xs"
-          style={{ color: 'var(--org)' }}
-        >
+        // The save failed and the person must change course: a red, form-level error (INC-20).
+        <p id={yearClosedId} role="alert" data-testid="edit-year-closed" className="form-error">
           {yearClosed.year === undefined
             ? t.yearClosedEditNoYear
             : fillTemplate(strings.errors.fiscal_year_closed_edit, { year: yearClosed.year })}
@@ -270,7 +269,7 @@ export default function EditAssetDialog({ asset, capabilities, onSaved, onCancel
       )}
 
       {manager && (
-        <p className="flex flex-wrap items-center gap-2 text-xs" style={labelStyle}>
+        <p className="flex flex-wrap items-center gap-2 text-xs text-soft">
           <span>{strings.common.entity[asset.entity]}</span>
           <span aria-hidden="true">·</span>
           <span>{strings.common.currency[asset.currency]}</span>
@@ -278,109 +277,124 @@ export default function EditAssetDialog({ asset, capabilities, onSaved, onCancel
         </p>
       )}
 
-      {manager && (
-        <>
-          <label className={labelClass} style={labelStyle}>
-            {t.fields.category}
-            <select {...inputProps('category')} value={form.category} onChange={(e) => set('category', e.target.value)}>
-              {(Object.keys(strings.categories) as AssetCategory[]).map((category) => (
-                <option key={category} value={category}>
-                  {strings.categories[category]}
-                </option>
-              ))}
-            </select>
-          </label>
+      <div ref={fieldsRef} className="contents">
+        {manager && (
+          <>
+            <Field label={t.fields.category}>
+              {(control) => (
+                <select
+                  {...control}
+                  value={form.category}
+                  onChange={(e) => set('category', e.target.value)}
+                  className="w-full"
+                >
+                  {(Object.keys(strings.categories) as AssetCategory[]).map((category) => (
+                    <option key={category} value={category}>
+                      {strings.categories[category]}
+                    </option>
+                  ))}
+                </select>
+              )}
+            </Field>
 
-          <label className={labelClass} style={labelStyle}>
-            {t.fields.description}
-            <input
-              {...inputProps('description')}
-              aria-required="true"
-              value={form.description}
-              onChange={(e) => set('description', e.target.value)}
+            <Field label={t.fields.description} required error={errorOf('description')}>
+              {(control) => (
+                <input
+                  {...control}
+                  value={form.description}
+                  onChange={(e) => set('description', e.target.value)}
+                  onBlur={blurred('description')}
+                  className="w-full"
+                />
+              )}
+            </Field>
+
+            <Field label={t.fields.serial} error={errorOf('serialNumber')}>
+              {(control) => (
+                <input
+                  {...control}
+                  value={form.serialNumber}
+                  onChange={(e) => set('serialNumber', e.target.value)}
+                  className="w-full"
+                />
+              )}
+            </Field>
+
+            <Field label={t.fields.purchaseDate} required error={errorOf('purchaseDate')}>
+              {(control) => (
+                <DateInput
+                  {...control}
+                  aria-describedby={describe(control, [yearClosedRef])}
+                  value={form.purchaseDate}
+                  onChange={(e) => set('purchaseDate', e.target.value)}
+                  onBlur={blurred('purchaseDate')}
+                  className="w-full"
+                />
+              )}
+            </Field>
+
+            <Field
+              label={t.fields.purchasePriceIn(strings.common.currency[asset.currency])}
+              required
+              error={errorOf('purchasePrice')}
+            >
+              {(control) => (
+                <MoneyInput
+                  {...control}
+                  aria-describedby={describe(control, [yearClosedRef])}
+                  value={form.purchasePrice}
+                  onChange={(e) => set('purchasePrice', e.target.value)}
+                  onBlur={blurred('purchasePrice')}
+                  className="w-full"
+                />
+              )}
+            </Field>
+          </>
+        )}
+
+        <Field label={t.fields.supplier} error={errorOf('supplier')}>
+          {(control) => (
+            <SupplierField
+              id={control.id}
+              value={form.supplier}
+              onChange={(value) => set('supplier', value)}
+              ariaInvalid={control['aria-invalid']}
+              ariaDescribedBy={control['aria-describedby']}
             />
-          </label>
-          {renderError('description')}
+          )}
+        </Field>
 
-          <label className={labelClass} style={labelStyle}>
-            {t.fields.serial}
+        <Field label={t.fields.invoiceRef} error={errorOf('invoiceRef')}>
+          {(control) => (
             <input
-              {...inputProps('serialNumber')}
-              value={form.serialNumber}
-              onChange={(e) => set('serialNumber', e.target.value)}
+              {...control}
+              aria-describedby={describe(control, [showUnlinkWarning && unlinkId])}
+              value={form.invoiceRef}
+              onChange={(e) => set('invoiceRef', e.target.value)}
+              className="w-full"
             />
-          </label>
-          {renderError('serialNumber')}
+          )}
+        </Field>
+        {showUnlinkWarning && asset.invoiceFile !== null && (
+          // A genuine warning (the save will unlink the file), not an error: orange, as text-safe --org-text.
+          <p id={unlinkId} data-testid="edit-unlink-warning" className="text-xs text-org-text">
+            {t.unlinkWarning(asset.invoiceFile.fileName)}
+          </p>
+        )}
 
-          <label className={labelClass} style={labelStyle}>
-            {t.fields.purchaseDate}
-            <input
-              {...inputProps('purchaseDate', [yearClosedRef])}
-              type="date"
-              aria-required="true"
-              value={form.purchaseDate}
-              onChange={(e) => set('purchaseDate', e.target.value)}
-            />
-          </label>
-          {renderError('purchaseDate')}
-
-          <label className={labelClass} style={labelStyle}>
-            {t.fields.purchasePriceIn(strings.common.currency[asset.currency])}
-            <input
-              {...inputProps('purchasePrice', [yearClosedRef])}
-              inputMode="decimal"
-              aria-required="true"
-              value={form.purchasePrice}
-              onChange={(e) => set('purchasePrice', e.target.value)}
-            />
-          </label>
-          {renderError('purchasePrice')}
-        </>
-      )}
-
-      {/* Not wrapped in the <label> like its siblings: the suggestion list would become part of the field's name. */}
-      <div className={labelClass} style={labelStyle}>
-        <label htmlFor={fieldId('supplier')}>{t.fields.supplier}</label>
-        <SupplierField
-          id={fieldId('supplier')}
-          value={form.supplier}
-          onChange={(value) => set('supplier', value)}
-          ariaInvalid={errors.supplier !== undefined}
-          ariaDescribedBy={describedBy('supplier', [])}
-          inputClassName={inputProps('supplier').className}
-          inputStyle={inputProps('supplier').style}
-        />
+        {manager && (
+          <Field label={t.fields.location} error={errorOf('locationNote')}>
+            {(control) => (
+              <input
+                {...control}
+                value={form.locationNote}
+                onChange={(e) => set('locationNote', e.target.value)}
+                className="w-full"
+              />
+            )}
+          </Field>
+        )}
       </div>
-      {renderError('supplier')}
-
-      <label className={labelClass} style={labelStyle}>
-        {t.fields.invoiceRef}
-        <input
-          {...inputProps('invoiceRef', [showUnlinkWarning && unlinkId])}
-          value={form.invoiceRef}
-          onChange={(e) => set('invoiceRef', e.target.value)}
-        />
-      </label>
-      {renderError('invoiceRef')}
-      {showUnlinkWarning && asset.invoiceFile !== null && (
-        <p id={unlinkId} data-testid="edit-unlink-warning" className="text-xs" style={{ color: 'var(--org)' }}>
-          {t.unlinkWarning(asset.invoiceFile.fileName)}
-        </p>
-      )}
-
-      {manager && (
-        <>
-          <label className={labelClass} style={labelStyle}>
-            {t.fields.location}
-            <input
-              {...inputProps('locationNote')}
-              value={form.locationNote}
-              onChange={(e) => set('locationNote', e.target.value)}
-            />
-          </label>
-          {renderError('locationNote')}
-        </>
-      )}
     </FormModal>
   )
 }

@@ -57,7 +57,7 @@
  * self-skip either, though the bulk endpoint still defends against it.
  *
  * --- Design-fidelity gap closed post-T12 (design.md Screen U1, specs/006-user-invitations) ---
- * Gains: a "+ Invite user" button next to the heading — Screen U1's own entry
+ * Gains: a "Invite user" button next to the heading — Screen U1's own entry
  * point into F1, parallel to (and independent of) the Invitations tab's
  * identical button (T12, ./InvitationsPage.tsx). Opens the SAME
  * `InviteUserModal` component and calls the SAME `adminApi.createInvitation`
@@ -69,11 +69,15 @@
  * closes and an `aria-live="polite"` confirmation announces the outcome
  * (design.md F1 step 3) — the new invitation itself is visible on the
  * Invitations tab on next visit; this screen has no reason to re-fetch users.
+ * The confirmation is a compact success Banner (INC-19), warning-toned when
+ * the invitation was created but its email failed.
  */
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { InputHTMLAttributes } from 'react'
 import { Link } from '@tanstack/react-router'
+import { Button, DataTable, PageHeader, StatePanel, formatNumber } from '@operai/ui'
+import type { DataTableColumn } from '@operai/ui'
 import { useSession } from 'shell/session'
 import * as adminApi from '../lib/adminApi'
 import type { Department, Paginated, Role, UserSummary } from '../lib/adminApi'
@@ -88,18 +92,19 @@ import GuardrailDialog from '../components/GuardrailDialog'
 import BulkDeleteResultPanel from '../components/BulkDeleteResultPanel'
 import type { BulkDeleteSkipItem } from '../components/BulkDeleteResultPanel'
 import InviteUserModal from '../components/InviteUserModal'
+import SuccessBanner from '../components/SuccessBanner'
+import { useFlash } from '../lib/flash'
+import { strings } from '../strings'
+
+const t = strings.users
 
 const PAGE_SIZE = 20
 
 /** design.md F3 — fixed acknowledgement copy for the last-admin delete guard, adapted from UserDetail.tsx's LAST_ADMIN_MESSAGE. */
-const LAST_ADMIN_DELETE_MESSAGE =
-  'This is the last administrator — deleting this user would leave nobody able to manage access. Assign another admin first.'
+const LAST_ADMIN_DELETE_MESSAGE = strings.common.guardrail.lastAdminDeleteMessage
 
-const formatEntity = (entity: UserSummary['entity']): string => {
-  if (entity === 'welld_ch') return 'WellD CH'
-  if (entity === 'welld_it') return 'WellD Italia'
-  return '—'
-}
+const formatEntity = (entity: UserSummary['entity']): string =>
+  entity ? strings.common.entities[entity] : strings.common.emptyValue
 
 type UsersState =
   { status: 'loading' } | { status: 'loaded'; result: Paginated<UserSummary> } | { status: 'error'; message: string }
@@ -133,7 +138,7 @@ const errorMessageFor = (error: unknown): string => {
   if (error instanceof ApiError) {
     return error.detail ?? error.title
   }
-  return 'Could not load users.'
+  return t.loadError
 }
 
 /**
@@ -181,11 +186,13 @@ export default function UsersPage() {
   const [bulkDeleteModal, setBulkDeleteModal] = useState<BulkDeleteModalState>({ open: false })
   const [bulkResult, setBulkResult] = useState<BulkResultState>(null)
 
-  // --- "+ Invite user" (Screen U1's own entry point into F1 — closed post-T12) ---
+  // --- "Invite user" (Screen U1's own entry point into F1 — closed post-T12) ---
   const [catalog, setCatalog] = useState<CatalogState>(null)
   const [catalogError, setCatalogError] = useState<string | null>(null)
   const [inviteModal, setInviteModal] = useState<InviteModalState>({ open: false })
-  const [inviteAnnouncement, setInviteAnnouncement] = useState('')
+  // --- Success feedback (INC-19): invite, delete, and a delete made on the user's own page (flash) ---
+  const [success, setSuccess] = useFlash('users')
+  const [inviteFeedback, setInviteFeedback] = useState<{ message: string; emailFailed: boolean } | null>(null)
 
   // Fetches the current page/query whenever they (or `reloadToken`, bumped by
   // "Retry" or a successful delete) change. See ../pages/AuditPage.tsx's doc
@@ -227,7 +234,7 @@ export default function UsersPage() {
   }, [query, page])
 
   // ---------------------------------------------------------------------------
-  // "+ Invite user" (Modal N1 reused — design.md Screen U1 / F1)
+  // "Invite user" (Modal N1 reused — design.md Screen U1 / F1)
   // ---------------------------------------------------------------------------
 
   // Fetch the role/department catalogs once — needed by InviteUserModal's two
@@ -304,10 +311,10 @@ export default function UsersPage() {
       // announced here instead (the row itself lives on the Invitations tab,
       // not this screen).
       setInviteModal({ open: false })
-      setInviteAnnouncement(
+      setInviteFeedback(
         created.emailDelivery === 'sent'
-          ? `Invitation sent to ${created.email}`
-          : `Invitation created for ${created.email} — email failed to send`,
+          ? { message: t.invite.sent(created.email), emailFailed: false }
+          : { message: t.invite.emailFailed(created.email), emailFailed: true },
       )
     } catch (error) {
       if (error instanceof ApiError && error.status === 409) {
@@ -322,7 +329,7 @@ export default function UsersPage() {
             ? {
                 ...prev,
                 submitting: false,
-                generalError: error.detail ?? 'One or more selected roles/departments no longer exist.',
+                generalError: error.detail ?? t.invite.stale,
               }
             : prev,
         )
@@ -357,6 +364,7 @@ export default function UsersPage() {
     try {
       await adminApi.deleteUser(user.id)
       setDeleteModal({ open: false })
+      setSuccess(t.deleted(user.name ?? user.email))
       setReloadToken((token) => token + 1)
     } catch (error) {
       if (error instanceof ApiError && error.status === 422) {
@@ -367,7 +375,7 @@ export default function UsersPage() {
       }
       setDeleteModal((prev) => (prev.open ? { ...prev, isDeleting: false, error: errorMessageFor(error) } : prev))
     }
-  }, [deleteModal])
+  }, [deleteModal, setSuccess])
 
   const handleAcknowledgeGuardrail = useCallback(() => {
     setGuardrailMessage(null)
@@ -376,13 +384,7 @@ export default function UsersPage() {
   const deleteBody = useMemo(() => {
     if (!deleteModal.open) return null
     const identity = deleteModal.user.name ?? deleteModal.user.email
-    return (
-      <p>
-        Delete {identity}? They will immediately lose all access to Operai — every active session ends and they can no
-        longer sign in. Their record and data are retained for audit, but there is no undo: regaining access requires a
-        brand-new invitation.
-      </p>
-    )
+    return <p>{t.deleteBody(identity)}</p>
   }, [deleteModal])
 
   // ---------------------------------------------------------------------------
@@ -460,11 +462,8 @@ export default function UsersPage() {
     const { users } = bulkDeleteModal
     return (
       <>
-        <p>
-          Delete {users.length} selected users? Anyone in this selection who is the last remaining administrator, or
-          your own account, is automatically skipped — everyone else in the batch is still deleted.
-        </p>
-        <ul className="mt-2 max-h-32 overflow-y-auto text-xs" style={{ color: 'var(--soft)' }}>
+        <p>{t.bulk.body(users.length)}</p>
+        <ul className="mt-2 max-h-32 overflow-y-auto text-xs text-soft">
           {users.map((u) => (
             <li key={u.id}>{u.email}</li>
           ))}
@@ -473,11 +472,96 @@ export default function UsersPage() {
     )
   }, [bulkDeleteModal])
 
+  // INC-14: the library DataTable. The leftmost column is the bulk-selection
+  // checkbox (its header the tri-state "select all on this page"); the name
+  // is the row header and links to the record.
+  const userColumns: DataTableColumn<UserSummary>[] = [
+    {
+      id: 'select',
+      header: (
+        <>
+          <span className="sr-only">{t.selectAll}</span>
+          <SelectAllCheckbox
+            checked={allSelectableSelected}
+            indeterminate={someSelectableSelected && !allSelectableSelected}
+            onChange={handleToggleSelectAll}
+            disabled={selectableUsers.length === 0}
+            aria-label={t.selectAllLabel}
+            data-testid="users-select-all"
+          />
+        </>
+      ),
+      render: (user) => (
+        <input
+          type="checkbox"
+          checked={selectedIds.has(user.id)}
+          disabled={user.id === currentUserId}
+          onChange={() => handleToggleRow(user.id)}
+          aria-label={t.selectUser(user.name ?? user.email)}
+          data-testid={`user-checkbox-${user.id}`}
+        />
+      ),
+    },
+    {
+      id: 'name',
+      header: strings.common.fields.name,
+      rowHeader: true,
+      render: (user) => (
+        <Link to="/users/$id" params={{ id: user.id }} data-testid={`user-row-${user.id}`} className="link">
+          {user.name ?? user.email}
+        </Link>
+      ),
+    },
+    { id: 'email', header: strings.common.fields.email, render: (user) => user.email },
+    { id: 'entity', header: strings.common.fields.entity, render: (user) => formatEntity(user.entity) },
+    {
+      id: 'jobTitle',
+      header: strings.common.fields.jobTitle,
+      render: (user) => user.jobTitle ?? strings.common.emptyValue,
+    },
+    {
+      id: 'roles',
+      header: strings.common.fields.roles,
+      numeric: true,
+      render: (user) => formatNumber(user.roleCount),
+    },
+    {
+      id: 'departments',
+      header: strings.common.fields.departments,
+      numeric: true,
+      render: (user) => formatNumber(user.departmentCount),
+    },
+    {
+      id: 'actions',
+      header: <span className="sr-only">{strings.common.actionsColumn}</span>,
+      render: (user) => {
+        const isSelf = user.id === currentUserId
+        return (
+          <div className="flex items-center justify-end">
+            <Button
+              variant="danger"
+              size="sm"
+              aria-disabled={isSelf}
+              title={isSelf ? strings.common.cannotDeleteSelf : undefined}
+              onClick={() => handleDeleteRequest(user)}
+              data-testid={`user-delete-${user.id}`}
+            >
+              {strings.common.actions.delete}
+              {isSelf && (
+                <span className="sr-only">{strings.common.disabledReason(strings.common.cannotDeleteSelf)}</span>
+              )}
+            </Button>
+          </div>
+        )
+      },
+    },
+  ]
+
   return (
     <section aria-labelledby="admin-users-heading" data-testid="admin-users-page">
       {deleteModal.open && (
         <ConfirmDeleteModal
-          entityLabel="user"
+          title={t.deleteTitle}
           itemName={deleteModal.user.email}
           body={deleteBody}
           isDeleting={deleteModal.isDeleting}
@@ -489,8 +573,8 @@ export default function UsersPage() {
 
       {bulkDeleteModal.open && (
         <ConfirmDeleteModal
-          entityLabel={`${bulkDeleteModal.users.length} users`}
-          itemName={`${bulkDeleteModal.users.length} users`}
+          title={t.bulk.title(bulkDeleteModal.users.length)}
+          itemName={t.bulk.title(bulkDeleteModal.users.length)}
           body={bulkDeleteBody}
           isDeleting={bulkDeleteModal.isDeleting}
           errorMessage={bulkDeleteModal.error}
@@ -501,7 +585,7 @@ export default function UsersPage() {
 
       {guardrailMessage && (
         <GuardrailDialog
-          title="Can't delete this user"
+          title={strings.common.guardrail.lastAdminDeleteTitle}
           message={guardrailMessage}
           onAcknowledge={handleAcknowledgeGuardrail}
         />
@@ -527,44 +611,41 @@ export default function UsersPage() {
 
       <UsersSubNav />
 
-      <div className="flex items-center justify-between gap-4">
-        <h2 id="admin-users-heading" className="text-lg font-semibold" style={{ fontFamily: 'var(--disp)' }}>
-          Users
-        </h2>
-        <button
-          type="button"
-          onClick={handleInviteOpen}
-          disabled={!catalog}
-          data-testid="users-invite-button"
-          className="text-sm py-1.5 px-3 font-medium transition-opacity hover:opacity-90 disabled:opacity-40 disabled:cursor-not-allowed"
-          style={{ color: 'white', backgroundColor: 'var(--acc)' }}
-        >
-          + Invite user
-        </button>
-      </div>
-      <p className="mt-2 text-sm" style={{ color: 'var(--soft)' }}>
-        Browse every signed-in user, then open one to set attributes and assign roles or departments.
-      </p>
+      <PageHeader
+        title={t.heading}
+        titleId="admin-users-heading"
+        description={t.description}
+        actions={
+          <Button variant="primary" onClick={handleInviteOpen} disabled={!catalog} data-testid="users-invite-button">
+            {t.inviteUser}
+          </Button>
+        }
+      />
 
       {catalogError && <ErrorBanner message={catalogError} />}
 
-      <p aria-live="polite" className="sr-only" data-testid="users-invite-announcement">
-        {inviteAnnouncement}
-      </p>
+      <SuccessBanner
+        message={inviteFeedback?.message ?? null}
+        tone={inviteFeedback?.emailFailed ? 'warning' : 'success'}
+        onDismiss={() => setInviteFeedback(null)}
+        testId="users-invite-announcement"
+        className="mt-4"
+      />
+
+      <SuccessBanner message={success} onDismiss={() => setSuccess(null)} testId="users-success" className="mt-4" />
 
       <div className="mt-4">
         <label htmlFor="users-search-input" className="sr-only">
-          Search users by name or email
+          {t.searchLabel}
         </label>
         <input
           id="users-search-input"
           type="search"
           value={query}
           onChange={(e) => handleQueryChange(e.target.value)}
-          placeholder="Search by name or email…"
+          placeholder={t.searchPlaceholder}
           data-testid="users-search-input"
-          className="w-full sm:w-80 border rounded-md px-3 py-2 text-sm"
-          style={{ borderColor: 'var(--rule)', backgroundColor: 'var(--ink-mid)', color: 'var(--text)' }}
+          className="w-full sm:w-80"
         />
       </div>
 
@@ -581,23 +662,16 @@ export default function UsersPage() {
         {selectedIds.size > 0 && (
           <div
             role="region"
-            aria-label="Bulk actions"
+            aria-label={t.bulk.actionsLabel}
             data-testid="bulk-action-bar"
-            className="mb-3 flex items-center justify-between gap-4 px-3 py-2 border rounded-md"
-            style={{ borderColor: 'var(--rule)', backgroundColor: 'var(--ink-soft)' }}
+            className="mb-3 flex items-center justify-between gap-4 px-3 py-2 border rounded-md border-rule bg-ink-soft"
           >
-            <p aria-live="polite" className="text-sm" style={{ color: 'var(--text)' }} data-testid="bulk-action-count">
-              {selectedIds.size} {selectedIds.size === 1 ? 'user' : 'users'} selected
+            <p aria-live="polite" className="text-sm text-text" data-testid="bulk-action-count">
+              {t.bulk.selected(selectedIds.size)}
             </p>
-            <button
-              type="button"
-              onClick={handleBulkDeleteRequest}
-              data-testid="bulk-delete-button"
-              className="text-sm font-medium py-1.5 px-3 border transition-opacity hover:opacity-80"
-              style={{ borderColor: 'var(--red)', color: 'var(--red)' }}
-            >
-              Delete selected ({selectedIds.size})
-            </button>
+            <Button variant="danger" size="sm" onClick={handleBulkDeleteRequest} data-testid="bulk-delete-button">
+              {t.bulk.deleteSelected(selectedIds.size)}
+            </Button>
           </div>
         )}
 
@@ -606,110 +680,21 @@ export default function UsersPage() {
         {state.status === 'error' && <ErrorBanner message={state.message} onRetry={handleRetry} />}
 
         {state.status === 'loaded' && state.result.total === 0 && (
-          <p className="text-sm py-6 text-center" style={{ color: 'var(--soft)' }} data-testid="users-empty-state">
-            No users match your search.
-          </p>
+          <StatePanel title={t.empty.title} testId="users-empty-state">
+            {t.empty.body}
+          </StatePanel>
         )}
 
         {state.status === 'loaded' && state.result.total > 0 && (
           <>
-            <div className="overflow-x-auto">
-              <table className="w-full text-[11px]" data-testid="users-table">
-                <thead>
-                  <tr className="border-b" style={{ borderColor: 'var(--rule)' }}>
-                    <th scope="col" className="py-1.5 px-2">
-                      <span className="sr-only">Select all</span>
-                      <SelectAllCheckbox
-                        checked={allSelectableSelected}
-                        indeterminate={someSelectableSelected && !allSelectableSelected}
-                        onChange={handleToggleSelectAll}
-                        disabled={selectableUsers.length === 0}
-                        aria-label="Select all users on this page"
-                        data-testid="users-select-all"
-                      />
-                    </th>
-                    {['Name', 'Email', 'Entity', 'Job title', 'Roles', 'Departments'].map((label) => (
-                      <th
-                        key={label}
-                        scope="col"
-                        className="text-left py-1.5 px-2 text-[9px] font-mono uppercase tracking-wider"
-                        style={{ color: 'var(--soft)' }}
-                      >
-                        {label}
-                      </th>
-                    ))}
-                    <th scope="col" className="py-1.5 px-2">
-                      <span className="sr-only">Actions</span>
-                    </th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {state.result.items.map((user) => {
-                    const isSelf = user.id === currentUserId
-                    return (
-                      <tr
-                        key={user.id}
-                        className="border-b"
-                        style={{ borderColor: 'color-mix(in srgb, var(--rule) 50%, transparent)' }}
-                      >
-                        <td className="py-1.5 px-2">
-                          <input
-                            type="checkbox"
-                            checked={selectedIds.has(user.id)}
-                            disabled={isSelf}
-                            onChange={() => handleToggleRow(user.id)}
-                            aria-label={`Select ${user.name ?? user.email}`}
-                            data-testid={`user-checkbox-${user.id}`}
-                          />
-                        </td>
-                        <td className="py-1.5 px-2">
-                          <Link
-                            to="/users/$id"
-                            params={{ id: user.id }}
-                            data-testid={`user-row-${user.id}`}
-                            className="font-medium transition-opacity hover:opacity-80"
-                            style={{ color: 'var(--acc)' }}
-                          >
-                            {user.name ?? user.email}
-                          </Link>
-                        </td>
-                        <td className="py-1.5 px-2" style={{ color: 'var(--text)' }}>
-                          {user.email}
-                        </td>
-                        <td className="py-1.5 px-2" style={{ color: 'var(--text)' }}>
-                          {formatEntity(user.entity)}
-                        </td>
-                        <td className="py-1.5 px-2" style={{ color: 'var(--text)' }}>
-                          {user.jobTitle ?? '—'}
-                        </td>
-                        <td className="py-1.5 px-2" style={{ color: 'var(--text)' }}>
-                          {user.roleCount}
-                        </td>
-                        <td className="py-1.5 px-2" style={{ color: 'var(--text)' }}>
-                          {user.departmentCount}
-                        </td>
-                        <td className="py-1.5 px-2">
-                          <div className="flex items-center justify-end">
-                            <button
-                              type="button"
-                              aria-disabled={isSelf}
-                              title={isSelf ? "You can't delete your own account" : undefined}
-                              onClick={() => handleDeleteRequest(user)}
-                              data-testid={`user-delete-${user.id}`}
-                              className="py-1 px-2.5 text-[11px] font-medium border transition-opacity hover:opacity-80 aria-disabled:opacity-40 aria-disabled:cursor-not-allowed"
-                              style={{ borderColor: 'var(--rule)', color: 'var(--text)' }}
-                            >
-                              Delete
-                              {isSelf && <span className="sr-only"> — You can't delete your own account</span>}
-                            </button>
-                          </div>
-                        </td>
-                      </tr>
-                    )
-                  })}
-                </tbody>
-              </table>
-            </div>
+            <DataTable
+              caption={t.caption}
+              columns={userColumns}
+              rows={state.result.items}
+              getRowKey={(user) => user.id}
+              interactiveRows
+              testId="users-table"
+            />
 
             <Pagination page={page} pageSize={PAGE_SIZE} total={state.result.total} onPageChange={setPage} />
           </>

@@ -21,6 +21,7 @@
  */
 
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import type { ReactNode } from 'react'
 import { render, screen, waitFor, cleanup, fireEvent } from '@testing-library/react'
 import EstimatesPage from '../pages/EstimatesPage'
 import type { EstimateListItem } from '../lib/estimatesApi'
@@ -54,6 +55,12 @@ vi.mock('@tanstack/react-router', async (importOriginal) => {
   return {
     ...original,
     useNavigate: vi.fn(() => vi.fn()),
+    // EstimatesPage's row name is a router <Link> (INC-14); no RouterProvider here.
+    Link: ({ children, className, tabIndex }: { children: ReactNode; className?: string; tabIndex?: number }) => (
+      <a href="#" className={className} tabIndex={tabIndex}>
+        {children}
+      </a>
+    ),
   }
 })
 

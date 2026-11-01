@@ -2,6 +2,7 @@ import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 import { federation } from '@module-federation/vite'
 import { readFileSync } from 'node:fs'
+import { fileURLToPath } from 'node:url'
 
 // T15 (specs/003-suite-shell/tasks.md): refund-ui — a second, independently
 // built/deployed Module Federation REMOTE, proving the multi-tool pattern
@@ -27,7 +28,18 @@ const pkg = JSON.parse(readFileSync(new URL('./package.json', import.meta.url), 
 // mistake was masked until the local-dev port scheme was pinned.)
 const shellRemoteUrl = process.env['SHELL_REMOTE_URL'] ?? 'http://localhost:5173/remoteEntry.js'
 
+// @operai/ui (operai-ui/, ADR-0050) is consumed as SOURCE: this build compiles
+// the library's .tsx files itself, so there is no install or publish step and
+// no version to drift. `dedupe` makes the library's own `react` imports
+// resolve from THIS project (operai-ui/node_modules is not installed on
+// Vercel), so the Module Federation singleton below still covers them.
+const operaiUiEntry = fileURLToPath(new URL('../operai-ui/src/index.ts', import.meta.url))
+
 export default defineConfig({
+  resolve: {
+    alias: { '@operai/ui': operaiUiEntry },
+    dedupe: ['react', 'react-dom'],
+  },
   plugins: [
     react(),
     federation({

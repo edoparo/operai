@@ -17,7 +17,7 @@ export const fillTemplate = (template: string, values: Readonly<Record<string, s
     return value === undefined ? placeholder : String(value)
   })
 
-export const errors = {
+const en = {
   // --- API codes (INVENTORY_ERROR_CODES) -----------------------------------
   serial_count_mismatch: 'Enter one serial number per unit, or leave the serial numbers empty.',
   serial_conflict: 'Serial number {serialNumber} is already used by an active asset of this entity.',
@@ -28,7 +28,8 @@ export const errors = {
   assignment_not_pending: 'This assignment is no longer open.',
   unknown_user: 'That person can no longer receive devices.',
   disposed_before_purchase: 'The disposal date cannot be before the purchase date ({date}).',
-  sale_price_not_allowed: 'A sale price can only be recorded when the asset is sold. Change the reason or clear the price.',
+  sale_price_not_allowed:
+    'A sale price can only be recorded when the asset is sold. Change the reason or clear the price.',
   previous_year_open: 'Close {year} first.',
   already_closed: '{year} is already closed.',
   nothing_to_close: '{year} has no assets to close.',
@@ -49,4 +50,39 @@ export const errors = {
   tooManyLookupsNoDelay: 'Too many lookups. Try again shortly.',
   network: 'Could not reach the server. Check your connection and try again.',
   unknown: 'Something went wrong. Try again.',
-} as const
+}
+
+const it: typeof en = {
+  serial_count_mismatch: 'Inserire un numero di serie per ogni unità, oppure lasciare vuoti i numeri di serie.',
+  serial_conflict: 'Il numero di serie {serialNumber} è già utilizzato da un bene attivo di questa entità.',
+  fiscal_year_closed: "L'esercizio {year} è chiuso per {entity}. Scegliere una data in un esercizio aperto.",
+  invalid_transition:
+    'Lo stato di questo bene ora è «{from}»: un altro utente lo ha modificato. La pagina è stata aggiornata.',
+  assignment_pending: "Questo bene ha un'assegnazione in attesa a {name}. Annullarla prima di procedere.",
+  asset_disposed: 'Questo bene è stato dismesso e non può più essere modificato.',
+  assignment_not_pending: 'Questa assegnazione non è più aperta.',
+  unknown_user: 'Questa persona non può più ricevere dispositivi.',
+  disposed_before_purchase: 'La data di dismissione non può precedere la data di acquisto ({date}).',
+  sale_price_not_allowed:
+    'Un prezzo di vendita può essere registrato solo se il bene è venduto. Modificare il motivo o rimuovere il prezzo.',
+  previous_year_open: "Chiudere prima l'esercizio {year}.",
+  already_closed: "L'esercizio {year} è già chiuso.",
+  nothing_to_close: "L'esercizio {year} non ha beni da chiudere.",
+  invoice_ref_mismatch: '{asset} ha un riferimento fattura diverso e non è stato collegato.',
+  upload_not_found: 'Il caricamento non è stato completato. Riprovare.',
+  year_in_future: "L'esercizio {year} è nel futuro e non può ancora essere chiuso.",
+  too_many_pending_uploads: "Troppi caricamenti in attesa di completamento. Riprovare tra un'ora.",
+
+  fiscal_year_closed_edit:
+    "Prezzo e data di acquisto non possono essere modificati perché l'esercizio {year} è chiuso.",
+
+  validation: 'Controllare i campi evidenziati e riprovare.',
+  tooLarge: 'Il file supera i 10 MiB.',
+  unsupportedType: 'È possibile caricare solo file PDF, JPEG o PNG.',
+  tooManyLookups: 'Troppe ricerche. Riprovare tra {n} secondi.',
+  tooManyLookupsNoDelay: 'Troppe ricerche. Riprovare a breve.',
+  network: 'Impossibile raggiungere il server. Verificare la connessione e riprovare.',
+  unknown: 'Si è verificato un errore. Riprovare.',
+}
+
+export const errors = { en, it }

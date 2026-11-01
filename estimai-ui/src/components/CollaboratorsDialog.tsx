@@ -30,10 +30,8 @@
  * the estimate; T22 (the toolbar wiring) is the first real caller of either
  * branch — out of scope here.
  *
- * Presentational data source aside, this follows ConfirmDeleteModal.tsx's
- * dialog shell (backdrop, header/body/footer, role="dialog") and
- * admin-ui/InviteUserModal.tsx's a11y pattern (reimplemented locally per
- * ADR-0006's federation boundary — see design.md's "Federation note").
+ * The frame is @operai/ui's `Dialog` (ADR-0050): backdrop, header with a close icon,
+ * modal semantics, focus trap, Escape and focus return.
  *
  * Every failure state named by design.md S2 is a distinct, reachable render:
  *   - generic 422 (`CollaboratorNotEligibleError`) — copy is the fixed server
@@ -53,30 +51,24 @@
  *     visibly different message from the generic 422, on purpose.
  *
  * A11y (design.md "## Accessibility → CollaboratorsDialog (S2/S3)"):
- *   - role="dialog" aria-modal="true" aria-labelledby, both branches.
- *   - Focus trap: queried LIVE over every currently-enabled focusable element
- *     inside the dialog (`input, button, select`) — the owner branch's set
- *     changes as rows are added/removed, so a fixed two-button trap
- *     (ConfirmDeleteModal's) would break there; this reuses InviteUserModal's
- *     live-query technique. The member branch's set is static (Close, Leave)
- *     but reuses the same live-query mechanism for consistency.
+ *   - role="dialog" aria-modal="true", labelled by its title, both branches
+ *     (library `Dialog`).
+ *   - Focus trap over every currently-enabled focusable element, queried live,
+ *     so the owner branch's changing row set is always covered (library).
  *   - Default focus: the email input in owner mode (its natural first
- *     action); the dialog HEADING in member mode (`tabIndex={-1}` +
- *     programmatic focus on mount — `PermissionDenied.tsx`'s technique),
+ *     action); the dialog HEADING in member mode (`initialFocus="title"`),
  *     since there is no input to land on there.
  *   - Escape closes the dialog UNLESS a nested confirm layer is open (Remove
- *     in owner mode, Leave in member mode), in which case Escape (and Tab)
- *     are left entirely to that layer — both branches' Escape/Tab handlers
- *     short-circuit while their respective confirm-target state is set,
- *     matching ConfirmDeleteModal's own semantics rather than fighting its
- *     independent trap/Escape listener.
+ *     in owner mode, Leave in member mode): the library's dialog stack gives
+ *     the keyboard to the topmost dialog only, so Escape and Tab belong to the
+ *     confirm until it closes, then to this dialog again.
  *   - Every Remove button carries `aria-label="Remove {email}"` (never a bare
- *     "×") — the visible glyph stays "×", the accessible name does not.
+ *     close icon) — the icon is decorative (INC-31), the accessible name names the email.
  *   - A visually-hidden `aria-live="polite"` region (always mounted, a
  *     sibling of the interactive elements it describes — Bell.tsx's pattern)
  *     announces add/remove/level-change outcomes in owner mode.
  *   - Inline field errors (generic 422, 409, self, rate-limit, 503, leave
- *     failure) are `role="alert"` — assertive, matching ToastBanner's error
+ *     failure) are `role="alert"` — assertive, matching the library Banner's error
  *     convention.
  */
 
@@ -97,8 +89,19 @@ import type { EstimateAccess, EstimateIdentity } from '../lib/estimatesApi'
 import { formatIdentity } from '../lib/identity'
 import AccessLevelBadge from './AccessLevelBadge'
 import type { AccessLevel } from './AccessLevelBadge'
+import {
+  Banner,
+  Button,
+  Dialog,
+  Field,
+  Icon,
+  ListRows,
+  SkeletonRows,
+  StatePanel,
+  VisuallyHidden,
+  listRowClassName,
+} from '@operai/ui'
 import ConfirmDeleteModal from './ConfirmDeleteModal'
-import SkeletonListRows from './SkeletonListRows'
 import { strings } from '../strings'
 
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
@@ -112,8 +115,13 @@ const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
  */
 const DEFAULT_RATE_LIMIT_COOLDOWN_MS = 30_000
 
-const DIALOG_TITLE_ID = 'collaborators-dialog-title'
-const EMAIL_INPUT_ID = 'collaborators-dialog-email'
+/**
+ * An add failure is either about the address typed (INC-16: a field error —
+ * red, `aria-invalid`, the input's description) or not about any one field
+ * (429, 503, network: a `.form-error` above the button). Both keep the same
+ * test id and `role="alert"`.
+ */
+type AddError = { scope: 'field' | 'form'; message: string }
 
 const levelLabel = (level: AccessLevel): string =>
   level === 'editor' ? strings.sharing.dialog.levelEditor : strings.sharing.dialog.levelViewer
@@ -145,6 +153,11 @@ export type CollaboratorsDialogProps = {
    */
   owner?: EstimateIdentity | null
   onClose: () => void
+  /**
+   * Member mode only: called after a successful Leave, before `onClose`, so
+   * the editor can confirm it where the person acted (INC-19).
+   */
+  onLeft?: () => void
 }
 
 type ListStatus = 'loading' | 'error' | 'ready'
@@ -153,7 +166,7 @@ type ListStatus = 'loading' | 'error' | 'ready'
 // Component
 // ---------------------------------------------------------------------------
 
-export default function CollaboratorsDialog({ estimateId, access, owner, onClose }: CollaboratorsDialogProps) {
+export default function CollaboratorsDialog({ estimateId, access, owner, onClose, onLeft }: CollaboratorsDialogProps) {
   // Two mutually-exclusive branch components, chosen by `access`. Neither
   // branch is skipped conditionally *within itself* — each owns and always
   // runs its own hooks in the same order every time IT renders — so this
@@ -164,7 +177,15 @@ export default function CollaboratorsDialog({ estimateId, access, owner, onClose
   if (access === 'owner') {
     return <OwnerCollaboratorsDialog estimateId={estimateId} onClose={onClose} />
   }
-  return <MemberCollaboratorsDialog estimateId={estimateId} access={access} owner={owner ?? null} onClose={onClose} />
+  return (
+    <MemberCollaboratorsDialog
+      estimateId={estimateId}
+      access={access}
+      owner={owner ?? null}
+      onClose={onClose}
+      onLeft={onLeft}
+    />
+  )
 }
 
 type OwnerCollaboratorsDialogProps = {
@@ -173,7 +194,6 @@ type OwnerCollaboratorsDialogProps = {
 }
 
 function OwnerCollaboratorsDialog({ estimateId, onClose }: OwnerCollaboratorsDialogProps) {
-  const dialogRef = useRef<HTMLDivElement>(null)
   const emailInputRef = useRef<HTMLInputElement>(null)
   const rowSelectRefs = useRef(new Map<string, HTMLSelectElement>())
   const isMountedRef = useRef(true)
@@ -214,7 +234,9 @@ function OwnerCollaboratorsDialog({ estimateId, onClose }: OwnerCollaboratorsDia
   const [email, setEmail] = useState('')
   const [addLevel, setAddLevel] = useState<AccessLevel>('viewer')
   const [submitting, setSubmitting] = useState(false)
-  const [addError, setAddError] = useState<string | null>(null)
+  const [addError, setAddError] = useState<AddError | null>(null)
+  const fieldError = (message: string): AddError => ({ scope: 'field', message })
+  const formError = (message: string): AddError => ({ scope: 'form', message })
   const [rateLimitedUntil, setRateLimitedUntil] = useState<number | null>(null)
 
   useEffect(() => {
@@ -266,36 +288,36 @@ function OwnerCollaboratorsDialog({ estimateId, onClose }: OwnerCollaboratorsDia
             // Fall through with existing === undefined — see fallback below.
           }
         }
-        setAddError(strings.sharing.errors.alreadyCollaborator(levelLabel(existing?.accessLevel ?? addLevel)))
+        setAddError(fieldError(strings.sharing.errors.alreadyCollaborator(levelLabel(existing?.accessLevel ?? addLevel))))
         if (existing) focusRow(existing.id)
         return
       }
       if (err instanceof CannotShareWithSelfError) {
-        setAddError(strings.sharing.errors.cannotShareWithSelf)
+        setAddError(fieldError(strings.sharing.errors.cannotShareWithSelf))
         return
       }
       if (err instanceof CollaboratorNotEligibleError) {
         // Verbatim server detail (design.md: "not paraphrased" — AC-1.2's
         // anti-enumeration property). strings.ts already carries this exact
         // sentence, so reading it here IS reading it verbatim.
-        setAddError(strings.sharing.errors.notEligible)
+        setAddError(fieldError(strings.sharing.errors.notEligible))
         return
       }
       if (err instanceof RateLimitedError) {
-        setAddError(strings.sharing.errors.rateLimited)
+        setAddError(formError(strings.sharing.errors.rateLimited))
         const cooldownMs = (err.retryAfterSeconds ?? DEFAULT_RATE_LIMIT_COOLDOWN_MS / 1000) * 1000
         setRateLimitedUntil(Date.now() + cooldownMs)
         return
       }
       if (err instanceof AuthorizationServiceUnavailableError) {
-        setAddError(strings.sharing.errors.authUnavailable)
+        setAddError(formError(strings.sharing.errors.authUnavailable))
         return
       }
       if (err instanceof InvalidInputError) {
-        setAddError(strings.sharing.errors.invalidEmail)
+        setAddError(fieldError(strings.sharing.errors.invalidEmail))
         return
       }
-      setAddError(strings.sharing.errors.genericAddFailed)
+      setAddError(formError(strings.sharing.errors.genericAddFailed))
     },
     [collaborators, estimateId, addLevel, focusRow],
   )
@@ -305,15 +327,18 @@ function OwnerCollaboratorsDialog({ estimateId, onClose }: OwnerCollaboratorsDia
       e.preventDefault()
       const trimmed = email.trim()
 
+      // INC-16: a submit that fails validation moves focus to the field.
       if (!EMAIL_PATTERN.test(trimmed)) {
-        setAddError(strings.sharing.errors.invalidEmail)
+        setAddError(fieldError(strings.sharing.errors.invalidEmail))
+        emailInputRef.current?.focus()
         return
       }
       // Client-side self-check (design.md: "short-circuits the common case
       // before any request fires") — the server's post-lookup check on the
       // resolved userId still catches an alias address on the round trip.
       if (sessionEmail && normalizeEmail(trimmed) === normalizeEmail(sessionEmail)) {
-        setAddError(strings.sharing.errors.cannotShareWithSelf)
+        setAddError(fieldError(strings.sharing.errors.cannotShareWithSelf))
+        emailInputRef.current?.focus()
         return
       }
 
@@ -384,199 +409,135 @@ function OwnerCollaboratorsDialog({ estimateId, onClose }: OwnerCollaboratorsDia
     [estimateId],
   )
 
-  // ---- a11y: default focus + Tab trap + Escape ----------------------------
-
-  useEffect(() => {
-    emailInputRef.current?.focus()
-  }, [])
-
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      // The nested Remove-confirm layer owns Escape/Tab entirely while open
-      // (design.md: "matches ConfirmDeleteModal's existing Escape
-      // semantics") — it renders its own independent trap/Escape listener,
-      // and this dialog's trap must not fight it for focus.
-      if (removeTarget) return
-
-      if (e.key === 'Escape') {
-        e.preventDefault()
-        onClose()
-        return
-      }
-
-      if (e.key !== 'Tab' || !dialogRef.current) return
-
-      // Live-queried (InviteUserModal's technique) — the focusable set
-      // changes as rows are added/removed, so a fixed list would go stale.
-      const focusable = Array.from(dialogRef.current.querySelectorAll<HTMLElement>('input, button, select')).filter(
-        (el) => !(el as HTMLInputElement | HTMLButtonElement | HTMLSelectElement).disabled,
-      )
-      if (focusable.length === 0) return
-
-      const first = focusable[0]
-      const last = focusable[focusable.length - 1]
-
-      if (e.shiftKey) {
-        if (document.activeElement === first) {
-          e.preventDefault()
-          last.focus()
-        }
-      } else {
-        if (document.activeElement === last) {
-          e.preventDefault()
-          first.focus()
-        }
-      }
-    }
-
-    window.addEventListener('keydown', onKey)
-    return () => window.removeEventListener('keydown', onKey)
-  }, [onClose, removeTarget])
+  // ---- a11y -----------------------------------------------------------------
+  // Focus on the email field, the Tab trap, Escape and focus return come from
+  // @operai/ui's Dialog (ADR-0050). Its dialog stack keeps the nested
+  // Remove-confirm on top: while it is open, Escape and Tab belong to it alone.
 
   // ---------------------------------------------------------------------------
   // Render
   // ---------------------------------------------------------------------------
 
-  const canSubmitAdd = EMAIL_PATTERN.test(email.trim()) && !submitting && !isRateLimited
+  // INC-16: validate on blur of a touched field (the format only — the
+  // server-side causes are only known on submit).
+  const handleEmailBlur = () => {
+    const trimmed = email.trim()
+    if (trimmed === '') return
+    if (!EMAIL_PATTERN.test(trimmed)) setAddError(fieldError(strings.sharing.errors.invalidEmail))
+    else if (addError?.message === strings.sharing.errors.invalidEmail) setAddError(null)
+  }
+
+  // Disabled only while nothing is typed (or a request/cooldown is running,
+  // which the form error explains) — never as the only sign of a bad address.
+  const canSubmitAdd = email.trim() !== '' && !submitting && !isRateLimited
+
+  const addErrorText = addError && (
+    <span role="alert" data-testid="collaborators-dialog-add-error">
+      {addError.message}
+    </span>
+  )
 
   return (
     <>
-      <div
-        className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm"
-        onClick={onClose}
-        data-testid="collaborators-dialog-backdrop"
+      <Dialog
+        title={strings.sharing.dialog.title}
+        closeLabel={strings.sharing.dialog.close}
+        onClose={onClose}
+        initialFocusRef={emailInputRef}
+        testIdPrefix="collaborators-dialog"
+        dialogTestId="collaborators-dialog"
       >
-        <div
-          ref={dialogRef}
-          role="dialog"
-          aria-modal="true"
-          aria-labelledby={DIALOG_TITLE_ID}
-          className="bg-ink-soft border border-rule rounded-lg shadow-2xl w-full max-w-md mx-4 p-5 max-h-[85vh] flex flex-col"
-          onClick={(e) => e.stopPropagation()}
-          data-testid="collaborators-dialog"
-        >
-          {/* Header */}
-          <div className="flex items-center justify-between mb-3 shrink-0">
-            <h2 id={DIALOG_TITLE_ID} className="font-disp text-sm font-bold text-text">
-              {strings.sharing.dialog.title}
-            </h2>
-            <button
-              onClick={onClose}
-              className="text-muted hover:text-text text-lg leading-none transition-colors"
-              aria-label="Close"
-            >
-              ×
-            </button>
-          </div>
 
           <p className="text-xs text-soft mb-3 shrink-0">{strings.sharing.dialog.ownerRowLabel}</p>
 
           {/* Add form — always visible for the owner (design.md S2) */}
-          <form onSubmit={(e) => void handleAddSubmit(e)} className="flex flex-col gap-2 mb-4 shrink-0">
-            <div className="flex flex-col gap-1">
-              <label htmlFor={EMAIL_INPUT_ID} className="text-xs font-medium text-soft">
-                {strings.sharing.dialog.emailLabel}
-              </label>
-              <input
-                ref={emailInputRef}
-                id={EMAIL_INPUT_ID}
-                type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                placeholder={strings.sharing.dialog.emailPlaceholder}
-                disabled={submitting}
-                aria-invalid={addError !== null}
-                aria-describedby={addError ? 'collaborators-dialog-add-error' : undefined}
-                data-testid="collaborators-dialog-email-input"
-                className="text-sm px-2.5 py-1.5 border border-rule rounded bg-ink text-text"
-              />
-            </div>
-
-            <div className="flex flex-col gap-1">
-              <label htmlFor="collaborators-dialog-level" className="text-xs font-medium text-soft">
-                {strings.sharing.dialog.levelLabel}
-              </label>
-              <select
-                id="collaborators-dialog-level"
-                value={addLevel}
-                onChange={(e) => setAddLevel(e.target.value as AccessLevel)}
-                disabled={submitting}
-                data-testid="collaborators-dialog-level-select"
-                className="text-sm px-2.5 py-1.5 border border-rule rounded bg-ink text-text"
-              >
-                <option value="viewer">{strings.sharing.dialog.levelViewer}</option>
-                <option value="editor">{strings.sharing.dialog.levelEditor}</option>
-              </select>
-              <p className="text-[11px] text-muted">
-                {addLevel === 'editor'
-                  ? strings.sharing.dialog.levelEditorHint
-                  : strings.sharing.dialog.levelViewerHint}
-              </p>
-            </div>
-
-            {addError && (
-              <p
-                id="collaborators-dialog-add-error"
-                role="alert"
-                data-testid="collaborators-dialog-add-error"
-                className="text-xs text-org"
-              >
-                {addError}
-              </p>
-            )}
-
-            <button
-              type="submit"
-              disabled={!canSubmitAdd}
-              data-testid="collaborators-dialog-add-button"
-              className="self-start py-1.5 px-3 text-sm font-medium text-acc border border-acc/50 hover:bg-acc/10 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+          <form noValidate onSubmit={(e) => void handleAddSubmit(e)} className="flex flex-col gap-3 mb-4 shrink-0">
+            <Field
+              label={strings.sharing.dialog.emailLabel}
+              required
+              error={addError?.scope === 'field' ? addErrorText : undefined}
             >
-              {submitting ? (
-                <span className="flex items-center gap-2">
-                  <span
-                    className="inline-block w-3 h-3 border-2 border-acc border-t-transparent rounded-full animate-spin"
-                    aria-hidden="true"
-                  />
-                  {strings.sharing.dialog.addingButton}
-                </span>
-              ) : (
-                strings.sharing.dialog.addButton
+              {(control) => (
+                <input
+                  {...control}
+                  ref={emailInputRef}
+                  type="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  onBlur={handleEmailBlur}
+                  placeholder={strings.sharing.dialog.emailPlaceholder}
+                  disabled={submitting}
+                  data-testid="collaborators-dialog-email-input"
+                />
               )}
-            </button>
+            </Field>
+
+            <Field
+              label={strings.sharing.dialog.levelLabel}
+              hint={
+                addLevel === 'editor' ? strings.sharing.dialog.levelEditorHint : strings.sharing.dialog.levelViewerHint
+              }
+            >
+              {(control) => (
+                <select
+                  {...control}
+                  value={addLevel}
+                  onChange={(e) => setAddLevel(e.target.value as AccessLevel)}
+                  disabled={submitting}
+                  data-testid="collaborators-dialog-level-select"
+                >
+                  <option value="viewer">{strings.sharing.dialog.levelViewer}</option>
+                  <option value="editor">{strings.sharing.dialog.levelEditor}</option>
+                </select>
+              )}
+            </Field>
+
+            {addError?.scope === 'form' && <p className="form-error">{addErrorText}</p>}
+
+            <Button
+              type="submit"
+              variant="primary"
+              className="self-start"
+              disabled={!canSubmitAdd}
+              busy={submitting}
+              data-testid="collaborators-dialog-add-button"
+            >
+              {submitting ? strings.sharing.dialog.addingButton : strings.sharing.dialog.addButton}
+            </Button>
           </form>
 
           {/* Collaborator list */}
           <div className="flex-1 overflow-y-auto min-h-0">
-            {listStatus === 'loading' && <SkeletonListRows />}
+            {listStatus === 'loading' && (
+              <>
+                <VisuallyHidden live>{strings.sharing.dialog.loading}</VisuallyHidden>
+                <SkeletonRows rows={2} actions={2} testId="skeleton-list-rows" />
+              </>
+            )}
 
             {listStatus === 'error' && (
-              <div
-                role="alert"
-                className="px-4 py-3 rounded-md border border-org/40 bg-org/10 text-sm text-org flex items-center justify-between gap-4"
+              <Banner
+                tone="warning"
+                onRetry={() => void loadList()}
+                retryLabel={strings.sharing.dialog.retry}
                 data-testid="collaborators-dialog-load-error"
               >
-                <span>{strings.sharing.errors.loadFailed}</span>
-                <button
-                  onClick={() => void loadList()}
-                  className="shrink-0 text-xs font-medium border border-org/60 text-org px-2.5 py-1 hover:bg-org/20 transition-colors"
-                >
-                  Retry
-                </button>
-              </div>
+                {strings.sharing.errors.loadFailed}
+              </Banner>
             )}
 
             {listStatus === 'ready' && collaborators.length === 0 && (
-              <p className="text-muted text-[11px] italic" data-testid="collaborators-dialog-empty">
-                {strings.sharing.dialog.emptyState}
-              </p>
+              <StatePanel title={strings.sharing.dialog.emptyTitle} testId="collaborators-dialog-empty">
+                {strings.sharing.dialog.emptyBody}
+              </StatePanel>
             )}
 
             {listStatus === 'ready' && collaborators.length > 0 && (
-              <ul className="flex flex-col gap-2" data-testid="collaborators-dialog-list">
+              <ListRows label={strings.sharing.dialog.listLabel} testId="collaborators-dialog-list">
                 {collaborators.map((row) => (
-                  <li
+                  <div
                     key={row.id}
-                    className="flex items-center gap-2 px-2.5 py-2 rounded-md border border-rule"
+                    className={`${listRowClassName} flex-wrap gap-2`}
                     data-testid={`collaborators-dialog-row-${row.id}`}
                   >
                     <span className="flex-1 text-sm text-text truncate">{row.email}</span>
@@ -589,32 +550,33 @@ function OwnerCollaboratorsDialog({ estimateId, onClose }: OwnerCollaboratorsDia
                       value={row.accessLevel}
                       onChange={(e) => void handleLevelChange(row, e.target.value as AccessLevel)}
                       disabled={levelChangingIds.has(row.id)}
-                      aria-label={`${strings.sharing.dialog.levelLabel} (${row.email})`}
+                      aria-label={strings.sharing.dialog.rowLevelLabel(row.email)}
                       data-testid={`collaborators-dialog-row-level-${row.id}`}
-                      className="text-xs px-1.5 py-1 border border-rule rounded bg-ink text-text"
                     >
                       <option value="viewer">{strings.sharing.dialog.levelViewer}</option>
                       <option value="editor">{strings.sharing.dialog.levelEditor}</option>
                     </select>
-                    <button
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      iconOnly
                       onClick={() => {
                         setRemoveTarget(row)
                         setRemoveError(null)
                       }}
                       aria-label={strings.sharing.dialog.removeAction(row.email)}
                       data-testid={`collaborators-dialog-row-remove-${row.id}`}
-                      className="text-muted hover:text-red text-base leading-none transition-colors"
                     >
-                      ×
-                    </button>
+                      <Icon name="close" />
+                    </Button>
                     {levelChangeErrors[row.id] && (
-                      <p role="alert" className="text-[11px] text-org w-full basis-full">
+                      <p role="alert" className="text-2xs text-red-text w-full basis-full">
                         {levelChangeErrors[row.id]}
                       </p>
                     )}
-                  </li>
+                  </div>
                 ))}
-              </ul>
+              </ListRows>
             )}
           </div>
 
@@ -622,8 +584,7 @@ function OwnerCollaboratorsDialog({ estimateId, onClose }: OwnerCollaboratorsDia
           <span className="sr-only" aria-live="polite" data-testid="collaborators-dialog-live-region">
             {announcement}
           </span>
-        </div>
-      </div>
+      </Dialog>
 
       {removeTarget && (
         <ConfirmDeleteModal
@@ -638,6 +599,7 @@ function OwnerCollaboratorsDialog({ estimateId, onClose }: OwnerCollaboratorsDia
           title={strings.sharing.dialog.removeConfirmTitle}
           bodyText={strings.sharing.dialog.removeConfirmBody(removeTarget.email)}
           confirmLabel={strings.sharing.dialog.removeConfirmButton}
+          busyLabel={strings.sharing.dialog.removingButton}
         />
       )}
     </>
@@ -659,6 +621,7 @@ type MemberCollaboratorsDialogProps = {
   access: AccessLevel
   owner: EstimateIdentity | null
   onClose: () => void
+  onLeft?: () => void
 }
 
 /**
@@ -668,9 +631,7 @@ type MemberCollaboratorsDialogProps = {
  * there is nothing here to fetch or hide. Just who shared it, the caller's
  * own level, and one Leave action.
  */
-function MemberCollaboratorsDialog({ estimateId, access, owner, onClose }: MemberCollaboratorsDialogProps) {
-  const dialogRef = useRef<HTMLDivElement>(null)
-  const headingRef = useRef<HTMLHeadingElement>(null)
+function MemberCollaboratorsDialog({ estimateId, access, owner, onClose, onLeft }: MemberCollaboratorsDialogProps) {
   const isMountedRef = useRef(true)
   // Set on every mount, not only at first render: StrictMode's dev remount
   // runs the cleanup below and would otherwise leave the flag false.
@@ -704,6 +665,7 @@ function MemberCollaboratorsDialog({ estimateId, access, owner, onClose }: Membe
       // caller no longer has anything to view (design.md: "it will
       // disappear from your estimates list").
       setLeaveConfirming(false)
+      onLeft?.()
       onClose()
     } catch {
       if (!isMountedRef.current) return
@@ -711,55 +673,12 @@ function MemberCollaboratorsDialog({ estimateId, access, owner, onClose }: Membe
     } finally {
       if (isMountedRef.current) setLeaving(false)
     }
-  }, [estimateId, onClose])
+  }, [estimateId, onClose, onLeft])
 
-  // ---- a11y: default focus (heading, not an input) + Tab trap + Escape ----
-
-  useEffect(() => {
-    headingRef.current?.focus()
-  }, [])
-
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      // The nested Leave-confirm layer owns Escape/Tab entirely while open
-      // — same semantics as the owner branch's Remove-confirm layer.
-      if (leaveConfirming) return
-
-      if (e.key === 'Escape') {
-        e.preventDefault()
-        onClose()
-        return
-      }
-
-      if (e.key !== 'Tab' || !dialogRef.current) return
-
-      // Live-queried, same technique as the owner branch — the set here is
-      // static (Close, Leave) but reuses the mechanism for consistency
-      // rather than hand-rolling a second, fixed-two-button trap.
-      const focusable = Array.from(dialogRef.current.querySelectorAll<HTMLElement>('input, button, select')).filter(
-        (el) => !(el as HTMLButtonElement).disabled,
-      )
-      if (focusable.length === 0) return
-
-      const first = focusable[0]
-      const last = focusable[focusable.length - 1]
-
-      if (e.shiftKey) {
-        if (document.activeElement === first) {
-          e.preventDefault()
-          last.focus()
-        }
-      } else {
-        if (document.activeElement === last) {
-          e.preventDefault()
-          first.focus()
-        }
-      }
-    }
-
-    window.addEventListener('keydown', onKey)
-    return () => window.removeEventListener('keydown', onKey)
-  }, [onClose, leaveConfirming])
+  // ---- a11y -----------------------------------------------------------------
+  // No field to land on: focus starts on the heading (`initialFocus="title"`).
+  // Trap, Escape and focus return come from @operai/ui's Dialog, whose dialog
+  // stack leaves the keyboard to the nested Leave-confirm while it is open.
 
   // ---------------------------------------------------------------------------
   // Render
@@ -767,39 +686,14 @@ function MemberCollaboratorsDialog({ estimateId, access, owner, onClose }: Membe
 
   return (
     <>
-      <div
-        className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm"
-        onClick={onClose}
-        data-testid="collaborators-dialog-backdrop"
+      <Dialog
+        title={strings.sharing.dialog.title}
+        closeLabel={strings.sharing.dialog.close}
+        onClose={onClose}
+        initialFocus="title"
+        testIdPrefix="collaborators-dialog"
+        dialogTestId="collaborators-dialog"
       >
-        <div
-          ref={dialogRef}
-          role="dialog"
-          aria-modal="true"
-          aria-labelledby={DIALOG_TITLE_ID}
-          className="bg-ink-soft border border-rule rounded-lg shadow-2xl w-full max-w-md mx-4 p-5"
-          onClick={(e) => e.stopPropagation()}
-          data-testid="collaborators-dialog"
-        >
-          {/* Header */}
-          <div className="flex items-center justify-between mb-3">
-            <h2
-              ref={headingRef}
-              id={DIALOG_TITLE_ID}
-              tabIndex={-1}
-              className="font-disp text-sm font-bold text-text focus:outline-none"
-            >
-              {strings.sharing.dialog.title}
-            </h2>
-            <button
-              onClick={onClose}
-              className="text-muted hover:text-text text-lg leading-none transition-colors"
-              aria-label="Close"
-            >
-              ×
-            </button>
-          </div>
-
           {/* No add form, no collaborator list (design.md S3) — just who
               shared it and the caller's own level. */}
           <p className="text-sm text-text mb-2" data-testid="collaborators-dialog-shared-by">
@@ -814,18 +708,18 @@ function MemberCollaboratorsDialog({ estimateId, access, owner, onClose }: Membe
             </span>
           </div>
 
-          <button
+          <Button
+            variant="danger"
+            className="self-start"
             onClick={() => {
               setLeaveConfirming(true)
               setLeaveError(null)
             }}
             data-testid="collaborators-dialog-leave-button"
-            className="self-start py-1.5 px-3 text-sm font-medium text-red border border-red/50 hover:bg-red/10 transition-colors"
           >
             {strings.sharing.dialog.leaveAction}
-          </button>
-        </div>
-      </div>
+          </Button>
+      </Dialog>
 
       {leaveConfirming && (
         <ConfirmDeleteModal
@@ -840,6 +734,7 @@ function MemberCollaboratorsDialog({ estimateId, access, owner, onClose }: Membe
           title={strings.sharing.dialog.leaveConfirmTitle}
           bodyText={strings.sharing.dialog.leaveConfirmBody}
           confirmLabel={strings.sharing.dialog.leaveConfirmButton}
+          busyLabel={strings.sharing.dialog.leavingButton}
         />
       )}
     </>

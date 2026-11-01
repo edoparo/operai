@@ -62,7 +62,7 @@ test.describe('AC-6.1: a failing Refund remote shows an in-place error while the
     // one nav, both tool entries present and clickable.
     await expect(page.getByRole('banner')).toBeVisible()
     await expect(page.getByRole('link', { name: 'EstimAI' })).toBeVisible()
-    await expect(page.getByRole('link', { name: 'Refund (Rimborsi)' })).toBeVisible()
+    await expect(page.getByRole('link', { name: 'Refund', exact: true })).toBeVisible()
 
     // Switching to the OTHER tool works normally — one tool's outage does
     // not take down the suite.
@@ -76,7 +76,7 @@ test.describe('AC-6.1: a failing Refund remote shows an in-place error while the
 
     // Going back to the still-blocked Refund route shows the error again
     // (not a stale/blank screen).
-    await page.getByRole('link', { name: 'Refund (Rimborsi)' }).click()
+    await page.getByRole('link', { name: 'Refund', exact: true }).click()
     await expect(page.getByTestId('remote-mount-error')).toBeVisible({ timeout: 15_000 })
 
     // Clicking Retry (still blocked) genuinely re-attempts the load: it
@@ -100,7 +100,7 @@ test.describe('AC-6.1: a failing Refund remote shows an in-place error while the
     await page.unroute(`${REFUND_REMOTE_ORIGIN}/**`)
     await page.reload()
 
-    await expect(page.getByRole('heading', { name: 'Refund (Rimborsi)' })).toBeVisible({
+    await expect(page.getByRole('heading', { name: 'Refund', exact: true })).toBeVisible({
       timeout: 15_000,
     })
     await expect(page.getByTestId('remote-mount-error')).toHaveCount(0)

@@ -3,6 +3,8 @@ import { defineConfig } from 'vitest/config'
 
 export default defineConfig({
   resolve: {
+    // One React for the app and the library's source (ADR-0050).
+    dedupe: ['react', 'react-dom'],
     // T13 (specs/004-auth-roles-permissions/tasks.md): App.tsx consumes the
     // suite's shared shell modules (`shell/session`, `shell/tokens.css`).
     // These bare specifiers only resolve at runtime via the
@@ -15,6 +17,8 @@ export default defineConfig({
     // identical treatment — see src/federation/__stubs__/* for why they're
     // never actually used for real values.
     alias: {
+      // The shared component library, compiled from source (ADR-0050).
+      '@operai/ui': fileURLToPath(new URL('../operai-ui/src/index.ts', import.meta.url)),
       'shell/session': fileURLToPath(new URL('./src/federation/__stubs__/shellSession.ts', import.meta.url)),
       'shell/tokens.css': fileURLToPath(new URL('./src/federation/__stubs__/shellTokens.css', import.meta.url)),
     },

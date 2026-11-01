@@ -127,9 +127,12 @@ interface EffectiveRate {
 const computeAmountCents = (km: number, ratePerKmMicros: number): number =>
   Math.floor((km * ratePerKmMicros) / 10_000 + 0.5)
 
-/** `refund-ui/src/lib/money.ts`'s `formatMoney` / `formatRatePerKm`, mirrored for the assertion. */
+/**
+ * `refund-ui/src/lib/money.ts`'s `formatMoney` (the suite's Intl formatter,
+ * English locale: `CHF 1,234.50`), mirrored for the assertion.
+ */
 const formatMoney = (cents: number, currency: string): string =>
-  `${Math.trunc(cents / 100)},${(cents % 100).toString().padStart(2, '0')} ${currency}`
+  `${currency} ${Math.trunc(cents / 100).toLocaleString('en-GB')}.${(cents % 100).toString().padStart(2, '0')}`
 
 test.describe.configure({ mode: 'serial' })
 
@@ -175,7 +178,7 @@ test.describe('specs/014-motivo-autocomplete T15: motivo autocomplete through th
     const rate = await refundApi<EffectiveRate>(empSession, 'GET', `/rates/effective?entity=welld_ch&date=${today}`)
     expect(rate.inEffect, 'a welld_ch mileage rate must be in effect for today').toBe(true)
     const ratePerKmMicros = rate.ratePerKmMicros ?? 0
-    const expectedBreakdown = `62 km × ${(rate.ratePerKm ?? '').replace('.', ',')} CHF/km = ${formatMoney(
+    const expectedBreakdown = `62 km × CHF ${rate.ratePerKm ?? ''}/km = ${formatMoney(
       computeAmountCents(62, ratePerKmMicros),
       'CHF',
     )}`

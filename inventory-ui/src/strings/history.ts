@@ -6,7 +6,7 @@
  * name (the component falls back), so a deploy skew never blanks the timeline.
  * Holder and actor names reuse `strings.assets.holder*`.
  */
-export const history = {
+const en = {
   heading: 'History',
   loading: 'Loading history',
   empty: 'No history yet.',
@@ -63,4 +63,60 @@ export const history = {
     salePriceCents: 'Sale price',
     year: 'Fiscal year',
   },
-} as const
+}
+
+const it: typeof en = {
+  heading: 'Cronologia',
+  loading: 'Caricamento cronologia',
+  empty: 'Nessuna voce in cronologia.',
+  retry: 'Riprova',
+
+  by: (actor: string) => `da ${actor}`,
+  deletedNamed: (name: string) => `${name} (account eliminato)`,
+  none: 'nessuno',
+  yes: 'Sì',
+  no: 'No',
+  change: (field: string, from: string, to: string) => `${field}: ${from} → ${to}`,
+
+  action: {
+    registered: 'Registrato',
+    received: 'Segnato come ricevuto',
+    edited: 'Modificato',
+    assignment_created: 'Assegnazione proposta',
+    assignment_confirmed: 'Assegnazione confermata',
+    assignment_declined: 'Assegnazione rifiutata',
+    assignment_cancelled: 'Assegnazione annullata',
+    returned: 'Reso',
+    repair_started: 'Inviato in riparazione',
+    repair_finished: 'Riparazione completata',
+    marked_lost: 'Segnato come smarrito',
+    marked_found: 'Segnato come ritrovato',
+    disposed: 'Dismesso',
+    invoice_file_linked: 'File fattura collegato',
+    verified: 'Segnato come verificato',
+    fiscal_year_closed: 'Esercizio chiuso',
+    imported: 'Importato',
+  },
+
+  field: {
+    holder: 'Assegnatario',
+    assignee: 'Destinatario',
+    status: 'Stato',
+    category: 'Categoria',
+    description: 'Descrizione',
+    serialNumber: 'Numero di serie',
+    locationNote: 'Ubicazione / nota',
+    supplier: 'Fornitore',
+    invoiceRef: 'Riferimento fattura',
+    invoiceFile: 'File fattura',
+    toVerify: 'Da verificare',
+    purchaseDate: 'Data di acquisto',
+    purchasePriceCents: 'Prezzo di acquisto',
+    disposedOn: 'Dismesso il',
+    reason: 'Motivo',
+    salePriceCents: 'Prezzo di vendita',
+    year: 'Esercizio',
+  },
+}
+
+export const history = { en, it }

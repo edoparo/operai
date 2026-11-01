@@ -11,7 +11,7 @@
  */
 
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
+import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { createMemoryHistory, createRootRoute, createRoute, createRouter, RouterProvider } from '@tanstack/react-router'
 import type { Permission } from 'shell/session'
 import { ApiError } from '../lib/api'
@@ -130,7 +130,7 @@ describe('loading and the rows', () => {
     expect(within(row).getByTestId('asset-status-badge').getAttribute('data-status')).toBe('assigned')
     expect(within(row).getByText('Anna Rossi')).not.toBeNull()
     expect(within(row).getByText('25.09.2026')).not.toBeNull()
-    expect(within(row).getByText('998,15 CHF')).not.toBeNull()
+    expect(within(row).getByText('CHF 998.15')).not.toBeNull()
     const second = screen.getByRole('link', { name: 'Dell U2723QE' }).closest('tr')!
     expect(within(second).queryByText('To verify')).toBeNull()
   })
@@ -194,7 +194,7 @@ describe('capability and scope gating', () => {
     expect(screen.queryByRole('link', { name: 'Register asset' })).toBeNull()
     expect(screen.queryByLabelText('Holder')).toBeNull()
     expect(screen.getByRole('columnheader', { name: 'Book value' })).not.toBeNull()
-    expect(screen.getByText('550,00 CHF')).not.toBeNull()
+    expect(screen.getByText('CHF 550.00')).not.toBeNull()
     expect(listDirectory).not.toHaveBeenCalled()
   })
 
@@ -527,8 +527,31 @@ describe('arriving from the register page', () => {
   it('announces how many assets were just registered', async () => {
     await renderPage('/assets?invoiceRef=INV-77', { registeredCount: 13 })
 
-    expect((await screen.findByTestId('assets-flash')).textContent).toBe('13 assets registered.')
+    expect((await screen.findByTestId('assets-flash')).textContent).toContain('13 assets registered.')
     expect(screen.getByTestId('assets-flash').getAttribute('role')).toBe('status')
+  })
+
+  it('the confirmation is a compact success banner the person can dismiss (INC-19)', async () => {
+    await renderPage('/assets?invoiceRef=INV-77', { registeredCount: 13 })
+
+    const flash = await screen.findByTestId('assets-flash')
+    expect(flash.classList.contains('banner-success')).toBe(true)
+    fireEvent.click(screen.getByTestId('assets-flash-dismiss'))
+    expect(screen.queryByTestId('assets-flash')).toBeNull()
+  })
+
+  it('the confirmation dismisses itself after about 3 seconds', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true })
+    try {
+      await renderPage('/assets?invoiceRef=INV-77', { registeredCount: 13 })
+      await screen.findByTestId('assets-flash')
+      await act(async () => {
+        vi.advanceTimersByTime(3000)
+      })
+      expect(screen.queryByTestId('assets-flash')).toBeNull()
+    } finally {
+      vi.useRealTimers()
+    }
   })
 
   it('puts focus on the Register asset button when the register form was cancelled', async () => {

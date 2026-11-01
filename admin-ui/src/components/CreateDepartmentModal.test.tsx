@@ -41,7 +41,7 @@ describe('CreateDepartmentModal', () => {
 
     const dialog = screen.getByRole('dialog')
     expect(dialog.getAttribute('aria-modal')).toBe('true')
-    expect(dialog.getAttribute('aria-labelledby')).toBe('create-department-title')
+    expect(document.getElementById(dialog.getAttribute('aria-labelledby')!)?.textContent).toBe('New department')
     expect(screen.getByText('New department')).not.toBeNull()
     expect(document.activeElement).toBe(screen.getByTestId('create-department-name-input'))
   })
@@ -55,26 +55,27 @@ describe('CreateDepartmentModal', () => {
     expect(onCancel).toHaveBeenCalledTimes(1)
   })
 
-  it('traps Tab from the last focusable (Create) back to the first (Name input)', () => {
+  // The library dialog traps Tab over every enabled control, the header × included (first stop).
+  it('traps Tab from the last focusable (Create) back to the first (×)', () => {
     render(<CreateDepartmentModal {...baseProps} />)
 
-    const nameInput = screen.getByTestId('create-department-name-input')
+    const closeBtn = screen.getByTestId('create-department-close')
     const createBtn = screen.getByTestId('create-department-submit')
     createBtn.focus()
     expect(document.activeElement).toBe(createBtn)
 
     fireEvent.keyDown(window, { key: 'Tab' })
 
-    expect(document.activeElement).toBe(nameInput)
+    expect(document.activeElement).toBe(closeBtn)
   })
 
-  it('traps Shift+Tab from the first focusable (Name input) to the last (Create)', () => {
+  it('traps Shift+Tab from the first focusable (×) to the last (Create)', () => {
     render(<CreateDepartmentModal {...baseProps} />)
 
-    const nameInput = screen.getByTestId('create-department-name-input')
+    const closeBtn = screen.getByTestId('create-department-close')
     const createBtn = screen.getByTestId('create-department-submit')
-    nameInput.focus()
-    expect(document.activeElement).toBe(nameInput)
+    closeBtn.focus()
+    expect(document.activeElement).toBe(closeBtn)
 
     fireEvent.keyDown(window, { key: 'Tab', shiftKey: true })
 
@@ -88,10 +89,36 @@ describe('CreateDepartmentModal', () => {
     fireEvent.click(screen.getByTestId('create-department-submit'))
 
     expect(onSubmit).not.toHaveBeenCalled()
-    const error = screen.getByTestId('create-department-error')
+    // INC-16: a field error on the Name field itself — announced, marking the
+    // control invalid, describing it, and focus moved to it.
+    const error = screen.getByTestId('create-department-name-error')
     expect(error.getAttribute('role')).toBe('alert')
     expect(error.textContent).toBe('Name is required.')
+    const input = screen.getByTestId('create-department-name-input')
+    expect(input.getAttribute('aria-invalid')).toBe('true')
+    expect(input.getAttribute('aria-describedby')).toBe(error.parentElement?.id)
+    expect(document.activeElement).toBe(input)
     expect(screen.getByTestId('create-department-cancel').hasAttribute('disabled')).toBe(false)
+  })
+
+  it('marks Name required with aria-required, never "(required)"/"(optional)" label text', () => {
+    render(<CreateDepartmentModal {...baseProps} />)
+
+    expect(screen.getByTestId('create-department-name-input').getAttribute('aria-required')).toBe('true')
+    expect(screen.getByTestId('create-department-modal').textContent).not.toMatch(/\((required|optional)\)/)
+  })
+
+  it('validates a name typed then cleared on blur, and clears the error as the admin types', () => {
+    render(<CreateDepartmentModal {...baseProps} />)
+
+    const input = screen.getByTestId('create-department-name-input')
+    fireEvent.change(input, { target: { value: 'Ops' } })
+    fireEvent.change(input, { target: { value: '' } })
+    fireEvent.blur(input)
+    expect(screen.getByTestId('create-department-name-error').textContent).toBe('Name is required.')
+
+    fireEvent.change(input, { target: { value: 'O' } })
+    expect(screen.queryByTestId('create-department-name-error')).toBeNull()
   })
 
   it('submits trimmed name+description on valid input', () => {

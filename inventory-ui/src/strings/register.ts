@@ -4,10 +4,8 @@
  * `{name}` placeholders go through `fillTemplate`; the API-code messages live in
  * `strings.errors`.
  */
-export const register = {
+const en = {
   heading: 'Register asset',
-  required: 'required',
-  optional: 'optional',
 
   fields: {
     entity: 'Entity',
@@ -68,4 +66,65 @@ export const register = {
     unconfirmed: 'We could not confirm the registration. Check the asset list before trying again.',
     entityForbidden: 'You cannot register assets for this entity.',
   },
-} as const
+}
+
+const it: typeof en = {
+  heading: 'Registra bene',
+
+  fields: {
+    entity: 'Entità',
+    entityPlaceholder: "Selezionare un'entità",
+    category: 'Categoria',
+    categoryPlaceholder: 'Selezionare una categoria',
+    description: 'Descrizione',
+    purchaseDate: 'Data di acquisto',
+    totalPrice: 'Prezzo totale',
+    totalPriceIn: (currency: string) => `Prezzo totale, ${currency}`,
+    quantity: 'Quantità',
+    quantityHint: 'Da 1 a 200. Ogni unità diventa un bene a sé.',
+    serial: 'Numero di serie',
+    serials: 'Numeri di serie',
+    serialsHint: (quantity: number) => `Uno per riga: lasciare vuoto oppure inserirne esattamente ${quantity}.`,
+    notReceived: 'Non ancora ricevuto',
+    notReceivedHint: "Registra i beni come ordinati; segnarli come ricevuti all'arrivo.",
+    supplier: 'Fornitore',
+    invoiceRef: 'Riferimento fattura',
+    locationNote: 'Ubicazione / nota',
+  },
+
+  breakdown: (quantity: number, each: string, last: string | null) =>
+    last === null ? `${quantity} beni, ${each} ciascuno` : `${quantity} beni, ${each} ciascuno, l'ultimo ${last}`,
+
+  validation: {
+    summaryHeading: 'Controllare questi campi prima della registrazione',
+    jump: (label: string, message: string) => `${label}: ${message}`,
+    required: 'Campo obbligatorio.',
+    entityRequired: "Selezionare un'entità.",
+    categoryRequired: 'Selezionare una categoria.',
+    dateInvalid: 'Inserire la data di acquisto.',
+    priceInvalid: 'Inserire un prezzo maggiore di 0, con al massimo due decimali.',
+    quantityInvalid: 'Inserire un numero intero da 1 a 200.',
+    serialCount: (quantity: number) =>
+      `Inserire un numero di serie per ciascuno dei ${quantity} beni, oppure lasciare vuoti i numeri di serie.`,
+    serialDuplicate: 'Ogni numero di serie può essere usato una sola volta.',
+    yearClosedNoYear: 'La data di acquisto cade in un esercizio chiuso. Scegliere una data in un esercizio aperto.',
+    conflictLink: 'Visualizza il bene che lo utilizza',
+    serialConflictNoSerial: 'Un numero di serie è già utilizzato da un bene attivo di questa entità.',
+  },
+
+  entityReadOnly: 'Questo account può registrare beni solo per questa entità.',
+  noEntity: 'Nessuna entità di competenza per la registrazione di beni. Rivolgersi a un amministratore.',
+  loadingScope: 'Caricamento delle entità…',
+
+  submit: 'Registra bene',
+  submitMany: (quantity: number) => `Registra ${quantity} beni`,
+  submitting: 'Registrazione…',
+  cancel: 'Annulla',
+
+  failure: {
+    unconfirmed: "Impossibile confermare la registrazione. Controllare l'elenco dei beni prima di riprovare.",
+    entityForbidden: 'Non è possibile registrare beni per questa entità.',
+  },
+}
+
+export const register = { en, it }

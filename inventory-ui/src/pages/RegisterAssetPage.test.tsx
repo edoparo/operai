@@ -66,7 +66,7 @@ const renderPage = async () => {
   return router
 }
 
-/** A field by the start of its accessible name (labels end with "(required)"). */
+/** A field by the start of its accessible name (a required label ends with an aria-hidden "*"). */
 const field = (name: string) => screen.getByLabelText(new RegExp(`^${name}`)) as HTMLInputElement
 
 const type = (name: string, value: string) => fireEvent.change(field(name), { target: { value } })
@@ -151,7 +151,7 @@ describe('currency and the per-unit breakdown (AC-1.2, AC-1.3)', () => {
 
     const line = screen.getByTestId('register-breakdown')
     expect(line.getAttribute('aria-live')).toBe('polite')
-    expect(line.textContent).toBe('13 assets, 226,64 CHF each, last one 226,67 CHF')
+    expect(line.textContent).toBe('13 assets, CHF 226.64 each, last one CHF 226.67')
   })
 
   it('omits "last one" when the total divides evenly', async () => {
@@ -160,7 +160,7 @@ describe('currency and the per-unit breakdown (AC-1.2, AC-1.3)', () => {
     type('Total price', '1000')
     type('Quantity', '4')
 
-    expect(screen.getByTestId('register-breakdown').textContent).toBe('4 assets, 250,00 CHF each')
+    expect(screen.getByTestId('register-breakdown').textContent).toBe('4 assets, CHF 250.00 each')
   })
 })
 
@@ -194,11 +194,44 @@ describe('validation (AC-1.6)', () => {
     expect(document.getElementById(describedBy)?.textContent).toBe('This field is required.')
   })
 
-  it('marks required fields in text, not only by an asterisk', async () => {
+  it('marks required fields for assistive technology and visually (aria-required + "*"), never by label text (INC-16)', async () => {
     await renderPage()
 
-    expect(screen.getByLabelText(/^Description \(required\)/)).not.toBeNull()
-    expect(screen.getByLabelText(/^Supplier \(optional\)/)).not.toBeNull()
+    const description = await screen.findByLabelText(/^Description/)
+    expect(description.getAttribute('aria-required')).toBe('true')
+    const marker = document.querySelector(`label[for="${description.id}"] [aria-hidden="true"]`)
+    expect(marker?.textContent).toBe('*')
+
+    const supplier = screen.getByLabelText(/^Supplier/)
+    expect(supplier.getAttribute('aria-required')).toBeNull()
+    expect(document.querySelector(`label[for="${supplier.id}"] [aria-hidden="true"]`)).toBeNull()
+
+    for (const label of Array.from(document.querySelectorAll('label'))) {
+      expect(label.textContent).not.toMatch(/\((required|optional)\)/)
+    }
+  })
+
+  it('validates a touched field when it loses focus, without waiting for submit', async () => {
+    await renderPage()
+    await fillRequired()
+
+    type('Total price', '12.345')
+    expect(field('Total price').getAttribute('aria-invalid')).toBeNull()
+    fireEvent.blur(field('Total price'))
+
+    expect(field('Total price').getAttribute('aria-invalid')).toBe('true')
+    expect(screen.getByTestId('register-error-price').textContent).not.toBe('')
+    // The summary is for a failed submit only; a blur does not raise an alert.
+    expect(screen.queryByTestId('register-summary')).toBeNull()
+  })
+
+  it('leaves an untouched field quiet on blur', async () => {
+    await renderPage()
+    await screen.findByLabelText(/^Description/)
+
+    fireEvent.blur(field('Description'))
+
+    expect(field('Description').getAttribute('aria-invalid')).toBeNull()
   })
 
   it.each([['0'], ['0.00'], ['-5'], ['abc'], ['12.345'], ['']])('rejects a price of "%s"', async (price) => {

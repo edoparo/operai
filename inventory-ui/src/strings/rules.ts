@@ -5,7 +5,7 @@
  * `{name}` placeholders in `strings.errors` go through `fillTemplate`; money is
  * formatted by the caller with `formatMoney`.
  */
-export const rules = {
+const en = {
   heading: 'Depreciation rules',
   loading: 'Loading depreciation rules',
   /** The page's h3 per entity: "Rules for WellD CH". */
@@ -59,8 +59,6 @@ export const rules = {
     acknowledge: 'I understand this rule cannot be changed afterwards.',
     confirm: 'Add rule',
     confirming: 'Adding…',
-    required: 'required',
-    optional: 'optional',
     fields: {
       effectiveFrom: 'Effective from',
       usefulLife: 'Useful life (years)',
@@ -79,4 +77,71 @@ export const rules = {
       yearClosedNoYear: 'The effective date falls in a closed year. Choose a date in an open year.',
     },
   },
-} as const
+}
+
+const it: typeof en = {
+  heading: 'Regole di ammortamento',
+  loading: 'Caricamento regole di ammortamento',
+  sectionHeading: (entity: string) => `Regole per ${entity}`,
+  sectionLoading: (entity: string) => `Caricamento regole per ${entity}`,
+  caption: (entity: string) => `Regole di ammortamento per ${entity}`,
+  empty: (entity: string) => `Nessuna regola configurata per ${entity}.`,
+  noEntity: 'Nessuna entità di competenza per le regole di ammortamento. Rivolgersi a un amministratore.',
+  retry: 'Riprova',
+
+  newRule: (entity: string) => `Nuova regola per ${entity}`,
+  added: (date: string) => `Regola aggiunta. Si applica agli acquisti dal ${date}.`,
+
+  columns: {
+    effectiveFrom: 'In vigore dal',
+    usefulLife: 'Vita utile (anni)',
+    firstYearShare: 'Quota primo anno',
+    threshold: 'Soglia beni di modico valore',
+    residual: 'Valore residuo',
+    addedBy: 'Aggiunta da',
+    addedOn: 'Aggiunta il',
+    status: 'Stato',
+  },
+  firstYearShare: { full: 'Intera', half: 'Metà' },
+  noThreshold: 'Nessuna',
+
+  status: {
+    inForce: 'In vigore',
+    scheduled: 'Programmata',
+    superseded: 'Sostituita',
+  },
+
+  dialog: {
+    title: (entity: string) => `Nuova regola di ammortamento per ${entity}`,
+    inForce: (summary: string, since: string) => `Regola in vigore: ${summary} (dal ${since})`,
+    inForceShare: { full: 'primo anno intero', half: 'primo anno al 50%' },
+    inForceNoThreshold: 'nessuna soglia',
+    inForceThreshold: (amount: string) => `soglia ${amount}`,
+    inForceSummary: (years: number, share: string, threshold: string, residual: string) =>
+      `vita utile ${years} ${years === 1 ? 'anno' : 'anni'}, ${share}, ${threshold}, valore residuo ${residual}`,
+    consequence: (entity: string, date: string) =>
+      `Dal ${date}, ogni bene di ${entity} acquistato a partire dal ${date}, compresi i beni già registrati, viene ammortizzato con questa regola. I beni acquistati prima mantengono il proprio piano. Una regola salvata non può essere modificata né eliminata; una correzione richiede una nuova regola.`,
+    dateUnset: 'la data di decorrenza',
+    acknowledge: 'Confermo di aver compreso che questa regola non potrà essere modificata in seguito.',
+    confirm: 'Aggiungi regola',
+    confirming: 'Aggiunta…',
+    fields: {
+      effectiveFrom: 'In vigore dal',
+      usefulLife: 'Vita utile (anni)',
+      firstYearShare: 'Quota primo anno',
+      thresholdIn: (currency: string) => `Soglia beni di modico valore, ${currency}`,
+      residualIn: (currency: string) => `Valore residuo, ${currency}`,
+    },
+    errors: {
+      dateRequired: 'Inserire la data di decorrenza.',
+      dateInvalid: 'Inserire una data di decorrenza valida.',
+      lifeInvalid: 'La vita utile deve essere un numero intero di almeno 1 anno.',
+      shareRequired: 'Selezionare la quota del primo anno.',
+      thresholdInvalid: 'Inserire una soglia pari o superiore a 0, con al massimo due decimali, oppure lasciare vuoto.',
+      residualInvalid: 'Inserire un valore residuo pari o superiore a 0, con al massimo due decimali.',
+      yearClosedNoYear: 'La data di decorrenza cade in un esercizio chiuso. Scegliere una data in un esercizio aperto.',
+    },
+  },
+}
+
+export const rules = { en, it }

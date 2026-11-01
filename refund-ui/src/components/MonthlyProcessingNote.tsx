@@ -33,8 +33,7 @@ export default function MonthlyProcessingNote() {
   return (
     <p
       data-testid="monthly-processing-note"
-      className="text-[11px] leading-relaxed"
-      style={{ color: 'var(--soft)' }}
+      className="text-2xs leading-relaxed text-soft"
     >
       {t.body}
     </p>

@@ -24,6 +24,7 @@ import * as estimatesApi from '../lib/estimatesApi'
 import type { EstimateImportResult } from '../lib/estimatesApi'
 import type { ProjectMeta } from '../types'
 import type { ImportPhase } from '../components/ImportOfferModal'
+import { strings } from '../strings'
 
 /** sessionStorage key used to remember "offer dismissed this session" (AC-5.3). */
 export const OFFER_DISMISSED_KEY = 'import_offer_dismissed'
@@ -87,7 +88,7 @@ export const useImportOffer = (onListRefresh: () => void): UseImportOfferReturn 
       return [
         {
           localId: meta.id,
-          name: data.name || 'Untitled',
+          name: data.name || strings.estimatesList.untitled,
           author: data.author || '',
           content: {
             params: data.params,

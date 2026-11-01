@@ -4,17 +4,17 @@
  * Component tests for EstimatesPage — T8, specs/001-estimate-persistence.
  *
  * Covers:
- *   (A) Loading: estimatesApi.list is pending → SkeletonListRows is visible.
+ *   (A) Loading: estimatesApi.list is pending → the loading SkeletonRows is visible.
  *   (B) Loaded: estimatesApi.list resolves with 2 items → both rows render with
  *       name and a formatted updatedAt; the actual item names appear (the
  *       assertion would fail if the list did not render).
  *   (C) Empty: estimatesApi.list resolves [] → empty state renders, no error
- *       surface and no SkeletonListRows visible (AC-2.3).
+ *       surface and no the loading SkeletonRows visible (AC-2.3).
  *   (D) Error: estimatesApi.list rejects → an error surface renders and the
  *       component does not crash.
  *   (E) Chrome dedup (specs/003-suite-shell, T14, AC-4.2): the page no longer
  *       renders its own logo image or UserMenu — those are shell-owned now —
- *       but keeps its tool-scoped "Import JSON" and "+ New estimate" actions.
+ *       but keeps its tool-scoped "Import JSON" and "New estimate" actions.
  *   (F) Shared row (specs/013-estimate-sharing, T23, AC-2.1/AC-2.2/AC-10.4):
  *       a shared row is distinguishable from an owned row by testid (never by
  *       CSS class), carries an `AccessLevelBadge` + the owner's identity via
@@ -37,9 +37,11 @@
  */
 
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { render, screen, waitFor, cleanup, within } from '@testing-library/react'
+import type { ReactNode } from 'react'
+import { render, screen, waitFor, cleanup, within, fireEvent, act } from '@testing-library/react'
 import EstimatesPage from './EstimatesPage'
 import type { EstimateListItem } from '../lib/estimatesApi'
+import { formatDate } from '@operai/ui'
 import { strings } from '../strings'
 
 // ---------------------------------------------------------------------------
@@ -61,6 +63,12 @@ vi.mock('@tanstack/react-router', async (importOriginal) => {
   return {
     ...original,
     useNavigate: vi.fn(() => vi.fn()),
+    // A row's name is a router <Link> (INC-14); no RouterProvider here.
+    Link: ({ children, className, tabIndex }: { children: ReactNode; className?: string; tabIndex?: number }) => (
+      <a href="#" className={className} tabIndex={tabIndex}>
+        {children}
+      </a>
+    ),
   }
 })
 
@@ -128,12 +136,12 @@ afterEach(() => {
 describe('EstimatesPage', () => {
   // (A) Loading state
   describe('(A) loading — list() is pending', () => {
-    it('renders SkeletonListRows while estimatesApi.list is in-flight', () => {
+    it('renders the loading SkeletonRows while estimatesApi.list is in-flight', () => {
       vi.mocked(estimatesApi.list).mockReturnValue(pendingPromise())
 
       render(<EstimatesPage />)
 
-      // SkeletonListRows renders with data-testid="skeleton-list-rows"
+      // the loading SkeletonRows renders with data-testid="skeleton-list-rows"
       const skeleton = screen.getByTestId('skeleton-list-rows')
       expect(skeleton).toBeDefined()
 
@@ -160,11 +168,12 @@ describe('EstimatesPage', () => {
       // Skeleton must be gone once loaded
       expect(screen.queryByTestId('skeleton-list-rows')).toBeNull()
 
-      // updatedAt strings — formatted by formatDate() — must appear.
-      // "1 Jul 2026" (or locale-equivalent). We check via locale-independent
-      // partial content: the year "2026" appears in both formatted dates.
+      // updatedAt strings — formatted by the library's formatDate (INC-26):
+      // the suite's numeric dd.mm.yyyy, the same in both languages.
       const dateCells = screen.getAllByText(/2026/)
       expect(dateCells.length).toBeGreaterThanOrEqual(2)
+      expect(screen.getByText(new RegExp(formatDate(itemA.updatedAt).replace(/\./g, '\\.')))).toBeDefined()
+      expect(formatDate(itemA.updatedAt)).toMatch(/^\d{2}\.\d{2}\.2026$/)
 
       // No error surface
       expect(screen.queryByRole('alert')).toBeNull()
@@ -183,7 +192,7 @@ describe('EstimatesPage', () => {
         expect(screen.getByText('Ready to estimate your first project?')).toBeDefined()
       })
 
-      // No SkeletonListRows
+      // No the loading SkeletonRows
       expect(screen.queryByTestId('skeleton-list-rows')).toBeNull()
 
       // No error alert
@@ -222,7 +231,7 @@ describe('EstimatesPage', () => {
 
   // (E) Chrome dedup (specs/003-suite-shell, T14, AC-4.2)
   describe('(E) chrome dedup — suite-level controls are shell-owned, not duplicated here', () => {
-    it('does not render its own logo image or UserMenu, but keeps Import JSON / + New estimate', async () => {
+    it('does not render its own logo image or UserMenu, but keeps Import JSON / New estimate', async () => {
       vi.mocked(estimatesApi.list).mockResolvedValue([itemA, itemB])
 
       render(<EstimatesPage />)
@@ -240,7 +249,7 @@ describe('EstimatesPage', () => {
 
       // Tool-scoped controls remain.
       expect(screen.getByRole('button', { name: /Import JSON/i })).toBeDefined()
-      expect(screen.getByRole('button', { name: /\+ New estimate/i })).toBeDefined()
+      expect(screen.getByRole('button', { name: /^New estimate$/i })).toBeDefined()
     })
   })
 
@@ -362,6 +371,105 @@ describe('EstimatesPage', () => {
       expect(screen.queryByText('Ready to estimate your first project?')).toBeNull()
       expect(screen.queryByTestId('estimate-row-owned')).toBeNull()
       expect(screen.getByTestId('estimate-row-shared')).toBeDefined()
+    })
+  })
+
+  // (I) Page-action failures are Banners, never window.alert() (INC-18)
+  describe('(I) action failures — a Banner on the page, never window.alert()', () => {
+    it('a failed "New estimate" shows a warning Banner whose Retry calls create again', async () => {
+      const alertSpy = vi.spyOn(window, 'alert').mockImplementation(() => {})
+      vi.mocked(estimatesApi.list).mockResolvedValue([itemA])
+      vi.mocked(estimatesApi.create).mockRejectedValue(new Error('offline'))
+
+      render(<EstimatesPage />)
+      await waitFor(() => expect(screen.getByText('Alpha Project')).toBeDefined())
+
+      fireEvent.click(screen.getByRole('button', { name: /^New estimate$/i }))
+
+      const banner = await screen.findByTestId('estimates-action-error')
+      expect(banner.getAttribute('role')).toBe('alert')
+      expect(banner.className).toContain('banner-warning')
+      expect(banner.textContent).toContain(strings.estimatesList.createFailed)
+      expect(alertSpy).not.toHaveBeenCalled()
+
+      fireEvent.click(screen.getByTestId('estimates-action-retry'))
+      await waitFor(() => expect(estimatesApi.create).toHaveBeenCalledTimes(2))
+      alertSpy.mockRestore()
+    })
+
+    it('a failed "Load example" shows a warning Banner whose Retry loads the example again', async () => {
+      const alertSpy = vi.spyOn(window, 'alert').mockImplementation(() => {})
+      vi.mocked(estimatesApi.list).mockResolvedValue([])
+      vi.mocked(estimatesApi.create).mockRejectedValue(new Error('offline'))
+
+      render(<EstimatesPage />)
+      fireEvent.click(await screen.findByRole('button', { name: /Load example/i }))
+
+      const banner = await screen.findByTestId('estimates-action-error')
+      expect(banner.className).toContain('banner-warning')
+      expect(banner.textContent).toContain(strings.estimatesList.exampleFailed)
+      expect(alertSpy).not.toHaveBeenCalled()
+
+      fireEvent.click(screen.getByTestId('estimates-action-retry'))
+      await waitFor(() => expect(estimatesApi.create).toHaveBeenCalledTimes(2))
+      // Same template both times — Retry repeats the action the person took.
+      expect(vi.mocked(estimatesApi.create).mock.calls[1][0].name).toBe(
+        vi.mocked(estimatesApi.create).mock.calls[0][0].name,
+      )
+      alertSpy.mockRestore()
+    })
+
+    it('an unreadable import file shows a danger Banner with the parse error and no Retry', async () => {
+      const alertSpy = vi.spyOn(window, 'alert').mockImplementation(() => {})
+      vi.mocked(estimatesApi.list).mockResolvedValue([itemA])
+
+      const { container } = render(<EstimatesPage />)
+      await waitFor(() => expect(screen.getByText('Alpha Project')).toBeDefined())
+
+      const fileInput = container.querySelector('input[type="file"]') as HTMLInputElement
+      const file = new File(['not json'], 'broken.json', { type: 'application/json' })
+      fireEvent.change(fileInput, { target: { files: [file] } })
+
+      const banner = await screen.findByTestId('estimates-action-error')
+      expect(banner.getAttribute('role')).toBe('alert')
+      expect(banner.className).toContain('banner-danger')
+      expect(banner.textContent).toContain('Invalid JSON file.')
+      expect(screen.queryByTestId('estimates-action-retry')).toBeNull()
+      expect(estimatesApi.create).not.toHaveBeenCalled()
+      expect(alertSpy).not.toHaveBeenCalled()
+
+      // Dismissible.
+      fireEvent.click(within(banner).getByRole('button', { name: strings.estimatesList.dismiss }))
+      expect(screen.queryByTestId('estimates-action-error')).toBeNull()
+      alertSpy.mockRestore()
+    })
+  })
+
+  // (J) A delete confirms where it happened (INC-19)
+  describe('(J) delete success — a compact success Banner above the list', () => {
+    it('shows "Estimate deleted." as role="status" after a confirmed delete, then dismisses itself', async () => {
+      vi.mocked(estimatesApi.list).mockResolvedValueOnce([itemA, itemB]).mockResolvedValue([itemB])
+      vi.mocked(estimatesApi.remove).mockResolvedValue(undefined)
+
+      render(<EstimatesPage />)
+      await waitFor(() => expect(screen.getByText('Alpha Project')).toBeDefined())
+      expect(screen.queryByTestId('estimates-deleted-notice')).toBeNull()
+
+      fireEvent.click(screen.getByRole('button', { name: /Delete "Alpha Project"/ }))
+      vi.useFakeTimers({ shouldAdvanceTime: true })
+      await act(async () => {
+        fireEvent.click(screen.getByTestId('confirm-delete-confirm'))
+      })
+
+      const notice = await screen.findByTestId('estimates-deleted-notice')
+      expect(notice.getAttribute('role')).toBe('status')
+      expect(notice.textContent).toContain(strings.estimatesList.deleted)
+
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(3000)
+      })
+      expect(screen.queryByTestId('estimates-deleted-notice')).toBeNull()
+      vi.useRealTimers()
     })
   })
 })

@@ -1,6 +1,8 @@
 import { useState, useCallback } from 'react'
 import { createPortal } from 'react-dom'
+import { Icon } from '@operai/ui'
 import { type WarningCode, WARNING_META } from '../lib/healthWarnings'
+import { strings } from '../strings'
 
 interface Props {
   code: WarningCode
@@ -32,14 +34,14 @@ export default function WarningBadge({ code, className = '' }: Props) {
       <span
         role="img"
         tabIndex={0}
-        aria-label={`Warning: ${m.title}. ${m.description}`}
+        aria-label={strings.health.badgeLabel(m.title, m.description)}
         className={`leading-none cursor-help select-none outline-none rounded-sm focus-visible:ring-1 focus-visible:ring-acc/60 ${m.colorClass} ${className}`}
         onMouseEnter={(e) => open(e.currentTarget)}
         onMouseLeave={close}
         onFocus={(e) => open(e.currentTarget)}
         onBlur={close}
       >
-        {m.icon}
+        <Icon name={m.icon} />
       </span>
       {anchor &&
         createPortal(
@@ -49,10 +51,11 @@ export default function WarningBadge({ code, className = '' }: Props) {
             className="block w-max max-w-72 bg-ink-mid border border-rule rounded shadow-xl z-9999
               px-2.5 py-1.5 pointer-events-none"
           >
-            <span className={`block text-[11px] font-semibold mb-0.5 ${m.colorClass}`}>
-              {m.icon} {m.title}
+            <span className={`flex items-center gap-1 text-2xs font-semibold mb-0.5 ${m.colorClass}`}>
+              <Icon name={m.icon} />
+              {m.title}
             </span>
-            <span className="block text-[10.5px] text-soft leading-relaxed">{m.description}</span>
+            <span className="block text-2xs text-soft leading-relaxed">{m.description}</span>
           </span>,
           document.body,
         )}

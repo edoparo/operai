@@ -1,4 +1,5 @@
 import { useId, useRef, useState } from 'react'
+import { Banner, Button, Card, CheckboxGroupField, FactList } from '@operai/ui'
 import type { InventoryCapabilities } from '../hooks/useInventoryCapabilities'
 import { ApiError } from '../lib/api'
 import { listAssets } from '../lib/assetsApi'
@@ -274,24 +275,16 @@ export default function InvoiceFilePanel({
     if (file !== undefined && canWrite && hasReference && !busy) void startUpload(file)
   }
 
-  const headingId = `${baseId}-heading`
   const reasonId = `${baseId}-reason`
   const hintId = `${baseId}-hint`
-  const labelStyle = { color: 'var(--soft)' }
-  const alertStyle = {
-    borderColor: 'var(--org)',
-    backgroundColor: 'color-mix(in srgb, var(--org) 10%, transparent)',
-    color: 'var(--org)',
-  }
   const offer = flow.offer
 
   return (
-    <section aria-labelledby={headingId} data-testid="invoice-panel" className="card">
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <h3 id={headingId} className="card-title">
-          {t.heading}
-        </h3>
-        {canWrite && (
+    <Card
+      title={t.heading}
+      data-testid="invoice-panel"
+      action={
+        canWrite && (
           <div className="flex flex-col items-end gap-1 text-right">
             <input
               ref={inputRef}
@@ -303,7 +296,7 @@ export default function InvoiceFilePanel({
               aria-hidden="true"
               onChange={(event) => onPick(event.currentTarget)}
             />
-            <button
+            <Button
               type="button"
               onClick={() => {
                 if (hasReference && !busy) inputRef.current?.click()
@@ -311,179 +304,139 @@ export default function InvoiceFilePanel({
               aria-disabled={!hasReference || busy || undefined}
               aria-busy={busy || undefined}
               aria-describedby={!hasReference ? reasonId : asset.invoiceFile !== null ? hintId : undefined}
-              className="btn btn-secondary btn-sm"
+              variant="secondary"
+              size="sm"
             >
               {asset.invoiceFile === null ? t.upload : t.uploadAnother}
-            </button>
+            </Button>
             {!hasReference && (
-              <p id={reasonId} className="text-xs" style={labelStyle}>
+              <p id={reasonId} className="text-xs text-soft">
                 {t.needsReference}
               </p>
             )}
             {hasReference && asset.invoiceFile !== null && (
-              <p id={hintId} className="text-xs" style={labelStyle}>
+              <p id={hintId} className="text-xs text-soft">
                 {t.uploadAnotherHint}
               </p>
             )}
           </div>
-        )}
-      </div>
-
-      <dl className="grid grid-cols-1 gap-4 sm:grid-cols-[minmax(0,1fr)_minmax(0,2fr)]">
-        <div className="flex flex-col gap-0.5">
-          <dt className="text-xs" style={labelStyle}>
-            {t.reference}
-          </dt>
-          <dd className="text-sm" style={{ color: 'var(--text)' }}>
-            {hasReference ? reference : t.referenceNone}
-          </dd>
-        </div>
-        <div className="flex flex-col gap-0.5">
-          <dt className="text-xs" style={labelStyle}>
-            {t.file}
-          </dt>
-          <dd className="flex flex-wrap items-center gap-2 text-sm" style={{ color: 'var(--text)', overflowWrap: 'anywhere' }}>
-            {asset.invoiceFile === null ? (
-              <span>{t.fileNone}</span>
-            ) : (
-              <>
-                <span>{asset.invoiceFile.fileName}</span>
-                <button
-                  type="button"
-                  onClick={() => void open()}
-                  aria-label={t.openNamed(asset.invoiceFile.fileName)}
-                  aria-busy={flow.opening || undefined}
-                  className="btn btn-secondary btn-sm"
-                >
-                  {flow.opening ? t.opening : t.open}
-                </button>
-              </>
-            )}
-          </dd>
-        </div>
-      </dl>
+        )
+      }
+    >
+      <FactList
+        items={[
+          { id: 'reference', term: t.reference, value: hasReference ? reference : t.referenceNone },
+          {
+            id: 'file',
+            term: t.file,
+            value:
+              asset.invoiceFile === null ? (
+                t.fileNone
+              ) : (
+                <span className="flex flex-wrap items-center gap-2">
+                  <span>{asset.invoiceFile.fileName}</span>
+                  <Button
+                    type="button"
+                    onClick={() => void open()}
+                    aria-label={t.openNamed(asset.invoiceFile.fileName)}
+                    aria-busy={flow.opening || undefined}
+                    variant="secondary"
+                    size="sm"
+                  >
+                    {flow.opening ? t.opening : t.open}
+                  </Button>
+                </span>
+              ),
+          },
+        ]}
+      />
 
       {flow.openFailed && (
-        <p role="alert" className="border px-3 py-2 text-sm" style={alertStyle}>
-          {t.openFailed}
-        </p>
+        // Opening again retries: a recoverable failure, the warning tone (INC-20).
+        <Banner tone="warning">{t.openFailed}</Banner>
       )}
 
-      {readOnly && (
-        <p className="text-sm" style={labelStyle}>
-          {t.readOnly}
-        </p>
-      )}
+      {readOnly && <p className="text-sm text-soft">{t.readOnly}</p>}
 
       {flow.uploading !== null && (
-        <p role="status" className="text-sm" style={labelStyle}>
+        <p role="status" className="text-sm text-soft">
           {t.uploading(flow.uploading)}
         </p>
       )}
 
       {flow.notice !== null && (
-        <div
-          role="alert"
-          className="flex items-center justify-between gap-3 border px-3 py-2 text-sm"
-          style={alertStyle}
+        // An upload or link that failed (a rejected file, a mismatch, a lost link): the danger tone (INC-20).
+        <Banner
+          tone="danger"
+          onRetry={
+            flow.notice.retryLink === undefined
+              ? undefined
+              : () => void retryLink(flow.notice?.retryLink as { fileId: string; fileName: string })
+          }
+          retryLabel={t.retryLink}
+          onDismiss={() => patch({ notice: null })}
+          dismissLabel={t.dismiss}
         >
-          <span>{flow.notice.message}</span>
-          <span className="flex shrink-0 items-center gap-2">
-            {flow.notice.retryLink !== undefined && (
-              <button
-                type="button"
-                onClick={() => void retryLink(flow.notice?.retryLink as { fileId: string; fileName: string })}
-                className="btn btn-secondary btn-sm"
-              >
-                {t.retryLink}
-              </button>
-            )}
-            <button
-              type="button"
-              onClick={() => patch({ notice: null })}
-              className="btn btn-ghost btn-sm"
-            >
-              {t.dismiss}
-            </button>
-          </span>
-        </div>
+          {flow.notice.message}
+        </Banner>
       )}
 
       {canWrite && offer !== null && offer.status === 'loading' && (
-        <p role="status" className="text-sm" style={labelStyle}>
+        <p role="status" className="text-sm text-soft">
           {t.siblings.loading}
         </p>
       )}
 
       {canWrite && offer !== null && offer.status === 'error' && (
-        <div
-          role="alert"
-          className="flex items-center justify-between gap-3 border px-3 py-2 text-sm"
-          style={alertStyle}
+        // A failed lookup that Retry repeats: the warning tone (INC-20).
+        <Banner
+          tone="warning"
+          onRetry={() => void loadSiblings(offer.fileId, offer.reference, false)}
+          retryLabel={t.retry}
         >
-          <span>{t.siblings.failed}</span>
-          <button
-            type="button"
-            onClick={() => void loadSiblings(offer.fileId, offer.reference, false)}
-            className="btn btn-secondary btn-sm"
-          >
-            {t.retry}
-          </button>
-        </div>
+          {t.siblings.failed}
+        </Banner>
       )}
 
       {canWrite && offer !== null && offer.status === 'ready' && (
         <div className="flex flex-col gap-2">
-          <fieldset className="flex flex-col gap-1.5" disabled={offer.linking}>
-            <legend className="text-sm font-medium" style={{ color: 'var(--text)' }}>
-              {t.siblings.legend(offer.reference)}
-            </legend>
-            {offer.items.map((item) => (
-              <label key={item.id} className="flex items-center gap-2 text-sm" style={{ color: 'var(--text)' }}>
-                <input
-                  type="checkbox"
-                  checked={offer.selected.includes(item.id)}
-                  onChange={(event) =>
-                    patchOffer({
-                      selected: event.target.checked
-                        ? [...offer.selected, item.id]
-                        : offer.selected.filter((id) => id !== item.id),
-                    })
-                  }
-                />
-                {t.siblings.option(item.description, item.serialNumber)}
-              </label>
-            ))}
-          </fieldset>
-          <p aria-live="polite" className="text-xs" style={labelStyle}>
+          <CheckboxGroupField
+            label={t.siblings.legend(offer.reference)}
+            options={offer.items.map((item) => ({
+              id: item.id,
+              label: t.siblings.option(item.description, item.serialNumber),
+            }))}
+            selected={offer.selected}
+            onToggle={(id, checked) =>
+              patchOffer({
+                selected: checked ? [...offer.selected, id] : offer.selected.filter((selectedId) => selectedId !== id),
+              })
+            }
+            disabled={offer.linking}
+          />
+          <p aria-live="polite" className="text-xs text-soft">
             {t.siblings.selected(offer.selected.length)}
           </p>
           {offer.error !== null && (
-            <p role="alert" className="border px-3 py-2 text-sm" style={alertStyle}>
-              {offer.error}
-            </p>
+            // Linking the selected assets failed: the danger tone (INC-20).
+            <Banner tone="danger">{offer.error}</Banner>
           )}
           <div className="flex gap-2">
-            <button
+            <Button
               type="button"
               onClick={() => void linkSelected()}
               aria-disabled={offer.selected.length === 0 || offer.linking || undefined}
               aria-busy={offer.linking || undefined}
-              className="btn btn-secondary"
+              variant="secondary"
             >
               {offer.linking ? t.siblings.linking : t.siblings.link}
-            </button>
-            <button
-              type="button"
-              onClick={() => patch({ offer: null })}
-              disabled={offer.linking}
-              className="btn btn-ghost"
-            >
+            </Button>
+            <Button type="button" onClick={() => patch({ offer: null })} disabled={offer.linking} variant="ghost">
               {t.siblings.notNow}
-            </button>
+            </Button>
           </div>
         </div>
       )}
-    </section>
+    </Card>
   )
 }

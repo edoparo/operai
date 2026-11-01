@@ -31,26 +31,21 @@ export default function BatchSubtotalsPanel({ subtotals }: BatchSubtotalsPanelPr
 
   if (subtotals.length === 0) return null
 
+  // Figure groups only, no border of their own (INC-33): the caller's `Card`
+  // is the section (an employee group, the batch summary, the preview total).
   return (
     <div
       data-testid="batch-subtotals-panel"
-      className="grid gap-3"
+      className="grid gap-4"
       style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))' }}
     >
       {subtotals.map((s) => (
-        <div
-          key={s.currency}
-          data-testid={`batch-subtotals-panel-card-${s.currency}`}
-          className="flex flex-col gap-2 rounded-md border px-3 py-2.5"
-          style={{ borderColor: 'var(--rule)', backgroundColor: 'var(--ink-soft)' }}
-        >
+        <div key={s.currency} data-testid={`batch-subtotals-panel-card-${s.currency}`} className="flex flex-col gap-2">
           <CurrencyBadge currency={s.currency} />
           <dl className="flex flex-col gap-1 text-sm">
             <div className="flex items-center justify-between gap-3">
-              <dt style={{ color: 'var(--soft)' }}>{t.totalLabel}</dt>
-              <dd className="font-mono" style={{ color: 'var(--grn)' }}>
-                {formatMoney(s.approvedCents, s.currency)}
-              </dd>
+              <dt className="text-soft">{t.totalLabel}</dt>
+              <dd className="font-mono tabular-nums text-grn-text">{formatMoney(s.approvedCents, s.currency)}</dd>
             </div>
           </dl>
         </div>

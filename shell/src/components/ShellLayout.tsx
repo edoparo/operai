@@ -3,6 +3,7 @@ import { Outlet } from '@tanstack/react-router'
 import { SidebarCollapsedProvider } from '../hooks/SidebarCollapsedProvider'
 import { useSidebarCollapsed } from '../hooks/sidebarCollapsed'
 import ToastHost from './ToastHost'
+import { strings } from '../strings'
 
 /**
  * ShellLayout — the persistent multi-region app-shell frame (specs/003-suite-shell,
@@ -105,7 +106,7 @@ function ShellLayoutFrame({ header, sidebar, footer }: ShellLayoutProps) {
         onClick={handleSkipToContent}
         className={`sr-only focus:not-sr-only focus:fixed focus:top-2 focus:left-2 focus:z-50 focus:rounded-md focus:bg-acc focus:px-4 focus:py-2 focus:text-ink ${FOCUS_RING}`}
       >
-        Skip to content
+        {strings.layout.skipToContent}
       </a>
 
       <header role="banner" className="shrink-0 border-b border-rule bg-ink-soft">
@@ -117,7 +118,7 @@ function ShellLayoutFrame({ header, sidebar, footer }: ShellLayoutProps) {
             inside owns its own vertical scroll + always-visible bottom toggle,
             so `overflow-hidden` here just clips during the width transition. */}
         <nav
-          aria-label="Tool navigation"
+          aria-label={strings.layout.toolNavigation}
           className={`${
             collapsed ? 'w-16' : 'w-56'
           } shrink-0 overflow-hidden border-r border-rule bg-ink-soft transition-[width] duration-200`}
@@ -158,21 +159,19 @@ function ShellLayoutFrame({ header, sidebar, footer }: ShellLayoutProps) {
 
 function ShellHeaderPlaceholder() {
   return (
-    <p className="px-4 py-3 text-sm text-muted">
-      Header placeholder — suite chrome (logo, About, user menu, theme toggle) lands in T6.
-    </p>
+    <p className="px-4 py-3 text-sm text-muted">{strings.layout.headerPlaceholder}</p>
   )
 }
 
 function ShellSidebarPlaceholder() {
   return (
-    <p className="px-4 py-3 text-sm text-muted">Sidebar placeholder — tool switcher (EstimAI, Refund) lands in T7.</p>
+    <p className="px-4 py-3 text-sm text-muted">{strings.layout.sidebarPlaceholder}</p>
   )
 }
 
 function ShellFooterPlaceholder() {
   return (
-    <p className="px-4 py-3 text-sm text-muted">Footer placeholder — legal link, version, company info land in T8.</p>
+    <p className="px-4 py-3 text-sm text-muted">{strings.layout.footerPlaceholder}</p>
   )
 }
 

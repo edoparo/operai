@@ -1,3 +1,4 @@
+import { Banner, Button } from '@operai/ui'
 import { useRef, useState } from 'react'
 import AssignDialog from './AssignDialog'
 import ConfirmDialog from './ConfirmDialog'
@@ -205,16 +206,15 @@ export default function AssetActions({ asset, capabilities, onChanged, announce,
   const holderName = asset.holder === null || asset.holder.name === null ? null : asset.holder.name
 
   const actionButton = (key: ActionKey, destructive = false) => (
-    <button
+    <Button
       key={key}
-      type="button"
+      variant={destructive ? 'danger' : 'secondary'}
       onClick={() => click(key)}
       aria-disabled={busy !== null || undefined}
       aria-busy={busy === key || undefined}
-      className={`btn ${destructive ? 'btn-danger' : 'btn-secondary'}`}
     >
       {LABELS[key]}
-    </button>
+    </Button>
   )
 
   const confirmCopy = (kind: ConfirmKind) => {
@@ -256,38 +256,21 @@ export default function AssetActions({ asset, capabilities, onChanged, announce,
   return (
     <div data-testid="asset-actions" className="flex flex-col gap-3">
       {pending !== null && (
-        <div
-          role="status"
-          data-testid="pending-callout"
-          className="flex flex-wrap items-center justify-between gap-3 rounded-md border px-4 py-3 text-sm"
-          style={{ borderColor: 'var(--acc)', color: 'var(--text)' }}
-        >
-          <p>{pendingText(assigneeName, pending.createdAt)}</p>
-          {canManage && actionButton('cancel')}
-        </div>
+        <Banner tone="info" data-testid="pending-callout" actions={canManage && actionButton('cancel')}>
+          {pendingText(assigneeName, pending.createdAt)}
+        </Banner>
       )}
 
       {holderDeleted && (
-        <div
-          role="status"
-          data-testid="holder-deleted-callout"
-          className="flex flex-wrap items-center justify-between gap-3 rounded-md border px-4 py-3 text-sm"
-          style={{ borderColor: 'var(--org)', color: 'var(--text)' }}
-        >
-          <p>{holderName === null ? t.holderDeleted.unnamed : t.holderDeleted.named(holderName)}</p>
-          {canManage && actionButton('return')}
-        </div>
+        <Banner tone="info" data-testid="holder-deleted-callout" actions={canManage && actionButton('return')}>
+          {holderName === null ? t.holderDeleted.unnamed : t.holderDeleted.named(holderName)}
+        </Banner>
       )}
 
       {actionError !== null && (
-        <p
-          role="alert"
-          data-testid="asset-actions-error"
-          className="rounded-md border px-4 py-3 text-sm"
-          style={{ borderColor: 'var(--org)', color: 'var(--org)' }}
-        >
+        <Banner tone="danger" data-testid="asset-actions-error">
           {actionError}
-        </p>
+        </Banner>
       )}
 
       {canManage && actions.length > 0 && (

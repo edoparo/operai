@@ -11,7 +11,7 @@
  *   (C) Forbidden: a 403 on either fetch → PermissionDenied.
  *   (D) Role fetch error (non-403) → ErrorBanner + Retry.
  *   (E) Catalog fetch error → rule list stays read-only (no remove "×", no
- *       "+ Add rule"), ErrorBanner + Retry for the catalog specifically.
+ *       "Add rule"), ErrorBanner + Retry for the catalog specifically.
  *   (F) Off-catalog impossible: the Resource/Action <select>s only ever
  *       contain catalog-sourced <option>s.
  *   (G) aria-live: selecting a Resource announces "Action reset…"; selecting
@@ -34,6 +34,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import RoleEditor from './RoleEditor'
+import { peekFlash, setFlash, clearFlash } from '../lib/flash'
 import type { Catalog, RoleDetail } from '../lib/adminApi'
 
 // ---------------------------------------------------------------------------
@@ -58,6 +59,12 @@ vi.mock('@tanstack/react-router', async (importOriginal) => {
   return {
     ...original,
     useNavigate: () => navigateMock,
+    // The page's back link renders outside a RouterProvider in these tests.
+    Link: ({ to, children, ...rest }: { to: string; children?: unknown }) => (
+      <a href={to} {...rest}>
+        {children as never}
+      </a>
+    ),
     getRouteApi: () => ({ useParams: () => ({ id: 'role-1' }) }),
   }
 })
@@ -147,6 +154,18 @@ async function renderLoaded(role: RoleDetail = roleFixture) {
 // ---------------------------------------------------------------------------
 // Tests
 // ---------------------------------------------------------------------------
+
+describe('RoleEditor — back link (INC-13)', () => {
+  it('links back to the roles list, the arrow hidden from assistive technology', async () => {
+    await renderLoaded()
+
+    const back = screen.getByTestId('back-to-roles-link')
+    expect(back.getAttribute('href')).toBe('/roles')
+    expect(back.textContent?.trim()).toBe('Back to roles')
+    // INC-31: the arrow is a decorative SVG icon, not a "←" character.
+    expect(back.querySelector('svg[aria-hidden="true"]')).not.toBeNull()
+  })
+})
 
 describe('RoleEditor — loading / error / forbidden', () => {
   it('renders a skeleton while role + catalog are in-flight', () => {
@@ -447,6 +466,18 @@ describe('RoleEditor — save rules + 422 stale catalog', () => {
     await waitFor(() => {
       expect(adminApi.putRoleRules).toHaveBeenCalledWith('role-1', roleFixture.rules)
     })
+    // INC-19: the save is confirmed beside the Save button.
+    await waitFor(() => {
+      expect(screen.getByTestId('role-rules-success').textContent).toBe('Rules saved — effective immediately')
+    })
+  })
+
+  it('confirms a role just created on the Roles list (flash handed over on navigation)', async () => {
+    setFlash('role:role-1', 'Role "Accounting Lead" created')
+    await renderLoaded()
+
+    expect(screen.getByTestId('role-created').textContent).toBe('Role "Accounting Lead" created')
+    expect(peekFlash('role:role-1')).toBeNull()
   })
 
   it('shows a "Reload catalog" banner on a 422 and re-fetches the catalog on click', async () => {
@@ -465,6 +496,8 @@ describe('RoleEditor — save rules + 422 stale catalog', () => {
     await waitFor(() => expect(screen.getByRole('alert')).not.toBeNull())
     expect(screen.getByRole('alert').textContent).toContain('no longer exists')
     expect(screen.getByTestId('error-banner-retry').textContent).toBe('Reload catalog')
+    // INC-20: a failed save is red (danger), not the orange of a failed load.
+    expect(screen.getByTestId('error-banner').className).toContain('banner-danger')
 
     // Draft preserved through the failed save.
     expect(screen.getByTestId('role-rule-0')).not.toBeNull()
@@ -494,6 +527,9 @@ describe('RoleEditor — delete (custom role)', () => {
     await waitFor(() => {
       expect(navigateMock).toHaveBeenCalledWith({ to: '/roles' })
     })
+    // INC-19: the roles list it returns to confirms the delete.
+    expect(peekFlash('roles')).toBe('Role "Accounting Lead" deleted')
+    clearFlash('roles')
   })
 
   it('surfaces a GuardrailDialog (not the inline modal error) on a 422 delete', async () => {
@@ -531,6 +567,22 @@ describe('RoleEditor — header PATCH', () => {
         description: 'Handles accounting estimates.',
       })
     })
+    await waitFor(() => {
+      expect(screen.getByTestId('role-header-success').textContent).toBe('Details saved')
+    })
+  })
+
+  it('an emptied name is a field error on save, focused, never sent (INC-16)', async () => {
+    await renderLoaded()
+
+    const input = screen.getByTestId('role-name-input')
+    fireEvent.change(input, { target: { value: '  ' } })
+    fireEvent.click(screen.getByTestId('role-header-save'))
+
+    expect(screen.getByTestId('role-name-error').textContent).toBe('Name is required.')
+    expect(input.getAttribute('aria-invalid')).toBe('true')
+    expect(document.activeElement).toBe(input)
+    expect(adminApi.patchRole).not.toHaveBeenCalled()
   })
 
   it('shows an inline name error on a 409 duplicate name', async () => {

@@ -3,7 +3,7 @@
  * inventory; design.md § NEW components: AssetStatusBadge). The entity and
  * currency chips' labels live in `strings.common` (T25).
  */
-export const badges = {
+const en = {
   /** `AssetStatusBadge`'s label per `AssetStatus` — verbatim the six wire values. */
   assetStatus: {
     ordered: 'Ordered',
@@ -13,4 +13,17 @@ export const badges = {
     lost: 'Lost',
     disposed: 'Disposed',
   },
-} as const
+}
+
+const it: typeof en = {
+  assetStatus: {
+    ordered: 'Ordinato',
+    in_stock: 'In magazzino',
+    assigned: 'Assegnato',
+    in_repair: 'In riparazione',
+    lost: 'Smarrito',
+    disposed: 'Dismesso',
+  },
+}
+
+export const badges = { en, it }

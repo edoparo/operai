@@ -23,9 +23,9 @@
  *     subtotal) that link to `/refund/review/$id` (design.md F2 step 1,
  *     AC-2.2).
  *
- * Each employee group is a labelled region (`aria-label` naming the
- * employee, design.md Accessibility: "disambiguate a list of otherwise-
- * identical controls/sections"); in `detail` mode, each request row's link
+ * Each employee group is a `Card` titled with the employee's name (INC-33),
+ * so the section is labelled by the name and the request count is its
+ * action-slot meta; in `detail` mode the request rows are `ListRows`, and, each request row's link
  * carries a full `aria-label` ("Open `<employee>`'s request, `<status>`,
  * `<amount>`") rather than relying on visually-adjacent badge/amount text
  * alone (same pattern 007's Screen R1/A1 rows already use).
@@ -34,6 +34,7 @@
  */
 
 import { Link } from '@tanstack/react-router'
+import { Card, ListRows, listRowClassName } from '@operai/ui'
 import { ownerDisplay, strings } from '../strings'
 import type { BatchEmployeeGroup, BatchSubtotal, CandidateEmployeeGroup } from '../lib/batchesApi'
 import type { Currency } from '../lib/money'
@@ -70,62 +71,38 @@ export default function BatchEmployeeGroupList(props: BatchEmployeeGroupListProp
 
   if (props.groups.length === 0) return null
 
+  const groupCount = (userId: string, count: number) => (
+    <span data-testid={`batch-employee-group-${userId}-count`} className="text-xs text-soft">
+      {t.requestCountLabel(count)}
+    </span>
+  )
+
   return (
     <div data-testid="batch-employee-group-list" className="flex flex-col gap-4">
       {props.mode === 'preview' &&
-        props.groups.map((group) => {
-          const ownerName = ownerDisplay(group.owner)
-          return (
-            <section
-              key={group.owner.userId}
-              aria-label={t.groupAriaLabel(ownerName)}
-              data-testid={`batch-employee-group-${group.owner.userId}`}
-              className="flex flex-col gap-3 rounded-md border px-4 py-3"
-              style={{ borderColor: 'var(--rule)', backgroundColor: 'var(--ink-soft)' }}
-            >
-              <div className="flex items-center justify-between gap-3">
-                <span className="text-sm font-medium" style={{ color: 'var(--text)' }}>
-                  {ownerName}
-                </span>
-                <span
-                  data-testid={`batch-employee-group-${group.owner.userId}-count`}
-                  className="text-xs"
-                  style={{ color: 'var(--muted)' }}
-                >
-                  {t.requestCountLabel(group.requestIds.length)}
-                </span>
-              </div>
-              <BatchSubtotalsPanel subtotals={group.subtotals} />
-            </section>
-          )
-        })}
+        props.groups.map((group) => (
+          <Card
+            key={group.owner.userId}
+            title={ownerDisplay(group.owner)}
+            action={groupCount(group.owner.userId, group.requestIds.length)}
+            data-testid={`batch-employee-group-${group.owner.userId}`}
+          >
+            <BatchSubtotalsPanel subtotals={group.subtotals} />
+          </Card>
+        ))}
 
       {props.mode === 'detail' &&
         props.groups.map((group) => {
           const ownerName = ownerDisplay(group.owner)
-          const subtotals = aggregateRowSubtotals(group.requests)
           return (
-            <section
+            <Card
               key={group.owner.userId}
-              aria-label={t.groupAriaLabel(ownerName)}
+              title={ownerName}
+              action={groupCount(group.owner.userId, group.requests.length)}
               data-testid={`batch-employee-group-${group.owner.userId}`}
-              className="flex flex-col gap-3 rounded-md border px-4 py-3"
-              style={{ borderColor: 'var(--rule)', backgroundColor: 'var(--ink-soft)' }}
             >
-              <div className="flex items-center justify-between gap-3">
-                <span className="text-sm font-medium" style={{ color: 'var(--text)' }}>
-                  {ownerName}
-                </span>
-                <span
-                  data-testid={`batch-employee-group-${group.owner.userId}-count`}
-                  className="text-xs"
-                  style={{ color: 'var(--muted)' }}
-                >
-                  {t.requestCountLabel(group.requests.length)}
-                </span>
-              </div>
-              <BatchSubtotalsPanel subtotals={subtotals} />
-              <div className="flex flex-col gap-2" data-testid={`batch-employee-group-${group.owner.userId}-requests`}>
+              <BatchSubtotalsPanel subtotals={aggregateRowSubtotals(group.requests)} />
+              <ListRows testId={`batch-employee-group-${group.owner.userId}-requests`}>
                 {group.requests.map((row) => {
                   const amount = formatBatchSubtotalsPreview(row.subtotals)
                   return (
@@ -135,20 +112,15 @@ export default function BatchEmployeeGroupList(props: BatchEmployeeGroupListProp
                       params={{ id: row.id }}
                       data-testid={`batch-employee-group-${group.owner.userId}-request-${row.id}`}
                       aria-label={t.openRequestLabel(ownerName, statusLabels[row.status], amount)}
-                      className="flex items-center justify-between gap-3 px-3 py-2 rounded border text-left transition-colors hover:opacity-90"
-                      style={{ borderColor: 'var(--rule)', backgroundColor: 'var(--ink)' }}
+                      className={listRowClassName}
                     >
                       <RequestStatusBadge status={row.status} />
-                      {amount && (
-                        <span className="text-sm font-mono" style={{ color: 'var(--text)' }}>
-                          {amount}
-                        </span>
-                      )}
+                      {amount && <span className="text-sm font-mono">{amount}</span>}
                     </Link>
                   )
                 })}
-              </div>
-            </section>
+              </ListRows>
+            </Card>
           )
         })}
     </div>

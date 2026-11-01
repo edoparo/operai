@@ -96,6 +96,7 @@ describe('ConflictBanner — accessibility and actions (design.md "## Accessibil
     render(<ConflictBanner conflict={conflict409Attributable} onReloadLatest={vi.fn()} onSaveAsCopy={vi.fn()} />)
 
     expect(screen.queryByRole('button', { name: /dismiss/i })).toBeNull()
+    expect(screen.queryByRole('button', { name: /close/i })).toBeNull()
     expect(screen.queryByText('×')).toBeNull()
   })
 

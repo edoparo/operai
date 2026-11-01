@@ -65,7 +65,7 @@ describe('BulkDeleteResultPanel', () => {
     expect(screen.queryByTestId('bulk-delete-result-skipped-list')).toBeNull()
   })
 
-  it('the dismiss "×" calls onDismiss', () => {
+  it('the dismiss button calls onDismiss', () => {
     const onDismiss = vi.fn()
     render(<BulkDeleteResultPanel deletedCount={1} totalCount={1} skipped={[]} onDismiss={onDismiss} />)
 

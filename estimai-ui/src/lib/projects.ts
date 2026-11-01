@@ -1,4 +1,5 @@
 import type { Activity, Parameters, ProjectMeta, Release } from '../types'
+import { strings } from '../strings'
 
 export const PROJECTS_KEY = 'estimai_projects'
 export const CURRENT_ID_KEY = 'estimai_current_id'
@@ -70,7 +71,7 @@ export function duplicateProject(id: string): string | null {
   const data = loadProject(id)
   if (!data) return null
   const newId = uid()
-  saveProjectData({ ...data, id: newId, name: data.name ? `${data.name} (copy)` : 'Untitled (copy)' })
+  saveProjectData({ ...data, id: newId, name: strings.estimatesList.copyName(data.name || strings.estimatesList.untitled) })
   return newId
 }
 
@@ -89,7 +90,7 @@ export function importProjectFromJson(raw: string): string {
   try {
     parsed = JSON.parse(raw)
   } catch {
-    throw new Error('Invalid JSON file.')
+    throw new Error(strings.estimatesList.importInvalidJson)
   }
   if (
     typeof parsed !== 'object' ||
@@ -98,7 +99,7 @@ export function importProjectFromJson(raw: string): string {
     !Array.isArray((parsed as ProjectData).releases) ||
     typeof (parsed as ProjectData).params !== 'object'
   ) {
-    throw new Error('File does not look like a valid EstimAI estimate.')
+    throw new Error(strings.estimatesList.importNotAnEstimate)
   }
   const data = parsed as ProjectData
   const newId = uid()

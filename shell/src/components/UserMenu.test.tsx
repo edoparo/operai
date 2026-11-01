@@ -221,14 +221,7 @@ describe('UserMenu', () => {
       expect(router.state.location.pathname).toBe('/devices')
       expect(screen.queryByRole('menu')).toBeNull()
     })
-
-    it('reads "I miei dispositivi" for an Italian browser locale', async () => {
-      const spy = vi.spyOn(navigator, 'language', 'get').mockReturnValue('it-IT')
-      await renderUserMenu({ user: { name: 'Alice Welld', email: null, image: null }, onSignOut: () => {} })
-      openMenu('Alice Welld')
-
-      expect(screen.getByRole('menuitem', { name: 'I miei dispositivi' }).getAttribute('href')).toBe('/devices')
-      spy.mockRestore()
-    })
+    // The Italian rendering moved to src/italian.test.tsx: the language is now
+    // resolved once for the suite (<html lang>), not by this menu at render time.
   })
 })

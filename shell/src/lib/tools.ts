@@ -12,11 +12,14 @@
  * instead of defining its own.
  */
 
+import { strings } from '../strings'
+
 /** Known suite tool ids. Extend this union (and TOOLS below) to add a tool. */
 export type ToolId = 'estimai' | 'refund' | 'admin' | 'inventory'
 
 export interface SuiteTool {
   id: ToolId
+  /** The tool's name in the person's language (strings.tools — UI copy, INC-24). */
   label: string
   /** The tool's mount path under the shell router (matches its `/…/$` splat route). */
   to: string
@@ -34,15 +37,15 @@ export interface SuiteTool {
  * app.
  */
 export const TOOLS: readonly SuiteTool[] = [
-  { id: 'estimai', label: 'EstimAI', to: '/estimai' },
-  { id: 'refund', label: 'Refund', to: '/refund' },
-  { id: 'admin', label: 'Admin', to: '/admin' },
+  { id: 'estimai', label: strings.tools.estimai, to: '/estimai' },
+  { id: 'refund', label: strings.tools.refund, to: '/refund' },
+  { id: 'admin', label: strings.tools.admin, to: '/admin' },
   // specs/015-hardware-inventory, T42 (AC-9.6): a gated tool like the three
   // above. Its sibling screen `/devices` ("My devices") is deliberately NOT an
   // entry here — it is identity-scoped and reachable by every signed-in user
   // regardless of grants (ADR-0045), so it must never appear in the
   // permission-filtered sidebar nor be recorded as a last-used tool.
-  { id: 'inventory', label: 'Inventory', to: '/inventory' },
+  { id: 'inventory', label: strings.tools.inventory, to: '/inventory' },
 ]
 
 /** First-visit / invalid-storage fallback tool (AC-3.4). */

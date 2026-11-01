@@ -185,7 +185,7 @@ describe('FiscalYearDetailPage — roll-forward and per-asset table', () => {
     expect(screen.getByRole('heading', { level: 3, name: 'Roll-forward (CHF)' })).not.toBeNull()
     const statement = screen.getByTestId('roll-forward-statement')
     expect(within(statement).getAllByRole('rowheader')).toHaveLength(5)
-    expect(within(statement).getByText('16996,58 CHF')).not.toBeNull()
+    expect(within(statement).getByText('CHF 16,996.58')).not.toBeNull()
   })
 
   it('shows per-asset opening, purchase, depreciation, disposal and closing figures', async () => {
@@ -216,25 +216,25 @@ describe('FiscalYearDetailPage — roll-forward and per-asset table', () => {
       '02.03.2026',
       'SN123',
       'Anna Rossi',
-      '3323,90 CHF',
-      '0,00 CHF',
-      '3323,90 CHF',
-      '1107,96 CHF',
-      '0,00 CHF',
-      '2215,94 CHF',
+      'CHF 3,323.90',
+      'CHF 0.00',
+      'CHF 3,323.90',
+      'CHF 1,107.96',
+      'CHF 0.00',
+      'CHF 2,215.94',
     ])
     const second = within(table).getByRole('rowheader', { name: 'Dell monitor' }).closest('tr') as HTMLElement
     const cells = within(second)
       .getAllByRole('cell')
       .map((cell) => cell.textContent)
     expect(cells.slice(1, 3)).toEqual(['—', '—'])
-    expect(cells.slice(4)).toEqual(['200,00 CHF', '0,00 CHF', '150,00 CHF', '50,00 CHF', '0,00 CHF'])
+    expect(cells.slice(4)).toEqual(['CHF 200.00', 'CHF 0.00', 'CHF 150.00', 'CHF 50.00', 'CHF 0.00'])
   })
 
   it('renders EUR figures for a welld_it year', async () => {
     getFiscalYear.mockResolvedValue(view({ entity: 'welld_it', currency: 'EUR' }))
     await renderPage('/years/welld_it/2026')
-    expect(within(screen.getByTestId('roll-forward-statement')).getByText('16996,58 €')).not.toBeNull()
+    expect(within(screen.getByTestId('roll-forward-statement')).getByText('EUR 16,996.58')).not.toBeNull()
   })
 
   it('says "No assets in this year" instead of an empty table', async () => {

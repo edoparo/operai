@@ -45,8 +45,8 @@ const NOTIFY_API_URL =
 const uniqueSuffix = () => `${Date.now()}-${Math.floor(Math.random() * 1e6)}`
 
 /**
- * Waits for the composer's "Add line" button to re-enable, then submits it
- * and waits for the row to appear.
+ * Fills the composer, submits it with "Add line" and waits for the row to
+ * appear.
  *
  * specs/009-mileage-rate DEFECT FIX (QE pass): `composer-amount` no longer
  * renders at all for `type: 'travel_km'` (AC-1.1/1.6 — a computed, read-only
@@ -72,8 +72,8 @@ async function addExpenseLine(
     await page.getByTestId('composer-km').fill(line.km)
   }
   // `composer-currency` has no default (an entity/currency pair is never cross-validated,
-  // lineDraft.ts), so `composer-add-button` stays disabled until it is chosen. Not rendered
-  // for travel_km, whose amount is computed.
+  // lineDraft.ts), so the line cannot be added until it is chosen (an Add without it shows a
+  // field error). Not rendered for travel_km, whose amount is computed.
   if (line.type !== 'travel_km') {
     await page.getByTestId('composer-currency').selectOption(line.entity === 'welld_ch' ? 'CHF' : 'EUR')
   }
@@ -144,8 +144,8 @@ test.describe('specs/007-refund-service T21: headline journeys', () => {
     })
 
     // Per-currency subtotals — never blended (AC-3.5).
-    await expect(empPage.getByTestId('subtotals-panel-card-EUR')).toContainText('50,00 €')
-    await expect(empPage.getByTestId('subtotals-panel-card-CHF')).toContainText('30,00 CHF')
+    await expect(empPage.getByTestId('subtotals-panel-card-EUR')).toContainText('EUR 50.00')
+    await expect(empPage.getByTestId('subtotals-panel-card-CHF')).toContainText('CHF 30.00')
 
     await empPage.getByTestId('request-detail-submit').click()
     await expect(empPage.getByTestId('request-detail-submitted')).toBeVisible({ timeout: 20_000 })
@@ -176,7 +176,7 @@ test.describe('specs/007-refund-service T21: headline journeys', () => {
 
     // Adjust the EUR (in-scope) line's approved total down from 50,00 to 40,00.
     const notebookRow = lineRows.filter({ hasText: `Notebook ${tag}` })
-    const approvedInput = notebookRow.locator('input[type="number"]')
+    const approvedInput = notebookRow.locator('[data-testid$="-approved-total"]')
     await approvedInput.fill('40')
     await approvedInput.blur()
     // Wait for the write-on-blur PUT to settle (no more "Saving…" indicator).
@@ -200,10 +200,10 @@ test.describe('specs/007-refund-service T21: headline journeys', () => {
     // AC-3.2: requested vs approved per line — the adjusted EUR line and the
     // untouched CHF line (AC-7.2's server-side default to requested amount).
     const approvedNotebookRow = empPage.locator('[data-testid^="expense-line-row-"]').filter({ hasText: `Notebook ${tag}` })
-    await expect(approvedNotebookRow).toContainText('requested 50,00') // requested (the row now renders the unit-less "requested 50,00 · −10,00" delta)
-    await expect(approvedNotebookRow).toContainText('40,00 €') // approved (adjusted)
+    await expect(approvedNotebookRow).toContainText('requested 50.00') // requested (the row now renders the unit-less "requested 50.00 · −10.00" delta)
+    await expect(approvedNotebookRow).toContainText('EUR 40.00') // approved (adjusted)
     const approvedTravelRow = empPage.locator('[data-testid^="expense-line-row-"]').filter({ hasText: `Client visit ${tag}` })
-    await expect(approvedTravelRow).toContainText('30,00 CHF') // requested == approved (defaulted, untouched)
+    await expect(approvedTravelRow).toContainText('CHF 30.00') // requested == approved (defaulted, untouched)
 
     // AC-4.1: the monthly-processing note appears once decided (approved).
     await expect(empPage.getByTestId('monthly-processing-note')).toBeVisible()
@@ -278,7 +278,7 @@ test.describe('specs/007-refund-service T21: headline journeys', () => {
     await expect(empPage.getByTestId('request-detail-rejected')).toBeVisible({ timeout: 20_000 })
     await expect(empPage.getByTestId('request-detail-rejection-motivation')).toContainText(motivation)
 
-    // AC-2.4: a rejected request offers "+ New request", never in-place edit/resubmit.
+    // AC-2.4: a rejected request offers "New request", never in-place edit/resubmit.
     await expect(empPage.getByTestId('request-detail-new-request-link')).toBeVisible()
 
     // AC-3.6: rejection also pushes a real in-app notification.

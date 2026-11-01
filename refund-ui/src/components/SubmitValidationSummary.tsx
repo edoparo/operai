@@ -42,14 +42,9 @@ export default function SubmitValidationSummary({ items, onJump }: SubmitValidat
     <div
       role="alert"
       data-testid="submit-validation-summary"
-      className="px-4 py-3 rounded-md border text-sm"
-      style={{
-        borderColor: 'var(--org)',
-        backgroundColor: 'color-mix(in srgb, var(--org) 10%, transparent)',
-        color: 'var(--org)',
-      }}
+      className="banner banner-warning flex-col items-start gap-2"
     >
-      <p className="font-medium mb-2">{t.heading}</p>
+      <p className="banner-title">{t.heading}</p>
       <ul className="flex flex-col gap-1">
         {items.map((item) => (
           <li key={item.lineId}>
@@ -57,8 +52,7 @@ export default function SubmitValidationSummary({ items, onJump }: SubmitValidat
               type="button"
               onClick={() => onJump(item.lineId)}
               data-testid={`submit-validation-summary-jump-${item.lineId}`}
-              className="text-sm underline underline-offset-2 transition-opacity hover:opacity-80"
-              style={{ color: 'var(--org)' }}
+              className="link"
             >
               {t.jumpLinkLabel(item.label)}
             </button>

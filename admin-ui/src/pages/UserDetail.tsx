@@ -57,16 +57,14 @@
  * delete-then-navigate-to-list pattern, design.md Screen U3).
  *
  * --- Address section (T12, specs/012-employee-address/tasks.md, AC-4.2) ---
- * A fourth, independently-fetched block: `AddressSection` (T11), mounted
+ * A fourth, independently-loaded block: `AddressSection` (T11), mounted
  * ONLY for a caller who holds the literal `admin` role — plan.md's Constraint
  * that this feature reuses the EXISTING `requireAdmin` gate rather than
  * minting a new catalog permission (deliberate counterpoint to ADR-0028).
- * Resolved via `adminApi.getMe()`'s `roles` field — the SAME `GET
- * /authz/me` call `MileageRatesPage.tsx`'s `settings` panel already uses for
- * its own proactive hide-if-uncapable gate (T6, specs/011-refund-settings) —
- * fetched independently here (this page's own fetch, matching the
- * established "every screen owns its own capability check" convention) and
- * fails CLOSED (hidden, not a crash) if that call itself fails: UX-only,
+ * Resolved at render from `shell/session`'s `usePermissions().roles` (the
+ * shell's cached `GET /authz/me`, the suite's one permissions mechanism;
+ * INC-32). A failed permissions fetch resolves to no grants, so the section
+ * fails CLOSED (hidden, not a crash): UX-only,
  * never the actual security boundary (that is `auth`'s server-side
  * `requireAdmin` on `GET`/`PUT /admin/users/:id/address`, AC-4.1). AC-4.2
  * requires ABSENCE, not a disabled variant — a denied caller's DOM has no
@@ -78,7 +76,8 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { getRouteApi, Link, useNavigate } from '@tanstack/react-router'
-import { useSession } from 'shell/session'
+import { Button, Card, CheckboxGroupField, FactList, Field, Icon, PageHeader } from '@operai/ui'
+import { usePermissions, useSession } from 'shell/session'
 import * as adminApi from '../lib/adminApi'
 import type { Department, Role, UserDetail as UserDetailData, UserEntity } from '../lib/adminApi'
 import { ApiError } from '../lib/adminApi'
@@ -87,21 +86,24 @@ import ErrorBanner from '../components/ErrorBanner'
 import GuardrailDialog from '../components/GuardrailDialog'
 import ConfirmDeleteModal from '../components/ConfirmDeleteModal'
 import AddressSection from '../components/AddressSection'
+import SuccessBanner from '../components/SuccessBanner'
+import { setFlash } from '../lib/flash'
+import { strings } from '../strings'
+
+const t = strings.users.detail
 
 const route = getRouteApi('/users/$id')
 
 const ENTITY_OPTIONS: { value: UserEntity; label: string }[] = [
-  { value: 'welld_ch', label: 'WellD CH' },
-  { value: 'welld_it', label: 'WellD Italia' },
+  { value: 'welld_ch', label: strings.common.entities.welld_ch },
+  { value: 'welld_it', label: strings.common.entities.welld_it },
 ]
 
 /** design.md F4 / Dialog D2 — fixed acknowledgement copy, verbatim. */
-const LAST_ADMIN_MESSAGE =
-  'This is the last administrator — removing this role would leave nobody able to manage access. Assign another admin first.'
+const LAST_ADMIN_MESSAGE = strings.common.guardrail.lastAdminRoleMessage
 
 /** design.md F3 — fixed acknowledgement copy for the last-admin delete guard (UsersPage.tsx's LAST_ADMIN_DELETE_MESSAGE, mirrored verbatim). */
-const LAST_ADMIN_DELETE_MESSAGE =
-  'This is the last administrator — deleting this user would leave nobody able to manage access. Assign another admin first.'
+const LAST_ADMIN_DELETE_MESSAGE = strings.common.guardrail.lastAdminDeleteMessage
 
 type LoadState =
   | { status: 'loading' }
@@ -112,7 +114,7 @@ const errorMessageFor = (error: unknown): string => {
   if (error instanceof ApiError) {
     return error.detail ?? error.title
   }
-  return 'Could not load this user.'
+  return t.loadError
 }
 
 const toggleInSet = (set: ReadonlySet<string>, id: string): Set<string> => {
@@ -148,6 +150,10 @@ export default function UserDetail() {
   const [rolesError, setRolesError] = useState<string | null>(null)
   const [departmentsSaving, setDepartmentsSaving] = useState(false)
   const [departmentsError, setDepartmentsError] = useState<string | null>(null)
+  // INC-19: each section confirms its own save, beside its Save button.
+  const [attributesSuccess, setAttributesSuccess] = useState<string | null>(null)
+  const [rolesSuccess, setRolesSuccess] = useState<string | null>(null)
+  const [departmentsSuccess, setDepartmentsSuccess] = useState<string | null>(null)
   const [guardrailMessage, setGuardrailMessage] = useState<string | null>(null)
 
   // --- "Delete user" (Dialog N2 reused — design.md Screen U3 / F3) ---
@@ -157,10 +163,10 @@ export default function UserDetail() {
   const [deleteGuardrailMessage, setDeleteGuardrailMessage] = useState<string | null>(null)
 
   // --- Address section visibility (T12, specs/012-employee-address, AC-4.2) ---
-  // 'loading' and 'hidden' both render nothing — the section is ABSENT from
-  // the DOM in either case, never a disabled placeholder (AC-4.2 "a denied
-  // capability is invisible, not merely disabled").
-  const [addressCapability, setAddressCapability] = useState<'loading' | 'visible' | 'hidden'>('loading')
+  // Without the `admin` role the section is ABSENT from the DOM, never a
+  // disabled placeholder (AC-4.2 "a denied capability is invisible, not
+  // merely disabled"); empty permissions (unresolved or failed) hide it too.
+  const showAddress = usePermissions().roles.includes('admin')
 
   // Fetch the user + the full role/department catalogs (needed to render
   // every option in the two checkbox fieldsets, not just the assigned ones).
@@ -202,30 +208,6 @@ export default function UserDetail() {
     }
   }, [id, reloadToken])
 
-  // AC-4.2 — resolves whether AddressSection may render at all, via the SAME
-  // `GET /authz/me` call MileageRatesPage.tsx's settings panel already uses
-  // (T6, specs/011-refund-settings) for its own proactive hide-if-uncapable
-  // gate. Independent of the user-detail fetch above: a slow/failed
-  // capability check must never block the Attributes/Roles/Departments
-  // sections from loading. A failed call hides the section (fail closed,
-  // UX-only — the real boundary is `auth`'s server-side `requireAdmin`).
-  useEffect(() => {
-    let cancelled = false
-
-    adminApi
-      .getMe()
-      .then((me) => {
-        if (!cancelled) setAddressCapability(me.roles.includes('admin') ? 'visible' : 'hidden')
-      })
-      .catch(() => {
-        if (!cancelled) setAddressCapability('hidden')
-      })
-
-    return () => {
-      cancelled = true
-    }
-  }, [])
-
   const handleRetry = useCallback(() => {
     setReloadToken((token) => token + 1)
   }, [])
@@ -241,11 +223,13 @@ export default function UserDetail() {
   const handleSaveAttributes = useCallback(() => {
     setAttributesSaving(true)
     setAttributesError(null)
+    setAttributesSuccess(null)
     adminApi
       .patchUser(id, { entity: entity === '' ? null : entity, jobTitle: jobTitle.trim() === '' ? null : jobTitle })
       .then((updated) => {
         setAttributesSaving(false)
         setState((prev) => (prev.status === 'loaded' ? { ...prev, user: updated } : prev))
+        setAttributesSuccess(t.attributesSaved)
       })
       .catch((error: unknown) => {
         setAttributesSaving(false)
@@ -256,11 +240,13 @@ export default function UserDetail() {
   const handleSaveRoles = useCallback(() => {
     setRolesSaving(true)
     setRolesError(null)
+    setRolesSuccess(null)
     adminApi
       .putUserRoles(id, Array.from(selectedRoleIds))
       .then((updated) => {
         setRolesSaving(false)
         setState((prev) => (prev.status === 'loaded' ? { ...prev, user: updated } : prev))
+        setRolesSuccess(t.rolesSaved)
       })
       .catch((error: unknown) => {
         setRolesSaving(false)
@@ -277,11 +263,13 @@ export default function UserDetail() {
   const handleSaveDepartments = useCallback(() => {
     setDepartmentsSaving(true)
     setDepartmentsError(null)
+    setDepartmentsSuccess(null)
     adminApi
       .putUserDepartments(id, Array.from(selectedDepartmentIds))
       .then((updated) => {
         setDepartmentsSaving(false)
         setState((prev) => (prev.status === 'loaded' ? { ...prev, user: updated } : prev))
+        setDepartmentsSuccess(t.departmentsSaved)
       })
       .catch((error: unknown) => {
         setDepartmentsSaving(false)
@@ -324,6 +312,8 @@ export default function UserDetail() {
     try {
       await adminApi.deleteUser(state.user.id)
       setDeleteModalOpen(false)
+      // INC-19: the users list this returns to confirms the delete.
+      setFlash('users', strings.users.deleted(state.user.name ?? state.user.email))
       void navigate({ to: '/users' })
     } catch (error) {
       setIsDeleting(false)
@@ -344,262 +334,211 @@ export default function UserDetail() {
   const deleteBody = useMemo(() => {
     if (state.status !== 'loaded') return null
     const identity = state.user.name ?? state.user.email
-    return (
-      <p>
-        Delete {identity}? They will immediately lose all access to Operai — every active session ends and they can no
-        longer sign in. Their record and data are retained for audit, but there is no undo: regaining access requires a
-        brand-new invitation.
-      </p>
-    )
+    return <p>{strings.users.deleteBody(identity)}</p>
   }, [state])
 
   return (
     <section aria-labelledby="admin-user-detail-heading" data-testid="admin-user-detail-page">
-      <Link
-        to="/users"
-        data-testid="back-to-users-link"
-        className="text-xs font-medium transition-opacity hover:opacity-80"
-        style={{ color: 'var(--soft)' }}
-      >
-        ← Back to Users
-      </Link>
+      <PageHeader
+        title={t.title}
+        titleId="admin-user-detail-heading"
+        back={
+          <Link to="/users" data-testid="back-to-users-link" className="link">
+            <Icon name="arrow-left" /> {t.back}
+          </Link>
+        }
+        actions={
+          <Button
+            variant="danger"
+            aria-disabled={state.status !== 'loaded' || isSelf}
+            title={isSelf ? strings.common.cannotDeleteSelf : undefined}
+            onClick={handleDeleteRequest}
+            data-testid="user-detail-delete-button"
+          >
+            {t.deleteUser}
+            {isSelf && <span className="sr-only">{strings.common.disabledReason(strings.common.cannotDeleteSelf)}</span>}
+          </Button>
+        }
+      />
 
-      <div className="mt-2 flex items-center justify-between gap-4">
-        <h2 id="admin-user-detail-heading" className="text-lg font-semibold" style={{ fontFamily: 'var(--disp)' }}>
-          User detail
-        </h2>
-        <button
-          type="button"
-          aria-disabled={state.status !== 'loaded' || isSelf}
-          title={isSelf ? "You can't delete your own account" : undefined}
-          onClick={handleDeleteRequest}
-          data-testid="user-detail-delete-button"
-          className="py-1.5 px-3 text-sm font-medium border transition-opacity hover:opacity-80 aria-disabled:opacity-40 aria-disabled:cursor-not-allowed"
-          style={{ borderColor: 'var(--red)', color: 'var(--red)' }}
-        >
-          Delete user
-          {isSelf && <span className="sr-only"> — You can't delete your own account</span>}
-        </button>
-      </div>
-
-      <div className="mt-4">
+      <div>
         {state.status === 'loading' && <SkeletonListRows rows={4} />}
 
         {state.status === 'error' && <ErrorBanner message={state.message} onRetry={handleRetry} />}
 
         {state.status === 'loaded' && (
-          <div className="flex flex-col gap-6">
+          <div className="flex flex-col gap-4">
             {/* Identity — read-only */}
-            <div>
-              <p className="text-base font-semibold" style={{ color: 'var(--text)' }} data-testid="user-detail-name">
-                {state.user.name ?? state.user.email}
-              </p>
-              <p className="text-sm" style={{ color: 'var(--soft)' }} data-testid="user-detail-email">
-                {state.user.email}
-              </p>
-            </div>
+            <Card title={t.identityTitle}>
+              <FactList
+                items={[
+                  {
+                    id: 'name',
+                    term: strings.common.fields.name,
+                    value: <span data-testid="user-detail-name">{state.user.name ?? state.user.email}</span>,
+                  },
+                  {
+                    id: 'email',
+                    term: strings.common.fields.email,
+                    value: <span data-testid="user-detail-email">{state.user.email}</span>,
+                  },
+                ]}
+              />
+            </Card>
 
             {/* Attributes */}
-            <div className="border-t pt-4" style={{ borderColor: 'var(--rule)' }}>
-              <h3 className="text-sm font-semibold mb-3" style={{ color: 'var(--text)' }}>
-                Attributes
-              </h3>
-
+            <Card title={t.attributesTitle}>
               <div className="flex flex-col gap-3 max-w-sm">
-                <div>
-                  <label
-                    htmlFor="user-entity-select"
-                    className="block text-xs font-medium mb-1"
-                    style={{ color: 'var(--soft)' }}
-                  >
-                    Entity
-                  </label>
-                  <select
-                    id="user-entity-select"
-                    data-testid="entity-select"
-                    value={entity}
-                    onChange={(e) => setEntity(e.target.value as UserEntity | '')}
-                    className="w-full border rounded-md px-3 py-2 text-sm"
-                    style={{ borderColor: 'var(--rule)', backgroundColor: 'var(--ink-mid)', color: 'var(--text)' }}
-                  >
-                    <option value="">— none —</option>
-                    {ENTITY_OPTIONS.map((opt) => (
-                      <option key={opt.value} value={opt.value}>
-                        {opt.label}
-                      </option>
-                    ))}
-                  </select>
-                </div>
+                <Field label={strings.common.fields.entity}>
+                  {(control) => (
+                    <select
+                      {...control}
+                      data-testid="entity-select"
+                      value={entity}
+                      onChange={(e) => setEntity(e.target.value as UserEntity | '')}
+                      className="w-full"
+                    >
+                      <option value="">{strings.common.noneOption}</option>
+                      {ENTITY_OPTIONS.map((opt) => (
+                        <option key={opt.value} value={opt.value}>
+                          {opt.label}
+                        </option>
+                      ))}
+                    </select>
+                  )}
+                </Field>
 
-                <div>
-                  <label
-                    htmlFor="user-jobtitle-input"
-                    className="block text-xs font-medium mb-1"
-                    style={{ color: 'var(--soft)' }}
-                  >
-                    Job title
-                  </label>
-                  <input
-                    id="user-jobtitle-input"
-                    type="text"
-                    data-testid="jobtitle-input"
-                    value={jobTitle}
-                    onChange={(e) => setJobTitle(e.target.value)}
-                    className="w-full border rounded-md px-3 py-2 text-sm"
-                    style={{ borderColor: 'var(--rule)', backgroundColor: 'var(--ink-mid)', color: 'var(--text)' }}
-                  />
-                </div>
+                <Field label={strings.common.fields.jobTitle}>
+                  {(control) => (
+                    <input
+                      {...control}
+                      type="text"
+                      data-testid="jobtitle-input"
+                      value={jobTitle}
+                      onChange={(e) => setJobTitle(e.target.value)}
+                      className="w-full"
+                    />
+                  )}
+                </Field>
 
                 <div className="flex items-center gap-3">
-                  <button
-                    type="button"
+                  <Button
                     onClick={handleSaveAttributes}
                     disabled={attributesSaving}
+                    busy={attributesSaving}
                     data-testid="save-attributes-button"
-                    className="text-sm font-medium border px-3 py-1.5 transition-opacity hover:opacity-80 disabled:opacity-40 disabled:cursor-not-allowed"
-                    style={{ borderColor: 'var(--acc)', color: 'var(--acc)' }}
                   >
-                    {attributesSaving ? 'Saving…' : 'Save attributes'}
-                  </button>
+                    {attributesSaving ? strings.common.actions.saving : t.saveAttributes}
+                  </Button>
                 </div>
 
                 {attributesError && (
-                  <p role="alert" data-testid="attributes-error" className="text-sm" style={{ color: 'var(--org)' }}>
+                  <p role="alert" data-testid="attributes-error" className="form-error">
                     {attributesError}
                   </p>
                 )}
+                <SuccessBanner
+                  message={attributesSuccess}
+                  onDismiss={() => setAttributesSuccess(null)}
+                  testId="attributes-success"
+                />
               </div>
-            </div>
+            </Card>
 
             {/* Direct roles */}
-            <div className="border-t pt-4" style={{ borderColor: 'var(--rule)' }}>
-              <fieldset>
-                <legend className="text-sm font-semibold mb-3" style={{ color: 'var(--text)' }}>
-                  Direct roles
-                </legend>
-
-                {state.roles.length === 0 ? (
-                  <p className="text-sm" style={{ color: 'var(--soft)' }}>
-                    No roles defined yet.
-                  </p>
-                ) : (
-                  <div className="flex flex-col gap-2">
-                    {state.roles.map((role) => (
-                      <label key={role.id} className="flex items-center gap-2 text-sm" style={{ color: 'var(--text)' }}>
-                        <input
-                          type="checkbox"
-                          data-testid={`role-checkbox-${role.id}`}
-                          checked={selectedRoleIds.has(role.id)}
-                          onChange={() => toggleRole(role.id)}
-                        />
-                        {role.name}
-                      </label>
-                    ))}
-                  </div>
-                )}
+            <Card title={t.directRoles}>
+              <div>
+                <CheckboxGroupField
+                  label={t.directRoles}
+                  hideLabel
+                  emptyState={t.noRoles}
+                  options={state.roles.map((role) => ({ id: role.id, label: role.name }))}
+                  selected={selectedRoleIds}
+                  onToggle={(id) => toggleRole(id)}
+                  disabled={rolesSaving}
+                  optionTestIdPrefix="role-checkbox"
+                />
 
                 <div className="flex items-center gap-3 mt-3">
-                  <button
-                    type="button"
+                  <Button
                     onClick={handleSaveRoles}
                     disabled={rolesSaving}
+                    busy={rolesSaving}
                     data-testid="save-roles-button"
-                    className="text-sm font-medium border px-3 py-1.5 transition-opacity hover:opacity-80 disabled:opacity-40 disabled:cursor-not-allowed"
-                    style={{ borderColor: 'var(--acc)', color: 'var(--acc)' }}
                   >
-                    {rolesSaving ? 'Saving…' : 'Save roles'}
-                  </button>
-                  <span
-                    className="text-xs"
-                    style={{ color: 'var(--soft)' }}
-                    data-testid="roles-effective-immediately-hint"
-                  >
-                    Effective immediately — no separate publish step.
+                    {rolesSaving ? strings.common.actions.saving : t.saveRoles}
+                  </Button>
+                  <span className="text-xs text-soft" data-testid="roles-effective-immediately-hint">
+                    {strings.common.effectiveImmediately}
                   </span>
                 </div>
 
                 {rolesError && (
-                  <p role="alert" data-testid="roles-error" className="text-sm mt-2" style={{ color: 'var(--org)' }}>
+                  <p role="alert" data-testid="roles-error" className="form-error mt-2">
                     {rolesError}
                   </p>
                 )}
-              </fieldset>
-            </div>
+                <SuccessBanner
+                  message={rolesSuccess}
+                  onDismiss={() => setRolesSuccess(null)}
+                  testId="roles-success"
+                  className="mt-2"
+                />
+              </div>
+            </Card>
 
             {/* Departments */}
-            <div className="border-t pt-4" style={{ borderColor: 'var(--rule)' }}>
-              <fieldset>
-                <legend className="text-sm font-semibold mb-3" style={{ color: 'var(--text)' }}>
-                  Departments
-                </legend>
-
-                {state.departments.length === 0 ? (
-                  <p className="text-sm" style={{ color: 'var(--soft)' }}>
-                    No departments defined yet.
-                  </p>
-                ) : (
-                  <div className="flex flex-col gap-2">
-                    {state.departments.map((department) => (
-                      <label
-                        key={department.id}
-                        className="flex items-center gap-2 text-sm"
-                        style={{ color: 'var(--text)' }}
-                      >
-                        <input
-                          type="checkbox"
-                          data-testid={`department-checkbox-${department.id}`}
-                          checked={selectedDepartmentIds.has(department.id)}
-                          onChange={() => toggleDepartment(department.id)}
-                        />
-                        {department.name}
-                      </label>
-                    ))}
-                  </div>
-                )}
+            <Card title={strings.common.fields.departments}>
+              <div>
+                <CheckboxGroupField
+                  label={strings.common.fields.departments}
+                  hideLabel
+                  emptyState={t.noDepartments}
+                  options={state.departments.map((department) => ({ id: department.id, label: department.name }))}
+                  selected={selectedDepartmentIds}
+                  onToggle={(id) => toggleDepartment(id)}
+                  disabled={departmentsSaving}
+                  optionTestIdPrefix="department-checkbox"
+                />
 
                 <div className="flex items-center gap-3 mt-3">
-                  <button
-                    type="button"
+                  <Button
                     onClick={handleSaveDepartments}
                     disabled={departmentsSaving}
+                    busy={departmentsSaving}
                     data-testid="save-departments-button"
-                    className="text-sm font-medium border px-3 py-1.5 transition-opacity hover:opacity-80 disabled:opacity-40 disabled:cursor-not-allowed"
-                    style={{ borderColor: 'var(--acc)', color: 'var(--acc)' }}
                   >
-                    {departmentsSaving ? 'Saving…' : 'Save departments'}
-                  </button>
-                  <span
-                    className="text-xs"
-                    style={{ color: 'var(--soft)' }}
-                    data-testid="departments-effective-immediately-hint"
-                  >
-                    Effective immediately — no separate publish step.
+                    {departmentsSaving ? strings.common.actions.saving : t.saveDepartments}
+                  </Button>
+                  <span className="text-xs text-soft" data-testid="departments-effective-immediately-hint">
+                    {strings.common.effectiveImmediately}
                   </span>
                 </div>
 
                 {departmentsError && (
-                  <p
-                    role="alert"
-                    data-testid="departments-error"
-                    className="text-sm mt-2"
-                    style={{ color: 'var(--org)' }}
-                  >
+                  <p role="alert" data-testid="departments-error" className="form-error mt-2">
                     {departmentsError}
                   </p>
                 )}
-              </fieldset>
-            </div>
+                <SuccessBanner
+                  message={departmentsSuccess}
+                  onDismiss={() => setDepartmentsSuccess(null)}
+                  testId="departments-success"
+                  className="mt-2"
+                />
+              </div>
+            </Card>
 
             {/* Address (T11/T12, specs/012-employee-address) — AC-4.2: absent from the
                 DOM entirely for a non-admin, never a disabled variant of itself. */}
-            {addressCapability === 'visible' && <AddressSection userId={state.user.id} />}
+            {showAddress && <AddressSection userId={state.user.id} />}
           </div>
         )}
       </div>
 
       {guardrailMessage && (
         <GuardrailDialog
-          title="Can't remove the last administrator"
+          title={strings.common.guardrail.lastAdminRoleTitle}
           message={guardrailMessage}
           onAcknowledge={handleAcknowledgeGuardrail}
         />
@@ -607,7 +546,7 @@ export default function UserDetail() {
 
       {deleteModalOpen && state.status === 'loaded' && (
         <ConfirmDeleteModal
-          entityLabel="user"
+          title={strings.users.deleteTitle}
           itemName={state.user.email}
           body={deleteBody}
           isDeleting={isDeleting}
@@ -619,7 +558,7 @@ export default function UserDetail() {
 
       {deleteGuardrailMessage && (
         <GuardrailDialog
-          title="Can't delete this user"
+          title={strings.common.guardrail.lastAdminDeleteTitle}
           message={deleteGuardrailMessage}
           onAcknowledge={handleAcknowledgeDeleteGuardrail}
         />

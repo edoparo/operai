@@ -1,5 +1,14 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { getRouteApi, Link, useNavigate } from '@tanstack/react-router'
+import {
+  Banner,
+  ListRows,
+  PageHeader,
+  StatePanel,
+  VisuallyHidden,
+  listRowClassName,
+  listRowMetaClassName,
+} from '@operai/ui'
 import { ownerDisplay, strings } from '../strings'
 import * as reviewApi from '../lib/reviewApi'
 import type { ReviewQueueItem } from '../lib/reviewApi'
@@ -66,6 +75,8 @@ export default function ReviewQueuePage() {
   const [listState, setListState] = useState<ListState>({ status: 'loading' })
   const [reloadToken, setReloadToken] = useState(0)
   const [liveMessage, setLiveMessage] = useState('')
+  // INC-19: the destination says it — visibly too, not only to a screen reader.
+  const [visibleConfirmation, setVisibleConfirmation] = useState<string | null>(null)
   const t = strings.pages.reviewQueue
   const strippedConfirmationRef = useRef(false)
 
@@ -99,6 +110,7 @@ export default function ReviewQueuePage() {
     if (!confirmation || strippedConfirmationRef.current) return
     strippedConfirmationRef.current = true
     setLiveMessage(confirmation)
+    setVisibleConfirmation(confirmation)
     void navigate({ to: '/review', search: {}, replace: true })
   }, [confirmation, navigate])
 
@@ -108,22 +120,35 @@ export default function ReviewQueuePage() {
 
   return (
     <section aria-labelledby="refund-review-queue-heading" data-testid="refund-review-queue-page">
-      <h2 id="refund-review-queue-heading" className="text-lg font-semibold" style={{ fontFamily: 'var(--disp)' }}>
-        {t.heading}
-      </h2>
+      <PageHeader title={t.heading} titleId="refund-review-queue-heading" />
 
-      <p aria-live="polite" className="sr-only" data-testid="review-queue-live-message">
+      <VisuallyHidden live data-testid="review-queue-live-message">
         {liveMessage}
-      </p>
+      </VisuallyHidden>
 
-      <div className="mt-4">
+      {/* The visible copy of the confirmation the live region above announces —
+          `aria-live="off"` so a screen reader hears it once, not twice. */}
+      {visibleConfirmation && (
+        <Banner
+          tone="success"
+          compact
+          aria-live="off"
+          autoDismiss
+          onDismiss={() => setVisibleConfirmation(null)}
+          dismissLabel={t.confirmationDismissLabel}
+          className="mb-4"
+          data-testid="review-queue-confirmation"
+        >
+          {visibleConfirmation}
+        </Banner>
+      )}
+
+      <div>
         {listState.status === 'forbidden' && <PermissionDenied />}
 
         {listState.status === 'loading' && (
           <>
-            <p className="sr-only" aria-live="polite">
-              {t.loadingAnnouncement}
-            </p>
+            <VisuallyHidden live>{t.loadingAnnouncement}</VisuallyHidden>
             <SkeletonListRows />
           </>
         )}
@@ -131,17 +156,13 @@ export default function ReviewQueuePage() {
         {listState.status === 'error' && <ErrorBanner message={listState.message} onRetry={handleRetry} />}
 
         {listState.status === 'loaded' && listState.items.length === 0 && (
-          <p
-            className="text-sm py-16 text-center"
-            style={{ color: 'var(--muted)' }}
-            data-testid="review-queue-empty-state"
-          >
-            {t.empty}
-          </p>
+          <StatePanel title={t.empty.heading} testId="review-queue-empty-state">
+            {t.empty.body}
+          </StatePanel>
         )}
 
         {listState.status === 'loaded' && listState.items.length > 0 && (
-          <div className="flex flex-col gap-2" data-testid="review-queue-list">
+          <ListRows testId="review-queue-list">
             {listState.items.map((item) => {
               const preview = formatSubtotalsPreview(item.subtotals)
               const submitted = formatDate(item.submittedAt)
@@ -153,27 +174,18 @@ export default function ReviewQueuePage() {
                   key={item.id}
                   data-testid={`review-queue-row-${item.id}`}
                   aria-label={t.row.openLabel(ownerName, submitted)}
-                  className="flex items-center justify-between gap-4 px-4 py-3 rounded-md border text-left transition-colors hover:opacity-90"
-                  style={{ borderColor: 'var(--rule)', backgroundColor: 'var(--ink-soft)' }}
+                  className={listRowClassName}
                 >
-                  <div className="flex items-center gap-3">
+                  <span className="flex items-center gap-3">
                     <RequestStatusBadge status={item.status} />
-                    <span className="text-sm font-medium" style={{ color: 'var(--text)' }}>
-                      {ownerName}
-                    </span>
-                    <span className="text-xs" style={{ color: 'var(--muted)' }}>
-                      {t.row.submittedLabel(submitted)}
-                    </span>
-                  </div>
-                  {preview && (
-                    <span className="text-sm font-mono" style={{ color: 'var(--text)' }}>
-                      {preview}
-                    </span>
-                  )}
+                    <span className="text-sm font-medium">{ownerName}</span>
+                    <span className={listRowMetaClassName}>{t.row.submittedLabel(submitted)}</span>
+                  </span>
+                  {preview && <span className="text-sm font-mono">{preview}</span>}
                 </Link>
               )
             })}
-          </div>
+          </ListRows>
         )}
       </div>
     </section>

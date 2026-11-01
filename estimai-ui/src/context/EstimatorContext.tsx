@@ -1,16 +1,15 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react'
 import type { Activity, Parameters, Release, ReleaseSummary, Totals } from '../types'
+import { PROFILES } from '../types'
 import { deriveOP, useEstimator } from '../hooks/useEstimator'
 import { DEF_PARAMS, uid } from '../lib/projects'
 import * as estimatesApi from '../lib/estimatesApi'
 import type { EstimateAccess, EstimateContent, EstimateIdentity } from '../lib/estimatesApi'
 import type { Template } from '../lib/templates'
+import { strings } from '../strings'
 
 /** Debounce delay for auto-save (ms) */
 const AUTOSAVE_DEBOUNCE_MS = 1500
-
-/** Copy for the success toast shown on a completed auto-save. */
-export const SAVED_TOAST_MESSAGE = 'Changes stored'
 
 /**
  * `'conflict'` (T16, specs/013-estimate-sharing/tasks.md; plan.md "###
@@ -297,17 +296,15 @@ export function EstimatorProvider({
               // Problem detail (e.g. "Estimate content is 2.3 MB; the maximum is
               // 1.0 MB. Nothing was saved.") when available; it already names the
               // sizes. Fall back to a fixed message if the detail is absent.
-              setSaveError(
-                err.detail ?? 'This estimate is too large to save. Remove some activities to reduce its size.',
-              )
+              setSaveError(err.detail ?? strings.editor.saveErrors.tooLarge)
             } else {
               // Non-413: generic save failure — show the server detail if present
               // (e.g. a 500 with an operator-facing message), otherwise fall back
               // to a status-code message. Either way, no size-limit phrasing.
-              setSaveError(err.detail ?? `Save failed (${String(err.status)}). Your work is safe in this tab.`)
+              setSaveError(err.detail ?? strings.editor.saveErrors.status(String(err.status)))
             }
           } else {
-            setSaveError('Save failed. Check your connection. Your work is safe in this tab.')
+            setSaveError(strings.editor.saveErrors.network)
           }
         })
     }, AUTOSAVE_DEBOUNCE_MS)
@@ -345,14 +342,14 @@ export function EstimatorProvider({
             id: uid(),
             num: '',
             epic: epic ?? last?.epic ?? '',
-            act: 'New activity',
-            prof: last?.prof ?? 'Developer',
+            act: strings.editor.defaults.activityName,
+            prof: last?.prof ?? PROFILES[0],
             o: 3.75,
             ml: 5,
             p: 8,
             risk: 0,
             notes: '',
-            release: last?.release ?? rnames[0] ?? 'Release 1',
+            release: last?.release ?? rnames[0] ?? strings.editor.defaults.releaseName(1),
           },
         ]
       }),
@@ -389,7 +386,7 @@ export function EstimatorProvider({
   )
 
   const addRel = useCallback((): string => {
-    const newName = `Release ${releases.length + 1}`
+    const newName = strings.editor.defaults.releaseName(releases.length + 1)
     setRels((prev) => [...prev, { id: uid(), name: newName, fte: 1 }])
     return newName
   }, [releases])

@@ -68,7 +68,7 @@ describe('AttachmentList — edit mode', () => {
     expect(screen.getByTestId('attachment-remove-a1').getAttribute('title')).toBe('Remove attachment')
   })
 
-  it('renders the "+ Attach files" trigger and a hidden multi-file input', () => {
+  it('renders the "Attach files" trigger and a hidden multi-file input', () => {
     render(
       <AttachmentList
         lineId="l1"
@@ -157,6 +157,10 @@ describe('AttachmentList — edit mode', () => {
     resolve({ id: 'a2', fileName: 'new-receipt.pdf', contentType: 'application/pdf', sizeBytes: 1024 })
 
     await waitFor(() => expect(screen.getByText('Uploaded')).not.toBeNull())
+    // INC-19: the always-mounted polite region confirms the upload by name.
+    const announcement = screen.getByTestId('attachment-list-l1-announcement')
+    expect(announcement.getAttribute('aria-live')).toBe('polite')
+    expect(announcement.textContent).toMatch(/ uploaded$/)
   })
 
   it('shows a failed state with a dismissible reason when onUpload rejects', async () => {
@@ -305,6 +309,8 @@ describe('AttachmentList — edit mode', () => {
 
     await waitFor(() => expect(onRemove).toHaveBeenCalledWith('a1'))
     await waitFor(() => expect(screen.queryByTestId('attachment-remove-confirm-a1-modal')).toBeNull())
+    // INC-19: the removal is confirmed to a screen reader by name.
+    expect(screen.getByTestId('attachment-list-l1-announcement').textContent).toBe(`${stored.fileName} removed`)
   })
 
   it('canceling does not call onRemove and keeps the attachment', () => {

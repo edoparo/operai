@@ -2,70 +2,28 @@
  * LogoMenu — the suite logo as a dropdown trigger in the shell header.
  *
  * Relocated from estimai-ui/src/components/LogoMenu.tsx (T6, specs/003-suite-shell,
- * AC-1.4) — wiring only, structurally unchanged. Clicking the logo opens a small menu;
- * its "About" item calls onAbout (the parent owns the About modal). Closes on
- * click-outside and Escape, mirroring UserMenu. `APP_NAME` now resolves to "Operai" (the
- * suite) via the relocated ../lib/appInfo.
+ * AC-1.4). Clicking the logo opens a small menu; its "About" item calls onAbout (the
+ * parent owns the About modal). `APP_NAME` resolves to "Operai" (the suite) via
+ * ../lib/appInfo. The menu itself — opening, keyboard, closing — is the library
+ * `Menu` (decisions D-60), shared with UserMenu.
  */
 
-import { useEffect, useRef, useState } from 'react'
+import { Menu, MenuItem } from '@operai/ui'
 import { APP_NAME } from '../lib/appInfo'
+import { strings } from '../strings'
 
 interface Props {
   onAbout: () => void
-  /** Tailwind size classes for the logo image (defaults to the desktop size). */
-  imgClassName?: string
 }
 
-export default function LogoMenu({ onAbout, imgClassName = 'h-8 w-8' }: Props) {
-  const [open, setOpen] = useState(false)
-  const rootRef = useRef<HTMLDivElement>(null)
-
-  useEffect(() => {
-    if (!open) return
-    function onDocMouseDown(e: MouseEvent) {
-      if (rootRef.current && !rootRef.current.contains(e.target as Node)) setOpen(false)
-    }
-    function onKey(e: KeyboardEvent) {
-      if (e.key === 'Escape') setOpen(false)
-    }
-    document.addEventListener('mousedown', onDocMouseDown)
-    document.addEventListener('keydown', onKey)
-    return () => {
-      document.removeEventListener('mousedown', onDocMouseDown)
-      document.removeEventListener('keydown', onKey)
-    }
-  }, [open])
-
+export default function LogoMenu({ onAbout }: Props) {
   return (
-    <div className="relative shrink-0" ref={rootRef}>
-      <button
-        onClick={() => setOpen((o) => !o)}
-        className="flex items-center rounded-md outline-none focus-visible:ring-2 focus-visible:ring-acc/50"
-        aria-haspopup="menu"
-        aria-expanded={open}
-        aria-label={`${APP_NAME} menu`}
-      >
-        <img src="/operai.svg" alt={APP_NAME} className={`${imgClassName} rounded-md`} />
-      </button>
-
-      {open && (
-        <div
-          role="menu"
-          className="absolute left-0 mt-2 min-w-[160px] bg-ink-soft border border-rule rounded-lg shadow-2xl z-50 py-1"
-        >
-          <button
-            role="menuitem"
-            onClick={() => {
-              setOpen(false)
-              onAbout()
-            }}
-            className="w-full text-left text-[12px] text-soft hover:text-text hover:bg-ink-mid px-3 py-2 transition-colors"
-          >
-            About {APP_NAME}
-          </button>
-        </div>
-      )}
-    </div>
+    <Menu
+      triggerLabel={strings.logoMenu.trigger(APP_NAME)}
+      trigger={<img src="/operai.svg" alt={APP_NAME} className="h-8 w-8 rounded-md" />}
+      testIdPrefix="logo-menu"
+    >
+      <MenuItem onClick={onAbout}>{strings.logoMenu.about(APP_NAME)}</MenuItem>
+    </Menu>
   )
 }

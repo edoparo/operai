@@ -35,11 +35,11 @@ describe('RollForwardStatement', () => {
     renderStatement()
     const rows = screen.getAllByRole('rowheader').map((header) => header.closest('tr') as HTMLTableRowElement)
     expect(rows.map((row) => within(row).getAllByRole('cell')[0].textContent)).toEqual([
-      '21689,00 CHF',
-      '530,00 CHF',
-      '18295,89 CHF',
-      '22458,31 CHF',
-      '16996,58 CHF',
+      'CHF 21,689.00',
+      'CHF 530.00',
+      'CHF 18,295.89',
+      'CHF 22,458.31',
+      'CHF 16,996.58',
     ])
   })
 
@@ -60,11 +60,11 @@ describe('RollForwardStatement', () => {
 
   it('uses the entity currency: EUR figures carry the euro sign', () => {
     renderStatement('EUR')
-    expect(within(lineOf(/^Closing book value$/)).getAllByRole('cell')[0].textContent).toBe('16996,58 €')
+    expect(within(lineOf(/^Closing book value$/)).getAllByRole('cell')[0].textContent).toBe('EUR 16,996.58')
   })
 
   it('shows a negative closing figure instead of hiding it', () => {
     renderStatement('CHF', { ...ROLL, closingCents: -500 })
-    expect(within(lineOf(/^Closing book value$/)).getAllByRole('cell')[0].textContent).toBe('-5,00 CHF')
+    expect(within(lineOf(/^Closing book value$/)).getAllByRole('cell')[0].textContent).toBe('−CHF 5.00')
   })
 })

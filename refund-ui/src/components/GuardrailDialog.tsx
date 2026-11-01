@@ -6,10 +6,9 @@
  * admin-ui/src/components/GuardrailDialog.tsx — 409-race, genuinely-blocked
  * cases").
  *
- * Ported pattern: `refund-ui` cannot import admin-ui's source across the
- * Module Federation boundary (ADR-0006), so this is a near-verbatim
- * re-authoring of `admin-ui/src/components/GuardrailDialog.tsx` — same
- * props shape, same acknowledge-only contract.
+ * History: this used to be a re-authored copy of another remote's component
+ * (a remote cannot import another remote's source, ADR-0006). It now renders
+ * @operai/ui's `NoticeDialog` (ADR-0050) and only binds refund-ui's copy and test ids.
  *
  * Fires for every 409-race case this feature's design names: withdraw after
  * a decision (F2 step 2), a stale-UI submit/edit/delete attempt on an
@@ -36,14 +35,14 @@
  *   • Escape triggers the safe action — here that IS "OK".
  *   • Default focus on "OK".
  *   • Backdrop click matches Escape's behavior (also acknowledges).
+  *
+ * Now @operai/ui's `NoticeDialog` (ADR-0050), which owns the frame, the
+ * single-button focus, Escape/backdrop = acknowledge, and focus return.
  */
 
-import { useEffect, useRef } from 'react'
-import { strings } from '../strings'
 
-// ---------------------------------------------------------------------------
-// Types
-// ---------------------------------------------------------------------------
+import { NoticeDialog } from '@operai/ui'
+import { strings } from '../strings'
 
 export type GuardrailDialogProps = {
   /** Short dialog title (e.g. "This request was already decided"). */
@@ -56,85 +55,21 @@ export type GuardrailDialogProps = {
   acknowledgeLabel?: string
 }
 
-// ---------------------------------------------------------------------------
-// Component
-// ---------------------------------------------------------------------------
-
 export default function GuardrailDialog({
   title,
   message,
   onAcknowledge,
   acknowledgeLabel = strings.components.guardrailDialog.defaultAcknowledgeLabel,
 }: GuardrailDialogProps) {
-  const okBtnRef = useRef<HTMLButtonElement>(null)
-
-  // Focus the (only) action on mount — default focus.
-  useEffect(() => {
-    okBtnRef.current?.focus()
-  }, [])
-
-  // Escape acknowledges (no unsafe action to escape to); Tab is trapped on
-  // the single button since there is nothing else to cycle to.
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') {
-        e.preventDefault()
-        onAcknowledge()
-        return
-      }
-      if (e.key === 'Tab') {
-        e.preventDefault()
-        okBtnRef.current?.focus()
-      }
-    }
-
-    window.addEventListener('keydown', onKey)
-    return () => window.removeEventListener('keydown', onKey)
-  }, [onAcknowledge])
-
   return (
-    <div
-      className="fixed inset-0 z-50 flex items-center justify-center backdrop-blur-sm"
-      style={{ backgroundColor: 'rgba(0, 0, 0, 0.6)' }}
-      onClick={onAcknowledge}
-      data-testid="guardrail-dialog"
+    <NoticeDialog
+      title={title}
+      acknowledgeLabel={acknowledgeLabel}
+      onAcknowledge={onAcknowledge}
+      testIdPrefix="guardrail-dialog"
+      backdropTestId="guardrail-dialog"
     >
-      <div
-        role="alertdialog"
-        aria-modal="true"
-        aria-labelledby="guardrail-dialog-title"
-        aria-describedby="guardrail-dialog-message"
-        className="border rounded-lg shadow-2xl w-full max-w-sm mx-4 p-5"
-        style={{ backgroundColor: 'var(--ink-soft)', borderColor: 'var(--rule)' }}
-        onClick={(e) => e.stopPropagation()}
-      >
-        {/* Header */}
-        <h2
-          id="guardrail-dialog-title"
-          className="text-sm font-bold mb-3"
-          style={{ fontFamily: 'var(--disp)', color: 'var(--text)' }}
-        >
-          {title}
-        </h2>
-
-        {/* Body */}
-        <p id="guardrail-dialog-message" className="text-sm leading-relaxed mb-4" style={{ color: 'var(--text)' }}>
-          {message}
-        </p>
-
-        {/* Footer — single acknowledge action, no destructive counterpart */}
-        <div className="flex items-center justify-end">
-          <button
-            ref={okBtnRef}
-            onClick={onAcknowledge}
-            data-testid="guardrail-dialog-ok"
-            className="py-2 px-4 text-sm font-medium border transition-opacity hover:opacity-80"
-            style={{ borderColor: 'var(--acc)', color: 'var(--acc)' }}
-          >
-            {acknowledgeLabel}
-          </button>
-        </div>
-      </div>
-    </div>
+      <p>{message}</p>
+    </NoticeDialog>
   )
 }

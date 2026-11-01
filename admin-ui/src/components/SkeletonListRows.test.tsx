@@ -39,4 +39,17 @@ describe('SkeletonListRows', () => {
     expect(screen.queryByRole('button')).toBeNull()
     expect(screen.queryByRole('table')).toBeNull()
   })
+
+  it('announces the load in a polite live region (INC-22)', () => {
+    const { container } = render(<SkeletonListRows label="Loading roles…" />)
+
+    const live = container.querySelector('[aria-live="polite"]')
+    expect(live?.textContent).toBe('Loading roles…')
+  })
+
+  it('announces a generic loading text by default', () => {
+    const { container } = render(<SkeletonListRows />)
+
+    expect(container.querySelector('[aria-live="polite"]')?.textContent).toBe('Loading…')
+  })
 })

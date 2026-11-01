@@ -86,10 +86,10 @@ describe('the field set depends on the capability (AC-10.1, F6)', () => {
 
     expect(within(dialog).getByRole('heading', { name: 'Edit asset' })).not.toBeNull()
     expect((within(dialog).getByLabelText('Category') as HTMLSelectElement).value).toBe('laptop')
-    expect((within(dialog).getByLabelText('Description') as HTMLInputElement).value).toBe('MacBook Pro 14')
+    expect((within(dialog).getByLabelText(/^Description\*?$/) as HTMLInputElement).value).toBe('MacBook Pro 14')
     expect((within(dialog).getByLabelText('Serial number') as HTMLInputElement).value).toBe('SN123')
-    expect((within(dialog).getByLabelText('Purchase date') as HTMLInputElement).value).toBe('2026-09-25')
-    expect((within(dialog).getByLabelText('Purchase price, CHF') as HTMLInputElement).value).toBe('998,15')
+    expect((within(dialog).getByLabelText(/^Purchase date\*?$/) as HTMLInputElement).value).toBe('2026-09-25')
+    expect((within(dialog).getByLabelText(/^Purchase price, CHF\*?$/) as HTMLInputElement).value).toBe('998.15')
     expect((within(dialog).getByLabelText('Supplier') as HTMLInputElement).value).toBe('Digitec')
     expect((within(dialog).getByLabelText('Invoice reference') as HTMLInputElement).value).toBe('INV-77')
     expect((within(dialog).getByLabelText('Location / note') as HTMLInputElement).value).toBe('Shelf 3')
@@ -108,7 +108,7 @@ describe('the field set depends on the capability (AC-10.1, F6)', () => {
 
   it('both capabilities get the manager set', async () => {
     const dialog = await renderDialog({}, BOTH)
-    expect(within(dialog).getByLabelText('Description')).not.toBeNull()
+    expect(within(dialog).getByLabelText(/^Description\*?$/)).not.toBeNull()
     expect(within(dialog).getByLabelText('Invoice reference')).not.toBeNull()
   })
 
@@ -205,7 +205,7 @@ describe('client-side validation', () => {
     type('Description', '')
     save()
 
-    const field = screen.getByLabelText('Description')
+    const field = screen.getByLabelText(/^Description\*?$/)
     expect(field.getAttribute('aria-invalid')).toBe('true')
     const message = document.getElementById(field.getAttribute('aria-describedby')!)!
     expect(message.textContent).toBe('This field is required.')
@@ -217,21 +217,52 @@ describe('client-side validation', () => {
     type('Purchase price', '10,555')
     save()
     expect(
-      document.getElementById(screen.getByLabelText('Purchase price, CHF').getAttribute('aria-describedby')!)!
+      document.getElementById(screen.getByLabelText(/^Purchase price, CHF\*?$/).getAttribute('aria-describedby')!)!
         .textContent,
     ).toBe('Enter a price greater than 0, with at most two decimals.')
 
     type('Purchase price', '0')
     save()
-    expect(screen.getByLabelText('Purchase price, CHF').getAttribute('aria-invalid')).toBe('true')
+    expect(screen.getByLabelText(/^Purchase price, CHF\*?$/).getAttribute('aria-invalid')).toBe('true')
     expect(updateAsset).not.toHaveBeenCalled()
+  })
+
+  it('a failed submit moves focus to the first invalid field (INC-16)', async () => {
+    await renderDialog()
+    type('Purchase price', '0')
+    type('Description', '')
+    save()
+
+    await waitFor(() => expect(document.activeElement).toBe(screen.getByLabelText(/^Description\*?$/)))
+  })
+
+  it('a changed field is checked when it loses focus, before any submit', async () => {
+    await renderDialog()
+    type('Purchase price', '10,555')
+    const price = screen.getByLabelText(/^Purchase price, CHF\*?$/)
+    expect(price.getAttribute('aria-invalid')).toBeNull()
+
+    fireEvent.blur(price)
+
+    expect(price.getAttribute('aria-invalid')).toBe('true')
+    expect(updateAsset).not.toHaveBeenCalled()
+  })
+
+  it('marks the required fields with aria-required, never with "(required)" in the label', async () => {
+    const dialog = await renderDialog()
+
+    for (const label of [/^Description\*?$/, /^Purchase date\*?$/, /^Purchase price, CHF\*?$/]) {
+      expect(within(dialog).getByLabelText(label).getAttribute('aria-required')).toBe('true')
+    }
+    expect(within(dialog).getByLabelText('Supplier').getAttribute('aria-required')).toBeNull()
+    expect(dialog.textContent).not.toMatch(/\((required|optional)\)/)
   })
 
   it('an emptied purchase date is refused on the field', async () => {
     await renderDialog()
     type('Purchase date', '')
     save()
-    expect(screen.getByLabelText('Purchase date').getAttribute('aria-invalid')).toBe('true')
+    expect(screen.getByLabelText(/^Purchase date\*?$/).getAttribute('aria-invalid')).toBe('true')
     expect(updateAsset).not.toHaveBeenCalled()
   })
 })
@@ -311,10 +342,10 @@ describe('server conflicts', () => {
     const banner = await screen.findByTestId('edit-year-closed')
     expect(banner.getAttribute('role')).toBe('alert')
     expect(banner.textContent).toBe('Price and purchase date cannot change because 2025 is closed.')
-    expect((screen.getByLabelText('Purchase price, CHF') as HTMLInputElement).value).toBe('1000')
-    expect(screen.getByLabelText('Purchase date')).not.toBeNull()
-    expect(screen.getByLabelText('Purchase price, CHF').getAttribute('aria-describedby')).toContain(banner.id)
-    expect(screen.getByLabelText('Purchase date').getAttribute('aria-describedby')).toContain(banner.id)
+    expect((screen.getByLabelText(/^Purchase price, CHF\*?$/) as HTMLInputElement).value).toBe('1000')
+    expect(screen.getByLabelText(/^Purchase date\*?$/)).not.toBeNull()
+    expect(screen.getByLabelText(/^Purchase price, CHF\*?$/).getAttribute('aria-describedby')).toContain(banner.id)
+    expect(screen.getByLabelText(/^Purchase date\*?$/).getAttribute('aria-describedby')).toContain(banner.id)
     expect(onSaved).not.toHaveBeenCalled()
   })
 
@@ -353,7 +384,9 @@ describe('server conflicts', () => {
     type('Purchase price', '5')
     save()
 
-    await waitFor(() => expect(screen.getByLabelText('Purchase price, CHF').getAttribute('aria-invalid')).toBe('true'))
+    await waitFor(() =>
+      expect(screen.getByLabelText(/^Purchase price, CHF\*?$/).getAttribute('aria-invalid')).toBe('true'),
+    )
   })
 
   it('a 422 without a known field shows the general validation message', async () => {

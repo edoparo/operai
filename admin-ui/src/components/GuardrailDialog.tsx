@@ -24,9 +24,14 @@
  *     action to escape *to*).
  *   • Default focus on "OK".
  *   • Backdrop click matches Escape's behavior (also acknowledges).
+ *
+ * Now @operai/ui's `NoticeDialog` (ADR-0050, INC-09), which owns the frame,
+ * the single-button focus, Escape/backdrop = acknowledge and focus return;
+ * this file binds admin-ui's copy and test ids.
  */
 
-import { useEffect, useRef } from 'react'
+import { NoticeDialog } from '@operai/ui'
+import { strings } from '../strings'
 
 // ---------------------------------------------------------------------------
 // Types
@@ -51,77 +56,17 @@ export default function GuardrailDialog({
   title,
   message,
   onAcknowledge,
-  acknowledgeLabel = 'OK',
+  acknowledgeLabel = strings.common.actions.ok,
 }: GuardrailDialogProps) {
-  const okBtnRef = useRef<HTMLButtonElement>(null)
-
-  // Focus the (only) action on mount — default focus per design.md.
-  useEffect(() => {
-    okBtnRef.current?.focus()
-  }, [])
-
-  // Escape acknowledges (no unsafe action to escape to); Tab is trapped on
-  // the single button since there is nothing else to cycle to.
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') {
-        e.preventDefault()
-        onAcknowledge()
-        return
-      }
-      if (e.key === 'Tab') {
-        e.preventDefault()
-        okBtnRef.current?.focus()
-      }
-    }
-
-    window.addEventListener('keydown', onKey)
-    return () => window.removeEventListener('keydown', onKey)
-  }, [onAcknowledge])
-
   return (
-    <div
-      className="fixed inset-0 z-50 flex items-center justify-center backdrop-blur-sm"
-      style={{ backgroundColor: 'rgba(0, 0, 0, 0.6)' }}
-      onClick={onAcknowledge}
-      data-testid="guardrail-dialog"
+    <NoticeDialog
+      title={title}
+      acknowledgeLabel={acknowledgeLabel}
+      onAcknowledge={onAcknowledge}
+      testIdPrefix="guardrail-dialog"
+      backdropTestId="guardrail-dialog"
     >
-      <div
-        role="alertdialog"
-        aria-modal="true"
-        aria-labelledby="guardrail-dialog-title"
-        aria-describedby="guardrail-dialog-message"
-        className="border rounded-lg shadow-2xl w-full max-w-sm mx-4 p-5"
-        style={{ backgroundColor: 'var(--ink-soft)', borderColor: 'var(--rule)' }}
-        onClick={(e) => e.stopPropagation()}
-      >
-        {/* Header */}
-        <h2
-          id="guardrail-dialog-title"
-          className="text-sm font-bold mb-3"
-          style={{ fontFamily: 'var(--disp)', color: 'var(--text)' }}
-        >
-          {title}
-        </h2>
-
-        {/* Body */}
-        <p id="guardrail-dialog-message" className="text-sm leading-relaxed mb-4" style={{ color: 'var(--text)' }}>
-          {message}
-        </p>
-
-        {/* Footer — single acknowledge action, no destructive counterpart */}
-        <div className="flex items-center justify-end">
-          <button
-            ref={okBtnRef}
-            onClick={onAcknowledge}
-            data-testid="guardrail-dialog-ok"
-            className="py-2 px-4 text-sm font-medium border transition-opacity hover:opacity-80"
-            style={{ borderColor: 'var(--acc)', color: 'var(--acc)' }}
-          >
-            {acknowledgeLabel}
-          </button>
-        </div>
-      </div>
-    </div>
+      <p>{message}</p>
+    </NoticeDialog>
   )
 }

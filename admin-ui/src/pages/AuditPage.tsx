@@ -1,10 +1,14 @@
-import { Fragment, useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
+import { Icon, PageHeader, StatePanel, formatDateTime, DataTable } from '@operai/ui'
 import * as adminApi from '../lib/adminApi'
 import type { AuditLogEntry, Paginated } from '../lib/adminApi'
 import { ApiError } from '../lib/adminApi'
 import SkeletonListRows from '../components/SkeletonListRows'
 import ErrorBanner from '../components/ErrorBanner'
 import Pagination from '../components/Pagination'
+import { strings } from '../strings'
+
+const t = strings.audit
 
 /**
  * AuditPage — Screen D1 (design.md "Audit log — paginated reverse-chron
@@ -41,19 +45,6 @@ import Pagination from '../components/Pagination'
 
 const PAGE_SIZE = 20
 
-const formatTimestamp = (iso: string): string => {
-  try {
-    return new Date(iso).toLocaleString(undefined, {
-      day: 'numeric',
-      month: 'short',
-      year: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit',
-    })
-  } catch {
-    return '—'
-  }
-}
 
 /**
  * The actor's display name, from the `actor` identity `GET /admin/audit` joins
@@ -67,15 +58,15 @@ const formatTimestamp = (iso: string): string => {
  */
 const formatActorName = (entry: AuditLogEntry): string => {
   if (entry.actor) return entry.actor.name.trim() || entry.actor.email
-  return entry.actorUserId ? 'Unknown user' : 'Deleted user'
+  return entry.actorUserId ? t.unknownUser : t.deletedUser
 }
 
 const formatTarget = (entry: AuditLogEntry): string =>
-  entry.targetId ? `${entry.targetType} · ${entry.targetId}` : entry.targetType
+  entry.targetId ? t.target(entry.targetType, entry.targetId) : entry.targetType
 
 /** Pretty-prints a diff side's value, or a placeholder if it wasn't recorded. */
 const formatDiffSide = (value: unknown): string => {
-  if (value === undefined) return '(not recorded)'
+  if (value === undefined) return t.notRecorded
   try {
     return JSON.stringify(value, null, 2)
   } catch {
@@ -90,7 +81,7 @@ const errorMessageFor = (error: unknown): string => {
   if (error instanceof ApiError) {
     return error.detail ?? error.title
   }
-  return 'Could not load the audit log.'
+  return t.loadError
 }
 
 export default function AuditPage() {
@@ -150,163 +141,97 @@ export default function AuditPage() {
 
   return (
     <section aria-labelledby="admin-audit-heading" data-testid="admin-audit-page">
-      <h2 id="admin-audit-heading" className="text-lg font-semibold" style={{ fontFamily: 'var(--disp)' }}>
-        Audit
-      </h2>
-      <p className="mt-2 text-sm" style={{ color: 'var(--soft)' }}>
-        A read-only, reverse-chronological history of every authorization change — roles, departments, and user
-        assignments. Nothing here can be edited or deleted.
-      </p>
+      <PageHeader
+        title={t.heading}
+        titleId="admin-audit-heading"
+        description={t.description}
+      />
 
-      <div className="mt-4">
+      <div>
         {state.status === 'loading' && <SkeletonListRows rows={5} />}
 
         {state.status === 'error' && <ErrorBanner message={state.message} onRetry={handleRetry} />}
 
         {state.status === 'loaded' && state.result.total === 0 && (
-          <p className="text-sm py-6 text-center" style={{ color: 'var(--soft)' }} data-testid="audit-empty-state">
-            No authorization changes recorded yet.
-          </p>
+          <StatePanel title={t.empty.title} testId="audit-empty-state">
+            {t.empty.body}
+          </StatePanel>
         )}
 
         {state.status === 'loaded' && state.result.total > 0 && (
           <>
-            <div className="overflow-x-auto">
-              <table className="w-full text-[11px]" data-testid="audit-table">
-                <thead>
-                  <tr className="border-b" style={{ borderColor: 'var(--rule)' }}>
-                    <th scope="col" className="w-8">
-                      <span className="sr-only">Expand</span>
-                    </th>
-                    <th
-                      scope="col"
-                      className="text-left py-1.5 px-2 text-[9px] font-mono uppercase tracking-wider"
-                      style={{ color: 'var(--soft)' }}
-                    >
-                      Timestamp
-                    </th>
-                    <th
-                      scope="col"
-                      className="text-left py-1.5 px-2 text-[9px] font-mono uppercase tracking-wider"
-                      style={{ color: 'var(--soft)' }}
-                    >
-                      Actor
-                    </th>
-                    <th
-                      scope="col"
-                      className="text-left py-1.5 px-2 text-[9px] font-mono uppercase tracking-wider"
-                      style={{ color: 'var(--soft)' }}
-                    >
-                      Action
-                    </th>
-                    <th
-                      scope="col"
-                      className="text-left py-1.5 px-2 text-[9px] font-mono uppercase tracking-wider"
-                      style={{ color: 'var(--soft)' }}
-                    >
-                      Target
-                    </th>
-                    <th
-                      scope="col"
-                      className="text-left py-1.5 px-2 text-[9px] font-mono uppercase tracking-wider"
-                      style={{ color: 'var(--soft)' }}
-                    >
-                      Summary
-                    </th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {state.result.items.map((entry) => {
+            <DataTable
+              caption={t.tableLabel}
+              testId="audit-table"
+              rows={state.result.items}
+              getRowKey={(entry) => entry.id}
+              columns={[
+                {
+                  id: 'expand',
+                  header: <span className="visually-hidden">{t.columns.expand}</span>,
+                  render: (entry) => {
                     const isExpanded = expandedIds.has(entry.id)
-                    const diffRowId = `audit-diff-${entry.id}`
                     return (
-                      <Fragment key={entry.id}>
-                        <tr
-                          className="border-b"
-                          style={{ borderColor: 'color-mix(in srgb, var(--rule) 50%, transparent)' }}
-                        >
-                          <td className="py-1.5 px-2">
-                            <button
-                              type="button"
-                              onClick={() => toggleExpanded(entry.id)}
-                              aria-expanded={isExpanded}
-                              aria-controls={diffRowId}
-                              data-testid={`audit-row-toggle-${entry.id}`}
-                              className="text-xs leading-none transition-opacity hover:opacity-80"
-                              style={{ color: 'var(--acc)' }}
-                            >
-                              <span aria-hidden="true">{isExpanded ? '▾' : '▸'}</span>
-                              <span className="sr-only">
-                                {isExpanded ? 'Hide details' : 'Show details'} for {entry.summary}
-                              </span>
-                            </button>
-                          </td>
-                          <td className="py-1.5 px-2 whitespace-nowrap" style={{ color: 'var(--text)' }}>
-                            {formatTimestamp(entry.createdAt)}
-                          </td>
-                          <td className="py-1.5 px-2" style={{ color: 'var(--text)' }}>
-                            <span className="block">{formatActorName(entry)}</span>
-                            {entry.actorUserId && (
-                              <span
-                                className="block text-[9px] break-all"
-                                style={{ fontFamily: 'var(--mono)', color: 'var(--soft)' }}
-                              >
-                                {entry.actorUserId}
-                              </span>
-                            )}
-                          </td>
-                          <td className="py-1.5 px-2" style={{ fontFamily: 'var(--mono)', color: 'var(--text)' }}>
-                            {entry.action}
-                          </td>
-                          <td className="py-1.5 px-2" style={{ color: 'var(--text)' }}>
-                            {formatTarget(entry)}
-                          </td>
-                          <td className="py-1.5 px-2" style={{ color: 'var(--text)' }}>
-                            {entry.summary}
-                          </td>
-                        </tr>
-                        {isExpanded && (
-                          <tr id={diffRowId} data-testid={`audit-diff-${entry.id}`}>
-                            <td colSpan={6} className="py-2 px-2">
-                              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                                <div>
-                                  <p
-                                    className="text-[9px] font-mono uppercase tracking-wider mb-1"
-                                    style={{ color: 'var(--soft)' }}
-                                  >
-                                    Before
-                                  </p>
-                                  <pre
-                                    className="text-[10px] whitespace-pre-wrap break-words p-2 rounded"
-                                    style={{ backgroundColor: 'var(--ink-mid)', color: 'var(--text)' }}
-                                  >
-                                    {formatDiffSide(entry.data?.before)}
-                                  </pre>
-                                </div>
-                                <div>
-                                  <p
-                                    className="text-[9px] font-mono uppercase tracking-wider mb-1"
-                                    style={{ color: 'var(--soft)' }}
-                                  >
-                                    After
-                                  </p>
-                                  <pre
-                                    className="text-[10px] whitespace-pre-wrap break-words p-2 rounded"
-                                    style={{ backgroundColor: 'var(--ink-mid)', color: 'var(--text)' }}
-                                  >
-                                    {formatDiffSide(entry.data?.after)}
-                                  </pre>
-                                </div>
-                              </div>
-                            </td>
-                          </tr>
-                        )}
-                      </Fragment>
+                      // A table-cell disclosure toggle, not a button visually (INC-07 exception): no fill, global focus ring.
+                      <button
+                        type="button"
+                        onClick={() => toggleExpanded(entry.id)}
+                        aria-expanded={isExpanded}
+                        aria-controls={`audit-diff-${entry.id}`}
+                        data-testid={`audit-row-toggle-${entry.id}`}
+                        className="text-xs leading-none transition-opacity hover:opacity-80 text-acc-text"
+                      >
+                        <Icon name={isExpanded ? 'chevron-down' : 'chevron-right'} />
+                        <span className="visually-hidden">
+                          {isExpanded ? t.hideDetails(entry.summary) : t.showDetails(entry.summary)}
+                        </span>
+                      </button>
                     )
-                  })}
-                </tbody>
-              </table>
-            </div>
+                  },
+                },
+                {
+                  id: 'timestamp',
+                  header: t.columns.timestamp,
+                  render: (entry) => <span className="whitespace-nowrap font-mono">{formatDateTime(entry.createdAt)}</span>,
+                },
+                {
+                  id: 'actor',
+                  header: t.columns.actor,
+                  render: (entry) => (
+                    <>
+                      <span className="block">{formatActorName(entry)}</span>
+                      {entry.actorUserId && (
+                        <span className="block text-2xs break-all font-mono text-soft">{entry.actorUserId}</span>
+                      )}
+                    </>
+                  ),
+                },
+                { id: 'action', header: t.columns.action, render: (entry) => <span className="font-mono">{entry.action}</span> },
+                { id: 'target', header: t.columns.target, render: (entry) => formatTarget(entry) },
+                { id: 'summary', header: t.columns.summary, render: (entry) => entry.summary },
+              ]}
+              // The expanded entry's before/after, as a full-width row under it (DataTable renderDetail).
+              renderDetail={(entry) =>
+                expandedIds.has(entry.id) ? (
+                  <div id={`audit-diff-${entry.id}`} data-testid={`audit-diff-${entry.id}`}>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      <div>
+                        <p className="text-2xs mb-1 text-soft">{t.before}</p>
+                        <pre className="text-2xs whitespace-pre-wrap break-words p-2 rounded bg-ink-mid text-text">
+                          {formatDiffSide(entry.data?.before)}
+                        </pre>
+                      </div>
+                      <div>
+                        <p className="text-2xs mb-1 text-soft">{t.after}</p>
+                        <pre className="text-2xs whitespace-pre-wrap break-words p-2 rounded bg-ink-mid text-text">
+                          {formatDiffSide(entry.data?.after)}
+                        </pre>
+                      </div>
+                    </div>
+                  </div>
+                ) : null
+              }
+            />
 
             <Pagination page={page} pageSize={PAGE_SIZE} total={state.result.total} onPageChange={setPage} />
           </>

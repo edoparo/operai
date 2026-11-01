@@ -25,13 +25,15 @@
  * with the user's explicit approval — properly, by moving the component out,
  * rather than suppressing the rule with a disable comment.
  */
+import { SkeletonRows, VisuallyHidden } from '@operai/ui'
+import { strings } from '../strings'
+
 export function RoutePendingFallback() {
   return (
-    <div className="flex flex-col items-center justify-center gap-3 px-6 py-16" data-testid="route-pending">
-      <div aria-hidden="true" className="h-8 w-8 animate-spin rounded-full border-2 border-rule border-t-acc" />
-      <p className="sr-only" aria-live="polite">
-        Loading…
-      </p>
+    // The suite's loading shape (INC-22): skeleton rows + a polite visually-hidden line.
+    <div className="px-6 py-8" data-testid="route-pending">
+      <VisuallyHidden live>{strings.routePending.loading}</VisuallyHidden>
+      <SkeletonRows />
     </div>
   )
 }

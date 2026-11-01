@@ -6,7 +6,7 @@
  * `strings.errors` go through `fillTemplate`; money is formatted by the caller
  * with `formatMoney`. The XLSX export's copy is added by T39 under `export`.
  */
-export const yearDetail = {
+const en = {
   loading: 'Loading fiscal year',
   retry: 'Retry',
   backToYears: 'Back to fiscal years',
@@ -107,4 +107,97 @@ export const yearDetail = {
     guardrailTitle: 'Already closed',
     guardrailAcknowledge: 'OK',
   },
-} as const
+}
+
+const it: typeof en = {
+  loading: 'Caricamento esercizio',
+  retry: 'Riprova',
+  backToYears: 'Torna agli esercizi',
+  heading: (year: number) => `Esercizio ${year}`,
+  status: { open: 'Aperto', closed: 'Chiuso' },
+  closedAnnouncement: (year: number) => `L'esercizio ${year} è chiuso.`,
+
+  notFound: {
+    heading: 'Esercizio non trovato',
+    body: "Questo esercizio non esiste, precede il primo esercizio dell'entità oppure non rientra nelle entità di propria competenza.",
+  },
+
+  provisional: "Provvisorio: i valori possono cambiare fino alla chiusura dell'esercizio.",
+  closedOn: (date: string) => `Chiuso il ${date}.`,
+
+  close: {
+    button: (year: number) => `Chiudi esercizio ${year}`,
+    blocked: (previousYear: number) => `Chiudere prima l'esercizio ${previousYear}.`,
+  },
+
+  statement: {
+    heading: (currency: string) => `Movimentazione (${currency})`,
+    caption: (entity: string, year: number, currency: string) =>
+      `Movimentazione dell'esercizio ${year} per ${entity}, in ${currency}`,
+    columns: { line: 'Voce', amount: 'Importo' },
+    lines: {
+      opening: { sign: '', label: 'Valore contabile iniziale' },
+      disposals: { sign: '−', label: 'Meno dismissioni' },
+      purchases: { sign: '+', label: 'Più acquisti' },
+      depreciation: { sign: '−', label: 'Meno ammortamenti' },
+      closing: { sign: '=', label: 'Valore contabile finale' },
+    },
+  },
+
+  assets: {
+    heading: 'Beni',
+    caption: (entity: string, year: number) => `Valori per bene dell'esercizio ${year}, ${entity}`,
+    empty: 'Nessun bene in questo esercizio',
+    columns: {
+      purchaseDate: 'Data di acquisto',
+      description: 'Descrizione',
+      serialNumber: 'Numero di serie',
+      heldBy: 'Assegnatario',
+      purchasePrice: 'Prezzo di acquisto',
+      opening: 'Iniziale',
+      purchases: 'Acquisti',
+      depreciation: 'Ammortamento',
+      disposals: 'Dismissioni',
+      closing: 'Finale',
+    },
+    noSerial: '—',
+    noHolder: '—',
+    holderSystem: 'Sistema',
+    holderDeleted: 'Account eliminato',
+    holderUnknown: 'Sconosciuto',
+  },
+
+  export: {
+    button: 'Esporta XLSX',
+    preparing: 'Preparazione del file…',
+    ready: 'File pronto',
+    failed: "Impossibile preparare l'esportazione. Riprovare.",
+    fileProvisionalSuffix: 'provvisorio',
+    sheetName: (year: number) => `Esercizio ${year}`,
+    title: (entity: string, year: number, currency: string) => `Esercizio ${year} - ${entity} (${currency})`,
+    provisional: "PROVVISORIO: i valori possono cambiare fino alla chiusura dell'esercizio.",
+    columns: {
+      purchaseDate: 'Data di acquisto',
+      description: 'Descrizione',
+      serialNumber: 'Numero di serie',
+      holder: 'Assegnatario',
+      purchasePrice: (currency: string) => `Prezzo di acquisto (${currency})`,
+      depreciation: (currency: string) => `Ammortamento dell'esercizio (${currency})`,
+      bookValue: (currency: string) => `Valore contabile a fine esercizio (${currency})`,
+    },
+    rollForwardHeading: (currency: string) => `Movimentazione (${currency})`,
+  },
+
+  closeDialog: {
+    title: (year: number) => `Chiudere l'esercizio ${year}?`,
+    consequence: (year: number, entity: string) =>
+      `La chiusura dell'esercizio ${year} per ${entity} congela questo prospetto e i valori di ogni bene. Nulla con data ${year} o precedente potrà più essere modificato: nessun nuovo bene, modifica, dismissione o regola. Un esercizio chiuso non può mai essere riaperto; le rettifiche si registrano nell'esercizio aperto.`,
+    acknowledge: 'Confermo di aver compreso che un esercizio chiuso non può essere riaperto.',
+    confirm: (year: number) => `Chiudi ${year}`,
+    confirming: 'Chiusura…',
+    guardrailTitle: 'Già chiuso',
+    guardrailAcknowledge: 'OK',
+  },
+}
+
+export const yearDetail = { en, it }

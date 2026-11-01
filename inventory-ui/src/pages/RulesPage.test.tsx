@@ -108,8 +108,8 @@ describe('RulesPage — rules per entity (AC-6.1)', () => {
     expect(current.getAllByRole('cell').map((cell) => cell.textContent)).toEqual([
       '4',
       'Half',
-      '800,00 CHF',
-      '1,50 CHF',
+      'CHF 800.00',
+      'CHF 1.50',
       'Anna Rossi',
       '15.12.2020',
       expect.stringContaining('In force'),
@@ -122,7 +122,7 @@ describe('RulesPage — rules per entity (AC-6.1)', () => {
       '3',
       'Full',
       'None',
-      '1,00 CHF',
+      'CHF 1.00',
       'System',
       '01.01.2020',
       expect.stringContaining('Superseded'),
@@ -157,7 +157,7 @@ describe('RulesPage — rules per entity (AC-6.1)', () => {
     expect(listRules.mock.calls.map((call) => call[0]).sort()).toEqual(['welld_ch', 'welld_it'])
     expect(screen.getByRole('button', { name: 'New rule for WellD CH' })).toBeTruthy()
     expect(screen.getByRole('button', { name: 'New rule for WellD Italia' })).toBeTruthy()
-    expect(within(screen.getByRole('table', { name: /Italia/ })).getByText('2,50 €')).toBeTruthy()
+    expect(within(screen.getByRole('table', { name: /Italia/ })).getByText('EUR 2.50')).toBeTruthy()
   })
 
   it('only lists entities in the caller’s ledger scope', async () => {

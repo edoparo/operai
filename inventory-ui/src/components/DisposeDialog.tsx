@@ -1,5 +1,7 @@
+import { DateInput, Field, MoneyInput, RadioGroupField } from '@operai/ui'
 import { useId, useState } from 'react'
 import IrreversibleActionDialog from './IrreversibleActionDialog'
+import { useFocusFirstInvalid } from '../hooks/useFocusFirstInvalid'
 import { ApiError } from '../lib/api'
 import { formatDate, todayIsoDate } from '../lib/dates'
 import { disposeAsset } from '../lib/ledgerApi'
@@ -62,6 +64,7 @@ export default function DisposeDialog({ asset, onDisposed, onCancel, onConflict 
   const [errors, setErrors] = useState<FieldErrors>({})
   const [generalError, setGeneralError] = useState<string | null>(null)
   const [submitting, setSubmitting] = useState(false)
+  const { ref: fieldsRef, focusFirstInvalid } = useFocusFirstInvalid()
 
   const takesPrice = reason !== '' && REASONS_WITH_PRICE.includes(reason)
   const clear = (key: keyof FieldErrors) =>
@@ -119,7 +122,10 @@ export default function DisposeDialog({ asset, onDisposed, onCancel, onConflict 
     const found = validate()
     setGeneralError(null)
     setErrors(found)
-    if (Object.keys(found).length > 0 || reason === '') return
+    if (Object.keys(found).length > 0 || reason === '') {
+      focusFirstInvalid()
+      return
+    }
 
     const input: DisposeInput = { disposedOn: date, reason }
     if (takesPrice && salePrice.trim() !== '') input.salePriceCents = amountToCents(salePrice) ?? undefined
@@ -141,18 +147,6 @@ export default function DisposeDialog({ asset, onDisposed, onCancel, onConflict 
       ? t.consequence(asset.description, entity, when, bookValue)
       : t.consequenceWithHolder(asset.description, entity, when, bookValue, identityLabel(asset.holder))
 
-  const dateId = `${baseId}-date`
-  const reasonId = `${baseId}-reason`
-  const priceId = `${baseId}-price`
-  const inputClass = 'border px-2 py-1.5 text-sm w-full'
-  const inputStyle = { borderColor: 'var(--rule)', backgroundColor: 'var(--ink)', color: 'var(--text)' }
-  const errorText = (id: string, message: string | undefined) =>
-    message === undefined ? null : (
-      <p id={`${id}-error`} className="text-xs" style={{ color: 'var(--red)' }}>
-        {message}
-      </p>
-    )
-
   return (
     <IrreversibleActionDialog
       title={t.title(asset.description)}
@@ -166,77 +160,66 @@ export default function DisposeDialog({ asset, onDisposed, onCancel, onConflict 
       onCancel={onCancel}
       testIdPrefix="dispose-asset"
     >
-      <div className="flex flex-col gap-1">
-        <label htmlFor={dateId} className="text-xs" style={{ color: 'var(--soft)' }}>
-          {t.fields.date}
-        </label>
-        <input
-          id={dateId}
-          type="date"
-          min={asset.purchaseDate}
-          value={date}
-          aria-required="true"
-          aria-invalid={errors.date !== undefined ? true : undefined}
-          aria-describedby={errors.date !== undefined ? `${dateId}-error` : undefined}
-          onChange={(event) => {
-            setDate(event.target.value)
-            clear('date')
-          }}
-          className={inputClass}
-          style={inputStyle}
-        />
-        {errorText(dateId, errors.date)}
-      </div>
-
-      <div
-        role="radiogroup"
-        aria-labelledby={`${reasonId}-label`}
-        aria-describedby={errors.reason !== undefined ? `${reasonId}-error` : undefined}
-        className="flex flex-col gap-1"
-      >
-        <span id={`${reasonId}-label`} className="text-xs" style={{ color: 'var(--soft)' }}>
-          {t.fields.reason}
-        </span>
-        {REASONS.map((value) => (
-          <label key={value} className="flex items-center gap-2 text-sm" style={{ color: 'var(--text)' }}>
-            <input
-              type="radio"
-              name={`${baseId}-reason`}
-              value={value}
-              checked={reason === value}
-              onChange={() => {
-                setReason(value)
-                clear('reason')
-                clear('salePrice')
+      <div ref={fieldsRef} className="contents">
+        <Field label={t.fields.date} required error={errors.date}>
+          {(control) => (
+            <DateInput
+              {...control}
+              min={asset.purchaseDate}
+              value={date}
+              onChange={(event) => {
+                setDate(event.target.value)
+                clear('date')
               }}
+              onBlur={() => {
+                // Prefilled with today, so an emptied date is the only thing to say on blur.
+                if (date === '') setErrors((previous) => ({ ...previous, date: t.errors.dateRequired }))
+              }}
+              className="w-full"
             />
-            {strings.disposalReasons[value]}
-          </label>
-        ))}
-        {errorText(reasonId, errors.reason)}
-      </div>
+          )}
+        </Field>
 
-      {takesPrice && (
-        <div className="flex flex-col gap-1">
-          <label htmlFor={priceId} className="text-xs" style={{ color: 'var(--soft)' }}>
-            {t.fields.salePriceIn(strings.common.currency[asset.currency])} ({t.fields.optional})
-          </label>
-          <input
-            id={priceId}
-            inputMode="decimal"
-            value={salePrice}
-            aria-invalid={errors.salePrice !== undefined ? true : undefined}
-            aria-describedby={errors.salePrice !== undefined ? `${priceId}-error` : undefined}
-            onChange={(event) => {
-              setSalePrice(event.target.value)
-              clear('salePrice')
-            }}
-            className={inputClass}
-            style={inputStyle}
-          />
-          {errorText(priceId, errors.salePrice)}
-        </div>
-      )}
+        <RadioGroupField label={t.fields.reason} error={errors.reason} required>
+          {REASONS.map((value) => (
+            <label key={value} className="flex items-center gap-2 text-sm text-text">
+              <input
+                type="radio"
+                name={`${baseId}-reason`}
+                value={value}
+                checked={reason === value}
+                onChange={() => {
+                  setReason(value)
+                  clear('reason')
+                  clear('salePrice')
+                }}
+              />
+              {strings.disposalReasons[value]}
+            </label>
+          ))}
+        </RadioGroupField>
+
+        {takesPrice && (
+          <Field label={t.fields.salePriceIn(strings.common.currency[asset.currency])} error={errors.salePrice}>
+            {(control) => (
+              <MoneyInput
+                {...control}
+                value={salePrice}
+                onChange={(event) => {
+                  setSalePrice(event.target.value)
+                  clear('salePrice')
+                }}
+                onBlur={() => {
+                  if (salePrice.trim() !== '' && amountToCents(salePrice) === null) {
+                    setErrors((previous) => ({ ...previous, salePrice: t.errors.salePriceInvalid }))
+                  }
+                }}
+                className="w-full"
+              />
+            )}
+          </Field>
+        )}
+      </div>
     </IrreversibleActionDialog>
   )
 }

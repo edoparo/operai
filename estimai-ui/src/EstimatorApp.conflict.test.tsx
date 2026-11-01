@@ -21,6 +21,7 @@
  */
 
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import type { ReactNode } from 'react'
 import { render, screen, act, cleanup } from '@testing-library/react'
 import type { Parameters, Release, Activity } from './types'
 
@@ -32,6 +33,12 @@ const navigateMock = vi.fn()
 const invalidateMock = vi.fn()
 
 vi.mock('@tanstack/react-router', () => ({
+  // Header's back-to-list control is a router <Link> (INC-13).
+  Link: ({ to, className, children }: { to: string; className?: string; children: ReactNode }) => (
+    <a href={to} className={className}>
+      {children}
+    </a>
+  ),
   useNavigate: () => navigateMock,
   useRouter: () => ({ invalidate: invalidateMock }),
   Outlet: () => null,
@@ -182,7 +189,7 @@ describe('EstimatorApp — ConflictBanner replaces the toast zone exclusively (T
     await renderIntoConflict()
 
     expect(screen.getByText(strings.conflict.savingSuspended)).toBeDefined()
-    expect(screen.queryByText('✓ Saved')).toBeNull()
+    expect(screen.queryByText('Saved')).toBeNull()
   })
 })
 

@@ -116,17 +116,17 @@ describe('BatchEmployeeGroupList — detail mode', () => {
     const row1 = screen.getByTestId('batch-employee-group-u1-request-req-1')
     expect(row1.tagName).toBe('A')
     expect(row1.getAttribute('href')).toBe('/review/req-1')
-    expect(row1.querySelector('[data-testid="request-status-badge"]')?.textContent).toBe('✓Approved')
+    expect(row1.querySelector('[data-testid="request-status-badge"]')?.textContent).toBe('Approved')
 
     const row2 = screen.getByTestId('batch-employee-group-u1-request-req-2')
     expect(row2.getAttribute('href')).toBe('/review/req-2')
-    expect(row2.querySelector('[data-testid="request-status-badge"]')?.textContent).toBe('◆Paid')
+    expect(row2.querySelector('[data-testid="request-status-badge"]')?.textContent).toBe('Paid')
   })
 
   it('gives each request row a full, disambiguating aria-label (employee, status, amount)', async () => {
     await renderDetailAt([detailGroup])
 
     const row1 = screen.getByTestId('batch-employee-group-u1-request-req-1')
-    expect(row1.getAttribute('aria-label')).toBe('Open Alice’s request, Approved, 9,10 €')
+    expect(row1.getAttribute('aria-label')).toBe('Open Alice’s request, Approved, EUR 9.10')
   })
 })

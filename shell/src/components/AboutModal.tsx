@@ -16,9 +16,10 @@
  * out, or predating this feature and missing `./version` entirely) shows a
  * muted "—" rather than blocking the dialog or throwing.
  */
-import { useEffect } from 'react'
+import { Dialog, VisuallyHidden } from '@operai/ui'
 import { APP_NAME, APP_DESCRIPTION, APP_TAGLINE, APP_AUTHOR, APP_AUTHOR_URL, APP_VERSION } from '../lib/appInfo'
 import { REMOTE_VERSION_SOURCES, useRemoteVersions, type RemoteVersionSource } from '../hooks/useRemoteVersions'
+import { strings } from '../strings'
 
 interface Props {
   onClose: () => void
@@ -37,8 +38,8 @@ interface Props {
 function InfoRow({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <div className="flex items-baseline justify-between gap-4 py-1.5 border-b border-rule/50 last:border-0">
-      <span className="text-[9px] font-mono uppercase tracking-widest text-muted shrink-0">{label}</span>
-      <span className="text-[12px] text-text text-right">{children}</span>
+      <span className="text-2xs font-mono uppercase tracking-widest text-muted shrink-0">{label}</span>
+      <span className="text-xs text-text text-right">{children}</span>
     </div>
   )
 }
@@ -46,75 +47,50 @@ function InfoRow({ label, children }: { label: string; children: React.ReactNode
 export default function AboutModal({ onClose, remoteVersionSources = REMOTE_VERSION_SOURCES }: Props) {
   const remoteVersions = useRemoteVersions(remoteVersionSources)
 
-  useEffect(() => {
-    function onKey(e: KeyboardEvent) {
-      if (e.key === 'Escape') onClose()
-    }
-    window.addEventListener('keydown', onKey)
-    return () => window.removeEventListener('keydown', onKey)
-  }, [onClose])
-
+  // The library Dialog (INC-07/09) owns the frame, aria-modal, the focus trap,
+  // Escape and focus restore. Its title is the accessible name: the visible
+  // heading stays "Operai" next to the logo, the name reads "About Operai".
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm" onClick={onClose}>
-      <div
-        role="dialog"
-        aria-label={`About ${APP_NAME}`}
-        className="bg-ink-soft border border-rule rounded-lg shadow-2xl w-full max-w-sm mx-4 p-5"
-        onClick={(e) => e.stopPropagation()}
-      >
-        {/* Header */}
-        <div className="flex items-start justify-between mb-3">
-          <div className="flex items-center gap-3">
-            <img src="/operai.svg" alt={APP_NAME} className="h-9 w-9 rounded-md shrink-0" />
-            <div>
-              <h2 className="font-disp text-sm font-bold text-text leading-none">{APP_NAME}</h2>
-            </div>
-          </div>
-          <button
-            onClick={onClose}
-            className="text-muted hover:text-text text-lg leading-none transition-colors"
-            aria-label="Close"
-          >
-            ×
-          </button>
-        </div>
+    <Dialog
+      size="sm"
+      onClose={onClose}
+      closeLabel={strings.about.close}
+      testIdPrefix="about-modal"
+      title={
+        <span className="flex items-center gap-3">
+          <img src="/operai.svg" alt="" className="h-9 w-9 rounded-md shrink-0" />
+          <VisuallyHidden>{strings.about.title(APP_NAME)}</VisuallyHidden>
+          <span aria-hidden="true">{APP_NAME}</span>
+        </span>
+      }
+    >
+      <p className="text-xs text-soft leading-relaxed mb-1">{APP_DESCRIPTION}</p>
+      <p className="text-2xs text-muted italic mb-4">{APP_TAGLINE}</p>
 
-        <p className="text-[12px] text-soft leading-relaxed mb-1">{APP_DESCRIPTION}</p>
-        <p className="text-[11px] text-muted italic mb-4">{APP_TAGLINE}</p>
-
-        <div className="flex flex-col">
-          <InfoRow label="Version">
-            <span className="font-mono">{APP_VERSION}</span>
-          </InfoRow>
-          <InfoRow label="Author">
-            <a
-              href={APP_AUTHOR_URL}
-              target="_blank"
-              rel="noreferrer"
-              className="text-acc hover:text-acc-hi underline underline-offset-2"
-            >
-              {APP_AUTHOR}
-            </a>
-          </InfoRow>
-        </div>
-
-        <div className="flex flex-col mt-3 pt-3 border-t border-rule/50">
-          <p className="text-[9px] font-mono uppercase tracking-widest text-muted mb-1.5">Components</p>
-          {remoteVersionSources.map((source) => {
-            const version = remoteVersions[source.id]
-            return (
-              <InfoRow key={source.id} label={source.label}>
-                <span
-                  data-testid={`remote-version-${source.id}`}
-                  className={version ? 'font-mono' : 'font-mono text-dim'}
-                >
-                  {version ?? '—'}
-                </span>
-              </InfoRow>
-            )
-          })}
-        </div>
+      <div className="flex flex-col">
+        <InfoRow label={strings.about.version}>
+          <span className="font-mono">{APP_VERSION}</span>
+        </InfoRow>
+        <InfoRow label={strings.about.author}>
+          <a href={APP_AUTHOR_URL} target="_blank" rel="noreferrer" className="link">
+            {APP_AUTHOR}
+          </a>
+        </InfoRow>
       </div>
-    </div>
+
+      <div className="flex flex-col mt-3 pt-3 border-t border-rule/50">
+        <p className="text-2xs font-mono uppercase tracking-widest text-muted mb-1.5">{strings.about.components}</p>
+        {remoteVersionSources.map((source) => {
+          const version = remoteVersions[source.id]
+          return (
+            <InfoRow key={source.id} label={source.label}>
+              <span data-testid={`remote-version-${source.id}`} className={version ? 'font-mono' : 'font-mono text-dim'}>
+                {version ?? '—'}
+              </span>
+            </InfoRow>
+          )
+        })}
+      </div>
+    </Dialog>
   )
 }

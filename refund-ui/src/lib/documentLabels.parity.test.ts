@@ -21,7 +21,7 @@
 
 import { describe, expect, it } from 'vitest'
 import { EXPENSE_TYPES } from './expenseTypes'
-import { strings } from '../strings'
+import { catalogs } from '../strings'
 
 /** Verbatim from refund-api/src/requests/document-labels.json. */
 const CANONICAL = {
@@ -52,26 +52,24 @@ const CANONICAL = {
   },
 } as const
 
+// The PDFs are English, so the ENGLISH catalog is the one that must match —
+// whatever language the test run (or the person) resolves to (INC-25).
 describe('document label parity with refund-api', () => {
   it('every expense type label matches the canonical table', () => {
     for (const option of EXPENSE_TYPES) {
-      expect(option.labelEn).toBe(
-        CANONICAL.expenseType[option.id as keyof typeof CANONICAL.expenseType],
-      )
+      expect(option.labelEn).toBe(CANONICAL.expenseType[option.id as keyof typeof CANONICAL.expenseType])
     }
   })
 
   it('the catalogue has exactly the canonical set of types — none added or dropped', () => {
-    expect(EXPENSE_TYPES.map((o) => o.id).sort()).toEqual(
-      Object.keys(CANONICAL.expenseType).sort(),
-    )
+    expect(EXPENSE_TYPES.map((o) => o.id).sort()).toEqual(Object.keys(CANONICAL.expenseType).sort())
   })
 
   it('entity labels match', () => {
-    expect(strings.badges.entity).toMatchObject(CANONICAL.entity)
+    expect(catalogs.en.badges.entity).toMatchObject(CANONICAL.entity)
   })
 
   it('request status labels match', () => {
-    expect(strings.badges.requestStatus).toMatchObject(CANONICAL.requestStatus)
+    expect(catalogs.en.badges.requestStatus).toMatchObject(CANONICAL.requestStatus)
   })
 })

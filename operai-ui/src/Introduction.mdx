@@ -1,0 +1,62 @@
+import { Meta } from '@storybook/addon-docs/blocks'
+
+<Meta title="Introduction" />
+
+# Operai UI
+
+`@operai/ui` is the design system shared by every frontend of the Operai suite: the
+design tokens and the two themes, the component classes in `tokens.css`, the React
+components built on them, and the formatting and language helpers. An app imports
+from `@operai/ui` and compiles the library from source; there is no separate build.
+
+This Storybook is the browsable reference. Everything in it is generic: fictional
+data, English copy, no app of the suite. A screen in an app follows the same
+composition with its own data, strings and router links.
+
+## How to read it
+
+| Section | What you find |
+|---|---|
+| **Foundations** | Colours (with which ones may be text), the type scale and the three font families, spacing and the three column widths, the themes, the keyboard focus ring, the icon set, the status dictionary, the formatters and the language helpers. |
+| **Components** | One entry per exported component. The _Docs_ page lists its props (generated from the source) and every story; _Playground_ stories have live controls; the other stories show one variant or state each. |
+| **Pages** | Complete, interactive example pages of a fictional _Catalogue_ tool: navigation, a list, a card list, a detail page, a form, deletion, a quick-create dialog, settings and the empty/denied/not-found/error states. Several simulate network latency so loading and busy states can be seen. |
+
+### Toolbar and panels
+
+- **Theme** (toolbar): switches every story between the dark theme (the default)
+  and the light theme, exactly as the suite's theme toggle does (`data-theme` on
+  `<html>`). Check every new component and page in both.
+- **Controls** (panel): changes the props of a _Playground_ story, or the state of a
+  page (loading, empty, error, forbidden) where the story offers it.
+- **Actions** (panel): logs the callbacks a story receives (`onClick`, `onConfirm`, …).
+- **Accessibility** (panel): runs axe on the story. A violation fails the story, so
+  every story must pass in both themes.
+
+### Trying the keyboard
+
+Click into the canvas, then use Tab, Shift+Tab, the arrow keys (tabs), Enter and
+Escape (dialogs). Dialogs open from a trigger button so you can check that focus
+moves into the dialog and returns to the trigger when it closes.
+
+## Rules and procedures
+
+The rules live next to the code, in the library's `docs/` folder:
+
+- `operai-ui/docs/design-system.md`: what to use when (tokens, type, layout, buttons,
+  dialogs, forms, data, feedback, the accessibility checklist).
+- `operai-ui/docs/building-pages.md`: the step-by-step procedure for building a page.
+- `operai-ui/docs/decisions.md`: why the library is built the way it is.
+- `operai-ui/README.md`: working on the library and adopting it in an app.
+- `operai-ui/src/index.ts`: the complete list of exports.
+
+## The short version
+
+1. Every user-visible string is a prop: the library has no copy. Apps pass text from
+   their own strings module (`selectStrings({ en, it })`).
+2. One `primary` button per view; choose a variant by meaning; sentence-case labels,
+   verb first, no glyph prefixes.
+3. A page shows exactly one state: loading, failed, forbidden, empty or loaded.
+4. Colours and fonts are token utilities (`text-soft`, `bg-ink-mid`, `font-mono`),
+   never a hex value or `var(--…)` in TypeScript.
+5. Dates show as `dd.mm.yyyy` (`formatDate`); amounts are integer minor units, shown
+   with `formatMoney` in DM Mono.

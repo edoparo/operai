@@ -1,5 +1,7 @@
 import { Outlet } from '@tanstack/react-router'
+import { ToolLayout } from '@operai/ui'
 import SectionNav from './SectionNav'
+import { strings } from '../strings'
 
 /**
  * AdminShell — admin-ui's own root layout, wired as the inner router's root
@@ -21,22 +23,15 @@ import SectionNav from './SectionNav'
  * (specs/003-suite-shell, AC-2.3): the shell's own `_authed` guard (and, per
  * a later task of this feature, a per-tool `access` guard) already runs
  * before admin-ui is ever mounted.
+ *
+ * Frame from @operai/ui (ADR-0050, INC-12): `ToolLayout` renders the tool
+ * title (h1), the tabs and the page column — a <div>, never a <main>: the
+ * shell's layout owns the page's one main landmark.
  */
 export default function AdminShell() {
   return (
-    <div className="min-h-screen" style={{ color: 'var(--text)', fontFamily: 'var(--body)' }}>
-      <header style={{ borderBottom: '1px solid var(--rule)', backgroundColor: 'var(--ink-soft)' }}>
-        <div className="mx-auto max-w-5xl px-6 py-4">
-          <h1 className="text-xl font-bold" style={{ fontFamily: 'var(--disp)' }}>
-            Admin
-          </h1>
-        </div>
-        <SectionNav />
-      </header>
-
-      <main className="mx-auto max-w-5xl px-6 py-8">
-        <Outlet />
-      </main>
-    </div>
+    <ToolLayout title={strings.nav.toolTitle} nav={<SectionNav />}>
+      <Outlet />
+    </ToolLayout>
   )
 }

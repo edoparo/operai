@@ -68,6 +68,10 @@ operai/
 ├── inventory-ui/        # Inventory tool — federated remote (port 5178): exposes ./App (gated, /inventory), ./MyDevices
 │                        # (ungated, /devices; ADR-0045) and ./version; calls inventory-api and auth's user directory
 │                        # through shell/session (no VITE_* of its own) (specs/015)
+├── operai-ui/           # @operai/ui — the DESIGN SYSTEM (ADR-0050): tokens/themes/fonts + component classes
+│                        # (src/styles/tokens.css, re-exported by shell/tokens.css), React components (src/components),
+│                        # Storybook (`mise run ui:storybook`), rules in docs/. NOT an app: never built or deployed;
+│                        # apps compile its source through a Vite alias. Used by all six frontends
 │
 ├── auth/                # Bun + Hono authentication service
 │   ├── src/
@@ -98,7 +102,8 @@ operai/
 │                        # snapshotted (ADR-0046); invoice files in its own EU bucket; pushes to notify-api with a scoped
 │                        # service JWT (ADR-0044). scripts/import-legacy.ts = one-off register import (specs/015)
 │
-├── docs/adr/            # Architecture Decision Records (0001–0049; see ## Architecture decisions)
+├── docs/adr/            # Architecture Decision Records (0001–0051; see ## Architecture decisions)
+├── docs/ui-inconsistencies.md  # UI/UX audit across the six frontends, with what each migration fixed
 ├── infra/               # Deploy/verify scripts + the cross-service env contract notes (README.md);
 │                        # provision-tool.sh creates/audits one tool's Railway service, Vercel project and DNS
 │                        # (runbook: .claude/skills/provision-tool)
@@ -132,6 +137,9 @@ All six share one stack. Each is installed and deployed on its own (no npm works
   journeys run through the host
 - **Fonts:** DM Sans, DM Mono, Syne (Google Fonts)
 - **Styling:** Tailwind CSS 4
+- **Design system:** `@operai/ui` (`operai-ui/`, ADR-0050) — tokens, themes, component classes and
+  React components, compiled from source by each app (Vite alias + `resolve.dedupe` + tsconfig
+  `paths`; see `operai-ui/README.md`); showcased in its own Storybook 10
 - **Lint/format:** ESLint 9 (flat config) + Prettier
 - **Deploy:** Vercel, one project per frontend (auto-deploy on push to `main`)
 
@@ -400,9 +408,32 @@ wrong, update the spec first, then re-sync tasks. Run traces live in `.forge/run
 - CSS variables defined in the root `<style>` block in `EstimatorApp.tsx`; do not add
   external CSS files unless introducing a proper CSS module setup
 - All numbers displayed to the user must be rounded (`.toFixed()` or `Math.round()`)
-- Buttons use the shared classes from `shell/src/styles/tokens.css` (`btn` + `btn-primary` /
-  `btn-secondary` / `btn-ghost` / `btn-danger`) on `<button>` and button-like links alike; never
-  restyle colour, border or radius per button. Rules and migration status: `docs/design-system.md`
+- **Building or changing any screen (page, dialog, form, list, table) in any frontend: FIRST load
+  `operai-ui/docs/building-pages.md`** (the procedure, step by step) **and
+  `operai-ui/docs/design-system.md`** (the rules it points to: tokens, which colours may be text,
+  button variants by meaning, dialogs, forms, states, a11y). Then read `operai-ui/src/index.ts` for
+  what exists. Working examples of each page type: Storybook § Pages
+  (`operai-ui/src/pages/`, a generic example tool).
+- Use `@operai/ui` components (`Button`, `ConfirmDialog`, `FormDialog`, `Field`, `DataTable`,
+  `PageHeader`, `Banner`, `StatePanel`, …) instead of writing markup; never copy a component from
+  another app. A pattern a second app needs goes INTO the library, with a story and a test. All six
+  frontends use the library; a new tool wires it up before its first screen (Vite alias,
+  `resolve.dedupe`, tsconfig `paths` — see `operai-ui/README.md`)
+- **One styling dialect (ADR-0051):** colours and fonts are Tailwind token utilities (`text-soft`,
+  `bg-ink-mid`, `border-rule`, `bg-org/10`, `font-mono`); never `var(--…)` in TS/TSX, never a colour
+  in `style`, never an arbitrary colour class (`text-[#…]`) — ESLint rejects all three in every app.
+  A status → colour map holds complete class strings. Inline `style` only for runtime values
+  (width, position). A new colour is a new token in `operai-ui/src/styles/tokens.css`
+- Never restyle colour, border or radius of a library component or `.btn`; never use `--muted` for
+  text a user must read (it fails WCAG AA)
+- Library components take every user-visible string as a prop — copy stays in the app's strings module
+- **Copy and language (INC-24/25):** every user-visible string lives in the app's strings module as an
+  `en` catalog plus a complete `it: typeof en`, exported via `selectStrings({ en, it })`; each app tests
+  parity (`catalogGaps`) and scans every `.tsx` for hardcoded copy. The shell sets `<html lang>` once at
+  startup; never detect the language in an app. Sentence case everywhere
+- **Format and icons:** dates/amounts/numbers only through the library formatters (`formatDate` dd.mm.yyyy,
+  `formatMoney(cents, currency)`, `formatNumber`); statuses through `StatusBadge` with the app's one
+  domain→meaning map; icons only through `Icon` — never an emoji or a Unicode glyph as an icon
 - Authenticated backend calls go through `apiFetch` (`src/lib/api.ts`, or `shell/session`'s
   for the other remotes) — it attaches the Bearer JWT to trusted origins only and handles the
   401 refresh-retry-redirect (ADR-0001)
@@ -468,6 +499,13 @@ pnpm build            # tsc -b + vite build (typecheck happens here)
 pnpm test             # vitest
 ```
 
+The shared design system (`operai-ui/`) is not an app; it has its own checks and Storybook:
+
+```bash
+mise run ui:storybook   # http://localhost:6006 — components, foundations, page compositions, both themes
+mise run ui:check       # library typecheck/lint/tests/Storybook build + build & test of every consumer
+```
+
 `estimai-ui` has **no** `e2e` script. Playwright for every remote runs from the shell host:
 
 ```bash
@@ -529,7 +567,7 @@ the top. Still on the roadmap, not yet built:
 | **RetroAI** | Sprint retrospective facilitation and pattern detection |
 | **ProposAI** | Consulting proposal drafting from project briefs |
 
-All tools share the Operai design system (DM Sans / DM Mono / Syne, dark ink palette, purple AI accent).
+All tools share the Operai design system, `@operai/ui` (DM Sans / DM Mono / Syne, dark ink palette, purple AI accent).
 A new tool is a federated remote mounted by the shell (ADR-0006), gated by an `(appId, "access")`
 grant in `auth`'s catalog (ADR-0007), and — if it owns data — a JWKS resource server of its own
 (ADR-0005/0010).
@@ -612,3 +650,5 @@ These defaults are optimized for AI coding agents (and humans) working on apps t
 - [0047] A list-of-people read is a fact endpoint, acceptable only behind a named capability whose holders have a business need to pick a person — `auth GET /authz/users/directory` returns active `{id,name,email,entity}` (both entities, name-sorted, no pagination) on the forwarded-caller JWT, gated on the `inventory` catalog's `asset:manage`, rate-limited, called directly by `inventory-ui` with `inventory-api` keeping no copy; it narrows ADR-0039 (which stays in force for `/authz/users/identities`) for that one audience only, and each further consumer is added to the gate deliberately; rejected: an exact-email decision endpoint (ADR-0035 style), reusing `requireAdmin` `GET /admin/users`, proxying/caching the list in `inventory-api`, and adding search/email to `/authz/users/identities`; escalation trigger: a second consuming app or a user count that makes an unpaginated list unreasonable (see docs/adr/0047-user-directory-endpoint-capability-gated.md)
 - [0048] `auth` is both the issuer of service credentials and a notify-api caller (invitation emails), so it mints its own credential IN PROCESS instead of calling its own `POST /system/service-token` — `sub="system:auth"`, `aud=SERVICE_AUDIENCE`, scope `emails.send`, same better-auth signer and 300 s lifetime, one claim/sign function shared with the endpoint, signer injected in `src/index.ts`; the client id `auth` is RESERVED (a `SERVICE_CLIENTS` entry named `auth` refuses to start, otherwise the holder of that entry's secret could mint tokens indistinguishable from `auth`'s own); rejected: loopback HTTP to its own endpoint with its own client secret (extra hop, spends the endpoint's rate limit, a secret that proves nothing because the verifier is the holder), and keeping the shared token for `auth` alone (it could never be retired, specs/016 US-5) (see docs/adr/0048-auth-mints-own-service-credential-in-process.md)
 - [0049] Every notify-api caller authenticates as itself and the shared token is retired — `auth`, `refund-api`, `estimai-api` and `inventory-api` use scoped 5-minute service JWTs, one scope per capability (`notifications.push`, `emails.send`; estimai-api and inventory-api push only, auth email only, refund-api both), push origin bound per client, one notify-api middleware guards both `/system` routes and logs `caller=<sub>`; retirement is THREE pushes (notify-api and auth accept the new mechanism → callers switch, verified from the caller log → a person deletes the variable from notify-api, the point of no return, undone by restoring it → legacy code, env-doctor, infra and docs removed), because one push redeploys every Railway service in no fixed order; **supersedes the shared-token parts of ADR-0011, ADR-0017 and ADR-0040** and completes ADR-0044's named follow-up; rejected: one scope for both capabilities, a single push, a caller-side fallback to the shared token (keeps it alive, hides a misconfigured client), and per-template binding of the email scope (deferred; trigger: a client that should send only some templates) (see docs/adr/0049-all-notify-callers-scoped-credentials-shared-token-retired.md)
+- [0050] The design system becomes a shared React library, `@operai/ui` in `operai-ui/`, that every frontend compiles FROM SOURCE via a Vite alias + `resolve.dedupe: ['react','react-dom']` + tsconfig `paths` (no build, no publish, no workspace, one React under the MF singleton); `tokens.css` moves into it and `shell/src/styles/tokens.css` becomes a one-line `@import` so `shell/tokens.css` keeps working; components render only library classes (no utilities, no inline colours) and take all copy as props; apps keep thin adapters that bind copy and e2e test ids; adoption is app by app (refund-ui first); rejected: pnpm `link:`/`file:` (second or missing React on Vercel, stale snapshot), a workspace (breaks per-app installs), exposing components via Module Federation (untyped runtime coupling), a private registry (publish step, credentials) (see docs/adr/0050-shared-ui-library-consumed-as-source.md)
+- [0051] One styling dialect in every frontend: tokens are CSS custom properties defined once in `operai-ui/src/styles/tokens.css`, mapped by Tailwind v4 `@theme inline` (utilities read `var(--x)`, one definition per token, default palette removed), reaching elements ONLY as token utilities (`text-soft`, `bg-org/10`) or library component classes; inline `style` only for runtime values; enforced by `operai-ui/eslint/design-tokens.ts` in every app (no `var(--` in TS, no colour in `style`, no arbitrary colour classes); remotes' standalone `index.css` import the library tokens instead of copies (supersedes the ADR-0006 addendum's sync-the-copy rule); the inline-`var()` dialect of refund/admin/notify/inventory rested on a premise the ADR-0006 single-sheet addendum had already removed; rejected: inline vars everywhere (no variants), CSS Modules / zero-runtime CSS-in-JS (second toolchain), runtime CSS-in-JS, per-remote prefixed Tailwind sheets (the federation-pure escape hatch — trigger: a remote deploying from another repo or cadence) (see docs/adr/0051-one-styling-dialect-token-utilities.md)

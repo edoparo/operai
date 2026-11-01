@@ -30,10 +30,18 @@
  *   • Client-side validation (name required) never reaches the network —
  *     the inline error area is shared between that and a 409 from the
  *     server so there is exactly one place errors surface.
+ *
+ * Built on @operai/ui's `FormDialog` (ADR-0050, INC-09): the library owns
+ * the frame, the focus trap (now over every enabled control, the header ×
+ * included), Escape/backdrop = Cancel (never while submitting), focus return
+ * and the buttons.
  */
 
-import { useEffect, useRef, useState } from 'react'
-import type { FormEvent } from 'react'
+import { useRef, useState } from 'react'
+import { Field, FormDialog } from '@operai/ui'
+import { strings } from '../strings'
+
+const NAME_REQUIRED = strings.common.nameRequired
 
 export type CreateDepartmentModalProps = {
   /** Whether the create request is currently in-flight. */
@@ -54,188 +62,82 @@ export default function CreateDepartmentModal({
 }: CreateDepartmentModalProps) {
   const [name, setName] = useState('')
   const [description, setDescription] = useState('')
-  const [validationError, setValidationError] = useState<string | null>(null)
+  const [typed, setTyped] = useState(false)
+  // The Name field's own error (INC-16): set by a failed submit, or on blur
+  // of a name typed then cleared; cleared as the admin types.
+  const [nameError, setNameError] = useState<string | null>(null)
+  const nameRef = useRef<HTMLInputElement>(null)
 
-  const nameInputRef = useRef<HTMLInputElement>(null)
-  const formRef = useRef<HTMLFormElement>(null)
-
-  // Focus the Name field on mount — the first thing to fill in.
-  useEffect(() => {
-    nameInputRef.current?.focus()
-  }, [])
-
-  // Escape = Cancel; Tab is trapped within every focusable element currently
-  // inside the FORM (name input, description textarea, Cancel, Create) —
-  // queried live, so it stays correct as fields disable during submission.
-  // The header "×" button is deliberately excluded from this ring, mirroring
-  // ConfirmDeleteModal's own trap (which only cycles its two footer
-  // buttons): a keyboard user closes via Escape, not by tabbing to "×".
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') {
-        e.preventDefault()
-        onCancel()
-        return
-      }
-
-      if (e.key !== 'Tab' || !formRef.current) return
-
-      const focusable = Array.from(formRef.current.querySelectorAll<HTMLElement>('input, textarea, button')).filter(
-        (el) => !(el as HTMLButtonElement | HTMLInputElement).disabled,
-      )
-      if (focusable.length === 0) return
-
-      const first = focusable[0]
-      const last = focusable[focusable.length - 1]
-
-      if (e.shiftKey) {
-        if (document.activeElement === first) {
-          e.preventDefault()
-          last.focus()
-        }
-      } else {
-        if (document.activeElement === last) {
-          e.preventDefault()
-          first.focus()
-        }
-      }
-    }
-
-    window.addEventListener('keydown', onKey)
-    return () => window.removeEventListener('keydown', onKey)
-  }, [onCancel])
-
-  const handleSubmit = (e: FormEvent) => {
-    e.preventDefault()
+  const handleSubmit = () => {
     const trimmedName = name.trim()
     if (!trimmedName) {
-      setValidationError('Name is required.')
+      setNameError(NAME_REQUIRED)
+      nameRef.current?.focus()
       return
     }
-    setValidationError(null)
+    setNameError(null)
     const trimmedDescription = description.trim()
     onSubmit({ name: trimmedName, description: trimmedDescription || undefined })
   }
 
-  const inlineError = validationError ?? errorMessage
-
   return (
-    <div
-      className="fixed inset-0 z-50 flex items-center justify-center backdrop-blur-sm"
-      style={{ backgroundColor: 'rgba(0, 0, 0, 0.6)' }}
-      onClick={onCancel}
-      data-testid="create-department-modal"
+    <FormDialog
+      title={strings.departments.createDialog.title}
+      size="sm"
+      submitLabel={strings.common.actions.create}
+      busyLabel={strings.common.actions.creating}
+      cancelLabel={strings.common.actions.cancel}
+      closeLabel={strings.common.actions.cancel}
+      busy={isSubmitting}
+      error={errorMessage}
+      onSubmit={handleSubmit}
+      onCancel={onCancel}
+      testIdPrefix="create-department"
+      backdropTestId="create-department-modal"
     >
-      <div
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby="create-department-title"
-        className="border rounded-lg shadow-2xl w-full max-w-sm mx-4 p-5"
-        style={{ backgroundColor: 'var(--ink-soft)', borderColor: 'var(--rule)' }}
-        onClick={(e) => e.stopPropagation()}
+      <Field
+        label={strings.common.fields.name}
+        required
+        error={
+          nameError && (
+            <span role="alert" data-testid="create-department-name-error">
+              {nameError}
+            </span>
+          )
+        }
       >
-        {/* Header */}
-        <div className="flex items-center justify-between mb-3">
-          <h2
-            id="create-department-title"
-            className="text-sm font-bold"
-            style={{ fontFamily: 'var(--disp)', color: 'var(--text)' }}
-          >
-            New department
-          </h2>
-          <button
-            type="button"
-            onClick={onCancel}
+        {(control) => (
+          <input
+            {...control}
+            ref={nameRef}
+            type="text"
+            value={name}
             disabled={isSubmitting}
-            aria-label="Cancel"
-            className="text-lg leading-none transition-opacity hover:opacity-80 disabled:opacity-40 disabled:cursor-not-allowed"
-            style={{ color: 'var(--muted)' }}
-          >
-            ×
-          </button>
-        </div>
+            onChange={(e) => {
+              setTyped(true)
+              setNameError(null)
+              setName(e.target.value)
+            }}
+            onBlur={() => {
+              if (typed && name.trim() === '') setNameError(NAME_REQUIRED)
+            }}
+            data-testid="create-department-name-input"
+          />
+        )}
+      </Field>
 
-        <form ref={formRef} onSubmit={handleSubmit}>
-          <div className="mb-3">
-            <label
-              htmlFor="create-department-name"
-              className="block text-xs font-medium mb-1"
-              style={{ color: 'var(--soft)' }}
-            >
-              Name{' '}
-              <span aria-hidden="true" style={{ color: 'var(--red)' }}>
-                *
-              </span>
-              <span className="sr-only">(required)</span>
-            </label>
-            <input
-              ref={nameInputRef}
-              id="create-department-name"
-              type="text"
-              aria-required="true"
-              value={name}
-              disabled={isSubmitting}
-              onChange={(e) => setName(e.target.value)}
-              className="w-full text-sm px-3 py-2 border rounded disabled:opacity-60"
-              style={{ borderColor: 'var(--rule)', backgroundColor: 'var(--ink)', color: 'var(--text)' }}
-              data-testid="create-department-name-input"
-            />
-          </div>
-
-          <div className="mb-3">
-            <label
-              htmlFor="create-department-description"
-              className="block text-xs font-medium mb-1"
-              style={{ color: 'var(--soft)' }}
-            >
-              Description <span style={{ color: 'var(--muted)', fontWeight: 400 }}>(optional)</span>
-            </label>
-            <textarea
-              id="create-department-description"
-              value={description}
-              disabled={isSubmitting}
-              onChange={(e) => setDescription(e.target.value)}
-              rows={3}
-              className="w-full text-sm px-3 py-2 border rounded disabled:opacity-60"
-              style={{ borderColor: 'var(--rule)', backgroundColor: 'var(--ink)', color: 'var(--text)' }}
-              data-testid="create-department-description-input"
-            />
-          </div>
-
-          {inlineError && (
-            <p
-              role="alert"
-              className="text-sm mb-3"
-              style={{ color: 'var(--org)' }}
-              data-testid="create-department-error"
-            >
-              {inlineError}
-            </p>
-          )}
-
-          <div className="flex items-center justify-end gap-3">
-            <button
-              type="button"
-              onClick={onCancel}
-              disabled={isSubmitting}
-              data-testid="create-department-cancel"
-              className="py-2 px-4 text-sm font-medium border transition-opacity hover:opacity-80 disabled:opacity-40 disabled:cursor-not-allowed"
-              style={{ borderColor: 'var(--rule)', color: 'var(--muted)' }}
-            >
-              Cancel
-            </button>
-            <button
-              type="submit"
-              disabled={isSubmitting}
-              data-testid="create-department-submit"
-              className="py-2 px-4 text-sm font-medium border transition-opacity hover:opacity-80 disabled:opacity-40 disabled:cursor-not-allowed"
-              style={{ borderColor: 'var(--acc)', color: 'var(--acc)' }}
-            >
-              {isSubmitting ? 'Creating…' : 'Create'}
-            </button>
-          </div>
-        </form>
-      </div>
-    </div>
+      <Field label={strings.common.fields.description}>
+        {(control) => (
+          <textarea
+            {...control}
+            value={description}
+            disabled={isSubmitting}
+            onChange={(e) => setDescription(e.target.value)}
+            rows={3}
+            data-testid="create-department-description-input"
+          />
+        )}
+      </Field>
+    </FormDialog>
   )
 }

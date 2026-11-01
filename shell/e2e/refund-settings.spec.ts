@@ -104,7 +104,7 @@ async function composeAndSubmit(
   await page.getByTestId('composer-entity').selectOption(line.entity)
   // `composer-currency` has no default (an entity/currency pair is never
   // cross-validated, lineDraft.ts) — must be selected explicitly or
-  // `composer-add-button` stays disabled (`isLineDraftComplete`).
+  // `composer-add-button` refuses the line with a field error (`isLineDraftComplete`).
   await page.getByTestId('composer-currency').selectOption(line.currency)
   await page.getByTestId('composer-add-button').click()
   await expect(page.locator('[data-testid^="expense-line-row-"]')).toHaveCount(1, { timeout: 10_000 })

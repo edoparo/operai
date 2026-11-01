@@ -126,7 +126,7 @@ describe('ExpenseLineComposer — travel_km hides Amount/Currency (specs/009-mil
   })
 })
 
-describe('ExpenseLineComposer — Add disabled-until-valid', () => {
+describe('ExpenseLineComposer — Add: disabled only while blank, then validates (INC-16)', () => {
   it('"Add expense line" is disabled with an empty draft', () => {
     render(<ExpenseLineComposer onAdd={vi.fn()} />)
     expect(screen.getByTestId('composer-add-button')).toHaveProperty('disabled', true)
@@ -138,32 +138,103 @@ describe('ExpenseLineComposer — Add disabled-until-valid', () => {
     expect(screen.getByTestId('composer-add-button')).toHaveProperty('disabled', false)
   })
 
-  it('stays disabled for travel_km until km > 0 is also filled — amount/currency are no longer part of the check (specs/009-mileage-rate AC-1.1/1.6)', () => {
+  it('marks every field required (* + aria-required), with no "(required)" text in the labels', () => {
     render(<ExpenseLineComposer onAdd={vi.fn()} />)
+    for (const id of ['composer-date', 'composer-type', 'composer-motivo', 'composer-amount', 'composer-entity', 'composer-currency']) {
+      const control = screen.getByTestId(id)
+      expect(control.getAttribute('aria-required')).toBe('true')
+      const label = document.querySelector(`label[for="${control.id}"]`)
+      expect(label?.querySelector('.field-required')?.textContent).toBe('*')
+      expect(label?.textContent).not.toMatch(/required|optional/i)
+    }
+  })
+
+  it('travel_km: never adds without km > 0 — the failed Add shows the km error and focuses it (amount/currency are not part of the check, specs/009-mileage-rate AC-1.1/1.6)', () => {
+    const onAdd = vi.fn()
+    render(<ExpenseLineComposer onAdd={onAdd} />)
     fireEvent.change(screen.getByTestId('composer-date'), { target: { value: '2026-07-16' } })
     fireEvent.change(screen.getByTestId('composer-type'), { target: { value: 'travel_km' } })
     fireEvent.change(screen.getByTestId('composer-motivo'), { target: { value: 'Client visit' } })
     fireEvent.change(screen.getByTestId('composer-entity'), { target: { value: 'welld_it' } })
-    expect(screen.getByTestId('composer-add-button')).toHaveProperty('disabled', true)
 
-    fireEvent.change(screen.getByTestId('composer-km'), { target: { value: '0' } })
-    expect(screen.getByTestId('composer-add-button')).toHaveProperty('disabled', true)
+    fireEvent.click(screen.getByTestId('composer-add-button'))
+    expect(onAdd).not.toHaveBeenCalled()
+    const km = screen.getByTestId('composer-km')
+    expect(km.getAttribute('aria-invalid')).toBe('true')
+    expect(document.activeElement).toBe(km)
+    expect(screen.getByText(strings.pages.requestDetail.composer.fieldErrors.km)).not.toBeNull()
 
-    fireEvent.change(screen.getByTestId('composer-km'), { target: { value: '120' } })
-    expect(screen.getByTestId('composer-add-button')).toHaveProperty('disabled', false)
+    fireEvent.change(km, { target: { value: '0' } })
+    fireEvent.click(screen.getByTestId('composer-add-button'))
+    expect(onAdd).not.toHaveBeenCalled()
+
+    fireEvent.change(km, { target: { value: '120' } })
+    expect(km.getAttribute('aria-invalid')).toBeNull()
   })
 
-  it('stays disabled until currency is also selected, independent of entity (no default, deliberate choice)', () => {
-    render(<ExpenseLineComposer onAdd={vi.fn()} />)
+  it('never adds without a currency (no default, deliberate choice) — the error describes the select', () => {
+    const onAdd = vi.fn()
+    render(<ExpenseLineComposer onAdd={onAdd} />)
     fireEvent.change(screen.getByTestId('composer-date'), { target: { value: '2026-07-16' } })
     fireEvent.change(screen.getByTestId('composer-type'), { target: { value: 'stationery' } })
     fireEvent.change(screen.getByTestId('composer-motivo'), { target: { value: 'Pens' } })
     fireEvent.change(screen.getByTestId('composer-amount'), { target: { value: '10.00' } })
     fireEvent.change(screen.getByTestId('composer-entity'), { target: { value: 'welld_it' } })
-    expect(screen.getByTestId('composer-add-button')).toHaveProperty('disabled', true)
 
-    fireEvent.change(screen.getByTestId('composer-currency'), { target: { value: 'EUR' } })
-    expect(screen.getByTestId('composer-add-button')).toHaveProperty('disabled', false)
+    fireEvent.click(screen.getByTestId('composer-add-button'))
+    expect(onAdd).not.toHaveBeenCalled()
+    const currency = screen.getByTestId('composer-currency')
+    expect(currency.getAttribute('aria-invalid')).toBe('true')
+    const describedBy = currency.getAttribute('aria-describedby')
+    expect(document.getElementById(describedBy!)?.textContent).toBe(
+      strings.pages.requestDetail.composer.fieldErrors.currency,
+    )
+
+    fireEvent.change(currency, { target: { value: 'EUR' } })
+    expect(currency.getAttribute('aria-invalid')).toBeNull()
+  })
+
+  it('a failed Add focuses the FIRST invalid field in render order and marks every invalid one', () => {
+    render(<ExpenseLineComposer onAdd={vi.fn()} />)
+    fireEvent.change(screen.getByTestId('composer-amount'), { target: { value: '12' } })
+
+    fireEvent.click(screen.getByTestId('composer-add-button'))
+
+    expect(document.activeElement).toBe(screen.getByTestId('composer-type'))
+    expect(screen.getByTestId('composer-type').getAttribute('aria-invalid')).toBe('true')
+    expect(screen.getByTestId('composer-motivo').getAttribute('aria-invalid')).toBe('true')
+    expect(screen.getByTestId('composer-entity').getAttribute('aria-invalid')).toBe('true')
+    expect(screen.getByTestId('composer-currency').getAttribute('aria-invalid')).toBe('true')
+    // The pre-filled date and the valid amount are not flagged.
+    expect(screen.getByTestId('composer-date').getAttribute('aria-invalid')).toBeNull()
+    expect(screen.getByTestId('composer-amount').getAttribute('aria-invalid')).toBeNull()
+  })
+
+  it('shows a field error on blur of a touched field, not before', () => {
+    render(<ExpenseLineComposer onAdd={vi.fn()} />)
+    const amount = screen.getByTestId('composer-amount')
+    fireEvent.change(amount, { target: { value: '12.345' } })
+    expect(amount.getAttribute('aria-invalid')).toBeNull()
+
+    fireEvent.blur(amount)
+    expect(amount.getAttribute('aria-invalid')).toBe('true')
+    expect(screen.getByText(strings.pages.requestDetail.composer.fieldErrors.amount)).not.toBeNull()
+    // Untouched fields stay quiet.
+    expect(screen.getByTestId('composer-motivo').getAttribute('aria-invalid')).toBeNull()
+  })
+
+  it('accepts a comma as the decimal separator (MoneyInput + parseDecimal, INC-17)', async () => {
+    const onAdd = vi.fn().mockResolvedValue(undefined)
+    render(<ExpenseLineComposer onAdd={onAdd} />)
+    fillNonKmLine()
+    const amount = screen.getByTestId('composer-amount')
+    expect(amount.getAttribute('type')).toBe('text')
+    expect(amount.getAttribute('inputmode')).toBe('decimal')
+    fireEvent.change(amount, { target: { value: '45,5' } })
+
+    fireEvent.click(screen.getByTestId('composer-add-button'))
+
+    await waitFor(() => expect(onAdd).toHaveBeenCalledWith(expect.objectContaining({ requestedAmountCents: 4550 })))
   })
 })
 

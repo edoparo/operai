@@ -20,15 +20,16 @@ afterEach(() => {
 })
 
 describe('SystemBadge', () => {
-  it('renders a decorative glyph plus the "System" text', () => {
+  it('renders a decorative icon plus the "System" text', () => {
     render(<SystemBadge />)
 
     const badge = screen.getByTestId('system-badge')
     expect(badge.textContent).toContain('System')
 
+    // INC-31: the decorative glyph is an SVG icon, not a Unicode character.
     const glyph = badge.querySelector('[aria-hidden="true"]')
     expect(glyph).not.toBeNull()
-    expect(glyph!.textContent).not.toBe('')
+    expect(glyph!.querySelector('svg')).not.toBeNull()
   })
 
   it('carries an explanatory title', () => {

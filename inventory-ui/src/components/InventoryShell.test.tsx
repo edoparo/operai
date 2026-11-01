@@ -88,12 +88,12 @@ describe('structure', () => {
     expect(screen.getByRole('navigation', { name: 'Inventory sections' })).not.toBeNull()
   })
 
-  it('renders the tabs as real links and the routed page inside <main>', async () => {
+  it('renders the tabs as real links and the routed page, with no <main> of its own (the shell owns it, ADR-0006)', async () => {
     await renderShellAt('/assets')
 
     screen.getAllByRole('link').forEach((link) => expect(link.tagName).toBe('A'))
     expect(await screen.findByText('assets page')).not.toBeNull()
-    expect(screen.getByRole('main').textContent).toContain('assets page')
+    expect(screen.queryByRole('main')).toBeNull()
   })
 })
 

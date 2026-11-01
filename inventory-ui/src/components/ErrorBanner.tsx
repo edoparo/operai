@@ -18,8 +18,13 @@
  *
  * A11y: `role="alert"` — assistive tech announces the message when it is
  * inserted, without focus moving there. Retry and Dismiss are real `<button>`s.
+ *
+ * Now a thin adapter over @operai/ui's `Banner tone="warning"` (ADR-0050):
+ * same props, copy and data-testids (`error-banner`, `-heading`, `-retry`,
+ * `-dismiss`).
  */
 
+import { Banner } from '@operai/ui'
 import { strings } from '../strings'
 
 type Common = {
@@ -53,47 +58,18 @@ export default function ErrorBanner(props: ErrorBannerProps) {
     props.variant === 'authUnavailable' ? (props.message ?? strings.common.authUnavailable.body) : props.message
 
   return (
-    <div
-      role="alert"
+    <Banner
+      tone="warning"
       data-testid="error-banner"
-      className="flex items-center justify-between gap-4 px-4 py-3 rounded-md border text-sm"
-      style={{
-        borderColor: 'var(--org)',
-        backgroundColor: 'color-mix(in srgb, var(--org) 10%, transparent)',
-        color: 'var(--org)',
-      }}
+      title={heading !== null ? <span data-testid="error-banner-heading">{heading}</span> : undefined}
+      onRetry={onRetry}
+      retryLabel={retryLabel}
+      retryTestId="error-banner-retry"
+      onDismiss={onDismiss}
+      dismissLabel={strings.common.errorBanner.dismissLabel}
+      dismissTestId="error-banner-dismiss"
     >
-      <span className="flex flex-col gap-0.5">
-        {heading !== null && (
-          <strong data-testid="error-banner-heading" className="font-semibold">
-            {heading}
-          </strong>
-        )}
-        <span>{message}</span>
-      </span>
-      <span className="flex items-center gap-3 shrink-0">
-        {onRetry && (
-          <button
-            type="button"
-            onClick={onRetry}
-            data-testid="error-banner-retry"
-            className="btn btn-secondary btn-sm"
-          >
-            {retryLabel}
-          </button>
-        )}
-        {onDismiss && (
-          <button
-            type="button"
-            onClick={onDismiss}
-            aria-label={strings.common.errorBanner.dismissLabel}
-            data-testid="error-banner-dismiss"
-            className="btn btn-ghost btn-icon"
-          >
-            ×
-          </button>
-        )}
-      </span>
-    </div>
+      {message}
+    </Banner>
   )
 }

@@ -17,10 +17,10 @@
  * use. The read line updates only on a successful save, never as the admin
  * types.
  *
- * Two consumers of the T10 `Combobox` primitive (design.md "Country control"):
+ * Two consumers of the library `Combobox` (moved from admin-ui's T10 primitive) (design.md "Country control"):
  *   - Street: async, Google-backed, debounced (`../lib/googlePlaces.ts`, T7).
  *   - Country: sync, local filter over the bundled ISO 3166-1 list
- *     (`../lib/addressCopy.ts`, T13), labels via `Intl.DisplayNames`.
+ *     (`../lib/countries.ts`), labels via `Intl.DisplayNames`.
  *
  * Coordinate handling (AC-2.5/AC-2.6): `coords` holds whatever a selection
  * last captured; `snapshot` holds the six structured values AS OF that
@@ -38,7 +38,9 @@
  * field stuck or the save blocked.
  */
 
-import { useCallback, useEffect, useId, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { Button, Card, Combobox, Field, Icon, formatDateTime, resolveLocale } from '@operai/ui'
+import type { ComboboxOption } from '@operai/ui'
 import * as addressApi from '../lib/addressApi'
 import { ApiError } from '../lib/addressApi'
 import type { AddressHistoryEntry, AdminAddressView } from '../lib/addressApi'
@@ -46,17 +48,13 @@ import { createAddressSuggester } from '../lib/googlePlaces'
 import type { AddressComponents, AddressSuggester, PlaceSuggestion } from '../lib/googlePlaces'
 import { coordinatesForSave } from '../lib/addressCoordinates'
 import type { LatLng } from '../lib/addressCoordinates'
-import {
-  GOOGLE_ATTRIBUTION_TEXT,
-  ISO_3166_1_ALPHA2_CODES,
-  countryDisplayName,
-  resolveAddressLocale,
-  t,
-} from '../lib/addressCopy'
-import Combobox from './Combobox'
-import type { ComboboxOption } from './Combobox'
+import { ISO_3166_1_ALPHA2_CODES, countryDisplayName } from '../lib/countries'
+import { strings } from '../strings'
+
+const s = strings.address
 import SkeletonListRows from './SkeletonListRows'
 import ErrorBanner from './ErrorBanner'
+import SuccessBanner from './SuccessBanner'
 
 export type AddressSectionProps = {
   userId: string
@@ -92,29 +90,29 @@ type RequiredFieldKey = 'countryCode' | 'city' | 'street' | 'houseNumber'
 /**
  * Fallback message for the address/history GET fetch paths (F1/F5). An
  * `ApiError` always wins (it carries a real server-supplied message);
- * otherwise falls back to the localized `address.loadError` copy key (QE
+ * otherwise falls back to the localized `strings.address.loadError` (QE
  * fix — was a hardcoded, always-English literal that ALSO leaked into the
  * unrelated save-failure path below; see `saveErrorMessageFor`).
  */
-const loadErrorMessageFor = (error: unknown, locale: ReturnType<typeof resolveAddressLocale>): string => {
+const loadErrorMessageFor = (error: unknown): string => {
   if (error instanceof ApiError) {
     return error.detail ?? error.title
   }
-  return t('address.loadError', undefined, locale)
+  return s.loadError
 }
 
 /**
  * Fallback message for the `PUT` save path (F2 step 7's "Unexpected
  * failure"). Deliberately a SEPARATE function from `loadErrorMessageFor` (QE
- * fix) — the two states are wired to different `addressCopy.ts` keys
- * (`address.saveError` vs `address.loadError`) because "could not load"
+ * fix) — the two states are wired to different `strings.address` keys
+ * (`saveError` vs `loadError`) because "could not load"
  * copy is simply wrong when what actually failed was a save.
  */
-const saveErrorMessageFor = (error: unknown, locale: ReturnType<typeof resolveAddressLocale>): string => {
+const saveErrorMessageFor = (error: unknown): string => {
   if (error instanceof ApiError) {
     return error.detail ?? error.title
   }
-  return t('address.saveError', undefined, locale)
+  return s.saveError
 }
 
 const fieldsFromAddress = (address: AdminAddressView): FormFields => ({
@@ -127,40 +125,21 @@ const fieldsFromAddress = (address: AdminAddressView): FormFields => ({
 })
 
 /** Renders an audit `data.before`/`data.after` side — an address-shaped object with `formatted`, or `null`/absent for "no address on file". */
-const formatHistorySide = (value: unknown, locale: ReturnType<typeof resolveAddressLocale>): string => {
+const formatHistorySide = (value: unknown): string => {
   if (value && typeof value === 'object' && 'formatted' in value) {
     const formatted = (value as { formatted?: unknown }).formatted
     if (typeof formatted === 'string' && formatted.length > 0) return formatted
   }
-  return t('address.none', undefined, locale)
+  return s.none
 }
 
-const formatHistoryActor = (actorUserId: string | null, locale: ReturnType<typeof resolveAddressLocale>): string =>
-  actorUserId ?? t('address.history.deletedUser', undefined, locale)
+const formatHistoryActor = (actorUserId: string | null): string =>
+  actorUserId ?? s.history.deletedUser
 
-const formatHistoryTimestamp = (iso: string): string => {
-  try {
-    return new Date(iso).toLocaleString(undefined, {
-      day: 'numeric',
-      month: 'short',
-      year: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit',
-    })
-  } catch {
-    return iso
-  }
-}
-
-const inputStyle = (invalid: boolean) => ({
-  borderColor: invalid ? 'var(--red)' : 'var(--rule)',
-  backgroundColor: 'var(--ink-mid)',
-  color: 'var(--text)',
-})
 
 export default function AddressSection({ userId }: AddressSectionProps) {
-  const locale = resolveAddressLocale()
-  const reactId = useId()
+  // The suite's one resolved language (INC-25) — for Google's suggestion language and the country names.
+  const locale = resolveLocale()
 
   const [loadState, setLoadState] = useState<LoadState>({ status: 'loading' })
   const [reloadToken, setReloadToken] = useState(0)
@@ -178,6 +157,9 @@ export default function AddressSection({ userId }: AddressSectionProps) {
   const [missingFields, setMissingFields] = useState<ReadonlySet<string>>(new Set())
   const [saving, setSaving] = useState(false)
   const [saveError, setSaveError] = useState<string | null>(null)
+  // INC-19: "Address saved" / "Address cleared" beside the Save button.
+  const [saveSuccess, setSaveSuccess] = useState<string | null>(null)
+  const formRef = useRef<HTMLDivElement | null>(null)
 
   const [pendingClear, setPendingClear] = useState(false)
   const preClearRef = useRef<PreClearSnapshot | null>(null)
@@ -259,7 +241,7 @@ export default function AddressSection({ userId }: AddressSectionProps) {
         preClearRef.current = null
       })
       .catch((error: unknown) => {
-        if (!cancelled) setLoadState({ status: 'error', message: loadErrorMessageFor(error, locale) })
+        if (!cancelled) setLoadState({ status: 'error', message: loadErrorMessageFor(error) })
       })
 
     return () => {
@@ -284,7 +266,7 @@ export default function AddressSection({ userId }: AddressSectionProps) {
         if (!cancelled) setHistoryState({ status: 'loaded', entries: page.items })
       })
       .catch((error: unknown) => {
-        if (!cancelled) setHistoryState({ status: 'error', message: loadErrorMessageFor(error, locale) })
+        if (!cancelled) setHistoryState({ status: 'error', message: loadErrorMessageFor(error) })
       })
 
     return () => {
@@ -343,10 +325,10 @@ export default function AddressSection({ userId }: AddressSectionProps) {
   )
 
   const streetLiveRegionText = useMemo(() => {
-    if (streetCaption === 'no-results') return t('address.suggest.noResultsAnnounce', undefined, locale)
-    if (streetSuggestions.length > 0) return t('address.suggest.resultCount', { n: streetSuggestions.length }, locale)
+    if (streetCaption === 'no-results') return s.suggest.noResultsAnnounce
+    if (streetSuggestions.length > 0) return s.suggest.resultCount(streetSuggestions.length)
     return ''
-  }, [streetCaption, streetSuggestions.length, locale])
+  }, [streetCaption, streetSuggestions.length])
 
   // -------------------------------------------------------------------------
   // Country combobox wiring — sync, local, never Google-backed (design.md
@@ -374,9 +356,9 @@ export default function AddressSection({ userId }: AddressSectionProps) {
   const countryLiveRegionText = useMemo(() => {
     if (!countryPopupOpen) return ''
     return countryOptions.length > 0
-      ? t('address.country.resultCount', { n: countryOptions.length }, locale)
-      : t('address.country.noMatch', undefined, locale)
-  }, [countryPopupOpen, countryOptions.length, locale])
+      ? s.country.resultCount(countryOptions.length)
+      : s.country.noMatch
+  }, [countryPopupOpen, countryOptions.length])
 
   // -------------------------------------------------------------------------
   // Plain field handlers (AC-2.3 — hand-edits after a selection persist)
@@ -426,6 +408,7 @@ export default function AddressSection({ userId }: AddressSectionProps) {
   const handleSave = useCallback(() => {
     setSaving(true)
     setSaveError(null)
+    setSaveSuccess(null)
 
     const input = pendingClear
       ? null
@@ -465,6 +448,7 @@ export default function AddressSection({ userId }: AddressSectionProps) {
         }
         setPendingClear(false)
         preClearRef.current = null
+        setSaveSuccess(response.address ? s.saved : s.cleared)
         setHistoryReloadToken((n) => n + 1) // AC-5.3 — the history panel gains a new row
       })
       .catch((error: unknown) => {
@@ -473,311 +457,225 @@ export default function AddressSection({ userId }: AddressSectionProps) {
           setMissingFields(new Set(error.missingFields ?? []))
           return
         }
-        setSaveError(saveErrorMessageFor(error, locale))
+        setSaveError(saveErrorMessageFor(error))
       })
   }, [userId, fields, pendingClear, coordsForSave, locale])
+
+  // A 422 (address_incomplete) marks the missing fields; focus moves to the
+  // first invalid one in the form's order (INC-16).
+  useEffect(() => {
+    if (missingFields.size === 0) return
+    formRef.current?.querySelector<HTMLElement>('[aria-invalid="true"]')?.focus()
+  }, [missingFields])
 
   // -------------------------------------------------------------------------
   // Render
   // -------------------------------------------------------------------------
 
-  const streetInputId = `address-street-${reactId}`
-  const countryInputId = `address-country-${reactId}`
-  const cityInputId = `address-city-${reactId}`
-  const houseNumberInputId = `address-housenumber-${reactId}`
-  const postalCodeInputId = `address-postalcode-${reactId}`
-  const regionInputId = `address-region-${reactId}`
-
-  const requiredMark = (
-    <>
-      {' '}
-      <span aria-hidden="true" style={{ color: 'var(--red)' }}>
-        *
-      </span>
-      <span className="sr-only">{t('address.field.requiredMark', undefined, locale)}</span>
-    </>
-  )
-
-  const fieldError = (key: RequiredFieldKey, describedById: string) =>
+  // A missing required component's error (from the 422), on its own Field.
+  const fieldError = (key: RequiredFieldKey) =>
     missingFields.has(key) ? (
-      <p
-        id={describedById}
-        role="alert"
-        data-testid={`address-error-${key}`}
-        className="text-xs mt-1"
-        style={{ color: 'var(--red)' }}
-      >
-        {t('address.field.requiredError', undefined, locale)}
-      </p>
+      <span role="alert" data-testid={`address-error-${key}`}>
+        {s.field.requiredError}
+      </span>
     ) : null
 
   return (
-    <div className="border-t pt-4" style={{ borderColor: 'var(--rule)' }} data-testid="address-section">
-      <h3 className="text-sm font-semibold mb-3" style={{ color: 'var(--text)' }}>
-        {t('address.sectionTitle', undefined, locale)}
-      </h3>
-
-      {loadState.status === 'loading' && (
-        <>
-          <p className="sr-only" aria-live="polite">
-            {t('address.loading', undefined, locale)}
-          </p>
-          <SkeletonListRows rows={2} />
-        </>
-      )}
+    <Card title={s.sectionTitle} data-testid="address-section">
+      {loadState.status === 'loading' && <SkeletonListRows rows={2} label={s.loading} />}
 
       {loadState.status === 'error' && <ErrorBanner message={loadState.message} onRetry={handleRetry} />}
 
       {loadState.status === 'loaded' && (
-        <div className="flex flex-col gap-3 max-w-md">
-          <p className="text-sm" data-testid="address-current-line" style={{ color: 'var(--soft)' }}>
+        <div ref={formRef} className="flex flex-col gap-3 max-w-md">
+          <p className="text-sm text-soft" data-testid="address-current-line">
             {loadState.address
-              ? t('address.currentLabel', { formatted: loadState.address.formatted }, locale)
-              : t('address.none', undefined, locale)}
+              ? s.currentLabel(loadState.address.formatted)
+              : s.none}
           </p>
 
           {/* Street — the Google-backed combobox */}
-          <div>
-            <label htmlFor={streetInputId} className="block text-xs font-medium mb-1" style={{ color: 'var(--soft)' }}>
-              {t('address.field.street', undefined, locale)}
-              {requiredMark}
-            </label>
-            <Combobox
-              id={streetInputId}
-              value={fields.street}
-              onValueChange={handleStreetValueChange}
-              options={streetOptions}
-              onSelect={handleStreetSelect}
-              isOpen={streetPopupOpen}
-              onOpenChange={setStreetPopupOpen}
-              disabled={pendingClear}
-              ariaInvalid={missingFields.has('street')}
-              ariaDescribedBy={missingFields.has('street') ? `${streetInputId}-error` : undefined}
-              liveRegionText={streetLiveRegionText}
-              testId="address-street-combobox"
-              footer={
-                streetPopupOpen && streetOptions.length > 0 ? (
-                  <li
-                    aria-hidden="true"
-                    className="px-3 py-1.5 text-[10px] border-t"
-                    style={{ borderColor: 'var(--rule)', color: 'var(--muted)' }}
-                  >
-                    {/* Google's required attribution when predictions render without a map (Places API terms). Text
-                        placeholder for the branded "Powered by Google" light/dark asset, which must be sourced from
-                        Google's Maps Platform branding kit (design.md "Google attribution" / plan.md gap #1, routed
-                        to devops/infra follow-up). The TEXT itself is deliberately NOT a `addressCopy.ts` `COPY`
-                        entry — `GOOGLE_ATTRIBUTION_TEXT` is its own non-localized constant (QE fix; see that
-                        constant's doc comment for why "Powered by Google" must never be translated). */}
-                    {GOOGLE_ATTRIBUTION_TEXT}
-                  </li>
-                ) : undefined
-              }
-            />
-            {streetCaption === 'searching' && (
-              <p className="text-xs mt-1" style={{ color: 'var(--soft)' }} data-testid="address-street-searching">
-                {t('address.suggest.searching', undefined, locale)}
-              </p>
+          <Field label={s.field.street} required error={fieldError('street')}>
+            {(control) => (
+              <>
+                <Combobox
+                  id={control.id}
+                  value={fields.street}
+                  onValueChange={handleStreetValueChange}
+                  options={streetOptions}
+                  onSelect={handleStreetSelect}
+                  isOpen={streetPopupOpen}
+                  onOpenChange={setStreetPopupOpen}
+                  disabled={pendingClear}
+                  ariaInvalid={control['aria-invalid']}
+                  ariaDescribedBy={control['aria-describedby']}
+                  ariaRequired={control['aria-required']}
+                  liveRegionText={streetLiveRegionText}
+                  testId="address-street-combobox"
+                  footer={
+                    streetPopupOpen && streetOptions.length > 0 ? (
+                      <li aria-hidden="true" className="combobox-footer">
+                        {/* Google's required attribution when predictions render without a map (Places API terms). Text
+                            placeholder for the branded "Powered by Google" light/dark asset, which must be sourced from
+                            Google's Maps Platform branding kit (design.md "Google attribution" / plan.md gap #1, routed
+                            to devops/infra follow-up). The trademark text is never translated: both catalogs carry
+                            it verbatim (strings/address.ts). */}
+                        {s.googleAttribution}
+                      </li>
+                    ) : undefined
+                  }
+                />
+                {streetCaption === 'searching' && (
+                  <p className="field-hint" data-testid="address-street-searching">
+                    {s.suggest.searching}
+                  </p>
+                )}
+                {streetCaption === 'no-results' && (
+                  <p className="field-hint" data-testid="address-street-no-results">
+                    {s.suggest.noResults}
+                  </p>
+                )}
+              </>
             )}
-            {streetCaption === 'no-results' && (
-              <p className="text-xs mt-1" style={{ color: 'var(--soft)' }} data-testid="address-street-no-results">
-                {t('address.suggest.noResults', undefined, locale)}
-              </p>
-            )}
-            {fieldError('street', `${streetInputId}-error`)}
-          </div>
+          </Field>
 
           {/* House / building number */}
-          <div>
-            <label
-              htmlFor={houseNumberInputId}
-              className="block text-xs font-medium mb-1"
-              style={{ color: 'var(--soft)' }}
-            >
-              {t('address.field.houseNumber', undefined, locale)}
-              {requiredMark}
-            </label>
-            <input
-              ref={houseNumberInputRef}
-              id={houseNumberInputId}
-              type="text"
-              value={fields.houseNumber}
-              onChange={handleFieldChange('houseNumber')}
-              aria-invalid={missingFields.has('houseNumber')}
-              aria-describedby={missingFields.has('houseNumber') ? `${houseNumberInputId}-error` : undefined}
-              aria-disabled={pendingClear || undefined}
-              readOnly={pendingClear}
-              data-testid="address-housenumber-input"
-              className="w-full border rounded-md px-3 py-2 text-sm"
-              style={inputStyle(missingFields.has('houseNumber'))}
-            />
-            {fieldError('houseNumber', `${houseNumberInputId}-error`)}
-          </div>
+          <Field label={s.field.houseNumber} required error={fieldError('houseNumber')}>
+            {(control) => (
+              <input
+                {...control}
+                ref={houseNumberInputRef}
+                type="text"
+                value={fields.houseNumber}
+                onChange={handleFieldChange('houseNumber')}
+                aria-disabled={pendingClear || undefined}
+                readOnly={pendingClear}
+                data-testid="address-housenumber-input"
+              />
+            )}
+          </Field>
 
           {/* Postal code — optional */}
-          <div>
-            <label
-              htmlFor={postalCodeInputId}
-              className="block text-xs font-medium mb-1"
-              style={{ color: 'var(--soft)' }}
-            >
-              {t('address.field.postalCode', undefined, locale)}
-            </label>
-            <input
-              id={postalCodeInputId}
-              type="text"
-              value={fields.postalCode}
-              onChange={handleFieldChange('postalCode')}
-              aria-disabled={pendingClear || undefined}
-              readOnly={pendingClear}
-              data-testid="address-postalcode-input"
-              className="w-full border rounded-md px-3 py-2 text-sm"
-              style={inputStyle(false)}
-            />
-          </div>
+          <Field label={s.field.postalCode}>
+            {(control) => (
+              <input
+                {...control}
+                type="text"
+                value={fields.postalCode}
+                onChange={handleFieldChange('postalCode')}
+                aria-disabled={pendingClear || undefined}
+                readOnly={pendingClear}
+                data-testid="address-postalcode-input"
+              />
+            )}
+          </Field>
 
           {/* City */}
-          <div>
-            <label htmlFor={cityInputId} className="block text-xs font-medium mb-1" style={{ color: 'var(--soft)' }}>
-              {t('address.field.city', undefined, locale)}
-              {requiredMark}
-            </label>
-            <input
-              id={cityInputId}
-              type="text"
-              value={fields.city}
-              onChange={handleFieldChange('city')}
-              aria-invalid={missingFields.has('city')}
-              aria-describedby={missingFields.has('city') ? `${cityInputId}-error` : undefined}
-              aria-disabled={pendingClear || undefined}
-              readOnly={pendingClear}
-              data-testid="address-city-input"
-              className="w-full border rounded-md px-3 py-2 text-sm"
-              style={inputStyle(missingFields.has('city'))}
-            />
-            {fieldError('city', `${cityInputId}-error`)}
-          </div>
+          <Field label={s.field.city} required error={fieldError('city')}>
+            {(control) => (
+              <input
+                {...control}
+                type="text"
+                value={fields.city}
+                onChange={handleFieldChange('city')}
+                aria-disabled={pendingClear || undefined}
+                readOnly={pendingClear}
+                data-testid="address-city-input"
+              />
+            )}
+          </Field>
 
           {/* Region / canton / state — optional */}
-          <div>
-            <label htmlFor={regionInputId} className="block text-xs font-medium mb-1" style={{ color: 'var(--soft)' }}>
-              {t('address.field.region', undefined, locale)}
-            </label>
-            <input
-              id={regionInputId}
-              type="text"
-              value={fields.region}
-              onChange={handleFieldChange('region')}
-              aria-disabled={pendingClear || undefined}
-              readOnly={pendingClear}
-              data-testid="address-region-input"
-              className="w-full border rounded-md px-3 py-2 text-sm"
-              style={inputStyle(false)}
-            />
-          </div>
+          <Field label={s.field.region}>
+            {(control) => (
+              <input
+                {...control}
+                type="text"
+                value={fields.region}
+                onChange={handleFieldChange('region')}
+                aria-disabled={pendingClear || undefined}
+                readOnly={pendingClear}
+                data-testid="address-region-input"
+              />
+            )}
+          </Field>
 
           {/* Country — the local, non-Google combobox (design.md "Country control") */}
-          <div>
-            <label htmlFor={countryInputId} className="block text-xs font-medium mb-1" style={{ color: 'var(--soft)' }}>
-              {t('address.field.country', undefined, locale)}
-              {requiredMark}
-            </label>
-            <Combobox
-              id={countryInputId}
-              value={countryFilterText}
-              onValueChange={(value) => {
-                setCountryFilterText(value)
-                setCountryPopupOpen(true)
-              }}
-              options={countryOptions}
-              onSelect={handleCountrySelect}
-              isOpen={countryPopupOpen}
-              onOpenChange={setCountryPopupOpen}
-              onFocus={() => setCountryPopupOpen(true)}
-              onBlur={handleCountryBlur}
-              disabled={pendingClear}
-              placeholder={t('address.country.placeholder', undefined, locale)}
-              ariaInvalid={missingFields.has('countryCode')}
-              ariaDescribedBy={missingFields.has('countryCode') ? `${countryInputId}-error` : undefined}
-              emptyState={t('address.country.noMatch', undefined, locale)}
-              liveRegionText={countryLiveRegionText}
-              testId="address-country-combobox"
-            />
-            {fieldError('countryCode', `${countryInputId}-error`)}
-          </div>
+          <Field label={s.field.country} required error={fieldError('countryCode')}>
+            {(control) => (
+              <Combobox
+                id={control.id}
+                value={countryFilterText}
+                onValueChange={(value) => {
+                  setCountryFilterText(value)
+                  setCountryPopupOpen(true)
+                }}
+                options={countryOptions}
+                onSelect={handleCountrySelect}
+                isOpen={countryPopupOpen}
+                onOpenChange={setCountryPopupOpen}
+                onFocus={() => setCountryPopupOpen(true)}
+                onBlur={handleCountryBlur}
+                disabled={pendingClear}
+                placeholder={s.country.placeholder}
+                ariaInvalid={control['aria-invalid']}
+                ariaDescribedBy={control['aria-describedby']}
+                ariaRequired={control['aria-required']}
+                emptyState={s.country.noMatch}
+                liveRegionText={countryLiveRegionText}
+                testId="address-country-combobox"
+              />
+            )}
+          </Field>
 
           {/* Coordinate-staleness status (AC-2.6) — calm, aria-live="polite", never styled as an error */}
           <p
-            className="text-xs"
+            className="text-xs text-soft"
             aria-live="polite"
             data-testid="address-coords-status"
-            style={{ color: 'var(--soft)' }}
           >
-            {coordStatus === 'captured' && t('address.coords.captured', undefined, locale)}
-            {coordStatus === 'cleared' && t('address.coords.cleared', undefined, locale)}
-            {coordStatus === 'none' && t('address.coords.none', undefined, locale)}
+            {coordStatus === 'captured' && s.coords.captured}
+            {coordStatus === 'cleared' && s.coords.cleared}
+            {coordStatus === 'none' && s.coords.none}
           </p>
 
           {pendingClear && (
             <p
-              className="text-xs"
+              className="text-xs text-soft"
               aria-live="polite"
-              style={{ color: 'var(--soft)' }}
               data-testid="address-clear-pending-notice"
             >
-              {t('address.clearPending', undefined, locale)}{' '}
-              <button
-                type="button"
-                onClick={handleUndoClear}
-                data-testid="address-clear-undo"
-                className="underline transition-opacity hover:opacity-80"
-                style={{ color: 'var(--acc)' }}
-              >
-                {t('address.clearUndo', undefined, locale)}
-              </button>
+              {s.clearPending}{' '}
+              <Button variant="ghost" size="sm" onClick={handleUndoClear} data-testid="address-clear-undo">
+                {s.clearUndo}
+              </Button>
             </p>
           )}
 
           <div className="flex items-center gap-3">
-            <button
-              type="button"
-              onClick={handleSave}
-              disabled={!canSave}
-              data-testid="address-save-button"
-              className="text-sm font-medium border px-3 py-1.5 transition-opacity hover:opacity-80 disabled:opacity-40 disabled:cursor-not-allowed"
-              style={{ borderColor: 'var(--acc)', color: 'var(--acc)' }}
-            >
-              {saving ? t('address.saving', undefined, locale) : t('address.save', undefined, locale)}
-            </button>
+            <Button onClick={handleSave} disabled={!canSave} busy={saving} data-testid="address-save-button">
+              {saving ? s.saving : s.save}
+            </Button>
 
             {hasStoredAddress && !pendingClear && (
-              <button
-                type="button"
-                onClick={handleClearRequest}
-                disabled={saving}
-                data-testid="address-clear-button"
-                className="text-sm font-medium border px-3 py-1.5 transition-opacity hover:opacity-80 disabled:opacity-40 disabled:cursor-not-allowed"
-                style={{ borderColor: 'var(--rule)', color: 'var(--soft)' }}
-              >
-                {t('address.clear', undefined, locale)}
-              </button>
+              <Button onClick={handleClearRequest} disabled={saving} data-testid="address-clear-button">
+                {s.clear}
+              </Button>
             )}
           </div>
 
+          {/* A failed save is red (INC-20); a successful one confirms here (INC-19). */}
           {saveError && (
-            <p role="alert" data-testid="address-save-error" className="text-sm" style={{ color: 'var(--org)' }}>
+            <p role="alert" data-testid="address-save-error" className="form-error">
               {saveError}
             </p>
           )}
 
+          <SuccessBanner message={saveSuccess} onDismiss={() => setSaveSuccess(null)} testId="address-save-success" />
+
           {/* History panel (F5, AC-5.3) — independent load/error state */}
-          <div
-            className="border-t pt-3 mt-2"
-            style={{ borderColor: 'var(--rule)' }}
-            data-testid="address-history-panel"
-          >
-            <h4 className="text-xs font-semibold mb-2" style={{ color: 'var(--text)' }}>
-              {t('address.history.title', undefined, locale)}
-            </h4>
+          <div className="border-t border-rule pt-3 mt-2" data-testid="address-history-panel">
+            <h4 className="text-xs font-semibold mb-2 text-text">{s.history.title}</h4>
 
             {historyState.status === 'loading' && <SkeletonListRows rows={2} />}
 
@@ -785,13 +683,13 @@ export default function AddressSection({ userId }: AddressSectionProps) {
               <ErrorBanner
                 message={historyState.message}
                 onRetry={handleHistoryRetry}
-                retryLabel={t('address.retry', undefined, locale)}
+                retryLabel={s.retry}
               />
             )}
 
             {historyState.status === 'loaded' && historyState.entries.length === 0 && (
-              <p className="text-xs" style={{ color: 'var(--soft)' }} data-testid="address-history-empty">
-                {t('address.history.empty', undefined, locale)}
+              <p className="text-xs text-soft" data-testid="address-history-empty">
+                {s.history.empty}
               </p>
             )}
 
@@ -801,25 +699,25 @@ export default function AddressSection({ userId }: AddressSectionProps) {
                   <li
                     key={entry.id}
                     data-testid={`address-history-entry-${entry.id}`}
-                    className="text-xs"
-                    style={{ color: 'var(--text)' }}
+                    className="text-xs text-text"
                   >
-                    <span style={{ color: 'var(--soft)' }}>
+                    <span className="text-soft">
                       {/* sr-only column labels (design.md "Changed by / Changed on / Previous → New") — the visible
                           layout is a compact, un-headered list (design.md: "not necessarily a full paginated
                           <table>"), but a screen-reader user still benefits from knowing which value is which. */}
-                      <span className="sr-only">{t('address.history.columns.changedBy', undefined, locale)}: </span>
-                      {formatHistoryActor(entry.actorUserId, locale)}
+                      <span className="sr-only">{s.history.changedBy}: </span>
+                      {formatHistoryActor(entry.actorUserId)}
                       {' · '}
-                      <span className="sr-only">{t('address.history.columns.changedOn', undefined, locale)}: </span>
-                      {formatHistoryTimestamp(entry.createdAt)}
+                      <span className="sr-only">{s.history.changedOn}: </span>
+                      {formatDateTime(entry.createdAt)}
                     </span>
                     <br />
-                    <span className="sr-only">{t('address.history.columns.previous', undefined, locale)}: </span>
-                    {formatHistorySide(entry.data?.before, locale)}
-                    {' → '}
-                    <span className="sr-only">{t('address.history.columns.new', undefined, locale)}: </span>
-                    {formatHistorySide(entry.data?.after, locale)}
+                    <span className="sr-only">{s.history.previous}: </span>
+                    {formatHistorySide(entry.data?.before)}
+                    {' '}
+                    <Icon name="arrow-right" />{' '}
+                    <span className="sr-only">{s.history.new}: </span>
+                    {formatHistorySide(entry.data?.after)}
                   </li>
                 ))}
               </ul>
@@ -827,6 +725,6 @@ export default function AddressSection({ userId }: AddressSectionProps) {
           </div>
         </div>
       )}
-    </div>
+    </Card>
   )
 }

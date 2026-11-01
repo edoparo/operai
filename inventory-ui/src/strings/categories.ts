@@ -4,7 +4,7 @@
  * (T31). Filled by T29 because three pages need it and no task's `touch:` list
  * owned it (reported as drift on T29).
  */
-export const categories = {
+const en = {
   laptop: 'Laptop',
   desktop: 'Desktop',
   phone: 'Phone',
@@ -12,4 +12,16 @@ export const categories = {
   monitor: 'Monitor',
   peripheral: 'Peripheral',
   other: 'Other',
-} as const
+}
+
+const it: typeof en = {
+  laptop: 'Portatile',
+  desktop: 'Desktop',
+  phone: 'Telefono',
+  tablet: 'Tablet',
+  monitor: 'Monitor',
+  peripheral: 'Periferica',
+  other: 'Altro',
+}
+
+export const categories = { en, it }

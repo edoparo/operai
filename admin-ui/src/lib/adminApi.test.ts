@@ -45,7 +45,6 @@ import {
   deleteUser,
   getCatalog,
   getDepartment,
-  getMe,
   getRole,
   getUser,
   getUserPermissions,
@@ -260,29 +259,6 @@ beforeEach(() => {
 afterEach(() => {
   vi.unstubAllEnvs()
   vi.clearAllMocks()
-})
-
-// ---------------------------------------------------------------------------
-// Caller-facing
-// ---------------------------------------------------------------------------
-
-describe('getMe()', () => {
-  it('issues GET to /authz/me and returns EffectivePermissions', async () => {
-    vi.mocked(apiFetch).mockResolvedValueOnce(okResponse(fixedMe))
-
-    const result = await getMe()
-
-    const { url, init } = lastCall()
-    expect(url).toBe(`${AUTH_URL}/authz/me`)
-    expect(init?.method).toBeUndefined()
-    expect(init?.body).toBeUndefined()
-    expect(result).toEqual(fixedMe)
-  })
-
-  it('throws ApiError on 401 (no session)', async () => {
-    vi.mocked(apiFetch).mockResolvedValueOnce(problemResponse(401, 'Unauthorized'))
-    await expectApiError(() => getMe(), 401)
-  })
 })
 
 // ---------------------------------------------------------------------------

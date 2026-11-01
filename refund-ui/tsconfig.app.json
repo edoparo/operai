@@ -16,6 +16,17 @@
     "noEmit": true,
     "jsx": "react-jsx",
 
+    /* @operai/ui is compiled from source (ADR-0050). The react paths make the
+       library's files type-check against THIS project's React types: on Vercel
+       operai-ui/node_modules does not exist. */
+    "paths": {
+      "@operai/ui": ["../operai-ui/src/index.ts"],
+      "react": ["./node_modules/@types/react"],
+      "react/*": ["./node_modules/@types/react/*"],
+      "react-dom": ["./node_modules/@types/react-dom"],
+      "react-dom/*": ["./node_modules/@types/react-dom/*"]
+    },
+
     /* Linting */
     "strict": true,
     "noUnusedLocals": true,

@@ -23,7 +23,13 @@
  * A11y: `role="alert"` — assistive tech announces the message as soon as it
  * is inserted, without requiring focus to move there. "Retry" and "Dismiss"
  * are real `<button>`s.
+ *
+ * Now @operai/ui's `Banner tone="warning"` (ADR-0050): a recoverable failure
+ * is orange, Retry is a `secondary` `sm` Button, × an icon-only ghost Button.
  */
+
+import { Banner } from '@operai/ui'
+import { strings } from '../strings'
 
 export type ErrorBannerProps = {
   /** The error text to display (typically an RFC 7807 `detail`). */
@@ -34,46 +40,32 @@ export type ErrorBannerProps = {
   retryLabel?: string
   /** Called when the user dismisses the banner. Omit to render without a dismiss action. */
   onDismiss?: () => void
+  /**
+   * `warning` (default) — a failed load the user can retry (orange);
+   * `danger` — a failed save/decision the user must act on (red, INC-20).
+   */
+  tone?: 'warning' | 'danger'
 }
 
-export default function ErrorBanner({ message, onRetry, retryLabel = 'Retry', onDismiss }: ErrorBannerProps) {
+export default function ErrorBanner({
+  message,
+  onRetry,
+  retryLabel = strings.common.actions.retry,
+  onDismiss,
+  tone = 'warning',
+}: ErrorBannerProps) {
   return (
-    <div
-      role="alert"
+    <Banner
+      tone={tone}
       data-testid="error-banner"
-      className="flex items-center justify-between gap-4 px-4 py-3 rounded-md border text-sm"
-      style={{
-        borderColor: 'var(--org)',
-        backgroundColor: 'color-mix(in srgb, var(--org) 10%, transparent)',
-        color: 'var(--org)',
-      }}
+      onRetry={onRetry}
+      retryLabel={retryLabel}
+      retryTestId="error-banner-retry"
+      onDismiss={onDismiss}
+      dismissLabel={strings.common.actions.dismiss}
+      dismissTestId="error-banner-dismiss"
     >
-      <span>{message}</span>
-      <span className="flex items-center gap-3 shrink-0">
-        {onRetry && (
-          <button
-            type="button"
-            onClick={onRetry}
-            data-testid="error-banner-retry"
-            className="text-xs font-medium border px-2.5 py-1 transition-opacity hover:opacity-80"
-            style={{ borderColor: 'var(--org)', color: 'var(--org)' }}
-          >
-            {retryLabel}
-          </button>
-        )}
-        {onDismiss && (
-          <button
-            type="button"
-            onClick={onDismiss}
-            aria-label="Dismiss"
-            data-testid="error-banner-dismiss"
-            className="text-base leading-none transition-opacity hover:opacity-80"
-            style={{ color: 'var(--org)' }}
-          >
-            ×
-          </button>
-        )}
-      </span>
-    </div>
+      {message}
+    </Banner>
   )
 }

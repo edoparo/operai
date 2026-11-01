@@ -17,7 +17,7 @@ afterEach(() => {
 })
 
 describe('ApproveDialog', () => {
-  it('renders under the approve-dialog testIdPrefix, recolored --grn, with refund-specific copy', () => {
+  it('renders under the approve-dialog testIdPrefix, as a primary (not danger) confirmation, with refund-specific copy', () => {
     render(
       <ApproveDialog
         employeeName="Alice"
@@ -33,7 +33,7 @@ describe('ApproveDialog', () => {
     expect(screen.getByText(/Alice is notified immediately/)).not.toBeNull()
     const confirmBtn = screen.getByTestId('approve-dialog-confirm')
     expect(confirmBtn.textContent).toBe('Approve')
-    expect(confirmBtn.getAttribute('style')).toContain('var(--grn)')
+    expect(confirmBtn.className).toContain('btn-primary')
   })
 
   it('shows the in-flight label and disables both buttons while deciding', () => {

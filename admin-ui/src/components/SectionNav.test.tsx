@@ -17,29 +17,31 @@ import { createRootRoute, createRoute, createRouter, Outlet, RouterProvider } fr
 import SectionNav from './SectionNav'
 
 // ---------------------------------------------------------------------------
-// Module mock — adminApi.getMe() (T11, specs/009-mileage-rate): SectionNav
-// now resolves the caller's live permissions on mount to decide whether the
-// "Mileage Rates" entry appears (design.md F7). `beforeEach` below defaults
-// to "no grants" (mirrors `EMPTY_PERMISSIONS`) so every pre-existing test in
-// this file — none of which anticipated this call — keeps seeing exactly the
-// original four links; the dedicated "Mileage Rates gate" describe block
-// below overrides the resolution per test.
+// Module mock — `shell/session`'s usePermissions() (INC-32): SectionNav reads
+// the caller's effective permissions from the shell to decide whether the
+// "Refund" entry appears (design.md F7). `beforeEach` defaults to the shell's
+// EMPTY_PERMISSIONS (no grants) so the structural tests see the four links;
+// the "Refund" gate block below overrides it per test.
 // ---------------------------------------------------------------------------
 
-vi.mock('../lib/adminApi', async (importOriginal) => {
-  const original = await importOriginal<typeof import('../lib/adminApi')>()
-  return { ...original, getMe: vi.fn() }
+vi.mock('shell/session', async (importOriginal) => {
+  const original = await importOriginal<typeof import('shell/session')>()
+  return { ...original, usePermissions: vi.fn() }
+})
+
+const NO_GRANTS = { epoch: 0, apps: [], roles: [], departments: [], permissions: [] }
+
+const grant = (permissions: { resource: string; action: string; conditions?: unknown }[]) => ({
+  epoch: 1,
+  apps: ['admin'],
+  roles: ['admin'],
+  departments: [],
+  permissions,
 })
 
 beforeEach(async () => {
-  const adminApi = await import('../lib/adminApi')
-  vi.mocked(adminApi.getMe).mockResolvedValue({
-    epoch: 0,
-    apps: ['admin'],
-    roles: [],
-    departments: [],
-    permissions: [],
-  })
+  const session = await import('shell/session')
+  vi.mocked(session.usePermissions).mockReturnValue(NO_GRANTS)
 })
 
 afterEach(() => {
@@ -123,15 +125,9 @@ describe('SectionNav "Refund" gate (T11, specs/009-mileage-rate)', () => {
     expect(screen.getAllByRole('link')).toHaveLength(4)
   })
 
-  it('inserts "Refund" once GET /authz/me resolves rate:read, with Audit anchored last', async () => {
-    const adminApi = await import('../lib/adminApi')
-    vi.mocked(adminApi.getMe).mockResolvedValue({
-      epoch: 1,
-      apps: ['admin'],
-      roles: ['admin'],
-      departments: [],
-      permissions: [{ resource: 'rate', action: 'read', conditions: null }],
-    })
+  it('inserts "Refund" when the shell permissions include rate:read, with Audit anchored last', async () => {
+    const session = await import('shell/session')
+    vi.mocked(session.usePermissions).mockReturnValue(grant([{ resource: 'rate', action: 'read', conditions: null }]))
 
     await renderNavAt('/roles')
 
@@ -148,14 +144,8 @@ describe('SectionNav "Refund" gate (T11, specs/009-mileage-rate)', () => {
   })
 
   it('marks "Refund" active with aria-current="page" when on /rates', async () => {
-    const adminApi = await import('../lib/adminApi')
-    vi.mocked(adminApi.getMe).mockResolvedValue({
-      epoch: 1,
-      apps: ['admin'],
-      roles: ['admin'],
-      departments: [],
-      permissions: [{ resource: 'rate', action: 'read', conditions: null }],
-    })
+    const session = await import('shell/session')
+    vi.mocked(session.usePermissions).mockReturnValue(grant([{ resource: 'rate', action: 'read', conditions: null }]))
 
     await renderNavAt('/rates')
 
@@ -163,33 +153,30 @@ describe('SectionNav "Refund" gate (T11, specs/009-mileage-rate)', () => {
     expect(link.getAttribute('aria-current')).toBe('page')
   })
 
-  it('stays hidden when GET /authz/me grants an unrelated permission but not rate:read', async () => {
-    const adminApi = await import('../lib/adminApi')
-    vi.mocked(adminApi.getMe).mockResolvedValue({
-      epoch: 1,
-      apps: ['admin'],
-      roles: ['admin'],
-      departments: [],
-      permissions: [{ resource: 'role', action: 'edit', conditions: null }],
-    })
+  it('stays hidden when the permissions grant an unrelated permission but not rate:read', async () => {
+    const session = await import('shell/session')
+    vi.mocked(session.usePermissions).mockReturnValue(grant([{ resource: 'role', action: 'edit', conditions: null }]))
 
     await renderNavAt('/roles')
 
+    expect(screen.queryByRole('link', { name: 'Refund' })).toBeNull()
+  })
+
+  it('fails closed (stays hidden) on the shell EMPTY_PERMISSIONS — its result for any /authz/me failure', async () => {
+    await renderNavAt('/roles')
+
     await waitFor(() => {
-      expect(vi.mocked(adminApi.getMe)).toHaveBeenCalled()
+      expect(screen.getAllByRole('link')).toHaveLength(4)
     })
     expect(screen.queryByRole('link', { name: 'Refund' })).toBeNull()
   })
 
-  it('fails closed (stays hidden) when GET /authz/me rejects', async () => {
-    const adminApi = await import('../lib/adminApi')
-    vi.mocked(adminApi.getMe).mockRejectedValue(new Error('network error'))
-
+  it('reads permissions only through shell/session — no fetch of its own (INC-32)', async () => {
+    const session = await import('shell/session')
+    const fetchSpy = vi.spyOn(globalThis, 'fetch')
     await renderNavAt('/roles')
 
-    await waitFor(() => {
-      expect(vi.mocked(adminApi.getMe)).toHaveBeenCalled()
-    })
-    expect(screen.queryByRole('link', { name: 'Refund' })).toBeNull()
+    expect(vi.mocked(session.usePermissions)).toHaveBeenCalled()
+    expect(fetchSpy).not.toHaveBeenCalled()
   })
 })

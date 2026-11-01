@@ -76,7 +76,7 @@ describe('ExpenseLineRow — edit mode, collapsed (default) summary', () => {
     expect(screen.queryByTestId('row-line-1-motivo')).toBeNull()
     expect(screen.queryByTestId('row-line-1-date')).toBeNull()
     expect(screen.getByText('Pens')).not.toBeNull()
-    expect(screen.getByTestId('expense-line-row-line-1').textContent).toContain('10,00 €')
+    expect(screen.getByTestId('expense-line-row-line-1').textContent).toContain('EUR 10.00')
     expect(screen.getByTestId('row-line-1-edit')).not.toBeNull()
     expect(screen.getByTestId('row-line-1-delete')).not.toBeNull()
   })
@@ -91,8 +91,8 @@ describe('ExpenseLineRow — edit mode, collapsed (default) summary', () => {
         onDownloadAttachment={vi.fn()}
       />,
     )
-    expect(screen.getByTestId('entity-badge').textContent).toBe('🇮🇹WellD Italia')
-    expect(screen.getByTestId('currency-badge').textContent).toBe('$USD')
+    expect(screen.getByTestId('entity-badge').textContent).toBe('WellD Italia')
+    expect(screen.getByTestId('currency-badge').textContent).toBe('USD')
   })
 
   it('shows a small attachment indicator when the line has attachments, without the full upload UI', () => {
@@ -348,7 +348,7 @@ describe('ExpenseLineRow — read-only modes', () => {
   it('readOnly shows only the requested amount, not an approved figure', () => {
     render(<ExpenseLineRow line={line} mode="readOnly" onDownloadAttachment={vi.fn()} />)
     const row = screen.getByTestId('expense-line-row-line-1')
-    expect(row.textContent).toContain('10,00 €')
+    expect(row.textContent).toContain('EUR 10.00')
     expect(row.textContent).not.toContain('Approved')
   })
 
@@ -361,8 +361,8 @@ describe('ExpenseLineRow — read-only modes', () => {
       />,
     )
     const row = screen.getByTestId('expense-line-row-line-1')
-    expect(screen.getByTestId('entity-badge').textContent).toBe('🇮🇹WellD Italia')
-    expect(screen.getByTestId('currency-badge').textContent).toBe('$USD')
+    expect(screen.getByTestId('entity-badge').textContent).toBe('WellD Italia')
+    expect(screen.getByTestId('currency-badge').textContent).toBe('USD')
     expect(row.textContent).not.toContain('WellD Italia · EUR')
   })
 
@@ -376,10 +376,8 @@ describe('ExpenseLineRow — read-only modes', () => {
     expect(amount.getAttribute('data-changed')).toBe('true')
     // The COLUMN holds the approved figure alone — the adjustment hangs
     // beneath it, so the figures above and below still line up.
-    expect(amount.textContent).toBe('8,00 €')
-    expect(screen.getByTestId('row-line-1-approved-delta').textContent).toBe(
-      'requested 10,00 · −2,00',
-    )
+    expect(amount.textContent).toBe('EUR 8.00')
+    expect(screen.getByTestId('row-line-1-approved-delta').textContent).toBe('requested 10.00 · −2.00')
   })
 
   // The point of the column: an accountant reads straight down it and checks
@@ -403,7 +401,11 @@ describe('ExpenseLineRow — read-only modes', () => {
   // An amount embedded in the descriptive text would move with the length of
   // whatever preceded it — which is exactly what this layout replaced.
   it('keeps the amount out of the descriptive block, so its position never shifts', () => {
-    const approvedLine: RefundLine = { ...line, approvedTotalCents: 800, motivo: 'A much longer description than usual' }
+    const approvedLine: RefundLine = {
+      ...line,
+      approvedTotalCents: 800,
+      motivo: 'A much longer description than usual',
+    }
     render(<ExpenseLineRow line={approvedLine} mode="readOnlyApproved" onDownloadAttachment={vi.fn()} />)
 
     const amount = screen.getByTestId('row-line-1-approved-amount')
@@ -413,14 +415,14 @@ describe('ExpenseLineRow — read-only modes', () => {
   })
 
   // The other half of the amendment, and the common case: an untouched line
-  // shows ONE figure. Printing "Requested 10,00 € / Approved 10,00 €" made the
+  // shows ONE figure. Printing "Requested EUR 10.00 / Approved EUR 10.00" made the
   // reader compare two identical numbers per line to find the adjusted one.
   it('readOnlyApproved shows a single figure when the amount was not adjusted (AC-3.2)', () => {
     const approvedLine: RefundLine = { ...line, approvedTotalCents: 1000 }
     render(<ExpenseLineRow line={approvedLine} mode="readOnlyApproved" onDownloadAttachment={vi.fn()} />)
     const amount = screen.getByTestId('row-line-1-approved-amount')
     expect(amount.getAttribute('data-changed')).toBe('false')
-    expect(amount.textContent).toBe('10,00 €')
+    expect(amount.textContent).toBe('EUR 10.00')
     expect(screen.queryByTestId('row-line-1-approved-delta')).toBeNull()
 
     const row = screen.getByTestId('expense-line-row-line-1')
@@ -430,10 +432,16 @@ describe('ExpenseLineRow — read-only modes', () => {
   // null approvedTotalCents means "no per-line adjustment recorded", which
   // refund-api treats as approving in full — an unchanged amount, not unknown.
   it('treats a null approved total as unchanged, not as a missing value', () => {
-    render(<ExpenseLineRow line={{ ...line, approvedTotalCents: null }} mode="readOnlyApproved" onDownloadAttachment={vi.fn()} />)
+    render(
+      <ExpenseLineRow
+        line={{ ...line, approvedTotalCents: null }}
+        mode="readOnlyApproved"
+        onDownloadAttachment={vi.fn()}
+      />,
+    )
     const amount = screen.getByTestId('row-line-1-approved-amount')
     expect(amount.getAttribute('data-changed')).toBe('false')
-    expect(amount.textContent).toBe('10,00 €')
+    expect(amount.textContent).toBe('EUR 10.00')
   })
 
   // Pre-decision the question is "what is being asked for", which is a
@@ -442,7 +450,7 @@ describe('ExpenseLineRow — read-only modes', () => {
     render(<ExpenseLineRow line={line} mode="readOnly" onDownloadAttachment={vi.fn()} />)
     const row = screen.getByTestId('expense-line-row-line-1')
     expect(row.textContent).toContain('Requested')
-    expect(row.textContent).toContain('10,00 €')
+    expect(row.textContent).toContain('EUR 10.00')
   })
 
   it('readOnly/readOnlyApproved render attachments download-only — no upload trigger, no Remove button', () => {
@@ -666,8 +674,8 @@ describe('ExpenseLineRow — summaryCore, travel_km (specs/009-mileage-rate)', (
     )
 
     const row = screen.getByTestId('expense-line-row-km-2')
-    expect(row.textContent).toContain('240 km × 0,70 CHF/km')
-    expect(row.textContent).toContain('168,00 CHF')
+    expect(row.textContent).toContain('240 km × CHF 0.70/km')
+    expect(row.textContent).toContain('CHF 168.00')
   })
 
   it('shows "—" for the Requested amount when the mileage line is blocked (no rate in effect, AC-2.2)', () => {
@@ -698,7 +706,7 @@ describe('ExpenseLineRow — summaryCore, travel_km (specs/009-mileage-rate)', (
 
     const row = screen.getByTestId('expense-line-row-line-km-1')
     expect(row.textContent).toContain('Rate applied')
-    expect(row.textContent).toContain('0,70 CHF/km')
+    expect(row.textContent).toContain('CHF 0.70/km')
     expect(row.textContent).toContain('valid from')
   })
 
@@ -732,7 +740,7 @@ describe('ExpenseLineRow — summaryCore, travel_km (specs/009-mileage-rate)', (
 
     const row = screen.getByTestId('expense-line-row-legacy-1')
     expect(row.textContent).not.toContain('Rate applied')
-    expect(row.textContent).toContain('168,00 CHF') // the stored amount still renders exactly as before this feature
+    expect(row.textContent).toContain('CHF 168.00') // the stored amount still renders exactly as before this feature
   })
 
   it('omits the "Rate applied" row and the km-annotation for a non-travel_km line (mileage: null), unaffected (AC-1.5)', () => {
@@ -973,5 +981,118 @@ describe('ExpenseLineRow — onSaveOutcome', () => {
       tone: 'error',
       message: strings.pages.requestDetail.lines.updateError,
     })
+  })
+})
+
+describe('ExpenseLineRow — field validation in the expanded editor (INC-16/17)', () => {
+  const fieldErrors = strings.pages.requestDetail.composer.fieldErrors
+
+  it('marks every field required with the * marker and aria-required', () => {
+    render(
+      <ExpenseLineRow line={line} mode="edit" onCommit={vi.fn()} onDelete={vi.fn()} onDownloadAttachment={vi.fn()} />,
+    )
+    expandRow()
+    for (const field of ['date', 'type', 'motivo', 'amount', 'entity', 'currency']) {
+      const control = screen.getByTestId(`row-line-1-${field}`)
+      expect(control.getAttribute('aria-required')).toBe('true')
+      expect(document.querySelector(`label[for="${control.id}"] .field-required`)?.textContent).toBe('*')
+    }
+  })
+
+  it('shows a field error on blur of a touched field, wired as the control’s description', () => {
+    render(
+      <ExpenseLineRow line={line} mode="edit" onCommit={vi.fn()} onDelete={vi.fn()} onDownloadAttachment={vi.fn()} />,
+    )
+    expandRow()
+    const motivo = screen.getByTestId('row-line-1-motivo')
+    fireEvent.change(motivo, { target: { value: '' } })
+    expect(motivo.getAttribute('aria-invalid')).toBeNull()
+
+    fireEvent.blur(motivo, { relatedTarget: screen.getByTestId('row-line-1-amount') })
+
+    expect(motivo.getAttribute('aria-invalid')).toBe('true')
+    expect(document.getElementById(motivo.getAttribute('aria-describedby')!)?.textContent).toBe(fieldErrors.motivo)
+  })
+
+  it('Done on an invalid draft does not collapse or commit: it shows the error and focuses the first invalid field', () => {
+    const onCommit = vi.fn().mockResolvedValue(undefined)
+    render(
+      <ExpenseLineRow line={line} mode="edit" onCommit={onCommit} onDelete={vi.fn()} onDownloadAttachment={vi.fn()} />,
+    )
+    expandRow()
+    fireEvent.change(screen.getByTestId('row-line-1-amount'), { target: { value: '12.345' } })
+
+    fireEvent.click(screen.getByTestId('row-line-1-done'))
+
+    expect(onCommit).not.toHaveBeenCalled()
+    const amount = screen.getByTestId('row-line-1-amount')
+    expect(amount.getAttribute('aria-invalid')).toBe('true')
+    expect(document.activeElement).toBe(amount)
+    expect(screen.getByText(fieldErrors.amount)).not.toBeNull()
+  })
+
+  it('leaving the row with an invalid edit shows every error without moving focus', () => {
+    const onCommit = vi.fn().mockResolvedValue(undefined)
+    render(
+      <ExpenseLineRow line={line} mode="edit" onCommit={onCommit} onDelete={vi.fn()} onDownloadAttachment={vi.fn()} />,
+    )
+    expandRow()
+    fireEvent.change(screen.getByTestId('row-line-1-motivo'), { target: { value: ' ' } })
+
+    fireEvent.blur(screen.getByTestId('row-line-1-motivo'), { relatedTarget: document.body })
+
+    expect(onCommit).not.toHaveBeenCalled()
+    expect(screen.getByTestId('row-line-1-motivo').getAttribute('aria-invalid')).toBe('true')
+  })
+
+  it('the amount is a MoneyInput that takes a comma (INC-17)', async () => {
+    const onCommit = vi.fn().mockResolvedValue(undefined)
+    render(
+      <ExpenseLineRow line={line} mode="edit" onCommit={onCommit} onDelete={vi.fn()} onDownloadAttachment={vi.fn()} />,
+    )
+    expandRow()
+    const amount = screen.getByTestId('row-line-1-amount')
+    expect(amount.getAttribute('type')).toBe('text')
+    expect(amount.getAttribute('inputmode')).toBe('decimal')
+    fireEvent.change(amount, { target: { value: '12,40' } })
+    fireEvent.click(screen.getByTestId('row-line-1-done'))
+
+    await waitFor(() => expect(onCommit).toHaveBeenCalledWith(expect.objectContaining({ requestedAmountCents: 1240 })))
+  })
+})
+
+describe('ExpenseLineRow — review mode approved-total input (INC-16/17)', () => {
+  it('is a MoneyInput that takes a comma', async () => {
+    const onApprovedTotalChange = vi.fn().mockResolvedValue(undefined)
+    render(
+      <ExpenseLineRow
+        line={line}
+        mode="review"
+        onDownloadAttachment={vi.fn()}
+        onApprovedTotalChange={onApprovedTotalChange}
+      />,
+    )
+    const input = screen.getByTestId('row-line-1-approved-total')
+    expect(input.getAttribute('type')).toBe('text')
+    fireEvent.change(input, { target: { value: '7,5' } })
+    fireEvent.blur(input)
+
+    await waitFor(() => expect(onApprovedTotalChange).toHaveBeenCalledWith(750))
+  })
+
+  it('an invalid amount marks the input invalid and described by the error; correcting it clears both', () => {
+    render(<ExpenseLineRow line={line} mode="review" onDownloadAttachment={vi.fn()} onApprovedTotalChange={vi.fn()} />)
+    const input = screen.getByTestId('row-line-1-approved-total')
+    fireEvent.change(input, { target: { value: '7.555' } })
+    fireEvent.blur(input)
+
+    expect(input.getAttribute('aria-invalid')).toBe('true')
+    expect(input.getAttribute('aria-describedby')).toBe('row-line-1-approved-total-error')
+
+    // Back to the untouched default: no write is needed, but the error must go.
+    fireEvent.change(input, { target: { value: '10.00' } })
+    fireEvent.blur(input)
+    expect(input.getAttribute('aria-invalid')).toBeNull()
+    expect(screen.queryByTestId('row-line-1-approved-total-error')).toBeNull()
   })
 })

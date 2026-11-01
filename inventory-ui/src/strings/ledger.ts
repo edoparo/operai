@@ -5,7 +5,7 @@
  * catalogue). Templates with `{name}` placeholders go through `fillTemplate`;
  * money is always formatted by the caller with `formatMoney`.
  */
-export const ledger = {
+const en = {
   heading: 'Ledger',
 
   bookValue: 'Book value today',
@@ -70,7 +70,6 @@ export const ledger = {
         reason: 'Reason',
         /** The currency is part of the label: "Sale price, CHF". */
         salePriceIn: (currency: string) => `Sale price, ${currency}`,
-        optional: 'optional',
       },
       errors: {
         dateRequired: 'Enter the disposal date.',
@@ -81,4 +80,74 @@ export const ledger = {
       },
     },
   },
-} as const
+}
+
+const it: typeof en = {
+  heading: 'Registro cespiti',
+
+  bookValue: 'Valore contabile attuale',
+  ruleEffective: (date: string) => `In vigore dal ${date}`,
+  ruleApplied: (years: number, share: string, threshold: string, residual: string) =>
+    `Regola applicata: vita utile ${years} ${years === 1 ? 'anno' : 'anni'}, ${share}, ${threshold}, valore residuo ${residual}`,
+  firstYearShare: { full: 'primo anno intero', half: 'primo anno al 50%' },
+  noThreshold: 'nessuna soglia',
+  threshold: (amount: string) => `soglia ${amount}`,
+
+  schedule: {
+    caption: 'Piano di ammortamento',
+    regionLabel: 'Tabella del piano di ammortamento',
+    columns: {
+      year: 'Esercizio',
+      depreciation: 'Ammortamento',
+      bookValue: 'Valore contabile a fine esercizio',
+      state: 'Stato',
+    },
+    closed: 'Chiuso',
+    open: 'Aperto',
+    disposedRow: (date: string) => `Dismesso il ${date}`,
+    disposedState: 'Dismesso',
+    noDepreciation: '—',
+  },
+
+  disposal: {
+    heading: 'Dismissione',
+    date: 'Dismesso il',
+    reason: 'Motivo',
+    salePrice: 'Prezzo di vendita',
+  },
+
+  dispose: {
+    action: 'Dismetti...',
+    pendingReason: (name: string) =>
+      `Annullare prima l'assegnazione in attesa a ${name}. Solo un responsabile dell'inventario può farlo.`,
+    assigneeFallback: 'la persona selezionata',
+    done: 'Bene dismesso.',
+    conflictTitle: 'Questo bene è cambiato',
+
+    dialog: {
+      title: (description: string) => `Dismettere ${description}?`,
+      consequence: (description: string, entity: string, date: string, bookValue: string) =>
+        `${description} esce dal registro cespiti di ${entity} il ${date}. Il suo valore contabile diventa ${bookValue} e non potrà più essere assegnato, riparato o modificato. L'operazione non può essere annullata.`,
+      consequenceWithHolder: (description: string, entity: string, date: string, bookValue: string, holder: string) =>
+        `${description} esce dal registro cespiti di ${entity} il ${date}. Il suo valore contabile diventa ${bookValue}, viene tolto a ${holder} e non potrà più essere assegnato, riparato o modificato. L'operazione non può essere annullata.`,
+      dateUnset: 'la data scelta',
+      acknowledge: "Confermo di aver compreso che l'operazione non può essere annullata.",
+      confirm: 'Dismetti bene',
+      confirming: 'Dismissione…',
+      fields: {
+        date: 'Data di dismissione',
+        reason: 'Motivo',
+        salePriceIn: (currency: string) => `Prezzo di vendita, ${currency}`,
+      },
+      errors: {
+        dateRequired: 'Inserire la data di dismissione.',
+        reasonRequired: 'Selezionare un motivo.',
+        salePriceInvalid: 'Inserire un prezzo pari o superiore a 0, con al massimo due decimali.',
+        yearClosedNoYear:
+          'La data di dismissione cade in un esercizio chiuso. Scegliere una data in un esercizio aperto.',
+      },
+    },
+  },
+}
+
+export const ledger = { en, it }

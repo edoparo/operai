@@ -1,5 +1,6 @@
 import { Link, Outlet, useMatchRoute } from '@tanstack/react-router'
 import type { ReactNode } from 'react'
+import { StatePanel, TabNav, ToolLayout, VisuallyHidden, tabLinkClassName } from '@operai/ui'
 import { useInventoryCapabilities } from '../hooks/useInventoryCapabilities'
 import { useScope } from '../hooks/useScope'
 import { ApiError } from '../lib/api'
@@ -33,17 +34,17 @@ import SkeletonListRows from './SkeletonListRows'
  *     access whose grants are entity-conditioned with no entity). Plain page
  *     text, distinct from an empty list: nothing is wrong with the list.
  * The heading and tabs stay on screen in every state.
+ *
+ * Layout from @operai/ui (ADR-0050, INC-12): `ToolLayout` (tool title h1 +
+ * tabs + the page column — a <div>, not a second <main>: the shell owns the
+ * page's one main landmark) and `TabNav`. TanStack Router's <Link> sets
+ * `aria-current="page"` on the active tab; the library's `.tab-link` styles it.
  */
 
 const messageForScopeError = (error: unknown): string => {
   if (error instanceof ApiError) return error.detail ?? strings.errors.unknown
   return strings.errors.network
 }
-
-const TAB_CLASS =
-  'inline-block border-b-2 border-transparent px-3 py-3 text-sm font-medium transition-colors hover:text-[var(--text)]'
-const TAB_STYLE = { color: 'var(--soft)' }
-const TAB_ACTIVE = { style: { color: 'var(--acc)', borderColor: 'var(--acc)' } }
 
 export default function InventoryShell() {
   const { canManageAssets, canManageLedger } = useInventoryCapabilities()
@@ -70,21 +71,18 @@ export default function InventoryShell() {
   } else if (scope.status !== 'ready') {
     content = (
       <div>
-        <p role="status" aria-live="polite" className="sr-only">
+        <VisuallyHidden live role="status">
           {strings.nav.loading}
-        </p>
+        </VisuallyHidden>
         <SkeletonListRows />
       </div>
     )
   } else if (scope.isEmpty) {
     content = (
       <section aria-labelledby="inventory-scope-empty-heading" data-testid="inventory-scope-empty">
-        <h2 id="inventory-scope-empty-heading" className="text-lg font-semibold" style={{ fontFamily: 'var(--disp)' }}>
-          {strings.nav.scopeEmpty.heading}
-        </h2>
-        <p className="mt-2 text-sm" style={{ color: 'var(--soft)' }}>
+        <StatePanel headingLevel={2} titleId="inventory-scope-empty-heading" title={strings.nav.scopeEmpty.heading}>
           {strings.nav.scopeEmpty.body}
-        </p>
+        </StatePanel>
       </section>
     )
   } else {
@@ -92,41 +90,29 @@ export default function InventoryShell() {
   }
 
   return (
-    <div className="min-h-screen" style={{ color: 'var(--text)', fontFamily: 'var(--body)' }}>
-      <header style={{ borderBottom: '1px solid var(--rule)', backgroundColor: 'var(--ink-soft)' }}>
-        <div className="mx-auto max-w-5xl px-6 py-4">
-          <h1 className="text-xl font-bold" style={{ fontFamily: 'var(--disp)' }}>
-            {strings.nav.heading}
-          </h1>
-        </div>
-        <nav aria-label={strings.nav.landmarkLabel}>
-          <ul className="mx-auto flex max-w-5xl gap-1 px-6">
-            {canReadAssets && (
-              <li>
-                <Link to="/assets" className={TAB_CLASS} style={TAB_STYLE} activeProps={TAB_ACTIVE}>
-                  {strings.nav.assets}
-                </Link>
-              </li>
-            )}
-            {canManageLedger && (
-              <li>
-                <Link to="/rules" className={TAB_CLASS} style={TAB_STYLE} activeProps={TAB_ACTIVE}>
-                  {strings.nav.rules}
-                </Link>
-              </li>
-            )}
-            {canManageLedger && (
-              <li>
-                <Link to="/years" className={TAB_CLASS} style={TAB_STYLE} activeProps={TAB_ACTIVE}>
-                  {strings.nav.years}
-                </Link>
-              </li>
-            )}
-          </ul>
-        </nav>
-      </header>
-
-      <main className="mx-auto max-w-5xl px-6 py-8">{content}</main>
-    </div>
+    <ToolLayout
+      title={strings.nav.heading}
+      nav={
+        <TabNav label={strings.nav.landmarkLabel}>
+          {canReadAssets && (
+            <Link to="/assets" className={tabLinkClassName}>
+              {strings.nav.assets}
+            </Link>
+          )}
+          {canManageLedger && (
+            <Link to="/rules" className={tabLinkClassName}>
+              {strings.nav.rules}
+            </Link>
+          )}
+          {canManageLedger && (
+            <Link to="/years" className={tabLinkClassName}>
+              {strings.nav.years}
+            </Link>
+          )}
+        </TabNav>
+      }
+    >
+      {content}
+    </ToolLayout>
   )
 }

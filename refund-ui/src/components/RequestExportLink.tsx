@@ -20,6 +20,7 @@
  */
 
 import { useState } from 'react'
+import { Button } from '@operai/ui'
 import { strings } from '../strings'
 import * as requestsApi from '../lib/requestsApi'
 import { ApiError } from '../lib/refundApi'
@@ -65,19 +66,19 @@ export default function RequestExportLink({ requestId }: RequestExportLinkProps)
 
   return (
     <span className="inline-flex items-center gap-1.5">
-      <button
-        type="button"
+      <Button
+        variant="secondary"
+        size="sm"
         onClick={() => void handleClick()}
         disabled={state === 'exporting'}
+        busy={state === 'exporting'}
         aria-label={t.downloadLabel(requestId)}
         data-testid={`request-export-link-${requestId}`}
-        className="text-xs font-medium border px-2.5 py-1.5 transition-opacity hover:opacity-80 disabled:opacity-40"
-        style={{ borderColor: 'var(--rule)', color: 'var(--text)' }}
       >
         {state === 'exporting' ? t.exporting : t.buttonLabel}
-      </button>
+      </Button>
       {error !== null && (
-        <span role="alert" className="text-xs" style={{ color: 'var(--red)' }}>
+        <span role="alert" className="field-error">
           {error}
         </span>
       )}

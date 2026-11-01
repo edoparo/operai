@@ -73,7 +73,10 @@ describe('ReviewQueuePage — list states', () => {
     renderReviewQueuePage()
 
     await waitFor(() => expect(screen.getByTestId('review-queue-empty-state')).not.toBeNull())
-    expect(screen.getByTestId('review-queue-empty-state').textContent).toBe('Nothing awaiting your decision right now.')
+    const empty = screen.getByTestId('review-queue-empty-state')
+    // INC-22: a StatePanel with a title AND a body, never body text alone.
+    expect(empty.querySelector('h3')?.textContent).toBe('Nothing to review')
+    expect(empty.textContent).toContain('Nothing awaiting your decision right now.')
   })
 
   it('renders a row per queue item with employee, submitted date, and subtotal preview', async () => {
@@ -84,7 +87,7 @@ describe('ReviewQueuePage — list states', () => {
     await waitFor(() => expect(screen.getByTestId('review-queue-list')).not.toBeNull())
     const row = screen.getByTestId(`review-queue-row-${queueItem.id}`)
     expect(row.textContent).toContain('Alice')
-    expect(row.textContent).toContain('45,50 €')
+    expect(row.textContent).toContain('EUR 45.50')
   })
 
   it('shows a status badge per row so submitted and approved-not-processed are distinguishable', async () => {
@@ -192,6 +195,10 @@ describe('ReviewQueuePage — return-to-queue confirmation', () => {
       expect(screen.getByTestId('review-queue-live-message').textContent).toBe("Approved — Alice's request"),
     )
     await waitFor(() => expect(window.location.search).toBe(''))
+    // INC-19: the destination shows it too (the live region alone is invisible).
+    const banner = screen.getByTestId('review-queue-confirmation')
+    expect(banner.textContent).toContain("Approved — Alice's request")
+    expect(banner.getAttribute('aria-live')).toBe('off')
   })
 
   it('renders no confirmation text when no search param is present', async () => {
@@ -201,5 +208,6 @@ describe('ReviewQueuePage — return-to-queue confirmation', () => {
 
     await waitFor(() => expect(screen.getByTestId('review-queue-empty-state')).not.toBeNull())
     expect(screen.getByTestId('review-queue-live-message').textContent).toBe('')
+    expect(screen.queryByTestId('review-queue-confirmation')).toBeNull()
   })
 })

@@ -11,7 +11,7 @@
  *       table, no skeleton.
  *   (D) Error: listDepartments rejects (ApiError) → ErrorBanner with the RFC
  *       7807 detail + Retry re-fetches.
- *   (E) Create (Modal M2): "+ New department" opens the modal; a valid
+ *   (E) Create (Modal M2): "New department" opens the modal; a valid
  *       submit calls adminApi.createDepartment and navigates to the new
  *       department's detail route.
  *   (F) Create 409 duplicate: createDepartment rejects with a 409 ApiError →
@@ -129,7 +129,7 @@ describe('DepartmentsPage — list states', () => {
     await waitFor(() => {
       expect(screen.getByTestId('departments-empty-state')).not.toBeNull()
     })
-    expect(screen.getByText('No departments yet.')).not.toBeNull()
+    expect(screen.getByText('No departments yet')).not.toBeNull()
     expect(screen.queryByTestId('departments-table')).toBeNull()
   })
 
@@ -234,6 +234,8 @@ describe('DepartmentsPage — delete (Dialog D1)', () => {
     })
     expect(screen.queryByRole('alertdialog')).toBeNull()
     expect(adminApi.listDepartments).toHaveBeenCalledTimes(2)
+    // INC-19: the delete is confirmed above the list.
+    expect(screen.getByTestId('departments-success').textContent).toBe('Department "Engineering" deleted')
   })
 
   it('shows an inline error in the modal when delete fails, and keeps it open', async () => {

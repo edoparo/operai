@@ -55,7 +55,7 @@ describe('CloseYearDialog — content', () => {
     setup()
     const dialog = screen.getByRole('alertdialog', { name: 'Close fiscal year 2026?' })
     expect(within(dialog).getAllByRole('rowheader')).toHaveLength(5)
-    expect(within(dialog).getByText('16996,58 CHF')).not.toBeNull()
+    expect(within(dialog).getByText('CHF 16,996.58')).not.toBeNull()
   })
 
   it('states that the year can never be reopened and nothing dated in it can change', () => {
@@ -127,7 +127,13 @@ describe('CloseYearDialog — closing', () => {
 
   it('year_in_future: says the year cannot be closed yet, inline, dialog stays open', async () => {
     closeFiscalYear.mockRejectedValue(
-      new ApiError({ status: 409, title: 'x', code: 'year_in_future', detail: 'year_in_future', extras: { year: 2027 } }),
+      new ApiError({
+        status: 409,
+        title: 'x',
+        code: 'year_in_future',
+        detail: 'year_in_future',
+        extras: { year: 2027 },
+      }),
     )
     const { onClosed } = setup()
     acknowledge()

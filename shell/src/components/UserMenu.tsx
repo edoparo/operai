@@ -27,40 +27,19 @@
  * `/devices` route. Shown to every signed-in user — no permission check here,
  * by design (the route and `/me/*` API are identity-scoped).
  *
- * i18n (QE fix, specs/012-employee-address): "My profile" is copy this
- * feature ADDS, and design.md's own i18n table names it explicitly
- * (`account.menuLabel` → "My profile" / "Il mio profilo") — unlike "Sign
- * out" below (pre-existing, predates specs/012, a separate app-wide gap this
- * feature does not create or fix, mirroring R11's posture for admin-ui). The
- * `t()`/`resolveLocale()` pair mirrors `AccountScreen.tsx`'s identical
- * stateless heuristic verbatim (`navigator.language` starting with `"it"` →
- * `it`, else `en`) — the same convention, not a second one invented here.
+ * The menu itself — opening, keyboard (arrows, Home/End, Escape back to the
+ * avatar), closing on choice or outside click — is the library `Menu`
+ * (decisions D-60), shared with LogoMenu.
+ *
+ * i18n (INC-24/25): every label comes from the shell strings module, whose
+ * language the library resolves once for the whole suite (`selectStrings`).
+ * The menu's own `navigator.language` detection is gone.
  */
 
-import { useEffect, useRef, useState } from 'react'
 import { Link } from '@tanstack/react-router'
+import { Menu, MenuItem } from '@operai/ui'
 import { signOut } from '../lib/session'
-
-const COPY = {
-  myProfile: { en: 'My profile', it: 'Il mio profilo' },
-  // specs/015-hardware-inventory, T42 (AC-4.1, ADR-0045): the entry point to the
-  // ungated `/devices` route, visible to every signed-in user.
-  myDevices: { en: 'My devices', it: 'I miei dispositivi' },
-} as const
-
-type CopyKey = keyof typeof COPY
-
-/** `navigator.language` starting with "it" selects `it`, everything else falls back to `en`. */
-function resolveLocale(): 'it' | 'en' {
-  if (typeof navigator === 'undefined' || typeof navigator.language !== 'string') {
-    return 'en'
-  }
-  return navigator.language.toLowerCase().startsWith('it') ? 'it' : 'en'
-}
-
-function t(key: CopyKey): string {
-  return COPY[key][resolveLocale()]
-}
+import { strings } from '../strings'
 
 type UserMenuUser = {
   name?: string | null
@@ -78,40 +57,19 @@ const defaultOnSignOut = (): void => {
 }
 
 const UserMenu = ({ user, onSignOut = defaultOnSignOut }: UserMenuProps) => {
-  const displayName = user.name || user.email || 'Account'
+  const displayName = user.name || user.email || strings.userMenu.accountFallback
   const initial = displayName.charAt(0).toUpperCase()
   // Show the email as a secondary line only when we also have a distinct name.
   const secondary = user.name && user.email ? user.email : null
 
-  const [open, setOpen] = useState(false)
-  const rootRef = useRef<HTMLDivElement>(null)
-
-  useEffect(() => {
-    if (!open) return
-    function onDocMouseDown(e: MouseEvent) {
-      if (rootRef.current && !rootRef.current.contains(e.target as Node)) setOpen(false)
-    }
-    function onKey(e: KeyboardEvent) {
-      if (e.key === 'Escape') setOpen(false)
-    }
-    document.addEventListener('mousedown', onDocMouseDown)
-    document.addEventListener('keydown', onKey)
-    return () => {
-      document.removeEventListener('mousedown', onDocMouseDown)
-      document.removeEventListener('keydown', onKey)
-    }
-  }, [open])
-
   return (
-    <div className="relative" ref={rootRef}>
-      <button
-        onClick={() => setOpen((o) => !o)}
-        className="flex items-center rounded-full shrink-0 outline-none focus-visible:ring-2 focus-visible:ring-acc/50"
-        aria-haspopup="menu"
-        aria-expanded={open}
-        title={displayName}
-      >
-        {user.image ? (
+    <Menu
+      triggerShape="round"
+      triggerTitle={displayName}
+      align="end"
+      testIdPrefix="user-menu"
+      trigger={
+        user.image ? (
           <img
             src={user.image}
             alt={displayName}
@@ -124,53 +82,28 @@ const UserMenu = ({ user, onSignOut = defaultOnSignOut }: UserMenuProps) => {
           />
         ) : (
           <span
-            className="w-7 h-7 rounded-full bg-acc/20 text-acc text-[11px] font-bold font-mono flex items-center justify-center shrink-0 border border-acc/30"
+            className="w-7 h-7 rounded-full bg-acc/20 text-acc text-2xs font-bold font-mono flex items-center justify-center shrink-0 border border-acc/30"
             aria-label={displayName}
           >
             {initial}
           </span>
-        )}
-      </button>
-
-      {open && (
-        <div
-          role="menu"
-          className="absolute right-0 mt-2 min-w-[180px] max-w-[240px] bg-ink-soft border border-rule rounded-lg shadow-2xl z-50 py-1"
-        >
-          <div className="px-3 py-2 border-b border-rule">
-            <div className="text-[12px] text-text font-medium truncate">{displayName}</div>
-            {secondary && <div className="text-[11px] text-muted font-mono truncate">{secondary}</div>}
-          </div>
-          <Link
-            to="/account"
-            role="menuitem"
-            onClick={() => setOpen(false)}
-            className="block w-full text-left text-[12px] text-soft hover:text-text hover:bg-ink-mid px-3 py-2 transition-colors font-mono"
-          >
-            {t('myProfile')}
-          </Link>
-          <Link
-            to="/devices"
-            role="menuitem"
-            onClick={() => setOpen(false)}
-            className="block w-full text-left text-[12px] text-soft hover:text-text hover:bg-ink-mid px-3 py-2 transition-colors font-mono"
-          >
-            {t('myDevices')}
-          </Link>
-          <button
-            role="menuitem"
-            onClick={() => {
-              setOpen(false)
-              onSignOut()
-            }}
-            className="w-full text-left text-[12px] text-soft hover:text-text hover:bg-ink-mid px-3 py-2 transition-colors font-mono"
-            aria-label="Sign out"
-          >
-            Sign out
-          </button>
-        </div>
-      )}
-    </div>
+        )
+      }
+      header={
+        <>
+          <div className="truncate">{displayName}</div>
+          {secondary && <div className="menu-header-secondary truncate">{secondary}</div>}
+        </>
+      }
+    >
+      <Link to="/account" role="menuitem" className="menu-item">
+        {strings.userMenu.myProfile}
+      </Link>
+      <Link to="/devices" role="menuitem" className="menu-item">
+        {strings.userMenu.myDevices}
+      </Link>
+      <MenuItem onClick={onSignOut}>{strings.userMenu.signOut}</MenuItem>
+    </Menu>
   )
 }
 

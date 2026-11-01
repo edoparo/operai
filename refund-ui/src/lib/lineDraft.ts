@@ -33,6 +33,7 @@ import type { Entity } from '../components/EntityBadge'
 import type { Currency } from './money'
 import type { LinePayload, RefundLine } from './requestsApi'
 import { todayIsoDate } from './dates'
+import { parseDecimal } from '@operai/ui'
 
 export type LineDraftValue = {
   date: string
@@ -70,17 +71,15 @@ export const lineToDraft = (line: RefundLine): LineDraftValue => ({
 })
 
 /**
- * Parses a major-unit amount string (e.g. "45.50") into integer cents.
- * Returns `null` for empty/negative/non-finite input — callers must treat
- * `null` as "not a valid amount yet," never coerce it to `0`.
+ * Parses a major-unit amount string (e.g. "45.50" or "45,50") into integer
+ * cents. Delegates to @operai/ui's `parseDecimal` (INC-17): exact string
+ * parsing, a comma or a dot, at most two decimals — never `Math.round(n * 100)`
+ * (ADR-0025: round exactly once, at compute time; an amount typed with a third
+ * decimal is refused, not silently rounded). Returns `null` for empty, negative,
+ * exponent or otherwise malformed input — callers must treat `null` as "not a
+ * valid amount yet," never coerce it to `0`.
  */
-export const amountToCents = (raw: string): number | null => {
-  const trimmed = raw.trim()
-  if (trimmed === '') return null
-  const n = Number(trimmed)
-  if (!Number.isFinite(n) || n < 0) return null
-  return Math.round(n * 100)
-}
+export const amountToCents = (raw: string): number | null => parseDecimal(raw, 2)
 
 /** The inverse of `amountToCents`, for pre-filling an existing line's amount field. */
 export const centsToAmountInput = (cents: number): string => (cents / 100).toFixed(2)
@@ -98,16 +97,42 @@ export const centsToAmountInput = (cents: number): string => (cents / 100).toFix
  * configured yet is still a valid, saveable draft (AC-2.2's blocked state is
  * a submission-time gate, not a save-time one).
  */
-export const isLineDraftComplete = (draft: LineDraftValue): boolean => {
-  if (!draft.date || !draft.type || draft.motivo.trim() === '' || !draft.entity) return false
-  if (requiresKm(draft.type)) {
-    const km = Number(draft.km)
-    return Number.isFinite(km) && km > 0
+export const isLineDraftComplete = (draft: LineDraftValue): boolean => lineDraftInvalidFields(draft).length === 0
+
+/** A draft's editable fields, in the order the composer and the row render them. */
+export type LineDraftField = 'date' | 'type' | 'motivo' | 'amount' | 'entity' | 'currency' | 'km'
+
+/**
+ * The fields of `draft` that are missing or invalid for its *current* type, in
+ * render order (INC-16: per-field errors, focus the first invalid one). The
+ * same rules `isLineDraftComplete` has always applied — `km > 0` only for
+ * `travel_km`, amount/currency only for every other type — so a draft is
+ * complete exactly when this is empty.
+ */
+export const lineDraftInvalidFields = (draft: LineDraftValue): LineDraftField[] => {
+  const invalid: LineDraftField[] = []
+  if (!draft.date) invalid.push('date')
+  if (!draft.type) invalid.push('type')
+  if (draft.motivo.trim() === '') invalid.push('motivo')
+  const km = draft.type !== '' && requiresKm(draft.type)
+  if (!km && amountToCents(draft.amount) === null) invalid.push('amount')
+  if (!draft.entity) invalid.push('entity')
+  if (!km && !draft.currency) invalid.push('currency')
+  if (km) {
+    const n = Number(draft.km)
+    if (draft.km.trim() === '' || !Number.isFinite(n) || n <= 0) invalid.push('km')
   }
-  if (!draft.currency) return false
-  if (amountToCents(draft.amount) === null) return false
-  return true
+  return invalid
 }
+
+/** True while nothing but the pre-filled date has been entered — the only state in which "Add line" is disabled (INC-16). */
+export const isLineDraftBlank = (draft: LineDraftValue): boolean =>
+  draft.type === '' &&
+  draft.motivo === '' &&
+  draft.amount === '' &&
+  draft.entity === '' &&
+  draft.currency === '' &&
+  draft.km === ''
 
 /**
  * Converts a complete draft into the wire payload `POST/PUT

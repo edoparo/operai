@@ -475,9 +475,7 @@ describe('ReviewDetailPage — the status is stated, not inferred', () => {
 
     const decision = await screen.findByTestId('review-detail-decision-line')
     expect(decision.textContent).toContain('Approved on 22.08.2026 by chiara.rossi@welld.ch')
-    expect(screen.getByTestId('review-detail-paid-line').textContent).toContain(
-      'accounting@welld.ch',
-    )
+    expect(screen.getByTestId('review-detail-paid-line').textContent).toContain('accounting@welld.ch')
   })
 
   it('shows no decision stamp while the request is still awaiting one', async () => {
@@ -491,9 +489,7 @@ describe('ReviewDetailPage — the status is stated, not inferred', () => {
   // Never render half a stamp: "Approved on 22.08.2026 by undefined" is worse
   // than saying nothing, because it looks like a record rather than a gap.
   it('renders no stamp at all when the decider is missing from the record', async () => {
-    vi.mocked(requestsApi.get).mockResolvedValue(
-      decided({ status: 'approved', decidedBy: null }),
-    )
+    vi.mocked(requestsApi.get).mockResolvedValue(decided({ status: 'approved', decidedBy: null }))
     renderReviewDetailPage()
 
     await waitFor(() => expect(screen.queryByTestId('review-detail-approved')).not.toBeNull())
@@ -516,12 +512,11 @@ describe('ReviewDetailPage — decided (approved/rejected) read-only variant', (
 
     await waitFor(() => expect(screen.getByTestId('review-detail-approved')).not.toBeNull())
     expect(screen.getByTestId('monthly-processing-note')).not.toBeNull()
-    expect(screen.getByTestId('expense-line-row-line-1').textContent).toContain('8,00 €')
+    expect(screen.getByTestId('expense-line-row-line-1').textContent).toContain('EUR 8.00')
     expect(screen.queryByTestId('row-line-1-approved-total')).toBeNull()
     expect(screen.queryByTestId('review-detail-approve')).toBeNull()
     expect(screen.queryByTestId('review-detail-reject')).toBeNull()
   })
-
 
   // Placement, not just presence. The export first shipped between the totals
   // card and the line list, where it read as orphaned — it acts on the WHOLE
@@ -581,8 +576,7 @@ describe('ReviewDetailPage — decided (approved/rejected) read-only variant', (
     expect(note.parentElement?.contains(panel)).toBe(true)
     // And it precedes the expense lines rather than trailing them.
     expect(
-      note.compareDocumentPosition(screen.getByTestId('expense-line-row-line-1')) &
-        Node.DOCUMENT_POSITION_FOLLOWING,
+      note.compareDocumentPosition(screen.getByTestId('expense-line-row-line-1')) & Node.DOCUMENT_POSITION_FOLLOWING,
     ).toBeTruthy()
   })
 
@@ -619,7 +613,7 @@ describe('ReviewDetailPage — decided (approved/rejected) read-only variant', (
 
     await waitFor(() => expect(screen.getByTestId('review-detail-paid')).not.toBeNull())
     expect(screen.getByTestId('review-detail-paid-line').textContent).toContain('acct2@welld.ch')
-    expect(screen.getByTestId('expense-line-row-line-1').textContent).toContain('8,00 €')
+    expect(screen.getByTestId('expense-line-row-line-1').textContent).toContain('EUR 8.00')
     expect(screen.queryByTestId('monthly-processing-note')).toBeNull()
     expect(screen.queryByTestId('review-detail-approve')).toBeNull()
     expect(screen.queryByTestId('review-detail-reject')).toBeNull()

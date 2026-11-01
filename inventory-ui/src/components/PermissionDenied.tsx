@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react'
+import { StatePanel } from '@operai/ui'
 import { strings } from '../strings'
 
 /**
@@ -8,33 +8,21 @@ import { strings } from '../strings'
  * `role="alert"`, heading focused on mount, no controls. It also renders for a
  * deep link to a tab the caller's capabilities hide (T28), where the server
  * would 403 the same way.
+ *
+ * Now a thin adapter over @operai/ui's `StatePanel role="alert" focusOnMount`
+ * (ADR-0050): same copy and data-testids.
  */
 export default function PermissionDenied() {
-  const headingRef = useRef<HTMLHeadingElement>(null)
-
-  // Focus the heading on mount.
-  useEffect(() => {
-    headingRef.current?.focus()
-  }, [])
-
   return (
-    <div
+    <StatePanel
       role="alert"
-      data-testid="permission-denied"
-      className="flex flex-col items-center justify-center gap-2 px-6 py-16 text-center"
+      focusOnMount
+      headingLevel={2}
+      title={strings.common.permissionDenied.heading}
+      testId="permission-denied"
+      headingTestId="permission-denied-heading"
     >
-      <h2
-        ref={headingRef}
-        tabIndex={-1}
-        data-testid="permission-denied-heading"
-        className="text-lg font-bold focus:outline-none"
-        style={{ fontFamily: 'var(--disp)', color: 'var(--text)' }}
-      >
-        {strings.common.permissionDenied.heading}
-      </h2>
-      <p className="max-w-md text-sm leading-relaxed" style={{ color: 'var(--muted)' }}>
-        {strings.common.permissionDenied.body}
-      </p>
-    </div>
+      {strings.common.permissionDenied.body}
+    </StatePanel>
   )
 }

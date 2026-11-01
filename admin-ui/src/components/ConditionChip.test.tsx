@@ -43,14 +43,13 @@ describe('ConditionChip', () => {
     },
   )
 
-  it('pairs a decorative glyph with text (colour is never the only signal)', () => {
+  it('is a neutral badge with its label as text and no glyph (a condition is metadata, not a status — INC-23)', () => {
     render(<ConditionChip kind="own" />)
 
     const chip = screen.getByTestId('condition-chip-own')
-    const glyph = chip.querySelector('[aria-hidden="true"]')
-    expect(glyph).not.toBeNull()
-    expect(glyph!.textContent).not.toBe('')
-    expect(chip.textContent).toContain('Own records')
+    expect(chip.className).toBe('badge')
+    expect(chip.querySelector('[aria-hidden="true"]')).toBeNull()
+    expect(chip.textContent).toBe('Own records')
   })
 
   it('renders the self-approval chip distinct from the entity chip (AC-1.4)', () => {

@@ -39,6 +39,8 @@
  * instead of requiring a second, separate "reset" code path.
  */
 import { Component, Suspense, lazy, useCallback, useMemo, useState, type ComponentType, type ReactNode } from 'react'
+import { Banner, SkeletonRows, VisuallyHidden } from '@operai/ui'
+import { strings } from '../strings'
 
 export interface RemoteMountProps<P extends object = Record<string, never>> {
   /**
@@ -97,11 +99,10 @@ export function RemoteMount<P extends object = Record<string, never>>({
 
 function RemoteLoadingFallback({ moduleLabel }: { moduleLabel: string }) {
   return (
-    <div className="flex flex-col items-center justify-center gap-3 px-6 py-16" data-testid="remote-mount-loading">
-      <div aria-hidden="true" className="h-8 w-8 animate-spin rounded-full border-2 border-rule border-t-acc" />
-      {/* Announcement-only: mirrors EstimatesPage's `aria-live="polite"` sr-only
-          loading text convention rather than a new async-state pattern. */}
-      <p className="sr-only" aria-live="polite">{`Loading ${moduleLabel}…`}</p>
+    // The suite's loading shape (INC-22): skeleton rows + a polite visually-hidden line.
+    <div className="px-6 py-8" data-testid="remote-mount-loading">
+      <VisuallyHidden live>{strings.remote.loading(moduleLabel)}</VisuallyHidden>
+      <SkeletonRows />
     </div>
   )
 }
@@ -109,19 +110,9 @@ function RemoteLoadingFallback({ moduleLabel }: { moduleLabel: string }) {
 function RemoteErrorFallback({ moduleLabel, onRetry }: { moduleLabel: string; onRetry: () => void }) {
   return (
     <div className="flex items-center justify-center px-6 py-16" data-testid="remote-mount-error">
-      <div
-        role="alert"
-        className="flex max-w-md items-center justify-between gap-4 rounded-md border border-org/40 bg-org/10 px-4 py-3 text-sm text-org"
-      >
-        <span>{`${moduleLabel} couldn't load. Check your connection and try again.`}</span>
-        <button
-          type="button"
-          onClick={onRetry}
-          className="shrink-0 border border-org/60 px-2.5 py-1 text-xs font-medium text-org transition-colors hover:bg-org/20"
-        >
-          Retry
-        </button>
-      </div>
+      <Banner tone="warning" className="max-w-md" onRetry={onRetry} retryLabel={strings.remote.retry}>
+        {strings.remote.failed(moduleLabel)}
+      </Banner>
     </div>
   )
 }

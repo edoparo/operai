@@ -41,6 +41,23 @@ run = "node scripts/check-changeset.mjs --base=$(git merge-base HEAD main) --hea
 description = "Fail if the frontends' pnpm lockfiles resolve different react/react-dom versions (Module Federation singleton)"
 run = "node scripts/check-react-skew.mjs"
 
+# --- @operai/ui (operai-ui/, ADR-0050): the shared design system. Apps compile
+# its source, so a library change is checked in the library AND in every app
+# that consumes it (today: the shell, for tokens.css, and refund-ui). ---
+[tasks."ui:storybook"]
+description = "Run the @operai/ui Storybook (components, foundations, page compositions) on http://localhost:6006"
+dir = "operai-ui"
+run = "pnpm install --frozen-lockfile && pnpm storybook"
+
+[tasks."ui:check"]
+description = "Check @operai/ui and its consumers: library typecheck/lint/tests/Storybook build, then shell + refund-ui build and tests"
+run = """
+set -e
+(cd operai-ui && pnpm typecheck && pnpm lint && pnpm test && pnpm build-storybook --quiet)
+(cd shell && pnpm build && pnpm test)
+(cd refund-ui && pnpm build && pnpm lint && pnpm test)
+"""
+
 # --- Shared-copy drift guard: a few backend modules are COPIED between services
 # (no shared package, by design). Each copy marks its shared region with
 # `// shared-copy:begin|end <name>`; this fails, naming the files, when the regions

@@ -1,0 +1,139 @@
+/** strings.users — the Users list, bulk delete, the user detail and the invite dialog. */
+export const en = {
+  heading: 'Users',
+  description: 'Browse every signed-in user, then open one to set attributes and assign roles or departments.',
+  inviteUser: 'Invite user',
+  loadError: 'Could not load users.',
+  caption: 'Users',
+  searchLabel: 'Search users by name or email',
+  searchPlaceholder: 'Search by name or email…',
+  empty: {
+    title: 'No users found',
+    body: 'No users match your search.',
+  },
+  selectAll: 'Select all',
+  selectAllLabel: 'Select all users on this page',
+  selectUser: (name: string) => `Select ${name}`,
+  deleted: (name: string) => `Deleted ${name}`,
+  deleteTitle: 'Delete user?',
+  deleteBody: (identity: string) =>
+    `Delete ${identity}? They will immediately lose all access to Operai — every active session ends and they can no longer sign in. Their record and data are retained for audit, but there is no undo: regaining access requires a brand-new invitation.`,
+  bulk: {
+    actionsLabel: 'Bulk actions',
+    selected: (count: number) => `${count} ${count === 1 ? 'user' : 'users'} selected`,
+    deleteSelected: (count: number) => `Delete selected (${count})`,
+    title: (count: number) => `Delete ${count} users?`,
+    body: (count: number) =>
+      `Delete ${count} selected users? Anyone in this selection who is the last remaining administrator, or your own account, is automatically skipped — everyone else in the batch is still deleted.`,
+    resultTitle: 'Bulk delete result',
+    resultSummary: (deleted: number, total: number) =>
+      `Deleted ${deleted} of ${total} selected ${total === 1 ? 'user' : 'users'}.`,
+    skipped: (label: string, reason: string) => `${label} — skipped: ${reason}`,
+  },
+  invite: {
+    sent: (email: string) => `Invitation sent to ${email}`,
+    emailFailed: (email: string) => `Invitation created for ${email} — email failed to send`,
+    stale: 'One or more selected roles/departments no longer exist.',
+    createFailed: 'Could not create the invitation. Try again.',
+    conflictActiveUser:
+      'This email already belongs to an existing user — use their user page to change roles or departments instead.',
+    conflictPending:
+      'An invitation is already pending for this email — resend it from the Invitations tab instead of creating a new one.',
+    conflictFallback: 'This email cannot be invited right now.',
+    dialog: {
+      title: 'Invite user',
+      submit: 'Send invite',
+      busy: 'Sending…',
+      emailFormat: 'Enter a valid email address, like name@welld.ch.',
+      noRoles: 'No roles defined yet.',
+      noDepartments: 'No departments defined yet.',
+    },
+  },
+  detail: {
+    title: 'User detail',
+    back: 'Back to users',
+    deleteUser: 'Delete user',
+    loadError: 'Could not load this user.',
+    identityTitle: 'Identity',
+    attributesTitle: 'Attributes',
+    saveAttributes: 'Save attributes',
+    attributesSaved: 'Attributes saved',
+    directRoles: 'Direct roles',
+    noRoles: 'No roles defined yet.',
+    saveRoles: 'Save roles',
+    rolesSaved: 'Roles saved',
+    noDepartments: 'No departments defined yet.',
+    saveDepartments: 'Save departments',
+    departmentsSaved: 'Departments saved',
+  },
+}
+
+export const it: typeof en = {
+  heading: 'Utenti',
+  description:
+    'Tutti gli utenti che hanno effettuato l’accesso: aprirne uno per impostarne gli attributi e assegnare ruoli o reparti.',
+  inviteUser: 'Invita utente',
+  loadError: 'Impossibile caricare gli utenti.',
+  caption: 'Utenti',
+  searchLabel: 'Cerca utenti per nome o email',
+  searchPlaceholder: 'Cerca per nome o email…',
+  empty: {
+    title: 'Nessun utente trovato',
+    body: 'Nessun utente corrisponde alla ricerca.',
+  },
+  selectAll: 'Seleziona tutti',
+  selectAllLabel: 'Seleziona tutti gli utenti di questa pagina',
+  selectUser: (name: string) => `Seleziona ${name}`,
+  deleted: (name: string) => `${name} eliminato`,
+  deleteTitle: 'Eliminare l’utente?',
+  deleteBody: (identity: string) =>
+    `Eliminare ${identity}? Perderà subito ogni accesso a Operai: tutte le sessioni attive terminano e non potrà più accedere. Il suo profilo e i suoi dati restano conservati per l’audit, ma l’operazione non è reversibile: per tornare ad accedere servirà un nuovo invito.`,
+  bulk: {
+    actionsLabel: 'Azioni multiple',
+    selected: (count: number) => `${count} ${count === 1 ? 'utente selezionato' : 'utenti selezionati'}`,
+    deleteSelected: (count: number) => `Elimina selezionati (${count})`,
+    title: (count: number) => `Eliminare ${count} utenti?`,
+    body: (count: number) =>
+      `Eliminare i ${count} utenti selezionati? Chi in questa selezione è l’ultimo amministratore rimasto, o il proprio account, viene saltato automaticamente; tutti gli altri vengono comunque eliminati.`,
+    resultTitle: 'Esito dell’eliminazione multipla',
+    resultSummary: (deleted: number, total: number) =>
+      `Eliminati ${deleted} di ${total} ${total === 1 ? 'utente selezionato' : 'utenti selezionati'}.`,
+    skipped: (label: string, reason: string) => `${label} — saltato: ${reason}`,
+  },
+  invite: {
+    sent: (email: string) => `Invito inviato a ${email}`,
+    emailFailed: (email: string) => `Invito creato per ${email}, ma l’invio dell’email non è riuscito`,
+    stale: 'Uno o più ruoli o reparti selezionati non esistono più.',
+    createFailed: 'Impossibile creare l’invito. Riprovare.',
+    conflictActiveUser:
+      'Questa email appartiene già a un utente esistente: usare la sua pagina utente per modificarne ruoli o reparti.',
+    conflictPending:
+      'Per questa email c’è già un invito in attesa: inviarlo di nuovo dalla scheda Inviti invece di crearne uno nuovo.',
+    conflictFallback: 'Questa email non può essere invitata in questo momento.',
+    dialog: {
+      title: 'Invita utente',
+      submit: 'Invia invito',
+      busy: 'Invio…',
+      emailFormat: 'Inserire un indirizzo email valido, ad es. nome@welld.ch.',
+      noRoles: 'Ancora nessun ruolo definito.',
+      noDepartments: 'Ancora nessun reparto definito.',
+    },
+  },
+  detail: {
+    title: 'Dettaglio utente',
+    back: 'Torna agli utenti',
+    deleteUser: 'Elimina utente',
+    loadError: 'Impossibile caricare questo utente.',
+    identityTitle: 'Identità',
+    attributesTitle: 'Attributi',
+    saveAttributes: 'Salva attributi',
+    attributesSaved: 'Attributi salvati',
+    directRoles: 'Ruoli diretti',
+    noRoles: 'Ancora nessun ruolo definito.',
+    saveRoles: 'Salva ruoli',
+    rolesSaved: 'Ruoli salvati',
+    noDepartments: 'Ancora nessun reparto definito.',
+    saveDepartments: 'Salva reparti',
+    departmentsSaved: 'Reparti salvati',
+  },
+}

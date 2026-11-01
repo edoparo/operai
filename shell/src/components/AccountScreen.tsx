@@ -6,12 +6,10 @@
  *
  * Mirrors `NoAccessScreen.tsx` structurally (a small, shell-local, zero-
  * dependency screen component) and is built entirely from reused parts:
- *   - the loading/error+retry VISUAL LANGUAGE of `RemoteMount.tsx`'s
- *     `RemoteLoadingFallback`/`RemoteErrorFallback` (spinner classes,
- *     `role="alert"` + `border-org`/`bg-org/10`/`text-org` + a bordered
- *     "Retry" button) — recreated here rather than imported, since those two
- *     are module-private to `RemoteMount.tsx` and this task's scope does not
- *     touch that file;
+ *   - the page frame and states from `@operai/ui` (ADR-0050): `ToolLayout`
+ *     (narrow) + `PageHeader`, `SkeletonRows` with a polite `VisuallyHidden`
+ *     line while loading, a `warning` `Banner` (role="alert") with its
+ *     `type="button"` Retry on failure;
  *   - the read-only VALUE-DISPLAY register of `admin-ui/src/pages/
  *     UserDetail.tsx`'s Identity block (a plain-text value, no input) —
  *     ported as a styling convention across the federation boundary (that
@@ -26,7 +24,7 @@
  * exactly that region for `input, textarea, select, [contenteditable],
  * button[type="submit"]` and any `role="listbox"`/`role="combobox"` element,
  * and must find none. There is no such element anywhere in this file: the
- * Retry button below is deliberately `type="button"` (never the default
+ * Banner's Retry button is the library `Button`, `type="button"` (never the default
  * `"submit"`), and nothing here is a `<input>`/`<select>`/`<textarea>` — a
  * *disabled* input would still trip that query, so this component doesn't
  * render one at all, not even disabled.
@@ -39,45 +37,21 @@
  * tell an employee something false about their own personal data (design.md
  * F6 step 4).
  *
- * i18n: per design.md "i18n" — `admin-ui` has no i18n runtime today, and
- * neither does `shell`; this screen's copy follows the SAME stateless
- * heuristic design.md prescribes for `admin-ui`'s `addressCopy.ts`
- * (`navigator.language` starting with `"it"` selects `it`, else `en`)
- * inlined here rather than as a separate module, since this task's `touch:`
- * scope (specs/012-employee-address/tasks.md T14) does not add a new shell
- * copy file.
+ * i18n (INC-24/25): copy comes from the shell strings module (`strings.account`);
+ * the language is resolved once for the suite by the library, so this screen
+ * no longer runs its own `navigator.language` check.
+ *
+ * States (INC-22/33): loading is the library `SkeletonRows` with a polite
+ * `VisuallyHidden` line; the address is a `Card`; "no address on file" is a
+ * `StatePanel` (title + body) — still not an error, which stays a `Banner`.
  */
 
 import { useEffect, useState } from 'react'
+import { Banner, Card, PageHeader, SkeletonRows, StatePanel, ToolLayout, VisuallyHidden } from '@operai/ui'
 import { getMyAddress, type AddressView } from '../lib/profileApi'
+import { strings } from '../strings'
 
 type AccountState = { status: 'loading' } | { status: 'error' } | { status: 'loaded'; address: AddressView | null }
-
-const COPY = {
-  sectionTitle: { en: 'Home address', it: 'Indirizzo di casa' },
-  loading: { en: 'Loading your address…', it: 'Caricamento del tuo indirizzo…' },
-  error: { en: "Couldn't load your address.", it: 'Impossibile caricare il tuo indirizzo.' },
-  retry: { en: 'Retry', it: 'Riprova' },
-  none: { en: 'No address on file', it: 'Nessun indirizzo registrato' },
-  contactAdmin: {
-    en: 'Contact an admin to update this.',
-    it: 'Contatta un amministratore per aggiornarlo.',
-  },
-} as const
-
-type CopyKey = keyof typeof COPY
-
-/** `navigator.language` starting with "it" selects `it`, everything else falls back to `en`. */
-function resolveLocale(): 'it' | 'en' {
-  if (typeof navigator === 'undefined' || typeof navigator.language !== 'string') {
-    return 'en'
-  }
-  return navigator.language.toLowerCase().startsWith('it') ? 'it' : 'en'
-}
-
-function t(key: CopyKey): string {
-  return COPY[key][resolveLocale()]
-}
 
 export function AccountScreen() {
   const [state, setState] = useState<AccountState>({ status: 'loading' })
@@ -121,55 +95,46 @@ export function AccountScreen() {
 
   const retry = () => setReloadToken((current) => current + 1)
 
+  // The page frame (INC-12): ToolLayout `narrow` (a single profile) owns the
+  // h1 ("My profile", the UserMenu entry that leads here); the address section
+  // is the PageHeader's h2.
   return (
-    <div className="mx-auto flex max-w-xl flex-col gap-4 px-6 py-12" data-testid="account-screen">
-      <h1 className="font-disp text-lg font-semibold text-text">{t('sectionTitle')}</h1>
+    <ToolLayout title={strings.account.title} width="narrow" testId="account-screen">
+      <section aria-labelledby="account-address-heading">
+        <PageHeader title={strings.account.address} titleId="account-address-heading" />
 
-      {/* AC-6.2 — every state this screen can render lives inside this one
-          region; none of them contain an interactive element (see module doc). */}
-      <div data-testid="account-address-region">
-        {state.status === 'loading' && (
-          <div className="flex items-center gap-3 py-2" data-testid="account-loading">
-            <div aria-hidden="true" className="h-5 w-5 animate-spin rounded-full border-2 border-rule border-t-acc" />
-            <p className="sr-only" aria-live="polite">
-              {t('loading')}
-            </p>
-          </div>
-        )}
+        {/* AC-6.2 — every state this screen can render lives inside this one
+            region; none of them contain an interactive element (see module doc). */}
+        <div data-testid="account-address-region">
+          {state.status === 'loading' && (
+            <div data-testid="account-loading">
+              <VisuallyHidden live>{strings.account.loading}</VisuallyHidden>
+              <SkeletonRows rows={1} actions={0} />
+            </div>
+          )}
 
-        {state.status === 'error' && (
-          <div
-            role="alert"
-            data-testid="account-error"
-            className="flex items-center justify-between gap-4 rounded-md border border-org/40 bg-org/10 px-4 py-3 text-sm text-org"
-          >
-            <span>{t('error')}</span>
-            <button
-              type="button"
-              onClick={retry}
-              className="shrink-0 border border-org/60 px-2.5 py-1 text-xs font-medium text-org transition-colors hover:bg-org/20"
-            >
-              {t('retry')}
-            </button>
-          </div>
-        )}
+          {state.status === 'error' && (
+            <Banner tone="warning" data-testid="account-error" onRetry={retry} retryLabel={strings.account.retry}>
+              {strings.account.error}
+            </Banner>
+          )}
 
-        {state.status === 'loaded' && (
-          <div className="flex flex-col gap-3">
-            {state.address ? (
-              <p className="text-sm text-text" data-testid="account-address-formatted">
-                {state.address.formatted}
-              </p>
+          {state.status === 'loaded' &&
+            (state.address ? (
+              <Card>
+                <p className="text-sm text-text" data-testid="account-address-formatted">
+                  {state.address.formatted}
+                </p>
+                <p className="mt-3 text-xs text-muted">{strings.account.contactAdmin}</p>
+              </Card>
             ) : (
-              <p className="text-sm text-soft" data-testid="account-address-empty">
-                {t('none')}
-              </p>
-            )}
-            <p className="text-xs text-muted">{t('contactAdmin')}</p>
-          </div>
-        )}
-      </div>
-    </div>
+              <StatePanel title={strings.account.none} testId="account-address-empty">
+                {strings.account.contactAdmin}
+              </StatePanel>
+            ))}
+        </div>
+      </section>
+    </ToolLayout>
   )
 }
 

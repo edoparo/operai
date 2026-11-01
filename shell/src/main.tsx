@@ -1,3 +1,9 @@
+// FIRST import, on purpose: sets `<html lang>` to the person's language
+// before any strings module is evaluated (the router's import graph pulls in
+// every shell component's copy). This is the suite-wide language seam: the
+// library's resolveLocale() reads <html lang> first, so the shell chrome and
+// every remote mounted later select the same catalog. See lib/documentLanguage.ts.
+import './locale'
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 import { RouterProvider } from '@tanstack/react-router'

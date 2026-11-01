@@ -3,6 +3,8 @@ import { defineConfig } from 'vitest/config'
 
 export default defineConfig({
   resolve: {
+    // One React for the app and the library's source (ADR-0050).
+    dedupe: ['react', 'react-dom'],
     // T9 (specs/003-suite-shell/tasks.md): router.tsx dynamically imports
     // the suite's federated remotes (`estimai/App`, `refund/App`, `admin/App`
     // — T25, specs/004-auth-roles-permissions — and now `notify/App` — T13,
@@ -17,6 +19,8 @@ export default defineConfig({
     // resolution — see src/federation/__stubs__/*.tsx for why they're never
     // actually rendered.
     alias: {
+      // The shared component library, compiled from source (ADR-0050).
+      '@operai/ui': fileURLToPath(new URL('../operai-ui/src/index.ts', import.meta.url)),
       'estimai/App': fileURLToPath(new URL('./src/federation/__stubs__/estimaiApp.tsx', import.meta.url)),
       'refund/App': fileURLToPath(new URL('./src/federation/__stubs__/refundApp.tsx', import.meta.url)),
       'admin/App': fileURLToPath(new URL('./src/federation/__stubs__/adminApp.tsx', import.meta.url)),

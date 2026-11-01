@@ -11,13 +11,13 @@
  *       by/Added on/Status columns), the `inEffectToday` row carries
  *       RateInEffectBadge, a non-in-effect row does not.
  *   (C) Empty (per entity): "No rate configured yet for …" + a repeated
- *       "+ Add rate entry" when rate:manage is granted.
+ *       "Add rate entry" when rate:manage is granted.
  *   (D) Error: listRates rejects (non-403) → ErrorBanner + Retry re-fetches.
  *   (E) Forbidden: listRates rejects with 403 → PermissionDenied with a
- *       section-specific message, no "+ Add rate entry" anywhere.
- *   (F) rate:manage gating: no "+ Add rate entry" button anywhere when
- *       adminApi.getMe() doesn't grant it, even though the tables render.
- *   (G) Add (M1): "+ Add rate entry" → fill rate/validFrom → submit →
+ *       section-specific message, no "Add rate entry" anywhere.
+ *   (F) rate:manage gating: no "Add rate entry" button anywhere when
+ *       usePermissions() doesn't grant it, even though the tables render.
+ *   (G) Add (M1): "Add rate entry" → fill rate/validFrom → submit →
  *       ratesApi.addRate called with the right body → list reloads → focus
  *       returns to the trigger button.
  *   (H) Add 422: addRate rejects 422 → field-level error surfaced (rate vs.
@@ -26,15 +26,15 @@
  *       submit without calling addRate at all.
  *
  * Strategy mirrors RolesPage.test.tsx: mock `../lib/ratesApi` and
- * `../lib/adminApi` at the module level (keeping the real `ApiError`/types
- * via importOriginal).
+ * `../lib/settingsApi` at the module level (keeping the real `ApiError`/types
+ * via importOriginal); capabilities come from a mocked `shell/session`
+ * `usePermissions()` (INC-32, as in SectionNav.test.tsx).
  */
 
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import MileageRatesPage from './MileageRatesPage'
 import type { RatesResult } from '../lib/ratesApi'
-import type { EffectivePermissions } from '../lib/adminApi'
 import type { SettingResult } from '../lib/settingsApi'
 
 // ---------------------------------------------------------------------------
@@ -46,9 +46,9 @@ vi.mock('../lib/ratesApi', async (importOriginal) => {
   return { ...original, listRates: vi.fn(), addRate: vi.fn() }
 })
 
-vi.mock('../lib/adminApi', async (importOriginal) => {
-  const original = await importOriginal<typeof import('../lib/adminApi')>()
-  return { ...original, getMe: vi.fn() }
+vi.mock('shell/session', async (importOriginal) => {
+  const original = await importOriginal<typeof import('shell/session')>()
+  return { ...original, usePermissions: vi.fn() }
 })
 
 vi.mock('../lib/settingsApi', async (importOriginal) => {
@@ -58,7 +58,7 @@ vi.mock('../lib/settingsApi', async (importOriginal) => {
 
 import * as ratesApi from '../lib/ratesApi'
 import { ApiError as RatesApiError } from '../lib/ratesApi'
-import * as adminApi from '../lib/adminApi'
+import * as session from 'shell/session'
 import * as settingsApi from '../lib/settingsApi'
 import { ApiError as SettingsApiError, ACCOUNTING_DISTRIBUTION_EMAIL_KEY } from '../lib/settingsApi'
 
@@ -66,7 +66,13 @@ import { ApiError as SettingsApiError, ACCOUNTING_DISTRIBUTION_EMAIL_KEY } from 
 // Fixtures
 // ---------------------------------------------------------------------------
 
-const managePermissions: EffectivePermissions = {
+type Permissions = ReturnType<typeof session.usePermissions>
+
+// The shell's EMPTY_PERMISSIONS — what usePermissions() yields before
+// /authz/me resolves or when it fails.
+const NO_GRANTS: Permissions = { epoch: 0, apps: [], roles: [], departments: [], permissions: [] }
+
+const managePermissions: Permissions = {
   epoch: 1,
   apps: ['admin'],
   roles: ['admin'],
@@ -77,7 +83,7 @@ const managePermissions: EffectivePermissions = {
   ],
 }
 
-const readOnlyPermissions: EffectivePermissions = {
+const readOnlyPermissions: Permissions = {
   epoch: 1,
   apps: ['admin'],
   roles: [],
@@ -89,7 +95,7 @@ const readOnlyPermissions: EffectivePermissions = {
 // settings:manage (mirrors ADR-0028's seed: the two are granted together to
 // admin/refund-admin), used for the accounting-distribution-email panel's
 // happy-path tests.
-const settingsManagePermissions: EffectivePermissions = {
+const settingsManagePermissions: Permissions = {
   epoch: 1,
   apps: ['admin'],
   roles: ['admin'],
@@ -99,6 +105,18 @@ const settingsManagePermissions: EffectivePermissions = {
     { resource: 'rate', action: 'manage', conditions: null },
     { resource: 'settings', action: 'read', conditions: null },
     { resource: 'settings', action: 'manage', conditions: null },
+  ],
+}
+
+// settings:read WITHOUT settings:manage — the panel is shown read-only.
+const settingsReadOnlyPermissions: Permissions = {
+  epoch: 1,
+  apps: ['admin'],
+  roles: [],
+  departments: [],
+  permissions: [
+    { resource: 'rate', action: 'read', conditions: null },
+    { resource: 'settings', action: 'read', conditions: null },
   ],
 }
 
@@ -157,7 +175,7 @@ function pendingPromise<T>(): Promise<T> {
 }
 
 beforeEach(() => {
-  vi.mocked(adminApi.getMe).mockResolvedValue(managePermissions)
+  vi.mocked(session.usePermissions).mockReturnValue(managePermissions)
 })
 
 afterEach(() => {
@@ -171,14 +189,16 @@ afterEach(() => {
 
 describe('MileageRatesPage — loading', () => {
   it('renders SkeletonListRows under each entity heading while listRates is in-flight', () => {
+    vi.mocked(session.usePermissions).mockReturnValue(settingsManagePermissions)
     vi.mocked(ratesApi.listRates).mockReturnValue(pendingPromise())
+    vi.mocked(settingsApi.getSetting).mockReturnValue(pendingPromise())
 
     render(<MileageRatesPage />)
 
     // 2 for the rate entities + 1 for the accounting-distribution-email panel
-    // (T6, specs/011-refund-settings) — it also starts 'loading' on the very
-    // first synchronous render, before its own getMe()/getSetting() calls
-    // resolve.
+    // (T6, specs/011-refund-settings) — with settings:read held it also starts
+    // 'loading' on the very first synchronous render, before its getSetting()
+    // call resolves.
     expect(screen.getAllByTestId('skeleton-list-rows')).toHaveLength(3)
     expect(screen.getByText('WellD CH')).not.toBeNull()
     expect(screen.getByText('WellD Italia')).not.toBeNull()
@@ -204,17 +224,50 @@ describe('MileageRatesPage — populated', () => {
     expect(rows).toHaveLength(2)
 
     const currentRow = screen.getByTestId('rate-row-clr_current')
-    expect(currentRow.textContent).toContain('0.70 CHF/km')
+    expect(currentRow.textContent).toContain('CHF 0.70/km')
     expect(currentRow.querySelector('[data-testid="rate-in-effect-badge"]')).not.toBeNull()
+    // INC-26: valid-from is the library's numeric date, the calendar day never shifted by the time zone.
+    expect(currentRow.textContent).toContain('01.01.2026')
 
     const oldRow = screen.getByTestId('rate-row-clr_old')
-    expect(oldRow.textContent).toContain('0.65 CHF/km')
+    expect(oldRow.textContent).toContain('CHF 0.65/km')
     expect(oldRow.querySelector('[data-testid="rate-in-effect-badge"]')).toBeNull()
 
     // No Actions column anywhere (AC-4.7 — append-only, no edit/delete).
     const table = screen.getByTestId('rates-table-welld_ch')
     expect(table.textContent).not.toContain('Edit')
     expect(table.textContent).not.toContain('Delete')
+  })
+
+  it('formats the rate from its integer micros with the locale number formatter (INC-27)', async () => {
+    vi.mocked(ratesApi.listRates).mockResolvedValue({
+      ...populatedResult,
+      entities: [
+        {
+          entity: 'welld_ch',
+          currency: 'CHF',
+          currentEntryId: 'clr_precise',
+          entries: [
+            {
+              id: 'clr_precise',
+              ratePerKmMicros: 725500,
+              // The decimal string is ignored for display: the micros are the source of truth.
+              ratePerKm: 'ignored',
+              validFrom: '2026-01-01',
+              createdAt: '2026-01-01T09:00:00.000Z',
+              createdByEmail: 'admin@welld.ch',
+              inEffectToday: true,
+            },
+          ],
+        },
+        { entity: 'welld_it', currency: 'EUR', currentEntryId: null, entries: [] },
+      ],
+    })
+
+    render(<MileageRatesPage />)
+
+    const row = await screen.findByTestId('rate-row-clr_precise')
+    expect(row.textContent).toContain('CHF 0.7255/km')
   })
 
   it('renders "No rate configured yet for WellD Italia." for the empty entity', async () => {
@@ -276,7 +329,7 @@ describe('MileageRatesPage — forbidden (AC-4.6)', () => {
       "You don't have permission to view mileage rates.",
     )
     expect(screen.queryByTestId('rates-table-welld_ch')).toBeNull()
-    expect(screen.queryByText('+ Add rate entry')).toBeNull()
+    expect(screen.queryByText('Add rate entry')).toBeNull()
   })
 })
 
@@ -285,8 +338,8 @@ describe('MileageRatesPage — forbidden (AC-4.6)', () => {
 // ---------------------------------------------------------------------------
 
 describe('MileageRatesPage — rate:manage gating', () => {
-  it('renders the tables but no "+ Add rate entry" button anywhere without rate:manage', async () => {
-    vi.mocked(adminApi.getMe).mockResolvedValue(readOnlyPermissions)
+  it('renders the tables but no "Add rate entry" button anywhere without rate:manage', async () => {
+    vi.mocked(session.usePermissions).mockReturnValue(readOnlyPermissions)
     vi.mocked(ratesApi.listRates).mockResolvedValue(populatedResult)
 
     render(<MileageRatesPage />)
@@ -294,12 +347,12 @@ describe('MileageRatesPage — rate:manage gating', () => {
     await waitFor(() => {
       expect(screen.getByTestId('rates-table-welld_ch')).not.toBeNull()
     })
-    expect(screen.queryByText('+ Add rate entry')).toBeNull()
+    expect(screen.queryByText('Add rate entry')).toBeNull()
     expect(screen.queryByTestId('add-rate-button-welld_ch')).toBeNull()
   })
 
-  it('shows "+ Add rate entry" for each entity when getMe() fails (fails closed — hidden, not crashed)', async () => {
-    vi.mocked(adminApi.getMe).mockRejectedValue(new Error('network error'))
+  it('hides "Add rate entry" on the shell EMPTY_PERMISSIONS — its result for any /authz/me failure (fails closed — hidden, not crashed)', async () => {
+    vi.mocked(session.usePermissions).mockReturnValue(NO_GRANTS)
     vi.mocked(ratesApi.listRates).mockResolvedValue(populatedResult)
 
     render(<MileageRatesPage />)
@@ -307,7 +360,7 @@ describe('MileageRatesPage — rate:manage gating', () => {
     await waitFor(() => {
       expect(screen.getByTestId('rates-table-welld_ch')).not.toBeNull()
     })
-    expect(screen.queryByText('+ Add rate entry')).toBeNull()
+    expect(screen.queryByText('Add rate entry')).toBeNull()
   })
 })
 
@@ -357,6 +410,11 @@ describe('MileageRatesPage — add rate entry (Modal ADM-M1)', () => {
     })
     expect(ratesApi.listRates).toHaveBeenCalledTimes(2)
     expect(document.activeElement).toBe(trigger)
+    // INC-19: the entity's section confirms the new entry (a polite status, focus untouched).
+    await waitFor(() => {
+      expect(screen.getByTestId('rates-success-welld_ch').textContent).toBe('Rate entry added for WellD CH')
+    })
+    expect(screen.getByTestId('rates-success-welld_ch-banner').getAttribute('role')).toBe('status')
   })
 
   it('cancelling the modal (Escape) does not call addRate', async () => {
@@ -456,6 +514,66 @@ describe('MileageRatesPage — add rate entry (Modal ADM-M1)', () => {
     })
     expect(screen.getByTestId('add-rate-value-error').textContent).toBe('Enter a rate greater than 0.')
     expect(ratesApi.addRate).not.toHaveBeenCalled()
+    // INC-16: the error describes and marks the field, and a failed submit focuses it.
+    const rateInput = screen.getByTestId('add-rate-value')
+    expect(rateInput.getAttribute('aria-invalid')).toBe('true')
+    expect(document.activeElement).toBe(rateInput)
+  })
+
+  it('the rate is a text MoneyInput: a comma decimal is accepted and sent as a dot decimal (INC-17)', async () => {
+    vi.mocked(ratesApi.listRates).mockResolvedValue(populatedResult)
+    vi.mocked(ratesApi.addRate).mockResolvedValue({
+      id: 'clr_new',
+      ratePerKmMicros: 720000,
+      ratePerKm: '0.72',
+      validFrom: '2026-08-01',
+      createdAt: '2026-07-20T10:00:00.000Z',
+      createdByEmail: 'me@welld.ch',
+      inEffectToday: false,
+    })
+
+    render(<MileageRatesPage />)
+
+    await waitFor(() => {
+      expect(screen.getByTestId('rates-table-welld_ch')).not.toBeNull()
+    })
+
+    fireEvent.click(screen.getByTestId('add-rate-button-welld_ch'))
+    const rateInput = screen.getByTestId('add-rate-value')
+    expect(rateInput.getAttribute('type')).toBe('text')
+    expect(rateInput.getAttribute('inputmode')).toBe('decimal')
+    expect(screen.getByTestId('add-rate-valid-from').getAttribute('type')).toBe('date')
+
+    fireEvent.change(rateInput, { target: { value: '0,72' } })
+    fireEvent.change(screen.getByTestId('add-rate-valid-from'), { target: { value: '2026-08-01' } })
+    fireEvent.click(screen.getByTestId('add-rate-submit'))
+
+    await waitFor(() => {
+      expect(ratesApi.addRate).toHaveBeenCalledWith({ entity: 'welld_ch', ratePerKm: '0.72', validFrom: '2026-08-01' })
+    })
+  })
+
+  it('more decimals than the rate precision (6) is an error on blur, never rounded', async () => {
+    vi.mocked(ratesApi.listRates).mockResolvedValue(populatedResult)
+
+    render(<MileageRatesPage />)
+
+    await waitFor(() => {
+      expect(screen.getByTestId('rates-table-welld_ch')).not.toBeNull()
+    })
+
+    fireEvent.click(screen.getByTestId('add-rate-button-welld_ch'))
+    const rateInput = screen.getByTestId('add-rate-value')
+    fireEvent.change(rateInput, { target: { value: '0.1234567' } })
+    fireEvent.blur(rateInput)
+
+    expect(screen.getByTestId('add-rate-value-error').textContent).toBe('Enter a rate greater than 0.')
+    expect(rateInput.getAttribute('aria-invalid')).toBe('true')
+
+    // Typing again clears the blur error.
+    fireEvent.change(rateInput, { target: { value: '0.123456' } })
+    expect(screen.queryByTestId('add-rate-value-error')).toBeNull()
+    expect(ratesApi.addRate).not.toHaveBeenCalled()
   })
 })
 
@@ -466,7 +584,7 @@ describe('MileageRatesPage — add rate entry (Modal ADM-M1)', () => {
 
 describe('MileageRatesPage — accounting distribution email panel', () => {
   it('renders the current configured value and its history (AC-1.1, AC-5.3)', async () => {
-    vi.mocked(adminApi.getMe).mockResolvedValue(settingsManagePermissions)
+    vi.mocked(session.usePermissions).mockReturnValue(settingsManagePermissions)
     vi.mocked(ratesApi.listRates).mockResolvedValue(populatedResult)
     vi.mocked(settingsApi.getSetting).mockResolvedValue(configuredSetting)
 
@@ -483,7 +601,7 @@ describe('MileageRatesPage — accounting distribution email panel', () => {
   })
 
   it('renders a clear "not configured" state when the setting has never been set (AC-1.1)', async () => {
-    vi.mocked(adminApi.getMe).mockResolvedValue(settingsManagePermissions)
+    vi.mocked(session.usePermissions).mockReturnValue(settingsManagePermissions)
     vi.mocked(ratesApi.listRates).mockResolvedValue(populatedResult)
     vi.mocked(settingsApi.getSetting).mockResolvedValue(notConfiguredSetting)
 
@@ -498,7 +616,7 @@ describe('MileageRatesPage — accounting distribution email panel', () => {
   })
 
   it('saves a valid email via settingsApi.putSetting and updates the shown value (AC-1.2)', async () => {
-    vi.mocked(adminApi.getMe).mockResolvedValue(settingsManagePermissions)
+    vi.mocked(session.usePermissions).mockReturnValue(settingsManagePermissions)
     vi.mocked(ratesApi.listRates).mockResolvedValue(populatedResult)
     vi.mocked(settingsApi.getSetting).mockResolvedValue(notConfiguredSetting)
     vi.mocked(settingsApi.putSetting).mockResolvedValue({
@@ -527,10 +645,12 @@ describe('MileageRatesPage — accounting distribution email panel', () => {
     await waitFor(() => {
       expect(screen.getByTestId('accounting-email-current-value').textContent).toBe('new-accounting@welld.ch')
     })
+    // INC-19: the save is confirmed beside the form.
+    expect(screen.getByTestId('accounting-email-success').textContent).toBe('Accounting distribution email saved')
   })
 
   it('a 422 on save shows the inline error and leaves the shown value unchanged (AC-1.3)', async () => {
-    vi.mocked(adminApi.getMe).mockResolvedValue(settingsManagePermissions)
+    vi.mocked(session.usePermissions).mockReturnValue(settingsManagePermissions)
     vi.mocked(ratesApi.listRates).mockResolvedValue(populatedResult)
     vi.mocked(settingsApi.getSetting).mockResolvedValue(configuredSetting)
     vi.mocked(settingsApi.putSetting).mockRejectedValue(
@@ -555,12 +675,19 @@ describe('MileageRatesPage — accounting distribution email panel', () => {
       expect(screen.getByTestId('accounting-email-error')).not.toBeNull()
     })
     expect(screen.getByTestId('accounting-email-error').textContent).toBe('value must be a well-formed email address')
+    // INC-16/20: a red field error on the input, which gets focus back.
+    const emailInput = screen.getByTestId('accounting-email-input')
+    expect(emailInput.getAttribute('aria-invalid')).toBe('true')
+    await waitFor(() => {
+      expect(document.activeElement).toBe(emailInput)
+    })
+    expect(screen.queryByTestId('accounting-email-success')).toBeNull()
     // The shown current value is untouched — nothing was persisted.
     expect(screen.getByTestId('accounting-email-current-value').textContent).toBe('accounting@welld.ch')
   })
 
   it('clears the setting via the Clear action (AC-1.4)', async () => {
-    vi.mocked(adminApi.getMe).mockResolvedValue(settingsManagePermissions)
+    vi.mocked(session.usePermissions).mockReturnValue(settingsManagePermissions)
     vi.mocked(ratesApi.listRates).mockResolvedValue(populatedResult)
     vi.mocked(settingsApi.getSetting).mockResolvedValue(configuredSetting)
     vi.mocked(settingsApi.putSetting).mockResolvedValue(notConfiguredSetting)
@@ -579,10 +706,11 @@ describe('MileageRatesPage — accounting distribution email panel', () => {
     await waitFor(() => {
       expect(screen.getByTestId('accounting-email-current-value').textContent).toBe('Not configured')
     })
+    expect(screen.getByTestId('accounting-email-success').textContent).toBe('Accounting distribution email cleared')
   })
 
-  it('is hidden entirely when getMe() lacks settings:read (AC-3.2)', async () => {
-    vi.mocked(adminApi.getMe).mockResolvedValue(managePermissions)
+  it('is hidden entirely when usePermissions() lacks settings:read (AC-3.2)', async () => {
+    vi.mocked(session.usePermissions).mockReturnValue(managePermissions)
     vi.mocked(ratesApi.listRates).mockResolvedValue(populatedResult)
 
     render(<MileageRatesPage />)
@@ -592,5 +720,54 @@ describe('MileageRatesPage — accounting distribution email panel', () => {
     })
     expect(screen.queryByTestId('accounting-email-panel')).toBeNull()
     expect(settingsApi.getSetting).not.toHaveBeenCalled()
+  })
+
+  it('is hidden entirely on the shell EMPTY_PERMISSIONS — its result for any /authz/me failure (fails closed)', async () => {
+    vi.mocked(session.usePermissions).mockReturnValue(NO_GRANTS)
+    vi.mocked(ratesApi.listRates).mockResolvedValue(populatedResult)
+
+    render(<MileageRatesPage />)
+
+    await waitFor(() => {
+      expect(screen.getByTestId('rates-table-welld_ch')).not.toBeNull()
+    })
+    expect(screen.queryByTestId('accounting-email-panel')).toBeNull()
+    expect(settingsApi.getSetting).not.toHaveBeenCalled()
+  })
+
+  it('is hidden when GET /settings/:key answers 403 despite settings:read (reactive path, AC-3.2)', async () => {
+    vi.mocked(session.usePermissions).mockReturnValue(settingsManagePermissions)
+    vi.mocked(ratesApi.listRates).mockResolvedValue(populatedResult)
+    vi.mocked(settingsApi.getSetting).mockRejectedValue(
+      new SettingsApiError({ type: 'about:blank', title: 'Forbidden', status: 403, detail: 'Missing settings:read' }),
+    )
+
+    render(<MileageRatesPage />)
+
+    // Shown (loading) while the capability says yes, then removed on the 403.
+    expect(screen.getByTestId('accounting-email-panel')).not.toBeNull()
+    await waitFor(() => {
+      expect(settingsApi.getSetting).toHaveBeenCalled()
+    })
+    await waitFor(() => {
+      expect(screen.queryByTestId('accounting-email-panel')).toBeNull()
+    })
+    expect(screen.getByTestId('rates-table-welld_ch')).not.toBeNull()
+  })
+
+  it('shows the value and history read-only, with no edit form, without settings:manage', async () => {
+    vi.mocked(session.usePermissions).mockReturnValue(settingsReadOnlyPermissions)
+    vi.mocked(ratesApi.listRates).mockResolvedValue(populatedResult)
+    vi.mocked(settingsApi.getSetting).mockResolvedValue(configuredSetting)
+
+    render(<MileageRatesPage />)
+
+    await waitFor(() => {
+      expect(screen.getByTestId('accounting-email-current-value').textContent).toBe('accounting@welld.ch')
+    })
+    expect(screen.getByTestId('accounting-email-history')).not.toBeNull()
+    expect(screen.queryByTestId('accounting-email-input')).toBeNull()
+    expect(screen.queryByTestId('accounting-email-save')).toBeNull()
+    expect(screen.queryByTestId('accounting-email-clear')).toBeNull()
   })
 })

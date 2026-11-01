@@ -345,5 +345,9 @@ describe('BatchDetailPage — post-compile confirmation (design.md F1 step 6)', 
       expect(screen.getByTestId('batch-detail-live-message').textContent).toBe('Batch compiled — 2 requests'),
     )
     await waitFor(() => expect(window.location.search).toBe(''))
+    // INC-19: shown too, not only announced — and not announced a second time.
+    const banner = screen.getByTestId('batch-detail-confirmation')
+    expect(banner.textContent).toContain('Batch compiled — 2 requests')
+    expect(banner.getAttribute('aria-live')).toBe('off')
   })
 })

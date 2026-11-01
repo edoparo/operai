@@ -111,13 +111,13 @@ describe('the block (AC-5.8)', () => {
   it('shows the book value today with its currency', () => {
     renderBlock()
     expect(screen.getByTestId('ledger-book-value').textContent).toContain('Book value today')
-    expect(screen.getByTestId('ledger-book-value').textContent).toContain('332,72 CHF')
+    expect(screen.getByTestId('ledger-book-value').textContent).toContain('CHF 332.72')
   })
 
   it('states the rule in force with its effective date', () => {
     renderBlock()
     const rule = screen.getByTestId('ledger-rule')
-    expect(rule.textContent).toContain('Rule applied: life 3 y, full first year, no threshold, residual 1,00 CHF')
+    expect(rule.textContent).toContain('Rule applied: life 3 y, full first year, no threshold, residual CHF 1.00')
     expect(rule.textContent).toContain('In force from 01.01.2026')
   })
 
@@ -129,7 +129,7 @@ describe('the block (AC-5.8)', () => {
       },
     })
     expect(screen.getByTestId('ledger-rule').textContent).toContain(
-      'Rule applied: life 4 y, half first year, threshold 800,00 CHF, residual 1,00 CHF',
+      'Rule applied: life 4 y, half first year, threshold CHF 800.00, residual CHF 1.00',
     )
   })
 
@@ -279,13 +279,13 @@ describe('after disposal (AC-7.3)', () => {
     const panel = screen.getByTestId('ledger-disposal')
     expect(panel.textContent).toContain('01.10.2026')
     expect(panel.textContent).toContain('Sold')
-    expect(panel.textContent).toContain('120,50 CHF')
+    expect(panel.textContent).toContain('CHF 120.50')
   })
 
   it('shows book value zero and the Disposed row in the schedule', () => {
     renderBlock(disposed(null))
 
-    expect(screen.getByTestId('ledger-book-value').textContent).toContain('0,00 CHF')
+    expect(screen.getByTestId('ledger-book-value').textContent).toContain('CHF 0.00')
     expect(screen.getByRole('rowheader', { name: 'Disposed 01.10.2026' })).not.toBeNull()
   })
 

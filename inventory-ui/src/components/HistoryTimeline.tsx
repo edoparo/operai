@@ -1,4 +1,5 @@
-import { useEffect, useId, useState } from 'react'
+import { Card, StatePanel, VisuallyHidden } from '@operai/ui'
+import { useEffect, useState } from 'react'
 import ErrorBanner from './ErrorBanner'
 import SkeletonListRows from './SkeletonListRows'
 import type { InventoryCapabilities } from '../hooks/useInventoryCapabilities'
@@ -80,7 +81,6 @@ const failureMessage = (error: unknown): string => {
 
 export default function HistoryTimeline({ asset, revision }: HistoryTimelineProps) {
   const t = strings.history
-  const headingId = useId()
   const [attempt, setAttempt] = useState(0)
   const [outcome, setOutcome] = useState<Outcome | null>(null)
   const assetId = asset.id
@@ -115,33 +115,29 @@ export default function HistoryTimeline({ asset, revision }: HistoryTimelineProp
   } else if (shown === null || !shown.ok) {
     content = (
       <div className="flex flex-col gap-2">
-        <p role="status" className="sr-only">
+        <VisuallyHidden live role="status">
           {t.loading}
-        </p>
+        </VisuallyHidden>
         <SkeletonListRows />
       </div>
     )
   } else if (shown.events.length === 0) {
-    content = (
-      <p className="text-sm" style={{ color: 'var(--soft)' }}>
-        {t.empty}
-      </p>
-    )
+    content = <StatePanel title={t.empty} />
   } else {
     const ordered = [...shown.events].sort((a, b) => Date.parse(a.at) - Date.parse(b.at))
     content = (
       <ol className="flex flex-col gap-3">
         {ordered.map((entry) => (
-          <li key={entry.id} className="flex flex-col gap-1 border-l-2 pl-3" style={{ borderColor: 'var(--rule)' }}>
-            <p className="flex flex-wrap items-baseline gap-x-2 text-sm" style={{ color: 'var(--text)' }}>
-              <time dateTime={entry.at} className="text-xs" style={{ fontFamily: 'var(--mono)', color: 'var(--soft)' }}>
+          <li key={entry.id} className="flex flex-col gap-1 border-l-2 pl-3 border-rule">
+            <p className="flex flex-wrap items-baseline gap-x-2 text-sm text-text">
+              <time dateTime={entry.at} className="text-xs font-mono text-soft">
                 {formatDateTime(entry.at)}
               </time>
               <span className="font-medium">{actionLabel(entry.action)}</span>
-              <span style={{ color: 'var(--soft)' }}>{t.by(identityLabel(entry.actor))}</span>
+              <span className="text-soft">{t.by(identityLabel(entry.actor))}</span>
             </p>
             {entry.changes.length > 0 && (
-              <ul className="flex flex-col gap-0.5 text-sm" style={{ color: 'var(--text)' }}>
+              <ul className="flex flex-col gap-0.5 text-sm text-text">
                 {entry.changes.map((change, index) => (
                   <li key={`${change.field}-${index}`}>
                     {t.change(
@@ -160,14 +156,8 @@ export default function HistoryTimeline({ asset, revision }: HistoryTimelineProp
   }
 
   return (
-    <section aria-labelledby={headingId} data-testid="history-timeline" className="card">
-      <h3
-        id={headingId}
-        className="card-title"
-      >
-        {t.heading}
-      </h3>
+    <Card title={t.heading} data-testid="history-timeline">
       {content}
-    </section>
+    </Card>
   )
 }

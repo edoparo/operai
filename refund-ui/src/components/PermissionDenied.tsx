@@ -7,10 +7,9 @@
  * Retry"; Component inventory: "PermissionDenied — Reuse (ported pattern) —
  * admin-ui/src/components/PermissionDenied.tsx").
  *
- * Ported pattern: `refund-ui` cannot import admin-ui's source across the
- * Module Federation boundary (ADR-0006), so this is a near-verbatim
- * re-authoring of `admin-ui/src/components/PermissionDenied.tsx` — same
- * no-props, no-Retry, focus-on-mount contract.
+ * History: this used to be a re-authored copy of another remote's component
+ * (a remote cannot import another remote's source, ADR-0006). It now renders
+ * @operai/ui's `StatePanel` (ADR-0050) and only binds refund-ui's copy and test ids.
  *
  * Fires when a `403` comes back from `GET /requests` (Screen R1) or
  * `GET /review/requests` (Screen A1) — refund access is never automatic
@@ -37,35 +36,21 @@
  * strings) — refund-specific wording ("refund access", not "admin access").
  */
 
-import { useEffect, useRef } from 'react'
+import { StatePanel } from '@operai/ui'
 import { strings } from '../strings'
 
+// @operai/ui's `StatePanel` as an alert that takes focus (ADR-0050).
 export default function PermissionDenied() {
-  const headingRef = useRef<HTMLHeadingElement>(null)
-
-  // Focus the heading on mount.
-  useEffect(() => {
-    headingRef.current?.focus()
-  }, [])
-
   return (
-    <div
+    <StatePanel
+      title={strings.components.permissionDenied.heading}
       role="alert"
-      data-testid="permission-denied"
-      className="flex flex-col items-center justify-center gap-2 px-6 py-16 text-center"
+      focusOnMount
+      headingLevel={2}
+      testId="permission-denied"
+      headingTestId="permission-denied-heading"
     >
-      <h2
-        ref={headingRef}
-        tabIndex={-1}
-        data-testid="permission-denied-heading"
-        className="text-lg font-bold focus:outline-none"
-        style={{ fontFamily: 'var(--disp)', color: 'var(--text)' }}
-      >
-        {strings.components.permissionDenied.heading}
-      </h2>
-      <p className="max-w-md text-sm leading-relaxed" style={{ color: 'var(--muted)' }}>
-        {strings.components.permissionDenied.body}
-      </p>
-    </div>
+      {strings.components.permissionDenied.body}
+    </StatePanel>
   )
 }

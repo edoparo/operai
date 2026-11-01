@@ -26,6 +26,7 @@
  * for the slowest remote.
  */
 import { useEffect, useState } from 'react'
+import { strings } from '../strings'
 
 /** How long a single remote's `./version` import is given before it's treated as unavailable. */
 export const REMOTE_VERSION_TIMEOUT_MS = 1500
@@ -46,11 +47,11 @@ export interface RemoteVersionSource {
 // the shell can ever mount" — a strictly wider set, and the right one for a
 // dialog describing the software itself rather than what one user can see.
 export const REMOTE_VERSION_SOURCES: readonly RemoteVersionSource[] = [
-  { id: 'estimai', label: 'EstimAI', loader: () => import('estimai/version') },
-  { id: 'refund', label: 'Refund', loader: () => import('refund/version') },
-  { id: 'admin', label: 'Admin', loader: () => import('admin/version') },
-  { id: 'notify', label: 'Notify', loader: () => import('notify/version') },
-  { id: 'inventory', label: 'Inventory', loader: () => import('inventory/version') },
+  { id: 'estimai', label: strings.tools.estimai, loader: () => import('estimai/version') },
+  { id: 'refund', label: strings.tools.refund, loader: () => import('refund/version') },
+  { id: 'admin', label: strings.tools.admin, loader: () => import('admin/version') },
+  { id: 'notify', label: strings.tools.notify, loader: () => import('notify/version') },
+  { id: 'inventory', label: strings.tools.inventory, loader: () => import('inventory/version') },
 ]
 
 function isVersionString(value: unknown): value is string {

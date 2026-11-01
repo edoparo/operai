@@ -3,7 +3,9 @@ import {
   amountToCents,
   centsToAmountInput,
   emptyLineDraft,
+  isLineDraftBlank,
   isLineDraftComplete,
+  lineDraftInvalidFields,
   lineDraftToPayload,
   lineToDraft,
 } from './lineDraft'
@@ -37,6 +39,63 @@ describe('amountToCents', () => {
   it('returns null for negative or non-finite input', () => {
     expect(amountToCents('-5')).toBeNull()
     expect(amountToCents('abc')).toBeNull()
+  })
+
+  // INC-17: delegates to @operai/ui's parseDecimal — exact, comma or dot.
+  it('accepts a comma as the decimal separator (the suite displays one)', () => {
+    expect(amountToCents('45,50')).toBe(4550)
+    expect(amountToCents('45,5')).toBe(4550)
+    expect(amountToCents(' 12 ')).toBe(1200)
+  })
+
+  it('parses exactly, never through a float (1.15 is 115 cents, not 114)', () => {
+    expect(amountToCents('1.15')).toBe(115)
+    expect(amountToCents('0.07')).toBe(7)
+  })
+
+  // Stricter than the old `Math.round(Number(raw) * 100)`, deliberately: each
+  // of these used to be accepted (and the first silently rounded).
+  it('refuses a third decimal instead of rounding it (ADR-0025: round once, at compute time)', () => {
+    expect(amountToCents('10.005')).toBeNull()
+  })
+
+  it('refuses exponent, hex, sign-prefixed and bare-fraction forms Number() would accept', () => {
+    expect(amountToCents('1e3')).toBeNull()
+    expect(amountToCents('0x10')).toBeNull()
+    expect(amountToCents('+5')).toBeNull()
+    expect(amountToCents('.5')).toBeNull()
+    expect(amountToCents('5.')).toBeNull()
+    expect(amountToCents('1,234.50')).toBeNull()
+  })
+})
+
+describe('lineDraftInvalidFields / isLineDraftBlank (INC-16)', () => {
+  it('lists the missing fields of a blank non-km draft in render order', () => {
+    expect(lineDraftInvalidFields(emptyLineDraft())).toEqual(['type', 'motivo', 'amount', 'entity', 'currency'])
+  })
+
+  it('checks km — and not amount/currency — for travel_km', () => {
+    const draft: LineDraftValue = { ...emptyLineDraft(), type: 'travel_km', motivo: 'Trip', entity: 'welld_it', km: '0' }
+    expect(lineDraftInvalidFields(draft)).toEqual(['km'])
+    expect(lineDraftInvalidFields({ ...draft, km: '42' })).toEqual([])
+  })
+
+  it('flags an amount with too many decimals', () => {
+    const draft: LineDraftValue = {
+      ...emptyLineDraft(),
+      type: 'stationery',
+      motivo: 'Pens',
+      amount: '1.234',
+      entity: 'welld_it',
+      currency: 'EUR',
+    }
+    expect(lineDraftInvalidFields(draft)).toEqual(['amount'])
+    expect(isLineDraftComplete(draft)).toBe(false)
+  })
+
+  it('a draft is blank while only the pre-filled date is set', () => {
+    expect(isLineDraftBlank(emptyLineDraft())).toBe(true)
+    expect(isLineDraftBlank({ ...emptyLineDraft(), motivo: 'x' })).toBe(false)
   })
 })
 

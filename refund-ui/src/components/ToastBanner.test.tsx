@@ -6,7 +6,7 @@
  *   - `'error'` tone (default): role="alert", no aria-live attribute,
  *     persistent (no auto-dismiss).
  *   - `'success'` tone: role="status", aria-live="polite", and calls
- *     onDismiss on its own ~2s after mount, without any user interaction.
+ *     onDismiss on its own ~3s after mount (the library's CONFIRMATION_DISMISS_MS), without any user interaction.
  *   - the dismiss "×" button works for both tones.
  */
 
@@ -31,6 +31,8 @@ describe('ToastBanner — error tone (default)', () => {
     const alert = screen.getByRole('alert')
     expect(alert.textContent).toContain('Could not save this change.')
     expect(alert.getAttribute('aria-live')).toBeNull()
+    // INC-20: a failed save is red (danger), not the orange "retry a load" tone.
+    expect(alert.className).toContain('banner-danger')
 
     act(() => {
       vi.advanceTimersByTime(10_000)
@@ -55,12 +57,12 @@ describe('ToastBanner — success tone', () => {
     expect(screen.queryByRole('alert')).toBeNull()
   })
 
-  it('auto-dismisses ~2s after mount by calling onDismiss', () => {
+  it('auto-dismisses ~3s after mount by calling onDismiss', () => {
     const onDismiss = vi.fn()
     render(<ToastBanner message="Changes stored" onDismiss={onDismiss} tone="success" />)
 
     act(() => {
-      vi.advanceTimersByTime(1999)
+      vi.advanceTimersByTime(2999)
     })
     expect(onDismiss).not.toHaveBeenCalled()
 

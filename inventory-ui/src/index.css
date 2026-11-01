@@ -1,30 +1,14 @@
 /*
- * inventory-ui's own stylesheet: Tailwind's core utilities only (layout,
- * spacing, type scale — `mx-auto`, `px-6`, `text-3xl`, …). No local `@theme`
- * / palette block is defined here — see App.tsx's module doc for why: the
- * shared Operai palette/fonts are consumed at runtime from the federated
- * `shell/tokens.css` import instead of being duplicated into this project's
- * own build.
+ * inventory-ui's STANDALONE stylesheet, imported only by src/main.tsx (dev/test
+ * outside the shell). In the shell, the shell's single Tailwind sheet styles
+ * this remote (ADR-0006 addendum) and this file is not loaded.
+ *
+ * It is the same stylesheet the shell builds: Tailwind, then the suite's
+ * tokens from @operai/ui, so every token utility (`text-soft`, `bg-ink-mid`,
+ * …) and component class exists here too. No copy of the tokens: the shell
+ * and every remote import the one file (ADR-0050, ADR-0051).
  */
 @import 'tailwindcss';
+@import '../../operai-ui/src/styles/tokens.css';
 
-/*
- * Focus ring (T40, specs/015-hardware-inventory; design.md § Accessibility).
- * `--acc-hi` is the palette's own accent for text-on-ink and is theme-aware
- * (#8b96ff dark, #3d4ce0 light): at least 5.2:1 against --ink, --ink-soft and
- * --ink-mid in both themes, well over the 3:1 non-text floor. The shell's
- * `ring-acc/50` blends to under 2:1 on the dark ink, so it is not used.
- * a11y.test.tsx recomputes these ratios from the real tokens.
- * Utilities (`focus:outline-none`, `focus-visible:ring-2`) sit in a later layer
- * and still win where a component opts out.
- */
-:root {
-  --focus-ring: var(--acc-hi);
-}
-
-@layer base {
-  :focus-visible {
-    outline: 2px solid var(--focus-ring);
-    outline-offset: 2px;
-  }
-}
+@source '../../operai-ui/src';

@@ -1,4 +1,5 @@
 import { useId, useState } from 'react'
+import { Button, Card, FactList } from '@operai/ui'
 import DisposeDialog from './DisposeDialog'
 import GuardrailDialog from './GuardrailDialog'
 import ScheduleTable from './ScheduleTable'
@@ -51,7 +52,6 @@ export default function LedgerBlock({ asset, capabilities, onChanged, announce, 
   const { ledger } = asset
   if (!capabilities.canManageLedger || ledger === undefined) return null
 
-  const headingId = `${baseId}-heading`
   const reasonId = `${baseId}-dispose-reason`
   const pending = asset.pendingAssignment
   const blocked = pending !== null
@@ -72,81 +72,48 @@ export default function LedgerBlock({ asset, capabilities, onChanged, announce, 
     else onChanged(null)
   }
 
-  const labelStyle = { color: 'var(--soft)' }
-
   return (
-    <section aria-labelledby={headingId} data-testid="ledger-block" className="card">
-      <h3
-        id={headingId}
-        className="card-title"
-      >
-        {t.heading}
-      </h3>
-
+    <Card title={t.heading} data-testid="ledger-block">
       <p data-testid="ledger-book-value" className="flex flex-col text-sm">
-        <span className="text-xs" style={labelStyle}>
-          {t.bookValue}
-        </span>
-        <span className="text-lg font-semibold" style={{ fontFamily: 'var(--mono)', color: 'var(--text)' }}>
-          {money(ledger.bookValueCents)}
-        </span>
+        <span className="text-xs text-soft">{t.bookValue}</span>
+        <span className="text-lg font-semibold font-mono text-text">{money(ledger.bookValueCents)}</span>
       </p>
 
-      <div data-testid="ledger-rule" className="flex flex-col gap-0.5 text-sm" style={{ color: 'var(--text)' }}>
+      <div data-testid="ledger-rule" className="flex flex-col gap-0.5 text-sm text-text">
         <p>{ruleText}</p>
-        <p className="text-xs" style={labelStyle}>
-          {t.ruleEffective(formatDate(rule.effectiveFrom))}
-        </p>
+        <p className="text-xs text-soft">{t.ruleEffective(formatDate(rule.effectiveFrom))}</p>
       </div>
 
       <ScheduleTable ledger={ledger} currency={asset.currency} disposal={asset.disposal} />
 
       {asset.disposal !== null && (
-        <dl data-testid="ledger-disposal" className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-          <div className="flex flex-col gap-0.5">
-            <dt className="text-xs" style={labelStyle}>
-              {t.disposal.date}
-            </dt>
-            <dd className="text-sm" style={{ color: 'var(--text)' }}>
-              {formatDate(asset.disposal.disposedOn)}
-            </dd>
-          </div>
-          <div className="flex flex-col gap-0.5">
-            <dt className="text-xs" style={labelStyle}>
-              {t.disposal.reason}
-            </dt>
-            <dd className="text-sm" style={{ color: 'var(--text)' }}>
-              {strings.disposalReasons[asset.disposal.reason]}
-            </dd>
-          </div>
-          {asset.disposal.salePriceCents !== null && (
-            <div className="flex flex-col gap-0.5">
-              <dt className="text-xs" style={labelStyle}>
-                {t.disposal.salePrice}
-              </dt>
-              <dd className="text-sm" style={{ color: 'var(--text)' }}>
-                {money(asset.disposal.salePriceCents)}
-              </dd>
-            </div>
-          )}
-        </dl>
+        <FactList
+          testId="ledger-disposal"
+          items={[
+            { id: 'date', term: t.disposal.date, value: formatDate(asset.disposal.disposedOn) },
+            { id: 'reason', term: t.disposal.reason, value: strings.disposalReasons[asset.disposal.reason] },
+            ...(asset.disposal.salePriceCents !== null
+              ? [{ id: 'salePrice', term: t.disposal.salePrice, value: money(asset.disposal.salePriceCents) }]
+              : []),
+          ]}
+        />
       )}
 
       {asset.status !== 'disposed' && (
         <div className="flex flex-col items-start gap-1">
-          <button
+          <Button
             type="button"
             onClick={() => {
               if (!blocked) setDisposing(true)
             }}
             aria-disabled={blocked || undefined}
             aria-describedby={blocked ? reasonId : undefined}
-            className="btn btn-danger"
+            variant="danger"
           >
             {t.dispose.action}
-          </button>
+          </Button>
           {blocked && (
-            <p id={reasonId} className="text-xs" style={labelStyle}>
+            <p id={reasonId} className="text-xs text-soft">
               {t.dispose.pendingReason(identityLabel(pending.assignee))}
             </p>
           )}
@@ -177,6 +144,6 @@ export default function LedgerBlock({ asset, capabilities, onChanged, announce, 
           }}
         />
       )}
-    </section>
+    </Card>
   )
 }

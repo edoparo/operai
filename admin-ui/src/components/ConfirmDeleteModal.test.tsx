@@ -25,7 +25,7 @@ afterEach(() => {
 })
 
 const baseProps = {
-  entityLabel: 'role',
+  title: 'Delete role?',
   itemName: 'Accounting Lead',
   isDeleting: false,
   errorMessage: null,
@@ -39,8 +39,8 @@ describe('ConfirmDeleteModal', () => {
 
     const dialog = screen.getByRole('alertdialog')
     expect(dialog.getAttribute('aria-modal')).toBe('true')
-    expect(dialog.getAttribute('aria-labelledby')).toBe('confirm-delete-title')
-    expect(dialog.getAttribute('aria-describedby')).toBe('confirm-delete-body')
+    expect(document.getElementById(dialog.getAttribute('aria-labelledby')!)?.textContent).toBe('Delete role?')
+    expect(document.getElementById(dialog.getAttribute('aria-describedby')!)?.textContent).toMatch(/Accounting Lead/)
     expect(screen.getByText('Delete role?')).not.toBeNull()
     expect(screen.getByText(/Accounting Lead/)).not.toBeNull()
   })
@@ -62,26 +62,27 @@ describe('ConfirmDeleteModal', () => {
     expect(onConfirm).not.toHaveBeenCalled()
   })
 
-  it('traps Tab focus: from Delete (last), Tab wraps to Cancel (first)', () => {
+  // The library dialog traps Tab over every enabled control, the header × included (first stop).
+  it('traps Tab focus: from Delete (last), Tab wraps to the first control (×)', () => {
     render(<ConfirmDeleteModal {...baseProps} />)
 
-    const cancelBtn = screen.getByTestId('confirm-delete-cancel')
+    const closeBtn = screen.getByTestId('confirm-delete-close')
     const deleteBtn = screen.getByTestId('confirm-delete-confirm')
     deleteBtn.focus()
     expect(document.activeElement).toBe(deleteBtn)
 
     fireEvent.keyDown(window, { key: 'Tab' })
 
-    expect(document.activeElement).toBe(cancelBtn)
+    expect(document.activeElement).toBe(closeBtn)
   })
 
-  it('traps Shift+Tab focus: from Cancel (first), Shift+Tab wraps to Delete (last)', () => {
+  it('traps Shift+Tab focus: from the first control (×), Shift+Tab wraps to Delete (last)', () => {
     render(<ConfirmDeleteModal {...baseProps} />)
 
-    const cancelBtn = screen.getByTestId('confirm-delete-cancel')
+    const closeBtn = screen.getByTestId('confirm-delete-close')
     const deleteBtn = screen.getByTestId('confirm-delete-confirm')
-    cancelBtn.focus()
-    expect(document.activeElement).toBe(cancelBtn)
+    closeBtn.focus()
+    expect(document.activeElement).toBe(closeBtn)
 
     fireEvent.keyDown(window, { key: 'Tab', shiftKey: true })
 
@@ -161,7 +162,6 @@ describe('ConfirmDeleteModal', () => {
 
     const dialog = screen.getByRole('alertdialog')
     const describedById = dialog.getAttribute('aria-describedby')
-    expect(describedById).toBe('confirm-delete-body')
     expect(document.getElementById(describedById!)?.querySelector('ul')).not.toBeNull()
   })
 })

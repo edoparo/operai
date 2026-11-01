@@ -1,5 +1,15 @@
-import { useCallback, useEffect, useState } from 'react'
-import { Link } from '@tanstack/react-router'
+import { useCallback, useEffect, useRef, useState } from 'react'
+import { getRouteApi, Link, useNavigate } from '@tanstack/react-router'
+import {
+  Banner,
+  ListRows,
+  PageHeader,
+  StatePanel,
+  VisuallyHidden,
+  buttonClassName,
+  listRowClassName,
+  listRowMetaClassName,
+} from '@operai/ui'
 import { strings } from '../strings'
 import * as requestsApi from '../lib/requestsApi'
 import type { RequestListItem } from '../lib/requestsApi'
@@ -11,12 +21,14 @@ import ErrorBanner from '../components/ErrorBanner'
 import PermissionDenied from '../components/PermissionDenied'
 import RequestStatusBadge from '../components/RequestStatusBadge'
 
+const route = getRouteApi('/requests')
+
 /**
  * MyRequestsPage — Screen R1 ("My requests", `/refund/requests` — T16,
  * specs/007-refund-service/tasks.md, design.md "Screen R1"). Replaces T14's
  * placeholder with the real screen: a flat list of the caller's own
  * requests (status badge + last-updated date + a compact per-currency
- * subtotal preview), "+ New request", and every list state design.md names.
+ * subtotal preview), "New request", and every list state design.md names.
  *
  * States (design.md "L/E/P/Err/PD"):
  *   L   — SkeletonListRows + an sr-only aria-live loading announcement.
@@ -50,6 +62,22 @@ export default function MyRequestsPage() {
   const [listState, setListState] = useState<ListState>({ status: 'loading' })
   const [reloadToken, setReloadToken] = useState(0)
   const t = strings.pages.myRequests
+  const { confirmation } = route.useSearch()
+  const navigate = useNavigate()
+  // INC-19: a one-shot confirmation from the page that navigated here (deleting
+  // a draft) — announced by the live region, shown by the banner, then
+  // stripped from the URL so a refresh never repeats it.
+  const [liveMessage, setLiveMessage] = useState('')
+  const [visibleConfirmation, setVisibleConfirmation] = useState<string | null>(null)
+  const strippedConfirmationRef = useRef(false)
+
+  useEffect(() => {
+    if (!confirmation || strippedConfirmationRef.current) return
+    strippedConfirmationRef.current = true
+    setLiveMessage(confirmation)
+    setVisibleConfirmation(confirmation)
+    void navigate({ to: '/requests', search: {}, replace: true })
+  }, [confirmation, navigate])
 
   useEffect(() => {
     let cancelled = false
@@ -82,29 +110,48 @@ export default function MyRequestsPage() {
 
   return (
     <section aria-labelledby="refund-my-requests-heading" data-testid="refund-my-requests-page">
-      <div className="flex items-center justify-between gap-4">
-        <h2 id="refund-my-requests-heading" className="text-lg font-semibold" style={{ fontFamily: 'var(--disp)' }}>
-          {t.heading}
-        </h2>
-        {listState.status !== 'forbidden' && (
-          <Link
-            to="/requests/new"
-            data-testid="my-requests-new-button"
-            className="btn btn-primary"
-          >
-            {t.newRequestButton}
-          </Link>
-        )}
-      </div>
+      <PageHeader
+        title={t.heading}
+        titleId="refund-my-requests-heading"
+        actions={
+          listState.status !== 'forbidden' && (
+            <Link
+              to="/requests/new"
+              data-testid="my-requests-new-button"
+              className={buttonClassName({ variant: 'primary' })}
+            >
+              {t.newRequestButton}
+            </Link>
+          )
+        }
+      />
 
-      <div className="mt-4">
+      <VisuallyHidden live data-testid="my-requests-live-message">
+        {liveMessage}
+      </VisuallyHidden>
+
+      {/* The visible copy — `aria-live="off"`: the live region above announces it once. */}
+      {visibleConfirmation && (
+        <Banner
+          tone="success"
+          compact
+          aria-live="off"
+          autoDismiss
+          onDismiss={() => setVisibleConfirmation(null)}
+          dismissLabel={t.confirmationDismissLabel}
+          className="mb-4"
+          data-testid="my-requests-confirmation"
+        >
+          {visibleConfirmation}
+        </Banner>
+      )}
+
+      <div>
         {listState.status === 'forbidden' && <PermissionDenied />}
 
         {listState.status === 'loading' && (
           <>
-            <p className="sr-only" aria-live="polite">
-              {t.loadingAnnouncement}
-            </p>
+            <VisuallyHidden live>{t.loadingAnnouncement}</VisuallyHidden>
             <SkeletonListRows />
           </>
         )}
@@ -112,20 +159,15 @@ export default function MyRequestsPage() {
         {listState.status === 'error' && <ErrorBanner message={listState.message} onRetry={handleRetry} />}
 
         {listState.status === 'loaded' && listState.items.length === 0 && (
-          <div className="flex flex-col items-center gap-3 py-16 text-center" data-testid="my-requests-empty-state">
-            <h3 className="text-base font-semibold" style={{ fontFamily: 'var(--disp)', color: 'var(--text)' }}>
-              {t.empty.heading}
-            </h3>
-            <p className="max-w-md text-sm leading-relaxed" style={{ color: 'var(--muted)' }}>
-              {t.empty.body}
-            </p>
-            {/* No CTA here — the header's "+ New request" already serves this;
-                a centered second button would be redundant. */}
-          </div>
+          // No action here — the header's "New request" already serves this;
+          // a centred second button would be redundant.
+          <StatePanel title={t.empty.heading} testId="my-requests-empty-state">
+            {t.empty.body}
+          </StatePanel>
         )}
 
         {listState.status === 'loaded' && listState.items.length > 0 && (
-          <div className="flex flex-col gap-2" data-testid="my-requests-list">
+          <ListRows testId="my-requests-list">
             {listState.items.map((item) => {
               const preview = formatSubtotalsPreview(item.subtotals)
               const updated = formatDate(item.updatedAt)
@@ -136,24 +178,17 @@ export default function MyRequestsPage() {
                   key={item.id}
                   data-testid={`my-requests-row-${item.id}`}
                   aria-label={t.row.openLabel(updated)}
-                  className="flex items-center justify-between gap-4 px-4 py-3 rounded-md border text-left transition-colors hover:opacity-90"
-                  style={{ borderColor: 'var(--rule)', backgroundColor: 'var(--ink-soft)' }}
+                  className={listRowClassName}
                 >
-                  <div className="flex items-center gap-3">
+                  <span className="flex items-center gap-3">
                     <RequestStatusBadge status={item.status} />
-                    <span className="text-xs" style={{ color: 'var(--muted)' }}>
-                      {t.row.updatedLabel(updated)}
-                    </span>
-                  </div>
-                  {preview && (
-                    <span className="text-sm font-mono" style={{ color: 'var(--text)' }}>
-                      {preview}
-                    </span>
-                  )}
+                    <span className={listRowMetaClassName}>{t.row.updatedLabel(updated)}</span>
+                  </span>
+                  {preview && <span className="text-sm font-mono">{preview}</span>}
                 </Link>
               )
             })}
-          </div>
+          </ListRows>
         )}
       </div>
     </section>

@@ -1,10 +1,18 @@
 import type { Activity, Release } from '../types'
 
+/*
+ * Template DATA, not UI copy (INC-24): a template's name, description, epics,
+ * activities and releases are written into the new estimate document as its
+ * content, and are deliberately exempt from strings.ts and from
+ * lib/noHardcodedStrings.test.ts (which does not scan this file). They stay in
+ * English, as the estimate content they seed. The emoji icon each template
+ * used to carry was dropped (INC-31: no emoji as icons).
+ */
+
 export interface Template {
   id: string
   name: string
   description: string
-  icon: string
   releases: Omit<Release, 'id'>[]
   activities: Omit<Activity, 'id' | 'num'>[]
 }
@@ -14,7 +22,6 @@ export const TEMPLATES: Template[] = [
     id: 'rest-api',
     name: 'REST API Backend',
     description: 'Typical server-side project: auth, CRUD resources, file storage, tests, and deploy.',
-    icon: '⚙',
     releases: [{ name: 'v1.0', fte: 2 }],
     activities: [
       // ── Setup ──────────────────────────────────────────────────────────────
@@ -172,7 +179,6 @@ export const TEMPLATES: Template[] = [
     id: 'mobile-mvp',
     name: 'Mobile App MVP',
     description: 'Cross-platform MVP: UX design, auth screens, core features, API integration, and app store release.',
-    icon: '📱',
     releases: [{ name: 'MVP', fte: 2 }],
     activities: [
       // ── Design ─────────────────────────────────────────────────────────────
@@ -319,7 +325,6 @@ export const TEMPLATES: Template[] = [
     id: 'data-pipeline',
     name: 'Data Pipeline',
     description: 'End-to-end data engineering: ingestion, transformation, storage, serving layer, and observability.',
-    icon: '⛁',
     releases: [{ name: 'v1.0', fte: 1 }],
     activities: [
       // ── Ingestion ──────────────────────────────────────────────────────────

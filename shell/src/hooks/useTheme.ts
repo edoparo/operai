@@ -9,6 +9,8 @@
  * flash of the wrong theme.
  */
 import { useState } from 'react'
+import type { IconName } from '@operai/ui'
+import { strings } from '../strings'
 
 export type Theme = 'system' | 'light' | 'dark'
 
@@ -42,9 +44,9 @@ export function useTheme() {
 }
 
 export const THEME_CYCLE: Theme[] = ['system', 'light', 'dark']
-export const THEME_ICON: Record<Theme, string> = { system: '◑', light: '☀', dark: '☾' }
-export const THEME_LABEL: Record<Theme, string> = {
-  system: 'System theme (auto)',
-  light: 'Light theme',
-  dark: 'Dark theme',
-}
+/**
+ * Library icons (INC-31), not Unicode glyphs: the half-filled `contrast` shape
+ * for `system` (follow the system setting), sun and moon for the fixed themes.
+ */
+export const THEME_ICON: Record<Theme, IconName> = { system: 'contrast', light: 'sun', dark: 'moon' }
+export const THEME_LABEL: Record<Theme, string> = strings.theme

@@ -1,5 +1,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import { useNavigate } from '@tanstack/react-router'
+import { Button, DataTable, Icon, PageHeader, StatePanel } from '@operai/ui'
+import type { DataTableColumn } from '@operai/ui'
 import * as adminApi from '../lib/adminApi'
 import type { Department } from '../lib/adminApi'
 import { ApiError } from '../lib/adminApi'
@@ -7,6 +9,11 @@ import SkeletonListRows from '../components/SkeletonListRows'
 import ErrorBanner from '../components/ErrorBanner'
 import ConfirmDeleteModal from '../components/ConfirmDeleteModal'
 import CreateDepartmentModal from '../components/CreateDepartmentModal'
+import SuccessBanner from '../components/SuccessBanner'
+import { setFlash } from '../lib/flash'
+import { strings } from '../strings'
+
+const t = strings.departments
 
 /**
  * DepartmentsPage — Screen B1 (design.md "Departments list", T19,
@@ -67,6 +74,7 @@ export default function DepartmentsPage() {
   const [reloadToken, setReloadToken] = useState(0)
   const [createModal, setCreateModal] = useState<CreateModalState>({ open: false })
   const [deleteModal, setDeleteModal] = useState<DeleteModalState>({ open: false })
+  const [success, setSuccess] = useState<string | null>(null)
 
   // Fetch the list whenever `reloadToken` changes (bumped by "Retry" and by
   // a successful delete). See the module doc comment above for why this is
@@ -84,7 +92,7 @@ export default function DepartmentsPage() {
       })
       .catch((error: unknown) => {
         if (!cancelled) {
-          setState({ status: 'error', message: errorMessageFor(error, 'Could not load departments.') })
+          setState({ status: 'error', message: errorMessageFor(error, t.loadError) })
         }
       })
 
@@ -106,12 +114,14 @@ export default function DepartmentsPage() {
       try {
         const created = await adminApi.createDepartment(input)
         setCreateModal({ open: false })
+        // INC-19: the detail page this navigates to confirms the creation.
+        setFlash(`department:${created.id}`, t.created(created.name))
         navigate({ to: '/departments/$id', params: { id: created.id } })
       } catch (error) {
         const message =
           error instanceof ApiError && error.status === 409
-            ? (error.detail ?? 'A department with this name already exists.')
-            : errorMessageFor(error, 'Could not create the department.')
+            ? (error.detail ?? t.nameTaken)
+            : errorMessageFor(error, t.createFailed)
         setCreateModal({ open: true, isSubmitting: false, errorMessage: message })
       }
     },
@@ -131,16 +141,61 @@ export default function DepartmentsPage() {
     try {
       await adminApi.deleteDepartment(item.id)
       setDeleteModal({ open: false })
+      setSuccess(t.deleted(item.name))
       setReloadToken((t) => t + 1)
     } catch (error) {
       setDeleteModal({
         open: true,
         item,
         isDeleting: false,
-        errorMessage: errorMessageFor(error, 'Delete failed. Try again.'),
+        errorMessage: errorMessageFor(error, strings.common.deleteFailed),
       })
     }
   }, [deleteModal])
+
+  // INC-14: the library DataTable — the name is the row header and opens the record.
+  const departmentColumns: DataTableColumn<Department>[] = [
+    {
+      id: 'name',
+      header: strings.common.fields.name,
+      rowHeader: true,
+      render: (dept) => (
+        // Opens the record: reads as a text link (`.link`), not a button.
+        <button
+          type="button"
+          onClick={() => handleOpen(dept.id)}
+          className="link text-left"
+          data-testid={`department-open-${dept.id}`}
+        >
+          {dept.name}
+        </button>
+      ),
+    },
+    {
+      id: 'description',
+      header: strings.common.fields.description,
+      render: (dept) => dept.description || strings.common.emptyValue,
+    },
+    {
+      id: 'actions',
+      header: <span className="sr-only">{strings.common.actionsColumn}</span>,
+      render: (dept) => (
+        <div className="flex justify-end">
+          <Button
+            variant="danger"
+            size="sm"
+            iconOnly
+            onClick={() => handleDeleteRequest(dept)}
+            aria-label={t.deleteLabel(dept.name)}
+            title={strings.common.actions.delete}
+            data-testid={`department-delete-${dept.id}`}
+          >
+            <Icon name="trash" />
+          </Button>
+        </div>
+      ),
+    },
+  ]
 
   return (
     <section aria-labelledby="admin-departments-heading" data-testid="admin-departments-page">
@@ -155,7 +210,7 @@ export default function DepartmentsPage() {
 
       {deleteModal.open && (
         <ConfirmDeleteModal
-          entityLabel="department"
+          title={t.deleteTitle}
           itemName={deleteModal.item.name}
           isDeleting={deleteModal.isDeleting}
           errorMessage={deleteModal.errorMessage}
@@ -164,99 +219,43 @@ export default function DepartmentsPage() {
         />
       )}
 
-      <div className="flex items-center justify-between">
-        <h2 id="admin-departments-heading" className="text-lg font-semibold" style={{ fontFamily: 'var(--disp)' }}>
-          Departments
-        </h2>
-        <button
-          type="button"
-          onClick={openCreateModal}
-          data-testid="new-department-button"
-          className="text-sm py-1.5 px-3 font-medium border transition-opacity hover:opacity-80"
-          style={{ borderColor: 'var(--acc)', color: 'var(--acc)' }}
-        >
-          + New department
-        </button>
-      </div>
+      <PageHeader
+        title={t.heading}
+        titleId="admin-departments-heading"
+        actions={
+          <Button variant="primary" onClick={openCreateModal} data-testid="new-department-button">
+            {t.newDepartment}
+          </Button>
+        }
+      />
 
-      <div className="mt-4">
+      <SuccessBanner
+        message={success}
+        onDismiss={() => setSuccess(null)}
+        testId="departments-success"
+        className="mb-4"
+      />
+
+      <div>
         {state.status === 'loading' && <SkeletonListRows rows={4} />}
 
         {state.status === 'error' && <ErrorBanner message={state.message} onRetry={handleRetry} />}
 
         {state.status === 'loaded' && state.items.length === 0 && (
-          <p
-            className="text-sm py-6 text-center"
-            style={{ color: 'var(--soft)' }}
-            data-testid="departments-empty-state"
-          >
-            No departments yet.
-          </p>
+          <StatePanel title={t.empty.title} testId="departments-empty-state">
+            {t.empty.body}
+          </StatePanel>
         )}
 
         {state.status === 'loaded' && state.items.length > 0 && (
-          <div className="overflow-x-auto">
-            <table className="w-full text-[11px]" data-testid="departments-table">
-              <thead>
-                <tr className="border-b" style={{ borderColor: 'var(--rule)' }}>
-                  <th
-                    scope="col"
-                    className="text-left py-1.5 px-2 text-[9px] font-mono uppercase tracking-wider"
-                    style={{ color: 'var(--soft)' }}
-                  >
-                    Name
-                  </th>
-                  <th
-                    scope="col"
-                    className="text-left py-1.5 px-2 text-[9px] font-mono uppercase tracking-wider"
-                    style={{ color: 'var(--soft)' }}
-                  >
-                    Description
-                  </th>
-                  <th scope="col" className="text-right py-1.5 px-2">
-                    <span className="sr-only">Actions</span>
-                  </th>
-                </tr>
-              </thead>
-              <tbody>
-                {state.items.map((dept) => (
-                  <tr
-                    key={dept.id}
-                    className="border-b"
-                    style={{ borderColor: 'color-mix(in srgb, var(--rule) 50%, transparent)' }}
-                  >
-                    <td className="py-1.5 px-2">
-                      <button
-                        type="button"
-                        onClick={() => handleOpen(dept.id)}
-                        className="font-medium text-left hover:underline"
-                        style={{ color: 'var(--text)' }}
-                        data-testid={`department-open-${dept.id}`}
-                      >
-                        {dept.name}
-                      </button>
-                    </td>
-                    <td className="py-1.5 px-2" style={{ color: 'var(--soft)' }}>
-                      {dept.description || '—'}
-                    </td>
-                    <td className="py-1.5 px-2 text-right">
-                      <button
-                        type="button"
-                        onClick={() => handleDeleteRequest(dept)}
-                        aria-label={`Delete "${dept.name}"`}
-                        title="Delete"
-                        className="text-[11px] font-medium border px-2 py-1 hover:opacity-80"
-                        style={{ borderColor: 'var(--rule)', color: 'var(--muted)' }}
-                        data-testid={`department-delete-${dept.id}`}
-                      >
-                        ×
-                      </button>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+          <DataTable
+            caption={t.caption}
+            columns={departmentColumns}
+            rows={state.items}
+            getRowKey={(dept) => dept.id}
+            interactiveRows
+            testId="departments-table"
+          />
         )}
       </div>
     </section>

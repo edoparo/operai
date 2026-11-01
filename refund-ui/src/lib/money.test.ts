@@ -1,4 +1,6 @@
 /**
+ * @vitest-environment jsdom
+ *
  * Unit tests for formatMoney (T14, specs/007-refund-service/tasks.md —
  * "formatMoney unit tests pass per currency (EUR/CHF, 2 decimals)").
  * Answers plan.md's R7 risk directly: money as cents mis-formatting
@@ -9,77 +11,77 @@ import { describeApprovedAmount, formatMoney, formatRatePerKm } from './money'
 
 describe('formatMoney — EUR', () => {
   it('formats whole euros with two zero decimals', () => {
-    expect(formatMoney(10000, 'EUR')).toBe('100,00 €')
+    expect(formatMoney(10000, 'EUR')).toBe('EUR 100.00')
   })
 
   it('formats a mixed cents amount', () => {
-    expect(formatMoney(4550, 'EUR')).toBe('45,50 €')
+    expect(formatMoney(4550, 'EUR')).toBe('EUR 45.50')
   })
 
   it('pads single-digit cents to two decimal places (off-by-100 guard)', () => {
-    expect(formatMoney(5, 'EUR')).toBe('0,05 €')
+    expect(formatMoney(5, 'EUR')).toBe('EUR 0.05')
   })
 
   it('formats zero', () => {
-    expect(formatMoney(0, 'EUR')).toBe('0,00 €')
+    expect(formatMoney(0, 'EUR')).toBe('EUR 0.00')
   })
 
-  it('formats a large amount without thousands separators or float drift', () => {
-    expect(formatMoney(999999, 'EUR')).toBe('9999,99 €')
+  it('formats a large amount without float drift', () => {
+    expect(formatMoney(999999, 'EUR')).toBe('EUR 9,999.99')
   })
 })
 
 describe('formatMoney — CHF', () => {
   it('formats whole Swiss francs with two zero decimals', () => {
-    expect(formatMoney(10000, 'CHF')).toBe('100,00 CHF')
+    expect(formatMoney(10000, 'CHF')).toBe('CHF 100.00')
   })
 
   it('formats a mixed cents amount', () => {
-    expect(formatMoney(4550, 'CHF')).toBe('45,50 CHF')
+    expect(formatMoney(4550, 'CHF')).toBe('CHF 45.50')
   })
 
   it('pads single-digit cents to two decimal places (off-by-100 guard)', () => {
-    expect(formatMoney(5, 'CHF')).toBe('0,05 CHF')
+    expect(formatMoney(5, 'CHF')).toBe('CHF 0.05')
   })
 
   it('formats zero', () => {
-    expect(formatMoney(0, 'CHF')).toBe('0,00 CHF')
+    expect(formatMoney(0, 'CHF')).toBe('CHF 0.00')
   })
 })
 
 describe('formatMoney — USD', () => {
   it('formats whole dollars with two zero decimals', () => {
-    expect(formatMoney(10000, 'USD')).toBe('100,00 $')
+    expect(formatMoney(10000, 'USD')).toBe('USD 100.00')
   })
 
   it('formats a mixed cents amount', () => {
-    expect(formatMoney(4550, 'USD')).toBe('45,50 $')
+    expect(formatMoney(4550, 'USD')).toBe('USD 45.50')
   })
 
   it('pads single-digit cents to two decimal places (off-by-100 guard)', () => {
-    expect(formatMoney(5, 'USD')).toBe('0,05 $')
+    expect(formatMoney(5, 'USD')).toBe('USD 0.05')
   })
 
   it('formats zero', () => {
-    expect(formatMoney(0, 'USD')).toBe('0,00 $')
+    expect(formatMoney(0, 'USD')).toBe('USD 0.00')
   })
 })
 
 describe('formatMoney — GBP', () => {
   it('formats whole pounds with two zero decimals', () => {
-    expect(formatMoney(10000, 'GBP')).toBe('100,00 £')
+    expect(formatMoney(10000, 'GBP')).toBe('GBP 100.00')
   })
 
   it('formats a mixed cents amount', () => {
-    expect(formatMoney(4550, 'GBP')).toBe('45,50 £')
+    expect(formatMoney(4550, 'GBP')).toBe('GBP 45.50')
   })
 
   it('pads single-digit cents to two decimal places (off-by-100 guard)', () => {
-    expect(formatMoney(5, 'GBP')).toBe('0,05 £')
+    expect(formatMoney(5, 'GBP')).toBe('GBP 0.05')
   })
 
   it('formats zero', () => {
-    expect(formatMoney(0, 'GBP')).toBe('0,00 £')
+    expect(formatMoney(0, 'GBP')).toBe('GBP 0.00')
   })
 })
 
@@ -94,19 +96,30 @@ describe('formatMoney — integer-cents contract', () => {
   })
 
   it('never produces float-division drift for values that are awkward in IEEE 754 (e.g. 3 cents)', () => {
-    expect(formatMoney(3, 'EUR')).toBe('0,03 €')
-    expect(formatMoney(103, 'CHF')).toBe('1,03 CHF')
+    expect(formatMoney(3, 'EUR')).toBe('EUR 0.03')
+    expect(formatMoney(103, 'CHF')).toBe('CHF 1.03')
   })
 })
 
 describe('formatRatePerKm (specs/009-mileage-rate)', () => {
-  it('re-punctuates the dot decimal to a comma and appends the unit-suffixed currency', () => {
-    expect(formatRatePerKm('0.70', 'CHF')).toBe('0,70 CHF/km')
-    expect(formatRatePerKm('0.70', 'EUR')).toBe('0,70 €/km')
+  it('shows the rate with its currency code, per km, placed like formatMoney', () => {
+    expect(formatRatePerKm('0.70', 'CHF')).toBe('CHF 0.70/km')
+    expect(formatRatePerKm('0.70', 'EUR')).toBe('EUR 0.70/km')
   })
 
-  it('passes through whatever precision refund-api already formatted, unmodified beyond punctuation', () => {
-    expect(formatRatePerKm('0.725', 'CHF')).toBe('0,725 CHF/km')
+  it('keeps whatever precision refund-api already formatted', () => {
+    expect(formatRatePerKm('0.725', 'CHF')).toBe('CHF 0.725/km')
+  })
+
+  it('follows the Italian locale: decimal comma, code after the figure', () => {
+    document.documentElement.lang = 'it'
+    try {
+      expect(formatRatePerKm('0.70', 'CHF')).toBe('0,70 CHF/km')
+      expect(formatMoney(123456, 'EUR')).toBe('1234,56 EUR')
+      expect(formatMoney(1234550, 'EUR')).toBe('12.345,50 EUR')
+    } finally {
+      document.documentElement.lang = ''
+    }
   })
 })
 
@@ -120,21 +133,21 @@ describe('formatRatePerKm (specs/009-mileage-rate)', () => {
 describe('describeApprovedAmount', () => {
   it('reports an untouched amount as unchanged, with one figure', () => {
     const result = describeApprovedAmount(15400, 15400, 'CHF')
-    expect(result).toEqual({ changed: false, approved: '154,00 CHF' })
+    expect(result).toEqual({ changed: false, approved: 'CHF 154.00' })
   })
 
   it('treats a null approved total as unchanged — refund-api approves in full', () => {
     const result = describeApprovedAmount(15400, null, 'CHF')
-    expect(result).toEqual({ changed: false, approved: '154,00 CHF' })
+    expect(result).toEqual({ changed: false, approved: 'CHF 154.00' })
   })
 
   it('reports a cut with the original and a signed delta', () => {
     const result = describeApprovedAmount(18000, 15400, 'CHF')
     expect(result).toEqual({
       changed: true,
-      approved: '154,00 CHF',
-      requested: '180,00',
-      delta: '\u221226,00',
+      approved: 'CHF 154.00',
+      requested: '180.00',
+      delta: '\u221226.00',
     })
   })
 
@@ -144,9 +157,9 @@ describe('describeApprovedAmount', () => {
     const result = describeApprovedAmount(10000, 12500, 'EUR')
     expect(result).toEqual({
       changed: true,
-      approved: '125,00 €',
-      requested: '100,00',
-      delta: '+25,00',
+      approved: 'EUR 125.00',
+      requested: '100.00',
+      delta: '+25.00',
     })
   })
 
@@ -171,9 +184,9 @@ describe('describeApprovedAmount', () => {
     const result = describeApprovedAmount(5000, 0, 'EUR')
     expect(result).toEqual({
       changed: true,
-      approved: '0,00 €',
-      requested: '50,00',
-      delta: '\u221250,00',
+      approved: 'EUR 0.00',
+      requested: '50.00',
+      delta: '\u221250.00',
     })
   })
 })

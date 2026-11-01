@@ -9,13 +9,13 @@
  *   (B) Populated: renders the table (Name/Description/System/Rules columns)
  *       with both a system role (SystemBadge + aria-disabled Delete + title)
  *       and a custom role (no badge, Delete enabled).
- *   (C) Empty: listRoles resolves [] → "No roles yet" + a "+ New role" action
+ *   (C) Empty: listRoles resolves [] → "No roles yet" (the header keeps "New role")
  *       (never a dead end).
  *   (D) Error: listRoles rejects (non-403 ApiError) → ErrorBanner + Retry
  *       re-fetches.
  *   (E) Forbidden: listRoles rejects with 403 → PermissionDenied renders
- *       in place of the table, no "+ New role" button.
- *   (F) Create (M1): "+ New role" → fill name/description → submit →
+ *       in place of the table, no "New role" button.
+ *   (F) Create (M1): "New role" → fill name/description → submit →
  *       createRole called, then navigate to the new role's editor.
  *   (G) Create 409: createRole rejects with 409 → inline field error, modal
  *       stays open.
@@ -32,6 +32,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import RolesPage from './RolesPage'
+import { clearFlash, peekFlash, setFlash } from '../lib/flash'
 import type { Role } from '../lib/adminApi'
 
 // ---------------------------------------------------------------------------
@@ -136,7 +137,7 @@ describe('RolesPage — list states', () => {
     expect(screen.queryByTestId('skeleton-list-rows')).toBeNull()
   })
 
-  it('renders "No roles yet" with a "+ New role" action when the list is empty', async () => {
+  it('renders "No roles yet" when the list is empty (the page header keeps the one "New role" action)', async () => {
     vi.mocked(adminApi.listRoles).mockResolvedValue([])
 
     render(<RolesPage />)
@@ -144,7 +145,9 @@ describe('RolesPage — list states', () => {
     await waitFor(() => {
       expect(screen.getByTestId('roles-empty-state')).not.toBeNull()
     })
-    expect(screen.getByText('No roles yet.')).not.toBeNull()
+    expect(screen.getByText('No roles yet')).not.toBeNull()
+    // INC-22: an empty state is a StatePanel — a title (h3 under the page's h2) and a body.
+    expect(screen.getByRole('heading', { level: 3, name: 'No roles yet' })).not.toBeNull()
     expect(screen.queryByTestId('roles-table')).toBeNull()
   })
 
@@ -170,7 +173,7 @@ describe('RolesPage — list states', () => {
     expect(adminApi.listRoles).toHaveBeenCalledTimes(2)
   })
 
-  it('renders PermissionDenied (not the table or "+ New role") on a 403', async () => {
+  it('renders PermissionDenied (not the table or "New role") on a 403', async () => {
     vi.mocked(adminApi.listRoles).mockRejectedValue(
       new ApiError({ type: 'about:blank', title: 'Forbidden', status: 403, detail: 'Not an admin.' }),
     )
@@ -214,6 +217,9 @@ describe('RolesPage — create (Modal M1)', () => {
       expect(navigateMock).toHaveBeenCalledWith({ to: '/roles/$id', params: { id: 'role-new' } })
     })
     expect(screen.queryByTestId('create-role-modal')).toBeNull()
+    // INC-19: the editor it navigates to confirms the creation.
+    expect(peekFlash('role:role-new')).toBe('Role "Support" created')
+    clearFlash('role:role-new')
   })
 
   it('shows an inline field error on a 409 duplicate name, and keeps the modal open', async () => {
@@ -258,6 +264,26 @@ describe('RolesPage — create (Modal M1)', () => {
 })
 
 describe('RolesPage — delete (Dialog D1)', () => {
+  it('Create role: a name typed then cleared is explained on blur; the field is aria-required (INC-16)', async () => {
+    vi.mocked(adminApi.listRoles).mockResolvedValue([customRole])
+
+    render(<RolesPage />)
+    await waitFor(() => expect(screen.getByTestId('roles-table')).not.toBeNull())
+
+    fireEvent.click(screen.getByTestId('roles-new-button'))
+    const input = screen.getByTestId('create-role-name')
+    expect(input.getAttribute('aria-required')).toBe('true')
+
+    fireEvent.blur(input) // nothing typed yet: no error, submit simply disabled
+    expect(screen.queryByTestId('create-role-name-error')).toBeNull()
+
+    fireEvent.change(input, { target: { value: 'S' } })
+    fireEvent.change(input, { target: { value: '' } })
+    fireEvent.blur(input)
+    expect(screen.getByTestId('create-role-name-error').textContent).toBe('Name is required.')
+    expect(input.getAttribute('aria-invalid')).toBe('true')
+  })
+
   it('deletes a custom role via ConfirmDeleteModal and refreshes the list', async () => {
     vi.mocked(adminApi.listRoles).mockResolvedValueOnce([systemRole, customRole]).mockResolvedValueOnce([systemRole])
     vi.mocked(adminApi.deleteRole).mockResolvedValue(undefined)
@@ -277,6 +303,18 @@ describe('RolesPage — delete (Dialog D1)', () => {
       expect(screen.queryByText('Accounting Lead')).toBeNull()
     })
     expect(adminApi.listRoles).toHaveBeenCalledTimes(2)
+    // INC-19: the delete is confirmed above the list.
+    expect(screen.getByTestId('roles-success').textContent).toBe('Role "Accounting Lead" deleted')
+  })
+
+  it('shows the confirmation of a delete made in the role editor (flash)', async () => {
+    vi.mocked(adminApi.listRoles).mockResolvedValue([systemRole])
+    setFlash('roles', 'Role "Support" deleted')
+
+    render(<RolesPage />)
+
+    expect(screen.getByTestId('roles-success').textContent).toBe('Role "Support" deleted')
+    await waitFor(() => expect(screen.getByTestId('roles-table')).not.toBeNull())
   })
 
   it('never opens ConfirmDeleteModal for a system role (guardrail)', async () => {

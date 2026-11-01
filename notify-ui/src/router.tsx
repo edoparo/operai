@@ -1,6 +1,8 @@
 import { createRootRoute, createRoute, createRouter, Outlet } from '@tanstack/react-router'
+import { ToolLayout } from '@operai/ui'
 import NotificationCenterPage from './pages/NotificationCenterPage'
 import NotFoundPage from './pages/NotFoundPage'
+import { strings } from './strings'
 
 // ---------------------------------------------------------------------------
 // createAppRouter — factory, not a module-scope singleton (T14,
@@ -42,7 +44,15 @@ import NotFoundPage from './pages/NotFoundPage'
 // ---------------------------------------------------------------------------
 
 export function createAppRouter(basepath?: string) {
-  const rootRoute = createRootRoute({ component: () => <Outlet /> })
+  // The tool frame (INC-12): ToolLayout's title is the page's one h1; each
+  // page (center, not-found) starts with its own h2.
+  const rootRoute = createRootRoute({
+    component: () => (
+      <ToolLayout title={strings.toolTitle} testId="notify-tool-layout">
+        <Outlet />
+      </ToolLayout>
+    ),
+  })
 
   const indexRoute = createRoute({
     getParentRoute: () => rootRoute,

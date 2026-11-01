@@ -1,4 +1,6 @@
 import type { ReleaseSummary } from '../types'
+import { EXPORT_LOCALE, exportCopy } from '../strings/exportCopy'
+import { oneDecimal, whole } from './figures'
 
 // ── Light chart palette ────────────────────────────────────────────────────────
 const BG = '#f8f8fc' // very light cool grey
@@ -41,7 +43,7 @@ export function renderGanttPng(rows: ReleaseSummary[], wdm: number): string {
   ctx.fillStyle = TITLE_FG
   ctx.font = '600 13px system-ui, sans-serif'
   ctx.textAlign = 'left'
-  ctx.fillText('Release Timeline', PAD.left, 30)
+  ctx.fillText(exportCopy.gantt.title, PAD.left, 30)
 
   // Vertical grid lines + month labels
   for (let t = 1; t <= 4; t++) {
@@ -53,11 +55,11 @@ export function renderGanttPng(rows: ReleaseSummary[], wdm: number): string {
     ctx.lineTo(gx, H - PAD.bottom)
     ctx.stroke()
 
-    const mo = ((maxEl * t) / 4 / wdm).toFixed(1)
+    const mo = oneDecimal((maxEl * t) / 4 / wdm, EXPORT_LOCALE)
     ctx.fillStyle = AXIS_FG
     ctx.font = '9px system-ui, sans-serif'
     ctx.textAlign = 'center'
-    ctx.fillText(`${mo} mo`, gx, PAD.top - 12)
+    ctx.fillText(exportCopy.months(mo), gx, PAD.top - 12)
   }
 
   active.forEach((s, i) => {
@@ -90,14 +92,14 @@ export function renderGanttPng(rows: ReleaseSummary[], wdm: number): string {
     ctx.fill()
 
     // Elapsed label (inside bar if wide enough, outside otherwise)
-    const mo = res.mo.toFixed(1)
+    const mo = oneDecimal(res.mo, EXPORT_LOCALE)
     const elBarPx = bar(res.el)
     const labelInside = elBarPx > 50
     ctx.fillStyle = labelInside ? '#ffffff' : BAR_MAIN
     ctx.font = '500 10px system-ui, sans-serif'
     ctx.textAlign = labelInside ? 'right' : 'left'
     const lx = barX + (labelInside ? elBarPx - 6 : elBarPx + 6)
-    ctx.fillText(`${mo} mo`, lx, by + bh * 0.68)
+    ctx.fillText(exportCopy.months(mo), lx, by + bh * 0.68)
 
     // Range label (best–worst d) after the worst bar, in orange
     const worstBarPx = bar(res.worst)
@@ -105,7 +107,7 @@ export function renderGanttPng(rows: ReleaseSummary[], wdm: number): string {
       ctx.fillStyle = BAR_RANGE
       ctx.font = '9px system-ui, sans-serif'
       ctx.textAlign = 'left'
-      ctx.fillText(`${res.best}–${res.worst}d`, barX + worstBarPx + 6, by + bh * 0.68)
+      ctx.fillText(exportCopy.days(`${whole(res.best, EXPORT_LOCALE)}–${whole(res.worst, EXPORT_LOCALE)}`), barX + worstBarPx + 6, by + bh * 0.68)
     }
   })
 

@@ -74,14 +74,17 @@ describe('loading, empty and error', () => {
     expect(screen.getByTestId('devices-loading').textContent).toBe('Loading your devices')
   })
 
-  it('shows the explicit empty state, as plain text and not an alert, when there is nothing at all (AC-4.4)', async () => {
+  it('shows the explicit empty state, a state panel and not an alert, when there is nothing at all (AC-4.4)', async () => {
     getMyDevices.mockResolvedValue(respond([], []))
     await renderPage()
 
     const empty = await screen.findByTestId('devices-empty')
     expect(empty.textContent).toBe('You have no devices assigned to you, and nothing is waiting for your confirmation.')
     expect(empty.closest('[role="alert"]')).toBeNull()
-    expect(screen.queryByRole('heading', { level: 2 })).toBeNull()
+    // The empty state replaces both sections: its title is the only h2 under the tool's h1.
+    expect(screen.getAllByRole('heading', { level: 2 }).map((heading) => heading.textContent)).toEqual([
+      'You have no devices assigned to you, and nothing is waiting for your confirmation.',
+    ])
   })
 
   it('a failed fetch shows an alert with Retry, which loads the list', async () => {

@@ -74,7 +74,7 @@ describe('MileageAmountField — Calculating / Computed (AC-1.2/1.8)', () => {
     })
 
     expect(ratesApi.getEffectiveRate).toHaveBeenCalledWith('welld_ch', '2026-07-15')
-    expect(screen.getByTestId('mileage-amount-status').textContent).toBe('240 km × 0,70 CHF/km = 168,00 CHF')
+    expect(screen.getByTestId('mileage-amount-status').textContent).toBe('240 km × CHF 0.70/km = CHF 168.00')
     expect(screen.queryByTestId('mileage-amount-loading')).toBeNull()
   })
 
@@ -93,17 +93,17 @@ describe('MileageAmountField — Calculating / Computed (AC-1.2/1.8)', () => {
     await act(async () => {
       await vi.advanceTimersByTimeAsync(400)
     })
-    expect(screen.getByTestId('mileage-amount-status').textContent).toContain('168,00 CHF')
+    expect(screen.getByTestId('mileage-amount-status').textContent).toContain('CHF 168.00')
 
     // Change km — a new debounced fetch is scheduled, but the last breakdown must stay visible
     // throughout, including once the fetch itself starts after the debounce elapses.
     rerender(<MileageAmountField entity="welld_ch" date="2026-07-15" km="241" />)
-    expect(screen.getByTestId('mileage-amount-status').textContent).toContain('168,00 CHF')
+    expect(screen.getByTestId('mileage-amount-status').textContent).toContain('CHF 168.00')
 
     await act(async () => {
       await vi.advanceTimersByTimeAsync(400)
     })
-    expect(screen.getByTestId('mileage-amount-status').textContent).toContain('168,70 CHF')
+    expect(screen.getByTestId('mileage-amount-status').textContent).toContain('CHF 168.70')
   })
 
   it('resets the debounce on every further edit before it fires', async () => {
@@ -184,7 +184,7 @@ describe('MileageAmountField — Blocked (AC-2.2)', () => {
     const status = screen.getByTestId('mileage-amount-status')
     expect(status.textContent).toBe('No mileage rate configured yet for WellD Italia.')
     expect(status.getAttribute('role')).toBe('status')
-    expect(screen.getByTestId('currency-badge').textContent).toBe('€EUR')
+    expect(screen.getByTestId('currency-badge').textContent).toBe('EUR')
   })
 })
 
@@ -223,7 +223,7 @@ describe('MileageAmountField — Fetch error', () => {
     await act(async () => {
       await vi.advanceTimersByTimeAsync(400)
     })
-    expect(screen.getByTestId('mileage-amount-status').textContent).toContain('168,70 CHF')
+    expect(screen.getByTestId('mileage-amount-status').textContent).toContain('CHF 168.70')
   })
 })
 
@@ -262,7 +262,7 @@ describe('MileageAmountField — stale-response guard', () => {
     await act(async () => {
       await vi.advanceTimersByTimeAsync(400)
     })
-    expect(screen.getByTestId('mileage-amount-status').textContent).toContain('168,00 CHF')
+    expect(screen.getByTestId('mileage-amount-status').textContent).toContain('CHF 168.00')
 
     // The stale first response now resolves — it must NOT overwrite the newer, already-settled result.
     await act(async () => {
@@ -276,7 +276,7 @@ describe('MileageAmountField — stale-response guard', () => {
         validFrom: '2026-01-01',
       })
     })
-    expect(screen.getByTestId('mileage-amount-status').textContent).toContain('168,00 CHF')
-    expect(screen.getByTestId('mileage-amount-status').textContent).not.toContain('7,00 CHF')
+    expect(screen.getByTestId('mileage-amount-status').textContent).toContain('CHF 168.00')
+    expect(screen.getByTestId('mileage-amount-status').textContent).not.toContain('CHF 7.00')
   })
 })

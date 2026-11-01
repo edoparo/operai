@@ -27,6 +27,7 @@
  */
 
 import { useState } from 'react'
+import { Button } from '@operai/ui'
 import { strings } from '../strings'
 import * as batchesApi from '../lib/batchesApi'
 
@@ -51,23 +52,21 @@ export default function BatchPdfLink({ batchId }: BatchPdfLinkProps) {
 
   return (
     <span className="inline-flex items-center gap-1.5">
-      <button
-        type="button"
+      <Button
+        variant="secondary"
+        size="sm"
         onClick={() => void handleClick()}
         disabled={state === 'minting'}
         aria-label={t.downloadLabel(batchId)}
         data-testid={`batch-pdf-link-${batchId}`}
-        className="text-xs font-medium border px-2.5 py-1.5 transition-opacity hover:opacity-80 disabled:opacity-40"
-        style={{ borderColor: 'var(--rule)', color: 'var(--acc)' }}
       >
         <span aria-hidden="true">📄</span> {t.buttonLabel}
-      </button>
+      </Button>
       {state === 'error' && (
         <span
           role="alert"
           data-testid={`batch-pdf-link-${batchId}-error`}
-          className="text-[11px]"
-          style={{ color: 'var(--red)' }}
+          className="field-error"
         >
           {t.downloadError}
         </span>

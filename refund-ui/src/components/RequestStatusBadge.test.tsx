@@ -17,6 +17,7 @@
 import { afterEach, describe, expect, it } from 'vitest'
 import { cleanup, render, screen } from '@testing-library/react'
 import RequestStatusBadge from './RequestStatusBadge'
+import { REQUEST_STATUS_MEANING } from '../lib/statusMeaning'
 
 afterEach(() => {
   cleanup()
@@ -24,40 +25,52 @@ afterEach(() => {
 
 describe('RequestStatusBadge', () => {
   it.each([
-    ['draft', 'Draft', '✎'],
-    ['submitted', 'Awaiting decision', '⏳'],
-    ['approved', 'Approved', '✓'],
-    ['rejected', 'Rejected', '✕'],
-    ['paid', 'Paid', '◆'],
-  ] as const)('renders the %s variant with its glyph and label', (status, label, glyph) => {
+    ['draft', 'Draft'],
+    ['submitted', 'Awaiting decision'],
+    ['approved', 'Approved'],
+    ['rejected', 'Rejected'],
+    ['paid', 'Paid'],
+  ] as const)('renders the %s variant with an icon and its label', (status, label) => {
     render(<RequestStatusBadge status={status} />)
 
     const badge = screen.getByTestId('request-status-badge')
-    expect(badge.textContent).toBe(`${glyph}${label}`)
+    expect(badge.textContent).toBe(label)
+    expect(badge.querySelector('[aria-hidden="true"] svg')).not.toBeNull()
+  })
+
+  it('maps every status to the suite status dictionary in one place (INC-23)', () => {
+    expect(REQUEST_STATUS_MEANING).toEqual({
+      draft: 'draft',
+      submitted: 'pending',
+      approved: 'active',
+      rejected: 'failed',
+      paid: 'settled',
+    })
   })
 
   it('never labels "submitted" as approved or rejected (AC-3.4)', () => {
     render(<RequestStatusBadge status="submitted" />)
 
     const badge = screen.getByTestId('request-status-badge')
-    expect(badge.textContent).toBe('⏳Awaiting decision')
+    expect(badge.textContent).toBe('Awaiting decision')
     expect(badge.textContent?.toLowerCase()).not.toContain('approved')
     expect(badge.textContent?.toLowerCase()).not.toContain('rejected')
   })
 
-  it('the glyph is aria-hidden (label text alone carries the accessible name)', () => {
+  it('the icon is aria-hidden (label text alone carries the accessible name)', () => {
     render(<RequestStatusBadge status="approved" />)
 
     const badge = screen.getByTestId('request-status-badge')
     const glyphSpan = badge.querySelector('[aria-hidden="true"]')
-    expect(glyphSpan?.textContent).toBe('✓')
+    expect(glyphSpan?.querySelector('svg')).not.toBeNull()
+    expect(glyphSpan?.textContent).toBe('')
   })
 
-  it('uses a distinct color per variant, except paid/approved which deliberately share --grn', () => {
+  it('uses a distinct color per variant, except paid/approved which deliberately share the success tone', () => {
     const colors = (['draft', 'submitted', 'approved', 'rejected', 'paid'] as const).map((status) => {
       const { container } = render(<RequestStatusBadge status={status} />)
       const badge = container.querySelector('[data-testid="request-status-badge"]') as HTMLElement
-      const color = badge.style.color
+      const color = badge.className
       cleanup()
       return { status, color }
     })
@@ -73,13 +86,13 @@ describe('RequestStatusBadge', () => {
     expect(paidColor).toBe(approvedColor)
   })
 
-  it('paid is distinguishable from approved by glyph alone, never by color (AC-5.2, non-color signal)', () => {
+  it('paid is distinguishable from approved by icon alone, never by color (AC-5.2, non-color signal)', () => {
     const { container: approvedContainer } = render(<RequestStatusBadge status="approved" />)
-    const approvedGlyph = approvedContainer.querySelector('[aria-hidden="true"]')?.textContent
+    const approvedGlyph = approvedContainer.querySelector('[aria-hidden="true"]')?.innerHTML
     cleanup()
 
     const { container: paidContainer } = render(<RequestStatusBadge status="paid" />)
-    const paidGlyph = paidContainer.querySelector('[aria-hidden="true"]')?.textContent
+    const paidGlyph = paidContainer.querySelector('[aria-hidden="true"]')?.innerHTML
     const paidBadge = paidContainer.querySelector('[data-testid="request-status-badge"]') as HTMLElement
     cleanup()
 

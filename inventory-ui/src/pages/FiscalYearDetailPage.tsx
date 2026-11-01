@@ -1,4 +1,5 @@
 import { Link, useParams } from '@tanstack/react-router'
+import { Button, Card, Icon, PageHeader, StatePanel, StatusBadge, VisuallyHidden, useFocusOnMount } from '@operai/ui'
 import { useEffect, useId, useRef, useState } from 'react'
 import CloseYearDialog from '../components/CloseYearDialog'
 import DataTable from '../components/DataTable'
@@ -13,6 +14,7 @@ import { ApiError } from '../lib/api'
 import { formatDate } from '../lib/dates'
 import { getFiscalYear, listFiscalYears } from '../lib/fiscalYearsApi'
 import { formatMoney } from '../lib/money'
+import { FISCAL_YEAR_STATE_MEANING } from '../lib/statusMeanings'
 import type { Entity, FiscalYearView, Identity } from '../lib/types'
 import { strings } from '../strings'
 
@@ -57,28 +59,23 @@ const holderLabel = (holder: Identity | null): string => {
 }
 
 function NotFound() {
-  const headingRef = useRef<HTMLHeadingElement>(null)
-  useEffect(() => {
-    headingRef.current?.focus()
-  }, [])
+  const headingRef = useFocusOnMount<HTMLHeadingElement>()
   const t = strings.yearDetail
   return (
     <section aria-labelledby="year-not-found-heading" data-testid="year-not-found" className="flex flex-col gap-3">
-      <h2
-        id="year-not-found-heading"
-        ref={headingRef}
-        tabIndex={-1}
-        className="text-lg font-semibold focus:outline-none"
-        style={{ fontFamily: 'var(--disp)' }}
-      >
-        {t.notFound.heading}
-      </h2>
-      <p className="text-sm" style={{ color: 'var(--soft)' }}>
-        {t.notFound.body}
-      </p>
-      <Link to="/years" className="text-sm underline" style={{ color: 'var(--acc)' }}>
-        {t.backToYears}
-      </Link>
+      <PageHeader
+        back={
+          <Link to="/years" className="link">
+            <Icon name="arrow-left" /> {t.backToYears}
+          </Link>
+        }
+        title={t.notFound.heading}
+        titleId="year-not-found-heading"
+        headingRef={headingRef}
+        focusableHeading
+        description={t.notFound.body}
+        className="mb-0"
+      />
     </section>
   )
 }
@@ -170,9 +167,9 @@ export default function FiscalYearDetailPage() {
   if (shown === null || !shown.ok) {
     return (
       <section data-testid={PAGE_TEST_ID} className="flex flex-col gap-2">
-        <p role="status" className="sr-only">
+        <VisuallyHidden live role="status">
           {t.loading}
-        </p>
+        </VisuallyHidden>
         <SkeletonListRows />
       </section>
     )
@@ -193,94 +190,71 @@ export default function FiscalYearDetailPage() {
 
   return (
     <section data-testid={PAGE_TEST_ID} aria-labelledby="year-heading" className="flex flex-col gap-4">
-      <Link to="/years" className="text-sm underline" style={{ color: 'var(--acc)' }}>
-        {t.backToYears}
-      </Link>
-
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div className="flex flex-wrap items-center gap-3">
-          <EntityBadge entity={view.entity} />
-          <h2
-            id="year-heading"
-            ref={headingRef}
-            tabIndex={-1}
-            className="text-lg font-semibold focus:outline-none"
-            style={{ fontFamily: 'var(--disp)' }}
-          >
-            {t.heading(view.year)}
-          </h2>
-          <span data-testid="year-status" className="inline-flex items-center gap-1 text-sm">
-            <span aria-hidden="true">{isOpen ? '◌' : '■'}</span>
-            <span>{isOpen ? t.status.open : t.status.closed}</span>
-          </span>
-        </div>
-        <div className="flex flex-wrap items-center gap-3">
-          <ExportYearButton view={view} />
-          {isOpen && (
-            <button
-              type="button"
-              aria-disabled={closable ? undefined : true}
-              aria-describedby={closable ? undefined : reasonId}
-              onClick={() => {
-                if (closable) setClosing(true)
-              }}
-              className="btn btn-danger"
-            >
-              {t.close.button(view.year)}
-            </button>
-          )}
-        </div>
-      </div>
+      <PageHeader
+        className="mb-0"
+        back={
+          <Link to="/years" className="link">
+            <Icon name="arrow-left" /> {t.backToYears}
+          </Link>
+        }
+        title={t.heading(view.year)}
+        titleId="year-heading"
+        headingRef={headingRef}
+        focusableHeading
+        status={
+          <StatusBadge status={FISCAL_YEAR_STATE_MEANING[view.status]} data-testid="year-status">
+            {isOpen ? t.status.open : t.status.closed}
+          </StatusBadge>
+        }
+        description={<EntityBadge entity={view.entity} />}
+        actions={
+          <>
+            <ExportYearButton view={view} />
+            {isOpen && (
+              <Button
+                aria-disabled={closable ? undefined : true}
+                aria-describedby={closable ? undefined : reasonId}
+                onClick={() => {
+                  if (closable) setClosing(true)
+                }}
+                variant="danger"
+              >
+                {t.close.button(view.year)}
+              </Button>
+            )}
+          </>
+        }
+      />
       {isOpen && !closable && (
-        <p id={reasonId} className="text-sm" style={{ color: 'var(--soft)' }}>
+        <p id={reasonId} className="text-sm text-soft">
           {t.close.blocked(view.year - 1)}
         </p>
       )}
 
-      <p role="status" data-testid="year-status-line" className="sr-only">
+      <VisuallyHidden live role="status" data-testid="year-status-line">
         {statusLine}
-      </p>
+      </VisuallyHidden>
 
       {isOpen ? (
-        <p role="status" className="text-sm" style={{ color: 'var(--soft)' }}>
+        <p role="status" className="text-sm text-soft">
           {t.provisional}
         </p>
       ) : (
-        view.closedAt !== null && (
-          <p className="text-sm" style={{ color: 'var(--soft)' }}>
-            {t.closedOn(formatDate(view.closedAt))}
-          </p>
-        )
+        view.closedAt !== null && <p className="text-sm text-soft">{t.closedOn(formatDate(view.closedAt))}</p>
       )}
 
-      <section aria-labelledby="year-statement-heading" className="flex flex-col gap-2">
-        <h3
-          id="year-statement-heading"
-          className="text-base font-semibold"
-          style={{ fontFamily: 'var(--disp)', color: 'var(--text)' }}
-        >
-          {t.statement.heading(view.currency)}
-        </h3>
+      <Card title={t.statement.heading(view.currency)}>
         <RollForwardStatement
           rollForward={view.rollForward}
           currency={view.currency}
           entity={view.entity}
           year={view.year}
         />
-      </section>
+      </Card>
 
-      <section aria-labelledby="year-assets-heading" className="flex flex-col gap-2">
-        <h3
-          id="year-assets-heading"
-          className="text-base font-semibold"
-          style={{ fontFamily: 'var(--disp)', color: 'var(--text)' }}
-        >
-          {t.assets.heading}
-        </h3>
+      <Card title={t.assets.heading}>
         {view.assets.length === 0 ? (
-          <p className="text-sm" style={{ color: 'var(--soft)' }}>
-            {t.assets.empty}
-          </p>
+          <StatePanel title={t.assets.empty} />
         ) : (
           <DataTable
             caption={t.assets.caption(entityName, view.year)}
@@ -306,7 +280,7 @@ export default function FiscalYearDetailPage() {
             testId="year-assets-table"
           />
         )}
-      </section>
+      </Card>
 
       {closing && isOpen && (
         <CloseYearDialog

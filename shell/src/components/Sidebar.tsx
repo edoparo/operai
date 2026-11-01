@@ -48,9 +48,11 @@
  */
 import { useRef, useState, type KeyboardEvent, type ReactNode } from 'react'
 import { Link, useMatchRoute } from '@tanstack/react-router'
+import { Icon } from '@operai/ui'
 import { TOOLS, type ToolId } from '../lib/tools'
 import { useSidebarCollapsed } from '../hooks/sidebarCollapsed'
 import { usePermissions } from '../lib/session'
+import { strings } from '../strings'
 
 // TOOLS (id, label, mount path) now lives in ../lib/tools — the single source
 // of truth also consumed by the root-landing redirect and the tool-route
@@ -67,71 +69,19 @@ const itemClass = (collapsed: boolean): string =>
     collapsed ? 'justify-center px-0' : 'gap-3 px-3'
   } ${FOCUS_RING}`
 
-const ICON_PROPS = {
-  className: 'h-5 w-5 shrink-0',
-  viewBox: '0 0 24 24',
-  fill: 'none',
-  stroke: 'currentColor',
-  strokeWidth: 1.75,
-  strokeLinecap: 'round',
-  strokeLinejoin: 'round',
-  'aria-hidden': true,
-} as const
-
 // One icon per tool id (aria-hidden — the label span carries the accessible
 // name, even when collapsed to sr-only). Keyed by ToolId so adding a tool to
-// ../lib/tools forces adding its icon here (a compile error otherwise).
-const TOOL_ICONS: Record<ToolId, ReactNode> = {
-  estimai: (
-    // bar chart — estimation / metrics
-    <svg {...ICON_PROPS}>
-      <path d="M3 3v18h18" />
-      <rect x="7" y="12" width="3" height="6" rx="1" />
-      <rect x="12" y="8" width="3" height="10" rx="1" />
-      <rect x="17" y="5" width="3" height="13" rx="1" />
-    </svg>
-  ),
-  refund: (
-    // receipt — expense reimbursement
-    <svg {...ICON_PROPS}>
-      <path d="M4 2v20l2-1 2 1 2-1 2 1 2-1 2 1 2-1 2 1V2l-2 1-2-1-2 1-2-1-2 1-2-1-2 1Z" />
-      <path d="M16 8h-6a2 2 0 1 0 0 4h4a2 2 0 1 1 0 4H8" />
-      <path d="M12 17.5v-11" />
-    </svg>
-  ),
-  admin: (
-    // shield — administration / access control
-    <svg {...ICON_PROPS}>
-      <path d="M12 3 4 6v6c0 5 3.4 8.5 8 9 4.6-.5 8-4 8-9V6l-8-3Z" />
-      <path d="m9 12 2 2 4-4" />
-    </svg>
-  ),
-  inventory: (
-    // laptop — hardware inventory (specs/015-hardware-inventory, T42)
-    <svg {...ICON_PROPS}>
-      <rect x="4" y="5" width="16" height="11" rx="1.5" />
-      <path d="M2 19h20" />
-    </svg>
-  ),
-}
+// ../lib/tools forces adding its icon here (a compile error otherwise). All
+// from the library's icon set (INC-31).
+const TOOL_ICON_SIZE = 20
 
-// chevrons-left (can collapse) / chevrons-right (can expand) for the toggle.
-function ChevronsIcon({ direction }: { direction: 'left' | 'right' }) {
-  return (
-    <svg {...ICON_PROPS}>
-      {direction === 'left' ? (
-        <>
-          <path d="m11 17-5-5 5-5" />
-          <path d="m18 17-5-5 5-5" />
-        </>
-      ) : (
-        <>
-          <path d="m6 17 5-5-5-5" />
-          <path d="m13 17 5-5-5-5" />
-        </>
-      )}
-    </svg>
-  )
+
+
+const TOOL_ICONS: Record<ToolId, ReactNode> = {
+  estimai: <Icon name="chart" size={TOOL_ICON_SIZE} className="shrink-0" />,
+  refund: <Icon name="banknote" size={TOOL_ICON_SIZE} className="shrink-0" />,
+  admin: <Icon name="settings" size={TOOL_ICON_SIZE} className="shrink-0" />,
+  inventory: <Icon name="box" size={TOOL_ICON_SIZE} className="shrink-0" />,
 }
 
 export default function Sidebar() {
@@ -241,13 +191,13 @@ export default function Sidebar() {
         <button
           type="button"
           onClick={toggle}
-          aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+          aria-label={collapsed ? strings.sidebar.expand : strings.sidebar.collapse}
           aria-expanded={!collapsed}
-          title={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+          title={collapsed ? strings.sidebar.expand : strings.sidebar.collapse}
           className={`w-full ${itemClass(collapsed)}`}
         >
-          <ChevronsIcon direction={collapsed ? 'right' : 'left'} />
-          <span className={collapsed ? 'sr-only' : ''}>Collapse</span>
+          <Icon name={collapsed ? 'chevron-right' : 'chevron-left'} size={TOOL_ICON_SIZE} className="shrink-0" />
+          <span className={collapsed ? 'sr-only' : ''}>{strings.sidebar.collapseShort}</span>
         </button>
       </div>
     </div>

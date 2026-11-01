@@ -21,18 +21,14 @@ const device: MyDevice = {
 }
 
 const renderCard = (props: Partial<React.ComponentProps<typeof DeviceCard>> = {}) =>
-  render(
-    <ul>
-      <DeviceCard device={device} kind="pending" onConfirm={vi.fn()} onDecline={vi.fn()} {...props} />
-    </ul>,
-  )
+  render(<DeviceCard device={device} kind="pending" onConfirm={vi.fn()} onDecline={vi.fn()} {...props} />)
 
 describe('content', () => {
   it('shows description, category, serial number and the offered date for a pending device', () => {
     renderCard()
 
     expect(screen.getByRole('heading', { level: 3, name: 'MacBook Pro 14' })).not.toBeNull()
-    const card = screen.getByRole('listitem')
+    const card = screen.getByTestId('device-card')
     expect(card.textContent).toContain('Laptop')
     expect(card.textContent).toContain('SN123')
     expect(card.textContent).toContain('offered 06.10.2026')
@@ -41,15 +37,15 @@ describe('content', () => {
   it('says "assigned" for a held device and leaves out a missing serial number', () => {
     renderCard({ kind: 'held', device: { ...device, serialNumber: null } })
 
-    expect(screen.getByRole('listitem').textContent).toContain('assigned 06.10.2026')
-    expect(screen.getByRole('listitem').textContent).not.toContain('null')
+    expect(screen.getByTestId('device-card').textContent).toContain('assigned 06.10.2026')
+    expect(screen.getByTestId('device-card').textContent).not.toContain('null')
   })
 
   it('renders no price, book value, currency or entity, even when the data carries one (AC-4.2)', () => {
     const leaky = { ...device, purchasePriceCents: 99815, currency: 'CHF', entity: 'welld_ch' } as MyDevice
     renderCard({ device: leaky })
 
-    expect(screen.getByRole('listitem').textContent).not.toMatch(/CHF|EUR|€|998|WellD/)
+    expect(screen.getByTestId('device-card').textContent).not.toMatch(/CHF|EUR|€|998|WellD/)
   })
 })
 

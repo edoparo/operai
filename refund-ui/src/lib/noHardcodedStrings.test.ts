@@ -29,8 +29,10 @@
  * changed. `strings.ts` itself is, obviously, exempt — it is the destination.
  */
 
-import { readFileSync } from 'node:fs'
+import { readdirSync, readFileSync } from 'node:fs'
+import path from 'node:path'
 import { fileURLToPath } from 'node:url'
+import ts from 'typescript'
 import { describe, expect, it } from 'vitest'
 
 function extractStringLiterals(rawSource: string): string[] {
@@ -46,10 +48,43 @@ function extractStringLiterals(rawSource: string): string[] {
   return matches.map((raw) => raw.slice(1, -1))
 }
 
+// A literal made only of utility classes (a className, or one branch of a
+// conditional class) is styling, never copy: recognised by shape instead of
+// being allowlisted string by string, so restyling a component cannot break
+// this test (ADR-0051). Each class must start with a known utility family.
+const UTILITY_CLASS =
+  /^(?:[a-z-]+:)*-?(?:text|bg|border|font|p[xytblr]?|m[xytblr]?|gap|space|w|h|size|min|max|flex|grid|inline|items|justify|self|place|content|rounded|shadow|overflow|whitespace|leading|tracking|z|top|bottom|left|right|inset|opacity|cursor|transition|duration|ease|animate|ring|outline|fill|stroke|divide|col|row|order|tabular|line|list|object|aspect|basis|grow|shrink|break|decoration|underline|select|pointer|resize|align|sr|motion|truncate|tabular|btn|card|link|tab|badge|banner|dialog|field|form|page|tool|list|skeleton|spinner|state|fact|data)(?:-[a-z0-9./[\]%()#,_-]+)?$/
+const UTILITY_WORDS = new Set([
+  'flex',
+  'grid',
+  'block',
+  'inline',
+  'hidden',
+  'border',
+  'rounded',
+  'truncate',
+  'italic',
+  'underline',
+  'relative',
+  'absolute',
+  'fixed',
+  'sticky',
+  'grow',
+  'shrink',
+  'uppercase',
+  'lowercase',
+  'contents',
+  'sr-only',
+])
+const isUtilityClassList = (literal: string): boolean => {
+  const text = literal.replace(/\$\{[^}]*\}/g, ' ').trim()
+  return text !== '' && text.split(/\s+/).every((token) => UTILITY_WORDS.has(token) || UTILITY_CLASS.test(token))
+}
+
 function assertOnlyAllowlisted(filePath: string, allowlist: Set<string>) {
   const source = readFileSync(fileURLToPath(new URL(filePath, import.meta.url)), 'utf-8')
   const literals = extractStringLiterals(source)
-  const offenders = literals.filter((literal) => !allowlist.has(literal))
+  const offenders = literals.filter((literal) => !allowlist.has(literal) && !isUtilityClassList(literal))
   expect(
     [...new Set(offenders)],
     `unexpected literal(s) in ${filePath} — move real copy into strings.ts and reference it as strings.<path>`,
@@ -69,6 +104,18 @@ const CSS_TOKENS = [
   'var(--rule)',
   'var(--soft)',
   'var(--text)',
+  // Tone-as-text tokens and @operai/ui class names / Button variants
+  // (ADR-0050) — styling vocabulary, never copy.
+  'var(--red-text)',
+  'var(--org-text)',
+  'var(--grn-text)',
+  'card',
+  'card-title',
+  'primary',
+  'secondary',
+  'ghost',
+  'danger',
+  'sm',
 ]
 
 describe('AC-5.7 — no hardcoded user-facing strings outside strings.ts (specs/014 files)', () => {
@@ -142,7 +189,7 @@ describe('AC-5.7 — no hardcoded user-facing strings outside strings.ts (specs/
         'px-3 py-2 cursor-pointer',
         'text-sm overflow-hidden text-ellipsis whitespace-nowrap',
         'flex items-center gap-2',
-        'flex items-center justify-between gap-2 text-[11px]',
+        'flex items-center justify-between gap-2 text-2xs',
         // Inline CSS values for the popup's size, anchoring and highlight.
         '100%',
         'max(100%, 20rem)',
@@ -187,7 +234,17 @@ describe('AC-5.7 — no hardcoded user-facing strings outside strings.ts (specs/
         'composer-km-help',
         'composer-km-status',
         'composer-motivo',
+        'composer-motivo-error',
         'composer-type',
+        // `LineDraftField` keys passed to the validation hook (INC-16) — identifiers, not copy.
+        'type',
+        'motivo',
+        'amount',
+        'entity',
+        'currency',
+        'km',
+        // The figure font class on the km input (INC-17).
+        'input-figure',
         // HTML/ARIA attribute values.
         'text',
         'date',
@@ -206,7 +263,7 @@ describe('AC-5.7 — no hardcoded user-facing strings outside strings.ts (specs/
         'flex flex-col gap-1',
         'flex flex-col gap-3 rounded-md border p-4',
         'grid gap-3',
-        'text-[11px]',
+        'text-2xs',
         'text-xs',
         'text-xs font-medium',
         'text-sm font-semibold',
@@ -217,5 +274,130 @@ describe('AC-5.7 — no hardcoded user-facing strings outside strings.ts (specs/
         '',
       ]),
     )
+  })
+})
+
+// ─── Every component and page (INC-24) ────────────────────────────────────
+//
+// The allowlists above pin specs/014's files literal by literal. This second
+// half covers EVERY non-test `.tsx` under src/ with the TypeScript parser, so a
+// file added later is covered the moment it exists. It flags the only places
+// JSX can carry copy: JSX text, a string-literal child, and a string value for
+// a user-facing attribute (`aria-label`, `title`, `placeholder`, `alt`,
+// `label`, …). Class names, test ids, roles and CSS values are other
+// attributes; text with no letters (a "·" separator) is not copy. Same scanner
+// as inventory-ui's.
+
+const SRC_DIR = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
+
+const USER_FACING_ATTRIBUTES = new Set([
+  'aria-label',
+  'aria-description',
+  'aria-placeholder',
+  'aria-roledescription',
+  'aria-valuetext',
+  'title',
+  'placeholder',
+  'alt',
+  'label',
+  'retryLabel',
+  'dismissLabel',
+  'closeLabel',
+  'confirmLabel',
+  'cancelLabel',
+  'description',
+  'heading',
+])
+
+const HAS_LETTER = /\p{L}/u
+
+export function findHardcodedStrings(fileName: string, source: string): string[] {
+  const sourceFile = ts.createSourceFile(fileName, source, ts.ScriptTarget.Latest, true, ts.ScriptKind.TSX)
+  const found: string[] = []
+  const at = (node: ts.Node) => {
+    const { line } = sourceFile.getLineAndCharacterOfPosition(node.getStart(sourceFile))
+    return `${fileName}:${line + 1}`
+  }
+  const stringValue = (node: ts.Expression | undefined): string | undefined =>
+    node && (ts.isStringLiteral(node) || ts.isNoSubstitutionTemplateLiteral(node)) ? node.text : undefined
+
+  const visit = (node: ts.Node) => {
+    if (ts.isJsxText(node)) {
+      const text = node.text.trim()
+      if (HAS_LETTER.test(text)) found.push(`${at(node)}: JSX text "${text}"`)
+    } else if (ts.isJsxExpression(node) && (ts.isJsxElement(node.parent) || ts.isJsxFragment(node.parent))) {
+      const text = stringValue(node.expression)
+      if (text !== undefined && HAS_LETTER.test(text)) found.push(`${at(node)}: JSX string child "${text}"`)
+    } else if (ts.isJsxAttribute(node) && USER_FACING_ATTRIBUTES.has(node.name.getText(sourceFile))) {
+      const init = node.initializer
+      const text =
+        init && ts.isStringLiteral(init)
+          ? init.text
+          : init && ts.isJsxExpression(init)
+            ? stringValue(init.expression)
+            : undefined
+      if (text !== undefined && HAS_LETTER.test(text)) {
+        found.push(`${at(node)}: ${node.name.getText(sourceFile)}="${text}"`)
+      }
+    }
+    ts.forEachChild(node, visit)
+  }
+  visit(sourceFile)
+  return found
+}
+
+/** Every non-test `.tsx` under src/, except the federation shims. */
+function listScannedFiles(dir = SRC_DIR): string[] {
+  return readdirSync(dir, { withFileTypes: true }).flatMap((entry) => {
+    const full = path.join(dir, entry.name)
+    if (entry.isDirectory()) return entry.name === 'federation' ? [] : listScannedFiles(full)
+    return entry.name.endsWith('.tsx') && !/\.(test|spec)\.tsx$/.test(entry.name) ? [full] : []
+  })
+}
+
+describe('findHardcodedStrings (the scanner itself can fail)', () => {
+  it('flags JSX text', () => {
+    expect(findHardcodedStrings('a.tsx', 'export const A = () => <p>Save changes</p>')).toHaveLength(1)
+  })
+
+  it('flags a string literal child and a template-literal child', () => {
+    expect(findHardcodedStrings('a.tsx', "export const A = () => <p>{'Save'}{`Cancel`}</p>")).toHaveLength(2)
+  })
+
+  it.each(['aria-label', 'title', 'placeholder', 'alt', 'label'])('flags a hardcoded %s', (attr) => {
+    expect(findHardcodedStrings('a.tsx', `export const A = () => <input ${attr}="Search" />`)).toHaveLength(1)
+    expect(findHardcodedStrings('a.tsx', `export const A = () => <input ${attr}={'Search'} />`)).toHaveLength(1)
+  })
+
+  it('does not flag copy from strings, technical attributes, or separators', () => {
+    const source = `
+      export const A = ({ n }: { n: number }) => (
+        <section className="flex gap-2" data-testid="refund-x" role="status" aria-label={strings.appTitle} id={\`row-\${n}\`}>
+          <span>{strings.appTitle}</span>
+          <span>·</span>
+          <span>{'—'}</span>
+        </section>
+      )`
+    expect(findHardcodedStrings('a.tsx', source)).toEqual([])
+  })
+})
+
+describe('no hardcoded user-facing strings in any src/ .tsx (INC-24)', () => {
+  const files = listScannedFiles()
+
+  it('scans the components and pages it is supposed to (the walk is not silently empty)', () => {
+    const relative = files.map((file) => path.relative(SRC_DIR, file))
+    expect(relative).toEqual(
+      expect.arrayContaining([
+        'App.tsx',
+        path.join('pages', 'MyRequestsPage.tsx'),
+        path.join('components', 'ExpenseLineRow.tsx'),
+      ]),
+    )
+    expect(relative.some((file) => file.startsWith('federation') || /\.test\.tsx$/.test(file))).toBe(false)
+  })
+
+  it.each(files.map((file) => [path.relative(SRC_DIR, file), file]))('%s has no inline copy', (_name, file) => {
+    expect(findHardcodedStrings(path.relative(SRC_DIR, file), readFileSync(file, 'utf-8'))).toEqual([])
   })
 })

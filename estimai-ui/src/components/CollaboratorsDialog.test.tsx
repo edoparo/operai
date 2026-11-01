@@ -346,11 +346,12 @@ describe('CollaboratorsDialog — owner mode (T20, specs/013)', () => {
       )
     })
 
-    it('gives the Remove button an aria-label naming the email, never a bare "×"', async () => {
+    it('gives the Remove button an aria-label naming the email, never a bare glyph (INC-31: a decorative icon)', async () => {
       vi.mocked(collaboratorsApi.list).mockResolvedValue([grantAlice])
       renderDialog()
       const removeBtn = await screen.findByRole('button', { name: 'Remove alice@welld.ch' })
-      expect(removeBtn.textContent).toBe('×')
+      expect(removeBtn.textContent).toBe('')
+      expect(removeBtn.querySelector('svg[aria-hidden="true"]')).not.toBeNull()
     })
   })
 
@@ -446,6 +447,126 @@ describe('CollaboratorsDialog — owner mode (T20, specs/013)', () => {
       expect(region.getAttribute('aria-live')).toBe('polite')
       expect(region.textContent).toBe('')
     })
+  })
+})
+
+describe('CollaboratorsDialog — add form, Field convention (INC-16)', () => {
+  it('labels the email input through its Field, marked required', async () => {
+    vi.mocked(collaboratorsApi.list).mockResolvedValue([])
+    renderDialog()
+    await screen.findByTestId('collaborators-dialog-empty')
+
+    const input = screen.getByLabelText(new RegExp(strings.sharing.dialog.emailLabel))
+    expect(input).toBe(screen.getByTestId('collaborators-dialog-email-input'))
+    expect(input.getAttribute('aria-required')).toBe('true')
+    expect(screen.getByLabelText(strings.sharing.dialog.levelLabel)).toBe(
+      screen.getByTestId('collaborators-dialog-level-select'),
+    )
+  })
+
+  it('keeps Add enabled for a malformed address; submitting it shows the field error, marks the input invalid and focuses it', async () => {
+    vi.mocked(collaboratorsApi.list).mockResolvedValue([])
+    renderDialog()
+    await screen.findByTestId('collaborators-dialog-empty')
+
+    const input = screen.getByTestId('collaborators-dialog-email-input') as HTMLInputElement
+    const addButton = screen.getByTestId('collaborators-dialog-add-button') as HTMLButtonElement
+    expect(addButton.disabled).toBe(true) // nothing typed yet
+
+    fireEvent.change(input, { target: { value: 'not-an-email' } })
+    expect(addButton.disabled).toBe(false)
+    screen.getByTestId('collaborators-dialog-level-select').focus()
+    fireEvent.click(addButton)
+
+    const errorEl = await screen.findByTestId('collaborators-dialog-add-error')
+    expect(errorEl.textContent).toBe(strings.sharing.errors.invalidEmail)
+    expect(input.getAttribute('aria-invalid')).toBe('true')
+    const describedBy = input.getAttribute('aria-describedby') ?? ''
+    expect(describedBy).not.toBe('')
+    expect(document.getElementById(describedBy)?.textContent).toBe(strings.sharing.errors.invalidEmail)
+    expect(document.activeElement).toBe(input)
+    expect(collaboratorsApi.add).not.toHaveBeenCalled()
+  })
+
+  it('validates the format on blur of a touched field, and clears it once corrected', async () => {
+    vi.mocked(collaboratorsApi.list).mockResolvedValue([])
+    renderDialog()
+    await screen.findByTestId('collaborators-dialog-empty')
+
+    const input = screen.getByTestId('collaborators-dialog-email-input')
+    fireEvent.blur(input)
+    expect(screen.queryByTestId('collaborators-dialog-add-error')).toBeNull() // untouched
+
+    fireEvent.change(input, { target: { value: 'bad@' } })
+    fireEvent.blur(input)
+    expect(screen.getByTestId('collaborators-dialog-add-error').textContent).toBe(strings.sharing.errors.invalidEmail)
+
+    fireEvent.change(input, { target: { value: 'good@welld.ch' } })
+    fireEvent.blur(input)
+    expect(screen.queryByTestId('collaborators-dialog-add-error')).toBeNull()
+    expect(input.getAttribute('aria-invalid')).toBeNull()
+  })
+
+  it('shows a failure that is not about the address (503) as a form error, without marking the input invalid', async () => {
+    vi.mocked(collaboratorsApi.list).mockResolvedValue([])
+    vi.mocked(collaboratorsApi.add).mockRejectedValue(
+      new AuthorizationServiceUnavailableError(problem(503, 'authorization_service_unavailable')),
+    )
+    renderDialog()
+    await screen.findByTestId('collaborators-dialog-empty')
+
+    await fillAndSubmitAdd('someone@welld.ch')
+
+    const errorEl = await screen.findByTestId('collaborators-dialog-add-error')
+    expect(errorEl.closest('.form-error')).not.toBeNull()
+    expect(screen.getByTestId('collaborators-dialog-email-input').getAttribute('aria-invalid')).toBeNull()
+  })
+
+  it('shows a load failure as a warning Banner (retryable, orange)', async () => {
+    vi.mocked(collaboratorsApi.list).mockRejectedValue(new Error('network'))
+    renderDialog()
+
+    const banner = await screen.findByTestId('collaborators-dialog-load-error')
+    expect(banner.getAttribute('role')).toBe('alert')
+    expect(banner.className).toContain('banner-warning')
+  })
+})
+
+describe('CollaboratorsDialog — member mode: Leave confirms to the caller (INC-19)', () => {
+  it('calls onLeft before onClose after a successful Leave, and not on failure', async () => {
+    const calls: string[] = []
+    const onLeft = vi.fn(() => calls.push('left'))
+    const onClose = vi.fn(() => calls.push('close'))
+    vi.mocked(collaboratorsApi.leave).mockResolvedValueOnce(undefined)
+    render(
+      <CollaboratorsDialog
+        estimateId="est-1"
+        access="viewer"
+        owner={activeOwnerIdentity}
+        onClose={onClose}
+        onLeft={onLeft}
+      />,
+    )
+
+    fireEvent.click(screen.getByTestId('collaborators-dialog-leave-button'))
+    fireEvent.click(screen.getByTestId('confirm-delete-confirm'))
+
+    await waitFor(() => expect(onClose).toHaveBeenCalledTimes(1))
+    expect(calls).toEqual(['left', 'close'])
+  })
+
+  it('does not call onLeft when Leave fails', async () => {
+    const onLeft = vi.fn()
+    vi.mocked(collaboratorsApi.leave).mockRejectedValueOnce(new Error('network'))
+    render(
+      <CollaboratorsDialog estimateId="est-1" access="viewer" owner={activeOwnerIdentity} onClose={vi.fn()} onLeft={onLeft} />,
+    )
+
+    fireEvent.click(screen.getByTestId('collaborators-dialog-leave-button'))
+    fireEvent.click(screen.getByTestId('confirm-delete-confirm'))
+
+    await screen.findByTestId('confirm-delete-error')
+    expect(onLeft).not.toHaveBeenCalled()
   })
 })
 

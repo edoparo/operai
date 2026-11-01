@@ -7,7 +7,7 @@
  * (same props shape, same idle/deleting/error states, same focus-trap and
  * keyboard contract) — admin-ui cannot import across the Module Federation
  * boundary (ADR-0006), so this is a near-verbatim re-authoring, generalised
- * from "estimate" to any named entity (role/department) via `entityLabel` +
+ * from "estimate" to any named entity (role/department) via `title` +
  * `itemName` props.
  *
  * Deliberate a11y refinement over the source pattern (design.md
@@ -45,26 +45,23 @@
  *   • deleting  — "Deleting…" + spinner, both buttons disabled
  *   • error     — inline error text between body and footer; both buttons re-enabled
  *
- * Styling note: colors/fonts are applied via the shared stylesheet's plain
- * CSS custom properties (`var(--text)`, `var(--red)`, …) rather than
- * Tailwind's palette-specific utility classes, mirroring App.tsx's
- * documented reasoning — those utilities only exist in a build that
- * processed `shell/tokens.css`'s `@theme` block through Tailwind's compiler,
- * which admin-ui's own build never does (the tokens arrive as a runtime
- * federated CSS import). Generic layout/spacing/type-scale Tailwind
- * utilities are used freely.
+ * Now a thin adapter over @operai/ui's `ConfirmDialog` (ADR-0050, INC-09),
+ * which owns the frame, the focus trap (every enabled control, × included),
+ * Escape/backdrop = Cancel (never while deleting), focus return and the look;
+ * this file keeps admin-ui's props, copy and test ids so no call site changed.
  */
 
-import { useEffect, useRef } from 'react'
 import type { ReactNode } from 'react'
+import { ConfirmDialog } from '@operai/ui'
+import { strings } from '../strings'
 
 // ---------------------------------------------------------------------------
 // Types
 // ---------------------------------------------------------------------------
 
 export type ConfirmDeleteModalProps = {
-  /** Noun describing the kind of entity being deleted (e.g. "role", "department"). */
-  entityLabel: string
+  /** The dialog title, from the caller's strings (e.g. `strings.roles.deleteTitle`). */
+  title: string
   /** Name of the entity being deleted — shown in the default body copy (ignored when `body` is supplied). */
   itemName: string
   /** Whether the DELETE request is currently in-flight. */
@@ -73,7 +70,7 @@ export type ConfirmDeleteModalProps = {
   errorMessage: string | null
   /** Called when the user confirms deletion (clicks "Delete"). */
   onConfirm: () => void
-  /** Called when the user cancels (clicks "Cancel", "×", or presses Escape). */
+  /** Called when the user cancels (clicks "Cancel", "×", the backdrop, or presses Escape). */
   onCancel: () => void
   /**
    * Overrides the default body copy (design.md Dialog N2, T10 specs/006).
@@ -88,7 +85,7 @@ export type ConfirmDeleteModalProps = {
 // ---------------------------------------------------------------------------
 
 export default function ConfirmDeleteModal({
-  entityLabel,
+  title,
   itemName,
   isDeleting,
   errorMessage,
@@ -96,137 +93,23 @@ export default function ConfirmDeleteModal({
   onCancel,
   body,
 }: ConfirmDeleteModalProps) {
-  const cancelBtnRef = useRef<HTMLButtonElement>(null)
-  const deleteBtnRef = useRef<HTMLButtonElement>(null)
-
-  // Focus Cancel on mount — safe default.
-  useEffect(() => {
-    cancelBtnRef.current?.focus()
-  }, [])
-
-  // Keyboard: Escape = Cancel; Tab / Shift+Tab trapped within the two buttons.
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') {
-        e.preventDefault()
-        onCancel()
-        return
-      }
-
-      if (e.key !== 'Tab') return
-
-      const focusable = [cancelBtnRef.current, deleteBtnRef.current].filter(
-        (el): el is HTMLButtonElement => el !== null && !el.disabled,
-      )
-      if (focusable.length === 0) return
-
-      const first = focusable[0]
-      const last = focusable[focusable.length - 1]
-
-      if (e.shiftKey) {
-        if (document.activeElement === first) {
-          e.preventDefault()
-          last.focus()
-        }
-      } else {
-        if (document.activeElement === last) {
-          e.preventDefault()
-          first.focus()
-        }
-      }
-    }
-
-    window.addEventListener('keydown', onKey)
-    return () => window.removeEventListener('keydown', onKey)
-  }, [onCancel])
-
-  const displayName = itemName || 'Untitled'
+  const displayName = itemName || strings.common.confirmDelete.untitled
 
   return (
-    <div
-      className="fixed inset-0 z-50 flex items-center justify-center backdrop-blur-sm"
-      style={{ backgroundColor: 'rgba(0, 0, 0, 0.6)' }}
-      onClick={onCancel}
-      data-testid="confirm-delete-modal"
+    <ConfirmDialog
+      title={title}
+      confirmLabel={strings.common.actions.delete}
+      busyLabel={strings.common.actions.deleting}
+      cancelLabel={strings.common.actions.cancel}
+      closeLabel={strings.common.actions.cancel}
+      busy={isDeleting}
+      error={errorMessage}
+      onConfirm={onConfirm}
+      onCancel={onCancel}
+      testIdPrefix="confirm-delete"
+      backdropTestId="confirm-delete-modal"
     >
-      <div
-        role="alertdialog"
-        aria-modal="true"
-        aria-labelledby="confirm-delete-title"
-        aria-describedby="confirm-delete-body"
-        className="border rounded-lg shadow-2xl w-full max-w-sm mx-4 p-5"
-        style={{ backgroundColor: 'var(--ink-soft)', borderColor: 'var(--rule)' }}
-        onClick={(e) => e.stopPropagation()}
-      >
-        {/* Header */}
-        <div className="flex items-center justify-between mb-3">
-          <h2
-            id="confirm-delete-title"
-            className="text-sm font-bold"
-            style={{ fontFamily: 'var(--disp)', color: 'var(--text)' }}
-          >
-            Delete {entityLabel}?
-          </h2>
-          <button
-            onClick={onCancel}
-            disabled={isDeleting}
-            className="text-lg leading-none transition-opacity hover:opacity-80 disabled:opacity-40 disabled:cursor-not-allowed"
-            style={{ color: 'var(--muted)' }}
-            aria-label="Cancel"
-          >
-            ×
-          </button>
-        </div>
-
-        {/* Body — a <div>, not a <p>, so an overriding `body` can nest block
-            content (e.g. a scrollable <ul> of names) without invalid
-            <ul>-inside-<p> markup; aria-describedby targets it either way. */}
-        <div id="confirm-delete-body" className="text-sm leading-relaxed mb-4" style={{ color: 'var(--text)' }}>
-          {body ?? <p>&lsquo;{displayName}&rsquo; will be permanently deleted. This cannot be undone.</p>}
-        </div>
-
-        {/* Inline error (between body and footer) */}
-        {errorMessage && (
-          <p className="text-sm mb-3" style={{ color: 'var(--org)' }} role="alert" data-testid="confirm-delete-error">
-            {errorMessage}
-          </p>
-        )}
-
-        {/* Footer */}
-        <div className="flex items-center justify-end gap-3">
-          <button
-            ref={cancelBtnRef}
-            onClick={onCancel}
-            disabled={isDeleting}
-            data-testid="confirm-delete-cancel"
-            className="py-2 px-4 text-sm font-medium border transition-opacity hover:opacity-80 disabled:opacity-40 disabled:cursor-not-allowed"
-            style={{ borderColor: 'var(--rule)', color: 'var(--muted)' }}
-          >
-            Cancel
-          </button>
-          <button
-            ref={deleteBtnRef}
-            onClick={onConfirm}
-            disabled={isDeleting}
-            data-testid="confirm-delete-confirm"
-            className="py-2 px-4 text-sm font-medium border transition-opacity hover:opacity-80 disabled:opacity-40 disabled:cursor-not-allowed"
-            style={{ color: 'var(--red)', borderColor: 'var(--red)' }}
-          >
-            {isDeleting ? (
-              <span className="flex items-center gap-2">
-                <span
-                  className="inline-block w-3 h-3 border-2 rounded-full animate-spin motion-reduce:animate-none"
-                  style={{ borderColor: 'var(--red)', borderTopColor: 'transparent' }}
-                  aria-hidden="true"
-                />
-                Deleting…
-              </span>
-            ) : (
-              'Delete'
-            )}
-          </button>
-        </div>
-      </div>
-    </div>
+      {body ?? <p>{strings.common.confirmDelete.body(displayName)}</p>}
+    </ConfirmDialog>
   )
 }

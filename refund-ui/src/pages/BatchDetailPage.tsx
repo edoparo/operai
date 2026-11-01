@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { getRouteApi, Link, useNavigate } from '@tanstack/react-router'
+import { Banner, Button, Card, Icon, PageHeader, VisuallyHidden, useFocusOnMount } from '@operai/ui'
 import { strings } from '../strings'
 import * as batchesApi from '../lib/batchesApi'
 import type { BatchDetail } from '../lib/batchesApi'
@@ -101,9 +102,12 @@ export default function BatchDetailPage() {
   const [emailToast, setEmailToast] = useState<EmailToastState>(null)
   const [resending, setResending] = useState(false)
   const [liveMessage, setLiveMessage] = useState('')
+  // INC-19: the post-compile confirmation is shown, not only announced.
+  const [visibleConfirmation, setVisibleConfirmation] = useState<string | null>(null)
   const [justTransitioned, setJustTransitioned] = useState(false)
 
-  const headingRef = useRef<HTMLHeadingElement>(null)
+  // The not-found heading takes focus when that state replaces the page (INC-30).
+  const headingRef = useFocusOnMount<HTMLHeadingElement>(pageState.status === 'notFound')
   const strippedConfirmationRef = useRef(false)
 
   // ---------------------------------------------------------------------------
@@ -137,26 +141,20 @@ export default function BatchDetailPage() {
     }
   }, [id, reloadToken, t.loadErrorFallback])
 
-  // Focus the not-found heading on mount too (mirrors NotFoundPage.tsx/RequestDetailPage.tsx).
-  useEffect(() => {
-    if (pageState.status === 'notFound') {
-      headingRef.current?.focus()
-    }
-  }, [pageState.status])
-
   // Focus the status heading right after a mark-paid/discard transition completes.
   useEffect(() => {
     if (justTransitioned) {
       headingRef.current?.focus()
       setJustTransitioned(false)
     }
-  }, [justTransitioned])
+  }, [justTransitioned, headingRef])
 
   // Announce the one-shot post-compile confirmation once, then strip it from the URL.
   useEffect(() => {
     if (!confirmation || strippedConfirmationRef.current) return
     strippedConfirmationRef.current = true
     setLiveMessage(confirmation)
+    setVisibleConfirmation(confirmation)
     void navigate({ to: '/batches/$id', params: { id }, search: {}, replace: true })
   }, [confirmation, navigate, id])
 
@@ -278,41 +276,47 @@ export default function BatchDetailPage() {
         <GuardrailDialog title={guardrail.title} message={guardrail.message} onAcknowledge={() => setGuardrail(null)} />
       )}
 
-      {pageState.status === 'loaded' ? (
-        <div className="flex items-center gap-3">
-          <h2
-            id="refund-batch-detail-heading"
-            ref={headingRef}
-            tabIndex={-1}
-            className="text-lg font-semibold outline-none"
-            style={{ fontFamily: 'var(--disp)' }}
-          >
-            {t.heading}
-          </h2>
-          <BatchStatusBadge status={pageState.batch.status} />
-        </div>
-      ) : (
-        <h2
-          id="refund-batch-detail-heading"
-          ref={pageState.status === 'notFound' ? headingRef : undefined}
-          tabIndex={pageState.status === 'notFound' ? -1 : undefined}
-          className="text-lg font-semibold outline-none"
-          style={{ fontFamily: 'var(--disp)' }}
-        >
-          {pageState.status === 'notFound' ? t.notFound.heading : t.heading}
-        </h2>
-      )}
+      <PageHeader
+        title={pageState.status === 'notFound' ? t.notFound.heading : t.heading}
+        titleId="refund-batch-detail-heading"
+        headingRef={pageState.status === 'loaded' || pageState.status === 'notFound' ? headingRef : undefined}
+        focusableHeading={pageState.status === 'loaded' || pageState.status === 'notFound'}
+        status={pageState.status === 'loaded' && <BatchStatusBadge status={pageState.batch.status} />}
+        back={
+          pageState.status !== 'notFound' && (
+            <Link to="/batches" className="link inline-flex items-center gap-1" data-testid="batch-detail-back">
+              <Icon name="arrow-left" />
+              {t.notFound.backLink}
+            </Link>
+          )
+        }
+      />
 
-      <p aria-live="polite" className="sr-only" data-testid="batch-detail-live-message">
+      <VisuallyHidden live data-testid="batch-detail-live-message">
         {liveMessage}
-      </p>
+      </VisuallyHidden>
+
+      {/* The visible copy of the post-compile confirmation the live region above
+          announces — `aria-live="off"` so a screen reader hears it once. */}
+      {visibleConfirmation && (
+        <Banner
+          tone="success"
+          compact
+          aria-live="off"
+          autoDismiss
+          onDismiss={() => setVisibleConfirmation(null)}
+          dismissLabel={t.confirmationDismissLabel}
+          className="mt-4"
+          data-testid="batch-detail-confirmation"
+        >
+          {visibleConfirmation}
+        </Banner>
+      )}
 
       <div className="mt-4 flex flex-col gap-4">
         {pageState.status === 'loading' && (
           <>
-            <p className="sr-only" aria-live="polite">
-              {t.loadingAnnouncement}
-            </p>
+            <VisuallyHidden live>{t.loadingAnnouncement}</VisuallyHidden>
             <SkeletonListRows />
           </>
         )}
@@ -323,15 +327,8 @@ export default function BatchDetailPage() {
 
         {pageState.status === 'notFound' && (
           <div data-testid="batch-detail-not-found">
-            <p className="text-sm" style={{ color: 'var(--muted)' }}>
-              {t.notFound.body}
-            </p>
-            <Link
-              to="/batches"
-              data-testid="batch-detail-not-found-back"
-              className="mt-3 inline-block text-sm underline underline-offset-2"
-              style={{ color: 'var(--acc)' }}
-            >
+            <p className="text-sm text-soft">{t.notFound.body}</p>
+            <Link to="/batches" data-testid="batch-detail-not-found-back" className="link mt-3 inline-block text-sm">
               {t.notFound.backLink}
             </Link>
           </div>
@@ -339,85 +336,74 @@ export default function BatchDetailPage() {
 
         {pageState.status === 'loaded' && (
           <div data-testid="batch-detail-loaded" className="flex flex-col gap-4">
-            <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm" style={{ color: 'var(--soft)' }}>
-              <span data-testid="batch-detail-cutoff">
-                {t.meta.cutoffLabel(formatDateTime(pageState.batch.cutoff))}
-              </span>
-              <span data-testid="batch-detail-generated">
-                {t.meta.generatedLabel(formatDateTime(pageState.batch.createdAt), pageState.batch.createdBy.email)}
-              </span>
-              <span
-                data-testid="batch-detail-reference"
-                title={t.meta.referenceTooltip}
-                className="text-xs px-1.5 py-0.5 rounded"
-                style={{ fontFamily: 'var(--mono)', color: 'var(--muted)', backgroundColor: 'var(--ink-soft)' }}
-              >
-                {t.meta.referenceLabel}: {pageState.batch.id}
-              </span>
-            </div>
-
-            {pageState.batch.status === 'paid' && pageState.batch.paidAt && pageState.batch.paidBy && (
-              <p className="text-sm" style={{ color: 'var(--grn)' }} data-testid="batch-detail-paid-line">
-                {t.paidLine(formatDateTime(pageState.batch.paidAt), pageState.batch.paidBy.email)}
-              </p>
-            )}
-
-            {pageState.batch.status === 'discarded' && pageState.batch.discardedAt && pageState.batch.discardedBy && (
-              <p className="text-sm" style={{ color: 'var(--muted)' }} data-testid="batch-detail-discarded-line">
-                {t.discardedLine(formatDateTime(pageState.batch.discardedAt), pageState.batch.discardedBy.email)}
-              </p>
-            )}
-
-            <BatchSubtotalsPanel subtotals={pageState.batch.subtotals} />
-            <BatchEmployeeGroupList mode="detail" groups={pageState.batch.employees} />
-
-            <div className="flex flex-wrap items-center gap-3">
-              {pageState.batch.pdf ? (
-                <BatchPdfLink batchId={pageState.batch.id} />
-              ) : (
-                <span className="text-xs" style={{ color: 'var(--muted)' }} data-testid="batch-detail-pdf-unavailable">
-                  {strings.components.batchPdfLink.unavailable}
+            <Card title={t.summaryHeading}>
+              <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-soft">
+                <span data-testid="batch-detail-cutoff">
+                  {t.meta.cutoffLabel(formatDateTime(pageState.batch.cutoff))}
                 </span>
-              )}
-              <span className="text-sm" style={{ color: 'var(--soft)' }} data-testid="batch-detail-email-status">
-                {t.email[pageState.batch.email.status ?? 'notAttempted']}
-              </span>
-              <button
-                type="button"
-                onClick={() => void handleResend()}
-                disabled={resending}
-                data-testid="batch-detail-resend-email"
-                className="text-sm font-medium border px-2.5 py-1.5 transition-opacity hover:opacity-80 disabled:opacity-40"
-                style={{ borderColor: 'var(--rule)', color: 'var(--acc)' }}
-              >
-                {resending ? t.email.resendingLabel : t.email.resendButton}
-              </button>
-            </div>
+                <span data-testid="batch-detail-generated">
+                  {t.meta.generatedLabel(formatDateTime(pageState.batch.createdAt), pageState.batch.createdBy.email)}
+                </span>
+                <span
+                  data-testid="batch-detail-reference"
+                  title={t.meta.referenceTooltip}
+                  className="text-xs px-1.5 py-0.5 rounded font-mono text-soft bg-ink"
+                >
+                  {t.meta.referenceLabel}: {pageState.batch.id}
+                </span>
+              </div>
 
-            {emailToast && (
-              <ToastBanner message={emailToast.message} tone={emailToast.tone} onDismiss={dismissEmailToast} />
-            )}
+              {pageState.batch.status === 'paid' && pageState.batch.paidAt && pageState.batch.paidBy && (
+                <p className="text-sm text-grn-text" data-testid="batch-detail-paid-line">
+                  {t.paidLine(formatDateTime(pageState.batch.paidAt), pageState.batch.paidBy.email)}
+                </p>
+              )}
+
+              {pageState.batch.status === 'discarded' && pageState.batch.discardedAt && pageState.batch.discardedBy && (
+                <p className="text-sm text-soft" data-testid="batch-detail-discarded-line">
+                  {t.discardedLine(formatDateTime(pageState.batch.discardedAt), pageState.batch.discardedBy.email)}
+                </p>
+              )}
+
+              <BatchSubtotalsPanel subtotals={pageState.batch.subtotals} />
+
+              <div className="flex flex-wrap items-center gap-3">
+                {pageState.batch.pdf ? (
+                  <BatchPdfLink batchId={pageState.batch.id} />
+                ) : (
+                  <span className="text-xs text-soft" data-testid="batch-detail-pdf-unavailable">
+                    {strings.components.batchPdfLink.unavailable}
+                  </span>
+                )}
+                <span className="text-sm text-soft" data-testid="batch-detail-email-status">
+                  {t.email[pageState.batch.email.status ?? 'notAttempted']}
+                </span>
+                <Button
+                  variant="secondary"
+                  onClick={() => void handleResend()}
+                  disabled={resending}
+                  data-testid="batch-detail-resend-email"
+                  busy={resending}
+                >
+                  {resending ? t.email.resendingLabel : t.email.resendButton}
+                </Button>
+              </div>
+
+              {emailToast && (
+                <ToastBanner message={emailToast.message} tone={emailToast.tone} onDismiss={dismissEmailToast} />
+              )}
+            </Card>
+
+            <BatchEmployeeGroupList mode="detail" groups={pageState.batch.employees} />
 
             {pageState.batch.status === 'compiled' && (
               <div className="flex items-center gap-3">
-                <button
-                  type="button"
-                  onClick={handleMarkPaidOpen}
-                  data-testid="batch-detail-mark-paid"
-                  className="py-1.5 px-3 text-sm font-medium border transition-opacity hover:opacity-80"
-                  style={{ borderColor: 'var(--grn)', color: 'var(--grn)' }}
-                >
+                <Button variant="primary" onClick={handleMarkPaidOpen} data-testid="batch-detail-mark-paid">
                   {t.markPaid.button}
-                </button>
-                <button
-                  type="button"
-                  onClick={handleDiscardOpen}
-                  data-testid="batch-detail-discard"
-                  className="py-1.5 px-3 text-sm font-medium border transition-opacity hover:opacity-80"
-                  style={{ borderColor: 'var(--red)', color: 'var(--red)' }}
-                >
+                </Button>
+                <Button variant="danger" onClick={handleDiscardOpen} data-testid="batch-detail-discard">
                   {t.discard.button}
-                </button>
+                </Button>
               </div>
             )}
           </div>

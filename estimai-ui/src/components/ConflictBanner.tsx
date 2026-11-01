@@ -2,13 +2,13 @@
  * ConflictBanner — US-4's non-dismissable recovery surface for a 409/428
  * save conflict (T18, specs/013-estimate-sharing/tasks.md; design.md S4).
  *
- * A **new** component, not an extension of `ToastBanner.tsx` — that
+ * A **new** component, not an extension of the save-feedback Banner (formerly the local `ToastBanner.tsx`) — that
  * component's contract (message + at most one optional dismiss) cannot
  * express two action buttons or "never dismissable, never auto-dismisses"
  * without breaking its two existing call sites (the save error/success
  * toasts). This banner replaces that toast zone entirely while a conflict is
  * active (`EstimatorApp.tsx` renders it instead of, never alongside,
- * `ToastBanner` — `EstimatorContext.tsx`'s autosave effect already clears
+ * save-feedback Banner — `EstimatorContext.tsx`'s autosave effect already clears
  * `saveError`/`showSavedToast` the moment it enters `conflict`).
  *
  * Copy (design.md S4, `strings.conflict.*`):
@@ -25,7 +25,7 @@
  *   - `role="alert"` (assertive — an unsaved-work risk must interrupt,
  *     unlike the existing success toast's `role="status"`).
  *   - **Never** a dismiss "×" — the component's core behavioral difference
- *     from `ToastBanner`; must not be "fixed" by adding one later.
+ *     from the save-feedback Banner; must not be "fixed" by adding one later.
  *   - Does NOT steal focus on appear (no focus-management effect at all,
  *     deliberately) — the user may be mid-keystroke in a cell, and forcibly
  *     moving focus would itself risk losing an in-progress edit.
@@ -39,6 +39,7 @@
 import { strings } from '../strings'
 import { formatIdentity } from '../lib/identity'
 import type { ConflictInfo } from '../context/EstimatorContext'
+import { Button } from '@operai/ui'
 
 export type ConflictBannerProps = {
   conflict: ConflictInfo
@@ -72,23 +73,15 @@ export default function ConflictBanner({ conflict, onReloadLatest, onSaveAsCopy 
     >
       <div className="flex flex-col gap-0.5 min-w-0">
         <p className="font-medium">{title}</p>
-        {!isStaleClient && <p className="text-muted text-[12px]">{strings.conflict.reassurance}</p>}
+        {!isStaleClient && <p className="text-soft text-xs">{strings.conflict.reassurance}</p>}
       </div>
       <div className="flex items-center gap-2 shrink-0">
-        <button
-          type="button"
-          onClick={onReloadLatest}
-          className="py-1.5 px-3 text-[12px] font-medium bg-acc text-white hover:bg-acc/90 transition-colors"
-        >
+        <Button variant="primary" size="sm" onClick={onReloadLatest}>
           {strings.conflict.reloadButton}
-        </button>
-        <button
-          type="button"
-          onClick={onSaveAsCopy}
-          className="py-1.5 px-3 text-[12px] font-medium border border-rule text-muted hover:text-text hover:border-text/40 transition-colors"
-        >
+        </Button>
+        <Button variant="secondary" size="sm" onClick={onSaveAsCopy}>
           {strings.conflict.saveAsCopyButton}
-        </button>
+        </Button>
       </div>
     </div>
   )

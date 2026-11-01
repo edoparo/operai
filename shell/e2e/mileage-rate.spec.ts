@@ -139,7 +139,7 @@ test.describe('specs/009-mileage-rate T15: cross-service mileage flow', () => {
     // who added it (AC-4.1/4.2/5.1/5.3).
     const rateRow = adminPage.locator('[data-testid^="rate-row-"]').filter({ hasText: adminEmail })
     await expect(rateRow).toBeVisible({ timeout: 10_000 })
-    await expect(rateRow).toContainText('0.81 CHF/km')
+    await expect(rateRow).toContainText('CHF 0.81/km')
 
     // ─── US-1/US-2: employee drafts a travel_km line for the SAME entity/date ──
     await empPage.goto('/refund/requests')
@@ -162,13 +162,13 @@ test.describe('specs/009-mileage-rate T15: cross-service mileage flow', () => {
     // AC-1.2/1.8 — live breakdown resolves against the admin's rate: km, the
     // per-km rate, AND the resulting amount together (100km × CHF0.81/km).
     await expect(empPage.getByTestId('mileage-amount-status')).toContainText(
-      '100 km × 0,81 CHF/km = 81,00 CHF',
+      '100 km × CHF 0.81/km = CHF 81.00',
       { timeout: 10_000 },
     )
 
     await empPage.getByTestId('composer-add-button').click()
     await expect(empPage.locator('[data-testid^="expense-line-row-"]')).toHaveCount(1, { timeout: 10_000 })
-    await expect(empPage.locator('[data-testid^="expense-line-row-"]')).toContainText('81,00 CHF')
+    await expect(empPage.locator('[data-testid^="expense-line-row-"]')).toContainText('CHF 81.00')
 
     await empPage.getByTestId('request-detail-submit').click()
     await expect(empPage.getByTestId('request-detail-submitted')).toBeVisible({ timeout: 20_000 })
@@ -180,7 +180,7 @@ test.describe('specs/009-mileage-rate T15: cross-service mileage flow', () => {
     // renders for the owner, not just accounting — summaryCore is shared).
     await expect(
       empPage.locator('[data-testid^="expense-line-row-"]').filter({ hasText: `Client site visit ${tag}` }),
-    ).toContainText('81,00 CHF')
+    ).toContainText('CHF 81.00')
 
     // ─── US-6: accounting opens the request, sees the SAME applied rate ────
     await acctPage.goto('/refund/review')
@@ -195,14 +195,14 @@ test.describe('specs/009-mileage-rate T15: cross-service mileage flow', () => {
     const acctLineRow = acctPage
       .locator('[data-testid^="expense-line-row-"]')
       .filter({ hasText: `Client site visit ${tag}` })
-    await expect(acctLineRow).toContainText('81,00 CHF')
+    await expect(acctLineRow).toContainText('CHF 81.00')
     // AC-6.4 — the specific rate applied (value + valid-from), not just the amount.
-    await expect(acctLineRow).toContainText('0,81 CHF/km')
+    await expect(acctLineRow).toContainText('CHF 0.81/km')
     await expect(acctLineRow).toContainText(/valid from/i)
 
     // AC-6.1 — the computed amount is never a ceiling/floor: approve at a
     // DIFFERENT approved total, proving the field stays independently editable.
-    const approvedInput = acctLineRow.locator('input[type="number"]')
+    const approvedInput = acctLineRow.locator('[data-testid$="-approved-total"]')
     await approvedInput.fill('70')
     await approvedInput.blur()
     await expect(acctLineRow.getByText('Saving…')).toHaveCount(0, { timeout: 10_000 })
@@ -215,17 +215,17 @@ test.describe('specs/009-mileage-rate T15: cross-service mileage flow', () => {
     // rewrites the already-submitted (now approved) line ──────────────────
     await addMileageRate(adminPage, 'welld_ch', '0.95', today)
 
-    // Employee's own view of the now-decided request: still 81,00 CHF
+    // Employee's own view of the now-decided request: still CHF 81.00
     // requested, still the ORIGINAL 0,81 rate — never recomputed to 0,95.
     await empPage.goto(`/refund/requests/${requestId}`)
     await expect(empPage.getByTestId('request-detail-approved')).toBeVisible({ timeout: 20_000 })
     const empDecidedRow = empPage
       .locator('[data-testid^="expense-line-row-"]')
       .filter({ hasText: `Client site visit ${tag}` })
-    await expect(empDecidedRow).toContainText('81,00 CHF')
-    await expect(empDecidedRow).toContainText('0,81 CHF/km')
-    await expect(empDecidedRow).not.toContainText('95,00 CHF')
-    await expect(empDecidedRow).not.toContainText('0,95 CHF/km')
+    await expect(empDecidedRow).toContainText('CHF 81.00')
+    await expect(empDecidedRow).toContainText('CHF 0.81/km')
+    await expect(empDecidedRow).not.toContainText('CHF 95.00')
+    await expect(empDecidedRow).not.toContainText('CHF 0.95/km')
 
     await adminContext.close()
     await empContext.close()

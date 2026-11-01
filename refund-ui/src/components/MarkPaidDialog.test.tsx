@@ -34,9 +34,11 @@ describe('MarkPaidDialog', () => {
 
     const dialog = screen.getByRole('alertdialog')
     expect(dialog.getAttribute('aria-modal')).toBe('true')
-    expect(dialog.getAttribute('aria-labelledby')).toBe('mark-paid-dialog-title')
-    expect(dialog.getAttribute('aria-describedby')).toBe('mark-paid-dialog-body')
-    expect(screen.getByTestId('batch-subtotals-panel')).not.toBeNull()
+    expect(dialog.getAttribute('aria-labelledby')).not.toBeNull()
+    const body = document.getElementById(dialog.getAttribute('aria-describedby')!)
+    // The description covers the consequence AND the batch summary.
+    expect(body?.contains(screen.getByTestId('batch-subtotals-panel'))).toBe(true)
+    expect(body?.contains(screen.getByTestId('mark-paid-dialog-email-fyi'))).toBe(true)
   })
 
   it('focuses Cancel by default (not the checkbox — a safe default for a consequential action)', () => {
@@ -81,7 +83,8 @@ describe('MarkPaidDialog', () => {
     expect(onConfirm).not.toHaveBeenCalled()
   })
 
-  it('traps Tab focus across [checkbox, Cancel, Confirm] once Confirm is enabled', () => {
+  // The library trap covers every enabled control; the header's × is first.
+  it('traps Tab focus across [×, checkbox, Cancel, Confirm] once Confirm is enabled', () => {
     render(<MarkPaidDialog {...baseProps} />)
 
     fireEvent.click(screen.getByTestId('mark-paid-dialog-checkbox'))
@@ -90,13 +93,16 @@ describe('MarkPaidDialog', () => {
     const cancelBtn = screen.getByTestId('mark-paid-dialog-cancel')
     const confirmBtn = screen.getByTestId('mark-paid-dialog-confirm')
 
+    const closeBtn = screen.getByTestId('mark-paid-dialog-close')
+
     confirmBtn.focus()
     fireEvent.keyDown(window, { key: 'Tab' })
-    expect(document.activeElement).toBe(checkbox)
+    expect(document.activeElement).toBe(closeBtn)
 
-    checkbox.focus()
+    closeBtn.focus()
     fireEvent.keyDown(window, { key: 'Tab', shiftKey: true })
     expect(document.activeElement).toBe(confirmBtn)
+    void checkbox
 
     void cancelBtn
   })

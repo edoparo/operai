@@ -1,6 +1,5 @@
 import { useEffect, useState } from 'react'
-import type { CSSProperties } from 'react'
-import Combobox from './Combobox'
+import { Combobox } from '@operai/ui'
 import { listSuppliers } from '../lib/suppliersApi'
 import { strings } from '../strings'
 
@@ -26,19 +25,9 @@ export type SupplierFieldProps = {
   onChange: (value: string) => void
   ariaInvalid?: boolean
   ariaDescribedBy?: string
-  inputClassName?: string
-  inputStyle?: CSSProperties
 }
 
-export default function SupplierField({
-  id,
-  value,
-  onChange,
-  ariaInvalid,
-  ariaDescribedBy,
-  inputClassName,
-  inputStyle,
-}: SupplierFieldProps) {
+export default function SupplierField({ id, value, onChange, ariaInvalid, ariaDescribedBy }: SupplierFieldProps) {
   const [suppliers, setSuppliers] = useState<string[]>([])
   const [open, setOpen] = useState(false)
 
@@ -80,8 +69,6 @@ export default function SupplierField({
       ariaInvalid={ariaInvalid}
       ariaDescribedBy={ariaDescribedBy}
       liveRegionText={isOpen ? strings.common.supplierField.suggestions(options.length) : ''}
-      inputClassName={inputClassName}
-      inputStyle={inputStyle}
     />
   )
 }

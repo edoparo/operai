@@ -3,6 +3,8 @@ import { defineConfig } from 'vitest/config'
 
 export default defineConfig({
   resolve: {
+    // One React for the app and the library's source (ADR-0050).
+    dedupe: ['react', 'react-dom'],
     // `shell/session` and `shell/tokens.css` are federated specifiers that only
     // resolve at runtime through `@module-federation/vite` (vite.config.ts), a
     // plugin this test config deliberately does not load. Vite's import
@@ -11,6 +13,8 @@ export default defineConfig({
     // src/federation/__stubs__/* (never used for real values). Mirrors
     // refund-ui/vitest.config.ts.
     alias: {
+      // The shared component library, compiled from source (ADR-0050).
+      '@operai/ui': fileURLToPath(new URL('../operai-ui/src/index.ts', import.meta.url)),
       'shell/session': fileURLToPath(new URL('./src/federation/__stubs__/shellSession.ts', import.meta.url)),
       'shell/tokens.css': fileURLToPath(new URL('./src/federation/__stubs__/shellTokens.css', import.meta.url)),
     },

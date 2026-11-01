@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { getRouteApi, Link, useNavigate } from '@tanstack/react-router'
 import { useSession, usePermissions } from 'shell/session'
 import type { Permission } from 'shell/session'
+import { Button, Card, Icon, PageHeader, VisuallyHidden, useFocusOnMount } from '@operai/ui'
 import { ownerDisplay, strings } from '../strings'
 import * as requestsApi from '../lib/requestsApi'
 import type { RefundRequestDetail } from '../lib/requestsApi'
@@ -15,6 +16,7 @@ import GuardrailDialog from '../components/GuardrailDialog'
 import ApproveDialog from '../components/ApproveDialog'
 import RejectDialog from '../components/RejectDialog'
 import ExpenseLineRow from '../components/ExpenseLineRow'
+import LinesCard from '../components/LinesCard'
 import SubtotalsPanel from '../components/SubtotalsPanel'
 import RequestStatusBadge from '../components/RequestStatusBadge'
 import RequestExportLink from '../components/RequestExportLink'
@@ -128,8 +130,10 @@ export default function ReviewDetailPage() {
   const [reloadToken, setReloadToken] = useState(0)
   const [guardrail, setGuardrail] = useState<GuardrailState>(null)
   const [decisionDialog, setDecisionDialog] = useState<DecisionDialogState>({ open: false })
-  const headingRef = useRef<HTMLHeadingElement>(null)
+  // The not-found heading takes focus when that state replaces the page (INC-30).
+  const headingRef = useFocusOnMount<HTMLHeadingElement>(pageState.status === 'notFound')
   const rowNodesRef = useRef(new Map<string, HTMLDivElement>())
+  const linesTitle = strings.pages.requestDetail.lines.sectionHeading
 
   // specs/010-self-approval-control (plan.md D5) — passive UI reflection only.
   const currentUserId = useSession().data?.user?.id
@@ -162,12 +166,6 @@ export default function ReviewDetailPage() {
       cancelled = true
     }
   }, [id, reloadToken, t.loadErrorFallback])
-
-  useEffect(() => {
-    if (pageState.status === 'notFound') {
-      headingRef.current?.focus()
-    }
-  }, [pageState.status])
 
   const handleRetry = useCallback(() => {
     setReloadToken((n) => n + 1)
@@ -304,77 +302,60 @@ export default function ReviewDetailPage() {
           section it would otherwise have been wedged between. Rendered only
           for an approved request, matching the endpoint's archivable-status
           gate, so the control never appears where it would 409. */}
-      <div className="flex items-start justify-between gap-4">
-        <div className="min-w-0">
-          {/* The status must be STATED, not inferred. This page previously
-              said nothing about where a request stood: an approved one was
-              distinguishable only by the absence of the Approve/Reject
-              buttons and the presence of the monthly note, which asks the
-              reader to notice something that isn't there. The queue already
-              badges every row; the detail now agrees with it. */}
-          <div className="flex items-center gap-3">
-            <h2
-              id="refund-review-detail-heading"
-              ref={pageState.status === 'notFound' ? headingRef : undefined}
-              tabIndex={pageState.status === 'notFound' ? -1 : undefined}
-              className="text-lg font-semibold outline-none"
-              style={{ fontFamily: 'var(--disp)' }}
-            >
-              {pageState.status === 'notFound' ? t.notFound.heading : t.heading}
-            </h2>
-            {pageState.status === 'loaded' && (
-              <RequestStatusBadge status={pageState.request.status} />
-            )}
-          </div>
+      <PageHeader
+        title={pageState.status === 'notFound' ? t.notFound.heading : t.heading}
+        titleId="refund-review-detail-heading"
+        headingRef={pageState.status === 'notFound' ? headingRef : undefined}
+        focusableHeading={pageState.status === 'notFound'}
+        status={pageState.status === 'loaded' && <RequestStatusBadge status={pageState.request.status} />}
+        back={
+          pageState.status !== 'notFound' && (
+            <Link to="/review" className="link inline-flex items-center gap-1" data-testid="review-detail-back">
+              <Icon name="arrow-left" />
+              {t.notFound.backLink}
+            </Link>
+          )
+        }
+        actions={
+          pageState.status === 'loaded' &&
+          pageState.request.status === 'approved' && <RequestExportLink requestId={pageState.request.id} />
+        }
+      />
 
-          {pageState.status === 'loaded' && (
-            <p className="mt-1 text-sm" style={{ color: 'var(--soft)' }} data-testid="review-detail-requested-by">
-              {t.requestedByLabel(pageState.request.owner)}
+      {/* The status must be STATED, not inferred (the badge beside the title);
+          who asked and who decided follow the header, as the queue row does. */}
+      <div className="-mt-2 min-w-0">
+        {pageState.status === 'loaded' && (
+          <p className="mt-1 text-sm text-soft" data-testid="review-detail-requested-by">
+            {t.requestedByLabel(pageState.request.owner)}
+          </p>
+        )}
+
+        {/* Decision stamp — the counterpart to the paid branch's "Paid on X
+          by Y", which approved and rejected were missing. Sits beside the
+          "Requested by" line because it answers the same kind of question
+          about the same record: who, and when. A `paid` request shows this
+          AND its payout line — two different events, by two different
+          people. Rendered only when both halves are present rather than
+          printing "by undefined" over a partial record. */}
+        {pageState.status === 'loaded' &&
+          pageState.request.decidedAt !== null &&
+          pageState.request.decidedBy !== null && (
+            <p
+              className={`mt-1 text-sm ${pageState.request.status === 'rejected' ? 'text-red-text' : 'text-grn-text'}`}
+              data-testid="review-detail-decision-line"
+            >
+              {pageState.request.status === 'rejected'
+                ? t.decision.rejectedLine(formatDate(pageState.request.decidedAt), pageState.request.decidedBy.email)
+                : t.decision.approvedLine(formatDate(pageState.request.decidedAt), pageState.request.decidedBy.email)}
             </p>
           )}
-
-          {/* Decision stamp — the counterpart to the paid branch's "Paid on X
-              by Y", which approved and rejected were missing. Sits beside the
-              "Requested by" line because it answers the same kind of question
-              about the same record: who, and when. A `paid` request shows this
-              AND its payout line — two different events, by two different
-              people. Rendered only when both halves are present rather than
-              printing "by undefined" over a partial record. */}
-          {pageState.status === 'loaded' &&
-            pageState.request.decidedAt !== null &&
-            pageState.request.decidedBy !== null && (
-              <p
-                className="mt-1 text-sm"
-                style={{
-                  color:
-                    pageState.request.status === 'rejected' ? 'var(--red)' : 'var(--grn)',
-                }}
-                data-testid="review-detail-decision-line"
-              >
-                {pageState.request.status === 'rejected'
-                  ? t.decision.rejectedLine(
-                      formatDate(pageState.request.decidedAt),
-                      pageState.request.decidedBy.email,
-                    )
-                  : t.decision.approvedLine(
-                      formatDate(pageState.request.decidedAt),
-                      pageState.request.decidedBy.email,
-                    )}
-              </p>
-            )}
-        </div>
-
-        {pageState.status === 'loaded' && pageState.request.status === 'approved' && (
-          <RequestExportLink requestId={pageState.request.id} />
-        )}
       </div>
 
       <div className="mt-4 flex flex-col gap-4">
         {pageState.status === 'loading' && (
           <>
-            <p className="sr-only" aria-live="polite">
-              {t.loadingAnnouncement}
-            </p>
+            <VisuallyHidden live>{t.loadingAnnouncement}</VisuallyHidden>
             <SkeletonListRows />
           </>
         )}
@@ -383,15 +364,8 @@ export default function ReviewDetailPage() {
 
         {pageState.status === 'notFound' && (
           <div data-testid="review-detail-not-found">
-            <p className="text-sm" style={{ color: 'var(--muted)' }}>
-              {t.notFound.body}
-            </p>
-            <Link
-              to="/review"
-              data-testid="review-detail-not-found-back"
-              className="mt-3 inline-block text-sm underline underline-offset-2"
-              style={{ color: 'var(--acc)' }}
-            >
+            <p className="text-sm text-soft">{t.notFound.body}</p>
+            <Link to="/review" data-testid="review-detail-not-found-back" className="link mt-3 inline-block text-sm">
               {t.notFound.backLink}
             </Link>
           </div>
@@ -401,7 +375,7 @@ export default function ReviewDetailPage() {
           <div data-testid="review-detail-decidable" className="flex flex-col gap-4">
             <SubtotalsPanel subtotals={pageState.request.subtotals} />
 
-            <div className="flex flex-col gap-2">
+            <LinesCard title={linesTitle(pageState.request.lines.length)}>
               {pageState.request.lines.map((line) => (
                 <ExpenseLineRow
                   key={line.id}
@@ -412,30 +386,22 @@ export default function ReviewDetailPage() {
                   registerRef={registerRowRef(line.id)}
                 />
               ))}
-            </div>
+            </LinesCard>
 
             <div className="flex items-center gap-3">
-              <button
-                type="button"
+              <Button
+                variant="primary"
                 onClick={handleApproveOpen}
                 aria-disabled={approveDisabled}
                 title={approveDisabled ? t.decide.selfApprovalTooltip : undefined}
                 data-testid="review-detail-approve"
-                className="py-1.5 px-3 text-sm font-medium border transition-opacity hover:opacity-80 aria-disabled:opacity-40 aria-disabled:cursor-not-allowed"
-                style={{ borderColor: 'var(--grn)', color: 'var(--grn)' }}
               >
                 {t.decide.approveButton}
                 {approveDisabled && <span className="sr-only"> — {t.decide.selfApprovalTooltip}</span>}
-              </button>
-              <button
-                type="button"
-                onClick={handleRejectOpen}
-                data-testid="review-detail-reject"
-                className="py-1.5 px-3 text-sm font-medium border transition-opacity hover:opacity-80"
-                style={{ borderColor: 'var(--red)', color: 'var(--red)' }}
-              >
+              </Button>
+              <Button variant="danger" onClick={handleRejectOpen} data-testid="review-detail-reject">
                 {t.decide.rejectButton}
-              </button>
+              </Button>
             </div>
           </div>
         )}
@@ -447,11 +413,8 @@ export default function ReviewDetailPage() {
                 It used to be a bordered accent panel at the very bottom of the
                 page — the loudest thing on screen, saying the same sentence on
                 every approved request forever. */}
-            <div className="flex flex-col gap-1.5">
-              <SubtotalsPanel subtotals={pageState.request.subtotals} showApproved />
-              <MonthlyProcessingNote />
-            </div>
-            <div className="flex flex-col gap-2">
+            <SubtotalsPanel subtotals={pageState.request.subtotals} showApproved footnote={<MonthlyProcessingNote />} />
+            <LinesCard title={linesTitle(pageState.request.lines.length)}>
               {pageState.request.lines.map((line) => (
                 <ExpenseLineRow
                   key={line.id}
@@ -461,24 +424,20 @@ export default function ReviewDetailPage() {
                   registerRef={registerRowRef(line.id)}
                 />
               ))}
-            </div>
+            </LinesCard>
           </div>
         )}
 
         {pageState.status === 'loaded' && pageState.request.status === 'rejected' && (
           <div data-testid="review-detail-rejected" className="flex flex-col gap-4">
-            <div
-              className="px-4 py-3 rounded-md border text-sm"
-              style={{ borderColor: 'var(--red)', backgroundColor: 'color-mix(in srgb, var(--red) 8%, transparent)' }}
+            <Card
+              title={strings.pages.requestDetail.rejected.motivationHeading}
               data-testid="review-detail-rejection-motivation"
             >
-              <p className="font-medium mb-1" style={{ color: 'var(--red)' }}>
-                {strings.pages.requestDetail.rejected.motivationHeading}
-              </p>
-              <p style={{ color: 'var(--text)' }}>{pageState.request.rejectionMotivation}</p>
-            </div>
+              <p className="text-sm">{pageState.request.rejectionMotivation}</p>
+            </Card>
             <SubtotalsPanel subtotals={pageState.request.subtotals} />
-            <div className="flex flex-col gap-2">
+            <LinesCard title={linesTitle(pageState.request.lines.length)}>
               {pageState.request.lines.map((line) => (
                 <ExpenseLineRow
                   key={line.id}
@@ -488,19 +447,19 @@ export default function ReviewDetailPage() {
                   registerRef={registerRowRef(line.id)}
                 />
               ))}
-            </div>
+            </LinesCard>
           </div>
         )}
 
         {pageState.status === 'loaded' && pageState.request.status === 'paid' && (
           <div data-testid="review-detail-paid" className="flex flex-col gap-4">
             {pageState.request.paidAt && pageState.request.paidBy && (
-              <p className="text-sm" style={{ color: 'var(--grn)' }} data-testid="review-detail-paid-line">
+              <p className="text-sm text-grn-text" data-testid="review-detail-paid-line">
                 {t.paid.paidLine(formatDateTime(pageState.request.paidAt), pageState.request.paidBy)}
               </p>
             )}
             <SubtotalsPanel subtotals={pageState.request.subtotals} showApproved />
-            <div className="flex flex-col gap-2">
+            <LinesCard title={linesTitle(pageState.request.lines.length)}>
               {pageState.request.lines.map((line) => (
                 <ExpenseLineRow
                   key={line.id}
@@ -510,7 +469,7 @@ export default function ReviewDetailPage() {
                   registerRef={registerRowRef(line.id)}
                 />
               ))}
-            </div>
+            </LinesCard>
           </div>
         )}
 
@@ -519,7 +478,7 @@ export default function ReviewDetailPage() {
           pageState.request.status !== 'approved' &&
           pageState.request.status !== 'rejected' &&
           pageState.request.status !== 'paid' && (
-            <div data-testid="review-detail-readonly-fallback" className="flex flex-col gap-2">
+            <LinesCard title={linesTitle(pageState.request.lines.length)} testId="review-detail-readonly-fallback">
               {pageState.request.lines.map((line) => (
                 <ExpenseLineRow
                   key={line.id}
@@ -529,7 +488,7 @@ export default function ReviewDetailPage() {
                   registerRef={registerRowRef(line.id)}
                 />
               ))}
-            </div>
+            </LinesCard>
           )}
       </div>
 
