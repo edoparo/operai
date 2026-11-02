@@ -54,6 +54,9 @@ REFUND_URL="${REFUND_URL:-https://refund.operai.welld.io}"
 ADMIN_URL="${ADMIN_URL:-https://admin.operai.welld.io}"
 NOTIFY_URL="${NOTIFY_URL:-https://notify.operai.welld.io}"
 INVENTORY_URL="${INVENTORY_URL:-https://inventory.operai.welld.io}"   # ASSUMED, see above
+# specs/017-crm: provisioned 2026-11-02 (provision-tool.sh crm --bucket).
+CRM_API_URL="${CRM_API_URL:-https://crm-api.operai.welld.io}"
+CRM_URL="${CRM_URL:-https://crm.operai.welld.io}"
 PREREQS_ONLY=false; [[ "${1:-}" == "--prereqs" ]] && PREREQS_ONLY=true
 
 PASS=0; FAIL=0
@@ -122,6 +125,11 @@ fi
 IAC="$(code "$INVENTORY_API_URL/assets")"
 [[ "$IAC" == 401 ]] && pass "inventory-api rejects an anonymous request on a gated route (401)" || fail "inventory-api GET /assets without a token did not return 401 (got HTTP ${IAC:-?}) — the JWT gate may be missing or the service not deployed"
 
+# crm-api (specs/017–020): same contract — healthy, and the JWT gate is live.
+[[ "$(code "$CRM_API_URL/health")" == 200 ]] && pass "crm-api /health 200 ($CRM_API_URL)" || fail "crm-api /health not 200 ($CRM_API_URL)"
+CAC="$(code "$CRM_API_URL/companies")"
+[[ "$CAC" == 401 ]] && pass "crm-api rejects an anonymous request on a gated route (401)" || fail "crm-api GET /companies without a token did not return 401 (got HTTP ${CAC:-?}) — the JWT gate may be missing or the service not deployed"
+
 # JWKS: the resource-server verification key. MUST be /auth/jwks (better-auth's
 # rotating DB keypair), NOT /.well-known/jwks.json (orphaned env key).
 # estimai-api, notify-api, and refund-api all verify against this same endpoint.
@@ -174,7 +182,7 @@ done
 # ─── 3. Frontends (Vercel) ────────────────────────────────────────────────────
 head "Frontends (Vercel)"
 [[ "$(code "$SHELL_URL/")" == 200 ]] && pass "shell 200 ($SHELL_URL) — the entry point" || fail "shell not 200 ($SHELL_URL)"
-for pair in "estimai-ui:$ESTIMAI_URL" "refund-ui:$REFUND_URL" "admin-ui:$ADMIN_URL" "notify-ui:$NOTIFY_URL" "inventory-ui:$INVENTORY_URL"; do
+for pair in "estimai-ui:$ESTIMAI_URL" "refund-ui:$REFUND_URL" "admin-ui:$ADMIN_URL" "notify-ui:$NOTIFY_URL" "inventory-ui:$INVENTORY_URL" "crm-ui:$CRM_URL"; do
   name="${pair%%:*}"; url="${pair#*:}"
   re="$(hdrs "$url/remoteEntry.js")"
   if echo "$re" | grep -qiE '^HTTP.* 200'; then
@@ -187,7 +195,7 @@ head "Shell CSP + wiring"
 CSP="$(hdrs "$SHELL_URL/" | grep -i '^content-security-policy:')"
 if [[ -n "$CSP" ]]; then
   pass "CSP header present"
-  for origin in "$ESTIMAI_URL" "$REFUND_URL" "$ADMIN_URL" "$NOTIFY_URL" "$INVENTORY_URL"; do
+  for origin in "$ESTIMAI_URL" "$REFUND_URL" "$ADMIN_URL" "$NOTIFY_URL" "$INVENTORY_URL" "$CRM_URL"; do
     echo "$CSP" | grep -q "$origin" && pass "  CSP allows $origin" || fail "  CSP is MISSING $origin (remote will be blocked)"
   done
   echo "$CSP" | grep -q "$AUTH_URL" && pass "  CSP connect-src allows auth" || warn "  CSP may not list $AUTH_URL in connect-src"
@@ -238,6 +246,22 @@ if [[ -n "$CSP" ]]; then
     pass "  CSP connect-src includes $INVENTORY_URL (inventory-ui remote chunks — specs/015)"
   else
     fail "  CSP connect-src is MISSING $INVENTORY_URL (specs/015)"
+  fi
+  # specs/017-crm — the same three pins for crm-api and crm-ui.
+  if [[ -n "$CONNECT_SRC" ]] && echo "$CONNECT_SRC" | grep -q "$CRM_API_URL"; then
+    pass "  CSP connect-src includes $CRM_API_URL (crm-api origin — specs/017)"
+  else
+    fail "  CSP connect-src is MISSING $CRM_API_URL — crm-ui's API calls will be blocked (specs/017)"
+  fi
+  if [[ -n "$SCRIPT_SRC" ]] && echo "$SCRIPT_SRC" | grep -q "$CRM_URL"; then
+    pass "  CSP script-src includes $CRM_URL (crm-ui remote — specs/017)"
+  else
+    fail "  CSP script-src is MISSING $CRM_URL — the shell cannot load crm-ui's remoteEntry.js (specs/017)"
+  fi
+  if [[ -n "$CONNECT_SRC" ]] && echo "$CONNECT_SRC" | grep -q "$CRM_URL"; then
+    pass "  CSP connect-src includes $CRM_URL (crm-ui remote chunks — specs/017)"
+  else
+    fail "  CSP connect-src is MISSING $CRM_URL (specs/017)"
   fi
 
   # ADR-0016 — receipt uploads POST DIRECTLY to the object-storage bucket, not
