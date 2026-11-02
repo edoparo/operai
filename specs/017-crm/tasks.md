@@ -1,6 +1,7 @@
 ---
 spec: 017
 status: in-progress
+synced: 2026-11-02
 ---
 
 # Tasks — CRM (specs/017)
@@ -32,3 +33,4 @@ verified by the named check; `[ ]` = open, with the reason.
 | T20 | Suite-wide dependency bump: `@tanstack/react-router` (seroval ≥ 1.6.11) and `better-auth` in every frontend together; zod 4 + `@hono/zod-openapi` 1.x in the backends | [ ] | separate `chore/` branch (D-24 e, f) |
 | T21 | "New task" in My tasks (company picked in the dialog, type fixed to task); stage meanings on the pipeline board and in the stage dialog (AC-3.3, 3.4, 4.4 amended) | [x] | crm-ui lint + build + 78 tests (`TasksPage.test.tsx`, stage-hint test in `DealDetailPage.test.tsx`) |
 | T22 | Task filter (me / everyone / colleague, `GET /tasks/assignees`, D-26) and drag-and-drop pipeline board with Won/Lost columns (D-25) | [x] | crm-api 64/64 on `crm_test`; crm-ui lint + build + 84 tests (`PipelinePage.test.tsx` keyboard moves, `TasksPage.test.tsx` filter) |
+| T23 | Company status automations (AC-1.8 won → customer, written on the stage move; AC-1.9 lapse to former after 12 months, derived on read; O2 resolved) | [x] | crm-api 250/250 on `crm_test` (`status.test.ts`, `companies.test.ts`); crm-ui lint + build + 179 tests |
