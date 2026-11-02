@@ -1,7 +1,7 @@
 # ─── Build stage ─────────────────────────────────────────────────────────────
 # Generates the Prisma client inside the container so the native query-engine
 # binary matches the Linux target (not the developer's macOS build).
-FROM oven/bun:1.3-alpine AS builder
+FROM oven/bun:1.4-alpine AS builder
 
 WORKDIR /app
 
@@ -18,7 +18,7 @@ COPY src ./src
 RUN bun run node_modules/prisma/build/index.js generate
 
 # ─── Production stage ─────────────────────────────────────────────────────────
-FROM oven/bun:1.3-alpine AS production
+FROM oven/bun:1.4-alpine AS production
 
 WORKDIR /app
 
