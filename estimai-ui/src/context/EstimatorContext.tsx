@@ -170,7 +170,9 @@ export function EstimatorProvider({
 }: Props) {
   const [name, setName] = useState(initialName ?? '')
   const [author, setAuthor] = useState(initialAuthor ?? '')
-  const [params, setParams] = useState<Parameters>(initialParams ?? { ...DEF_PARAMS })
+  // A stored document may lack some parameters (an estimate the CRM creates
+  // starts with `params: {}`): every missing one takes its default.
+  const [params, setParams] = useState<Parameters>({ ...DEF_PARAMS, ...initialParams })
   const [releases, setRels] = useState<Release[]>(initialReleases ?? [])
   const [acts, setActs] = useState<Activity[]>(initialActs ?? [])
   const [saveStatus, setSaveStatus] = useState<SaveStatus>('idle')

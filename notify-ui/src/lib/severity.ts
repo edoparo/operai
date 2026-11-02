@@ -47,7 +47,7 @@ export const SEVERITY_META: Record<NotificationSeverity, SeverityMeta> = {
   error: { icon: 'x-circle', label: strings.severities.error, iconClassName: 'text-red' },
 }
 
-export type NotificationOriginApp = 'estimai' | 'refund' | 'admin' | 'inventory'
+export type NotificationOriginApp = 'estimai' | 'refund' | 'admin' | 'inventory' | 'crm'
 
 export const ORIGIN_APP_LABELS: Record<NotificationOriginApp, string> = strings.originApps
 

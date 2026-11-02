@@ -21,7 +21,7 @@ afterEach(() => {
 
 describe('TOOLS — inventory', () => {
   it('lists Inventory at /inventory, after Admin', () => {
-    expect(TOOLS.map((t) => t.id)).toEqual(['estimai', 'refund', 'admin', 'inventory'])
+    expect(TOOLS.map((t) => t.id)).toEqual(['estimai', 'refund', 'admin', 'inventory', 'crm'])
     expect(TOOLS.find((t) => t.id === 'inventory')).toEqual({
       id: 'inventory',
       label: 'Inventory',
@@ -44,5 +44,14 @@ describe('TOOLS — inventory', () => {
   it('has no entry for /devices — an identity-scoped screen, not a tool (ADR-0045)', () => {
     expect(TOOLS.some((t) => t.to === '/devices' || t.id === ('devices' as never))).toBe(false)
     expect(isToolId('devices')).toBe(false)
+  })
+})
+
+// specs/017-crm: the CRM is a gated tool, after Inventory.
+describe('TOOLS — crm', () => {
+  it('lists CRM at /crm and resolves it as a tool id', () => {
+    expect(TOOLS.find((t) => t.id === 'crm')).toEqual({ id: 'crm', label: 'CRM', to: '/crm' })
+    expect(isToolId('crm')).toBe(true)
+    expect(toolPath('crm')).toBe('/crm')
   })
 })

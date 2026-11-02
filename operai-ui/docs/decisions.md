@@ -465,6 +465,14 @@ domain values to `Badge`; the library holds no domain values. estimai's `Formula
 `WarningBadge` tooltip are single-app; they move to the library if a second app needs a
 popover.
 
+**D-64 — `Tooltip` (2026-11-01).** The CRM became the second app that needs one: its
+"Proceed without estimate" action (specs/018) needs a sentence its label cannot hold. The
+library's `Tooltip` opens on hover and on keyboard focus, closes with Escape (WCAG 1.4.13),
+and links to its trigger through `aria-describedby`, which the caller spreads from a render
+argument. It is positioned in CSS under the trigger, with no portal, so it can be clipped
+by an ancestor with `overflow: hidden`. estimai's `WarningBadge` keeps its own portal
+tooltip, which shows an icon and a title, until it is migrated.
+
 ## Not done (deliberately)
 
 - **refund-ui's detail pages keep their own `<h2 class="page-title">`**

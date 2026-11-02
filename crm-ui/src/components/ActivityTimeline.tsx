@@ -1,0 +1,119 @@
+import { useCallback, useState } from 'react'
+import { Button, Card, ListRows, Pagination, StatePanel } from '@operai/ui'
+import { listActivities } from '../lib/crmApi'
+import type { ActivityTarget } from '../lib/crmApi'
+import type { Activity, CompanyRef } from '../lib/types'
+import { useResource } from '../hooks/useResource'
+import { strings } from '../strings'
+import ActivityFormDialog from './ActivityFormDialog'
+import ActivityItem from './ActivityItem'
+import { LoadFailure, Loading, Saved } from './LoadState'
+
+const PAGE_SIZE = 10
+
+/**
+ * ActivityTimeline — the "Activity" card of a company, contact or deal page
+ * (AC-1.7, AC-4.5): the activities that concern `target`, newest first,
+ * paginated, with "Log activity" in the card's action. Logging, editing,
+ * completing or deleting reloads the current page so the order stays the
+ * server's; each confirms with a compact success banner (INC-19).
+ */
+export default function ActivityTimeline({
+  target,
+  company,
+  preset,
+}: {
+  target: ActivityTarget
+  /** The company the composer logs at; null when the contact has no company (nothing to log at). */
+  company: CompanyRef | null
+  preset?: { contactId?: string; dealId?: string }
+}) {
+  const t = strings.activities
+  const [page, setPage] = useState(1)
+  const [composing, setComposing] = useState<{ activity?: Activity } | null>(null)
+  const [saved, setSaved] = useState<string | null>(null)
+  const key = JSON.stringify(target)
+  const load = useCallback(
+    (signal: AbortSignal) =>
+      listActivities(JSON.parse(key) as ActivityTarget, { page, pageSize: PAGE_SIZE }, { signal }),
+    [key, page],
+  )
+  const activities = useResource(load)
+
+  const changed = (message: string) => {
+    setSaved(message)
+    activities.retry()
+  }
+
+  let content
+  if (activities.status === 'loading') content = <Loading label={t.loading} rows={2} />
+  else if (activities.status === 'error') content = <LoadFailure error={activities.error} onRetry={activities.retry} />
+  else if (activities.data!.total === 0)
+    content = (
+      <StatePanel headingLevel={4} title={t.emptyTitle}>
+        {t.emptyBody}
+      </StatePanel>
+    )
+  else
+    content = (
+      <div className="flex flex-col gap-3">
+        <ListRows label={t.listLabel} testId="crm-activity-list">
+          {activities.data!.items.map((activity) => (
+            <ActivityItem
+              key={activity.id}
+              activity={activity}
+              onChanged={() => changed(t.saved)}
+              onEdit={(edited) => setComposing({ activity: edited })}
+              onDeleted={() => changed(t.deleted)}
+            />
+          ))}
+        </ListRows>
+        {activities.data!.total > PAGE_SIZE && (
+          <Pagination
+            page={page}
+            pageSize={PAGE_SIZE}
+            total={activities.data!.total}
+            onPageChange={setPage}
+            label={strings.common.pagination.label}
+            previousLabel={strings.common.pagination.previous}
+            nextLabel={strings.common.pagination.next}
+            status={strings.common.pagination.status}
+            testId="crm-activity-pagination"
+          />
+        )}
+      </div>
+    )
+
+  return (
+    <Card
+      title={t.heading}
+      action={
+        company && (
+          <Button size="sm" onClick={() => setComposing({})} aria-haspopup="dialog" data-testid="crm-activity-log">
+            {t.log}
+          </Button>
+        )
+      }
+      data-testid="crm-activity-card"
+    >
+      <div className="flex flex-col gap-3">
+        {saved && <Saved message={saved} onDismiss={() => setSaved(null)} />}
+        {content}
+      </div>
+      {composing && company && (
+        <ActivityFormDialog
+          company={company}
+          activity={composing.activity}
+          preset={preset}
+          onCancel={() => setComposing(null)}
+          onSaved={() => {
+            const wasEdit = composing.activity !== undefined
+            setComposing(null)
+            if (!wasEdit) setPage(1)
+            changed(wasEdit ? t.saved : t.logged)
+          }}
+        />
+      )}
+    </Card>
+  )
+}

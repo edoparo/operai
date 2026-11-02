@@ -29,12 +29,14 @@ export const SERVICES = {
   "notify-api": { platform: "railway", kind: "backend" },
   "refund-api": { platform: "railway", kind: "backend" },
   "inventory-api": { platform: "railway", kind: "backend" },
+  "crm-api": { platform: "railway", kind: "backend" },
   shell: { platform: "vercel", kind: "frontend" },
   "estimai-ui": { platform: "vercel", kind: "frontend" },
   "refund-ui": { platform: "vercel", kind: "frontend" },
   "notify-ui": { platform: "vercel", kind: "frontend" },
   "admin-ui": { platform: "vercel", kind: "frontend" },
   "inventory-ui": { platform: "vercel", kind: "frontend" },
+  "crm-ui": { platform: "vercel", kind: "frontend" },
 } as const satisfies Record<string, ServiceDef>;
 
 export type ServiceName = keyof typeof SERVICES;
@@ -56,6 +58,8 @@ export const ORIGINS: Record<string, Partial<Record<ServiceName, string | null>>
     "estimai-ui": null,
     // ASSUMED (matches the shell CSP in shell/vercel.json) — confirm the real Vercel domain.
     "inventory-ui": "https://inventory.operai.welld.io",
+    // ASSUMED (matches the shell CSP, specs/017-crm) — confirm once the Vercel project exists.
+    "crm-ui": "https://crm.operai.welld.io",
   },
   preview: {
     // Vercel preview URLs are per-deploy; usually validated via the live-diff
@@ -68,12 +72,13 @@ export const ORIGINS: Record<string, Partial<Record<ServiceName, string | null>>
     "notify-ui": "http://localhost:5176",
     "admin-ui": "http://localhost:5177",
     "inventory-ui": "http://localhost:5178",
+    "crm-ui": "http://localhost:5179",
   },
 };
 
 /** Vars that MUST hold a byte-for-byte identical value across the listed services. */
 export const SHARED_VARS: ReadonlyArray<{ name: string; services: ServiceName[] }> = [
-  { name: "AUTH_AUDIENCE", services: ["auth", "estimai-api", "notify-api", "refund-api", "inventory-api"] },
+  { name: "AUTH_AUDIENCE", services: ["auth", "estimai-api", "notify-api", "refund-api", "inventory-api", "crm-api"] },
   // The `aud` auth stamps on scoped service JWTs and notify-api verifies (ADR-0044).
   { name: "SERVICE_AUDIENCE", services: ["auth", "notify-api"] },
 ];
@@ -106,7 +111,7 @@ export const DISTINCT_VARS: ReadonlyArray<{ a: string; b: string; services: Serv
 export const FORBIDDEN_VARS: ReadonlyArray<{ name: string; services: ServiceName[]; why: string }> = [
   {
     name: "NOTIFY_INTERNAL_TOKEN",
-    services: ["auth", "estimai-api", "notify-api", "refund-api", "inventory-api"],
+    services: ["auth", "estimai-api", "notify-api", "refund-api", "inventory-api", "crm-api"],
     why: "the shared notify token was retired (specs/016, ADR-0049): every caller uses its own scoped service credential",
   },
 ];
@@ -132,6 +137,10 @@ export const SERVICE_CLIENT_LINKS: ReadonlyArray<{
   { ...LINK_BASE, caller: "inventory-api", requiredScopes: ["notifications.push"] },
   { ...LINK_BASE, caller: "estimai-api", requiredScopes: ["notifications.push"] },
   { ...LINK_BASE, caller: "refund-api", requiredScopes: ["notifications.push", "emails.send"] },
+  // specs/019: crm-api pushes CRM notifications, some with an email notice (both scopes, D-3);
+  // notify-api looks up the notice's address in auth (ADR-0056). Both optional until provisioned.
+  { ...LINK_BASE, caller: "crm-api", requiredScopes: ["notifications.push", "emails.send"] },
+  { ...LINK_BASE, caller: "notify-api", requiredScopes: ["users.contact"] },
 ];
 
 /**
@@ -142,6 +151,8 @@ export const SERVICE_CLIENT_LINKS: ReadonlyArray<{
 export const S3_RESIDENCY: ReadonlyArray<{ service: ServiceName; prefix: string }> = [
   { service: "refund-api", prefix: "REFUND_S3" },
   { service: "inventory-api", prefix: "INVENTORY_S3" },
+  // specs/018: optional until the CRM bucket is provisioned (crm-api starts without it).
+  { service: "crm-api", prefix: "CRM_S3" },
 ];
 export const EU_AWS_REGIONS: ReadonlyArray<string> = [
   "eu-west-1", "eu-west-2", "eu-west-3", "eu-central-1", "eu-central-2",
@@ -156,7 +167,7 @@ export const ISSUER = {
   authService: "auth" as ServiceName,
   authVar: "BETTER_AUTH_URL",
   issuerVar: "AUTH_ISSUER",
-  resourceServers: ["estimai-api", "notify-api", "refund-api", "inventory-api"] as ServiceName[],
+  resourceServers: ["estimai-api", "notify-api", "refund-api", "inventory-api", "crm-api"] as ServiceName[],
 };
 
 /**
@@ -170,17 +181,22 @@ export const INTERNAL_URL_VARS: ReadonlyArray<{
   services: ServiceName[];
   target: ServiceName;
 }> = [
-  { name: "AUTH_JWKS_URL", services: ["estimai-api", "notify-api", "refund-api", "inventory-api"], target: "auth" },
-  { name: "AUTH_BASE_URL", services: ["refund-api", "inventory-api"], target: "auth" },
-  { name: "NOTIFY_INTERNAL_URL", services: ["auth", "refund-api", "inventory-api"], target: "notify-api" },
+  { name: "AUTH_JWKS_URL", services: ["estimai-api", "notify-api", "refund-api", "inventory-api", "crm-api"], target: "auth" },
+  // specs/019: notify-api resolves an email notice's address through auth (ADR-0056).
+  { name: "AUTH_BASE_URL", services: ["refund-api", "inventory-api", "crm-api", "notify-api"], target: "auth" },
+  { name: "NOTIFY_INTERNAL_URL", services: ["auth", "refund-api", "inventory-api", "crm-api"], target: "notify-api" },
+  // specs/018: crm-api calls estimai-api with the caller's JWT (estimate requests, offers).
+  { name: "ESTIMAI_API_URL", services: ["crm-api"], target: "estimai-api" },
 ];
 
 /** Browser-facing / identity-claim URLs — must stay PUBLIC (`https://`, not localhost/internal in prod). */
 export const PUBLIC_URL_VARS: ReadonlyArray<{ name: string; services: ServiceName[] }> = [
-  { name: "AUTH_ISSUER", services: ["estimai-api", "notify-api", "refund-api", "inventory-api"] },
+  { name: "AUTH_ISSUER", services: ["estimai-api", "notify-api", "refund-api", "inventory-api", "crm-api"] },
   { name: "BETTER_AUTH_URL", services: ["auth"] },
   { name: "UI_HOME_URL", services: ["auth"] },
   { name: "REFUND_APP_BASE_URL", services: ["refund-api"] },
+  // specs/019: the shell origin the email notice links to.
+  { name: "APP_BASE_URL", services: ["notify-api"] },
 ];
 
 /** Each backend's `ALLOWED_ORIGINS` must include the public origin of these frontends (CORS). */
@@ -192,6 +208,8 @@ export const CORS_REQUIREMENTS: ReadonlyArray<{ backend: ServiceName; mustAllow:
   { backend: "refund-api", mustAllow: ["shell", "admin-ui"] },
   // inventory-ui is a remote reached through the shell, so the browser Origin is the shell's (ADR-0006).
   { backend: "inventory-api", mustAllow: ["shell"] },
+  // crm-ui is a remote reached through the shell (specs/017-crm).
+  { backend: "crm-api", mustAllow: ["shell"] },
 ];
 
 /**
@@ -231,6 +249,13 @@ export const REQUIRED_KEYS: Partial<Record<ServiceName, string[]>> = {
     "NOTIFY_INTERNAL_URL", "SERVICE_CLIENT_ID", "SERVICE_CLIENT_SECRET",
     "INVENTORY_S3_ENDPOINT", "INVENTORY_S3_REGION", "INVENTORY_S3_EU_ENDPOINT_HOSTS", "PORT",
   ],
+  // specs/017-crm: a plain resource server — no notify calls (D-14). specs/018 adds
+  // ESTIMAI_API_URL and CRM_S3_*, optional in crm-api's env.ts (the estimate and file routes
+  // answer 503 without them) and therefore not required here until they are provisioned (T16).
+  // specs/019 adds NOTIFY_INTERNAL_URL + SERVICE_CLIENT_*, optional the same way (019 D-7, T11).
+  "crm-api": [
+    "DATABASE_URL", "ALLOWED_ORIGINS", "AUTH_ISSUER", "AUTH_JWKS_URL", "AUTH_BASE_URL", "AUTH_AUDIENCE", "PORT",
+  ],
 };
 
 /**
@@ -250,9 +275,11 @@ export const SECRET_VARS: ReadonlySet<string> = new Set([
   "REFUND_S3_ACCESS_KEY_ID",
   "REFUND_S3_SECRET_ACCESS_KEY",
   "SERVICE_CLIENTS", // JSON carrying every service client's secret (auth)
-  "SERVICE_CLIENT_SECRET", // each caller's half of that secret (refund-api, estimai-api, inventory-api)
+  "SERVICE_CLIENT_SECRET", // each client's half of that secret (refund-api, estimai-api, inventory-api, crm-api, notify-api)
   "INVENTORY_S3_ACCESS_KEY_ID",
   "INVENTORY_S3_SECRET_ACCESS_KEY",
+  "CRM_S3_ACCESS_KEY_ID",
+  "CRM_S3_SECRET_ACCESS_KEY",
 ]);
 export const isSecretVar = (name: string): boolean => SECRET_VARS.has(name);
 

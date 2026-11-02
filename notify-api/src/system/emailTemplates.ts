@@ -77,6 +77,23 @@ export type RefundDecisionRejectedTemplateData = {
   decidedAt: string; // ISO 8601 — validated at the zod boundary (emails.schemas.ts)
 };
 
+/**
+ * `notification_notice` (specs/019-crm-notifications, ADR-0056). Unlike every
+ * template above, this one is not a caller-supplied `data` shape: notify-api
+ * builds it from the notification it just stored, so it is reachable only
+ * from POST /system/notifications and never from /system/emails (where the
+ * caller names the address). `appBaseUrl` is notify-api's own APP_BASE_URL;
+ * `href` is the notification's `link.href`, already guarded as a relative
+ * in-suite path (notifications.schemas.ts).
+ */
+export type NotificationNoticeTemplateData = {
+  title: string;
+  body: string;
+  originApp: string;
+  appBaseUrl: string;
+  href?: string | undefined;
+};
+
 export type RenderedEmail = { subject: string; html: string };
 
 export type EmailTemplateName =
@@ -84,7 +101,8 @@ export type EmailTemplateName =
   | "invitation_resend"
   | "refund_batch_compiled"
   | "refund_decision_approved"
-  | "refund_decision_rejected";
+  | "refund_decision_rejected"
+  | "notification_notice";
 
 /**
  * Renders an ISO datetime as an escaped, human-legible ISO string. The input
@@ -273,6 +291,46 @@ const renderRefundDecisionRejected = (
   return { subject, html };
 };
 
+/** originApp -> the tool's display name for the footer. An unknown app gets a bare "Sent by Operai". */
+const ORIGIN_APP_LABELS: Readonly<Record<string, string>> = {
+  estimai: "EstimAI",
+  refund: "Refund",
+  admin: "Admin",
+  inventory: "Inventory",
+  crm: "CRM",
+};
+
+/**
+ * `notification_notice` — English-only (specs/019 D-5), the email twin of an
+ * in-app notification: the title, the body text, one button back into Operai
+ * and a footer naming the origin tool. No per-event fields, so one fixed,
+ * escaped template serves every tool.
+ */
+const renderNotificationNotice = (
+  data: NotificationNoticeTemplateData,
+): RenderedEmail => {
+  const title = escapeHtml(data.title);
+  const body = escapeHtml(data.body);
+  const originLabel = ORIGIN_APP_LABELS[data.originApp];
+  const sentBy = originLabel ? `Sent by Operai ${escapeHtml(originLabel)}` : "Sent by Operai";
+  const url = escapeHtml(`${data.appBaseUrl.replace(/\/+$/, "")}${data.href ?? ""}`);
+
+  // The subject is the plain title; line breaks are stripped so it can never
+  // add a header line.
+  const subject = data.title.replace(/[\r\n]+/g, " ");
+
+  const html = [
+    '<div style="font-family: sans-serif; line-height: 1.6; color: #1a1a1a;">',
+    `<p><strong>${title}</strong></p>`,
+    `<p>${body}</p>`,
+    `<p><a href="${url}" style="display: inline-block; padding: 8px 16px; background: #1a1a1a; color: #ffffff; text-decoration: none; border-radius: 4px;">Open in Operai</a></p>`,
+    `<p style="color: #666666; font-size: 12px;">${sentBy}</p>`,
+    "</div>",
+  ].join("\n");
+
+  return { subject, html };
+};
+
 /**
  * A single correlated `{template, data}` pair per template — deliberately
  * ONE parameter (not two) so a discriminated-union caller (emails.routes.ts
@@ -287,7 +345,8 @@ export type EmailTemplateRequest =
   | { template: "invitation_resend"; data: InvitationTemplateData }
   | { template: "refund_batch_compiled"; data: RefundBatchCompiledTemplateData }
   | { template: "refund_decision_approved"; data: RefundDecisionApprovedTemplateData }
-  | { template: "refund_decision_rejected"; data: RefundDecisionRejectedTemplateData };
+  | { template: "refund_decision_rejected"; data: RefundDecisionRejectedTemplateData }
+  | { template: "notification_notice"; data: NotificationNoticeTemplateData };
 
 export const renderEmailTemplate = (request: EmailTemplateRequest): RenderedEmail => {
   switch (request.template) {
@@ -297,6 +356,8 @@ export const renderEmailTemplate = (request: EmailTemplateRequest): RenderedEmai
       return renderRefundDecisionApproved(request.data);
     case "refund_decision_rejected":
       return renderRefundDecisionRejected(request.data);
+    case "notification_notice":
+      return renderNotificationNotice(request.data);
     case "invitation":
     case "invitation_resend":
       return renderInvitation(request.template, request.data);

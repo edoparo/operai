@@ -47,7 +47,36 @@ const envSchema = z.object({
   // (enforced below; the process exits otherwise). Required: it is now the
   // only credential for both internal routes once the shared token is retired.
   SERVICE_AUDIENCE: z.string().min(1, "SERVICE_AUDIENCE is required"),
+  // ─── Email notices (specs/019-crm-notifications, ADR-0056) ─────────────────
+  // Optional group, ALL FOUR or none (enforced below): what notify-api needs to
+  // resolve a recipient's address from `auth` (POST /system/users/contact, as
+  // its own service client) and to build the absolute link in the email.
+  // Without the group `email: true` on POST /system/notifications answers
+  // `emailStatus: "skipped"` — local dev and existing tests keep working.
+  APP_BASE_URL: z
+    .string()
+    .url("APP_BASE_URL must be an absolute URL")
+    .refine((v) => /^https?:\/\//i.test(v), "APP_BASE_URL must be an http(s) URL")
+    .optional(),
+  AUTH_BASE_URL: z.string().url("AUTH_BASE_URL must be a valid URL").optional(),
+  SERVICE_CLIENT_ID: z.string().min(1, "SERVICE_CLIENT_ID must not be empty").optional(),
+  SERVICE_CLIENT_SECRET: z
+    .string()
+    .min(32, "SERVICE_CLIENT_SECRET must be at least 32 characters")
+    .optional(),
 }).superRefine((v, ctx) => {
+  // All four or none. Names the missing ones, never a value.
+  const group = ["APP_BASE_URL", "AUTH_BASE_URL", "SERVICE_CLIENT_ID", "SERVICE_CLIENT_SECRET"] as const;
+  const missing = group.filter((k) => v[k] === undefined);
+  if (missing.length > 0 && missing.length < group.length) {
+    for (const key of missing) {
+      ctx.addIssue({
+        code: "custom",
+        path: [key],
+        message: `${key} is required when any of ${group.join(", ")} is set (email notices need all four)`,
+      });
+    }
+  }
   if (v.SERVICE_AUDIENCE === v.AUTH_AUDIENCE) {
     ctx.addIssue({
       code: "custom",
@@ -89,4 +118,10 @@ if (!result.success) {
 }
 
 export const env = result.data;
+
+if (env.APP_BASE_URL === undefined) {
+  console.warn(
+    "[env] APP_BASE_URL, AUTH_BASE_URL, SERVICE_CLIENT_ID and SERVICE_CLIENT_SECRET are not set — email notices are disabled (emailStatus: \"skipped\")",
+  );
+}
 export type Env = typeof env;

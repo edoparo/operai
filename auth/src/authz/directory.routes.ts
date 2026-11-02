@@ -11,9 +11,10 @@
  * erode in either direction:
  *
  *   - GATE: the caller must hold an entry of {@link DIRECTORY_GATE_PERMISSIONS}
- *     (today only the `inventory` catalog's `asset:manage`, under ANY entity
- *     scope) — an explicit allowlist, resolved live through `auth`'s own
- *     resolver (revocation is immediate). A second consuming app is ADDED to
+ *     (the `inventory` catalog's `asset:manage` and, since ADR-0053, the `crm`
+ *     catalog's `deal:manage`, each under ANY entity scope) — an explicit
+ *     allowlist, resolved live through `auth`'s own resolver (revocation is
+ *     immediate). A second consuming app is ADDED to
  *     that list deliberately; the gate is never relaxed to "any app-access
  *     holder" or "any signed-in user". `ledger:manage` alone does NOT open it.
  *     Otherwise 403. A soft-deleted caller with a still-valid JWT (ADR-0012's
@@ -25,7 +26,9 @@
  *     to an entity-scoped manager: the entity scope on `asset:manage`
  *     constrains which ASSETS they see, not which PEOPLE they can pick
  *     (ADR-0047 point 4).
- *   - NO query parameters, no pagination, no search. The route reads none.
+ *   - ONE optional query parameter, `appId` (ADR-0055): narrows the roster to users
+ *     holding `(appId,"access")`. Same gate, same shape — narrower output only.
+ *     No pagination, no search.
  *
  * Authentication is the forwarded-caller-JWT model (`bearerJwtMiddleware`, no
  * new secret), like `/authz/resolve` and `/authz/users/identities`.
@@ -60,6 +63,12 @@ import { bearerJwtMiddleware, type ResolveAuthVariables } from "./resolveAuth.mi
  */
 export const DIRECTORY_GATE_PERMISSIONS: readonly { resource: string; action: string }[] = [
   { resource: "asset", action: "manage" }, // the `inventory` catalog's asset:manage
+  // The `crm` catalog's deal:manage (specs/017, ADR-0053): the owner and
+  // assignee picker. Deliberately NOT crm:access — reading the CRM is no reason
+  // to list people. The resolver matches (resource, action) without the app id,
+  // so no other catalog may declare a `deal` resource with a `manage` action:
+  // it would open this gate too (crm.test.ts checks resource keys stay unique).
+  { resource: "deal", action: "manage" },
 ];
 
 // ─── Schemas ──────────────────────────────────────────────────────────────────
@@ -69,6 +78,14 @@ const DirectoryUserSchema = z.object({
   name: z.string().nullable(),
   email: z.string(),
   entity: z.string().nullable(),
+});
+
+// Optional app filter (ADR-0055): same appId shape as app-access-check.
+const DirectoryQuerySchema = z.object({
+  appId: z
+    .string()
+    .regex(/^[a-z0-9-]{1,64}$/, "appId must match ^[a-z0-9-]{1,64}$")
+    .optional(),
 });
 
 const DirectoryResponseSchema = z.object({ users: z.array(DirectoryUserSchema) });
@@ -89,13 +106,18 @@ const getDirectoryRoute = createRoute({
   method: "get",
   path: "/authz/users/directory",
   tags: ["Authorization"],
-  summary: "List active users (capability-gated; for the inventory assign picker)",
+  summary: "List active users (capability-gated; for the inventory assign and CRM owner pickers)",
   description:
     `Returns every active user as { id, name, email, entity }, name-sorted, both entities. ` +
-    `The caller must hold the '${INVENTORY_APP_ID}' catalog's asset:manage permission under any ` +
-    `entity scope (403 otherwise). Not paginated, takes no query parameters, never returns ` +
-    `soft-deleted users or any other attribute (ADR-0047).`,
+    `The caller must hold the '${INVENTORY_APP_ID}' catalog's asset:manage or the 'crm' catalog's ` +
+    `deal:manage permission under any entity scope (403 otherwise, ADR-0047/0053). Not paginated, ` +
+    `takes no query parameters, never returns soft-deleted users or any other attribute (ADR-0047).`,
+  request: { query: DirectoryQuerySchema },
   responses: {
+    400: {
+      content: { "application/json": { schema: ProblemJsonSchema } },
+      description: "Malformed appId",
+    },
     200: {
       content: { "application/json": { schema: DirectoryResponseSchema } },
       description: "The roster of active users",
@@ -115,7 +137,25 @@ const getDirectoryRoute = createRoute({
   },
 });
 
-export const directoryRouter = new OpenAPIHono<{ Variables: ResolveAuthVariables }>();
+export const directoryRouter = new OpenAPIHono<{ Variables: ResolveAuthVariables }>({
+  defaultHook: (result, c) => {
+    if (!result.success) {
+      return c.json(
+        {
+          type: "https://httpstatuses.com/400",
+          title: "Bad Request",
+          status: 400,
+          detail: result.error.issues
+            .map((issue) => `${issue.path.join(".")}: ${issue.message}`)
+            .join("; "),
+          instance: c.req.path,
+        },
+        400,
+      );
+    }
+    return undefined;
+  },
+});
 
 directoryRouter.use("/authz/users/directory", bearerJwtMiddleware);
 
@@ -177,10 +217,26 @@ directoryRouter.openapi(getDirectoryRoute, async (c) => {
     );
   }
 
-  const rows = await db.user.findMany({
+  let rows = await db.user.findMany({
     where: { deletedAt: null },
     select: { id: true, name: true, email: true, entity: true },
   });
+
+  // Optional narrowing (ADR-0055): only users who hold (appId,"access"). The
+  // gate above is unchanged, so this only ever shrinks the output. The resolver
+  // is per-user, so this is a bounded concurrent loop over the active roster —
+  // acceptable at wellD's size (tens of users; the endpoint is unpaginated by
+  // ADR-0047 on that same premise). An unknown appId simply matches nobody.
+  const { appId } = c.req.valid("query");
+  if (appId !== undefined) {
+    const holds = await Promise.all(
+      rows.map(async (row) => {
+        const permissions = await Effect.runPromise(resolveEffectivePermissions(row.id));
+        return permissions.some((p) => p.resource === appId && p.action === "access");
+      }),
+    );
+    rows = rows.filter((_, index) => holds[index]);
+  }
 
   const users = rows
     .map((row) => ({ id: row.id, name: row.name, email: row.email, entity: row.entity }))

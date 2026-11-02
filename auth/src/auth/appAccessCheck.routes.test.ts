@@ -116,6 +116,66 @@ async function callCheck(
   return { status: res.status, body, headers: res.headers };
 }
 
+async function callCheckBody(
+  token: string,
+  payload: Record<string, unknown>,
+): Promise<{ status: number; body: Record<string, unknown> }> {
+  const res = await appAccessCheckRouter.request("/authz/app-access-check", {
+    method: "POST",
+    headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+    body: JSON.stringify(payload),
+  });
+  return { status: res.status, body: (await res.json()) as Record<string, unknown> };
+}
+
+describe("POST /authz/app-access-check by userId (specs/018, ADR-0055)", () => {
+  test("an active target holding (appId,access) is eligible:true + userId", async () => {
+    const caller = await mintTokenForNewUser("uid-caller");
+    await grantAppAccess(caller.userId, APP_ID, "uid-caller");
+    const target = await mintTokenForNewUser("uid-target");
+    await grantAppAccess(target.userId, APP_ID, "uid-target");
+
+    const { status, body } = await callCheckBody(caller.token, { appId: APP_ID, userId: target.userId });
+    expect(status).toBe(200);
+    expect(body).toEqual({ eligible: true, userId: target.userId });
+  });
+
+  test("no access, soft-deleted and unknown id are all the byte-identical { eligible:false }", async () => {
+    const caller = await mintTokenForNewUser("uid-neg-caller");
+    await grantAppAccess(caller.userId, APP_ID, "uid-neg-caller");
+    const noAccess = await mintTokenForNewUser("uid-no-access");
+    const deleted = await mintTokenForNewUser("uid-deleted");
+    await grantAppAccess(deleted.userId, APP_ID, "uid-deleted");
+    await db.user.update({ where: { id: deleted.userId }, data: { deletedAt: new Date() } });
+
+    const results = await Promise.all(
+      [noAccess.userId, deleted.userId, `nobody-${crypto.randomUUID()}`].map((userId) =>
+        callCheckBody(caller.token, { appId: APP_ID, userId }),
+      ),
+    );
+    for (const r of results) {
+      expect(r.status).toBe(200);
+      expect(JSON.stringify(r.body)).toBe(JSON.stringify({ eligible: false }));
+    }
+  });
+
+  test("both or neither of email/userId → 400", async () => {
+    const caller = await mintTokenForNewUser("uid-xor-caller");
+    await grantAppAccess(caller.userId, APP_ID, "uid-xor-caller");
+    const both = await callCheckBody(caller.token, { appId: APP_ID, email: "a@operai.test", userId: "x" });
+    expect(both.status).toBe(400);
+    const neither = await callCheckBody(caller.token, { appId: APP_ID });
+    expect(neither.status).toBe(400);
+  });
+
+  test("a caller without (appId,access) gets 403 app_access_required on the userId path too", async () => {
+    const caller = await mintTokenForNewUser("uid-nogrant-caller");
+    const { status, body } = await callCheckBody(caller.token, { appId: APP_ID, userId: "whoever" });
+    expect(status).toBe(403);
+    expect(body["code"]).toBe("app_access_required");
+  });
+});
+
 describe("POST /authz/app-access-check (T2, specs/013-estimate-sharing)", () => {
   beforeAll(async () => {
     const probe = await testAuthRouter.request("/test-auth/session", {

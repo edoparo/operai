@@ -80,7 +80,7 @@ const buildApp = (
 ) => {
   const audience = "audience" in opts ? opts.audience : SERVICE_AUD;
   const ran = { value: false };
-  const seen: { origins?: readonly string[]; sub?: string } = {};
+  const seen: { origins?: readonly string[]; sub?: string; scopes?: readonly string[] } = {};
   const app: App = new Hono();
   app.use(
     "/x",
@@ -94,6 +94,7 @@ const buildApp = (
     ran.value = true;
     seen.origins = c.get("allowedOrigins");
     seen.sub = c.get("serviceSub");
+    seen.scopes = c.get("scopes");
     return c.json({ ok: true });
   });
   return { app, ran, seen };
@@ -136,6 +137,20 @@ describe("scoped service JWT", () => {
     expect(ran.value).toBe(true);
     expect(seen.sub).toBe("system:inventory-api");
     expect(seen.origins).toEqual(["inventory"]);
+  });
+
+  it("system:crm-api is bound to the crm origin only (specs/019)", async () => {
+    const { app, seen } = buildApp();
+    const res = await post(app, bearer(await sign({ sub: "system:crm-api" })));
+    expect(res.status).toBe(200);
+    expect(seen.origins).toEqual(["crm"]);
+  });
+
+  it("exposes every scope of the token on the context (a route may need a second one)", async () => {
+    const { app, seen } = buildApp();
+    const res = await post(app, bearer(await sign({ scope: "notifications.push emails.send" })));
+    expect(res.status).toBe(200);
+    expect(seen.scopes).toEqual(["notifications.push", "emails.send"]);
   });
 
   it("scope may be one of several space-separated scopes", async () => {

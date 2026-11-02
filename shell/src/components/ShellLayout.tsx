@@ -142,7 +142,10 @@ function ShellLayoutFrame({ header, sidebar, footer }: ShellLayoutProps) {
           // screen-reader text far down a taller-than-viewport page trips this
           // (found on /admin/users/:id, 2026-08-07: <html> 1582px vs 900px
           // viewport). Keep `relative` here.
-          className={`relative min-w-0 flex-1 overflow-y-auto ${FOCUS_RING}`}
+          // `scrollbar-gutter: stable` reserves the scrollbar's width even when
+          // the page fits, so moving between a short and a tall page (CRM Tasks
+          // ↔ Settings, 2026-11-02) no longer shifts the content sideways.
+          className={`relative min-w-0 flex-1 overflow-y-auto [scrollbar-gutter:stable] ${FOCUS_RING}`}
         >
           <Outlet />
         </main>
@@ -158,21 +161,15 @@ function ShellLayoutFrame({ header, sidebar, footer }: ShellLayoutProps) {
 }
 
 function ShellHeaderPlaceholder() {
-  return (
-    <p className="px-4 py-3 text-sm text-muted">{strings.layout.headerPlaceholder}</p>
-  )
+  return <p className="px-4 py-3 text-sm text-muted">{strings.layout.headerPlaceholder}</p>
 }
 
 function ShellSidebarPlaceholder() {
-  return (
-    <p className="px-4 py-3 text-sm text-muted">{strings.layout.sidebarPlaceholder}</p>
-  )
+  return <p className="px-4 py-3 text-sm text-muted">{strings.layout.sidebarPlaceholder}</p>
 }
 
 function ShellFooterPlaceholder() {
-  return (
-    <p className="px-4 py-3 text-sm text-muted">{strings.layout.footerPlaceholder}</p>
-  )
+  return <p className="px-4 py-3 text-sm text-muted">{strings.layout.footerPlaceholder}</p>
 }
 
 export default ShellLayout

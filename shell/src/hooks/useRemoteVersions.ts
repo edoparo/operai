@@ -33,7 +33,7 @@ export const REMOTE_VERSION_TIMEOUT_MS = 1500
 
 export interface RemoteVersionSource {
   /** Matches runtimeRemotes.ts's remote names — the suite's canonical remote id set. */
-  id: 'estimai' | 'refund' | 'admin' | 'notify' | 'inventory'
+  id: 'estimai' | 'refund' | 'admin' | 'notify' | 'inventory' | 'crm'
   /** Human-readable label for the About dialog row. */
   label: string
   /** Loads the remote's exposed `./version` module. Called fresh every resolution — never memoized across calls. */
@@ -52,6 +52,7 @@ export const REMOTE_VERSION_SOURCES: readonly RemoteVersionSource[] = [
   { id: 'admin', label: strings.tools.admin, loader: () => import('admin/version') },
   { id: 'notify', label: strings.tools.notify, loader: () => import('notify/version') },
   { id: 'inventory', label: strings.tools.inventory, loader: () => import('inventory/version') },
+  { id: 'crm', label: strings.tools.crm, loader: () => import('crm/version') },
 ]
 
 function isVersionString(value: unknown): value is string {

@@ -68,8 +68,8 @@ describe("parseServiceClients", () => {
     if (!result.ok) expect(result.errors.join("\n")).not.toContain(SECRET_A);
   });
 
-  test("the scope allowlist is exactly notifications.push and emails.send", () => {
-    expect([...KNOWN_SERVICE_SCOPES]).toEqual(["notifications.push", "emails.send"]);
+  test("the scope allowlist is exactly notifications.push, emails.send and users.contact", () => {
+    expect([...KNOWN_SERVICE_SCOPES]).toEqual(["notifications.push", "emails.send", "users.contact"]);
   });
 
   test("a client holding emails.send parses, alone or beside notifications.push", () => {

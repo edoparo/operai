@@ -1,0 +1,320 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../src/lib/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// Data model of specs/017-crm (plan.md § Data model). Money is integer minor
+// units (ADR-0025 posture); calendar dates are @db.Date. People are opaque
+// `auth` user ids, their names resolved live (ADR-0039, decisions D-15).
+//
+// Raw SQL in the initial migration, the ENFORCEMENT and not a duplicate:
+//   - company_name_lower_key  UNIQUE (lower(name)), archived companies included (D-11)
+//   - contact_email_lower_idx  lookup index for the contacts search
+//   - CHECKs                   amount ≥ 0, country is two upper-case letters,
+//                              closedAt set iff the stage is closed, task fields
+//                              only on tasks
+
+enum Entity {
+  welld_ch
+  welld_it
+}
+
+enum CompanyStatus {
+  prospect
+  customer
+  former
+}
+
+enum DealStage {
+  lead
+  qualified
+  proposal
+  negotiation
+  won
+  lost
+}
+
+enum Currency {
+  CHF
+  EUR
+}
+
+enum ActivityType {
+  note
+  call
+  meeting
+  email
+  task
+}
+
+model Company {
+  id          String        @id @default(cuid())
+  name        String
+  status      CompanyStatus
+  entity      Entity
+  website     String?
+  industry    String?
+  city        String?
+  /// ISO 3166-1 alpha-2, upper case.
+  country     String?
+  /// Printed in the offer's client block when set (specs/020 AC-5.1).
+  legalName   String?
+  street      String?
+  postalCode  String?
+  notes       String?
+  ownerUserId String
+  archivedAt  DateTime?
+  /// Optimistic-concurrency counter (ADR-0038 posture, D-7).
+  version     Int           @default(1)
+  createdBy   String
+  updatedBy   String
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+
+  contacts   Contact[]
+  deals      Deal[]
+  activities Activity[]
+
+  @@index([status])
+  @@index([ownerUserId])
+  @@map("company")
+}
+
+model Contact {
+  id         String    @id @default(cuid())
+  companyId  String?
+  company    Company?  @relation(fields: [companyId], references: [id], onDelete: Restrict)
+  firstName  String
+  lastName   String
+  email      String?
+  phone      String?
+  jobTitle   String?
+  notes      String?
+  archivedAt DateTime?
+  version    Int       @default(1)
+  createdBy  String
+  updatedBy  String
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+
+  activities Activity[]
+
+  @@index([companyId])
+  @@map("contact")
+}
+
+model Deal {
+  id                String    @id @default(cuid())
+  companyId         String
+  company           Company   @relation(fields: [companyId], references: [id], onDelete: Restrict)
+  title             String
+  stage             DealStage @default(lead)
+  amountCents       BigInt
+  currency          Currency
+  entity            Entity
+  expectedCloseDate DateTime? @db.Date
+  ownerUserId       String
+  lostReason        String?
+  /// Set when the deal moves to won/lost, cleared when it is reopened.
+  closedAt          DateTime?
+  notes             String?
+  version           Int       @default(1)
+  createdBy         String
+  updatedBy         String
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+
+  activities  Activity[]
+  estimate    DealEstimate?
+  offers      DealOffer[]
+  attachments DealAttachment[]
+
+  @@index([stage])
+  @@index([companyId])
+  @@index([closedAt])
+  @@map("deal")
+}
+
+enum EstimateState {
+  requested
+  ready
+}
+
+/// The deal's link to one EstimAI estimate (specs/018 US-3). `estimateId` is an
+/// estimai-api id, never dereferenced by a foreign key: that service owns it.
+model DealEstimate {
+  dealId          String        @id
+  deal            Deal          @relation(fields: [dealId], references: [id], onDelete: Cascade)
+  estimateId      String
+  estimateName    String
+  technicalUserId String
+  state           EstimateState @default(requested)
+  requestedBy     String
+  requestedAt     DateTime      @default(now())
+  readyBy         String?
+  readyAt         DateTime?
+  /// The task created for the technical contact; completed when the estimate is ready.
+  taskId          String?
+  /// An admin's override of the Qualified → Proposal gate (AC-3.7).
+  overrideBy      String?
+  overrideReason  String?
+  overrideAt      DateTime?
+
+  @@index([technicalUserId])
+  @@map("deal_estimate")
+}
+
+enum OfferLanguage {
+  en
+  it
+}
+
+/// A generated offer PDF (specs/018 US-4). Immutable once written: only the
+/// soft-delete pair ever changes; a deleted number is never reused.
+model DealOffer {
+  id           String        @id @default(cuid())
+  dealId       String
+  deal         Deal          @relation(fields: [dealId], references: [id], onDelete: Restrict)
+  number       Int
+  language     OfferLanguage
+  priceCents   BigInt
+  currency     Currency
+  validityDays Int
+  terms        String?
+  /// The offer number (`NNNN/YYYY`, specs/020 D-5): null for specs/018 offers.
+  /// A deal's sequenced offers all share the first one's year and number.
+  sequenceYear Int?
+  sequenceNo   Int?
+  /// Everything printed: letterhead, client, scope figures, texts.
+  snapshot     Json
+  objectKey    String
+  sizeBytes    Int
+  createdBy    String
+  createdAt    DateTime      @default(now())
+  deletedBy    String?
+  deletedAt    DateTime?
+
+  @@unique([dealId, number])
+  @@map("deal_offer")
+}
+
+enum AttachmentStatus {
+  pending
+  stored
+}
+
+/// A file uploaded to a deal (specs/018 AC-4.3). Two-phase like inventory's
+/// invoice files: `pending` until crm-api has seen the object, then `stored`.
+model DealAttachment {
+  id          String           @id @default(cuid())
+  dealId      String
+  deal        Deal             @relation(fields: [dealId], references: [id], onDelete: Restrict)
+  fileName    String
+  contentType String
+  sizeBytes   Int
+  objectKey   String           @unique
+  status      AttachmentStatus @default(pending)
+  uploadedBy  String
+  createdAt   DateTime         @default(now())
+  deletedBy   String?
+  deletedAt   DateTime?
+
+  @@index([dealId])
+  @@map("deal_attachment")
+}
+
+/// Letterhead and default offer terms of one wellD entity (specs/018 O2).
+model EntityProfile {
+  entity       Entity   @id
+  legalName    String
+  addressLines String[]
+  vatNumber    String?
+  iban         String?
+  offerTermsEn String?
+  offerTermsIt String?
+  /// Printed beside the date of an offer (specs/020 AC-1.2); "Lugano" when null.
+  placeOfIssue String?
+  /// Key of the letterhead PDF in the CRM bucket (specs/020 AC-2.1).
+  letterheadKey String?
+  letterheadBy  String?
+  letterheadAt  DateTime?
+  updatedBy    String
+  updatedAt    DateTime @updatedAt
+
+  @@map("entity_profile")
+}
+
+/// A named starting point for an offer, owned by one entity (specs/020 AC-2.2).
+/// Raw SQL in the migration, the ENFORCEMENT: offer_template_entity_name_active_key
+/// UNIQUE (entity, lower(name)) WHERE "archivedAt" IS NULL.
+model OfferTemplate {
+  id              String        @id @default(cuid())
+  entity          Entity
+  name            String
+  language        OfferLanguage
+  salutation      String
+  opening         String
+  /// [{ heading, body, costs }]
+  sections        Json
+  /// [{ description, kind, amount, quantity }] — see src/offers/contract.ts
+  costLines       Json
+  /// { position, unit }
+  costColumns     Json
+  showTotal       Boolean       @default(false)
+  acceptanceLabel String?
+  annex           Boolean       @default(false)
+  /// If-Match concurrency counter (ADR-0038 posture).
+  version         Int           @default(1)
+  archivedAt      DateTime?
+  createdBy       String
+  createdAt       DateTime      @default(now())
+  updatedBy       String
+  updatedAt       DateTime      @updatedAt
+
+  @@index([entity])
+  @@map("offer_template")
+}
+
+/// The last offer number taken per entity and year (specs/020 D-5). Taken with
+/// INSERT … ON CONFLICT DO UPDATE inside the generation transaction.
+model OfferSequence {
+  entity Entity
+  year   Int
+  last   Int
+
+  @@id([entity, year])
+  @@map("offer_sequence")
+}
+
+model Activity {
+  id                String       @id @default(cuid())
+  type              ActivityType
+  subject           String
+  body              String?
+  occurredAt        DateTime
+  companyId         String
+  company           Company      @relation(fields: [companyId], references: [id], onDelete: Restrict)
+  /// Nulled when the contact is erased (D-13).
+  contactId         String?
+  contact           Contact?     @relation(fields: [contactId], references: [id], onDelete: SetNull)
+  dealId            String?
+  deal              Deal?        @relation(fields: [dealId], references: [id], onDelete: Restrict)
+  authorUserId      String
+  // Task-only fields (type = task), enforced by a CHECK.
+  dueDate           DateTime?    @db.Date
+  assigneeUserId    String?
+  completedAt       DateTime?
+  completedByUserId String?
+  createdAt         DateTime     @default(now())
+  updatedAt         DateTime     @updatedAt
+
+  @@index([companyId, occurredAt])
+  @@index([contactId])
+  @@index([dealId])
+  @@index([assigneeUserId, completedAt])
+  @@map("activity")
+}

@@ -53,6 +53,12 @@ export const EMAIL_TEMPLATES = [
   // instead of making the totals conditionally-present.
   "refund_decision_approved",
   "refund_decision_rejected",
+  // specs/019-crm-notifications (ADR-0056) — the email twin of an in-app
+  // notification, built by notify-api itself from the row it just stored.
+  // Listed here so the delivery log can name it, but deliberately NOT in
+  // SendEmailRequestSchema: /system/emails takes the address from the
+  // caller, this template's address comes only from `auth`.
+  "notification_notice",
 ] as const;
 export type EmailTemplate = (typeof EMAIL_TEMPLATES)[number];
 

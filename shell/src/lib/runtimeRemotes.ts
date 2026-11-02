@@ -76,6 +76,8 @@ export interface RuntimeRemoteConfig {
   admin?: string
   notify?: string
   inventory?: string
+  /** specs/017-crm: the CRM remote's remoteEntry.js. */
+  crm?: string
 }
 
 declare global {
@@ -92,7 +94,7 @@ declare global {
 
 /** Shape `@module-federation/runtime`'s `registerRemotes` expects (mirrors vite.config.ts's static remote entries). */
 export interface RuntimeRemoteEntry {
-  name: 'estimai' | 'refund' | 'admin' | 'notify' | 'inventory'
+  name: 'estimai' | 'refund' | 'admin' | 'notify' | 'inventory' | 'crm'
   entry: string
   type: 'module'
   entryGlobalName: string
@@ -174,6 +176,16 @@ export async function resolveRuntimeRemotes(): Promise<RuntimeRemoteEntry[]> {
       entry: config.inventory,
       type: 'module',
       entryGlobalName: 'inventory',
+      shareScope: 'default',
+    })
+  }
+
+  if (config.crm) {
+    remotes.push({
+      name: 'crm',
+      entry: config.crm,
+      type: 'module',
+      entryGlobalName: 'crm',
       shareScope: 'default',
     })
   }

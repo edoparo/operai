@@ -184,6 +184,31 @@ describe("GET /authz/users/directory (T5, specs/015-hardware-inventory; ADR-0047
     expect((await callDirectory(accessOnly.token)).status).toBe(403);
   });
 
+  // specs/017-crm, ADR-0053: the CRM's owner/assignee picker is the second consumer.
+  test("a holder of the crm catalog's deal:manage (entity-scoped) gets the roster", async () => {
+    const sales = await mintUser("crm-sales", {
+      grants: [
+        { resource: "crm", action: "access" },
+        { resource: "deal", action: "manage", conditions: ENTITY_CONDITION },
+      ],
+    });
+    const res = await callDirectory(sales.token);
+    expect(res.status).toBe(200);
+    expect(((await res.json()) as DirectoryBody).users.some((u) => u.id === sales.userId)).toBe(true);
+  });
+
+  test("crm:access alone, or contact:erase, does NOT open the directory (ADR-0053)", async () => {
+    const reader = await mintUser("crm-reader", { grants: [{ resource: "crm", action: "access" }] });
+    const eraser = await mintUser("crm-eraser", {
+      grants: [
+        { resource: "crm", action: "access" },
+        { resource: "contact", action: "erase" },
+      ],
+    });
+    expect((await callDirectory(reader.token)).status).toBe(403);
+    expect((await callDirectory(eraser.token)).status).toBe(403);
+  });
+
   test("the grant is matched on resource AND action: asset:other / ledger:manage do not open it", async () => {
     const lookalike = await mintUser("lookalike", {
       grants: [
@@ -231,4 +256,44 @@ describe("GET /authz/users/directory (T5, specs/015-hardware-inventory; ADR-0047
 
     expect((await callDirectory(other.token)).status).toBe(200);
   }, 60000);
+});
+
+// specs/018, ADR-0055: optional ?appId narrows the roster to holders of (appId,"access").
+describe("GET /authz/users/directory?appId= (specs/018, ADR-0055)", () => {
+  const callFiltered = (token: string, qs: string) =>
+    directoryRouter.request(`/authz/users/directory${qs}`, { headers: { Authorization: `Bearer ${token}` } });
+
+  test("returns only active users holding (appId,access); unknown appId yields an empty list; bad appId is 400", async () => {
+    const appId = `t18-app-${RUN_ID}`;
+    const sales = await mintUser("f-sales", {
+      grants: [
+        { resource: "deal", action: "manage", conditions: ENTITY_CONDITION },
+        { resource: appId, action: "access" },
+      ],
+    });
+    const holder = await mintUser("f-holder", { grants: [{ resource: appId, action: "access" }] });
+    const other = await mintUser("f-other");
+    const gone = await mintUser("f-gone", { grants: [{ resource: appId, action: "access" }] });
+    await db.user.update({ where: { id: gone.userId }, data: { deletedAt: new Date() } });
+
+    const res = await callFiltered(sales.token, `?appId=${appId}`);
+    expect(res.status).toBe(200);
+    expect(res.headers.get("cache-control")).toBe("no-store");
+    const body = (await res.json()) as DirectoryBody;
+    expect(body.users.map((u) => u.id).sort()).toEqual([sales.userId, holder.userId].sort());
+    expect(body.users.some((u) => u.id === other.userId || u.id === gone.userId)).toBe(false);
+    for (const user of body.users) expect(Object.keys(user).sort()).toEqual(["email", "entity", "id", "name"]);
+
+    const unknown = await callFiltered(sales.token, `?appId=nope-${RUN_ID}`);
+    expect(unknown.status).toBe(200);
+    expect(await unknown.json()).toEqual({ users: [] });
+
+    const invalid = await callFiltered(sales.token, "?appId=NOT%20VALID!!");
+    expect(invalid.status).toBe(400);
+  });
+
+  test("the gate is unchanged: a non-holder gets 403 even with a valid appId", async () => {
+    const nobody = await mintUser("f-nobody");
+    expect((await callFiltered(nobody.token, "?appId=crm")).status).toBe(403);
+  });
 });

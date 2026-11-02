@@ -1,0 +1,49 @@
+// Ambient module declarations for the shell modules crm-ui consumes as a
+// remote (specs/017-crm). Module Federation resolves `shell/session` and
+// `shell/tokens.css` at runtime through a virtual module tsc cannot see; the
+// `dts` option is off in vite.config.ts so this remote builds without a live
+// shell. Keep in sync by hand with shell/src/lib/session.ts.
+
+declare module 'shell/session' {
+  export interface ShellSessionUser {
+    id?: string
+    name?: string | null
+    email?: string | null
+    image?: string | null
+  }
+
+  export interface ShellSessionState {
+    data: { user?: ShellSessionUser } | null
+    isPending?: boolean
+    error?: unknown
+  }
+
+  export const useSession: () => ShellSessionState
+  export const apiFetch: (input: RequestInfo | URL, init?: RequestInit) => Promise<Response>
+
+  // crm-api for every call to this tool's backend; `auth` for the user
+  // directory behind the owner/assignee picker (ADR-0047, ADR-0053).
+  export const getCrmApiBaseUrl: () => string
+  export const getAuthBaseUrl: () => string
+
+  // Permission resolution (ADR-0007), used for UX gating only.
+  export interface Permission {
+    resource: string
+    action: string
+    conditions?: unknown
+  }
+
+  export interface PermissionsResult {
+    epoch: number
+    apps: string[]
+    roles: string[]
+    departments: string[]
+    permissions: Permission[]
+  }
+
+  export const usePermissions: () => PermissionsResult
+}
+
+declare module 'shell/tokens.css' {
+  // Side-effect-only CSS module (the shared Operai tokens) — no exports.
+}

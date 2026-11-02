@@ -36,13 +36,17 @@
 import { OpenAPIHono, createRoute } from "@hono/zod-openapi";
 import type { MiddlewareHandler } from "hono";
 import { bodyLimit } from "hono/body-limit";
+import { emailChannel } from "@/channels/email.channel";
 import { inAppChannel } from "@/channels/inApp.channel";
+import { env } from "@/lib/env";
+import { userContact, type UserContactClient } from "@/lib/userContact";
 import { ProblemSchema, problem } from "@/notifications/notifications.schemas";
 import {
   createSystemAuthMiddleware,
   originAllowed,
   type SystemAuthVariables,
 } from "./systemAuth.middleware";
+import { renderEmailTemplate } from "./emailTemplates";
 import {
   SystemNotificationRequestSchema,
   SystemNotificationResponseSchema,
@@ -50,9 +54,67 @@ import {
 
 const SYSTEM_NOTIFICATIONS_BODY_SIZE_LIMIT = 16 * 1024; // 16 KiB
 
-/** Factory so tests can inject the auth middleware (in-memory JWKS); production uses the default export. */
+/**
+ * What an email notice needs beyond the in-app push (specs/019, ADR-0056).
+ * `null` contacts / base URL = the env group is not configured: every email
+ * request is answered `skipped`. Injected in tests; production reads env.
+ */
+export type EmailNoticeDeps = {
+  contacts: UserContactClient | null;
+  appBaseUrl: string | undefined;
+  /** The email channel; tests inject a recording one. */
+  channel?: Pick<typeof emailChannel, "send">;
+};
+
+const defaultEmailNoticeDeps = (): EmailNoticeDeps => ({
+  contacts: userContact,
+  appBaseUrl: env.APP_BASE_URL,
+});
+
+type EmailStatus = "sent" | "failed" | "skipped";
+
+const sendNotice = async (
+  deps: EmailNoticeDeps,
+  request: { recipientId: string; originApp: string },
+  created: { title: string; body: string; link?: { href: string } | undefined },
+): Promise<EmailStatus> => {
+  if (deps.contacts === null || deps.appBaseUrl === undefined) return "skipped";
+  try {
+    const contact = await deps.contacts.lookup(request.recipientId);
+    if (contact.status === "inactive") return "skipped";
+    if (contact.status === "failed") return "failed";
+
+    const { subject, html } = renderEmailTemplate({
+      template: "notification_notice",
+      data: {
+        title: created.title,
+        body: created.body,
+        originApp: request.originApp,
+        appBaseUrl: deps.appBaseUrl,
+        href: created.link?.href,
+      },
+    });
+    const result = await (deps.channel ?? emailChannel).send({
+      to: contact.email,
+      template: "notification_notice",
+      subject,
+      html,
+    });
+    return result.status;
+  } catch (error) {
+    // E.g. the delivery row could not be written. Never a 5xx for an email.
+    console.error(
+      "[system-notifications] email notice failed:",
+      error instanceof Error ? error.name : "unknown error",
+    );
+    return "failed";
+  }
+};
+
+/** Factory so tests can inject the auth middleware (in-memory JWKS) and the lookup; production uses the default export. */
 export const createSystemNotificationsRouter = (
   authMiddleware: MiddlewareHandler<{ Variables: SystemAuthVariables }>,
+  emailNotice: EmailNoticeDeps = defaultEmailNoticeDeps(),
 ) => {
   const router = new OpenAPIHono<{ Variables: SystemAuthVariables }>();
 
@@ -104,7 +166,9 @@ export const createSystemNotificationsRouter = (
     responses: {
       201: {
         content: { "application/json": { schema: SystemNotificationResponseSchema } },
-        description: "Notification created for recipientId and published to its SSE streams",
+        description: "Notification created for recipientId and published to its SSE streams. " +
+          "With `email: true` the body also carries `emailStatus` (sent | failed | skipped); " +
+          "an email problem never changes the status code.",
       },
       400: {
         content: { "application/json": { schema: ProblemSchema } },
@@ -122,7 +186,9 @@ export const createSystemNotificationsRouter = (
         content: { "application/json": { schema: ProblemSchema } },
         description:
           "A service principal tried to raise a notification for an originApp " +
-          "it is not bound to (e.g. system:inventory-api may send only `inventory`)",
+          "it is not bound to (e.g. system:inventory-api may send only `inventory`), " +
+          "or asked for `email: true` with a token that lacks the `emails.send` scope " +
+          "(nothing is written in either case)",
       },
       413: {
         content: { "application/json": { schema: ProblemSchema } },
@@ -148,6 +214,20 @@ export const createSystemNotificationsRouter = (
       );
     }
 
+    // An email is a capability of its own (ADR-0049, specs/019 D-3): refuse
+    // BEFORE anything is written.
+    if (body.email === true && !c.get("scopes").includes("emails.send")) {
+      return c.json(
+        problem(
+          403,
+          "Forbidden",
+          "Sending an email notice requires the emails.send scope.",
+          c.req.path,
+        ),
+        403,
+      );
+    }
+
     const created = await inAppChannel.send({
       recipientId: body.recipientId,
       title: body.title,
@@ -158,7 +238,11 @@ export const createSystemNotificationsRouter = (
       toastWorthy: false,
     });
 
-    return c.json(created, 201);
+    if (body.email !== true) return c.json(created, 201);
+
+    // Best-effort, after the row exists: whatever happens, the 201 stands.
+    const emailStatus = await sendNotice(emailNotice, body, created);
+    return c.json({ ...created, emailStatus }, 201);
   });
 
   return router;

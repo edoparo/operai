@@ -98,3 +98,15 @@ declare module 'notify/version' {
 declare module 'inventory/version' {
   export const REMOTE_VERSION: string
 }
+
+// specs/017-crm: the `crm` remote — `./App` (the gated tool, `/crm/*`) and `./version`.
+declare module 'crm/App' {
+  import type { ComponentType } from 'react'
+
+  const App: ComponentType
+  export default App
+}
+
+declare module 'crm/version' {
+  export const REMOTE_VERSION: string
+}

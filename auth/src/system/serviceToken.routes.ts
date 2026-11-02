@@ -122,7 +122,7 @@ const postServiceTokenRoute = createRoute({
 // ─── Rate limiter ────────────────────────────────────────────────────────────
 
 /** The platform proxy's view of the caller (rightmost XFF entry), bounded in length. */
-function callerAddress(forwardedFor: string | undefined): string {
+export function callerAddress(forwardedFor: string | undefined): string {
   const last = forwardedFor?.split(",").at(-1)?.trim();
   return last ? last.slice(0, 64) : "direct";
 }

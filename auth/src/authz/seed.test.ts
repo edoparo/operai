@@ -35,6 +35,7 @@ import { db } from "../lib/db";
 import { env } from "../lib/env";
 import { Prisma } from "../lib/generated/prisma/client";
 import { getAppCatalog } from "./catalog";
+import { CRM_APP_ID } from "./catalogs/crm";
 import { ESTIMAI_APP_ID } from "./catalogs/estimai";
 import { INVENTORY_APP_ID } from "./catalogs/inventory";
 import { REFUND_APP_ID } from "./catalogs/refund";
@@ -46,10 +47,14 @@ import {
   ensureBootstrapAdmin,
   INVENTORY_MANAGER_ROLE_NAME,
   REFUND_ADMIN_ROLE_NAME,
+  SALES_ROLE_NAME,
+  CRM_TECHNICAL_ROLE_NAME,
   seed,
   seedAccountingRoleGrants,
   seedAdminRoleGrants,
   seedAppAccessCatalog,
+  seedCrmCatalog,
+  seedCrmGrants,
   seedEstimaiCatalog,
   seedInventoryCatalog,
   seedInventoryGrants,
@@ -889,5 +894,98 @@ describe("ensureBootstrapAdmin — promotes an already-existing account", () => 
     setBootstrapEmail(undefined);
     await ensureBootstrapAdmin(); // must not throw
     expect(true).toBe(true);
+  });
+});
+
+// ─── specs/017-crm ──────────────────────────────────────────────────────────
+
+describe("seedCrmCatalog (specs/017 — AC-5.1)", () => {
+  test("registers the CRM catalog — crm:access + entity-scoped deal:manage + contact:erase, idempotent", async () => {
+    await seedCrmCatalog();
+    await seedCrmCatalog();
+    const catalog = await getAppCatalog(CRM_APP_ID);
+    const byResource = new Map(
+      catalog.resources.map((r) => [r.key, r.actions.map((a) => [a.key, a.supportedConditions])]),
+    );
+    expect([...byResource.keys()].sort()).toEqual(["contact", "crm", "deal"]);
+    expect(byResource.get("crm")).toEqual([["access", []]]);
+    expect([...(byResource.get("deal") ?? [])].sort((a, b) => String(a[0]).localeCompare(String(b[0])))).toEqual([
+      ["financials", []],
+      ["manage", ["entity"]],
+    ]);
+    expect(byResource.get("contact")).toEqual([["erase", []]]);
+  });
+
+  test("crm is excluded from SUITE_APPS but reached by admin through ALL_APP_IDS", () => {
+    expect(SUITE_APPS.some((app) => app.appId === CRM_APP_ID)).toBe(false);
+    expect(ALL_APP_IDS).toContain(CRM_APP_ID);
+  });
+});
+
+describe("seedCrmGrants (specs/017 — AC-5.2, D-4)", () => {
+  const ENTITY_CONDITION = { attributes: [{ key: "entity", match: "user" }] };
+  const CRM_RESOURCES = [CRM_APP_ID, "deal", "contact"];
+
+  async function clearCrmGrants() {
+    const roles = await db.role.findMany({
+      where: { name: { in: [ADMIN_ROLE_NAME, SALES_ROLE_NAME, CRM_TECHNICAL_ROLE_NAME] } },
+      select: { id: true },
+    });
+    await db.permissionRule.deleteMany({
+      where: { roleId: { in: roles.map((r) => r.id) }, resource: { in: CRM_RESOURCES } },
+    });
+  }
+  beforeEach(clearCrmGrants);
+  afterAll(async () => {
+    await clearCrmGrants();
+    await seedAdminRoleGrants();
+    await seedCrmGrants();
+  });
+
+  const rulesOf = async (roleName: string) => {
+    const role = await db.role.findUniqueOrThrow({ where: { name: roleName } });
+    return db.permissionRule.findMany({ where: { roleId: role.id, resource: { in: CRM_RESOURCES } } });
+  };
+
+  test("`sales` is a system role with exactly crm:access + entity-conditioned deal:manage + unconditioned deal:financials", async () => {
+    await seedCrmGrants();
+    await seedCrmGrants();
+    const role = await db.role.findUniqueOrThrow({ where: { name: SALES_ROLE_NAME } });
+    expect(role.isSystem).toBe(true);
+    const rules = await db.permissionRule.findMany({ where: { roleId: role.id } });
+    expect(rules.map((r) => `${r.resource}:${r.action}`).sort()).toEqual(["crm:access", "deal:financials", "deal:manage"]);
+    expect(rules.find((r) => r.action === "financials")?.conditions).toBeNull();
+    expect(rules.find((r) => r.resource === "crm")?.conditions).toBeNull();
+    expect(rules.find((r) => r.action === "manage")?.conditions).toEqual(ENTITY_CONDITION);
+  });
+
+  test("`admin` gets crm:access, deal:manage, deal:financials and contact:erase, all unconditioned", async () => {
+    await seedSystemRoles();
+    await seedAdminRoleGrants();
+    await seedCrmGrants();
+    const rules = await rulesOf(ADMIN_ROLE_NAME);
+    expect(rules.map((r) => `${r.resource}:${r.action}`).sort()).toEqual([
+      "contact:erase",
+      "crm:access",
+      "deal:financials",
+      "deal:manage",
+    ]);
+    for (const rule of rules) expect(rule.conditions).toBeNull();
+  });
+
+  test("`crm-technical` is a system role holding only an unconditioned crm:access, idempotently", async () => {
+    await seedCrmGrants();
+    await seedCrmGrants();
+    const role = await db.role.findUniqueOrThrow({ where: { name: CRM_TECHNICAL_ROLE_NAME } });
+    expect(role.isSystem).toBe(true);
+    const rules = await db.permissionRule.findMany({ where: { roleId: role.id } });
+    expect(rules.map((r) => `${r.resource}:${r.action}`)).toEqual(["crm:access"]);
+    expect(rules[0]!.conditions).toBeNull();
+  });
+
+  test("`employee` gets nothing", async () => {
+    await seedSystemRoles();
+    await seedCrmGrants();
+    expect(await rulesOf(EMPLOYEE_ROLE_NAME)).toHaveLength(0);
   });
 });

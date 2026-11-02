@@ -36,6 +36,10 @@ export const SystemNotificationRequestSchema = z.object({
   title: z.string().min(1, "title is required").max(200, "title must be at most 200 characters"),
   body: z.string().min(1, "body is required").max(2000, "body must be at most 2000 characters"),
   link: LinkSchema.optional(),
+  // specs/019-crm-notifications (ADR-0056): also send the notification as an
+  // email to the recipient, whose address notify-api resolves from `auth`.
+  // The caller never supplies an address. Needs the `emails.send` scope too.
+  email: z.boolean().optional(),
 });
 
 export type SystemNotificationRequest = z.infer<typeof SystemNotificationRequestSchema>;
@@ -43,4 +47,8 @@ export type SystemNotificationRequest = z.infer<typeof SystemNotificationRequest
 // The response echoes the persisted notification — same shape POST
 // /notifications returns to the end user, so the internal caller can log/
 // inspect the created row (id, timestamps) if it chooses to.
-export const SystemNotificationResponseSchema = NotificationSchema;
+// `emailStatus` is present only when the request asked for `email: true`.
+export const EMAIL_STATUSES = ["sent", "failed", "skipped"] as const;
+export const SystemNotificationResponseSchema = NotificationSchema.extend({
+  emailStatus: z.enum(EMAIL_STATUSES).optional(),
+});

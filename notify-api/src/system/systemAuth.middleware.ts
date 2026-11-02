@@ -49,6 +49,7 @@ const SERVICE_ORIGIN_BINDINGS: Readonly<Record<string, readonly string[]>> = {
   "system:inventory-api": ["inventory"],
   "system:refund-api": ["refund"],
   "system:estimai-api": ["estimai"],
+  "system:crm-api": ["crm"],
 };
 
 export type SystemAuthVariables = {
@@ -56,6 +57,8 @@ export type SystemAuthVariables = {
   allowedOrigins: readonly string[];
   /** The service JWT `sub`. */
   serviceSub: string;
+  /** The scopes the token carries (a route may need a second one, e.g. `emails.send`). */
+  scopes: readonly string[];
 };
 
 export const originAllowed = (
@@ -137,6 +140,7 @@ export const createSystemAuthMiddleware = (opts: SystemAuthOptions) => {
 
         c.set("allowedOrigins", SERVICE_ORIGIN_BINDINGS[sub] ?? []);
         c.set("serviceSub", sub);
+        c.set("scopes", scope.split(" ").filter(Boolean));
         accept(c.req.method, c.req.path, sub);
       } catch (err) {
         const code =

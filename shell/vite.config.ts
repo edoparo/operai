@@ -92,7 +92,7 @@ const suiteVersion = readSuiteVersion()
 // Stable local-dev port scheme (pinned via server/preview below, matched by
 // every remote's own config): shell 5173, estimai-ui 5174, refund-ui 5175,
 // notify-ui 5176 (the slot admin-ui/vite.config.ts deliberately left free —
-// see notify-ui/vite.config.ts, T14), admin-ui 5177, inventory-ui 5178. The shell consumes
+// see notify-ui/vite.config.ts, T14), admin-ui 5177, inventory-ui 5178, crm-ui 5179. The shell consumes
 // estimai at :5174, refund at :5175, notify at :5176, and admin at :5177;
 // each remote consumes the shell (shell/session, shell/tokens.css) at :5173.
 // The e2e harness (playwright.config.ts) uses its own explicit ports+env and
@@ -122,6 +122,10 @@ const notifyRemoteUrl =
 // remote to be running — `dts` stays off and the entry is only fetched at runtime.
 const inventoryRemoteUrl =
   process.env['INVENTORY_REMOTE_URL'] ?? 'http://localhost:5178/remoteEntry.js'
+
+// specs/017-crm: crm-ui, the CRM's federated remote. Same pattern; dev default
+// targets its own pinned port (5179).
+const crmRemoteUrl = process.env['CRM_REMOTE_URL'] ?? 'http://localhost:5179/remoteEntry.js'
 
 // @operai/ui (operai-ui/, ADR-0050) is compiled from SOURCE by this build; `dedupe`
 // keeps the library's own `react` imports on this project's copy (Module Federation
@@ -228,6 +232,14 @@ export default defineConfig({
           name: 'inventory',
           entry: inventoryRemoteUrl,
           entryGlobalName: 'inventory',
+          shareScope: 'default',
+        },
+        // specs/017-crm: crm-ui, mounted at the access-gated `/crm/$`.
+        crm: {
+          type: 'module',
+          name: 'crm',
+          entry: crmRemoteUrl,
+          entryGlobalName: 'crm',
           shareScope: 'default',
         },
       },

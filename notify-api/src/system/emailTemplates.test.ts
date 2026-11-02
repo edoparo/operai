@@ -243,3 +243,61 @@ describe("renderEmailTemplate — refund_decision_rejected", () => {
     expect(html).toContain(baseData.requestUrl);
   });
 });
+
+describe("renderEmailTemplate — notification_notice (specs/019, ADR-0056)", () => {
+  const data = {
+    title: "Estimate requested",
+    body: "Acme asked for an estimate on Big deal.",
+    originApp: "crm",
+    appBaseUrl: "https://operai.example.test",
+    href: "/crm/deals/d_1",
+  };
+
+  it("uses the notification title as the subject", () => {
+    expect(renderEmailTemplate({ template: "notification_notice", data }).subject).toBe(
+      "Estimate requested",
+    );
+  });
+
+  it("renders title, body, an absolute 'Open in Operai' link and the origin footer", () => {
+    const { html } = renderEmailTemplate({ template: "notification_notice", data });
+    expect(html).toContain("Estimate requested");
+    expect(html).toContain("Acme asked for an estimate on Big deal.");
+    expect(html).toContain('href="https://operai.example.test/crm/deals/d_1"');
+    expect(html).toContain("Open in Operai");
+    expect(html).toContain("Sent by Operai CRM");
+  });
+
+  it("links to the app base URL alone when there is no link, tolerating a trailing slash", () => {
+    const { html } = renderEmailTemplate({
+      template: "notification_notice",
+      data: { ...data, href: undefined, appBaseUrl: "https://operai.example.test/" },
+    });
+    expect(html).toContain('href="https://operai.example.test"');
+  });
+
+  it("escapes title, body and link, and keeps line breaks out of the subject", () => {
+    const { subject, html } = renderEmailTemplate({
+      template: "notification_notice",
+      data: {
+        ...data,
+        title: '<script>alert(1)</script>\r\nBcc: x@y.z',
+        body: '"><img src=x onerror=alert(1)>',
+        href: '/crm/"><b>',
+      },
+    });
+    expect(html).not.toContain("<script>");
+    expect(html).not.toContain("<img");
+    expect(html).not.toContain("<b>");
+    expect(html).toContain("&lt;script&gt;");
+    expect(subject).not.toMatch(/[\r\n]/);
+  });
+
+  it("names no tool in the footer for an unknown origin app", () => {
+    const { html } = renderEmailTemplate({
+      template: "notification_notice",
+      data: { ...data, originApp: "nope" },
+    });
+    expect(html).toContain("Sent by Operai<");
+  });
+});

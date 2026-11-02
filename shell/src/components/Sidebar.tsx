@@ -82,6 +82,7 @@ const TOOL_ICONS: Record<ToolId, ReactNode> = {
   refund: <Icon name="banknote" size={TOOL_ICON_SIZE} className="shrink-0" />,
   admin: <Icon name="settings" size={TOOL_ICON_SIZE} className="shrink-0" />,
   inventory: <Icon name="box" size={TOOL_ICON_SIZE} className="shrink-0" />,
+  crm: <Icon name="users" size={TOOL_ICON_SIZE} className="shrink-0" />,
 }
 
 export default function Sidebar() {

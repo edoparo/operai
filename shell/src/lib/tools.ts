@@ -15,7 +15,7 @@
 import { strings } from '../strings'
 
 /** Known suite tool ids. Extend this union (and TOOLS below) to add a tool. */
-export type ToolId = 'estimai' | 'refund' | 'admin' | 'inventory'
+export type ToolId = 'estimai' | 'refund' | 'admin' | 'inventory' | 'crm'
 
 export interface SuiteTool {
   id: ToolId
@@ -46,6 +46,8 @@ export const TOOLS: readonly SuiteTool[] = [
   // regardless of grants (ADR-0045), so it must never appear in the
   // permission-filtered sidebar nor be recorded as a last-used tool.
   { id: 'inventory', label: strings.tools.inventory, to: '/inventory' },
+  // specs/017-crm: a gated tool, shown to holders of `crm:access` (ADR-0052).
+  { id: 'crm', label: strings.tools.crm, to: '/crm' },
 ]
 
 /** First-visit / invalid-storage fallback tool (AC-3.4). */

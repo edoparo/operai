@@ -84,12 +84,20 @@ const sleep = (ms: number): Promise<void> =>
 
 // ─── Schemas ──────────────────────────────────────────────────────────────────
 
-const AppAccessCheckRequestSchema = z.object({
-  appId: z
-    .string()
-    .regex(/^[a-z0-9-]{1,64}$/, "appId must match ^[a-z0-9-]{1,64}$"),
-  email: z.string().trim().max(320).email(),
-});
+// Exactly one probe key: `email` (estimai collaborators) or `userId` (crm-api,
+// which only knows auth ids — ADR-0055). Both or neither → 400.
+const AppAccessCheckRequestSchema = z
+  .object({
+    appId: z
+      .string()
+      .regex(/^[a-z0-9-]{1,64}$/, "appId must match ^[a-z0-9-]{1,64}$"),
+    email: z.string().trim().max(320).email().optional(),
+    userId: z.string().min(1).max(128).optional(),
+  })
+  .refine((body) => (body.email === undefined) !== (body.userId === undefined), {
+    message: "provide exactly one of email or userId",
+    path: ["email"],
+  });
 
 // Two DISTINCT literal shapes, not one object with an optional `userId` —
 // the eligible:false branch below constructs a plain `{ eligible: false }`
@@ -124,6 +132,7 @@ const postAppAccessCheckRoute = createRoute({
     "Returns eligible:true/userId or eligible:false — the SAME body, " +
     "status, and (quantised) timing for no-such-user, soft-deleted-target, " +
     "and lacks-app-access. POST so the probed email never reaches a URL. " +
+    "Body is { appId, email } or { appId, userId } (exactly one, ADR-0055). " +
     "Caller must hold (appId,\"access\") themselves and must not be " +
     "soft-deleted.",
   request: {
@@ -138,7 +147,7 @@ const postAppAccessCheckRoute = createRoute({
     },
     400: {
       content: { "application/json": { schema: ProblemJsonSchema } },
-      description: "Malformed appId or email syntax",
+      description: "Malformed appId, or not exactly one of email / userId",
     },
     401: {
       content: { "application/json": { schema: ProblemJsonSchema } },
@@ -193,7 +202,7 @@ const appAccessCheckLimiter = createSlidingWindowRateLimiter({
 appAccessCheckRouter.openapi(postAppAccessCheckRoute, async (c) => {
   const start = Date.now();
   const callerId = c.get("callerId");
-  const { appId, email } = c.req.valid("json");
+  const { appId, email, userId: probeUserId } = c.req.valid("json");
 
   // ── 429: rate limit, per caller sub — consumed BEFORE the caller gate.
   //
@@ -258,12 +267,20 @@ appAccessCheckRouter.openapi(postAppAccessCheckRoute, async (c) => {
   // that index). `deletedAt IS NULL` is folded into the SAME query, so
   // "no such user" and "soft-deleted user" are the identical zero-row
   // result — not merely similarly timed, but the same query outcome.
-  const normalizedEmail = email.trim().toLowerCase();
-  const rows = await db.$queryRaw<Array<{ id: string }>>`
-    SELECT id FROM "user"
-    WHERE lower(email) = ${normalizedEmail} AND "deletedAt" IS NULL
-    LIMIT 1
-  `;
+  // The userId probe (ADR-0055) is the same shape: one parameterised query on
+  // the primary key with `deletedAt IS NULL` folded in.
+  const rows =
+    probeUserId !== undefined
+      ? await db.$queryRaw<Array<{ id: string }>>`
+          SELECT id FROM "user"
+          WHERE id = ${probeUserId} AND "deletedAt" IS NULL
+          LIMIT 1
+        `
+      : await db.$queryRaw<Array<{ id: string }>>`
+          SELECT id FROM "user"
+          WHERE lower(email) = ${email!.trim().toLowerCase()} AND "deletedAt" IS NULL
+          LIMIT 1
+        `;
 
   let eligible = false;
   let userId: string | undefined;

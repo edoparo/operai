@@ -40,6 +40,7 @@ const REMOTE_DIRS: Record<(typeof REMOTE_VERSION_SOURCES)[number]['id'], string>
   admin: 'admin-ui',
   notify: 'notify-ui',
   inventory: 'inventory-ui',
+  crm: 'crm-ui',
 }
 
 const remotesDtsSource = readFileSync(path.join(__dirname, 'remotes.d.ts'), 'utf-8')
@@ -117,5 +118,29 @@ describe('runtime-config.example.json', () => {
       readFileSync(path.resolve(__dirname, '../../public/runtime-config.example.json'), 'utf-8'),
     ) as Record<string, string>
     expect(example['inventory']).toBe('https://inventory.operai.welld.io/remoteEntry.js')
+  })
+})
+
+// specs/017-crm: the shell's CSP lets the page load the CRM remote and reach crm-api.
+describe('vercel.json CSP — crm origins', () => {
+  const vercel = JSON.parse(readFileSync(path.resolve(__dirname, '../../vercel.json'), 'utf-8')) as {
+    headers: { source: string; headers: { key: string; value: string }[] }[]
+  }
+  const csp =
+    vercel.headers.flatMap((h) => h.headers).find((header) => header['key'] === 'Content-Security-Policy')?.value ?? ''
+  const directive = (name: string): string =>
+    csp
+      .split(';')
+      .map((d) => d.trim())
+      .find((d) => d.startsWith(`${name} `)) ?? ''
+
+  it('script-src allows the crm remote; connect-src the remote and crm-api', () => {
+    expect(directive('script-src')).toContain('https://crm.operai.welld.io')
+    expect(directive('connect-src')).toContain('https://crm.operai.welld.io')
+    expect(directive('connect-src')).toContain('https://crm-api.operai.welld.io')
+  })
+
+  it("remotes.d.ts declares 'crm/App'", () => {
+    expect(remotesDtsSource).toContain("declare module 'crm/App'")
   })
 })

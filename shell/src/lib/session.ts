@@ -42,6 +42,7 @@
  *       rather than reusing VITE_API_URL.
  *     • The inventory-api origin (VITE_INVENTORY_API_URL), if defined (T41,
  *       specs/015-hardware-inventory) — same shape as refund-api above.
+ *     • The crm-api origin (VITE_CRM_API_URL), if defined (specs/017-crm).
  *   Requests to any other origin proceed unauthenticated — no Authorization
  *   header is sent and credentials are not included cross-origin.
  *
@@ -121,6 +122,13 @@ const getInventoryApiUrl = (): string => import.meta.env.VITE_INVENTORY_API_URL 
  * `getRefundApiBaseUrl()` verbatim.
  */
 export const getInventoryApiBaseUrl = (): string => getInventoryApiUrl()
+
+/**
+ * The crm-api base URL (`VITE_CRM_API_URL`, specs/017-crm), exposed for the
+ * federated `crm` remote, which ships no `VITE_*` env of its own. Lazily read,
+ * mirrors `getInventoryApiBaseUrl()`.
+ */
+export const getCrmApiBaseUrl = (): string => import.meta.env.VITE_CRM_API_URL as string
 
 /** Clears the in-memory JWT cache. */
 export const clearJwtCache = (): void => {
@@ -216,6 +224,16 @@ const getTrustedOrigins = (): Set<string> => {
   if (inventoryUrl) {
     try {
       trusted.add(new URL(inventoryUrl).origin)
+    } catch {
+      /* ignore invalid env value */
+    }
+  }
+
+  // specs/017-crm: crm-api origin, trusted only when configured (same shape).
+  const crmUrl = import.meta.env.VITE_CRM_API_URL as string | undefined
+  if (crmUrl) {
+    try {
+      trusted.add(new URL(crmUrl).origin)
     } catch {
       /* ignore invalid env value */
     }

@@ -85,6 +85,12 @@
  *      access + entity-scoped `asset:manage`). `inventory` is registered once,
  *      here, never through `SUITE_APPS`.
  *
+ *  10. {@link seedCrmCatalog} + {@link seedCrmGrants} (specs/017-crm — AC-5.1,
+ *      AC-5.2; ADR-0052) — register the CRM's catalog (`catalogs/crm.ts`) and
+ *      attach its grants (`admin` all unconditioned, the new `sales` system role
+ *      `crm:access` + entity-scoped `deal:manage`). `crm` is registered once,
+ *      here, never through `SUITE_APPS`.
+ *
  * A TENTH, per-user concern — assigning the baseline `employee` role (and
  * `admin` for the configured bootstrap email) to every newly created user —
  * is NOT part of this deploy-time seed: it happens once per user, in
@@ -99,6 +105,7 @@ import { env } from "../lib/env";
 import type { Prisma } from "../lib/generated/prisma/client";
 import { upsertAppCatalog } from "./catalog";
 import { ESTIMAI_CATALOG } from "./catalogs/estimai";
+import { CRM_APP_ID, CRM_CATALOG } from "./catalogs/crm";
 import { INVENTORY_APP_ID, INVENTORY_CATALOG } from "./catalogs/inventory";
 import { REFUND_APP_ID, REFUND_CATALOG } from "./catalogs/refund";
 
@@ -106,6 +113,9 @@ export const EMPLOYEE_ROLE_NAME = "employee";
 export const ACCOUNTING_ROLE_NAME = "accounting";
 export const REFUND_ADMIN_ROLE_NAME = "refund-admin";
 export const INVENTORY_MANAGER_ROLE_NAME = "inventory-manager";
+export const SALES_ROLE_NAME = "sales";
+/** System role holding only `crm:access` (specs/018): technical staff who read the CRM, no financials. */
+export const CRM_TECHNICAL_ROLE_NAME = "crm-technical";
 
 /** The four seed system roles (AC-6.2). Order is insignificant; upserts run sequentially for deterministic logging. */
 export const SYSTEM_ROLE_NAMES = [
@@ -196,6 +206,15 @@ export async function seedInventoryCatalog(): Promise<void> {
 }
 
 /**
+ * Registers the CRM's catalog (specs/017-crm — AC-5.1): `crm:access`,
+ * entity-scoped `deal:manage` and `contact:erase`. Idempotent (full-replace
+ * upsert keyed by `appId`). `crm` is registered ONLY here, never via `SUITE_APPS`.
+ */
+export async function seedCrmCatalog(): Promise<void> {
+  await upsertAppCatalog(CRM_CATALOG);
+}
+
+/**
  * Every suite app id. `estimai`/`refund`/`inventory` declare their own
  * catalogs; the rest come from SUITE_APPS. (`inventory` being listed here is
  * only so `seedAdminRoleGrants` grants `admin` its `access`; it is NOT a
@@ -205,6 +224,7 @@ export const ALL_APP_IDS: readonly string[] = [
   "estimai",
   REFUND_APP_ID,
   INVENTORY_APP_ID,
+  CRM_APP_ID,
   ...SUITE_APPS.map((a) => a.appId),
 ];
 
@@ -513,6 +533,63 @@ export async function seedInventoryGrants(): Promise<void> {
 }
 
 /**
+ * Seeds the CRM's role grants (specs/017-crm — AC-5.2; decisions D-4):
+ *
+ *   - `admin` — `deal:manage` and `contact:erase`, UNCONDITIONED. Its
+ *     `crm:access` comes from {@link seedAdminRoleGrants} (`ALL_APP_IDS`).
+ *   - `sales` (NEW system role) — `crm:access` + `deal:manage` conditioned on
+ *     the entity ({@link REFUND_ENTITY_CONDITION}): a salesperson manages the
+ *     deals of their own entity and reads everything else.
+ *   - `employee` — nothing: CRM access is admin-assigned (specs/004).
+ *   - specs/018: `admin` and `sales` also get `deal:financials` (unconditioned);
+ *     the new system role `crm-technical` holds only `crm:access`.
+ *
+ * Idempotent and non-destructive, through {@link ensureGrant}, exactly like
+ * {@link seedInventoryGrants}.
+ */
+export async function seedCrmGrants(): Promise<void> {
+  const adminRole = await db.role.upsert({
+    where: { name: ADMIN_ROLE_NAME },
+    update: {},
+    create: { name: ADMIN_ROLE_NAME, isSystem: true },
+  });
+  await ensureGrant(adminRole.id, "deal", "manage");
+  await ensureGrant(adminRole.id, "contact", "erase");
+  await ensureGrant(adminRole.id, "deal", "financials");
+
+  const salesRole = await db.role.upsert({
+    where: { name: SALES_ROLE_NAME },
+    update: {},
+    create: {
+      name: SALES_ROLE_NAME,
+      description: "Sales — manages the CRM deals of their own entity",
+      isSystem: true,
+    },
+  });
+  await ensureGrant(salesRole.id, CRM_APP_ID, "access");
+  await ensureGrant(
+    salesRole.id,
+    "deal",
+    "manage",
+    REFUND_ENTITY_CONDITION as Prisma.InputJsonValue,
+  );
+  await ensureGrant(salesRole.id, "deal", "financials");
+
+  // specs/018: `crm-technical` — read/collaborate only (crm:access), no deal
+  // management and no financials.
+  const technicalRole = await db.role.upsert({
+    where: { name: CRM_TECHNICAL_ROLE_NAME },
+    update: {},
+    create: {
+      name: CRM_TECHNICAL_ROLE_NAME,
+      description: "CRM technical — reads the CRM, no deal money",
+      isSystem: true,
+    },
+  });
+  await ensureGrant(technicalRole.id, CRM_APP_ID, "access");
+}
+
+/**
  * Grants the `admin` role `access` to every suite app (US-7). WITHOUT this the
  * seed leaves `admin` with zero permission rules, so even the bootstrap admin
  * resolves to `apps: []` and is stranded on the shell's `/no-access` screen —
@@ -582,12 +659,14 @@ export async function seed(): Promise<void> {
   await seedEstimaiCatalog();
   await seedRefundCatalog();
   await seedInventoryCatalog();
+  await seedCrmCatalog();
   await seedAdminRoleGrants();
   await seedAccountingRoleGrants();
   await seedRefundAdminRole();
   await seedRateAdminGrants();
   await seedSettingsAdminGrants();
   await seedInventoryGrants();
+  await seedCrmGrants();
   await ensureBootstrapAdmin();
 }
 
@@ -667,6 +746,7 @@ if (import.meta.main) {
         "Seeded system roles + suite app-access catalog + EstimAI catalog + refund catalog " +
           "+ admin app-access grants + accounting refund grants + refund-admin role + " +
           "rate admin grants + settings admin grants + inventory catalog + inventory grants " +
+          "+ CRM catalog + CRM grants " +
           "+ bootstrap admin",
       );
       process.exit(0);

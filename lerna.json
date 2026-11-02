@@ -8,10 +8,12 @@
     "notify-api",
     "refund-api",
     "inventory-api",
+    "crm-api",
     "shell",
     "estimai-ui",
     "refund-ui",
     "inventory-ui",
+    "crm-ui",
     "notify-ui",
     "admin-ui",
     "operai-ui"

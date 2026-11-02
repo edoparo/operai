@@ -25,6 +25,7 @@ import { invitationsRouter } from "./invitations/invitations.routes";
 import { jwksRouter } from "./jwks/jwks.routes";
 import { signinRouter } from "./signin/signin.routes";
 import { createServiceTokenRouter, signWithAuth } from "./system/serviceToken.routes";
+import { createUserContactRouter, jwksFromAuth } from "./system/userContact.routes";
 import { createSelfServiceTokenProvider } from "./system/selfServiceToken";
 import { setNotifyTokenProvider } from "./lib/notify";
 import { setupOpenAPI } from "./openapi/registry";
@@ -71,6 +72,7 @@ app.route("/", invitationsRouter);
 app.route("/", inviteRouter);
 const signServiceJwt = signWithAuth(auth);
 app.route("/", createServiceTokenRouter({ signJwt: signServiceJwt }));
+app.route("/", createUserContactRouter({ getJwks: jwksFromAuth(auth) }));
 // `auth`'s own notify credential (specs/016 T7, ADR-0048): invitation emails
 // authenticate with it. Injected here, not imported by lib/notify.ts, so that
 // module never depends on auth.config (see serviceToken.routes.ts).

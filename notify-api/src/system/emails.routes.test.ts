@@ -308,6 +308,28 @@ describe("POST /system/emails — validation failures → 400", () => {
     expect(res.status).toBe(400);
   });
 
+  it("400: `notification_notice` is not callable here (its address comes only from auth, specs/019)", async () => {
+    const app = buildApp();
+    const res = await app.request("/system/emails", {
+      method: "POST",
+      headers: {
+        ...(await authHeader()),
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        to: "someone@example.test",
+        template: "notification_notice",
+        data: {
+          title: "t",
+          body: "b",
+          originApp: "crm",
+          appBaseUrl: "https://operai.example.test",
+        },
+      }),
+    });
+    expect(res.status).toBe(400);
+  });
+
   it("400: missing data.inviteUrl", async () => {
     const app = buildApp();
     const body = validBody();

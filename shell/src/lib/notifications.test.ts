@@ -264,6 +264,22 @@ describe('raiseNotification', () => {
     expect(sent['originApp']).toBe('inventory')
   })
 
+  it("round-trips originApp 'crm' (specs/019 mirror of notify-api's ORIGIN_APPS)", async () => {
+    const result = await raiseNotification({
+      title: 'Estimate requested',
+      body: 'An estimate was requested.',
+      originApp: 'crm',
+      link: { href: '/crm/deals/d_1' },
+    })
+
+    expect(result.originApp).toBe('crm')
+    const raiseCalls = vi
+      .mocked(fetch)
+      .mock.calls.filter(([url]) => resolveUrl(url) === `${NOTIFY_URL}/notifications`)
+    const sent = JSON.parse(String((raiseCalls[0][1] as RequestInit).body)) as Record<string, unknown>
+    expect(sent['originApp']).toBe('crm')
+  })
+
   it('rejects when notify-api responds with a non-2xx status', async () => {
     vi.stubGlobal(
       'fetch',

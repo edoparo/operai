@@ -38,6 +38,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { render, screen, act, cleanup } from '@testing-library/react'
 import { EstimatorProvider, useEstimatorContext } from './EstimatorContext'
 import { computeRelease, pertCalc } from '../hooks/useEstimator'
+import { DEF_PARAMS } from '../lib/projects'
 import type { Activity, Parameters, Release } from '../types'
 
 // ---------------------------------------------------------------------------
@@ -150,6 +151,7 @@ function ContextConsumer() {
       <span data-testid="ctx-releases-count">{ctx.releases.length}</span>
       <span data-testid="ctx-save-status">{ctx.saveStatus}</span>
       <span data-testid="ctx-save-error">{ctx.saveError ?? ''}</span>
+      <span data-testid="ctx-params">{JSON.stringify(ctx.params)}</span>
       {releaseResult && (
         <>
           <span data-testid="ctx-elapsed">{releaseResult.el}</span>
@@ -188,6 +190,23 @@ afterEach(() => {
 // ---------------------------------------------------------------------------
 
 describe('(A) Load: EstimatorProvider initialised from API content', () => {
+  it('fills every parameter the stored document lacks with its default', () => {
+    render(
+      <EstimatorProvider
+        estimateId="est-001"
+        initialName="From the CRM"
+        initialAuthor=""
+        initialParams={{ aiGain: 0.5 } as unknown as Parameters}
+        initialReleases={[]}
+        initialActs={[]}
+      >
+        <ContextConsumer />
+      </EstimatorProvider>,
+    )
+
+    expect(JSON.parse(screen.getByTestId('ctx-params').textContent ?? '')).toEqual({ ...DEF_PARAMS, aiGain: 0.5 })
+  })
+
   it('renders the loaded name and author from the fixture', () => {
     render(
       <EstimatorProvider

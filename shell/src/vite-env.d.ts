@@ -15,4 +15,9 @@ interface ImportMetaEnv {
    * Vercel project; inventory-ui has no copy of its own (it asks the shell).
    */
   readonly VITE_INVENTORY_API_URL?: string
+  /**
+   * Public origin of crm-api (specs/017-crm), e.g. `https://crm-api.operai.welld.io`.
+   * Optional, like VITE_INVENTORY_API_URL: unset → not trusted, no Bearer JWT sent.
+   */
+  readonly VITE_CRM_API_URL?: string
 }

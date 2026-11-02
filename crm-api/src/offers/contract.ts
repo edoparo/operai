@@ -1,0 +1,133 @@
+/**
+ * The shapes shared by offer templates, the generate route and the contract
+ * renderer (specs/020). Pure types: no I/O, no Prisma.
+ *
+ * Money is integer minor units throughout; a percentage discount is basis
+ * points (1–10 000) and is turned into cents exactly once, at generation time
+ * (ADR-0025 posture). The renderer never computes money: it prints what the
+ * snapshot says.
+ */
+
+import type { Scope } from "./scope";
+
+export type OfferLanguage = "en" | "it";
+export type CostKind = "one_off" | "yearly" | "discount";
+
+/** One section of a template or an offer. `body` uses the markup of spec AC-1.6. */
+export interface OfferSection {
+  readonly heading: string;
+  readonly body: string;
+  /** Exactly one section per template/offer carries the cost table. */
+  readonly costs: boolean;
+}
+
+export interface CostColumns {
+  /** "Pos." — one-off and yearly lines numbered, discounts not. */
+  readonly position: boolean;
+  /** "<currency> / unità" and "Qt." columns. */
+  readonly unit: boolean;
+}
+
+/** A template's default cost line, before the draft resolves it. */
+export interface TemplateCostLine {
+  /** May contain placeholders, resolved in the draft. */
+  readonly description: string;
+  readonly kind: CostKind;
+  /**
+   * - `"deal"`: the deal amount;
+   * - `"perRelease"`: one line per estimate release, the deal amount split by
+   *   expected man-days, whole units, remainder on the last (D-13);
+   * - `{ cents }`: a fixed unit amount;
+   * - `{ percentBp }`: discounts only, a percentage of the one-off sum.
+   */
+  readonly amount: "deal" | "perRelease" | { readonly cents: number } | { readonly percentBp: number };
+  /** A whole number, or the estimate's total man-days rounded half up (D-14). */
+  readonly quantity: number | "manDays";
+}
+
+/** Everything a template holds besides its identity (spec domain language). */
+export interface OfferTemplateContent {
+  readonly name: string;
+  readonly language: OfferLanguage;
+  readonly salutation: string;
+  readonly opening: string;
+  readonly sections: readonly OfferSection[];
+  readonly costLines: readonly TemplateCostLine[];
+  readonly costColumns: CostColumns;
+  readonly showTotal: boolean;
+  /** "Il Cliente" above the signature lines, or null. */
+  readonly acceptanceLabel: string | null;
+  /** Annex A — effort detail on by default. */
+  readonly annex: boolean;
+}
+
+/** A cost line as the dialog sends it and the snapshot stores it. */
+export interface OfferCostLine {
+  readonly description: string;
+  readonly kind: CostKind;
+  /** Unit amount in cents; null only for a percentage discount. */
+  readonly unitCents: number | null;
+  /** Discounts only: basis points of the one-off sum; null otherwise. */
+  readonly percentBp: number | null;
+  readonly quantity: number;
+  /** Computed at generation: unit × quantity, or the rounded percentage. Always ≥ 0. */
+  readonly totalCents: number;
+}
+
+export interface OfferCosts {
+  readonly currency: "CHF" | "EUR";
+  readonly columns: CostColumns;
+  readonly showTotal: boolean;
+  readonly lines: readonly OfferCostLine[];
+  /** One-off lines minus discounts: the offer's stored price (D-6). */
+  readonly oneOffCents: number;
+  readonly yearlyCents: number;
+}
+
+export interface OfferAttachmentRef {
+  readonly id: string;
+  readonly fileName: string;
+  readonly sizeBytes: number;
+}
+
+/** The snapshot of a specs/020 offer. Older (018) snapshots have no `kind`. */
+export interface ContractSnapshot {
+  readonly kind: "contract";
+  readonly template: { readonly id: string; readonly name: string };
+  readonly language: OfferLanguage;
+  /** "0017/2026" or "0017/2026r1". */
+  readonly reference: string;
+  readonly issuedOn: string; // YYYY-MM-DD
+  readonly validUntil: string; // YYYY-MM-DD
+  readonly validityDays: number;
+  readonly place: string;
+  readonly issuer: {
+    readonly legalName: string;
+    readonly addressLines: readonly string[];
+    readonly vatNumber: string | null;
+    readonly iban: string | null;
+  };
+  readonly salutation: string;
+  /** First line printed bold (AC-1.2). */
+  readonly clientLines: readonly string[];
+  /** Names after "A.c.a.", 0–5. */
+  readonly contacts: readonly string[];
+  readonly opening: string;
+  readonly sections: readonly OfferSection[];
+  readonly costs: OfferCosts;
+  readonly acceptanceLabel: string | null;
+  /** The effort detail when Annex A is on, else null. */
+  readonly annex: Scope | null;
+  /** Deal PDFs appended after the contract, in order. */
+  readonly attachments: readonly OfferAttachmentRef[];
+  readonly aiAssisted: boolean;
+  readonly preparedBy: string | null;
+}
+
+/** What the renderer needs besides the snapshot. */
+export interface RenderInputs {
+  /** The entity's letterhead PDF, or null (AC-2.4). */
+  readonly letterhead: Uint8Array | null;
+  /** The bytes of `snapshot.attachments`, same order. */
+  readonly attachments: readonly Uint8Array[];
+}

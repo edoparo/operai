@@ -1,7 +1,7 @@
 # Operai
 
 Internal toolsuite by **wellD** (wellD.ch) for AI-assisted software consulting and
-back-office workflows. Five tools ship today, composed into one suite by a
+back-office workflows. Six tools ship today, composed into one suite by a
 Module Federation shell (ADR-0006):
 
 | Tool | Route | What it does |
@@ -10,15 +10,16 @@ Module Federation shell (ADR-0006):
 | **Refund** (Rimborsi) | `/refund` | Expense reimbursement — requests, review/decision, monthly batch payout |
 | **Admin** | `/admin` | Roles, departments, users, permissions, invitations, mileage rates |
 | **Inventory** | `/inventory` | Hardware register — assets, assignment to employees (confirmed by the employee), depreciation ledger, fiscal-year close, invoice files (specs/015) |
+| **CRM** | `/crm` | Companies, contacts, deals through a stage pipeline, activities and follow-up tasks (specs/017, ADR-0052) |
 
-Those four are the entries in `shell/src/lib/tools.ts` — access-gated remotes. The
+Those five are the entries in `shell/src/lib/tools.ts` — access-gated remotes. The
 notification center (`notify-ui`) is a fifth remote but **not** a `TOOLS` entry: it mounts at
 the shell-owned `/notify` route, reached from the header bell (ADR-0009). `inventory-ui` also
 exposes a second, UNGATED entry, `./MyDevices`, mounted at the shell-owned `/devices` route
 (any signed-in user sees their own devices; ADR-0045).
 
-Backed by five Bun services: `auth` (identity + authorization), `estimai-api`,
-`notify-api`, `refund-api`, `inventory-api`.
+Backed by six Bun services: `auth` (identity + authorization), `estimai-api`,
+`notify-api`, `refund-api`, `inventory-api`, `crm-api`.
 
 **Tagline:** *AI tools built by craftspeople, for craftspeople.*
 
@@ -68,6 +69,8 @@ operai/
 ├── inventory-ui/        # Inventory tool — federated remote (port 5178): exposes ./App (gated, /inventory), ./MyDevices
 │                        # (ungated, /devices; ADR-0045) and ./version; calls inventory-api and auth's user directory
 │                        # through shell/session (no VITE_* of its own) (specs/015)
+├── crm-ui/              # CRM tool — federated remote (port 5179): exposes ./App (gated, /crm) and ./version; calls
+│                        # crm-api and auth's user directory through shell/session (specs/017, ADR-0052/0053)
 ├── operai-ui/           # @operai/ui — the DESIGN SYSTEM (ADR-0050): tokens/themes/fonts + component classes
 │                        # (src/styles/tokens.css, re-exported by shell/tokens.css), React components (src/components),
 │                        # Storybook (`mise run ui:storybook`), rules in docs/. NOT an app: never built or deployed;
@@ -102,7 +105,10 @@ operai/
 │                        # snapshotted (ADR-0046); invoice files in its own EU bucket; pushes to notify-api with a scoped
 │                        # service JWT (ADR-0044). scripts/import-legacy.ts = one-off register import (specs/015)
 │
-├── docs/adr/            # Architecture Decision Records (0001–0051; see ## Architecture decisions)
+├── crm-api/             # Bun + Hono + TypeScript backend (port 8084, DB `crm`) — companies, contacts, deals + pipeline,
+│                        # activities/tasks; authorization-enforcing (crm:access, entity-scoped deal:manage, contact:erase),
+│                        # optimistic concurrency via If-Match (specs/017, ADR-0052)
+├── docs/adr/            # Architecture Decision Records (0001–0053; see ## Architecture decisions)
 ├── docs/ui-inconsistencies.md  # UI/UX audit across the six frontends, with what each migration fixed
 ├── infra/               # Deploy/verify scripts + the cross-service env contract notes (README.md);
 │                        # provision-tool.sh creates/audits one tool's Railway service, Vercel project and DNS
@@ -114,21 +120,21 @@ operai/
 ├── lerna.json           # The package list Changesets reads — NOT a pnpm/Bun workspace (see ### Git)
 ├── mise.toml            # Node 24, corepack-managed pnpm; `mise run dev` / `db:migrate` / `changeset` /
 │                        # `release:version` / `release:tag` / `env:doctor`
-└── specs/               # Spec-driven workflow (001–015; 015 hardware-inventory is in progress; see below)
+└── specs/               # Spec-driven workflow (001–017; 015 hardware-inventory and 017 crm are in progress; see below)
 ```
 
 ---
 
 ## Tech stack
 
-### Frontends (shell, estimai-ui, refund-ui, admin-ui, notify-ui, inventory-ui)
-All six share one stack. Each is installed and deployed on its own (no npm workspace).
+### Frontends (shell, estimai-ui, refund-ui, admin-ui, notify-ui, inventory-ui, crm-ui)
+All seven share one stack. Each is installed and deployed on its own (no npm workspace).
 
 - **Runtime:** Node 24 via mise (pnpm via corepack, see `mise.toml`)
 - **Package manager:** pnpm
 - **Framework:** Vite 8 + React 19 (TypeScript)
 - **Composition:** Module Federation (`@module-federation/vite`) — the shell is the host, the
-  other five are remotes whose URLs resolve at runtime per-env, never build-baked (ADR-0006)
+  other six are remotes whose URLs resolve at runtime per-env, never build-baked (ADR-0006)
 - **Routing:** TanStack Router
 - **Auth/session:** better-auth client; in-memory JWT + `apiFetch` interceptor, owned by
   `shell/session` and reused by every remote (ADR-0001/0002)
@@ -168,8 +174,8 @@ degrades silently when the key is absent (ADR-0032).
 - **Errors:** Effect TS; RFC 7807 Problem JSON
 - **Secrets:** 1Password references via `.envrc` (direnv); see `auth/.env.example`
 
-### Resource backends (estimai-api, notify-api, refund-api, inventory-api)
-All four are implemented and share the `auth` service's shape (see ADR-0003 — one backend
+### Resource backends (estimai-api, notify-api, refund-api, inventory-api, crm-api)
+All five are implemented and share the `auth` service's shape (see ADR-0003 — one backend
 stack across the monorepo; it supersedes the earlier Kotlin/Spring intention).
 
 - **Runtime/framework:** Bun + Hono + `@hono/zod-openapi` (Scalar API reference)
@@ -194,13 +200,25 @@ Per-service specifics:
   only) from `auth POST /system/service-token` (`SERVICE_CLIENT_ID`/`SERVICE_CLIENT_SECRET`;
   ADR-0044/0049). Service tokens are signed by better-auth's rotating key published at
   `/auth/jwks`, not by `JWT_PRIVATE_KEY`.
+- `crm-api` — CRM (specs/017): authorization-enforcing (live `/authz/resolve`, fails closed) with
+  `crm:access` (read everything, edit companies/contacts/activities), entity-scoped `deal:manage`
+  (403 `out_of_scope`, not 404 — deals are readable, ADR-0052) and `contact:erase`; If-Match/ETag
+  on company, contact and deal writes; owner/assignee ids checked as CRM users against `auth`
+  (fail closed); money only with `deal:financials` (ADR-0054); estimates via estimai-api with
+  the caller's JWT, offers and attachments in its own EU bucket (`CRM_S3_*`, specs/018); offers are contracts
+  rendered from per-entity, editable templates on the entity's letterhead, numbered `NNNN/YYYY[rN]`,
+  with deal PDFs appendable as annexes (specs/020, ADR-0057);
+  pushes CRM notifications to notify-api as `system:crm-api`, with email notices for handovers
+  (specs/019, ADR-0056)
 - `notify-api` — notification persistence + ticket-authed SSE stream (ADR-0008); pinned to a
   single production instance (in-process ticket store + fan-out); email channel via Resend;
   internal `/system/emails` (scope `emails.send`) + `/system/notifications` (scope
   `notifications.push`), each behind a scoped service JWT verified via `auth`'s JWKS with
   `aud=SERVICE_AUDIENCE`; every caller authenticates as itself (`auth` mints its own in
-  process, ADR-0048; `refund-api`, `estimai-api` and `inventory-api` via the service-token
-  endpoint) and the shared `X-Internal-Token` is refused (ADR-0049)
+  process, ADR-0048; `refund-api`, `estimai-api`, `inventory-api` and `crm-api` via the
+  service-token endpoint) and the shared `X-Internal-Token` is refused (ADR-0049); for an
+  `email: true` notification it looks the recipient's address up in `auth`
+  (`POST /system/users/contact`, as `system:notify-api`, ADR-0056)
 - `refund-api` — the suite's authorization-enforcing resource server: resolves the caller's
   live permissions from `auth GET /authz/resolve` on every request, fails **closed** on an
   `auth` outage (ADR-0014); entity-scoped ABAC (ADR-0015); EU-region S3-compatible object
@@ -304,7 +322,7 @@ Money is always integer minor units (cents); mileage rates are integer micros (A
 | `access` | The `(appId, "access")` permission that gates whether a tool appears at all |
 | `perm_epoch` | JWT claim bumped on any grant change — forces live permission re-resolution (ADR-0007) |
 | `invitation` | A pending email-matched grant; `expired` is derived on read, never written (ADR-0013) |
-| `service client` | A non-user principal in `auth`'s `SERVICE_CLIENTS` that mints a scoped service JWT (`sub="system:<id>"`, `aud=SERVICE_AUDIENCE`, scope `notifications.push` and/or `emails.send`); today `refund-api`, `estimai-api` and `inventory-api` (`auth` mints its own in process and may not be a client, ADR-0048/0049) |
+| `service client` | A non-user principal in `auth`'s `SERVICE_CLIENTS` that mints a scoped service JWT (`sub="system:<id>"`, `aud=SERVICE_AUDIENCE`, scope `notifications.push`, `emails.send` and/or `users.contact`); today `refund-api`, `estimai-api`, `inventory-api`, `crm-api` and `notify-api` (`auth` mints its own in process and may not be a client, ADR-0048/0049) |
 
 ### Inventory (specs/015)
 
@@ -475,12 +493,12 @@ mise run dev:preview  # frontends build+preview — no HMR, mirrors the deploy s
 ```
 
 Ports: auth `3001`, estimai-api `8080`, notify-api `8081`, refund-api `8082`, inventory-api `8083`,
-shell `5173`, estimai-ui `5174`, refund-ui `5175`, notify-ui `5176`, admin-ui `5177`,
-inventory-ui `5178`; MinIO S3 `9000`
+crm-api `8084`, shell `5173`, estimai-ui `5174`, refund-ui `5175`, notify-ui `5176`, admin-ui `5177`,
+inventory-ui `5178`, crm-ui `5179`; MinIO S3 `9000`
 (console `9001`). Frontend ports are pinned in each app's `vite.config.ts`.
 
 Prereqs (once): direnv installed and each `.envrc` allowed (`direnv allow auth`, likewise
-`estimai-api`, `notify-api`, `refund-api`, `inventory-api`, `admin-ui`), 1Password CLI signed in, and
+`estimai-api`, `notify-api`, `refund-api`, `inventory-api`, `crm-api`, `admin-ui`), 1Password CLI signed in, and
 `ENABLE_TEST_AUTH=true` for a seeded local session. `mise run dev` invokes `direnv exec`
 explicitly — direnv's shell hook does not fire for a non-interactive mise task.
 
@@ -491,7 +509,7 @@ docker compose up -d postgres minio minio-createbucket   # PostgreSQL 17 :5435, 
 
 ### A single frontend
 ```bash
-cd estimai-ui        # or shell / refund-ui / admin-ui / notify-ui / inventory-ui
+cd estimai-ui        # or shell / refund-ui / admin-ui / notify-ui / inventory-ui / crm-ui
 pnpm install
 pnpm dev              # standalone; a remote still needs the shell for an authed session
 pnpm lint             # ESLint
@@ -526,7 +544,7 @@ bun run typecheck     # tsc --noEmit
 bun test
 ```
 
-### Resource backends (estimai-api :8080, notify-api :8081, refund-api :8082, inventory-api :8083)
+### Resource backends (estimai-api :8080, notify-api :8081, refund-api :8082, inventory-api :8083, crm-api :8084)
 Same shape as the auth service (Bun + Hono + Prisma, own logical DB, own `.envrc`):
 `bun install`, `bun run db:migrate`, `bun run dev`. See **### Resource backends** under
 Tech stack for what each one is; `REFUND_S3_*` / `INVENTORY_S3_*` point at local MinIO in dev
@@ -558,7 +576,7 @@ mise run changeset:check   # local parity with CI — did this branch's app-code
 
 ## Operai suite — future tools
 
-Shipped today: **EstimAI**, **Rimborsi** (refund), **Admin**, **Notify** — see the table at
+Shipped today: **EstimAI**, **Rimborsi** (refund), **Admin**, **Notify**, **Inventory**, **CRM** — see the table at
 the top. Still on the roadmap, not yet built:
 
 | Tool | Purpose |
@@ -652,3 +670,9 @@ These defaults are optimized for AI coding agents (and humans) working on apps t
 - [0049] Every notify-api caller authenticates as itself and the shared token is retired — `auth`, `refund-api`, `estimai-api` and `inventory-api` use scoped 5-minute service JWTs, one scope per capability (`notifications.push`, `emails.send`; estimai-api and inventory-api push only, auth email only, refund-api both), push origin bound per client, one notify-api middleware guards both `/system` routes and logs `caller=<sub>`; retirement is THREE pushes (notify-api and auth accept the new mechanism → callers switch, verified from the caller log → a person deletes the variable from notify-api, the point of no return, undone by restoring it → legacy code, env-doctor, infra and docs removed), because one push redeploys every Railway service in no fixed order; **supersedes the shared-token parts of ADR-0011, ADR-0017 and ADR-0040** and completes ADR-0044's named follow-up; rejected: one scope for both capabilities, a single push, a caller-side fallback to the shared token (keeps it alive, hides a misconfigured client), and per-template binding of the email scope (deferred; trigger: a client that should send only some templates) (see docs/adr/0049-all-notify-callers-scoped-credentials-shared-token-retired.md)
 - [0050] The design system becomes a shared React library, `@operai/ui` in `operai-ui/`, that every frontend compiles FROM SOURCE via a Vite alias + `resolve.dedupe: ['react','react-dom']` + tsconfig `paths` (no build, no publish, no workspace, one React under the MF singleton); `tokens.css` moves into it and `shell/src/styles/tokens.css` becomes a one-line `@import` so `shell/tokens.css` keeps working; components render only library classes (no utilities, no inline colours) and take all copy as props; apps keep thin adapters that bind copy and e2e test ids; adoption is app by app (refund-ui first); rejected: pnpm `link:`/`file:` (second or missing React on Vercel, stale snapshot), a workspace (breaks per-app installs), exposing components via Module Federation (untyped runtime coupling), a private registry (publish step, credentials) (see docs/adr/0050-shared-ui-library-consumed-as-source.md)
 - [0051] One styling dialect in every frontend: tokens are CSS custom properties defined once in `operai-ui/src/styles/tokens.css`, mapped by Tailwind v4 `@theme inline` (utilities read `var(--x)`, one definition per token, default palette removed), reaching elements ONLY as token utilities (`text-soft`, `bg-org/10`) or library component classes; inline `style` only for runtime values; enforced by `operai-ui/eslint/design-tokens.ts` in every app (no `var(--` in TS, no colour in `style`, no arbitrary colour classes); remotes' standalone `index.css` import the library tokens instead of copies (supersedes the ADR-0006 addendum's sync-the-copy rule); the inline-`var()` dialect of refund/admin/notify/inventory rested on a premise the ADR-0006 single-sheet addendum had already removed; rejected: inline vars everywhere (no variants), CSS Modules / zero-runtime CSS-in-JS (second toolchain), runtime CSS-in-JS, per-remote prefixed Tailwind sheets (the federation-pure escape hatch — trigger: a remote deploying from another repo or cadence) (see docs/adr/0051-one-styling-dialect-token-utilities.md)
+- [0052] The CRM is a sixth tool (`crm-api` + `crm-ui`) whose reads are open to every `crm:access` holder — a client relationship is team knowledge — while deal writes need entity-scoped `deal:manage` and erasing a contact needs `contact:erase`; a deal write outside the caller's scope is a 403 `out_of_scope`, NOT a 404, because the same caller can read the deal (ADR-0037's branch, deliberate contrast with refund/inventory's 404); company/contact/deal writes use ADR-0038's If-Match CAS; owners/assignees are auth ids resolved live (fail soft) and checked active on write (fail closed); rejected: entity-scoped reads, one permission for all, per-record ACLs, CRM tables in estimai-api (see docs/adr/0052-crm-tool-shape-and-authorization.md)
+- [0053] The user directory's second consumer: the `crm` catalog's `deal:manage` is added to `DIRECTORY_GATE_PERMISSIONS` (ADR-0047's escalation trigger) for the CRM owner/assignee pickers — deliberately NOT `crm:access` or `contact:erase`; endpoint shape/population/rate limit unchanged, crm-api keeps no copy; a non-holder's records default to themselves and the UI shows the owner read-only on 403 (see docs/adr/0053-user-directory-gate-widened-to-deal-manage.md)
+- [0054] CRM money is its own permission: the `crm` catalog's `deal:financials` (unconditioned; seeded to `admin` and `sales`, NOT to the new `crm-technical` role = `crm:access` only); crm-api OMITS — never zeroes — deal `amountCents`/`currency`/`notes` and pipeline `totals` for a caller without it, offers and entity profiles require it, an attachment is downloadable without it only by its uploader, `GET /scope` reports `financials`; `deal:manage` without `deal:financials` is unsupported (seed never creates it, every money route refuses it); rejected: UI-only hiding, a read-only technical role, per-deal visibility, entity-scoped financials (see docs/adr/0054-crm-financial-visibility-permission.md)
+- [0055] `auth POST /authz/app-access-check` also answers by `{ appId, userId }` (exactly one of email/userId; same caller gate, limiter, byte-identical negative and timing floor; probe `id = $1 AND deletedAt IS NULL`) and `GET /authz/users/directory` takes an optional `?appId=` narrowing to holders of `(appId,"access")` — `crm-api` knows only auth ids and the pickers must offer only people who can open the CRM; amends ADR-0035 and ADR-0047, same gate so the audience does not widen (see docs/adr/0055-app-access-check-by-user-id-and-directory-app-filter.md)
+- [0056] An email notice is addressed by user id: a caller sets `email: true` on notify-api's `POST /system/notifications` (and must hold `emails.send` as well as `notifications.push`), and notify-api resolves the active user's address at send time from a new auth endpoint `POST /system/users/contact` (one user per call, service JWT with the new scope `users.contact` held only by `system:notify-api`, rate-limited, logs no id or address) — no copy kept, a deactivated user gets nothing, the generic English `notification_notice` template is built from the notification itself and is unreachable through `/system/emails`; best effort with `emailStatus` sent/failed/skipped, the in-app row always stands; rejected: crm-api looking addresses up itself (a technician lacks `deal:manage`, every tool would repeat it), granting `users.contact` to crm-api, a synced address copy in notify-api, a batch lookup (see docs/adr/0056-notify-api-resolves-email-notice-address-from-auth.md)
+- [0057] crm-api reads its own bucket's object bytes to build an offer — the bounded-read rule of ADR-0043, second caller: the deal PDFs a user appends as annexes (≤ 5, total `sizeBytes` ≤ 20 MiB checked from the DB BEFORE any `getObject`) and the entity's letterhead PDF (≤ 5 MiB, key must match `letterheads/<entity>/<uuid>.pdf` before it is read or deleted); proxying a requested file stays forbidden (ADR-0016) and downloads stay presigned GETs; an unreadable or non-PDF file fails the WHOLE generation with 422 `attachment_unreadable` naming it (no placeholder, the rolled-back transaction keeps the offer number); escalation trigger — a third service reading bytes, a file the user did not choose, or > 25 MiB per request (see docs/adr/0057-crm-api-reads-attachment-bytes-for-offer-annexes.md)

@@ -1,0 +1,58 @@
+/** The Settings tab: letterhead and standard terms per entity (specs/018 O2). */
+const en = {
+  heading: 'Settings',
+  description: 'The letterhead and standard terms printed on offers, one profile per wellD entity you manage deals for.',
+  loading: 'Loading the settings…',
+  emptyTitle: 'No entity to set up',
+  emptyBody: 'You do not manage deals for any entity.',
+  profile: (entity: string) => `${entity} profile`,
+  notSet: 'Not set up yet. Offers for this entity cannot be generated until it is.',
+  fields: {
+    legalName: 'Legal name',
+    address: 'Address',
+    addressHint: 'One line per row, up to 5 lines.',
+    vat: 'VAT number',
+    iban: 'IBAN',
+    termsEn: 'Standard terms (English)',
+    termsIt: 'Standard terms (Italian)',
+    termsHint: 'Printed when an offer is generated without its own terms.',
+    placeOfIssue: 'Place of issue',
+    placeOfIssueHint: 'Printed beside the date of an offer. Leave empty for the default, Lugano.',
+  },
+  addressTooMany: 'Use at most 5 address lines.',
+  addressLineTooLong: 'Each address line is at most 200 characters.',
+  save: 'Save profile',
+  saving: 'Saving…',
+  saved: (entity: string) => `${entity} profile saved.`,
+  updated: (date: string) => `Last saved ${date}`,
+}
+
+const it: typeof en = {
+  heading: 'Impostazioni',
+  description: "L'intestazione e le condizioni standard stampate sulle offerte, un profilo per ogni società wellD di cui gestisci le opportunità.",
+  loading: 'Caricamento delle impostazioni…',
+  emptyTitle: 'Nessuna società da configurare',
+  emptyBody: 'Non gestisci opportunità per nessuna società.',
+  profile: (entity: string) => `Profilo ${entity}`,
+  notSet: 'Non ancora configurato. Finché non lo è, non si possono generare offerte per questa società.',
+  fields: {
+    legalName: 'Ragione sociale',
+    address: 'Indirizzo',
+    addressHint: 'Una riga per volta, al massimo 5 righe.',
+    vat: 'Partita IVA',
+    iban: 'IBAN',
+    termsEn: 'Condizioni standard (inglese)',
+    termsIt: 'Condizioni standard (italiano)',
+    termsHint: "Stampate quando un'offerta viene generata senza condizioni proprie.",
+    placeOfIssue: 'Luogo di emissione',
+    placeOfIssueHint: "Stampato accanto alla data dell'offerta. Lascia vuoto per il valore predefinito, Lugano.",
+  },
+  addressTooMany: 'Usa al massimo 5 righe di indirizzo.',
+  addressLineTooLong: 'Ogni riga di indirizzo può avere al massimo 200 caratteri.',
+  save: 'Salva profilo',
+  saving: 'Salvataggio…',
+  saved: (entity: string) => `Profilo ${entity} salvato.`,
+  updated: (date: string) => `Ultimo salvataggio ${date}`,
+}
+
+export const settings = { en, it }

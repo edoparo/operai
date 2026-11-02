@@ -31,9 +31,9 @@ One-time setup:
    own `.envrc`. `mise run dev` loads these with `direnv exec` (it runs non-interactively,
    so direnv's shell hook doesn't fire on its own). So: install **direnv**, run
    `direnv allow .`, `direnv allow auth`, `direnv allow estimai-api`, `direnv allow notify-api`,
-   `direnv allow refund-api`, `direnv allow inventory-api` and `direnv allow admin-ui`, and set up
+   `direnv allow refund-api`, `direnv allow inventory-api`, `direnv allow crm-api` and `direnv allow admin-ui`, and set up
    the 1Password service account described in
-   [1Password for local development](#1password-for-local-development). All five backends require `AUTH_AUDIENCE` (the same suite-wide value, e.g. `operai-suite`) — the
+   [1Password for local development](#1password-for-local-development). All six backends require `AUTH_AUDIENCE` (the same suite-wide value, e.g. `operai-suite`) — the
    `aud` claim `auth` stamps and the resource servers verify (ADR-0010); a mismatch rejects
    every token with 401. Set `ENABLE_TEST_AUTH=true` for a seeded local session, and provide
    real `GOOGLE_CLIENT_ID`/`GOOGLE_CLIENT_SECRET` (with
@@ -44,7 +44,7 @@ One-time setup:
    each `.env.example`. `refund-api`'s object-storage vars (`REFUND_S3_*`) are documented
    but not yet enforced (no bucket provisioned yet); `inventory-api` also needs its own
    `INVENTORY_S3_*` bucket.
-2. **Apply DB migrations** (brings up Postgres, then migrates all five backends):
+2. **Apply DB migrations** (brings up Postgres, then migrates all six backends):
 
    ```bash
    mise run db:migrate
@@ -53,7 +53,7 @@ One-time setup:
 Then run the whole suite with **one command**:
 
 ```bash
-mise run dev            # HMR — Postgres + MinIO + auth + estimai-api + notify-api + refund-api + inventory-api + all 5 frontends
+mise run dev            # HMR — Postgres + MinIO + auth + estimai-api + notify-api + refund-api + inventory-api + crm-api + all 6 frontends
 ```
 
 The three `dev*` tasks open the shell (http://localhost:5173) in your browser as soon as it
@@ -71,12 +71,14 @@ open **http://localhost:5173**.
 | notify-ui (remote) | 5176 | notification center `/notify` (specs/005) |
 | admin-ui (remote) | 5177 | roles & permissions admin (specs/004) |
 | inventory-ui (remote) | 5178 | hardware inventory + `/devices` (specs/015) |
+| crm-ui (remote) | 5179 | CRM (specs/017) |
 | auth | 3001 | Bun + Hono |
 | estimai-api | 8080 | Bun + Hono |
 | notify-api | 8081 | Bun + Hono — SSE push (specs/005) |
 | refund-api | 8082 | Bun + Hono — authz-enforcing resource server (specs/007) |
 | inventory-api | 8083 | Bun + Hono — authz-enforcing resource server (specs/015) |
-| Postgres | 5435 | `docker compose` (databases: `auth`, `estimai`, `notify`, `refund`, `inventory`) |
+| crm-api | 8084 | Bun + Hono — authz-enforcing resource server (specs/017) |
+| Postgres | 5435 | `docker compose` (databases: `auth`, `estimai`, `notify`, `refund`, `inventory`, `crm`) |
 | MinIO | 9000 / 9001 | `docker compose` — local S3 + console for receipts and invoices |
 
 Other `mise` tasks:
@@ -84,7 +86,7 @@ Other `mise` tasks:
 ```bash
 mise run dev:web        # frontends only (HMR) — when backends run elsewhere
 mise run dev:preview    # full stack, but frontends build+preview (no HMR; mirrors deploy)
-mise run db:migrate     # apply auth + estimai-api + notify-api + refund-api + inventory-api migrations
+mise run db:migrate     # apply auth + estimai-api + notify-api + refund-api + inventory-api + crm-api migrations
 ```
 
 One-off, production only: the legacy Excel asset register is loaded by
@@ -139,7 +141,7 @@ to the `OperAILocal` vault.
 3. Allow the files and check that none is missing a variable. Nothing should ask for Touch ID:
 
    ```bash
-   for d in . auth estimai-api notify-api refund-api inventory-api admin-ui; do direnv allow "$d"; done
+   for d in . auth estimai-api notify-api refund-api inventory-api crm-api admin-ui; do direnv allow "$d"; done
    OP_SERVICE_ACCOUNT_TOKEN="$(security find-generic-password -a "$USER" -s op-sa-operai-local -w)" \
      op item list --vault OperAILocal --format json | jq length   # the items the service account can see
    mise run env:doctor -- --env local

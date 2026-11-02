@@ -21,8 +21,8 @@
  */
 
 // shared-copy:begin serviceToken
-// Byte-identical in inventory-api, refund-api and estimai-api; checked by
-// scripts/check-shared-copies.ts (mise run shared:check). Edit all three together.
+// Byte-identical in inventory-api, refund-api, estimai-api, crm-api and notify-api;
+// checked by scripts/check-shared-copies.ts (mise run shared:check). Edit every copy together.
 import { env } from "./env";
 
 /** Refetch this long before the token's own expiry. */

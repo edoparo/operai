@@ -25,7 +25,7 @@ function* walk(dir: string): Generator<string> {
 }
 
 describe("the retired shared notify token is absent from every service's src/", () => {
-  test("the manifest forbids it on all five backends", () => {
+  test("the manifest forbids it on every backend", () => {
     const entry = FORBIDDEN_VARS.find((v) => v.name === RETIRED);
     expect(entry).toBeDefined();
     expect([...entry!.services].sort()).toEqual([...BACKENDS].sort());

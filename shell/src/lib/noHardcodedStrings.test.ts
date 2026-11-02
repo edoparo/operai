@@ -101,6 +101,7 @@ const TECHNICAL = new Set([
   'refund',
   'admin',
   'inventory',
+  'crm',
   'notify',
   'settings',
   'sun',
@@ -128,6 +129,8 @@ const TECHNICAL = new Set([
   '/admin/$',
   '/inventory',
   '/inventory/$',
+  '/crm',
+  '/crm/$',
   '/operai.svg',
   // The product name, the same in every language.
   'Operai',

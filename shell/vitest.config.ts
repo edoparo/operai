@@ -51,6 +51,9 @@ export default defineConfig({
       'inventory/version': fileURLToPath(
         new URL('./src/federation/__stubs__/inventoryVersion.ts', import.meta.url),
       ),
+      // specs/017-crm: the crm remote's tool entry and version.
+      'crm/App': fileURLToPath(new URL('./src/federation/__stubs__/crmApp.tsx', import.meta.url)),
+      'crm/version': fileURLToPath(new URL('./src/federation/__stubs__/crmVersion.ts', import.meta.url)),
     },
   },
   test: {
