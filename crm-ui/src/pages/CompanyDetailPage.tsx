@@ -135,6 +135,11 @@ export default function CompanyDetailPage() {
         {stale && <StaleWriteBanner onReload={reload} />}
         {saved && <Saved message={saved} onDismiss={() => setSaved(null)} />}
         {current.archived && <Banner tone="info">{t.detail.archivedNotice}</Banner>}
+        {current.statusLapsed && (
+          <Banner tone="info" data-testid="crm-company-lapsed">
+            {t.detail.lapsedNotice}
+          </Banner>
+        )}
         <Card title={t.detail.details}>
           <FactList
             testId="crm-company-facts"

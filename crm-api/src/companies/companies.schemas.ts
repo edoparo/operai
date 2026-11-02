@@ -78,7 +78,10 @@ export const ListCompaniesQuery = z.object({
 export const CompanySummarySchema = z.object({
   id: z.string(),
   name: z.string(),
+  /** The effective status: a lapsed customer reads `former` (specs/017 AC-1.9). */
   status: CompanyStatusSchema,
+  /** True when `status` is `former` only because the relationship lapsed. */
+  statusLapsed: z.boolean(),
   entity: EntitySchema,
   industry: z.string().nullable(),
   city: z.string().nullable(),

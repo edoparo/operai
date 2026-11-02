@@ -43,6 +43,8 @@ export type CompanySummary = {
   id: string
   name: string
   status: CompanyStatus
+  /** `status` is `former` because no deal was won in twelve months and none is open (specs/017 AC-1.9). */
+  statusLapsed: boolean
   entity: Entity
   industry: string | null
   city: string | null

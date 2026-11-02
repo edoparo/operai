@@ -26,6 +26,7 @@ import {
 import { requireCrmUsers } from "../lib/identities";
 import { loadPeople } from "../lib/people";
 import { ProblemError, notFound, validationHook } from "../lib/problem";
+import { effectiveStatus, isLapsed, lastWon, statusWhere } from "./status";
 import {
   CompanyPageSchema,
   CompanySchema,
@@ -41,33 +42,40 @@ const withCounts = {
       deals: { where: { stage: { in: [...OPEN_STAGES] } } },
     },
   },
+  ...lastWon,
 } satisfies Prisma.CompanyInclude;
 
 type CompanyRow = Prisma.CompanyGetPayload<{ include: typeof withCounts }>;
 
 async function toViews(c: HeaderSource, rows: readonly CompanyRow[]) {
   const { person } = await loadPeople(c, rows.map((row) => row.ownerUserId));
-  return rows.map((row) => ({
-    id: row.id,
-    name: row.name,
-    status: row.status,
-    entity: row.entity,
-    industry: row.industry,
-    city: row.city,
-    country: row.country,
-    owner: person(row.ownerUserId),
-    archived: row.archivedAt !== null,
-    contactCount: row._count.contacts,
-    openDealCount: row._count.deals,
-    updatedAt: row.updatedAt.toISOString(),
-    website: row.website,
-    legalName: row.legalName,
-    street: row.street,
-    postalCode: row.postalCode,
-    notes: row.notes,
-    version: row.version,
-    createdAt: row.createdAt.toISOString(),
-  }));
+  const now = new Date();
+  return rows.map((row) => {
+    const facts = { status: row.status, openDealCount: row._count.deals, lastWonAt: row.deals[0]?.closedAt ?? null };
+    return {
+      id: row.id,
+      name: row.name,
+      status: effectiveStatus(facts, now),
+      // True when `status` reads `former` because the relationship lapsed (specs/017 AC-1.9).
+      statusLapsed: isLapsed(facts, now),
+      entity: row.entity,
+      industry: row.industry,
+      city: row.city,
+      country: row.country,
+      owner: person(row.ownerUserId),
+      archived: row.archivedAt !== null,
+      contactCount: row._count.contacts,
+      openDealCount: row._count.deals,
+      updatedAt: row.updatedAt.toISOString(),
+      website: row.website,
+      legalName: row.legalName,
+      street: row.street,
+      postalCode: row.postalCode,
+      notes: row.notes,
+      version: row.version,
+      createdAt: row.createdAt.toISOString(),
+    };
+  });
 }
 
 async function toView(c: HeaderSource, row: CompanyRow) {
@@ -186,7 +194,8 @@ companiesRouter.openapi(listRoute, async (c) => {
   const { q, status, archived, ownerId, page, pageSize } = c.req.valid("query");
   const where: Prisma.CompanyWhereInput = {
     ...archivedWhere(archived),
-    ...(status ? { status } : {}),
+    // The filter matches the EFFECTIVE status, so a lapsed customer lists as former.
+    AND: status ? [statusWhere(status, new Date())] : [],
     ...(ownerId ? { ownerUserId: ownerId } : {}),
     ...(q?.trim() ? { name: { contains: q.trim(), mode: "insensitive" } } : {}),
   };

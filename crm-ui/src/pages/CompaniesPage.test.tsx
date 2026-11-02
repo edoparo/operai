@@ -184,4 +184,23 @@ describe('CompaniesPage', () => {
       postalCode: null,
     })
   })
+
+  it('a lapsed customer reads as former client, with the reason on its page (specs/017 AC-1.9)', async () => {
+    const lapsed = companySummary({ status: 'former', statusLapsed: true, openDealCount: 0 })
+    apiFetch.mockImplementation(
+      fakeApi({
+        'GET /companies/c1': () => ({
+          status: 200,
+          body: { ...lapsed, website: null, legalName: null, street: null, postalCode: null, notes: null, version: 3, createdAt: '2025-01-01T00:00:00.000Z' },
+        }),
+        'GET /contacts': () => ({ status: 200, body: page([]) }),
+        'GET /deals': () => ({ status: 200, body: page([]) }),
+      }),
+    )
+    window.history.pushState(null, '', '/companies/c1')
+    render(<RouterProvider router={createAppRouter()} />)
+    const notice = await screen.findByTestId('crm-company-lapsed')
+    expect(notice.textContent).toContain('no deal won in the last 12 months')
+    expect(screen.getByTestId('crm-company-page').textContent).toContain('Former client')
+  })
 })

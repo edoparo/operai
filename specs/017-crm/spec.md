@@ -76,6 +76,13 @@ with, so that anyone can see who a client is and who owns the relationship.
   the second save is refused and the person is asked to reload (ADR-0038 posture).
 - AC-1.7 The company page shows its details, its contacts, its deals and its activity
   timeline (newest first, paginated).
+- AC-1.8 When a deal moves to `won`, its company becomes `customer` if it was `prospect`
+  or `former` (a recorded change: the company's version goes up). A customer is untouched.
+- AC-1.9 A `customer` with at least one won deal, none won in the last 12 months and no
+  open deal reads as `former`, everywhere (the record, the list and the status filter),
+  with a notice on its page saying why. Derived on read, never written (ADR-0013); a new
+  open or won deal makes it a customer again. A customer that never won a deal keeps the
+  status set by hand. (O2, owner, 2026-11-02.)
 
 ### US-2 Contacts
 As a CRM user, I want to record the people we deal with, so that a colleague can reach
@@ -153,7 +160,9 @@ so that the history of a relationship is in one place.
 ## Open questions (for the product owner)
 
 - O1 Are the default win probabilities right for wellD? (fixed in code today, D-8)
-- O2 Should `former` be set automatically when a customer has had no won deal for N months?
+- ~~O2 Should `former` be set automatically when a customer has had no won deal for N months?~~
+  Resolved 2026-11-02 (owner): yes, after 12 months with no won and no open deal, derived on
+  read (AC-1.9); and winning a deal makes the company a customer (AC-1.8).
 - O3 Who besides admins should hold **erase contact** (a privacy officer role)?
 - O4 A task can be assigned to any active Operai user, including one without `crm:access`, who
   then cannot see it. Should the assignee be limited to CRM users? (D-26)

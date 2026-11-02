@@ -185,7 +185,7 @@ export default function CompanyFormDialog({
         >
           {(control) => <input {...control} value={draft.name} onChange={(event) => set('name', event.target.value)} />}
         </Field>
-        <Field label={t.status} required error={errors.status} testId="crm-company-form-status">
+        <Field label={t.status} hint={t.statusHint} required error={errors.status} testId="crm-company-form-status">
           {(control) => (
             <select
               {...control}

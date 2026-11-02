@@ -43,6 +43,7 @@ export const companySummary = (overrides: Record<string, unknown> = {}) => ({
   archived: false,
   contactCount: 2,
   openDealCount: 1,
+  statusLapsed: false,
   updatedAt: '2026-10-30T10:00:00.000Z',
   ...overrides,
 })

@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it } from "bun:test";
-import { call, forgetIdentities, identities, makeCompany, makeDeal, markEstimateReady, resetWorld } from "../test-support/world";
+import { call, db, forgetIdentities, identities, makeCompany, makeDeal, markEstimateReady, resetWorld } from "../test-support/world";
 
 beforeEach(resetWorld);
 
@@ -159,5 +159,49 @@ describe("companies (US-1)", () => {
   it("an unknown id is a 404", async () => {
     expect((await call("GET", "/companies/nope")).status).toBe(404);
     expect((await call("PATCH", "/companies/nope", { ifMatch: 1, body: { city: "X" } })).status).toBe(404);
+  });
+});
+
+describe("company status automations (specs/017 AC-1.8, AC-1.9)", () => {
+  async function winDeal(companyId: string) {
+    const deal = await makeDeal(companyId);
+    await markEstimateReady(deal.id);
+    const won = await call("POST", `/deals/${deal.id}/stage`, { ifMatch: 1, body: { stage: "won" } });
+    expect(won.status).toBe(200);
+    return deal;
+  }
+
+  it("winning a deal makes a prospect or a former client a customer, with version+1 (AC-1.8)", async () => {
+    for (const status of ["prospect", "former"]) {
+      const company = await makeCompany({ status });
+      await winDeal(company.id);
+      const read = await call("GET", `/companies/${company.id}`);
+      expect(read.json).toMatchObject({ status: "customer", statusLapsed: false, version: 2 });
+    }
+  });
+
+  it("winning a deal leaves a customer's record untouched", async () => {
+    const company = await makeCompany({ status: "customer" });
+    await winDeal(company.id);
+    expect((await call("GET", `/companies/${company.id}`)).json).toMatchObject({ status: "customer", version: 1 });
+  });
+
+  it("a customer with no win in twelve months and no open deal reads former, and lists as former (AC-1.9)", async () => {
+    const lapsed = await makeCompany({ status: "customer" });
+    const deal = await winDeal(lapsed.id);
+    await db.deal.update({ where: { id: deal.id }, data: { closedAt: new Date(Date.now() - 400 * 86_400_000) } });
+    const active = await makeCompany({ status: "customer" });
+    await winDeal(active.id);
+    const byHand = await makeCompany({ status: "customer" });
+
+    expect((await call("GET", `/companies/${lapsed.id}`)).json).toMatchObject({ status: "former", statusLapsed: true });
+    const former = await call("GET", "/companies?status=former");
+    expect(former.json.items.map((c: { id: string }) => c.id)).toEqual([lapsed.id]);
+    const customers = await call("GET", "/companies?status=customer");
+    expect(customers.json.items.map((c: { id: string }) => c.id).sort()).toEqual([active.id, byHand.id].sort());
+
+    // a new open deal makes it a customer again, with no write
+    await makeDeal(lapsed.id);
+    expect((await call("GET", `/companies/${lapsed.id}`)).json).toMatchObject({ status: "customer", statusLapsed: false });
   });
 });

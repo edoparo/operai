@@ -47,6 +47,7 @@ import {
   versionConflict,
   type HeaderSource,
 } from "../lib/http";
+import { PROMOTED_ON_WIN } from "../companies/status";
 import { requireCrmUsers } from "../lib/identities";
 import { MAX_NAME, announce, clip } from "../lib/notify";
 import { loadPeople } from "../lib/people";
@@ -565,6 +566,14 @@ dealsRouter.openapi(stageRoute, async (c) => {
     previousStage = current.stage;
     return stageTransition(stage, lostReason, new Date(), current);
   });
+  // specs/017 AC-1.8: winning a deal makes a prospect or former client a customer. Its own
+  // write, after the deal's CAS; idempotent, so a retry of the move cannot double it.
+  if (previousStage !== row.stage && row.stage === "won") {
+    await db.company.updateMany({
+      where: { id: row.companyId, status: { in: [...PROMOTED_ON_WIN] } },
+      data: { status: "customer", version: { increment: 1 }, updatedBy: c.get("userId") },
+    });
+  }
   // E8 — the owner hears how it ended (the actor is dropped).
   if (previousStage !== row.stage && (row.stage === "won" || row.stage === "lost")) {
     const won = row.stage === "won";
