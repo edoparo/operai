@@ -10,6 +10,8 @@ export type Currency = 'CHF' | 'EUR'
 export type CompanyStatus = 'prospect' | 'customer' | 'former'
 export type DealStage = 'lead' | 'qualified' | 'proposal' | 'negotiation' | 'won' | 'lost'
 export type ActivityType = 'note' | 'call' | 'meeting' | 'email' | 'task'
+/** Where a company or a lead came from (specs/017 US-7). */
+export type LeadSource = 'inbound' | 'outbound' | 'event' | 'referral' | 'other'
 
 export const ENTITIES: readonly Entity[] = ['welld_ch', 'welld_it']
 export const CURRENCIES: readonly Currency[] = ['CHF', 'EUR']
@@ -19,6 +21,10 @@ export const OPEN_STAGES: readonly DealStage[] = ['lead', 'qualified', 'proposal
 /** A new deal starts here only: proposal and later need a ready estimate (specs/018 AC-3.4). */
 export const NEW_DEAL_STAGES: readonly DealStage[] = ['lead', 'qualified']
 export const ACTIVITY_TYPES: readonly ActivityType[] = ['note', 'call', 'meeting', 'email', 'task']
+export const LEAD_SOURCES: readonly LeadSource[] = ['inbound', 'outbound', 'event', 'referral', 'other']
+/** The sources that take a detail: which event, who referred it, or what else. */
+export const hasSourceDetail = (source: LeadSource | null | ''): source is 'event' | 'referral' | 'other' =>
+  source === 'event' || source === 'referral' || source === 'other'
 
 export const isOpenStage = (stage: DealStage): boolean => OPEN_STAGES.includes(stage)
 
@@ -53,6 +59,9 @@ export type CompanySummary = {
   archived: boolean
   contactCount: number
   openDealCount: number
+  /** specs/017 US-7. Absent from an older server. */
+  source?: LeadSource | null
+  sourceDetail?: string | null
   updatedAt: string
 }
 
@@ -92,6 +101,9 @@ export type DealSummary = {
   amountCents?: number | null
   currency?: Currency
   entity: Entity
+  /** specs/017 US-7. Absent from an older server. */
+  source?: LeadSource | null
+  sourceDetail?: string | null
   expectedCloseDate: string | null
   owner: PersonRef
   closedAt: string | null

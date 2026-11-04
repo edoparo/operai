@@ -182,6 +182,8 @@ describe('CompaniesPage', () => {
       legalName: null,
       street: null,
       postalCode: null,
+      source: null,
+      sourceDetail: null,
     })
   })
 

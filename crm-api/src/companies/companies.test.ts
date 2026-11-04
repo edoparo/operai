@@ -205,3 +205,21 @@ describe("company status automations (specs/017 AC-1.8, AC-1.9)", () => {
     expect((await call("GET", `/companies/${lapsed.id}`)).json).toMatchObject({ status: "customer", statusLapsed: false });
   });
 });
+
+describe("where it came from (specs/017 US-7)", () => {
+  it("a company keeps its source and detail; clearing the source clears the detail", async () => {
+    const created = await call("POST", "/companies", {
+      body: { name: "Avanzato", status: "prospect", entity: "welld_ch", source: "event", sourceDetail: "Swiss Digital Day 2026" },
+    });
+    expect(created.json).toMatchObject({ source: "event", sourceDetail: "Swiss Digital Day 2026" });
+    const listed = await call("GET", "/companies");
+    expect(listed.json.items[0]).toMatchObject({ source: "event", sourceDetail: "Swiss Digital Day 2026" });
+    const cleared = await call("PATCH", `/companies/${created.json.id}`, { ifMatch: 1, body: { source: null } });
+    expect(cleared.json).toMatchObject({ source: null, sourceDetail: null });
+    const bad = await call("POST", "/companies", { body: { name: "X", status: "prospect", entity: "welld_ch", source: "cold_call" } });
+    expect(bad.json).toMatchObject({ status: 422, field: "source" });
+    const plain = await makeCompany();
+    expect(plain).toMatchObject({ source: null, sourceDetail: null });
+  });
+});
+

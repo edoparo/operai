@@ -7,7 +7,7 @@ import { errorMessage, fieldErrorOf } from '../lib/errors'
 import { centsToInput } from '../lib/money'
 import { personName } from '../lib/people'
 import { CURRENCIES, NEW_DEAL_STAGES } from '../lib/types'
-import type { CompanyRef, Currency, Deal, DealStage, Entity } from '../lib/types'
+import type { CompanyRef, Currency, Deal, DealStage, Entity, LeadSource } from '../lib/types'
 import { first, hasErrors, maxLength, optional, required } from '../lib/validate'
 import type { Errors } from '../lib/validate'
 import { useCrmCapabilities } from '../hooks/scopeContext'
@@ -16,8 +16,20 @@ import CompanyPicker from './CompanyPicker'
 import type { CompanyChoice } from './CompanyPicker'
 import PersonPicker from './PersonPicker'
 import type { PersonChoice } from './PersonPicker'
+import SourceFields from './SourceFields'
+import { MAX_SOURCE_DETAIL, sourceInput } from '../lib/source'
 
-type FieldName = 'companyId' | 'title' | 'amount' | 'currency' | 'stage' | 'entity' | 'expected' | 'owner' | 'notes'
+type FieldName =
+  | 'companyId'
+  | 'title'
+  | 'amount'
+  | 'currency'
+  | 'stage'
+  | 'entity'
+  | 'expected'
+  | 'owner'
+  | 'notes'
+  | 'sourceDetail'
 
 type Draft = {
   title: string
@@ -27,6 +39,8 @@ type Draft = {
   entity: Entity | ''
   expected: string
   notes: string
+  source: LeadSource | ''
+  sourceDetail: string
 }
 
 const SERVER_FIELDS: Record<string, FieldName> = {
@@ -39,6 +53,7 @@ const SERVER_FIELDS: Record<string, FieldName> = {
   expectedCloseDate: 'expected',
   ownerUserId: 'owner',
   notes: 'notes',
+  sourceDetail: 'sourceDetail',
 }
 
 const CODE_FIELDS: Record<string, FieldName> = {
@@ -66,7 +81,7 @@ export default function DealFormDialog({
   onStale,
 }: {
   deal?: Deal
-  company?: CompanyRef & { entity?: Entity }
+  company?: CompanyRef & { entity?: Entity; source?: LeadSource | null; sourceDetail?: string | null }
   onSaved: (deal: Deal) => void
   onCancel: () => void
   onStale: () => void
@@ -86,6 +101,9 @@ export default function DealFormDialog({
     entity: deal?.entity ?? defaultEntity(company?.entity),
     expected: deal?.expectedCloseDate ?? '',
     notes: deal?.notes ?? '',
+    // A new lead starts from the company's source (specs/017 US-7); it can differ.
+    source: deal ? (deal.source ?? '') : (company?.source ?? ''),
+    sourceDetail: deal ? (deal.sourceDetail ?? '') : (company?.sourceDetail ?? ''),
   }))
   const [owner, setOwner] = useState<PersonChoice | null>(
     deal ? { id: deal.owner.id, label: personName(deal.owner) } : null,
@@ -100,6 +118,9 @@ export default function DealFormDialog({
   const chooseCompany = (next: CompanyChoice | null) => {
     setChosen(next)
     if (next?.entity && draft.entity === '') set('entity', defaultEntity(next.entity))
+    if (next?.source && draft.source === '') {
+      setDraft((current) => ({ ...current, source: next.source ?? '', sourceDetail: next.sourceDetail ?? '' }))
+    }
   }
 
   const submit = () => {
@@ -114,6 +135,7 @@ export default function DealFormDialog({
       currency: hideMoney || draft.currency !== '' ? undefined : strings.common.validation.required,
       entity: draft.entity === '' ? strings.common.validation.required : undefined,
       notes: maxLength(draft.notes, 10_000) ?? undefined,
+      sourceDetail: maxLength(draft.sourceDetail, MAX_SOURCE_DETAIL) ?? undefined,
     }
     setErrors(found)
     if (hasErrors(found)) {
@@ -124,6 +146,7 @@ export default function DealFormDialog({
       title: draft.title.trim(),
       ...(hideMoney ? {} : { amountCents, currency: draft.currency as Currency, notes: optional(draft.notes) }),
       entity: draft.entity as Entity,
+      ...sourceInput(draft.source, draft.sourceDetail),
       expectedCloseDate: draft.expected === '' ? null : draft.expected,
       ...(owner !== null && owner.id !== deal?.owner.id ? { ownerUserId: owner.id } : {}),
     }
@@ -272,6 +295,14 @@ export default function DealFormDialog({
             testId="crm-deal-form-owner"
           />
         )}
+        <SourceFields
+          source={draft.source}
+          detail={draft.sourceDetail}
+          onSource={(next) => set('source', next)}
+          onDetail={(next) => set('sourceDetail', next)}
+          detailError={errors.sourceDetail}
+          testIdPrefix="crm-deal-form"
+        />
         {!hideMoney && (
           <Field label={t.notes} error={errors.notes} testId="crm-deal-form-notes">
             {(control) => (

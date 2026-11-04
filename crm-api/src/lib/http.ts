@@ -38,6 +38,17 @@ export const skipTake = (page: number, pageSize: number) => ({
 /** `archived` filter: hidden by default, `true` only archived, `all` both. */
 export const ArchivedFilterSchema = z.enum(["false", "true", "all"]).default("false");
 
+/** Where a company or a lead came from (specs/017 US-7). */
+export const LEAD_SOURCES = ["inbound", "outbound", "event", "referral", "other"] as const;
+export const LeadSourceSchema = z.enum(LEAD_SOURCES);
+
+/** Clearing the source clears its detail too: a detail never outlives what it qualifies. */
+export function withSource<T extends { source?: string | null | undefined; sourceDetail?: string | null | undefined }>(
+  body: T,
+): T {
+  return body.source === null ? { ...body, sourceDetail: null } : body;
+}
+
 export const archivedWhere = (archived: "false" | "true" | "all") =>
   archived === "all" ? {} : archived === "true" ? { archivedAt: { not: null } } : { archivedAt: null };
 

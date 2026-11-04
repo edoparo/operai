@@ -17,6 +17,7 @@ import { nav } from './strings/nav'
 import { offers } from './strings/offers'
 import { people } from './strings/people'
 import { settings } from './strings/settings'
+import { source } from './strings/source'
 import { tasks } from './strings/tasks'
 import { templates } from './strings/templates'
 
@@ -34,6 +35,7 @@ export const en = {
   offers: offers.en,
   people: people.en,
   settings: settings.en,
+  source: source.en,
   tasks: tasks.en,
   templates: templates.en,
 }
@@ -52,6 +54,7 @@ export const it: typeof en = {
   offers: offers.it,
   people: people.it,
   settings: settings.it,
+  source: source.it,
   tasks: tasks.it,
   templates: templates.it,
 }

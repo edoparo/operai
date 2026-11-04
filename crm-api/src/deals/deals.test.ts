@@ -38,6 +38,21 @@ describe("deals (US-3)", () => {
     expect(negative.json.field).toBe("amountCents");
   });
 
+  it("a deal records where the lead came from; readable by everyone, the detail goes with the source (US-7)", async () => {
+    const company = await makeCompany({ entity: "welld_ch" });
+    const created = await call("POST", "/deals", {
+      as: "salesCh",
+      body: { companyId: company.id, title: "Referral lead", currency: "CHF", source: "referral", sourceDetail: "Mario Rossi, Cornèr" },
+    });
+    expect(created.json).toMatchObject({ source: "referral", sourceDetail: "Mario Rossi, Cornèr" });
+    // not money: a caller without deal:financials reads it too
+    expect((await call("GET", `/deals/${created.json.id}`, { as: "consultant" })).json).toMatchObject({ source: "referral" });
+    const changed = await call("PATCH", `/deals/${created.json.id}`, { as: "salesCh", ifMatch: 1, body: { source: "inbound" , sourceDetail: null } });
+    expect(changed.json).toMatchObject({ source: "inbound", sourceDetail: null });
+    const cleared = await call("PATCH", `/deals/${created.json.id}`, { as: "salesCh", ifMatch: 2, body: { source: null } });
+    expect(cleared.json.source).toBeNull();
+  });
+
   it("deal writes need deal:manage (403) and the deal's entity in scope (403 out_of_scope, D-5)", async () => {
     const ch = await makeCompany({ entity: "welld_ch" });
     const it_ = await makeCompany({ entity: "welld_it" });

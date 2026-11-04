@@ -84,6 +84,29 @@ const renderDeal = async (deal: Record<string, unknown>, scope: Scope, extra: Re
   await screen.findByRole('heading', { level: 2, name: 'Platform rebuild' })
 }
 
+const companySummaryFixture = {
+  id: 'c1',
+  name: 'Acme SA',
+  status: 'customer',
+  statusLapsed: false,
+  entity: 'welld_ch',
+  industry: null,
+  city: null,
+  country: null,
+  owner: ADA,
+  archived: false,
+  contactCount: 0,
+  openDealCount: 0,
+  updatedAt: '2026-10-30T10:00:00.000Z',
+  website: null,
+  legalName: null,
+  street: null,
+  postalCode: null,
+  notes: null,
+  version: 1,
+  createdAt: '2026-01-01T00:00:00.000Z',
+}
+
 const body = (init: RequestInit | undefined) => JSON.parse(String(init?.body)) as Record<string, unknown>
 
 beforeEach(() => {
@@ -369,6 +392,64 @@ describe('amount not known yet (specs/017 AC-3.2)', () => {
     fireEvent.click(within(dialog).getByTestId('crm-deal-form-submit'))
     await waitFor(() => expect(sent).not.toBeNull())
     expect(sent!.amountCents).toBeNull()
+  })
+})
+
+describe('where the lead came from (specs/017 US-7)', () => {
+  it('shows the source with its detail, and the detail field follows the source', async () => {
+    let sent: Record<string, unknown> | null = null
+    await renderDeal(dealFixture({ source: 'referral', sourceDetail: 'Mario Rossi' }), MANAGER, {
+      'PATCH /deals/d1': (_url, init) => {
+        sent = body(init)
+        return { status: 200, body: dealFixture({ source: 'inbound', sourceDetail: null, version: 5 }) }
+      },
+    })
+    expect(screen.getByTestId('crm-deal-facts').textContent).toContain('Referral · Mario Rossi')
+    fireEvent.click(screen.getByTestId('crm-deal-edit'))
+    const dialog = await screen.findByRole('dialog', { name: /Edit deal/ })
+    expect((within(dialog).getByLabelText(/^Referred by/) as HTMLInputElement).value).toBe('Mario Rossi')
+    fireEvent.change(within(dialog).getByLabelText(/^Source/), { target: { value: 'event' } })
+    expect(within(dialog).getByLabelText(/^Which event/)).not.toBeNull()
+    fireEvent.change(within(dialog).getByLabelText(/^Source/), { target: { value: 'inbound' } })
+    expect(within(dialog).queryByLabelText(/^Which event/)).toBeNull()
+    fireEvent.click(within(dialog).getByTestId('crm-deal-form-submit'))
+    await waitFor(() => expect(sent).not.toBeNull())
+    // a detail never travels without a source that takes one
+    expect(sent).toMatchObject({ source: 'inbound', sourceDetail: null })
+  })
+
+  it('a new deal starts from its company’s source', async () => {
+    let posted: Record<string, unknown> | null = null
+    apiFetch.mockImplementation(
+      fakeApi({
+        'GET /scope': () => ({ status: 200, body: { ...MANAGER, canErase: false } }),
+        'GET /companies/c1': () => ({
+          status: 200,
+          body: {
+            ...companySummaryFixture,
+            source: 'event',
+            sourceDetail: 'Swiss Digital Day 2026',
+          },
+        }),
+        'GET /contacts': () => ({ status: 200, body: page([]) }),
+        'GET /deals': () => ({ status: 200, body: page([]) }),
+        'GET /activities': () => ({ status: 200, body: page([]) }),
+        'POST /deals': (_url, init) => {
+          posted = body(init)
+          return { status: 201, body: dealFixture() }
+        },
+      }),
+    )
+    window.history.pushState(null, '', '/companies/c1')
+    render(<RouterProvider router={createAppRouter(undefined, CrmShell)} />)
+    fireEvent.click(await screen.findByTestId('crm-company-new-deal'))
+    const dialog = await screen.findByRole('dialog', { name: 'New deal' })
+    expect((within(dialog).getByLabelText(/^Source/) as HTMLSelectElement).value).toBe('event')
+    expect((within(dialog).getByLabelText(/^Which event/) as HTMLInputElement).value).toBe('Swiss Digital Day 2026')
+    fireEvent.change(within(dialog).getByLabelText(/^Title/), { target: { value: 'Data platform' } })
+    fireEvent.click(within(dialog).getByTestId('crm-deal-form-submit'))
+    await waitFor(() => expect(posted).not.toBeNull())
+    expect(posted).toMatchObject({ source: 'event', sourceDetail: 'Swiss Digital Day 2026' })
   })
 })
 

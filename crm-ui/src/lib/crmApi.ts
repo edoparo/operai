@@ -21,6 +21,7 @@ import type {
   DirectoryUser,
   Entity,
   EntityProfile,
+  LeadSource,
   Offer,
   OfferDraft,
   OfferSection,
@@ -63,6 +64,9 @@ export type CompanyInput = {
   legalName?: string | null
   street?: string | null
   postalCode?: string | null
+  /** specs/017 US-7. */
+  source?: LeadSource | null
+  sourceDetail?: string | null
   ownerUserId?: string
 }
 
@@ -124,6 +128,9 @@ export type DealInput = {
   expectedCloseDate?: string | null
   ownerUserId?: string
   notes?: string | null
+  /** specs/017 US-7. */
+  source?: LeadSource | null
+  sourceDetail?: string | null
 }
 
 export type DealUpdate = Partial<Omit<DealInput, 'companyId' | 'stage'>>

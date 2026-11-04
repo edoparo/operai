@@ -169,6 +169,19 @@ that nobody acts too early and the person waiting knows when to go ahead (owner,
   marking the estimate ready), the blocked task's assignee is notified in-app and by email,
   unless they did it themselves.
 
+### US-7 Where a company or a lead came from
+As a salesperson, I want to record how a company and each lead reached us, so that we know
+which channels bring work (owner, 2026-11-04).
+
+- AC-7.1 A company and a deal each have an optional **source**: direct inbound, direct
+  outbound, event, referral or other. For an event, a referral or other, an optional
+  **detail** (≤ 200 characters) names which event, who referred it, or what else; changing
+  to a source that takes no detail, or clearing the source, drops the detail.
+- AC-7.2 A new deal starts from its company's source and detail, and can change them. The
+  source is not money: every CRM user reads it, and anyone who may edit the record edits it.
+- AC-7.3 The company and deal pages show the source with its detail ("Event · Swiss
+  Digital Day 2026"), or "—" when it is not known.
+
 ## Non-goals (v1)
 
 - Email/calendar sync, inbox integration, attachments on activities.

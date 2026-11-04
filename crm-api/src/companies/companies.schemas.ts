@@ -2,6 +2,7 @@ import { z } from "@hono/zod-openapi";
 import {
   ArchivedFilterSchema,
   EntitySchema,
+  LeadSourceSchema,
   PersonRefSchema,
   optionalText,
   pageOf,
@@ -43,6 +44,9 @@ const editable = {
   street: optionalText(200),
   postalCode: optionalText(20),
   notes: optionalText(10_000),
+  /** How the relationship started, and which event or who referred it (US-7). */
+  source: LeadSourceSchema.nullable().optional(),
+  sourceDetail: optionalText(200),
   ownerUserId: z.string().min(1).max(64),
 };
 
@@ -63,6 +67,8 @@ export const UpdateCompanySchema = z
     street: editable.street,
     postalCode: editable.postalCode,
     notes: editable.notes,
+    source: editable.source,
+    sourceDetail: editable.sourceDetail,
     ownerUserId: editable.ownerUserId.optional(),
   })
   .strict();
@@ -90,6 +96,8 @@ export const CompanySummarySchema = z.object({
   archived: z.boolean(),
   contactCount: z.number().int(),
   openDealCount: z.number().int(),
+  source: LeadSourceSchema.nullable(),
+  sourceDetail: z.string().nullable(),
   updatedAt: z.string(),
 });
 

@@ -29,6 +29,15 @@ enum CompanyStatus {
   former
 }
 
+/// Where a company or a lead came from (specs/017 US-7).
+enum LeadSource {
+  inbound
+  outbound
+  event
+  referral
+  other
+}
+
 enum DealStage {
   lead
   qualified
@@ -66,6 +75,9 @@ model Company {
   street      String?
   postalCode  String?
   notes       String?
+  /// How the relationship started (US-7); `sourceDetail` names the event, the referrer or what else.
+  source       LeadSource?
+  sourceDetail String?
   ownerUserId String
   archivedAt  DateTime?
   /// Optimistic-concurrency counter (ADR-0038 posture, D-7).
@@ -123,6 +135,9 @@ model Deal {
   /// Set when the deal moves to won/lost, cleared when it is reopened.
   closedAt          DateTime?
   notes             String?
+  /// Where this lead came from (US-7); `sourceDetail` names the event, the referrer or what else.
+  source            LeadSource?
+  sourceDetail      String?
   version           Int       @default(1)
   createdBy         String
   updatedBy         String

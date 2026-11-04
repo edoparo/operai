@@ -30,6 +30,7 @@ import { useCurrentUserId } from '../hooks/useCurrentUserId'
 import { useResource } from '../hooks/useResource'
 import { isHttpUrl } from '../lib/validate'
 import { strings } from '../strings'
+import { sourceSummary } from '../lib/source'
 
 const SECTION_PAGE_SIZE = 100
 
@@ -146,6 +147,11 @@ export default function CompanyDetailPage() {
             items={[
               { id: 'entity', term: t.detail.entity, value: <EntityBadge entity={current.entity} /> },
               { id: 'owner', term: t.detail.owner, value: personName(current.owner) },
+              {
+                id: 'source',
+                term: strings.source.label,
+                value: sourceSummary(current.source, current.sourceDetail) ?? strings.common.none,
+              },
               { id: 'industry', term: t.detail.industry, value: current.industry ?? strings.common.none },
               { id: 'legalName', term: t.detail.legalName, value: current.legalName ?? strings.common.none },
               { id: 'address', term: t.detail.address, value: address || strings.common.none },
@@ -431,7 +437,13 @@ function CompanyDealsCard({ company }: { company: Company }) {
       </div>
       {adding && (
         <DealFormDialog
-          company={{ id: company.id, name: company.name, entity: company.entity }}
+          company={{
+            id: company.id,
+            name: company.name,
+            entity: company.entity,
+            source: company.source ?? null,
+            sourceDetail: company.sourceDetail ?? null,
+          }}
           onCancel={() => setAdding(false)}
           onStale={() => setAdding(false)}
           onSaved={(deal) => {

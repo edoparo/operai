@@ -13,6 +13,7 @@ import type { Prisma } from "../lib/generated/prisma/client";
 import {
   IdParams,
   definedOnly,
+  withSource,
   type HeaderSource,
   archivedWhere,
   assertVersion,
@@ -66,6 +67,8 @@ async function toViews(c: HeaderSource, rows: readonly CompanyRow[]) {
       archived: row.archivedAt !== null,
       contactCount: row._count.contacts,
       openDealCount: row._count.deals,
+      source: row.source,
+      sourceDetail: row.sourceDetail,
       updatedAt: row.updatedAt.toISOString(),
       website: row.website,
       legalName: row.legalName,
@@ -238,6 +241,8 @@ companiesRouter.openapi(createCompanyRoute, async (c) => {
         street: body.street ?? null,
         postalCode: body.postalCode ?? null,
         notes: body.notes ?? null,
+        source: body.source ?? null,
+        sourceDetail: body.source ? (body.sourceDetail ?? null) : null,
         ownerUserId,
         createdBy: userId,
         updatedBy: userId,
@@ -291,7 +296,7 @@ companiesRouter.openapi(updateRoute, async (c) => {
     await requireCrmUsers(c, [{ id: body.ownerUserId, field: "ownerUserId" }]);
   }
   if (body.name !== undefined) await assertNameFree(body.name, id);
-  const row = await casUpdate(c, id, definedOnly(body)).catch((error: unknown) =>
+  const row = await casUpdate(c, id, definedOnly(withSource(body))).catch((error: unknown) =>
     body.name !== undefined ? rethrowNameRace(error, body.name) : Promise.reject(error),
   );
   c.header("ETag", etag(row.version));

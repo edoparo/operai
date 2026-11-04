@@ -7,14 +7,29 @@ import type { CompanyInput } from '../lib/crmApi'
 import { errorMessage, fieldErrorOf } from '../lib/errors'
 import { personName } from '../lib/people'
 import { COMPANY_STATUSES, ENTITIES } from '../lib/types'
-import type { Company, CompanyStatus, Entity } from '../lib/types'
+import type { Company, CompanyStatus, Entity, LeadSource } from '../lib/types'
 import { country, first, hasErrors, maxLength, optional, required, url } from '../lib/validate'
 import type { Errors } from '../lib/validate'
 import { strings } from '../strings'
 import PersonPicker from './PersonPicker'
 import type { PersonChoice } from './PersonPicker'
+import SourceFields from './SourceFields'
+import { MAX_SOURCE_DETAIL, sourceInput } from '../lib/source'
 
-type FieldName = 'name' | 'status' | 'entity' | 'website' | 'industry' | 'city' | 'country' | 'notes' | 'owner' | 'legalName' | 'street' | 'postalCode'
+type FieldName =
+  | 'name'
+  | 'status'
+  | 'entity'
+  | 'website'
+  | 'industry'
+  | 'city'
+  | 'country'
+  | 'notes'
+  | 'owner'
+  | 'legalName'
+  | 'street'
+  | 'postalCode'
+  | 'sourceDetail'
 
 type Draft = {
   name: string
@@ -28,6 +43,8 @@ type Draft = {
   legalName: string
   street: string
   postalCode: string
+  source: LeadSource | ''
+  sourceDetail: string
 }
 
 const fromCompany = (company: Company | undefined): Draft => ({
@@ -42,6 +59,8 @@ const fromCompany = (company: Company | undefined): Draft => ({
   legalName: company?.legalName ?? '',
   street: company?.street ?? '',
   postalCode: company?.postalCode ?? '',
+  source: company?.source ?? '',
+  sourceDetail: company?.sourceDetail ?? '',
 })
 
 const validate = (draft: Draft): Errors<FieldName> => ({
@@ -56,6 +75,7 @@ const validate = (draft: Draft): Errors<FieldName> => ({
   legalName: maxLength(draft.legalName, 200) ?? undefined,
   street: maxLength(draft.street, 200) ?? undefined,
   postalCode: maxLength(draft.postalCode, 20) ?? undefined,
+  sourceDetail: maxLength(draft.sourceDetail, MAX_SOURCE_DETAIL) ?? undefined,
 })
 
 /**
@@ -114,6 +134,7 @@ export default function CompanyFormDialog({
       legalName: optional(draft.legalName),
       street: optional(draft.street),
       postalCode: optional(draft.postalCode),
+      ...sourceInput(draft.source, draft.sourceDetail),
       ...(owner !== null && owner.id !== company?.owner.id ? { ownerUserId: owner.id } : {}),
     }
     setBusy(true)
@@ -217,6 +238,14 @@ export default function CompanyFormDialog({
             </select>
           )}
         </Field>
+        <SourceFields
+          source={draft.source}
+          detail={draft.sourceDetail}
+          onSource={(next) => set('source', next)}
+          onDetail={(next) => set('sourceDetail', next)}
+          detailError={errors.sourceDetail}
+          testIdPrefix="crm-company-form"
+        />
         {text('website', t.website, t.websiteHint)}
         {text('industry', t.industry)}
         {text('legalName', t.legalName, t.legalNameHint)}

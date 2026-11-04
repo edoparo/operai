@@ -29,6 +29,7 @@ import { useCrmCapabilities } from '../hooks/scopeContext'
 import { useCurrentUserId } from '../hooks/useCurrentUserId'
 import { useResource } from '../hooks/useResource'
 import { strings } from '../strings'
+import { sourceSummary } from '../lib/source'
 
 const BackLink = () => (
   <Link to="/pipeline" className="link" data-testid="crm-deal-back">
@@ -176,6 +177,11 @@ export default function DealDetailPage() {
                 value: current.expectedCloseDate ? formatDate(current.expectedCloseDate) : strings.common.none,
               },
               { id: 'owner', term: t.owner, value: personName(current.owner, currentUserId) },
+              {
+                id: 'source',
+                term: strings.source.label,
+                value: sourceSummary(current.source, current.sourceDetail) ?? strings.common.none,
+              },
               ...(current.closedAt
                 ? [{ id: 'closed', term: t.closedAt, value: formatDateTime(current.closedAt) }]
                 : []),

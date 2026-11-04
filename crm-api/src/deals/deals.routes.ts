@@ -29,6 +29,7 @@ import type { Prisma } from "../lib/generated/prisma/client";
 import {
   DateOnlySchema,
   EntitySchema,
+  LeadSourceSchema,
   IdParams,
   PersonRefSchema,
   assertVersion,
@@ -46,6 +47,7 @@ import {
   toDateOnly,
   versionConflict,
   type HeaderSource,
+  withSource,
 } from "../lib/http";
 import { PROMOTED_ON_WIN } from "../companies/status";
 import { requireCrmUsers } from "../lib/identities";
@@ -81,6 +83,9 @@ const CreateDealSchema = z
     expectedCloseDate: DateOnlySchema.nullable().optional(),
     ownerUserId: z.string().min(1).max(64).optional(),
     notes: optionalText(10_000),
+    // US-7: where the lead came from; the detail names the event, the referrer or what else.
+    source: LeadSourceSchema.nullable().optional(),
+    sourceDetail: optionalText(200),
   })
   .strict();
 
@@ -93,6 +98,8 @@ const UpdateDealSchema = z
     expectedCloseDate: DateOnlySchema.nullable().optional(),
     ownerUserId: z.string().min(1).max(64).optional(),
     notes: optionalText(10_000),
+    source: LeadSourceSchema.nullable().optional(),
+    sourceDetail: optionalText(200),
   })
   .strict();
 
@@ -123,6 +130,8 @@ const DealSummarySchema = z.object({
   amountCents: z.number().int().nullable().optional(),
   currency: CurrencySchema.optional(),
   entity: EntitySchema,
+  source: LeadSourceSchema.nullable(),
+  sourceDetail: z.string().nullable(),
   expectedCloseDate: z.string().nullable(),
   owner: PersonRefSchema,
   closedAt: z.string().nullable(),
@@ -222,6 +231,8 @@ async function toViews(c: ViewSource, rows: readonly DealRow[]) {
         ? { amountCents: row.amountCents === null ? null : Number(row.amountCents), currency: row.currency }
         : {}),
       entity: row.entity,
+      source: row.source,
+      sourceDetail: row.sourceDetail,
       expectedCloseDate: toDateOnly(row.expectedCloseDate),
       owner: person(row.ownerUserId),
       closedAt: row.closedAt?.toISOString() ?? null,
@@ -476,6 +487,8 @@ dealsRouter.openapi(createDealRoute, async (c) => {
       stage,
       entity,
       expectedCloseDate: fromDateOnly(body.expectedCloseDate) ?? null,
+      source: body.source ?? null,
+      sourceDetail: body.source ? (body.sourceDetail ?? null) : null,
       ownerUserId,
       notes: body.notes ?? null,
       createdBy: userId,
@@ -540,7 +553,7 @@ dealsRouter.openapi(updateRoute, async (c) => {
   if (body.ownerUserId !== undefined && body.ownerUserId !== c.get("userId")) {
     await requireCrmUsers(c, [{ id: body.ownerUserId, field: "ownerUserId" }]);
   }
-  const { amountCents, expectedCloseDate, ...rest } = body;
+  const { amountCents, expectedCloseDate, ...rest } = withSource(body);
   let previousOwner: string | null = null;
   const row = await casUpdate(c, id, (current) => {
     previousOwner = current.ownerUserId;

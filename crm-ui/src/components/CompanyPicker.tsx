@@ -2,10 +2,17 @@ import { useEffect, useId, useState } from 'react'
 import { Combobox, Field } from '@operai/ui'
 import type { ComboboxOption } from '@operai/ui'
 import { listCompanies } from '../lib/crmApi'
-import type { CompanySummary, Entity } from '../lib/types'
+import type { CompanySummary, Entity, LeadSource } from '../lib/types'
 import { strings } from '../strings'
 
-export type CompanyChoice = { id: string; name: string; entity?: Entity }
+/** `source`: the company's own (specs/017 US-7), which a new deal starts from. */
+export type CompanyChoice = {
+  id: string
+  name: string
+  entity?: Entity
+  source?: LeadSource | null
+  sourceDetail?: string | null
+}
 
 type Results = { q: string; ok: true; items: CompanySummary[] } | { q: string; ok: false }
 
@@ -93,7 +100,13 @@ export default function CompanyPicker({
             const company = items.find((item) => item.id === option.id)
             setText(option.label)
             setOpen(false)
-            onChange({ id: option.id, name: option.label, ...(company ? { entity: company.entity } : {}) })
+            onChange({
+              id: option.id,
+              name: option.label,
+              ...(company
+                ? { entity: company.entity, source: company.source ?? null, sourceDetail: company.sourceDetail ?? null }
+                : {}),
+            })
           }}
           isOpen={open}
           onOpenChange={setOpen}
