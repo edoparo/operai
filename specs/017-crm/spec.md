@@ -194,6 +194,18 @@ Example: "Meeting at the client tomorrow, with Paro".
   tasks assigned to them and those they take part in.
 - AC-8.3 A colleague added as a participant by someone else is notified in-app (no email).
 
+### US-9 Sorting and filtering the lists
+As a CRM user, I want to sort the companies and contacts lists and filter companies by
+owner, so that I find what I look for in a list of more than a hundred (owner, 2026-11-04).
+
+- AC-9.1 Companies sort by name, status, entity, industry or city; contacts by name,
+  company, job title or email; either way, with empty values last. The order is the
+  server's, so it holds across pages, and changing it returns to the first page. Owner
+  and counts are not sortable (owner names live in auth).
+- AC-9.2 Companies filter by owner: anyone, "mine", or one of the people who own a
+  company (the list every CRM user can already read, ADR-0042), alongside the existing
+  name search, status and "show archived".
+
 ## Non-goals (v1)
 
 - Email/calendar sync, inbox integration, attachments on activities.

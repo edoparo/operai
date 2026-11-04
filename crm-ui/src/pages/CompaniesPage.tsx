@@ -1,11 +1,12 @@
 import { useCallback, useId, useState } from 'react'
 import { Link, useNavigate } from '@tanstack/react-router'
 import { Button, Card, DataTable, Field, PageHeader, Pagination, StatePanel } from '@operai/ui'
-import type { DataTableColumn } from '@operai/ui'
+import type { DataTableColumn, DataTableSort } from '@operai/ui'
 import { ArchivedBadge, CompanyStatusBadge, EntityBadge } from '../components/Badges'
 import CompanyFormDialog from '../components/CompanyFormDialog'
 import { LoadFailure, Loading } from '../components/LoadState'
-import { listCompanies } from '../lib/crmApi'
+import { listCompanies, listCompanyOwners } from '../lib/crmApi'
+import type { CompanySort } from '../lib/crmApi'
 import { personName } from '../lib/people'
 import { COMPANY_STATUSES } from '../lib/types'
 import type { CompanyStatus, CompanySummary } from '../lib/types'
@@ -15,10 +16,13 @@ import { strings } from '../strings'
 
 const PAGE_SIZE = 25
 
+/** The table columns the server sorts by (US-9); owner and counts are not sortable. */
+const SORTABLE: readonly CompanySort[] = ['name', 'status', 'entity', 'industry', 'city']
+
 /**
- * CompaniesPage — the shared companies list (US-1, AC-1.1/1.2): filters in a
- * Card (name search, status, show archived), a DataTable sorted by the server
- * by name, offset Pagination. "New company" opens CompanyFormDialog; a created
+ * CompaniesPage — the shared companies list (US-1, AC-1.1/1.2, US-9): filters
+ * in a Card (name search, status, owner, show archived), a DataTable sorted by
+ * the server on the column the person picks (name first), offset Pagination. "New company" opens CompanyFormDialog; a created
  * company opens on its own page (the destination confirms it).
  */
 export default function CompaniesPage() {
@@ -28,22 +32,37 @@ export default function CompaniesPage() {
   const currentUserId = useCurrentUserId()
   const [q, setQ] = useState('')
   const [status, setStatus] = useState<CompanyStatus | ''>('')
+  const [ownerId, setOwnerId] = useState('')
+  const [sort, setSort] = useState<DataTableSort>({ columnId: 'name', direction: 'asc' })
   const [showArchived, setShowArchived] = useState(false)
   const [page, setPage] = useState(1)
   const [creating, setCreating] = useState(false)
 
-  const filtered = q.trim() !== '' || status !== '' || showArchived
+  const filtered = q.trim() !== '' || status !== '' || ownerId !== '' || showArchived
   const load = useCallback(
     (signal: AbortSignal) =>
       listCompanies(
-        { q: q.trim(), status, archived: showArchived ? 'all' : 'false', page, pageSize: PAGE_SIZE },
+        {
+          q: q.trim(),
+          status,
+          ...(ownerId ? { ownerId } : {}),
+          archived: showArchived ? 'all' : 'false',
+          sort: sort.columnId as CompanySort,
+          order: sort.direction,
+          page,
+          pageSize: PAGE_SIZE,
+        },
         { signal },
       ),
-    [q, status, showArchived, page],
+    [q, status, ownerId, showArchived, sort, page],
   )
   const companies = useResource(load)
+  const loadOwners = useCallback((signal: AbortSignal) => listCompanyOwners({ signal }), [])
+  // The owner filter's choices; if they fail to load, the filter offers "Mine" only.
+  const owners = useResource(loadOwners)
+  const otherOwners = (owners.data?.items ?? []).filter((person) => person.id !== currentUserId)
 
-  const columns: DataTableColumn<CompanySummary>[] = [
+  const baseColumns: DataTableColumn<CompanySummary>[] = [
     {
       id: 'name',
       header: t.columns.name,
@@ -69,6 +88,9 @@ export default function CompaniesPage() {
     { id: 'contacts', header: t.columns.contacts, numeric: true, render: (company) => company.contactCount },
     { id: 'openDeals', header: t.columns.openDeals, numeric: true, render: (company) => company.openDealCount },
   ]
+  const columns = baseColumns.map((column) =>
+    (SORTABLE as readonly string[]).includes(column.id) ? { ...column, sortable: true } : column,
+  )
 
   let content
   if (companies.status === 'loading') content = <Loading label={t.list.loading} />
@@ -88,6 +110,11 @@ export default function CompaniesPage() {
           rows={companies.data!.items}
           getRowKey={(company) => company.id}
           interactiveRows
+          sort={sort}
+          onSortChange={(next) => {
+            setSort(next)
+            setPage(1)
+          }}
           testId="crm-companies-table"
         />
         <Pagination
@@ -123,7 +150,7 @@ export default function CompaniesPage() {
       />
       <div className="flex flex-col gap-4">
         <Card title={t.list.filters}>
-          <div className="grid grid-cols-1 items-start gap-3 sm:grid-cols-3">
+          <div className="grid grid-cols-1 items-start gap-3 sm:grid-cols-2 lg:grid-cols-4">
             <Field label={strings.common.search} hint={t.list.searchHint} testId="crm-companies-search">
               {(control) => (
                 <input
@@ -151,6 +178,26 @@ export default function CompaniesPage() {
                   {COMPANY_STATUSES.map((option) => (
                     <option key={option} value={option}>
                       {strings.badges.companyStatus[option]}
+                    </option>
+                  ))}
+                </select>
+              )}
+            </Field>
+            <Field label={t.list.owner} testId="crm-companies-owner">
+              {(control) => (
+                <select
+                  {...control}
+                  value={ownerId}
+                  onChange={(event) => {
+                    setOwnerId(event.target.value)
+                    setPage(1)
+                  }}
+                >
+                  <option value="">{strings.common.any}</option>
+                  {currentUserId && <option value={currentUserId}>{t.list.mine}</option>}
+                  {otherOwners.map((person) => (
+                    <option key={person.id} value={person.id}>
+                      {personName(person)}
                     </option>
                   ))}
                 </select>

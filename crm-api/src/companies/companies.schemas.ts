@@ -8,6 +8,7 @@ import {
   pageOf,
   pageQuery,
   requiredText,
+  sortQuery,
 } from "../lib/http";
 
 export const COMPANY_STATUSES = ["prospect", "customer", "former"] as const;
@@ -73,11 +74,15 @@ export const UpdateCompanySchema = z
   })
   .strict();
 
+/** The columns a company list sorts by (US-9). Owner and counts are not: names live in auth. */
+export const COMPANY_SORTS = ["name", "status", "entity", "industry", "city", "updatedAt"] as const;
+
 export const ListCompaniesQuery = z.object({
   q: z.string().max(200).optional(),
   status: CompanyStatusSchema.optional(),
   archived: ArchivedFilterSchema,
   ownerId: z.string().max(64).optional(),
+  ...sortQuery(COMPANY_SORTS),
   ...pageQuery(),
 });
 

@@ -38,6 +38,15 @@ export const skipTake = (page: number, pageSize: number) => ({
 /** `archived` filter: hidden by default, `true` only archived, `all` both. */
 export const ArchivedFilterSchema = z.enum(["false", "true", "all"]).default("false");
 
+/**
+ * A list's order (specs/017 US-9): `sort` names one of `columns`, `order` its
+ * direction. Without `sort` the list keeps its default order.
+ */
+export const sortQuery = <const C extends readonly [string, ...string[]]>(columns: C) => ({
+  sort: z.enum(columns).optional(),
+  order: z.enum(["asc", "desc"]).default("asc"),
+});
+
 /** Where a company or a lead came from (specs/017 US-7). */
 export const LEAD_SOURCES = ["inbound", "outbound", "event", "referral", "other"] as const;
 export const LeadSourceSchema = z.enum(LEAD_SOURCES);

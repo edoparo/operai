@@ -10,7 +10,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { RouterProvider } from '@tanstack/react-router'
 import { createAppRouter } from '../router'
-import { companySummary, fakeApi, page } from '../test-support/fakeApi'
+import { ADA, companySummary, fakeApi, page } from '../test-support/fakeApi'
 import type { FakeHandler } from '../test-support/fakeApi'
 
 const { apiFetch } = vi.hoisted(() => ({ apiFetch: vi.fn() }))
@@ -248,4 +248,42 @@ describe('CompaniesPage', () => {
     expect(ifMatch).toBe('"7"')
     expect(sent).toMatchObject({ jobTitle: 'CIO' })
   })
+
+  it('a header sorts on the server, a second click reverses it, and the page goes back to 1 (US-9)', async () => {
+    await renderAt({ 'GET /companies': () => ({ status: 200, body: page([companySummary()], 60) }) })
+    const table = await screen.findByTestId('crm-companies-table')
+    expect(companiesUrls().at(-1)!.searchParams.get('sort')).toBe('name')
+    expect(within(table).getByRole('columnheader', { name: /Name/ }).getAttribute('aria-sort')).toBe('ascending')
+    // owner and counts are not sortable
+    expect(within(table).queryByTestId('crm-companies-table-sort-owner')).toBeNull()
+
+    fireEvent.click(screen.getByTestId('crm-companies-pagination-next'))
+    await waitFor(() => expect(companiesUrls().at(-1)!.searchParams.get('page')).toBe('2'))
+    fireEvent.click(await screen.findByTestId('crm-companies-table-sort-city'))
+    await waitFor(() => expect(companiesUrls().at(-1)!.searchParams.get('sort')).toBe('city'))
+    let url = companiesUrls().at(-1)!
+    expect(url.searchParams.get('order')).toBe('asc')
+    expect(url.searchParams.get('page')).toBe('1')
+    fireEvent.click(await screen.findByTestId('crm-companies-table-sort-city'))
+    await waitFor(() => expect(companiesUrls().at(-1)!.searchParams.get('order')).toBe('desc'))
+    url = companiesUrls().at(-1)!
+    expect(url.searchParams.get('sort')).toBe('city')
+  })
+
+  it('filters by owner: Mine, or one of the people who own a company (US-9)', async () => {
+    await renderAt({
+      'GET /companies': () => ({ status: 200, body: page([companySummary()]) }),
+      'GET /companies/owners': () => ({
+        status: 200,
+        body: { items: [ADA, { id: 'u-paro', name: 'Paolo Paro', status: 'active' }] },
+      }),
+    })
+    const select = (await screen.findByLabelText('Owner')) as HTMLSelectElement
+    await waitFor(() => expect(Array.from(select.options).map((o) => o.textContent)).toEqual(['Any', 'Mine', 'Paolo Paro']))
+    fireEvent.change(select, { target: { value: 'u-paro' } })
+    await waitFor(() => expect(companiesUrls().at(-1)!.searchParams.get('ownerId')).toBe('u-paro'))
+    fireEvent.change(select, { target: { value: 'u-ada' } })
+    await waitFor(() => expect(companiesUrls().at(-1)!.searchParams.get('ownerId')).toBe('u-ada'))
+  })
 })
+

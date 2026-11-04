@@ -223,3 +223,30 @@ describe("where it came from (specs/017 US-7)", () => {
   });
 });
 
+
+describe("sorting and the owner filter (specs/017 US-9)", () => {
+  const names = (res: { json: { items: { name: string }[] } }) => res.json.items.map((item) => item.name);
+
+  it("sorts by a column, either way, empty values last, then by name", async () => {
+    await makeCompany({ name: "Bravo", city: "Zurich", status: "customer" });
+    await makeCompany({ name: "Alpha", city: null, status: "prospect" });
+    await makeCompany({ name: "Charlie", city: "Bern", status: "customer" });
+    expect(names(await call("GET", "/companies"))).toEqual(["Alpha", "Bravo", "Charlie"]);
+    expect(names(await call("GET", "/companies?sort=name&order=desc"))).toEqual(["Charlie", "Bravo", "Alpha"]);
+    expect(names(await call("GET", "/companies?sort=city"))).toEqual(["Charlie", "Bravo", "Alpha"]);
+    expect(names(await call("GET", "/companies?sort=city&order=desc"))).toEqual(["Bravo", "Charlie", "Alpha"]);
+    expect(names(await call("GET", "/companies?sort=status"))).toEqual(["Alpha", "Bravo", "Charlie"]);
+    // pages follow the same order
+    expect(names(await call("GET", "/companies?sort=name&order=desc&pageSize=2&page=2"))).toEqual(["Alpha"]);
+    expect((await call("GET", "/companies?sort=owner")).json).toMatchObject({ status: 422, field: "sort" });
+  });
+
+  it("lists the owners by name, for the owner filter, and the filter keeps only theirs", async () => {
+    await makeCompany({ name: "Mine" }, "consultant");
+    await makeCompany({ name: "Theirs" }, "colleague");
+    await makeCompany({ name: "Theirs too" }, "colleague");
+    const owners = await call("GET", "/companies/owners", { as: "consultant" });
+    expect(owners.json.items.map((p: { id: string }) => p.id).sort()).toEqual(["user-colleague", "user-consultant"]);
+    expect(names(await call("GET", "/companies?ownerId=user-colleague"))).toEqual(["Theirs", "Theirs too"]);
+  });
+});

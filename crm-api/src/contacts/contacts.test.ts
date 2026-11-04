@@ -53,3 +53,21 @@ describe("contacts (US-2)", () => {
     expect((await call("DELETE", `/contacts/${contact.id}`)).status).toBe(404);
   });
 });
+
+describe("contact sorting (specs/017 US-9)", () => {
+  it("sorts by name, company, job title or email; empty values last", async () => {
+    const zeta = await makeCompany({ name: "Zeta" });
+    const acme = await makeCompany({ name: "Acme" });
+    const make = (body: Record<string, unknown>) => call("POST", "/contacts", { body });
+    await make({ firstName: "Anna", lastName: "Rossi", companyId: zeta.id, jobTitle: "CEO", email: "a@zeta.ch" });
+    await make({ firstName: "Bruno", lastName: "Bianchi", companyId: acme.id, email: "b@acme.ch" });
+    await make({ firstName: "Carla", lastName: "Verdi", companyId: acme.id, jobTitle: "CTO" });
+    const last = async (query: string) =>
+      (await call("GET", `/contacts${query}`)).json.items.map((c: { lastName: string }) => c.lastName);
+    expect(await last("")).toEqual(["Bianchi", "Rossi", "Verdi"]);
+    expect(await last("?sort=name&order=desc")).toEqual(["Verdi", "Rossi", "Bianchi"]);
+    expect(await last("?sort=company")).toEqual(["Bianchi", "Verdi", "Rossi"]);
+    expect(await last("?sort=jobTitle")).toEqual(["Rossi", "Verdi", "Bianchi"]);
+    expect(await last("?sort=email&order=desc")).toEqual(["Bianchi", "Rossi", "Verdi"]);
+  });
+});

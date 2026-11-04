@@ -24,6 +24,7 @@ import {
   optionalText,
   pageOf,
   pageQuery,
+  sortQuery,
   requireIfMatch,
   requiredText,
   skipTake,
@@ -69,12 +70,37 @@ export const UpdateContactSchema = z
   })
   .strict();
 
+/** The columns a contact list sorts by (US-9). */
+const CONTACT_SORTS = ["name", "company", "jobTitle", "email"] as const;
+
 const ListContactsQuery = z.object({
   q: z.string().max(200).optional(),
   companyId: z.string().max(64).optional(),
   archived: ArchivedFilterSchema,
+  ...sortQuery(CONTACT_SORTS),
   ...pageQuery(),
 });
+
+/** US-9: the asked column first (empty values last), then last and first name, then the id. */
+function contactOrder(
+  sort: (typeof CONTACT_SORTS)[number] | undefined,
+  order: "asc" | "desc",
+): Prisma.ContactOrderByWithRelationInput[] {
+  const byName = (direction: "asc" | "desc"): Prisma.ContactOrderByWithRelationInput[] => [
+    { lastName: direction },
+    { firstName: direction },
+    { id: direction },
+  ];
+  switch (sort) {
+    case undefined:
+    case "name":
+      return byName(order);
+    case "company":
+      return [{ company: { name: order } }, ...byName("asc")];
+    default:
+      return [{ [sort]: { sort: order, nulls: "last" } }, ...byName("asc")];
+  }
+}
 
 const CompanyRefSchema = z.object({ id: z.string(), name: z.string() });
 
@@ -210,7 +236,7 @@ export const contactsRouter = new OpenAPIHono<{ Variables: AuthzVariables }>({
 });
 
 contactsRouter.openapi(listRoute, async (c) => {
-  const { q, companyId, archived, page, pageSize } = c.req.valid("query");
+  const { q, companyId, archived, sort, order, page, pageSize } = c.req.valid("query");
   const term = q?.trim();
   const where: Prisma.ContactWhereInput = {
     ...archivedWhere(archived),
@@ -230,7 +256,7 @@ contactsRouter.openapi(listRoute, async (c) => {
     db.contact.findMany({
       where,
       include: withCompany,
-      orderBy: [{ lastName: "asc" }, { firstName: "asc" }, { id: "asc" }],
+      orderBy: contactOrder(sort, order),
       ...skipTake(page, pageSize),
     }),
   ]);

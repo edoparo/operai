@@ -45,12 +45,18 @@ export const getScope = (init?: Init) => getJson<Scope>('/scope', init)
 
 // ─── Companies ──────────────────────────────────────────────────────────────
 
-export type CompanyListQuery = PageQuery & {
-  q?: string
-  status?: CompanyStatus | ''
-  archived?: ArchivedFilter
-  ownerId?: string
-}
+/** A list's order (specs/017 US-9): the server sorts, so the order covers every page. */
+export type ListOrder<S extends string> = { sort?: S; order?: 'asc' | 'desc' }
+export type CompanySort = 'name' | 'status' | 'entity' | 'industry' | 'city'
+export type ContactSort = 'name' | 'company' | 'jobTitle' | 'email'
+
+export type CompanyListQuery = PageQuery &
+  ListOrder<CompanySort> & {
+    q?: string
+    status?: CompanyStatus | ''
+    archived?: ArchivedFilter
+    ownerId?: string
+  }
 
 export type CompanyInput = {
   name: string
@@ -72,6 +78,8 @@ export type CompanyInput = {
 
 export const listCompanies = (params: CompanyListQuery, init?: Init) =>
   getJson<Page<CompanySummary>>(`/companies${query(params)}`, init)
+/** The people who own a company, by name: the owner filter's choices (US-9). */
+export const listCompanyOwners = (init?: Init) => getJson<{ items: PersonRef[] }>('/companies/owners', init)
 export const getCompany = (id: string, init?: Init) => getJson<Company>(`/companies/${encodeURIComponent(id)}`, init)
 export const createCompany = (input: CompanyInput) => sendJson<Company>('/companies', 'POST', input)
 export const updateCompany = (id: string, version: number, input: Partial<CompanyInput>) =>
@@ -81,7 +89,8 @@ export const setCompanyArchived = (id: string, version: number, archived: boolea
 
 // ─── Contacts ───────────────────────────────────────────────────────────────
 
-export type ContactListQuery = PageQuery & { q?: string; companyId?: string; archived?: ArchivedFilter }
+export type ContactListQuery = PageQuery &
+  ListOrder<ContactSort> & { q?: string; companyId?: string; archived?: ArchivedFilter }
 
 export type ContactInput = {
   firstName: string

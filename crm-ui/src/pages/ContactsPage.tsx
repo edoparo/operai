@@ -1,11 +1,12 @@
 import { useCallback, useId, useState } from 'react'
 import { Link, useNavigate, useRouterState } from '@tanstack/react-router'
 import { Button, Card, DataTable, Field, PageHeader, Pagination, StatePanel } from '@operai/ui'
-import type { DataTableColumn } from '@operai/ui'
+import type { DataTableColumn, DataTableSort } from '@operai/ui'
 import { ArchivedBadge } from '../components/Badges'
 import ContactFormDialog from '../components/ContactFormDialog'
 import { LoadFailure, Loading, Saved } from '../components/LoadState'
 import { listContacts } from '../lib/crmApi'
+import type { ContactSort } from '../lib/crmApi'
 import { contactName } from '../lib/people'
 import type { ContactSummary } from '../lib/types'
 import { useResource } from '../hooks/useResource'
@@ -13,9 +14,13 @@ import { strings } from '../strings'
 
 const PAGE_SIZE = 25
 
+/** The table columns the server sorts by (US-9); the column ids are the sort names. */
+const SORTABLE: Readonly<Record<string, ContactSort>> = { name: 'name', company: 'company', job: 'jobTitle', email: 'email' }
+
 /**
- * ContactsPage — every contact (US-2, AC-2.2): search by name or email, show
- * archived, a DataTable sorted by the server (last, first name), Pagination.
+ * ContactsPage — every contact (US-2, AC-2.2, US-9): search by name or email,
+ * show archived, a DataTable sorted by the server on the column the person
+ * picks (last, first name first), Pagination.
  * "New contact" opens ContactFormDialog; the new contact opens on its page.
  */
 export default function ContactsPage() {
@@ -24,6 +29,7 @@ export default function ContactsPage() {
   const navigate = useNavigate()
   const [q, setQ] = useState('')
   const [showArchived, setShowArchived] = useState(false)
+  const [sort, setSort] = useState<DataTableSort>({ columnId: 'name', direction: 'asc' })
   const [page, setPage] = useState(1)
   const [creating, setCreating] = useState(false)
   // After an erasure the contact page navigates here with the person's name: the destination confirms it (INC-19).
@@ -35,8 +41,18 @@ export default function ContactsPage() {
   const filtered = q.trim() !== '' || showArchived
   const load = useCallback(
     (signal: AbortSignal) =>
-      listContacts({ q: q.trim(), archived: showArchived ? 'all' : 'false', page, pageSize: PAGE_SIZE }, { signal }),
-    [q, showArchived, page],
+      listContacts(
+        {
+          q: q.trim(),
+          archived: showArchived ? 'all' : 'false',
+          sort: SORTABLE[sort.columnId] ?? 'name',
+          order: sort.direction,
+          page,
+          pageSize: PAGE_SIZE,
+        },
+        { signal },
+      ),
+    [q, showArchived, sort, page],
   )
   const contacts = useResource(load)
 
@@ -85,10 +101,15 @@ export default function ContactsPage() {
       <div className="flex flex-col gap-3">
         <DataTable
           caption={t.list.caption}
-          columns={columns}
+          columns={columns.map((column) => (column.id in SORTABLE ? { ...column, sortable: true } : column))}
           rows={contacts.data!.items}
           getRowKey={(contact) => contact.id}
           interactiveRows
+          sort={sort}
+          onSortChange={(next) => {
+            setSort(next)
+            setPage(1)
+          }}
           testId="crm-contacts-table"
         />
         <Pagination

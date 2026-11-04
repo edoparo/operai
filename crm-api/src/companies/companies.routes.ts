@@ -12,6 +12,7 @@ import { db } from "../lib/db";
 import type { Prisma } from "../lib/generated/prisma/client";
 import {
   IdParams,
+  PersonRefSchema,
   definedOnly,
   withSource,
   type HeaderSource,
@@ -29,6 +30,7 @@ import { loadPeople } from "../lib/people";
 import { ProblemError, notFound, validationHook } from "../lib/problem";
 import { effectiveStatus, isLapsed, lastWon, statusWhere } from "./status";
 import {
+  COMPANY_SORTS,
   CompanyPageSchema,
   CompanySchema,
   CreateCompanySchema,
@@ -193,8 +195,51 @@ export const companiesRouter = new OpenAPIHono<{ Variables: AuthzVariables }>({
   defaultHook: validationHook,
 });
 
+/** US-9: the asked column first (empty values last), then the name, then the id: a stable order across pages. */
+function companyOrder(
+  sort: (typeof COMPANY_SORTS)[number] | undefined,
+  order: "asc" | "desc",
+): Prisma.CompanyOrderByWithRelationInput[] {
+  const tail: Prisma.CompanyOrderByWithRelationInput[] = [{ name: "asc" }, { id: "asc" }];
+  switch (sort) {
+    case undefined:
+      return tail;
+    case "name":
+      return [{ name: order }, { id: order }];
+    case "industry":
+    case "city":
+      return [{ [sort]: { sort: order, nulls: "last" } }, ...tail];
+    default:
+      return [{ [sort]: order }, ...tail];
+  }
+}
+
+const ownersRoute = createRoute({
+  method: "get",
+  path: "/companies/owners",
+  tags: ["Companies"],
+  summary: "The people who own a company, by name (the owner filter)",
+  middleware: authorized,
+  responses: {
+    200: { description: "Company owners", ...json(z.object({ items: z.array(PersonRefSchema) })) },
+    ...commonErrors,
+  },
+});
+
+// US-9: every crm:access holder already reads each company's owner, so this projection
+// gives them nothing new (ADR-0042's reconstructibility test) and needs no directory permission.
+companiesRouter.openapi(ownersRoute, async (c) => {
+  const rows = await db.company.findMany({ distinct: ["ownerUserId"], select: { ownerUserId: true }, take: 500 });
+  const ids = rows.map((row) => row.ownerUserId);
+  const { person } = await loadPeople(c, ids);
+  const items = ids
+    .map(person)
+    .sort((a, b) => (a.name ?? "\uffff").localeCompare(b.name ?? "\uffff") || a.id.localeCompare(b.id));
+  return c.json({ items }, 200);
+});
+
 companiesRouter.openapi(listRoute, async (c) => {
-  const { q, status, archived, ownerId, page, pageSize } = c.req.valid("query");
+  const { q, status, archived, ownerId, sort, order, page, pageSize } = c.req.valid("query");
   const where: Prisma.CompanyWhereInput = {
     ...archivedWhere(archived),
     // The filter matches the EFFECTIVE status, so a lapsed customer lists as former.
@@ -207,7 +252,7 @@ companiesRouter.openapi(listRoute, async (c) => {
     db.company.findMany({
       where,
       include: withCounts,
-      orderBy: [{ name: "asc" }, { id: "asc" }],
+      orderBy: companyOrder(sort, order),
       ...skipTake(page, pageSize),
     }),
   ]);
