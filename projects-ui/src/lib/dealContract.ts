@@ -27,14 +27,20 @@ export function dealContractOf(
     errors['endDate'] = strings.contracts.errors.endBeforeStart
   }
   const checked = termsInputOf(type, form.terms)
-  let terms = checked.input
-  if (estimateBacked && type === 'fixed_price') {
-    terms = Object.fromEntries(
-      Object.entries(terms).filter(([member]) => member !== 'estimatedManDays'),
-    ) as ContractTermsInput
-  }
+  const terms = estimateBacked && type === 'fixed_price' ? withoutEstimatedManDays(checked.input) : checked.input
   return {
     input: { startDate: form.startDate, ...(form.endDate !== '' ? { endDate: form.endDate } : {}), terms },
     errors: { ...errors, ...checked.errors },
   }
+}
+
+/**
+ * The terms of a contract the estimate backs, as a request may carry them: with no
+ * `estimatedManDays` member at all. Used when a contract is made from a deal and when one
+ * made from a deal is edited (`PATCH`): the server refuses the member either way (AC-3.1).
+ */
+export function withoutEstimatedManDays(terms: ContractTermsInput): ContractTermsInput {
+  return Object.fromEntries(
+    Object.entries(terms).filter(([member]) => member !== 'estimatedManDays'),
+  ) as ContractTermsInput
 }

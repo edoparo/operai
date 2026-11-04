@@ -146,6 +146,10 @@ export default function ProjectDetailPage() {
     getProject(id).then(resource.replace, () => resource.retry())
   }
   const company = companyFact(project)
+  // Deals behind this project that are no longer won in the CRM: read live, nothing is changed by it (AC-2.3).
+  const reopenedDeals = project.contracts
+    .filter((contract) => contract.deal?.won === false)
+    .map((contract) => contract.deal?.title ?? strings.contracts.card.dealUnavailable)
   const dateFacts = [
     {
       id: 'start',
@@ -203,6 +207,11 @@ export default function ProjectDetailPage() {
         )}
         {saved && <Saved message={saved} onDismiss={() => setSaved(null)} />}
         {!canManage && <Banner tone="info">{t.readOnly}</Banner>}
+        {reopenedDeals.length > 0 && (
+          <Banner tone="warning" title={t.dealNotWon.title} data-testid="project-deal-not-won">
+            {t.dealNotWon.body(reopenedDeals.join(', '))}
+          </Banner>
+        )}
         <Card
           title={t.details.title}
           action={

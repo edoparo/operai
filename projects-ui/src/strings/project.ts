@@ -5,6 +5,10 @@ const en = {
   notFoundTitle: 'Project not found',
   notFoundBody: 'It may have been removed, or the link is wrong.',
   readOnly: 'You can read this project but not change it.',
+  dealNotWon: {
+    title: 'The deal is no longer won',
+    body: (titles: string) => `Reopened in the CRM: ${titles}. The project and its contracts are unchanged.`,
+  },
   details: {
     title: 'Details',
     edit: 'Edit details',
@@ -96,6 +100,10 @@ const it: typeof en = {
   notFoundTitle: 'Progetto non trovato',
   notFoundBody: 'Potrebbe essere stato rimosso, oppure il link non è corretto.',
   readOnly: 'Puoi leggere questo progetto ma non modificarlo.',
+  dealNotWon: {
+    title: 'La trattativa non è più vinta',
+    body: (titles: string) => `Riaperta nel CRM: ${titles}. Il progetto e i suoi contratti restano invariati.`,
+  },
   details: {
     title: 'Dettagli',
     edit: 'Modifica dettagli',

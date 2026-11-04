@@ -1,8 +1,9 @@
 import { useId, useState } from 'react'
-import { Button, DataTable, DateInput, Field, FactList, FormDialog, formatDate, formatNumber } from '@operai/ui'
+import { Banner, Button, DataTable, DateInput, Field, FactList, FormDialog, formatDate, formatNumber } from '@operai/ui'
 import type { DataTableColumn, Fact } from '@operai/ui'
 import { isStaleWrite } from '../lib/api'
 import { errorMessage, fieldErrorOf } from '../lib/errors'
+import { crmDealHref, estimaiEstimateHref } from '../lib/links'
 import { updateContract } from '../lib/projectsApi'
 import type { Contract, HourPackage, Position, Project, Sla } from '../lib/types'
 import { strings } from '../strings'
@@ -146,8 +147,12 @@ function EndContractDialog({
 /**
  * ContractCard — one contract of a project (AC-2.1): its client, origin, dates,
  * Bexio order id and the terms of its type, as `GET /projects/:id` returned it (the
- * card makes no request of its own). A holder of manage projects edits it or ends it
- * by setting its end date (AC-2.10); there is no delete. Only a holder of the
+ * card makes no request of its own). A contract made from a deal also shows the deal
+ * (a link to the CRM), the estimate it rests on (a link into EstimAI) and, when the
+ * deal was reopened in the CRM, the notice "the deal is no longer won" — read live on
+ * every load, gone once the deal is won again, and the contract is never changed by it
+ * (specs/022 AC-2.3, AC-2.4, AC-3.2, AC-3.3). A holder of manage projects edits it or
+ * ends it by setting its end date (AC-2.10); there is no delete. Only a holder of the
  * Bexio-order capability edits the order id (AC-3.1), which bumps the contract's
  * version — the card keeps the one each write returns until the page's next read
  * brings it. A stale write is the page's to handle (`onStale`).
@@ -201,11 +206,43 @@ export default function ContractCard({
           </div>
         )}
       </div>
+      {contract.deal?.won === false && (
+        <Banner tone="warning" title={t.card.dealNotWon.title} data-testid="contract-deal-not-won">
+          {t.card.dealNotWon.body}
+        </Banner>
+      )}
       <FactList
         items={[
           { id: 'start', term: t.card.start, value: formatDate(contract.startDate) },
           { id: 'end', term: t.card.end, value: contract.endDate ? formatDate(contract.endDate) : t.card.openEnded },
           { id: 'origin', term: t.card.origin, value: t.card.origins[contract.origin] },
+          ...(contract.deal
+            ? [
+                {
+                  id: 'deal',
+                  term: t.card.deal,
+                  value: (
+                    <a href={crmDealHref(contract.deal.id)} className="link">
+                      {contract.deal.title ?? t.card.dealUnavailable}
+                    </a>
+                  ),
+                },
+              ]
+            : []),
+          // A person without access to it in EstimAI sees EstimAI's own unavailable state (AC-3.2).
+          ...(contract.estimate
+            ? [
+                {
+                  id: 'estimate',
+                  term: t.card.estimate,
+                  value: (
+                    <a href={estimaiEstimateHref(contract.estimate.id)} className="link">
+                      {t.card.openEstimate}
+                    </a>
+                  ),
+                },
+              ]
+            : []),
         ]}
       />
       <div className="flex flex-col gap-3" data-testid="contract-terms">

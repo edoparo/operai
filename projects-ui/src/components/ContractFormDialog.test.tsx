@@ -455,3 +455,59 @@ describe('editing a contract (AC-1.7, AC-2.10)', () => {
     expect(sent()!.method).toBe('PATCH')
   })
 })
+
+describe('the man-days of a contract the estimate backs (AC-3.1)', () => {
+  const backed = (estimatedManDays: number | null) =>
+    stored(
+      'fixed_price',
+      { deadline: '2026-12-01', estimatedManDays, maxEffortManDays: 40 },
+      {
+        origin: 'deal',
+        dealId: 'd1',
+        deal: { id: 'd1', title: 'Website relaunch', won: true },
+        estimate: { id: 'est-1' },
+      },
+    )
+
+  it('are shown read-only, with their source, when editing', () => {
+    const dialog = renderDialog('fixed_price', {}, backed(12.5))
+    const field = within(dialog).getByLabelText(FIELDS.estimated) as HTMLInputElement
+    expect(field.readOnly).toBe(true)
+    expect(field.value).toBe('12.5 man-days, from the estimate')
+  })
+
+  it('say so when the estimate gave none at creation', () => {
+    const dialog = renderDialog('fixed_price', {}, backed(null))
+    const field = within(dialog).getByLabelText(FIELDS.estimated) as HTMLInputElement
+    expect(field.readOnly).toBe(true)
+    expect(field.value).toBe('None: the estimate gave no man-days')
+  })
+
+  it('are not sent back on a save: the server refuses them (422 estimated_man_days_from_estimate)', async () => {
+    const dialog = renderDialog('fixed_price', {}, backed(12.5))
+    fill(dialog, FIELDS.maxEffort, '50')
+    submit(dialog)
+    await waitFor(() => expect(onSaved).toHaveBeenCalled())
+    expect(sent()!.body).toEqual({
+      startDate: '2026-02-01',
+      endDate: null,
+      terms: { deadline: '2026-12-01', maxEffortManDays: 50 },
+    })
+  })
+
+  it('stay an editable input on a contract entered by hand', () => {
+    const byHand = stored('fixed_price', { deadline: '2026-12-01', estimatedManDays: 12.5, maxEffortManDays: 40 })
+    const dialog = renderDialog('fixed_price', {}, byHand)
+    expect((within(dialog).getByLabelText(FIELDS.estimated) as HTMLInputElement).readOnly).toBe(false)
+  })
+
+  it('stay an editable input on a contract from a deal without an estimate', () => {
+    const noEstimate = stored(
+      'fixed_price',
+      { deadline: '2026-12-01', estimatedManDays: 12.5, maxEffortManDays: 40 },
+      { origin: 'deal', dealId: 'd1', estimate: null },
+    )
+    const dialog = renderDialog('fixed_price', {}, noEstimate)
+    expect((within(dialog).getByLabelText(FIELDS.estimated) as HTMLInputElement).readOnly).toBe(false)
+  })
+})
