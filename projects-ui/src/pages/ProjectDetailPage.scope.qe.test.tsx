@@ -31,6 +31,7 @@ const CONTRACT = {
   type: 'saas' as const,
   company: { id: 'c1', name: 'Acme SA' },
   origin: 'manual' as const,
+  deal: null,
   bexioOrderId: 'AB-100',
   startDate: '2026-02-01',
   endDate: null,
@@ -40,6 +41,7 @@ const fullContract: Contract = {
   ...CONTRACT,
   projectId: 'p1',
   dealId: null,
+  estimate: null,
   terms: { sla: null, hourPackage: null },
   version: 4,
 }

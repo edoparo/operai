@@ -135,11 +135,13 @@ describe('termsFormOf (a stored contract back into the form)', () => {
     type,
     company: { id: 'c1', name: 'Acme SA' },
     origin: 'manual',
+    deal: null,
     bexioOrderId: null,
     startDate: '2026-02-01',
     endDate: null,
     projectId: 'p1',
     dealId: null,
+    estimate: null,
     terms,
     version: 2,
   })

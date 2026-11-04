@@ -1,6 +1,9 @@
 /** The tool frame: title, the loading line, the router fallback. */
 const en = {
   heading: 'Projects',
+  landmarkLabel: 'Projects sections',
+  projects: 'Projects',
+  queue: 'To start',
   loading: 'Loading projects…',
   notFound: {
     heading: 'This page does not exist',
@@ -11,6 +14,9 @@ const en = {
 
 const it: typeof en = {
   heading: 'Progetti',
+  landmarkLabel: 'Sezioni dei progetti',
+  projects: 'Progetti',
+  queue: 'Da avviare',
   loading: 'Caricamento dei progetti…',
   notFound: {
     heading: 'Questa pagina non esiste',

@@ -97,6 +97,7 @@ describe('the project page (AC-1.4, AC-1.5)', () => {
             type: 't_and_m',
             company: { id: 'c1', name: 'Acme SA' },
             origin: 'manual',
+            deal: null,
             bexioOrderId: 'AB-100',
             startDate: '2026-02-01',
             endDate: '2026-12-31',
@@ -527,6 +528,7 @@ const CONTRACT = {
   type: 't_and_m' as const,
   company: { id: 'c1', name: 'Acme SA' },
   origin: 'manual' as const,
+  deal: null,
   bexioOrderId: null,
   startDate: '2026-02-01',
   endDate: null,
@@ -539,6 +541,7 @@ const fullContract = (id: string, company = { id: 'c1', name: 'Acme SA' }): Cont
   bexioOrderId: id === 'k1' ? 'AB-100' : null,
   projectId: 'p1',
   dealId: null,
+  estimate: null,
   terms: { positions: [{ profile: 'Senior developer', plannedManDays: 20 }] },
   version: 4,
 })

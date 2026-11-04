@@ -6,7 +6,7 @@
  *
  * `projects`, `project` and `contracts` belong to the tasks that build the list
  * (T12), the project page (T13) and the contracts (T14): each fills its own file
- * and never edits this aggregator.
+ * and never edits this aggregator. `queue` is the to-start queue of specs/022.
  */
 import { selectStrings } from '@operai/ui'
 import { badges } from './strings/badges'
@@ -16,6 +16,7 @@ import { nav } from './strings/nav'
 import { people } from './strings/people'
 import { project } from './strings/project'
 import { projects } from './strings/projects'
+import { queue } from './strings/queue'
 
 /** The English catalog: the reference every other language is checked against. */
 export const en = {
@@ -26,6 +27,7 @@ export const en = {
   people: people.en,
   project: project.en,
   projects: projects.en,
+  queue: queue.en,
 }
 
 /** The Italian catalog: typed as the English, so a missing key does not compile. */
@@ -37,6 +39,7 @@ export const it: typeof en = {
   people: people.it,
   project: project.it,
   projects: projects.it,
+  queue: queue.it,
 }
 
 /** The catalog for the person's language, resolved once by @operai/ui (`resolveLocale`). */

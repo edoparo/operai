@@ -7,7 +7,7 @@
  * through `useScope`).
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { cleanup, fireEvent, render, screen } from '@testing-library/react'
+import { cleanup, fireEvent, render, screen, within } from '@testing-library/react'
 import { createRootRoute, createRoute, createRouter, RouterProvider } from '@tanstack/react-router'
 import { useScope } from '../hooks/useScope'
 import { fakeApi, problem, scope } from '../test-support/fakeApi'
@@ -38,6 +38,7 @@ const renderShell = async (handler: FakeHandler) => {
   const rootRoute = createRootRoute({ component: ProjectsShell })
   const routeTree = rootRoute.addChildren([
     createRoute({ getParentRoute: () => rootRoute, path: '/', component: ScopeProbe }),
+    createRoute({ getParentRoute: () => rootRoute, path: '/queue', component: ScopeProbe }),
   ])
   render(<RouterProvider router={createRouter({ routeTree })} />)
   await screen.findByRole('heading', { level: 1, name: 'Projects' })
@@ -77,6 +78,21 @@ describe('ProjectsShell', () => {
     await renderShell(() => new Promise(() => undefined))
     expect(screen.getByRole('status').textContent).toBe('Loading projects…')
     expect(screen.queryByText(/^manage /)).toBeNull()
+  })
+
+  it('offers the projects list and "To start" to every reader, even one who manages nothing (AC-1.1)', async () => {
+    await renderShell(() => ({ status: 200, body: scope() }))
+    const nav = screen.getByRole('navigation', { name: 'Projects sections' })
+    expect(within(nav).getByRole('link', { name: 'Projects' }).getAttribute('href')).toBe('/')
+    expect(within(nav).getByRole('link', { name: 'To start' }).getAttribute('href')).toBe('/queue')
+  })
+
+  it('keeps the tabs on screen while the scope loads and when it fails', async () => {
+    await renderShell(() => problem(503, 'authz_unavailable'))
+    await screen.findByTestId('projects-load-error')
+    expect(
+      within(screen.getByRole('navigation', { name: 'Projects sections' })).getByRole('link', { name: 'To start' }),
+    ).not.toBeNull()
   })
 
   it('a 403 shows PermissionDenied under the title', async () => {

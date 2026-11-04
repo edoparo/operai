@@ -1,6 +1,6 @@
-import { Outlet } from '@tanstack/react-router'
+import { Link, Outlet } from '@tanstack/react-router'
 import type { ReactNode } from 'react'
-import { ToolLayout } from '@operai/ui'
+import { TabNav, ToolLayout, tabLinkClassName } from '@operai/ui'
 import { ScopeContext } from '../hooks/useScope'
 import { useResource } from '../hooks/useResource'
 import { getScope } from '../lib/projectsApi'
@@ -11,8 +11,8 @@ import { LoadFailure, Loading } from './LoadState'
  * ProjectsShell — projects-ui's root layout: the tool title (h1) and the routed
  * page (ToolLayout `default` width). No suite chrome and no auth guard: the
  * shell owns both and mounts this remote only for `projects:access` holders
- * (ADR-0006, ADR-0007). There are no tabs — the list and the project page are
- * the whole tool.
+ * (ADR-0006, ADR-0007). Two tabs, open to every reader: the projects list and
+ * the to-start queue (specs/022); the project page is reached from the list.
  *
  * What varies per person is `GET /scope` — the entities they manage and whether
  * they may write a Bexio order id — loaded once here and handed to the pages
@@ -37,7 +37,20 @@ export default function ProjectsShell() {
     )
 
   return (
-    <ToolLayout title={strings.nav.heading} testId="projects-shell">
+    <ToolLayout
+      title={strings.nav.heading}
+      testId="projects-shell"
+      nav={
+        <TabNav label={strings.nav.landmarkLabel}>
+          <Link to="/" className={tabLinkClassName} activeOptions={{ exact: true }}>
+            {strings.nav.projects}
+          </Link>
+          <Link to="/queue" className={tabLinkClassName}>
+            {strings.nav.queue}
+          </Link>
+        </TabNav>
+      }
+    >
       {content}
     </ToolLayout>
   )

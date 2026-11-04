@@ -36,6 +36,12 @@ export type ProjectSummary = {
   projectManager: Person
 }
 
+/**
+ * The deal a contract was made from, read live from the CRM on every request (specs/022): `title` and
+ * `won` are `null` when crm-api cannot answer, and `won: false` is the "no longer won" notice (AC-2.3).
+ */
+export type DealRef = { id: string; title: string | null; won: boolean | null }
+
 export type ContractSummary = {
   id: string
   type: ProjectType
@@ -44,6 +50,8 @@ export type ContractSummary = {
   bexioOrderId: string | null
   startDate: string
   endDate: string | null
+  /** `null` for a contract entered by hand (specs/022). */
+  deal: DealRef | null
 }
 
 export type Project = {
@@ -98,11 +106,35 @@ export type ContractTerms =
 
 export type Contract = ContractSummary & {
   projectId: string
-  /** Filled by the CRM hand-off (specs/022); `null` for a contract entered by hand. */
+  /** The deal's id (specs/022); `null` for a contract entered by hand. */
   dealId: string | null
+  /** The deal's EstimAI estimate at creation (AC-3.2); `null` for a hand-entered contract and for a deal without one. */
+  estimate: { id: string } | null
   terms: ContractTerms
   version: number
 }
+
+// ─── The to-start queue and taking a deal (specs/022) ────────────────────────
+
+/** A won deal no project has taken. No amount, currency, owner or notes exist on it (D14). */
+export type QueueItem = {
+  dealId: string
+  title: string
+  entity: Entity
+  company: CompanyRef
+  /** When the deal was won; `null` only if crm-api sends none. */
+  wonAt: string | null
+  estimate: { id: string; name: string } | null
+}
+
+/** `GET /queue`: `truncated` when the CRM has more won deals than the 500 it returns (A26). */
+export type QueueList = { items: QueueItem[]; truncated: boolean }
+
+/** The client types a project taken from a deal can have (AC-1.2); `saas` and `internal` have no company. */
+export type DealProjectType = 't_and_m' | 'fixed_price' | 'maintenance'
+
+/** The contract part of taking a deal: its dates and its terms, by the project's type (tasks.md § API contracts). */
+export type DealContractInput = { startDate: string; endDate?: string | null; terms: ContractTermsInput }
 
 /** One row of `auth GET /authz/users/directory` (ADR-0047). */
 export type DirectoryUser = { id: string; name: string | null; email: string; entity: string | null }
