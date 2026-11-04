@@ -39,6 +39,9 @@ const TypeSchema = z.enum(ACTIVITY_TYPES);
 const UserIdSchema = z.string().min(1).max(64);
 /** The tasks this one waits on (US-6): the whole set, replacing any previous one. */
 const BlockedByIdsSchema = z.array(z.string().min(1).max(64)).max(MAX_BLOCKERS);
+/** The wellD colleagues who took part (US-8): the whole set, replacing any previous one. */
+export const MAX_PARTICIPANTS = 10;
+const ParticipantIdsSchema = z.array(UserIdSchema).max(MAX_PARTICIPANTS);
 
 const CreateActivitySchema = z
   .object({
@@ -52,6 +55,7 @@ const CreateActivitySchema = z
     dueDate: DateOnlySchema.nullable().optional(),
     assigneeUserId: UserIdSchema.optional(),
     blockedByIds: BlockedByIdsSchema.optional(),
+    participantIds: ParticipantIdsSchema.optional(),
   })
   .strict();
 
@@ -63,6 +67,7 @@ const UpdateActivitySchema = z
     dueDate: DateOnlySchema.nullable().optional(),
     assigneeUserId: UserIdSchema.optional(),
     blockedByIds: BlockedByIdsSchema.optional(),
+    participantIds: ParticipantIdsSchema.optional(),
   })
   .strict();
 
@@ -78,7 +83,8 @@ const ListActivitiesQuery = z.object({
 
 const ListTasksQuery = z.object({
   status: z.enum(["open", "done"]).default("open"),
-  // `me` (default), `any`, or one person's auth user id (the "a colleague's" filter).
+  // `me` (default), `any`, or one person's auth user id (the "a colleague's" filter). A person's
+  // tasks are those assigned to them and those they take part in (US-8).
   assignee: z.string().min(1).max(64).default("me"),
   ...pageQuery(),
 });
@@ -93,6 +99,8 @@ const ActivitySchema = z.object({
   contact: z.object({ id: z.string(), name: z.string() }).nullable(),
   deal: z.object({ id: z.string(), title: z.string() }).nullable(),
   author: PersonRefSchema,
+  /** The wellD colleagues who took part, besides the author and the assignee (US-8). */
+  participants: z.array(PersonRefSchema),
   task: z
     .object({
       dueDate: z.string().nullable(),
@@ -118,13 +126,19 @@ const withRefs = {
     select: { blocker: { select: { id: true, subject: true, completedAt: true } } },
     orderBy: { createdAt: "asc" },
   },
+  participants: { select: { userId: true }, orderBy: { createdAt: "asc" } },
 } satisfies Prisma.ActivityInclude;
 type ActivityRow = Prisma.ActivityGetPayload<{ include: typeof withRefs }>;
 
 async function toViews(c: HeaderSource, rows: readonly ActivityRow[]) {
   const { person, maybe } = await loadPeople(
     c,
-    rows.flatMap((row) => [row.authorUserId, row.assigneeUserId, row.completedByUserId]),
+    rows.flatMap((row) => [
+      row.authorUserId,
+      row.assigneeUserId,
+      row.completedByUserId,
+      ...row.participants.map((participant) => participant.userId),
+    ]),
   );
   return rows.map((row) => ({
     id: row.id,
@@ -136,6 +150,7 @@ async function toViews(c: HeaderSource, rows: readonly ActivityRow[]) {
     contact: row.contact ? { id: row.contact.id, name: `${row.contact.firstName} ${row.contact.lastName}` } : null,
     deal: row.deal,
     author: person(row.authorUserId),
+    participants: row.participants.map((participant) => person(participant.userId)),
     task:
       row.type === "task"
         ? {
@@ -204,6 +219,34 @@ async function announceTask(c: Parameters<typeof announce>[0], row: ActivityRow)
     copy: (actor) => ({
       title: `New task: ${clip(row.subject, MAX_NAME)}`,
       body: `${actor} assigned you a task${row.dueDate ? `, due ${formatDueDate(row.dueDate)}` : ""}. ${row.deal ? "Deal" : "Company"}: ${context}.`,
+    }),
+  });
+}
+
+/** US-8: distinct ids, each an active CRM user (the caller needs no check). */
+async function assertParticipants(c: Parameters<typeof requireCrmUsers>[0], ids: readonly string[]): Promise<string[]> {
+  const unique = [...new Set(ids)];
+  await requireCrmUsers(
+    c,
+    unique.filter((id) => id !== c.get("userId")).map((id) => ({ id, field: "participantIds" })),
+  );
+  return unique;
+}
+
+/** US-8: a colleague added to an activity hears it in-app (the actor is dropped). */
+async function announceParticipants(c: Parameters<typeof announce>[0], row: ActivityRow, userIds: readonly string[]) {
+  if (userIds.length === 0) return;
+  const context = row.deal ? `Deal: ${clip(row.deal.title, MAX_NAME)}` : `Company: ${clip(row.company.name, MAX_NAME)}`;
+  await announce(c, {
+    kind: "activity_participant_added",
+    dealId: row.deal?.id ?? null,
+    recipientIds: userIds,
+    severity: "info",
+    email: false,
+    href: row.type === "task" ? "/crm/tasks" : row.deal ? `/crm/deals/${row.deal.id}` : `/crm/companies/${row.company.id}`,
+    copy: (actor) => ({
+      title: `You take part in: ${clip(row.subject, MAX_NAME)}`,
+      body: `${actor} added you to this ${row.type}. ${context}.`,
     }),
   });
 }
@@ -330,6 +373,7 @@ activitiesRouter.openapi(createActivityRoute, async (c) => {
   if (!isTask && body.blockedByIds !== undefined) throw taskFieldsOnNonTask("blockedByIds");
   await assertRefs(body.companyId, body.contactId, body.dealId);
   const blockerIds = isTask ? await assertBlockers(null, body.companyId, body.blockedByIds ?? []) : [];
+  const participantIds = await assertParticipants(c, body.participantIds ?? []);
   const assigneeUserId = isTask ? (body.assigneeUserId ?? userId) : null;
   if (assigneeUserId !== null && assigneeUserId !== userId) {
     await requireCrmUsers(c, [{ id: assigneeUserId, field: "assigneeUserId" }]);
@@ -347,10 +391,12 @@ activitiesRouter.openapi(createActivityRoute, async (c) => {
       dueDate: isTask ? (fromDateOnly(body.dueDate) ?? null) : null,
       assigneeUserId,
       blockedBy: { create: blockerIds.map((blockerId) => ({ blockerId, createdBy: userId })) },
+      participants: { create: participantIds.map((participantId) => ({ userId: participantId, createdBy: userId })) },
     },
     include: withRefs,
   });
   if (isTask) await announceTask(c, row);
+  await announceParticipants(c, row, participantIds);
   return c.json(await toView(c, row), 201);
 });
 
@@ -370,6 +416,18 @@ activitiesRouter.openapi(updateRoute, async (c) => {
   if (body.blockedByIds !== undefined) {
     await replaceBlockers(id, await assertBlockers(id, current.company.id, body.blockedByIds), userId);
   }
+  let addedParticipants: string[] = [];
+  if (body.participantIds !== undefined) {
+    const next = await assertParticipants(c, body.participantIds);
+    const before = new Set(current.participants.map((participant) => participant.userId));
+    addedParticipants = next.filter((participantId) => !before.has(participantId));
+    await db.$transaction([
+      db.activityParticipant.deleteMany({ where: { activityId: id } }),
+      db.activityParticipant.createMany({
+        data: next.map((participantId) => ({ activityId: id, userId: participantId, createdBy: userId })),
+      }),
+    ]);
+  }
   const row = await db.activity.update({
     where: { id },
     data: {
@@ -382,6 +440,7 @@ activitiesRouter.openapi(updateRoute, async (c) => {
     include: withRefs,
   });
   if (current.type === "task" && row.assigneeUserId !== current.assigneeUserId) await announceTask(c, row);
+  await announceParticipants(c, row, addedParticipants);
   return c.json(await toView(c, row), 200);
 });
 
@@ -413,12 +472,17 @@ for (const action of ["complete", "reopen"] as const) {
   });
 }
 
+/** A person's tasks: assigned to them, or one they take part in (US-8). */
+const personsTasks = (userId: string): Prisma.ActivityWhereInput => ({
+  OR: [{ assigneeUserId: userId }, { participants: { some: { userId } } }],
+});
+
 activitiesRouter.openapi(tasksRoute, async (c) => {
   const { status, assignee, page, pageSize } = c.req.valid("query");
   const where: Prisma.ActivityWhereInput = {
     type: "task",
     completedAt: status === "open" ? null : { not: null },
-    ...(assignee === "any" ? {} : { assigneeUserId: assignee === "me" ? c.get("userId") : assignee }),
+    ...(assignee === "any" ? {} : personsTasks(assignee === "me" ? c.get("userId") : assignee)),
   };
   const orderBy: Prisma.ActivityOrderByWithRelationInput[] =
     status === "open"

@@ -37,6 +37,8 @@ export default function PersonPicker({
   onChange,
   error,
   required = false,
+  exclude,
+  clearOnSelect = false,
   testId,
 }: {
   /** Only people who hold `(appId, "access")` are offered: `crm` for owners and assignees, `estimai` for a technician. */
@@ -46,6 +48,10 @@ export default function PersonPicker({
   onChange: (value: PersonChoice | null) => void
   error?: string | null
   required?: boolean
+  /** Ids not offered (people already chosen). */
+  exclude?: readonly string[]
+  /** Empties the field after a choice: the picker adds people to a list (specs/017 US-8). */
+  clearOnSelect?: boolean
   testId: string
 }) {
   const id = useId()
@@ -70,10 +76,11 @@ export default function PersonPicker({
     if (outcome === null || !outcome.ok) return []
     const needle = text.trim().toLowerCase()
     return outcome.users
+      .filter((user) => !exclude?.includes(user.id))
       .filter((user) => !needle || `${user.name ?? ''} ${user.email}`.toLowerCase().includes(needle))
       .slice(0, 20)
       .map(toOption)
-  }, [outcome, text])
+  }, [outcome, text, exclude])
 
   const forbidden = outcome !== null && !outcome.ok && outcome.error instanceof ApiError && outcome.error.status === 403
 
@@ -108,7 +115,7 @@ export default function PersonPicker({
           }}
           options={options}
           onSelect={(option) => {
-            setText(option.label)
+            setText(clearOnSelect ? '' : option.label)
             setOpen(false)
             onChange({ id: option.id, label: option.label })
           }}

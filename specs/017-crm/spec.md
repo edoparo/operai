@@ -182,6 +182,18 @@ which channels bring work (owner, 2026-11-04).
 - AC-7.3 The company and deal pages show the source with its detail ("Event · Swiss
   Digital Day 2026"), or "—" when it is not known.
 
+### US-8 Colleagues who took part in an activity
+As a CRM user, I want to record which colleagues took part in a call, a meeting or a task,
+so that the record says who was there (owner, 2026-11-04; the base for time tracking later).
+Example: "Meeting at the client tomorrow, with Paro".
+
+- AC-8.1 Any activity may name up to 10 **participants**: Operai users with CRM access,
+  chosen and changed by the activity's author. They are wellD colleagues, never the
+  client's contacts. A task keeps exactly one assignee, who answers for it.
+- AC-8.2 The activity shows its participants ("With …"). "Tasks" lists, for a person, the
+  tasks assigned to them and those they take part in.
+- AC-8.3 A colleague added as a participant by someone else is notified in-app (no email).
+
 ## Non-goals (v1)
 
 - Email/calendar sync, inbox integration, attachments on activities.

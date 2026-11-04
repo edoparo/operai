@@ -331,6 +331,8 @@ model Activity {
   /// The tasks this task waits on (specs/017 US-6), and the tasks waiting on it.
   blockedBy TaskBlocker[] @relation("BlockedTask")
   blocks    TaskBlocker[] @relation("BlockerTask")
+  /// The wellD colleagues who took part, besides the author and the assignee (specs/017 US-8).
+  participants ActivityParticipant[]
 
   @@index([companyId, occurredAt])
   @@index([contactId])
@@ -341,6 +343,20 @@ model Activity {
 
 /// "Blocked by" between two tasks of the same company (specs/017 US-6). Both ends are tasks
 /// (checked by crm-api); deleting either task removes the link.
+/// A wellD colleague who took part in an activity (specs/017 US-8): an Operai user id, never a
+/// contact. Removing the activity removes the row.
+model ActivityParticipant {
+  activityId String
+  activity   Activity @relation(fields: [activityId], references: [id], onDelete: Cascade)
+  userId     String
+  createdBy  String
+  createdAt  DateTime @default(now())
+
+  @@id([activityId, userId])
+  @@index([userId])
+  @@map("activity_participant")
+}
+
 model TaskBlocker {
   blockedId String
   blocked   Activity @relation("BlockedTask", fields: [blockedId], references: [id], onDelete: Cascade)

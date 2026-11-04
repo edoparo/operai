@@ -166,6 +166,8 @@ export type ActivityInput = {
   assigneeUserId?: string
   /** Tasks only: the whole set of tasks this one waits on (specs/017 US-6). */
   blockedByIds?: string[]
+  /** The whole set of colleagues who took part (specs/017 US-8). */
+  participantIds?: string[]
 }
 
 export type ActivityUpdate = {
@@ -175,6 +177,7 @@ export type ActivityUpdate = {
   dueDate?: string | null
   assigneeUserId?: string
   blockedByIds?: string[]
+  participantIds?: string[]
 }
 
 /** `type: 'task', open: true`: a company's open tasks, the choices for "blocked by". */

@@ -104,6 +104,8 @@ export default function ActivityItem({
           </>
         )}
         {about.length > 0 && ` · ${t.about(about.join(', '))}`}
+        {(activity.participants?.length ?? 0) > 0 &&
+          ` · ${t.with(activity.participants!.map((person) => personName(person, currentUserId)).join(', '))}`}
       </p>
       {task && (
         <p className={listRowMetaClassName}>

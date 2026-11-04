@@ -13,6 +13,7 @@ import { useResource } from '../hooks/useResource'
 import { strings } from '../strings'
 import CompanyPicker from './CompanyPicker'
 import type { CompanyChoice } from './CompanyPicker'
+import ParticipantsField from './ParticipantsField'
 import PersonPicker from './PersonPicker'
 import type { PersonChoice } from './PersonPicker'
 
@@ -27,6 +28,7 @@ type FieldName =
   | 'contactId'
   | 'dealId'
   | 'blockedByIds'
+  | 'participants'
 
 /** The server's cap on a task's blockers (specs/017 US-6). */
 const MAX_BLOCKERS = 10
@@ -40,6 +42,9 @@ const CODE_FIELDS: Record<string, FieldName> = {
   blocker_is_self: 'blockedByIds',
   blocker_cycle: 'blockedByIds',
 }
+
+/** Server field names that are not this form's field names. */
+const SERVER_FIELDS: Record<string, FieldName> = { assigneeUserId: 'assignee', participantIds: 'participants' }
 
 /**
  * ActivityFormDialog — log an activity at a company (US-4), or edit one the
@@ -80,6 +85,9 @@ export default function ActivityFormDialog({
   )
   const [contactId, setContactId] = useState(activity?.contact?.id ?? preset?.contactId ?? '')
   const [dealId, setDealId] = useState(activity?.deal?.id ?? preset?.dealId ?? '')
+  const [participants, setParticipants] = useState<PersonChoice[]>(
+    () => activity?.participants?.map((person) => ({ id: person.id, label: personName(person) })) ?? [],
+  )
   const [blockedByIds, setBlockedByIds] = useState<string[]>(
     () => activity?.task?.blockedBy?.map((blocker) => blocker.id) ?? [],
   )
@@ -143,7 +151,11 @@ export default function ActivityFormDialog({
       requestAnimationFrame(() => focusFirstInvalid(fieldsRef.current))
       return
     }
-    const text = { subject: subject.trim(), body: optional(body) }
+    const text = {
+      subject: subject.trim(),
+      body: optional(body),
+      participantIds: participants.map((person) => person.id),
+    }
     const timing = isTask
       ? {
           dueDate: dueDate === '' ? null : dueDate,
@@ -172,7 +184,7 @@ export default function ActivityFormDialog({
       }
       const field = fieldErrorOf(failure)
       if (field) {
-        const name = (field.field === 'assigneeUserId' ? 'assignee' : field.field) as FieldName
+        const name = SERVER_FIELDS[field.field] ?? (field.field as FieldName)
         setErrors({ [name]: field.message })
         return
       }
@@ -269,6 +281,12 @@ export default function ActivityFormDialog({
             )}
           </Field>
         )}
+        <ParticipantsField
+          value={participants}
+          onChange={setParticipants}
+          error={errors.participants}
+          testId="crm-activity-form-participants"
+        />
         {!activity && !preset?.contactId && (
           <Field label={t.contact} error={errors.contactId} testId="crm-activity-form-contact">
             {(control) => (

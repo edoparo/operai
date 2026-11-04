@@ -272,6 +272,8 @@ export type Activity = {
   contact: { id: string; name: string } | null
   deal: { id: string; title: string } | null
   author: PersonRef
+  /** The wellD colleagues who took part (specs/017 US-8). Absent from an older server. */
+  participants?: PersonRef[]
   task: ActivityTask | null
   createdAt: string
   updatedAt: string

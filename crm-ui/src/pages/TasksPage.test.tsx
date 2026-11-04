@@ -126,6 +126,7 @@ describe('TasksPage — blocked by (specs/017 US-6)', () => {
     contact: null,
     deal: null,
     author: { id: 'u-ada', name: 'Ada Lovelace', status: 'active' },
+    participants: [{ id: 'u-paro', name: 'Paolo Paro', status: 'active' }],
     task: {
       dueDate: null,
       assignee: { id: 'u-ada', name: 'Ada Lovelace', status: 'active' },
@@ -149,6 +150,7 @@ describe('TasksPage — blocked by (specs/017 US-6)', () => {
     render(<RouterProvider router={createAppRouter()} />)
     const row = await screen.findByTestId('crm-activity-t2')
     expect(row.textContent).toContain('Blocked')
+    expect(row.textContent).toContain('With Paolo Paro')
     expect(within(row).getByTestId('crm-activity-t2-waiting').textContent).toContain('Waiting on: Estimate: Grid analytics')
     const done = within(row).getByTestId('crm-activity-t2-toggle')
     expect((done as HTMLButtonElement).disabled).toBe(true)
@@ -188,6 +190,57 @@ describe('TasksPage — blocked by (specs/017 US-6)', () => {
     fireEvent.click(within(dialog).getByTestId('crm-activity-form-submit'))
     await waitFor(() => expect(posted).not.toBeNull())
     expect(posted).toMatchObject({ type: 'task', companyId: 'c1', blockedByIds: ['t1'] })
+  })
+})
+
+describe('TasksPage — participants (specs/017 US-8)', () => {
+  it('adds colleagues as participants, removes one, and posts the rest as participantIds', async () => {
+    let posted: Record<string, unknown> | null = null
+    apiFetch.mockImplementation(
+      fakeApi({
+        'GET /tasks': () => ({ status: 200, body: page([]) }),
+        'GET /tasks/assignees': () => ({ status: 200, body: { items: [] } }),
+        'GET /companies': () => ({ status: 200, body: page([companySummary()]) }),
+        'GET /contacts': () => ({ status: 200, body: page([]) }),
+        'GET /deals': () => ({ status: 200, body: page([]) }),
+        'GET /activities': () => ({ status: 200, body: page([]) }),
+        'GET /authz/users/directory': () => ({
+          status: 200,
+          body: {
+            users: [
+              { id: 'u-paro', name: 'Paolo Paro', email: 'paro@welld.ch', entity: 'welld_ch' },
+              { id: 'u-tess', name: 'Tess Technical', email: 'tess@welld.ch', entity: 'welld_ch' },
+            ],
+          },
+        }),
+        'POST /activities': (_url, init) => {
+          posted = JSON.parse(String(init?.body)) as Record<string, unknown>
+          return { status: 201, body: { id: 'a1', ...posted } }
+        },
+      }),
+    )
+    window.history.pushState(null, '', '/tasks')
+    render(<RouterProvider router={createAppRouter()} />)
+    fireEvent.click(await screen.findByTestId('crm-tasks-new'))
+    const dialog = await screen.findByRole('dialog', { name: 'New task' })
+    fireEvent.change(within(dialog).getByLabelText('Subject', { exact: false }), { target: { value: 'Visit the client' } })
+    fireEvent.change(within(dialog).getByTestId('crm-activity-form-company-input'), { target: { value: 'Acme' } })
+    fireEvent.click(await within(dialog).findByRole('option', { name: /Acme SA/ }))
+
+    const picker = within(dialog).getByTestId('crm-activity-form-participants-picker-input')
+    for (const name of [/Paolo Paro/, /Tess Technical/]) {
+      fireEvent.focus(picker)
+      fireEvent.change(picker, { target: { value: name.source.split(' ')[0] } })
+      fireEvent.click(await within(dialog).findByRole('option', { name }))
+    }
+    // a chosen person is not offered again, and the field is empty for the next one
+    expect((picker as HTMLInputElement).value).toBe('')
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Remove Tess Technical' }))
+    expect(within(dialog).queryByRole('button', { name: 'Remove Tess Technical' })).toBeNull()
+
+    fireEvent.click(within(dialog).getByTestId('crm-activity-form-submit'))
+    await waitFor(() => expect(posted).not.toBeNull())
+    expect(posted).toMatchObject({ type: 'task', subject: 'Visit the client', participantIds: ['u-paro'] })
   })
 })
 
