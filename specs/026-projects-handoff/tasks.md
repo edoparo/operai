@@ -134,13 +134,22 @@ Errors are `application/problem+json` with a `code`, as in specs/021. `CompanyRe
   estimated_man_days_from_estimate` when `terms.estimatedManDays` is sent for a deal with
   an estimate; `503 crm_unavailable`; `503 estimai_unavailable` / `estimai_unconfigured`
   (only when a `fixed_price` contract must copy man-days). An estimate EstimAI answers
-  `404` for → `estimatedManDays: null`, `estimateId` kept.
+  `404` for → `estimatedManDays: null`, `estimateId` kept. Unknown project on attach →
+  `404 project_not_found`. A validation error inside the body names the field by its full
+  path in the body (`contract.startDate`, `contract.terms.deadline`) (clarified 2026-11-04,
+  drift raised by T13).
+- **Estimate-backed man-days are server-owned** (clarified 2026-11-04, drift raised by T13):
+  for a deal with an estimate the client **omits** `terms.estimatedManDays` — on a take the
+  server sets it from EstimAI; on `PATCH` the server keeps the stored value. Omitted is never
+  read as `null`. Sending the member, even as `null`, → `422
+  estimated_man_days_from_estimate`.
 - `ContractSummary` (in `Project.contracts`) and `Contract` gain `deal: { id, title: string
   | null, won: boolean | null } | null` (`null` for hand-entered contracts; `title` / `won`
   `null` when crm-api cannot answer). `Contract` gains `estimate: { id } | null`.
   `Contract.dealId` carries the deal id (it was always `null` in specs/021).
 - `PATCH /projects/{id}/contracts/{contractId}`: `terms.estimatedManDays` on a contract with
-  an `estimateId` → `422 estimated_man_days_from_estimate`; the body schema stays strict, so
+  an `estimateId` → `422 estimated_man_days_from_estimate`; `terms` without the member keeps
+  the stored man-days (see above); the body schema stays strict, so
   `dealId`, `projectId` or `origin` → `400` (AC-1.7: no detach, no move).
 
 **UI links**
@@ -191,13 +200,13 @@ Errors are `application/problem+json` with a `code`, as in specs/021. `CompanyRe
 - [ ] T11: crm-ui — read-only "Delivery" card on the deal page (en + it) — refs: AC-3.4 — deps: T10
   - touch: `crm-ui/src/components/DeliveryCard.tsx`, `crm-ui/src/components/DeliveryCard.test.tsx`, `crm-ui/src/pages/DealDetailPage.tsx`, `crm-ui/src/pages/DealDetailPage.test.tsx`, `crm-ui/src/lib/types.ts`, `crm-ui/src/strings/deals.ts`
   - done when: `cd crm-ui && pnpm lint && pnpm build && pnpm test` is green with tests that the card shows the project name and the Bexio order id ("—" when empty) with no edit control, is absent when `delivery` is `null` and known, and says the delivery side is unavailable when `deliveryKnown` is `false`.
-- [ ] T12: projects-ui — queue page `/queue`, nav entry, API client and types for every 022 route (en + it) — refs: AC-1.1, AC-1.6, AC-2.1 — deps: none
+- [x] T12: projects-ui — queue page `/queue`, nav entry, API client and types for every 022 route (en + it) — refs: AC-1.1, AC-1.6, AC-2.1 — deps: none
   - touch: `projects-ui/src/router.tsx`, `projects-ui/src/pages/QueuePage.tsx`, `projects-ui/src/pages/QueuePage.test.tsx`, `projects-ui/src/components/ProjectsShell.tsx`, `projects-ui/src/components/ProjectsShell.test.tsx`, `projects-ui/src/lib/projectsApi.ts`, `projects-ui/src/lib/types.ts`, `projects-ui/src/lib/errors.ts`, `projects-ui/src/strings.ts`, `projects-ui/src/strings/queue.ts`, `projects-ui/src/strings/nav.ts`
   - done when: `cd projects-ui && pnpm lint && pnpm build && pnpm test` is green with tests that `/queue` lists title, company, entity, won date and an estimate link (`/estimai/estimates/<id>`) when there is one, renders no amount, filters by search and entity, shows "showing the newest 500" when `truncated`, shows the crm-unavailable state on `503`, and that the shell's nav offers "To start" to every reader; `projectsApi.ts` and `types.ts` carry the queue, take, attach and the new contract fields so T13 and T14 do not edit them.
-- [ ] T13: projects-ui — "New project" and "Attach to project" from a queued deal — refs: AC-1.2, AC-1.3, AC-1.4, AC-1.5, AC-3.1 — deps: T12
+- [x] T13: projects-ui — "New project" and "Attach to project" from a queued deal — refs: AC-1.2, AC-1.3, AC-1.4, AC-1.5, AC-3.1 — deps: T12
   - touch: `projects-ui/src/components/TakeDealDialog.tsx`, `projects-ui/src/components/TakeDealDialog.test.tsx`, `projects-ui/src/components/AttachDealDialog.tsx`, `projects-ui/src/components/AttachDealDialog.test.tsx`, `projects-ui/src/components/ContractTermsFields.tsx`, `projects-ui/src/components/ContractFormDialog.tsx`, `projects-ui/src/pages/QueuePage.tsx`, `projects-ui/src/strings/queue.ts`
   - done when: `pnpm lint && pnpm build && pnpm test` is green with tests that both actions show only with manage scope for the deal's entity; "New project" prefills the name from the deal title (editable), offers only T&M / Fixed price / Maintenance, defaults the PM to the user and lets it change, and asks the contract's dates and terms with the specs/021 per-type fields (now `ContractTermsFields`, shared with `ContractFormDialog`); a fixed-price form from a deal with an estimate shows "estimated man-days: from the estimate" instead of an input; each refusal (`contracts_not_allowed`, `project_not_open`, `company_mismatch`, `deal_taken`, `deal_not_won`) shows its own message; on success the deal leaves the list and the user lands on the project.
-- [ ] T14: projects-ui — contract card and project page show the deal, "no longer won" notice, estimate link; man-days read-only — refs: AC-1.7, AC-2.3, AC-2.4, AC-3.1, AC-3.2, AC-3.3 — deps: T12, T13
+- [x] T14: projects-ui — contract card and project page show the deal, "no longer won" notice, estimate link; man-days read-only — refs: AC-1.7, AC-2.3, AC-2.4, AC-3.1, AC-3.2, AC-3.3 — deps: T12, T13
   - touch: `projects-ui/src/components/ContractCard.tsx`, `projects-ui/src/components/ContractCard.test.tsx`, `projects-ui/src/components/ContractFormDialog.tsx`, `projects-ui/src/components/ContractFormDialog.test.tsx`, `projects-ui/src/pages/ProjectDetailPage.tsx`, `projects-ui/src/pages/ProjectDetailPage.test.tsx`, `projects-ui/src/strings/contracts.ts`, `projects-ui/src/strings/project.ts`
   - done when: `pnpm lint && pnpm build && pnpm test` is green with tests that a deal contract shows the deal title linking to `/crm/deals/<id>` and the origin "from deal" ("entered by hand" otherwise), the estimate link `/estimai/estimates/<id>` when `estimate` is set, the notice "the deal is no longer won" on the card and on the project page when `deal.won` is `false` and neither when it is `true` or `null`; editing an estimate-backed fixed-price contract shows the man-days read-only; no control detaches or moves a contract.
 - [ ] T15: docs — ADR-0060 (hand-off reads between crm-api and projects-api over service credentials, live, no events), ADR-0061 (estimai-api estimate man-days for a service credential; the `manDays` copy), AGENTS.md, READMEs, glossary, changesets — refs: AC-1.1, AC-3.1, AC-3.4 — deps: T2, T3, T4, T10
