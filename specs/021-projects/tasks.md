@@ -1,7 +1,7 @@
 ---
 spec: 021
 generated: 2026-11-03
-synced: 2026-11-03
+synced: 2026-11-04
 ---
 
 # Tasks: Projects — the delivery work wellD runs and the contracts behind it
