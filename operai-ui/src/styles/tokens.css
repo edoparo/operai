@@ -1298,10 +1298,17 @@ select:not([multiple]):not([size]) {
     color: var(--soft);
   }
 
+  /* A grid item's min-width is `auto`, so an unbreakable value (a URL) would
+   * spill into the next column; let the cell shrink and the value wrap. */
+  .fact-list > div {
+    min-width: 0;
+  }
+
   .fact-list dd {
     margin: 2px 0 0;
     font-size: 14px;
     color: var(--text);
+    overflow-wrap: anywhere;
   }
 
   /* ── State panel — <StatePanel> ──────────────────────────────────────────
