@@ -32,7 +32,7 @@ export const MAX_IDS = 100;
 export const MAX_LIMIT = 50;
 export const DEFAULT_LIMIT = 20;
 
-const IdsSchema = z
+export const IdsSchema = z
   .string()
   .max(MAX_IDS * 65)
   .transform((value) => value.split(",").map((id) => id.trim()))

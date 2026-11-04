@@ -12,9 +12,10 @@ import { app, call, resetWorld } from "./test-support/world";
 
 beforeEach(resetWorld);
 
-// `GET /system/companies` (specs/025) is guarded by a scoped SERVICE credential, not by user
-// capabilities; its own 401 matrix lives in src/system/companies.routes.test.ts.
-const PUBLIC = new Set(["GET /health", "GET /openapi.json", "GET /docs", "GET /system/companies"]);
+// `GET /system/companies` (specs/021) and `GET /system/deals` (specs/022) are guarded by a
+// scoped SERVICE credential, not by user capabilities; their own 401 matrices live in
+// src/system/companies.routes.test.ts and src/system/deals.routes.test.ts.
+const PUBLIC = new Set(["GET /health", "GET /openapi.json", "GET /docs", "GET /system/companies", "GET /system/deals"]);
 
 // The meeting-host contract (specs/021, ADR-0059) is the one deliberate exception to "403 without
 // crm:access": `resolve` answers a caller without it `closed`/`missing` (a 200), and `notices` is no
