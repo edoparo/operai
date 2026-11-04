@@ -7,6 +7,11 @@
  * set from the project at creation and no route changes it. Ending a contract is a `PATCH` of
  * `endDate`; there is no delete (D34).
  *
+ * A contract made from a deal (specs/022) shows that deal live (`dealRefs`, one CRM read per request,
+ * fail soft) and its estimate link; its man-days, when the deal had an estimate, are the estimate's
+ * and are never edited here (AC-3.1), and it has no detach or move: the body schema is strict and
+ * names neither `dealId`, `projectId` nor `origin` (AC-1.7).
+ *
  * The Bexio order id is NOT written here (a contract's terms editor never touches it): it has its
  * own route and capability (`bexio.routes.ts`, T9). `toContractView`, `contractInclude` and
  * `findContractRow` are exported for it.
@@ -15,14 +20,15 @@
 import { OpenAPIHono, createRoute, z } from "@hono/zod-openapi";
 import { PROJECT_MANAGE, assertCanManage, authorized, requireCapability } from "../auth/guards";
 import type { AuthzVariables } from "../auth/authz.middleware";
-import { companyRefs } from "../lib/crm";
+import { companyRefs, dealsById, type CrmDeal } from "../lib/crm";
 import { db } from "../lib/db";
 import type { Prisma } from "../lib/generated/prisma/client";
 import { assertVersion, commonErrors, etag, fromDateOnly, IdParams, requireIfMatch, toDateOnly, versionConflict } from "../lib/http";
-import { ProblemError, notFound, validationHook } from "../lib/problem";
+import { ProblemError, notFound, unprocessable, validationHook } from "../lib/problem";
 import { assertTakesContracts, contractCreateData, resolveCompany } from "./create";
 import { ContractParams, ContractSchema, CreateContractSchema, UpdateContractSchema } from "./contracts.schemas";
-import { parseTerms, positionRows, termColumns, termsView, validationFailed } from "./terms";
+import type { DealRef } from "../projects/projects.schemas";
+import { parseTerms, positionRows, termColumns, termsView, validationFailed, type Terms } from "./terms";
 
 // ─── The Contract view ───────────────────────────────────────────────────────
 
@@ -35,11 +41,39 @@ export const findContractRow = (projectId: string, contractId: string): Promise<
   db.contract.findFirst({ where: { id: contractId, projectId }, include: contractInclude });
 
 /**
+ * A lookup that never misses, for reads, the deal twin of `companyRefs`: a `DealRef` per deal id,
+ * from ONE `dealsById` call however many ids are asked, and none at all for none. `title` and `won`
+ * are `null` when crm-api cannot answer or no longer knows the deal (fail soft): a contract or a
+ * project must still load with the CRM down (tasks.md § Decided here).
+ */
+export async function dealRefs(
+  ids: readonly (string | null | undefined)[],
+): Promise<(id: string) => DealRef> {
+  const wanted = ids.filter((id): id is string => typeof id === "string" && id !== "");
+  let found = new Map<string, CrmDeal>();
+  if (wanted.length > 0) {
+    try {
+      found = await dealsById(wanted);
+    } catch (error) {
+      console.error(
+        "[crm] could not read deals — degrading them to unknown:",
+        error instanceof Error ? error.message : error,
+      );
+    }
+  }
+  return (id) => {
+    const deal = found.get(id);
+    return { id, title: deal?.title ?? null, won: deal ? deal.stage === "won" : null };
+  };
+}
+
+/**
  * The `Contract` of tasks.md § API contracts: the `ContractSummary` of the project page plus the
- * project, the deal link and the terms. The company name is live (fail soft, ADR-0059).
+ * project, the deal link, the estimate link and the terms. The company name and the deal are live
+ * (fail soft, ADR-0059).
  */
 export async function toContractView(row: ContractRow) {
-  const company = await companyRefs([row.companyId]);
+  const [company, deal] = await Promise.all([companyRefs([row.companyId]), dealRefs([row.dealId])]);
   return {
     id: row.id,
     projectId: row.projectId,
@@ -47,12 +81,36 @@ export async function toContractView(row: ContractRow) {
     company: company(row.companyId),
     origin: row.origin,
     dealId: row.dealId,
+    deal: row.dealId === null ? null : deal(row.dealId),
+    estimate: row.estimateId === null ? null : { id: row.estimateId },
     bexioOrderId: row.bexioOrderId,
     startDate: toDateOnly(row.startDate)!,
     endDate: toDateOnly(row.endDate),
     terms: termsView(row),
     version: row.version,
   };
+}
+
+/**
+ * The terms a `PATCH` stores, validated against the contract's own type. The man-days of a contract
+ * made from a deal with an estimate are the estimate's, copied once at creation (A6) and read-only
+ * after (AC-3.1): the client omits the member — sending it, even `null`, is a 422 — and the stored
+ * figure is kept, so replacing the other terms never clears it. Any other contract (entered by
+ * hand, or from a deal without an estimate) owns its man-days.
+ */
+function termsToStore(current: ContractRow, raw: Record<string, unknown>): Terms {
+  const fromEstimate = current.type === "fixed_price" && current.estimateId !== null;
+  if (fromEstimate && "estimatedManDays" in raw) {
+    throw unprocessable(
+      "The estimated man-days of a contract made from a deal with an estimate come from the estimate: leave them out",
+      { field: "terms.estimatedManDays" },
+      "estimated_man_days_from_estimate",
+    );
+  }
+  const terms = parseTerms(current.type, raw);
+  return fromEstimate && terms.type === "fixed_price"
+    ? { ...terms, estimatedManDays: current.estimatedManDays?.toNumber() ?? null }
+    : terms;
 }
 
 // ─── Routes ──────────────────────────────────────────────────────────────────
@@ -102,7 +160,7 @@ const updateContractRoute = createRoute({
     200: { description: "Updated", ...json(ContractSchema) },
     404: { description: "Not found" },
     409: { description: "version_conflict" },
-    422: { description: "maintenance_needs_sla_or_hours" },
+    422: { description: "maintenance_needs_sla_or_hours, or estimated_man_days_from_estimate (the contract's man-days come from its deal's estimate)" },
     428: { description: "precondition_required" },
     ...commonErrors,
   },
@@ -170,7 +228,7 @@ contractsRouter.openapi(updateContractRoute, async (c) => {
       { path: [body.endDate !== undefined ? "endDate" : "startDate"], message: "The end date must not be before the start date" },
     ]);
   }
-  const terms = body.terms !== undefined ? parseTerms(current.type, body.terms) : null;
+  const terms = body.terms !== undefined ? termsToStore(current, body.terms) : null;
 
   const row = await db.$transaction(async (tx) => {
     // Compare-and-set on the version: of two saves of the same version only one matches (AC-1.7).

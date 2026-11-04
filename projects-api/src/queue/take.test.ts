@@ -87,6 +87,7 @@ describe("POST /queue/:dealId/project — a new project from a won deal (AC-1.2,
         bexioOrderId: null,
         startDate: "2026-12-01",
         endDate: null,
+        deal: { id: "d-1", title: "Portal rebuild", won: true },
       },
     ]);
 

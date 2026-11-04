@@ -4,7 +4,7 @@
  * are seeded straight in the database (the API under test is not its own fixture).
  */
 import { beforeEach, describe, expect, it } from "bun:test";
-import { call, crm, db, resetWorld, type PersonaName } from "../test-support/world";
+import { call, crm, db, makeDeal, resetWorld, type PersonaName } from "../test-support/world";
 import type { Prisma } from "../lib/generated/prisma/client";
 
 beforeEach(async () => {
@@ -67,6 +67,8 @@ describe("POST /projects/:id/contracts — a contract per project type (AC-2.1, 
       company: { id: "co-acme", name: "Acme SA" },
       origin: "manual",
       dealId: null,
+      deal: null,
+      estimate: null,
       bexioOrderId: null,
       startDate: "2026-12-01",
       endDate: null,
@@ -155,8 +157,8 @@ describe("GET /projects/:id/contracts/:contractId (AC-2.1, AC-4.3)", () => {
     expect(res.json).toEqual(created.json);
     // ContractSummary (T5) is the same facts: what the project page lists is what the contract says.
     const page = await call("GET", `/projects/${project.id}`, { as: "viewer" });
-    const { id, type, company, origin, bexioOrderId, startDate, endDate } = res.json;
-    expect(page.json.contracts).toEqual([{ id, type, company, origin, bexioOrderId, startDate, endDate }]);
+    const { id, type, company, origin, bexioOrderId, startDate, endDate, deal } = res.json;
+    expect(page.json.contracts).toEqual([{ id, type, company, origin, bexioOrderId, startDate, endDate, deal }]);
   });
 
   it("is 404 for an unknown contract, a contract of another project, and an unknown project", async () => {
@@ -598,6 +600,172 @@ describe("DELETE /projects/:id/contracts/:contractId (AC-2.10, D34)", () => {
     const { project } = await withContract();
     await expect((async () => db.project.delete({ where: { id: project.id } }))()).rejects.toThrow();
     expect(await contractCount()).toBe(1);
+  });
+});
+
+// ─── Made from a deal (specs/022 T8) ─────────────────────────────────────────
+
+/**
+ * A fixed price project with one contract made from a won deal, straight in the database (the take
+ * that makes it is T7's, tested in queue/take.test.ts). `estimate` backs the deal and the contract
+ * with an EstimAI estimate, whose man-days (40) the contract copied.
+ */
+async function withDealContract(opts: { estimate?: boolean; dealOver?: Parameters<typeof makeDeal>[0] } = {}) {
+  const deal = makeDeal({ id: "d-1", title: "Portal rebuild", ...opts.dealOver });
+  crm.deals = [deal];
+  const project = await seed("fixed_price");
+  const contract = await db.contract.create({
+    data: {
+      projectId: project.id,
+      type: "fixed_price",
+      companyId: "co-acme",
+      origin: "deal",
+      dealId: deal.id,
+      estimateId: opts.estimate === false ? null : "est-1",
+      startDate: new Date("2026-12-01T00:00:00Z"),
+      deadline: new Date("2027-03-31T00:00:00Z"),
+      estimatedManDays: opts.estimate === false ? null : 40,
+      maxEffortManDays: 55.5,
+    },
+  });
+  return { deal, project, contract };
+}
+
+describe("a contract made from a deal shows its deal, live (AC-2.3, AC-2.4, AC-3.2, AC-3.3)", () => {
+  it("reads as origin deal with the deal's id, title and won state, and the estimate link", async () => {
+    const { project, contract } = await withDealContract();
+    const res = await read(project.id, contract.id);
+    expect(res.status).toBe(200);
+    expect(res.json).toMatchObject({
+      origin: "deal",
+      dealId: "d-1",
+      deal: { id: "d-1", title: "Portal rebuild", won: true },
+      estimate: { id: "est-1" },
+      terms: { deadline: "2027-03-31", estimatedManDays: 40, maxEffortManDays: 55.5 },
+    });
+  });
+
+  it("has `estimate: null` when the deal had no estimate, and still shows the deal", async () => {
+    const { project, contract } = await withDealContract({ estimate: false });
+    const res = await read(project.id, contract.id);
+    expect(res.json).toMatchObject({ deal: { id: "d-1", title: "Portal rebuild", won: true }, estimate: null });
+  });
+
+  it("says `won: false` once the CRM reopens the deal, changes nothing else, and `true` again once re-won (AC-2.3, AC-2.4)", async () => {
+    const { deal, project, contract } = await withDealContract();
+    const before = (await read(project.id, contract.id)).json;
+    deal.stage = "negotiation";
+    const reopened = await read(project.id, contract.id);
+    expect(reopened.status).toBe(200);
+    expect(reopened.json.deal).toEqual({ id: "d-1", title: "Portal rebuild", won: false });
+    expect({ ...reopened.json, deal: before.deal }).toEqual(before);
+    deal.stage = "won";
+    expect((await read(project.id, contract.id)).json.deal).toEqual({ id: "d-1", title: "Portal rebuild", won: true });
+  });
+
+  it("follows a title edited in the CRM: the title is never copied", async () => {
+    const { deal, project, contract } = await withDealContract();
+    deal.title = "Portal rebuild, phase 2";
+    expect((await read(project.id, contract.id)).json.deal.title).toBe("Portal rebuild, phase 2");
+  });
+
+  it("degrades `title` and `won` to null, not an error, when the CRM cannot answer", async () => {
+    const { project, contract } = await withDealContract();
+    crm.down = true;
+    const res = await read(project.id, contract.id);
+    expect(res.status).toBe(200);
+    expect(res.json).toMatchObject({ dealId: "d-1", deal: { id: "d-1", title: null, won: null }, estimate: { id: "est-1" } });
+  });
+
+  it("degrades the same way for a deal the CRM no longer knows", async () => {
+    const { deal, project, contract } = await withDealContract();
+    crm.deals = crm.deals.filter((d) => d.id !== deal.id);
+    const res = await read(project.id, contract.id);
+    expect(res.status).toBe(200);
+    expect(res.json.deal).toEqual({ id: "d-1", title: null, won: null });
+  });
+
+  it("asks the CRM for deals once per request, and not at all for a contract entered by hand", async () => {
+    const { project, contract } = await withDealContract();
+    crm.dealCalls = 0;
+    await read(project.id, contract.id);
+    expect(crm.dealCalls).toBe(1);
+
+    const manual = await withContract();
+    crm.dealCalls = 0;
+    expect((await read(manual.project.id, manual.contract.id)).json).toMatchObject({ deal: null, estimate: null });
+    expect(crm.dealCalls).toBe(0);
+  });
+});
+
+describe("PATCH on a contract made from a deal (AC-3.1, AC-1.7)", () => {
+  const dealPatch = (projectId: string, contractId: string, body: unknown, ifMatch = 1) =>
+    patch(projectId, contractId, body, "pmCh", ifMatch);
+
+  it.each([
+    { what: "a number", value: 12 },
+    { what: "null", value: null },
+  ])("refuses `terms.estimatedManDays` as $what on an estimate-backed contract: 422 `estimated_man_days_from_estimate`", async ({ value }) => {
+    const { project, contract } = await withDealContract();
+    const res = await dealPatch(project.id, contract.id, {
+      terms: { deadline: "2027-04-30", maxEffortManDays: 60, estimatedManDays: value },
+    });
+    expect(res.status).toBe(422);
+    expect(res.json).toMatchObject({ code: "estimated_man_days_from_estimate", field: "terms.estimatedManDays" });
+    const stored = await db.contract.findUniqueOrThrow({ where: { id: contract.id } });
+    expect(stored.version).toBe(1);
+    expect(stored.estimatedManDays?.toNumber()).toBe(40);
+  });
+
+  it("keeps the stored man-days when `terms` omits the member: the other terms change, the figure does not", async () => {
+    const { project, contract } = await withDealContract();
+    const res = await dealPatch(project.id, contract.id, { terms: { deadline: "2027-04-30", maxEffortManDays: 60 } });
+    expect(res.status).toBe(200);
+    expect(res.json.terms).toEqual({ deadline: "2027-04-30", estimatedManDays: 40, maxEffortManDays: 60 });
+    expect((await db.contract.findUniqueOrThrow({ where: { id: contract.id } })).estimatedManDays?.toNumber()).toBe(40);
+  });
+
+  it("keeps the man-days across a dates-only edit, and when the contract is ended", async () => {
+    const { project, contract } = await withDealContract();
+    const res = await dealPatch(project.id, contract.id, { endDate: "2027-06-30" });
+    expect(res.status).toBe(200);
+    expect(res.json).toMatchObject({ endDate: "2027-06-30", terms: { estimatedManDays: 40 } });
+  });
+
+  it("still lets the man-days be edited on a deal contract whose deal had no estimate, as on one entered by hand", async () => {
+    const { project, contract } = await withDealContract({ estimate: false });
+    const res = await dealPatch(project.id, contract.id, {
+      terms: { deadline: "2027-03-31", maxEffortManDays: 55.5, estimatedManDays: 30 },
+    });
+    expect(res.status).toBe(200);
+    expect(res.json.terms).toMatchObject({ estimatedManDays: 30 });
+  });
+
+  it.each([
+    { what: "a deal id", body: { dealId: "d-2" } },
+    { what: "a project id (no move)", body: { projectId: "other" } },
+    { what: "an origin", body: { origin: "manual" } },
+    { what: "an estimate id", body: { estimateId: "est-2" } },
+    { what: "a deal id with a null (no detach)", body: { dealId: null } },
+  ])("refuses $what: 400, and the contract stays on its deal and project", async ({ body }) => {
+    const { project, contract } = await withDealContract();
+    const res = await dealPatch(project.id, contract.id, { endDate: "2027-06-30", ...body });
+    expect(res.status).toBe(400);
+    expect(res.json).toMatchObject({ code: "validation_failed" });
+    expect(await db.contract.findUniqueOrThrow({ where: { id: contract.id } })).toMatchObject({
+      projectId: project.id,
+      dealId: "d-1",
+      origin: "deal",
+      estimateId: "est-1",
+      version: 1,
+    });
+  });
+
+  it("cannot be deleted: 405, the contract and its deal link stay", async () => {
+    const { project, contract } = await withDealContract();
+    const res = await call("DELETE", `/projects/${project.id}/contracts/${contract.id}`, { as: "admin" });
+    expect(res.status).toBe(405);
+    expect(await db.contract.findUniqueOrThrow({ where: { id: contract.id } })).toMatchObject({ dealId: "d-1" });
   });
 });
 

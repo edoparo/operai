@@ -89,8 +89,10 @@ export const TermsViewSchema = z.union([
 
 export const ContractSchema = ContractSummarySchema.extend({
   projectId: z.string(),
-  /** Filled by the CRM hand-off (specs/022); `null` for a contract entered by hand. */
+  /** The deal's id (specs/022); `null` for a contract entered by hand. */
   dealId: z.string().nullable(),
+  /** The deal's EstimAI estimate at creation (AC-3.2); `null` for a hand-entered contract and for a deal without one. */
+  estimate: z.object({ id: z.string() }).nullable(),
   terms: TermsViewSchema,
   version: z.number().int(),
 });
