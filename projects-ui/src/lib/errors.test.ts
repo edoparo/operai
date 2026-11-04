@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { ApiError } from './api'
-import { codeOf, errorMessage, fieldErrorOf, statusOf, userIdsOf } from './errors'
+import { codeOf, errorMessage, fieldErrorOf, statusOf, takeRefusalOf, userIdsOf } from './errors'
 
 const problem = (status: number, code: string | undefined, extras: Record<string, unknown> = {}, detail = 'Why') =>
   new ApiError({ status, title: 'T', detail, ...(code ? { code } : {}), extras })
@@ -53,5 +53,30 @@ describe('codeOf, statusOf, userIdsOf', () => {
     expect(statusOf(new TypeError('x'))).toBeNull()
     expect(userIdsOf(new TypeError('x'))).toEqual([])
     expect(userIdsOf(problem(422, 'not_project_user', { userIds: 'u1' }))).toEqual([])
+  })
+})
+
+describe('takeRefusalOf', () => {
+  it.each([
+    'deal_not_found',
+    'deal_not_won',
+    'deal_taken',
+    'out_of_scope',
+    'not_project_user',
+    'contracts_not_allowed',
+    'project_not_open',
+    'company_mismatch',
+    'estimated_man_days_from_estimate',
+    'crm_unavailable',
+    'estimai_unavailable',
+    'estimai_unconfigured',
+  ])('recognises the refusal %s of taking a deal (AC-1.5)', (code) => {
+    expect(takeRefusalOf(problem(409, code))).toBe(code)
+  })
+
+  it('knows nothing of other codes, a Problem without one, or a network failure', () => {
+    expect(takeRefusalOf(problem(409, 'version_conflict'))).toBeNull()
+    expect(takeRefusalOf(problem(500, undefined))).toBeNull()
+    expect(takeRefusalOf(new TypeError('Failed to fetch'))).toBeNull()
   })
 })

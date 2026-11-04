@@ -11,9 +11,9 @@ import { LoadFailure, Loading } from './LoadState'
  * ProjectsShell — projects-ui's root layout: the tool title (h1) and the routed
  * page (ToolLayout `default` width). No suite chrome and no auth guard: the
  * shell owns both and mounts this remote only for `projects:access` holders
- * (ADR-0006, ADR-0007). Two tabs, open to every `projects:access` holder and
- * never hidden: Projects (the list; a project page is reached from it) and My
- * tasks (specs/028 US-7). Projects is current on the list only (`exact`).
+ * (ADR-0006, ADR-0007). Three tabs: the projects list and My tasks (specs/028
+ * US-7), open to every reader, and the to-start queue (specs/022); the project
+ * page is reached from the list.
  *
  * What varies per person is `GET /scope` — the entities they manage and whether
  * they may write a Bexio order id — loaded once here and handed to the pages
@@ -42,9 +42,12 @@ export default function ProjectsShell() {
       title={strings.nav.heading}
       testId="projects-shell"
       nav={
-        <TabNav label={strings.tasks.my.navLabel}>
-          <Link to="/" activeOptions={{ exact: true }} className={tabLinkClassName}>
-            {strings.tasks.my.tabProjects}
+        <TabNav label={strings.nav.landmarkLabel}>
+          <Link to="/" className={tabLinkClassName} activeOptions={{ exact: true }}>
+            {strings.nav.projects}
+          </Link>
+          <Link to="/queue" className={tabLinkClassName}>
+            {strings.nav.queue}
           </Link>
           <Link to="/tasks" className={tabLinkClassName}>
             {strings.tasks.my.tabMyTasks}

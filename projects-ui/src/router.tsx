@@ -4,12 +4,14 @@ import MyTasksPage from './pages/MyTasksPage'
 import NotFoundPage from './pages/NotFoundPage'
 import ProjectDetailPage from './pages/ProjectDetailPage'
 import ProjectsPage from './pages/ProjectsPage'
+import QueuePage from './pages/QueuePage'
 
 /**
  * projects-ui's inner router (specs/025-projects), basepath `/projects` — the
  * shell mounts this remote at its gated `/projects/$` route:
  *
  *   /projects        Projects list (T12)
+ *   /projects/queue  To-start queue: won deals no project has taken (specs/022)
  *   /projects/tasks  My tasks: project and pre-sales tasks together (specs/028 T19)
  *   /projects/$id    Project page: details, state, team, contracts (T13, T14)
  *
@@ -21,10 +23,11 @@ export function createAppRouter(basepath?: string, Root: RouteComponent = Outlet
   const rootRoute = createRootRoute({ component: Root })
 
   const listRoute = createRoute({ getParentRoute: () => rootRoute, path: '/', component: ProjectsPage })
+  const queueRoute = createRoute({ getParentRoute: () => rootRoute, path: '/queue', component: QueuePage })
   const projectRoute = createRoute({ getParentRoute: () => rootRoute, path: '/$id', component: ProjectDetailPage })
   const tasksRoute = createRoute({ getParentRoute: () => rootRoute, path: '/tasks', component: MyTasksPage })
 
-  const routeTree = rootRoute.addChildren([listRoute, tasksRoute, projectRoute])
+  const routeTree = rootRoute.addChildren([listRoute, queueRoute, tasksRoute, projectRoute])
 
   return createRouter({ routeTree, basepath, defaultNotFoundComponent: NotFoundPage })
 }

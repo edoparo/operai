@@ -520,11 +520,13 @@ function fullContract(id: string, company = { id: 'c1', name: 'Acme SA' }): Cont
     type: 't_and_m',
     company,
     origin: 'manual',
+    deal: null,
     bexioOrderId: id === 'k1' ? 'AB-100' : null,
     startDate: '2026-02-01',
     endDate: null,
     projectId: 'p1',
     dealId: null,
+    estimate: null,
     terms: { positions: [{ profile: 'Senior developer', plannedManDays: 20 }] },
     version: 4,
   }
