@@ -19,6 +19,7 @@ import { entityProfilesRouter } from "./entity-profiles/entityProfiles.routes";
 import { offerSequencesRouter } from "./offer-sequences/offerSequences.routes";
 import { activitiesRouter } from "./activities/activities.routes";
 import { systemCompaniesRouter } from "./system/companies.routes";
+import { systemDealsRouter } from "./system/deals.routes";
 import { requestLogger } from "./lib/logger";
 import { handleProblemError, problem } from "./lib/problem";
 import { setupOpenAPI } from "./openapi/registry";
@@ -78,6 +79,7 @@ app.route("/", offerSequencesRouter);
 app.route("/", activitiesRouter);
 // Service-to-service routes: their own credential (a scoped service JWT), not the user guards.
 app.route("/", systemCompaniesRouter);
+app.route("/", systemDealsRouter);
 
 // ─── OpenAPI + Scalar UI ─────────────────────────────────────────────────────
 

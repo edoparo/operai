@@ -12,9 +12,10 @@ import { app, call, resetWorld } from "./test-support/world";
 
 beforeEach(resetWorld);
 
-// `GET /system/companies` (specs/021) is guarded by a scoped SERVICE credential, not by user
-// capabilities; its own 401 matrix lives in src/system/companies.routes.test.ts.
-const PUBLIC = new Set(["GET /health", "GET /openapi.json", "GET /docs", "GET /system/companies"]);
+// `GET /system/companies` (specs/021) and `GET /system/deals` (specs/022) are guarded by a
+// scoped SERVICE credential, not by user capabilities; their own 401 matrices live in
+// src/system/companies.routes.test.ts and src/system/deals.routes.test.ts.
+const PUBLIC = new Set(["GET /health", "GET /openapi.json", "GET /docs", "GET /system/companies", "GET /system/deals"]);
 
 const routes = [
   ...new Set(
