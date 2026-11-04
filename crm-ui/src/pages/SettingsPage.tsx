@@ -2,6 +2,7 @@ import { useCallback, useId } from 'react'
 import { PageHeader, StatePanel } from '@operai/ui'
 import EntityProfileForm from '../components/EntityProfileForm'
 import LetterheadCard from '../components/LetterheadCard'
+import OfferNumberingCard from '../components/OfferNumberingCard'
 import TemplatesCard from '../components/TemplatesCard'
 import { LoadFailure, Loading } from '../components/LoadState'
 import { listEntityProfiles } from '../lib/crmApi'
@@ -44,6 +45,7 @@ export default function SettingsPage() {
             <div key={entity} className="flex flex-col gap-4">
               <EntityProfileForm entity={entity} profile={profile} onSaved={changed} />
               <LetterheadCard entity={entity} profile={profile} onChanged={changed} />
+              <OfferNumberingCard entity={entity} />
               <TemplatesCard entity={entity} />
             </div>
           )

@@ -744,3 +744,44 @@ describe("edit until sent, then revise (specs/020 US-7)", () => {
     expect((await call("POST", `/deals/${deal.id}/offers/${legacy.id}/sent`, { as: "consultant" })).status).toBe(403);
   });
 });
+
+describe("offer numbering setting (specs/020 US-8)", () => {
+  beforeEach(resetWorld);
+  const seq = (entity = "welld_ch", as: "admin" | "salesCh" | "consultant" = "admin") =>
+    call("GET", `/offer-sequences/${entity}`, { as });
+  const setSeq = (next: number, year = YEAR, entity = "welld_ch", as: "admin" | "salesCh" | "consultant" = "admin") =>
+    call("PUT", `/offer-sequences/${entity}`, { as, body: { year, next } });
+
+  it("starts at 1; setting the next number makes the next new offer take it (AC-8.1)", async () => {
+    expect((await seq()).json).toEqual({ entity: "welld_ch", year: YEAR, next: 1, lowestAllowed: 1 });
+    expect((await setSeq(19)).json).toMatchObject({ next: 19, lowestAllowed: 1 });
+    const { deal } = await readyDeal();
+    await putProfile();
+    expect((await generate(deal.id, await body(deal.id))).json.reference).toBe(`0019/${YEAR}`);
+    expect((await seq()).json).toMatchObject({ next: 20, lowestAllowed: 20 });
+    // the other entity is untouched
+    expect((await seq("welld_it")).json.next).toBe(1);
+  });
+
+  it("never goes back to a number an offer already carries, deleted ones included (AC-8.2)", async () => {
+    const { deal } = await readyDeal();
+    await putProfile();
+    const first = await generate(deal.id, await body(deal.id));
+    expect(first.json.reference).toBe(`0001/${YEAR}`);
+    await call("DELETE", `/deals/${deal.id}/offers/${first.json.id}`);
+    const refused = await setSeq(1);
+    expect(refused.status).toBe(409);
+    expect(refused.json).toMatchObject({ code: "offer_number_used", lowestAllowed: 2 });
+    // lowering to an unused number is fine: 50 was never printed
+    expect((await setSeq(50)).status).toBe(200);
+    expect((await setSeq(2)).json.next).toBe(2);
+  });
+
+  it("this year or the next only; deal:manage over the entity and the financials (AC-8.3)", async () => {
+    expect((await setSeq(5, YEAR - 1)).json.code).toBe("year_out_of_range");
+    expect((await setSeq(5, YEAR + 1)).json).toMatchObject({ year: YEAR + 1, next: 5 });
+    expect((await setSeq(10_000)).status).toBe(422);
+    expect((await seq("welld_ch", "consultant")).status).toBe(403);
+    expect((await setSeq(5, YEAR, "welld_it", "salesCh")).json.code).toBe("out_of_scope");
+  });
+});

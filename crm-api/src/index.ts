@@ -15,6 +15,7 @@ import { offerTemplatesRouter } from "./offer-templates/offerTemplates.routes";
 import { offersRouter } from "./offers/offers.routes";
 import { attachmentsRouter } from "./attachments/attachments.routes";
 import { entityProfilesRouter } from "./entity-profiles/entityProfiles.routes";
+import { offerSequencesRouter } from "./offer-sequences/offerSequences.routes";
 import { activitiesRouter } from "./activities/activities.routes";
 import { requestLogger } from "./lib/logger";
 import { handleProblemError, problem } from "./lib/problem";
@@ -70,6 +71,7 @@ app.route("/", offersRouter);
 app.route("/", offerTemplatesRouter);
 app.route("/", attachmentsRouter);
 app.route("/", entityProfilesRouter);
+app.route("/", offerSequencesRouter);
 app.route("/", activitiesRouter);
 
 // ─── OpenAPI + Scalar UI ─────────────────────────────────────────────────────

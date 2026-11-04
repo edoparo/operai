@@ -25,6 +25,20 @@ const en = {
   saving: 'Saving…',
   saved: (entity: string) => `${entity} profile saved.`,
   updated: (date: string) => `Last saved ${date}`,
+  numbering: {
+    title: (entity: string) => `${entity} offer numbering`,
+    loading: 'Loading the numbering…',
+    year: 'Year',
+    next: 'Next offer number',
+    nextHint: (example: string, lowest: number) =>
+      lowest > 1
+        ? `The next new offer is numbered ${example}. Offers already use the numbers below ${lowest}, so it cannot go lower.`
+        : `The next new offer is numbered ${example}. Set it to continue from the document system.`,
+    invalid: 'Enter a whole number from 1 to 9999.',
+    used: (lowest: number) => `An offer already uses that number. Use ${lowest} or more.`,
+    save: 'Save numbering',
+    saved: (entity: string, example: string) => `${entity}: the next new offer is ${example}.`,
+  },
 }
 
 const it: typeof en = {
@@ -53,6 +67,20 @@ const it: typeof en = {
   saving: 'Salvataggio…',
   saved: (entity: string) => `Profilo ${entity} salvato.`,
   updated: (date: string) => `Ultimo salvataggio ${date}`,
+  numbering: {
+    title: (entity: string) => `Numerazione offerte ${entity}`,
+    loading: 'Caricamento della numerazione…',
+    year: 'Anno',
+    next: 'Prossimo numero di offerta',
+    nextHint: (example: string, lowest: number) =>
+      lowest > 1
+        ? `La prossima nuova offerta avrà il numero ${example}. Le offerte usano già i numeri sotto ${lowest}, quindi non si può scendere oltre.`
+        : `La prossima nuova offerta avrà il numero ${example}. Impostalo per continuare dal sistema documentale.`,
+    invalid: 'Inserisci un numero intero da 1 a 9999.',
+    used: (lowest: number) => `Un'offerta usa già quel numero. Usa ${lowest} o più.`,
+    save: 'Salva numerazione',
+    saved: (entity: string, example: string) => `${entity}: la prossima nuova offerta sarà ${example}.`,
+  },
 }
 
 export const settings = { en, it }

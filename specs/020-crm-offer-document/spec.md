@@ -273,6 +273,21 @@ a change is a new revision, so the document the client holds is never rewritten.
   as it is. Changing the template there still replaces the fields after a confirmation.
 - **AC-7.5** Offers of deals already at "Offer sent", won or lost when this ships count as sent.
 
+### US-8 The numbering continues from wellD's document system (owner, 2026-11-04)
+
+Offers were numbered from 1 in the CRM while wellD's documents are already further on; the
+two must not collide.
+
+- **AC-8.1** In Settings, for each entity they manage deals for, a person sets the next
+  offer number of the current year (1–9999). The entity's next new offer takes it; later
+  ones follow it. Revisions keep their deal's number (AC-4.1) and are not affected.
+- **AC-8.2** The number can never be set to one an offer of that entity and year already
+  carries, a deleted one included (AC-4.2): 409 `offer_number_used` naming the lowest
+  allowed. A number never printed may be set lower again.
+- **AC-8.3** The current year or the next may be set (the API takes either); past years are
+  closed. It needs `deal:manage` over the entity and `deal:financials`, like the rest of the
+  entity's offer settings.
+
 ## Non-goals
 - A visual (WYSIWYG) editor. Texts are written in the markup of AC-1.6.
 - Colours, images or hyperlinks in the body.

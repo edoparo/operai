@@ -1055,4 +1055,34 @@ describe('Settings screen', () => {
     await screen.findByTestId('crm-settings-welld_ch')
     expect(screen.getByTestId('crm-settings-welld_it')).not.toBeNull()
   })
+
+  it('sets where the offer numbers continue from, and refuses a number an offer already uses (specs/020 US-8)', async () => {
+    let put: Record<string, unknown> | null = null
+    await render_(MANAGER, {
+      'GET /entity-profiles': () => ({ status: 200, body: { items: [] } }),
+      'GET /offer-sequences/welld_ch': () => ({
+        status: 200,
+        body: { entity: 'welld_ch', year: 2026, next: 4, lowestAllowed: 4 },
+      }),
+      'PUT /offer-sequences/welld_ch': (_url, init) => {
+        put = body(init)
+        return { status: 200, body: { entity: 'welld_ch', year: 2026, next: 19, lowestAllowed: 4 } }
+      },
+    })
+    const card = await screen.findByTestId('crm-settings-welld_ch-numbering')
+    const next = (await within(card).findByLabelText(/Next offer number/)) as HTMLInputElement
+    expect(next.value).toBe('4')
+    expect(card.textContent).toContain('0004/2026')
+    // below a number already used: refused before the server is asked
+    fireEvent.change(next, { target: { value: '2' } })
+    fireEvent.click(within(card).getByTestId('crm-settings-welld_ch-numbering-save'))
+    expect(await within(card).findByText('An offer already uses that number. Use 4 or more.')).not.toBeNull()
+    expect(put).toBeNull()
+    fireEvent.change(next, { target: { value: '19' } })
+    expect(card.textContent).toContain('0019/2026')
+    fireEvent.click(within(card).getByTestId('crm-settings-welld_ch-numbering-save'))
+    await waitFor(() => expect(put).toEqual({ year: 2026, next: 19 }))
+    expect(await within(card).findByText('wellD CH: the next new offer is 0019/2026.')).not.toBeNull()
+  })
 })
+

@@ -261,6 +261,12 @@ export const getOfferDraft = (dealId: string, templateId: string, aiAssisted: bo
 
 export const listOffers = (dealId: string, init?: Init) => getJson<{ items: Offer[] }>(offersPath(dealId), init)
 export const generateOffer = (dealId: string, input: OfferInput) => sendJson<Offer>(offersPath(dealId), 'POST', input)
+/** specs/020 US-8: where an entity's offer numbers continue from. */
+export type OfferSequence = { entity: Entity; year: number; next: number; lowestAllowed: number }
+export const getOfferSequence = (entity: Entity, init?: Init) =>
+  getJson<OfferSequence>(`/offer-sequences/${encodeURIComponent(entity)}`, init)
+export const setOfferSequence = (entity: Entity, year: number, next: number) =>
+  sendJson<OfferSequence>(`/offer-sequences/${encodeURIComponent(entity)}`, 'PUT', { year, next })
 /** specs/020 US-7: an offer's own content, to edit it or to start the next revision from it. */
 export const getOfferForm = (dealId: string, offerId: string, init?: Init) =>
   getJson<OfferForm>(`${offersPath(dealId)}/${encodeURIComponent(offerId)}/form`, init)
