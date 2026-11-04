@@ -15,6 +15,8 @@ const en = {
   complete: 'Mark done',
   completing: 'Saving…',
   reopen: 'Reopen',
+  waitingOn: (subjects: string) => `Waiting on: ${subjects}`,
+  blockedHint: 'It can be marked done once the tasks it waits on are done.',
   edit: 'Edit',
   delete: 'Delete',
   actionsFor: (subject: string) => `Actions for ${subject}`,
@@ -46,6 +48,10 @@ const en = {
     noContact: 'No contact',
     noDeal: 'No deal',
     optionsLoading: 'Loading…',
+    blockedBy: 'Blocked by',
+    blockedByHint: 'Open tasks of this company that must be done first. Up to 10.',
+    blockedByEmpty: 'No other open task at this company.',
+    blockedByMax: 'Choose at most 10 tasks.',
   },
 }
 
@@ -65,6 +71,8 @@ const it: typeof en = {
   complete: 'Segna come fatta',
   completing: 'Salvataggio…',
   reopen: 'Riapri',
+  waitingOn: (subjects: string) => `In attesa di: ${subjects}`,
+  blockedHint: 'Si potrà segnare come fatta quando lo saranno le attività da cui dipende.',
   edit: 'Modifica',
   delete: 'Elimina',
   actionsFor: (subject: string) => `Azioni per ${subject}`,
@@ -96,6 +104,10 @@ const it: typeof en = {
     noContact: 'Nessun contatto',
     noDeal: 'Nessuna opportunità',
     optionsLoading: 'Caricamento…',
+    blockedBy: 'Bloccata da',
+    blockedByHint: "Attività aperte di quest'azienda da completare prima. Al massimo 10.",
+    blockedByEmpty: "Nessun'altra attività aperta per quest'azienda.",
+    blockedByMax: 'Scegli al massimo 10 attività.',
   },
 }
 

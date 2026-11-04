@@ -1,7 +1,7 @@
 import { useCallback, useRef, useState } from 'react'
-import { DateInput, DateTimeInput, Field, FormDialog, focusFirstInvalid } from '@operai/ui'
+import { CheckboxGroupField, DateInput, DateTimeInput, Field, FormDialog, focusFirstInvalid } from '@operai/ui'
 import { ApiError } from '../lib/api'
-import { createActivity, listContacts, listDeals, updateActivity } from '../lib/crmApi'
+import { createActivity, listActivities, listContacts, listDeals, updateActivity } from '../lib/crmApi'
 import { fromLocalDateTimeInput, toLocalDateTimeInput } from '../lib/dates'
 import { errorMessage, fieldErrorOf } from '../lib/errors'
 import { contactName, personName } from '../lib/people'
@@ -16,13 +16,29 @@ import type { CompanyChoice } from './CompanyPicker'
 import PersonPicker from './PersonPicker'
 import type { PersonChoice } from './PersonPicker'
 
-type FieldName = 'company' | 'type' | 'subject' | 'body' | 'occurredAt' | 'dueDate' | 'assignee' | 'contactId' | 'dealId'
+type FieldName =
+  | 'company'
+  | 'type'
+  | 'subject'
+  | 'body'
+  | 'occurredAt'
+  | 'dueDate'
+  | 'assignee'
+  | 'contactId'
+  | 'dealId'
+  | 'blockedByIds'
+
+/** The server's cap on a task's blockers (specs/017 US-6). */
+const MAX_BLOCKERS = 10
 
 const CODE_FIELDS: Record<string, FieldName> = {
   contact_not_in_company: 'contactId',
   deal_not_in_company: 'dealId',
   owner_not_active: 'assignee',
   task_fields_on_non_task: 'type',
+  blocker_not_in_company: 'blockedByIds',
+  blocker_is_self: 'blockedByIds',
+  blocker_cycle: 'blockedByIds',
 }
 
 /**
@@ -64,12 +80,15 @@ export default function ActivityFormDialog({
   )
   const [contactId, setContactId] = useState(activity?.contact?.id ?? preset?.contactId ?? '')
   const [dealId, setDealId] = useState(activity?.deal?.id ?? preset?.dealId ?? '')
+  const [blockedByIds, setBlockedByIds] = useState<string[]>(
+    () => activity?.task?.blockedBy?.map((blocker) => blocker.id) ?? [],
+  )
   const [errors, setErrors] = useState<Errors<FieldName>>({})
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const fieldsRef = useRef<HTMLDivElement>(null)
 
-  const companyId = company?.id ?? chosenCompany?.id ?? null
+  const companyId = company?.id ?? activity?.company.id ?? chosenCompany?.id ?? null
   const loadOptions = useCallback(
     (signal: AbortSignal) =>
       companyId === null
@@ -83,8 +102,33 @@ export default function ActivityFormDialog({
   const options = useResource(loadOptions)
   const contacts = options.data?.[0].items ?? []
   const deals = options.data?.[1].items ?? []
-  const optionsLoading = companyId !== null && options.status === 'loading'
   const isTask = type === 'task'
+  // Loaded on their own, so a failure here never hides the contact and deal choices.
+  const loadOpenTasks = useCallback(
+    (signal: AbortSignal) =>
+      companyId === null || !isTask
+        ? Promise.resolve(null)
+        : listActivities({ companyId }, { type: 'task', open: true, pageSize: 100 }, { signal }),
+    [companyId, isTask],
+  )
+  const openTasks = useResource(loadOpenTasks)
+  const openTaskItems = openTasks.data?.items ?? []
+  // The company's open tasks, plus any current blocker already done, never the task itself.
+  const blockerChoices = [
+    ...openTaskItems.filter((candidate) => candidate.id !== activity?.id),
+    ...(activity?.task?.blockedBy ?? []).filter(
+      (blocker) => blocker.completed && !openTaskItems.some((open) => open.id === blocker.id),
+    ),
+  ].map((choice) => ({ id: choice.id, label: choice.subject }))
+  const toggleBlocker = (id: string, checked: boolean) => {
+    if (checked && blockedByIds.length >= MAX_BLOCKERS) {
+      setErrors((current) => ({ ...current, blockedByIds: t.blockedByMax }))
+      return
+    }
+    setErrors((current) => ({ ...current, blockedByIds: undefined }))
+    setBlockedByIds((current) => (checked ? [...current, id] : current.filter((value) => value !== id)))
+  }
+  const optionsLoading = companyId !== null && options.status === 'loading'
 
   const submit = () => {
     const occurredIso = fromLocalDateTimeInput(occurredAt)
@@ -101,7 +145,11 @@ export default function ActivityFormDialog({
     }
     const text = { subject: subject.trim(), body: optional(body) }
     const timing = isTask
-      ? { dueDate: dueDate === '' ? null : dueDate, ...(assignee ? { assigneeUserId: assignee.id } : {}) }
+      ? {
+          dueDate: dueDate === '' ? null : dueDate,
+          ...(assignee ? { assigneeUserId: assignee.id } : {}),
+          blockedByIds,
+        }
       : { occurredAt: occurredIso! }
     setBusy(true)
     setError(null)
@@ -157,6 +205,7 @@ export default function ActivityFormDialog({
               // The contact and deal choices belong to the previous company.
               setContactId('')
               setDealId('')
+              setBlockedByIds([])
             }}
             error={errors.company}
             testId="crm-activity-form-company"
@@ -198,6 +247,20 @@ export default function ActivityFormDialog({
               error={errors.assignee}
               testId="crm-activity-form-assignee"
             />
+            {companyId !== null && (
+              <CheckboxGroupField
+                label={t.blockedBy}
+                hint={t.blockedByHint}
+                error={errors.blockedByIds}
+                options={blockerChoices}
+                selected={blockedByIds}
+                onToggle={toggleBlocker}
+                emptyState={openTasks.status === 'loading' ? t.optionsLoading : t.blockedByEmpty}
+                scroll
+                testId="crm-activity-form-blocked-by"
+                optionTestIdPrefix="crm-activity-form-blocker"
+              />
+            )}
           </>
         ) : (
           <Field label={t.occurredAt} error={errors.occurredAt} testId="crm-activity-form-when">

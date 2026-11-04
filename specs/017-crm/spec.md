@@ -153,6 +153,22 @@ so that the history of a relationship is in one place.
 - AC-5.4 All copy exists in English and Italian (INC-24/25); dates and amounts use the
   library formatters.
 
+### US-6 Tasks blocked by other tasks
+As a CRM user, I want to record a task today that can only be done after other tasks, so
+that nobody acts too early and the person waiting knows when to go ahead (owner,
+2026-11-04). Example: "Organise a call with Avanzato" waits on the deal's estimate task.
+
+- AC-6.1 A task may be **blocked by** up to 10 other tasks of the same company (on any of
+  its deals or none), chosen among its open tasks when the task is created or edited by its
+  author. A task cannot block itself, and a choice that would make tasks wait on each other
+  is refused. Deleting a task removes it as a blocker.
+- AC-6.2 While any blocker is open the task shows as **Blocked**, lists what it waits on,
+  and cannot be marked done (the API answers 409 `task_blocked`). Reopening a blocker blocks
+  an open task again; a task already done stays done.
+- AC-6.3 When the last open blocker is done (marked done, or the estimate task closed by
+  marking the estimate ready), the blocked task's assignee is notified in-app and by email,
+  unless they did it themselves.
+
 ## Non-goals (v1)
 
 - Email/calendar sync, inbox integration, attachments on activities.

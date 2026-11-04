@@ -157,6 +157,8 @@ export type ActivityInput = {
   dealId?: string | null
   dueDate?: string | null
   assigneeUserId?: string
+  /** Tasks only: the whole set of tasks this one waits on (specs/017 US-6). */
+  blockedByIds?: string[]
 }
 
 export type ActivityUpdate = {
@@ -165,9 +167,13 @@ export type ActivityUpdate = {
   occurredAt?: string
   dueDate?: string | null
   assigneeUserId?: string
+  blockedByIds?: string[]
 }
 
-export const listActivities = (target: ActivityTarget, params: PageQuery, init?: Init) =>
+/** `type: 'task', open: true`: a company's open tasks, the choices for "blocked by". */
+export type ActivityFilter = PageQuery & { type?: ActivityType; open?: true }
+
+export const listActivities = (target: ActivityTarget, params: ActivityFilter, init?: Init) =>
   getJson<Page<Activity>>(`/activities${query({ ...target, ...params })}`, init)
 export const createActivity = (input: ActivityInput) => sendJson<Activity>('/activities', 'POST', input)
 export const updateActivity = (id: string, input: ActivityUpdate) =>

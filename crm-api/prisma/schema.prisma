@@ -313,9 +313,28 @@ model Activity {
   createdAt         DateTime     @default(now())
   updatedAt         DateTime     @updatedAt
 
+  /// The tasks this task waits on (specs/017 US-6), and the tasks waiting on it.
+  blockedBy TaskBlocker[] @relation("BlockedTask")
+  blocks    TaskBlocker[] @relation("BlockerTask")
+
   @@index([companyId, occurredAt])
   @@index([contactId])
   @@index([dealId])
   @@index([assigneeUserId, completedAt])
   @@map("activity")
+}
+
+/// "Blocked by" between two tasks of the same company (specs/017 US-6). Both ends are tasks
+/// (checked by crm-api); deleting either task removes the link.
+model TaskBlocker {
+  blockedId String
+  blocked   Activity @relation("BlockedTask", fields: [blockedId], references: [id], onDelete: Cascade)
+  blockerId String
+  blocker   Activity @relation("BlockerTask", fields: [blockerId], references: [id], onDelete: Cascade)
+  createdBy String
+  createdAt DateTime @default(now())
+
+  @@id([blockedId, blockerId])
+  @@index([blockerId])
+  @@map("task_blocker")
 }

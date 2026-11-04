@@ -245,6 +245,9 @@ export type ActivityTask = {
   assignee: PersonRef | null
   completedAt: string | null
   completedBy: PersonRef | null
+  /** The tasks it waits on (specs/017 US-6); `blocked` while any of them is open. Absent from an older server. */
+  blockedBy?: { id: string; subject: string; completed: boolean }[]
+  blocked?: boolean
 }
 
 export type Activity = {

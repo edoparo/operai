@@ -17,7 +17,7 @@ describe('status dictionary (INC-23, plan.md § UI)', () => {
     expect(DEAL_STAGE_MEANING.lead).toBe('draft')
     expect(DEAL_STAGE_MEANING.won).toBe('settled')
     expect(DEAL_STAGE_MEANING.lost).toBe('failed')
-    expect(TASK_STATE_MEANING).toEqual({ open: 'pending', overdue: 'attention', done: 'settled' })
+    expect(TASK_STATE_MEANING).toEqual({ open: 'pending', overdue: 'attention', blocked: 'pending', done: 'settled' })
   })
 
   it('only the first four stages are open', () => {

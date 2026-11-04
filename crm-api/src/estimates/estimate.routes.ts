@@ -30,6 +30,7 @@ import { MAX_NAME, MAX_REASON, announce, clip, formatDueDate } from "../lib/noti
 import { ProblemError, forbidden, notFound, validationHook } from "../lib/problem";
 import { assertInScope, toDealView, withCompany } from "../deals/deals.routes";
 import { addWorkingDays } from "./workingDays";
+import { announceUnblocked } from "../activities/blockers";
 
 const json = (schema: z.ZodTypeAny) => ({ content: { "application/json": { schema } } });
 const DealResponse = { description: "The deal, with its estimate", ...json(z.object({}).passthrough()) };
@@ -205,12 +206,16 @@ estimateRouter.openapi(readyRoute, async (c) => {
   }
   if (estimate.state !== "ready") {
     const now = new Date();
-    await db.$transaction([
+    const [, closedTask] = await db.$transaction([
       db.dealEstimate.update({ where: { dealId: id }, data: { state: "ready", readyAt: now, readyBy: userId } }),
       ...(estimate.taskId
         ? [db.activity.updateMany({ where: { id: estimate.taskId, completedAt: null }, data: { completedAt: now, completedByUserId: userId } })]
         : []),
     ]);
+    // specs/017 US-6: tasks that waited on the estimate task may now go ahead.
+    if (estimate.taskId && closedTask && "count" in closedTask && closedTask.count > 0) {
+      await announceUnblocked(c, [estimate.taskId]);
+    }
     // E2 — whoever asked for it and whoever owns the deal.
     await announce(c, {
       kind: "estimate_ready",

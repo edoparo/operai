@@ -17,7 +17,7 @@ const en = {
     ActivityType,
     string
   >,
-  taskState: { open: 'Open', overdue: 'Overdue', done: 'Done' } as Record<TaskState, string>,
+  taskState: { open: 'Open', overdue: 'Overdue', blocked: 'Blocked', done: 'Done' } as Record<TaskState, string>,
   estimateState: { requested: 'Requested', ready: 'Ready' } as Record<EstimateState, string>,
   archived: 'Archived',
 }
@@ -34,7 +34,7 @@ const it: typeof en = {
   },
   entity: { welld_ch: 'wellD CH', welld_it: 'wellD IT' },
   activityType: { note: 'Nota', call: 'Telefonata', meeting: 'Riunione', email: 'Email', task: 'Attività' },
-  taskState: { open: 'Aperta', overdue: 'Scaduta', done: 'Completata' },
+  taskState: { open: 'Aperta', overdue: 'Scaduta', blocked: 'Bloccata', done: 'Completata' },
   estimateState: { requested: 'Richiesta', ready: 'Pronta' },
   archived: 'Archiviato',
 }

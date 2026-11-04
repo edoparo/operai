@@ -21,11 +21,13 @@ export const DEAL_STAGE_MEANING: Record<DealStage, StatusMeaning> = {
   lost: 'failed',
 }
 
-export type TaskState = 'open' | 'overdue' | 'done'
+export type TaskState = 'open' | 'overdue' | 'blocked' | 'done'
 
 export const TASK_STATE_MEANING: Record<TaskState, StatusMeaning> = {
   open: 'pending',
   overdue: 'attention',
+  // Waiting on another task (specs/017 US-6): someone else has to act first.
+  blocked: 'pending',
   done: 'settled',
 }
 

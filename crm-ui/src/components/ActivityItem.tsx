@@ -47,6 +47,10 @@ export default function ActivityItem({
   const [deleteError, setDeleteError] = useState<string | null>(null)
   const task = activity.task
   const isAuthor = currentUserId !== null && activity.author.id === currentUserId
+  // specs/017 US-6: an open task waiting on an open task cannot be marked done.
+  const blocked = task !== null && task.completedAt === null && task.blocked === true
+  const openBlockers = task?.blockedBy?.filter((blocker) => !blocker.completed) ?? []
+  const hintId = `crm-activity-${activity.id}-blocked-hint`
 
   const toggle = () => {
     setBusy(true)
@@ -81,7 +85,11 @@ export default function ActivityItem({
     <div className={`${listRowClassName} flex-col items-stretch gap-2`} data-testid={`crm-activity-${activity.id}`}>
       <div className="flex flex-wrap items-center gap-2">
         <Badge tone="neutral">{strings.badges.activityType[activity.type]}</Badge>
-        {task && <TaskStateBadge state={task.completedAt !== null ? 'done' : isOverdue(task) ? 'overdue' : 'open'} />}
+        {task && (
+          <TaskStateBadge
+            state={task.completedAt !== null ? 'done' : blocked ? 'blocked' : isOverdue(task) ? 'overdue' : 'open'}
+          />
+        )}
         <span className="font-medium text-text">{activity.subject}</span>
       </div>
       {activity.body && <p className="whitespace-pre-line text-sm text-soft">{activity.body}</p>}
@@ -106,10 +114,22 @@ export default function ActivityItem({
             ` · ${t.completedBy(personName(task.completedBy, currentUserId), formatDate(task.completedAt))}`}
         </p>
       )}
+      {blocked && openBlockers.length > 0 && (
+        <p className={listRowMetaClassName} id={hintId} data-testid={`crm-activity-${activity.id}-waiting`}>
+          {t.waitingOn(openBlockers.map((blocker) => blocker.subject).join(', '))}. {t.blockedHint}
+        </p>
+      )}
       {(task || isAuthor) && (
         <div className="flex flex-wrap gap-2" role="group" aria-label={t.actionsFor(activity.subject)}>
           {task && (
-            <Button size="sm" busy={busy} onClick={toggle} data-testid={`crm-activity-${activity.id}-toggle`}>
+            <Button
+              size="sm"
+              busy={busy}
+              disabled={blocked}
+              aria-describedby={blocked ? hintId : undefined}
+              onClick={toggle}
+              data-testid={`crm-activity-${activity.id}-toggle`}
+            >
               {busy ? t.completing : task.completedAt === null ? t.complete : t.reopen}
             </Button>
           )}

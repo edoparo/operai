@@ -30,12 +30,15 @@ import { requireCrmUsers } from "../lib/identities";
 import { MAX_NAME, announce, clip, formatDueDate } from "../lib/notify";
 import { loadPeople } from "../lib/people";
 import { ProblemError, notFound, unprocessable, validationHook } from "../lib/problem";
+import { MAX_BLOCKERS, announceUnblocked, assertBlockers, assertUnblocked, replaceBlockers } from "./blockers";
 
 // ─── Schemas ─────────────────────────────────────────────────────────────────
 
 export const ACTIVITY_TYPES = ["note", "call", "meeting", "email", "task"] as const;
 const TypeSchema = z.enum(ACTIVITY_TYPES);
 const UserIdSchema = z.string().min(1).max(64);
+/** The tasks this one waits on (US-6): the whole set, replacing any previous one. */
+const BlockedByIdsSchema = z.array(z.string().min(1).max(64)).max(MAX_BLOCKERS);
 
 const CreateActivitySchema = z
   .object({
@@ -48,6 +51,7 @@ const CreateActivitySchema = z
     dealId: z.string().min(1).max(64).nullable().optional(),
     dueDate: DateOnlySchema.nullable().optional(),
     assigneeUserId: UserIdSchema.optional(),
+    blockedByIds: BlockedByIdsSchema.optional(),
   })
   .strict();
 
@@ -58,6 +62,7 @@ const UpdateActivitySchema = z
     occurredAt: z.string().datetime({ offset: true }).optional(),
     dueDate: DateOnlySchema.nullable().optional(),
     assigneeUserId: UserIdSchema.optional(),
+    blockedByIds: BlockedByIdsSchema.optional(),
   })
   .strict();
 
@@ -65,6 +70,9 @@ const ListActivitiesQuery = z.object({
   companyId: z.string().max(64).optional(),
   contactId: z.string().max(64).optional(),
   dealId: z.string().max(64).optional(),
+  // `type=task&open=true`: the open tasks a task may be blocked by (US-6 picker).
+  type: TypeSchema.optional(),
+  open: z.enum(["true"]).optional(),
   ...pageQuery(),
 });
 
@@ -91,6 +99,9 @@ const ActivitySchema = z.object({
       assignee: PersonRefSchema.nullable(),
       completedAt: z.string().nullable(),
       completedBy: PersonRefSchema.nullable(),
+      /** The tasks it waits on (US-6); `blocked` while any of them is open. */
+      blockedBy: z.array(z.object({ id: z.string(), subject: z.string(), completed: z.boolean() })),
+      blocked: z.boolean(),
     })
     .nullable(),
   createdAt: z.string(),
@@ -103,6 +114,10 @@ const withRefs = {
   company: { select: { id: true, name: true } },
   contact: { select: { id: true, firstName: true, lastName: true } },
   deal: { select: { id: true, title: true } },
+  blockedBy: {
+    select: { blocker: { select: { id: true, subject: true, completedAt: true } } },
+    orderBy: { createdAt: "asc" },
+  },
 } satisfies Prisma.ActivityInclude;
 type ActivityRow = Prisma.ActivityGetPayload<{ include: typeof withRefs }>;
 
@@ -128,6 +143,12 @@ async function toViews(c: HeaderSource, rows: readonly ActivityRow[]) {
             assignee: maybe(row.assigneeUserId),
             completedAt: row.completedAt?.toISOString() ?? null,
             completedBy: maybe(row.completedByUserId),
+            blockedBy: row.blockedBy.map(({ blocker }) => ({
+              id: blocker.id,
+              subject: blocker.subject,
+              completed: blocker.completedAt !== null,
+            })),
+            blocked: row.blockedBy.some(({ blocker }) => blocker.completedAt === null),
           }
         : null,
     createdAt: row.createdAt.toISOString(),
@@ -277,12 +298,17 @@ export const activitiesRouter = new OpenAPIHono<{ Variables: AuthzVariables }>({
 });
 
 activitiesRouter.openapi(listRoute, async (c) => {
-  const { companyId, contactId, dealId, page, pageSize } = c.req.valid("query");
+  const { companyId, contactId, dealId, type, open, page, pageSize } = c.req.valid("query");
   const filters = [companyId, contactId, dealId].filter((v) => v !== undefined && v !== "");
   if (filters.length !== 1) {
     throw unprocessable("Give exactly one of companyId, contactId or dealId", { field: "companyId" });
   }
-  const where: Prisma.ActivityWhereInput = companyId ? { companyId } : contactId ? { contactId } : { dealId: dealId! };
+  const target: Prisma.ActivityWhereInput = companyId ? { companyId } : contactId ? { contactId } : { dealId: dealId! };
+  const where: Prisma.ActivityWhereInput = {
+    ...target,
+    ...(type ? { type } : {}),
+    ...(open ? { completedAt: null } : {}),
+  };
   const [total, rows] = await Promise.all([
     db.activity.count({ where }),
     db.activity.findMany({
@@ -301,7 +327,9 @@ activitiesRouter.openapi(createActivityRoute, async (c) => {
   const isTask = body.type === "task";
   if (!isTask && body.dueDate != null) throw taskFieldsOnNonTask("dueDate");
   if (!isTask && body.assigneeUserId !== undefined) throw taskFieldsOnNonTask("assigneeUserId");
+  if (!isTask && body.blockedByIds !== undefined) throw taskFieldsOnNonTask("blockedByIds");
   await assertRefs(body.companyId, body.contactId, body.dealId);
+  const blockerIds = isTask ? await assertBlockers(null, body.companyId, body.blockedByIds ?? []) : [];
   const assigneeUserId = isTask ? (body.assigneeUserId ?? userId) : null;
   if (assigneeUserId !== null && assigneeUserId !== userId) {
     await requireCrmUsers(c, [{ id: assigneeUserId, field: "assigneeUserId" }]);
@@ -318,6 +346,7 @@ activitiesRouter.openapi(createActivityRoute, async (c) => {
       authorUserId: userId,
       dueDate: isTask ? (fromDateOnly(body.dueDate) ?? null) : null,
       assigneeUserId,
+      blockedBy: { create: blockerIds.map((blockerId) => ({ blockerId, createdBy: userId })) },
     },
     include: withRefs,
   });
@@ -333,9 +362,13 @@ activitiesRouter.openapi(updateRoute, async (c) => {
   if (current.type !== "task") {
     if (body.dueDate !== undefined) throw taskFieldsOnNonTask("dueDate");
     if (body.assigneeUserId !== undefined) throw taskFieldsOnNonTask("assigneeUserId");
+    if (body.blockedByIds !== undefined) throw taskFieldsOnNonTask("blockedByIds");
   }
   if (body.assigneeUserId !== undefined && body.assigneeUserId !== userId) {
     await requireCrmUsers(c, [{ id: body.assigneeUserId, field: "assigneeUserId" }]);
+  }
+  if (body.blockedByIds !== undefined) {
+    await replaceBlockers(id, await assertBlockers(id, current.company.id, body.blockedByIds), userId);
   }
   const row = await db.activity.update({
     where: { id },
@@ -365,6 +398,8 @@ for (const action of ["complete", "reopen"] as const) {
     const current = await db.activity.findUnique({ where: { id }, select: { type: true, completedAt: true } });
     if (!current) throw notFound("Activity not found");
     if (current.type !== "task") throw unprocessable("Only a task can be completed", { field: "type" }, "not_a_task");
+    // US-6: a task waiting on an open task cannot be completed.
+    if (action === "complete" && !current.completedAt) await assertUnblocked(id);
     // Idempotent: completing a completed task keeps who completed it and when.
     const data =
       action === "reopen"
@@ -373,6 +408,7 @@ for (const action of ["complete", "reopen"] as const) {
           ? {}
           : { completedAt: new Date(), completedByUserId: c.get("userId") };
     const row = await db.activity.update({ where: { id }, data, include: withRefs });
+    if (action === "complete" && !current.completedAt) await announceUnblocked(c, [id]);
     return c.json(await toView(c, row), 200);
   });
 }
