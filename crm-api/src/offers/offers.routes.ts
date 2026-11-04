@@ -33,7 +33,16 @@ import {
 import type { AuthzVariables } from "../auth/authz.middleware";
 import { db } from "../lib/db";
 import { getEstimate, type EstimateDocument } from "../lib/estimai";
-import { IdParams, PersonRefSchema, commonErrors, type HeaderSource } from "../lib/http";
+import {
+  IdParams,
+  PersonRefSchema,
+  assertVersion,
+  commonErrors,
+  etag,
+  requireIfMatch,
+  versionConflict,
+  type HeaderSource,
+} from "../lib/http";
 import { MAX_NAME, announce, clip } from "../lib/notify";
 import { loadPeople } from "../lib/people";
 import { ProblemError, conflict, forbidden, notFound, unprocessable, validationHook } from "../lib/problem";
@@ -51,7 +60,7 @@ import { renderContractPdf } from "./contractPdf";
 import { DEFAULT_VALIDITY_DAYS, buildDraft, type OfferDraft } from "./draft";
 import { CostColumnsSchema, GenerateOfferSchema, SectionSchema } from "./offerSchemas";
 import { scopeLabels, type OfferSnapshot } from "./pdf";
-import { buildScope } from "./scope";
+import { buildScope, roundHalfUp, totalManDays } from "./scope";
 
 export { DEFAULT_VALIDITY_DAYS };
 
@@ -85,6 +94,10 @@ const OfferSchema = z.object({
   createdBy: PersonRefSchema,
   createdAt: z.string(),
   deleted: z.boolean(),
+  /** When and by whom it was marked sent; null while it can still be edited (US-7). */
+  sent: z.object({ at: z.string(), by: PersonRefSchema }).nullable(),
+  /** The If-Match precondition of an edit. */
+  version: z.number().int(),
 });
 
 const DraftCostLineSchema = z.object({
@@ -126,7 +139,7 @@ type StoredSnapshot = ContractSnapshot | OfferSnapshot;
 const isContract = (snapshot: StoredSnapshot): snapshot is ContractSnapshot => "kind" in snapshot && snapshot.kind === "contract";
 
 async function toViews(c: HeaderSource, rows: readonly OfferRow[]) {
-  const { person } = await loadPeople(c, rows.map((row) => row.createdBy));
+  const { person } = await loadPeople(c, rows.flatMap((row) => [row.createdBy, ...(row.sentBy ? [row.sentBy] : [])]));
   return rows.map((row) => {
     const snapshot = row.snapshot as unknown as StoredSnapshot;
     const common = {
@@ -142,6 +155,8 @@ async function toViews(c: HeaderSource, rows: readonly OfferRow[]) {
       createdBy: person(row.createdBy),
       createdAt: row.createdAt.toISOString(),
       deleted: row.deletedAt !== null,
+      sent: row.sentAt ? { at: row.sentAt.toISOString(), by: person(row.sentBy ?? row.createdBy) } : null,
+      version: row.version,
     };
     return isContract(snapshot)
       ? {
@@ -231,6 +246,57 @@ const downloadRoute = createRoute({
   middleware: financial,
   request: { params: OfferParams },
   responses: { 200: { description: "Presigned URL", ...json(z.object({ url: z.string() })) }, 404: { description: "Not found" }, ...commonErrors },
+});
+
+const formRoute = createRoute({
+  method: "get",
+  path: "/deals/{id}/offers/{offerId}/form",
+  tags: ["Offers"],
+  summary: "The dialog's prefill from an offer: to edit it, or to start its next revision (specs/020 US-7)",
+  middleware: generating,
+  request: { params: OfferParams },
+  responses: {
+    200: {
+      description: "The prefill, with the offer's contacts, still-stored PDFs, version and sent state",
+      ...json(
+        DraftSchema.extend({
+          contactIds: z.array(z.string()),
+          attachmentIds: z.array(z.string()),
+          version: z.number().int(),
+          sent: z.boolean(),
+        }),
+      ),
+    },
+    404: { description: "Not found" },
+    409: { description: "offer_legacy" },
+    ...commonErrors,
+  },
+});
+
+const editRoute = createRoute({
+  method: "put",
+  path: "/deals/{id}/offers/{offerId}",
+  tags: ["Offers"],
+  summary: "Edit an offer that has not been sent: same reference, new PDF (If-Match required)",
+  middleware: generating,
+  request: { params: OfferParams, body: { content: { "application/json": { schema: GenerateOfferSchema } }, required: true } },
+  responses: {
+    ...commonErrors,
+    200: { description: "Edited", ...json(OfferSchema) },
+    404: { description: "Not found" },
+    409: { description: "offer_sent / offer_not_latest / offer_legacy / version_conflict / template_archived" },
+    428: { description: "precondition_required" },
+  },
+});
+
+const sentRoute = createRoute({
+  method: "post",
+  path: "/deals/{id}/offers/{offerId}/sent",
+  tags: ["Offers"],
+  summary: "Mark an offer sent: it is frozen, and the deal moves to \"Offer sent\" (specs/020 US-7)",
+  middleware: generating,
+  request: { params: OfferParams },
+  responses: { 200: { description: "The offer", ...json(OfferSchema) }, 404: { description: "Not found" }, ...commonErrors },
 });
 
 const deleteRoute = createRoute({
@@ -377,11 +443,19 @@ async function loadAttachments(
   return { refs: chosen.map((row) => ({ id: row.id, fileName: row.fileName, sizeBytes: row.sizeBytes })), bytes };
 }
 
-offersRouter.openapi(generateRoute, async (c) => {
-  const { id } = c.req.valid("param");
-  const body = c.req.valid("json");
-  const userId = c.get("userId");
-  const { deal, link, profile, template } = await loadContext(id, body.templateId, dealScope(c));
+type GenerateBody = z.infer<typeof GenerateOfferSchema>;
+
+/**
+ * What generating and editing an offer share (US-3, US-7): the context checks,
+ * the contacts, the costs, the chosen PDFs, the letterhead and the annex.
+ */
+async function prepareOffer(
+  c: Parameters<typeof getEstimate>[0] & { get(key: "userId"): string },
+  scope: ReturnType<typeof dealScope>,
+  dealId: string,
+  body: GenerateBody,
+) {
+  const { deal, link, profile, template } = await loadContext(dealId, body.templateId, scope);
   const language: OfferLanguage = template.language;
 
   const contactRows = body.contactIds.length ? await db.contact.findMany({ where: { id: { in: body.contactIds } } }) : [];
@@ -391,7 +465,7 @@ offersRouter.openapi(generateRoute, async (c) => {
     if (!contact || contact.companyId !== deal.companyId) {
       throw unprocessable("A contact is not one of the company's", { field: "contactIds" }, "contact_not_in_company");
     }
-    return `${contact.firstName} ${contact.lastName}`;
+    return `${contact.firstName} ${contact.lastName}`.trim();
   });
 
   const costs = computeCosts({
@@ -402,19 +476,106 @@ offersRouter.openapi(generateRoute, async (c) => {
   });
 
   const storage = requireStorage();
-  const { refs: attachments, bytes: attachmentBytes } = await loadAttachments(storage, id, body.attachmentIds);
+  const { refs: attachments, bytes: attachmentBytes } = await loadAttachments(storage, dealId, body.attachmentIds);
   const letterhead = profile.letterheadKey ? await storage.getObject(profile.letterheadKey, 5 * 1024 * 1024) : null;
   const estimate: EstimateDocument = await getEstimate(c, link.estimateId);
+  const userId = c.get("userId");
   const { person } = await loadPeople(c, [userId]);
-
-  const issued = new Date();
-  const validUntil = new Date(issued.getTime() + body.validityDays * 86_400_000);
   const annex = body.annex ? buildScope(estimate, { aiAssisted: body.aiAssisted, ...scopeLabels(language) }) : null;
+  return {
+    deal,
+    profile,
+    template,
+    language,
+    contacts,
+    costs,
+    storage,
+    attachments,
+    attachmentBytes,
+    letterhead,
+    annex,
+    preparedBy: person(userId).name,
+  };
+}
+
+type Prepared = Awaited<ReturnType<typeof prepareOffer>>;
+
+function snapshotOf(prepared: Prepared, body: GenerateBody, reference: string, issued: Date): ContractSnapshot {
+  const { profile, template } = prepared;
+  return {
+    kind: "contract",
+    template: { id: template.id, name: template.name },
+    language: prepared.language,
+    reference,
+    issuedOn: isoDate(issued),
+    validUntil: isoDate(new Date(issued.getTime() + body.validityDays * 86_400_000)),
+    validityDays: body.validityDays,
+    place: profile.placeOfIssue ?? DEFAULT_PLACE,
+    issuer: {
+      legalName: profile.legalName,
+      addressLines: profile.addressLines,
+      vatNumber: profile.vatNumber,
+      iban: profile.iban,
+    },
+    salutation: body.salutation,
+    clientLines: body.clientLines,
+    contacts: prepared.contacts,
+    contactIds: body.contactIds,
+    opening: body.opening,
+    sections: body.sections,
+    costs: prepared.costs,
+    acceptanceLabel: body.acceptanceLabel ?? null,
+    annex: prepared.annex,
+    attachments: prepared.attachments,
+    aiAssisted: body.aiAssisted,
+    preparedBy: prepared.preparedBy,
+  };
+}
+
+async function renderOffer(snapshot: ContractSnapshot, prepared: Prepared): Promise<Uint8Array> {
+  try {
+    return await renderContractPdf(snapshot, { letterhead: prepared.letterhead, attachments: prepared.attachmentBytes });
+  } catch (error) {
+    if (isUnreadable(error)) throw attachmentUnreadable(error.fileName ?? "");
+    throw error;
+  }
+}
+
+/** The deal's newest offer that is not deleted, or null. */
+const latestOffer = (tx: Pick<typeof db, "dealOffer">, dealId: string) =>
+  tx.dealOffer.findFirst({ where: { dealId, deletedAt: null }, orderBy: { number: "desc" } });
+
+/**
+ * US-7: a new revision only once the previous one went out; until then it is edited. An
+ * offer from before offer documents cannot be edited, so it never blocks the next one.
+ */
+const blocksRevision = <T extends { sentAt: Date | null; snapshot: unknown }>(offer: T | null): offer is T =>
+  offer !== null && offer.sentAt === null && isContract(offer.snapshot as StoredSnapshot);
+
+const notSent = (offer: { id: string; snapshot: unknown }) =>
+  new ProblemError({
+    status: 409,
+    code: "offer_not_sent",
+    detail: `Offer ${(offer.snapshot as StoredSnapshot).reference} has not been sent: edit it instead of making a new revision`,
+    extras: { offerId: offer.id },
+  });
+
+offersRouter.openapi(generateRoute, async (c) => {
+  const { id } = c.req.valid("param");
+  const body = c.req.valid("json");
+  const userId = c.get("userId");
+  const latest = await latestOffer(db, id);
+  if (blocksRevision(latest)) throw notSent(latest);
+  const prepared = await prepareOffer(c, dealScope(c), id, body);
+  const { deal } = prepared;
+  const issued = new Date();
 
   const created = await db.$transaction(
     async (tx) => {
       // One generator at a time per deal, so versions are gap-free and never collide.
       await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${`crm-offer:${id}`}))`;
+      const newest = await latestOffer(tx, id);
+      if (blocksRevision(newest)) throw notSent(newest);
       const last = await tx.dealOffer.aggregate({ where: { dealId: id }, _max: { number: true } });
       const number = (last._max.number ?? 0) + 1;
 
@@ -438,53 +599,19 @@ offersRouter.openapi(generateRoute, async (c) => {
           RETURNING "last"`;
         sequenceNo = taken!.last;
       }
-      const reference = offerReferenceOf(sequenceNo, sequenceYear, sequenced.length);
-
-      const snapshot: ContractSnapshot = {
-        kind: "contract",
-        template: { id: template.id, name: template.name },
-        language,
-        reference,
-        issuedOn: isoDate(issued),
-        validUntil: isoDate(validUntil),
-        validityDays: body.validityDays,
-        place: profile.placeOfIssue ?? DEFAULT_PLACE,
-        issuer: {
-          legalName: profile.legalName,
-          addressLines: profile.addressLines,
-          vatNumber: profile.vatNumber,
-          iban: profile.iban,
-        },
-        salutation: body.salutation,
-        clientLines: body.clientLines,
-        contacts,
-        opening: body.opening,
-        sections: body.sections,
-        costs,
-        acceptanceLabel: body.acceptanceLabel ?? null,
-        annex,
-        attachments,
-        aiAssisted: body.aiAssisted,
-        preparedBy: person(userId).name,
-      };
-      let pdf: Uint8Array;
-      try {
-        pdf = await renderContractPdf(snapshot, { letterhead, attachments: attachmentBytes });
-      } catch (error) {
-        if (isUnreadable(error)) throw attachmentUnreadable(error.fileName ?? "");
-        throw error;
-      }
+      const snapshot = snapshotOf(prepared, body, offerReferenceOf(sequenceNo, sequenceYear, sequenced.length), issued);
+      const pdf = await renderOffer(snapshot, prepared);
       const offerId = crypto.randomUUID();
       const objectKey = `offers/${id}/${offerId}.pdf`;
-      await storage.putObject(objectKey, pdf, "application/pdf");
+      await prepared.storage.putObject(objectKey, pdf, "application/pdf");
       try {
         return await tx.dealOffer.create({
           data: {
             id: offerId,
             dealId: id,
             number,
-            language,
-            priceCents: BigInt(costs.oneOffCents),
+            language: prepared.language,
+            priceCents: BigInt(prepared.costs.oneOffCents),
             currency: deal.currency,
             validityDays: body.validityDays,
             terms: null,
@@ -499,7 +626,7 @@ offersRouter.openapi(generateRoute, async (c) => {
         });
       } catch (error) {
         // The row did not land: do not leave an unreachable object behind.
-        await storage.deleteObject(objectKey).catch(() => undefined);
+        await prepared.storage.deleteObject(objectKey).catch(() => undefined);
         throw error;
       }
     },
@@ -519,8 +646,163 @@ offersRouter.openapi(generateRoute, async (c) => {
       body: `${actor} generated offer ${view!.reference} for ${clip(deal.title, MAX_NAME)} (${clip(deal.company.name, MAX_NAME)}).`,
     }),
   });
+  c.header("ETag", etag(created.version));
   return c.json(view!, 201);
 });
+
+/** The offer of this deal, not deleted, generated from a template (specs/020), or a 404/409. */
+async function editableTarget(dealId: string, offerId: string) {
+  const offer = await db.dealOffer.findUnique({ where: { id: offerId } });
+  if (!offer || offer.dealId !== dealId || offer.deletedAt) throw notFound("Offer not found");
+  if (!isContract(offer.snapshot as unknown as StoredSnapshot)) {
+    throw conflict("offer_legacy", "An offer generated before offer documents cannot be edited or revised", { offerId });
+  }
+  return offer;
+}
+
+offersRouter.openapi(formRoute, async (c) => {
+  const { id, offerId } = c.req.valid("param");
+  const offer = await editableTarget(id, offerId);
+  const deal = await db.deal.findUnique({ where: { id }, include: { estimate: true } });
+  if (!deal) throw notFound("Deal not found");
+  assertInScope(dealScope(c), deal.entity);
+  const snapshot = offer.snapshot as unknown as ContractSnapshot;
+  // The PDFs it appended that are still this deal's: a removed one is simply not offered again.
+  const stored = await db.dealAttachment.findMany({
+    where: { id: { in: snapshot.attachments.map((ref) => ref.id) }, dealId: id, status: "stored", deletedAt: null },
+    select: { id: true },
+  });
+  const storedIds = new Set(stored.map((row) => row.id));
+  const link = deal.estimate?.estimateId ? deal.estimate : null;
+  const manDays = link ? roundHalfUp(totalManDays(await getEstimate(c, link.estimateId), snapshot.aiAssisted)) : 0;
+  c.header("ETag", etag(offer.version));
+  return c.json(
+    {
+      templateId: snapshot.template.id,
+      templateName: snapshot.template.name,
+      language: snapshot.language,
+      currency: snapshot.costs.currency,
+      salutation: snapshot.salutation,
+      clientLines: [...snapshot.clientLines],
+      opening: snapshot.opening,
+      sections: [...snapshot.sections],
+      costColumns: snapshot.costs.columns,
+      showTotal: snapshot.costs.showTotal,
+      costLines: snapshot.costs.lines.map(({ description, kind, unitCents, percentBp, quantity }) => ({
+        description,
+        kind,
+        unitCents,
+        percentBp,
+        quantity,
+      })),
+      acceptanceLabel: snapshot.acceptanceLabel,
+      annex: snapshot.annex !== null,
+      validityDays: snapshot.validityDays,
+      aiAssisted: snapshot.aiAssisted,
+      manDays,
+      contactIds: [...(snapshot.contactIds ?? [])],
+      attachmentIds: snapshot.attachments.map((ref) => ref.id).filter((attachmentId) => storedIds.has(attachmentId)),
+      version: offer.version,
+      sent: offer.sentAt !== null,
+    },
+    200,
+  );
+});
+
+offersRouter.openapi(editRoute, async (c) => {
+  const { id, offerId } = c.req.valid("param");
+  const body = c.req.valid("json");
+  const userId = c.get("userId");
+  const expected = requireIfMatch(c);
+  const offer = await editableTarget(id, offerId);
+  assertVersion(offer.version, expected);
+  if (offer.sentAt) {
+    throw conflict("offer_sent", "This offer has been sent: make a new revision instead", { offerId });
+  }
+  const prepared = await prepareOffer(c, dealScope(c), id, body);
+  const issued = new Date();
+  const previousKey = offer.objectKey;
+
+  const updated = await db.$transaction(
+    async (tx) => {
+      await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${`crm-offer:${id}`}))`;
+      const newest = await latestOffer(tx, id);
+      if (newest?.id !== offerId) {
+        throw conflict("offer_not_latest", "Only the newest version of an offer can be edited", { offerId });
+      }
+      const reference = (offer.snapshot as unknown as ContractSnapshot).reference;
+      const snapshot = snapshotOf(prepared, body, reference, issued);
+      const pdf = await renderOffer(snapshot, prepared);
+      const objectKey = `offers/${id}/${crypto.randomUUID()}.pdf`;
+      await prepared.storage.putObject(objectKey, pdf, "application/pdf");
+      // Compare-and-set on the version, and never on a sent offer.
+      const changed = await tx.dealOffer.updateMany({
+        where: { id: offerId, version: expected, sentAt: null, deletedAt: null },
+        data: {
+          language: prepared.language,
+          priceCents: BigInt(prepared.costs.oneOffCents),
+          currency: prepared.deal.currency,
+          validityDays: body.validityDays,
+          snapshot: snapshot as unknown as object,
+          objectKey,
+          sizeBytes: pdf.byteLength,
+          version: { increment: 1 },
+          updatedBy: userId,
+          updatedAt: issued,
+        },
+      });
+      if (changed.count === 0) {
+        await prepared.storage.deleteObject(objectKey).catch(() => undefined);
+        const now = await tx.dealOffer.findUnique({ where: { id: offerId }, select: { version: true, sentAt: true } });
+        if (now?.sentAt) throw conflict("offer_sent", "This offer has been sent: make a new revision instead", { offerId });
+        throw versionConflict(now?.version ?? expected);
+      }
+      return tx.dealOffer.findUniqueOrThrow({ where: { id: offerId } });
+    },
+    { timeout: 30_000 },
+  );
+  // The old PDF is unreachable now; a failed delete leaves an orphan, never a wrong document.
+  await prepared.storage.deleteObject(previousKey).catch((error: unknown) => {
+    console.error("[offers] could not delete the replaced PDF:", previousKey, error instanceof Error ? error.message : error);
+  });
+  const [view] = await toViews(c, [updated]);
+  c.header("ETag", etag(updated.version));
+  return c.json(view!, 200);
+});
+
+offersRouter.openapi(sentRoute, async (c) => {
+  const { id, offerId } = c.req.valid("param");
+  const userId = c.get("userId");
+  const offer = await db.dealOffer.findUnique({ where: { id: offerId } });
+  if (!offer || offer.dealId !== id || offer.deletedAt) throw notFound("Offer not found");
+  const deal = await db.deal.findUnique({ where: { id }, select: { entity: true, stage: true } });
+  if (!deal) throw notFound("Deal not found");
+  assertInScope(dealScope(c), deal.entity);
+  const now = new Date();
+  const updated = await db.$transaction(async (tx) => {
+    // Idempotent: a second "sent" keeps the first moment and person.
+    if (!offer.sentAt) {
+      await tx.dealOffer.update({
+        where: { id: offerId },
+        data: { sentAt: now, sentBy: userId, version: { increment: 1 } },
+      });
+    }
+    // AC-7.3: the deal moves to "Offer sent" when it was before it.
+    if (SENDABLE_STAGES.includes(deal.stage)) {
+      await tx.deal.update({
+        where: { id },
+        data: { stage: "negotiation", closedAt: null, lostReason: null, version: { increment: 1 }, updatedBy: userId },
+      });
+    }
+    return tx.dealOffer.findUniqueOrThrow({ where: { id: offerId } });
+  });
+  const [view] = await toViews(c, [updated]);
+  c.header("ETag", etag(updated.version));
+  return c.json(view!, 200);
+});
+
+/** The stages from which marking an offer sent moves the deal to `negotiation` ("Offer sent"). */
+const SENDABLE_STAGES: readonly string[] = ["lead", "qualified", "proposal"];
 
 offersRouter.openapi(downloadRoute, async (c) => {
   const { id, offerId } = c.req.valid("param");

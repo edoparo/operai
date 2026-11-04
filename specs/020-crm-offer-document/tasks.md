@@ -1,6 +1,7 @@
 ---
 spec: 020
 status: in-progress
+synced: 2026-11-04
 ---
 
 # Tasks — CRM offer document (specs/020)
@@ -14,3 +15,4 @@ status: in-progress
 | T5 | Changeset, AGENTS.md (crm-api note, ADR-0057), crm-api README | T2–T4 | [x] | `.changeset/crm-offer-document.md`, AGENTS.md crm-api note + ADR-0057 line |
 | T6 | Visual check: generate the seven templates against the real letterhead and compare with the examples | T2, T3 | [x] | seven Italian templates rendered on the real letterhead (renderer task); full-flow PDFs pending T7 |
 | T7 | Browser smoke through the stack | T4 | [ ] | after `mise run dev` restart |
+| T8 | Edit until sent, then revise (US-7): `sentAt`/`sentBy`/`version` on offers + backfill migration, `GET …/form`, `PUT` with If-Match, `POST …/sent`, generate refuses a revision while unsent; dialog in edit and revise modes, Sent badge, Edit / New revision actions | T4 | [x] | crm-api 275/275 on `crm_test`; crm-ui lint + build + 192 tests |

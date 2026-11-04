@@ -24,6 +24,7 @@ import type {
   LeadSource,
   Offer,
   OfferDraft,
+  OfferForm,
   OfferSection,
   OfferTemplate,
   OfferTemplateContent,
@@ -260,6 +261,15 @@ export const getOfferDraft = (dealId: string, templateId: string, aiAssisted: bo
 
 export const listOffers = (dealId: string, init?: Init) => getJson<{ items: Offer[] }>(offersPath(dealId), init)
 export const generateOffer = (dealId: string, input: OfferInput) => sendJson<Offer>(offersPath(dealId), 'POST', input)
+/** specs/020 US-7: an offer's own content, to edit it or to start the next revision from it. */
+export const getOfferForm = (dealId: string, offerId: string, init?: Init) =>
+  getJson<OfferForm>(`${offersPath(dealId)}/${encodeURIComponent(offerId)}/form`, init)
+/** Re-generates an offer that has not been sent: same reference, new PDF. */
+export const editOffer = (dealId: string, offerId: string, version: number, input: OfferInput) =>
+  sendJson<Offer>(`${offersPath(dealId)}/${encodeURIComponent(offerId)}`, 'PUT', input, version)
+/** Freezes the offer; the deal moves to "Offer sent" when it was before it. */
+export const markOfferSent = (dealId: string, offerId: string) =>
+  sendJson<Offer>(`${offersPath(dealId)}/${encodeURIComponent(offerId)}/sent`, 'POST')
 export const getOfferDownload = (dealId: string, offerId: string) =>
   getJson<{ url: string }>(`${offersPath(dealId)}/${encodeURIComponent(offerId)}/download`)
 export const deleteOffer = (dealId: string, offerId: string) =>

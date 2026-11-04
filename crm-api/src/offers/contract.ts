@@ -112,6 +112,8 @@ export interface ContractSnapshot {
   readonly clientLines: readonly string[];
   /** Names after "A.c.a.", 0–5. */
   readonly contacts: readonly string[];
+  /** The contacts' ids, so an edit or a revision starts from them (US-7); absent before it. */
+  readonly contactIds?: readonly string[];
   readonly opening: string;
   readonly sections: readonly OfferSection[];
   readonly costs: OfferCosts;

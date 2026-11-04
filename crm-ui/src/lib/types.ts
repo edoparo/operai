@@ -157,7 +157,14 @@ export type Offer = {
   /** Recurring total, shown beside the price (specs/020); absent on an older server. */
   yearlyCents?: number
   templateName?: string | null
+  /** When and by whom it was marked sent; null while it can still be edited (specs/020 US-7). */
+  sent?: { at: string; by: PersonRef } | null
+  /** The If-Match precondition of an edit. */
+  version?: number
 }
+
+/** The dialog's prefill from an existing offer: to edit it, or to start its next revision. */
+export type OfferForm = OfferDraft & { contactIds: string[]; attachmentIds: string[]; version: number; sent: boolean }
 
 export type Attachment = {
   id: string

@@ -211,6 +211,13 @@ model DealOffer {
   sizeBytes    Int
   createdBy    String
   createdAt    DateTime      @default(now())
+  /// specs/020 US-7: an offer is edited in place until it is marked sent; after that a change
+  /// is a new revision. `version` is the If-Match precondition of an edit (ADR-0038 posture).
+  sentAt       DateTime?
+  sentBy       String?
+  version      Int           @default(1)
+  updatedBy    String?
+  updatedAt    DateTime?
   deletedBy    String?
   deletedAt    DateTime?
 

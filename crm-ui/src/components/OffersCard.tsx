@@ -1,7 +1,7 @@
 import { useCallback, useState } from 'react'
 import { Banner, Button, Card, ConfirmDialog, DataTable, StatusBadge, formatDate, formatMoney, formatNumber } from '@operai/ui'
 import type { DataTableColumn } from '@operai/ui'
-import { deleteOffer, getOfferDownload, listOffers, moveDealStage } from '../lib/crmApi'
+import { deleteOffer, getDeal, getOfferDownload, listOffers, markOfferSent, moveDealStage } from '../lib/crmApi'
 import { isStaleWrite } from '../lib/api'
 import { errorMessage } from '../lib/errors'
 import { offerFailure } from '../lib/offerErrors'
@@ -12,17 +12,21 @@ import { useCurrentUserId } from '../hooks/useCurrentUserId'
 import { useResource } from '../hooks/useResource'
 import { strings } from '../strings'
 import GenerateOfferDialog from './GenerateOfferDialog'
+import type { OfferSource } from './GenerateOfferDialog'
 import { LoadFailure, Loading } from './LoadState'
 
-type Dialog = 'generate' | 'proposal' | { delete: Offer } | { sent: Offer } | null
+type Dialog = 'generate' | 'proposal' | { delete: Offer } | { sent: Offer } | { source: OfferSource } | null
 
 /**
  * OffersCard — the deal's offer versions, newest first (specs/018 US-4). Only
  * rendered for a caller with `deal:financials`: an offer prints the price.
  * Generating needs `deal:manage` over the deal and a ready estimate; on a
  * `qualified` deal the person is then asked whether to move it to proposal
- * (AC-4.5). "Mark as sent" on the newest offer moves an open deal before
- * `negotiation` there (AC-4.6). Download opens the short-lived link in a new tab.
+ * (AC-4.5). Download opens the short-lived link in a new tab.
+ *
+ * specs/020 US-7: the newest offer is edited in place until it is marked sent;
+ * marking it sent freezes it and moves an open deal before `negotiation` there.
+ * After that the header offers "New revision", which starts from the sent one.
  */
 export default function OffersCard({
   deal,
@@ -76,7 +80,31 @@ export default function OffersCard({
     )
   }
 
-  const moveTo = (stage: 'proposal' | 'negotiation') => {
+  const markSent = (offer: Offer) => {
+    setBusy(true)
+    setError(null)
+    markOfferSent(dealId, offer.id)
+      .then(() => getDeal(dealId))
+      .then(
+        (next) => {
+          setBusy(false)
+          close()
+          offers.retry()
+          onDealChanged(
+            next,
+            next.stage !== deal.stage
+              ? strings.deals.detail.moved(strings.badges.dealStage[next.stage])
+              : t.markedSent(offer.reference),
+          )
+        },
+        (failure: unknown) => {
+          setBusy(false)
+          setError(offerFailure(failure))
+        },
+      )
+  }
+
+  const moveTo = (stage: 'proposal') => {
     setBusy(true)
     setError(null)
     moveDealStage(dealId, deal.version, stage).then(
@@ -97,9 +125,15 @@ export default function OffersCard({
   }
 
   const items = offers.status === 'ready' ? offers.data!.items : []
-  // The newest offer still listed; only it can be marked as sent.
+  // The newest offer still listed: the only one edited or marked sent.
   const latest = items.find((offer) => !offer.deleted)
-  const canMarkSent = canManage && SENDABLE_FROM.includes(deal.stage)
+  // An offer from a template (specs/020); older ones are neither edited nor revised from.
+  const latestIsDocument = latest !== undefined && (latest.templateName ?? null) !== null
+  const latestSent = latest?.sent != null
+  const editable = (offer: Offer) => canManage && offer.id === latest?.id && latestIsDocument && !latestSent
+  // Decided once the list is in: until then nobody knows whether there is an offer to edit.
+  const header: 'generate' | 'revise' | null =
+    offers.status !== 'ready' ? null : !latestIsDocument ? 'generate' : latestSent ? 'revise' : null
 
   const columns: DataTableColumn<Offer>[] = [
     {
@@ -112,6 +146,13 @@ export default function OffersCard({
           {offer.templateName && (
             <span className="block text-xs text-soft font-body" data-testid={`crm-offer-template-${offer.id}`}>
               {t.templateOf(offer.templateName)}
+            </span>
+          )}
+          {offer.sent && !offer.deleted && (
+            <span className="block font-body" title={t.sentBy(personName(offer.sent.by, currentUserId), formatDate(offer.sent.at))}>
+              <StatusBadge status="settled" data-testid={`crm-offer-sent-badge-${offer.id}`}>
+                {t.sentOn(formatDate(offer.sent.at))}
+              </StatusBadge>
             </span>
           )}
           {offer.deleted && (
@@ -178,7 +219,19 @@ export default function OffersCard({
             >
               {t.download}
             </Button>
-            {canMarkSent && offer.id === latest?.id && (
+            {editable(offer) && (
+              <Button
+                size="sm"
+                variant="ghost"
+                aria-label={t.editOf(offer.reference)}
+                aria-haspopup="dialog"
+                onClick={() => setDialog({ source: { offer, mode: 'edit' } })}
+                data-testid={`crm-offer-edit-${offer.id}`}
+              >
+                {t.edit}
+              </Button>
+            )}
+            {canManage && offer.id === latest?.id && !latestSent && (
               <Button
                 size="sm"
                 variant="ghost"
@@ -212,17 +265,18 @@ export default function OffersCard({
       title={t.title}
       data-testid="crm-offers-card"
       action={
-        canManage && (
+        canManage &&
+        header !== null && (
           <Button
             size="sm"
             variant="primary"
             disabled={!ready}
             title={ready ? undefined : t.needsReady}
-            onClick={() => setDialog('generate')}
+            onClick={() => setDialog(header === 'revise' && latest ? { source: { offer: latest, mode: 'revise' } } : 'generate')}
             aria-haspopup="dialog"
             data-testid="crm-offer-generate"
           >
-            {t.generate}
+            {header === 'revise' ? t.revise : t.generate}
           </Button>
         )
       }
@@ -251,9 +305,10 @@ export default function OffersCard({
             />
           ))}
       </div>
-      {dialog === 'generate' && (
+      {(dialog === 'generate' || (typeof dialog === 'object' && dialog !== null && 'source' in dialog)) && (
         <GenerateOfferDialog
           deal={deal}
+          {...(typeof dialog === 'object' && dialog !== null && 'source' in dialog ? { source: dialog.source } : {})}
           onCancel={close}
           onGenerated={(offer) => {
             offers.retry()
@@ -291,11 +346,13 @@ export default function OffersCard({
           closeLabel={strings.common.close}
           busy={busy}
           error={error}
-          onConfirm={() => moveTo('negotiation')}
+          onConfirm={() => markSent(dialog.sent)}
           onCancel={close}
           testIdPrefix="crm-offer-sent-dialog"
         >
-          {t.sentDialog.body(dialog.sent.reference)}
+          {SENDABLE_FROM.includes(deal.stage)
+            ? t.sentDialog.body(dialog.sent.reference)
+            : t.sentDialog.bodyNoMove(dialog.sent.reference)}
         </ConfirmDialog>
       )}
       {typeof dialog === 'object' && dialog !== null && 'delete' in dialog && (

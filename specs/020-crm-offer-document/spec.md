@@ -253,6 +253,26 @@ Operai.
 - **AC-6.1** All new UI copy exists in English and Italian. The seeded templates exist in
   both languages.
 
+### US-7 An offer is edited until it is sent, then revised (owner, 2026-11-04)
+
+A mistake found before the offer leaves wellD is corrected in place; once the client has it,
+a change is a new revision, so the document the client holds is never rewritten.
+
+- **AC-7.1** While a deal's newest offer has not been marked sent, no new revision can be
+  generated (409 `offer_not_sent`); the offer is edited instead. A deal's first offer, and the
+  first one after an offer from before this spec, are generated as before.
+- **AC-7.2** Editing an unsent offer opens the dialog with that offer's own content (texts,
+  cost lines, contacts, still-stored PDFs, validity) and, on save, regenerates its PDF under
+  the same reference and version number, dated the day of the edit. Only the newest offer is
+  edited; two people editing at once cannot overwrite each other (If-Match, ADR-0038 posture).
+- **AC-7.3** "Mark as sent" (specs/018 AC-4.6) now records on the offer when and by whom it
+  was sent, and the list shows it. A sent offer can no longer be edited (409 `offer_sent`).
+  The deal still moves to "Offer sent" when it was before it.
+- **AC-7.4** Once the newest offer is sent, "New revision" opens the dialog with the sent
+  offer's content; generating it adds the next revision (`r1`, `r2`…), and the sent one stays
+  as it is. Changing the template there still replaces the fields after a confirmation.
+- **AC-7.5** Offers of deals already at "Offer sent", won or lost when this ships count as sent.
+
 ## Non-goals
 - A visual (WYSIWYG) editor. Texts are written in the markup of AC-1.6.
 - Colours, images or hyperlinks in the body.

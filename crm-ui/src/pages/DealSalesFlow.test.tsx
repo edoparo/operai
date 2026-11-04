@@ -510,7 +510,7 @@ describe('Offers card (US-4)', () => {
 
   it('Generate offer is disabled until the estimate is ready', async () => {
     await renderDeal(dealFixture({ stage: 'qualified', estimate: ESTIMATE, estimateState: 'requested' }), MANAGER)
-    expect((screen.getByTestId('crm-offer-generate') as HTMLButtonElement).disabled).toBe(true)
+    expect(((await screen.findByTestId('crm-offer-generate')) as HTMLButtonElement).disabled).toBe(true)
   })
 
   const TEMPLATE_IT = {
@@ -570,7 +570,7 @@ describe('Offers card (US-4)', () => {
       'GET /deals/d1/offers/draft': () => ({ status: 200, body: draftFor() }),
       ...extra,
     })
-    fireEvent.click(screen.getByTestId('crm-offer-generate'))
+    fireEvent.click((await screen.findByTestId('crm-offer-generate')))
     const dialog = await screen.findByRole('dialog', { name: 'Generate an offer' })
     await within(dialog).findByRole('option', { name: 'Standard EN (English)' })
     return dialog
@@ -591,7 +591,7 @@ describe('Offers card (US-4)', () => {
         }
       },
     })
-    fireEvent.click(screen.getByTestId('crm-offer-generate'))
+    fireEvent.click((await screen.findByTestId('crm-offer-generate')))
     const dialog = await screen.findByRole('dialog', { name: 'Generate an offer' })
     await within(dialog).findByRole('option', { name: 'AAA EN (English)' })
     expect(listed).toContain('entity=welld_ch')
@@ -824,31 +824,84 @@ describe('Offers card (US-4)', () => {
     expect(screen.getByTestId('crm-offer-template-o2').textContent).toBe('Template: Standard EN')
   })
 
-  it('Mark as sent is on the newest offer only and moves the deal to negotiation with its version (AC-4.6)', async () => {
-    let stageCall: { body: Record<string, unknown>; ifMatch: string | null } | null = null
+  // specs/020 US-7: an offer from a template, not sent yet.
+  const DOC = { ...OFFER, reference: '0001/2026', templateName: 'Standard EN', sent: null, version: 3 }
+  const SENT_DOC = { ...DOC, sent: { at: '2026-11-03T10:00:00.000Z', by: ADA }, version: 4 }
+
+  it('Mark as sent is on the newest unsent offer only; it freezes it and reloads the deal (US-7)', async () => {
+    let posted = false
     await renderDeal(dealFixture({ stage: 'proposal', estimate: readyEstimate, estimateState: 'ready' }), MANAGER, {
       'GET /deals/d1/offers': () => ({
         status: 200,
-        body: { items: [OFFER, { ...OFFER, id: 'o1', number: 1, reference: 'OF-2026-ABC123-1' }] },
+        body: { items: [DOC, { ...DOC, id: 'o1', number: 1, reference: 'OF-2026-ABC123-1', templateName: null }] },
       }),
-      'POST /deals/d1/stage': (_url, init) => {
-        stageCall = { body: body(init), ifMatch: (init?.headers as Record<string, string>)['If-Match'] ?? null }
-        return { status: 200, body: dealFixture({ stage: 'negotiation', version: 5 }) }
+      'POST /deals/d1/offers/o2/sent': () => {
+        posted = true
+        return { status: 200, body: SENT_DOC }
       },
     })
     fireEvent.click(await screen.findByTestId('crm-offer-sent-o2'))
+    // an unsent offer is edited, so the header offers no new generation
+    expect(screen.queryByTestId('crm-offer-generate')).toBeNull()
     expect(screen.queryByTestId('crm-offer-sent-o1')).toBeNull()
     const ask = await screen.findByRole('alertdialog', { name: 'Mark the offer as sent?' })
-    expect(ask.textContent).toContain('OF-2026-ABC123-2')
+    expect(ask.textContent).toContain('It can no longer be edited')
+    expect(ask.textContent).toContain('The deal moves to offer sent')
     fireEvent.click(within(ask).getByTestId('crm-offer-sent-dialog-confirm'))
-    await waitFor(() => expect(stageCall).toEqual({ body: { stage: 'negotiation' }, ifMatch: '"4"' }))
+    await waitFor(() => expect(posted).toBe(true))
   })
 
-  it('Mark as sent is not offered once the deal is past preparation', async () => {
-    const offers = { 'GET /deals/d1/offers': () => ({ status: 200, body: { items: [OFFER] } }) }
-    await renderDeal(dealFixture({ stage: 'negotiation', estimate: readyEstimate, estimateState: 'ready' }), MANAGER, offers)
-    await screen.findByTestId('crm-offers-table')
+  it('a sent offer shows when it went out, has no Edit, and the header offers a new revision from it (US-7)', async () => {
+    let formAsked = ''
+    await renderDeal(dealFixture({ stage: 'negotiation', estimate: readyEstimate, estimateState: 'ready' }), MANAGER, {
+      'GET /deals/d1/offers': () => ({ status: 200, body: { items: [SENT_DOC] } }),
+      'GET /offer-templates': () => ({ status: 200, body: { items: [TEMPLATE_IT, TEMPLATE_EN] } }),
+      'GET /contacts': () => ({ status: 200, body: page([CONTACT]) }),
+      'GET /deals/d1/attachments': () => ({ status: 200, body: { items: [PDF, DOCX] } }),
+      'GET /deals/d1/offers/o2/form': (url) => {
+        formAsked = url.pathname
+        return { status: 200, body: { ...draftFor({ opening: 'As sent.' }), contactIds: [], attachmentIds: [], version: 4, sent: true } }
+      },
+    })
+    expect((await screen.findByTestId('crm-offer-sent-badge-o2')).textContent).toBe('Sent 03.11.2026')
+    expect(screen.queryByTestId('crm-offer-edit-o2')).toBeNull()
     expect(screen.queryByTestId('crm-offer-sent-o2')).toBeNull()
+    const revise = (await screen.findByTestId('crm-offer-generate'))
+    expect(revise.textContent).toBe('New revision')
+    fireEvent.click(revise)
+    const dialog = await screen.findByRole('dialog', { name: 'New revision of 0001/2026' })
+    await within(dialog).findByTestId('crm-offer-form')
+    expect(formAsked).toBe('/deals/d1/offers/o2/form')
+    expect((within(dialog).getByLabelText(/^Opening/) as HTMLTextAreaElement).value).toBe('As sent.')
+  })
+
+  it('Edit opens the offer’s own content and saves it in place with its version (US-7)', async () => {
+    let saved: { body: Record<string, unknown>; ifMatch: string | null } | null = null
+    await renderDeal(dealFixture({ stage: 'proposal', estimate: readyEstimate, estimateState: 'ready' }), MANAGER, {
+      'GET /deals/d1/offers': () => ({ status: 200, body: { items: [DOC] } }),
+      'GET /offer-templates': () => ({ status: 200, body: { items: [TEMPLATE_IT, TEMPLATE_EN] } }),
+      'GET /contacts': () => ({ status: 200, body: page([CONTACT]) }),
+      'GET /deals/d1/attachments': () => ({ status: 200, body: { items: [PDF, DOCX] } }),
+      'GET /deals/d1/offers/o2/form': () => ({
+        status: 200,
+        body: { ...draftFor(), contactIds: [CONTACT.id], attachmentIds: [PDF.id], version: 3, sent: false },
+      }),
+      'PUT /deals/d1/offers/o2': (_url, init) => {
+        saved = { body: body(init), ifMatch: (init?.headers as Record<string, string>)['If-Match'] ?? null }
+        return { status: 200, body: { ...DOC, version: 4 } }
+      },
+    })
+    fireEvent.click(await screen.findByTestId('crm-offer-edit-o2'))
+    const dialog = await screen.findByRole('dialog', { name: 'Edit offer 0001/2026' })
+    await within(dialog).findByTestId('crm-offer-form')
+    // the contacts and PDFs it was generated with come back chosen
+    expect((within(dialog).getByTestId(`crm-offer-contact-${CONTACT.id}`) as HTMLInputElement).checked).toBe(true)
+    expect((within(dialog).getByTestId(`crm-offer-attachment-${PDF.id}`) as HTMLInputElement).checked).toBe(true)
+    fireEvent.change(within(dialog).getByLabelText(/^Opening/), { target: { value: 'Corrected opening.' } })
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Save and regenerate' }))
+    await waitFor(() => expect(saved).not.toBeNull())
+    expect(saved!.ifMatch).toBe('"3"')
+    expect(saved!.body).toMatchObject({ templateId: 't-en', opening: 'Corrected opening.', contactIds: [CONTACT.id], attachmentIds: [PDF.id] })
   })
 
   it('Download opens the returned link in a new tab', async () => {

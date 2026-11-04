@@ -63,6 +63,14 @@ const putProfile = (entity: "welld_ch" | "welld_it" = "welld_ch") =>
   call("PUT", `/entity-profiles/${entity}`, { as: "admin", body: { ...PROFILE, ...(entity === "welld_it" ? { legalName: "wellD Srl" } : {}) } });
 const generate = (dealId: string, body: unknown, as: "salesCh" | "admin" = "admin") =>
   call("POST", `/deals/${dealId}/offers`, { as, body });
+/** specs/020 US-7: a next revision needs the previous offer sent. */
+const markSent = (dealId: string, offerId: string) => call("POST", `/deals/${dealId}/offers/${offerId}/sent`);
+/** Generates, then marks it sent, so the deal's next generation is a revision. */
+const generateSent = async (dealId: string, body: unknown) => {
+  const res = await generate(dealId, body);
+  if (res.status === 201) await markSent(dealId, res.json.id);
+  return res;
+};
 const body = (dealId: string, name = "Training", overrides: Record<string, unknown> = {}, entity: "welld_ch" | "welld_it" = "welld_ch") =>
   offerBody(dealId, entity, name, overrides);
 
@@ -274,9 +282,9 @@ describe("offer generation (specs/020 US-1, US-3, US-4)", () => {
       const a = await readyDeal();
       const b = await readyDeal();
       await putProfile();
-      expect((await generate(a.deal.id, await body(a.deal.id))).json.reference).toBe(`0001/${YEAR}`);
+      expect((await generateSent(a.deal.id, await body(a.deal.id))).json.reference).toBe(`0001/${YEAR}`);
       expect((await generate(b.deal.id, await body(b.deal.id))).json.reference).toBe(`0002/${YEAR}`);
-      const again = await generate(a.deal.id, await body(a.deal.id));
+      const again = await generateSent(a.deal.id, await body(a.deal.id));
       expect(again.json).toMatchObject({ number: 2, reference: `0001/${YEAR}r1` });
       expect((await generate(a.deal.id, await body(a.deal.id))).json.reference).toBe(`0001/${YEAR}r2`);
       // a number is only taken by a deal's FIRST offer
@@ -306,7 +314,7 @@ describe("offer generation (specs/020 US-1, US-3, US-4)", () => {
     it("keeps a deal's number and year across a year change, and a deleted revision leaves its gap", async () => {
       const { deal } = await readyDeal();
       await putProfile();
-      const first = await generate(deal.id, await body(deal.id));
+      const first = await generateSent(deal.id, await body(deal.id));
       await db.dealOffer.update({ where: { id: first.json.id }, data: { sequenceYear: YEAR - 1, sequenceNo: 17 } });
       const second = await generate(deal.id, await body(deal.id));
       expect(second.json.reference).toBe(`0017/${YEAR - 1}r1`);
@@ -380,6 +388,7 @@ describe("offer generation (specs/020 US-1, US-3, US-4)", () => {
         }),
       );
       expect(ok.json.priceCents).toBe(760_000);
+      await markSent(deal.id, ok.json.id);
       const over = await generate(
         deal.id,
         await body(deal.id, "Training", {
@@ -630,5 +639,108 @@ describe("entity profiles", () => {
     expect(saved.json).toMatchObject({ entity: "welld_ch", legalName: "wellD SA", placeOfIssue: "Lugano", letterhead: null });
     const list = await call("GET", "/entity-profiles", { as: "salesCh" });
     expect(list.json.items).toHaveLength(1);
+  });
+});
+
+describe("edit until sent, then revise (specs/020 US-7)", () => {
+  beforeEach(resetWorld);
+
+  const form = (dealId: string, offerId: string) => call("GET", `/deals/${dealId}/offers/${offerId}/form`);
+  const put = (dealId: string, offerId: string, payload: unknown, ifMatch?: number) =>
+    call("PUT", `/deals/${dealId}/offers/${offerId}`, { body: payload, ...(ifMatch !== undefined ? { ifMatch } : {}) });
+
+  it("a new revision is refused while the newest offer has not been sent (AC-7.1)", async () => {
+    const { deal } = await readyDeal();
+    await putProfile();
+    const first = await generate(deal.id, await body(deal.id));
+    expect(first.json.sent).toBeNull();
+    const refused = await generate(deal.id, await body(deal.id));
+    expect(refused.status).toBe(409);
+    expect(refused.json).toMatchObject({ code: "offer_not_sent", offerId: first.json.id });
+    await markSent(deal.id, first.json.id);
+    expect((await generate(deal.id, await body(deal.id))).json.reference).toBe(`0001/${YEAR}r1`);
+  });
+
+  it("an unsent offer is edited in place: same reference, new PDF, version + 1 (AC-7.2)", async () => {
+    const { deal } = await readyDeal();
+    await putProfile();
+    const contact = await call("POST", "/contacts", { body: { firstName: "Mario", lastName: "Rossi", companyId: deal.company.id } });
+    const pdf = await storeAttachment(deal.id, { fileName: "annex.pdf" });
+    const created = await generate(deal.id, await body(deal.id, "Training", { contactIds: [contact.json.id], attachmentIds: [pdf.id] }));
+    const before = await db.dealOffer.findUniqueOrThrow({ where: { id: created.json.id } });
+
+    // the form gives back what the dialog sent, ready to edit
+    const prefill = await form(deal.id, created.json.id);
+    expect(prefill.status).toBe(200);
+    expect(prefill.json).toMatchObject({
+      contactIds: [contact.json.id],
+      attachmentIds: [pdf.id],
+      version: 1,
+      sent: false,
+      templateName: "Training",
+    });
+
+    const edited = { ...(await body(deal.id)), contactIds: [], opening: "A new opening." };
+    expect((await put(deal.id, created.json.id, edited)).status).toBe(428);
+    expect((await put(deal.id, created.json.id, edited, 7)).status).toBe(409);
+    const ok = await put(deal.id, created.json.id, edited, 1);
+    expect(ok.status).toBe(200);
+    expect(ok.json).toMatchObject({ id: created.json.id, reference: `0001/${YEAR}`, version: 2, sent: null });
+    expect(ok.headers.get("ETag")).toBe('"2"');
+    const after = await db.dealOffer.findUniqueOrThrow({ where: { id: created.json.id } });
+    expect(after.objectKey).not.toBe(before.objectKey);
+    expect(bucket.objects.has(before.objectKey)).toBe(false);
+    expect(bucket.objects.has(after.objectKey)).toBe(true);
+    expect((after.snapshot as { opening: string }).opening).toBe("A new opening.");
+    expect(await db.dealOffer.count({ where: { dealId: deal.id } })).toBe(1);
+  });
+
+  it("marking sent freezes the offer, moves the deal to Offer sent, and a revision starts from it (AC-7.2–7.4)", async () => {
+    const { deal } = await readyDeal();
+    await putProfile();
+    await call("POST", `/deals/${deal.id}/stage`, { ifMatch: (await call("GET", `/deals/${deal.id}`)).json.version, body: { stage: "proposal" } });
+    const created = await generate(deal.id, await body(deal.id, "Training", { opening: "Version one." }));
+    const sent = await markSent(deal.id, created.json.id);
+    expect(sent.json.sent).toMatchObject({ by: { id: "user-admin" } });
+    expect((await call("GET", `/deals/${deal.id}`)).json.stage).toBe("negotiation");
+    // idempotent: the first moment stays
+    expect((await markSent(deal.id, created.json.id)).json.sent.at).toBe(sent.json.sent.at);
+
+    const frozen = await put(deal.id, created.json.id, await body(deal.id), sent.json.version);
+    expect(frozen.json).toMatchObject({ status: 409, code: "offer_sent" });
+
+    // the next revision's dialog starts from the sent offer
+    const prefill = await form(deal.id, created.json.id);
+    expect(prefill.json).toMatchObject({ opening: "Version one.", sent: true });
+  });
+
+  it("a deal already past Offer sent keeps its stage", async () => {
+    const { deal } = await readyDeal();
+    await putProfile();
+    const created = await generate(deal.id, await body(deal.id));
+    const won = await call("POST", `/deals/${deal.id}/stage`, { ifMatch: (await call("GET", `/deals/${deal.id}`)).json.version, body: { stage: "won" } });
+    expect(won.status).toBe(200);
+    await markSent(deal.id, created.json.id);
+    expect((await call("GET", `/deals/${deal.id}`)).json.stage).toBe("won");
+  });
+
+  it("an offer from before offer documents can be neither edited nor revised from, and needs deal:manage in scope", async () => {
+    const { deal } = await readyDeal();
+    const legacy = await db.dealOffer.create({
+      data: {
+        dealId: deal.id,
+        number: 1,
+        language: "en",
+        priceCents: 100n,
+        currency: "CHF",
+        validityDays: 30,
+        snapshot: { reference: "OF-2026-ABC123-1", validUntil: "2026-10-31", scope: { aiAssisted: false, manDaysTenths: 0 } },
+        objectKey: `offers/${deal.id}/legacy.pdf`,
+        sizeBytes: 10,
+        createdBy: "user-admin",
+      },
+    });
+    expect((await form(deal.id, legacy.id)).json.code).toBe("offer_legacy");
+    expect((await call("POST", `/deals/${deal.id}/offers/${legacy.id}/sent`, { as: "consultant" })).status).toBe(403);
   });
 });

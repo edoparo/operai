@@ -34,6 +34,14 @@ export function offerFailure(error: unknown): string {
       return t.discountsExceed
     case 'cost_total_too_large':
       return t.costTotalTooLarge
+    case 'offer_sent':
+      return t.offerSent
+    case 'offer_not_sent':
+      return t.offerNotSent
+    case 'offer_not_latest':
+      return t.offerNotLatest
+    case 'offer_legacy':
+      return t.offerLegacy
     default:
       return errorMessage(error)
   }

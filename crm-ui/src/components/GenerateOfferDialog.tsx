@@ -12,7 +12,16 @@ import {
   formatNumber,
   resolveLocale,
 } from '@operai/ui'
-import { generateOffer, getOfferDraft, listAttachments, listContacts, listOfferTemplates } from '../lib/crmApi'
+import {
+  editOffer,
+  generateOffer,
+  getOfferDraft,
+  getOfferForm,
+  listAttachments,
+  listContacts,
+  listOfferTemplates,
+} from '../lib/crmApi'
+import { isStaleWrite } from '../lib/api'
 import type { OfferInput } from '../lib/crmApi'
 import { offerFailure } from '../lib/offerErrors'
 import {
@@ -36,6 +45,7 @@ import type {
   Deal,
   Offer,
   OfferDraft,
+  OfferForm,
   OfferSection,
   OfferTemplate,
 } from '../lib/types'
@@ -86,6 +96,16 @@ const fromDraft = (draft: OfferDraft): Form => ({
   validity: String(draft.validityDays),
 })
 
+/** An offer's own content (specs/020 US-7): its contacts and PDFs come back chosen. */
+const fromForm = (offerForm: OfferForm): Form => ({
+  ...fromDraft(offerForm),
+  contactIds: [...offerForm.contactIds],
+  attachmentIds: [...offerForm.attachmentIds],
+})
+
+/** `edit`: an offer not sent yet, saved in place; `revise`: a sent offer, the start of its next revision. */
+export type OfferSource = { offer: Offer; mode: 'edit' | 'revise' }
+
 const isPdf = (attachment: Attachment) => attachment.contentType === 'application/pdf'
 
 /**
@@ -102,10 +122,13 @@ const isPdf = (attachment: Attachment) => attachment.contentType === 'applicatio
  */
 export default function GenerateOfferDialog({
   deal,
+  source,
   onGenerated,
   onCancel,
 }: {
   deal: Deal
+  /** Start from an existing offer instead of a template (specs/020 US-7). */
+  source?: OfferSource
   onGenerated: (offer: Offer) => void
   onCancel: () => void
 }) {
@@ -117,7 +140,8 @@ export default function GenerateOfferDialog({
   const [templateId, setTemplateId] = useState('')
   const [aiAssisted, setAiAssisted] = useState(false)
   const [form, setForm] = useState<Form | null>(null)
-  const [loadingDraft, setLoadingDraft] = useState(false)
+  // An existing offer's content loads as soon as the dialog opens.
+  const [loadingDraft, setLoadingDraft] = useState(source !== undefined)
   const [pending, setPending] = useState<{ templateId: string; aiAssisted: boolean } | null>(null)
   const [validated, setValidated] = useState(false)
   const [errors, setErrors] = useState<FieldErrors>({})
@@ -126,6 +150,8 @@ export default function GenerateOfferDialog({
   const [pickError, setPickError] = useState<{ contacts?: string; attachments?: string }>({})
   const fieldsRef = useRef<HTMLDivElement>(null)
   const loadToken = useRef(0)
+  const [version, setVersion] = useState<number | null>(null)
+  const sourceOfferId = source?.offer.id
 
   useEffect(() => {
     const controller = new AbortController()
@@ -145,6 +171,29 @@ export default function GenerateOfferDialog({
     )
     return () => controller.abort()
   }, [deal.entity, deal.company.id, deal.id])
+
+  // Editing or revising: the offer's own content fills the form, as a template's draft would.
+  useEffect(() => {
+    if (sourceOfferId === undefined) return
+    const controller = new AbortController()
+    const token = ++loadToken.current
+    getOfferForm(deal.id, sourceOfferId, { signal: controller.signal }).then(
+      (offerForm) => {
+        if (controller.signal.aborted || token !== loadToken.current) return
+        setLoadingDraft(false)
+        setTemplateId(offerForm.templateId)
+        setAiAssisted(offerForm.aiAssisted)
+        setVersion(offerForm.version)
+        setForm(fromForm(offerForm))
+      },
+      (failure: unknown) => {
+        if (controller.signal.aborted || token !== loadToken.current) return
+        setLoadingDraft(false)
+        setError(offerFailure(failure))
+      },
+    )
+    return () => controller.abort()
+  }, [deal.id, sourceOfferId])
 
   // Active templates, the person's language first.
   const options = useMemo(() => {
@@ -258,9 +307,13 @@ export default function GenerateOfferDialog({
       aiAssisted,
     }
     setBusy(true)
-    generateOffer(deal.id, body).then(onGenerated, (failure: unknown) => {
+    const request =
+      source?.mode === 'edit' && version !== null
+        ? editOffer(deal.id, source.offer.id, version, body)
+        : generateOffer(deal.id, body)
+    request.then(onGenerated, (failure: unknown) => {
       setBusy(false)
-      setError(offerFailure(failure))
+      setError(source?.mode === 'edit' && isStaleWrite(failure) ? strings.offers.errors.offerStale : offerFailure(failure))
     })
   }
 
@@ -269,9 +322,17 @@ export default function GenerateOfferDialog({
   return (
     <>
       <FormDialog
-        title={t.title}
-        description={t.description}
-        submitLabel={t.submit}
+        title={
+          source?.mode === 'edit'
+            ? t.editTitle(source.offer.reference)
+            : source?.mode === 'revise'
+              ? t.reviseTitle(source.offer.reference)
+              : t.title
+        }
+        description={
+          source?.mode === 'edit' ? t.editDescription : source?.mode === 'revise' ? t.reviseDescription : t.description
+        }
+        submitLabel={source?.mode === 'edit' ? t.editSubmit : t.submit}
         busyLabel={t.busy}
         cancelLabel={strings.common.cancel}
         closeLabel={strings.common.close}
@@ -325,7 +386,7 @@ export default function GenerateOfferDialog({
           </label>
           {loadingDraft && (
             <p className="text-sm text-soft" role="status" data-testid="crm-offer-draft-loading">
-              {t.draftLoading}
+              {source && form === null ? t.formLoading : t.draftLoading}
             </p>
           )}
           {form !== null && !loadingDraft && (

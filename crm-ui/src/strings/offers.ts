@@ -33,6 +33,12 @@ const en = {
     busy: 'Deleting…',
   },
   dialog: {
+    editTitle: (reference: string) => `Edit offer ${reference}`,
+    editDescription: 'It has not been sent yet, so the changes replace its PDF; the reference stays the same.',
+    editSubmit: 'Save and regenerate',
+    reviseTitle: (reference: string) => `New revision of ${reference}`,
+    reviseDescription: 'It starts from the version that was sent. Generating it adds the next revision; the sent one stays as it is.',
+    formLoading: 'Loading the offer…',
     title: 'Generate an offer',
     description:
       'Start from a template, review every text and figure, then generate the PDF. Each generation is a new version.',
@@ -90,12 +96,20 @@ const en = {
     busy: 'Moving…',
     later: 'Not now',
   },
+  edit: 'Edit',
+  editOf: (reference: string) => `Edit ${reference}`,
+  revise: 'New revision',
+  sentOn: (date: string) => `Sent ${date}`,
+  sentBy: (who: string, date: string) => `Sent by ${who} on ${date}`,
+  markedSent: (reference: string) => `${reference} marked as sent.`,
   markSent: 'Mark as sent',
   markSentOf: (reference: string) => `Mark ${reference} as sent`,
   sentDialog: {
     title: 'Mark the offer as sent?',
     body: (reference: string) =>
-      `Confirm that ${reference} has been sent to the client. The deal moves to offer sent.`,
+      `Confirm that ${reference} has been sent to the client. It can no longer be edited: a later change is a new revision. The deal moves to offer sent.`,
+    bodyNoMove: (reference: string) =>
+      `Confirm that ${reference} has been sent to the client. It can no longer be edited: a later change is a new revision.`,
     confirm: 'Mark as sent',
     busy: 'Moving…',
   },
@@ -113,6 +127,11 @@ const en = {
     discountsExceed: 'The discounts exceed the one-off lines.',
     costTotalTooLarge: 'A cost line is too large.',
     versionConflict: 'The template changed meanwhile. Choose it again to load the latest version.',
+    offerStale: 'Someone changed or sent this offer meanwhile. Close the dialog and open it again.',
+    offerSent: 'This offer has been sent, so it can no longer be edited. Make a new revision instead.',
+    offerNotSent: 'The newest offer has not been sent yet: edit it instead of making a new revision.',
+    offerNotLatest: 'Only the newest version of an offer can be edited.',
+    offerLegacy: 'This offer was generated before offer documents and cannot be edited or revised from.',
   },
   storageMissing: 'File storage is not set up yet. Offers appear here once an administrator configures it.',
 }
@@ -151,6 +170,12 @@ const it: typeof en = {
     busy: 'Eliminazione…',
   },
   dialog: {
+    editTitle: (reference: string) => `Modifica l'offerta ${reference}`,
+    editDescription: 'Non è ancora stata inviata, quindi le modifiche sostituiscono il suo PDF; il riferimento resta lo stesso.',
+    editSubmit: 'Salva e rigenera',
+    reviseTitle: (reference: string) => `Nuova revisione di ${reference}`,
+    reviseDescription: 'Parte dalla versione inviata. Generandola si aggiunge la revisione successiva; quella inviata resta com’è.',
+    formLoading: "Caricamento dell'offerta…",
     title: "Genera un'offerta",
     description:
       'Parti da un modello, rivedi ogni testo e importo, poi genera il PDF. Ogni generazione è una nuova versione.',
@@ -208,12 +233,20 @@ const it: typeof en = {
     busy: 'Spostamento…',
     later: 'Non ora',
   },
+  edit: 'Modifica',
+  editOf: (reference: string) => `Modifica ${reference}`,
+  revise: 'Nuova revisione',
+  sentOn: (date: string) => `Inviata il ${date}`,
+  sentBy: (who: string, date: string) => `Inviata da ${who} il ${date}`,
+  markedSent: (reference: string) => `${reference} segnata come inviata.`,
   markSent: 'Segna come inviata',
   markSentOf: (reference: string) => `Segna ${reference} come inviata`,
   sentDialog: {
     title: "Segnare l'offerta come inviata?",
     body: (reference: string) =>
-      `Conferma che ${reference} è stata inviata al cliente. L'opportunità passa a offerta inviata.`,
+      `Conferma che ${reference} è stata inviata al cliente. Non sarà più modificabile: un cambiamento successivo è una nuova revisione. L'opportunità passa a offerta inviata.`,
+    bodyNoMove: (reference: string) =>
+      `Conferma che ${reference} è stata inviata al cliente. Non sarà più modificabile: un cambiamento successivo è una nuova revisione.`,
     confirm: 'Segna come inviata',
     busy: 'Spostamento…',
   },
@@ -232,6 +265,11 @@ const it: typeof en = {
     discountsExceed: 'Gli sconti superano le righe una tantum.',
     costTotalTooLarge: 'Una riga di costo è troppo grande.',
     versionConflict: 'Il modello è cambiato nel frattempo. Sceglilo di nuovo per caricare l’ultima versione.',
+    offerStale: "Qualcuno ha modificato o inviato quest'offerta nel frattempo. Chiudi la finestra e riaprila.",
+    offerSent: "Quest'offerta è stata inviata e non è più modificabile. Crea una nuova revisione.",
+    offerNotSent: "L'offerta più recente non è ancora stata inviata: modificala invece di creare una nuova revisione.",
+    offerNotLatest: "Si può modificare solo la versione più recente di un'offerta.",
+    offerLegacy: 'Questa offerta è stata generata prima dei documenti d’offerta e non si può modificare né usare come base.',
   },
   storageMissing: "L'archiviazione dei file non è ancora configurata. Le offerte compaiono qui quando un amministratore la imposta.",
 }
