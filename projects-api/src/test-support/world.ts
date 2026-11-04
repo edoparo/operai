@@ -1,8 +1,9 @@
 /**
  * Test world for projects-api route tests (specs/021-projects): personas with literal
- * permission sets, a request helper over the ASSEMBLED app, fakes for the three things
- * outside the system (auth's identity and app-access endpoints, auth's service-token
- * endpoint, crm-api's `/system/companies`), and a reset between tests.
+ * permission sets, a request helper over the ASSEMBLED app, fakes for the things outside the
+ * system (auth's identity and app-access endpoints, auth's service-token endpoint, crm-api's
+ * `/system/companies` and `/system/deals`, estimai-api's `/system/estimates/{id}/summary`;
+ * the last two are specs/022), and a reset between tests.
  *
  * The environment is set by the `bun test` preload (./env.ts) before this module, or
  * anything it imports, reads `src/lib/env`.
@@ -10,7 +11,7 @@
 
 import { spyOn } from "bun:test";
 import { setupTestAuth } from "./testAuth";
-import { TEST_CRM_URL } from "./env";
+import { TEST_CRM_URL, TEST_ESTIMAI_URL } from "./env";
 import type { ResolvedPermission } from "../authz/resolveClient";
 
 const harness = setupTestAuth();
@@ -115,7 +116,54 @@ export interface FakeCompany {
   readonly entity: "welld_ch" | "welld_it";
   readonly archived: boolean;
 }
-export const crm = { companies: [] as FakeCompany[], down: false, calls: 0, lastAuthorization: "" };
+
+export type FakeDealStage = "lead" | "qualified" | "proposal" | "negotiation" | "won" | "lost";
+
+/**
+ * A CRM deal as the fake `GET /system/deals` knows it (specs/022 T3 contract). `wonAt` is when it
+ * was won; the fake reports it only while `stage` is `won`, as crm-api does, so a test reopens a
+ * deal by setting `stage` and wins it again by setting it back.
+ */
+export interface FakeDeal {
+  id: string;
+  title: string;
+  stage: FakeDealStage;
+  entity: "welld_ch" | "welld_it";
+  company: { id: string; name: string };
+  wonAt: string;
+  estimate: { id: string; name: string } | null;
+}
+
+let dealSeq = 0;
+/** A won deal of Acme in wellD CH without an estimate; override what the test cares about. */
+export function makeDeal(over: Partial<FakeDeal> = {}): FakeDeal {
+  dealSeq++;
+  return {
+    id: `deal-${dealSeq}`,
+    title: `Deal ${dealSeq}`,
+    stage: "won",
+    entity: "welld_ch",
+    company: { id: "co-acme", name: "Acme SA" },
+    wonAt: new Date(Date.UTC(2026, 10, 1, 9, 0, 0) + dealSeq * 60_000).toISOString(),
+    estimate: null,
+    ...over,
+  };
+}
+
+/** crm-api's cap on `stage=won`; a test lowers `wonLimit` to see `truncated`. */
+export const CRM_WON_LIMIT = 500;
+
+export const crm = {
+  companies: [] as FakeCompany[],
+  deals: [] as FakeDeal[],
+  down: false,
+  /** Every request to the fake crm-api, companies and deals. */
+  calls: 0,
+  /** The requests to `GET /system/deals` alone. */
+  dealCalls: 0,
+  wonLimit: CRM_WON_LIMIT,
+  lastAuthorization: "",
+};
 
 function fakeCrmCompanies(url: URL, authorization: string): Response {
   crm.calls++;
@@ -131,6 +179,61 @@ function fakeCrmCompanies(url: URL, authorization: string): Response {
     .slice(0, limit)
     .map(({ id, name, entity, archived }) => ({ id, name, entity, archived }));
   return Response.json({ items });
+}
+
+/**
+ * A fake crm-api `GET /system/deals` (specs/022 T3 contract): exactly one of `stage=won` (won deals,
+ * newest win first, at most `crm.wonLimit`, `truncated` beyond) or `ids` (those deals in any
+ * stage, `wonAt` null unless won). A summary has no amount, currency, owner or notes.
+ */
+function fakeCrmDeals(url: URL, authorization: string): Response {
+  crm.calls++;
+  crm.dealCalls++;
+  crm.lastAuthorization = authorization;
+  if (crm.down) return new Response("down", { status: 503 });
+  if (authorization !== `Bearer ${SERVICE_JWT}`) return Response.json({ status: 401 }, { status: 401 });
+  const stage = url.searchParams.get("stage");
+  const ids = url.searchParams.get("ids")?.split(",");
+  if ((stage === null) === (ids === undefined)) return Response.json({ status: 400 }, { status: 400 });
+  const summary = (deal: FakeDeal) => ({
+    id: deal.id,
+    title: deal.title,
+    stage: deal.stage,
+    entity: deal.entity,
+    company: deal.company,
+    wonAt: deal.stage === "won" ? deal.wonAt : null,
+    estimate: deal.estimate,
+  });
+  if (ids) {
+    return Response.json({
+      items: ids.flatMap((id) => crm.deals.filter((deal) => deal.id === id).map(summary)),
+      truncated: false,
+    });
+  }
+  const won = crm.deals.filter((deal) => deal.stage === "won").sort((a, b) => b.wonAt.localeCompare(a.wonAt));
+  return Response.json({ items: won.slice(0, crm.wonLimit).map(summary), truncated: won.length > crm.wonLimit });
+}
+
+/**
+ * A fake estimai-api `GET /system/estimates/{id}/summary` (specs/022 T2 contract): `200 { id, name,
+ * manDays }` for a known estimate, `404 estimate_not_found` otherwise. `manDays` is the figure
+ * EstimAI would compute; a test sets it and "changes the estimate" by setting it again.
+ */
+export const estimai = {
+  estimates: new Map<string, { name: string; manDays: number }>(),
+  down: false,
+  calls: 0,
+  lastAuthorization: "",
+};
+
+function fakeEstimaiSummary(id: string, authorization: string): Response {
+  estimai.calls++;
+  estimai.lastAuthorization = authorization;
+  if (estimai.down) return new Response("down", { status: 503 });
+  if (authorization !== `Bearer ${SERVICE_JWT}`) return Response.json({ status: 401 }, { status: 401 });
+  const estimate = estimai.estimates.get(id);
+  if (!estimate) return Response.json({ status: 404, code: "estimate_not_found" }, { status: 404 });
+  return Response.json({ id, name: estimate.name, manDays: estimate.manDays });
 }
 
 const realFetch = globalThis.fetch;
@@ -164,6 +267,15 @@ spyOn(globalThis, "fetch").mockImplementation((async (url: unknown, init?: Reque
   if (href.startsWith(`${TEST_CRM_URL}/system/companies`)) {
     const authorization = new Headers(init?.headers).get("Authorization") ?? "";
     return fakeCrmCompanies(new URL(href), authorization);
+  }
+  if (href.startsWith(`${TEST_CRM_URL}/system/deals`)) {
+    const authorization = new Headers(init?.headers).get("Authorization") ?? "";
+    return fakeCrmDeals(new URL(href), authorization);
+  }
+  if (href.startsWith(`${TEST_ESTIMAI_URL}/system/estimates/`)) {
+    const authorization = new Headers(init?.headers).get("Authorization") ?? "";
+    const id = decodeURIComponent(new URL(href).pathname.split("/")[3] ?? "");
+    return fakeEstimaiSummary(id, authorization);
   }
   return realFetch(url as string, init);
 }) as typeof fetch);
@@ -209,7 +321,14 @@ export async function resetWorld(): Promise<void> {
   authSystem.tokenCalls = 0;
   resetAppAccess();
   crm.companies = [];
+  crm.deals = [];
   crm.down = false;
   crm.calls = 0;
+  crm.dealCalls = 0;
+  crm.wonLimit = CRM_WON_LIMIT;
   crm.lastAuthorization = "";
+  estimai.estimates = new Map();
+  estimai.down = false;
+  estimai.calls = 0;
+  estimai.lastAuthorization = "";
 }

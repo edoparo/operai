@@ -182,10 +182,28 @@ describe("any contract", () => {
     expect(contract).toMatchObject({ slaHighDays: null, hourPackageHours: null, origin: "manual", version: 1 });
   });
 
-  it("comes from at most one contract per won deal", async () => {
-    await makeContract("saas", { dealId: "deal-1" });
-    await refused(makeContract("saas", { dealId: "deal-1" })).toBeDefined();
-    await makeContract("saas", { dealId: "deal-2" });
+  it("comes from at most one contract per won deal (AC-1.6, the database half)", async () => {
+    await makeContract("saas", { origin: "deal", dealId: "deal-1" });
+    await refused(makeContract("saas", { origin: "deal", dealId: "deal-1" })).toBeDefined();
+    await makeContract("saas", { origin: "deal", dealId: "deal-2" });
+  });
+});
+
+describe("contract made from a deal (specs/022, AC-1.6, AC-3.2)", () => {
+  it("has origin `deal` iff it has a dealId", async () => {
+    await refusedBy("contract_origin_matches_deal", makeContract("saas", { origin: "deal" }));
+    await refusedBy("contract_origin_matches_deal", makeContract("saas", { origin: "manual", dealId: "deal-1" }));
+    expect(await makeContract("saas", { origin: "deal", dealId: "deal-1" })).toMatchObject({ origin: "deal", dealId: "deal-1" });
+    expect(await makeContract("saas", { origin: "manual" })).toMatchObject({ origin: "manual", dealId: null });
+  });
+
+  it("carries the deal's estimate id only when it is a deal contract", async () => {
+    await refusedBy("contract_estimate_needs_deal", makeContract("saas", { estimateId: "est-1" }));
+    await refusedBy("contract_estimate_needs_deal", makeContract("saas", { origin: "manual", estimateId: "est-1" }));
+    expect(await makeContract("saas", { origin: "deal", dealId: "deal-1", estimateId: "est-1" })).toMatchObject({ estimateId: "est-1" });
+    // A deal without an estimate, and a hand-entered contract, carry none.
+    expect(await makeContract("saas", { origin: "deal", dealId: "deal-2" })).toMatchObject({ estimateId: null });
+    expect(await makeContract("saas")).toMatchObject({ estimateId: null });
   });
 });
 

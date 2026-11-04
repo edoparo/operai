@@ -1,5 +1,5 @@
 /**
- * crm-api client for CRM companies (specs/021-projects T5, ADR-0059).
+ * crm-api client for CRM companies (specs/021-projects T5, ADR-0059) and deals (specs/022 T5, ADR-0060).
  *
  * projects-api reads `GET /system/companies` as ITSELF: a 5-minute service JWT with scope
  * `crm.companies.read` (`serviceTokens`, ADR-0044/0049), never the caller's token — a
@@ -11,6 +11,10 @@
  *     503 `crm_unavailable` (the picker, and a write that must know the company exists);
  *   - `companyRefs` FAILS SOFT: reads show `CompanyRef.name = null` rather than failing
  *     (a page of projects must not die because the CRM is down).
+ *
+ * Deals are read the same way (`GET /system/deals`, scope `crm.deals.read`), live, never cached or
+ * synced: `wonDeals()` (the to-start queue's source) and `dealsById(ids)` (a contract's deal) throw
+ * `CrmUnavailableError`; the route decides between a 503 and degrading to unknown.
  *
  * Nothing here logs a token or a response body.
  */
@@ -53,7 +57,8 @@ export const crmUnavailable = (): ProblemError =>
     detail: "The CRM is unavailable; companies could not be looked up",
   });
 
-async function fetchCompanies(params: URLSearchParams): Promise<CrmCompany[]> {
+/** The crm-api `/system/*` read `path` with `params`, as the service principal; the parsed body. */
+async function crmGet(path: string, params: URLSearchParams): Promise<{ items?: unknown; truncated?: unknown }> {
   if (!serviceTokens || !env.CRM_INTERNAL_URL) {
     throw new CrmUnavailableError("the crm-api service credential is not configured");
   }
@@ -65,7 +70,7 @@ async function fetchCompanies(params: URLSearchParams): Promise<CrmCompany[]> {
   }
   let res: Response;
   try {
-    res = await fetch(`${env.CRM_INTERNAL_URL}/system/companies?${params}`, {
+    res = await fetch(`${env.CRM_INTERNAL_URL}${path}?${params}`, {
       headers: { Authorization: `Bearer ${token}` },
       signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
     });
@@ -74,10 +79,14 @@ async function fetchCompanies(params: URLSearchParams): Promise<CrmCompany[]> {
   }
   // crm-api answers every credential failure with one 401: drop the token so the next call mints a fresh one.
   if (res.status === 401) serviceTokens.invalidate(token);
-  if (!res.ok) throw new CrmUnavailableError(`crm-api GET /system/companies responded with HTTP ${res.status}`);
-  const body = (await res.json().catch(() => null)) as { items?: unknown } | null;
+  if (!res.ok) throw new CrmUnavailableError(`crm-api GET ${path} responded with HTTP ${res.status}`);
+  const body = (await res.json().catch(() => null)) as { items?: unknown; truncated?: unknown } | null;
   if (!Array.isArray(body?.items)) throw new CrmUnavailableError("crm-api returned an unreadable body");
-  return body.items as CrmCompany[];
+  return body;
+}
+
+async function fetchCompanies(params: URLSearchParams): Promise<CrmCompany[]> {
+  return (await crmGet("/system/companies", params)).items as CrmCompany[];
 }
 
 /** Active (non-archived) companies whose name contains `q`, by name — the company picker. */
@@ -138,4 +147,43 @@ export async function orCrmUnavailable<T>(lookup: Promise<T>): Promise<T> {
     console.error("[crm] lookup failed:", error.message);
     throw crmUnavailable();
   }
+}
+
+// ─── Deals (specs/022) ───────────────────────────────────────────────────────
+
+export type CrmDealStage = "lead" | "qualified" | "proposal" | "negotiation" | "won" | "lost";
+
+/**
+ * crm-api's `DealSummary`. It carries no amount, currency, owner or notes, and projects-api never
+ * asks for them (D14). `wonAt` is the win date while the stage is `won`, else `null`.
+ */
+export interface CrmDeal {
+  readonly id: string;
+  readonly title: string;
+  readonly stage: CrmDealStage;
+  readonly entity: "welld_ch" | "welld_it";
+  readonly company: { readonly id: string; readonly name: string };
+  readonly wonAt: string | null;
+  readonly estimate: { readonly id: string; readonly name: string } | null;
+}
+
+/**
+ * The won deals, newest win first (crm-api caps the list at 500 and says so with `truncated`).
+ * The queue subtracts the deals that already have a contract itself.
+ */
+export async function wonDeals(): Promise<{ items: CrmDeal[]; truncated: boolean }> {
+  const body = await crmGet("/system/deals", new URLSearchParams({ stage: "won" }));
+  return { items: body.items as CrmDeal[], truncated: body.truncated === true };
+}
+
+/** The deals with these ids, in any stage, keyed by id; unknown ids are absent. */
+export async function dealsById(ids: readonly string[]): Promise<Map<string, CrmDeal>> {
+  const distinct = [...new Set(ids)];
+  const found = new Map<string, CrmDeal>();
+  for (let i = 0; i < distinct.length; i += MAX_IDS_PER_REQUEST) {
+    const batch = distinct.slice(i, i + MAX_IDS_PER_REQUEST);
+    const body = await crmGet("/system/deals", new URLSearchParams({ ids: batch.join(",") }));
+    for (const deal of body.items as CrmDeal[]) found.set(deal.id, deal);
+  }
+  return found;
 }
