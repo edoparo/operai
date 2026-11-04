@@ -12,6 +12,7 @@ import { crmNoticesEnabled } from "./lib/crmNotices";
 import { corsMiddleware } from "./lib/cors";
 import { requestLogger } from "./lib/logger";
 import { setupOpenAPI } from "./openapi/registry";
+import { systemEstimatesRouter } from "./system/estimates.routes";
 import { registerCollaboratorOpenApiDocs } from "./openapi/collaborators.docs";
 
 const app = new OpenAPIHono();
@@ -63,6 +64,13 @@ setupOpenAPI(app);
 // merged earlier in the route table, would answer a service token with a 401
 // before this route ever ran (the same rule as the doc routes above).
 app.route("/", dealLinkNoticesRouter);
+
+// GET /system/estimates/{id}/summary (specs/022 T2, ADR-0061) — the one service-to-service
+// route. It carries its own guard on the route itself (a scoped service JWT, never a user
+// JWT) and MUST be mounted before the estimates routers below: `OpenAPIHono.route()` merges
+// their wildcard `.use("*", jwtMiddleware)` into this app, and a route registered after it
+// would answer a service credential with that middleware's 401 (see the note above).
+app.route("/", systemEstimatesRouter);
 
 // importEstimatesRouter is mounted BEFORE estimatesRouter. The import route has
 // a larger bodyLimit (IMPORT_BODY_SIZE_LIMIT) and a completely separate middleware

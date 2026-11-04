@@ -80,6 +80,8 @@ const envSchema = z.object({
   // OPTIONAL: unset, the route answers 401 to everyone (fail closed) and the
   // rest of the service is unaffected; the production template lists it as
   // required (tools/env-doctor).
+  // The same `aud` guards `GET /system/estimates/{id}/summary` (scope
+  // `estimai.estimates.read`, sub `system:projects-api`; specs/022, ADR-0061).
   SERVICE_AUDIENCE: z.string().min(1, "SERVICE_AUDIENCE must not be empty").optional(),
 
   // ─── Third-party lookup timing/rate-limit knobs (plan.md "The third-party
