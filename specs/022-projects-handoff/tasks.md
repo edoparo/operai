@@ -185,7 +185,7 @@ Errors are `application/problem+json` with a `code`, as in specs/021. `CompanyRe
 - [ ] T9: projects-api — authorization matrix covers the new routes — refs: AC-1.1, AC-1.2, AC-1.4 — deps: T4, T6, T7, T8
   - touch: `projects-api/src/matrix.test.ts`
   - done when: `bun test src/matrix.test.ts` is green for `GET /queue`, both takes and `GET /system/contracts` × {no access, access only, `project-manager` (welld_ch), `sales` (welld_it), `accounting`, admin} — takes allowed only for manage of the deal's entity, the system route refusing every user JWT — and the full `bun test` and `bun run typecheck` are green.
-- [ ] T10: crm-api — the deal page reads its project and Bexio order id from projects-api — refs: AC-3.4 — deps: none
+- [x] T10: crm-api — the deal page reads its project and Bexio order id from projects-api — refs: AC-3.4 — deps: none
   - touch: `crm-api/src/lib/projects.ts`, `crm-api/src/lib/projects.test.ts`, `crm-api/src/lib/env.ts`, `crm-api/src/deals/deals.routes.ts`, `crm-api/src/deals/delivery.test.ts`
   - done when: `cd crm-api && bun run typecheck && bun test` is green with tests that `GET /deals/{id}` returns `delivery: { project: { id, name }, bexioOrderId }` for a deal the fake projects-api knows, `delivery: null` with `deliveryKnown: true` for one it does not, and `delivery: null` with `deliveryKnown: false` — and still `200` — when projects-api is down or `PROJECTS_INTERNAL_URL` is unset; the call uses a service token from crm-api's existing `SERVICE_CLIENT_ID` / `SERVICE_CLIENT_SECRET` without editing the shared `serviceToken.ts` region.
 - [ ] T11: crm-ui — read-only "Delivery" card on the deal page (en + it) — refs: AC-3.4 — deps: T10
