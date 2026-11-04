@@ -13,6 +13,9 @@ import { teamRouter } from "./projects/team.routes";
 import { contractsRouter } from "./contracts/contracts.routes";
 import { bexioRouter } from "./contracts/bexio.routes";
 import { companiesRouter } from "./companies/companies.routes";
+import { systemRouter } from "./system/system.routes";
+import { queueRouter } from "./queue/queue.routes";
+import { takeRouter } from "./queue/take.routes";
 import { requestLogger } from "./lib/logger";
 import { handleProblemError, problem, validationHook } from "./lib/problem";
 import { setupOpenAPI } from "./openapi/registry";
@@ -53,7 +56,7 @@ app.use(
 );
 
 // ─── Routes ──────────────────────────────────────────────────────────────────
-// Every area router is mounted here, once. T5–T9 fill the stubs in; none edits this file.
+// Every area router is mounted here, once. specs/022 T6–T8 fill the queue and take stubs in; none edits this file.
 
 app.route("/", healthRouter);
 app.route("/", scopeRouter);
@@ -63,6 +66,9 @@ app.route("/", teamRouter);
 app.route("/", contractsRouter);
 app.route("/", bexioRouter);
 app.route("/", companiesRouter);
+app.route("/", systemRouter);
+app.route("/", queueRouter);
+app.route("/", takeRouter);
 
 // ─── OpenAPI + Scalar UI ─────────────────────────────────────────────────────
 

@@ -192,10 +192,17 @@ const SPECS: Record<string, RouteSpec> = {
 /** The routes that answer without a token: liveness and the API docs. Nothing else may. */
 const PUBLIC = new Set(["GET /health", "GET /openapi.json", "GET /docs"]);
 
+/**
+ * The service-to-service routes (specs/022): behind a scoped SERVICE credential, never a user JWT, so
+ * the persona matrix below does not apply to them. Their credential matrix lives in
+ * src/system/*.test.ts; the one thing asserted here is that no user, whatever they hold, opens them.
+ */
+const SYSTEM = new Set(["GET /system/contracts"]);
+
 const routes = [
   ...new Set(app.routes.filter((route) => route.method !== "ALL").map((route) => `${route.method} ${route.path}`)),
 ]
-  .filter((key) => !PUBLIC.has(key))
+  .filter((key) => !PUBLIC.has(key) && !SYSTEM.has(key))
   .sort();
 
 const concrete = (path: string) => path.replace(/:[a-zA-Z]+/g, "some-id");
@@ -254,6 +261,11 @@ describe("authorization matrix: the routes", () => {
     expect(routes).toEqual(Object.keys(SPECS).sort());
   });
 
+  it("serves the service-to-service routes it lists, and no others", () => {
+    const served = [...new Set(app.routes.filter((route) => route.path.startsWith("/system/")).map((route) => `${route.method} ${route.path}`))];
+    expect(served.sort()).toEqual([...SYSTEM].sort());
+  });
+
   it("serves liveness and the API docs without a token — and only those", async () => {
     for (const key of PUBLIC) {
       const [method, path] = split(key);
@@ -291,6 +303,16 @@ describe("authorization matrix: before any validation or lookup", () => {
     const res = await call(method, concrete(path), { as: "viewer", body: bodyFor(method) });
     expect(res.status).toBe(403);
     expect(res.json).toMatchObject({ code: "forbidden" });
+  });
+});
+
+describe("authorization matrix: service-to-service routes", () => {
+  it.each([...SYSTEM])("%s: 401 for every user, whatever they hold — a user JWT is not a service credential", async (key) => {
+    const [method, path] = split(key);
+    for (const persona of PERSONA_NAMES) {
+      const res = await call(method, `${path}?dealIds=some-deal`, { as: persona });
+      expect({ persona, status: res.status }).toEqual({ persona, status: 401 });
+    }
   });
 });
 
