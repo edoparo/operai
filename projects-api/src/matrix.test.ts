@@ -1,5 +1,6 @@
 /**
- * Authorization matrix over the ASSEMBLED app (specs/025-projects T10; AC-4.2 – AC-4.6, ADR-0014).
+ * Authorization matrix over the ASSEMBLED app (specs/021-projects T10; AC-4.2 – AC-4.6, ADR-0014;
+ * specs/022 T9: the to-start queue, AC-1.1, AC-1.2, AC-1.4).
  *
  * The route list is read from the app's own table, so a route added without a row here fails the
  * inventory test, and one added without a guard fails the matrix. Every route is then driven by
@@ -19,7 +20,7 @@
 
 import { beforeEach, describe, expect, it } from "bun:test";
 import { setupTestAuth } from "./test-support/testAuth";
-import { PERSONAS, app, call, crm, db, resetWorld, type PersonaName } from "./test-support/world";
+import { PERSONAS, app, call, crm, db, makeDeal, resetWorld, type PersonaName } from "./test-support/world";
 
 beforeEach(async () => {
   await resetWorld();
@@ -34,7 +35,8 @@ const ENTITIES: readonly Entity[] = ["welld_ch", "welld_it"];
 /**
  *   access       `projects:access` and nothing more (every holder reads every record, D13)
  *   manage-any   `project:manage` for at least one entity (a lookup, no record involved)
- *   manage       `project:manage` for the RECORD's entity (`out_of_scope` for the other one)
+ *   manage       `project:manage` for the RECORD's entity (`out_of_scope` for the other one); for a take
+ *                from the to-start queue the record is the CRM DEAL, whose entity the CRM says
  *   bexio        `contract:bexio`, not entity-scoped
  *   host         the activity-host contract (specs/028 T5): any caller with a valid token and a live
  *                authz answer gets 200, a non-holder of `projects:access` as `reader:false`
@@ -88,6 +90,16 @@ const withContract = async (entity: Entity) => {
   return { project, contract: await seedContract(project.id) };
 };
 
+/** A won deal of `entity` in the fake CRM, with the company the seeded projects have; returns its id. */
+const wonDeal = (entity: Entity, over: Partial<Parameters<typeof makeDeal>[0]> = {}): string => {
+  const deal = makeDeal({ id: `deal-${entity}`, entity, company: { id: "co-acme", name: "Acme SA" }, ...over });
+  crm.deals = [...crm.deals, deal];
+  return deal.id;
+};
+
+/** The contract part of a take: dates and the terms of a `fixed_price` contract (the deal has no estimate). */
+const takeContract = { startDate: "2027-01-01", terms: { deadline: "2027-06-30", maxEffortManDays: 10 } };
+
 const SPECS: Record<string, RouteSpec> = {
   "GET /scope": { need: "access", ok: 200, prepare: async () => ({ method: "GET", path: "/scope" }) },
   "POST /activity-host/v1/resolve": {
@@ -100,6 +112,31 @@ const SPECS: Record<string, RouteSpec> = {
     }),
   },
   "GET /companies": { need: "manage-any", ok: 200, prepare: async () => ({ method: "GET", path: "/companies?q=acme" }) },
+  // The to-start queue (specs/022): read by every access holder (A20); a take needs manage for the
+  // DEAL's entity — the CRM, not the request, says which (AC-1.2, AC-1.4, D36).
+  "GET /queue": {
+    need: "access",
+    ok: 200,
+    prepare: async (entity) => (wonDeal(entity), { method: "GET", path: "/queue" }),
+  },
+  "POST /queue/:dealId/project": {
+    need: "manage",
+    ok: 201,
+    prepare: async (entity) => ({
+      method: "POST",
+      path: `/queue/${wonDeal(entity)}/project`,
+      body: { name: "Koordy 2027", type: "fixed_price", contract: takeContract },
+    }),
+  },
+  "POST /queue/:dealId/attach": {
+    need: "manage",
+    ok: 201,
+    prepare: async (entity) => ({
+      method: "POST",
+      path: `/queue/${wonDeal(entity)}/attach`,
+      body: { projectId: await withProject(entity), contract: takeContract },
+    }),
+  },
   "GET /project-managers": {
     need: "access",
     ok: 200,
@@ -379,6 +416,45 @@ describe("authorization matrix: what holders read (AC-4.3)", () => {
     const res = await call("GET", "/projects", { as: "outsider" });
     expect(res.status).toBe(403);
     expect(res.json).toMatchObject({ code: "forbidden" });
+  });
+});
+
+describe("authorization matrix: the to-start queue (AC-1.1, AC-1.2, AC-1.4, A20)", () => {
+  const queued = async (as: PersonaName): Promise<string[]> =>
+    ((await call("GET", "/queue", { as })).json.items as { dealId: string }[]).map((item) => item.dealId).sort();
+
+  it("lists the won deals of both entities to every holder of access, scoped or not — and to nobody without it", async () => {
+    const ids = [wonDeal("welld_ch"), wonDeal("welld_it")].sort();
+    for (const persona of PERSONA_NAMES.filter((name) => GRANTS[name].access)) {
+      expect({ persona, ids: await queued(persona) }).toEqual({ persona, ids });
+    }
+    const refused = await call("GET", "/queue", { as: "outsider" });
+    expect(refused.status).toBe(403);
+    expect(refused.json).toMatchObject({ code: "forbidden" });
+  });
+
+  it("lets only a manager of the deal's entity take it: a refused take leaves the deal queued, the entity's own manager takes it", async () => {
+    const deal = wonDeal("welld_ch");
+    const body = { name: "Koordy 2027", type: "fixed_price", contract: takeContract };
+    for (const persona of ["viewer", "accounting", "salesIt"] as const) {
+      const res = await call("POST", `/queue/${deal}/project`, { as: persona, body });
+      expect({ persona, status: res.status }).toEqual({ persona, status: 403 });
+    }
+    expect(await queued("viewer")).toEqual([deal]);
+    expect((await call("POST", `/queue/${deal}/project`, { as: "pmCh", body })).status).toBe(201);
+    expect(await queued("viewer")).toEqual([]);
+  });
+
+  it("lets an admin take the deal of either entity", async () => {
+    for (const entity of ENTITIES) {
+      const deal = wonDeal(entity);
+      const res = await call("POST", `/queue/${deal}/project`, {
+        as: "admin",
+        body: { name: `Work ${entity}`, type: "fixed_price", contract: takeContract },
+      });
+      expect({ entity, status: res.status }).toEqual({ entity, status: 201 });
+      expect(res.json.entity).toBe(entity);
+    }
   });
 });
 
