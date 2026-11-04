@@ -76,7 +76,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { InputHTMLAttributes } from 'react'
 import { Link } from '@tanstack/react-router'
-import { Button, DataTable, PageHeader, StatePanel, formatNumber } from '@operai/ui'
+import { Button, DataTable, PageHeader, StatePanel } from '@operai/ui'
 import type { DataTableColumn } from '@operai/ui'
 import { useSession } from 'shell/session'
 import * as adminApi from '../lib/adminApi'
@@ -102,6 +102,10 @@ const PAGE_SIZE = 20
 
 /** design.md F3 — fixed acknowledgement copy for the last-admin delete guard, adapted from UserDetail.tsx's LAST_ADMIN_MESSAGE. */
 const LAST_ADMIN_DELETE_MESSAGE = strings.common.guardrail.lastAdminDeleteMessage
+
+/** The names the list carries, alphabetical, or the empty-value dash. */
+const namesOf = (names: readonly string[]): string =>
+  names.length === 0 ? strings.common.emptyValue : [...names].sort((a, b) => a.localeCompare(b)).join(', ')
 
 const formatEntity = (entity: UserSummary['entity']): string =>
   entity ? strings.common.entities[entity] : strings.common.emptyValue
@@ -522,14 +526,12 @@ export default function UsersPage() {
     {
       id: 'roles',
       header: strings.common.fields.roles,
-      numeric: true,
-      render: (user) => formatNumber(user.roleCount),
+      render: (user) => namesOf(user.roles),
     },
     {
       id: 'departments',
       header: strings.common.fields.departments,
-      numeric: true,
-      render: (user) => formatNumber(user.departmentCount),
+      render: (user) => namesOf(user.departments),
     },
     {
       id: 'actions',

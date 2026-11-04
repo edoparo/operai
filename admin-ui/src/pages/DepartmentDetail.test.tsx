@@ -93,8 +93,8 @@ const userGrace: UserSummary = {
   email: 'grace@example.com',
   entity: null,
   jobTitle: null,
-  roleCount: 0,
-  departmentCount: 0,
+  roles: [],
+  departments: [],
 }
 
 function pendingPromise<T>(): Promise<T> {

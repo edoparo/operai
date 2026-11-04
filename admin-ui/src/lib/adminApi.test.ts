@@ -141,8 +141,8 @@ const fixedUserSummary: UserSummary = {
   email: 'ada@welld.ch',
   entity: 'welld_ch',
   jobTitle: 'Consultant',
-  roleCount: 1,
-  departmentCount: 1,
+  roles: ['Employee'],
+  departments: ['Engineering'],
 }
 
 const fixedUsersPage: Paginated<UserSummary> = {

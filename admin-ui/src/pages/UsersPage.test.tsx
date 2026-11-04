@@ -108,8 +108,8 @@ const userA: UserSummary = {
   email: 'ada@welld.ch',
   entity: 'welld_ch',
   jobTitle: 'Backend Dev',
-  roleCount: 2,
-  departmentCount: 1,
+  roles: ['Sales', 'Employee'],
+  departments: ['Engineering'],
 }
 
 const userB: UserSummary = {
@@ -118,8 +118,8 @@ const userB: UserSummary = {
   email: 'bianca@welld.it',
   entity: 'welld_it',
   jobTitle: null,
-  roleCount: 1,
-  departmentCount: 0,
+  roles: ['Employee'],
+  departments: [],
 }
 
 const userC: UserSummary = {
@@ -128,8 +128,8 @@ const userC: UserSummary = {
   email: 'carlo@welld.it',
   entity: 'welld_it',
   jobTitle: 'Consultant',
-  roleCount: 1,
-  departmentCount: 1,
+  roles: ['Employee'],
+  departments: ['Consulting'],
 }
 
 const roleAccounting: Role = {
@@ -251,6 +251,14 @@ describe('UsersPage', () => {
     expect(screen.getByText('WellD CH')).not.toBeNull()
     expect(screen.getByText('WellD Italia')).not.toBeNull()
     expect(screen.getByText('Backend Dev')).not.toBeNull()
+
+    // Roles and departments are the NAMES the API sends (never a count: it sends none), sorted;
+    // an empty list shows the dash.
+    const cellsOf = (testId: string) =>
+      Array.from(screen.getByTestId(testId).closest('tr')!.querySelectorAll('td')).map((td) => td.textContent?.trim())
+    expect(cellsOf('user-row-user-1')).toEqual(expect.arrayContaining(['Employee, Sales', 'Engineering']))
+    expect(cellsOf('user-row-user-2')).toEqual(expect.arrayContaining(['Employee', '—']))
+    expect(table.textContent).not.toContain('NaN')
 
     expect(screen.queryByTestId('skeleton-list-rows')).toBeNull()
     expect(screen.queryByRole('alert')).toBeNull()

@@ -178,8 +178,9 @@ export type UserSummary = {
   email: string
   entity: UserEntity | null
   jobTitle: string | null
-  roleCount: number
-  departmentCount: number
+  /** The names of the user's DIRECT roles and of their departments, as `GET /admin/users` sends them. */
+  roles: string[]
+  departments: string[]
 }
 
 /** `GET /admin/users/:id` — full detail (Screen C2). */
