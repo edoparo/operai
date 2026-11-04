@@ -1248,6 +1248,42 @@ select:not([multiple]):not([size]) {
     color: var(--soft);
   }
 
+  /* A sortable header: the header text as a button, with an arrow that shows
+   * only on the active column (and, faintly, on hover). The order itself is
+   * announced by the th's aria-sort. */
+  .data-table-sort {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 0;
+    border: 0;
+    background: none;
+    font: inherit;
+    letter-spacing: inherit;
+    text-transform: inherit;
+    color: inherit;
+    cursor: pointer;
+  }
+
+  .data-table-sort:hover,
+  .data-table-sort.is-active {
+    color: var(--text);
+  }
+
+  .data-table-sort-icon {
+    width: 12px;
+    height: 12px;
+    opacity: 0;
+  }
+
+  .data-table-sort:hover .data-table-sort-icon {
+    opacity: 0.5;
+  }
+
+  .data-table-sort.is-active .data-table-sort-icon {
+    opacity: 1;
+  }
+
   .data-table tbody :is(td, th) {
     padding: 6px 8px;
     border-bottom: 1px solid color-mix(in srgb, var(--rule) 50%, transparent);

@@ -1,6 +1,7 @@
 import { Fragment, useEffect, useRef } from 'react'
 import type { ReactNode } from 'react'
 import { cx } from '../lib/cx'
+import { Icon } from './Icon'
 
 export type DataTableColumn<T> = {
   /** Stable id (React key). */
@@ -12,7 +13,15 @@ export type DataTableColumn<T> = {
   numeric?: boolean
   /** Render this column's cells as `<th scope="row">` (the row's name). */
   rowHeader?: boolean
+  /** The header becomes a sort button (needs the table's `sort` and `onSortChange`). */
+  sortable?: boolean
+  /** The direction a first click on this column sorts by: `asc` (default) or `desc` (dates, counts). */
+  firstSortDirection?: SortDirection
 }
+
+export type SortDirection = 'asc' | 'desc'
+/** The table's current order: which column, which way. The page sorts (usually the server). */
+export type DataTableSort = { columnId: string; direction: SortDirection }
 
 export type DataTableProps<T> = {
   /** Names the table (sr-only caption) and, unless `regionLabel` is set, its scroll region. */
@@ -36,14 +45,24 @@ export type DataTableProps<T> = {
   testId?: string
   /** data-testid for each row: `${rowTestIdPrefix}-${key}`. */
   rowTestIdPrefix?: string
+  /** The current order, shown on its header (`aria-sort`); controlled by the page. */
+  sort?: DataTableSort | null
+  /**
+   * A sortable header was clicked: the same column flips its direction, another
+   * column starts at its `firstSortDirection`. The page fetches the new order.
+   */
+  onSortChange?: (next: DataTableSort) => void
 }
 
 /**
  * DataTable — the one table primitive (extracted from inventory-ui). An
  * sr-only caption, `scope` on every header, numeric columns right-aligned in
  * DM Mono, and a keyboard-scrollable region when wider than the viewport. It
- * never formats, sorts or paginates; empty and loading states are the page's
- * (render a StatePanel or SkeletonRows instead of an empty table).
+ * never formats, sorts or paginates: a `sortable` column's header is a button
+ * that reports the order the person asked for (`onSortChange`) and shows the
+ * current one (`aria-sort`), and the page puts the rows in that order. Empty
+ * and loading states are the page's (render a StatePanel or SkeletonRows
+ * instead of an empty table).
  */
 export function DataTable<T>({
   caption,
@@ -57,6 +76,8 @@ export function DataTable<T>({
   interactiveRows = false,
   testId,
   rowTestIdPrefix,
+  sort = null,
+  onSortChange,
 }: DataTableProps<T>) {
   const tableRef = useRef<HTMLTableElement>(null)
 
@@ -74,11 +95,37 @@ export function DataTable<T>({
         <caption className="visually-hidden">{caption}</caption>
         <thead>
           <tr>
-            {columns.map((column) => (
-              <th key={column.id} scope="col" className={cx(column.numeric && 'is-numeric')}>
-                {column.header}
-              </th>
-            ))}
+            {columns.map((column) => {
+              const sortable = column.sortable === true && onSortChange !== undefined
+              const active = sortable && sort?.columnId === column.id ? sort.direction : null
+              return (
+                <th
+                  key={column.id}
+                  scope="col"
+                  className={cx(column.numeric && 'is-numeric')}
+                  aria-sort={sortable ? (active === 'asc' ? 'ascending' : active === 'desc' ? 'descending' : 'none') : undefined}
+                >
+                  {sortable ? (
+                    <button
+                      type="button"
+                      className={cx('data-table-sort', active && 'is-active')}
+                      onClick={() =>
+                        onSortChange({
+                          columnId: column.id,
+                          direction: active ? (active === 'asc' ? 'desc' : 'asc') : (column.firstSortDirection ?? 'asc'),
+                        })
+                      }
+                      data-testid={testId ? `${testId}-sort-${column.id}` : undefined}
+                    >
+                      {column.header}
+                      <Icon name={active === 'desc' ? 'arrow-down' : 'arrow-up'} className="data-table-sort-icon" />
+                    </button>
+                  ) : (
+                    column.header
+                  )}
+                </th>
+              )
+            })}
           </tr>
         </thead>
         <tbody>

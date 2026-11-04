@@ -2,7 +2,7 @@ import { useState } from 'react'
 import type { Meta, StoryObj } from '@storybook/react-vite'
 import { Button } from './Button'
 import { DataTable } from './DataTable'
-import type { DataTableColumn } from './DataTable'
+import type { DataTableColumn, DataTableSort } from './DataTable'
 import { StatePanel } from './StatePanel'
 import { formatDate, formatMoney } from '../lib/format'
 import { ITEMS, OWNERS } from '../pages/fixtures'
@@ -154,3 +154,35 @@ export const FocusTheNewRow: Story = {
   name: 'Focus the row just added',
   render: () => <FocusRowDemo />,
 }
+
+function SortableDemo() {
+  const [sort, setSort] = useState<DataTableSort>({ columnId: 'name', direction: 'asc' })
+  const key: Record<string, (item: Item) => string | number> = {
+    name: (item) => item.name,
+    category: (item) => item.category,
+    price: (item) => item.priceCents,
+    updated: (item) => item.updated,
+  }
+  const pick = key[sort.columnId]!
+  const sorted = [...rows].sort((a, b) => {
+    const order = pick(a) < pick(b) ? -1 : pick(a) > pick(b) ? 1 : 0
+    return sort.direction === 'asc' ? order : -order
+  })
+  const columns = basicColumns.map((column) =>
+    column.id === 'status'
+      ? column
+      : { ...column, sortable: true, ...(column.numeric ? { firstSortDirection: 'desc' as const } : {}) },
+  )
+  return <DataTable caption="Catalogue items" columns={columns} rows={sorted} getRowKey={(item) => item.id} sort={sort} onSortChange={setSort} />
+}
+
+/**
+ * `sortable` columns get a header button; the th carries `aria-sort`. The table
+ * never sorts: the page does (here in memory, in an app usually the server, so
+ * the order covers every page). Numbers and dates start descending.
+ */
+export const Sortable: Story = {
+  name: 'Sortable columns',
+  render: () => <SortableDemo />,
+}
+

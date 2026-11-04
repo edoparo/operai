@@ -352,13 +352,18 @@ indeterminate). Use the plain `<input type="checkbox">` with a `<label>`.
   added"), `numeric` columns right-aligned in DM Mono with tabular figures, a
   keyboard-scrollable region when wide. It never formats, sorts or paginates;
   the cell text carries its own currency.
+- **Sorting:** mark a column `sortable` and give the table `sort` + `onSortChange`.
+  The header becomes a button and the `th` carries `aria-sort`; a first click
+  sorts ascending (`firstSortDirection: 'desc'` for dates and amounts), a second
+  reverses. The page sorts, on the **server** for a paginated list, so the order
+  covers every page, and goes back to page 1. Only offer a column the server can
+  order by (a name resolved from another service is not one).
 - **Which one (INC-14):** a list of records with comparable columns is a
   `DataTable`; a list where each row opens one record and shows a status, a meta
   line and a figure is `ListRows`. Never a raw `<table>` or a stack of hand-styled
   divs. The one exception is an **editing grid** (EstimAI's activity and summary
   tables: inline inputs, drag to reorder, computed totals), which is a tool of
-  its own, not a data table. Nothing sorts client-side; a sortable column needs a
-  library change first.
+  its own, not a data table. Nothing sorts a paginated list client-side.
 - **Row hover:** `DataTable interactiveRows` tints the row; a list row's border
   strengthens. Never `hover:opacity-*` on a row.
 - **`ListRows`** for a list where each row opens one record (`<Link

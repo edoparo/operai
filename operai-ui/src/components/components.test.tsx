@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { act, cleanup, render, screen } from '@testing-library/react'
+import { act, cleanup, render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { Badge } from './Badge'
 import { Banner, CONFIRMATION_DISMISS_MS } from './Banner'
@@ -133,6 +133,41 @@ describe('DataTable', () => {
     expect(screen.getByRole('region', { name: 'Assets' })).toHaveAttribute('tabindex', '0')
     expect(screen.getByRole('rowheader', { name: 'Laptop' })).toBeInTheDocument()
     expect(screen.getByRole('cell', { name: 'EUR 300.00' })).toHaveClass('is-numeric')
+  })
+
+  it('sortable headers report the order asked for and show the current one with aria-sort', async () => {
+    const user = userEvent.setup()
+    const onSortChange = vi.fn()
+    const columns = [
+      { id: 'name', header: 'Name', rowHeader: true, sortable: true, render: (row: (typeof rows)[number]) => row.name },
+      { id: 'price', header: 'Price', numeric: true, sortable: true, firstSortDirection: 'desc' as const, render: (row: (typeof rows)[number]) => row.price },
+      { id: 'note', header: 'Note', render: () => '' },
+    ]
+    const { rerender } = render(
+      <DataTable caption="Assets" rows={rows} getRowKey={(row) => row.id} columns={columns} sort={{ columnId: 'name', direction: 'asc' }} onSortChange={onSortChange} />,
+    )
+    const [name, price, note] = screen.getAllByRole('columnheader')
+    expect(name).toHaveAttribute('aria-sort', 'ascending')
+    expect(price).toHaveAttribute('aria-sort', 'none')
+    expect(note).not.toHaveAttribute('aria-sort')
+    expect(within(note!).queryByRole('button')).toBeNull()
+
+    await user.click(within(name!).getByRole('button', { name: 'Name' }))
+    expect(onSortChange).toHaveBeenLastCalledWith({ columnId: 'name', direction: 'desc' })
+    await user.click(within(price!).getByRole('button', { name: 'Price' }))
+    expect(onSortChange).toHaveBeenLastCalledWith({ columnId: 'price', direction: 'desc' })
+
+    rerender(
+      <DataTable caption="Assets" rows={rows} getRowKey={(row) => row.id} columns={columns} sort={{ columnId: 'price', direction: 'desc' }} onSortChange={onSortChange} />,
+    )
+    expect(screen.getAllByRole('columnheader')[1]).toHaveAttribute('aria-sort', 'descending')
+  })
+
+  it('without onSortChange a sortable column is a plain header', () => {
+    render(
+      <DataTable caption="Assets" rows={rows} getRowKey={(row) => row.id} columns={[{ id: 'name', header: 'Name', sortable: true, render: (row) => row.name }]} />,
+    )
+    expect(screen.queryByRole('button', { name: 'Name' })).toBeNull()
   })
 })
 
