@@ -158,7 +158,7 @@ Errors are `application/problem+json` with a `code`, as in specs/021. `CompanyRe
 
 ## Tasks
 
-- [ ] T1: auth — `crm.deals.read`, `estimai.estimates.read`, `projects.contracts.read` service scopes — refs: AC-1.1, AC-3.1, AC-3.4 — deps: none
+- [x] T1: auth — `crm.deals.read`, `estimai.estimates.read`, `projects.contracts.read` service scopes — refs: AC-1.1, AC-3.1, AC-3.4 — deps: none
   - touch: `auth/src/system/serviceClients.ts`, `auth/src/system/serviceClients.test.ts`
   - done when: `cd auth && bun test src/system` is green with a test that a `SERVICE_CLIENTS` entry carrying each new scope is accepted and an unknown scope still refuses to start.
 - [ ] T2: estimai-api — `GET /system/estimates/{id}/summary` behind `estimai.estimates.read`; man-days formula copied from crm-api under a `manDays` shared-copy group — refs: AC-3.1 — deps: none
