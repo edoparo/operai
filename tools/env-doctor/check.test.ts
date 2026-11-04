@@ -44,6 +44,7 @@ function validSuite(): SuiteEnv {
       SERVICE_CLIENT_ID: "estimai-api",
       SERVICE_CLIENT_SECRET: CLIENT_SECRET_EST,
       CRM_INTERNAL_URL: "http://crm-api.railway.internal:8084",
+      SERVICE_AUDIENCE: SVC_AUD, // specs/022: estimai-api's own /system/* audience, required in production
       PORT: "8080",
     },
     "notify-api": {
@@ -213,7 +214,7 @@ describe("env-doctor checker", () => {
     for (const svc of ["auth", "estimai-api", "notify-api", "refund-api", "inventory-api"] as const) {
       s[svc]!.AUTH_AUDIENCE = "${{shared.AUTH_AUDIENCE}}";
     }
-    for (const svc of ["auth", "notify-api"] as const) {
+    for (const svc of ["auth", "estimai-api", "notify-api"] as const) {
       s[svc]!.SERVICE_AUDIENCE = "${{shared.SERVICE_AUDIENCE}}";
     }
     const f = checkSuite(s, PROD);
@@ -290,7 +291,7 @@ describe("env-doctor checker", () => {
 
   test("SERVICE_AUDIENCE and AUTH_AUDIENCE as two different shared references → no error (cannot be compared offline)", () => {
     const s = validSuite();
-    for (const svc of ["auth", "notify-api"] as const) {
+    for (const svc of ["auth", "estimai-api", "notify-api"] as const) {
       s[svc]!.AUTH_AUDIENCE = "${{shared.AUTH_AUDIENCE}}";
       s[svc]!.SERVICE_AUDIENCE = "${{shared.SERVICE_AUDIENCE}}";
     }
@@ -521,45 +522,58 @@ describe("env-doctor checker", () => {
   });
 });
 
+// The suite with crm-api and projects-api added, in its current (specs/022) shape: both hold a service
+// client, projects-api reads crm-api and estimai-api, crm-api reads projects-api, and all of auth,
+// notify-api, estimai-api, crm-api and projects-api share one SERVICE_AUDIENCE. Used by the specs/021
+// and specs/022 blocks below.
+const CLIENT_SECRET_PROJECTS = "p".repeat(40);
+const CLIENT_SECRET_CRM = "m".repeat(40);
+const PROJECTS_SCOPES = "crm.companies.read crm.deals.read estimai.estimates.read";
+const CRM_SCOPES = "notifications.push emails.send projects.contracts.read";
+const projectsRegistry = (scope = PROJECTS_SCOPES, crmScope = CRM_SCOPES) =>
+  JSON.stringify({
+    ...JSON.parse(registry(CLIENT_SECRET)),
+    "crm-api": { secret: CLIENT_SECRET_CRM, scope: crmScope },
+    "projects-api": { secret: CLIENT_SECRET_PROJECTS, scope },
+  });
+
+function projectsSuite(): SuiteEnv {
+  const s = validSuite();
+  s.auth!.SERVICE_CLIENTS = projectsRegistry();
+  s["crm-api"] = {
+    DATABASE_URL: "postgres://…/crm",
+    ALLOWED_ORIGINS: SHELL,
+    AUTH_ISSUER: AUTH_URL,
+    AUTH_JWKS_URL: "http://auth.railway.internal:3001/auth/jwks",
+    AUTH_BASE_URL: "http://auth.railway.internal:3001",
+    AUTH_AUDIENCE: AUD,
+    SERVICE_AUDIENCE: SVC_AUD,
+    PROJECTS_INTERNAL_URL: "http://projects-api.railway.internal:8085",
+    SERVICE_CLIENT_ID: "crm-api",
+    SERVICE_CLIENT_SECRET: CLIENT_SECRET_CRM,
+    PORT: "8084",
+  };
+  s["projects-api"] = {
+    DATABASE_URL: "postgres://…/projects",
+    ALLOWED_ORIGINS: SHELL,
+    AUTH_ISSUER: AUTH_URL,
+    AUTH_JWKS_URL: "http://auth.railway.internal:3001/auth/jwks",
+    AUTH_BASE_URL: "http://auth.railway.internal:3001",
+    AUTH_AUDIENCE: AUD,
+    SERVICE_AUDIENCE: SVC_AUD,
+    CRM_INTERNAL_URL: "http://crm-api.railway.internal:8084",
+    ESTIMAI_INTERNAL_URL: "http://estimai-api.railway.internal:8080",
+    SERVICE_CLIENT_ID: "projects-api",
+    SERVICE_CLIENT_SECRET: CLIENT_SECRET_PROJECTS,
+    PORT: "8085",
+  };
+  return s;
+}
+const LOCAL = { env: "local", isProdLike: false };
+
 // specs/021-projects: projects-api (a new resource server) reads CRM companies from crm-api with a scoped
 // service credential; crm-api gains SERVICE_AUDIENCE. The baseline is the suite above plus the two services.
 describe("env-doctor checker — projects-api and the crm-api service audience (specs/021)", () => {
-  const CLIENT_SECRET_PROJECTS = "p".repeat(40);
-  const projectsRegistry = (scope = "crm.companies.read") =>
-    JSON.stringify({
-      ...JSON.parse(registry(CLIENT_SECRET)),
-      "projects-api": { secret: CLIENT_SECRET_PROJECTS, scope },
-    });
-
-  function projectsSuite(): SuiteEnv {
-    const s = validSuite();
-    s.auth!.SERVICE_CLIENTS = projectsRegistry();
-    s["crm-api"] = {
-      DATABASE_URL: "postgres://…/crm",
-      ALLOWED_ORIGINS: SHELL,
-      AUTH_ISSUER: AUTH_URL,
-      AUTH_JWKS_URL: "http://auth.railway.internal:3001/auth/jwks",
-      AUTH_BASE_URL: "http://auth.railway.internal:3001",
-      AUTH_AUDIENCE: AUD,
-      SERVICE_AUDIENCE: SVC_AUD,
-      PORT: "8084",
-    };
-    s["projects-api"] = {
-      DATABASE_URL: "postgres://…/projects",
-      ALLOWED_ORIGINS: SHELL,
-      AUTH_ISSUER: AUTH_URL,
-      AUTH_JWKS_URL: "http://auth.railway.internal:3001/auth/jwks",
-      AUTH_BASE_URL: "http://auth.railway.internal:3001",
-      AUTH_AUDIENCE: AUD,
-      CRM_INTERNAL_URL: "http://crm-api.railway.internal:8084",
-      SERVICE_CLIENT_ID: "projects-api",
-      SERVICE_CLIENT_SECRET: CLIENT_SECRET_PROJECTS,
-      PORT: "8085",
-    };
-    return s;
-  }
-  const LOCAL = { env: "local", isProdLike: false };
-
   test("a fully-correct suite with projects-api and crm-api passes with no errors or warnings", () => {
     const f = checkSuite(projectsSuite(), PROD);
     expect(errs(f)).toEqual([]);
@@ -627,13 +641,13 @@ describe("env-doctor checker — projects-api and the crm-api service audience (
     expect(errText(checkSuite(s, PROD))).toContain('no entry for client id "someone-else"');
   });
 
-  test("service client: projects-api holds exactly crm.companies.read — a missing or an extra scope → error", () => {
+  test("service client: projects-api holds exactly its read scopes — a missing or an extra scope → error", () => {
     const s = projectsSuite();
     s.auth!.SERVICE_CLIENTS = projectsRegistry("notifications.push");
     const missing = errText(checkSuite(s, PROD));
     expect(missing).toContain('lacks the "crm.companies.read" scope');
     expect(missing).toContain('holds the "notifications.push" scope, which projects-api does not need');
-    s.auth!.SERVICE_CLIENTS = projectsRegistry("crm.companies.read notifications.push");
+    s.auth!.SERVICE_CLIENTS = projectsRegistry(`${PROJECTS_SCOPES} notifications.push`);
     expect(errText(checkSuite(s, PROD))).toContain('holds the "notifications.push" scope, which projects-api does not need');
   });
 
@@ -647,5 +661,156 @@ describe("env-doctor checker — projects-api and the crm-api service audience (
     const s = projectsSuite();
     s["projects-api"]![["NOTIFY", "INTERNAL", "TOKEN"].join("_")] = "x";
     expect(errText(checkSuite(s, PROD))).toContain("projects-api must not hold");
+  });
+});
+
+// specs/022-projects-handoff: the CRM and projects-api read each other over service credentials, and
+// projects-api reads estimai-api for a deal's man-days (ADR-0060, ADR-0061). New keys: SERVICE_AUDIENCE on
+// estimai-api and projects-api, ESTIMAI_INTERNAL_URL on projects-api, PROJECTS_INTERNAL_URL on crm-api; new
+// scopes on the projects-api and crm-api clients; crm-api's client is no longer notify-only.
+describe("env-doctor checker — the projects hand-off keys (specs/022)", () => {
+  test("a fully-correct suite with the hand-off keys passes with no errors or warnings", () => {
+    const f = checkSuite(projectsSuite(), PROD);
+    expect(errs(f)).toEqual([]);
+    expect(warns(f)).toEqual([]);
+  });
+
+  test("SERVICE_AUDIENCE is required in production on estimai-api and projects-api, not locally", () => {
+    for (const svc of ["estimai-api", "projects-api"] as const) {
+      const s = projectsSuite();
+      delete s[svc]!.SERVICE_AUDIENCE;
+      expect(errText(checkSuite(s, PROD))).toContain("SERVICE_AUDIENCE is missing");
+      expect(checkSuite(s, PROD).some((x) => x.scope === svc && x.message === "SERVICE_AUDIENCE is missing")).toBe(true);
+      // local: the service starts without it (every /system/* request is a 401), so it is not flagged
+      expect(errText(checkSuite(s, LOCAL))).not.toContain("SERVICE_AUDIENCE is missing");
+    }
+  });
+
+  test("SERVICE_AUDIENCE drift on estimai-api or projects-api → error", () => {
+    for (const svc of ["estimai-api", "projects-api"] as const) {
+      const s = projectsSuite();
+      s[svc]!.SERVICE_AUDIENCE = "a-different-service-audience";
+      expect(errText(checkSuite(s, PROD))).toContain("SERVICE_AUDIENCE is not identical");
+    }
+  });
+
+  test("SERVICE_AUDIENCE equal to AUTH_AUDIENCE on estimai-api or projects-api → error", () => {
+    for (const svc of ["estimai-api", "projects-api"] as const) {
+      const s = projectsSuite();
+      s[svc]!.SERVICE_AUDIENCE = AUD;
+      // the shared-audience drift error fires too; what matters is the distinct-from-AUTH_AUDIENCE one
+      expect(errText(checkSuite(s, PROD))).toContain(`${svc}.SERVICE_AUDIENCE must differ from ${svc}.AUTH_AUDIENCE`);
+    }
+  });
+
+  test("SERVICE_AUDIENCE as the same ${{shared.X}} reference on all five services → no error", () => {
+    const s = projectsSuite();
+    for (const svc of ["auth", "notify-api", "crm-api", "estimai-api", "projects-api"] as const) {
+      s[svc]!.SERVICE_AUDIENCE = "${{shared.SERVICE_AUDIENCE}}";
+    }
+    for (const svc of ["auth", "estimai-api", "notify-api", "refund-api", "inventory-api", "crm-api", "projects-api"] as const) {
+      s[svc]!.AUTH_AUDIENCE = "${{shared.AUTH_AUDIENCE}}";
+    }
+    const f = checkSuite(s, PROD);
+    expect(errs(f)).toEqual([]);
+    expect(warns(f)).toEqual([]);
+  });
+
+  test("ESTIMAI_INTERNAL_URL is required on projects-api in production, not locally", () => {
+    const s = projectsSuite();
+    delete s["projects-api"]!.ESTIMAI_INTERNAL_URL;
+    expect(errText(checkSuite(s, PROD))).toContain("ESTIMAI_INTERNAL_URL is missing");
+    expect(errText(checkSuite(s, LOCAL))).not.toContain("ESTIMAI_INTERNAL_URL is missing");
+  });
+
+  test("ESTIMAI_INTERNAL_URL: a public https URL, the wrong port, or a Railway reference → error / error / ok", () => {
+    const s = projectsSuite();
+    s["projects-api"]!.ESTIMAI_INTERNAL_URL = "https://estimai.operai.welld.io";
+    expect(errText(checkSuite(s, PROD))).toContain("ESTIMAI_INTERNAL_URL");
+    s["projects-api"]!.ESTIMAI_INTERNAL_URL = "http://estimai-api.railway.internal:9999";
+    expect(errText(checkSuite(s, PROD))).toContain("ESTIMAI_INTERNAL_URL targets port 9999 but estimai-api.PORT is 8080");
+    s["projects-api"]!.ESTIMAI_INTERNAL_URL = "http://${{estimai-api.RAILWAY_PRIVATE_DOMAIN}}:${{estimai-api.PORT}}";
+    expect(errs(checkSuite(s, PROD))).toEqual([]);
+  });
+
+  test("PROJECTS_INTERNAL_URL is required on crm-api in production, not locally", () => {
+    const s = projectsSuite();
+    delete s["crm-api"]!.PROJECTS_INTERNAL_URL;
+    expect(errText(checkSuite(s, PROD))).toContain("PROJECTS_INTERNAL_URL is missing");
+    expect(errText(checkSuite(s, LOCAL))).not.toContain("PROJECTS_INTERNAL_URL is missing");
+  });
+
+  test("PROJECTS_INTERNAL_URL: a public https URL, or the wrong port → error", () => {
+    const s = projectsSuite();
+    s["crm-api"]!.PROJECTS_INTERNAL_URL = "https://projects.operai.welld.io";
+    expect(errText(checkSuite(s, PROD))).toContain("PROJECTS_INTERNAL_URL");
+    s["crm-api"]!.PROJECTS_INTERNAL_URL = "http://projects-api.railway.internal:9999";
+    expect(errText(checkSuite(s, PROD))).toContain("PROJECTS_INTERNAL_URL targets port 9999 but projects-api.PORT is 8085");
+  });
+
+  test("locally, an internal URL on localhost is accepted for both new calls", () => {
+    const s = projectsSuite();
+    s["projects-api"]!.ESTIMAI_INTERNAL_URL = "http://localhost:8080";
+    s["crm-api"]!.PROJECTS_INTERNAL_URL = "http://localhost:8085";
+    // the CORS origins in this fixture are the production ones, so look only at the two URL findings
+    expect(checkSuite(s, LOCAL).filter((x) => x.message.includes("INTERNAL_URL"))).toEqual([]);
+  });
+
+  test("crm-api's client needs the SERVICE_CLIENT_* pair in production once PROJECTS_INTERNAL_URL is required — not only for notify", () => {
+    for (const key of ["SERVICE_CLIENT_ID", "SERVICE_CLIENT_SECRET"]) {
+      const s = projectsSuite();
+      delete s["crm-api"]![key];
+      delete s["crm-api"]!.NOTIFY_INTERNAL_URL; // a crm-api with no notify URL at all still needs the client for projects-api
+      expect(errText(checkSuite(s, PROD))).toContain(`${key} is missing`);
+      expect(errText(checkSuite(s, LOCAL))).not.toContain(`${key} is missing`);
+    }
+  });
+
+  test("service client: projects-api needs crm.deals.read and estimai.estimates.read besides crm.companies.read", () => {
+    const s = projectsSuite();
+    s.auth!.SERVICE_CLIENTS = projectsRegistry("crm.companies.read"); // the specs/021 entry
+    const text = errText(checkSuite(s, PROD));
+    expect(text).toContain('entry "projects-api" lacks the "crm.deals.read" scope');
+    expect(text).toContain('entry "projects-api" lacks the "estimai.estimates.read" scope');
+    expect(text).not.toContain('entry "projects-api" lacks the "crm.companies.read" scope');
+  });
+
+  test("service client: projects-api a single scope of the three is not enough", () => {
+    for (const scope of ["crm.companies.read", "crm.deals.read", "estimai.estimates.read"]) {
+      const s = projectsSuite();
+      s.auth!.SERVICE_CLIENTS = projectsRegistry(scope);
+      expect(hasErrors(checkSuite(s, PROD))).toBe(true);
+    }
+  });
+
+  test("service client: crm-api needs projects.contracts.read besides its notify scopes", () => {
+    const s = projectsSuite();
+    s.auth!.SERVICE_CLIENTS = projectsRegistry(PROJECTS_SCOPES, "notifications.push emails.send"); // the specs/019 entry
+    expect(errText(checkSuite(s, PROD))).toContain('entry "crm-api" lacks the "projects.contracts.read" scope');
+  });
+
+  test("service client: crm-api keeps its notify scopes — dropping one → error", () => {
+    for (const scope of ["notifications.push", "emails.send"]) {
+      const s = projectsSuite();
+      const kept = CRM_SCOPES.split(" ").filter((x) => x !== scope).join(" ");
+      s.auth!.SERVICE_CLIENTS = projectsRegistry(PROJECTS_SCOPES, kept);
+      expect(errText(checkSuite(s, PROD))).toContain(`entry "crm-api" lacks the "${scope}" scope`);
+    }
+  });
+
+  test("service client: crm-api holds no scope beyond those three (least privilege)", () => {
+    const s = projectsSuite();
+    s.auth!.SERVICE_CLIENTS = projectsRegistry(PROJECTS_SCOPES, `${CRM_SCOPES} crm.deals.read`);
+    expect(errText(checkSuite(s, PROD))).toContain('entry "crm-api" holds the "crm.deals.read" scope, which crm-api does not need');
+  });
+
+  test("service client: crm-api's id missing from auth's registry, or a secret mismatch → error without the value", () => {
+    const s = projectsSuite();
+    s["crm-api"]!.SERVICE_CLIENT_SECRET = "q".repeat(40);
+    const f = checkSuite(s, PROD);
+    expect(errText(f)).toContain("crm-api.SERVICE_CLIENT_SECRET does not match");
+    expect(JSON.stringify(f)).not.toContain(CLIENT_SECRET_CRM);
+    s["crm-api"]!.SERVICE_CLIENT_ID = "someone-else";
+    expect(errText(checkSuite(s, PROD))).toContain('no entry for client id "someone-else"');
   });
 });
