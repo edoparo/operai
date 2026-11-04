@@ -8,7 +8,8 @@
  * once the entity is known. A project's entity, company and type are fixed at creation.
  *
  * Names are live: people come from `auth` (fail soft, ADR-0039), company names from crm-api
- * with the service credential (fail soft, ADR-0080).
+ * with the service credential (fail soft, ADR-0059), and so is the deal behind each contract made
+ * from one (specs/022: title and whether it is still won, fail soft).
  *
  * `toProjectView`, `projectInclude` and `findProjectRow` are exported for the routes that
  * answer with a `Project` after their own write (transitions, team — T6, T7).
@@ -17,6 +18,7 @@
 import { OpenAPIHono, createRoute, z } from "@hono/zod-openapi";
 import { PROJECT_MANAGE, assertCanManage, authorized, requireCapability } from "../auth/guards";
 import type { AuthzVariables } from "../auth/authz.middleware";
+import { dealRefs } from "../contracts/contracts.routes";
 import { companyRefs } from "../lib/crm";
 import { db } from "../lib/db";
 import type { Prisma } from "../lib/generated/prisma/client";
@@ -77,9 +79,11 @@ export const updateProjectIfVersion = (
 
 /** The `Project` of tasks.md § API contracts: details, live names, team, contracts, derived dates. */
 export async function toProjectView(c: HeaderSource, row: ProjectRow) {
-  const [people, company] = await Promise.all([
+  const [people, company, deal] = await Promise.all([
     loadPeople(c, [row.projectManagerId, ...row.members.map((member) => member.userId)]),
     companyRefs([row.companyId, ...row.contracts.map((contract) => contract.companyId)]),
+    // The deals behind the contracts, live and in one CRM read: `won: false` is the AC-2.3 notice.
+    dealRefs(row.contracts.map((contract) => contract.dealId)),
   ]);
   return {
     id: row.id,
@@ -92,7 +96,7 @@ export async function toProjectView(c: HeaderSource, row: ProjectRow) {
     projectManager: people.person(row.projectManagerId),
     team: row.members.map((member) => people.person(member.userId)),
     // Whole, with one CRM read for every company above: the page reads no contract on its own.
-    contracts: row.contracts.map((contract) => contractView(contract, company)),
+    contracts: row.contracts.map((contract) => contractView(contract, company, deal)),
     ...deriveDates(row.contracts),
     version: row.version,
     createdAt: row.createdAt.toISOString(),

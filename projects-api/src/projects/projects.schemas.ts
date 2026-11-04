@@ -33,6 +33,14 @@ export const CompanyRefSchema = z.object({ id: z.string(), name: z.string().null
 
 const DateOnlyOrNull = z.string().nullable();
 
+/**
+ * The deal a contract was made from, read live from the CRM on every request (specs/022): `title` and
+ * `won` are `null` when crm-api cannot answer or no longer knows the deal; `won: false` is the "no
+ * longer won" notice (AC-2.3).
+ */
+export const DealRefSchema = z.object({ id: z.string(), title: z.string().nullable(), won: z.boolean().nullable() });
+export type DealRef = z.infer<typeof DealRefSchema>;
+
 export const ContractSummarySchema = z.object({
   id: z.string(),
   type: ProjectTypeSchema,
@@ -41,6 +49,8 @@ export const ContractSummarySchema = z.object({
   bexioOrderId: z.string().nullable(),
   startDate: z.string(),
   endDate: DateOnlyOrNull,
+  /** `null` for a contract entered by hand. */
+  deal: DealRefSchema.nullable(),
 });
 
 // ─── Terms (output): every member present, `null` when absent ────────────────
@@ -64,8 +74,10 @@ export const TermsViewSchema = z.union([
 
 export const ContractSchema = ContractSummarySchema.extend({
   projectId: z.string(),
-  /** Filled by the CRM hand-off (specs/026); `null` for a contract entered by hand. */
+  /** The deal's id (specs/022); `null` for a contract entered by hand. */
   dealId: z.string().nullable(),
+  /** The deal's EstimAI estimate at creation (AC-3.2); `null` for a hand-entered contract and for a deal without one. */
+  estimate: z.object({ id: z.string() }).nullable(),
   terms: TermsViewSchema,
   version: z.number().int(),
 });

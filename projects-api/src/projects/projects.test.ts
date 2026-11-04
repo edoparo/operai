@@ -5,7 +5,7 @@
  * test-support/world.ts.
  */
 import { beforeEach, describe, expect, it } from "bun:test";
-import { appAccess, call, crm, db, identities, resetWorld, type PersonaName } from "../test-support/world";
+import { appAccess, call, crm, db, identities, makeDeal, resetWorld, type PersonaName } from "../test-support/world";
 import type { Prisma } from "../lib/generated/prisma/client";
 
 const CLIENT_TYPES = ["t_and_m", "fixed_price", "maintenance"] as const;
@@ -231,6 +231,8 @@ describe("GET /projects/:id", () => {
           endDate: null,
           projectId: project.id,
           dealId: null,
+          deal: null,
+          estimate: null,
           terms: { sla: null, hourPackage: null },
           version: 1,
         },
@@ -293,6 +295,78 @@ describe("GET /projects/:id", () => {
     const project = await seed({ companyId: "co-old" });
     const res = await call("GET", `/projects/${project.id}`, { as: "viewer" });
     expect(res.json.company).toEqual({ id: "co-old", name: "Legacy Ltd" });
+  });
+
+  describe("the deals behind its contracts, read live (specs/022 T8; AC-2.3, AC-2.4, AC-3.3)", () => {
+    /** A t_and_m project with a contract by hand and two made from the deals d-1 and d-2. */
+    async function withDeals() {
+      const d1 = makeDeal({ id: "d-1", title: "Portal rebuild" });
+      const d2 = makeDeal({ id: "d-2", title: "Portal support" });
+      crm.deals = [d1, d2];
+      const project = await seed();
+      await seedContract(project.id, { startDate: date("2026-01-01") });
+      await seedContract(project.id, { startDate: date("2026-02-01"), origin: "deal", dealId: "d-1", estimateId: "est-1" });
+      await seedContract(project.id, { startDate: date("2026-03-01"), origin: "deal", dealId: "d-2" });
+      return { d1, d2, project };
+    }
+    const deals = async (id: string) =>
+      (await call("GET", `/projects/${id}`, { as: "viewer" })).json.contracts.map((c: { deal: unknown }) => c.deal);
+
+    it("shows each contract's deal, and `deal: null` for a contract entered by hand", async () => {
+      const { project } = await withDeals();
+      expect(await deals(project.id)).toEqual([
+        null,
+        { id: "d-1", title: "Portal rebuild", won: true },
+        { id: "d-2", title: "Portal support", won: true },
+      ]);
+    });
+
+    it("says `won: false` for the deal the CRM reopened, only on that contract, and `true` again once re-won", async () => {
+      const { d1, project } = await withDeals();
+      d1.stage = "proposal";
+      expect(await deals(project.id)).toEqual([
+        null,
+        { id: "d-1", title: "Portal rebuild", won: false },
+        { id: "d-2", title: "Portal support", won: true },
+      ]);
+      d1.stage = "won";
+      expect((await deals(project.id))[1]).toEqual({ id: "d-1", title: "Portal rebuild", won: true });
+    });
+
+    it("leaves the project unchanged when its deal is reopened: only `deal.won` differs (AC-2.3)", async () => {
+      const { d1, project } = await withDeals();
+      const before = (await call("GET", `/projects/${project.id}`, { as: "viewer" })).json;
+      d1.stage = "lost";
+      const after = (await call("GET", `/projects/${project.id}`, { as: "viewer" })).json;
+      expect(after.state).toBe(before.state);
+      expect(after.version).toBe(before.version);
+      expect(after.contracts.map((c: { id: string }) => c.id)).toEqual(before.contracts.map((c: { id: string }) => c.id));
+    });
+
+    it("asks the CRM for the deals once per request, whatever the number of deal contracts, and not at all without one", async () => {
+      const { project } = await withDeals();
+      crm.dealCalls = 0;
+      await call("GET", `/projects/${project.id}`, { as: "viewer" });
+      expect(crm.dealCalls).toBe(1);
+
+      const manualOnly = await seed({ name: "By hand" });
+      await seedContract(manualOnly.id);
+      crm.dealCalls = 0;
+      await call("GET", `/projects/${manualOnly.id}`, { as: "viewer" });
+      expect(crm.dealCalls).toBe(0);
+    });
+
+    it("answers 200 with `title` and `won` null, not an error, when the CRM cannot answer", async () => {
+      const { project } = await withDeals();
+      crm.down = true;
+      const res = await call("GET", `/projects/${project.id}`, { as: "viewer" });
+      expect(res.status).toBe(200);
+      expect(res.json.contracts.map((c: { deal: unknown }) => c.deal)).toEqual([
+        null,
+        { id: "d-1", title: null, won: null },
+        { id: "d-2", title: null, won: null },
+      ]);
+    });
   });
 
   describe("derived dates (AC-1.5)", () => {
