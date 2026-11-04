@@ -22,6 +22,8 @@ datasource db {
 //             a both-or-neither group, hours > 0, expiry only for `capacity`;
 //             endDate >= startDate; estimated man-days >= 0
 //   position  planned man-days > 0; profile not blank
+// and, from specs/022 (migration `*_handoff`): a contract's origin is `deal` iff it has a
+// `dealId`, and only a `deal` contract carries an `estimateId`.
 
 enum Entity {
   welld_ch
@@ -107,8 +109,13 @@ model Contract {
   /// CRM company id.
   companyId         String
   origin            ContractOrigin @default(manual)
-  /// The won deal this contract came from; filled by specs/026. Unique: a deal yields one contract.
+  /// The won deal this contract came from (specs/022); set iff `origin = deal` (CHECK
+  /// `contract_origin_matches_deal`). Unique: a deal yields one contract (AC-1.6, the database half).
   dealId            String?        @unique
+  /// The deal's EstimAI estimate id, copied when the contract is made from the deal (specs/022);
+  /// null for a hand-entered contract and for a deal without an estimate. It is the link to the
+  /// estimate and what locks `estimatedManDays` (CHECK `contract_estimate_needs_deal`).
+  estimateId        String?
   /// Typed in by accounting (contract:bexio); unchecked free text (A24).
   bexioOrderId      String?        @db.VarChar(64)
   startDate         DateTime       @db.Date
