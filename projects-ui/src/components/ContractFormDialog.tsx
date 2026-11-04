@@ -1,18 +1,16 @@
 import { useRef, useState } from 'react'
-import { Button, DateInput, Field, FormDialog, focusFirstInvalid } from '@operai/ui'
+import { DateInput, Field, FormDialog, focusFirstInvalid } from '@operai/ui'
 import { ApiError, isStaleWrite } from '../lib/api'
 import { emptyTermsForm, termsFormOf, termsInputOf } from '../lib/contractTerms'
-import type { PositionForm, TermsErrors, TermsForm } from '../lib/contractTerms'
-import { MAX_POSITIONS } from '../lib/contractTerms'
+import type { TermsErrors, TermsForm } from '../lib/contractTerms'
 import { codeOf, errorMessage, fieldErrorOf } from '../lib/errors'
 import { createContract, updateContract } from '../lib/projectsApi'
-import type { CompanyChoice, CompanyRef, Contract, HourPackageKind, Project } from '../lib/types'
+import type { CompanyChoice, CompanyRef, Contract, Project } from '../lib/types'
 import { strings } from '../strings'
 import CompanyPicker from './CompanyPicker'
+import ContractTermsFields from './ContractTermsFields'
 
 type ProjectRef = Pick<Project, 'id' | 'type' | 'company'>
-
-const HOUR_KINDS: readonly HourPackageKind[] = ['capacity', 'yearly']
 
 /** Server `code`s that belong to one input, by the input's error key. */
 const REFUSAL_FIELD: Record<string, string> = {
@@ -186,237 +184,14 @@ export default function ContractFormDialog({
         )}
         {dateField('endDate', t.endDate, endDate, setEndDate, t.endDateHint)}
 
-        {type === 'fixed_price' && <FixedPriceFields terms={terms} errors={errors} onChange={patchTerms} />}
-        {(type === 'maintenance' || type === 'saas') && (
-          <SlaAndHoursFields terms={terms} errors={errors} onChange={patchTerms} />
-        )}
-        {type === 't_and_m' && <PositionFields terms={terms} errors={errors} onChange={patchTerms} />}
+        <ContractTermsFields
+          type={type}
+          terms={terms}
+          errors={errors}
+          onChange={patchTerms}
+          testIdPrefix="contract-form"
+        />
       </div>
     </FormDialog>
-  )
-}
-
-type FieldsProps = { terms: TermsForm; errors: TermsErrors; onChange: (patch: Partial<TermsForm>) => void }
-
-function FixedPriceFields({ terms, errors, onChange }: FieldsProps) {
-  const t = strings.contracts.form
-  return (
-    <>
-      <Field label={t.deadline} required error={errors['terms.deadline']} testId="contract-form-deadline">
-        {(control) => (
-          <DateInput
-            {...control}
-            value={terms.deadline}
-            onChange={(event) => onChange({ deadline: event.target.value })}
-          />
-        )}
-      </Field>
-      <Field
-        label={t.estimatedManDays}
-        hint={t.estimatedManDaysHint}
-        error={errors['terms.estimatedManDays']}
-        testId="contract-form-estimated"
-      >
-        {(control) => (
-          <input
-            {...control}
-            inputMode="decimal"
-            value={terms.estimatedManDays}
-            onChange={(event) => onChange({ estimatedManDays: event.target.value })}
-          />
-        )}
-      </Field>
-      <Field
-        label={t.maxEffortManDays}
-        hint={t.maxEffortManDaysHint}
-        required
-        error={errors['terms.maxEffortManDays']}
-        testId="contract-form-max-effort"
-      >
-        {(control) => (
-          <input
-            {...control}
-            inputMode="decimal"
-            value={terms.maxEffortManDays}
-            onChange={(event) => onChange({ maxEffortManDays: event.target.value })}
-          />
-        )}
-      </Field>
-    </>
-  )
-}
-
-function SlaAndHoursFields({ terms, errors, onChange }: FieldsProps) {
-  const t = strings.contracts.form
-  const pkg = terms.hourPackage
-  const patchPackage = (patch: Partial<TermsForm['hourPackage']>) => onChange({ hourPackage: { ...pkg, ...patch } })
-  return (
-    <>
-      <label className="flex items-center gap-2 text-sm text-text">
-        <input
-          type="checkbox"
-          checked={terms.withSla}
-          onChange={(event) => onChange({ withSla: event.target.checked })}
-        />
-        {t.withSla}
-      </label>
-      {terms.withSla && (
-        <fieldset className="flex flex-col gap-3" data-testid="contract-form-sla">
-          <legend className="field-label mb-1">{t.slaLegend}</legend>
-          <Field label={t.slaHigh} required error={errors['terms.sla.highDays']}>
-            {(control) => (
-              <input
-                {...control}
-                inputMode="numeric"
-                value={terms.sla.high}
-                onChange={(event) => onChange({ sla: { ...terms.sla, high: event.target.value } })}
-              />
-            )}
-          </Field>
-          <Field label={t.slaNormal} required error={errors['terms.sla.normalDays']}>
-            {(control) => (
-              <input
-                {...control}
-                inputMode="numeric"
-                value={terms.sla.normal}
-                onChange={(event) => onChange({ sla: { ...terms.sla, normal: event.target.value } })}
-              />
-            )}
-          </Field>
-        </fieldset>
-      )}
-      <label className="flex items-center gap-2 text-sm text-text">
-        <input
-          type="checkbox"
-          checked={terms.withHours}
-          onChange={(event) => onChange({ withHours: event.target.checked })}
-        />
-        {t.withHours}
-      </label>
-      {terms.withHours && (
-        <fieldset className="flex flex-col gap-3" data-testid="contract-form-hours">
-          <legend className="field-label mb-1">{t.hoursLegend}</legend>
-          <Field label={t.hours} hint={t.hoursHint} required error={errors['terms.hourPackage.hours']}>
-            {(control) => (
-              <input
-                {...control}
-                inputMode="numeric"
-                value={pkg.hours}
-                onChange={(event) => patchPackage({ hours: event.target.value })}
-              />
-            )}
-          </Field>
-          <Field label={t.kind} required error={errors['terms.hourPackage.kind']}>
-            {(control) => (
-              <select
-                {...control}
-                value={pkg.kind}
-                onChange={(event) => patchPackage({ kind: event.target.value as HourPackageKind })}
-              >
-                {HOUR_KINDS.map((kind) => (
-                  <option key={kind} value={kind}>
-                    {t.kinds[kind]}
-                  </option>
-                ))}
-              </select>
-            )}
-          </Field>
-          <Field label={t.packageStart} required error={errors['terms.hourPackage.startDate']}>
-            {(control) => (
-              <DateInput
-                {...control}
-                value={pkg.startDate}
-                onChange={(event) => patchPackage({ startDate: event.target.value })}
-              />
-            )}
-          </Field>
-          {pkg.kind === 'capacity' && (
-            <Field label={t.packageExpiry} hint={t.packageExpiryHint} error={errors['terms.hourPackage.expiryDate']}>
-              {(control) => (
-                <DateInput
-                  {...control}
-                  value={pkg.expiryDate}
-                  onChange={(event) => patchPackage({ expiryDate: event.target.value })}
-                />
-              )}
-            </Field>
-          )}
-        </fieldset>
-      )}
-      {errors['terms'] && (
-        <p role="alert" className="field-error" data-testid="contract-form-terms-error">
-          {errors['terms']}
-        </p>
-      )}
-    </>
-  )
-}
-
-function PositionFields({ terms, errors, onChange }: FieldsProps) {
-  const t = strings.contracts.form
-  const positions = terms.positions
-  const set = (index: number, patch: Partial<PositionForm>) =>
-    onChange({ positions: positions.map((position, i) => (i === index ? { ...position, ...patch } : position)) })
-  return (
-    <fieldset className="flex flex-col gap-3" data-testid="contract-form-positions">
-      <legend className="field-label mb-1">{t.positionsLegend}</legend>
-      <p className="field-hint">{t.positionsHint}</p>
-      {positions.map((position, index) => (
-        <div
-          key={index}
-          role="group"
-          aria-label={t.positionN(index + 1)}
-          className="flex flex-col gap-2 border-t border-rule pt-3"
-        >
-          <p aria-hidden="true" className="text-xs text-soft">
-            {t.positionN(index + 1)}
-          </p>
-          <Field label={t.profile} required error={errors[`terms.positions.${index}.profile`]}>
-            {(control) => (
-              <input
-                {...control}
-                value={position.profile}
-                onChange={(event) => set(index, { profile: event.target.value })}
-              />
-            )}
-          </Field>
-          <Field label={t.plannedManDays} required error={errors[`terms.positions.${index}.plannedManDays`]}>
-            {(control) => (
-              <input
-                {...control}
-                inputMode="decimal"
-                value={position.plannedManDays}
-                onChange={(event) => set(index, { plannedManDays: event.target.value })}
-              />
-            )}
-          </Field>
-          <div>
-            <Button
-              size="sm"
-              variant="ghost"
-              disabled={positions.length <= 1}
-              aria-label={t.removePosition(index + 1)}
-              onClick={() => onChange({ positions: positions.filter((_, i) => i !== index) })}
-            >
-              {t.removeButton}
-            </Button>
-          </div>
-        </div>
-      ))}
-      {errors['terms.positions'] && (
-        <p role="alert" className="field-error">
-          {errors['terms.positions']}
-        </p>
-      )}
-      <div>
-        <Button
-          size="sm"
-          disabled={positions.length >= MAX_POSITIONS}
-          onClick={() => onChange({ positions: [...positions, { profile: '', plannedManDays: '' }] })}
-        >
-          {t.addPosition}
-        </Button>
-      </div>
-    </fieldset>
   )
 }

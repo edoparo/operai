@@ -27,6 +27,39 @@ const en = {
     estimate: 'Estimate',
   },
   take: {
+    actions: {
+      column: 'Actions',
+      newProject: 'New project',
+      newProjectFor: (title: string) => `New project: ${title}`,
+      attach: 'Attach to project',
+      attachFor: (title: string) => `Attach to project: ${title}`,
+    },
+    project: {
+      title: 'New project from a deal',
+      description: (company: string, entity: string) =>
+        `A planned project for ${company} (${entity}) with one contract made from this deal. The company and the entity come from the deal.`,
+      typeHint: 'The kind of work. It cannot be changed once the project exists.',
+      submit: 'Create project',
+      busy: 'Creating…',
+    },
+    attach: {
+      title: 'Attach to a project',
+      description: (deal: string, company: string) =>
+        `Adds a contract made from ${deal} (${company}) to an existing project. It cannot be detached or moved afterwards.`,
+      project: 'Project',
+      projectHint: 'Search by name. A project that cannot take this deal’s contract is refused with the reason.',
+      projectRequired: 'Choose a project from the list.',
+      chooseProject: 'Choose a project to see the terms of its contract.',
+      searching: 'Searching…',
+      noMatch: 'No project matches.',
+      results: (count: number) => (count === 1 ? '1 project' : `${count} projects`),
+      submit: 'Attach deal',
+      busy: 'Attaching…',
+    },
+    contract: {
+      legend: 'Contract',
+      estimatedManDaysFromEstimate: 'From the estimate',
+    },
     /** Each refusal of taking a deal, in its own words (AC-1.5). */
     errors: {
       deal_not_found: 'This deal no longer exists in the CRM.',
@@ -77,6 +110,40 @@ const it: typeof en = {
     estimate: 'Stima',
   },
   take: {
+    actions: {
+      column: 'Azioni',
+      newProject: 'Nuovo progetto',
+      newProjectFor: (title: string) => `Nuovo progetto: ${title}`,
+      attach: 'Collega a un progetto',
+      attachFor: (title: string) => `Collega a un progetto: ${title}`,
+    },
+    project: {
+      title: 'Nuovo progetto da una trattativa',
+      description: (company: string, entity: string) =>
+        `Un progetto pianificato per ${company} (${entity}) con un contratto creato da questa trattativa. L’azienda e l’entità vengono dalla trattativa.`,
+      typeHint: 'Il tipo di lavoro. Non si può cambiare dopo la creazione del progetto.',
+      submit: 'Crea progetto',
+      busy: 'Creazione…',
+    },
+    attach: {
+      title: 'Collega a un progetto',
+      description: (deal: string, company: string) =>
+        `Aggiunge a un progetto esistente un contratto creato da ${deal} (${company}). Dopo non si può scollegare né spostare.`,
+      project: 'Progetto',
+      projectHint:
+        'Cerca per nome. Un progetto che non può accogliere il contratto di questa trattativa viene rifiutato con il motivo.',
+      projectRequired: 'Scegli un progetto dall’elenco.',
+      chooseProject: 'Scegli un progetto per vedere le condizioni del suo contratto.',
+      searching: 'Ricerca…',
+      noMatch: 'Nessun progetto corrisponde.',
+      results: (count: number) => (count === 1 ? '1 progetto' : `${count} progetti`),
+      submit: 'Collega trattativa',
+      busy: 'Collegamento…',
+    },
+    contract: {
+      legend: 'Contratto',
+      estimatedManDaysFromEstimate: 'Dalla stima',
+    },
     errors: {
       deal_not_found: 'Questa trattativa non esiste più nel CRM.',
       deal_not_won: 'Questa trattativa non è più vinta nel CRM, quindi non può essere presa in carico.',

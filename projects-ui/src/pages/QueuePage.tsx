@@ -1,9 +1,13 @@
 import { useCallback, useId, useState } from 'react'
-import { Banner, Card, DataTable, Field, formatDate, PageHeader, StatePanel } from '@operai/ui'
+import { useNavigate } from '@tanstack/react-router'
+import { Banner, Button, Card, DataTable, Field, formatDate, PageHeader, StatePanel } from '@operai/ui'
 import type { DataTableColumn } from '@operai/ui'
+import AttachDealDialog from '../components/AttachDealDialog'
 import { EntityBadge } from '../components/Badges'
 import { LoadFailure, Loading } from '../components/LoadState'
+import TakeDealDialog from '../components/TakeDealDialog'
 import { useResource } from '../hooks/useResource'
+import { useScope } from '../hooks/useScope'
 import { codeOf } from '../lib/errors'
 import { ENTITIES } from '../lib/domain'
 import { crmDealHref, estimaiEstimateHref } from '../lib/links'
@@ -22,12 +26,22 @@ import { strings } from '../strings'
  * the CRM (AC-2.1) or taken meanwhile (AC-1.6) is simply absent from the next
  * load. crm-api down is its own state (503 `crm_unavailable`), never an empty
  * queue. The list is capped at the newest 500 (A26) and says so when it is.
+ *
+ * A holder of manage projects for a deal's entity takes it (AC-1.2, AC-1.4): "New
+ * project" or "Attach to project", each a dialog that also asks the contract's
+ * dates and terms. The actions are UX gating on the entity (`GET /scope`); the
+ * server's 403 `out_of_scope` is the gate. A take lands the user on the project;
+ * a deal that turns out to be taken or no longer won reloads the queue behind
+ * the dialog, which keeps saying why.
  */
 export default function QueuePage() {
   const t = strings.queue
   const titleId = useId()
+  const navigate = useNavigate()
+  const { canManage, canManageEntity } = useScope()
   const [q, setQ] = useState('')
   const [entity, setEntity] = useState<Entity | ''>('')
+  const [taking, setTaking] = useState<{ deal: QueueItem; mode: 'project' | 'attach' } | null>(null)
 
   const filtered = q.trim() !== '' || entity !== ''
   const load = useCallback((signal: AbortSignal) => listQueue({ q: q.trim(), entity }, { signal }), [q, entity])
@@ -63,6 +77,35 @@ export default function QueuePage() {
           </a>
         ),
     },
+    ...(canManage
+      ? [
+          {
+            id: 'actions',
+            header: t.take.actions.column,
+            render: (item: QueueItem) =>
+              canManageEntity(item.entity) && (
+                <div className="flex flex-wrap gap-2">
+                  <Button
+                    size="sm"
+                    aria-haspopup="dialog"
+                    aria-label={t.take.actions.newProjectFor(item.title)}
+                    onClick={() => setTaking({ deal: item, mode: 'project' })}
+                  >
+                    {t.take.actions.newProject}
+                  </Button>
+                  <Button
+                    size="sm"
+                    aria-haspopup="dialog"
+                    aria-label={t.take.actions.attachFor(item.title)}
+                    onClick={() => setTaking({ deal: item, mode: 'attach' })}
+                  >
+                    {t.take.actions.attach}
+                  </Button>
+                </div>
+              ),
+          },
+        ]
+      : []),
   ]
 
   let content
@@ -134,6 +177,28 @@ export default function QueuePage() {
         </Card>
         {content}
       </div>
+      {taking?.mode === 'project' && (
+        <TakeDealDialog
+          deal={taking.deal}
+          onCancel={() => setTaking(null)}
+          onGone={queue.retry}
+          onTaken={(project) => {
+            setTaking(null)
+            void navigate({ to: '/$id', params: { id: project.id } })
+          }}
+        />
+      )}
+      {taking?.mode === 'attach' && (
+        <AttachDealDialog
+          deal={taking.deal}
+          onCancel={() => setTaking(null)}
+          onGone={queue.retry}
+          onAttached={(contract) => {
+            setTaking(null)
+            void navigate({ to: '/$id', params: { id: contract.projectId } })
+          }}
+        />
+      )}
     </section>
   )
 }
