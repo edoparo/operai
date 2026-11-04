@@ -62,6 +62,7 @@ export default function RejectDialog({
       title={t.title}
       describedBy="reject-dialog-body"
       onClose={onCancel}
+      dismissOnBackdrop={false}
       closeLabel={t.cancelAriaLabel}
       busy={isDeciding}
       initialFocusRef={textareaRef}

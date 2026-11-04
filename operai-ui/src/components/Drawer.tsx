@@ -1,6 +1,7 @@
 import { useId, useRef } from 'react'
 import type { ReactNode } from 'react'
 import { Button } from './Button'
+import { useBackdropClick } from './Dialog'
 import { Icon } from './Icon'
 import { useDialogBehavior } from './useDialogBehavior'
 
@@ -35,10 +36,12 @@ export function Drawer({ title, description, onClose, closeLabel, testIdPrefix =
   const drawerRef = useRef<HTMLDivElement>(null)
   const titleRef = useRef<HTMLHeadingElement>(null)
 
+  const backdropClick = useBackdropClick(onClose)
+
   useDialogBehavior({ dialogRef: drawerRef, onClose, busy: false, initialFocusRef: titleRef })
 
   return (
-    <div className="drawer-backdrop" onClick={onClose} data-testid={`${testIdPrefix}-backdrop`}>
+    <div className="drawer-backdrop" {...backdropClick} data-testid={`${testIdPrefix}-backdrop`}>
       <div
         ref={drawerRef}
         role="dialog"

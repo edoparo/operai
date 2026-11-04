@@ -62,6 +62,8 @@ export function FormDialog({
       description={description}
       size={size}
       onClose={onCancel}
+      // A stray click outside must not throw typed values away; Cancel, × and Escape close.
+      dismissOnBackdrop={false}
       closeLabel={closeLabel}
       busy={busy}
       fallbackFocusRef={cancelRef}

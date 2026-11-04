@@ -122,11 +122,11 @@ describe('RejectDialog', () => {
     expect(err.textContent).toBe('Could not record this decision. Try again.')
   })
 
-  it('clicking the backdrop calls onCancel', () => {
+  it('clicking the backdrop does not cancel, so a typed reason survives', () => {
     const onCancel = vi.fn()
     render(<RejectDialog {...baseProps} onCancel={onCancel} />)
 
     fireEvent.click(screen.getByTestId('reject-dialog-modal'))
-    expect(onCancel).toHaveBeenCalledTimes(1)
+    expect(onCancel).not.toHaveBeenCalled()
   })
 })

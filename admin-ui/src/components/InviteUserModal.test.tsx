@@ -137,7 +137,7 @@ describe('InviteUserModal', () => {
     expect(onSubmit).toHaveBeenCalledTimes(1)
   })
 
-  it('Escape and Cancel and the backdrop all call onCancel', () => {
+  it('Escape and Cancel call onCancel; the backdrop does not, so typed input survives', () => {
     const onCancel = vi.fn()
     render(<InviteUserModal {...baseProps} onCancel={onCancel} />)
 
@@ -148,7 +148,7 @@ describe('InviteUserModal', () => {
     expect(onCancel).toHaveBeenCalledTimes(2)
 
     fireEvent.click(screen.getByTestId('invite-user-modal'))
-    expect(onCancel).toHaveBeenCalledTimes(3)
+    expect(onCancel).toHaveBeenCalledTimes(2)
   })
 
   it('renders emailError under Email with aria-invalid/aria-describedby (409 AC-1.3/1.4 or client-side format)', () => {

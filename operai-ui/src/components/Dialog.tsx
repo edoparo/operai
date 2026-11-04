@@ -1,4 +1,5 @@
 import { useId, useRef } from 'react'
+import type { MouseEvent } from 'react'
 import type { ReactNode, RefObject } from 'react'
 import { cx } from '../lib/cx'
 import { Button } from './Button'
@@ -15,8 +16,13 @@ export type DialogProps = {
   /** `alertdialog` for a confirmation that interrupts; `dialog` (default) for a form or content. */
   role?: 'dialog' | 'alertdialog'
   size?: DialogSize
-  /** Called on ×, the backdrop and Escape — never while `busy`. */
+  /** Called on ×, the backdrop (unless `dismissOnBackdrop` is false) and Escape — never while `busy`. */
   onClose: () => void
+  /**
+   * False: a click on the backdrop does nothing. For a dialog holding typed input, where a stray
+   * click must not throw the input away (FormDialog always passes false). Escape and × still close.
+   */
+  dismissOnBackdrop?: boolean
   /** Accessible name of the × button. Omit for a dialog with no × (NoticeDialog's single acknowledgement). */
   closeLabel?: string
   /** In flight: not dismissible, × disabled. */
@@ -53,6 +59,7 @@ export function Dialog({
   role = 'dialog',
   size = 'md',
   onClose,
+  dismissOnBackdrop = true,
   closeLabel,
   busy = false,
   initialFocusRef,
@@ -69,6 +76,9 @@ export function Dialog({
   const descriptionId = `${baseId}-description`
   const dialogRef = useRef<HTMLDivElement>(null)
   const titleRef = useRef<HTMLHeadingElement>(null)
+  const backdropClick = useBackdropClick(() => {
+    if (!busy && dismissOnBackdrop) onClose()
+  })
 
   useDialogBehavior({
     dialogRef,
@@ -81,9 +91,7 @@ export function Dialog({
   return (
     <div
       className="dialog-backdrop"
-      onClick={() => {
-        if (!busy) onClose()
-      }}
+      {...backdropClick}
       data-testid={backdropTestId ?? `${testIdPrefix}-backdrop`}
     >
       <div
@@ -128,4 +136,23 @@ export function Dialog({
       </div>
     </div>
   )
+}
+
+/**
+ * Backdrop handlers that ignore a click whose press STARTED inside the panel. A plain `onClick`
+ * also fires when a text selection begins in a field and the mouse is released outside the
+ * dialog (the click lands on the common ancestor, the backdrop), which closed a half-filled form.
+ */
+export function useBackdropClick(onDismiss: () => void) {
+  const pressedInside = useRef(false)
+  return {
+    onMouseDown: (event: MouseEvent<HTMLElement>) => {
+      pressedInside.current = event.target !== event.currentTarget
+    },
+    onClick: (event: MouseEvent<HTMLElement>) => {
+      const dismiss = !pressedInside.current && event.target === event.currentTarget
+      pressedInside.current = false
+      if (dismiss) onDismiss()
+    },
+  }
 }

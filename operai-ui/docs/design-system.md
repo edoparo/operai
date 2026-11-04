@@ -248,7 +248,11 @@ Every dialog, through `useDialogBehavior`:
 - traps Tab over every enabled control (the × included) and returns focus to the
   element that opened it;
 - closes on Escape, the backdrop and × — **except while busy**, when it cannot
-  be dismissed and its controls are disabled;
+  be dismissed and its controls are disabled. A dialog holding typed input
+  (every `FormDialog`, or `Dialog` with `dismissOnBackdrop={false}`) ignores the
+  backdrop: a stray click must not throw the input away. A click whose press
+  started inside the dialog (a text selection released outside) never closes
+  anything;
 - keeps its content on failure: the request error is shown inline
   (`role="alert"`) above the footer and every typed value stays.
 - **stacks**: a dialog opened on top of another (a "Remove this collaborator?"

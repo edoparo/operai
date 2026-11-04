@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { cleanup, render, screen } from '@testing-library/react'
+import { cleanup, fireEvent, render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { useState } from 'react'
 import { ConfirmDialog } from './ConfirmDialog'
@@ -54,6 +54,22 @@ describe('ConfirmDialog', () => {
     expect(confirm).toBeDisabled()
     expect(confirm).toHaveAttribute('aria-busy', 'true')
     expect(confirm).toHaveTextContent('Deleting…')
+  })
+
+  it('a press that starts inside and is released on the backdrop (a text selection) does not close', () => {
+    const onCancel = vi.fn()
+    render(
+      <ConfirmDialog {...confirmProps} busy={false} onConfirm={vi.fn()} onCancel={onCancel}>
+        Body
+      </ConfirmDialog>,
+    )
+    const backdrop = screen.getByTestId('confirm-dialog-backdrop')
+    fireEvent.mouseDown(screen.getByText('Body'))
+    fireEvent.click(backdrop)
+    expect(onCancel).not.toHaveBeenCalled()
+    fireEvent.mouseDown(backdrop)
+    fireEvent.click(backdrop)
+    expect(onCancel).toHaveBeenCalledTimes(1)
   })
 
   it('keeps Confirm disabled until the acknowledgement is ticked', async () => {
@@ -166,6 +182,26 @@ describe('FormDialog', () => {
     closeLabel: 'Close',
     error: null,
   }
+
+  it('ignores a click on the backdrop, so typed values survive; Escape and Cancel still close', async () => {
+    const user = userEvent.setup()
+    const onCancel = vi.fn()
+    render(
+      <FormDialog {...formProps} busy={false} onSubmit={vi.fn()} onCancel={onCancel}>
+        <label>
+          Reason
+          <input />
+        </label>
+      </FormDialog>,
+    )
+    await user.type(screen.getByLabelText('Reason'), 'Duplicate')
+    await user.click(screen.getByTestId('form-dialog-backdrop'))
+    expect(onCancel).not.toHaveBeenCalled()
+    expect(screen.getByLabelText('Reason')).toHaveValue('Duplicate')
+    await user.keyboard('{Escape}')
+    await user.click(screen.getByRole('button', { name: 'Cancel' }))
+    expect(onCancel).toHaveBeenCalledTimes(2)
+  })
 
   it('focuses the first field and submits on Enter', async () => {
     const user = userEvent.setup()

@@ -87,7 +87,7 @@ describe('FormModal', () => {
     expect(onSubmit).not.toHaveBeenCalled()
   })
 
-  it('the backdrop and × cancel; a click inside the dialog does not', () => {
+  it('Cancel and × cancel; neither a click inside nor one on the backdrop does', () => {
     const onCancel = vi.fn()
     renderModal({ onCancel })
 
@@ -95,9 +95,10 @@ describe('FormModal', () => {
     expect(onCancel).not.toHaveBeenCalled()
 
     fireEvent.click(screen.getByTestId('form-modal-backdrop'))
+    expect(onCancel).not.toHaveBeenCalled()
     fireEvent.click(screen.getByTestId('form-modal-cancel'))
     fireEvent.click(screen.getByRole('button', { name: 'Close' }))
-    expect(onCancel).toHaveBeenCalledTimes(3)
+    expect(onCancel).toHaveBeenCalledTimes(2)
   })
 
   it('traps Tab over the real focusable set: last wraps to first, Shift+Tab on first wraps to last', () => {

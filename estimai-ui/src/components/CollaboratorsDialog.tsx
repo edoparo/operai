@@ -443,6 +443,8 @@ function OwnerCollaboratorsDialog({ estimateId, onClose }: OwnerCollaboratorsDia
         title={strings.sharing.dialog.title}
         closeLabel={strings.sharing.dialog.close}
         onClose={onClose}
+        // The add-by-email field holds typed input: a stray click outside must not lose it.
+        dismissOnBackdrop={false}
         initialFocusRef={emailInputRef}
         testIdPrefix="collaborators-dialog"
         dialogTestId="collaborators-dialog"
