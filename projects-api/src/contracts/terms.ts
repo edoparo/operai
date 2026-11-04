@@ -44,10 +44,14 @@ export function validationFailed(issues: readonly IssueLike[], prefix: readonly 
   });
 }
 
-/** Parses `raw` as `terms` for a contract of `type`; throws the 400 / 422 problem when it is not valid. */
-export function parseTerms(type: ProjectType, raw: unknown): Terms {
+/**
+ * Parses `raw` as `terms` for a contract of `type`; throws the 400 / 422 problem when it is not valid.
+ * `at` is where `terms` sits in the request body, so a problem names the field by its full path in
+ * the body: `terms` on a contract write, `contract.terms` when taking a deal (specs/022).
+ */
+export function parseTerms(type: ProjectType, raw: unknown, at: readonly string[] = ["terms"]): Terms {
   const fail = (error: { issues: readonly IssueLike[] }): never => {
-    throw validationFailed(error.issues, ["terms"]);
+    throw validationFailed(error.issues, at);
   };
   switch (type) {
     case "fixed_price": {
@@ -65,7 +69,7 @@ export function parseTerms(type: ProjectType, raw: unknown): Terms {
       if (type === "maintenance" && sla === null && hourPackage === null) {
         throw unprocessable(
           "A maintenance contract needs an SLA, an hour package, or both",
-          { field: "terms" },
+          { field: at.join(".") },
           "maintenance_needs_sla_or_hours",
         );
       }

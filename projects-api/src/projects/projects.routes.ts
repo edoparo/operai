@@ -17,7 +17,7 @@
 import { OpenAPIHono, createRoute, z } from "@hono/zod-openapi";
 import { PROJECT_MANAGE, assertCanManage, authorized, requireCapability } from "../auth/guards";
 import type { AuthzVariables } from "../auth/authz.middleware";
-import { companyRefs, findActiveCompany, orCrmUnavailable } from "../lib/crm";
+import { companyRefs } from "../lib/crm";
 import { db } from "../lib/db";
 import type { Prisma } from "../lib/generated/prisma/client";
 import {
@@ -34,7 +34,8 @@ import {
 import { contractInclude, contractView } from "../contracts/contracts.routes";
 import { requireProjectUsers } from "../lib/identities";
 import { loadPeople } from "../lib/people";
-import { notFound, unprocessable, validationHook } from "../lib/problem";
+import { notFound, validationHook } from "../lib/problem";
+import { assertCompanyFits, projectCreateData } from "./create";
 import { deriveDates } from "./dates";
 import {
   CreateProjectSchema,
@@ -43,8 +44,6 @@ import {
   ProjectPageSchema,
   ProjectSchema,
   UpdateProjectSchema,
-  isClientType,
-  type ProjectType,
 } from "./projects.schemas";
 
 // ─── The Project view ────────────────────────────────────────────────────────
@@ -99,27 +98,6 @@ export async function toProjectView(c: HeaderSource, row: ProjectRow) {
     createdAt: row.createdAt.toISOString(),
     updatedAt: row.updatedAt.toISOString(),
   };
-}
-
-// ─── Rules ───────────────────────────────────────────────────────────────────
-
-/**
- * A client project has exactly one company, which the CRM knows and has not archived (the
- * picker never offers an archived one); `saas` and `internal` have none (AC-1.1, D5, D19, D24).
- */
-async function assertCompanyFits(type: ProjectType, companyId: string | undefined): Promise<void> {
-  if (!isClientType(type)) {
-    if (companyId !== undefined) {
-      throw unprocessable("A saas or internal project has no company of its own", { field: "companyId" }, "company_not_allowed");
-    }
-    return;
-  }
-  if (companyId === undefined) {
-    throw unprocessable("A company is required for this project type", { field: "companyId" }, "company_required");
-  }
-  if (!(await orCrmUnavailable(findActiveCompany(companyId)))) {
-    throw unprocessable("The company does not exist in the CRM", { field: "companyId" }, "company_not_found");
-  }
 }
 
 // ─── Routes ──────────────────────────────────────────────────────────────────
@@ -201,14 +179,14 @@ projectsRouter.openapi(createProjectRoute, async (c) => {
   // The caller needs no check (they are in the module right now); anyone else must hold access (AC-1.6).
   await requireProjectUsers(c, [projectManagerId]);
   const row = await db.project.create({
-    data: {
+    data: projectCreateData({
       name: body.name,
       type: body.type,
       entity: body.entity,
       companyId: body.companyId ?? null,
       projectManagerId,
       createdById: userId,
-    },
+    }),
     include: projectInclude,
   });
   c.header("ETag", etag(row.version));
