@@ -119,7 +119,8 @@ operai/
 │
 ├── estimai-api/         # Bun + Hono + TypeScript backend — estimate persistence (specs/001, ADR-0004/0005);
 │                        # + record-level collaborator ACL, optimistic concurrency, live identity resolution
-│                        # (specs/013, ADR-0036/0037/0038/0039/0040)
+│                        # (specs/013, ADR-0036/0037/0038/0039/0040); + `GET /system/estimates/{id}/summary` for a
+│                        # scoped service credential (specs/022, ADR-0061)
 ├── notify-api/          # Bun + Hono + TypeScript backend — notification persistence + SSE push, ticket-authed stream (specs/005, ADR-0008/0009); + email delivery channel via Resend, internal /system/emails (specs/006, ADR-0011); + internal /system/notifications for cross-user push (specs/007, ADR-0017)
 ├── refund-api/          # Bun + Hono + TypeScript backend — reimbursement persistence; authorization-enforcing
 │                        # resource server + EU object storage for receipts (specs/007, ADR-0014/0015/0016);
@@ -135,6 +136,7 @@ operai/
 │                        # optimistic concurrency via If-Match (specs/017, ADR-0052). Its activities and tasks live in
 │                        # activities-api since specs/028; crm-api is the CRM host that answers activities-api's
 │                        # `POST /activity-host/v1/resolve` and holds the scope `activities.write` for its `/system/v1/*`
+│                        # calls; + `GET /system/deals` for projects-api (specs/022, ADR-0060)
 ├── meetings-api/        # Bun + Hono + TypeScript backend (port 8085, DB `meetings`, single replica) — meetings, transcripts,
 │                        # summaries, templates, cited Q&A; authorization-enforcing (`meetings:access`, `template:manage`,
 │                        # `meeting:erase`) but creator/participant reads need only a JWT (ADR-0058); audio ONLY in its own EU
@@ -144,7 +146,8 @@ operai/
 ├── projects-api/        # Bun + Hono + TypeScript backend (port 8086, DB `projects`) — projects, their team and contracts, the Bexio
 │                        # order id; authorization-enforcing (projects:access, entity-scoped project:manage, contract:bexio),
 │                        # If-Match on every write, no money; reads CRM company names from crm-api with a scoped service
-│                        # credential (specs/025, ADR-0079/0080); the Projects host of activities-api
+│                        # credential (specs/025, ADR-0079/0080); + the to-start queue of won deals, taking a deal and
+│                        # the deal's estimate man-days, all read live (specs/022, ADR-0060/0061); the Projects host of activities-api
 │                        # (`POST /activity-host/v1/resolve`, specs/028) — it never stores tasks
 ├── activities-api/      # Bun + Hono + TypeScript backend (port 8087, DB `activities`) — activities, tasks, task blockers and
 │                        # the meeting mirror state for the CRM (pre-sales) and Projects (operational); NO permission catalog:
@@ -236,6 +239,10 @@ Per-service specifics:
 - `estimai-api` — estimate persistence as a JSONB document + listing columns (ADR-0004);
   record-level collaborator ACL owned by the service itself, not `auth`'s catalog (ADR-0036);
   optimistic concurrency via integer `version` + required `If-Match`/`ETag` (ADR-0038).
+  It deliberately is **not** an authorization-enforcing resource server. Its one `/system/*`
+  route, `GET /system/estimates/{id}/summary` (scope `estimai.estimates.read`, `SERVICE_AUDIENCE`
+  JWT only), is read by projects-api and returns `{ id, name, manDays }`, never the estimate's
+  content (specs/022, ADR-0061).
   It deliberately is **not** an authorization-enforcing resource server, with ONE exception
   (specs/024, ADR-0075): read-only oversight of every estimate for holders of `estimate:read-all`
   (seeded to `admin`), resolved live from `auth` only on that path and failing closed there.
@@ -261,7 +268,10 @@ Per-service specifics:
   pushes CRM notifications to notify-api as `system:crm-api`, with email notices for handovers
   (specs/019, ADR-0056); verifies meetings-api's host notices (scope `host-notices.send`,
   `aud=SERVICE_AUDIENCE`) and answers its `resolve` calls as the caller (specs/021, ADR-0059); its
-  `GET /system/companies` is read by projects-api behind the scope `crm.companies.read` (specs/025, ADR-0080)
+  `GET /system/companies` is read by projects-api behind the scope `crm.companies.read` (specs/021, ADR-0059), as is `GET /system/deals`
+  behind `crm.deals.read` (won deals, no money, specs/022, ADR-0060); its deal page reads the deal's
+  project and Bexio order id from projects-api as `system:crm-api` and fails soft (`deliveryKnown`)
+  `GET /system/companies` is read by projects-api behind the scope `crm.companies.read` (specs/025, ADR-0078)
 - `meetings-api` — Meetings (specs/021): authorization-enforcing, but content is visible by
   relationship to the record, never by role (creator / Operai participant / opted-in host reader;
   anything else 404, ADR-0058) — `selfScoped` reads need only a valid JWT and survive an `auth`
@@ -286,7 +296,11 @@ Per-service specifics:
   ids checked as module users against `auth` (fail closed); CRM company names via crm-api with its own
   service credential, `name: null` when the CRM cannot answer and 503 `crm_unavailable` on a write that
   must confirm a company (ADR-0080); ids are text cuids (ADR-0079); answers activities-api's
-  `POST /activity-host/v1/resolve` for entity type `project` (specs/028)
+  `POST /activity-host/v1/resolve` for entity type `project` (specs/028); the to-start queue (`GET /queue`) and
+  taking a deal (`POST /queue/{dealId}/project|attach`, `project:manage` for the deal's entity) read the
+  deal live from crm-api and never sync it, a contract made from a deal copies its estimate's man-days
+  from estimai-api once and the client never sets them (ADR-0060/0061); `GET /system/contracts` serves
+  crm-api behind `projects.contracts.read`
 - `activities-api` — activities, tasks and blockers of the CRM and Projects (specs/028): a JWKS resource
   server with **no permission catalog** — who may read or change an activity is asked of the host as the
   caller on every request (`POST /activity-host/v1/resolve` on crm-api or projects-api with the forwarded JWT,
@@ -860,3 +874,5 @@ These defaults are optimized for AI coding agents (and humans) working on apps t
 - [0081] A record's access is asked of the one service that owns its entity, as the caller, on every request, and never copied into a second store — activities-api holds the records and no permission catalog; each host answers `POST /activity-host/v1/resolve` with the forwarded JWT (2 s, batches of 25, never cached, fail closed → 503 `host_unavailable`, missing or unreadable → 404 identical to nonexistent), hosts are registry data; rejected: per-tool activity tables, crm-api as owner, an `activities` catalog in auth, hosts proxying activities-api; revisit when resolve p95 > 300 ms on CRM pages (add a `(sub, perm_epoch)` cache), a third host is added, or a host's access is per record (see docs/adr/0081-activities-service-access-delegated-to-host.md)
 - [0082] Caller-chosen ids replace cross-service transactions — a write that used to share a transaction becomes an idempotent call under an id the caller picks, compensated on failure; an erasure is ordered before the delete and fails closed, and a guard commits with the data it protects, never in another service (see docs/adr/0082-caller-chosen-ids-replace-cross-service-transactions.md)
 - [0083] Records move between services by expand → copy → contract, and a copy is trusted only when a found-vs-present count proves every record arrived (never on exit code alone); a short announced write pause removes the dual-write and deploy-order gaps, and the source is dropped only in a later push, never with the switch (see docs/adr/0083-activities-migration-write-pause.md)
+- [0060] Two tools that own different facts see each other's by asking the owner live over a scoped service credential — never by a copy or an event that must be kept right — and "could not find out" never shows as "nothing there", and "still free?" is decided by the store, not by a check: `crm.deals.read` (crm-api `GET /system/deals`: `stage=won` or `ids`, no amount/currency/owner/notes, won capped at 500 with `truncated`) and `projects.contracts.read` (projects-api `GET /system/contracts?dealIds=`: project + Bexio order id) behind `system:<client>` service JWTs, a user JWT never accepted, one identical 401; the to-start queue and the "deal is no longer won" notice are computed at read time (no event, sync or backfill, D17); the queue and a take fail closed (503 `crm_unavailable`), a project/contract and the CRM deal page fail soft with unknown kept distinct from none (`deal.won: null` vs `false`, `deliveryKnown: false` vs `delivery: null`); crm-api reads projects-api through its OWN token provider, so `SERVICE_CLIENT_ID`/`SERVICE_CLIENT_SECRET` are a pair required with `NOTIFY_INTERNAL_URL` or `PROJECTS_INTERNAL_URL`; a take re-reads the deal's live stage and writes project + contract in one nested create — the unique `contract.dealId` index, not the pre-check, arbitrates a race (409 `deal_taken`, nothing left behind); rejected: syncing or eventing deals into projects-api, forwarding the user JWT, reusing notify's token provider (see docs/adr/0060-projects-handoff-live-reads-between-crm-and-projects-over-service-credentials.md)
+- [0061] A figure has one author, and a value whose authority is elsewhere is never client input on ANY write path (create, update, import) — estimate-backed contract man-days are copied once from the estimate: a take sets them, `PATCH` keeps them, the client OMITS the member and sending it, even as `null`, is 422 `estimated_man_days_from_estimate` (omitted is never `null`); EstimAI 404 → `null` with `estimateId` kept, EstimAI unreachable or unconfigured → 503 and nothing written; estimai-api's first `/system/*` route, `GET /system/estimates/{id}/summary` (scope `estimai.estimates.read`, `SERVICE_AUDIENCE` JWT only, one identical 401), reads any estimate regardless of owner or collaborators — the one query not scoped to `sub` — so its answer is only `{ id, name, manDays }`, never content; `manDays` = Expected effort without AI gain, the unrounded sum rounded half up ONCE to one decimal, the formula a byte-identical copy of crm-api `src/offers/scope.ts` (`manDays` group in `scripts/check-shared-copies.ts`; change both in one commit); the router is mounted BEFORE the user-JWT estimates routers in `estimai-api/src/index.ts` (mounted after, it meets their wildcard `jwtMiddleware` and a service credential gets 401); rejected: forwarding the user JWT, a snapshot in crm-api when an estimate is marked ready, the latest offer's figure (see docs/adr/0061-estimai-api-first-system-route-estimate-man-days-for-a-service-credential.md)
