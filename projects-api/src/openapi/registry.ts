@@ -19,11 +19,12 @@ export function setupOpenAPI(app: OpenAPIHono): void {
     },
     servers: [{ url: "http://localhost:8086", description: "Local development" }],
     tags: [
-      { name: "System", description: "Health checks" },
+      { name: "System", description: "Health checks and service-to-service routes (scoped service credential)" },
       { name: "Scope", description: "What the caller may do" },
       { name: "Projects", description: "The delivery work wellD runs" },
       { name: "Contracts", description: "What each client bought on a project" },
       { name: "Companies", description: "CRM companies, read through a service credential" },
+      { name: "Queue", description: "Won deals waiting for a project, and taking one (specs/022)" },
     ],
   });
 

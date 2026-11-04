@@ -43,8 +43,21 @@ const envSchema = z
     CRM_INTERNAL_URL: z.string().url("CRM_INTERNAL_URL must be a valid URL").optional(),
     SERVICE_CLIENT_ID: z.string().min(1).optional(),
     SERVICE_CLIENT_SECRET: z.string().min(32, "SERVICE_CLIENT_SECRET must be at least 32 characters").optional(),
+    // ─── Service credentials accepted on /system/* (specs/022, ADR-0060) ─────
+    // The `aud` of the scoped service JWTs `auth` mints (`POST /system/service-token`);
+    // byte-identical to auth's, and different from AUTH_AUDIENCE so a user JWT is never a
+    // system credential. Optional so the service starts without it; unset, every /system/*
+    // request is a 401 (fail closed). tools/env-doctor lists it as required in production.
+    SERVICE_AUDIENCE: z.string().min(1, "SERVICE_AUDIENCE must not be empty").optional(),
   })
   .superRefine((val, ctx) => {
+    if (val.SERVICE_AUDIENCE !== undefined && val.SERVICE_AUDIENCE === val.AUTH_AUDIENCE) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["SERVICE_AUDIENCE"],
+        message: "SERVICE_AUDIENCE must differ from AUTH_AUDIENCE (ADR-0044)",
+      });
+    }
     const set = CRM_KEYS.filter((key) => val[key] !== undefined);
     if (set.length > 0 && set.length < CRM_KEYS.length) {
       for (const key of CRM_KEYS.filter((k) => val[k] === undefined)) {
