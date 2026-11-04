@@ -15,12 +15,12 @@
 import { OpenAPIHono, createRoute, z } from "@hono/zod-openapi";
 import { PROJECT_MANAGE, assertCanManage, authorized, requireCapability } from "../auth/guards";
 import type { AuthzVariables } from "../auth/authz.middleware";
-import { companyRefs, findActiveCompany, orCrmUnavailable } from "../lib/crm";
+import { companyRefs } from "../lib/crm";
 import { db } from "../lib/db";
 import type { Prisma } from "../lib/generated/prisma/client";
 import { assertVersion, commonErrors, etag, fromDateOnly, IdParams, requireIfMatch, toDateOnly, versionConflict } from "../lib/http";
-import { ProblemError, conflict, notFound, unprocessable, validationHook } from "../lib/problem";
-import { isClientType, type ProjectType } from "../projects/projects.schemas";
+import { ProblemError, notFound, validationHook } from "../lib/problem";
+import { assertTakesContracts, contractCreateData, resolveCompany } from "./create";
 import { ContractParams, ContractSchema, CreateContractSchema, UpdateContractSchema } from "./contracts.schemas";
 import { parseTerms, positionRows, termColumns, termsView, validationFailed } from "./terms";
 
@@ -53,37 +53,6 @@ export async function toContractView(row: ContractRow) {
     terms: termsView(row),
     version: row.version,
   };
-}
-
-// ─── Rules ───────────────────────────────────────────────────────────────────
-
-/**
- * The company a new contract is for (AC-2.2, A12): a client project's own company — another one
- * is a mismatch; any CRM company on a `saas` project, which has none of its own.
- */
-async function resolveCompany(
-  project: { type: ProjectType; companyId: string | null },
-  requested: string | undefined,
-): Promise<string> {
-  if (isClientType(project.type)) {
-    // A client project always has its company (a CHECK); the default needs no CRM lookup.
-    const own = project.companyId!;
-    if (requested !== undefined && requested !== own) {
-      throw unprocessable(
-        "A client project takes contracts for its own company only",
-        { field: "companyId" },
-        "company_mismatch",
-      );
-    }
-    return own;
-  }
-  if (requested === undefined) {
-    throw unprocessable("A company is required for a contract on a saas project", { field: "companyId" }, "company_required");
-  }
-  if (!(await orCrmUnavailable(findActiveCompany(requested)))) {
-    throw unprocessable("The company does not exist in the CRM", { field: "companyId" }, "company_not_found");
-  }
-  return requested;
 }
 
 // ─── Routes ──────────────────────────────────────────────────────────────────
@@ -160,23 +129,13 @@ contractsRouter.openapi(createContractRoute, async (c) => {
   });
   if (!project) throw notFound("Project not found");
   assertCanManage(c, project.entity);
-  if (project.type === "internal") {
-    throw conflict("contracts_not_allowed", "An internal project has no clients and takes no contract");
-  }
-  if (project.state === "closed" || project.state === "cancelled") {
-    throw conflict("project_not_open", `A ${project.state} project takes no new contract`, { state: project.state });
-  }
+  assertTakesContracts(project);
   const terms = parseTerms(project.type, body.terms ?? {});
   const companyId = await resolveCompany(project, body.companyId);
   const row = await db.contract.create({
     data: {
       projectId: id,
-      type: project.type,
-      companyId,
-      startDate: fromDateOnly(body.startDate)!,
-      endDate: fromDateOnly(body.endDate) ?? null,
-      ...termColumns(terms),
-      positions: { create: positionRows(terms) },
+      ...contractCreateData({ type: project.type, companyId, startDate: body.startDate, endDate: body.endDate, terms }),
     },
     include: contractInclude,
   });
