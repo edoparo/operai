@@ -18,8 +18,12 @@ const S3_KEYS = [
   "CRM_S3_SECRET_ACCESS_KEY",
 ] as const;
 
-// specs/019: the notifier's credentials, all or none (decisions D-7).
-const NOTIFY_KEYS = ["NOTIFY_INTERNAL_URL", "SERVICE_CLIENT_ID", "SERVICE_CLIENT_SECRET"] as const;
+// specs/019: the notifier's credentials, all or none (decisions D-7). specs/022: the same service
+// client also reads projects-api (PROJECTS_INTERNAL_URL), and it pushes EstimAI's deal-link
+// notices (ESTIMAI_INTERNAL_URL) and calls activities-api (ACTIVITIES_API_URL, specs/028), so the
+// client is the pair SERVICE_CLIENT_ID + SERVICE_CLIENT_SECRET, required with any of the four URLs
+// and never alone.
+const CLIENT_KEYS = ["SERVICE_CLIENT_ID", "SERVICE_CLIENT_SECRET"] as const;
 
 const envSchema = z.object({
   DATABASE_URL: z.string().min(1, "DATABASE_URL is required"),
@@ -67,6 +71,11 @@ const envSchema = z.object({
   // JWT (`notifications.push emails.send`) at auth. Without the group the
   // notifier is a no-op.
   NOTIFY_INTERNAL_URL: z.string().url("NOTIFY_INTERNAL_URL must be a valid URL").optional(),
+  // ─── projects-api (specs/022, ADR-0060) ────────────────────────────────────
+  // The deal page reads its project and Bexio order id from `GET /system/contracts` as ITSELF,
+  // with the same service client as the notifier (scope `projects.contracts.read`). Optional:
+  // without it the deal page says the delivery side is unavailable and everything else works.
+  PROJECTS_INTERNAL_URL: z.string().url("PROJECTS_INTERNAL_URL must be a valid URL").optional(),
   SERVICE_CLIENT_ID: z.string().min(1).optional(),
   SERVICE_CLIENT_SECRET: z.string().min(32, "SERVICE_CLIENT_SECRET must be at least 32 characters").optional(),
   // ─── estimai-api (specs/024 US-3, ADR-0076) ────────────────────────────────
@@ -101,20 +110,18 @@ const envSchema = z.object({
   if (val.SERVICE_AUDIENCE !== undefined && val.SERVICE_AUDIENCE === val.AUTH_AUDIENCE) {
     ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["SERVICE_AUDIENCE"], message: "SERVICE_AUDIENCE must differ from AUTH_AUDIENCE (ADR-0044)" });
   }
-  for (const [owner, url] of [["ESTIMAI_INTERNAL_URL", val.ESTIMAI_INTERNAL_URL], ["ACTIVITIES_API_URL", val.ACTIVITIES_API_URL]] as const) {
-    if (url === undefined) continue;
-    for (const key of ["SERVICE_CLIENT_ID", "SERVICE_CLIENT_SECRET"] as const) {
-      if (val[key] === undefined) {
-        ctx.addIssue({ code: z.ZodIssueCode.custom, path: [key], message: `${key} is required when ${owner} is set` });
-      }
+  const urlSet =
+    val.NOTIFY_INTERNAL_URL !== undefined ||
+    val.PROJECTS_INTERNAL_URL !== undefined ||
+    val.ESTIMAI_INTERNAL_URL !== undefined ||
+    val.ACTIVITIES_API_URL !== undefined;
+  const clientSet = CLIENT_KEYS.some((key) => val[key] !== undefined);
+  if (urlSet || clientSet) {
+    for (const key of CLIENT_KEYS.filter((k) => val[k] === undefined)) {
+      ctx.addIssue({ code: z.ZodIssueCode.custom, path: [key], message: `${key} is required when NOTIFY_INTERNAL_URL, PROJECTS_INTERNAL_URL, ESTIMAI_INTERNAL_URL, ACTIVITIES_API_URL or the other SERVICE_CLIENT_* is set` });
     }
-  }
-  const notifySet = NOTIFY_KEYS.filter((key) => val[key] !== undefined);
-  if (notifySet.length > 0 && notifySet.length < NOTIFY_KEYS.length) {
-    // With ESTIMAI_INTERNAL_URL or ACTIVITIES_API_URL the service client may stand without the notify URL.
-    const clientOnly = (val.ESTIMAI_INTERNAL_URL !== undefined || val.ACTIVITIES_API_URL !== undefined) && val.NOTIFY_INTERNAL_URL === undefined;
-    for (const key of NOTIFY_KEYS.filter((k) => val[k] === undefined && !(clientOnly && k === "NOTIFY_INTERNAL_URL"))) {
-      ctx.addIssue({ code: z.ZodIssueCode.custom, path: [key], message: `${key} is required when any of NOTIFY_INTERNAL_URL, SERVICE_CLIENT_ID, SERVICE_CLIENT_SECRET is set` });
+    if (!urlSet) {
+      ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["NOTIFY_INTERNAL_URL"], message: "NOTIFY_INTERNAL_URL, PROJECTS_INTERNAL_URL, ESTIMAI_INTERNAL_URL or ACTIVITIES_API_URL is required when SERVICE_CLIENT_* is set" });
     }
   }
   const set = S3_KEYS.filter((key) => val[key] !== undefined);
