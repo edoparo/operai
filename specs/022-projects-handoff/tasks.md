@@ -161,7 +161,7 @@ Errors are `application/problem+json` with a `code`, as in specs/021. `CompanyRe
 - [x] T1: auth — `crm.deals.read`, `estimai.estimates.read`, `projects.contracts.read` service scopes — refs: AC-1.1, AC-3.1, AC-3.4 — deps: none
   - touch: `auth/src/system/serviceClients.ts`, `auth/src/system/serviceClients.test.ts`
   - done when: `cd auth && bun test src/system` is green with a test that a `SERVICE_CLIENTS` entry carrying each new scope is accepted and an unknown scope still refuses to start.
-- [ ] T2: estimai-api — `GET /system/estimates/{id}/summary` behind `estimai.estimates.read`; man-days formula copied from crm-api under a `manDays` shared-copy group — refs: AC-3.1 — deps: none
+- [x] T2: estimai-api — `GET /system/estimates/{id}/summary` behind `estimai.estimates.read`; man-days formula copied from crm-api under a `manDays` shared-copy group — refs: AC-3.1 — deps: none
   - touch: `estimai-api/src/system/**`, `estimai-api/src/index.ts`, `estimai-api/src/lib/env.ts`, `estimai-api/src/openapi/registry.ts`, `crm-api/src/offers/scope.ts`, `scripts/check-shared-copies.ts`
   - done when: `cd estimai-api && bun run typecheck && bun test` is green with tests that a scoped service JWT gets `200 { id, name, manDays }` for an estimate it neither owns nor collaborates on; a user JWT, another scope and no token get the identical `401`; an unknown id is `404`; `manDays` equals crm-api's `totalManDays(estimate, false)` to one decimal on the shared vectors of `crm-api/src/offers/scope.test.ts`; `bun scripts/check-shared-copies.ts` exits 0 with the `manDays` group; crm-api `bun test src/offers` still green.
 - [ ] T3: crm-api — `GET /system/deals` behind `crm.deals.read` — refs: AC-1.1, AC-2.1, AC-2.2, AC-2.3 — deps: none

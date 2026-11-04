@@ -42,6 +42,11 @@ export const SHARED_COPIES: readonly SharedGroup[] = [
     ],
     why: "the auth service-token client (ADR-0044/0049/0056); a fix to one copy must reach every copy",
   },
+  {
+    name: "manDays",
+    files: ["crm-api/src/offers/scope.ts", "estimai-api/src/system/manDays.ts"],
+    why: "the Expected-effort arithmetic behind a contract's man-days (specs/022, ADR-0061); estimai-ui's pertCalc is the source of truth",
+  },
 ];
 
 export type Region = { ok: true; lines: string[]; startLine: number } | { ok: false; reason: string };
