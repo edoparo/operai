@@ -120,8 +120,9 @@ export type DealListQuery = PageQuery & {
   q?: string
   stage?: DealStage | ''
   open?: boolean
-  /** Open deals plus this year's won and lost ones (the pipeline board). */
+  /** Open deals plus the won and lost ones of `year`, this year by default (the pipeline board). */
   board?: boolean
+  year?: number
   companyId?: string
   ownerId?: string
   entity?: Entity | ''
@@ -158,7 +159,9 @@ export const moveDealStage = (id: string, version: number, stage: DealStage, los
     lostReason !== undefined && lostReason !== '' ? { stage, lostReason } : { stage },
     version,
   )
-export const getPipeline = (entity?: Entity | '', init?: Init) => getJson<Pipeline>(`/pipeline${query({ entity })}`, init)
+/** `year`: whose won and lost deals count (specs/017 AC-3.6); this year when absent. */
+export const getPipeline = (entity?: Entity | '', init?: Init, year?: number) =>
+  getJson<Pipeline>(`/pipeline${query({ entity, ...(year !== undefined ? { year } : {}) })}`, init)
 
 // ─── Activities and tasks ───────────────────────────────────────────────────
 

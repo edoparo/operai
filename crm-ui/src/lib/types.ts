@@ -257,7 +257,8 @@ export type OfferDraft = {
 export type PipelineTotal = { currency: Currency; amountCents: number; weightedCents: number }
 /** `totals` is left out for a caller without `deal:financials`. */
 export type PipelineStage = { stage: DealStage; count: number; totals?: PipelineTotal[] }
-export type Pipeline = { probabilities: Record<DealStage, number>; year: number; stages: PipelineStage[] }
+/** `years`: the years with won or lost deals, newest first (the board's year picker); absent from an older server. */
+export type Pipeline = { probabilities: Record<DealStage, number>; year: number; years?: number[]; stages: PipelineStage[] }
 
 export type ActivityTask = {
   dueDate: string | null

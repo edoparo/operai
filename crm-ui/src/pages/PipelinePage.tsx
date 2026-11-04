@@ -34,6 +34,8 @@ export default function PipelinePage() {
   const currentUserId = useCurrentUserId()
   const { canManageDeals, canManageDealsOf } = useCrmCapabilities()
   const [entity, setEntity] = useState<Entity | ''>('')
+  /** The calendar year whose won and lost deals show (AC-3.6); null = this year, the server's. */
+  const [year, setYear] = useState<number | null>(null)
   const [creating, setCreating] = useState(false)
   /** A move in flight: the deal is drawn in its target column until the board reloads. */
   const [moving, setMoving] = useState<{ id: string; stage: DealStage } | null>(null)
@@ -48,12 +50,14 @@ export default function PipelinePage() {
   const load = useCallback(
     (signal: AbortSignal) =>
       Promise.all([
-        getPipeline(entity, { signal }),
-        listDeals({ board: true, entity, pageSize: BOARD_PAGE_SIZE }, { signal }),
+        getPipeline(entity, { signal }, year ?? undefined),
+        listDeals({ board: true, entity, ...(year !== null ? { year } : {}), pageSize: BOARD_PAGE_SIZE }, { signal }),
       ]),
-    [entity],
+    [entity, year],
   )
   const board = useResource(load)
+  const shownYear = board.data?.[0].year ?? year ?? new Date().getFullYear()
+  const years = board.data?.[0].years ?? [shownYear]
 
   const moved = (stage: DealStage) => {
     setMoving(null)
@@ -158,7 +162,7 @@ export default function PipelinePage() {
         }
       />
       <div className="flex flex-col gap-4">
-        <div className="max-w-xs">
+        <div className="grid max-w-xl grid-cols-1 items-start gap-3 sm:grid-cols-2">
           <Field label={t.entityFilter} testId="crm-pipeline-entity">
             {(control) => (
               <select {...control} value={entity} onChange={(event) => setEntity(event.target.value as Entity | '')}>
@@ -166,6 +170,21 @@ export default function PipelinePage() {
                 {ENTITIES.map((option) => (
                   <option key={option} value={option}>
                     {strings.badges.entity[option]}
+                  </option>
+                ))}
+              </select>
+            )}
+          </Field>
+          <Field label={t.yearFilter} hint={t.yearHint} testId="crm-pipeline-year">
+            {(control) => (
+              <select
+                {...control}
+                value={shownYear}
+                onChange={(event) => setYear(Number(event.target.value))}
+              >
+                {(years.includes(shownYear) ? years : [shownYear, ...years]).map((option) => (
+                  <option key={option} value={option}>
+                    {option}
                   </option>
                 ))}
               </select>

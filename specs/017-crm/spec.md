@@ -125,6 +125,10 @@ the pipeline without a spreadsheet.
   2026-11-01, D-25).
 - AC-3.5 A user without the capability, or outside its entity scope, sees deals but no
   create/edit/move controls; the server refuses such a write with 403.
+- AC-3.6 The board's open columns show every open deal, whatever year it started in. Won and
+  Lost, and their totals, show the deals closed in one calendar year: the current one by
+  default, or another chosen in a year picker that offers this year and every year a deal
+  was won or lost in (owner, 2026-11-04).
 
 ### US-4 Activities and tasks
 As a CRM user, I want to log calls, meetings, emails and notes and to set follow-up tasks,

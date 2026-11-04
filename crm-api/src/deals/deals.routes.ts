@@ -25,7 +25,7 @@ import {
 import type { AuthzVariables } from "../auth/authz.middleware";
 import { inScope, type Entity } from "../authz/conditions";
 import { db } from "../lib/db";
-import type { Prisma } from "../lib/generated/prisma/client";
+import { Prisma } from "../lib/generated/prisma/client";
 import {
   DateOnlySchema,
   EntitySchema,
@@ -70,6 +70,8 @@ const StageSchema = z.enum(DEAL_STAGES);
 const CurrencySchema = z.enum(["CHF", "EUR"]);
 /** Integer minor units, ≥ 0, ≤ 10^13 (a safe JS integer on the wire, D-9). */
 const AmountSchema = z.number().int().min(0).max(10_000_000_000_000);
+/** A calendar year the board can show: wide enough for any real deal, narrow enough to be a year. */
+const BoardYearSchema = z.coerce.number().int().min(2000).max(2100);
 
 const CreateDealSchema = z
   .object({
@@ -114,6 +116,8 @@ const ListDealsQuery = z.object({
   // The pipeline board: open deals plus the deals won or lost this calendar year (the same
   // set `GET /pipeline` totals), so the board's Won and Lost columns match its figures.
   board: z.enum(["true"]).optional(),
+  // specs/017 AC-3.6: the calendar year whose won and lost deals the board shows (this one by default).
+  year: BoardYearSchema.optional(),
   companyId: z.string().max(64).optional(),
   ownerId: z.string().max(64).optional(),
   entity: EntitySchema.optional(),
@@ -167,8 +171,22 @@ const DealSchema = DealSummarySchema.extend({
 });
 
 /** Open deals, plus deals closed in the current UTC calendar year (D-10). */
-function boardWhere(now = new Date()): { year: number; where: Prisma.DealWhereInput } {
-  const year = now.getUTCFullYear();
+/** The years a deal was won or lost in, newest first, with this year always offered (AC-3.6). */
+async function closedYears(entity: "welld_ch" | "welld_it" | undefined): Promise<number[]> {
+  const rows = await db.$queryRaw<{ year: number }[]>`
+    SELECT DISTINCT EXTRACT(YEAR FROM "closedAt" AT TIME ZONE 'UTC')::int AS "year"
+    FROM "deal"
+    WHERE "closedAt" IS NOT NULL ${entity ? Prisma.sql`AND "entity" = ${entity}::"Entity"` : Prisma.empty}`;
+  const years = new Set([new Date().getUTCFullYear(), ...rows.map((row) => row.year)]);
+  return [...years].sort((a, b) => b - a);
+}
+
+/**
+ * The board (AC-3.4, AC-3.6): every open deal, whatever its age, plus the deals won or lost
+ * in one calendar year, this one unless another is asked for.
+ */
+function boardWhere(asked?: number): { year: number; where: Prisma.DealWhereInput } {
+  const year = asked ?? new Date().getUTCFullYear();
   const yearStart = new Date(Date.UTC(year, 0, 1));
   const nextYearStart = new Date(Date.UTC(year + 1, 0, 1));
   return {
@@ -191,6 +209,8 @@ const CurrencyTotalsSchema = z.object({
 const PipelineSchema = z.object({
   probabilities: z.record(StageSchema, z.number()),
   year: z.number().int(),
+  /** The years with won or lost deals, newest first, this year always included (the year picker). */
+  years: z.array(z.number().int()),
   // `totals` is left out for a caller without deal:financials (specs/018 US-1).
   stages: z.array(
     z.object({ stage: StageSchema, count: z.number().int(), totals: z.array(CurrencyTotalsSchema).optional() }),
@@ -407,7 +427,7 @@ const pipelineRoute = createRoute({
   tags: ["Deals"],
   summary: "Pipeline totals per stage and currency",
   middleware: authorized,
-  request: { query: z.object({ entity: EntitySchema.optional() }) },
+  request: { query: z.object({ entity: EntitySchema.optional(), year: BoardYearSchema.optional() }) },
   responses: { 200: { description: "The pipeline", ...json(PipelineSchema) }, ...commonErrors },
 });
 
@@ -416,10 +436,10 @@ export const dealsRouter = new OpenAPIHono<{ Variables: AuthzVariables }>({
 });
 
 dealsRouter.openapi(listRoute, async (c) => {
-  const { q, stage, open, board, companyId, ownerId, entity, page, pageSize } = c.req.valid("query");
+  const { q, stage, open, board, year, companyId, ownerId, entity, page, pageSize } = c.req.valid("query");
   const stageFilter: Prisma.DealWhereInput =
     board === "true"
-      ? { AND: [boardWhere().where, ...(stage !== undefined ? [{ stage }] : [])] }
+      ? { AND: [boardWhere(year).where, ...(stage !== undefined ? [{ stage }] : [])] }
       : stage !== undefined
       ? { stage }
       : open === "true"
@@ -611,8 +631,8 @@ dealsRouter.openapi(stageRoute, async (c) => {
 });
 
 dealsRouter.openapi(pipelineRoute, async (c) => {
-  const { entity } = c.req.valid("query");
-  const { year, where } = boardWhere();
+  const { entity, year: asked } = c.req.valid("query");
+  const { year, where } = boardWhere(asked);
   const deals = await db.deal.findMany({
     where: { ...where, ...(entity ? { entity } : {}) },
     select: { stage: true, currency: true, amountCents: true },
@@ -622,6 +642,7 @@ dealsRouter.openapi(pipelineRoute, async (c) => {
     {
       probabilities: { ...STAGE_PROBABILITY },
       year,
+      years: await closedYears(entity),
       stages: canSeeFinancials(c) ? stages : stages.map(({ totals: _t, ...counts }) => counts),
     },
     200,

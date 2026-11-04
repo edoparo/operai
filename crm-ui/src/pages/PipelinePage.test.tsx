@@ -56,17 +56,20 @@ type BoardOptions = {
   move?: (body: { stage: string }) => { status: number; body: unknown }
 }
 
+/** The pipeline answers for the year it was asked (AC-3.6), offering 2026 and 2025. */
+const yearOf = (url: URL) => ({ year: Number(url.searchParams.get('year') ?? 2026), years: [2026, 2025] })
+
 const renderBoard = async ({ financials = true, move: answerMove }: BoardOptions = {}) => {
   const moves: Moved[] = []
   const boardQueries: string[] = []
   apiFetch.mockImplementation(
     fakeApi({
       'GET /scope': () => ({ status: 200, body: { deal: ['welld_ch'], canErase: false, financials, managesAll: false } }),
-      'GET /pipeline': () => ({
+      'GET /pipeline': (url) => ({
         status: 200,
         body: financials
-          ? { ...PIPELINE, stages: STAGES.map((stage) => ({ stage, count: 1, totals: [{ currency: 'CHF', amountCents: 5_000_000, weightedCents: 2_500_000 }] })) }
-          : { ...PIPELINE, stages: STAGES.map((stage) => ({ stage, count: 1 })) },
+          ? { ...PIPELINE, ...yearOf(url), stages: STAGES.map((stage) => ({ stage, count: 1, totals: [{ currency: 'CHF', amountCents: 5_000_000, weightedCents: 2_500_000 }] })) }
+          : { ...PIPELINE, ...yearOf(url), stages: STAGES.map((stage) => ({ stage, count: 1 })) },
       }),
       'GET /deals': (url) => {
         boardQueries.push(url.search)
@@ -92,7 +95,7 @@ const renderBoard = async ({ financials = true, move: answerMove }: BoardOptions
   window.history.pushState(null, '', '/pipeline')
   render(<RouterProvider router={createAppRouter(undefined, CrmShell)} />)
   await screen.findByTestId('crm-pipeline-board')
-  return { moves, boardQueries }
+  return { moves, boardQueries, pipelineQueries: () => apiFetch.mock.calls.map(([input]) => new URL(String(input))).filter((u) => u.pathname === '/pipeline') }
 }
 
 /** Lays the six lanes out side by side; a card (and the drag overlay over it) sits at the top left of its lane. */
@@ -236,4 +239,17 @@ describe('PipelinePage board', () => {
     // Not the stale-record banner: the deal is fine, the gate said no.
     expect(screen.queryByTestId('crm-stale-write')).toBeNull()
   })
+
+  it('a year picker shows another year\'s won and lost; open deals stay whatever the year (AC-3.6)', async () => {
+    const { boardQueries, pipelineQueries } = await renderBoard()
+    const select = screen.getByLabelText(/Won and lost in/) as HTMLSelectElement
+    expect(Array.from(select.options).map((o) => o.textContent)).toEqual(['2026', '2025'])
+    expect(select.value).toBe('2026')
+    expect(screen.getAllByText('Closed in 2026').length).toBeGreaterThan(0)
+    fireEvent.change(select, { target: { value: '2025' } })
+    await waitFor(() => expect(boardQueries.at(-1)).toContain('year=2025'))
+    expect(pipelineQueries().at(-1)!.searchParams.get('year')).toBe('2025')
+    expect((await screen.findAllByText('Closed in 2025')).length).toBeGreaterThan(0)
+  })
 })
+

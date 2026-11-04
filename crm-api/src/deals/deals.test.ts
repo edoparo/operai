@@ -156,3 +156,32 @@ describe("deals (US-3)", () => {
     expect((await call("GET", "/pipeline?entity=welld_it")).json.stages[1].count).toBe(0);
   });
 });
+
+describe("the board's calendar year (specs/017 AC-3.6)", () => {
+  it("shows every open deal, and the won and lost deals of the year asked for, this one by default", async () => {
+    const company = await makeCompany();
+    const year = new Date().getUTCFullYear();
+    const open = await makeDeal(company.id, { title: "Still open" });
+    await db.deal.update({ where: { id: open.id }, data: { createdAt: new Date(Date.UTC(year - 2, 5, 1)) } });
+    const closed = async (title: string, stage: "won" | "lost", when: Date) => {
+      const deal = await makeDeal(company.id, { title });
+      await db.deal.update({ where: { id: deal.id }, data: { stage, closedAt: when } });
+    };
+    await closed("Won this year", "won", new Date(Date.UTC(year, 0, 15)));
+    await closed("Won last year", "won", new Date(Date.UTC(year - 1, 11, 31, 23, 0)));
+    await closed("Lost last year", "lost", new Date(Date.UTC(year - 1, 3, 1)));
+
+    const titles = async (query: string) =>
+      (await call("GET", `/deals?board=true${query}`)).json.items.map((d: { title: string }) => d.title).sort();
+    expect(await titles("")).toEqual(["Still open", "Won this year"]);
+    expect(await titles(`&year=${year - 1}`)).toEqual(["Lost last year", "Still open", "Won last year"]);
+
+    const last = await call("GET", `/pipeline?year=${year - 1}`, { as: "salesCh" });
+    expect(last.json.year).toBe(year - 1);
+    expect(last.json.stages.find((s: { stage: string }) => s.stage === "won").count).toBe(1);
+    expect(last.json.stages.find((s: { stage: string }) => s.stage === "lead").count).toBe(1);
+    // the picker: years with closed deals, newest first, this year always there
+    expect(last.json.years).toEqual([year, year - 1]);
+    expect((await call("GET", "/pipeline?year=1999")).status).toBe(422);
+  });
+});
