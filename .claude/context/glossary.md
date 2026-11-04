@@ -140,7 +140,15 @@
   shows only pre-sales ones; the project module shows both, pre-sales ones badged.
   _Avoid:_ inbox, my work.
 
+### Projects hand-off (specs/022)
+- **To-start queue**: the won CRM deals no project has taken yet; computed live from the
+  CRM on every read, never stored. _Avoid:_ backlog, inbox.
+- **A contract's deal**: the won deal a contract was made from; the contract keeps the
+  deal's id and its estimate id. A hand-entered contract has none.
+
 ## Relationships
+- A won deal feeds at most one contract, hence one project; a project may gather several
+  deals, each through its own contract.
 - An **Asset** belongs to exactly one entity for its whole life and has at most one
   **Holder** and at most one `pending` **Assignment** at a time.
 - An **Asset** has exactly one **Schedule**, produced by the one **Depreciation rule** in
