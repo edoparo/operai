@@ -700,3 +700,102 @@ describe('contracts (AC-2.2, AC-2.10)', () => {
     expect(await screen.findByTestId('contract-terms')).not.toBeNull()
   })
 })
+
+describe('contracts made from a deal (AC-2.3, AC-2.4, AC-3.2, AC-3.3)', () => {
+  const dealOf = (id: string, won: boolean | null, title: string | null = 'Website relaunch') => ({
+    id: `d-${id}`,
+    title,
+    won,
+  })
+  const summaryFromDeal = (id: string, won: boolean | null, title: string | null = 'Website relaunch') => ({
+    ...CONTRACT,
+    id,
+    origin: 'deal' as const,
+    deal: dealOf(id, won, title),
+  })
+  const fullFromDeal = (id: string, won: boolean | null, title: string | null = 'Website relaunch'): Contract => ({
+    ...fullContract(id),
+    origin: 'deal',
+    dealId: `d-${id}`,
+    deal: dealOf(id, won, title),
+    estimate: { id: 'est-1' },
+  })
+  const project = (...contracts: ReturnType<typeof summaryFromDeal>[]) =>
+    projectDetail({ contracts, startDate: '2026-02-01', endDate: null })
+
+  it('says on the page and on the card that the deal is no longer won, and changes nothing else', async () => {
+    await renderProject(project(summaryFromDeal('k1', false)), {
+      'GET /projects/p1/contracts/k1': () => ({ status: 200, body: fullFromDeal('k1', false) }),
+    })
+    const notice = screen.getByTestId('project-deal-not-won')
+    expect(notice.textContent).toContain('The deal is no longer won')
+    expect(notice.textContent).toContain('Website relaunch')
+    expect(await screen.findByTestId('contract-deal-not-won')).not.toBeNull()
+    // The project and its contract are as they were: the controls and the state are untouched (AC-2.3).
+    expect(screen.getByTestId('project-facts').textContent).toContain('01.02.2026')
+    expect(screen.getByRole('button', { name: 'Edit' })).not.toBeNull()
+  })
+
+  it('names every reopened deal behind the project', async () => {
+    await renderProject(
+      project(summaryFromDeal('k1', false, 'Website relaunch'), summaryFromDeal('k2', false, 'Support retainer')),
+      {
+        'GET /projects/p1/contracts/k1': () => ({ status: 200, body: fullFromDeal('k1', false, 'Website relaunch') }),
+        'GET /projects/p1/contracts/k2': () => ({ status: 200, body: fullFromDeal('k2', false, 'Support retainer') }),
+      },
+    )
+    const notice = screen.getByTestId('project-deal-not-won')
+    expect(notice.textContent).toContain('Website relaunch')
+    expect(notice.textContent).toContain('Support retainer')
+  })
+
+  it('names only the reopened deal when another deal is still won', async () => {
+    await renderProject(
+      project(summaryFromDeal('k1', false, 'Website relaunch'), summaryFromDeal('k2', true, 'Support retainer')),
+      {
+        'GET /projects/p1/contracts/k1': () => ({ status: 200, body: fullFromDeal('k1', false, 'Website relaunch') }),
+        'GET /projects/p1/contracts/k2': () => ({ status: 200, body: fullFromDeal('k2', true, 'Support retainer') }),
+      },
+    )
+    const notice = screen.getByTestId('project-deal-not-won')
+    expect(notice.textContent).toContain('Website relaunch')
+    expect(notice.textContent).not.toContain('Support retainer')
+    await waitFor(() => expect(screen.getAllByTestId('contract-terms')).toHaveLength(2))
+    expect(screen.getAllByTestId('contract-deal-not-won')).toHaveLength(1)
+  })
+
+  it.each([
+    ['won again (AC-2.4)', true],
+    ['not known, the CRM not answering', null],
+  ])('shows no notice anywhere when the deal is %s', async (_name, won) => {
+    await renderProject(project(summaryFromDeal('k1', won, won === null ? null : 'Website relaunch')), {
+      'GET /projects/p1/contracts/k1': () => ({
+        status: 200,
+        body: fullFromDeal('k1', won, won === null ? null : 'Website relaunch'),
+      }),
+    })
+    await screen.findByTestId('contract-terms')
+    expect(screen.queryByTestId('project-deal-not-won')).toBeNull()
+    expect(screen.queryByTestId('contract-deal-not-won')).toBeNull()
+    expect(document.body.textContent).not.toContain('no longer won')
+  })
+
+  it('shows no notice for a contract entered by hand', async () => {
+    await renderProject(projectDetail({ contracts: [CONTRACT], startDate: '2026-02-01', endDate: null }))
+    await screen.findByTestId('contract-terms')
+    expect(screen.queryByTestId('project-deal-not-won')).toBeNull()
+  })
+
+  it('shows the deal on the card as a link to the CRM, with the origin and the estimate link', async () => {
+    await renderProject(project(summaryFromDeal('k1', true)), {
+      'GET /projects/p1/contracts/k1': () => ({ status: 200, body: fullFromDeal('k1', true) }),
+    })
+    const card = await screen.findByTestId('contract-k1')
+    await within(card).findByTestId('contract-terms')
+    expect(within(card).getByRole('link', { name: 'Website relaunch' }).getAttribute('href')).toBe('/crm/deals/d-k1')
+    expect(card.textContent).toContain('From a deal')
+    expect(within(card).getByRole('link', { name: 'Open the estimate' }).getAttribute('href')).toBe(
+      '/estimai/estimates/est-1',
+    )
+  })
+})

@@ -310,3 +310,81 @@ describe('the Bexio order id (AC-3.1)', () => {
     await waitFor(() => expect(onStale).toHaveBeenCalledTimes(1))
   })
 })
+
+describe('a contract made from a deal (AC-3.2, AC-3.3, AC-2.3, AC-2.4)', () => {
+  const FIXED = { deadline: '2026-12-01', estimatedManDays: 12.5, maxEffortManDays: 40 }
+  const fromDeal = (won: boolean | null, over: Partial<Contract> = {}) =>
+    contractOf('fixed_price', FIXED, {
+      origin: 'deal',
+      dealId: 'd1',
+      deal: { id: 'd1', title: 'Website relaunch', won },
+      estimate: { id: 'est-1' },
+      ...over,
+    })
+
+  it('shows the deal’s title as a link to the CRM, and the origin "from a deal"', async () => {
+    const card = await renderCard(fromDeal(true))
+    expect(within(card).getByRole('link', { name: 'Website relaunch' }).getAttribute('href')).toBe('/crm/deals/d1')
+    expect(card.textContent).toContain('From a deal')
+    expect(card.textContent).not.toContain('Entered by hand')
+  })
+
+  it('shows the estimate as a link that opens it in EstimAI', async () => {
+    const card = await renderCard(fromDeal(true))
+    expect(within(card).getByRole('link', { name: 'Open the estimate' }).getAttribute('href')).toBe(
+      '/estimai/estimates/est-1',
+    )
+  })
+
+  it('has no estimate link when the deal had no estimate', async () => {
+    const card = await renderCard(fromDeal(true, { estimate: null }))
+    expect(within(card).queryByRole('link', { name: 'Open the estimate' })).toBeNull()
+  })
+
+  it('a contract entered by hand has neither a deal nor an estimate link', async () => {
+    const card = await renderCard(contractOf('fixed_price', FIXED))
+    expect(card.textContent).toContain('Entered by hand')
+    expect(within(card).queryByRole('link')).toBeNull()
+  })
+
+  it('keeps the link to the deal when the CRM could not name it', async () => {
+    const card = await renderCard(fromDeal(null, { deal: { id: 'd1', title: null, won: null } }))
+    expect(within(card).getByRole('link', { name: 'Deal title unavailable' }).getAttribute('href')).toBe(
+      '/crm/deals/d1',
+    )
+  })
+
+  it('says "the deal is no longer won" when the deal was reopened, and changes nothing else (AC-2.3)', async () => {
+    const card = await renderCard(fromDeal(false))
+    expect(within(card).getByTestId('contract-deal-not-won').textContent).toContain('The deal is no longer won')
+    expect(within(card).getByRole('button', { name: 'Edit' })).not.toBeNull()
+    expect(card.textContent).toContain('12.5 man-days')
+  })
+
+  it.each([
+    ['won again (AC-2.4)', true],
+    ['not known because the CRM could not answer', null],
+  ])('has no notice when the deal is %s', async (_name, won) => {
+    const card = await renderCard(fromDeal(won))
+    expect(within(card).queryByTestId('contract-deal-not-won')).toBeNull()
+    expect(card.textContent).not.toContain('no longer won')
+  })
+
+  it('has no notice on a contract entered by hand', async () => {
+    const card = await renderCard(contractOf('fixed_price', FIXED))
+    expect(within(card).queryByTestId('contract-deal-not-won')).toBeNull()
+  })
+
+  it('offers no way to detach it from its deal or move it to another project (AC-1.7)', async () => {
+    const card = await renderCard(fromDeal(true), scope({ manage: ['welld_ch'], bexio: true }))
+    const controls = [...within(card).queryAllByRole('button'), ...within(card).queryAllByRole('link')]
+      .map((control) => control.textContent)
+      .join(' | ')
+    expect(controls).toContain('End contract')
+    expect(controls).not.toMatch(/detach|unlink|move|reassign|delet|scollega|sposta/i)
+    fireEvent.click(within(card).getByRole('button', { name: 'Edit' }))
+    const dialog = await screen.findByRole('dialog', { name: 'Edit contract' })
+    expect(within(dialog).queryByRole('combobox')).toBeNull()
+    expect(dialog.textContent).not.toMatch(/detach|unlink|move|reassign|scollega|sposta/i)
+  })
+})

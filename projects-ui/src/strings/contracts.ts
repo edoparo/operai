@@ -23,6 +23,14 @@ const en = {
     openEnded: 'Open-ended',
     origin: 'Origin',
     origins: { manual: 'Entered by hand', deal: 'From a deal' },
+    deal: 'Deal',
+    dealUnavailable: 'Deal title unavailable',
+    estimate: 'Estimate',
+    openEstimate: 'Open the estimate',
+    dealNotWon: {
+      title: 'The deal is no longer won',
+      body: 'It was reopened in the CRM. This contract is unchanged.',
+    },
     companyUnavailable: 'Company unavailable',
     kinds: { capacity: 'Capacity package', yearly: 'Yearly package' } as Record<HourPackageKind, string>,
     deadline: 'Deadline',
@@ -69,6 +77,8 @@ const en = {
     deadline: 'Deadline',
     estimatedManDays: 'Estimated man-days',
     estimatedManDaysHint: 'Optional, one decimal.',
+    estimatedFromEstimate: (value: string) => `${value} man-days, from the estimate`,
+    estimatedFromEstimateNone: 'None: the estimate gave no man-days',
     maxEffortManDays: 'Max effort (man-days)',
     maxEffortManDaysHint: 'One decimal. Work beyond it is not covered by the contract.',
     withSla: 'Include an SLA',
@@ -121,6 +131,7 @@ const en = {
     crm_unavailable: 'The CRM cannot be reached right now. Try again in a moment.',
     maintenance_needs_sla_or_hours: 'Add an SLA, an hour package, or both.',
     out_of_scope: 'You may not change the contracts of this entity.',
+    estimated_man_days_from_estimate: 'The estimated man-days come from the deal’s estimate and cannot be changed.',
   },
 }
 
@@ -146,6 +157,14 @@ const it: typeof en = {
     openEnded: 'Senza scadenza',
     origin: 'Origine',
     origins: { manual: 'Inserito a mano', deal: 'Da una trattativa' },
+    deal: 'Trattativa',
+    dealUnavailable: 'Titolo della trattativa non disponibile',
+    estimate: 'Stima',
+    openEstimate: 'Apri la stima',
+    dealNotWon: {
+      title: 'La trattativa non è più vinta',
+      body: 'È stata riaperta nel CRM. Questo contratto resta invariato.',
+    },
     companyUnavailable: 'Azienda non disponibile',
     kinds: { capacity: 'Pacchetto a capacità', yearly: 'Pacchetto annuale' },
     deadline: 'Scadenza',
@@ -192,6 +211,8 @@ const it: typeof en = {
     deadline: 'Scadenza',
     estimatedManDays: 'Giornate stimate',
     estimatedManDaysHint: 'Facoltative, con un decimale.',
+    estimatedFromEstimate: (value: string) => `${value} giorni-uomo, dalla stima`,
+    estimatedFromEstimateNone: 'Nessuno: la stima non indicava giorni-uomo',
     maxEffortManDays: 'Impegno massimo (giornate)',
     maxEffortManDaysHint: 'Con un decimale. Il lavoro oltre questo limite non è coperto dal contratto.',
     withSla: 'Includi uno SLA',
@@ -245,6 +266,8 @@ const it: typeof en = {
     crm_unavailable: 'Il CRM al momento non è raggiungibile. Riprova tra poco.',
     maintenance_needs_sla_or_hours: 'Aggiungi uno SLA, un pacchetto orario, o entrambi.',
     out_of_scope: 'Non puoi modificare i contratti di questa entità.',
+    estimated_man_days_from_estimate:
+      'I giorni-uomo stimati arrivano dalla stima della trattativa e non si modificano.',
   },
 }
 

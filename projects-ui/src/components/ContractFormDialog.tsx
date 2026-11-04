@@ -1,8 +1,9 @@
 import { useRef, useState } from 'react'
-import { DateInput, Field, FormDialog, focusFirstInvalid } from '@operai/ui'
+import { DateInput, Field, FormDialog, focusFirstInvalid, formatNumber } from '@operai/ui'
 import { ApiError, isStaleWrite } from '../lib/api'
 import { emptyTermsForm, termsFormOf, termsInputOf } from '../lib/contractTerms'
 import type { TermsErrors, TermsForm } from '../lib/contractTerms'
+import { withoutEstimatedManDays } from '../lib/dealContract'
 import { codeOf, errorMessage, fieldErrorOf } from '../lib/errors'
 import { createContract, updateContract } from '../lib/projectsApi'
 import type { CompanyChoice, CompanyRef, Contract, Project } from '../lib/types'
@@ -20,7 +21,13 @@ const REFUSAL_FIELD: Record<string, string> = {
   maintenance_needs_sla_or_hours: 'terms',
 }
 /** Server `code`s that are about the dialog as a whole. */
-const DIALOG_REFUSALS = ['contracts_not_allowed', 'project_not_open', 'crm_unavailable', 'out_of_scope'] as const
+const DIALOG_REFUSALS = [
+  'contracts_not_allowed',
+  'project_not_open',
+  'crm_unavailable',
+  'out_of_scope',
+  'estimated_man_days_from_estimate',
+] as const
 
 const isFieldKey = (field: string): boolean =>
   field === 'startDate' ||
@@ -73,6 +80,14 @@ export default function ContractFormDialog({
   const [initial] = useState(() => JSON.stringify([contract?.startDate ?? '', contract?.endDate ?? '', initialTerms]))
 
   const dirty = JSON.stringify([startDate, endDate, terms]) !== initial
+  // A contract the estimate backs takes its man-days from it: shown read-only, never sent (AC-3.1).
+  const estimateBacked = contract?.estimate != null && type === 'fixed_price'
+  const lockedManDays =
+    contract !== undefined && 'estimatedManDays' in contract.terms && contract.terms.estimatedManDays !== null
+      ? strings.contracts.form.estimatedFromEstimate(
+          formatNumber(contract.terms.estimatedManDays, { maximumFractionDigits: 1 }),
+        )
+      : strings.contracts.form.estimatedFromEstimateNone
   const pickCompany = !editing && type === 'saas'
   const ownCompany: CompanyRef | null = contract?.company ?? project.company
 
@@ -85,7 +100,10 @@ export default function ContractFormDialog({
       found['endDate'] = strings.contracts.errors.endBeforeStart
     if (pickCompany && company === null) found['companyId'] = t.companyRequired
     const checked = termsInputOf(type, terms)
-    return { errors: { ...found, ...checked.errors }, input: checked.input }
+    return {
+      errors: { ...found, ...checked.errors },
+      input: estimateBacked ? withoutEstimatedManDays(checked.input) : checked.input,
+    }
   }
 
   const submit = () => {
@@ -189,6 +207,7 @@ export default function ContractFormDialog({
           terms={terms}
           errors={errors}
           onChange={patchTerms}
+          estimatedManDaysReadOnly={estimateBacked ? lockedManDays : undefined}
           testIdPrefix="contract-form"
         />
       </div>

@@ -1,9 +1,10 @@
 import { useCallback, useId, useState } from 'react'
-import { Button, DataTable, DateInput, Field, FactList, FormDialog, formatDate, formatNumber } from '@operai/ui'
+import { Banner, Button, DataTable, DateInput, Field, FactList, FormDialog, formatDate, formatNumber } from '@operai/ui'
 import type { DataTableColumn, Fact } from '@operai/ui'
 import { useResource } from '../hooks/useResource'
 import { isStaleWrite } from '../lib/api'
 import { errorMessage, fieldErrorOf } from '../lib/errors'
+import { crmDealHref, estimaiEstimateHref } from '../lib/links'
 import { getContract, updateContract } from '../lib/projectsApi'
 import type { Contract, ContractSummary, HourPackage, Position, Project, Sla } from '../lib/types'
 import { strings } from '../strings'
@@ -147,7 +148,11 @@ function EndContractDialog({
 
 /**
  * ContractCard — one contract of a project (AC-2.1): its client, origin, dates,
- * Bexio order id and the terms of its type. The terms and the version come from
+ * Bexio order id and the terms of its type. A contract made from a deal also shows
+ * the deal (a link to the CRM), the estimate it rests on (a link into EstimAI) and,
+ * when the deal was reopened in the CRM, the notice "the deal is no longer won" —
+ * read live on every load, gone once the deal is won again, and the contract is never
+ * changed by it (specs/022 AC-2.3, AC-2.4, AC-3.2, AC-3.3). The terms and the version come from
  * `GET /projects/:id/contracts/:contractId`. A holder of manage projects edits it
  * or ends it by setting its end date (AC-2.10); there is no delete. Only a holder
  * of the Bexio-order capability edits the order id (AC-3.1), which bumps the
@@ -208,11 +213,43 @@ export default function ContractCard({
           </div>
         )}
       </div>
+      {shown.deal?.won === false && (
+        <Banner tone="warning" title={t.card.dealNotWon.title} data-testid="contract-deal-not-won">
+          {t.card.dealNotWon.body}
+        </Banner>
+      )}
       <FactList
         items={[
           { id: 'start', term: t.card.start, value: formatDate(shown.startDate) },
           { id: 'end', term: t.card.end, value: shown.endDate ? formatDate(shown.endDate) : t.card.openEnded },
           { id: 'origin', term: t.card.origin, value: t.card.origins[shown.origin] },
+          ...(shown.deal
+            ? [
+                {
+                  id: 'deal',
+                  term: t.card.deal,
+                  value: (
+                    <a href={crmDealHref(shown.deal.id)} className="link">
+                      {shown.deal.title ?? t.card.dealUnavailable}
+                    </a>
+                  ),
+                },
+              ]
+            : []),
+          // The estimate id arrives with the full contract; a person without access to it in EstimAI sees EstimAI's own unavailable state (AC-3.2).
+          ...(contract?.estimate
+            ? [
+                {
+                  id: 'estimate',
+                  term: t.card.estimate,
+                  value: (
+                    <a href={estimaiEstimateHref(contract.estimate.id)} className="link">
+                      {t.card.openEstimate}
+                    </a>
+                  ),
+                },
+              ]
+            : []),
         ]}
       />
       {resource.status === 'loading' && <Loading label={t.loading} rows={2} />}
