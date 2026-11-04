@@ -164,11 +164,24 @@ function Lane({
         {totals.length > 0 && (
           <dl className="grid grid-cols-[auto_1fr] gap-x-2 text-xs">
             <dt className="text-soft">{t.total}</dt>
-            <dd className="whitespace-nowrap text-right font-mono text-text">{totals.join(' · ')}</dd>
+            {/* One currency per line: never summed (AC-3.4), and side by side they overflow a narrow lane. */}
+            <dd className="flex flex-col items-end font-mono text-text" data-testid={`crm-pipeline-total-${entry.stage}`}>
+              {totals.map((amount) => (
+                <span key={amount} className="whitespace-nowrap">
+                  {amount}
+                </span>
+              ))}
+            </dd>
             {open && (
               <>
                 <dt className="text-soft">{t.weighted}</dt>
-                <dd className="whitespace-nowrap text-right font-mono text-text">{weighted.join(' · ')}</dd>
+                <dd className="flex flex-col items-end font-mono text-text" data-testid={`crm-pipeline-weighted-${entry.stage}`}>
+                  {weighted.map((amount) => (
+                    <span key={amount} className="whitespace-nowrap">
+                      {amount}
+                    </span>
+                  ))}
+                </dd>
               </>
             )}
           </dl>

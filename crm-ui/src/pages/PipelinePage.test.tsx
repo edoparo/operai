@@ -251,5 +251,37 @@ describe('PipelinePage board', () => {
     expect(pipelineQueries().at(-1)!.searchParams.get('year')).toBe('2025')
     expect((await screen.findAllByText('Closed in 2025')).length).toBeGreaterThan(0)
   })
+
+  it('a lane with two currencies lists each total on its own line, never summed (AC-3.4)', async () => {
+    apiFetch.mockImplementation(
+      fakeApi({
+        'GET /scope': () => ({ status: 200, body: { deal: ['welld_ch'], canErase: false, financials: true, managesAll: false } }),
+        'GET /pipeline': () => ({
+          status: 200,
+          body: {
+            ...PIPELINE,
+            stages: STAGES.map((stage) => ({
+              stage,
+              count: stage === 'qualified' ? 2 : 0,
+              totals:
+                stage === 'qualified'
+                  ? [
+                      { currency: 'EUR', amountCents: 16_500_000, weightedCents: 4_125_000 },
+                      { currency: 'CHF', amountCents: 256_000, weightedCents: 64_000 },
+                    ]
+                  : [],
+            })),
+          },
+        }),
+        'GET /deals': () => ({ status: 200, body: page([deal('d1', 'qualified', 'welld_ch', 1)]) }),
+      }),
+    )
+    window.history.pushState(null, '', '/pipeline')
+    render(<RouterProvider router={createAppRouter(undefined, CrmShell)} />)
+    const total = await screen.findByTestId('crm-pipeline-total-qualified')
+    expect(Array.from(total.children).map((line) => line.textContent)).toEqual(['CHF 2,560.00', 'EUR 165,000.00'])
+    const weighted = screen.getByTestId('crm-pipeline-weighted-qualified')
+    expect(Array.from(weighted.children).map((line) => line.textContent)).toEqual(['CHF 640.00', 'EUR 41,250.00'])
+  })
 })
 
