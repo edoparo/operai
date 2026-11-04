@@ -136,7 +136,9 @@ so that the history of a relationship is in one place.
 
 - AC-4.1 An activity belongs to a company and may reference one of its contacts and/or one
   of its deals (a reference to another company's contact or deal is refused).
-- AC-4.2 Only the author can edit or delete an activity.
+- AC-4.2 Only the author can edit or delete an activity. Editing covers its contact and
+  deal too (changed or cleared, among its company's own), not only its text and timing; the
+  type and the company stay (owner, 2026-11-04).
 - AC-4.3 A task has an optional due date and an assignee (default: the author, any active
   Operai user otherwise). Any CRM user can complete or reopen a task.
 - AC-4.4 "Tasks" lists the caller's open tasks by default, or everyone's, or one colleague's

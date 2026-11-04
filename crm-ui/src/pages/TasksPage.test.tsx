@@ -11,6 +11,7 @@ import { RouterProvider } from '@tanstack/react-router'
 import { createAppRouter } from '../router'
 import { companySummary, fakeApi, page } from '../test-support/fakeApi'
 
+const ADA_REF = { id: 'u-ada', name: 'Ada Lovelace', status: 'active' as const }
 const { apiFetch } = vi.hoisted(() => ({ apiFetch: vi.fn() }))
 vi.mock('shell/session', () => ({
   apiFetch,
@@ -241,6 +242,56 @@ describe('TasksPage — participants (specs/017 US-8)', () => {
     fireEvent.click(within(dialog).getByTestId('crm-activity-form-submit'))
     await waitFor(() => expect(posted).not.toBeNull())
     expect(posted).toMatchObject({ type: 'task', subject: 'Visit the client', participantIds: ['u-paro'] })
+  })
+})
+
+describe('TasksPage — editing contact and deal (specs/017 AC-4.2)', () => {
+  it('editing an activity shows its contact and deal, and sends the change', async () => {
+    let patched: Record<string, unknown> | null = null
+    const TASK = {
+      id: 't5',
+      type: 'task',
+      subject: 'Follow up',
+      body: null,
+      occurredAt: '2026-11-04T09:00:00.000Z',
+      company: { id: 'c1', name: 'Acme SA' },
+      contact: { id: 'p1', name: 'Mirko Bianchi' },
+      deal: null,
+      author: { id: 'u-ada', name: 'Ada Lovelace', status: 'active' },
+      participants: [],
+      task: { dueDate: null, assignee: null, completedAt: null, completedBy: null, blockedBy: [], blocked: false },
+      createdAt: '2026-11-04T09:00:00.000Z',
+      updatedAt: '2026-11-04T09:00:00.000Z',
+    }
+    apiFetch.mockImplementation(
+      fakeApi({
+        'GET /tasks': () => ({ status: 200, body: page([TASK]) }),
+        'GET /tasks/assignees': () => ({ status: 200, body: { items: [] } }),
+        'GET /contacts': () => ({
+          status: 200,
+          body: page([{ id: 'p1', firstName: 'Mirko', lastName: 'Bianchi', email: null, phone: null, jobTitle: null, company: { id: 'c1', name: 'Acme SA' }, archived: false, updatedAt: '2026-11-01T00:00:00.000Z' }]),
+        }),
+        'GET /deals': () => ({ status: 200, body: page([{ id: 'd7', title: 'Data platform', company: { id: 'c1', name: 'Acme SA' }, stage: 'lead', entity: 'welld_ch', expectedCloseDate: null, owner: ADA_REF, closedAt: null, updatedAt: '2026-11-01T00:00:00.000Z', version: 1 }]) }),
+        'GET /activities': () => ({ status: 200, body: page([]) }),
+        'PATCH /activities/t5': (_url, init) => {
+          patched = JSON.parse(String(init?.body)) as Record<string, unknown>
+          return { status: 200, body: { ...TASK, deal: { id: 'd7', title: 'Data platform' } } }
+        },
+      }),
+    )
+    window.history.pushState(null, '', '/tasks')
+    render(<RouterProvider router={createAppRouter()} />)
+    const row = await screen.findByTestId('crm-activity-t5')
+    fireEvent.click(within(row).getByRole('button', { name: 'Edit' }))
+    const dialog = await screen.findByRole('dialog', { name: 'Edit activity' })
+    const contact = within(dialog).getByLabelText('Contact') as HTMLSelectElement
+    await waitFor(() => expect(contact.value).toBe('p1'))
+    const deal = within(dialog).getByLabelText('Deal') as HTMLSelectElement
+    await within(dialog).findByRole('option', { name: 'Data platform' })
+    fireEvent.change(deal, { target: { value: 'd7' } })
+    fireEvent.click(within(dialog).getByTestId('crm-activity-form-submit'))
+    await waitFor(() => expect(patched).not.toBeNull())
+    expect(patched).toMatchObject({ contactId: 'p1', dealId: 'd7' })
   })
 })
 

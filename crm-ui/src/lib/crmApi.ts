@@ -191,6 +191,9 @@ export type ActivityUpdate = {
   assigneeUserId?: string
   blockedByIds?: string[]
   participantIds?: string[]
+  /** One of the activity's company's contacts or deals, or null to clear it (AC-4.2). */
+  contactId?: string | null
+  dealId?: string | null
 }
 
 /** `type: 'task', open: true`: a company's open tasks, the choices for "blocked by". */

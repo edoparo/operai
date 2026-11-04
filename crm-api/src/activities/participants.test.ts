@@ -73,3 +73,30 @@ describe("activity participants (US-8)", () => {
     expect((await call("GET", "/tasks", { as: "consultant" })).json.total).toBe(0);
   });
 });
+
+describe("changing an activity's contact and deal (specs/017 AC-4.2)", () => {
+  beforeEach(resetWorld);
+
+  it("the author moves it to another contact or deal of the same company, or clears them", async () => {
+    const company = await makeCompany();
+    const other = await makeCompany();
+    const deal = await makeDeal(company.id);
+    const foreignDeal = await makeDeal(other.id);
+    const contact = await call("POST", "/contacts", { body: { firstName: "Ada", lastName: "Rossi", companyId: company.id } });
+    const meeting = await call("POST", "/activities", { body: { type: "meeting", subject: "Kick-off", companyId: company.id } });
+    expect(meeting.json).toMatchObject({ contact: null, deal: null });
+
+    const linked = await call("PATCH", `/activities/${meeting.json.id}`, {
+      body: { contactId: contact.json.id, dealId: deal.id },
+    });
+    expect(linked.json).toMatchObject({ contact: { id: contact.json.id }, deal: { id: deal.id } });
+
+    const refused = await call("PATCH", `/activities/${meeting.json.id}`, { body: { dealId: foreignDeal.id } });
+    expect(refused.json).toMatchObject({ status: 422, code: "deal_not_in_company" });
+
+    const cleared = await call("PATCH", `/activities/${meeting.json.id}`, { body: { contactId: null, dealId: null } });
+    expect(cleared.json).toMatchObject({ contact: null, deal: null });
+    // only the author, as for every field
+    expect((await call("PATCH", `/activities/${meeting.json.id}`, { as: "colleague", body: { dealId: deal.id } })).status).toBe(403);
+  });
+});

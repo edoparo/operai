@@ -68,6 +68,9 @@ const UpdateActivitySchema = z
     assigneeUserId: UserIdSchema.optional(),
     blockedByIds: BlockedByIdsSchema.optional(),
     participantIds: ParticipantIdsSchema.optional(),
+    // AC-4.2: the contact and the deal can be changed or cleared, always among the company's own.
+    contactId: z.string().min(1).max(64).nullable().optional(),
+    dealId: z.string().min(1).max(64).nullable().optional(),
   })
   .strict();
 
@@ -410,6 +413,10 @@ activitiesRouter.openapi(updateRoute, async (c) => {
     if (body.assigneeUserId !== undefined) throw taskFieldsOnNonTask("assigneeUserId");
     if (body.blockedByIds !== undefined) throw taskFieldsOnNonTask("blockedByIds");
   }
+  // The company stays: its contact and deal are checked against it (AC-4.1).
+  if (body.contactId !== undefined || body.dealId !== undefined) {
+    await assertRefs(current.company.id, body.contactId, body.dealId);
+  }
   if (body.assigneeUserId !== undefined && body.assigneeUserId !== userId) {
     await requireCrmUsers(c, [{ id: body.assigneeUserId, field: "assigneeUserId" }]);
   }
@@ -436,6 +443,8 @@ activitiesRouter.openapi(updateRoute, async (c) => {
       ...(body.occurredAt !== undefined ? { occurredAt: new Date(body.occurredAt) } : {}),
       ...(body.dueDate !== undefined ? { dueDate: fromDateOnly(body.dueDate) ?? null } : {}),
       ...(body.assigneeUserId !== undefined ? { assigneeUserId: body.assigneeUserId } : {}),
+      ...(body.contactId !== undefined ? { contactId: body.contactId } : {}),
+      ...(body.dealId !== undefined ? { dealId: body.dealId } : {}),
     },
     include: withRefs,
   });

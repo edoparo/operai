@@ -51,8 +51,8 @@ const SERVER_FIELDS: Record<string, FieldName> = { assigneeUserId: 'assignee', p
  * caller wrote. A task takes a due date and an assignee instead of "when"; the
  * contact and deal choices are that company's own (AC-4.1), loaded when the
  * dialog opens. `preset` fixes the contact or deal when logging from their page.
- * The type, company, contact and deal of an existing activity are not editable
- * (the API's PATCH accepts subject, body, occurredAt, dueDate and assignee).
+ * The type and company of an existing activity are not editable; its contact
+ * and deal are, among the same company's (AC-4.1/4.2).
  * Without `company` (a new task from "Tasks") the dialog asks for one first;
  * `fixedType` hides the type choice (that entry point creates tasks only).
  */
@@ -166,7 +166,12 @@ export default function ActivityFormDialog({
     setBusy(true)
     setError(null)
     const request = activity
-      ? updateActivity(activity.id, { ...text, ...timing })
+      ? updateActivity(activity.id, {
+          ...text,
+          ...timing,
+          ...(preset?.contactId ? {} : { contactId: contactId || null }),
+          ...(preset?.dealId ? {} : { dealId: dealId || null }),
+        })
       : createActivity({
           type,
           companyId: companyId!,
@@ -287,7 +292,7 @@ export default function ActivityFormDialog({
           error={errors.participants}
           testId="crm-activity-form-participants"
         />
-        {!activity && !preset?.contactId && (
+        {!preset?.contactId && (
           <Field label={t.contact} error={errors.contactId} testId="crm-activity-form-contact">
             {(control) => (
               <select {...control} value={contactId} onChange={(event) => setContactId(event.target.value)}>
@@ -301,7 +306,7 @@ export default function ActivityFormDialog({
             )}
           </Field>
         )}
-        {!activity && !preset?.dealId && (
+        {!preset?.dealId && (
           <Field label={t.deal} error={errors.dealId} testId="crm-activity-form-deal">
             {(control) => (
               <select {...control} value={dealId} onChange={(event) => setDealId(event.target.value)}>
