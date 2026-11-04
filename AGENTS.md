@@ -239,15 +239,14 @@ Per-service specifics:
 - `estimai-api` — estimate persistence as a JSONB document + listing columns (ADR-0004);
   record-level collaborator ACL owned by the service itself, not `auth`'s catalog (ADR-0036);
   optimistic concurrency via integer `version` + required `If-Match`/`ETag` (ADR-0038).
-  It deliberately is **not** an authorization-enforcing resource server. Its one `/system/*`
-  route, `GET /system/estimates/{id}/summary` (scope `estimai.estimates.read`, `SERVICE_AUDIENCE`
-  JWT only), is read by projects-api and returns `{ id, name, manDays }`, never the estimate's
-  content (specs/022, ADR-0061).
   It deliberately is **not** an authorization-enforcing resource server, with ONE exception
   (specs/024, ADR-0075): read-only oversight of every estimate for holders of `estimate:read-all`
   (seeded to `admin`), resolved live from `auth` only on that path and failing closed there.
   It stores the CRM deal an estimate belongs to (`crmDealId`), set only by crm-api's
   deal-link notices (ADR-0076).
+  Its other `/system/*` route, `GET /system/estimates/{id}/summary` (scope `estimai.estimates.read`,
+  `SERVICE_AUDIENCE` JWT only), is read by projects-api and returns `{ id, name, manDays }`, never
+  the estimate's content (specs/022, ADR-0061).
 - `inventory-api` — hardware register (specs/015): authorization-enforcing like `refund-api`
   (live `auth GET /authz/resolve`, fails closed, entity-scoped ABAC) with `inventory:access`,
   `asset:manage`, `ledger:manage`; `/me/*` routes need only a valid JWT and scope to `sub`

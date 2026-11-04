@@ -151,4 +151,35 @@ describe("env-doctor resolver", () => {
     const findings = checkSuite(r.suite, { env: "production", isProdLike: true, resolved: r.resolved });
     expect(findings.some((f) => f.level === "error" && f.message.includes('no entry for client id "someone-else"'))).toBe(true);
   });
+
+  // specs/022 T16: the shipped templates carry the hand-off keys and scopes; losing one fails offline.
+  test("the committed templates fail when a specs/022 hand-off key or scope is dropped", () => {
+    const check = (mutate: (s: ReturnType<typeof loadTemplateSuite>["suite"]) => void) => {
+      const r = loadTemplateSuite("production");
+      mutate(r.suite);
+      return checkSuite(r.suite, { env: "production", isProdLike: true, resolved: r.resolved })
+        .filter((f) => f.level === "error")
+        .map((f) => f.message)
+        .join(" | ");
+    };
+    expect(check((s) => delete s["estimai-api"]!.SERVICE_AUDIENCE)).toContain("SERVICE_AUDIENCE is missing");
+    expect(check((s) => delete s["projects-api"]!.SERVICE_AUDIENCE)).toContain("SERVICE_AUDIENCE is missing");
+    expect(check((s) => delete s["projects-api"]!.ESTIMAI_INTERNAL_URL)).toContain("ESTIMAI_INTERNAL_URL is missing");
+    expect(check((s) => delete s["crm-api"]!.PROJECTS_INTERNAL_URL)).toContain("PROJECTS_INTERNAL_URL is missing");
+    const registry = (s: ReturnType<typeof loadTemplateSuite>["suite"]) => JSON.parse(s.auth!.SERVICE_CLIENTS!);
+    expect(
+      check((s) => {
+        const reg = registry(s);
+        reg["projects-api"].scope = "crm.companies.read";
+        s.auth!.SERVICE_CLIENTS = JSON.stringify(reg);
+      }),
+    ).toContain('entry "projects-api" lacks the "estimai.estimates.read" scope');
+    expect(
+      check((s) => {
+        const reg = registry(s);
+        reg["crm-api"].scope = "notifications.push emails.send";
+        s.auth!.SERVICE_CLIENTS = JSON.stringify(reg);
+      }),
+    ).toContain('entry "crm-api" lacks the "projects.contracts.read" scope');
+  });
 });
