@@ -246,7 +246,7 @@ function CardContent({ deal, currentUserId }: { deal: DealSummary; currentUserId
           <StatusBadge status={ESTIMATE_STATE_MEANING.requested}>{strings.deals.pipeline.awaitingEstimate}</StatusBadge>
         </span>
       )}
-      {financials && deal.amountCents !== undefined && deal.currency !== undefined && (
+      {financials && deal.amountCents != null && deal.currency !== undefined && (
         <span className="whitespace-nowrap font-mono text-sm text-text">
           {dealAmount(deal.amountCents, deal.currency)}
         </span>

@@ -20,11 +20,11 @@ import ContactFormDialog from '../components/ContactFormDialog'
 import DealFormDialog from '../components/DealFormDialog'
 import { LoadFailure, Loading, Saved, StaleWriteBanner } from '../components/LoadState'
 import { isStaleWrite } from '../lib/api'
-import { getCompany, listContacts, listDeals, setCompanyArchived } from '../lib/crmApi'
+import { getCompany, getContact, listContacts, listDeals, setCompanyArchived } from '../lib/crmApi'
 import { errorMessage, statusOf } from '../lib/errors'
 import { dealAmount } from '../lib/money'
 import { contactName, personName } from '../lib/people'
-import type { Company, ContactSummary, DealSummary } from '../lib/types'
+import type { Company, Contact, ContactSummary, DealSummary } from '../lib/types'
 import { useCrmCapabilities } from '../hooks/scopeContext'
 import { useCurrentUserId } from '../hooks/useCurrentUserId'
 import { useResource } from '../hooks/useResource'
@@ -219,7 +219,27 @@ function CompanyContactsCard({ company }: { company: Company }) {
   )
   const contacts = useResource(load)
   const [adding, setAdding] = useState(false)
+  const [editing, setEditing] = useState<Contact | null>(null)
+  const [opening, setOpening] = useState<string | null>(null)
+  const [openError, setOpenError] = useState<string | null>(null)
+  const [stale, setStale] = useState(false)
   const [saved, setSaved] = useState<string | null>(null)
+
+  // The list carries no version: the full contact is loaded for its If-Match before editing.
+  const startEditing = (id: string) => {
+    setOpening(id)
+    setOpenError(null)
+    getContact(id).then(
+      (contact) => {
+        setOpening(null)
+        setEditing(contact)
+      },
+      (failure: unknown) => {
+        setOpening(null)
+        setOpenError(errorMessage(failure))
+      },
+    )
+  }
 
   const columns: DataTableColumn<ContactSummary>[] = [
     {
@@ -242,6 +262,23 @@ function CompanyContactsCard({ company }: { company: Company }) {
     },
     { id: 'email', header: strings.contacts.columns.email, render: (contact) => contact.email ?? strings.common.none },
     { id: 'phone', header: strings.contacts.columns.phone, render: (contact) => contact.phone ?? strings.common.none },
+    {
+      id: 'actions',
+      header: strings.contacts.columns.actions,
+      render: (contact) => (
+        <Button
+          size="sm"
+          variant="ghost"
+          aria-label={t.editContactOf(contactName(contact))}
+          aria-haspopup="dialog"
+          disabled={opening !== null}
+          onClick={() => startEditing(contact.id)}
+          data-testid={`crm-company-contact-edit-${contact.id}`}
+        >
+          {strings.common.edit}
+        </Button>
+      ),
+    },
   ]
 
   return (
@@ -256,6 +293,19 @@ function CompanyContactsCard({ company }: { company: Company }) {
     >
       <div className="flex flex-col gap-3">
         {saved && <Saved message={saved} onDismiss={() => setSaved(null)} />}
+        {stale && (
+          <StaleWriteBanner
+            onReload={() => {
+              setStale(false)
+              contacts.retry()
+            }}
+          />
+        )}
+        {openError && (
+          <Banner tone="danger" onDismiss={() => setOpenError(null)}>
+            {openError}
+          </Banner>
+        )}
         {contacts.status === 'loading' && <Loading label={strings.contacts.list.loading} rows={2} />}
         {contacts.status === 'error' && <LoadFailure error={contacts.error} onRetry={contacts.retry} />}
         {contacts.status === 'ready' &&
@@ -279,6 +329,21 @@ function CompanyContactsCard({ company }: { company: Company }) {
           onSaved={(contact) => {
             setAdding(false)
             setSaved(strings.contacts.list.created(contactName(contact)))
+            contacts.retry()
+          }}
+        />
+      )}
+      {editing && (
+        <ContactFormDialog
+          contact={editing}
+          onCancel={() => setEditing(null)}
+          onStale={() => {
+            setEditing(null)
+            setStale(true)
+          }}
+          onSaved={() => {
+            setEditing(null)
+            setSaved(strings.contacts.detail.saved)
             contacts.retry()
           }}
         />
@@ -326,7 +391,7 @@ function CompanyDealsCard({ company }: { company: Company }) {
             header: strings.deals.columns.amount,
             numeric: true,
             render: (deal: DealSummary) =>
-              deal.amountCents !== undefined && deal.currency !== undefined
+              deal.amountCents != null && deal.currency !== undefined
                 ? dealAmount(deal.amountCents, deal.currency)
                 : null,
           },

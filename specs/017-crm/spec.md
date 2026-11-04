@@ -93,7 +93,8 @@ the right person.
 - AC-2.2 The contacts list is searchable by name or email, filterable by company, paginated,
   and hides archived contacts unless asked.
 - AC-2.3 A contact can be edited, archived and unarchived by any CRM user, with the same
-  concurrent-edit protection as companies.
+  concurrent-edit protection as companies. A contact can also be edited straight from its
+  company's page, without leaving it (owner, 2026-11-04).
 - AC-2.4 A holder of the **erase contact** capability can erase a contact: the contact row is
   deleted and every activity that referenced it loses the reference. Erasure is confirmed in
   a dialog that says it cannot be undone. Nobody else can erase.
@@ -104,7 +105,11 @@ the pipeline without a spreadsheet.
 
 - AC-3.1 Creating, editing and moving a deal requires the **manage deals** capability,
   scoped to the deal's entity (ADR-0015 entity condition). Every CRM user can read deals.
-- AC-3.2 A deal requires a company (not archived), a title, an amount ≥ 0 and a currency;
+- AC-3.2 A deal requires a company (not archived), a title and a currency. The amount is
+  optional (≥ 0 when given) and can be set or cleared later: a lead often has no figure until
+  the estimate or qualification (owner, 2026-11-04). A deal with no amount counts in its
+  stage but adds nothing to the pipeline totals, and an offer drafted from it leaves the
+  prices for the user to fill;
   the entity defaults to the company's; the stage defaults to `lead` and must be open at
   creation; the owner defaults to the creator.
 - AC-3.3 A deal moves to any stage. Moving to `won`/`lost` records the closing moment;

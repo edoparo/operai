@@ -113,7 +113,8 @@ model Deal {
   company           Company   @relation(fields: [companyId], references: [id], onDelete: Restrict)
   title             String
   stage             DealStage @default(lead)
-  amountCents       BigInt
+  /// Null until it is known: a lead often has no figure yet (specs/017 AC-3.2, 2026-11-04).
+  amountCents       BigInt?
   currency          Currency
   entity            Entity
   expectedCloseDate DateTime? @db.Date

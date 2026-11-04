@@ -48,7 +48,8 @@ export function stageTransition(
 export interface PipelineDeal {
   readonly stage: DealStage;
   readonly currency: "CHF" | "EUR";
-  readonly amountCents: bigint;
+  /** Null while the figure is not known: counted, never summed. */
+  readonly amountCents: bigint | null;
 }
 
 export interface StageTotals {
@@ -67,7 +68,9 @@ export function summarisePipeline(deals: readonly PipelineDeal[]): StageTotals[]
   return DEAL_STAGES.map((stage) => {
     const ofStage = deals.filter((deal) => deal.stage === stage);
     const totals = (["CHF", "EUR"] as const).flatMap((currency) => {
-      const ofCurrency = ofStage.filter((deal) => deal.currency === currency);
+      const ofCurrency = ofStage.flatMap((deal) =>
+        deal.currency === currency && deal.amountCents !== null ? [{ ...deal, amountCents: deal.amountCents }] : [],
+      );
       if (ofCurrency.length === 0) return [];
       const amount = ofCurrency.reduce((sum, deal) => sum + deal.amountCents, 0n);
       const weighted = ofCurrency.reduce((sum, deal) => sum + weightedCents(deal.amountCents, deal.stage), 0n);

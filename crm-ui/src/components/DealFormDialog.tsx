@@ -80,7 +80,7 @@ export default function DealFormDialog({
   const [chosen, setChosen] = useState<CompanyChoice | null>(company ?? null)
   const [draft, setDraft] = useState<Draft>(() => ({
     title: deal?.title ?? '',
-    amount: deal?.amountCents !== undefined ? centsToInput(deal.amountCents) : '',
+    amount: deal?.amountCents != null ? centsToInput(deal.amountCents) : '',
     currency: deal?.currency ?? (company?.entity === 'welld_it' ? 'EUR' : company?.entity === 'welld_ch' ? 'CHF' : ''),
     stage: 'lead',
     entity: deal?.entity ?? defaultEntity(company?.entity),
@@ -103,25 +103,26 @@ export default function DealFormDialog({
   }
 
   const submit = () => {
-    const amountCents = parseDecimal(draft.amount)
+    // Optional (specs/017 AC-3.2): empty is "not known yet"; anything typed must parse.
+    const amountEmpty = draft.amount.trim() === ''
+    const amountCents = amountEmpty ? null : parseDecimal(draft.amount)
+    const amountInvalid = !hideMoney && !amountEmpty && amountCents === null
     const found: Errors<FieldName> = {
       companyId: !deal && chosen === null ? t.companyRequired : undefined,
       title: first(required(draft.title), maxLength(draft.title, 200)) ?? undefined,
-      amount: hideMoney
-        ? undefined
-        : (required(draft.amount) ?? (amountCents === null ? strings.common.validation.amount : undefined)),
+      amount: amountInvalid ? strings.common.validation.amount : undefined,
       currency: hideMoney || draft.currency !== '' ? undefined : strings.common.validation.required,
       entity: draft.entity === '' ? strings.common.validation.required : undefined,
       notes: maxLength(draft.notes, 10_000) ?? undefined,
     }
     setErrors(found)
-    if (hasErrors(found) || (!hideMoney && amountCents === null)) {
+    if (hasErrors(found)) {
       requestAnimationFrame(() => focusFirstInvalid(fieldsRef.current))
       return
     }
     const common: DealUpdate = {
       title: draft.title.trim(),
-      ...(hideMoney ? {} : { amountCents: amountCents!, currency: draft.currency as Currency, notes: optional(draft.notes) }),
+      ...(hideMoney ? {} : { amountCents, currency: draft.currency as Currency, notes: optional(draft.notes) }),
       entity: draft.entity as Entity,
       expectedCloseDate: draft.expected === '' ? null : draft.expected,
       ...(owner !== null && owner.id !== deal?.owner.id ? { ownerUserId: owner.id } : {}),
@@ -134,7 +135,7 @@ export default function DealFormDialog({
           ...common,
           companyId: chosen!.id,
           title: common.title!,
-          amountCents: amountCents!,
+          amountCents,
           currency: common.currency!,
           stage: draft.stage,
         })
@@ -194,7 +195,7 @@ export default function DealFormDialog({
         </Field>
         {!hideMoney && (
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-          <Field label={t.amount} hint={t.amountHint} required error={errors.amount} testId="crm-deal-form-amount">
+          <Field label={t.amount} hint={t.amountHint} error={errors.amount} testId="crm-deal-form-amount">
             {(control) => (
               <MoneyInput {...control} value={draft.amount} onChange={(event) => set('amount', event.target.value)} />
             )}

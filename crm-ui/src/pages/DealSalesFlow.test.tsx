@@ -342,6 +342,36 @@ describe('gate message in the stage dialog (AC-3.4)', () => {
   })
 })
 
+describe('amount not known yet (specs/017 AC-3.2)', () => {
+  it('shows “Not set yet” and no weighted value', async () => {
+    await renderDeal(dealFixture({ amountCents: null }), MANAGER)
+    const facts = screen.getByTestId('crm-deal-facts').textContent
+    expect(facts).toContain('Not set yet')
+    expect(facts).not.toContain('Weighted')
+  })
+
+  it('emptying the amount saves null; a non-number is still refused', async () => {
+    let sent: Record<string, unknown> | null = null
+    await renderDeal(dealFixture(), MANAGER, {
+      'PATCH /deals/d1': (_url, init) => {
+        sent = body(init)
+        return { status: 200, body: dealFixture({ amountCents: null, version: 5 }) }
+      },
+    })
+    fireEvent.click(screen.getByTestId('crm-deal-edit'))
+    const dialog = await screen.findByRole('dialog', { name: /Edit deal/ })
+    const amount = within(dialog).getByLabelText(/^Amount/)
+    fireEvent.change(amount, { target: { value: 'abc' } })
+    fireEvent.click(within(dialog).getByTestId('crm-deal-form-submit'))
+    await waitFor(() => expect(amount.getAttribute('aria-invalid')).toBe('true'))
+    expect(sent).toBeNull()
+    fireEvent.change(amount, { target: { value: '' } })
+    fireEvent.click(within(dialog).getByTestId('crm-deal-form-submit'))
+    await waitFor(() => expect(sent).not.toBeNull())
+    expect(sent!.amountCents).toBeNull()
+  })
+})
+
 describe('new deal stages (AC-3.4)', () => {
   it('offers only lead and qualified for a new deal', async () => {
     apiFetch.mockImplementation(

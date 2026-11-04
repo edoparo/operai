@@ -41,6 +41,15 @@ describe("stageTransition (AC-3.3)", () => {
 });
 
 describe("summarisePipeline", () => {
+  it("counts a deal with no amount yet but leaves it out of the totals", () => {
+    const [lead] = summarisePipeline([
+      { stage: "lead", currency: "CHF", amountCents: null },
+      { stage: "lead", currency: "CHF", amountCents: 1000n },
+      { stage: "lead", currency: "EUR", amountCents: null },
+    ]);
+    expect(lead).toEqual({ stage: "lead", count: 3, totals: [{ currency: "CHF", amountCents: 1000, weightedCents: 100 }] });
+  });
+
   it("never sums currencies together and lists every stage", () => {
     const stages = summarisePipeline([
       { stage: "proposal", currency: "EUR", amountCents: 100n },

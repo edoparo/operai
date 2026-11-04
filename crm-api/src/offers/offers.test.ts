@@ -25,7 +25,7 @@ async function pdfBytes(pages = 1, size: [number, number] = [595.28, 841.89]): P
 
 /** A qualified deal with a ready estimate: Phase 1 = 10 md (Auth), Phase 2 = 20 md (Reports, Billing). */
 async function readyDeal(
-  overrides: { entity?: "welld_ch" | "welld_it"; amountCents?: number; title?: string } = {},
+  overrides: { entity?: "welld_ch" | "welld_it"; amountCents?: number | null; title?: string } = {},
   companyOverrides: Record<string, unknown> = {},
 ) {
   const entity = overrides.entity ?? "welld_ch";
@@ -41,7 +41,7 @@ async function readyDeal(
   });
   const deal = await makeDeal(
     company.id,
-    { stage: "qualified", title: overrides.title ?? "Grid analytics", amountCents: overrides.amountCents ?? 9_000_050, entity },
+    { stage: "qualified", title: overrides.title ?? "Grid analytics", amountCents: overrides.amountCents === undefined ? 9_000_050 : overrides.amountCents, entity },
     "admin",
   );
   await call("POST", `/deals/${deal.id}/estimate`, { as: "admin", body: { technicalUserId: "user-tech" } });
@@ -178,6 +178,13 @@ describe("offer draft (specs/020 AC-3.1)", () => {
     ]);
     expect(draft.costLines.reduce((s: number, l: { unitCents: number }) => s + l.unitCents, 0)).toBe(9_000_050);
     expect(draft.showTotal).toBe(false);
+  });
+
+  it("a deal with no amount yet leaves the lines priced from it blank, for the user to fill", async () => {
+    const { deal } = await readyDeal({ amountCents: null });
+    await putProfile();
+    const phased = await body(deal.id, "Phased fixed price");
+    expect(phased.costLines.map((l: { unitCents?: number | null }) => l.unitCents ?? null)).toEqual([null, null]);
   });
 
   it("puts the deal amount on the deal line", async () => {

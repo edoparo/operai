@@ -88,8 +88,8 @@ export type DealSummary = {
   title: string
   company: CompanyRef
   stage: DealStage
-  /** Left out by the server for a caller without `deal:financials`. */
-  amountCents?: number
+  /** Left out by the server for a caller without `deal:financials`; null while not yet known. */
+  amountCents?: number | null
   currency?: Currency
   entity: Entity
   expectedCloseDate: string | null

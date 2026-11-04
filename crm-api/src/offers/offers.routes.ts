@@ -309,7 +309,7 @@ offersRouter.openapi(draftRoute, async (c) => {
   const estimate = await getEstimate(c, link.estimateId);
   const draft: OfferDraft = buildDraft({
     template: templateContentOf(template),
-    deal: { title: deal.title, amountCents: Number(deal.amountCents), currency: deal.currency },
+    deal: { title: deal.title, amountCents: deal.amountCents === null ? null : Number(deal.amountCents), currency: deal.currency },
     company: deal.company,
     issuerLegalName: profile.legalName,
     estimate,

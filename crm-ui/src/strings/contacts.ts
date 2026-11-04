@@ -20,6 +20,7 @@ const en = {
     jobTitle: 'Job title',
     email: 'Email',
     phone: 'Phone',
+    actions: 'Actions',
   },
   detail: {
     back: 'Back to contacts',
@@ -98,6 +99,7 @@ const it: typeof en = {
     jobTitle: 'Ruolo',
     email: 'Email',
     phone: 'Telefono',
+    actions: 'Azioni',
   },
   detail: {
     back: 'Torna ai contatti',

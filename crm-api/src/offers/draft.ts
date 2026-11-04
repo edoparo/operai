@@ -49,7 +49,8 @@ export interface OfferDraft {
 
 export interface DraftInput {
   readonly template: OfferTemplateContent & { readonly id: string };
-  readonly deal: { readonly title: string; readonly amountCents: number; readonly currency: "CHF" | "EUR" };
+  /** `amountCents` null: the deal has no figure yet, so lines priced from it are left for the user. */
+  readonly deal: { readonly title: string; readonly amountCents: number | null; readonly currency: "CHF" | "EUR" };
   readonly company: {
     readonly name: string;
     readonly legalName: string | null;
@@ -149,12 +150,15 @@ export function buildDraft(input: DraftInput): OfferDraft {
         });
         continue;
       }
-      const split = splitByManDays(deal.amountCents, releases.map((release) => release.manDays));
+      const split =
+        deal.amountCents === null
+          ? releases.map(() => null)
+          : splitByManDays(deal.amountCents, releases.map((release) => release.manDays));
       releases.forEach((release, index) => {
         costLines.push({
           description: fillPlaceholders(line.description, { ...values, release: release.name }),
           kind: line.kind,
-          unitCents: split[index]!,
+          unitCents: split[index] ?? null,
           percentBp: null,
           quantity: 1,
         });

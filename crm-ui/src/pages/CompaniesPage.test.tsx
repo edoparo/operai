@@ -203,4 +203,47 @@ describe('CompaniesPage', () => {
     expect(notice.textContent).toContain('no deal won in the last 12 months')
     expect(screen.getByTestId('crm-company-page').textContent).toContain('Former client')
   })
+
+  it('edits a contact from the company page, with the contact’s own version (If-Match)', async () => {
+    const contact = {
+      id: 'p1',
+      firstName: 'Mirko',
+      lastName: 'Bianchi',
+      email: 'mirko@example.ch',
+      phone: null,
+      jobTitle: 'Head of IT',
+      company: { id: 'c1', name: 'Acme SA' },
+      archived: false,
+      updatedAt: '2026-11-01T10:00:00.000Z',
+    }
+    let ifMatch: string | null = null
+    let sent: Record<string, unknown> | null = null
+    apiFetch.mockImplementation(
+      fakeApi({
+        'GET /companies/c1': () => ({
+          status: 200,
+          body: { ...companySummary(), website: null, legalName: null, street: null, postalCode: null, notes: null, version: 1, createdAt: '2025-01-01T00:00:00.000Z' },
+        }),
+        'GET /contacts': () => ({ status: 200, body: page([contact]) }),
+        'GET /contacts/p1': () => ({ status: 200, body: { ...contact, notes: null, version: 7, createdAt: '2026-01-01T00:00:00.000Z' } }),
+        'PATCH /contacts/p1': (_url, init) => {
+          ifMatch = new Headers(init?.headers).get('If-Match')
+          sent = JSON.parse(String(init?.body))
+          return { status: 200, body: { ...contact, jobTitle: 'CIO', notes: null, version: 8, createdAt: '2026-01-01T00:00:00.000Z' } }
+        },
+        'GET /deals': () => ({ status: 200, body: page([]) }),
+      }),
+    )
+    window.history.pushState(null, '', '/companies/c1')
+    render(<RouterProvider router={createAppRouter()} />)
+    fireEvent.click(await screen.findByRole('button', { name: 'Edit “Mirko Bianchi”' }))
+    const dialog = await screen.findByRole('dialog')
+    const job = within(dialog).getByLabelText(/Job title/) as HTMLInputElement
+    expect(job.value).toBe('Head of IT')
+    fireEvent.change(job, { target: { value: 'CIO' } })
+    fireEvent.click(within(dialog).getByRole('button', { name: /Save/ }))
+    await screen.findByText('Contact saved.')
+    expect(ifMatch).toBe('"7"')
+    expect(sent).toMatchObject({ jobTitle: 'CIO' })
+  })
 })

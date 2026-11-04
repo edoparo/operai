@@ -22,6 +22,22 @@ describe("deals (US-3)", () => {
     });
   });
 
+  it("the amount is optional: a lead starts without one, and it can be set and cleared later (AC-3.2)", async () => {
+    const company = await makeCompany({ entity: "welld_ch" });
+    const created = await call("POST", "/deals", {
+      as: "salesCh",
+      body: { companyId: company.id, title: "Just a lead", currency: "CHF" },
+    });
+    expect(created.status).toBe(201);
+    expect(created.json).toMatchObject({ amountCents: null, currency: "CHF" });
+    const priced = await call("PATCH", `/deals/${created.json.id}`, { as: "salesCh", ifMatch: 1, body: { amountCents: 50_000_00 } });
+    expect(priced.json).toMatchObject({ amountCents: 5_000_000, version: 2 });
+    const cleared = await call("PATCH", `/deals/${created.json.id}`, { as: "salesCh", ifMatch: 2, body: { amountCents: null } });
+    expect(cleared.json.amountCents).toBeNull();
+    const negative = await call("POST", "/deals", { as: "salesCh", body: { companyId: company.id, title: "X", currency: "CHF", amountCents: -1 } });
+    expect(negative.json.field).toBe("amountCents");
+  });
+
   it("deal writes need deal:manage (403) and the deal's entity in scope (403 out_of_scope, D-5)", async () => {
     const ch = await makeCompany({ entity: "welld_ch" });
     const it_ = await makeCompany({ entity: "welld_it" });

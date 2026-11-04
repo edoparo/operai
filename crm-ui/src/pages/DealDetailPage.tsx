@@ -85,7 +85,8 @@ export default function DealDetailPage() {
   const [current, probabilities] = deal.data!
   const canManage = canManageDealsOf(current.entity)
   const probability = probabilities?.[current.stage]
-  const hasAmount = financials && current.amountCents !== undefined && current.currency !== undefined
+  const showsMoney = financials && current.amountCents !== undefined && current.currency !== undefined
+  const hasAmount = showsMoney && current.amountCents !== null
   const updated = (next: Deal, message: string) => {
     deal.replace([next, probabilities])
     setSaved(message)
@@ -142,12 +143,16 @@ export default function DealDetailPage() {
           <FactList
             testId="crm-deal-facts"
             items={[
-              ...(hasAmount
+              ...(showsMoney
                 ? [
                     {
                       id: 'amount',
                       term: t.amount,
-                      value: <span className="font-mono">{dealAmount(current.amountCents!, current.currency!)}</span>,
+                      value: hasAmount ? (
+                        <span className="font-mono">{dealAmount(current.amountCents!, current.currency!)}</span>
+                      ) : (
+                        <span className="text-soft">{t.amountUnset}</span>
+                      ),
                     },
                   ]
                 : []),

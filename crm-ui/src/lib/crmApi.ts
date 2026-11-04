@@ -116,7 +116,8 @@ export type DealListQuery = PageQuery & {
 export type DealInput = {
   companyId: string
   title: string
-  amountCents: number
+  /** Optional: a lead often has no figure yet (specs/017 AC-3.2). */
+  amountCents?: number | null
   currency: Currency
   stage?: DealStage
   entity?: Entity

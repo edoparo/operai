@@ -73,7 +73,8 @@ const CreateDealSchema = z
   .object({
     companyId: z.string().min(1).max(64),
     title: requiredText(200),
-    amountCents: AmountSchema,
+    // Optional: a lead often has no figure until the estimate or qualification (AC-3.2).
+    amountCents: AmountSchema.nullable().optional(),
     currency: CurrencySchema,
     stage: StageSchema.optional(),
     entity: EntitySchema.optional(),
@@ -86,7 +87,7 @@ const CreateDealSchema = z
 const UpdateDealSchema = z
   .object({
     title: requiredText(200).optional(),
-    amountCents: AmountSchema.optional(),
+    amountCents: AmountSchema.nullable().optional(),
     currency: CurrencySchema.optional(),
     entity: EntitySchema.optional(),
     expectedCloseDate: DateOnlySchema.nullable().optional(),
@@ -118,8 +119,8 @@ const DealSummarySchema = z.object({
   title: z.string(),
   company: z.object({ id: z.string(), name: z.string() }),
   stage: StageSchema,
-  // Left out for a caller without deal:financials (specs/018 US-1).
-  amountCents: z.number().int().optional(),
+  // Left out for a caller without deal:financials (specs/018 US-1); null while not yet known.
+  amountCents: z.number().int().nullable().optional(),
   currency: CurrencySchema.optional(),
   entity: EntitySchema,
   expectedCloseDate: z.string().nullable(),
@@ -217,7 +218,9 @@ async function toViews(c: ViewSource, rows: readonly DealRow[]) {
       title: row.title,
       company: row.company,
       stage: row.stage,
-      ...(financials ? { amountCents: Number(row.amountCents), currency: row.currency } : {}),
+      ...(financials
+        ? { amountCents: row.amountCents === null ? null : Number(row.amountCents), currency: row.currency }
+        : {}),
       entity: row.entity,
       expectedCloseDate: toDateOnly(row.expectedCloseDate),
       owner: person(row.ownerUserId),
@@ -468,7 +471,7 @@ dealsRouter.openapi(createDealRoute, async (c) => {
     data: {
       companyId: body.companyId,
       title: body.title,
-      amountCents: BigInt(body.amountCents),
+      amountCents: body.amountCents == null ? null : BigInt(body.amountCents),
       currency: body.currency,
       stage,
       entity,
@@ -543,7 +546,7 @@ dealsRouter.openapi(updateRoute, async (c) => {
     previousOwner = current.ownerUserId;
     return {
       ...definedOnly(rest),
-      ...(amountCents !== undefined ? { amountCents: BigInt(amountCents) } : {}),
+      ...(amountCents !== undefined ? { amountCents: amountCents === null ? null : BigInt(amountCents) } : {}),
       ...(expectedCloseDate !== undefined ? { expectedCloseDate: fromDateOnly(expectedCloseDate) ?? null } : {}),
     };
   });
