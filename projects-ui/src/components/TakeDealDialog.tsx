@@ -2,8 +2,8 @@ import { useCallback, useRef, useState } from 'react'
 import { Field, FormDialog, focusFirstInvalid } from '@operai/ui'
 import { ApiError } from '../lib/api'
 import { CLIENT_TYPES } from '../lib/domain'
-import { errorMessage, fieldErrorOf, takeRefusalOf } from '../lib/errors'
-import { listOpsManagers, takeDealAsProject } from '../lib/projectsApi'
+import { codeOf, errorMessage, fieldErrorOf, takeRefusalOf } from '../lib/errors'
+import { listOpsManagers, listQueueContacts, takeDealAsProject } from '../lib/projectsApi'
 import type { TakeDealAsProjectInput } from '../lib/projectsApi'
 import { emptyTermsForm } from '../lib/terms'
 import type { TermsErrors, TermsForm } from '../lib/terms'
@@ -12,6 +12,8 @@ import type { DealProjectType, Project, QueueItem } from '../lib/types'
 import { first, maxLength, required } from '../lib/validate'
 import { useResource } from '../hooks/useResource'
 import { strings } from '../strings'
+import OpsManagerPicker from './OpsManagerPicker'
+import ReferentPicker from './ReferentPicker'
 import TermsFields, { TermsDateFields } from './TermsFields'
 
 /** The form input a server refusal names, by the member name projects-api puts in `field`. */
@@ -19,6 +21,7 @@ const formFieldOf = (field: string): string | null => {
   if (field === 'name') return 'name'
   if (field === 'type') return 'type'
   if (field === 'opsManagerId') return 'opsManager'
+  if (field === 'referentContactId') return 'referent'
   // A take wraps the terms input under `terms` (`terms.startDate`, `terms.terms.deadline`).
   return termsFieldKey(field, 'nested')
 }
@@ -37,13 +40,16 @@ const GONE = ['deal_not_found', 'deal_not_won', 'deal_taken'] as const
  *
  * The ops-manager is chosen among the candidates `GET /queue/{dealId}/ops-managers` lists — the role's
  * holders for the entity, then the admins, marked "All entities" — and the only holder is prefilled
- * (AC-4.1). T31 turns this select into its own picker and adds the referent.
+ * (AC-4.1): `OpsManagerPicker`. The referent is optional, among the non-archived CRM contacts of the
+ * deal's company (AC-3.6): `ReferentPicker`, which reads them on open and keeps them in memory only.
  *
  * Fixed-price terms from a deal with an estimate take their man-days from the estimate: the field is
- * read-only and the request does not carry the member (AC-3.1). Each refusal of the take has its own
- * message (AC-1.11, AC-4.2); one after which the deal cannot be taken any more also tells the page,
- * which reloads the queue while the dialog keeps the message on screen. A take creates, so it has no
- * `If-Match` and cannot be stale.
+ * read-only and the request does not carry the member (AC-3.1); without an estimate it is an optional
+ * input (AC-3.5). Each refusal of the take has its own message (AC-1.11, AC-4.2): the ones that name an
+ * input — the ops-manager, the referent, a field of the terms — land on it (the referent's in one fixed
+ * message, never the server's detail: T18), the others sit above the form. One after which the deal
+ * cannot be taken any more also tells the page, which reloads the queue while the dialog keeps the
+ * message on screen. A take creates, so it has no `If-Match` and cannot be stale.
  */
 export default function TakeDealDialog({
   deal,
@@ -61,11 +67,13 @@ export default function TakeDealDialog({
   const estimateBacked = deal.estimate !== null
   const loadOpsManagers = useCallback((signal: AbortSignal) => listOpsManagers(deal.dealId, { signal }), [deal.dealId])
   const opsManagers = useResource(loadOpsManagers)
+  const loadContacts = useCallback((signal: AbortSignal) => listQueueContacts(deal.dealId, { signal }), [deal.dealId])
 
   const [name, setName] = useState(deal.title)
   const [type, setType] = useState<DealProjectType | ''>('')
   // `undefined` = untouched: the prefill (the only role holder), if any.
   const [pickedOps, setPickedOps] = useState<string | undefined>(undefined)
+  const [referentId, setReferentId] = useState<string | null>(null)
   const [startDate, setStartDate] = useState('')
   const [endDate, setEndDate] = useState('')
   const [terms, setTerms] = useState<TermsForm>(() => emptyTermsForm('internal'))
@@ -90,13 +98,32 @@ export default function TakeDealDialog({
       requestAnimationFrame(() => focusFirstInvalid(fieldsRef.current))
       return
     }
-    const input: TakeDealAsProjectInput = { name: name.trim(), type, terms: request.input, opsManagerId }
+    const input: TakeDealAsProjectInput = {
+      name: name.trim(),
+      type,
+      terms: request.input,
+      opsManagerId,
+      // No referent is no member at all: the PO is born without one (AC-3.6).
+      ...(referentId !== null ? { referentContactId: referentId } : {}),
+    }
     setBusy(true)
     setError(null)
+    // A refusal that names an input lands on it, and the first invalid input takes the focus.
+    const refuseField = (field: string, message: string) => {
+      setErrors({ [field]: message })
+      requestAnimationFrame(() => focusFirstInvalid(fieldsRef.current))
+    }
     takeDealAsProject(deal.dealId, input).then(onTaken, (failure: unknown) => {
       setBusy(false)
       // Words of our own for every known refusal; never the server's detail (a referent refusal says one thing whatever the reason).
       const refusal = takeRefusalOf(failure)
+      if (refusal === 'ops_manager_invalid') {
+        // The role may have changed since the list was read: choose again, among the candidates read again.
+        setPickedOps(undefined)
+        opsManagers.retry()
+        return refuseField('opsManager', t.errors[refusal])
+      }
+      if (refusal === 'referent_invalid') return refuseField('referent', t.errors[refusal])
       if (refusal) {
         if ((GONE as readonly string[]).includes(refusal)) onGone()
         return setError(t.errors[refusal])
@@ -104,15 +131,17 @@ export default function TakeDealDialog({
       if (failure instanceof ApiError && failure.status === 503) {
         return setError(`${strings.common.authUnavailable.heading}. ${strings.common.authUnavailable.body}`)
       }
+      if (codeOf(failure) === 'maintenance_needs_sla_or_hours') {
+        return refuseField('terms', strings.terms.refusals.maintenance_needs_sla_or_hours)
+      }
       const named = fieldErrorOf(failure)
       const field = named ? formFieldOf(named.field) : null
-      if (named && field) return setErrors({ [field]: named.message })
+      // The referent's own words, never the server's detail, whatever refused its id (T18).
+      if (named && field === 'referent') return refuseField(field, t.errors.referent_invalid)
+      if (named && field) return refuseField(field, named.message)
       setError(errorMessage(failure))
     })
   }
-
-  const opsManagersFailure = opsManagers.status === 'error' ? opsManagers.error : null
-  const opsManagersRefusal = opsManagersFailure ? takeRefusalOf(opsManagersFailure) : null
 
   return (
     <FormDialog
@@ -162,32 +191,20 @@ export default function TakeDealDialog({
             </select>
           )}
         </Field>
-        <Field
-          label={t.opsManager.label}
-          hint={t.opsManager.hint}
-          required
+        <OpsManagerPicker
+          candidates={opsManagers}
+          value={opsManagerId}
+          onChange={setPickedOps}
           error={errors['opsManager']}
           testId="take-deal-opsmanager"
-        >
-          {(control) => (
-            <select {...control} value={opsManagerId} onChange={(event) => setPickedOps(event.target.value)}>
-              <option value="">
-                {opsManagers.status === 'loading' ? t.opsManager.loading : strings.common.choose}
-              </option>
-              {(opsManagers.data?.items ?? []).map((candidate) => (
-                <option key={candidate.id} value={candidate.id}>
-                  {candidate.name ?? strings.people.picker.noName}
-                  {candidate.admin ? ` — ${t.opsManager.allEntities}` : ''}
-                </option>
-              ))}
-            </select>
-          )}
-        </Field>
-        {opsManagersFailure !== null && (
-          <p className="text-sm text-danger" role="alert" data-testid="take-deal-opsmanagers-error">
-            {opsManagersRefusal ? t.errors[opsManagersRefusal] : errorMessage(opsManagersFailure)}
-          </p>
-        )}
+        />
+        <ReferentPicker
+          load={loadContacts}
+          value={referentId}
+          onChange={setReferentId}
+          error={errors['referent']}
+          testId="take-deal-referent"
+        />
         <fieldset className="flex flex-col gap-3" data-testid="take-deal-terms">
           <legend className="field-label mb-1">{t.terms.legend}</legend>
           <TermsDateFields
