@@ -1,7 +1,7 @@
 ---
 id: 023
 slug: signup-gate
-status: approved
+status: in-progress
 rigor: production
 created: 2026-11-05
 approved: 2026-11-05
