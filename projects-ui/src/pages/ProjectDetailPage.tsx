@@ -2,6 +2,7 @@ import { useCallback, useId, useState } from 'react'
 import { Link, useParams } from '@tanstack/react-router'
 import { Banner, Button, Card, FactList, Icon, PageHeader, StatePanel, formatDate } from '@operai/ui'
 import { EntityBadge, ProjectStateBadge, ProjectTypeBadge } from '../components/Badges'
+import PickProjectManagerDialog from '../components/PickProjectManagerDialog'
 import ProjectEditDialog from '../components/ProjectEditDialog'
 import { LoadFailure, Loading, Saved, StaleWriteBanner } from '../components/LoadState'
 import PurchaseOrderCard from '../components/PurchaseOrderCard'
@@ -31,12 +32,52 @@ function companyFact(project: Project): { term: string; value: string } {
 }
 
 /**
- * ProjectDetailPage — one project (specs/021 US-1; specs/022 US-2, US-3, US-5): its details with the dates
+ * AwaitingNotice — a project made from a deal has no project manager until its purchase order's ops-manager
+ * picks one (D42, AC-4.6): the notice names them and links to the purchase order card, for everyone who can
+ * read the project. "Pick project manager" is for that ops-manager (the signed-in user is the one the PO was
+ * assigned to) and for an admin who oversees every purchase order (`scope.oversees`, D47) — UX only: the
+ * server refuses anyone else (403 `not_ops_manager`).
+ */
+function AwaitingNotice({ project, canPick, onPick }: { project: Project; canPick: boolean; onPick: () => void }) {
+  const t = strings.project.awaiting
+  const po = project.purchaseOrder
+  if (po === null) return null
+  return (
+    <Banner
+      tone="info"
+      title={t.title}
+      data-testid="project-awaiting"
+      actions={
+        canPick && (
+          <Button
+            size="sm"
+            variant="primary"
+            aria-haspopup="dialog"
+            onClick={onPick}
+            data-testid="project-pick-manager"
+          >
+            {t.pick}
+          </Button>
+        )
+      }
+    >
+      {t.body(personName(po.opsManager))}{' '}
+      <Link to="/$id" params={{ id: project.id }} hash="purchase-order" className="link">
+        {t.seePurchaseOrder}
+      </Link>
+    </Banner>
+  )
+}
+
+/**
+ * ProjectDetailPage — one project (specs/021 US-1; specs/022 US-2, US-3, US-4, US-5): its details with the dates
  * from its terms, the team, and — by what the project has — a **Purchase order** card (a project made from a
  * won deal: the deal, the "no longer won" notice, the estimate, the Bexio order id, its terms) or a **Terms**
  * card (a hand-made one, which never has a purchase order, AC-5.2). A holder of manage projects for the
  * project's entity gets the state actions and the edit dialogs; anyone else reads (the server's 403 is
- * the gate, ADR-0014). The type of a project never changes (A30), so there is no control for it.
+ * the gate, ADR-0014). The type of a project never changes (A30), so there is no control for it. A project
+ * awaiting its project manager carries the notice of `AwaitingNotice`, and no control on this page clears a
+ * project manager (AC-4.9).
  */
 export default function ProjectDetailPage() {
   const t = strings.project
@@ -45,11 +86,12 @@ export default function ProjectDetailPage() {
   const currentUserId = useCurrentUserId()
   const load = useCallback((signal: AbortSignal) => getProject(id, { signal }), [id])
   const resource = useResource(load)
-  const { canManageEntity } = useScope()
+  const { canManageEntity, oversees } = useScope()
   const [saved, setSaved] = useState<string | null>(null)
   const [stale, setStale] = useState(false)
   const [actionError, setActionError] = useState<string | null>(null)
   const [editing, setEditing] = useState(false)
+  const [picking, setPicking] = useState(false)
 
   if (resource.status === 'loading') return <Loading label={t.loading} />
   if (resource.status === 'error') {
@@ -141,6 +183,13 @@ export default function ProjectDetailPage() {
         )}
         {saved && <Saved message={saved} onDismiss={() => setSaved(null)} />}
         {!canManage && <Banner tone="info">{t.readOnly}</Banner>}
+        {project.awaitingProjectManager && (
+          <AwaitingNotice
+            project={project}
+            canPick={po !== null && (currentUserId === po.opsManager.id || oversees)}
+            onPick={() => setPicking(true)}
+          />
+        )}
         {reopenedDeal !== null && (
           <Banner tone="warning" title={t.dealNotWon.title} data-testid="project-deal-not-won">
             {t.dealNotWon.body(reopenedDeal)}
@@ -191,6 +240,20 @@ export default function ProjectDetailPage() {
           <TermsCard project={project} canManage={canManage} onChanged={recordChanged} onStale={() => setStale(true)} />
         )}
       </div>
+      {picking && (
+        <PickProjectManagerDialog
+          project={project}
+          onCancel={() => setPicking(false)}
+          onSaved={(next) => {
+            setPicking(false)
+            changed(next, t.saved.projectManager)
+          }}
+          onStale={() => {
+            setPicking(false)
+            setStale(true)
+          }}
+        />
+      )}
       {editing && (
         <ProjectEditDialog
           project={project}

@@ -9,7 +9,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { ScopeContext } from '../hooks/useScope'
-import { fakeApi, problem, projectDetail, purchaseOrderOf, scope, termsOf } from '../test-support/fakeApi'
+import { fakeApi, problem, projectDetail, purchaseOrderOf, referentOf, scope, termsOf } from '../test-support/fakeApi'
 import type { FakeHandler } from '../test-support/fakeApi'
 import type { Project, PurchaseOrder, Scope } from '../lib/types'
 
@@ -119,6 +119,255 @@ describe('the card (AC-3.3)', () => {
     )
     expect(card.textContent).toContain('Senior developer')
   })
+})
+
+describe('the ops manager (D42, D46)', () => {
+  it('names the ops manager the purchase order was assigned to', () => {
+    const card = renderCard(projectWith({ opsManager: { id: 'u-ops', name: 'Olga Ops', deleted: false } }))
+    expect(within(card).getByText('Ops manager')).not.toBeNull()
+    expect(within(card).getByText('Olga Ops')).not.toBeNull()
+  })
+
+  it('marks the signed-in user as "You", as everywhere on the page', () => {
+    const card = renderCard(projectWith({ opsManager: { id: 'u-ada', name: 'Ada Lovelace', deleted: false } }))
+    expect(card.textContent).toContain('Ada Lovelace (You)')
+  })
+})
+
+describe('the referent (AC-3.8, AC-3.9, AC-3.10; T18 M5, L9)', () => {
+  const referentBlock = (card: HTMLElement) => within(card).getByTestId('purchase-order-referent')
+
+  it('shows the referent’s name, job title, email and phone, the email and phone as mailto: and tel: links', () => {
+    const card = renderCard(projectWith({ referent: referentOf() }))
+    const block = referentBlock(card)
+    expect(block.textContent).toContain('Jane Roe')
+    expect(block.textContent).toContain('CTO')
+    expect(within(block).getByRole('link', { name: 'jane.roe@acme.example' }).getAttribute('href')).toBe(
+      'mailto:jane.roe@acme.example',
+    )
+    expect(within(block).getByRole('link', { name: '+41 44 123 45 67' }).getAttribute('href')).toBe('tel:+41441234567')
+    expect(block.textContent).not.toMatch(/unavailable|No referent/i)
+  })
+
+  it('leaves a detail the contact lacks blank, with no link for it', () => {
+    const card = renderCard(projectWith({ referent: referentOf({ jobTitle: null, email: null, phone: null }) }))
+    const block = referentBlock(card)
+    expect(block.textContent).toContain('Jane Roe')
+    expect(within(block).queryAllByRole('link')).toEqual([])
+    expect(block.textContent).not.toMatch(/null|undefined/)
+  })
+
+  it('renders a contact’s fields as text, and the scheme of a link is the one this page chooses', () => {
+    const card = renderCard(
+      projectWith({
+        referent: referentOf({ name: '<img src=x onerror=alert(1)>', email: 'javascript:alert(1)', phone: 'tel:evil' }),
+      }),
+    )
+    const block = referentBlock(card)
+    expect(block.querySelector('img')).toBeNull()
+    expect(block.textContent).toContain('<img src=x onerror=alert(1)>')
+    const hrefs = within(block)
+      .getAllByRole('link')
+      .map((link) => link.getAttribute('href'))
+    for (const href of hrefs) expect(href).toMatch(/^(mailto|tel):/)
+    expect(hrefs.some((href) => href!.startsWith('javascript:'))).toBe(false)
+  })
+
+  it('says "Referent unavailable" and shows none of the contact when the CRM could not answer (AC-3.10)', () => {
+    const card = renderCard(
+      projectWith({
+        referent: referentOf({ status: 'unavailable', name: null, jobTitle: null, email: null, phone: null }),
+      }),
+    )
+    const block = referentBlock(card)
+    expect(block.textContent).toContain('Referent unavailable')
+    expect(block.textContent).not.toContain('Jane Roe')
+    expect(within(block).queryAllByRole('link')).toEqual([])
+    // The rest of the card is still there.
+    expect(card.textContent).toContain('Website relaunch')
+  })
+
+  it('shows no referent when there is none, or when the CRM no longer has the contact (AC-3.9)', () => {
+    const card = renderCard(projectWith({ referent: null }))
+    const block = referentBlock(card)
+    expect(block.textContent).toContain('No referent')
+    expect(block.textContent).not.toMatch(/unavailable/i)
+    expect(within(block).queryAllByRole('link')).toEqual([])
+  })
+})
+
+describe('who may set, change or clear the referent (AC-3.7)', () => {
+  it.each([
+    ['one is set', referentOf(), 'Change referent'],
+    ['none is set', null, 'Set referent'],
+  ])('a holder of manage for the entity is offered the edit when %s', (_name, referent, label) => {
+    const card = renderCard(projectWith({ referent }), scope({ manage: ['welld_ch'] }))
+    expect(within(card).getByRole('button', { name: label })).not.toBeNull()
+  })
+
+  it.each<[string, Scope]>([
+    ['reads only', scope()],
+    ['manages only the other entity', scope({ manage: ['welld_it'] })],
+    ['may only write the Bexio order id', scope({ bexio: true })],
+    ['oversees the purchase orders without managing projects', scope({ oversees: true })],
+  ])('a caller who %s gets no control to edit the referent', (_name, callerScope) => {
+    const card = renderCard(projectWith({ referent: referentOf() }), callerScope)
+    expect(within(card).queryByRole('button', { name: /referent/i })).toBeNull()
+    expect(within(card).getByTestId('purchase-order-referent').textContent).toContain('Jane Roe')
+  })
+})
+
+describe('editing the referent (AC-3.6, AC-3.7; T18 M1, M5)', () => {
+  const JANE = { id: 'k1', name: 'Jane Roe', jobTitle: 'CTO' }
+  const MAX = { id: 'k2', name: 'Max Mustermann', jobTitle: null }
+  const contactsRoute = {
+    'GET /projects/p1/purchase-order/contacts': () => ({ status: 200, body: { items: [JANE, MAX] } }),
+  }
+  const MANAGER = scope({ manage: ['welld_ch'] })
+
+  const openDialog = async (card: HTMLElement, label = 'Change referent') => {
+    fireEvent.click(within(card).getByRole('button', { name: label }))
+    const dialog = await screen.findByRole('dialog', { name: 'Referent' })
+    await waitFor(() => expect(within(dialog).getAllByRole('option').length).toBeGreaterThan(1))
+    return dialog
+  }
+  const picker = (dialog: HTMLElement) => within(dialog).getByLabelText(/^Referent/) as HTMLSelectElement
+  const save = (dialog: HTMLElement) =>
+    fireEvent.click(within(dialog).getByTestId('purchase-order-referent-dialog-submit'))
+  const contactReads = () =>
+    apiFetch.mock.calls.filter(([input]) => new URL(String(input)).pathname === '/projects/p1/purchase-order/contacts')
+
+  it('lists the contacts of the project’s own company, read from the project’s route, with the current one chosen', async () => {
+    const card = renderCard(projectWith({ referent: referentOf() }), MANAGER, contactsRoute)
+    const dialog = await openDialog(card)
+    expect(Array.from(picker(dialog).options).map((option) => option.textContent)).toEqual([
+      'No referent',
+      'Jane Roe — CTO',
+      'Max Mustermann',
+    ])
+    expect(picker(dialog).value).toBe('k1')
+    // The client never names a company: the only reads are the project's own contacts.
+    const reads = apiFetch.mock.calls.map(([input]) => new URL(String(input)))
+    expect(reads.map((url) => url.pathname)).toEqual(['/projects/p1/purchase-order/contacts'])
+    expect(reads[0]!.search).toBe('')
+  })
+
+  it('changing the referent PATCHes the contact id with the purchase order’s version and tells the page', async () => {
+    const card = renderCard(projectWith({ version: 7, referent: referentOf() }), MANAGER, {
+      ...contactsRoute,
+      'PATCH /projects/p1/purchase-order': () => ({ status: 200, body: purchaseOrderOf({ version: 8 }) }),
+    })
+    const dialog = await openDialog(card)
+    expect((within(dialog).getByTestId('purchase-order-referent-dialog-submit') as HTMLButtonElement).disabled).toBe(
+      true,
+    )
+    fireEvent.change(picker(dialog), { target: { value: 'k2' } })
+    save(dialog)
+    await waitFor(() => expect(onChanged).toHaveBeenCalledWith('Referent saved.'))
+    expect(writes()).toEqual([
+      { method: 'PATCH', path: '/projects/p1/purchase-order', ifMatch: '"7"', body: { referentContactId: 'k2' } },
+    ])
+    expect(screen.queryByRole('dialog')).toBeNull()
+  })
+
+  it('sets a referent on a purchase order that has none', async () => {
+    const card = renderCard(projectWith({ referent: null }), MANAGER, {
+      ...contactsRoute,
+      'PATCH /projects/p1/purchase-order': () => ({ status: 200, body: purchaseOrderOf({ version: 3 }) }),
+    })
+    const dialog = await openDialog(card, 'Set referent')
+    expect(picker(dialog).value).toBe('')
+    fireEvent.change(picker(dialog), { target: { value: 'k1' } })
+    save(dialog)
+    await waitFor(() => expect(writes().length).toBe(1))
+    expect(writes()[0]!.body).toEqual({ referentContactId: 'k1' })
+  })
+
+  it('"No referent" clears it: the id goes out as null', async () => {
+    const card = renderCard(projectWith({ referent: referentOf() }), MANAGER, {
+      ...contactsRoute,
+      'PATCH /projects/p1/purchase-order': () => ({ status: 200, body: purchaseOrderOf({ version: 3 }) }),
+    })
+    const dialog = await openDialog(card)
+    fireEvent.change(picker(dialog), { target: { value: '' } })
+    save(dialog)
+    await waitFor(() => expect(writes().length).toBe(1))
+    expect(writes()[0]!.body).toEqual({ referentContactId: null })
+    expect(onChanged).toHaveBeenCalledWith('Referent saved.')
+  })
+
+  it('reads the contacts again every time the dialog opens, and keeps them nowhere else (T18 M5)', async () => {
+    const setItem = vi.spyOn(Storage.prototype, 'setItem')
+    const card = renderCard(projectWith({ referent: referentOf() }), MANAGER, contactsRoute)
+    const first = await openDialog(card)
+    fireEvent.click(within(first).getByTestId('purchase-order-referent-dialog-cancel'))
+    expect(screen.queryByRole('dialog')).toBeNull()
+    await openDialog(card)
+    expect(contactReads().length).toBe(2)
+    expect(setItem).not.toHaveBeenCalled()
+    setItem.mockRestore()
+  })
+
+  it('a refused contact (422 referent_invalid) is one fixed message on the field, never the server’s text', async () => {
+    const card = renderCard(projectWith({ referent: null }), MANAGER, {
+      ...contactsRoute,
+      'PATCH /projects/p1/purchase-order': () =>
+        problem(422, 'referent_invalid', { field: 'referentContactId' }, 'contact k2 belongs to Other Corp'),
+    })
+    const dialog = await openDialog(card, 'Set referent')
+    fireEvent.change(picker(dialog), { target: { value: 'k2' } })
+    save(dialog)
+    expect(await within(dialog).findByText(/cannot be the referent of this purchase order/)).not.toBeNull()
+    expect(dialog.textContent).not.toContain('Other Corp')
+    expect(screen.getByRole('dialog')).not.toBeNull()
+    expect(onChanged).not.toHaveBeenCalled()
+  })
+
+  it('a stale save (409 version_conflict) closes the dialog and is the page’s reload prompt', async () => {
+    const card = renderCard(projectWith({ referent: null }), MANAGER, {
+      ...contactsRoute,
+      'PATCH /projects/p1/purchase-order': () => problem(409, 'version_conflict', { currentVersion: 9 }),
+    })
+    const dialog = await openDialog(card, 'Set referent')
+    fireEvent.change(picker(dialog), { target: { value: 'k1' } })
+    save(dialog)
+    await waitFor(() => expect(onStale).toHaveBeenCalledTimes(1))
+    expect(screen.queryByRole('dialog')).toBeNull()
+  })
+
+  it('says when the CRM cannot be reached for the save (503 crm_unavailable), values kept', async () => {
+    const card = renderCard(projectWith({ referent: null }), MANAGER, {
+      ...contactsRoute,
+      'PATCH /projects/p1/purchase-order': () => problem(503, 'crm_unavailable'),
+    })
+    const dialog = await openDialog(card, 'Set referent')
+    fireEvent.change(picker(dialog), { target: { value: 'k1' } })
+    save(dialog)
+    expect((await within(dialog).findByTestId('purchase-order-referent-dialog-error')).textContent).toContain(
+      'The CRM cannot be reached',
+    )
+    expect(picker(dialog).value).toBe('k1')
+  })
+
+  it.each([
+    ['crm_unavailable', 503, 'The contacts could not be loaded. The CRM cannot be reached right now.'],
+    ['out_of_scope', 403, 'The contacts could not be loaded. You may not change the purchase orders of this entity.'],
+    ['purchase_order_not_found', 404, 'The contacts could not be loaded. This project has no purchase order.'],
+  ])(
+    'a contact list that cannot be read (%s) is said in the purchase order’s words, with Retry',
+    async (code, status, text) => {
+      const card = renderCard(projectWith({ referent: null }), MANAGER, {
+        'GET /projects/p1/purchase-order/contacts': () => problem(status, code),
+      })
+      fireEvent.click(within(card).getByRole('button', { name: 'Set referent' }))
+      const dialog = await screen.findByRole('dialog', { name: 'Referent' })
+      const banner = await within(dialog).findByTestId('purchase-order-referent-picker-error')
+      expect(banner.textContent).toContain(text)
+      // Nothing about taking a deal leaks into the purchase order's wording.
+      expect(banner.textContent).not.toMatch(/deal/i)
+      expect(within(banner).getByRole('button', { name: 'Retry' })).not.toBeNull()
+    },
+  )
 })
 
 describe('the estimate (AC-3.2)', () => {
