@@ -53,8 +53,12 @@ import { createHash, timingSafeEqual } from "node:crypto";
  *   Only projects-api holds it.
  * - `estimai.estimates.read`: read an estimate's man-days through estimai-api's
  *   `GET /system/estimates/{id}/summary` (specs/022). Only projects-api holds it.
- * - `projects.contracts.read`: read the contracts of given deals through projects-api's
- *   `GET /system/contracts` (specs/022). Only crm-api holds it.
+ * - `crm.contacts.read`: read a company's contacts, or contacts by id (the referent of a
+ *   purchase order), through crm-api's `GET /system/contacts` (specs/022, D49). Only
+ *   projects-api holds it.
+ * - `projects.purchase-orders.read`: read the purchase orders of given deals through
+ *   projects-api's `GET /system/purchase-orders` (specs/022; was `projects.contracts.read`,
+ *   retired with "contract", D38). Only crm-api holds it.
  */
 export const KNOWN_SERVICE_SCOPES = [
   "notifications.push",
@@ -66,8 +70,9 @@ export const KNOWN_SERVICE_SCOPES = [
   "crm.companies.read",
   "activities.write",
   "crm.deals.read",
+  "crm.contacts.read",
   "estimai.estimates.read",
-  "projects.contracts.read",
+  "projects.purchase-orders.read",
 ] as const;
 
 /**
