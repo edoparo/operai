@@ -23,7 +23,12 @@ export function setupOpenAPI(app: OpenAPIHono): void {
       { name: "Scope", description: "What the caller may do" },
       { name: "Projects", description: "The delivery work wellD runs" },
       { name: "Terms", description: "The type-specific delivery terms of a project" },
-      { name: "Purchase orders", description: "The delivery-side record of a won deal (Bexio order id)" },
+      {
+        name: "Purchase orders",
+        description:
+          "The delivery-side record of a won deal (Bexio order id, and the referent: a CRM contact of the project's company " +
+          "whose data is read live at every opening, never stored or cached; its answers are no-store)",
+      },
       { name: "Companies", description: "CRM companies, read through a service credential" },
       {
         name: "Queue",

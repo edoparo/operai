@@ -20,9 +20,9 @@ import { PURCHASE_ORDER_BEXIO, authorized, requireCapability } from "../auth/gua
 import type { AuthzVariables } from "../auth/authz.middleware";
 import { db } from "../lib/db";
 import { IdParams, assertVersion, commonErrors, etag, isRecordNotFound, requireIfMatch, versionConflict } from "../lib/http";
-import { ProblemError, notFound, validationHook } from "../lib/problem";
+import { notFound, validationHook } from "../lib/problem";
 import { PurchaseOrderSchema } from "../projects/projects.schemas";
-import { toPurchaseOrderView } from "./view";
+import { purchaseOrderNotFound, toPurchaseOrderView } from "./view";
 
 export const MAX_BEXIO_ORDER_ID = 64;
 
@@ -39,9 +39,6 @@ const BexioOrderSchema = z
   .strict();
 
 const json = (schema: z.ZodTypeAny) => ({ content: { "application/json": { schema } } });
-
-const purchaseOrderNotFound = () =>
-  new ProblemError({ status: 404, code: "purchase_order_not_found", detail: "This project has no purchase order" });
 
 const setBexioOrderRoute = createRoute({
   method: "put",
@@ -68,7 +65,7 @@ bexioRouter.openapi(setBexioOrderRoute, async (c) => {
   const { id } = c.req.valid("param");
   const { bexioOrderId } = c.req.valid("json");
   const expected = requireIfMatch(c);
-  const project = await db.project.findUnique({ where: { id }, select: { purchaseOrder: true } });
+  const project = await db.project.findUnique({ where: { id }, select: { companyId: true, purchaseOrder: true } });
   if (!project) throw notFound("Project not found");
   const current = project.purchaseOrder;
   if (!current) throw purchaseOrderNotFound();
@@ -86,5 +83,6 @@ bexioRouter.openapi(setBexioOrderRoute, async (c) => {
       throw versionConflict(now.version);
     });
   c.header("ETag", etag(row.version));
-  return c.json(await toPurchaseOrderView(c, row), 200);
+  // The echo carries the live referent too (specs/022 T26), so it is `no-store` like the rest of the order.
+  return c.json(await toPurchaseOrderView(c, row, project.companyId), 200);
 });

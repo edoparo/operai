@@ -227,6 +227,9 @@ const MAX_CONTACT_IDS_PER_REQUEST = 20;
 const CONTACT_ID = /^[A-Za-z0-9_-]{1,64}$/;
 
 const text = (value: unknown): string => (typeof value === "string" ? value : "");
+/** A contact's display name: first then last, trimmed (a contact lacking one of them shows the other). */
+export const contactName = (contact: { readonly firstName: string; readonly lastName: string }): string =>
+  `${contact.firstName} ${contact.lastName}`.trim();
 const textOrNull = (value: unknown): string | null => (typeof value === "string" ? value : null);
 
 /** The non-archived contacts of `companyId` (crm-api's `companyId` mode: at most 500, by last then first name). */
@@ -234,7 +237,7 @@ export async function companyContacts(companyId: string): Promise<{ items: Conta
   const body = await crmGet("/system/contacts", new URLSearchParams({ companyId }));
   const items = (body.items as Record<string, unknown>[]).map((raw) => ({
     id: text(raw["id"]),
-    name: `${text(raw["firstName"])} ${text(raw["lastName"])}`.trim(),
+    name: contactName({ firstName: text(raw["firstName"]), lastName: text(raw["lastName"]) }),
     jobTitle: textOrNull(raw["jobTitle"]),
   }));
   return { items, truncated: body.truncated === true };

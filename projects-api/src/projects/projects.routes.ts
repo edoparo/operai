@@ -9,7 +9,9 @@
  *
  * Names are live: people come from `auth` (fail soft, ADR-0039), company names from crm-api
  * with the service credential (fail soft, ADR-0059), and so is the deal behind the purchase order of
- * a project made from one (specs/022: title and whether it is still won, fail soft).
+ * a project made from one (specs/022: title and whether it is still won, fail soft). The purchase
+ * order's referent is read live too (T26, `purchase-orders/view.ts`): one CRM `ids` call, only when one
+ * is set, never stored or cached — so every answer that carries a `Project` is `Cache-Control: no-store`.
  *
  * `toProjectView`, `projectInclude` and `findProjectRow` are exported for the routes that
  * answer with a `Project` after their own write (transitions, team — T6, T7).
@@ -32,12 +34,12 @@ import {
   skipTake,
   toDateOnly,
   versionConflict,
-  type HeaderSource,
 } from "../lib/http";
 import { requireProjectUsers } from "../lib/identities";
 import { loadPeople } from "../lib/people";
 import { notFound, validationHook } from "../lib/problem";
-import { dealRefs, purchaseOrderView } from "../purchase-orders/view";
+import { referentRouter } from "../purchase-orders/referent.routes";
+import { dealRefs, loadReferent, noStore, purchaseOrderView, type ViewContext } from "../purchase-orders/view";
 import { toTermsView } from "../terms/terms";
 import { assertCompanyFits, projectCreateData } from "./create";
 import {
@@ -67,13 +69,17 @@ export const findProjectRow = (id: string): Promise<ProjectRow | null> =>
  * the dates of the terms. A project awaits its project manager when it has a purchase order and no
  * project manager yet (specs/022 D42).
  */
-export async function toProjectView(c: HeaderSource, row: ProjectRow) {
+export async function toProjectView(c: ViewContext, row: ProjectRow) {
   const order = row.purchaseOrder;
-  const [people, company, deal] = await Promise.all([
+  // The view can carry the referent's personal data (specs/022 D49): no browser or proxy may keep it (T18 M5).
+  noStore(c);
+  const [people, company, deal, referent] = await Promise.all([
     loadPeople(c, [row.projectManagerId, order?.opsManagerId, ...row.members.map((member) => member.userId)]),
     companyRefs([row.companyId]),
     // The deal behind the purchase order, live: `won: false` is the AC-2.3 notice.
     dealRefs([order?.dealId]),
+    // The referent, live, with one `ids` call and only when one is set (AC-3.8 – AC-3.10, T18 L7).
+    loadReferent(order?.referentContactId, row.companyId),
   ]);
   return {
     id: row.id,
@@ -86,7 +92,7 @@ export async function toProjectView(c: HeaderSource, row: ProjectRow) {
     projectManager: people.maybe(row.projectManagerId),
     awaitingProjectManager: order !== null && row.projectManagerId === null,
     team: row.members.map((member) => people.person(member.userId)),
-    purchaseOrder: order === null ? null : purchaseOrderView(order, deal, people.person),
+    purchaseOrder: order === null ? null : purchaseOrderView(order, deal, people.person, referent),
     terms: row.terms === null ? null : toTermsView(row.terms),
     startDate: toDateOnly(row.terms?.startDate ?? null),
     endDate: toDateOnly(row.terms?.endDate ?? null),
@@ -165,6 +171,9 @@ const updateProjectRoute = createRoute({
 });
 
 export const projectsRouter = new OpenAPIHono<{ Variables: AuthzVariables }>({ defaultHook: validationHook });
+
+// The referent routes (specs/022 T26) hang off a project: `/projects/:id/purchase-order[/contacts]`.
+projectsRouter.route("/", referentRouter);
 
 projectsRouter.openapi(createProjectRoute, async (c) => {
   const body = c.req.valid("json");

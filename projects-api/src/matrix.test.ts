@@ -232,6 +232,26 @@ const SPECS: Record<string, RouteSpec> = {
       };
     },
   },
+  // The referent (specs/022 T26, AC-3.7): `project:manage` for the PROJECT's entity, the company read from its row.
+  // Minimal rows now; T29 widens the personas.
+  "GET /projects/:id/purchase-order/contacts": {
+    need: "manage",
+    ok: 200,
+    prepare: async (entity) => ({
+      method: "GET",
+      path: `/projects/${(await withPurchaseOrder(entity)).project.id}/purchase-order/contacts`,
+    }),
+  },
+  "PATCH /projects/:id/purchase-order": {
+    need: "manage",
+    ok: 200,
+    prepare: async (entity) => ({
+      method: "PATCH",
+      path: `/projects/${(await withPurchaseOrder(entity)).project.id}/purchase-order`,
+      body: { referentContactId: null },
+      ifMatch: 1,
+    }),
+  },
 };
 
 /** The routes that answer without a token: liveness and the API docs. Nothing else may. */

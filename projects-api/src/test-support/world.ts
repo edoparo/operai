@@ -188,6 +188,11 @@ export const crm = {
   lastAuthorization: "",
   /** The query string of the last `GET /system/contacts`. */
   lastContactsQuery: "",
+  /**
+   * A raw replacement of the `200` body of `GET /system/contacts` (either mode), for a test of what the
+   * code does with a CRM that answers something other than what was asked (another id, extra members).
+   */
+  contactsReply: undefined as unknown,
 };
 
 function fakeCrmCompanies(url: URL, authorization: string): Response {
@@ -364,6 +369,7 @@ function fakeCrmContacts(url: URL, authorization: string): Response {
   crm.lastContactsQuery = url.search;
   if (crm.down || crm.contactsDown) return new Response("down", { status: 503 });
   if (authorization !== `Bearer ${SERVICE_JWT}`) return Response.json({ status: 401 }, { status: 401 });
+  if (crm.contactsReply !== undefined) return Response.json(crm.contactsReply);
   const companyId = url.searchParams.get("companyId");
   const ids = url.searchParams.get("ids")?.split(",");
   if ((companyId === null) === (ids === undefined)) return Response.json({ status: 400 }, { status: 400 });
@@ -551,6 +557,7 @@ export async function resetWorld(): Promise<void> {
   crm.wonLimit = CRM_WON_LIMIT;
   crm.lastAuthorization = "";
   crm.lastContactsQuery = "";
+  crm.contactsReply = undefined;
   holders.users = defaultHolders();
   holders.down = false;
   holders.status = 200;
