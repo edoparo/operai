@@ -12,7 +12,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { fakeApi, problem, projectDetail } from '../test-support/fakeApi'
 import type { FakeHandler } from '../test-support/fakeApi'
-import type { OpsManagerList, QueueItem } from '../lib/types'
+import type { ContactChoice, OpsManagerList, QueueItem } from '../lib/types'
 
 const { apiFetch } = vi.hoisted(() => ({ apiFetch: vi.fn() }))
 vi.mock('shell/session', () => ({
@@ -38,20 +38,34 @@ const DEAL: QueueItem = {
 }
 const WITHOUT_ESTIMATE: QueueItem = { ...DEAL, estimate: null }
 
+// Synthetic contacts only (T18 L2).
+const CONTACTS: ContactChoice[] = [
+  { id: 'k1', name: 'Jane Roe', jobTitle: 'CTO' },
+  { id: 'k2', name: 'Max Mustermann', jobTitle: null },
+]
+
 const onCancel = vi.fn()
 const onTaken = vi.fn()
 const onGone = vi.fn()
 
 const opsSelect = (dialog: HTMLElement) => within(dialog).getByLabelText(/^Ops manager/) as HTMLSelectElement
+const referentSelect = (dialog: HTMLElement) => within(dialog).getByLabelText(/^Referent/) as HTMLSelectElement
+const readsOf = (path: string) =>
+  apiFetch.mock.calls.filter(
+    ([input, init]) => new URL(String(input)).pathname === path && !(init as RequestInit | undefined)?.method,
+  ).length
+const opsReads = () => readsOf('/queue/d1/ops-managers')
 
 const renderDialog = async (
   deal: QueueItem = DEAL,
   routes: Record<string, FakeHandler> = {},
   opsManagers: OpsManagerList = PREFILLED,
+  waitForCandidates = true,
 ) => {
   apiFetch.mockImplementation(
     fakeApi({
       'GET /queue/d1/ops-managers': () => ({ status: 200, body: opsManagers }),
+      'GET /queue/d1/contacts': () => ({ status: 200, body: { items: CONTACTS } }),
       'POST /queue/d1/project': () => ({ status: 201, body: projectDetail({ id: 'pNew', name: deal.title }) }),
       ...routes,
     }),
@@ -59,7 +73,7 @@ const renderDialog = async (
   render(<TakeDealDialog deal={deal} onCancel={onCancel} onTaken={onTaken} onGone={onGone} />)
   const dialog = screen.getByRole('dialog', { name: 'New project from a deal' })
   // The candidates arrive after the dialog opens: wait for them, so a submit is not a not-yet-loaded one.
-  await waitFor(() => expect(within(dialog).getAllByRole('option').length).toBeGreaterThan(1))
+  if (waitForCandidates) await waitFor(() => expect(opsSelect(dialog).options.length).toBeGreaterThan(1))
   return dialog
 }
 
@@ -176,6 +190,23 @@ describe('the ops manager (AC-4.1)', () => {
     expect(posted()).toBeNull()
   })
 
+  it('does not guess among several holders, and an admin alone is never prefilled (D45)', async () => {
+    const dialog = await renderDialog(WITHOUT_ESTIMATE, {}, { items: [ROOT], prefillId: null })
+    expect(opsSelect(dialog).value).toBe('')
+    expect(
+      within(opsSelect(dialog))
+        .getAllByRole('option')
+        .map((option) => option.textContent),
+    ).toEqual(['Choose…', 'Root Admin — All entities'])
+  })
+
+  it('says so when no one at all can receive the purchase order, instead of an empty list', async () => {
+    const dialog = await renderDialog(WITHOUT_ESTIMATE, {}, { items: [], prefillId: null }, false)
+    expect(
+      await within(dialog).findByText(/No ops manager or administrator is available for this entity/),
+    ).not.toBeNull()
+  })
+
   it('an admin can be chosen instead of the prefilled holder, and is the one sent', async () => {
     const dialog = await renderDialog(WITHOUT_ESTIMATE)
     fillFixedPrice(dialog)
@@ -183,6 +214,80 @@ describe('the ops manager (AC-4.1)', () => {
     fireEvent.click(within(dialog).getByTestId('take-deal-submit'))
     await waitFor(() => expect(onTaken).toHaveBeenCalled())
     expect((posted()!.body as { opsManagerId: string }).opsManagerId).toBe('u-root')
+  })
+})
+
+describe('the referent (AC-3.6)', () => {
+  it('lists the contacts of the deal’s company, read from the deal’s own route: the client never names a company', async () => {
+    const dialog = await renderDialog()
+    await waitFor(() =>
+      expect(Array.from(referentSelect(dialog).options).map((option) => option.textContent)).toEqual([
+        'No referent',
+        'Jane Roe — CTO',
+        'Max Mustermann',
+      ]),
+    )
+    const read = apiFetch.mock.calls
+      .map(([input]) => new URL(String(input)))
+      .find((url) => url.pathname === '/queue/d1/contacts')!
+    expect(read.search).toBe('')
+    expect(referentSelect(dialog).value).toBe('')
+  })
+
+  it('may stay empty: the take carries no referent', async () => {
+    const dialog = await renderDialog(WITHOUT_ESTIMATE)
+    await waitFor(() => expect(referentSelect(dialog).options.length).toBeGreaterThan(1))
+    fillFixedPrice(dialog)
+    fireEvent.click(within(dialog).getByTestId('take-deal-submit'))
+    await waitFor(() => expect(onTaken).toHaveBeenCalled())
+    expect(posted()!.body).not.toHaveProperty('referentContactId')
+  })
+
+  it('may stay empty for a company with no contacts', async () => {
+    const dialog = await renderDialog(WITHOUT_ESTIMATE, {
+      'GET /queue/d1/contacts': () => ({ status: 200, body: { items: [] } }),
+    })
+    expect(await within(dialog).findByText(/This company has no contacts in the CRM/)).not.toBeNull()
+    fillFixedPrice(dialog)
+    fireEvent.click(within(dialog).getByTestId('take-deal-submit'))
+    await waitFor(() => expect(onTaken).toHaveBeenCalled())
+    expect(posted()!.body).not.toHaveProperty('referentContactId')
+  })
+
+  it('sends the chosen contact as referentContactId, and nothing about the contact but its id', async () => {
+    const dialog = await renderDialog(WITHOUT_ESTIMATE)
+    await waitFor(() => expect(referentSelect(dialog).options.length).toBeGreaterThan(1))
+    fillFixedPrice(dialog)
+    fireEvent.change(referentSelect(dialog), { target: { value: 'k1' } })
+    fireEvent.click(within(dialog).getByTestId('take-deal-submit'))
+    await waitFor(() => expect(onTaken).toHaveBeenCalled())
+    const body = posted()!.body as { referentContactId: string }
+    expect(body.referentContactId).toBe('k1')
+    expect(JSON.stringify(body)).not.toMatch(/Jane|CTO/)
+  })
+
+  it('choosing "No referent" again drops it from the take', async () => {
+    const dialog = await renderDialog(WITHOUT_ESTIMATE)
+    await waitFor(() => expect(referentSelect(dialog).options.length).toBeGreaterThan(1))
+    fillFixedPrice(dialog)
+    fireEvent.change(referentSelect(dialog), { target: { value: 'k2' } })
+    fireEvent.change(referentSelect(dialog), { target: { value: '' } })
+    fireEvent.click(within(dialog).getByTestId('take-deal-submit'))
+    await waitFor(() => expect(onTaken).toHaveBeenCalled())
+    expect(posted()!.body).not.toHaveProperty('referentContactId')
+  })
+
+  it('a CRM that cannot list the contacts is said so, and the project can still be created without a referent', async () => {
+    const dialog = await renderDialog(WITHOUT_ESTIMATE, {
+      'GET /queue/d1/contacts': () => problem(503, 'crm_unavailable'),
+    })
+    const message = await within(dialog).findByTestId('take-deal-referent-error')
+    expect(message.textContent).toContain('The contacts could not be loaded.')
+    expect(message.textContent).toContain('The CRM cannot be reached right now.')
+    fillFixedPrice(dialog)
+    fireEvent.click(within(dialog).getByTestId('take-deal-submit'))
+    await waitFor(() => expect(onTaken).toHaveBeenCalled())
+    expect(posted()!.body).not.toHaveProperty('referentContactId')
   })
 })
 
@@ -310,8 +415,6 @@ describe('refusals (AC-1.11, AC-4.2, AC-3.6)', () => {
     ['deal_not_won', 409, 'This deal is no longer won in the CRM, so it cannot be taken.'],
     ['deal_taken', 409, 'A project has just taken this deal.'],
     ['out_of_scope', 403, 'You may not take deals of this entity.'],
-    ['ops_manager_invalid', 422, 'This person cannot receive the purchase order of this deal.'],
-    ['referent_invalid', 422, 'This contact cannot be the referent.'],
     ['identity_unavailable', 503, 'The user directory cannot be reached right now'],
     ['crm_unavailable', 503, 'The CRM cannot be reached right now. Try again in a moment.'],
     ['estimai_unavailable', 503, 'EstimAI cannot be reached right now'],
@@ -328,16 +431,81 @@ describe('refusals (AC-1.11, AC-4.2, AC-3.6)', () => {
     expect((within(dialog).getByLabelText(/^Deadline/) as HTMLInputElement).value).toBe('2026-12-01')
   })
 
-  it('never echoes the server’s detail for a referent refusal: one message whatever the reason (T18)', async () => {
+  it('ops_manager_invalid lands on the ops manager, asks for another choice and reads the candidates again (AC-4.2)', async () => {
+    const dialog = await renderDialog(WITHOUT_ESTIMATE, {
+      'POST /queue/d1/project': () => problem(422, 'ops_manager_invalid', {}, 'u-ops lost the role'),
+    })
+    fillFixedPrice(dialog)
+    fireEvent.click(within(dialog).getByTestId('take-deal-submit'))
+    expect(
+      await within(dialog).findByText(
+        'This person cannot receive the purchase order of this deal. Choose another ops manager.',
+      ),
+    ).not.toBeNull()
+    expect(opsSelect(dialog).getAttribute('aria-invalid')).toBe('true')
+    expect(dialog.textContent).not.toContain('lost the role')
+    // The candidates are read again, so a person who lost the role is gone from the list.
+    await waitFor(() => expect(opsReads()).toBe(2))
+    expect(onTaken).not.toHaveBeenCalled()
+    expect(onGone).not.toHaveBeenCalled()
+  })
+
+  it('referent_invalid lands on the referent in one fixed message, never the server’s detail (T18)', async () => {
     const dialog = await renderDialog(WITHOUT_ESTIMATE, {
       'POST /queue/d1/project': () =>
         problem(422, 'referent_invalid', {}, 'Contact c-42 (Jane Doe) belongs to company Other SA'),
     })
+    await waitFor(() => expect(referentSelect(dialog).options.length).toBeGreaterThan(1))
+    fillFixedPrice(dialog)
+    fireEvent.change(referentSelect(dialog), { target: { value: 'k1' } })
+    fireEvent.click(within(dialog).getByTestId('take-deal-submit'))
+    expect(
+      await within(dialog).findByText(
+        'This contact cannot be the referent. Choose another contact, or leave the referent empty.',
+      ),
+    ).not.toBeNull()
+    expect(referentSelect(dialog).getAttribute('aria-invalid')).toBe('true')
+    expect(dialog.textContent).not.toMatch(/c-42|Other SA/)
+    // The chosen contact stays chosen: changing it is the person's call.
+    expect(referentSelect(dialog).value).toBe('k1')
+  })
+
+  it('a 422 that names a field of the terms lands on that input, whichever of the take’s paths names it', async () => {
+    const dialog = await renderDialog(WITHOUT_ESTIMATE, {
+      'POST /queue/d1/project': () =>
+        problem(422, 'validation_failed', { field: 'terms.startDate' }, 'The start date is not a date.'),
+    })
     fillFixedPrice(dialog)
     fireEvent.click(within(dialog).getByTestId('take-deal-submit'))
-    const text = (await within(dialog).findByTestId('take-deal-error')).textContent
-    expect(text).toContain('This contact cannot be the referent.')
-    expect(text).not.toMatch(/c-42|Jane|Other SA/)
+    expect(await within(dialog).findByText('The start date is not a date.')).not.toBeNull()
+    expect(
+      within(dialog)
+        .getByLabelText(/^Start date/)
+        .getAttribute('aria-invalid'),
+    ).toBe('true')
+  })
+
+  it('a 422 on the name lands on the name', async () => {
+    const dialog = await renderDialog(WITHOUT_ESTIMATE, {
+      'POST /queue/d1/project': () => problem(422, 'validation_failed', { field: 'name' }, 'The name is too long.'),
+    })
+    fillFixedPrice(dialog)
+    fireEvent.click(within(dialog).getByTestId('take-deal-submit'))
+    expect(await within(dialog).findByText('The name is too long.')).not.toBeNull()
+    expect(within(dialog).getByLabelText(/^Name/).getAttribute('aria-invalid')).toBe('true')
+  })
+
+  it('maintenance_needs_sla_or_hours is said in the terms area, in its own words (terms.terms)', async () => {
+    const dialog = await renderDialog(WITHOUT_ESTIMATE, {
+      'POST /queue/d1/project': () =>
+        problem(422, 'maintenance_needs_sla_or_hours', { field: 'terms.terms' }, 'server words'),
+    })
+    setType(dialog, 'maintenance')
+    setField(dialog, /^Start date/, '2026-11-01')
+    fireEvent.click(within(dialog).getByLabelText('Include an SLA'))
+    fireEvent.click(within(dialog).getByTestId('take-deal-submit'))
+    expect(await within(dialog).findByText('Add an SLA, an hour package, or both.')).not.toBeNull()
+    expect(dialog.textContent).not.toContain('server words')
   })
 
   it.each(['deal_not_found', 'deal_not_won', 'deal_taken'])(
@@ -383,9 +551,32 @@ describe('refusals (AC-1.11, AC-4.2, AC-3.6)', () => {
     apiFetch.mockImplementation(fakeApi({ 'GET /queue/d1/ops-managers': () => problem(503, 'identity_unavailable') }))
     render(<TakeDealDialog deal={DEAL} onCancel={onCancel} onTaken={onTaken} onGone={onGone} />)
     const dialog = screen.getByRole('dialog', { name: 'New project from a deal' })
-    expect((await within(dialog).findByTestId('take-deal-opsmanagers-error')).textContent).toContain(
+    expect((await within(dialog).findByTestId('take-deal-opsmanager-error')).textContent).toContain(
       'The user directory cannot be reached right now',
     )
+  })
+
+  it('says why the ops managers could not be listed (out of scope), and Retry reads them again', async () => {
+    let allowed = false
+    const dialog = await renderDialog(
+      WITHOUT_ESTIMATE,
+      {
+        'GET /queue/d1/ops-managers': () => (allowed ? { status: 200, body: PREFILLED } : problem(403, 'out_of_scope')),
+      },
+      PREFILLED,
+      false,
+    )
+    const message = await within(dialog).findByTestId('take-deal-opsmanager-error')
+    expect(message.textContent).toContain('You may not take deals of this entity.')
+    // Nothing to choose from, so nothing can be taken.
+    fillFixedPrice(dialog)
+    fireEvent.click(within(dialog).getByTestId('take-deal-submit'))
+    expect(await within(dialog).findByText('Choose who receives this purchase order.')).not.toBeNull()
+    expect(posted()).toBeNull()
+    allowed = true
+    fireEvent.click(within(message).getByRole('button', { name: 'Retry' }))
+    await waitFor(() => expect(opsSelect(dialog).value).toBe('u-ops'))
+    expect(within(dialog).queryByTestId('take-deal-opsmanager-error')).toBeNull()
   })
 })
 

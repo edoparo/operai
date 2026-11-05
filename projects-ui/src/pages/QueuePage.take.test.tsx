@@ -43,6 +43,11 @@ const renderQueue = async (routes: Record<string, FakeHandler>, callerScope: Sco
         status: 200,
         body: { items: [{ id: 'u-ops', name: 'Olga Ops', admin: false }], prefillId: 'u-ops' },
       }),
+      // Synthetic contacts only (T18 L2).
+      'GET /queue/d1/contacts': () => ({
+        status: 200,
+        body: { items: [{ id: 'k1', name: 'Jane Roe', jobTitle: 'CTO' }] },
+      }),
       ...routes,
     }),
   )
@@ -166,6 +171,34 @@ describe('after the take', () => {
     expect(screen.queryByTestId('queue-page')).toBeNull()
     expect(screen.getByTestId('project-facts').textContent).toContain('Awaiting project manager')
     expect(screen.getByTestId('project-purchase-order')).not.toBeNull()
+  })
+
+  it('takes the deal with the chosen ops manager and referent, and nothing else of the contact (AC-3.6, AC-4.1)', async () => {
+    await renderQueue(
+      {
+        'GET /queue': () => queue([CH]),
+        'POST /queue/d1/project': () => ({ status: 201, body: awaitingProject }),
+        'GET /projects/pNew': () => ({ status: 200, body: awaitingProject }),
+      },
+      SALES_CH,
+    )
+    fireEvent.click(screen.getByRole('button', { name: 'New project: Website relaunch' }))
+    const dialog = await screen.findByRole('dialog', { name: 'New project from a deal' })
+    await ready(dialog)
+    const referent = within(dialog).getByLabelText(/^Referent/) as HTMLSelectElement
+    await waitFor(() => expect(referent.options.length).toBe(2))
+    fillFixedPrice(dialog)
+    fireEvent.change(referent, { target: { value: 'k1' } })
+    fireEvent.click(within(dialog).getByTestId('take-deal-submit'))
+    await screen.findByTestId('project-detail-page')
+    const call = apiFetch.mock.calls.find(([, init]) => (init as RequestInit | undefined)?.method === 'POST')!
+    expect(JSON.parse(String((call[1] as RequestInit).body))).toEqual({
+      name: 'Website relaunch',
+      type: 'fixed_price',
+      terms: { startDate: '2026-11-01', terms: { deadline: '2026-12-01', maxEffortManDays: 40 } },
+      opsManagerId: 'u-ops',
+      referentContactId: 'k1',
+    })
   })
 
   it('a deal taken meanwhile leaves the list behind the dialog, which keeps saying why (AC-1.6)', async () => {

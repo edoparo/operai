@@ -50,6 +50,17 @@ const en = {
       allEntities: 'All entities',
       required: 'Choose who receives this purchase order.',
       loading: 'Loading the ops managers…',
+      none: 'No ops manager or administrator is available for this entity, so no one can receive this purchase order.',
+    },
+    /** The referent picker (AC-3.6): shared with the purchase order's referent edit. */
+    referent: {
+      label: 'Referent',
+      hint: 'Optional. The person at the client whom the delivery talks to. You can set it later.',
+      none: 'No referent',
+      loading: 'Loading the contacts…',
+      empty: 'This company has no contacts in the CRM, so there is no referent to choose.',
+      loadFailed: 'The contacts could not be loaded.',
+      option: (name: string, jobTitle: string | null) => (jobTitle === null ? name : `${name} — ${jobTitle}`),
     },
     /** Each refusal of taking a deal, in its own words (AC-1.11, AC-4.2). */
     errors: {
@@ -124,6 +135,16 @@ const it: typeof en = {
       allEntities: 'Tutte le entità',
       required: 'Scegli chi riceve questo ordine d’acquisto.',
       loading: 'Caricamento dei responsabili OPS…',
+      none: 'Nessun responsabile OPS né amministratore è disponibile per questa entità, quindi nessuno può ricevere questo ordine d’acquisto.',
+    },
+    referent: {
+      label: 'Referente',
+      hint: 'Facoltativo. La persona presso il cliente con cui parla la delivery. Puoi impostarlo dopo.',
+      none: 'Nessun referente',
+      loading: 'Caricamento dei contatti…',
+      empty: 'Questa azienda non ha contatti nel CRM, quindi non c’è un referente da scegliere.',
+      loadFailed: 'Non è stato possibile caricare i contatti.',
+      option: (name: string, jobTitle: string | null) => (jobTitle === null ? name : `${name} — ${jobTitle}`),
     },
     errors: {
       deal_not_found: 'Questa trattativa non esiste più nel CRM.',

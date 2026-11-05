@@ -32,8 +32,9 @@ import { strings } from '../strings'
  * empty queue. The list is capped at the newest 500 (A26) and says so when it is.
  *
  * A taker with manage projects for a deal's entity takes it (AC-1.2): "New
- * project", a dialog that also asks the PO's dates and terms. There is no
- * attaching a deal to an existing project (D39). The action is UX gating on the
+ * project", a dialog that also asks the PO's dates and terms, its ops-manager and
+ * its optional referent (no project manager: the ops-manager picks one afterwards,
+ * D42). There is no attaching a deal to an existing project (D39). The action is UX gating on the
  * entities (`GET /scope`); the server's 403 `out_of_scope` is the gate. A take
  * lands the user on the project; a deal that turns out to be taken or no longer
  * won reloads the queue behind the dialog, which keeps saying why.
