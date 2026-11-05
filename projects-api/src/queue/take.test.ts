@@ -7,11 +7,14 @@
  * Every refusal asserts that NOTHING was written: no project, no terms, no purchase order (the take is
  * one transaction), and that the deal is still in the queue where it was. T24 adds the gates
  * (`handoff:take` and `project:manage` for the deal's entity), the ops-manager check against auth's
- * live holders, the referent check against the deal company's CRM contacts and the audit line; the
- * notification is T25.
+ * live holders, the referent check against the deal company's CRM contacts and the audit line; T25 adds
+ * the push to the ops-manager (AC-4.3), which a notify-api failure never turns into a failed take (AC-4.4).
  */
-import { beforeEach, describe, expect, it, spyOn } from "bun:test";
-import { bearerFor, call, crm, db, estimai, holders, makeContact, makeDeal, resetWorld, seedDealProject, type PersonaName } from "../test-support/world";
+import { afterEach, beforeEach, describe, expect, it, spyOn } from "bun:test";
+import { env } from "../lib/env";
+import { createNotifier, resetNotifierForTests, setNotifierForTests, type NotifyEvent } from "../lib/notify";
+import { serviceTokens } from "../lib/serviceToken";
+import { bearerFor, call, crm, db, estimai, holders, makeContact, makeDeal, resetWorld, seedDealProject, SERVICE_JWT, type PersonaName } from "../test-support/world";
 
 beforeEach(async () => {
   await resetWorld();
@@ -626,5 +629,257 @@ describe("no attach, no purchase order on an existing project (AC-1.10, D39)", (
       expect((await call(method, path, { as: "admin", body: { dealId: "d-1" }, ifMatch: 1 })).status).toBe(404);
     }
     expect(await db.purchaseOrder.count()).toBe(0);
+  });
+});
+
+// ─── The notification (T25; AC-4.3, AC-4.4) ──────────────────────────────────
+
+/** Waits for something that happens after the response (the push is never awaited by it). */
+async function until(condition: () => boolean, what: string): Promise<void> {
+  for (let waited = 0; !condition(); waited += 5) {
+    if (waited > 2_000) throw new Error(`timed out waiting for ${what}`);
+    await Bun.sleep(5);
+  }
+}
+
+describe("POST /queue/:dealId/project — the ops-manager is told, and only the ops-manager (AC-4.3)", () => {
+  const events: NotifyEvent[] = [];
+  beforeEach(() => {
+    events.length = 0;
+    setNotifierForTests({
+      async notify(event) {
+        events.push(event);
+      },
+    });
+    crm.deals = [makeDeal({ id: "d-1", title: "Portal rebuild" })];
+  });
+  afterEach(resetNotifierForTests);
+
+  it("sends exactly one push, to the ops-manager of the take, in English, with a link to the new project", async () => {
+    crm.contacts = [makeContact({ id: "contact-1", companyId: "co-acme" })];
+    const res = await takeAsProject("d-1", body({ referentContactId: "contact-1" }));
+
+    expect(res.status).toBe(201);
+    expect(events).toEqual([
+      {
+        kind: "purchase_order_assigned",
+        projectId: res.json.id,
+        recipientId: "user-ops",
+        severity: "info",
+        title: "Purchase order assigned: Portal 2027",
+        body: "Acme SA — pick the project manager of this project.",
+        href: `/projects/${res.json.id}`,
+      },
+    ]);
+  });
+
+  it("tells the person the caller chose, not the caller, the referent or anybody else", async () => {
+    const res = await takeAsProject("d-1", body({ opsManagerId: "user-admin" }), "salesCh");
+    expect(res.status).toBe(201);
+    expect(events.map((event) => event.recipientId)).toEqual(["user-admin"]);
+  });
+
+  it("goes out after the commit: the project and its purchase order are stored by then", async () => {
+    let stored: { projects: number; orders: number } | undefined;
+    setNotifierForTests({
+      async notify() {
+        stored = { projects: await db.project.count(), orders: await db.purchaseOrder.count() };
+      },
+    });
+    expect((await takeAsProject("d-1", body())).status).toBe(201);
+    await until(() => stored !== undefined, "the notifier");
+    expect(stored).toEqual({ projects: 1, orders: 1 });
+  });
+
+  it("reaches notify-api as the service principal, as a `projects` notification of the contract's shape", async () => {
+    const seen: { url: string; authorization: string | null; body: unknown }[] = [];
+    const fetchImpl = (async (url: unknown, init?: RequestInit) => {
+      seen.push({ url: String(url), authorization: new Headers(init?.headers).get("Authorization"), body: JSON.parse(String(init?.body)) });
+      return new Response("{}", { status: 201 });
+    }) as typeof fetch;
+    setNotifierForTests(createNotifier({ baseUrl: "http://notify.test", tokens: serviceTokens!, fetchImpl }));
+
+    const res = await takeAsProject("d-1", body({ name: "Portal 2027" }));
+    expect(res.status).toBe(201);
+    await until(() => seen.length > 0, "the push");
+    expect(seen).toEqual([
+      {
+        url: "http://notify.test/system/notifications",
+        // The service token, never the caller's: a person taking a deal holds no `notifications.push`.
+        authorization: `Bearer ${SERVICE_JWT}`,
+        body: {
+          recipientId: "user-ops",
+          originApp: "projects",
+          severity: "info",
+          title: "Purchase order assigned: Portal 2027",
+          body: "Acme SA — pick the project manager of this project.",
+          link: { href: `/projects/${res.json.id}` },
+        },
+      },
+    ]);
+  });
+
+  it.each([
+    ["a deal that is not won", () => (crm.deals = [makeDeal({ id: "d-1", stage: "negotiation" })]), body(), 409],
+    ["an ops-manager who may not receive it", () => {}, body({ opsManagerId: "user-nobody" }), 422],
+    ["a referent of another company", () => (crm.contacts = [makeContact({ id: "c-other", companyId: "co-zeta" })]), body({ referentContactId: "c-other" }), 422],
+    ["a body that is not valid", () => {}, body({ name: "" }), 400],
+  ] as const)("sends nothing for a take refused for %s", async (_label, arrange, payload, status) => {
+    arrange();
+    const res = await takeAsProject("d-1", payload);
+    expect(res.status).toBe(status);
+    expect(events).toEqual([]);
+  });
+
+  it("sends nothing for a take refused to the wrong entity, or without the right", async () => {
+    expect((await takeAsProject("d-1", body(), "salesIt")).status).toBe(403);
+    expect((await takeAsProject("d-1", body(), "pmCh")).status).toBe(403);
+    expect((await takeAsProject("d-1", body(), null)).status).toBe(401);
+    expect(events).toEqual([]);
+  });
+
+  it("sends nothing when the CRM or auth cannot answer", async () => {
+    holders.down = true;
+    expect((await takeAsProject("d-1", body())).status).toBe(503);
+    holders.down = false;
+    crm.down = true;
+    expect((await takeAsProject("d-1", body())).status).toBe(503);
+    expect(events).toEqual([]);
+  });
+
+  it("sends one push for a deal taken twice: the second take is deal_taken and tells nobody", async () => {
+    expect((await takeAsProject("d-1", body())).status).toBe(201);
+    expect((await takeAsProject("d-1", body({ name: "Second" }))).status).toBe(409);
+    expect(events).toHaveLength(1);
+  });
+
+  it("sends one push for two concurrent takes of one deal", async () => {
+    const [a, b] = await Promise.all([takeAsProject("d-1", body()), takeAsProject("d-1", body({ name: "Other" }))]);
+    expect([a.status, b.status].sort()).toEqual([201, 409]);
+    expect(events).toHaveLength(1);
+  });
+});
+
+describe("POST /queue/:dealId/project — a notification that cannot be delivered changes nothing (AC-4.4)", () => {
+  beforeEach(() => {
+    crm.deals = [makeDeal({ id: "d-1" })];
+  });
+  afterEach(resetNotifierForTests);
+
+  /** The take answered 201 with the project awaiting its project manager, and everything stored. */
+  const expectTaken = async (res: Awaited<ReturnType<typeof takeAsProject>>) => {
+    expect(res.status).toBe(201);
+    expect(res.json).toMatchObject({ state: "planned", projectManager: null, awaitingProjectManager: true });
+    expect(await counts()).toEqual(ONE);
+    expect(await db.purchaseOrder.findUniqueOrThrow({ where: { dealId: "d-1" } })).toMatchObject({ opsManagerId: "user-ops" });
+  };
+
+  /** A notify-api behind `fetchImpl`, reached through the real notifier and token provider. */
+  const wireNotifyApi = (fetchImpl: typeof fetch, timeoutMs?: number) =>
+    setNotifierForTests(createNotifier({ baseUrl: "http://notify.test", tokens: serviceTokens!, fetchImpl, ...(timeoutMs ? { timeoutMs } : {}) }));
+
+  /** The console's error lines while `run` runs (the failure of a delivery is logged after the response). */
+  const errorLines = () => {
+    const lines: string[] = [];
+    const spy = spyOn(console, "error").mockImplementation((...args: unknown[]) => void lines.push(args.map(String).join(" ")));
+    return { lines, restore: () => spy.mockRestore() };
+  };
+
+  it.each([401, 403, 500, 503])("still 201 when notify-api answers HTTP %i", async (status) => {
+    let calls = 0;
+    wireNotifyApi((async () => {
+      calls++;
+      return new Response("{}", { status });
+    }) as unknown as typeof fetch);
+    const errors = errorLines();
+    try {
+      await expectTaken(await takeAsProject("d-1", body()));
+      await until(() => errors.lines.some((line) => line.includes(`HTTP ${status}`)), "the failure to be logged");
+    } finally {
+      errors.restore();
+    }
+    expect(calls).toBe(status === 401 ? 2 : 1);
+  });
+
+  it("still 201 when notify-api is unreachable", async () => {
+    wireNotifyApi((async () => {
+      throw new TypeError("fetch failed");
+    }) as unknown as typeof fetch);
+    const errors = errorLines();
+    try {
+      await expectTaken(await takeAsProject("d-1", body()));
+      await until(() => errors.lines.some((line) => line.includes("TypeError")), "the failure to be logged");
+    } finally {
+      errors.restore();
+    }
+  });
+
+  it("still 201 when notify-api times out", async () => {
+    const hangs = (async (_url: unknown, init?: RequestInit) =>
+      new Promise<Response>((_resolve, reject) => {
+        init?.signal?.addEventListener("abort", () => reject(Object.assign(new Error("aborted"), { name: "TimeoutError" })));
+      })) as typeof fetch;
+    wireNotifyApi(hangs, 30);
+    const errors = errorLines();
+    try {
+      await expectTaken(await takeAsProject("d-1", body()));
+      await until(() => errors.lines.some((line) => line.includes("TimeoutError")), "the timeout to be logged");
+    } finally {
+      errors.restore();
+    }
+  });
+
+  it("answers without waiting for a delivery that never finishes", async () => {
+    setNotifierForTests({ notify: () => new Promise<void>(() => {}) });
+    await expectTaken(await takeAsProject("d-1", body()));
+  });
+
+  it("still 201 when the notifier itself blows up", async () => {
+    setNotifierForTests({
+      notify() {
+        throw new Error("boom");
+      },
+    });
+    await expectTaken(await takeAsProject("d-1", body()));
+  });
+
+  it.each([
+    ["unset", undefined],
+    ["set, under NODE_ENV=test with no injected notifier", "http://notify.test"],
+  ])("still 201, and calls notify-api for nobody, when NOTIFY_INTERNAL_URL is %s", async (_label, url) => {
+    const configured = env.NOTIFY_INTERNAL_URL;
+    env.NOTIFY_INTERNAL_URL = url;
+    const notifyCalls = () =>
+      (globalThis.fetch as unknown as { mock: { calls: unknown[][] } }).mock.calls.filter((args) => String(args[0]).includes("/system/notifications")).length;
+    const before = notifyCalls();
+    try {
+      resetNotifierForTests(); // nothing injected: the environment decides
+      await expectTaken(await takeAsProject("d-1", body()));
+      await Bun.sleep(30); // a push, were there one, starts right after the commit
+    } finally {
+      env.NOTIFY_INTERNAL_URL = configured;
+    }
+    expect(notifyCalls()).toBe(before);
+  });
+
+  it("logs no token, title, name or contact data when delivery fails", async () => {
+    crm.contacts = [makeContact({ id: "c-ok", firstName: "Hidden", lastName: "Person", email: "hidden.person@example.test" })];
+    wireNotifyApi((async () => new Response("{}", { status: 503 })) as unknown as typeof fetch);
+    const lines: string[] = [];
+    const record = (...args: unknown[]) => void lines.push(args.map(String).join(" "));
+    const spies = [spyOn(console, "log"), spyOn(console, "error"), spyOn(console, "warn")].map((spy) => spy.mockImplementation(record));
+    try {
+      await expectTaken(await takeAsProject("d-1", body({ name: "Secret Portal Name", referentContactId: "c-ok" })));
+      await until(() => lines.some((line) => line.includes("[notify]")), "the failure to be logged");
+    } finally {
+      for (const spy of spies) spy.mockRestore();
+    }
+    const failure = lines.filter((line) => line.includes("[notify]"));
+    expect(failure).toHaveLength(1);
+    expect(failure[0]).toContain("HTTP 503");
+    for (const line of lines) {
+      expect(line).not.toContain(SERVICE_JWT);
+      expect(line).not.toMatch(/Bearer|Secret Portal|Purchase order assigned|Acme|Hidden|Person|hidden\.person|c-ok|user-ops/);
+    }
   });
 });

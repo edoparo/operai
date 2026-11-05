@@ -49,6 +49,12 @@ const envSchema = z
     // terms of a project made from a deal copy. Optional: unset, taking such a deal answers 503
     // `estimai_unconfigured`, and nothing else in the module notices.
     ESTIMAI_INTERNAL_URL: z.string().url("ESTIMAI_INTERNAL_URL must be a valid URL").optional(),
+    // ─── notify-api, pushed to as ITSELF (specs/022, AC-4.3) ──────────────────
+    // Base URL of notify-api: `POST /system/notifications` with the same service credential as
+    // crm-api's (scope `notifications.push`, originApp `projects`) tells the ops-manager of a taken
+    // deal about the new purchase order. Optional, like ESTIMAI_INTERNAL_URL: unset, or without the
+    // service credential, the push is a no-op and the take is unaffected (best-effort, AC-4.4).
+    NOTIFY_INTERNAL_URL: z.string().url("NOTIFY_INTERNAL_URL must be a valid URL").optional(),
     // ─── Service credentials accepted on /system/* (specs/022, ADR-0060) ─────
     // The `aud` of the scoped service JWTs `auth` mints (`POST /system/service-token`);
     // byte-identical to auth's, and different from AUTH_AUDIENCE so a user JWT is never a
