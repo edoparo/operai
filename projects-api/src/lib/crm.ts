@@ -13,7 +13,7 @@
  *     (a page of projects must not die because the CRM is down).
  *
  * Deals are read the same way (`GET /system/deals`, scope `crm.deals.read`), live, never cached or
- * synced: `wonDeals()` (the to-start queue's source) and `dealsById(ids)` (a contract's deal) throw
+ * synced: `wonDeals()` (the to-start queue's source) and `dealsById(ids)` (a purchase order's deal) throw
  * `CrmUnavailableError`; the route decides between a 503 and degrading to unknown.
  *
  * Nothing here logs a token or a response body.
@@ -169,7 +169,7 @@ export interface CrmDeal {
 
 /**
  * The won deals, newest win first (crm-api caps the list at 500 and says so with `truncated`).
- * The queue subtracts the deals that already have a contract itself.
+ * The queue subtracts the deals that already have a purchase order itself.
  */
 export async function wonDeals(): Promise<{ items: CrmDeal[]; truncated: boolean }> {
   const body = await crmGet("/system/deals", new URLSearchParams({ stage: "won" }));

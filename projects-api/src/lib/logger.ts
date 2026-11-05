@@ -10,7 +10,7 @@ import type { MiddlewareHandler } from "hono";
  * SSE stream, ADR-0008). projects-api has no query-string credential today, but
  * this module is copied from crm-api (same posture across every Operai
  * resource server): any future query-string-authenticated route is safe by
- * default. It also keeps request bodies (contract terms, who is on which
+ * default. It also keeps request bodies (terms, who is on which
  * project) out of logs unconditionally — nothing here ever logs a body.
  *
  * Deliberately drops the query string entirely (not just known-sensitive

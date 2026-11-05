@@ -27,7 +27,7 @@ import { env } from "../lib/env";
 import { problem } from "../lib/problem";
 
 /** The scopes a `/system/*` route of projects-api may require. */
-export type SystemScope = "projects.contracts.read";
+export type SystemScope = "projects.purchase-orders.read";
 
 const SERVICE_SUB_PREFIX = "system:";
 

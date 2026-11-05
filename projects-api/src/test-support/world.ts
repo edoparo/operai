@@ -13,6 +13,7 @@ import { spyOn } from "bun:test";
 import { setupTestAuth } from "./testAuth";
 import { TEST_CRM_URL, TEST_ESTIMAI_URL } from "./env";
 import type { ResolvedPermission } from "../authz/resolveClient";
+import type { Prisma } from "../lib/generated/prisma/client";
 
 const harness = setupTestAuth();
 await harness.init();
@@ -34,7 +35,7 @@ const MANAGE = (scoped: boolean): ResolvedPermission => ({
   action: "manage",
   conditions: scoped ? ENTITY_COND : null,
 });
-const BEXIO: ResolvedPermission = { resource: "contract", action: "bexio", conditions: null };
+const BEXIO: ResolvedPermission = { resource: "purchase-order", action: "bexio", conditions: null };
 
 export interface Persona {
   readonly sub: string;
@@ -280,6 +281,58 @@ spyOn(globalThis, "fetch").mockImplementation((async (url: unknown, init?: Reque
   return realFetch(url as string, init);
 }) as typeof fetch);
 
+// ─── Seeds ───────────────────────────────────────────────────────────────────
+
+/** The terms each type is seeded with: the smallest set that meets the type's rules. */
+const SEED_TERMS = {
+  fixed_price: { deadline: new Date("2027-03-31T00:00:00Z"), estimatedManDays: 40, maxEffortManDays: 55.5 },
+  maintenance: { slaHighDays: 1, slaNormalDays: 3 },
+  saas: {},
+  t_and_m: {},
+} as const;
+
+export interface DealProjectSeed {
+  readonly type?: "t_and_m" | "fixed_price" | "maintenance" | "saas";
+  readonly project?: Partial<Prisma.ProjectUncheckedCreateInput>;
+  readonly terms?: Partial<Prisma.ProjectTermsUncheckedCreateInput>;
+  readonly order?: Partial<Prisma.PurchaseOrderUncheckedCreateInput>;
+}
+
+/**
+ * A project made from a deal, straight in the database (the take that makes it is tested in
+ * queue/take.test.ts): planned, no project manager, its terms and its purchase order, the shape of
+ * specs/022 T23. Defaults: a fixed price project of Acme in wellD CH, deal `deal-seed`, ops-manager
+ * `user-ops`; a T&M project gets one position.
+ */
+export async function seedDealProject(seed: DealProjectSeed = {}) {
+  const type = seed.type ?? "fixed_price";
+  const project = await db.project.create({
+    data: {
+      name: `Project ${type}`,
+      type,
+      entity: "welld_ch",
+      companyId: "co-acme",
+      projectManagerId: null,
+      createdById: "user-sales-it",
+      ...seed.project,
+      terms: {
+        create: {
+          type,
+          startDate: new Date("2026-12-01T00:00:00Z"),
+          ...SEED_TERMS[type],
+          ...(type === "t_and_m" ? { positions: { create: [{ profile: "Senior developer", plannedManDays: 120, position: 0 }] } } : {}),
+          ...seed.terms,
+        },
+      },
+      purchaseOrder: {
+        create: { dealId: "deal-seed", opsManagerId: "user-ops", createdById: "user-sales-it", ...seed.order },
+      },
+    },
+    include: { terms: true, purchaseOrder: true },
+  });
+  return { project, terms: project.terms!, order: project.purchaseOrder! };
+}
+
 // ─── Requests ────────────────────────────────────────────────────────────────
 
 export interface CallOptions {
@@ -309,8 +362,9 @@ export async function call(method: string, path: string, options: CallOptions = 
 
 /** Puts the world back to its start: the tables (children first), caches, switches and fakes. */
 export async function resetWorld(): Promise<void> {
-  await db.contractPosition.deleteMany();
-  await db.contract.deleteMany();
+  await db.projectTermsPosition.deleteMany();
+  await db.projectTerms.deleteMany();
+  await db.purchaseOrder.deleteMany();
   await db.projectMember.deleteMany();
   await db.project.deleteMany();
   __resetAuthzCacheForTests();

@@ -8,11 +8,11 @@
  *
  * `estimateManDays(id)`:
  *   a number        the estimate's Expected man-days (one decimal, >= 0);
- *   `null`          EstimAI answers 404: the contract keeps its estimate id and no man-days;
+ *   `null`          EstimAI answers 404: the purchase order keeps its estimate id and no man-days;
  *   ProblemError    503 `estimai_unconfigured` (ESTIMAI_INTERNAL_URL unset, or no service credential)
  *                   or 503 `estimai_unavailable` (down, refused, or an unreadable answer).
  *
- * The caller copies the number onto the contract once (A6); nothing here caches it.
+ * The caller copies the number onto the terms once (A6); nothing here caches it.
  * Nothing here logs a token or a response body.
  */
 

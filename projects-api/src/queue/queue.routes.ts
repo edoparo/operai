@@ -3,7 +3,7 @@
  * the won deals no project has taken yet.
  *
  * Nothing is stored or synced. Every read asks crm-api for its won deals (`wonDeals()`, as the
- * service principal, live) and subtracts the deals that already have a contract here, so a deal
+ * service principal, live) and subtracts the deals that already have a purchase order here, so a deal
  * leaves the queue the moment it is taken or reopened in the CRM and is back when it is won again
  * — by construction, with no event to miss. Reading needs `projects:access` only (every holder
  * sees the queue); taking a deal is `take.routes.ts`. A summary carries no amount, currency, owner
@@ -44,7 +44,7 @@ const getQueueRoute = createRoute({
   method: "get",
   path: "/queue",
   tags: ["Queue"],
-  summary: "The to-start queue: won deals no project has taken, newest win first (projects:access)",
+  summary: "The to-start queue: won deals without a purchase order, newest win first (projects:access)",
   middleware: authorized,
   request: { query: QueueQuery },
   responses: {
@@ -62,11 +62,11 @@ queueRouter.openapi(getQueueRoute, async (c) => {
 
   const taken = new Set(
     (
-      await db.contract.findMany({
+      await db.purchaseOrder.findMany({
         where: { dealId: { in: won.map((deal) => deal.id) } },
         select: { dealId: true },
       })
-    ).map((contract) => contract.dealId),
+    ).map((order) => order.dealId),
   );
 
   const needle = q?.trim().toLowerCase();

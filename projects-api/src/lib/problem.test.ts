@@ -13,7 +13,7 @@ describe("validationHook", () => {
           ],
         },
       },
-      { req: { path: "/projects/p1/contracts" } } as never,
+      { req: { path: "/projects/p1/terms" } } as never,
     )!;
     expect(response.status).toBe(400);
     const body = (await response.json()) as { errors: unknown[] };
@@ -22,7 +22,7 @@ describe("validationHook", () => {
       code: "validation_failed",
       field: "terms.sla.highDays",
       detail: "terms.sla.highDays: Number must be less than or equal to 60",
-      instance: "/projects/p1/contracts",
+      instance: "/projects/p1/terms",
     });
     expect(body.errors).toHaveLength(2);
   });

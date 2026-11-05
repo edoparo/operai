@@ -9,8 +9,8 @@ export function setupOpenAPI(app: OpenAPIHono): void {
       title: "Operai Projects API",
       version: "0.1.0",
       description:
-        "Projects, their teams and contracts, and the Bexio order id, for the Projects " +
-        "tool (specs/021-projects). Requires a valid RS256 Bearer JWT issued by the " +
+        "Projects, their teams, terms and purchase orders, and the Bexio order id, for the Projects " +
+        "tool (specs/021-projects, specs/022-projects-handoff). Requires a valid RS256 Bearer JWT issued by the " +
         "Operai auth service and the projects:access permission.",
       contact: {
         name: "wellD",
@@ -22,7 +22,8 @@ export function setupOpenAPI(app: OpenAPIHono): void {
       { name: "System", description: "Health checks and service-to-service routes (scoped service credential)" },
       { name: "Scope", description: "What the caller may do" },
       { name: "Projects", description: "The delivery work wellD runs" },
-      { name: "Contracts", description: "What each client bought on a project" },
+      { name: "Terms", description: "The type-specific delivery terms of a project" },
+      { name: "Purchase orders", description: "The delivery-side record of a won deal (Bexio order id)" },
       { name: "Companies", description: "CRM companies, read through a service credential" },
       { name: "Queue", description: "Won deals waiting for a project, and taking one (specs/022)" },
     ],
