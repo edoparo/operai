@@ -202,7 +202,7 @@ Work happens in the `main` worktree (`/Users/matteocodogno/LAB/aiscream/operai-m
   - done when: a test for each bullet fails before and passes after; `auth` tests and
     typecheck pass; `admin-ui` lint/build/test pass; `mise run env:doctor` is green.
 
-- [ ] T12: Close the feature — refs: all — deps: T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T13, T14
+- [x] T12: Close the feature — refs: all — deps: T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T13, T14
   - touch: `specs/023-signup-gate/*`
   - do:
     - all gates green: `auth` typecheck and tests, `notify-api` tests, `admin-ui`

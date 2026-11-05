@@ -1,0 +1,48 @@
+{
+  "schema": "wellforge-run/v3",
+  "run_id": "2026-11-05T16-26-58Z-implement-023-signup-gate",
+  "command": "implement",
+  "args": "023-signup-gate T12",
+  "feature": "023-signup-gate",
+  "feature_resolution": "explicit",
+  "rigor": "production",
+  "plugin_version": "2.56.0",
+  "started": "2026-11-05T16:26:58Z",
+  "tasks": ["T14", "T12"],
+  "branch": "main",
+  "worktree": {"mode": "sequential-main-tree", "path": "/Users/matteocodogno/LAB/aiscream/operai-main", "reason": "closing chain; e2e needs the standard ports and the isolated _main databases"},
+  "agents": [
+    {"agent": "wellforge:backend-dev", "tasks": ["T14"], "outcome": "completed", "commits": ["225f0b6"]},
+    {"agent": "wellforge:owasp-reviewer", "tasks": ["T12"], "outcome": "PASS WITH NOTES", "note": "whole feature diff 9d0fbb9..HEAD; 0 critical/high/medium, 2 low"},
+    {"agent": "wellforge:quality-engineer", "tasks": ["T12"], "outcome": "FAIL", "note": "only red: critical-CVE dependency audit (pre-existing, not introduced by 023); all other gates and all ACs PASS; e2e failing set identical to the 9d0fbb9 baseline"},
+    {"agent": "wellforge:devops", "outcome": "completed", "commits": ["59e9b48"], "note": "out-of-feature chore (user decision): better-auth 1.7.18 everywhere, vitest 4, @tanstack/react-router pinned 1.170.17, jwks migration for better-auth 1.7; 0 critical in auth/admin-ui/notify-api and every changed frontend; all tests/builds green; e2e identical to baseline"}
+  ],
+  "rework_rounds": 1,
+  "drift_events": [
+    {"task": "T12", "kind": "scope", "detail": "low security findings folded into a new task T14 via tasks re-sync (e3c783e); auth/.env.example change skipped — plan amendment stands", "resolved": true},
+    {"task": "T14", "kind": "touch-list", "detail": "invitations.routes.test.ts updated for the error-name change; touch list re-synced (304bf5f)", "resolved": true}
+  ],
+  "collision_events": [],
+  "env_faults": [
+    {"detail": "notify-api env.emailNotices.test.ts: 5 failures because the child bun process auto-loads the worktree's carried-in local env file; not a code defect, area untouched by 023"}
+  ],
+  "accepted_risks": [
+    {"detail": "unverified allowed-domain email joins the waiting list (user decision 2026-11-05); reviewer confirms it can never gain access"},
+    {"detail": "21-22 pre-existing shell e2e failures identical to the 9d0fbb9 baseline"},
+    {"detail": "high/moderate dependency advisories remain (critical-only floor)"}
+  ],
+  "findings": [
+    {"severity": "low", "source": "owasp", "file": "auth/src/signup/accessRequests.repo.ts", "summary": "no per-window cap on new waiting-list rows/admin notices"},
+    {"severity": "low", "source": "owasp", "file": "auth/src/signup/signupGate.ts", "summary": "refusal log could carry the provider to spot bursts"},
+    {"severity": "info", "source": "devops", "file": "*/package.json", "summary": "@tanstack/react-router pinned at 1.170.17: newer versions break basepath not-found/deep-link tests; follow-up needed"},
+    {"severity": "info", "source": "devops", "file": "auth/prisma/migrations/20261105150000_jwks_better_auth_1_7", "summary": "must be deployed before the better-auth 1.7 auth build serves traffic"}
+  ],
+  "verdicts": {"qe": "PASS", "security": "PASS"},
+  "security": {"dispatched": true, "notes": ["2 low findings, see findings[]", "critical-CVE floor met after 59e9b48 (re-audited by coordinator: auth 0 critical, admin-ui 0 critical)"], "matched_rules": ["production tier: every batch", "auth/**"]},
+  "result": "completed",
+  "rigor_recorded": null,
+  "control_run_id": null,
+  "tokens": null,
+  "cost_usd": null,
+  "terse": false
+}
