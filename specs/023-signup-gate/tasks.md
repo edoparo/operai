@@ -188,7 +188,7 @@ Work happens in the `main` worktree (`/Users/matteocodogno/LAB/aiscream/operai-m
     template carrying it; `auth` tests and typecheck pass; `mise run env:doctor` is green.
 
 - [x] T14: [backend] Security hardening from the review notes — refs: AC-1.9, AC-4.1, AC-3.1, AC-5.1 — deps: T4, T8, T13
-  - touch: `auth/src/lib/env.ts`, `auth/src/system/env.startup.test.ts`, `auth/src/signup/allowedDomains*.ts`, `auth/src/lib/notify*.ts`, `auth/src/signup/notifyAdmins*.ts`, `admin-ui/src/lib/adminApi.ts`, `admin-ui/src/lib/adminApi.test.ts`
+  - touch: `auth/src/lib/env.ts`, `auth/src/system/env.startup.test.ts`, `auth/src/signup/allowedDomains*.ts`, `auth/src/lib/notify*.ts`, `auth/src/signup/notifyAdmins*.ts`, `admin-ui/src/lib/adminApi.ts`, `admin-ui/src/lib/adminApi.test.ts`, `auth/src/invitations/invitations.routes.test.ts`
   - do (owasp low findings recorded in the batch-1 and T13 run traces):
     - reserved test domains in `ALLOWED_SIGNUP_DOMAINS` are refused at startup unless
       `ENABLE_TEST_AUTH` is true (in addition to `NODE_ENV=production`);
