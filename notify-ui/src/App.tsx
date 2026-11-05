@@ -1,6 +1,7 @@
 import 'shell/tokens.css'
+import { useState, useSyncExternalStore } from 'react'
 import { RouterProvider } from '@tanstack/react-router'
-import { createAppRouter } from './router'
+import { createAppRouter, type AppRouter } from './router'
 
 // IMPORTANT (mirrors admin-ui/src/App.tsx's and estimai-ui/src/App.tsx's
 // documented reason exactly): the exposed remote MUST NOT import its own
@@ -11,6 +12,52 @@ import { createAppRouter } from './router'
 // standalone bootstrap (main.tsx) DOES import index.css: outside the shell
 // there is no shell sheet, so it's notify-ui's only source of Tailwind +
 // tokens.
+
+const BASEPATH = '/notify'
+
+/**
+ * The router of one mount (specs/022 AC-6.1, D52). A router created once at module
+ * load outlives every unmount: its browser history keeps listening to the whole
+ * window, so it routes the other modules' addresses too and renders that stale match
+ * when the shell mounts the module again. So the router is made when the module
+ * mounts and its history destroyed (listeners and `pushState` patch included) when
+ * it unmounts.
+ *
+ * It also ignores the browser's address while that address is not the module's own:
+ * between the shell moving the URL to another module and unmounting this one (the
+ * other module is still loading) nothing here routes it, so no page, and no request,
+ * comes from an address that is not ours.
+ */
+function createOwnRouter(): AppRouter {
+  const router = createAppRouter(BASEPATH)
+  const subscribe = router.history.subscribe
+  router.history.subscribe = (listener) =>
+    subscribe((event) => {
+      const path = event.location.pathname.toLowerCase()
+      if (path === BASEPATH || path.startsWith(`${BASEPATH}/`)) listener(event)
+    })
+  return router
+}
+
+/**
+ * The router as an external store whose subscription is the mount: React subscribes
+ * after it commits and unsubscribes when it unmounts, and strict mode's mount,
+ * unmount, mount leaves exactly one router with its history listening.
+ */
+function ownRouterMount() {
+  let router: AppRouter | null = null
+  return {
+    subscribe: (onChange: () => void) => {
+      router = createOwnRouter()
+      onChange()
+      return () => {
+        router?.history.destroy()
+        router = null
+      }
+    },
+    getRouter: () => router,
+  }
+}
 
 /**
  * App — notify-ui's root component, exposed via Module Federation as `./App`
@@ -52,8 +99,8 @@ import { createAppRouter } from './router'
  * standalone build's index.css imports the same tokens. Never inline
  * `var(--…)` styles; lint rejects them.
  */
-const router = createAppRouter('/notify')
-
 export default function App() {
-  return <RouterProvider router={router} />
+  const [mount] = useState(ownRouterMount)
+  const router = useSyncExternalStore(mount.subscribe, mount.getRouter)
+  return router ? <RouterProvider router={router} /> : null
 }
