@@ -108,13 +108,13 @@ describe('requests', () => {
 
   it('terms are created without If-Match, edited and removed with it (T23)', async () => {
     vi.mocked(apiFetch).mockImplementation(async () => json(200, { id: 't1' }))
-    await createTerms('p1', { startDate: '2026-01-01', positions: [{ profile: 'Dev', plannedManDays: 5 }] })
+    await createTerms('p1', { startDate: '2026-01-01', terms: { positions: [{ profile: 'Dev', plannedManDays: 5 }] } })
     expect(lastUrl().pathname).toBe('/projects/p1/terms')
     expect(lastInit().method).toBe('POST')
     expect(headersOf(lastInit())['If-Match']).toBeUndefined()
     expect(JSON.parse(lastInit().body as string)).toEqual({
       startDate: '2026-01-01',
-      positions: [{ profile: 'Dev', plannedManDays: 5 }],
+      terms: { positions: [{ profile: 'Dev', plannedManDays: 5 }] },
     })
 
     await updateTerms('p1', 2, { endDate: '2026-12-31' })

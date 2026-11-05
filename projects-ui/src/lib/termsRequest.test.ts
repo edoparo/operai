@@ -11,17 +11,21 @@ const fixedPriceForm = (over: Partial<TermsForm> = {}): TermsForm => ({
 })
 
 describe('termsRequestOf', () => {
-  it('terms of a saas project may carry neither an SLA nor an hour package: the dates alone', () => {
+  it('terms of a saas project may carry neither an SLA nor an hour package: the dates and an empty member set', () => {
     const { input, errors } = termsRequestOf(
       'saas',
       { startDate: '2026-11-01', endDate: '2027-10-31', terms: emptyTermsForm('saas') },
       { estimateBacked: false },
     )
     expect(errors).toEqual({})
-    expect(input).toEqual({ startDate: '2026-11-01', endDate: '2027-10-31', sla: null, hourPackage: null })
+    expect(input).toEqual({
+      startDate: '2026-11-01',
+      endDate: '2027-10-31',
+      terms: { sla: null, hourPackage: null },
+    })
   })
 
-  it('builds the terms of a take or a hand-made project: the dates and the members of the project type, side by side (T23)', () => {
+  it('builds the terms of a take or a hand-made project: the dates, and the members of the project type nested under `terms` (T23)', () => {
     const { input, errors } = termsRequestOf(
       'fixed_price',
       { startDate: '2026-11-01', endDate: '', terms: fixedPriceForm({ estimatedManDays: '12.5' }) },
@@ -30,9 +34,7 @@ describe('termsRequestOf', () => {
     expect(errors).toEqual({})
     expect(input).toEqual({
       startDate: '2026-11-01',
-      deadline: '2026-12-01',
-      estimatedManDays: 12.5,
-      maxEffortManDays: 40,
+      terms: { deadline: '2026-12-01', estimatedManDays: 12.5, maxEffortManDays: 40 },
     })
   })
 
@@ -43,6 +45,12 @@ describe('termsRequestOf', () => {
       { estimateBacked: false },
     )
     expect(input.endDate).toBe('2027-01-31')
+    const open = termsRequestOf(
+      'fixed_price',
+      { startDate: '2026-11-01', endDate: '', terms: fixedPriceForm() },
+      { estimateBacked: false },
+    )
+    expect('endDate' in open.input).toBe(false)
   })
 
   it('leaves estimatedManDays out entirely for fixed-price terms the estimate backs: the server refuses it sent (AC-3.1)', () => {
@@ -52,8 +60,8 @@ describe('termsRequestOf', () => {
       { estimateBacked: true },
     )
     expect(errors).toEqual({})
-    expect(input).toEqual({ startDate: '2026-11-01', deadline: '2026-12-01', maxEffortManDays: 40 })
-    expect('estimatedManDays' in input).toBe(false)
+    expect(input).toEqual({ startDate: '2026-11-01', terms: { deadline: '2026-12-01', maxEffortManDays: 40 } })
+    expect('estimatedManDays' in input.terms!).toBe(false)
   })
 
   it('keeps the other types’ terms as they are even when an estimate backs the deal', () => {
@@ -66,7 +74,10 @@ describe('termsRequestOf', () => {
       },
       { estimateBacked: true },
     )
-    expect(input).toEqual({ startDate: '2026-11-01', positions: [{ profile: 'Developer', plannedManDays: 20 }] })
+    expect(input).toEqual({
+      startDate: '2026-11-01',
+      terms: { positions: [{ profile: 'Developer', plannedManDays: 20 }] },
+    })
   })
 
   it('asks for a start date, an end date not before it, and the terms of the type', () => {
@@ -89,15 +100,27 @@ describe('termsRequestOf', () => {
 describe('termsFieldKey (where a refusal of the server lands in the form)', () => {
   it.each([
     ['startDate', 'startDate'],
-    ['terms.startDate', 'startDate'],
     ['endDate', 'endDate'],
     ['terms.deadline', 'terms.deadline'],
-    ['deadline', 'terms.deadline'],
-    ['terms.terms.deadline', 'terms.deadline'],
     ['terms.sla.highDays', 'terms.sla.highDays'],
-    ['positions.0.profile', 'terms.positions.0.profile'],
+    ['terms.positions.0.profile', 'terms.positions.0.profile'],
     ['terms', 'terms'],
-  ])('%s → %s', (field, key) => {
-    expect(termsFieldKey(field)).toBe(key)
+    ['version', null],
+  ])('on the terms routes, %s → %s', (field, key) => {
+    expect(termsFieldKey(field, 'terms-route')).toBe(key)
+  })
+
+  it.each([
+    ['terms.startDate', 'startDate'],
+    ['terms.endDate', 'endDate'],
+    ['terms.terms.deadline', 'terms.deadline'],
+    ['terms.terms.positions.0.profile', 'terms.positions.0.profile'],
+    ['terms.terms.estimatedManDays', 'terms.estimatedManDays'],
+    ['terms.terms', 'terms'],
+    ['name', null],
+    ['opsManagerId', null],
+    ['terms', null],
+  ])('in a take or a hand-made create, %s → %s', (field, key) => {
+    expect(termsFieldKey(field, 'nested')).toBe(key)
   })
 })

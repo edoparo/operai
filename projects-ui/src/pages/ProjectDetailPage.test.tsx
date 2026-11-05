@@ -567,7 +567,10 @@ describe('the Terms card of a hand-made project (AC-5.2 – AC-5.4)', () => {
         method: 'POST',
         path: '/projects/p1/terms',
         ifMatch: undefined,
-        body: { startDate: '2026-02-01', deadline: '2026-12-01', estimatedManDays: null, maxEffortManDays: 40 },
+        body: {
+          startDate: '2026-02-01',
+          terms: { deadline: '2026-12-01', estimatedManDays: null, maxEffortManDays: 40 },
+        },
       },
     ])
     expect(await screen.findByTestId('terms-details')).not.toBeNull()

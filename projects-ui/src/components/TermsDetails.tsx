@@ -16,40 +16,31 @@ function hourPackageText(pkg: HourPackage): string {
   return parts.join(' · ')
 }
 
-/** The type-specific facts of terms: which members count is the terms' `type`, the rest read as absent. */
-function typeFacts(terms: Terms): Fact[] {
+/** The type-specific facts of terms: the members nested under `terms.terms`, by the terms' `type`. */
+function typeFacts(stored: Terms): Fact[] {
   const t = strings.terms.details
-  switch (terms.type) {
-    case 'fixed_price':
+  switch (stored.type) {
+    case 'fixed_price': {
+      const { deadline, estimatedManDays, maxEffortManDays } = stored.terms
       return [
-        {
-          id: 'deadline',
-          term: t.deadline,
-          value: terms.deadline ? formatDate(terms.deadline) : strings.common.none,
-        },
+        { id: 'deadline', term: t.deadline, value: formatDate(deadline) },
         {
           id: 'estimated',
           term: t.estimatedManDays,
-          value: terms.estimatedManDays == null ? strings.common.none : manDays(terms.estimatedManDays),
+          value: estimatedManDays === null ? strings.common.none : manDays(estimatedManDays),
         },
-        {
-          id: 'max',
-          term: t.maxEffortManDays,
-          value: terms.maxEffortManDays == null ? strings.common.none : manDays(terms.maxEffortManDays),
-        },
+        { id: 'max', term: t.maxEffortManDays, value: manDays(maxEffortManDays) },
       ]
+    }
     case 'maintenance':
-    case 'saas':
+    case 'saas': {
+      const { sla, hourPackage } = stored.terms
       return [
-        { id: 'sla', term: t.sla, value: terms.sla ? slaText(terms.sla) : t.noTerms },
-        {
-          id: 'hours',
-          term: t.hourPackage,
-          value: terms.hourPackage ? hourPackageText(terms.hourPackage) : t.noTerms,
-        },
+        { id: 'sla', term: t.sla, value: sla ? slaText(sla) : t.noTerms },
+        { id: 'hours', term: t.hourPackage, value: hourPackage ? hourPackageText(hourPackage) : t.noTerms },
       ]
+    }
     case 't_and_m':
-    case 'internal':
       return []
   }
 }
@@ -66,7 +57,7 @@ export default function TermsDetails({ terms }: { terms: Terms }) {
     { id: 'end', term: t.end, value: terms.endDate ? formatDate(terms.endDate) : t.openEnded },
     ...typeFacts(terms),
   ]
-  const positions = terms.type === 't_and_m' ? (terms.positions ?? []) : null
+  const positions = terms.type === 't_and_m' ? terms.terms.positions : null
   const columns: DataTableColumn<Position>[] = [
     { id: 'profile', header: t.profile, rowHeader: true, render: (position) => position.profile },
     {

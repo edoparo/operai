@@ -12,9 +12,6 @@ import TermsFields from './TermsFields'
 
 type ProjectRef = Pick<Project, 'id' | 'type' | 'purchaseOrder'>
 
-const isFieldKey = (field: string): boolean =>
-  field === 'startDate' || field === 'endDate' || field === 'terms' || field.startsWith('terms.')
-
 /**
  * TermsFormDialog — add the terms of a hand-made project, or edit the terms of any project (specs/021
  * AC-2.1 – AC-2.8; specs/022 AC-1.8, AC-5.3, AC-5.4). The terms' type is the project's (never
@@ -58,9 +55,10 @@ export default function TermsFormDialog({
   const dirty = JSON.stringify([startDate, endDate, form]) !== initial
   // Terms of a purchase order whose deal has an estimate take their man-days from it: shown read-only, never sent (AC-3.1).
   const estimateBacked = project.purchaseOrder?.estimate != null && type === 'fixed_price'
+  const storedEstimate = terms?.type === 'fixed_price' ? terms.terms.estimatedManDays : null
   const lockedManDays =
-    terms?.estimatedManDays != null
-      ? t.estimatedFromEstimate(formatNumber(terms.estimatedManDays, { maximumFractionDigits: 1 }))
+    storedEstimate !== null
+      ? t.estimatedFromEstimate(formatNumber(storedEstimate, { maximumFractionDigits: 1 }))
       : t.estimatedFromEstimateNone
 
   const patchForm = (patch: Partial<TermsForm>) => setForm((current) => ({ ...current, ...patch }))
@@ -90,8 +88,8 @@ export default function TermsFormDialog({
         return setError(`${strings.common.authUnavailable.heading}. ${strings.common.authUnavailable.body}`)
       }
       const named = fieldErrorOf(failure)
-      const key = named ? termsFieldKey(named.field) : null
-      if (named && key && isFieldKey(key)) return setErrors({ [key]: named.message })
+      const key = named ? termsFieldKey(named.field, 'terms-route') : null
+      if (named && key) return setErrors({ [key]: named.message })
       setError(errorMessage(failure))
     })
   }

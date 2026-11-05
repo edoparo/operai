@@ -23,7 +23,10 @@ export type CompanyRef = { id: string; name: string | null }
 /** One row of `GET /companies?q=`: what the company picker offers. */
 export type CompanyChoice = { id: string; name: string; entity: Entity }
 
-/** One row of `GET /companies/{id}/contacts`: a non-archived CRM contact the referent can be (AC-3.6). */
+/**
+ * One row of `GET /queue/{dealId}/contacts` or `GET /projects/{id}/purchase-order/contacts`: a non-archived
+ * CRM contact of the company the server derives, which the referent can be (AC-3.6). Never stored.
+ */
 export type ContactChoice = { id: string; name: string; jobTitle: string | null }
 
 export type Page<T> = { items: T[]; total: number; page: number; pageSize: number }
@@ -105,35 +108,46 @@ export type TAndMTerms = { positions: Position[] }
 export type TermsMembers = FixedPriceTerms | SlaAndHoursTerms | TAndMTerms
 
 /**
- * What a request carries as "terms" (a take, a hand-made create, the terms routes): the dates and
- * the type's members side by side, as `Terms` reads back (tasks.md: `terms.deadline` is the
- * validation path of the deadline). Built in one place, `lib/termsRequest.ts`.
+ * What a request carries as terms — the create of the terms routes, a hand-made create's `terms` and the
+ * take's `terms` (strict): the dates, and the type's members **nested** under `terms`, as `Terms` reads back
+ * (specs/022 tasks.md § API contracts "projects-api — shapes (T23)"). Built in one place, `lib/termsRequest.ts`.
  */
-export type TermsInput = { startDate: string; endDate?: string | null } & TermsMembers
+export type TermsInput = { startDate: string; endDate?: string | null; terms?: TermsMembers }
 
 /**
- * What the terms routes' PATCH takes: any of the dates and the members. Per type, the members
- * it sends replace the stored ones (the rule of the old specs/021 contract PATCH).
+ * What the terms routes' PATCH takes: any of the dates and the members. `terms`, when sent, replaces the
+ * type's members whole (the rule of the old specs/021 contract PATCH); `endDate: null` reopens ended terms.
  */
-export type TermsPatch = Partial<{ startDate: string; endDate: string | null }> & Partial<TermsMembers>
+export type TermsPatch = { startDate?: string; endDate?: string | null; terms?: TermsMembers }
+
+/** The types that have terms: `internal` has none. */
+export type TermsType = Exclude<ProjectType, 'internal'>
+
+/** What `Terms.terms` reads back, by type: the members are `null` where the type's set does not use them. */
+export type FixedPriceTermsView = { deadline: string; estimatedManDays: number | null; maxEffortManDays: number }
+export type SlaAndHoursTermsView = {
+  sla: Sla | null
+  hourPackage: (HourPackage & { expiryDate: string | null }) | null
+}
+export type TAndMTermsView = { positions: Position[] }
+export type TermsView = FixedPriceTermsView | SlaAndHoursTermsView | TAndMTermsView
 
 /**
- * The terms of a project, as read (`Project.terms`): the members a type does not use are `null`
- * (or absent / empty for `positions`). `type` is the project's, and says which members count.
+ * The terms of a project, as read (`Project.terms`, and the answer of the terms routes, whose `ETag` is
+ * `version`): the dates, and the type-specific members nested under `terms` — which view it is says `type`.
  */
-export type Terms = {
+type TermsOf<Type extends TermsType, View extends TermsView> = {
   id: string
-  type: ProjectType
+  type: Type
   startDate: string
   endDate: string | null
-  deadline?: string | null
-  estimatedManDays?: number | null
-  maxEffortManDays?: number | null
-  sla?: Sla | null
-  hourPackage?: (HourPackage & { expiryDate: string | null }) | null
-  positions?: Position[] | null
+  terms: View
   version: number
 }
+export type Terms =
+  | TermsOf<'fixed_price', FixedPriceTermsView>
+  | TermsOf<'maintenance' | 'saas', SlaAndHoursTermsView>
+  | TermsOf<'t_and_m', TAndMTermsView>
 
 export type Project = {
   id: string

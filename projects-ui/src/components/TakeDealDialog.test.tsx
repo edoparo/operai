@@ -209,7 +209,10 @@ describe('the man-days of fixed-price terms (AC-3.1, AC-3.5)', () => {
     fireEvent.click(within(dialog).getByTestId('take-deal-submit'))
     await waitFor(() => expect(onTaken).toHaveBeenCalled())
     const body = posted()!.body as { terms: Record<string, unknown> }
-    expect(body.terms).toEqual({ startDate: '2026-11-01', deadline: '2026-12-01', maxEffortManDays: 40 })
+    expect(body.terms).toEqual({
+      startDate: '2026-11-01',
+      terms: { deadline: '2026-12-01', maxEffortManDays: 40 },
+    })
   })
 })
 
@@ -246,9 +249,7 @@ describe('taking the deal (AC-1.2, AC-1.3)', () => {
       terms: {
         startDate: '2026-11-01',
         endDate: '2027-02-28',
-        deadline: '2026-12-01',
-        estimatedManDays: 12.5,
-        maxEffortManDays: 40,
+        terms: { deadline: '2026-12-01', estimatedManDays: 12.5, maxEffortManDays: 40 },
       },
       opsManagerId: 'u-ops',
     })
@@ -270,7 +271,10 @@ describe('taking the deal (AC-1.2, AC-1.3)', () => {
     expect(posted()!.body).toEqual({
       name: 'Website relaunch',
       type: 't_and_m',
-      terms: { startDate: '2026-11-01', positions: [{ profile: 'Senior developer', plannedManDays: 20 }] },
+      terms: {
+        startDate: '2026-11-01',
+        terms: { positions: [{ profile: 'Senior developer', plannedManDays: 20 }] },
+      },
       opsManagerId: 'u-ops',
     })
   })
@@ -285,7 +289,7 @@ describe('taking the deal (AC-1.2, AC-1.3)', () => {
     expect(posted()!.body).toEqual({
       name: 'Website relaunch',
       type: 'saas',
-      terms: { startDate: '2026-11-01', endDate: '2027-10-31', sla: null, hourPackage: null },
+      terms: { startDate: '2026-11-01', endDate: '2027-10-31', terms: { sla: null, hourPackage: null } },
       opsManagerId: 'u-ops',
     })
   })
@@ -357,7 +361,7 @@ describe('refusals (AC-1.11, AC-4.2, AC-3.6)', () => {
     expect(onGone).not.toHaveBeenCalled()
   })
 
-  it.each(['terms.deadline', 'deadline'])('puts a 422 that names the field %s on the deadline', async (field) => {
+  it.each(['terms.terms.deadline'])('puts a 422 that names the take’s field %s on the deadline', async (field) => {
     const dialog = await renderDialog(WITHOUT_ESTIMATE, {
       'POST /queue/d1/project': () => problem(422, 'validation_failed', { field }, 'The deadline is before the start.'),
     })
