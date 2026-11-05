@@ -211,3 +211,19 @@ Work happens in the `main` worktree (`/Users/matteocodogno/LAB/aiscream/operai-m
     - `/wellforge:eval`;
     - then `/wellforge:done`.
   - done when: `/wellforge:done 023-signup-gate` accepts the gate and the spec is `done`.
+
+- [ ] T15: [docs] Fix the admission rule in the amendments and operator docs — refs: AC-6.1, AC-6.2 — deps: T11
+  - touch: `specs/004-auth-roles-permissions/spec.md`, `specs/006-user-invitations/spec.md`, `AGENTS.md`, `infra/README.md`, `.changeset/invitation-only-access.md`
+  - do (eval 2026-11-05 FAIL on AC-6.1, `eval-report.md`): rewrite every place that says
+    "invitation OR allowed domain" so it states the rule of AC-1.1–1.5 / ADR-0071 — a user
+    is created only for an allowed-domain email holding a live pending invitation (verified
+    email) or for the bootstrap admin; an allowed-domain email without one joins the waiting
+    list (access request) and is granted nothing; an outside-domain email is refused with
+    nothing recorded, even with an invitation. Places: specs/004:149-151, specs/006:15-17
+    (and its Non-goals amendment), AGENTS.md:81 (auth), AGENTS.md:68 (admin-ui — requests
+    come from allowed-domain colleagues without an invitation), infra/README.md:1541-1542,
+    the changeset body.
+  - done when: a content read of each place (not a grep) matches AC-1.1–1.5; a negative grep
+    for "or an allowed email domain", "or whose email domain is in", "or an `ALLOWED_SIGNUP_DOMAINS` email"
+    and "outside the allowed domains" over those files finds nothing describing admission;
+    `mise run changeset:check -- --base=9d0fbb9` (or equivalent) passes.
