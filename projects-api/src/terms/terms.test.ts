@@ -622,6 +622,75 @@ describe("DELETE /projects/:id/terms — hand-made projects only (AC-5.4, S5)", 
   });
 });
 
+// ─── A project made by hand through POST /projects (specs/022 T28) ───────────
+
+describe("the terms of a project made through POST /projects can be added, edited and removed later (AC-5.2, AC-5.4, S5, A38)", () => {
+  /** The project as the API makes it: the creation route is the fixture here, not the database. */
+  const make = async (type: Type, terms?: unknown) => {
+    const res = await call("POST", "/projects", {
+      as: "pmCh",
+      body: { name: `By hand ${type}`, type, entity: "welld_ch", ...(type === "internal" ? {} : { companyId: "co-acme" }), ...(terms ? { terms } : {}) },
+    });
+    expect(res.status).toBe(201);
+    return res.json as { id: string; terms: { id: string; version: number } | null };
+  };
+
+  it("adds terms to a project created without any, edits them, removes them, and adds them again", async () => {
+    const project = await make("fixed_price");
+    expect(project.terms).toBeNull();
+
+    const added = await create(project.id, { ...start, terms: TERMS.fixed_price });
+    expect(added.status).toBe(201);
+    expect(await page(project.id)).toMatchObject({ terms: { type: "fixed_price", terms: TERMS.fixed_price }, startDate: "2026-12-01" });
+
+    const edited = await patch(project.id, { endDate: "2027-04-30", terms: { ...TERMS.fixed_price, maxEffortManDays: 60 } }, "pmCh", added.json.version);
+    expect(edited.status).toBe(200);
+    expect(edited.json).toMatchObject({ endDate: "2027-04-30", terms: { maxEffortManDays: 60 }, version: 2 });
+
+    const removed = await remove(project.id, "pmCh", edited.json.version);
+    expect(removed.status).toBe(204);
+    expect(await page(project.id)).toMatchObject({ terms: null, startDate: null, endDate: null });
+    expect(await termsCount()).toBe(0);
+
+    expect((await create(project.id, { ...start, terms: TERMS.fixed_price })).status).toBe(201);
+    expect(await db.purchaseOrder.count()).toBe(0);
+  });
+
+  it("edits and removes the terms it was created with, as a whole: they are optional as a whole (S5)", async () => {
+    const project = await make("t_and_m", { ...start, terms: TERMS.t_and_m });
+    expect(project.terms).toMatchObject({ version: 1 });
+
+    const edited = await patch(project.id, { terms: { positions: [{ profile: "Tester", plannedManDays: 12 }] } });
+    expect(edited.status).toBe(200);
+    expect(edited.json.terms).toEqual({ positions: [{ profile: "Tester", plannedManDays: 12 }] });
+
+    // What remains must still meet the type's rules (A38): T&M never down to no position, and a refusal changes nothing.
+    const stripped = await patch(project.id, { terms: { positions: [] } }, "pmCh", edited.json.version);
+    expect(stripped.status).toBe(400);
+    expect((await page(project.id)).terms.terms).toEqual({ positions: [{ profile: "Tester", plannedManDays: 12 }] });
+
+    expect((await remove(project.id, "pmCh", edited.json.version)).status).toBe(204);
+    expect(await db.projectTermsPosition.count()).toBe(0);
+    expect(await db.project.count()).toBe(1);
+  });
+
+  it("refuses to add terms to a project made as internal (it never took any), however it was created", async () => {
+    const project = await make("internal");
+    const res = await create(project.id, start);
+    expect(res.status).toBe(409);
+    expect(res.json).toMatchObject({ code: "terms_not_allowed" });
+    expect(await termsCount()).toBe(0);
+  });
+
+  it("refuses a second set on a project created with terms: 409 `terms_exist`", async () => {
+    const project = await make("saas", start);
+    const res = await create(project.id, start);
+    expect(res.status).toBe(409);
+    expect(res.json).toMatchObject({ code: "terms_exist" });
+    expect(await termsCount()).toBe(1);
+  });
+});
+
 // ─── Retired routes ──────────────────────────────────────────────────────────
 
 describe("the contract routes of specs/021 are gone (specs/022 D38)", () => {
