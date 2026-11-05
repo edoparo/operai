@@ -19,8 +19,8 @@ const formFieldOf = (field: string): string | null => {
   if (field === 'name') return 'name'
   if (field === 'type') return 'type'
   if (field === 'opsManagerId') return 'opsManager'
-  const key = termsFieldKey(field)
-  return key === 'startDate' || key === 'endDate' || key === 'terms' || key.startsWith('terms.') ? key : null
+  // A take wraps the terms input under `terms` (`terms.startDate`, `terms.terms.deadline`).
+  return termsFieldKey(field, 'nested')
 }
 
 /** Refusals after which the deal can no longer be taken: the page reloads the queue behind the dialog. */

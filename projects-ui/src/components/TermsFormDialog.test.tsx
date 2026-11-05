@@ -9,7 +9,7 @@
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
-import { fakeApi, problem } from '../test-support/fakeApi'
+import { fakeApi, problem, termsOf } from '../test-support/fakeApi'
 import type { FakeHandler } from '../test-support/fakeApi'
 import type { Project, ProjectType, Terms } from '../lib/types'
 
@@ -34,16 +34,6 @@ const project = (type: ProjectType, over: Partial<Project> = {}): Pick<Project, 
   ...over,
 })
 
-const stored = (type: ProjectType, members: Partial<Terms>, over: Partial<Terms> = {}): Terms => ({
-  id: 't1',
-  type,
-  startDate: '2026-02-01',
-  endDate: null,
-  version: 4,
-  ...members,
-  ...over,
-})
-
 const renderDialog = (
   type: ProjectType,
   routes: Record<string, FakeHandler> = {},
@@ -52,7 +42,7 @@ const renderDialog = (
 ) => {
   apiFetch.mockImplementation(
     fakeApi({
-      'POST /projects/p1/terms': () => ({ status: 201, body: stored(type, {}) }),
+      'POST /projects/p1/terms': () => ({ status: 201, body: termsOf('saas', { sla: null, hourPackage: null }) }),
       'PATCH /projects/p1/terms': () => ({ status: 200, body: { ...terms, version: 5 } }),
       ...routes,
     }),
@@ -210,8 +200,7 @@ describe('maintenance terms need an SLA or an hour package (AC-2.4)', () => {
     await waitFor(() => expect(onSaved).toHaveBeenCalled())
     expect(sent()!.body).toEqual({
       startDate: '2026-02-01',
-      sla: { highDays: 1, normalDays: 3 },
-      hourPackage: null,
+      terms: { sla: { highDays: 1, normalDays: 3 }, hourPackage: null },
     })
   })
 
@@ -227,8 +216,7 @@ describe('maintenance terms need an SLA or an hour package (AC-2.4)', () => {
     submit(dialog)
     await waitFor(() => expect(onSaved).toHaveBeenCalled())
     expect(sent()!.body).toMatchObject({
-      sla: null,
-      hourPackage: { hours: 120, kind: 'yearly', startDate: '2026-02-01', expiryDate: null },
+      terms: { sla: null, hourPackage: { hours: 120, kind: 'yearly', startDate: '2026-02-01', expiryDate: null } },
     })
   })
 
@@ -260,7 +248,10 @@ describe('adding terms (AC-2.1 – AC-2.3, AC-2.7, AC-2.8, AC-5.3)', () => {
       method: 'POST',
       path: '/projects/p1/terms',
       ifMatch: undefined,
-      body: { startDate: '2026-02-01', deadline: '2026-12-01', estimatedManDays: null, maxEffortManDays: 40.5 },
+      body: {
+        startDate: '2026-02-01',
+        terms: { deadline: '2026-12-01', estimatedManDays: null, maxEffortManDays: 40.5 },
+      },
     })
   })
 
@@ -280,7 +271,7 @@ describe('adding terms (AC-2.1 – AC-2.3, AC-2.7, AC-2.8, AC-5.3)', () => {
     await waitFor(() => expect(onSaved).toHaveBeenCalled())
     expect(sent()!.body).toEqual({
       startDate: '2026-02-01',
-      positions: [{ profile: 'Senior developer', plannedManDays: 20 }],
+      terms: { positions: [{ profile: 'Senior developer', plannedManDays: 20 }] },
     })
   })
 
@@ -298,8 +289,7 @@ describe('adding terms (AC-2.1 – AC-2.3, AC-2.7, AC-2.8, AC-5.3)', () => {
     expect(sent()!.body).toEqual({
       startDate: '2026-02-01',
       endDate: '2027-01-31',
-      sla: null,
-      hourPackage: null,
+      terms: { sla: null, hourPackage: null },
     })
   })
 
@@ -319,8 +309,8 @@ describe('the server’s refusals (AC-2.2 – AC-2.7)', () => {
     fireEvent.click(within(dialog).getByLabelText(FIELDS.withSla))
   }
 
-  it.each(['terms.sla.highDays', 'sla.highDays'])(
-    '400 validation_failed on %s lands on the SLA input, whichever path the route reports',
+  it.each(['terms.sla.highDays'])(
+    '400 validation_failed on %s (the terms routes’ path, T23) lands on the SLA input',
     async (field) => {
       const dialog = renderDialog('maintenance', {
         'POST /projects/p1/terms': () => problem(400, 'validation_failed', { field }, `${field}: Too big`),
@@ -381,7 +371,7 @@ describe('the server’s refusals (AC-2.2 – AC-2.7)', () => {
 })
 
 describe('editing terms (specs/021 AC-1.7, specs/022 AC-1.8, AC-5.4)', () => {
-  const fixed = stored('fixed_price', { deadline: '2026-12-01', estimatedManDays: 12.5, maxEffortManDays: 40 })
+  const fixed = termsOf('fixed_price', { deadline: '2026-12-01', estimatedManDays: 12.5, maxEffortManDays: 40 })
 
   it('starts from the stored values; nothing to save until something changes', () => {
     const dialog = renderDialog('fixed_price', {}, fixed)
@@ -403,9 +393,7 @@ describe('editing terms (specs/021 AC-1.7, specs/022 AC-1.8, AC-5.4)', () => {
       body: {
         startDate: '2026-02-01',
         endDate: null,
-        deadline: '2026-12-01',
-        estimatedManDays: 12.5,
-        maxEffortManDays: 50,
+        terms: { deadline: '2026-12-01', estimatedManDays: 12.5, maxEffortManDays: 50 },
       },
     })
   })
@@ -442,7 +430,7 @@ describe('editing terms (specs/021 AC-1.7, specs/022 AC-1.8, AC-5.4)', () => {
 
 describe('the man-days of terms the estimate backs (AC-3.1)', () => {
   const fixedTerms = (estimatedManDays: number | null) =>
-    stored('fixed_price', { deadline: '2026-12-01', estimatedManDays, maxEffortManDays: 40 })
+    termsOf('fixed_price', { deadline: '2026-12-01', estimatedManDays, maxEffortManDays: 40 })
   const withEstimate = (estimate: { id: string } | null): Partial<Project> => ({
     purchaseOrder: {
       id: 'po1',
@@ -477,8 +465,7 @@ describe('the man-days of terms the estimate backs (AC-3.1)', () => {
     expect(sent()!.body).toEqual({
       startDate: '2026-02-01',
       endDate: null,
-      deadline: '2026-12-01',
-      maxEffortManDays: 50,
+      terms: { deadline: '2026-12-01', maxEffortManDays: 50 },
     })
   })
 

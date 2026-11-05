@@ -130,34 +130,38 @@ describe('termsInputOf (the request body and the field errors per type)', () => 
 })
 
 describe('termsFormOf (stored terms back into the form)', () => {
-  const stored = (type: Terms['type'], members: Partial<Terms>): Terms => ({
-    id: 't1',
-    type,
-    startDate: '2026-02-01',
-    endDate: null,
-    version: 2,
-    ...members,
-  })
+  const base = { id: 't1', startDate: '2026-02-01', endDate: null, version: 2 }
 
-  it('round-trips every type through the form (the terms read flat, as the PO and the project carry them)', () => {
+  it('round-trips every type through the form (the type’s members nested under `terms`, as the server reads them)', () => {
     const cases: [Terms, TermsMembers][] = [
       [
-        stored('fixed_price', { deadline: '2026-12-01', estimatedManDays: 12.5, maxEffortManDays: 40 }),
+        {
+          ...base,
+          type: 'fixed_price',
+          terms: { deadline: '2026-12-01', estimatedManDays: 12.5, maxEffortManDays: 40 },
+        },
         { deadline: '2026-12-01', estimatedManDays: 12.5, maxEffortManDays: 40 },
       ],
       [
-        stored('maintenance', {
-          sla: { highDays: 2, normalDays: 5 },
-          hourPackage: { hours: 100, kind: 'capacity', startDate: '2026-03-01', expiryDate: '2027-03-01' },
-        }),
+        {
+          ...base,
+          type: 'maintenance',
+          terms: {
+            sla: { highDays: 2, normalDays: 5 },
+            hourPackage: { hours: 100, kind: 'capacity', startDate: '2026-03-01', expiryDate: '2027-03-01' },
+          },
+        },
         {
           sla: { highDays: 2, normalDays: 5 },
           hourPackage: { hours: 100, kind: 'capacity', startDate: '2026-03-01', expiryDate: '2027-03-01' },
         },
       ],
-      [stored('saas', { sla: null, hourPackage: null }), { sla: null, hourPackage: null }],
       [
-        stored('t_and_m', { positions: [{ profile: 'Senior developer', plannedManDays: 20.5 }] }),
+        { ...base, type: 'saas', terms: { sla: null, hourPackage: null } },
+        { sla: null, hourPackage: null },
+      ],
+      [
+        { ...base, type: 't_and_m', terms: { positions: [{ profile: 'Senior developer', plannedManDays: 20.5 }] } },
         { positions: [{ profile: 'Senior developer', plannedManDays: 20.5 }] },
       ],
     ]
@@ -168,14 +172,23 @@ describe('termsFormOf (stored terms back into the form)', () => {
     }
   })
 
-  it('reads members a type does not use as absent, whether the server sends null or leaves them out', () => {
-    const withNulls = stored('t_and_m', {
-      positions: [{ profile: 'Dev', plannedManDays: 3 }],
-      deadline: null,
-      sla: null,
-      hourPackage: null,
+  it('reads a fixed price with no estimate as an empty field, and a yearly hour package with no expiry as an empty one', () => {
+    const fixed = termsFormOf({
+      ...base,
+      type: 'fixed_price',
+      terms: { deadline: '2026-12-01', estimatedManDays: null, maxEffortManDays: 40 },
     })
-    expect(termsFormOf(withNulls).positions).toEqual([{ profile: 'Dev', plannedManDays: '3' }])
-    expect(termsFormOf(stored('t_and_m', { positions: null })).positions).toEqual([])
+    expect(fixed.estimatedManDays).toBe('')
+    const yearly = termsFormOf({
+      ...base,
+      type: 'maintenance',
+      terms: {
+        sla: null,
+        hourPackage: { hours: 50, kind: 'yearly', startDate: '2026-03-01', expiryDate: null },
+      },
+    })
+    expect(yearly.withSla).toBe(false)
+    expect(yearly.withHours).toBe(true)
+    expect(yearly.hourPackage.expiryDate).toBe('')
   })
 })

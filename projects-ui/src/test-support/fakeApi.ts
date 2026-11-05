@@ -6,7 +6,7 @@
  * fixes. Modelled on crm-ui/src/test-support/fakeApi.ts.
  */
 import { vi } from 'vitest'
-import type { Person, Project, ProjectSummary, ProjectType, PurchaseOrder, Scope, Terms } from '../lib/types'
+import type { Person, Project, ProjectSummary, PurchaseOrder, Scope, Terms, TermsType, TermsView } from '../lib/types'
 
 export type FakeAnswer = { status: number; body?: unknown }
 export type FakeHandler = (url: URL, init: RequestInit | undefined) => FakeAnswer | Promise<FakeAnswer>
@@ -74,16 +74,21 @@ export const purchaseOrderOf = (overrides: Partial<PurchaseOrder> = {}): Purchas
   ...overrides,
 })
 
-/** The terms of a project as `GET /projects/:id` reads them, flat; `members` are those of the type. */
-export const termsOf = (type: ProjectType, members: Partial<Terms> = {}, overrides: Partial<Terms> = {}): Terms => ({
-  id: 't1',
-  type,
-  startDate: '2026-02-01',
-  endDate: null,
-  version: 4,
-  ...members,
-  ...overrides,
-})
+/** The terms of a project as `GET /projects/:id` reads them: the dates, and the type's members nested under `terms`. */
+export const termsOf = (
+  type: TermsType,
+  members: TermsView,
+  overrides: Partial<Pick<Terms, 'id' | 'startDate' | 'endDate' | 'version'>> = {},
+): Terms =>
+  ({
+    id: 't1',
+    type,
+    startDate: '2026-02-01',
+    endDate: null,
+    version: 4,
+    terms: members,
+    ...overrides,
+  }) as Terms
 
 /** A full `Project` (`GET /projects/:id`): an active, hand-made one — no team, no terms, no purchase order. */
 export const projectDetail = (overrides: Partial<Project> = {}): Project => ({

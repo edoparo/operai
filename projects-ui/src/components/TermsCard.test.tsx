@@ -7,9 +7,9 @@
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
-import { fakeApi, problem, projectDetail } from '../test-support/fakeApi'
+import { fakeApi, problem, projectDetail, termsOf } from '../test-support/fakeApi'
 import type { FakeHandler } from '../test-support/fakeApi'
-import type { Project, ProjectState, ProjectType, Terms } from '../lib/types'
+import type { Project, ProjectState, ProjectType, Terms, TermsType, TermsView } from '../lib/types'
 
 const { apiFetch } = vi.hoisted(() => ({ apiFetch: vi.fn() }))
 vi.mock('shell/session', () => ({
@@ -21,17 +21,7 @@ vi.mock('shell/session', () => ({
 
 import TermsCard from './TermsCard'
 
-const termsOf = (type: ProjectType, members: Partial<Terms>, over: Partial<Terms> = {}): Terms => ({
-  id: 't1',
-  type,
-  startDate: '2026-02-01',
-  endDate: null,
-  version: 4,
-  ...members,
-  ...over,
-})
-
-const TERMS: Record<string, [ProjectType, Partial<Terms>, string[]]> = {
+const TERMS: Record<string, [TermsType, TermsView, string[]]> = {
   fixed_price: [
     'fixed_price',
     { deadline: '2026-12-01', estimatedManDays: 12.5, maxEffortManDays: 40 },
@@ -193,7 +183,10 @@ describe('adding terms to a hand-made project (AC-5.4, S5)', () => {
         method: 'POST',
         path: '/projects/p1/terms',
         ifMatch: undefined,
-        body: { startDate: '2026-02-01', deadline: '2026-12-01', estimatedManDays: null, maxEffortManDays: 40 },
+        body: {
+          startDate: '2026-02-01',
+          terms: { deadline: '2026-12-01', estimatedManDays: null, maxEffortManDays: 40 },
+        },
       },
     ])
     expect(onChanged).toHaveBeenCalledWith('Terms added.')
@@ -204,7 +197,10 @@ describe('editing terms (specs/021 AC-1.7)', () => {
   it('opens the form on the stored terms, PATCHes with the terms version, and tells the page', async () => {
     const stored = termsOf('fixed_price', { deadline: '2026-12-01', estimatedManDays: null, maxEffortManDays: 40 })
     const card = renderCard(handMade('fixed_price', stored), true, {
-      'PATCH /projects/p1/terms': () => ({ status: 200, body: { ...stored, maxEffortManDays: 55, version: 5 } }),
+      'PATCH /projects/p1/terms': () => ({
+        status: 200,
+        body: { ...stored, terms: { ...stored.terms, maxEffortManDays: 55 }, version: 5 },
+      }),
     })
     fireEvent.click(within(card).getByRole('button', { name: 'Edit' }))
     const dialog = await screen.findByRole('dialog', { name: 'Edit terms' })
@@ -219,9 +215,7 @@ describe('editing terms (specs/021 AC-1.7)', () => {
         body: {
           startDate: '2026-02-01',
           endDate: null,
-          deadline: '2026-12-01',
-          estimatedManDays: null,
-          maxEffortManDays: 55,
+          terms: { deadline: '2026-12-01', estimatedManDays: null, maxEffortManDays: 55 },
         },
       },
     ])

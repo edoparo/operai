@@ -55,32 +55,28 @@ export const emptyTermsForm = (type: ProjectType): TermsForm => ({
 
 const text = (value: number | null | undefined): string => (value === null || value === undefined ? '' : String(value))
 
-/**
- * Stored terms as the edit form starts. The terms read flat, and `type` says which members count:
- * the ones a type does not use are `null` or absent.
- */
-export function termsFormOf(terms: Terms): TermsForm {
-  const form = emptyTermsForm(terms.type)
-  switch (terms.type) {
+/** Stored terms as the edit form starts: `terms.type` says which members `terms.terms` holds. */
+export function termsFormOf(stored: Terms): TermsForm {
+  const form = emptyTermsForm(stored.type)
+  switch (stored.type) {
     case 'fixed_price':
       return {
         ...form,
-        deadline: terms.deadline ?? '',
-        estimatedManDays: text(terms.estimatedManDays),
-        maxEffortManDays: text(terms.maxEffortManDays),
+        deadline: stored.terms.deadline,
+        estimatedManDays: text(stored.terms.estimatedManDays),
+        maxEffortManDays: text(stored.terms.maxEffortManDays),
       }
     case 't_and_m':
       return {
         ...form,
-        positions: (terms.positions ?? []).map((position) => ({
+        positions: stored.terms.positions.map((position) => ({
           profile: position.profile,
           plannedManDays: text(position.plannedManDays),
         })),
       }
     case 'maintenance':
     case 'saas': {
-      const sla = terms.sla ?? null
-      const hourPackage = terms.hourPackage ?? null
+      const { sla, hourPackage } = stored.terms
       return {
         ...form,
         withSla: sla !== null,
@@ -96,8 +92,6 @@ export function termsFormOf(terms: Terms): TermsForm {
           : form.hourPackage,
       }
     }
-    case 'internal':
-      return form
   }
 }
 
