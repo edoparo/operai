@@ -1539,7 +1539,7 @@ failure (it flags the retired variable by name on any service).
 ## Users who entered without an invitation (specs/023, ADR-0071, AC-6.2)
 
 Since specs/023 `auth` creates a user only for an email in `ALLOWED_SIGNUP_DOMAINS` that
-holds a live pending invitation (or the bootstrap admin); an allowed-domain email without one
+holds a live pending invitation (or is the bootstrap admin, whose email must also be in an allowed domain); an allowed-domain email without one
 joins the waiting list and an outside-domain email is refused. Users who signed in before that are left untouched
 (AC-1.6); these two read-only queries list them so an admin can review by hand. Run them
 against the `auth` database; neither writes anything.

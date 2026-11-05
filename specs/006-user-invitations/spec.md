@@ -14,7 +14,7 @@ done: 2026-07-14
 
 *Amended 2026-11-05 (specs/023, ADR-0071): the statement below that an uninvited person becomes a
 user on first sign-in no longer holds; a user is created only for an allowed-domain email holding a live pending
-invitation (or the bootstrap admin); an allowed-domain email without one files an access request, and an
+invitation (or the bootstrap admin, whose email must also be in an allowed domain); an allowed-domain email without one files an access request, and an
 outside-domain email is refused with nothing recorded.*
 
 Operai has no self-service sign-up: sign-in is OAuth-only (Google/GitHub), and today a
@@ -317,7 +317,7 @@ require repeating the single-delete flow one person at a time.
   which an uninvited person "signs in and receives the baseline `employee` role" no longer
   exists and the sentence below states the current rule.)* There is still no way for an
   arbitrary person to create their own Operai account: a user is created only for an
-  allowed-domain email holding a live pending invitation, or for the bootstrap admin; an
+  allowed-domain email holding a live pending invitation, or for the bootstrap admin, whose email must also be in an allowed domain; an
   allowed-domain email without an invitation receives no role and can only file an access
   request, and an outside-domain email is refused with nothing recorded, even with an
   invitation. This feature adds a way to pre-authorize and reach a specific person; it does
