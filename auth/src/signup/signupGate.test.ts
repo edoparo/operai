@@ -5,6 +5,7 @@
  */
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, spyOn, test } from "bun:test";
 import { runWithEndpointContext } from "@better-auth/core/context";
+import { handleOAuthUserInfo } from "better-auth/oauth2";
 import { auth } from "../auth/auth.config";
 import { getEffectiveAdminUserIds } from "../admin/lastAdminGuard";
 import { db } from "../lib/db";
@@ -218,24 +219,80 @@ describe("AC-1.4 bootstrap admin", () => {
 });
 
 describe("AC-1.6 / AC-1.7 existing users", () => {
-  test("an existing user outside the domains and uninvited still gets a session", async () => {
-    const email = mail("legacy", "gmail.com");
-    const u = await db.user.create({ data: { email, name: "Legacy", emailVerified: true } });
-    await db.account.create({
-      data: { userId: u.id, providerId: "google", accountId: `legacy-${TAG}`, accessToken: "t" },
-    });
+  /**
+   * Returning sign-in through better-auth's real OAuth callback path
+   * (`handleOAuthUserInfo`, what `/callback/:provider` calls after the token
+   * exchange): the account is found, no user is created, so the sign-up gate
+   * (`user.create.before`) is never consulted and only `session.create.before`
+   * decides.
+   */
+  async function returnSignIn(
+    user: { id: string; email: string; name: string },
+    accountId: string,
+    provider = "google",
+  ) {
     const ctx = await auth.$context;
-    expect(await ctx.internalAdapter.createSession(u.id)).not.toBeNull();
+    return runWithEndpointContext({ params: { id: provider } } as never, () =>
+      handleOAuthUserInfo({ context: ctx } as never, {
+        userInfo: { id: accountId, email: user.email, name: user.name, emailVerified: true, image: null },
+        account: { providerId: provider, accountId, accessToken: "t2", scope: "openid" } as never,
+      }),
+    );
+  }
+
+  async function existingUser(email: string, opts: { deletedAt?: Date } = {}) {
+    const u = await db.user.create({
+      data: { email, name: "Legacy", emailVerified: true, deletedAt: opts.deletedAt ?? null },
+    });
+    const accountId = `legacy-${crypto.randomUUID()}`;
+    await db.account.create({ data: { userId: u.id, providerId: "google", accountId, accessToken: "t" } });
+    return { user: u, accountId };
+  }
+
+  test("an existing user outside the domains and uninvited signs in again through the OAuth callback with a session and their roles untouched", async () => {
+    const email = mail("legacy", "gmail.com");
+    const { user, accountId } = await existingUser(email);
+    const role = await db.role.findFirstOrThrow({ where: { name: "employee" } });
+    await db.userRole.create({ data: { userId: user.id, roleId: role.id } });
+
+    const result = await returnSignIn(user, accountId);
+
+    expect(result.error).toBeNull();
+    expect(result.isRegister).toBe(false);
+    expect(result.data?.user.id).toBe(user.id);
+    expect(result.data?.session.userId).toBe(user.id);
+    expect(await userCount(email)).toBe(1);
     expect(await requestOf(email)).toBeNull();
+    const roles = await db.userRole.findMany({ where: { userId: user.id }, include: { role: true } });
+    expect(roles.map((r) => r.role.name)).toEqual(["employee"]);
+    expect(logs.some((l) => l.includes("auth.signup_refused"))).toBe(false);
   });
 
-  test("a refused soft-deleted return sign-in records no access request", async () => {
+  test("an existing allowed-domain user with no invitation and no access request is not sent to the waiting list on return", async () => {
+    const email = mail("legacy-welld");
+    const { user, accountId } = await existingUser(email);
+
+    const result = await returnSignIn(user, accountId);
+
+    expect(result.error).toBeNull();
+    expect(result.data?.session.userId).toBe(user.id);
+    expect(await requestOf(email)).toBeNull();
+    await settle();
+    expect(posted).toHaveLength(0);
+  });
+
+  test("a refused soft-deleted return sign-in through the OAuth callback gets no session and records no access request", async () => {
     const email = mail("softdel");
-    const u = await db.user.create({
-      data: { email, name: "Gone", emailVerified: true, deletedAt: new Date() },
-    });
-    const ctx = await auth.$context;
-    expect(await ctx.internalAdapter.createSession(u.id)).toBeNull();
+    const { user, accountId } = await existingUser(email, { deletedAt: new Date() });
+
+    const outcome = await returnSignIn(user, accountId).then(
+      (r) => ({ session: r.data?.session ?? null, error: r.error as string | null }),
+      (e: unknown) => ({ session: null, error: String((e as { message?: string }).message ?? e) }),
+    );
+
+    expect(outcome.session).toBeNull();
+    expect(outcome.error).toBe("unable to create session");
+    expect(await db.session.count({ where: { userId: user.id } })).toBe(0);
     expect(await requestOf(email)).toBeNull();
   });
 });
