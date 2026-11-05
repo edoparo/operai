@@ -1,10 +1,11 @@
 ---
 id: 023
 slug: signup-gate
-status: in-progress
+status: done
 rigor: production
 created: 2026-11-05
 approved: 2026-11-05
+done: 2026-11-05
 ---
 
 # Access to Operai only by invitation, with a waiting list
