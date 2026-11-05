@@ -438,7 +438,11 @@ are specs/021's and 2026-11-04's, renamed from `contract` to `terms`.
 - [x] T36: local databases — reset `projects` and `projects_test` to the two migrations (021's init + the new one), drop the stale `contract:*` permission rules from the local auth database, assign the `ops-manager` role, reseed CRM, EstimAI and Projects with coherent data (user constraint) — refs: AC-1.1, AC-4.1, AC-5.1 — deps: T19, T23, T35
   - touch: none in the repository — local databases and the session scratchpad only (main loop)
   - done when: after a backup of the current dumps, `projects` and `projects_test` hold exactly the two migrations' history (no `*_handoff`); the auth database has no `contract` permission rule and one user per entity holds `ops-manager`; under `mise run dev` the queue shows won deals to a `sales` user and not to a project manager, and the seed holds at least one project awaiting its project manager, one with a project manager and a referent, one `saas` licence project and one hand-made project with terms.
-- [ ] T17: QE-light verification; all gates green; spec status → done — refs: every AC — deps: T18, T19, T20, T21, T22, T23, T24, T25, T26, T27, T28, T29, T30, T31, T32, T33, T34, T35, T36
+- [ ] T37: every remote module — the router is built when the module mounts, so browser back/forward across modules shows the right page (D52; added 2026-11-05 after gate 1 re-approval) — refs: AC-6.1 — deps: none
+  - touch: `admin-ui/src/App.tsx`, `crm-ui/src/App.tsx`, `estimai-ui/src/App.tsx`, `inventory-ui/src/App.tsx`, `notify-ui/src/App.tsx`, `projects-ui/src/App.tsx`, `refund-ui/src/App.tsx`, `*-ui/src/**/*.test.tsx` (one new back-navigation test per module)
+  - contract: root cause to confirm first (systematic-debugging) — each remote creates its TanStack router once at module load (`const router = createAppRouter('/<base>')`), so after the shell switches module and the user comes back the remount renders the match of the *other* module's address (projects-ui: `/$id` matches `admin`). Expected fix: create the router per mount (e.g. `useState(() => createAppRouter(…))`), checking that the previous instance leaves no history listener behind; if the test shows another mechanism, state it and fix that instead. No route or URL changes.
+  - done when: in each of the seven modules a test, red before the fix, mounts the app on its own address, moves the browser history to another module's address, unmounts, goes back and remounts — and asserts the module's own page (the list for projects-ui) and, in projects-ui, no `GET /projects/<other module>`; then green with each module's `pnpm lint && pnpm build && pnpm test`; and a headless check on the dev stack of `/projects` → `/admin` → back and `/crm` → `/admin` → back shows the list / companies page with no 404 request.
+- [ ] T17: QE-light verification; all gates green; spec status → done — refs: every AC — deps: T18, T19, T20, T21, T22, T23, T24, T25, T26, T27, T28, T29, T30, T31, T32, T33, T34, T35, T36, T37
   - touch: `specs/022-projects-handoff/qe-report.md`, `specs/022-projects-handoff/spec.md`
   - done when: the quality-engineer's QE-light verdict is PASS in `qe-report.md` — including a live pass: as `sales`, take a won deal into a new fixed-price project with a referent and the prefilled ops-manager and see the estimate's man-days; as that ops-manager, see the notification, fail to activate the project, pick its project manager; as a project manager, see no queue; open the PO's referent as a user without CRM access; reopen and re-win the deal and see the notice come and go; open the estimate link as a user without EstimAI access; see project and Bexio id on the CRM deal page; create a hand-made `saas` project with terms — every local gate it lists is green (auth, crm-api on `crm_test`, notify-api, notify-ui, crm-ui, projects-api, projects-ui, estimai-api, env-doctor, shared copies, changeset, secret scan), and `/wellforge:done 022-projects-handoff` accepts the feature.
 
@@ -481,6 +485,7 @@ are specs/021's and 2026-11-04's, renamed from `contract` to `terms`.
 | AC-5.2 | T23, T28, T30, T33 |
 | AC-5.3 | T28, T33 |
 | AC-5.4 | T23, T33 |
+| AC-6.1 | T37 |
 
 Effective graph (`deps:` ∪ `touch:` overlap) for the open tasks, batches that can run in
 parallel:
@@ -492,7 +497,7 @@ parallel:
 6. T28, T35
 7. T29
 8. T36 (main loop)
-9. T17
+9. T37 (after the first QE pass), then T17 again
 
 Overlap edges declared (none merged): T19 → T20 (`auth/src/**/*.test.ts`); T23 → T24 →
 T25 → T26 → T27 → T28 → T29 (each touches `projects-api/src/**` or a file of the one

@@ -51,6 +51,10 @@ Decision ledger: `../025-projects/ledger.md` (shared with specs/025 and specs/02
 >   non-goal "terms on a project without a PO" and assumption A33 as written are replaced.
 > - Q1–Q5 closed; S2 and S4 retired (replaced by D48 and by A37/D49). O1 stays open.
 
+> **Amended 2026-11-05 (QE window, ledger D52).** Gate 1 was re-opened a third time, by the
+> user's choice, to add a defect that predates this spec: browser back/forward between suite
+> modules shows a wrong page (new US-6, AC-6.1; 35 → 36 ACs). Nothing else changes.
+
 ## Problem
 
 When a deal is won in the CRM (stage `won`, which may be reopened:
@@ -249,6 +253,22 @@ under a deal and what is not stay distinguishable.
   changes nothing, and the project page shows the terms it has (none shown when it has none);
   a project made from a deal shows its terms with its PO.
 
+### US-6 Moving between suite modules keeps each module's page
+As a suite user, I want the browser's back and forward buttons to take me to the page I left
+when I move between modules, so that switching module never shows me a wrong page or an error.
+
+- AC-6.1 *(new 2026-11-05, D52 — pre-existing defect, fixed here by the user's choice)* Given
+  a user on a page of one suite module, when they navigate to another module and then return
+  with the browser's back button — or its forward button, after going back — then the module
+  whose address the browser lands on shows the page of that address (for `/projects`, the
+  projects list), never a page matched from the other module's address, and sends no request
+  derived from that other address (no project lookup named `admin` or `crm`). It holds for
+  every remote module of the shell — admin, CRM, EstimAI, inventory, notifications (notify),
+  projects and refund — whichever of them is left and whichever is returned to. Today
+  (reproduced 2026-11-05 with a headless browser, D52): `/projects` → `/admin` → back requests
+  `GET /projects/admin` and shows "Project not found"; `/crm` → `/admin` → back shows "This
+  page does not exist".
+
 ## Non-goals
 
 - **Automatic project creation** when a deal is won: a person takes every deal (D2).
@@ -270,6 +290,8 @@ under a deal and what is not stay distinguishable.
 - **Reassigning a PO to another ops-manager**, or a "my POs" view (D47).
 - **Copying the referent's data** into the project module, or showing it to anyone without
   project access (D49).
+- **Restoring scroll position, filters or unsaved input** after a module switch: AC-6.1 is
+  about which page shows, not about what state it comes back with (D52).
 
 ## Assumptions (from the ledger — strike any that is wrong)
 

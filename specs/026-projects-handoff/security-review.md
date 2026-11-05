@@ -51,3 +51,32 @@ folded into `tasks.md` § API contracts and § Security rules (2026-11-05); no A
 - The admin override and the pick rule open no privilege-escalation path: picking a project
   manager confers no capability, and after the first pick any manage holder may change it
   (A34) — the restriction is a workflow rule, not a security boundary.
+
+---
+
+# Implementation review — before merge (2026-11-05)
+
+Reviewer: `wellforge:owasp-reviewer` · scope: the code diff of `feat/projects-handoff` over
+`feat/projects` (PR #7), triggered by `config/security-triggers.yml` (auth/**, token,
+credential, jwt, permission, session, migrations).
+
+**Verdict: PASS** — 0 critical · 0 high · 0 medium · 8 low. Every T18 medium (M1–M5) and
+every folded low (L1–L9) is implemented as written; L6's per-viewer read logging and L7's
+crm-api per-caller limit stay deferred as recorded above.
+
+Lows (notes, not defects; candidates for a follow-up hardening bugfix):
+1. `GET /queue` gated by `requireCapability(handoff:take)` (`hasCapability`, condition-blind);
+   add a `takeScope(c).length > 0` check — `projects-api/src/queue/queue.routes.ts:55`.
+2. The migration guard counts without a lock; prepend `LOCK TABLE "contract", "project" IN
+   ACCESS EXCLUSIVE MODE;` — `prisma/migrations/20261105120000_purchase_order/migration.sql`.
+3. One projects-api service token carries all five scopes for every target (ADR-0044/0049
+   design); `crm.contacts.read` widens what a replay can reach — per-target narrowed tokens
+   as a deferred option.
+4. `redirect: "error"` missing on the crm, estimai and holders fetches
+   (`projects-api/src/lib/crm.ts:77`, `estimai.ts:51`, `holders.ts:48`).
+5. The `[uncaught]` handler logs the whole error object (`projects-api/src/index.ts:86`).
+6. No per-caller limit on the ops-managers / contacts fan-out in projects-api (L7's other side).
+7. projects-api drops crm's `truncated` on the company-contacts mode (picker silently capped
+   at 500).
+8. `no-store` missing on the holders route's 400/401; stale 021 `contract:bexio` rules not
+   pruned by the seed; no audit line for refusals.
