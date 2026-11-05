@@ -19,3 +19,4 @@ status: in-progress
 | T10 | crm-ui: money hiding, estimate card, gate messages, offers, attachments, settings tab | [x] | `pnpm lint && pnpm build && pnpm test` (126 tests, 34 new) |
 | T11 | Browser smoke through the real stack | [ ] | blocked 2026-11-01: the running dev servers predate the change (stale Prisma client → 500 on `/deals?board=true`; stale Vite deps → invalid hook call). Restart `mise run dev` after T9, then re-run. The offer PDF itself was rendered and checked visually. |
 | T12 | Production: CRM bucket + crm-api env (with specs/017 T16) | [ ] | owner, `provision-tool` |
+| T13 | Unlinking deletes the open estimate task; the deal timeline reloads after an estimate change (AC-3.5, 2026-11-05) | [x] | `estimate.test.ts` (not run: local DB auth), `DealSalesFlow.test.tsx`, typecheck |

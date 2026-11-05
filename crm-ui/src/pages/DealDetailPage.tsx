@@ -68,6 +68,8 @@ export default function DealDetailPage() {
   const [dialog, setDialog] = useState<'edit' | 'stage' | null>(null)
   const [saved, setSaved] = useState<string | null>(null)
   const [stale, setStale] = useState(false)
+  // An estimate change creates, completes or removes its task: the timeline reloads.
+  const [timelineRevision, setTimelineRevision] = useState(0)
 
   if (deal.status === 'loading') return <Loading label={t.loading} />
   if (deal.status === 'error') {
@@ -197,7 +199,14 @@ export default function DealDetailPage() {
             </div>
           )}
         </Card>
-        <EstimateCard deal={current} canManage={canManage} onChanged={(next, message) => updated(next, message)} />
+        <EstimateCard
+          deal={current}
+          canManage={canManage}
+          onChanged={(next, message) => {
+            updated(next, message)
+            setTimelineRevision((revision) => revision + 1)
+          }}
+        />
         {financials && (
           <OffersCard
             deal={current}
@@ -207,7 +216,12 @@ export default function DealDetailPage() {
           />
         )}
         <AttachmentsCard dealId={current.id} />
-        <ActivityTimeline target={{ dealId: current.id }} company={current.company} preset={{ dealId: current.id }} />
+        <ActivityTimeline
+          key={timelineRevision}
+          target={{ dealId: current.id }}
+          company={current.company}
+          preset={{ dealId: current.id }}
+        />
       </div>
       {dialog === 'edit' && (
         <DealFormDialog

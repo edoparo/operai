@@ -93,6 +93,19 @@ describe("technical estimates (specs/018 US-3)", () => {
     expect((await move("negotiation", 4)).status).toBe(200);
   });
 
+  it("unlinking removes the request task while it is open, and keeps a completed one", async () => {
+    const deal = await qualifiedDeal();
+    await request(deal.id);
+    expect((await call("DELETE", `/deals/${deal.id}/estimate`, { as: "salesCh" })).status).toBe(200);
+    expect((await call("GET", "/tasks", { as: "tech" })).json.total).toBe(0);
+    expect(await db.activity.count({ where: { dealId: deal.id, type: "task" } })).toBe(0);
+
+    await request(deal.id);
+    await call("POST", `/deals/${deal.id}/estimate/ready`, { as: "tech" });
+    expect((await call("DELETE", `/deals/${deal.id}/estimate`, { as: "salesCh" })).status).toBe(200);
+    expect((await call("GET", "/tasks?status=done", { as: "tech" })).json.total).toBe(1);
+  });
+
   it("an admin overrides the gate with a reason, kept on the timeline and across an unlink", async () => {
     const deal = await qualifiedDeal();
     const override = (as: "salesCh" | "admin") =>

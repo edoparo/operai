@@ -6,7 +6,7 @@
  *   POST   /deals/{id}/estimate/ready     the technical contact (or an admin) says it is done
  *   POST   /deals/{id}/estimate/reopen    back to `requested`
  *   POST   /deals/{id}/estimate/override  an admin lets the deal past the gate anyway
- *   DELETE /deals/{id}/estimate           unlink (the estimate stays in EstimAI)
+ *   DELETE /deals/{id}/estimate           unlink (the estimate stays in EstimAI; its open task goes)
  *
  * "Admin" is `deal:manage` over every entity (`managesAllDeals`). Every EstimAI
  * call carries the caller's own JWT (lib/estimai.ts), so no new trust between
@@ -328,15 +328,21 @@ estimateRouter.openapi(unlinkRoute, async (c) => {
   const deal = await dealOr404(id);
   assertInScope(dealScope(c), deal.entity);
   if (!deal.estimate?.estimateId) throw notFound("This deal has no estimate");
-  if (deal.estimate.overrideAt) {
-    // Keep the admin's override: only the link goes.
-    await db.dealEstimate.update({
-      where: { dealId: id },
-      data: { estimateId: "", estimateName: "", state: "requested", readyAt: null, readyBy: null, taskId: null },
-    });
-  } else {
-    await db.dealEstimate.delete({ where: { dealId: id } });
-  }
+  const { taskId } = deal.estimate;
+  await db.$transaction(async (tx) => {
+    if (deal.estimate!.overrideAt) {
+      // Keep the admin's override: only the link goes.
+      await tx.dealEstimate.update({
+        where: { dealId: id },
+        data: { estimateId: "", estimateName: "", state: "requested", readyAt: null, readyBy: null, taskId: null },
+      });
+    } else {
+      await tx.dealEstimate.delete({ where: { dealId: id } });
+    }
+    // The task the request created goes with the link while it is still open;
+    // a completed one stays on the timeline as work that was done.
+    if (taskId) await tx.activity.deleteMany({ where: { id: taskId, completedAt: null } });
+  });
   // E6 — the technical contact is told the estimate no longer counts.
   await announce(c, {
     kind: "estimate_unlinked",

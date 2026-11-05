@@ -114,6 +114,9 @@ offer rests on a real estimate.
   - Deals already past `qualified` when this ships are not blocked retroactively.
 - AC-3.5 Requesting an estimate creates a task for the technical contact ("Estimate
   <deal>", due in 5 working days, editable).
+  - It appears on the deal's timeline as soon as the request succeeds, without a reload.
+  - Unlinking the estimate deletes the task while it is still open; a completed one stays
+    on the timeline (2026-11-05).
 - AC-3.6 The flow needs no new trust between services: every EstimAI call is the
   requester's own (forwarded user JWT). A requester without EstimAI access gets 403
   `estimai_access_required`.

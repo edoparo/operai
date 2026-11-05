@@ -177,6 +177,9 @@ describe('Estimate card (US-3)', () => {
     expect(facts.textContent).toContain('Requested')
     expect(screen.getByTestId('crm-estimate-open').getAttribute('href')).toBe('/estimai/estimates/est-1')
     expect(screen.queryByTestId('crm-estimate-request')).toBeNull()
+    // The request created a task: the timeline reads the activities again.
+    const activityReads = () => apiFetch.mock.calls.filter(([url]) => String(url).includes('/activities')).length
+    await waitFor(() => expect(activityReads()).toBe(2))
   })
 
   it('needs a chosen technician before it asks the server', async () => {
