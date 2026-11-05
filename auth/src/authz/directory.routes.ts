@@ -72,8 +72,9 @@ export const DIRECTORY_GATE_PERMISSIONS: readonly { resource: string; action: st
   { resource: "deal", action: "manage" },
   // The `projects` catalog's project:manage (specs/021, ADR-0055): the project
   // manager and team pickers. Deliberately NOT projects:access (reading the
-  // projects is no reason to list people) nor contract:bexio. Same resource-key
-  // uniqueness rule as above: no other catalog may declare a `project` resource.
+  // projects is no reason to list people) nor purchase-order:bexio. Same
+  // resource-key uniqueness rule as above: no other catalog may declare a
+  // `project` resource.
   { resource: "project", action: "manage" },
 ];
 
