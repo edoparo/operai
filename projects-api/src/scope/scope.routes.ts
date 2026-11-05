@@ -1,7 +1,7 @@
 /**
  * `GET /scope` (specs/025-projects, tasks.md § API contracts): which entities
  * `project:manage` covers for the caller, whether that is every entity, and whether
- * they may write a contract's Bexio order id — so projects-ui offers exactly the
+ * they may write a purchase order's Bexio order id — so projects-ui offers exactly the
  * controls the server would accept (AC-4.4, AC-4.5). An `auth` outage is a 503, never
  * an empty scope.
  */
@@ -20,7 +20,7 @@ const scopeRoute = createRoute({
   middleware: authorized,
   responses: {
     200: {
-      description: "Entities covered by project:manage, whether that is all of them, and whether contract:bexio is held",
+      description: "Entities covered by project:manage, whether that is all of them, and whether purchase-order:bexio is held",
       content: {
         "application/json": {
           schema: z.object({

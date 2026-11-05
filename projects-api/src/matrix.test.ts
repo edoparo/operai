@@ -1,6 +1,7 @@
 /**
  * Authorization matrix over the ASSEMBLED app (specs/021-projects T10; AC-4.2 – AC-4.6, ADR-0014;
- * specs/022 T9: the to-start queue, AC-1.1, AC-1.2, AC-1.4).
+ * specs/022 T9, T23: the to-start queue, terms and purchase order routes, AC-1.1, AC-1.2, AC-1.4).
+ * T29 widens it to the gates T24 – T28 add.
  *
  * The route list is read from the app's own table, so a route added without a row here fails the
  * inventory test, and one added without a guard fails the matrix. Every route is then driven by
@@ -10,7 +11,7 @@
  *   viewer      `projects:access` only                                   -> reads, manages nothing (AC-4.3)
  *   pmCh        `project-manager` in welld_ch: manage, entity-scoped     -> own entity only (AC-4.4)
  *   salesIt     `sales` in welld_it: manage, entity-scoped               -> own entity only (AC-4.4)
- *   accounting  `projects:access` + `contract:bexio`                     -> reads, writes the Bexio id (AC-4.5)
+ *   accounting  `projects:access` + `purchase-order:bexio`                     -> reads, writes the Bexio id (AC-4.5)
  *   admin       everything, unscoped                                     -> both entities (AC-4.6)
  *
  * What each persona holds is written out below as literals (the spec's grants), NOT computed from
@@ -20,7 +21,7 @@
 
 import { beforeEach, describe, expect, it } from "bun:test";
 import { setupTestAuth } from "./test-support/testAuth";
-import { PERSONAS, app, call, crm, db, makeDeal, resetWorld, type PersonaName } from "./test-support/world";
+import { PERSONAS, app, call, crm, db, makeDeal, resetWorld, seedDealProject, type PersonaName } from "./test-support/world";
 
 beforeEach(async () => {
   await resetWorld();
@@ -37,7 +38,7 @@ const ENTITIES: readonly Entity[] = ["welld_ch", "welld_it"];
  *   manage-any   `project:manage` for at least one entity (a lookup, no record involved)
  *   manage       `project:manage` for the RECORD's entity (`out_of_scope` for the other one); for a take
  *                from the to-start queue the record is the CRM DEAL, whose entity the CRM says
- *   bexio        `contract:bexio`, not entity-scoped
+ *   bexio        `purchase-order:bexio`, not entity-scoped
  *   host         the activity-host contract (specs/028 T5): any caller with a valid token and a live
  *                authz answer gets 200, a non-holder of `projects:access` as `reader:false`
  */
@@ -71,23 +72,25 @@ const seedProject = (entity: Entity, over: Record<string, unknown> = {}) =>
     },
   });
 
-const seedContract = (projectId: string) =>
-  db.contract.create({
+const withProject = async (entity: Entity, over: Record<string, unknown> = {}) => (await seedProject(entity, over)).id;
+
+/** A project made from a deal (terms and purchase order, no project manager) of `entity`; the deal id is unique per entity. */
+const withPurchaseOrder = (entity: Entity) =>
+  seedDealProject({ project: { entity, name: `PO project ${entity}` }, order: { dealId: `po-deal-${entity}` } });
+
+/** A hand-made project of `entity` with terms. */
+const withTerms = async (entity: Entity) => {
+  const project = await seedProject(entity);
+  await db.projectTerms.create({
     data: {
-      projectId,
+      projectId: project.id,
       type: "fixed_price",
-      companyId: "co-acme",
       startDate: new Date("2026-12-01T00:00:00Z"),
       deadline: new Date("2027-03-31T00:00:00Z"),
       maxEffortManDays: 55.5,
     },
   });
-
-const withProject = async (entity: Entity, over: Record<string, unknown> = {}) => (await seedProject(entity, over)).id;
-
-const withContract = async (entity: Entity) => {
-  const project = await seedProject(entity);
-  return { project, contract: await seedContract(project.id) };
+  return project;
 };
 
 /** A won deal of `entity` in the fake CRM, with the company the seeded projects have; returns its id. */
@@ -97,8 +100,15 @@ const wonDeal = (entity: Entity, over: Partial<Parameters<typeof makeDeal>[0]> =
   return deal.id;
 };
 
-/** The contract part of a take: dates and the terms of a `fixed_price` contract (the deal has no estimate). */
-const takeContract = { startDate: "2027-01-01", terms: { deadline: "2027-06-30", maxEffortManDays: 10 } };
+/** The terms of a take or of a terms write, specs/021's contract shape: the dates and the `fixed_price` terms (the deal has no estimate). */
+const takeTerms = { startDate: "2027-01-01", terms: { deadline: "2027-06-30", maxEffortManDays: 10 } };
+const takeBody = (over: Record<string, unknown> = {}) => ({
+  name: "Koordy 2027",
+  type: "fixed_price",
+  terms: takeTerms,
+  opsManagerId: "user-ops",
+  ...over,
+});
 
 const SPECS: Record<string, RouteSpec> = {
   "GET /scope": { need: "access", ok: 200, prepare: async () => ({ method: "GET", path: "/scope" }) },
@@ -125,16 +135,7 @@ const SPECS: Record<string, RouteSpec> = {
     prepare: async (entity) => ({
       method: "POST",
       path: `/queue/${wonDeal(entity)}/project`,
-      body: { name: "Koordy 2027", type: "fixed_price", contract: takeContract },
-    }),
-  },
-  "POST /queue/:dealId/attach": {
-    need: "manage",
-    ok: 201,
-    prepare: async (entity) => ({
-      method: "POST",
-      path: `/queue/${wonDeal(entity)}/attach`,
-      body: { projectId: await withProject(entity), contract: takeContract },
+      body: takeBody(),
     }),
   },
   "GET /project-managers": {
@@ -168,16 +169,6 @@ const SPECS: Record<string, RouteSpec> = {
       ifMatch: 1,
     }),
   },
-  "PUT /projects/:id/type": {
-    need: "manage",
-    ok: 200,
-    prepare: async (entity) => ({
-      method: "PUT",
-      path: `/projects/${await withProject(entity, { type: "internal", companyId: null })}/type`,
-      body: { type: "saas" },
-      ifMatch: 1,
-    }),
-  },
   "PUT /projects/:id/team": {
     need: "manage",
     ok: 200,
@@ -188,48 +179,39 @@ const SPECS: Record<string, RouteSpec> = {
       ifMatch: 1,
     }),
   },
-  "POST /projects/:id/contracts": {
+  "POST /projects/:id/terms": {
     need: "manage",
     ok: 201,
     prepare: async (entity) => ({
       method: "POST",
-      path: `/projects/${await withProject(entity)}/contracts`,
-      body: { startDate: "2027-01-01", terms: { deadline: "2027-06-30", maxEffortManDays: 10 } },
+      path: `/projects/${await withProject(entity)}/terms`,
+      body: takeTerms,
     }),
   },
-  "GET /projects/:id/contracts/:contractId": {
-    need: "access",
-    ok: 200,
-    prepare: async (entity) => {
-      const { project, contract } = await withContract(entity);
-      return { method: "GET", path: `/projects/${project.id}/contracts/${contract.id}` };
-    },
-  },
-  "PATCH /projects/:id/contracts/:contractId": {
+  "PATCH /projects/:id/terms": {
     need: "manage",
     ok: 200,
-    prepare: async (entity) => {
-      const { project, contract } = await withContract(entity);
-      return { method: "PATCH", path: `/projects/${project.id}/contracts/${contract.id}`, body: { endDate: "2027-06-30" }, ifMatch: 1 };
-    },
+    prepare: async (entity) => ({
+      method: "PATCH",
+      path: `/projects/${(await withTerms(entity)).id}/terms`,
+      body: { endDate: "2027-06-30" },
+      ifMatch: 1,
+    }),
   },
-  // Guarded by access alone, then refused for everyone: a contract is never deleted, it ends (D34).
-  "DELETE /projects/:id/contracts/:contractId": {
-    need: "access",
-    ok: 405,
-    prepare: async (entity) => {
-      const { project, contract } = await withContract(entity);
-      return { method: "DELETE", path: `/projects/${project.id}/contracts/${contract.id}` };
-    },
+  // A hand-made project's terms may be removed; one made from a deal keeps them (`terms_required`).
+  "DELETE /projects/:id/terms": {
+    need: "manage",
+    ok: 204,
+    prepare: async (entity) => ({ method: "DELETE", path: `/projects/${(await withTerms(entity)).id}/terms`, ifMatch: 1 }),
   },
-  "PUT /projects/:id/contracts/:contractId/bexio-order": {
+  "PUT /projects/:id/purchase-order/bexio-order": {
     need: "bexio",
     ok: 200,
     prepare: async (entity) => {
-      const { project, contract } = await withContract(entity);
+      const { project } = await withPurchaseOrder(entity);
       return {
         method: "PUT",
-        path: `/projects/${project.id}/contracts/${contract.id}/bexio-order`,
+        path: `/projects/${project.id}/purchase-order/bexio-order`,
         body: { bexioOrderId: "AB-2026-0042" },
         ifMatch: 1,
       };
@@ -245,7 +227,7 @@ const PUBLIC = new Set(["GET /health", "GET /openapi.json", "GET /docs"]);
  * the persona matrix below does not apply to them. Their credential matrix lives in
  * src/system/*.test.ts; the one thing asserted here is that no user, whatever they hold, opens them.
  */
-const SYSTEM = new Set(["GET /system/contracts"]);
+const SYSTEM = new Set(["GET /system/purchase-orders"]);
 
 const routes = [
   ...new Set(app.routes.filter((route) => route.method !== "ALL").map((route) => `${route.method} ${route.path}`)),
@@ -297,8 +279,9 @@ function expectedOutcome(need: Need, grants: Grants, entity: Entity): Outcome {
 async function snapshot(): Promise<string> {
   return JSON.stringify([
     await db.project.findMany({ orderBy: { id: "asc" } }),
-    await db.contract.findMany({ orderBy: { id: "asc" } }),
-    await db.contractPosition.findMany({ orderBy: { id: "asc" } }),
+    await db.projectTerms.findMany({ orderBy: { id: "asc" } }),
+    await db.projectTermsPosition.findMany({ orderBy: { id: "asc" } }),
+    await db.purchaseOrder.findMany({ orderBy: { id: "asc" } }),
     await db.projectMember.findMany({ orderBy: [{ projectId: "asc" }, { userId: "asc" }] }),
   ]);
 }
@@ -435,7 +418,7 @@ describe("authorization matrix: the to-start queue (AC-1.1, AC-1.2, AC-1.4, A20)
 
   it("lets only a manager of the deal's entity take it: a refused take leaves the deal queued, the entity's own manager takes it", async () => {
     const deal = wonDeal("welld_ch");
-    const body = { name: "Koordy 2027", type: "fixed_price", contract: takeContract };
+    const body = takeBody();
     for (const persona of ["viewer", "accounting", "salesIt"] as const) {
       const res = await call("POST", `/queue/${deal}/project`, { as: persona, body });
       expect({ persona, status: res.status }).toEqual({ persona, status: 403 });
@@ -450,7 +433,7 @@ describe("authorization matrix: the to-start queue (AC-1.1, AC-1.2, AC-1.4, A20)
       const deal = wonDeal(entity);
       const res = await call("POST", `/queue/${deal}/project`, {
         as: "admin",
-        body: { name: `Work ${entity}`, type: "fixed_price", contract: takeContract },
+        body: takeBody({ name: `Work ${entity}` }),
       });
       expect({ entity, status: res.status }).toEqual({ entity, status: 201 });
       expect(res.json.entity).toBe(entity);
@@ -479,7 +462,7 @@ describe("authorization matrix: scope (AC-4.4, AC-4.5, AC-4.6)", () => {
     for (const name of PERSONA_NAMES) {
       expect(has(name, "projects", "access")).toBe(GRANTS[name].access);
       expect(has(name, "project", "manage")).toBe(GRANTS[name].manage.length > 0);
-      expect(has(name, "contract", "bexio")).toBe(GRANTS[name].bexio);
+      expect(has(name, "purchase-order", "bexio")).toBe(GRANTS[name].bexio);
     }
   });
 });

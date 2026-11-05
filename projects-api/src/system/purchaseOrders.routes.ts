@@ -1,15 +1,16 @@
 /**
- * GET /system/contracts (specs/022-projects-handoff T4, AC-3.4; ADR-0060) — the contracts of
- * the asked deals, read service-to-service. crm-api's deal page shows the project that carries
- * a deal and its contract's Bexio order id, for CRM users who may hold no `projects:access`,
- * so this route trusts a scoped SERVICE credential (`projects.contracts.read`), never a user
- * JWT. It is not behind `authorized`: no user, no `projects:access`, no entity scope.
+ * GET /system/purchase-orders (specs/022-projects-handoff T4 as renamed by T23, AC-3.4; ADR-0060) —
+ * the purchase orders of the asked deals, read service-to-service. crm-api's deal page shows the
+ * project that carries a deal and its purchase order's Bexio order id, for CRM users who may hold no
+ * `projects:access`, so this route trusts a scoped SERVICE credential
+ * (`projects.purchase-orders.read`), never a user JWT. It is not behind `authorized`: no user, no
+ * `projects:access`, no entity scope.
  *
  *   dealIds  comma-separated CRM deal ids, 1-100, each 1-64 characters.
  *
- * Deals without a contract are absent from the answer; the rest come back in the order asked.
- * The select is explicit (id, project name, Bexio order id): no terms, dates or people leave
- * the module through this route.
+ * Deals without a purchase order are absent from the answer; the rest come back in the order asked.
+ * The select is explicit (id, project name, Bexio order id): no terms, dates, referent, ops-manager
+ * or other people leave the module through this route.
  */
 
 import { OpenAPIHono, createRoute, z } from "@hono/zod-openapi";
@@ -36,7 +37,7 @@ const QuerySchema = z.object({ dealIds: DealIdsSchema });
 
 const ItemSchema = z.object({
   dealId: z.string(),
-  contractId: z.string(),
+  purchaseOrderId: z.string(),
   project: z.object({ id: z.string(), name: z.string() }),
   bexioOrderId: z.string().nullable(),
 });
@@ -50,21 +51,21 @@ const ProblemSchema = z.object({
   code: z.string().optional(),
 });
 
-const contractsRoute = (auth: MiddlewareHandler) =>
+const purchaseOrdersRoute = (auth: MiddlewareHandler) =>
   createRoute({
     method: "get",
-    path: "/system/contracts",
+    path: "/system/purchase-orders",
     tags: ["System"],
-    summary: "Contracts of the asked deals for a service principal (scope projects.contracts.read)",
+    summary: "Purchase orders of the asked deals for a service principal (scope projects.purchase-orders.read)",
     middleware: auth,
     description:
-      "Authorization: Bearer <service JWT> from auth (aud = SERVICE_AUDIENCE, scope projects.contracts.read). " +
+      "Authorization: Bearer <service JWT> from auth (aud = SERVICE_AUDIENCE, scope projects.purchase-orders.read). " +
       `A user JWT is never accepted. \`dealIds\`: 1-${MAX_DEAL_IDS} comma-separated CRM deal ids. ` +
-      "Deals without a contract are absent from the answer.",
+      "Deals without a purchase order are absent from the answer.",
     request: { query: QuerySchema },
     responses: {
       200: {
-        description: "The contracts, in the order the deals were asked for",
+        description: "The purchase orders, in the order the deals were asked for",
         content: { "application/json": { schema: z.object({ items: z.array(ItemSchema) }) } },
       },
       400: {
@@ -75,7 +76,7 @@ const contractsRoute = (auth: MiddlewareHandler) =>
     },
   });
 
-export const createSystemContractsRouter = (auth: MiddlewareHandler) => {
+export const createSystemPurchaseOrdersRouter = (auth: MiddlewareHandler) => {
   const router = new OpenAPIHono<{ Variables: SystemAuthVariables }>({
     defaultHook: (result, c) => {
       if (result.success) return undefined;
@@ -87,10 +88,10 @@ export const createSystemContractsRouter = (auth: MiddlewareHandler) => {
 
   // The guard rides on the route (`middleware`), never `router.use("*")`: Hono copies a
   // sub-app's `use("*")` onto the whole app.
-  router.openapi(contractsRoute(auth), async (c) => {
+  router.openapi(purchaseOrdersRoute(auth), async (c) => {
     const { dealIds } = c.req.valid("query");
     const unique = [...new Set(dealIds)];
-    const rows = await db.contract.findMany({
+    const rows = await db.purchaseOrder.findMany({
       where: { dealId: { in: unique } },
       select: {
         id: true,
@@ -103,7 +104,7 @@ export const createSystemContractsRouter = (auth: MiddlewareHandler) => {
     const items = unique.flatMap((dealId) => {
       const row = byDeal.get(dealId);
       if (!row) return [];
-      return [{ dealId, contractId: row.id, project: row.project, bexioOrderId: row.bexioOrderId }];
+      return [{ dealId, purchaseOrderId: row.id, project: row.project, bexioOrderId: row.bexioOrderId }];
     });
     return c.json({ items }, 200);
   });
@@ -112,6 +113,6 @@ export const createSystemContractsRouter = (auth: MiddlewareHandler) => {
 };
 
 /** The router `src/system/system.routes.ts` mounts: the default JWKS and SERVICE_AUDIENCE. */
-export const systemContractsRouter = createSystemContractsRouter(
-  createSystemAuthMiddleware({ scope: "projects.contracts.read" }),
+export const systemPurchaseOrdersRouter = createSystemPurchaseOrdersRouter(
+  createSystemAuthMiddleware({ scope: "projects.purchase-orders.read" }),
 );

@@ -1,15 +1,17 @@
 /**
- * Request and response shapes of the contract routes (specs/025-projects T8, tasks.md § API
- * contracts; AC-2.1 – AC-2.9).
+ * Request shapes of the terms routes (specs/021-projects T8 as renamed by specs/022 T23; AC-2.1 –
+ * AC-2.9, AC-1.8, AC-5.3, AC-5.4). The response shape, `Terms`, is in `projects/projects.schemas.ts`
+ * with the rest of the `Project` view.
  *
- * A contract's `terms` depend on the project's type, which only the handler knows, so the request
- * body carries `terms` as an open object and `terms.ts` validates it against the schema of the
- * type. The shapes below are those per-type schemas. There is no amount, price or rate anywhere
- * (D14, AC-2.9): man-days and hours are units of work, not money.
+ * The shape is specs/021's contract shape, renamed: `{ startDate, endDate?, terms }`, where the
+ * type-specific `terms` depend on the project's type, which only the handler knows. So the body
+ * carries `terms` as an open object and `terms.ts` validates it against the schema of the type. The
+ * shapes below are those per-type schemas. There is no amount, price or rate anywhere (D14, AC-2.9):
+ * man-days and hours are units of work, not money.
  */
 
 import { z } from "@hono/zod-openapi";
-import { DateOnlySchema, IdSchema, requiredText } from "../lib/http";
+import { DateOnlySchema, requiredText } from "../lib/http";
 
 // ─── Terms (input) ───────────────────────────────────────────────────────────
 
@@ -17,7 +19,7 @@ import { DateOnlySchema, IdSchema, requiredText } from "../lib/http";
 export const MAX_MAN_DAYS = 99_999.9;
 /** A generous cap on purchased hours; keeps the value inside the database's integer. */
 export const MAX_HOURS = 1_000_000;
-/** A T&M contract lists profiles, not a roster; also keeps the body small. */
+/** T&M terms list profiles, not a roster; also keeps the body small. */
 export const MAX_POSITIONS = 50;
 /** SLA take-in-charge times are whole working days, 0–60 (the database CHECK). */
 export const MAX_SLA_DAYS = 60;
@@ -67,18 +69,16 @@ export const SlaAndHoursTermsSchema = z
 
 export const TAndMTermsSchema = z.object({ positions: z.array(PositionSchema).min(1).max(MAX_POSITIONS) }).strict();
 
-// ─── Terms (output) and the Contract view ───────────────────────────────────
-// Defined with the project's shapes (a project carries its contracts whole); re-exported here.
-export { ContractSchema, TermsViewSchema } from "../projects/projects.schemas";
-
-export const ContractParams = z.object({ id: IdSchema, contractId: IdSchema });
+// ─── Request bodies ──────────────────────────────────────────────────────────
 
 const termsDescription =
-  "By project type — fixed_price: { deadline, estimatedManDays?, maxEffortManDays }; maintenance: " +
-  "{ sla?, hourPackage? } (one required); saas: { sla?, hourPackage? }; t_and_m: { positions: " +
-  "[{ profile, plannedManDays }] } (at least one). Validated against the project's type.";
+  "By project type — fixed_price: { deadline, estimatedManDays?, maxEffortManDays } (omit " +
+  "estimatedManDays when the project's purchase order has an estimate: it is the estimate's); " +
+  "maintenance: { sla?, hourPackage? } (one required); saas: { sla?, hourPackage? }; t_and_m: " +
+  "{ positions: [{ profile, plannedManDays }] } (at least one). Validated against the project's type.";
 
-const TermsInput = z.record(z.unknown()).openapi({ description: termsDescription });
+/** An open object: the type-specific members are known only once the project's type is. */
+export const TermsInput = z.record(z.unknown()).openapi({ description: termsDescription });
 
 const startsBeforeEnd = (body: { startDate?: string | undefined; endDate?: string | null | undefined }, ctx: z.RefinementCtx) => {
   if (body.startDate !== undefined && body.endDate != null && body.endDate < body.startDate) {
@@ -86,10 +86,12 @@ const startsBeforeEnd = (body: { startDate?: string | undefined; endDate?: strin
   }
 };
 
-export const CreateContractSchema = z
+/**
+ * `POST /projects/{id}/terms`, and the `terms` member of the take of a deal: the dates and the
+ * type-specific terms (a type without any, or with none given, takes `{}`).
+ */
+export const CreateTermsSchema = z
   .object({
-    /** A client project's own company by default; required for `saas`. */
-    companyId: IdSchema.optional(),
     startDate: DateOnlySchema,
     endDate: DateOnlySchema.nullable().optional(),
     terms: TermsInput.optional(),
@@ -97,8 +99,8 @@ export const CreateContractSchema = z
   .strict()
   .superRefine(startsBeforeEnd);
 
-/** `terms`, when given, REPLACES the contract's terms; `endDate: null` reopens an ended contract. */
-export const UpdateContractSchema = z
+/** `terms`, when given, REPLACES the type-specific terms whole; `endDate: null` reopens ended terms. */
+export const UpdateTermsSchema = z
   .object({
     startDate: DateOnlySchema.optional(),
     endDate: DateOnlySchema.nullable().optional(),

@@ -1,5 +1,5 @@
 /**
- * Projects: list, create, read, rename / change project manager (specs/025 T5; AC-1.1,
+ * Projects: list, create, read, rename / change project manager (specs/021 T5; AC-1.1,
  * AC-1.4 – AC-1.7, AC-4.3, AC-4.4).
  *
  * Reading needs `projects:access` only (every holder reads every project, D13). Writing needs
@@ -8,8 +8,8 @@
  * once the entity is known. A project's entity, company and type are fixed at creation.
  *
  * Names are live: people come from `auth` (fail soft, ADR-0039), company names from crm-api
- * with the service credential (fail soft, ADR-0059), and so is the deal behind each contract made
- * from one (specs/022: title and whether it is still won, fail soft).
+ * with the service credential (fail soft, ADR-0059), and so is the deal behind the purchase order of
+ * a project made from one (specs/022: title and whether it is still won, fail soft).
  *
  * `toProjectView`, `projectInclude` and `findProjectRow` are exported for the routes that
  * answer with a `Project` after their own write (transitions, team — T6, T7).
@@ -18,7 +18,6 @@
 import { OpenAPIHono, createRoute, z } from "@hono/zod-openapi";
 import { PROJECT_MANAGE, assertCanManage, authorized, requireCapability } from "../auth/guards";
 import type { AuthzVariables } from "../auth/authz.middleware";
-import { dealRefs } from "../contracts/contracts.routes";
 import { companyRefs } from "../lib/crm";
 import { db } from "../lib/db";
 import type { Prisma } from "../lib/generated/prisma/client";
@@ -28,17 +27,19 @@ import {
   assertVersion,
   commonErrors,
   etag,
+  isRecordNotFound,
   requireIfMatch,
   skipTake,
-  updateIfVersion,
+  toDateOnly,
+  versionConflict,
   type HeaderSource,
 } from "../lib/http";
-import { contractInclude, contractView } from "../contracts/contracts.routes";
 import { requireProjectUsers } from "../lib/identities";
 import { loadPeople } from "../lib/people";
 import { notFound, validationHook } from "../lib/problem";
+import { dealRefs, purchaseOrderView } from "../purchase-orders/view";
+import { toTermsView } from "../terms/terms";
 import { assertCompanyFits, projectCreateData } from "./create";
-import { deriveDates } from "./dates";
 import {
   CreateProjectSchema,
   ListProjectsQuery,
@@ -52,7 +53,8 @@ import {
 
 export const projectInclude = {
   members: { orderBy: [{ addedAt: "asc" }, { userId: "asc" }] },
-  contracts: { orderBy: [{ startDate: "asc" }, { createdAt: "asc" }, { id: "asc" }], include: contractInclude },
+  terms: { include: { positions: { orderBy: { position: "asc" } } } },
+  purchaseOrder: true,
 } satisfies Prisma.ProjectInclude;
 
 export type ProjectRow = Prisma.ProjectGetPayload<{ include: typeof projectInclude }>;
@@ -60,30 +62,18 @@ export type ProjectRow = Prisma.ProjectGetPayload<{ include: typeof projectInclu
 export const findProjectRow = (id: string): Promise<ProjectRow | null> =>
   db.project.findUnique({ where: { id }, include: projectInclude });
 
-/** Compare-and-set a project write on its version ({@link updateIfVersion}); returns the new row. */
-export const updateProjectIfVersion = (
-  id: string,
-  expected: number,
-  data: Prisma.ProjectUpdateInput,
-): Promise<ProjectRow> =>
-  updateIfVersion(
-    () =>
-      db.project.update({
-        where: { id, version: expected },
-        data: { ...data, version: { increment: 1 } },
-        include: projectInclude,
-      }),
-    () => db.project.findUnique({ where: { id }, select: { version: true } }),
-    "Project not found",
-  );
-
-/** The `Project` of tasks.md § API contracts: details, live names, team, contracts, derived dates. */
+/**
+ * The `Project` of tasks.md § API contracts: details, live names, team, purchase order, terms and
+ * the dates of the terms. A project awaits its project manager when it has a purchase order and no
+ * project manager yet (specs/022 D42).
+ */
 export async function toProjectView(c: HeaderSource, row: ProjectRow) {
+  const order = row.purchaseOrder;
   const [people, company, deal] = await Promise.all([
-    loadPeople(c, [row.projectManagerId, ...row.members.map((member) => member.userId)]),
-    companyRefs([row.companyId, ...row.contracts.map((contract) => contract.companyId)]),
-    // The deals behind the contracts, live and in one CRM read: `won: false` is the AC-2.3 notice.
-    dealRefs(row.contracts.map((contract) => contract.dealId)),
+    loadPeople(c, [row.projectManagerId, order?.opsManagerId, ...row.members.map((member) => member.userId)]),
+    companyRefs([row.companyId]),
+    // The deal behind the purchase order, live: `won: false` is the AC-2.3 notice.
+    dealRefs([order?.dealId]),
   ]);
   return {
     id: row.id,
@@ -93,11 +83,13 @@ export async function toProjectView(c: HeaderSource, row: ProjectRow) {
     stateBeforeHold: row.stateBeforeHold,
     entity: row.entity,
     company: row.companyId === null ? null : company(row.companyId),
-    projectManager: people.person(row.projectManagerId),
+    projectManager: people.maybe(row.projectManagerId),
+    awaitingProjectManager: order !== null && row.projectManagerId === null,
     team: row.members.map((member) => people.person(member.userId)),
-    // Whole, with one CRM read for every company above: the page reads no contract on its own.
-    contracts: row.contracts.map((contract) => contractView(contract, company, deal)),
-    ...deriveDates(row.contracts),
+    purchaseOrder: order === null ? null : purchaseOrderView(order, deal, people.person),
+    terms: row.terms === null ? null : toTermsView(row.terms),
+    startDate: toDateOnly(row.terms?.startDate ?? null),
+    endDate: toDateOnly(row.terms?.endDate ?? null),
     version: row.version,
     createdAt: row.createdAt.toISOString(),
     updatedAt: row.updatedAt.toISOString(),
@@ -137,7 +129,7 @@ const getProjectRoute = createRoute({
   method: "get",
   path: "/projects/{id}",
   tags: ["Projects"],
-  summary: "A project with its team, contracts and derived dates",
+  summary: "A project with its team, purchase order and terms",
   middleware: authorized,
   request: { params: IdParams },
   responses: { 200: { description: "The project", ...json(ProjectSchema) }, 404: { description: "Not found" }, ...commonErrors },
@@ -217,7 +209,7 @@ projectsRouter.openapi(listProjectsRoute, async (c) => {
     db.project.count({ where }),
     db.project.findMany({
       where,
-      include: { contracts: { select: { companyId: true } } },
+      include: { purchaseOrder: { select: { id: true } } },
       orderBy: [{ name: "asc" }, { id: "asc" }],
       ...skipTake(page, DEFAULT_PAGE_SIZE),
     }),
@@ -233,8 +225,8 @@ projectsRouter.openapi(listProjectsRoute, async (c) => {
     state: row.state,
     entity: row.entity,
     company: row.companyId === null ? null : company(row.companyId),
-    clientCount: new Set(row.contracts.map((contract) => contract.companyId)).size,
-    projectManager: people.person(row.projectManagerId),
+    projectManager: people.maybe(row.projectManagerId),
+    awaitingProjectManager: row.purchaseOrder !== null && row.projectManagerId === null,
   }));
   return c.json({ items, page, pageSize: DEFAULT_PAGE_SIZE, total }, 200);
 });
@@ -245,10 +237,16 @@ projectsRouter.openapi(listProjectsRoute, async (c) => {
  * and fail soft; they are sorted after resolving, a person without a name last, ties by id.
  */
 projectsRouter.openapi(listProjectManagersRoute, async (c) => {
-  const rows = await db.project.findMany({ distinct: ["projectManagerId"], select: { projectManagerId: true } });
-  const people = await loadPeople(c, rows.map((row) => row.projectManagerId));
-  const items = rows
-    .map((row) => people.person(row.projectManagerId))
+  // A project awaiting its project manager has none yet (specs/022 D42): nobody to list for it.
+  const rows = await db.project.findMany({
+    where: { projectManagerId: { not: null } },
+    distinct: ["projectManagerId"],
+    select: { projectManagerId: true },
+  });
+  const ids = rows.flatMap((row) => (row.projectManagerId === null ? [] : [row.projectManagerId]));
+  const people = await loadPeople(c, ids);
+  const items = ids
+    .map((id) => people.person(id))
     .sort(
       (a, b) =>
         Number(a.name === null) - Number(b.name === null) ||
@@ -271,10 +269,23 @@ projectsRouter.openapi(updateProjectRoute, async (c) => {
   if (body.projectManagerId !== undefined && body.projectManagerId !== current.projectManagerId) {
     await requireProjectUsers(c, [body.projectManagerId]);
   }
-  const row = await updateProjectIfVersion(id, expected, {
-    ...(body.name !== undefined ? { name: body.name } : {}),
-    ...(body.projectManagerId !== undefined ? { projectManagerId: body.projectManagerId } : {}),
-  });
+  // Compare-and-set on the version: of two saves of the same version only one matches.
+  const row = await db.project
+    .update({
+      where: { id, version: expected },
+      data: {
+        ...(body.name !== undefined ? { name: body.name } : {}),
+        ...(body.projectManagerId !== undefined ? { projectManagerId: body.projectManagerId } : {}),
+        version: { increment: 1 },
+      },
+      include: projectInclude,
+    })
+    .catch(async (error: unknown) => {
+      if (!isRecordNotFound(error)) throw error;
+      const now = await db.project.findUnique({ where: { id }, select: { version: true } });
+      if (!now) throw notFound("Project not found");
+      throw versionConflict(now.version);
+    });
   c.header("ETag", etag(row.version));
   return c.json(await toProjectView(c, row), 200);
 });

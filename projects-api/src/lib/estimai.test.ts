@@ -1,6 +1,6 @@
 /**
  * estimai-api client (specs/022 T5; AC-3.1, ADR-0061): `estimateManDays(id)` reads the figure a
- * fixed-price contract made from a deal copies, as the service principal (the person taking the
+ * fixed-price terms of a project made from a deal copy, as the service principal (the person taking the
  * deal is often no collaborator on the estimate). EstimAI is the fake of test-support/world.ts.
  */
 import { beforeEach, describe, expect, it } from "bun:test";
@@ -35,7 +35,7 @@ describe("estimateManDays(id)", () => {
     expect(await estimateManDays("est-0")).toBe(0);
   });
 
-  it("returns null when EstimAI does not know the estimate (404): the contract keeps its estimate id, no man-days", async () => {
+  it("returns null when EstimAI does not know the estimate (404): the purchase order keeps its estimate id, no man-days", async () => {
     expect(await estimateManDays("est-gone")).toBeNull();
   });
 

@@ -1,9 +1,13 @@
 /**
- * A contract's terms, by project type (specs/025-projects T8; AC-2.3 – AC-2.8): validation of the
- * request's `terms`, the columns they are stored in, and the view they are read back as.
+ * A project's terms, by project type (specs/021-projects T8 as renamed by specs/022 T23; AC-2.3 –
+ * AC-2.8, AC-1.8, AC-5.3): validation of the request's `terms`, the columns they are stored in, and
+ * the view they are read back as.
  *
  * The database CHECKs already refuse a malformed row; these rules exist so a bad request is a
  * 400 / 422 naming the field, never a 500 from a constraint.
+ *
+ * The wire shape is specs/021's contract shape, renamed: `{ id, type, startDate, endDate, terms,
+ * version }`, with the type-specific `terms` nested (`termsView`).
  */
 
 import type { z } from "@hono/zod-openapi";
@@ -17,7 +21,7 @@ import {
   TAndMTermsSchema,
   type HourPackageSchema,
   type SlaSchema,
-} from "./contracts.schemas";
+} from "./terms.schemas";
 
 type Sla = z.infer<typeof SlaSchema>;
 type HourPackage = z.infer<typeof HourPackageSchema>;
@@ -45,9 +49,10 @@ export function validationFailed(issues: readonly IssueLike[], prefix: readonly 
 }
 
 /**
- * Parses `raw` as `terms` for a contract of `type`; throws the 400 / 422 problem when it is not valid.
+ * Parses `raw` as `terms` for a project of `type`; throws the 400 / 422 problem when it is not valid.
  * `at` is where `terms` sits in the request body, so a problem names the field by its full path in
- * the body: `terms` on a contract write, `contract.terms` when taking a deal (specs/022).
+ * the body: `terms` on a terms write (`terms.deadline`), `terms.terms` when taking a deal
+ * (`terms.terms.deadline`, specs/022).
  */
 export function parseTerms(type: ProjectType, raw: unknown, at: readonly string[] = ["terms"]): Terms {
   const fail = (error: { issues: readonly IssueLike[] }): never => {
@@ -68,7 +73,7 @@ export function parseTerms(type: ProjectType, raw: unknown, at: readonly string[
       const hourPackage = parsed.data.hourPackage ?? null;
       if (type === "maintenance" && sla === null && hourPackage === null) {
         throw unprocessable(
-          "A maintenance contract needs an SLA, an hour package, or both",
+          "Maintenance terms need an SLA, an hour package, or both",
           { field: at.join(".") },
           "maintenance_needs_sla_or_hours",
         );
@@ -81,13 +86,13 @@ export function parseTerms(type: ProjectType, raw: unknown, at: readonly string[
       return { type, positions: parsed.data.positions };
     }
     case "internal":
-      // An internal project takes no contract; the route refuses it before it gets here.
-      throw conflict("contracts_not_allowed", "An internal project has no contracts");
+      // An internal project takes no terms; the routes refuse it before it gets here.
+      throw conflict("terms_not_allowed", "An internal project has no clients and takes no terms");
   }
 }
 
 type TermColumns = Pick<
-  Prisma.ContractUncheckedCreateInput,
+  Prisma.ProjectTermsUncheckedCreateInput,
   | "deadline"
   | "estimatedManDays"
   | "maxEffortManDays"
@@ -99,7 +104,7 @@ type TermColumns = Pick<
   | "hourPackageExpiry"
 >;
 
-/** The term columns of `Contract`: every column of the type's terms is set, so a replacement clears what it drops. */
+/** The term columns of `ProjectTerms`: every column of the type's terms is set, so a replacement clears what it drops. */
 export function termColumns(terms: Terms): TermColumns {
   switch (terms.type) {
     case "fixed_price":
@@ -123,7 +128,7 @@ export function termColumns(terms: Terms): TermColumns {
   }
 }
 
-/** The `ContractPosition` rows of a T&M contract's terms, in the order given. */
+/** The `ProjectTermsPosition` rows of T&M terms, in the order given. */
 export const positionRows = (terms: Terms): { profile: string; plannedManDays: number; position: number }[] =>
   terms.type === "t_and_m"
     ? terms.positions.map((position, index) => ({
@@ -136,9 +141,12 @@ export const positionRows = (terms: Terms): { profile: string; plannedManDays: n
 type Decimalish = { toNumber(): number };
 const num = (value: Decimalish | null): number | null => (value === null ? null : value.toNumber());
 
-/** What `termsView` reads from a stored contract. */
+/** What `toTermsView` reads from stored terms. */
 export interface TermsRow {
+  readonly id: string;
   readonly type: ProjectType;
+  readonly startDate: Date;
+  readonly endDate: Date | null;
   readonly deadline: Date | null;
   readonly estimatedManDays: Decimalish | null;
   readonly maxEffortManDays: Decimalish | null;
@@ -149,9 +157,10 @@ export interface TermsRow {
   readonly hourPackageStart: Date | null;
   readonly hourPackageExpiry: Date | null;
   readonly positions: readonly { profile: string; plannedManDays: Decimalish }[];
+  readonly version: number;
 }
 
-/** The `terms` of the `Contract` view: the stored terms of the contract's type, absent members `null`. */
+/** The type-specific `terms` of the `Terms` view: the stored terms of the project's type, absent members `null`. */
 export function termsView(row: TermsRow) {
   switch (row.type) {
     case "fixed_price":
@@ -187,4 +196,16 @@ export function termsView(row: TermsRow) {
     case "internal":
       return {};
   }
+}
+
+/** The `Terms` of tasks.md § API contracts: `{ id, type, startDate, endDate, terms, version }`. */
+export function toTermsView(row: TermsRow) {
+  return {
+    id: row.id,
+    type: row.type,
+    startDate: toDateOnly(row.startDate)!,
+    endDate: toDateOnly(row.endDate),
+    terms: termsView(row),
+    version: row.version,
+  };
 }

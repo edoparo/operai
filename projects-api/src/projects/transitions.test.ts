@@ -1,5 +1,6 @@
 /**
- * Project states and the type change (specs/025 T6; AC-1.2, AC-1.3, AC-1.7, AC-4.4). Runs the
+ * Project states (specs/021 T6; AC-1.2, AC-1.3, AC-1.7, AC-4.4; the type change is gone, specs/022
+ * T23, A30). Runs the
  * ASSEMBLED app against the `*_test` database; auth and the identity service are the fakes of
  * test-support/world.ts. Projects are seeded straight in the database (the API under test is
  * not its own fixture); an `internal` project needs no company, so no CRM fixture either.
@@ -158,88 +159,11 @@ describe("POST /projects/:id/transitions", () => {
   });
 });
 
-type Type = "t_and_m" | "fixed_price" | "maintenance" | "saas" | "internal";
-const TYPES: readonly Type[] = ["t_and_m", "fixed_price", "maintenance", "saas", "internal"];
-const CLIENT = new Set<Type>(["t_and_m", "fixed_price", "maintenance"]);
-
-/** A project of `type`, with the company the database requires of a client type. */
-const seedOfType = (type: Type, over: Partial<Prisma.ProjectUncheckedCreateInput> = {}) =>
-  seed({ type, companyId: CLIENT.has(type) ? "co-acme" : null, ...over });
-
-const changeType = (id: string, type: unknown, as: PersonaName | null = "pmCh", ifMatch: number | string = 1) =>
-  call("PUT", `/projects/${id}/type`, { as, body: { type }, ifMatch });
-
-describe("PUT /projects/:id/type", () => {
-  it("turns an internal tool into a SaaS product, keeping its state: 200 with the Project and the new ETag (AC-1.2)", async () => {
-    const project = await seedOfType("internal", { state: "active" });
-    const res = await changeType(project.id, "saas");
-    expect(res.status).toBe(200);
-    expect(res.headers.get("ETag")).toBe('"2"');
-    expect(res.json).toMatchObject({ id: project.id, type: "saas", state: "active", company: null, version: 2 });
-    expect(await db.project.findUniqueOrThrow({ where: { id: project.id } })).toMatchObject({
-      type: "saas",
-      state: "active",
-      companyId: null,
-      version: 2,
-    });
-  });
-
-  describe("every other change is refused: 409 `type_change_refused`, nothing changes (AC-1.2)", () => {
-    for (const from of TYPES) {
-      for (const to of TYPES) {
-        if (from === "internal" && to === "saas") continue;
-        it(`${from} → ${to}`, async () => {
-          const project = await seedOfType(from);
-          const res = await changeType(project.id, to);
-          expect(res.status).toBe(409);
-          expect(res.json).toMatchObject({ status: 409, code: "type_change_refused" });
-          expect(await db.project.findUniqueOrThrow({ where: { id: project.id } })).toMatchObject({ type: from, version: 1 });
-        });
-      }
-    }
-  });
-
-  it("is 404 for an unknown project", async () => {
-    expect((await changeType("nope", "saas")).status).toBe(404);
-  });
-
-  it.each(["viewer", "accounting"] as const)("refuses %s, who manages nothing: 403 `forbidden` (AC-4.4)", async (as) => {
-    const project = await seedOfType("internal");
-    const res = await changeType(project.id, "saas", as);
-    expect(res.status).toBe(403);
-    expect(res.json).toMatchObject({ code: "forbidden" });
-    expect((await db.project.findUniqueOrThrow({ where: { id: project.id } })).type).toBe("internal");
-  });
-
-  it("refuses no module access (403) and no token (401), and a manager of the other entity: 403 `out_of_scope`", async () => {
-    const project = await seedOfType("internal", { entity: "welld_it" });
-    expect((await changeType(project.id, "saas", "outsider")).status).toBe(403);
-    expect((await changeType(project.id, "saas", null)).status).toBe(401);
-    const res = await changeType(project.id, "saas", "pmCh");
-    expect(res.status).toBe(403);
-    expect(res.json).toMatchObject({ code: "out_of_scope" });
-    expect((await changeType(project.id, "saas", "salesIt")).status).toBe(200);
-  });
-
-  it.each([
-    ["an unknown type", { type: "retainer" }],
-    ["no type", {}],
-    ["an extra member", { type: "saas", state: "closed" }],
-  ])("is 400 `validation_failed` for %s", async (_label, body) => {
-    const project = await seedOfType("internal");
-    const res = await call("PUT", `/projects/${project.id}/type`, { as: "pmCh", body, ifMatch: 1 });
-    expect(res.status).toBe(400);
-    expect(res.json).toMatchObject({ status: 400, code: "validation_failed" });
-  });
-
-  it("needs an If-Match (428) and refuses a stale one (409 `version_conflict`) (AC-1.7)", async () => {
-    const project = await seedOfType("internal", { version: 3 });
-    const missing = await call("PUT", `/projects/${project.id}/type`, { as: "pmCh", body: { type: "saas" } });
-    expect(missing.status).toBe(428);
-    expect(missing.json).toMatchObject({ code: "precondition_required" });
-    const stale = await changeType(project.id, "saas", "pmCh", 2);
-    expect(stale.status).toBe(409);
-    expect(stale.json).toMatchObject({ code: "version_conflict", currentVersion: 3 });
+describe("the type of a project never changes (specs/022 A30, D40)", () => {
+  it.each(["pmCh", "admin", "viewer"] as const)("has no `PUT /projects/:id/type` any more, for %s: 404, nothing changes", async (as) => {
+    const project = await seed({ version: 3 });
+    const res = await call("PUT", `/projects/${project.id}/type`, { as, body: { type: "saas" }, ifMatch: 3 });
+    expect(res.status).toBe(404);
     expect(await db.project.findUniqueOrThrow({ where: { id: project.id } })).toMatchObject({ type: "internal", version: 3 });
   });
 });

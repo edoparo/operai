@@ -10,7 +10,7 @@
  * Hono copies a sub-app's `use("*")` onto the whole app.
  *
  * Reading needs only `projects:access` (every holder reads every project and
- * contract, D13). Writing is record-level: `assertCanManage(c, entity)` after the
+ * purchase order, D13). Writing is record-level: `assertCanManage(c, entity)` after the
  * record's entity is known.
  */
 
@@ -24,12 +24,12 @@ import { ProblemError, problem } from "../lib/problem";
 /** A `(resource, action)` pair from the `projects` catalog (auth/src/authz/catalogs/projects.ts). */
 export type Capability = readonly [resource: string, action: string];
 
-/** Tool access: read every project and contract. */
+/** Tool access: read every project and purchase order. */
 export const PROJECTS_ACCESS: Capability = ["projects", "access"];
-/** Create and edit projects, teams and contracts and move states — entity-scoped (ADR-0015). */
+/** Create and edit projects, teams and terms and move states — entity-scoped (ADR-0015). */
 export const PROJECT_MANAGE: Capability = ["project", "manage"];
-/** Write a contract's Bexio order id (held by `accounting`, D35). */
-export const CONTRACT_BEXIO: Capability = ["contract", "bexio"];
+/** Write a purchase order's Bexio order id (held by `accounting`, D35; was `contract:bexio` in specs/021). */
+export const PURCHASE_ORDER_BEXIO: Capability = ["purchase-order", "bexio"];
 
 /** The resolved permissions and entity the authz middleware put on the context. */
 export interface AuthzSource {
@@ -45,9 +45,9 @@ export const manageScope = (c: AuthzSource): Entity[] => {
 /** `project:manage` over every entity: the admin's reach. */
 export const managesAll = (c: AuthzSource): boolean => manageScope(c).length === ENTITIES.length;
 
-/** Whether the caller may write a contract's Bexio order id. */
+/** Whether the caller may write a purchase order's Bexio order id. */
 export const canSetBexio = (c: AuthzSource): boolean =>
-  hasCapability(c.get("authz").permissions, CONTRACT_BEXIO[0], CONTRACT_BEXIO[1]);
+  hasCapability(c.get("authz").permissions, PURCHASE_ORDER_BEXIO[0], PURCHASE_ORDER_BEXIO[1]);
 
 /**
  * 403 unless the caller holds AT LEAST ONE of `needs` (any scope). Must run

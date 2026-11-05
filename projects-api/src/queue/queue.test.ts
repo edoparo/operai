@@ -1,37 +1,17 @@
 /**
  * The to-start queue (specs/022 T6; AC-1.1, AC-1.6, AC-2.1, AC-2.2): `GET /queue` lists the CRM's won
- * deals that no contract has taken, newest win first, read live. Runs the ASSEMBLED app against the
+ * deals without a purchase order, newest win first, read live. Runs the ASSEMBLED app against the
  * `*_test` database; the CRM is the fake of test-support/world.ts. A taken deal is seeded straight in
- * the database as a `deal` contract (the take itself is T7's, tested in take.test.ts).
+ * the database with its purchase order (the take itself is tested in take.test.ts).
  */
 import { beforeEach, describe, expect, it } from "bun:test";
-import { call, crm, db, makeDeal, resetWorld, type PersonaName } from "../test-support/world";
+import { call, crm, makeDeal, resetWorld, seedDealProject, type PersonaName } from "../test-support/world";
 
 beforeEach(resetWorld);
 
-/** A deal-origin contract on a fresh project: the deal now has a contract and so leaves the queue. */
+/** A purchase order on a fresh project: the deal now has one and so leaves the queue. */
 async function takeInDb(dealId: string): Promise<void> {
-  const project = await db.project.create({
-    data: {
-      name: `Project of ${dealId}`,
-      type: "t_and_m",
-      entity: "welld_ch",
-      companyId: "co-acme",
-      projectManagerId: "user-pm-ch",
-      createdById: "user-pm-ch",
-    },
-  });
-  await db.contract.create({
-    data: {
-      projectId: project.id,
-      type: "t_and_m",
-      companyId: "co-acme",
-      origin: "deal",
-      dealId,
-      startDate: new Date("2026-12-01T00:00:00Z"),
-      positions: { create: [{ profile: "Developer", plannedManDays: 10, position: 0 }] },
-    },
-  });
+  await seedDealProject({ type: "t_and_m", project: { name: `Project of ${dealId}` }, order: { dealId } });
 }
 
 const queue = (query = "", as: PersonaName | null = "viewer") =>
@@ -92,7 +72,7 @@ describe("GET /queue — a won deal waits for someone to take it (AC-1.1)", () =
 });
 
 describe("GET /queue — a deal feeds at most one project (AC-1.6)", () => {
-  it("omits a deal that already has a contract", async () => {
+  it("omits a deal that already has a purchase order", async () => {
     crm.deals = [makeDeal({ id: "d-taken" }), makeDeal({ id: "d-free" })];
     await takeInDb("d-taken");
     const res = await queue();

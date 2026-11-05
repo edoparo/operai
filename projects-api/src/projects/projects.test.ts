@@ -1,14 +1,16 @@
 /**
- * Projects: create, list, read, rename / change project manager (specs/025 T5;
- * AC-1.1, AC-1.4, AC-1.5, AC-1.6, AC-1.7, AC-4.3, AC-4.4). Runs the ASSEMBLED app against the
- * `*_test` database; auth, the identity service and crm-api are the fakes of
- * test-support/world.ts.
+ * Projects: create, list, read, rename / change project manager (specs/021 T5; AC-1.1, AC-1.4,
+ * AC-1.6, AC-1.7, AC-4.3, AC-4.4), with the specs/022 T23 shapes: a project has 0..1 terms and 0..1
+ * purchase order, may await its project manager, and never changes type (AC-2.3, AC-2.4, AC-3.2, AC-3.3,
+ * AC-4.5, AC-5.1, AC-5.2). Runs the ASSEMBLED app against the `*_test` database; auth, the identity
+ * service and crm-api are the fakes of test-support/world.ts.
  */
 import { beforeEach, describe, expect, it } from "bun:test";
-import { appAccess, call, crm, db, identities, makeDeal, resetWorld, type PersonaName } from "../test-support/world";
+import { appAccess, call, crm, db, identities, makeDeal, resetWorld, seedDealProject, type PersonaName } from "../test-support/world";
 import type { Prisma } from "../lib/generated/prisma/client";
 
-const CLIENT_TYPES = ["t_and_m", "fixed_price", "maintenance"] as const;
+/** Every type but `internal` has a company, `saas` included (specs/022 D40). */
+const CLIENT_TYPES = ["t_and_m", "fixed_price", "maintenance", "saas"] as const;
 
 beforeEach(async () => {
   await resetWorld();
@@ -38,13 +40,18 @@ const seed = (over: Partial<Prisma.ProjectUncheckedCreateInput> = {}) =>
     },
   });
 
-/** A contract straight in the database; only the columns the project view reads. */
-const seedContract = (
-  projectId: string,
-  over: Partial<Prisma.ContractUncheckedCreateInput> & { type?: Prisma.ContractUncheckedCreateInput["type"] } = {},
-) =>
-  db.contract.create({
-    data: { projectId, type: "t_and_m", companyId: "co-acme", startDate: date("2026-01-01"), ...over },
+/** Terms straight in the database on a T&M project; only the columns the project view reads. */
+const seedTerms = (projectId: string, over: Partial<Prisma.ProjectTermsUncheckedCreateInput> = {}) =>
+  db.projectTerms.create({
+    data: {
+      projectId,
+      type: "t_and_m",
+      startDate: date("2026-01-01"),
+      ...(over.type === undefined || over.type === "t_and_m"
+        ? { positions: { create: [{ profile: "Senior developer", plannedManDays: 10, position: 0 }] } }
+        : {}),
+      ...over,
+    },
   });
 
 describe("POST /projects", () => {
@@ -61,8 +68,10 @@ describe("POST /projects", () => {
       entity: "welld_ch",
       company: { id: "co-acme", name: "Acme SA" },
       projectManager: { id: "user-pm-ch", name: "Name of user-pm-ch", deleted: false },
+      awaitingProjectManager: false,
       team: [],
-      contracts: [],
+      purchaseOrder: null,
+      terms: null,
       startDate: null,
       endDate: null,
       version: 1,
@@ -73,10 +82,23 @@ describe("POST /projects", () => {
     expect(stored).toMatchObject({ createdById: "user-pm-ch", companyId: "co-acme", state: "planned" });
   });
 
-  it.each(["saas", "internal"] as const)("creates a %s project without a company (AC-1.1)", async (type) => {
-    const res = await create({ name: "Koordy", type, entity: "welld_ch" });
+  it("creates a saas project with its company, one project per licence (AC-5.1, specs/022 D40)", async () => {
+    const res = await create({ name: "Koordy licence", type: "saas", entity: "welld_ch", companyId: "co-acme" });
     expect(res.status).toBe(201);
-    expect(res.json).toMatchObject({ type, company: null });
+    expect(res.json).toMatchObject({ type: "saas", company: { id: "co-acme", name: "Acme SA" }, awaitingProjectManager: false });
+  });
+
+  it("creates an internal project without a company (AC-1.1)", async () => {
+    const res = await create({ name: "Koordy", type: "internal", entity: "welld_ch" });
+    expect(res.status).toBe(201);
+    expect(res.json).toMatchObject({ type: "internal", company: null });
+  });
+
+  it("never gives a hand-made project a purchase order or terms of its own: it is made with none (AC-5.2)", async () => {
+    const res = await create({ name: "Koordy", type: "t_and_m", entity: "welld_ch", companyId: "co-acme" });
+    expect(res.json).toMatchObject({ purchaseOrder: null, terms: null, awaitingProjectManager: false });
+    expect(await db.purchaseOrder.count()).toBe(0);
+    expect(await db.projectTerms.count()).toBe(0);
   });
 
   it.each(CLIENT_TYPES)("refuses a %s project without a company: 422 `company_required` (AC-1.1)", async (type) => {
@@ -86,8 +108,8 @@ describe("POST /projects", () => {
     expect(await db.project.count()).toBe(0);
   });
 
-  it.each(["saas", "internal"] as const)("refuses a %s project with a company: 422 `company_not_allowed`", async (type) => {
-    const res = await create({ name: "Koordy", type, entity: "welld_ch", companyId: "co-acme" });
+  it("refuses an internal project with a company: 422 `company_not_allowed`", async () => {
+    const res = await create({ name: "Koordy", type: "internal", entity: "welld_ch", companyId: "co-acme" });
     expect(res.status).toBe(422);
     expect(res.json).toMatchObject({ code: "company_not_allowed" });
     expect(await db.project.count()).toBe(0);
@@ -195,15 +217,15 @@ describe("POST /projects", () => {
 });
 
 describe("GET /projects/:id", () => {
-  it("shows every access holder the project with live names, its team and its contracts (AC-1.5, AC-4.3)", async () => {
-    const project = await seed({ type: "saas", companyId: null, projectManagerId: "user-gone" });
+  it("shows every access holder the project with live names, its team and its terms (AC-4.3, AC-5.4)", async () => {
+    const project = await seed({ type: "saas", companyId: "co-zeta", projectManagerId: "user-gone" });
     await db.projectMember.createMany({
       data: [
         { projectId: project.id, userId: "user-colleague" },
         { projectId: project.id, userId: "user-viewer" },
       ],
     });
-    await seedContract(project.id, { type: "saas", companyId: "co-zeta", startDate: date("2026-03-01"), bexioOrderId: "ORD-7" });
+    const terms = await seedTerms(project.id, { type: "saas", startDate: date("2026-03-01") });
     const res = await call("GET", `/projects/${project.id}`, { as: "viewer" });
     expect(res.status).toBe(200);
     expect(res.headers.get("ETag")).toBe('"1"');
@@ -214,29 +236,22 @@ describe("GET /projects/:id", () => {
       state: "planned",
       stateBeforeHold: null,
       entity: "welld_ch",
-      company: null,
+      company: { id: "co-zeta", name: "Zeta AG" },
       projectManager: { id: "user-gone", name: null, deleted: true },
+      awaitingProjectManager: false,
       team: [
         { id: "user-colleague", name: "Name of user-colleague", deleted: false },
         { id: "user-viewer", name: "Name of user-viewer", deleted: false },
       ],
-      contracts: [
-        {
-          id: expect.any(String),
-          type: "saas",
-          company: { id: "co-zeta", name: "Zeta AG" },
-          origin: "manual",
-          bexioOrderId: "ORD-7",
-          startDate: "2026-03-01",
-          endDate: null,
-          projectId: project.id,
-          dealId: null,
-          deal: null,
-          estimate: null,
-          terms: { sla: null, hourPackage: null },
-          version: 1,
-        },
-      ],
+      purchaseOrder: null,
+      terms: {
+        id: terms.id,
+        type: "saas",
+        startDate: "2026-03-01",
+        endDate: null,
+        terms: { sla: null, hourPackage: null },
+        version: 1,
+      },
       startDate: "2026-03-01",
       endDate: null,
       version: 1,
@@ -245,21 +260,37 @@ describe("GET /projects/:id", () => {
     });
   });
 
-  it("carries every contract whole (terms, version) with ONE CRM read, however many contracts (no N+1)", async () => {
-    const project = await seed({ type: "saas", companyId: null });
-    await seedContract(project.id, { type: "saas", companyId: "co-acme", startDate: date("2026-01-01") });
-    await seedContract(project.id, { type: "saas", companyId: "co-zeta", startDate: date("2026-02-01") });
-    await seedContract(project.id, { type: "saas", companyId: "co-acme", startDate: date("2026-03-01") });
-    crm.calls = 0;
+  it("shows a project made from a deal: its purchase order, its terms and no project manager, awaiting one (AC-1.3, AC-4.5)", async () => {
+    crm.deals = [makeDeal({ id: "deal-seed", title: "Portal rebuild" })];
+    const { project, order, terms } = await seedDealProject({ order: { estimateId: "est-1", bexioOrderId: "ORD-7", referentContactId: "contact-1" } });
     const res = await call("GET", `/projects/${project.id}`, { as: "viewer" });
     expect(res.status).toBe(200);
-    expect(crm.calls).toBe(1);
-    const contracts = res.json.contracts as { company: { name: string | null }; terms: unknown; version: number }[];
-    expect(contracts.map((contract) => contract.company.name)).toEqual(["Acme SA", "Zeta AG", "Acme SA"]);
-    for (const contract of contracts) {
-      expect(contract.terms).toEqual({ sla: null, hourPackage: null });
-      expect(contract.version).toBe(1);
-    }
+    expect(res.json).toMatchObject({
+      projectManager: null,
+      awaitingProjectManager: true,
+      startDate: "2026-12-01",
+      terms: { id: terms.id, type: "fixed_price", terms: { deadline: "2027-03-31", estimatedManDays: 40 } },
+      purchaseOrder: {
+        id: order.id,
+        deal: { id: "deal-seed", title: "Portal rebuild", won: true },
+        estimate: { id: "est-1" },
+        bexioOrderId: "ORD-7",
+        // T26 reads the referent live; until then none is shown, whatever id is stored.
+        referent: null,
+        opsManager: { id: "user-ops", name: "Name of user-ops", deleted: false },
+        version: 1,
+      },
+    });
+  });
+
+  it("stops awaiting once the project has a project manager, and a hand-made project never awaits", async () => {
+    const { project } = await seedDealProject({ project: { projectManagerId: "user-pm-ch" } });
+    expect((await call("GET", `/projects/${project.id}`, { as: "viewer" })).json).toMatchObject({
+      awaitingProjectManager: false,
+      projectManager: { id: "user-pm-ch" },
+    });
+    const byHand = await seed({ name: "By hand", projectManagerId: null });
+    expect((await call("GET", `/projects/${byHand.id}`, { as: "viewer" })).json.awaitingProjectManager).toBe(false);
   });
 
   it.each([
@@ -283,12 +314,10 @@ describe("GET /projects/:id", () => {
 
   it("shows a company name of null, not an error, when the CRM cannot answer (AC-1.4 fail soft)", async () => {
     const project = await seed();
-    const contract = await seedContract(project.id);
     crm.down = true;
     const res = await call("GET", `/projects/${project.id}`, { as: "viewer" });
     expect(res.status).toBe(200);
     expect(res.json.company).toEqual({ id: "co-acme", name: null });
-    expect(res.json.contracts).toEqual([expect.objectContaining({ id: contract.id, company: { id: "co-acme", name: null } })]);
   });
 
   it("still names a company the CRM has since archived", async () => {
@@ -297,116 +326,99 @@ describe("GET /projects/:id", () => {
     expect(res.json.company).toEqual({ id: "co-old", name: "Legacy Ltd" });
   });
 
-  describe("the deals behind its contracts, read live (specs/022 T8; AC-2.3, AC-2.4, AC-3.3)", () => {
-    /** A t_and_m project with a contract by hand and two made from the deals d-1 and d-2. */
-    async function withDeals() {
-      const d1 = makeDeal({ id: "d-1", title: "Portal rebuild" });
-      const d2 = makeDeal({ id: "d-2", title: "Portal support" });
-      crm.deals = [d1, d2];
-      const project = await seed();
-      await seedContract(project.id, { startDate: date("2026-01-01") });
-      await seedContract(project.id, { startDate: date("2026-02-01"), origin: "deal", dealId: "d-1", estimateId: "est-1" });
-      await seedContract(project.id, { startDate: date("2026-03-01"), origin: "deal", dealId: "d-2" });
-      return { d1, d2, project };
-    }
-    const deals = async (id: string) =>
-      (await call("GET", `/projects/${id}`, { as: "viewer" })).json.contracts.map((c: { deal: unknown }) => c.deal);
+  describe("the deal behind its purchase order, read live (specs/022 T8, T23; AC-2.3, AC-2.4, AC-3.2, AC-3.3)", () => {
+    const dealOf = async (projectId: string): Promise<unknown> =>
+      (await call("GET", `/projects/${projectId}`, { as: "viewer" })).json.purchaseOrder?.deal;
 
-    it("shows each contract's deal, and `deal: null` for a contract entered by hand", async () => {
-      const { project } = await withDeals();
-      expect(await deals(project.id)).toEqual([
-        null,
-        { id: "d-1", title: "Portal rebuild", won: true },
-        { id: "d-2", title: "Portal support", won: true },
-      ]);
+    /** A project made from the deal d-1, which has an estimate. */
+    async function withDeal() {
+      const d1 = makeDeal({ id: "d-1", title: "Portal rebuild", estimate: { id: "est-1", name: "Portal estimate" } });
+      crm.deals = [d1];
+      const { project, order } = await seedDealProject({ order: { dealId: "d-1", estimateId: "est-1" } });
+      return { d1, project, order };
+    }
+
+    it("shows the deal's title and that it is won, and the estimate link (AC-3.2, AC-3.3)", async () => {
+      const { project } = await withDeal();
+      const res = await call("GET", `/projects/${project.id}`, { as: "viewer" });
+      expect(res.json.purchaseOrder).toMatchObject({ deal: { id: "d-1", title: "Portal rebuild", won: true }, estimate: { id: "est-1" } });
     });
 
-    it("says `won: false` for the deal the CRM reopened, only on that contract, and `true` again once re-won", async () => {
-      const { d1, project } = await withDeals();
+    it("has `estimate: null` when the deal had none, and still shows the deal", async () => {
+      crm.deals = [makeDeal({ id: "d-1", title: "Portal rebuild" })];
+      const { project } = await seedDealProject({ order: { dealId: "d-1", estimateId: null } });
+      const res = await call("GET", `/projects/${project.id}`, { as: "viewer" });
+      expect(res.json.purchaseOrder).toMatchObject({ deal: { id: "d-1", won: true }, estimate: null });
+    });
+
+    it("says `won: false` once the CRM reopens the deal, and `true` again once re-won (AC-2.3, AC-2.4)", async () => {
+      const { d1, project } = await withDeal();
       d1.stage = "proposal";
-      expect(await deals(project.id)).toEqual([
-        null,
-        { id: "d-1", title: "Portal rebuild", won: false },
-        { id: "d-2", title: "Portal support", won: true },
-      ]);
+      expect(await dealOf(project.id)).toEqual({ id: "d-1", title: "Portal rebuild", won: false });
       d1.stage = "won";
-      expect((await deals(project.id))[1]).toEqual({ id: "d-1", title: "Portal rebuild", won: true });
+      expect(await dealOf(project.id)).toEqual({ id: "d-1", title: "Portal rebuild", won: true });
     });
 
     it("leaves the project unchanged when its deal is reopened: only `deal.won` differs (AC-2.3)", async () => {
-      const { d1, project } = await withDeals();
+      const { d1, project } = await withDeal();
       const before = (await call("GET", `/projects/${project.id}`, { as: "viewer" })).json;
       d1.stage = "lost";
       const after = (await call("GET", `/projects/${project.id}`, { as: "viewer" })).json;
-      expect(after.state).toBe(before.state);
-      expect(after.version).toBe(before.version);
-      expect(after.contracts.map((c: { id: string }) => c.id)).toEqual(before.contracts.map((c: { id: string }) => c.id));
+      expect({ ...after, purchaseOrder: { ...after.purchaseOrder, deal: before.purchaseOrder.deal } }).toEqual(before);
+      expect(after.purchaseOrder.deal.won).toBe(false);
     });
 
-    it("asks the CRM for the deals once per request, whatever the number of deal contracts, and not at all without one", async () => {
-      const { project } = await withDeals();
+    it("follows a title edited in the CRM: the title is never copied", async () => {
+      const { d1, project } = await withDeal();
+      d1.title = "Portal rebuild, phase 2";
+      expect(await dealOf(project.id)).toMatchObject({ title: "Portal rebuild, phase 2" });
+    });
+
+    it("asks the CRM for deals once per request, and not at all for a project without a purchase order", async () => {
+      const { project } = await withDeal();
       crm.dealCalls = 0;
       await call("GET", `/projects/${project.id}`, { as: "viewer" });
       expect(crm.dealCalls).toBe(1);
 
-      const manualOnly = await seed({ name: "By hand" });
-      await seedContract(manualOnly.id);
+      const byHand = await seed({ name: "By hand" });
       crm.dealCalls = 0;
-      await call("GET", `/projects/${manualOnly.id}`, { as: "viewer" });
+      await call("GET", `/projects/${byHand.id}`, { as: "viewer" });
       expect(crm.dealCalls).toBe(0);
     });
 
     it("answers 200 with `title` and `won` null, not an error, when the CRM cannot answer", async () => {
-      const { project } = await withDeals();
+      const { project } = await withDeal();
       crm.down = true;
       const res = await call("GET", `/projects/${project.id}`, { as: "viewer" });
       expect(res.status).toBe(200);
-      expect(res.json.contracts.map((c: { deal: unknown }) => c.deal)).toEqual([
-        null,
-        { id: "d-1", title: null, won: null },
-        { id: "d-2", title: null, won: null },
-      ]);
+      expect(res.json.purchaseOrder.deal).toEqual({ id: "d-1", title: null, won: null });
+    });
+
+    it("degrades the same way for a deal the CRM no longer knows", async () => {
+      const { project } = await withDeal();
+      crm.deals = [];
+      expect(await dealOf(project.id)).toEqual({ id: "d-1", title: null, won: null });
     });
   });
 
-  describe("derived dates (AC-1.5)", () => {
-    const datesOf = async (contracts: { start: string; end: string | null }[]) => {
+  describe("dates of the terms (AC-5.4)", () => {
+    const datesOf = async (terms: { start: string; end: string | null } | null) => {
       const project = await seed();
-      for (const { start, end } of contracts) {
-        await seedContract(project.id, { startDate: date(start), endDate: end ? date(end) : null });
-      }
+      if (terms) await seedTerms(project.id, { startDate: date(terms.start), endDate: terms.end ? date(terms.end) : null });
       const res = await call("GET", `/projects/${project.id}`, { as: "viewer" });
       return { startDate: res.json.startDate, endDate: res.json.endDate };
     };
 
-    it("are null without a contract", async () => {
-      expect(await datesOf([])).toEqual({ startDate: null, endDate: null });
+    it("are null without terms", async () => {
+      expect(await datesOf(null)).toEqual({ startDate: null, endDate: null });
     });
 
-    it("are the earliest start and the latest end of the contracts", async () => {
-      expect(
-        await datesOf([
-          { start: "2026-05-01", end: "2026-12-31" },
-          { start: "2026-02-01", end: "2026-09-30" },
-          { start: "2026-03-15", end: "2027-03-14" },
-        ]),
-      ).toEqual({ startDate: "2026-02-01", endDate: "2027-03-14" });
+    it("are the terms' own start and end", async () => {
+      expect(await datesOf({ start: "2026-02-01", end: "2026-09-30" })).toEqual({ startDate: "2026-02-01", endDate: "2026-09-30" });
     });
 
-    it("have no end while any contract is open-ended", async () => {
-      expect(
-        await datesOf([
-          { start: "2026-05-01", end: "2026-12-31" },
-          { start: "2026-02-01", end: null },
-        ]),
-      ).toEqual({ startDate: "2026-02-01", endDate: null });
-    });
-
-    it("are the one contract's own dates with a single contract", async () => {
-      expect(await datesOf([{ start: "2026-02-01", end: "2026-09-30" }])).toEqual({
-        startDate: "2026-02-01",
-        endDate: "2026-09-30",
-      });
+    it("have no end while the terms are open-ended", async () => {
+      expect(await datesOf({ start: "2026-02-01", end: null })).toEqual({ startDate: "2026-02-01", endDate: null });
     });
   });
 });
@@ -432,6 +444,14 @@ describe("GET /project-managers", () => {
     const res = await call("GET", "/project-managers", { as: "viewer" });
     expect(res.status).toBe(200);
     expect(res.json).toEqual({ items: [] });
+  });
+
+  it("lists nobody for a project awaiting its project manager (specs/022 D42)", async () => {
+    await seedDealProject();
+    await seed({ name: "B", projectManagerId: "user-colleague" });
+    const res = await call("GET", "/project-managers", { as: "viewer" });
+    expect(res.status).toBe(200);
+    expect(res.json.items).toEqual([{ id: "user-colleague", name: "Name of user-colleague", deleted: false }]);
   });
 
   it("names people live, shows a deleted one as deleted, and sorts an unnamed one after the named (ADR-0039)", async () => {
@@ -464,7 +484,6 @@ describe("GET /projects", () => {
 
   it("lists projects as summaries, readable by any access holder (AC-1.4, AC-4.3)", async () => {
     const client = await seed({ name: "Koordy portal" });
-    await seedContract(client.id, { companyId: "co-acme" });
     const res = await list();
     expect(res.status).toBe(200);
     expect(res.json).toEqual({
@@ -476,8 +495,8 @@ describe("GET /projects", () => {
           state: "planned",
           entity: "welld_ch",
           company: { id: "co-acme", name: "Acme SA" },
-          clientCount: 1,
           projectManager: { id: "user-pm-ch", name: "Name of user-pm-ch", deleted: false },
+          awaitingProjectManager: false,
         },
       ],
       page: 1,
@@ -529,7 +548,7 @@ describe("GET /projects", () => {
   it("filters by type, state and project manager, alone or together (AC-1.4)", async () => {
     await seed({ name: "A", type: "internal", companyId: null, state: "active", projectManagerId: "user-colleague" });
     await seed({ name: "B", type: "internal", companyId: null, state: "planned", projectManagerId: "user-colleague" });
-    await seed({ name: "C", type: "saas", companyId: null, state: "active", projectManagerId: "user-pm-ch" });
+    await seed({ name: "C", type: "saas", state: "active", projectManagerId: "user-pm-ch" });
     await seed({ name: "D", type: "maintenance", state: "closed", projectManagerId: "user-pm-ch" });
     expect(names(await list("?type=internal"))).toEqual(["A", "B"]);
     expect(names(await list("?state=active"))).toEqual(["A", "C"]);
@@ -548,16 +567,25 @@ describe("GET /projects", () => {
     }
   });
 
-  it("counts a saas project's clients as the distinct companies of its contracts (AC-1.4)", async () => {
-    const saas = await seed({ name: "Koordy", type: "saas", companyId: null });
-    await seedContract(saas.id, { type: "saas", companyId: "co-acme" });
-    await seedContract(saas.id, { type: "saas", companyId: "co-acme", startDate: date("2026-06-01") });
-    await seedContract(saas.id, { type: "saas", companyId: "co-zeta" });
+  it("shows a saas row with its company, as every client type does, and an internal one without (AC-5.1, specs/022 D40)", async () => {
+    const saas = await seed({ name: "Koordy", type: "saas", companyId: "co-zeta" });
     const lonely = await seed({ name: "Tools", type: "internal", companyId: null });
     const res = await list();
     expect(res.json.items).toEqual([
-      expect.objectContaining({ id: saas.id, company: null, clientCount: 2 }),
-      expect.objectContaining({ id: lonely.id, company: null, clientCount: 0 }),
+      expect.objectContaining({ id: saas.id, company: { id: "co-zeta", name: "Zeta AG" } }),
+      expect.objectContaining({ id: lonely.id, company: null }),
+    ]);
+    expect(Object.keys(res.json.items[0])).not.toContain("clientCount");
+  });
+
+  it("shows a project awaiting its project manager with `projectManager: null` and `awaitingProjectManager: true` (AC-4.5)", async () => {
+    const { project } = await seedDealProject();
+    const mine = await seed({ name: "Zeta by hand" });
+    const res = await list();
+    expect(res.status).toBe(200);
+    expect(res.json.items).toEqual([
+      expect.objectContaining({ id: project.id, projectManager: null, awaitingProjectManager: true }),
+      expect.objectContaining({ id: mine.id, awaitingProjectManager: false }),
     ]);
   });
 
@@ -590,7 +618,7 @@ describe("PATCH /projects/:id", () => {
 
   it("renames a project: 200 with the whole Project, version 2 and a fresh ETag (AC-1.1, AC-1.7)", async () => {
     const project = await seed({ name: "Koordy" });
-    await seedContract(project.id);
+    await seedTerms(project.id);
     const res = await patch(project.id, { name: "  Koordy 2  " });
     expect(res.status).toBe(200);
     expect(res.headers.get("ETag")).toBe('"2"');
@@ -599,7 +627,7 @@ describe("PATCH /projects/:id", () => {
       name: "Koordy 2",
       version: 2,
       company: { id: "co-acme", name: "Acme SA" },
-      contracts: [expect.objectContaining({ company: { id: "co-acme", name: "Acme SA" } })],
+      terms: { type: "t_and_m" },
       startDate: "2026-01-01",
     });
     expect(await db.project.findUniqueOrThrow({ where: { id: project.id } })).toMatchObject({
@@ -692,7 +720,7 @@ describe("PATCH /projects/:id", () => {
     ["a blank name", { name: "  " }],
     ["a name over 200 characters", { name: "x".repeat(201) }],
     ["a state", { state: "active" }],
-    ["a type", { type: "saas" }],
+    ["a type (it never changes, specs/022 A30)", { type: "saas" }],
     ["an entity", { entity: "welld_it" }],
     ["a company", { companyId: "co-zeta" }],
   ])("is 400 `validation_failed` for %s (type, entity, company are fixed at creation)", async (_label, body) => {

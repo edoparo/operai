@@ -1,6 +1,6 @@
 /**
  * crm-api client for CRM deals (specs/022 T5; AC-1.1, AC-2.1, AC-2.2, ADR-0060): `wonDeals()` is
- * the source of the to-start queue, `dealsById(ids)` of a contract's deal. Both read crm-api as
+ * the source of the to-start queue, `dealsById(ids)` of a purchase order's deal. Both read crm-api as
  * ITSELF (a service JWT), live, and throw `CrmUnavailableError` when crm-api cannot answer. The
  * CRM is the fake of test-support/world.ts.
  */
@@ -74,7 +74,7 @@ describe("wonDeals() — the to-start queue's source (AC-1.1)", () => {
   });
 });
 
-describe("dealsById(ids) — a contract's deal, live (AC-2.3)", () => {
+describe("dealsById(ids) — a purchase order's deal, live (AC-2.3)", () => {
   it("returns the asked deals keyed by id, in any stage, with `wonAt` only while won", async () => {
     crm.deals = [
       makeDeal({ id: "d-won", wonAt: "2026-11-02T10:00:00.000Z" }),

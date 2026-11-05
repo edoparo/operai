@@ -5,9 +5,9 @@
  */
 
 import { OpenAPIHono } from "@hono/zod-openapi";
-import { systemContractsRouter } from "./contracts.routes";
+import { systemPurchaseOrdersRouter } from "./purchaseOrders.routes";
 import type { SystemAuthVariables } from "./systemAuth.middleware";
 
 export const systemRouter = new OpenAPIHono<{ Variables: SystemAuthVariables }>();
 
-systemRouter.route("/", systemContractsRouter);
+systemRouter.route("/", systemPurchaseOrdersRouter);

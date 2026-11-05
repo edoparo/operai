@@ -45,8 +45,8 @@ const envSchema = z
     SERVICE_CLIENT_SECRET: z.string().min(32, "SERVICE_CLIENT_SECRET must be at least 32 characters").optional(),
     // ─── estimai-api, read as ITSELF (specs/022, ADR-0061) ───────────────────
     // Base URL of estimai-api: `GET /system/estimates/{id}/summary` with the same service
-    // credential as crm-api's (scope `estimai.estimates.read`) gives the man-days a fixed-price
-    // contract made from a deal copies. Optional: unset, taking such a deal answers 503
+    // credential as crm-api's (scope `estimai.estimates.read`) gives the man-days the fixed-price
+    // terms of a project made from a deal copy. Optional: unset, taking such a deal answers 503
     // `estimai_unconfigured`, and nothing else in the module notices.
     ESTIMAI_INTERNAL_URL: z.string().url("ESTIMAI_INTERNAL_URL must be a valid URL").optional(),
     // ─── Service credentials accepted on /system/* (specs/022, ADR-0060) ─────
