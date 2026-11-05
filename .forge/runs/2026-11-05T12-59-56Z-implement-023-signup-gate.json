@@ -1,0 +1,51 @@
+{
+  "schema": "wellforge-run/v3",
+  "run_id": "2026-11-05T12-59-56Z-implement-023-signup-gate",
+  "command": "implement",
+  "args": "023-signup-gate T5,T6",
+  "feature": "023-signup-gate",
+  "feature_resolution": "explicit",
+  "rigor": "production",
+  "plugin_version": "2.56.0",
+  "started": "2026-11-05T12:59:56Z",
+  "ended": "2026-11-05T13:14:00Z",
+  "tasks": ["T6", "T5"],
+  "branch": "main",
+  "worktree": {
+    "mode": "sequential-main-tree",
+    "path": "/Users/matteocodogno/LAB/aiscream/operai-main",
+    "reason": "no touch: overlap between T5 and T6, but both run integration tests against the same isolated operai_auth_main database (shared-state class: database, not isolable per agent worktree)",
+    "isolated": ["database operai_auth_main via session wrapper with-main-db.sh"]
+  },
+  "agents": [
+    {"agent": "wellforge:backend-dev", "tasks": ["T6"], "outcome": "completed", "commits": ["661b321"]},
+    {"agent": "wellforge:backend-dev", "tasks": ["T5"], "outcome": "completed", "commits": ["ec96e21"]},
+    {"agent": "wellforge:owasp-reviewer", "outcome": "PASS WITH NOTES"},
+    {"agent": "wellforge:quality-engineer", "outcome": "PASS"}
+  ],
+  "rework_rounds": 0,
+  "drift_events": [
+    {"task": "T6", "kind": "test-fixture", "detail": "invitations.routes.test.ts pushes operai.test onto env.ALLOWED_SIGNUP_DOMAINS globally (never undone); QE: acceptable but leaks across files — prefer beforeAll/afterAll or @welld.ch fixtures", "resolved": false},
+    {"task": "T5", "kind": "test-fixture", "detail": "auth.config.test.ts first-sign-in test now seeds a @welld.ch invitation (renamed 'invited'); required by the gate", "resolved": true},
+    {"task": "T5", "kind": "touch-list", "detail": "auth/src/system/serviceToken.routes.ts:268 cast 'as 300' to fix a widening TS error surfaced by the new import chain; QE: cleaner fix is 'export const SERVICE_TOKEN_TTL_SECONDS = 300 as const' in serviceClients.ts", "resolved": false}
+  ],
+  "collision_events": [],
+  "env_faults": [],
+  "findings": [
+    {"severity": "low", "source": "owasp", "file": "auth/src/signup/signupGate.ts", "summary": "an unverified allowed-domain email is still recorded on the waiting list and notifies admins (cannot gain access); fix would amend AC-2.1 — user decision"},
+    {"severity": "low", "source": "owasp", "file": "auth/src/signup/accessRequests.repo.ts", "summary": "approved->pending reopen re-notifies once per lapsed invitation; confirm better-auth rate limiting covers /callback/*"},
+    {"severity": "info", "source": "owasp", "file": "auth/src/signup/accessRequests.repo.ts", "summary": "provider-supplied name must be rendered as escaped plain text in notifications and admin-ui"}
+  ],
+  "verdicts": {"qe": "PASS", "security": "PASS"},
+  "security": {
+    "dispatched": true,
+    "notes": ["2 low + 1 info finding, see findings[]"],
+    "matched_rules": ["production tier: every batch", "auth/**"]
+  },
+  "result": "partial",
+  "rigor_recorded": null,
+  "control_run_id": null,
+  "tokens": null,
+  "cost_usd": null,
+  "terse": false
+}
