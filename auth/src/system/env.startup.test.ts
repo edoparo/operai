@@ -132,3 +132,26 @@ describe("lib/env.ts — service-token startup validation (ADR-0044)", () => {
     }
   });
 });
+
+describe("lib/env.ts — ALLOWED_SIGNUP_DOMAINS (specs/023 AC-1.3, AC-5.1)", () => {
+  test("starts with a valid list", async () => {
+    const { exitCode, output } = await importEnv({ ALLOWED_SIGNUP_DOMAINS: "welld.ch,welld.it" });
+    expect(exitCode).toBe(0);
+    expect(output).toContain("ENV_OK");
+  });
+
+  test("exits non-zero naming the variable when it is missing", async () => {
+    const { exitCode, output } = await importEnv({ ALLOWED_SIGNUP_DOMAINS: undefined });
+    expect(exitCode).not.toBe(0);
+    expect(output).toContain("ALLOWED_SIGNUP_DOMAINS");
+    expect(output).not.toContain("ENV_OK");
+  });
+
+  test("exits non-zero on a malformed list", async () => {
+    for (const bad of ["", "welld.ch,", "WellD.CH", "@welld.ch", "welld"]) {
+      const { exitCode, output } = await importEnv({ ALLOWED_SIGNUP_DOMAINS: bad });
+      expect(exitCode).not.toBe(0);
+      expect(output).toContain("ALLOWED_SIGNUP_DOMAINS");
+    }
+  });
+});

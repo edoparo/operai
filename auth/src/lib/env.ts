@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { parseServiceClients } from "../system/serviceClients";
+import { parseAllowedDomains } from "../signup/allowedDomains";
 
 const envSchema = z.object({
   DATABASE_URL: z.string().min(1, "DATABASE_URL is required"),
@@ -44,6 +45,20 @@ const envSchema = z.object({
     .string()
     .email("BOOTSTRAP_ADMIN_EMAIL must be a valid email address")
     .optional(),
+  // ─── Sign-up gate (specs/023, ADR-0071) ─────────────────────────────────────
+  // Only these domains may join the waiting list or be invited. Deployment
+  // configuration, not an admin setting. Required: missing or malformed exits.
+  ALLOWED_SIGNUP_DOMAINS: z.string().transform((value, ctx) => {
+    try {
+      return parseAllowedDomains(value);
+    } catch (error) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: `ALLOWED_SIGNUP_DOMAINS ${error instanceof Error ? error.message : "is invalid"}`,
+      });
+      return z.NEVER;
+    }
+  }),
   // ─── notify-api internal email channel (specs/006-user-invitations, T6) ───
   // The base URL of notify-api's internal, NON-user-JWT endpoint
   // `POST /system/emails`. Authentication is `auth`'s own service JWT, minted

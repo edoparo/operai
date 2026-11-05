@@ -226,6 +226,8 @@ export const REQUIRED_KEYS: Partial<Record<ServiceName, string[]>> = {
     // optional there but required by the contract: without it the service-token endpoint
     // authenticates nobody and the callers' pushes are silently dead.
     "SERVICE_AUDIENCE", "SERVICE_CLIENTS",
+    // specs/023: the sign-up gate's allowed domains; auth's env.ts exits without it.
+    "ALLOWED_SIGNUP_DOMAINS",
   ],
   "estimai-api": [
     "DATABASE_URL", "ALLOWED_ORIGINS", "AUTH_ISSUER", "AUTH_JWKS_URL", "AUTH_AUDIENCE", "PORT",

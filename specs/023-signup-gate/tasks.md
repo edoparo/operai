@@ -27,7 +27,7 @@ Work happens in the `main` worktree (`/Users/matteocodogno/LAB/aiscream/operai-m
   - done when: `bun run db:migrate` applies cleanly on the local DB, `bun run typecheck`
     passes, and inserting `status = 'other'` via raw SQL fails on the CHECK.
 
-- [ ] T2: [backend] `ALLOWED_SIGNUP_DOMAINS` and the domain match — refs: AC-1.3, AC-1.8, AC-5.1 — deps: none
+- [x] T2: [backend] `ALLOWED_SIGNUP_DOMAINS` and the domain match — refs: AC-1.3, AC-1.8, AC-5.1 — deps: none
   - touch: `auth/src/lib/env.ts`, `auth/src/system/env.startup.test.ts`, `auth/src/signup/allowedDomains*.ts`, `auth/.env.example`, `auth/.envrc`, `tools/env-doctor/manifest.ts`, `tools/env-doctor/templates/production/auth.env`, `tools/env-doctor/*.test.ts`
   - do: required env var, a comma-separated list of lower-case domains, at least one,
     malformed → exit 1; `isAllowedDomain(email, domains)`, an exact case-insensitive match

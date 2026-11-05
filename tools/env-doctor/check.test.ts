@@ -32,6 +32,7 @@ function validSuite(): SuiteEnv {
       NOTIFY_INTERNAL_URL: "http://notify-api.railway.internal:8080",
       SERVICE_AUDIENCE: SVC_AUD,
       SERVICE_CLIENTS: registry(CLIENT_SECRET),
+      ALLOWED_SIGNUP_DOMAINS: "welld.ch,welld.it",
       PORT: "3001",
     },
     "estimai-api": {
@@ -298,6 +299,12 @@ describe("env-doctor checker", () => {
     const f = checkSuite(s, PROD);
     expect(errs(f)).toEqual([]);
     expect(warns(f)).toEqual([]);
+  });
+
+  test("a missing ALLOWED_SIGNUP_DOMAINS on auth is an error (auth exits at startup, specs/023)", () => {
+    const s = validSuite();
+    delete s.auth!.ALLOWED_SIGNUP_DOMAINS;
+    expect(errText(checkSuite(s, PROD))).toContain("ALLOWED_SIGNUP_DOMAINS is missing");
   });
 
   test("a missing SERVICE_AUDIENCE / SERVICE_CLIENTS is an error (the push would silently 401)", () => {

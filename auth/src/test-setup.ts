@@ -31,6 +31,7 @@ setIfAbsent("JWT_PUBLIC_KEY", "test-public-key");
 // minted JWT — a config identifier, not a secret.
 setIfAbsent("AUTH_AUDIENCE", "operai-suite-test");
 setIfAbsent("ALLOWED_ORIGINS", "http://localhost:5173,https://app.estimai.io");
+setIfAbsent("ALLOWED_SIGNUP_DOMAINS", "welld.ch,welld.it");
 // UI_HOME_URL: post-login fallback destination (AC-1.3) — validated by the
 // env schema; must be an absolute URL.
 setIfAbsent("UI_HOME_URL", "http://localhost:5173");
