@@ -5,6 +5,33 @@
 **Deciders:** wellD
 **Project:** Operai
 
+**Amended 2026-11-05** (specs/022 steering, ledger D37–D42, D49; [ADR-0062](0062-terms-and-purchase-order-two-optional-records-of-a-project-contract-retired.md),
+[ADR-0063](0063-handoff-take-and-purchase-order-receive-capabilities-auth-holders-listing-amends-0047.md)).
+The decision to read live over scoped service credentials, and every failure rule below, stand. What changed
+is the names, one route and one new channel; the text below is kept as written (it is the record of the
+2026-11-04 decision) and reads as follows:
+
+- **"Contract" is "purchase order" (PO).** The scope `projects.contracts.read` became
+  `projects.purchase-orders.read` and the route `GET /system/contracts?dealIds=` became
+  `GET /system/purchase-orders?dealIds=`, answering `{ items: [{ dealId, purchaseOrderId, project: { id, name },
+  bexioOrderId }] }` (a deal with no PO is still absent; still no terms, dates, people, amounts or contact data).
+  The old scope is no longer known to `auth`: a `SERVICE_CLIENTS` entry carrying it refuses to start. crm-api's
+  entry is now `notifications.push emails.send projects.purchase-orders.read`. The deal page's `delivery` /
+  `deliveryKnown` shape is unchanged, so crm-ui was not touched; crm-api reads `purchaseOrderId` instead of
+  `contractId`.
+- **What a take writes** (Decision 6): the project, its terms **and** its PO in one transaction; the unique
+  index that decides a race between two takes is `purchase_order.dealId`. A take is no longer "attach or new
+  project": there is no attach (D39), the take needs `handoff:take` **and** `project:manage` for the deal's
+  entity (ADR-0063), and the queue is readable by sales and admins only (D37), not by every access holder.
+- **The Bexio order id** (Consequences) is now `purchase-order:bexio`, and still readable by every CRM user who
+  opens the deal page.
+- **A third channel, with personal data: `crm.contacts.read`.** projects-api reads CRM contacts as
+  `system:projects-api` through crm-api `GET /system/contacts` (`?companyId=` or `?ids=`, ≤ 20), the same system
+  auth as `GET /system/deals` and one explicit shape per mode, to show and validate a PO's referent live
+  (ADR-0063). The Compliance note below ("no contact … field crosses either channel") holds for the two channels
+  it describes and **not for this one**: contact data flows CRM → projects-api here, never stored, cached or
+  logged, and never in the opposite channel (`/system/purchase-orders` carries none).
+
 ---
 
 ## Context
