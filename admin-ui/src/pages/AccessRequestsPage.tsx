@@ -119,7 +119,11 @@ export default function AccessRequestsPage() {
       })
       .then(() => adminApi.listAccessRequests({ status: statusFilter, page, pageSize: PAGE_SIZE }))
       .then((result) => {
-        if (!cancelled) setState({ status: 'loaded', result })
+        if (cancelled) return
+        // A decision emptied the last page: step back instead of showing an empty list.
+        // State stays `loading`, so the post-decision focus waits for the real page.
+        if (result.items.length === 0 && page > 1) setPage(page - 1)
+        else setState({ status: 'loaded', result })
       })
       .catch((error: unknown) => {
         if (cancelled) return
@@ -413,7 +417,12 @@ export default function AccessRequestsPage() {
         </select>
       </div>
 
-      <div ref={resultsRef} tabIndex={-1} className="mt-4 outline-none" data-testid="access-requests-results">
+      <div
+        ref={resultsRef}
+        tabIndex={-1}
+        className="mt-4 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-acc-hi"
+        data-testid="access-requests-results"
+      >
         {state.status === 'loading' && <SkeletonListRows rows={5} label={t.loading} />}
 
         {state.status === 'error' && (

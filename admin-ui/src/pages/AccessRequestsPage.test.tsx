@@ -315,6 +315,41 @@ describe('approve (F2)', () => {
 describe('reject (F3)', () => {
   const openReject = async (id = 'ar-1') => fireEvent.click(await screen.findByTestId(`access-request-reject-${id}`))
 
+  it('deciding the only row on page 2 steps back to page 1, no empty state', async () => {
+    const serve = (pages: Record<number, AccessRequestDetail[]>, total: number) =>
+      listAccessRequests.mockImplementation((params) =>
+        Promise.resolve({ items: pages[params?.page ?? 1] ?? [], total, page: params?.page ?? 1, pageSize: 20 }),
+      )
+    serve({ 1: [ada], 2: [grace] }, 21)
+    rejectAccessRequest.mockResolvedValue({ ...grace, status: 'rejected' })
+    renderPage()
+    await screen.findByTestId('access-request-row-ar-1')
+    fireEvent.click(screen.getByRole('button', { name: /next/i }))
+    const reject = await screen.findByTestId('access-request-reject-ar-2')
+    // After the decision the server holds 20 rows: page 2 is empty, page 1 is full.
+    serve({ 1: [ada] }, 20)
+    fireEvent.click(reject)
+    fireEvent.click(screen.getByRole('button', { name: 'Reject request' }))
+    await waitFor(() =>
+      expect(listAccessRequests).toHaveBeenLastCalledWith({ status: 'pending', page: 1, pageSize: 20 }),
+    )
+    expect(await screen.findByTestId('access-request-row-ar-1')).not.toBeNull()
+    expect(screen.queryByTestId('access-requests-empty-state')).toBeNull()
+  })
+
+  it('the results region shows a visible focus indicator and still takes focus after a decision', async () => {
+    rejectAccessRequest.mockResolvedValue({ ...ada, status: 'rejected' })
+    renderPage()
+    await openReject()
+    fireEvent.click(screen.getByRole('button', { name: 'Reject request' }))
+    const region = screen.getByTestId('access-requests-results')
+    await waitFor(() => expect(document.activeElement).toBe(region))
+    expect(region.getAttribute('tabindex')).toBe('-1')
+    expect(region.className).toContain('focus-visible:ring-2')
+    expect(region.className).toContain('focus-visible:ring-acc-hi')
+    expect(region.className.split(/\s+/)).not.toContain('outline-none')
+  })
+
   it('confirms in a danger dialog saying nothing is sent, then rejects, reloads and announces (AC-3.4)', async () => {
     rejectAccessRequest.mockResolvedValue({ ...ada, status: 'rejected' })
     renderPage()
