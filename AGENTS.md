@@ -65,7 +65,7 @@ operai/
 ├── admin-ui/            # Admin tool — federated remote: roles/departments/users/permissions/invitations GUI
 │                        # (specs/004, 006, admin-only) + audit log, employee address (specs/012, ADR-0031/0032)
 │                        # and the mileage-rate screen, which calls refund-api directly (specs/009, ADR-0023),
-│                        # and the waiting list: access requests from people outside the allowed domains, approved into an invitation or dismissed (specs/023, ADR-0071/0072)
+│                        # and the waiting list: access requests from allowed-domain colleagues without an invitation, approved into an invitation or dismissed (specs/023, ADR-0071/0072)
 ├── notify-ui/           # Notification center — federated remote: the /notify page, reached from the header bell (specs/005, ADR-0009)
 ├── inventory-ui/        # Inventory tool — federated remote (port 5178): exposes ./App (gated, /inventory), ./MyDevices
 │                        # (ungated, /devices; ADR-0045) and ./version; calls inventory-api and auth's user directory
@@ -78,7 +78,7 @@ operai/
 │                        # apps compile its source through a Vite alias. Used by all six frontends
 │
 ├── auth/                # Bun + Hono authentication service — invitation-only entry: sign-in creates a user only for an
-│                        # invitation holder or an `ALLOWED_SIGNUP_DOMAINS` email; others join a waiting list (`access_request`) (specs/023, ADR-0071/0072)
+│                        # allowed-domain (`ALLOWED_SIGNUP_DOMAINS`) email holding a live invitation (or the bootstrap admin); an allowed-domain email without one joins a waiting list (`access_request`), an outside-domain one is refused (nothing recorded) (specs/023, ADR-0071/0072)
 │   ├── src/
 │   │   ├── auth/        # better-auth config, middleware (requireAuth/requireAdmin), routes
 │   │   ├── authz/        # authorization (specs/004, ADR-0007): resolver, /authz/me, catalog, audit, seed

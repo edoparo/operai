@@ -212,7 +212,7 @@ Work happens in the `main` worktree (`/Users/matteocodogno/LAB/aiscream/operai-m
     - then `/wellforge:done`.
   - done when: `/wellforge:done 023-signup-gate` accepts the gate and the spec is `done`.
 
-- [ ] T15: [docs] Fix the admission rule in the amendments and operator docs — refs: AC-6.1, AC-6.2 — deps: T11
+- [x] T15: [docs] Fix the admission rule in the amendments and operator docs — refs: AC-6.1, AC-6.2 — deps: T11
   - touch: `specs/004-auth-roles-permissions/spec.md`, `specs/006-user-invitations/spec.md`, `AGENTS.md`, `infra/README.md`, `.changeset/invitation-only-access.md`
   - do (eval 2026-11-05 FAIL on AC-6.1, `eval-report.md`): rewrite every place that says
     "invitation OR allowed domain" so it states the rule of AC-1.1–1.5 / ADR-0071 — a user
