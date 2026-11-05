@@ -141,6 +141,14 @@ function resolveCallbackURL(redirect: string | undefined): string {
  *     profile (typically a missing `email` scope)
  */
 const ERROR_MESSAGES: Record<string, string> = {
+  // specs/023 (ADR-0071): the sign-up gate's three refusals.
+  access_request_pending:
+    "You don't have access to Operai yet. Your request has been recorded and " +
+    "an administrator will review it.",
+  access_request_rejected:
+    "Your request to access Operai was not approved. Please contact an administrator.",
+  signup_domain_not_allowed:
+    "Sign-in is reserved for wellD accounts (welld.ch, welld.it).",
   unable_to_create_session:
     "This account is no longer active, so sign-in was refused. " +
     "Please contact an administrator to have your access restored.",

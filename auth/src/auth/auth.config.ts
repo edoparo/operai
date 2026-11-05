@@ -1,6 +1,7 @@
 import { betterAuth } from "better-auth";
 import { prismaAdapter } from "better-auth/adapters/prisma";
 import { jwt } from "better-auth/plugins";
+import { enforceSignupGate } from "../signup/signupGate";
 import { assignBaselineRolesToNewUser } from "../authz/seed";
 import type { NewUserForBootstrap } from "../authz/seed";
 import { withAudit } from "../authz/audit";
@@ -137,6 +138,18 @@ export async function applyLivePendingInvitationOnUserCreate(
       await tx.invitation.update({
         where: { id: invitation.id },
         data: { status: "accepted", acceptedByUserId: user.id },
+      });
+
+      // specs/023 AC-3.8: an invitation created any other way also closes the
+      // person's waiting-list request, in the same transaction.
+      await tx.accessRequest.updateMany({
+        where: { email: user.email.toLowerCase(), status: "pending" },
+        data: {
+          status: "approved",
+          decidedAt: new Date(),
+          decidedByUserId: invitation.invitedByUserId,
+          invitationId: invitation.id,
+        },
       });
 
       return { validRoleIds, validDepartmentIds, skippedRoleIds, skippedDepartmentIds };
@@ -396,6 +409,12 @@ export const auth = betterAuth({
   databaseHooks: {
     user: {
       create: {
+        // specs/023 (ADR-0071): only an invited person (or the bootstrap admin)
+        // becomes a user; everyone else is refused here, nothing is written by
+        // better-auth, and an allowed-domain person joins the waiting list.
+        before: async (user, context) => {
+          await enforceSignupGate(user, context);
+        },
         after: async (user) => {
           await assignBaselineRolesToNewUser(user);
           // T8, specs/006-user-invitations (AC-2.3/2.4) — see the doc

@@ -75,6 +75,14 @@ describe("auth config — structural assertions (no mock)", () => {
     expect(onAPIError?.errorURL).not.toBe(`${env.BETTER_AUTH_URL}/`);
   });
 
+  test("(specs/023) the sign-up gate is registered as databaseHooks.user.create.before", async () => {
+    const { auth: realAuth } = await import("./auth.config");
+    const options = realAuth.options as {
+      databaseHooks?: { user?: { create?: { before?: unknown } } };
+    };
+    expect(typeof options.databaseHooks?.user?.create?.before).toBe("function");
+  });
+
   test("emailAndPassword is not enabled (no password auth path added)", async () => {
     const { auth: realAuth } = await import("./auth.config");
     const options = realAuth.options as Record<string, unknown>;
@@ -811,9 +819,11 @@ describe("session.create.before — denial observability (auth.session_denied)",
 
 describe("first-time OAuth sign-in is NOT gated (boundary of the soft-delete gate)", () => {
   const createdUserIds: string[] = [];
+  const invitedEmails: string[] = [];
 
   afterAll(async () => {
     const { db } = await import("../lib/db");
+    await db.invitation.deleteMany({ where: { email: { in: invitedEmails } } });
     for (const id of createdUserIds) {
       await db.userRole.deleteMany({ where: { userId: id } });
       await db.account.deleteMany({ where: { userId: id } });
@@ -831,14 +841,29 @@ describe("first-time OAuth sign-in is NOT gated (boundary of the soft-delete gat
   // `user_row_missing` branch cannot fire for a brand-new user. If that
   // ordering ever changes upstream, every first sign-in in the suite breaks and
   // this test is the tripwire.
-  test("a brand-new, never-invited Google identity gets a session", async () => {
+  test("a brand-new, invited Google identity gets a session", async () => {
     const { auth: realAuth } = await import("./auth.config");
     const ctx = await realAuth.$context;
 
+    // specs/023: a first sign-in now needs a live invitation and an allowed
+    // domain (the sign-up gate). The ordering this test pins is unchanged.
+    const { db } = await import("../lib/db");
+    const email = `first-time-${crypto.randomUUID()}@welld.ch`;
+    invitedEmails.push(email);
+    await db.invitation.create({
+      data: {
+        email,
+        status: "pending",
+        roleIds: [],
+        departmentIds: [],
+        tokenHash: `first-time-${crypto.randomUUID()}`,
+        expiresAt: new Date(Date.now() + 3_600_000),
+      },
+    });
     const { user } = await ctx.internalAdapter.createOAuthUser(
       {
         name: "First-time colleague",
-        email: `first-time-${crypto.randomUUID()}@operai.test`,
+        email,
         emailVerified: true,
         image: null,
       },

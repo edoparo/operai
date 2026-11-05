@@ -355,6 +355,9 @@ describe("GET /sign-in — OAuth failure banner (T3)", () => {
     ["signup_disabled", "not open for this provider"],
     ["unable_to_get_user_info", "did not return your profile"],
     ["email_not_found", "did not return an email address"],
+    ["access_request_pending", "request has been recorded"],
+    ["access_request_rejected", "was not approved"],
+    ["signup_domain_not_allowed", "reserved for wellD accounts"],
   ])(
     "?error=%s renders its own message, not the generic fallback",
     async (code, expected) => {

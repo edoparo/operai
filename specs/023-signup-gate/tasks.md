@@ -63,7 +63,7 @@ Work happens in the `main` worktree (`/Users/matteocodogno/LAB/aiscream/operai-m
     - a notify-api test shows `system:auth` may raise `admin` and gets 403 for `refund`;
     - the `auth` and `notify-api` test suites pass.
 
-- [ ] T5: [backend] The sign-up gate and the waiting list — refs: AC-1.1, AC-1.2, AC-1.3, AC-1.4, AC-1.5, AC-1.6, AC-1.7, AC-2.1, AC-2.2, AC-2.3, AC-2.4, AC-3.8, AC-4.1, AC-4.2, AC-4.3 — deps: T1, T2, T3, T4
+- [x] T5: [backend] The sign-up gate and the waiting list — refs: AC-1.1, AC-1.2, AC-1.3, AC-1.4, AC-1.5, AC-1.6, AC-1.7, AC-2.1, AC-2.2, AC-2.3, AC-2.4, AC-3.8, AC-4.1, AC-4.2, AC-4.3 — deps: T1, T2, T3, T4
   - touch: `auth/src/signup/signupGate*.ts`, `auth/src/signup/accessRequests.repo*.ts`, `auth/src/auth/auth.config.ts`, `auth/src/auth/auth.config.test.ts`, `auth/src/signin/signin.routes.ts`, `auth/src/signin/signin.routes.test.ts`
   - do:
     - `databaseHooks.user.create.before` running plan.md's four-step order;
