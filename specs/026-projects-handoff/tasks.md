@@ -161,9 +161,13 @@ are specs/021's and 2026-11-04's, renamed from `contract` to `terms`.
 **notify-api (T22)** — `SERVICE_ORIGIN_BINDINGS["system:projects-api"] = ["projects"]`.
 
 **projects-api — shapes (T23)**
-- `Terms` = specs/021's contract terms output without `companyId`, `origin`, `dealId`,
-  `estimate`, `deal`, `bexioOrderId`: `{ id, type, startDate, endDate, deadline,
-  estimatedManDays, maxEffortManDays, sla, hourPackage, positions, version }`.
+- `Terms` = specs/021's contract output without `companyId`, `origin`, `dealId`,
+  `estimate`, `deal`, `bexioOrderId` — **nested as in 021** (clarified 2026-11-05, drift
+  raised by T30): `{ id, type, startDate, endDate, terms: <021 per-type terms view>, version
+  }`; the create input (terms routes and the take's `terms` member) is `{ startDate,
+  endDate?, terms: <021 per-type terms input> }`; `PATCH` as 021's contract PATCH. Every
+  write takes its version through `If-Match` (021 convention), never in the body, and
+  returns the written resource.
 - `PurchaseOrder = { id, deal: { id, title: string | null, won: boolean | null }, estimate:
   { id } | null, bexioOrderId: string | null, referent: Referent | null, opsManager: Person,
   version }`. `Referent = { id, status: "ok" | "unavailable", name: string | null, jobTitle:
@@ -246,7 +250,8 @@ are specs/021's and 2026-11-04's, renamed from `contract` to `terms`.
     — the **project's** company's non-archived contacts (T18 M1); `project:manage` for the
     project's entity (`403 out_of_scope`); `404 purchase_order_not_found` on a hand-made
     project; `503 crm_unavailable`.
-  - `PATCH /projects/{id}/purchase-order` `{ referentContactId: string | null, version }` →
+  - `PATCH /projects/{id}/purchase-order` `{ referentContactId: string | null }` with
+    `If-Match` →
     `200 PurchaseOrder` — `project:manage` for the entity (`403 out_of_scope`); checks as in
     T24 against **`project.companyId`** (`422 referent_invalid`, `503 crm_unavailable`); `409
     version_conflict`; `404 purchase_order_not_found` on a hand-made project.
