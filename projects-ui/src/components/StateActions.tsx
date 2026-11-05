@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useId, useState } from 'react'
 import { Button, ConfirmDialog } from '@operai/ui'
 import type { ButtonVariant } from '@operai/ui'
 import { ApiError, isStaleWrite } from '../lib/api'
@@ -55,7 +55,9 @@ function refusalMessage(failure: unknown): string {
 /**
  * StateActions — the page actions that move a project's state (specs/021 AC-1.3). Only the moves the
  * matrix allows from the current state are rendered; cancelling, which cannot be undone, asks first.
- * There is no type change: a project's type never changes (A30). The project's `version` goes out
+ * There is no type change: a project's type never changes (A30). A `planned` project that awaits its
+ * project manager cannot be started: "Start project" is disabled and says why next to the actions — the
+ * server refuses the move too (AC-4.7) — and every other move stays. The project's `version` goes out
  * as If-Match (AC-1.7): a stale write is the page's to handle (`onStale`), any
  * other refusal is `onError`'s text — among them 409 `awaiting_project_manager`, the server's refusal
  * to start a project that has no project manager yet (AC-4.7).
@@ -72,6 +74,7 @@ export default function StateActions({
   onError: (message: string) => void
 }) {
   const t = strings.project
+  const blockedReasonId = useId()
   const [pending, setPending] = useState<ProjectState | null>(null)
   const [dialog, setDialog] = useState<'cancel' | null>(null)
   const [dialogError, setDialogError] = useState<string | null>(null)
@@ -107,6 +110,9 @@ export default function StateActions({
     )
   }
 
+  // Only `planned` -> `active` is refused while awaiting (AC-4.7); every other move follows the matrix as usual.
+  const startBlocked = project.state === 'planned' && project.awaitingProjectManager
+
   const closeDialog = () => {
     setDialog(null)
     setDialogError(null)
@@ -115,18 +121,27 @@ export default function StateActions({
   return (
     <>
       <div className="flex flex-wrap gap-2" role="group" aria-label={t.actions.label} data-testid="project-actions">
-        {moves.map((option) => (
-          <Button
-            key={option.to}
-            variant={option.variant}
-            busy={pending === option.to}
-            disabled={pending !== null && pending !== option.to}
-            aria-haspopup={option.to === 'cancelled' ? 'dialog' : undefined}
-            onClick={() => (option.to === 'cancelled' ? setDialog('cancel') : move(option.to))}
-          >
-            {pending === option.to ? t.actions.working : option.label}
-          </Button>
-        ))}
+        {moves.map((option) => {
+          const blocked = startBlocked && option.to === 'active'
+          return (
+            <Button
+              key={option.to}
+              variant={option.variant}
+              busy={pending === option.to}
+              disabled={blocked || (pending !== null && pending !== option.to)}
+              aria-describedby={blocked ? blockedReasonId : undefined}
+              aria-haspopup={option.to === 'cancelled' ? 'dialog' : undefined}
+              onClick={() => (option.to === 'cancelled' ? setDialog('cancel') : move(option.to))}
+            >
+              {pending === option.to ? t.actions.working : option.label}
+            </Button>
+          )
+        })}
+        {startBlocked && (
+          <p id={blockedReasonId} className="max-w-xs basis-full text-xs text-soft" data-testid="project-start-blocked">
+            {t.actions.startBlocked}
+          </p>
+        )}
       </div>
       {dialog === 'cancel' && (
         <ConfirmDialog

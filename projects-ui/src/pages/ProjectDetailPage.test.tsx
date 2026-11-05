@@ -13,10 +13,20 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { RouterProvider } from '@tanstack/react-router'
 import { createAppRouter } from '../router'
-import { fakeApi, problem, projectDetail, purchaseOrderOf, scope, termsOf } from '../test-support/fakeApi'
+import {
+  ADA,
+  OLGA,
+  fakeApi,
+  problem,
+  projectDetail,
+  purchaseOrderOf,
+  referentOf,
+  scope,
+  termsOf,
+} from '../test-support/fakeApi'
 import type { FakeHandler } from '../test-support/fakeApi'
 import { scopeRoot } from '../test-support/scopeRoot'
-import type { Project, ProjectState, Scope } from '../lib/types'
+import type { Person, Project, ProjectState, PurchaseOrder, Scope } from '../lib/types'
 
 const { apiFetch } = vi.hoisted(() => ({ apiFetch: vi.fn() }))
 vi.mock('shell/session', () => ({
@@ -712,12 +722,193 @@ describe('the Purchase order card of a project made from a deal (AC-2.3, AC-2.4,
   })
 })
 
-describe('a project awaiting its project manager (D42, AC-4.5)', () => {
-  const awaiting = () => fromDeal({ projectManager: null, awaitingProjectManager: true, state: 'planned' })
+describe('a project awaiting its project manager (D42, AC-4.5 – AC-4.9)', () => {
+  /** Awaiting, its purchase order assigned to `opsManager` (default: Olga, who is not the signed-in user, Ada). */
+  const awaiting = (opsManager: Person = OLGA, over: Partial<Project> = {}) =>
+    fromDeal({
+      projectManager: null,
+      awaitingProjectManager: true,
+      state: 'planned',
+      purchaseOrder: purchaseOrderOf({ opsManager }),
+      ...over,
+    })
+  const notice = () => screen.queryByTestId('project-awaiting')
+  const pickButton = () => screen.queryByRole('button', { name: 'Pick project manager' })
 
   it('says "Awaiting project manager" where the person would be, never a blank', async () => {
     await renderProject(awaiting())
     expect(screen.getByTestId('project-facts').textContent).toContain('Awaiting project manager')
+  })
+
+  describe('the notice (AC-4.6)', () => {
+    it('names the ops manager of the purchase order and links to the purchase order card', async () => {
+      await renderProject(awaiting())
+      expect(notice()!.textContent).toContain('Awaiting project manager')
+      expect(notice()!.textContent).toContain('Olga Ops')
+      const link = within(notice()!).getByRole('link', { name: 'See the purchase order' })
+      expect(link.getAttribute('href')).toBe('/p1#purchase-order')
+      expect(document.getElementById('purchase-order')).toBe(screen.getByTestId('project-purchase-order'))
+    })
+
+    it('is for everyone who can read the project, a reader included, and for no project that has a manager', async () => {
+      await renderProject(awaiting(), {}, scope())
+      expect(notice()!.textContent).toContain('Olga Ops')
+      cleanup()
+      await renderProject(fromDeal({ state: 'planned' }))
+      expect(notice()).toBeNull()
+    })
+  })
+
+  describe('who is offered "Pick project manager" (AC-4.8)', () => {
+    it('the ops manager of the purchase order is, and nobody who merely manages the entity is', async () => {
+      await renderProject(awaiting(ADA))
+      expect(pickButton()).not.toBeNull()
+      cleanup()
+      await renderProject(awaiting(OLGA))
+      expect(notice()).not.toBeNull()
+      expect(pickButton()).toBeNull()
+    })
+
+    it('an administrator who oversees every purchase order is, in the ops manager’s place', async () => {
+      await renderProject(
+        awaiting(OLGA),
+        {},
+        scope({ manage: ['welld_ch', 'welld_it'], managesAll: true, oversees: true }),
+      )
+      expect(pickButton()).not.toBeNull()
+    })
+
+    it('a reader is not, and neither is anyone else who only reads', async () => {
+      await renderProject(awaiting(OLGA), {}, scope())
+      expect(pickButton()).toBeNull()
+      expect(notice()).not.toBeNull()
+    })
+
+    it('the right is the ops manager’s own: the signed-in user, whatever else their scope grants', async () => {
+      await renderProject(awaiting(ADA), {}, scope())
+      expect(pickButton()).not.toBeNull()
+    })
+  })
+
+  describe('picking (AC-4.8)', () => {
+    const picked = (): Project =>
+      awaiting(ADA, {
+        projectManager: { id: 'u-bob', name: 'Bob Builder', deleted: false },
+        awaitingProjectManager: false,
+        version: 4,
+      })
+    const chooseBob = async () => {
+      fireEvent.click(pickButton()!)
+      const dialog = await screen.findByRole('dialog', { name: 'Pick project manager' })
+      fireEvent.focus(within(dialog).getByRole('combobox', { name: /Project manager/ }))
+      fireEvent.click(await within(dialog).findByRole('option', { name: /Bob Builder/ }))
+      return dialog
+    }
+
+    it('PATCHes the chosen person with the project’s version; the notice is gone and the project shows them', async () => {
+      await renderProject(awaiting(ADA), { 'PATCH /projects/p1': () => ({ status: 200, body: picked() }) })
+      const dialog = await chooseBob()
+      fireEvent.click(within(dialog).getByTestId('project-pick-manager-submit'))
+      await waitFor(() => expect(notice()).toBeNull())
+      expect(writes()).toEqual([
+        { method: 'PATCH', path: '/projects/p1', ifMatch: '"3"', body: { projectManagerId: 'u-bob' } },
+      ])
+      expect(screen.queryByRole('dialog')).toBeNull()
+      expect(pickButton()).toBeNull()
+      expect(screen.getByTestId('project-facts').textContent).toContain('Bob Builder')
+      expect(screen.getByTestId('project-facts').textContent).not.toContain('Awaiting project manager')
+      expect((await screen.findByTestId('projects-saved')).textContent).toContain('Project manager picked.')
+    })
+
+    it('after the pick the project can be started', async () => {
+      await renderProject(awaiting(ADA), { 'PATCH /projects/p1': () => ({ status: 200, body: picked() }) })
+      expect((screen.getByRole('button', { name: 'Start project' }) as HTMLButtonElement).disabled).toBe(true)
+      const dialog = await chooseBob()
+      fireEvent.click(within(dialog).getByTestId('project-pick-manager-submit'))
+      await waitFor(() => expect(notice()).toBeNull())
+      expect((screen.getByRole('button', { name: 'Start project' }) as HTMLButtonElement).disabled).toBe(false)
+    })
+
+    it('a refusal for not being the ops manager (403 not_ops_manager) keeps the dialog and the notice', async () => {
+      await renderProject(
+        awaiting(OLGA),
+        { 'PATCH /projects/p1': () => problem(403, 'not_ops_manager') },
+        scope({ manage: ['welld_ch'], oversees: true }),
+      )
+      const dialog = await chooseBob()
+      fireEvent.click(within(dialog).getByTestId('project-pick-manager-submit'))
+      expect((await within(dialog).findByTestId('project-pick-manager-error')).textContent).toContain(
+        'Only the ops manager of this purchase order',
+      )
+      expect(notice()).not.toBeNull()
+    })
+
+    it('a stale pick (409 version_conflict) closes the dialog and asks the person to reload', async () => {
+      await renderProject(awaiting(ADA), {
+        'PATCH /projects/p1': () => problem(409, 'version_conflict', { currentVersion: 9 }),
+      })
+      const dialog = await chooseBob()
+      fireEvent.click(within(dialog).getByTestId('project-pick-manager-submit'))
+      expect(await screen.findByTestId('projects-stale-write')).not.toBeNull()
+      expect(screen.queryByRole('dialog')).toBeNull()
+    })
+  })
+
+  describe('starting it (AC-4.7)', () => {
+    it('"Start project" is disabled with its reason while the project awaits one, and no request goes out', async () => {
+      await renderProject(awaiting())
+      const start = screen.getByRole('button', { name: 'Start project' }) as HTMLButtonElement
+      expect(start.disabled).toBe(true)
+      const reason = document.getElementById(start.getAttribute('aria-describedby')!)
+      expect(reason!.textContent).toContain('Waiting for a project manager')
+      fireEvent.click(start)
+      expect(writes()).toEqual([])
+      // Every other move stays as it was (AC-4.7: only planned -> active is refused).
+      expect(actionLabels()).toEqual(['Start project', 'Put on hold', 'Cancel project'])
+      expect((screen.getByRole('button', { name: 'Put on hold' }) as HTMLButtonElement).disabled).toBe(false)
+    })
+
+    it('is enabled, with no reason, once the project has a manager', async () => {
+      await renderProject(fromDeal({ state: 'planned' }))
+      const start = screen.getByRole('button', { name: 'Start project' }) as HTMLButtonElement
+      expect(start.disabled).toBe(false)
+      expect(start.getAttribute('aria-describedby')).toBeNull()
+      expect(document.body.textContent).not.toContain('Waiting for a project manager')
+    })
+
+    it('still words the server’s refusal (409 awaiting_project_manager) when the page was out of date', async () => {
+      await renderProject(fromDeal({ state: 'planned' }), {
+        'POST /projects/p1/transitions': () => problem(409, 'awaiting_project_manager'),
+      })
+      fireEvent.click(screen.getByRole('button', { name: 'Start project' }))
+      expect((await screen.findByTestId('project-action-error')).textContent).toContain(
+        'waiting for its project manager',
+      )
+    })
+  })
+
+  describe('no project manager is ever cleared (AC-4.9)', () => {
+    it.each([
+      ['awaiting one', () => awaiting(ADA)],
+      ['with one', () => fromDeal({ state: 'planned' })],
+    ])('a project %s offers no control to clear it', async (_name, project) => {
+      await renderProject(project())
+      const controls = screen.getAllByRole('button').map((button) => button.textContent)
+      expect(controls.join(' | ')).not.toMatch(/clear|remove (the )?project manager|unassign|no project manager/i)
+    })
+
+    it('the edit dialog refuses to empty the project manager of a project that has one, before any request', async () => {
+      await renderProject(projectDetail())
+      fireEvent.click(screen.getByRole('button', { name: 'Edit details' }))
+      const dialog = await screen.findByRole('dialog', { name: 'Edit project' })
+      fireEvent.change(within(dialog).getByRole('combobox', { name: /Project manager/ }), { target: { value: '' } })
+      // Emptying the field alone leaves nothing to save; with another change in the same save it is refused.
+      expect((within(dialog).getByTestId('project-edit-submit') as HTMLButtonElement).disabled).toBe(true)
+      fireEvent.change(within(dialog).getByLabelText(/^Name/), { target: { value: 'Intranet 2' } })
+      fireEvent.click(within(dialog).getByTestId('project-edit-submit'))
+      expect(await within(dialog).findByText('Choose a person from the list.')).not.toBeNull()
+      expect(writes()).toEqual([])
+    })
   })
 
   it('the edit dialog renames the project but offers no project-manager picker: only the ops manager picks one', async () => {
@@ -732,12 +923,73 @@ describe('a project awaiting its project manager (D42, AC-4.5)', () => {
     await waitFor(() => expect(writes().length).toBe(1))
     expect(writes()[0]!.body).toEqual({ name: 'Intranet 2' })
   })
+})
 
-  it('a refused activation (409 awaiting_project_manager) says why', async () => {
-    await renderProject(awaiting(), {
-      'POST /projects/p1/transitions': () => problem(409, 'awaiting_project_manager'),
+describe('the referent on the project page (AC-3.7 – AC-3.10)', () => {
+  const withReferent = (referent: PurchaseOrder['referent'], version = 2) =>
+    fromDeal({ purchaseOrder: purchaseOrderOf({ referent, version }) })
+  const contacts = {
+    'GET /projects/p1/purchase-order/contacts': () => ({
+      status: 200,
+      body: { items: [{ id: 'k1', name: 'Jane Roe', jobTitle: 'CTO' }] },
+    }),
+  }
+  const setReferent = async () => {
+    fireEvent.click(screen.getByRole('button', { name: 'Set referent' }))
+    const dialog = await screen.findByRole('dialog', { name: 'Referent' })
+    await waitFor(() => expect(within(dialog).getAllByRole('option').length).toBe(2))
+    fireEvent.change(within(dialog).getByLabelText(/^Referent/), { target: { value: 'k1' } })
+    fireEvent.click(within(dialog).getByTestId('purchase-order-referent-dialog-submit'))
+  }
+
+  it('shows the referent read with the project, to a reader too, and offers the edit to a manager only', async () => {
+    await renderProject(withReferent(referentOf()), {}, scope())
+    const block = screen.getByTestId('purchase-order-referent')
+    expect(block.textContent).toContain('Jane Roe')
+    expect(block.textContent).toContain('CTO')
+    expect(screen.queryByRole('button', { name: 'Change referent' })).toBeNull()
+    cleanup()
+    await renderProject(withReferent(referentOf()))
+    expect(screen.getByRole('button', { name: 'Change referent' })).not.toBeNull()
+  })
+
+  it('says "Referent unavailable" and still shows the rest of the page when the CRM could not answer (AC-3.10)', async () => {
+    await renderProject(
+      withReferent(referentOf({ status: 'unavailable', name: null, jobTitle: null, email: null, phone: null })),
+    )
+    expect(screen.getByTestId('purchase-order-referent').textContent).toContain('Referent unavailable')
+    expect(screen.getByTestId('project-facts').textContent).toContain('Acme SA')
+    expect(screen.getByRole('link', { name: 'Website relaunch' })).not.toBeNull()
+  })
+
+  it('a saved referent reads the project again, so the page shows what the CRM says now', async () => {
+    let reads = 0
+    await renderProject(withReferent(null), {
+      'GET /projects/p1': () => {
+        reads += 1
+        return { status: 200, body: reads === 1 ? withReferent(null) : withReferent(referentOf(), 3) }
+      },
+      ...contacts,
+      'PATCH /projects/p1/purchase-order': () => ({ status: 200, body: purchaseOrderOf({ version: 3 }) }),
     })
-    fireEvent.click(screen.getByRole('button', { name: 'Start project' }))
-    expect((await screen.findByTestId('project-action-error')).textContent).toContain('waiting for its project manager')
+    await setReferent()
+    await waitFor(() =>
+      expect(screen.getByTestId('purchase-order-referent').textContent).toContain('jane.roe@acme.example'),
+    )
+    expect(reads).toBe(2)
+    expect(writes()).toEqual([
+      { method: 'PATCH', path: '/projects/p1/purchase-order', ifMatch: '"2"', body: { referentContactId: 'k1' } },
+    ])
+    expect((await screen.findByTestId('projects-saved')).textContent).toContain('Referent saved.')
+  })
+
+  it('a stale referent save shows the page’s reload prompt', async () => {
+    await renderProject(withReferent(null), {
+      ...contacts,
+      'PATCH /projects/p1/purchase-order': () => problem(409, 'version_conflict', { currentVersion: 9 }),
+    })
+    await setReferent()
+    expect(await screen.findByTestId('projects-stale-write')).not.toBeNull()
+    expect(screen.queryByRole('dialog')).toBeNull()
   })
 })

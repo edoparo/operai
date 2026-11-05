@@ -1,4 +1,4 @@
-/** The project page: details, state actions, project manager and team (T13); the awaiting state (T30, T32). */
+/** The project page: details, state actions, project manager and team (T13); the awaiting state and the pick of its project manager (T30, T32). */
 const en = {
   back: 'Back to projects',
   loading: 'Loading project…',
@@ -32,6 +32,31 @@ const en = {
     reopen: 'Reopen',
     cancel: 'Cancel project',
     working: 'Working…',
+    startBlocked: 'Waiting for a project manager: the ops manager of the purchase order has to pick one first.',
+  },
+  awaiting: {
+    title: 'Awaiting project manager',
+    body: (opsManager: string) =>
+      `${opsManager} is the ops manager of this project’s purchase order and picks its project manager. The project cannot start until then.`,
+    seePurchaseOrder: 'See the purchase order',
+    pick: 'Pick project manager',
+  },
+  pickDialog: {
+    title: 'Pick project manager',
+    description:
+      'Choose who manages this project. Once it has one, anyone who manages the projects of its entity can change it, but it cannot be left without.',
+    label: 'Project manager',
+    hint: 'Only people with access to Projects can be chosen.',
+    submit: 'Set project manager',
+    busy: 'Saving…',
+    errors: {
+      not_ops_manager:
+        'Only the ops manager of this purchase order, or an administrator, can pick the project manager.',
+      not_project_user: 'This person has no access to Projects. Choose someone who does.',
+      identity_unavailable:
+        'The user directory cannot be reached right now, so the person could not be checked. Nothing was changed. Try again in a moment.',
+      out_of_scope: 'You may not change projects of this entity.',
+    },
   },
   cancelDialog: {
     title: 'Cancel this project?',
@@ -44,6 +69,7 @@ const en = {
     state: (label: string) => `The project is now ${label}.`,
     details: 'Project saved.',
     team: 'Team saved.',
+    projectManager: 'Project manager picked.',
   },
   errors: {
     title: 'The change was not made',
@@ -119,6 +145,32 @@ const it: typeof en = {
     reopen: 'Riapri',
     cancel: 'Annulla progetto',
     working: 'Operazione in corso…',
+    startBlocked:
+      'In attesa di un project manager: il responsabile OPS dell’ordine d’acquisto deve prima sceglierne uno.',
+  },
+  awaiting: {
+    title: 'In attesa del project manager',
+    body: (opsManager: string) =>
+      `${opsManager} è il responsabile OPS dell’ordine d’acquisto di questo progetto e ne sceglie il project manager. Il progetto non può partire prima.`,
+    seePurchaseOrder: 'Vedi l’ordine d’acquisto',
+    pick: 'Scegli il project manager',
+  },
+  pickDialog: {
+    title: 'Scegli il project manager',
+    description:
+      'Scegli chi gestisce questo progetto. Una volta scelto, chiunque gestisca i progetti della sua entità può cambiarlo, ma non può restare senza.',
+    label: 'Project manager',
+    hint: 'Si possono scegliere solo persone con accesso a Progetti.',
+    submit: 'Imposta project manager',
+    busy: 'Salvataggio…',
+    errors: {
+      not_ops_manager:
+        'Solo il responsabile OPS di questo ordine d’acquisto, o un amministratore, può scegliere il project manager.',
+      not_project_user: 'Questa persona non ha accesso a Progetti. Scegline una che ce l’ha.',
+      identity_unavailable:
+        'L’elenco degli utenti al momento non è raggiungibile, quindi non si è potuta verificare la persona. Non è stato modificato nulla. Riprova tra un attimo.',
+      out_of_scope: 'Non puoi modificare i progetti di questa entità.',
+    },
   },
   cancelDialog: {
     title: 'Annullare questo progetto?',
@@ -131,6 +183,7 @@ const it: typeof en = {
     state: (label: string) => `Il progetto è ora: ${label}.`,
     details: 'Progetto salvato.',
     team: 'Team salvato.',
+    projectManager: 'Project manager scelto.',
   },
   errors: {
     title: 'La modifica non è stata applicata',

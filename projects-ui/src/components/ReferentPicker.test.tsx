@@ -139,6 +139,26 @@ describe('when the contacts cannot be listed', () => {
   })
 })
 
+describe('a caller with its own wording (the purchase order’s edit)', () => {
+  it('says a failed read in the words it passes, and its own hint, instead of the take form’s', async () => {
+    render(
+      <ReferentPicker
+        load={() => Promise.reject(failure(403, 'out_of_scope'))}
+        value={null}
+        onChange={() => undefined}
+        failureText={() => 'Their own words.'}
+        hint="Their own hint."
+        testId="referent"
+      />,
+    )
+    const alert = await screen.findByRole('alert')
+    expect(alert.textContent).toBe('Their own words.Retry')
+    expect(alert.textContent).not.toContain('take deals')
+    expect(screen.getByText('Their own hint.')).not.toBeNull()
+    expect(screen.queryByText(/You can set it later/)).toBeNull()
+  })
+})
+
 describe('a refusal of the chosen referent', () => {
   it('is shown on the field, which is then invalid', async () => {
     render(

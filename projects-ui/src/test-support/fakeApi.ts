@@ -6,7 +6,17 @@
  * fixes. Modelled on crm-ui/src/test-support/fakeApi.ts.
  */
 import { vi } from 'vitest'
-import type { Person, Project, ProjectSummary, PurchaseOrder, Scope, Terms, TermsType, TermsView } from '../lib/types'
+import type {
+  Person,
+  Project,
+  ProjectSummary,
+  PurchaseOrder,
+  Referent,
+  Scope,
+  Terms,
+  TermsType,
+  TermsView,
+} from '../lib/types'
 
 export type FakeAnswer = { status: number; body?: unknown }
 export type FakeHandler = (url: URL, init: RequestInit | undefined) => FakeAnswer | Promise<FakeAnswer>
@@ -71,6 +81,17 @@ export const purchaseOrderOf = (overrides: Partial<PurchaseOrder> = {}): Purchas
   referent: null,
   opsManager: OLGA,
   version: 2,
+  ...overrides,
+})
+
+/** A referent as the CRM read gave it (synthetic contact, T18 L2): all of it there unless a test overrides. */
+export const referentOf = (overrides: Partial<Referent> = {}): Referent => ({
+  id: 'k1',
+  status: 'ok',
+  name: 'Jane Roe',
+  jobTitle: 'CTO',
+  email: 'jane.roe@acme.example',
+  phone: '+41 44 123 45 67',
   ...overrides,
 })
 
