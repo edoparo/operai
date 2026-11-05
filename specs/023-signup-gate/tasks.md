@@ -144,7 +144,7 @@ Work happens in the `main` worktree (`/Users/matteocodogno/LAB/aiscream/operai-m
     `catalogGaps` and the hardcoded-copy scan), with component tests for each state and
     flow listed above, and `mise run ui:check` is green.
 
-- [ ] T10: [e2e] Waiting-list journeys through the shell — refs: AC-1.9, AC-3.2, AC-3.4, AC-3.10 — deps: T3, T7, T9
+- [x] T10: [e2e] Waiting-list journeys through the shell — refs: AC-1.9, AC-3.2, AC-3.4, AC-3.10 — deps: T3, T7, T9
   - touch: `auth/scripts/e2e-invite-fixtures.ts`, `shell/e2e/helpers/*ccess*`, `shell/e2e/access-requests.spec.ts`
   - do: `seed-access-request` / `clear-access-requests` fixture commands; a Playwright
     spec in which an admin sees a seeded request, approves it with a role (the request

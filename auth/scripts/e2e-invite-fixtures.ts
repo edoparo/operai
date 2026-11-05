@@ -34,6 +34,13 @@
  *   bun run scripts/e2e-invite-fixtures.ts grant-refund-accounting <email> <entity|global>
  *   bun run scripts/e2e-invite-fixtures.ts grant-estimai-access <email>
  *   bun run scripts/e2e-invite-fixtures.ts grant-inventory-role <email> <roleName> <entity|global>
+ *   bun run scripts/e2e-invite-fixtures.ts seed-access-request <email> <name> [provider]
+ *   bun run scripts/e2e-invite-fixtures.ts clear-access-requests <emailOrPrefix>
+ *
+ * `seed-access-request` / `clear-access-requests` (specs/023-signup-gate, T10):
+ * real OAuth cannot run in e2e and `/test-auth/session` deliberately bypasses the
+ * sign-up gate (AC-1.9), so a waiting-list row can only come from the database.
+ * The row is the one `recordAccessRequest` writes for a refused first sign-in.
  *
  * The two `grant-refund-*` commands (specs/007-refund-service, T21 QE
  * verification) plug the SAME kind of gap `grant-role` plugs above: refund
@@ -303,6 +310,18 @@ async function grantInventoryRole(email: string, roleName: string, entity: strin
   console.log(JSON.stringify({ ok: true, userId: user.id, roleId: role.id, entity }));
 }
 
+async function seedAccessRequest(email: string, name: string, provider: string): Promise<void> {
+  const request = await db.accessRequest.create({
+    data: { email: email.toLowerCase(), name, provider, status: "pending" },
+  });
+  console.log(JSON.stringify({ id: request.id, email: request.email }));
+}
+
+async function clearAccessRequests(emailOrPrefix: string): Promise<void> {
+  const { count } = await db.accessRequest.deleteMany({ where: { email: { contains: emailOrPrefix } } });
+  console.log(JSON.stringify({ ok: true, deletedRequests: count }));
+}
+
 async function cleanup(emailOrPrefix: string): Promise<void> {
   const users = await db.user.findMany({
     where: { email: { contains: emailOrPrefix } },
@@ -316,6 +335,8 @@ async function cleanup(emailOrPrefix: string): Promise<void> {
     await db.session.deleteMany({ where: { userId: { in: userIds } } });
     await db.account.deleteMany({ where: { userId: { in: userIds } } });
   }
+  // access_request.invitationId is SetNull, so the request can go in either order.
+  await db.accessRequest.deleteMany({ where: { email: { contains: emailOrPrefix } } });
   await db.invitation.deleteMany({ where: { email: { contains: emailOrPrefix } } });
   if (userIds.length > 0) {
     await db.user.deleteMany({ where: { id: { in: userIds } } });
@@ -344,6 +365,10 @@ async function main(): Promise<void> {
       await grantEstimaiAccess(args[0]!);
     } else if (cmd === "grant-inventory-role") {
       await grantInventoryRole(args[0]!, args[1]!, args[2]!);
+    } else if (cmd === "seed-access-request") {
+      await seedAccessRequest(args[0]!, args[1]!, args[2] ?? "google");
+    } else if (cmd === "clear-access-requests") {
+      await clearAccessRequests(args[0]!);
     } else {
       console.error("unknown command:", cmd);
       process.exit(1);
