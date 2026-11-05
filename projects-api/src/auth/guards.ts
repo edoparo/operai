@@ -31,6 +31,18 @@ export const PROJECT_MANAGE: Capability = ["project", "manage"];
 /** Write a purchase order's Bexio order id (held by `accounting`, D35; was `contract:bexio` in specs/021). */
 export const PURCHASE_ORDER_BEXIO: Capability = ["purchase-order", "bexio"];
 
+/**
+ * Read the to-start queue and take a won deal — entity-scoped (specs/022 T24): `sales` for its own
+ * entity, an admin unconditioned. Reading the queue needs it for ANY entity; a take, for the deal's.
+ */
+export const HANDOFF_TAKE: Capability = ["handoff", "take"];
+/**
+ * Be a purchase order's ops-manager — entity-scoped (`ops-manager` for its own entity, an admin
+ * unconditioned). The admin's override of the project-manager pick is this grant held for EVERY entity
+ * (`oversees`), never "holds it at all".
+ */
+export const PURCHASE_ORDER_RECEIVE: Capability = ["purchase-order", "receive"];
+
 /** The resolved permissions and entity the authz middleware put on the context. */
 export interface AuthzSource {
   get(key: "authz"): AuthzVariables["authz"];
@@ -44,6 +56,22 @@ export const manageScope = (c: AuthzSource): Entity[] => {
 
 /** `project:manage` over every entity: the admin's reach. */
 export const managesAll = (c: AuthzSource): boolean => manageScope(c).length === ENTITIES.length;
+
+/** Entities whose won deals the caller may take (`handoff:take`, own entity or unconditioned). */
+export const takeScope = (c: AuthzSource): Entity[] => {
+  const { permissions, entity } = c.get("authz");
+  return scopeFor(permissions, HANDOFF_TAKE[0], HANDOFF_TAKE[1], entity);
+};
+
+/**
+ * Whether the caller holds `purchase-order:receive` for EVERY entity: the admin override of the
+ * project-manager pick (D47). Deliberately `scopeFor(…).length === ENTITIES.length`, never
+ * `hasCapability`, which ignores conditions and would make every ops-manager "oversee" (T18 L5).
+ */
+export const oversees = (c: AuthzSource): boolean => {
+  const { permissions, entity } = c.get("authz");
+  return scopeFor(permissions, PURCHASE_ORDER_RECEIVE[0], PURCHASE_ORDER_RECEIVE[1], entity).length === ENTITIES.length;
+};
 
 /** Whether the caller may write a purchase order's Bexio order id. */
 export const canSetBexio = (c: AuthzSource): boolean =>
@@ -79,6 +107,21 @@ export function assertCanManage(c: AuthzSource, entity: Entity): void {
       ? { status: 403, code: "forbidden", detail: "You do not have permission to manage projects" }
       : { status: 403, code: "out_of_scope", detail: "You can manage projects of your own entity only" },
   );
+}
+
+/**
+ * Throws 403 `out_of_scope` unless the caller may take a deal of `entity`: `handoff:take` AND
+ * `project:manage`, both for that entity (tasks.md § API contracts, T24). The route has already
+ * refused (`forbidden`) a caller who holds `handoff:take` for no entity at all
+ * (`requireCapability(HANDOFF_TAKE)`), so what is left is the other entity.
+ */
+export function assertCanTake(c: AuthzSource, entity: Entity): void {
+  if (takeScope(c).includes(entity) && manageScope(c).includes(entity)) return;
+  throw new ProblemError({
+    status: 403,
+    code: "out_of_scope",
+    detail: "You can take deals of your own entity only, and only while you manage its projects",
+  });
 }
 
 export const authorized: MiddlewareHandler[] = [jwtMiddleware, authzMiddleware, requireCapability(PROJECTS_ACCESS)];

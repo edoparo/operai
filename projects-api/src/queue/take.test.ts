@@ -5,11 +5,13 @@
  * database; the CRM and EstimAI are the fakes of test-support/world.ts.
  *
  * Every refusal asserts that NOTHING was written: no project, no terms, no purchase order (the take is
- * one transaction), and that the deal is still in the queue where it was. The gates, the ops-manager
- * and referent checks and the notification are later tasks (T24, T25): here both are stored as sent.
+ * one transaction), and that the deal is still in the queue where it was. T24 adds the gates
+ * (`handoff:take` and `project:manage` for the deal's entity), the ops-manager check against auth's
+ * live holders, the referent check against the deal company's CRM contacts and the audit line; the
+ * notification is T25.
  */
-import { beforeEach, describe, expect, it } from "bun:test";
-import { call, crm, db, estimai, makeDeal, resetWorld, seedDealProject, type PersonaName } from "../test-support/world";
+import { beforeEach, describe, expect, it, spyOn } from "bun:test";
+import { bearerFor, call, crm, db, estimai, holders, makeContact, makeDeal, resetWorld, seedDealProject, type PersonaName } from "../test-support/world";
 
 beforeEach(async () => {
   await resetWorld();
@@ -38,7 +40,7 @@ const body = (over: Record<string, unknown> = {}) => ({
   ...over,
 });
 
-const takeAsProject = (dealId: string, payload: unknown, as: PersonaName | null = "pmCh") =>
+const takeAsProject = (dealId: string, payload: unknown, as: PersonaName | null = "salesCh") =>
   call("POST", `/queue/${dealId}/project`, { as, body: payload });
 
 const counts = async () => ({
@@ -49,13 +51,14 @@ const counts = async () => ({
 const NOTHING = { projects: 0, terms: 0, orders: 0 };
 const ONE = { projects: 1, terms: 1, orders: 1 };
 const inQueue = async (): Promise<string[]> =>
-  (await call("GET", "/queue", { as: "viewer" })).json.items.map((item: { dealId: string }) => item.dealId);
+  (await call("GET", "/queue", { as: "salesCh" })).json.items.map((item: { dealId: string }) => item.dealId);
 
 // ─── A new project from a deal ───────────────────────────────────────────────
 
 describe("POST /queue/:dealId/project — a new project from a won deal (AC-1.2, AC-1.3, AC-1.8)", () => {
   it("creates a planned project with the deal's company and entity and NO project manager, its terms and its purchase order", async () => {
     crm.deals = [makeDeal({ id: "d-1", title: "Portal rebuild", estimate: { id: "est-1", name: "Portal estimate" } })];
+    crm.contacts = [makeContact({ id: "contact-1", companyId: "co-acme" })];
     const res = await takeAsProject("d-1", body({ referentContactId: "contact-1" }));
 
     expect(res.status).toBe(201);
@@ -92,27 +95,29 @@ describe("POST /queue/:dealId/project — a new project from a won deal (AC-1.2,
 
     const stored = await db.project.findUniqueOrThrow({ where: { id: res.json.id }, include: { terms: true, purchaseOrder: true } });
     // The person who took the deal is not made the project manager (D42).
-    expect(stored).toMatchObject({ createdById: "user-pm-ch", projectManagerId: null, companyId: "co-acme", entity: "welld_ch", state: "planned" });
+    expect(stored).toMatchObject({ createdById: "user-sales-ch", projectManagerId: null, companyId: "co-acme", entity: "welld_ch", state: "planned" });
     expect(stored.terms).toMatchObject({ type: "t_and_m" });
     expect(stored.purchaseOrder).toMatchObject({
       dealId: "d-1",
       estimateId: "est-1",
       opsManagerId: "user-ops",
       referentContactId: "contact-1",
-      createdById: "user-pm-ch",
+      createdById: "user-sales-ch",
       bexioOrderId: null,
     });
     expect(await counts()).toEqual(ONE);
   });
 
-  it("stores the ops-manager and the referent as sent; the referent is optional", async () => {
-    crm.deals = [makeDeal({ id: "d-1" }), makeDeal({ id: "d-2" }), makeDeal({ id: "d-3" })];
-    const withNull = await takeAsProject("d-1", body({ opsManagerId: "user-anyone", referentContactId: null }));
+  it("makes the referent optional: `null` and absent both leave none on the purchase order", async () => {
+    crm.deals = [makeDeal({ id: "d-1" }), makeDeal({ id: "d-2" })];
+    const withNull = await takeAsProject("d-1", body({ referentContactId: null }));
     expect(withNull.status).toBe(201);
-    expect(await db.purchaseOrder.findUniqueOrThrow({ where: { dealId: "d-1" } })).toMatchObject({ opsManagerId: "user-anyone", referentContactId: null });
+    expect(await db.purchaseOrder.findUniqueOrThrow({ where: { dealId: "d-1" } })).toMatchObject({ opsManagerId: "user-ops", referentContactId: null });
     const without = await takeAsProject("d-2", body());
     expect(without.status).toBe(201);
     expect(await db.purchaseOrder.findUniqueOrThrow({ where: { dealId: "d-2" } })).toMatchObject({ referentContactId: null });
+    // No referent to check: the CRM is not asked for a contact (T26's "only when set" starts here).
+    expect(crm.contactCalls).toBe(0);
   });
 
   it("makes the deal leave the queue (AC-1.3, AC-1.6)", async () => {
@@ -124,7 +129,7 @@ describe("POST /queue/:dealId/project — a new project from a won deal (AC-1.2,
 
   it("takes the deal's entity, not the caller's: a wellD IT deal makes a wellD IT project", async () => {
     crm.deals = [makeDeal({ id: "d-it", entity: "welld_it", company: { id: "co-zeta", name: "Zeta AG" } })];
-    const res = await takeAsProject("d-it", body({ type: "maintenance", terms: TERMS.maintenance }), "salesIt");
+    const res = await takeAsProject("d-it", body({ type: "maintenance", terms: TERMS.maintenance, opsManagerId: "user-ops-it" }), "salesIt");
     expect(res.status).toBe(201);
     expect(res.json).toMatchObject({ entity: "welld_it", company: { id: "co-zeta", name: "Zeta AG" }, projectManager: null });
   });
@@ -366,27 +371,9 @@ describe("POST /queue/:dealId/project — refusals leave nothing behind (AC-1.6)
     expect(await counts()).toEqual(ONE);
   });
 
-  it("403 out_of_scope when the caller manages the other entity only", async () => {
-    crm.deals = [makeDeal({ id: "d-it", entity: "welld_it", company: { id: "co-zeta", name: "Zeta AG" } })];
-    const res = await takeAsProject("d-it", body(), "pmCh");
-    expect(res.status).toBe(403);
-    expect(res.json.code).toBe("out_of_scope");
-    expect(await counts()).toEqual(NOTHING);
-  });
-
-  it("403 forbidden for a reader who manages nothing", async () => {
-    crm.deals = [makeDeal({ id: "d-1" })];
-    for (const as of ["viewer", "accounting"] as const) {
-      const res = await takeAsProject("d-1", body(), as);
-      expect(res.status).toBe(403);
-      expect(res.json.code).toBe("forbidden");
-    }
-    expect(await counts()).toEqual(NOTHING);
-  });
-
   it("an admin takes a deal of either entity", async () => {
     crm.deals = [makeDeal({ id: "d-it", entity: "welld_it", company: { id: "co-zeta", name: "Zeta AG" } })];
-    expect((await takeAsProject("d-it", body(), "admin")).status).toBe(201);
+    expect((await takeAsProject("d-it", body({ opsManagerId: "user-ops-it" }), "admin")).status).toBe(201);
   });
 
   it("503 crm_unavailable when crm-api is down, and nothing is written", async () => {
@@ -395,6 +382,223 @@ describe("POST /queue/:dealId/project — refusals leave nothing behind (AC-1.6)
     expect(res.status).toBe(503);
     expect(res.json.code).toBe("crm_unavailable");
     expect(await counts()).toEqual(NOTHING);
+  });
+});
+
+// ─── Who may take (T24; AC-1.1, AC-1.2, AC-1.9, AC-1.11) ─────────────────────
+
+describe("POST /queue/:dealId/project — `handoff:take` and `project:manage` for the deal's entity (AC-1.9, AC-1.11)", () => {
+  it.each(["pmCh", "opsCh", "accounting", "viewer", "colleague"] as const)(
+    "403 forbidden for %s, who holds `handoff:take` for no entity: nothing written, the deal still queued, the CRM not asked",
+    async (as) => {
+      crm.deals = [makeDeal({ id: "d-1" })];
+      const res = await takeAsProject("d-1", body(), as);
+      expect(res.status).toBe(403);
+      expect(res.json).toMatchObject({ status: 403, code: "forbidden" });
+      expect(crm.calls).toBe(0);
+      expect(await counts()).toEqual(NOTHING);
+      expect(await inQueue()).toEqual(["d-1"]);
+    },
+  );
+
+  it("403 out_of_scope for a sales user of the other entity — who reads the whole queue but takes its own entity's deals only", async () => {
+    crm.deals = [makeDeal({ id: "d-ch", entity: "welld_ch" })];
+    expect(await inQueue()).toEqual(["d-ch"]);
+    const res = await takeAsProject("d-ch", body(), "salesIt");
+    expect(res.status).toBe(403);
+    expect(res.json.code).toBe("out_of_scope");
+    expect(await counts()).toEqual(NOTHING);
+    expect(holders.calls).toBe(0);
+    expect(await inQueue()).toEqual(["d-ch"]);
+
+    crm.deals = [makeDeal({ id: "d-it", entity: "welld_it", company: { id: "co-zeta", name: "Zeta AG" } })];
+    const other = await takeAsProject("d-it", body(), "salesCh");
+    expect([other.status, other.json.code]).toEqual([403, "out_of_scope"]);
+    expect(await counts()).toEqual(NOTHING);
+  });
+
+  it("is 403 without projects:access and 401 without a token", async () => {
+    crm.deals = [makeDeal({ id: "d-1" })];
+    expect((await takeAsProject("d-1", body(), "outsider")).status).toBe(403);
+    expect((await takeAsProject("d-1", body(), null)).status).toBe(401);
+  });
+
+  it("lets sales take its own entity's deal and an admin either entity's", async () => {
+    crm.deals = [makeDeal({ id: "d-ch" }), makeDeal({ id: "d-it", entity: "welld_it", company: { id: "co-zeta", name: "Zeta AG" } })];
+    expect((await takeAsProject("d-ch", body(), "salesCh")).status).toBe(201);
+    expect((await takeAsProject("d-it", body({ opsManagerId: "user-ops-it" }), "admin")).status).toBe(201);
+  });
+});
+
+// ─── The ops-manager (T24; AC-4.1, AC-4.2) ───────────────────────────────────
+
+describe("POST /queue/:dealId/project — the ops-manager is checked against auth's live list (AC-4.1, AC-4.2)", () => {
+  beforeEach(() => {
+    crm.deals = [makeDeal({ id: "d-1" })];
+  });
+
+  it("accepts a role holder of the deal's entity, asking auth with the CALLER's token", async () => {
+    const res = await takeAsProject("d-1", body({ opsManagerId: "user-ops" }));
+    expect(res.status).toBe(201);
+    expect(holders.calls).toBe(1);
+    expect(holders.lastAuthorization).toBe(await bearerFor("salesCh"));
+    expect(new URLSearchParams(holders.lastQuery).get("entity")).toBe("welld_ch");
+    expect(await counts()).toEqual(ONE);
+  });
+
+  it("accepts an admin in their place (AC-4.2: an entity with no ops-manager does not block)", async () => {
+    holders.users.welld_ch = [{ id: "user-admin", name: "Ada Admin", unconditioned: true }];
+    const res = await takeAsProject("d-1", body({ opsManagerId: "user-admin" }));
+    expect(res.status).toBe(201);
+    expect(res.json.purchaseOrder.opsManager.id).toBe("user-admin");
+  });
+
+  it("asks for the DEAL's entity, not the caller's", async () => {
+    crm.deals = [makeDeal({ id: "d-it", entity: "welld_it", company: { id: "co-zeta", name: "Zeta AG" } })];
+    const res = await takeAsProject("d-it", body({ opsManagerId: "user-ops-it" }), "admin");
+    expect(res.status).toBe(201);
+    expect(new URLSearchParams(holders.lastQuery).get("entity")).toBe("welld_it");
+  });
+
+  it.each([
+    ["an ops-manager of the other entity", "user-ops-it"],
+    ["a user who holds no role at all", "user-colleague"],
+    ["an id nobody knows", "user-nobody"],
+  ])("422 ops_manager_invalid for %s: nothing written, the deal still queued", async (_label, opsManagerId) => {
+    const res = await takeAsProject("d-1", body({ opsManagerId }));
+    expect(res.status).toBe(422);
+    expect(res.json).toMatchObject({ status: 422, code: "ops_manager_invalid" });
+    expect(await counts()).toEqual(NOTHING);
+    expect(await inQueue()).toEqual(["d-1"]);
+  });
+
+  it("re-reads the list on every take: an ops-manager who lost the role since the picker was filled is refused", async () => {
+    expect((await takeAsProject("d-1", body({ opsManagerId: "user-ops" }))).status).toBe(201);
+    crm.deals = [makeDeal({ id: "d-2" })];
+    holders.users.welld_ch = holders.users.welld_ch.filter((holder) => holder.id !== "user-ops");
+    const res = await takeAsProject("d-2", body({ opsManagerId: "user-ops" }));
+    expect([res.status, res.json.code]).toEqual([422, "ops_manager_invalid"]);
+    expect(await counts()).toEqual(ONE);
+  });
+
+  it.each([
+    ["is down", () => void (holders.down = true)],
+    ["refuses the caller", () => void (holders.status = 403)],
+    ["answers something unreadable", () => void (holders.body = { users: "nope" })],
+  ])("503 identity_unavailable when auth %s — fail-closed, nothing written", async (_label, breakAuth) => {
+    breakAuth();
+    const res = await takeAsProject("d-1", body());
+    expect(res.status).toBe(503);
+    expect(res.json).toMatchObject({ status: 503, code: "identity_unavailable" });
+    expect(await counts()).toEqual(NOTHING);
+    expect(await inQueue()).toEqual(["d-1"]);
+  });
+});
+
+// ─── The referent (T24; AC-3.6, T18 M3, L1) ──────────────────────────────────
+
+describe("POST /queue/:dealId/project — the referent is a live contact of the DEAL's company (AC-3.6)", () => {
+  beforeEach(() => {
+    crm.deals = [makeDeal({ id: "d-1", company: { id: "co-acme", name: "Acme SA" } })];
+    crm.contacts = [
+      makeContact({ id: "c-ok", companyId: "co-acme" }),
+      makeContact({ id: "c-other", companyId: "co-zeta" }),
+      makeContact({ id: "c-none", companyId: null }),
+      makeContact({ id: "c-old", companyId: "co-acme", archived: true }),
+    ];
+  });
+
+  it("stores a non-archived contact of the deal's company, and only its id", async () => {
+    const res = await takeAsProject("d-1", body({ referentContactId: "c-ok" }));
+    expect(res.status).toBe(201);
+    const stored = await db.purchaseOrder.findUniqueOrThrow({ where: { dealId: "d-1" } });
+    expect(stored.referentContactId).toBe("c-ok");
+    expect(JSON.stringify(stored)).not.toMatch(/First|Last|example\.test/);
+    expect(crm.lastAuthorization).toMatch(/^Bearer /);
+  });
+
+  it("derives the company from the live deal, never from the body: a `companyId` in the body is a 400", async () => {
+    const res = await takeAsProject("d-1", body({ referentContactId: "c-other", companyId: "co-zeta" }));
+    expect(res.status).toBe(400);
+    expect(await counts()).toEqual(NOTHING);
+  });
+
+  it("422 referent_invalid with ONE identical body for a contact of another company, one with no company and an unknown one", async () => {
+    const bodies = [];
+    for (const referentContactId of ["c-other", "c-none", "c-unknown"]) {
+      const res = await takeAsProject("d-1", body({ referentContactId }));
+      expect(res.status).toBe(422);
+      bodies.push({ ...res.json });
+    }
+    // The problem differs by nothing a caller could read: not by instance, not by a member.
+    expect(bodies[1]).toEqual(bodies[0]);
+    expect(bodies[2]).toEqual(bodies[0]);
+    expect(bodies[0]).toMatchObject({ status: 422, code: "referent_invalid" });
+    expect(Object.keys(bodies[0]).sort()).toEqual(["code", "detail", "instance", "status", "title", "type"]);
+    expect(JSON.stringify(bodies[0])).not.toMatch(/c-other|c-none|c-unknown|co-zeta|co-acme/);
+    expect(await counts()).toEqual(NOTHING);
+    expect(await inQueue()).toEqual(["d-1"]);
+  });
+
+  it("422 referent_invalid for an archived contact of the right company", async () => {
+    const res = await takeAsProject("d-1", body({ referentContactId: "c-old" }));
+    expect([res.status, res.json.code]).toEqual([422, "referent_invalid"]);
+    expect(await counts()).toEqual(NOTHING);
+  });
+
+  it.each(["c-ok,c-other", "c ok", "c-ok\n", "ü"])("422 referent_invalid for the id %j, which is not shaped like an id", async (referentContactId) => {
+    const res = await takeAsProject("d-1", body({ referentContactId }));
+    expect([res.status, res.json.code]).toEqual([422, "referent_invalid"]);
+    expect(crm.contactCalls).toBe(0);
+    expect(await counts()).toEqual(NOTHING);
+  });
+
+  it("503 crm_unavailable when crm-api cannot answer the contact check, and nothing is written", async () => {
+    // The deal is read first (and answered); only the contacts route is down.
+    crm.contactsDown = true;
+    const res = await takeAsProject("d-1", body({ referentContactId: "c-ok" }));
+    expect(res.status).toBe(503);
+    expect(res.json.code).toBe("crm_unavailable");
+    expect(await counts()).toEqual(NOTHING);
+  });
+
+  it("checks the ops-manager before the referent: with both wrong the answer is ops_manager_invalid", async () => {
+    const res = await takeAsProject("d-1", body({ opsManagerId: "user-nobody", referentContactId: "c-other" }));
+    expect(res.json.code).toBe("ops_manager_invalid");
+  });
+});
+
+// ─── The audit line (T24; T18 L6) ────────────────────────────────────────────
+
+describe("POST /queue/:dealId/project — one structured log line per take (T18 L6)", () => {
+  it("logs the event kind, the project id and the actor id — and no contact data, name or opsManager", async () => {
+    crm.deals = [makeDeal({ id: "d-1" })];
+    crm.contacts = [makeContact({ id: "c-ok", firstName: "Hidden", lastName: "Person", email: "hidden.person@example.test" })];
+    const lines: string[] = [];
+    const log = spyOn(console, "log").mockImplementation((...args: unknown[]) => void lines.push(args.map(String).join(" ")));
+    let res;
+    try {
+      res = await takeAsProject("d-1", body({ name: "Secret Portal Name", referentContactId: "c-ok" }));
+    } finally {
+      log.mockRestore();
+    }
+    expect(res.status).toBe(201);
+    const audit = lines.filter((line) => line.includes("handoff.taken"));
+    expect(audit).toHaveLength(1);
+    expect(JSON.parse(audit[0]!)).toEqual({ event: "handoff.taken", projectId: res.json.id, actorId: "user-sales-ch" });
+    for (const line of lines) expect(line).not.toMatch(/Hidden|Person|hidden\.person|c-ok|Secret Portal/);
+  });
+
+  it("logs nothing for a refused take", async () => {
+    crm.deals = [makeDeal({ id: "d-1" })];
+    const lines: string[] = [];
+    const log = spyOn(console, "log").mockImplementation((...args: unknown[]) => void lines.push(args.map(String).join(" ")));
+    try {
+      await takeAsProject("d-1", body({ opsManagerId: "user-nobody" }));
+    } finally {
+      log.mockRestore();
+    }
+    expect(lines.filter((line) => line.includes("handoff.taken"))).toEqual([]);
   });
 });
 

@@ -36,13 +36,15 @@ const ENTITIES: readonly Entity[] = ["welld_ch", "welld_it"];
 /**
  *   access       `projects:access` and nothing more (every holder reads every record, D13)
  *   manage-any   `project:manage` for at least one entity (a lookup, no record involved)
- *   manage       `project:manage` for the RECORD's entity (`out_of_scope` for the other one); for a take
- *                from the to-start queue the record is the CRM DEAL, whose entity the CRM says
+ *   manage       `project:manage` for the RECORD's entity (`out_of_scope` for the other one)
+ *   take-any     `handoff:take` for at least one entity (specs/022 T24: the queue is read whole by any taker)
+ *   take         `handoff:take` AND `project:manage` for the CRM DEAL's entity, which the CRM says
+ *                (`out_of_scope` for the other one; `forbidden` without `handoff:take` at all)
  *   bexio        `purchase-order:bexio`, not entity-scoped
  *   host         the activity-host contract (specs/028 T5): any caller with a valid token and a live
  *                authz answer gets 200, a non-holder of `projects:access` as `reader:false`
  */
-type Need = "access" | "manage-any" | "manage" | "bexio" | "host";
+type Need = "access" | "manage-any" | "manage" | "take-any" | "take" | "bexio" | "host";
 
 interface Req {
   readonly method: string;
@@ -102,6 +104,8 @@ const wonDeal = (entity: Entity, over: Partial<Parameters<typeof makeDeal>[0]> =
 
 /** The terms of a take or of a terms write, specs/021's contract shape: the dates and the `fixed_price` terms (the deal has no estimate). */
 const takeTerms = { startDate: "2027-01-01", terms: { deadline: "2027-06-30", maxEffortManDays: 10 } };
+/** The ops-manager each entity has in the fake auth's holders list (test-support/world.ts). */
+const OPS_OF: Record<Entity, string> = { welld_ch: "user-ops", welld_it: "user-ops-it" };
 const takeBody = (over: Record<string, unknown> = {}) => ({
   name: "Koordy 2027",
   type: "fixed_price",
@@ -122,20 +126,31 @@ const SPECS: Record<string, RouteSpec> = {
     }),
   },
   "GET /companies": { need: "manage-any", ok: 200, prepare: async () => ({ method: "GET", path: "/companies?q=acme" }) },
-  // The to-start queue (specs/022): read by every access holder (A20); a take needs manage for the
-  // DEAL's entity — the CRM, not the request, says which (AC-1.2, AC-1.4, D36).
+  // The to-start queue (specs/022 T24): read by `handoff:take` holders (sales, admin) whole; a take and
+  // the take's form (ops-managers, contacts) need `handoff:take` + manage for the DEAL's entity — the CRM,
+  // not the request, says which (AC-1.1, AC-1.2, AC-1.9). T29 widens this to the other personas.
   "GET /queue": {
-    need: "access",
+    need: "take-any",
     ok: 200,
     prepare: async (entity) => (wonDeal(entity), { method: "GET", path: "/queue" }),
   },
+  "GET /queue/:dealId/ops-managers": {
+    need: "take",
+    ok: 200,
+    prepare: async (entity) => ({ method: "GET", path: `/queue/${wonDeal(entity)}/ops-managers` }),
+  },
+  "GET /queue/:dealId/contacts": {
+    need: "take",
+    ok: 200,
+    prepare: async (entity) => ({ method: "GET", path: `/queue/${wonDeal(entity)}/contacts` }),
+  },
   "POST /queue/:dealId/project": {
-    need: "manage",
+    need: "take",
     ok: 201,
     prepare: async (entity) => ({
       method: "POST",
       path: `/queue/${wonDeal(entity)}/project`,
-      body: takeBody(),
+      body: takeBody({ opsManagerId: OPS_OF[entity] }),
     }),
   },
   "GET /project-managers": {
@@ -245,15 +260,19 @@ interface Grants {
   readonly access: boolean;
   readonly manage: readonly Entity[];
   readonly bexio: boolean;
+  /** `handoff:take` (specs/022 T24): sales for its own entity, an admin for both. */
+  readonly take: readonly Entity[];
 }
 
-const GRANTS: Record<Exclude<PersonaName, "colleague">, Grants> = {
-  outsider: { access: false, manage: [], bexio: false },
-  viewer: { access: true, manage: [], bexio: false },
-  pmCh: { access: true, manage: ["welld_ch"], bexio: false },
-  salesIt: { access: true, manage: ["welld_it"], bexio: false },
-  accounting: { access: true, manage: [], bexio: true },
-  admin: { access: true, manage: ["welld_ch", "welld_it"], bexio: true },
+// T29 adds the `sales` (welld_ch) and `ops-manager` personas to this table; until then the matrix
+// covers the six it had, and those two are exercised by the queue, scope and candidates tests.
+const GRANTS: Record<Exclude<PersonaName, "colleague" | "salesCh" | "opsCh">, Grants> = {
+  outsider: { access: false, manage: [], bexio: false, take: [] },
+  viewer: { access: true, manage: [], bexio: false, take: [] },
+  pmCh: { access: true, manage: ["welld_ch"], bexio: false, take: [] },
+  salesIt: { access: true, manage: ["welld_it"], bexio: false, take: ["welld_it"] },
+  accounting: { access: true, manage: [], bexio: true, take: [] },
+  admin: { access: true, manage: ["welld_ch", "welld_it"], bexio: true, take: ["welld_ch", "welld_it"] },
 };
 const PERSONA_NAMES = Object.keys(GRANTS) as (keyof typeof GRANTS)[];
 
@@ -270,6 +289,11 @@ function expectedOutcome(need: Need, grants: Grants, entity: Entity): Outcome {
     case "manage":
       if (grants.manage.includes(entity)) return "ok";
       return grants.manage.length > 0 ? "out_of_scope" : "forbidden";
+    case "take-any":
+      return grants.take.length > 0 ? "ok" : "forbidden";
+    case "take":
+      if (grants.take.length === 0) return "forbidden";
+      return grants.take.includes(entity) && grants.manage.includes(entity) ? "ok" : "out_of_scope";
     case "bexio":
       return grants.bexio ? "ok" : "forbidden";
   }
@@ -402,30 +426,32 @@ describe("authorization matrix: what holders read (AC-4.3)", () => {
   });
 });
 
-describe("authorization matrix: the to-start queue (AC-1.1, AC-1.2, AC-1.4, A20)", () => {
+describe("authorization matrix: the to-start queue (AC-1.1, AC-1.2, AC-1.9)", () => {
   const queued = async (as: PersonaName): Promise<string[]> =>
     ((await call("GET", "/queue", { as })).json.items as { dealId: string }[]).map((item) => item.dealId).sort();
 
-  it("lists the won deals of both entities to every holder of access, scoped or not — and to nobody without it", async () => {
+  it("lists the won deals of both entities to the holders of `handoff:take`, whatever their entity — and refuses everyone else", async () => {
     const ids = [wonDeal("welld_ch"), wonDeal("welld_it")].sort();
-    for (const persona of PERSONA_NAMES.filter((name) => GRANTS[name].access)) {
+    for (const persona of PERSONA_NAMES.filter((name) => GRANTS[name].take.length > 0)) {
       expect({ persona, ids: await queued(persona) }).toEqual({ persona, ids });
     }
-    const refused = await call("GET", "/queue", { as: "outsider" });
-    expect(refused.status).toBe(403);
-    expect(refused.json).toMatchObject({ code: "forbidden" });
+    for (const persona of PERSONA_NAMES.filter((name) => GRANTS[name].take.length === 0)) {
+      const refused = await call("GET", "/queue", { as: persona });
+      expect({ persona, status: refused.status }).toEqual({ persona, status: 403 });
+      expect(refused.json).toMatchObject({ code: "forbidden" });
+    }
   });
 
-  it("lets only a manager of the deal's entity take it: a refused take leaves the deal queued, the entity's own manager takes it", async () => {
+  it("lets only a taker of the deal's entity take it: a refused take leaves the deal queued, the entity's own sales takes it", async () => {
     const deal = wonDeal("welld_ch");
     const body = takeBody();
-    for (const persona of ["viewer", "accounting", "salesIt"] as const) {
+    for (const persona of ["viewer", "accounting", "pmCh", "salesIt"] as const) {
       const res = await call("POST", `/queue/${deal}/project`, { as: persona, body });
       expect({ persona, status: res.status }).toEqual({ persona, status: 403 });
     }
-    expect(await queued("viewer")).toEqual([deal]);
-    expect((await call("POST", `/queue/${deal}/project`, { as: "pmCh", body })).status).toBe(201);
-    expect(await queued("viewer")).toEqual([]);
+    expect(await queued("admin")).toEqual([deal]);
+    expect((await call("POST", `/queue/${deal}/project`, { as: "salesCh", body })).status).toBe(201);
+    expect(await queued("admin")).toEqual([]);
   });
 
   it("lets an admin take the deal of either entity", async () => {
@@ -433,7 +459,7 @@ describe("authorization matrix: the to-start queue (AC-1.1, AC-1.2, AC-1.4, A20)
       const deal = wonDeal(entity);
       const res = await call("POST", `/queue/${deal}/project`, {
         as: "admin",
-        body: takeBody({ name: `Work ${entity}` }),
+        body: takeBody({ name: `Work ${entity}`, opsManagerId: OPS_OF[entity] }),
       });
       expect({ entity, status: res.status }).toEqual({ entity, status: 201 });
       expect(res.json.entity).toBe(entity);
@@ -447,11 +473,11 @@ describe("authorization matrix: scope (AC-4.4, AC-4.5, AC-4.6)", () => {
       await Promise.all(PERSONA_NAMES.filter((name) => GRANTS[name].access).map(async (name) => [name, (await call("GET", "/scope", { as: name })).json])),
     );
     expect(scopes).toEqual({
-      viewer: { manage: [], managesAll: false, bexio: false },
-      pmCh: { manage: ["welld_ch"], managesAll: false, bexio: false },
-      salesIt: { manage: ["welld_it"], managesAll: false, bexio: false },
-      accounting: { manage: [], managesAll: false, bexio: true },
-      admin: { manage: ["welld_ch", "welld_it"], managesAll: true, bexio: true },
+      viewer: { manage: [], managesAll: false, bexio: false, take: [], oversees: false },
+      pmCh: { manage: ["welld_ch"], managesAll: false, bexio: false, take: [], oversees: false },
+      salesIt: { manage: ["welld_it"], managesAll: false, bexio: false, take: ["welld_it"], oversees: false },
+      accounting: { manage: [], managesAll: false, bexio: true, take: [], oversees: false },
+      admin: { manage: ["welld_ch", "welld_it"], managesAll: true, bexio: true, take: ["welld_ch", "welld_it"], oversees: true },
     });
   });
 
@@ -463,6 +489,7 @@ describe("authorization matrix: scope (AC-4.4, AC-4.5, AC-4.6)", () => {
       expect(has(name, "projects", "access")).toBe(GRANTS[name].access);
       expect(has(name, "project", "manage")).toBe(GRANTS[name].manage.length > 0);
       expect(has(name, "purchase-order", "bexio")).toBe(GRANTS[name].bexio);
+      expect(has(name, "handoff", "take")).toBe(GRANTS[name].take.length > 0);
     }
   });
 });

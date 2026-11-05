@@ -25,7 +25,12 @@ export function setupOpenAPI(app: OpenAPIHono): void {
       { name: "Terms", description: "The type-specific delivery terms of a project" },
       { name: "Purchase orders", description: "The delivery-side record of a won deal (Bexio order id)" },
       { name: "Companies", description: "CRM companies, read through a service credential" },
-      { name: "Queue", description: "Won deals waiting for a project, and taking one (specs/022)" },
+      {
+        name: "Queue",
+        description:
+          "Won deals waiting for a project, and taking one (specs/022): handoff:take holders only; the take's form reads " +
+          "its ops-manager candidates (from auth) and the deal company's contacts (from the CRM) live",
+      },
     ],
   });
 
