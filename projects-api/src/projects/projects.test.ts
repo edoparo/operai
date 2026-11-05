@@ -8,6 +8,8 @@
 import { beforeEach, describe, expect, it, spyOn } from "bun:test";
 import { appAccess, call, crm, db, identities, makeContact, makeDeal, resetWorld, seedDealProject, type FakeContact, type PersonaName } from "../test-support/world";
 import type { Prisma } from "../lib/generated/prisma/client";
+import { resetNotifierForTests, setNotifierForTests, type NotifyEvent } from "../lib/notify";
+import { PROJECT_TYPES } from "./projects.schemas";
 
 /** Every type but `internal` has a company, `saas` included (specs/022 D40). */
 const CLIENT_TYPES = ["t_and_m", "fixed_price", "maintenance", "saas"] as const;
@@ -213,6 +215,227 @@ describe("POST /projects", () => {
     const res = await create(body);
     expect(res.status).toBe(400);
     expect(res.json).toMatchObject({ status: 400, code: "validation_failed", field });
+  });
+});
+
+/** Valid optional terms at creation, per type that takes them: `{ startDate, endDate?, terms }` (AC-5.3, specs/021 AC-2.3–2.8). */
+const TERMS_AT_CREATION = {
+  t_and_m: { startDate: "2026-12-01", terms: { positions: [{ profile: "Senior developer", plannedManDays: 120 }, { profile: "Tester", plannedManDays: 30.5 }] } },
+  fixed_price: { startDate: "2026-12-01", endDate: "2027-06-30", terms: { deadline: "2027-03-31", estimatedManDays: 40, maxEffortManDays: 55.5 } },
+  maintenance: { startDate: "2026-12-01", terms: { sla: { highDays: 1, normalDays: 3 }, hourPackage: { hours: 80, kind: "yearly", startDate: "2026-12-01" } } },
+  saas: { startDate: "2026-12-01", endDate: "2027-11-30" },
+} as const;
+
+describe("POST /projects with terms (specs/022 T28; AC-5.1, AC-5.3, A38)", () => {
+  it.each(CLIENT_TYPES)("creates a %s project and its terms together: one 201, the terms nested, nothing else (AC-5.3)", async (type) => {
+    const terms = TERMS_AT_CREATION[type];
+    const res = await create({ name: "Koordy", type, entity: "welld_ch", companyId: "co-acme", terms });
+    expect(res.status).toBe(201);
+    expect(res.json).toMatchObject({
+      type,
+      state: "planned",
+      purchaseOrder: null,
+      awaitingProjectManager: false,
+      projectManager: { id: "user-pm-ch" },
+      startDate: terms.startDate,
+      endDate: "endDate" in terms ? terms.endDate : null,
+      terms: { id: expect.any(String), type, startDate: terms.startDate, version: 1 },
+    });
+    expect(await db.projectTerms.count()).toBe(1);
+    expect(await db.purchaseOrder.count()).toBe(0);
+    expect(await db.projectTerms.findUniqueOrThrow({ where: { projectId: res.json.id } })).toMatchObject({ type });
+    // The page reads back what the creation answered.
+    expect((await call("GET", `/projects/${res.json.id}`, { as: "viewer" })).json.terms).toEqual(res.json.terms);
+  });
+
+  it("stores the T&M positions in the order given, and the type's terms nested in the view (AC-5.3)", async () => {
+    const res = await create({ name: "Koordy", type: "t_and_m", entity: "welld_ch", companyId: "co-acme", terms: TERMS_AT_CREATION.t_and_m });
+    expect(res.json.terms.terms).toEqual({
+      positions: [
+        { profile: "Senior developer", plannedManDays: 120 },
+        { profile: "Tester", plannedManDays: 30.5 },
+      ],
+    });
+  });
+
+  it("takes the dates alone for a type whose terms are optional: a saas licence period, a fixed price has its own rules (AC-5.3)", async () => {
+    const saas = await create({ name: "Licence", type: "saas", entity: "welld_ch", companyId: "co-acme", terms: { startDate: "2026-12-01" } });
+    expect(saas.status).toBe(201);
+    expect(saas.json.terms).toMatchObject({ type: "saas", terms: { sla: null, hourPackage: null }, endDate: null });
+  });
+
+  const start = { startDate: "2026-12-01" };
+
+  it.each([
+    // Shape errors: the 400 `validation_failed` of the take, naming the field by its path in THIS body.
+    ["a start date that is not a date", "t_and_m", { startDate: "01/12/2026", terms: TERMS_AT_CREATION.t_and_m.terms }, 400, "terms.startDate"],
+    ["no start date", "t_and_m", { terms: TERMS_AT_CREATION.t_and_m.terms }, 400, "terms.startDate"],
+    ["an end date before the start", "t_and_m", { ...TERMS_AT_CREATION.t_and_m, endDate: "2026-11-01" }, 400, "terms.endDate"],
+    ["members beside the dates (they go in `terms.terms`)", "t_and_m", { ...start, positions: [] }, 400, "terms"],
+    ["terms that are not an object", "t_and_m", "soon", 400, "terms"],
+    ["T&M with no position", "t_and_m", { ...start, terms: { positions: [] } }, 400, "terms.terms.positions"],
+    ["T&M with a position of zero man-days", "t_and_m", { ...start, terms: { positions: [{ profile: "Dev", plannedManDays: 0 }] } }, 400, "terms.terms.positions.0.plannedManDays"],
+    ["T&M with no terms at all", "t_and_m", start, 400, "terms.terms.positions"],
+    ["fixed price without its deadline", "fixed_price", { ...start, terms: { maxEffortManDays: 10 } }, 400, "terms.terms.deadline"],
+    ["fixed price without its max effort", "fixed_price", { ...start, terms: { deadline: "2027-03-31" } }, 400, "terms.terms.maxEffortManDays"],
+    ["fixed price with no terms at all", "fixed_price", start, 400, "terms.terms.deadline"],
+    ["fixed price with a member of another type", "fixed_price", { ...start, terms: { deadline: "2027-03-31", maxEffortManDays: 10, positions: [] } }, 400, "terms.terms"],
+    ["an SLA with a day count out of range", "maintenance", { ...start, terms: { sla: { highDays: 61, normalDays: 3 } } }, 400, "terms.terms.sla.highDays"],
+    ["an hour package of zero hours", "saas", { ...start, terms: { hourPackage: { hours: 0, kind: "yearly", startDate: "2026-12-01" } } }, 400, "terms.terms.hourPackage.hours"],
+    // A domain rule of the type: the 422 of the take, `terms.terms` being where the type's terms sit.
+    ["maintenance terms with neither an SLA nor an hour package", "maintenance", { ...start, terms: {} }, 422, "terms.terms"],
+    ["maintenance terms with both of them null", "maintenance", { ...start, terms: { sla: null, hourPackage: null } }, 422, "terms.terms"],
+  ])("refuses %s, naming the field, and creates nothing (AC-5.3)", async (_label, type, terms, status, field) => {
+    const res = await create({ name: "Koordy", type, entity: "welld_ch", companyId: "co-acme", terms });
+    expect(res.status).toBe(status);
+    expect(res.json).toMatchObject({ status, field });
+    expect(res.json.code).toBe(status === 400 ? "validation_failed" : "maintenance_needs_sla_or_hours");
+    expect(await db.project.count()).toBe(0);
+    expect(await db.projectTerms.count()).toBe(0);
+  });
+
+  it("refuses terms on an internal project: 422 `terms_not_allowed`, nothing created (AC-5.3)", async () => {
+    const res = await create({ name: "Tools", type: "internal", entity: "welld_ch", terms: start });
+    expect(res.status).toBe(422);
+    expect(res.json).toMatchObject({ status: 422, code: "terms_not_allowed", field: "terms" });
+    expect(await db.project.count()).toBe(0);
+    expect(await db.projectTerms.count()).toBe(0);
+  });
+
+  it("answers `terms_not_allowed` for an internal project whatever the terms hold, before anything else about them", async () => {
+    const res = await create({ name: "Tools", type: "internal", entity: "welld_ch", terms: { ...start, terms: { positions: [] } } });
+    expect(res.status).toBe(422);
+    expect(res.json).toMatchObject({ code: "terms_not_allowed" });
+  });
+
+  it("makes nothing when another refusal follows valid terms: an unknown company, a manager without access, a CRM that is down", async () => {
+    const terms = TERMS_AT_CREATION.t_and_m;
+    const unknownCompany = await create({ name: "Koordy", type: "t_and_m", entity: "welld_ch", companyId: "co-nope", terms });
+    expect(unknownCompany.json).toMatchObject({ code: "company_not_found" });
+    const noCompany = await create({ name: "Koordy", type: "t_and_m", entity: "welld_ch", terms });
+    expect(noCompany.json).toMatchObject({ code: "company_required" });
+    const outsider = await create({ name: "Koordy", type: "t_and_m", entity: "welld_ch", companyId: "co-acme", projectManagerId: "user-employee", terms });
+    expect(outsider.json).toMatchObject({ code: "not_project_user" });
+    crm.down = true;
+    const down = await create({ name: "Koordy", type: "t_and_m", entity: "welld_ch", companyId: "co-acme", terms });
+    expect(down.json).toMatchObject({ code: "crm_unavailable" });
+    expect(await db.project.count()).toBe(0);
+    expect(await db.projectTerms.count()).toBe(0);
+  });
+
+  it("keeps the authorization before the terms' rules: another entity's manager is refused 403, whatever the terms hold", async () => {
+    // A body that fails its SHAPE is the 400 of the route, as for every create; the entity check follows it (AC-4.4).
+    const res = await create({ name: "Koordy", type: "maintenance", entity: "welld_it", companyId: "co-zeta", terms: { startDate: "2026-12-01", terms: {} } }, "pmCh");
+    expect(res.status).toBe(403);
+    expect(res.json).toMatchObject({ code: "out_of_scope" });
+    const internal = await create({ name: "Tools", type: "internal", entity: "welld_it", terms: { startDate: "2026-12-01" } }, "pmCh");
+    expect(internal.status).toBe(403);
+    expect(await db.project.count()).toBe(0);
+  });
+
+  it("keeps the project manager rules with terms: the creator by default, another project-module user when given (AC-5.1)", async () => {
+    const own = await create({ name: "Koordy", type: "t_and_m", entity: "welld_ch", companyId: "co-acme", terms: TERMS_AT_CREATION.t_and_m });
+    expect(own.json.projectManager).toMatchObject({ id: "user-pm-ch" });
+    const other = await create({
+      name: "Koordy 2",
+      type: "t_and_m",
+      entity: "welld_ch",
+      companyId: "co-acme",
+      projectManagerId: "user-colleague",
+      terms: TERMS_AT_CREATION.t_and_m,
+    });
+    expect(other.json.projectManager).toMatchObject({ id: "user-colleague" });
+    expect(await db.projectTerms.count()).toBe(2);
+  });
+});
+
+describe("POST /projects, the five types (specs/022 T28; AC-5.1, AC-5.2, D50)", () => {
+  it.each(PROJECT_TYPES)(
+    "creates a %s project with the company rule, the creator as project manager, planned, not awaiting, with no purchase order",
+    async (type) => {
+      const withCompany = type !== "internal";
+      const res = await create({ name: `By hand ${type}`, type, entity: "welld_ch", ...(withCompany ? { companyId: "co-acme" } : {}) });
+      expect(res.status).toBe(201);
+      expect(res.json).toMatchObject({
+        type,
+        state: "planned",
+        company: withCompany ? { id: "co-acme", name: "Acme SA" } : null,
+        projectManager: { id: "user-pm-ch" },
+        awaitingProjectManager: false,
+        purchaseOrder: null,
+        terms: null,
+      });
+      expect(await db.purchaseOrder.count()).toBe(0);
+    },
+  );
+
+  it.each(CLIENT_TYPES)("refuses a %s project without a company (company_required) and an internal one with a company (company_not_allowed)", async (type) => {
+    expect((await create({ name: "x", type, entity: "welld_ch" })).json).toMatchObject({ status: 422, code: "company_required" });
+    expect((await create({ name: "x", type: "internal", entity: "welld_ch", companyId: "co-acme" })).json).toMatchObject({
+      status: 422,
+      code: "company_not_allowed",
+    });
+    expect(await db.project.count()).toBe(0);
+  });
+
+  it("never takes a purchase order from the caller: every member of one is a 400 and nothing is made (AC-5.2, AC-1.10)", async () => {
+    for (const extra of [
+      { purchaseOrder: { dealId: "deal-1", opsManagerId: "user-ops" } },
+      { dealId: "deal-1" },
+      { opsManagerId: "user-ops" },
+      { referentContactId: "c-1" },
+      { bexioOrderId: "AB-1" },
+      { estimateId: "est-1" },
+    ]) {
+      const res = await create({ name: "By hand", type: "t_and_m", entity: "welld_ch", companyId: "co-acme", ...extra });
+      expect(res.status).toBe(400);
+      expect(res.json).toMatchObject({ code: "validation_failed" });
+    }
+    expect(await db.project.count()).toBe(0);
+    expect(await db.purchaseOrder.count()).toBe(0);
+  });
+
+  it("sends nobody a notification when it is created (AC-5.2)", async () => {
+    const events: NotifyEvent[] = [];
+    setNotifierForTests({
+      async notify(event) {
+        events.push(event);
+      },
+    });
+    try {
+      expect((await create({ name: "By hand", type: "t_and_m", entity: "welld_ch", companyId: "co-acme", terms: TERMS_AT_CREATION.t_and_m })).status).toBe(201);
+      await new Promise((resolve) => setTimeout(resolve, 20));
+    } finally {
+      resetNotifierForTests();
+    }
+    expect(events).toEqual([]);
+  });
+
+  it("gives a hand-made project no purchase order by any route: the PO routes are 404, and the project stays without one (AC-5.2, D38)", async () => {
+    const made = await create({ name: "By hand", type: "fixed_price", entity: "welld_ch", companyId: "co-acme", terms: TERMS_AT_CREATION.fixed_price });
+    const id = made.json.id as string;
+    const refused = [
+      await call("PATCH", `/projects/${id}/purchase-order`, { as: "pmCh", ifMatch: 1, body: { referentContactId: null } }),
+      await call("PATCH", `/projects/${id}/purchase-order`, { as: "admin", ifMatch: 1, body: { referentContactId: "c-1" } }),
+      await call("GET", `/projects/${id}/purchase-order/contacts`, { as: "pmCh" }),
+      await call("PUT", `/projects/${id}/purchase-order/bexio-order`, { as: "accounting", ifMatch: 1, body: { bexioOrderId: "AB-1" } }),
+      await call("PUT", `/projects/${id}/purchase-order/bexio-order`, { as: "admin", ifMatch: 1, body: { bexioOrderId: "AB-1" } }),
+    ];
+    for (const res of refused) {
+      expect(res.status).toBe(404);
+      expect(res.json).toMatchObject({ code: "purchase_order_not_found" });
+    }
+    // There is no route that makes a purchase order for a project: only the take makes one, with its project.
+    for (const method of ["POST", "PUT", "DELETE"] as const) {
+      const res = await call(method, `/projects/${id}/purchase-order`, { as: "admin", body: { dealId: "deal-1", opsManagerId: "user-ops" } });
+      expect([404, 405]).toContain(res.status);
+    }
+    expect((await call("POST", `/projects/${id}/purchase-order/bexio-order`, { as: "admin", body: {} })).status).not.toBe(201);
+    // Nor does the project's own PATCH take one (strict).
+    const patched = await call("PATCH", `/projects/${id}`, { as: "pmCh", ifMatch: 1, body: { dealId: "deal-1" } });
+    expect(patched.status).toBe(400);
+    expect(await db.purchaseOrder.count()).toBe(0);
+    expect((await call("GET", `/projects/${id}`, { as: "viewer" })).json).toMatchObject({ purchaseOrder: null, awaitingProjectManager: false });
   });
 });
 

@@ -3,9 +3,13 @@
  * hand, specs/022 from a won deal). The routes own the request, the guards and the answer.
  */
 
+import type { z } from "@hono/zod-openapi";
 import { findActiveCompany, orCrmUnavailable } from "../lib/crm";
 import type { Prisma } from "../lib/generated/prisma/client";
 import { unprocessable } from "../lib/problem";
+import { termsCreateData, type NewTerms } from "../terms/create";
+import { parseTerms } from "../terms/terms";
+import type { CreateTermsSchema } from "../terms/terms.schemas";
 import { isClientType, type ProjectType } from "./projects.schemas";
 
 /**
@@ -47,3 +51,21 @@ export const projectCreateData = (project: NewProject): Prisma.ProjectUncheckedC
   projectManagerId: project.projectManagerId,
   createdById: project.createdById,
 });
+
+/**
+ * The terms a hand-made project is created with, validated against ITS type (AC-5.3, A38): `null` when it
+ * is created without any. An `internal` project has no clients and takes none (`422 terms_not_allowed`). The
+ * type's own rules apply in full, so a refusal never leaves a half-made project: it is thrown here, before
+ * anything is written, naming the field by its path in the create body (`terms.terms.deadline`).
+ */
+export function creationTerms(type: ProjectType, input: z.infer<typeof CreateTermsSchema> | undefined): NewTerms | null {
+  if (input === undefined) return null;
+  if (type === "internal") {
+    throw unprocessable("An internal project has no clients and takes no terms", { field: "terms" }, "terms_not_allowed");
+  }
+  return { type, startDate: input.startDate, endDate: input.endDate, terms: parseTerms(type, input.terms ?? {}, ["terms", "terms"]) };
+}
+
+/** The nested write that makes the terms in the same statement as the project: nothing is left behind on a refusal. */
+export const termsCreate = (terms: NewTerms | null): Pick<Prisma.ProjectUncheckedCreateInput, "terms"> =>
+  terms === null ? {} : { terms: { create: termsCreateData(terms) } };

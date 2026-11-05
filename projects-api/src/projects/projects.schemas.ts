@@ -13,6 +13,7 @@ import {
   pageQuery,
   requiredText,
 } from "../lib/http";
+import { CreateTermsSchema } from "../terms/terms.schemas";
 
 export const PROJECT_TYPES = ["t_and_m", "fixed_price", "maintenance", "saas", "internal"] as const;
 export const ProjectTypeSchema = z.enum(PROJECT_TYPES);
@@ -158,6 +159,12 @@ export const ProjectPageSchema = pageOf(ProjectListItemSchema);
 /** The distinct project managers of all projects: what feeds the list's project-manager filter. */
 export const ProjectManagersSchema = z.object({ items: z.array(PersonSchema) });
 
+/**
+ * A hand-made project: any type, a company for every client type, and optionally its terms (specs/022 D50,
+ * A38). `terms` is the contract shape of `POST /projects/{id}/terms`, `{ startDate, endDate?, terms? }`, nested
+ * as the take of a deal nests it: a refusal names the field by its path in this body (`terms.startDate`,
+ * `terms.terms.deadline`). Optional as a whole; an `internal` project takes none.
+ */
 export const CreateProjectSchema = z
   .object({
     name: requiredText(200),
@@ -165,6 +172,7 @@ export const CreateProjectSchema = z
     entity: EntitySchema,
     companyId: IdSchema.optional(),
     projectManagerId: IdSchema.optional(),
+    terms: CreateTermsSchema.optional(),
   })
   .strict();
 

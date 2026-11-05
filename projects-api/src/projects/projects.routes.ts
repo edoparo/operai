@@ -41,7 +41,7 @@ import { notFound, validationHook } from "../lib/problem";
 import { referentRouter } from "../purchase-orders/referent.routes";
 import { dealRefs, loadReferent, noStore, purchaseOrderView, type ViewContext } from "../purchase-orders/view";
 import { toTermsView } from "../terms/terms";
-import { assertCompanyFits, projectCreateData } from "./create";
+import { assertCompanyFits, creationTerms, projectCreateData, termsCreate } from "./create";
 import {
   AWAITING_PROJECT_MANAGER,
   NO_PROJECT_MANAGER,
@@ -117,13 +117,18 @@ const createProjectRoute = createRoute({
   method: "post",
   path: "/projects",
   tags: ["Projects"],
-  summary: "Create a project (project:manage for its entity)",
+  summary: "Create a project by hand, optionally with its terms (project:manage for its entity)",
   middleware: [...authorized, requireCapability(PROJECT_MANAGE)],
   request: { body: { content: { "application/json": { schema: CreateProjectSchema } }, required: true } },
   responses: {
     201: { description: "Created, state planned", ...json(ProjectSchema) },
     // 403: forbidden, or out_of_scope for the other entity (commonErrors).
-    422: { description: "company_required, company_not_allowed, company_not_found or not_project_user" },
+    // 400 `validation_failed` names a malformed member by its path in the body: `terms.startDate`, `terms.terms.deadline`.
+    422: {
+      description:
+        "company_required, company_not_allowed, company_not_found, not_project_user, terms_not_allowed (terms on an " +
+        "internal project) or maintenance_needs_sla_or_hours (field `terms.terms`)",
+    },
     ...commonErrors,
   },
 });
@@ -191,20 +196,27 @@ projectsRouter.route("/", referentRouter);
 projectsRouter.openapi(createProjectRoute, async (c) => {
   const body = c.req.valid("json");
   assertCanManage(c, body.entity);
+  // The terms are checked first: it costs no call, and a refusal names the field of the body (AC-5.3).
+  const terms = creationTerms(body.type, body.terms);
   await assertCompanyFits(body.type, body.companyId);
   const userId = c.get("userId");
   const projectManagerId = body.projectManagerId ?? userId;
   // The caller needs no check (they are in the module right now); anyone else must hold access (AC-1.6).
   await requireProjectUsers(c, [projectManagerId]);
+  // Project and terms are ONE statement (a nested create), as in the take: a refusal leaves nothing behind.
+  // A hand-made project never has a purchase order: only the take makes one (specs/022 D38, D50).
   const row = await db.project.create({
-    data: projectCreateData({
-      name: body.name,
-      type: body.type,
-      entity: body.entity,
-      companyId: body.companyId ?? null,
-      projectManagerId,
-      createdById: userId,
-    }),
+    data: {
+      ...projectCreateData({
+        name: body.name,
+        type: body.type,
+        entity: body.entity,
+        companyId: body.companyId ?? null,
+        projectManagerId,
+        createdById: userId,
+      }),
+      ...termsCreate(terms),
+    },
     include: projectInclude,
   });
   c.header("ETag", etag(row.version));
