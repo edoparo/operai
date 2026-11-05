@@ -11,9 +11,9 @@ import { call, makeCompany, makeDeal, resetWorld } from "../test-support/world";
 import { createProjectsReader, setProjectsReaderForTests } from "../lib/projects";
 import type { ServiceTokenProvider } from "../lib/serviceToken";
 
-/** A fake projects-api: the contracts it holds, by deal id, and a switch for an outage. */
+/** A fake projects-api: the purchase orders it holds, by deal id, and a switch for an outage. */
 const projectsApi = {
-  contracts: new Map<string, { project: { id: string; name: string }; bexioOrderId: string | null }>(),
+  purchaseOrders: new Map<string, { project: { id: string; name: string }; bexioOrderId: string | null }>(),
   down: false,
   calls: [] as { url: string; authorization: string | null }[],
 };
@@ -26,15 +26,15 @@ const fetchImpl = (async (url: unknown, init?: RequestInit) => {
   if (projectsApi.down) return new Response("down", { status: 503 });
   const dealIds = (target.searchParams.get("dealIds") ?? "").split(",");
   const items = dealIds.flatMap((dealId) => {
-    const contract = projectsApi.contracts.get(dealId);
-    return contract ? [{ dealId, contractId: `contract-of-${dealId}`, ...contract }] : [];
+    const purchaseOrder = projectsApi.purchaseOrders.get(dealId);
+    return purchaseOrder ? [{ dealId, purchaseOrderId: `purchase-order-of-${dealId}`, ...purchaseOrder }] : [];
   });
   return Response.json({ items });
 }) as typeof fetch;
 
 beforeEach(async () => {
   await resetWorld();
-  projectsApi.contracts.clear();
+  projectsApi.purchaseOrders.clear();
   projectsApi.down = false;
   projectsApi.calls = [];
   setProjectsReaderForTests(createProjectsReader({ baseUrl: "http://projects.test", tokens, fetchImpl }));
@@ -44,9 +44,9 @@ afterEach(() => setProjectsReaderForTests(undefined));
 const newDeal = async () => makeDeal((await makeCompany()).id);
 
 describe("GET /deals/{id} — delivery (AC-3.4)", () => {
-  it("shows the project's name and the contract's Bexio order id for a deal projects-api knows", async () => {
+  it("shows the project's name and the purchase order's Bexio order id for a deal projects-api knows", async () => {
     const deal = await newDeal();
-    projectsApi.contracts.set(deal.id, { project: { id: "project-1", name: "Koordy" }, bexioOrderId: "BX-1001" });
+    projectsApi.purchaseOrders.set(deal.id, { project: { id: "project-1", name: "Koordy" }, bexioOrderId: "BX-1001" });
 
     const res = await call("GET", `/deals/${deal.id}`, { as: "consultant" });
 
@@ -56,12 +56,12 @@ describe("GET /deals/{id} — delivery (AC-3.4)", () => {
       delivery: { project: { id: "project-1", name: "Koordy" }, bexioOrderId: "BX-1001" },
       deliveryKnown: true,
     });
-    expect(projectsApi.calls).toEqual([{ url: `http://projects.test/system/contracts?dealIds=${deal.id}`, authorization: "Bearer service-jwt" }]);
+    expect(projectsApi.calls).toEqual([{ url: `http://projects.test/system/purchase-orders?dealIds=${deal.id}`, authorization: "Bearer service-jwt" }]);
   });
 
   it("keeps the Bexio order id empty when accounting has not typed one yet", async () => {
     const deal = await newDeal();
-    projectsApi.contracts.set(deal.id, { project: { id: "project-1", name: "Koordy" }, bexioOrderId: null });
+    projectsApi.purchaseOrders.set(deal.id, { project: { id: "project-1", name: "Koordy" }, bexioOrderId: null });
     const res = await call("GET", `/deals/${deal.id}`);
     expect(res.json).toMatchObject({ delivery: { bexioOrderId: null }, deliveryKnown: true });
   });
@@ -75,7 +75,7 @@ describe("GET /deals/{id} — delivery (AC-3.4)", () => {
 
   it("still loads the deal, with `deliveryKnown: false`, when projects-api is down", async () => {
     const deal = await newDeal();
-    projectsApi.contracts.set(deal.id, { project: { id: "project-1", name: "Koordy" }, bexioOrderId: "BX-1001" });
+    projectsApi.purchaseOrders.set(deal.id, { project: { id: "project-1", name: "Koordy" }, bexioOrderId: "BX-1001" });
     projectsApi.down = true;
     const res = await call("GET", `/deals/${deal.id}`);
     expect(res.status).toBe(200);

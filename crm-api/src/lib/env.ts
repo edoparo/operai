@@ -72,8 +72,8 @@ const envSchema = z.object({
   // notifier is a no-op.
   NOTIFY_INTERNAL_URL: z.string().url("NOTIFY_INTERNAL_URL must be a valid URL").optional(),
   // ─── projects-api (specs/022, ADR-0060) ────────────────────────────────────
-  // The deal page reads its project and Bexio order id from `GET /system/contracts` as ITSELF,
-  // with the same service client as the notifier (scope `projects.contracts.read`). Optional:
+  // The deal page reads its project and Bexio order id from `GET /system/purchase-orders` as ITSELF,
+  // with the same service client as the notifier (scope `projects.purchase-orders.read`). Optional:
   // without it the deal page says the delivery side is unavailable and everything else works.
   PROJECTS_INTERNAL_URL: z.string().url("PROJECTS_INTERNAL_URL must be a valid URL").optional(),
   SERVICE_CLIENT_ID: z.string().min(1).optional(),

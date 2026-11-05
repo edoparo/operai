@@ -179,7 +179,7 @@ const DealSchema = DealSummarySchema.extend({
 });
 
 const DealWithDeliverySchema = DealSchema.extend({
-  /** The project that carries the deal and its contract's Bexio order id; `null` when none does. */
+  /** The project that carries the deal and its purchase order's Bexio order id; `null` when none does. */
   delivery: DeliverySchema.nullable(),
   /** `false` when projects-api is not configured or did not answer: `delivery` is then unknown, not absent. */
   deliveryKnown: z.boolean(),

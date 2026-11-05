@@ -22,6 +22,7 @@ import { meetingHostResolveRouter } from "./meeting-host/resolve.routes";
 import { meetingHostNoticesRouter } from "./meeting-host/notices.routes";
 import { activityHostResolveRouter } from "./activity-host/resolve.routes";
 import { systemCompaniesRouter } from "./system/companies.routes";
+import { systemContactsRouter } from "./system/contacts.routes";
 import { systemDealsRouter } from "./system/deals.routes";
 import { requestLogger } from "./lib/logger";
 import { handleProblemError, problem } from "./lib/problem";
@@ -86,6 +87,7 @@ app.route("/", activityHostResolveRouter);
 // Service-to-service routes: their own credential (a scoped service JWT), not the user guards.
 app.route("/", systemCompaniesRouter);
 app.route("/", systemDealsRouter);
+app.route("/", systemContactsRouter);
 
 // ─── OpenAPI + Scalar UI ─────────────────────────────────────────────────────
 
