@@ -22,9 +22,8 @@ import {
   isUniqueConstraintViolation,
   validateInvitation,
 } from "../invitations/createInvitation";
-import { serializeInvitation } from "../invitations/invitations.routes";
+import { serializeInvitation } from "../invitations/serialize";
 import { generateInvitationToken } from "../invitations/token";
-import { db } from "../lib/db";
 import {
   decideIfPending,
   findAccessRequestById,
@@ -177,27 +176,21 @@ accessRequestsRouter.openapi(approveRoute, async (c) => {
   if (!existing) return c.json(problem(404, "Not Found", c.req.path, `No access request with id "${id}"`), 404);
   if (existing.status !== "pending") return c.json(alreadyDecided(c.req.path), 409);
 
-  // The same checks `POST /admin/invitations` makes (AC-3.5, AC-5.1). The 409s
-  // carry no code there, so the cause is looked up here, on the refusal path only.
+  // The same checks `POST /admin/invitations` makes (AC-3.5, AC-5.1).
   const validated = await validateInvitation({
     email: existing.email,
     roleIds: body.roleIds,
     departmentIds: body.departmentIds,
   });
   if (!validated.ok) {
-    const { status, detail, code, allowedDomains } = validated.problem;
-    if (status === 409) {
-      const active = await db.user.findFirst({
-        where: { email: { equals: existing.email, mode: "insensitive" }, deletedAt: null },
-        select: { id: true },
-      });
+    const refusal = validated.problem;
+    if (refusal.status === 409) {
       return c.json(
-        problem(409, "Conflict", c.req.path, detail, {
-          code: active ? "active_user_exists" : "pending_invitation_exists",
-        }),
+        problem(409, "Conflict", c.req.path, refusal.detail, { code: refusal.code }),
         409,
       );
     }
+    const { detail, code, allowedDomains } = refusal;
     return c.json(
       problem(422, "Unprocessable Entity", c.req.path, detail, {
         ...(code !== undefined ? { code } : {}),

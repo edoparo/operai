@@ -265,7 +265,7 @@ export function createServiceTokenRouter(deps: { signJwt: SignServiceJwt }) {
     });
 
     c.header("Cache-Control", "no-store");
-    return c.json({ token, expiresInSeconds: SERVICE_TOKEN_TTL_SECONDS as 300 }, 200);
+    return c.json({ token, expiresInSeconds: SERVICE_TOKEN_TTL_SECONDS }, 200);
   });
 
   return serviceTokenRouter;

@@ -81,6 +81,11 @@ export const ProblemJsonSchema = z.object({
   instance: z.string(),
 });
 
+/** 409 from `POST /admin/invitations`: the problem plus the machine-readable cause (specs/023, AC-3.5). */
+export const InvitationConflictSchema = ProblemJsonSchema.extend({
+  code: z.enum(["active_user_exists", "pending_invitation_exists"]).optional(),
+});
+
 /** 422 from `POST /admin/invitations`: the problem plus the optional machine-readable domain refusal (specs/023, AC-5.1). */
 export const InvitationUnprocessableSchema = ProblemJsonSchema.extend({
   code: z.literal("domain_not_allowed").optional(),

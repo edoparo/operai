@@ -38,13 +38,13 @@ export interface InvitationInput {
   departmentIds: readonly string[];
 }
 
-/** A refusal, mapped to RFC 7807 by the caller. `code` and `allowedDomains` are machine-readable extras. */
-export interface InvitationProblem {
-  status: 409 | 422;
-  detail: string;
-  code?: "domain_not_allowed";
-  allowedDomains?: string[];
-}
+/**
+ * A refusal, mapped to RFC 7807 by the caller. A 409 always names its cause in `code`;
+ * a 422 may carry `domain_not_allowed` + `allowedDomains`.
+ */
+export type InvitationProblem =
+  | { status: 409; detail: string; code: "active_user_exists" | "pending_invitation_exists" }
+  | { status: 422; detail: string; code?: "domain_not_allowed"; allowedDomains?: string[] };
 
 export interface ValidInvitation {
   email: string;
@@ -61,12 +61,8 @@ export function isUniqueConstraintViolation(error: unknown): boolean {
   return error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002";
 }
 
-function fail(
-  status: 409 | 422,
-  detail: string,
-  extra: Pick<InvitationProblem, "code" | "allowedDomains"> = {},
-): ValidationResult {
-  return { ok: false, problem: { status, detail, ...extra } };
+function fail(problem: InvitationProblem): ValidationResult {
+  return { ok: false, problem };
 }
 
 /**
@@ -83,7 +79,9 @@ export async function validateInvitation(
 
   // ── 422 — the address must be in an allowed domain (AC-5.1) ─────────────
   if (!isAllowedDomain(email, allowedDomains)) {
-    return fail(422, `Invitations can only be sent to ${allowedDomains.join(", ")} addresses`, {
+    return fail({
+      status: 422,
+      detail: `Invitations can only be sent to ${allowedDomains.join(", ")} addresses`,
       code: "domain_not_allowed",
       allowedDomains: [...allowedDomains],
     });
@@ -94,7 +92,7 @@ export async function validateInvitation(
     const found = await db.role.findMany({ where: { id: { in: roleIds } }, select: { id: true } });
     const foundIds = new Set(found.map((r) => r.id));
     const missing = roleIds.filter((id) => !foundIds.has(id));
-    if (missing.length > 0) return fail(422, `Unknown role id(s): ${missing.join(", ")}`);
+    if (missing.length > 0) return fail({ status: 422, detail: `Unknown role id(s): ${missing.join(", ")}` });
   }
   if (departmentIds.length > 0) {
     const found = await db.department.findMany({
@@ -103,7 +101,7 @@ export async function validateInvitation(
     });
     const foundIds = new Set(found.map((d) => d.id));
     const missing = departmentIds.filter((id) => !foundIds.has(id));
-    if (missing.length > 0) return fail(422, `Unknown department id(s): ${missing.join(", ")}`);
+    if (missing.length > 0) return fail({ status: 422, detail: `Unknown department id(s): ${missing.join(", ")}` });
   }
 
   // ── 409 — an active user already owns this email (specs/006 AC-1.3) ────
@@ -111,15 +109,22 @@ export async function validateInvitation(
     where: { email: { equals: email, mode: "insensitive" }, deletedAt: null },
     select: { id: true },
   });
-  if (activeUser) return fail(409, `An active user already exists with email "${email}"`);
+  if (activeUser) {
+    return fail({
+      status: 409,
+      detail: `An active user already exists with email "${email}"`,
+      code: "active_user_exists",
+    });
+  }
 
   // ── 409 — a live pending invitation already exists (specs/006 AC-1.4) ──
   const existingPending = await findLivePendingInvitationByEmail(db, email);
   if (existingPending) {
-    return fail(
-      409,
-      `A pending invitation already exists for "${email}" (id: ${existingPending.id})`,
-    );
+    return fail({
+      status: 409,
+      detail: `A pending invitation already exists for "${email}" (id: ${existingPending.id})`,
+      code: "pending_invitation_exists",
+    });
   }
 
   return { ok: true, value: { email, roleIds, departmentIds } };
@@ -205,7 +210,11 @@ export async function createInvitation(
     if (isUniqueConstraintViolation(error)) {
       return {
         ok: false,
-        problem: { status: 409, detail: `A pending invitation already exists for "${value.email}"` },
+        problem: {
+          status: 409,
+          detail: `A pending invitation already exists for "${value.email}"`,
+          code: "pending_invitation_exists",
+        },
       };
     }
     throw error;

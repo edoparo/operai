@@ -357,6 +357,7 @@ describe("Invitation admin API (T6)", () => {
     });
 
     expect(res.status).toBe(409);
+    expect(((await res.json()) as { code?: string }).code).toBe("active_user_exists");
     const row = await db.invitation.findFirst({ where: { email: existingUser.email.toLowerCase() } });
     expect(row).toBeNull();
     expect(sendInvitationEmailMock).not.toHaveBeenCalled();
@@ -395,8 +396,9 @@ describe("Invitation admin API (T6)", () => {
     });
 
     expect(res.status).toBe(409);
-    const body = (await res.json()) as { detail: string };
+    const body = (await res.json()) as { detail: string; code?: string };
     expect(body.detail).toContain(existing.id);
+    expect(body.code).toBe("pending_invitation_exists");
   });
 
   test("(security-review fix #7, specs/006-user-invitations, A04) two concurrent creates for the SAME email race past the pre-check — exactly one 201, the other 409 (never 500)", async () => {

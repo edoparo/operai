@@ -47,7 +47,7 @@ export const RESERVED_SERVICE_CLIENT_ID = "auth";
 export const SERVICE_SUB_PREFIX = "system:";
 
 /** Lifetime of a minted service token (ADR-0044: 5 minutes). */
-export const SERVICE_TOKEN_TTL_SECONDS = 300;
+export const SERVICE_TOKEN_TTL_SECONDS = 300 as const;
 
 export interface ServiceClient {
   readonly secret: string;

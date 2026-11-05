@@ -36,12 +36,12 @@ import {
   requireAuth,
   sessionMiddleware,
 } from "../auth/auth.middleware";
-import { db } from "../lib/db";
 import type { Invitation } from "../lib/generated/prisma/client";
 import { withAudit } from "../authz/audit";
 import { env } from "../lib/env";
 import { sendInvitationEmail } from "../lib/notify";
 import { buildInviteUrl, createInvitation } from "./createInvitation";
+import { serializeInvitation } from "./serialize";
 import {
   effectiveInvitationStatus,
   findInvitationById,
@@ -55,6 +55,7 @@ import {
 import { generateInvitationToken } from "./token";
 import {
   CreateInvitationBodySchema,
+  InvitationConflictSchema,
   InvitationDetailSchema,
   InvitationIdParamSchema,
   InvitationListResponseSchema,
@@ -93,58 +94,6 @@ function unprocessable(instance: string, detail: string) {
     detail,
     instance,
   } as const;
-}
-
-// ─── Serialization ────────────────────────────────────────────────────────────
-
-async function summarizeRoles(ids: string[]) {
-  if (ids.length === 0) return [];
-  return db.role.findMany({
-    where: { id: { in: ids } },
-    select: { id: true, name: true },
-    orderBy: { name: "asc" },
-  });
-}
-
-async function summarizeDepartments(ids: string[]) {
-  if (ids.length === 0) return [];
-  return db.department.findMany({
-    where: { id: { in: ids } },
-    select: { id: true, name: true },
-    orderBy: { name: "asc" },
-  });
-}
-
-async function summarizeInviter(userId: string | null) {
-  if (!userId) return null;
-  return db.user.findUnique({
-    where: { id: userId },
-    select: { id: true, name: true, email: true },
-  });
-}
-
-/** The single serializer for `InvitationDetail` — used by create/resend/revoke/list so the wire shape never drifts between endpoints. */
-export async function serializeInvitation(invitation: Invitation) {
-  const [roles, departments, invitedBy] = await Promise.all([
-    summarizeRoles(invitation.roleIds),
-    summarizeDepartments(invitation.departmentIds),
-    summarizeInviter(invitation.invitedByUserId),
-  ]);
-
-  const effectiveStatus = effectiveInvitationStatus(invitation);
-
-  return {
-    id: invitation.id,
-    email: invitation.email,
-    status: effectiveStatus,
-    roles,
-    departments,
-    invitedBy,
-    invitedAt: invitation.createdAt.toISOString(),
-    expiresAt: invitation.expiresAt.toISOString(),
-    acceptedAt: invitation.status === "accepted" ? invitation.updatedAt.toISOString() : null,
-    emailDelivery: (invitation.lastEmailStatus as "sent" | "failed" | null) ?? null,
-  };
 }
 
 // ─── Router ───────────────────────────────────────────────────────────────────
@@ -210,7 +159,7 @@ const createInvitationRoute = createRoute({
       description: "Caller does not hold the admin role",
     },
     409: {
-      content: { "application/json": { schema: ProblemJsonSchema } },
+      content: { "application/json": { schema: InvitationConflictSchema } },
       description:
         "An active user already exists for this email (AC-1.3), or a live " +
         "pending invitation already exists for it (AC-1.4)",
@@ -232,14 +181,18 @@ invitationsRouter.openapi(createInvitationRoute, async (c) => {
   // `createInvitation.ts`, shared with the access-request approval (specs/023).
   const result = await createInvitation(body, actor);
   if (!result.ok) {
-    const { status, detail, code, allowedDomains } = result.problem;
+    const problem = result.problem;
+    if (problem.status === 409) {
+      return c.json({ ...conflict(c.req.path, problem.detail), code: problem.code }, 409);
+    }
+    const { detail, code, allowedDomains } = problem;
     return c.json(
       {
-        ...(status === 409 ? conflict(c.req.path, detail) : unprocessable(c.req.path, detail)),
+        ...unprocessable(c.req.path, detail),
         ...(code !== undefined ? { code } : {}),
         ...(allowedDomains !== undefined ? { allowedDomains } : {}),
       },
-      status,
+      422,
     );
   }
 
