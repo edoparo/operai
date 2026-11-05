@@ -1,10 +1,11 @@
 /**
  * @vitest-environment jsdom
  *
- * ProjectFormDialog (AC-1.1, AC-1.6, AC-4.4): the company field only for client
- * types, required-field checks before any request, the body that reaches
- * POST /projects, the entities the caller may create for, and the server's
- * refusals landing on the field they name.
+ * ProjectFormDialog (AC-1.1, AC-1.6, AC-4.4, specs/022 AC-5.1, AC-5.3): all five
+ * types, the company field for every type but internal, required-field checks
+ * before any request, the body that reaches POST /projects, the optional Terms
+ * section (collapsed by default, the type's rules once opened), the entities the
+ * caller may create for, and the server's refusals landing on the field they name.
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
@@ -199,6 +200,231 @@ describe('creating a project (AC-1.1)', () => {
   })
 })
 
+/** The base of a hand-made project of `type`, with a company when it needs one: everything but the terms. */
+const fillBase = async (dialog: HTMLElement, type: string, name = 'Koordy') => {
+  fireEvent.change(within(dialog).getByLabelText(/^Name/), { target: { value: name } })
+  fireEvent.change(within(dialog).getByLabelText(/^Type/), { target: { value: type } })
+  fireEvent.change(within(dialog).getByLabelText(/wellD entity/), { target: { value: 'welld_ch' } })
+  if (type !== 'internal') await chooseCompany(dialog)
+}
+const termsToggle = (dialog: HTMLElement) => within(dialog).queryByRole('button', { name: /^Terms/ })
+const openTerms = (dialog: HTMLElement) => fireEvent.click(termsToggle(dialog)!)
+const submit = (dialog: HTMLElement) => fireEvent.click(within(dialog).getByTestId('projects-form-submit'))
+const setField = (dialog: HTMLElement, label: RegExp, value: string) =>
+  fireEvent.change(within(dialog).getByLabelText(label), { target: { value } })
+
+describe('the optional Terms section (AC-5.3)', () => {
+  it.each(['t_and_m', 'fixed_price', 'maintenance', 'saas'])(
+    'is offered for a %s project, collapsed: no terms field until it is opened',
+    (type) => {
+      const dialog = renderDialog()
+      setField(dialog, /^Type/, type)
+      const toggle = termsToggle(dialog)!
+      expect(toggle.getAttribute('aria-expanded')).toBe('false')
+      expect(within(dialog).queryByLabelText(/^Start date/)).toBeNull()
+      fireEvent.click(toggle)
+      expect(toggle.getAttribute('aria-expanded')).toBe('true')
+      expect(within(dialog).getByLabelText(/^Start date/)).not.toBeNull()
+    },
+  )
+
+  it('is not offered for an internal project, nor before a type is chosen', () => {
+    const dialog = renderDialog()
+    expect(termsToggle(dialog)).toBeNull()
+    setField(dialog, /^Type/, 'internal')
+    expect(termsToggle(dialog)).toBeNull()
+  })
+
+  it.each([
+    ['fixed_price', [/^Deadline/, /^Max effort/]],
+    ['maintenance', [/^Include an SLA/, /^Include an hour package/]],
+    ['saas', [/^Include an SLA/, /^Include an hour package/]],
+    ['t_and_m', [/^Profile/, /^Planned man-days/]],
+  ] as const)('once opened, asks the terms of a %s project (the type’s own fields)', (type, labels) => {
+    const dialog = renderDialog()
+    setField(dialog, /^Type/, type)
+    openTerms(dialog)
+    expect(within(dialog).getByLabelText(/^Start date/)).not.toBeNull()
+    expect(within(dialog).getByLabelText(/^End date/)).not.toBeNull()
+    for (const label of labels) expect(within(dialog).getByLabelText(label)).not.toBeNull()
+  })
+
+  it('shows the fields of the type chosen now when the type changes after opening', () => {
+    const dialog = renderDialog()
+    setField(dialog, /^Type/, 'fixed_price')
+    openTerms(dialog)
+    setField(dialog, /^Type/, 't_and_m')
+    expect(within(dialog).queryByLabelText(/^Deadline/)).toBeNull()
+    expect(within(dialog).getByLabelText(/^Profile/)).not.toBeNull()
+  })
+
+  it('creates with no terms when left closed: no `terms` member at all', async () => {
+    const dialog = renderDialog()
+    await fillBase(dialog, 'fixed_price')
+    submit(dialog)
+    await waitFor(() => expect(onSaved).toHaveBeenCalled())
+    expect(posted()).not.toHaveProperty('terms')
+  })
+
+  it('creates with no terms when opened and closed again, whatever was typed in it', async () => {
+    const dialog = renderDialog()
+    await fillBase(dialog, 'fixed_price')
+    openTerms(dialog)
+    setField(dialog, /^Deadline/, '2026-12-01')
+    openTerms(dialog)
+    submit(dialog)
+    await waitFor(() => expect(onSaved).toHaveBeenCalled())
+    expect(posted()).not.toHaveProperty('terms')
+  })
+
+  it('sends no terms for an internal project even if the section was opened for another type', async () => {
+    const dialog = renderDialog()
+    setField(dialog, /^Type/, 'fixed_price')
+    openTerms(dialog)
+    setField(dialog, /^Start date/, '2026-02-01')
+    await fillBase(dialog, 'internal')
+    submit(dialog)
+    await waitFor(() => expect(onSaved).toHaveBeenCalled())
+    expect(posted()).not.toHaveProperty('terms')
+  })
+})
+
+describe('the terms of a type, once opened (AC-5.3)', () => {
+  const refused = async (type: string, fill: (dialog: HTMLElement) => void = () => undefined) => {
+    const dialog = renderDialog()
+    await fillBase(dialog, type)
+    openTerms(dialog)
+    fill(dialog)
+    submit(dialog)
+    return dialog
+  }
+  const errorIn = (dialog: HTMLElement, testId: string, text: string) =>
+    within(within(dialog).getByTestId(testId)).getByText(text)
+
+  it('asks a start date of every set of terms', async () => {
+    const dialog = await refused('saas')
+    expect(errorIn(dialog, 'projects-form-terms-startDate', 'This field is required.')).not.toBeNull()
+    expect(posted()).toBeNull()
+  })
+
+  it('fixed price: the deadline and the max effort together', async () => {
+    const dialog = await refused('fixed_price', (d) => setField(d, /^Start date/, '2026-02-01'))
+    expect(errorIn(dialog, 'projects-form-terms-deadline', 'This field is required.')).not.toBeNull()
+    expect(errorIn(dialog, 'projects-form-terms-max-effort', 'This field is required.')).not.toBeNull()
+    expect(posted()).toBeNull()
+  })
+
+  it('fixed price: a deadline without a max effort is refused', async () => {
+    const dialog = await refused('fixed_price', (d) => {
+      setField(d, /^Start date/, '2026-02-01')
+      setField(d, /^Deadline/, '2026-12-01')
+    })
+    expect(
+      within(within(dialog).getByTestId('projects-form-terms-deadline')).queryByText('This field is required.'),
+    ).toBeNull()
+    expect(errorIn(dialog, 'projects-form-terms-max-effort', 'This field is required.')).not.toBeNull()
+    expect(posted()).toBeNull()
+  })
+
+  it('maintenance: an SLA or an hour package, at least one', async () => {
+    const dialog = await refused('maintenance', (d) => setField(d, /^Start date/, '2026-02-01'))
+    expect(within(dialog).getByText('Add an SLA, an hour package, or both.')).not.toBeNull()
+    expect(posted()).toBeNull()
+  })
+
+  it('time and material: each position needs man-days above zero', async () => {
+    const dialog = await refused('t_and_m', (d) => {
+      setField(d, /^Start date/, '2026-02-01')
+      setField(d, /^Profile/, 'Senior developer')
+      setField(d, /^Planned man-days/, '0')
+    })
+    expect(within(dialog).getByText('Enter man-days above 0, with at most one decimal.')).not.toBeNull()
+    expect(posted()).toBeNull()
+  })
+
+  it('an end date before the start date is refused', async () => {
+    const dialog = await refused('saas', (d) => {
+      setField(d, /^Start date/, '2026-02-01')
+      setField(d, /^End date/, '2026-01-01')
+    })
+    expect(within(dialog).getByText('The end date must not be before the start date.')).not.toBeNull()
+    expect(posted()).toBeNull()
+  })
+
+  it('the project’s own fields are checked with the section open too', () => {
+    const dialog = renderDialog()
+    setField(dialog, /^Type/, 'saas')
+    openTerms(dialog)
+    submit(dialog)
+    expect(within(dialog).getByText('Choose a company from the list.')).not.toBeNull()
+    expect(errorIn(dialog, 'projects-form-terms-startDate', 'This field is required.')).not.toBeNull()
+    expect(posted()).toBeNull()
+  })
+
+  it('fixed price: sends the dates and the members nested under `terms`, with the project', async () => {
+    const dialog = renderDialog()
+    await fillBase(dialog, 'fixed_price', 'Website')
+    openTerms(dialog)
+    setField(dialog, /^Start date/, '2026-02-01')
+    setField(dialog, /^Deadline/, '2026-12-01')
+    setField(dialog, /^Max effort/, '40')
+    submit(dialog)
+    await waitFor(() => expect(onSaved).toHaveBeenCalledWith(created))
+    expect(posted()).toEqual({
+      name: 'Website',
+      type: 'fixed_price',
+      entity: 'welld_ch',
+      companyId: 'c-acme',
+      terms: {
+        startDate: '2026-02-01',
+        terms: { deadline: '2026-12-01', estimatedManDays: null, maxEffortManDays: 40 },
+      },
+    })
+  })
+
+  it('time and material: sends its positions', async () => {
+    const dialog = renderDialog()
+    await fillBase(dialog, 't_and_m', 'Retainer')
+    openTerms(dialog)
+    setField(dialog, /^Start date/, '2026-02-01')
+    setField(dialog, /^End date/, '2026-12-31')
+    setField(dialog, /^Profile/, 'Senior developer')
+    setField(dialog, /^Planned man-days/, '20')
+    submit(dialog)
+    await waitFor(() => expect(onSaved).toHaveBeenCalled())
+    expect(posted()?.['terms']).toEqual({
+      startDate: '2026-02-01',
+      endDate: '2026-12-31',
+      terms: { positions: [{ profile: 'Senior developer', plannedManDays: 20 }] },
+    })
+  })
+
+  it('SaaS: the licence period alone is a valid set of terms (no SLA, no hour package)', async () => {
+    const dialog = renderDialog()
+    await fillBase(dialog, 'saas')
+    openTerms(dialog)
+    expect(within(dialog).getByText('The licence period: from the start date to the optional end date.')).not.toBeNull()
+    setField(dialog, /^Start date/, '2026-02-01')
+    submit(dialog)
+    await waitFor(() => expect(onSaved).toHaveBeenCalled())
+    expect(posted()?.['terms']).toEqual({ startDate: '2026-02-01', terms: { sla: null, hourPackage: null } })
+  })
+
+  it('maintenance: an SLA alone, with the prefilled take-in-charge times', async () => {
+    const dialog = renderDialog()
+    await fillBase(dialog, 'maintenance')
+    openTerms(dialog)
+    setField(dialog, /^Start date/, '2026-02-01')
+    fireEvent.click(within(dialog).getByLabelText(/^Include an SLA/))
+    submit(dialog)
+    await waitFor(() => expect(onSaved).toHaveBeenCalled())
+    expect(posted()?.['terms']).toEqual({
+      startDate: '2026-02-01',
+      terms: { sla: { highDays: 1, normalDays: 3 }, hourPackage: null },
+    })
+  })
+})
+
 describe('the project manager field', () => {
   it('shows the caller read-only when the directory refuses them, and still creates with the caller as manager', async () => {
     const dialog = renderDialog({ 'GET /authz/users/directory': () => problem(403, 'forbidden') })
@@ -280,6 +506,106 @@ describe('the server’s refusals', () => {
       'POST /projects': () => problem(400, 'validation_failed', { field: 'name' }, 'name: Required'),
     })
     expect(await within(dialog).findByText('name: Required')).not.toBeNull()
+  })
+
+  it.each([
+    ['company_required', 'A client project needs a company.'],
+    ['company_not_allowed', 'An internal project has no company.'],
+  ])('puts %s on the company field, in its own words (AC-5.1)', async (code, message) => {
+    const dialog = renderDialog({ 'POST /projects': () => problem(422, code) })
+    await fillBase(dialog, 'saas')
+    submit(dialog)
+    expect(await within(dialog).findByText(message)).not.toBeNull()
+    expect(within(within(dialog).getByTestId('projects-form-company')).getByText(message)).not.toBeNull()
+    expect(onSaved).not.toHaveBeenCalled()
+  })
+
+  it('says an internal project takes no terms when the server refuses terms_not_allowed (AC-5.3)', async () => {
+    const dialog = await submitInternal({ 'POST /projects': () => problem(422, 'terms_not_allowed') })
+    expect((await within(dialog).findByTestId('projects-form-error')).textContent).toContain(
+      'An internal project takes no terms.',
+    )
+  })
+
+  describe('a refusal that names a field of the terms, by its path in the create (AC-5.3)', () => {
+    const openedAs = async (type: string, answer: ReturnType<typeof problem>, fill: (d: HTMLElement) => void) => {
+      const dialog = renderDialog({ 'POST /projects': () => answer })
+      await fillBase(dialog, type)
+      openTerms(dialog)
+      fill(dialog)
+      submit(dialog)
+      return dialog
+    }
+    const fixedPrice = (d: HTMLElement) => {
+      setField(d, /^Start date/, '2026-02-01')
+      setField(d, /^Deadline/, '2026-12-01')
+      setField(d, /^Max effort/, '40')
+    }
+
+    it('terms.terms.deadline lands on the deadline input, the dialog stays open with every value kept', async () => {
+      const dialog = await openedAs(
+        'fixed_price',
+        problem(422, 'validation_failed', { field: 'terms.terms.deadline' }, 'The deadline must be after the start.'),
+        fixedPrice,
+      )
+      const message = await within(dialog).findByText('The deadline must be after the start.')
+      expect(
+        within(within(dialog).getByTestId('projects-form-terms-deadline')).getByText(message.textContent!),
+      ).not.toBeNull()
+      expect((within(dialog).getByLabelText(/^Max effort/) as HTMLInputElement).value).toBe('40')
+      expect(onSaved).not.toHaveBeenCalled()
+    })
+
+    it('terms.startDate lands on the start date input', async () => {
+      const dialog = await openedAs(
+        'fixed_price',
+        problem(422, 'validation_failed', { field: 'terms.startDate' }, 'Not a valid date.'),
+        fixedPrice,
+      )
+      await within(dialog).findByText('Not a valid date.')
+      expect(
+        within(within(dialog).getByTestId('projects-form-terms-startDate')).getByText('Not a valid date.'),
+      ).not.toBeNull()
+    })
+
+    it('a position’s path lands on that position’s input', async () => {
+      const dialog = await openedAs(
+        't_and_m',
+        problem(422, 'validation_failed', { field: 'terms.terms.positions.0.profile' }, 'Too long.'),
+        (d) => {
+          setField(d, /^Start date/, '2026-02-01')
+          setField(d, /^Profile/, 'Senior developer')
+          setField(d, /^Planned man-days/, '20')
+        },
+      )
+      const message = await within(dialog).findByText('Too long.')
+      expect(within(within(dialog).getByRole('group', { name: 'Position 1' })).getByText('Too long.')).toBe(message)
+    })
+
+    it('maintenance_needs_sla_or_hours lands on the terms, in its own words', async () => {
+      const dialog = await openedAs('maintenance', problem(422, 'maintenance_needs_sla_or_hours'), (d) => {
+        setField(d, /^Start date/, '2026-02-01')
+        fireEvent.click(within(d).getByLabelText(/^Include an SLA/))
+      })
+      await within(dialog).findByText('Add an SLA, an hour package, or both.')
+      expect(
+        within(within(dialog).getByTestId('projects-form-terms-terms-error')).getByText(
+          'Add an SLA, an hour package, or both.',
+        ),
+      ).not.toBeNull()
+    })
+
+    it('a path of the terms is ignored when no terms were sent: the dialog shows the server’s message instead', async () => {
+      const dialog = renderDialog({
+        'POST /projects': () =>
+          problem(422, 'validation_failed', { field: 'terms.terms.deadline' }, 'Something about the terms.'),
+      })
+      await fillBase(dialog, 'fixed_price')
+      submit(dialog)
+      expect((await within(dialog).findByTestId('projects-form-error')).textContent).toContain(
+        'Something about the terms.',
+      )
+    })
   })
 
   it('shows anything else in the dialog, keeping what was typed', async () => {

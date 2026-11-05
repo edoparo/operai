@@ -162,12 +162,12 @@ describe('ProjectsPage list (AC-1.4)', () => {
     })
     await screen.findByTestId('projects-table')
     const select = await screen.findByLabelText('Project manager')
-    await waitFor(() => expect(within(select).getAllByRole('option').length).toBe(3))
+    await waitFor(() => expect(within(select).getAllByRole('option').length).toBe(4))
     expect(
       within(select)
         .getAllByRole('option')
         .map((option) => option.textContent),
-    ).toEqual(['Any', 'Ada Lovelace (You)', 'Bob Builder'])
+    ).toEqual(['Any', 'None yet', 'Ada Lovelace (You)', 'Bob Builder'])
     fireEvent.change(select, { target: { value: 'u-bob' } })
     await waitFor(() => expect(lastQuery()).toEqual({ page: '1', projectManagerId: 'u-bob' }))
     fireEvent.change(select, { target: { value: '' } })
@@ -178,6 +178,37 @@ describe('ProjectsPage list (AC-1.4)', () => {
     )
   })
 
+  it('offers "None yet" for the projects awaiting a project manager, asked as projectManagerId=none (AC-4.5)', async () => {
+    await renderPage({
+      'GET /project-managers': () => ({ status: 200, body: { items: [ADA] } }),
+      'GET /projects': () => ({ status: 200, body: page([projectSummary()]) }),
+    })
+    await screen.findByTestId('projects-table')
+    const select = await screen.findByLabelText('Project manager')
+    expect(
+      within(select)
+        .getAllByRole('option')
+        .map((option) => option.textContent),
+    ).toContain('None yet')
+    fireEvent.change(select, { target: { value: 'none' } })
+    await waitFor(() => expect(lastQuery()).toEqual({ page: '1', projectManagerId: 'none' }))
+    fireEvent.change(select, { target: { value: '' } })
+    await waitFor(() => expect(lastQuery()).toEqual({ page: '1' }))
+  })
+
+  it('offers "None yet" even when the project managers cannot be loaded', async () => {
+    await renderPage({
+      'GET /project-managers': () => problem(500, undefined, {}, 'boom'),
+      'GET /projects': () => ({ status: 200, body: page([projectSummary()]) }),
+    })
+    await screen.findByTestId('projects-table')
+    expect(
+      within(screen.getByLabelText('Project manager'))
+        .getAllByRole('option')
+        .map((option) => option.textContent),
+    ).toEqual(['Any', 'None yet'])
+  })
+
   it('has no "Only my projects" fallback: every reader gets the same project-manager filter', async () => {
     await renderPage({
       'GET /authz/users/directory': () => problem(403, 'forbidden'),
@@ -185,7 +216,7 @@ describe('ProjectsPage list (AC-1.4)', () => {
       'GET /projects': () => ({ status: 200, body: page([projectSummary()]) }),
     })
     const select = await screen.findByLabelText('Project manager')
-    await waitFor(() => expect(within(select).getAllByRole('option').length).toBe(2))
+    await waitFor(() => expect(within(select).getAllByRole('option').length).toBe(3))
     expect(screen.queryByLabelText('Only my projects')).toBeNull()
   })
 
@@ -196,7 +227,8 @@ describe('ProjectsPage list (AC-1.4)', () => {
     })
     expect(await screen.findByTestId('projects-table')).not.toBeNull()
     expect(await screen.findByText('The project managers could not be loaded.')).not.toBeNull()
-    expect(within(screen.getByLabelText('Project manager')).getAllByRole('option').length).toBe(1)
+    // Only the fixed choices: "Any" and "None yet".
+    expect(within(screen.getByLabelText('Project manager')).getAllByRole('option').length).toBe(2)
   })
 })
 

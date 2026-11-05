@@ -14,10 +14,19 @@ const en = {
   add: 'Add terms',
   edit: 'Edit',
   setEndDate: 'Set end date',
+  remove: 'Remove terms',
+  removeDialog: {
+    title: 'Remove the terms?',
+    body: 'The dates and the terms of this project are deleted. The project stays, and terms can be added again later.',
+    confirm: 'Remove terms',
+    busy: 'Removing…',
+    keep: 'Keep the terms',
+  },
   saved: {
     created: 'Terms added.',
     updated: 'Terms saved.',
     ended: 'End date saved.',
+    removed: 'Terms removed.',
   },
   details: {
     start: 'Start',
@@ -125,10 +134,19 @@ const it: typeof en = {
   add: 'Aggiungi termini',
   edit: 'Modifica',
   setEndDate: 'Imposta la fine',
+  remove: 'Rimuovi i termini',
+  removeDialog: {
+    title: 'Rimuovere i termini?',
+    body: 'Le date e i termini di questo progetto vengono eliminati. Il progetto resta e i termini si possono aggiungere di nuovo in seguito.',
+    confirm: 'Rimuovi i termini',
+    busy: 'Rimozione…',
+    keep: 'Mantieni i termini',
+  },
   saved: {
     created: 'Termini aggiunti.',
     updated: 'Termini salvati.',
     ended: 'Data di fine salvata.',
+    removed: 'Termini rimossi.',
   },
   details: {
     start: 'Inizio',

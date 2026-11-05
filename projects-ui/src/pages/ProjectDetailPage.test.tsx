@@ -630,6 +630,35 @@ describe('the Terms card of a hand-made project (AC-5.2 – AC-5.4)', () => {
     fireEvent.click(await screen.findByTestId('projects-stale-write-reload'))
     await waitFor(() => expect(reads).toBe(2))
   })
+
+  it('removes the terms once confirmed, then reads the project again: "No terms yet." and no dates (S5, AC-5.4)', async () => {
+    let reads = 0
+    await renderProject(withTerms(), {
+      'GET /projects/p1': () => {
+        reads += 1
+        return { status: 200, body: reads === 1 ? withTerms() : projectDetail() }
+      },
+      'DELETE /projects/p1/terms': () => ({ status: 204 }),
+    })
+    expect(screen.getByTestId('project-facts').textContent).toContain('01.02.2026')
+    fireEvent.click(await screen.findByRole('button', { name: 'Remove terms' }))
+    expect(writes()).toEqual([])
+    fireEvent.click(
+      within(await screen.findByRole('alertdialog', { name: 'Remove the terms?' })).getByTestId('terms-remove-confirm'),
+    )
+    expect((await screen.findByTestId('projects-saved')).textContent).toContain('Terms removed.')
+    expect(writes()).toEqual([{ method: 'DELETE', path: '/projects/p1/terms', ifMatch: '"4"', body: null }])
+    await waitFor(() => expect(screen.getByTestId('project-terms').textContent).toContain('No terms yet.'))
+    expect(screen.queryByRole('button', { name: 'Remove terms' })).toBeNull()
+    expect(screen.getByRole('button', { name: 'Add terms' })).not.toBeNull()
+    expect(screen.getByTestId('project-facts').textContent).not.toContain('01.02.2026')
+    expect(reads).toBe(2)
+  })
+
+  it('a reader gets no "Remove terms" either', async () => {
+    await renderProject(withTerms(), {}, scope())
+    expect(screen.queryByRole('button', { name: 'Remove terms' })).toBeNull()
+  })
 })
 
 describe('the Purchase order card of a project made from a deal (AC-2.3, AC-2.4, AC-3.2, AC-3.3, AC-5.2)', () => {

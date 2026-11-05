@@ -1,13 +1,14 @@
 /**
  * @vitest-environment jsdom
  *
- * TermsCard (specs/021 AC-2.3 – AC-2.9, specs/022 AC-5.2 – AC-5.4): the terms of a hand-made project — its
- * dates and its type's terms, no amount anywhere, "Add terms" / "Edit" / "Set end date" for a holder of
- * manage projects only, nothing of a purchase order, and none shown when the project has none.
+ * TermsCard (specs/021 AC-2.3 – AC-2.9, specs/022 AC-5.2 – AC-5.4, S5): the terms of a hand-made project — its
+ * dates and its type's terms, no amount anywhere, "Add terms" / "Edit" / "Set end date" / "Remove terms" for
+ * a holder of manage projects only, nothing of a purchase order, and none shown when the project has none.
+ * Removing them is confirmed in a dialog of the page, never `window.confirm()`.
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
-import { fakeApi, problem, projectDetail, termsOf } from '../test-support/fakeApi'
+import { fakeApi, problem, projectDetail, purchaseOrderOf, termsOf } from '../test-support/fakeApi'
 import type { FakeHandler } from '../test-support/fakeApi'
 import type { Project, ProjectState, ProjectType, Terms, TermsType, TermsView } from '../lib/types'
 
@@ -261,5 +262,95 @@ describe('setting the end date (specs/021 AC-2.10)', () => {
     fireEvent.click(within(dialog).getByTestId('terms-end-submit'))
     await waitFor(() => expect(onStale).toHaveBeenCalledTimes(1))
     expect(screen.queryByRole('dialog')).toBeNull()
+  })
+})
+
+describe('removing the terms of a hand-made project (S5)', () => {
+  const stored = termsOf('fixed_price', { deadline: '2026-12-01', estimatedManDays: null, maxEffortManDays: 40 })
+  const remove = (routes: Record<string, FakeHandler> = {}, project = handMade('fixed_price', stored)) => {
+    const card = renderCard(project, true, routes)
+    fireEvent.click(within(card).getByRole('button', { name: 'Remove terms' }))
+    return card
+  }
+
+  it('is offered to a holder of manage projects on a hand-made project that has terms', () => {
+    const card = renderCard(handMade('fixed_price', stored))
+    expect(within(card).getByRole('button', { name: 'Remove terms' })).not.toBeNull()
+  })
+
+  it.each<[string, Project, boolean]>([
+    ['a reader', handMade('fixed_price', stored), false],
+    ['a project with no terms', handMade('fixed_price', null), true],
+    ['an internal project', handMade('internal', null), true],
+    [
+      'a project with a purchase order, whose terms are never removed (AC-5.2)',
+      handMade('fixed_price', stored, { purchaseOrder: purchaseOrderOf() }),
+      true,
+    ],
+  ])('is not offered to %s', (_name, project, canManage) => {
+    const card = renderCard(project, canManage)
+    expect(within(card).queryByRole('button', { name: 'Remove terms' })).toBeNull()
+  })
+
+  it('is still offered on a closed project: existing terms stay editable', () => {
+    const card = renderCard(handMade('fixed_price', stored, { state: 'closed' }))
+    expect(within(card).getByRole('button', { name: 'Remove terms' })).not.toBeNull()
+  })
+
+  it('asks for confirmation in the page, with no request yet and no window.confirm', async () => {
+    const confirm = vi.spyOn(window, 'confirm')
+    remove()
+    const dialog = await screen.findByRole('alertdialog', { name: 'Remove the terms?' })
+    expect(dialog.textContent).toContain('The project stays')
+    expect(writes()).toEqual([])
+    expect(confirm).not.toHaveBeenCalled()
+    confirm.mockRestore()
+  })
+
+  it('Cancel keeps the terms: the dialog closes and nothing is sent', async () => {
+    remove()
+    const dialog = await screen.findByRole('alertdialog')
+    fireEvent.click(within(dialog).getByTestId('terms-remove-cancel'))
+    expect(screen.queryByRole('alertdialog')).toBeNull()
+    expect(writes()).toEqual([])
+    expect(onChanged).not.toHaveBeenCalled()
+  })
+
+  it('confirming DELETEs the terms with their version, closes, and tells the page', async () => {
+    remove({ 'DELETE /projects/p1/terms': () => ({ status: 204 }) })
+    const dialog = await screen.findByRole('alertdialog')
+    fireEvent.click(within(dialog).getByTestId('terms-remove-confirm'))
+    await waitFor(() => expect(screen.queryByRole('alertdialog')).toBeNull())
+    expect(writes()).toEqual([{ method: 'DELETE', path: '/projects/p1/terms', ifMatch: '"4"', body: null }])
+    expect(onChanged).toHaveBeenCalledWith('Terms removed.')
+  })
+
+  it('a stale remove (409 version_conflict) closes the dialog and is the page’s to handle', async () => {
+    remove({ 'DELETE /projects/p1/terms': () => problem(409, 'version_conflict', { currentVersion: 9 }) })
+    fireEvent.click(within(await screen.findByRole('alertdialog')).getByTestId('terms-remove-confirm'))
+    await waitFor(() => expect(onStale).toHaveBeenCalledTimes(1))
+    expect(screen.queryByRole('alertdialog')).toBeNull()
+    expect(onChanged).not.toHaveBeenCalled()
+  })
+
+  it.each([
+    [409, 'terms_required', 'The terms of a project with a purchase order cannot be removed.'],
+    [404, 'terms_not_found', 'This project has no terms yet. Reload the page.'],
+    [409, 'project_not_open', 'A closed or cancelled project takes no new terms. Reopen it first.'],
+    [403, 'out_of_scope', 'You may not change the terms of this entity.'],
+  ])('%s %s keeps the dialog open with its own message and changes nothing', async (status, code, message) => {
+    remove({ 'DELETE /projects/p1/terms': () => problem(status, code) })
+    const dialog = await screen.findByRole('alertdialog')
+    fireEvent.click(within(dialog).getByTestId('terms-remove-confirm'))
+    expect((await within(dialog).findByTestId('terms-remove-error')).textContent).toBe(message)
+    expect(onChanged).not.toHaveBeenCalled()
+    expect(onStale).not.toHaveBeenCalled()
+  })
+
+  it('any other failure shows the server’s message in the dialog, which stays open', async () => {
+    remove({ 'DELETE /projects/p1/terms': () => problem(500, undefined, {}, 'boom') })
+    const dialog = await screen.findByRole('alertdialog')
+    fireEvent.click(within(dialog).getByTestId('terms-remove-confirm'))
+    expect((await within(dialog).findByTestId('terms-remove-error')).textContent).toBe('boom')
   })
 })
