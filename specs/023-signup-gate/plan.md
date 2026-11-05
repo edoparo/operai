@@ -20,14 +20,14 @@ creation of their `user` row during the OAuth callback. Nothing changes for an e
 | `auth/src/auth/auth.config.ts` | new `databaseHooks.user.create.before` calling the gate; `applyLivePendingInvitationOnUserCreate` also closes the person's pending access request (AC-3.8) |
 | `auth/src/invitations/` | the create handler's body moves to `createInvitation.ts` (validation → transaction → email), reused by `POST /admin/invitations` and by approve; adds the allowed-domain check (AC-5.1) |
 | `auth/src/authz/audit.ts` | `withAudit`'s `entry` also accepts an array, so approve writes `invitation.create` AND `access_request.approve` in one transaction |
-| `auth/src/test-auth/test-auth.routes.ts` | creates its `@operai.test` user through Prisma + `assignBaselineRolesToNewUser` instead of `internalAdapter.createUser`, so it never passes through the gate (AC-1.9) |
+| `auth/src/test-auth/test-auth.routes.ts` | creates its `@operai.test` user through Prisma (email lower-cased) + `assignBaselineRolesToNewUser` + `applyLivePendingInvitationOnUserCreate` instead of `internalAdapter.createUser`, so it never passes through the gate but still activates a live invitation (AC-1.9; amended 2026-11-05) |
 | `auth/src/system/selfServiceToken.ts` | `SELF_SERVICE_SCOPES` becomes `["emails.send", "notifications.push"]` |
 | `auth/src/lib/notify.ts` | `pushSystemNotification()` for `POST /system/notifications`, same token provider, same never-throw posture as `sendInvitationEmail` |
 | `auth/src/signin/signin.routes.ts` | three new `ERROR_MESSAGES` entries |
-| `auth/src/lib/env.ts` | required `ALLOWED_SIGNUP_DOMAINS` |
+| `auth/src/lib/env.ts` | required `ALLOWED_SIGNUP_DOMAINS`; refuses a reserved test domain when `NODE_ENV=production` (amended 2026-11-05) |
 | `notify-api/src/system/systemAuth.middleware.ts` | `SERVICE_ORIGIN_BINDINGS["system:auth"] = ["admin"]` |
 | `admin-ui` | "Access requests" as the third view of the Users section (`/users/access-requests`): list with status filter, approve dialog (roles + departments), reject confirm; `adminApi.ts` client; en/it strings |
-| `tools/env-doctor/manifest.ts`, `auth/.env.example`, the `auth.env` production template | `ALLOWED_SIGNUP_DOMAINS` |
+| `tools/env-doctor/manifest.ts` + check, `auth/.env.example`, the `auth.env` production template | `ALLOWED_SIGNUP_DOMAINS`; production check fails on a reserved test domain (amended 2026-11-05) |
 | `auth/scripts/e2e-invite-fixtures.ts` | `seed-access-request` / `clear-access-requests` commands for the e2e |
 
 ### The sign-up gate (`user.create.before`)
@@ -153,6 +153,33 @@ domain, so the dev path would be refused. `test-auth` therefore creates its user
 own gates (non-production, `ENABLE_TEST_AUTH`, `@operai.test` suffix) are unchanged.
 Rejected alternative: an `@operai.test` exemption inside the gate itself. That would put a
 test branch into the production sign-up path, guarded only by environment flags.
+
+**Amendment 2026-11-05 (T10 findings).** "As it does today" includes what the
+`user.create.after` hook did for a test user, which the T3 version dropped:
+1. **Lower-case the email** before lookup and `db.user.create`, as better-auth's
+   `adapter.createUser` does; a mixed-case seed must land on the same row the lower-cased
+   fixtures look up.
+2. **Activate a live invitation.** After `assignBaselineRolesToNewUser`, call
+   `applyLivePendingInvitationOnUserCreate(created)` itself (the same function the hook calls,
+   not a copy) when `isAllowedDomain(email, env.ALLOWED_SIGNUP_DOMAINS)` holds, mirroring the
+   gate's step 1. It replaces `employee` with a named-role invitation's roles, adds
+   departments, marks the invitation `accepted` and closes the pending access request
+   (AC-3.8). No live invitation → baseline `employee` only. This keeps specs/006's AC-2.3 e2e
+   (invited test user gets the invitation's roles) green.
+
+**Test domain in local/e2e config only** (user decision 2026-11-05). specs/006's
+`invitations.spec.ts` invites `@operai.test` addresses, which AC-5.1 refuses unless the domain is
+allowed. The local env and the e2e stack therefore run with
+`ALLOWED_SIGNUP_DOMAINS=welld.ch,welld.it,operai.test`; production stays `welld.ch,welld.it`. The
+gate code gets no exemption (the rejected alternative above stands): `operai.test` is plain
+configuration. Two guards keep it out of production:
+- `auth/src/lib/env.ts`: with `NODE_ENV=production`, a domain equal to or ending in a reserved
+  test TLD (`.test`, `.example`, `.invalid`, `.localhost`, RFC 2606/6761) exits at startup;
+- `tools/env-doctor`: the production check reports an error for the same rule on `auth`'s
+  `ALLOWED_SIGNUP_DOMAINS` (one shared predicate in the check, same TLD list).
+
+`auth/.env.example` shows the local value with a comment that production is
+`welld.ch,welld.it` and that `operai.test` is refused there.
 
 ### Decisions and ADRs
 
@@ -281,7 +308,8 @@ English like the rest of the page (`<html lang="en">`):
 
 **Env** — `ALLOWED_SIGNUP_DOMAINS` (auth, required): a comma-separated list of lower-case
 domain names, at least one; anything malformed exits at startup. Production value:
-`welld.ch,welld.it`.
+`welld.ch,welld.it`. Local and e2e value: `welld.ch,welld.it,operai.test`; a reserved test TLD
+exits at startup in production (amended 2026-11-05).
 
 ## Test strategy
 
@@ -300,7 +328,7 @@ cannot run in e2e, so the gate is proven at integration level through better-aut
 | AC-1.6 | integration | an existing user (no invitation, outside domain) signs in through `handleOAuthUserInfo` → session created, roles unchanged, hook not consulted |
 | AC-1.7 | integration | existing specs/006 soft-delete tests stay green; plus: refused soft-deleted sign-in leaves no `access_request` |
 | AC-1.8 | unit | `isAllowedDomain`: `Name@WellD.CH` ✓, `a@welld.it` ✓, `a@sub.welld.ch` ✗, `a@welld.ch.example` ✗, `a@xwelld.ch` ✗, no `@` ✗ |
-| AC-1.9 | integration + e2e | `test-auth.routes.test.ts`: new `@operai.test` user still minted with `employee`; the whole shell e2e suite green |
+| AC-1.9 | integration + e2e | `test-auth.routes.test.ts`: new `@operai.test` user still minted with `employee`; mixed-case email stored lower-cased and found again; with a live pending invitation → exactly the invitation's roles/departments, invitation `accepted`, pending access request `approved` (amended 2026-11-05); shell e2e: no new failures against the baseline below |
 | AC-2.1 | integration | first refused attempt → one `pending` row with email lower-cased, name, provider, time |
 | AC-2.2 | integration | second attempt → same row, updated `requestedAt`/name/provider, row count 1; concurrent double first attempt → one row, one notification |
 | AC-2.3 | integration | `rejected` row → stays `rejected`, "access request rejected", no notification |
@@ -328,7 +356,17 @@ Also covered:
 - env: `ALLOWED_SIGNUP_DOMAINS` missing or malformed makes the process exit (`env.startup.test.ts`);
 - `env-doctor` manifest test;
 - sign-in page: each new code renders its sentence (`signin.routes.test.ts`);
-- `SELF_SERVICE_SCOPES` test updated.
+- `SELF_SERVICE_SCOPES` test updated;
+- (amended 2026-11-05) env: `operai.test` (and any reserved test TLD) in
+  `ALLOWED_SIGNUP_DOMAINS` exits under `NODE_ENV=production`, starts otherwise; env-doctor:
+  production check errors on it, local check accepts it.
+
+**E2E baseline (Amendment 2026-11-05, T10 findings).** A fresh database seeded by `auth`'s seed
+gives `employee` no estimai/refund access, which several pre-existing e2e specs assume, so a
+red full run cannot be attributed to 023 on its own. T10's done-when is therefore measured
+against a baseline: a full shell e2e run of the pre-023 commit `9d0fbb9` on the same isolated
+`_main` databases, then the 023 run. 023 must introduce no new failures; the failures present in
+the baseline are listed in the run trace, not fixed in this feature.
 
 ## Risks
 
@@ -354,7 +392,8 @@ Also covered:
   `unknown`, which the schema allows.
 
 Rollout (single push to `main`):
-1. Railway: set `ALLOWED_SIGNUP_DOMAINS=welld.ch,welld.it` on `auth`.
+1. Railway: set `ALLOWED_SIGNUP_DOMAINS=welld.ch,welld.it` on `auth` — never the local value
+   with `operai.test`, which auth and env-doctor refuse in production (amended 2026-11-05).
 2. Push; `auth` migrates `access_request` on start.
 3. Run AC-6.2's query in production and give the user the list.
 
@@ -367,6 +406,8 @@ write-API that creates invitations, and widens `system:auth`'s service-token sco
   and better-auth then creates no user.
 - Logs carry no email or name.
 - The domain check is exact-match on the part after the last `@`.
+- A reserved test domain (`operai.test`) is allowed only by local/e2e configuration; auth's
+  env validation and env-doctor refuse it in production (amended 2026-11-05).
 - The access-request name is stored and rendered as plain text, escaped by React and by
   notify-api's template.
 - No requester-facing endpoint exists.

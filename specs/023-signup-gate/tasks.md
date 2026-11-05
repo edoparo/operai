@@ -144,14 +144,19 @@ Work happens in the `main` worktree (`/Users/matteocodogno/LAB/aiscream/operai-m
     `catalogGaps` and the hardcoded-copy scan), with component tests for each state and
     flow listed above, and `mise run ui:check` is green.
 
-- [ ] T10: [e2e] Waiting-list journeys through the shell — refs: AC-1.9, AC-3.2, AC-3.4, AC-3.10 — deps: T3, T7, T9
+- [ ] T10: [e2e] Waiting-list journeys through the shell — refs: AC-1.9, AC-3.2, AC-3.4, AC-3.10 — deps: T3, T7, T9, T13
   - touch: `auth/scripts/e2e-invite-fixtures.ts`, `shell/e2e/helpers/*ccess*`, `shell/e2e/access-requests.spec.ts`
   - do: `seed-access-request` / `clear-access-requests` fixture commands; a Playwright
     spec in which an admin sees a seeded request, approves it with a role (the request
     moves to Approved and an invitation appears under Invitations), rejects another
-    one, and a non-admin is denied.
-  - done when: `cd shell && pnpm e2e access-requests.spec.ts` passes against the local
-    stack started from this worktree, and the full `pnpm e2e` run is green (proves AC-1.9).
+    one, and a non-admin is denied. *(Code landed in ba47be6; open only on the full-run
+    criterion.)*
+  - done when (amended 2026-11-05, plan.md § E2E baseline): `cd shell && pnpm e2e
+    access-requests.spec.ts` passes against the local stack started from this worktree on
+    the isolated `_main` databases with `ALLOWED_SIGNUP_DOMAINS=welld.ch,welld.it,operai.test`,
+    and a full `pnpm e2e` run shows NO failure that the baseline run of `9d0fbb9` (same
+    databases, same stack shape) does not also show. Pre-existing baseline failures are
+    listed in the run trace, not fixed here (proves AC-1.9).
 
 - [x] T11: [docs] Specs agree, operator query, changesets — refs: AC-6.1, AC-6.2 — deps: none
   - touch: `specs/004-auth-roles-permissions/spec.md`, `specs/006-user-invitations/spec.md`, `infra/README.md`, `AGENTS.md`, `.changeset/*`
@@ -164,7 +169,25 @@ Work happens in the `main` worktree (`/Users/matteocodogno/LAB/aiscream/operai-m
   - done when: `grep` for the "signs in and receives the baseline `employee`" sentence finds
     only amended text; the SQL runs against the local DB; `mise run changeset:check` passes.
 
-- [ ] T12: Close the feature — refs: all — deps: T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11
+- [ ] T13: [backend] test-auth regressions and the production guard on test domains — refs: AC-1.9, AC-3.8, AC-5.1 — deps: T3, T5
+  - touch: `auth/src/test-auth/*`, `auth/src/lib/env.ts`, `auth/src/system/env.startup.test.ts`, `auth/src/signup/allowedDomains*.ts`, `auth/.env.example`, `tools/env-doctor/**`
+  - do (plan.md amendment 2026-11-05, T10 findings):
+    - test-auth lower-cases the email before lookup and `db.user.create`;
+    - after `assignBaselineRolesToNewUser`, test-auth calls the hook's own
+      `applyLivePendingInvitationOnUserCreate` (not a copy) when the email's domain is
+      allowed — invitation roles replace `employee`, departments added, invitation
+      `accepted`, pending access request closed (AC-3.8); no live invitation → `employee`;
+    - one shared predicate for reserved test domains (`.test`, `.example`, `.invalid`,
+      `.localhost`): auth's env validation exits under `NODE_ENV=production` when
+      `ALLOWED_SIGNUP_DOMAINS` contains one, and env-doctor's production check errors on it;
+    - `auth/.env.example` shows the local value `welld.ch,welld.it,operai.test` with a comment.
+  - done when: `test-auth.routes.test.ts` covers a mixed-case email stored lower-cased and an
+    invited test user activated with exactly the invitation's roles/departments (invitation
+    `accepted`, request `approved`); `env.startup.test.ts` proves production exits on
+    `operai.test` and development accepts it; an env-doctor test fails the production
+    template carrying it; `auth` tests and typecheck pass; `mise run env:doctor` is green.
+
+- [ ] T12: Close the feature — refs: all — deps: T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T13
   - touch: `specs/023-signup-gate/*`
   - do:
     - all gates green: `auth` typecheck and tests, `notify-api` tests, `admin-ui`
