@@ -50,6 +50,18 @@
 - **Transition**: the period in which the notification service accepted both the shared
   token and service credentials; it ended with specs/016's third push.
 
+### Access to the suite (specs/023)
+- **Allowed domain**: an email domain whose holders may become Operai users at all —
+  `welld.ch` and `welld.it`; matched exactly and case-insensitively, subdomains excluded.
+  _Avoid:_ whitelist, company domain.
+- **Access request**: the record created when a person with an allowed-domain email signs
+  in without a live pending invitation; grants nothing, never a user, at most one per
+  email. State `pending`, `approved` or `rejected`. _Avoid:_ sign-up, registration,
+  pending user.
+- **Waiting list**: the access requests in state `pending`. _Avoid:_ queue, backlog.
+- **Approve** (an access request): creates an invitation for the requester through the
+  invitation flow; it never creates a user by itself.
+
 ## Relationships
 - An **Asset** belongs to exactly one entity for its whole life and has at most one
   **Holder** and at most one `pending` **Assignment** at a time.
@@ -57,6 +69,8 @@
   force for its entity on its purchase date.
 - A **Roll-forward** belongs to one entity and one **Fiscal year**; each line is the sum
   of that year's per-asset figures.
+- An **Access request** that is approved leads to exactly one invitation; the person
+  becomes a user only by accepting it.
 
 ## Open ambiguities
 - Whether the `welld_ch` **Residual value** is kept until **Disposal** or written off the
