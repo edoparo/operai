@@ -775,6 +775,43 @@ describe("GET /projects", () => {
     ]);
   });
 
+  describe("the filter `projectManagerId=none` (specs/022 T27; AC-4.5)", () => {
+    it("lists only the projects awaiting their project manager, with `projectManager: null` and `awaitingProjectManager: true`", async () => {
+      const first = await seedDealProject({ project: { name: "Awaiting B" } });
+      const second = await seedDealProject({ project: { name: "Awaiting A" }, order: { dealId: "deal-2" } });
+      await seedDealProject({ project: { name: "Picked", projectManagerId: "user-pm-ch" }, order: { dealId: "deal-3" } });
+      await seed({ name: "By hand" });
+      const res = await list("?projectManagerId=none");
+      expect(res.status).toBe(200);
+      expect(res.json.total).toBe(2);
+      expect(res.json.items).toEqual([
+        expect.objectContaining({ id: second.project.id, name: "Awaiting A", projectManager: null, awaitingProjectManager: true }),
+        expect.objectContaining({ id: first.project.id, name: "Awaiting B", projectManager: null, awaitingProjectManager: true }),
+      ]);
+    });
+
+    it("is empty, not an error, when nothing awaits, and combines with the other filters", async () => {
+      await seed({ name: "By hand", state: "active" });
+      expect((await list("?projectManagerId=none")).json).toMatchObject({ items: [], total: 0 });
+      const { project } = await seedDealProject({ project: { name: "Awaiting", type: "saas" } });
+      await seedDealProject({ project: { name: "Awaiting held", state: "on_hold", stateBeforeHold: "planned" }, order: { dealId: "deal-2" } });
+      expect(names(await list("?projectManagerId=none&state=planned"))).toEqual(["Awaiting"]);
+      expect((await list("?projectManagerId=none&type=saas")).json.items).toEqual([expect.objectContaining({ id: project.id })]);
+    });
+
+    it("stops listing a project once its project manager is picked, and `GET /project-managers` then names them", async () => {
+      const { project } = await seedDealProject();
+      expect((await list("?projectManagerId=none")).json.total).toBe(1);
+      expect((await call("GET", "/project-managers", { as: "viewer" })).json.items).toEqual([]);
+      await call("PATCH", `/projects/${project.id}`, { as: "opsCh", body: { projectManagerId: "user-colleague" }, ifMatch: 1 });
+      expect((await list("?projectManagerId=none")).json).toMatchObject({ items: [], total: 0 });
+      expect((await list("?projectManagerId=user-colleague")).json.total).toBe(1);
+      expect((await call("GET", "/project-managers", { as: "viewer" })).json.items).toEqual([
+        { id: "user-colleague", name: "Name of user-colleague", deleted: false },
+      ]);
+    });
+  });
+
   it("asks the CRM once for the whole page, and degrades company names to null when it is down (AC-1.4)", async () => {
     for (const name of ["A", "B", "C"]) await seed({ name });
     await list();

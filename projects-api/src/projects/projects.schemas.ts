@@ -168,11 +168,15 @@ export const CreateProjectSchema = z
   })
   .strict();
 
-/** The entity, company and type are fixed at creation (specs/022 A30); only these two change here. */
+/**
+ * The entity, company and type are fixed at creation (specs/022 A30); only these two change here. `null` is
+ * accepted so that clearing the project manager is the domain refusal `422 project_manager_required` (AC-4.9),
+ * not a `400`.
+ */
 export const UpdateProjectSchema = z
   .object({
     name: requiredText(200).optional(),
-    projectManagerId: IdSchema.optional(),
+    projectManagerId: IdSchema.nullable().optional(),
   })
   .strict()
   .refine((body) => body.name !== undefined || body.projectManagerId !== undefined, "Nothing to change");
