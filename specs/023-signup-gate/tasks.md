@@ -18,7 +18,7 @@ Work happens in the `main` worktree (`/Users/matteocodogno/LAB/aiscream/operai-m
 - T10 (e2e) needs the whole suite on the standard ports, which the other checkout's stack
   occupies. It is deferred until the user stops that stack.
 
-- [ ] T1: [backend] Add the `access_request` table — refs: AC-2.1, AC-2.2 — deps: none
+- [x] T1: [backend] Add the `access_request` table — refs: AC-2.1, AC-2.2 — deps: none
   - touch: `auth/prisma/schema.prisma`, `auth/prisma/migrations/*`, `auth/src/lib/generated/**`
   - do: the `AccessRequest` model exactly as plan.md § Data model (unique `email`, index
     `(status, requestedAt)`, FKs to `User`/`Invitation` with `onDelete: SetNull`, back
