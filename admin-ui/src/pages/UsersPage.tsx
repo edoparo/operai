@@ -82,7 +82,7 @@ import { useSession } from 'shell/session'
 import * as adminApi from '../lib/adminApi'
 import type { Department, Paginated, Role, UserSummary } from '../lib/adminApi'
 import { ApiError } from '../lib/adminApi'
-import { inviteConflictMessageFor } from '../lib/inviteConflict'
+import { domainNotAllowedMessage, inviteConflictMessageFor } from '../lib/inviteConflict'
 import SkeletonListRows from '../components/SkeletonListRows'
 import ErrorBanner from '../components/ErrorBanner'
 import Pagination from '../components/Pagination'
@@ -324,6 +324,12 @@ export default function UsersPage() {
       if (error instanceof ApiError && error.status === 409) {
         setInviteModal((prev) =>
           prev.open ? { ...prev, submitting: false, emailError: inviteConflictMessageFor(error.detail) } : prev,
+        )
+        return
+      }
+      if (error instanceof ApiError && error.status === 422 && error.code === 'domain_not_allowed') {
+        setInviteModal((prev) =>
+          prev.open ? { ...prev, submitting: false, emailError: domainNotAllowedMessage(error) } : prev,
         )
         return
       }

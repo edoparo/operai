@@ -42,7 +42,7 @@ import ConfirmDeleteModal from '../components/ConfirmDeleteModal'
 import SuccessBanner from '../components/SuccessBanner'
 import InviteUserModal from '../components/InviteUserModal'
 import InvitationStatusBadge from '../components/InvitationStatusBadge'
-import { inviteConflictMessageFor } from '../lib/inviteConflict'
+import { domainNotAllowedMessage, inviteConflictMessageFor } from '../lib/inviteConflict'
 import { strings } from '../strings'
 
 const t = strings.invitations
@@ -248,6 +248,12 @@ export default function InvitationsPage() {
       if (error instanceof ApiError && error.status === 409) {
         setInviteModal((prev) =>
           prev.open ? { ...prev, submitting: false, emailError: inviteConflictMessageFor(error.detail) } : prev,
+        )
+        return
+      }
+      if (error instanceof ApiError && error.status === 422 && error.code === 'domain_not_allowed') {
+        setInviteModal((prev) =>
+          prev.open ? { ...prev, submitting: false, emailError: domainNotAllowedMessage(error) } : prev,
         )
         return
       }

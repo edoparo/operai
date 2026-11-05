@@ -357,6 +357,35 @@ describe('InvitationsPage', () => {
       })
     })
 
+    it('422 domain_not_allowed (specs/023 AC-5.1) names the domains on the email field, not the general alert', async () => {
+      vi.mocked(adminApi.listInvitations).mockResolvedValue(pageOf([]))
+      vi.mocked(adminApi.createInvitation).mockRejectedValue(
+        new ApiError({
+          type: 'about:blank',
+          title: 'Unprocessable Entity',
+          status: 422,
+          detail: 'Invitations can only be sent to welld.ch, welld.it addresses',
+          code: 'domain_not_allowed',
+          allowedDomains: ['welld.ch', 'welld.it'],
+        }),
+      )
+
+      renderInvitationsPage()
+      await waitFor(() => expect(screen.getByTestId('invitations-invite-button').hasAttribute('disabled')).toBe(false))
+
+      fireEvent.click(screen.getByTestId('invitations-invite-button'))
+      fireEvent.change(screen.getByTestId('invite-user-email'), { target: { value: 'x@gmail.com' } })
+      fireEvent.click(screen.getByTestId('invite-user-submit'))
+
+      await waitFor(() => {
+        expect(screen.getByTestId('invite-user-email-error').textContent).toBe(
+          'Invitations can only be sent to welld.ch, welld.it addresses.',
+        )
+      })
+      expect(screen.queryByTestId('invite-user-general-error')).toBeNull()
+      expect(screen.getByTestId('invite-user-modal')).not.toBeNull()
+    })
+
     it('422 unknown role/department id shows a general error banner, modal stays open', async () => {
       vi.mocked(adminApi.listInvitations).mockResolvedValue(pageOf([]))
       vi.mocked(adminApi.createInvitation).mockRejectedValue(

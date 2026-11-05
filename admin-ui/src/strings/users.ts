@@ -40,6 +40,7 @@ export const en = {
     conflictPending:
       'An invitation is already pending for this email — resend it from the Invitations tab instead of creating a new one.',
     conflictFallback: 'This email cannot be invited right now.',
+    domainNotAllowed: (domains: string) => `Invitations can only be sent to ${domains} addresses.`,
     dialog: {
       title: 'Invite user',
       submit: 'Send invite',
@@ -110,6 +111,7 @@ export const it: typeof en = {
     conflictPending:
       'Per questa email c’è già un invito in attesa: inviarlo di nuovo dalla scheda Inviti invece di crearne uno nuovo.',
     conflictFallback: 'Questa email non può essere invitata in questo momento.',
+    domainNotAllowed: (domains: string) => `Gli inviti possono essere inviati solo a indirizzi ${domains}.`,
     dialog: {
       title: 'Invita utente',
       submit: 'Invia invito',

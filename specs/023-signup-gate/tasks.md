@@ -118,7 +118,7 @@ Work happens in the `main` worktree (`/Users/matteocodogno/LAB/aiscream/operai-m
     - non-admin → 403;
     - a route-table assertion that no `access_request` route lives outside `/admin/*`.
 
-- [ ] T8: [frontend] admin-ui reads problem codes; the invite dialog's domain message — refs: AC-5.1, AC-3.5 — deps: none
+- [x] T8: [frontend] admin-ui reads problem codes; the invite dialog's domain message — refs: AC-5.1, AC-3.5 — deps: none
   - touch: `admin-ui/src/lib/adminApi.ts`, `admin-ui/src/lib/adminApi.test.ts`, `admin-ui/src/components/InviteUserModal.tsx`, `admin-ui/src/components/InviteUserModal.test.tsx`, `admin-ui/src/strings/invitations.ts`, `admin-ui/src/strings/users.ts`, `admin-ui/src/strings.ts`
   - do: `ApiProblem`/`ApiError` gain optional `code` and `allowedDomains`; the
     access-request client functions (`listAccessRequests`, `approveAccessRequest`,

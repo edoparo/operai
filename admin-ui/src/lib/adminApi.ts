@@ -296,6 +296,10 @@ export type ApiProblem = {
   status: number
   detail?: string
   instance?: string
+  /** Machine-readable discriminant (specs/023 plan.md): branch on this, never on `detail` prose. */
+  code?: string
+  /** Sent with `code: "domain_not_allowed"` so the UI can render the list in its own language. */
+  allowedDomains?: string[]
 }
 
 // ---------------------------------------------------------------------------
@@ -319,6 +323,8 @@ export class ApiError extends Error {
   readonly title: string
   readonly detail: string | undefined
   readonly instance: string | undefined
+  readonly code: string | undefined
+  readonly allowedDomains: string[] | undefined
 
   constructor(problem: ApiProblem) {
     super(problem.title)
@@ -327,6 +333,8 @@ export class ApiError extends Error {
     this.title = problem.title
     this.detail = problem.detail
     this.instance = problem.instance
+    this.code = problem.code
+    this.allowedDomains = problem.allowedDomains
   }
 }
 
@@ -367,6 +375,11 @@ const throwFromResponse = async (response: Response): Promise<never> => {
       status: body.status ?? response.status,
       detail: body.detail,
       instance: body.instance,
+      code: typeof body.code === 'string' ? body.code : undefined,
+      allowedDomains:
+        Array.isArray(body.allowedDomains) && body.allowedDomains.every((d) => typeof d === 'string')
+          ? body.allowedDomains
+          : undefined,
     }
   } catch {
     problem = {
@@ -736,3 +749,78 @@ export const getCatalog = async (): Promise<Catalog> => {
  */
 export const listAudit = async (params: PageParams = {}): Promise<Paginated<AuditLogEntry>> =>
   getJson<Paginated<AuditLogEntry>>(`/admin/audit${buildQuery({ page: params.page, pageSize: params.pageSize })}`)
+
+// ---------------------------------------------------------------------------
+// Admin — access requests (specs/023-signup-gate, plan.md § API contracts)
+// ---------------------------------------------------------------------------
+
+export type AccessRequestStatus = 'pending' | 'approved' | 'rejected'
+
+export type AccessRequestDetail = {
+  id: string
+  email: string
+  name: string
+  provider: 'google' | 'github' | 'unknown'
+  status: AccessRequestStatus
+  firstRequestedAt: string
+  /** Last attempt. */
+  requestedAt: string
+  decidedAt: string | null
+  decidedBy: { id: string; name: string; email: string } | null
+  invitationId: string | null
+}
+
+export type AccessRequestListParams = PageParams & {
+  /** Server default is `pending`. */
+  status?: AccessRequestStatus
+}
+
+export type AccessRequestApproveInput = {
+  roleIds?: string[]
+  departmentIds?: string[]
+}
+
+export type AccessRequestApproveResult = {
+  request: AccessRequestDetail
+  invitation: InvitationDetail
+}
+
+/**
+ * GET /admin/access-requests
+ * Paginated; `status` defaults to `pending` server-side. Throws ApiError on
+ * 400 (bad query), 403, or 401.
+ */
+export const listAccessRequests = async (
+  params: AccessRequestListParams = {},
+): Promise<Paginated<AccessRequestDetail>> =>
+  getJson<Paginated<AccessRequestDetail>>(
+    `/admin/access-requests${buildQuery({
+      status: params.status,
+      page: params.page,
+      pageSize: params.pageSize,
+    })}`,
+  )
+
+/**
+ * POST /admin/access-requests/:id/approve
+ * Creates the invitation for the requester. Throws ApiError on 404, 409
+ * (`code`: `already_decided` | `active_user_exists` | `pending_invitation_exists`),
+ * 422 (unknown role/department id, or `code: "domain_not_allowed"`), 403, or 401.
+ */
+export const approveAccessRequest = async (
+  id: string,
+  body: AccessRequestApproveInput = {},
+): Promise<AccessRequestApproveResult> =>
+  sendJson<AccessRequestApproveResult>(`/admin/access-requests/${id}/approve`, 'POST', body)
+
+/**
+ * POST /admin/access-requests/:id/reject (no body)
+ * Throws ApiError on 404, 409 (`code: "already_decided"`), 403, or 401.
+ */
+export const rejectAccessRequest = async (id: string): Promise<AccessRequestDetail> => {
+  const response = await apiFetch(`${authBase()}/admin/access-requests/${id}/reject`, { method: 'POST' })
+  if (!response.ok) {
+    return throwFromResponse(response)
+  }
+  return response.json() as Promise<AccessRequestDetail>
+}

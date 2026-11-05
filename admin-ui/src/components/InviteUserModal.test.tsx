@@ -179,3 +179,20 @@ describe('InviteUserModal', () => {
     expect(screen.getByTestId('invite-user-submit').hasAttribute('disabled')).toBe(true)
   })
 })
+
+describe('InviteUserModal domain_not_allowed message (specs/023 T8, AC-5.1)', () => {
+  it('shows the domain message as the email field error, focused, and not as a general error', () => {
+    render(
+      <InviteUserModal
+        {...baseProps}
+        email="x@gmail.com"
+        emailError="Invitations can only be sent to welld.ch, welld.it addresses."
+      />,
+    )
+    const error = screen.getByTestId('invite-user-email-error')
+    expect(error.textContent).toBe('Invitations can only be sent to welld.ch, welld.it addresses.')
+    expect(error.getAttribute('role')).toBe('alert')
+    expect(screen.queryByTestId('invite-user-general-error')).toBeNull()
+    expect(document.activeElement).toBe(screen.getByTestId('invite-user-email'))
+  })
+})

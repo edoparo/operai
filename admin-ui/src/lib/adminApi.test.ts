@@ -36,6 +36,7 @@ vi.mock('shell/session', () => ({
 import { apiFetch } from 'shell/session'
 import {
   ApiError,
+  approveAccessRequest,
   bulkDeleteUsers,
   createDepartment,
   createInvitation,
@@ -48,6 +49,7 @@ import {
   getRole,
   getUser,
   getUserPermissions,
+  listAccessRequests,
   listAudit,
   listDepartments,
   listInvitations,
@@ -61,10 +63,12 @@ import {
   putRoleRules,
   putUserDepartments,
   putUserRoles,
+  rejectAccessRequest,
   resendInvitation,
   revokeInvitation,
 } from './adminApi'
 import type {
+  AccessRequestDetail,
   ApiProblem,
   AuditLogEntry,
   BulkDeleteUsersResult,
@@ -802,5 +806,150 @@ describe('ApiError fallback mapping', () => {
 
     const err = await expectApiError(() => listRoles(), 500)
     expect(err.title).toBe('Internal Server Error')
+  })
+})
+
+// ---------------------------------------------------------------------------
+// Problem codes + access requests (T8, specs/023-signup-gate)
+// ---------------------------------------------------------------------------
+
+describe('ApiError problem extensions (specs/023 T8)', () => {
+  it('copies code and allowedDomains from the problem body', async () => {
+    vi.mocked(apiFetch).mockResolvedValueOnce(
+      makeResponse(422, {
+        type: 'https://httpstatuses.com/422',
+        title: 'Unprocessable Entity',
+        status: 422,
+        detail: 'Invitations can only be sent to welld.ch, welld.it addresses',
+        code: 'domain_not_allowed',
+        allowedDomains: ['welld.ch', 'welld.it'],
+      }),
+    )
+    const err = await expectApiError(() => createInvitation({ email: 'x@gmail.com' }), 422)
+    expect(err.code).toBe('domain_not_allowed')
+    expect(err.allowedDomains).toEqual(['welld.ch', 'welld.it'])
+  })
+
+  it('leaves code and allowedDomains undefined when absent, and ignores malformed values', async () => {
+    vi.mocked(apiFetch).mockResolvedValueOnce(problemResponse(409, 'Conflict', 'nope'))
+    const plain = await expectApiError(() => createInvitation({ email: 'a@welld.ch' }), 409)
+    expect(plain.code).toBeUndefined()
+    expect(plain.allowedDomains).toBeUndefined()
+
+    vi.mocked(apiFetch).mockResolvedValueOnce(
+      makeResponse(422, { title: 'x', status: 422, code: 42, allowedDomains: 'welld.ch' }),
+    )
+    const bad = await expectApiError(() => createInvitation({ email: 'a@welld.ch' }), 422)
+    expect(bad.code).toBeUndefined()
+    expect(bad.allowedDomains).toBeUndefined()
+  })
+})
+
+const fixedAccessRequest: AccessRequestDetail = {
+  id: 'ar-1',
+  email: 'new@welld.ch',
+  name: 'New Person',
+  provider: 'google',
+  status: 'pending',
+  firstRequestedAt: '2026-11-05T08:00:00.000Z',
+  requestedAt: '2026-11-05T09:00:00.000Z',
+  decidedAt: null,
+  decidedBy: null,
+  invitationId: null,
+}
+
+describe('access requests client (specs/023 T8)', () => {
+  it('listAccessRequests() defaults to no query and returns the page', async () => {
+    const page = { items: [fixedAccessRequest], page: 1, pageSize: 20, total: 1 }
+    vi.mocked(apiFetch).mockResolvedValueOnce(okResponse(page))
+    const result = await listAccessRequests()
+    const { url, init } = lastCall()
+    expect(url).toBe(`${AUTH_URL}/admin/access-requests`)
+    expect(init?.method).toBeUndefined()
+    expect(result).toEqual(page)
+  })
+
+  it('listAccessRequests(params) sends status, page and pageSize', async () => {
+    vi.mocked(apiFetch).mockResolvedValueOnce(okResponse({ items: [], page: 2, pageSize: 50, total: 0 }))
+    await listAccessRequests({ status: 'rejected', page: 2, pageSize: 50 })
+    const url = new URL(lastCall().url)
+    expect(url.pathname).toBe('/admin/access-requests')
+    expect(url.searchParams.get('status')).toBe('rejected')
+    expect(url.searchParams.get('page')).toBe('2')
+    expect(url.searchParams.get('pageSize')).toBe('50')
+  })
+
+  it('listAccessRequests() maps 403 to ApiError', async () => {
+    vi.mocked(apiFetch).mockResolvedValueOnce(problemResponse(403, 'Forbidden'))
+    await expectApiError(() => listAccessRequests(), 403)
+  })
+
+  it('approveAccessRequest(id, body) POSTs roleIds/departmentIds and returns request + invitation', async () => {
+    const approved = { ...fixedAccessRequest, status: 'approved' as const, invitationId: 'inv-1' }
+    const result = { request: approved, invitation: fixedInvitation }
+    vi.mocked(apiFetch).mockResolvedValueOnce(okResponse(result))
+    const out = await approveAccessRequest('ar-1', { roleIds: ['role-1'], departmentIds: ['dept-1'] })
+    const { url, init } = lastCall()
+    expect(url).toBe(`${AUTH_URL}/admin/access-requests/ar-1/approve`)
+    expect(init?.method).toBe('POST')
+    expect(JSON.parse(init?.body as string)).toEqual({ roleIds: ['role-1'], departmentIds: ['dept-1'] })
+    expect(out).toEqual(result)
+  })
+
+  it('approveAccessRequest(id) with no selection sends an empty object body', async () => {
+    vi.mocked(apiFetch).mockResolvedValueOnce(okResponse({ request: fixedAccessRequest, invitation: fixedInvitation }))
+    await approveAccessRequest('ar-1')
+    expect(JSON.parse(lastCall().init?.body as string)).toEqual({})
+  })
+
+  it.each(['already_decided', 'active_user_exists', 'pending_invitation_exists'])(
+    'approveAccessRequest() exposes the 409 code %s',
+    async (code) => {
+      vi.mocked(apiFetch).mockResolvedValueOnce(
+        makeResponse(409, { title: 'Conflict', status: 409, detail: 'prose', code }),
+      )
+      const err = await expectApiError(() => approveAccessRequest('ar-1'), 409)
+      expect(err.code).toBe(code)
+    },
+  )
+
+  it('approveAccessRequest() exposes the defensive 422 domain_not_allowed with allowedDomains', async () => {
+    vi.mocked(apiFetch).mockResolvedValueOnce(
+      makeResponse(422, {
+        title: 'Unprocessable Entity',
+        status: 422,
+        code: 'domain_not_allowed',
+        allowedDomains: ['welld.ch'],
+      }),
+    )
+    const err = await expectApiError(() => approveAccessRequest('ar-1'), 422)
+    expect(err.code).toBe('domain_not_allowed')
+    expect(err.allowedDomains).toEqual(['welld.ch'])
+  })
+
+  it('approveAccessRequest() maps 404 to ApiError', async () => {
+    vi.mocked(apiFetch).mockResolvedValueOnce(problemResponse(404, 'Not Found'))
+    await expectApiError(() => approveAccessRequest('nope'), 404)
+  })
+
+  it('rejectAccessRequest(id) POSTs with no body and returns the decided request', async () => {
+    const rejected = { ...fixedAccessRequest, status: 'rejected' as const }
+    vi.mocked(apiFetch).mockResolvedValueOnce(okResponse(rejected))
+    const out = await rejectAccessRequest('ar-1')
+    const { url, init } = lastCall()
+    expect(url).toBe(`${AUTH_URL}/admin/access-requests/ar-1/reject`)
+    expect(init?.method).toBe('POST')
+    expect(init?.body).toBeUndefined()
+    expect(out).toEqual(rejected)
+  })
+
+  it('rejectAccessRequest() exposes 409 already_decided and maps 404', async () => {
+    vi.mocked(apiFetch).mockResolvedValueOnce(
+      makeResponse(409, { title: 'Conflict', status: 409, code: 'already_decided' }),
+    )
+    const err = await expectApiError(() => rejectAccessRequest('ar-1'), 409)
+    expect(err.code).toBe('already_decided')
+    vi.mocked(apiFetch).mockResolvedValueOnce(problemResponse(404, 'Not Found'))
+    await expectApiError(() => rejectAccessRequest('nope'), 404)
   })
 })
