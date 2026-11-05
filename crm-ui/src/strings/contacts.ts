@@ -1,5 +1,10 @@
 /** Contacts: list, detail, form, archive and erasure. */
 const en = {
+  picker: {
+    noCompany: 'No company',
+    noMatch: 'No contact matches.',
+    results: (count: number) => (count === 1 ? '1 contact found.' : `${count} contacts found.`),
+  },
   list: {
     heading: 'Contacts',
     description: 'The people we deal with at our clients and prospects.',
@@ -79,6 +84,11 @@ const en = {
 }
 
 const it: typeof en = {
+  picker: {
+    noCompany: 'Nessuna azienda',
+    noMatch: 'Nessun contatto corrisponde.',
+    results: (count: number) => (count === 1 ? '1 contatto trovato.' : `${count} contatti trovati.`),
+  },
   list: {
     heading: 'Contatti',
     description: 'Le persone con cui lavoriamo presso clienti e potenziali clienti.',

@@ -52,6 +52,8 @@ const en = {
     lapsedNotice: 'Shown as a former client: no deal won in the last 12 months and none open. A new deal makes it a customer again.',
     contacts: 'Contacts',
     addContact: 'Add contact',
+    linkContact: 'Add existing',
+    linked: (name: string) => `${name} added to this company.`,
     contactsCaption: 'Contacts of this company',
     editContactOf: (name: string) => `Edit “${name}”`,
     noContacts: 'No contacts yet.',
@@ -59,6 +61,17 @@ const en = {
     newDeal: 'New deal',
     dealsCaption: 'Deals with this company',
     noDeals: 'No deals yet.',
+  },
+  linkContact: {
+    title: (company: string) => `Add an existing contact to ${company}`,
+    contact: 'Contact',
+    hint: 'Type a name or an email to find a contact already in the CRM.',
+    required: 'Choose a contact from the list.',
+    moves: (contact: string, from: string, to: string) =>
+      `${contact} is now at ${from}. A contact has one company: adding them here moves them from ${from} to ${to}.`,
+    submit: 'Add contact',
+    busy: 'Adding…',
+    stale: 'Someone changed this contact in the meantime. Choose it again and retry.',
   },
   archiveDialog: {
     title: (name: string) => `Archive “${name}”?`,
@@ -152,6 +165,8 @@ const it: typeof en = {
     lapsedNotice: 'Mostrata come ex cliente: nessuna opportunità vinta negli ultimi 12 mesi e nessuna aperta. Una nuova opportunità la rende di nuovo cliente.',
     contacts: 'Contatti',
     addContact: 'Aggiungi contatto',
+    linkContact: 'Aggiungi esistente',
+    linked: (name: string) => `${name} aggiunto a questa azienda.`,
     contactsCaption: 'Contatti di questa azienda',
     editContactOf: (name: string) => `Modifica “${name}”`,
     noContacts: 'Ancora nessun contatto.',
@@ -159,6 +174,17 @@ const it: typeof en = {
     newDeal: 'Nuova opportunità',
     dealsCaption: 'Opportunità con questa azienda',
     noDeals: 'Ancora nessuna opportunità.',
+  },
+  linkContact: {
+    title: (company: string) => `Aggiungi un contatto esistente a ${company}`,
+    contact: 'Contatto',
+    hint: 'Scrivi un nome o un indirizzo email per trovare un contatto già presente nel CRM.',
+    required: "Scegli un contatto dall'elenco.",
+    moves: (contact: string, from: string, to: string) =>
+      `${contact} è ora presso ${from}. Un contatto ha una sola azienda: aggiungerlo qui lo sposta da ${from} a ${to}.`,
+    submit: 'Aggiungi contatto',
+    busy: 'Aggiunta…',
+    stale: 'Qualcuno ha modificato questo contatto nel frattempo. Sceglilo di nuovo e riprova.',
   },
   archiveDialog: {
     title: (name: string) => `Archiviare “${name}”?`,

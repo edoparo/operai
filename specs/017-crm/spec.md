@@ -98,6 +98,9 @@ the right person.
 - AC-2.4 A holder of the **erase contact** capability can erase a contact: the contact row is
   deleted and every activity that referenced it loses the reference. Erasure is confirmed in
   a dialog that says it cannot be undone. Nobody else can erase.
+- AC-2.5 From a company's page, an existing contact can be added to it by searching for it
+  (owner, 2026-11-05). A contact has one company: one already at another company is moved,
+  and the dialog says so before it happens. Contacts already at this company are not offered.
 
 ### US-3 Deals and pipeline
 As a salesperson, I want to track opportunities through stages, so that the partners see

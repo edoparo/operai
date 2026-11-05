@@ -18,6 +18,7 @@ import { ArchivedBadge, CompanyStatusBadge, DealStageBadge, EntityBadge } from '
 import CompanyFormDialog from '../components/CompanyFormDialog'
 import ContactFormDialog from '../components/ContactFormDialog'
 import DealFormDialog from '../components/DealFormDialog'
+import LinkContactDialog from '../components/LinkContactDialog'
 import { LoadFailure, Loading, Saved, StaleWriteBanner } from '../components/LoadState'
 import { isStaleWrite } from '../lib/api'
 import { getCompany, getContact, listContacts, listDeals, setCompanyArchived } from '../lib/crmApi'
@@ -225,6 +226,7 @@ function CompanyContactsCard({ company }: { company: Company }) {
   )
   const contacts = useResource(load)
   const [adding, setAdding] = useState(false)
+  const [linking, setLinking] = useState(false)
   const [editing, setEditing] = useState<Contact | null>(null)
   const [opening, setOpening] = useState<string | null>(null)
   const [openError, setOpenError] = useState<string | null>(null)
@@ -291,9 +293,19 @@ function CompanyContactsCard({ company }: { company: Company }) {
     <Card
       title={t.contacts}
       action={
-        <Button size="sm" onClick={() => setAdding(true)} aria-haspopup="dialog" data-testid="crm-company-add-contact">
-          {t.addContact}
-        </Button>
+        <span className="flex flex-wrap gap-2">
+          <Button
+            size="sm"
+            onClick={() => setLinking(true)}
+            aria-haspopup="dialog"
+            data-testid="crm-company-link-contact"
+          >
+            {t.linkContact}
+          </Button>
+          <Button size="sm" onClick={() => setAdding(true)} aria-haspopup="dialog" data-testid="crm-company-add-contact">
+            {t.addContact}
+          </Button>
+        </span>
       }
       data-testid="crm-company-contacts"
     >
@@ -335,6 +347,17 @@ function CompanyContactsCard({ company }: { company: Company }) {
           onSaved={(contact) => {
             setAdding(false)
             setSaved(strings.contacts.list.created(contactName(contact)))
+            contacts.retry()
+          }}
+        />
+      )}
+      {linking && (
+        <LinkContactDialog
+          company={{ id: company.id, name: company.name }}
+          onCancel={() => setLinking(false)}
+          onLinked={(contact) => {
+            setLinking(false)
+            setSaved(t.linked(contactName(contact)))
             contacts.retry()
           }}
         />

@@ -249,6 +249,64 @@ describe('CompaniesPage', () => {
     expect(sent).toMatchObject({ jobTitle: 'CIO' })
   })
 
+  it('adds an existing contact from another company, saying it moves, with the contact’s version (specs/017 AC-2.5)', async () => {
+    const carla = {
+      id: 'p2',
+      firstName: 'Carla',
+      lastName: 'Rossi',
+      email: 'carla@globex.ch',
+      phone: null,
+      jobTitle: null,
+      company: { id: 'c2', name: 'Globex AG' },
+      archived: false,
+      updatedAt: '2026-11-01T10:00:00.000Z',
+    }
+    const already = { ...carla, id: 'p3', firstName: 'Already', lastName: 'Here', company: { id: 'c1', name: 'Acme SA' } }
+    let ifMatch: string | null = null
+    let sent: Record<string, unknown> | null = null
+    let companyListReads = 0
+    apiFetch.mockImplementation(
+      fakeApi({
+        'GET /companies/c1': () => ({
+          status: 200,
+          body: { ...companySummary(), website: null, legalName: null, street: null, postalCode: null, notes: null, version: 1, createdAt: '2025-01-01T00:00:00.000Z' },
+        }),
+        'GET /contacts': (url) => {
+          if (url.searchParams.get('companyId') === 'c1') {
+            companyListReads += 1
+            return { status: 200, body: page([]) }
+          }
+          return { status: 200, body: page([carla, already]) }
+        },
+        'GET /contacts/p2': () => ({ status: 200, body: { ...carla, notes: null, version: 3, createdAt: '2026-01-01T00:00:00.000Z' } }),
+        'PATCH /contacts/p2': (_url, init) => {
+          ifMatch = new Headers(init?.headers).get('If-Match')
+          sent = JSON.parse(String(init?.body))
+          return { status: 200, body: { ...carla, company: { id: 'c1', name: 'Acme SA' }, notes: null, version: 4, createdAt: '2026-01-01T00:00:00.000Z' } }
+        },
+        'GET /deals': () => ({ status: 200, body: page([]) }),
+      }),
+    )
+    window.history.pushState(null, '', '/companies/c1')
+    render(<RouterProvider router={createAppRouter()} />)
+    fireEvent.click(await screen.findByTestId('crm-company-link-contact'))
+    const dialog = await screen.findByRole('dialog', { name: 'Add an existing contact to Acme SA' })
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Add contact' }))
+    expect(await within(dialog).findByText('Choose a contact from the list.')).not.toBeNull()
+    const input = within(dialog).getByRole('combobox')
+    fireEvent.focus(input)
+    const option = await within(dialog).findByRole('option', { name: /Carla Rossi/ })
+    // A contact already at this company is not offered.
+    expect(within(dialog).queryByRole('option', { name: /Already Here/ })).toBeNull()
+    fireEvent.click(option)
+    expect(within(dialog).getByTestId('crm-link-contact-moves').textContent).toContain('moves them from Globex AG to Acme SA')
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Add contact' }))
+    await screen.findByText('Carla Rossi added to this company.')
+    expect(ifMatch).toBe('"3"')
+    expect(sent).toEqual({ companyId: 'c1' })
+    expect(companyListReads).toBe(2)
+  })
+
   it('a header sorts on the server, a second click reverses it, and the page goes back to 1 (US-9)', async () => {
     await renderAt({ 'GET /companies': () => ({ status: 200, body: page([companySummary()], 60) }) })
     const table = await screen.findByTestId('crm-companies-table')

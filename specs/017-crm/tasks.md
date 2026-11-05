@@ -1,7 +1,7 @@
 ---
 spec: 017
 status: in-progress
-synced: 2026-11-04
+synced: 2026-11-05
 ---
 
 # Tasks — CRM (specs/017)
@@ -41,3 +41,4 @@ verified by the named check; `[ ]` = open, with the reason.
 | T28 | Sortable lists and owner filter (US-9): `sortable` columns in `@operai/ui` DataTable (aria-sort, story, tests), `sort`/`order` on `GET /companies` and `/contacts`, `GET /companies/owners`, owner filter on Companies | [x] | operai-ui 84 tests; crm-api 267/267 on `crm_test`; crm-ui lint + build + 191 tests |
 | T29 | Board year picker (AC-3.6): `year` on `GET /pipeline` and the board list, `years` for the picker, select on the Pipeline page | [x] | crm-api 281/281 on `crm_test`; crm-ui lint + build + 195 tests |
 | T30 | Activity contact and deal editable (AC-4.2): `contactId`/`dealId` on `PATCH /activities/{id}` checked against the company, fields shown in the edit dialog | [x] | crm-api 282/282 on `crm_test`; crm-ui lint + build + 196 tests |
+| T31 | Add an existing contact from the company page (AC-2.5): `ContactPicker`, "Add existing" dialog warning when the contact moves, saved with the contact's If-Match (UI only, existing `PATCH /contacts/{id}`) | [x] | crm-ui lint + build + 201 tests |
