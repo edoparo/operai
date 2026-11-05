@@ -124,7 +124,7 @@ async function summarizeInviter(userId: string | null) {
 }
 
 /** The single serializer for `InvitationDetail` — used by create/resend/revoke/list so the wire shape never drifts between endpoints. */
-async function serializeInvitation(invitation: Invitation) {
+export async function serializeInvitation(invitation: Invitation) {
   const [roles, departments, invitedBy] = await Promise.all([
     summarizeRoles(invitation.roleIds),
     summarizeDepartments(invitation.departmentIds),
