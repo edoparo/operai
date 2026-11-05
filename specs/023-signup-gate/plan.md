@@ -255,8 +255,20 @@ in specs/006, with `emailDelivery` `sent` | `failed`)
 **`POST /admin/access-requests/{id}/reject`** (no body) → `200 AccessRequestDetail` · 404 ·
 409 `already_decided` · 401 · 403
 
-**`POST /admin/invitations`** (existing) gains `422 { code: "domain_not_allowed", detail:
-"Invitations can only be sent to welld.ch, welld.it addresses" }`.
+**`POST /admin/invitations`** (existing) gains `422 { code: "domain_not_allowed",
+allowedDomains: ["welld.ch", "welld.it"], detail: "Invitations can only be sent to welld.ch,
+welld.it addresses" }`. `allowedDomains` lets admin-ui render the message in en/it; `detail` is
+the English fallback. The same body is used by approve's defensive 422.
+
+**admin-ui error reading** (amended 2026-11-05 after design.md, gap 1): `ApiProblem`/`ApiError`
+in `admin-ui/src/lib/adminApi.ts` gain optional `code?: string` and `allowedDomains?: string[]`,
+copied from the problem body. New UI branches on `code`, never on `detail` prose (the existing
+`inviteConflict.ts` prose matching is left as is).
+
+**Roles granted by an invitation** (clarified 2026-11-05, design.md gap 3; unchanged specs/006
+behaviour): an invitation with one or more roles grants exactly those roles; an invitation with
+no roles, including one with departments only, keeps the baseline `employee` and adds the
+departments.
 
 **Hosted sign-in page** `GET /sign-in?error=…`, three new `ERROR_MESSAGES` entries,
 English like the rest of the page (`<html lang="en">`):
