@@ -165,6 +165,7 @@ describe("env-doctor resolver", () => {
     expect(check((s) => delete s["estimai-api"]!.SERVICE_AUDIENCE)).toContain("SERVICE_AUDIENCE is missing");
     expect(check((s) => delete s["projects-api"]!.SERVICE_AUDIENCE)).toContain("SERVICE_AUDIENCE is missing");
     expect(check((s) => delete s["projects-api"]!.ESTIMAI_INTERNAL_URL)).toContain("ESTIMAI_INTERNAL_URL is missing");
+    expect(check((s) => delete s["projects-api"]!.NOTIFY_INTERNAL_URL)).toContain("NOTIFY_INTERNAL_URL is missing");
     expect(check((s) => delete s["crm-api"]!.PROJECTS_INTERNAL_URL)).toContain("PROJECTS_INTERNAL_URL is missing");
     const registry = (s: ReturnType<typeof loadTemplateSuite>["suite"]) => JSON.parse(s.auth!.SERVICE_CLIENTS!);
     expect(
@@ -174,12 +175,21 @@ describe("env-doctor resolver", () => {
         s.auth!.SERVICE_CLIENTS = JSON.stringify(reg);
       }),
     ).toContain('entry "projects-api" lacks the "estimai.estimates.read" scope');
+    for (const scope of ["crm.contacts.read", "notifications.push"]) {
+      expect(
+        check((s) => {
+          const reg = registry(s);
+          reg["projects-api"].scope = reg["projects-api"].scope.split(" ").filter((x: string) => x !== scope).join(" ");
+          s.auth!.SERVICE_CLIENTS = JSON.stringify(reg);
+        }),
+      ).toContain(`entry "projects-api" lacks the "${scope}" scope`);
+    }
     expect(
       check((s) => {
         const reg = registry(s);
         reg["crm-api"].scope = "notifications.push emails.send";
         s.auth!.SERVICE_CLIENTS = JSON.stringify(reg);
       }),
-    ).toContain('entry "crm-api" lacks the "projects.contracts.read" scope');
+    ).toContain('entry "crm-api" lacks the "projects.purchase-orders.read" scope');
   });
 });
