@@ -1,7 +1,7 @@
 /**
  * Authorization matrix over the ASSEMBLED app (specs/021-projects T10; AC-4.2 – AC-4.6, ADR-0014;
- * specs/022 T9, T23: the to-start queue, terms and purchase order routes, AC-1.1, AC-1.2, AC-1.4).
- * T29 widens it to the gates T24 – T28 add.
+ * specs/022 T9, T23 – T29: the to-start queue, terms and purchase order routes, the referent, the
+ * project-manager pick; AC-1.1, AC-1.2, AC-1.9, AC-3.7, AC-4.8, AC-5.1).
  *
  * The route list is read from the app's own table, so a route added without a row here fails the
  * inventory test, and one added without a guard fails the matrix. Every route is then driven by
@@ -10,8 +10,10 @@
  *   outsider    no grant of the module (an `employee`, AC-4.6)         -> 403 `forbidden` everywhere
  *   viewer      `projects:access` only                                   -> reads, manages nothing (AC-4.3)
  *   pmCh        `project-manager` in welld_ch: manage, entity-scoped     -> own entity only (AC-4.4)
- *   salesIt     `sales` in welld_it: manage, entity-scoped               -> own entity only (AC-4.4)
- *   accounting  `projects:access` + `purchase-order:bexio`                     -> reads, writes the Bexio id (AC-4.5)
+ *   salesIt     `sales` in welld_it: manage + take, entity-scoped        -> own entity only (AC-4.4, AC-1.9)
+ *   salesCh     `sales` in welld_ch: manage + take, entity-scoped        -> own entity only (AC-1.9)
+ *   opsCh       `ops-manager` in welld_ch: manage + receive, entity-scoped -> own entity only; takes nothing (AC-4.8)
+ *   accounting  `projects:access` + `purchase-order:bexio`               -> reads, writes the Bexio id (AC-4.5)
  *   admin       everything, unscoped                                     -> both entities (AC-4.6)
  *
  * What each persona holds is written out below as literals (the spec's grants), NOT computed from
@@ -41,8 +43,12 @@ const ENTITIES: readonly Entity[] = ["welld_ch", "welld_it"];
  *   take         `handoff:take` AND `project:manage` for the CRM DEAL's entity, which the CRM says
  *                (`out_of_scope` for the other one; `forbidden` without `handoff:take` at all)
  *   bexio        `purchase-order:bexio`, not entity-scoped
+ *   pick         `manage` for the project's entity, and then — the project having no project manager yet —
+ *                to be the purchase order's ops-manager (`purchase-order:receive` for the project's entity
+ *                AND named on the row) or to hold `purchase-order:receive` for every entity (the admin
+ *                override): `not_ops_manager` otherwise (specs/022 T27, D46, D47)
  */
-type Need = "access" | "manage-any" | "manage" | "take-any" | "take" | "bexio";
+type Need = "access" | "manage-any" | "manage" | "take-any" | "take" | "bexio" | "pick";
 
 interface Req {
   readonly method: string;
@@ -117,7 +123,7 @@ const SPECS: Record<string, RouteSpec> = {
   "GET /companies": { need: "manage-any", ok: 200, prepare: async () => ({ method: "GET", path: "/companies?q=acme" }) },
   // The to-start queue (specs/022 T24): read by `handoff:take` holders (sales, admin) whole; a take and
   // the take's form (ops-managers, contacts) need `handoff:take` + manage for the DEAL's entity — the CRM,
-  // not the request, says which (AC-1.1, AC-1.2, AC-1.9). T29 widens this to the other personas.
+  // not the request, says which (AC-1.1, AC-1.2, AC-1.9).
   "GET /queue": {
     need: "take-any",
     ok: 200,
@@ -222,7 +228,6 @@ const SPECS: Record<string, RouteSpec> = {
     },
   },
   // The referent (specs/022 T26, AC-3.7): `project:manage` for the PROJECT's entity, the company read from its row.
-  // Minimal rows now; T29 widens the personas.
   "GET /projects/:id/purchase-order/contacts": {
     need: "manage",
     ok: 200,
@@ -242,6 +247,45 @@ const SPECS: Record<string, RouteSpec> = {
     }),
   },
 };
+
+/**
+ * Second readings of a route a row above already covers, where the same route answers a different
+ * question depending on the record or the body: each is driven by the same persona × entity matrix.
+ * `route` is the inventory key it belongs to.
+ */
+const VARIANTS: Record<string, RouteSpec & { readonly route: string }> = {
+  // The project-manager pick (specs/022 T27, AC-4.8): a project from a deal awaiting its project manager,
+  // whose purchase order names the entity's ops-manager (OPS_OF).
+  "PATCH /projects/:id (the pick on an awaiting project)": {
+    route: "PATCH /projects/:id",
+    need: "pick",
+    ok: 200,
+    prepare: async (entity) => {
+      const { project } = await seedDealProject({
+        project: { entity, name: `Awaiting ${entity}` },
+        order: { dealId: `pick-deal-${entity}`, opsManagerId: OPS_OF[entity] },
+      });
+      return { method: "PATCH", path: `/projects/${project.id}`, body: { projectManagerId: "user-pm-ch" }, ifMatch: 1 };
+    },
+  },
+  // A project from a deal is read like any project (AC-3.7: the referent is shown to every holder of access).
+  "GET /projects/:id (a project from a deal)": {
+    route: "GET /projects/:id",
+    need: "access",
+    ok: 200,
+    prepare: async (entity) => ({ method: "GET", path: `/projects/${(await withPurchaseOrder(entity)).project.id}` }),
+  },
+  // The awaiting filter of the list is a read.
+  "GET /projects (the awaiting filter)": {
+    route: "GET /projects",
+    need: "access",
+    ok: 200,
+    prepare: async (entity) => (await withPurchaseOrder(entity), { method: "GET", path: "/projects?projectManagerId=none" }),
+  },
+};
+
+/** Every row the matrix drives: a route's own row, and its variants. */
+const ROWS: Record<string, RouteSpec> = { ...SPECS, ...VARIANTS };
 
 /** The routes that answer without a token: liveness and the API docs. Nothing else may. */
 const PUBLIC = new Set(["GET /health", "GET /openapi.json", "GET /docs"]);
@@ -271,21 +315,33 @@ interface Grants {
   readonly bexio: boolean;
   /** `handoff:take` (specs/022 T24): sales for its own entity, an admin for both. */
   readonly take: readonly Entity[];
+  /** `purchase-order:receive` (specs/022 T19): the ops-manager for its own entity, an admin for both. */
+  readonly receive: readonly Entity[];
+  /** The entities whose seeded purchase order (`OPS_OF`) names this persona as its ops-manager. */
+  readonly opsOf: readonly Entity[];
 }
 
-// T29 adds the `sales` (welld_ch) and `ops-manager` personas to this table; until then the matrix
-// covers the six it had, and those two are exercised by the queue, scope and candidates tests.
-const GRANTS: Record<Exclude<PersonaName, "colleague" | "salesCh" | "opsCh">, Grants> = {
-  outsider: { access: false, manage: [], bexio: false, take: [] },
-  viewer: { access: true, manage: [], bexio: false, take: [] },
-  pmCh: { access: true, manage: ["welld_ch"], bexio: false, take: [] },
-  salesIt: { access: true, manage: ["welld_it"], bexio: false, take: ["welld_it"] },
-  accounting: { access: true, manage: [], bexio: true, take: [] },
-  admin: { access: true, manage: ["welld_ch", "welld_it"], bexio: true, take: ["welld_ch", "welld_it"] },
+// `colleague` (a second reader, for concurrency checks elsewhere) holds what `viewer` holds and is left out.
+const GRANTS: Record<Exclude<PersonaName, "colleague">, Grants> = {
+  outsider: { access: false, manage: [], bexio: false, take: [], receive: [], opsOf: [] },
+  viewer: { access: true, manage: [], bexio: false, take: [], receive: [], opsOf: [] },
+  pmCh: { access: true, manage: ["welld_ch"], bexio: false, take: [], receive: [], opsOf: [] },
+  salesIt: { access: true, manage: ["welld_it"], bexio: false, take: ["welld_it"], receive: [], opsOf: [] },
+  salesCh: { access: true, manage: ["welld_ch"], bexio: false, take: ["welld_ch"], receive: [], opsOf: [] },
+  opsCh: { access: true, manage: ["welld_ch"], bexio: false, take: [], receive: ["welld_ch"], opsOf: ["welld_ch"] },
+  accounting: { access: true, manage: [], bexio: true, take: [], receive: [], opsOf: [] },
+  admin: {
+    access: true,
+    manage: ["welld_ch", "welld_it"],
+    bexio: true,
+    take: ["welld_ch", "welld_it"],
+    receive: ["welld_ch", "welld_it"],
+    opsOf: [],
+  },
 };
 const PERSONA_NAMES = Object.keys(GRANTS) as (keyof typeof GRANTS)[];
 
-type Outcome = "ok" | "forbidden" | "out_of_scope";
+type Outcome = "ok" | "forbidden" | "out_of_scope" | "not_ops_manager";
 
 function expectedOutcome(need: Need, grants: Grants, entity: Entity): Outcome {
   if (!grants.access) return "forbidden";
@@ -304,6 +360,14 @@ function expectedOutcome(need: Need, grants: Grants, entity: Entity): Outcome {
       return grants.take.includes(entity) && grants.manage.includes(entity) ? "ok" : "out_of_scope";
     case "bexio":
       return grants.bexio ? "ok" : "forbidden";
+    case "pick": {
+      // The manage gate answers first (`forbidden` / `out_of_scope`); only a manager of the entity is asked
+      // whether they may pick: the admin override is `receive` for EVERY entity, an ops-manager's is their own.
+      const gate = expectedOutcome("manage", grants, entity);
+      if (gate !== "ok") return gate;
+      const oversees = ENTITIES.every((each) => grants.receive.includes(each));
+      return oversees || (grants.receive.includes(entity) && grants.opsOf.includes(entity)) ? "ok" : "not_ops_manager";
+    }
   }
 }
 
@@ -323,6 +387,12 @@ async function snapshot(): Promise<string> {
 describe("authorization matrix: the routes", () => {
   it("has a row for every route the app serves, and no row for a route it does not", () => {
     expect(routes).toEqual(Object.keys(SPECS).sort());
+  });
+
+  it("drives its variants through routes it has a row for", () => {
+    for (const [name, variant] of Object.entries(VARIANTS)) {
+      expect({ name, row: variant.route in SPECS }).toEqual({ name, row: true });
+    }
   });
 
   it("serves the service-to-service routes it lists, and no others", () => {
@@ -383,7 +453,7 @@ describe("authorization matrix: service-to-service routes", () => {
 // ─── The matrix: every route × persona × the record's entity ─────────────────
 
 describe("authorization matrix: every route × persona × entity", () => {
-  for (const [key, spec] of Object.entries(SPECS)) {
+  for (const [key, spec] of Object.entries(ROWS)) {
     describe(key, () => {
       for (const persona of PERSONA_NAMES) {
         for (const entity of ENTITIES) {
@@ -452,7 +522,7 @@ describe("authorization matrix: the to-start queue (AC-1.1, AC-1.2, AC-1.9)", ()
   it("lets only a taker of the deal's entity take it: a refused take leaves the deal queued, the entity's own sales takes it", async () => {
     const deal = wonDeal("welld_ch");
     const body = takeBody();
-    for (const persona of ["viewer", "accounting", "pmCh", "salesIt"] as const) {
+    for (const persona of ["viewer", "accounting", "pmCh", "opsCh", "salesIt"] as const) {
       const res = await call("POST", `/queue/${deal}/project`, { as: persona, body });
       expect({ persona, status: res.status }).toEqual({ persona, status: 403 });
     }
@@ -474,6 +544,69 @@ describe("authorization matrix: the to-start queue (AC-1.1, AC-1.2, AC-1.9)", ()
   });
 });
 
+describe("authorization matrix: the project-manager pick (AC-4.8, D46, D47, T18 L5)", () => {
+  const pick = (id: string, as: PersonaName, projectManagerId = "user-pm-ch", ifMatch = 1) =>
+    call("PATCH", `/projects/${id}`, { as, body: { projectManagerId }, ifMatch });
+  const projectManagerOf = async (id: string) => (await db.project.findUniqueOrThrow({ where: { id } })).projectManagerId;
+
+  it("refuses an ops-manager who is not the one the purchase order names, and lets an admin pick in their place", async () => {
+    const { project } = await seedDealProject({ order: { opsManagerId: "user-ops-elsewhere" } });
+    const refused = await pick(project.id, "opsCh");
+    expect(refused.status).toBe(403);
+    expect(refused.json).toMatchObject({ status: 403, code: "not_ops_manager" });
+    expect(await projectManagerOf(project.id)).toBeNull();
+    expect((await pick(project.id, "admin")).status).toBe(200);
+    expect(await projectManagerOf(project.id)).toBe("user-pm-ch");
+  });
+
+  it("refuses the person the purchase order names once they no longer hold `purchase-order:receive` (they are a project-manager now)", async () => {
+    const { project } = await seedDealProject({ order: { opsManagerId: PERSONAS.pmCh.sub } });
+    const refused = await pick(project.id, "pmCh");
+    expect(refused.status).toBe(403);
+    expect(refused.json).toMatchObject({ code: "not_ops_manager" });
+    expect(await projectManagerOf(project.id)).toBeNull();
+  });
+
+  it("answers `forbidden` to a reader and `out_of_scope` to a manager of the other entity before it asks who the ops-manager is", async () => {
+    const { project } = await seedDealProject({ order: { opsManagerId: OPS_OF.welld_ch } });
+    for (const [persona, code] of [
+      ["viewer", "forbidden"],
+      ["accounting", "forbidden"],
+      ["salesIt", "out_of_scope"],
+    ] as const) {
+      const res = await pick(project.id, persona);
+      expect({ persona, status: res.status, code: res.json.code }).toEqual({ persona, status: 403, code });
+    }
+    expect(await projectManagerOf(project.id)).toBeNull();
+  });
+
+  it("leaves everything but `projectManagerId` of an awaiting project to any manager of its entity", async () => {
+    const { project } = await seedDealProject({ order: { opsManagerId: OPS_OF.welld_ch } });
+    const res = await call("PATCH", `/projects/${project.id}`, { as: "pmCh", body: { name: "Renamed by the PM" }, ifMatch: 1 });
+    expect(res.status).toBe(200);
+    expect(await projectManagerOf(project.id)).toBeNull();
+  });
+
+  it("is specs/021's rule once the project has a project manager: any manager of the entity changes it, the ops-manager's pick is over", async () => {
+    const id = await withProject("welld_ch");
+    let version = 1;
+    for (const persona of ["pmCh", "salesCh", "opsCh", "admin"] as const) {
+      const res = await pick(id, persona, "user-viewer", version);
+      expect({ persona, status: res.status }).toEqual({ persona, status: 200 });
+      version++;
+    }
+    for (const [persona, code] of [
+      ["viewer", "forbidden"],
+      ["accounting", "forbidden"],
+      ["salesIt", "out_of_scope"],
+    ] as const) {
+      const res = await pick(id, persona, "user-pm-ch", version);
+      expect({ persona, status: res.status, code: res.json.code }).toEqual({ persona, status: 403, code });
+    }
+    expect(await projectManagerOf(id)).toBe("user-viewer");
+  });
+});
+
 describe("authorization matrix: scope (AC-4.4, AC-4.5, AC-4.6)", () => {
   it("tells each persona what it may manage, so the UI hides what the server would refuse", async () => {
     const scopes = Object.fromEntries(
@@ -483,6 +616,9 @@ describe("authorization matrix: scope (AC-4.4, AC-4.5, AC-4.6)", () => {
       viewer: { manage: [], managesAll: false, bexio: false, take: [], oversees: false },
       pmCh: { manage: ["welld_ch"], managesAll: false, bexio: false, take: [], oversees: false },
       salesIt: { manage: ["welld_it"], managesAll: false, bexio: false, take: ["welld_it"], oversees: false },
+      salesCh: { manage: ["welld_ch"], managesAll: false, bexio: false, take: ["welld_ch"], oversees: false },
+      // `oversees` is `purchase-order:receive` for EVERY entity: an ops-manager has it for its own only.
+      opsCh: { manage: ["welld_ch"], managesAll: false, bexio: false, take: [], oversees: false },
       accounting: { manage: [], managesAll: false, bexio: true, take: [], oversees: false },
       admin: { manage: ["welld_ch", "welld_it"], managesAll: true, bexio: true, take: ["welld_ch", "welld_it"], oversees: true },
     });
@@ -492,11 +628,24 @@ describe("authorization matrix: scope (AC-4.4, AC-4.5, AC-4.6)", () => {
     // A guard against the two tables drifting apart: the permission rows behind each persona.
     const has = (name: PersonaName, resource: string, action: string) =>
       PERSONAS[name].permissions.some((permission) => permission.resource === resource && permission.action === action);
+    // The entities a persona's grant reaches: none without the grant, both when it carries no condition, the
+    // persona's own entity when it is entity-scoped.
+    const reach = (name: PersonaName, resource: string, action: string): Entity[] => {
+      const grant = PERSONAS[name].permissions.find((permission) => permission.resource === resource && permission.action === action);
+      if (!grant) return [];
+      return grant.conditions === null ? [...ENTITIES] : [PERSONAS[name].entity as Entity];
+    };
     for (const name of PERSONA_NAMES) {
       expect(has(name, "projects", "access")).toBe(GRANTS[name].access);
-      expect(has(name, "project", "manage")).toBe(GRANTS[name].manage.length > 0);
       expect(has(name, "purchase-order", "bexio")).toBe(GRANTS[name].bexio);
-      expect(has(name, "handoff", "take")).toBe(GRANTS[name].take.length > 0);
+      expect({ name, manage: reach(name, "project", "manage") }).toEqual({ name, manage: [...GRANTS[name].manage] });
+      expect({ name, take: reach(name, "handoff", "take") }).toEqual({ name, take: [...GRANTS[name].take] });
+      expect({ name, receive: reach(name, "purchase-order", "receive") }).toEqual({ name, receive: [...GRANTS[name].receive] });
+      // `opsOf` is read off the seed: the ops-manager of an entity's purchase order is the persona with that id.
+      expect({ name, opsOf: ENTITIES.filter((entity) => OPS_OF[entity] === PERSONAS[name].sub) }).toEqual({
+        name,
+        opsOf: [...GRANTS[name].opsOf],
+      });
     }
   });
 });
