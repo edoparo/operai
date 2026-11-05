@@ -43,19 +43,28 @@ function createOwnRouter(): AppRouter {
  * The router as an external store whose subscription is the mount: React subscribes
  * after it commits and unsubscribes when it unmounts, and strict mode's mount,
  * unmount, mount leaves exactly one router with its history listening.
+ *
+ * React also runs a subscription's cleanup and setup again on a component that stays
+ * mounted: strict mode does it when the shell shows the module again after hiding it
+ * behind its pending fallback. That swaps the router with no render in between, so the
+ * snapshot carries a `key` that changes with the router: a swapped router gets a fresh
+ * `RouterProvider`, because a provider already mounted never loads a router it was
+ * not mounted with (TanStack Router's `Transitioner`, in development) and the module
+ * would come back blank.
  */
 function ownRouterMount() {
-  let router: AppRouter | null = null
+  let current: { router: AppRouter; key: number } | null = null
+  let generation = 0
   return {
     subscribe: (onChange: () => void) => {
-      router = createOwnRouter()
+      current = { router: createOwnRouter(), key: ++generation }
       onChange()
       return () => {
-        router?.history.destroy()
-        router = null
+        current?.router.history.destroy()
+        current = null
       }
     },
-    getRouter: () => router,
+    getCurrent: () => current,
   }
 }
 
@@ -101,6 +110,6 @@ function ownRouterMount() {
  */
 export default function App() {
   const [mount] = useState(ownRouterMount)
-  const router = useSyncExternalStore(mount.subscribe, mount.getRouter)
-  return router ? <RouterProvider router={router} /> : null
+  const own = useSyncExternalStore(mount.subscribe, mount.getCurrent)
+  return own ? <RouterProvider key={own.key} router={own.router} /> : null
 }

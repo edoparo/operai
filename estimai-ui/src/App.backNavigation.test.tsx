@@ -8,7 +8,7 @@
  * user went to or came from — and a remote that is unmounted leaves no history
  * listener.
  */
-import { StrictMode } from 'react'
+import { StrictMode, Suspense } from 'react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { cleanup, render, screen } from '@testing-library/react'
 import { strings } from './strings'
@@ -79,5 +79,62 @@ describe('App (estimai-ui), moving to another module and back', () => {
     expect(window.history.pushState).toBe(pushState)
     added.mockRestore()
     removed.mockRestore()
+  })
+})
+
+/**
+ * Moving inside the module (`/estimai` redirects to the estimates list). While the
+ * shell's access guard answers, the shell hides the mounted remote behind its pending
+ * fallback (a Suspense boundary) and shows it again; under strict mode (the shell's
+ * own, in development) React then runs the remote's effect cleanups and setups again
+ * on the SAME instance, with no render in between (specs/022 AC-6.1, QE round 2: the
+ * page came back blank).
+ */
+const Gate = ({ block }: { block: Promise<void> | null }) => {
+  if (block) throw block
+  return null
+}
+
+const shellLike = (block: Promise<void> | null) => (
+  <StrictMode>
+    <Suspense fallback={<p data-testid="shell-pending">pending</p>}>
+      <App />
+      <Gate block={block} />
+    </Suspense>
+  </StrictMode>
+)
+
+/** The shell hides the mounted remote, then shows it again. */
+const hideThenShow = async (view: ReturnType<typeof render>) => {
+  let reveal!: () => void
+  view.rerender(shellLike(new Promise<void>((resolve) => (reveal = resolve))))
+  await screen.findByTestId('shell-pending')
+  reveal()
+  view.rerender(shellLike(null))
+}
+
+describe('App (estimai-ui), moving inside the module', () => {
+  it('shows the page of its address when the shell hides the mounted remote and shows it again', async () => {
+    window.history.pushState(null, '', '/estimai')
+    const view = render(shellLike(null))
+    await listHeading()
+    expect(window.location.pathname).toBe('/estimai/estimates')
+
+    await hideThenShow(view)
+
+    expect(await listHeading()).not.toBeNull()
+    expect(screen.queryByTestId('shell-pending')).toBeNull()
+  })
+
+  it('shows the same page when the shell unmounts the remote and mounts it again at the same address', async () => {
+    window.history.pushState(null, '', '/estimai')
+    const firstMount = render(<App />)
+    await listHeading()
+    expect(window.location.pathname).toBe('/estimai/estimates')
+
+    firstMount.unmount()
+    render(<App />)
+
+    expect(await listHeading()).not.toBeNull()
   })
 })
