@@ -2,18 +2,21 @@ import { Link } from '@tanstack/react-router'
 import { TabNav, tabLinkClassName } from '@operai/ui'
 import { strings } from '../strings'
 
-// The two Users-section views, in the order design.md's Screen U1/U2 uses
-// consistently ("Active users" | "Invitations"). `to` paths are relative to
+// The Users-section views, in the order design.md's Screen U1/U2 uses
+// ("Active users" | "Invitations"), plus the waiting list (specs/023).
+// Each carries an explicit `testId` — never derived from `to`, so a new view
+// can't silently reuse another's id. `to` paths are relative to
 // admin-ui's own inner router (see ../router.tsx) — TanStack Router prefixes
 // them with the router's `basepath` automatically, same as ../components/
 // SectionNav.tsx's own `SECTIONS` list.
 const VIEWS = [
-  { to: '/users', label: strings.nav.activeUsers },
-  { to: '/users/invitations', label: strings.nav.invitations },
+  { to: '/users', label: strings.nav.activeUsers, testId: 'users-subnav-active' },
+  { to: '/users/invitations', label: strings.nav.invitations, testId: 'users-subnav-invitations' },
+  { to: '/users/access-requests', label: strings.nav.accessRequests, testId: 'users-subnav-access-requests' },
 ] as const
 
 /**
- * UsersSubNav — the Users section's own two-tab strip (T10,
+ * UsersSubNav — the Users section's own tab strip (three views since specs/023) (T10,
  * specs/006-user-invitations, design.md Screen U1: "UsersSubNav — a two-item
  * tab strip … above the existing search input"). Rendered independently by
  * both `../pages/UsersPage.tsx` (Screen U1) and `../pages/InvitationsPage.tsx`
@@ -39,7 +42,7 @@ const VIEWS = [
  *     prefix-match ancestor of `/users/invitations` and mark both links
  *     current simultaneously (see `shell/src/components/Sidebar.tsx`'s doc
  *     comment on the same `activeOptions.exact` default-fuzzy-match pitfall).
- *     "Invitations" needs no such option — nothing is nested under it.
+ *     The other views need no such option — nothing is nested under them.
  */
 export default function UsersSubNav() {
   return (
@@ -50,7 +53,7 @@ export default function UsersSubNav() {
             key={view.to}
             to={view.to}
             activeOptions={view.to === '/users' ? { exact: true } : undefined}
-            data-testid={`users-subnav-${view.to === '/users' ? 'active' : 'invitations'}`}
+            data-testid={view.testId}
             className={tabLinkClassName}
           >
             {view.label}

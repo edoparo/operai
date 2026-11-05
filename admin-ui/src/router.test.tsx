@@ -84,10 +84,11 @@ describe('router structure', () => {
         '/roles/$id',
         '/users',
         '/users/$id',
+        '/users/access-requests',
         '/users/invitations',
       ].sort(),
     )
-    expect(routeTree.children).toHaveLength(10)
+    expect(routeTree.children).toHaveLength(11)
   })
 
   it('has no `_authed` (or other guard) layout route in the tree — mirrors estimai-ui/T13, AC-2.3', async () => {
@@ -142,6 +143,17 @@ describe('the four sections route client-side', () => {
     render(<RouterProvider router={router} />)
 
     expect(await screen.findByTestId('admin-invitations-page')).not.toBeNull()
+    expect(screen.queryByTestId('admin-user-detail-page')).toBeNull()
+  })
+
+  it('visiting /users/access-requests renders the Access requests page, not the /users/$id detail route (specs/023, AC-3.1)', async () => {
+    window.history.pushState(null, '', '/users/access-requests')
+    const { createAppRouter } = await importRouter()
+    const router = createAppRouter()
+
+    render(<RouterProvider router={router} />)
+
+    expect(await screen.findByTestId('admin-access-requests-page')).not.toBeNull()
     expect(screen.queryByTestId('admin-user-detail-page')).toBeNull()
   })
 

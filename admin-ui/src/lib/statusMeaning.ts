@@ -1,5 +1,5 @@
 import type { StatusMeaning } from '@operai/ui'
-import type { EffectiveInvitationStatus } from './adminApi'
+import type { AccessRequestStatus, EffectiveInvitationStatus } from './adminApi'
 
 /**
  * statusMeaning — admin-ui's ONE map from each domain status to the suite's
@@ -12,6 +12,12 @@ export const INVITATION_STATUS_MEANING: Record<EffectiveInvitationStatus, Status
   accepted: 'active',
   expired: 'voided',
   revoked: 'voided',
+}
+
+export const ACCESS_REQUEST_STATUS_MEANING: Record<AccessRequestStatus, StatusMeaning> = {
+  pending: 'pending',
+  approved: 'active',
+  rejected: 'failed',
 }
 
 /** A seed/system role: a neutral fact worth a badge. */

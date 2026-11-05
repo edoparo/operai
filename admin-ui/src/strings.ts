@@ -10,6 +10,7 @@
  * preferred languages, else English) — this app never detects it itself.
  */
 import { selectStrings } from '@operai/ui'
+import * as accessRequests from './strings/accessRequests'
 import * as address from './strings/address'
 import * as audit from './strings/audit'
 import * as badges from './strings/badges'
@@ -22,6 +23,7 @@ import * as roles from './strings/roles'
 import * as users from './strings/users'
 
 export const en = {
+  accessRequests: accessRequests.en,
   address: address.en,
   audit: audit.en,
   badges: badges.en,
@@ -35,6 +37,7 @@ export const en = {
 }
 
 export const it: typeof en = {
+  accessRequests: accessRequests.it,
   address: address.it,
   audit: audit.it,
   badges: badges.it,

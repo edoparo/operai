@@ -7,6 +7,7 @@ import DepartmentDetail from './pages/DepartmentDetail'
 import UsersPage from './pages/UsersPage'
 import UserDetail from './pages/UserDetail'
 import InvitationsPage from './pages/InvitationsPage'
+import AccessRequestsPage from './pages/AccessRequestsPage'
 import AuditPage from './pages/AuditPage'
 import MileageRatesPage from './pages/MileageRatesPage'
 import NotFoundPage from './pages/NotFoundPage'
@@ -136,6 +137,15 @@ export function createAppRouter(basepath?: string) {
     component: InvitationsPage,
   })
 
+  // Access requests (T9, specs/023) — the waiting list, third Users tab. Same
+  // static-vs-dynamic precedence as `/users/invitations` above: the literal
+  // segment wins over `/users/$id` regardless of order (asserted in router.test.tsx).
+  const accessRequestsRoute = createRoute({
+    getParentRoute: () => rootRoute,
+    path: '/users/access-requests',
+    component: AccessRequestsPage,
+  })
+
   // Screen ADM-1 (design.md "Mileage Rates", T11, specs/009-mileage-rate) —
   // a new, flat sibling of the four sections above, same shape as every
   // other route in this tree. Reachability is gated client-side only by
@@ -163,6 +173,7 @@ export function createAppRouter(basepath?: string) {
     usersRoute,
     userDetailRoute,
     invitationsRoute,
+    accessRequestsRoute,
     auditRoute,
     ratesRoute,
   ])

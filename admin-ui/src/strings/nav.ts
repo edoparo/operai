@@ -11,6 +11,7 @@ export const en = {
   usersViewsLabel: 'Users section views',
   activeUsers: 'Active users',
   invitations: 'Invitations',
+  accessRequests: 'Access requests',
 }
 
 export const it: typeof en = {
@@ -24,4 +25,5 @@ export const it: typeof en = {
   usersViewsLabel: 'Viste della sezione utenti',
   activeUsers: 'Utenti attivi',
   invitations: 'Inviti',
+  accessRequests: 'Richieste di accesso',
 }

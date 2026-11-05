@@ -6,6 +6,11 @@ export const en = {
     expired: 'Expired',
     revoked: 'Revoked',
   },
+  accessRequestStatus: {
+    pending: 'Pending',
+    approved: 'Approved',
+    rejected: 'Rejected',
+  },
   system: 'System',
   systemTitle: "System roles can't be deleted",
   rateInEffect: 'In effect',
@@ -25,6 +30,11 @@ export const it: typeof en = {
     accepted: 'Accettato',
     expired: 'Scaduto',
     revoked: 'Revocato',
+  },
+  accessRequestStatus: {
+    pending: 'In attesa',
+    approved: 'Approvata',
+    rejected: 'Rifiutata',
   },
   system: 'Di sistema',
   systemTitle: 'I ruoli di sistema non possono essere eliminati',
