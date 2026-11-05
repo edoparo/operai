@@ -1,0 +1,22 @@
+{
+  "schema": "wellforge-run/v3",
+  "run_id": "2026-11-05T18-00-00Z-eval-023-signup-gate",
+  "command": "eval",
+  "args": "023-signup-gate",
+  "feature": "023-signup-gate",
+  "feature_resolution": "explicit",
+  "rigor": "production",
+  "plugin_version": "2.56.0",
+  "started": "2026-11-05T18:00:00Z",
+  "branch": "main",
+  "agents": [
+    {"agent": "wellforge:evaluator", "outcome": "FAIL", "score": 64.3, "note": "rubric default-v2; ac_satisfaction 2 < floor 4: specs/004 and specs/006 amendments (and AGENTS.md, infra/README.md, changeset) state the admission rule as 'invitation OR allowed domain', contradicting AC-1.2 — AC-6.1 not met in substance; coordinator verified the wording"}
+  ],
+  "verdicts": {"eval": "FAIL"},
+  "result": "escalated",
+  "rigor_recorded": null,
+  "control_run_id": null,
+  "tokens": null,
+  "cost_usd": null,
+  "terse": false
+}
