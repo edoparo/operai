@@ -3,7 +3,7 @@
  *
  * `auth` is the issuer of service tokens and also a caller of notify-api
  * (`POST /system/emails`, invitation mail), so it does not authenticate to
- * itself with a secret: it signs `sub="system:auth"`, `scope="emails.send"`
+ * itself with a secret: it signs `sub="system:auth"`, `scope="emails.send notifications.push"`
  * directly, through the same claim-building and signer as the endpoint
  * (`mintServiceJwt`, one code path). The id `auth` is reserved in
  * `SERVICE_CLIENTS` (`serviceClients.ts`) so no configured client can hold
@@ -22,8 +22,11 @@
 import { RESERVED_SERVICE_CLIENT_ID } from "./serviceClients";
 import { mintServiceJwt, type SignServiceJwt } from "./serviceToken.routes";
 
-/** The scope `auth` presents: invitation email only, never push. */
-export const SELF_SERVICE_SCOPES: readonly string[] = ["emails.send"];
+/**
+ * The scopes `auth` presents: invitation email, and (specs/023, ADR-0072) in-app
+ * pushes for access-request notices, which also need `emails.send` for `email: true`.
+ */
+export const SELF_SERVICE_SCOPES: readonly string[] = ["emails.send", "notifications.push"];
 
 /** A cached token is replaced once this close to its expiry. */
 export const REFRESH_BEFORE_EXPIRY_SECONDS = 60;

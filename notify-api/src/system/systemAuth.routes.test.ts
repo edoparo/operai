@@ -129,6 +129,25 @@ describe("POST /system/notifications with a service JWT", () => {
     expect(await count()).toBe(0);
   });
 
+  it("201: system:auth may raise as 'admin' (specs/023, ADR-0072)", async () => {
+    const res = await send(
+      { Authorization: `Bearer ${await serviceJwt("system:auth")}` },
+      body({ originApp: "admin", link: { href: "/admin/users/access-requests" } }),
+    );
+    expect(res.status).toBe(201);
+    expect(((await res.json()) as { originApp: string }).originApp).toBe("admin");
+    expect(await count()).toBe(1);
+  });
+
+  it("403: system:auth may not raise as 'refund' (origin binding); nothing persisted", async () => {
+    const res = await send(
+      { Authorization: `Bearer ${await serviceJwt("system:auth")}` },
+      body({ originApp: "refund" }),
+    );
+    expect(res.status).toBe(403);
+    expect(await count()).toBe(0);
+  });
+
   it("403: an unknown system:* client may not raise anything; nothing persisted", async () => {
     const res = await send(
       { Authorization: `Bearer ${await serviceJwt("system:someone-else")}` },

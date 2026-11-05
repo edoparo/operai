@@ -139,3 +139,68 @@ export async function sendInvitationEmail(
     };
   }
 }
+
+// ─── pushSystemNotification (specs/023 T4, ADR-0072) ─────────────────────────
+
+/**
+ * The slice of notify-api's `POST /system/notifications` body `auth` sends
+ * (notify-api/src/system/notifications.schemas.ts). `email: true` asks
+ * notify-api to also mail the recipient, resolving the address itself through
+ * `auth POST /system/users/contact` (ADR-0056): `auth` sends no address.
+ */
+export interface SystemNotificationInput {
+  readonly recipientId: string;
+  readonly originApp: "admin";
+  readonly severity: "info";
+  readonly title: string;
+  readonly body: string;
+  readonly link: { readonly href: string };
+  readonly email: boolean;
+}
+
+export type PushSystemNotificationResult = { status: "sent" } | { status: "failed"; error: string };
+
+const PUSH_TIMEOUT_MS = 5_000;
+
+/**
+ * `POST {NOTIFY_INTERNAL_URL}/system/notifications` as `system:auth` (scope
+ * `notifications.push`). Same posture as {@link sendInvitationEmail}: one retry
+ * on 401 with a fresh token, a timeout so a stuck notify-api never holds the
+ * caller, and it NEVER throws: every failure (mint, network, timeout, non-2xx)
+ * is returned as `{ status: "failed" }`. The token is never logged.
+ */
+export async function pushSystemNotification(
+  input: SystemNotificationInput,
+  options: { timeoutMs?: number } = {},
+): Promise<PushSystemNotificationResult> {
+  try {
+    if (!tokenProvider) throw new Error("notify token provider is not configured");
+    const requestBody = JSON.stringify(input);
+    const post = async (token: string) =>
+      fetch(`${env.NOTIFY_INTERNAL_URL}/system/notifications`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: requestBody,
+        signal: AbortSignal.timeout(options.timeoutMs ?? PUSH_TIMEOUT_MS),
+      });
+
+    const token = await tokenProvider.getToken();
+    let response = await post(token);
+    if (response.status === 401) {
+      await response.body?.cancel().catch(() => {});
+      tokenProvider.invalidate(token);
+      response = await post(await tokenProvider.getToken());
+    }
+    if (!response.ok) {
+      await response.body?.cancel().catch(() => {});
+      return { status: "failed", error: `notify-api responded with HTTP ${response.status}` };
+    }
+    await response.body?.cancel().catch(() => {});
+    return { status: "sent" };
+  } catch (error) {
+    return {
+      status: "failed",
+      error: error instanceof Error ? error.message : "Unknown error calling notify-api",
+    };
+  }
+}

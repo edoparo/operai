@@ -50,6 +50,8 @@ const SERVICE_ORIGIN_BINDINGS: Readonly<Record<string, readonly string[]>> = {
   "system:refund-api": ["refund"],
   "system:estimai-api": ["estimai"],
   "system:crm-api": ["crm"],
+  // specs/023 (ADR-0072): auth raises access-request notices in the Admin tool.
+  "system:auth": ["admin"],
 };
 
 export type SystemAuthVariables = {

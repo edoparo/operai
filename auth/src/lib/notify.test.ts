@@ -174,3 +174,77 @@ describe("sendInvitationEmail — one retry on 401 (AC-4.3, ADR-0049)", () => {
     expect(calls).toHaveLength(1);
   });
 });
+
+// ─── pushSystemNotification (specs/023 T4, AC-4.1, AC-4.3; ADR-0072) ─────────
+
+const { pushSystemNotification } = await import("./notify");
+
+const PUSH = {
+  recipientId: "usr_admin_1",
+  originApp: "admin",
+  severity: "info",
+  title: "Access request from Ada",
+  body: "ada@welld.ch asked to join Operai.",
+  link: { href: "/admin/users/access-requests" },
+  email: true,
+} as const;
+
+describe("pushSystemNotification", () => {
+  test("POSTs the body to /system/notifications with the provider's Bearer token", async () => {
+    stubFetch(() => Response.json({ id: "n1" }, { status: 201 }));
+    const result = await pushSystemNotification(PUSH);
+
+    expect(result).toEqual({ status: "sent" });
+    expect(calls).toHaveLength(1);
+    expect(calls[0]?.url).toBe(`${env.NOTIFY_INTERNAL_URL}/system/notifications`);
+    expect(new Headers(calls[0]?.init.headers).get("authorization")).toBe("Bearer provider-token");
+    expect(JSON.parse(String(calls[0]?.init.body))).toEqual(PUSH);
+  });
+
+  test("a 500 resolves to failed with the status, never throws", async () => {
+    stubFetch(() => new Response("boom", { status: 500 }));
+    expect(await pushSystemNotification(PUSH)).toEqual({ status: "failed", error: "notify-api responded with HTTP 500" });
+    expect(calls).toHaveLength(1);
+  });
+
+  test("a network error resolves to failed", async () => {
+    stubFetch(() => {
+      throw new Error("connect ECONNREFUSED");
+    });
+    expect(await pushSystemNotification(PUSH)).toEqual({ status: "failed", error: "connect ECONNREFUSED" });
+  });
+
+  test("a timeout resolves to failed instead of hanging", async () => {
+    globalThis.fetch = ((_url: unknown, init?: RequestInit) =>
+      new Promise((_resolve, reject) => {
+        init?.signal?.addEventListener("abort", () => reject(new DOMException("aborted", "TimeoutError")));
+      })) as typeof fetch;
+    const result = await pushSystemNotification(PUSH, { timeoutMs: 20 });
+    expect(result.status).toBe("failed");
+  });
+
+  test("a mint failure resolves to failed and never calls notify-api", async () => {
+    setNotifyTokenProvider({
+      getToken: async () => {
+        throw new Error("signer unavailable");
+      },
+      invalidate: () => {},
+    });
+    stubFetch(() => Response.json({}, { status: 201 }));
+    expect(await pushSystemNotification(PUSH)).toEqual({ status: "failed", error: "signer unavailable" });
+    expect(calls).toHaveLength(0);
+  });
+
+  test("a 401 drops the token and retries once with a fresh one", async () => {
+    const invalidated: string[] = [];
+    let n = 0;
+    setNotifyTokenProvider({ getToken: async () => `token-${++n}`, invalidate: (t) => void invalidated.push(t) });
+    let attempt = 0;
+    stubFetch(() => (++attempt === 1 ? new Response("expired", { status: 401 }) : Response.json({}, { status: 201 })));
+
+    expect(await pushSystemNotification(PUSH)).toEqual({ status: "sent" });
+    expect(calls).toHaveLength(2);
+    expect(invalidated).toEqual(["token-1"]);
+    expect(new Headers(calls[1]?.init.headers).get("authorization")).toBe("Bearer token-2");
+  });
+});

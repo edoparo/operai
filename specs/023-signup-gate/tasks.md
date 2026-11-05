@@ -47,7 +47,7 @@ Work happens in the `main` worktree (`/Users/matteocodogno/LAB/aiscream/operai-m
   - done when: `test-auth.routes.test.ts` covers a new user (created, holds `employee`,
     session valid) and an existing one (unchanged); all `auth` tests pass.
 
-- [ ] T4: [backend] `auth` can push notifications to admins — refs: AC-4.1, AC-4.3 — deps: none
+- [x] T4: [backend] `auth` can push notifications to admins — refs: AC-4.1, AC-4.3 — deps: none
   - touch: `auth/src/lib/notify.ts`, `auth/src/lib/notify*.test.ts`, `auth/src/system/selfServiceToken*.ts`, `auth/src/auth/self-service-token.contract.test.ts`, `auth/src/signup/notifyAdmins*.ts`, `notify-api/src/system/systemAuth.middleware*.ts`, `notify-api/src/system/systemAuth.routes.test.ts`
   - do: `SELF_SERVICE_SCOPES = ["emails.send", "notifications.push"]`;
     `pushSystemNotification()` (same token provider, retries once on 401, never throws);

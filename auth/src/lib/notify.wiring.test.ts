@@ -32,7 +32,7 @@ process.exit(0);
 `;
 
 describe("production wiring of auth's notify credential", () => {
-  test("importing src/index wires a system:auth / emails.send credential into sendInvitationEmail", async () => {
+  test("importing src/index wires a system:auth / emails.send + notifications.push credential into sendInvitationEmail", async () => {
     const child = Bun.spawn([process.execPath, "--no-env-file", "-e", CHILD], {
       cwd: AUTH_DIR,
       env: { ...process.env } as Record<string, string>,
@@ -46,7 +46,7 @@ describe("production wiring of auth's notify credential", () => {
     expect(out.result).toEqual({ status: "sent", deliveryId: "d1" });
     expect(out.hasLegacy).toBe(false);
     expect(out.sub).toBe("system:auth");
-    expect(out.scope).toBe("emails.send");
+    expect(out.scope).toBe("emails.send notifications.push");
     expect(out.audOk).toBe(true);
     expect(out.ttl).toBe(300);
   });

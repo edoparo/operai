@@ -50,14 +50,14 @@ function fakeClock(startMs = 1_800_000_000_000) {
 }
 
 describe("self-mint provider — claims (AC-1.4, AC-2.1)", () => {
-  test("mints sub system:auth, scope emails.send only, aud SERVICE_AUDIENCE, 300 s", async () => {
+  test("mints sub system:auth, scope emails.send + notifications.push, aud SERVICE_AUDIENCE, 300 s", async () => {
     const { signJwt } = countingSigner();
     const clock = fakeClock();
     const token = await createSelfServiceTokenProvider({ signJwt, now: clock.now }).getToken();
     const claims = decodeJwt(token);
 
     expect(claims.sub).toBe("system:auth");
-    expect(claims["scope"]).toBe("emails.send");
+    expect(claims["scope"]).toBe("emails.send notifications.push");
     expect(claims.aud).toBe(AUDIENCE);
     expect(claims.aud).not.toBe(env.AUTH_AUDIENCE);
     expect(claims.iss).toBe(env.BETTER_AUTH_URL);

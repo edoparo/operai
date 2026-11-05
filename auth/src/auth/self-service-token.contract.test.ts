@@ -37,7 +37,7 @@ async function authJwks() {
 }
 
 describe("self-minted credential verifies through auth's JWKS as notify-api verifies it", () => {
-  test("sub system:auth, scope emails.send, aud SERVICE_AUDIENCE, 300 s, RS256 with a published kid", async () => {
+  test("sub system:auth, scope emails.send notifications.push, aud SERVICE_AUDIENCE, 300 s, RS256 with a published kid", async () => {
     const token = await provider.getToken();
     const { payload, protectedHeader } = await jwtVerify(token, await authJwks(), {
       issuer: env.BETTER_AUTH_URL,
@@ -48,7 +48,7 @@ describe("self-minted credential verifies through auth's JWKS as notify-api veri
 
     expect(protectedHeader.alg).toBe("RS256");
     expect(payload.sub).toBe("system:auth");
-    expect(payload["scope"]).toBe("emails.send");
+    expect(payload["scope"]).toBe("emails.send notifications.push");
     expect((payload.exp as number) - (payload.iat as number)).toBe(300);
 
     const { keys } = (await (await authRouter.request("/auth/jwks")).json()) as { keys: { kid: string }[] };
