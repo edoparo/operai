@@ -2,6 +2,8 @@ import { OpenAPIHono } from "@hono/zod-openapi";
 import { z } from "zod";
 import { env } from "../lib/env";
 import { auth } from "../auth/auth.config";
+import { db } from "../lib/db";
+import { assignBaselineRolesToNewUser } from "../authz/seed";
 import { getCookies } from "better-auth/cookies";
 
 /**
@@ -54,8 +56,9 @@ const signCookieValue = async (value: string, secret: string): Promise<string> =
  *   that somehow imports this router still cannot mint sessions.
  *
  * This endpoint is a test seam — it does NOT enable emailAndPassword sign-in
- * and does NOT add any production-visible authentication path.  It uses the
- * better-auth internalAdapter directly to create the user and session.
+ * and does NOT add any production-visible authentication path.  It writes the
+ * user row directly (outside the sign-up gate, specs/023) and uses the
+ * better-auth internalAdapter to create the session.
  */
 
 // Only emails ending with this suffix may be minted by this endpoint.
@@ -144,12 +147,17 @@ testAuthRouter.post("/test-auth/session", async (c) => {
     // This keeps e2e name-assertions from being DB-state-dependent.
     await adapter.updateUser(userId, { name: body.name });
   } else {
-    const created = await adapter.createUser({
-      email: body.email,
-      name: body.name,
-      emailVerified: true,
-      // image is optional in the User model; omit it for the test user
+    // specs/023 (ADR-0071, AC-1.9): NOT `adapter.createUser`. That call fires
+    // `databaseHooks.user.create.before` (the sign-up gate), which refuses an
+    // `@operai.test` address, and an exemption inside the gate would put a test
+    // branch into the production sign-up path. The row is written directly and
+    // the baseline `employee` role is assigned here, exactly what the
+    // `user.create.after` hook does for a real sign-up. The session below still
+    // comes from `internalAdapter.createSession`, so `session.create.before` applies.
+    const created = await db.user.create({
+      data: { email: body.email, name: body.name, emailVerified: true },
     });
+    await assignBaselineRolesToNewUser(created);
     userId = created.id;
   }
 

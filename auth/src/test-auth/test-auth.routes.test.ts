@@ -31,6 +31,36 @@ import {
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
+import { afterAll } from "bun:test";
+import { db } from "../lib/db";
+
+// specs/023 T3 (AC-1.9): a NEW test user is created straight in the database
+// (outside the sign-up gate, which would refuse `@operai.test`) plus the
+// baseline roles, so these tests read and clean the real rows.
+async function rolesOf(email: string): Promise<string[]> {
+  const rows = await db.userRole.findMany({
+    where: { user: { email } },
+    select: { role: { select: { name: true } } },
+  });
+  return rows.map((r) => r.role.name).sort();
+}
+
+/** What the real adapter's `findUserByEmail` answers: the row from the database, or null. */
+async function findInDb(email: string) {
+  const user = await db.user.findUnique({ where: { email } });
+  return user ? { user, accounts: [] } : null;
+}
+
+afterAll(async () => {
+  const users = await db.user.findMany({
+    where: { email: { endsWith: "@operai.test" } },
+    select: { id: true },
+  });
+  const ids = users.map((u) => u.id);
+  await db.userRole.deleteMany({ where: { userId: { in: ids } } });
+  await db.user.deleteMany({ where: { id: { in: ids } } });
+});
+
 /**
  * Makes a POST request to `testAuthRouter` with the current env already baked
  * into the router module (reloaded per test via beforeEach).
@@ -54,7 +84,7 @@ const FAKE_SESSION_TOKEN = "sess_tok_test_deadbeef";
 /** Minimal stub for better-auth internal adapter */
 const mockInternalAdapter = {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  findUserByEmail: mock(async (_email: string): Promise<any> => null),
+  findUserByEmail: mock(async (email: string): Promise<any> => findInDb(email)),
   createUser: mock(async (data: { email: string; name: string; emailVerified: boolean }) => ({
     id: FAKE_USER_ID,
     email: data.email,
@@ -287,7 +317,7 @@ describe("POST /test-auth/session — happy path (gate open)", () => {
     mockInternalAdapter.updateUser.mockClear();
     mockInternalAdapter.createSession.mockClear();
     // Reset findUserByEmail to return null (no existing user) by default
-    mockInternalAdapter.findUserByEmail.mockImplementation(async () => null);
+    mockInternalAdapter.findUserByEmail.mockImplementation(findInDb);
   });
 
   afterEach(() => {
@@ -349,7 +379,8 @@ describe("POST /test-auth/session — happy path (gate open)", () => {
     const res = await postMintSession(router);
     const body = await res.json() as Record<string, unknown>;
 
-    expect(body.userId).toBe(FAKE_USER_ID);
+    const row = await db.user.findUnique({ where: { email: "test@operai.test" } });
+    expect(body.userId).toBe(row?.id);
     expect(body.email).toBe("test@operai.test");
     // sessionToken must be absent — the raw bearer token must not appear in the
     // response body; the Set-Cookie header is the only delivery mechanism.
@@ -362,19 +393,42 @@ describe("POST /test-auth/session — happy path (gate open)", () => {
 
     // Session must have been created via the adapter (proves it is a real better-auth session)
     expect(mockInternalAdapter.createSession).toHaveBeenCalledTimes(1);
-    expect(mockInternalAdapter.createSession).toHaveBeenCalledWith(
-      FAKE_USER_ID,
-      false,
-    );
+    const row = await db.user.findUnique({ where: { email: "test@operai.test" } });
+    expect(mockInternalAdapter.createSession).toHaveBeenCalledWith(row?.id, false);
   });
 
-  test("(a) creates a new user when the email does not already exist", async () => {
-    mockInternalAdapter.findUserByEmail.mockImplementation(async () => null);
+  test("(a) creates a new user outside the sign-up gate, holding employee (AC-1.9)", async () => {
+    mockInternalAdapter.findUserByEmail.mockImplementation(findInDb);
+    await db.user.deleteMany({ where: { email: "newuser@operai.test" } });
     const router = await openGate();
-    await postMintSession(router, { email: "newuser@operai.test", name: "New User" });
+    const res = await postMintSession(router, { email: "newuser@operai.test", name: "New User" });
 
+    expect(res.status).toBe(200);
     expect(mockInternalAdapter.findUserByEmail).toHaveBeenCalledWith("newuser@operai.test");
-    expect(mockInternalAdapter.createUser).toHaveBeenCalledTimes(1);
+    // The adapter's createUser would fire user.create.before (the gate) and refuse.
+    expect(mockInternalAdapter.createUser).not.toHaveBeenCalled();
+    const row = await db.user.findUnique({ where: { email: "newuser@operai.test" } });
+    expect(row).not.toBeNull();
+    expect(row?.name).toBe("New User");
+    expect(row?.emailVerified).toBe(true);
+    expect(await rolesOf("newuser@operai.test")).toEqual(["employee"]);
+    // The session is still minted through better-auth's adapter for that user.
+    expect(mockInternalAdapter.createSession).toHaveBeenCalledWith(row?.id, false);
+    expect(res.headers.get("set-cookie")).toContain(FAKE_SESSION_TOKEN);
+  });
+
+  test("(a) a second call for the same new user reuses the row and the roles (no duplicates)", async () => {
+    await db.user.deleteMany({ where: { email: "again@operai.test" } });
+    const router = await openGate();
+    await postMintSession(router, { email: "again@operai.test" });
+    const first = await db.user.findUnique({ where: { email: "again@operai.test" } });
+    mockInternalAdapter.findUserByEmail.mockImplementation(async () => ({
+      user: { id: first!.id, email: "again@operai.test", name: "Test User", emailVerified: true },
+      accounts: [],
+    }));
+    await postMintSession(router, { email: "again@operai.test" });
+    expect(await db.user.count({ where: { email: "again@operai.test" } })).toBe(1);
+    expect(await rolesOf("again@operai.test")).toEqual(["employee"]);
   });
 
   test("(a) reuses an existing user row when the email already exists (idempotent)", async () => {
@@ -446,7 +500,7 @@ describe("POST /test-auth/session — email domain allowlist (OWASP: impersonati
     mockInternalAdapter.createUser.mockClear();
     mockInternalAdapter.updateUser.mockClear();
     mockInternalAdapter.createSession.mockClear();
-    mockInternalAdapter.findUserByEmail.mockImplementation(async () => null);
+    mockInternalAdapter.findUserByEmail.mockImplementation(findInDb);
   });
 
   afterEach(() => {
@@ -601,13 +655,14 @@ describe("POST /test-auth/session — name upsert for existing user (DEFECT 2 fi
   });
 
   test("does NOT call updateUser when the user is newly created (no row yet)", async () => {
-    mockInternalAdapter.findUserByEmail.mockImplementation(async () => null);
+    mockInternalAdapter.findUserByEmail.mockImplementation(findInDb);
+    await db.user.deleteMany({ where: { email: "brand-new@operai.test" } });
 
     const router = await openGate();
     await postMintSession(router, { email: "brand-new@operai.test", name: "Fresh User" });
 
-    // New user path: createUser is called, updateUser is not
-    expect(mockInternalAdapter.createUser).toHaveBeenCalledTimes(1);
+    // New user path: the row is written directly (specs/023), updateUser is not called
+    expect(await db.user.count({ where: { email: "brand-new@operai.test" } })).toBe(1);
     expect(mockInternalAdapter.updateUser).not.toHaveBeenCalled();
   });
 

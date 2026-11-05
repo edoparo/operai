@@ -26,7 +26,25 @@
  * Hono's getSignedCookie because it lacked the `<token>.<signature>` form.
  */
 
-import { describe, expect, test, mock, beforeEach } from "bun:test";
+import { afterAll, describe, expect, test, mock, beforeEach } from "bun:test";
+import { db } from "../lib/db";
+
+// specs/023 T3: a new test user is written to the database directly (outside the
+// sign-up gate), so the finder answers from the database like the real adapter.
+async function findInDb(email: string) {
+  const user = await db.user.findUnique({ where: { email } });
+  return user ? { user, accounts: [] } : null;
+}
+
+afterAll(async () => {
+  const users = await db.user.findMany({
+    where: { email: { endsWith: "@operai.test" } },
+    select: { id: true },
+  });
+  const ids = users.map((u) => u.id);
+  await db.userRole.deleteMany({ where: { userId: { in: ids } } });
+  await db.user.deleteMany({ where: { id: { in: ids } } });
+});
 
 // ─── Mocks (same as the main test file) ───────────────────────────────────────
 
@@ -35,7 +53,7 @@ const FAKE_SESSION_TOKEN = "raw_token_without_hmac_signature";
 const MOCK_COOKIE_NAME = "better-auth.session_token";
 
 const mockInternalAdapter = {
-  findUserByEmail: mock(async (_email: string) => null),
+  findUserByEmail: mock(async (email: string): Promise<unknown> => findInDb(email)),
   createUser: mock(async (data: { email: string; name: string; emailVerified: boolean }) => ({
     id: FAKE_USER_ID,
     email: data.email,
@@ -101,7 +119,7 @@ describe("POST /test-auth/session — signed cookie format (D-1 regression)", ()
     mockInternalAdapter.createUser.mockClear();
     mockInternalAdapter.updateUser.mockClear();
     mockInternalAdapter.createSession.mockClear();
-    mockInternalAdapter.findUserByEmail.mockImplementation(async () => null);
+    mockInternalAdapter.findUserByEmail.mockImplementation(findInDb);
   });
 
   /**

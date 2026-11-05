@@ -38,7 +38,7 @@ Work happens in the `main` worktree (`/Users/matteocodogno/LAB/aiscream/operai-m
   - done when: the unit table of plan.md AC-1.8 passes; `env.startup.test.ts` proves a
     missing or malformed value exits; `mise run env:doctor` (production templates) is green.
 
-- [ ] T3: [backend] test-auth creates its user outside the sign-up gate — refs: AC-1.9 — deps: none
+- [x] T3: [backend] test-auth creates its user outside the sign-up gate — refs: AC-1.9 — deps: none
   - touch: `auth/src/test-auth/*`
   - do: `@operai.test` users are created with `db.user.create` plus
     `assignBaselineRolesToNewUser` (keeps `employee`), and the session still comes from
