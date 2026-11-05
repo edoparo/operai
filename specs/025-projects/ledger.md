@@ -425,3 +425,8 @@ the PO's dates and terms, **not the type** — D7 holds; the PO's S5 (a hand-mad
 terms can be removed as a whole) and S6 (a referent archived after being chosen stays shown)
 accepted; one spec, no split; glossary updated (purchase order, PO's deal, terms, hand-made
 project, referent, ops-manager, awaiting a project manager; "contract" retired).
+
+Constraint of 2026-11-05 (user, after the gate): *"la nuova PR sarà on top alla 7"* — the 022
+PR is stacked on the open PR #7 (specs/021 as written). 021's migration `20261103163000_init`
+therefore ships first and is kept; only 022's never-shipped `*_handoff` migration is
+replaced, by a guarded `*_purchase_order` migration on top (specs/022 tasks.md).

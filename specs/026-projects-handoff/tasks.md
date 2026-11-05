@@ -16,8 +16,10 @@ built and verified against the 2026-11-04 text — and the new tasks T18–T36 r
 steering changed. The 2026-11-04 notes that no longer hold are listed at the end of
 § Architecture notes ("Superseded"). User constraint, verbatim: *"visto che sarà una nuova
 PR, le migrazioni a db se necessario puoi resettarle tenendo solo le nuove e poi fai cleanup
-del mio db locale"* — projects-api's two migrations become one (T23) and the local databases
-are reset and reseeded (T36).
+del mio db locale"*, then *"la nuova PR sarà on top alla 7"* (2026-11-05): the 022 PR is
+stacked on the open PR #7 (specs/021 as is), so 021's migration ships first and stays; only
+022's own `*_handoff` migration is reset and replaced by one new migration (T23), and the
+local databases are reset and reseeded (T36).
 
 ## Architecture notes
 
@@ -62,9 +64,13 @@ are reset and reseeded (T36).
   stored (D49). Subject to T18's security check before T20, T21, T24 and T26 start.
 - **The project-manager pick is a `PATCH /projects/{id}`** of `projectManagerId` with a
   stricter rule while the project has none — no second route.
-- **One fresh migration.** Nothing of specs/021–022 is on `main`, so
-  `prisma/migrations/20261103163000_init` and `20261104120000_handoff` are replaced by one
-  `prisma/migrations/*_init` for the model below (user constraint).
+- **021's migration stays, 022's is replaced** (user, 2026-11-05: the 022 PR sits on top of
+  PR #7). `prisma/migrations/20261103163000_init` is kept byte-for-byte; `20261104120000_handoff`
+  (never shipped) is deleted; one new `prisma/migrations/*_purchase_order` transforms the 021
+  schema into the model below. It opens with a guard that **refuses to run if `contract` has
+  any row or any `saas` project exists** — data the new model cannot represent
+  unambiguously (several contracts per project, a `saas` project without a company, a Bexio
+  id on a hand-entered contract) is handled by hand; no data conversion is written.
 
 ### Authorization
 
@@ -86,7 +92,7 @@ Service scopes (auth `KNOWN_SERVICE_SCOPES`):
 | `projects.purchase-orders.read` (was `projects.contracts.read`) | projects-api `GET /system/purchase-orders` | `crm-api` |
 | `notifications.push` | notify-api `POST /system/notifications` | `projects-api` (new holder) |
 
-### Data model (projects-api — one migration `prisma/migrations/*_init`)
+### Data model (projects-api — new migration `prisma/migrations/*_purchase_order` on top of 021's `20261103163000_init`)
 - `project` — as specs/021 except: `projectManagerId text NULL`; CHECK
   `project_company_matches_type` becomes `("companyId" IS NULL) = ("type" = 'internal')`
   (`saas` is a client type, D40). Other CHECKs kept.
@@ -387,7 +393,7 @@ are specs/021's and 2026-11-04's, renamed from `contract` to `terms`.
   - done when: `cd notify-api && direnv exec . bun test src/system` is green with a test that a `system:projects-api` token may post with `originApp: "projects"` and not with another origin app — **at the route** (`POST /system/notifications` answers `201` for a `projects` body from that client), not only in the middleware; `cd notify-ui && mise exec -- pnpm lint && mise exec -- pnpm test` is green with a test that a `projects` notification shows "Projects" (en) and "Progetti" (it).
 - [ ] T23: projects-api — new data model in one fresh migration; "contract" → terms + purchase order at parity; attach, type change and contract routes removed; the new take body — refs: AC-1.2, AC-1.3, AC-1.6, AC-1.8, AC-1.10, AC-2.1, AC-2.2, AC-2.3, AC-2.4, AC-3.1, AC-3.2, AC-3.3, AC-3.4, AC-3.5, AC-5.2, AC-5.4 — deps: none
   - touch: `projects-api/prisma/**`, `projects-api/src/**`
-  - done when: `prisma/migrations` holds exactly one migration directory besides `migration_lock.toml`; `bun run db:deploy` succeeds on a freshly created empty `projects_test`; `cd projects-api && direnv exec . bun run typecheck && direnv exec . bun test` is green with tests that: the database refuses a second terms row or a second PO for one project, a PO without `dealId` or `opsManagerId`, terms on an `internal` project, a `saas` project without a company, and keeps every specs/021 terms CHECK; the take makes a `planned` project with no project manager, its terms and its PO in one transaction and accepts `saas`; `projectManagerId` in the take body → `400`; the terms routes create, edit and (hand-made only) delete with the errors of § API contracts; estimate-backed man-days stay server-owned; the Bexio route works on the PO and `404`s on a hand-made project; `GET /system/purchase-orders` answers as specified; the removed routes answer `404`; `PATCH /projects/{id}` with `type` → `400`; the deal notice (`won`) and estimate link appear on `purchaseOrder`; no `contract` identifier is left in `src/` (`grep -ri contract src` finds only comments citing specs/021).
+  - done when: `prisma/migrations` holds exactly `20261103163000_init` (unchanged from PR #7) and one new `*_purchase_order` directory besides `migration_lock.toml`; `bun run db:deploy` applies both on a freshly created empty `projects_test`; the new migration's guard refuses (clear message) when a `contract` row or a `saas` project exists before it; `cd projects-api && direnv exec . bun run typecheck && direnv exec . bun test` is green with tests that: the database refuses a second terms row or a second PO for one project, a PO without `dealId` or `opsManagerId`, terms on an `internal` project, a `saas` project without a company, and keeps every specs/021 terms CHECK; the take makes a `planned` project with no project manager, its terms and its PO in one transaction and accepts `saas`; `projectManagerId` in the take body → `400`; the terms routes create, edit and (hand-made only) delete with the errors of § API contracts; estimate-backed man-days stay server-owned; the Bexio route works on the PO and `404`s on a hand-made project; `GET /system/purchase-orders` answers as specified; the removed routes answer `404`; `PATCH /projects/{id}` with `type` → `400`; the deal notice (`won`) and estimate link appear on `purchaseOrder`; no `contract` identifier is left in `src/` (`grep -ri contract src` finds only comments citing specs/021).
 - [ ] T24: projects-api — the take's rules: `handoff:take` gate, ops-manager candidates and check, referent check, contacts for the form, `/scope` `take` and `oversees` — refs: AC-1.1, AC-1.2, AC-1.9, AC-1.11, AC-3.6, AC-4.1, AC-4.2, AC-4.8 — deps: T18, T23
   - touch: `projects-api/src/queue/**`, `projects-api/src/scope/**`, `projects-api/src/auth/guards.ts`, `projects-api/src/lib/crm.ts`, `projects-api/src/lib/holders.ts`, `projects-api/src/lib/holders.test.ts`, `projects-api/src/lib/crm.contacts.test.ts`, `projects-api/src/test-support/**`, `projects-api/src/openapi/registry.ts`
   - done when: `bun test src/queue src/companies src/scope src/lib` is green with tests that a `project-manager`, an `ops-manager` and `accounting` get `403` on `GET /queue`, the take and `ops-managers`, a `sales` of one entity reads the whole queue but takes only its own entity's deals (`403 out_of_scope`); `ops-managers` returns role holders and admins with `prefillId` set only for exactly one role holder (none, one, two, admins-only cases); a take with an `opsManagerId` outside the list → `422 ops_manager_invalid` and with auth down → `503 identity_unavailable`, nothing written; `referentContactId` of another company, companyless or unknown → the identical `422 referent_invalid` body (and archived → `422`), crm down → `503`; `GET /queue/{dealId}/contacts` lists the deal company's non-archived contacts only, refuses a taken deal and sends `Cache-Control: no-store`; `/scope` reports `take`, and `oversees` is `true` for an unconditioned grant and `false` for an ops-manager.
@@ -424,9 +430,9 @@ are specs/021's and 2026-11-04's, renamed from `contract` to `terms`.
 - [ ] T35: local env — `NOTIFY_INTERNAL_URL` for projects-api and the renamed / new service-client scopes in the env examples and env-doctor; a script the developer runs for the local values — refs: AC-3.4, AC-3.8, AC-4.3 — deps: T19, T21, T22, T25
   - touch: `auth/.env.example`, `projects-api/.env.example`, `crm-api/.env.example`, `tools/env-doctor/manifest.ts`, `tools/env-doctor/*.test.ts`
   - done when: `bun test tools/env-doctor` is green with `NOTIFY_INTERNAL_URL` required for projects-api in the manifest; the `SERVICE_CLIENTS` examples give `projects-api` `crm.companies.read crm.deals.read crm.contacts.read estimai.estimates.read notifications.push` and `crm-api` `projects.purchase-orders.read` besides its notify scopes; the developer has run the main loop's script for the gitignored values (agents never write env files).
-- [ ] T36: local databases — reset `projects` and `projects_test` to the one fresh migration, drop the stale `contract:*` permission rules from the local auth database, assign the `ops-manager` role, reseed CRM, EstimAI and Projects with coherent data (user constraint) — refs: AC-1.1, AC-4.1, AC-5.1 — deps: T19, T23, T35
+- [ ] T36: local databases — reset `projects` and `projects_test` to the two migrations (021's init + the new one), drop the stale `contract:*` permission rules from the local auth database, assign the `ops-manager` role, reseed CRM, EstimAI and Projects with coherent data (user constraint) — refs: AC-1.1, AC-4.1, AC-5.1 — deps: T19, T23, T35
   - touch: none in the repository — local databases and the session scratchpad only (main loop)
-  - done when: after a backup of the current dumps, `projects` and `projects_test` hold only the new migration's history; the auth database has no `contract` permission rule and one user per entity holds `ops-manager`; under `mise run dev` the queue shows won deals to a `sales` user and not to a project manager, and the seed holds at least one project awaiting its project manager, one with a project manager and a referent, one `saas` licence project and one hand-made project with terms.
+  - done when: after a backup of the current dumps, `projects` and `projects_test` hold exactly the two migrations' history (no `*_handoff`); the auth database has no `contract` permission rule and one user per entity holds `ops-manager`; under `mise run dev` the queue shows won deals to a `sales` user and not to a project manager, and the seed holds at least one project awaiting its project manager, one with a project manager and a referent, one `saas` licence project and one hand-made project with terms.
 - [ ] T17: QE-light verification; all gates green; spec status → done — refs: every AC — deps: T18, T19, T20, T21, T22, T23, T24, T25, T26, T27, T28, T29, T30, T31, T32, T33, T34, T35, T36
   - touch: `specs/022-projects-handoff/qe-report.md`, `specs/022-projects-handoff/spec.md`
   - done when: the quality-engineer's QE-light verdict is PASS in `qe-report.md` — including a live pass: as `sales`, take a won deal into a new fixed-price project with a referent and the prefilled ops-manager and see the estimate's man-days; as that ops-manager, see the notification, fail to activate the project, pick its project manager; as a project manager, see no queue; open the PO's referent as a user without CRM access; reopen and re-win the deal and see the notice come and go; open the estimate link as a user without EstimAI access; see project and Bexio id on the CRM deal page; create a hand-made `saas` project with terms — every local gate it lists is green (auth, crm-api on `crm_test`, notify-api, notify-ui, crm-ui, projects-api, projects-ui, estimai-api, env-doctor, shared copies, changeset, secret scan), and `/wellforge:done 022-projects-handoff` accepts the feature.
