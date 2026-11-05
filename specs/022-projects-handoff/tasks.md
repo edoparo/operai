@@ -271,7 +271,7 @@ are specs/021's and 2026-11-04's, renamed from `contract` to `terms`.
 - T28 (hand-made): `POST /projects` `{ name, type (any of the five), entity, companyId?,
   projectManagerId?, terms?: TermsInput }` — company required for every type but `internal`
   (`saas` included) and absent for `internal` (`422 company_required` / `company_not_allowed`);
-  `terms` on `internal` → `422 terms_not_allowed`; invalid terms → `422` naming `terms.<field>`;
+  `terms` on `internal` → `422 terms_not_allowed`; invalid terms → `400 validation_failed` for a shape error and `422` for a domain rule, both naming `terms.<field>` as the take does (clarified 2026-11-05, drift raised by T28);
   project and terms in one transaction; the creator is project manager by default; no PO.
 
 **projects-ui (T30–T33)** — renders the shapes above; copy EN / IT: "Purchase order" /
@@ -411,7 +411,7 @@ are specs/021's and 2026-11-04's, renamed from `contract` to `terms`.
 - [x] T27: projects-api — the project-manager pick and the awaiting state — refs: AC-4.5, AC-4.7, AC-4.8, AC-4.9 — deps: T26
   - touch: `projects-api/src/projects/**`, `projects-api/src/test-support/**`
   - done when: `bun test src/projects` is green with tests that on an awaiting project the PO's ops-manager and an `oversees` admin can set the project manager and another ops-manager, a sales, a project manager of the entity and the assignee after losing `purchase-order:receive` get `403 not_ops_manager`; a person without project access → `422 not_project_user`; after the pick the project is no longer awaiting and any manage holder changes the project manager as in specs/021; `projectManagerId: null` → `422 project_manager_required`; `planned` → `active` while awaiting → `409 awaiting_project_manager` and other moves still work; `GET /projects?projectManagerId=none` returns only awaiting projects and their list items carry `projectManager: null`, `awaitingProjectManager: true`.
-- [ ] T28: projects-api — hand-made projects: any type, `saas` with a company, optional terms at creation — refs: AC-5.1, AC-5.2, AC-5.3 — deps: T27
+- [x] T28: projects-api — hand-made projects: any type, `saas` with a company, optional terms at creation — refs: AC-5.1, AC-5.2, AC-5.3 — deps: T27
   - touch: `projects-api/src/projects/**`, `projects-api/src/terms/**`, `projects-api/src/test-support/**`
   - done when: `bun test src/projects src/terms` is green with tests that `POST /projects` creates each of the five types with the company rule of § API contracts, the creator as project manager and no PO; with valid terms it creates project and terms together, with invalid ones `422` naming `terms.<field>` and nothing created, with terms on `internal` `422 terms_not_allowed`; a hand-made project's terms can later be added, edited and removed (S5) and no route gives it a PO.
 - [ ] T29: projects-api — authorization matrix for every changed route — refs: AC-1.1, AC-1.9, AC-3.7, AC-4.8, AC-5.1 — deps: T24, T25, T26, T27, T28
