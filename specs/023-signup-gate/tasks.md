@@ -84,7 +84,7 @@ Work happens in the `main` worktree (`/Users/matteocodogno/LAB/aiscream/operai-m
     - `signin.routes.test.ts` renders each new code;
     - all specs/006 hook tests still green.
 
-- [ ] T6: [backend] Shared invitation creation, limited to allowed domains — refs: AC-5.1, AC-5.2, AC-3.2 — deps: T2
+- [x] T6: [backend] Shared invitation creation, limited to allowed domains — refs: AC-5.1, AC-5.2, AC-3.2 — deps: T2
   - touch: `auth/src/invitations/createInvitation*.ts`, `auth/src/invitations/invitations.routes.ts`, `auth/src/invitations/invitations.routes.test.ts`, `auth/src/invitations/invitations.schemas.ts`, `auth/src/authz/audit.ts`, `auth/src/authz/audit*.test.ts`
   - do:
     - extract the `POST /admin/invitations` body into `createInvitation.ts`: validation

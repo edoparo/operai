@@ -81,6 +81,12 @@ export const ProblemJsonSchema = z.object({
   instance: z.string(),
 });
 
+/** 422 from `POST /admin/invitations`: the problem plus the optional machine-readable domain refusal (specs/023, AC-5.1). */
+export const InvitationUnprocessableSchema = ProblemJsonSchema.extend({
+  code: z.literal("domain_not_allowed").optional(),
+  allowedDomains: z.array(z.string()).optional(),
+});
+
 export type CreateInvitationBody = z.infer<typeof CreateInvitationBodySchema>;
 export type ListInvitationsQuery = z.infer<typeof ListInvitationsQuerySchema>;
 export type InvitationDetail = z.infer<typeof InvitationDetailSchema>;

@@ -25,8 +25,14 @@
 
 import { afterAll, afterEach, beforeAll, describe, expect, mock, test } from "bun:test";
 import { db } from "../lib/db";
+import { env } from "../lib/env";
 
 const RUN_ID = crypto.randomUUID().slice(0, 8);
+
+// specs/023: invitations are limited to ALLOWED_SIGNUP_DOMAINS. The fixtures in this file use
+// `@operai.test` addresses, so that domain is added to the (test-process) allowlist; the
+// outside-domain cases below use gmail.com, which is never allowed.
+env.ALLOWED_SIGNUP_DOMAINS.push("operai.test");
 const HOUR = 60 * 60 * 1000;
 const SEVENTY_TWO_HOURS = 72 * HOUR;
 
@@ -836,5 +842,101 @@ describe("Invitation routes with the real email client (specs/016 AC-4.3, ADR-00
     expect(fetchCalls).toHaveLength(2);
     const row = await db.invitation.findUniqueOrThrow({ where: { id: original.id } });
     expect(row.lastEmailError).toBe("notify-api responded with HTTP 401");
+  });
+});
+
+describe("Invitations limited to allowed domains (specs/023 T6 — AC-5.1, AC-5.2)", () => {
+  async function postBody(body: unknown) {
+    const { invitationsRouter } = await import("./invitations.routes");
+    return invitationsRouter.request("/admin/invitations", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    });
+  }
+
+  test("an address outside the allowed domains -> 422 domain_not_allowed + allowedDomains, no row, no email, no audit", async () => {
+    asAdmin();
+    mockEmailSent();
+    sendInvitationEmailMock.mockClear();
+    const email = `t23-outside-${RUN_ID}@gmail.com`;
+
+    const res = await postBody({ email });
+
+    expect(res.status).toBe(422);
+    const body = (await res.json()) as {
+      status: number;
+      code: string;
+      allowedDomains: string[];
+      detail: string;
+      instance: string;
+    };
+    expect(body.status).toBe(422);
+    expect(body.code).toBe("domain_not_allowed");
+    expect(body.allowedDomains).toEqual(env.ALLOWED_SIGNUP_DOMAINS);
+    expect(body.allowedDomains).toContain("welld.ch");
+    expect(body.detail).toContain("welld.ch");
+    expect(body.instance).toBe("/admin/invitations");
+    expect(await db.invitation.findFirst({ where: { email } })).toBeNull();
+    expect(await db.auditLog.count({ where: { summary: `Invited ${email}` } })).toBe(0);
+    expect(sendInvitationEmailMock).not.toHaveBeenCalled();
+  });
+
+  test("a look-alike domain (suffix or subdomain) is refused", async () => {
+    asAdmin();
+    for (const email of [`t23-a-${RUN_ID}@evilwelld.ch`, `t23-b-${RUN_ID}@mail.welld.ch`, `t23-c-${RUN_ID}@welld.ch.evil.com`]) {
+      const res = await postBody({ email });
+      expect(res.status).toBe(422);
+      expect(((await res.json()) as { code: string }).code).toBe("domain_not_allowed");
+      expect(await db.invitation.findFirst({ where: { email } })).toBeNull();
+    }
+  });
+
+  test("an allowed domain is accepted whatever its case, and stored lower-cased", async () => {
+    asAdmin();
+    mockEmailSent();
+    const res = await postBody({ email: `T23-Case-${RUN_ID}@WELLD.CH` });
+
+    expect(res.status).toBe(201);
+    const body = (await res.json()) as { id: string; email: string };
+    trackInvitation(body.id);
+    expect(body.email).toBe(`t23-case-${RUN_ID}@welld.ch`);
+  });
+
+  test("the domain check wins over the other 422/409 checks (nothing is read first)", async () => {
+    asAdmin();
+    const res = await postBody({ email: `t23-first-${RUN_ID}@gmail.com`, roleIds: ["no-such-role"] });
+    expect(res.status).toBe(422);
+    expect(((await res.json()) as { code?: string }).code).toBe("domain_not_allowed");
+  });
+
+  test("a role 422 carries no domain code", async () => {
+    asAdmin();
+    const res = await postBody({ email: `t23-role-${RUN_ID}@welld.ch`, roleIds: ["no-such-role"] });
+    expect(res.status).toBe(422);
+    const body = (await res.json()) as { code?: string; allowedDomains?: string[] };
+    expect(body.code).toBeUndefined();
+    expect(body.allowedDomains).toBeUndefined();
+  });
+
+  test("a pre-existing outside-domain pending invitation still lists, resends and revokes (AC-5.2)", async () => {
+    asAdmin();
+    mockEmailSent();
+    const email = `t23-legacy-${RUN_ID}@gmail.com`;
+    const legacy = await makeInvitationRow(email);
+    const { invitationsRouter } = await import("./invitations.routes");
+
+    const list = await invitationsRouter.request(`/admin/invitations?q=${encodeURIComponent(email)}`);
+    expect(list.status).toBe(200);
+    const listed = (await list.json()) as { items: { id: string; status: string }[] };
+    expect(listed.items.map((i) => i.id)).toContain(legacy.id);
+
+    const resent = await invitationsRouter.request(`/admin/invitations/${legacy.id}/resend`, { method: "POST" });
+    expect(resent.status).toBe(200);
+    expect(((await resent.json()) as { status: string }).status).toBe("pending");
+
+    const revoked = await invitationsRouter.request(`/admin/invitations/${legacy.id}/revoke`, { method: "POST" });
+    expect(revoked.status).toBe(200);
+    expect(((await revoked.json()) as { status: string }).status).toBe("revoked");
   });
 });

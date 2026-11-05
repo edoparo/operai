@@ -154,6 +154,59 @@ describe("withAudit — transactional audit + epoch bump (T7, AC-5.1/AC-4.3)", (
     expect(refreshedTarget.permissionEpoch).toBe(0);
   });
 
+  test("an array of entries writes every row in the one transaction (specs/023 T6)", async () => {
+    const actor = await createTestUser("actor-multi");
+    const marker = `t6-multi-${RUN_ID}`;
+
+    const result = await withAudit({
+      affectedUserIds: [],
+      mutate: async () => ({ id: "x" }),
+      entry: (r) => [
+        { actorUserId: actor.id, action: "invitation.create", targetType: "invitation", targetId: r.id, summary: `${marker}-a` },
+        { actorUserId: actor.id, action: "access_request.approve", targetType: "access_request", targetId: r.id, summary: `${marker}-b` },
+      ],
+    });
+    expect(result).toEqual({ id: "x" });
+
+    const rows = await db.auditLog.findMany({ where: { summary: { startsWith: marker } }, orderBy: { summary: "asc" } });
+    expect(rows.map((r) => r.action)).toEqual(["invitation.create", "access_request.approve"]);
+  });
+
+  test("a fixed array of entries is accepted too", async () => {
+    const actor = await createTestUser("actor-fixed-arr");
+    const marker = `t6-fixed-${RUN_ID}`;
+    await withAudit({
+      affectedUserIds: [],
+      mutate: async () => null,
+      entry: [
+        { actorUserId: actor.id, action: "a.one", targetType: "a", summary: `${marker}-1` },
+        { actorUserId: actor.id, action: "a.two", targetType: "a", summary: `${marker}-2` },
+      ],
+    });
+    expect(await db.auditLog.count({ where: { summary: { startsWith: marker } } })).toBe(2);
+  });
+
+  test("rolls back every row of an array when a later write throws", async () => {
+    const actor = await createTestUser("actor-multi-rb");
+    const target = await createTestUser("target-multi-rb");
+    const marker = `t6-multi-rb-${RUN_ID}`;
+
+    await expect(
+      withAudit({
+        affectedUserIds: [target.id],
+        mutate: async () => ({ id: "y" }),
+        entry: () => [
+          { actorUserId: actor.id, action: "x.one", targetType: "x", summary: `${marker}-1` },
+          // the second row violates the actor FK -> the transaction aborts after the first insert
+          { actorUserId: "no-such-user", action: "x.two", targetType: "x", summary: `${marker}-2` },
+        ],
+      }),
+    ).rejects.toThrow();
+
+    expect(await db.auditLog.count({ where: { summary: { startsWith: marker } } })).toBe(0);
+    expect((await db.user.findUniqueOrThrow({ where: { id: target.id } })).permissionEpoch).toBe(0);
+  });
+
   test("stores NULL in the data column when no diff is supplied, and bumps no users when affectedUserIds is empty", async () => {
     const actor = await createTestUser("actor-4");
     const roleName = `t7-role-${RUN_ID}-4`;

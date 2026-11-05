@@ -37,21 +37,17 @@ import {
   sessionMiddleware,
 } from "../auth/auth.middleware";
 import { db } from "../lib/db";
-import { Prisma } from "../lib/generated/prisma/client";
 import type { Invitation } from "../lib/generated/prisma/client";
 import { withAudit } from "../authz/audit";
 import { env } from "../lib/env";
 import { sendInvitationEmail } from "../lib/notify";
+import { buildInviteUrl, createInvitation } from "./createInvitation";
 import {
-  createInvitationRow,
   effectiveInvitationStatus,
   findInvitationById,
-  findLivePendingInvitationByEmail,
   INVITATION_TTL_MS,
   isTerminalStatus,
   listInvitations,
-  normalizeEmail,
-  reconcileExpiredPending,
   updateEmailDelivery,
   updateForResend,
   updateForRevoke,
@@ -62,6 +58,7 @@ import {
   InvitationDetailSchema,
   InvitationIdParamSchema,
   InvitationListResponseSchema,
+  InvitationUnprocessableSchema,
   ListInvitationsQuerySchema,
   ProblemJsonSchema,
 } from "./invitations.schemas";
@@ -98,32 +95,7 @@ function unprocessable(instance: string, detail: string) {
   } as const;
 }
 
-/**
- * True when `error` is a Prisma unique-constraint violation (P2002) —
- * mirrors `admin/roles.routes.ts` / `admin/departments.routes.ts`'s own
- * helper of the same name. Security-review fix #7 (specs/006-user-invitations,
- * A04): used to catch the race where two concurrent `POST /admin/invitations`
- * for the SAME email both pass the pre-transaction 409 check (AC-1.4) and
- * then both attempt to insert — the `invitation_pending_email_key` partial
- * unique index lets exactly one commit; the loser must surface as the same
- * 409 Conflict shape, never an uncaught 500.
- */
-function isUniqueConstraintViolation(error: unknown): boolean {
-  return (
-    error instanceof Prisma.PrismaClientKnownRequestError &&
-    error.code === "P2002"
-  );
-}
-
 // ─── Serialization ────────────────────────────────────────────────────────────
-
-/** Builds the invite-link URL (plan.md "Invite link & landing"): `<BETTER_AUTH_URL>/invite?id=<invId>&token=<raw>`. */
-function buildInviteUrl(invitationId: string, rawToken: string): string {
-  const url = new URL("/invite", env.BETTER_AUTH_URL);
-  url.searchParams.set("id", invitationId);
-  url.searchParams.set("token", rawToken);
-  return url.toString();
-}
 
 async function summarizeRoles(ids: string[]) {
   if (ids.length === 0) return [];
@@ -244,8 +216,10 @@ const createInvitationRoute = createRoute({
         "pending invitation already exists for it (AC-1.4)",
     },
     422: {
-      content: { "application/json": { schema: ProblemJsonSchema } },
-      description: "One or more roleIds/departmentIds do not exist",
+      content: { "application/json": { schema: InvitationUnprocessableSchema } },
+      description:
+        "One or more roleIds/departmentIds do not exist, or the email is outside the " +
+        'allowed sign-up domains (`code: "domain_not_allowed"` + `allowedDomains`, AC-5.1)',
     },
   },
 });
@@ -253,125 +227,23 @@ const createInvitationRoute = createRoute({
 invitationsRouter.openapi(createInvitationRoute, async (c) => {
   const body = c.req.valid("json");
   const actor = c.get("user")!;
-  const email = normalizeEmail(body.email);
-  const roleIds = Array.from(new Set(body.roleIds));
-  const departmentIds = Array.from(new Set(body.departmentIds));
 
-  // ── 422 — role/department ids must exist ────────────────────────────────
-  if (roleIds.length > 0) {
-    const found = await db.role.findMany({
-      where: { id: { in: roleIds } },
-      select: { id: true },
-    });
-    const foundIds = new Set(found.map((r) => r.id));
-    const missing = roleIds.filter((id) => !foundIds.has(id));
-    if (missing.length > 0) {
-      return c.json(
-        unprocessable(c.req.path, `Unknown role id(s): ${missing.join(", ")}`),
-        422,
-      );
-    }
-  }
-  if (departmentIds.length > 0) {
-    const found = await db.department.findMany({
-      where: { id: { in: departmentIds } },
-      select: { id: true },
-    });
-    const foundIds = new Set(found.map((d) => d.id));
-    const missing = departmentIds.filter((id) => !foundIds.has(id));
-    if (missing.length > 0) {
-      return c.json(
-        unprocessable(c.req.path, `Unknown department id(s): ${missing.join(", ")}`),
-        422,
-      );
-    }
-  }
-
-  // ── 409 — an active user already owns this email (AC-1.3) ───────────────
-  const activeUser = await db.user.findFirst({
-    where: { email: { equals: email, mode: "insensitive" }, deletedAt: null },
-    select: { id: true },
-  });
-  if (activeUser) {
+  // Validation, the audited transaction and the after-commit email live in
+  // `createInvitation.ts`, shared with the access-request approval (specs/023).
+  const result = await createInvitation(body, actor);
+  if (!result.ok) {
+    const { status, detail, code, allowedDomains } = result.problem;
     return c.json(
-      conflict(c.req.path, `An active user already exists with email "${email}"`),
-      409,
-    );
-  }
-
-  // ── 409 — a live pending invitation already exists (AC-1.4) ──────────────
-  const existingPending = await findLivePendingInvitationByEmail(db, email);
-  if (existingPending) {
-    return c.json(
-      conflict(
-        c.req.path,
-        `A pending invitation already exists for "${email}" (id: ${existingPending.id})`,
-      ),
-      409,
-    );
-  }
-
-  const token = await generateInvitationToken();
-  const expiresAt = new Date(Date.now() + INVITATION_TTL_MS);
-
-  let created: Invitation;
-  try {
-    created = await withAudit({
-      affectedUserIds: [],
-      mutate: async (tx) => {
-        // Reconcile-on-write (ADR-0013, AC-1.5/AC-1.14) — INSIDE the same
-        // transaction as the insert, so the partial-unique index never sees
-        // a stale row it should have excluded.
-        await reconcileExpiredPending(tx, email);
-        return createInvitationRow(tx, {
-          email,
-          roleIds,
-          departmentIds,
-          invitedByUserId: actor.id,
-          tokenHash: token.hash,
-          expiresAt,
-        });
+      {
+        ...(status === 409 ? conflict(c.req.path, detail) : unprocessable(c.req.path, detail)),
+        ...(code !== undefined ? { code } : {}),
+        ...(allowedDomains !== undefined ? { allowedDomains } : {}),
       },
-      entry: (invitation) => ({
-        actorUserId: actor.id,
-        action: "invitation.create",
-        targetType: "invitation",
-        targetId: invitation.id,
-        summary: `Invited ${invitation.email}`,
-        data: { roleIds, departmentIds },
-      }),
-    });
-  } catch (error) {
-    // Security-review fix #7 (specs/006-user-invitations, A04): the
-    // pre-transaction check above (AC-1.4) is TOCTOU-racy under concurrency —
-    // two simultaneous creates for the same email can both pass it and both
-    // reach the insert. The `invitation_pending_email_key` partial unique
-    // index (ADR-0013) lets only one win; the other must surface the SAME
-    // 409 Conflict the pre-check path returns, never an uncaught 500.
-    if (isUniqueConstraintViolation(error)) {
-      return c.json(
-        conflict(
-          c.req.path,
-          `A pending invitation already exists for "${email}"`,
-        ),
-        409,
-      );
-    }
-    throw error;
+      status,
+    );
   }
 
-  // ── Email send — AFTER commit, never blocks the invitation itself ───────
-  const delivery = await sendInvitationEmail({
-    to: created.email,
-    template: "invitation",
-    inviteUrl: buildInviteUrl(created.id, token.raw),
-    inviterName: actor.name,
-    expiresAt: created.expiresAt.toISOString(),
-  });
-
-  const withDelivery = await updateEmailDelivery(created.id, delivery);
-
-  return c.json(await serializeInvitation(withDelivery), 201);
+  return c.json(await serializeInvitation(result.invitation), 201);
 });
 
 // ─── GET /admin/invitations ────────────────────────────────────────────────────

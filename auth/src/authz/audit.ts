@@ -48,11 +48,15 @@ export type AuditedMutation<T> = (tx: Prisma.TransactionClient) => Promise<T>;
  * Builds the audit entry. Accepts either a fixed entry (when the caller
  * already knows before/after ahead of time) or a function of the mutation's
  * result (when the "after" state — e.g. a generated id — only exists once
- * the mutation has run).
+ * the mutation has run). Either form may yield an ARRAY when one mutation
+ * must leave several rows (specs/023: approving an access request writes
+ * `invitation.create` and `access_request.approve`); all rows are written in
+ * the same transaction, in array order.
  */
 export type AuditEntryOrBuilder<T> =
   | AuditEntryInput
-  | ((result: T) => AuditEntryInput);
+  | readonly AuditEntryInput[]
+  | ((result: T) => AuditEntryInput | readonly AuditEntryInput[]);
 
 export interface WithAuditParams<T> {
   /** The ids of every user whose effective permissions may have changed. De-duplicated internally. */
@@ -81,23 +85,28 @@ export async function withAudit<T>({
   return db.$transaction(async (tx) => {
     const result = await mutate(tx);
 
-    const resolvedEntry = typeof entry === "function" ? entry(result) : entry;
+    const resolved = typeof entry === "function" ? entry(result) : entry;
+    const entries: readonly AuditEntryInput[] = Array.isArray(resolved)
+      ? resolved
+      : [resolved as AuditEntryInput];
 
-    await tx.auditLog.create({
-      data: {
-        actorUserId: resolvedEntry.actorUserId,
-        action: resolvedEntry.action,
-        targetType: resolvedEntry.targetType,
-        targetId: resolvedEntry.targetId ?? null,
-        summary: resolvedEntry.summary,
-        // Omit the key entirely (rather than passing `undefined`) when there is
-        // nothing to diff — `exactOptionalPropertyTypes` forbids an explicit
-        // `undefined` here, and omission lets the nullable column default to NULL.
-        ...(resolvedEntry.data !== undefined && resolvedEntry.data !== null
-          ? { data: resolvedEntry.data }
-          : {}),
-      },
-    });
+    for (const resolvedEntry of entries) {
+      await tx.auditLog.create({
+        data: {
+          actorUserId: resolvedEntry.actorUserId,
+          action: resolvedEntry.action,
+          targetType: resolvedEntry.targetType,
+          targetId: resolvedEntry.targetId ?? null,
+          summary: resolvedEntry.summary,
+          // Omit the key entirely (rather than passing `undefined`) when there is
+          // nothing to diff — `exactOptionalPropertyTypes` forbids an explicit
+          // `undefined` here, and omission lets the nullable column default to NULL.
+          ...(resolvedEntry.data !== undefined && resolvedEntry.data !== null
+            ? { data: resolvedEntry.data }
+            : {}),
+        },
+      });
+    }
 
     const uniqueUserIds = Array.from(new Set(affectedUserIds));
     if (uniqueUserIds.length > 0) {
