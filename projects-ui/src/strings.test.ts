@@ -22,8 +22,37 @@ describe('strings aggregate', () => {
     expect(Object.keys(strings).sort()).toEqual([...files].sort())
   })
 
-  it('keeps one namespace file per later task, so a page only ever fills its own strings (T12–T14)', () => {
-    expect(Object.keys(strings)).toEqual(expect.arrayContaining(['projects', 'project', 'contracts']))
+  it('keeps one namespace file per later task, so a page only ever fills its own strings (T12–T14, T30–T33)', () => {
+    expect(Object.keys(strings)).toEqual(
+      expect.arrayContaining(['projects', 'project', 'terms', 'purchaseOrder', 'queue']),
+    )
+    expect(Object.keys(strings)).not.toContain('contracts')
+  })
+
+  it('no "contract" copy is left: a project has terms and a purchase order (D38, A32)', () => {
+    const copy = (catalog: unknown): string[] => {
+      if (typeof catalog === 'string') return [catalog]
+      if (typeof catalog === 'function')
+        return copy((catalog as (...args: never[]) => unknown)(...([1, 2, 3] as never[])))
+      if (catalog !== null && typeof catalog === 'object') return Object.values(catalog).flatMap(copy)
+      return []
+    }
+    for (const [language, catalog] of [
+      ['en', en],
+      ['it', italian],
+    ] as const) {
+      expect(
+        copy(catalog).filter((text) => /contract|contratt/i.test(text)),
+        language,
+      ).toEqual([])
+    }
+  })
+
+  it('names the purchase order and its words as the spec fixes them (A32, T30)', () => {
+    expect(en.purchaseOrder.title).toBe('Purchase order')
+    expect(italian.purchaseOrder.title).toBe('Ordine d’acquisto')
+    expect(en.terms.title).toBe('Terms')
+    expect(italian.terms.title).toBe('Termini')
   })
 })
 

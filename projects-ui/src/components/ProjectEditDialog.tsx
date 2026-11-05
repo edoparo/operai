@@ -15,11 +15,15 @@ import type { PersonChoice } from './PersonPicker'
 type FieldName = 'name' | 'projectManager'
 
 /**
- * ProjectEditDialog — rename a project and change its project manager (AC-1.6).
+ * ProjectEditDialog — rename a project and change its project manager (specs/021 AC-1.6).
  * The manager is picked among the people who hold access to the module; the
  * server re-checks it (422 `not_project_user`, which lands on that field). Only
  * what changed is sent, with the project's `version` as If-Match (AC-1.7): a
  * stale save closes the dialog and is the page's to handle (`onStale`).
+ *
+ * A project awaiting its project manager has none to change: only the ops-manager of its purchase
+ * order (or an admin) picks the first one, in the pick of T32 (D42, D46, AC-4.8), and the server
+ * refuses anyone else (403 `not_ops_manager`) — so the picker is not offered here, only the name.
  */
 export default function ProjectEditDialog({
   project,
@@ -36,10 +40,12 @@ export default function ProjectEditDialog({
 }) {
   const t = strings.project.editDialog
   const [name, setName] = useState(project.name)
-  const [manager, setManager] = useState<PersonChoice | null>({
-    id: project.projectManager.id,
-    label: personName(project.projectManager, currentUserId),
-  })
+  const awaiting = project.projectManager === null
+  const [manager, setManager] = useState<PersonChoice | null>(
+    project.projectManager
+      ? { id: project.projectManager.id, label: personName(project.projectManager, currentUserId) }
+      : null,
+  )
   const [errors, setErrors] = useState<Errors<FieldName>>({})
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -48,13 +54,13 @@ export default function ProjectEditDialog({
   const trimmed = name.trim()
   const changes: UpdateProjectInput = {
     ...(trimmed !== project.name ? { name: trimmed } : {}),
-    ...(manager && manager.id !== project.projectManager.id ? { projectManagerId: manager.id } : {}),
+    ...(!awaiting && manager && manager.id !== project.projectManager?.id ? { projectManagerId: manager.id } : {}),
   }
 
   const submit = () => {
     const found: Errors<FieldName> = {
       name: first(required(name), maxLength(name, 200)) ?? undefined,
-      projectManager: manager === null ? strings.people.picker.pickRequired : undefined,
+      projectManager: !awaiting && manager === null ? strings.people.picker.pickRequired : undefined,
     }
     setErrors(found)
     if (hasErrors(found)) {
@@ -98,16 +104,22 @@ export default function ProjectEditDialog({
         <Field label={t.name} required error={errors.name} testId="project-edit-name">
           {(control) => <input {...control} value={name} onChange={(event) => setName(event.target.value)} />}
         </Field>
-        <PersonPicker
-          label={t.projectManager}
-          hint={t.projectManagerHint}
-          value={manager}
-          onChange={setManager}
-          error={errors.projectManager}
-          required
-          forbiddenHint={strings.projects.form.projectManagerReadOnlyHint}
-          testId="project-edit-manager"
-        />
+        {awaiting ? (
+          <p className="text-sm text-soft" data-testid="project-edit-manager-awaiting">
+            {t.projectManagerAwaiting}
+          </p>
+        ) : (
+          <PersonPicker
+            label={t.projectManager}
+            hint={t.projectManagerHint}
+            value={manager}
+            onChange={setManager}
+            error={errors.projectManager}
+            required
+            forbiddenHint={strings.projects.form.projectManagerReadOnlyHint}
+            testId="project-edit-manager"
+          />
+        )}
       </div>
     </FormDialog>
   )

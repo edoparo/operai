@@ -36,14 +36,14 @@ describe('dates go through the library formatters (AC-4.7)', () => {
     const relative = files.map((file) => path.relative(SRC_DIR, file))
     expect(relative).toEqual(
       expect.arrayContaining([
-        path.join('components', 'ContractCard.tsx'),
+        path.join('components', 'TermsDetails.tsx'),
         path.join('pages', 'ProjectDetailPage.tsx'),
       ]),
     )
   })
 
   it('the pages that show dates use formatDate from @operai/ui', () => {
-    for (const file of ['components/ContractCard.tsx', 'pages/ProjectDetailPage.tsx']) {
+    for (const file of ['components/TermsDetails.tsx', 'pages/ProjectDetailPage.tsx']) {
       expect(readFileSync(path.join(SRC_DIR, file), 'utf-8'), file).toMatch(
         /\bformatDate\b[^]*from '@operai\/ui'|from '@operai\/ui'[^]*\bformatDate\b/,
       )

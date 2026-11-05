@@ -38,7 +38,9 @@ const queueItem = (overrides: Partial<QueueItem> = {}): QueueItem => ({
 
 const queue = (items: QueueItem[], truncated = false) => ({ status: 200, body: { items, truncated } })
 
-const renderQueue = async (routes: Record<string, FakeHandler>, callerScope: Scope = scope()) => {
+const TAKER = scope({ take: ['welld_ch', 'welld_it'] })
+
+const renderQueue = async (routes: Record<string, FakeHandler>, callerScope: Scope = TAKER) => {
   apiFetch.mockImplementation(fakeApi(routes))
   window.history.pushState(null, '', '/queue')
   render(<RouterProvider router={createAppRouter(undefined, scopeRoot(callerScope))} />)
@@ -57,6 +59,34 @@ afterEach(() => {
 const queueUrls = () =>
   apiFetch.mock.calls.map(([input]) => new URL(String(input))).filter((url) => url.pathname === '/queue')
 const lastQuery = () => Object.fromEntries(queueUrls().at(-1)!.searchParams)
+
+describe('who may open the queue (AC-1.9, D37)', () => {
+  const open = async (callerScope: Scope) => {
+    apiFetch.mockImplementation(fakeApi({ 'GET /queue': () => queue([queueItem()]) }))
+    window.history.pushState(null, '', '/queue')
+    render(<RouterProvider router={createAppRouter(undefined, scopeRoot(callerScope))} />)
+  }
+
+  it.each<[string, Scope]>([
+    ['a project manager (manages, takes nothing)', scope({ manage: ['welld_ch'] })],
+    ['an ops-manager (manages, oversees, takes nothing)', scope({ manage: ['welld_ch'], oversees: true })],
+    ['accounting (Bexio only)', scope({ bexio: true })],
+    ['a reader', scope()],
+  ])('%s gets the permission-denied state, never the queue, and the API is not asked', async (_name, callerScope) => {
+    await open(callerScope)
+    expect(await screen.findByTestId('projects-permission-denied')).not.toBeNull()
+    expect(screen.queryByTestId('queue-page')).toBeNull()
+    expect(screen.queryByTestId('queue-table')).toBeNull()
+    expect(apiFetch).not.toHaveBeenCalled()
+  })
+
+  it('a caller whose scope.take is non-empty gets the queue', async () => {
+    await open(scope({ take: ['welld_it'] }))
+    expect(await screen.findByTestId('queue-table')).not.toBeNull()
+    expect(screen.queryByTestId('projects-permission-denied')).toBeNull()
+    expect(queueUrls()).toHaveLength(1)
+  })
+})
 
 describe('QueuePage list (AC-1.1)', () => {
   it('shows title, company, entity, won date and the estimate link of each deal', async () => {

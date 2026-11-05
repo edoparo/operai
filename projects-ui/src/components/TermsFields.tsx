@@ -1,6 +1,6 @@
 import { Button, DateInput, Field } from '@operai/ui'
-import { MAX_POSITIONS } from '../lib/contractTerms'
-import type { PositionForm, TermsErrors, TermsForm } from '../lib/contractTerms'
+import { MAX_POSITIONS } from '../lib/terms'
+import type { PositionForm, TermsErrors, TermsForm } from '../lib/terms'
 import type { HourPackageKind, ProjectType } from '../lib/types'
 import { strings } from '../strings'
 
@@ -15,20 +15,20 @@ type Props = {
 }
 
 /**
- * ContractTermsFields — the terms inputs of a contract, by its type (specs/021
+ * TermsFields — the terms inputs of a project, by its type (specs/021
  * AC-2.3 – AC-2.8): fixed price (deadline, estimated man-days, max effort),
  * maintenance and SaaS (an optional SLA, prefilled 1 / 3, and an optional hour
- * package; a maintenance contract needs one of the two), time and material (1 to
- * 50 positions), nothing for `internal`. Shared by the contract form (a contract
- * entered by hand, or edited) and the two ways of taking a deal (specs/022). The
- * caller owns the form state and the checks (`lib/contractTerms.ts`); errors are
+ * package; maintenance terms need one of the two), time and material (1 to
+ * 50 positions), nothing for `internal`. Shared by the terms form (terms of a
+ * hand-made project, or edited) and the take of a deal (specs/022). The
+ * caller owns the form state and the checks (`lib/terms.ts`); errors are
  * keyed by the server's dotted field names.
  *
- * `estimatedManDaysReadOnly`: a contract made from a deal with an estimate takes
- * its man-days from the estimate and cannot be given them (AC-3.1); the input is
+ * `estimatedManDaysReadOnly`: terms made from a deal with an estimate take
+ * their man-days from the estimate and cannot be given them (AC-3.1); the input is
  * replaced by this text, read-only.
  */
-export default function ContractTermsFields({
+export default function TermsFields({
   type,
   estimatedManDaysReadOnly,
   ...props
@@ -39,8 +39,8 @@ export default function ContractTermsFields({
   return null
 }
 
-/** The start and end date of a contract, as the two ways of taking a deal ask them. */
-export function ContractDateFields({
+/** The start and end date of terms, as a take and the terms form ask them. */
+export function TermsDateFields({
   startDate,
   endDate,
   errors,
@@ -55,7 +55,7 @@ export function ContractDateFields({
   onEndDateChange: (value: string) => void
   testIdPrefix: string
 }) {
-  const t = strings.contracts.form
+  const t = strings.terms.form
   return (
     <>
       <Field label={t.startDate} required error={errors['startDate']} testId={`${testIdPrefix}-startDate`}>
@@ -79,7 +79,7 @@ function FixedPriceFields({
   testIdPrefix,
   estimatedReadOnly,
 }: Props & { estimatedReadOnly?: string }) {
-  const t = strings.contracts.form
+  const t = strings.terms.form
   return (
     <>
       <Field label={t.deadline} required error={errors['terms.deadline']} testId={`${testIdPrefix}-deadline`}>
@@ -131,7 +131,7 @@ function FixedPriceFields({
 }
 
 function SlaAndHoursFields({ terms, errors, onChange, testIdPrefix }: Props) {
-  const t = strings.contracts.form
+  const t = strings.terms.form
   const pkg = terms.hourPackage
   const patchPackage = (patch: Partial<TermsForm['hourPackage']>) => onChange({ hourPackage: { ...pkg, ...patch } })
   return (
@@ -237,7 +237,7 @@ function SlaAndHoursFields({ terms, errors, onChange, testIdPrefix }: Props) {
 }
 
 function PositionFields({ terms, errors, onChange, testIdPrefix }: Props) {
-  const t = strings.contracts.form
+  const t = strings.terms.form
   const positions = terms.positions
   const set = (index: number, patch: Partial<PositionForm>) =>
     onChange({ positions: positions.map((position, i) => (i === index ? { ...position, ...patch } : position)) })

@@ -1,6 +1,21 @@
 import { describe, expect, it } from 'vitest'
 import { ApiError } from './api'
-import { codeOf, errorMessage, fieldErrorOf, statusOf, takeRefusalOf, userIdsOf } from './errors'
+import {
+  PROJECT_ERROR_CODES,
+  PURCHASE_ORDER_REFUSALS,
+  PROJECT_REFUSALS,
+  TAKE_REFUSALS,
+  TERMS_REFUSALS,
+  codeOf,
+  errorMessage,
+  fieldErrorOf,
+  purchaseOrderRefusalOf,
+  projectRefusalOf,
+  statusOf,
+  takeRefusalOf,
+  termsRefusalOf,
+  userIdsOf,
+} from './errors'
 
 const problem = (status: number, code: string | undefined, extras: Record<string, unknown> = {}, detail = 'Why') =>
   new ApiError({ status, title: 'T', detail, ...(code ? { code } : {}), extras })
@@ -62,21 +77,114 @@ describe('takeRefusalOf', () => {
     'deal_not_won',
     'deal_taken',
     'out_of_scope',
-    'not_project_user',
-    'contracts_not_allowed',
-    'project_not_open',
-    'company_mismatch',
+    'forbidden',
+    'ops_manager_invalid',
+    'referent_invalid',
+    'identity_unavailable',
     'estimated_man_days_from_estimate',
     'crm_unavailable',
     'estimai_unavailable',
     'estimai_unconfigured',
-  ])('recognises the refusal %s of taking a deal (AC-1.5)', (code) => {
+  ])('recognises the refusal %s of taking a deal (AC-1.11, AC-4.2, AC-3.6)', (code) => {
     expect(takeRefusalOf(problem(409, code))).toBe(code)
   })
+
+  it.each(['not_project_user', 'contracts_not_allowed', 'project_not_open', 'company_mismatch'])(
+    'no longer knows %s: a take has no project manager and attaches nothing (D39, D42)',
+    (code) => {
+      expect(takeRefusalOf(problem(422, code))).toBeNull()
+    },
+  )
 
   it('knows nothing of other codes, a Problem without one, or a network failure', () => {
     expect(takeRefusalOf(problem(409, 'version_conflict'))).toBeNull()
     expect(takeRefusalOf(problem(500, undefined))).toBeNull()
     expect(takeRefusalOf(new TypeError('Failed to fetch'))).toBeNull()
+  })
+})
+
+describe('the refusals of the other routes', () => {
+  it.each(['terms_exist', 'terms_not_allowed', 'terms_not_found', 'terms_required', 'project_not_open'])(
+    'the terms routes: %s',
+    (code) => {
+      expect(termsRefusalOf(problem(409, code))).toBe(code)
+    },
+  )
+
+  it.each(['purchase_order_not_found', 'referent_invalid', 'crm_unavailable', 'out_of_scope'])(
+    'the purchase-order routes: %s',
+    (code) => {
+      expect(purchaseOrderRefusalOf(problem(422, code))).toBe(code)
+    },
+  )
+
+  it.each([
+    'not_ops_manager',
+    'project_manager_required',
+    'not_project_user',
+    'awaiting_project_manager',
+    'invalid_transition',
+    'company_required',
+    'company_not_allowed',
+    'terms_not_allowed',
+  ])('editing, picking, moving and creating a project: %s', (code) => {
+    expect(projectRefusalOf(problem(409, code))).toBe(code)
+  })
+
+  it('each helper is null for a code of another group, and for a network failure', () => {
+    expect(termsRefusalOf(problem(409, 'deal_taken'))).toBeNull()
+    expect(purchaseOrderRefusalOf(problem(409, 'terms_exist'))).toBeNull()
+    expect(projectRefusalOf(new TypeError('x'))).toBeNull()
+  })
+})
+
+describe('PROJECT_ERROR_CODES carries every code of tasks.md § API contracts (T23 – T28), so no later task edits errors.ts', () => {
+  // The codes as the contract names them, written out here independently of lib/errors.ts.
+  const CONTRACT_CODES = [
+    // common
+    'forbidden',
+    'out_of_scope',
+    'version_conflict',
+    'validation_failed',
+    'authz_unavailable',
+    // T23 terms, purchase order, the take
+    'terms_exist',
+    'terms_not_allowed',
+    'terms_not_found',
+    'terms_required',
+    'estimated_man_days_from_estimate',
+    'purchase_order_not_found',
+    'deal_not_found',
+    'deal_not_won',
+    'deal_taken',
+    'estimai_unavailable',
+    'estimai_unconfigured',
+    'project_not_open',
+    // T24, T26 the take's rules, the referent
+    'ops_manager_invalid',
+    'identity_unavailable',
+    'crm_unavailable',
+    'referent_invalid',
+    // T27 the pick, the awaiting state
+    'not_ops_manager',
+    'project_manager_required',
+    'not_project_user',
+    'awaiting_project_manager',
+    'invalid_transition',
+    // T28 hand-made
+    'company_required',
+    'company_not_allowed',
+    'company_not_found',
+    'maintenance_needs_sla_or_hours',
+  ]
+
+  it.each(CONTRACT_CODES)('%s', (code) => {
+    expect(PROJECT_ERROR_CODES as readonly string[]).toContain(code)
+  })
+
+  it('the groups only use codes of the list', () => {
+    for (const code of [...TAKE_REFUSALS, ...TERMS_REFUSALS, ...PURCHASE_ORDER_REFUSALS, ...PROJECT_REFUSALS]) {
+      expect(PROJECT_ERROR_CODES as readonly string[]).toContain(code)
+    }
   })
 })

@@ -1,4 +1,4 @@
-/** The project page: details, state actions, type change, project manager and team (T13). */
+/** The project page: details, state actions, project manager and team (T13); the awaiting state (T30, T32). */
 const en = {
   back: 'Back to projects',
   loading: 'Loading project…',
@@ -7,7 +7,7 @@ const en = {
   readOnly: 'You can read this project but not change it.',
   dealNotWon: {
     title: 'The deal is no longer won',
-    body: (titles: string) => `Reopened in the CRM: ${titles}. The project and its contracts are unchanged.`,
+    body: (titles: string) => `Reopened in the CRM: ${titles}. The project and its purchase order are unchanged.`,
   },
   details: {
     title: 'Details',
@@ -15,11 +15,10 @@ const en = {
     type: 'Type',
     entity: 'wellD entity',
     company: 'Company',
-    clients: 'Clients',
-    clientCount: (count: number) => (count === 0 ? 'No clients yet' : count === 1 ? '1 client' : `${count} clients`),
     internal: 'Internal',
     companyUnavailable: 'Company unavailable',
     projectManager: 'Project manager',
+    awaitingProjectManager: 'Awaiting project manager',
     startDate: 'Starts',
     endDate: 'Ends',
     openEnded: 'Open-ended',
@@ -32,7 +31,6 @@ const en = {
     close: 'Close project',
     reopen: 'Reopen',
     cancel: 'Cancel project',
-    makeSaas: 'Make SaaS',
     working: 'Working…',
   },
   cancelDialog: {
@@ -42,23 +40,16 @@ const en = {
     busy: 'Cancelling…',
     keep: 'Keep project',
   },
-  saasDialog: {
-    title: 'Make this project SaaS?',
-    body: 'The project becomes a product sold by licence, with the companies of its contracts as clients. This cannot be undone.',
-    confirm: 'Make SaaS',
-    busy: 'Saving…',
-    keep: 'Keep internal',
-  },
   saved: {
     state: (label: string) => `The project is now ${label}.`,
-    type: 'The project is now a SaaS product.',
     details: 'Project saved.',
     team: 'Team saved.',
   },
   errors: {
     title: 'The change was not made',
     invalid_transition: 'The project cannot move to that state from where it is now. Reload to see its current state.',
-    type_change_refused: 'Only an internal project can become SaaS.',
+    awaiting_project_manager:
+      'This project is waiting for its project manager. The ops manager of its purchase order must pick one before it can start.',
     out_of_scope: 'You may not change projects of this entity.',
   },
   editDialog: {
@@ -66,6 +57,7 @@ const en = {
     name: 'Name',
     projectManager: 'Project manager',
     projectManagerHint: 'Only people with access to Projects can be chosen.',
+    projectManagerAwaiting: 'This project has no project manager yet: the ops manager of its purchase order picks one.',
     submit: 'Save',
     busy: 'Saving…',
   },
@@ -102,7 +94,7 @@ const it: typeof en = {
   readOnly: 'Puoi leggere questo progetto ma non modificarlo.',
   dealNotWon: {
     title: 'La trattativa non è più vinta',
-    body: (titles: string) => `Riaperta nel CRM: ${titles}. Il progetto e i suoi contratti restano invariati.`,
+    body: (titles: string) => `Riaperta nel CRM: ${titles}. Il progetto e il suo ordine d’acquisto restano invariati.`,
   },
   details: {
     title: 'Dettagli',
@@ -110,12 +102,10 @@ const it: typeof en = {
     type: 'Tipo',
     entity: 'Entità wellD',
     company: 'Azienda',
-    clients: 'Clienti',
-    clientCount: (count: number) =>
-      count === 0 ? 'Ancora nessun cliente' : count === 1 ? '1 cliente' : `${count} clienti`,
     internal: 'Interno',
     companyUnavailable: 'Azienda non disponibile',
     projectManager: 'Project manager',
+    awaitingProjectManager: 'In attesa del project manager',
     startDate: 'Inizio',
     endDate: 'Fine',
     openEnded: 'Senza scadenza',
@@ -128,7 +118,6 @@ const it: typeof en = {
     close: 'Chiudi progetto',
     reopen: 'Riapri',
     cancel: 'Annulla progetto',
-    makeSaas: 'Rendi SaaS',
     working: 'Operazione in corso…',
   },
   cancelDialog: {
@@ -138,16 +127,8 @@ const it: typeof en = {
     busy: 'Annullamento…',
     keep: 'Mantieni progetto',
   },
-  saasDialog: {
-    title: 'Rendere SaaS questo progetto?',
-    body: 'Il progetto diventa un prodotto venduto in licenza, con le aziende dei suoi contratti come clienti. Non si può annullare.',
-    confirm: 'Rendi SaaS',
-    busy: 'Salvataggio…',
-    keep: 'Resta interno',
-  },
   saved: {
     state: (label: string) => `Il progetto è ora: ${label}.`,
-    type: 'Il progetto è ora un prodotto SaaS.',
     details: 'Progetto salvato.',
     team: 'Team salvato.',
   },
@@ -155,7 +136,8 @@ const it: typeof en = {
     title: 'La modifica non è stata applicata',
     invalid_transition:
       'Dallo stato attuale il progetto non può passare a quello richiesto. Ricarica per vedere lo stato corrente.',
-    type_change_refused: 'Solo un progetto interno può diventare SaaS.',
+    awaiting_project_manager:
+      'Questo progetto attende il suo project manager. Il responsabile OPS del suo ordine d’acquisto deve sceglierne uno prima che possa partire.',
     out_of_scope: 'Non puoi modificare i progetti di questa entità.',
   },
   editDialog: {
@@ -163,6 +145,8 @@ const it: typeof en = {
     name: 'Nome',
     projectManager: 'Project manager',
     projectManagerHint: 'Si possono scegliere solo persone con accesso a Progetti.',
+    projectManagerAwaiting:
+      'Questo progetto non ha ancora un project manager: lo sceglie il responsabile OPS del suo ordine d’acquisto.',
     submit: 'Salva',
     busy: 'Salvataggio…',
   },

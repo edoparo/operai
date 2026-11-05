@@ -1,4 +1,4 @@
-/** The to-start queue (T12) and taking a deal from it (T13). */
+/** The to-start queue (T12) and taking a deal from it (T13, T31). */
 import type { TakeRefusal } from '../lib/errors'
 
 const en = {
@@ -31,46 +31,37 @@ const en = {
       column: 'Actions',
       newProject: 'New project',
       newProjectFor: (title: string) => `New project: ${title}`,
-      attach: 'Attach to project',
-      attachFor: (title: string) => `Attach to project: ${title}`,
     },
     project: {
       title: 'New project from a deal',
       description: (company: string, entity: string) =>
-        `A planned project for ${company} (${entity}) with one contract made from this deal. The company and the entity come from the deal.`,
+        `A planned project for ${company} (${entity}) with its purchase order, made from this deal. The company and the entity come from the deal.`,
       typeHint: 'The kind of work. It cannot be changed once the project exists.',
       submit: 'Create project',
       busy: 'Creating…',
     },
-    attach: {
-      title: 'Attach to a project',
-      description: (deal: string, company: string) =>
-        `Adds a contract made from ${deal} (${company}) to an existing project. It cannot be detached or moved afterwards.`,
-      project: 'Project',
-      projectHint: 'Search by name. A project that cannot take this deal’s contract is refused with the reason.',
-      projectRequired: 'Choose a project from the list.',
-      chooseProject: 'Choose a project to see the terms of its contract.',
-      searching: 'Searching…',
-      noMatch: 'No project matches.',
-      results: (count: number) => (count === 1 ? '1 project' : `${count} projects`),
-      submit: 'Attach deal',
-      busy: 'Attaching…',
-    },
-    contract: {
-      legend: 'Contract',
+    terms: {
+      legend: 'Purchase order terms',
       estimatedManDaysFromEstimate: 'From the estimate',
     },
-    /** Each refusal of taking a deal, in its own words (AC-1.5). */
+    opsManager: {
+      label: 'Ops manager',
+      hint: 'Gets the purchase order and picks the project manager.',
+      allEntities: 'All entities',
+      required: 'Choose who receives this purchase order.',
+      loading: 'Loading the ops managers…',
+    },
+    /** Each refusal of taking a deal, in its own words (AC-1.11, AC-4.2). */
     errors: {
       deal_not_found: 'This deal no longer exists in the CRM.',
       deal_not_won: 'This deal is no longer won in the CRM, so it cannot be taken.',
       deal_taken: 'A project has just taken this deal.',
       out_of_scope: 'You may not take deals of this entity.',
-      not_project_user: 'This person has no access to Projects. Choose someone who does.',
-      contracts_not_allowed: 'An internal project takes no contracts.',
-      project_not_open: 'A closed or cancelled project takes no new contract. Reopen it first.',
-      company_mismatch:
-        'A client project takes contracts for its own company only. Choose a project of this deal’s company.',
+      forbidden: 'You may not take deals.',
+      ops_manager_invalid: 'This person cannot receive the purchase order of this deal. Choose another ops manager.',
+      referent_invalid: 'This contact cannot be the referent. Choose another contact, or leave the referent empty.',
+      identity_unavailable:
+        'The user directory cannot be reached right now, so the ops manager could not be checked. Nothing was created. Try again in a moment.',
       estimated_man_days_from_estimate:
         'The estimated man-days come from the deal’s estimate and cannot be entered here.',
       crm_unavailable: 'The CRM cannot be reached right now. Try again in a moment.',
@@ -114,46 +105,38 @@ const it: typeof en = {
       column: 'Azioni',
       newProject: 'Nuovo progetto',
       newProjectFor: (title: string) => `Nuovo progetto: ${title}`,
-      attach: 'Collega a un progetto',
-      attachFor: (title: string) => `Collega a un progetto: ${title}`,
     },
     project: {
       title: 'Nuovo progetto da una trattativa',
       description: (company: string, entity: string) =>
-        `Un progetto pianificato per ${company} (${entity}) con un contratto creato da questa trattativa. L’azienda e l’entità vengono dalla trattativa.`,
+        `Un progetto pianificato per ${company} (${entity}) con il suo ordine d’acquisto, creato da questa trattativa. L’azienda e l’entità vengono dalla trattativa.`,
       typeHint: 'Il tipo di lavoro. Non si può cambiare dopo la creazione del progetto.',
       submit: 'Crea progetto',
       busy: 'Creazione…',
     },
-    attach: {
-      title: 'Collega a un progetto',
-      description: (deal: string, company: string) =>
-        `Aggiunge a un progetto esistente un contratto creato da ${deal} (${company}). Dopo non si può scollegare né spostare.`,
-      project: 'Progetto',
-      projectHint:
-        'Cerca per nome. Un progetto che non può accogliere il contratto di questa trattativa viene rifiutato con il motivo.',
-      projectRequired: 'Scegli un progetto dall’elenco.',
-      chooseProject: 'Scegli un progetto per vedere le condizioni del suo contratto.',
-      searching: 'Ricerca…',
-      noMatch: 'Nessun progetto corrisponde.',
-      results: (count: number) => (count === 1 ? '1 progetto' : `${count} progetti`),
-      submit: 'Collega trattativa',
-      busy: 'Collegamento…',
-    },
-    contract: {
-      legend: 'Contratto',
+    terms: {
+      legend: 'Termini dell’ordine d’acquisto',
       estimatedManDaysFromEstimate: 'Dalla stima',
+    },
+    opsManager: {
+      label: 'Responsabile OPS',
+      hint: 'Riceve l’ordine d’acquisto e sceglie il project manager.',
+      allEntities: 'Tutte le entità',
+      required: 'Scegli chi riceve questo ordine d’acquisto.',
+      loading: 'Caricamento dei responsabili OPS…',
     },
     errors: {
       deal_not_found: 'Questa trattativa non esiste più nel CRM.',
       deal_not_won: 'Questa trattativa non è più vinta nel CRM, quindi non può essere presa in carico.',
       deal_taken: 'Un progetto ha appena preso in carico questa trattativa.',
       out_of_scope: 'Non puoi prendere in carico trattative di questa entità.',
-      not_project_user: 'Questa persona non ha accesso a Progetti. Scegline una che ce l’ha.',
-      contracts_not_allowed: 'Un progetto interno non ha contratti.',
-      project_not_open: 'Un progetto chiuso o annullato non accetta nuovi contratti. Riaprilo prima.',
-      company_mismatch:
-        'Un progetto cliente accetta contratti solo della propria azienda. Scegli un progetto dell’azienda di questa trattativa.',
+      forbidden: 'Non puoi prendere in carico trattative.',
+      ops_manager_invalid:
+        'Questa persona non può ricevere l’ordine d’acquisto di questa trattativa. Scegli un altro responsabile OPS.',
+      referent_invalid:
+        'Questo contatto non può essere il referente. Scegli un altro contatto, oppure lascia vuoto il referente.',
+      identity_unavailable:
+        'L’elenco degli utenti al momento non è raggiungibile, quindi non si è potuto verificare il responsabile OPS. Non è stato creato nulla. Riprova tra un attimo.',
       estimated_man_days_from_estimate:
         'I giorni-uomo stimati arrivano dalla stima della trattativa e non si inseriscono qui.',
       crm_unavailable: 'Al momento non è possibile raggiungere il CRM. Riprova tra un attimo.',
