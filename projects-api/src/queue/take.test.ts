@@ -89,8 +89,8 @@ describe("POST /queue/:dealId/project — a new project from a won deal (AC-1.2,
         deal: { id: "d-1", title: "Portal rebuild", won: true },
         estimate: { id: "est-1" },
         bexioOrderId: null,
-        // Referent details are read from the CRM by T26; here only the id is stored.
-        referent: null,
+        // Only the id is stored; the Project view reads the referent's details from the CRM (T26).
+        referent: expect.objectContaining({ id: "contact-1", status: "ok" }),
         opsManager: { id: "user-ops", name: "Name of user-ops", deleted: false },
         version: 1,
       },
@@ -624,10 +624,15 @@ describe("no attach, no purchase order on an existing project (AC-1.10, D39)", (
     for (const [method, path] of [
       ["POST", `/projects/${byHand.id}/purchase-order`],
       ["PUT", `/projects/${byHand.id}/purchase-order`],
-      ["PATCH", `/projects/${byHand.id}/purchase-order`],
     ] as const) {
       expect((await call(method, path, { as: "admin", body: { dealId: "d-1" }, ifMatch: 1 })).status).toBe(404);
     }
+    // `PATCH` is the referent's edit (T26): it exists, takes `referentContactId` only (a deal id is a 400) and
+    // answers `purchase_order_not_found` for a hand-made project — it never makes an order.
+    const patched = await call("PATCH", `/projects/${byHand.id}/purchase-order`, { as: "admin", body: { dealId: "d-1" }, ifMatch: 1 });
+    expect(patched.status).toBe(400);
+    const edit = await call("PATCH", `/projects/${byHand.id}/purchase-order`, { as: "admin", body: { referentContactId: null }, ifMatch: 1 });
+    expect([edit.status, edit.json.code]).toEqual([404, "purchase_order_not_found"]);
     expect(await db.purchaseOrder.count()).toBe(0);
   });
 });

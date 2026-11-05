@@ -84,6 +84,12 @@ export const ReferentSchema = z.object({
   email: z.string().nullable(),
   phone: z.string().nullable(),
 });
+export type ReferentView = z.infer<typeof ReferentSchema>;
+
+/** A contact as the referent picker lists it: no email, phone, company or archived flag (T18 M2). */
+export const ContactChoicesSchema = z.object({
+  items: z.array(z.object({ id: z.string(), name: z.string(), jobTitle: z.string().nullable() })),
+});
 
 /** The delivery-side record of one won deal (specs/022 D38). */
 export const PurchaseOrderSchema = z.object({

@@ -5,8 +5,8 @@
  * AC-4.5, AC-5.1, AC-5.2). Runs the ASSEMBLED app against the `*_test` database; auth, the identity
  * service and crm-api are the fakes of test-support/world.ts.
  */
-import { beforeEach, describe, expect, it } from "bun:test";
-import { appAccess, call, crm, db, identities, makeDeal, resetWorld, seedDealProject, type PersonaName } from "../test-support/world";
+import { beforeEach, describe, expect, it, spyOn } from "bun:test";
+import { appAccess, call, crm, db, identities, makeContact, makeDeal, resetWorld, seedDealProject, type FakeContact, type PersonaName } from "../test-support/world";
 import type { Prisma } from "../lib/generated/prisma/client";
 
 /** Every type but `internal` has a company, `saas` included (specs/022 D40). */
@@ -419,6 +419,192 @@ describe("GET /projects/:id", () => {
 
     it("have no end while the terms are open-ended", async () => {
       expect(await datesOf({ start: "2026-02-01", end: null })).toEqual({ startDate: "2026-02-01", endDate: null });
+    });
+  });
+
+  // The referent is a third party's personal data (specs/022 D49): read from the CRM at every opening,
+  // never copied, never cached (T18 M3, M5, L3, L7). Every contact here is synthetic.
+  describe("the referent of its purchase order, read live (specs/022 T26; AC-3.8, AC-3.9, AC-3.10, S6)", () => {
+    const REFERENT_ID = "contact-ref";
+    const contact = (over: Partial<FakeContact> = {}) =>
+      makeContact({
+        id: REFERENT_ID,
+        companyId: "co-acme",
+        firstName: "Rita",
+        lastName: "Referent",
+        jobTitle: "Head of purchasing",
+        email: "rita.referent@example.test",
+        phone: "+41 00 111 11 11",
+        ...over,
+      });
+
+    /** A project made from a deal of Acme whose purchase order names `REFERENT_ID` (or none), for the viewer to read. */
+    async function withReferent(referentContactId: string | null = REFERENT_ID) {
+      return seedDealProject({ order: { referentContactId } });
+    }
+    const referentOf = async (projectId: string) => (await call("GET", `/projects/${projectId}`, { as: "viewer" })).json.purchaseOrder.referent;
+
+    it("shows the referent's name, job title, email and phone from the CRM, with ONE contacts call (AC-3.8)", async () => {
+      crm.contacts = [contact()];
+      const { project } = await withReferent();
+      const res = await call("GET", `/projects/${project.id}`, { as: "viewer" });
+      expect(res.status).toBe(200);
+      expect(res.json.purchaseOrder.referent).toEqual({
+        id: REFERENT_ID,
+        status: "ok",
+        name: "Rita Referent",
+        jobTitle: "Head of purchasing",
+        email: "rita.referent@example.test",
+        phone: "+41 00 111 11 11",
+      });
+      expect(crm.contactCalls).toBe(1);
+      // Looked up by id alone, as the service principal, in `ids` mode (never the company's bulk list).
+      expect(crm.lastContactsQuery).toBe(`?ids=${REFERENT_ID}`);
+    });
+
+    it("shows it to a holder of access with no CRM access at all and no manage right — any projects:access holder (AC-3.8)", async () => {
+      crm.contacts = [contact()];
+      const { project } = await withReferent();
+      for (const persona of ["viewer", "accounting", "colleague"] as const) {
+        const res = await call("GET", `/projects/${project.id}`, { as: persona });
+        expect({ persona, name: res.json.purchaseOrder.referent?.name }).toEqual({ persona, name: "Rita Referent" });
+      }
+    });
+
+    it("leaves a detail the contact lacks blank: `null`, the referent still shown (AC-3.8)", async () => {
+      crm.contacts = [contact({ jobTitle: null, email: null, phone: null })];
+      const { project } = await withReferent();
+      expect(await referentOf(project.id)).toEqual({ id: REFERENT_ID, status: "ok", name: "Rita Referent", jobTitle: null, email: null, phone: null });
+    });
+
+    it("shows a change made in the CRM at the very next read: nothing of the contact is cached (AC-3.8, T18 M5)", async () => {
+      const rita = contact();
+      crm.contacts = [rita];
+      const { project } = await withReferent();
+      expect((await referentOf(project.id)).email).toBe("rita.referent@example.test");
+      rita.email = "rita.new@example.test";
+      rita.lastName = "Renamed";
+      const after = await referentOf(project.id);
+      expect(after).toMatchObject({ status: "ok", name: "Rita Renamed", email: "rita.new@example.test" });
+      expect(crm.contactCalls).toBe(2);
+    });
+
+    it("stores nothing of the contact: the purchase order row holds the id only (AC-3.8, D49)", async () => {
+      crm.contacts = [contact()];
+      const { project, order } = await withReferent();
+      await referentOf(project.id);
+      const row = await db.purchaseOrder.findUniqueOrThrow({ where: { id: order.id } });
+      expect(row.referentContactId).toBe(REFERENT_ID);
+      expect(JSON.stringify(row)).not.toMatch(/Rita|Referent|rita\.referent|Head of purchasing|\+41 00 111/);
+      // Neither the PO table nor the project table has a column that could hold it.
+      const columns = await db.$queryRaw<{ column_name: string }[]>`
+        SELECT column_name FROM information_schema.columns WHERE table_name IN ('purchase_order', 'project')`;
+      expect(columns.map((column) => column.column_name).filter((name) => /email|phone|job|first|last/i.test(name))).toEqual([]);
+    });
+
+    it("shows `referent: null` once the contact is erased in the CRM, with none of its data (AC-3.9)", async () => {
+      crm.contacts = [contact()];
+      const { project } = await withReferent();
+      expect((await referentOf(project.id)).status).toBe("ok");
+      crm.contacts = [];
+      const res = await call("GET", `/projects/${project.id}`, { as: "viewer" });
+      expect(res.status).toBe(200);
+      expect(res.json.purchaseOrder.referent).toBeNull();
+      expect(JSON.stringify(res.json)).not.toMatch(/Rita|rita\.referent/);
+    });
+
+    it("shows `referent: null` for a contact moved to another company, with none of its data (T18 M3)", async () => {
+      crm.contacts = [contact({ companyId: "co-zeta" })];
+      const { project } = await withReferent();
+      const res = await call("GET", `/projects/${project.id}`, { as: "viewer" });
+      expect(res.json.purchaseOrder.referent).toBeNull();
+      expect(JSON.stringify(res.json)).not.toMatch(/Rita|rita\.referent/);
+    });
+
+    it("shows `referent: null` for a contact with no company any more (T18 M3)", async () => {
+      crm.contacts = [contact({ companyId: null })];
+      const { project } = await withReferent();
+      expect(await referentOf(project.id)).toBeNull();
+    });
+
+    it("matches the id EXACTLY: a CRM item with another id is not the referent, whatever the CRM returns (T18 M3)", async () => {
+      const { project } = await withReferent();
+      // A CRM that answers the asked id with another contact of the right company (a prefix, a neighbour).
+      crm.contactsReply = { items: [{ ...contact({ id: `${REFERENT_ID}-2`, firstName: "Eve", lastName: "Impostor" }) }] };
+      const res = await call("GET", `/projects/${project.id}`, { as: "viewer" });
+      expect(res.json.purchaseOrder.referent).toBeNull();
+      expect(JSON.stringify(res.json)).not.toMatch(/Eve|Impostor/);
+    });
+
+    it("still shows an archived referent: archiving hides a contact from lists, erasure deletes it (S6)", async () => {
+      crm.contacts = [contact({ archived: true })];
+      const { project } = await withReferent();
+      expect(await referentOf(project.id)).toMatchObject({ id: REFERENT_ID, status: "ok", name: "Rita Referent" });
+    });
+
+    it("says `unavailable` with null members when the CRM's contacts cannot be read, the project still 200 (AC-3.10)", async () => {
+      crm.contacts = [contact()];
+      const { project } = await withReferent();
+      crm.contactsDown = true;
+      const res = await call("GET", `/projects/${project.id}`, { as: "viewer" });
+      expect(res.status).toBe(200);
+      expect(res.json.purchaseOrder.referent).toEqual({ id: REFERENT_ID, status: "unavailable", name: null, jobTitle: null, email: null, phone: null });
+      // The rest of the page is there: the PO, its deal, the terms.
+      expect(res.json).toMatchObject({ id: project.id, purchaseOrder: { id: expect.any(String), deal: { id: "deal-seed" } }, terms: { type: "fixed_price" } });
+    });
+
+    it("says `unavailable` and still answers 200 when the whole CRM is down; the deal and company degrade as before (AC-3.10)", async () => {
+      crm.contacts = [contact()];
+      const { project } = await withReferent();
+      crm.down = true;
+      const res = await call("GET", `/projects/${project.id}`, { as: "viewer" });
+      expect(res.status).toBe(200);
+      expect(res.json.purchaseOrder.referent).toMatchObject({ status: "unavailable", name: null });
+      expect(res.json.purchaseOrder.deal).toEqual({ id: "deal-seed", title: null, won: null });
+      expect(res.json.company).toEqual({ id: "co-acme", name: null });
+    });
+
+    it("makes NO contacts call when no referent is set, and when there is no purchase order (T18 L7)", async () => {
+      crm.contacts = [contact()];
+      const { project } = await withReferent(null);
+      const res = await call("GET", `/projects/${project.id}`, { as: "viewer" });
+      expect(res.json.purchaseOrder.referent).toBeNull();
+      const handMade = await seed({ type: "internal", companyId: null });
+      expect((await call("GET", `/projects/${handMade.id}`, { as: "viewer" })).json.purchaseOrder).toBeNull();
+      expect(crm.contactCalls).toBe(0);
+    });
+
+    it("carries `Cache-Control: no-store` on the project, with or without a referent (T18 M5)", async () => {
+      crm.contacts = [contact()];
+      const withOne = await withReferent();
+      expect((await call("GET", `/projects/${withOne.project.id}`, { as: "viewer" })).headers.get("Cache-Control")).toBe("no-store");
+      const without = await seedDealProject({ order: { dealId: "deal-2", referentContactId: null }, project: { name: "Other" } });
+      expect((await call("GET", `/projects/${without.project.id}`, { as: "viewer" })).headers.get("Cache-Control")).toBe("no-store");
+    });
+
+    it("picks the fields by name: nothing else of the CRM item reaches the response (T18 L3)", async () => {
+      const { project } = await withReferent();
+      crm.contactsReply = { items: [{ ...contact(), notes: "private note", createdBy: "someone", version: 7 }] };
+      const res = await call("GET", `/projects/${project.id}`, { as: "viewer" });
+      expect(Object.keys(res.json.purchaseOrder.referent).sort()).toEqual(["email", "id", "jobTitle", "name", "phone", "status"]);
+      expect(JSON.stringify(res.json)).not.toMatch(/private note|someone/);
+    });
+
+    it("writes no contact data to the log, referent or not (T18 L6)", async () => {
+      crm.contacts = [contact()];
+      const { project } = await withReferent();
+      crm.contactsDown = true;
+      const lines: string[] = [];
+      const record = (...args: unknown[]) => void lines.push(args.map(String).join(" "));
+      const spies = [spyOn(console, "log"), spyOn(console, "error"), spyOn(console, "warn")].map((spy) => spy.mockImplementation(record));
+      try {
+        await call("GET", `/projects/${project.id}`, { as: "viewer" });
+        crm.contactsDown = false;
+        await call("GET", `/projects/${project.id}`, { as: "viewer" });
+      } finally {
+        for (const spy of spies) spy.mockRestore();
+      }
+      for (const line of lines) expect(line).not.toMatch(/Rita|Referent|rita\.referent|Head of purchasing|\+41 00 111/);
     });
   });
 });
