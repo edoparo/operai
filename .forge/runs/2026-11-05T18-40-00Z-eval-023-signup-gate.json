@@ -1,0 +1,22 @@
+{
+  "schema": "wellforge-run/v3",
+  "run_id": "2026-11-05T18-40-00Z-eval-023-signup-gate",
+  "command": "eval",
+  "args": "023-signup-gate",
+  "feature": "023-signup-gate",
+  "feature_resolution": "explicit",
+  "rigor": "production",
+  "plugin_version": "2.56.0",
+  "started": "2026-11-05T18:40:00Z",
+  "branch": "main",
+  "agents": [
+    {"agent": "wellforge:evaluator", "outcome": "PASS", "score": 80.0, "note": "rubric default-v2; every dimension 4; ac_satisfaction exactly at floor; re-eval after T15 remediation of the 64.3 FAIL"}
+  ],
+  "verdicts": {"eval": "PASS"},
+  "result": "completed",
+  "rigor_recorded": null,
+  "control_run_id": null,
+  "tokens": null,
+  "cost_usd": null,
+  "terse": false
+}

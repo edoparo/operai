@@ -2,77 +2,65 @@
 spec: 023
 evaluated: 2026-11-05
 rubric: default-v2
-score: 64.3
-verdict: FAIL
+score: 80.0
+verdict: PASS
 ---
 # Eval report: Access to Operai only by invitation, with a waiting list
 
-Rubric: `~/.claude/plugins/cache/wellforge/wellforge/2.56.0/config/eval-rubric.yml` (plugin-bundled copy,
-`version: default-v2`). The lookup found no `gates/configs/eval-rubric.yml` and no
-`.wellforge-gates/...` copy, and there is no `specs/023-signup-gate/eval.md` override.
+This is a re-evaluation after the remediation of the earlier FAIL (64.3, AC-6.1). Every dimension
+is scored again on the whole feature.
+
+Rubric: `~/.claude/plugins/cache/wellforge/wellforge/2.56.0/config/eval-rubric.yml`, the
+plugin-bundled copy (`version: default-v2`). The lookup found no `gates/configs/eval-rubric.yml`
+and no `.wellforge-gates/...` copy. There is no `specs/023-signup-gate/eval.md` override.
 `design.md` exists, so `design_fidelity` applies and the weight pool is 115.
 
-Evidence base: diff `9d0fbb9..HEAD`. 59e9b48 (`fix(deps)`) is judged as trajectory only.
-I re-ran two suites in this eval:
-- auth feature suites (`src/signup`, `src/test-auth`, `src/invitations`, `env.startup`,
-  `signin`, `authz/audit`, `auth.config`) on the isolated `_main` DB: **274 pass / 0 fail**.
-- admin-ui `AccessRequestsPage`, `ApproveAccessRequestModal`, `accessRequestConflict` and
-  `InvitationsPage` tests: **53 pass**.
-
-The full-gate numbers (auth 742/0, e2e set identical to the 9d0fbb9 baseline, access-requests.spec.ts 3/3)
-come from the closing QE and run trace `2026-11-05T16-26-58Z`. I did not re-run them.
+Evidence base:
+- The diff `9d0fbb9..HEAD`. 59e9b48 (`fix(deps)`, decided by the user) counts for trajectory only.
+- What changed since the last eval: `9a89507..HEAD` is documentation and run-trace only (8bef6b8,
+  18f9aa6, d306e99). No source or test file changed.
+- Re-run in this eval: the auth feature suites (`src/signup`, `src/test-auth`, `src/invitations`,
+  `src/admin`) on the isolated `_main` database gave **320 pass / 0 fail**.
+- Taken from the closing QE without re-running: the full-gate numbers (auth 742/0, admin-ui 560,
+  e2e failing set identical to the 9d0fbb9 baseline, access-requests.spec.ts 3/3).
 
 | Dimension | Weight | Score (/5) | Floor | Weighted | Evidence |
 |---|---|---|---|---|---|
-| AC satisfaction | 35 | **2** | 4 | 14.0 | Code ACs: strong. AC-1.1–1.5 and AC-1.8 are tested through the real `createOAuthUser` (`signupGate.test.ts:131-218`, including T-INT-1/2 and unverified-email/bootstrap edge cases). AC-2.1–2.4 cover the race and the rejected/approved branches (`:243-322`). AC-3.1–3.10 have the CAS race, approve-vs-reject, the three 409 codes, email-failed, audit rows and a route-table assertion (`accessRequests.routes.test.ts:118-347`). AC-3.8 `:324`, AC-4.1–4.3 in `notifyAdmins.test.ts`, AC-5.1 in `createInvitation.ts:85` plus the invitations tests, AC-6.2 SQL in `infra/README.md:1539-1569`. **AC-6.1 is met only on the surface.** The amendments point to 023 but describe the wrong rule. `specs/004 spec.md:149-151` now says the `employee` default applies to anyone "holding a valid invitation **or whose email domain is in `ALLOWED_SIGNUP_DOMAINS`**". `specs/006 spec.md:15-17` says "entry is by invitation **or an allowed email domain**". Under 023, an uninvited person in an allowed domain does NOT become a user (AC-1.2). So a spec in `specs/` still describes an uninvited path that gives `employee`, which is the very contradiction US-6 exists to remove. |
-| Spec fidelity | 20 | 3 | 3 | 12.0 | The code follows the plan closely: four-step gate (`signupGate.ts:64-84`), plan.md's state table (`accessRequests.repo.ts:48-115`), API contracts (`accessRequests.routes.ts`), ADR-0072 binding (`systemAuth.middleware.ts:53`). Drift: (1) operator- and agent-facing docs state a different admission rule from the approved spec. `AGENTS.md` auth line: "creates a user only for an invitation holder **or** an `ALLOWED_SIGNUP_DOMAINS` email". `AGENTS.md` admin-ui line: access requests "from people **outside** the allowed domains" (inverted; they come from people inside). Also `infra/README.md:1541-1542` and `.changeset/invitation-only-access.md`. ADR-0071 is correct. (2) Approve validates before the CAS (`accessRequests.routes.ts:182-219`), where the plan put the CAS first and the checks inside the transaction. Harmless because the unique index and the CAS backstop it. (3) T14 applied `encodeURIComponent` to every admin-ui path, not just access-request ids. Harmless hardening. |
-| Test quality | 20 | 4 | 3 | 16.0 | The tests would fail if the behaviour broke. They drive better-auth's real `createOAuthUser` inside the endpoint context, assert that no user/account/user_role/session row exists, cover concurrent first sign-ins (one row, one set of notices), concurrent approves and approve-vs-reject, and notify 500/mint/network/admin-lookup failures. Each admin-ui state and flow has a component test (`AccessRequestsPage.test.tsx:98-353`), including focus after a decision. Gaps: AC-1.6 is tested by calling `createSession` directly (`signupGate.test.ts:221-230`), not the planned `handleOAuthUserInfo` sign-in, so "hook not consulted on re-entry" is inferred rather than shown. `invitations.routes.test.ts:35` pushes `operai.test` onto the shared `env` and never undoes it (drift event unresolved). AC-6.1's "review" check was a grep, which is how the inverted amendment text got through. |
-| Code quality | 15 | 4 | 3 | 12.0 | Idiomatic Hono/zod-openapi, RFC 7807 problems with a `code` extension, `withAudit` extended to arrays (`audit.ts:85-109`). Fail-closed gate, notices not awaited and never throwing, logs free of email/name, control-character stripping (`notifyAdmins.ts:27-32`). No invented APIs: the abort contract is pinned by tests. Nits: `SERVICE_TOKEN_TTL_SECONDS as 300` cast (`serviceToken.routes.ts:268`, QE suggested `as const`, unresolved); `serializeInvitation` imported from a routes module; the approve 409 cause is found again with a second query; non-null assertions after re-reads. |
-| Design fidelity (UI) | 15 | 4 | 3 | 12.0 | design.md is thorough: F1–F7, every list state, an a11y plan and a reuse map of 17 reused elements to 3 new ones. The build follows it: default Pending filter, columns that depend on the filter, labelled row buttons, a warning banner that persists and has an "Open Invitations" action, focus moved to the results region after a decision, Cancel returning focus, Approve disabled when the catalog fails while Reject still works (`AccessRequestsPage.tsx:252-442`). Tab test ids are now explicit (`UsersSubNav.tsx:13-16`) and the invite 422 goes to the email field (`InvitationsPage.tsx:254`, `UsersPage.tsx:330`). Thin: deciding the last row on page > 1 shows an empty state instead of stepping back a page; the focusable results region uses `outline-none`, so the programmatic focus target has no visible ring; design.md frontmatter still says `status: draft`. |
-| Trajectory | 10 | 4 | 2 | 8.0 | Five v3 run traces cover batches 1–3, T10/T13 and T14/T12. Each batch had an owasp-reviewer and QE pass. The coordinator caught the T10 agent ticking an unmet box and unchecked it (d8da8ea). The plan was amended before the fix (f69d132, then T13). The e2e was measured against a recorded 9d0fbb9 baseline. Low findings were turned into T14. The closing QE FAIL on CVEs was handled by a separate, user-decided chore (59e9b48) and then re-gated. Deductions: the T10 agent touched the other checkout's shared DBs and added scaffolding grants that broke 4 auth tests (env_faults); several drift events are left `resolved: false`; the batch-1 QE passed T11's inverted doc text. |
-| **Total** | 115 | | | **74.0 / 115 → 64.3/100** | |
+| AC satisfaction | 35 | 4 | 4 | 28.0 | **AC-6.1 is now met in content, not only in form.** `specs/004 spec.md:149-152` (AC-6.3 amendment) and `specs/006 spec.md:15-18` (Problem) plus `:316-324` (Non-goals) all state AC-1.1–1.4: a user is created for an allowed-domain email with a live pending invitation, or for the bootstrap admin. An allowed-domain email without one can only file an access request. An outside-domain email is refused with nothing recorded, even when it has an invitation. Each amendment cites specs/023 and ADR-0071. A search of `specs/` finds no remaining statement that an uninvited sign-in gives `employee`. `specs/007:428` ("every user gets `employee`") is still true of users. AC-6.2: SQL in `infra/README.md` § "Users who entered without an invitation". Code ACs are unchanged and re-run green: AC-1.1–1.5 and 1.8 go through the real `createOAuthUser` (`signupGate.test.ts:131-218`). AC-2.1–2.4 cover the races and the rejected/approved branches (`:243-322`). AC-3.1–3.10 (`accessRequests.routes.test.ts`). AC-4.x (`notifyAdmins.test.ts`). AC-5.1 (`createInvitation.ts`, invitations tests). **Not 5:** AC-1.6 is shown with a direct `internalAdapter.createSession` call (`signupGate.test.ts:220-229`), not through the OAuth re-entry path. AC-1.9 rests on e2e from the QE run. AC-6.x is checked only by reading documents. |
+| Spec fidelity | 20 | 4 | 3 | 16.0 | The earlier drift in operator and agent docs is fixed. The `AGENTS.md` auth line and admin-ui line ("allowed-domain colleagues without an invitation", no longer inverted), `infra/README.md:1541-1543` and `.changeset/invitation-only-access.md` now match ADR-0071. The code follows the plan: four-step gate, the state table in `accessRequests.repo.ts`, the API contracts, the ADR-0072 binding. Small deviations left: (1) approve runs `validateInvitation` before the transaction, and the CAS is the first statement inside it (`accessRequests.routes.ts:175-219`). plan.md:117-120 puts the CAS first and the checks inside. The observable contract is the same: an already-decided request returns 409 first, and the race with a concurrent invite is caught by P2002 and returned as `pending_invitation_exists` (`:249-258`). (2) `encodeURIComponent` is applied to every admin-ui path (T14), a harmless hardening. (3) The new doc lines say "(or the bootstrap admin)" and do not repeat that the bootstrap admin must also be in an allowed domain (AC-1.4). ADR-0071 and the code (`signupGate.test.ts:205`) get this right. |
+| Test quality | 20 | 4 | 3 | 16.0 | The tests would fail if the behaviour broke. They drive better-auth's real `createOAuthUser` and assert that no user, account, user_role or session row exists. They cover concurrent first sign-ins, concurrent approves, approve against reject, and the notify failure paths. Every admin-ui state and flow has a component test, including focus after a decision. Gaps unchanged since the last eval: AC-1.6 is not tested through `handleOAuthUserInfo`. `invitations.routes.test.ts:35` still pushes `operai.test` onto the shared `env.ALLOWED_SIGNUP_DOMAINS` and never removes it. |
+| Code quality | 15 | 4 | 3 | 12.0 | Idiomatic Hono/zod-openapi code. RFC 7807 problems carry a `code` extension. `withAudit` takes an array entry. The gate fails closed. Notices are not awaited and never throw. Logs contain no email or name. Unchanged nits: the `SERVICE_TOKEN_TTL_SECONDS as 300` cast (`serviceToken.routes.ts:268`); `serializeInvitation` is imported from a routes module; the approve 409 cause is found with a second query; there is a non-null assertion after a re-read (`accessRequests.routes.ts:265`). |
+| Design fidelity (UI) | 15 | 4 | 3 | 12.0 | design.md is complete: flows F1–F7, every list state, an a11y plan, and a reuse map (17 elements reused, 3 new). The build follows it: Pending filter by default, columns that depend on the filter, labelled row actions, a warning banner that persists with an Open Invitations action, focus moved to the results region, Approve disabled when the catalog fails (`AccessRequestsPage.tsx`). Still thin: deciding the last row on page 2 or later shows an empty state instead of going back a page; the focused results region uses `outline-none`, so it has no visible focus ring; design.md still says `status: draft`. |
+| Trajectory | 10 | 4 | 2 | 8.0 | There are six v3 run traces. The newest, `2026-11-05T18-18-47Z`, records backend-dev for T15, then the owasp-reviewer, then QE, which FAILED the first fix because the specs/006 Non-goals had no outside-domain refusal. The fix round (18f9aa6) followed, then a QE PASS. The eval's finding became T15 in tasks.md (7c7e025) before any change was made. Earlier traces show security and QE review on every batch, an incorrectly ticked T10 being unticked, and a plan amendment made before the fix. Deductions remain: the T10 agent touched the other checkout's databases; earlier drift events are left `resolved: false`; the batch-1 QE passed the inverted T11 text that this eval had to catch. |
+| **Total** | 115 | | | **92.0 / 115 → 80.0/100** | |
 
-**Verdict: FAIL.** 64.3 is below the pass score of 80, and AC satisfaction (2) is under its floor of 4. Without the AC-6.1 defect the total would be about 82.6 (ac=5), so this one documentation defect decides the verdict.
+**Verdict: PASS.** 80.0 meets the pass score of 80, and every dimension is at or above its floor
+(AC satisfaction is 4 against a floor of 4). The margin is zero. A drop of one point in any
+dimension would turn this into a FAIL, so the findings below are worth doing.
 
 ## Findings
 
-- **AC satisfaction (2, below floor 4): AC-6.1 is met on the surface only.** Both amendments
-  exist and cite specs/023 and ADR-0071, but they state the admission rule wrongly:
-  - `specs/004-auth-roles-permissions/spec.md:149-151`: "one holding a valid invitation or whose
-    email domain is in `ALLOWED_SIGNUP_DOMAINS`" receives the `employee` default.
-  - `specs/006-user-invitations/spec.md:15-17`: "entry is by invitation or an allowed email
-    domain, and others file an access request". Out-of-domain people cannot file one (AC-1.3).
-
-  The code is correct. The next feature built from these specs would assume that an allowed
-  domain is enough, which US-6 exists to prevent. To clear the floor: reword both amendments
-  to "only a person holding a live pending invitation (verified email) or the bootstrap admin
-  becomes a user; an allowed-domain person without one is recorded on the waiting list; anyone
-  else is refused". Then check the content against AC-1.2/1.3, not just with a grep.
-- **Spec fidelity (3): the same misstatement is in four more places.**
-  - `AGENTS.md` auth line (an invitation holder "or an `ALLOWED_SIGNUP_DOMAINS` email").
-  - `AGENTS.md` admin-ui line (access requests "from people outside the allowed domains", which is inverted).
-  - `infra/README.md:1541-1542`, the operator runbook for this feature.
-  - `.changeset/invitation-only-access.md` ("creates a user only for someone holding a valid
-    invitation or an email in an allowed domain"). This text goes into the CHANGELOG.
-
-  AGENTS.md is loaded into every agent's context, so the wrong rule spreads. The fix is a few lines.
-- **Test quality (4).**
-  - Run AC-1.6 through the real OAuth re-entry path (`handleOAuthUserInfo`, or `createOAuthUser`
-    on an existing account) as the plan specified.
-  - Scope the `operai.test` allowlist push in `invitations.routes.test.ts:35` with
-    `beforeAll`/`afterAll`.
+- **AC satisfaction (4).** AC-6.1 is fixed. The only thin evidence is AC-1.6, which is shown
+  with a direct `createSession` call. A test that runs a returning user through
+  `handleOAuthUserInfo` (or `createOAuthUser` on an existing account) would prove that the gate
+  is not consulted on re-entry.
+- **Spec fidelity (4).**
+  - In `AGENTS.md`, `infra/README.md`, specs/004 and specs/006, write "the bootstrap admin
+    (also allowed-domain)" so the domain rule for the bootstrap admin (AC-1.4) is explicit.
+  - Optionally, note the approve check order in plan.md (validate, then CAS inside the
+    transaction, with P2002 as the race backstop).
+- **Test quality (4).** Scope the `operai.test` allowlist push in
+  `invitations.routes.test.ts:35` with `beforeAll`/`afterAll`.
 - **Code quality (4).** Replace the `as 300` cast with an `as const` source constant, and move
-  `serializeInvitation` to a shared module. Neither blocks.
+  `serializeInvitation` to a shared module.
 - **Design fidelity (4).**
-  - Step back a page when a decision empties the current one.
-  - Give the results region a visible focus indicator, or keep it `outline-none` and document why.
-  - Set design.md to approved.
+  - Go back a page when a decision empties the current page.
+  - Give the results region a visible focus ring.
+  - Set design.md to `approved`.
+- **Operator note (owasp, low).** `infra/README.md` query (b) hardcodes `welld.ch`/`welld.it`.
+  Keep it in sync with `ALLOWED_SIGNUP_DOMAINS`.
 
 ## Recommended next step
 
-- FAIL. Route back through `/wellforge:implement` with a small docs task under **T11
-  (AC-6.1)**: correct the specs/004 AC-6.3 and specs/006 Problem amendments, the two
-  `AGENTS.md` lines, `infra/README.md` § "Users who entered without an invitation", and the
-  `.changeset/invitation-only-access.md` body so they match AC-1.1–1.4 and ADR-0071. Then
-  re-run QE with a content check of AC-6.1 and re-run `/wellforge:eval`.
-- Optional in the same pass: the AC-1.6 test path and the env-fixture leak (test quality).
+- PASS: the spec may move to `done`. The findings above are optional follow-ups and none of
+  them blocks.
