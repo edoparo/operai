@@ -98,7 +98,7 @@ Work happens in the `main` worktree (`/Users/matteocodogno/LAB/aiscream/operai-m
       outside-domain pending invitation still lists, resends and revokes;
     - an audit test writes two rows in one transaction and rolls both back on a throw.
 
-- [ ] T7: [backend] Admin API for access requests — refs: AC-2.5, AC-3.1, AC-3.2, AC-3.3, AC-3.4, AC-3.5, AC-3.6, AC-3.7, AC-3.9, AC-3.10 — deps: T1, T5, T6
+- [x] T7: [backend] Admin API for access requests — refs: AC-2.5, AC-3.1, AC-3.2, AC-3.3, AC-3.4, AC-3.5, AC-3.6, AC-3.7, AC-3.9, AC-3.10 — deps: T1, T5, T6
   - touch: `auth/src/signup/accessRequests.routes*.ts`, `auth/src/signup/accessRequests.schemas.ts`, `auth/src/signup/accessRequests.repo*.ts`, `auth/src/index.ts`
   - do: `GET /admin/access-requests`, `POST …/{id}/approve` and `POST …/{id}/reject`
     exactly as plan.md § API contracts. Approve uses one `withAudit` transaction: a CAS on
@@ -129,7 +129,7 @@ Work happens in the `main` worktree (`/Users/matteocodogno/LAB/aiscream/operai-m
     the code/allowedDomains parsing, the three client calls (request shape and error
     mapping) and the modal message in both languages.
 
-- [ ] T9: [frontend] The "Access requests" screen — refs: AC-3.1, AC-3.2, AC-3.4, AC-3.5, AC-3.6, AC-3.7, AC-3.10 — deps: T8
+- [x] T9: [frontend] The "Access requests" screen — refs: AC-3.1, AC-3.2, AC-3.4, AC-3.5, AC-3.6, AC-3.7, AC-3.10 — deps: T8
   - touch: `admin-ui/src/pages/AccessRequestsPage*.tsx`, `admin-ui/src/components/ApproveAccessRequestModal*.tsx`, `admin-ui/src/components/AccessRequestStatusBadge*.tsx`, `admin-ui/src/lib/accessRequestConflict*.ts`, `admin-ui/src/lib/statusMeaning.ts`, `admin-ui/src/components/UsersSubNav.tsx`, `admin-ui/src/components/UsersSubNav.test.tsx`, `admin-ui/src/router.tsx`, `admin-ui/src/router.test.tsx`, `admin-ui/src/strings/accessRequests.ts`, `admin-ui/src/strings/nav.ts`, `admin-ui/src/strings/badges.ts`, `admin-ui/src/strings.ts`
   - do: everything design.md specifies for flows F1–F4 and F7:
     - status filter (Pending by default), list, loading, empty and error states;
