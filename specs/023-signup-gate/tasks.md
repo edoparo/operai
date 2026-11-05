@@ -187,7 +187,22 @@ Work happens in the `main` worktree (`/Users/matteocodogno/LAB/aiscream/operai-m
     `operai.test` and development accepts it; an env-doctor test fails the production
     template carrying it; `auth` tests and typecheck pass; `mise run env:doctor` is green.
 
-- [ ] T12: Close the feature — refs: all — deps: T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T13
+- [ ] T14: [backend] Security hardening from the review notes — refs: AC-1.9, AC-4.1, AC-3.1, AC-5.1 — deps: T4, T8, T13
+  - touch: `auth/src/lib/env.ts`, `auth/src/system/env.startup.test.ts`, `auth/src/signup/allowedDomains*.ts`, `auth/src/lib/notify*.ts`, `auth/src/signup/notifyAdmins*.ts`, `admin-ui/src/lib/adminApi.ts`, `admin-ui/src/lib/adminApi.test.ts`
+  - do (owasp low findings recorded in the batch-1 and T13 run traces):
+    - reserved test domains in `ALLOWED_SIGNUP_DOMAINS` are refused at startup unless
+      `ENABLE_TEST_AUTH` is true (in addition to `NODE_ENV=production`);
+    - a trailing-dot domain (`operai.test.`) is rejected by `parseAllowedDomains` or flagged
+      reserved — proven by a test either way;
+    - `notify.ts` never returns or logs a raw `error.message` that can carry the internal host;
+    - `notifyAdmins` strips control characters from the provider-supplied name before it
+      goes into the notification title/body;
+    - `adminApi.ts` passes path ids through `encodeURIComponent`.
+    `auth/.env.example` keeps the local value (plan.md amendment stands).
+  - done when: a test for each bullet fails before and passes after; `auth` tests and
+    typecheck pass; `admin-ui` lint/build/test pass; `mise run env:doctor` is green.
+
+- [ ] T12: Close the feature — refs: all — deps: T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T13, T14
   - touch: `specs/023-signup-gate/*`
   - do:
     - all gates green: `auth` typecheck and tests, `notify-api` tests, `admin-ui`
