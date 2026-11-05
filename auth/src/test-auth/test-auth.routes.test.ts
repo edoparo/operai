@@ -33,6 +33,15 @@ import {
 
 import { afterAll } from "bun:test";
 import { db } from "../lib/db";
+import { env as sharedEnv } from "../lib/env";
+
+// openGate() patches the env singleton, which every test file in the process shares:
+// snapshot what it overwrites and put it back when this file is done.
+const savedEnv = {
+  ENABLE_TEST_AUTH: sharedEnv.ENABLE_TEST_AUTH,
+  NODE_ENV: sharedEnv.NODE_ENV,
+  ALLOWED_SIGNUP_DOMAINS: sharedEnv.ALLOWED_SIGNUP_DOMAINS,
+};
 import * as realCookies from "better-auth/cookies";
 
 // specs/023 T3 (AC-1.9): a NEW test user is created straight in the database
@@ -53,6 +62,7 @@ async function findInDb(email: string) {
 }
 
 afterAll(async () => {
+  Object.assign(sharedEnv, savedEnv);
   const users = await db.user.findMany({
     where: { email: { endsWith: "@operai.test" } },
     select: { id: true },

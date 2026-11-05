@@ -30,9 +30,10 @@ import { env } from "../lib/env";
 const RUN_ID = crypto.randomUUID().slice(0, 8);
 
 // specs/023: invitations are limited to ALLOWED_SIGNUP_DOMAINS. The fixtures in this file use
-// `@operai.test` addresses, so that domain is added to the (test-process) allowlist; the
-// outside-domain cases below use gmail.com, which is never allowed.
-env.ALLOWED_SIGNUP_DOMAINS.push("operai.test");
+// `@operai.test` addresses, so that domain is allowed for this file only (the env singleton is
+// shared by every test file in the process, hence the restore in afterAll); the outside-domain
+// cases below use gmail.com, which is never allowed.
+const savedAllowedSignupDomains = env.ALLOWED_SIGNUP_DOMAINS;
 const HOUR = 60 * 60 * 1000;
 const SEVENTY_TWO_HOURS = 72 * HOUR;
 
@@ -191,6 +192,7 @@ function noSession() {
 }
 
 beforeAll(async () => {
+  env.ALLOWED_SIGNUP_DOMAINS = [...savedAllowedSignupDomains, "operai.test"];
   const adminRoleId = await ensureAdminRole();
 
   const actor = await makeUser("actor");
@@ -205,6 +207,7 @@ beforeAll(async () => {
 });
 
 afterAll(async () => {
+  env.ALLOWED_SIGNUP_DOMAINS = savedAllowedSignupDomains;
   await db.auditLog.deleteMany({
     where: { targetType: "invitation", targetId: { in: Array.from(createdInvitationIds) } },
   });
