@@ -16,12 +16,18 @@ import { strings } from '../strings'
 
 const PAGE_SIZE = 25
 
-/** What the company column says: the client, how many clients a SaaS has, or "Internal" (AC-1.4). */
+/** What the company column says: the client — a `saas` row carries its own company too (D40) — or "Internal" (AC-1.4). */
 function companyText(project: ProjectSummary): string {
   const t = strings.projects.list
   if (project.type === 'internal') return t.internal
-  if (project.type === 'saas') return project.clientCount === 0 ? t.noClients : t.clients(project.clientCount)
   return project.company?.name ?? t.companyUnavailable
+}
+
+/** The project-manager cell: the person, or "Awaiting project manager" while there is none (AC-4.5), never blank. */
+function projectManagerText(project: ProjectSummary, currentUserId: string | null): string {
+  return project.awaitingProjectManager
+    ? strings.projects.list.awaitingProjectManager
+    : personName(project.projectManager, currentUserId)
 }
 
 /**
@@ -78,7 +84,7 @@ export default function ProjectsPage() {
     {
       id: 'projectManager',
       header: t.columns.projectManager,
-      render: (project) => personName(project.projectManager, currentUserId),
+      render: (project) => projectManagerText(project, currentUserId),
     },
     { id: 'entity', header: t.columns.entity, render: (project) => <EntityBadge entity={project.entity} /> },
   ]

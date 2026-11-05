@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
-import { emptyTermsForm, parseManDays, parseWhole, termsFormOf, termsInputOf } from './contractTerms'
-import type { Contract } from './types'
+import { emptyTermsForm, parseManDays, parseWhole, termsFormOf, termsInputOf } from './terms'
+import type { Terms, TermsMembers } from './types'
 
 describe('parseManDays (one decimal, AC-2.3 / AC-2.7)', () => {
   it.each([
@@ -61,7 +61,7 @@ describe('termsInputOf (the request body and the field errors per type)', () => 
     })
   })
 
-  it('saas: both optional, so neither is a valid contract; absent members are null (a PATCH clears them)', () => {
+  it('saas: both optional, so neither is a valid set; absent members are null (a PATCH clears them)', () => {
     expect(termsInputOf('saas', emptyTermsForm('saas'))).toEqual({
       input: { sla: null, hourPackage: null },
       errors: {},
@@ -129,37 +129,53 @@ describe('termsInputOf (the request body and the field errors per type)', () => 
   })
 })
 
-describe('termsFormOf (a stored contract back into the form)', () => {
-  const contract = (type: Contract['type'], terms: Contract['terms']): Contract => ({
-    id: 'k1',
+describe('termsFormOf (stored terms back into the form)', () => {
+  const stored = (type: Terms['type'], members: Partial<Terms>): Terms => ({
+    id: 't1',
     type,
-    company: { id: 'c1', name: 'Acme SA' },
-    origin: 'manual',
-    deal: null,
-    bexioOrderId: null,
     startDate: '2026-02-01',
     endDate: null,
-    projectId: 'p1',
-    dealId: null,
-    estimate: null,
-    terms,
     version: 2,
+    ...members,
   })
 
-  it('round-trips every type through the form', () => {
-    const cases: Contract[] = [
-      contract('fixed_price', { deadline: '2026-12-01', estimatedManDays: 12.5, maxEffortManDays: 40 }),
-      contract('maintenance', {
-        sla: { highDays: 2, normalDays: 5 },
-        hourPackage: { hours: 100, kind: 'capacity', startDate: '2026-03-01', expiryDate: '2027-03-01' },
-      }),
-      contract('saas', { sla: null, hourPackage: null }),
-      contract('t_and_m', { positions: [{ profile: 'Senior developer', plannedManDays: 20.5 }] }),
+  it('round-trips every type through the form (the terms read flat, as the PO and the project carry them)', () => {
+    const cases: [Terms, TermsMembers][] = [
+      [
+        stored('fixed_price', { deadline: '2026-12-01', estimatedManDays: 12.5, maxEffortManDays: 40 }),
+        { deadline: '2026-12-01', estimatedManDays: 12.5, maxEffortManDays: 40 },
+      ],
+      [
+        stored('maintenance', {
+          sla: { highDays: 2, normalDays: 5 },
+          hourPackage: { hours: 100, kind: 'capacity', startDate: '2026-03-01', expiryDate: '2027-03-01' },
+        }),
+        {
+          sla: { highDays: 2, normalDays: 5 },
+          hourPackage: { hours: 100, kind: 'capacity', startDate: '2026-03-01', expiryDate: '2027-03-01' },
+        },
+      ],
+      [stored('saas', { sla: null, hourPackage: null }), { sla: null, hourPackage: null }],
+      [
+        stored('t_and_m', { positions: [{ profile: 'Senior developer', plannedManDays: 20.5 }] }),
+        { positions: [{ profile: 'Senior developer', plannedManDays: 20.5 }] },
+      ],
     ]
-    for (const stored of cases) {
-      const { input, errors } = termsInputOf(stored.type, termsFormOf(stored))
+    for (const [terms, members] of cases) {
+      const { input, errors } = termsInputOf(terms.type, termsFormOf(terms))
       expect(errors).toEqual({})
-      expect(input).toEqual(stored.terms)
+      expect(input).toEqual(members)
     }
+  })
+
+  it('reads members a type does not use as absent, whether the server sends null or leaves them out', () => {
+    const withNulls = stored('t_and_m', {
+      positions: [{ profile: 'Dev', plannedManDays: 3 }],
+      deadline: null,
+      sla: null,
+      hourPackage: null,
+    })
+    expect(termsFormOf(withNulls).positions).toEqual([{ profile: 'Dev', plannedManDays: '3' }])
+    expect(termsFormOf(stored('t_and_m', { positions: null })).positions).toEqual([])
   })
 })

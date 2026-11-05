@@ -2,9 +2,9 @@ import { useCallback, useId, useState } from 'react'
 import { useNavigate } from '@tanstack/react-router'
 import { Banner, Button, Card, DataTable, Field, formatDate, PageHeader, StatePanel } from '@operai/ui'
 import type { DataTableColumn } from '@operai/ui'
-import AttachDealDialog from '../components/AttachDealDialog'
 import { EntityBadge } from '../components/Badges'
 import { LoadFailure, Loading } from '../components/LoadState'
+import PermissionDenied from '../components/PermissionDenied'
 import TakeDealDialog from '../components/TakeDealDialog'
 import { useResource } from '../hooks/useResource'
 import { useScope } from '../hooks/useScope'
@@ -21,27 +21,36 @@ import { strings } from '../strings'
  * company, entity, won date and — when it has one — the estimate in EstimAI. No
  * amount exists on the page (D14). Search and entity are the server's filters.
  *
- * The queue is computed by projects-api on every read ("won in the CRM" minus
- * "has a contract"), so this page keeps no list of its own: a deal reopened in
- * the CRM (AC-2.1) or taken meanwhile (AC-1.6) is simply absent from the next
- * load. crm-api down is its own state (503 `crm_unavailable`), never an empty
- * queue. The list is capped at the newest 500 (A26) and says so when it is.
+ * The queue is for those who may take a deal — `scope.take` non-empty: `sales`
+ * and admins (D37, AC-1.9). Anyone else gets the permission-denied state and the
+ * API is not asked (the server answers them 403 too).
  *
- * A holder of manage projects for a deal's entity takes it (AC-1.2, AC-1.4): "New
- * project" or "Attach to project", each a dialog that also asks the contract's
- * dates and terms. The actions are UX gating on the entity (`GET /scope`); the
- * server's 403 `out_of_scope` is the gate. A take lands the user on the project;
- * a deal that turns out to be taken or no longer won reloads the queue behind
- * the dialog, which keeps saying why.
+ * The queue is computed by projects-api on every read ("won in the CRM" minus
+ * "has a purchase order"), so this page keeps no list of its own: a deal
+ * reopened in the CRM (AC-2.1) or taken meanwhile (AC-1.6) is simply absent from
+ * the next load. crm-api down is its own state (503 `crm_unavailable`), never an
+ * empty queue. The list is capped at the newest 500 (A26) and says so when it is.
+ *
+ * A taker with manage projects for a deal's entity takes it (AC-1.2): "New
+ * project", a dialog that also asks the PO's dates and terms. There is no
+ * attaching a deal to an existing project (D39). The action is UX gating on the
+ * entities (`GET /scope`); the server's 403 `out_of_scope` is the gate. A take
+ * lands the user on the project; a deal that turns out to be taken or no longer
+ * won reloads the queue behind the dialog, which keeps saying why.
  */
 export default function QueuePage() {
+  const { canTake } = useScope()
+  return canTake ? <Queue /> : <PermissionDenied />
+}
+
+function Queue() {
   const t = strings.queue
   const titleId = useId()
   const navigate = useNavigate()
-  const { canManage, canManageEntity } = useScope()
+  const { canManage, canTakeEntity, canManageEntity } = useScope()
   const [q, setQ] = useState('')
   const [entity, setEntity] = useState<Entity | ''>('')
-  const [taking, setTaking] = useState<{ deal: QueueItem; mode: 'project' | 'attach' } | null>(null)
+  const [taking, setTaking] = useState<QueueItem | null>(null)
 
   const filtered = q.trim() !== '' || entity !== ''
   const load = useCallback((signal: AbortSignal) => listQueue({ q: q.trim(), entity }, { signal }), [q, entity])
@@ -82,26 +91,18 @@ export default function QueuePage() {
           {
             id: 'actions',
             header: t.take.actions.column,
+            // The server needs `handoff:take` and `project:manage` for the deal's entity (S3).
             render: (item: QueueItem) =>
+              canTakeEntity(item.entity) &&
               canManageEntity(item.entity) && (
-                <div className="flex flex-wrap gap-2">
-                  <Button
-                    size="sm"
-                    aria-haspopup="dialog"
-                    aria-label={t.take.actions.newProjectFor(item.title)}
-                    onClick={() => setTaking({ deal: item, mode: 'project' })}
-                  >
-                    {t.take.actions.newProject}
-                  </Button>
-                  <Button
-                    size="sm"
-                    aria-haspopup="dialog"
-                    aria-label={t.take.actions.attachFor(item.title)}
-                    onClick={() => setTaking({ deal: item, mode: 'attach' })}
-                  >
-                    {t.take.actions.attach}
-                  </Button>
-                </div>
+                <Button
+                  size="sm"
+                  aria-haspopup="dialog"
+                  aria-label={t.take.actions.newProjectFor(item.title)}
+                  onClick={() => setTaking(item)}
+                >
+                  {t.take.actions.newProject}
+                </Button>
               ),
           },
         ]
@@ -177,25 +178,14 @@ export default function QueuePage() {
         </Card>
         {content}
       </div>
-      {taking?.mode === 'project' && (
+      {taking && (
         <TakeDealDialog
-          deal={taking.deal}
+          deal={taking}
           onCancel={() => setTaking(null)}
           onGone={queue.retry}
           onTaken={(project) => {
             setTaking(null)
             void navigate({ to: '/$id', params: { id: project.id } })
-          }}
-        />
-      )}
-      {taking?.mode === 'attach' && (
-        <AttachDealDialog
-          deal={taking.deal}
-          onCancel={() => setTaking(null)}
-          onGone={queue.retry}
-          onAttached={(contract) => {
-            setTaking(null)
-            void navigate({ to: '/$id', params: { id: contract.projectId } })
           }}
         />
       )}

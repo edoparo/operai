@@ -1,13 +1,17 @@
 /**
- * The wire shapes of projects-api (specs/025-projects, tasks.md § API contracts)
- * and of the `auth` directory read. Ids are text (cuids), dates are `YYYY-MM-DD`,
- * and no amount, price or rate exists anywhere (AC-2.9).
+ * The wire shapes of projects-api (specs/021-projects, specs/022-projects-handoff
+ * tasks.md § API contracts "projects-api — shapes (T23)") and of the `auth`
+ * directory read. Ids are text (cuids), dates are `YYYY-MM-DD`, and no amount,
+ * price or rate exists anywhere (specs/021 AC-2.9).
+ *
+ * A project has 0..1 **terms** (its dates and the type-specific delivery terms)
+ * and 0..1 **purchase order** (born only from a won deal, together with its
+ * project; D38). A hand-made project never has a purchase order.
  */
 
 export type Entity = 'welld_ch' | 'welld_it'
 export type ProjectType = 't_and_m' | 'fixed_price' | 'maintenance' | 'saas' | 'internal'
 export type ProjectState = 'planned' | 'active' | 'on_hold' | 'closed' | 'cancelled'
-export type ContractOrigin = 'manual' | 'deal'
 export type HourPackageKind = 'capacity' | 'yearly'
 
 /** A user as the API reports them: the live name (`null` when unknown), and whether the account is deleted. */
@@ -19,10 +23,18 @@ export type CompanyRef = { id: string; name: string | null }
 /** One row of `GET /companies?q=`: what the company picker offers. */
 export type CompanyChoice = { id: string; name: string; entity: Entity }
 
+/** One row of `GET /companies/{id}/contacts`: a non-archived CRM contact the referent can be (AC-3.6). */
+export type ContactChoice = { id: string; name: string; jobTitle: string | null }
+
 export type Page<T> = { items: T[]; total: number; page: number; pageSize: number }
 
-/** `GET /scope`: what the caller may manage (UX gating only; the server's 403 is the gate, ADR-0014). */
-export type Scope = { manage: Entity[]; managesAll: boolean; bexio: boolean }
+/**
+ * `GET /scope`: what the caller may do (UX gating only; the server's 403 is the gate, ADR-0014).
+ * `take`: the entities whose won deals they may take (`handoff:take`, sales and admins; D37) —
+ * the queue exists for them only. `oversees`: `purchase-order:receive` covers every entity (the
+ * admin case), which lets them pick a project manager in an ops-manager's place (D47).
+ */
+export type Scope = { manage: Entity[]; managesAll: boolean; bexio: boolean; take: Entity[]; oversees: boolean }
 
 export type ProjectSummary = {
   id: string
@@ -30,55 +42,49 @@ export type ProjectSummary = {
   type: ProjectType
   state: ProjectState
   entity: Entity
+  /** Every client type, `saas` included, has a company; `internal` has none (D40). */
   company: CompanyRef | null
-  /** Distinct contract companies; what a `saas` row shows. */
-  clientCount: number
-  projectManager: Person
+  /** `null` only while `awaitingProjectManager`. */
+  projectManager: Person | null
+  /** Made from a deal whose ops-manager has not picked a project manager yet (D42). */
+  awaitingProjectManager: boolean
 }
 
 /**
- * The deal a contract was made from, read live from the CRM on every request (specs/022): `title` and
+ * The deal a purchase order was made from, read live from the CRM on every request: `title` and
  * `won` are `null` when crm-api cannot answer, and `won: false` is the "no longer won" notice (AC-2.3).
  */
 export type DealRef = { id: string; title: string | null; won: boolean | null }
 
-export type ContractSummary = {
+/**
+ * The referent of a purchase order, read live from the CRM and never stored (D49): `status`
+ * `unavailable` (CRM down) carries `null` values; no referent at all (none set, or the contact
+ * was erased) is `PurchaseOrder.referent === null`.
+ */
+export type Referent = {
   id: string
-  type: ProjectType
-  company: CompanyRef
-  origin: ContractOrigin
+  status: 'ok' | 'unavailable'
+  name: string | null
+  jobTitle: string | null
+  email: string | null
+  phone: string | null
+}
+
+export type PurchaseOrder = {
+  id: string
+  deal: DealRef
+  /** The deal's EstimAI estimate at creation (AC-3.2); `null` for a deal without one. */
+  estimate: { id: string } | null
   bexioOrderId: string | null
-  startDate: string
-  endDate: string | null
-  /** `null` for a contract entered by hand (specs/022). */
-  deal: DealRef | null
-}
-
-export type Project = {
-  id: string
-  name: string
-  type: ProjectType
-  state: ProjectState
-  /** The state an `on_hold` project left (and may return to); `null` in every other state. */
-  stateBeforeHold: ProjectState | null
-  entity: Entity
-  company: CompanyRef | null
-  projectManager: Person
-  team: Person[]
-  /** Every contract whole (terms and version), so a contract card needs no request of its own. */
-  contracts: Contract[]
-  /** Earliest contract start; `null` with no contract. */
-  startDate: string | null
-  /** Latest contract end; `null` with no contract or when any contract is open-ended. */
-  endDate: string | null
+  referent: Referent | null
+  /** Assigned at creation; the only person (besides an admin) who picks the project manager (D46). */
+  opsManager: Person
   version: number
-  createdAt: string
-  updatedAt: string
 }
 
-// ─── Contract terms (by project type) ────────────────────────────────────────
+// ─── Terms (by project type) ─────────────────────────────────────────────────
 
-/** Take-in-charge times in whole working days, 0–60. The UI prefills 1 / 3 (AC-2.5). */
+/** Take-in-charge times in whole working days, 0–60. The UI prefills 1 / 3 (specs/021 AC-2.5). */
 export type Sla = { highDays: number; normalDays: number }
 
 export type HourPackage = {
@@ -95,24 +101,63 @@ export type FixedPriceTerms = { deadline: string; estimatedManDays?: number | nu
 export type SlaAndHoursTerms = { sla?: Sla | null; hourPackage?: HourPackage | null }
 export type TAndMTerms = { positions: Position[] }
 
-/** What a create or update sends: the member set depends on the project's type (`internal` takes none). */
-export type ContractTermsInput = FixedPriceTerms | SlaAndHoursTerms | TAndMTerms | Record<string, never>
+/** The type-specific members a request carries (`internal` has no terms; `{}` is a valid empty `saas` set). */
+export type TermsMembers = FixedPriceTerms | SlaAndHoursTerms | TAndMTerms
 
-/** What a read returns: every member present, `null` when absent. */
-export type ContractTerms =
-  | { deadline: string; estimatedManDays: number | null; maxEffortManDays: number }
-  | { sla: Sla | null; hourPackage: (HourPackage & { expiryDate: string | null }) | null }
-  | { positions: Position[] }
-  | Record<string, never>
+/**
+ * What a request carries as "terms" (a take, a hand-made create, the terms routes): the dates and
+ * the type's members side by side, as `Terms` reads back (tasks.md: `terms.deadline` is the
+ * validation path of the deadline). Built in one place, `lib/termsRequest.ts`.
+ */
+export type TermsInput = { startDate: string; endDate?: string | null } & TermsMembers
 
-export type Contract = ContractSummary & {
-  projectId: string
-  /** The deal's id (specs/022); `null` for a contract entered by hand. */
-  dealId: string | null
-  /** The deal's EstimAI estimate at creation (AC-3.2); `null` for a hand-entered contract and for a deal without one. */
-  estimate: { id: string } | null
-  terms: ContractTerms
+/**
+ * What the terms routes' PATCH takes: any of the dates and the members. Per type, the members
+ * it sends replace the stored ones (the rule of the old specs/021 contract PATCH).
+ */
+export type TermsPatch = Partial<{ startDate: string; endDate: string | null }> & Partial<TermsMembers>
+
+/**
+ * The terms of a project, as read (`Project.terms`): the members a type does not use are `null`
+ * (or absent / empty for `positions`). `type` is the project's, and says which members count.
+ */
+export type Terms = {
+  id: string
+  type: ProjectType
+  startDate: string
+  endDate: string | null
+  deadline?: string | null
+  estimatedManDays?: number | null
+  maxEffortManDays?: number | null
+  sla?: Sla | null
+  hourPackage?: (HourPackage & { expiryDate: string | null }) | null
+  positions?: Position[] | null
   version: number
+}
+
+export type Project = {
+  id: string
+  name: string
+  type: ProjectType
+  state: ProjectState
+  /** The state an `on_hold` project left (and may return to); `null` in every other state. */
+  stateBeforeHold: ProjectState | null
+  entity: Entity
+  company: CompanyRef | null
+  /** `null` only while `awaitingProjectManager`; once set it is never cleared (AC-4.9). */
+  projectManager: Person | null
+  awaitingProjectManager: boolean
+  team: Person[]
+  /** `null` on a hand-made project, which never has one (AC-5.2). */
+  purchaseOrder: PurchaseOrder | null
+  /** Always there with a purchase order; optional on a hand-made project (AC-5.3). */
+  terms: Terms | null
+  /** From the terms; `null` without. */
+  startDate: string | null
+  endDate: string | null
+  version: number
+  createdAt: string
+  updatedAt: string
 }
 
 // ─── The to-start queue and taking a deal (specs/022) ────────────────────────
@@ -131,11 +176,15 @@ export type QueueItem = {
 /** `GET /queue`: `truncated` when the CRM has more won deals than the 500 it returns (A26). */
 export type QueueList = { items: QueueItem[]; truncated: boolean }
 
-/** The client types a project taken from a deal can have (AC-1.2); `saas` and `internal` have no company. */
-export type DealProjectType = 't_and_m' | 'fixed_price' | 'maintenance'
+/** The client types a project taken from a deal can have (AC-1.2): `saas` is one (D40), `internal` is not. */
+export type DealProjectType = 't_and_m' | 'fixed_price' | 'maintenance' | 'saas'
 
-/** The contract part of taking a deal: its dates and its terms, by the project's type (tasks.md § API contracts). */
-export type DealContractInput = { startDate: string; endDate?: string | null; terms: ContractTermsInput }
+/**
+ * `GET /queue/{dealId}/ops-managers` (AC-4.1): the holders of the ops-manager role for the deal's entity
+ * and the admins (`admin`, listed last). `prefillId` is the one role holder when there is exactly one.
+ */
+export type OpsManagerChoice = { id: string; name: string | null; admin: boolean }
+export type OpsManagerList = { items: OpsManagerChoice[]; prefillId: string | null }
 
 /** One row of `auth GET /authz/users/directory` (ADR-0047). */
 export type DirectoryUser = { id: string; name: string | null; email: string; entity: string | null }

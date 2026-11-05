@@ -13,7 +13,7 @@ import QueuePage from './pages/QueuePage'
  *   /projects        Projects list (T12)
  *   /projects/queue  To-start queue: won deals no project has taken (specs/022)
  *   /projects/tasks  My tasks: project and pre-sales tasks together (specs/028 T19)
- *   /projects/$id    Project page: details, state, team, contracts (T13, T14)
+ *   /projects/$id    Project page: details, state, team, purchase order or terms (T13, T14, T30)
  *
  * The routes below are relative to the basepath. No auth guard and no chrome
  * (ADR-0006). `Root` is the layout seam: App.tsx passes `ProjectsShell`; tests

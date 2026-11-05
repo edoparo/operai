@@ -1,9 +1,9 @@
 /**
- * Contract terms as a form holds them (text in every input) and as the API takes
- * them (specs/025-projects, tasks.md § API contracts; AC-2.3 – AC-2.8): the empty
- * form of a type, a stored contract back into the form, and the form into the
- * request's `terms` with the checks the server makes (limits, one decimal, a
- * maintenance contract needs an SLA or an hour package).
+ * The terms of a project as a form holds them (text in every input) and as the API takes
+ * them (specs/021-projects AC-2.3 – AC-2.8, specs/022 tasks.md § API contracts): the empty
+ * form of a type, stored terms back into the form, and the form into the type's members
+ * with the checks the server makes (limits, one decimal, maintenance terms need an SLA or an
+ * hour package). `lib/termsRequest.ts` adds the dates and builds the request.
  *
  * Errors are keyed with the dotted `field` names projects-api uses
  * (`terms.sla.highDays`, `terms.positions.0.profile`, …), so a refusal from the
@@ -12,7 +12,7 @@
  * here (AC-2.9): man-days and hours are units of work.
  */
 import { strings } from '../strings'
-import type { Contract, ContractTermsInput, HourPackageKind, ProjectType } from './types'
+import type { HourPackageKind, ProjectType, Terms, TermsMembers } from './types'
 
 export type PositionForm = { profile: string; plannedManDays: string }
 
@@ -39,7 +39,7 @@ export const DEFAULT_SLA = { high: '1', normal: '3' } as const
 export const MAX_POSITIONS = 50
 export const MAX_PROFILE_LENGTH = 120
 
-const e = () => strings.contracts.errors
+const e = () => strings.terms.errors
 const requiredMessage = () => strings.common.validation.required
 
 export const emptyTermsForm = (type: ProjectType): TermsForm => ({
@@ -55,44 +55,50 @@ export const emptyTermsForm = (type: ProjectType): TermsForm => ({
 
 const text = (value: number | null | undefined): string => (value === null || value === undefined ? '' : String(value))
 
-/** A stored contract's terms as the edit form starts. */
-export function termsFormOf(contract: Contract): TermsForm {
-  const form = emptyTermsForm(contract.type)
-  const terms = contract.terms
-  if ('deadline' in terms) {
-    return {
-      ...form,
-      deadline: terms.deadline,
-      estimatedManDays: text(terms.estimatedManDays),
-      maxEffortManDays: text(terms.maxEffortManDays),
+/**
+ * Stored terms as the edit form starts. The terms read flat, and `type` says which members count:
+ * the ones a type does not use are `null` or absent.
+ */
+export function termsFormOf(terms: Terms): TermsForm {
+  const form = emptyTermsForm(terms.type)
+  switch (terms.type) {
+    case 'fixed_price':
+      return {
+        ...form,
+        deadline: terms.deadline ?? '',
+        estimatedManDays: text(terms.estimatedManDays),
+        maxEffortManDays: text(terms.maxEffortManDays),
+      }
+    case 't_and_m':
+      return {
+        ...form,
+        positions: (terms.positions ?? []).map((position) => ({
+          profile: position.profile,
+          plannedManDays: text(position.plannedManDays),
+        })),
+      }
+    case 'maintenance':
+    case 'saas': {
+      const sla = terms.sla ?? null
+      const hourPackage = terms.hourPackage ?? null
+      return {
+        ...form,
+        withSla: sla !== null,
+        sla: sla ? { high: text(sla.highDays), normal: text(sla.normalDays) } : { ...DEFAULT_SLA },
+        withHours: hourPackage !== null,
+        hourPackage: hourPackage
+          ? {
+              hours: text(hourPackage.hours),
+              kind: hourPackage.kind,
+              startDate: hourPackage.startDate,
+              expiryDate: hourPackage.expiryDate ?? '',
+            }
+          : form.hourPackage,
+      }
     }
+    case 'internal':
+      return form
   }
-  if ('positions' in terms) {
-    return {
-      ...form,
-      positions: terms.positions.map((position) => ({
-        profile: position.profile,
-        plannedManDays: text(position.plannedManDays),
-      })),
-    }
-  }
-  if ('sla' in terms || 'hourPackage' in terms) {
-    return {
-      ...form,
-      withSla: terms.sla !== null,
-      sla: terms.sla ? { high: text(terms.sla.highDays), normal: text(terms.sla.normalDays) } : { ...DEFAULT_SLA },
-      withHours: terms.hourPackage !== null,
-      hourPackage: terms.hourPackage
-        ? {
-            hours: text(terms.hourPackage.hours),
-            kind: terms.hourPackage.kind,
-            startDate: terms.hourPackage.startDate,
-            expiryDate: terms.hourPackage.expiryDate ?? '',
-          }
-        : form.hourPackage,
-    }
-  }
-  return form
 }
 
 /** Man-days with at most one decimal (a comma is accepted), 0 to 99,999.9; `null` when it is not one. */
@@ -110,7 +116,7 @@ export function parseWhole(raw: string, min: number, max: number): number | null
   return value >= min && value <= max ? value : null
 }
 
-type Result = { input: ContractTermsInput; errors: TermsErrors }
+type Result = { input: TermsMembers; errors: TermsErrors }
 
 function fixedPrice(form: TermsForm): Result {
   const errors: TermsErrors = {}
@@ -178,7 +184,7 @@ function timeAndMaterial(form: TermsForm): Result {
   return { input: { positions }, errors }
 }
 
-/** The request's `terms` for a contract of `type`, and the problems with the form (none = ready to send). */
+/** The members of the request's terms for a project of `type`, and the problems with the form (none = ready to send). */
 export function termsInputOf(type: ProjectType, form: TermsForm): Result {
   switch (type) {
     case 'fixed_price':

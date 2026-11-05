@@ -3,7 +3,7 @@ import { Button, ConfirmDialog } from '@operai/ui'
 import type { ButtonVariant } from '@operai/ui'
 import { ApiError, isStaleWrite } from '../lib/api'
 import { codeOf, errorMessage } from '../lib/errors'
-import { changeTypeToSaas, transitionProject } from '../lib/projectsApi'
+import { transitionProject } from '../lib/projectsApi'
 import type { Project, ProjectState } from '../lib/types'
 import { strings } from '../strings'
 
@@ -43,7 +43,9 @@ function movesFor(project: Project): Move[] {
 function refusalMessage(failure: unknown): string {
   const code = codeOf(failure)
   const known = strings.project.errors
-  if (code === 'invalid_transition' || code === 'type_change_refused' || code === 'out_of_scope') return known[code]
+  if (code === 'invalid_transition' || code === 'awaiting_project_manager' || code === 'out_of_scope') {
+    return known[code]
+  }
   if (failure instanceof ApiError && failure.status === 503) {
     return `${strings.common.authUnavailable.heading}. ${strings.common.authUnavailable.body}`
   }
@@ -51,12 +53,12 @@ function refusalMessage(failure: unknown): string {
 }
 
 /**
- * StateActions — the page actions that move a project: its state (AC-1.3) and
- * the one allowed type change, internal → SaaS (AC-1.2). Only the moves the
- * matrix allows from the current state are rendered; cancelling and the type
- * change, which cannot be undone, ask first. The project's `version` goes out
+ * StateActions — the page actions that move a project's state (specs/021 AC-1.3). Only the moves the
+ * matrix allows from the current state are rendered; cancelling, which cannot be undone, asks first.
+ * There is no type change: a project's type never changes (A30). The project's `version` goes out
  * as If-Match (AC-1.7): a stale write is the page's to handle (`onStale`), any
- * other refusal is `onError`'s text.
+ * other refusal is `onError`'s text — among them 409 `awaiting_project_manager`, the server's refusal
+ * to start a project that has no project manager yet (AC-4.7).
  */
 export default function StateActions({
   project,
@@ -70,13 +72,12 @@ export default function StateActions({
   onError: (message: string) => void
 }) {
   const t = strings.project
-  const [pending, setPending] = useState<ProjectState | 'type' | null>(null)
-  const [dialog, setDialog] = useState<'cancel' | 'saas' | null>(null)
+  const [pending, setPending] = useState<ProjectState | null>(null)
+  const [dialog, setDialog] = useState<'cancel' | null>(null)
   const [dialogError, setDialogError] = useState<string | null>(null)
 
   const moves = movesFor(project)
-  const canMakeSaas = project.type === 'internal'
-  if (moves.length === 0 && !canMakeSaas) return null
+  if (moves.length === 0) return null
 
   const settle = (request: Promise<Project>, message: string, inDialog: boolean) =>
     request.then(
@@ -106,12 +107,6 @@ export default function StateActions({
     )
   }
 
-  const makeSaas = () => {
-    setPending('type')
-    setDialogError(null)
-    void settle(changeTypeToSaas(project.id, project.version), t.saved.type, true)
-  }
-
   const closeDialog = () => {
     setDialog(null)
     setDialogError(null)
@@ -132,11 +127,6 @@ export default function StateActions({
             {pending === option.to ? t.actions.working : option.label}
           </Button>
         ))}
-        {canMakeSaas && (
-          <Button aria-haspopup="dialog" disabled={pending !== null} onClick={() => setDialog('saas')}>
-            {t.actions.makeSaas}
-          </Button>
-        )}
       </div>
       {dialog === 'cancel' && (
         <ConfirmDialog
@@ -152,22 +142,6 @@ export default function StateActions({
           testIdPrefix="project-cancel"
         >
           {t.cancelDialog.body}
-        </ConfirmDialog>
-      )}
-      {dialog === 'saas' && (
-        <ConfirmDialog
-          title={t.saasDialog.title}
-          confirmLabel={t.saasDialog.confirm}
-          busyLabel={t.saasDialog.busy}
-          cancelLabel={t.saasDialog.keep}
-          closeLabel={strings.common.close}
-          busy={pending === 'type'}
-          error={dialogError}
-          onConfirm={makeSaas}
-          onCancel={closeDialog}
-          testIdPrefix="project-saas"
-        >
-          {t.saasDialog.body}
         </ConfirmDialog>
       )}
     </>

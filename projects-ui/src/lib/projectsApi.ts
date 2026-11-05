@@ -1,38 +1,50 @@
 /**
- * projectsApi — typed calls for every projects-api route of specs/021-projects
- * (tasks.md § API contracts) and of specs/022-projects-handoff (the to-start
- * queue, taking a deal), plus the directory read on `auth`. Every write of
- * an existing project or contract passes the record's `version` (sent as
- * `If-Match`, AC-1.7); creating a project or a contract has no precondition.
+ * projectsApi — typed calls for every projects-api route the UI uses, of
+ * specs/021-projects and of specs/022-projects-handoff (tasks.md § API contracts
+ * "projects-api — routes", T23–T28), plus the directory read on `auth`. Every
+ * write of an existing project, its terms or its purchase order passes the
+ * record's `version` (sent as `If-Match`, specs/021 AC-1.7); creating a project,
+ * its terms or taking a deal has no precondition.
  *
- * There is deliberately no contract delete (AC-2.10): a contract ends by setting
- * its end date.
+ * There is deliberately no call that attaches a deal to a project, changes a
+ * project's type, or creates or deletes a purchase order (D38, D39, AC-1.10): a
+ * PO is born with its project, by `takeDealAsProject`, and is never deleted. Terms
+ * are the exception: a hand-made project's may be removed (`deleteTerms`).
+ *
+ * Not here on purpose: `GET /system/purchase-orders` (service-to-service, for crm-api).
+ * The referent's candidates are asked by the deal / the project, never by a company id the
+ * client names (the server derives the company: T18); referent data is read on open and not
+ * cached or stored anywhere by this client (T18).
  */
 import { getAuthBaseUrl } from 'shell/session'
 import { getJson, query, requestJson, sendJson } from './api'
 import type {
   CompanyChoice,
-  Contract,
-  ContractTermsInput,
-  DealContractInput,
+  ContactChoice,
   DealProjectType,
   DirectoryUser,
   Entity,
+  OpsManagerList,
   Page,
   Person,
   Project,
   ProjectState,
   ProjectSummary,
   ProjectType,
+  PurchaseOrder,
   QueueList,
   Scope,
+  Terms,
+  TermsInput,
+  TermsPatch,
 } from './types'
 
 type Init = { signal?: AbortSignal }
 
 const projectPath = (id: string) => `/projects/${encodeURIComponent(id)}`
-const contractPath = (projectId: string, contractId: string) =>
-  `${projectPath(projectId)}/contracts/${encodeURIComponent(contractId)}`
+const termsPath = (projectId: string) => `${projectPath(projectId)}/terms`
+const purchaseOrderPath = (projectId: string) => `${projectPath(projectId)}/purchase-order`
+const queuePath = (dealId: string) => `/queue/${encodeURIComponent(dealId)}`
 
 // ─── Scope ──────────────────────────────────────────────────────────────────
 
@@ -50,19 +62,24 @@ export type ProjectListQuery = {
   q?: string
   type?: ProjectType | ''
   state?: ProjectState | ''
+  /** A person's id, or `none` for the projects awaiting a project manager (AC-4.5). */
   projectManagerId?: string
 }
 
+/** A hand-made project (AC-5.1 – AC-5.3): any type, never a purchase order; `terms` are optional as a whole. */
 export type CreateProjectInput = {
   name: string
   type: ProjectType
   entity: Entity
-  /** Required for a client type, refused for `saas` and `internal`. */
+  /** Required for every client type, `saas` included; refused for `internal` (D40). */
   companyId?: string
   /** Defaults to the caller. */
   projectManagerId?: string
+  /** Refused for `internal`. */
+  terms?: TermsInput
 }
 
+/** The type of a project never changes (A30): there is no `type` member. `projectManagerId` is the pick (T27). */
 export type UpdateProjectInput = { name?: string; projectManagerId?: string }
 
 export const listProjects = (params: ProjectListQuery, init?: Init) =>
@@ -75,63 +92,66 @@ export const updateProject = (id: string, version: number, input: UpdateProjectI
   sendJson<Project>(projectPath(id), 'PATCH', input, version)
 export const transitionProject = (id: string, version: number, to: ProjectState) =>
   sendJson<Project>(`${projectPath(id)}/transitions`, 'POST', { to }, version)
-/** The one allowed type change: `internal` → `saas` (AC-1.2). */
-export const changeTypeToSaas = (id: string, version: number) =>
-  sendJson<Project>(`${projectPath(id)}/type`, 'PUT', { type: 'saas' }, version)
 export const replaceTeam = (id: string, version: number, memberIds: string[]) =>
   sendJson<Project>(`${projectPath(id)}/team`, 'PUT', { memberIds }, version)
 
-// ─── Contracts ──────────────────────────────────────────────────────────────
+// ─── Terms (0..1 per project: a PO project always has them, a hand-made one may) ───
 
-export type CreateContractInput = {
-  /** A client project's own company by default; required for `saas`. */
-  companyId?: string
-  startDate: string
-  endDate?: string | null
-  terms?: ContractTermsInput
-}
+/** 409 `terms_exist`, `terms_not_allowed` (`internal`), `project_not_open`. */
+export const createTerms = (projectId: string, input: TermsInput) =>
+  sendJson<Terms>(termsPath(projectId), 'POST', input)
+/** Partial; 404 `terms_not_found`; estimate-backed `estimatedManDays` are the server's → 422 `estimated_man_days_from_estimate`. */
+export const updateTerms = (projectId: string, version: number, input: TermsPatch) =>
+  sendJson<Terms>(termsPath(projectId), 'PATCH', input, version)
+/** `204` on a hand-made project; 409 `terms_required` on one with a purchase order. */
+export const deleteTerms = (projectId: string, version: number) =>
+  sendJson<undefined>(termsPath(projectId), 'DELETE', undefined, version)
 
-/** `terms`, when given, replaces the contract's terms; `endDate` ends it (or `null` reopens it). */
-export type UpdateContractInput = {
-  startDate?: string
-  endDate?: string | null
-  terms?: ContractTermsInput
-}
+// ─── Purchase order (0..1 per project: only a won deal brings one) ──────────
 
-export const createContract = (projectId: string, input: CreateContractInput) =>
-  sendJson<Contract>(`${projectPath(projectId)}/contracts`, 'POST', input)
-export const updateContract = (projectId: string, contractId: string, version: number, input: UpdateContractInput) =>
-  sendJson<Contract>(contractPath(projectId, contractId), 'PATCH', input, version)
-/** Needs `contract:bexio` (`Scope.bexio`); `null` clears the id. */
-export const setBexioOrderId = (projectId: string, contractId: string, version: number, bexioOrderId: string | null) =>
-  sendJson<Contract>(`${contractPath(projectId, contractId)}/bexio-order`, 'PUT', { bexioOrderId }, version)
+/** Needs `purchase-order:bexio` (`Scope.bexio`); `null` clears the id; 404 `purchase_order_not_found` on a hand-made project. */
+export const setBexioOrderId = (projectId: string, version: number, bexioOrderId: string | null) =>
+  sendJson<PurchaseOrder>(`${purchaseOrderPath(projectId)}/bexio-order`, 'PUT', { bexioOrderId }, version)
+
+/** Set, change or clear the referent (AC-3.7); 422 `referent_invalid`, 503 `crm_unavailable`. */
+export const updatePurchaseOrder = (projectId: string, version: number, input: { referentContactId: string | null }) =>
+  sendJson<PurchaseOrder>(purchaseOrderPath(projectId), 'PATCH', input, version)
+
+/** The non-archived contacts of the PO's company, which the server derives (T18); read on every open. */
+export const listPurchaseOrderContacts = (projectId: string, init?: Init) =>
+  getJson<{ items: ContactChoice[] }>(`${purchaseOrderPath(projectId)}/contacts`, init)
 
 // ─── The to-start queue and taking a deal (specs/022) ───────────────────────
 
 export type QueueQuery = { q?: string; entity?: Entity | '' }
 
+/** AC-1.2, AC-1.8, AC-4.1: sales fills everything; there is no `projectManagerId` (D42, strict → 400). */
 export type TakeDealAsProjectInput = {
   name: string
   type: DealProjectType
-  /** Defaults to the caller. */
-  projectManagerId?: string
-  contract: DealContractInput
+  terms: TermsInput
+  /** Required: one of `listOpsManagers`'s items. */
+  opsManagerId: string
+  referentContactId?: string | null
 }
-
-export type AttachDealInput = { projectId: string; contract: DealContractInput }
 
 /** Won deals no project has taken, newest won first; read live from the CRM, so 503 `crm_unavailable` when it is down. */
 export const listQueue = (params: QueueQuery, init?: Init) => getJson<QueueList>(`/queue${query(params)}`, init)
 
-const queuePath = (dealId: string) => `/queue/${encodeURIComponent(dealId)}`
+/** The ops-manager role's holders for the deal's entity, then the admins; `prefillId` when exactly one holder. */
+export const listOpsManagers = (dealId: string, init?: Init) =>
+  getJson<OpsManagerList>(`${queuePath(dealId)}/ops-managers`, init)
 
-/** A new `planned` project with the deal's company and entity and one contract made from the deal (AC-1.2, AC-1.3). */
+/** The non-archived contacts of the deal's company, which the server derives (T18); read on every open. */
+export const listQueueContacts = (dealId: string, init?: Init) =>
+  getJson<{ items: ContactChoice[] }>(`${queuePath(dealId)}/contacts`, init)
+
+/**
+ * A new `planned` project with the deal's company and entity, no project manager, its terms and
+ * one purchase order, in one transaction (AC-1.2, AC-1.3). A take creates: no `If-Match`.
+ */
 export const takeDealAsProject = (dealId: string, input: TakeDealAsProjectInput) =>
   sendJson<Project>(`${queuePath(dealId)}/project`, 'POST', input)
-
-/** A contract of the project's type made from the deal (AC-1.4). Neither take carries `If-Match`: both create. */
-export const attachDeal = (dealId: string, input: AttachDealInput) =>
-  sendJson<Contract>(`${queuePath(dealId)}/attach`, 'POST', input)
 
 // ─── auth: the user directory (PM and team pickers, ADR-0053/0055) ──────────
 

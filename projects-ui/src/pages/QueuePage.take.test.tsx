@@ -1,17 +1,17 @@
 /**
  * @vitest-environment jsdom
  *
- * QueuePage — taking a deal (AC-1.2, AC-1.4, AC-1.6): "New project" and "Attach
- * to project" show only on the deals of an entity the caller manages, open the
- * dialogs for that deal, land the user on the project on success, and reload the
- * queue behind a dialog whose deal was taken meanwhile. The dialogs' own fields
- * and refusals are covered by TakeDealDialog.test.tsx and AttachDealDialog.test.tsx.
+ * QueuePage — taking a deal (AC-1.2, AC-1.6, AC-1.9, AC-1.10): "New project" shows only on the deals of
+ * an entity the caller may take AND manage (sales, admins), opens the dialog for that deal, lands the
+ * user on the project on success, and reloads the queue behind a dialog whose deal was taken
+ * meanwhile. There is no "Attach to project" (D39). The dialog's own fields and refusals are covered
+ * by TakeDealDialog.test.tsx.
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { RouterProvider } from '@tanstack/react-router'
 import { createAppRouter } from '../router'
-import { fakeApi, page, problem, projectDetail, projectSummary, scope } from '../test-support/fakeApi'
+import { fakeApi, problem, projectDetail, purchaseOrderOf, scope, termsOf } from '../test-support/fakeApi'
 import type { FakeHandler } from '../test-support/fakeApi'
 import { scopeRoot } from '../test-support/scopeRoot'
 import type { QueueItem, Scope } from '../lib/types'
@@ -38,7 +38,13 @@ const queue = (items: QueueItem[]) => ({ status: 200, body: { items, truncated: 
 
 const renderQueue = async (routes: Record<string, FakeHandler>, callerScope: Scope) => {
   apiFetch.mockImplementation(
-    fakeApi({ 'GET /authz/users/directory': () => ({ status: 200, body: { users: [] } }), ...routes }),
+    fakeApi({
+      'GET /queue/d1/ops-managers': () => ({
+        status: 200,
+        body: { items: [{ id: 'u-ops', name: 'Olga Ops', admin: false }], prefillId: 'u-ops' },
+      }),
+      ...routes,
+    }),
   )
   window.history.pushState(null, '', '/queue')
   render(<RouterProvider router={createAppRouter(undefined, scopeRoot(callerScope))} />)
@@ -62,6 +68,10 @@ const queueReads = () => apiFetch.mock.calls.filter(([input]) => new URL(String(
 const rowOf = (title: string) =>
   within(screen.getByTestId('queue-table')).getByRole('rowheader', { name: title }).closest('tr')!
 
+/** The ops-manager candidates arrive after the dialog opens: wait for the prefill, so a submit is not a not-yet-loaded one. */
+const ready = (dialog: HTMLElement) =>
+  waitFor(() => expect((within(dialog).getByLabelText(/^Ops manager/) as HTMLSelectElement).value).toBe('u-ops'))
+
 const fillFixedPrice = (dialog: HTMLElement) => {
   fireEvent.change(within(dialog).getByLabelText(/^Type/), { target: { value: 'fixed_price' } })
   fireEvent.change(within(dialog).getByLabelText(/^Start date/), { target: { value: '2026-11-01' } })
@@ -69,48 +79,55 @@ const fillFixedPrice = (dialog: HTMLElement) => {
   fireEvent.change(within(dialog).getByLabelText(/^Max effort/), { target: { value: '40' } })
 }
 
-describe('who sees the actions (AC-1.2, AC-1.4)', () => {
-  it('neither action for a reader who manages no entity', async () => {
-    await renderQueue({ 'GET /queue': () => queue([CH, IT]) }, scope())
+const SALES_CH = scope({ manage: ['welld_ch'], take: ['welld_ch'] })
+
+describe('who sees the action (AC-1.2, S3)', () => {
+  it('no action for a taker who manages no entity', async () => {
+    await renderQueue({ 'GET /queue': () => queue([CH, IT]) }, scope({ take: ['welld_ch', 'welld_it'] }))
     expect(screen.queryByRole('button', { name: /New project/ })).toBeNull()
-    expect(screen.queryByRole('button', { name: /Attach to project/ })).toBeNull()
     expect(screen.queryByRole('columnheader', { name: 'Actions' })).toBeNull()
   })
 
-  it('both on the deals of an entity the caller manages, and none on the others', async () => {
-    await renderQueue({ 'GET /queue': () => queue([CH, IT]) }, scope({ manage: ['welld_ch'] }))
-    const mine = within(rowOf('Website relaunch'))
-    expect(mine.getByRole('button', { name: 'New project: Website relaunch' })).not.toBeNull()
-    expect(mine.getByRole('button', { name: 'Attach to project: Website relaunch' })).not.toBeNull()
+  it('"New project" on the deals of an entity the caller takes and manages, and none on the others', async () => {
+    await renderQueue({ 'GET /queue': () => queue([CH, IT]) }, SALES_CH)
+    expect(
+      within(rowOf('Website relaunch')).getByRole('button', { name: 'New project: Website relaunch' }),
+    ).not.toBeNull()
     expect(within(rowOf('Portale clienti')).queryByRole('button')).toBeNull()
   })
 
-  it('both on every deal for an admin', async () => {
+  it('no action on a deal of an entity the caller takes but does not manage (the server needs both)', async () => {
+    await renderQueue(
+      { 'GET /queue': () => queue([CH]) },
+      scope({ manage: ['welld_it'], take: ['welld_ch', 'welld_it'] }),
+    )
+    expect(within(rowOf('Website relaunch')).queryByRole('button')).toBeNull()
+  })
+
+  it('on every deal for an admin', async () => {
     await renderQueue(
       { 'GET /queue': () => queue([CH, IT]) },
-      scope({ manage: ['welld_ch', 'welld_it'], managesAll: true }),
+      scope({ manage: ['welld_ch', 'welld_it'], managesAll: true, take: ['welld_ch', 'welld_it'], oversees: true }),
     )
     expect(screen.getAllByRole('button', { name: /^New project: / })).toHaveLength(2)
-    expect(screen.getAllByRole('button', { name: /^Attach to project: / })).toHaveLength(2)
+  })
+
+  it('there is no way to attach a deal to an existing project (AC-1.10, D39)', async () => {
+    await renderQueue({ 'GET /queue': () => queue([CH, IT]) }, SALES_CH)
+    expect(screen.queryByRole('button', { name: /attach|collega/i })).toBeNull()
   })
 })
 
 describe('the dialogs', () => {
   it('"New project" opens the dialog for that deal, prefilled with its title', async () => {
-    await renderQueue({ 'GET /queue': () => queue([CH, IT]) }, scope({ manage: ['welld_ch'] }))
+    await renderQueue({ 'GET /queue': () => queue([CH, IT]) }, SALES_CH)
     fireEvent.click(screen.getByRole('button', { name: 'New project: Website relaunch' }))
     const dialog = await screen.findByRole('dialog', { name: 'New project from a deal' })
     expect((within(dialog).getByLabelText(/^Name/) as HTMLInputElement).value).toBe('Website relaunch')
   })
 
-  it('"Attach to project" opens the dialog for that deal', async () => {
-    await renderQueue({ 'GET /queue': () => queue([CH]) }, scope({ manage: ['welld_ch'] }))
-    fireEvent.click(screen.getByRole('button', { name: 'Attach to project: Website relaunch' }))
-    expect(await screen.findByRole('dialog', { name: 'Attach to a project' })).not.toBeNull()
-  })
-
   it('Cancel closes the dialog and leaves the queue as it was', async () => {
-    await renderQueue({ 'GET /queue': () => queue([CH]) }, scope({ manage: ['welld_ch'] }))
+    await renderQueue({ 'GET /queue': () => queue([CH]) }, SALES_CH)
     fireEvent.click(screen.getByRole('button', { name: 'New project: Website relaunch' }))
     fireEvent.click(await screen.findByTestId('take-deal-cancel'))
     await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull())
@@ -119,47 +136,36 @@ describe('the dialogs', () => {
 })
 
 describe('after the take', () => {
-  it('a new project lands the user on the project page (AC-1.2, AC-1.3)', async () => {
+  const awaitingProject = projectDetail({
+    id: 'pNew',
+    type: 'fixed_price',
+    state: 'planned',
+    projectManager: null,
+    awaitingProjectManager: true,
+    purchaseOrder: purchaseOrderOf(),
+    terms: termsOf('fixed_price', { deadline: '2026-12-01', estimatedManDays: null, maxEffortManDays: 40 }),
+    startDate: '2026-11-01',
+  })
+
+  it('a new project lands the user on the project page, awaiting its project manager (AC-1.2, AC-1.3)', async () => {
     await renderQueue(
       {
         'GET /queue': () => queue([CH]),
-        'POST /queue/d1/project': () => ({ status: 201, body: projectDetail({ id: 'pNew' }) }),
-        'GET /projects/pNew': () => ({ status: 200, body: projectDetail({ id: 'pNew' }) }),
+        'POST /queue/d1/project': () => ({ status: 201, body: awaitingProject }),
+        'GET /projects/pNew': () => ({ status: 200, body: awaitingProject }),
       },
-      scope({ manage: ['welld_ch'] }),
+      SALES_CH,
     )
     fireEvent.click(screen.getByRole('button', { name: 'New project: Website relaunch' }))
     const dialog = await screen.findByRole('dialog', { name: 'New project from a deal' })
+    await ready(dialog)
     fillFixedPrice(dialog)
     fireEvent.click(within(dialog).getByTestId('take-deal-submit'))
     const projectPage = await screen.findByTestId('project-detail-page')
     expect(projectPage.getAttribute('data-project-id')).toBe('pNew')
     expect(screen.queryByTestId('queue-page')).toBeNull()
-  })
-
-  it('an attach lands the user on the project that took the contract (AC-1.4)', async () => {
-    await renderQueue(
-      {
-        'GET /queue': () => queue([CH]),
-        'GET /projects': () => ({
-          status: 200,
-          body: page([projectSummary({ id: 'pF', name: 'Intranet phase 2', type: 'fixed_price' })]),
-        }),
-        'POST /queue/d1/attach': () => ({ status: 201, body: { id: 'k9', projectId: 'pF' } }),
-        'GET /projects/pF': () => ({ status: 200, body: projectDetail({ id: 'pF' }) }),
-      },
-      scope({ manage: ['welld_ch'] }),
-    )
-    fireEvent.click(screen.getByRole('button', { name: 'Attach to project: Website relaunch' }))
-    const dialog = await screen.findByRole('dialog', { name: 'Attach to a project' })
-    fireEvent.change(within(dialog).getByRole('combobox', { name: /^Project/ }), { target: { value: 'intra' } })
-    fireEvent.click(await within(dialog).findByRole('option', { name: /Intranet phase 2/ }))
-    fireEvent.change(within(dialog).getByLabelText(/^Start date/), { target: { value: '2026-11-01' } })
-    fireEvent.change(within(dialog).getByLabelText(/^Deadline/), { target: { value: '2026-12-01' } })
-    fireEvent.change(within(dialog).getByLabelText(/^Max effort/), { target: { value: '40' } })
-    fireEvent.click(within(dialog).getByTestId('attach-deal-submit'))
-    const projectPage = await screen.findByTestId('project-detail-page')
-    expect(projectPage.getAttribute('data-project-id')).toBe('pF')
+    expect(screen.getByTestId('project-facts').textContent).toContain('Awaiting project manager')
+    expect(screen.getByTestId('project-purchase-order')).not.toBeNull()
   })
 
   it('a deal taken meanwhile leaves the list behind the dialog, which keeps saying why (AC-1.6)', async () => {
@@ -172,10 +178,11 @@ describe('after the take', () => {
           return problem(409, 'deal_taken')
         },
       },
-      scope({ manage: ['welld_ch'] }),
+      SALES_CH,
     )
     fireEvent.click(screen.getByRole('button', { name: 'New project: Website relaunch' }))
     const dialog = await screen.findByRole('dialog', { name: 'New project from a deal' })
+    await ready(dialog)
     fillFixedPrice(dialog)
     fireEvent.click(within(dialog).getByTestId('take-deal-submit'))
     expect((await within(dialog).findByTestId('take-deal-error')).textContent).toContain(

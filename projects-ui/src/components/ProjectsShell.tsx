@@ -12,12 +12,13 @@ import { LoadFailure, Loading } from './LoadState'
  * page (ToolLayout `default` width). No suite chrome and no auth guard: the
  * shell owns both and mounts this remote only for `projects:access` holders
  * (ADR-0006, ADR-0007). Three tabs: the projects list and My tasks (specs/028
- * US-7), open to every reader, and the to-start queue (specs/022); the project
- * page is reached from the list.
+ * US-7), open to every reader, and the to-start queue (specs/022), which is only
+ * for those who may take a deal (`scope.take` non-empty, D37, AC-1.9); the
+ * project page is reached from the list.
  *
- * What varies per person is `GET /scope` — the entities they manage and whether
- * they may write a Bexio order id — loaded once here and handed to the pages
- * through `ScopeContext`. Until it answers the page area shows the loading
+ * What varies per person is `GET /scope` — the entities they manage and take
+ * deals for, whether they may write a Bexio order id — loaded once here and
+ * handed to the pages through `ScopeContext`. Until it answers the page area shows the loading
  * state; a failure shows the retry banner (the 503 "authorization service
  * unavailable" variant for a fail-closed `auth`, ADR-0014) or PermissionDenied
  * on a 403. The title stays on screen in every state.
@@ -46,9 +47,11 @@ export default function ProjectsShell() {
           <Link to="/" className={tabLinkClassName} activeOptions={{ exact: true }}>
             {strings.nav.projects}
           </Link>
-          <Link to="/queue" className={tabLinkClassName}>
-            {strings.nav.queue}
-          </Link>
+          {scope.status === 'ready' && scope.data!.take.length > 0 && (
+            <Link to="/queue" className={tabLinkClassName}>
+              {strings.nav.queue}
+            </Link>
+          )}
           <Link to="/tasks" className={tabLinkClassName}>
             {strings.tasks.my.tabMyTasks}
           </Link>

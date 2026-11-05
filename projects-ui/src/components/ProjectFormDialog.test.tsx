@@ -25,7 +25,7 @@ import ProjectFormDialog from './ProjectFormDialog'
 
 const BOB = { id: 'u-bob', name: 'Bob Builder', email: 'bob@welld.ch', entity: 'welld_ch' }
 const ACME = { id: 'c-acme', name: 'Acme SA', entity: 'welld_ch' }
-const created = { ...projectSummary({ id: 'pNew' }), team: [], contracts: [] }
+const created = { ...projectSummary({ id: 'pNew' }), team: [], purchaseOrder: null, terms: null }
 
 const onSaved = vi.fn()
 const onCancel = vi.fn()
@@ -75,13 +75,16 @@ const chooseCompany = async (dialog: HTMLElement) => {
 }
 
 describe('the company field (AC-1.1)', () => {
-  it.each(['t_and_m', 'fixed_price', 'maintenance'])('is offered, and required, for a %s project', (type) => {
-    const dialog = renderDialog()
-    fireEvent.change(within(dialog).getByLabelText(/^Type/), { target: { value: type } })
-    expect(within(dialog).getByRole('combobox', { name: /Company/ })).not.toBeNull()
-  })
+  it.each(['t_and_m', 'fixed_price', 'maintenance', 'saas'])(
+    'is offered, and required, for a %s project (a SaaS has a company, D40)',
+    (type) => {
+      const dialog = renderDialog()
+      fireEvent.change(within(dialog).getByLabelText(/^Type/), { target: { value: type } })
+      expect(within(dialog).getByRole('combobox', { name: /Company/ })).not.toBeNull()
+    },
+  )
 
-  it.each(['saas', 'internal'])('is not offered for a %s project', (type) => {
+  it.each(['internal'])('is not offered for a %s project', (type) => {
     const dialog = renderDialog()
     fireEvent.change(within(dialog).getByLabelText(/^Type/), { target: { value: type } })
     expect(within(dialog).queryByRole('combobox', { name: /Company/ })).toBeNull()
@@ -146,14 +149,25 @@ describe('creating a project (AC-1.1)', () => {
     expect(posted()).toEqual({ name: 'Intranet', type: 't_and_m', entity: 'welld_it', companyId: 'c-acme' })
   })
 
-  it('sends a SaaS project with no company', async () => {
+  it('sends a SaaS project with its company: one project per licence (D40)', async () => {
+    const dialog = renderDialog()
+    fireEvent.change(within(dialog).getByLabelText(/^Name/), { target: { value: 'Koordy' } })
+    fireEvent.change(within(dialog).getByLabelText(/^Type/), { target: { value: 'saas' } })
+    fireEvent.change(within(dialog).getByLabelText(/wellD entity/), { target: { value: 'welld_ch' } })
+    await chooseCompany(dialog)
+    fireEvent.click(within(dialog).getByTestId('projects-form-submit'))
+    await waitFor(() => expect(onSaved).toHaveBeenCalled())
+    expect(posted()).toEqual({ name: 'Koordy', type: 'saas', entity: 'welld_ch', companyId: 'c-acme' })
+  })
+
+  it('refuses a SaaS project without a company before any request', () => {
     const dialog = renderDialog()
     fireEvent.change(within(dialog).getByLabelText(/^Name/), { target: { value: 'Koordy' } })
     fireEvent.change(within(dialog).getByLabelText(/^Type/), { target: { value: 'saas' } })
     fireEvent.change(within(dialog).getByLabelText(/wellD entity/), { target: { value: 'welld_ch' } })
     fireEvent.click(within(dialog).getByTestId('projects-form-submit'))
-    await waitFor(() => expect(onSaved).toHaveBeenCalled())
-    expect(posted()).toEqual({ name: 'Koordy', type: 'saas', entity: 'welld_ch' })
+    expect(within(dialog).getByText('Choose a company from the list.')).not.toBeNull()
+    expect(posted()).toBeNull()
   })
 
   it('drops a chosen company when the type changes to one that has none', async () => {
@@ -162,7 +176,7 @@ describe('creating a project (AC-1.1)', () => {
     fireEvent.change(within(dialog).getByLabelText(/^Type/), { target: { value: 'maintenance' } })
     fireEvent.change(within(dialog).getByLabelText(/wellD entity/), { target: { value: 'welld_ch' } })
     await chooseCompany(dialog)
-    fireEvent.change(within(dialog).getByLabelText(/^Type/), { target: { value: 'saas' } })
+    fireEvent.change(within(dialog).getByLabelText(/^Type/), { target: { value: 'internal' } })
     fireEvent.click(within(dialog).getByTestId('projects-form-submit'))
     await waitFor(() => expect(onSaved).toHaveBeenCalled())
     expect(posted()).not.toHaveProperty('companyId')
