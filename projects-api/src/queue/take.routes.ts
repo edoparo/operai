@@ -22,6 +22,10 @@
  * reason; `503 crm_unavailable`: AC-3.6, T18 M3). Only the referent's id is stored; no contact data is
  * read into the purchase order or the log (one audit line per take: kind, project id, actor id).
  *
+ * Once the take has committed, the ops-manager is told (T25, AC-4.3): one best-effort in-app push through
+ * notify-api (`lib/notify.ts`), never awaited here and never failing the take (AC-4.4) — the project stays
+ * awaiting its project manager whether or not the notification arrives.
+ *
  * Man-days are server-owned for a deal with an estimate (AC-3.1): the client omits
  * `terms.estimatedManDays` (sending it, even `null`, is a 422), and on a `fixed_price` project the
  * server copies EstimAI's figure once, before the write (A6) — EstimAI down is a 503 with nothing
@@ -39,6 +43,7 @@ import { assertValidReferent, type CrmDeal } from "../lib/crm";
 import { db } from "../lib/db";
 import { estimateManDays } from "../lib/estimai";
 import { opsManagerCandidates } from "../lib/holders";
+import { announcePurchaseOrderAssigned } from "../lib/notify";
 import { IdParams, IdSchema, commonErrors, etag, requiredText, type HeaderSource } from "../lib/http";
 import { unprocessable, validationHook } from "../lib/problem";
 import { dealTaken, loadTakeableDeal } from "./deal";
@@ -180,6 +185,8 @@ takeRouter.openapi(takeAsProjectRoute, async (c) => {
     });
   // The audit line (T18 L6): which event, which project, who — never the name, the ops-manager or the contact.
   console.log(JSON.stringify({ event: "handoff.taken", projectId: row.id, actorId: userId }));
+  // AC-4.3, AC-4.4: tell the ops-manager once the take has committed — never awaited, never failing it.
+  announcePurchaseOrderAssigned({ projectId: row.id, projectName: row.name, companyName: deal.company.name, opsManagerId: body.opsManagerId });
   c.header("ETag", etag(row.version));
   return c.json(await toProjectView(c, row), 201);
 });
