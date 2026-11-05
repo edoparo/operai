@@ -430,3 +430,12 @@ Constraint of 2026-11-05 (user, after the gate): *"la nuova PR sarà on top alla
 PR is stacked on the open PR #7 (specs/021 as written). 021's migration `20261103163000_init`
 therefore ships first and is kept; only 022's never-shipped `*_handoff` migration is
 replaced, by a guarded `*_purchase_order` migration on top (specs/022 tasks.md).
+
+Defect found during the 022 QE window (2026-11-05), added to specs/022 by the user:
+- D52 **Browser back/forward across suite modules shows the right page.** Every remote module
+  (admin, crm, estimai, inventory, notify, projects, refund) builds its router once at module
+  load; after the shell switches module and the user comes back with the browser's back
+  button, the module renders a page matched from the *other* module's address (projects-ui:
+  `GET /projects/admin` → "Project not found"; crm-ui: "This page does not exist"). Pre-existing
+  since specs/017/021, not caused by 022. User chose "Dentro la 022" over the recommended
+  "separate bugfix after 022" — gate 1 re-opened (35 → 36 ACs).
