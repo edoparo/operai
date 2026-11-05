@@ -1,9 +1,10 @@
 /**
  * Test world for projects-api route tests (specs/021-projects): personas with literal
  * permission sets, a request helper over the ASSEMBLED app, fakes for the things outside the
- * system (auth's identity and app-access endpoints, auth's service-token endpoint, crm-api's
- * `/system/companies` and `/system/deals`, estimai-api's `/system/estimates/{id}/summary`;
- * the last two are specs/022), and a reset between tests.
+ * system (auth's identity and app-access endpoints, auth's service-token endpoint, auth's
+ * `GET /authz/users/holders`, crm-api's `/system/companies`, `/system/deals` and `/system/contacts`,
+ * estimai-api's `/system/estimates/{id}/summary`; all but the first three are specs/022), and a
+ * reset between tests. Every contact in here is synthetic (T18 L2).
  *
  * The environment is set by the `bun test` preload (./env.ts) before this module, or
  * anything it imports, reads `src/lib/env`.
@@ -11,7 +12,7 @@
 
 import { spyOn } from "bun:test";
 import { setupTestAuth } from "./testAuth";
-import { TEST_CRM_URL, TEST_ESTIMAI_URL } from "./env";
+import { TEST_CRM_URL, TEST_ESTIMAI_URL, TEST_ISSUER } from "./env";
 import type { ResolvedPermission } from "../authz/resolveClient";
 import type { Prisma } from "../lib/generated/prisma/client";
 
@@ -36,6 +37,16 @@ const MANAGE = (scoped: boolean): ResolvedPermission => ({
   conditions: scoped ? ENTITY_COND : null,
 });
 const BEXIO: ResolvedPermission = { resource: "purchase-order", action: "bexio", conditions: null };
+const TAKE = (scoped: boolean): ResolvedPermission => ({
+  resource: "handoff",
+  action: "take",
+  conditions: scoped ? ENTITY_COND : null,
+});
+const RECEIVE = (scoped: boolean): ResolvedPermission => ({
+  resource: "purchase-order",
+  action: "receive",
+  conditions: scoped ? ENTITY_COND : null,
+});
 
 export interface Persona {
   readonly sub: string;
@@ -53,12 +64,16 @@ export const PERSONAS = {
   colleague: { sub: "user-colleague", entity: "welld_it", permissions: [ACCESS] },
   /** `project-manager` in wellD CH: manages welld_ch projects only. */
   pmCh: { sub: "user-pm-ch", entity: "welld_ch", permissions: [ACCESS, MANAGE(true)] },
-  /** `sales` in wellD IT: manages welld_it projects only. */
-  salesIt: { sub: "user-sales-it", entity: "welld_it", permissions: [ACCESS, MANAGE(true)] },
+  /** `sales` in wellD IT: manages welld_it projects and takes welld_it deals only. */
+  salesIt: { sub: "user-sales-it", entity: "welld_it", permissions: [ACCESS, MANAGE(true), TAKE(true)] },
+  /** `sales` in wellD CH: manages welld_ch projects and takes welld_ch deals only (specs/022 T24). */
+  salesCh: { sub: "user-sales-ch", entity: "welld_ch", permissions: [ACCESS, MANAGE(true), TAKE(true)] },
+  /** `ops-manager` in wellD CH: manages welld_ch projects and may receive its purchase orders; takes nothing. */
+  opsCh: { sub: "user-ops", entity: "welld_ch", permissions: [ACCESS, MANAGE(true), RECEIVE(true)] },
   /** `accounting`: reads, and writes the Bexio order id; manages nothing. */
   accounting: { sub: "user-accounting", entity: "welld_ch", permissions: [ACCESS, BEXIO] },
   /** Admin: everything, both entities. */
-  admin: { sub: "user-admin", entity: null, permissions: [ACCESS, MANAGE(false), BEXIO] },
+  admin: { sub: "user-admin", entity: null, permissions: [ACCESS, MANAGE(false), BEXIO, TAKE(false), RECEIVE(false)] },
 } satisfies Record<string, Persona>;
 
 export type PersonaName = keyof typeof PERSONAS;
@@ -76,6 +91,8 @@ harness.setResolve(async (authorizationHeader) => {
 });
 
 const tokens = new Map<string, string>();
+/** The `Authorization` header value `call()` sends for a persona: what a fake can compare a forwarded header with. */
+export const bearerFor = async (name: PersonaName): Promise<string> => `Bearer ${await tokenFor(name)}`;
 async function tokenFor(name: PersonaName): Promise<string> {
   const cached = tokens.get(name);
   if (cached) return cached;
@@ -157,13 +174,20 @@ export const CRM_WON_LIMIT = 500;
 export const crm = {
   companies: [] as FakeCompany[],
   deals: [] as FakeDeal[],
+  contacts: [] as FakeContact[],
   down: false,
-  /** Every request to the fake crm-api, companies and deals. */
+  /** Only `GET /system/contacts` is down (companies and deals still answer). */
+  contactsDown: false,
+  /** Every request to the fake crm-api, companies, deals and contacts. */
   calls: 0,
   /** The requests to `GET /system/deals` alone. */
   dealCalls: 0,
+  /** The requests to `GET /system/contacts` alone. */
+  contactCalls: 0,
   wonLimit: CRM_WON_LIMIT,
   lastAuthorization: "",
+  /** The query string of the last `GET /system/contacts`. */
+  lastContactsQuery: "",
 };
 
 function fakeCrmCompanies(url: URL, authorization: string): Response {
@@ -237,6 +261,140 @@ function fakeEstimaiSummary(id: string, authorization: string): Response {
   return Response.json({ id, name: estimate.name, manDays: estimate.manDays });
 }
 
+// ─── auth GET /authz/users/holders (specs/022 T20) ───────────────────────────
+
+export interface FakeHolder {
+  readonly id: string;
+  readonly name: string;
+  readonly unconditioned: boolean;
+}
+
+/** The ops-manager of wellD CH is the `opsCh` persona; the admin is every entity's candidate. */
+const defaultHolders = (): Record<"welld_ch" | "welld_it", FakeHolder[]> => ({
+  welld_ch: [
+    { id: "user-ops", name: "Olga Ops", unconditioned: false },
+    { id: "user-admin", name: "Ada Admin", unconditioned: true },
+  ],
+  welld_it: [
+    { id: "user-ops-it", name: "Ivo Ops", unconditioned: false },
+    { id: "user-admin", name: "Ada Admin", unconditioned: true },
+  ],
+});
+
+/**
+ * A fake auth `GET /authz/users/holders` (T20 contract): the user Bearer JWT and a strict query of
+ * `resource=purchase-order&action=receive&entity=<welld_ch|welld_it>` (anything else is a `400`),
+ * answering `{ users: [{ id, name, unconditioned }] }` in the order of `users[entity]`. `down` answers
+ * `503`, `status` any other failure (`403`, `429`), `body` a raw replacement of the answer.
+ */
+export const holders = {
+  users: defaultHolders(),
+  down: false,
+  status: 200,
+  body: undefined as unknown,
+  calls: 0,
+  lastAuthorization: "",
+  lastQuery: "",
+};
+
+function fakeHolders(url: URL, authorization: string): Response {
+  holders.calls++;
+  holders.lastAuthorization = authorization;
+  holders.lastQuery = url.search;
+  if (holders.down) return new Response("down", { status: 503 });
+  if (holders.status !== 200) return Response.json({ status: holders.status }, { status: holders.status });
+  const keys = [...url.searchParams.keys()].sort().join(",");
+  const entity = url.searchParams.get("entity");
+  if (
+    keys !== "action,entity,resource" ||
+    url.searchParams.get("resource") !== "purchase-order" ||
+    url.searchParams.get("action") !== "receive" ||
+    (entity !== "welld_ch" && entity !== "welld_it")
+  ) {
+    return Response.json({ status: 400 }, { status: 400 });
+  }
+  return Response.json(holders.body !== undefined ? holders.body : { users: holders.users[entity] });
+}
+
+// ─── crm-api GET /system/contacts (specs/022 T21) ────────────────────────────
+
+/** A CRM contact as the fake knows it. Synthetic people only (T18 L2). */
+export interface FakeContact {
+  id: string;
+  companyId: string | null;
+  firstName: string;
+  lastName: string;
+  jobTitle: string | null;
+  email: string | null;
+  phone: string | null;
+  archived: boolean;
+}
+
+let contactSeq = 0;
+/** A live contact of Acme; override what the test cares about. */
+export function makeContact(over: Partial<FakeContact> = {}): FakeContact {
+  contactSeq++;
+  return {
+    id: `contact-${contactSeq}`,
+    companyId: "co-acme",
+    firstName: `First${contactSeq}`,
+    lastName: `Last${contactSeq}`,
+    jobTitle: "Purchasing lead",
+    email: `contact${contactSeq}@example.test`,
+    phone: "+41 00 000 00 00",
+    archived: false,
+    ...over,
+  };
+}
+
+/** crm-api's cap on `ids`; the fake refuses more with a `400`, as the real route does. */
+export const CRM_CONTACT_IDS_LIMIT = 20;
+
+/**
+ * A fake crm-api `GET /system/contacts` (T21 contract), one shape per mode: `companyId` gives that
+ * company's non-archived contacts, last then first name, as `{ id, firstName, lastName, jobTitle }`
+ * with `truncated`; `ids` (at most 20) gives `{ id, companyId, firstName, lastName, jobTitle, email,
+ * phone, archived }` archived or not, in the order asked, an unknown id absent. Neither or both
+ * parameters is a `400`.
+ */
+function fakeCrmContacts(url: URL, authorization: string): Response {
+  crm.calls++;
+  crm.contactCalls++;
+  crm.lastAuthorization = authorization;
+  crm.lastContactsQuery = url.search;
+  if (crm.down || crm.contactsDown) return new Response("down", { status: 503 });
+  if (authorization !== `Bearer ${SERVICE_JWT}`) return Response.json({ status: 401 }, { status: 401 });
+  const companyId = url.searchParams.get("companyId");
+  const ids = url.searchParams.get("ids")?.split(",");
+  if ((companyId === null) === (ids === undefined)) return Response.json({ status: 400 }, { status: 400 });
+  if (ids) {
+    if (ids.length > CRM_CONTACT_IDS_LIMIT || ids.some((id) => id.length < 1 || id.length > 64)) {
+      return Response.json({ status: 400 }, { status: 400 });
+    }
+    return Response.json({
+      items: ids.flatMap((id) =>
+        crm.contacts
+          .filter((contact) => contact.id === id)
+          .map(({ id, companyId, firstName, lastName, jobTitle, email, phone, archived }) => ({
+            id,
+            companyId,
+            firstName,
+            lastName,
+            jobTitle,
+            email,
+            phone,
+            archived,
+          })),
+      ),
+    });
+  }
+  const items = crm.contacts
+    .filter((contact) => contact.companyId === companyId && !contact.archived)
+    .sort((a, b) => a.lastName.localeCompare(b.lastName) || a.firstName.localeCompare(b.firstName))
+    .map(({ id, firstName, lastName, jobTitle }) => ({ id, firstName, lastName, jobTitle }));
+  return Response.json({ items, truncated: false });
+}
+
 const realFetch = globalThis.fetch;
 spyOn(globalThis, "fetch").mockImplementation((async (url: unknown, init?: RequestInit) => {
   const href = String(url);
@@ -272,6 +430,14 @@ spyOn(globalThis, "fetch").mockImplementation((async (url: unknown, init?: Reque
   if (href.startsWith(`${TEST_CRM_URL}/system/deals`)) {
     const authorization = new Headers(init?.headers).get("Authorization") ?? "";
     return fakeCrmDeals(new URL(href), authorization);
+  }
+  if (href.startsWith(`${TEST_CRM_URL}/system/contacts`)) {
+    const authorization = new Headers(init?.headers).get("Authorization") ?? "";
+    return fakeCrmContacts(new URL(href), authorization);
+  }
+  if (href.startsWith(`${TEST_ISSUER}/authz/users/holders`)) {
+    const authorization = new Headers(init?.headers).get("Authorization") ?? "";
+    return fakeHolders(new URL(href), authorization);
   }
   if (href.startsWith(`${TEST_ESTIMAI_URL}/system/estimates/`)) {
     const authorization = new Headers(init?.headers).get("Authorization") ?? "";
@@ -376,11 +542,22 @@ export async function resetWorld(): Promise<void> {
   resetAppAccess();
   crm.companies = [];
   crm.deals = [];
+  crm.contacts = [];
   crm.down = false;
+  crm.contactsDown = false;
   crm.calls = 0;
   crm.dealCalls = 0;
+  crm.contactCalls = 0;
   crm.wonLimit = CRM_WON_LIMIT;
   crm.lastAuthorization = "";
+  crm.lastContactsQuery = "";
+  holders.users = defaultHolders();
+  holders.down = false;
+  holders.status = 200;
+  holders.body = undefined;
+  holders.calls = 0;
+  holders.lastAuthorization = "";
+  holders.lastQuery = "";
   estimai.estimates = new Map();
   estimai.down = false;
   estimai.calls = 0;
