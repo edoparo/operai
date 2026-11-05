@@ -1,4 +1,4 @@
-import { useCallback, useId, useState } from 'react'
+import { useCallback, useEffect, useId, useRef, useState } from 'react'
 import { Link, useParams } from '@tanstack/react-router'
 import { Banner, Button, Card, FactList, Icon, PageHeader, StatePanel, formatDate } from '@operai/ui'
 import { EntityBadge, ProjectStateBadge, ProjectTypeBadge } from '../components/Badges'
@@ -93,6 +93,14 @@ export default function ProjectDetailPage() {
   const [actionError, setActionError] = useState<string | null>(null)
   const [editing, setEditing] = useState(false)
   const [picking, setPicking] = useState(false)
+  // The button that opens the pick dialog goes with the notice once a manager is picked, so the dialog has
+  // nowhere to give focus back to: the page takes it to its heading (QE A1). A counter, not a flag, so each
+  // pick is a new request and the effect has no state to reset.
+  const headingRef = useRef<HTMLHeadingElement>(null)
+  const [headingFocusRequests, setHeadingFocusRequests] = useState(0)
+  useEffect(() => {
+    if (headingFocusRequests > 0) headingRef.current?.focus()
+  }, [headingFocusRequests])
 
   if (resource.status === 'loading') return <Loading label={t.loading} />
   if (resource.status === 'error') {
@@ -149,6 +157,8 @@ export default function ProjectDetailPage() {
       <PageHeader
         title={project.name}
         titleId={titleId}
+        headingRef={headingRef}
+        focusableHeading
         status={<ProjectStateBadge state={project.state} />}
         back={<BackLink />}
         actions={
@@ -249,6 +259,7 @@ export default function ProjectDetailPage() {
           onSaved={(next) => {
             setPicking(false)
             changed(next, t.saved.projectManager)
+            setHeadingFocusRequests((count) => count + 1)
           }}
           onStale={() => {
             setPicking(false)

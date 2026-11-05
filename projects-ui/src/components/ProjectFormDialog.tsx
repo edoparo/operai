@@ -109,6 +109,16 @@ export default function ProjectFormDialog({
     projectManager: manager === null ? strings.people.picker.pickRequired : '',
   })
 
+  // An error is about the value it was raised on: when that value changes, the message goes (QE D2). The
+  // next submit checks everything again.
+  const clearErrors = (...fields: string[]) =>
+    setErrors((current) => {
+      if (!fields.some((field) => current[field])) return current
+      const next = { ...current }
+      for (const field of fields) delete next[field]
+      return next
+    })
+
   // An error that names an input lands on it, and the first invalid input takes the focus.
   const refuseField = (field: string, message: string) => {
     setErrors({ [field]: message })
@@ -173,7 +183,16 @@ export default function ProjectFormDialog({
     >
       <div ref={fieldsRef} className="contents">
         <Field label={t.name} required error={errors['name']} testId="projects-form-name">
-          {(control) => <input {...control} value={name} onChange={(event) => setName(event.target.value)} />}
+          {(control) => (
+            <input
+              {...control}
+              value={name}
+              onChange={(event) => {
+                setName(event.target.value)
+                clearErrors('name')
+              }}
+            />
+          )}
         </Field>
         <Field label={t.type} hint={t.typeHint} required error={errors['type']} testId="projects-form-type">
           {(control) => (
@@ -183,7 +202,11 @@ export default function ProjectFormDialog({
               onChange={(event) => {
                 const next = event.target.value as ProjectType | ''
                 setType(next)
-                if (next === '' || !isClientType(next)) setCompany(null)
+                clearErrors('type')
+                if (next === '' || !isClientType(next)) {
+                  setCompany(null)
+                  clearErrors('company')
+                }
                 // The members are the type's: a form of another type's terms is not carried over (the dates are).
                 setTerms(emptyTermsForm(next === '' ? 'internal' : next))
               }}
@@ -199,7 +222,14 @@ export default function ProjectFormDialog({
         </Field>
         <Field label={t.entity} hint={t.entityHint} required error={errors['entity']} testId="projects-form-entity">
           {(control) => (
-            <select {...control} value={entity} onChange={(event) => setEntity(event.target.value as Entity | '')}>
+            <select
+              {...control}
+              value={entity}
+              onChange={(event) => {
+                setEntity(event.target.value as Entity | '')
+                clearErrors('entity')
+              }}
+            >
               {entities.length !== 1 && <option value="">{strings.common.choose}</option>}
               {entities.map((option) => (
                 <option key={option} value={option}>
@@ -214,7 +244,10 @@ export default function ProjectFormDialog({
             label={t.company}
             hint={t.companyHint}
             value={company}
-            onChange={setCompany}
+            onChange={(choice) => {
+              setCompany(choice)
+              clearErrors('company')
+            }}
             error={errors['company']}
             required
             testId="projects-form-company"
@@ -224,7 +257,10 @@ export default function ProjectFormDialog({
           label={t.projectManager}
           hint={t.projectManagerHint}
           value={manager}
-          onChange={setPickedManager}
+          onChange={(choice) => {
+            setPickedManager(choice)
+            clearErrors('projectManager')
+          }}
           error={errors['projectManager']}
           required
           forbiddenHint={t.projectManagerReadOnlyHint}
@@ -253,8 +289,15 @@ export default function ProjectFormDialog({
                   startDate={startDate}
                   endDate={endDate}
                   errors={errors}
-                  onStartDateChange={setStartDate}
-                  onEndDateChange={setEndDate}
+                  onStartDateChange={(value) => {
+                    setStartDate(value)
+                    // An end before the start is raised on the end date, and a new start may settle it.
+                    clearErrors('startDate', 'endDate')
+                  }}
+                  onEndDateChange={(value) => {
+                    setEndDate(value)
+                    clearErrors('endDate')
+                  }}
                   testIdPrefix="projects-form-terms"
                 />
                 <TermsFields
