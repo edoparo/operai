@@ -43,6 +43,13 @@ import { dealRefs, loadReferent, noStore, purchaseOrderView, type ViewContext } 
 import { toTermsView } from "../terms/terms";
 import { assertCompanyFits, projectCreateData } from "./create";
 import {
+  AWAITING_PROJECT_MANAGER,
+  NO_PROJECT_MANAGER,
+  assertCanPickProjectManager,
+  isAwaitingProjectManager,
+  projectManagerRequired,
+} from "./pick";
+import {
   CreateProjectSchema,
   ListProjectsQuery,
   ProjectManagersSchema,
@@ -90,7 +97,7 @@ export async function toProjectView(c: ViewContext, row: ProjectRow) {
     entity: row.entity,
     company: row.companyId === null ? null : company(row.companyId),
     projectManager: people.maybe(row.projectManagerId),
-    awaitingProjectManager: order !== null && row.projectManagerId === null,
+    awaitingProjectManager: isAwaitingProjectManager(row),
     team: row.members.map((member) => people.person(member.userId)),
     purchaseOrder: order === null ? null : purchaseOrderView(order, deal, people.person, referent),
     terms: row.terms === null ? null : toTermsView(row.terms),
@@ -126,6 +133,7 @@ const listProjectsRoute = createRoute({
   path: "/projects",
   tags: ["Projects"],
   summary: "List projects, by name, 25 per page",
+  description: "`projectManagerId=none` lists only the projects awaiting their project manager.",
   middleware: authorized,
   request: { query: ListProjectsQuery },
   responses: { 200: { description: "A page of projects", ...json(ProjectPageSchema) }, ...commonErrors },
@@ -154,7 +162,12 @@ const updateProjectRoute = createRoute({
   method: "patch",
   path: "/projects/{id}",
   tags: ["Projects"],
-  summary: "Rename a project or change its project manager (If-Match required)",
+  summary: "Rename a project, change its project manager or pick its first (If-Match required)",
+  description:
+    "`projectManagerId` of a project that has none (made from a deal, awaiting one) can be set only by the " +
+    "purchase order's ops-manager, who must still hold `purchase-order:receive` for the project's entity, or by " +
+    "an admin who holds it for every entity (`403 not_ops_manager`); once it has one, any holder of manage " +
+    "projects for the entity may change it. `null` is refused: a project is never left without one.",
   middleware: [...authorized, requireCapability(PROJECT_MANAGE)],
   request: {
     params: IdParams,
@@ -164,7 +177,7 @@ const updateProjectRoute = createRoute({
     200: { description: "Updated", ...json(ProjectSchema) },
     404: { description: "Not found" },
     409: { description: "version_conflict" },
-    422: { description: "not_project_user" },
+    422: { description: "not_project_user or project_manager_required" },
     428: { description: "precondition_required" },
     ...commonErrors,
   },
@@ -212,7 +225,7 @@ projectsRouter.openapi(listProjectsRoute, async (c) => {
     ...(q?.trim() ? { name: { contains: q.trim(), mode: "insensitive" } } : {}),
     ...(type ? { type } : {}),
     ...(state ? { state } : {}),
-    ...(projectManagerId ? { projectManagerId } : {}),
+    ...(projectManagerId === NO_PROJECT_MANAGER ? AWAITING_PROJECT_MANAGER : projectManagerId ? { projectManagerId } : {}),
   };
   const [total, rows] = await Promise.all([
     db.project.count({ where }),
@@ -235,7 +248,7 @@ projectsRouter.openapi(listProjectsRoute, async (c) => {
     entity: row.entity,
     company: row.companyId === null ? null : company(row.companyId),
     projectManager: people.maybe(row.projectManagerId),
-    awaitingProjectManager: row.purchaseOrder !== null && row.projectManagerId === null,
+    awaitingProjectManager: isAwaitingProjectManager(row),
   }));
   return c.json({ items, page, pageSize: DEFAULT_PAGE_SIZE, total }, 200);
 });
@@ -272,11 +285,20 @@ projectsRouter.openapi(updateProjectRoute, async (c) => {
   const current = await findProjectRow(id);
   if (!current) throw notFound("Project not found");
   assertCanManage(c, current.entity);
+  // Once a project has a project manager it is never left without one (AC-4.9).
+  const requested = body.projectManagerId;
+  if (requested === null) throw projectManagerRequired();
+  // The FIRST project manager of a project from a deal is the ops-manager's pick (AC-4.8, D46, D47): the
+  // rule reads the purchase order's `opsManagerId` from the row just loaded, and the write below is a
+  // compare-and-set on the version asserted here, so the check and the write cannot be split by another
+  // save (T18 L5). Once the project has one, manage of the entity is all it takes (specs/021, A34).
+  const picking = requested !== undefined && current.projectManagerId === null;
+  if (picking) assertCanPickProjectManager(c, current);
   assertVersion(current.version, expected);
   // A project manager who is not being changed is not re-checked: a rename must not fail
   // because they have since lost access to the module (AC-1.6 guards who is GIVEN a project).
-  if (body.projectManagerId !== undefined && body.projectManagerId !== current.projectManagerId) {
-    await requireProjectUsers(c, [body.projectManagerId]);
+  if (requested !== undefined && requested !== current.projectManagerId) {
+    await requireProjectUsers(c, [requested]);
   }
   // Compare-and-set on the version: of two saves of the same version only one matches.
   const row = await db.project
@@ -284,7 +306,7 @@ projectsRouter.openapi(updateProjectRoute, async (c) => {
       where: { id, version: expected },
       data: {
         ...(body.name !== undefined ? { name: body.name } : {}),
-        ...(body.projectManagerId !== undefined ? { projectManagerId: body.projectManagerId } : {}),
+        ...(requested !== undefined ? { projectManagerId: requested } : {}),
         version: { increment: 1 },
       },
       include: projectInclude,
@@ -295,6 +317,8 @@ projectsRouter.openapi(updateProjectRoute, async (c) => {
       if (!now) throw notFound("Project not found");
       throw versionConflict(now.version);
     });
+  // The audit line (T18 L6): which event, which project, who — nothing of the person picked.
+  if (picking) console.log(JSON.stringify({ event: "project_manager.picked", projectId: id, actorId: c.get("userId") }));
   c.header("ETag", etag(row.version));
   return c.json(await toProjectView(c, row), 200);
 });

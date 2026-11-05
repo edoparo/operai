@@ -22,6 +22,7 @@ import {
   type HeaderSource,
 } from "../lib/http";
 import { conflict, notFound, validationHook } from "../lib/problem";
+import { isAwaitingProjectManager } from "./pick";
 import { findProjectRow, projectInclude, toProjectView } from "./projects.routes";
 import { ProjectSchema, ProjectStateSchema } from "./projects.schemas";
 import { applyTransition } from "./transitions";
@@ -43,7 +44,7 @@ const transitionRoute = createRoute({
   responses: {
     200: { description: "Moved", ...json(ProjectSchema) },
     404: { description: "Not found" },
-    409: { description: "invalid_transition or version_conflict" },
+    409: { description: "invalid_transition, awaiting_project_manager (to active before the pick) or version_conflict" },
     428: { description: "precondition_required" },
     ...commonErrors,
   },
@@ -90,6 +91,11 @@ transitionsRouter.openapi(transitionRoute, async (c) => {
   const { current, expected } = await loadForWrite(c, id);
   const next = applyTransition(current, to);
   if (!next) throw conflict("invalid_transition", `A ${current.state} project cannot move to ${to}`);
+  // A project made from a deal is not started before its ops-manager has picked its project manager (AC-4.7,
+  // D48); every other move, hold and cancellation included, is specs/021's as usual.
+  if (to === "active" && isAwaitingProjectManager(current)) {
+    throw conflict("awaiting_project_manager", "This project is awaiting its project manager and cannot be started yet");
+  }
   const row = await updateIfVersion(id, expected, next);
   c.header("ETag", etag(row.version));
   return c.json(await toProjectView(c, row), 200);

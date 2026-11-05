@@ -6,7 +6,7 @@
  * not its own fixture); an `internal` project needs no company, so no CRM fixture either.
  */
 import { beforeEach, describe, expect, it } from "bun:test";
-import { call, db, resetWorld, type PersonaName } from "../test-support/world";
+import { call, db, resetWorld, seedDealProject, type PersonaName } from "../test-support/world";
 import type { Prisma } from "../lib/generated/prisma/client";
 
 beforeEach(resetWorld);
@@ -156,6 +156,50 @@ describe("POST /projects/:id/transitions", () => {
     const loser = a.status === 409 ? a : b;
     expect(loser.json).toMatchObject({ code: "version_conflict" });
     expect((await db.project.findUniqueOrThrow({ where: { id: project.id } })).version).toBe(2);
+  });
+});
+
+describe("a project awaiting its project manager cannot be started (specs/022 T27; AC-4.7, D48)", () => {
+  it.each(["pmCh", "opsCh", "admin"] as const)("refuses `planned` → `active` for %s: 409 `awaiting_project_manager`, nothing changes", async (as) => {
+    const { project } = await seedDealProject();
+    const res = await transition(project.id, "active", as);
+    expect(res.status).toBe(409);
+    expect(res.json).toMatchObject({ status: 409, code: "awaiting_project_manager" });
+    expect(await db.project.findUniqueOrThrow({ where: { id: project.id } })).toMatchObject({ state: "planned", version: 1 });
+  });
+
+  it.each(["on_hold", "cancelled"] as const)("still allows `planned` → %s: every other move is specs/021's", async (to) => {
+    const { project } = await seedDealProject();
+    const res = await transition(project.id, to, "pmCh");
+    expect(res.status).toBe(200);
+    expect(res.json).toMatchObject({ state: to, projectManager: null, awaitingProjectManager: true });
+  });
+
+  it("still refuses a move specs/021 refuses with its own code, and a stale version first", async () => {
+    const { project } = await seedDealProject();
+    expect((await transition(project.id, "closed")).json).toMatchObject({ code: "invalid_transition" });
+    expect((await transition(project.id, "active", "pmCh", 9)).json).toMatchObject({ code: "version_conflict" });
+  });
+
+  it("returns a held awaiting project to `planned`, and still not to `active`", async () => {
+    const { project } = await seedDealProject();
+    expect((await transition(project.id, "on_hold", "pmCh", 1)).status).toBe(200);
+    expect((await transition(project.id, "active", "pmCh", 2)).json).toMatchObject({ code: "invalid_transition" });
+    expect((await transition(project.id, "planned", "pmCh", 2)).status).toBe(200);
+    expect((await transition(project.id, "active", "pmCh", 3)).json).toMatchObject({ code: "awaiting_project_manager" });
+  });
+
+  it("starts once the project manager is picked", async () => {
+    const { project } = await seedDealProject();
+    expect((await call("PATCH", `/projects/${project.id}`, { as: "opsCh", body: { projectManagerId: "user-colleague" }, ifMatch: 1 })).status).toBe(200);
+    const res = await transition(project.id, "active", "pmCh", 2);
+    expect(res.status).toBe(200);
+    expect(res.json).toMatchObject({ state: "active", awaitingProjectManager: false });
+  });
+
+  it("does not stop a hand-made project, which never awaits", async () => {
+    const project = await seed();
+    expect((await transition(project.id, "active")).status).toBe(200);
   });
 });
 
