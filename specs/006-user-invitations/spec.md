@@ -313,12 +313,15 @@ require repeating the single-delete flow one person at a time.
 
 ## Non-goals
 
-- **Self-service sign-up.** *(Amended 2026-11-05: the "signs in and receives the baseline
-  `employee` role" path below no longer exists; an uninvited person receives no role at all and can only file an access request; see specs/023, ADR-0071.)* There is still no way for an arbitrary person to create their
-  own Operai account; every new user is either invited by an admin or, unchanged from
-  today, signs in and receives the baseline `employee` role (specs/004 AC-6.3). This
-  feature adds a way to pre-authorize and reach a specific person; it does not open
-  registration.
+- **Self-service sign-up.** *(Amended 2026-11-05, specs/023, ADR-0071: the former path in
+  which an uninvited person "signs in and receives the baseline `employee` role" no longer
+  exists and the sentence below states the current rule.)* There is still no way for an
+  arbitrary person to create their own Operai account: a user is created only for an
+  allowed-domain email holding a live pending invitation, or for the bootstrap admin; an
+  allowed-domain email without an invitation receives no role and can only file an access
+  request, and an outside-domain email is refused with nothing recorded, even with an
+  invitation. This feature adds a way to pre-authorize and reach a specific person; it does
+  not open registration.
 - **Restoring or "undeleting" a soft-deleted user via an explicit admin action.** Even
   though deletion is implemented as a soft delete (their record and data are retained —
   AC-5.4), there is no admin-facing "undo"/"restore" button that reactivates the old
