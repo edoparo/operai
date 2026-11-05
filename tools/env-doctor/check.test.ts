@@ -523,13 +523,13 @@ describe("env-doctor checker", () => {
 });
 
 // The suite with crm-api and projects-api added, in its current (specs/022) shape: both hold a service
-// client, projects-api reads crm-api and estimai-api, crm-api reads projects-api, and all of auth,
-// notify-api, estimai-api, crm-api and projects-api share one SERVICE_AUDIENCE. Used by the specs/021
+// client, projects-api reads crm-api and estimai-api and notifies through notify-api, crm-api reads
+// projects-api, and all of auth, notify-api, estimai-api, crm-api and projects-api share one SERVICE_AUDIENCE. Used by the specs/021
 // and specs/022 blocks below.
 const CLIENT_SECRET_PROJECTS = "p".repeat(40);
 const CLIENT_SECRET_CRM = "m".repeat(40);
-const PROJECTS_SCOPES = "crm.companies.read crm.deals.read estimai.estimates.read";
-const CRM_SCOPES = "notifications.push emails.send projects.contracts.read";
+const PROJECTS_SCOPES = "crm.companies.read crm.deals.read crm.contacts.read estimai.estimates.read notifications.push";
+const CRM_SCOPES = "notifications.push emails.send projects.purchase-orders.read";
 const projectsRegistry = (scope = PROJECTS_SCOPES, crmScope = CRM_SCOPES) =>
   JSON.stringify({
     ...JSON.parse(registry(CLIENT_SECRET)),
@@ -563,6 +563,7 @@ function projectsSuite(): SuiteEnv {
     SERVICE_AUDIENCE: SVC_AUD,
     CRM_INTERNAL_URL: "http://crm-api.railway.internal:8084",
     ESTIMAI_INTERNAL_URL: "http://estimai-api.railway.internal:8080",
+    NOTIFY_INTERNAL_URL: "http://notify-api.railway.internal:8080",
     SERVICE_CLIENT_ID: "projects-api",
     SERVICE_CLIENT_SECRET: CLIENT_SECRET_PROJECTS,
     PORT: "8085",
@@ -641,14 +642,14 @@ describe("env-doctor checker — projects-api and the crm-api service audience (
     expect(errText(checkSuite(s, PROD))).toContain('no entry for client id "someone-else"');
   });
 
-  test("service client: projects-api holds exactly its read scopes — a missing or an extra scope → error", () => {
+  test("service client: projects-api holds exactly its scopes — a missing or an extra scope → error", () => {
     const s = projectsSuite();
-    s.auth!.SERVICE_CLIENTS = projectsRegistry("notifications.push");
+    s.auth!.SERVICE_CLIENTS = projectsRegistry("emails.send");
     const missing = errText(checkSuite(s, PROD));
     expect(missing).toContain('lacks the "crm.companies.read" scope');
-    expect(missing).toContain('holds the "notifications.push" scope, which projects-api does not need');
-    s.auth!.SERVICE_CLIENTS = projectsRegistry(`${PROJECTS_SCOPES} notifications.push`);
-    expect(errText(checkSuite(s, PROD))).toContain('holds the "notifications.push" scope, which projects-api does not need');
+    expect(missing).toContain('holds the "emails.send" scope, which projects-api does not need');
+    s.auth!.SERVICE_CLIENTS = projectsRegistry(`${PROJECTS_SCOPES} emails.send`);
+    expect(errText(checkSuite(s, PROD))).toContain('holds the "emails.send" scope, which projects-api does not need');
   });
 
   test("service client: projects-api's secret differing from the registry entry → error", () => {
@@ -666,8 +667,9 @@ describe("env-doctor checker — projects-api and the crm-api service audience (
 
 // specs/022-projects-handoff: the CRM and projects-api read each other over service credentials, and
 // projects-api reads estimai-api for a deal's man-days (ADR-0060, ADR-0061). New keys: SERVICE_AUDIENCE on
-// estimai-api and projects-api, ESTIMAI_INTERNAL_URL on projects-api, PROJECTS_INTERNAL_URL on crm-api; new
-// scopes on the projects-api and crm-api clients; crm-api's client is no longer notify-only.
+// estimai-api and projects-api, ESTIMAI_INTERNAL_URL and NOTIFY_INTERNAL_URL on projects-api, PROJECTS_INTERNAL_URL
+// on crm-api; new scopes on the projects-api and crm-api clients (`crm.contacts.read` is projects-api's only);
+// crm-api's client is no longer notify-only.
 describe("env-doctor checker — the projects hand-off keys (specs/022)", () => {
   test("a fully-correct suite with the hand-off keys passes with no errors or warnings", () => {
     const f = checkSuite(projectsSuite(), PROD);
@@ -733,6 +735,24 @@ describe("env-doctor checker — the projects hand-off keys (specs/022)", () => 
     expect(errs(checkSuite(s, PROD))).toEqual([]);
   });
 
+  test("NOTIFY_INTERNAL_URL is required on projects-api in production, not locally", () => {
+    const s = projectsSuite();
+    delete s["projects-api"]!.NOTIFY_INTERNAL_URL;
+    expect(errText(checkSuite(s, PROD))).toContain("NOTIFY_INTERNAL_URL is missing");
+    expect(checkSuite(s, PROD).some((x) => x.scope === "projects-api" && x.message === "NOTIFY_INTERNAL_URL is missing")).toBe(true);
+    expect(errText(checkSuite(s, LOCAL))).not.toContain("NOTIFY_INTERNAL_URL is missing");
+  });
+
+  test("projects-api NOTIFY_INTERNAL_URL: a public https URL, the wrong port, or a Railway reference → error / error / ok", () => {
+    const s = projectsSuite();
+    s["projects-api"]!.NOTIFY_INTERNAL_URL = "https://notify.operai.welld.io";
+    expect(checkSuite(s, PROD).some((x) => x.scope === "projects-api" && x.level === "error" && x.message.includes("NOTIFY_INTERNAL_URL"))).toBe(true);
+    s["projects-api"]!.NOTIFY_INTERNAL_URL = "http://notify-api.railway.internal:9999";
+    expect(errText(checkSuite(s, PROD))).toContain("NOTIFY_INTERNAL_URL targets port 9999 but notify-api.PORT is 8080");
+    s["projects-api"]!.NOTIFY_INTERNAL_URL = "http://${{notify-api.RAILWAY_PRIVATE_DOMAIN}}:${{notify-api.PORT}}";
+    expect(errs(checkSuite(s, PROD))).toEqual([]);
+  });
+
   test("PROJECTS_INTERNAL_URL is required on crm-api in production, not locally", () => {
     const s = projectsSuite();
     delete s["crm-api"]!.PROJECTS_INTERNAL_URL;
@@ -748,11 +768,12 @@ describe("env-doctor checker — the projects hand-off keys (specs/022)", () => 
     expect(errText(checkSuite(s, PROD))).toContain("PROJECTS_INTERNAL_URL targets port 9999 but projects-api.PORT is 8085");
   });
 
-  test("locally, an internal URL on localhost is accepted for both new calls", () => {
+  test("locally, an internal URL on localhost is accepted for the new calls", () => {
     const s = projectsSuite();
     s["projects-api"]!.ESTIMAI_INTERNAL_URL = "http://localhost:8080";
+    s["projects-api"]!.NOTIFY_INTERNAL_URL = "http://localhost:8080";
     s["crm-api"]!.PROJECTS_INTERNAL_URL = "http://localhost:8085";
-    // the CORS origins in this fixture are the production ones, so look only at the two URL findings
+    // the CORS origins in this fixture are the production ones, so look only at the URL findings
     expect(checkSuite(s, LOCAL).filter((x) => x.message.includes("INTERNAL_URL"))).toEqual([]);
   });
 
@@ -766,27 +787,52 @@ describe("env-doctor checker — the projects hand-off keys (specs/022)", () => 
     }
   });
 
-  test("service client: projects-api needs crm.deals.read and estimai.estimates.read besides crm.companies.read", () => {
+  test("service client: projects-api needs the specs/022 scopes besides crm.companies.read", () => {
     const s = projectsSuite();
     s.auth!.SERVICE_CLIENTS = projectsRegistry("crm.companies.read"); // the specs/021 entry
     const text = errText(checkSuite(s, PROD));
-    expect(text).toContain('entry "projects-api" lacks the "crm.deals.read" scope');
-    expect(text).toContain('entry "projects-api" lacks the "estimai.estimates.read" scope');
+    for (const scope of ["crm.deals.read", "crm.contacts.read", "estimai.estimates.read", "notifications.push"]) {
+      expect(text).toContain(`entry "projects-api" lacks the "${scope}" scope`);
+    }
     expect(text).not.toContain('entry "projects-api" lacks the "crm.companies.read" scope');
   });
 
-  test("service client: projects-api a single scope of the three is not enough", () => {
-    for (const scope of ["crm.companies.read", "crm.deals.read", "estimai.estimates.read"]) {
+  test("service client: projects-api a single scope of the five is not enough", () => {
+    for (const scope of PROJECTS_SCOPES.split(" ")) {
       const s = projectsSuite();
       s.auth!.SERVICE_CLIENTS = projectsRegistry(scope);
       expect(hasErrors(checkSuite(s, PROD))).toBe(true);
     }
   });
 
-  test("service client: crm-api needs projects.contracts.read besides its notify scopes", () => {
+  test("service client: projects-api drops no scope — each of the five is required", () => {
+    for (const scope of PROJECTS_SCOPES.split(" ")) {
+      const s = projectsSuite();
+      const kept = PROJECTS_SCOPES.split(" ").filter((x) => x !== scope).join(" ");
+      s.auth!.SERVICE_CLIENTS = projectsRegistry(kept);
+      expect(errText(checkSuite(s, PROD))).toContain(`entry "projects-api" lacks the "${scope}" scope`);
+    }
+  });
+
+  test("service client: crm.contacts.read belongs to projects-api only (M2) — crm-api holding it → error", () => {
+    const s = projectsSuite();
+    s.auth!.SERVICE_CLIENTS = projectsRegistry(PROJECTS_SCOPES, `${CRM_SCOPES} crm.contacts.read`);
+    expect(errText(checkSuite(s, PROD))).toContain('entry "crm-api" holds the "crm.contacts.read" scope, which crm-api does not need');
+  });
+
+  test("service client: the retired contracts scope is not accepted in place of projects.purchase-orders.read", () => {
+    const s = projectsSuite();
+    const retired = ["projects", "contracts", "read"].join(".");
+    s.auth!.SERVICE_CLIENTS = projectsRegistry(PROJECTS_SCOPES, `notifications.push emails.send ${retired}`);
+    const text = errText(checkSuite(s, PROD));
+    expect(text).toContain('entry "crm-api" lacks the "projects.purchase-orders.read" scope');
+    expect(text).toContain(`entry "crm-api" holds the "${retired}" scope, which crm-api does not need`);
+  });
+
+  test("service client: crm-api needs projects.purchase-orders.read besides its notify scopes", () => {
     const s = projectsSuite();
     s.auth!.SERVICE_CLIENTS = projectsRegistry(PROJECTS_SCOPES, "notifications.push emails.send"); // the specs/019 entry
-    expect(errText(checkSuite(s, PROD))).toContain('entry "crm-api" lacks the "projects.contracts.read" scope');
+    expect(errText(checkSuite(s, PROD))).toContain('entry "crm-api" lacks the "projects.purchase-orders.read" scope');
   });
 
   test("service client: crm-api keeps its notify scopes — dropping one → error", () => {
