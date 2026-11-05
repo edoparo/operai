@@ -307,6 +307,23 @@ describe("env-doctor checker", () => {
     expect(errText(checkSuite(s, PROD))).toContain("ALLOWED_SIGNUP_DOMAINS is missing");
   });
 
+  test("a reserved test domain in auth's ALLOWED_SIGNUP_DOMAINS is an error in production (specs/023)", () => {
+    for (const bad of ["welld.ch,welld.it,operai.test", "welld.ch,mail.example", "x.invalid", "a.localhost"]) {
+      const s = validSuite();
+      s.auth!.ALLOWED_SIGNUP_DOMAINS = bad;
+      const text = errText(checkSuite(s, PROD));
+      expect(text).toContain("ALLOWED_SIGNUP_DOMAINS");
+      expect(text).toContain("reserved test domain");
+    }
+  });
+
+  test("a reserved test domain is fine outside production-like environments", () => {
+    const s = validSuite();
+    s.auth!.ALLOWED_SIGNUP_DOMAINS = "welld.ch,welld.it,operai.test";
+    const f = checkSuite(s, { env: "local", isProdLike: false });
+    expect(errText(f)).not.toContain("reserved test domain");
+  });
+
   test("a missing SERVICE_AUDIENCE / SERVICE_CLIENTS is an error (the push would silently 401)", () => {
     const s = validSuite();
     delete s["notify-api"]!.SERVICE_AUDIENCE;

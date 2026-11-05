@@ -169,7 +169,7 @@ Work happens in the `main` worktree (`/Users/matteocodogno/LAB/aiscream/operai-m
   - done when: `grep` for the "signs in and receives the baseline `employee`" sentence finds
     only amended text; the SQL runs against the local DB; `mise run changeset:check` passes.
 
-- [ ] T13: [backend] test-auth regressions and the production guard on test domains — refs: AC-1.9, AC-3.8, AC-5.1 — deps: T3, T5
+- [x] T13: [backend] test-auth regressions and the production guard on test domains — refs: AC-1.9, AC-3.8, AC-5.1 — deps: T3, T5
   - touch: `auth/src/test-auth/*`, `auth/src/lib/env.ts`, `auth/src/system/env.startup.test.ts`, `auth/src/signup/allowedDomains*.ts`, `auth/.env.example`, `tools/env-doctor/**`
   - do (plan.md amendment 2026-11-05, T10 findings):
     - test-auth lower-cases the email before lookup and `db.user.create`;

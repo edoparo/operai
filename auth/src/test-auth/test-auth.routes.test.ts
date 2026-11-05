@@ -33,6 +33,7 @@ import {
 
 import { afterAll } from "bun:test";
 import { db } from "../lib/db";
+import * as realCookies from "better-auth/cookies";
 
 // specs/023 T3 (AC-1.9): a NEW test user is created straight in the database
 // (outside the sign-up gate, which would refuse `@operai.test`) plus the
@@ -145,14 +146,26 @@ const mockGetCookies = mock((_opts: unknown) => ({
 // Bun's module mock system patches the module cache; we must call mock.module
 // BEFORE the module-under-test is imported.
 
+// The route must call the hook's OWN function (not a copy), so the mock hands back the real one.
+// The query string loads the real module even when another test file in the same
+// process has already mocked "../auth/auth.config" (module mocks are process-wide).
+const { applyLivePendingInvitationOnUserCreate: realApplyInvitation } = (await import(
+  // @ts-expect-error a query string is not a resolvable module path for tsc, only for Bun
+  "../auth/auth.config.ts?real-invitation-hook"
+)) as typeof import("../auth/auth.config");
+
 mock.module("../auth/auth.config", () => ({
+  applyLivePendingInvitationOnUserCreate: realApplyInvitation,
   auth: {
     options: { baseURL: "http://localhost:3001", basePath: "/auth" },
     $context: Promise.resolve(mockAuthContext),
   },
 }));
 
+// Spread the real exports: module mocks are process-wide and the real auth.config (loaded by
+// the invitation tests, specs/023 T13) needs the rest of this module.
 mock.module("better-auth/cookies", () => ({
+  ...realCookies,
   getCookies: mockGetCookies,
 }));
 
@@ -342,6 +355,8 @@ describe("POST /test-auth/session — happy path (gate open)", () => {
     const envModule = await import("../lib/env");
     (envModule.env as Record<string, unknown>).ENABLE_TEST_AUTH = true;
     (envModule.env as Record<string, unknown>).NODE_ENV = "test";
+    // Local/e2e configuration (plan.md amendment 2026-11-05): the test domain is allowed.
+    (envModule.env as Record<string, unknown>).ALLOWED_SIGNUP_DOMAINS = ["welld.ch", "welld.it", "operai.test"];
     const { testAuthRouter } = await import("./test-auth.routes");
     return testAuthRouter;
   }
@@ -415,6 +430,105 @@ describe("POST /test-auth/session — happy path (gate open)", () => {
     // The session is still minted through better-auth's adapter for that user.
     expect(mockInternalAdapter.createSession).toHaveBeenCalledWith(row?.id, false);
     expect(res.headers.get("set-cookie")).toContain(FAKE_SESSION_TOKEN);
+  });
+
+  test("(a) a mixed-case email is stored lower-cased and finds the same row (T10 finding 1)", async () => {
+    await db.user.deleteMany({ where: { email: "mixed.case@operai.test" } });
+    const router = await openGate();
+    const res = await postMintSession(router, { email: "Mixed.Case@Operai.TEST", name: "Mixed" });
+
+    expect(res.status).toBe(200);
+    expect(mockInternalAdapter.findUserByEmail).toHaveBeenCalledWith("mixed.case@operai.test");
+    const rows = await db.user.findMany({ where: { email: { equals: "mixed.case@operai.test", mode: "insensitive" } } });
+    expect(rows.map((r) => r.email)).toEqual(["mixed.case@operai.test"]);
+    const body = (await res.json()) as Record<string, unknown>;
+    expect(body.email).toBe("mixed.case@operai.test");
+  });
+
+  describe("invited test user (T10 finding 2, AC-3.8)", () => {
+    const EMAIL = "invited.t13@operai.test";
+    let roleId = "";
+    let roleName = "";
+    let deptId = "";
+
+    async function cleanup() {
+      await db.accessRequest.deleteMany({ where: { email: EMAIL } });
+      await db.invitation.deleteMany({ where: { email: EMAIL } });
+      const u = await db.user.findUnique({ where: { email: EMAIL } });
+      if (u) {
+        await db.userDepartment.deleteMany({ where: { userId: u.id } });
+        await db.userRole.deleteMany({ where: { userId: u.id } });
+        await db.user.delete({ where: { id: u.id } });
+      }
+    }
+
+    async function seedInvitation(opts: { roles: boolean }) {
+      const invitation = await db.invitation.create({
+        data: {
+          email: EMAIL,
+          roleIds: opts.roles ? [roleId] : [],
+          departmentIds: [deptId],
+          tokenHash: crypto.randomUUID(),
+          expiresAt: new Date(Date.now() + 60 * 60 * 1000),
+        },
+      });
+      await db.accessRequest.create({
+        data: { email: EMAIL, name: "Invited", provider: "google", invitationId: invitation.id },
+      });
+      return invitation;
+    }
+
+    beforeEach(async () => {
+      const role = await db.role.findFirstOrThrow({ where: { name: { not: "employee" } } });
+      roleId = role.id;
+      roleName = role.name;
+      const dept =
+        (await db.department.findFirst()) ??
+        (await db.department.create({ data: { name: "t13-dept" } }));
+      deptId = dept.id;
+      await cleanup();
+    });
+    afterEach(cleanup);
+
+    test("gets exactly the invitation's roles and departments; invitation accepted, request closed", async () => {
+      const invitation = await seedInvitation({ roles: true });
+      const router = await openGate();
+      const res = await postMintSession(router, { email: EMAIL });
+      expect(res.status).toBe(200);
+
+      expect(await rolesOf(EMAIL)).toEqual([roleName]);
+      const user = await db.user.findUniqueOrThrow({ where: { email: EMAIL } });
+      const depts = await db.userDepartment.findMany({ where: { userId: user.id } });
+      expect(depts.map((d) => d.departmentId)).toEqual([deptId]);
+      const inv = await db.invitation.findUniqueOrThrow({ where: { id: invitation.id } });
+      expect(inv.status).toBe("accepted");
+      expect(inv.acceptedByUserId).toBe(user.id);
+      const req = await db.accessRequest.findUniqueOrThrow({ where: { email: EMAIL } });
+      expect(req.status).toBe("approved");
+    });
+
+    test("an invitation with no domain permission is left alone: baseline employee only", async () => {
+      const invitation = await seedInvitation({ roles: true });
+      const envModule = await import("../lib/env");
+      const router = await openGate();
+      const saved = envModule.env.ALLOWED_SIGNUP_DOMAINS;
+      (envModule.env as Record<string, unknown>).ALLOWED_SIGNUP_DOMAINS = ["welld.ch", "welld.it"];
+      try {
+        const res = await postMintSession(router, { email: EMAIL });
+        expect(res.status).toBe(200);
+      } finally {
+        (envModule.env as Record<string, unknown>).ALLOWED_SIGNUP_DOMAINS = saved;
+      }
+      expect(await rolesOf(EMAIL)).toEqual(["employee"]);
+      const inv = await db.invitation.findUniqueOrThrow({ where: { id: invitation.id } });
+      expect(inv.status).toBe("pending");
+    });
+
+    test("no live invitation: baseline employee only", async () => {
+      const router = await openGate();
+      await postMintSession(router, { email: EMAIL });
+      expect(await rolesOf(EMAIL)).toEqual(["employee"]);
+    });
   });
 
   test("(a) a second call for the same new user reuses the row and the roles (no duplicates)", async () => {

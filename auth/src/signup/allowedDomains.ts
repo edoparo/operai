@@ -24,3 +24,17 @@ export function isAllowedDomain(email: string, domains: readonly string[]): bool
   const domain = email.slice(at + 1).toLowerCase();
   return domain.length > 0 && domains.includes(domain);
 }
+
+/** Top-level names reserved for tests and documentation (RFC 2606 / 6761). */
+export const RESERVED_TEST_TLDS = ["test", "example", "invalid", "localhost"] as const;
+
+/** True when `domain` is, or ends in, a reserved test TLD (`operai.test`, `a.b.example`, `localhost`). */
+export function isReservedTestDomain(domain: string): boolean {
+  const labels = domain.trim().toLowerCase().split(".");
+  return (RESERVED_TEST_TLDS as readonly string[]).includes(labels[labels.length - 1] ?? "");
+}
+
+/** The entries of an allowed-domain list that are reserved test domains. */
+export function reservedTestDomains(domains: readonly string[]): string[] {
+  return domains.filter(isReservedTestDomain);
+}

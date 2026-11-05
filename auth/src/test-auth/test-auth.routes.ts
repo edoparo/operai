@@ -1,7 +1,8 @@
 import { OpenAPIHono } from "@hono/zod-openapi";
 import { z } from "zod";
 import { env } from "../lib/env";
-import { auth } from "../auth/auth.config";
+import { auth, applyLivePendingInvitationOnUserCreate } from "../auth/auth.config";
+import { isAllowedDomain } from "../signup/allowedDomains";
 import { db } from "../lib/db";
 import { assignBaselineRolesToNewUser } from "../authz/seed";
 import { getCookies } from "better-auth/cookies";
@@ -108,10 +109,15 @@ testAuthRouter.post("/test-auth/session", async (c) => {
     );
   }
 
+  // ── Normalise (T10 finding 1) ──────────────────────────────────────────────
+  // better-auth's `adapter.createUser` lower-cases the email; the row written here
+  // must be the one the (lower-cased) fixtures and the invitation lookup find.
+  const email = body.email.toLowerCase();
+
   // ── Test-domain allowlist (OWASP: prevent impersonation of real accounts) ──
   // Reject any email that does not end with @operai.test.  This must run
   // BEFORE the user lookup/create so a real account is never touched.
-  if (!body.email.endsWith(TEST_EMAIL_SUFFIX)) {
+  if (!email.endsWith(TEST_EMAIL_SUFFIX)) {
     return c.json(
       {
         type: "https://httpstatuses.com/403",
@@ -140,7 +146,7 @@ testAuthRouter.post("/test-auth/session", async (c) => {
   // reflects the caller's payload regardless of what the row was first created with.
   let userId: string;
 
-  const existing = await adapter.findUserByEmail(body.email);
+  const existing = await adapter.findUserByEmail(email);
   if (existing) {
     userId = existing.user.id;
     // Upsert the name so callers get deterministic user data in their sessions.
@@ -155,9 +161,15 @@ testAuthRouter.post("/test-auth/session", async (c) => {
     // `user.create.after` hook does for a real sign-up. The session below still
     // comes from `internalAdapter.createSession`, so `session.create.before` applies.
     const created = await db.user.create({
-      data: { email: body.email, name: body.name, emailVerified: true },
+      data: { email, name: body.name, emailVerified: true },
     });
     await assignBaselineRolesToNewUser(created);
+    // T10 finding 2: `user.create.after` also applies a live invitation, which the
+    // direct write skips. Call the hook's own function (not a copy), under the gate's
+    // own condition: an invitation only counts for an allowed domain (AC-3.8).
+    if (isAllowedDomain(created.email, env.ALLOWED_SIGNUP_DOMAINS)) {
+      await applyLivePendingInvitationOnUserCreate(created);
+    }
     userId = created.id;
   }
 
@@ -206,7 +218,7 @@ testAuthRouter.post("/test-auth/session", async (c) => {
   return c.json(
     {
       userId,
-      email: body.email,
+      email,
       name: body.name,
     },
     200,

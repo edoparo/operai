@@ -154,4 +154,36 @@ describe("lib/env.ts — ALLOWED_SIGNUP_DOMAINS (specs/023 AC-1.3, AC-5.1)", () 
       expect(output).toContain("ALLOWED_SIGNUP_DOMAINS");
     }
   });
+
+  // specs/023 T13: a reserved test domain is local/e2e configuration only (plan.md amendment 2026-11-05).
+  test("starts with a reserved test domain outside production", async () => {
+    const { exitCode, output } = await importEnv({
+      NODE_ENV: "development",
+      ALLOWED_SIGNUP_DOMAINS: "welld.ch,welld.it,operai.test",
+    });
+    expect(exitCode).toBe(0);
+    expect(output).toContain("ENV_OK");
+  });
+
+  test("exits under NODE_ENV=production when the list holds a reserved test domain", async () => {
+    for (const bad of ["welld.ch,operai.test", "welld.ch,mail.example", "x.invalid", "a.localhost"]) {
+      const { exitCode, output } = await importEnv({
+        NODE_ENV: "production",
+        ALLOWED_SIGNUP_DOMAINS: bad,
+      });
+      expect(exitCode).not.toBe(0);
+      expect(output).toContain("ALLOWED_SIGNUP_DOMAINS");
+      expect(output).not.toContain("ENV_OK");
+    }
+  });
+
+  test("production still accepts the real domains", async () => {
+    const { exitCode, output } = await importEnv({
+      NODE_ENV: "production",
+      ALLOWED_SIGNUP_DOMAINS: "welld.ch,welld.it",
+    });
+    // Production may refuse for an unrelated missing variable; the domain list must not be the reason.
+    expect(output).not.toContain("reserved test domain");
+    if (exitCode === 0) expect(output).toContain("ENV_OK");
+  });
 });

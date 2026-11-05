@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { isAllowedDomain, parseAllowedDomains } from "./allowedDomains";
+import { isAllowedDomain, isReservedTestDomain, parseAllowedDomains } from "./allowedDomains";
 
 const DOMAINS = ["welld.ch", "welld.it"];
 
@@ -35,5 +35,24 @@ describe("parseAllowedDomains", () => {
     test(`rejects ${JSON.stringify(bad)}`, () => {
       expect(() => parseAllowedDomains(bad)).toThrow();
     });
+  }
+});
+
+describe("isReservedTestDomain (specs/023 plan.md amendment 2026-11-05)", () => {
+  const table: Array<[string, boolean]> = [
+    ["operai.test", true],
+    ["a.b.example", true],
+    ["x.invalid", true],
+    ["app.localhost", true],
+    ["localhost", true],
+    ["OPERAI.TEST", true],
+    ["welld.ch", false],
+    ["welld.it", false],
+    ["test.ch", false],
+    ["mytest", false],
+    ["example.com", false],
+  ];
+  for (const [domain, expected] of table) {
+    test(`${domain} -> ${expected}`, () => expect(isReservedTestDomain(domain)).toBe(expected));
   }
 });

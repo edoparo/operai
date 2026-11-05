@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { parseServiceClients } from "../system/serviceClients";
-import { parseAllowedDomains } from "../signup/allowedDomains";
+import { parseAllowedDomains, reservedTestDomains } from "../signup/allowedDomains";
 
 const envSchema = z.object({
   DATABASE_URL: z.string().min(1, "DATABASE_URL is required"),
@@ -171,6 +171,19 @@ const envSchema = z.object({
       path: ["SERVICE_AUDIENCE"],
       message: "SERVICE_AUDIENCE must differ from AUTH_AUDIENCE (ADR-0044)",
     });
+  }
+  // specs/023 plan.md amendment 2026-11-05: a reserved test domain (operai.test, …) is
+  // local/e2e configuration only; allowing one in production would let anyone who can
+  // register such an address past the gate.
+  if (value.NODE_ENV === "production") {
+    const reserved = reservedTestDomains(value.ALLOWED_SIGNUP_DOMAINS);
+    if (reserved.length > 0) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["ALLOWED_SIGNUP_DOMAINS"],
+        message: `must not contain a reserved test domain in production (${reserved.join(", ")})`,
+      });
+    }
   }
 });
 

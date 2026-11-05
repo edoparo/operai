@@ -27,6 +27,8 @@ import {
   type ServiceName,
 } from "./manifest";
 import type { ServiceEnv } from "./parse";
+// The one predicate for reserved test domains, shared with auth's own startup validation (pure, no deps).
+import { isReservedTestDomain } from "../../auth/src/signup/allowedDomains";
 
 export type { ServiceEnv };
 
@@ -525,6 +527,28 @@ function checkS3Residency(suite: SuiteEnv): Finding[] {
   return out;
 }
 
+// ── Layer B9: a reserved test domain must not be an allowed sign-up domain in production ──
+// specs/023 plan.md amendment 2026-11-05: `operai.test` is local/e2e configuration only. auth exits at
+// startup on it under NODE_ENV=production; this reports it before the deploy.
+function checkSignupDomains(suite: SuiteEnv, opts: CheckOptions): Finding[] {
+  if (!opts.isProdLike) return [];
+  const raw = suite.auth?.ALLOWED_SIGNUP_DOMAINS;
+  if (isEmpty(raw) || !isConcrete(raw)) return [];
+  const reserved = raw
+    .split(",")
+    .map((d) => d.trim())
+    .filter((d) => d !== "" && isReservedTestDomain(d));
+  if (reserved.length === 0) return [];
+  return [
+    {
+      scope: "auth",
+      level: "error",
+      message: `ALLOWED_SIGNUP_DOMAINS contains a reserved test domain (${reserved.join(", ")}) — auth refuses to start in production, and the gate would admit anyone who can register such an address`,
+      fix: "Set ALLOWED_SIGNUP_DOMAINS to the real company domains only (welld.ch,welld.it).",
+    },
+  ];
+}
+
 export function checkSuite(suite: SuiteEnv, opts: CheckOptions): Finding[] {
   return [
     ...checkRequiredKeys(suite, opts),
@@ -537,6 +561,7 @@ export function checkSuite(suite: SuiteEnv, opts: CheckOptions): Finding[] {
     ...checkForbiddenVars(suite),
     ...checkServiceClients(suite),
     ...checkS3Residency(suite),
+    ...checkSignupDomains(suite, opts),
   ];
 }
 

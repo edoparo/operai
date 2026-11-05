@@ -28,6 +28,7 @@
 
 import { afterAll, describe, expect, test, mock, beforeEach } from "bun:test";
 import { db } from "../lib/db";
+import * as realCookies from "better-auth/cookies";
 
 // specs/023 T3: a new test user is written to the database directly (outside the
 // sign-up gate), so the finder answers from the database like the real adapter.
@@ -90,13 +91,18 @@ const mockAuthContext = {
 };
 
 mock.module("../auth/auth.config", () => ({
+  // The route also applies a live invitation for a new user (specs/023 T13); not under test here.
+  applyLivePendingInvitationOnUserCreate: async () => {},
   auth: {
     options: { baseURL: "http://localhost:3001", basePath: "/auth" },
     $context: Promise.resolve(mockAuthContext),
   },
 }));
 
+// Spread the real exports: module mocks are process-wide and the real auth.config (loaded by
+// the invitation tests, specs/023 T13) needs the rest of this module.
 mock.module("better-auth/cookies", () => ({
+  ...realCookies,
   getCookies: mock((_opts: unknown) => ({
     sessionToken: {
       name: MOCK_COOKIE_NAME,
