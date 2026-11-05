@@ -1,171 +1,281 @@
 ---
 spec: 022
 generated: 2026-11-04
-synced: 2026-11-04
+synced: 2026-11-05
 ---
 
 # Tasks: Projects hand-off — a won deal reaches OPS "in series"
 
 Rigor `mvp`: no plan.md; the contract below binds the dev agents as a plan would. Drift
 against it is routed to the product owner. Builds on specs/021's contract
-(`../021-projects/tasks.md` § Architecture notes) and changes it only where stated here.
+(`../021-projects/tasks.md` § Architecture notes) and changes it where stated here.
+
+**Re-sync 2026-11-05.** The spec was steered (ledger D37–D42) and grilled (D43–D51) after
+T1–T16 were built; gate 1 was re-approved on 2026-11-05. T1–T16 stay checked — they were
+built and verified against the 2026-11-04 text — and the new tasks T18–T36 rework what the
+steering changed. The 2026-11-04 notes that no longer hold are listed at the end of
+§ Architecture notes ("Superseded"). User constraint, verbatim: *"visto che sarà una nuova
+PR, le migrazioni a db se necessario puoi resettarle tenendo solo le nuove e poi fai cleanup
+del mio db locale"* — projects-api's two migrations become one (T23) and the local databases
+are reset and reseeded (T36).
 
 ## Architecture notes
 
 ### Components
-- **auth** — three new service scopes; no new permission, role or grant (specs/021's
-  `projects:access` and entity-scoped `project:manage` already cover AC-1.2 / AC-1.4, D36).
-- **estimai-api** — first `/system/*` route: an estimate's man-days for a scoped service
-  credential.
-- **crm-api** — `GET /system/deals` for projects-api; the deal page reads its project and
-  Bexio order id from projects-api.
-- **projects-api** — `GET /system/contracts` for crm-api; the to-start queue; taking a deal
-  (new project or attach); contracts and projects show their deal live.
-- **projects-ui** — queue page, "New project" and "Attach" dialogs, contract card and
-  project page show the deal, its notice and the estimate link.
-- **crm-ui** — a read-only "Delivery" card on the deal page.
+- **auth** — the `projects` catalog loses `contract:bexio` and gains `purchase-order:bexio`,
+  `purchase-order:receive` (entity) and `handoff:take` (entity); a new `ops-manager` system
+  role; a holders listing for the ops-manager picker; service scope `projects.contracts.read`
+  renamed `projects.purchase-orders.read`, new `crm.contacts.read`.
+- **crm-api** — `GET /system/contacts` for projects-api (the referent); the deal page's
+  delivery read moves to `GET /system/purchase-orders` (its own `delivery` shape is unchanged,
+  so **crm-ui is not touched**).
+- **notify-api / notify-ui** — `system:projects-api` may raise `projects` notifications; the
+  centre labels them "Projects".
+- **projects-api** — new data model (project, 0..1 terms, 0..1 purchase order), one fresh
+  migration, "contract" renamed everywhere; the take gains ops-manager, referent and the
+  notification and loses attach; the project-manager pick and the awaiting state; hand-made
+  projects with optional terms.
+- **projects-ui** — rename; queue only for `handoff:take`; new "New project" form; project
+  page with the PO card, the terms card, the awaiting notice and the pick; list awaiting
+  state; hand-made create with optional terms.
 
-### Decided here (mvp, no architect — each is an ADR candidate, written in T15)
-- **Man-days come from EstimAI over a service credential** (user, 2026-11-04, at task
-  derivation). The person taking a deal is often not a collaborator on its estimate, and
-  estimai-api accepts only user JWTs today, so projects-api reads `GET /system/estimates/{id}/summary`
-  as itself (`sub = system:projects-api`, scope `estimai.estimates.read`, ADR-0049
-  pattern). estimai-api computes the figure and returns only it — never the estimate's
-  content. Rejected: a snapshot in crm-api when the estimate is marked ready (misses
-  estimates already ready and admin-marked ones); the latest offer's figure (020 offers
-  without the estimate annex carry none).
-- **The man-days figure** is the estimate's **Expected** effort without AI gain — the sum
-  over activities of PERT + risk buffer, unrounded, then rounded half up once to one decimal
-  (`numeric(6,1)`). It is the figure an offer prints when "AI-assisted" is off. The formula
-  is crm-api's `src/offers/scope.ts` (itself pinned to estimai-ui's `pertCalc`); estimai-api
-  gets a byte-identical copy, enforced by a new `manDays` group in
-  `scripts/check-shared-copies.ts`.
-- **The deal is read live, never synced.** The queue is "CRM deals with stage `won`" minus
-  "deals with a contract", computed on every read; the "no longer won" notice is the deal's
-  live stage. AC-2.1, AC-2.2 and AC-2.4 then hold by construction — no event, no webhook, no
-  CRM write path changes (D17: least invasive). crm-api down → the queue answers 503
-  `crm_unavailable`; a project or contract still loads, with the deal's title and stage
-  unknown (`null`) and no notice.
-- **The deal page reads projects-api server-side.** A CRM user may hold no
-  `projects:access`, so crm-api calls `GET /system/contracts` with its existing service
-  client (which gains `projects.contracts.read`) and fails soft.
-- **Taking a deal collects the contract's dates and terms in the same step.** A contract
-  cannot exist without them (specs/021 CHECKs: fixed price needs deadline and max effort,
-  maintenance an SLA or hours, T&M a position), and AC-1.3 / AC-1.4 make the contract in the
-  same action. Project and contract are written in one transaction.
-- **A contract made from a deal keeps the deal's estimate id** (`Contract.estimateId`,
-  copied at creation like the man-days, A6): it is the AC-3.2 link, and it is what locks the
-  man-days (AC-3.1). The deal's later estimate changes in the CRM do not reach it.
-- **Scope of a take is the deal's entity** (AC-1.2, AC-1.4 as written; A9 lets a deal of
-  the other entity join a project). The new project's entity is the deal's. Attaching does
-  **not** additionally require manage on the target project's entity.
-- **Types offered for a new project from a deal** are the client types `t_and_m`,
-  `fixed_price`, `maintenance` (AC-1.2): `saas` and `internal` are born without a company
-  (specs/021 AC-1.1) and so never from a deal; a deal joins them only by attach (`saas`).
+### Decided here (mvp, no architect — ADR candidates, written in T34)
+- **Terms and the PO are two 0..1 records of a project**, not one. `project_terms` (the old
+  `contract` table, minus its deal and Bexio columns) holds dates and type-specific terms
+  for *any* project that has them; `purchase_order` holds only what a won deal brings: the
+  deal, its estimate id, the Bexio order id, the referent and the ops-manager. A project from
+  a deal always has both; a hand-made project may have terms and never a PO (D38, D50). This
+  keeps specs/021's terms CHECKs, routes and form unchanged in substance and makes "never a
+  PO" a matter of no route creating one. Rejected: terms as columns of `project` (moves every
+  CHECK and the positions, for no behaviour gained); one `purchase_order` table with nullable
+  deal columns for hand-made terms (that is the hand-entered contract D38 removed).
+- **Capabilities, not role names, decide** (ADR-0007): reading the queue and taking a deal
+  need `handoff:take` (sales, own entity; admin, every entity) besides `project:manage`;
+  being a PO's ops-manager needs `purchase-order:receive` (ops-manager, own entity; admin,
+  every entity). "An admin" in D44/D47 is a holder whose grant is **unconditioned**; the
+  prefill counts only entity-scoped holders (D45).
+- **The ops-manager picker reads auth live.** projects-api asks auth for the holders of
+  `purchase-order:receive` for the deal's entity with the caller's own JWT, both to fill the
+  picker and to validate the choice at creation. Fails closed (503).
+- **The referent is an id on the PO, its details read live from crm-api** over the existing
+  service credential (new scope `crm.contacts.read`), one call per project read, never
+  stored (D49). Subject to T18's security check before T20, T21, T24 and T26 start.
+- **The project-manager pick is a `PATCH /projects/{id}`** of `projectManagerId` with a
+  stricter rule while the project has none — no second route.
+- **One fresh migration.** Nothing of specs/021–022 is on `main`, so
+  `prisma/migrations/20261103163000_init` and `20261104120000_handoff` are replaced by one
+  `prisma/migrations/*_init` for the model below (user constraint).
 
 ### Authorization
-No new user permission. Taking a deal needs `project:manage` for the deal's entity; reading
-the queue needs `projects:access`. New service scopes (auth `KNOWN_SERVICE_SCOPES`):
+
+| Capability | Condition | Held by | Needed for |
+|---|---|---|---|
+| `projects:access` | — | project-manager, ops-manager, sales, accounting, admin | every route (unchanged) |
+| `project:manage` | entity (own) | project-manager, ops-manager, sales; admin unconditioned | create/edit projects, terms, referent, states (unchanged) |
+| `handoff:take` | entity (own) | sales; admin unconditioned | `GET /queue` (any entity), take a deal (the deal's entity) |
+| `purchase-order:receive` | entity (own) | ops-manager; admin unconditioned | being a PO's ops-manager; unconditioned = the admin override of D47 |
+| `purchase-order:bexio` | — | accounting, admin | the Bexio order id (was `contract:bexio`) |
+
+Service scopes (auth `KNOWN_SERVICE_SCOPES`):
 
 | Scope | Accepted by | Client that holds it |
 |---|---|---|
-| `crm.deals.read` | crm-api `GET /system/deals` | `projects-api` |
-| `estimai.estimates.read` | estimai-api `GET /system/estimates/{id}/summary` | `projects-api` |
-| `projects.contracts.read` | projects-api `GET /system/contracts` | `crm-api` |
+| `crm.deals.read` | crm-api `GET /system/deals` | `projects-api` (unchanged) |
+| `crm.contacts.read` (new) | crm-api `GET /system/contacts` | `projects-api` |
+| `estimai.estimates.read` | estimai-api `GET /system/estimates/{id}/summary` | `projects-api` (unchanged) |
+| `projects.purchase-orders.read` (was `projects.contracts.read`) | projects-api `GET /system/purchase-orders` | `crm-api` |
+| `notifications.push` | notify-api `POST /system/notifications` | `projects-api` (new holder) |
 
-Every `/system/*` route copies crm-api's `src/system/systemAuth.middleware.ts`: RS256 via
-the suite JWKS, issuer pinned, `aud = SERVICE_AUDIENCE` (optional env; unset → every request
-401, fail closed), the scope in `scope`, `sub = system:<client>`, one identical `401` body
-for every failure, a user JWT never accepted.
+### Data model (projects-api — one migration `prisma/migrations/*_init`)
+- `project` — as specs/021 except: `projectManagerId text NULL`; CHECK
+  `project_company_matches_type` becomes `("companyId" IS NULL) = ("type" = 'internal')`
+  (`saas` is a client type, D40). Other CHECKs kept.
+- `project_terms` (was `contract`; 0..1 per project) — `id`, `projectId` UNIQUE (FK RESTRICT),
+  `type` (= the project's type, kept for the CHECKs), `startDate`, `endDate?`, the fixed-price,
+  SLA and hour-package columns and `estimatedManDays` exactly as specs/021, `version`,
+  timestamps; every specs/021 contract CHECK kept; new CHECK `terms_not_internal`
+  `"type" <> 'internal'`. Dropped: `companyId`, `origin`, `dealId`, `estimateId`,
+  `bexioOrderId`, enum `ContractOrigin`.
+- `project_terms_position` (was `contract_position`; CASCADE on the terms).
+- `purchase_order` (new; 0..1 per project) — `id`, `projectId` UNIQUE (FK RESTRICT), `dealId`
+  UNIQUE NOT NULL (AC-1.6, the database half), `estimateId text NULL`, `bexioOrderId
+  varchar(64) NULL`, `referentContactId text NULL`, `opsManagerId text NOT NULL`,
+  `createdById`, `version`, timestamps.
+- Enforced by the API, not the database: a project with a PO has terms; no route creates a
+  PO except the take; `projectManagerId` is null only while the project has a PO.
 
-### Data model (projects-api, migration `prisma/migrations/*_handoff`)
-- `Contract.estimateId text?` — the deal's EstimAI estimate id at creation; `null` for
-  hand-entered contracts and for deals without an estimate.
-- CHECK `contract_origin_matches_deal`: `("origin" = 'deal') = ("dealId" IS NOT NULL)`.
-- CHECK `contract_estimate_needs_deal`: `"estimateId" IS NULL OR "origin" = 'deal'`.
-- `dealId` stays unique (specs/021) — the database half of AC-1.6.
-
-No change in crm-api or estimai-api data.
+No data change in crm-api, estimai-api or notify-api. auth changes rules and a role through
+its seed, not a migration.
 
 ### API contracts
-Errors are `application/problem+json` with a `code`, as in specs/021. `CompanyRef` and
-`Person` as in specs/021.
+Errors are `application/problem+json` with a `code`, as in specs/021. `CompanyRef`,
+`Person`, the terms input/output shapes and the validation-path rule (`terms.deadline`)
+are specs/021's and 2026-11-04's, renamed from `contract` to `terms`.
 
-**estimai-api (T2)**
-- `GET /system/estimates/{id}/summary` — service JWT, scope `estimai.estimates.read` →
-  `200 { id, name, manDays: number }` (one decimal, ≥ 0); `404 estimate_not_found`; `401`
-  as above. Reads any estimate regardless of owner or collaborators.
+**auth (T19, T20)**
+- Catalog `projects`: resources `projects` (`access`), `project` (`manage`, entity),
+  `purchase-order` (`bexio` no condition; `receive`, entity), `handoff` (`take`, entity). No
+  `contract` resource. Resource keys stay unique across catalogs (the directory gate rule).
+- Seed (idempotent): `ops-manager` system role ("Ops manager — receives purchase orders and
+  picks their project manager") with `projects:access`, `project:manage` own entity,
+  `purchase-order:receive` own entity; `sales` + `handoff:take` own entity; `accounting`
+  `purchase-order:bexio` instead of `contract:bexio`; `admin` `purchase-order:bexio`,
+  `purchase-order:receive`, `handoff:take` unconditioned.
+- `GET /authz/users/holders?resource=purchase-order&action=receive&entity=welld_ch` — user
+  Bearer JWT; gate and rate limit as `GET /authz/users/directory` (`DIRECTORY_GATE_PERMISSIONS`);
+  only the pair `purchase-order:receive` is answerable (any other → `400
+  unsupported_permission`) → `200 { users: [{ id, name, email, entity, unconditioned:
+  boolean }] }`: the active users whose effective permissions grant it for that entity,
+  name-sorted; `unconditioned` is `true` when the granting rule has no condition (admins).
+  `400` bad query, `401`, `403` gate, `429`. (T18 may narrow the fields.)
 
-**crm-api (T3, T10)**
-- `GET /system/deals?stage=won` or `?ids=a,b` (exactly one of the two; `ids` 1–64
-  characters each, ≤ 100) — service JWT, scope `crm.deals.read` → `200 { items:
-  DealSummary[], truncated: boolean }`. `DealSummary = { id, title, stage, entity, company:
-  { id, name }, wonAt: string | null, estimate: { id, name } | null }` — `wonAt` is
-  `closedAt` while the stage is `won`, else `null`; `estimate` is `null` when the deal has
-  no linked estimate. **No amount, currency, owner or notes** (D14). `stage=won` returns
-  won deals by `wonAt` descending, at most 500 (`truncated: true` beyond); `ids` returns
-  those deals in any stage. `400` for neither or both parameters.
-- `GET /deals/{id}` (existing, user route) gains `delivery: { project: { id, name },
-  bexioOrderId: string | null } | null` and `deliveryKnown: boolean` — `false` when
-  projects-api is not configured (`PROJECTS_INTERNAL_URL` unset) or does not answer; then
-  `delivery` is `null` and the deal still loads (fail soft).
+**crm-api (T21)**
+- `GET /system/contacts?companyId=<id>` or `?ids=a,b` (exactly one; `ids` ≤ 100) — service
+  JWT, scope `crm.contacts.read`, system auth as `GET /system/deals` → `200 { items:
+  ContactSummary[] }`, `ContactSummary = { id, companyId: string | null, firstName, lastName,
+  jobTitle: string | null, email: string | null, phone: string | null, archived: boolean }`.
+  `companyId`: that company's non-archived contacts, by last then first name, ≤ 500. `ids`:
+  those contacts whether archived or not. An erased contact is absent. No notes, audit
+  fields or other attribute. `400` for neither or both. (T18 may narrow the fields.)
+- `src/lib/projects.ts` calls `GET /system/purchase-orders?dealIds=` and reads
+  `purchaseOrderId`; `GET /deals/{id}`'s `delivery` / `deliveryKnown` are unchanged.
 
-**projects-api (T4–T8)**
-- `GET /system/contracts?dealIds=a,b` (1–100) — service JWT, scope
-  `projects.contracts.read` → `200 { items: [{ dealId, contractId, project: { id, name },
-  bexioOrderId: string | null }] }`; deals without a contract are absent.
-- `GET /queue?q=&entity=` — `projects:access` → `200 { items: QueueItem[], truncated:
-  boolean }`, `QueueItem = { dealId, title, entity, company: CompanyRef, wonAt, estimate:
-  { id, name } | null }`, won deals without a contract, by `wonAt` descending; `q`
-  case-insensitive substring of title or company name. `503 crm_unavailable`.
-- `POST /queue/{dealId}/project` `{ name, type: "t_and_m" | "fixed_price" | "maintenance",
-  projectManagerId?, contract: { startDate, endDate?, terms } }` → `201 Project`. The
-  project takes the deal's company and entity, state `planned`, PM = the caller unless
-  given; its one contract has `origin: "deal"`, `dealId`, the deal's company, the
-  project's type and `estimateId`.
-- `POST /queue/{dealId}/attach` `{ projectId, contract: { startDate, endDate?, terms } }` →
-  `201 Contract` (same contract fields).
-- Errors of both takes: `404 deal_not_found`; `409 deal_not_won` (live stage is not `won`);
-  `409 deal_taken` (the deal already has a contract — also the unique-index race); `403
-  out_of_scope` (no `project:manage` for the deal's entity); `422 not_project_user` (PM);
-  attach only: `404` unknown project, `409 contracts_not_allowed` (`internal`), `409
-  project_not_open` (`closed` / `cancelled`), `422 company_mismatch` (client project of
-  another company) — each with a `detail` the UI shows (AC-1.5); `422
-  estimated_man_days_from_estimate` when `terms.estimatedManDays` is sent for a deal with
-  an estimate; `503 crm_unavailable`; `503 estimai_unavailable` / `estimai_unconfigured`
-  (only when a `fixed_price` contract must copy man-days). An estimate EstimAI answers
-  `404` for → `estimatedManDays: null`, `estimateId` kept. Unknown project on attach →
-  `404 project_not_found`. A validation error inside the body names the field by its full
-  path in the body (`contract.startDate`, `contract.terms.deadline`) (clarified 2026-11-04,
-  drift raised by T13).
-- **Estimate-backed man-days are server-owned** (clarified 2026-11-04, drift raised by T13):
-  for a deal with an estimate the client **omits** `terms.estimatedManDays` — on a take the
-  server sets it from EstimAI; on `PATCH` the server keeps the stored value. Omitted is never
-  read as `null`. Sending the member, even as `null`, → `422
-  estimated_man_days_from_estimate`.
-- `ContractSummary` (in `Project.contracts`) and `Contract` gain `deal: { id, title: string
-  | null, won: boolean | null } | null` (`null` for hand-entered contracts; `title` / `won`
-  `null` when crm-api cannot answer). `Contract` gains `estimate: { id } | null`.
-  `Contract.dealId` carries the deal id (it was always `null` in specs/021).
-- `PATCH /projects/{id}/contracts/{contractId}`: `terms.estimatedManDays` on a contract with
-  an `estimateId` → `422 estimated_man_days_from_estimate`; `terms` without the member keeps
-  the stored man-days (see above); the body schema stays strict, so
-  `dealId`, `projectId` or `origin` → `400` (AC-1.7: no detach, no move).
+**notify-api (T22)** — `SERVICE_ORIGIN_BINDINGS["system:projects-api"] = ["projects"]`.
 
-**UI links**
-- Estimate: `/estimai/estimates/<id>` (crm-ui `links.ts` precedent); EstimAI's own page
-  decides access and shows its unavailable state (AC-3.2, A16).
-- Deal: `/crm/deals/<id>`.
-- Queue: projects-ui inner route `/queue` (URL `/projects/queue`); no shell change.
+**projects-api — shapes (T23)**
+- `Terms` = specs/021's contract terms output without `companyId`, `origin`, `dealId`,
+  `estimate`, `deal`, `bexioOrderId`: `{ id, type, startDate, endDate, deadline,
+  estimatedManDays, maxEffortManDays, sla, hourPackage, positions, version }`.
+- `PurchaseOrder = { id, deal: { id, title: string | null, won: boolean | null }, estimate:
+  { id } | null, bexioOrderId: string | null, referent: Referent | null, opsManager: Person,
+  version }`. `Referent = { id, status: "ok" | "unavailable", name: string | null, jobTitle:
+  string | null, email: string | null, phone: string | null }` — values `null` when
+  `unavailable`; `referent: null` when none is set **or** the CRM no longer has the contact.
+  (T23 returns `referent: null` always; T26 fills it.)
+- `Project` gains `projectManager: Person | null`, `awaitingProjectManager: boolean` (has a
+  PO and no project manager), `purchaseOrder: PurchaseOrder | null`, `terms: Terms | null`,
+  `startDate` / `endDate` from its terms (`null` without); loses `contracts` and the
+  earliest/latest contract dates. A `saas` project carries its `company`.
+- `ProjectListItem` gains `projectManager: Person | null`, `awaitingProjectManager`; a `saas`
+  row carries `company`; loses `clientCount`.
+
+**projects-api — routes**
+- T23 (parity rename + the new take shape):
+  - `POST /projects/{id}/terms` (create: `409 terms_exist`; `internal` → `409
+    terms_not_allowed`), `PATCH /projects/{id}/terms` (partial, `version`, as the old
+    contract PATCH; `404 terms_not_found`; estimate-backed `estimatedManDays` stay
+    server-owned → `422 estimated_man_days_from_estimate`), `DELETE /projects/{id}/terms` →
+    `204` on a hand-made project, `409 terms_required` on one with a PO. Each needs
+    `project:manage` for the project's entity; open/closed rules as the old contract routes.
+  - `PUT /projects/{id}/purchase-order/bexio-order` — `purchase-order:bexio`, body and rules
+    of the old contract Bexio route; `404 purchase_order_not_found` on a hand-made project.
+  - `GET /system/purchase-orders?dealIds=a,b` (1–100) — scope
+    `projects.purchase-orders.read` → `200 { items: [{ dealId, purchaseOrderId, project: {
+    id, name }, bexioOrderId }] }`.
+  - `POST /queue/{dealId}/project` `{ name, type: "t_and_m" | "fixed_price" | "maintenance" |
+    "saas", terms: TermsInput, opsManagerId: string, referentContactId?: string | null }`
+    (strict: `projectManagerId` → `400`) → `201 Project`: state `planned`, deal's company and
+    entity, **no project manager**, one PO (`dealId`, `estimateId`, `opsManagerId`,
+    `referentContactId`) and its terms, all in one transaction. In T23 `opsManagerId` and
+    `referentContactId` are stored as sent (T24 validates them). The 2026-11-04 take errors
+    stay (`deal_not_found`, `deal_not_won`, `deal_taken`, `out_of_scope`, EstimAI ones).
+  - Removed: `POST /queue/{dealId}/attach`, `PUT /projects/{id}/type`, every
+    `/projects/{id}/contracts*` route, `GET /system/contracts`. `PATCH /projects/{id}` with
+    `type` → `400` (strict; A30).
+- T24 (the take's rules):
+  - `GET /queue` needs `handoff:take` under any entity; `POST /queue/{dealId}/project` needs
+    `handoff:take` **and** `project:manage` for the deal's entity → else `403 out_of_scope`
+    (`403 forbidden` with neither).
+  - `GET /queue/{dealId}/ops-managers` → `200 { items: [{ id, name, admin: boolean }],
+    prefillId: string | null }` — auth holders of `purchase-order:receive` for the deal's
+    entity (`admin` = `unconditioned`), admins last; `prefillId` = the only non-admin when
+    there is exactly one. `404 deal_not_found`, `503 crm_unavailable`, `503
+    identity_unavailable`. Same gate as the take.
+  - The take re-reads that list: `opsManagerId` not in it → `422 ops_manager_invalid`; auth
+    down → `503 identity_unavailable`; nothing written.
+  - `GET /companies/{id}/contacts` → `200 { items: [{ id, name, jobTitle }] }` — the
+    company's non-archived contacts (crm `companyId` mode); `project:manage` under any
+    entity; `503 crm_unavailable`.
+  - The take checks `referentContactId` through crm `ids` mode: unknown, archived, no company
+    or another company than the deal's → `422 referent_invalid`; crm down → `503
+    crm_unavailable`.
+  - `GET /scope` gains `take: Entity[]` (`handoff:take`) and `oversees: boolean`
+    (`purchase-order:receive` covers every entity — the admin case).
+- T25 (notification): after the take commits, one push to `opsManagerId` through notify-api
+  `POST /system/notifications` (`notifications.push`, originApp `projects`): title `Purchase
+  order assigned: <project name>`, body `<company name> — pick the project manager of this
+  project.`, link `{ href: "/projects/<projectId>" }`, severity `info`, English only (D51).
+  Never awaited by the response and never failing it; logs the event kind, project id and an
+  HTTP status only; a no-op when `NOTIFY_INTERNAL_URL` is unset and under `NODE_ENV=test`
+  unless a test injects a notifier — crm-api's `src/lib/notify.ts` is the pattern.
+- T26 (the referent on the PO):
+  - `GET /projects/{id}` resolves `purchaseOrder.referent` with one crm `ids` call per
+    request: found → `status: "ok"` with its fields; absent → `referent: null`; crm down →
+    `status: "unavailable"`, the project still `200`.
+  - `PATCH /projects/{id}/purchase-order` `{ referentContactId: string | null, version }` →
+    `200 PurchaseOrder` — `project:manage` for the entity (`403 out_of_scope`); checks as in
+    T24 (`422 referent_invalid`, `503 crm_unavailable`); `409 version_conflict`; `404
+    purchase_order_not_found` on a hand-made project.
+- T27 (the pick and the awaiting state):
+  - `PATCH /projects/{id}` `projectManagerId`: when the project has none, only the PO's
+    `opsManagerId` or a caller whose `oversees` is true may set it (`403 not_ops_manager`);
+    when it has one, specs/021's rule; `null` → `422 project_manager_required`; the person
+    must hold project access (`422 not_project_user`).
+  - `POST /projects/{id}/transitions` to `active` while awaiting → `409
+    awaiting_project_manager`.
+  - `GET /projects?projectManagerId=none` → only the awaiting projects.
+- T28 (hand-made): `POST /projects` `{ name, type (any of the five), entity, companyId?,
+  projectManagerId?, terms?: TermsInput }` — company required for every type but `internal`
+  (`saas` included) and absent for `internal` (`422 company_required` / `company_not_allowed`);
+  `terms` on `internal` → `422 terms_not_allowed`; invalid terms → `422` naming `terms.<field>`;
+  project and terms in one transaction; the creator is project manager by default; no PO.
+
+**projects-ui (T30–T33)** — renders the shapes above; copy EN / IT: "Purchase order" /
+"Ordine d'acquisto", "Terms" / "Termini", "Referent" / "Referente", "Ops manager" /
+"Responsabile OPS", "Awaiting project manager" / "In attesa del project manager".
+- "To start" nav and `/queue` only when `scope.take` is non-empty; otherwise `/queue` shows
+  the permission-denied state.
+- Project page: a project with a PO shows a **Purchase order** card (deal link
+  `/crm/deals/<id>`, the "no longer won" notice, estimate link `/estimai/estimates/<id>`,
+  Bexio order id, referent with its ok / unavailable / none states and an edit control for
+  manage, ops-manager, and its terms); a hand-made project shows a **Terms** card (add, edit,
+  remove for manage) and nothing of a PO.
+- Awaiting: list cell "Awaiting project manager", filter option "None yet"; page notice
+  naming the ops-manager; "Pick project manager" for the PO's ops-manager
+  (`currentUserId === opsManager.id`) or `scope.oversees`; "Activate" disabled with the
+  reason while awaiting.
+
+### Environment notes (for every agent)
+- Run service commands as `cd <service> && direnv exec . <command>` (the shell loads no
+  direnv); tools through `mise exec --`.
+- **crm-api tests only against `crm_test`**: `cd crm-api && direnv exec . env
+  DATABASE_URL=postgresql://postgres:postgres@localhost:5435/crm_test bun test` — its
+  test world truncates every CRM table and `.envrc` points at the dev `crm`.
+- Never read or print `.env*`; env files are applied by the developer (T35).
 
 ### Deferred (knowingly not done at this tier)
-- Queue pagination: `stage=won` is capped at 500 and the UI says "showing the newest 500"
-  when `truncated` — enough while the CRM is weeks old (A26).
-- The AI-assisted variant of the man-days; offers may print the other one.
-- Production provisioning of the new env keys and service-client scopes (owner, after
-  merge, `provision-tool` skill) and a shell e2e journey — as specs/021.
+- Reassigning a PO, a "my POs" view (non-goals); clearing a referent id the CRM erased (it
+  shows as none, the id stays).
+- An Italian notification (D51); queue pagination (cap 500, as before).
+- Production provisioning of keys, scopes and the `ops-manager` role assignment (owner,
+  after merge, `provision-tool` skill), and a shell e2e journey — as specs/021.
+
+### Superseded (2026-11-04 notes that no longer hold)
+- The `Contract` model, its `origin` / `dealId` / `estimateId` / `bexioOrderId` columns and
+  the two `*_handoff` CHECKs (now `project_terms` + `purchase_order`).
+- `POST /queue/{dealId}/attach`, `PUT /projects/{id}/type`, `/projects/{id}/contracts*`,
+  `GET /system/contracts`, scope `projects.contracts.read`, capability `contract:bexio`.
+- "PM = the caller unless given" on a take (now no PM until the pick); "types offered from a
+  deal are the client types without `saas`" (now with `saas`); "the queue is readable by
+  every access holder" (now `handoff:take`).
 
 ## Tasks
+
+> T1–T16 were built against the 2026-11-04 text and stay checked. Where the steering changed
+> them, the rework is a new task: T7's attach and T13's `AttachDealDialog` are removed (T23,
+> T30); T8 / T14's contract becomes the PO and terms (T23, T30, T32); T4's `/system/contracts`
+> and T1's `projects.contracts.read` are renamed (T23, T19); T12's queue becomes sales-only
+> (T24, T30).
 
 - [x] T1: auth — `crm.deals.read`, `estimai.estimates.read`, `projects.contracts.read` service scopes — refs: AC-1.1, AC-3.1, AC-3.4 — deps: none
   - touch: `auth/src/system/serviceClients.ts`, `auth/src/system/serviceClients.test.ts`
@@ -185,13 +295,13 @@ Errors are `application/problem+json` with a `code`, as in specs/021. `CompanyRe
 - [x] T6: projects-api — `GET /queue` — refs: AC-1.1, AC-1.6, AC-2.1, AC-2.2 — deps: T4, T5
   - touch: `projects-api/src/queue/queue.routes.ts`, `projects-api/src/queue/queue.test.ts`
   - done when: `bun test src/queue/queue.test.ts` is green: a won deal without a contract is listed with title, company, entity, `wonAt` and estimate (or `null`), and no amount field exists in the response; a deal with a contract is absent; a deal reopened in the fake CRM is absent and back once won again; `q` matches title or company name; `entity` filters; `truncated` passes through; crm-api down → `503 crm_unavailable`; no `projects:access` → `403`.
-- [x] T7: projects-api — take a deal: `POST /queue/{dealId}/project` and `/attach`; project and contract creation extracted for reuse — refs: AC-1.2, AC-1.3, AC-1.4, AC-1.5, AC-1.6, AC-3.1, AC-3.2 — deps: T4, T5
+- [x] T7: projects-api — take a deal: `POST /queue/{dealId}/project` and `/attach`; project and contract creation extracted for reuse — refs: AC-1.2, AC-1.3, AC-1.6, AC-3.1, AC-3.2 — deps: T4, T5
   - touch: `projects-api/src/queue/take.routes.ts`, `projects-api/src/queue/take.test.ts`, `projects-api/src/projects/create.ts`, `projects-api/src/contracts/create.ts`, `projects-api/src/projects/projects.routes.ts`, `projects-api/src/contracts/contracts.routes.ts`
   - done when: `bun test src/queue/take.test.ts src/projects src/contracts` is green: "new project" creates a `planned` project with the deal's company and entity, the given name, the caller (or the given module user) as PM, and one `deal` contract with `dealId`, company, type and `estimateId`, in one transaction; only client types are accepted; attach adds a contract of the project's type; each refusal of the contract (`contracts_not_allowed`, `project_not_open` for `closed` and `cancelled`, `company_mismatch`, `out_of_scope` for the other entity, `deal_not_won`, `deal_taken` including two concurrent takes of one deal, `deal_not_found`) leaves no project and no contract behind; a `fixed_price` contract from a deal with an estimate gets the fake EstimAI's man-days and sending `estimatedManDays` → `422`; EstimAI `404` → `null`; EstimAI down → `503` and nothing written; specs/021's `POST /projects` and `POST /projects/{id}/contracts` tests still pass unchanged.
-- [x] T8: projects-api — contracts and projects show their deal; man-days locked; no detach — refs: AC-1.7, AC-2.3, AC-2.4, AC-3.1, AC-3.2, AC-3.3 — deps: T7
+- [x] T8: projects-api — contracts and projects show their deal; man-days locked; no detach — refs: AC-2.3, AC-2.4, AC-3.1, AC-3.2, AC-3.3 — deps: T7
   - touch: `projects-api/src/contracts/contracts.routes.ts`, `projects-api/src/contracts/contracts.schemas.ts`, `projects-api/src/contracts/contracts.test.ts`, `projects-api/src/projects/projects.routes.ts`, `projects-api/src/projects/projects.schemas.ts`, `projects-api/src/projects/projects.test.ts`
   - done when: `bun test src/contracts src/projects` is green: `GET /projects/{id}` and `GET …/contracts/{id}` return `deal: { id, title, won }` read live (one `dealsById` call per request), `won: false` after the fake CRM reopens the deal and `true` again once re-won, `title` / `won` `null` with crm-api down while the project still returns `200`; hand-entered contracts have `deal: null`; `Contract.estimate` is `{ id }` or `null`; `PATCH` with `terms.estimatedManDays` on an estimate-backed contract → `422 estimated_man_days_from_estimate`, on a hand-entered one still allowed; `PATCH` with `dealId`, `projectId` or `origin` → `400`; `DELETE` still `405`.
-- [x] T9: projects-api — authorization matrix covers the new routes — refs: AC-1.1, AC-1.2, AC-1.4 — deps: T4, T6, T7, T8
+- [x] T9: projects-api — authorization matrix covers the new routes — refs: AC-1.1, AC-1.2 — deps: T4, T6, T7, T8
   - touch: `projects-api/src/matrix.test.ts`
   - done when: `bun test src/matrix.test.ts` is green for `GET /queue`, both takes and `GET /system/contracts` × {no access, access only, `project-manager` (welld_ch), `sales` (welld_it), `accounting`, admin} — takes allowed only for manage of the deal's entity, the system route refusing every user JWT — and the full `bun test` and `bun run typecheck` are green.
 - [x] T10: crm-api — the deal page reads its project and Bexio order id from projects-api — refs: AC-3.4 — deps: none
@@ -203,10 +313,10 @@ Errors are `application/problem+json` with a `code`, as in specs/021. `CompanyRe
 - [x] T12: projects-ui — queue page `/queue`, nav entry, API client and types for every 022 route (en + it) — refs: AC-1.1, AC-1.6, AC-2.1 — deps: none
   - touch: `projects-ui/src/router.tsx`, `projects-ui/src/pages/QueuePage.tsx`, `projects-ui/src/pages/QueuePage.test.tsx`, `projects-ui/src/components/ProjectsShell.tsx`, `projects-ui/src/components/ProjectsShell.test.tsx`, `projects-ui/src/lib/projectsApi.ts`, `projects-ui/src/lib/types.ts`, `projects-ui/src/lib/errors.ts`, `projects-ui/src/strings.ts`, `projects-ui/src/strings/queue.ts`, `projects-ui/src/strings/nav.ts`
   - done when: `cd projects-ui && pnpm lint && pnpm build && pnpm test` is green with tests that `/queue` lists title, company, entity, won date and an estimate link (`/estimai/estimates/<id>`) when there is one, renders no amount, filters by search and entity, shows "showing the newest 500" when `truncated`, shows the crm-unavailable state on `503`, and that the shell's nav offers "To start" to every reader; `projectsApi.ts` and `types.ts` carry the queue, take, attach and the new contract fields so T13 and T14 do not edit them.
-- [x] T13: projects-ui — "New project" and "Attach to project" from a queued deal — refs: AC-1.2, AC-1.3, AC-1.4, AC-1.5, AC-3.1 — deps: T12
+- [x] T13: projects-ui — "New project" and "Attach to project" from a queued deal — refs: AC-1.2, AC-1.3, AC-3.1 — deps: T12
   - touch: `projects-ui/src/components/TakeDealDialog.tsx`, `projects-ui/src/components/TakeDealDialog.test.tsx`, `projects-ui/src/components/AttachDealDialog.tsx`, `projects-ui/src/components/AttachDealDialog.test.tsx`, `projects-ui/src/components/ContractTermsFields.tsx`, `projects-ui/src/components/ContractFormDialog.tsx`, `projects-ui/src/pages/QueuePage.tsx`, `projects-ui/src/strings/queue.ts`
   - done when: `pnpm lint && pnpm build && pnpm test` is green with tests that both actions show only with manage scope for the deal's entity; "New project" prefills the name from the deal title (editable), offers only T&M / Fixed price / Maintenance, defaults the PM to the user and lets it change, and asks the contract's dates and terms with the specs/021 per-type fields (now `ContractTermsFields`, shared with `ContractFormDialog`); a fixed-price form from a deal with an estimate shows "estimated man-days: from the estimate" instead of an input; each refusal (`contracts_not_allowed`, `project_not_open`, `company_mismatch`, `deal_taken`, `deal_not_won`) shows its own message; on success the deal leaves the list and the user lands on the project.
-- [x] T14: projects-ui — contract card and project page show the deal, "no longer won" notice, estimate link; man-days read-only — refs: AC-1.7, AC-2.3, AC-2.4, AC-3.1, AC-3.2, AC-3.3 — deps: T12, T13
+- [x] T14: projects-ui — contract card and project page show the deal, "no longer won" notice, estimate link; man-days read-only — refs: AC-2.3, AC-2.4, AC-3.1, AC-3.2, AC-3.3 — deps: T12, T13
   - touch: `projects-ui/src/components/ContractCard.tsx`, `projects-ui/src/components/ContractCard.test.tsx`, `projects-ui/src/components/ContractFormDialog.tsx`, `projects-ui/src/components/ContractFormDialog.test.tsx`, `projects-ui/src/pages/ProjectDetailPage.tsx`, `projects-ui/src/pages/ProjectDetailPage.test.tsx`, `projects-ui/src/strings/contracts.ts`, `projects-ui/src/strings/project.ts`
   - done when: `pnpm lint && pnpm build && pnpm test` is green with tests that a deal contract shows the deal title linking to `/crm/deals/<id>` and the origin "from deal" ("entered by hand" otherwise), the estimate link `/estimai/estimates/<id>` when `estimate` is set, the notice "the deal is no longer won" on the card and on the project page when `deal.won` is `false` and neither when it is `true` or `null`; editing an estimate-backed fixed-price contract shows the man-days read-only; no control detaches or moves a contract.
 - [x] T15: docs — ADR-0060 (hand-off reads between crm-api and projects-api over service credentials, live, no events), ADR-0061 (estimai-api estimate man-days for a service credential; the `manDays` copy), AGENTS.md, READMEs, glossary, changesets — refs: AC-1.1, AC-3.1, AC-3.4 — deps: T2, T3, T4, T10
@@ -215,39 +325,122 @@ Errors are `application/problem+json` with a `code`, as in specs/021. `CompanyRe
 - [x] T16: local env — new keys and service-client scopes in the env examples and env-doctor — drafted by the agent, applied by the developer (the guard stops agents writing env files) — refs: AC-1.1, AC-3.1, AC-3.4 — deps: T1, T2, T3, T4, T5, T10
   - touch: `auth/.env.example`, `estimai-api/.env*`, `crm-api/.env*`, `projects-api/.env*`, `tools/env-doctor/manifest.ts`, `tools/env-doctor/*.test.ts`
   - done when: `bun test tools/env-doctor` is green with `SERVICE_AUDIENCE` for estimai-api and projects-api, `ESTIMAI_INTERNAL_URL` for projects-api and `PROJECTS_INTERNAL_URL` for crm-api in the manifest; the `SERVICE_CLIENTS` example gives `projects-api` `crm.companies.read crm.deals.read estimai.estimates.read` and `crm-api` `projects.contracts.read` besides its notify scopes; with them applied, `mise run dev` shows a seeded won deal in `/projects/queue`.
-- [ ] T17: QE-light verification; all gates green; spec status → done — refs: every AC — deps: T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16
+- [ ] T18: security — design check of the referent read and the ops-manager holders listing, before they are built (D49) — refs: AC-3.6, AC-3.8, AC-3.9, AC-3.10, AC-4.1 — deps: none
+  - touch: `specs/022-projects-handoff/security-review.md`
+  - done when: `wellforge:owasp-reviewer` has reviewed § API contracts "auth (T19, T20)", "crm-api (T21)" and the referent parts of T23–T26 against what crosses from the CRM and auth into the project module and to whom; the main loop has written its verdict and findings to `security-review.md` (the reviewer has no write tool); every finding ≥ medium is folded into these notes — through the product owner if it changes an AC — before T20, T21, T24 or T26 starts.
+- [ ] T19: auth — `projects` catalog (`purchase-order:bexio|receive`, `handoff:take`, no `contract`), `ops-manager` role and grants, service scopes `projects.purchase-orders.read` and `crm.contacts.read` — refs: AC-1.1, AC-1.9, AC-3.4, AC-4.1, AC-4.8 — deps: none
+  - touch: `auth/src/authz/catalogs/projects.ts`, `auth/src/authz/seed.ts`, `auth/src/system/serviceClients.ts`, `auth/src/**/*.test.ts`
+  - done when: `cd auth && direnv exec . bun run typecheck && direnv exec . bun test` is green with tests that the catalog declares exactly the five capabilities of § Authorization with their conditions and no `contract` resource; the seed, run twice, leaves one `ops-manager` system role with `projects:access`, own-entity `project:manage` and `purchase-order:receive`, gives `sales` own-entity `handoff:take`, `accounting` `purchase-order:bexio`, and `admin` `purchase-order:bexio`, `purchase-order:receive` and `handoff:take` unconditioned; a `SERVICE_CLIENTS` entry with `projects.purchase-orders.read` or `crm.contacts.read` is accepted and one with `projects.contracts.read` refuses to start.
+- [ ] T20: auth — `GET /authz/users/holders` for `purchase-order:receive` — refs: AC-4.1, AC-4.2 — deps: T18, T19
+  - touch: `auth/src/authz/holders.routes.ts`, `auth/src/authz/holders.routes.test.ts`, `auth/src/authz/resolver.ts`, `auth/src/index.ts`
+  - done when: `cd auth && direnv exec . bun test src/authz` is green with tests that the route lists, name-sorted, the active `ops-manager` holders of the asked entity with `unconditioned: false` and the admins with `true`, and no ops-manager of the other entity, no soft-deleted user and no other attribute; any pair other than `purchase-order:receive` → `400 unsupported_permission`; a caller without a directory-gate permission → `403`; no token → `401`; the rate limit answers `429`; plus whatever T18 required.
+- [ ] T21: crm-api — `GET /system/contacts` behind `crm.contacts.read`; the deal page reads `GET /system/purchase-orders` — refs: AC-3.4, AC-3.6, AC-3.8, AC-3.9 — deps: T18
+  - touch: `crm-api/src/system/**`, `crm-api/src/index.ts`, `crm-api/src/openapi/registry.ts`, `crm-api/src/lib/projects.ts`, `crm-api/src/lib/projects.test.ts`, `crm-api/src/deals/delivery.test.ts`
+  - done when: on `crm_test` (§ Environment notes) `bun run typecheck` and the full `bun test` are green with tests that `companyId` mode returns that company's non-archived contacts only, sorted, with exactly the `ContactSummary` fields; `ids` mode returns archived ones flagged and omits erased ones; neither or both parameters → `400`; > 100 ids → `400`; a user JWT, another scope and no token → the identical `401`; `GET /deals/{id}` still returns `delivery` / `deliveryKnown` as before, now from a fake `GET /system/purchase-orders`.
+- [ ] T22: notify-api + notify-ui — `system:projects-api` may raise `projects` notifications; the centre labels them "Projects" / "Progetti" — refs: AC-4.3 — deps: none
+  - touch: `notify-api/src/system/systemAuth.middleware.ts`, `notify-api/src/system/systemAuth.middleware.test.ts`, `notify-ui/src/strings.ts`, `notify-ui/src/lib/severity.ts`, `notify-ui/src/**/*.test.ts*`
+  - done when: `cd notify-api && direnv exec . bun test src/system` is green with a test that a `system:projects-api` token may post with `originApp: "projects"` and not with another origin app; `cd notify-ui && mise exec -- pnpm lint && mise exec -- pnpm test` is green with a test that a `projects` notification shows "Projects" (en) and "Progetti" (it).
+- [ ] T23: projects-api — new data model in one fresh migration; "contract" → terms + purchase order at parity; attach, type change and contract routes removed; the new take body — refs: AC-1.2, AC-1.3, AC-1.6, AC-1.8, AC-1.10, AC-2.1, AC-2.2, AC-2.3, AC-2.4, AC-3.1, AC-3.2, AC-3.3, AC-3.4, AC-3.5, AC-5.2, AC-5.4 — deps: none
+  - touch: `projects-api/prisma/**`, `projects-api/src/**`
+  - done when: `prisma/migrations` holds exactly one migration directory besides `migration_lock.toml`; `bun run db:deploy` succeeds on a freshly created empty `projects_test`; `cd projects-api && direnv exec . bun run typecheck && direnv exec . bun test` is green with tests that: the database refuses a second terms row or a second PO for one project, a PO without `dealId` or `opsManagerId`, terms on an `internal` project, a `saas` project without a company, and keeps every specs/021 terms CHECK; the take makes a `planned` project with no project manager, its terms and its PO in one transaction and accepts `saas`; `projectManagerId` in the take body → `400`; the terms routes create, edit and (hand-made only) delete with the errors of § API contracts; estimate-backed man-days stay server-owned; the Bexio route works on the PO and `404`s on a hand-made project; `GET /system/purchase-orders` answers as specified; the removed routes answer `404`; `PATCH /projects/{id}` with `type` → `400`; the deal notice (`won`) and estimate link appear on `purchaseOrder`; no `contract` identifier is left in `src/` (`grep -ri contract src` finds only comments citing specs/021).
+- [ ] T24: projects-api — the take's rules: `handoff:take` gate, ops-manager candidates and check, referent check, contacts for the form, `/scope` `take` and `oversees` — refs: AC-1.1, AC-1.2, AC-1.9, AC-1.11, AC-3.6, AC-4.1, AC-4.2, AC-4.8 — deps: T18, T23
+  - touch: `projects-api/src/queue/**`, `projects-api/src/companies/**`, `projects-api/src/scope/**`, `projects-api/src/auth/guards.ts`, `projects-api/src/lib/crm.ts`, `projects-api/src/lib/holders.ts`, `projects-api/src/lib/holders.test.ts`, `projects-api/src/lib/crm.contacts.test.ts`, `projects-api/src/test-support/**`, `projects-api/src/openapi/registry.ts`
+  - done when: `bun test src/queue src/companies src/scope src/lib` is green with tests that a `project-manager`, an `ops-manager` and `accounting` get `403` on `GET /queue`, the take and `ops-managers`, a `sales` of one entity reads the whole queue but takes only its own entity's deals (`403 out_of_scope`); `ops-managers` returns role holders and admins with `prefillId` set only for exactly one role holder (none, one, two, admins-only cases); a take with an `opsManagerId` outside the list → `422 ops_manager_invalid` and with auth down → `503 identity_unavailable`, nothing written; `referentContactId` of another company, archived, companyless or unknown → `422 referent_invalid`, crm down → `503`; `GET /companies/{id}/contacts` lists non-archived contacts only; `/scope` reports `take` and `oversees`.
+- [ ] T25: projects-api — notify the PO's ops-manager after a take — refs: AC-4.3, AC-4.4 — deps: T22, T24
+  - touch: `projects-api/src/lib/notify.ts`, `projects-api/src/lib/notify.test.ts`, `projects-api/src/lib/env.ts`, `projects-api/src/queue/take.routes.ts`, `projects-api/src/queue/take.test.ts`
+  - done when: `bun test src/lib/notify.test.ts src/queue` is green with tests that one successful take sends exactly one push to `opsManagerId` with originApp `projects`, the English title and body of § API contracts and the link `/projects/<id>`, and nobody else is notified; a notify-api failure, timeout or unset `NOTIFY_INTERNAL_URL` still answers `201` with the project awaiting a project manager; the log carries no token, title or name; a failed take sends nothing.
+- [ ] T26: projects-api — the referent on the PO: live read on the project page, edit through `PATCH /projects/{id}/purchase-order` — refs: AC-3.6, AC-3.7, AC-3.8, AC-3.9, AC-3.10 — deps: T18, T25
+  - touch: `projects-api/src/purchase-orders/**`, `projects-api/src/projects/projects.routes.ts`, `projects-api/src/projects/projects.schemas.ts`, `projects-api/src/projects/projects.test.ts`, `projects-api/src/lib/crm.ts`, `projects-api/src/test-support/**`, `projects-api/src/openapi/registry.ts`
+  - done when: `bun test src/projects src/purchase-orders` is green with tests that `GET /projects/{id}` shows the referent's name, job title, email and phone from the fake CRM with one contacts call, a changed contact shows changed at the next read, an erased one gives `referent: null`, crm down gives `status: "unavailable"` and still `200`; nothing of the contact is stored (the PO row holds only the id); the `PATCH` sets, changes and clears the referent for manage of the entity, refuses others (`403`), refuses an invalid contact (`422 referent_invalid`), a stale version (`409`) and a hand-made project (`404`).
+- [ ] T27: projects-api — the project-manager pick and the awaiting state — refs: AC-4.5, AC-4.7, AC-4.8, AC-4.9 — deps: T26
+  - touch: `projects-api/src/projects/**`, `projects-api/src/test-support/**`
+  - done when: `bun test src/projects` is green with tests that on an awaiting project the PO's ops-manager and an `oversees` admin can set the project manager and another ops-manager, a sales and a project manager of the entity get `403 not_ops_manager`; a person without project access → `422 not_project_user`; after the pick the project is no longer awaiting and any manage holder changes the project manager as in specs/021; `projectManagerId: null` → `422 project_manager_required`; `planned` → `active` while awaiting → `409 awaiting_project_manager` and other moves still work; `GET /projects?projectManagerId=none` returns only awaiting projects and their list items carry `projectManager: null`, `awaitingProjectManager: true`.
+- [ ] T28: projects-api — hand-made projects: any type, `saas` with a company, optional terms at creation — refs: AC-5.1, AC-5.2, AC-5.3 — deps: T27
+  - touch: `projects-api/src/projects/**`, `projects-api/src/terms/**`, `projects-api/src/test-support/**`
+  - done when: `bun test src/projects src/terms` is green with tests that `POST /projects` creates each of the five types with the company rule of § API contracts, the creator as project manager and no PO; with valid terms it creates project and terms together, with invalid ones `422` naming `terms.<field>` and nothing created, with terms on `internal` `422 terms_not_allowed`; a hand-made project's terms can later be added, edited and removed (S5) and no route gives it a PO.
+- [ ] T29: projects-api — authorization matrix for every changed route — refs: AC-1.1, AC-1.9, AC-3.7, AC-4.8, AC-5.1 — deps: T24, T25, T26, T27, T28
+  - touch: `projects-api/src/matrix.test.ts`
+  - done when: `bun test src/matrix.test.ts` is green for `GET /queue`, the take, `ops-managers`, `/companies/{id}/contacts`, the terms routes, the PO routes, the pick and `GET /system/purchase-orders` × {no access, access only, `project-manager` (welld_ch), `ops-manager` (welld_ch), `sales` (welld_it), `accounting`, admin}, matching § Authorization; and the full `bun test` and `bun run typecheck` are green.
+- [ ] T30: projects-ui — rename to purchase order / terms at parity, API client and types for every route above, sales-only queue, attach and type change removed (en + it) — refs: AC-1.1, AC-1.9, AC-1.10, AC-3.3, AC-5.2 — deps: none
+  - touch: `projects-ui/src/**`
+  - done when: `cd projects-ui && mise exec -- pnpm lint && mise exec -- pnpm build && mise exec -- pnpm test` is green with tests that the nav shows "To start" and `/queue` loads only when `scope.take` is non-empty (otherwise the permission-denied state); `AttachDealDialog` and the type-change control no longer exist; the project page renders a project with a PO and one without from the § API contracts shapes (PO card with deal link, notice and estimate link; Terms card without any PO element); `projectsApi.ts`, `types.ts` and `errors.ts` carry every route, shape and error code of § API contracts so T31–T33 do not edit them; no "contract" copy is left in `strings/` (EN "Purchase order", IT "Ordine d'acquisto").
+- [ ] T31: projects-ui — "New project" from a queued deal: `saas` offered, no project manager, ops-manager picker with prefill, referent picker — refs: AC-1.2, AC-1.8, AC-1.11, AC-3.5, AC-3.6, AC-4.1, AC-4.2 — deps: T30
+  - touch: `projects-ui/src/components/TakeDealDialog.tsx`, `projects-ui/src/components/TakeDealDialog.test.tsx`, `projects-ui/src/components/OpsManagerPicker.tsx`, `projects-ui/src/components/ReferentPicker.tsx`, `projects-ui/src/components/ReferentPicker.test.tsx`, `projects-ui/src/pages/QueuePage.tsx`, `projects-ui/src/pages/QueuePage.take.test.tsx`, `projects-ui/src/strings/queue.ts`
+  - done when: `pnpm lint && pnpm build && pnpm test` is green with tests that the form offers T&M / Fixed price / Maintenance / SaaS and no project-manager field; the ops-manager picker lists role holders and admins (marked), is prefilled from `prefillId` and otherwise requires a choice; the referent picker lists the deal company's contacts and may stay empty; fixed price without an estimate offers estimated man-days as optional input; `ops_manager_invalid`, `referent_invalid`, `identity_unavailable`, `out_of_scope` and the 2026-11-04 refusals each show their own message; on success the user lands on the project, awaiting its project manager.
+- [ ] T32: projects-ui — project page: PO card (referent states and edit, ops-manager), awaiting notice, "Pick project manager", activation blocked while awaiting — refs: AC-2.3, AC-2.4, AC-3.1, AC-3.2, AC-3.7, AC-3.8, AC-3.9, AC-3.10, AC-4.6, AC-4.7, AC-4.8, AC-4.9 — deps: T31
+  - touch: `projects-ui/src/components/PurchaseOrderCard.tsx`, `projects-ui/src/components/PurchaseOrderCard.test.tsx`, `projects-ui/src/components/PickProjectManagerDialog.tsx`, `projects-ui/src/components/PickProjectManagerDialog.test.tsx`, `projects-ui/src/components/ReferentPicker.tsx`, `projects-ui/src/components/StateActions.tsx`, `projects-ui/src/pages/ProjectDetailPage.tsx`, `projects-ui/src/pages/ProjectDetailPage.test.tsx`, `projects-ui/src/strings/project.ts`, `projects-ui/src/strings/purchaseOrder.ts`
+  - done when: `pnpm lint && pnpm build && pnpm test` is green with tests that the PO card shows the referent's name, job title, email and phone, "referent unavailable" for `status: "unavailable"` and no referent for `null`, and offers the referent edit only with manage of the entity; an awaiting project shows the notice naming the ops-manager and "Pick project manager" only to that ops-manager or when `scope.oversees`; a successful pick removes the notice; "Activate" is disabled with the reason while awaiting; no control clears the project manager; the estimate-backed man-days stay read-only in the terms edit.
+- [ ] T33: projects-ui — list awaiting state and filter; hand-made create with any type and optional terms; terms add / edit / remove on a hand-made project — refs: AC-4.5, AC-5.1, AC-5.2, AC-5.3, AC-5.4 — deps: T32
+  - touch: `projects-ui/src/pages/ProjectsPage.tsx`, `projects-ui/src/pages/ProjectsPage.test.tsx`, `projects-ui/src/components/ProjectFormDialog.tsx`, `projects-ui/src/components/ProjectFormDialog.test.tsx`, `projects-ui/src/components/TermsCard.tsx`, `projects-ui/src/components/TermsCard.test.tsx`, `projects-ui/src/components/TermsFormDialog.tsx`, `projects-ui/src/pages/ProjectDetailPage.tsx`, `projects-ui/src/strings/projects.ts`
+  - done when: `pnpm lint && pnpm build && pnpm test` is green with tests that an awaiting row reads "Awaiting project manager" and the project-manager filter offers "None yet"; a `saas` row shows its company; the create dialog offers all five types, requires a company for all but Internal, and offers the type's terms as an optional section that, once opened, enforces the type's rules; a hand-made project's Terms card adds, edits and removes terms for manage holders and shows none when it has none.
+- [ ] T34: docs — ADR-0062 (terms and purchase order as two 0..1 records; "contract" retired), ADR-0063 (`handoff:take` and `purchase-order:receive`, the auth holders listing, the admin override); ADR-0060 amended for `/system/purchase-orders`; AGENTS.md, READMEs, changesets — refs: AC-1.9, AC-1.10, AC-4.1, AC-5.2 — deps: T19, T20, T21, T22, T23, T24
+  - touch: `docs/adr/0060-*.md`, `docs/adr/0062-*.md`, `docs/adr/0063-*.md`, `AGENTS.md`, `auth/README.md`, `crm-api/README.md`, `projects-api/README.md`, `notify-api/README.md`, `.changeset/*.md`
+  - done when: both ADRs exist with Context / Decision / Alternatives / Consequences and the rejected alternatives of § Decided here; ADR-0060 carries a dated amendment note; AGENTS.md's index lists 0062 and 0063; `mise exec -- pnpm changeset status` shows bumps for auth, crm-api, notify-api, notify-ui, projects-api and projects-ui.
+- [ ] T35: local env — `NOTIFY_INTERNAL_URL` for projects-api and the renamed / new service-client scopes in the env examples and env-doctor; a script the developer runs for the local values — refs: AC-3.4, AC-3.8, AC-4.3 — deps: T19, T21, T22, T25
+  - touch: `auth/.env.example`, `projects-api/.env.example`, `crm-api/.env.example`, `tools/env-doctor/manifest.ts`, `tools/env-doctor/*.test.ts`
+  - done when: `bun test tools/env-doctor` is green with `NOTIFY_INTERNAL_URL` required for projects-api in the manifest; the `SERVICE_CLIENTS` examples give `projects-api` `crm.companies.read crm.deals.read crm.contacts.read estimai.estimates.read notifications.push` and `crm-api` `projects.purchase-orders.read` besides its notify scopes; the developer has run the main loop's script for the gitignored values (agents never write env files).
+- [ ] T36: local databases — reset `projects` and `projects_test` to the one fresh migration, drop the stale `contract:*` permission rules from the local auth database, assign the `ops-manager` role, reseed CRM, EstimAI and Projects with coherent data (user constraint) — refs: AC-1.1, AC-4.1, AC-5.1 — deps: T19, T23, T35
+  - touch: none in the repository — local databases and the session scratchpad only (main loop)
+  - done when: after a backup of the current dumps, `projects` and `projects_test` hold only the new migration's history; the auth database has no `contract` permission rule and one user per entity holds `ops-manager`; under `mise run dev` the queue shows won deals to a `sales` user and not to a project manager, and the seed holds at least one project awaiting its project manager, one with a project manager and a referent, one `saas` licence project and one hand-made project with terms.
+- [ ] T17: QE-light verification; all gates green; spec status → done — refs: every AC — deps: T18, T19, T20, T21, T22, T23, T24, T25, T26, T27, T28, T29, T30, T31, T32, T33, T34, T35, T36
   - touch: `specs/022-projects-handoff/qe-report.md`, `specs/022-projects-handoff/spec.md`
-  - done when: the quality-engineer's QE-light verdict is PASS in `qe-report.md` — including a live pass: take a won deal into a new fixed-price project and see the estimate's man-days, attach a second deal, reopen and re-win a deal in the CRM and see the notice come and go, open the estimate link as a user without EstimAI access and see EstimAI's unavailable state, see project and Bexio id on the CRM deal page — every local gate it lists is green (auth, estimai-api, crm-api, crm-ui, projects-api, projects-ui, env-doctor, shared copies, changeset, secret scan), and `/wellforge:done 022-projects-handoff` accepts the feature.
+  - done when: the quality-engineer's QE-light verdict is PASS in `qe-report.md` — including a live pass: as `sales`, take a won deal into a new fixed-price project with a referent and the prefilled ops-manager and see the estimate's man-days; as that ops-manager, see the notification, fail to activate the project, pick its project manager; as a project manager, see no queue; open the PO's referent as a user without CRM access; reopen and re-win the deal and see the notice come and go; open the estimate link as a user without EstimAI access; see project and Bexio id on the CRM deal page; create a hand-made `saas` project with terms — every local gate it lists is green (auth, crm-api on `crm_test`, notify-api, notify-ui, crm-ui, projects-api, projects-ui, estimai-api, env-doctor, shared copies, changeset, secret scan), and `/wellforge:done 022-projects-handoff` accepts the feature.
 
 ## Coverage
 
 | AC | Tasks |
 |---|---|
-| AC-1.1 | T1, T3, T6, T9, T12, T16 |
-| AC-1.2 | T7, T9, T13 |
-| AC-1.3 | T7, T13 |
-| AC-1.4 | T7, T9, T13 |
-| AC-1.5 | T7, T13 |
-| AC-1.6 | T5, T6, T7, T12 |
-| AC-1.7 | T8, T14 |
-| AC-2.1 | T3, T6, T12 |
-| AC-2.2 | T3, T6 |
-| AC-2.3 | T3, T8, T14 |
-| AC-2.4 | T8, T14 |
-| AC-3.1 | T1, T2, T5, T7, T8, T13, T14, T16 |
-| AC-3.2 | T5, T7, T8, T14 |
-| AC-3.3 | T8, T14 |
-| AC-3.4 | T1, T4, T10, T11, T16 |
+| AC-1.1 | T19, T24, T30, T36 (built: T3, T6, T12) |
+| AC-1.2 | T23, T24, T31 |
+| AC-1.3 | T23, T31 |
+| AC-1.6 | T23 (built: T5, T6, T7) |
+| AC-1.8 | T23, T31 |
+| AC-1.9 | T19, T24, T29, T30 |
+| AC-1.10 | T23, T30 |
+| AC-1.11 | T24, T31 |
+| AC-2.1 | T23 (built: T3, T6, T12) |
+| AC-2.2 | T23 (built: T3, T6) |
+| AC-2.3 | T23, T32 |
+| AC-2.4 | T23, T32 |
+| AC-3.1 | T23, T32 (built: T2, T5, T7) |
+| AC-3.2 | T23, T32 |
+| AC-3.3 | T23, T30 |
+| AC-3.4 | T19, T21, T23 (built: T10, T11) |
+| AC-3.5 | T23, T31 |
+| AC-3.6 | T18, T21, T24, T26, T31 |
+| AC-3.7 | T26, T29, T32 |
+| AC-3.8 | T18, T21, T26, T32, T35 |
+| AC-3.9 | T18, T21, T26, T32 |
+| AC-3.10 | T18, T26, T32 |
+| AC-4.1 | T18, T19, T20, T24, T31, T36 |
+| AC-4.2 | T20, T24, T31 |
+| AC-4.3 | T22, T25, T35 |
+| AC-4.4 | T25 |
+| AC-4.5 | T27, T33 |
+| AC-4.6 | T32 |
+| AC-4.7 | T27, T32 |
+| AC-4.8 | T19, T24, T27, T29, T32 |
+| AC-4.9 | T27, T32 |
+| AC-5.1 | T28, T29, T33, T36 |
+| AC-5.2 | T23, T28, T30, T33 |
+| AC-5.3 | T28, T33 |
+| AC-5.4 | T23, T33 |
 
-Effective graph (`deps:` ∪ `touch:` overlap), batches that can run in parallel:
-1. T1, T2, T3, T4, T10, T12
-2. T5, T11, T13, T15
-3. T6, T7, T14, T16
-4. T8
-5. T9
-6. T17
+Effective graph (`deps:` ∪ `touch:` overlap) for the open tasks, batches that can run in
+parallel:
+1. T18 (owasp-reviewer), T19 (auth), T22 (notify), T23 (projects-api), T30 (projects-ui)
+2. T20 (auth), T21 (crm-api), T24 (projects-api), T31 (projects-ui)
+3. T25, T32
+4. T26, T33
+5. T27, T34
+6. T28, T35
+7. T29
+8. T36 (main loop)
+9. T17
 
-Declared edges that exist only because of a shared file (all resolved by ordering, none
-merged): T4 → T5 (`projects-api/src/lib/env.ts`), T4 → T6 / T7 (the stub `queue` and
-`take` routers T4 mounts), T7 → T8 (`projects.routes.ts`, `contracts.routes.ts`),
-T12 → T13 (`QueuePage.tsx`, `strings/queue.ts`), T13 → T14 (`ContractFormDialog.tsx`).
+Overlap edges declared (none merged): T19 → T20 (`auth/src/**/*.test.ts`); T23 → T24 →
+T25 → T26 → T27 → T28 → T29 (each touches `projects-api/src/**` or a file of the one
+before — projects-api is one sequential track); T30 → T31 → T32 → T33 (`projects-ui/src/**`,
+`ReferentPicker.tsx`, `ProjectDetailPage.tsx`). The tracks auth, crm-api, notify,
+projects-api and projects-ui share no file and run in parallel worktrees; T23's
+`projects-api/src/**` is deliberately broad because the rename touches nearly every module.
