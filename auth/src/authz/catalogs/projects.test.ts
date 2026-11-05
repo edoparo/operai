@@ -1,6 +1,8 @@
 /**
  * Structural checks of the projects catalog constant (specs/021-projects — AC-4.1,
- * AC-4.3–4.5). The registration path and the role grants are covered by `../seed.test.ts`.
+ * AC-4.3–4.5; specs/022 — AC-1.1, AC-1.9, AC-4.1, AC-4.8: `contract:bexio` becomes
+ * `purchase-order:bexio`, plus `purchase-order:receive` and `handoff:take`). The registration
+ * path and the role grants are covered by `../seed.test.ts`.
  */
 
 import { describe, expect, test } from "bun:test";
@@ -19,15 +21,27 @@ describe("PROJECTS_CATALOG (specs/021)", () => {
     ]);
   });
 
-  test("`project:manage` supports only the entity condition (ADR-0015); `contract:bexio` none", () => {
-    const project = PROJECTS_CATALOG.resources.find((r) => r.key === "project");
-    expect(project?.actions.map((a) => [a.key, a.supportedConditions])).toEqual([["manage", ["entity"]]]);
-    const contract = PROJECTS_CATALOG.resources.find((r) => r.key === "contract");
-    expect(contract?.actions.map((a) => [a.key, a.supportedConditions])).toEqual([["bexio", []]]);
+  test("declares exactly the five capabilities of specs/022 § Authorization, with their conditions", () => {
+    const capabilities = PROJECTS_CATALOG.resources.flatMap((r) =>
+      r.actions.map((a) => [`${r.key}:${a.key}`, a.supportedConditions] as const),
+    );
+    expect(capabilities.sort(([a], [b]) => a.localeCompare(b))).toEqual([
+      ["handoff:take", ["entity"]],
+      ["project:manage", ["entity"]],
+      ["projects:access", []],
+      ["purchase-order:bexio", []],
+      ["purchase-order:receive", ["entity"]],
+    ]);
   });
 
-  test("declares exactly three resources", () => {
-    expect(PROJECTS_CATALOG.resources.map((r) => r.key).sort()).toEqual(["contract", "project", "projects"]);
+  test("declares exactly four resources, and no `contract` resource (the word is retired, D38)", () => {
+    expect(PROJECTS_CATALOG.resources.map((r) => r.key).sort()).toEqual([
+      "handoff",
+      "project",
+      "projects",
+      "purchase-order",
+    ]);
+    expect(PROJECTS_CATALOG.resources.some((r) => r.key === "contract")).toBe(false);
   });
 
   test("no resource key collides with another app's (the resolver keys grants by resource, not app)", () => {
