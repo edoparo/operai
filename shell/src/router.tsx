@@ -137,8 +137,8 @@ const rootRoute = createRootRoute({ component: () => <Outlet /> })
 // Identical contract to estimai-ui/src/router.tsx's `_authed` route (the
 // pattern this task is told to reuse exactly): resolves the session via
 // shell/session's getSession() (cookie-based, T4); no session → throws a
-// full-page redirect (redirect({ href }) infers reloadDocument: true, see
-// @tanstack/router-core's redirect.js) to
+// full-page redirect (reloadDocument: true is set explicitly: router-core
+// >= 1.171.39 no longer infers it from an absolute href) to
 // `<AUTH_URL>/sign-in?redirect=<current absolute URL>`. The `redirect` value
 // is the real window.location.href — open-redirect safe because the auth
 // service only ever honours its own ALLOWED_ORIGINS allowlist when deciding
@@ -179,7 +179,7 @@ const authedRoute = createRoute({
       // Synchronous fast path — see doc above for why returning here (not a
       // Promise) is the whole point.
       if (!cachedSession.data) {
-        throw redirect({ href: buildSignInRedirectUrl() })
+        throw redirect({ href: buildSignInRedirectUrl(), reloadDocument: true })
       }
       return
     }
@@ -187,7 +187,7 @@ const authedRoute = createRoute({
     return (async () => {
       const session = await getSession()
       if (!session?.data) {
-        throw redirect({ href: buildSignInRedirectUrl() })
+        throw redirect({ href: buildSignInRedirectUrl(), reloadDocument: true })
       }
     })()
   },

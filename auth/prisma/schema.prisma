@@ -114,6 +114,11 @@ model Jwks {
   publicKey  String
   privateKey String
   createdAt  DateTime @default(now())
+  // better-auth >= 1.7 jwt plugin: optional key expiry + algorithm/curve of the
+  // stored key. Nullable, so rows written by 1.6 stay valid.
+  expiresAt  DateTime?
+  alg        String?
+  crv        String?
 
   @@map("jwks")
 }

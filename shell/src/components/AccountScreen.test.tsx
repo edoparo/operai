@@ -52,6 +52,8 @@ function assertZeroInteractiveElements(container: HTMLElement) {
 
 afterEach(() => {
   cleanup()
+  // vitest 4: restoreAllMocks no longer resets call history or vi.fn() implementations
+  vi.resetAllMocks()
   vi.restoreAllMocks()
 })
 
