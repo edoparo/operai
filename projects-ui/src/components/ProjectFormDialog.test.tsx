@@ -13,6 +13,7 @@ import { ScopeContext } from '../hooks/useScope'
 import { fakeApi, problem, projectSummary, scope } from '../test-support/fakeApi'
 import type { FakeHandler } from '../test-support/fakeApi'
 import type { Scope } from '../lib/types'
+import { strings } from '../strings'
 
 const { apiFetch } = vi.hoisted(() => ({ apiFetch: vi.fn() }))
 vi.mock('shell/session', () => ({
@@ -437,6 +438,87 @@ describe('the project manager field', () => {
     fireEvent.click(within(dialog).getByTestId('projects-form-submit'))
     await waitFor(() => expect(onSaved).toHaveBeenCalled())
     expect(posted()).toEqual({ name: 'Ops tooling', type: 'internal', entity: 'welld_ch' })
+  })
+})
+
+describe('an error ends when the value it was about changes (QE D2, after a failed submit)', () => {
+  const COMPANY_ERROR = 'Choose a company from the list.'
+  const REQUIRED = 'This field is required.'
+
+  it('clears "Choose a company" once a company is chosen', async () => {
+    const dialog = renderDialog()
+    setField(dialog, /^Name/, 'Intranet')
+    setField(dialog, /^Type/, 't_and_m')
+    setField(dialog, /wellD entity/, 'welld_ch')
+    submit(dialog)
+    expect(within(dialog).getByText(COMPANY_ERROR)).not.toBeNull()
+    await chooseCompany(dialog)
+    expect(within(dialog).queryByText(COMPANY_ERROR)).toBeNull()
+  })
+
+  it('does not bring a company error back from a type that had none', async () => {
+    const dialog = renderDialog()
+    setField(dialog, /^Name/, 'Intranet')
+    setField(dialog, /^Type/, 't_and_m')
+    setField(dialog, /wellD entity/, 'welld_ch')
+    submit(dialog)
+    setField(dialog, /^Type/, 'internal')
+    setField(dialog, /^Type/, 'saas')
+    expect(within(dialog).queryByText(COMPANY_ERROR)).toBeNull()
+  })
+
+  it('clears "required" on the name, the type and the entity as each is filled in', () => {
+    const dialog = renderDialog()
+    submit(dialog)
+    expect(within(dialog).getAllByText(REQUIRED)).toHaveLength(3)
+    setField(dialog, /^Name/, 'Intranet')
+    expect(within(dialog).getAllByText(REQUIRED)).toHaveLength(2)
+    setField(dialog, /^Type/, 'internal')
+    expect(within(dialog).getAllByText(REQUIRED)).toHaveLength(1)
+    setField(dialog, /wellD entity/, 'welld_ch')
+    expect(within(dialog).queryByText(REQUIRED)).toBeNull()
+  })
+
+  it('clears the project manager error once a person is picked', async () => {
+    const dialog = renderDialog()
+    setField(dialog, /^Name/, 'Ops tooling')
+    setField(dialog, /^Type/, 'internal')
+    setField(dialog, /wellD entity/, 'welld_ch')
+    const manager = within(dialog).getByRole('combobox', { name: /Project manager/ })
+    // Typing over the caller's name un-chooses them: the project has no project manager until one is picked.
+    fireEvent.change(manager, { target: { value: 'bo' } })
+    submit(dialog)
+    const refusal = strings.people.picker.pickRequired
+    expect(within(dialog).getByText(refusal)).not.toBeNull()
+    fireEvent.click(await within(dialog).findByRole('option', { name: /Bob Builder/ }))
+    expect(within(dialog).queryByText(refusal)).toBeNull()
+  })
+
+  it('clears a server refusal on the project manager once another person is picked', async () => {
+    const dialog = renderDialog({ 'POST /projects': () => problem(422, 'not_project_user') })
+    setField(dialog, /^Name/, 'Ops tooling')
+    setField(dialog, /^Type/, 'internal')
+    setField(dialog, /wellD entity/, 'welld_ch')
+    fireEvent.focus(within(dialog).getByRole('combobox', { name: /Project manager/ }))
+    fireEvent.click(await within(dialog).findByRole('option', { name: /Bob Builder/ }))
+    submit(dialog)
+    const refusal = await within(dialog).findByText(strings.projects.form.errors.not_project_user)
+    expect(refusal).not.toBeNull()
+    fireEvent.change(within(dialog).getByRole('combobox', { name: /Project manager/ }), { target: { value: 'x' } })
+    expect(within(dialog).queryByText(strings.projects.form.errors.not_project_user)).toBeNull()
+  })
+
+  it('clears the start date error once a date is entered', () => {
+    const dialog = renderDialog()
+    setField(dialog, /^Name/, 'Ops tooling')
+    setField(dialog, /^Type/, 'fixed_price')
+    setField(dialog, /wellD entity/, 'welld_ch')
+    openTerms(dialog)
+    submit(dialog)
+    expect(within(dialog).getAllByText(REQUIRED).length).toBeGreaterThan(0)
+    const before = within(dialog).getAllByText(REQUIRED).length
+    setField(dialog, /Start date/, '2026-12-01')
+    expect(within(dialog).queryAllByText(REQUIRED).length).toBe(before - 1)
   })
 })
 

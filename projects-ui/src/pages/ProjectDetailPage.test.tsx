@@ -847,6 +847,17 @@ describe('a project awaiting its project manager (D42, AC-4.5 – AC-4.9)', () =
       expect((await screen.findByTestId('projects-saved')).textContent).toContain('Project manager picked.')
     })
 
+    it('after the pick focus is on the project heading, not lost with the button that opened the dialog (QE A1)', async () => {
+      await renderProject(awaiting(ADA), { 'PATCH /projects/p1': () => ({ status: 200, body: picked() }) })
+      const dialog = await chooseBob()
+      fireEvent.click(within(dialog).getByTestId('project-pick-manager-submit'))
+      await waitFor(() => expect(notice()).toBeNull())
+      const heading = within(screen.getByTestId('project-detail-page')).getByRole('heading', { level: 2 })
+      expect(document.activeElement).toBe(heading)
+      // Programmatic focus only: the heading is not a tab stop.
+      expect(heading.getAttribute('tabindex')).toBe('-1')
+    })
+
     it('after the pick the project can be started', async () => {
       await renderProject(awaiting(ADA), { 'PATCH /projects/p1': () => ({ status: 200, body: picked() }) })
       expect((screen.getByRole('button', { name: 'Start project' }) as HTMLButtonElement).disabled).toBe(true)
