@@ -252,6 +252,7 @@ export const memoryStorage: Storage = {
 };
 
 export async function resetWorld(): Promise<void> {
+  estimaiVersions.clear();
   await db.$executeRawUnsafe(
     'TRUNCATE TABLE "offer_template", "offer_sequence", "deal_offer", "deal_attachment", "deal_estimate", "entity_profile", "activity", "deal", "contact", "company" RESTART IDENTITY CASCADE',
   );
@@ -303,6 +304,36 @@ export async function markEstimateReady(dealId: string, technicalUserId = "user-
     update: { state: "ready", readyBy: technicalUserId, readyAt: now },
   });
 }
+
+/** The EstimAI version each fixture estimate is at: a notice carries the next one. */
+const estimaiVersions = new Map<string, number>();
+
+/**
+ * What estimai-api sends when the deal's estimate is closed or reopened in EstimAI
+ * (specs/018 AC-3.3): `POST /system/estimate-notices` with its service JWT.
+ */
+export async function estimaiNotice(
+  dealId: string,
+  event: "closed" | "reopened" = "closed",
+  options: { by?: string; version?: number; sub?: string; scope?: string } = {},
+) {
+  const link = await db.dealEstimate.findUniqueOrThrow({ where: { dealId } });
+  const version = options.version ?? (estimaiVersions.get(link.estimateId) ?? 1) + 1;
+  estimaiVersions.set(link.estimateId, Math.max(version, estimaiVersions.get(link.estimateId) ?? 0));
+  const token = await harness.signServiceToken({
+    sub: options.sub ?? "system:estimai-api",
+    scope: options.scope ?? "notifications.push estimate-notices.send",
+  });
+  const res = await app.request("/system/estimate-notices", {
+    method: "POST",
+    headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+    body: JSON.stringify({ estimateId: link.estimateId, event, version, at: new Date().toISOString(), byUserId: options.by ?? "user-tech" }),
+  });
+  return { status: res.status };
+}
+
+/** A service JWT of another shape, for the credential tests. */
+export const signServiceToken = (options: { sub: string; scope: string; audience?: string }) => harness.signServiceToken(options);
 
 export async function makeDeal(companyId: string, overrides: Record<string, unknown> = {}, as: PersonaName = "admin") {
   const res = await call("POST", "/deals", {

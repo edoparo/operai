@@ -43,8 +43,8 @@ The proposal. **Email** means the recipient gets the notification and an email n
 | # | Event | Recipient | Channel | Why |
 |---|---|---|---|---|
 | E1 | An estimate is requested | the technical contact | **email** + in-app | They must do the work, with a due date. Holds up the deal. |
-| E2 | The estimate is marked ready | the requester and the deal owner | **email** + in-app | The deal can now move to proposal. |
-| E3 | The estimate is reopened | the technical contact | **email** + in-app | Work is needed again and the deal is held up again. |
+| E2 | The estimate is closed in EstimAI (specs/018 AC-3.3) | the requester and the deal owner | **email** + in-app | The deal can now move to proposal. |
+| E3 | The estimate is reopened in EstimAI | the technical contact and the requester | **email** + in-app | Work is needed again and the deal is held up again. |
 | E4 | A deal gets a new owner | the new owner | **email** + in-app | They are now responsible for the deal. |
 | E5 | A task is assigned to someone else, or reassigned | the assignee | **email** + in-app | Work handed to them, with a due date (owner, 2026-11-01). |
 | E6 | The estimate is unlinked | the technical contact | in-app | Their work on it stops. The task closes on its own. |
@@ -69,10 +69,11 @@ and meetings; uploading attachments; moves between open stages.
 
 ### US-2 The salesperson learns when the estimate is ready
 
-- **AC-2.1** When the estimate is marked ready (E2), the requester and the deal owner
+- **AC-2.1** When the estimate is closed in EstimAI (E2, amended 2026-11-05, ADR-0073), the requester and the deal owner
   receive an in-app notification and an email notice, each at most once even when one person
   is both.
-- **AC-2.2** When it is reopened (E3), the technical contact receives both.
+- **AC-2.2** When it is reopened in EstimAI (E3), the technical contact and the requester receive
+  both, except whoever reopened it.
 
 ### US-3 Handovers are announced in the app
 

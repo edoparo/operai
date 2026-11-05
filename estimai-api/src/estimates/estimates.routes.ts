@@ -17,6 +17,10 @@
  *                                                          see the updateEstimateRoute doc comment)
  *   DELETE /estimates/:id      → 204 (no body)           (AC-3.1; still owner-only)
  *
+ * A CLOSED estimate (POST /estimates/{id}/close, lifecycle.routes.ts) is
+ * read-only: PUT answers 409 `estimate_closed` (same atomic CAS predicate).
+ * DELETE and collaborator management stay allowed while closed.
+ *
  * Endpoints on importEstimatesRouter (larger body limit — see BODY LIMIT DESIGN):
  *   POST   /estimates/import   → 200 ImportResponse      (AC-5.2, AC-5.4)
  *
@@ -59,7 +63,13 @@ import { OpenAPIHono, createRoute, z } from "@hono/zod-openapi";
 import { Effect } from "effect";
 import { bodyLimit } from "hono/body-limit";
 import { jwtMiddleware, type JwtVariables } from "@/auth/jwt.middleware";
-import { ConflictError, ForbiddenError, NotFoundError, SizeError } from "@/lib/errors";
+import {
+  ConflictError,
+  EstimateStateError,
+  ForbiddenError,
+  NotFoundError,
+  SizeError,
+} from "@/lib/errors";
 import { env } from "@/lib/env";
 import { resolveIdentities, type Identity as ResolvedIdentity } from "@/lib/authClient";
 import {
@@ -69,9 +79,26 @@ import {
   EstimateIdParamSchema,
   ImportRequestSchema,
   ImportResponseSchema,
-  IdentitySchema,
   type Identity,
 } from "./estimates.schemas";
+import {
+  ConflictProblemSchema,
+  ProblemSchema,
+  ProblemWithCodeSchema,
+  UNKNOWN_IDENTITY,
+  parseIfMatch,
+  problemBadRequest,
+  problemConflict,
+  problemEstimateState,
+  problemForbidden,
+  problemNotFound,
+  problemPayloadTooLarge,
+  problemPreconditionRequired,
+  resolveFullIdentities,
+  resolveIdentityFor,
+  toWireFull,
+  toWireListItem,
+} from "./estimates.wire";
 import {
   createEstimate,
   listEstimates,
@@ -79,155 +106,10 @@ import {
   updateEstimate,
   deleteEstimate,
   computeSizeBytes,
-  type EstimateFullRow,
-  type EstimateListRow,
 } from "./estimates.repo";
 
-// ─── Problem JSON helpers ─────────────────────────────────────────────────────
-
-const problemNotFound = (path: string, detail: string) => ({
-  type: "https://httpstatuses.com/404",
-  title: "Not Found",
-  status: 404 as const,
-  detail,
-  instance: path,
-});
-
-const problemBadRequest = (path: string, detail: string) => ({
-  type: "https://httpstatuses.com/400",
-  title: "Bad Request",
-  status: 400 as const,
-  detail,
-  instance: path,
-});
-
-const problemPayloadTooLarge = (path: string, actualBytes: number, limitBytes: number) => ({
-  type: "https://httpstatuses.com/413",
-  title: "Payload Too Large",
-  status: 413 as const,
-  detail: `Estimate content is ${(actualBytes / 1024 / 1024).toFixed(1)} MB; the maximum is ${(limitBytes / 1024 / 1024).toFixed(1)} MB. Nothing was saved.`,
-  instance: path,
-});
-
-// T6 (specs/013-estimate-sharing) — the 403 half of the denial taxonomy
-// (ADR-0037): a relationship to the record exists but the caller's level is
-// insufficient for the attempted operation. `code` is the stable
-// machine-readable discriminant the plan's API contracts specify
-// (e.g. "owner_only").
-const problemForbidden = (path: string, detail: string, code: string) => ({
-  type: "https://httpstatuses.com/403",
-  title: "Forbidden",
-  status: 403 as const,
-  detail,
-  code,
-  instance: path,
-});
-
-// T7 (specs/013-estimate-sharing, ADR-0038) — `If-Match` is REQUIRED on PUT.
-// Absent or malformed → 428, checked BEFORE the size guard and BEFORE any
-// DB access (plan.md's fixed evaluation order: 401 → 400 → 428 → 413 →
-// 404/403 → 409), so a request that never carried a usable precondition is
-// rejected before it can influence, or be influenced by, the CAS at all.
-const PRECONDITION_REQUIRED_DETAIL =
-  "This save needs an If-Match precondition. Reload the estimate.";
-
-const problemPreconditionRequired = (path: string) => ({
-  type: "https://httpstatuses.com/428",
-  title: "Precondition Required",
-  status: 428 as const,
-  detail: PRECONDITION_REQUIRED_DETAIL,
-  code: "precondition_required",
-  instance: path,
-});
-
-// T7 — the 409 half of optimistic concurrency (plan.md "Optimistic
-// concurrency (US-4)"). `currentVersion`/`updatedAt` are DB facts;
-// `lastModifiedBy` is a best-effort display identity (never blocks the 409 —
-// resolveIdentities fails soft) and NEVER carries estimate content.
-const problemConflict = (
-  path: string,
-  currentVersion: number,
-  updatedAt: string,
-  lastModifiedBy: Identity,
-) => ({
-  type: "https://httpstatuses.com/409",
-  title: "Conflict",
-  status: 409 as const,
-  detail: "The estimate was modified by someone else. Reload to see the latest version.",
-  code: "estimate_version_conflict",
-  currentVersion,
-  updatedAt,
-  lastModifiedBy,
-  instance: path,
-});
-
-const ProblemSchema = z.object({
-  type: z.string(),
-  title: z.string(),
-  status: z.number(),
-  detail: z.string(),
-  instance: z.string(),
-});
-
-const ProblemWithCodeSchema = ProblemSchema.extend({
-  code: z.string(),
-});
-
-const ConflictProblemSchema = ProblemWithCodeSchema.extend({
-  currentVersion: z.number().int(),
-  updatedAt: z.string().datetime(),
-  lastModifiedBy: IdentitySchema,
-});
-
-/**
- * Parses the `If-Match` request header into the expected `version` integer.
- *
- * The wire contract (plan.md) is `If-Match: "<version>"` — a quoted integer,
- * mirroring the `ETag: "<version>"` this same handler emits on success. Any
- * other shape (absent, empty, non-numeric, zero/negative, a wildcard `*`) is
- * MALFORMED and returns `null` — T7's contract draws no distinction between
- * "missing" and "malformed", both map to the same 428 (plan.md/tasks.md:
- * "If-Match is REQUIRED, not optional... absent/malformed → 428").
- */
-const parseIfMatch = (raw: string | undefined | null): number | null => {
-  if (!raw) return null;
-  const match = /^"(\d+)"$/.exec(raw.trim());
-  if (!match?.[1]) return null;
-  const version = Number(match[1]);
-  return Number.isInteger(version) && version >= 1 ? version : null;
-};
-
-// ─── Display identity helper (T6, specs/013-estimate-sharing) ───────────────
-//
-// Repo functions return the raw estimate `ownerId` (a `sub`) — never a
-// resolved identity (that requires an outbound `auth` call using the
-// CALLER'S OWN Bearer token, which only exists here in the route handler).
-// This module resolves it via authClient.resolveIdentities (fails SOFT —
-// never throws, degrades to "unknown" — plan.md "Display identity" /
-// ADR-0039) and strips the `id` field before it ever reaches the wire: the
-// response Identity shape is {status, name} only, never a raw sub/cuid.
-
-const toWireIdentity = (resolved: ResolvedIdentity): Identity => ({
-  status: resolved.status,
-  name: resolved.name,
-});
-
-const UNKNOWN_IDENTITY: Identity = { status: "unknown", name: null };
-
-/**
- * Resolves a single `auth` user id (owner OR, as of T7, a 409's
- * `lastModifiedBy`) to a display Identity. `access === "owner"` rows never
- * call this for the owner field — the caller returns `null` for those
- * without invoking `auth` at all (their own row never needs a third-party
- * identity lookup).
- */
-const resolveIdentityFor = async (authHeader: string, subjectId: string): Promise<Identity> => {
-  const identities = await resolveIdentities(authHeader, [subjectId]);
-  const found = identities.get(subjectId);
-  return found ? toWireIdentity(found) : UNKNOWN_IDENTITY;
-};
-
-const resolveOwnerIdentity = resolveIdentityFor;
+// Problem bodies, the If-Match parser and the row → wire mapping live in
+// ./estimates.wire (shared with the close/reopen routes, lifecycle.routes.ts).
 
 /**
  * Resolves the 409 conflict body's `lastModifiedBy` (T7). `null` means the
@@ -242,36 +124,6 @@ const resolveLastModifiedByIdentity = async (
   lastModifiedByUserId === null
     ? UNKNOWN_IDENTITY
     : resolveIdentityFor(authHeader, lastModifiedByUserId);
-
-/** Maps a repo EstimateListRow (raw ownerId) to the wire EstimateListItem. */
-const toWireListItem = (
-  row: EstimateListRow,
-  identities: Map<string, ResolvedIdentity>,
-) => ({
-  id: row.id,
-  name: row.name,
-  author: row.author,
-  updatedAt: row.updatedAt,
-  access: row.access,
-  owner:
-    row.access === "owner"
-      ? null
-      : toWireIdentity(identities.get(row.ownerId) ?? { id: row.ownerId, ...UNKNOWN_IDENTITY }),
-});
-
-/** Maps a repo EstimateFullRow (raw ownerId) to the wire EstimateFull. */
-const toWireFull = (row: EstimateFullRow, owner: Identity | null) => ({
-  id: row.id,
-  name: row.name,
-  author: row.author,
-  content: row.content,
-  createdAt: row.createdAt,
-  updatedAt: row.updatedAt,
-  version: row.version,
-  access: row.access,
-  owner,
-  ...(row.collaboratorCount !== undefined ? { collaboratorCount: row.collaboratorCount } : {}),
-});
 
 // ─── Size guard helper (reusable by T6 import endpoint) ─────────────────────
 //
@@ -448,7 +300,8 @@ estimatesRouter.openapi(createEstimateRoute, async (c) => {
   }
 
   // The creator is always the owner — no `auth` identity round trip needed.
-  return c.json(toWireFull(exit.value, null), 201);
+  // The creator is always the owner and a new estimate is open.
+  return c.json(toWireFull(exit.value, null, null), 201);
 });
 
 // ─── GET /estimates — List ────────────────────────────────────────────────────
@@ -560,12 +413,11 @@ estimatesRouter.openapi(getEstimateRoute, async (c) => {
   }
 
   const row = exit.value;
-  const owner =
-    row.access === "owner" ? null : await resolveOwnerIdentity(authHeader, row.ownerId);
+  const { owner, closedBy } = await resolveFullIdentities(authHeader, row);
 
   // T7 — the precondition value a subsequent PUT must echo via If-Match.
   c.header("ETag", `"${row.version}"`);
-  return c.json(toWireFull(row, owner), 200);
+  return c.json(toWireFull(row, owner, closedBy), 200);
 });
 
 // ─── PUT /estimates/:id — Update ─────────────────────────────────────────────
@@ -631,9 +483,12 @@ const updateEstimateRoute = createRoute({
       description: "No relationship to this estimate (AC-1.6)",
     },
     409: {
-      content: { "application/json": { schema: ConflictProblemSchema } },
+      content: {
+        "application/json": { schema: z.union([ConflictProblemSchema, ProblemWithCodeSchema]) },
+      },
       description:
-        'The stored version no longer matches If-Match — code: "estimate_version_conflict" (T7, AC-4.1/4.3/4.4). Nothing was written.',
+        'The stored version no longer matches If-Match — code: "estimate_version_conflict" (T7, AC-4.1/4.3/4.4) — ' +
+        'or the estimate is closed (read-only until reopened) — code: "estimate_closed". Nothing was written.',
     },
     413: {
       content: { "application/json": { schema: ProblemSchema } },
@@ -685,6 +540,9 @@ estimatesRouter.openapi(updateEstimateRoute, async (c) => {
       if (err instanceof ForbiddenError) {
         return c.json(problemForbidden(c.req.path, err.message, err.code), 403);
       }
+      if (err instanceof EstimateStateError) {
+        return c.json(problemEstimateState(c.req.path, err), 409);
+      }
       if (err instanceof ConflictError) {
         const lastModifiedBy = await resolveLastModifiedByIdentity(
           authHeader,
@@ -704,12 +562,12 @@ estimatesRouter.openapi(updateEstimateRoute, async (c) => {
   // (a viewer can never match the CAS predicate) — resolve the owner
   // identity whenever the caller themselves is not the owner, same rule as
   // GET/list (AC-2.1/10.5).
-  const owner =
-    row.access === "owner" ? null : await resolveOwnerIdentity(authHeader, row.ownerId);
+  // A successful PUT implies the estimate is open, so closedBy is null.
+  const { owner, closedBy } = await resolveFullIdentities(authHeader, row);
 
   // T7 — the new precondition value for the next write.
   c.header("ETag", `"${row.version}"`);
-  return c.json(toWireFull(row, owner), 200);
+  return c.json(toWireFull(row, owner, closedBy), 200);
 });
 
 // ─── DELETE /estimates/:id — Delete ──────────────────────────────────────────

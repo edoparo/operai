@@ -23,6 +23,7 @@ import * as conflict from './strings/conflict'
 import * as editor from './strings/editor'
 import * as estimates from './strings/estimates'
 import * as health from './strings/health'
+import * as lifecycle from './strings/lifecycle'
 import * as parameters from './strings/parameters'
 import * as reference from './strings/reference'
 import * as sharing from './strings/sharing'
@@ -44,6 +45,7 @@ export const en = {
   help: reference.enHelp,
   shortcuts: reference.enShortcuts,
   health: health.en,
+  lifecycle: lifecycle.en,
 }
 
 /** The shape of `en` — every locale is typed against it. */
@@ -64,6 +66,7 @@ export const it: Strings = {
   help: reference.itHelp,
   shortcuts: reference.itShortcuts,
   health: health.it,
+  lifecycle: lifecycle.it,
 }
 
 /** The catalog for the person's language (`<html lang>`, then the browser), English by default. */

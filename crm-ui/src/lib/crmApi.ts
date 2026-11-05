@@ -226,8 +226,6 @@ export const listDirectory = (appId?: string, init?: Init) =>
 const estimatePath = (dealId: string) => `/deals/${encodeURIComponent(dealId)}/estimate`
 export const requestEstimate = (dealId: string, technicalUserId: string) =>
   sendJson<Deal>(estimatePath(dealId), 'POST', { technicalUserId })
-export const markEstimateReady = (dealId: string) => sendJson<Deal>(`${estimatePath(dealId)}/ready`, 'POST')
-export const reopenEstimate = (dealId: string) => sendJson<Deal>(`${estimatePath(dealId)}/reopen`, 'POST')
 export const overrideEstimateGate = (dealId: string, reason: string) =>
   sendJson<Deal>(`${estimatePath(dealId)}/override`, 'POST', { reason })
 export const unlinkEstimate = (dealId: string) => sendJson<Deal>(estimatePath(dealId), 'DELETE')

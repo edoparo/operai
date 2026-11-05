@@ -66,6 +66,9 @@ process.env["NODE_ENV"] = "test";
 // specs/018: estimai-api is faked by test-support/world.ts's fetch stub; the
 // bucket by an in-memory Storage (`setStorageForTests`), so no CRM_S3_* here.
 process.env["ESTIMAI_API_URL"] = "http://estimai.test";
+// specs/018 AC-3.3: the audience of the service JWTs estimai-api's notices carry.
+export const TEST_SERVICE_AUDIENCE = "operai-services";
+process.env["SERVICE_AUDIENCE"] = TEST_SERVICE_AUDIENCE;
 
 export interface SignTokenOptions {
   readonly sub: string;
@@ -78,6 +81,8 @@ export interface TestAuthHarness {
   /** Generates the fixture RS256 keypair. Call once, before signing tokens. */
   init(): Promise<void>;
   signToken(options: SignTokenOptions): Promise<string>;
+  /** A service JWT like auth's `POST /system/service-token` mints (ADR-0044). */
+  signServiceToken(options: { sub: string; scope: string; audience?: string }): Promise<string>;
   /** Swaps the `GET /authz/resolve` fixture response for subsequent requests. */
   setResolve(
     fn: (authorizationHeader: string) => Promise<ResolveResponse>,
@@ -196,6 +201,19 @@ const harness: TestAuthHarness = {
     localJWKS = createLocalJWKSet({
       keys: [{ ...publicJwk, use: "sig", alg: "RS256", kid: TEST_KID }],
     });
+    // Imported here, not at the top: env.ts validates at import, after the values above.
+    const { setServiceJwksForTests } = await import("../system/serviceAuth");
+    setServiceJwksForTests(localJWKS);
+  },
+  async signServiceToken({ sub, scope, audience = TEST_SERVICE_AUDIENCE }) {
+    if (!privateKey) throw new Error("harness.init() was not called");
+    return new SignJWT({ scope })
+      .setProtectedHeader({ alg: "RS256", kid: TEST_KID })
+      .setIssuer(TEST_ISSUER)
+      .setSubject(sub)
+      .setAudience(audience)
+      .setExpirationTime("5m")
+      .sign(privateKey);
   },
   async signToken({ sub, email, name, permEpoch }: SignTokenOptions) {
     if (!privateKey) throw new Error("harness.init() was not called");

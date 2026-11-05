@@ -23,11 +23,9 @@ const en = {
   },
   open: 'Go to the estimate',
   stateHint: {
-    requested: 'The technical contact is still working on it. The deal cannot move to offer in preparation yet.',
-    ready: 'The deal can move to offer in preparation and an offer can be generated.',
+    requested: 'The technical contact is still working on it. It becomes ready when they close it in EstimAI; until then the deal cannot move to offer in preparation.',
+    ready: 'Closed in EstimAI: the deal can move to offer in preparation and an offer can be generated. To change it, reopen it in EstimAI.',
   },
-  markReady: 'Mark ready',
-  reopen: 'Reopen',
   unlink: 'Unlink',
   override: 'Proceed without estimate',
   overrideTooltip:
@@ -51,8 +49,6 @@ const en = {
   overrideReason: 'Reason',
   done: {
     requested: 'Estimate requested.',
-    ready: 'Estimate marked ready.',
-    reopened: 'Estimate reopened.',
     unlinked: 'Estimate unlinked.',
     overridden: 'Estimate gate overridden.',
   },
@@ -64,8 +60,6 @@ const en = {
     notOpen: 'An estimate can be requested only while the deal is a lead or qualified.',
     technicianNotEstimai: 'This person cannot use EstimAI. Choose someone else or ask an administrator to grant access.',
     technicianNotCrm: 'This person does not have access to the CRM. Choose someone else.',
-    technicalContactOnly: 'Only the technical contact marks the estimate ready.',
-    participantOnly: 'Only the requester, the technical contact or an administrator reopens the estimate.',
   },
   gate: {
     title: (deal: string) => `“${deal}” cannot move yet`,
@@ -97,11 +91,9 @@ const it: typeof en = {
   },
   open: 'Vai alla stima',
   stateHint: {
-    requested: "Il referente tecnico ci sta ancora lavorando. L'opportunità non può ancora passare a offerta in preparazione.",
-    ready: "L'opportunità può passare a offerta in preparazione e si può generare un'offerta.",
+    requested: "Il referente tecnico ci sta ancora lavorando. Diventa pronta quando la chiude in EstimAI; fino ad allora l'opportunità non può passare a offerta in preparazione.",
+    ready: "Chiusa in EstimAI: l'opportunità può passare a offerta in preparazione e si può generare un'offerta. Per modificarla, riaprila in EstimAI.",
   },
-  markReady: 'Segna come pronta',
-  reopen: 'Riapri',
   unlink: 'Scollega',
   override: 'Procedi senza stima',
   overrideTooltip:
@@ -126,8 +118,6 @@ const it: typeof en = {
   overrideReason: 'Motivo',
   done: {
     requested: 'Stima richiesta.',
-    ready: 'Stima segnata come pronta.',
-    reopened: 'Stima riaperta.',
     unlinked: 'Stima scollegata.',
     overridden: 'Controllo sulla stima forzato.',
   },
@@ -139,8 +129,6 @@ const it: typeof en = {
     notOpen: "Si può richiedere una stima solo finché l'opportunità è un contatto o qualificata.",
     technicianNotEstimai: "Questa persona non può usare EstimAI. Scegline un'altra o chiedi a un amministratore di concedere l'accesso.",
     technicianNotCrm: "Questa persona non ha accesso al CRM. Scegline un'altra.",
-    technicalContactOnly: 'Solo il referente tecnico segna la stima come pronta.',
-    participantOnly: 'Solo chi ha richiesto la stima, il referente tecnico o un amministratore la riapre.',
   },
   gate: {
     title: (deal: string) => `«${deal}» non può ancora avanzare`,

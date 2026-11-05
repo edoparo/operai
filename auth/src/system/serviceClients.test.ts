@@ -69,7 +69,7 @@ describe("parseServiceClients", () => {
   });
 
   test("the scope allowlist is exactly notifications.push, emails.send and users.contact", () => {
-    expect([...KNOWN_SERVICE_SCOPES]).toEqual(["notifications.push", "emails.send", "users.contact"]);
+    expect([...KNOWN_SERVICE_SCOPES]).toEqual(["notifications.push", "emails.send", "users.contact", "estimate-notices.send"]);
   });
 
   test("a client holding emails.send parses, alone or beside notifications.push", () => {

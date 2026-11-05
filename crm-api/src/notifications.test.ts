@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it } from "bun:test";
-import { call, forgetIdentities, identities, makeCompany, makeDeal, markEstimateReady, resetWorld, estimai, offerBody } from "./test-support/world";
+import { call, estimaiNotice, forgetIdentities, identities, makeCompany, makeDeal, markEstimateReady, resetWorld, estimai, offerBody } from "./test-support/world";
 import { recipientsOf, setNotifierForTests, type NotifyEvent } from "./lib/notify";
 
 /** specs/019 T7: the nine events, hooked after the commit, through an injected recording notifier. */
@@ -55,11 +55,11 @@ describe("CRM notifications (specs/019, E1–E9)", () => {
     const d = await deal();
     await request(d.id);
     events.length = 0;
-    await call("POST", `/deals/${d.id}/estimate/ready`, { as: "tech" });
+    await estimaiNotice(d.id);
     expect(events).toHaveLength(1);
     expect(events[0]).toMatchObject({ kind: "estimate_ready", to: ["user-sales-ch"], email: true, severity: "success", href: `/crm/deals/${d.id}` });
-    expect(events[0]!.body).toContain("Name of user-tech marked the estimate for Grid analytics ready");
-    await call("POST", `/deals/${d.id}/estimate/ready`, { as: "tech" });
+    expect(events[0]!.body).toContain("The estimate for Grid analytics was closed in EstimAI");
+    await estimaiNotice(d.id);
     expect(events).toHaveLength(1);
     noMoney();
   });
@@ -68,22 +68,22 @@ describe("CRM notifications (specs/019, E1–E9)", () => {
     const d = await deal({ ownerUserId: "user-colleague" }, "admin");
     await request(d.id, "admin");
     events.length = 0;
-    await call("POST", `/deals/${d.id}/estimate/ready`, { as: "tech" });
+    await estimaiNotice(d.id);
     expect(events[0]!.to.sort()).toEqual(["user-admin", "user-colleague"]);
   });
 
-  it("E3 estimate reopened: the technical contact, by email, as a warning; the technician reopening tells nobody", async () => {
+  it("E3 estimate reopened in EstimAI: the technical contact and the requester, by email, as a warning; never whoever reopened it", async () => {
     const d = await deal();
     await request(d.id);
-    await call("POST", `/deals/${d.id}/estimate/ready`, { as: "tech" });
+    await estimaiNotice(d.id);
     events.length = 0;
-    await call("POST", `/deals/${d.id}/estimate/reopen`, { as: "salesCh" });
+    await estimaiNotice(d.id, "reopened", { by: "user-sales-ch" });
     expect(events).toHaveLength(1);
     expect(events[0]).toMatchObject({ kind: "estimate_reopened", to: ["user-tech"], email: true, severity: "warning", href: `/crm/deals/${d.id}` });
-    await call("POST", `/deals/${d.id}/estimate/ready`, { as: "tech" });
+    await estimaiNotice(d.id);
     events.length = 0;
-    await call("POST", `/deals/${d.id}/estimate/reopen`, { as: "tech" });
-    expect(events.every((e) => e.to.length === 0)).toBe(true);
+    await estimaiNotice(d.id, "reopened", { by: "user-tech" });
+    expect(events[0]!.to).toEqual(["user-sales-ch"]);
   });
 
   it("E4 new owner: on create and on an owner change, by email; never for yourself or an unchanged owner", async () => {
@@ -215,7 +215,7 @@ describe("CRM notifications (specs/019, E1–E9)", () => {
     await request(d.id, "admin");
     const [estimate] = [...estimai.estimates.values()];
     estimate!.content = { params: {}, releases: [{ id: "r1", name: "MVP" }], acts: [{ id: "1", epic: "Auth", ml: 4, release: "r1" }] };
-    await call("POST", `/deals/${d.id}/estimate/ready`, { as: "tech" });
+    await estimaiNotice(d.id);
     await call("PUT", "/entity-profiles/welld_ch", {
       as: "admin",
       body: { legalName: "wellD SA", addressLines: ["Via Example 1"], vatNumber: "CHE-1", iban: "CH00 0000", offerTermsEn: "30 days", offerTermsIt: "30 giorni" },

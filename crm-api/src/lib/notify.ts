@@ -175,8 +175,9 @@ export async function announce(
     if (!active) return;
     const actorId = c.get("userId");
     if (recipientsOf({ actorId, recipientIds: spec.recipientIds }).length === 0) return;
-    const resolved = await resolveIdentities(c.req.header("Authorization") ?? "", [actorId]);
-    const name = resolved.get(actorId)?.name?.trim();
+    // A service call (specs/018 AC-3.3) carries no user JWT to resolve the actor's name with.
+    const authorization = c.req.header("Authorization");
+    const name = authorization ? (await resolveIdentities(authorization, [actorId])).get(actorId)?.name?.trim() : undefined;
     const { copy, ...rest } = spec;
     const event: NotifyEvent = { ...rest, actorId, ...copy(clip(name || FALLBACK_ACTOR, MAX_NAME)) };
     void current.notify(event).catch(() => {});

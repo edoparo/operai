@@ -57,6 +57,8 @@ export default function EstimatePage() {
       initialVersion={estimate.version}
       initialOwner={estimate.owner}
       initialCollaboratorCount={estimate.collaboratorCount}
+      initialClosedAt={estimate.closedAt ?? null}
+      initialClosedBy={estimate.closedBy ?? null}
     >
       <EstimatorApp />
     </EstimatorProvider>

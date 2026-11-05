@@ -37,7 +37,13 @@
 import { Effect } from "effect";
 import type { InputJsonValue } from "@prisma/client/runtime/client";
 import { db } from "@/lib/db";
-import { ConflictError, DatabaseError, ForbiddenError, NotFoundError } from "@/lib/errors";
+import {
+  ConflictError,
+  DatabaseError,
+  EstimateStateError,
+  ForbiddenError,
+  NotFoundError,
+} from "@/lib/errors";
 import { resolveAccess, type AccessLevel } from "./access";
 import type { EstimateContent } from "./estimates.schemas";
 
@@ -69,6 +75,10 @@ export interface EstimateFullRow {
   readonly version: number;
   readonly access: AccessLevel;
   readonly ownerId: string;
+  /** ISO timestamp while the estimate is closed (read-only); null while open. */
+  readonly closedAt: string | null;
+  /** `sub` of whoever closed it; null while open. Resolved to a display identity in the route. */
+  readonly closedByUserId: string | null;
   /** Only computed for `access === "owner"` (AC-5.4 — collaborators never see this). */
   readonly collaboratorCount?: number;
 }
@@ -80,6 +90,7 @@ export interface EstimateListRow {
   readonly updatedAt: string;
   readonly access: AccessLevel;
   readonly ownerId: string;
+  readonly closedAt: string | null;
 }
 
 /** Map a Prisma Estimate row (+ already-known access/owner) to EstimateFullRow. */
@@ -92,6 +103,8 @@ const toFullRow = (
     createdAt: Date;
     updatedAt: Date;
     version: number;
+    closedAt: Date | null;
+    closedByUserId: string | null;
   },
   access: AccessLevel,
   ownerId: string,
@@ -106,6 +119,8 @@ const toFullRow = (
   version: row.version,
   access,
   ownerId,
+  closedAt: row.closedAt?.toISOString() ?? null,
+  closedByUserId: row.closedByUserId,
   ...(collaboratorCount !== undefined ? { collaboratorCount } : {}),
 });
 
@@ -160,6 +175,7 @@ export const listEstimates = (
           name: true,
           author: true,
           updatedAt: true,
+          closedAt: true,
           userId: true,
           collaborators: {
             where: { userId },
@@ -173,6 +189,7 @@ export const listEstimates = (
         name: row.name,
         author: row.author,
         updatedAt: row.updatedAt.toISOString(),
+        closedAt: row.closedAt?.toISOString() ?? null,
         ownerId: row.userId,
         access: (row.userId === userId
           ? "owner"
@@ -261,7 +278,15 @@ export const getEstimateById = (
  * a 409 that would confirm the record exists):
  *   - no relationship at all      → NotFoundError (404, AC-1.6/ADR-0005)
  *   - a relationship, but viewer  → ForbiddenError code:"insufficient_access" (403, AC-3.1)
+ *   - owner or editor, estimate closed → EstimateStateError code:"estimate_closed" (409)
  *   - owner or editor             → the version must have been stale → ConflictError (409)
+ *
+ * A CLOSED estimate is read-only until reopened: `closedAt: null` is part of
+ * the same single WHERE clause, so a close that commits between the client's
+ * read and this write can never be overwritten (no TOCTOU window). When the
+ * estimate is closed the closed state is reported even if the version is also
+ * stale — the close itself bumped the version, and "closed" is the reason the
+ * UI must show.
  */
 export const updateEstimate = (
   id: string,
@@ -272,7 +297,7 @@ export const updateEstimate = (
   content: EstimateContent,
 ): Effect.Effect<
   EstimateFullRow,
-  DatabaseError | NotFoundError | ForbiddenError | ConflictError
+  DatabaseError | NotFoundError | ForbiddenError | ConflictError | EstimateStateError
 > =>
   Effect.gen(function* () {
     const sizeBytes = computeSizeBytes(content);
@@ -283,6 +308,7 @@ export const updateEstimate = (
           where: {
             id,
             version: expectedVersion,
+            closedAt: null,
             OR: [{ userId }, { collaborators: { some: { userId, accessLevel: "editor" } } }],
           },
           data: {
@@ -343,6 +369,15 @@ export const updateEstimate = (
       return yield* Effect.fail(new NotFoundError({ message: `Estimate ${id} not found` }));
     }
 
+    if (conflictRow.closedAt !== null) {
+      return yield* Effect.fail(
+        new EstimateStateError({
+          message: "This estimate is closed. Reopen it to make changes.",
+          code: "estimate_closed",
+        }),
+      );
+    }
+
     return yield* Effect.fail(
       new ConflictError({
         message: "The estimate was modified by someone else. Reload to see the latest version.",
@@ -390,6 +425,134 @@ export const deleteEstimate = (
       new ForbiddenError({
         message: "Only the owner can delete this estimate",
         code: "owner_only",
+      }),
+    );
+  });
+
+/**
+ * Close or reopen an estimate (the CRM "estimate ready" signal). Same
+ * single-statement CAS shape as `updateEstimate`: the access predicate (owner
+ * OR editor grant), the version compare-and-swap AND the expected lifecycle
+ * state (`closedAt: null` to close, `closedAt: { not: null }` to reopen) all
+ * live in ONE `updateMany` WHERE clause, so two concurrent closes (or a close
+ * racing a PUT) can never both succeed.
+ *
+ * Success bumps `version` by exactly 1, stamps `lastModifiedByUserId`, and sets
+ * `closedAt`/`closedByUserId` (close) or clears both (reopen). `updatedAt` is
+ * written explicitly with the same instant as `closedAt`, so the change has
+ * one timestamp — the one the CRM notice carries.
+ *
+ * `count === 0` is disambiguated in the fixed order 404 → 403 → state → version:
+ *   - no relationship                → NotFoundError (404)
+ *   - viewer                         → ForbiddenError "insufficient_access" (403)
+ *   - already in the target state    → EstimateStateError
+ *                                      ("estimate_already_closed" / "estimate_not_closed", 409)
+ *   - otherwise the version is stale → ConflictError (409, same shape as PUT)
+ * The state is reported before the version because it is the more useful
+ * reason: someone else's close/reopen is exactly what bumped the version.
+ */
+export type LifecycleTransition = "close" | "reopen";
+
+export const setEstimateClosed = (
+  id: string,
+  userId: string,
+  expectedVersion: number,
+  transition: LifecycleTransition,
+): Effect.Effect<
+  EstimateFullRow,
+  DatabaseError | NotFoundError | ForbiddenError | ConflictError | EstimateStateError
+> =>
+  Effect.gen(function* () {
+    const at = new Date();
+    const closing = transition === "close";
+
+    const { count } = yield* Effect.tryPromise({
+      try: () =>
+        db.estimate.updateMany({
+          where: {
+            id,
+            version: expectedVersion,
+            closedAt: closing ? null : { not: null },
+            OR: [{ userId }, { collaborators: { some: { userId, accessLevel: "editor" } } }],
+          },
+          data: {
+            closedAt: closing ? at : null,
+            closedByUserId: closing ? userId : null,
+            version: { increment: 1 },
+            lastModifiedByUserId: userId,
+            updatedAt: at,
+          },
+        }),
+      catch: (cause) =>
+        new DatabaseError({ message: `Failed to ${transition} estimate`, cause }),
+    });
+
+    if (count === 1) {
+      const row = yield* Effect.tryPromise({
+        try: () => db.estimate.findFirst({ where: { id } }),
+        catch: (cause) =>
+          new DatabaseError({ message: `Failed to refetch ${transition}d estimate`, cause }),
+      });
+      if (row === null) {
+        return yield* Effect.fail(new NotFoundError({ message: `Estimate ${id} not found` }));
+      }
+      const access: AccessLevel = row.userId === userId ? "owner" : "editor";
+      const collaboratorCount =
+        access === "owner"
+          ? yield* Effect.tryPromise({
+              try: () => db.estimateCollaborator.count({ where: { estimateId: id } }),
+              catch: (cause) =>
+                new DatabaseError({ message: "Failed to count collaborators", cause }),
+            })
+          : undefined;
+      return toFullRow(row, access, row.userId, collaboratorCount);
+    }
+
+    const resolved = yield* resolveAccess(id, userId);
+    if (resolved === null) {
+      return yield* Effect.fail(new NotFoundError({ message: `Estimate ${id} not found` }));
+    }
+    if (resolved.level === "viewer") {
+      return yield* Effect.fail(
+        new ForbiddenError({
+          message: "You have view-only access to this estimate.",
+          code: "insufficient_access",
+        }),
+      );
+    }
+
+    const current = yield* Effect.tryPromise({
+      try: () => db.estimate.findFirst({ where: { id } }),
+      catch: (cause) =>
+        new DatabaseError({ message: "Failed to fetch estimate for conflict report", cause }),
+    });
+    if (current === null) {
+      return yield* Effect.fail(new NotFoundError({ message: `Estimate ${id} not found` }));
+    }
+
+    if (closing && current.closedAt !== null) {
+      return yield* Effect.fail(
+        new EstimateStateError({
+          message: "This estimate is already closed.",
+          code: "estimate_already_closed",
+        }),
+      );
+    }
+    if (!closing && current.closedAt === null) {
+      return yield* Effect.fail(
+        new EstimateStateError({
+          message: "This estimate is not closed.",
+          code: "estimate_not_closed",
+        }),
+      );
+    }
+
+    return yield* Effect.fail(
+      new ConflictError({
+        message: "The estimate was modified by someone else. Reload to see the latest version.",
+        currentVersion: current.version,
+        updatedAt: current.updatedAt.toISOString(),
+        lastModifiedByUserId: current.lastModifiedByUserId,
       }),
     );
   });

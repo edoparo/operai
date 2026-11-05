@@ -121,6 +121,8 @@ const mockSuccessResponse = {
   version: 1,
   access: 'owner' as const,
   owner: null,
+  closedAt: null,
+  closedBy: null,
 }
 
 // ---------------------------------------------------------------------------

@@ -3,7 +3,8 @@
  * route the app serves, except `/health` and the API docs, refuses a missing
  * token with 401 and a caller without `crm:access` with 403 — before any
  * validation or lookup. The route list is read from the app's own table, so a
- * route added without the guard fails here.
+ * route added without the guard fails here. A `/system` route takes a service
+ * credential only (ADR-0073): every user token there is a 401.
  */
 
 import { beforeEach, describe, expect, it } from "bun:test";
@@ -20,6 +21,9 @@ const routes = [
       .map((route) => `${route.method} ${route.path}`),
   ),
 ].filter((key) => !PUBLIC.has(key));
+const isSystem = (key: string) => key.split(" ")[1]!.startsWith("/system/");
+const userRoutes = routes.filter((key) => !isSystem(key));
+const systemRoutes = routes.filter(isSystem);
 
 const concrete = (path: string) => path.replace(/:[a-zA-Z]+/g, "some-id");
 
@@ -43,12 +47,20 @@ describe("authorization matrix", () => {
       "POST /entity-profiles/:entity/letterhead",
       "POST /entity-profiles/:entity/letterhead/confirm",
       "GET /entity-profiles/:entity/letterhead",
+      // specs/018 AC-3.3
+      "POST /system/estimate-notices",
     ]) {
       expect(routes).toContain(expected);
     }
   });
 
-  it.each(routes)("%s: 401 without a token, 403 without crm:access", async (key) => {
+  it.each(systemRoutes)("%s: 401 without a token and for any user token", async (key) => {
+    const [method, path] = key.split(" ") as [string, string];
+    expect((await call(method, concrete(path), { as: null, body: {} })).status).toBe(401);
+    expect((await call(method, concrete(path), { as: "admin", body: {} })).status).toBe(401);
+  });
+
+  it.each(userRoutes)("%s: 401 without a token, 403 without crm:access", async (key) => {
     const [method, path] = key.split(" ") as [string, string];
     const body = method === "GET" || method === "DELETE" ? undefined : {};
     expect((await call(method, concrete(path), { as: null, body })).status).toBe(401);

@@ -4,7 +4,7 @@ import { PROFILES } from '../types'
 import { deriveOP, useEstimator } from '../hooks/useEstimator'
 import { DEF_PARAMS, uid } from '../lib/projects'
 import * as estimatesApi from '../lib/estimatesApi'
-import type { EstimateAccess, EstimateContent, EstimateIdentity } from '../lib/estimatesApi'
+import type { EstimateAccess, EstimateContent, EstimateFull, EstimateIdentity } from '../lib/estimatesApi'
 import type { Template } from '../lib/templates'
 import { strings } from '../strings'
 
@@ -113,7 +113,52 @@ export type EstimatorContextValue = {
    * Collaborators button's count badge (T22).
    */
   collaboratorCount: number | undefined
+  /**
+   * True when the editable document differs from what the server last stored
+   * (a change waiting for the autosave debounce, a save in flight, or a
+   * failed save). Closing an estimate is disabled while this is true, so
+   * nothing typed before the close can be lost to it.
+   */
+  hasUnsavedChanges: boolean
+  /**
+   * May this person close/reopen the estimate — owner or editor, whether or
+   * not it is closed right now (a viewer never may).
+   */
+  canChangeLifecycle: boolean
+  /** ISO timestamp while the estimate is closed (read-only for everybody); `null` while open. */
+  closedAt: string | null
+  /** Who closed it (live identity, fail soft); `null` while open. */
+  closedBy: EstimateIdentity | null
+  /**
+   * POST /estimates/:id/close with the current version; on success adopts the
+   * new version and the closed state in place. Rejects with the API error
+   * (`EstimateStateError`, `ConflictError`, `ApiError`) for the caller to show.
+   */
+  closeEstimate: () => Promise<void>
+  /** POST /estimates/:id/reopen — same contract as `closeEstimate`. */
+  reopenEstimate: () => Promise<void>
+  /**
+   * Replaces the whole local document with a server copy (name, author,
+   * content, version, closed state) — the in-place reload used when the
+   * estimate turns out to have been closed or reopened by someone else.
+   */
+  applyServerEstimate: (estimate: EstimateFull) => void
+  /**
+   * True after a save was refused because someone else closed the estimate
+   * meanwhile: the editor reloaded the saved version in place, read-only.
+   */
+  closedWhileEditing: boolean
+  dismissClosedWhileEditing: () => void
 }
+
+/** The document fields autosave persists, serialised — compared to tell "unsaved" from "saved". */
+const snapshotOf = (doc: {
+  name: string
+  author: string
+  params: Parameters
+  releases: Release[]
+  acts: Activity[]
+}): string => JSON.stringify([doc.name, doc.author, doc.params, doc.releases, doc.acts])
 
 const EstimatorContext = createContext<EstimatorContextValue | null>(null)
 
@@ -152,6 +197,10 @@ type Props = {
    * back-compat reasoning.
    */
   initialCollaboratorCount?: number
+  /** `EstimateFull.closedAt`. Defaults to `null` (open). */
+  initialClosedAt?: string | null
+  /** `EstimateFull.closedBy`. Defaults to `null`. */
+  initialClosedBy?: EstimateIdentity | null
   children: React.ReactNode
 }
 
@@ -166,6 +215,8 @@ export function EstimatorProvider({
   initialVersion,
   initialOwner,
   initialCollaboratorCount,
+  initialClosedAt,
+  initialClosedBy,
   children,
 }: Props) {
   const [name, setName] = useState(initialName ?? '')
@@ -183,7 +234,16 @@ export function EstimatorProvider({
   // above) — a plain const, not state; nothing in this feature ever changes
   // a session's own access level mid-mount (AC-5.1 is next-load only).
   const access: EstimateAccess = initialAccess ?? 'owner'
-  const canEdit = access !== 'viewer'
+
+  // Close/reopen: a closed estimate is read-only for EVERYBODY until it is
+  // reopened, so `canEdit` (the one mutate gate every control reads) also
+  // requires it to be open. Unlike `access`, the closed state changes in
+  // place — closing/reopening adopts the server's response without a remount.
+  const [closedAt, setClosedAt] = useState<string | null>(initialClosedAt ?? null)
+  const [closedBy, setClosedBy] = useState<EstimateIdentity | null>(initialClosedBy ?? null)
+  const [closedWhileEditing, setClosedWhileEditing] = useState(false)
+  const canChangeLifecycle = access !== 'viewer'
+  const canEdit = canChangeLifecycle && closedAt === null
 
   // owner/collaboratorCount are likewise fixed for the provider's lifetime
   // (T22, specs/013-estimate-sharing/tasks.md) — plain consts, not state;
@@ -203,6 +263,26 @@ export function EstimatorProvider({
 
   // Non-null while autosave is suspended after a 409/428 (AC-4.1/AC-4.2).
   const [conflict, setConflict] = useState<ConflictInfo | null>(null)
+
+  // What the server last stored, serialised the same way as `currentSnapshot`
+  // — built from the same initial values as the state above. The ref is what
+  // the autosave effect compares against (it must not re-run on a save), the
+  // state is what renders `hasUnsavedChanges`.
+  const [savedSnapshot, setSavedSnapshot] = useState(() =>
+    snapshotOf({
+      name: initialName ?? '',
+      author: initialAuthor ?? '',
+      params: { ...DEF_PARAMS, ...initialParams },
+      releases: initialReleases ?? [],
+      acts: initialActs ?? [],
+    }),
+  )
+  const savedSnapshotRef = useRef(savedSnapshot)
+  const currentSnapshot = useMemo(
+    () => snapshotOf({ name, author, params, releases, acts }),
+    [name, author, params, releases, acts],
+  )
+  const hasUnsavedChanges = currentSnapshot !== savedSnapshot
 
   /**
    * Track whether this is the initial mount (skip auto-save on first render)
@@ -244,6 +324,14 @@ export function EstimatorProvider({
       return
     }
 
+    // Nothing to persist — e.g. the estimate was just reopened, or a server
+    // copy was applied in place: never PUT a document identical to the stored one.
+    if (currentSnapshot === savedSnapshotRef.current) {
+      clearTimeout(saveTimer.current)
+      return
+    }
+    const sentSnapshot = currentSnapshot
+
     clearTimeout(saveTimer.current)
     saveTimer.current = setTimeout(() => {
       const content: EstimateContent = { params, releases, acts }
@@ -256,6 +344,8 @@ export function EstimatorProvider({
           // *next* autosave's If-Match is correct.
           versionRef.current = updated.version
           setVersion(updated.version)
+          savedSnapshotRef.current = sentSnapshot
+          setSavedSnapshot(sentSnapshot)
           setSaveStatus('saved')
           setSaveError(null)
           setShowSavedToast(true)
@@ -266,6 +356,28 @@ export function EstimatorProvider({
           // ConflictError extends ApiError, so it must be distinguished
           // FIRST — otherwise it would silently fall into the generic
           // ApiError branch below and never suspend autosave.
+          // Someone closed the estimate since this tab last saved: the
+          // server refused the write (409 estimate_closed). Reload the saved
+          // version in place — read-only now — and say why, instead of the
+          // generic "someone saved changes" conflict banner.
+          if (err instanceof estimatesApi.EstimateStateError) {
+            setSaveStatus('idle')
+            setSaveError(null)
+            setShowSavedToast(false)
+            estimatesApi
+              .get(estimateId)
+              .then((fresh) => {
+                applyServerEstimateRef.current(fresh)
+                setClosedWhileEditing(true)
+              })
+              .catch(() => {
+                // Could not reload: fall back to the ordinary reload flow.
+                setSaveStatus('conflict')
+                setConflict({ status: 409, currentVersion: undefined, updatedAt: undefined, lastModifiedBy: undefined })
+              })
+            return
+          }
+
           if (err instanceof estimatesApi.ConflictError) {
             // (c) AC-4.1/AC-4.2: refused, nothing overwritten. name/author/
             // params/releases/acts are deliberately left untouched here —
@@ -312,7 +424,54 @@ export function EstimatorProvider({
     }, AUTOSAVE_DEBOUNCE_MS)
 
     return () => clearTimeout(saveTimer.current)
-  }, [estimateId, name, author, params, releases, acts, canEdit, conflict])
+  }, [estimateId, name, author, params, releases, acts, canEdit, conflict, currentSnapshot])
+
+  const applyServerEstimate = useCallback((estimate: EstimateFull) => {
+    const nextParams: Parameters = { ...DEF_PARAMS, ...estimate.content.params }
+    const snapshot = snapshotOf({
+      name: estimate.name,
+      author: estimate.author,
+      params: nextParams,
+      releases: estimate.content.releases,
+      acts: estimate.content.acts,
+    })
+    // Adopt the snapshot BEFORE the document state changes, so the autosave
+    // effect that runs on the change sees "nothing to persist".
+    savedSnapshotRef.current = snapshot
+    setSavedSnapshot(snapshot)
+    clearTimeout(saveTimer.current)
+    setName(estimate.name)
+    setAuthor(estimate.author)
+    setParams(nextParams)
+    setRels(estimate.content.releases)
+    setActs(estimate.content.acts)
+    versionRef.current = estimate.version
+    setVersion(estimate.version)
+    setClosedAt(estimate.closedAt ?? null)
+    setClosedBy(estimate.closedBy ?? null)
+  }, [])
+  // The autosave effect's promise callbacks call the latest applyServerEstimate
+  // through this ref (it is stable, but the effect must not depend on it).
+  const applyServerEstimateRef = useRef(applyServerEstimate)
+
+  const adoptLifecycle = useCallback((result: { estimate: EstimateFull; version: number }) => {
+    versionRef.current = result.version
+    setVersion(result.version)
+    setClosedAt(result.estimate.closedAt ?? null)
+    setClosedBy(result.estimate.closedBy ?? null)
+  }, [])
+
+  const closeEstimate = useCallback(async () => {
+    adoptLifecycle(await estimatesApi.closeEstimate(estimateId, versionRef.current))
+    setClosedWhileEditing(false)
+  }, [estimateId, adoptLifecycle])
+
+  const reopenEstimate = useCallback(async () => {
+    adoptLifecycle(await estimatesApi.reopenEstimate(estimateId, versionRef.current))
+    setClosedWhileEditing(false)
+  }, [estimateId, adoptLifecycle])
+
+  const dismissClosedWhileEditing = useCallback(() => setClosedWhileEditing(false), [])
 
   const rnames = useMemo(() => releases.map((r) => r.name), [releases])
   const { summary, totals, byProfile } = useEstimator(acts, releases, params)
@@ -440,6 +599,15 @@ export function EstimatorProvider({
       conflict,
       owner,
       collaboratorCount,
+      hasUnsavedChanges,
+      canChangeLifecycle,
+      closedAt,
+      closedBy,
+      closeEstimate,
+      reopenEstimate,
+      applyServerEstimate,
+      closedWhileEditing,
+      dismissClosedWhileEditing,
     }),
     [
       estimateId,
@@ -471,6 +639,15 @@ export function EstimatorProvider({
       conflict,
       owner,
       collaboratorCount,
+      hasUnsavedChanges,
+      canChangeLifecycle,
+      closedAt,
+      closedBy,
+      closeEstimate,
+      reopenEstimate,
+      applyServerEstimate,
+      closedWhileEditing,
+      dismissClosedWhileEditing,
     ],
   )
 

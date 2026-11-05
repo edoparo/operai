@@ -91,6 +91,7 @@ const itemA: EstimateListItem = {
   updatedAt: '2026-07-01T10:00:00.000Z',
   access: 'owner',
   owner: null,
+  closedAt: null,
 }
 
 const itemB: EstimateListItem = {
@@ -100,6 +101,7 @@ const itemB: EstimateListItem = {
   updatedAt: '2026-06-28T14:30:00.000Z',
   access: 'owner',
   owner: null,
+  closedAt: null,
 }
 
 // ---------------------------------------------------------------------------
@@ -264,6 +266,7 @@ describe('EstimatesPage', () => {
         updatedAt: '2026-07-05T09:00:00.000Z',
         access: 'editor',
         owner: { status: 'active', name: 'Marco Rossi' },
+        closedAt: null,
       }
       vi.mocked(estimatesApi.list).mockResolvedValue([itemA, sharedItem])
 
@@ -305,6 +308,7 @@ describe('EstimatesPage', () => {
         updatedAt: '2026-07-06T09:00:00.000Z',
         access: 'viewer',
         owner: { status: 'deleted', name: null },
+        closedAt: null,
       }
       vi.mocked(estimatesApi.list).mockResolvedValue([orphanedItem])
 
@@ -333,6 +337,7 @@ describe('EstimatesPage', () => {
         updatedAt: '2026-07-07T09:00:00.000Z',
         access: 'viewer',
         owner: { status: 'unknown', name: null },
+        closedAt: null,
       }
       vi.mocked(estimatesApi.list).mockResolvedValue([unknownOwnerItem])
 
@@ -359,6 +364,7 @@ describe('EstimatesPage', () => {
         updatedAt: '2026-07-08T09:00:00.000Z',
         access: 'viewer',
         owner: { status: 'active', name: 'Giulia Bianchi' },
+        closedAt: null,
       }
       vi.mocked(estimatesApi.list).mockResolvedValue([sharedOnlyItem])
 
@@ -470,6 +476,25 @@ describe('EstimatesPage', () => {
       })
       expect(screen.queryByTestId('estimates-deleted-notice')).toBeNull()
       vi.useRealTimers()
+    })
+  })
+
+  describe('closed estimates', () => {
+    it('shows a "Closed" status badge only on a closed row', async () => {
+      vi.mocked(estimatesApi.list).mockResolvedValue([
+        { ...itemA, closedAt: '2026-11-05T10:00:00.000Z' },
+        itemB,
+      ])
+
+      render(<EstimatesPage />)
+
+      await waitFor(() => {
+        expect(screen.getByText('Alpha Project')).toBeDefined()
+      })
+      const badges = screen.getAllByTestId('estimate-closed-badge')
+      expect(badges).toHaveLength(1)
+      expect(badges[0]!.textContent).toContain(strings.lifecycle.statusClosed)
+      expect(badges[0]!.closest('[data-testid="estimate-row-owned"]')?.textContent).toContain('Alpha Project')
     })
   })
 })

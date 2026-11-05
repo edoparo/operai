@@ -51,6 +51,18 @@ export class ConflictError extends Data.TaggedError("ConflictError")<{
   readonly lastModifiedByUserId: string | null;
 }> {}
 
+/**
+ * The estimate's open/closed lifecycle state forbids the attempted write
+ * (the close/reopen push to the CRM). Distinct from ConflictError (a stale
+ * version): the caller's level is sufficient, but the estimate is closed
+ * (`estimate_closed` on PUT, `estimate_already_closed` on close) or open
+ * (`estimate_not_closed` on reopen). Maps to 409 with this stable `code`.
+ */
+export class EstimateStateError extends Data.TaggedError("EstimateStateError")<{
+  readonly message: string;
+  readonly code: "estimate_closed" | "estimate_already_closed" | "estimate_not_closed";
+}> {}
+
 export class AuthError extends Data.TaggedError("AuthError")<{
   readonly message: string;
   readonly cause?: unknown;
@@ -74,6 +86,7 @@ export type AppError =
   | NotFoundError
   | ForbiddenError
   | ConflictError
+  | EstimateStateError
   | AuthError
   | ValidationError
   | SizeError;

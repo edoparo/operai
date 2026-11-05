@@ -99,6 +99,7 @@ const itemAlpha: EstimateListItem = {
   updatedAt: '2026-07-01T10:00:00.000Z',
   access: 'owner',
   owner: null,
+  closedAt: null,
 }
 
 const itemBeta: EstimateListItem = {
@@ -108,6 +109,7 @@ const itemBeta: EstimateListItem = {
   updatedAt: '2026-06-28T14:30:00.000Z',
   access: 'owner',
   owner: null,
+  closedAt: null,
 }
 
 // ---------------------------------------------------------------------------

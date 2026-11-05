@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it } from "bun:test";
-import { call, makeCompany, makeDeal, resetWorld } from "../test-support/world";
+import { call, estimaiNotice, makeCompany, makeDeal, resetWorld } from "../test-support/world";
 import { recipientsOf, setNotifierForTests, type NotifyEvent } from "../lib/notify";
 
 /** specs/017 US-6: a task blocked by other tasks of the same company. */
@@ -101,7 +101,7 @@ describe("task blockers (US-6)", () => {
     expect(estimateTask.subject).toContain("Estimate");
     await task(company.id, { subject: "Call Avanzato", assigneeUserId: "user-sales-ch", dealId: deal.id, blockedByIds: [estimateTask.id] });
     events.length = 0;
-    await call("POST", `/deals/${deal.id}/estimate/ready`, { as: "tech" });
+    await estimaiNotice(deal.id);
     const unblocked = events.filter((e) => e.kind === "task_unblocked");
     expect(unblocked).toHaveLength(1);
     expect(unblocked[0]!.to).toEqual(["user-sales-ch"]);

@@ -90,6 +90,8 @@ export type EstimateListItem = {
   access: EstimateAccess
   /** `null` when `access === 'owner'` — there is no "owner of your own estimate" to resolve. */
   owner: EstimateIdentity | null
+  /** ISO timestamp while the estimate is closed (read-only until reopened); `null` while open. */
+  closedAt: string | null
 }
 
 /**
@@ -108,6 +110,13 @@ export type EstimateFull = {
   owner: EstimateIdentity | null
   /** Present only when `access === 'owner'` (plan.md). */
   collaboratorCount?: number
+  /**
+   * ISO timestamp while the estimate is CLOSED — read-only for everybody until
+   * reopened, and seen as ready by a linked CRM deal; `null` while open.
+   */
+  closedAt: string | null
+  /** Who closed it (live, fail-soft identity); `null` while open. */
+  closedBy: EstimateIdentity | null
 }
 
 /**
@@ -206,6 +215,27 @@ export class ConflictError extends ApiError {
   }
 }
 
+/**
+ * The estimate's open/closed state refused the request (409 with one of these
+ * codes): `estimate_closed` — a save hit an estimate someone closed meanwhile;
+ * `estimate_already_closed` / `estimate_not_closed` — a close/reopen that
+ * someone else already did. Distinct from `ConflictError` (a stale version),
+ * so the editor can show "closed" instead of the generic reload banner.
+ */
+export type EstimateStateCode = 'estimate_closed' | 'estimate_already_closed' | 'estimate_not_closed'
+
+const STATE_CODES: readonly string[] = ['estimate_closed', 'estimate_already_closed', 'estimate_not_closed']
+
+export class EstimateStateError extends ApiError {
+  readonly stateCode: EstimateStateCode
+
+  constructor(problem: ApiProblem & { code: EstimateStateCode }) {
+    super(problem)
+    this.name = 'EstimateStateError'
+    this.stateCode = problem.code
+  }
+}
+
 // ---------------------------------------------------------------------------
 // Internal helpers
 // ---------------------------------------------------------------------------
@@ -256,6 +286,16 @@ const throwConflictFromResponse = async (response: Response): Promise<never> => 
     body = (await response.json()) as ConflictBody
   } catch {
     // Fall through with an empty body — the synthetic Problem below still carries the status.
+  }
+  if (response.status === 409 && body.code !== undefined && STATE_CODES.includes(body.code)) {
+    throw new EstimateStateError({
+      type: body.type ?? `https://httpstatuses.com/${response.status}`,
+      title: body.title ?? response.statusText,
+      status: response.status,
+      detail: body.detail,
+      instance: body.instance,
+      code: body.code as EstimateStateCode,
+    })
   }
   throw new ConflictError({
     type: body.type ?? `https://httpstatuses.com/${response.status}`,
@@ -331,6 +371,8 @@ export const get = async (id: string): Promise<EstimateFull> => {
  * adopt for the next call). Throws:
  *   • `ConflictError` on 409 (a real version mismatch) or 428 (missing/
  *     malformed precondition) — see `ConflictError`'s doc comment.
+ *   • `EstimateStateError` on 409 `code: "estimate_closed"` — the estimate
+ *     was closed meanwhile (read-only until reopened).
  *   • `ApiError` on 404 (no relationship), 403 (`code: "insufficient_access"`
  *     — viewer, AC-3.1), 413 (size), 400 (validation), or 401.
  */
@@ -348,6 +390,42 @@ export const update = async (id: string, body: EstimateUpsert, version: number):
   }
   return response.json() as Promise<EstimateFull>
 }
+
+/**
+ * POST /estimates/:id/close and /reopen — closing makes the estimate
+ * read-only for everybody (and tells a linked CRM deal it is ready); reopening
+ * makes it editable again. Owner or editor only. Same `If-Match` contract as
+ * `update()`: the caller's current `version` is required and the response's
+ * `version` (also its ETag) is the one to adopt.
+ *
+ * Throws `EstimateStateError` on 409 `estimate_already_closed` /
+ * `estimate_not_closed` (someone else already did it), `ConflictError` on a
+ * stale version (409) or a missing precondition (428), `ApiError` otherwise
+ * (403 viewer, 404 no relationship).
+ */
+const transition = async (
+  id: string,
+  action: 'close' | 'reopen',
+  version: number,
+): Promise<{ estimate: EstimateFull; version: number }> => {
+  const response = await apiFetch(`${apiBase()}/${id}/${action}`, {
+    method: 'POST',
+    headers: { 'If-Match': `"${version}"` },
+  })
+  if (response.status === 409 || response.status === 428) {
+    return throwConflictFromResponse(response)
+  }
+  if (!response.ok) {
+    return throwFromResponse(response)
+  }
+  const estimate = (await response.json()) as EstimateFull
+  const etag = /^"(\d+)"$/.exec(response.headers.get('ETag') ?? '')
+  return { estimate, version: etag?.[1] ? Number(etag[1]) : estimate.version }
+}
+
+export const closeEstimate = (id: string, version: number) => transition(id, 'close', version)
+
+export const reopenEstimate = (id: string, version: number) => transition(id, 'reopen', version)
 
 /**
  * DELETE /estimates/:id

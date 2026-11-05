@@ -103,10 +103,15 @@ offer rests on a real estimate.
   - links it to the deal as `requested`.
 - AC-3.2 The deal page shows the estimate's name, the technical contact and the state,
   with a link that opens it in EstimAI.
-- AC-3.3 Only the technical contact (or an admin) marks the estimate `ready`, from the
-  deal page or the task list.
-  - Marking it ready completes the "estimate requested" task (AC-3.5).
-  - The requester can set the estimate back to `requested`.
+- AC-3.3 The estimate becomes `ready` when it is closed in EstimAI, and back to `requested`
+  when it is reopened there (amended 2026-11-05, ADR-0073; nobody marks it ready in the CRM).
+  - The estimate's owner or an editor (the technical contact) closes and reopens it in EstimAI.
+    A closed estimate is read-only until it is reopened.
+  - estimai-api tells crm-api with a content-free notice (estimate id, event, version, time,
+    who). crm-api applies only a notice newer than the last one, so a late one changes nothing.
+  - Closing completes the "estimate requested" task (AC-3.5) and tells the requester and the
+    deal owner; reopening reopens the task and tells the technical contact and the requester.
+  - If the notice is lost, the deal stays `requested`; an admin can still override the gate.
 - AC-3.4 A deal moves from `qualified` (or `lead`) to `proposal` or later only if its
   estimate is `ready`; otherwise 409 `estimate_not_ready`.
   - The board and the stage dialog say why.

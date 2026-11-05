@@ -3543,3 +3543,149 @@ describe("T7 — optimistic concurrency: version CAS, If-Match required, ETag, 4
     expect(row.version).toBe(2);
   });
 });
+
+// ─── Close/reopen lifecycle — read and PUT side (routes: lifecycle.routes.ts) ─
+
+describe("closed estimates — GET/list expose closedAt/closedBy, PUT refused with estimate_closed", () => {
+  const create = async (app: ReturnType<typeof buildApp>, jwt: string, name: string) => {
+    const res = await app.request("/estimates", {
+      method: "POST",
+      headers: bearerHeader(jwt),
+      body: JSON.stringify({ name, author: "Alice", content: makeContent() }),
+    });
+    expect(res.status).toBe(201);
+    return (await res.json()) as { id: string; closedAt: string | null; closedBy: unknown };
+  };
+
+  it("a new estimate is open: POST/GET return closedAt:null, closedBy:null; the list item closedAt:null", async () => {
+    const app = buildApp();
+    const jwt = await tokenA();
+    const created = await create(app, jwt, "Open estimate");
+    expect(created.closedAt).toBeNull();
+    expect(created.closedBy).toBeNull();
+
+    const get = (await (
+      await app.request(`/estimates/${created.id}`, { headers: { Authorization: `Bearer ${jwt}` } })
+    ).json()) as { closedAt: string | null; closedBy: unknown };
+    expect(get.closedAt).toBeNull();
+    expect(get.closedBy).toBeNull();
+
+    const list = (await (
+      await app.request("/estimates", { headers: { Authorization: `Bearer ${jwt}` } })
+    ).json()) as { id: string; closedAt: string | null }[];
+    expect(list.find((e) => e.id === created.id)?.closedAt).toBeNull();
+  });
+
+  it("a closed estimate: GET returns closedAt and the live closedBy identity; the list item carries closedAt", async () => {
+    const app = buildApp();
+    const jwt = await tokenA();
+    const created = await create(app, jwt, "Closed estimate");
+    const closedAt = new Date("2026-11-05T09:30:00.000Z");
+    await testDb.estimate.update({
+      where: { id: created.id },
+      data: { closedAt, closedByUserId: USER_B_ID, version: 2 },
+    });
+    stubIdentitiesFetch([{ id: USER_B_ID, status: "active", name: "Bob Technician" }]);
+
+    const getRes = await app.request(`/estimates/${created.id}`, {
+      headers: { Authorization: `Bearer ${jwt}` },
+    });
+    expect(getRes.status).toBe(200);
+    expect(getRes.headers.get("ETag")).toBe('"2"');
+    const get = (await getRes.json()) as {
+      closedAt: string | null;
+      closedBy: { status: string; name: string | null } | null;
+      owner: unknown;
+    };
+    expect(get.closedAt).toBe(closedAt.toISOString());
+    expect(get.closedBy).toEqual({ status: "active", name: "Bob Technician" });
+    expect(get.owner).toBeNull();
+
+    const list = (await (
+      await app.request("/estimates", { headers: { Authorization: `Bearer ${jwt}` } })
+    ).json()) as { id: string; closedAt: string | null }[];
+    expect(list.find((e) => e.id === created.id)?.closedAt).toBe(closedAt.toISOString());
+  });
+
+  it("closedBy fails soft to unknown when auth is unreachable — GET still 200", async () => {
+    const app = buildApp();
+    const jwt = await tokenA();
+    const created = await create(app, jwt, "Closed, auth down");
+    await testDb.estimate.update({
+      where: { id: created.id },
+      data: { closedAt: new Date(), closedByUserId: USER_B_ID },
+    });
+    stubIdentitiesFetchDown();
+    const originalError = console.error;
+    console.error = () => {};
+    try {
+      const res = await app.request(`/estimates/${created.id}`, {
+        headers: { Authorization: `Bearer ${jwt}` },
+      });
+      expect(res.status).toBe(200);
+      const body = (await res.json()) as { closedBy: unknown };
+      expect(body.closedBy).toEqual({ status: "unknown", name: null });
+    } finally {
+      console.error = originalError;
+    }
+  });
+
+  it("PUT on a closed estimate with the CURRENT If-Match → 409 estimate_closed (not a version conflict); nothing written", async () => {
+    const app = buildApp();
+    const jwt = await tokenA();
+    const created = await create(app, jwt, "Closed, then PUT");
+    await testDb.estimate.update({
+      where: { id: created.id },
+      data: { closedAt: new Date(), closedByUserId: USER_A_ID, version: 2 },
+    });
+
+    const res = await app.request(`/estimates/${created.id}`, {
+      method: "PUT",
+      headers: { ...bearerHeader(jwt), "If-Match": '"2"' },
+      body: JSON.stringify({ name: "should not save", author: "Alice", content: makeContent("x") }),
+    });
+
+    expect(res.status).toBe(409);
+    const body = (await res.json()) as { code: string; status: number };
+    expect(body.code).toBe("estimate_closed");
+    expect(body.status).toBe(409);
+    const row = await testDb.estimate.findUniqueOrThrow({ where: { id: created.id } });
+    expect(row.name).toBe("Closed, then PUT");
+    expect(row.version).toBe(2);
+  });
+
+  it("PUT on a closed estimate with a STALE If-Match still reports estimate_closed (the close is why it is stale)", async () => {
+    const app = buildApp();
+    const jwt = await tokenA();
+    const created = await create(app, jwt, "Closed, stale PUT");
+    await testDb.estimate.update({
+      where: { id: created.id },
+      data: { closedAt: new Date(), closedByUserId: USER_A_ID, version: 2 },
+    });
+
+    const res = await app.request(`/estimates/${created.id}`, {
+      method: "PUT",
+      headers: { ...bearerHeader(jwt), "If-Match": '"1"' },
+      body: JSON.stringify({ name: "should not save", author: "Alice", content: makeContent("x") }),
+    });
+
+    expect(res.status).toBe(409);
+    expect(((await res.json()) as { code: string }).code).toBe("estimate_closed");
+  });
+
+  it("DELETE stays allowed on a closed estimate (owner)", async () => {
+    const app = buildApp();
+    const jwt = await tokenA();
+    const created = await create(app, jwt, "Closed, then deleted");
+    await testDb.estimate.update({
+      where: { id: created.id },
+      data: { closedAt: new Date(), closedByUserId: USER_A_ID },
+    });
+
+    const res = await app.request(`/estimates/${created.id}`, {
+      method: "DELETE",
+      headers: { Authorization: `Bearer ${jwt}` },
+    });
+    expect(res.status).toBe(204);
+  });
+});

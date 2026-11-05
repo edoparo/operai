@@ -175,6 +175,9 @@ model DealEstimate {
   readyAt         DateTime?
   /// The task created for the technical contact; completed when the estimate is ready.
   taskId          String?
+  /// The EstimAI version of the last close/reopen notice applied (AC-3.3): an
+  /// older notice arriving late is ignored.
+  estimaiVersion  Int?
   /// An admin's override of the Qualified → Proposal gate (AC-3.7).
   overrideBy      String?
   overrideReason  String?

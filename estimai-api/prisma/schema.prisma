@@ -26,6 +26,9 @@ model Estimate {
   version              Int      @default(1)         // NEW — optimistic concurrency (US-4)
   lastModifiedByUserId String?                      // NEW — `sub` of the last successful writer,
                                                      // for the 409 conflict message only
+  closedAt             DateTime?                    // set while the estimate is CLOSED (read-only until
+                                                     // reopened); null = open. CRM learns of it by push.
+  closedByUserId       String?                      // `sub` of whoever closed it; null while open
   createdAt            DateTime @default(now())
   updatedAt            DateTime @updatedAt
 

@@ -244,7 +244,7 @@ describe('Estimate card (US-3)', () => {
     expect((await within(dialog).findByTestId('crm-estimate-request-error')).textContent).toContain('not reachable')
   })
 
-  describe('Mark ready, Reopen, Unlink, Override: who sees what', () => {
+  describe('Unlink, Override: who sees what', () => {
     const requested = (technical: typeof TESS | typeof ADA) =>
       dealFixture({ estimate: { ...ESTIMATE, technical }, estimateState: 'requested' })
     const ready = (technical: typeof TESS | typeof ADA, requestedBy = ADA) =>
@@ -253,35 +253,14 @@ describe('Estimate card (US-3)', () => {
         estimateState: 'ready',
       })
 
-    it('the technical contact marks it ready, and the page adopts the returned deal', async () => {
-      await renderDeal(requested(ADA), { deal: [], financials: false, managesAll: false }, {
-        'POST /deals/d1/estimate/ready': () => ({ status: 200, body: ready(ADA) }),
-      })
-      fireEvent.click(screen.getByTestId('crm-estimate-ready'))
-      await waitFor(() => expect(screen.queryByTestId('crm-estimate-ready')).toBeNull())
-      expect(screen.getByTestId('crm-estimate-facts').textContent).toContain('Ready')
-      expect(screen.getByTestId('crm-estimate-reopen')).not.toBeNull()
-    })
-
-    it('someone else, who is neither the technical contact nor an admin, cannot mark it ready', async () => {
-      await renderDeal(requested(TESS), MANAGER)
+    it('nobody marks it ready or reopens it in the CRM: that happens in EstimAI (AC-3.3)', async () => {
+      await renderDeal(requested(ADA), { deal: ['welld_ch', 'welld_it'], financials: true, managesAll: true })
       expect(screen.queryByTestId('crm-estimate-ready')).toBeNull()
-    })
-
-    it('an admin (manages every entity) can mark it ready for the technician', async () => {
-      await renderDeal(requested(TESS), { deal: ['welld_ch', 'welld_it'], financials: true, managesAll: true })
-      expect(screen.getByTestId('crm-estimate-ready')).not.toBeNull()
-    })
-
-    it('Mark ready is offered only while the estimate is requested; Reopen only when ready', async () => {
+      expect(screen.getByTestId('crm-estimate-card').textContent).toContain('when they close it in EstimAI')
+      cleanup()
       await renderDeal(ready(TESS, ADA), MANAGER)
-      expect(screen.queryByTestId('crm-estimate-ready')).toBeNull()
-      expect(screen.getByTestId('crm-estimate-reopen')).not.toBeNull() // ADA requested it
-    })
-
-    it('Reopen is hidden from a stranger to the estimate', async () => {
-      await renderDeal(ready(TESS, TESS), MANAGER)
       expect(screen.queryByTestId('crm-estimate-reopen')).toBeNull()
+      expect(screen.getByTestId('crm-estimate-card').textContent).toContain('reopen it in EstimAI')
     })
 
     it('Unlink asks for confirmation and needs deal:manage in scope', async () => {

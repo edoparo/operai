@@ -17,6 +17,7 @@ import {
   PageHeader,
   SkeletonRows,
   StatePanel,
+  StatusBadge,
   ToolLayout,
   VisuallyHidden,
   formatDate,
@@ -322,6 +323,11 @@ export default function EstimatesPage() {
                 <span className="flex items-center gap-2">
                   <span className="text-sm font-medium truncate">{p.name || t.untitled}</span>
                   {p.access !== 'owner' && <AccessLevelBadge level={p.access} />}
+                  {p.closedAt && (
+                    <StatusBadge status="settled" data-testid="estimate-closed-badge">
+                      {strings.lifecycle.statusClosed}
+                    </StatusBadge>
+                  )}
                 </span>
                 <span className={`${listRowMetaClassName} block font-mono mt-0.5`}>
                   {p.access === 'owner' ? (

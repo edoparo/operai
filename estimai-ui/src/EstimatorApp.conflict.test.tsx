@@ -222,6 +222,8 @@ describe('EstimatorApp — "Save as a copy instead" posts the local content (T18
       version: 1,
       access: 'owner',
       owner: null,
+      closedAt: null,
+      closedBy: null,
     })
 
     await act(async () => {

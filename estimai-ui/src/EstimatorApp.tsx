@@ -57,6 +57,13 @@ function accessLevelLabel(level: 'editor' | 'viewer'): string {
   return level === 'editor' ? strings.sharing.dialog.levelEditor : strings.sharing.dialog.levelViewer
 }
 
+/** The message for a close/reopen that failed for a reason other than the estimate's state. */
+function lifecycleErrorMessage(err: unknown): string {
+  return err instanceof estimatesApi.ApiError
+    ? strings.lifecycle.actionFailed(String(err.status))
+    : strings.lifecycle.actionNetwork
+}
+
 export default function EstimatorApp() {
   // The suite-level chrome (logo/About, avatar menu + sign-out, theme toggle)
   // is now owned by the shell (specs/003-suite-shell, T6/T9/T14) — it is not
@@ -132,7 +139,27 @@ export default function EstimatorApp() {
     access,
     owner,
     collaboratorCount,
+    hasUnsavedChanges,
+    canChangeLifecycle,
+    closedAt,
+    closedBy,
+    closeEstimate,
+    reopenEstimate,
+    applyServerEstimate,
+    closedWhileEditing,
+    dismissClosedWhileEditing,
   } = useEstimatorContext()
+
+  // Close/reopen (the CRM's "estimate ready" signal). Closing asks first; the
+  // request's error stays inline in the dialog. Reopening is immediate.
+  const [showCloseConfirm, setShowCloseConfirm] = useState(false)
+  const [lifecycleBusy, setLifecycleBusy] = useState(false)
+  const [closeDialogError, setCloseDialogError] = useState<string | null>(null)
+  const [lifecycleError, setLifecycleError] = useState<string | null>(null)
+  const [lifecycleNotice, setLifecycleNotice] = useState<'closed' | 'reopened' | null>(null)
+  // Closing is only offered once everything typed has been stored: a pending
+  // debounce, a save in flight, a failed save or a conflict all keep it off.
+  const closeBlocked = hasUnsavedChanges || saveStatus === 'saving' || conflict !== null
 
   // T17 (specs/013-estimate-sharing/tasks.md; design.md S5 "single canEdit
   // gate"): the ONE place this component derives readOnly — every child
@@ -174,10 +201,51 @@ export default function EstimatorApp() {
   // Backfill it from the session for estimates created without one (e.g. new or
   // imported), without overwriting an author already recorded on the estimate.
   useEffect(() => {
-    if (author) return
+    // A closed estimate is read-only: never change its document locally.
+    if (author || closedAt) return
     const sessionAuthor = sessionUser?.name || sessionUser?.email
     if (sessionAuthor) setAuthor(sessionAuthor)
-  }, [author, sessionUser, setAuthor])
+  }, [author, closedAt, sessionUser, setAuthor])
+
+  // Someone else closed/reopened or changed the estimate since it was loaded:
+  // there is nothing unsaved here (closing requires it), so the latest server
+  // copy replaces the page in place. Falls back to a route reload.
+  const reloadInPlace = useCallback(async () => {
+    try {
+      applyServerEstimate(await estimatesApi.get(projectId))
+    } catch {
+      void router.invalidate()
+    }
+  }, [applyServerEstimate, projectId, router])
+
+  const runLifecycle = useCallback(
+    async (action: 'close' | 'reopen') => {
+      setLifecycleBusy(true)
+      setCloseDialogError(null)
+      setLifecycleError(null)
+      setLifecycleNotice(null)
+      try {
+        await (action === 'close' ? closeEstimate() : reopenEstimate())
+        setShowCloseConfirm(false)
+        setLifecycleNotice(action === 'close' ? 'closed' : 'reopened')
+      } catch (err: unknown) {
+        if (err instanceof estimatesApi.EstimateStateError || err instanceof estimatesApi.ConflictError) {
+          // Already closed/reopened by someone else (the reloaded page shows
+          // it), or changed meanwhile (say so: the person should look again).
+          setShowCloseConfirm(false)
+          if (!(err instanceof estimatesApi.EstimateStateError)) setLifecycleError(strings.lifecycle.changedMeanwhile)
+          await reloadInPlace()
+        } else if (action === 'close') {
+          setCloseDialogError(lifecycleErrorMessage(err))
+        } else {
+          setLifecycleError(lifecycleErrorMessage(err))
+        }
+      } finally {
+        setLifecycleBusy(false)
+      }
+    },
+    [closeEstimate, reopenEstimate, reloadInPlace],
+  )
 
   const rnames = useMemo(() => releases.map((r) => r.name), [releases])
 
@@ -512,6 +580,33 @@ export default function EstimatorApp() {
               )}
             </Button>
           )}
+          {canChangeLifecycle &&
+            (closedAt === null ? (
+              <Button
+                size="sm"
+                onClick={() => {
+                  setCloseDialogError(null)
+                  setShowCloseConfirm(true)
+                }}
+                disabled={closeBlocked}
+                title={closeBlocked ? strings.lifecycle.closeUnsavedTitle : undefined}
+                aria-haspopup="dialog"
+                data-testid="close-estimate-button"
+              >
+                <Icon name="lock" />
+                {strings.lifecycle.closeAction}
+              </Button>
+            ) : (
+              <Button
+                size="sm"
+                onClick={() => void runLifecycle('reopen')}
+                busy={lifecycleBusy}
+                data-testid="reopen-estimate-button"
+              >
+                <Icon name="edit" />
+                {lifecycleBusy ? strings.lifecycle.reopenBusy : strings.lifecycle.reopenAction}
+              </Button>
+            ))}
           <div className="w-px h-4 bg-rule mx-0.5" />
           <Button size="sm" onClick={exportClient} title={strings.editor.exportClientTitle}>
             {strings.editor.exportClient}
@@ -542,6 +637,51 @@ export default function EstimatorApp() {
           save toast (EstimatorContext.tsx already clears saveError/
           showSavedToast the moment it enters `conflict`, but the explicit
           branch here makes that exclusivity a render-time guarantee too). */}
+      {closedAt !== null && (
+        <Banner
+          tone={closedWhileEditing ? 'warning' : 'info'}
+          title={strings.lifecycle.closedTitle}
+          className="mx-5.5 mt-2"
+          data-testid="estimate-closed-banner"
+          {...(closedWhileEditing
+            ? { onDismiss: dismissClosedWhileEditing, dismissLabel: strings.editor.dismiss }
+            : {})}
+        >
+          {closedWhileEditing && <span className="block">{strings.lifecycle.closedMeanwhile}</span>}
+          <span className="block">
+            {closedBy && closedBy.status !== 'unknown'
+              ? strings.lifecycle.closedBy(formatIdentity(closedBy), formatDate(closedAt))
+              : strings.lifecycle.closedOn(formatDate(closedAt))}{' '}
+            {canChangeLifecycle ? strings.lifecycle.closedReadOnly : strings.lifecycle.closedReadOnlyViewer}
+          </span>
+        </Banner>
+      )}
+      {lifecycleError && (
+        <Banner
+          tone="danger"
+          compact
+          className="mx-5.5 mt-2"
+          onDismiss={() => setLifecycleError(null)}
+          dismissLabel={strings.editor.dismiss}
+          data-testid="estimate-lifecycle-error"
+        >
+          {lifecycleError}
+        </Banner>
+      )}
+      {lifecycleNotice && (
+        <Banner
+          tone="success"
+          compact
+          autoDismiss
+          className="mx-5.5 mt-2"
+          onDismiss={() => setLifecycleNotice(null)}
+          dismissLabel={strings.editor.dismiss}
+          data-testid="estimate-lifecycle-notice"
+        >
+          {lifecycleNotice === 'closed' ? strings.lifecycle.closedConfirmation : strings.lifecycle.reopenedConfirmation}
+        </Banner>
+      )}
+
       {conflict ? (
         <>
           <ConflictBanner conflict={conflict} onReloadLatest={handleReloadLatest} onSaveAsCopy={handleSaveAsCopy} />
@@ -706,6 +846,23 @@ export default function EstimatorApp() {
           testIdPrefix="release-delete"
         >
           <p>{releaseDeleteBody}</p>
+        </ConfirmDialog>
+      )}
+      {showCloseConfirm && (
+        <ConfirmDialog
+          tone="primary"
+          title={strings.lifecycle.confirmTitle}
+          confirmLabel={strings.lifecycle.confirmLabel}
+          busyLabel={strings.lifecycle.confirmBusy}
+          cancelLabel={strings.lifecycle.cancel}
+          closeLabel={strings.lifecycle.close}
+          busy={lifecycleBusy}
+          error={closeDialogError}
+          onConfirm={() => void runLifecycle('close')}
+          onCancel={() => setShowCloseConfirm(false)}
+          testIdPrefix="close-estimate"
+        >
+          <p>{strings.lifecycle.confirmBody}</p>
         </ConfirmDialog>
       )}
       {showShortcuts && <ShortcutsModal onClose={() => setShowShortcuts(false)} />}

@@ -6,6 +6,8 @@ import type { Context } from "hono";
 import { healthRouter } from "./health/health.routes";
 import { estimatesRouter, importEstimatesRouter } from "./estimates/estimates.routes";
 import { registerCollaboratorRoutes } from "./estimates/collaborators.routes";
+import { registerEstimateLifecycleRoutes } from "./estimates/lifecycle.routes";
+import { crmNoticesEnabled } from "./lib/crmNotices";
 import { corsMiddleware } from "./lib/cors";
 import { requestLogger } from "./lib/logger";
 import { setupOpenAPI } from "./openapi/registry";
@@ -72,6 +74,8 @@ app.route("/", importEstimatesRouter);
 // it up.
 registerCollaboratorRoutes(estimatesRouter);
 registerCollaboratorOpenApiDocs(estimatesRouter);
+// POST /estimates/{id}/close|reopen — same "register before mount" rule.
+registerEstimateLifecycleRoutes(estimatesRouter);
 app.route("/", estimatesRouter);
 
 // ─── Global error handler (RFC 7807 Problem JSON) ───────────────────────────
@@ -116,6 +120,9 @@ app.notFound((c) =>
 
 console.log(`EstimAI API → http://localhost:${env.PORT}`);
 console.log(`API docs    → http://localhost:${env.PORT}/docs`);
+if (!crmNoticesEnabled) {
+  console.log("CRM_INTERNAL_URL is not set — estimate close/reopen notices to the CRM are disabled");
+}
 
 export default {
   port: env.PORT,

@@ -58,6 +58,19 @@ const envSchema = z.object({
     .string()
     .url("NOTIFY_INTERNAL_URL must be a valid absolute URL"),
 
+  // ─── crm-api estimate notices (close/reopen push) ───────────────────────
+  //
+  // crm-api's base URL for `POST /system/estimate-notices`, authenticated with
+  // the same scoped service JWT (scope `estimate-notices.send`, configured in
+  // auth's SERVICE_CLIENTS). OPTIONAL: when unset the notifier is a no-op and
+  // the server logs one startup line saying the notices are disabled.
+  // Production (Railway): crm-api's PRIVATE-networking address, never its
+  // public domain. Best-effort — src/lib/crmNotices.ts NEVER throws.
+  CRM_INTERNAL_URL: z
+    .string()
+    .url("CRM_INTERNAL_URL must be a valid absolute URL")
+    .optional(),
+
   // ─── Third-party lookup timing/rate-limit knobs (plan.md "The third-party
   // lookup", AC-1.2) ──────────────────────────────────────────────────────
   //

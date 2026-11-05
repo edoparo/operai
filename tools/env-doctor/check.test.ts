@@ -15,7 +15,7 @@ const CLIENT_SECRET_REF = "r".repeat(40);
 const registry = (secret: string, scope = "notifications.push") =>
   JSON.stringify({
     "inventory-api": { secret, scope },
-    "estimai-api": { secret: CLIENT_SECRET_EST, scope: "notifications.push" },
+    "estimai-api": { secret: CLIENT_SECRET_EST, scope: "notifications.push estimate-notices.send" },
     "refund-api": { secret: CLIENT_SECRET_REF, scope: "notifications.push emails.send" },
   });
 
@@ -43,6 +43,7 @@ function validSuite(): SuiteEnv {
       AUTH_AUDIENCE: AUD,
       SERVICE_CLIENT_ID: "estimai-api",
       SERVICE_CLIENT_SECRET: CLIENT_SECRET_EST,
+      CRM_INTERNAL_URL: "http://crm-api.railway.internal:8084",
       PORT: "8080",
     },
     "notify-api": {

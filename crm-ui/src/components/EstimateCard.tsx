@@ -13,8 +13,8 @@ import {
   formatDate,
   formatDateTime,
 } from '@operai/ui'
-import { markEstimateReady, overrideEstimateGate, reopenEstimate, unlinkEstimate } from '../lib/crmApi'
-import { codeOf, errorMessage } from '../lib/errors'
+import { overrideEstimateGate, unlinkEstimate } from '../lib/crmApi'
+import { errorMessage } from '../lib/errors'
 import { estimaiEstimateHref } from '../lib/links'
 import { personName } from '../lib/people'
 import type { Deal } from '../lib/types'
@@ -28,18 +28,6 @@ import RequestEstimateDialog from './RequestEstimateDialog'
 const GATED_STAGES = ['lead', 'qualified']
 
 type Dialog = 'request' | 'unlink' | 'override' | null
-
-function actionFailure(error: unknown): string {
-  const t = strings.estimate.errors
-  switch (codeOf(error)) {
-    case 'technical_contact_only':
-      return t.technicalContactOnly
-    case 'estimate_participant_only':
-      return t.participantOnly
-    default:
-      return errorMessage(error)
-  }
-}
 
 /**
  * EstimateCard — the deal's technical estimate (specs/018 US-3): none (request
@@ -67,10 +55,6 @@ export default function EstimateCard({
   const [reason, setReason] = useState('')
   const [reasonError, setReasonError] = useState<string | null>(null)
 
-  const isTechnical = estimate !== null && estimate.technical.id === currentUserId
-  const isRequester = estimate !== null && estimate.requestedBy.id === currentUserId
-  const canMarkReady = estimate?.state === 'requested' && (isTechnical || managesAll)
-  const canReopen = estimate?.state === 'ready' && (isRequester || isTechnical || managesAll)
   const canRequest = estimate === null && canManage && GATED_STAGES.includes(deal.stage)
   const canOverride = managesAll && estimateOverride === null && estimate?.state !== 'ready'
 
@@ -91,7 +75,7 @@ export default function EstimateCard({
       },
       (failure: unknown) => {
         setBusy(false)
-        setError(actionFailure(failure))
+        setError(errorMessage(failure))
       },
     )
   }
@@ -103,28 +87,8 @@ export default function EstimateCard({
     run(() => overrideEstimateGate(deal.id, reason.trim()), t.done.overridden, true)
   }
 
-  const progress = canMarkReady ? (
-    <Button
-      size="sm"
-      variant="primary"
-      busy={busy}
-      onClick={() => run(() => markEstimateReady(deal.id), t.done.ready)}
-      data-testid="crm-estimate-ready"
-    >
-      {t.markReady}
-    </Button>
-  ) : canReopen ? (
-    <Button
-      size="sm"
-      busy={busy}
-      onClick={() => run(() => reopenEstimate(deal.id), t.done.reopened)}
-      data-testid="crm-estimate-reopen"
-    >
-      {t.reopen}
-    </Button>
-  ) : null
   const canUnlink = estimate !== null && canManage
-  const hasActions = progress !== null || canUnlink || canOverride
+  const hasActions = canUnlink || canOverride
 
   return (
     <Card
@@ -198,7 +162,6 @@ export default function EstimateCard({
         )}
         {hasActions && (
           <div className="flex flex-wrap items-center gap-2 border-t border-rule pt-3">
-            {progress}
             <span className="ml-auto flex flex-wrap items-center gap-1">
               {canUnlink && (
                 <Button

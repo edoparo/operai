@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it } from "bun:test";
 import { PDFDocument } from "pdf-lib";
-import { bucket, call, db, estimai, makeCompany, makeDeal, offerBody, resetWorld } from "../test-support/world";
+import { bucket, call, db, estimai, estimaiNotice, makeCompany, makeDeal, offerBody, resetWorld } from "../test-support/world";
 import { setStorageForTests } from "../lib/storage";
 
 /** specs/018 US-4 (list, download, delete) on the specs/020 generate flow. */
@@ -55,7 +55,7 @@ async function readyDeal(
     // estimai-ui stores the release NAME on an activity
     acts: [act("1", "Auth", 10, "Phase 1"), act("2", "Reports", 12, "Phase 2"), act("3", "Billing", 8, "Phase 2")],
   };
-  await call("POST", `/deals/${deal.id}/estimate/ready`, { as: "tech" });
+  await estimaiNotice(deal.id);
   return { deal, company };
 }
 

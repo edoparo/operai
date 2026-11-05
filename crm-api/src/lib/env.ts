@@ -69,6 +69,10 @@ const envSchema = z.object({
   NOTIFY_INTERNAL_URL: z.string().url("NOTIFY_INTERNAL_URL must be a valid URL").optional(),
   SERVICE_CLIENT_ID: z.string().min(1).optional(),
   SERVICE_CLIENT_SECRET: z.string().min(32, "SERVICE_CLIENT_SECRET must be at least 32 characters").optional(),
+  // ─── estimai-api notices (specs/018 AC-3.3, ADR-0073) ───────────────────────
+  // The `aud` of the service JWTs auth mints (never AUTH_AUDIENCE). Without it
+  // `POST /system/estimate-notices` refuses every call: it fails closed.
+  SERVICE_AUDIENCE: z.string().min(1).optional(),
   CRM_S3_EU_ENDPOINT_HOSTS: z
     .string()
     .optional()
@@ -79,6 +83,9 @@ const envSchema = z.object({
         .filter((h) => h.length > 0),
     ),
 }).superRefine((val, ctx) => {
+  if (val.SERVICE_AUDIENCE !== undefined && val.SERVICE_AUDIENCE === val.AUTH_AUDIENCE) {
+    ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["SERVICE_AUDIENCE"], message: "SERVICE_AUDIENCE must differ from AUTH_AUDIENCE (ADR-0044)" });
+  }
   const notifySet = NOTIFY_KEYS.filter((key) => val[key] !== undefined);
   if (notifySet.length > 0 && notifySet.length < NOTIFY_KEYS.length) {
     for (const key of NOTIFY_KEYS.filter((k) => val[k] === undefined)) {

@@ -80,7 +80,8 @@ export const ORIGINS: Record<string, Partial<Record<ServiceName, string | null>>
 export const SHARED_VARS: ReadonlyArray<{ name: string; services: ServiceName[] }> = [
   { name: "AUTH_AUDIENCE", services: ["auth", "estimai-api", "notify-api", "refund-api", "inventory-api", "crm-api"] },
   // The `aud` auth stamps on scoped service JWTs and notify-api verifies (ADR-0044).
-  { name: "SERVICE_AUDIENCE", services: ["auth", "notify-api"] },
+  // specs/018 AC-3.3: crm-api verifies estimai-api's notices against it too (ADR-0073).
+  { name: "SERVICE_AUDIENCE", services: ["auth", "notify-api", "crm-api"] },
 ];
 
 /**
@@ -96,8 +97,8 @@ export const DISTINCT_VARS: ReadonlyArray<{ a: string; b: string; services: Serv
   {
     a: "SERVICE_AUDIENCE",
     b: "AUTH_AUDIENCE",
-    services: ["auth", "notify-api"],
-    why: "a service token would be accepted on user routes and a user JWT on /system/notifications (ADR-0044)",
+    services: ["auth", "notify-api", "crm-api"],
+    why: "a service token would be accepted on user routes and a user JWT on /system/notifications or /system/estimate-notices (ADR-0044)",
   },
 ];
 
@@ -135,7 +136,8 @@ export const SERVICE_CLIENT_LINKS: ReadonlyArray<{
   requiredScopes: readonly string[];
 }> = [
   { ...LINK_BASE, caller: "inventory-api", requiredScopes: ["notifications.push"] },
-  { ...LINK_BASE, caller: "estimai-api", requiredScopes: ["notifications.push"] },
+  // specs/018 AC-3.3: estimai-api also tells crm-api an estimate was closed or reopened (ADR-0073).
+  { ...LINK_BASE, caller: "estimai-api", requiredScopes: ["notifications.push", "estimate-notices.send"] },
   { ...LINK_BASE, caller: "refund-api", requiredScopes: ["notifications.push", "emails.send"] },
   // specs/019: crm-api pushes CRM notifications, some with an email notice (both scopes, D-3);
   // notify-api looks up the notice's address in auth (ADR-0056). Both optional until provisioned.
@@ -187,6 +189,8 @@ export const INTERNAL_URL_VARS: ReadonlyArray<{
   { name: "NOTIFY_INTERNAL_URL", services: ["auth", "refund-api", "inventory-api", "crm-api"], target: "notify-api" },
   // specs/018: crm-api calls estimai-api with the caller's JWT (estimate requests, offers).
   { name: "ESTIMAI_API_URL", services: ["crm-api"], target: "estimai-api" },
+  // specs/018 AC-3.3: estimai-api tells crm-api an estimate was closed or reopened (ADR-0073).
+  { name: "CRM_INTERNAL_URL", services: ["estimai-api"], target: "crm-api" },
 ];
 
 /** Browser-facing / identity-claim URLs — must stay PUBLIC (`https://`, not localhost/internal in prod). */
@@ -232,6 +236,9 @@ export const REQUIRED_KEYS: Partial<Record<ServiceName, string[]>> = {
   "estimai-api": [
     "DATABASE_URL", "ALLOWED_ORIGINS", "AUTH_ISSUER", "AUTH_JWKS_URL", "AUTH_AUDIENCE", "PORT",
     "SERVICE_CLIENT_ID", "SERVICE_CLIENT_SECRET", // specs/016: estimai-api authenticates to notify-api as itself
+    // specs/018 AC-3.3: optional in estimai-api's env.ts, required by the contract: without it a
+    // closed estimate never becomes ready in the CRM (ADR-0073).
+    "CRM_INTERNAL_URL",
   ],
   "notify-api": [
     "DATABASE_URL", "ALLOWED_ORIGINS", "AUTH_ISSUER", "AUTH_JWKS_URL", "AUTH_AUDIENCE", "PORT",
@@ -255,8 +262,11 @@ export const REQUIRED_KEYS: Partial<Record<ServiceName, string[]>> = {
   // ESTIMAI_API_URL and CRM_S3_*, optional in crm-api's env.ts (the estimate and file routes
   // answer 503 without them) and therefore not required here until they are provisioned (T16).
   // specs/019 adds NOTIFY_INTERNAL_URL + SERVICE_CLIENT_*, optional the same way (019 D-7, T11).
+  // specs/018 AC-3.3: SERVICE_AUDIENCE is optional in env.ts (the notices route then refuses
+  // everything) but required by the contract, like CRM_INTERNAL_URL on estimai-api (ADR-0073).
   "crm-api": [
     "DATABASE_URL", "ALLOWED_ORIGINS", "AUTH_ISSUER", "AUTH_JWKS_URL", "AUTH_BASE_URL", "AUTH_AUDIENCE", "PORT",
+    "SERVICE_AUDIENCE",
   ],
 };
 

@@ -400,7 +400,7 @@ verified by `notify-api` through its existing `AUTH_JWKS_URL`. The callers are:
 |---|---|---|---|
 | `auth` | `system:auth` | `emails.send` | minting it in process (ADR-0048); the client id `auth` is **reserved** — a `SERVICE_CLIENTS` entry named `auth` refuses to start |
 | `refund-api` | `system:refund-api` | `notifications.push` + `emails.send` | `auth POST /system/service-token` with `SERVICE_CLIENT_ID` / `SERVICE_CLIENT_SECRET` |
-| `estimai-api` | `system:estimai-api` | `notifications.push` | same |
+| `estimai-api` | `system:estimai-api` | `notifications.push` + `estimate-notices.send` (crm-api `POST /system/estimate-notices`, ADR-0073; needs `CRM_INTERNAL_URL` on estimai-api and `SERVICE_AUDIENCE` on crm-api) | same |
 | `inventory-api` | `system:inventory-api` | `notifications.push` | same |
 
 A person creates, per client, one Railway **Shared Variable** `<NAME>_SERVICE_CLIENT_SECRET`

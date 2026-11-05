@@ -249,6 +249,8 @@ const mockUpdateResponse = {
   version: 2,
   access: 'owner' as const,
   owner: null,
+  closedAt: null,
+  closedBy: null,
 }
 
 // NOTE: react-dnd (used by ActivityTable, mounted inside EstimatorApp) injects

@@ -3,10 +3,12 @@
  *
  *   POST   /deals/{id}/estimate           request one: create it in EstimAI, share it
  *                                         with the technical contact, link it, task them
- *   POST   /deals/{id}/estimate/ready     the technical contact (or an admin) says it is done
- *   POST   /deals/{id}/estimate/reopen    back to `requested`
  *   POST   /deals/{id}/estimate/override  an admin lets the deal past the gate anyway
  *   DELETE /deals/{id}/estimate           unlink (the estimate stays in EstimAI; its open task goes)
+ *
+ * The estimate becomes `ready` (and back to `requested`) only when it is closed
+ * (or reopened) in EstimAI: estimai-api tells the CRM through
+ * `POST /system/estimate-notices` (estimateNotices.routes.ts, AC-3.3, ADR-0073).
  *
  * "Admin" is `deal:manage` over every entity (`managesAllDeals`). Every EstimAI
  * call carries the caller's own JWT (lib/estimai.ts), so no new trust between
@@ -30,7 +32,6 @@ import { MAX_NAME, MAX_REASON, announce, clip, formatDueDate } from "../lib/noti
 import { ProblemError, forbidden, notFound, validationHook } from "../lib/problem";
 import { assertInScope, toDealView, withCompany } from "../deals/deals.routes";
 import { addWorkingDays } from "./workingDays";
-import { announceUnblocked } from "../activities/blockers";
 
 const json = (schema: z.ZodTypeAny) => ({ content: { "application/json": { schema } } });
 const DealResponse = { description: "The deal, with its estimate", ...json(z.object({}).passthrough()) };
@@ -54,26 +55,6 @@ const requestRoute = createRoute({
     body: { content: { "application/json": { schema: z.object({ technicalUserId: z.string().min(1).max(64) }).strict() } }, required: true },
   },
   responses: { 201: DealResponse, 404: { description: "Not found" }, 409: { description: "estimate_exists / deal_not_open_for_estimate" }, ...commonErrors },
-});
-
-const readyRoute = createRoute({
-  method: "post",
-  path: "/deals/{id}/estimate/ready",
-  tags: ["Estimates"],
-  summary: "Mark the estimate ready (technical contact or admin)",
-  middleware: authorized,
-  request: { params: IdParams },
-  responses: { 200: DealResponse, 404: { description: "Not found" }, ...commonErrors },
-});
-
-const reopenRoute = createRoute({
-  method: "post",
-  path: "/deals/{id}/estimate/reopen",
-  tags: ["Estimates"],
-  summary: "Set the estimate back to requested (requester, technical contact or admin)",
-  middleware: authorized,
-  request: { params: IdParams },
-  responses: { 200: DealResponse, 404: { description: "Not found" }, ...commonErrors },
 });
 
 const overrideRoute = createRoute({
@@ -175,7 +156,11 @@ estimateRouter.openapi(requestRoute, async (c) => {
       state: "requested" as const,
       requestedBy: userId,
       requestedAt: now,
+      readyAt: null,
+      readyBy: null,
       taskId: task.id,
+      // A new estimate starts its own EstimAI version count (AC-3.3).
+      estimaiVersion: null,
     };
     await tx.dealEstimate.upsert({ where: { dealId: deal.id }, create: { dealId: deal.id, ...link }, update: link });
   });
@@ -193,76 +178,6 @@ estimateRouter.openapi(requestRoute, async (c) => {
     }),
   });
   return respond(c, id, 201);
-});
-
-estimateRouter.openapi(readyRoute, async (c) => {
-  const { id } = c.req.valid("param");
-  const userId = c.get("userId");
-  const deal = await dealOr404(id);
-  const estimate = deal.estimate?.estimateId ? deal.estimate : null;
-  if (!estimate) throw notFound("This deal has no estimate");
-  if (estimate.technicalUserId !== userId && !managesAllDeals(c)) {
-    throw forbidden("Only the technical contact marks the estimate ready", "technical_contact_only");
-  }
-  if (estimate.state !== "ready") {
-    const now = new Date();
-    const [, closedTask] = await db.$transaction([
-      db.dealEstimate.update({ where: { dealId: id }, data: { state: "ready", readyAt: now, readyBy: userId } }),
-      ...(estimate.taskId
-        ? [db.activity.updateMany({ where: { id: estimate.taskId, completedAt: null }, data: { completedAt: now, completedByUserId: userId } })]
-        : []),
-    ]);
-    // specs/017 US-6: tasks that waited on the estimate task may now go ahead.
-    if (estimate.taskId && closedTask && "count" in closedTask && closedTask.count > 0) {
-      await announceUnblocked(c, [estimate.taskId]);
-    }
-    // E2 — whoever asked for it and whoever owns the deal.
-    await announce(c, {
-      kind: "estimate_ready",
-      dealId: id,
-      recipientIds: [estimate.requestedBy, deal.ownerUserId],
-      severity: "success",
-      email: true,
-      href: dealHref(id),
-      copy: (actor) => ({
-        title: `Estimate ready: ${dealRef(deal)}`,
-        body: `${actor} marked the estimate for ${dealRef(deal)} ready. An offer can now be prepared.`,
-      }),
-    });
-  }
-  return respond(c, id, 200);
-});
-
-estimateRouter.openapi(reopenRoute, async (c) => {
-  const { id } = c.req.valid("param");
-  const userId = c.get("userId");
-  const deal = await dealOr404(id);
-  const estimate = deal.estimate?.estimateId ? deal.estimate : null;
-  if (!estimate) throw notFound("This deal has no estimate");
-  const allowed = [estimate.technicalUserId, estimate.requestedBy].includes(userId) || managesAllDeals(c);
-  if (!allowed) throw forbidden("Only the requester, the technical contact or an admin reopens the estimate", "estimate_participant_only");
-  if (estimate.state !== "requested") {
-    await db.$transaction([
-      db.dealEstimate.update({ where: { dealId: id }, data: { state: "requested", readyAt: null, readyBy: null } }),
-      ...(estimate.taskId
-        ? [db.activity.updateMany({ where: { id: estimate.taskId }, data: { completedAt: null, completedByUserId: null } })]
-        : []),
-    ]);
-    // E3 — the technical contact has work to do again.
-    await announce(c, {
-      kind: "estimate_reopened",
-      dealId: id,
-      recipientIds: [estimate.technicalUserId],
-      severity: "warning",
-      email: true,
-      href: dealHref(id),
-      copy: (actor) => ({
-        title: `Estimate reopened: ${dealRef(deal)}`,
-        body: `${actor} reopened the estimate for ${dealRef(deal)}.`,
-      }),
-    });
-  }
-  return respond(c, id, 200);
 });
 
 estimateRouter.openapi(overrideRoute, async (c) => {
@@ -334,7 +249,7 @@ estimateRouter.openapi(unlinkRoute, async (c) => {
       // Keep the admin's override: only the link goes.
       await tx.dealEstimate.update({
         where: { dealId: id },
-        data: { estimateId: "", estimateName: "", state: "requested", readyAt: null, readyBy: null, taskId: null },
+        data: { estimateId: "", estimateName: "", state: "requested", readyAt: null, readyBy: null, taskId: null, estimaiVersion: null },
       });
     } else {
       await tx.dealEstimate.delete({ where: { dealId: id } });

@@ -22,7 +22,19 @@
  */
 
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { ApiError, ConflictError, create, get, importEstimates, list, remove, update } from './estimatesApi'
+import {
+  ApiError,
+  ConflictError,
+  EstimateStateError,
+  closeEstimate,
+  create,
+  get,
+  importEstimates,
+  list,
+  remove,
+  reopenEstimate,
+  update,
+} from './estimatesApi'
 import type {
   EstimateContent,
   EstimateFull,
@@ -98,6 +110,8 @@ const fixedFull: EstimateFull = {
   version: 1,
   access: 'owner',
   owner: null,
+  closedAt: null,
+  closedBy: null,
 }
 
 const fixedListItem: EstimateListItem = {
@@ -107,6 +121,7 @@ const fixedListItem: EstimateListItem = {
   updatedAt: '2026-07-03T10:00:00.000Z',
   access: 'owner',
   owner: null,
+  closedAt: null,
 }
 
 // ---------------------------------------------------------------------------
@@ -632,5 +647,100 @@ describe('ApiError shape', () => {
     }
     expect(thrown).toBeInstanceOf(ApiError)
     expect((thrown as ApiError).status).toBe(500)
+  })
+})
+
+// ---------------------------------------------------------------------------
+// Close / reopen (the CRM "estimate ready" signal)
+// ---------------------------------------------------------------------------
+
+const closedFull: EstimateFull = {
+  ...fixedFull,
+  version: 4,
+  closedAt: '2026-11-05T10:00:00.000Z',
+  closedBy: { status: 'active', name: 'Tina Tech' },
+}
+
+const stateProblem = (code: string) =>
+  makeResponse(409, {
+    type: 'https://httpstatuses.com/409',
+    title: 'Conflict',
+    status: 409,
+    detail: 'state',
+    instance: '/estimates/est-001/close',
+    code,
+  })
+
+describe('closeEstimate(id, version) / reopenEstimate(id, version)', () => {
+  it('POSTs /estimates/:id/close with If-Match and returns the estimate + the ETag version', async () => {
+    vi.mocked(apiFetch).mockResolvedValueOnce(
+      new Response(JSON.stringify(closedFull), {
+        status: 200,
+        headers: { 'Content-Type': 'application/json', ETag: '"4"' },
+      }),
+    )
+
+    const result = await closeEstimate('est-001', 3)
+
+    const { url, init } = lastCall()
+    expect(url).toBe(`${ESTIMATES_URL}/est-001/close`)
+    expect(init?.method).toBe('POST')
+    expect((init?.headers as Record<string, string>)['If-Match']).toBe('"3"')
+    expect(result.version).toBe(4)
+    expect(result.estimate.closedAt).toBe('2026-11-05T10:00:00.000Z')
+    expect(result.estimate.closedBy).toEqual({ status: 'active', name: 'Tina Tech' })
+  })
+
+  it('POSTs /estimates/:id/reopen; falls back to the body version without an ETag', async () => {
+    vi.mocked(apiFetch).mockResolvedValueOnce(okResponse({ ...fixedFull, version: 5 }))
+
+    const result = await reopenEstimate('est-001', 4)
+
+    const { url, init } = lastCall()
+    expect(url).toBe(`${ESTIMATES_URL}/est-001/reopen`)
+    expect((init?.headers as Record<string, string>)['If-Match']).toBe('"4"')
+    expect(result.version).toBe(5)
+    expect(result.estimate.closedAt).toBeNull()
+  })
+
+  it('rejects with EstimateStateError on 409 estimate_already_closed / estimate_not_closed', async () => {
+    vi.mocked(apiFetch).mockResolvedValueOnce(stateProblem('estimate_already_closed'))
+    const closeErr = await closeEstimate('est-001', 1).catch((e: unknown) => e)
+    expect(closeErr).toBeInstanceOf(EstimateStateError)
+    expect(closeErr).not.toBeInstanceOf(ConflictError)
+    expect((closeErr as EstimateStateError).stateCode).toBe('estimate_already_closed')
+
+    vi.mocked(apiFetch).mockResolvedValueOnce(stateProblem('estimate_not_closed'))
+    const reopenErr = await reopenEstimate('est-001', 1).catch((e: unknown) => e)
+    expect((reopenErr as EstimateStateError).stateCode).toBe('estimate_not_closed')
+  })
+
+  it('rejects with ConflictError on a stale version (409) and on 428', async () => {
+    vi.mocked(apiFetch).mockResolvedValueOnce(stateProblem('estimate_version_conflict'))
+    expect(await closeEstimate('est-001', 1).catch((e: unknown) => e)).toBeInstanceOf(ConflictError)
+
+    vi.mocked(apiFetch).mockResolvedValueOnce(stateProblem('precondition_required'))
+    expect(await closeEstimate('est-001', 1).catch((e: unknown) => e)).toBeInstanceOf(ConflictError)
+  })
+
+  it('rejects with a plain ApiError on 403 (viewer)', async () => {
+    vi.mocked(apiFetch).mockResolvedValueOnce(problemResponse(403, 'Forbidden'))
+    const err = await closeEstimate('est-001', 1).catch((e: unknown) => e)
+    expect(err).toBeInstanceOf(ApiError)
+    expect(err).not.toBeInstanceOf(ConflictError)
+    expect((err as ApiError).status).toBe(403)
+  })
+})
+
+describe('update() on a closed estimate', () => {
+  it('rejects with EstimateStateError (estimate_closed), not ConflictError', async () => {
+    vi.mocked(apiFetch).mockResolvedValueOnce(stateProblem('estimate_closed'))
+
+    const err = await update('est-001', fixedUpsert, 2).catch((e: unknown) => e)
+
+    expect(err).toBeInstanceOf(EstimateStateError)
+    expect(err).not.toBeInstanceOf(ConflictError)
+    expect((err as EstimateStateError).status).toBe(409)
+    expect((err as EstimateStateError).stateCode).toBe('estimate_closed')
   })
 })

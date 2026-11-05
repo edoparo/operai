@@ -155,3 +155,27 @@ describe("env.ts — estimate-sharing optional overrides", () => {
     expect(stderr).toBe("");
   });
 });
+
+describe("env.ts — CRM_INTERNAL_URL (estimate close/reopen notices to crm-api)", () => {
+  it("is optional: boots without it", async () => {
+    const { exitCode } = await spawnEnvImport(BASE_REQUIRED_ENV);
+    expect(exitCode).toBe(0);
+  });
+
+  it("boots with an absolute URL", async () => {
+    const { exitCode } = await spawnEnvImport({
+      ...BASE_REQUIRED_ENV,
+      CRM_INTERNAL_URL: "http://localhost:8084",
+    });
+    expect(exitCode).toBe(0);
+  });
+
+  it("exits non-zero naming it when it is not an absolute URL", async () => {
+    const { exitCode, stderr } = await spawnEnvImport({
+      ...BASE_REQUIRED_ENV,
+      CRM_INTERNAL_URL: "not a url",
+    });
+    expect(exitCode).not.toBe(0);
+    expect(stderr).toContain("CRM_INTERNAL_URL");
+  });
+});

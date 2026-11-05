@@ -156,6 +156,8 @@ export const EstimateListItemSchema = z.object({
   updatedAt: z.string().datetime(),
   access: AccessLevelSchema,
   owner: IdentitySchema.nullable(),
+  // ISO timestamp while the estimate is closed (read-only until reopened); null while open.
+  closedAt: z.string().datetime().nullable(),
 });
 
 export type EstimateListItem = z.infer<typeof EstimateListItemSchema>;
@@ -180,6 +182,11 @@ export const EstimateFullSchema = z.object({
   access: AccessLevelSchema,
   owner: IdentitySchema.nullable(),
   collaboratorCount: z.number().int().optional(),
+  // Close/reopen lifecycle: `closedAt` is set while the estimate is closed —
+  // read-only for everybody until reopened — and `closedBy` is the live,
+  // fail-soft display identity of whoever closed it. Both null while open.
+  closedAt: z.string().datetime().nullable(),
+  closedBy: IdentitySchema.nullable(),
 });
 
 export type EstimateFull = z.infer<typeof EstimateFullSchema>;

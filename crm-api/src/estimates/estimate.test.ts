@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it } from "bun:test";
-import { appAccess, call, db, estimai, makeCompany, makeDeal, resetWorld } from "../test-support/world";
+import { appAccess, call, db, estimai, estimaiNotice, makeCompany, makeDeal, resetWorld, signServiceToken, app } from "../test-support/world";
 import { addWorkingDays } from "./workingDays";
 
 /** specs/018 US-3: estimate requests, the ready/reopen/override lifecycle and the gate. */
@@ -64,7 +64,7 @@ describe("technical estimates (specs/018 US-3)", () => {
     expect((await request(deal.id, "user-tech", "consultant")).status).toBe(403);
   });
 
-  it("gates proposal on a ready estimate; only the technician (or an admin) marks it ready", async () => {
+  it("gates proposal on a ready estimate; it is ready once closed in EstimAI (AC-3.3)", async () => {
     const deal = await qualifiedDeal();
     const move = (stage: string, ifMatch: number) =>
       call("POST", `/deals/${deal.id}/stage`, { as: "salesCh", ifMatch, body: { stage } });
@@ -79,8 +79,10 @@ describe("technical estimates (specs/018 US-3)", () => {
     expect((await move("won", 2)).json.code).toBe("estimate_not_ready");
     expect((await move("qualified", 2)).status).toBe(200);
 
-    expect((await call("POST", `/deals/${deal.id}/estimate/ready`, { as: "salesCh" })).json.code).toBe("technical_contact_only");
-    const ready = await call("POST", `/deals/${deal.id}/estimate/ready`, { as: "tech" });
+    // The CRM no longer marks it ready itself.
+    expect((await call("POST", `/deals/${deal.id}/estimate/ready`, { as: "admin" })).status).toBe(404);
+    expect((await estimaiNotice(deal.id)).status).toBe(204);
+    const ready = await call("GET", `/deals/${deal.id}`, { as: "salesCh" });
     expect(ready.json.estimate).toMatchObject({ state: "ready" });
     expect(ready.json.estimate.readyAt).not.toBeNull();
     // The request task is done.
@@ -88,7 +90,8 @@ describe("technical estimates (specs/018 US-3)", () => {
 
     expect((await move("proposal", 3)).json).toMatchObject({ stage: "proposal" });
     // Past qualified, the gate no longer applies, even if the estimate is reopened.
-    expect((await call("POST", `/deals/${deal.id}/estimate/reopen`, { as: "salesCh" })).json.estimate.state).toBe("requested");
+    await estimaiNotice(deal.id, "reopened", { by: "user-sales-ch" });
+    expect((await call("GET", `/deals/${deal.id}`, { as: "salesCh" })).json.estimate.state).toBe("requested");
     expect((await call("GET", "/tasks", { as: "tech" })).json.total).toBe(1);
     expect((await move("negotiation", 4)).status).toBe(200);
   });
@@ -101,9 +104,47 @@ describe("technical estimates (specs/018 US-3)", () => {
     expect(await db.activity.count({ where: { dealId: deal.id, type: "task" } })).toBe(0);
 
     await request(deal.id);
-    await call("POST", `/deals/${deal.id}/estimate/ready`, { as: "tech" });
+    await estimaiNotice(deal.id);
     expect((await call("DELETE", `/deals/${deal.id}/estimate`, { as: "salesCh" })).status).toBe(200);
     expect((await call("GET", "/tasks?status=done", { as: "tech" })).json.total).toBe(1);
+  });
+
+  it("a late notice cannot undo a newer one, and an unknown estimate is a quiet 204", async () => {
+    const deal = await qualifiedDeal();
+    await request(deal.id);
+    await estimaiNotice(deal.id, "closed", { version: 4 });
+    // The reopen of version 3 arrives after the close of version 4: ignored.
+    await estimaiNotice(deal.id, "reopened", { version: 3 });
+    expect((await call("GET", `/deals/${deal.id}`)).json.estimate.state).toBe("ready");
+    expect((await call("GET", "/tasks?status=done", { as: "tech" })).json.total).toBe(1);
+    await estimaiNotice(deal.id, "reopened", { version: 5 });
+    expect((await call("GET", `/deals/${deal.id}`)).json.estimate.state).toBe("requested");
+    expect((await call("GET", "/tasks", { as: "tech" })).json.total).toBe(1);
+
+    const token = await signServiceToken({ sub: "system:estimai-api", scope: "estimate-notices.send" });
+    const unknown = await app.request("/system/estimate-notices", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+      body: JSON.stringify({ estimateId: "est-nobody", event: "closed", version: 2, at: new Date().toISOString(), byUserId: "user-tech" }),
+    });
+    expect(unknown.status).toBe(204);
+  });
+
+  it("takes only estimai-api's service credential with the notices scope", async () => {
+    const deal = await qualifiedDeal();
+    await request(deal.id);
+    expect((await estimaiNotice(deal.id, "closed", { sub: "system:crm-api" })).status).toBe(401);
+    expect((await estimaiNotice(deal.id, "closed", { scope: "notifications.push" })).status).toBe(401);
+    const userToken = await call("POST", "/system/estimate-notices", { as: "tech", body: {} });
+    expect(userToken.status).toBe(401);
+    const otherAudience = await signServiceToken({ sub: "system:estimai-api", scope: "estimate-notices.send", audience: "operai-suite" });
+    const res = await app.request("/system/estimate-notices", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${otherAudience}` },
+      body: JSON.stringify({ estimateId: "x", event: "closed", version: 2, at: new Date().toISOString(), byUserId: "user-tech" }),
+    });
+    expect(res.status).toBe(401);
+    expect((await call("GET", `/deals/${deal.id}`)).json.estimate.state).toBe("requested");
   });
 
   it("an admin overrides the gate with a reason, kept on the timeline and across an unlink", async () => {
