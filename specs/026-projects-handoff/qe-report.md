@@ -1,9 +1,131 @@
 # QE report — specs/022-projects-handoff (T17, QE-light, rigor mvp, advisory mode)
 
+Latest pass first: **Round 2** (re-verification after the fix rounds). Round 1 follows unchanged as history.
+
+# Round 2
+
+Measured at `0fba4a5` (HEAD; tree clean, this pass added no tests and no code; `3f1873c..HEAD` = `5e899be`,
+`0c653c0`, `b9fc33e`, `ea465bd`, `0fba4a5`). Date 2026-11-05. Evidence directory:
+`/private/tmp/claude-331608204/-Users-edoardo-paronzini-Work-Experiments-operai/81b2a4d5-c9fe-491f-8092-cb8f109563af/scratchpad/qe2/` (`shots/` screenshots, `logs/` gate logs, `matrix.out`, `semgrep.json`).
+
+## QE verdict: PASS (advisory mode, rigor mvp — coverage advisory)        (measured at 0fba4a5)
+
+Every blocking row (lint, typecheck, secret scan, SAST-high) is green; all 36 ACs pass, including AC-6.1
+(42/42 module pairs, back and forward); D1 and A1 are fixed; live row 7 and the CRM leg of row 5 now run and pass.
+Three ADVISORY findings go to the user, because this was the last fix round (see "Findings for the user"):
+**D2 is only partly fixed** (same stale-error pattern in 4 sibling dialogs, missed in round 1), **D4 (new, pre-existing,
+not caused by T37)**: browser Back *inside* a module changes the URL but not the page, and **N1**: no changeset text for T37.
+
+Nothing was BLOCKED. Environment fault of round 1 (dev `crm` DB behind) is resolved (crm-api answers 200 on
+`/companies`, `/deals`, `/pipeline`).
+
+## Gate table (Round 2)
+
+| Check | Threshold | Actual (at 0fba4a5) | Result |
+|---|---|---|---|
+| admin-ui lint / build / test | clean / ok / green | exit 0 / exit 0 / 490 pass (38 files) | ✓ |
+| crm-ui lint / build / test | clean / ok / green | exit 0 / exit 0 / 212 pass (14 files) | ✓ |
+| estimai-ui lint / build | clean / ok | exit 0 / exit 0 | ✓ |
+| estimai-ui test | green | 278 pass, **2 fail** (`ImportOfferModal.test.tsx` B/C: `vi.spyOn(localStorage, ...)` on `undefined`, Node v26.10.0) — the same 2 as round 1; file and component untouched vs `main`; the new `App.backNavigation.test.tsx` passes | NOT COUNTED (pre-existing environment fault, see below) |
+| inventory-ui lint / build / test | clean / ok / green | exit 0 / exit 0 / 1056 pass (60 files) | ✓ |
+| notify-ui lint / build / test | clean / ok / green | exit 0 / exit 0 / 45 pass (9 files) | ✓ |
+| projects-ui lint / build / test | clean / ok / green | exit 0 / exit 0 / 696 pass (25 files) | ✓ |
+| refund-ui lint / build / test | clean / ok / green | exit 0 / exit 0 / 747 pass (57 files) | ✓ |
+| operai-ui lint / typecheck / test | clean / clean / green | exit 0 / exit 0 / 88 pass (10 files) | ✓ |
+| Changeset | check-changeset OK, `changeset status` | `check-changeset --base=3f1873c --head=HEAD`: OK (`banner-actions-wrap-narrow.md`); status: all packages at minor, none missing | ✓ |
+| Secret scan (security floor, BLOCKING) | no leak | `gitleaks git 3f1873c..HEAD` (5 commits): **no leaks**; whole branch `feat/projects..HEAD` (73 commits): **no leaks** | ✓ |
+| SAST-high (BLOCKING) | 0 high | semgrep 1.182 (`p/typescript`, `p/owasp-top-ten`, `p/security-audit`, ERROR) on the 11 changed source files: **0 findings**, 100% parsed | ✓ |
+| Dependency audit | advisory | no dependency changed since round 1 (`git diff 3f1873c..HEAD` touches no manifest or lockfile); round-1 criticals unchanged | ADVISORY (not re-run) |
+| Line coverage | ≥ 80% (advisory) | not re-measured: no `*-api` / `auth` file changed since round 1 (round 1: 88.7–97.4%, no gap); frontends have no coverage provider | ADVISORY ✓ |
+| Back-navigation unit tests (T37) | one per module, green | 7/7 `App.backNavigation.test.tsx` green inside the module runs above | ✓ |
+
+Not re-run, nothing changed since round 1: auth, crm-api, notify-api, projects-api, estimai-api, shell, env-doctor.
+Environment fault (not a defect): the 2 estimai-ui failures are Node 26's experimental `localStorage` being undefined under
+jsdom — same tests, same message as round 1; `ImportOfferModal.test.tsx` / `.tsx` have no diff against `main`.
+
+## Round-1 follow-ups
+
+| Item | Result | Evidence |
+|---|---|---|
+| AC-6.1 (T37, fix round 2) | **PASS** | matrix below: 42/42; the checks are not vacuous: `/projects/admin` (the original symptom) fails them (marker absent, "Project not found", `404 /projects/admin`) |
+| D1 awaiting notice at 360 | **FIXED** (with the sidebar collapsed, the round-1 repro) | notice content 209 px wide, 7 lines, "Pick project manager" wrapped below the message; at 1280 unchanged (784 px message, actions on the same row). `shots/d1-360-collapsed.png`, `shots/d1-1280-default.png`. Class sweep: inventory-ui `AssetActions` pending-assignment Banner with actions: 360 collapsed 209 px content, actions below ✓; 1280 one row ✓ (fixture served by browser-side route interception, the dev inventory DB is empty; `shots/inv-assetactions-360.png`). Banners with actions, whole repo: only these two consumers — projects-ui `ProjectDetailPage` (awaiting notice) and inventory-ui `AssetActions` (pending-assignment ✓ rendered; holder-deleted callout is the same component with the same props, not rendered separately). Still true and pre-existing (O2): with the shell sidebar left expanded at 360 the whole content column is ~136 px and every page, not the Banner, is squeezed (`shots/d1-360-default.png`) |
+| D2 stale validation message | **PARTLY FIXED** | fixed where I filed it: hand-made create dialog (name, type, company, entity, PM, start/end dates clear on change; `shots/d2-form-company-cleared-1280.png`). **Same defect in 4 sibling dialogs, missed in round 1** (see D2 below) |
+| A1 focus after "Set project manager" | **FIXED** | focus lands on the page heading (`H2`, `tabindex=-1`); notice gone, "Project manager picked." shown, Start enabled |
+
+## AC-6.1 matrix (live, dev stack, admin persona, own headless Chromium)
+
+Every ordered pair of the 7 remote modules (admin, crm, estimai, inventory, notify, projects, refund) = 42 pairs. Per pair, in a
+fresh session: cold load of A → switch to B through the shell link (client-side) → **Back** → **Forward** → **Back** again. Asserted
+at each step: the URL is the module's own, the module's own page is rendered (a page marker), no "not found / does not exist /
+something went wrong" text, and **no 4xx/5xx from any API after the switch** (the original symptom was `GET /projects/admin` → 404).
+Result **42/42 OK** (`matrix.out`). Rows that the caller named:
+
+| Pair / flow | Back lands on | Forward lands on | Back again | 4xx |
+|---|---|---|---|---|
+| projects > admin | `/projects` list | `/admin/roles` | list | none |
+| projects > crm | `/projects` list | `/crm/companies` | list | none |
+| crm > admin | `/crm/companies` | `/admin/roles` | companies | none |
+| crm > projects | `/crm/companies` | `/projects` list | companies | none |
+| admin > projects | `/admin/roles` | `/projects` list | roles | none |
+| admin > crm | `/admin/roles` | `/crm/companies` | roles | none |
+| projects > notify | `/projects` list | `/notify` | list | none |
+| notify > projects | `/notify` | `/projects` list | notify | none |
+| the other 34 ordered pairs (estimai, inventory, refund as leaver and as destination, notify, admin, crm) | own page | own page | own page | none |
+| notify link from projects (warm): `/projects` → bell → notification link, ×3 | project page "Awaiting project manager" 3/3, no 4xx (was 404 + "Project not found" 3/3 in round 1) | — | — | none |
+
+In-module navigation by clicks: projects list → To start → list → a project → "Back to projects", ×3: always the right page,
+no "not found"; CRM Pipeline ↔ Companies ↔ a company ×2: ok; no API error, no page error. **Browser Back inside a module is
+a different matter: D4.**
+
+## Live pass (Round 2)
+
+| # | Row | Result | What I saw |
+|---|---|---|---|
+| 1 | sales-ch takes a deal | PASS | queue of 3 deals; dialog: name prefilled, 4 types, ops-manager prefilled "QE022 ops-ch", referents of the company, terms; empty submit refuses Type and Start date; fixed price needs Deadline and Max effort; created `/projects/cmw3scjgb0000hrvdo0dtojfz`: Planned, "Awaiting project manager", PO card (deal link, estimate link, ops manager, referent Martina Keller with job title, e-mail, phone), Terms, **10.8 man-days** from the estimate. `shots/row1-take-dialog-1280.png`, `shots/row1-created-1280.png` |
+| 2 | ops-ch: notification (incl. warm link), Start refused, pick PM, notice gone | PASS | warm link 3/3 (above). Start disabled with "Waiting for a project manager…"; pick dialog (focus in the combobox, 7 people) → set → dialog closed, notice gone, "Project manager picked.", Start enabled, focus on the heading (A1). `shots/row2-after-pick-1280.png` |
+| 3 | pm-it: no "To start", denied on `/projects/queue` | PASS | nav "Projects" only; queue page "You do not have access to this. Ask an administrator for the permission, then reload the page." |
+| 4 | pm-it (no CRM access): referent on the PO page | PASS | name, job title, `mailto:` and `tel:` links; no change-referent control (other entity); **0 browser requests to crm-api**; 0 failing responses. `shots/row4-pmit-po-1280.png` |
+| 5 | reopen / re-win, **CRM side through the CRM's own UI** ("Move to stage" → Qualified, then → Won) | PASS | project of the reopened deal: "The deal is no longer won" notice on the page and on the PO card (2 banners) → gone after re-win; queue deal "Licenza wellD Fleet — 25 veicoli": leaves the queue on reopen, returns on re-win. `shots/row5-notice-reopened-1280.png`. The two deals were restored by SQL afterwards (see data) |
+| 7 | CRM deal page shows the project and the Bexio order id | PASS | deal with a project: "Delivery · PROJECT App mobile onboarding clienti · BEXIO ORDER ID —"; with a Bexio id set by `accounting`: "BEXIO ORDER ID QE-2026-0042" (then cleared); deals without a project (won or open): no Delivery card; as sales and admin; 0 failing responses; no overflow at 360. `shots/r7-delivery-bexio-1280.png` / `-360.png` |
+| 8 | hand-made `saas` with terms; remove terms | PASS | Company* required ("Choose a company from the list."), terms opt-in, end before start refused naming the end date and cleared once the start moves, created `/projects/cmw3sv2j90003hrvdi85tiz0t` (no PO card), "Remove terms" → inline confirm → "Terms removed." `shots/row8-handmade-1280.png`, `shots/row8-terms-removed-1280.png` |
+| 9 | 360 (sidebar collapsed) and 1280; focus order and return | PASS | queue, take dialog, list, project awaiting (209 px notice), project/PO card, pick dialog, create dialog with terms: **0 px horizontal overflow** in all 14 renders; dialogs 328 px at 360. Focus: dialogs open on the first field/combobox, Tab stays inside, Esc returns to the trigger (row "New project", "Pick project manager", "New project"). `shots/r9-*.png` |
+
+## Findings for the user (new defects: last fix round, so they come to you)
+
+**D2 (advisory, minor; missed in round 1) — the stale-message fix covers one dialog of five.**
+`ProjectFormDialog` clears an error when its value changes; the same pattern is still in:
+- `TakeDealDialog` (the take-a-deal dialog, the main 022 flow) ✗ executed: after a refused submit, choosing a Type or entering the Start date leaves "This field is required." and `aria-invalid=true` in place (`shots/d2-take-stale-1280.png`; repro: sales-ch → /projects/queue → New project → Create project → pick a Type);
+- `ProjectEditDialog` ("Edit details") ✗ executed: clear the name, Save, type a name: error stays;
+- `TermsFormDialog` ("Edit" on the terms) ✗ executed: clear the start date, Save, type a date: error stays (`shots/d2-terms-stale-1280.png`);
+- `EndTermsDialog` ("Set end date") ✗ by reading the source only (not executed): `fieldError` is never cleared on change;
+- ✓ `PickProjectManagerDialog` (clears on pick), `PurchaseOrderCard` referent (clears).
+Effect: cosmetic, the next submit re-validates and succeeds; no AC covers it. Owner: projects-ui (the `clearErrors` helper of `ProjectFormDialog` is the template). First seen: round 1 (class not swept then), **missed earlier, not new since the fix**.
+
+**D4 (advisory; new finding, PRE-EXISTING — not caused by T37, 022 or the fix rounds) — browser Back/Forward *inside* a module changes the URL but not the page.**
+Repro (any module): as admin open `/projects` → click "To start" → browser Back (or `history.back()`): the address is `/projects`, the page still shows "To start". Same: `/projects` → open a project → Back (stays on the project); `/crm` → open a company → Back (stays on the company) — each 3/3 (`shots/d4-projects-back-stale.png`, `shots/d4-crm-back-stale.png`). A later `popstate` makes it catch up (a dispatched synthetic one rendered the list).
+Pre-existing, shown: with `projects-ui/src/App.tsx` temporarily swapped for its `3f1873c` content (the module-level router, restored byte-identical afterwards; the dev server served it, 2 popstate listeners as expected) the result is identical (3/3 still "To start" after Back). Both TanStack history listeners (shell's and the module's) do fire on Back; the module's router just does not commit the BACK load. Observed on the dev stack only (not on a production build). Outside AC-6.1 as worded (it covers moving *between* modules, and that passes) and outside T37's contract, so it is not counted against this verdict, but it is the same symptom family the user cared about ("Back shows the wrong page") and a user pressing Back inside a module will meet it. Owner: shell / frontend routing — needs a decision from you (new spec or a follow-up task; a first lead: TanStack `@tanstack/react-router` 1.170.46 in the remotes vs `^1.168.2` in the shell, BACK-action `router.load`).
+
+**N1 (advisory, trivial)** — T37 changes all seven modules' `App.tsx` (a user-visible fix) but no changeset describes it: `projects-handoff.md` is about the hand-off and `banner-actions-wrap-narrow.md` is about the Banner. The check passes because every package already has a bump from other changesets. Owner: whoever releases.
+
+**O2 (unchanged, pre-existing, shell)** — at 360 px the shell leaves its sidebar expanded; page content is ~136 px (see D1 evidence).
+
+## Dev data changed (Round 2)
+- New project `cmw3scjgb0000hrvdo0dtojfz` "Portale clienti — modulo resi (change request)" (taken by sales-ch from the deal; fixed price, Alpina Logistik AG, referent Martina Keller, ops-manager QE022 ops-ch, **PM now QE021 pm-it**, planned, start 01.12.2026, deadline 15.02.2027, max effort 120): the queue holds 2 deals now (Licenza 25 veicoli, Integrazione MES). One more notification for QE022 ops-ch.
+- New hand-made project `cmw3sv2j90003hrvdi85tiz0t` "QE022 round2 SaaS hand-made" (saas, wellD IT, Alpina Logistik AG, PM pm-it, terms removed).
+- Round-1 project `cmw3mzl6x0000xavdu8jbvimz`: the PO's Bexio order id was set to `QE-2026-0042` and cleared again (the PO's `version` is now 3, was 1).
+- CRM deals `czh7januxvzc4hqfhfxeav3a0` and `c6lzp75cmu92aniw6ffa306pe`: moved to Qualified and back to Won through the CRM UI, then **restored by SQL** to stage `won`, original `closedAt`, `updatedAt` and `version 1` (diff against the saved original rows: identical; `activity` table still 13 rows).
+- Inventory: nothing written (the AssetActions fixture was served by browser-side route interception).
+- `projects-ui/src/App.tsx` was swapped for the `3f1873c` version twice for the D4 baseline and restored with `git checkout` (verified identical to HEAD; `git status` clean). Test-auth sessions minted. `pnpm build` rewrote the git-ignored `dist/` of the 7 UI modules. No env file read or written; stack not stopped.
+
+## Recommendation (Round 2)
+No `owasp-reviewer` re-run needed: the five new commits touch only router wiring, validation-message state, a heading focus and CSS (gitleaks and semgrep re-run clean; `security-review.md` stands).
+
+# Round 1 (history)
+
 Measured at `22658b0` (code identical at `b681713`, the HEAD at hand-over: the commits in between
 touch only `specs/**`). Date 2026-11-05. Tree clean; this QE pass added no tests and no code.
 
-## QE verdict: FAIL (advisory mode, rigor mvp — coverage advisory)        (measured at 22658b0 / b681713)
+## Round 1 verdict: FAIL (advisory mode, rigor mvp — coverage advisory)        (measured at 22658b0 / b681713)
 
 FAIL is driven by exactly two rows, neither a gate: **AC-6.1** (known, being fixed by T37, not 022
 code) and **D1** (new: the awaiting-PM notice is squeezed at 360 px). One live-pass row is **BLOCKED**
