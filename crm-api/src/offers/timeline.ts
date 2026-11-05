@@ -113,6 +113,8 @@ const cell = (text: string): string => text.replace(/\|/g, "/").replace(/\s+/g, 
 
 /** The `{timeline}` markup: "5 - 6", or one number when best and worst agree. */
 export function timelineTable(rows: readonly ReleaseTimeline[], language: OfferLanguage): string {
+  // No release with activities (or no estimate at all): no table, not a bare header.
+  if (rows.length === 0) return "";
   const [phase, months] = HEADERS[language];
   const lines = [`| ${phase} | ${months} |`];
   for (const row of rows) {

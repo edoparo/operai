@@ -583,6 +583,26 @@ describe('Offers card (US-4)', () => {
     await within(dialog).findByTestId('crm-offer-form')
   }
 
+  it('a deal an admin let go without an estimate can have an offer, with no AI or annex choice (specs/018 AC-3.7)', async () => {
+    await renderDeal(dealFixture({ stage: 'proposal', estimateOverridden: true }), MANAGER, {
+      'GET /offer-templates': () => ({ status: 200, body: { items: [TEMPLATE_EN] } }),
+      'GET /contacts': () => ({ status: 200, body: page([]) }),
+      'GET /deals/d1/attachments': () => ({ status: 200, body: { items: [] } }),
+      'GET /deals/d1/offers/draft': () => ({ status: 200, body: draftFor({ annex: false, manDays: 0 }) }),
+    })
+    const generate = (await screen.findByTestId('crm-offer-generate')) as HTMLButtonElement
+    expect(generate.disabled).toBe(false)
+    fireEvent.click(generate)
+    const dialog = await screen.findByRole('dialog', { name: 'Generate an offer' })
+    expect(within(dialog).getByTestId('crm-offer-no-estimate')).not.toBeNull()
+    expect(within(dialog).queryByTestId('crm-offer-ai')).toBeNull()
+    await within(dialog).findByRole('option', { name: 'Standard EN (English)' })
+    await pickTemplate(dialog)
+    expect(within(dialog).queryByTestId('crm-offer-annex')).toBeNull()
+    expect(dialog.textContent).toContain('Language: English.')
+    expect(dialog.textContent).not.toContain('Estimate: 0 man-days')
+  })
+
   it('lists the active templates of the deal’s entity, the person’s language first, and archived ones not at all', async () => {
     let listed = ''
     await renderDeal(dealFixture({ stage: 'qualified', estimate: readyEstimate, estimateState: 'ready' }), MANAGER, {

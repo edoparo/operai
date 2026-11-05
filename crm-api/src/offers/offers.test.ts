@@ -221,6 +221,22 @@ describe("offer generation (specs/020 US-1, US-3, US-4)", () => {
     expect((await generate(it.deal.id, good, "salesCh")).json.code).toBe("out_of_scope");
   });
 
+  it("a deal an admin let go without an estimate gets an offer with no scope, no man-days and no annex (specs/018 AC-3.7)", async () => {
+    const company = await makeCompany();
+    const deal = await makeDeal(company.id, { amountCents: 1_500_000 }, "admin");
+    await call("POST", `/deals/${deal.id}/estimate/override`, { as: "admin", body: { reason: "Fixed-price service" } });
+    await putProfile();
+    const list = await call("GET", "/offer-templates?entity=welld_ch", { as: "admin" });
+    const template = list.json.items.find((t: { name: string }) => t.name === "Fixed-price project");
+    const draft = await call("GET", `/deals/${deal.id}/offers/draft?templateId=${template.id}`);
+    expect(draft.status).toBe(200);
+    expect(draft.json).toMatchObject({ manDays: 0, annex: false });
+    expect(JSON.stringify(draft.json.sections)).not.toContain("|");
+    const res = await generate(deal.id, { ...(await body(deal.id, "Fixed-price project")), annex: true });
+    expect(res.status).toBe(201);
+    expect(estimai.estimates.size).toBe(0);
+  });
+
   it("generates the price, the yearly figure and the snapshot", async () => {
     const { deal } = await readyDeal();
     await putProfile();

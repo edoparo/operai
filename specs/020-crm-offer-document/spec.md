@@ -30,8 +30,8 @@ depends-on: 018
 >   background of every page.
 > - **Structure:** the supply-contract structure of the examples.
 > - **Offer kinds:** the generate dialog starts from a kind, which prefills everything.
-> - **Estimate:** every offer still needs a ready estimate (specs/018). The effort detail
->   becomes an optional "Annex A".
+> - **Estimate:** every offer still needs a ready estimate (specs/018), unless an admin let
+>   the deal go without one. The effort detail becomes an optional "Annex A".
 > - **Reference:** `0017/2026` for the first offer, then `0017/2026r1`, `r2`… for later
 >   revisions.
 >
@@ -230,6 +230,9 @@ Operai.
 - **AC-3.5** Validity is still asked for and stored as in specs/018. The document prints
   it only where a text uses `{validityDays}`, as AELCO's section 7 does.
 - **AC-3.6** Every offer still needs a ready estimate (specs/018), whatever its template.
+  - Exception (2026-11-05): a deal whose estimate gate an admin overrode (specs/018 AC-3.7)
+    gets an offer without one. Scope, man-days and timeline are left empty, there is no
+    annex and no AI-assisted choice; the person writes the scope and sets the costs.
 - **AC-3.7** The offer's snapshot stores everything the dialog sent, including the
   template's id and name.
 

@@ -133,6 +133,8 @@ export default function GenerateOfferDialog({
   onCancel: () => void
 }) {
   const t = strings.offers.dialog
+  // Overridden without an estimate: no man-days to assist and no scope to append.
+  const withEstimate = deal.estimate?.state === 'ready'
   const [templates, setTemplates] = useState<OfferTemplate[] | null>(null)
   const [templatesFailed, setTemplatesFailed] = useState(false)
   const [contacts, setContacts] = useState<ContactSummary[]>([])
@@ -370,20 +372,26 @@ export default function GenerateOfferDialog({
               {t.templatesEmpty}
             </Banner>
           )}
-          <label className="flex items-start gap-2 text-sm text-text">
-            <input
-              type="checkbox"
-              checked={aiAssisted}
-              onChange={(event) =>
-                templateId === '' ? setAiAssisted(event.target.checked) : request(templateId, event.target.checked)
-              }
-              data-testid="crm-offer-ai"
-            />
-            <span>
-              {t.aiAssisted}
-              <span className="block text-xs text-soft">{t.aiAssistedHint}</span>
-            </span>
-          </label>
+          {withEstimate ? (
+            <label className="flex items-start gap-2 text-sm text-text">
+              <input
+                type="checkbox"
+                checked={aiAssisted}
+                onChange={(event) =>
+                  templateId === '' ? setAiAssisted(event.target.checked) : request(templateId, event.target.checked)
+                }
+                data-testid="crm-offer-ai"
+              />
+              <span>
+                {t.aiAssisted}
+                <span className="block text-xs text-soft">{t.aiAssistedHint}</span>
+              </span>
+            </label>
+          ) : (
+            <Banner tone="info" data-testid="crm-offer-no-estimate">
+              {t.noEstimate}
+            </Banner>
+          )}
           {loadingDraft && (
             <p className="text-sm text-soft" role="status" data-testid="crm-offer-draft-loading">
               {source && form === null ? t.formLoading : t.draftLoading}
@@ -392,10 +400,12 @@ export default function GenerateOfferDialog({
           {form !== null && !loadingDraft && (
             <fieldset disabled={busy} className="flex flex-col gap-4" data-testid="crm-offer-form">
               <p className="text-xs text-soft">
-                {t.summary(
-                  strings.offers.languageName[form.language],
-                  formatNumber(form.manDays, { maximumFractionDigits: 1 }),
-                )}
+                {withEstimate
+                  ? t.summary(
+                      strings.offers.languageName[form.language],
+                      formatNumber(form.manDays, { maximumFractionDigits: 1 }),
+                    )
+                  : t.languageOnly(strings.offers.languageName[form.language])}
               </p>
               <Field label={t.salutation} required error={errors.salutation} testId="crm-offer-salutation">
                 {(control) => (
@@ -535,18 +545,20 @@ export default function GenerateOfferDialog({
                   />
                 )}
               </Field>
-              <label className="flex items-start gap-2 text-sm text-text">
-                <input
-                  type="checkbox"
-                  checked={form.annex}
-                  onChange={(event) => patch({ annex: event.target.checked })}
-                  data-testid="crm-offer-annex"
-                />
-                <span>
-                  {strings.templates.editor.fields.annex}
-                  <span className="block text-xs text-soft">{strings.templates.editor.fields.annexHint}</span>
-                </span>
-              </label>
+              {withEstimate && (
+                <label className="flex items-start gap-2 text-sm text-text">
+                  <input
+                    type="checkbox"
+                    checked={form.annex}
+                    onChange={(event) => patch({ annex: event.target.checked })}
+                    data-testid="crm-offer-annex"
+                  />
+                  <span>
+                    {strings.templates.editor.fields.annex}
+                    <span className="block text-xs text-soft">{strings.templates.editor.fields.annexHint}</span>
+                  </span>
+                </label>
+              )}
               <CheckboxGroupField
                 label={t.attachments}
                 hint={t.attachmentsHint}

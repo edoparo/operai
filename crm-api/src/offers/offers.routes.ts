@@ -315,18 +315,20 @@ export const offersRouter = new OpenAPIHono<{ Variables: AuthzVariables }>({
 
 /**
  * Everything draft and generate share: the deal, its scope, the ready estimate,
- * the entity profile and an active template of the deal's entity.
+ * the entity profile and an active template of the deal's entity. A deal whose
+ * estimate gate an admin overrode (specs/018 AC-3.7) has an offer without an
+ * estimate: `link` is then null and the scope, man-days and timeline are empty.
  */
 async function loadContext(dealId: string, templateId: string, scope: ReturnType<typeof dealScope>) {
   const deal = await db.deal.findUnique({ where: { id: dealId }, include: { company: true, estimate: true } });
   if (!deal) throw notFound("Deal not found");
   assertInScope(scope, deal.entity);
-  const link = deal.estimate?.estimateId ? deal.estimate : null;
-  if (link?.state !== "ready") {
+  const link = deal.estimate?.estimateId && deal.estimate.state === "ready" ? deal.estimate : null;
+  if (!link && !deal.estimate?.overrideAt) {
     throw new ProblemError({
       status: 409,
       code: "estimate_not_ready",
-      detail: "An offer is generated from a ready technical estimate",
+      detail: "An offer is generated from a ready technical estimate, or once an admin let the deal go without one",
     });
   }
   const profile = await db.entityProfile.findUnique({ where: { entity: deal.entity } });
@@ -361,6 +363,9 @@ const templateContentOf = (template: NonNullable<Awaited<ReturnType<typeof db.of
   annex: template.annex,
 });
 
+/** The stand-in for a deal that goes without an estimate: no releases, no activities. */
+const NO_ESTIMATE: EstimateDocument = { id: "", name: "", content: { params: {}, releases: [], acts: [] } };
+
 offersRouter.openapi(listRoute, async (c) => {
   const { id } = c.req.valid("param");
   if (!(await db.deal.findUnique({ where: { id }, select: { id: true } }))) throw notFound("Deal not found");
@@ -372,8 +377,8 @@ offersRouter.openapi(draftRoute, async (c) => {
   const { id } = c.req.valid("param");
   const { templateId, aiAssisted } = c.req.valid("query");
   const { deal, link, profile, template } = await loadContext(id, templateId, dealScope(c));
-  const estimate = await getEstimate(c, link.estimateId);
-  const draft: OfferDraft = buildDraft({
+  const estimate = link ? await getEstimate(c, link.estimateId) : NO_ESTIMATE;
+  const built = buildDraft({
     template: templateContentOf(template),
     deal: { title: deal.title, amountCents: deal.amountCents === null ? null : Number(deal.amountCents), currency: deal.currency },
     company: deal.company,
@@ -382,6 +387,8 @@ offersRouter.openapi(draftRoute, async (c) => {
     aiAssisted: aiAssisted === "true",
     validityDays: DEFAULT_VALIDITY_DAYS,
   });
+  // Without an estimate there is no scope to append.
+  const draft: OfferDraft = link ? built : { ...built, annex: false };
   return c.json(draft, 200);
 });
 
@@ -478,10 +485,10 @@ async function prepareOffer(
   const storage = requireStorage();
   const { refs: attachments, bytes: attachmentBytes } = await loadAttachments(storage, dealId, body.attachmentIds);
   const letterhead = profile.letterheadKey ? await storage.getObject(profile.letterheadKey, 5 * 1024 * 1024) : null;
-  const estimate: EstimateDocument = await getEstimate(c, link.estimateId);
+  const estimate: EstimateDocument | null = link ? await getEstimate(c, link.estimateId) : null;
   const userId = c.get("userId");
   const { person } = await loadPeople(c, [userId]);
-  const annex = body.annex ? buildScope(estimate, { aiAssisted: body.aiAssisted, ...scopeLabels(language) }) : null;
+  const annex = body.annex && estimate ? buildScope(estimate, { aiAssisted: body.aiAssisted, ...scopeLabels(language) }) : null;
   return {
     deal,
     profile,

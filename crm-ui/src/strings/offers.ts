@@ -4,7 +4,7 @@ const en = {
   loading: 'Loading the offers…',
   empty: 'No offer has been generated for this deal yet.',
   generate: 'Generate offer',
-  needsReady: 'An offer is generated from a ready estimate.',
+  needsReady: 'An offer is generated from a ready estimate, or once an admin lets the deal go without one.',
   caption: 'Offer versions, newest first',
   perYear: (amount: string) => `+ ${amount} per year`,
   templateOf: (name: string) => `Template: ${name}`,
@@ -60,6 +60,9 @@ const en = {
     aiAssistedHint:
       'Uses the AI-assisted effort figures. Changing it reloads the template, because the man-days depend on it.',
     summary: (language: string, manDays: string) => `Language: ${language}. Estimate: ${manDays} man-days.`,
+    languageOnly: (language: string) => `Language: ${language}.`,
+    noEstimate:
+      'This deal goes without an estimate: no scope, man-days or timeline are filled in. Write them in the text and set the costs yourself.',
     salutation: 'Salutation',
     clientLines: 'Client block',
     clientLinesHint: 'Up to 8 lines; the first is printed in bold.',
@@ -141,7 +144,7 @@ const it: typeof en = {
   loading: 'Caricamento delle offerte…',
   empty: "Per questa opportunità non è ancora stata generata nessuna offerta.",
   generate: 'Genera offerta',
-  needsReady: "Un'offerta si genera da una stima pronta.",
+  needsReady: "Un'offerta si genera da una stima pronta, o quando un admin fa procedere il deal senza.",
   caption: 'Versioni dell’offerta, dalla più recente',
   perYear: (amount: string) => `+ ${amount} all'anno`,
   templateOf: (name: string) => `Modello: ${name}`,
@@ -197,6 +200,9 @@ const it: typeof en = {
     aiAssistedHint:
       'Usa i valori di impegno con supporto AI. Cambiarlo ricarica il modello, perché i giorni uomo dipendono da questo.',
     summary: (language: string, manDays: string) => `Lingua: ${language}. Stima: ${manDays} giorni uomo.`,
+    languageOnly: (language: string) => `Lingua: ${language}.`,
+    noEstimate:
+      'Questo deal procede senza stima: perimetro, giorni uomo e tempistiche non vengono compilati. Scrivili nel testo e imposta tu i costi.',
     salutation: 'Saluto',
     clientLines: 'Blocco cliente',
     clientLinesHint: 'Fino a 8 righe; la prima è stampata in grassetto.',

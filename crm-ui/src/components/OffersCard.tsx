@@ -20,8 +20,8 @@ type Dialog = 'generate' | 'proposal' | { delete: Offer } | { sent: Offer } | { 
 /**
  * OffersCard — the deal's offer versions, newest first (specs/018 US-4). Only
  * rendered for a caller with `deal:financials`: an offer prints the price.
- * Generating needs `deal:manage` over the deal and a ready estimate; on a
- * `qualified` deal the person is then asked whether to move it to proposal
+ * Generating needs `deal:manage` over the deal and a ready estimate, or an
+ * admin's override of the estimate gate; on a `qualified` deal the person is then asked whether to move it to proposal
  * (AC-4.5). Download opens the short-lived link in a new tab.
  *
  * specs/020 US-7: the newest offer is edited in place until it is marked sent;
@@ -50,7 +50,8 @@ export default function OffersCard({
   const [error, setError] = useState<string | null>(null)
   const [notice, setNotice] = useState<string | null>(null)
 
-  const ready = deal.estimate?.state === 'ready'
+  // A ready estimate, or an admin's go-ahead without one (specs/018 AC-3.7).
+  const ready = deal.estimate?.state === 'ready' || deal.estimateOverridden
   const close = () => {
     setDialog(null)
     setError(null)
