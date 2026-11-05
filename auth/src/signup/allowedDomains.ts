@@ -30,7 +30,8 @@ export const RESERVED_TEST_TLDS = ["test", "example", "invalid", "localhost"] as
 
 /** True when `domain` is, or ends in, a reserved test TLD (`operai.test`, `a.b.example`, `localhost`). */
 export function isReservedTestDomain(domain: string): boolean {
-  const labels = domain.trim().toLowerCase().split(".");
+  // A trailing dot (`operai.test.`) names the same DNS entry; the parser refuses it, this stays defensive.
+  const labels = domain.trim().toLowerCase().replace(/\.$/, "").split(".");
   return (RESERVED_TEST_TLDS as readonly string[]).includes(labels[labels.length - 1] ?? "");
 }
 

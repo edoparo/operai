@@ -117,6 +117,19 @@ describe("notifyAdminsOfAccessRequest", () => {
     });
   });
 
+  test("control characters in the provider-supplied name never reach the title or body", async () => {
+    await notifyAdminsOfAccessRequest({
+      id: "ar_2",
+      email: "ada\r\nBcc: x@evil.test@welld.ch",
+      name: "Ada\r\nBcc: evil\u0000\u202e Lovelace\u2028",
+    });
+    const mine = posted.find((p) => p.body["recipientId"] === ids.direct);
+    for (const field of ["title", "body"]) {
+      expect(String(mine?.body[field])).not.toMatch(/[\u0000-\u001f\u007f-\u009f\u2028\u2029\u202a-\u202e\u2066-\u2069]/);
+    }
+    expect(mine?.body["title"]).toBe("Access request from Ada Bcc: evil Lovelace");
+  });
+
   test("a notify 500 resolves without throwing and logs the failure without the email or name", async () => {
     respond = () => new Response("boom", { status: 500 });
     await notifyAdminsOfAccessRequest(REQUEST);

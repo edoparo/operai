@@ -46,6 +46,8 @@ describe("isReservedTestDomain (specs/023 plan.md amendment 2026-11-05)", () => 
     ["app.localhost", true],
     ["localhost", true],
     ["OPERAI.TEST", true],
+    ["operai.test.", true],
+    ["welld.ch.", false],
     ["welld.ch", false],
     ["welld.it", false],
     ["test.ch", false],
@@ -55,4 +57,11 @@ describe("isReservedTestDomain (specs/023 plan.md amendment 2026-11-05)", () => 
   for (const [domain, expected] of table) {
     test(`${domain} -> ${expected}`, () => expect(isReservedTestDomain(domain)).toBe(expected));
   }
+});
+
+describe("trailing-dot domains (specs/023 T14)", () => {
+  test("the parser rejects a trailing-dot entry, so operai.test. cannot slip past the reserved check", () => {
+    expect(() => parseAllowedDomains("welld.ch,operai.test.")).toThrow();
+    expect(() => parseAllowedDomains("welld.ch.")).toThrow();
+  });
 });

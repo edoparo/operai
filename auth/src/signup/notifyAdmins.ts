@@ -23,6 +23,14 @@ export interface AccessRequestNotice {
   readonly name: string;
 }
 
+/** C0/C1 controls, line/paragraph separators and bidi overrides/isolates. */
+const CONTROL_CHARS = /[\u0000-\u001f\u007f-\u009f\u2028\u2029\u202a-\u202e\u2066-\u2069]+/g;
+
+/** Provider-supplied text goes into an in-app title and an email: no control or bidi characters. */
+function plain(text: string): string {
+  return text.replace(CONTROL_CHARS, " ").replace(/\s{2,}/g, " ").trim();
+}
+
 const TITLE_PREFIX = "Access request from ";
 const TITLE_MAX = 200;
 
@@ -58,8 +66,8 @@ export async function notifyAdminsOfAccessRequest(
           recipientId,
           originApp: "admin",
           severity: "info",
-          title: (TITLE_PREFIX + request.name).slice(0, TITLE_MAX),
-          body: `${request.email} asked to join Operai. Review it in Admin › Users › Access requests.`,
+          title: (TITLE_PREFIX + plain(request.name)).slice(0, TITLE_MAX),
+          body: `${plain(request.email)} asked to join Operai. Review it in Admin › Users › Access requests.`,
           link: { href: ACCESS_REQUESTS_LINK },
           email: true,
         });

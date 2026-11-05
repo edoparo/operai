@@ -175,13 +175,14 @@ const envSchema = z.object({
   // specs/023 plan.md amendment 2026-11-05: a reserved test domain (operai.test, …) is
   // local/e2e configuration only; allowing one in production would let anyone who can
   // register such an address past the gate.
-  if (value.NODE_ENV === "production") {
+  // T14: also refused unless the test-auth gate is on, so the allowance is as narrow as test-auth itself.
+  if (value.NODE_ENV === "production" || !value.ENABLE_TEST_AUTH) {
     const reserved = reservedTestDomains(value.ALLOWED_SIGNUP_DOMAINS);
     if (reserved.length > 0) {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
         path: ["ALLOWED_SIGNUP_DOMAINS"],
-        message: `must not contain a reserved test domain in production (${reserved.join(", ")})`,
+        message: `must not contain a reserved test domain unless ENABLE_TEST_AUTH is true outside production (${reserved.join(", ")})`,
       });
     }
   }

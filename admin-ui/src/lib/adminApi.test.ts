@@ -953,3 +953,26 @@ describe('access requests client (specs/023 T8)', () => {
     await expectApiError(() => rejectAccessRequest('nope'), 404)
   })
 })
+
+describe('path ids are URL-encoded (specs/023 T14)', () => {
+  const hostile = 'a/../b?x=1#y'
+  const encoded = encodeURIComponent(hostile)
+
+  const cases: Array<[string, (id: string) => Promise<unknown>, string]> = [
+    ['approveAccessRequest', (id) => approveAccessRequest(id), `/admin/access-requests/${encoded}/approve`],
+    ['rejectAccessRequest', (id) => rejectAccessRequest(id), `/admin/access-requests/${encoded}/reject`],
+    ['getRole', getRole, `/admin/roles/${encoded}`],
+    ['getDepartment', getDepartment, `/admin/departments/${encoded}`],
+    ['getUser', getUser, `/admin/users/${encoded}`],
+    ['getUserPermissions', getUserPermissions, `/admin/users/${encoded}/permissions`],
+    ['deleteUser', deleteUser, `/admin/users/${encoded}`],
+    ['resendInvitation', resendInvitation, `/admin/invitations/${encoded}/resend`],
+    ['revokeInvitation', revokeInvitation, `/admin/invitations/${encoded}/revoke`],
+  ]
+
+  it.each(cases)('%s', async (_name, call, path) => {
+    vi.mocked(apiFetch).mockResolvedValueOnce(okResponse({}))
+    await call(hostile)
+    expect(lastCall().url).toBe(`${AUTH_URL}${path}`)
+  })
+})

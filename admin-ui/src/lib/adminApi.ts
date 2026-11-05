@@ -447,14 +447,14 @@ export const createRole = async (body: RoleCreateInput): Promise<Role> => sendJs
  * GET /admin/roles/:id
  * Returns the role plus its full rule set. Throws ApiError on 404, 403, or 401.
  */
-export const getRole = async (id: string): Promise<RoleDetail> => getJson<RoleDetail>(`/admin/roles/${id}`)
+export const getRole = async (id: string): Promise<RoleDetail> => getJson<RoleDetail>(`/admin/roles/${encodeURIComponent(id)}`)
 
 /**
  * PATCH /admin/roles/:id
  * Renames / redescribes a role. Throws ApiError on 404, 409, 403, or 401.
  */
 export const patchRole = async (id: string, body: RolePatchInput): Promise<Role> =>
-  sendJson<Role>(`/admin/roles/${id}`, 'PATCH', body)
+  sendJson<Role>(`/admin/roles/${encodeURIComponent(id)}`, 'PATCH', body)
 
 /**
  * DELETE /admin/roles/:id
@@ -462,7 +462,7 @@ export const patchRole = async (id: string, body: RolePatchInput): Promise<Role>
  * 404, 403, or 401.
  */
 export const deleteRole = async (id: string): Promise<void> => {
-  const response = await apiFetch(`${authBase()}/admin/roles/${id}`, { method: 'DELETE' })
+  const response = await apiFetch(`${authBase()}/admin/roles/${encodeURIComponent(id)}`, { method: 'DELETE' })
   if (!response.ok) {
     return throwFromResponse(response)
   }
@@ -475,7 +475,7 @@ export const deleteRole = async (id: string): Promise<void> => {
  * condition not in `supportedConditions` — AC-2.1/3.2), 404, 403, or 401.
  */
 export const putRoleRules = async (id: string, rules: PermissionRuleInput[]): Promise<RoleDetail> =>
-  sendJson<RoleDetail>(`/admin/roles/${id}/rules`, 'PUT', { rules })
+  sendJson<RoleDetail>(`/admin/roles/${encodeURIComponent(id)}/rules`, 'PUT', { rules })
 
 // ---------------------------------------------------------------------------
 // Admin — departments
@@ -498,21 +498,21 @@ export const createDepartment = async (body: DepartmentCreateInput): Promise<Dep
  * (design drift fix, T9). Throws ApiError on 404, 403, or 401.
  */
 export const getDepartment = async (id: string): Promise<DepartmentDetail> =>
-  getJson<DepartmentDetail>(`/admin/departments/${id}`)
+  getJson<DepartmentDetail>(`/admin/departments/${encodeURIComponent(id)}`)
 
 /**
  * PATCH /admin/departments/:id
  * Renames / redescribes a department. Throws ApiError on 404, 409, 403, or 401.
  */
 export const patchDepartment = async (id: string, body: DepartmentPatchInput): Promise<Department> =>
-  sendJson<Department>(`/admin/departments/${id}`, 'PATCH', body)
+  sendJson<Department>(`/admin/departments/${encodeURIComponent(id)}`, 'PATCH', body)
 
 /**
  * DELETE /admin/departments/:id
  * Throws ApiError on 404, 403, or 401.
  */
 export const deleteDepartment = async (id: string): Promise<void> => {
-  const response = await apiFetch(`${authBase()}/admin/departments/${id}`, { method: 'DELETE' })
+  const response = await apiFetch(`${authBase()}/admin/departments/${encodeURIComponent(id)}`, { method: 'DELETE' })
   if (!response.ok) {
     return throwFromResponse(response)
   }
@@ -524,7 +524,7 @@ export const deleteDepartment = async (id: string): Promise<void> => {
  * 422 (unknown role), 404, 403, or 401.
  */
 export const putDepartmentRoles = async (id: string, roleIds: string[]): Promise<DepartmentDetail> =>
-  sendJson<DepartmentDetail>(`/admin/departments/${id}/roles`, 'PUT', { roleIds })
+  sendJson<DepartmentDetail>(`/admin/departments/${encodeURIComponent(id)}/roles`, 'PUT', { roleIds })
 
 /**
  * PUT /admin/departments/:id/members
@@ -533,7 +533,7 @@ export const putDepartmentRoles = async (id: string, roleIds: string[]): Promise
  * epochs. Throws ApiError on 404, 403, or 401.
  */
 export const putDepartmentMembers = async (id: string, userIds: string[]): Promise<DepartmentDetail> =>
-  sendJson<DepartmentDetail>(`/admin/departments/${id}/members`, 'PUT', { userIds })
+  sendJson<DepartmentDetail>(`/admin/departments/${encodeURIComponent(id)}/members`, 'PUT', { userIds })
 
 // ---------------------------------------------------------------------------
 // Admin — users
@@ -554,7 +554,7 @@ export const listUsers = async (params: UserListParams = {}): Promise<Paginated<
  * Returns a user's attributes, roles, and departments. Throws ApiError on
  * 404, 403, or 401.
  */
-export const getUser = async (id: string): Promise<UserDetail> => getJson<UserDetail>(`/admin/users/${id}`)
+export const getUser = async (id: string): Promise<UserDetail> => getJson<UserDetail>(`/admin/users/${encodeURIComponent(id)}`)
 
 /**
  * PATCH /admin/users/:id
@@ -562,7 +562,7 @@ export const getUser = async (id: string): Promise<UserDetail> => getJson<UserDe
  * enum), 403, or 401.
  */
 export const patchUser = async (id: string, body: UserPatchInput): Promise<UserDetail> =>
-  sendJson<UserDetail>(`/admin/users/${id}`, 'PATCH', body)
+  sendJson<UserDetail>(`/admin/users/${encodeURIComponent(id)}`, 'PATCH', body)
 
 /**
  * PUT /admin/users/:id/roles
@@ -570,7 +570,7 @@ export const patchUser = async (id: string, body: UserPatchInput): Promise<UserD
  * guard — AC-6.4), 404, 403, or 401.
  */
 export const putUserRoles = async (id: string, roleIds: string[]): Promise<UserDetail> =>
-  sendJson<UserDetail>(`/admin/users/${id}/roles`, 'PUT', { roleIds })
+  sendJson<UserDetail>(`/admin/users/${encodeURIComponent(id)}/roles`, 'PUT', { roleIds })
 
 /**
  * PUT /admin/users/:id/departments
@@ -579,7 +579,7 @@ export const putUserRoles = async (id: string, roleIds: string[]): Promise<UserD
  * 404, 403, or 401.
  */
 export const putUserDepartments = async (id: string, departmentIds: string[]): Promise<UserDetail> =>
-  sendJson<UserDetail>(`/admin/users/${id}/departments`, 'PUT', { departmentIds })
+  sendJson<UserDetail>(`/admin/users/${encodeURIComponent(id)}/departments`, 'PUT', { departmentIds })
 
 /**
  * GET /admin/users/:id/permissions
@@ -588,7 +588,7 @@ export const putUserDepartments = async (id: string, departmentIds: string[]): P
  * Admin-only. Throws ApiError on 404, 403, or 401.
  */
 export const getUserPermissions = async (id: string): Promise<EffectivePermissions> =>
-  getJson<EffectivePermissions>(`/admin/users/${id}/permissions`)
+  getJson<EffectivePermissions>(`/admin/users/${encodeURIComponent(id)}/permissions`)
 
 /** `DELETE /admin/users/:id` response (T10, specs/006-user-invitations, plan.md). */
 export type DeleteUserResult = {
@@ -604,7 +604,7 @@ export type DeleteUserResult = {
  * guard AC-5.5), 403, or 401.
  */
 export const deleteUser = async (id: string): Promise<DeleteUserResult> =>
-  deleteJson<DeleteUserResult>(`/admin/users/${id}`)
+  deleteJson<DeleteUserResult>(`/admin/users/${encodeURIComponent(id)}`)
 
 /** One skipped entry in a bulk-delete response (T11, plan.md `POST /admin/users/delete`). */
 export type BulkDeleteSkip = {
@@ -709,7 +709,7 @@ export const createInvitation = async (body: InvitationCreateInput): Promise<Inv
  * (already accepted/revoked — AC-3.4), 403, or 401.
  */
 export const resendInvitation = async (id: string): Promise<InvitationDetail> =>
-  sendJson<InvitationDetail>(`/admin/invitations/${id}/resend`, 'POST', {})
+  sendJson<InvitationDetail>(`/admin/invitations/${encodeURIComponent(id)}/resend`, 'POST', {})
 
 /**
  * POST /admin/invitations/:id/revoke
@@ -718,7 +718,7 @@ export const resendInvitation = async (id: string): Promise<InvitationDetail> =>
  * (already accepted/revoked — AC-1.10/1.11), 403, or 401.
  */
 export const revokeInvitation = async (id: string): Promise<InvitationDetail> =>
-  sendJson<InvitationDetail>(`/admin/invitations/${id}/revoke`, 'POST', {})
+  sendJson<InvitationDetail>(`/admin/invitations/${encodeURIComponent(id)}/revoke`, 'POST', {})
 
 // ---------------------------------------------------------------------------
 // Admin — catalog
@@ -811,14 +811,14 @@ export const approveAccessRequest = async (
   id: string,
   body: AccessRequestApproveInput = {},
 ): Promise<AccessRequestApproveResult> =>
-  sendJson<AccessRequestApproveResult>(`/admin/access-requests/${id}/approve`, 'POST', body)
+  sendJson<AccessRequestApproveResult>(`/admin/access-requests/${encodeURIComponent(id)}/approve`, 'POST', body)
 
 /**
  * POST /admin/access-requests/:id/reject (no body)
  * Throws ApiError on 404, 409 (`code: "already_decided"`), 403, or 401.
  */
 export const rejectAccessRequest = async (id: string): Promise<AccessRequestDetail> => {
-  const response = await apiFetch(`${authBase()}/admin/access-requests/${id}/reject`, { method: 'POST' })
+  const response = await apiFetch(`${authBase()}/admin/access-requests/${encodeURIComponent(id)}/reject`, { method: 'POST' })
   if (!response.ok) {
     return throwFromResponse(response)
   }

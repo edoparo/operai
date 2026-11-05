@@ -762,7 +762,7 @@ describe("Invitation routes with the real email client (specs/016 AC-4.3, ADR-00
     const row = await db.invitation.findUniqueOrThrow({ where: { id: body.id } });
     expect(row.status).toBe("pending");
     expect(row.lastEmailStatus).toBe("failed");
-    expect(row.lastEmailError).toBe("service-token mint failed (signer unavailable)");
+    expect(row.lastEmailError).toBe("Error");
   });
 
   test("resend: credential unobtainable -> still 200, invitation re-armed, emailDelivery failed, notify never called", async () => {
@@ -782,7 +782,7 @@ describe("Invitation routes with the real email client (specs/016 AC-4.3, ADR-00
     const row = await db.invitation.findUniqueOrThrow({ where: { id: original.id } });
     expect(row.tokenHash).not.toBe("t16-original-hash");
     expect(row.lastEmailStatus).toBe("failed");
-    expect(row.lastEmailError).toBe("service-token mint failed (signer unavailable)");
+    expect(row.lastEmailError).toBe("Error");
   });
 
   test("create: 401 then success -> credential invalidated, retried once, emailDelivery sent", async () => {

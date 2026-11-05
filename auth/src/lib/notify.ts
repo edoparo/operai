@@ -49,6 +49,15 @@ export function setNotifyTokenProvider(provider: NotifyTokenProvider | undefined
   tokenProvider = provider;
 }
 
+/**
+ * What a failure reports: the error's name only. A raw `error.message` from `fetch` can
+ * carry the internal notify-api host and port, and this value reaches logs and the
+ * stored `lastEmailStatus`.
+ */
+function errorName(error: unknown): string {
+  return error instanceof Error && error.name ? error.name : "UnknownError";
+}
+
 export type InvitationEmailTemplate = "invitation" | "invitation_resend";
 
 export interface SendInvitationEmailInput {
@@ -135,7 +144,7 @@ export async function sendInvitationEmail(
   } catch (error) {
     return {
       status: "failed",
-      error: error instanceof Error ? error.message : "Unknown error calling notify-api",
+      error: errorName(error),
     };
   }
 }
@@ -200,7 +209,7 @@ export async function pushSystemNotification(
   } catch (error) {
     return {
       status: "failed",
-      error: error instanceof Error ? error.message : "Unknown error calling notify-api",
+      error: errorName(error),
     };
   }
 }

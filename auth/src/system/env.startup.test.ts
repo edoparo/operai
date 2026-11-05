@@ -156,9 +156,10 @@ describe("lib/env.ts — ALLOWED_SIGNUP_DOMAINS (specs/023 AC-1.3, AC-5.1)", () 
   });
 
   // specs/023 T13: a reserved test domain is local/e2e configuration only (plan.md amendment 2026-11-05).
-  test("starts with a reserved test domain outside production", async () => {
+  test("starts with a reserved test domain outside production when ENABLE_TEST_AUTH is true", async () => {
     const { exitCode, output } = await importEnv({
       NODE_ENV: "development",
+      ENABLE_TEST_AUTH: "true",
       ALLOWED_SIGNUP_DOMAINS: "welld.ch,welld.it,operai.test",
     });
     expect(exitCode).toBe(0);
@@ -175,6 +176,40 @@ describe("lib/env.ts — ALLOWED_SIGNUP_DOMAINS (specs/023 AC-1.3, AC-5.1)", () 
       expect(output).toContain("ALLOWED_SIGNUP_DOMAINS");
       expect(output).not.toContain("ENV_OK");
     }
+  });
+
+  // specs/023 T14: the reserved-domain allowance is tied to the test-auth gate, not only to NODE_ENV.
+  test("exits when the list holds a reserved test domain and ENABLE_TEST_AUTH is not true", async () => {
+    for (const flag of [undefined, "false", "0"]) {
+      const { exitCode, output } = await importEnv({
+        NODE_ENV: "development",
+        ENABLE_TEST_AUTH: flag,
+        ALLOWED_SIGNUP_DOMAINS: "welld.ch,operai.test",
+      });
+      expect(exitCode).not.toBe(0);
+      expect(output).toContain("ALLOWED_SIGNUP_DOMAINS");
+      expect(output).not.toContain("ENV_OK");
+    }
+  });
+
+  test("exits on a reserved test domain in production even with ENABLE_TEST_AUTH=true", async () => {
+    const { exitCode, output } = await importEnv({
+      NODE_ENV: "production",
+      ENABLE_TEST_AUTH: "true",
+      ALLOWED_SIGNUP_DOMAINS: "welld.ch,operai.test",
+    });
+    expect(exitCode).not.toBe(0);
+    expect(output).toContain("ALLOWED_SIGNUP_DOMAINS");
+  });
+
+  test("exits on a trailing-dot domain", async () => {
+    const { exitCode, output } = await importEnv({
+      NODE_ENV: "development",
+      ENABLE_TEST_AUTH: "true",
+      ALLOWED_SIGNUP_DOMAINS: "welld.ch,operai.test.",
+    });
+    expect(exitCode).not.toBe(0);
+    expect(output).toContain("ALLOWED_SIGNUP_DOMAINS");
   });
 
   test("production still accepts the real domains", async () => {

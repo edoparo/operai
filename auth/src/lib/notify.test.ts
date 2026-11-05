@@ -67,7 +67,7 @@ describe("sendInvitationEmail", () => {
 
     const result = await sendInvitationEmail(INPUT);
 
-    expect(result).toEqual({ status: "failed", error: "signer unavailable" });
+    expect(result).toEqual({ status: "failed", error: "Error" });
     expect(calls).toHaveLength(0);
   });
 
@@ -93,7 +93,7 @@ describe("sendInvitationEmail", () => {
     stubFetch(() => {
       throw new Error("connect ECONNREFUSED");
     });
-    expect(await sendInvitationEmail(INPUT)).toEqual({ status: "failed", error: "connect ECONNREFUSED" });
+    expect(await sendInvitationEmail(INPUT)).toEqual({ status: "failed", error: "Error" });
   });
 
   test("an unexpected 200 body returns failed", async () => {
@@ -170,7 +170,7 @@ describe("sendInvitationEmail — one retry on 401 (AC-4.3, ADR-0049)", () => {
 
     const result = await sendInvitationEmail(INPUT);
 
-    expect(result).toEqual({ status: "failed", error: "signer unavailable" });
+    expect(result).toEqual({ status: "failed", error: "Error" });
     expect(calls).toHaveLength(1);
   });
 });
@@ -211,7 +211,7 @@ describe("pushSystemNotification", () => {
     stubFetch(() => {
       throw new Error("connect ECONNREFUSED");
     });
-    expect(await pushSystemNotification(PUSH)).toEqual({ status: "failed", error: "connect ECONNREFUSED" });
+    expect(await pushSystemNotification(PUSH)).toEqual({ status: "failed", error: "Error" });
   });
 
   test("a timeout resolves to failed instead of hanging", async () => {
@@ -231,7 +231,7 @@ describe("pushSystemNotification", () => {
       invalidate: () => {},
     });
     stubFetch(() => Response.json({}, { status: 201 }));
-    expect(await pushSystemNotification(PUSH)).toEqual({ status: "failed", error: "signer unavailable" });
+    expect(await pushSystemNotification(PUSH)).toEqual({ status: "failed", error: "Error" });
     expect(calls).toHaveLength(0);
   });
 
@@ -246,5 +246,20 @@ describe("pushSystemNotification", () => {
     expect(calls).toHaveLength(2);
     expect(invalidated).toEqual(["token-1"]);
     expect(new Headers(calls[1]?.init.headers).get("authorization")).toBe("Bearer token-2");
+  });
+});
+
+describe("notify client never returns a raw error message (specs/023 T14)", () => {
+  test("a network error carrying the internal host reports only the error name", async () => {
+    setNotifyTokenProvider({ getToken: async () => "tok", invalidate: () => {} });
+    stubFetch(() => {
+      throw new TypeError("Unable to connect to http://notify.railway.internal:8081/system/emails");
+    });
+    const email = await sendInvitationEmail(INPUT);
+    const push = await pushSystemNotification(PUSH);
+    for (const result of [email, push]) {
+      expect(result).toEqual({ status: "failed", error: "TypeError" });
+      expect(JSON.stringify(result)).not.toContain("railway.internal");
+    }
   });
 });
