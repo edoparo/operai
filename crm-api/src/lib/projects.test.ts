@@ -1,8 +1,9 @@
 /**
- * crm-api's read of projects-api (specs/022 T10, AC-3.4, ADR-0060): `GET /system/contracts?dealIds=`
- * as the service principal, to show a deal's project and Bexio order id on the deal page. The read
- * FAILS SOFT: nothing here throws, and "projects-api did not answer" is `known: false`, distinct
- * from "answered, this deal has no contract" (`known: true`, `delivery: null`).
+ * crm-api's read of projects-api (specs/022 T10, T21, AC-3.4, ADR-0060): `GET
+ * /system/purchase-orders?dealIds=` as the service principal, to show a deal's project and Bexio
+ * order id on the deal page. The read FAILS SOFT: nothing here throws, and "projects-api did not
+ * answer" is `known: false`, distinct from "answered, this deal has no purchase order" (`known:
+ * true`, `delivery: null`).
  */
 
 import { describe, expect, it, spyOn } from "bun:test";
@@ -36,20 +37,20 @@ function harness(answers: Answer[] = [{ status: 200, body: { items: [] } }], tok
 
 const item = (over: Record<string, unknown> = {}) => ({
   dealId: "deal-1",
-  contractId: "contract-1",
+  purchaseOrderId: "purchase-order-1",
   project: { id: "project-1", name: "Koordy" },
   bexioOrderId: "BX-1001",
   ...over,
 });
 
 describe("createProjectsReader().deliveryOf(dealId)", () => {
-  it("reads the deal's contract as the service principal and returns its project and Bexio order id", async () => {
+  it("reads the deal's purchase order as the service principal and returns its project and Bexio order id", async () => {
     const { calls, reader } = harness([{ status: 200, body: { items: [item()] } }]);
     expect(await reader.deliveryOf("deal-1")).toEqual({
       known: true,
       delivery: { project: { id: "project-1", name: "Koordy" }, bexioOrderId: "BX-1001" },
     });
-    expect(calls).toEqual([{ url: "http://projects.test/system/contracts?dealIds=deal-1", authorization: "Bearer t1" }]);
+    expect(calls).toEqual([{ url: "http://projects.test/system/purchase-orders?dealIds=deal-1", authorization: "Bearer t1" }]);
   });
 
   it("keeps an empty Bexio order id as null", async () => {
@@ -57,12 +58,12 @@ describe("createProjectsReader().deliveryOf(dealId)", () => {
     expect(await reader.deliveryOf("deal-1")).toMatchObject({ known: true, delivery: { bexioOrderId: null } });
   });
 
-  it("answers `known: true` with no delivery when projects-api has no contract for the deal", async () => {
+  it("answers `known: true` with no delivery when projects-api has no purchase order for the deal", async () => {
     const { reader } = harness([{ status: 200, body: { items: [] } }]);
     expect(await reader.deliveryOf("deal-1")).toEqual({ known: true, delivery: null });
   });
 
-  it("ignores a contract that is not the deal's own", async () => {
+  it("ignores a purchase order that is not the deal's own", async () => {
     const { reader } = harness([{ status: 200, body: { items: [item({ dealId: "deal-2" })] } }]);
     expect(await reader.deliveryOf("deal-1")).toEqual({ known: true, delivery: null });
   });
@@ -150,7 +151,7 @@ describe("projectsReaderFromEnv()", () => {
       body: { clientId: "crm-api", clientSecret: configured.SERVICE_CLIENT_SECRET },
     });
     expect(calls[1]).toMatchObject({
-      url: "http://projects.test/system/contracts?dealIds=deal-1",
+      url: "http://projects.test/system/purchase-orders?dealIds=deal-1",
       authorization: "Bearer minted-jwt",
     });
   });

@@ -1,10 +1,15 @@
 /**
- * crm-api's read of projects-api (specs/022-projects-handoff T10, AC-3.4, ADR-0060): the deal page
- * shows the project that carries a deal and its contract's Bexio order id, read-only. crm-api calls
- * `GET /system/contracts?dealIds=` as ITSELF, with the 5-minute scoped service JWT
- * (`projects.contracts.read`) its own `SERVICE_CLIENT_ID` / `SERVICE_CLIENT_SECRET` buy at auth —
- * never the viewer's token: a CRM user may hold no `projects:access`, and projects-api accepts no
- * user JWT on that route.
+ * crm-api's read of projects-api (specs/022-projects-handoff T10, T21, AC-3.4, ADR-0060): the deal
+ * page shows the project that carries a deal and its purchase order's Bexio order id, read-only.
+ * crm-api calls `GET /system/purchase-orders?dealIds=` as ITSELF, with the 5-minute scoped service
+ * JWT (`projects.purchase-orders.read`) its own `SERVICE_CLIENT_ID` / `SERVICE_CLIENT_SECRET` buy
+ * at auth — never the viewer's token: a CRM user may hold no `projects:access`, and projects-api
+ * accepts no user JWT on that route.
+ *
+ * projects-api answers `{ items: [{ dealId, purchaseOrderId, project: { id, name }, bexioOrderId }] }`
+ * (T23; it was `contractId` before the rename). The deal page needs only the project and the Bexio
+ * order id, so `purchaseOrderId` is not read: the `Delivery` shape, `GET /deals/{id}`'s `delivery` /
+ * `deliveryKnown` and crm-ui are unchanged.
  *
  * STRICTLY FAIL-SOFT: nothing here throws. The answer says whether projects-api spoke at all:
  *   `{ known: true,  delivery }`  projects-api answered; `delivery` is `null` for a deal no project carries;
@@ -24,7 +29,7 @@ import { createServiceTokenProvider, type ServiceTokenProvider } from "./service
 
 const REQUEST_TIMEOUT_MS = 3_000;
 
-/** What the deal page shows of the contract made from a deal. */
+/** What the deal page shows of the purchase order made from a deal. */
 export interface Delivery {
   readonly project: { readonly id: string; readonly name: string };
   readonly bexioOrderId: string | null;
@@ -76,7 +81,7 @@ export function createProjectsReader(options: ProjectsReaderOptions): ProjectsRe
 
   async function get(token: string, dealId: string): Promise<Response> {
     const doFetch = options.fetchImpl ?? ((...args: Parameters<typeof fetch>) => globalThis.fetch(...args));
-    return doFetch(`${options.baseUrl}/system/contracts?dealIds=${encodeURIComponent(dealId)}`, {
+    return doFetch(`${options.baseUrl}/system/purchase-orders?dealIds=${encodeURIComponent(dealId)}`, {
       headers: { Authorization: `Bearer ${token}` },
       signal: AbortSignal.timeout(timeoutMs),
       redirect: "error",

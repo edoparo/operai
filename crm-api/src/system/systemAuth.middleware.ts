@@ -27,7 +27,7 @@ import { env } from "../lib/env";
 import { problem } from "../lib/problem";
 
 /** The scopes a `/system/*` route of crm-api may require. */
-export type SystemScope = "crm.companies.read" | "crm.deals.read";
+export type SystemScope = "crm.companies.read" | "crm.deals.read" | "crm.contacts.read";
 
 const SERVICE_SUB_PREFIX = "system:";
 
