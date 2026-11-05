@@ -153,7 +153,7 @@ Work happens in the `main` worktree (`/Users/matteocodogno/LAB/aiscream/operai-m
   - done when: `cd shell && pnpm e2e access-requests.spec.ts` passes against the local
     stack started from this worktree, and the full `pnpm e2e` run is green (proves AC-1.9).
 
-- [ ] T11: [docs] Specs agree, operator query, changesets — refs: AC-6.1, AC-6.2 — deps: none
+- [x] T11: [docs] Specs agree, operator query, changesets — refs: AC-6.1, AC-6.2 — deps: none
   - touch: `specs/004-auth-roles-permissions/spec.md`, `specs/006-user-invitations/spec.md`, `infra/README.md`, `AGENTS.md`, `.changeset/*`
   - do: amend specs/004 AC-6.3 and specs/006 (Problem + Non-goals) to point to specs/023;
     add the `infra/README.md` § "Users who entered without an invitation" SQL (users with

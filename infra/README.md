@@ -1536,6 +1536,41 @@ failure (it flags the retired variable by name on any service).
 
 ---
 
+## Users who entered without an invitation (specs/023, ADR-0071, AC-6.2)
+
+Since specs/023 `auth` creates a user only for an invitation holder or an email whose
+domain is in `ALLOWED_SIGNUP_DOMAINS`. Users who signed in before that are left untouched
+(AC-1.6); these two read-only queries list them so an admin can review by hand. Run them
+against the `auth` database; neither writes anything.
+
+**Rollout step (before the push):** on Railway, service `auth`, set
+`ALLOWED_SIGNUP_DOMAINS=welld.ch,welld.it`. Without it `auth` refuses to start. After the
+push `auth` migrates `access_request` on start; then run the queries below in production.
+
+(a) Active users with no accepted invitation:
+
+```sql
+SELECT u.id, u.name, u.email, u."createdAt"
+FROM "user" u
+WHERE u."deletedAt" IS NULL
+  AND NOT EXISTS (SELECT 1 FROM invitation i WHERE i."acceptedByUserId" = u.id)
+ORDER BY u."createdAt";
+```
+
+(b) Active users whose email domain is outside `welld.ch` / `welld.it`:
+
+```sql
+SELECT u.id, u.name, u.email, u."createdAt"
+FROM "user" u
+WHERE u."deletedAt" IS NULL
+  AND lower(split_part(u.email, '@', 2)) NOT IN ('welld.ch', 'welld.it')
+ORDER BY u."createdAt";
+```
+
+Locally: `psql "$DATABASE_URL" -f query.sql`, or `bunx prisma db execute --stdin` from `auth/`.
+
+---
+
 ## Audit-log redaction — GDPR/nLPD subject-erasure requests (specs/012-employee-address, ADR-0033, Risk R5)
 
 As of specs/012, `auth`'s `audit_log` carries employee home addresses

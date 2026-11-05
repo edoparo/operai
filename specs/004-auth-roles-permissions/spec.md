@@ -146,6 +146,9 @@ can be set up without manual database surgery and no one can lock everyone out.
   `admin`, `accounting`, and `hr` exist and are editable by admins.
 - AC-6.3: Given a newly signed-in user with no explicit assignment, when their session
   is established, then they hold the baseline `employee` role by default.
+  *Amended 2026-11-05 (specs/023, ADR-0071): this now applies only to a person who may become a
+  user, i.e. one holding a valid invitation or whose email domain is in `ALLOWED_SIGNUP_DOMAINS`;
+  anyone else is refused and can only file an access request.*
 - AC-6.4: Given the last remaining admin, when an action would leave the system with
   no admin, then it is prevented.
 
