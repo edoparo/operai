@@ -1,6 +1,227 @@
 # QE report — specs/022-projects-handoff (T17, QE-light, rigor mvp, advisory mode)
 
-Latest pass first: **Round 2** (re-verification after the fix rounds). Round 1 follows unchanged as history.
+Latest pass first: **Round 3** (final QE-light pass, after the rebase onto the latest `main` and T38/T39). Round 2 and
+Round 1 follow unchanged as history.
+
+# Round 3
+
+Measured at `762f5af` (HEAD, tree clean; this pass added no tests and no code; `3f1873c` is no longer an ancestor after the
+rebase, so "since round 2" = `44e84c6` T39 and `8da6dd6` T38 on top of main's 47 commits). Date 2026-11-06. Evidence directory:
+`/private/tmp/claude-331608204/-Users-edoardo-paronzini-Work-Experiments-operai/81b2a4d5-c9fe-491f-8092-cb8f109563af/scratchpad/qe3/`
+(`shots/` screenshots, `logs/` gate logs, `matrix.out`, `semgrep.json`, `osv.json`, `*.mjs` the live scripts).
+
+## QE verdict: BLOCKED (advisory mode, rigor mvp — coverage advisory)        (measured at 762f5af)
+
+No blocking row failed: lint, typecheck, secret scan and SAST-high are green, every API and UI suite is green on the project's
+pinned Node 24, **all 38 ACs pass** (AC-6.2 and AC-7.1 live and by test, AC-6.1 42/42 pairs), live rows 1–9 pass, D1/D2/D4/N1 of
+round 2 are fixed. **One row could not be executed** (first lines, as required): the live ADR-0073 smoke (closing an estimate in
+EstimAI marks the CRM estimate ready) needs two settings the dev environment does not have — see "Blocked". It is main's feature,
+not 022's, and the code path is covered by green tests, so the caller can either configure the two settings and have me re-run
+that one row, or record `verified by: <who>, <date>, <what was done>` for it.
+
+Besides that, **one new advisory defect, R1, found this pass: it was introduced by 022's own fix round 2 (`e8faa28`)** and
+there is no fix round left, so it goes to you: in the dev stack, a click on "New request" in the Refund module creates **two**
+draft requests instead of one (see Defects). By the rules of advisory mode it cannot fail this verdict (it is not one of the
+blocking rows); in full mode it would be a ✗ and the verdict FAIL.
+
+Not blocked, but worth knowing: the shell's and estimai-ui's unit suites are red on the Node 26.10 that is on this machine's
+PATH (Web Storage globals), and green on the Node 24 that `mise.toml` pins — an environment fault, not a defect (below).
+
+## Blocked
+
+| Row | What it needs | What failed |
+|---|---|---|
+| Live ADR-0073 smoke: close an estimate in EstimAI, the CRM estimate turns ready | the estimai-api setting `CRM_INTERNAL_URL` and the scope `estimate-notices.send` on estimai-api's service client in auth's `SERVICE_CLIENTS` (both named in `.changeset/estimate-closed-in-estimai.md` and in `tools/env-doctor/manifest.ts:153,223`), then a restart of auth and estimai-api. I may not read or write the environment files, so I did not set them | Executed through the UI as admin on deal `cf36bhnvfphaoz31a377daeg4` (estimate `c9ozhnusk1g17akxyg2pygzzb`, state *requested*): "Close estimate" → confirm → `POST /estimates/{id}/close` **200**, the estimate page shows "This estimate is closed"; the CRM deal page stays **Requested** (reloaded twice). Cause, checked by variable name only (values never printed): for `estimai-api` `CRM_INTERNAL_URL` is **unset** (the notifier is a documented no-op then, `estimai-api/src/lib/env.ts:63-71`) and auth's `SERVICE_CLIENTS` has **0** mentions of `estimate-notices.send`; crm-api has its `SERVICE_AUDIENCE`. What did run: the route is mounted (`POST crm-api /system/estimate-notices` without a credential → **401**), `reopen` → 200, and the unit suites of both sides are green (crm-api 353, estimai-api 279). A gap in the dev setup of main's feature (the main loop's setup step added the signup-gate settings, not these two), not a 022 fault |
+
+## Gate table (Round 3)
+
+| Check | Threshold | Actual (at 762f5af) | Result |
+|---|---|---|---|
+| auth typecheck / tests (on `operai_auth_test`) | clean / green | exit 0 / **824 pass**, 0 fail (54 files) | ✓ |
+| crm-api typecheck / tests (on `crm_test`) | clean / green | exit 0 / 353 pass, 0 fail (27 files) | ✓ |
+| notify-api typecheck / tests | clean / green | exit 0 / 257 pass, 0 fail (20 files) | ✓ |
+| estimai-api typecheck / tests | clean / green | exit 0 / 279 pass, 0 fail (17 files) | ✓ |
+| projects-api typecheck / tests (on `projects_test`) | clean / green | exit 0 / 1166 pass, 0 fail (26 files) | ✓ |
+| admin-ui lint / build / test | clean / ok / green | exit 0 / 0 / 568 pass (43 files) | ✓ |
+| crm-ui lint / build / test | clean / ok / green | exit 0 / 0 / 213 pass (14 files) | ✓ |
+| estimai-ui lint / build | clean / ok | exit 0 / 0 | ✓ |
+| estimai-ui test | green | on the machine's Node 26.10: **11 fail**, 293 pass (all in `ImportOfferModal.test.tsx`, `localStorage`/`sessionStorage` undefined); under the pinned **Node 24.22.1: 304 pass, 0 fail (27 files)**. File and component identical to `main` | ✓ on the pinned Node (environment fault on 26, below) |
+| inventory-ui lint / build / test | clean / ok / green | exit 0 / 0 / 1057 pass (60 files) | ✓ |
+| notify-ui lint / build / test | clean / ok / green | exit 0 / 0 / 46 pass (9 files) | ✓ |
+| projects-ui lint / build / test | clean / ok / green | exit 0 / 0 / 735 pass (28 files) | ✓ |
+| refund-ui lint / build / test | clean / ok / green | exit 0 / 0 / 748 pass (57 files) | ✓ |
+| operai-ui lint / typecheck / test | clean / clean / green | exit 0 / 0 / 88 pass (10 files) | ✓ |
+| shell lint / build | clean / ok | exit 0 / 0 | ✓ |
+| shell test | green (known Web Storage failures only if unchanged) | Node 26.10: 91 fail / 214 pass (12 files) — **unchanged from round 1** (91 / 214); under Node 24.22.1: **305 pass, 0 fail (31 files)** | ✓ on the pinned Node |
+| env-doctor (`bun test tools/env-doctor/`, `index.ts --env production`) | green | 163 pass, 0 fail (6 files); production check "all checks passed" | ✓ |
+| Shared copies (`bun test scripts/check-shared-copies.test.ts`, checker) | in sync | 17 pass; `2 group(s) in sync (serviceToken, manDays)` | ✓ |
+| react-skew (`node --test`, checker) | one react version | 7 pass; "9 frontends resolve one react / react-dom version" | ✓ |
+| Changeset | check-changeset OK, `changeset status` | `check-changeset --base=feat/projects --head=HEAD`: OK (`banner-actions-wrap-narrow.md`, `modules-browser-back-forward.md`, `projects-handoff.md`); status: all 16 packages at minor, none missing. N1 fixed: the new changeset lists the seven UIs | ✓ |
+| Secret scan (security floor, BLOCKING) | no leak | `gitleaks git feat/projects..HEAD` (80 commits, `.betterleaksignore`): **no leaks**. The wider `3f1873c..HEAD` range (159 commits after the rebase) reports 1: `specs/021-projects/qe-report.md:38`, commit `5488a1b`, in PR #7 (`feat/projects`) — the known false positive on a table row from round 1, not 022 | ✓ |
+| SAST-high (BLOCKING) | 0 high | semgrep 1.182.0 (`p/typescript`, `p/owasp-top-ten`, `p/security-audit`, ERROR) on the 108 changed non-test source files of `feat/projects..HEAD`: **0 findings**; one partial-parse warning, the NUL literal at `auth/src/authz/resolver.ts:145` (specs/004 code, as in round 1) | ✓ |
+| Dependency audit | advisory | osv-scanner 2.7.0 on the 20 tracked lockfiles. Criticals (CVSS ≥ 9): `better-auth 1.7.2` GHSA-965c-763c-88jm 9.1 **only in `auth/pnpm-lock.yaml`** (auth is on `bun.lock` since main; this stale tracked file is main's, see M2); `tinypool 1.1.1` GHSA-5gmw-xhrv-c9v3 / GHSA-85c8-ppgw-ccpr 9.5 in `projects-ui/pnpm-lock.yaml` (vitest tooling, pre-existing, reported in round 1). 022's only dependency change is the `@module-federation/vite` pin to 1.23.2 | ADVISORY |
+| Line coverage (bun, % lines / % funcs) | ≥ 80% (advisory) | projects-api 97.42 / 95.77; auth 96.67 / 95.97; crm-api 94.14 / 92.21; notify-api 90.37 / 84.25; estimai-api 89.46 / 86.84. Gap to 80%: none. Frontends: no coverage provider | ADVISORY ✓ |
+| Persona database guard | `select count(*) from "user" where email like '%@operai.test'` on `operai_auth` = 9 | 9 before the gates, 9 after the API gates, 9 at the end (auth suites ran only against `operai_auth_test`) | ✓ |
+
+## AC sweep (38 ACs: the 36 of round 2 + AC-6.2 + AC-7.1)
+
+Evidence: tests executed in the green runs above (names carry the AC id), the live rows, and the live scripts below. No AC lacked
+a covering test, so I wrote none. ACs 1.1–5.4 are unchanged since round 2 apart from the rebase; their covering suites
+(projects-api 1166, projects-ui 735, crm-api 353, crm-ui 213, notify-api 257, notify-ui 46, auth 824, estimai-api 279) are green
+at 762f5af and the live rows re-ran (below).
+
+| AC | Result | Evidence at 762f5af |
+|---|---|---|
+| AC-1.1 / 1.2 / 1.3 / 1.8 | PASS | `queue.test.ts`, `take.test.ts`, `TakeDealDialog.test.tsx`, `terms.test.ts`; live 1: the queue for sales-ch lists the CH deal with "New project" and the IT deal without an action; dialog: name prefilled, four types (no Internal), ops manager prefilled, referent options, terms; created `/projects/cmw4obpbz0000fnvd7azo2ho4`, Planned, no PM, one PO, 6.2 man-days read-only from the estimate |
+| AC-1.6 / 1.10 / 1.11 | PASS | `take.test.ts`, `queue.test.ts`, `db.constraints.test.ts`, `TakeDealDialog.test.tsx` (CRM outage not exercised live) |
+| AC-1.9 | PASS | `matrix.test.ts`, `ProjectsShell.test.tsx`; live 3: pm-it has no "To start", `/projects/queue` shows "You do not have access to this" |
+| AC-2.1 / 2.2 | PASS | `queue.test.ts`; live 5: the won IT deal "Integrazione MES linea 3" left the queue when reopened in the CRM UI and came back after the restore (see data) |
+| AC-2.3 / 2.4 | PASS | `projects.test.ts`, `PurchaseOrderCard.test.tsx`; live 5: reopening "Portale clienti B2B" in the CRM UI → "no longer won" shown twice (page and PO card, 2 banners); re-win → 0 |
+| AC-3.1 / 3.3 / 3.5 | PASS | `take.test.ts`, `PurchaseOrderCard.test.tsx`; live 1 |
+| AC-3.2 | PASS | `PurchaseOrderCard.test.tsx`; live variant not re-run (round 1 O1 stands) |
+| AC-3.4 | PASS | crm-api `delivery.test.ts`, crm-ui `DeliveryCard.test.tsx`; live 7: deal pages with a project show "Delivery · PROJECT … · BEXIO ORDER ID —" as sales-ch and admin (0 failing responses); deals without a project show no Delivery card |
+| AC-3.6 / 3.7 / 3.8 | PASS | `referent.test.ts`, `projects.test.ts`, `ReferentPicker.test.tsx`; live 4: pm-it (no CRM access) sees name, job title, `mailto:` and `tel:` links, no change control, **0 browser requests to crm-api** |
+| AC-3.9 / 3.10 | PASS | `projects.test.ts`, `PurchaseOrderCard.test.tsx` (not live) |
+| AC-4.1 / 4.2 | PASS | `candidates.test.ts`, `take.test.ts`, auth `holders.routes.test.ts`; live 1 |
+| AC-4.3 | PASS | `take.test.ts`, notify-api `system/*`; live 2: the warm link `/projects` → bell → notification → project page "Awaiting project manager" **3/3**, no 4xx |
+| AC-4.4 / 4.5 | PASS | `take.test.ts`, `projects.test.ts`, `ProjectsPage.test.tsx` |
+| AC-4.6 / 4.7 / 4.8 / 4.9 | PASS | `ProjectDetailPage.test.tsx`, `pick.test.ts`, `matrix.test.ts`; live 2: Start disabled "Waiting for a project manager…", pick dialog (focus in the combobox, 7 people) → set → dialog gone, notice gone, "Project manager picked.", Start enabled, focus on the page heading (`H2`, `tabindex=-1`) |
+| AC-5.1 / 5.2 / 5.3 / 5.4 | PASS | `projects.test.ts`, `terms.test.ts`, `ProjectFormDialog.test.tsx`, `TermsFormDialog.test.tsx`; live 8: hand-made SaaS: Company* required, end before start refused naming the end date and cleared when the start moves, created `/projects/cmw4ol1qb0003fnvdo8ifa4kb` (no PO card), "Remove terms" → confirm → "Terms removed." |
+| AC-6.1 | PASS | live matrix 42/42 (below); unit `App.backNavigation.test.tsx` in all 7 modules |
+| **AC-6.2** | **PASS** | live 10/10 chains (below); in-module back/forward unit test in all 7 modules, green (admin 6, crm 6, estimai 5, inventory 6, notify 5, projects 9, refund 6 tests per file); **non-vacuous**: with `projects-ui/src/App.tsx` swapped for its pre-T38 content (`8da6dd6^`) the live check fails 3/3 on project → back (stays on the project); the file was restored byte-identical |
+| **AC-7.1** | **PASS** | live in the five dialogs, 34/34 assertions (below); unit: `fieldErrors.test.ts`, `TakeDealDialog`, `ProjectEditDialog`, `TermsFormDialog`, `EndTermsDialog`, `ProjectFormDialog` tests, 183 pass, incl. the server-refusal cases (the live pass used the forms' own refusals only) |
+
+**Count: 38/38 pass.**
+
+## AC-6.1 matrix (live, dev stack, admin persona, own headless Chromium)
+
+All 42 ordered pairs of the 7 remote modules (admin, crm, estimai, inventory, notify, projects, refund): cold load of A → switch to
+B through the shell link → Back → Forward → Back again, asserting at each step the URL, the page marker, no "not found / does not
+exist / something went wrong" text and no 4xx/5xx from any API after the switch. **Result 42/42 OK** (`matrix.out`), including
+projects > admin, projects > crm, crm > admin, crm > projects, admin > projects, projects > notify, notify > projects, and the
+notify link from projects (warm, 3/3, row 2).
+
+## AC-6.2 (live, `ac62.mjs`, admin persona)
+
+Per chain: click through the module's own links, then three times all the way **back** and all the way **forward**, then one
+single back / forward / back; asserted at each landing: the pathname, the **page content** (first 110 characters of `main`,
+required to equal the content of that page when first visited and to differ from every other page's), no error text, no
+4xx, no page error. 10 chains, **10/10 OK**:
+
+| Module | Chain |
+|---|---|
+| projects | `/projects` → To start ✓; `/projects` → a project ✓; `/projects` → To start → `/projects` → a project (4 pages) ✓ |
+| crm | companies → a company ✓; companies → contacts → pipeline → tasks → settings ✓; pipeline → companies → a company ✓ |
+| admin | roles → departments → users → rates → audit ✓ |
+| estimai | estimates → an estimate ✓ |
+| inventory | assets → rules → years → assets → register asset ✓ |
+| refund | my requests → review queue → monthly processing → my requests → a request ✓ (the first attempt failed on my script, not on the app: it clicked "New request", which creates a draft, so the list differed; re-run with the existing draft) |
+| notify | **no second page** (`/notify` is a single page): not applicable; moving between it and the other modules is in the 42/42 matrix |
+
+## AC-7.1 (live, `ac71-take.mjs`, `ac71-sib.mjs`, `ac71-more.mjs`; every submit was refused or cancelled, no data written)
+
+For each field: refuse it → change it (no submit) → message and `aria-invalid` gone → the next submit re-validates.
+**Take dialog 14/14** (sales-ch, deal "Licenza wellD Fleet — 25 veicoli", cancelled): empty submit refuses Type and Start date;
+changing Type clears Type only; typing the Start date clears it; Fixed price → Deadline and Max effort refused, typing Deadline
+clears Deadline and leaves Max effort, typing Max effort clears it; Name emptied → refused → typed → gone; end date before start
+→ message names **End date**; **changing the START date clears the end-date message and mark**; still wrong → the next submit shows
+it again; end date changed to another still-wrong date → gone anyway → the next submit shows it again.
+**Edit details 4/4**, **terms dialog 6/6 + 5/5** (start date required, end-before-start cleared by the start date, the SLA and
+hour-package members High priority / Normal priority / Hours each clear on their own change, switching the SLA off clears its
+remaining message, switching it on again brings no stale message), **end-terms dialog 5/5**, and the **hand-made create dialog**
+(regression, `row8a.mjs`: name, type, company, "Choose a company from the list." all clear on change). Screenshots:
+`shots/ac71-take-refused-1280.png`, `ac71-take-enddate-1280.png`, `ac71-edit-refused-1280.png`, `ac71-terms-enddate-1280.png`,
+`ac71-terms-members-1280.png`, `ac71-endterms-refused-1280.png`. The only non-GET request during the sibling-dialog scripts was
+`POST /notifications/stream-ticket` (notify's SSE ticket): nothing was saved.
+
+## Live pass (Round 3)
+
+| # | Row | Result | What I saw |
+|---|---|---|---|
+| 1 | sales-ch takes a deal | PASS | see AC-1.x; `shots/row1-queue-1280.png`, `row1-take-dialog-1280.png`, `row1-created-1280.png` |
+| 2 | ops-ch: warm notification link, Start refused, pick PM, notice gone | PASS | warm link 3/3; Start disabled with the reason; pick works; focus on the heading; `shots/row2-after-pick-1280.png` |
+| 3 | pm-it: no "To start", denied on the queue | PASS | see AC-1.9 |
+| 4 | pm-it: referent on the PO page, no CRM access | PASS | see AC-3.6–3.8; `shots/row4-pmit-po-1280.png` |
+| 5 | reopen / re-win through the CRM's own UI | PASS (see note) | notice on page and PO card, gone on re-win; the queue deal leaves on reopen. **Note:** the IT deal "Integrazione MES linea 3" has no technical estimate, so main's ADR-0073 rule (`estimate_not_ready`, 409 on `POST /deals/{id}/stage`) refuses to move it back to Won from the CRM UI: main's behaviour, not 022; I restored the row by SQL (below) and the deal is back in the queue. `shots/row5-notice-reopened-1280.png` |
+| 6 | estimate link as a user without EstimAI | not re-run | round 1 O1 stands |
+| 7 | CRM deal page shows the project and the Bexio order id | PASS | see AC-3.4; a Bexio id value was not set this round (it was in round 2; the card renders "—" when none) |
+| 8 | hand-made `saas` with terms; remove terms | PASS | see AC-5.x; `shots/row8-handmade-1280.png`, `row8-terms-removed-1280.png` |
+| 9 | 360 (sidebar collapsed) and 1280; D1; focus | PASS | 14 renders (queue, take dialog, list, awaiting project, PO card, pick dialog, create dialog with terms) × 360/1280: **0 px horizontal overflow**, dialogs 328 px at 360 and 640/448 at 1280; **D1**: the awaiting notice content is 209 px / 7 lines with the action below at 360 (collapsed) and 784 px with the action on the row at 1280 — unchanged from round 2. Focus: take, pick and create dialogs open with focus inside, Tab stays inside, Esc returns to "New project…", "Pick project manager" and "New project". `shots/r9-*.png`, `d1-*.png` |
+| M1 | admin access-request page (main, specs/023) | PASS | `/admin/users/access-requests`: heading, status filter (Pending / Approved / Rejected), empty state "No one is waiting for access"; 0 failing responses. `shots/main-access-requests-1280.png` |
+| M2 | ADR-0073: close in EstimAI → CRM ready | **BLOCKED** | see Blocked |
+
+## Defects (new this pass: no fix round is left, they go to the user)
+
+**R1 (advisory in this mode; introduced by 022's fix round 2, `e8faa28`, so it is the last fix, not a regression of an earlier
+one) — a click on "New request" in the Refund module creates two draft requests.**
+Repro (dev stack, admin persona, empty refund table): open `/refund/requests`, click "New request" → `POST /requests` is sent
+**twice** (11 ms apart) and two empty drafts appear in "My requests". A cold load of `/refund/requests/new` creates **one** (the
+page's own StrictMode guard works). Script `newreq.mjs click`.
+Bisect, same script, swapping only `refund-ui/src/App.tsx`: pre-T37 (`403caba^`) **1** POST ✓; T37 (`403caba`) 1 POST but the page
+stayed on `/refund/requests/new`; fix round 2 (`e8faa28`) **2**; HEAD **2**. Root cause, from the code and the bisect: fix round 2
+keys `<RouterProvider key={own.key}>` so that a router swapped by React's effect re-run still loads. In dev, StrictMode re-runs
+the subscription when the shell shows the module again after hiding it behind its pending fallback — which it does on every
+in-module navigation — so the whole route tree remounts with a new instance of `NewRequestPage`; the page's duplicate guard
+(`firedForAttempt`, a ref, `refund-ui/src/pages/NewRequestPage.tsx`) is per instance and cannot see the previous one.
+Consequence: an extra empty draft per click in development; no data loss. **Not verified in a production build** (StrictMode does
+not double-invoke effects there, and I did not run one): treat it as a dev-time defect until someone checks.
+Class sweep of the pattern (every module has the same keyed `RouterProvider`): a non-idempotent side effect inside a mount
+effect — refund `NewRequestPage` ✗; the other six modules have no `create` / `post` call inside an effect body (estimai's creates
+are in handlers; grep and reading, not executed live); idempotent mount-time GETs run twice and are harmless.
+Owner: whoever owns the remote `App.tsx` pattern (seven files) or refund-ui's page (a guard that survives a remount, e.g. keyed
+outside the component). The drafts I created while measuring were deleted (below).
+
+## Findings for main's owner (not 022 defects)
+
+**M1 (main origin, severity high for developers) — `auth/src/test-auth/test-auth.routes.test.ts:64-72` deletes every `@operai.test`
+user of the database it runs on.** Its `afterAll` selects `email endsWith "@operai.test"` and runs `userRole.deleteMany` and
+`user.deleteMany`; commits `94b68df` / `e7def0c` (specs/023); the file is identical to `main`. Running auth's suite against the
+shared dev `operai_auth` wiped all dev personas (the reason for the restart of this pass). Needs: scope the cleanup to the rows the
+test minted (it knows their ids), or refuse to run unless `DATABASE_URL` names a `*_test` database, as projects-api's preload does.
+This pass ran auth only against `operai_auth_test` and checked the persona count (9) before and after.
+**M2 (main origin, low)** — `auth/pnpm-lock.yaml` is still tracked next to `auth/bun.lock` (auth moved to `bun.lock`); it
+still resolves `better-auth 1.7.2`, which osv flags as critical (GHSA-965c-763c-88jm, CVSS 9.1). If auth's `bun.lock` resolves a
+fixed version the stale file is only noise for scanners; if not, auth is exposed. Not checked beyond the scan.
+**M3 (main origin, info)** — the ADR-0073 setup the dev environment lacks (see Blocked), and `estimai-ui` `ImportOfferModal.test.tsx`
+plus 12 shell test files fail on Node ≥ 26 (the repo pins 24).
+
+## Environment faults (not defects; no owning dev agent, no fix round used)
+
+- **Node 26.10.0 on the PATH instead of the pinned 24** (`mise.toml`: `node = "24"`; `direnv exec . node --version` prints
+  v26.10.0 here): Node 26 exposes a `localStorage` / `sessionStorage` getter that is undefined without a file, jsdom does not
+  override it, so `vi.spyOn(localStorage, …)` fails. Checked: estimai-ui 11 failures (all in `ImportOfferModal.test.tsx`, a file
+  identical to `main`; it was 2 in round 2 because the rebase brought main's added cases (D) into the same file) and shell
+  91 failures (same count as round 1) → with Node 24.22.1 first on the PATH **estimai-ui 304/304 and shell 305/305 pass**. Fix:
+  activate mise in the QE shell. Not counted against the verdict.
+- semgrep through the mise shim prints "osemgrep is not a valid shim" and exits 1 while still writing a complete JSON result
+  (0 findings, 108 files scanned); I used the installed binary.
+
+## Dev data changed (Round 3)
+
+- New project `cmw4obpbz0000fnvd7azo2ho4` "Licenza wellD Fleet — 25 veicoli" (taken by sales-ch from the deal: fixed price, Ticino
+  Bus SA, referent Chiara Pedrazzini, ops manager QE022 ops-ch, **PM now QE021 pm-it**, planned, start 07.12.2026, deadline
+  01.03.2027, max effort 90): the queue now holds one deal ("Integrazione MES linea 3", IT). One more notification for QE022 ops-ch.
+- New hand-made project `cmw4ol1qb0003fnvdo8ifa4kb` "QE022 round3 SaaS hand-made" (saas, wellD IT, Alpina Logistik AG, PM pm-it, terms removed).
+- CRM deals `czh7januxvzc4hqfhfxeav3a0` and `ca8oa2imwe63pgg6cqkloypng`: moved to Qualified through the CRM UI, `czh7…` back to Won
+  through the UI, `ca8o…` could not be re-won (ADR-0073 rule above); both **restored by SQL** to stage `won`, original `closedAt`,
+  `updatedAt`, `updatedBy` and `version 1` (full rows diffed against the copies saved before: identical; `activity` still 13 rows).
+- EstimAI estimate `c9ozhnusk1g17akxyg2pygzzb`: closed and reopened through the UI (`closedAt` null again; its `version` is now 3, was 1).
+  No CRM change followed (the push is off in dev).
+- Refund: 11 draft requests created by my scripts, all **deleted** (the table is empty again, as at the start; nothing in
+  `refund_line` / `attachment`).
+- `projects-ui/src/App.tsx` was swapped for its `8da6dd6^` content once, and `refund-ui/src/App.tsx` for three older revisions
+  (`403caba^`, `403caba`, `e8faa28`), each restored with `git checkout` (clean tree verified: `git status` empty). The persona count
+  on `operai_auth` stayed 9. Test-auth sessions minted. `pnpm build` rewrote the git-ignored `dist/` of the UIs. No environment
+  file was read or written; the stack was not stopped. The gate runs used `operai_auth_test`, `crm_test`, `projects_test`;
+  notify-api's and estimai-api's suites ran as before (their cleanups are scoped to the rows they create).
+
+## Recommendation (Round 3)
+- Decide R1 (user): fix in a follow-up, or accept as a dev-only artefact after a production-build check.
+- To turn this BLOCKED into PASS: set `CRM_INTERNAL_URL` (estimai-api) and `estimate-notices.send` for estimai-api's client in auth,
+  restart, and re-run the one row (close in EstimAI → CRM "Ready", reopen → "Requested"); or write the `verified by:` line yourself.
+- No `owasp-reviewer` re-run needed for 022: since round 2 the 022 commits change router wiring (seven `App.tsx`), validation-message
+  state and tests (gitleaks and semgrep clean; `security-review.md` stands). The main-origin changes (signup gate, better-auth,
+  estimate notices) have their own specs.
 
 # Round 2
 
