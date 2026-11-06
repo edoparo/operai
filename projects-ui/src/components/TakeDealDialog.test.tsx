@@ -588,3 +588,143 @@ describe('closing', () => {
     expect(posted()).toBeNull()
   })
 })
+
+describe('an error ends when the field it was about changes (AC-7.1, D53)', () => {
+  const REQUIRED = 'This field is required.'
+  const submit = (dialog: HTMLElement) => fireEvent.click(within(dialog).getByTestId('take-deal-submit'))
+  const invalid = (dialog: HTMLElement, label: RegExp) =>
+    within(dialog).getByLabelText(label).getAttribute('aria-invalid')
+  const noHolder: OpsManagerList = { items: [OPS, { ...OPS, id: 'u-two', name: 'Tom Ops' }], prefillId: null }
+
+  it('clears the name’s message and mark on any change, even to a value still wrong; the next submit shows it again', async () => {
+    const dialog = await renderDialog(WITHOUT_ESTIMATE)
+    setField(dialog, /^Name/, '')
+    submit(dialog)
+    expect(within(dialog).getAllByText(REQUIRED).length).toBeGreaterThan(0)
+    expect(invalid(dialog, /^Name/)).toBe('true')
+    const before = within(dialog).getAllByText(REQUIRED).length
+
+    setField(dialog, /^Name/, '   ')
+    expect(within(dialog).queryAllByText(REQUIRED)).toHaveLength(before - 1)
+    expect(invalid(dialog, /^Name/)).toBeNull()
+
+    submit(dialog)
+    expect(within(dialog).queryAllByText(REQUIRED)).toHaveLength(before)
+    expect(invalid(dialog, /^Name/)).toBe('true')
+  })
+
+  it('clears the type, the start date and the ops manager messages as each one changes', async () => {
+    const dialog = await renderDialog(WITHOUT_ESTIMATE, {}, noHolder)
+    submit(dialog)
+    const opsRefusal = 'Choose who receives this purchase order.'
+    expect(within(dialog).getAllByText(REQUIRED)).toHaveLength(2) // type, start date
+    expect(within(dialog).getByText(opsRefusal)).not.toBeNull()
+
+    setType(dialog, 'fixed_price')
+    expect(invalid(dialog, /^Type/)).toBeNull()
+    expect(within(dialog).getAllByText(REQUIRED).length).toBeGreaterThan(0)
+
+    setField(dialog, /^Start date/, '2026-11-01')
+    expect(invalid(dialog, /^Start date/)).toBeNull()
+
+    fireEvent.change(opsSelect(dialog), { target: { value: 'u-two' } })
+    expect(within(dialog).queryByText(opsRefusal)).toBeNull()
+    expect(invalid(dialog, /^Ops manager/)).toBeNull()
+  })
+
+  it('clears an end date that falls before the start when the start date changes', async () => {
+    const dialog = await renderDialog(WITHOUT_ESTIMATE)
+    fillFixedPrice(dialog)
+    setField(dialog, /^End date/, '2026-10-01')
+    submit(dialog)
+    const refusal = 'The end date must not be before the start date.'
+    expect(within(dialog).getByText(refusal)).not.toBeNull()
+    expect(invalid(dialog, /^End date/)).toBe('true')
+
+    setField(dialog, /^Start date/, '2026-09-01')
+    expect(within(dialog).queryByText(refusal)).toBeNull()
+    expect(invalid(dialog, /^End date/)).toBeNull()
+    expect(posted()).toBeNull()
+  })
+
+  it('clears each fixed-price member’s own message and leaves the others', async () => {
+    const dialog = await renderDialog(WITHOUT_ESTIMATE)
+    setType(dialog, 'fixed_price')
+    setField(dialog, /^Start date/, '2026-11-01')
+    submit(dialog)
+    expect(invalid(dialog, /^Deadline/)).toBe('true')
+    expect(invalid(dialog, /^Max effort/)).toBe('true')
+
+    setField(dialog, /^Deadline/, '2026-12-01')
+    expect(invalid(dialog, /^Deadline/)).toBeNull()
+    expect(invalid(dialog, /^Max effort/)).toBe('true')
+
+    setField(dialog, /^Max effort/, 'x')
+    expect(invalid(dialog, /^Max effort/)).toBeNull()
+    submit(dialog)
+    expect(invalid(dialog, /^Max effort/)).toBe('true')
+  })
+
+  it('clears the error of one position’s member, not another’s', async () => {
+    const dialog = await renderDialog(WITHOUT_ESTIMATE)
+    setType(dialog, 't_and_m')
+    setField(dialog, /^Start date/, '2026-11-01')
+    submit(dialog)
+    expect(invalid(dialog, /^Profile/)).toBe('true')
+    expect(invalid(dialog, /^Planned man-days/)).toBe('true')
+
+    setField(dialog, /^Profile/, 'Developer')
+    expect(invalid(dialog, /^Profile/)).toBeNull()
+    expect(invalid(dialog, /^Planned man-days/)).toBe('true')
+  })
+
+  it('clears an SLA message when the SLA field changes', async () => {
+    const dialog = await renderDialog(WITHOUT_ESTIMATE)
+    setType(dialog, 'maintenance')
+    setField(dialog, /^Start date/, '2026-11-01')
+    fireEvent.click(within(dialog).getByLabelText('Include an SLA'))
+    setField(dialog, /High priority/, '61')
+    submit(dialog)
+    expect(invalid(dialog, /High priority/)).toBe('true')
+    setField(dialog, /High priority/, '62')
+    expect(invalid(dialog, /High priority/)).toBeNull()
+    expect(within(dialog).queryByText('Enter a whole number from 0 to 60.')).toBeNull()
+  })
+
+  it('clears a message the server refused a field with when that field changes', async () => {
+    const dialog = await renderDialog(WITHOUT_ESTIMATE, {
+      'POST /queue/d1/project': () => problem(422, 'validation_failed', { field: 'name' }, 'The name is too long.'),
+    })
+    fillFixedPrice(dialog)
+    submit(dialog)
+    expect(await within(dialog).findByText('The name is too long.')).not.toBeNull()
+    setField(dialog, /^Name/, 'Relaunch 2026 (b)')
+    expect(within(dialog).queryByText('The name is too long.')).toBeNull()
+    expect(invalid(dialog, /^Name/)).toBeNull()
+  })
+
+  it('clears the referent refusal when another contact is chosen', async () => {
+    const dialog = await renderDialog(WITHOUT_ESTIMATE, {
+      'POST /queue/d1/project': () => problem(422, 'referent_invalid'),
+    })
+    await waitFor(() => expect(referentSelect(dialog).options.length).toBeGreaterThan(1))
+    fillFixedPrice(dialog)
+    fireEvent.change(referentSelect(dialog), { target: { value: 'k1' } })
+    submit(dialog)
+    expect(await within(dialog).findByText(/This contact cannot be the referent/)).not.toBeNull()
+    fireEvent.change(referentSelect(dialog), { target: { value: 'k2' } })
+    expect(within(dialog).queryByText(/This contact cannot be the referent/)).toBeNull()
+    expect(referentSelect(dialog).getAttribute('aria-invalid')).toBeNull()
+  })
+
+  it('drops the previous type’s terms messages when the type changes (the members are reset)', async () => {
+    const dialog = await renderDialog(WITHOUT_ESTIMATE)
+    setType(dialog, 'fixed_price')
+    setField(dialog, /^Start date/, '2026-11-01')
+    submit(dialog)
+    expect(invalid(dialog, /^Deadline/)).toBe('true')
+    setType(dialog, 'maintenance')
+    setType(dialog, 'fixed_price')
+    expect(invalid(dialog, /^Deadline/)).toBeNull()
+  })
+})

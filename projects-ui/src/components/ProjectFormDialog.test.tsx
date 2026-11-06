@@ -520,6 +520,27 @@ describe('an error ends when the value it was about changes (QE D2, after a fail
     setField(dialog, /Start date/, '2026-12-01')
     expect(within(dialog).queryAllByText(REQUIRED).length).toBe(before - 1)
   })
+
+  it('clears an end date before the start when the start date changes, and a terms member’s message when it changes (AC-7.1)', () => {
+    const dialog = renderDialog()
+    setField(dialog, /^Name/, 'Ops tooling')
+    setField(dialog, /^Type/, 'fixed_price')
+    setField(dialog, /wellD entity/, 'welld_ch')
+    openTerms(dialog)
+    setField(dialog, /Start date/, '2026-12-01')
+    setField(dialog, /End date/, '2026-11-01')
+    submit(dialog)
+    const invalid = (label: RegExp) => within(dialog).getByLabelText(label).getAttribute('aria-invalid')
+    expect(invalid(/End date/)).toBe('true')
+    expect(invalid(/^Deadline/)).toBe('true')
+    expect(invalid(/^Max effort/)).toBe('true')
+
+    setField(dialog, /Start date/, '2026-10-01')
+    expect(invalid(/End date/)).toBeNull()
+    setField(dialog, /^Deadline/, '2027-01-01')
+    expect(invalid(/^Deadline/)).toBeNull()
+    expect(invalid(/^Max effort/)).toBe('true')
+  })
 })
 
 describe('the entity a caller may create for (AC-4.4)', () => {

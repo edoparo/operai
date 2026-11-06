@@ -75,7 +75,17 @@ export default function EndTermsDialog({
       testIdPrefix="terms-end"
     >
       <Field label={t.date} required error={fieldError} testId="terms-end-date">
-        {(control) => <DateInput {...control} value={endDate} onChange={(event) => setEndDate(event.target.value)} />}
+        {(control) => (
+          <DateInput
+            {...control}
+            value={endDate}
+            onChange={(event) => {
+              setEndDate(event.target.value)
+              // The message is about the date it was raised on: a new date ends it, right or not (AC-7.1).
+              setFieldError(null)
+            }}
+          />
+        )}
       </Field>
     </FormDialog>
   )

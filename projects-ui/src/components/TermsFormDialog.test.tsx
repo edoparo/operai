@@ -479,3 +479,151 @@ describe('the man-days of terms the estimate backs (AC-3.1)', () => {
     expect((within(dialog).getByLabelText(FIELDS.estimated) as HTMLInputElement).readOnly).toBe(false)
   })
 })
+
+describe('an error ends when the field it was about changes (AC-7.1, D53)', () => {
+  const REQUIRED = 'This field is required.'
+  const invalid = (dialog: HTMLElement, label: RegExp) =>
+    within(dialog).getByLabelText(label).getAttribute('aria-invalid')
+  const fixed = termsOf('fixed_price', { deadline: '2026-12-01', estimatedManDays: 12.5, maxEffortManDays: 40 })
+
+  it('clears the start date’s message and mark on any change, even to a value still wrong; the next submit shows it again', () => {
+    const dialog = renderDialog('saas')
+    submit(dialog)
+    expect(within(dialog).getByText(REQUIRED)).not.toBeNull()
+    expect(invalid(dialog, /Start date/)).toBe('true')
+
+    fill(dialog, /Start date/, '2026-02-01')
+    expect(within(dialog).queryByText(REQUIRED)).toBeNull()
+    expect(invalid(dialog, /Start date/)).toBeNull()
+
+    // Cleared again: still wrong, and quiet until the next submit.
+    fill(dialog, /Start date/, '')
+    expect(within(dialog).queryByText(REQUIRED)).toBeNull()
+    submit(dialog)
+    expect(within(dialog).getByText(REQUIRED)).not.toBeNull()
+    expect(invalid(dialog, /Start date/)).toBe('true')
+  })
+
+  it('clears it when editing too: empty the start date, save, type a date', () => {
+    const dialog = renderDialog('fixed_price', {}, fixed)
+    fill(dialog, /Start date/, '')
+    submit(dialog)
+    expect(invalid(dialog, /Start date/)).toBe('true')
+    fill(dialog, /Start date/, '2026-03-01')
+    expect(within(dialog).queryByText(REQUIRED)).toBeNull()
+    expect(invalid(dialog, /Start date/)).toBeNull()
+  })
+
+  it('clears an end date that falls before the start when the start date changes', () => {
+    const dialog = renderDialog('saas')
+    fill(dialog, /Start date/, '2026-02-01')
+    fill(dialog, /End date/, '2026-01-01')
+    submit(dialog)
+    const refusal = 'The end date must not be before the start date.'
+    expect(within(dialog).getByText(refusal)).not.toBeNull()
+    expect(invalid(dialog, /End date/)).toBe('true')
+
+    fill(dialog, /Start date/, '2025-12-01')
+    expect(within(dialog).queryByText(refusal)).toBeNull()
+    expect(invalid(dialog, /End date/)).toBeNull()
+    expect(sent()).toBeNull()
+  })
+
+  it('clears an end date message when the end date changes', () => {
+    const dialog = renderDialog('saas')
+    fill(dialog, /Start date/, '2026-02-01')
+    fill(dialog, /End date/, '2026-01-01')
+    submit(dialog)
+    fill(dialog, /End date/, '2025-01-01')
+    expect(invalid(dialog, /End date/)).toBeNull()
+  })
+
+  it('clears each fixed-price member’s message as that member changes and leaves the others', () => {
+    const dialog = renderDialog('fixed_price')
+    fill(dialog, /Start date/, '2026-02-01')
+    fill(dialog, FIELDS.estimated, 'x')
+    submit(dialog)
+    expect(invalid(dialog, FIELDS.deadline)).toBe('true')
+    expect(invalid(dialog, FIELDS.maxEffort)).toBe('true')
+    expect(invalid(dialog, FIELDS.estimated)).toBe('true')
+
+    fill(dialog, FIELDS.deadline, '2026-12-01')
+    expect(invalid(dialog, FIELDS.deadline)).toBeNull()
+    expect(invalid(dialog, FIELDS.maxEffort)).toBe('true')
+    expect(invalid(dialog, FIELDS.estimated)).toBe('true')
+
+    fill(dialog, FIELDS.estimated, 'y')
+    expect(invalid(dialog, FIELDS.estimated)).toBeNull()
+    expect(invalid(dialog, FIELDS.maxEffort)).toBe('true')
+  })
+
+  it('clears the SLA and the hour package members one by one', () => {
+    const dialog = renderDialog('maintenance')
+    fill(dialog, /Start date/, '2026-02-01')
+    fireEvent.click(within(dialog).getByLabelText(FIELDS.withSla))
+    fireEvent.click(within(dialog).getByLabelText(FIELDS.withHours))
+    fill(dialog, FIELDS.slaHigh, '61')
+    fill(dialog, FIELDS.slaNormal, '62')
+    submit(dialog)
+    for (const field of [FIELDS.slaHigh, FIELDS.slaNormal, FIELDS.hours, FIELDS.packageStart]) {
+      expect(invalid(dialog, field)).toBe('true')
+    }
+
+    fill(dialog, FIELDS.slaHigh, '1')
+    expect(invalid(dialog, FIELDS.slaHigh)).toBeNull()
+    expect(invalid(dialog, FIELDS.slaNormal)).toBe('true')
+    fill(dialog, FIELDS.slaNormal, '3')
+    expect(invalid(dialog, FIELDS.slaNormal)).toBeNull()
+
+    fill(dialog, FIELDS.hours, '10')
+    expect(invalid(dialog, FIELDS.hours)).toBeNull()
+    expect(invalid(dialog, FIELDS.packageStart)).toBe('true')
+    fill(dialog, FIELDS.packageStart, '2026-02-01')
+    expect(invalid(dialog, FIELDS.packageStart)).toBeNull()
+  })
+
+  it('clears the profile of the position it was raised on, not the planned man-days nor another position', () => {
+    const dialog = renderDialog('t_and_m')
+    fill(dialog, /Start date/, '2026-02-01')
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Add position' }))
+    submit(dialog)
+    const profiles = within(dialog).getAllByLabelText(FIELDS.profile)
+    expect(profiles.map((profile) => profile.getAttribute('aria-invalid'))).toEqual(['true', 'true'])
+
+    fireEvent.change(profiles[1]!, { target: { value: 'Tester' } })
+    const after = within(dialog).getAllByLabelText(FIELDS.profile)
+    expect(after.map((profile) => profile.getAttribute('aria-invalid'))).toEqual(['true', null])
+    expect(
+      within(dialog)
+        .getAllByLabelText(FIELDS.planned)
+        .map((planned) => planned.getAttribute('aria-invalid')),
+    ).toEqual(['true', 'true'])
+  })
+
+  it('drops the positions’ messages when a position is removed (the indexes move)', () => {
+    const dialog = renderDialog('t_and_m')
+    fill(dialog, /Start date/, '2026-02-01')
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Add position' }))
+    submit(dialog)
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Remove position 1' }))
+    expect(
+      within(dialog)
+        .getAllByLabelText(FIELDS.profile)
+        .map((profile) => profile.getAttribute('aria-invalid')),
+    ).toEqual([null])
+  })
+
+  it('clears a message the server refused an SLA field with when that field changes', async () => {
+    const dialog = renderDialog('maintenance', {
+      'POST /projects/p1/terms': () =>
+        problem(400, 'validation_failed', { field: 'terms.sla.highDays' }, 'highDays: Too big'),
+    })
+    fill(dialog, /Start date/, '2026-02-01')
+    fireEvent.click(within(dialog).getByLabelText(FIELDS.withSla))
+    submit(dialog)
+    expect(await within(dialog).findByText('highDays: Too big')).not.toBeNull()
+    fill(dialog, FIELDS.slaHigh, '2')
+    expect(within(dialog).queryByText('highDays: Too big')).toBeNull()
+    expect(invalid(dialog, FIELDS.slaHigh)).toBeNull()
+  })
+})

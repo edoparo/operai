@@ -2,6 +2,7 @@ import { useRef, useState } from 'react'
 import { Field, FormDialog, focusFirstInvalid } from '@operai/ui'
 import { ApiError, isStaleWrite } from '../lib/api'
 import { codeOf, errorMessage, fieldErrorOf } from '../lib/errors'
+import { withoutErrors } from '../lib/fieldErrors'
 import { personName } from '../lib/people'
 import { updateProject } from '../lib/projectsApi'
 import type { UpdateProjectInput } from '../lib/projectsApi'
@@ -57,6 +58,10 @@ export default function ProjectEditDialog({
     ...(!awaiting && manager && manager.id !== project.projectManager?.id ? { projectManagerId: manager.id } : {}),
   }
 
+  // An error is about the value it was raised on: when that value changes, the message goes (AC-7.1). The
+  // next submit checks everything again.
+  const clearErrors = (...fields: FieldName[]) => setErrors((current) => withoutErrors(current, ...fields))
+
   const submit = () => {
     const found: Errors<FieldName> = {
       name: first(required(name), maxLength(name, 200)) ?? undefined,
@@ -102,7 +107,16 @@ export default function ProjectEditDialog({
     >
       <div ref={fieldsRef} className="contents">
         <Field label={t.name} required error={errors.name} testId="project-edit-name">
-          {(control) => <input {...control} value={name} onChange={(event) => setName(event.target.value)} />}
+          {(control) => (
+            <input
+              {...control}
+              value={name}
+              onChange={(event) => {
+                setName(event.target.value)
+                clearErrors('name')
+              }}
+            />
+          )}
         </Field>
         {awaiting ? (
           <p className="text-sm text-soft" data-testid="project-edit-manager-awaiting">
@@ -113,7 +127,10 @@ export default function ProjectEditDialog({
             label={t.projectManager}
             hint={t.projectManagerHint}
             value={manager}
-            onChange={setManager}
+            onChange={(choice) => {
+              setManager(choice)
+              clearErrors('projectManager')
+            }}
             error={errors.projectManager}
             required
             forbiddenHint={strings.projects.form.projectManagerReadOnlyHint}
