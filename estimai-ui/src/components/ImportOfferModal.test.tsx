@@ -31,7 +31,8 @@
  */
 
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { render, screen, waitFor, cleanup, fireEvent } from '@testing-library/react'
+import type { ReactNode } from 'react'
+import { render, screen, waitFor, cleanup, fireEvent, within } from '@testing-library/react'
 import EstimatesPage from '../pages/EstimatesPage'
 import type { ProjectMeta } from '../types'
 
@@ -74,6 +75,12 @@ vi.mock('@tanstack/react-router', async (importOriginal) => {
   return {
     ...original,
     useNavigate: vi.fn(() => vi.fn()),
+    // A row's name is a router <Link> (INC-14); no RouterProvider here.
+    Link: ({ children, className }: { children: ReactNode; className?: string }) => (
+      <a href="#" className={className}>
+        {children}
+      </a>
+    ),
   }
 })
 
@@ -85,6 +92,8 @@ vi.mock('../lib/api', () => ({
 // Import mocked modules after vi.mock declarations.
 import * as projects from '../lib/projects'
 import * as estimatesApi from '../lib/estimatesApi'
+import type { EstimateListItem } from '../lib/estimatesApi'
+import { IMPORTED_KEY } from '../hooks/useImportOffer'
 
 // ---------------------------------------------------------------------------
 // Fixtures
@@ -141,6 +150,7 @@ beforeEach(() => {
 
   // Reset sessionStorage so each test starts with a fresh session.
   sessionStorage.clear()
+  localStorage.removeItem(IMPORTED_KEY)
 
   // Default: list returns [] so the EstimatesPage doesn't distract from the modal.
   vi.mocked(estimatesApi.list).mockResolvedValue([])
@@ -374,6 +384,92 @@ describe('ImportOfferModal (T12, specs/001)', () => {
 
       // Click Close → modal gone.
       fireEvent.click(footerClose)
+      expect(screen.queryByTestId('import-offer-modal')).toBeNull()
+    })
+  })
+
+  // -------------------------------------------------------------------------
+  // (D) only what is not yet in the account — AC-5.1
+  // -------------------------------------------------------------------------
+  describe('(D) not yet in the account — AC-5.1', () => {
+    const inAccount = (id: string, name: string): EstimateListItem => ({
+      id,
+      name,
+      author: '',
+      updatedAt: '2026-11-01T00:00:00.000Z',
+      access: 'owner',
+      owner: null,
+      closedAt: null,
+    })
+
+    const arrange = () => {
+      vi.mocked(projects.loadProjects).mockReturnValue(localMeta)
+      vi.mocked(projects.loadProject).mockImplementation((id) =>
+        id === 'local-1' ? localData1 : id === 'local-2' ? localData2 : null,
+      )
+    }
+
+    it('records what it imported and does not offer it again on the next visit', async () => {
+      arrange()
+      vi.mocked(estimatesApi.importEstimates).mockResolvedValue({
+        results: [
+          { localId: 'local-1', status: 'imported', id: 'api-id-1' },
+          { localId: 'local-2', status: 'failed', error: 'Payload too large' },
+        ],
+      })
+
+      render(<EstimatesPage />)
+      await waitFor(() => expect(screen.getByTestId('import-offer-modal')).toBeDefined())
+      fireEvent.click(screen.getByRole('button', { name: /Import all/i }))
+      await waitFor(() => expect(screen.getByText(/1 of 2 imported successfully/i)).toBeDefined())
+
+      expect(JSON.parse(localStorage.getItem(IMPORTED_KEY) ?? '{}')).toEqual({ 'local-1': ['api-id-1'] })
+      cleanup()
+
+      // A new session: the imported copy is in the account under another name.
+      sessionStorage.clear()
+      vi.mocked(estimatesApi.list).mockResolvedValue([inAccount('api-id-1', 'Renamed')])
+      render(<EstimatesPage />)
+
+      await waitFor(() => expect(screen.getByTestId('import-offer-modal')).toBeDefined())
+      // Only the one that failed is still offered.
+      expect(within(screen.getByTestId('import-offer-modal')).getByText(/1 estimate\b/i)).toBeDefined()
+      expect(screen.queryByText('Alpha Local')).toBeNull()
+      expect(screen.getByText('Beta Local')).toBeDefined()
+    })
+
+    it('does not offer a local estimate whose name is already in the account', async () => {
+      arrange()
+      vi.mocked(estimatesApi.list).mockResolvedValue([
+        inAccount('api-a', 'Alpha Local'),
+        inAccount('api-b', 'Beta Local'),
+      ])
+
+      render(<EstimatesPage />)
+
+      await waitFor(() => expect(screen.getByText('Alpha Local')).toBeDefined())
+      expect(screen.queryByTestId('import-offer-modal')).toBeNull()
+    })
+
+    it('offers it again when the imported copy was deleted from the account', async () => {
+      arrange()
+      localStorage.setItem(IMPORTED_KEY, JSON.stringify({ 'local-1': ['gone'], 'local-2': ['api-b'] }))
+      vi.mocked(estimatesApi.list).mockResolvedValue([inAccount('api-b', 'Beta renamed')])
+
+      render(<EstimatesPage />)
+
+      await waitFor(() => expect(screen.getByTestId('import-offer-modal')).toBeDefined())
+      expect(screen.getByText('Alpha Local')).toBeDefined()
+      expect(screen.queryByText('Beta Local')).toBeNull()
+    })
+
+    it('offers nothing while the account list cannot be loaded', async () => {
+      arrange()
+      vi.mocked(estimatesApi.list).mockRejectedValue(new Error('down'))
+
+      render(<EstimatesPage />)
+
+      await waitFor(() => expect(estimatesApi.list).toHaveBeenCalled())
       expect(screen.queryByTestId('import-offer-modal')).toBeNull()
     })
   })

@@ -124,7 +124,7 @@ export default function EstimatesPage() {
     handleAccept: handleImportAccept,
     handleDecline: handleImportDecline,
     handleClose: handleImportClose,
-  } = useImportOffer(fetchList)
+  } = useImportOffer(listState.status === 'loaded' ? listState.items : null, fetchList)
 
   // ---------------------------------------------------------------------------
   // Create / open

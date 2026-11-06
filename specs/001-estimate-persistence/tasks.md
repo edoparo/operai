@@ -130,3 +130,11 @@ roots; the e2e tasks converge once both are up. New UI components come from `des
   - done when: estimai-api `bun run typecheck` + `bun test` pass; estimai-ui `pnpm lint`,
     `pnpm build`, `pnpm test`, `pnpm e2e` pass; every task above is checked; then
     `/wellforge:eval` PASS gates the spec status → `done` (production tier)
+
+- [x] T18: fix — the import offer lists only local estimates not yet in the account — refs: AC-5.1 — deps: T12
+  - touch: `estimai-ui/src/hooks/useImportOffer.ts`, `estimai-ui/src/pages/EstimatesPage.tsx`,
+    `estimai-ui/src/components/ImportOfferModal.test.tsx`
+  - done when: the offer waits for the account list; a local estimate is left out when a
+    copy this browser imported (recorded in localStorage `estimai_imported`) is still in the
+    account, or when the account has an estimate with its name; one whose copy was deleted
+    is offered again; nothing is offered while the list cannot be loaded
