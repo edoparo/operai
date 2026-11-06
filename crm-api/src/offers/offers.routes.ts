@@ -586,17 +586,23 @@ offersRouter.openapi(generateRoute, async (c) => {
       const last = await tx.dealOffer.aggregate({ where: { dealId: id }, _max: { number: true } });
       const number = (last._max.number ?? 0) + 1;
 
-      // D-5: a deal keeps its number and year; each later version adds a revision.
+      // D-5: a deal keeps its number and year; each later version adds a revision. Only an
+      // offer still on the deal, or one the client received (sent), holds the number: when
+      // every earlier one was deleted unsent, the deal takes a new number (the old one stays
+      // a gap, AC-4.2), so the entity's numbering setting applies (AC-8.1).
       const sequenced = await tx.dealOffer.findMany({
         where: { dealId: id, sequenceNo: { not: null } },
         orderBy: { number: "asc" },
-        select: { sequenceYear: true, sequenceNo: true },
+        select: { sequenceYear: true, sequenceNo: true, deletedAt: true, sentAt: true },
       });
+      const holder = sequenced.find((offer) => offer.deletedAt === null || offer.sentAt !== null);
       let sequenceYear: number;
       let sequenceNo: number;
-      if (sequenced.length > 0) {
-        sequenceYear = sequenced[0]!.sequenceYear!;
-        sequenceNo = sequenced[0]!.sequenceNo!;
+      let revision = 0;
+      if (holder) {
+        sequenceYear = holder.sequenceYear!;
+        sequenceNo = holder.sequenceNo!;
+        revision = sequenced.filter((offer) => offer.sequenceYear === sequenceYear && offer.sequenceNo === sequenceNo).length;
       } else {
         sequenceYear = issued.getUTCFullYear();
         const [taken] = await tx.$queryRaw<{ last: number }[]>`
@@ -606,7 +612,7 @@ offersRouter.openapi(generateRoute, async (c) => {
           RETURNING "last"`;
         sequenceNo = taken!.last;
       }
-      const snapshot = snapshotOf(prepared, body, offerReferenceOf(sequenceNo, sequenceYear, sequenced.length), issued);
+      const snapshot = snapshotOf(prepared, body, offerReferenceOf(sequenceNo, sequenceYear, revision), issued);
       const pdf = await renderOffer(snapshot, prepared);
       const offerId = crypto.randomUUID();
       const objectKey = `offers/${id}/${offerId}.pdf`;

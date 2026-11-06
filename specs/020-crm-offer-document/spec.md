@@ -242,6 +242,9 @@ Operai.
   starting from 1, printed with four digits and no suffix: `0017/2026`. Every later
   generation on the same deal keeps that number and year and adds `r1`, `r2`…, even when it
   happens in a later year.
+  - (owner, 2026-11-06) Only an offer still on the deal, or one marked sent (the client has
+    it), holds the deal's number. When every earlier offer was deleted unsent, the next one
+    takes a new number like a first offer (AC-8.1 applies); the deleted number stays a gap.
 - **AC-4.2** Numbers never collide, even when two offers are generated at the same time,
   and are never reused. A deleted revision leaves its gap (018 AC-4.4).
 - **AC-4.3** Offers generated before this spec keep their `OF-…` reference and their PDF.

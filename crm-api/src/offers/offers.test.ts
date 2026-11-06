@@ -341,6 +341,28 @@ describe("offer generation (specs/020 US-1, US-3, US-4)", () => {
       expect(await db.offerSequence.count({ where: { year: YEAR } })).toBe(1);
     });
 
+    it("a deal whose earlier offers were all deleted unsent takes a new number, from the numbering setting", async () => {
+      const { deal } = await readyDeal();
+      await putProfile();
+      const first = await generate(deal.id, await body(deal.id));
+      expect(first.json.reference).toBe(`0001/${YEAR}`);
+      expect((await call("DELETE", `/deals/${deal.id}/offers/${first.json.id}`)).status).toBe(204);
+      expect((await call("PUT", "/offer-sequences/welld_ch", { body: { year: YEAR, next: 42 } })).status).toBe(200);
+      const second = await generate(deal.id, await body(deal.id));
+      expect(second.json.reference).toBe(`0042/${YEAR}`);
+      // a further version keeps the new number; the deleted 0001 stays a gap
+      await markSent(deal.id, second.json.id);
+      expect((await generate(deal.id, await body(deal.id))).json.reference).toBe(`0042/${YEAR}r1`);
+    });
+
+    it("a deleted offer the client received still holds the deal's number", async () => {
+      const { deal } = await readyDeal();
+      await putProfile();
+      const first = await generateSent(deal.id, await body(deal.id));
+      expect((await call("DELETE", `/deals/${deal.id}/offers/${first.json.id}`)).status).toBe(204);
+      expect((await generate(deal.id, await body(deal.id))).json.reference).toBe(`0001/${YEAR}r1`);
+    });
+
     it("does not burn a number when the generation fails", async () => {
       const { deal } = await readyDeal();
       await putProfile();
