@@ -1,0 +1,97 @@
+{
+  "schema": "wellforge-run/v3",
+  "plugin_version": "2.56.0",
+  "run_id": "2026-11-06T16-26-45Z-orchestrate-021-meetings",
+  "command": "orchestrate",
+  "feature": "021-meetings",
+  "rigor": "production",
+  "rigor_recorded": null,
+  "started": "2026-11-06T16:26:45Z",
+  "finished": "2026-11-06T17:14:58Z",
+  "agents": [
+    {
+      "agent": "quality-engineer",
+      "outcome": "FAIL",
+      "commits": [
+        "706b1c7"
+      ],
+      "notes": "D1: meetings-ui missed main's dependency alignment 59e9b48 (2 critical advisories via vitest 3/tinypool; better-auth < 1.7.18; router not pinned 1.170.17). Added 4 cross-route service-credential tests."
+    },
+    {
+      "agent": "owasp-reviewer",
+      "outcome": "PASS WITH NOTES"
+    },
+    {
+      "agent": "frontend-dev",
+      "tasks": [
+        "D1"
+      ],
+      "outcome": "completed",
+      "commits": [
+        "7a3d46b"
+      ]
+    },
+    {
+      "agent": "quality-engineer",
+      "outcome": "PASS",
+      "notes": "meetings-ui audit 0 critical/0 high; meetings e2e 17/18 (meetings-deal.spec.ts:57 needs ffmpeg, env fault); CRM deal-page meetings journeys pass."
+    }
+  ],
+  "drift_events": [
+    {
+      "agent": "orchestrator",
+      "artifact": "tasks.md",
+      "summary": "T104's dispatched-run check cannot run before merge (workflow_dispatch needs the file on main); moved to post-merge T128, approved by the user 2026-11-06",
+      "resolved": true
+    }
+  ],
+  "env_faults": [
+    {
+      "agent": "quality-engineer",
+      "class": "machine tool",
+      "detail": "ffmpeg/ffprobe not installed: recorded-audio e2e stays processing",
+      "resolved_by": "not resolved locally; re-run with ffmpeg or in CI"
+    },
+    {
+      "agent": "quality-engineer",
+      "class": "stale node_modules",
+      "detail": "inventory-ui and estimai-ui had a router version different from their lockfile pin, breaking the MF singleton",
+      "resolved_by": "pnpm install --frozen-lockfile"
+    },
+    {
+      "agent": "quality-engineer",
+      "class": "shared test database",
+      "detail": "a running dev meetings-api job runner consumed jobs from the test DB during unit tests",
+      "resolved_by": "stopped the dev backends"
+    },
+    {
+      "agent": "quality-engineer",
+      "class": "seed user grants",
+      "detail": "6 non-meetings e2e need roles the e2e seed user lacks; not changed by this branch",
+      "resolved_by": "not resolved; unrelated to 021"
+    }
+  ],
+  "verdicts": {
+    "qe": "PASS",
+    "security": "PASS"
+  },
+  "security": {
+    "matched_rules": [
+      "always_at_tier:production",
+      "auth/**",
+      "**/auth/**",
+      "auth"
+    ],
+    "dispatched": true,
+    "notes": [
+      "A05 low: crm-api systemAuth exports the test-only __setDefaultJwksForTests from the production module (unreachable over HTTP)",
+      "A01 low: cross-route credential tests missing (closed by 706b1c7)",
+      "A09 low: a rejected /system call logs only the jose code, no caller (same as notify-api)"
+    ]
+  },
+  "result": "completed",
+  "tokens": null,
+  "cost_usd": null,
+  "terse": false,
+  "control_run_id": null
+}

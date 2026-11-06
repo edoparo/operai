@@ -1,0 +1,22 @@
+{
+  "schema": "wellforge-run/v3",
+  "plugin_version": "2.56.0",
+  "run_id": "2026-11-06T16-17-15Z-eval-021-meetings",
+  "command": "eval",
+  "feature": "021-meetings",
+  "rigor": "production",
+  "rigor_recorded": null,
+  "started": "2026-11-06T16:17:15Z",
+  "finished": "2026-11-06T16:24:20Z",
+  "agents": [
+    { "agent": "evaluator", "outcome": "PASS", "score": 80.0 }
+  ],
+  "drift_events": [],
+  "verdicts": { "eval": "PASS" },
+  "result": "completed",
+  "tokens": null,
+  "cost_usd": null,
+  "terse": false,
+  "control_run_id": null,
+  "notes": "Round 5, on 206bf41 after the rebase onto main, the ADR 0073->0074 renumber and the crm-api systemAuth consolidation. Zero margin. Evaluator asks for QE, e2e and an OWASP pass on the rebased tree before close, and a corrected changeset (meetings-transcript-completeness says failed parts are retried; A8 set tries = 1)."
+}
