@@ -1,10 +1,11 @@
 ---
 id: 022
 slug: projects-handoff
-status: in-progress
+status: done
 rigor: mvp
 created: 2026-11-03
 approved: 2026-11-06
+done: 2026-11-06
 depends-on: 021
 ---
 
