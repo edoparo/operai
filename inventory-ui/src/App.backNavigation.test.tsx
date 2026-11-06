@@ -8,9 +8,9 @@
  * user went to or came from — and a remote that is unmounted leaves no history
  * listener.
  */
-import { StrictMode, Suspense } from 'react'
+import { StrictMode, Suspense, useEffect, useState } from 'react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { cleanup, render, screen } from '@testing-library/react'
+import { act, cleanup, render, screen } from '@testing-library/react'
 
 vi.mock('shell/session', () => ({
   apiFetch: vi.fn(),
@@ -160,5 +160,75 @@ describe('App (inventory-ui), moving inside the module', () => {
     render(<App />)
 
     expect(await screen.findByTestId('inventory-register-asset-page')).not.toBeNull()
+  })
+})
+
+/**
+ * Back and forward inside the module (specs/022 AC-6.2, D53). The shell's own router
+ * listens to the same browser history, BEFORE the remote does, and answers every address
+ * change with its access guard; while it answers it hides the mounted remote behind its
+ * pending fallback. React renders that between the two listeners, so the remote's
+ * layout effects (TanStack Router's history subscription among them) are cleaned up
+ * before the remote's own listener hears the same change — and on the way back in they
+ * do not load what they missed (QE round 2: back changed the address, not the page).
+ */
+const shellThatAnswersAddressChanges = () => {
+  let hold!: (block: Promise<void> | null) => void
+  let release: (() => void) | null = null
+  const Shell = () => {
+    const [block, setBlock] = useState<Promise<void> | null>(null)
+    useEffect(() => {
+      hold = setBlock
+    }, [])
+    // No strict mode here: its extra effect round on a shown boundary makes a new router, which
+    // reads the address and would hide the defect. The live dev stack shows no such round on back.
+    return (
+      <Suspense fallback={<p data-testid="shell-pending">pending</p>}>
+        <App />
+        <Gate block={block} />
+      </Suspense>
+    )
+  }
+  const onAddressChange = () =>
+    act(() => {
+      hold(new Promise<void>((resolve) => (release = resolve)))
+    })
+  return {
+    Shell,
+    listen: () => window.addEventListener('popstate', onAddressChange),
+    stopListening: () => window.removeEventListener('popstate', onAddressChange),
+    /** The browser moves through its history; the shell answers once the module has heard it. */
+    move: async (go: () => void) => {
+      await afterPopState(go)
+      await screen.findByTestId('shell-pending')
+      await act(async () => {
+        release?.()
+        hold(null)
+      })
+    },
+  }
+}
+
+describe('App (inventory-ui), browser back and forward inside the module', () => {
+  const shell = shellThatAnswersAddressChanges()
+  beforeEach(shell.listen)
+  afterEach(shell.stopListening)
+
+  it('shows Assets when back leaves Register asset, and Register asset again when forward returns to it', async () => {
+    window.history.pushState(null, '', '/inventory/assets')
+    render(<shell.Shell />)
+    await screen.findByTestId('inventory-assets-page')
+    window.history.pushState(null, '', '/inventory/assets/new')
+    await screen.findByTestId('inventory-register-asset-page')
+
+    await shell.move(() => window.history.back())
+    expect(window.location.pathname).toBe('/inventory/assets')
+    expect(await screen.findByTestId('inventory-assets-page')).not.toBeNull()
+    expect(screen.queryByTestId('inventory-register-asset-page')).toBeNull()
+
+    await shell.move(() => window.history.forward())
+    expect(window.location.pathname).toBe('/inventory/assets/new')
+    expect(await screen.findByTestId('inventory-register-asset-page')).not.toBeNull()
+    expect(screen.queryByTestId('inventory-assets-page')).toBeNull()
   })
 })

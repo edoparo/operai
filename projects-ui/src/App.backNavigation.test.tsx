@@ -8,9 +8,9 @@
  * another module's address (`GET /projects/admin`, `GET /projects/crm`,
  * `GET /projects/notify`) — and a remote that is unmounted leaves no history listener.
  */
-import { StrictMode, Suspense } from 'react'
+import { StrictMode, Suspense, useEffect, useState } from 'react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { cleanup, render, screen } from '@testing-library/react'
+import { act, cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { fakeApi, page, scope } from './test-support/fakeApi'
 
 const { apiFetch } = vi.hoisted(() => ({
@@ -204,5 +204,85 @@ describe('App (projects-ui), once unmounted', () => {
     expect(window.history.pushState).toBe(pushState)
     added.mockRestore()
     removed.mockRestore()
+  })
+})
+
+/**
+ * Back and forward inside the module (specs/022 AC-6.2, D53). The shell's own router
+ * listens to the same browser history, BEFORE the remote does, and answers every address
+ * change with its access guard; while it answers it hides the mounted remote behind its
+ * pending fallback. React renders that between the two listeners, so the remote's
+ * layout effects (TanStack Router's history subscription among them) are cleaned up
+ * before the remote's own listener hears the same change — and on the way back in they
+ * do not load what they missed (QE round 2: back changed the address, not the page).
+ */
+const shellThatAnswersAddressChanges = () => {
+  let hold!: (block: Promise<void> | null) => void
+  let release: (() => void) | null = null
+  const Shell = () => {
+    const [block, setBlock] = useState<Promise<void> | null>(null)
+    useEffect(() => {
+      hold = setBlock
+    }, [])
+    // No strict mode here: its extra effect round on a shown boundary makes a new router, which
+    // reads the address and would hide the defect. The live dev stack shows no such round on back.
+    return (
+      <Suspense fallback={<p data-testid="shell-pending">pending</p>}>
+        <App />
+        <Gate block={block} />
+      </Suspense>
+    )
+  }
+  const onAddressChange = () =>
+    act(() => {
+      hold(new Promise<void>((resolve) => (release = resolve)))
+    })
+  return {
+    Shell,
+    listen: () => window.addEventListener('popstate', onAddressChange),
+    stopListening: () => window.removeEventListener('popstate', onAddressChange),
+    /** The browser moves through its history; the shell answers once the module has heard it. */
+    move: async (go: () => void) => {
+      await afterPopState(go)
+      await screen.findByTestId('shell-pending')
+      await act(async () => {
+        release?.()
+        hold(null)
+      })
+    },
+  }
+}
+
+describe('App (projects-ui), browser back and forward inside the module', () => {
+  const shell = shellThatAnswersAddressChanges()
+  beforeEach(() => {
+    apiFetch.mockImplementation(
+      fakeApi({
+        'GET /scope': () => ({ status: 200, body: scope({ take: ['welld_ch'] }) }),
+        'GET /projects': () => ({ status: 200, body: page([]) }),
+        'GET /project-managers': () => ({ status: 200, body: { items: [] } }),
+        'GET /queue': () => ({ status: 200, body: { items: [], truncated: false } }),
+      }),
+    )
+    shell.listen()
+  })
+  afterEach(() => shell.stopListening())
+
+  it('shows the list when back leaves "To start", and "To start" again when forward returns to it', async () => {
+    window.history.pushState(null, '', '/projects')
+    render(<shell.Shell />)
+    await screen.findByTestId('projects-page')
+    fireEvent.click(screen.getAllByRole('link', { name: /to start/i })[0]!)
+    await screen.findByTestId('queue-page')
+
+    await shell.move(() => window.history.back())
+    expect(window.location.pathname).toBe('/projects')
+    expect(await screen.findByTestId('projects-page')).not.toBeNull()
+    expect(screen.queryByTestId('queue-page')).toBeNull()
+
+    await shell.move(() => window.history.forward())
+    expect(window.location.pathname).toBe('/projects/queue')
+    expect(await screen.findByTestId('queue-page')).not.toBeNull()
+    expect(screen.queryByTestId('projects-page')).toBeNull()
   })
 })
