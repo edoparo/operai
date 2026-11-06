@@ -4,7 +4,7 @@ slug: projects-handoff
 status: in-progress
 rigor: mvp
 created: 2026-11-03
-approved: 2026-11-05
+approved: 2026-11-06
 depends-on: 021
 ---
 
@@ -54,6 +54,11 @@ Decision ledger: `../025-projects/ledger.md` (shared with specs/025 and specs/02
 > **Amended 2026-11-05 (QE window, ledger D52).** Gate 1 was re-opened a third time, by the
 > user's choice, to add a defect that predates this spec: browser back/forward between suite
 > modules shows a wrong page (new US-6, AC-6.1; 35 → 36 ACs). Nothing else changes.
+
+> **Amended 2026-11-06 (after QE round 2, ledger D53).** Gate 1 was re-opened a fourth time, by
+> the user's choice, to add two more defects that predate this spec: browser back/forward
+> *within* one module shows a stale page (AC-6.2, under US-6) and a field's error message stays
+> after the field is corrected (new US-7, AC-7.1); 36 → 38 ACs. Nothing else changes.
 
 ## Problem
 
@@ -253,9 +258,10 @@ under a deal and what is not stay distinguishable.
   changes nothing, and the project page shows the terms it has (none shown when it has none);
   a project made from a deal shows its terms with its PO.
 
-### US-6 Moving between suite modules keeps each module's page
-As a suite user, I want the browser's back and forward buttons to take me to the page I left
-when I move between modules, so that switching module never shows me a wrong page or an error.
+### US-6 Browser back and forward show the right page, between modules and within one
+As a suite user, I want the browser's back and forward buttons to take me to the page I left —
+when I move between modules and when I move within one — so that going back never shows me a
+wrong page or an error.
 
 - AC-6.1 *(new 2026-11-05, D52 — pre-existing defect, fixed here by the user's choice)* Given
   a user on a page of one suite module, when they navigate to another module and then return
@@ -268,6 +274,42 @@ when I move between modules, so that switching module never shows me a wrong pag
   (reproduced 2026-11-05 with a headless browser, D52): `/projects` → `/admin` → back requests
   `GET /projects/admin` and shows "Project not found"; `/crm` → `/admin` → back shows "This
   page does not exist".
+- AC-6.2 *(new 2026-11-06, D53 — pre-existing defect, fixed here by the user's choice)* Given
+  a user moving *within* one suite module — projects list → "To start", projects list → a
+  project, a CRM list → a company — when they use the browser's back button, or its forward
+  button after going back, then the module shows the page of the address the browser lands on
+  (back from "To start" shows the projects list; back from a project shows the list it was
+  opened from; back from a company shows the CRM page it was opened from), every time and
+  without any further navigation or reload. It holds for every remote module of the shell —
+  admin, CRM, EstimAI, inventory, notifications (notify), projects and refund — and next to
+  AC-6.1: moving between modules still lands on the right page. Today (QE round 2, finding D4,
+  `specs/022-projects-handoff/qe-report.md:104-106`; reproduced 2026-11-05, 3 of 3 each, on
+  the dev stack, and at the code from before AC-6.1 was built): the address changes and the
+  page does not — `/projects` → "To start" → back shows the address `/projects` with "To
+  start" still on screen; project → back stays on the project; `/crm` → a company → back stays
+  on the company. A later navigation makes the page catch up. A production build was not
+  checked.
+
+### US-7 A field's error message is shown only while the field is wrong
+As a person filling in a form of the project module, I want a field's error message to go away
+when I change that field, so that the form never keeps telling me something is wrong after I
+have acted on it.
+
+- AC-7.1 *(new 2026-11-06, D53)* Given a form of the project module refused a field — a
+  required value missing or a value invalid, whether the form or the server refused it — when
+  the person changes that field (types, picks or clears a value), then its message is gone and
+  the field is no longer marked invalid, without a new submit and even if the new value is
+  still wrong; the next submit re-validates the whole form and shows a message again for any
+  field still wrong. A message that names the end date because it falls before the start date
+  also goes when the start date is changed. It holds for five dialogs: the take dialog ("New
+  project" from a deal in the queue), "Edit details" of a project, the terms dialog (adding the
+  terms of a hand-made project and editing the terms of any project), the end-terms dialog
+  ("Set end date") and the hand-made create dialog (already so, fixed in the QE fix rounds).
+  Today (QE round 2, finding D2, `specs/022-projects-handoff/qe-report.md:95-102`): in the
+  take, edit-details and edit-terms dialogs the message and the invalid mark stay after the
+  field is corrected, until the next submit (executed); in the end-terms dialog the same, by
+  reading the source only (`projects-ui/src/components/EndTermsDialog.tsx:50,58,78`: the field
+  error is set on a refusal and the date's change handler does not clear it).
 
 ## Non-goals
 
@@ -290,8 +332,13 @@ when I move between modules, so that switching module never shows me a wrong pag
 - **Reassigning a PO to another ops-manager**, or a "my POs" view (D47).
 - **Copying the referent's data** into the project module, or showing it to anyone without
   project access (D49).
-- **Restoring scroll position, filters or unsaved input** after a module switch: AC-6.1 is
-  about which page shows, not about what state it comes back with (D52).
+- **Restoring scroll position, filters or unsaved input** after a module switch: AC-6.1 and
+  AC-6.2 are about which page shows, not about what state it comes back with (D52, D53).
+- **Messages that are not tied to one field** — a form-level error such as "something went
+  wrong" or "authentication unavailable" — and the validation messages of forms outside the
+  project module: AC-7.1 covers a field's own message in the project module's five dialogs
+  (D53). The pick-project-manager dialog and the PO's referent control already clear theirs
+  (QE round 2).
 
 ## Assumptions (from the ledger — strike any that is wrong)
 

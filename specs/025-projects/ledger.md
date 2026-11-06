@@ -439,3 +439,11 @@ Defect found during the 022 QE window (2026-11-05), added to specs/022 by the us
   `GET /projects/admin` → "Project not found"; crm-ui: "This page does not exist"). Pre-existing
   since specs/017/021, not caused by 022. User chose "Dentro la 022" over the recommended
   "separate bugfix after 022" — gate 1 re-opened (35 → 36 ACs).
+- D53 (2026-11-06, after the 022 QE round 2 PASS) Two more defects go **into 022**, by the
+  user's choice ("Dentro la 022") over the recommended "close 022, separate bugfixes after":
+  **D4** — the browser's back/forward *inside* one module changes the address but not the page
+  (e.g. `/projects` → "To start" → back still shows "To start"; same in the CRM); pre-existing
+  (reproduced at the pre-T37 code), every remote module. **D2 remainder** — a field's error
+  message stays after the field is corrected, until the next submit, in projects-ui's take
+  dialog, "Edit details", the terms dialogs (fixed for the hand-made create dialog only).
+  Gate 1 re-opened (36 → 38 ACs).
