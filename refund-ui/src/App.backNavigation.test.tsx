@@ -7,9 +7,9 @@
  * of THAT address — never a page matched from the address of the module the user
  * went to or came from — and a remote that is unmounted leaves no history listener.
  */
-import { StrictMode, Suspense } from 'react'
-import { afterEach, describe, expect, it, vi } from 'vitest'
-import { cleanup, render, screen } from '@testing-library/react'
+import { StrictMode, Suspense, useEffect, useState } from 'react'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { act, cleanup, render, screen } from '@testing-library/react'
 
 const { default: App } = await import('./App')
 
@@ -140,5 +140,75 @@ describe('App (refund-ui), moving inside the module', () => {
     render(<App />)
 
     expect(await screen.findByTestId('refund-new-request-page')).not.toBeNull()
+  })
+})
+
+/**
+ * Back and forward inside the module (specs/022 AC-6.2, D53). The shell's own router
+ * listens to the same browser history, BEFORE the remote does, and answers every address
+ * change with its access guard; while it answers it hides the mounted remote behind its
+ * pending fallback. React renders that between the two listeners, so the remote's
+ * layout effects (TanStack Router's history subscription among them) are cleaned up
+ * before the remote's own listener hears the same change — and on the way back in they
+ * do not load what they missed (QE round 2: back changed the address, not the page).
+ */
+const shellThatAnswersAddressChanges = () => {
+  let hold!: (block: Promise<void> | null) => void
+  let release: (() => void) | null = null
+  const Shell = () => {
+    const [block, setBlock] = useState<Promise<void> | null>(null)
+    useEffect(() => {
+      hold = setBlock
+    }, [])
+    // No strict mode here: its extra effect round on a shown boundary makes a new router, which
+    // reads the address and would hide the defect. The live dev stack shows no such round on back.
+    return (
+      <Suspense fallback={<p data-testid="shell-pending">pending</p>}>
+        <App />
+        <Gate block={block} />
+      </Suspense>
+    )
+  }
+  const onAddressChange = () =>
+    act(() => {
+      hold(new Promise<void>((resolve) => (release = resolve)))
+    })
+  return {
+    Shell,
+    listen: () => window.addEventListener('popstate', onAddressChange),
+    stopListening: () => window.removeEventListener('popstate', onAddressChange),
+    /** The browser moves through its history; the shell answers once the module has heard it. */
+    move: async (go: () => void) => {
+      await afterPopState(go)
+      await screen.findByTestId('shell-pending')
+      await act(async () => {
+        release?.()
+        hold(null)
+      })
+    },
+  }
+}
+
+describe('App (refund-ui), browser back and forward inside the module', () => {
+  const shell = shellThatAnswersAddressChanges()
+  beforeEach(shell.listen)
+  afterEach(shell.stopListening)
+
+  it('shows My requests when back leaves New request, and New request again when forward returns to it', async () => {
+    window.history.pushState(null, '', '/refund/requests')
+    render(<shell.Shell />)
+    await screen.findByTestId('refund-my-requests-page')
+    window.history.pushState(null, '', '/refund/requests/new')
+    await screen.findByTestId('refund-new-request-page')
+
+    await shell.move(() => window.history.back())
+    expect(window.location.pathname).toBe('/refund/requests')
+    expect(await screen.findByTestId('refund-my-requests-page')).not.toBeNull()
+    expect(screen.queryByTestId('refund-new-request-page')).toBeNull()
+
+    await shell.move(() => window.history.forward())
+    expect(window.location.pathname).toBe('/refund/requests/new')
+    expect(await screen.findByTestId('refund-new-request-page')).not.toBeNull()
+    expect(screen.queryByTestId('refund-my-requests-page')).toBeNull()
   })
 })
