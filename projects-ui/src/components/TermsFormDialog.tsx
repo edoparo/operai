@@ -2,6 +2,7 @@ import { useRef, useState } from 'react'
 import { DateInput, Field, FormDialog, focusFirstInvalid, formatNumber } from '@operai/ui'
 import { ApiError, isStaleWrite } from '../lib/api'
 import { errorMessage, fieldErrorOf, termsRefusalOf } from '../lib/errors'
+import { termsErrorKeysChanged, withoutErrors } from '../lib/fieldErrors'
 import { createTerms, updateTerms } from '../lib/projectsApi'
 import { emptyTermsForm, termsFormOf } from '../lib/terms'
 import type { TermsErrors, TermsForm } from '../lib/terms'
@@ -61,7 +62,14 @@ export default function TermsFormDialog({
       ? t.estimatedFromEstimate(formatNumber(storedEstimate, { maximumFractionDigits: 1 }))
       : t.estimatedFromEstimateNone
 
-  const patchForm = (patch: Partial<TermsForm>) => setForm((current) => ({ ...current, ...patch }))
+  // An error is about the value it was raised on: when that value changes, the message goes (AC-7.1). The
+  // next submit checks everything again.
+  const clearErrors = (...fields: string[]) => setErrors((current) => withoutErrors(current, ...fields))
+  const patchForm = (patch: Partial<TermsForm>) => {
+    const next = { ...form, ...patch }
+    setForm(next)
+    clearErrors(...termsErrorKeysChanged(form, next))
+  }
 
   const submit = () => {
     const checked = termsRequestOf(type, { startDate, endDate, terms: form }, { estimateBacked })
@@ -127,11 +135,24 @@ export default function TermsFormDialog({
           'startDate',
           t.startDate,
           startDate,
-          setStartDate,
+          (value) => {
+            setStartDate(value)
+            // An end before the start is raised on the end date, and a new start may settle it.
+            clearErrors('startDate', 'endDate')
+          },
           type === 'saas' ? t.saasPeriodHint : undefined,
           true,
         )}
-        {dateField('endDate', t.endDate, endDate, setEndDate, t.endDateHint)}
+        {dateField(
+          'endDate',
+          t.endDate,
+          endDate,
+          (value) => {
+            setEndDate(value)
+            clearErrors('endDate')
+          },
+          t.endDateHint,
+        )}
 
         <TermsFields
           type={type}

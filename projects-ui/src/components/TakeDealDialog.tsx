@@ -3,6 +3,7 @@ import { Field, FormDialog, focusFirstInvalid } from '@operai/ui'
 import { ApiError } from '../lib/api'
 import { CLIENT_TYPES } from '../lib/domain'
 import { codeOf, errorMessage, fieldErrorOf, takeRefusalOf } from '../lib/errors'
+import { termsErrorKeysChanged, withoutErrors } from '../lib/fieldErrors'
 import { listOpsManagers, listQueueContacts, takeDealAsProject } from '../lib/projectsApi'
 import type { TakeDealAsProjectInput } from '../lib/projectsApi'
 import { emptyTermsForm } from '../lib/terms'
@@ -84,6 +85,15 @@ export default function TakeDealDialog({
 
   const opsManagerId = pickedOps ?? opsManagers.data?.prefillId ?? ''
 
+  // An error is about the value it was raised on: when that value changes, the message goes (AC-7.1). The
+  // next submit checks everything again.
+  const clearErrors = (...fields: string[]) => setErrors((current) => withoutErrors(current, ...fields))
+  const patchTerms = (patch: Partial<TermsForm>) => {
+    const next = { ...terms, ...patch }
+    setTerms(next)
+    clearErrors(...termsErrorKeysChanged(terms, next))
+  }
+
   const submit = () => {
     const found: TermsErrors = {}
     const nameError = first(required(name), maxLength(name, 200))
@@ -163,7 +173,16 @@ export default function TakeDealDialog({
     >
       <div ref={fieldsRef} className="contents">
         <Field label={strings.projects.form.name} required error={errors['name']} testId="take-deal-name">
-          {(control) => <input {...control} value={name} onChange={(event) => setName(event.target.value)} />}
+          {(control) => (
+            <input
+              {...control}
+              value={name}
+              onChange={(event) => {
+                setName(event.target.value)
+                clearErrors('name')
+              }}
+            />
+          )}
         </Field>
         <Field
           label={strings.projects.form.type}
@@ -180,6 +199,8 @@ export default function TakeDealDialog({
                 const next = event.target.value as DealProjectType | ''
                 setType(next)
                 setTerms(emptyTermsForm(next === '' ? 'internal' : next))
+                // The members are the new type's, empty: what was said of another type's members goes with them.
+                clearErrors('type', 'terms', 'terms.*')
               }}
             >
               <option value="">{strings.common.choose}</option>
@@ -194,14 +215,20 @@ export default function TakeDealDialog({
         <OpsManagerPicker
           candidates={opsManagers}
           value={opsManagerId}
-          onChange={setPickedOps}
+          onChange={(id) => {
+            setPickedOps(id)
+            clearErrors('opsManager')
+          }}
           error={errors['opsManager']}
           testId="take-deal-opsmanager"
         />
         <ReferentPicker
           load={loadContacts}
           value={referentId}
-          onChange={setReferentId}
+          onChange={(id) => {
+            setReferentId(id)
+            clearErrors('referent')
+          }}
           error={errors['referent']}
           testId="take-deal-referent"
         />
@@ -211,8 +238,15 @@ export default function TakeDealDialog({
             startDate={startDate}
             endDate={endDate}
             errors={errors}
-            onStartDateChange={setStartDate}
-            onEndDateChange={setEndDate}
+            onStartDateChange={(value) => {
+              setStartDate(value)
+              // An end before the start is raised on the end date, and a new start may settle it.
+              clearErrors('startDate', 'endDate')
+            }}
+            onEndDateChange={(value) => {
+              setEndDate(value)
+              clearErrors('endDate')
+            }}
             testIdPrefix="take-deal"
           />
           {type !== '' && (
@@ -220,7 +254,7 @@ export default function TakeDealDialog({
               type={type}
               terms={terms}
               errors={errors}
-              onChange={(patch) => setTerms((current) => ({ ...current, ...patch }))}
+              onChange={patchTerms}
               estimatedManDaysReadOnly={estimateBacked ? t.terms.estimatedManDaysFromEstimate : undefined}
               testIdPrefix="take-deal"
             />

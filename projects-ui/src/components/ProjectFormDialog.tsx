@@ -5,6 +5,7 @@ import { useSession } from 'shell/session'
 import { ApiError, isStaleWrite } from '../lib/api'
 import { ENTITIES, PROJECT_TYPES, isClientType } from '../lib/domain'
 import { errorMessage, fieldErrorOf } from '../lib/errors'
+import { termsErrorKeysChanged, withoutErrors } from '../lib/fieldErrors'
 import { createProject } from '../lib/projectsApi'
 import type { CreateProjectInput } from '../lib/projectsApi'
 import { emptyTermsForm } from '../lib/terms'
@@ -111,13 +112,12 @@ export default function ProjectFormDialog({
 
   // An error is about the value it was raised on: when that value changes, the message goes (QE D2). The
   // next submit checks everything again.
-  const clearErrors = (...fields: string[]) =>
-    setErrors((current) => {
-      if (!fields.some((field) => current[field])) return current
-      const next = { ...current }
-      for (const field of fields) delete next[field]
-      return next
-    })
+  const clearErrors = (...fields: string[]) => setErrors((current) => withoutErrors(current, ...fields))
+  const patchTerms = (patch: Partial<TermsForm>) => {
+    const next = { ...terms, ...patch }
+    setTerms(next)
+    clearErrors(...termsErrorKeysChanged(terms, next))
+  }
 
   // An error that names an input lands on it, and the first invalid input takes the focus.
   const refuseField = (field: string, message: string) => {
@@ -209,6 +209,7 @@ export default function ProjectFormDialog({
                 }
                 // The members are the type's: a form of another type's terms is not carried over (the dates are).
                 setTerms(emptyTermsForm(next === '' ? 'internal' : next))
+                clearErrors('terms', 'terms.*')
               }}
             >
               <option value="">{strings.common.choose}</option>
@@ -304,7 +305,7 @@ export default function ProjectFormDialog({
                   type={type}
                   terms={terms}
                   errors={errors}
-                  onChange={(patch) => setTerms((current) => ({ ...current, ...patch }))}
+                  onChange={patchTerms}
                   testIdPrefix="projects-form-terms"
                 />
               </div>
