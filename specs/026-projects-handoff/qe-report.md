@@ -1,3 +1,21 @@
+## Final verdict for the done gate — PASS (2026-11-06, user decision recorded by the orchestrator)
+
+Round 3 reported **BLOCKED** on a single row: the live smoke of main's ADR-0073 (closing an
+estimate in EstimAI marks the CRM estimate ready), which could not run because the local
+dev environment lacks estimai-api's `CRM_INTERNAL_URL` and the `estimate-notices.send` scope.
+That row is not an acceptance criterion of specs/022 (it was an extra smoke of a feature that
+arrived with the rebase onto `main`). The user ruled it **not required for 022** ("Non
+richiesta per la 022"). Every 022 row is green: **38/38 ACs PASS**, all blocking gates green
+(lint, typecheck, gitleaks, semgrep), coverage above 80% where measured.
+
+Advisory **R1** (dev-only double `POST /requests` from refund-ui's "New request", introduced by
+fix round 2's keyed `RouterProvider` under StrictMode): **accepted by the user, not fixed**
+("ignora"). It stays listed as a known advisory.
+
+**Verdict for `/wellforge:done`: PASS (advisory mode, rigor mvp).**
+
+---
+
 # QE report — specs/022-projects-handoff (T17, QE-light, rigor mvp, advisory mode)
 
 Latest pass first: **Round 3** (final QE-light pass, after the rebase onto the latest `main` and T38/T39). Round 2 and
