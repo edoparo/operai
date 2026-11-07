@@ -1,4 +1,4 @@
-import { Banner, Button, Field, Icon, StatePanel, VisuallyHidden, formatDuration } from '@operai/ui'
+import { Banner, Button, Card, Field, Icon, StatePanel, VisuallyHidden, formatDuration } from '@operai/ui'
 import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { LoadFailure, Loading, StaleWriteBanner } from '../LoadState'
 import { useResource } from '../../hooks/useResource'
@@ -39,9 +39,11 @@ export type TranscriptViewProps = {
 export default function TranscriptView(props: TranscriptViewProps) {
   if (props.meeting.noSpeech) {
     return (
-      <StatePanel title={strings.transcript.noSpeech.heading} testId="meetings-transcript-no-speech">
-        {strings.transcript.noSpeech.body}
-      </StatePanel>
+      <Card>
+        <StatePanel title={strings.transcript.noSpeech.heading} testId="meetings-transcript-no-speech">
+          {strings.transcript.noSpeech.body}
+        </StatePanel>
+      </Card>
     )
   }
   return <LoadedTranscript {...props} />
@@ -184,7 +186,11 @@ function TranscriptBody({
   }
 
   if (segments.length === 0) {
-    return <StatePanel title={strings.transcript.empty.heading}>{strings.transcript.empty.body}</StatePanel>
+    return (
+      <Card>
+        <StatePanel title={strings.transcript.empty.heading}>{strings.transcript.empty.body}</StatePanel>
+      </Card>
+    )
   }
 
   const isText = meeting.source === 'text'
@@ -231,35 +237,40 @@ function TranscriptBody({
   const listSpeakers = transcript.speakers.length > 0 && (canEdit || transcript.speakers.some((s) => s.joined))
   return (
     <div className="flex flex-col gap-4" data-testid="meetings-transcript">
-      <AudioControl meeting={meeting} ref={audio} />
-      <div className="flex flex-wrap items-end gap-3">
-        <Field label={strings.transcript.searchLabel} className="min-w-48 flex-1">
-          {(control) => (
-            <input
-              {...control}
-              type="search"
-              value={query}
-              onChange={(event) => setQuery(event.target.value)}
-              autoComplete="off"
-            />
-          )}
-        </Field>
-        <Button variant="secondary" size="sm" onClick={() => void copy()}>
-          <Icon name="copy" /> {strings.transcript.copy}
-        </Button>
-        <Button variant="secondary" size="sm" onClick={download}>
-          <Icon name="download" /> {strings.transcript.download}
-        </Button>
-      </div>
-      {searching && (
-        <p role="status" className="text-xs text-soft">
-          {strings.transcript.matches(total)}
-        </p>
-      )}
+      {/* The tools: listen, search, take the text away. One card, so they read as one bar. */}
+      <Card data-testid="meetings-transcript-tools">
+        <AudioControl meeting={meeting} ref={audio} />
+        <div className="flex flex-wrap items-end gap-3">
+          <Field label={strings.transcript.searchLabel} className="min-w-48 flex-1">
+            {(control) => (
+              <input
+                {...control}
+                type="search"
+                value={query}
+                onChange={(event) => setQuery(event.target.value)}
+                autoComplete="off"
+              />
+            )}
+          </Field>
+          <div className="flex gap-2">
+            <Button variant="secondary" onClick={() => void copy()}>
+              <Icon name="copy" /> {strings.transcript.copy}
+            </Button>
+            <Button variant="secondary" onClick={download}>
+              <Icon name="download" /> {strings.transcript.download}
+            </Button>
+          </div>
+        </div>
+        {searching && (
+          <p role="status" className="text-xs text-soft">
+            {strings.transcript.matches(total)}
+          </p>
+        )}
+        {notice === 'copyFailed' && <p className="text-xs text-red-text">{strings.transcript.copyFailed}</p>}
+      </Card>
       <VisuallyHidden live>
         {notice === 'copied' ? strings.transcript.copied : notice === 'copyFailed' ? strings.transcript.copyFailed : ''}
       </VisuallyHidden>
-      {notice === 'copyFailed' && <p className="text-xs text-red-text">{strings.transcript.copyFailed}</p>}
       {gaps.length > 0 && (
         // Possibly incomplete (AC-6.12): everyone who can open the meeting sees it, it cannot be
         // dismissed, and editing the transcript does not remove it. The id is the anchor of the
@@ -297,148 +308,167 @@ function TranscriptBody({
         </Banner>
       )}
       {stale && <StaleWriteBanner onReload={onReload} />}
-      {listSpeakers && (
-        <ul
-          ref={speakersList}
-          tabIndex={-1}
-          aria-label={strings.transcript.speakersHeading}
-          className="flex flex-wrap gap-x-4 gap-y-2"
-        >
-          {transcript.speakers.map((speaker) => {
-            const name = speakerNameOf(speaker.key, transcript.speakers, meeting.participants) ?? ''
-            const onlyPart = manyParts && !speaker.joined && speaker.parts.length === 1 ? speaker.parts[0] : undefined
+      <Card data-testid="meetings-transcript-body">
+        {listSpeakers && (
+          <div className="flex flex-wrap items-center gap-x-3 gap-y-2 border-b border-rule pb-3">
+            <span aria-hidden="true" className="text-xs font-medium text-soft">
+              {strings.transcript.speakersHeading}
+            </span>
+            <ul
+              ref={speakersList}
+              tabIndex={-1}
+              aria-label={strings.transcript.speakersHeading}
+              className="flex flex-wrap items-center gap-2"
+            >
+              {transcript.speakers.map((speaker) => {
+                const name = speakerNameOf(speaker.key, transcript.speakers, meeting.participants) ?? ''
+                const onlyPart =
+                  manyParts && !speaker.joined && speaker.parts.length === 1 ? speaker.parts[0] : undefined
+                return (
+                  <li
+                    key={speaker.key}
+                    className="flex flex-wrap items-center gap-1 rounded-full border border-rule bg-ink-mid py-0.5 pl-3 pr-1 text-sm"
+                  >
+                    <span>{name}</span>
+                    {onlyPart !== undefined && (
+                      <span className="text-xs text-soft">({strings.transcript.joined.part(onlyPart)})</span>
+                    )}
+                    {speaker.joined && (
+                      <span className="flex items-center gap-1 text-xs text-soft">
+                        <Icon name="users" /> {strings.transcript.joined.note(partsText(speaker.parts))}
+                      </span>
+                    )}
+                    {canEdit && (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        aria-haspopup="dialog"
+                        aria-label={strings.transcript.rename(name)}
+                        onClick={() => setRenaming(speaker.key)}
+                      >
+                        <Icon name="pencil" />
+                      </Button>
+                    )}
+                    {canEdit && speaker.joined && (
+                      <Button
+                        variant="secondary"
+                        size="sm"
+                        aria-haspopup="dialog"
+                        aria-label={strings.transcript.joined.separateLabel(name)}
+                        onClick={() => setSeparating(speaker.key)}
+                      >
+                        {strings.transcript.joined.separate}
+                      </Button>
+                    )}
+                  </li>
+                )
+              })}
+            </ul>
+          </div>
+        )}
+        {focusSegmentId !== null && onBackToAnswer !== null && (
+          <div>
+            <Button variant="ghost" size="sm" onClick={onBackToAnswer}>
+              <Icon name="arrow-left" /> {strings.transcript.backToAnswer}
+            </Button>
+          </div>
+        )}
+        {blocks.map((block) => {
+          if (block.kind === 'divider') {
             return (
-              <li key={speaker.key} className="flex flex-wrap items-center gap-1 text-sm">
-                <span>{name}</span>
-                {onlyPart !== undefined && (
-                  <span className="text-xs text-soft">({strings.transcript.joined.part(onlyPart)})</span>
-                )}
-                {speaker.joined && (
-                  <span className="flex items-center gap-1 text-xs text-soft">
-                    <Icon name="users" /> {strings.transcript.joined.note(partsText(speaker.parts))}
-                  </span>
-                )}
-                {canEdit && (
+              <div
+                key={`part-${block.part.index}`}
+                role="separator"
+                aria-label={block.text}
+                className="mt-3 border-t border-rule pt-2 font-mono text-xs text-soft"
+              >
+                {block.text}
+              </div>
+            )
+          }
+          if (block.kind === 'gap') {
+            return (
+              <div
+                key={`gap-${block.gap.startMs}`}
+                data-testid="meetings-transcript-gap"
+                className="mt-3 flex flex-wrap items-center gap-2 border-t border-dashed border-rule pt-2 font-mono text-xs text-soft"
+              >
+                <Icon name="alert" />
+                <span>{gapMarkerText(block.gap)}</span>
+                {audioKept && (
                   <Button
                     variant="ghost"
                     size="sm"
-                    aria-haspopup="dialog"
-                    aria-label={strings.transcript.rename(name)}
-                    onClick={() => setRenaming(speaker.key)}
+                    aria-label={playLabel(block.gap.startMs)}
+                    onClick={playFrom(block.gap.startMs)}
                   >
-                    <Icon name="pencil" />
+                    <Icon name="play" /> {strings.transcript.incomplete.play}
                   </Button>
                 )}
-                {canEdit && speaker.joined && (
-                  <Button
-                    variant="secondary"
-                    size="sm"
-                    aria-haspopup="dialog"
-                    aria-label={strings.transcript.joined.separateLabel(name)}
-                    onClick={() => setSeparating(speaker.key)}
-                  >
-                    {strings.transcript.joined.separate}
-                  </Button>
-                )}
-              </li>
+              </div>
             )
-          })}
-        </ul>
-      )}
-      {focusSegmentId !== null && onBackToAnswer !== null && (
-        <div>
-          <Button variant="ghost" size="sm" onClick={onBackToAnswer}>
-            <Icon name="arrow-left" /> {strings.transcript.backToAnswer}
-          </Button>
-        </div>
-      )}
-      {blocks.map((block) => {
-        if (block.kind === 'divider') {
+          }
           return (
-            <div
-              key={`part-${block.part.index}`}
-              role="separator"
-              aria-label={block.text}
-              className="mt-3 border-t border-rule pt-2 font-mono text-xs text-soft"
-            >
-              {block.text}
-            </div>
+            <Fragment key={`rows-${block.indexes[0]}`}>
+              <ol aria-label={block.label} className="flex flex-col">
+                {block.indexes.map((index, position) => {
+                  const segment = segments[index]!
+                  const speaker = speakerNameOf(segment.speakerKey, transcript.speakers, meeting.participants)
+                  // A run of lines by one speaker shows the name once (by name: two labels renamed alike are one speaker).
+                  const previous = position > 0 ? segments[block.indexes[position - 1]!]! : null
+                  const continued =
+                    previous !== null &&
+                    speaker !== null &&
+                    speakerNameOf(previous.speakerKey, transcript.speakers, meeting.participants) === speaker
+                  return (
+                    <SegmentRow
+                      key={segment.id}
+                      segment={segment}
+                      speaker={speaker}
+                      continued={continued}
+                      ranges={hits[index]!}
+                      onPlay={
+                        audioKept && segment.startMs !== null ? () => audio.current?.playFrom(segment.startMs!) : null
+                      }
+                      onEdit={canEdit ? () => setEditing(segment.id) : null}
+                      editLabel={
+                        segment.startMs === null
+                          ? strings.transcript.editPassage(passageNumber(segment.ordinal))
+                          : strings.transcript.editSegment(clockOf(segment.startMs))
+                      }
+                      editor={
+                        editing === segment.id ? (
+                          <SegmentEditor
+                            meetingId={meeting.id}
+                            segment={segment}
+                            onCancel={() => setEditing(null)}
+                            onStale={() => {
+                              setEditing(null)
+                              setStale(true)
+                            }}
+                            onSaved={(saved) => {
+                              onTranscript({
+                                ...transcript,
+                                segments: transcript.segments.map((s) => (s.id === saved.id ? saved : s)),
+                              })
+                              setEditing(null)
+                            }}
+                          />
+                        ) : null
+                      }
+                      cited={segment.id === focusSegmentId}
+                      rowRef={(element) => {
+                        if (element === null) rows.current.delete(segment.id)
+                        else rows.current.set(segment.id, element)
+                      }}
+                    />
+                  )
+                })}
+              </ol>
+            </Fragment>
           )
-        }
-        if (block.kind === 'gap') {
-          return (
-            <div
-              key={`gap-${block.gap.startMs}`}
-              data-testid="meetings-transcript-gap"
-              className="mt-3 flex flex-wrap items-center gap-2 border-t border-dashed border-rule pt-2 font-mono text-xs text-soft"
-            >
-              <Icon name="alert" />
-              <span>{gapMarkerText(block.gap)}</span>
-              {audioKept && (
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  aria-label={playLabel(block.gap.startMs)}
-                  onClick={playFrom(block.gap.startMs)}
-                >
-                  <Icon name="play" /> {strings.transcript.incomplete.play}
-                </Button>
-              )}
-            </div>
-          )
-        }
-        return (
-          <Fragment key={`rows-${block.indexes[0]}`}>
-            <ol aria-label={block.label} className="flex flex-col">
-              {block.indexes.map((index) => {
-                const segment = segments[index]!
-                return (
-                  <SegmentRow
-                    key={segment.id}
-                    segment={segment}
-                    speaker={speakerNameOf(segment.speakerKey, transcript.speakers, meeting.participants)}
-                    ranges={hits[index]!}
-                    onPlay={
-                      audioKept && segment.startMs !== null ? () => audio.current?.playFrom(segment.startMs!) : null
-                    }
-                    onEdit={canEdit ? () => setEditing(segment.id) : null}
-                    editLabel={
-                      segment.startMs === null
-                        ? strings.transcript.editPassage(passageNumber(segment.ordinal))
-                        : strings.transcript.editSegment(clockOf(segment.startMs))
-                    }
-                    editor={
-                      editing === segment.id ? (
-                        <SegmentEditor
-                          meetingId={meeting.id}
-                          segment={segment}
-                          onCancel={() => setEditing(null)}
-                          onStale={() => {
-                            setEditing(null)
-                            setStale(true)
-                          }}
-                          onSaved={(saved) => {
-                            onTranscript({
-                              ...transcript,
-                              segments: transcript.segments.map((s) => (s.id === saved.id ? saved : s)),
-                            })
-                            setEditing(null)
-                          }}
-                        />
-                      ) : null
-                    }
-                    cited={segment.id === focusSegmentId}
-                    rowRef={(element) => {
-                      if (element === null) rows.current.delete(segment.id)
-                      else rows.current.set(segment.id, element)
-                    }}
-                  />
-                )
-              })}
-            </ol>
-          </Fragment>
-        )
-      })}
+        })}
+      </Card>
       {renaming !== null && (
         <SpeakerRenameDialog
           meetingId={meeting.id}

@@ -1,4 +1,4 @@
-import { Banner, Button, ConfirmDialog, StatePanel } from '@operai/ui'
+import { Banner, Button, Card, ConfirmDialog, Icon, StatePanel } from '@operai/ui'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useResource } from '../../hooks/useResource'
 import { errorMessage } from '../../lib/errors'
@@ -116,41 +116,49 @@ function Conversation({
 
   return (
     <div ref={root} className="flex flex-col gap-4" data-testid="meetings-ask">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <p className="text-sm text-soft">{strings.ask.privacy}</p>
-        {turns.length > 0 && (
-          <Button variant="ghost" size="sm" aria-haspopup="dialog" onClick={() => setClearing(true)}>
-            {strings.ask.clear.button}
-          </Button>
+      <Card>
+        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-rule pb-3">
+          <p className="flex items-center gap-2 text-xs text-soft">
+            <Icon name="lock" /> {strings.ask.privacy}
+          </p>
+          {turns.length > 0 && (
+            <Button variant="ghost" size="sm" aria-haspopup="dialog" onClick={() => setClearing(true)}>
+              {strings.ask.clear.button}
+            </Button>
+          )}
+        </div>
+        {retryError !== null && (
+          <Banner tone="danger" onDismiss={() => setRetryError(null)} dismissLabel={strings.common.dismiss}>
+            {retryError}
+          </Banner>
         )}
-      </div>
-      {retryError !== null && (
-        <Banner tone="danger" onDismiss={() => setRetryError(null)} dismissLabel={strings.common.dismiss}>
-          {retryError}
-        </Banner>
-      )}
-      {shown.length === 0 ? (
-        <StatePanel title={strings.ask.empty.heading}>{strings.ask.empty.body}</StatePanel>
-      ) : (
-        <ol
-          aria-label={strings.ask.conversationLabel}
-          tabIndex={0}
-          className="max-h-[32rem] divide-y divide-rule overflow-y-auto"
-        >
-          {shown.map((turn) => (
-            <Turn
-              key={turn.id}
-              meetingId={meeting.id}
-              turn={turn}
-              onOpenSource={onOpenSource}
-              onOpenNotice={onOpenNotice}
-              onRetry={canAsk && retrying === null ? () => void retry(turn) : null}
-            />
-          ))}
-        </ol>
-      )}
-      <div ref={end} />
-      {canAsk && <Composer busy={asking !== null} error={sendError} blockedReason={blockedReason} onSend={send} />}
+        {shown.length === 0 ? (
+          <StatePanel title={strings.ask.empty.heading}>{strings.ask.empty.body}</StatePanel>
+        ) : (
+          <ol
+            aria-label={strings.ask.conversationLabel}
+            tabIndex={0}
+            className="flex max-h-[32rem] flex-col gap-5 overflow-y-auto py-1"
+          >
+            {shown.map((turn) => (
+              <Turn
+                key={turn.id}
+                meetingId={meeting.id}
+                turn={turn}
+                onOpenSource={onOpenSource}
+                onOpenNotice={onOpenNotice}
+                onRetry={canAsk && retrying === null ? () => void retry(turn) : null}
+              />
+            ))}
+          </ol>
+        )}
+        <div ref={end} />
+        {canAsk && (
+          <div className="border-t border-rule pt-4">
+            <Composer busy={asking !== null} error={sendError} blockedReason={blockedReason} onSend={send} />
+          </div>
+        )}
+      </Card>
       {clearing && (
         <ConfirmDialog
           title={strings.ask.clear.title}

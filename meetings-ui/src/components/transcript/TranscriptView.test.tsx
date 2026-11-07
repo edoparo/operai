@@ -57,6 +57,24 @@ describe('TranscriptView: reading (AC-6.1)', () => {
     expect(within(rows[1]!).getByText('Speaker 2')).not.toBeNull()
   })
 
+  it('shows a speaker once per run of lines, and still names every line for a screen reader', async () => {
+    const t = transcript()
+    serveTranscript({
+      ...t,
+      segments: [
+        t.segments[0]!,
+        segment({ id: 'seg1b', ordinal: 2, startMs: 15_000, endMs: 18_000, text: 'Then we test.' }),
+        { ...t.segments[1]!, ordinal: 3 },
+      ],
+    })
+    view()
+    const rows = await screen.findAllByRole('listitem')
+    const hidden = (element: HTMLElement) => element.closest('.visually-hidden') !== null
+    expect(hidden(within(rows[0]!).getByText('Speaker 1'))).toBe(false)
+    expect(hidden(within(rows[1]!).getByText('Speaker 1'))).toBe(true)
+    expect(hidden(within(rows[2]!).getByText('Speaker 2'))).toBe(false)
+  })
+
   it('sorts by ordinal even if the server order differs', async () => {
     const t = transcript()
     serveTranscript({ ...t, segments: [...t.segments].reverse() })
@@ -148,8 +166,22 @@ describe('TranscriptView: transcript parts (AC-6.1, AC-6.2, AC-6.15)', () => {
       ...t,
       segments: [
         ...t.segments.slice(0, 1),
-        segment({ id: 'a2', startMs: 3_590_000, endMs: 3_599_000, speakerKey: 'p1:1', part: 1, text: 'End of part one.' }),
-        segment({ id: 'b1', startMs: 3_595_000, endMs: 3_620_000, speakerKey: 'p2:1', part: 2, text: 'Start of part two.' }),
+        segment({
+          id: 'a2',
+          startMs: 3_590_000,
+          endMs: 3_599_000,
+          speakerKey: 'p1:1',
+          part: 1,
+          text: 'End of part one.',
+        }),
+        segment({
+          id: 'b1',
+          startMs: 3_595_000,
+          endMs: 3_620_000,
+          speakerKey: 'p2:1',
+          part: 2,
+          text: 'Start of part two.',
+        }),
         ...t.segments.slice(2),
       ].map((s, i) => ({ ...s, ordinal: i + 1 })),
     }
@@ -260,7 +292,9 @@ describe('TranscriptView: transcript parts (AC-6.1, AC-6.2, AC-6.15)', () => {
   it('the banner never says "numbered separately" or "different people" (AC-6.15), in either language', () => {
     for (const catalog of [en, italian]) {
       const text = catalog.transcript.parts.banner(3).toLowerCase()
-      expect(text).not.toMatch(/numbered separately|numerate separatamente|different people|persone diverse|persone differenti/)
+      expect(text).not.toMatch(
+        /numbered separately|numerate separatamente|different people|persone diverse|persone differenti/,
+      )
     }
     expect(en.transcript.parts.banner(3)).toContain('transcribed in 3 parts')
     expect(en.transcript.parts.banner(3)).toContain('Rename them to the same name to merge them.')
@@ -291,9 +325,23 @@ describe('TranscriptView: a transcript that may be incomplete (AC-6.12, AC-6.5)'
     transcript({
       segments: [
         segment(),
-        segment({ id: 'seg2', ordinal: 2, startMs: 20_000, endMs: 25_000, speakerKey: 'spk2', text: 'Before the first gap.' }),
+        segment({
+          id: 'seg2',
+          ordinal: 2,
+          startMs: 20_000,
+          endMs: 25_000,
+          speakerKey: 'spk2',
+          text: 'Before the first gap.',
+        }),
         segment({ id: 'seg3', ordinal: 3, startMs: 430_000, endMs: 440_000, text: 'After the first gap.' }),
-        segment({ id: 'seg4', ordinal: 4, startMs: 1_300_000, endMs: 1_310_000, speakerKey: 'spk2', text: 'After the second gap.' }),
+        segment({
+          id: 'seg4',
+          ordinal: 4,
+          startMs: 1_300_000,
+          endMs: 1_310_000,
+          speakerKey: 'spk2',
+          text: 'After the second gap.',
+        }),
       ],
       gaps,
     })
@@ -470,7 +518,9 @@ describe('TranscriptView: a transcript that may be incomplete (AC-6.12, AC-6.5)'
     await screen.findByTestId('meetings-transcript-incomplete')
     await waitFor(() => expect(document.querySelector('audio')?.getAttribute('src')).toBe('https://audio.test/a1'))
     const run = () => axe.run(container, { rules: { 'color-contrast': { enabled: false } } })
-    expect((await run()).violations.map((v) => `${v.id}: ${v.nodes.map((n) => n.target.join(' ')).join(', ')}`)).toEqual([])
+    expect(
+      (await run()).violations.map((v) => `${v.id}: ${v.nodes.map((n) => n.target.join(' ')).join(', ')}`),
+    ).toEqual([])
     rerender(
       <TranscriptView
         meeting={participantMeeting({ audio: { state: 'deleted' } })}

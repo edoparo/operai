@@ -156,22 +156,24 @@ function ContentTabs({ meeting, hostInfo, onChanged, onRefresh }: ContentTabsPro
 
   return (
     <div data-testid="meetings-content-tabs">
-      <Tabs
-        label={t.label}
-        tabs={tabs}
-        value={active}
-        idPrefix="meetings-tab"
-        onChange={(id) => {
-          setCited(null)
-          setNoticeRequested(false)
-          if (id !== active) select(id)
-        }}
-      />
+      <div className="border-b border-rule">
+        <Tabs
+          label={t.label}
+          tabs={tabs}
+          value={active}
+          idPrefix="meetings-tab"
+          onChange={(id) => {
+            setCited(null)
+            setNoticeRequested(false)
+            if (id !== active) select(id)
+          }}
+        />
+      </div>
       {/* Every tab keeps its panel element (so `aria-controls` resolves); only the active one holds content. */}
-      <div {...tabPanelProps('meetings-tab', 'summaries')} hidden={active !== 'summaries'}>
+      <div {...tabPanelProps('meetings-tab', 'summaries')} hidden={active !== 'summaries'} className="pt-5">
         {active === 'summaries' && <SummariesPanel meeting={meeting} hostInfo={hostInfo} onChanged={onChanged} />}
       </div>
-      <div {...tabPanelProps('meetings-tab', 'transcript')} hidden={active !== 'transcript'}>
+      <div {...tabPanelProps('meetings-tab', 'transcript')} hidden={active !== 'transcript'} className="pt-5">
         {active === 'transcript' && (
           <TranscriptView
             meeting={meeting}
@@ -182,7 +184,7 @@ function ContentTabs({ meeting, hostInfo, onChanged, onRefresh }: ContentTabsPro
         )}
       </div>
       {available.includes('ask') && (
-        <div {...tabPanelProps('meetings-tab', 'ask')} hidden={active !== 'ask'}>
+        <div {...tabPanelProps('meetings-tab', 'ask')} hidden={active !== 'ask'} className="pt-5">
           {active === 'ask' && <AskPanel meeting={meeting} onOpenSource={openSource} onOpenNotice={openNotice} />}
         </div>
       )}

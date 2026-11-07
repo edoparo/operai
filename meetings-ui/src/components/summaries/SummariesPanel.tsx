@@ -1,4 +1,4 @@
-import { Banner, Button, Icon, StatePanel } from '@operai/ui'
+import { Banner, Button, Card, Icon, StatePanel } from '@operai/ui'
 import { useCallback, useMemo, useState } from 'react'
 import { usePolling } from '../../hooks/usePolling'
 import { listSummaries } from '../../lib/meetingsApi'
@@ -118,9 +118,11 @@ export default function SummariesPanel({ meeting, hostInfo }: SummariesPanelProp
         </Banner>
       )}
       {items.length === 0 ? (
-        <StatePanel title={strings.summaries.empty.heading}>
-          {meeting.can.summarise ? strings.summaries.empty.body : null}
-        </StatePanel>
+        <Card>
+          <StatePanel title={strings.summaries.empty.heading}>
+            {meeting.can.summarise ? strings.summaries.empty.body : null}
+          </StatePanel>
+        </Card>
       ) : (
         <div className="flex flex-col gap-4">
           {items.map((summary) => (

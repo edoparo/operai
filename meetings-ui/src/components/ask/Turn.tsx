@@ -27,8 +27,9 @@ export function Turn({ meetingId, turn, onOpenSource, onRetry, onOpenNotice }: T
     onOpenNotice()
   }
   return (
-    <li className="flex flex-col gap-2 py-3" data-testid={`meetings-turn-${turn.id}`}>
-      <div>
+    <li className="flex flex-col gap-3" data-testid={`meetings-turn-${turn.id}`}>
+      {/* The question on the right, the answer below it on the left: who said what reads at a glance. */}
+      <div className="ml-auto max-w-[85%] rounded-lg bg-ink-mid px-3 py-2">
         <p className="text-xs text-soft">{strings.ask.you}</p>
         <p className="whitespace-pre-line break-words text-sm text-text">{turn.question}</p>
       </div>
@@ -54,7 +55,7 @@ export function Turn({ meetingId, turn, onOpenSource, onRetry, onOpenNotice }: T
               </a>
             )}
           </div>
-          <p className="whitespace-pre-line break-words text-sm text-text">{answer.text}</p>
+          <p className="whitespace-pre-line break-words text-sm leading-relaxed text-text">{answer.text}</p>
           {!answer.notInMeeting && (
             <Sources meetingId={meetingId} turnId={turn.id} citations={answer.citations} onOpen={onOpenSource} />
           )}
