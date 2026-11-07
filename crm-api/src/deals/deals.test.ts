@@ -154,6 +154,14 @@ describe("deals (US-3)", () => {
     expect(byStage.won).toEqual({ stage: "won", count: 1, totals: [{ currency: "EUR", amountCents: 5000, weightedCents: 5000 }] });
     expect(byStage.lead).toEqual({ stage: "lead", count: 0, totals: [] });
     expect((await call("GET", "/pipeline?entity=welld_it")).json.stages[1].count).toBe(0);
+    // The company filter narrows the figures like the board's list.
+    const other = await makeCompany();
+    await makeDeal(other.id, { amountCents: 700, currency: "CHF", stage: "qualified" });
+    expect((await call("GET", "/pipeline")).json.stages[1].count).toBe(4);
+    expect((await call("GET", `/pipeline?companyId=${company.id}`)).json.stages[1].count).toBe(3);
+    const narrowed = await call("GET", `/pipeline?companyId=${other.id}`);
+    expect(narrowed.json.stages[1]).toMatchObject({ count: 1, totals: [{ currency: "CHF", amountCents: 700 }] });
+    expect(narrowed.json.stages[4].count).toBe(0);
   });
 });
 

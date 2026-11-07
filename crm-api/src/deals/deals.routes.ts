@@ -427,7 +427,13 @@ const pipelineRoute = createRoute({
   tags: ["Deals"],
   summary: "Pipeline totals per stage and currency",
   middleware: authorized,
-  request: { query: z.object({ entity: EntitySchema.optional(), year: BoardYearSchema.optional() }) },
+  request: {
+    query: z.object({
+      entity: EntitySchema.optional(),
+      companyId: z.string().max(64).optional(),
+      year: BoardYearSchema.optional(),
+    }),
+  },
   responses: { 200: { description: "The pipeline", ...json(PipelineSchema) }, ...commonErrors },
 });
 
@@ -631,10 +637,10 @@ dealsRouter.openapi(stageRoute, async (c) => {
 });
 
 dealsRouter.openapi(pipelineRoute, async (c) => {
-  const { entity, year: asked } = c.req.valid("query");
+  const { entity, companyId, year: asked } = c.req.valid("query");
   const { year, where } = boardWhere(asked);
   const deals = await db.deal.findMany({
-    where: { ...where, ...(entity ? { entity } : {}) },
+    where: { ...where, ...(entity ? { entity } : {}), ...(companyId ? { companyId } : {}) },
     select: { stage: true, currency: true, amountCents: true },
   });
   const stages = summarisePipeline(deals);

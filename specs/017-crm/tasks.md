@@ -1,7 +1,7 @@
 ---
 spec: 017
 status: in-progress
-synced: 2026-11-05
+synced: 2026-11-07
 ---
 
 # Tasks — CRM (specs/017)
@@ -42,3 +42,4 @@ verified by the named check; `[ ]` = open, with the reason.
 | T29 | Board year picker (AC-3.6): `year` on `GET /pipeline` and the board list, `years` for the picker, select on the Pipeline page | [x] | crm-api 281/281 on `crm_test`; crm-ui lint + build + 195 tests |
 | T30 | Activity contact and deal editable (AC-4.2): `contactId`/`dealId` on `PATCH /activities/{id}` checked against the company, fields shown in the edit dialog | [x] | crm-api 282/282 on `crm_test`; crm-ui lint + build + 196 tests |
 | T31 | Add an existing contact from the company page (AC-2.5): `ContactPicker`, "Add existing" dialog warning when the contact moves, saved with the contact's If-Match (UI only, existing `PATCH /contacts/{id}`) | [x] | crm-ui lint + build + 201 tests |
+| T32 | Pipeline company filter and card order (AC-3.4 amendment): `companyId` on `GET /pipeline`, a company picker beside entity and year narrowing figures and board; the card shows the company first, the title under it | [x] | crm-api 355/355 on `crm_test`; crm-ui lint + build + 216 tests |

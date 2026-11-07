@@ -1,6 +1,8 @@
 import { useCallback, useId, useState } from 'react'
 import { Link, useNavigate } from '@tanstack/react-router'
 import { Banner, Button, Field, PageHeader, StatePanel } from '@operai/ui'
+import CompanyPicker from '../components/CompanyPicker'
+import type { CompanyChoice } from '../components/CompanyPicker'
 import DealFormDialog from '../components/DealFormDialog'
 import { LoadFailure, Loading, Saved, StaleWriteBanner } from '../components/LoadState'
 import MoveStageDialog from '../components/MoveStageDialog'
@@ -25,7 +27,7 @@ const BOARD_PAGE_SIZE = 200
  * deal moves it with the deal's version as If-Match; dropping on Lost first
  * asks for the optional reason. The deal shows in its new column at once and
  * the board reloads with the server's figures; a stale move shows the reload
- * banner. The entity filter narrows both the figures and the board, server-side.
+ * banner. The entity and company filters narrow both the figures and the board, server-side.
  */
 export default function PipelinePage() {
   const t = strings.deals.pipeline
@@ -34,6 +36,8 @@ export default function PipelinePage() {
   const currentUserId = useCurrentUserId()
   const { canManageDeals, canManageDealsOf } = useCrmCapabilities()
   const [entity, setEntity] = useState<Entity | ''>('')
+  /** One company's deals only; null = every company. */
+  const [company, setCompany] = useState<CompanyChoice | null>(null)
   /** The calendar year whose won and lost deals show (AC-3.6); null = this year, the server's. */
   const [year, setYear] = useState<number | null>(null)
   const [creating, setCreating] = useState(false)
@@ -50,10 +54,19 @@ export default function PipelinePage() {
   const load = useCallback(
     (signal: AbortSignal) =>
       Promise.all([
-        getPipeline(entity, { signal }, year ?? undefined),
-        listDeals({ board: true, entity, ...(year !== null ? { year } : {}), pageSize: BOARD_PAGE_SIZE }, { signal }),
+        getPipeline(entity, { signal }, year ?? undefined, company?.id),
+        listDeals(
+          {
+            board: true,
+            entity,
+            ...(year !== null ? { year } : {}),
+            ...(company ? { companyId: company.id } : {}),
+            pageSize: BOARD_PAGE_SIZE,
+          },
+          { signal },
+        ),
       ]),
-    [entity, year],
+    [entity, year, company],
   )
   const board = useResource(load)
   const shownYear = board.data?.[0].year ?? year ?? new Date().getFullYear()
@@ -162,7 +175,7 @@ export default function PipelinePage() {
         }
       />
       <div className="flex flex-col gap-4">
-        <div className="grid max-w-xl grid-cols-1 items-start gap-3 sm:grid-cols-2">
+        <div className="grid max-w-4xl grid-cols-1 items-start gap-3 sm:grid-cols-3">
           <Field label={t.entityFilter} testId="crm-pipeline-entity">
             {(control) => (
               <select {...control} value={entity} onChange={(event) => setEntity(event.target.value as Entity | '')}>
@@ -175,6 +188,13 @@ export default function PipelinePage() {
               </select>
             )}
           </Field>
+          <CompanyPicker
+            label={t.companyFilter}
+            hint={t.companyHint}
+            value={company}
+            onChange={setCompany}
+            testId="crm-pipeline-company"
+          />
           <Field label={t.yearFilter} hint={t.yearHint} testId="crm-pipeline-year">
             {(control) => (
               <select

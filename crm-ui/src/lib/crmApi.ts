@@ -159,9 +159,12 @@ export const moveDealStage = (id: string, version: number, stage: DealStage, los
     lostReason !== undefined && lostReason !== '' ? { stage, lostReason } : { stage },
     version,
   )
-/** `year`: whose won and lost deals count (specs/017 AC-3.6); this year when absent. */
-export const getPipeline = (entity?: Entity | '', init?: Init, year?: number) =>
-  getJson<Pipeline>(`/pipeline${query({ entity, ...(year !== undefined ? { year } : {}) })}`, init)
+/** `year`: whose won and lost deals count (specs/017 AC-3.6); this year when absent. `companyId`: one company's deals. */
+export const getPipeline = (entity?: Entity | '', init?: Init, year?: number, companyId?: string) =>
+  getJson<Pipeline>(
+    `/pipeline${query({ entity, ...(year !== undefined ? { year } : {}), ...(companyId ? { companyId } : {}) })}`,
+    init,
+  )
 
 // ─── Activities and tasks ───────────────────────────────────────────────────
 

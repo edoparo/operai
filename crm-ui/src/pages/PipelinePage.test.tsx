@@ -65,6 +65,10 @@ const renderBoard = async ({ financials = true, move: answerMove }: BoardOptions
   apiFetch.mockImplementation(
     fakeApi({
       'GET /scope': () => ({ status: 200, body: { deal: ['welld_ch'], canErase: false, financials, managesAll: false } }),
+      'GET /companies': () => ({
+        status: 200,
+        body: page([{ id: 'c1', name: 'Acme SA', entity: 'welld_ch', status: 'client', source: null, sourceDetail: null }]),
+      }),
       'GET /pipeline': (url) => ({
         status: 200,
         body: financials
@@ -250,6 +254,22 @@ describe('PipelinePage board', () => {
     await waitFor(() => expect(boardQueries.at(-1)).toContain('year=2025'))
     expect(pipelineQueries().at(-1)!.searchParams.get('year')).toBe('2025')
     expect((await screen.findAllByText('Closed in 2025')).length).toBeGreaterThan(0)
+  })
+
+  it('a card shows the client first and the deal under it', async () => {
+    await renderBoard()
+    const lines = Array.from(screen.getByTestId('crm-pipeline-deal-d1').querySelectorAll('span')).map((el) => el.textContent)
+    expect(lines.indexOf('Acme SA')).toBeLessThan(lines.indexOf('Deal d1'))
+    expect(within(screen.getByTestId('crm-pipeline-deal-d1')).getByText('Acme SA').className).toContain('text-sm')
+  })
+
+  it('the company filter narrows both the figures and the board', async () => {
+    const { boardQueries, pipelineQueries } = await renderBoard()
+    expect(boardQueries[0]).not.toContain('companyId')
+    fireEvent.change(screen.getByTestId('crm-pipeline-company-input'), { target: { value: 'Acme' } })
+    fireEvent.click(await screen.findByRole('option', { name: /Acme SA/ }))
+    await waitFor(() => expect(boardQueries.at(-1)).toContain('companyId=c1'))
+    expect(pipelineQueries().at(-1)!.searchParams.get('companyId')).toBe('c1')
   })
 
   it('a lane with two currencies lists each total on its own line, never summed (AC-3.4)', async () => {

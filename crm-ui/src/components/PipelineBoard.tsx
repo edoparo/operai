@@ -252,8 +252,9 @@ function CardContent({ deal, currentUserId }: { deal: DealSummary; currentUserId
   const { financials } = useCrmCapabilities()
   return (
     <>
-      <span className="text-sm font-medium text-text">{deal.title}</span>
-      <span className="text-xs text-soft">{deal.company.name}</span>
+      {/* The client first, the deal under it (owner, 2026-11-07). */}
+      <span className="text-sm font-medium text-text">{deal.company.name}</span>
+      <span className="text-xs text-soft">{deal.title}</span>
       {deal.estimateState === 'requested' && (
         <span data-testid={`crm-pipeline-awaiting-estimate-${deal.id}`}>
           <StatusBadge status={ESTIMATE_STATE_MEANING.requested}>{strings.deals.pipeline.awaitingEstimate}</StatusBadge>

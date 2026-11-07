@@ -126,6 +126,9 @@ the pipeline without a spreadsheet.
   together. A deal the user may manage moves by dragging its handle to another column, with
   the pointer or the keyboard; a drop on Lost asks for the optional reason first (amended
   2026-11-01, D-25).
+  - (owner, 2026-11-07) A card shows the company first, in the prominent line, and the
+    deal's title under it. Besides the entity and the year, the board filters by one
+    company; the counts and totals follow the filter (`GET /pipeline?companyId=`).
 - AC-3.5 A user without the capability, or outside its entity scope, sees deals but no
   create/edit/move controls; the server refuses such a write with 403.
 - AC-3.6 The board's open columns show every open deal, whatever year it started in. Won and
