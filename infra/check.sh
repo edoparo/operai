@@ -57,6 +57,9 @@ INVENTORY_URL="${INVENTORY_URL:-https://inventory.operai.welld.io}"   # ASSUMED,
 # specs/017-crm: provisioned 2026-11-02 (provision-tool.sh crm --bucket).
 CRM_API_URL="${CRM_API_URL:-https://crm-api.operai.welld.io}"
 CRM_URL="${CRM_URL:-https://crm.operai.welld.io}"
+# specs/021-meetings: provisioned 2026-11-07 (provision-tool.sh meetings --bucket).
+MEETINGS_API_URL="${MEETINGS_API_URL:-https://meetings-api.operai.welld.io}"
+MEETINGS_URL="${MEETINGS_URL:-https://meetings.operai.welld.io}"
 PREREQS_ONLY=false; [[ "${1:-}" == "--prereqs" ]] && PREREQS_ONLY=true
 
 PASS=0; FAIL=0
@@ -130,6 +133,13 @@ IAC="$(code "$INVENTORY_API_URL/assets")"
 CAC="$(code "$CRM_API_URL/companies")"
 [[ "$CAC" == 401 ]] && pass "crm-api rejects an anonymous request on a gated route (401)" || fail "crm-api GET /companies without a token did not return 401 (got HTTP ${CAC:-?}) — the JWT gate may be missing or the service not deployed"
 
+# meetings-api (specs/021): same contract. A healthy answer also means every startup check passed
+# (EU locations, the audio bucket's 29-day rule, the transient Google bucket, Vertex settings) —
+# the service exits rather than serve when one fails (ADR-0061/0063/0069).
+[[ "$(code "$MEETINGS_API_URL/health")" == 200 ]] && pass "meetings-api /health 200 ($MEETINGS_API_URL)" || fail "meetings-api /health not 200 ($MEETINGS_API_URL) — a failed startup check keeps it down: read its deploy log"
+MAC="$(code "$MEETINGS_API_URL/meetings")"
+[[ "$MAC" == 401 ]] && pass "meetings-api rejects an anonymous request on a gated route (401)" || fail "meetings-api GET /meetings without a token did not return 401 (got HTTP ${MAC:-?}) — the JWT gate may be missing or the service not deployed"
+
 # JWKS: the resource-server verification key. MUST be /auth/jwks (better-auth's
 # rotating DB keypair), NOT /.well-known/jwks.json (orphaned env key).
 # estimai-api, notify-api, and refund-api all verify against this same endpoint.
@@ -182,7 +192,7 @@ done
 # ─── 3. Frontends (Vercel) ────────────────────────────────────────────────────
 head "Frontends (Vercel)"
 [[ "$(code "$SHELL_URL/")" == 200 ]] && pass "shell 200 ($SHELL_URL) — the entry point" || fail "shell not 200 ($SHELL_URL)"
-for pair in "estimai-ui:$ESTIMAI_URL" "refund-ui:$REFUND_URL" "admin-ui:$ADMIN_URL" "notify-ui:$NOTIFY_URL" "inventory-ui:$INVENTORY_URL" "crm-ui:$CRM_URL"; do
+for pair in "estimai-ui:$ESTIMAI_URL" "refund-ui:$REFUND_URL" "admin-ui:$ADMIN_URL" "notify-ui:$NOTIFY_URL" "inventory-ui:$INVENTORY_URL" "crm-ui:$CRM_URL" "meetings-ui:$MEETINGS_URL"; do
   name="${pair%%:*}"; url="${pair#*:}"
   re="$(hdrs "$url/remoteEntry.js")"
   if echo "$re" | grep -qiE '^HTTP.* 200'; then
@@ -262,6 +272,22 @@ if [[ -n "$CSP" ]]; then
     pass "  CSP connect-src includes $CRM_URL (crm-ui remote chunks — specs/017)"
   else
     fail "  CSP connect-src is MISSING $CRM_URL (specs/017)"
+  fi
+  # specs/021-meetings — the same three pins for meetings-api and meetings-ui.
+  if [[ -n "$CONNECT_SRC" ]] && echo "$CONNECT_SRC" | grep -q "$MEETINGS_API_URL"; then
+    pass "  CSP connect-src includes $MEETINGS_API_URL (meetings-api origin — specs/021)"
+  else
+    fail "  CSP connect-src is MISSING $MEETINGS_API_URL — meetings-ui's API calls will be blocked (specs/021)"
+  fi
+  if [[ -n "$SCRIPT_SRC" ]] && echo "$SCRIPT_SRC" | grep -q "$MEETINGS_URL"; then
+    pass "  CSP script-src includes $MEETINGS_URL (meetings-ui remote — specs/021)"
+  else
+    fail "  CSP script-src is MISSING $MEETINGS_URL — the shell cannot load meetings-ui's remoteEntry.js (specs/021)"
+  fi
+  if [[ -n "$CONNECT_SRC" ]] && echo "$CONNECT_SRC" | grep -q "$MEETINGS_URL"; then
+    pass "  CSP connect-src includes $MEETINGS_URL (meetings-ui remote chunks — specs/021)"
+  else
+    fail "  CSP connect-src is MISSING $MEETINGS_URL (specs/021)"
   fi
 
   # ADR-0016 — receipt uploads POST DIRECTLY to the object-storage bucket, not
