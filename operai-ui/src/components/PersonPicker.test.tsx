@@ -128,6 +128,15 @@ describe('PersonPicker', () => {
     expect(onChange).toHaveBeenLastCalledWith(null)
   })
 
+  it('closes the list when focus leaves the field, so it never covers what is below', async () => {
+    await open()
+    expect(screen.getByRole('listbox')).toBeTruthy()
+    fireEvent.blur(input())
+    expect(screen.queryByRole('listbox')).toBeNull()
+    fireEvent.focus(input())
+    expect(screen.getByRole('listbox')).toBeTruthy()
+  })
+
   it('selects with the keyboard alone', async () => {
     const onChange = vi.fn()
     await open({ onChange })

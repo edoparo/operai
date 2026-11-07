@@ -189,7 +189,13 @@ export function Combobox({
       </p>
 
       {isOpen && (
-        <ul id={listboxId} role="listbox" className="combobox-listbox" data-testid={testId && `${testId}-listbox`}>
+        <ul
+          id={listboxId}
+          role="listbox"
+          className="combobox-listbox"
+          data-testid={testId && `${testId}-listbox`}
+          onMouseDown={keepInputFocus}
+        >
           {options.length === 0 && emptyState !== undefined && (
             <li className="combobox-empty" aria-disabled="true">
               {emptyState}

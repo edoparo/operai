@@ -159,6 +159,7 @@ function PersonPickerBody({
           isOpen={open}
           onOpenChange={setOpen}
           onFocus={() => setOpen(true)}
+          onBlur={() => setOpen(false)}
           emptyState={emptyState}
           liveRegionText={outcome?.ok ? copy.results(options.length) : ''}
           testId={`${testId}-input`}
