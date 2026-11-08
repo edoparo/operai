@@ -51,9 +51,8 @@ jobs:
     permissions:
       contents: read
       id-token: write
-    defaults:
-      run:
-        working-directory: meetings-api
+    # No job-level working-directory: the two guard steps run before checkout, when meetings-api/ does
+    # not exist yet (a default there fails them before they can name what is missing).
     steps:
       # Defence in depth with the WIF provider's attribute condition (infra/README.md step 7): refuse to
       # run, before anything else, on any ref other than main (a dispatch from a branch).
@@ -106,6 +105,7 @@ jobs:
       # a dependency script runs. Auth is immediately before the live eval step.
       - name: Install dependencies
         if: steps.cfg.outputs.configured == 'true'
+        working-directory: meetings-api
         run: bun install --frozen-lockfile
       # Keyless: GitHub's OIDC token -> the WIF provider -> a short-lived credential of the eval service
       # account. The action writes an external-account credentials FILE (its path is exported as
@@ -123,4 +123,5 @@ jobs:
           MEETINGS_GCP_PROJECT_ID: ${{ vars.MEETINGS_EVAL_GCP_PROJECT_ID }}
           MEETINGS_VERTEX_LOCATION: ${{ vars.MEETINGS_EVAL_VERTEX_LOCATION }}
           MEETINGS_VERTEX_MODEL_ID: ${{ vars.MEETINGS_EVAL_VERTEX_MODEL_ID }}
+        working-directory: meetings-api
         run: bun evals/run.ts --live
