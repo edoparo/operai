@@ -256,11 +256,22 @@ describe('PipelinePage board', () => {
     expect((await screen.findAllByText('Closed in 2025')).length).toBeGreaterThan(0)
   })
 
-  it('a card shows the client first and the deal under it', async () => {
+  it('a card shows the client first and the deal under it, each keeping its own style', async () => {
     await renderBoard()
-    const lines = Array.from(screen.getByTestId('crm-pipeline-deal-d1').querySelectorAll('span')).map((el) => el.textContent)
+    const card = screen.getByTestId('crm-pipeline-deal-d1')
+    const lines = Array.from(card.querySelectorAll('span')).map((el) => el.textContent)
     expect(lines.indexOf('Acme SA')).toBeLessThan(lines.indexOf('Deal d1'))
-    expect(within(screen.getByTestId('crm-pipeline-deal-d1')).getByText('Acme SA').className).toContain('text-sm')
+    expect(within(card).getByText('Acme SA').className).toBe('text-xs text-soft')
+    expect(within(card).getByText('Deal d1').className).toBe('text-sm font-medium text-text')
+  })
+
+  it('the company list closes when focus leaves the field', async () => {
+    await renderBoard()
+    const input = screen.getByTestId('crm-pipeline-company-input')
+    fireEvent.focus(input)
+    expect(screen.getByRole('listbox')).toBeTruthy()
+    fireEvent.blur(input)
+    expect(screen.queryByRole('listbox')).toBeNull()
   })
 
   it('the company filter narrows both the figures and the board', async () => {

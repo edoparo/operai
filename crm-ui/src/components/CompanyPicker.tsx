@@ -111,6 +111,7 @@ export default function CompanyPicker({
           isOpen={open}
           onOpenChange={setOpen}
           onFocus={() => setOpen(true)}
+          onBlur={() => setOpen(false)}
           emptyState={emptyState}
           liveRegionText={current?.ok ? strings.companies.list.results(options.length) : ''}
           testId={`${testId}-input`}

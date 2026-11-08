@@ -165,7 +165,10 @@ function Lane({
           <dl className="grid grid-cols-[auto_1fr] gap-x-2 text-xs">
             <dt className="text-soft">{t.total}</dt>
             {/* One currency per line: never summed (AC-3.4), and side by side they overflow a narrow lane. */}
-            <dd className="flex flex-col items-end font-mono text-text" data-testid={`crm-pipeline-total-${entry.stage}`}>
+            <dd
+              className="flex flex-col items-end font-mono text-text"
+              data-testid={`crm-pipeline-total-${entry.stage}`}
+            >
               {totals.map((amount) => (
                 <span key={amount} className="whitespace-nowrap">
                   {amount}
@@ -175,7 +178,10 @@ function Lane({
             {open && (
               <>
                 <dt className="text-soft">{t.weighted}</dt>
-                <dd className="flex flex-col items-end font-mono text-text" data-testid={`crm-pipeline-weighted-${entry.stage}`}>
+                <dd
+                  className="flex flex-col items-end font-mono text-text"
+                  data-testid={`crm-pipeline-weighted-${entry.stage}`}
+                >
                   {weighted.map((amount) => (
                     <span key={amount} className="whitespace-nowrap">
                       {amount}
@@ -252,9 +258,9 @@ function CardContent({ deal, currentUserId }: { deal: DealSummary; currentUserId
   const { financials } = useCrmCapabilities()
   return (
     <>
-      {/* The client first, the deal under it (owner, 2026-11-07). */}
-      <span className="text-sm font-medium text-text">{deal.company.name}</span>
-      <span className="text-xs text-soft">{deal.title}</span>
+      {/* The client first, the deal under it, each in its own style (owner, 2026-11-07). */}
+      <span className="text-xs text-soft">{deal.company.name}</span>
+      <span className="text-sm font-medium text-text">{deal.title}</span>
       {deal.estimateState === 'requested' && (
         <span data-testid={`crm-pipeline-awaiting-estimate-${deal.id}`}>
           <StatusBadge status={ESTIMATE_STATE_MEANING.requested}>{strings.deals.pipeline.awaitingEstimate}</StatusBadge>
