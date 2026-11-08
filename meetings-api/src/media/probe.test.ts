@@ -298,7 +298,8 @@ describe.skipIf(!hasFfprobe || !hasFfmpeg)("probeMedia on generated media", () =
       ["a.aac", ["-c:a", "aac", "-f", "adts"]],
       ["a.wav", []],
       ["a.flac", ["-c:a", "flac"]],
-      ["a.ogg", ["-c:a", "libvorbis"]],
+      // ffmpeg's built-in Vorbis encoder (stereo only, experimental): libvorbis is an optional library.
+      ["a.ogg", ["-c:a", "vorbis", "-strict", "-2", "-ac", "2"]],
       ["a.opus", ["-c:a", "libopus"]],
       ["a.webm", ["-c:a", "libopus"]],
     ];

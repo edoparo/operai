@@ -23,6 +23,8 @@ async function boot(group: Record<string, string>) {
   const proc = Bun.spawn(
     [
       process.execPath,
+      // Otherwise a local dotenv file in ROOT puts back the variables each case removes.
+      "--no-env-file",
       "-e",
       `const { env } = await import("./src/lib/env.ts"); console.log("BOOT_OK:" + (env.APP_BASE_URL !== undefined));`,
     ],
