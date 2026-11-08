@@ -1,7 +1,7 @@
 ---
 spec: 021
 generated: 2026-11-04
-synced: 2026-11-06
+synced: 2026-11-08
 ---
 
 # Tasks: Meetings — record, transcribe, summarise and question meetings
@@ -710,6 +710,7 @@ database after `bun run db:deploy`.
 
 > Re-synced 2026-11-05 from plan § H-14 (approved by the user 2026-11-05). T108's banner and dividers are superseded by T122.
 > T125 (O14, real consented recordings) is a go-live gate: it is NOT a dependency of T92 (user decision 2026-11-05).
+> **T125 removed 2026-11-08 (user decision):** O14 is dropped (spec), the T124 bounds stand. AC-6.11, AC-6.13 and AC-6.14 stay covered by T113–T116 and T124. The id is not reused.
 > T104 closed 2026-11-06: `actionlint` 1.7.12 passes on both workflows and PR #8's `prompt-injection evals (fake model)` job is green. Its dispatched-run check cannot run before the merge (`workflow_dispatch` needs the file on `main`), so it is T128, a post-merge check that is NOT a dependency of T92, like T125 (user decision 2026-11-06; plan T104 note).
 > Re-synced 2026-11-06 after the plan addendum (draft failure.code contract, AC-3.2, already implemented in T28/T30) — no task change.
 > Re-synced 2026-11-05 for spec A8: per-part retries disabled (tries = 1), repetitions never flag a part, same-speaker duplicate rule within a part (overlap: removed unless joined to different speakers) and untimed repeated tails (follow-up commits on T115/T116). No new task; O15 tracks a different-audio retry.
@@ -750,9 +751,6 @@ database after `bun run db:deploy`.
 - [x] T124: [QE] Spike regression (release gate): `--reference`, detector, retry, join and dedup report without content; records the overlap, hole and silence fixtures; the AC-6.17 replay test on them — refs: AC-6.11, AC-6.12, AC-6.14, AC-6.17 — deps: T116
   - touch: `meetings-api/scripts/spike-google-speech.ts`, `meetings-api/test-fixtures/google-speech/recorded-overlap-*.json`, `meetings-api/test-fixtures/google-speech/recorded-hole-*.json`, `meetings-api/test-fixtures/google-speech/README.md`, `meetings-api/src/ai/stitch.recorded.test.ts`
   - done when: `bun test src/ai/stitch.recorded.test.ts` passes (three silence lists, two audio files, identical joins); the spike's pass criteria of H-10 are met on the sandbox and recorded in a dated note under H-1 (via the orchestrator)
-- [ ] T125: [QE] O14 measurement on consented recordings (QH-1): false-gap, missed-gap and false-join rates; bounds confirmed or changed; outcome in a dated note under H-3 (via the orchestrator). **Go-live gate.** — refs: AC-6.11, AC-6.13, AC-6.14, O14 — deps: T124
-  - touch: `meetings-api/scripts/measure-transcript-quality.ts`
-  - done when: the note records the three rates on ≥ 8 h, and zero false joins (any false join found is filed as a defect and fixed before go-live); any changed bound is a code constant with its test updated
 - [ ] T128: [OPS] Post-merge: dispatch `meetings-eval-live` on `main` without the `MEETINGS_EVAL_*` vars and confirm it fails naming them; then set the vars and confirm a dispatched run passes. **Post-merge check.** — refs: AC-7.12, AC-9.7 — deps: T104
   - touch: none (GitHub repository variables and a workflow run)
   - done when: the dispatched run without the vars fails with each missing name in its log, and one with the vars set passes

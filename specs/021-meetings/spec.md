@@ -871,7 +871,10 @@ on 2026-11-05 (A7), O15 on 2026-11-05 (A8).
   exception is conditional on (b): a longer or wider retention returns to the owner. The
   consent notice bump of AC-4.1 ships with the release that makes this change.
   — owner: user (owner) and data-protection lead
-- [ ] O14 (A7) The gap detector (AC-6.11), the repetition rule (AC-6.13) and the join evidence
+- [x] O14 — **Dropped by the user 2026-11-08** (T125 removed): no dedicated measurement on
+  consented recordings; the bounds of Constraints stand as set by the T124 spike, and a false join
+  reported from use is a defect like any other. Original question, kept for the record:
+  (A7) The gap detector (AC-6.11), the repetition rule (AC-6.13) and the join evidence
   (AC-6.14) were designed from a spike on synthetic audio only. Before go-live the architect
   measures, on recordings made for the purpose with a consent attestation (AC-4.1), how often
   non-speech sound is wrongly treated as a gap (needless retries, a false notice), how often a

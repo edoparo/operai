@@ -2225,6 +2225,8 @@ Sources (read 2026-11-05):
 - Every A7 change has a section here: AC-4.12 (H-4), AC-6.2/6.14/6.15/6.17 (H-2), AC-6.6 (H-7),
   AC-6.7/6.9/6.10/6.11 (H-3, H-4), AC-6.12 (H-3, H-5, H-7), AC-6.13 (H-2), AC-6.16 (H-5, H-7),
   AC-7.9/9.6 (H-8), AC-7.13/9.9 (H-6, H-7), O13 (b) (H-4), O14 (H-9, T125).
+- **2026-11-08: O14 dropped by the user and T125 removed** — the bounds below are final as set by the
+  T124 spike; QH-1 no longer applies.
 - **The Constraints' bounds are confirmed, provisionally until O14:** overlap 90 s, chosen in a pause
   between 60 s and 120 s (bound 30 s–2 min); gap 20 s; retry 2 (3 tries per part); repeat 8 words and
   2 s; match 20 words. They are code constants (H-1 table), never env.
