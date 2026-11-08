@@ -1,7 +1,7 @@
 # 0074 — A transcript that cannot be proven complete says where it may not be: detect, then mark (the retry is suspended, O15)
 
 **Date:** 2026-11-05
-**Status:** Accepted (specs/021-meetings; plan amendment #2 and spec A7 approved by the user on 2026-11-05); amended 2026-11-05 by spec A8: per-part retry suspended. Bounds are provisional until O14 (go-live gate).
+**Status:** Accepted (specs/021-meetings; plan amendment #2 and spec A7 approved by the user on 2026-11-05); amended 2026-11-05 by spec A8: per-part retry suspended. Bounds were provisional until O14 (go-live gate); amended 2026-11-08: O14 dropped by the user, the T124 bounds are final.
 **Deciders:** wellD
 **Project:** Operai
 **Relates to:** [ADR-0070](0070-meetings-transcript-parts-speaker-labels-per-part.md), [ADR-0062](0062-durable-job-runner-work-queued-state-derived.md), [ADR-0067](0067-ai-output-structured-validated-plain-text.md), [ADR-0069](0069-meetings-ai-providers-google-cloud-eu.md), [ADR-0013](0013-invitation-lifecycle-derived-expiry-state.md)
@@ -64,7 +64,7 @@ treated as meaning.
 prove; cost bounded (3 tries per part, about USD 0.16 per extra try); needs no new processing of
 personal data beyond energy levels.
 **Cons:** the energy detector can flag music or loud noise as a gap (the safe direction: a retry
-and a notice); a marker emitted inside untranscribed speech would hide a gap (measured by O14).
+and a notice); a marker emitted inside untranscribed speech would hide a gap (never observed; a case reported from use is a defect).
 
 ### Option B - Re-transcribe the whole meeting on a gap
 Rejected: cost (a 3 h meeting is about USD 3.40 per run) and it discards parts that were fine.
@@ -100,8 +100,8 @@ Rejected: detection is what makes the omission visible; the marker does not depe
 - More states to show and test (notice, markers, caveats, a new failure code).
 
 **Risks:**
-- False gaps or missed gaps: bounds are code constants, confirmed by O14 on consented recordings
-  (go-live gate); the detector is pure and replay-tested.
+- False gaps or missed gaps: bounds are code constants, set by the T124 spike and final since O14 was
+  dropped (2026-11-08); a false or missed gap reported from use is a defect; the detector is pure and replay-tested.
 - A caveat omitted from a new surface: every new consumer of a transcript must carry the gaps.
 
 ## Amendment 2026-11-05 (spec A8, after the T124 spike): the retry is suspended; detect and mark stand
@@ -139,7 +139,7 @@ validated by its own output; measure, and keep the marker either way.
 
 **Consequences.** Cost per attempt falls back to the one-pass figure (about +17 % overlap only).
 Gaps that a retry might have repaired now show as notices; the marker, not the retry, is what keeps
-the record honest. Bounds stay provisional until O14.
+the record honest. The bounds are final since 2026-11-08 (O14 dropped).
 
 ## Compliance notes
 

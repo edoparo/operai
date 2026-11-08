@@ -59,7 +59,8 @@ them across"; the principle behind it stands.
   unchanged, and the asymmetry (a false merge is silent and corrupts everything derived, a false
   split costs one rename) still decides every tie towards separate. A watch item: the rule is
   applied word by word, so one mis-attributed word blocks a join; that is the safe direction.
-  Measured on real recordings by O14 (go-live gate) with a target of zero false joins.
+  The target is zero false joins; O14's measurement on real recordings was dropped by the user
+  (2026-11-08), so a false join reported from use is a defect like any other.
 - **Per-part results.** "No per-part result is stored between attempts" now reads: per-part
   tries live **in memory within one job claim** (ADR-0062) and nothing is at rest in the database
   until the single commit; a retry of the job replaces, never appends. Part ends are stored too

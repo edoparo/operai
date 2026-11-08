@@ -14,7 +14,7 @@
  *   3. each part is one STREAM COPY with output seeking (`-ss <s> -t <len> -c copy -f ogg`): no re-encode, exact to one
  *      20 ms Opus packet, about a second for 3 h. The segment muxer cannot write overlapping pieces, so it is retired.
  *
- * The constants are code, never environment (plan H-1); T125 (O14) confirms them on real recordings.
+ * The constants are code, never environment (plan H-1); the T124 spike set them, final since O14 was dropped (2026-11-08).
  *
  * HARDENING (ADR-0064, unchanged): the input is our own derived `audio.ogg`, never a user-chosen file, and still
  * every ffmpeg runs with `-protocol_whitelist file`, the input format pinned (`-f ogg`) and `-format_whitelist`,

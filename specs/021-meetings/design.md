@@ -337,6 +337,14 @@ after a grant is removed); otherwise it is absent, not disabled (AC-10.4). Panel
 **Why tabs, not a stack of cards:** a 3-hour transcript is thousands of lines; a stack would bury summaries and Ask below it. The
 cost is that citations cross tabs, which is solved by the focus/return pattern in F12.
 
+**Layout (amended 2026-11-07, 25cf4f0):** the tab bar sits on a bottom rule (`border-rule`) and each panel starts
+below it with breathing room, its content in `Card`s rather than pressed against the tabs. Summaries: each summary
+is a card, and the empty state is a `StatePanel` inside a card. Transcript: one tools card (audio, search, Copy,
+Download, at the field's height) and one card for the text; speakers are a labelled row, times sit in a fixed
+column, and a speaker's name is shown once per run of consecutive lines (still read out on every line for screen
+readers). Ask: the conversation and the question box share one card; questions are on the right (`bg-ink-mid`
+bubble, max 85 % width) and answers below them on the left.
+
 **Transcript tab**
 - Toolbar: search `Field` (`type="search"`, label "Search the transcript"), live count "{n} matches" (polite), **Copy** and
   **Download text** (secondary `sm`, `copy`/`download` icons) → `[hh:mm:ss] Name: text` lines (AC-6.6). For a possibly-incomplete transcript the

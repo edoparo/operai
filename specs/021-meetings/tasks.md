@@ -710,7 +710,7 @@ database after `bun run db:deploy`.
 
 > Re-synced 2026-11-05 from plan § H-14 (approved by the user 2026-11-05). T108's banner and dividers are superseded by T122.
 > T125 (O14, real consented recordings) is a go-live gate: it is NOT a dependency of T92 (user decision 2026-11-05).
-> **T125 removed 2026-11-08 (user decision):** O14 is dropped (spec), the T124 bounds stand. AC-6.11, AC-6.13 and AC-6.14 stay covered by T113–T116 and T124. The id is not reused.
+> **T125 removed 2026-11-08 (user decision):** O14 is dropped (spec), the T124 bounds stand. AC-6.11, AC-6.13 and AC-6.14 stay covered by T113–T116 and T124. The id is not reused. Re-synced 2026-11-08 after the plan's write-through of the drop: no task added, changed or removed.
 > T104 closed 2026-11-06: `actionlint` 1.7.12 passes on both workflows and PR #8's `prompt-injection evals (fake model)` job is green. Its dispatched-run check cannot run before the merge (`workflow_dispatch` needs the file on `main`), so it is T128, a post-merge check that is NOT a dependency of T92, like T125 (user decision 2026-11-06; plan T104 note).
 > Re-synced 2026-11-06 after the plan addendum (draft failure.code contract, AC-3.2, already implemented in T28/T30) — no task change.
 > Re-synced 2026-11-05 for spec A8: per-part retries disabled (tries = 1), repetitions never flag a part, same-speaker duplicate rule within a part (overlap: removed unless joined to different speakers) and untimed repeated tails (follow-up commits on T115/T116). No new task; O15 tracks a different-audio retry.

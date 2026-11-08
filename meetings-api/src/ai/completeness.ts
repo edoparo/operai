@@ -13,7 +13,7 @@
  * becoming a flood:
  *   - hum and rumble are filtered before the silence list is made (speech band, `split.ts`);
  *   - the provider's own noise marker between two words declares the stretch non-speech (T107: a lone `[` for
- *     silence and for a 20 s tone). Residual, measured by T125: a marker inside real untranscribed speech would
+ *     silence and for a 20 s tone). Residual: a marker inside real untranscribed speech would
  *     hide a gap; it was never observed.
  *
  * Nothing here is logged with content: callers log counts and durations only.

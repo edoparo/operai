@@ -2208,7 +2208,7 @@ Sources (read 2026-11-05):
 
 ## Amendment 2026-11-05 (#2: T107 drifts and spec A7)
 
-> **Approved by the user 2026-11-05.** QH-1: wellD staff provide consented internal recordings (≥ 10, ≥ 8 h, it/en, in person and online). T125 (O14) is a **go-live** gate, not a gate on closing 021. QH-2: the live eval tolerates up to 2 `invalid_output` outcomes of ~55 fixtures after the resample; zero tolerance on safety findings. **Extended by the user 2026-11-05 (T121):** an over-refusal (model-tier `answers-what-the-meeting-contains`: the model says the meeting does not contain an answer it does contain) counts in the same availability budget — at most 2 per run for `invalid_output` and over-refusals together; injection-compliance and request/server-tier findings stay zero-tolerance.
+> **Approved by the user 2026-11-05.** QH-1: wellD staff provide consented internal recordings (≥ 10, ≥ 8 h, it/en, in person and online). T125 (O14) is a **go-live** gate, not a gate on closing 021 (both dropped by the user 2026-11-08). QH-2: the live eval tolerates up to 2 `invalid_output` outcomes of ~55 fixtures after the resample; zero tolerance on safety findings. **Extended by the user 2026-11-05 (T121):** an over-refusal (model-tier `answers-what-the-meeting-contains`: the model says the meeting does not contain an answer it does contain) counts in the same availability budget — at most 2 per run for `invalid_output` and over-refusals together; injection-compliance and request/server-tier findings stay zero-tolerance.
 
 > **Scope.** The real-provider spike (T107 note, § G-3) found four drifts, and the user decided them on
 > 2026-11-05: spec amendment **A7** (approved, incl. AC-6.16 and the AC-6.7 `failed` outcome) and
@@ -2224,11 +2224,11 @@ Sources (read 2026-11-05):
 
 - Every A7 change has a section here: AC-4.12 (H-4), AC-6.2/6.14/6.15/6.17 (H-2), AC-6.6 (H-7),
   AC-6.7/6.9/6.10/6.11 (H-3, H-4), AC-6.12 (H-3, H-5, H-7), AC-6.13 (H-2), AC-6.16 (H-5, H-7),
-  AC-7.9/9.6 (H-8), AC-7.13/9.9 (H-6, H-7), O13 (b) (H-4), O14 (H-9, T125).
+  AC-7.9/9.6 (H-8), AC-7.13/9.9 (H-6, H-7), O13 (b) (H-4), O14 (H-9, T125; dropped 2026-11-08).
 - **2026-11-08: O14 dropped by the user and T125 removed** — the bounds below are final as set by the
   T124 spike; QH-1 no longer applies.
-- **The Constraints' bounds are confirmed, provisionally until O14:** overlap 90 s, chosen in a pause
-  between 60 s and 120 s (bound 30 s–2 min); gap 20 s; retry 2 (3 tries per part); repeat 8 words and
+- **The Constraints' bounds are final (O14 dropped 2026-11-08):** overlap 90 s, chosen in a pause
+  between 60 s and 120 s (bound 30 s–2 min); gap 20 s; retry suspended (1 try per part, spec A8, ADR-0074); repeat 8 words and
   2 s; match 20 words. They are code constants (H-1 table), never env.
 - **Two readings the plan takes, neither an amendment:**
   - *AC-6.15 "the overlap affected by a gap" vs AC-6.17 "the joins are the same whatever the audio".*
@@ -2245,7 +2245,7 @@ Sources (read 2026-11-05):
 - **A watch item, not an amendment now.** AC-6.14 (b) "the earlier part attributes **all** of them to
   the same L1" is applied word by word. Diarization often moves the first or last word of a turn to
   the neighbouring speaker, and one such word blocks a join. That is the safe direction (a false
-  split costs a rename), so the plan applies it literally. If O14 shows the join rate is low for
+  split costs a rename), so the plan applies it literally. If use shows the join rate is low for
   that reason only, the architect proposes a spec amendment (e.g. ignore the first and last word of
   each turn); it is not pre-empted here.
 
@@ -2405,7 +2405,7 @@ from the last word to the part's end. A part with no timed word is one hole.
    provider order is **declared non-speech by the provider** and is not a gap. This also holds for a
    part whose only output is markers.
    - Residual: a marker emitted inside real, untranscribed speech would hide a gap. It was never
-     observed (every observed omission was a hole between words, with no marker), and O14 measures it.
+     observed (every observed omission was a hole between words, with no marker), and a case reported from use is a defect (O14 dropped 2026-11-08).
    - Excused holes are counted in the log (sizes only).
 3. *Music or noise with no marker* stays a gap. It costs retries and, at worst, a "may be incomplete"
    notice (the safe direction) or AC-6.7's `failed`.
@@ -2676,10 +2676,10 @@ other points are unchanged.
 
 | # | Risk | Mitigation / early check |
 |---|---|---|
-| R20 (replaced) | A false join: one person's words under another's label in the transcript and in every summary | J2 (a)–(c) are strict, and J0 rules out overlaps with a 20 s hole; text only. The joined indication shows which parts a label covers, and "Separate by part" repairs it. **O14 (T125) measures the join error rate on consented recordings before go-live; a false join found then is a defect** (spec), fixed by tightening the rule, never by tuning past it |
+| R20 (replaced) | A false join: one person's words under another's label in the transcript and in every summary | J2 (a)–(c) are strict, and J0 rules out overlaps with a 20 s hole; text only. The joined indication shows which parts a label covers, and "Separate by part" repairs it. **(O14/T125 dropped 2026-11-08: a false join reported from use is a defect.)** Originally: O14 (T125) measures the join error rate on consented recordings before go-live; a false join found then is a defect** (spec), fixed by tightening the rule, never by tuning past it |
 | R23 | Detector false positives: music or noise with no provider marker reads as a gap, causing needless retries, a false notice, or `speech_not_transcribed` on a noise-only recording | Speech-band filter; the noise-marker excuse; the cost is bounded (H-1). The notice says "may", the safe direction. O14 measures the rate |
-| R24 | Detector false negatives: an omission under 20 s; a provider marker inside untranscribed speech; untimed-word credit masking a hole | Spec: no notice is not a promise (AC-6.12, non-goal). Excused holes and credits are counted in logs. O14 compares the detector with listened ground truth. T124 regresses the spike's known holes (18–19 min parts) |
-| R25 | Diarization jitter at turn boundaries blocks most joins (word-level (b)) | Safe direction (renames). O14 reports the join rate and, if low for this reason, a spec amendment is proposed (H-0) |
+| R24 | Detector false negatives: an omission under 20 s; a provider marker inside untranscribed speech; untimed-word credit masking a hole | Spec: no notice is not a promise (AC-6.12, non-goal). Excused holes and credits are counted in logs. No listened ground truth (O14 dropped 2026-11-08); a missed gap reported from use is a defect. T124 regresses the spike's known holes (18–19 min parts) |
+| R25 | Diarization jitter at turn boundaries blocks most joins (word-level (b)) | Safe direction (renames). If use shows a low join rate for this reason, a spec amendment is proposed (H-0); O14 was dropped 2026-11-08 |
 | R26 | Seam text transcribed differently by the two versions appears twice | Spec-mandated union. The 90 s overlap and both edges in pauses reduce it. Visible and editable |
 | R27 | Cost +15–17 % from overlap, plus retries, plus the job-level worst case | Bounds stated (H-1). Google billing alert on the project. Retries settle on the best try, never loop |
 | R28 | Unforced tool use: a higher invalid rate, an injection pushing a text reply (availability, not integrity), a model update changing behaviour | Acceptance rule plus one resample. The eval's availability tier and unforced-reply fixtures; the model change is gated by the live eval (ADR-0067); `invalid_output` rate in the logs |
@@ -2803,7 +2803,7 @@ twice. The gate:
 
 ### H-13 Open questions for the user
 
-- **QH-1 (O14 logistics; before go-live).** O14 needs real recordings made for the purpose, with a
+- **QH-1 (O14 logistics; before go-live). Withdrawn 2026-11-08 with O14.** O14 needs real recordings made for the purpose, with a
   consent attestation.
   - Proposal: ≥ 10 recordings, ≥ 8 h in total, Italian and English, in-person and online, 2–5
     speakers, at least 3 over 1 h.
@@ -2860,7 +2860,7 @@ twice. The gate:
 - [ ] T124: [QE] Spike regression (release gate): `--reference`, detector, retry, join and dedup report without content; records the overlap, hole and silence fixtures; the AC-6.17 replay test on them — refs: AC-6.11, AC-6.12, AC-6.14, AC-6.17 — deps: T116
   - touch: `meetings-api/scripts/spike-google-speech.ts`, `meetings-api/test-fixtures/google-speech/recorded-overlap-*.json`, `meetings-api/test-fixtures/google-speech/recorded-hole-*.json`, `meetings-api/test-fixtures/google-speech/README.md`, `meetings-api/src/ai/stitch.replay.test.ts`
   - done when: `bun test src/ai/stitch.replay.test.ts` passes (three silence lists, two audio files, identical joins); the spike's pass criteria of H-10 are met on the sandbox and recorded in a dated note under H-1 (via the orchestrator)
-- [ ] T125: [QE] O14 measurement on consented recordings (QH-1): false-gap, missed-gap and false-join rates; bounds confirmed or changed; outcome in a dated note under H-3 (via the orchestrator). **Go-live gate.** — refs: AC-6.11, AC-6.13, AC-6.14, O14 — deps: T124
+- ~~T125~~ **removed 2026-11-08 by user decision (O14 dropped); the id is not reused.** Original: [QE] O14 measurement on consented recordings (QH-1): false-gap, missed-gap and false-join rates; bounds confirmed or changed; outcome in a dated note under H-3 (via the orchestrator). **Go-live gate.** — refs: AC-6.11, AC-6.13, AC-6.14, O14 — deps: T124
   - touch: `meetings-api/scripts/measure-transcript-quality.ts`
   - done when: the note records the three rates on ≥ 8 h, and zero false joins (any false join found is filed as a defect and fixed before go-live); any changed bound is a code constant with its test updated
 - [ ] T126: [OPS] ADRs via adr-writer: amend 0067 and 0070, new 0074, follow-up notes on 0062/0064/0069; AGENTS.md ADR lines — refs: AC-6.14, AC-6.11, AC-7.9 — deps: none (after plan approval)
@@ -2893,10 +2893,10 @@ twice. The gate:
 - AC-6.6 → T122;
 - AC-6.7 → T114, T116, T117, T122;
 - AC-6.9/6.10 → T116;
-- AC-6.11 → T113, T114, T116, T124, T125;
+- AC-6.11 → T113, T114, T116, T124;
 - AC-6.12 → T114, T117, T122, T124;
-- AC-6.13 → T114, T115, T125;
-- AC-6.14 → T113, T115, T124, T125;
+- AC-6.13 → T114, T115;
+- AC-6.14 → T113, T115, T124;
 - AC-6.15 → T115, T117, T122;
 - AC-6.16 → T117, T118, T122;
 - AC-6.17 → T115, T124;
