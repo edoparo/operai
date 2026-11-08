@@ -1,0 +1,15 @@
+{
+  "schema": "wellforge-run/v3",
+  "plugin_version": "2.56.0",
+  "run_id": "2026-11-08T09-32-50Z-eval-021-meetings",
+  "command": "eval",
+  "feature": "021-meetings",
+  "rigor": "production",
+  "rigor_recorded": null,
+  "started": "2026-11-08T09:30:00Z",
+  "finished": "2026-11-08T09:32:50Z",
+  "agents": [ { "agent": "evaluator", "outcome": "PASS", "score": 80.0 } ],
+  "verdicts": { "eval": "PASS" },
+  "result": "completed",
+  "tokens": null, "cost_usd": null, "terse": false, "control_run_id": null
+}

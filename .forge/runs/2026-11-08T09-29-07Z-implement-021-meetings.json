@@ -1,0 +1,26 @@
+{
+  "schema": "wellforge-run/v3",
+  "plugin_version": "2.56.0",
+  "run_id": "2026-11-08T09-29-07Z-implement-021-meetings",
+  "command": "implement",
+  "feature": "021-meetings",
+  "rigor": "production",
+  "rigor_recorded": null,
+  "started": "2026-11-08T09:20:00Z",
+  "finished": "2026-11-08T09:29:07Z",
+  "agents": [
+    { "agent": "quality-engineer", "tasks": ["T92"], "outcome": "FAIL", "notes": "strict: 4 commands red, none in the delta — notify-api env test read a local dotenv, meetings-api ogg fixture needed libvorbis, job-runner and shell router tests flaky under parallel load" },
+    { "agent": "main-loop", "tasks": ["T92"], "outcome": "PASS", "commits": ["c75b9eb"], "notes": "fixed the two deterministic test-hygiene defects; notify-api 273/273, meetings-api 1778/1778 twice, probe 50/50; shell 354/354 and ui:check green when not run under parallel load; e2e meetings 18/18; eval (fake) 53/53; shared:check, env:doctor, changeset:check, actionlint 0" }
+  ],
+  "drift_events": [
+    { "agent": "main-loop", "artifact": "spec.md", "summary": "O14 dropped and T125 removed by user decision 2026-11-08", "resolved": true }
+  ],
+  "env_faults": [
+    { "agent": "quality-engineer", "class": "secret env", "detail": "notify-api child process re-read a local dotenv file", "resolved_by": "test spawns bun with --no-env-file (c75b9eb)" },
+    { "agent": "quality-engineer", "class": "machine tool", "detail": "local ffmpeg 9.0.2 has no libvorbis", "resolved_by": "fixture uses the built-in vorbis encoder (c75b9eb)" }
+  ],
+  "verdicts": { "qe": "PASS" },
+  "security": { "matched_rules": [], "dispatched": false, "notes": ["delta since the 2026-11-06 PASS is UI layout, a combobox blur handler, CI working-directory and test fixtures: no auth, input or dependency change"] },
+  "result": "completed",
+  "tokens": null, "cost_usd": null, "terse": false, "control_run_id": null
+}
