@@ -751,9 +751,10 @@ database after `bun run db:deploy`.
 - [x] T124: [QE] Spike regression (release gate): `--reference`, detector, retry, join and dedup report without content; records the overlap, hole and silence fixtures; the AC-6.17 replay test on them — refs: AC-6.11, AC-6.12, AC-6.14, AC-6.17 — deps: T116
   - touch: `meetings-api/scripts/spike-google-speech.ts`, `meetings-api/test-fixtures/google-speech/recorded-overlap-*.json`, `meetings-api/test-fixtures/google-speech/recorded-hole-*.json`, `meetings-api/test-fixtures/google-speech/README.md`, `meetings-api/src/ai/stitch.recorded.test.ts`
   - done when: `bun test src/ai/stitch.recorded.test.ts` passes (three silence lists, two audio files, identical joins); the spike's pass criteria of H-10 are met on the sandbox and recorded in a dated note under H-1 (via the orchestrator)
-- [ ] T128: [OPS] Post-merge: dispatch `meetings-eval-live` on `main` without the `MEETINGS_EVAL_*` vars and confirm it fails naming them; then set the vars and confirm a dispatched run passes. **Post-merge check.** — refs: AC-7.12, AC-9.7 — deps: T104
+- [x] T128: [OPS] Post-merge: dispatch `meetings-eval-live` on `main` without the `MEETINGS_EVAL_*` vars and confirm it fails naming them; then set the vars and confirm a dispatched run passes. **Post-merge check.** — refs: AC-7.12, AC-9.7 — deps: T104
   - touch: none (GitHub repository variables and a workflow run)
   - done when: the dispatched run without the vars fails with each missing name in its log, and one with the vars set passes
+  - evidence 2026-11-08: run 42465786983 (no vars) failed naming all five `MEETINGS_EVAL_*`; run 42465838067 (vars set, approved in `meetings-eval`) passed 53/53 fixtures on `claude-sonnet-5-5` ("LIVE PASS")
 - [x] T126: [OPS] ADRs via adr-writer: amend 0067 and 0070, new 0074, follow-up notes on 0062/0064/0069; AGENTS.md ADR lines — refs: AC-6.14, AC-6.11, AC-7.9 — deps: none (after plan approval)
   - touch: `docs/adr/0067-ai-output-structured-validated-plain-text.md`, `docs/adr/0070-meetings-transcript-parts-speaker-labels-per-part.md`, `docs/adr/0074-meetings-transcript-completeness-detect-retry-mark.md`, `docs/adr/0062-durable-job-runner-work-queued-state-derived.md`, `docs/adr/0064-meetings-api-reads-audio-bytes-third-reader.md`, `docs/adr/0069-meetings-ai-providers-google-cloud-eu.md`, `AGENTS.md`
   - done when: each file carries its amendment or note with the rejected alternatives of H-12; `git grep -n "0074" AGENTS.md` matches the ADR list
@@ -761,7 +762,7 @@ database after `bun run db:deploy`.
   - touch: `.changeset/*.md`
   - done when: `mise run changeset:check` passes
 
-- [ ] T92: [QE] All gates green, spec status → done:
+- [x] T92: [QE] All gates green, spec status → done:
   - `bun test` in meetings-api, auth, crm-api and notify-api;
   - `pnpm lint && pnpm build && pnpm test` in meetings-ui, shell, crm-ui and notify-ui;
   - `mise run ui:check`, `mise run shared:check`, `mise run env:doctor`, `mise run changeset:check`;
