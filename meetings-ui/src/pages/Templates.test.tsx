@@ -177,7 +177,10 @@ describe('the view (AC-8.1 to AC-8.4; S8)', () => {
     await view('builtin:minutes')
     await screen.findByRole('heading', { level: 2, name: 'Meeting minutes' })
 
-    expect(screen.getByText('Be brief.')).not.toBeNull()
+    // Prose gets its own full-width card, never a cell of the Details fact grid.
+    const general = screen.getByText('Be brief.')
+    expect(general.closest('dl')).toBeNull()
+    expect(screen.getByRole('heading', { name: en.templates.view.generalInstructions })).not.toBeNull()
     const sections = screen.getByRole('list', { name: en.templates.view.sectionsTitle })
     const items = within(sections).getAllByRole('listitem')
     expect(items.map((item) => item.textContent)).toEqual([

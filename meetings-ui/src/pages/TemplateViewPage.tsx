@@ -196,20 +196,13 @@ export default function TemplateViewPage() {
         </Banner>
       )}
       <Card title={t.view.detailsTitle}>
-        <FactList
-          items={[
-            { id: 'type', term: t.view.type, value: t.type[template.source] },
-            {
-              id: 'general',
-              term: t.view.generalInstructions,
-              value: template.generalInstructions ? (
-                <span className="whitespace-pre-wrap">{template.generalInstructions}</span>
-              ) : (
-                strings.common.none
-              ),
-            },
-          ]}
-        />
+        <FactList items={[{ id: 'type', term: t.view.type, value: t.type[template.source] }]} />
+      </Card>
+      {/* Prose, not a fact: a FactList cell is one 170px grid column, which squeezes a paragraph. */}
+      <Card title={t.view.generalInstructions}>
+        <p className={template.generalInstructions ? 'whitespace-pre-wrap break-words' : 'text-soft'}>
+          {template.generalInstructions || strings.common.none}
+        </p>
       </Card>
       <Card title={t.view.sectionsTitle}>
         <ol aria-label={t.view.sectionsTitle} className="flex flex-col gap-3">

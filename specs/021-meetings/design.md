@@ -499,7 +499,7 @@ Remove button, else the Operai picker.
 
 ### S8. Template view and editor (`/templates/$id`, `/templates/new`, `/templates/$id/edit`)
 - **View**: `PageHeader` title = name, `status` = type `Badge`, back "Back to templates"; actions: **Duplicate** (primary for built-in and others' shared; secondary
-  otherwise), **Edit** (secondary, when permitted), **Delete** (danger, when permitted). Cards: "Details" (`FactList`: type, general instructions) and "Sections" (ordered
+  otherwise), **Edit** (secondary, when permitted), **Delete** (danger, when permitted). Cards: "Details" (`FactList`: type), "General instructions" (prose, full width — a `FactList` cell squeezes a paragraph; amended 2026-11-08) and "Sections" (ordered
   list of heading + instruction). Built-in or not-editable: `Banner tone="info"` "Built-in templates can't be edited. Duplicate it to make your own." / "Only template
   managers can edit shared templates."
 - **Duplicate**: built-in → `FormDialog` with an Output-language radio (the copy is written in that language, AC-8.4); other kinds duplicate directly and open the
