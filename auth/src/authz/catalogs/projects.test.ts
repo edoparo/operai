@@ -1,6 +1,6 @@
 /**
- * Structural checks of the projects catalog constant (specs/021-projects — AC-4.1,
- * AC-4.3–4.5; specs/022 — AC-1.1, AC-1.9, AC-4.1, AC-4.8: `contract:bexio` becomes
+ * Structural checks of the projects catalog constant (specs/024-projects — AC-4.1,
+ * AC-4.3–4.5; specs/025 — AC-1.1, AC-1.9, AC-4.1, AC-4.8: `contract:bexio` becomes
  * `purchase-order:bexio`, plus `purchase-order:receive` and `handoff:take`). The registration
  * path and the role grants are covered by `../seed.test.ts`.
  */
@@ -21,7 +21,7 @@ describe("PROJECTS_CATALOG (specs/025)", () => {
     ]);
   });
 
-  test("declares exactly the five capabilities of specs/022 § Authorization, with their conditions", () => {
+  test("declares exactly the five capabilities of specs/025 § Authorization, with their conditions", () => {
     const capabilities = PROJECTS_CATALOG.resources.flatMap((r) =>
       r.actions.map((a) => [`${r.key}:${a.key}`, a.supportedConditions] as const),
     );

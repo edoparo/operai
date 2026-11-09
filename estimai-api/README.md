@@ -7,7 +7,7 @@ Live API reference at `http://localhost:8080/docs`.
 It is deliberately **not** an authorization-enforcing resource server: every `/estimates` route
 verifies the caller's user JWT and scopes its queries to the caller's own and shared estimates.
 
-## The system route (specs/022, ADR-0061)
+## The system route (specs/025, ADR-0078)
 
 `GET /system/estimates/{id}/summary` is the one route that is **not** scoped to a user. It is read
 by projects-api, as itself, to copy a deal's estimate man-days onto a fixed-price contract:

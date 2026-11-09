@@ -14,7 +14,7 @@ registers it and grants it to the system roles (`bun run db:seed`, idempotent an
 `bun run db:release` = migrations + seed). The resolver keys grants by `(resource, action)`
 **without the app id**, so no two catalogs may declare the same pair.
 
-### The `projects` catalog (specs/021, 022; ADR-0058/0062/0063)
+### The `projects` catalog (specs/024, 025; ADR-0075/0079/0080)
 
 | Capability | Condition | Held by | Needed for |
 |---|---|---|---|
@@ -29,7 +29,7 @@ project manager"). Assigning it to people is a manual step (Admin tool). There i
 resource any more: "contract" is retired. The seed does **not** delete stale `contract:bexio`
 rules from an earlier local database; remove them by hand.
 
-## The holders listing: `GET /authz/users/holders` (ADR-0063, amends ADR-0047)
+## The holders listing: `GET /authz/users/holders` (ADR-0080, amends ADR-0047)
 
 Feeds projects-api's ops-manager picker. A user Bearer JWT (projects-api forwards the caller's),
 gated on the caller holding **`handoff:take`** under any entity (not the user directory's gate),
@@ -63,9 +63,9 @@ client and never a secret.
 | `users.contact` | auth `POST /system/users/contact` | notify-api |
 | `crm.companies.read` | crm-api `GET /system/companies` | projects-api |
 | `crm.deals.read` | crm-api `GET /system/deals` | projects-api |
-| `crm.contacts.read` (specs/022) | crm-api `GET /system/contacts` — a PO's referent, personal data | projects-api only |
+| `crm.contacts.read` (specs/025) | crm-api `GET /system/contacts` — a PO's referent, personal data | projects-api only |
 | `estimai.estimates.read` | estimai-api `GET /system/estimates/{id}/summary` | projects-api |
-| `projects.purchase-orders.read` (specs/022; the retired contracts scope now refuses to start) | projects-api `GET /system/purchase-orders` | crm-api |
+| `projects.purchase-orders.read` (specs/025; the retired contracts scope now refuses to start) | projects-api `GET /system/purchase-orders` | crm-api |
 
 Locally, `projects-api` needs `crm.companies.read crm.deals.read crm.contacts.read
 estimai.estimates.read notifications.push` and `crm-api` needs `notifications.push emails.send

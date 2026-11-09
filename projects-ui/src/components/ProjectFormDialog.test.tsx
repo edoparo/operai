@@ -1,7 +1,7 @@
 /**
  * @vitest-environment jsdom
  *
- * ProjectFormDialog (AC-1.1, AC-1.6, AC-4.4, specs/022 AC-5.1, AC-5.3): all five
+ * ProjectFormDialog (AC-1.1, AC-1.6, AC-4.4, specs/025 AC-5.1, AC-5.3): all five
  * types, the company field for every type but internal, required-field checks
  * before any request, the body that reaches POST /projects, the optional Terms
  * section (collapsed by default, the type's rules once opened), the entities the

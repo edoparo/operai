@@ -1,5 +1,5 @@
 /**
- * The deal behind a take (specs/022 T7, T24), read live from crm-api and checked against the caller.
+ * The deal behind a take (specs/025 T7, T24), read live from crm-api and checked against the caller.
  * Shared by the take, the ops-manager candidates and the referent contacts of the to-start queue, so
  * every route that answers about a queued deal refuses it the same way: unknown (404), not the
  * caller's to take (403 `out_of_scope`), taken (409), no longer won (409).

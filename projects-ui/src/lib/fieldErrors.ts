@@ -1,5 +1,5 @@
 /**
- * An error is about the value it was raised on (specs/022 AC-7.1, D53): when that value changes, its message
+ * An error is about the value it was raised on (specs/025 AC-7.1, D53): when that value changes, its message
  * and its invalid mark go — typed, picked or cleared, even if the new value is still wrong — and the next
  * submit checks the whole form again. The forms keep their errors as a field → message record
  * (`TermsErrors`, the server's dotted `field` names for the terms' members); these are the two steps every

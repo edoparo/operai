@@ -59,7 +59,7 @@ describe("canSetBexio", () => {
   it("is true only for a purchase-order:bexio grant", () => {
     expect(canSetBexio(source([{ resource: "purchase-order", action: "bexio", conditions: null }], null))).toBe(true);
     expect(canSetBexio(source([unscoped], null))).toBe(false);
-    // The capability of specs/021, retired with the contract (specs/022 D38), opens nothing any more.
+    // The capability of specs/024, retired with the contract (specs/025 D38), opens nothing any more.
     expect(canSetBexio(source([{ resource: "contract", action: "bexio", conditions: null }], null))).toBe(false);
   });
 });

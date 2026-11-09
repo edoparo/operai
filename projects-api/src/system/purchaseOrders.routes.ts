@@ -1,5 +1,5 @@
 /**
- * GET /system/purchase-orders (specs/022-projects-handoff T4 as renamed by T23, AC-3.4; ADR-0060) —
+ * GET /system/purchase-orders (specs/025-projects-handoff T4 as renamed by T23, AC-3.4; ADR-0077) —
  * the purchase orders of the asked deals, read service-to-service. crm-api's deal page shows the
  * project that carries a deal and its purchase order's Bexio order id, for CRM users who may hold no
  * `projects:access`, so this route trusts a scoped SERVICE credential

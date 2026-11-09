@@ -1,6 +1,6 @@
 /**
  * Unit tests for the evaluator behind GET /authz/users/holders (T20,
- * specs/022-projects-handoff - refs AC-4.1, AC-4.2; security-review.md L4):
+ * specs/025-projects-handoff - refs AC-4.1, AC-4.2; security-review.md L4):
  * `entityGrantFor` / `grantKind` of `resolver.ts`, pure and DB-free.
  *
  * The HTTP tests of the route itself (listing, query, gate, limiter) live in

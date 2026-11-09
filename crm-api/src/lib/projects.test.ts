@@ -1,5 +1,5 @@
 /**
- * crm-api's read of projects-api (specs/022 T10, T21, AC-3.4, ADR-0060): `GET
+ * crm-api's read of projects-api (specs/025 T10, T21, AC-3.4, ADR-0077): `GET
  * /system/purchase-orders?dealIds=` as the service principal, to show a deal's project and Bexio
  * order id on the deal page. The read FAILS SOFT: nothing here throws, and "projects-api did not
  * answer" is `known: false`, distinct from "answered, this deal has no purchase order" (`known:

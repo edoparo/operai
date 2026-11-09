@@ -55,7 +55,7 @@ const SERVICE_ORIGIN_BINDINGS: Readonly<Record<string, readonly string[]>> = {
   "system:activities-api": ["crm", "projects"],
   // specs/023 (ADR-0072): auth raises access-request notices in the Admin tool.
   "system:auth": ["admin"],
-  // specs/022 AC-4.3: the ops-manager's notification after a handoff take.
+  // specs/025 AC-4.3: the ops-manager's notification after a handoff take.
   "system:projects-api": ["projects"],
 };
 

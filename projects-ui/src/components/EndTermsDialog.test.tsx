@@ -1,7 +1,7 @@
 /**
  * @vitest-environment jsdom
  *
- * EndTermsDialog (specs/021 AC-2.10; specs/022 AC-7.1, D53): ending terms is setting their end date. A
+ * EndTermsDialog (specs/024 AC-2.10; specs/025 AC-7.1, D53): ending terms is setting their end date. A
  * refused end date — empty, before the start, or refused by the server — loses its message and its invalid
  * mark as soon as the date changes, even to a value that is still wrong; the next submit checks it again.
  */

@@ -1,5 +1,5 @@
 /**
- * crm-api client for CRM deals (specs/022 T5; AC-1.1, AC-2.1, AC-2.2, ADR-0060): `wonDeals()` is
+ * crm-api client for CRM deals (specs/025 T5; AC-1.1, AC-2.1, AC-2.2, ADR-0077): `wonDeals()` is
  * the source of the to-start queue, `dealsById(ids)` of a purchase order's deal. Both read crm-api as
  * ITSELF (a service JWT), live, and throw `CrmUnavailableError` when crm-api cannot answer. The
  * CRM is the fake of test-support/world.ts.

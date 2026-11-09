@@ -1,6 +1,6 @@
 /**
- * Request and response shapes of the project routes (specs/021-projects, tasks.md § API
- * contracts, as changed by specs/022 T23: a project has 0..1 terms and 0..1 purchase order). The type
+ * Request and response shapes of the project routes (specs/024-projects, tasks.md § API
+ * contracts, as changed by specs/025 T23: a project has 0..1 terms and 0..1 purchase order). The type
  * and state vocabularies live here so the transition, terms and take routes reuse them.
  */
 
@@ -20,7 +20,7 @@ export const ProjectTypeSchema = z.enum(PROJECT_TYPES);
 export type ProjectType = z.infer<typeof ProjectTypeSchema>;
 
 /**
- * Client projects have one company of their own (AC-1.1, specs/022 D40): every type but `internal`,
+ * Client projects have one company of their own (AC-1.1, specs/025 D40): every type but `internal`,
  * `saas` included (one project per licence).
  */
 export const CLIENT_TYPES: readonly ProjectType[] = ["t_and_m", "fixed_price", "maintenance", "saas"];
@@ -36,7 +36,7 @@ export const CompanyRefSchema = z.object({ id: z.string(), name: z.string().null
 const DateOnlyOrNull = z.string().nullable();
 
 /**
- * The deal a purchase order was made from, read live from the CRM on every request (specs/022):
+ * The deal a purchase order was made from, read live from the CRM on every request (specs/025):
  * `title` and `won` are `null` when crm-api cannot answer or no longer knows the deal; `won: false`
  * is the "no longer won" notice (AC-2.3).
  */
@@ -61,7 +61,7 @@ export const TermsViewSchema = z.union([
   z.object({}),
 ]);
 
-/** The delivery terms of a project (specs/021's contract shape, renamed): the dates and the nested terms. */
+/** The delivery terms of a project (specs/024's contract shape, renamed): the dates and the nested terms. */
 export const TermsSchema = z.object({
   id: z.string(),
   type: ProjectTypeSchema,
@@ -74,7 +74,7 @@ export const TermsSchema = z.object({
 // ─── Purchase order (output) ─────────────────────────────────────────────────
 
 /**
- * The referent, read live from the CRM (specs/022 D49, T26): `null` members when `unavailable`. The
+ * The referent, read live from the CRM (specs/025 D49, T26): `null` members when `unavailable`. The
  * `PurchaseOrder`'s `referent` is `null` when none is set or the CRM no longer has the contact.
  */
 export const ReferentSchema = z.object({
@@ -92,7 +92,7 @@ export const ContactChoicesSchema = z.object({
   items: z.array(z.object({ id: z.string(), name: z.string(), jobTitle: z.string().nullable() })),
 });
 
-/** The delivery-side record of one won deal (specs/022 D38). */
+/** The delivery-side record of one won deal (specs/025 D38). */
 export const PurchaseOrderSchema = z.object({
   id: z.string(),
   deal: DealRefSchema,
@@ -115,7 +115,7 @@ export const ProjectSchema = z.object({
   stateBeforeHold: ProjectStateSchema.nullable(),
   entity: EntitySchema,
   company: CompanyRefSchema.nullable(),
-  /** `null` only while a project made from a deal awaits its project manager (specs/022 D42). */
+  /** `null` only while a project made from a deal awaits its project manager (specs/025 D42). */
   projectManager: PersonSchema.nullable(),
   /** The project has a purchase order and no project manager yet. */
   awaitingProjectManager: z.boolean(),
@@ -160,7 +160,7 @@ export const ProjectPageSchema = pageOf(ProjectListItemSchema);
 export const ProjectManagersSchema = z.object({ items: z.array(PersonSchema) });
 
 /**
- * A hand-made project: any type, a company for every client type, and optionally its terms (specs/022 D50,
+ * A hand-made project: any type, a company for every client type, and optionally its terms (specs/025 D50,
  * A38). `terms` is the contract shape of `POST /projects/{id}/terms`, `{ startDate, endDate?, terms? }`, nested
  * as the take of a deal nests it: a refusal names the field by its path in this body (`terms.startDate`,
  * `terms.terms.deadline`). Optional as a whole; an `internal` project takes none.
@@ -177,7 +177,7 @@ export const CreateProjectSchema = z
   .strict();
 
 /**
- * The entity, company and type are fixed at creation (specs/022 A30); only these two change here. `null` is
+ * The entity, company and type are fixed at creation (specs/025 A30); only these two change here. `null` is
  * accepted so that clearing the project manager is the domain refusal `422 project_manager_required` (AC-4.9),
  * not a `400`.
  */

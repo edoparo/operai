@@ -96,7 +96,7 @@ describe('ProjectsShell', () => {
     expect(screen.queryByText(/^manage /)).toBeNull()
   })
 
-  it('carries what the caller may take and whether they oversee every PO (specs/022 D37, D47)', async () => {
+  it('carries what the caller may take and whether they oversee every PO (specs/025 D37, D47)', async () => {
     await renderShell(() => ({ status: 200, body: scope({ take: ['welld_it'], oversees: true }) }))
     expect(
       await screen.findByText(

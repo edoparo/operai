@@ -1,7 +1,7 @@
 /**
  * @vitest-environment jsdom
  *
- * DeliveryCard (specs/022 AC-3.4): the deal page shows the project that carries the deal and its
+ * DeliveryCard (specs/025 AC-3.4): the deal page shows the project that carries the deal and its
  * contract's Bexio order id, read-only. No project and a known answer → no card at all; projects-api
  * not answering → the card says the delivery side is unavailable instead of claiming "no project".
  */

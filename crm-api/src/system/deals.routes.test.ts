@@ -1,5 +1,5 @@
 /**
- * GET /system/deals (specs/022-projects-handoff T3 — AC-1.1, AC-2.1, AC-2.2, AC-2.3; ADR-0060):
+ * GET /system/deals (specs/025-projects-handoff T3 — AC-1.1, AC-2.1, AC-2.2, AC-2.3; ADR-0077):
  * the CRM's won deals read service-to-service by projects-api with a scoped service
  * credential (`crm.deals.read`). Real Postgres (compose, `crm` database); the JWKS is an
  * in-memory one injected into the middleware, so no live `auth` is needed.

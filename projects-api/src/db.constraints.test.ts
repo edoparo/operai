@@ -1,5 +1,5 @@
 /**
- * The rules the schema itself enforces (specs/021 T4, re-shaped by specs/022 T23): Prisma cannot
+ * The rules the schema itself enforces (specs/024 T4, re-shaped by specs/025 T23): Prisma cannot
  * express CHECKs, so the migrations add them by hand, and these tests prove at the DATABASE (after
  * both migrations) that each one refuses what the model forbids. Each refusal is asserted by its constraint's NAME, so a
  * row refused for some other reason (a missing column, a bad enum) cannot pass for it; each
@@ -21,7 +21,7 @@ beforeEach(async () => {
   await db.project.deleteMany();
 });
 
-/** Every type but `internal` has a company (`saas` is a client type, specs/022 D40). */
+/** Every type but `internal` has a company (`saas` is a client type, specs/025 D40). */
 const CLIENT_TYPES: ProjectType[] = ["t_and_m", "fixed_price", "maintenance", "saas"];
 const date = (iso: string) => new Date(`${iso}T00:00:00Z`);
 
@@ -70,7 +70,7 @@ const refusedDuplicate = (field: string, write: PromiseLike<unknown>) =>
   refused(write).toEqual(expect.objectContaining({ code: "P2002", message: expect.stringContaining(`\`"${field}"\``) }));
 
 describe("project", () => {
-  it("requires a company for every type but internal, `saas` included (AC-1.1, specs/022 D40, AC-5.1)", async () => {
+  it("requires a company for every type but internal, `saas` included (AC-1.1, specs/025 D40, AC-5.1)", async () => {
     for (const type of CLIENT_TYPES) {
       await refusedBy("project_company_matches_type", makeProject({ type, companyId: null }));
     }
@@ -111,7 +111,7 @@ describe("project", () => {
   });
 });
 
-describe("terms of a project (specs/022 data model)", () => {
+describe("terms of a project (specs/025 data model)", () => {
   it("are at most one row per project", async () => {
     const first = await makeTerms("t_and_m");
     await refusedDuplicate("projectId",db.projectTerms.create({ data: { projectId: first.projectId, type: "t_and_m", startDate: date("2026-02-01") } }));
@@ -126,20 +126,20 @@ describe("terms of a project (specs/022 data model)", () => {
     await makeTerms("saas");
   });
 
-  it("never end before they start (specs/021 AC-2.1)", async () => {
+  it("never end before they start (specs/024 AC-2.1)", async () => {
     await refusedBy("terms_dates_ordered", makeTerms("saas", { startDate: date("2026-02-01"), endDate: date("2026-01-31") }));
     await makeTerms("saas", { startDate: date("2026-02-01"), endDate: date("2026-02-01") });
     const open = await makeTerms("saas");
     expect(open.endDate).toBeNull();
   });
 
-  it("let saas terms have neither an SLA nor an hour package (specs/021 AC-2.8, A15)", async () => {
+  it("let saas terms have neither an SLA nor an hour package (specs/024 AC-2.8, A15)", async () => {
     const terms = await makeTerms("saas");
     expect(terms).toMatchObject({ slaHighDays: null, hourPackageHours: null, version: 1 });
   });
 });
 
-describe("fixed price terms (specs/021 AC-2.3)", () => {
+describe("fixed price terms (specs/024 AC-2.3)", () => {
   const terms = { deadline: date("2026-06-30"), maxEffortManDays: "40.5" };
 
   it("are refused without a max effort, or with a max effort of zero", async () => {
@@ -163,7 +163,7 @@ describe("fixed price terms (specs/021 AC-2.3)", () => {
   });
 });
 
-describe("maintenance terms (specs/021 AC-2.4, AC-2.5, AC-2.6)", () => {
+describe("maintenance terms (specs/024 AC-2.4, AC-2.5, AC-2.6)", () => {
   const sla = { slaHighDays: 1, slaNormalDays: 3 };
   const hours = { hourPackageHours: 80, hourPackageKind: "capacity" as const, hourPackageStart: date("2026-01-01") };
 
@@ -212,7 +212,7 @@ describe("maintenance terms (specs/021 AC-2.4, AC-2.5, AC-2.6)", () => {
   });
 });
 
-describe("terms position (specs/021 AC-2.7)", () => {
+describe("terms position (specs/024 AC-2.7)", () => {
   it("needs planned man-days above zero and a profile name", async () => {
     const terms = await makeTerms("t_and_m");
     const position = (over: Partial<Prisma.ProjectTermsPositionUncheckedCreateInput>) =>
@@ -232,7 +232,7 @@ describe("terms position (specs/021 AC-2.7)", () => {
   });
 });
 
-describe("purchase order (specs/022 data model, AC-1.6)", () => {
+describe("purchase order (specs/025 data model, AC-1.6)", () => {
   it("is at most one per project", async () => {
     const first = await makePurchaseOrder();
     await refusedDuplicate("projectId",makePurchaseOrder({ projectId: first.projectId }));

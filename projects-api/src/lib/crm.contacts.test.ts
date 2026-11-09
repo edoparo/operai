@@ -1,5 +1,5 @@
 /**
- * crm-api client for CRM contacts (specs/022 T24; AC-3.6, T18 M1, M3, L1, L3): the contacts of a
+ * crm-api client for CRM contacts (specs/025 T24; AC-3.6, T18 M1, M3, L1, L3): the contacts of a
  * company for the referent picker, and the check that a referent id is a live contact of the right
  * company. Read as ITSELF (a service JWT with `crm.contacts.read`), live, never cached. The CRM is
  * the fake of test-support/world.ts; every contact is synthetic.

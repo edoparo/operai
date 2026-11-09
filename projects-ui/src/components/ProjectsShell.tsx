@@ -12,7 +12,7 @@ import { LoadFailure, Loading } from './LoadState'
  * page (ToolLayout `default` width). No suite chrome and no auth guard: the
  * shell owns both and mounts this remote only for `projects:access` holders
  * (ADR-0006, ADR-0007). Three tabs: the projects list and My tasks (specs/028
- * US-7), open to every reader, and the to-start queue (specs/022), which is only
+ * US-7), open to every reader, and the to-start queue (specs/025), which is only
  * for those who may take a deal (`scope.take` non-empty, D37, AC-1.9); the
  * project page is reached from the list.
  *

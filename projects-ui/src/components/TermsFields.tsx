@@ -15,12 +15,12 @@ type Props = {
 }
 
 /**
- * TermsFields — the terms inputs of a project, by its type (specs/021
+ * TermsFields — the terms inputs of a project, by its type (specs/024
  * AC-2.3 – AC-2.8): fixed price (deadline, estimated man-days, max effort),
  * maintenance and SaaS (an optional SLA, prefilled 1 / 3, and an optional hour
  * package; maintenance terms need one of the two), time and material (1 to
  * 50 positions), nothing for `internal`. Shared by the terms form (terms of a
- * hand-made project, or edited) and the take of a deal (specs/022). The
+ * hand-made project, or edited) and the take of a deal (specs/025). The
  * caller owns the form state and the checks (`lib/terms.ts`); errors are
  * keyed by the server's dotted field names.
  *

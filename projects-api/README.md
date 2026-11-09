@@ -1,6 +1,6 @@
 # projects-api
 
-The Projects module's resource server (specs/021-projects): the delivery work wellD runs,
+The Projects module's resource server (specs/024-projects): the delivery work wellD runs,
 its team, its terms and, for a project made from a won deal, its purchase order with the Bexio
 order id. Bun + Hono + Prisma, port **8085**,
 logical database **`projects`**. Live API reference at `http://localhost:8085/docs`.
@@ -11,12 +11,12 @@ route answers 503 `authz_unavailable`, never "allow". Writes are further scoped 
 `project:manage` (entity) and `purchase-order:bexio`; the queue and the take by `handoff:take`
 (entity); being a purchase order's ops-manager by `purchase-order:receive` (entity; an unconditioned
 grant is the admin override). `GET /scope` reports `{ manage, managesAll, bexio, take, oversees }`
-so the UI hides exactly what the server refuses (ADR-0063).
+so the UI hides exactly what the server refuses (ADR-0080).
 
-## The model: terms and purchase order (specs/022, ADR-0062)
+## The model: terms and purchase order (specs/025, ADR-0079)
 
 A project has **0..1 terms** (`project_terms`: dates and the type-specific delivery terms, in the
-nested shape `{ startDate, endDate?, terms: { ... } }` of specs/021) and **0..1 purchase order** (PO,
+nested shape `{ startDate, endDate?, terms: { ... } }` of specs/024) and **0..1 purchase order** (PO,
 `purchase_order`: the deal, its estimate id, the Bexio order id, the referent's CRM contact id and the
 ops-manager). "Contract" is retired. A PO is born only from a won deal, in the same transaction as its
 project and terms; a project made by hand never has one and may carry terms. A PO is never deleted.
@@ -26,7 +26,7 @@ A project made from a deal has **no project manager until its ops-manager picks 
 - `POST` / `PATCH` / `DELETE /projects/{id}/terms` (`project:manage` for the project's entity,
   `If-Match` on the writes): `409 terms_exist`, `404 terms_not_found`, `409 terms_not_allowed`
   (`internal`), `409 terms_required` when deleting the terms of a project that has a PO, `422
-  estimated_man_days_from_estimate` for estimate-backed man-days (ADR-0061).
+  estimated_man_days_from_estimate` for estimate-backed man-days (ADR-0078).
 - `PUT /projects/{id}/purchase-order/bexio-order` (`purchase-order:bexio`, `accounting` and admins):
   the only route that writes the Bexio order id; `404 purchase_order_not_found` on a hand-made
   project.
@@ -36,11 +36,11 @@ A project made from a deal has **no project manager until its ops-manager picks 
   referent's name, job title, email and phone are read **live** from crm-api on `GET /projects/{id}`
   (only when one is set), never stored or cached, and every answer that carries them is
   `Cache-Control: no-store` (`referent.status` is `"unavailable"` when the CRM cannot answer;
-  `referent` is `null` when it no longer has the contact or it moved to another company; ADR-0063).
+  `referent` is `null` when it no longer has the contact or it moved to another company; ADR-0080).
 - `PATCH /projects/{id}` `projectManagerId` on an awaiting project: only the PO's ops-manager (read
   from the row, and still holding `purchase-order:receive` for the entity) or an admin who
   `oversees` may set it (`403 not_ops_manager`); afterwards any `project:manage` holder changes it
-  as in specs/021, clearing it is `422 project_manager_required`; `planned` -> `active` while
+  as in specs/024, clearing it is `422 project_manager_required`; `planned` -> `active` while
   awaiting is `409 awaiting_project_manager`; `GET /projects?projectManagerId=none` lists the
   awaiting projects.
 - `POST /projects` creates a hand-made project of any type (a company for every type but
@@ -54,7 +54,7 @@ CRM company names are read from crm-api with a service credential (`crm.companie
 ADR-0080): projects-api trades its service client for a 5-minute JWT at auth and calls
 `GET /system/companies`.
 
-## The projects hand-off (specs/022, ADR-0060 / ADR-0061)
+## The projects hand-off (specs/025, ADR-0077 / ADR-0078)
 
 A won deal reaches the module through reads, never through a copy:
 
@@ -121,11 +121,11 @@ crm-api's `SERVICE_CLIENTS` entry needs `projects.purchase-orders.read` to read
 
 ## Migrations
 
-`prisma/migrations` holds specs/021's `20261103163000_init` (unchanged) and specs/022's
+`prisma/migrations` holds specs/024's `20261103163000_init` (unchanged) and specs/025's
 `20261105120000_purchase_order`, stacked on it. The second **refuses to run**, with a message saying
 what to do by hand, if the `contract` table has any row or a `saas` project exists: terms are one row
 per project, a `saas` project now always has a company, and a purchase order exists only for a won
-deal, so such data cannot be converted unambiguously (ADR-0062). On an empty database, or one with
+deal, so such data cannot be converted unambiguously (ADR-0079). On an empty database, or one with
 projects but neither, it migrates untouched. Local databases are simply reset.
 
 ## Commands

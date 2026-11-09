@@ -218,13 +218,13 @@ describe("POST /system/notifications — valid service credential", () => {
   });
 });
 
-// ─── Origin binding: the projects origin (specs/022 AC-4.3) ────────────────────
+// ─── Origin binding: the projects origin (specs/025 AC-4.3) ────────────────────
 // The handoff take notifies the ops-manager from projects-api. The origin
 // binding (systemAuth.middleware) is covered in isolation; this goes through
 // the real route, where the body's originApp enum is validated BEFORE the
 // binding is checked — an enum without "projects" answers 400 to a bound caller.
 
-describe("POST /system/notifications — projects origin (specs/022 AC-4.3)", () => {
+describe("POST /system/notifications — projects origin (specs/025 AC-4.3)", () => {
   const PROJECTS_SUB = "system:projects-api";
   const post = async (sub: string, body: Record<string, unknown>) =>
     buildApp().request("/system/notifications", {

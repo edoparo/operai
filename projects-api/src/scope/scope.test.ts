@@ -1,5 +1,5 @@
 /**
- * AC-4.1–4.6 as the UI reads them: `GET /scope` says what the caller may manage; specs/022 T24 adds
+ * AC-4.1–4.6 as the UI reads them: `GET /scope` says what the caller may manage; specs/025 T24 adds
  * what they may take (`handoff:take`, AC-1.9) and whether they oversee every purchase order
  * (`purchase-order:receive` for EVERY entity, the admin override of AC-4.8).
  */

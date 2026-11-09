@@ -1,5 +1,5 @@
 /**
- * GET /system/deals (specs/022-projects-handoff T3, AC-1.1, AC-2.1–AC-2.3; ADR-0060) — CRM
+ * GET /system/deals (specs/025-projects-handoff T3, AC-1.1, AC-2.1–AC-2.3; ADR-0077) — CRM
  * deals read service-to-service. projects-api builds the to-start queue from the won deals
  * and shows a contract's deal title and stage, for users who may hold no `crm:access`, so
  * this route trusts a scoped SERVICE credential (`crm.deals.read`), never a user JWT. It is
@@ -27,7 +27,7 @@ import { problem, problemBody } from "../lib/problem";
 import { IdsSchema } from "./companies.routes";
 import { createSystemAuthMiddleware, type SystemAuthVariables } from "../auth/systemAuth.middleware";
 
-/** The one service principal this route serves: holding `crm.deals.read` is not enough (ADR-0059/0073 posture). */
+/** The one service principal this route serves: holding `crm.deals.read` is not enough (ADR-0076/0073 posture). */
 export const DEALS_ALLOWED_SUBS = ["system:projects-api"] as const;
 
 /** The most won deals one read returns (A26: enough while the CRM is weeks old). */

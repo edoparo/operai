@@ -12,7 +12,7 @@ import { app, call, resetWorld } from "./test-support/world";
 
 beforeEach(resetWorld);
 
-// `GET /system/companies` (specs/021), `GET /system/deals` and `GET /system/contacts` (specs/022)
+// `GET /system/companies` (specs/024), `GET /system/deals` and `GET /system/contacts` (specs/025)
 // are guarded by a scoped SERVICE credential, not by user capabilities; their own 401 matrices
 // live in src/system/companies.routes.test.ts, src/system/deals.routes.test.ts and
 // src/system/contacts.routes.test.ts.

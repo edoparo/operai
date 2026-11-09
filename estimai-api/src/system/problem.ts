@@ -1,5 +1,5 @@
 /**
- * RFC 7807 Problem JSON for the `/system/*` routes (specs/022 T2). Same body shape as
+ * RFC 7807 Problem JSON for the `/system/*` routes (specs/025 T2). Same body shape as
  * the rest of estimai-api (`type`, `title`, `status`, `detail`, `instance`) plus the
  * machine-readable `code` crm-api's and projects-api's problems carry.
  */

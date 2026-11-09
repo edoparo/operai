@@ -1,7 +1,7 @@
 /**
  * @vitest-environment jsdom
  *
- * TermsCard (specs/021 AC-2.3 – AC-2.9, specs/022 AC-5.2 – AC-5.4, S5): the terms of a hand-made project — its
+ * TermsCard (specs/024 AC-2.3 – AC-2.9, specs/025 AC-5.2 – AC-5.4, S5): the terms of a hand-made project — its
  * dates and its type's terms, no amount anywhere, "Add terms" / "Edit" / "Set end date" / "Remove terms" for
  * a holder of manage projects only, nothing of a purchase order, and none shown when the project has none.
  * Removing them is confirmed in a dialog of the page, never `window.confirm()`.
@@ -194,7 +194,7 @@ describe('adding terms to a hand-made project (AC-5.4, S5)', () => {
   })
 })
 
-describe('editing terms (specs/021 AC-1.7)', () => {
+describe('editing terms (specs/024 AC-1.7)', () => {
   it('opens the form on the stored terms, PATCHes with the terms version, and tells the page', async () => {
     const stored = termsOf('fixed_price', { deadline: '2026-12-01', estimatedManDays: null, maxEffortManDays: 40 })
     const card = renderCard(handMade('fixed_price', stored), true, {
@@ -224,7 +224,7 @@ describe('editing terms (specs/021 AC-1.7)', () => {
   })
 })
 
-describe('setting the end date (specs/021 AC-2.10)', () => {
+describe('setting the end date (specs/024 AC-2.10)', () => {
   const stored = termsOf('saas', { sla: null, hourPackage: null })
 
   it('asks for the date, PATCHes only the end date with the version, and tells the page', async () => {

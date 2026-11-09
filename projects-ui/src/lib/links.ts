@@ -1,5 +1,5 @@
 /**
- * Links to the sibling tools the shell mounts next to `/projects` (specs/022). They sit outside this
+ * Links to the sibling tools the shell mounts next to `/projects` (specs/025). They sit outside this
  * remote's router basepath, so they are plain `<a href>`, never router links; the target tool decides
  * access and shows its own unavailable state (AC-3.2).
  */

@@ -1,5 +1,5 @@
 /**
- * Taking a deal from the to-start queue (specs/022-projects-handoff T7 as reshaped by T23; AC-1.2 –
+ * Taking a deal from the to-start queue (specs/025-projects-handoff T7 as reshaped by T23; AC-1.2 –
  * AC-1.6, AC-1.8, AC-1.10, AC-3.1, AC-3.2): `POST /queue/{dealId}/project` makes a new project with
  * its terms and its purchase order from a won deal. There is no attach (D39): a deal that already
  * has a purchase order is `deal_taken`, and no route adds a purchase order to an existing project.
@@ -33,7 +33,7 @@
  * the purchase order: it is the AC-3.2 link.
  *
  * A body error names the field by its full path in the body (`terms.startDate`,
- * `terms.terms.deadline`): `terms` is `{ startDate, endDate?, terms }`, specs/021's contract shape.
+ * `terms.terms.deadline`): `terms` is `{ startDate, endDate?, terms }`, specs/024's contract shape.
  */
 
 import { OpenAPIHono, createRoute, z } from "@hono/zod-openapi";

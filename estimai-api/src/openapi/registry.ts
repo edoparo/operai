@@ -37,7 +37,7 @@ export function setupOpenAPI(app: OpenAPIHono): void {
         name: "System",
         description:
           "Health checks and service metadata; GET /system/estimates/{id}/summary for service " +
-          "principals (scoped service JWT, specs/022)",
+          "principals (scoped service JWT, specs/025)",
       },
     ],
   });

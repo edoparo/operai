@@ -128,7 +128,7 @@ export type DealEstimate = {
 
 export type EstimateOverride = { by: PersonRef; reason: string; at: string }
 
-/** The project that carries a deal and its contract's Bexio order id (specs/022 AC-3.4), read from projects-api. */
+/** The project that carries a deal and its contract's Bexio order id (specs/025 AC-3.4), read from projects-api. */
 export type Delivery = { project: { id: string; name: string }; bexioOrderId: string | null }
 
 export type Deal = DealSummary & {
@@ -139,7 +139,7 @@ export type Deal = DealSummary & {
   estimate: DealEstimate | null
   estimateOverride: EstimateOverride | null
   /**
-   * `GET /deals/{id}` only (specs/022 AC-3.4) — writes answer a deal without them, so the page carries
+   * `GET /deals/{id}` only (specs/025 AC-3.4) — writes answer a deal without them, so the page carries
    * them over. `deliveryKnown: false` means projects-api is not configured or did not answer: `delivery`
    * is then unknown, not "no project".
    */

@@ -128,14 +128,14 @@ function ReferentDialog({
 }
 
 /**
- * PurchaseOrderCard — the purchase order of a project made from a won deal (specs/022; ledger D38). It
+ * PurchaseOrderCard — the purchase order of a project made from a won deal (specs/025; ledger D38). It
  * shows the deal (a link to the CRM), the estimate the offer rested on (a link into EstimAI; a person
  * without access to it sees EstimAI's own unavailable state, AC-3.2), the ops-manager it was assigned to,
  * the referent, the Bexio order id, and — when the deal was reopened in the CRM — the notice "the deal is no
  * longer won": read live on every load, gone once the deal is won again, and the purchase order is never
  * changed by it (AC-2.3, AC-2.4, AC-3.3). Its terms are those of the project (`project.terms`) and change the
  * way a hand-made project's do (`TermsBlock`). Only a holder of the Bexio-order capability edits the order
- * id (specs/021 AC-3.1).
+ * id (specs/024 AC-3.1).
  *
  * There is no control that detaches a purchase order from its deal, moves it to another project or
  * deletes it (AC-1.10, D38, D39). A write tells the page (`onChanged`), which reads the project again; a

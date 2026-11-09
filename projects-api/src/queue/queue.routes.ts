@@ -1,5 +1,5 @@
 /**
- * The to-start queue (specs/022-projects-handoff T6; AC-1.1, AC-1.6, AC-2.1, AC-2.2, A20, A26):
+ * The to-start queue (specs/025-projects-handoff T6; AC-1.1, AC-1.6, AC-2.1, AC-2.2, A20, A26):
  * the won deals no project has taken yet.
  *
  * Nothing is stored or synced. Every read asks crm-api for its won deals (`wonDeals()`, as the
@@ -8,7 +8,7 @@
  * — by construction, with no event to miss. Taking a deal is `take.routes.ts`. A summary carries no amount, currency, owner
  * or notes: crm-api's `DealSummary` has none and this route copies only named members (D14).
  *
- * specs/022 T24: reading the queue needs `handoff:take` under ANY entity (sales, admin: AC-1.1, AC-1.9) —
+ * specs/025 T24: reading the queue needs `handoff:take` under ANY entity (sales, admin: AC-1.1, AC-1.9) —
  * a sales user of one entity reads the whole queue and takes its own entity's deals only. Two sibling
  * routes serve the take's form, both gated like the take and both deriving the entity / company from
  * the live deal (T18 M1): `GET /queue/{dealId}/ops-managers` (auth's holders of `purchase-order:receive`)

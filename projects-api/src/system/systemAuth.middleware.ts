@@ -1,5 +1,5 @@
 /**
- * systemAuthMiddleware (specs/022-projects-handoff T4, ADR-0060) — the ONLY auth for the
+ * systemAuthMiddleware (specs/025-projects-handoff T4, ADR-0077) — the ONLY auth for the
  * `/system/*` routes. Copied from crm-api's `src/system/systemAuth.middleware.ts` (itself
  * copied, minus the origin binding, from notify-api's, specs/015 T6, ADR-0044/0049): the same
  * credential, verified the same way, so every resource server that exposes a

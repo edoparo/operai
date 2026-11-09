@@ -1,5 +1,5 @@
 /**
- * Project states (specs/021 T6; AC-1.2, AC-1.3, AC-1.7, AC-4.4; the type change is gone, specs/022
+ * Project states (specs/024 T6; AC-1.2, AC-1.3, AC-1.7, AC-4.4; the type change is gone, specs/025
  * T23, A30). Runs the
  * ASSEMBLED app against the `*_test` database; auth and the identity service are the fakes of
  * test-support/world.ts. Projects are seeded straight in the database (the API under test is
@@ -159,7 +159,7 @@ describe("POST /projects/:id/transitions", () => {
   });
 });
 
-describe("a project awaiting its project manager cannot be started (specs/022 T27; AC-4.7, D48)", () => {
+describe("a project awaiting its project manager cannot be started (specs/025 T27; AC-4.7, D48)", () => {
   it.each(["pmCh", "opsCh", "admin"] as const)("refuses `planned` → `active` for %s: 409 `awaiting_project_manager`, nothing changes", async (as) => {
     const { project } = await seedDealProject();
     const res = await transition(project.id, "active", as);
@@ -168,14 +168,14 @@ describe("a project awaiting its project manager cannot be started (specs/022 T2
     expect(await db.project.findUniqueOrThrow({ where: { id: project.id } })).toMatchObject({ state: "planned", version: 1 });
   });
 
-  it.each(["on_hold", "cancelled"] as const)("still allows `planned` → %s: every other move is specs/021's", async (to) => {
+  it.each(["on_hold", "cancelled"] as const)("still allows `planned` → %s: every other move is specs/024's", async (to) => {
     const { project } = await seedDealProject();
     const res = await transition(project.id, to, "pmCh");
     expect(res.status).toBe(200);
     expect(res.json).toMatchObject({ state: to, projectManager: null, awaitingProjectManager: true });
   });
 
-  it("still refuses a move specs/021 refuses with its own code, and a stale version first", async () => {
+  it("still refuses a move specs/024 refuses with its own code, and a stale version first", async () => {
     const { project } = await seedDealProject();
     expect((await transition(project.id, "closed")).json).toMatchObject({ code: "invalid_transition" });
     expect((await transition(project.id, "active", "pmCh", 9)).json).toMatchObject({ code: "version_conflict" });
@@ -203,7 +203,7 @@ describe("a project awaiting its project manager cannot be started (specs/022 T2
   });
 });
 
-describe("the type of a project never changes (specs/022 A30, D40)", () => {
+describe("the type of a project never changes (specs/025 A30, D40)", () => {
   it.each(["pmCh", "admin", "viewer"] as const)("has no `PUT /projects/:id/type` any more, for %s: 404, nothing changes", async (as) => {
     const project = await seed({ version: 3 });
     const res = await call("PUT", `/projects/${project.id}/type`, { as, body: { type: "saas" }, ifMatch: 3 });

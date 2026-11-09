@@ -1,5 +1,5 @@
 /**
- * The after-take push to notify-api (specs/022 T25; AC-4.3, AC-4.4): `createNotifier` posts one
+ * The after-take push to notify-api (specs/025 T25; AC-4.3, AC-4.4): `createNotifier` posts one
  * notification to `POST /system/notifications` as the service principal, best-effort — nothing it
  * does throws, and nothing it logs carries a token, a title, a name or contact data. The network is
  * a recording `fetch` handed to the notifier; the routes' own wiring is tested in queue/take.test.ts.

@@ -1,10 +1,10 @@
 /**
- * The migration `*_purchase_order` (specs/022 T23) turns specs/021's schema (`contract`) into the
+ * The migration `*_purchase_order` (specs/025 T23) turns specs/024's schema (`contract`) into the
  * terms + purchase order model. It starts with a guard: data the new model cannot represent
  * unambiguously (a `contract` row, a `saas` project, which had no company) is handled by hand, so the
  * migration REFUSES to run over it; an empty or contract-free database migrates (no data conversion).
  *
- * Each case builds the 021 schema (`*_init`) in a scratch schema INSIDE a transaction, puts data in,
+ * Each case builds the 024 schema (`*_init`) in a scratch schema INSIDE a transaction, puts data in,
  * runs the migration, looks, and rolls everything back: nothing outlives the test and the shared
  * schema is never touched. Runs against the `*_test` database (src/test-support/env.ts).
  */
@@ -20,7 +20,7 @@ const migrationSql = (suffix: string): string => {
   return readFileSync(join(MIGRATIONS, dir, "migration.sql"), "utf-8");
 };
 
-/** `prisma/migrations` holds specs/021's `init` (as shipped) and this one, in that order, and nothing else. */
+/** `prisma/migrations` holds specs/024's `init` (as shipped) and this one, in that order, and nothing else. */
 const MIGRATION_DIRS = readdirSync(MIGRATIONS).filter((name) => name !== "migration_lock.toml").sort();
 
 type Tx = { unsafe(query: string): Promise<Record<string, unknown>[]> };
@@ -34,7 +34,7 @@ const databaseUrl = (): string => {
   return url.toString();
 };
 
-/** Runs `scenario` in a scratch schema holding specs/021's tables, then rolls everything back. */
+/** Runs `scenario` in a scratch schema holding specs/024's tables, then rolls everything back. */
 async function inScratchSchema(scenario: (tx: Tx) => Promise<void>): Promise<void> {
   const sql = new SQL(databaseUrl());
   try {
@@ -65,7 +65,7 @@ const seedProject = (id: string, type: string, companyId: string | null) =>
    VALUES ('${id}', 'P ${id}', '${type}', 'welld_ch', ${companyId === null ? "NULL" : `'${companyId}'`}, 'user-1', 'user-1', now())`;
 
 describe("the migrations directory", () => {
-  it("holds specs/021's init as shipped, then purchase_order, and nothing else (one new migration)", () => {
+  it("holds specs/024's init as shipped, then purchase_order, and nothing else (one new migration)", () => {
     expect(MIGRATION_DIRS).toHaveLength(2);
     expect(MIGRATION_DIRS[0]).toBe("20261103163000_init");
     expect(MIGRATION_DIRS[1]).toMatch(/^\d{14}_purchase_order$/);
@@ -134,7 +134,7 @@ describe("migration purchase_order — over a database it can represent", () => 
     });
   });
 
-  it("keeps the 021 terms CHECKs under their new names and adds terms_not_internal", async () => {
+  it("keeps the 024 terms CHECKs under their new names and adds terms_not_internal", async () => {
     await inScratchSchema(async (tx) => {
       expect(await migrationError(tx)).toBeNull();
       const names = (await tx.unsafe(

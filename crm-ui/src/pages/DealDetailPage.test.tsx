@@ -141,7 +141,7 @@ describe('DealDetailPage', () => {
     expect(screen.getByText(/You can see this deal but not change it/)).not.toBeNull()
   })
 
-  describe('Delivery card (specs/022 AC-3.4)', () => {
+  describe('Delivery card (specs/025 AC-3.4)', () => {
     const withDelivery = (extra: Record<string, unknown>): Record<string, FakeHandler> => ({
       'GET /deals/d1': () => ({ status: 200, body: { ...DEAL, stage: 'won', ...extra } }),
     })

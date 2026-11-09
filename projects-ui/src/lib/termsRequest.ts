@@ -1,5 +1,5 @@
 /**
- * The terms of a request (specs/022 AC-1.2, AC-1.8, AC-5.3): the dates and the members of the
+ * The terms of a request (specs/025 AC-1.2, AC-1.8, AC-5.3): the dates and the members of the
  * project's type, as the form holds them, built into the one `TermsInput` that a take
  * (`POST /queue/{dealId}/project`), a hand-made create (`POST /projects`) and the terms routes
  * carry — `{ startDate, endDate?, terms }`, the members nested under `terms`, as `Terms` reads back

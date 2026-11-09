@@ -190,7 +190,7 @@ Decided (the user chose):
   the existing **`sales`** role (BD) can create a project — from the queue or by hand —
   user, at 025 review ("il progetto lo possono aprire sia OPS che BD")
 
-Steering of 2026-11-04 (specs/022 re-opened at gate 1; nothing of 021/022 was on `main` yet):
+Steering of 2026-11-04 (specs/025 re-opened at gate 1; nothing of 024/022 was on `main` yet):
 - D37 (amends D2, A20) The **to-start queue is for the sales team only**: it is seen by
   `sales` (BD) and admins, and only they create a project from a deal. The project-manager
   role no longer sees the queue nor takes deals — user ("no to start a tutti, ma solo al team
@@ -313,11 +313,11 @@ Added at the 2026-11-04 steering (my defaults, not asked; strike any that is wro
   it links to the project.
 - A32 The rename of D38 is applied everywhere — spec language, UI copy (EN "Purchase order",
   IT "Ordine d'acquisto"), API and data model — so that code and domain use one word.
-- A33 A project created by hand keeps 021's type and company rules (a client type, `saas`
+- A33 A project created by hand keeps 024's type and company rules (a client type, `saas`
   now included, needs a company) and simply has no PO, hence no terms; it is created by any
   holder of manage projects and its creator is its project manager by default (D15
   unchanged for it).
-- A34 Once the ops-manager has picked the project manager, changing it later follows 021
+- A34 Once the ops-manager has picked the project manager, changing it later follows 024
   (any holder of manage projects for the entity).
 - A35 The `ops-manager` role holds module access and entity-scoped manage projects (like the
   project-manager role) plus being assignable as a PO's ops-manager.
@@ -340,9 +340,9 @@ Open (unresolved — each needs an owner):
 
 ---
 
-## Grilling of 2026-11-05 — specs/022 amended spec (steering D37–D42)
+## Grilling of 2026-11-05 — specs/025 amended spec (steering D37–D42)
 
-target: specs/022-projects-handoff/spec.md (status in-progress, gate 1 re-opened) · complete: true (tree resolved)
+target: specs/025-projects-handoff/spec.md (status in-progress, gate 1 re-opened) · complete: true (tree resolved)
 
 ### Decision map
 - G1 Creation split: what BD fills when creating project + PO from a deal (type, PO dates
@@ -357,10 +357,10 @@ target: specs/022-projects-handoff/spec.md (status in-progress, gate 1 re-opened
   independent
 - G7 The ops-manager's notification: language, failure (Q5, S1) — leaf of G2
 
-### Decision ledger — specs/022 steering, grilled
+### Decision ledger — specs/025 steering, grilled
 Decided (the user chose):
 - D43 (G1) **BD fills everything** when creating project + PO from a deal: type, PO start
-  and optional end date, and the type's terms under specs/021's rules (e.g. a fixed price
+  and optional end date, and the type's terms under specs/024's rules (e.g. a fixed price
   needs its deadline and max effort); holders of manage projects correct them afterwards
   — recommended option chosen (the terms are in the offer BD wrote; as built, F13)
 - D44 (G2, closes Q1) A PO's ops-manager is chosen among the holders of the `ops-manager`
@@ -376,9 +376,9 @@ Decided (the user chose):
   an admin" and over the amended spec's "any holder of manage projects" (AC-4.8)
 - D47 (G3) If the assignee is away or leaves, **an admin picks the project manager in their
   place**; there is **no reassigning a PO** in v1 — recommended option chosen, asked as a
-  consequence of D46 (admins already hold every capability, specs/021 AC-4.6)
+  consequence of D46 (admins already hold every capability, specs/024 AC-4.6)
 - D48 (G4, closes Q2) While a project awaits its project manager, **`planned` → `active` is
-  refused** with a message; every other edit and state move follows specs/021 as usual —
+  refused** with a message; every other edit and state move follows specs/024 as usual —
   user chose this over the recommended "no restriction" (replaces S2 and the amended
   AC-4.7)
 - D49 (G5, closes Q4) A PO's page shows its referent's **name, job title, email and phone,
@@ -393,7 +393,7 @@ Decided (the user chose):
   potrebbe avere il termine; il PM è chi lo crea, modificabile"), then the recommended
   reading "the type's terms, optional" chosen when asked what "il termine" meant
 - D51 (G7, closes Q5) The ops-manager's notification is **English only**, like the CRM's
-  (F16) — a declared exception to specs/021 AC-4.7's EN+IT copy — recommended option chosen
+  (F16) — a declared exception to specs/024 AC-4.7's EN+IT copy — recommended option chosen
 Delegated (the user deferred to the recommendation):
 - (none)
 Found (read from the repo, not asked):
@@ -415,7 +415,7 @@ Assumed (not load-bearing; strike any that is wrong):
 - A37 (G5) Referent candidates are the non-archived contacts of the PO's company (S4); any
   holder of manage projects for the entity sets, changes or clears it (amended AC-3.7)
 - A38 (G6) On a hand-made project the terms are optional as a whole; once entered they
-  follow specs/021's per-type rules (a fixed price's deadline and max effort together, a
+  follow specs/024's per-type rules (a fixed price's deadline and max effort together, a
   maintenance's SLA or hour package, positions > 0)
 Open (unresolved — each needs an owner):
 - (none from this session; O1 of the spec stays open as before)
@@ -426,21 +426,21 @@ terms can be removed as a whole) and S6 (a referent archived after being chosen 
 accepted; one spec, no split; glossary updated (purchase order, PO's deal, terms, hand-made
 project, referent, ops-manager, awaiting a project manager; "contract" retired).
 
-Constraint of 2026-11-05 (user, after the gate): *"la nuova PR sarà on top alla 7"* — the 022
-PR is stacked on the open PR #7 (specs/021 as written). 021's migration `20261103163000_init`
-therefore ships first and is kept; only 022's never-shipped `*_handoff` migration is
-replaced, by a guarded `*_purchase_order` migration on top (specs/022 tasks.md).
+Constraint of 2026-11-05 (user, after the gate): *"la nuova PR sarà on top alla 7"* — the 025
+PR is stacked on the open PR #7 (specs/024 as written). 024's migration `20261103163000_init`
+therefore ships first and is kept; only 025's never-shipped `*_handoff` migration is
+replaced, by a guarded `*_purchase_order` migration on top (specs/025 tasks.md).
 
-Defect found during the 022 QE window (2026-11-05), added to specs/022 by the user:
+Defect found during the 025 QE window (2026-11-05), added to specs/025 by the user:
 - D52 **Browser back/forward across suite modules shows the right page.** Every remote module
   (admin, crm, estimai, inventory, notify, projects, refund) builds its router once at module
   load; after the shell switches module and the user comes back with the browser's back
   button, the module renders a page matched from the *other* module's address (projects-ui:
   `GET /projects/admin` → "Project not found"; crm-ui: "This page does not exist"). Pre-existing
-  since specs/017/021, not caused by 022. User chose "Dentro la 022" over the recommended
-  "separate bugfix after 022" — gate 1 re-opened (35 → 36 ACs).
-- D53 (2026-11-06, after the 022 QE round 2 PASS) Two more defects go **into 022**, by the
-  user's choice ("Dentro la 022") over the recommended "close 022, separate bugfixes after":
+  since specs/017/024, not caused by 022. User chose "Dentro la 022" over the recommended
+  "separate bugfix after 025" — gate 1 re-opened (35 → 36 ACs).
+- D53 (2026-11-06, after the 025 QE round 2 PASS) Two more defects go **into 025**, by the
+  user's choice ("Dentro la 022") over the recommended "close 025, separate bugfixes after":
   **D4** — the browser's back/forward *inside* one module changes the address but not the page
   (e.g. `/projects` → "To start" → back still shows "To start"; same in the CRM); pre-existing
   (reproduced at the pre-T37 code), every remote module. **D2 remainder** — a field's error

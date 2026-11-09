@@ -1,4 +1,4 @@
-# Security review (design) — specs/022 referent read and ops-manager holders
+# Security review (design) — specs/025 referent read and ops-manager holders
 
 Task T18 · reviewer: `wellforge:owasp-reviewer` · date: 2026-11-05 · scope: the contracts of
 `tasks.md` § API contracts for auth `GET /authz/users/holders` (T20), crm-api
@@ -17,7 +17,7 @@ folded into `tasks.md` § API contracts and § Security rules (2026-11-05); no A
 | M1 | A01 / minimisation — `GET /companies/{id}/contacts` | Gated by `project:manage` under any entity with a client-chosen company id: a CRM contact directory for non-CRM users (company ids are listable through `GET /companies?q=`) | Removed; replaced by `GET /queue/{dealId}/contacts` and `GET /projects/{id}/purchase-order/contacts`, the company derived by the server (T24, T26) |
 | M2 | A01 / minimisation — `GET /system/contacts` | One shape with email and phone in bulk mode makes a credential or route compromise a full contact export | Per-mode shapes with explicit `select` (bulk: id, names, job title; `ids`: the full display set), `ids` ≤ 20, id format checked, key-set contract test; `crm.contacts.read` for projects-api only (T21, T35) |
 | M3 | A01 / privacy, TOCTOU — referent | Validated at set time, shown for ever: a contact later moved to another company would show to every access holder | The same predicate at read and set: exact id match and the project's / live deal's company; otherwise `referent: null`; id charset rule (T24, T26) |
-| M4 | A01 / ADR-0047 — holders listing | The directory gate admits asset and deal managers without projects access; email and entity not needed | Gate `handoff:take`, own limiter, `no-store`, strict query, shape `{ id, name, unconditioned }`; ADR-0063 records the ADR-0047 amendment (T20, T34) |
+| M4 | A01 / ADR-0047 — holders listing | The directory gate admits asset and deal managers without projects access; email and entity not needed | Gate `handoff:take`, own limiter, `no-store`, strict query, shape `{ id, name, unconditioned }`; ADR-0080 records the ADR-0047 amendment (T20, T34) |
 | M5 | A02 / A04 — "live, never copied" | No `Cache-Control` in projects-api; an in-process cache habit (identities, 60 s) would keep an erased contact visible | No contact cache anywhere; `Cache-Control: no-store` on every referent / contact response; UI keeps it in memory only; no referent data in the system route, notification or logs (T26, T32, § Security rules) |
 
 ## Low (folded in or deferred)
@@ -78,5 +78,5 @@ Lows (notes, not defects; candidates for a follow-up hardening bugfix):
 6. No per-caller limit on the ops-managers / contacts fan-out in projects-api (L7's other side).
 7. projects-api drops crm's `truncated` on the company-contacts mode (picker silently capped
    at 500).
-8. `no-store` missing on the holders route's 400/401; stale 021 `contract:bexio` rules not
+8. `no-store` missing on the holders route's 400/401; stale 024 `contract:bexio` rules not
    pruned by the seed; no audit line for refusals.

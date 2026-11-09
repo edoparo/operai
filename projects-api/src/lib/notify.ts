@@ -1,5 +1,5 @@
 /**
- * The after-take notification (specs/022 T25; AC-4.3, AC-4.4): one in-app push to the purchase order's
+ * The after-take notification (specs/025 T25; AC-4.3, AC-4.4): one in-app push to the purchase order's
  * ops-manager through notify-api's `POST /system/notifications`, authenticated with the scoped service
  * JWT from `serviceToken.ts` (`notifications.push`). notify-api binds `system:projects-api` to
  * `originApp: "projects"`. The pattern is crm-api's `src/lib/notify.ts`, cut down to one event and one

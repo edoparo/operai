@@ -14,7 +14,7 @@ const today = (): string => {
 }
 
 /**
- * EndTermsDialog — ending terms is setting their end date (specs/021 AC-2.10); the terms stay on the
+ * EndTermsDialog — ending terms is setting their end date (specs/024 AC-2.10); the terms stay on the
  * project. Sends only `endDate` with the terms' `version` as If-Match; a stale save closes the dialog
  * and is the page's (`onStale`).
  */

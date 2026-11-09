@@ -1,5 +1,5 @@
 /**
- * Taking a deal from the to-start queue (specs/022 T7 as reshaped by T23; AC-1.2 – AC-1.6, AC-1.8,
+ * Taking a deal from the to-start queue (specs/025 T7 as reshaped by T23; AC-1.2 – AC-1.6, AC-1.8,
  * AC-1.10, AC-3.1, AC-3.2, AC-3.5): `POST /queue/{dealId}/project` makes a new project with its terms
  * and its purchase order, with no project manager. Runs the ASSEMBLED app against the `*_test`
  * database; the CRM and EstimAI are the fakes of test-support/world.ts.
@@ -24,7 +24,7 @@ beforeEach(async () => {
   ];
 });
 
-/** The `terms` member of a take, specs/021's contract shape: `{ startDate, endDate?, terms }` (specs/022 AC-1.8). */
+/** The `terms` member of a take, specs/024's contract shape: `{ startDate, endDate?, terms }` (specs/025 AC-1.8). */
 const start = { startDate: "2026-12-01" };
 const TERMS = {
   fixed_price: { ...start, terms: { deadline: "2027-03-31", maxEffortManDays: 55.5 } },

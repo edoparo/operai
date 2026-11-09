@@ -1,5 +1,5 @@
 /**
- * The referent on a purchase order (specs/022 T26; AC-3.6, AC-3.7, AC-3.8, S6; T18 M1, M3, M5, L1, L6, L7):
+ * The referent on a purchase order (specs/025 T26; AC-3.6, AC-3.7, AC-3.8, S6; T18 M1, M3, M5, L1, L6, L7):
  * the picker `GET /projects/:id/purchase-order/contacts`, the edit `PATCH /projects/:id/purchase-order`, and
  * the referent in the echoes. The live read on `GET /projects/:id` is tested with the project page
  * (src/projects/projects.test.ts). Runs the ASSEMBLED app against the `*_test` database; auth and the CRM are

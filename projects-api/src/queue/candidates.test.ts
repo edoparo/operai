@@ -1,5 +1,5 @@
 /**
- * What the take's form asks the server for (specs/022 T24; AC-1.2, AC-3.6, AC-4.1, AC-4.2, T18 M1):
+ * What the take's form asks the server for (specs/025 T24; AC-1.2, AC-3.6, AC-4.1, AC-4.2, T18 M1):
  *   GET /queue/:dealId/ops-managers  the people who may be the purchase order's ops-manager, from auth
  *   GET /queue/:dealId/contacts      the deal company's CRM contacts, for the referent
  * Both are gated like the take (`handoff:take` and `project:manage` for the DEAL's entity), derive the

@@ -1,5 +1,5 @@
 /**
- * auth client for the holders of `purchase-order:receive` (specs/022 T24; AC-4.1, AC-4.2, T18 M4,
+ * auth client for the holders of `purchase-order:receive` (specs/025 T24; AC-4.1, AC-4.2, T18 M4,
  * L4): who may be the ops-manager of a purchase order taken from a deal of an entity. It backs both
  * the picker (`GET /queue/{dealId}/ops-managers`) and the take's re-validation of the choice.
  *

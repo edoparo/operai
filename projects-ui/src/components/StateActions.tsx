@@ -53,7 +53,7 @@ function refusalMessage(failure: unknown): string {
 }
 
 /**
- * StateActions — the page actions that move a project's state (specs/021 AC-1.3). Only the moves the
+ * StateActions — the page actions that move a project's state (specs/024 AC-1.3). Only the moves the
  * matrix allows from the current state are rendered; cancelling, which cannot be undone, asks first.
  * There is no type change: a project's type never changes (A30). A `planned` project that awaits its
  * project manager cannot be started: "Start project" is disabled and says why next to the actions — the

@@ -49,15 +49,15 @@ import { createHash, timingSafeEqual } from "node:crypto";
  *   estimate-request task, completion, meeting-host state and contact erasure
  *   (specs/028, ADR-0081/0082). Only crm-api holds it; activities-api's sub
  *   allowlist names `system:crm-api`.
- * - `crm.deals.read`: read won deals through crm-api's `GET /system/deals` (specs/022).
+ * - `crm.deals.read`: read won deals through crm-api's `GET /system/deals` (specs/025).
  *   Only projects-api holds it.
  * - `estimai.estimates.read`: read an estimate's man-days through estimai-api's
- *   `GET /system/estimates/{id}/summary` (specs/022). Only projects-api holds it.
+ *   `GET /system/estimates/{id}/summary` (specs/025). Only projects-api holds it.
  * - `crm.contacts.read`: read a company's contacts, or contacts by id (the referent of a
- *   purchase order), through crm-api's `GET /system/contacts` (specs/022, D49). Only
+ *   purchase order), through crm-api's `GET /system/contacts` (specs/025, D49). Only
  *   projects-api holds it.
  * - `projects.purchase-orders.read`: read the purchase orders of given deals through
- *   projects-api's `GET /system/purchase-orders` (specs/022; was `projects.contracts.read`,
+ *   projects-api's `GET /system/purchase-orders` (specs/025; was `projects.contracts.read`,
  *   retired with "contract", D38). Only crm-api holds it.
  */
 export const KNOWN_SERVICE_SCOPES = [

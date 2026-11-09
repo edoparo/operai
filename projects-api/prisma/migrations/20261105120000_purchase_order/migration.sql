@@ -1,7 +1,7 @@
--- specs/022-projects-handoff T23: contract → project terms + purchase order.
+-- specs/025-projects-handoff T23: contract → project terms + purchase order.
 --
 -- A project has 0..1 terms (what the `contract` table held, minus its deal and Bexio columns) and
--- 0..1 purchase order (new: what a won deal brings). Built on specs/021's `*_init`, which ships first
+-- 0..1 purchase order (new: what a won deal brings). Built on specs/024's `*_init`, which ships first
 -- and is never edited.
 --
 -- NO DATA CONVERSION. What the new model cannot represent unambiguously is refused by the guard below
@@ -56,7 +56,7 @@ DROP TYPE "ContractOrigin";
 DROP INDEX "contract_projectId_idx";
 CREATE UNIQUE INDEX "project_terms_projectId_key" ON "project_terms"("projectId");
 
--- Every specs/021 CHECK stays, renamed; terms never sit on an internal project (D38, D50).
+-- Every specs/024 CHECK stays, renamed; terms never sit on an internal project (D38, D50).
 ALTER TABLE "project_terms" RENAME CONSTRAINT "contract_dates_ordered" TO "terms_dates_ordered";
 ALTER TABLE "project_terms" RENAME CONSTRAINT "contract_fixed_price_terms" TO "terms_fixed_price_terms";
 ALTER TABLE "project_terms" RENAME CONSTRAINT "contract_estimated_man_days_non_negative" TO "terms_estimated_man_days_non_negative";

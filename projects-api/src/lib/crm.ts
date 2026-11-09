@@ -1,5 +1,5 @@
 /**
- * crm-api client for CRM companies (specs/021-projects T5, ADR-0059) and deals (specs/022 T5, ADR-0060).
+ * crm-api client for CRM companies (specs/024-projects T5, ADR-0076) and deals (specs/025 T5, ADR-0077).
  *
  * projects-api reads `GET /system/companies` as ITSELF: a 5-minute service JWT with scope
  * `crm.companies.read` (`serviceTokens`, ADR-0044/0049), never the caller's token — a
@@ -16,7 +16,7 @@
  * synced: `wonDeals()` (the to-start queue's source) and `dealsById(ids)` (a purchase order's deal) throw
  * `CrmUnavailableError`; the route decides between a 503 and degrading to unknown.
  *
- * Contacts (specs/022 T24, scope `crm.contacts.read`) are read the same way and are personal data of a
+ * Contacts (specs/025 T24, scope `crm.contacts.read`) are read the same way and are personal data of a
  * third party: `companyContacts(companyId)` for the referent picker, `contactsById(ids)` for the checks,
  * `assertValidReferent(id, companyId)` for a referent being set. Never cached, never stored.
  *
@@ -153,7 +153,7 @@ export async function orCrmUnavailable<T>(lookup: Promise<T>): Promise<T> {
   }
 }
 
-// ─── Deals (specs/022) ───────────────────────────────────────────────────────
+// ─── Deals (specs/025) ───────────────────────────────────────────────────────
 
 export type CrmDealStage = "lead" | "qualified" | "proposal" | "negotiation" | "won" | "lost";
 
@@ -192,7 +192,7 @@ export async function dealsById(ids: readonly string[]): Promise<Map<string, Crm
   return found;
 }
 
-// ─── Contacts (specs/022 T24; T18 M1, M3, L1, L3) ────────────────────────────
+// ─── Contacts (specs/025 T24; T18 M1, M3, L1, L3) ────────────────────────────
 
 /**
  * The CRM contacts of a purchase order's company, read as the service principal (`crm.contacts.read`,

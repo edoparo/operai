@@ -1,8 +1,8 @@
 /**
- * The terms of a project (specs/021 T8 as renamed by specs/022 T23; AC-1.7, AC-1.8, AC-2.1 – AC-2.10,
+ * The terms of a project (specs/024 T8 as renamed by specs/025 T23; AC-1.7, AC-1.8, AC-2.1 – AC-2.10,
  * AC-3.1, AC-5.2 – AC-5.4). Runs the ASSEMBLED app against the `*_test` database; auth and the CRM are
  * the fakes of test-support/world.ts. Projects are seeded straight in the database (the API under test
- * is not its own fixture). The wire shape is specs/021's contract shape, renamed:
+ * is not its own fixture). The wire shape is specs/024's contract shape, renamed:
  * `{ startDate, endDate?, terms }` in, `{ id, type, startDate, endDate, terms, version }` out.
  */
 import { beforeEach, describe, expect, it } from "bun:test";
@@ -622,7 +622,7 @@ describe("DELETE /projects/:id/terms — hand-made projects only (AC-5.4, S5)", 
   });
 });
 
-// ─── A project made by hand through POST /projects (specs/022 T28) ───────────
+// ─── A project made by hand through POST /projects (specs/025 T28) ───────────
 
 describe("the terms of a project made through POST /projects can be added, edited and removed later (AC-5.2, AC-5.4, S5, A38)", () => {
   /** The project as the API makes it: the creation route is the fixture here, not the database. */
@@ -693,7 +693,7 @@ describe("the terms of a project made through POST /projects can be added, edite
 
 // ─── Retired routes ──────────────────────────────────────────────────────────
 
-describe("the contract routes of specs/021 are gone (specs/022 D38)", () => {
+describe("the contract routes of specs/024 are gone (specs/025 D38)", () => {
   it.each([
     ["POST", "/projects/p1/contracts"],
     ["GET", "/projects/p1/contracts/c1"],

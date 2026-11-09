@@ -1,6 +1,6 @@
 /**
- * Making terms: the rules and the row, shared by every way terms are born (specs/021 T8 by hand as
- * `POST /projects/{id}/terms`, specs/022 T23 with a project in the take of a deal). The routes own
+ * Making terms: the rules and the row, shared by every way terms are born (specs/024 T8 by hand as
+ * `POST /projects/{id}/terms`, specs/025 T23 with a project in the take of a deal). The routes own
  * the request, the guards and the answer; this module owns what a project must satisfy to take terms
  * and the data they are stored with, so the by-hand route and the take cannot drift apart.
  */

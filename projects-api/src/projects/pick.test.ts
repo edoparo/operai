@@ -1,5 +1,5 @@
 /**
- * The project-manager pick and the awaiting state (specs/022 T27; AC-4.5, AC-4.7, AC-4.8, AC-4.9; D46, D47,
+ * The project-manager pick and the awaiting state (specs/025 T27; AC-4.5, AC-4.7, AC-4.8, AC-4.9; D46, D47,
  * D48; T18 L5, L6). Runs the ASSEMBLED app against the `*_test` database; auth, the identity service and
  * crm-api are the fakes of test-support/world.ts. Projects are seeded straight in the database.
  *
@@ -191,7 +191,7 @@ describe("picking the project manager of an awaiting project (AC-4.8, D46, D47)"
     expect(events).toEqual([]);
   });
 
-  describe("after the pick, the project manager changes as in specs/021 (AC-4.8, AC-4.9)", () => {
+  describe("after the pick, the project manager changes as in specs/024 (AC-4.8, AC-4.9)", () => {
     it("lets any holder of manage projects for the entity change it, not only the ops-manager", async () => {
       const { project } = await seedDealProject({ project: { projectManagerId: "user-colleague" } });
       expect((await patch(project.id, { projectManagerId: "user-viewer" }, "pmCh", 1)).status).toBe(200);
@@ -245,7 +245,7 @@ describe("canPickProjectManager: conditions decide, not the presence of a grant 
   });
 });
 
-describe("every other edit of an awaiting project follows specs/021 (AC-4.7)", () => {
+describe("every other edit of an awaiting project follows specs/024 (AC-4.7)", () => {
   it("lets any holder of manage projects of the entity rename it, and it still awaits", async () => {
     const { project } = await seedDealProject();
     for (const [i, as] of (["pmCh", "salesCh", "opsCh"] as const).entries()) {

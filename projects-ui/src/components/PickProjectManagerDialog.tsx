@@ -9,7 +9,7 @@ import PersonPicker from './PersonPicker'
 import type { PersonChoice } from './PersonPicker'
 
 /**
- * PickProjectManagerDialog — the first project manager of a project made from a deal (specs/022 AC-4.8, D42,
+ * PickProjectManagerDialog — the first project manager of a project made from a deal (specs/025 AC-4.8, D42,
  * D46): picked among the people who hold access to the module, the same picker as the project's own manager
  * (ADR-0055), and sent as `PATCH /projects/{id}` `{ projectManagerId }` with the project's version as
  * If-Match. Only the purchase order's ops-manager and an admin are offered it (the page gates it; the server

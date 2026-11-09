@@ -1,5 +1,5 @@
 /**
- * `SERVICE_AUDIENCE` (specs/022 T2, ADR-0061): the `aud` of the service JWTs accepted on
+ * `SERVICE_AUDIENCE` (specs/025 T2, ADR-0078): the `aud` of the service JWTs accepted on
  * `/system/*`. Optional (unset → every `/system/*` request is a 401, fail closed) but never
  * equal to AUTH_AUDIENCE, or a user JWT would pass for a system credential.
  *

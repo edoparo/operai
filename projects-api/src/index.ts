@@ -57,7 +57,7 @@ app.use(
 );
 
 // ─── Routes ──────────────────────────────────────────────────────────────────
-// Every area router is mounted here, once. specs/022 T6–T8 fill the queue and take stubs in; none edits this file.
+// Every area router is mounted here, once. specs/025 T6–T8 fill the queue and take stubs in; none edits this file.
 
 app.route("/", healthRouter);
 app.route("/", scopeRouter);

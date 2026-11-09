@@ -534,7 +534,7 @@ describe("env-doctor checker — meetings (specs/021)", () => {
       "inventory-api": { secret: CLIENT_SECRET, scope: "notifications.push" },
       "estimai-api": { secret: CLIENT_SECRET_EST, scope: "notifications.push estimate-notices.send" },
       "refund-api": { secret: CLIENT_SECRET_REF, scope: "notifications.push emails.send" },
-      // crm-api holds a client of its own since specs/022 (it reads projects-api), required in production.
+      // crm-api holds a client of its own since specs/025 (it reads projects-api), required in production.
       "crm-api": { secret: "k".repeat(40), scope: "notifications.push emails.send projects.purchase-orders.read" },
       "meetings-api": { secret, scope },
     });
@@ -813,10 +813,10 @@ describe("env-doctor checker — meetings (specs/021)", () => {
   });
 });
 
-// The suite with crm-api and projects-api added, in its current (specs/022) shape: both hold a service
+// The suite with crm-api and projects-api added, in its current (specs/025) shape: both hold a service
 // client, projects-api reads crm-api and estimai-api and notifies through notify-api, crm-api reads
-// projects-api, and all of auth, notify-api, estimai-api, crm-api and projects-api share one SERVICE_AUDIENCE. Used by the specs/021
-// and specs/022 blocks below.
+// projects-api, and all of auth, notify-api, estimai-api, crm-api and projects-api share one SERVICE_AUDIENCE. Used by the specs/024
+// and specs/025 blocks below.
 const CLIENT_SECRET_PROJECTS = "p".repeat(40);
 const CLIENT_SECRET_CRM = "m".repeat(40);
 const PROJECTS_SCOPES = "crm.companies.read crm.deals.read crm.contacts.read estimai.estimates.read notifications.push";
@@ -864,9 +864,9 @@ function projectsSuite(): SuiteEnv {
 }
 const LOCAL = { env: "local", isProdLike: false };
 
-// specs/021-projects: projects-api (a new resource server) reads CRM companies from crm-api with a scoped
+// specs/024-projects: projects-api (a new resource server) reads CRM companies from crm-api with a scoped
 // service credential; crm-api gains SERVICE_AUDIENCE. The baseline is the suite above plus the two services.
-describe("env-doctor checker — projects-api and the crm-api service audience (specs/021)", () => {
+describe("env-doctor checker — projects-api and the crm-api service audience (specs/024)", () => {
   test("a fully-correct suite with projects-api and crm-api passes with no errors or warnings", () => {
     const f = checkSuite(projectsSuite(), PROD);
     expect(errs(f)).toEqual([]);
@@ -957,12 +957,12 @@ describe("env-doctor checker — projects-api and the crm-api service audience (
   });
 });
 
-// specs/022-projects-handoff: the CRM and projects-api read each other over service credentials, and
-// projects-api reads estimai-api for a deal's man-days (ADR-0060, ADR-0061). New keys: SERVICE_AUDIENCE on
+// specs/025-projects-handoff: the CRM and projects-api read each other over service credentials, and
+// projects-api reads estimai-api for a deal's man-days (ADR-0077, ADR-0078). New keys: SERVICE_AUDIENCE on
 // estimai-api and projects-api, ESTIMAI_INTERNAL_URL and NOTIFY_INTERNAL_URL on projects-api, PROJECTS_INTERNAL_URL
 // on crm-api; new scopes on the projects-api and crm-api clients (`crm.contacts.read` is projects-api's only);
 // crm-api's client is no longer notify-only.
-describe("env-doctor checker — the projects hand-off keys (specs/022)", () => {
+describe("env-doctor checker — the projects hand-off keys (specs/025)", () => {
   test("a fully-correct suite with the hand-off keys passes with no errors or warnings", () => {
     const f = checkSuite(projectsSuite(), PROD);
     expect(errs(f)).toEqual([]);
@@ -1079,9 +1079,9 @@ describe("env-doctor checker — the projects hand-off keys (specs/022)", () => 
     }
   });
 
-  test("service client: projects-api needs the specs/022 scopes besides crm.companies.read", () => {
+  test("service client: projects-api needs the specs/025 scopes besides crm.companies.read", () => {
     const s = projectsSuite();
-    s.auth!.SERVICE_CLIENTS = projectsRegistry("crm.companies.read"); // the specs/021 entry
+    s.auth!.SERVICE_CLIENTS = projectsRegistry("crm.companies.read"); // the specs/024 entry
     const text = errText(checkSuite(s, PROD));
     for (const scope of ["crm.deals.read", "crm.contacts.read", "estimai.estimates.read", "notifications.push"]) {
       expect(text).toContain(`entry "projects-api" lacks the "${scope}" scope`);

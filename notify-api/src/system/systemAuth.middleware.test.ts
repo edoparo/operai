@@ -146,7 +146,7 @@ describe("scoped service JWT", () => {
     expect(seen.origins).toEqual(["crm"]);
   });
 
-  it("system:projects-api may raise the projects origin and no other (specs/022 AC-4.3)", async () => {
+  it("system:projects-api may raise the projects origin and no other (specs/025 AC-4.3)", async () => {
     const { app, seen } = buildApp();
     const res = await post(app, bearer(await sign({ sub: "system:projects-api" })));
     expect(res.status).toBe(200);

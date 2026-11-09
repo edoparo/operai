@@ -11,7 +11,7 @@ import { strings } from '../strings'
 const MAX_LENGTH = 64
 
 /**
- * BexioOrderField — a purchase order's Bexio order id (specs/021 AC-3.1 – AC-3.3). Only a holder
+ * BexioOrderField — a purchase order's Bexio order id (specs/024 AC-3.1 – AC-3.3). Only a holder
  * of the Bexio-order capability (`GET /scope`'s `bexio`) gets an input; everyone
  * else reads the value, with no control (the server refuses them too). The id is
  * free text up to 64 characters, trimmed; an empty field clears it. Saving sends

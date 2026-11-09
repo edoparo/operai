@@ -71,7 +71,7 @@ function AwaitingNotice({ project, canPick, onPick }: { project: Project; canPic
 }
 
 /**
- * ProjectDetailPage — one project (specs/021 US-1; specs/022 US-2, US-3, US-4, US-5): its details with the dates
+ * ProjectDetailPage — one project (specs/024 US-1; specs/025 US-2, US-3, US-4, US-5): its details with the dates
  * from its terms, the team, the tasks (specs/028), and — by what the project has — a **Purchase order** card (a project made from a
  * won deal: the deal, the "no longer won" notice, the estimate, the Bexio order id, its terms) or a **Terms**
  * card (a hand-made one, which never has a purchase order, AC-5.2). A holder of manage projects for the

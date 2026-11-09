@@ -47,7 +47,7 @@ function typeFacts(stored: Terms): Fact[] {
 
 /**
  * TermsDetails — the terms of a project, read-only: the dates, then the terms of its type
- * (specs/021 AC-2.3 – AC-2.8). No amount, price or rate exists (AC-2.9). Shared by the purchase
+ * (specs/024 AC-2.3 – AC-2.8). No amount, price or rate exists (AC-2.9). Shared by the purchase
  * order card and the Terms card, so a project with a PO and a hand-made one read alike.
  */
 export default function TermsDetails({ terms }: { terms: Terms }) {

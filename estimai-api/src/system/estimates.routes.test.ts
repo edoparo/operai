@@ -1,5 +1,5 @@
 /**
- * GET /system/estimates/{id}/summary (specs/022 T2 — AC-3.1; ADR-0061): an estimate's
+ * GET /system/estimates/{id}/summary (specs/025 T2 — AC-3.1; ADR-0078): an estimate's
  * man-days read service-to-service by projects-api with a scoped service credential
  * (`estimai.estimates.read`). Real Postgres (compose, `estimai` database); the JWKS is an
  * in-memory one injected into the middleware, so no live `auth` is needed.

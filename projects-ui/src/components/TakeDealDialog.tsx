@@ -31,7 +31,7 @@ const formFieldOf = (field: string): string | null => {
 const GONE = ['deal_not_found', 'deal_not_won', 'deal_taken'] as const
 
 /**
- * TakeDealDialog — "New project" from a queued deal (specs/022 AC-1.2, AC-1.3, AC-4.1): the name
+ * TakeDealDialog — "New project" from a queued deal (specs/025 AC-1.2, AC-1.3, AC-4.1): the name
  * (prefilled from the deal's title, editable), a client type (time and material, fixed price,
  * maintenance or SaaS — `internal` has no company and no PO, so never comes from a deal), the
  * ops-manager that receives the purchase order and, in the same step, the PO's start and end date and

@@ -1,6 +1,6 @@
 /**
- * Project states (specs/021 T6; AC-1.2, AC-1.3, AC-1.7, AC-4.4). The type change of specs/021 is gone:
- * a project's type never changes (specs/022 A30, D40).
+ * Project states (specs/024 T6; AC-1.2, AC-1.3, AC-1.7, AC-4.4). The type change of specs/024 is gone:
+ * a project's type never changes (specs/025 A30, D40).
  *
  * A write on a project: `project:manage` for the project's entity, `If-Match` required,
  * compare-and-set on `version`. It answers `200 Project` like every other project write.
@@ -92,7 +92,7 @@ transitionsRouter.openapi(transitionRoute, async (c) => {
   const next = applyTransition(current, to);
   if (!next) throw conflict("invalid_transition", `A ${current.state} project cannot move to ${to}`);
   // A project made from a deal is not started before its ops-manager has picked its project manager (AC-4.7,
-  // D48); every other move, hold and cancellation included, is specs/021's as usual.
+  // D48); every other move, hold and cancellation included, is specs/024's as usual.
   if (to === "active" && isAwaitingProjectManager(current)) {
     throw conflict("awaiting_project_manager", "This project is awaiting its project manager and cannot be started yet");
   }

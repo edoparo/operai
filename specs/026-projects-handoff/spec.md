@@ -6,20 +6,20 @@ rigor: mvp
 created: 2026-11-03
 approved: 2026-11-06
 done: 2026-11-06
-depends-on: 021
+depends-on: 024
 ---
 
 # Projects hand-off — a won deal reaches OPS "in series"
 
 Decision ledger: `../025-projects/ledger.md` (shared with specs/025 and specs/027)
 
-> **Origin.** Split out of specs/021 on 2026-11-03 (ledger D33). specs/021 gives projects
+> **Origin.** Split out of specs/024 on 2026-11-03 (ledger D33). specs/024 gives projects
 > and their purchase order; this spec connects them to the CRM pipeline of specs/017 and
 > the estimates of specs/018, so that every won deal becomes a project with its purchase
 > order.
 
 > **Amended 2026-11-04 (steering, ledger D37–D42).** Gate 1 was re-opened by the user; nothing
-> of specs/021 or 022 was on `main` yet. What changed, and where each AC says so:
+> of specs/024 or 025 was on `main` yet. What changed, and where each AC says so:
 > - **Sales only** — the to-start queue and "new project from a deal" belong to `sales` and
 >   admins; the project manager no longer sees the queue (D37; supersedes D36's "OPS or BD
 >   take a deal" and A20).
@@ -76,18 +76,18 @@ fact — a mistake, or a client changing their mind — leaves the delivery side
 - **to-start queue** — the won deals that have no purchase order yet; seen by `sales` and
   admins only (D37).
 - **purchase order (PO)** — the delivery-side record of one won deal: what the first draft of
-  specs/021 called a "contract" (D38). A project has zero or one PO; a PO is born only from a
+  specs/024 called a "contract" (D38). A project has zero or one PO; a PO is born only from a
   won deal, together with its project; a project created by hand never gets one. It carries
   the deal, the client company, the project's type, a start date and optional end date, the
-  type-specific terms of specs/021 AC-2.3–2.8, the Bexio order id, the estimate link, a
+  type-specific terms of specs/024 AC-2.3–2.8, the Bexio order id, the estimate link, a
   referent and an ops-manager. It is not the offer PDF.
 - A PO's **deal** — the won deal a PO was made from. A deal feeds at most one PO, hence one
   project (D4, D39).
-- **terms** — the type-specific delivery terms of specs/021 AC-2.3–2.8 (deadline and max
+- **terms** — the type-specific delivery terms of specs/024 AC-2.3–2.8 (deadline and max
   effort, SLA, hour package, positions, licence period). On a project made from a deal they
   are always recorded, with its PO; on a hand-made project they are optional (D50). Where
   they are stored — on the PO, on the project, or both — is not decided here.
-- **hand-made project** — a project created directly, not from a deal (specs/021 AC-1.1). It
+- **hand-made project** — a project created directly, not from a deal (specs/024 AC-1.1). It
   has no PO, ever, and so no deal, Bexio order id, referent or ops-manager (D38, D50).
 - **referent** (referente) — the person at the client whom the delivery talks to: one of the
   CRM contacts of the PO's company; optional and changeable (D41). Its details are read live
@@ -123,11 +123,11 @@ project with its purchase order, so that no sold work is forgotten between sales
   is not in the queue, and a second "new project" for it is refused (D4).
 - ~~AC-1.7~~ — retired with attach (D39); a PO is still never deleted (see Non-goals).
 - AC-1.8 *(new, D38; amended D43)* Given the form of AC-1.2, then it also collects the PO's
-  start date, an optional end date and the terms of the chosen type as specs/021 AC-2.3–2.8
+  start date, an optional end date and the terms of the chosen type as specs/024 AC-2.3–2.8
   define them (`saas`: the licence period, an optional SLA and an optional hour package);
   terms that break one of those rules are refused naming the field, and nothing is created.
   Afterwards any holder of manage projects for the entity can correct the dates and the terms
-  (D43); the type itself never changes (specs/021 AC-1.2, D7).
+  (D43); the type itself never changes (specs/024 AC-1.2, D7).
 - AC-1.9 *(new, D37)* Given a user who is neither an admin nor a `sales` holder — a project
   manager, an ops-manager, accounting, any other holder of project access — then the project
   module's navigation shows no queue entry, and the queue and "new project" are refused
@@ -164,13 +164,13 @@ recorded, so that I do not retype it and I know whom to talk to at the client.
   opened, then it shows a link that opens the estimate in EstimAI; a person without access to
   it in EstimAI sees it as unavailable (D29, A16).
 - AC-3.3 *(amended: PO)* A PO shows the deal's title as a link to the CRM. The origin
-  "from deal" / "entered by hand" of specs/021 AC-2.1 no longer exists: every PO is from a
+  "from deal" / "entered by hand" of specs/024 AC-2.1 no longer exists: every PO is from a
   deal.
 - AC-3.4 *(amended: PO)* Given a deal that has a PO, when a CRM user opens the deal page, then
   it shows the project's name and the PO's Bexio order id (empty if none), read-only (D3;
   built at `crm-api/src/lib/projects.ts:1-4`).
 - AC-3.5 *(new)* Given a `fixed_price` PO is created from a deal that has no estimate, then
-  its estimated man-days may be typed or left empty (specs/021 AC-2.3).
+  its estimated man-days may be typed or left empty (specs/024 AC-2.3).
 - AC-3.6 *(new, D41; amended A37)* A PO has an optional referent chosen among the non-archived
   CRM contacts of the PO's company, in the form of AC-1.2 or later; a contact of another
   company, a contact with no company, an archived contact or an unknown contact is refused
@@ -209,27 +209,27 @@ choose who manages its project, so that each delivery starts with the right pers
 - AC-4.3 *(new, D42, A31; amended D51)* Given a project and PO created from a deal, then the
   PO's ops-manager receives one in-app notification that names the project and links to its
   page; no other user is notified and no email is sent. The notification text is English only
-  — a declared exception to specs/021 AC-4.7's English and Italian copy (D51).
+  — a declared exception to specs/024 AC-4.7's English and Italian copy (D51).
 - AC-4.4 *(new, S1)* Given the notification of AC-4.3 cannot be delivered, then the project
   and PO are still created and the project stays awaiting a project manager (AC-4.5).
 - AC-4.5 *(new, D42)* Given a project awaiting a project manager, when the projects list is
   opened, then its project-manager cell reads "Awaiting project manager" and not blank, and
-  the list's project-manager filter offers "none yet" (specs/021 AC-1.4).
+  the list's project-manager filter offers "none yet" (specs/024 AC-1.4).
 - AC-4.6 *(new, D42)* Given a project awaiting a project manager, when its page is opened,
   then it shows a notice naming the PO's ops-manager and linking to the PO.
 - AC-4.7 *(new, D42; amended D48)* Given a project awaiting a project manager, when a state
   move from `planned` to `active` is requested, then it is refused with a message saying why;
-  every other edit of the project and its PO, and every other state move, follows specs/021
+  every other edit of the project and its PO, and every other state move, follows specs/024
   AC-1.3 as usual.
 - AC-4.8 *(new, D42; amended D46, D47)* Given a project awaiting a project manager, when the
   person assigned as its PO's ops-manager at creation — or an admin, in their place — picks
   its project manager among the holders of project access, then the project shows that
   person, is no longer awaiting, and the notice of AC-4.6 is gone. Anyone else, another
   ops-manager and any other holder of manage projects included, gets no control to pick it and
-  the server refuses; a person without project access is refused with a message (specs/021
+  the server refuses; a person without project access is refused with a message (specs/024
   AC-1.6). A PO is not reassigned to another ops-manager in v1.
 - AC-4.9 *(new, A34)* Once a project has a project manager it cannot be left without one:
-  clearing it is refused; changing it follows specs/021 (any holder of manage projects for the
+  clearing it is refused; changing it follows specs/024 (any holder of manage projects for the
   entity).
 
 ### US-5 A hand-made project is told apart from a PO project
@@ -238,7 +238,7 @@ deal in the CRM — and know that it never has a purchase order, so that what is
 under a deal and what is not stay distinguishable.
 
 - AC-5.1 *(new, D50, A33)* Given a holder of manage projects for an entity creates a project
-  by hand (specs/021 AC-1.1), then they can choose any type — `t_and_m`, `fixed_price`,
+  by hand (specs/024 AC-1.1), then they can choose any type — `t_and_m`, `fixed_price`,
   `maintenance`, `saas` or `internal`; a company is required for every client type, `saas`
   included, and absent for `internal` (otherwise refused with a message); the creator is the
   project manager; the project is `planned` and is not awaiting a project manager; the
@@ -249,7 +249,7 @@ under a deal and what is not stay distinguishable.
   to set one, nobody is notified when it is created, and a request to give it a PO is
   refused (AC-1.10).
 - AC-5.3 *(new, D50, A38)* Given the creation form of a hand-made project, then it offers the
-  terms of the chosen type (specs/021 AC-2.3–2.8) as optional: a project is created either
+  terms of the chosen type (specs/024 AC-2.3–2.8) as optional: a project is created either
   with no terms or with a set of terms that meets the type's rules in full (a `fixed_price`'s
   deadline and max effort together, a `maintenance`'s SLA or hour package, a `t_and_m`'s
   positions each with man-days above zero, a `saas`'s licence period); an incomplete or
@@ -284,7 +284,7 @@ wrong page or an error.
   without any further navigation or reload. It holds for every remote module of the shell —
   admin, CRM, EstimAI, inventory, notifications (notify), projects and refund — and next to
   AC-6.1: moving between modules still lands on the right page. Today (QE round 2, finding D4,
-  `specs/022-projects-handoff/qe-report.md:104-106`; reproduced 2026-11-05, 3 of 3 each, on
+  `specs/025-projects-handoff/qe-report.md:104-106`; reproduced 2026-11-05, 3 of 3 each, on
   the dev stack, and at the code from before AC-6.1 was built): the address changes and the
   page does not — `/projects` → "To start" → back shows the address `/projects` with "To
   start" still on screen; project → back stays on the project; `/crm` → a company → back stays
@@ -306,7 +306,7 @@ have acted on it.
   project" from a deal in the queue), "Edit details" of a project, the terms dialog (adding the
   terms of a hand-made project and editing the terms of any project), the end-terms dialog
   ("Set end date") and the hand-made create dialog (already so, fixed in the QE fix rounds).
-  Today (QE round 2, finding D2, `specs/022-projects-handoff/qe-report.md:95-102`): in the
+  Today (QE round 2, finding D2, `specs/025-projects-handoff/qe-report.md:95-102`): in the
   take, edit-details and edit-terms dialogs the message and the invalid mark stay after the
   field is corrected, until the next submit (executed); in the end-terms dialog the same, by
   reading the source only (`projects-ui/src/components/EndTermsDialog.tsx:50,58,78`: the field
@@ -321,7 +321,7 @@ have acted on it.
   project (D39). A project that gathers several deals or several POs does not exist.
 - **A PO entered by hand**, on a hand-made or an existing project (D38). A hand-made project
   may carry terms (AC-5.3) but never a PO.
-- **Undoing a creation**: a project made from a deal by mistake is cancelled (specs/021
+- **Undoing a creation**: a project made from a deal by mistake is cancelled (specs/024
   AC-1.3); its deal does not return to the queue and its PO is never deleted (D34).
 - **Mapping offer templates to project types** (A5).
 - **Blocking a CRM reopen** because a project exists, or suspending the project
@@ -357,7 +357,7 @@ have acted on it.
 - A33 *(replaced by D50, A38)* A hand-made project may be of any type (a client type, `saas`
   included, needs a company; `internal` none); its creator is its project manager, changeable;
   it has no PO and may carry its type's terms, optionally.
-- A34 Once the ops-manager has picked the project manager, changing it follows specs/021.
+- A34 Once the ops-manager has picked the project manager, changing it follows specs/024.
 - A35 The `ops-manager` role holds project access and entity-scoped manage projects, and can be
   assigned as a PO's ops-manager.
 - A36 An entity with no `ops-manager` holder does not block creation: nothing is prefilled and
@@ -367,7 +367,7 @@ have acted on it.
   archiving: `specs/017-crm/spec.md:55-56`); any holder of manage projects for the entity
   sets, changes or clears it (D41, D49).
 - A38 On a hand-made project the terms are optional as a whole; once entered they follow
-  specs/021's per-type rules (D50).
+  specs/024's per-type rules (D50).
 - Retired by the steering: A12 (a project takes POs for its own company; no attach), A20 (the
   queue is readable by every access holder; replaced by D37) and A27 (a closed project takes
   no new PO; no attach).
@@ -400,7 +400,7 @@ Added by this spec, not in the ledger (strike any that is wrong):
   yes — the candidates are the role's holders for the entity and the admins; the prefill
   counts role holders only (AC-4.1, AC-4.2).
 - ~~Q2 Should `planned` → `active` be refused while a project awaits its project manager?~~
-  **Closed 2026-11-05 by D48:** yes, refused with a message; everything else as specs/021
+  **Closed 2026-11-05 by D48:** yes, refused with a message; everything else as specs/024
   (AC-4.7).
 - ~~Q3 If the assigned ops-manager is away or leaves, who picks the project manager?~~
   **Closed 2026-11-05 by D46, D47:** only the person assigned to the PO at creation picks it;
@@ -409,4 +409,4 @@ Added by this spec, not in the ledger (strike any that is wrong):
   2026-11-05 by D49:** name, job title, email and phone, read live from the CRM and never
   copied; a security check comes before implementation (AC-3.8–3.10).
 - ~~Q5 In which language is the ops-manager's notification?~~ **Closed 2026-11-05 by D51:**
-  English only, a declared exception to specs/021 AC-4.7 (AC-4.3).
+  English only, a declared exception to specs/024 AC-4.7 (AC-4.3).

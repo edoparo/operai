@@ -1,5 +1,5 @@
 /**
- * The man-days figure of an estimate (specs/022 T2, AC-3.1, ADR-0061): the **Expected**
+ * The man-days figure of an estimate (specs/025 T2, AC-3.1, ADR-0078): the **Expected**
  * effort WITHOUT AI gain — the sum over activities of PERT + risk buffer, unrounded, rounded
  * half up once to one decimal. It is the figure an offer prints when "AI-assisted" is off.
  *
