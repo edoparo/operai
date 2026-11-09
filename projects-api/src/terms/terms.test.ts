@@ -266,6 +266,34 @@ describe("POST /projects/:id/terms — which project takes terms (AC-5.2, AC-5.3
     expect(await termsCount()).toBe(0);
   });
 
+  it("refuses terms when the project is closed between the check and the insert (409 `project_not_open`)", async () => {
+    const project = await seed("fixed_price", { state: "active" });
+    let release!: () => void;
+    const held = new Promise<void>((resolve) => (release = resolve));
+    let locked!: () => void;
+    const lockTaken = new Promise<void>((resolve) => (locked = resolve));
+    // A concurrent close: it holds the project row, closes it, and commits only after the
+    // create has read the (still active) project and is waiting for the row.
+    const close = db.$transaction(
+      async (tx) => {
+        await tx.$queryRaw`SELECT 1 FROM "project" WHERE "id" = ${project.id} FOR UPDATE`;
+        await tx.project.update({ where: { id: project.id }, data: { state: "closed" } });
+        locked();
+        await held;
+      },
+      { timeout: 10_000 },
+    );
+    await lockTaken;
+    const pending = create(project.id, { ...start, terms: TERMS.fixed_price });
+    await Bun.sleep(200);
+    release();
+    await close;
+    const res = await pending;
+    expect(res.status).toBe(409);
+    expect(res.json).toMatchObject({ status: 409, code: "project_not_open", state: "closed" });
+    expect(await termsCount()).toBe(0);
+  });
+
   it.each([{ state: "planned" }, { state: "active" }, { state: "on_hold", stateBeforeHold: "active" }] as const)(
     "takes terms on a $state project",
     async (over) => {

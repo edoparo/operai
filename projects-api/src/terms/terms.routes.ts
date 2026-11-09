@@ -138,13 +138,24 @@ termsRouter.openapi(createTermsRoute, async (c) => {
   assertCanManage(c, project.entity);
   assertTakesTerms({ ...project, hasTerms: project.terms !== null });
   const terms = parseTerms(project.type, body.terms ?? {});
-  const row = await db.projectTerms
-    .create({
-      data: {
-        projectId: id,
-        ...termsCreateData({ type: project.type, startDate: body.startDate, endDate: body.endDate, terms }),
-      },
-      include: termsInclude,
+  const row = await db
+    .$transaction(async (tx) => {
+      // The checks above read the project without a lock. Re-read its state under a row lock, so a
+      // close or cancel that committed meanwhile refuses the terms, and one that comes later waits
+      // for this insert (a closed project takes none).
+      const [locked] = await tx.$queryRaw<{ state: string }[]>`
+        SELECT "state"::text AS "state" FROM "project" WHERE "id" = ${id} FOR UPDATE`;
+      if (!locked) throw notFound("Project not found");
+      if (locked.state === "closed" || locked.state === "cancelled") {
+        throw conflict("project_not_open", `A ${locked.state} project takes no new terms`, { state: locked.state });
+      }
+      return tx.projectTerms.create({
+        data: {
+          projectId: id,
+          ...termsCreateData({ type: project.type, startDate: body.startDate, endDate: body.endDate, terms }),
+        },
+        include: termsInclude,
+      });
     })
     .catch((error: unknown) => {
       throw isUniqueViolation(error) ? termsExist() : error;
