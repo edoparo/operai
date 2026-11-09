@@ -5,6 +5,7 @@ import { regenerateSummary, retrySummary } from '../../lib/meetingsApi'
 import type { Meeting, Summary } from '../../lib/types'
 import { strings } from '../../strings'
 import { aiErrorMessage } from '../aiError'
+import { AiText } from '../AiText'
 import { clockOf } from '../transcript/exportText'
 import { DeleteSummaryDialog } from './DeleteSummaryDialog'
 import { SummaryEditor } from './SummaryEditor'
@@ -54,8 +55,8 @@ const summaryText = (summary: Summary): string => {
 }
 
 /**
- * One summary. Everything the AI wrote is rendered as plain text — React text nodes in a
- * `whitespace-pre-line` paragraph, never HTML or Markdown (ADR-0067).
+ * One summary. Everything the AI wrote is rendered as plain text — React text nodes, its paragraphs and
+ * lists laid out by `AiText`, never HTML or Markdown (ADR-0067).
  */
 export function SummaryCard({ meeting, summary, atLimit, focus, onResult, onError, onDeleted, onReload }: SummaryCardProps) {
   const t = strings.summaries
@@ -162,19 +163,11 @@ export function SummaryCard({ meeting, summary, atLimit, focus, onResult, onErro
               }}
             />
           ) : (
-            <div className="flex flex-col gap-3">
+            <div className="flex flex-col gap-5">
               {(summary.sections ?? []).map((section, index) => (
-                <section key={index}>
-                  <h4 className="text-sm font-medium text-text">{section.heading}</h4>
-                  <p
-                    className={
-                      section.notDiscussed
-                        ? 'whitespace-pre-line text-sm text-soft'
-                        : 'whitespace-pre-line text-sm text-text'
-                    }
-                  >
-                    {section.body}
-                  </p>
+                <section key={index} className="flex flex-col gap-1.5">
+                  <h4 className="text-sm font-semibold text-text">{section.heading}</h4>
+                  <AiText text={section.body} soft={section.notDiscussed} />
                 </section>
               ))}
             </div>

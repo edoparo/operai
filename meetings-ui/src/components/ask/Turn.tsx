@@ -2,6 +2,7 @@ import { Badge, Banner, Icon, Spinner } from '@operai/ui'
 import type { MouseEvent } from 'react'
 import type { ConversationTurn } from '../../lib/types'
 import { strings } from '../../strings'
+import { AiText } from '../AiText'
 import { Sources } from './Sources'
 
 export type TurnProps = {
@@ -55,7 +56,7 @@ export function Turn({ meetingId, turn, onOpenSource, onRetry, onOpenNotice }: T
               </a>
             )}
           </div>
-          <p className="whitespace-pre-line break-words text-sm leading-relaxed text-text">{answer.text}</p>
+          <AiText text={answer.text} />
           {!answer.notInMeeting && (
             <Sources meetingId={meetingId} turnId={turn.id} citations={answer.citations} onOpen={onOpenSource} />
           )}

@@ -58,6 +58,16 @@ afterEach(() => {
 })
 
 describe('summary cards (AC-7.2, AC-7.11)', () => {
+  it('lays out the lines the model wrote as a list as a real list, each item still plain text (ADR-0067)', async () => {
+    serve(list([summary({ sections: [{ heading: 'Decisions', body: 'Agreed:\n- Ship on <b>Friday</b>\n- Freeze the scope' }] })]))
+    panel()
+    const card = await screen.findByRole('region', { name: 'Sales discovery' })
+    const items = within(within(card).getByRole('list')).getAllByRole('listitem')
+    expect(items.map((item) => item.textContent)).toEqual(['Ship on <b>Friday</b>', 'Freeze the scope'])
+    expect(within(card).getByText('Agreed:').tagName).toBe('P')
+    expect(card.querySelector('b')).toBeNull()
+  })
+
   it('shows the sections in order, the server text for "not discussed", and the AI-generated facts', async () => {
     serve(list([summary()]))
     panel()
@@ -65,7 +75,7 @@ describe('summary cards (AC-7.2, AC-7.11)', () => {
     const headings = within(card).getAllByRole('heading', { level: 4 })
     expect(headings.map((h) => h.textContent)).toEqual(['Decisions', 'Risks'])
     expect(within(card).getByText('Ship on Friday.')).not.toBeNull()
-    expect(within(card).getByText('Not discussed.').className).toContain('text-soft')
+    expect(within(card).getByText('Not discussed.').closest('div')!.className).toContain('text-soft')
     expect(within(card).getByText(en.summaries.aiGenerated)).not.toBeNull()
     expect(within(card).getByText(en.summaries.languages.en)).not.toBeNull()
     expect(within(card).getByText(/Ada Lovelace/)).not.toBeNull()
