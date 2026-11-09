@@ -32,6 +32,10 @@ RUN bun install --frozen-lockfile --production
 COPY --chown=bun:bun --from=builder /app/src ./src
 COPY --chown=bun:bun --from=builder /app/prisma ./prisma
 COPY --chown=bun:bun tsconfig.json prisma.config.ts ./
+# The deal-link backfill (specs/024, ADR-0076) runs INSIDE this service, where its
+# variables and private networking live: `railway ssh --service crm-api`, then
+# `bun scripts/backfill-estimate-links.ts [--apply]`.
+COPY --chown=bun:bun scripts/backfill-estimate-links.ts ./scripts/
 
 # Drop privileges: the official oven/bun:1.3-alpine image ships with a non-root
 # 'bun' user (uid 1000). Running as root in a container handling regulated-sector
