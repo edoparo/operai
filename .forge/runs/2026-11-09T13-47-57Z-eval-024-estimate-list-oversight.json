@@ -1,0 +1,22 @@
+{
+ "schema": "wellforge-run/v3",
+ "plugin_version": "2.57.1",
+ "run_id": "2026-11-09T13-47-57Z-eval-024-estimate-list-oversight",
+ "command": "eval",
+ "feature": "024-estimate-list-oversight",
+ "rigor": "production",
+ "rigor_recorded": null,
+ "started": "2026-11-09T13:47:57Z",
+ "finished": "2026-11-09T13:47:57Z",
+ "drift_events": [],
+ "env_faults": [],
+ "verdicts": {"eval": "PASS"},
+ "agents": [
+  {"agent": "evaluator", "outcome": "PASS", "score": 83.5, "notes": "default-v2, 96/115 incl. design fidelity; ac_satisfaction 4 (floor 4): US-3 evidenced per service only; spec fidelity 4: plan says 403 for wrong scope/sub on /system/deal-link-notices, code answers one 401; design.md draft and F3 503 flow not written back"}
+ ],
+ "result": "completed",
+ "tokens": null,
+ "cost_usd": null,
+ "terse": false,
+ "control_run_id": null
+}

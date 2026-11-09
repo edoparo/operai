@@ -1,10 +1,11 @@
 ---
 id: 024
 slug: estimate-list-oversight
-status: in-progress
+status: done
 rigor: production
 created: 2026-11-08
 approved: 2026-11-08
+done: 2026-11-09
 ---
 
 # EstimAI list: every estimate for admins, closed estimates out of the way, the deal at a glance
