@@ -7,3 +7,5 @@ bun = true
 
 [test]
 timeout = 10000
+# Captures DATABASE_URL before any test file can replace it (src/lib/testDatabaseUrl.ts).
+preload = ["./src/lib/testDatabaseUrl.ts"]

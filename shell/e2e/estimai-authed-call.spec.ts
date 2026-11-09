@@ -11,22 +11,19 @@
  */
 
 import { test, expect } from '@playwright/test'
-import { seedSession } from './helpers/seedSession'
+import { E2E_TEST_USER, seedSession } from './helpers/seedSession'
+import { grantEstimaiAccess } from './helpers/estimaiFixtures'
 
-const apiUrl = (
-  process.env['E2E_API_URL'] ??
-  process.env['VITE_API_URL'] ??
-  'http://localhost:8080'
-).replace(/\/$/, '')
+const apiUrl = (process.env['E2E_API_URL'] ?? process.env['VITE_API_URL'] ?? 'http://localhost:8080').replace(/\/$/, '')
 
 test.describe('AC-2.2: opening EstimAI inside the shell makes an authenticated estimai-api call succeed', () => {
   test.beforeEach(async ({ context }) => {
     await seedSession(context)
+    // EstimAI is access-gated: the shared e2e user needs the grant to open it.
+    grantEstimaiAccess(E2E_TEST_USER.email)
   })
 
-  test('GET /estimates succeeds (200) with a Bearer token, and no sign-in prompt is shown', async ({
-    page,
-  }) => {
+  test('GET /estimates succeeds (200) with a Bearer token, and no sign-in prompt is shown', async ({ page }) => {
     const estimatesResponsePromise = page.waitForResponse(
       (response) => response.url() === `${apiUrl}/estimates` && response.request().method() === 'GET',
       { timeout: 20_000 },

@@ -10,8 +10,7 @@
 import { describe, it, expect, beforeAll, afterEach, mock } from "bun:test";
 import { Hono } from "hono";
 import { generateKeyPair, exportJWK, SignJWT, createLocalJWKSet } from "jose";
-import { parse as dotenvParse } from "dotenv";
-import { readFileSync } from "node:fs";
+import { TEST_DATABASE_URL } from "@/lib/testDatabaseUrl";
 
 const TEST_ISSUER = "http://localhost:3001";
 process.env["DATABASE_URL"] ??= "postgresql://postgres:postgres@localhost:5435/estimai";
@@ -25,21 +24,13 @@ process.env["SERVICE_CLIENT_ID"] ??= "estimai-api";
 process.env["SERVICE_CLIENT_SECRET"] ??= "test-service-client-secret-at-least-32-characters";
 process.env["NOTIFY_INTERNAL_URL"] ??= "http://localhost:8081";
 
-// DATABASE_URL from the dotenv file, PARSED (never loaded into process.env) —
-// same technique and reason as lifecycle.routes.test.ts: an earlier test file
-// in the same bun process may have replaced process.env's value.
-const dotenvDatabaseUrl = (() => {
-  try {
-    return dotenvParse(readFileSync(new URL("../../.env", import.meta.url).pathname))["DATABASE_URL"];
-  } catch {
-    return undefined;
-  }
-})();
+// The DATABASE_URL the process started with: an earlier test file in the same
+// bun process may have replaced process.env's value (src/lib/testDatabaseUrl.ts).
 
 const { PrismaClient } = await import("@/lib/generated/prisma/client");
 const { PrismaPg } = await import("@prisma/adapter-pg");
 const testDb = new PrismaClient({
-  adapter: new PrismaPg({ connectionString: dotenvDatabaseUrl ?? process.env["DATABASE_URL"]! }),
+  adapter: new PrismaPg({ connectionString: TEST_DATABASE_URL ?? process.env["DATABASE_URL"]! }),
 });
 mock.module("@/lib/db", () => ({ db: testDb }));
 

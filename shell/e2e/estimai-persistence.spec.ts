@@ -29,8 +29,24 @@
  *     estimai-api (localhost:8080), shell+estimai-ui+refund-ui built & previewed.
  */
 
-import { test, expect } from '@playwright/test'
-import { seedSession } from './helpers/seedSession'
+import { test, expect, type Page } from '@playwright/test'
+import { E2E_TEST_USER, seedSession } from './helpers/seedSession'
+import { grantEstimaiAccess } from './helpers/estimaiFixtures'
+
+/**
+ * Runs `action` and waits for the estimate list's GET /estimates to answer 200.
+ * Not `waitForLoadState('networkidle')`: the shell's notification stream keeps
+ * a request open, so the network never goes idle.
+ */
+async function whenListLoaded(page: Page, action: () => Promise<unknown>): Promise<void> {
+  const listLoaded = page.waitForResponse(
+    (resp) =>
+      resp.request().method() === 'GET' && new URL(resp.url()).pathname === '/estimates' && resp.status() === 200,
+    { timeout: 15_000 },
+  )
+  await action()
+  await listLoaded
+}
 
 // Auto-save debounce is 1500 ms; wait generously for the PUT to complete.
 const AUTOSAVE_WAIT_MS = 12_000
@@ -42,16 +58,15 @@ const ACTIVITY_NAME = 'Shell persistence activity'
 test.describe('EstimAI persistence journey inside the shell (AC-4.1)', () => {
   test.beforeEach(async ({ context }) => {
     await seedSession(context)
+    // EstimAI is access-gated: the shared e2e user needs the grant to open it.
+    grantEstimaiAccess(E2E_TEST_USER.email)
   })
 
-  test('create estimate → save → reload list → reopen with content → delete', async ({
-    page,
-  }) => {
+  test('create estimate → save → reload list → reopen with content → delete', async ({ page }) => {
     // ── Step 1: Open EstimAI's list inside the shell ─────────────────────────
     // The shell `_authed` guard passes (seeded cookie); RemoteMount loads the
     // estimai remote; its inner router (basepath '/estimai') renders the list.
-    await page.goto('/estimai/estimates')
-    await page.waitForLoadState('networkidle')
+    await whenListLoaded(page, () => page.goto('/estimai/estimates'))
     await expect(page).toHaveURL(/\/estimai\/estimates$/, { timeout: 15_000 })
 
     // ── Step 2: Create a new estimate ────────────────────────────────────────
@@ -59,10 +74,9 @@ test.describe('EstimAI persistence journey inside the shell (AC-4.1)', () => {
     await expect(newBtn, 'New estimate button must be visible').toBeVisible({ timeout: 15_000 })
     await newBtn.click()
 
-    await expect(page, 'Must navigate to the editor after create').toHaveURL(
-      /\/estimai\/estimates\/[a-z0-9]+$/,
-      { timeout: 15_000 },
-    )
+    await expect(page, 'Must navigate to the editor after create').toHaveURL(/\/estimai\/estimates\/[a-z0-9]+$/, {
+      timeout: 15_000,
+    })
 
     // ── Step 3: Set a distinctive project name ───────────────────────────────
     const nameInput = page.getByPlaceholder('Project name…').first()
@@ -91,24 +105,20 @@ test.describe('EstimAI persistence journey inside the shell (AC-4.1)', () => {
 
     // ── Step 5: Wait for the debounced auto-save (PUT /estimates/{id}) ────────
     const saveIndicator = page.locator('[aria-live="polite"]').first()
-    await page.waitForResponse(
-      (resp) => resp.url().includes('/estimates/') && resp.request().method() === 'PUT',
-      { timeout: AUTOSAVE_WAIT_MS },
+    await page.waitForResponse((resp) => resp.url().includes('/estimates/') && resp.request().method() === 'PUT', {
+      timeout: AUTOSAVE_WAIT_MS,
+    })
+    await expect(saveIndicator, 'Save indicator must not show "Save failed" after the PUT').not.toContainText(
+      'Save failed',
     )
-    await expect(
-      saveIndicator,
-      'Save indicator must not show "Save failed" after the PUT',
-    ).not.toContainText('Save failed')
 
     // ── Step 6: Reload the list; the estimate appears ────────────────────────
     await page.getByRole('link', { name: 'Back to estimates' }).first().click()
     await expect(page).toHaveURL(/\/estimai\/estimates$/, { timeout: 10_000 })
-    await page.waitForLoadState('networkidle')
 
-    await expect(
-      page.getByText(ESTIMATE_NAME),
-      `Estimate "${ESTIMATE_NAME}" must appear in the list`,
-    ).toBeVisible({ timeout: 15_000 })
+    await expect(page.getByText(ESTIMATE_NAME), `Estimate "${ESTIMATE_NAME}" must appear in the list`).toBeVisible({
+      timeout: 15_000,
+    })
 
     // ── Step 7: Reopen and verify persisted content ──────────────────────────
     const deleteBtnForRow = page.getByRole('button', {
@@ -121,22 +131,21 @@ test.describe('EstimAI persistence journey inside the shell (AC-4.1)', () => {
     await expect(openBtn, '"Open" button must be in the row').toBeVisible({ timeout: 5_000 })
     await openBtn.click()
 
-    await expect(page, 'Must navigate to the editor on Open').toHaveURL(
-      /\/estimai\/estimates\/[a-z0-9]+$/,
-      { timeout: 15_000 },
-    )
+    await expect(page, 'Must navigate to the editor on Open').toHaveURL(/\/estimai\/estimates\/[a-z0-9]+$/, {
+      timeout: 15_000,
+    })
 
     const reopenedNameInput = page.getByPlaceholder('Project name…').first()
-    await expect(
-      reopenedNameInput,
-      `Name must round-trip to "${ESTIMATE_NAME}" after reopen`,
-    ).toHaveValue(ESTIMATE_NAME, { timeout: 10_000 })
+    await expect(reopenedNameInput, `Name must round-trip to "${ESTIMATE_NAME}" after reopen`).toHaveValue(
+      ESTIMATE_NAME,
+      { timeout: 10_000 },
+    )
 
     const activityInput2 = page.getByPlaceholder('Activity…').first()
-    await expect(
-      activityInput2,
-      `Activity must round-trip to "${ACTIVITY_NAME}" after reopen`,
-    ).toHaveValue(ACTIVITY_NAME, { timeout: 10_000 })
+    await expect(activityInput2, `Activity must round-trip to "${ACTIVITY_NAME}" after reopen`).toHaveValue(
+      ACTIVITY_NAME,
+      { timeout: 10_000 },
+    )
 
     await expect(
       page.getByText('Total man-days'),
@@ -146,7 +155,6 @@ test.describe('EstimAI persistence journey inside the shell (AC-4.1)', () => {
     // ── Step 8: Delete the estimate ──────────────────────────────────────────
     await page.getByRole('link', { name: 'Back to estimates' }).first().click()
     await expect(page).toHaveURL(/\/estimai\/estimates$/, { timeout: 10_000 })
-    await page.waitForLoadState('networkidle')
 
     const deleteBtn = page.getByRole('button', {
       name: new RegExp(`Delete "${ESTIMATE_NAME}"`, 'i'),
@@ -174,8 +182,7 @@ test.describe('EstimAI persistence journey inside the shell (AC-4.1)', () => {
   test('cancelling delete leaves the estimate in the list', async ({ page }) => {
     const cancelTestName = `Shell Cancel Test ${Date.now().toString(36)}`
 
-    await page.goto('/estimai/estimates')
-    await page.waitForLoadState('networkidle')
+    await whenListLoaded(page, () => page.goto('/estimai/estimates'))
 
     const newBtn = page.getByRole('button', { name: 'New estimate' })
     await expect(newBtn).toBeVisible({ timeout: 15_000 })
@@ -186,14 +193,12 @@ test.describe('EstimAI persistence journey inside the shell (AC-4.1)', () => {
     await nameInput.click({ clickCount: 3 })
     await nameInput.pressSequentially(cancelTestName)
 
-    await page.waitForResponse(
-      (resp) => resp.url().includes('/estimates/') && resp.request().method() === 'PUT',
-      { timeout: AUTOSAVE_WAIT_MS },
-    )
+    await page.waitForResponse((resp) => resp.url().includes('/estimates/') && resp.request().method() === 'PUT', {
+      timeout: AUTOSAVE_WAIT_MS,
+    })
 
     await page.getByRole('link', { name: 'Back to estimates' }).first().click()
     await expect(page).toHaveURL(/\/estimai\/estimates$/, { timeout: 10_000 })
-    await page.waitForLoadState('networkidle')
 
     await expect(page.getByText(cancelTestName)).toBeVisible({ timeout: 15_000 })
 
@@ -211,15 +216,12 @@ test.describe('EstimAI persistence journey inside the shell (AC-4.1)', () => {
     await expect(modal, 'Modal must close after cancelling').not.toBeVisible({ timeout: 5_000 })
 
     // The estimate must still be present.
-    await expect(
-      page.getByText(cancelTestName),
-      'Cancelled delete must leave the estimate in the list',
-    ).toBeVisible({ timeout: 10_000 })
+    await expect(page.getByText(cancelTestName), 'Cancelled delete must leave the estimate in the list').toBeVisible({
+      timeout: 10_000,
+    })
 
     // Cleanup: delete the estimate so the shared DB stays tidy.
-    await page
-      .getByRole('button', { name: new RegExp(`Delete "${cancelTestName}"`, 'i') })
-      .click()
+    await page.getByRole('button', { name: new RegExp(`Delete "${cancelTestName}"`, 'i') }).click()
     await expect(modal).toBeVisible()
     await page.locator('[data-testid="confirm-delete-confirm"]').click()
     await expect(modal).not.toBeVisible({ timeout: 10_000 })

@@ -96,8 +96,7 @@ import { describe, it, expect, beforeAll, afterAll, spyOn, mock } from "bun:test
 import { OpenAPIHono } from "@hono/zod-openapi";
 import { createMiddleware } from "hono/factory";
 import { Effect } from "effect";
-import { parse as dotenvParse } from "dotenv";
-import { readFileSync } from "node:fs";
+import { TEST_DATABASE_URL } from "@/lib/testDatabaseUrl";
 import { ForbiddenError } from "@/lib/errors";
 import type { JwtVariables } from "@/auth/jwt.middleware";
 
@@ -117,23 +116,9 @@ process.env["SERVICE_CLIENT_SECRET"] ??=
   "test-service-client-secret-at-least-32-characters";
 process.env["NOTIFY_INTERNAL_URL"] ??= "http://localhost:8081";
 
-// Resolve the REAL DATABASE_URL from the dotenv file (an earlier-run test file
-// may have clobbered it) BEFORE building estimai-api's fresh client. The file
-// is PARSED, never loaded into process.env: `dotenv.config({override})` rewrote
-// every variable it defines (NODE_ENV, AUTH_*, …) for the rest of the
-// `bun test` process (T22, specs/016).
-const dotenvDatabaseUrl = (() => {
-  try {
-    return dotenvParse(
-      readFileSync(new URL("../../.env", import.meta.url).pathname),
-    )["DATABASE_URL"];
-  } catch {
-    return undefined; // no dotenv file (CI): fall back to the process env
-  }
-})();
-
-const ESTIMAI_DATABASE_URL =
-  dotenvDatabaseUrl ?? process.env["DATABASE_URL"]!;
+// The DATABASE_URL the process started with, not one an earlier test file set
+// (src/lib/testDatabaseUrl.ts).
+const ESTIMAI_DATABASE_URL = TEST_DATABASE_URL ?? process.env["DATABASE_URL"]!;
 
 // `auth`'s own DATABASE_URL is a SEPARATE database (operai_auth) on the same
 // Postgres instance — never read from estimai-api's own .env. AUTH_DATABASE_URL

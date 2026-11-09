@@ -62,8 +62,7 @@ import { seedUserSession, applySessionCookie } from './helpers/adminSession'
 import { grantEstimaiAccess } from './helpers/estimaiFixtures'
 
 // estimai-api base URL — mirrors shell/playwright.config.ts's own apiUrl resolution.
-const ESTIMAI_API_URL =
-  process.env['E2E_API_URL'] ?? process.env['VITE_API_URL'] ?? 'http://localhost:8080'
+const ESTIMAI_API_URL = process.env['E2E_API_URL'] ?? process.env['VITE_API_URL'] ?? 'http://localhost:8080'
 
 // Auto-save debounce is 1500 ms (EstimatorContext.tsx); wait generously for the PUT.
 const AUTOSAVE_WAIT_MS = 12_000
@@ -88,9 +87,7 @@ const estimateIdFromUrl = (url: string): string => {
 async function whenListLoaded(page: Page, action: () => Promise<unknown>): Promise<void> {
   const listLoaded = page.waitForResponse(
     (resp) =>
-      resp.request().method() === 'GET' &&
-      new URL(resp.url()).pathname === '/estimates' &&
-      resp.status() === 200,
+      resp.request().method() === 'GET' && new URL(resp.url()).pathname === '/estimates' && resp.status() === 200,
     { timeout: 15_000 },
   )
   await action()
@@ -105,10 +102,9 @@ async function createNamedEstimate(page: Page, name: string, activityName: strin
   await expect(newBtn, 'New estimate button must be visible').toBeVisible({ timeout: 15_000 })
   await newBtn.click()
 
-  await expect(page, 'Must navigate to the editor after create').toHaveURL(
-    /\/estimai\/estimates\/[a-z0-9]+$/,
-    { timeout: 15_000 },
-  )
+  await expect(page, 'Must navigate to the editor after create').toHaveURL(/\/estimai\/estimates\/[a-z0-9]+$/, {
+    timeout: 15_000,
+  })
   const estimateId = estimateIdFromUrl(page.url())
 
   const nameInput = page.getByPlaceholder('Project name…').first()
@@ -133,9 +129,7 @@ async function createNamedEstimate(page: Page, name: string, activityName: strin
 
   await page.waitForResponse(
     (resp) =>
-      resp.url().includes(`/estimates/${estimateId}`) &&
-      resp.request().method() === 'PUT' &&
-      resp.status() === 200,
+      resp.url().includes(`/estimates/${estimateId}`) && resp.request().method() === 'PUT' && resp.status() === 200,
     { timeout: AUTOSAVE_WAIT_MS },
   )
 
@@ -198,7 +192,10 @@ test.describe('specs/013-estimate-sharing T25: headline journeys', () => {
     await whenListLoaded(collabPage, () => collabPage.goto('/estimai/estimates'))
 
     const sharedRow = collabPage.getByTestId('estimate-row-shared').filter({ hasText: estimateName })
-    await expect(sharedRow, 'Shared estimate must appear, badged, in the collaborator\'s own list (AC-2.1/2.2)').toBeVisible({
+    await expect(
+      sharedRow,
+      "Shared estimate must appear, badged, in the collaborator's own list (AC-2.1/2.2)",
+    ).toBeVisible({
       timeout: 15_000,
     })
     await expect(sharedRow).toContainText('Viewer')
@@ -210,7 +207,10 @@ test.describe('specs/013-estimate-sharing T25: headline journeys', () => {
     // the real owner name here is the one place this e2e can catch that
     // failure mode end-to-end, at negligible added fragility (same
     // already-queried `sharedRow` locator, no new navigation/wait).
-    await expect(sharedRow, 'Shared row must show the owner\'s resolved name, never the "Unknown wellD member" fail-soft placeholder, when identity resolution is working').toContainText('E2E Share Owner')
+    await expect(
+      sharedRow,
+      'Shared row must show the owner\'s resolved name, never the "Unknown wellD member" fail-soft placeholder, when identity resolution is working',
+    ).toContainText('E2E Share Owner')
     // Owner-only Delete must be absent on a shared row (AC-3.3/5.1's mirror on the list side).
     await expect(sharedRow.getByRole('button', { name: /^Delete/ })).toHaveCount(0)
 
@@ -237,7 +237,7 @@ test.describe('specs/013-estimate-sharing T25: headline journeys', () => {
 
     await expect(
       collabPage.getByTestId('collaborators-chip'),
-      'Collaborator sees the non-actionable chip, never the owner\'s button (AC-8.1/8.2 toolbar decision)',
+      "Collaborator sees the non-actionable chip, never the owner's button (AC-8.1/8.2 toolbar decision)",
     ).toBeVisible()
     await expect(collabPage.getByTestId('collaborators-button')).toHaveCount(0)
 
@@ -266,7 +266,7 @@ test.describe('specs/013-estimate-sharing T25: headline journeys', () => {
     })
     expect(
       directPutRes.status,
-      'A viewer\'s direct API PUT must be refused (403 insufficient_access), never a silent 200 (AC-3.1)',
+      "A viewer's direct API PUT must be refused (403 insufficient_access), never a silent 200 (AC-3.1)",
     ).toBe(403)
 
     // ─── Owner: promote the collaborator to editor ──────────────────────────
@@ -300,12 +300,10 @@ test.describe('specs/013-estimate-sharing T25: headline journeys', () => {
     await collabNameInput.pressSequentially(editedName)
 
     const editorSaveRes = await collabPage.waitForResponse(
-      (resp) =>
-        resp.url().includes(`/estimates/${estimateId}`) &&
-        resp.request().method() === 'PUT',
+      (resp) => resp.url().includes(`/estimates/${estimateId}`) && resp.request().method() === 'PUT',
       { timeout: AUTOSAVE_WAIT_MS },
     )
-    expect(editorSaveRes.status(), 'Editor collaborator\'s save must succeed (AC-3.2/AC-5.1)').toBe(200)
+    expect(editorSaveRes.status(), "Editor collaborator's save must succeed (AC-3.2/AC-5.1)").toBe(200)
 
     // ─── Owner: revoke the collaborator ──────────────────────────────────────
     await ownerPage.getByTestId('collaborators-button').click()
@@ -327,14 +325,14 @@ test.describe('specs/013-estimate-sharing T25: headline journeys', () => {
     await expect(collabPage).toHaveURL(/\/estimai\/estimates$/, { timeout: 10_000 })
     await expect(
       collabPage.getByTestId('estimate-row-shared').filter({ hasText: estimateName }),
-      'Revoked estimate must be gone from the former collaborator\'s list (AC-5.2)',
+      "Revoked estimate must be gone from the former collaborator's list (AC-5.2)",
     ).toHaveCount(0)
 
     // A direct GET must also now be refused the same way an unrelated user's would (AC-1.6/AC-5.2).
     const directGetAfterRevoke = await fetch(`${ESTIMAI_API_URL}/estimates/${estimateId}`, {
       headers: { Authorization: `Bearer ${collabSession.token}` },
     })
-    expect(directGetAfterRevoke.status, 'Revoked collaborator\'s GET must 404 (AC-1.6 denial taxonomy)').toBe(404)
+    expect(directGetAfterRevoke.status, "Revoked collaborator's GET must 404 (AC-1.6 denial taxonomy)").toBe(404)
 
     // ─── Cleanup: owner deletes the estimate ─────────────────────────────────
     await whenListLoaded(ownerPage, () => ownerPage.getByRole('link', { name: 'Back to estimates' }).first().click())
@@ -353,7 +351,7 @@ test.describe('specs/013-estimate-sharing T25: headline journeys', () => {
     await collabContext.close()
   })
 
-  test('Journey 2 — same owner, two tabs: second tab\'s autosave surfaces the conflict banner after the first tab already saved (AC-4.4)', async ({
+  test("Journey 2 — same owner, two tabs: second tab's autosave surfaces the conflict banner after the first tab already saved (AC-4.4)", async ({
     browser,
   }) => {
     const tag = uniqueSuffix()
@@ -400,7 +398,7 @@ test.describe('specs/013-estimate-sharing T25: headline journeys', () => {
       (resp) => resp.url().includes(`/estimates/${estimateId}`) && resp.request().method() === 'PUT',
       { timeout: AUTOSAVE_WAIT_MS },
     )
-    expect(tab1SecondSave.status(), 'Tab 1\'s second save must succeed').toBe(200)
+    expect(tab1SecondSave.status(), "Tab 1's second save must succeed").toBe(200)
 
     // ─── Tab 2: edits independently — its autosave now carries a stale If-Match ──
     const tab2LocalName = `${estimateName} — tab2 stale edit`
@@ -414,7 +412,7 @@ test.describe('specs/013-estimate-sharing T25: headline journeys', () => {
     )
     expect(
       tab2ConflictRes.status(),
-      'Tab 2\'s save must be refused with a conflict, never silently overwrite tab 1\'s save (AC-4.1/AC-4.4)',
+      "Tab 2's save must be refused with a conflict, never silently overwrite tab 1's save (AC-4.1/AC-4.4)",
     ).toBe(409)
 
     // ─── The conflict banner appears — AC-4.1/4.2's recovery surface ────────
@@ -429,7 +427,7 @@ test.describe('specs/013-estimate-sharing T25: headline journeys', () => {
     await expect(banner.getByRole('button', { name: /^(close|dismiss)$/i })).toHaveCount(0)
 
     // Header's 4th save-status state makes the suppression visible.
-    await expect(tab2.getByText('Not saving — reload to continue')).toBeVisible({ timeout: 5_000 })
+    await expect(tab2.getByTestId('save-status')).toHaveText('Not saving — reload to continue', { timeout: 5_000 })
 
     // AC-4.2: the user's own in-progress edit is NOT discarded by the conflict.
     await expect(tab2NameInput).toHaveValue(tab2LocalName)
@@ -448,7 +446,7 @@ test.describe('specs/013-estimate-sharing T25: headline journeys', () => {
     await expect(banner, 'Conflict banner must clear after reloading').not.toBeVisible({ timeout: 10_000 })
     await expect(
       tab2.getByPlaceholder('Project name…').first(),
-      'Reload must pull the server\'s real (tab 1) content, not tab 2\'s stale/local one',
+      "Reload must pull the server's real (tab 1) content, not tab 2's stale/local one",
     ).toHaveValue(tab1SecondName, { timeout: 10_000 })
 
     // ─── Cleanup ──────────────────────────────────────────────────────────────

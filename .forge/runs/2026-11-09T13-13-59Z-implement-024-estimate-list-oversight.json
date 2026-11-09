@@ -1,0 +1,27 @@
+{
+ "schema": "wellforge-run/v3",
+ "plugin_version": "2.56.0",
+ "run_id": "2026-11-09T13-13-59Z-implement-024-estimate-list-oversight",
+ "command": "implement",
+ "feature": "024-estimate-list-oversight",
+ "rigor": "production",
+ "rigor_recorded": null,
+ "started": "2026-11-09T13:00:00Z",
+ "finished": "2026-11-09T13:13:59Z",
+ "drift_events": [],
+ "env_faults": [
+  {"agent": "quality-engineer", "class": "secret env", "detail": "estimai-api DB tests re-read DATABASE_URL from the local dotenv file, bypassing the _test wrapper", "resolved_by": "bun test preload captures the starting DATABASE_URL (estimai-api/src/lib/testDatabaseUrl.ts)"},
+  {"agent": "quality-engineer", "class": "machine tool", "detail": "1Password CLI signed out, local stack could not start", "resolved_by": "owner signed in; dev DBs migrated (db:migrate) and auth re-seeded (db:seed)"}
+ ],
+ "verdicts": {"qe": "PASS"},
+ "security": {"matched_rules": [], "dispatched": false, "notes": ["owasp-reviewer pass still to run: new permission, service-JWT endpoint and scopes"]},
+ "agents": [
+  {"agent": "quality-engineer", "tasks": ["T1","T2","T3","T4","T5","T6","T7","T8","T9","T10","T11"], "outcome": "BLOCKED", "notes": "22/22 ACs mapped and green at unit/integration level; auth 766, crm-api 369, estimai-ui 355, env-doctor 171; e2e blocked by signed-out 1Password"},
+  {"agent": "main-loop", "tasks": ["T10"], "outcome": "PASS", "notes": "estimai-api 341/341 on estimai_test+auth_test incl. orphaned-estimate; e2e estimate-oversight + 5 EstimAI regression specs 15/15 (older specs now grant estimai access and wait for GET /estimates instead of networkidle; sharing spec reads the save-status testid); shell lint/tsc clean"}
+ ],
+ "result": "completed",
+ "tokens": null,
+ "cost_usd": null,
+ "terse": false,
+ "control_run_id": null
+}

@@ -27,15 +27,30 @@
  * (estimai-ui/src/lib/projects.ts) to keep this shell spec self-contained.
  */
 
-import { test, expect, type BrowserContext } from '@playwright/test'
+import { test, expect, type Page, type BrowserContext } from '@playwright/test'
+import { grantEstimaiAccess } from './helpers/estimaiFixtures'
+
+/**
+ * Runs `action` and waits for the estimate list's GET /estimates to answer 200.
+ * Not `waitForLoadState('networkidle')`: the shell's notification stream keeps
+ * a request open, so the network never goes idle.
+ */
+async function whenListLoaded(page: Page, action: () => Promise<unknown>): Promise<void> {
+  const listLoaded = page.waitForResponse(
+    (resp) =>
+      resp.request().method() === 'GET' && new URL(resp.url()).pathname === '/estimates' && resp.status() === 200,
+    { timeout: 15_000 },
+  )
+  await action()
+  await listLoaded
+}
 
 // ─── Constants ──────────────────────────────────────────────────────────────
 
-const AUTH_URL = (
-  process.env['E2E_AUTH_URL'] ??
-  process.env['VITE_AUTH_URL'] ??
-  'http://localhost:3001'
-).replace(/\/$/, '')
+const AUTH_URL = (process.env['E2E_AUTH_URL'] ?? process.env['VITE_AUTH_URL'] ?? 'http://localhost:3001').replace(
+  /\/$/,
+  '',
+)
 
 const MODAL_TIMEOUT = 15_000
 
@@ -47,11 +62,7 @@ const projectKey = (id: string) => `estimai_project_${id}`
 
 /** Seeds a unique better-auth user and injects the session cookie so the
  *  account list starts empty for this test (no cross-run collisions). */
-const seedUniqueUser = async (
-  context: BrowserContext,
-  email: string,
-  name: string,
-): Promise<void> => {
+const seedUniqueUser = async (context: BrowserContext, email: string, name: string): Promise<void> => {
   const res = await fetch(`${AUTH_URL}/test-auth/session`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -69,7 +80,10 @@ const seedUniqueUser = async (
     throw new Error('[import] POST /test-auth/session returned no Set-Cookie header.')
   }
 
-  const parts = rawCookieHeader.trim().split(';').map((p) => p.trim())
+  const parts = rawCookieHeader
+    .trim()
+    .split(';')
+    .map((p) => p.trim())
   const [nameValue, ...attrs] = parts
   const eqIdx = nameValue.indexOf('=')
   const cookieName = nameValue.slice(0, eqIdx).trim()
@@ -80,8 +94,7 @@ const seedUniqueUser = async (
     const [k, v] = attr.split('=')
     attrMap[k.trim().toLowerCase()] = v !== undefined ? v.trim() : true
   }
-  const sameSiteRaw =
-    typeof attrMap['samesite'] === 'string' ? attrMap['samesite'].toLowerCase() : 'lax'
+  const sameSiteRaw = typeof attrMap['samesite'] === 'string' ? attrMap['samesite'].toLowerCase() : 'lax'
   const sameSite: 'Strict' | 'Lax' | 'None' =
     sameSiteRaw === 'strict' ? 'Strict' : sameSiteRaw === 'none' ? 'None' : 'Lax'
 
@@ -96,6 +109,8 @@ const seedUniqueUser = async (
       sameSite,
     },
   ])
+  // EstimAI is access-gated: a freshly minted user cannot open it without the grant.
+  grantEstimaiAccess(email)
 }
 
 const buildProjectData = (id: string, name: string, author = 'Import Test Author') => ({
@@ -165,9 +180,7 @@ const buildOversizedProjectData = (id: string, name: string) => {
   }
 }
 
-const buildLocalStorageSeeds = (
-  projects: ReturnType<typeof buildProjectData>[],
-): Record<string, string> => {
+const buildLocalStorageSeeds = (projects: ReturnType<typeof buildProjectData>[]): Record<string, string> => {
   const seeds: Record<string, string> = {}
   seeds[PROJECTS_KEY] = JSON.stringify(
     projects.map((p) => ({
@@ -196,18 +209,14 @@ test.describe('EstimAI import journey inside the shell (offer / accept / partial
     const NAME_A = `Import Alpha ${runId}`
     const NAME_B = `Import Beta ${runId}`
 
-    const seeds = buildLocalStorageSeeds([
-      buildProjectData(ID_A, NAME_A),
-      buildProjectData(ID_B, NAME_B),
-    ])
+    const seeds = buildLocalStorageSeeds([buildProjectData(ID_A, NAME_A), buildProjectData(ID_B, NAME_B)])
     await page.addInitScript((seedData: Record<string, string>) => {
       for (const [key, value] of Object.entries(seedData)) localStorage.setItem(key, value)
     }, seeds)
 
     await seedUniqueUser(context, `${runId}@operai.test`, 'Import Accept User')
 
-    await page.goto('/estimai/estimates')
-    await page.waitForLoadState('networkidle')
+    await whenListLoaded(page, () => page.goto('/estimai/estimates'))
     await expect(page).toHaveURL(/\/estimai\/estimates$/, { timeout: 15_000 })
 
     const modal = page.locator('[data-testid="import-offer-modal"]')
@@ -220,10 +229,9 @@ test.describe('EstimAI import journey inside the shell (offer / accept / partial
 
     await modal.getByRole('button', { name: 'Import all' }).click()
 
-    await expect(modal, 'Results view must appear after import').toContainText(
-      '2 of 2 imported successfully',
-      { timeout: 30_000 },
-    )
+    await expect(modal, 'Results view must appear after import').toContainText('2 of 2 imported successfully', {
+      timeout: 30_000,
+    })
     await expect(modal.locator('table td').getByText('Imported', { exact: true })).toHaveCount(2)
     await expect(modal.locator('table td').getByText('Failed', { exact: true })).toHaveCount(0)
 
@@ -236,7 +244,6 @@ test.describe('EstimAI import journey inside the shell (offer / accept / partial
     await modal.locator('[data-testid="import-results-close"]').click()
     await expect(modal).not.toBeVisible({ timeout: 5_000 })
 
-    await page.waitForLoadState('networkidle')
     await expect(page.getByText(NAME_A)).toBeVisible({ timeout: 15_000 })
     await expect(page.getByText(NAME_B)).toBeVisible({ timeout: 15_000 })
   })
@@ -264,8 +271,7 @@ test.describe('EstimAI import journey inside the shell (offer / accept / partial
 
     await seedUniqueUser(context, `${runId}@operai.test`, 'Import Partial User')
 
-    await page.goto('/estimai/estimates')
-    await page.waitForLoadState('networkidle')
+    await whenListLoaded(page, () => page.goto('/estimai/estimates'))
     await expect(page).toHaveURL(/\/estimai\/estimates$/, { timeout: 15_000 })
 
     const modal = page.locator('[data-testid="import-offer-modal"]')
@@ -274,10 +280,9 @@ test.describe('EstimAI import journey inside the shell (offer / accept / partial
 
     await modal.getByRole('button', { name: 'Import all' }).click()
 
-    await expect(modal, 'Results summary must show 2 of 3 imported').toContainText(
-      '2 of 3 imported successfully',
-      { timeout: 30_000 },
-    )
+    await expect(modal, 'Results summary must show 2 of 3 imported').toContainText('2 of 3 imported successfully', {
+      timeout: 30_000,
+    })
     await expect(modal.locator('table td').getByText('Imported', { exact: true })).toHaveCount(2)
     await expect(modal.locator('table td').getByText('Failed', { exact: true })).toHaveCount(1)
 
@@ -290,7 +295,6 @@ test.describe('EstimAI import journey inside the shell (offer / accept / partial
     await modal.locator('[data-testid="import-results-close"]').click()
     await expect(modal).not.toBeVisible({ timeout: 5_000 })
 
-    await page.waitForLoadState('networkidle')
     await expect(page.getByText(NAME_V1)).toBeVisible({ timeout: 15_000 })
     await expect(page.getByText(NAME_V2)).toBeVisible({ timeout: 15_000 })
   })
@@ -310,8 +314,7 @@ test.describe('EstimAI import journey inside the shell (offer / accept / partial
 
     await seedUniqueUser(context, `${runId}@operai.test`, 'Import Decline User')
 
-    await page.goto('/estimai/estimates')
-    await page.waitForLoadState('networkidle')
+    await whenListLoaded(page, () => page.goto('/estimai/estimates'))
     await expect(page).toHaveURL(/\/estimai\/estimates$/, { timeout: 15_000 })
 
     const modal = page.locator('[data-testid="import-offer-modal"]')
@@ -327,14 +330,11 @@ test.describe('EstimAI import journey inside the shell (offer / accept / partial
     }
 
     // Session dismissal flag set.
-    const sessionFlag = await page.evaluate(() =>
-      sessionStorage.getItem('import_offer_dismissed'),
-    )
+    const sessionFlag = await page.evaluate(() => sessionStorage.getItem('import_offer_dismissed'))
     expect(sessionFlag, 'import_offer_dismissed flag must be set after decline').toBe('1')
 
     // Offer does not re-appear on the next navigation within the same session.
-    await page.goto('/estimai/estimates')
-    await page.waitForLoadState('networkidle')
+    await whenListLoaded(page, () => page.goto('/estimai/estimates'))
     await expect(page).toHaveURL(/\/estimai\/estimates$/, { timeout: 10_000 })
     await expect(modal, 'Import offer must not re-appear after decline').not.toBeVisible({
       timeout: 5_000,

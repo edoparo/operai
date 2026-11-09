@@ -148,18 +148,11 @@ mock.module("@/auth/jwt.middleware", () => {
 
 // Set env vars before any module is imported (env.ts runs at import time).
 //
-// DATABASE_URL is loaded from the project's .env via dotenv before any other
-// env var assignment. This ensures the real compose DB credentials are used
-// even if a previous test file (jwt.middleware.test.ts) clobbered the value with
-// a fake DATABASE_URL — bun processes test files sequentially in the same process,
-// so environment mutations from earlier files persist.
-//
-// We use dotenv's config() with override:true to always restore the real value.
-import { config as dotenvConfig } from "dotenv";
-dotenvConfig({
-  path: new URL("../../.env", import.meta.url).pathname,
-  override: true,
-});
+// DATABASE_URL is the one the process started with (src/lib/testDatabaseUrl.ts),
+// even if a previous test file (jwt.middleware.test.ts) replaced it with a fake
+// value — bun processes test files sequentially in the same process, so
+// environment mutations from earlier files persist.
+import { TEST_DATABASE_URL } from "@/lib/testDatabaseUrl";
 
 process.env["ALLOWED_ORIGINS"] = "http://localhost:5173";
 process.env["AUTH_JWKS_URL"] = "http://localhost:3001/.well-known/jwks.json";
@@ -190,7 +183,7 @@ const { __resetOversightCacheForTests } = await import("./oversight");
 const { PrismaClient } = await import("@/lib/generated/prisma/client");
 const { PrismaPg } = await import("@prisma/adapter-pg");
 
-const realDatabaseUrl = process.env["DATABASE_URL"]!;
+const realDatabaseUrl = TEST_DATABASE_URL ?? process.env["DATABASE_URL"]!;
 
 const freshAdapter = new PrismaPg({ connectionString: realDatabaseUrl });
 const freshDb = new PrismaClient({ adapter: freshAdapter });
