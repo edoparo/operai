@@ -112,6 +112,8 @@ offer rests on a real estimate.
   - Closing completes the "estimate requested" task (AC-3.5) and tells the requester and the
     deal owner; reopening reopens the task and tells the technical contact and the requester.
   - If the notice is lost, the deal stays `requested`; an admin can still override the gate.
+  - Closing also moves the estimate from EstimAI's default **Open** list to **Closed**, for
+    everyone who can see it; archive and close are one status (specs/024, owner 2026-11-08).
 - AC-3.4 A deal moves from `qualified` (or `lead`) to `proposal` or later only if its
   estimate is `ready`; otherwise 409 `estimate_not_ready`.
   - The board and the stage dialog say why.

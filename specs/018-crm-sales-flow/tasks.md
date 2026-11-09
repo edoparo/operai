@@ -1,6 +1,7 @@
 ---
 spec: 018
 status: in-progress
+synced: 2026-11-09
 ---
 
 # Tasks — CRM sales flow (specs/018)

@@ -1,6 +1,7 @@
 ---
 spec: 013
 generated: 2026-08-07
+synced: 2026-11-09
 ---
 
 # Tasks: Estimate sharing — invite registered EstimAI users to collaborate on an estimate

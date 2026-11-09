@@ -12,6 +12,11 @@ done: 2026-08-08
 
 ## Amendments
 
+- **Amended by specs/024 (2026-11-08, ADR-0075).** A third, read-only way in: a holder of
+  `estimate:read-all` (seeded to `admin`) may list and open every estimate as `oversight`,
+  and may never edit, close, reopen, delete or share one it reaches only that way (403
+  `oversight_read_only`). For everyone else this spec's access model and 403/404 split are
+  unchanged.
 - This spec **supersedes, for this feature's scope, spec 001's accepted "last-write-wins,
   no conflict UX" Non-goal and its AC-4.1 framing**. Spec 001 fixed a single-writer world
   (one owner, at most editing from two of their own devices/tabs) and explicitly decided

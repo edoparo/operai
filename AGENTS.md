@@ -137,7 +137,7 @@ operai/
 ├── lerna.json           # The package list Changesets reads — NOT a pnpm/Bun workspace (see ### Git)
 ├── mise.toml            # Node 24, corepack-managed pnpm; `mise run dev` / `db:migrate` / `changeset` /
 │                        # `release:version` / `release:tag` / `env:doctor`
-└── specs/               # Spec-driven workflow (001–021; 015 hardware-inventory, 017 crm and 021 meetings are in progress; see below)
+└── specs/               # Spec-driven workflow (001–024; 015 hardware-inventory, 017 crm, 021 meetings and 024 estimate-list-oversight are in progress; see below)
 ```
 
 ---
@@ -208,7 +208,11 @@ Per-service specifics:
 - `estimai-api` — estimate persistence as a JSONB document + listing columns (ADR-0004);
   record-level collaborator ACL owned by the service itself, not `auth`'s catalog (ADR-0036);
   optimistic concurrency via integer `version` + required `If-Match`/`ETag` (ADR-0038).
-  It deliberately is **not** an authorization-enforcing resource server.
+  It deliberately is **not** an authorization-enforcing resource server, with ONE exception
+  (specs/024, ADR-0075): read-only oversight of every estimate for holders of `estimate:read-all`
+  (seeded to `admin`), resolved live from `auth` only on that path and failing closed there.
+  It stores the CRM deal an estimate belongs to (`crmDealId`), set only by crm-api's
+  deal-link notices (ADR-0076).
 - `inventory-api` — hardware register (specs/015): authorization-enforcing like `refund-api`
   (live `auth GET /authz/resolve`, fails closed, entity-scoped ABAC) with `inventory:access`,
   `asset:manage`, `ledger:manage`; `/me/*` routes need only a valid JWT and scope to `sub`
@@ -332,6 +336,8 @@ Use these terms consistently in code, API contracts, and UI copy.
 | `ai_gain` | Fractional productivity improvement from AI tools (0.0–1.0) |
 | `ai_cost_coef` | Cost per FTE per elapsed day for AI tooling |
 | `collaborator` | A per-record grant on one estimate — `viewer` or `editor`, never `owner` |
+| `oversight` | Read-only access to an estimate through the `estimate:read-all` permission, with no owner/collaborator relationship; a wire value only, never stored (ADR-0075) |
+| `closed` | An estimate closed by its owner or an editor: read-only until reopened, and listed under **Closed** instead of the default **Open** list (archive and close are one status, specs/024) |
 
 ### Refund (Rimborsi)
 
@@ -356,7 +362,7 @@ Money is always integer minor units (cents); mileage rates are integer micros (A
 | `access` | The `(appId, "access")` permission that gates whether a tool appears at all |
 | `perm_epoch` | JWT claim bumped on any grant change — forces live permission re-resolution (ADR-0007) |
 | `invitation` | A pending email-matched grant; `expired` is derived on read, never written (ADR-0013) |
-| `service client` | A non-user principal in `auth`'s `SERVICE_CLIENTS` that mints a scoped service JWT (`sub="system:<id>"`, `aud=SERVICE_AUDIENCE`, scope `notifications.push`, `emails.send`, `users.contact` and/or `host-notices.send`); today `refund-api`, `estimai-api`, `inventory-api`, `crm-api`, `meetings-api` and `notify-api` (`auth` mints its own in process and may not be a client, ADR-0048/0049) |
+| `service client` | A non-user principal in `auth`'s `SERVICE_CLIENTS` that mints a scoped service JWT (`sub="system:<id>"`, `aud=SERVICE_AUDIENCE`, scope `notifications.push`, `emails.send`, `users.contact`, `host-notices.send`, `estimate-notices.send` and/or `deal-link-notices.send`); today `refund-api`, `estimai-api`, `inventory-api`, `crm-api`, `meetings-api` and `notify-api` (`auth` mints its own in process and may not be a client, ADR-0048/0049) |
 
 ### Inventory (specs/015)
 
@@ -400,7 +406,10 @@ explicit non-goal.
 
 ```
 POST   /estimates                                  Create a new estimate
-GET    /estimates                                  List estimates the caller owns or collaborates on
+GET    /estimates?whose=mine|all&status=open|closed
+                                                   List estimates the caller owns or collaborates on;
+                                                   whose=all needs estimate:read-all (ADR-0075);
+                                                   status absent = both
 GET    /estimates/{id}                             Get the full estimate (returns an ETag)
 PUT    /estimates/{id}                             Update in place — REQUIRES If-Match (ADR-0038)
 DELETE /estimates/{id}                             Delete (owner only)
@@ -411,6 +420,10 @@ POST   /estimates/{id}/collaborators               Grant access by email (owner 
 PATCH  /estimates/{id}/collaborators/{collabId}    Change access level (owner only)
 DELETE /estimates/{id}/collaborators/{collabId}    Revoke access (owner only)
 DELETE /estimates/{id}/collaborators/me            Leave a shared estimate
+POST   /estimates/{id}/close | /reopen              Close / reopen (owner or editor, If-Match; ADR-0073)
+
+POST   /system/deal-link-notices                   crm-api only (service JWT, scope deal-link-notices.send):
+                                                   an estimate was linked to / unlinked from a deal (ADR-0076)
 ```
 
 Authentication: RS256 JWT issued by the `auth` service, verified via its JWKS endpoint with
@@ -771,3 +784,5 @@ These defaults are optimized for AI coding agents (and humans) working on apps t
 - [0072] A best-effort notice must not block, undo or leak through the action it announces — `system:auth` gains `notifications.push` bound to origin `admin` (amends ADR-0048/0049 "auth: email only") to notify every effective admin of a new access request, in-app plus `email: true` (notify-api resolves addresses, ADR-0056; auth sends none), not awaited by the sign-in, failures logged; a new scope ships with its origin binding, and any other origin revisits the ADR (see docs/adr/0072-auth-pushes-admin-notifications.md)
 - [0073] A state written in two places drifts, and a state replicated by messages must survive loss, repetition and reordering — an estimate is finished only when closed in EstimAI (owner/editor, If-Match, read-only until reopened); estimai-api pushes a content-free notice `{estimateId, event, version, at, byUserId}` to crm-api `POST /system/estimate-notices` with its service JWT (new scope `estimate-notices.send`, ADR-0044/0049), best effort; crm-api accepts only `system:estimai-api`, applies under a row lock only a newer version (`estimaiVersion`, reset on relink), completes or reopens the task and notifies; the CRM's own Mark ready/Reopen are removed, the admin override stays; a second follower, content in the notice or guaranteed delivery revisits it (see docs/adr/0073-estimai-closes-the-estimate-crm-follows.md)
 - [0074] A transcript that cannot be proven complete says where it may not be — a silent omission by a producer that reports success is read downstream as a complete record (and absence as fact): detect probable gaps from an independent signal (audio energy vs the word timeline), mark final gaps (the per-part retry is suspended, tries = 1, because the provider returned byte-identical results 8 of 8 times; revisit under O15 only with DIFFERENT audio; a repetition never flags a part; duplicates removed same-speaker within a part) and have the SERVICE write the caveat on every derived artefact (summary, answer, copy); empty-with-gaps is `failed` `speech_not_transcribed`, never "no speech"; any new consumer of a transcript must carry the gaps (see docs/adr/0074-meetings-transcript-completeness-detect-retry-mark.md)
+- [0075] A privilege for looking must not become a dependency of, or a write path through, the ordinary path — estimai-api enforces ONE catalog permission, `estimate:read-all` (unconditioned, seeded to `admin` only), resolved live from `auth GET /authz/resolve` ONLY on the oversight path (`GET /estimates?whose=all`: 403 `oversight_required`, 503 `authz_unavailable`; `GET /estimates/{id}` only when no owner/collaborator relationship: 200 `access:"oversight"` else 404); own/shared estimates never call `auth`; any write route answers a holder 403 `oversight_read_only` (404 if the check fails); `oversight` is a wire value, never stored or a collaborator level; an existing level always wins; amends 0036, narrows 0037; rejected: `estimate:view`, `requireAdmin`, admin as implicit editor, enforcing every route; revisit for oversight writes, conditioned oversight or > ~500 estimates (see docs/adr/0075-estimai-oversight-permission-amends-0036.md)
+- [0076] A fact about a record is stated only by its owner, and a copy kept by messages must survive loss, repetition and reordering — crm-api pushes `{estimateId, dealId, event: linked|unlinked, at}` to estimai-api `POST /system/deal-link-notices` (service JWT, scope `deal-link-notices.send`, `sub` must be `system:crm-api`) for the EstimAI "Deal" badge; EstimAI stores only `crmDealId`/`crmLinkAt` and never learns deal content; one conditional update applies only a newer `at` (equal: unlinked wins; unlink clears only the same dealId), ordered by the CRM clock because there is one replica and at most two events per link; best effort, never fails the CRM action, repaired by the re-runnable `crm-api/scripts/backfill-estimate-links.ts`; any future deal deletion MUST send `unlinked`; grant the scope in production `SERVICE_CLIENTS` only AFTER the new auth is live (an unknown scope stops auth); a second replica, a relink path, deal content or guaranteed delivery revisits it (see docs/adr/0076-crm-pushes-deal-links-to-estimai.md)
