@@ -69,6 +69,10 @@ export const ESTIMAI_CATALOG: AppCatalogInput = {
           label: "Delete",
           supportedConditions: ESTIMATE_SUPPORTED_CONDITIONS,
         },
+        // specs/024, ADR-0075: global read-only oversight of every estimate.
+        // No conditions — estimai-api enforces it (the one permission it asks
+        // `auth` about) and does not evaluate ownership/entity rules.
+        { key: "read-all", label: "Read every estimate", supportedConditions: [] },
       ],
     },
   ],

@@ -567,6 +567,20 @@ export async function seedInventoryGrants(): Promise<void> {
 }
 
 /**
+ * Grants `estimate:read-all` (specs/024, ADR-0075) to `admin` only,
+ * unconditioned. Idempotent and non-destructive through {@link ensureGrant},
+ * like {@link seedCrmGrants}; the `admin` role is upserted defensively.
+ */
+export async function seedEstimaiGrants(): Promise<void> {
+  const adminRole = await db.role.upsert({
+    where: { name: ADMIN_ROLE_NAME },
+    update: {},
+    create: { name: ADMIN_ROLE_NAME, isSystem: true },
+  });
+  await ensureGrant(adminRole.id, "estimate", "read-all");
+}
+
+/**
  * Seeds the CRM's role grants (specs/017-crm — AC-5.2; decisions D-4):
  *
  *   - `admin` — `deal:manage` and `contact:erase`, UNCONDITIONED. Its
@@ -735,6 +749,7 @@ export async function seed(): Promise<void> {
   await seedInventoryGrants();
   await seedCrmGrants();
   await seedMeetingsGrants();
+  await seedEstimaiGrants();
   await ensureBootstrapAdmin();
 }
 

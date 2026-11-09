@@ -25,22 +25,25 @@ describe("ESTIMAI_CATALOG (T26, AC-3.4)", () => {
     });
   });
 
-  test("declares the `estimate` resource with view/create/edit/delete", () => {
+  test("declares the `estimate` resource with view/create/edit/delete and read-all (specs/024)", () => {
     const estimateResource = ESTIMAI_CATALOG.resources.find((r) => r.key === "estimate");
     expect(estimateResource).toBeDefined();
     expect(estimateResource?.actions.map((a) => a.key).sort()).toEqual([
       "create",
       "delete",
       "edit",
+      "read-all",
       "view",
     ]);
   });
 
   test("every `estimate` action supports the ownership/entity/department conditions model", () => {
     const estimateResource = ESTIMAI_CATALOG.resources.find((r) => r.key === "estimate");
-    for (const action of estimateResource?.actions ?? []) {
+    for (const action of (estimateResource?.actions ?? []).filter((a) => a.key !== "read-all")) {
       expect(action.supportedConditions.sort()).toEqual(["department", "entity", "ownership"]);
     }
+    // specs/024, ADR-0075: read-all is global, no conditions.
+    expect(estimateResource?.actions.find((a) => a.key === "read-all")?.supportedConditions).toEqual([]);
     // Guard against an empty-array false positive above.
     expect(estimateResource?.actions.length).toBeGreaterThan(0);
   });

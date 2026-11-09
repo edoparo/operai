@@ -57,6 +57,7 @@ import {
   seedCrmCatalog,
   seedCrmGrants,
   seedEstimaiCatalog,
+  seedEstimaiGrants,
   seedInventoryCatalog,
   seedInventoryGrants,
   seedMeetingsCatalog,
@@ -133,7 +134,7 @@ describe("seedAppAccessCatalog (T11, US-7)", () => {
 });
 
 describe("seedEstimaiCatalog (T26, AC-3.4)", () => {
-  test("registers EstimAI's full catalog — app access + estimate view/create/edit/delete, idempotent on re-run", async () => {
+  test("registers EstimAI's full catalog — app access + estimate view/create/edit/delete/read-all, idempotent on re-run", async () => {
     await seedEstimaiCatalog();
     await seedEstimaiCatalog(); // re-run — full-replace upsert, must not duplicate
 
@@ -150,10 +151,13 @@ describe("seedEstimaiCatalog (T26, AC-3.4)", () => {
       "create",
       "delete",
       "edit",
+      "read-all",
       "view",
     ]);
     for (const action of estimateResource?.actions ?? []) {
-      expect(action.supportedConditions.sort()).toEqual(["department", "entity", "ownership"]);
+      // specs/024: read-all is global — it declares no conditions (ADR-0075).
+      const expected = action.key === "read-all" ? [] : ["department", "entity", "ownership"];
+      expect(action.supportedConditions.sort()).toEqual(expected);
     }
   });
 
@@ -167,7 +171,40 @@ describe("seedEstimaiCatalog (T26, AC-3.4)", () => {
     expect(mine).toBeDefined();
     const estimateResource = mine?.resources.find((r) => r.key === "estimate");
     expect(estimateResource).toBeDefined();
-    expect(estimateResource?.actions).toHaveLength(4);
+    expect(estimateResource?.actions).toHaveLength(5);
+  });
+});
+
+describe("seedEstimaiGrants (specs/024 — AC-1.8; ADR-0075)", () => {
+  async function clearEstimateGrants() {
+    await db.permissionRule.deleteMany({ where: { resource: "estimate", action: "read-all" } });
+  }
+  beforeEach(clearEstimateGrants);
+  afterAll(async () => {
+    await clearEstimateGrants();
+    await seedEstimaiGrants();
+  });
+
+  test("estimate:read-all is held by admin only, unconditioned, idempotently", async () => {
+    await seedSystemRoles();
+    await seedEstimaiGrants();
+    await seedEstimaiGrants();
+    const rules = await db.permissionRule.findMany({
+      where: { resource: "estimate", action: "read-all" },
+      include: { role: { select: { name: true } } },
+    });
+    expect(rules.map((r) => ({ role: r.role.name, conditions: r.conditions }))).toEqual([
+      { role: ADMIN_ROLE_NAME, conditions: null },
+    ]);
+  });
+
+  test("seed() runs the EstimAI grants too", async () => {
+    await seedSystemRoles();
+    await seed();
+    const count = await db.permissionRule.count({
+      where: { resource: "estimate", action: "read-all", role: { name: ADMIN_ROLE_NAME } },
+    });
+    expect(count).toBe(1);
   });
 });
 
@@ -808,7 +845,7 @@ describe("seed() — runs every deploy-time step", () => {
     const estimaiCatalog = await getAppCatalog(ESTIMAI_APP_ID);
     expect(estimaiCatalog.resources.some((r) => r.key === ESTIMAI_APP_ID)).toBe(true);
     const estimateResource = estimaiCatalog.resources.find((r) => r.key === "estimate");
-    expect(estimateResource?.actions).toHaveLength(4);
+    expect(estimateResource?.actions).toHaveLength(5);
 
     const refundCatalog = await getAppCatalog(REFUND_APP_ID);
     expect(refundCatalog.resources.some((r) => r.key === REFUND_APP_ID)).toBe(true);

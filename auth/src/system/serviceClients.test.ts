@@ -69,14 +69,24 @@ describe("parseServiceClients", () => {
     if (!result.ok) expect(result.errors.join("\n")).not.toContain(SECRET_A);
   });
 
-  test("the scope allowlist is exactly notifications.push, emails.send, users.contact, estimate-notices.send and host-notices.send", () => {
+  test("the scope allowlist is exactly notifications.push, emails.send, users.contact, estimate-notices.send, host-notices.send and deal-link-notices.send", () => {
     expect([...KNOWN_SERVICE_SCOPES]).toEqual([
       "notifications.push",
       "emails.send",
       "users.contact",
       "estimate-notices.send",
       "host-notices.send",
+      "deal-link-notices.send",
     ]);
+  });
+
+  test("a client holding deal-link-notices.send parses, beside notifications.push (specs/024)", () => {
+    const result = parseServiceClients(
+      raw({ "crm-api": { secret: SECRET_A, scope: "notifications.push deal-link-notices.send" } }),
+    );
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.clients.get("crm-api")?.scopes).toEqual(["notifications.push", "deal-link-notices.send"]);
   });
 
   test("a client holding host-notices.send parses, alone or beside notifications.push (specs/021)", () => {

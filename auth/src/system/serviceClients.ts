@@ -40,6 +40,9 @@ import { createHash, timingSafeEqual } from "node:crypto";
  * - `host-notices.send`: post a meeting's link/change/delete notice to a host
  *   app's `/system/meeting-host/v1/notices` (specs/021, AC-11.8). crm-api
  *   verifies it; the sub allowlist there names `system:meetings-api`.
+ * - `deal-link-notices.send`: post a deal-link notice (linked/unlinked) to
+ *   estimai-api's `/system/deal-link-notices` (specs/024, ADR-0076).
+ *   estimai-api verifies it; its sub allowlist names `system:crm-api`.
  */
 export const KNOWN_SERVICE_SCOPES = [
   "notifications.push",
@@ -47,6 +50,7 @@ export const KNOWN_SERVICE_SCOPES = [
   "users.contact",
   "estimate-notices.send",
   "host-notices.send",
+  "deal-link-notices.send",
 ] as const;
 
 /**
