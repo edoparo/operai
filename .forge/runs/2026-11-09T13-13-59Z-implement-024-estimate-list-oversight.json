@@ -10,14 +10,83 @@
  "finished": "2026-11-09T13:13:59Z",
  "drift_events": [],
  "env_faults": [
-  {"agent": "quality-engineer", "class": "secret env", "detail": "estimai-api DB tests re-read DATABASE_URL from the local dotenv file, bypassing the _test wrapper", "resolved_by": "bun test preload captures the starting DATABASE_URL (estimai-api/src/lib/testDatabaseUrl.ts)"},
-  {"agent": "quality-engineer", "class": "machine tool", "detail": "1Password CLI signed out, local stack could not start", "resolved_by": "owner signed in; dev DBs migrated (db:migrate) and auth re-seeded (db:seed)"}
+  {
+   "agent": "quality-engineer",
+   "class": "secret env",
+   "detail": "estimai-api DB tests re-read DATABASE_URL from the local dotenv file, bypassing the _test wrapper",
+   "resolved_by": "bun test preload captures the starting DATABASE_URL (estimai-api/src/lib/testDatabaseUrl.ts)"
+  },
+  {
+   "agent": "quality-engineer",
+   "class": "machine tool",
+   "detail": "1Password CLI signed out, local stack could not start",
+   "resolved_by": "owner signed in; dev DBs migrated (db:migrate) and auth re-seeded (db:seed)"
+  }
  ],
- "verdicts": {"qe": "PASS"},
- "security": {"matched_rules": [], "dispatched": false, "notes": ["owasp-reviewer pass still to run: new permission, service-JWT endpoint and scopes"]},
+ "verdicts": {
+  "qe": "PASS",
+  "security": "PASS"
+ },
+ "security": {
+  "matched_rules": [
+   "auth/authz change",
+   "service-to-service endpoint",
+   "new service scope"
+  ],
+  "dispatched": true,
+  "notes": [
+   "PASS WITH NOTES: 0 critical, 0 high, 0 medium, 4 low",
+   "LOW oversight.ts:55-97 30 s grant cache: an old-epoch token keeps oversight up to 30 s after revocation (ADR-0014 backstop)",
+   "LOW dealLinkNotices.routes.ts: `at` has no upper bound; a far-future at from crm-api would pin the link state",
+   "LOW estimates.routes.ts:356-377 whose=all list unbounded (ADR-0075 revisit trigger > ~500 estimates)",
+   "LOW/info oversight.ts:79-83 outage log includes the fetch error text (internal host)"
+  ]
+ },
  "agents": [
-  {"agent": "quality-engineer", "tasks": ["T1","T2","T3","T4","T5","T6","T7","T8","T9","T10","T11"], "outcome": "BLOCKED", "notes": "22/22 ACs mapped and green at unit/integration level; auth 766, crm-api 369, estimai-ui 355, env-doctor 171; e2e blocked by signed-out 1Password"},
-  {"agent": "main-loop", "tasks": ["T10"], "outcome": "PASS", "notes": "estimai-api 341/341 on estimai_test+auth_test incl. orphaned-estimate; e2e estimate-oversight + 5 EstimAI regression specs 15/15 (older specs now grant estimai access and wait for GET /estimates instead of networkidle; sharing spec reads the save-status testid); shell lint/tsc clean"}
+  {
+   "agent": "quality-engineer",
+   "tasks": [
+    "T1",
+    "T2",
+    "T3",
+    "T4",
+    "T5",
+    "T6",
+    "T7",
+    "T8",
+    "T9",
+    "T10",
+    "T11"
+   ],
+   "outcome": "BLOCKED",
+   "notes": "22/22 ACs mapped and green at unit/integration level; auth 766, crm-api 369, estimai-ui 355, env-doctor 171; e2e blocked by signed-out 1Password"
+  },
+  {
+   "agent": "main-loop",
+   "tasks": [
+    "T10"
+   ],
+   "outcome": "PASS",
+   "notes": "estimai-api 341/341 on estimai_test+auth_test incl. orphaned-estimate; e2e estimate-oversight + 5 EstimAI regression specs 15/15 (older specs now grant estimai access and wait for GET /estimates instead of networkidle; sharing spec reads the save-status testid); shell lint/tsc clean"
+  },
+  {
+   "agent": "owasp-reviewer",
+   "tasks": [
+    "T1",
+    "T2",
+    "T3",
+    "T4",
+    "T5",
+    "T6",
+    "T7",
+    "T8",
+    "T9",
+    "T10",
+    "T11"
+   ],
+   "outcome": "PASS",
+   "notes": "delta fc2eb09..9eef7b8 read; betterleaks: 2 local test DB placeholders only; no dependency changes"
+  }
  ],
  "result": "completed",
  "tokens": null,
