@@ -28,8 +28,8 @@ importers:
         specifier: ^9.39.4
         version: 9.39.4
       '@module-federation/vite':
-        specifier: ^1.23.9
-        version: 1.23.10(typescript@5.9.3)(vite@8.1.4(@types/node@24.13.3)(esbuild@0.28.1)(jiti@2.7.0))
+        specifier: 1.23.9
+        version: 1.23.9(typescript@5.9.3)(vite@8.1.4(@types/node@24.13.3)(esbuild@0.28.1)(jiti@2.7.0))
       '@playwright/test':
         specifier: ^1.61.1
         version: 1.61.1
@@ -599,8 +599,8 @@ packages:
   '@module-federation/third-party-dts-extractor@2.9.3':
     resolution: {integrity: sha512-jUWFWa5l7j2jb3JU9bfGHZ5luv6XAogMsvJ/yG59AZmhpliPozkyxYRjnbtik85IipZF4Cb06PW9qv5qRRf6OQ==}
 
-  '@module-federation/vite@1.23.10':
-    resolution: {integrity: sha512-GW3ZICvfoCRdmobcGBECVO9RXG1xmexfMa90EmAUV9GeXv59XB2ORgsfgHP9KR92s5onzc6rhwuSXtAkLj9YRg==}
+  '@module-federation/vite@1.23.9':
+    resolution: {integrity: sha512-fNAIE6z2fe/+QW2znXoJvviYXZPcPau5qqXfQ1VfV/BkdJVlyxSlOCPz5GvRiwcpa4oC/n9LlbuXNoDOajDgDQ==}
     engines: {node: ^20.19.0 || >=22.12.0}
     peerDependencies:
       vite: ^5.1.0 || ^6.0.0 || ^7.0.0 || ^8.0.0
@@ -2485,7 +2485,7 @@ snapshots:
 
   '@module-federation/third-party-dts-extractor@2.9.3': {}
 
-  '@module-federation/vite@1.23.10(typescript@5.9.3)(vite@8.1.4(@types/node@24.13.3)(esbuild@0.28.1)(jiti@2.7.0))':
+  '@module-federation/vite@1.23.9(typescript@5.9.3)(vite@8.1.4(@types/node@24.13.3)(esbuild@0.28.1)(jiti@2.7.0))':
     dependencies:
       '@module-federation/dts-plugin': 2.9.3(typescript@5.9.3)
       '@module-federation/runtime': 2.9.3
