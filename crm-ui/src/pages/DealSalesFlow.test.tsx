@@ -1080,11 +1080,18 @@ describe('Settings screen', () => {
     fireEvent.click(within(card).getByTestId('crm-settings-welld_ch-numbering-save'))
     expect(await within(card).findByText('An offer already uses that number. Use 4 or more.')).not.toBeNull()
     expect(put).toBeNull()
+    // A typed number is not the saved one: the hint keeps the saved number and a
+    // warning says the change is not applied until saved.
     fireEvent.change(next, { target: { value: '19' } })
-    expect(card.textContent).toContain('0019/2026')
+    expect(card.textContent).toContain('The next new offer is numbered 0004/2026.')
+    expect(within(card).getByTestId('crm-settings-welld_ch-numbering-unsaved').textContent).toBe(
+      'Not saved yet. Until you save, the next new offer is still 0004/2026; after saving it will be 0019/2026.',
+    )
     fireEvent.click(within(card).getByTestId('crm-settings-welld_ch-numbering-save'))
     await waitFor(() => expect(put).toEqual({ year: 2026, next: 19 }))
     expect(await within(card).findByText('wellD CH: the next new offer is 0019/2026.')).not.toBeNull()
+    expect(card.textContent).toContain('The next new offer is numbered 0019/2026.')
+    expect(within(card).queryByTestId('crm-settings-welld_ch-numbering-unsaved')).toBeNull()
   })
 })
 

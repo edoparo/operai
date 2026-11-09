@@ -51,7 +51,10 @@ function NumberingForm({
   const [busy, setBusy] = useState(false)
 
   const value = /^\d+$/.test(text.trim()) ? Number(text.trim()) : null
-  const example = referenceOf(value ?? sequence.next, sequence.year)
+  // The hint states what is SAVED: describing the typed number made an unsaved
+  // change read as applied, and an offer was numbered from the old counter.
+  const example = referenceOf(sequence.next, sequence.year)
+  const unsaved = value !== null && value !== sequence.next
 
   const submit = (event: FormEvent) => {
     event.preventDefault()
@@ -102,11 +105,19 @@ function NumberingForm({
               className="font-mono"
               inputMode="numeric"
               value={text}
-              onChange={(event) => setText(event.target.value)}
+              onChange={(event) => {
+                setText(event.target.value)
+                setFieldError(null)
+              }}
             />
           )}
         </Field>
       </div>
+      {unsaved && !fieldError && (
+        <Banner tone="warning" compact live="polite" data-testid={`crm-settings-${entity}-numbering-unsaved`}>
+          {t.unsaved(example, referenceOf(value, sequence.year))}
+        </Banner>
+      )}
       <div className="flex justify-end">
         <Button type="submit" variant="primary" busy={busy} data-testid={`crm-settings-${entity}-numbering-save`}>
           {t.save}

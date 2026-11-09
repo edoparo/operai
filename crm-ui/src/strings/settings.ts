@@ -36,6 +36,8 @@ const en = {
         : `The next new offer is numbered ${example}. Set it to continue from the document system.`,
     invalid: 'Enter a whole number from 1 to 9999.',
     used: (lowest: number) => `An offer already uses that number. Use ${lowest} or more.`,
+    unsaved: (saved: string, typed: string) =>
+      `Not saved yet. Until you save, the next new offer is still ${saved}; after saving it will be ${typed}.`,
     save: 'Save numbering',
     saved: (entity: string, example: string) => `${entity}: the next new offer is ${example}.`,
   },
@@ -78,6 +80,8 @@ const it: typeof en = {
         : `La prossima nuova offerta avrà il numero ${example}. Impostalo per continuare dal sistema documentale.`,
     invalid: 'Inserisci un numero intero da 1 a 9999.',
     used: (lowest: number) => `Un'offerta usa già quel numero. Usa ${lowest} o più.`,
+    unsaved: (saved: string, typed: string) =>
+      `Non ancora salvato. Finché non salvi, la prossima nuova offerta resta ${saved}; dopo il salvataggio sarà ${typed}.`,
     save: 'Salva numerazione',
     saved: (entity: string, example: string) => `${entity}: la prossima nuova offerta sarà ${example}.`,
   },
