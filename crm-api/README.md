@@ -31,7 +31,7 @@ order id; the shape of the deal's `delivery` is unchanged).
 | `CRM_S3_ACCESS_KEY_ID` / `CRM_S3_SECRET_ACCESS_KEY` | the MinIO root user (`minioadmin` / `minioadmin` by default) | secrets in any shared environment |
 | `CRM_S3_EU_ENDPOINT_HOSTS` | `localhost` | required for a non-AWS endpoint: the EU residency allowlist (ADR-0016) |
 | `NOTIFY_INTERNAL_URL` | `http://localhost:8081` | optional (specs/019): without it the CRM sends no notifications |
-| `PROJECTS_INTERNAL_URL` | `http://localhost:8085` | optional (specs/025): the deal page's Delivery card reads projects-api here; without it `deliveryKnown` is `false` |
+| `PROJECTS_INTERNAL_URL` | `http://localhost:8086` | optional (specs/025): the deal page's Delivery card reads projects-api here; without it `deliveryKnown` is `false` |
 | `SERVICE_CLIENT_ID` | `crm-api` | required with either URL above, refused alone; its entry in auth's `SERVICE_CLIENTS` needs scopes `notifications.push emails.send projects.purchase-orders.read` (renamed from the contracts scope of specs/025's first draft; auth refuses a client that still carries the old one) |
 | `SERVICE_CLIENT_SECRET` | the secret of that entry, at least 32 characters | secret; required with `SERVICE_CLIENT_ID`, and with either URL |
 | `SERVICE_AUDIENCE` | auth's `SERVICE_AUDIENCE` | optional; the `aud` accepted on `/system/*` (`GET /system/companies`, `GET /system/deals`, `GET /system/contacts`), different from `AUTH_AUDIENCE`. Unset: every `/system/*` request is a 401 |

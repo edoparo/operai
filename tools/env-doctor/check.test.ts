@@ -552,7 +552,7 @@ describe("env-doctor checker — meetings (specs/021)", () => {
       AUTH_AUDIENCE: AUD,
       SERVICE_AUDIENCE: SVC_AUD,
       ACTIVITIES_API_URL: "http://activities-api.railway.internal:8087", // specs/028, production-required
-      PROJECTS_INTERNAL_URL: "http://projects-api.railway.internal:8085",
+      PROJECTS_INTERNAL_URL: "http://projects-api.railway.internal:8086",
       SERVICE_CLIENT_ID: "crm-api",
       SERVICE_CLIENT_SECRET: "k".repeat(40),
       PORT: "8084",
@@ -839,7 +839,7 @@ function projectsSuite(): SuiteEnv {
     AUTH_BASE_URL: "http://auth.railway.internal:3001",
     AUTH_AUDIENCE: AUD,
     SERVICE_AUDIENCE: SVC_AUD,
-    PROJECTS_INTERNAL_URL: "http://projects-api.railway.internal:8085",
+    PROJECTS_INTERNAL_URL: "http://projects-api.railway.internal:8086",
     ACTIVITIES_API_URL: "http://activities-api.railway.internal:8087", // specs/028, production-required
     SERVICE_CLIENT_ID: "crm-api",
     SERVICE_CLIENT_SECRET: CLIENT_SECRET_CRM,
@@ -858,7 +858,7 @@ function projectsSuite(): SuiteEnv {
     NOTIFY_INTERNAL_URL: "http://notify-api.railway.internal:8080",
     SERVICE_CLIENT_ID: "projects-api",
     SERVICE_CLIENT_SECRET: CLIENT_SECRET_PROJECTS,
-    PORT: "8085",
+    PORT: "8086",
   };
   return s;
 }
@@ -1057,14 +1057,14 @@ describe("env-doctor checker — the projects hand-off keys (specs/025)", () => 
     s["crm-api"]!.PROJECTS_INTERNAL_URL = "https://projects.operai.welld.io";
     expect(errText(checkSuite(s, PROD))).toContain("PROJECTS_INTERNAL_URL");
     s["crm-api"]!.PROJECTS_INTERNAL_URL = "http://projects-api.railway.internal:9999";
-    expect(errText(checkSuite(s, PROD))).toContain("PROJECTS_INTERNAL_URL targets port 9999 but projects-api.PORT is 8085");
+    expect(errText(checkSuite(s, PROD))).toContain("PROJECTS_INTERNAL_URL targets port 9999 but projects-api.PORT is 8086");
   });
 
   test("locally, an internal URL on localhost is accepted for the new calls", () => {
     const s = projectsSuite();
     s["projects-api"]!.ESTIMAI_INTERNAL_URL = "http://localhost:8080";
     s["projects-api"]!.NOTIFY_INTERNAL_URL = "http://localhost:8080";
-    s["crm-api"]!.PROJECTS_INTERNAL_URL = "http://localhost:8085";
+    s["crm-api"]!.PROJECTS_INTERNAL_URL = "http://localhost:8086";
     // the CORS origins in this fixture are the production ones, so look only at the URL findings
     expect(checkSuite(s, LOCAL).filter((x) => x.message.includes("INTERNAL_URL"))).toEqual([]);
   });

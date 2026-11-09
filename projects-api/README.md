@@ -2,8 +2,8 @@
 
 The Projects module's resource server (specs/024-projects): the delivery work wellD runs,
 its team, its terms and, for a project made from a won deal, its purchase order with the Bexio
-order id. Bun + Hono + Prisma, port **8085**,
-logical database **`projects`**. Live API reference at `http://localhost:8085/docs`.
+order id. Bun + Hono + Prisma, port **8086**,
+logical database **`projects`**. Live API reference at `http://localhost:8086/docs`.
 
 It is authorization-enforcing (ADR-0014): every route except `/health` needs a valid JWT
 and the `projects:access` permission, resolved live from auth. If auth cannot answer, the
