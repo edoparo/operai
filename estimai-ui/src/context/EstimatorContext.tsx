@@ -77,8 +77,7 @@ export type EstimatorContextValue = {
    */
   access: EstimateAccess
   /**
-   * The single derived "am I allowed to mutate" gate — `access !== 'viewer'`
-   * — computed exactly once here (plan risk R5: "one rule, not twelve").
+   * The single derived "am I allowed to mutate" gate (owner or editor, and the estimate open) computed exactly once here (plan risk R5: "one rule, not twelve").
    * Every mutating control downstream (T17) reads *this*, never re-derives
    * its own notion of "am I allowed."
    */
@@ -242,7 +241,9 @@ export function EstimatorProvider({
   const [closedAt, setClosedAt] = useState<string | null>(initialClosedAt ?? null)
   const [closedBy, setClosedBy] = useState<EstimateIdentity | null>(initialClosedBy ?? null)
   const [closedWhileEditing, setClosedWhileEditing] = useState(false)
-  const canChangeLifecycle = access !== 'viewer'
+  // Oversight (specs/024) is read-only like a viewer: only the owner and an editor
+  // may change the document or its open/closed state.
+  const canChangeLifecycle = access === 'owner' || access === 'editor'
   const canEdit = canChangeLifecycle && closedAt === null
 
   // owner/collaboratorCount are likewise fixed for the provider's lifetime

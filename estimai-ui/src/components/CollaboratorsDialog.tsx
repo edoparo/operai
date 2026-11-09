@@ -140,7 +140,8 @@ const findByEmail = (email: string, collaborators: CollaboratorGrant[]): Collabo
 export type CollaboratorsDialogProps = {
   estimateId: string
   /** The caller's relationship to this estimate — determines dialog mode. */
-  access: EstimateAccess
+  /** Never `oversight`: an oversight-only caller has no collaborators control (the collaborators API 404s for them). */
+  access: Exclude<EstimateAccess, 'oversight'>
   /**
    * The estimate's owner identity (`estimatesApi.ts`'s `EstimateFull.owner` /
    * `EstimateListItem.owner`) — required content for member mode's "Shared

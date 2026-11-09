@@ -40,6 +40,9 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { ReactNode } from 'react'
 import { render, screen, waitFor, cleanup, within, fireEvent, act } from '@testing-library/react'
 import EstimatesPage from './EstimatesPage'
+import { useNavigate, useSearch } from '@tanstack/react-router'
+import { navigateSuite } from 'shell/session'
+import { FILTERS_STORAGE_KEY } from '../lib/listFilters'
 import type { EstimateListItem } from '../lib/estimatesApi'
 import { formatDate } from '@operai/ui'
 import { strings } from '../strings'
@@ -63,6 +66,7 @@ vi.mock('@tanstack/react-router', async (importOriginal) => {
   return {
     ...original,
     useNavigate: vi.fn(() => vi.fn()),
+    useSearch: vi.fn(() => ({})),
     // A row's name is a router <Link> (INC-14); no RouterProvider here.
     Link: ({ children, className, tabIndex }: { children: ReactNode; className?: string; tabIndex?: number }) => (
       <a href="#" className={className} tabIndex={tabIndex}>
@@ -70,6 +74,22 @@ vi.mock('@tanstack/react-router', async (importOriginal) => {
       </a>
     ),
   }
+})
+
+// The caller's permissions (UX gating only): a test says what it grants.
+const perms = vi.hoisted(() => ({
+  value: {
+    epoch: 0,
+    apps: [] as string[],
+    roles: [] as string[],
+    departments: [] as string[],
+    permissions: [] as { resource: string; action: string }[],
+  },
+}))
+
+vi.mock('shell/session', async (importOriginal) => {
+  const original = await importOriginal<typeof import('shell/session')>()
+  return { ...original, usePermissions: () => perms.value, navigateSuite: vi.fn() }
 })
 
 vi.mock('../lib/api', () => ({
@@ -92,6 +112,7 @@ const itemA: EstimateListItem = {
   access: 'owner',
   owner: null,
   closedAt: null,
+  crmDealId: null,
 }
 
 const itemB: EstimateListItem = {
@@ -102,6 +123,7 @@ const itemB: EstimateListItem = {
   access: 'owner',
   owner: null,
   closedAt: null,
+  crmDealId: null,
 }
 
 // ---------------------------------------------------------------------------
@@ -120,7 +142,25 @@ function pendingPromise<T>(): Promise<T> {
 // Setup / teardown
 // ---------------------------------------------------------------------------
 
+let navigateMock = vi.fn()
+
+/** The caller holds these permissions and their grants have resolved. */
+const grant = (...pairs: [string, string][]) => {
+  perms.value = {
+    epoch: 1,
+    apps: ['estimai'],
+    roles: [],
+    departments: [],
+    permissions: pairs.map(([resource, action]) => ({ resource, action })),
+  }
+}
+
 beforeEach(() => {
+  navigateMock = vi.fn()
+  vi.mocked(useNavigate).mockReturnValue(navigateMock as never)
+  vi.mocked(useSearch).mockReturnValue({} as never)
+  perms.value = { epoch: 0, apps: [], roles: [], departments: [], permissions: [] }
+  sessionStorage.clear()
   vi.stubEnv('VITE_API_URL', 'http://api.test')
   vi.stubEnv('VITE_AUTH_URL', 'http://auth.test')
 })
@@ -150,7 +190,7 @@ describe('EstimatesPage', () => {
       // No estimate rows or error banners should be present yet
       expect(screen.queryByRole('alert')).toBeNull()
       // "Ready to estimate" only appears in the empty state — must not appear
-      expect(screen.queryByText('Ready to estimate your first project?')).toBeNull()
+      expect(screen.queryByText(strings.estimatesList.empty.mineOpen.heading)).toBeNull()
     })
   })
 
@@ -184,24 +224,23 @@ describe('EstimatesPage', () => {
 
   // (C) Empty state
   describe('(C) empty — list() resolves with []', () => {
-    it('renders the existing empty state and no error surface (AC-2.3)', async () => {
+    it('renders the Mine + Open empty state with its way forward and no error surface (AC-2.3)', async () => {
       vi.mocked(estimatesApi.list).mockResolvedValue([])
 
       render(<EstimatesPage />)
 
-      // Wait for the empty state heading
       await waitFor(() => {
-        expect(screen.getByText('Ready to estimate your first project?')).toBeDefined()
+        expect(screen.getByText(strings.estimatesList.empty.mineOpen.heading)).toBeDefined()
       })
 
-      // No the loading SkeletonRows
       expect(screen.queryByTestId('skeleton-list-rows')).toBeNull()
-
-      // No error alert
       expect(screen.queryByRole('alert')).toBeNull()
 
-      // The descriptive paragraph from the empty state must appear
-      expect(screen.getByText(/EstimAI helps you size software projects/)).toBeDefined()
+      // The panel carries New estimate / Load example; the header's is hidden there.
+      const panel = screen.getByTestId('estimates-empty')
+      expect(within(panel).getByRole('button', { name: /^New estimate$/i })).toBeDefined()
+      expect(within(panel).getByRole('button', { name: /Load example/i })).toBeDefined()
+      expect(screen.getAllByRole('button', { name: /^New estimate$/i })).toHaveLength(1)
     })
   })
 
@@ -227,7 +266,7 @@ describe('EstimatesPage', () => {
 
       // No skeleton, no empty state
       expect(screen.queryByTestId('skeleton-list-rows')).toBeNull()
-      expect(screen.queryByText('Ready to estimate your first project?')).toBeNull()
+      expect(screen.queryByText(strings.estimatesList.empty.mineOpen.heading)).toBeNull()
     })
   })
 
@@ -267,6 +306,7 @@ describe('EstimatesPage', () => {
         access: 'editor',
         owner: { status: 'active', name: 'Marco Rossi' },
         closedAt: null,
+        crmDealId: null,
       }
       vi.mocked(estimatesApi.list).mockResolvedValue([itemA, sharedItem])
 
@@ -309,6 +349,7 @@ describe('EstimatesPage', () => {
         access: 'viewer',
         owner: { status: 'deleted', name: null },
         closedAt: null,
+        crmDealId: null,
       }
       vi.mocked(estimatesApi.list).mockResolvedValue([orphanedItem])
 
@@ -338,6 +379,7 @@ describe('EstimatesPage', () => {
         access: 'viewer',
         owner: { status: 'unknown', name: null },
         closedAt: null,
+        crmDealId: null,
       }
       vi.mocked(estimatesApi.list).mockResolvedValue([unknownOwnerItem])
 
@@ -365,6 +407,7 @@ describe('EstimatesPage', () => {
         access: 'viewer',
         owner: { status: 'active', name: 'Giulia Bianchi' },
         closedAt: null,
+        crmDealId: null,
       }
       vi.mocked(estimatesApi.list).mockResolvedValue([sharedOnlyItem])
 
@@ -374,7 +417,7 @@ describe('EstimatesPage', () => {
         expect(screen.getByText('Shared Only Project')).toBeDefined()
       })
 
-      expect(screen.queryByText('Ready to estimate your first project?')).toBeNull()
+      expect(screen.queryByText(strings.estimatesList.empty.mineOpen.heading)).toBeNull()
       expect(screen.queryByTestId('estimate-row-owned')).toBeNull()
       expect(screen.getByTestId('estimate-row-shared')).toBeDefined()
     })
@@ -495,6 +538,252 @@ describe('EstimatesPage', () => {
       expect(badges).toHaveLength(1)
       expect(badges[0]!.textContent).toContain(strings.lifecycle.statusClosed)
       expect(badges[0]!.closest('[data-testid="estimate-row-owned"]')?.textContent).toContain('Alpha Project')
+    })
+  })
+
+  // -------------------------------------------------------------------------
+  // specs/024 — filters, oversight rows, deal badge
+  // -------------------------------------------------------------------------
+
+  const stranger: EstimateListItem = {
+    id: 'est-stranger',
+    name: 'Stranger Project',
+    author: 'Someone Else',
+    updatedAt: '2026-07-09T09:00:00.000Z',
+    access: 'oversight',
+    owner: { status: 'active', name: 'Luca Verdi' },
+    closedAt: null,
+    crmDealId: null,
+  }
+
+  describe('(K) Whose / Status filters — AC-1.1, AC-1.2, AC-2.1', () => {
+    it('lists Mine + Open by default, always sending an explicit Whose and Status', async () => {
+      vi.mocked(estimatesApi.list).mockResolvedValue([itemA])
+      render(<EstimatesPage />)
+      await screen.findByText('Alpha Project')
+
+      expect(estimatesApi.list).toHaveBeenCalledWith({ whose: 'mine', status: 'open' })
+    })
+
+    it('shows the Whose control (Mine selected, All offered) only with (estimate, read-all)', async () => {
+      grant(['estimate', 'read-all'])
+      vi.mocked(estimatesApi.list).mockResolvedValue([itemA])
+      render(<EstimatesPage />)
+      await screen.findByText('Alpha Project')
+
+      const whose = screen.getByLabelText(strings.estimatesList.filters.whose) as HTMLSelectElement
+      expect(whose.value).toBe('mine')
+      expect([...whose.options].map((o) => o.value)).toEqual(['mine', 'all'])
+      expect(screen.getByLabelText(strings.estimatesList.filters.status)).toBeDefined()
+    })
+
+    it('does not render the Whose control without the permission, only Status (absent, not disabled)', async () => {
+      grant(['estimate', 'view'])
+      vi.mocked(estimatesApi.list).mockResolvedValue([itemA])
+      render(<EstimatesPage />)
+      await screen.findByText('Alpha Project')
+
+      expect(screen.queryByLabelText(strings.estimatesList.filters.whose)).toBeNull()
+      const status = screen.getByLabelText(strings.estimatesList.filters.status) as HTMLSelectElement
+      expect([...status.options].map((o) => o.value)).toEqual(['open', 'closed'])
+    })
+
+    it('combines both filters from the search params in the query (All + Closed) and retitles the page', async () => {
+      grant(['estimate', 'read-all'])
+      vi.mocked(useSearch).mockReturnValue({ whose: 'all', status: 'closed' } as never)
+      vi.mocked(estimatesApi.list).mockResolvedValue([stranger])
+      render(<EstimatesPage />)
+      await screen.findByText('Stranger Project')
+
+      expect(estimatesApi.list).toHaveBeenCalledWith({ whose: 'all', status: 'closed' })
+      expect(screen.getByRole('heading', { level: 2, name: strings.estimatesList.headingAll })).toBeDefined()
+    })
+
+    it('writes a change to the search params (defaults omitted, replace) and to sessionStorage', async () => {
+      grant(['estimate', 'read-all'])
+      vi.mocked(estimatesApi.list).mockResolvedValue([itemA])
+      render(<EstimatesPage />)
+      await screen.findByText('Alpha Project')
+
+      fireEvent.change(screen.getByLabelText(strings.estimatesList.filters.whose), { target: { value: 'all' } })
+      expect(navigateMock).toHaveBeenLastCalledWith({ to: '/estimates', search: { whose: 'all' }, replace: true })
+      expect(JSON.parse(sessionStorage.getItem(FILTERS_STORAGE_KEY) ?? 'null')).toEqual({ whose: 'all' })
+
+      fireEvent.change(screen.getByLabelText(strings.estimatesList.filters.status), { target: { value: 'closed' } })
+      expect(navigateMock).toHaveBeenLastCalledWith({ to: '/estimates', search: { status: 'closed' }, replace: true })
+
+      // Back to the defaults: nothing in the URL, nothing to restore.
+      fireEvent.change(screen.getByLabelText(strings.estimatesList.filters.status), { target: { value: 'open' } })
+      expect(navigateMock).toHaveBeenLastCalledWith({ to: '/estimates', search: {}, replace: true })
+      expect(JSON.parse(sessionStorage.getItem(FILTERS_STORAGE_KEY) ?? 'null')).toEqual({})
+    })
+
+    it('drops whose=all once permissions have resolved without the permission (AC-1.2), and never lists it', async () => {
+      grant(['estimate', 'view'])
+      vi.mocked(useSearch).mockReturnValue({ whose: 'all' } as never)
+      vi.mocked(estimatesApi.list).mockResolvedValue([itemA])
+      render(<EstimatesPage />)
+      await screen.findByText('Alpha Project')
+
+      expect(navigateMock).toHaveBeenCalledWith({ to: '/estimates', search: {}, replace: true })
+      expect(estimatesApi.list).not.toHaveBeenCalledWith({ whose: 'all', status: 'open' })
+    })
+
+    it('waits for permissions before listing a whose=all it cannot yet judge', async () => {
+      vi.mocked(useSearch).mockReturnValue({ whose: 'all' } as never)
+      vi.mocked(estimatesApi.list).mockResolvedValue([])
+      render(<EstimatesPage />)
+
+      // Only the import offer's unfiltered account list runs; the page's own list is held back.
+      await waitFor(() => expect(estimatesApi.list).toHaveBeenCalledWith())
+      expect(estimatesApi.list).not.toHaveBeenCalledWith(expect.objectContaining({ whose: expect.anything() }))
+      expect(navigateMock).not.toHaveBeenCalled()
+      expect(screen.getByTestId('skeleton-list-rows')).toBeDefined()
+    })
+
+    it('shows the denied panel on 403 oversight_required, and "Show my estimates" returns to Mine (AC-1.6)', async () => {
+      grant(['estimate', 'read-all'])
+      vi.mocked(useSearch).mockReturnValue({ whose: 'all' } as never)
+      vi.mocked(estimatesApi.list).mockImplementation(async (query) => {
+        if (query?.whose === 'all') {
+          throw new estimatesApi.ApiError({ type: 't', title: 'Forbidden', status: 403, code: 'oversight_required' })
+        }
+        return []
+      })
+      render(<EstimatesPage />)
+
+      const panel = await screen.findByTestId('estimates-denied')
+      expect(panel.getAttribute('role')).toBe('alert')
+      expect(panel.textContent).toContain(strings.estimatesList.denied.title)
+      // The filter row stays so the user can always change course.
+      expect(screen.getByTestId('estimate-filters')).toBeDefined()
+
+      fireEvent.click(within(panel).getByRole('button', { name: strings.estimatesList.denied.action }))
+      expect(navigateMock).toHaveBeenCalledWith({ to: '/estimates', search: {}, replace: true })
+    })
+
+    it('shows the authorization-unavailable banner on 503 authz_unavailable, and Retry lists again (AC-1.7)', async () => {
+      grant(['estimate', 'read-all'])
+      vi.mocked(useSearch).mockReturnValue({ whose: 'all' } as never)
+      vi.mocked(estimatesApi.list).mockImplementation(async (query) => {
+        if (query?.whose === 'all') {
+          throw new estimatesApi.ApiError({ type: 't', title: 'Unavailable', status: 503, code: 'authz_unavailable' })
+        }
+        return []
+      })
+      render(<EstimatesPage />)
+
+      const banner = await screen.findByTestId('estimates-authz-unavailable')
+      expect(banner.textContent).toContain(strings.estimatesList.authzUnavailableTitle)
+      expect(banner.textContent).toContain(strings.estimatesList.authzUnavailableBody)
+
+      const before = vi.mocked(estimatesApi.list).mock.calls.filter(([q]) => q?.whose === 'all').length
+      fireEvent.click(within(banner).getByRole('button', { name: strings.estimatesList.retry }))
+      await waitFor(() =>
+        expect(vi.mocked(estimatesApi.list).mock.calls.filter(([q]) => q?.whose === 'all').length).toBe(before + 1),
+      )
+    })
+
+    it('names the filters in the empty state, with no onboarding claim (Mine + Closed, All + Open)', async () => {
+      grant(['estimate', 'read-all'])
+      vi.mocked(useSearch).mockReturnValue({ status: 'closed' } as never)
+      vi.mocked(estimatesApi.list).mockResolvedValue([])
+      const { unmount } = render(<EstimatesPage />)
+      await screen.findByText(strings.estimatesList.empty.mineClosed.heading)
+      expect(screen.queryByRole('button', { name: /Load example/i })).toBeNull()
+      // The header keeps its New estimate here: the panel has none.
+      expect(screen.getByRole('button', { name: /^New estimate$/i })).toBeDefined()
+      unmount()
+
+      vi.mocked(useSearch).mockReturnValue({ whose: 'all' } as never)
+      render(<EstimatesPage />)
+      await screen.findByText(strings.estimatesList.empty.allOpen.body)
+    })
+
+    it('announces the scope and count of a loaded list', async () => {
+      grant(['estimate', 'read-all'])
+      vi.mocked(useSearch).mockReturnValue({ whose: 'all', status: 'closed' } as never)
+      vi.mocked(estimatesApi.list).mockResolvedValue([stranger])
+      render(<EstimatesPage />)
+      await screen.findByText('Stranger Project')
+
+      expect(screen.getByText(strings.estimatesList.loadedContext('all', 'closed', 1))).toBeDefined()
+    })
+
+    it('feeds the import offer the UNFILTERED account list, so a closed estimate is never re-offered', async () => {
+      vi.mocked(useSearch).mockReturnValue({ status: 'open' } as never)
+      vi.mocked(estimatesApi.list).mockResolvedValue([])
+      render(<EstimatesPage />)
+      await waitFor(() => expect(estimatesApi.list).toHaveBeenCalledWith())
+
+      // The call the import offer relies on carries neither Whose nor Status.
+      const unfiltered = vi.mocked(estimatesApi.list).mock.calls.filter(([q]) => q === undefined)
+      expect(unfiltered.length).toBeGreaterThanOrEqual(1)
+    })
+  })
+
+  describe('(L) oversight and deal rows — AC-1.3, AC-3.1, AC-3.2', () => {
+    it('renders an oversight row with the Oversight badge, the owner identity and no Delete', async () => {
+      grant(['estimate', 'read-all'])
+      vi.mocked(useSearch).mockReturnValue({ whose: 'all' } as never)
+      vi.mocked(estimatesApi.list).mockResolvedValue([itemA, stranger])
+      render(<EstimatesPage />)
+      await screen.findByText('Stranger Project')
+
+      const row = screen.getByTestId('estimate-row-oversight')
+      expect(within(row).getByTestId('access-level-badge').textContent).toBe(strings.sharing.dialog.levelOversight)
+      expect(within(row).getByText(/Luca Verdi/)).toBeDefined()
+      expect(within(row).queryByRole('button', { name: /Delete/i })).toBeNull()
+      expect(within(row).getByRole('button', { name: strings.estimatesList.open })).toBeDefined()
+    })
+
+    it('shows "You" instead of the author on the caller’s own rows in All, and the author in Mine', async () => {
+      grant(['estimate', 'read-all'])
+      vi.mocked(useSearch).mockReturnValue({ whose: 'all' } as never)
+      vi.mocked(estimatesApi.list).mockResolvedValue([itemA])
+      const { unmount } = render(<EstimatesPage />)
+      await screen.findByText('Alpha Project')
+      const own = screen.getByTestId('estimate-row-owned')
+      expect(own.textContent).toContain(`${strings.estimatesList.you}${strings.estimatesList.metaSeparator}`)
+      expect(own.textContent).not.toContain('Consultant A')
+      unmount()
+
+      vi.mocked(useSearch).mockReturnValue({} as never)
+      render(<EstimatesPage />)
+      await screen.findByText('Alpha Project')
+      expect(screen.getByTestId('estimate-row-owned').textContent).toContain('Consultant A')
+    })
+
+    it('shows the Deal badge on a linked row — in any combination — and none on an unlinked one', async () => {
+      vi.mocked(useSearch).mockReturnValue({ status: 'closed' } as never)
+      vi.mocked(estimatesApi.list).mockResolvedValue([
+        { ...itemA, crmDealId: 'deal-1', closedAt: '2026-11-05T10:00:00.000Z' },
+        itemB,
+      ])
+      render(<EstimatesPage />)
+      await screen.findByText('Alpha Project')
+
+      const rows = screen.getAllByTestId('estimate-row-owned')
+      expect(within(rows[0]!).getAllByTestId('deal-badge')).toHaveLength(1)
+      expect(within(rows[0]!).getByTestId('estimate-closed-badge')).toBeDefined()
+      expect(within(rows[1]!).queryByTestId('deal-badge')).toBeNull()
+    })
+
+    it('makes the Deal badge a link to the deal only with (crm, access); a plain badge otherwise', async () => {
+      vi.mocked(estimatesApi.list).mockResolvedValue([{ ...itemA, crmDealId: 'deal-1' }])
+      const { unmount } = render(<EstimatesPage />)
+      await screen.findByText('Alpha Project')
+      expect(screen.queryByTestId('deal-badge-link')).toBeNull()
+      expect(screen.getByTestId('deal-badge')).toBeDefined()
+      unmount()
+
+      grant(['crm', 'access'])
+      render(<EstimatesPage />)
+      await screen.findByText('Alpha Project')
+      const link = screen.getByTestId('deal-badge-link')
+      expect(link.getAttribute('href')).toBe('/crm/deals/deal-1')
+      fireEvent.click(link)
+      expect(navigateSuite).toHaveBeenCalledWith('/crm/deals/deal-1')
     })
   })
 })

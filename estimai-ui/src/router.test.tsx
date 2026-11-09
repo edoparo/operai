@@ -29,8 +29,17 @@
  */
 
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { cleanup, render, screen } from '@testing-library/react'
+import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { RouterProvider } from '@tanstack/react-router'
+import * as estimatesApi from './lib/estimatesApi'
+import { FILTERS_STORAGE_KEY } from './lib/listFilters'
+
+// Only `get` is replaced (the estimate route's loader); the list keeps going
+// through the unmocked apiFetch stub, which rejects, as in the tests above.
+vi.mock('./lib/estimatesApi', async (importOriginal) => {
+  const original = await importOriginal<typeof import('./lib/estimatesApi')>()
+  return { ...original, get: vi.fn() }
+})
 
 // ---------------------------------------------------------------------------
 // Types
@@ -63,6 +72,7 @@ afterEach(() => {
   vi.restoreAllMocks()
   vi.resetModules()
   window.history.pushState(null, '', '/')
+  sessionStorage.clear()
 })
 
 // ---------------------------------------------------------------------------
@@ -117,5 +127,80 @@ describe('no independent sign-in redirect (T13, AC-2.3)', () => {
 
     expect(window.location.pathname).toBe('/estimates')
     expect(window.location.href).not.toContain('/sign-in')
+  })
+})
+
+describe('the list restores its filters (specs/024 AC-2.6)', () => {
+  it('entering /estimates without params restores the last choice of the session, by replace', async () => {
+    sessionStorage.setItem(FILTERS_STORAGE_KEY, JSON.stringify({ whose: 'all', status: 'closed' }))
+    window.history.pushState(null, '', '/estimates')
+    const { createAppRouter } = await importRouter()
+    const router = createAppRouter()
+
+    render(<RouterProvider router={router} />)
+
+    await waitFor(() => expect(router.state.location.search).toEqual({ whose: 'all', status: 'closed' }))
+  })
+
+  it('leaves an explicit URL alone: a stored choice never overrides it', async () => {
+    sessionStorage.setItem(FILTERS_STORAGE_KEY, JSON.stringify({ whose: 'all' }))
+    window.history.pushState(null, '', '/estimates?status=closed')
+    const { createAppRouter } = await importRouter()
+    const router = createAppRouter()
+
+    render(<RouterProvider router={router} />)
+    await screen.findByText(/loading your estimates/i)
+
+    expect(router.state.location.search).toEqual({ status: 'closed' })
+  })
+})
+
+describe('/estimates/$estimateId loader failures (specs/024 AC-1.7)', () => {
+  it('redirects to the list on 404 — no relationship, or the permission was withdrawn (AC-1.6)', async () => {
+    vi.mocked(estimatesApi.get).mockRejectedValue(
+      new estimatesApi.ApiError({ type: 't', title: 'Not found', status: 404 }),
+    )
+    window.history.pushState(null, '', '/estimates/gone')
+    const { createAppRouter } = await importRouter()
+    const router = createAppRouter()
+
+    render(<RouterProvider router={router} />)
+
+    await waitFor(() => expect(router.state.location.pathname).toBe('/estimates'))
+    expect(screen.queryByTestId('estimate-route-error')).toBeNull()
+  })
+
+  it('shows an error panel with Retry on 503 authz_unavailable instead of redirecting, and Retry loads again', async () => {
+    vi.mocked(estimatesApi.get).mockRejectedValue(
+      new estimatesApi.ApiError({ type: 't', title: 'Unavailable', status: 503, code: 'authz_unavailable' }),
+    )
+    window.history.pushState(null, '', '/estimates/someone-elses')
+    const { createAppRouter } = await importRouter()
+    const router = createAppRouter()
+
+    render(<RouterProvider router={router} />)
+
+    const panel = await screen.findByTestId('estimate-route-error')
+    expect(panel.getAttribute('role')).toBe('alert')
+    expect(panel.textContent).toContain('authorization service is unavailable')
+    expect(router.state.location.pathname).toBe('/estimates/someone-elses')
+    // A way back to the list.
+    expect(screen.getByRole('link', { name: /back to estimates/i }).getAttribute('href')).toBe('/estimates')
+
+    const calls = vi.mocked(estimatesApi.get).mock.calls.length
+    fireEvent.click(screen.getByRole('button', { name: /^retry$/i }))
+    await waitFor(() => expect(vi.mocked(estimatesApi.get).mock.calls.length).toBeGreaterThan(calls))
+  })
+
+  it('shows the generic error panel on any other failure (network, 500)', async () => {
+    vi.mocked(estimatesApi.get).mockRejectedValue(new Error('offline'))
+    window.history.pushState(null, '', '/estimates/x')
+    const { createAppRouter } = await importRouter()
+    const router = createAppRouter()
+
+    render(<RouterProvider router={router} />)
+
+    const panel = await screen.findByTestId('estimate-route-error')
+    expect(panel.textContent).not.toContain('authorization service')
   })
 })

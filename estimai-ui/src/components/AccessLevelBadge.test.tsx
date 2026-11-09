@@ -24,6 +24,7 @@ describe('AccessLevelBadge', () => {
   it.each([
     ['editor', strings.sharing.dialog.levelEditor],
     ['viewer', strings.sharing.dialog.levelViewer],
+    ['oversight', strings.sharing.dialog.levelOversight],
   ] as const)('renders the %s variant with its icon and label text', (level, label) => {
     render(<AccessLevelBadge level={level} />)
 
@@ -60,5 +61,17 @@ describe('AccessLevelBadge', () => {
     })
 
     expect(new Set(colors).size).toBe(2)
+  })
+})
+
+describe('AccessLevelBadge — oversight (specs/024)', () => {
+  it('is told apart from Viewer by its label text, not by its (shared) eye glyph', () => {
+    const { unmount } = render(<AccessLevelBadge level="oversight" />)
+    const oversight = screen.getByTestId('access-level-badge').textContent
+    unmount()
+    render(<AccessLevelBadge level="viewer" />)
+
+    expect(oversight).toBe(strings.sharing.dialog.levelOversight)
+    expect(oversight).not.toBe(screen.getByTestId('access-level-badge').textContent)
   })
 })

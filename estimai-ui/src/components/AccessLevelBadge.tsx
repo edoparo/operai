@@ -14,15 +14,25 @@ import { Badge, Icon } from '@operai/ui'
 import type { BadgeTone, IconName } from '@operai/ui'
 import { strings } from '../strings'
 
+/** A collaborator's grant level — the only two a collaborator row can hold. */
 export type AccessLevel = 'viewer' | 'editor'
 
-const CONFIG: Record<AccessLevel, { icon: IconName; tone: BadgeTone; label: string }> = {
+/**
+ * What the badge can show: a grant level, or `oversight` (specs/024) — a right
+ * that comes from `estimate:read-all`, not from a share. It is a wire value only,
+ * never a grant, so it is NOT part of `AccessLevel`.
+ */
+export type AccessBadgeLevel = AccessLevel | 'oversight'
+
+const CONFIG: Record<AccessBadgeLevel, { icon: IconName; tone: BadgeTone; label: string }> = {
   editor: { icon: 'edit', tone: 'accent', label: strings.sharing.dialog.levelEditor },
   viewer: { icon: 'eye', tone: 'neutral', label: strings.sharing.dialog.levelViewer },
+  // Same glyph as Viewer on purpose; the label text tells them apart.
+  oversight: { icon: 'eye', tone: 'neutral', label: strings.sharing.dialog.levelOversight },
 }
 
 export type AccessLevelBadgeProps = {
-  level: AccessLevel
+  level: AccessBadgeLevel
 }
 
 export default function AccessLevelBadge({ level }: AccessLevelBadgeProps) {

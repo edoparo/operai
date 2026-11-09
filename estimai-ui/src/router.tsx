@@ -1,6 +1,8 @@
 import { createRootRoute, createRoute, createRouter, redirect, Outlet } from '@tanstack/react-router'
 import EstimatesPage from './pages/EstimatesPage'
 import EstimatePage from './pages/EstimatePage'
+import EstimateRouteError from './pages/EstimateRouteError'
+import { restoredSearch, validateListSearch } from './lib/listFilters'
 import { createProject } from './lib/projects'
 import * as estimatesApi from './lib/estimatesApi'
 import type { EstimateFull } from './lib/estimatesApi'
@@ -60,6 +62,14 @@ export function createAppRouter(basepath?: string) {
   const estimatesRoute = createRoute({
     getParentRoute: () => rootRoute,
     path: '/estimates',
+    // specs/024: the list's "Whose" and "Status" filters are search params,
+    // defaults omitted. Entering without any restores the last choice of this
+    // session (AC-2.6) by a replace-redirect, so the first fetch already uses it.
+    validateSearch: validateListSearch,
+    beforeLoad: ({ search }) => {
+      const restored = restoredSearch(search)
+      if (restored) throw redirect({ to: '/estimates', search: restored, replace: true })
+    },
     component: EstimatesPage,
   })
 
@@ -67,19 +77,25 @@ export function createAppRouter(basepath?: string) {
     getParentRoute: () => rootRoute,
     path: '/estimates/$estimateId',
     // Loader: fetch the full estimate from the API.
-    // On 404 (not found / not owned): redirect to the list.
-    // On any other error: also redirect to the list (safe fallback).
+    // On 404 (not found / no relationship / permission withdrawn): redirect to the list.
+    // On any other failure (503 `authz_unavailable` on an oversight open, network,
+    // 500): rethrow, so `errorComponent` says so and offers Retry (specs/024 AC-1.7) —
+    // a silent redirect would hide that the authorization service is down.
     loader: async ({ params }): Promise<EstimateFull> => {
       // Track last-opened in localStorage so T12 import and other tooling can
       // read it, but never gate access on this value.
       localStorage.setItem('estimai_current_id', params.estimateId)
       try {
         return await estimatesApi.get(params.estimateId)
-      } catch {
-        throw redirect({ to: '/estimates' })
+      } catch (err) {
+        if (err instanceof estimatesApi.ApiError && err.status === 404) {
+          throw redirect({ to: '/estimates' })
+        }
+        throw err
       }
     },
     component: EstimatePage,
+    errorComponent: EstimateRouteError,
   })
 
   // ---------------------------------------------------------------------------

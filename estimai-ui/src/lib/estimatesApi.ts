@@ -61,8 +61,11 @@ export type EstimateUpsert = {
  * modified"). `AccessLevel` (viewer|editor) is the grant-level union already
  * established by T14's `AccessLevelBadge`; `owner` is not a grant, so it is
  * added on top here rather than folding it into that component's type.
+ * `oversight` (specs/024) is a WIRE value only: a caller holding
+ * `estimate:read-all` reading an estimate they neither own nor collaborate on.
+ * It is read-only, never stored and never a collaborator level.
  */
-export type EstimateAccess = AccessLevel | 'owner'
+export type EstimateAccess = AccessLevel | 'owner' | 'oversight'
 
 /**
  * Id-less, already-resolved identity snapshot embedded inline on estimate/
@@ -92,6 +95,14 @@ export type EstimateListItem = {
   owner: EstimateIdentity | null
   /** ISO timestamp while the estimate is closed (read-only until reopened); `null` while open. */
   closedAt: string | null
+  /** The CRM deal this estimate belongs to (id only — never a title or amount, AC-3.3); `null` when unlinked. */
+  crmDealId: string | null
+}
+
+/** Query of `list()`: both optional; absent `status` returns open and closed (the import offer relies on it). */
+export type EstimateListQuery = {
+  whose?: 'mine' | 'all'
+  status?: 'open' | 'closed'
 }
 
 /**
@@ -332,12 +343,19 @@ export const create = async (body: EstimateUpsert): Promise<EstimateFull> => {
 }
 
 /**
- * GET /estimates
- * Returns the current user's estimates (list view, no content field).
- * Returns [] when the user has no estimates (AC-2.3). Throws ApiError on 401.
+ * GET /estimates[?whose=mine|all&status=open|closed]
+ * Returns the estimates the caller may list (list view, no content field).
+ * Returns [] when there are none (AC-2.3). Called with no query it returns the
+ * caller's own and shared estimates, open AND closed.
+ * Throws ApiError on 401, 403 `oversight_required` (`whose=all` without the
+ * permission) and 503 `authz_unavailable` (`whose=all` while `auth` is down).
  */
-export const list = async (): Promise<EstimateListItem[]> => {
-  const response = await apiFetch(apiBase())
+export const list = async (query: EstimateListQuery = {}): Promise<EstimateListItem[]> => {
+  const params = new URLSearchParams()
+  if (query.whose) params.set('whose', query.whose)
+  if (query.status) params.set('status', query.status)
+  const qs = params.toString()
+  const response = await apiFetch(qs ? `${apiBase()}?${qs}` : apiBase())
   if (!response.ok) {
     return throwFromResponse(response)
   }
@@ -374,7 +392,8 @@ export const get = async (id: string): Promise<EstimateFull> => {
  *   • `EstimateStateError` on 409 `code: "estimate_closed"` — the estimate
  *     was closed meanwhile (read-only until reopened).
  *   • `ApiError` on 404 (no relationship), 403 (`code: "insufficient_access"`
- *     — viewer, AC-3.1), 413 (size), 400 (validation), or 401.
+ *     — viewer, AC-3.1; `code: "oversight_read_only"` — reached through
+ *     oversight only), 413 (size), 400 (validation), or 401.
  */
 export const update = async (id: string, body: EstimateUpsert, version: number): Promise<EstimateFull> => {
   const response = await apiFetch(`${apiBase()}/${id}`, {

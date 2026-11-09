@@ -201,11 +201,14 @@ export default function EstimatorApp() {
   // Backfill it from the session for estimates created without one (e.g. new or
   // imported), without overwriting an author already recorded on the estimate.
   useEffect(() => {
-    // A closed estimate is read-only: never change its document locally.
-    if (author || closedAt) return
+    // Only an editor of an open estimate may change the document: a closed one,
+    // a viewer and an oversight reader (specs/024) must never get a local edit —
+    // it would mark the document dirty and, for an admin, put their name on
+    // somebody else's estimate.
+    if (author || !canEdit) return
     const sessionAuthor = sessionUser?.name || sessionUser?.email
     if (sessionAuthor) setAuthor(sessionAuthor)
-  }, [author, closedAt, sessionUser, setAuthor])
+  }, [author, canEdit, sessionUser, setAuthor])
 
   // Someone else closed/reopened or changed the estimate since it was loaded:
   // there is nothing unsaved here (closing requires it), so the latest server
@@ -566,7 +569,7 @@ export default function EstimatorApp() {
                 </span>
               )}
             </Button>
-          ) : (
+          ) : access === 'oversight' ? null : (
             <Button
               variant="ghost"
               size="sm"
@@ -637,6 +640,16 @@ export default function EstimatorApp() {
           save toast (EstimatorContext.tsx already clears saveError/
           showSavedToast the moment it enters `conflict`, but the explicit
           branch here makes that exclusivity a render-time guarantee too). */}
+      {access === 'oversight' && (
+        <Banner
+          tone="info"
+          title={strings.lifecycle.oversightTitle}
+          className="mx-5.5 mt-2"
+          data-testid="estimate-oversight-banner"
+        >
+          {strings.lifecycle.oversightBody(formatIdentity(owner ?? { status: 'unknown', name: null }))}
+        </Banner>
+      )}
       {closedAt !== null && (
         <Banner
           tone={closedWhileEditing ? 'warning' : 'info'}
@@ -867,7 +880,7 @@ export default function EstimatorApp() {
       )}
       {showShortcuts && <ShortcutsModal onClose={() => setShowShortcuts(false)} />}
       {showHelp && <HelpDrawer onClose={() => setShowHelp(false)} />}
-      {showCollaborators && (
+      {showCollaborators && access !== 'oversight' && (
         <CollaboratorsDialog
           estimateId={projectId}
           access={access}

@@ -75,6 +75,7 @@ vi.mock('@tanstack/react-router', async (importOriginal) => {
   return {
     ...original,
     useNavigate: vi.fn(() => vi.fn()),
+    useSearch: vi.fn(() => ({})),
     // A row's name is a router <Link> (INC-14); no RouterProvider here.
     Link: ({ children, className }: { children: ReactNode; className?: string }) => (
       <a href="#" className={className}>
@@ -400,6 +401,7 @@ describe('ImportOfferModal (T12, specs/001)', () => {
       access: 'owner',
       owner: null,
       closedAt: null,
+      crmDealId: null,
     })
 
     const arrange = () => {

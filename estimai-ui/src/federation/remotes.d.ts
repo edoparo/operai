@@ -33,4 +33,25 @@ declare module 'shell/session' {
   export const signOut: (
     ...args: Parameters<AuthClient['signOut']>
   ) => Promise<Awaited<ReturnType<AuthClient['signOut']>>>
+
+  /** One granted permission (ADR-0007) — used for UX gating only; the servers enforce. */
+  export interface Permission {
+    resource: string
+    action: string
+    conditions?: unknown
+  }
+
+  export interface PermissionsResult {
+    epoch: number
+    apps: string[]
+    roles: string[]
+    departments: string[]
+    permissions: Permission[]
+  }
+
+  /** Reactive permissions (`GET /authz/me`); `EMPTY_PERMISSIONS` (epoch 0, no apps) until resolved. */
+  export const usePermissions: () => PermissionsResult
+
+  /** Client-side navigation to any route of the suite (e.g. `/crm/deals/<id>`), owned by the shell's router. */
+  export const navigateSuite: (to: string) => void
 }

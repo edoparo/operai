@@ -28,6 +28,9 @@ export const en = {
   actionFailed: (status: string) => `The estimate could not be updated (${status}). Try again.`,
   actionNetwork: 'The estimate could not be updated. Check your connection and try again.',
   statusClosed: 'Closed',
+  oversightTitle: 'Read-only: admin view',
+  oversightBody: (owner: string) =>
+    `You can see this estimate because you may read every estimate. It is owned by ${owner}. You can export it, but not change, close or share it.`,
 }
 
 export const it: typeof en = {
@@ -55,4 +58,7 @@ export const it: typeof en = {
   actionFailed: (status) => `Impossibile aggiornare la stima (${status}). Riprovare.`,
   actionNetwork: 'Impossibile aggiornare la stima. Verificare la connessione e riprovare.',
   statusClosed: 'Chiusa',
+  oversightTitle: 'Sola lettura: vista amministratore',
+  oversightBody: (owner) =>
+    `Questa stima è visibile perché è possibile leggere tutte le stime. Appartiene a ${owner}. È possibile esportarla, ma non modificarla, chiuderla o condividerla.`,
 }

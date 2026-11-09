@@ -122,6 +122,7 @@ const fixedListItem: EstimateListItem = {
   access: 'owner',
   owner: null,
   closedAt: null,
+  crmDealId: null,
 }
 
 // ---------------------------------------------------------------------------
@@ -246,6 +247,38 @@ describe('list()', () => {
     expect(init?.method).toBeUndefined()
     expect(init?.body).toBeUndefined()
     expect(result).toEqual([fixedListItem])
+  })
+
+  it('sends Whose and Status as query parameters, and only the ones given', async () => {
+    vi.mocked(apiFetch).mockImplementation(async () => okResponse([]))
+
+    await list({ whose: 'all', status: 'closed' })
+    expect(lastCall().url).toBe(`${ESTIMATES_URL}?whose=all&status=closed`)
+
+    await list({ status: 'open' })
+    expect(lastCall().url).toBe(`${ESTIMATES_URL}?status=open`)
+
+    // No query at all: open AND closed — what the import offer needs.
+    await list()
+    expect(lastCall().url).toBe(ESTIMATES_URL)
+  })
+
+  it('throws an ApiError carrying the 403 oversight_required and 503 authz_unavailable codes', async () => {
+    vi.mocked(apiFetch).mockResolvedValueOnce(
+      new Response(JSON.stringify({ title: 'Forbidden', status: 403, code: 'oversight_required' }), {
+        status: 403,
+        headers: { 'Content-Type': 'application/problem+json' },
+      }),
+    )
+    await expect(list({ whose: 'all' })).rejects.toMatchObject({ status: 403, code: 'oversight_required' })
+
+    vi.mocked(apiFetch).mockResolvedValueOnce(
+      new Response(JSON.stringify({ title: 'Unavailable', status: 503, code: 'authz_unavailable' }), {
+        status: 503,
+        headers: { 'Content-Type': 'application/problem+json' },
+      }),
+    )
+    await expect(list({ whose: 'all' })).rejects.toMatchObject({ status: 503, code: 'authz_unavailable' })
   })
 
   it('returns an empty array when the API returns [] (AC-2.3)', async () => {

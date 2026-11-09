@@ -41,3 +41,16 @@ export const getSession = (): Promise<null> => Promise.resolve(null)
 export const useSession = (): { data: null } => ({ data: null })
 
 export const signOut = (): Promise<void> => Promise.resolve()
+
+// No capability by default: a test of something permission-gated says what it grants.
+export const usePermissions = () => ({
+  epoch: 0,
+  apps: [] as string[],
+  roles: [] as string[],
+  departments: [] as string[],
+  permissions: [] as { resource: string; action: string; conditions?: unknown }[],
+})
+
+export const navigateSuite = (to: string): void => {
+  window.location.assign(to)
+}

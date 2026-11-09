@@ -55,6 +55,7 @@ vi.mock('@tanstack/react-router', async (importOriginal) => {
   return {
     ...original,
     useNavigate: vi.fn(() => vi.fn()),
+    useSearch: vi.fn(() => ({})),
     // EstimatesPage's row name is a router <Link> (INC-14); no RouterProvider here.
     Link: ({ children, className, tabIndex }: { children: ReactNode; className?: string; tabIndex?: number }) => (
       <a href="#" className={className} tabIndex={tabIndex}>
@@ -100,6 +101,7 @@ const itemAlpha: EstimateListItem = {
   access: 'owner',
   owner: null,
   closedAt: null,
+  crmDealId: null,
 }
 
 const itemBeta: EstimateListItem = {
@@ -110,6 +112,7 @@ const itemBeta: EstimateListItem = {
   access: 'owner',
   owner: null,
   closedAt: null,
+  crmDealId: null,
 }
 
 // ---------------------------------------------------------------------------
@@ -192,9 +195,14 @@ describe('ConfirmDeleteModal (T10, specs/001)', () => {
     it('calls estimatesApi.remove with the correct id and refreshes the list', async () => {
       // After remove, list returns only Beta (Alpha is gone)
       vi.mocked(estimatesApi.remove).mockResolvedValue(undefined)
-      vi.mocked(estimatesApi.list)
-        .mockResolvedValueOnce([itemAlpha, itemBeta]) // initial load
-        .mockResolvedValueOnce([itemBeta]) // after delete
+      // The page lists with a query (Whose/Status); the import offer's account
+      // list has none (specs/024) — only the page's calls are sequenced here.
+      let pageCalls = 0
+      vi.mocked(estimatesApi.list).mockImplementation(async (query) => {
+        if (!query) return [itemAlpha, itemBeta]
+        pageCalls += 1
+        return pageCalls === 1 ? [itemAlpha, itemBeta] : [itemBeta] // initial load, then after delete
+      })
 
       render(<EstimatesPage />)
       await waitFor(() => {
