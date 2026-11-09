@@ -41,12 +41,22 @@ import { problemBadRequest } from "./estimates.wire";
 export const DEAL_LINK_NOTICES_SCOPE = "deal-link-notices.send";
 const CRM_CALLER = "system:crm-api";
 
+/**
+ * How far ahead of this clock a notice's `at` may be. A later `at` would pin
+ * `crmLinkAt` and shut out every real notice after it (security review
+ * 2026-11-09), so it is refused; the margin only absorbs clock skew.
+ */
+export const MAX_NOTICE_CLOCK_SKEW_MS = 5 * 60_000;
+
 const NoticeSchema = z
   .object({
     estimateId: z.string().min(1).max(64),
     dealId: z.string().min(1).max(64),
     event: z.enum(["linked", "unlinked"]),
-    at: z.string().datetime({ offset: true }),
+    at: z
+      .string()
+      .datetime({ offset: true })
+      .refine((v) => Date.parse(v) <= Date.now() + MAX_NOTICE_CLOCK_SKEW_MS, "at is in the future"),
   })
   .strict();
 

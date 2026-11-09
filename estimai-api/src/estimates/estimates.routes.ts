@@ -158,6 +158,9 @@ export const checkContentSize = (
 // headroom for the JSON envelope around a max-size (1 MiB) content (AC-1.4, DoS).
 const BODY_SIZE_LIMIT = 2 * 1024 * 1024; // 2 MiB
 
+/** ADR-0075's revisit trigger for the unpaginated `whose=all` list. */
+export const OVERSIGHT_LIST_REVISIT_ROWS = 500;
+
 // Import endpoint: must accommodate up to 200 elements each up to MAX_ESTIMATE_BYTES
 // plus a small envelope (~64 KiB). An absolute 32 MiB ceiling is applied as the
 // DoS trade-off: this endpoint is internal/behind-auth, so a generous-but-bounded
@@ -382,6 +385,15 @@ estimatesRouter.openapi(listEstimatesRoute, async (c) => {
   }
 
   const rows = exit.value;
+
+  // The oversight list is unpaginated by design (ADR-0075): listing columns only,
+  // owners resolved once per distinct owner. Past ~500 rows the ADR is revisited,
+  // so say so where operators look (security review 2026-11-09).
+  if (whose === "all" && rows.length > OVERSIGHT_LIST_REVISIT_ROWS) {
+    console.warn(
+      `[oversight] whose=all returned ${rows.length} estimates (> ${OVERSIGHT_LIST_REVISIT_ROWS}): ADR-0075 says to add pagination`,
+    );
+  }
 
   // Batch-resolve display identity for every DISTINCT non-owned row's owner
   // in one call (plan.md "one batch per list render, distinct owner subs,

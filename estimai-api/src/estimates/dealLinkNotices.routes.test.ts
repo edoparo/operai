@@ -34,7 +34,7 @@ const testDb = new PrismaClient({
 });
 mock.module("@/lib/db", () => ({ db: testDb }));
 
-const { createDealLinkNoticesRouter } = await import("./dealLinkNotices.routes");
+const { createDealLinkNoticesRouter, MAX_NOTICE_CLOCK_SKEW_MS } = await import("./dealLinkNotices.routes");
 
 // ─── Harness ─────────────────────────────────────────────────────────────────
 
@@ -218,6 +218,20 @@ describe("the body is strict (AC-3.3)", () => {
     ["an over-long dealId", { estimateId: "e", dealId: "d".repeat(65), event: "linked", at: T1 }],
   ])("%s is 400", async (_name, body) => {
     expect((await send(body)).status).toBe(400);
+  });
+
+  it("an instant beyond the clock-skew margin is 400 and nothing is written (security review 2026-11-09)", async () => {
+    const est = await seed();
+    const future = new Date(Date.now() + MAX_NOTICE_CLOCK_SKEW_MS + 60_000).toISOString();
+    expect((await send(notice(est.id, "linked", future))).status).toBe(400);
+    expect((await reload(est.id)).crmDealId).toBeNull();
+  });
+
+  it("an instant within the margin is accepted", async () => {
+    const est = await seed();
+    const soon = new Date(Date.now() + 60_000).toISOString();
+    expect((await send(notice(est.id, "linked", soon))).status).toBe(204);
+    expect((await reload(est.id)).crmDealId).toBe("deal-A");
   });
 });
 

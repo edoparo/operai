@@ -9,9 +9,13 @@
  * or has no relationship to the record — never on the owner/collaborator path,
  * so those keep working when `auth` is down (AC-1.7).
  *
- * Cached per `(sub, perm_epoch)` with a 30 s backstop, like crm-api's
- * authz middleware: a grant change bumps the epoch, so revocation is immediate
- * (AC-1.6). A token whose epoch cannot be read is never cached.
+ * Only a REFUSAL is cached, per `(sub, perm_epoch)` with a 30 s backstop: a
+ * grant bumps the epoch, so a new holder is not held back. A grant is never
+ * cached, so a revocation takes effect on the very next request even while
+ * the caller's token still carries the old epoch (AC-1.6; security review
+ * 2026-11-09 — a cached grant kept a revoked admin reading for up to 30 s).
+ * Holders are few and only these paths ask, so the extra `auth` calls are
+ * negligible. A token whose epoch cannot be read is never cached.
  *
  * Fail closed: `holdsReadAll` throws {@link OversightUnavailableError} when
  * `auth` cannot answer. Read paths turn that into 503; the write guard
@@ -75,14 +79,15 @@ export async function holdsReadAll(sub: string, authorizationHeader: string): Pr
     // The catalog declares no conditions for read-all (ADR-0075), so any grant is the grant.
     holds = permissions.some((p) => p.resource === READ_ALL_RESOURCE && p.action === READ_ALL_ACTION);
   } catch (err) {
+    // The error's name only: a fetch error's message can name auth's internal host.
     console.error(
       "[oversight] auth GET /authz/resolve failed — failing closed:",
-      err instanceof Error ? err.message : err,
+      err instanceof Error ? err.name : typeof err,
     );
     throw new OversightUnavailableError(err);
   }
 
-  if (key !== null) {
+  if (key !== null && !holds) {
     // Expired entries are otherwise only overwritten — sweep once the map is large.
     if (cache.size >= CACHE_SWEEP_THRESHOLD) {
       for (const [k, entry] of cache) if (entry.expiresAt <= now) cache.delete(k);

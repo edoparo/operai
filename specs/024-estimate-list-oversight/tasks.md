@@ -14,7 +14,7 @@ synced: 2026-11-09
   - touch: `estimai-api/prisma/schema.prisma`, `estimai-api/prisma/migrations/*`, `estimai-api/src/estimates/estimates.repo.ts`, `estimai-api/src/estimates/estimates.schemas.ts`, `estimai-api/src/estimates/estimates.wire.ts`, `estimai-api/src/estimates/estimates.routes.ts`, `estimai-api/src/estimates/estimates.routes.test.ts`
   - done when: `status=open|closed` filters for owner and collaborator; absent `status` returns both (import offer unchanged); unknown value → 400; a pre-existing closed row is in `status=closed`; list items carry `crmDealId`
 
-- [x] T3: estimai-api — oversight: `/authz/resolve` client with `(sub, perm_epoch)` cache, `whose=all`, `GET /estimates/{id}` fallback with `access:"oversight"`, write guards answering 403 `oversight_read_only` — refs: AC-1.2, AC-1.3, AC-1.4, AC-1.5, AC-1.6, AC-1.7 — deps: T2
+- [x] T3: estimai-api — oversight: `/authz/resolve` client (only a refusal cached per `(sub, perm_epoch)`, amended by T12), `whose=all`, `GET /estimates/{id}` fallback with `access:"oversight"`, write guards answering 403 `oversight_read_only` — refs: AC-1.2, AC-1.3, AC-1.4, AC-1.5, AC-1.6, AC-1.7 — deps: T2
   - touch: `estimai-api/src/lib/authClient.ts`, `estimai-api/src/lib/authClient.test.ts`, `estimai-api/src/estimates/access.ts`, `estimai-api/src/estimates/oversight*.ts`, `estimai-api/src/estimates/estimates.routes.ts`, `estimai-api/src/estimates/lifecycle.routes.ts`, `estimai-api/src/estimates/collaborators.routes.ts`, `estimai-api/src/estimates/estimates.schemas.ts`, `estimai-api/src/estimates/*.test.ts`
   - done when: plan.md § API contracts' oversight rows each have a passing integration test, including "owner path makes no resolver call" and "resolver down → own/shared still 200"
 
@@ -45,8 +45,12 @@ synced: 2026-11-09
 - [x] T10: shell e2e — `estimate-oversight.spec.ts`: admin opens All, opens a stranger's estimate read-only, switches to Closed — refs: AC-1.1, AC-1.4, AC-2.1 — deps: T1, T3, T7, T9
   - touch: `shell/e2e/estimate-oversight.spec.ts`, `shell/e2e/helpers/*`
   - done when: the spec type-checks; it runs green against `mise run dev` (or is reported as not run if the stack is not up)
-  - status 2026-11-09: written and type-checked; NOT run — the local stack runs the owner's dev databases without the migration and auth re-seed, which were not applied unattended
+  - status 2026-11-09: run green against `mise run dev` after the owner approved migrating and re-seeding the dev databases — 15/15 with the EstimAI regression specs (commit 4edf436)
 
 - [x] T11: env contract, docs and changesets — env-doctor manifest/templates (`SERVICE_AUDIENCE` on estimai-api, `ESTIMAI_INTERNAL_URL` on crm-api, crm-api scope in `SERVICE_CLIENTS`), infra README deploy order, AGENTS.md API contract + domain terms, spec 013/018 amendment pointers, changesets — refs: US-1, US-2, US-3 — deps: T1, T4, T5
   - touch: `tools/env-doctor/**`, `infra/README.md`, `AGENTS.md`, `specs/013-estimate-sharing/spec.md`, `specs/018-crm-sales-flow/spec.md`, `.changeset/*`
   - done when: `mise run env:doctor` passes on the production templates; changesets cover auth, estimai-api, crm-api and estimai-ui
+
+- [x] T12: estimai-api — security-review hardening (2026-11-09, 4 low findings): cache only a refusal so a revocation applies on the next request even on an old-epoch token; refuse a notice `at` more than 5 minutes ahead (400); warn in the log when `whose=all` returns > 500 rows (ADR-0075's revisit trigger); log only the error name when `auth` fails — refs: AC-1.6, AC-1.7, AC-3.6 — deps: T3, T4
+  - touch: `estimai-api/src/estimates/oversight.ts`, `estimai-api/src/estimates/dealLinkNotices.routes.ts`, `estimai-api/src/estimates/estimates.routes.ts`, `estimai-api/src/estimates/*.test.ts`, `docs/adr/0075-*.md`, `specs/024-estimate-list-oversight/plan.md`
+  - done when: estimai-api `bun test` on `estimai_test` is green with tests for same-token revocation, refusal caching and the future-`at` 400; `tsc --noEmit` clean

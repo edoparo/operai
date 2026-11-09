@@ -3903,16 +3903,38 @@ describe("specs/024 — oversight read path (AC-1.2, AC-1.3, AC-1.4, AC-1.5, AC-
     expect(calls.n).toBe(0);
   });
 
-  it("the resolver is called with the caller's own Authorization header, and cached per (sub, perm_epoch)", async () => {
+  it("the resolver is called with the caller's own Authorization header; a grant is never cached", async () => {
     stubIdentitiesFetch([]);
     const calls = stubResolve({ permissions: [READ_ALL] });
     const jwt = await adminToken(1);
     await get("/estimates?whose=all", jwt);
     await get("/estimates?whose=all", jwt);
-    expect(calls.n).toBe(1);
-    expect(calls.auth[0]).toBe(`Bearer ${jwt}`);
-    await get("/estimates?whose=all", await adminToken(2)); // a grant change bumps the epoch
     expect(calls.n).toBe(2);
+    expect(calls.auth[0]).toBe(`Bearer ${jwt}`);
+  });
+
+  it("a refusal is cached per (sub, perm_epoch); a grant change bumps the epoch and is asked again", async () => {
+    const calls = stubResolve({ permissions: [] });
+    const jwt = await adminToken(1);
+    expect((await get("/estimates?whose=all", jwt)).status).toBe(403);
+    expect((await get("/estimates?whose=all", jwt)).status).toBe(403);
+    expect(calls.n).toBe(1);
+    stubIdentitiesFetch([]);
+    const after = stubResolve({ permissions: [READ_ALL] });
+    expect((await get("/estimates?whose=all", await adminToken(2))).status).toBe(200);
+    expect(after.n).toBe(1);
+  });
+
+  it("a revocation takes effect on the next request even on the SAME token (old epoch) — security review 2026-11-09", async () => {
+    const theirs = await seed(USER_A_ID, "theirs");
+    stubIdentitiesFetch([]);
+    stubResolve({ permissions: [READ_ALL] });
+    const jwt = await adminToken(1);
+    expect((await get(`/estimates/${theirs.id}`, jwt)).status).toBe(200);
+
+    stubResolve({ permissions: [] }); // revoked; the token still carries epoch 1
+    expect((await get(`/estimates/${theirs.id}`, jwt)).status).toBe(404);
+    expect((await get("/estimates?whose=all", jwt)).status).toBe(403);
   });
 
   it("a revoked permission takes effect on the next epoch: list 403 and GET 404 (AC-1.6)", async () => {

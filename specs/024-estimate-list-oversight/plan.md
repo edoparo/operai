@@ -25,8 +25,11 @@ estimai-api asks `auth` about a role-based permission.
 
 - `access.ts` `resolveAccess` is unchanged. A new `resolveOversight(authHeader)` calls
   `auth GET /authz/resolve` with the caller's own JWT (ADR-0014: no new credential) and
-  answers whether the caller holds `estimate:read-all`. Cached by `(sub, perm_epoch)`, 30 s
-  backstop, like `crm-api/src/auth/authz.middleware.ts`. On an `auth` failure it throws, and
+  answers whether the caller holds `estimate:read-all`. Only a refusal is cached, by
+  `(sub, perm_epoch)` with a 30 s backstop; a grant is asked for every time so a revocation
+  applies on the next request (amended 2026-11-09, security review). The deal-link notice's
+  `at` may be at most 5 minutes ahead of estimai-api's clock (400 otherwise), and a `whose=all`
+  list over 500 rows logs a warning (ADR-0075's revisit trigger). On an `auth` failure it throws, and
   the route answers **503** (fail closed, AC-1.7).
 - It is consulted ONLY when the caller asks for it:
   - `GET /estimates?whose=all` — always (403 without the permission, AC-1.2).

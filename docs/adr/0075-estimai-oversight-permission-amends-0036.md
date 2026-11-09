@@ -29,7 +29,10 @@ read-only oversight:
 - **Permission.** A new action `estimate:read-all` in `auth`'s estimai catalog, `supportedConditions: []`,
   seeded to `admin` only (a seed contract test pins "held by `admin` and no other seeded role").
 - **Resolved live, on the oversight path only.** estimai-api calls `auth GET /authz/resolve` with the
-  caller's own JWT (ADR-0014, no new credential), cached by `(sub, perm_epoch)` with a 30 s backstop.
+  caller's own JWT (ADR-0014, no new credential). Only a refusal is cached, by `(sub, perm_epoch)`
+  with a 30 s backstop; a grant is asked for every time, so a revocation applies on the next request
+  even on a token that still carries the old epoch (amended 2026-11-09 after the security review: a
+  cached grant kept a revoked holder reading for up to 30 s).
   It is consulted only for `GET /estimates?whose=all` (403 `oversight_required` without the
   permission, 503 `authz_unavailable` if `auth` fails) and for `GET /estimates/{id}` when
   `resolveAccess` returned no relationship (200 with `access: "oversight"` with the permission,
