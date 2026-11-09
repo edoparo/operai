@@ -1,7 +1,7 @@
 /**
  * GET /system/estimates/{id}/summary (specs/025-projects-handoff T2, AC-3.1; ADR-0078) —
  * an estimate's man-days read service-to-service. projects-api copies the figure onto a
- * fixed-price contract made from a won deal, for a person who is often not a collaborator
+ * fixed-price purchase order made from a won deal, for a person who is often not a collaborator
  * on the estimate, so this route trusts a scoped SERVICE credential
  * (`estimai.estimates.read`), never a user JWT. It is not behind `jwtMiddleware`, and it
  * reads any estimate regardless of owner or collaborators.

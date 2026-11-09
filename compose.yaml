@@ -203,7 +203,7 @@ services:
   # creates the logical database itself the first time migrations run
   # (`migrate dev` / `migrate deploy`). Request/response bodies are never
   # written to application logs (method+path+status only, enforced in
-  # src/lib/logger.ts) — this service holds contract terms and the ids of the
+  # src/lib/logger.ts) — this service holds delivery terms, purchase orders and the ids of the
   # people on each project.
   #
   # Prerequisites:

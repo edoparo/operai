@@ -45,7 +45,7 @@ describe("man-days arithmetic (shared vectors with crm-api scope.test.ts)", () =
   });
 });
 
-describe("manDaysOf — the figure a contract copies", () => {
+describe("manDaysOf — the figure a purchase order copies", () => {
   it("is the Expected figure without AI gain, whatever the activity or global gain says", () => {
     const base = { params: {}, releases: [], acts: [{ id: "a", o: 2, ml: 4, p: 9, risk: 0.5 }] };
     const withGain = {

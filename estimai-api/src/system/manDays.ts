@@ -77,7 +77,7 @@ const isRecord = (value: unknown): value is Record<string, unknown> =>
   typeof value === "object" && value !== null && !Array.isArray(value);
 
 /**
- * The figure a contract copies (AC-3.1): the estimate's Expected man-days, no AI gain,
+ * The figure a purchase order copies (AC-3.1): the estimate's Expected man-days, no AI gain,
  * rounded half up once to one decimal, never negative. `content` is the stored JSON
  * document: anything that is not an estimate with an `acts` array has no effort (0), and a
  * malformed activity counts for nothing instead of failing the read.

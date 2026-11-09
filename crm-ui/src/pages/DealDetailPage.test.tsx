@@ -161,7 +161,7 @@ describe('DealDetailPage', () => {
       expect(within(card).queryByRole('textbox')).toBeNull()
     })
 
-    it('shows "—" for a contract without a Bexio order id', async () => {
+    it('shows "—" for a purchase order without a Bexio order id', async () => {
       await renderDeal(
         ['welld_ch'],
         withDelivery({

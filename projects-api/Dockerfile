@@ -34,14 +34,14 @@ COPY --chown=bun:bun --from=builder /app/prisma ./prisma
 COPY --chown=bun:bun tsconfig.json prisma.config.ts ./
 
 # Drop privileges: the official oven/bun image ships with a non-root 'bun' user
-# (uid 1000). Running as root in a container handling commercial contract terms
+# (uid 1000). Running as root in a container handling commercial delivery terms
 # exceeds the risk floor — switch before the process starts.
 USER bun
 
 EXPOSE 8086
 
-# DATA-RESIDENCY (specs/025-projects): this image is deployed to Railway EU region
-# only (europe-west4, see railway.json) — projects-api holds contract terms and the
+# DATA-RESIDENCY (specs/024-projects): this image is deployed to Railway EU region
+# only (europe-west4, see railway.json) — projects-api holds delivery terms, purchase orders and the
 # ids of the people on each project (names are resolved live from auth, never
 # stored). Request/response bodies are NEVER logged — only method+path+status
 # (src/lib/logger.ts). Do NOT add any logger that includes body, query parameters

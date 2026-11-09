@@ -128,7 +128,7 @@ export type DealEstimate = {
 
 export type EstimateOverride = { by: PersonRef; reason: string; at: string }
 
-/** The project that carries a deal and its contract's Bexio order id (specs/025 AC-3.4), read from projects-api. */
+/** The project that carries a deal and its purchase order's Bexio order id (specs/025 AC-3.4), read from projects-api. */
 export type Delivery = { project: { id: string; name: string }; bexioOrderId: string | null }
 
 export type Deal = DealSummary & {

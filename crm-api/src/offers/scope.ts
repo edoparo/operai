@@ -17,7 +17,7 @@
  *
  * The block between the `shared-copy:begin manDays` markers (the Expected-effort arithmetic
  * and `totalManDays`) is copied byte for byte into estimai-api's `src/system/manDays.ts`,
- * which serves a contract's man-days figure (specs/025, ADR-0078); `scripts/check-shared-
+ * which serves a purchase order's man-days figure (specs/025, ADR-0078); `scripts/check-shared-
  * copies.ts` fails when the two drift. Change both in the same commit.
  */
 
