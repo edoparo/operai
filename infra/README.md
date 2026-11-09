@@ -402,6 +402,7 @@ verified by `notify-api` through its existing `AUTH_JWKS_URL`. The callers are:
 | `refund-api` | `system:refund-api` | `notifications.push` + `emails.send` | `auth POST /system/service-token` with `SERVICE_CLIENT_ID` / `SERVICE_CLIENT_SECRET` |
 | `estimai-api` | `system:estimai-api` | `notifications.push` + `estimate-notices.send` (crm-api `POST /system/estimate-notices`, ADR-0073; needs `CRM_INTERNAL_URL` on estimai-api and `SERVICE_AUDIENCE` on crm-api) | same |
 | `inventory-api` | `system:inventory-api` | `notifications.push` | same |
+| `crm-api` | `system:crm-api` | `notifications.push` + `emails.send` + `deal-link-notices.send` (estimai-api `POST /system/deal-link-notices`, specs/024, ADR-0076; needs `ESTIMAI_INTERNAL_URL` on crm-api and `SERVICE_AUDIENCE` on estimai-api) | same |
 
 A person creates, per client, one Railway **Shared Variable** `<NAME>_SERVICE_CLIENT_SECRET`
 (32-256 random chars, e.g. `openssl rand -hex 32`, no 1Password item), references it from
@@ -909,6 +910,7 @@ that swap doesn't require a rewrite).
 | `NOTIFY_INTERNAL_URL` | **NEW (specs/013-estimate-sharing, T13).** **internal** (bucket ①): `${{shared.NOTIFY_INTERNAL_URL}}` (shared — see ③; its value is the literal `http://operai.railway.internal:8080`) — **not** `<NOTIFY_API_URL>`, the public domain. **Required.** | no |
 | `SERVICE_CLIENT_ID` | **specs/016 (ADR-0049).** `estimai-api` — must be a key of `auth`'s `SERVICE_CLIENTS` (scope `notifications.push` only). **Required** — `src/lib/env.ts` `process.exit(1)`s if absent. | no |
 | `SERVICE_CLIENT_SECRET` | **specs/016 (ADR-0049).** `${{shared.ESTIMAI_SERVICE_CLIENT_SECRET}}` — byte-identical to that entry's `secret`; 32–256 chars. **Required.** Used to ask `auth POST /system/service-token` (via `AUTH_BASE_URL`) for the 5-minute credential presented to `notify-api`. | **yes** |
+| `SERVICE_AUDIENCE` | **specs/024 (ADR-0076).** `${{shared.SERVICE_AUDIENCE}}` — the `aud` of the service JWT crm-api posts deal-link notices with; byte-identical to `auth`'s, **different** from `AUTH_AUDIENCE`. Optional in `src/lib/env.ts`: unset, `POST /system/deal-link-notices` refuses every call and the "Deal" badge never changes. | no |
 | `SHARE_LOOKUP_FLOOR_MS` / `SHARE_ADD_RATE_LIMIT` / `SHARE_ADD_RATE_WINDOW_MS` | **NEW (specs/013-estimate-sharing, T13).** Anti-enumeration floor (AC-1.2) + rate limit for `POST /estimates/{id}/collaborators`. Optional — code defaults `300`/`20`/`600000` apply if unset. | no |
 | `NODE_ENV` | `production` · `MAX_ESTIMATE_BYTES`/`MAX_IMPORT_REQUEST_BYTES` optional (defaults) |
 
@@ -1707,6 +1709,28 @@ failure (it flags the retired variable by name on any service).
 | Step 7 | Revert the push. Push 3 only removes code and docs; if it also has to undo step 6, restore the variable first. |
 
 ---
+
+## EstimAI oversight and deal badge rollout (specs/024, ADR-0075/0076)
+
+Order matters: `auth` refuses to start when `SERVICE_CLIENTS` names a scope it does not know.
+
+1. Deploy `auth` (new `estimate:read-all` catalog action, seeded to `admin`; new scope
+   `deal-link-notices.send`). The seed runs at startup.
+2. Only after that deploy is live: add `deal-link-notices.send` to the `crm-api` entry of
+   `auth`'s `SERVICE_CLIENTS` (template: `tools/env-doctor/templates/production/auth.env`).
+3. Set `SERVICE_AUDIENCE=${{shared.SERVICE_AUDIENCE}}` on `estimai-api` and
+   `ESTIMAI_INTERNAL_URL=http://${{estimai-api.RAILWAY_PRIVATE_DOMAIN}}:${{estimai-api.PORT}}`
+   on `crm-api`, then deploy `estimai-api` (migration `crmDealId`/`crmLinkAt`) and `crm-api`.
+4. `mise run env:doctor -- --env production` before, and the shell/estimai-ui deploy after.
+5. Backfill the existing links once (dry run first; safe to re-run, it is also the repair for
+   a lost notice). It needs crm-api's own variables and reaches estimai-api over private
+   networking, so run it INSIDE the crm-api service (e.g. `railway ssh --service crm-api`), not
+   from a laptop:
+
+   ```bash
+   bun scripts/backfill-estimate-links.ts            # dry run: prints how many would be sent
+   bun scripts/backfill-estimate-links.ts --apply
+   ```
 
 ## Rollback & operations
 

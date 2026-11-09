@@ -45,6 +45,7 @@ function validSuite(): SuiteEnv {
       SERVICE_CLIENT_ID: "estimai-api",
       SERVICE_CLIENT_SECRET: CLIENT_SECRET_EST,
       CRM_INTERNAL_URL: "http://crm-api.railway.internal:8084",
+      SERVICE_AUDIENCE: SVC_AUD,
       PORT: "8080",
     },
     "notify-api": {
@@ -214,7 +215,7 @@ describe("env-doctor checker", () => {
     for (const svc of ["auth", "estimai-api", "notify-api", "refund-api", "inventory-api"] as const) {
       s[svc]!.AUTH_AUDIENCE = "${{shared.AUTH_AUDIENCE}}";
     }
-    for (const svc of ["auth", "notify-api"] as const) {
+    for (const svc of ["auth", "notify-api", "estimai-api"] as const) {
       s[svc]!.SERVICE_AUDIENCE = "${{shared.SERVICE_AUDIENCE}}";
     }
     const f = checkSuite(s, PROD);
@@ -291,7 +292,7 @@ describe("env-doctor checker", () => {
 
   test("SERVICE_AUDIENCE and AUTH_AUDIENCE as two different shared references → no error (cannot be compared offline)", () => {
     const s = validSuite();
-    for (const svc of ["auth", "notify-api"] as const) {
+    for (const svc of ["auth", "notify-api", "estimai-api"] as const) {
       s[svc]!.AUTH_AUDIENCE = "${{shared.AUTH_AUDIENCE}}";
       s[svc]!.SERVICE_AUDIENCE = "${{shared.SERVICE_AUDIENCE}}";
     }

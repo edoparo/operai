@@ -88,7 +88,8 @@ export const SHARED_VARS: ReadonlyArray<{ name: string; services: ServiceName[] 
   // specs/018 AC-3.3: crm-api verifies estimai-api's notices against it too (ADR-0073).
   // crm-api verifies them too since specs/021: meetings-api posts host notices to it as
   // `system:meetings-api` with scope `host-notices.send` (ADR-0059).
-  { name: "SERVICE_AUDIENCE", services: ["auth", "notify-api", "crm-api"] },
+  // specs/024: estimai-api verifies crm-api's deal-link notices against it (ADR-0076).
+  { name: "SERVICE_AUDIENCE", services: ["auth", "notify-api", "crm-api", "estimai-api"] },
 ];
 
 /**
@@ -104,8 +105,8 @@ export const DISTINCT_VARS: ReadonlyArray<{ a: string; b: string; services: Serv
   {
     a: "SERVICE_AUDIENCE",
     b: "AUTH_AUDIENCE",
-    services: ["auth", "notify-api", "crm-api"],
-    why: "a service token would be accepted on user routes and a user JWT on /system/notifications, /system/estimate-notices or /system/meeting-host/v1/notices (ADR-0044)",
+    services: ["auth", "notify-api", "crm-api", "estimai-api"],
+    why: "a service token would be accepted on user routes and a user JWT on /system/notifications, /system/estimate-notices, /system/meeting-host/v1/notices or /system/deal-link-notices (ADR-0044)",
   },
 ];
 
@@ -166,7 +167,8 @@ export const SERVICE_CLIENT_LINKS: ReadonlyArray<{
   { ...LINK_BASE, caller: "refund-api", requiredScopes: ["notifications.push", "emails.send"] },
   // specs/019: crm-api pushes CRM notifications, some with an email notice (both scopes, D-3);
   // notify-api looks up the notice's address in auth (ADR-0056). Both optional until provisioned.
-  { ...LINK_BASE, caller: "crm-api", requiredScopes: ["notifications.push", "emails.send"] },
+  // specs/024: crm-api also tells estimai-api which deal an estimate belongs to (ADR-0076).
+  { ...LINK_BASE, caller: "crm-api", requiredScopes: ["notifications.push", "emails.send", "deal-link-notices.send"] },
   { ...LINK_BASE, caller: "notify-api", requiredScopes: ["users.contact"] },
   // specs/021: meetings-api pushes meeting notifications (notify-api) and posts host notices to
   // crm-api (ADR-0059). No emails.send: an email notice, if ever wanted, is a deliberate widening.
@@ -222,6 +224,8 @@ export const INTERNAL_URL_VARS: ReadonlyArray<{
   { name: "ESTIMAI_API_URL", services: ["crm-api"], target: "estimai-api" },
   // specs/018 AC-3.3: estimai-api tells crm-api an estimate was closed or reopened (ADR-0073).
   { name: "CRM_INTERNAL_URL", services: ["estimai-api"], target: "crm-api" },
+  // specs/024: crm-api tells estimai-api an estimate was linked to or unlinked from a deal (ADR-0076).
+  { name: "ESTIMAI_INTERNAL_URL", services: ["crm-api"], target: "estimai-api" },
   // specs/021: meetings-api calls the CRM host's resolve (as the caller) and notices (as itself), ADR-0059.
   { name: "CRM_API_URL", services: ["meetings-api"], target: "crm-api" },
 ];
@@ -275,6 +279,9 @@ export const REQUIRED_KEYS: Partial<Record<ServiceName, string[]>> = {
     // specs/018 AC-3.3: optional in estimai-api's env.ts, required by the contract: without it a
     // closed estimate never becomes ready in the CRM (ADR-0073).
     "CRM_INTERNAL_URL",
+    // specs/024: optional in estimai-api's env.ts (the deal-link notice route then refuses every
+    // call), required by the contract: without it the EstimAI "Deal" badge never appears (ADR-0076).
+    "SERVICE_AUDIENCE",
   ],
   "notify-api": [
     "DATABASE_URL", "ALLOWED_ORIGINS", "AUTH_ISSUER", "AUTH_JWKS_URL", "AUTH_AUDIENCE", "PORT",
