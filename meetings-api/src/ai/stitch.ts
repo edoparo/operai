@@ -9,14 +9,16 @@
  *   D2  inside the overlap of parts k and k+1, speech returned by both is kept once (part k's version), by an
  *       order-preserving alignment of runs of at least `REPEAT_WORDS` equal words; everything found in only one of
  *       the two versions is KEPT, so no speech present in either version is dropped. Aligned passages are the same
- *       speech (AC-6.13, A8) unless the later label is JOINED (J, below) to a different earlier label: an unjoined
- *       or missing label is no evidence of a different speaker. Under AC-6.14(b) a joined label's aligned words all
- *       share one root, so that "different earlier label" branch is a defensive safeguard that no current input
- *       reaches. Within a part (D1) and the untimed tail the stricter rule applies: same speaker or unlabelled. J is
- *       decided first, from the alignment alone, and the removal then asks it;
- *   J   a label of part k+1 is JOINED to a label of part k only on the evidence of the aligned words: at least
- *       `MATCH_WORDS` of them, all to the same earlier label, with no rival either way. Anything else stays
- *       separate. Nothing else - position, number, order, a default - ever joins.
+ *       audio transcribed twice, so they are the same speech whatever labels the two versions gave them (AC-6.13,
+ *       A8, A9): a disagreement there is the provider's diarization jitter, not a second speaker. Within a part (D1)
+ *       and the untimed tail the stricter rule applies: same speaker or unlabelled;
+ *   J   a label of part k+1 is JOINED to a label of part k only on the evidence of the aligned words, and only when
+ *       it is MUTUAL (A9, 2026-11-09): the later label has at least `MATCH_WORDS` aligned words, at least
+ *       `AGREEMENT` of them attributed to one earlier label, and at least `AGREEMENT` of that earlier label's aligned
+ *       words are this later label's. A few words under the other label at a turn change no longer refuse a join
+ *       (the first production recording: 0 of 9 labels joined, 11 labels for 2 people); a label that is split
+ *       between two (the provider confused the voices) still stays separate. Anything else stays separate. Nothing
+ *       else - position, number, order, a default, a silence in the overlap - ever joins or refuses.
  *
  * AC-6.17: the whole decision is a pure function of the words, labels and times the transcription returned. The
  * input type has no field for anything else and this file imports nothing that could supply it (a static test in
@@ -26,12 +28,19 @@
  * Nothing here is logged with content; `StitchStats` carries counts only.
  */
 
-import { REPEAT_GAP_MS, REPEAT_WORDS, findRepetitions, longHoles } from "./completeness";
+import { REPEAT_GAP_MS, REPEAT_WORDS, findRepetitions } from "./completeness";
 import type { Phrase } from "./segments";
 import { effectiveSpans, tokensOf, type Interval, type PartWords, type Token } from "./words";
 
 /** Match bound (AC-6.14): matched words a later label needs to be joined. */
 export const MATCH_WORDS = 20;
+/**
+ * Agreement bound (AC-6.14, A9): the share of the aligned words that must agree, in BOTH directions. Recorded Chirp 3
+ * seams (test-fixtures/google-speech): clean 100 %, a seam with a lost passage 97 %, a 3-voice file the provider
+ * separated badly 74 % and a seam where it mislabelled the voices 62 %. 80 % joins the first two and refuses the last
+ * two.
+ */
+export const AGREEMENT = 0.8;
 /** Same-gram candidates examined per position (bounds repetitive input; a real overlap has a handful). */
 const MAX_SEEDS_PER_GRAM = 16;
 
@@ -48,6 +57,17 @@ export interface StitchStats {
   readonly joined: number;
   /** Labels of later parts that stayed separate. */
   readonly separate: number;
+  /** Why they stayed separate (counts; their sum is `separate`). */
+  readonly refused: RefusalCounts;
+}
+
+export interface RefusalCounts {
+  /** Fewer than `MATCH_WORDS` aligned words (no speech in the overlap included). */
+  readonly fewWords: number;
+  /** Its aligned words are split between earlier labels. */
+  readonly mixed: number;
+  /** Its earlier label's aligned words are split between later labels. */
+  readonly contested: number;
 }
 
 export interface StitchResult {
@@ -145,8 +165,6 @@ function mergeByStart(first: readonly Item[], second: readonly Item[]): Item[] {
   return out;
 }
 
-const intersects = (a: Interval, b: Interval): boolean => a.startMs < b.endMs && a.endMs > b.startMs;
-
 export function stitch(input: StitchInput): StitchResult {
   const parts = input.parts;
   const items = parts.map(itemsOf);
@@ -180,7 +198,7 @@ export function stitch(input: StitchInput): StitchResult {
   const sequence: Item[] = [];
   let removedInOverlap = 0;
   let joined = 0;
-  let separate = 0;
+  const refused = { fewWords: 0, mixed: 0, contested: 0 };
   for (let k = 0; k < parts.length; k += 1) {
     sequence.push(...items[k]!.slice(prefixEnd[k]!, suffixStart[k]!));
     const nextPart = parts[k + 1];
@@ -190,12 +208,9 @@ export function stitch(input: StitchInput): StitchResult {
     const q = items[k + 1]!.slice(0, prefixEnd[k + 1]!);
     const anchors = align(p, q);
 
-    // J: who is who, from the aligned words only. Decided BEFORE the duplicates are removed, because the removal
-    // asks it (AC-6.13 with AC-6.14): an aligned word is kept twice only when its two labels are joined to
-    // different earlier speakers (see the merged overlap below).
-    const window = { startMs: nextPart.startMs, endMs: parts[k]!.endMs };
-    const blocked = [longHoles(parts[k]!), longHoles(nextPart)].some((holes) => holes.some((h) => intersects(h, window)));
+    // J: who is who, from the aligned words only (AC-6.14, A9).
     const matched = new Map<string, Map<string, number>>(); // L2 -> L1 -> words
+    const ofEarlier = new Map<string, number>(); // L1 -> its aligned words, whatever the later label
     for (const anchor of anchors) {
       for (let t = 0; t < anchor.length; t += 1) {
         const l1 = p[anchor.p + t]!.label;
@@ -203,41 +218,35 @@ export function stitch(input: StitchInput): StitchResult {
         const row = matched.get(l2) ?? new Map<string, number>();
         row.set(l1, (row.get(l1) ?? 0) + 1);
         matched.set(l2, row);
+        ofEarlier.set(l1, (ofEarlier.get(l1) ?? 0) + 1);
       }
     }
     const labels = new Set(items[k + 1]!.map((it) => it.label));
     for (const l2 of [...labels].sort()) {
       const row = matched.get(l2);
-      const verdict = (() => {
-        if (blocked || !row) return null;
-        const words = [...row.values()].reduce((a, b) => a + b, 0);
-        if (words < MATCH_WORDS || row.size !== 1) return null; // (a), (b)
-        const l1 = [...row.keys()][0]!;
-        for (const [other, rivals] of matched) if (other !== l2 && rivals.has(l1)) return null; // (c)
-        return l1;
-      })();
-      if (verdict === null) separate += 1;
+      const words = row ? [...row.values()].reduce((a, b) => a + b, 0) : 0;
+      if (!row || words < MATCH_WORDS) {
+        refused.fewWords += 1;
+        continue;
+      }
+      // The earlier label with the most of them; a tie has no majority, and the share check below refuses it.
+      const [l1, agreed] = [...row].sort((a, b) => b[1] - a[1] || (a[0] < b[0] ? -1 : 1))[0]!;
+      if (agreed < AGREEMENT * words) refused.mixed += 1;
+      else if (agreed < AGREEMENT * ofEarlier.get(l1)!) refused.contested += 1;
       else {
-        join.set(l2, verdict);
+        join.set(l2, l1);
         joined += 1;
       }
     }
 
-    // The merged overlap: aligned words once (part k's version). Both versions transcribe the SAME audio, so aligned
-    // words are the same speech unless their labels are KNOWN to be different speakers: the later label is joined
-    // (AC-6.14) to a root other than the earlier label's. An unjoined or missing label is no evidence of a different
-    // speaker and never blocks the removal (A8; the strict same-speaker rule is for D1 and the untimed tail only).
-    const same = (a: Item, b: Item): boolean => a.unlabelled || b.unlabelled || !join.has(b.label) || rootOf(b.label) === rootOf(a.label);
+    // The merged overlap: aligned words once, part k's version. Both versions transcribed the SAME audio, so aligned
+    // words are the same speech whatever labels they carry (AC-6.13, A8, A9).
     let pi = 0;
     let qi = 0;
     for (const anchor of anchors) {
       sequence.push(...mergeByStart(p.slice(pi, anchor.p), q.slice(qi, anchor.q)));
-      const kept: Item[] = [];
-      for (let t = 0; t < anchor.length; t += 1) {
-        if (same(p[anchor.p + t]!, q[anchor.q + t]!)) removedInOverlap += 1;
-        else kept.push(q[anchor.q + t]!);
-      }
-      sequence.push(...(kept.length === 0 ? p.slice(anchor.p, anchor.p + anchor.length) : mergeByStart(p.slice(anchor.p, anchor.p + anchor.length), kept)));
+      removedInOverlap += anchor.length;
+      sequence.push(...p.slice(anchor.p, anchor.p + anchor.length));
       pi = anchor.p + anchor.length;
       qi = anchor.q + anchor.length;
     }
@@ -268,6 +277,12 @@ export function stitch(input: StitchInput): StitchResult {
 
   return {
     phrases,
-    stats: { removedWithinPart: parts.reduce((sum, part) => sum + removedWithin(part), 0), removedInOverlap, joined, separate },
+    stats: {
+      removedWithinPart: parts.reduce((sum, part) => sum + removedWithin(part), 0),
+      removedInOverlap,
+      joined,
+      separate: refused.fewWords + refused.mixed + refused.contested,
+      refused,
+    },
   };
 }

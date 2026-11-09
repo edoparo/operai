@@ -990,7 +990,7 @@ describe("what the adapter logs (AC-4.10)", () => {
     const w = world({ spans: A_PART, silences: [], maxTries: 3, output: (_p, tryNo) => (tryNo === 1 ? holedDoc("a") : completeDoc("b")) });
     await w.run();
     const line = logged.find((l) => l.startsWith("[transcribe] parts="))!;
-    expect(line).toBe("[transcribe] parts=1 tries=2 gaps=0 excused=0 removed=0 joined=0 separate=0");
+    expect(line).toBe("[transcribe] parts=1 tries=2 gaps=0 excused=0 removed=0 joined=0 separate=0 refused=few:0,mixed:0,contested:0");
     for (const text of [logged.join("\n")]) {
       expect(text).not.toContain(MEETING);
       expect(text).not.toMatch(/\b9500\b|70000/);

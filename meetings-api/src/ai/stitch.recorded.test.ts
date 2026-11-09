@@ -74,23 +74,24 @@ describe("what the real service did at the seam (AC-6.13, AC-6.14, AC-6.15)", ()
     const parts = partsOf("overlap-it");
     const out = pipeline(parts, META["overlap-it"]!.silences);
     expect(out.gaps).toEqual([]);
-    expect(out.stats).toEqual({ removedWithinPart: 0, removedInOverlap: 272, joined: 2, separate: 0 });
+    expect(out.stats).toEqual({ removedWithinPart: 0, removedInOverlap: 272, joined: 2, separate: 0, refused: { fewWords: 0, mixed: 0, contested: 0 } });
     const words = out.phrases.flatMap((p) => p.text.split(" "));
     expect(words).toHaveLength(parts[0]!.words.length + parts[1]!.words.length - 272);
     expect(new Set(out.phrases.map((p) => p.speaker)).size).toBe(2);
   });
 
-  it("overlap-en-jitter: 274 aligned words and still no join, because the provider itself mislabelled words of part 1 (R25)", () => {
+  it("overlap-en-jitter: 274 aligned words and still no join, because the provider confused the two voices (62 % and 64 % agreement, R25)", () => {
     const parts = partsOf("overlap-en-jitter");
     const out = pipeline(parts, META["overlap-en-jitter"]!.silences);
     // A8: no join is no evidence of a different speaker, so the 274 aligned words are still the same speech and removed once.
-    expect(out.stats).toEqual({ removedWithinPart: 0, removedInOverlap: 274, joined: 0, separate: 2 });
+    // A9: each later label splits about 62/38 between the two earlier ones, far below the agreement bound: mixed, not jitter.
+    expect(out.stats).toEqual({ removedWithinPart: 0, removedInOverlap: 274, joined: 0, separate: 2, refused: { fewWords: 0, mixed: 2, contested: 0 } });
     expect(out.phrases.flatMap((p) => p.text.split(" "))).toHaveLength(parts[0]!.words.length + parts[1]!.words.length - 274);
     // nobody is joined, so every label of part 2 is a speaker of its own: the safe direction (a rename repairs it)
     expect(new Set(out.phrases.map((p) => p.speaker)).size).toBe(4);
   });
 
-  it("overlap-it-hole: the detector finds the recorded hole, and J0 refuses every join at the seam it touches", () => {
+  it("overlap-it-hole: the detector finds the recorded hole, and the seam it touches still joins both voices (A9: a hole is no evidence)", () => {
     const parts = partsOf("overlap-it-hole");
     expect(longHoles(parts[0]!)).toHaveLength(1);
     expect(parts[0]!.words.filter((w) => w.span === null).length).toBeGreaterThan(300); // the provider's untimed tail
@@ -100,10 +101,12 @@ describe("what the real service did at the seam (AC-6.13, AC-6.14, AC-6.15)", ()
     expect(out.gaps).toHaveLength(1);
     expect(out.gaps[0]!.startMs).toBeGreaterThanOrEqual(2_140_000);
     expect(out.gaps[0]!.endMs).toBeLessThanOrEqual(META["overlap-it-hole"]!.parts[1]!.startMs);
-    expect(out.stats.joined).toBe(0);
-    expect(out.stats.separate).toBe(2);
-    // A8 (changed, was removedInOverlap 206): J0 refused the joins, yet the aligned words are still the same speech (no join
-    // is no evidence of a different speaker). The untimed tail of part 5 is now cut by content first (157 words that repeat its
+    // A9 (changed, was joined 0 / separate 2 under J0): 59 of 59 and 62 of 64 aligned words agree, both ways, so both
+    // voices are joined although part 5 lost a passage of the overlap.
+    expect(out.stats.joined).toBe(2);
+    expect(out.stats.separate).toBe(0);
+    expect(new Set(out.phrases.map((p) => p.speaker)).size).toBe(2);
+    // A8 (changed, was removedInOverlap 206): the aligned words are the same speech. The untimed tail of part 5 is now cut by content first (157 words that repeat its
     // own earlier text; 17 of its recorded words carry no label at all and so match any speaker), which leaves 123 to align.
     expect(out.stats.removedInOverlap).toBe(123);
     expect(out.stats.removedWithinPart).toBe(157);
@@ -111,12 +114,14 @@ describe("what the real service did at the seam (AC-6.13, AC-6.14, AC-6.15)", ()
     for (const phrase of out.phrases) expect(phrase.startMs < out.gaps[0]!.startMs && phrase.startMs + phrase.durationMs > out.gaps[0]!.endMs).toBe(false);
   });
 
-  it("overlap-en3 (3 voices, 19-minute part): nothing is joined; a recorded hole sits in the overlap", () => {
+  it("overlap-en3 (3 voices, 19-minute part, voices separated badly by the provider): nothing is joined", () => {
     const parts = partsOf("overlap-en3");
     expect(longHoles(parts[0]!).length).toBeGreaterThan(0);
     const out = pipeline(parts, META["overlap-en3"]!.silences);
     expect(out.stats.joined).toBe(0);
     expect(out.stats.separate).toBe(3);
+    // A9: 8 and 14 aligned words (too few for the match bound) and one label at 74 % agreement (mixed)
+    expect(out.stats.refused).toEqual({ fewWords: 2, mixed: 1, contested: 0 });
     // A8 (changed, was removedInOverlap 233): 60 untimed-tail words of part 1 repeat its own earlier text and go first,
     // which leaves 61 aligned words in the overlap (still removed though nothing is joined).
     expect(out.stats.removedInOverlap).toBe(61);

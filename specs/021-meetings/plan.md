@@ -2351,6 +2351,12 @@ ranges overlap or `B.start − A.end ≤ REPEAT_GAP_MS` = 2 000.
   appears twice near the seam. The creator can edit it (AC-6.3).
 
 **J. Joins at the boundary k | k+1 (AC-6.14, AC-6.15).**
+> **Amended 2026-11-09 (spec A9):** J0 is retired (a hole adds no evidence); J2 (b) and (c) become
+> mutual agreement: the dominant L1 holds at least `AGREEMENT` = 0.8 of n[L2][·], and n[L2][L1] is at
+> least 0.8 of n[·][L1]. D2 removes every aligned word once (part k's version), whatever its labels.
+> The rejected "majority vote" below is adopted in this mutual, bounded form, because the first
+> production recording (2 people, 4 parts) joined 0 of 9 labels. `stitch` reports refusals by cause
+> (`fewWords`, `mixed`, `contested`) and the transcribe log carries the counts.
 - J0. No label of part k+1 is joined at this boundary if either version has a hole of at least
   `GAP_BOUND_MS` = 20 000 (a stretch with no trusted word, computed on its own timeline as in H-3,
   but without sound) that intersects the overlap window `[s_k+1, e_k]`. Every detected gap lies

@@ -1,7 +1,7 @@
 # 0070 — A long recording is transcribed in parts, and speaker labels are numbered per part, never carried over
 
 **Date:** 2026-11-05
-**Status:** Accepted, amended 2026-11-05 (specs/021 plan amendment #2, spec A7, T107 findings): parts overlap, and labels are joined only on clear text evidence. Part size is 10 min (measured by spike T107), not 60.
+**Status:** Accepted, amended 2026-11-05 (specs/021 plan amendment #2, spec A7, T107 findings): parts overlap, and labels are joined only on clear text evidence. Amended 2026-11-09 (spec A9): clear evidence is mutual 80 % agreement, not unanimity, and a silence in the overlap no longer refuses. Part size is 10 min (measured by spike T107), not 60.
 **Deciders:** wellD
 **Project:** Operai
 **Relates to:** [ADR-0074](0074-meetings-transcript-completeness-detect-retry-mark.md), [ADR-0069](0069-meetings-ai-providers-google-cloud-eu.md), [ADR-0064](0064-meetings-api-reads-audio-bytes-third-reader.md), [ADR-0067](0067-ai-output-structured-validated-plain-text.md)
@@ -69,6 +69,21 @@ them across"; the principle behind it stands.
   data, GDPR art. 9); a majority vote instead of the one-to-one rule (it tolerates a false
   merge); using the audio-based gap for J0 (it would make joins depend on the audio and break
   AC-6.17).
+
+## Amendment 2026-11-09: mutual agreement instead of unanimity
+
+The first production recording (2 people, 25 minutes, 4 parts) came back with 11 labels: 0 of 9
+later labels joined. Unanimity cannot survive real diarization, which gives a few words to the
+other speaker at every turn change, and a 20 s silence in a 90 s overlap (people waiting for a
+command to finish) blocked whole seams although a silence carries no evidence. The rule is now:
+a later label joins an earlier one when at least 80 % of its matched words go to that label AND
+at least 80 % of that label's matched words are its own, with at least 20 matched words; a stretch
+without words in the overlap no longer matters; aligned overlap words are removed once whatever
+their labels. On the recorded seams of the real service, 100 % and 97 % agreement join, 62 %
+(voices confused by the provider) and 74 % (three voices badly separated) stay separate. The
+principle stands: text evidence only, never position, number or voice, and a false join stays
+repairable with "Separate by part". Refusals are logged by cause (few words, mixed, contested) so
+the bound can be revisited with production data.
 
 ## Failure shape
 

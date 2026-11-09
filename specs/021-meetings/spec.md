@@ -117,6 +117,17 @@ was not removed. The spec stays vendor-neutral; the body below is already update
   the word/time evidence are the same speech unless each label is joined (AC-6.14) to a
   different earlier label, because unjoined labels (no evidence, provider jitter) would
   otherwise leave 60-120 s of duplicated overlap speech (AC-6.13).
+- **A9 — decided by the user 2026-11-09 (AC-6.13, AC-6.14, AC-6.15), after the first production
+  recording:** 2 people, 4 parts, 0 of 9 later labels joined, 11 labels in the transcript. The
+  strict rule refused every seam because the provider gives a few words to the other speaker at
+  every turn change, and because a silence of 20 s in the overlap blocked the whole seam. (a) A
+  join needs **mutual agreement** instead of unanimity: at least the agreement bound (80 %) of the
+  later label's matched words go to one earlier label AND at least 80 % of that earlier label's
+  matched words are this later label's. (b) A stretch with no words in the overlap (a silence or
+  a gap) no longer refuses a join: only matched words are evidence, and a missing passage adds
+  none. (c) In the overlap, aligned passages are the same speech whatever labels the two
+  versions gave them. Recorded seams of the real service: 100 % and 97 % agreement now join;
+  62 % (voices confused) and 74 % (3 voices badly separated) stay separate.
 
 ## Problem
 
@@ -529,15 +540,17 @@ check what was actually said.
   label L1 of the earlier part when all of the following hold, over the passages of the
   overlap that are found in both parts' transcripts (matched as in AC-6.13): (a) the passages
   that the later part attributes to L2 total at least the match bound in words; (b) the earlier
-  part attributes all of them to the same L1; (c) no other label of the later part has any
-  matched passage attributed to L1 by the earlier part. A joined label keeps L1's number and
+  part attributes at least the agreement bound (80 %) of them to the same L1; (c) at least the
+  agreement bound of the matched words that the earlier part attributes to L1 are attributed
+  to L2 by the later part. (A9: was "all of them" and "no other label has any".) A joined label keeps L1's number and
   name. Joining chains from part to part, each link established only between consecutive
   parts: a label of part 3 joins a label of part 2 (and so, through it, part 1) only by the
   overlap of parts 2 and 3. (A7)
 - AC-6.15: Given a label of a later part for which the evidence of AC-6.14 is not clear (no
-  speech in the overlap, fewer matched words than the match bound, a matched passage attributed
-  to a different label, two later labels matching the same earlier one, or the overlap affected
-  by a gap), then the label stays separate. A label is never joined by position, number, order
+  speech in the overlap, fewer matched words than the match bound, matched passages split
+  between earlier labels below the agreement bound, or an earlier label whose matched passages
+  are split between later labels below it), then the label stays separate. A silence or a gap in
+  the overlap is no evidence either way (A9). A label is never joined by position, number, order
   of appearance or as a default. When the transcript has more than one part and at least one
   label of a later part is separate, a non-blocking notice says that the recording was
   transcribed in {n} parts, that speakers could not always be matched between parts, that one

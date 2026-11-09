@@ -135,18 +135,24 @@ describe("D2 and the speaker condition (AC-6.13 with AC-6.14, amendment A8)", ()
     }
   });
 
-  it("a hole at the seam (J0) refuses the join but not the removal of the aligned words", () => {
+  it("a long silence at the seam neither refuses the join (A9) nor stops the removal of the aligned words", () => {
     const [a, b] = overlapSpeech(30, "p1:1", "p2:2");
     const p1 = part(1, 0, 600, [...a, word("tailword", "p1:1", [599, 599.5])]);
     const p2 = part(2, 510, 1110, [...b, word("after", "p2:2", [700, 701])]);
     const { stats } = run([p1, p2]);
-    expect(stats.joined).toBe(0);
+    expect(stats.joined).toBe(1);
     expect(stats.removedInOverlap).toBe(30);
   });
 
-  // "Joined to different roots" cannot be built through `stitch`: a later label is joined only when every one of its
-  // aligned words matched ONE earlier label (J rule b), so every aligned pair of a joined label shares its root. The
-  // condition in `same()` is therefore a safeguard, not a branch any input reaches today.
+  it("an aligned word the two versions gave to DIFFERENT joined speakers is still kept once (A9: jitter, same audio)", () => {
+    // part 1 gives w12 to its other speaker; part 2 gives it to the speaker joined to p1:1
+    const [a, b] = overlapSpeech(30, "p1:1", "p2:2");
+    const p1 = part(1, 0, 600, pad(1, 0, 600, "p1:1", [...a.map((w, i) => (i === 12 ? { ...w, label: "p1:2" } : w)), ...say("p1:2", "x", 0, 25, 540)]));
+    const p2 = part(2, 510, 1110, pad(2, 510, 1110, "p2:2", [...b, ...say("p2:1", "x", 0, 25, 540), ...say("p2:2", "post", 0, 5, 700)]));
+    const { segments, stats } = run([p1, p2]);
+    expect(stats.joined).toBe(2);
+    expect(count(segments, "w12")).toBe(1);
+  });
 });
 
 describe("joins (AC-6.14, AC-6.15, AC-6.2)", () => {
@@ -174,21 +180,34 @@ describe("joins (AC-6.14, AC-6.15, AC-6.2)", () => {
     expect(stats.separate).toBe(1);
     const keys = [...new Set(segments.map((s) => s.speakerKey))];
     expect(keys).toEqual(["s1", "s2", "s3"]); // numbered by first appearance of the ROOT label
+    expect(stats.refused).toEqual({ fewWords: 1, mixed: 0, contested: 0 });
   });
 
-  it("one matched word attributed to another earlier label: separate", () => {
+  it("one matched word attributed to another earlier label (the provider's jitter at a turn): still joined (A9)", () => {
     // inside the matched run, word a12 is attributed to a different earlier label
     const p1 = [...say("p1:1", "a", 0, 25, 515).map((w, i) => (i === 12 ? { ...w, label: "p1:2" } : w)), ...say("p1:2", "b", 0, 25, 540)];
     const p2 = [...say("p2:2", "a", 0, 25, 515), ...say("p2:1", "b", 0, 25, 540), ...say("p2:2", "tail", 0, 3, 700)];
     const { segments, stats } = run([part(1, 0, 600, pad(1, 0, 600, "p1:1", p1)), part(2, 510, 1110, pad(2, 510, 1110, "p2:2", p2))]);
-    expect(stats.joined).toBe(0); // p2:2 -> {p1:1: 24, p1:2: 1}; p2:1 -> p1:2 but p2:2 also touches p1:2 (rival)
+    // p2:2 -> {p1:1: 24, p1:2: 1} = 96 %; p1:2's 26 aligned words are 25 of p2:1's = 96 %: both ways above 80 %
+    expect(stats.joined).toBe(2);
+    expect(keyOfWord(segments, "tail0")).toBe(keyOfWord(segments, "a0"));
+  });
+
+  it("a later label split between two earlier labels below the agreement bound: separate (mixed)", () => {
+    // 15 of 25 words to p1:1 and 10 to p1:2: 60 %, the provider confused the voices, not a jitter
+    const p1 = [...say("p1:1", "a", 0, 25, 515).map((w, i) => (i % 5 < 2 ? { ...w, label: "p1:2" } : w)), ...say("p1:2", "b", 0, 25, 540)];
+    const p2 = [...say("p2:2", "a", 0, 25, 515), ...say("p2:1", "b", 0, 25, 540), ...say("p2:2", "tail", 0, 3, 700)];
+    const { segments, stats } = run([part(1, 0, 600, pad(1, 0, 600, "p1:1", p1)), part(2, 510, 1110, pad(2, 510, 1110, "p2:2", p2))]);
+    expect(stats.refused.mixed).toBe(1);
     expect(keyOfWord(segments, "tail0")).not.toBe(keyOfWord(segments, "a0"));
   });
 
   it("two later labels matching the same earlier one: both separate", () => {
     const p1 = say("p1:1", "a", 0, 40, 515);
     const p2 = [...say("p2:1", "a", 0, 25, 515), ...say("p2:2", "a", 25, 15, 525), ...say("p2:1", "t", 0, 2, 700), ...say("p2:2", "u", 0, 2, 705)];
-    const { segments } = run([part(1, 0, 600, pad(1, 0, 600, "p1:1", p1)), part(2, 510, 1110, pad(2, 510, 1110, "p2:1", p2))]);
+    const { segments, stats } = run([part(1, 0, 600, pad(1, 0, 600, "p1:1", p1)), part(2, 510, 1110, pad(2, 510, 1110, "p2:1", p2))]);
+    // p2:1 has 25 of p1:1's 40 aligned words (62 %): contested; p2:2 has 15 (too few)
+    expect(stats.refused).toEqual({ fewWords: 1, mixed: 0, contested: 1 });
     expect(keyOfWord(segments, "t0")).not.toBe(keyOfWord(segments, "a0"));
     expect(keyOfWord(segments, "u0")).not.toBe(keyOfWord(segments, "a0"));
   });
@@ -201,7 +220,7 @@ describe("joins (AC-6.14, AC-6.15, AC-6.2)", () => {
     expect(keyOfWord(segments, "b0")).not.toBe(keyOfWord(segments, "a0"));
   });
 
-  it("a 20 s stretch with no trusted word in the overlap blocks every join (J0), however clear the rest", () => {
+  it("a 20 s stretch with no trusted word in the overlap no longer blocks a clear join (A9 retires J0)", () => {
     // control: dense words all along the overlap, 40 matched words -> joined
     const speech1 = say("p1:1", "a", 0, 40, 515);
     const speech2 = [...say("p2:1", "a", 0, 40, 515), ...say("p2:1", "t", 0, 2, 700)];
@@ -209,10 +228,10 @@ describe("joins (AC-6.14, AC-6.15, AC-6.2)", () => {
     expect(control.stats.joined).toBe(1);
     // part 2 returns nothing between 531 s and 700 s: a hole of about 170 s that intersects the overlap window
     const holed = run([part(1, 0, 600, pad(1, 0, 600, "p1:1", speech1)), part(2, 510, 1110, pad(2, 510, 1110, "p2:1", speech2, [531, 699]))]);
-    expect(holed.stats.joined).toBe(0);
-    // the same hole in part 1 blocks it too
+    expect(holed.stats.joined).toBe(1);
+    // the same hole in part 1 does not block it either
     const holed1 = run([part(1, 0, 600, pad(1, 0, 600, "p1:1", speech1, [531, 599])), part(2, 510, 1110, pad(2, 510, 1110, "p2:1", speech2))]);
-    expect(holed1.stats.joined).toBe(0);
+    expect(holed1.stats.joined).toBe(1);
   });
 
   it("chains only through consecutive overlaps: a part-3 label joins part 2's label, and so part 1's", () => {

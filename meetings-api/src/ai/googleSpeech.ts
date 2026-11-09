@@ -578,7 +578,7 @@ export function createGoogleTranscriber(options: GoogleTranscriberOptions): Tran
         const segments = mapPhrases(stitched.phrases);
         // Counts only: never a range, a text, an id.
         console.log(
-          `[transcribe] parts=${parts.length} tries=${totalTries} gaps=${gaps.length} excused=${chosen.reduce((n, c) => n + c.assessment.excused, 0)} removed=${stitched.stats.removedWithinPart + stitched.stats.removedInOverlap} joined=${stitched.stats.joined} separate=${stitched.stats.separate}`,
+          `[transcribe] parts=${parts.length} tries=${totalTries} gaps=${gaps.length} excused=${chosen.reduce((n, c) => n + c.assessment.excused, 0)} removed=${stitched.stats.removedWithinPart + stitched.stats.removedInOverlap} joined=${stitched.stats.joined} separate=${stitched.stats.separate} refused=few:${stitched.stats.refused.fewWords},mixed:${stitched.stats.refused.mixed},contested:${stitched.stats.refused.contested}`,
         );
         if (segments.length === 0) {
           // AC-6.7: "no speech" only when no stretch of the recording holds speech that the transcript lacks.
