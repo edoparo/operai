@@ -201,12 +201,20 @@ describe("parseServiceClients", () => {
     expect(result.clients.get("projects-api")?.scopes).toEqual(["crm.companies.read"]);
   });
 
-  test("the documented projects-api entry is exactly crm.companies.read: no push, no email (specs/025)", () => {
+  test("the documented projects-api entry is its five read/push scopes and has no emails.send (specs/024, 025)", () => {
     const documented = DOCUMENTED_CLIENT_SCOPES["projects-api"];
     const result = parseServiceClients(raw({ "projects-api": { secret: SECRET_A, scope: documented } }));
     expect(result.ok).toBe(true);
     if (!result.ok) return;
-    expect(result.clients.get("projects-api")?.scopes).toEqual(["crm.companies.read"]);
+    const scopes = result.clients.get("projects-api")?.scopes ?? [];
+    expect([...scopes].sort()).toEqual([
+      "crm.companies.read",
+      "crm.contacts.read",
+      "crm.deals.read",
+      "estimai.estimates.read",
+      "notifications.push",
+    ]);
+    expect(scopes).not.toContain("emails.send");
   });
 
   test("activities.write is an accepted scope; a nearby misspelling is still refused (specs/028)", () => {
@@ -218,7 +226,7 @@ describe("parseServiceClients", () => {
     }
   });
 
-  test("the documented crm-api entry adds activities.write to its existing three scopes (specs/028 AC-1.2)", () => {
+  test("the documented crm-api entry adds activities.write to its existing four scopes (specs/028 AC-1.2, specs/025)", () => {
     const documented = DOCUMENTED_CLIENT_SCOPES["crm-api"];
     const result = parseServiceClients(raw({ "crm-api": { secret: SECRET_A, scope: documented } }));
     expect(result.ok).toBe(true);
@@ -228,6 +236,7 @@ describe("parseServiceClients", () => {
       "deal-link-notices.send",
       "emails.send",
       "notifications.push",
+      "projects.purchase-orders.read",
     ]);
   });
 

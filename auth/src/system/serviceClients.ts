@@ -82,9 +82,12 @@ export const KNOWN_SERVICE_SCOPES = [
  * env value, validated by {@link parseServiceClients}.
  * - `meetings-api` (specs/021): pushes in-app notifications and relays host
  *   notices to crm-api; it never sends email (AC-12.4), so no `emails.send`.
- * - `projects-api` (specs/025): reads CRM companies and nothing else, so exactly
- *   `crm.companies.read` (no push, no email; ADR-0049 one scope per capability).
- * - `crm-api` (specs/028): its three existing scopes plus `activities.write`.
+ * - `projects-api` (specs/024, 025): reads CRM companies, won deals and a PO's
+ *   referent contacts, an estimate's man-days, and pushes the ops-manager's
+ *   notification; it sends no email, so no `emails.send` (ADR-0049 one scope per
+ *   capability; env-doctor's manifest holds the same five).
+ * - `crm-api` (specs/025, specs/028): its notify and deal-link scopes, the purchase
+ *   orders of its deals (`projects.purchase-orders.read`) and `activities.write`.
  * - `activities-api` (specs/028): `notifications.push emails.send` — its task notices
  *   (AC-6.1/6.3) are email notices, and notify-api requires `emails.send` as well as
  *   `notifications.push` for `email: true` (ADR-0056). No `activities.write`: it is the
@@ -92,8 +95,8 @@ export const KNOWN_SERVICE_SCOPES = [
  */
 export const DOCUMENTED_CLIENT_SCOPES = {
   "meetings-api": "notifications.push host-notices.send",
-  "projects-api": "crm.companies.read",
-  "crm-api": "notifications.push emails.send deal-link-notices.send activities.write",
+  "projects-api": "crm.companies.read crm.deals.read crm.contacts.read estimai.estimates.read notifications.push",
+  "crm-api": "notifications.push emails.send deal-link-notices.send activities.write projects.purchase-orders.read",
   "activities-api": "notifications.push emails.send",
 } as const;
 
