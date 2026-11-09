@@ -9,7 +9,7 @@
  * toasts). This banner replaces that toast zone entirely while a conflict is
  * active (`EstimatorApp.tsx` renders it instead of, never alongside,
  * save-feedback Banner — `EstimatorContext.tsx`'s autosave effect already clears
- * `saveError`/`showSavedToast` the moment it enters `conflict`).
+ * `saveError` the moment it enters `conflict`).
  *
  * Copy (design.md S4, `strings.conflict.*`):
  *   - 409, attributable   — "{Name} saved changes to this estimate since you

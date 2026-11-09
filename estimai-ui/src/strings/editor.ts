@@ -12,7 +12,9 @@ export const en = {
   saving: 'Saving…',
   saveFailed: 'Save failed',
   saved: 'Saved',
-  savedToast: 'Changes stored',
+  /** The header badge after a save: under a minute, then a relative time ("3 minutes ago", formatRelative). */
+  savedJustNow: 'Saved just now',
+  savedAgo: (when: string) => `Saved ${when}`,
   saveErrors: {
     tooLarge: 'This estimate is too large to save. Remove some activities to reduce its size.',
     status: (status: string) => `Save failed (${status}). Your work is safe in this tab.`,
@@ -55,7 +57,8 @@ export const it: typeof en = {
   saving: 'Salvataggio…',
   saveFailed: 'Salvataggio non riuscito',
   saved: 'Salvato',
-  savedToast: 'Modifiche salvate',
+  savedJustNow: 'Salvato ora',
+  savedAgo: (when) => `Salvato ${when}`,
   saveErrors: {
     tooLarge: 'La stima è troppo grande per essere salvata. Rimuovere alcune attività per ridurne la dimensione.',
     status: (status) => `Salvataggio non riuscito (${status}). Il lavoro in questa scheda è al sicuro.`,

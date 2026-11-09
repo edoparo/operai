@@ -59,6 +59,7 @@ export default function EstimatePage() {
       initialCollaboratorCount={estimate.collaboratorCount}
       initialClosedAt={estimate.closedAt ?? null}
       initialClosedBy={estimate.closedBy ?? null}
+      initialUpdatedAt={estimate.updatedAt}
     >
       <EstimatorApp />
     </EstimatorProvider>

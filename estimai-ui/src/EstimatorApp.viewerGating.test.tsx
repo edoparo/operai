@@ -231,7 +231,8 @@ describe('T17 named early check — viewer mount has zero enabled mutating contr
     const nameInput = screen.getByPlaceholderText('Project name…') as HTMLInputElement
     expect(nameInput.readOnly).toBe(true)
     expect(screen.queryByText('Saved')).toBeNull()
-    expect(screen.queryByText('Saving…')).toBeNull()
+    expect(screen.queryByTestId('save-status')).toBeNull()
+    expect(screen.queryByTestId('save-status-live')).toBeNull()
   })
 
   it('clicking every rendered button across all three tabs never fires estimatesApi.update (defense in depth)', async () => {
@@ -316,7 +317,8 @@ describe.each(['owner', 'editor'] as const)('T17/AC-3.2 — %s mount keeps every
 
     const nameInput = screen.getByPlaceholderText('Project name…') as HTMLInputElement
     expect(nameInput.readOnly).toBe(false)
-    expect(screen.getByText(/Saved|Saving…/)).toBeDefined()
+    // The save state's live region is mounted (the badge itself appears with the first save).
+    expect(screen.getByTestId('save-status-live')).toBeDefined()
   })
 })
 

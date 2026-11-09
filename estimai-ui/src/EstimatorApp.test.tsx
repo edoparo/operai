@@ -225,12 +225,12 @@ describe('EstimatorApp: saveError → save-feedback Banner render wiring (AC-1.3
 })
 
 // ---------------------------------------------------------------------------
-// Test: showSavedToast → success <Banner role="status"> render wiring
-// (content-app auto-save "changes stored" feedback)
+// Test: a successful auto-save is confirmed by the header's save badge only.
 //
-// NON-VACUOUS: this test FAILS if EstimatorApp's
-//   {!saveError && showSavedToast && <Banner tone="success" …/>}
-// is removed — screen.getByRole('status') throws.
+// The "Changes stored" success Banner pushed the page down on every save, so
+// it was removed (owner, 2026-11-09): the badge spins while saving, then says
+// how long ago the save landed. NON-VACUOUS: fails if a success Banner is
+// rendered again, or if the badge stops reporting the save.
 // ---------------------------------------------------------------------------
 
 // T22 (specs/013-estimate-sharing/tasks.md): this fixture was missing
@@ -258,9 +258,14 @@ const mockUpdateResponse = {
 // these tests locate the toast by its copy text rather than `getByRole('status')`
 // alone, then assert the role/aria-live on that specific element.
 
-describe('EstimatorApp: showSavedToast → success save-feedback Banner render wiring', () => {
-  it('shows a role="status" success toast after a successful auto-save', async () => {
-    vi.mocked(estimatesApi.update).mockResolvedValue(mockUpdateResponse)
+describe('EstimatorApp: save feedback — header badge, never a success Banner', () => {
+  it('spins while saving, then says "Saved just now" in the header and renders no success Banner', async () => {
+    let resolveUpdate: (v: typeof mockUpdateResponse) => void = () => {}
+    vi.mocked(estimatesApi.update).mockReturnValue(
+      new Promise((resolve) => {
+        resolveUpdate = resolve
+      }),
+    )
 
     render(
       <EstimatorProvider
@@ -276,32 +281,23 @@ describe('EstimatorApp: showSavedToast → success save-feedback Banner render w
       </EstimatorProvider>,
     )
 
-    // No toast yet — save has not been triggered
-    expect(screen.queryByText('Changes stored')).toBeNull()
+    // Never saved in this mount and no loaded updatedAt: no badge yet.
+    expect(screen.queryByTestId('save-status')).toBeNull()
 
-    // Act: trigger a name edit → starts the debounce timer, then resolves
     await act(async () => {
       screen.getByTestId('trigger-edit').click()
     })
     await act(async () => {
       await vi.advanceTimersByTimeAsync(1500) // flush the 1500ms auto-save debounce
     })
+    expect(screen.getByTestId('save-status').textContent).toBe('Saving…')
+    expect(screen.getByTestId('save-status').querySelector('.spinner')).not.toBeNull()
 
-    const toastText = screen.getByText('Changes stored')
-    const toast = toastText.closest('[role]')
-    expect(toast).not.toBeNull()
-    expect(toast?.getAttribute('role')).toBe('status')
-    expect(toast?.getAttribute('aria-live')).toBe('polite')
-
-    // The success Banner auto-dismisses 3s later (library Banner's
-    // autoDismiss, INC-19) — still there just before.
     await act(async () => {
-      await vi.advanceTimersByTimeAsync(2999)
+      resolveUpdate({ ...mockUpdateResponse, updatedAt: new Date().toISOString() })
     })
-    expect(screen.queryByText('Changes stored')).not.toBeNull()
-    await act(async () => {
-      await vi.advanceTimersByTimeAsync(1)
-    })
+    expect(screen.getByTestId('save-status').textContent).toBe('Saved just now')
+    expect(screen.queryByTestId('save-success-banner')).toBeNull()
     expect(screen.queryByText('Changes stored')).toBeNull()
   })
 
@@ -353,7 +349,7 @@ describe('EstimatorApp: showSavedToast → success save-feedback Banner render w
     expect(screen.queryByTestId('save-error-banner')).toBeNull()
   })
 
-  it('never shows the success toast alongside the error toast', async () => {
+  it('shows the failed save in the badge and the danger Banner, never a success Banner', async () => {
     const errorDetail = 'Save failed (500). Your work is safe in this tab.'
     vi.mocked(estimatesApi.update).mockRejectedValue(
       new estimatesApi.ApiError({
@@ -386,7 +382,8 @@ describe('EstimatorApp: showSavedToast → success save-feedback Banner render w
     })
 
     expect(screen.getByRole('alert')).toBeDefined()
-    expect(screen.queryByText('Changes stored')).toBeNull()
+    expect(screen.queryByTestId('save-success-banner')).toBeNull()
+    expect(screen.getByTestId('save-status').textContent).toBe('Save failed')
   })
 })
 

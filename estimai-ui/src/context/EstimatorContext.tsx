@@ -17,7 +17,7 @@ const AUTOSAVE_DEBOUNCE_MS = 1500
  * autosaves") is the 4th state design.md S4 names for `Header`'s
  * save-status span ("Not saving — reload to continue") — a distinct state
  * from `'error'` because, per design.md, entering conflict deliberately
- * clears any prior `saveError`/`showSavedToast` so the (T18) `ConflictBanner`
+ * clears any prior `saveError` so the (T18) `ConflictBanner`
  * owns the save-status zone exclusively, never stacking with the ordinary
  * error/success toast.
  */
@@ -65,9 +65,8 @@ export type EstimatorContextValue = {
   saveStatus: SaveStatus
   saveError: string | null
   clearSaveError: () => void
-  /** True right after a successful auto-save — drives the "Changes stored" success toast. */
-  showSavedToast: boolean
-  dismissSavedToast: () => void
+  /** When the document was last stored (ISO 8601): the loaded `updatedAt`, then each successful auto-save. Drives the header's "Saved … ago". */
+  lastSavedAt: string | null
   /**
    * The caller's relationship to this estimate (T16, specs/013-estimate-
    * sharing/tasks.md; plan.md "### Frontend"). Fixed for the lifetime of the
@@ -200,6 +199,8 @@ type Props = {
   initialClosedAt?: string | null
   /** `EstimateFull.closedBy`. Defaults to `null`. */
   initialClosedBy?: EstimateIdentity | null
+  /** `EstimateFull.updatedAt` — the last save before this session. */
+  initialUpdatedAt?: string
   children: React.ReactNode
 }
 
@@ -216,6 +217,7 @@ export function EstimatorProvider({
   initialCollaboratorCount,
   initialClosedAt,
   initialClosedBy,
+  initialUpdatedAt,
   children,
 }: Props) {
   const [name, setName] = useState(initialName ?? '')
@@ -227,7 +229,7 @@ export function EstimatorProvider({
   const [acts, setActs] = useState<Activity[]>(initialActs ?? [])
   const [saveStatus, setSaveStatus] = useState<SaveStatus>('idle')
   const [saveError, setSaveError] = useState<string | null>(null)
-  const [showSavedToast, setShowSavedToast] = useState(false)
+  const [lastSavedAt, setLastSavedAt] = useState<string | null>(initialUpdatedAt ?? null)
 
   // access is fixed for the provider's lifetime (see the Props doc comment
   // above) — a plain const, not state; nothing in this feature ever changes
@@ -295,7 +297,6 @@ export function EstimatorProvider({
   const savedTimer = useRef<ReturnType<typeof setTimeout>>(undefined)
 
   const clearSaveError = useCallback(() => setSaveError(null), [])
-  const dismissSavedToast = useCallback(() => setShowSavedToast(false), [])
 
   // Auto-save: debounced PUT to the API whenever state changes.
   //
@@ -349,7 +350,7 @@ export function EstimatorProvider({
           setSavedSnapshot(sentSnapshot)
           setSaveStatus('saved')
           setSaveError(null)
-          setShowSavedToast(true)
+          setLastSavedAt(updated.updatedAt)
           clearTimeout(savedTimer.current)
           savedTimer.current = setTimeout(() => setSaveStatus('idle'), 2000)
         })
@@ -364,7 +365,6 @@ export function EstimatorProvider({
           if (err instanceof estimatesApi.EstimateStateError) {
             setSaveStatus('idle')
             setSaveError(null)
-            setShowSavedToast(false)
             estimatesApi
               .get(estimateId)
               .then((fresh) => {
@@ -384,13 +384,12 @@ export function EstimatorProvider({
             // params/releases/acts are deliberately left untouched here —
             // only save-status/conflict bookkeeping changes, so the user's
             // in-progress edits stay visible until they choose to reload.
-            // Entering conflict clears any prior saveError/showSavedToast
+            // Entering conflict clears any prior saveError
             // (design.md S4) — the (T18) ConflictBanner owns this zone
             // exclusively from here, it never stacks with the ordinary
-            // save toast.
+            // save error.
             setSaveStatus('conflict')
             setSaveError(null)
-            setShowSavedToast(false)
             setConflict({
               status: err.status === 428 ? 428 : 409,
               currentVersion: err.currentVersion,
@@ -592,8 +591,7 @@ export function EstimatorProvider({
       saveStatus,
       saveError,
       clearSaveError,
-      showSavedToast,
-      dismissSavedToast,
+      lastSavedAt,
       access,
       canEdit,
       version,
@@ -632,8 +630,7 @@ export function EstimatorProvider({
       saveStatus,
       saveError,
       clearSaveError,
-      showSavedToast,
-      dismissSavedToast,
+      lastSavedAt,
       access,
       canEdit,
       version,

@@ -188,7 +188,7 @@ describe('EstimatorApp — ConflictBanner replaces the toast zone exclusively (T
   it("the Header's 4th save-status state renders whenever autosave is suspended", async () => {
     await renderIntoConflict()
 
-    expect(screen.getByText(strings.conflict.savingSuspended)).toBeDefined()
+    expect(screen.getByTestId('save-status').textContent).toBe(strings.conflict.savingSuspended)
     expect(screen.queryByText('Saved')).toBeNull()
   })
 })

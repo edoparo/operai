@@ -121,8 +121,7 @@ export default function EstimatorApp() {
     saveStatus,
     saveError,
     clearSaveError,
-    showSavedToast,
-    dismissSavedToast,
+    lastSavedAt,
     setName,
     setAuthor,
     updAct,
@@ -495,7 +494,13 @@ export default function EstimatorApp() {
       <h1 ref={headingRef} tabIndex={-1} className="visually-hidden" data-testid="estimai-editor-heading">
         {strings.editor.heading(name)}
       </h1>
-      <Header name={name} saveStatus={saveStatus} onNameChange={setName} readOnly={readOnly} />
+      <Header
+        name={name}
+        saveStatus={saveStatus}
+        lastSavedAt={lastSavedAt}
+        onNameChange={setName}
+        readOnly={readOnly}
+      />
 
       <MetricsBar
         totals={totals}
@@ -637,8 +642,8 @@ export default function EstimatorApp() {
 
       {/* T18 (design.md S4): the ConflictBanner owns this zone EXCLUSIVELY
           while a conflict is active — it never stacks with the ordinary
-          save toast (EstimatorContext.tsx already clears saveError/
-          showSavedToast the moment it enters `conflict`, but the explicit
+          save error (EstimatorContext.tsx already clears saveError the
+          moment it enters `conflict`, but the explicit
           branch here makes that exclusivity a render-time guarantee too). */}
       {access === 'oversight' && (
         <Banner
@@ -713,8 +718,9 @@ export default function EstimatorApp() {
       ) : (
         <>
           {/* Library Banner (INC-19): a failed save is red and stays until
-              dismissed; "Changes stored" is a compact success that dismisses
-              itself. Never the shell's ToastHost. */}
+              dismissed. A successful save is confirmed by the header's save
+              badge alone (a polite live region, design-system "Success
+              feedback"): a banner here pushed the page down on every autosave. */}
           {saveError && (
             <Banner
               tone="danger"
@@ -725,19 +731,6 @@ export default function EstimatorApp() {
               data-testid="save-error-banner"
             >
               {saveError}
-            </Banner>
-          )}
-          {!saveError && showSavedToast && (
-            <Banner
-              tone="success"
-              compact
-              autoDismiss
-              className="mx-5.5 mt-2"
-              onDismiss={dismissSavedToast}
-              dismissLabel={strings.editor.dismiss}
-              data-testid="save-success-banner"
-            >
-              {strings.editor.savedToast}
             </Banner>
           )}
           {leftNotice && (
