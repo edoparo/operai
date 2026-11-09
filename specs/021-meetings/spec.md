@@ -128,6 +128,15 @@ was not removed. The spec stays vendor-neutral; the body below is already update
   none. (c) In the overlap, aligned passages are the same speech whatever labels the two
   versions gave them. Recorded seams of the real service: 100 % and 97 % agreement now join;
   62 % (voices confused) and 74 % (3 voices badly separated) stay separate.
+- **A10 — decided by the user 2026-11-09 (Constraints, AC-6.12), after the same recording:** it
+  was marked possibly incomplete for 36 s of typing and reading at a terminal, where nobody spoke.
+  (a) The **gap bound is 60 seconds** (was 20): every real loss measured with 10-minute parts was
+  1.6-2.8 minutes, so they are still marked; a shorter loss is not (as before, no notice is not a
+  promise). (b) **"No speech here":** the creator, and only the creator, can mark a range after
+  listening to it. A marked range is no longer shown and no longer counts for new summaries and
+  answers; the caveats the service already wrote because of it are withdrawn (a summary loses the
+  range, and once no range is left the service's own "may be incomplete" sentences read as the plain
+  ones; text the model or a person wrote is never changed). Only a new transcription brings it back.
 
 ## Problem
 
@@ -216,8 +225,8 @@ this spec does not choose vendors or mechanisms.
 - **Transcript quality bounds (A7).** The rules of AC-6.11 to AC-6.15 are decisions of this
   spec; the numbers below are bounds that the architect confirms or changes in plan.md, and
   the ACs hold with whatever values are confirmed. **Overlap bound:** consecutive transcript
-  parts overlap by at least 30 seconds and at most 2 minutes. **Gap bound:** 20 seconds of
-  speech in the audio with no transcript text. **Retry bound: 0 (A8)** - a part is
+  parts overlap by at least 30 seconds and at most 2 minutes. **Gap bound:** 60 seconds of
+  speech in the audio with no transcript text (A10; was 20). **Retry bound: 0 (A8)** - a part is
   transcribed once and never again automatically, because the provider returns the identical
   result for identical audio; raising the bound again is O15. **Repeat bound:** 8 consecutive words, and a time
   distance of 2 seconds. **Match bound:** 20 matched words. A stretch of non-speech sound
@@ -509,8 +518,10 @@ check what was actually said.
   (as AC-6.5), and once the audio is deleted that control is absent. A range is never
   narrower than the gap detected, is expressed in the meeting's time (the part's offset
   included), and ranges that touch or overlap, across a part boundary too, are one range. The
-  notice is shown to everyone who can open the meeting, cannot be dismissed, is not removed by
-  editing the transcript (AC-6.3), and is deleted with the meeting (AC-4.6). A transcript with
+  notice is shown to everyone who can open the meeting, is not removed by editing the transcript
+  (AC-6.3), and is deleted with the meeting (AC-4.6). Only the creator can mark a range "no speech
+  here" after listening to it; the range is then gone from the notice, the markers and every
+  caveat (A10). A transcript with
   no notice is not a statement that nothing was missed: a gap shorter than the gap bound is not
   detected. (A7)
 - AC-6.13: Given speech that the transcription returns twice, within one part or in the

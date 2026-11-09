@@ -712,7 +712,7 @@ const docOf = (...groups: W[][]): string => {
   return JSON.stringify({ results: [{ alternatives: [{ transcript: words.map((w) => w.word).join(" "), words }] }] });
 };
 const A_PART = [{ startMs: 0, endMs: 100_000 }];
-/** Complete: no stretch of 20 s without a word. */
+/** Complete: no stretch of 60 s without a word. */
 const completeDoc = (tag: string) => docOf(speech(tag, 0, 100));
 /** Words only at 0-10 s and from `resume` s on: a hole of `resume - 9.5` s that is all sound when `silences: []`. */
 const holedDoc = (tag: string, resume = 70) => docOf(speech(tag, 0, 10), speech(`${tag}b`, resume, 100));
@@ -767,18 +767,19 @@ describe("tries of a part (AC-6.11, H-4; the bound is 1 since A8, the retry test
   });
 
   it("a part still incomplete after three tries keeps the best: fewest gaps, then least gap time (the gap is reported, in meeting time)", async () => {
+    // a 200 s part, so that two gaps of the 60 s bound fit in it (A10)
     const tries: Record<number, string> = {
-      1: docOf(speech("a", 0, 10), speech("ab", 40, 50), speech("ac", 80, 100)), // two gaps
-      2: holedDoc("mid", 70), // one gap of 60.5 s
-      3: holedDoc("best", 50), // one gap of 40.5 s: the best
+      1: docOf(speech("a", 0, 10), speech("ab", 70, 80), speech("ac", 140, 200)), // two gaps of 60.5 s
+      2: docOf(speech("mid", 0, 10), speech("midb", 150, 200)), // one gap of 140.5 s
+      3: docOf(speech("best", 0, 10), speech("bestb", 80, 200)), // one gap of 70.5 s: the best
     };
-    const w = world({ spans: A_PART, silences: [], maxTries: 3, output: (_part, tryNo) => tries[tryNo]! });
+    const w = world({ spans: [{ startMs: 0, endMs: 200_000 }], silences: [], maxTries: 3, output: (_part, tryNo) => tries[tryNo]! });
     const outcome = segmentsOf(await w.run());
     expect(w.submits.map((s) => s.tryNo)).toEqual([1, 2, 3]);
         expect(textOfOutcome(outcome)).toContain("best0");
     expect(textOfOutcome(outcome)).not.toContain("mid0");
     expect(textOfOutcome(outcome)).not.toContain("a0");
-    expect(outcome.gaps).toEqual([{ startMs: 9_500, endMs: 50_000 }]);
+    expect(outcome.gaps).toEqual([{ startMs: 9_500, endMs: 80_000 }]);
     cleaned(w.storage);
   });
 

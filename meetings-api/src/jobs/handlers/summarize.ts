@@ -91,7 +91,7 @@ async function loadTranscript(
   for (let attempt = 0; ; attempt++) {
     const before = await db.meeting.findUnique({ where: { id: meetingId }, select: { transcriptVersion: true } });
     const rows = await db.transcriptSegment.findMany({ where: { meetingId }, orderBy: { ordinal: "asc" } });
-    const gaps = await db.transcriptGap.findMany({ where: { meetingId }, orderBy: { startMs: "asc" }, select: { startMs: true, endMs: true } });
+    const gaps = await db.transcriptGap.findMany({ where: { meetingId, dismissedAt: null }, orderBy: { startMs: "asc" }, select: { startMs: true, endMs: true } });
     const after = await db.meeting.findUnique({ where: { id: meetingId }, select: { transcriptVersion: true } });
     if (!before || !after) return { segments: [], transcriptVersion: 0, gaps: [] };
     if (before.transcriptVersion !== after.transcriptVersion && attempt < 2) continue;

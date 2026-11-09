@@ -1,7 +1,7 @@
 # 0074 — A transcript that cannot be proven complete says where it may not be: detect, then mark (the retry is suspended, O15)
 
 **Date:** 2026-11-05
-**Status:** Accepted (specs/021-meetings; plan amendment #2 and spec A7 approved by the user on 2026-11-05); amended 2026-11-05 by spec A8: per-part retry suspended. Bounds were provisional until O14 (go-live gate); amended 2026-11-08: O14 dropped by the user, the T124 bounds are final.
+**Status:** Accepted (specs/021-meetings; plan amendment #2 and spec A7 approved by the user on 2026-11-05); amended 2026-11-05 by spec A8: per-part retry suspended. Bounds were provisional until O14 (go-live gate); amended 2026-11-08: O14 dropped by the user, the T124 bounds are final; amended 2026-11-09 by spec A10: gap bound 60 s, and the creator can mark a range "no speech here".
 **Deciders:** wellD
 **Project:** Operai
 **Relates to:** [ADR-0070](0070-meetings-transcript-parts-speaker-labels-per-part.md), [ADR-0062](0062-durable-job-runner-work-queued-state-derived.md), [ADR-0067](0067-ai-output-structured-validated-plain-text.md), [ADR-0069](0069-meetings-ai-providers-google-cloud-eu.md), [ADR-0013](0013-invitation-lifecycle-derived-expiry-state.md)
@@ -140,6 +140,19 @@ validated by its own output; measure, and keep the marker either way.
 **Consequences.** Cost per attempt falls back to the one-pass figure (about +17 % overlap only).
 Gaps that a retry might have repaired now show as notices; the marker, not the retry, is what keeps
 the record honest. The bounds are final since 2026-11-08 (O14 dropped).
+
+## Amendment 2026-11-09 (spec A10): a 60 s bound, and "no speech here" by the creator
+
+The first production recording was marked for 36 s in which nobody spoke: typing and reading at a
+terminal, which the energy measure cannot tell from speech. The marker is only useful while it is
+believed, so two changes. The gap bound is 60 s: every real loss measured with 10-minute parts was
+1.6-2.8 minutes, and a shorter loss already went unmarked below 20 s, so the guarantee keeps its
+shape (detected losses are marked, no marker is no promise). And the creator, after listening, can
+mark a range "no speech here": it is kept with who and when, ignored by every reader, and the caveats
+the service wrote because of it are withdrawn, service-written text only. A person, not the
+detector, makes that call, and only the person who owns the transcript. Rejected: a speech
+classifier in the pipeline (another model to verify at startup, and a false negative hides exactly
+the losses this ADR exists to show); a dismiss for every reader (the creator owns the record).
 
 ## Compliance notes
 

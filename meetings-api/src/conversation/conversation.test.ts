@@ -497,6 +497,14 @@ describe("a transcript that may be incomplete (AC-9.9)", () => {
     return m;
   };
 
+  it("a gap the creator marked 'no speech here' does not count (A10)", async () => {
+    const m = await withGaps();
+    await db.transcriptGap.updateMany({ where: { meetingId: m.id }, data: { dismissedAt: new Date(), dismissedBy: "creator" } });
+    model.respondWith({ answer: "They decided to ship on Friday.", citations: ["S0"], notInMeeting: false });
+    const res = await ask(m.id, "What did we decide?");
+    expect(res.json.answer).toMatchObject({ possiblyIncomplete: false });
+  });
+
   it("every answer carries possiblyIncomplete: true, and a cited answer's own text is untouched", async () => {
     const m = await withGaps();
     model.respondWith({ answer: "They decided to ship on Friday.", citations: ["S0"], notInMeeting: false });

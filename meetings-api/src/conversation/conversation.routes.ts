@@ -174,7 +174,7 @@ async function askModel(input: AskInput): Promise<Outcome> {
       orderBy: [{ createdAt: "desc" }, { id: "desc" }],
       take: 10,
     }),
-    db.transcriptGap.count({ where: { meetingId: input.meeting.id } }),
+    db.transcriptGap.count({ where: { meetingId: input.meeting.id, dismissedAt: null } }),
   ]);
   if (rows.length === 0) return { ok: false, code: "no_transcript" };
   const possiblyIncomplete = gapCount > 0;

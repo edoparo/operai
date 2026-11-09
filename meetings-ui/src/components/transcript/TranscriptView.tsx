@@ -22,6 +22,7 @@ import {
 import { findMatches } from './fold'
 import { SegmentEditor } from './SegmentEditor'
 import { SegmentRow } from './SegmentRow'
+import { DismissGapDialog } from './DismissGapDialog'
 import { SeparateSpeakerDialog } from './SeparateSpeakerDialog'
 import { SpeakerRenameDialog } from './SpeakerRenameDialog'
 
@@ -111,6 +112,7 @@ function TranscriptBody({
   const [editing, setEditing] = useState<string | null>(null)
   const [renaming, setRenaming] = useState<string | null>(null)
   const [separating, setSeparating] = useState<string | null>(null)
+  const [dismissing, setDismissing] = useState<TimeRange | null>(null)
   const [stale, setStale] = useState(false)
   const canEdit = meeting.can.editTranscript
   const gaps = transcript.gaps
@@ -272,8 +274,8 @@ function TranscriptBody({
         {notice === 'copied' ? strings.transcript.copied : notice === 'copyFailed' ? strings.transcript.copyFailed : ''}
       </VisuallyHidden>
       {gaps.length > 0 && (
-        // Possibly incomplete (AC-6.12): everyone who can open the meeting sees it, it cannot be
-        // dismissed, and editing the transcript does not remove it. The id is the anchor of the
+        // Possibly incomplete (AC-6.12): everyone who can open the meeting sees it, and editing the transcript
+        // does not remove it. Only the creator can mark a range "no speech here" after listening (A10). The id is the anchor of the
         // "may be incomplete" label on summaries and answers. A persistent condition, not time-critical:
         // `live="off"` keeps the warning look without an assertive alert (design.md accessibility).
         <Banner
@@ -286,16 +288,30 @@ function TranscriptBody({
           data-testid="meetings-transcript-incomplete"
         >
           <p>{strings.transcript.incomplete.notice(noticeRanges(gaps))}</p>
-          {audioKept && (
+          {(audioKept || canEdit) && (
             <ul aria-label={strings.transcript.incomplete.rangesLabel} className="mt-2 flex flex-wrap gap-x-4 gap-y-1">
               {gaps.map((gap) => (
                 <li key={gap.startMs} className="flex items-center gap-1">
                   <span className="font-mono text-xs">
                     {clockOf(gap.startMs)}–{clockOf(gap.endMs)}
                   </span>
-                  <Button variant="ghost" size="sm" aria-label={playLabel(gap.startMs)} onClick={playFrom(gap.startMs)}>
-                    <Icon name="play" /> {strings.transcript.incomplete.play}
-                  </Button>
+                  {audioKept && (
+                    <Button variant="ghost" size="sm" aria-label={playLabel(gap.startMs)} onClick={playFrom(gap.startMs)}>
+                      <Icon name="play" /> {strings.transcript.incomplete.play}
+                    </Button>
+                  )}
+                  {canEdit && (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      aria-haspopup="dialog"
+                      aria-label={strings.transcript.incomplete.dismissLabel(clockOf(gap.startMs), clockOf(gap.endMs))}
+                      onClick={() => setDismissing(gap)}
+                      data-testid="meetings-gap-dismiss"
+                    >
+                      {strings.transcript.incomplete.dismiss}
+                    </Button>
+                  )}
                 </li>
               ))}
             </ul>
@@ -486,6 +502,21 @@ function TranscriptBody({
             })
             setRenaming(null)
           }}
+        />
+      )}
+      {dismissing !== null && (
+        <DismissGapDialog
+          meetingId={meeting.id}
+          gap={dismissing}
+          onDismissed={(open) => {
+            setDismissing(null)
+            onTranscript({ ...transcript, gaps: open })
+          }}
+          onStale={() => {
+            setDismissing(null)
+            setStale(true)
+          }}
+          onClose={() => setDismissing(null)}
         />
       )}
       {separating !== null && (

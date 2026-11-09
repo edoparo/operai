@@ -461,6 +461,14 @@ describe("a transcript that may be incomplete (AC-7.13)", () => {
     return made;
   };
 
+  it("a gap the creator marked 'no speech here' is not snapshotted (A10)", async () => {
+    const { summary, meeting } = await withGaps();
+    await db.transcriptGap.updateMany({ where: { meetingId: meeting.id, startMs: GAPS[0]!.startMs }, data: { dismissedAt: new Date(), dismissedBy: "creator" } });
+    model.respondWith(valid(["Ship on Friday.", "Vendor late."]));
+    await run(summary.id);
+    expect((await reread(summary.id)).transcriptGaps).toEqual([GAPS[1]!]);
+  });
+
   it("snapshots the gaps in meeting time, ascending, with the sections", async () => {
     const { summary } = await withGaps();
     model.respondWith(valid(["Ship on Friday.", "Vendor late."]));

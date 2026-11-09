@@ -182,6 +182,14 @@ const ROWS: Row[] = [
     url: '/meetings/m1/transcript/speakers/k1/separate',
     reply: { speakers: [] },
   },
+  {
+    name: 'dismissGap',
+    call: () => api.dismissGap('m1', { startMs: 1000, endMs: 70_000 }),
+    method: POST,
+    url: '/meetings/m1/transcript/gaps/dismiss',
+    body: { startMs: 1000, endMs: 70_000 },
+    reply: { gaps: [] },
+  },
   // Summaries
   { name: 'listSummaries', call: () => api.listSummaries('m1'), method: GET, url: '/meetings/m1/summaries' },
   {

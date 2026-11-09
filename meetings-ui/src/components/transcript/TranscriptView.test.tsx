@@ -446,6 +446,52 @@ describe('TranscriptView: a transcript that may be incomplete (AC-6.12, AC-6.5)'
     expect(screen.getAllByTestId('meetings-transcript-gap')).toHaveLength(2)
   })
 
+  it('the creator marks a range "no speech here": confirmed, sent, and the notice keeps only the other range (A10)', async () => {
+    const api = serve({
+      'GET /meetings/:id/transcript': () => ({ status: 200, body: gappy() }),
+      'POST /meetings/:id/transcript/gaps/dismiss': () => ({ status: 200, body: { gaps: [GAP_2] } }),
+    })
+    view(readyMeeting({ audio: { state: 'deleted' } }))
+    const notice = await screen.findByTestId('meetings-transcript-incomplete')
+    const buttons = within(notice).getAllByRole('button', { name: /as no speech/ })
+    expect(buttons.map((b) => b.getAttribute('aria-label'))).toEqual([
+      en.transcript.incomplete.dismissLabel('00:05:00', '00:07:00'),
+      en.transcript.incomplete.dismissLabel('00:20:00', '00:21:00'),
+    ])
+    await userEvent.click(buttons[0]!)
+    const dialog = await screen.findByRole('alertdialog', { name: en.transcript.incomplete.dismissDialog.title })
+    expect(dialog.textContent).toContain('00:05:00–00:07:00')
+    await userEvent.click(within(dialog).getByRole('button', { name: en.transcript.incomplete.dismissDialog.confirm }))
+    await waitFor(() => expect(screen.queryByRole('alertdialog')).toBeNull())
+    const post = api.mock.calls.find(([, init]) => init?.method === 'POST')!
+    expect(String(post[0])).toContain('/meetings/m1/transcript/gaps/dismiss')
+    expect(JSON.parse(String(post[1]!.body))).toEqual(GAP_1)
+    expect(screen.getByTestId('meetings-transcript-incomplete').textContent).toContain(
+      en.transcript.incomplete.notice([{ from: '00:20:00', to: '00:21:00' }]),
+    )
+    expect(screen.getAllByTestId('meetings-transcript-gap')).toHaveLength(1)
+  })
+
+  it('marking the last range removes the notice and every marker', async () => {
+    serve({
+      'GET /meetings/:id/transcript': () => ({ status: 200, body: gappy([GAP_1]) }),
+      'POST /meetings/:id/transcript/gaps/dismiss': () => ({ status: 200, body: { gaps: [] } }),
+    })
+    view(readyMeeting({ audio: { state: 'deleted' } }))
+    await userEvent.click(within(await screen.findByTestId('meetings-transcript-incomplete')).getByRole('button', { name: /as no speech/ }))
+    await userEvent.click(within(await screen.findByRole('alertdialog')).getByRole('button', { name: en.transcript.incomplete.dismissDialog.confirm }))
+    await waitFor(() => expect(screen.queryByTestId('meetings-transcript-incomplete')).toBeNull())
+    expect(screen.queryAllByTestId('meetings-transcript-gap')).toHaveLength(0)
+  })
+
+  it('a reader who is not the creator can play a range but not mark it', async () => {
+    serve({ 'GET /meetings/:id/transcript': () => ({ status: 200, body: gappy() }), ...audioRoute })
+    view(participantMeeting())
+    const notice = await screen.findByTestId('meetings-transcript-incomplete')
+    expect(within(notice).queryAllByRole('button', { name: /as no speech/ })).toHaveLength(0)
+    expect(within(notice).getAllByRole('button')).toHaveLength(2)
+  })
+
   it('the notice is shown to a reader with no edit rights too', async () => {
     serveTranscript(gappy())
     view(readyMeeting({ role: 'participant', can: CAN_NONE, audio: { state: 'none' } }))

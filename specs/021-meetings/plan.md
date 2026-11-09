@@ -2350,6 +2350,13 @@ ranges overlap or `B.start − A.end ≤ REPEAT_GAP_MS` = 2 000.
 - Visible residual: text that the two versions transcribed differently (fewer than 8 equal words)
   appears twice near the seam. The creator can edit it (AC-6.3).
 
+> **Amended 2026-11-09 (spec A10):** `GAP_BOUND_MS` = 60 000 (was 20 000). A gap row gains
+> `dismissedAt`/`dismissedBy`; `POST /meetings/{id}/transcript/gaps/dismiss` `{startMs, endMs}`
+> (creator-control, 409 `not_ready`, 404 unknown or already marked) marks it, and in the same
+> transaction removes the range from summaries' `transcriptGaps` and, when no open gap is left, puts
+> the service's `NOT_FOUND_INCOMPLETE`/`NOT_IN_MEETING_INCOMPLETE` back to the plain sentences
+> (exact match only, no summary version bump). Every read of gaps filters `dismissedAt IS NULL`.
+
 **J. Joins at the boundary k | k+1 (AC-6.14, AC-6.15).**
 > **Amended 2026-11-09 (spec A9):** J0 is retired (a hole adds no evidence); J2 (b) and (c) become
 > mutual agreement: the dominant L1 holds at least `AGREEMENT` = 0.8 of n[L2][·], and n[L2][L1] is at

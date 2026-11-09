@@ -21,8 +21,13 @@
 
 import { normalizeToken, sameSpeaker, tokensOf, type Interval, type PartWords, type Token } from "./words";
 
-/** A gap is a stretch with at least this much credited sound and no timed word (spec: the gap bound). */
-export const GAP_BOUND_MS = 20_000;
+/**
+ * A gap is a stretch with at least this much credited sound and no timed word (spec: the gap bound). 60 s since A10
+ * (2026-11-09, was 20 s): the first production recording was marked for 36 s of typing and reading at a terminal,
+ * while every real loss measured at 10-minute parts was 1.6-2.8 minutes. A shorter loss is not marked (AC-6.12: no
+ * notice is not a promise); a longer stretch with no speech can be marked "no speech here" by the creator.
+ */
+export const GAP_BOUND_MS = 60_000;
 /** An untimed word is text that exists somewhere in a hole: credited the time a word takes at 100 words/min, never more. */
 export const UNTIMED_WORD_CREDIT_MS = 600;
 /** Repeat bound (AC-6.13): this many consecutive equal words ... */

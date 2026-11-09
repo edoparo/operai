@@ -36,18 +36,20 @@ describe("soundIn", () => {
 
 describe("gaps (AC-6.11, AC-6.12, H-3)", () => {
   it("a stretch of at least the gap bound with sound and no timed word is a gap, ranged by its sound", () => {
-    const words = [word("ciao", [0, 1]), word("dopo", [60, 61])];
-    const result = assess(part(words, 0, 61), [silence(1, 5), silence(50, 60)]);
-    // sound in the hole 1-60 s: 5-50 s = 45 s
-    expect(result.gaps).toEqual([{ startMs: S(5), endMs: S(50), soundMs: S(45), untimedCreditMs: 0 }]);
-    expect(result.gapMs).toBe(S(45));
+    const words = [word("ciao", [0, 1]), word("dopo", [100, 101])];
+    const result = assess(part(words, 0, 101), [silence(1, 5), silence(90, 100)]);
+    // sound in the hole 1-100 s: 5-90 s = 85 s
+    expect(result.gaps).toEqual([{ startMs: S(5), endMs: S(90), soundMs: S(85), untimedCreditMs: 0 }]);
+    expect(result.gapMs).toBe(S(85));
   });
 
-  it("the bound is the credited sound: 19.9 s of sound is not a gap, 20 s is", () => {
-    const words = [word("a", [0, 1]), word("b", [60, 61])];
-    expect(assess(part(words, 0, 61), [silence(1, 40.1), silence(60, 70)]).gaps).toHaveLength(0);
-    expect(assess(part(words, 0, 61), [silence(1, 40), silence(60, 70)]).gaps).toHaveLength(1);
-    expect(GAP_BOUND_MS).toBe(20_000);
+  it("the bound is the credited sound: 59.9 s of sound is not a gap, 60 s is (A10: was 20 s)", () => {
+    const words = [word("a", [0, 1]), word("b", [100, 101])];
+    expect(assess(part(words, 0, 101), [silence(1, 40.1), silence(100, 110)]).gaps).toHaveLength(0);
+    expect(assess(part(words, 0, 101), [silence(1, 40), silence(100, 110)]).gaps).toHaveLength(1);
+    // the production recording that motivated A10: 36 s of typing with no word is no longer a gap
+    expect(assess(part([word("a", [0, 1]), word("b", [37, 38])], 0, 38), NO_SILENCE).gaps).toHaveLength(0);
+    expect(GAP_BOUND_MS).toBe(60_000);
   });
 
   it("a stretch of silence is not a gap however long (no sound)", () => {
@@ -56,54 +58,54 @@ describe("gaps (AC-6.11, AC-6.12, H-3)", () => {
   });
 
   it("credits 600 ms of sound to every untimed word between the bounding words", () => {
-    // 21 s of sound in the hole: three untimed words take 1.8 s and leave 19.2 s; one leaves 20.4 s
-    const withThree = [word("a", [0, 1]), word("x"), word("y"), word("z"), word("b", [22, 23])];
-    const withOne = [word("a", [0, 1]), word("x"), word("b", [22, 23])];
-    expect(assess(part(withThree, 0, 23), NO_SILENCE).gaps).toHaveLength(0);
-    const one = assess(part(withOne, 0, 23), NO_SILENCE).gaps;
+    // 61 s of sound in the hole: three untimed words take 1.8 s and leave 59.2 s; one leaves 60.4 s
+    const withThree = [word("a", [0, 1]), word("x"), word("y"), word("z"), word("b", [62, 63])];
+    const withOne = [word("a", [0, 1]), word("x"), word("b", [62, 63])];
+    expect(assess(part(withThree, 0, 63), NO_SILENCE).gaps).toHaveLength(0);
+    const one = assess(part(withOne, 0, 63), NO_SILENCE).gaps;
     expect(one).toHaveLength(1);
     expect(one[0]!.untimedCreditMs).toBe(600);
   });
 
   it("an untimed word elsewhere in the part credits nothing", () => {
-    const words = [word("a", [0, 1]), word("b", [22, 23]), word("x"), word("y"), word("z")];
-    expect(assess(part(words, 0, 23), NO_SILENCE).gaps).toHaveLength(1);
+    const words = [word("a", [0, 1]), word("b", [62, 63]), word("x"), word("y"), word("z")];
+    expect(assess(part(words, 0, 63), NO_SILENCE).gaps).toHaveLength(1);
   });
 
   it("a lone '[' between the bounding words declares the stretch non-speech (T107)", () => {
-    const words = [word("a", [0, 1]), marker(), word("b", [60, 61])];
-    const result = assess(part(words, 0, 61), NO_SILENCE);
+    const words = [word("a", [0, 1]), marker(), word("b", [100, 101])];
+    const result = assess(part(words, 0, 101), NO_SILENCE);
     expect(result.gaps).toHaveLength(0);
     expect(result.excused).toBe(1);
     // the same stretch without the marker is a gap
-    expect(assess(part([word("a", [0, 1]), word("b", [60, 61])], 0, 61), NO_SILENCE).gaps.length).toBeGreaterThan(0);
+    expect(assess(part([word("a", [0, 1]), word("b", [100, 101])], 0, 101), NO_SILENCE).gaps.length).toBeGreaterThan(0);
   });
 
   it("a marker in another hole excuses only its own", () => {
-    const words = [word("a", [0, 1]), marker(), word("b", [30, 31]), word("c", [70, 71])];
-    const result = assess(part(words, 0, 71), NO_SILENCE);
+    const words = [word("a", [0, 1]), marker(), word("b", [70, 71]), word("c", [150, 151])];
+    const result = assess(part(words, 0, 151), NO_SILENCE);
     expect(result.excused).toBe(1);
-    expect(result.gaps.map((g) => [g.startMs, g.endMs])).toEqual([[S(31), S(70)]]);
+    expect(result.gaps.map((g) => [g.startMs, g.endMs])).toEqual([[S(71), S(150)]]);
   });
 
   it("the part's edges are holes too: before the first word and after the last", () => {
-    const words = [word("a", [40, 41])];
-    const result = assess(part(words, 0, 100), NO_SILENCE);
+    const words = [word("a", [70, 71])];
+    const result = assess(part(words, 0, 150), NO_SILENCE);
     expect(result.gaps.map((g) => [g.startMs, g.endMs])).toEqual([
-      [0, S(40)],
-      [S(41), S(100)],
+      [0, S(70)],
+      [S(71), S(150)],
     ]);
   });
 
   it("a part with no timed word is one hole; markers only is non-speech, nothing at all with sound is a gap", () => {
-    expect(assess(part([marker(), marker()], 0, 60), NO_SILENCE).gaps).toHaveLength(0);
-    expect(assess(part([marker()], 0, 60), NO_SILENCE).excused).toBe(1);
-    expect(assess(part([], 0, 60), NO_SILENCE).gaps.map((g) => [g.startMs, g.endMs])).toEqual([[0, S(60)]]);
-    expect(assess(part([], 0, 60), [silence(0, 60)]).gaps).toHaveLength(0);
+    expect(assess(part([marker(), marker()], 0, 180), NO_SILENCE).gaps).toHaveLength(0);
+    expect(assess(part([marker()], 0, 180), NO_SILENCE).excused).toBe(1);
+    expect(assess(part([], 0, 180), NO_SILENCE).gaps.map((g) => [g.startMs, g.endMs])).toEqual([[0, S(180)]]);
+    expect(assess(part([], 0, 180), [silence(0, 180)]).gaps).toHaveLength(0);
     // untimed words only: their credit is 600 ms each
     const untimed = Array.from({ length: 10 }, () => word("parola"));
-    expect(assess(part(untimed, 0, 24), NO_SILENCE).gaps).toHaveLength(0); // 24 - 6 = 18 s
-    expect(assess(part(untimed, 0, 27), NO_SILENCE).gaps).toHaveLength(1); // 27 - 6 = 21 s
+    expect(assess(part(untimed, 0, 65), NO_SILENCE).gaps).toHaveLength(0); // 65 - 6 = 59 s
+    expect(assess(part(untimed, 0, 67), NO_SILENCE).gaps).toHaveLength(1); // 67 - 6 = 61 s
   });
 
   it("words overlapping in time leave no hole between them", () => {
@@ -114,7 +116,7 @@ describe("gaps (AC-6.11, AC-6.12, H-3)", () => {
   it("detectably incomplete means a gap, and only a gap (A8: a repetition is removed by the stitcher, never a reason to retry)", () => {
     const clean = assess(part([word("a", [0, 1])], 0, 5), NO_SILENCE);
     expect(isIncomplete(clean)).toBe(false);
-    expect(isIncomplete(assess(part([word("a", [0, 1])], 0, 60), NO_SILENCE))).toBe(true);
+    expect(isIncomplete(assess(part([word("a", [0, 1])], 0, 100), NO_SILENCE))).toBe(true);
   });
 });
 
@@ -351,15 +353,15 @@ describe("the gaps of the whole meeting (AC-6.12, H-3)", () => {
   });
 
   it("spreads the untimed credit over what is left in proportion to its sound", () => {
-    // gap 1-61 (60 s) with 40 untimed words = 24 s credit; the neighbour covers 31-61, so 1-31 keeps 30 s - 12 s = 18 s
-    const first = p1([word("a", [0, 1]), word("b", [61, 62])]);
-    const second = p2([word("x", [31, 61])]);
-    const nowhere = finalGaps([{ words: first, gaps: [gapOf(1, 61, S(24))] }], NO_SILENCE);
-    expect(nowhere).toEqual([{ startMs: S(1), endMs: S(61) }]); // 60 - 24 = 36 s: still a gap, nothing covers it
+    // gap 1-121 (120 s) with 40 untimed words = 24 s credit; the neighbour covers 61-121, so 1-61 keeps 60 s - 12 s = 48 s
+    const first = p1([word("a", [0, 1]), word("b", [121, 122])]);
+    const second = p2([word("x", [61, 121])]);
+    const nowhere = finalGaps([{ words: first, gaps: [gapOf(1, 121, S(24))] }], NO_SILENCE);
+    expect(nowhere).toEqual([{ startMs: S(1), endMs: S(121) }]); // 120 - 24 = 96 s: still a gap, nothing covers it
     const wide = { ...first, startMs: S(0), endMs: S(600) };
-    const overlap = { ...second, startMs: S(31), endMs: S(631) };
-    const partial = finalGaps([{ words: wide, gaps: [gapOf(1, 61, S(24))] }, { words: overlap, gaps: [] }], NO_SILENCE);
-    expect(partial).toEqual([]); // 30 s of sound - 12 s credit = 18 s < 20 s
+    const overlap = { ...second, startMs: S(61), endMs: S(661) };
+    const partial = finalGaps([{ words: wide, gaps: [gapOf(1, 121, S(24))] }, { words: overlap, gaps: [] }], NO_SILENCE);
+    expect(partial).toEqual([]); // 60 s of sound - 12 s credit = 48 s < 60 s
   });
 
   it("merges ranges", () => {

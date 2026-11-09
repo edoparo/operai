@@ -254,13 +254,16 @@ model TranscriptSegment {
 }
 
 // A stretch of the recording that may be missing from the transcript (AC-6.12): meeting time, merged. Written with the
-// segments (replaced, never appended), deleted with the meeting, never edited: AC-6.3 does not touch it.
+// segments (replaced, never appended), deleted with the meeting; AC-6.3 does not touch it. The creator can mark one
+// "no speech here" after listening (A10): it is then ignored everywhere, and replaced with the gaps on retranscription.
 model TranscriptGap {
-  id        String  @id @default(cuid())
-  meetingId String
-  meeting   Meeting @relation(fields: [meetingId], references: [id], onDelete: Cascade)
-  startMs   Int
-  endMs     Int
+  id          String    @id @default(cuid())
+  meetingId   String
+  meeting     Meeting   @relation(fields: [meetingId], references: [id], onDelete: Cascade)
+  startMs     Int
+  endMs       Int
+  dismissedAt DateTime?
+  dismissedBy String?
 
   @@index([meetingId, startMs])
   @@map("transcript_gap")

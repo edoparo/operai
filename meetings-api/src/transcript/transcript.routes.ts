@@ -6,6 +6,7 @@
  *   PATCH /meetings/:id/transcript/segments/:segmentId  creator-control + If-Match (segment version)
  *   PUT   /meetings/:id/transcript/speakers/:key        creator-control
  *   POST  /meetings/:id/transcript/speakers/:key/separate   creator-control (AC-6.16)
+ *   POST  /meetings/:id/transcript/gaps/dismiss         creator-control ("no speech here", A10)
  *
  * A segment edit bumps the segment's `version` (ADR-0038 CAS) and the MEETING's
  * `transcriptVersion`, which is how a summary made from an earlier text reads "stale"
@@ -16,6 +17,7 @@
 import { OpenAPIHono, createRoute, z } from "@hono/zod-openapi";
 import { speakerIndexOf, speakerKeyOf } from "../ai/segments";
 import { db } from "../lib/db";
+import type { Prisma } from "../lib/generated/prisma/client";
 import { IdParams, commonErrors, etag, requireIfMatch, versionConflict } from "../lib/http";
 import { ProblemError, conflict, notFound, validationHook } from "../lib/problem";
 import { openMeeting } from "../meetings/visibility";
@@ -23,6 +25,7 @@ import { selfScoped } from "../auth/guards";
 import type { AuthzVariables } from "../auth/authz.middleware";
 import { openForControl } from "../capture/caller";
 import { callerOf, creatorControl } from "../meetings/caller";
+import { answerWithoutCaveat, withoutDismissed } from "./gapDismissal";
 
 export const MAX_SEGMENT_CHARS = 10_000;
 export const MAX_SPEAKER_LABEL_CHARS = 100;
@@ -218,6 +221,23 @@ const separateRoute = createRoute({
   },
 });
 
+const dismissGapRoute = createRoute({
+  method: "post",
+  path: "/meetings/{id}/transcript/gaps/dismiss",
+  tags: ["Transcript"],
+  summary: "Mark a possible gap as holding no speech (the creator listened to it)",
+  description:
+    "The gap is then ignored by the transcript's notice, new summaries and new answers, and the caveats already written because of it " +
+    "are withdrawn (service-written text only). Not undone by anything but a new transcription. 404 when no such gap is open.",
+  middleware: creatorControl,
+  request: { params: IdParams, body: { content: { "application/json": { schema: RangeSchema } }, required: true } },
+  responses: {
+    200: { description: "The gaps still open", content: { "application/json": { schema: z.object({ gaps: z.array(RangeSchema) }) } } },
+    409: { description: "not_ready" },
+    ...commonErrors,
+  },
+});
+
 /** Takes the meeting row: renames and separations of one meeting never interleave (a copied name is never stale). */
 const lockMeeting = (tx: Pick<typeof db, "$queryRaw">, id: string) => tx.$queryRaw`SELECT "id" FROM "meeting" WHERE "id" = ${id} FOR UPDATE`;
 
@@ -231,7 +251,7 @@ transcriptRouter.openapi(getRoute, async (c) => {
     db.meeting.findUniqueOrThrow({ where: { id }, select: { transcriptVersion: true, transcriptPartStartsMs: true, transcriptPartEndsMs: true } }),
     db.transcriptSegment.findMany({ where: { meetingId: id }, orderBy: { ordinal: "asc" } }),
     db.speakerLabel.findMany({ where: { meetingId: id } }),
-    db.transcriptGap.findMany({ where: { meetingId: id }, orderBy: { startMs: "asc" }, select: { startMs: true, endMs: true } }),
+    db.transcriptGap.findMany({ where: { meetingId: id, dismissedAt: null }, orderBy: { startMs: "asc" }, select: { startMs: true, endMs: true } }),
   ]);
   const starts = meeting.transcriptPartStartsMs;
   const lastEnd = segments.reduce((end, s) => Math.max(end, s.endMs ?? 0), 0);
@@ -371,4 +391,53 @@ transcriptRouter.openapi(separateRoute, async (c) => {
 
   console.log(`[transcript] separated speaker into ${speakers.length} labels`);
   return c.json({ speakers }, 200);
+});
+
+transcriptRouter.openapi(dismissGapRoute, async (c) => {
+  const { id } = c.req.valid("param");
+  const range = c.req.valid("json");
+  const caller = callerOf(c);
+  await openForControl(id, caller);
+
+  const result = await db.$transaction(async (tx) => {
+    await lockMeeting(tx, id);
+    const meeting = await tx.meeting.findUniqueOrThrow({ where: { id }, select: { status: true, noSpeech: true } });
+    if (meeting.status !== "ready" || meeting.noSpeech) throw conflict("not_ready", "Gaps can only be marked once the transcript is ready");
+    const marked = await tx.transcriptGap.updateMany({
+      where: { meetingId: id, startMs: range.startMs, endMs: range.endMs, dismissedAt: null },
+      data: { dismissedAt: new Date(), dismissedBy: caller.userId },
+    });
+    if (marked.count === 0) throw notFound("Gap not found");
+
+    const [dismissed, open] = await Promise.all([
+      tx.transcriptGap.findMany({ where: { meetingId: id, dismissedAt: { not: null } }, select: { startMs: true, endMs: true } }),
+      tx.transcriptGap.findMany({ where: { meetingId: id, dismissedAt: null }, orderBy: { startMs: "asc" }, select: { startMs: true, endMs: true } }),
+    ]);
+
+    // The caveats already written because of it (service-written text only, never a version bump: no content changed).
+    let summaries = 0;
+    for (const summary of await tx.summary.findMany({ where: { meetingId: id }, select: { id: true, transcriptGaps: true, sections: true, language: true } })) {
+      const changed = withoutDismissed(summary, dismissed);
+      if (changed === null) continue;
+      await tx.summary.update({ where: { id: summary.id }, data: {
+          transcriptGaps: changed.transcriptGaps as unknown as Prisma.InputJsonValue,
+          ...(changed.sections == null ? {} : { sections: changed.sections as Prisma.InputJsonValue }),
+        }, });
+      summaries += 1;
+    }
+    let answers = 0;
+    if (open.length === 0) {
+      for (const turn of await tx.conversationTurn.findMany({ where: { meetingId: id, status: "answered" }, select: { id: true, answer: true } })) {
+        const changed = answerWithoutCaveat(turn.answer);
+        if (changed === null) continue;
+        await tx.conversationTurn.update({ where: { id: turn.id }, data: { answer: changed as Prisma.InputJsonValue } });
+        answers += 1;
+      }
+    }
+    return { open, summaries, answers };
+  });
+
+  // Counts only: never a range, a text or an id.
+  console.log(`[transcript] gap marked no-speech open=${result.open.length} summaries=${result.summaries} answers=${result.answers}`);
+  return c.json({ gaps: result.open }, 200);
 });

@@ -37,6 +37,15 @@ const en = {
     rangesLabel: 'Ranges where speech may be missing',
     marker: (from: string, to: string) => `Possible gap ${from}–${to}`,
     play: 'Play',
+    dismiss: 'No speech here',
+    dismissLabel: (from: string, to: string) => `Mark ${from}–${to} as no speech`,
+    dismissDialog: {
+      title: 'No speech in this stretch?',
+      body: (from: string, to: string) =>
+        `Listen to ${from}–${to} first. If nobody speaks there (typing, a pause, noise), the warning is removed from the transcript, and summaries and answers no longer say the transcript may be incomplete because of it. Only a new transcription brings it back.`,
+      confirm: 'No speech here',
+      busy: 'Saving…',
+    },
   },
   /** A label matched across parts (AC-6.16). `parts` reads like "1–3" or "1, 3". */
   joined: {
@@ -113,6 +122,15 @@ const it: typeof en = {
     rangesLabel: 'Intervalli in cui potrebbe mancare del parlato',
     marker: (from: string, to: string) => `Possibile lacuna ${from}–${to}`,
     play: 'Riproduci',
+    dismiss: 'Qui non si parlava',
+    dismissLabel: (from: string, to: string) => `Segna ${from}–${to} come senza parlato`,
+    dismissDialog: {
+      title: 'Nessun parlato in questo tratto?',
+      body: (from: string, to: string) =>
+        `Ascolta prima ${from}–${to}. Se lì nessuno parla (tastiera, una pausa, rumore), l’avviso viene tolto dalla trascrizione, e verbali e risposte non dicono più che la trascrizione potrebbe essere incompleta per questo. Solo una nuova trascrizione lo fa ricomparire.`,
+      confirm: 'Qui non si parlava',
+      busy: 'Salvataggio…',
+    },
   },
   joined: {
     note: (parts: string) => `Abbinata automaticamente tra le parti ${parts}`,

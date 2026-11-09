@@ -34,6 +34,7 @@ import type {
   SummarySection,
   Template,
   TemplateInput,
+  TimeRange,
   Transcript,
   TranscriptSegment,
 } from './types'
@@ -200,6 +201,11 @@ export async function separateSpeaker(id: string, key: string): Promise<{ speake
     'POST',
   )
   return { speakers: body.speakers.map(withParts) }
+}
+
+/** "No speech here" (A10): the creator marks a possible gap; the answer is the gaps still open. */
+export async function dismissGap(id: string, gap: TimeRange): Promise<{ gaps: TimeRange[] }> {
+  return sendJson<{ gaps: TimeRange[] }>(`${meetingPath(id)}/transcript/gaps/dismiss`, 'POST', { startMs: gap.startMs, endMs: gap.endMs })
 }
 
 /** `version` is the segment's own (`If-Match`); the answer bumps the meeting's `transcriptVersion` (AC-6.3, AC-6.8). */
