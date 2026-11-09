@@ -19,10 +19,10 @@ import { OpenAPIHono, createRoute, z } from "@hono/zod-openapi";
 import { PURCHASE_ORDER_BEXIO, authorized, requireCapability } from "../auth/guards";
 import type { AuthzVariables } from "../auth/authz.middleware";
 import { db } from "../lib/db";
-import { IdParams, assertVersion, commonErrors, etag, isRecordNotFound, requireIfMatch, versionConflict } from "../lib/http";
+import { IdParams, assertVersion, commonErrors, etag, requireIfMatch } from "../lib/http";
 import { notFound, validationHook } from "../lib/problem";
 import { PurchaseOrderSchema } from "../projects/projects.schemas";
-import { purchaseOrderNotFound, toPurchaseOrderView } from "./view";
+import { purchaseOrderNotFound, toPurchaseOrderView, updatePurchaseOrderIfVersion } from "./view";
 
 export const MAX_BEXIO_ORDER_ID = 64;
 
@@ -70,18 +70,7 @@ bexioRouter.openapi(setBexioOrderRoute, async (c) => {
   const current = project.purchaseOrder;
   if (!current) throw purchaseOrderNotFound();
   assertVersion(current.version, expected);
-  // Compare-and-set on the version: of two saves of the same version only one matches.
-  const row = await db.purchaseOrder
-    .update({
-      where: { id: current.id, version: expected },
-      data: { bexioOrderId, version: { increment: 1 } },
-    })
-    .catch(async (error: unknown) => {
-      if (!isRecordNotFound(error)) throw error;
-      const now = await db.purchaseOrder.findUnique({ where: { id: current.id }, select: { version: true } });
-      if (!now) throw purchaseOrderNotFound();
-      throw versionConflict(now.version);
-    });
+  const row = await updatePurchaseOrderIfVersion(current.id, expected, { bexioOrderId });
   c.header("ETag", etag(row.version));
   // The echo carries the live referent too (specs/025 T26), so it is `no-store` like the rest of the order.
   return c.json(await toPurchaseOrderView(c, row, project.companyId), 200);

@@ -13,7 +13,8 @@
 
 import { contactName, contactsById, dealsById, type CrmContact, type CrmDeal } from "../lib/crm";
 import type { Prisma } from "../lib/generated/prisma/client";
-import { type HeaderSource } from "../lib/http";
+import { db } from "../lib/db";
+import { type HeaderSource, updateIfVersion } from "../lib/http";
 import { loadPeople, type People } from "../lib/people";
 import { ProblemError } from "../lib/problem";
 import type { DealRef, ReferentView } from "../projects/projects.schemas";
@@ -23,6 +24,18 @@ export type PurchaseOrderRow = Prisma.PurchaseOrderGetPayload<object>;
 /** A hand-made project has no purchase order, ever (D38): what every route on a purchase order answers for one. */
 export const purchaseOrderNotFound = (): ProblemError =>
   new ProblemError({ status: 404, code: "purchase_order_not_found", detail: "This project has no purchase order" });
+
+/** Compare-and-set a purchase-order write on its version ({@link updateIfVersion}); returns the new row. */
+export const updatePurchaseOrderIfVersion = (
+  id: string,
+  expected: number,
+  data: Prisma.PurchaseOrderUpdateInput,
+): Promise<PurchaseOrderRow> =>
+  updateIfVersion(
+    () => db.purchaseOrder.update({ where: { id, version: expected }, data: { ...data, version: { increment: 1 } } }),
+    () => db.purchaseOrder.findUnique({ where: { id }, select: { version: true } }),
+    purchaseOrderNotFound,
+  );
 
 /** What a view that can carry the referent needs of the request: its headers in, and a way to set one out. */
 export interface ViewContext extends HeaderSource {

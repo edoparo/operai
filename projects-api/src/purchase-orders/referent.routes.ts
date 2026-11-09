@@ -24,10 +24,10 @@ import { PROJECT_MANAGE, assertCanManage, authorized, requireCapability } from "
 import type { AuthzVariables } from "../auth/authz.middleware";
 import { assertValidReferent, companyContacts, orCrmUnavailable, referentInvalid } from "../lib/crm";
 import { db } from "../lib/db";
-import { IdParams, IdSchema, assertVersion, commonErrors, etag, isRecordNotFound, requireIfMatch, versionConflict } from "../lib/http";
+import { IdParams, IdSchema, assertVersion, commonErrors, etag, requireIfMatch } from "../lib/http";
 import { notFound, validationHook } from "../lib/problem";
 import { ContactChoicesSchema, PurchaseOrderSchema } from "../projects/projects.schemas";
-import { noStore, purchaseOrderNotFound, toPurchaseOrderView } from "./view";
+import { noStore, purchaseOrderNotFound, toPurchaseOrderView, updatePurchaseOrderIfVersion } from "./view";
 
 /** `null` clears the referent. The id's charset is `assertValidReferent`'s to refuse, with the one identical 422. */
 const SetReferentSchema = z.object({ referentContactId: IdSchema.nullable() }).strict();
@@ -107,18 +107,7 @@ referentRouter.openapi(setReferentRoute, async (c) => {
     if (project.companyId === null) throw referentInvalid();
     await assertValidReferent(referentContactId, project.companyId);
   }
-  // Compare-and-set on the version: of two saves of the same version only one matches.
-  const row = await db.purchaseOrder
-    .update({
-      where: { id: current.id, version: expected },
-      data: { referentContactId, version: { increment: 1 } },
-    })
-    .catch(async (error: unknown) => {
-      if (!isRecordNotFound(error)) throw error;
-      const now = await db.purchaseOrder.findUnique({ where: { id: current.id }, select: { version: true } });
-      if (!now) throw purchaseOrderNotFound();
-      throw versionConflict(now.version);
-    });
+  const row = await updatePurchaseOrderIfVersion(current.id, expected, { referentContactId });
   // The audit line (T18 L6): which event, which project, who — never the contact's id or any of its data.
   console.log(
     JSON.stringify({ event: referentContactId === null ? "referent.cleared" : "referent.set", projectId: id, actorId: c.get("userId") }),

@@ -22,7 +22,7 @@ import { OpenAPIHono, createRoute, z } from "@hono/zod-openapi";
 import { PROJECT_MANAGE, assertCanManage, authorized, requireCapability } from "../auth/guards";
 import type { AuthzVariables } from "../auth/authz.middleware";
 import { db } from "../lib/db";
-import { assertVersion, commonErrors, etag, fromDateOnly, IdParams, requireIfMatch, versionConflict } from "../lib/http";
+import { assertVersion, casMiss, commonErrors, etag, fromDateOnly, IdParams, requireIfMatch, versionConflict } from "../lib/http";
 import { ProblemError, conflict, notFound, unprocessable, validationHook } from "../lib/problem";
 import { TermsSchema, type ProjectType } from "../projects/projects.schemas";
 import { assertTakesTerms, termsCreateData } from "./create";
@@ -189,8 +189,7 @@ termsRouter.openapi(updateTermsRoute, async (c) => {
       },
     });
     if (bumped.count === 0) {
-      const now = await tx.projectTerms.findUnique({ where: { id: current.id }, select: { version: true } });
-      throw now ? versionConflict(now.version) : termsNotFound();
+      throw casMiss(await tx.projectTerms.findUnique({ where: { id: current.id }, select: { version: true } }), termsNotFound);
     }
     if (terms?.type === "t_and_m") {
       await tx.projectTermsPosition.deleteMany({ where: { termsId: current.id } });

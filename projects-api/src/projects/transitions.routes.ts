@@ -9,21 +9,17 @@
 import { OpenAPIHono, createRoute, z } from "@hono/zod-openapi";
 import { PROJECT_MANAGE, assertCanManage, authorized, requireCapability, type AuthzSource } from "../auth/guards";
 import type { AuthzVariables } from "../auth/authz.middleware";
-import { db } from "../lib/db";
-import type { Prisma } from "../lib/generated/prisma/client";
 import {
   IdParams,
   assertVersion,
   commonErrors,
   etag,
-  isRecordNotFound,
   requireIfMatch,
-  versionConflict,
   type HeaderSource,
 } from "../lib/http";
 import { conflict, notFound, validationHook } from "../lib/problem";
 import { isAwaitingProjectManager } from "./pick";
-import { findProjectRow, projectInclude, toProjectView } from "./projects.routes";
+import { findProjectRow, toProjectView, updateProjectIfVersion } from "./projects.routes";
 import { ProjectSchema, ProjectStateSchema } from "./projects.schemas";
 import { applyTransition } from "./transitions";
 
@@ -64,25 +60,6 @@ async function loadForWrite(c: HeaderSource & AuthzSource, id: string) {
   return { current, expected };
 }
 
-/**
- * Compare-and-set on the version: of two saves of the same version only one matches, the other
- * finds the row gone from under its `where` and gets the current version back (AC-1.7).
- */
-async function updateIfVersion(id: string, expected: number, data: Prisma.ProjectUpdateInput) {
-  try {
-    return await db.project.update({
-      where: { id, version: expected },
-      data: { ...data, version: { increment: 1 } },
-      include: projectInclude,
-    });
-  } catch (error) {
-    if (!isRecordNotFound(error)) throw error;
-    const now = await db.project.findUnique({ where: { id }, select: { version: true } });
-    if (!now) throw notFound("Project not found");
-    throw versionConflict(now.version);
-  }
-}
-
 export const transitionsRouter = new OpenAPIHono<{ Variables: AuthzVariables }>({ defaultHook: validationHook });
 
 transitionsRouter.openapi(transitionRoute, async (c) => {
@@ -96,7 +73,7 @@ transitionsRouter.openapi(transitionRoute, async (c) => {
   if (to === "active" && isAwaitingProjectManager(current)) {
     throw conflict("awaiting_project_manager", "This project is awaiting its project manager and cannot be started yet");
   }
-  const row = await updateIfVersion(id, expected, next);
+  const row = await updateProjectIfVersion(id, expected, next);
   c.header("ETag", etag(row.version));
   return c.json(await toProjectView(c, row), 200);
 });

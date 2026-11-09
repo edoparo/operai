@@ -29,11 +29,10 @@ import {
   assertVersion,
   commonErrors,
   etag,
-  isRecordNotFound,
   requireIfMatch,
   skipTake,
   toDateOnly,
-  versionConflict,
+  updateIfVersion,
 } from "../lib/http";
 import { requireProjectUsers } from "../lib/identities";
 import { loadPeople } from "../lib/people";
@@ -70,6 +69,23 @@ export type ProjectRow = Prisma.ProjectGetPayload<{ include: typeof projectInclu
 
 export const findProjectRow = (id: string): Promise<ProjectRow | null> =>
   db.project.findUnique({ where: { id }, include: projectInclude });
+
+/** Compare-and-set a project write on its version ({@link updateIfVersion}); returns the new row. */
+export const updateProjectIfVersion = (
+  id: string,
+  expected: number,
+  data: Prisma.ProjectUpdateInput,
+): Promise<ProjectRow> =>
+  updateIfVersion(
+    () =>
+      db.project.update({
+        where: { id, version: expected },
+        data: { ...data, version: { increment: 1 } },
+        include: projectInclude,
+      }),
+    () => db.project.findUnique({ where: { id }, select: { version: true } }),
+    "Project not found",
+  );
 
 /**
  * The `Project` of tasks.md § API contracts: details, live names, team, purchase order, terms and
@@ -312,23 +328,10 @@ projectsRouter.openapi(updateProjectRoute, async (c) => {
   if (requested !== undefined && requested !== current.projectManagerId) {
     await requireProjectUsers(c, [requested]);
   }
-  // Compare-and-set on the version: of two saves of the same version only one matches.
-  const row = await db.project
-    .update({
-      where: { id, version: expected },
-      data: {
-        ...(body.name !== undefined ? { name: body.name } : {}),
-        ...(requested !== undefined ? { projectManagerId: requested } : {}),
-        version: { increment: 1 },
-      },
-      include: projectInclude,
-    })
-    .catch(async (error: unknown) => {
-      if (!isRecordNotFound(error)) throw error;
-      const now = await db.project.findUnique({ where: { id }, select: { version: true } });
-      if (!now) throw notFound("Project not found");
-      throw versionConflict(now.version);
-    });
+  const row = await updateProjectIfVersion(id, expected, {
+    ...(body.name !== undefined ? { name: body.name } : {}),
+    ...(requested !== undefined ? { projectManagerId: requested } : {}),
+  });
   // The audit line (T18 L6): which event, which project, who — nothing of the person picked.
   if (picking) console.log(JSON.stringify({ event: "project_manager.picked", projectId: id, actorId: c.get("userId") }));
   c.header("ETag", etag(row.version));
