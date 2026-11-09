@@ -25,7 +25,7 @@ import { db } from "../lib/db";
 import { assertVersion, casMiss, commonErrors, etag, fromDateOnly, IdParams, requireIfMatch, versionConflict } from "../lib/http";
 import { ProblemError, conflict, notFound, unprocessable, validationHook } from "../lib/problem";
 import { TermsSchema, type ProjectType } from "../projects/projects.schemas";
-import { assertTakesTerms, termsCreateData } from "./create";
+import { assertProjectOpen, assertTakesTerms, termsCreateData } from "./create";
 import { CreateTermsSchema, UpdateTermsSchema } from "./terms.schemas";
 import { parseTerms, positionRows, termColumns, toTermsView, validationFailed, type Terms } from "./terms";
 
@@ -146,9 +146,7 @@ termsRouter.openapi(createTermsRoute, async (c) => {
       const [locked] = await tx.$queryRaw<{ state: string }[]>`
         SELECT "state"::text AS "state" FROM "project" WHERE "id" = ${id} FOR UPDATE`;
       if (!locked) throw notFound("Project not found");
-      if (locked.state === "closed" || locked.state === "cancelled") {
-        throw conflict("project_not_open", `A ${locked.state} project takes no new terms`, { state: locked.state });
-      }
+      assertProjectOpen(locked.state);
       return tx.projectTerms.create({
         data: {
           projectId: id,

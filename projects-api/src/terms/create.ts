@@ -30,8 +30,16 @@ export function assertTakesTerms(project: TermsHost): void {
   if (project.hasTerms) {
     throw conflict("terms_exist", "This project already has terms: edit them instead");
   }
-  if (project.state === "closed" || project.state === "cancelled") {
-    throw conflict("project_not_open", `A ${project.state} project takes no new terms`, { state: project.state });
+  assertProjectOpen(project.state);
+}
+
+/**
+ * 409 `project_not_open` for a `closed` or `cancelled` project, which takes no new terms until it is
+ * reopened. Checked once before the work and again on the row locked for the insert (no TOCTOU).
+ */
+export function assertProjectOpen(state: string): void {
+  if (state === "closed" || state === "cancelled") {
+    throw conflict("project_not_open", `A ${state} project takes no new terms`, { state });
   }
 }
 

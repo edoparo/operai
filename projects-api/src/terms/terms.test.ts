@@ -294,6 +294,17 @@ describe("POST /projects/:id/terms — which project takes terms (AC-5.2, AC-5.3
     expect(await termsCount()).toBe(0);
   });
 
+  it("two concurrent creates on one project: one 201, the other 409 `terms_exist`, one set stored", async () => {
+    const project = await seed("fixed_price", { state: "active" });
+    const answers = await Promise.all([
+      create(project.id, { ...start, terms: TERMS.fixed_price }),
+      create(project.id, { ...start, terms: TERMS.fixed_price }),
+    ]);
+    expect(answers.map((res) => res.status).sort()).toEqual([201, 409]);
+    expect(answers.find((res) => res.status === 409)?.json).toMatchObject({ code: "terms_exist" });
+    expect(await termsCount()).toBe(1);
+  });
+
   it.each([{ state: "planned" }, { state: "active" }, { state: "on_hold", stateBeforeHold: "active" }] as const)(
     "takes terms on a $state project",
     async (over) => {
