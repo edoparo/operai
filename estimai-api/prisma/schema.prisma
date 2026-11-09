@@ -29,12 +29,17 @@ model Estimate {
   closedAt             DateTime?                    // set while the estimate is CLOSED (read-only until
                                                      // reopened); null = open. CRM learns of it by push.
   closedByUserId       String?                      // `sub` of whoever closed it; null while open
+  crmDealId            String?                      // the CRM deal this estimate belongs to; written ONLY by
+                                                     // crm-api's deal-link notice (specs/024, ADR-0076)
+  crmLinkAt            DateTime?                    // CRM instant of the last applied link notice, linked
+                                                     // or unlinked — orders notices (AC-3.6)
   createdAt            DateTime @default(now())
   updatedAt            DateTime @updatedAt
 
   collaborators EstimateCollaborator[]
 
   @@index([userId, updatedAt(sort: Desc)])
+  @@index([closedAt])
   @@map("estimate")
 }
 

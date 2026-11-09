@@ -107,6 +107,37 @@ export const problemEstimateState = (path: string, err: EstimateStateError) => (
   instance: path,
 });
 
+// specs/024 (ADR-0075) — oversight. `oversight_required`: `whose=all` without
+// `estimate:read-all`. `oversight_read_only`: a write on an estimate the caller
+// may read only through that permission. `authz_unavailable`: `auth` could not
+// answer on a path that needs it — fail closed, never "allow".
+export const problemOversightRequired = (path: string) => ({
+  type: "https://httpstatuses.com/403",
+  title: "Forbidden",
+  status: 403 as const,
+  detail: "Listing every estimate needs the read-all permission.",
+  code: "oversight_required",
+  instance: path,
+});
+
+export const problemOversightReadOnly = (path: string) => ({
+  type: "https://httpstatuses.com/403",
+  title: "Forbidden",
+  status: 403 as const,
+  detail: "You can read this estimate but not change it.",
+  code: "oversight_read_only",
+  instance: path,
+});
+
+export const problemAuthzUnavailable = (path: string) => ({
+  type: "https://httpstatuses.com/503",
+  title: "Service Unavailable",
+  status: 503 as const,
+  detail: "The authorization service is unavailable. Try again shortly.",
+  code: "authz_unavailable",
+  instance: path,
+});
+
 export const ProblemSchema = z.object({
   type: z.string(),
   title: z.string(),
@@ -218,6 +249,7 @@ export const toWireListItem = (
       ? null
       : toWireIdentity(identities.get(row.ownerId) ?? { id: row.ownerId, ...UNKNOWN_IDENTITY }),
   closedAt: row.closedAt,
+  crmDealId: row.crmDealId,
 });
 
 /** Maps a repo EstimateFullRow (raw ids) to the wire EstimateFull. */

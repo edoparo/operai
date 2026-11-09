@@ -72,10 +72,12 @@ import {
 } from "@/lib/errors";
 import { env } from "@/lib/env";
 import { resolveIdentities, type Identity as ResolvedIdentity } from "@/lib/authClient";
+import { holdsReadAll, isOversightReadOnly, OversightUnavailableError } from "./oversight";
 import {
   EstimateUpsertSchema,
   EstimateFullSchema,
   EstimateListItemSchema,
+  ListEstimatesQuerySchema,
   EstimateIdParamSchema,
   ImportRequestSchema,
   ImportResponseSchema,
@@ -91,7 +93,10 @@ import {
   problemConflict,
   problemEstimateState,
   problemForbidden,
+  problemAuthzUnavailable,
   problemNotFound,
+  problemOversightReadOnly,
+  problemOversightRequired,
   problemPayloadTooLarge,
   problemPreconditionRequired,
   resolveFullIdentities,
@@ -103,6 +108,7 @@ import {
   createEstimate,
   listEstimates,
   getEstimateById,
+  getEstimateAsOversight,
   updateEstimate,
   deleteEstimate,
   computeSizeBytes,
@@ -314,8 +320,26 @@ const listEstimatesRoute = createRoute({
   description:
     "Returns every estimate the caller owns OR holds a collaborator grant on, " +
     "ordered newest-first (T6, AC-2.1/2.2/2.3). Returns an empty array for a " +
-    "user with no estimates and no grants — this is not an error.",
+    "user with no estimates and no grants — this is not an error. " +
+    "`status=open|closed` filters on the closed state (specs/024); absent " +
+    "returns both. `whose=all` (specs/024, ADR-0075) lists EVERY estimate and " +
+    "needs `estimate:read-all`: rows the caller owns or collaborates on keep " +
+    "their level, every other row is `access: \"oversight\"`. An unknown " +
+    "`status`/`whose` value is a 400.",
+  request: { query: ListEstimatesQuerySchema },
   responses: {
+    400: {
+      content: { "application/json": { schema: ProblemSchema } },
+      description: "Unknown `status` or `whose` value",
+    },
+    403: {
+      content: { "application/json": { schema: ProblemWithCodeSchema } },
+      description: "`whose=all` without `estimate:read-all` — code: oversight_required (AC-1.2)",
+    },
+    503: {
+      content: { "application/json": { schema: ProblemWithCodeSchema } },
+      description: "`whose=all` while `auth` is unreachable — code: authz_unavailable (AC-1.7)",
+    },
     200: {
       content: {
         "application/json": { schema: z.array(EstimateListItemSchema) },
@@ -333,7 +357,23 @@ estimatesRouter.openapi(listEstimatesRoute, async (c) => {
   const userId = c.get("userId");
   const authHeader = c.req.header("Authorization") ?? "";
 
-  const effect = listEstimates(userId);
+  const { status, whose } = c.req.valid("query");
+
+  // The only path that asks `auth` anything (ADR-0075). `mine`/absent never does.
+  if (whose === "all") {
+    try {
+      if (!(await holdsReadAll(userId, authHeader))) {
+        return c.json(problemOversightRequired(c.req.path), 403);
+      }
+    } catch (err) {
+      if (err instanceof OversightUnavailableError) {
+        return c.json(problemAuthzUnavailable(c.req.path), 503);
+      }
+      throw err;
+    }
+  }
+
+  const effect = listEstimates(userId, status, whose);
 
   const exit = await Effect.runPromiseExit(effect);
 
@@ -390,7 +430,12 @@ const getEstimateRoute = createRoute({
     },
     404: {
       content: { "application/json": { schema: ProblemSchema } },
-      description: "No relationship to this estimate (AC-1.6)",
+      description: "No relationship to this estimate and no `estimate:read-all` (AC-1.6)",
+    },
+    503: {
+      content: { "application/json": { schema: ProblemWithCodeSchema } },
+      description:
+        "No relationship, and `auth` could not say whether the caller holds `estimate:read-all` — code: authz_unavailable (AC-1.7)",
     },
   },
 });
@@ -400,9 +445,27 @@ estimatesRouter.openapi(getEstimateRoute, async (c) => {
   const { id } = c.req.valid("param");
   const authHeader = c.req.header("Authorization") ?? "";
 
-  const effect = getEstimateById(id, userId);
+  let exit = await Effect.runPromiseExit(getEstimateById(id, userId));
 
-  const exit = await Effect.runPromiseExit(effect);
+  // Oversight fallback (specs/024, ADR-0075): consulted ONLY when the caller
+  // has no relationship to the estimate, so an owner's or collaborator's read
+  // never touches `auth` and an existing level always wins (AC-1.5).
+  if (
+    exit._tag === "Failure" &&
+    exit.cause._tag === "Fail" &&
+    exit.cause.error instanceof NotFoundError
+  ) {
+    try {
+      if (await holdsReadAll(userId, authHeader)) {
+        exit = await Effect.runPromiseExit(getEstimateAsOversight(id));
+      }
+    } catch (err) {
+      if (err instanceof OversightUnavailableError) {
+        return c.json(problemAuthzUnavailable(c.req.path), 503);
+      }
+      throw err;
+    }
+  }
 
   if (exit._tag === "Failure") {
     const cause = exit.cause;
@@ -476,7 +539,7 @@ const updateEstimateRoute = createRoute({
     403: {
       content: { "application/json": { schema: ProblemWithCodeSchema } },
       description:
-        'A relationship exists but the caller\'s level is insufficient — code: "insufficient_access" (T7, AC-3.1)',
+        'A relationship exists but the caller\'s level is insufficient — code: "insufficient_access" (T7, AC-3.1); or the caller may read the estimate only through estimate:read-all — code: "oversight_read_only" (specs/024)',
     },
     404: {
       content: { "application/json": { schema: ProblemSchema } },
@@ -535,6 +598,9 @@ estimatesRouter.openapi(updateEstimateRoute, async (c) => {
     if (cause._tag === "Fail") {
       const err = cause.error;
       if (err instanceof NotFoundError) {
+        if (await isOversightReadOnly(userId, authHeader, id)) {
+          return c.json(problemOversightReadOnly(c.req.path), 403);
+        }
         return c.json(problemNotFound(c.req.path, err.message), 404);
       }
       if (err instanceof ForbiddenError) {
@@ -595,7 +661,8 @@ const deleteEstimateRoute = createRoute({
     },
     403: {
       content: { "application/json": { schema: ProblemWithCodeSchema } },
-      description: "Caller is a collaborator, not the owner — code: owner_only (AC-3.3)",
+      description:
+        "Caller is a collaborator, not the owner — code: owner_only (AC-3.3); or may read the estimate only through estimate:read-all — code: oversight_read_only (specs/024)",
     },
     404: {
       content: { "application/json": { schema: ProblemSchema } },
@@ -607,6 +674,7 @@ const deleteEstimateRoute = createRoute({
 estimatesRouter.openapi(deleteEstimateRoute, async (c) => {
   const userId = c.get("userId");
   const { id } = c.req.valid("param");
+  const authHeader = c.req.header("Authorization") ?? "";
 
   const effect = deleteEstimate(id, userId);
 
@@ -615,6 +683,9 @@ estimatesRouter.openapi(deleteEstimateRoute, async (c) => {
   if (exit._tag === "Failure") {
     const cause = exit.cause;
     if (cause._tag === "Fail" && cause.error instanceof NotFoundError) {
+      if (await isOversightReadOnly(userId, authHeader, id)) {
+        return c.json(problemOversightReadOnly(c.req.path), 403);
+      }
       return c.json(problemNotFound(c.req.path, cause.error.message), 404);
     }
     if (cause._tag === "Fail" && cause.error instanceof ForbiddenError) {

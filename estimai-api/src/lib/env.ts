@@ -71,6 +71,17 @@ const envSchema = z.object({
     .url("CRM_INTERNAL_URL must be a valid absolute URL")
     .optional(),
 
+  // ─── crm-api deal-link notices (specs/024, ADR-0076) ────────────────────
+  //
+  // `aud` of the scoped service JWTs accepted on `POST /system/deal-link-notices`
+  // (scope `deal-link-notices.send`, sub `system:crm-api`). Must be the
+  // `SERVICE_AUDIENCE` auth stamps on service tokens, and must differ from
+  // AUTH_AUDIENCE so a user JWT is never a system credential (ADR-0044).
+  // OPTIONAL: unset, the route answers 401 to everyone (fail closed) and the
+  // rest of the service is unaffected; the production template lists it as
+  // required (tools/env-doctor).
+  SERVICE_AUDIENCE: z.string().min(1, "SERVICE_AUDIENCE must not be empty").optional(),
+
   // ─── Third-party lookup timing/rate-limit knobs (plan.md "The third-party
   // lookup", AC-1.2) ──────────────────────────────────────────────────────
   //
@@ -87,6 +98,14 @@ const envSchema = z.object({
     .int()
     .positive()
     .default(600000),
+}).superRefine((val, ctx) => {
+  if (val.SERVICE_AUDIENCE !== undefined && val.SERVICE_AUDIENCE === val.AUTH_AUDIENCE) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ["SERVICE_AUDIENCE"],
+      message: "SERVICE_AUDIENCE must differ from AUTH_AUDIENCE (ADR-0044)",
+    });
+  }
 });
 
 const result = envSchema.safeParse(process.env);

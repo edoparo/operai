@@ -128,7 +128,10 @@ export type EstimateUpsert = z.infer<typeof EstimateUpsertSchema>;
 // (plan.md "Display identity"); `estimai-api` looks the identity up by the
 // owner's `userId` internally and only ever serialises {status, name}.
 
-export const AccessLevelSchema = z.enum(["owner", "editor", "viewer"]);
+// `oversight` (specs/024): wire-only — a read-all permission holder with no
+// relationship to the estimate. Collaborator APIs use their own schema and
+// reject it.
+export const AccessLevelSchema = z.enum(["owner", "editor", "viewer", "oversight"]);
 export type AccessLevel = z.infer<typeof AccessLevelSchema>;
 
 export const IdentitySchema = z.object({
@@ -149,6 +152,17 @@ export type Identity = z.infer<typeof IdentitySchema>;
  * object for your own row); otherwise the estimate owner's live-resolved
  * display identity (AC-2.1, AC-10.5).
  */
+/**
+ * `GET /estimates` query (specs/024). `status` absent = open AND closed (the
+ * import offer dedupes against the whole account); an unknown value is a 400.
+ */
+export const ListStatusSchema = z.enum(["open", "closed"]);
+export const ListWhoseSchema = z.enum(["mine", "all"]);
+export const ListEstimatesQuerySchema = z.object({
+  status: ListStatusSchema.optional(),
+  whose: ListWhoseSchema.optional(),
+});
+
 export const EstimateListItemSchema = z.object({
   id: z.string(),
   name: z.string(),
@@ -158,6 +172,8 @@ export const EstimateListItemSchema = z.object({
   owner: IdentitySchema.nullable(),
   // ISO timestamp while the estimate is closed (read-only until reopened); null while open.
   closedAt: z.string().datetime().nullable(),
+  // The CRM deal this estimate belongs to, pushed by crm-api (specs/024, ADR-0076); null when unlinked.
+  crmDealId: z.string().nullable(),
 });
 
 export type EstimateListItem = z.infer<typeof EstimateListItemSchema>;

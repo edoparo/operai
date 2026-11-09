@@ -79,7 +79,8 @@ export function registerCollaboratorOpenApiDocs(
         },
         403: {
           content: { "application/json": { schema: ProblemWithCodeSchema } },
-          description: 'Caller is a collaborator, not the owner — code: "owner_only"',
+          description:
+            'Caller is a collaborator, not the owner — code: "owner_only"; or may read the estimate only through estimate:read-all — code: "oversight_read_only"',
         },
         404: {
           content: { "application/json": { schema: ProblemSchema } },
@@ -129,7 +130,8 @@ export function registerCollaboratorOpenApiDocs(
         },
         403: {
           content: { "application/json": { schema: ProblemWithCodeSchema } },
-          description: 'Caller is a collaborator, not the owner (AC-1.5) — code: "owner_only"',
+          description:
+            'Caller is a collaborator, not the owner (AC-1.5) — code: "owner_only"; or may read the estimate only through estimate:read-all — code: "oversight_read_only"',
         },
         404: {
           content: { "application/json": { schema: ProblemSchema } },
@@ -193,7 +195,7 @@ export function registerCollaboratorOpenApiDocs(
         },
         403: {
           content: { "application/json": { schema: ProblemWithCodeSchema } },
-          description: 'code: "owner_only"',
+          description: 'code: "owner_only"; or "oversight_read_only" for a caller who may read the estimate only through estimate:read-all',
         },
         404: {
           content: { "application/json": { schema: ProblemSchema } },
@@ -227,7 +229,7 @@ export function registerCollaboratorOpenApiDocs(
         },
         403: {
           content: { "application/json": { schema: ProblemWithCodeSchema } },
-          description: 'code: "owner_only"',
+          description: 'code: "owner_only"; or "oversight_read_only" for a caller who may read the estimate only through estimate:read-all',
         },
         404: {
           content: { "application/json": { schema: ProblemSchema } },

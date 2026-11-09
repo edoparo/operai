@@ -235,3 +235,42 @@ export async function resolveIdentities(
 
   return result;
 }
+
+// ─── GET /authz/resolve — the caller's live permissions, fails CLOSED ────────
+//
+// The ONE role-based question estimai-api asks `auth` (specs/024, ADR-0075):
+// does the caller hold `estimate:read-all`? Copied in shape from
+// crm-api/src/authz/resolveClient.ts (no workspace, ADR-0003). Forwards the
+// caller's own Bearer header verbatim — no new credential (ADR-0014 point 1).
+// Throws on any non-2xx, timeout or unreadable body; the caller maps that to
+// the fail-closed 503 and must never read it as "no permission".
+
+const RESOLVE_TIMEOUT_MS = 5_000;
+
+/** One resolved (resource, action) grant, as returned by `/authz/resolve`. */
+export interface ResolvedPermission {
+  readonly resource: string;
+  readonly action: string;
+  /** `null` = fully unconditional grant. */
+  readonly conditions: unknown;
+}
+
+export async function fetchResolvedPermissions(
+  authorizationHeader: string,
+): Promise<readonly ResolvedPermission[]> {
+  const res = await fetch(`${env.AUTH_BASE_URL}/authz/resolve`, {
+    method: "GET",
+    headers: { Authorization: authorizationHeader },
+    // A hung `auth` must become the fail-closed 503, not a hung request.
+    signal: AbortSignal.timeout(RESOLVE_TIMEOUT_MS),
+  });
+  if (!res.ok) {
+    throw new Error(`auth GET /authz/resolve responded with HTTP ${res.status}`);
+  }
+  const body = (await res.json()) as { permissions?: unknown } | null;
+  // A 2xx we cannot read as a permission set is an outage, not an empty grant list.
+  if (body === null || typeof body !== "object" || !Array.isArray(body.permissions)) {
+    throw new Error("auth GET /authz/resolve returned an unrecognised body");
+  }
+  return body.permissions as ResolvedPermission[];
+}

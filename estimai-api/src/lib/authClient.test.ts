@@ -31,7 +31,7 @@ process.env["SERVICE_CLIENT_SECRET"] =
   "test-service-client-secret-at-least-32-characters";
 process.env["NOTIFY_INTERNAL_URL"] = "http://localhost:8081";
 
-const { checkAppAccess, resolveIdentities, __resetIdentityCacheForTests } =
+const { checkAppAccess, resolveIdentities, fetchResolvedPermissions, __resetIdentityCacheForTests } =
   await import("./authClient");
 
 const originalFetch = globalThis.fetch;
@@ -429,5 +429,40 @@ describe("resolveIdentities", () => {
         expect(result.get(id)).toEqual({ id, status: "unknown", name: null });
       }
     });
+  });
+});
+
+describe("fetchResolvedPermissions (specs/024) — fails CLOSED", () => {
+  it("GETs /authz/resolve with the caller's Authorization header verbatim and returns the permissions", async () => {
+    let capturedUrl: string | undefined;
+    let capturedInit: RequestInit | undefined;
+    globalThis.fetch = (async (url: string, init?: RequestInit) => {
+      capturedUrl = url;
+      capturedInit = init;
+      return new Response(
+        JSON.stringify({ permissions: [{ resource: "estimate", action: "read-all", conditions: null }] }),
+        { status: 200 },
+      );
+    }) as unknown as typeof fetch;
+
+    const result = await fetchResolvedPermissions(AUTH_HEADER);
+
+    expect(capturedUrl).toBe("http://localhost:3001/authz/resolve");
+    expect(capturedInit?.method).toBe("GET");
+    expect((capturedInit?.headers as Record<string, string>)["Authorization"]).toBe(AUTH_HEADER);
+    expect(result).toEqual([{ resource: "estimate", action: "read-all", conditions: null }]);
+  });
+
+  it("throws on a non-2xx response, a network failure, and a 2xx body that is not a permission set", async () => {
+    globalThis.fetch = (async () => new Response("{}", { status: 503 })) as unknown as typeof fetch;
+    await expect(fetchResolvedPermissions(AUTH_HEADER)).rejects.toThrow("HTTP 503");
+
+    globalThis.fetch = (async () => {
+      throw new Error("ECONNREFUSED");
+    }) as unknown as typeof fetch;
+    await expect(fetchResolvedPermissions(AUTH_HEADER)).rejects.toThrow("ECONNREFUSED");
+
+    globalThis.fetch = (async () => new Response(JSON.stringify({ nope: 1 }), { status: 200 })) as unknown as typeof fetch;
+    await expect(fetchResolvedPermissions(AUTH_HEADER)).rejects.toThrow("unrecognised body");
   });
 });

@@ -40,6 +40,7 @@ import {
 } from "@/lib/crmNotices";
 import { ConflictError, EstimateStateError, ForbiddenError, NotFoundError } from "@/lib/errors";
 import { setEstimateClosed, type LifecycleTransition } from "./estimates.repo";
+import { isOversightReadOnly } from "./oversight";
 import { EstimateFullSchema, EstimateIdParamSchema } from "./estimates.schemas";
 import {
   ConflictProblemSchema,
@@ -51,6 +52,7 @@ import {
   problemEstimateState,
   problemForbidden,
   problemNotFound,
+  problemOversightReadOnly,
   problemPreconditionRequired,
   resolveFullIdentities,
   resolveIdentityFor,
@@ -109,7 +111,8 @@ const buildRoute = (transition: LifecycleTransition) => {
       },
       403: {
         content: { "application/json": { schema: ProblemWithCodeSchema } },
-        description: 'The caller is a viewer — code: "insufficient_access"',
+        description:
+          'The caller is a viewer — code: "insufficient_access"; or may read the estimate only through estimate:read-all — code: "oversight_read_only"',
       },
       404: {
         content: { "application/json": { schema: ProblemSchema } },
@@ -155,6 +158,10 @@ export function registerEstimateLifecycleRoutes(
         if (cause._tag === "Fail") {
           const err = cause.error;
           if (err instanceof NotFoundError) {
+            // No relationship: a read-all holder may read this estimate, not change it (AC-1.4).
+            if (await isOversightReadOnly(userId, authHeader, id)) {
+              return c.json(problemOversightReadOnly(c.req.path), 403);
+            }
             return c.json(problemNotFound(c.req.path, err.message), 404);
           }
           if (err instanceof ForbiddenError) {

@@ -112,6 +112,7 @@
 import { z } from "zod";
 import { Effect } from "effect";
 import type { OpenAPIHono } from "@hono/zod-openapi";
+import type { Context } from "hono";
 import type { JwtVariables } from "@/auth/jwt.middleware";
 import { env } from "@/lib/env";
 import {
@@ -125,6 +126,7 @@ import {
 } from "@/lib/notify";
 import { createSlidingWindowRateLimiter } from "@/lib/rateLimiter";
 import { resolveAccess } from "./access";
+import { isOversightReadOnly } from "./oversight";
 import {
   listCollaborators,
   findCollaboratorByEmail,
@@ -191,6 +193,27 @@ const problemForbidden = (path: string, detail: string, code: string) => ({
   code,
   instance: path,
 });
+
+// "No relationship to this estimate" (resolveAccess === null): 404 for a
+// stranger — byte-identical to AC-1.6 — but 403 `oversight_read_only` for a
+// holder of `estimate:read-all` looking at a real estimate (specs/024, AC-1.4,
+// ADR-0075). The permission is asked of `auth` only here, never on the
+// owner/collaborator path.
+async function noRelationship(
+  c: Context<{ Variables: JwtVariables }>,
+  path: string,
+  estimateId: string,
+  callerId: string,
+) {
+  const authHeader = c.req.header("Authorization") ?? "";
+  if (await isOversightReadOnly(callerId, authHeader, estimateId)) {
+    return c.json(
+      problemForbidden(path, "You can read this estimate but not change it.", "oversight_read_only"),
+      403,
+    );
+  }
+  return c.json(problemNotFound(path, `Estimate ${estimateId} not found`), 404);
+}
 
 const problemBadRequest = (path: string, detail: string, code: string) => ({
   type: "https://httpstatuses.com/400",
@@ -376,7 +399,7 @@ export function registerCollaboratorRoutes(
     const resolved = accessExit.value;
 
     if (resolved === null) {
-      return c.json(problemNotFound(path, `Estimate ${estimateId} not found`), 404);
+      return noRelationship(c, path, estimateId, callerId);
     }
     if (resolved.level !== "owner") {
       return c.json(
@@ -428,7 +451,7 @@ export function registerCollaboratorRoutes(
     const resolved = accessExit.value;
 
     if (resolved === null) {
-      return c.json(problemNotFound(path, `Estimate ${estimateId} not found`), 404);
+      return noRelationship(c, path, estimateId, callerId);
     }
     if (resolved.level !== "owner") {
       return c.json(
@@ -650,6 +673,18 @@ export function registerCollaboratorRoutes(
     // all, and this body intentionally carries a `code`) — it is scoped
     // narrowly to "does the caller hold a grant", which is all `/me` needs.
     if (ownGrantExit.value === null) {
+      // An owner has no grant of their own and must not cost an `auth` call:
+      // only a caller with no relationship at all can be an oversight holder.
+      const accessExit = await Effect.runPromiseExit(resolveAccess(estimateId, callerId));
+      if (accessExit._tag === "Success" && accessExit.value === null) {
+        const authHeader = c.req.header("Authorization") ?? "";
+        if (await isOversightReadOnly(callerId, authHeader, estimateId)) {
+          return c.json(
+            problemForbidden(path, "You can read this estimate but not change it.", "oversight_read_only"),
+            403,
+          );
+        }
+      }
       return c.json(
         problemNotFound(
           path,
@@ -690,7 +725,7 @@ export function registerCollaboratorRoutes(
     const resolved = accessExit.value;
 
     if (resolved === null) {
-      return c.json(problemNotFound(path, `Estimate ${estimateId} not found`), 404);
+      return noRelationship(c, path, estimateId, callerId);
     }
     if (resolved.level !== "owner") {
       return c.json(
@@ -775,7 +810,7 @@ export function registerCollaboratorRoutes(
     const resolved = accessExit.value;
 
     if (resolved === null) {
-      return c.json(problemNotFound(path, `Estimate ${estimateId} not found`), 404);
+      return noRelationship(c, path, estimateId, callerId);
     }
     if (resolved.level !== "owner") {
       return c.json(

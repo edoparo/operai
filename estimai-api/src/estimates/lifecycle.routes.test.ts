@@ -432,3 +432,65 @@ describe("a closed estimate is read-only (updateEstimate)", () => {
     expect(exit._tag).toBe("Success");
   });
 });
+
+// ─── specs/024 — oversight: a read-all holder with no relationship may not close/reopen ──
+
+describe("close/reopen by an oversight-only caller (specs/024, AC-1.4)", () => {
+  const REAL_FETCH = globalThis.fetch;
+  afterEach(() => {
+    globalThis.fetch = REAL_FETCH;
+  });
+
+  /** Stubs `auth GET /authz/resolve`: holds `estimate:read-all`, holds nothing, or is down. */
+  const stubResolve = (answer: "holds" | "none" | "down") => {
+    globalThis.fetch = (async (url: string, init?: RequestInit): Promise<Response> => {
+      if (!String(url).endsWith("/authz/resolve")) return REAL_FETCH(url, init);
+      if (answer === "down") throw new Error("simulated auth outage");
+      return new Response(
+        JSON.stringify({
+          sub: "x",
+          epoch: 1,
+          permissions: answer === "holds" ? [{ resource: "estimate", action: "read-all", conditions: null }] : [],
+          entity: null,
+          jobTitle: null,
+        }),
+        { status: 200, headers: { "Content-Type": "application/json" } },
+      );
+    }) as typeof fetch;
+  };
+
+  it.each(["close", "reopen"] as const)("%s → 403 oversight_read_only, nothing written, no notice", async (action) => {
+    const owner = freshOwner();
+    const est = await seed(owner, action === "reopen" ? { closedAt: new Date(), closedByUserId: owner } : {});
+    stubResolve("holds");
+    const h = buildApp();
+
+    const res = await post(h, est.id, action, "lc-admin", '"1"');
+
+    expect(res.status).toBe(403);
+    expect(((await res.json()) as { code: string }).code).toBe("oversight_read_only");
+    const row = await testDb.estimate.findUniqueOrThrow({ where: { id: est.id } });
+    expect(row.version).toBe(1);
+    expect((row.closedAt !== null)).toBe(action === "reopen");
+    expect(h.notices).toEqual([]);
+  });
+
+  it("a stranger without the permission still gets 404, and so does a holder when auth is down or the id is absent", async () => {
+    const owner = freshOwner();
+    const est = await seed(owner);
+    const h = buildApp();
+
+    stubResolve("none");
+    expect((await post(h, est.id, "close", "lc-stranger", '"1"')).status).toBe(404);
+    stubResolve("down");
+    const spy = console.error;
+    console.error = () => {};
+    try {
+      expect((await post(h, est.id, "close", "lc-admin", '"1"')).status).toBe(404);
+    } finally {
+      console.error = spy;
+    }
+    stubResolve("holds");
+    expect((await post(h, "does-not-exist", "close", "lc-admin", '"1"')).status).toBe(404);
+  });
+});

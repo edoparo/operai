@@ -1712,7 +1712,7 @@ describe("Mutual exclusion (ADR-0011's invariant, extended to the third token ho
     expect(res.status).toBe(401);
   });
 
-  it("estimai-api registers no /system/* route anywhere (index.ts, collaborators.routes.ts, estimates.routes.ts, health.routes.ts) — it is an outbound notify-api CALLER only, never an inbound internal-token SERVER (ADR-0040)", async () => {
+  it("estimai-api registers no /system/* route in these files (index.ts, collaborators.routes.ts, estimates.routes.ts, health.routes.ts) — it is an outbound notify-api CALLER only, never an inbound internal-token SERVER (ADR-0040); its one system route, deal-link-notices (scoped service JWT, ADR-0076), lives in its own module", async () => {
     const filesToScan = [
       "../index.ts",
       "./estimates.routes.ts",
@@ -1727,6 +1727,87 @@ describe("Mutual exclusion (ADR-0011's invariant, extended to the third token ho
       // stays robust to prose mentioning ADR-0011/0017/0040's /system/*
       // precedent in notify-api.
       expect(source).not.toMatch(/\.(get|post|put|patch|delete|route)\(\s*["'`]\/system/);
+    }
+  });
+});
+
+// ─── specs/024 — oversight: a read-all holder with no relationship manages nothing ──
+
+describe("collaborator routes for an oversight-only caller (specs/024, AC-1.4)", () => {
+  const REAL_FETCH = globalThis.fetch;
+  afterEach(() => {
+    globalThis.fetch = REAL_FETCH;
+  });
+
+  const stubResolve = (answer: "holds" | "none") => {
+    globalThis.fetch = (async (url: string, init?: RequestInit): Promise<Response> => {
+      if (!String(url).endsWith("/authz/resolve")) return REAL_FETCH(url, init);
+      return new Response(
+        JSON.stringify({
+          sub: "x",
+          epoch: 1,
+          permissions: answer === "holds" ? [{ resource: "estimate", action: "read-all", conditions: null }] : [],
+          entity: null,
+          jobTitle: null,
+        }),
+        { status: 200, headers: { "Content-Type": "application/json" } },
+      );
+    }) as typeof fetch;
+  };
+
+  const ADMIN = { id: "t24-admin", email: "t24-admin@example.com" };
+
+  const routes = (estimateId: string, grantId: string): Array<[string, string, unknown?]> => [
+    ["GET", `/estimates/${estimateId}/collaborators`],
+    ["POST", `/estimates/${estimateId}/collaborators`, { email: "someone@example.com", accessLevel: "viewer" }],
+    ["PATCH", `/estimates/${estimateId}/collaborators/${grantId}`, { accessLevel: "editor" }],
+    ["DELETE", `/estimates/${estimateId}/collaborators/${grantId}`],
+    ["DELETE", `/estimates/${estimateId}/collaborators/me`],
+  ];
+
+  it("every collaborator route answers 403 oversight_read_only to a holder, and the grant is untouched", async () => {
+    const owner = freshOwner();
+    ownerIdsToClean.add(owner.id);
+    const estimate = await seedEstimate(owner.id);
+    const grant = await testDb.estimateCollaborator.create({
+      data: {
+        estimateId: estimate.id,
+        userId: "t24-viewer",
+        email: "t24-viewer@example.com",
+        accessLevel: "viewer",
+        grantedByUserId: owner.id,
+      },
+    });
+    stubResolve("holds");
+    const app = buildApp({ checkAppAccess: eligibleFor("someone@example.com", "t24-someone") });
+
+    for (const [method, path, body] of routes(estimate.id, grant.id)) {
+      const res = await app.request(path, {
+        method,
+        headers: bearerHeader(ADMIN.id, ADMIN.email),
+        ...(body !== undefined ? { body: JSON.stringify(body) } : {}),
+      });
+      expect([method, path, res.status]).toEqual([method, path, 403]);
+      expect(((await res.json()) as { code: string }).code).toBe("oversight_read_only");
+    }
+
+    const rows = await testDb.estimateCollaborator.findMany({ where: { estimateId: estimate.id } });
+    expect(rows.map((r) => [r.id, r.accessLevel])).toEqual([[grant.id, "viewer"]]);
+  });
+
+  it("without the permission the same calls stay 404 (no relationship), as before", async () => {
+    const owner = freshOwner();
+    ownerIdsToClean.add(owner.id);
+    const estimate = await seedEstimate(owner.id);
+    stubResolve("none");
+    const app = buildApp();
+    for (const [method, path, body] of routes(estimate.id, "any-grant").slice(0, 4)) {
+      const res = await app.request(path, {
+        method,
+        headers: bearerHeader(ADMIN.id, ADMIN.email),
+        ...(body !== undefined ? { body: JSON.stringify(body) } : {}),
+      });
+      expect([method, res.status]).toEqual([method, 404]);
     }
   });
 });

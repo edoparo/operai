@@ -28,7 +28,7 @@
  * the scoping.
  */
 
-import { describe, it, expect, beforeAll, afterEach, mock } from "bun:test";
+import { describe, it, expect, beforeAll, afterAll, afterEach, mock } from "bun:test";
 import { Hono } from "hono";
 import {
   generateKeyPair,
@@ -175,6 +175,7 @@ process.env["SERVICE_CLIENT_SECRET"] ??=
 process.env["NOTIFY_INTERNAL_URL"] ??= "http://localhost:8081";
 
 const { __resetIdentityCacheForTests } = await import("@/lib/authClient");
+const { __resetOversightCacheForTests } = await import("./oversight");
 
 // Create a dedicated Prisma client with the real DATABASE_URL loaded from .env
 // BEFORE importing anything that touches @/lib/db.
@@ -225,7 +226,21 @@ const buildApp = () => {
 // RESOLVED path (not just the accidental-failure degraded path) reaches the
 // wire — see the module-level comment on the `@/lib/authClient` import.
 
-const REAL_FETCH = globalThis.fetch;
+const RAW_FETCH = globalThis.fetch;
+// specs/024: a caller with no relationship to an estimate makes the route ask
+// `auth GET /authz/resolve` whether they hold `estimate:read-all`. Unless a test
+// stubs it, the default answer is "no permission", so the taxonomy tests above
+// (a stranger's 404) don't depend on a real `auth` being reachable.
+const REAL_FETCH = (async (url: string, init?: RequestInit): Promise<Response> => {
+  if (String(url).endsWith("/authz/resolve")) {
+    return new Response(JSON.stringify({ sub: "x", epoch: 0, permissions: [], entity: null, jobTitle: null }), {
+      status: 200,
+      headers: { "Content-Type": "application/json" },
+    });
+  }
+  return RAW_FETCH(url, init);
+}) as typeof fetch;
+globalThis.fetch = REAL_FETCH;
 
 type IdentityFixture = { id: string; status: "active" | "deleted" | "unknown"; name: string | null };
 
@@ -280,8 +295,10 @@ const signToken = async (
   // defaults to the correct TEST_AUDIENCE so every existing caller keeps
   // minting valid tokens without change.
   audience: string | null = TEST_AUDIENCE,
+  // Extra claims (specs/024: `perm_epoch`, which keys the oversight cache).
+  claims: Record<string, unknown> = {},
 ): Promise<string> => {
-  const jwt = new SignJWT({ email })
+  const jwt = new SignJWT({ email, ...claims })
     .setProtectedHeader({ alg: "RS256", kid })
     .setIssuer(TEST_ISSUER)
     .setSubject(sub)
@@ -371,6 +388,10 @@ beforeAll(async () => {
 // OWNED estimates need explicit cleanup — EstimateCollaborator rows cascade
 // away with their estimate (AC-9.1, T4's onDelete: Cascade), and B/C never
 // own an estimate in the T6 tests below (only grants).
+afterAll(() => {
+  globalThis.fetch = RAW_FETCH;
+});
+
 afterEach(async () => {
   await testDb.estimate.deleteMany({
     where: { userId: { in: [USER_A_ID, USER_B_ID, USER_C_ID] } },
@@ -381,6 +402,7 @@ afterEach(async () => {
   // sharing this same `bun test` process/module cache).
   restoreFetch();
   __resetIdentityCacheForTests();
+  __resetOversightCacheForTests();
 });
 
 // ─── AC-1.1: POST → GET/{id} deep-equals content + name/author ───────────────
@@ -3687,5 +3709,369 @@ describe("closed estimates — GET/list expose closedAt/closedBy, PUT refused wi
       headers: { Authorization: `Bearer ${jwt}` },
     });
     expect(res.status).toBe(204);
+  });
+});
+
+// ─── specs/024 T2 — list filters: `status`, and `crmDealId` on the item ──────
+
+describe("specs/024 — GET /estimates?status=open|closed (AC-2.2, AC-2.3, AC-2.5) and crmDealId (AC-3.3)", () => {
+  type ListItem = { id: string; name: string; closedAt: string | null; crmDealId: string | null; access: string };
+
+  const seed = async (userId: string, name: string, extra: { closedAt?: Date; crmDealId?: string } = {}) =>
+    testDb.estimate.create({
+      data: {
+        userId,
+        name,
+        author: "",
+        sizeBytes: 2,
+        content: makeContent(),
+        ...(extra.closedAt ? { closedAt: extra.closedAt, closedByUserId: userId } : {}),
+        ...(extra.crmDealId ? { crmDealId: extra.crmDealId } : {}),
+      },
+    });
+
+  const list = async (jwt: string, query = "") => {
+    const res = await buildApp().request(`/estimates${query}`, { headers: { Authorization: `Bearer ${jwt}` } });
+    return { res, items: res.status === 200 ? ((await res.json()) as ListItem[]) : [] };
+  };
+
+  it("status=open lists only open estimates and status=closed only closed ones, for the owner", async () => {
+    const open = await seed(USER_A_ID, "open one");
+    // A row closed before this feature shipped: closedAt set, no new column touched (AC-2.5).
+    const closed = await seed(USER_A_ID, "closed one", { closedAt: new Date("2026-11-01T10:00:00Z") });
+    const jwt = await tokenA();
+
+    const o = await list(jwt, "?status=open");
+    expect(o.items.map((i) => i.id)).toEqual([open.id]);
+    const c = await list(jwt, "?status=closed");
+    expect(c.items.map((i) => i.id)).toEqual([closed.id]);
+    expect(c.items[0]?.closedAt).toBe("2026-11-01T10:00:00.000Z");
+  });
+
+  it("absent status returns both — the import offer's dedupe depends on it", async () => {
+    const open = await seed(USER_A_ID, "open one");
+    const closed = await seed(USER_A_ID, "closed one", { closedAt: new Date() });
+    const { items } = await list(await tokenA());
+    expect(items.map((i) => i.id).sort()).toEqual([open.id, closed.id].sort());
+  });
+
+  it("the filter applies to a collaborator's shared estimates too", async () => {
+    const open = await seed(USER_A_ID, "shared open");
+    const closed = await seed(USER_A_ID, "shared closed", { closedAt: new Date() });
+    await testDb.estimateCollaborator.createMany({
+      data: [open.id, closed.id].map((estimateId) => ({
+        estimateId,
+        userId: USER_B_ID,
+        email: USER_B_EMAIL,
+        accessLevel: "viewer" as const,
+        grantedByUserId: USER_A_ID,
+      })),
+    });
+    const jwt = await tokenB();
+    expect((await list(jwt, "?status=open")).items.map((i) => i.id)).toEqual([open.id]);
+    expect((await list(jwt, "?status=closed")).items.map((i) => i.id)).toEqual([closed.id]);
+  });
+
+  it("reopening puts the estimate back in status=open (AC-2.3)", async () => {
+    const closed = await seed(USER_A_ID, "to reopen", { closedAt: new Date() });
+    const jwt = await tokenA();
+    expect((await list(jwt, "?status=open")).items).toEqual([]);
+    await testDb.estimate.update({ where: { id: closed.id }, data: { closedAt: null, closedByUserId: null } });
+    expect((await list(jwt, "?status=open")).items.map((i) => i.id)).toEqual([closed.id]);
+  });
+
+  it("an unknown status value is 400", async () => {
+    const { res } = await list(await tokenA(), "?status=archived");
+    expect(res.status).toBe(400);
+  });
+
+  it("list items carry crmDealId (null when unlinked)", async () => {
+    const linked = await seed(USER_A_ID, "linked", { crmDealId: "deal-1" });
+    const plain = await seed(USER_A_ID, "plain");
+    const { items } = await list(await tokenA());
+    expect(items.find((i) => i.id === linked.id)?.crmDealId).toBe("deal-1");
+    expect(items.find((i) => i.id === plain.id)?.crmDealId).toBeNull();
+  });
+});
+
+// ─── specs/024 T3 — oversight: `estimate:read-all` held by an admin (USER_C) ──
+//
+// USER_C is the "admin" here: no ownership, no grant — only the permission,
+// answered by a stubbed `auth GET /authz/resolve`. Every test that must prove
+// "no resolver call" reads the counter, not just the status.
+
+describe("specs/024 — oversight read path (AC-1.2, AC-1.3, AC-1.4, AC-1.5, AC-1.6, AC-1.7)", () => {
+  const READ_ALL = { resource: "estimate", action: "read-all", conditions: null };
+  const OTHER = { resource: "estimate", action: "view", conditions: null };
+
+  /** Stubs `GET /authz/resolve` on top of whatever fetch is installed; counts the calls. */
+  const stubResolve = (answer: { permissions: unknown[] } | "down") => {
+    const calls = { n: 0, auth: [] as string[] };
+    const inner = globalThis.fetch;
+    globalThis.fetch = (async (url: string, init?: RequestInit): Promise<Response> => {
+      if (!url.endsWith("/authz/resolve")) return inner(url, init);
+      calls.n += 1;
+      calls.auth.push(String((init?.headers as Record<string, string>)?.["Authorization"]));
+      if (answer === "down") throw new Error("simulated auth outage — /authz/resolve unreachable");
+      return new Response(
+        JSON.stringify({ sub: USER_C_ID, epoch: 1, permissions: answer.permissions, entity: null, jobTitle: null }),
+        { status: 200, headers: { "Content-Type": "application/json" } },
+      );
+    }) as typeof fetch;
+    return calls;
+  };
+
+  const adminToken = (epoch = 1) =>
+    signToken(userCPrivateKey, TEST_KID_C, USER_C_ID, USER_C_EMAIL, TEST_AUDIENCE, { perm_epoch: epoch });
+
+  const seed = (userId: string, name: string, extra: Record<string, unknown> = {}) =>
+    testDb.estimate.create({
+      data: { userId, name, author: "", sizeBytes: 2, content: makeContent(), ...extra },
+    });
+
+  const get = async (path: string, jwt: string, init: RequestInit = {}) =>
+    buildApp().request(path, { ...init, headers: { ...bearerHeader(jwt), ...(init.headers ?? {}) } });
+
+  type Item = { id: string; access: string; owner: { status: string; name: string | null } | null; crmDealId: string | null };
+
+  it("whose=all returns a stranger's estimate as `oversight` with the owner identity and crmDealId (AC-1.3)", async () => {
+    const theirs = await seed(USER_A_ID, "Alice's estimate", { crmDealId: "deal-9" });
+    stubIdentitiesFetch([{ id: USER_A_ID, status: "active", name: "Alice Owner" }]);
+    stubResolve({ permissions: [READ_ALL] });
+
+    const res = await get("/estimates?whose=all", await adminToken());
+    expect(res.status).toBe(200);
+    const row = ((await res.json()) as Item[]).find((i) => i.id === theirs.id);
+    expect(row).toMatchObject({
+      access: "oversight",
+      owner: { status: "active", name: "Alice Owner" },
+      crmDealId: "deal-9",
+    });
+  });
+
+  it("whose=all keeps the caller's own level on rows they own or collaborate on (AC-1.5)", async () => {
+    const mine = await seed(USER_C_ID, "C's own");
+    const shared = await seed(USER_A_ID, "shared with C");
+    await testDb.estimate.update({ where: { id: mine.id }, data: {} });
+    await testDb.estimateCollaborator.create({
+      data: { estimateId: shared.id, userId: USER_C_ID, email: USER_C_EMAIL, accessLevel: "editor", grantedByUserId: USER_A_ID },
+    });
+    const stranger = await seed(USER_B_ID, "stranger's");
+    stubIdentitiesFetch([]);
+    stubResolve({ permissions: [READ_ALL] });
+
+    const items = (await (await get("/estimates?whose=all", await adminToken())).json()) as Item[];
+    const byId = new Map(items.map((i) => [i.id, i]));
+    expect(byId.get(mine.id)?.access).toBe("owner");
+    expect(byId.get(mine.id)?.owner).toBeNull();
+    expect(byId.get(shared.id)?.access).toBe("editor");
+    expect(byId.get(stranger.id)?.access).toBe("oversight");
+  });
+
+  it("whose=all combines with status", async () => {
+    const open = await seed(USER_A_ID, "open");
+    const closed = await seed(USER_A_ID, "closed", { closedAt: new Date(), closedByUserId: USER_A_ID });
+    stubIdentitiesFetch([]);
+    stubResolve({ permissions: [READ_ALL] });
+    const jwt = await adminToken();
+    const ids = async (q: string) => ((await (await get(`/estimates?${q}`, jwt)).json()) as Item[]).map((i) => i.id);
+    expect(await ids("whose=all&status=closed")).toEqual([closed.id]);
+    expect(await ids("whose=all&status=open")).toEqual([open.id]);
+  });
+
+  it("whose=all without the permission is 403 oversight_required (AC-1.2)", async () => {
+    await seed(USER_A_ID, "hidden");
+    stubResolve({ permissions: [OTHER] });
+    const res = await get("/estimates?whose=all", await adminToken());
+    expect(res.status).toBe(403);
+    expect(((await res.json()) as { code: string }).code).toBe("oversight_required");
+  });
+
+  it("whose=all while auth is down is 503 authz_unavailable — fail closed (AC-1.7)", async () => {
+    stubResolve("down");
+    const spy = console.error;
+    console.error = () => {};
+    try {
+      const res = await get("/estimates?whose=all", await adminToken());
+      expect(res.status).toBe(503);
+      expect(((await res.json()) as { code: string }).code).toBe("authz_unavailable");
+    } finally {
+      console.error = spy;
+    }
+  });
+
+  it("an unknown whose value is 400, and whose=mine / absent never call the resolver", async () => {
+    stubIdentitiesFetch([]);
+    const calls = stubResolve({ permissions: [READ_ALL] });
+    const jwt = await adminToken();
+    expect((await get("/estimates?whose=everyone", jwt)).status).toBe(400);
+    expect((await get("/estimates?whose=mine", jwt)).status).toBe(200);
+    expect((await get("/estimates", jwt)).status).toBe(200);
+    expect(calls.n).toBe(0);
+  });
+
+  it("the resolver is called with the caller's own Authorization header, and cached per (sub, perm_epoch)", async () => {
+    stubIdentitiesFetch([]);
+    const calls = stubResolve({ permissions: [READ_ALL] });
+    const jwt = await adminToken(1);
+    await get("/estimates?whose=all", jwt);
+    await get("/estimates?whose=all", jwt);
+    expect(calls.n).toBe(1);
+    expect(calls.auth[0]).toBe(`Bearer ${jwt}`);
+    await get("/estimates?whose=all", await adminToken(2)); // a grant change bumps the epoch
+    expect(calls.n).toBe(2);
+  });
+
+  it("a revoked permission takes effect on the next epoch: list 403 and GET 404 (AC-1.6)", async () => {
+    const theirs = await seed(USER_A_ID, "theirs");
+    stubIdentitiesFetch([]);
+    stubResolve({ permissions: [READ_ALL] });
+    expect((await get(`/estimates/${theirs.id}`, await adminToken(1))).status).toBe(200);
+
+    stubResolve({ permissions: [] }); // after the revocation
+    expect((await get(`/estimates/${theirs.id}`, await adminToken(2))).status).toBe(404);
+    expect((await get("/estimates?whose=all", await adminToken(2))).status).toBe(403);
+  });
+
+  it("GET by id on a stranger's estimate is 200 access:oversight, ETag, no collaboratorCount (AC-1.4)", async () => {
+    const theirs = await seed(USER_A_ID, "theirs", { version: 3 });
+    stubIdentitiesFetch([{ id: USER_A_ID, status: "active", name: "Alice Owner" }]);
+    stubResolve({ permissions: [READ_ALL] });
+    const res = await get(`/estimates/${theirs.id}`, await adminToken());
+    expect(res.status).toBe(200);
+    expect(res.headers.get("ETag")).toBe('"3"');
+    const body = (await res.json()) as Record<string, unknown>;
+    expect(body["access"]).toBe("oversight");
+    expect(body["owner"]).toEqual({ status: "active", name: "Alice Owner" });
+    expect("collaboratorCount" in body).toBe(false);
+  });
+
+  it("GET by id without the permission is the same 404 as an absent id (AC-1.6)", async () => {
+    const theirs = await seed(USER_A_ID, "theirs");
+    stubResolve({ permissions: [OTHER] });
+    const jwt = await adminToken();
+    const real = await get(`/estimates/${theirs.id}`, jwt);
+    const absent = await get("/estimates/does-not-exist", jwt);
+    expect(real.status).toBe(404);
+    const strip = (b: { instance: string; detail: string }) => ({ ...b, instance: "", detail: "" });
+    expect(strip((await real.json()) as { instance: string; detail: string })).toEqual(
+      strip((await absent.json()) as { instance: string; detail: string }),
+    );
+  });
+
+  it("GET by id of a nonexistent id is 404 even for a permission holder", async () => {
+    stubResolve({ permissions: [READ_ALL] });
+    expect((await get("/estimates/does-not-exist", await adminToken())).status).toBe(404);
+  });
+
+  it("GET by id while auth is down is 503 authz_unavailable — only on the oversight fallback (AC-1.7)", async () => {
+    const theirs = await seed(USER_A_ID, "theirs");
+    stubResolve("down");
+    const spy = console.error;
+    console.error = () => {};
+    try {
+      const res = await get(`/estimates/${theirs.id}`, await adminToken());
+      expect(res.status).toBe(503);
+      expect(((await res.json()) as { code: string }).code).toBe("authz_unavailable");
+    } finally {
+      console.error = spy;
+    }
+  });
+
+  it("owner and collaborator paths never call the resolver, and keep working while auth is down (AC-1.5, AC-1.7)", async () => {
+    const own = await seed(USER_C_ID, "C's own");
+    const shared = await seed(USER_A_ID, "shared with C");
+    await testDb.estimateCollaborator.create({
+      data: { estimateId: shared.id, userId: USER_C_ID, email: USER_C_EMAIL, accessLevel: "editor", grantedByUserId: USER_A_ID },
+    });
+    stubIdentitiesFetch([{ id: USER_A_ID, status: "active", name: "Alice" }]);
+    const calls = stubResolve("down");
+    const jwt = await adminToken();
+
+    const ownRes = await get(`/estimates/${own.id}`, jwt);
+    expect(ownRes.status).toBe(200);
+    expect(((await ownRes.json()) as { access: string }).access).toBe("owner");
+    const sharedRes = await get(`/estimates/${shared.id}`, jwt);
+    expect(sharedRes.status).toBe(200);
+    expect(((await sharedRes.json()) as { access: string }).access).toBe("editor");
+    expect((await get("/estimates", jwt)).status).toBe(200);
+    expect(calls.n).toBe(0);
+  });
+
+  it("an admin who is also an editor can PUT: the existing level wins over oversight (AC-1.5)", async () => {
+    const shared = await seed(USER_A_ID, "shared with C");
+    await testDb.estimateCollaborator.create({
+      data: { estimateId: shared.id, userId: USER_C_ID, email: USER_C_EMAIL, accessLevel: "editor", grantedByUserId: USER_A_ID },
+    });
+    stubResolve({ permissions: [READ_ALL] });
+    const res = await get(`/estimates/${shared.id}`, await adminToken(), {
+      method: "PUT",
+      headers: { "If-Match": '"1"' },
+      body: JSON.stringify({ name: "edited by C", author: "", content: makeContent("c") }),
+    });
+    expect(res.status).toBe(200);
+  });
+
+  it("PUT and DELETE on an oversight-only estimate are 403 oversight_read_only and change nothing (AC-1.4)", async () => {
+    const theirs = await seed(USER_A_ID, "theirs");
+    stubResolve({ permissions: [READ_ALL] });
+    const jwt = await adminToken();
+
+    const put = await get(`/estimates/${theirs.id}`, jwt, {
+      method: "PUT",
+      headers: { "If-Match": '"1"' },
+      body: JSON.stringify({ name: "hijacked", author: "", content: makeContent("x") }),
+    });
+    expect(put.status).toBe(403);
+    expect(((await put.json()) as { code: string }).code).toBe("oversight_read_only");
+
+    const del = await get(`/estimates/${theirs.id}`, jwt, { method: "DELETE" });
+    expect(del.status).toBe(403);
+    expect(((await del.json()) as { code: string }).code).toBe("oversight_read_only");
+
+    const row = await testDb.estimate.findUniqueOrThrow({ where: { id: theirs.id } });
+    expect(row.name).toBe("theirs");
+  });
+
+  it("writes by a stranger without the permission stay 404; for a nonexistent id they stay 404 even for a holder", async () => {
+    const theirs = await seed(USER_A_ID, "theirs");
+    stubResolve({ permissions: [] });
+    const jwt = await adminToken();
+    const put = (id: string) =>
+      get(`/estimates/${id}`, jwt, {
+        method: "PUT",
+        headers: { "If-Match": '"1"' },
+        body: JSON.stringify({ name: "x", author: "", content: makeContent("x") }),
+      });
+    expect((await put(theirs.id)).status).toBe(404);
+    expect((await get(`/estimates/${theirs.id}`, jwt, { method: "DELETE" })).status).toBe(404);
+
+    stubResolve({ permissions: [READ_ALL] });
+    expect((await put("does-not-exist")).status).toBe(404);
+  });
+
+  it("a write while auth is down answers 404, not 503 — the write is refused either way (plan.md)", async () => {
+    const theirs = await seed(USER_A_ID, "theirs");
+    stubResolve("down");
+    const spy = console.error;
+    console.error = () => {};
+    try {
+      const res = await get(`/estimates/${theirs.id}`, await adminToken(), { method: "DELETE" });
+      expect(res.status).toBe(404);
+    } finally {
+      console.error = spy;
+    }
+  });
+
+  it("owner writes never call the resolver", async () => {
+    const own = await seed(USER_C_ID, "C's own");
+    const calls = stubResolve({ permissions: [READ_ALL] });
+    const res = await get(`/estimates/${own.id}`, await adminToken(), {
+      method: "PUT",
+      headers: { "If-Match": '"1"' },
+      body: JSON.stringify({ name: "mine", author: "", content: makeContent("m") }),
+    });
+    expect(res.status).toBe(200);
+    expect(calls.n).toBe(0);
   });
 });

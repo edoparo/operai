@@ -7,6 +7,7 @@ import { healthRouter } from "./health/health.routes";
 import { estimatesRouter, importEstimatesRouter } from "./estimates/estimates.routes";
 import { registerCollaboratorRoutes } from "./estimates/collaborators.routes";
 import { registerEstimateLifecycleRoutes } from "./estimates/lifecycle.routes";
+import { dealLinkNoticesRouter } from "./estimates/dealLinkNotices.routes";
 import { crmNoticesEnabled } from "./lib/crmNotices";
 import { corsMiddleware } from "./lib/cors";
 import { requestLogger } from "./lib/logger";
@@ -55,6 +56,13 @@ app.route("/", healthRouter);
 // affect document COMPLETENESS — every route merged in by the `app.route()`
 // calls below is still present by the time any request actually arrives.
 setupOpenAPI(app);
+
+// POST /system/deal-link-notices (specs/024, ADR-0076) — crm-api's service JWT,
+// verified by its own per-route middleware. MUST be mounted BEFORE the two
+// routers below: each carries a wildcard `.use("*", jwtMiddleware)` that, once
+// merged earlier in the route table, would answer a service token with a 401
+// before this route ever ran (the same rule as the doc routes above).
+app.route("/", dealLinkNoticesRouter);
 
 // importEstimatesRouter is mounted BEFORE estimatesRouter. The import route has
 // a larger bodyLimit (IMPORT_BODY_SIZE_LIMIT) and a completely separate middleware
@@ -120,6 +128,9 @@ app.notFound((c) =>
 
 console.log(`EstimAI API → http://localhost:${env.PORT}`);
 console.log(`API docs    → http://localhost:${env.PORT}/docs`);
+if (!env.SERVICE_AUDIENCE) {
+  console.log("SERVICE_AUDIENCE is not set — POST /system/deal-link-notices refuses every call");
+}
 if (!crmNoticesEnabled) {
   console.log("CRM_INTERNAL_URL is not set — estimate close/reopen notices to the CRM are disabled");
 }

@@ -44,7 +44,7 @@ import {
   ForbiddenError,
   NotFoundError,
 } from "@/lib/errors";
-import { resolveAccess, type AccessLevel } from "./access";
+import { resolveAccess, type AccessLevel, type WireAccess } from "./access";
 import type { EstimateContent } from "./estimates.schemas";
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
@@ -73,7 +73,7 @@ export interface EstimateFullRow {
   readonly createdAt: string;
   readonly updatedAt: string;
   readonly version: number;
-  readonly access: AccessLevel;
+  readonly access: WireAccess;
   readonly ownerId: string;
   /** ISO timestamp while the estimate is closed (read-only); null while open. */
   readonly closedAt: string | null;
@@ -88,9 +88,11 @@ export interface EstimateListRow {
   readonly name: string;
   readonly author: string;
   readonly updatedAt: string;
-  readonly access: AccessLevel;
+  readonly access: WireAccess;
   readonly ownerId: string;
   readonly closedAt: string | null;
+  /** The CRM deal this estimate is linked to (pushed by crm-api, ADR-0076); null when unlinked. */
+  readonly crmDealId: string | null;
 }
 
 /** Map a Prisma Estimate row (+ already-known access/owner) to EstimateFullRow. */
@@ -106,7 +108,7 @@ const toFullRow = (
     closedAt: Date | null;
     closedByUserId: string | null;
   },
-  access: AccessLevel,
+  access: WireAccess,
   ownerId: string,
   collaboratorCount?: number,
 ): EstimateFullRow => ({
@@ -162,12 +164,20 @@ export const createEstimate = (
  */
 export const listEstimates = (
   userId: string,
+  status?: "open" | "closed",
+  whose: "mine" | "all" = "mine",
 ): Effect.Effect<EstimateListRow[], DatabaseError> =>
   Effect.tryPromise({
     try: async () => {
       const rows = await db.estimate.findMany({
         where: {
-          OR: [{ userId }, { collaborators: { some: { userId } } }],
+          // `whose=all` (specs/024) is the oversight read: the route has already
+          // checked `estimate:read-all`. Rows the caller owns or collaborates on keep
+          // their level; every other row is `oversight`.
+          ...(whose === "all" ? {} : { OR: [{ userId }, { collaborators: { some: { userId } } }] }),
+          // specs/024: absent = both (the import offer needs the whole account).
+          ...(status === "open" ? { closedAt: null } : {}),
+          ...(status === "closed" ? { closedAt: { not: null } } : {}),
         },
         orderBy: { updatedAt: "desc" },
         select: {
@@ -176,6 +186,7 @@ export const listEstimates = (
           author: true,
           updatedAt: true,
           closedAt: true,
+          crmDealId: true,
           userId: true,
           collaborators: {
             where: { userId },
@@ -190,10 +201,11 @@ export const listEstimates = (
         author: row.author,
         updatedAt: row.updatedAt.toISOString(),
         closedAt: row.closedAt?.toISOString() ?? null,
+        crmDealId: row.crmDealId,
         ownerId: row.userId,
         access: (row.userId === userId
           ? "owner"
-          : (row.collaborators[0]?.accessLevel ?? "viewer")) as AccessLevel,
+          : (row.collaborators[0]?.accessLevel ?? (whose === "all" ? "oversight" : "viewer"))) as WireAccess,
       }));
     },
     catch: (cause) =>
@@ -245,6 +257,27 @@ export const getEstimateById = (
     }
 
     return row;
+  });
+
+/**
+ * Read an estimate with NO relationship to it, for a caller the route has
+ * already verified holds `estimate:read-all` (specs/024, AC-1.4). The row
+ * carries `access: "oversight"` and no `collaboratorCount`. Call it only after
+ * `getEstimateById` answered NotFound: an owner or collaborator keeps their own
+ * level (AC-1.5). A nonexistent id is NotFound, as everywhere.
+ */
+export const getEstimateAsOversight = (
+  id: string,
+): Effect.Effect<EstimateFullRow, DatabaseError | NotFoundError> =>
+  Effect.gen(function* () {
+    const found = yield* Effect.tryPromise({
+      try: () => db.estimate.findFirst({ where: { id } }),
+      catch: (cause) => new DatabaseError({ message: "Failed to fetch estimate", cause }),
+    });
+    if (found === null) {
+      return yield* Effect.fail(new NotFoundError({ message: `Estimate ${id} not found` }));
+    }
+    return toFullRow(found, "oversight", found.userId);
   });
 
 /**

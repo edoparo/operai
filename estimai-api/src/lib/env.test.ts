@@ -179,3 +179,21 @@ describe("env.ts — CRM_INTERNAL_URL (estimate close/reopen notices to crm-api)
     expect(stderr).toContain("CRM_INTERNAL_URL");
   });
 });
+
+describe("env.ts — SERVICE_AUDIENCE (deal-link notices from crm-api, specs/024)", () => {
+  it("is optional: boots without it", async () => {
+    const { exitCode } = await spawnEnvImport(BASE_REQUIRED_ENV);
+    expect(exitCode).toBe(0);
+  });
+
+  it("boots with a value different from AUTH_AUDIENCE", async () => {
+    const { exitCode } = await spawnEnvImport({ ...BASE_REQUIRED_ENV, SERVICE_AUDIENCE: "operai-system" });
+    expect(exitCode).toBe(0);
+  });
+
+  it("exits non-zero naming it when it equals AUTH_AUDIENCE (a user JWT must not be a system credential)", async () => {
+    const { exitCode, stderr } = await spawnEnvImport({ ...BASE_REQUIRED_ENV, SERVICE_AUDIENCE: "operai-suite" });
+    expect(exitCode).not.toBe(0);
+    expect(stderr).toContain("SERVICE_AUDIENCE");
+  });
+});

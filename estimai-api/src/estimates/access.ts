@@ -34,6 +34,14 @@ import { DatabaseError } from "@/lib/errors";
 
 export type AccessLevel = "owner" | "editor" | "viewer";
 
+/**
+ * What a response may say about the caller's relationship: a real level, or
+ * `oversight` — a permission holder (`estimate:read-all`) with NO relationship
+ * to the estimate (specs/024, ADR-0075). WIRE ONLY: never stored, never a
+ * collaborator level, never produced by `resolveAccess`.
+ */
+export type WireAccess = AccessLevel | "oversight";
+
 export interface ResolvedAccess {
   readonly level: AccessLevel;
   readonly version: number;
