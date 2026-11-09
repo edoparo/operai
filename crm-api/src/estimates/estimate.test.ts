@@ -1,5 +1,6 @@
-import { beforeEach, describe, expect, it } from "bun:test";
+import { afterEach, beforeEach, describe, expect, it } from "bun:test";
 import { appAccess, call, db, estimai, estimaiNotice, makeCompany, makeDeal, resetWorld, signServiceToken, app } from "../test-support/world";
+import { setDealLinkSenderForTests, type DealLinkNotice } from "../lib/estimaiNotices";
 import { addWorkingDays } from "./workingDays";
 
 /** specs/018 US-3: estimate requests, the ready/reopen/override lifecycle and the gate. */
@@ -179,5 +180,69 @@ describe("technical estimates (specs/018 US-3)", () => {
     expect(addWorkingDays(new Date(Date.UTC(2026, 10, 6, 15)), 5).toISOString().slice(0, 10)).toBe("2026-11-13");
     // Saturday + 1 = Monday.
     expect(addWorkingDays(new Date(Date.UTC(2026, 10, 7)), 1).toISOString().slice(0, 10)).toBe("2026-11-09");
+  });
+});
+
+/** specs/024 US-3: the deal-link notices (AC-3.4, AC-3.5, AC-3.8). */
+describe("deal-link notices to EstimAI (specs/024 US-3)", () => {
+  const sent: DealLinkNotice[] = [];
+  beforeEach(async () => {
+    await resetWorld();
+    sent.length = 0;
+    setDealLinkSenderForTests(async (notice) => {
+      sent.push(notice);
+      return true;
+    });
+  });
+  afterEach(() => setDealLinkSenderForTests(null));
+
+  const linkedDeal = async () => {
+    const company = await makeCompany({ name: "Acme SA" });
+    const deal = await makeDeal(company.id, { stage: "qualified", title: "Grid analytics" }, "salesCh");
+    const res = await call("POST", `/deals/${deal.id}/estimate`, { as: "salesCh", body: { technicalUserId: "user-tech" } });
+    return { deal, res };
+  };
+
+  it("sends exactly one linked notice after a request, at the link's requestedAt", async () => {
+    const { deal, res } = await linkedDeal();
+    expect(res.status).toBe(201);
+    const row = await db.dealEstimate.findUniqueOrThrow({ where: { dealId: deal.id } });
+    expect(sent).toEqual([
+      { estimateId: res.json.estimate.estimateId, dealId: deal.id, event: "linked", at: row.requestedAt.toISOString() },
+    ]);
+  });
+
+  it("sends one unlinked notice with the PREVIOUS estimate id after an unlink", async () => {
+    const { deal, res } = await linkedDeal();
+    sent.length = 0;
+    const before = Date.now();
+    expect((await call("DELETE", `/deals/${deal.id}/estimate`, { as: "salesCh" })).status).toBe(200);
+    expect(sent).toHaveLength(1);
+    expect(sent[0]).toMatchObject({ estimateId: res.json.estimate.estimateId, dealId: deal.id, event: "unlinked" });
+    expect(Date.parse(sent[0]!.at)).toBeGreaterThanOrEqual(before);
+  });
+
+  it("sends nothing for a refused request, an override, or a ready/reopened notice", async () => {
+    const company = await makeCompany();
+    const deal = await makeDeal(company.id, { stage: "qualified" }, "salesCh");
+    expect((await call("POST", `/deals/${deal.id}/estimate`, { as: "salesCh", body: { technicalUserId: "user-outsider" } })).status).toBeGreaterThanOrEqual(400);
+    expect((await call("POST", `/deals/${deal.id}/estimate/override`, { as: "admin", body: { reason: "urgent" } })).status).toBe(200);
+    expect(sent).toHaveLength(0);
+    await call("POST", `/deals/${deal.id}/estimate`, { as: "salesCh", body: { technicalUserId: "user-tech" } });
+    sent.length = 0;
+    await estimaiNotice(deal.id, "closed", { version: 2 });
+    await estimaiNotice(deal.id, "reopened", { version: 3 });
+    expect(sent).toHaveLength(0);
+  });
+
+  it("a failing sender never fails or undoes the CRM action", async () => {
+    setDealLinkSenderForTests(async () => {
+      throw new Error("boom");
+    });
+    const { deal, res } = await linkedDeal();
+    expect(res.status).toBe(201);
+    expect(await db.dealEstimate.count({ where: { dealId: deal.id } })).toBe(1);
+    expect((await call("DELETE", `/deals/${deal.id}/estimate`, { as: "salesCh" })).status).toBe(200);
+    expect(await db.dealEstimate.count({ where: { dealId: deal.id } })).toBe(0);
   });
 });

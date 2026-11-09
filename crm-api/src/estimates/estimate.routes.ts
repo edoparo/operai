@@ -25,6 +25,7 @@ import {
 } from "../auth/guards";
 import type { AuthzVariables } from "../auth/authz.middleware";
 import { db } from "../lib/db";
+import { sendDealLinkNotice } from "../lib/estimaiNotices";
 import { createEstimate, deleteEstimateQuietly, directoryEmail, shareAsEditor } from "../lib/estimai";
 import { IdParams, commonErrors, requiredText } from "../lib/http";
 import { requireCrmUsers } from "../lib/identities";
@@ -164,6 +165,8 @@ estimateRouter.openapi(requestRoute, async (c) => {
     };
     await tx.dealEstimate.upsert({ where: { dealId: deal.id }, create: { dealId: deal.id, ...link }, update: link });
   });
+  // After the commit, never inside it and never failing the response (specs/024 AC-3.4).
+  await sendDealLinkNotice({ estimateId: estimate.id, dealId: id, event: "linked", at: now.toISOString() });
   // E1 — the technical contact (the creating task does not notify on its own).
   await announce(c, {
     kind: "estimate_requested",
@@ -243,7 +246,7 @@ estimateRouter.openapi(unlinkRoute, async (c) => {
   const deal = await dealOr404(id);
   assertInScope(dealScope(c), deal.entity);
   if (!deal.estimate?.estimateId) throw notFound("This deal has no estimate");
-  const { taskId } = deal.estimate;
+  const { taskId, estimateId: unlinkedEstimateId } = deal.estimate;
   await db.$transaction(async (tx) => {
     if (deal.estimate!.overrideAt) {
       // Keep the admin's override: only the link goes.
@@ -258,6 +261,8 @@ estimateRouter.openapi(unlinkRoute, async (c) => {
     // a completed one stays on the timeline as work that was done.
     if (taskId) await tx.activity.deleteMany({ where: { id: taskId, completedAt: null } });
   });
+  // After the commit (specs/024 AC-3.5): the PREVIOUS estimate, at the instant of the unlink.
+  await sendDealLinkNotice({ estimateId: unlinkedEstimateId, dealId: id, event: "unlinked", at: new Date().toISOString() });
   // E6 — the technical contact is told the estimate no longer counts.
   await announce(c, {
     kind: "estimate_unlinked",

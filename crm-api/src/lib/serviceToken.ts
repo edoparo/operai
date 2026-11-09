@@ -113,11 +113,12 @@ export function createServiceTokenProvider(options: ServiceTokenProviderOptions)
 // shared-copy:end serviceToken
 
 /**
- * The provider wired from the environment, or `null` when the notifier group is
- * not configured (env.ts): crm-api then pushes nothing.
+ * The provider wired from the environment, or `null` when neither the notifier
+ * group nor ESTIMAI_INTERNAL_URL (deal-link notices) is configured (env.ts): crm-api
+ * then pushes nothing.
  */
 export const serviceTokens: ServiceTokenProvider | null =
-  env.NOTIFY_INTERNAL_URL && env.SERVICE_CLIENT_ID && env.SERVICE_CLIENT_SECRET
+  (env.NOTIFY_INTERNAL_URL || env.ESTIMAI_INTERNAL_URL) && env.SERVICE_CLIENT_ID && env.SERVICE_CLIENT_SECRET
     ? createServiceTokenProvider({
         baseUrl: env.AUTH_BASE_URL,
         clientId: env.SERVICE_CLIENT_ID,

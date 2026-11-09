@@ -69,6 +69,11 @@ const envSchema = z.object({
   NOTIFY_INTERNAL_URL: z.string().url("NOTIFY_INTERNAL_URL must be a valid URL").optional(),
   SERVICE_CLIENT_ID: z.string().min(1).optional(),
   SERVICE_CLIENT_SECRET: z.string().min(32, "SERVICE_CLIENT_SECRET must be at least 32 characters").optional(),
+  // ─── estimai-api (specs/024 US-3, ADR-0076) ────────────────────────────────
+  // Base URL (Railway private network) for the deal-link notices crm-api pushes
+  // as ITSELF with the service client above (scope `deal-link-notices.send`).
+  // Unset: the push is a no-op, logged once at startup.
+  ESTIMAI_INTERNAL_URL: z.string().url("ESTIMAI_INTERNAL_URL must be a valid URL").optional(),
   // ─── Service callers (specs/018 AC-3.3 ADR-0073, specs/021 ADR-0044/0049/0059) ─
   // The `aud` that `auth` stamps on scoped service JWTs (the same value as
   // notify-api's). MUST differ from AUTH_AUDIENCE so a user JWT is never a
@@ -90,9 +95,18 @@ const envSchema = z.object({
   if (val.SERVICE_AUDIENCE !== undefined && val.SERVICE_AUDIENCE === val.AUTH_AUDIENCE) {
     ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["SERVICE_AUDIENCE"], message: "SERVICE_AUDIENCE must differ from AUTH_AUDIENCE (ADR-0044)" });
   }
+  if (val.ESTIMAI_INTERNAL_URL !== undefined) {
+    for (const key of ["SERVICE_CLIENT_ID", "SERVICE_CLIENT_SECRET"] as const) {
+      if (val[key] === undefined) {
+        ctx.addIssue({ code: z.ZodIssueCode.custom, path: [key], message: `${key} is required when ESTIMAI_INTERNAL_URL is set` });
+      }
+    }
+  }
   const notifySet = NOTIFY_KEYS.filter((key) => val[key] !== undefined);
   if (notifySet.length > 0 && notifySet.length < NOTIFY_KEYS.length) {
-    for (const key of NOTIFY_KEYS.filter((k) => val[k] === undefined)) {
+    // With ESTIMAI_INTERNAL_URL the service client may stand without the notify URL.
+    const clientOnly = val.ESTIMAI_INTERNAL_URL !== undefined && val.NOTIFY_INTERNAL_URL === undefined;
+    for (const key of NOTIFY_KEYS.filter((k) => val[k] === undefined && !(clientOnly && k === "NOTIFY_INTERNAL_URL"))) {
       ctx.addIssue({ code: z.ZodIssueCode.custom, path: [key], message: `${key} is required when any of NOTIFY_INTERNAL_URL, SERVICE_CLIENT_ID, SERVICE_CLIENT_SECRET is set` });
     }
   }
