@@ -98,6 +98,8 @@ const envSchema = z
 
     // ─── AI providers (ADR-0061 principle, ADR-0069 providers) ──────────────
     MEETINGS_AI_PROVIDER: oneOf(["real", "fake"], "MEETINGS_AI_PROVIDER").default("real"),
+    // Which transcriber (spec A12, ADR-0077): Gemini on Vertex (default) or Chirp 3, kept for a rollback.
+    MEETINGS_TRANSCRIBER: oneOf(["gemini", "chirp"], "MEETINGS_TRANSCRIBER").default("gemini"),
     // Speech-to-Text v2 (Chirp 3): the endpoint host is derived from the location, never configured (S1).
     MEETINGS_SPEECH_LOCATION: optionalString(),
     // Claude on Vertex AI: the base URL is derived from the location (S2); the model id is pinned (S3).

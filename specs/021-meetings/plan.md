@@ -2404,6 +2404,17 @@ ranges overlap or `B.start − A.end ≤ REPEAT_GAP_MS` = 2 000.
 (normalisation is explicit). The replay test (H-10) asserts identical joins for identical outputs
 under different silence lists and different audio files.
 
+> **Amendment 2026-11-10 (spec A12, ADR-0077): transcription by `gemini-3.8-flash` on Vertex AI, `eu`.** New adapter
+> `src/ai/geminiSpeech.ts` behind the same `Transcriber` seam, chosen by `MEETINGS_TRANSCRIBER` (`gemini` default,
+> `chirp` = the Chirp 3 adapter, kept for a rollback). Parts of at most `GEMINI_PIECE_MAX_MS` = 30 min through the
+> same `splitAudio`; each part inline (≤ 15 MiB) in one `generateContent` at `aiplatform.eu.rep.googleapis.com`,
+> temperature 0, response schema `[{start, end, speaker, text}]`. `parseReply` accepts exactly that (bounded), else
+> one resample, then `provider_rejected`; `MAX_TOKENS`, a block or any other finish reason refuse. `wordsOfReply`
+> turns segments into `PartWords` (label `p<k>:<n>` from "Speaker n"; words share the segment's span by length when
+> it is trusted: ordered within 2 s, ≤ 5 min, inside the part + 5 s; `[...]` markers are noise), then `assess`,
+> `finalGaps`, `stitch` and `mapPhrases` unchanged. 429 is waited for (20 s, 60 s) then transient. Startup N4 also
+> checks `publishers/google/models/gemini-3.8-flash:fetchPublisherModelConfig`. No staging, no transient-bucket use.
+
 ### H-3 The gap and repetition detector (pure, `src/ai/completeness.ts`)
 
 **Sound.** The complement of the silences (speech band, −35 dB, ≥ 0.5 s) within a span. It is energy,

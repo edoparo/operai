@@ -1,7 +1,7 @@
 # 0069 — Meetings AI processing on Google Cloud: Chirp 3 batch through a transient EU bucket and Claude on Vertex AI (EU); verify at startup what Google exposes, sign off what it does not
 
 **Date:** 2026-11-05
-**Status:** Accepted (specs/021-meetings; plan amendment "provider change: Google Cloud" approved by the user on 2026-11-05). **Supersedes the provider choice of [ADR-0061](0061-meetings-ai-providers-eu-zero-retention.md)** (its decision points 1, 2, 4 and 5 and the provider-specific parts of 3 and 6); ADR-0061's principle and failure shape stay in force. Go-live is gated on the sign-offs H1-H6 below and on spike T107.
+**Status:** Accepted (specs/021-meetings; plan amendment "provider change: Google Cloud" approved by the user on 2026-11-05). **Supersedes the provider choice of [ADR-0061](0061-meetings-ai-providers-eu-zero-retention.md)** (its decision points 1, 2, 4 and 5 and the provider-specific parts of 3 and 6); ADR-0061's principle and failure shape stay in force. Go-live is gated on the sign-offs H1-H6 below and on spike T107. **The transcription provider (Chirp 3) is superseded by [ADR-0077](0077-meetings-transcription-gemini-on-vertex-eu.md) (2026-11-10)**; Chirp 3 stays as a rollback, and everything else here stands.
 **Deciders:** wellD
 **Project:** Operai
 **Relates to:** [ADR-0061](0061-meetings-ai-providers-eu-zero-retention.md), [ADR-0063](0063-audio-retention-bucket-lifecycle-verified-at-startup.md), [ADR-0064](0064-meetings-api-reads-audio-bytes-third-reader.md), [ADR-0062](0062-durable-job-runner-work-queued-state-derived.md), [ADR-0067](0067-ai-output-structured-validated-plain-text.md), [ADR-0070](0070-meetings-transcript-parts-speaker-labels-per-part.md), [ADR-0016](0016-eu-object-storage-refund-attachments.md)

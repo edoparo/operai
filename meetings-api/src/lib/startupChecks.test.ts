@@ -181,6 +181,19 @@ describe("vertex N3 and N4 on the RECORDED answers of the real eu endpoint (T107
     expect(control.url.pathname).toBe("/v1beta1/projects/operai-meetings-test/locations/eu/publishers/anthropic/models/claude-sonnet-5-5:fetchPublisherModelConfig");
   });
 
+  it("spec A12: the Gemini transcriber's logging is checked too, at the google publisher, and refuses the same way", async () => {
+    const pass = vertexWorld({ cache: cacheOff, logging: notConfigured });
+    expect(await pass.run({ otherModels: [{ publisher: "google", modelId: "gemini-3.8-flash" }] })).toEqual([]);
+    const paths = pass.seen.filter((r) => r.url.pathname.endsWith(":fetchPublisherModelConfig")).map((r) => r.url.pathname);
+    expect(paths).toEqual([
+      "/v1beta1/projects/operai-meetings-test/locations/eu/publishers/anthropic/models/claude-sonnet-5-0:fetchPublisherModelConfig",
+      "/v1beta1/projects/operai-meetings-test/locations/eu/publishers/google/models/gemini-3.8-flash:fetchPublisherModelConfig",
+    ]);
+    let n = 0;
+    const logging = vertexWorld({ cache: cacheOff, logging: () => (n++ === 0 ? notConfigured() : okJson({ loggingConfig: { enabled: true } })) });
+    expect(await logging.run({ otherModels: [{ publisher: "google", modelId: "gemini-3.8-flash" }] })).toEqual(["Vertex request-response logging is enabled for the model"]);
+  });
+
   it("the model id is the bare id: a resource path in the variable is refused by env.ts (S3), not smuggled into the URL", () => {
     expect(checkVertexModelId("claude-sonnet-5-5")).toBeNull();
     expect(checkVertexModelId("publishers/anthropic/models/claude-sonnet-5-5")).not.toBeNull();

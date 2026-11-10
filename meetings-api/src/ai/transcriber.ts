@@ -1,8 +1,8 @@
 /**
  * The transcription seam (specs/021-meetings plan.md § AI providers, ADR-0061;
- * AC-6.2, AC-6.7, AC-13.2). One real implementation (`googleSpeech.ts`, Chirp 3 on
- * Google Cloud, ADR-0069) and a fake (`fakeTranscriber.ts`); a fallback provider would sit behind the same
- * interface, after its own residency decision.
+ * AC-6.2, AC-6.7, AC-13.2). Two real implementations, chosen by `MEETINGS_TRANSCRIBER`: `geminiSpeech.ts`
+ * (Gemini on Vertex AI, EU, the default since spec A12 / ADR-0077) and `googleSpeech.ts` (Chirp 3, ADR-0069, kept for
+ * a rollback), and a fake (`fakeTranscriber.ts`).
  *
  * The LOCALE is the meeting's language, chosen by its creator, never detected
  * (AC-13.2): `it-IT` or `en-US` and nothing else.
@@ -100,7 +100,7 @@ let current: Transcriber | null = null;
 
 /**
  * The transcriber for this process: the fake under `MEETINGS_AI_PROVIDER=fake` (env.ts
- * refuses that in production), otherwise Google. Imported lazily so a fake run never loads
+ * refuses that in production), otherwise Gemini or Chirp 3 by `MEETINGS_TRANSCRIBER`. Imported lazily so a fake run never loads
  * the real adapter.
  */
 export async function transcriber(): Promise<Transcriber> {
@@ -109,6 +109,9 @@ export async function transcriber(): Promise<Transcriber> {
   if (env.MEETINGS_AI_PROVIDER === "fake") {
     const { FakeTranscriber } = await import("./fakeTranscriber");
     current = new FakeTranscriber();
+  } else if (env.MEETINGS_TRANSCRIBER === "gemini") {
+    const { createGeminiTranscriberFromEnv } = await import("./geminiSpeech");
+    current = await createGeminiTranscriberFromEnv();
   } else {
     const { createGoogleTranscriberFromEnv } = await import("./googleSpeech");
     current = await createGoogleTranscriberFromEnv();

@@ -28,6 +28,7 @@ import {
   type S3Client,
 } from "@aws-sdk/client-s3";
 import { GoogleApiError, defaultFetch, googleAuth, googleFetch, type GoogleAuth } from "./google/auth";
+import { GEMINI_TRANSCRIBE_MODEL } from "../ai/geminiSpeech";
 import { TRANSIENT_BUCKET_ALLOWED_LOCATIONS, vertexHost } from "./residency";
 import { readBucketConfig, type BucketConfig } from "./google/transientStorage";
 
@@ -149,6 +150,8 @@ export interface VertexCheckInput {
   readonly location: string;
   /** `MEETINGS_VERTEX_MODEL_ID`, already checked (S3). */
   readonly modelId: string;
+  /** Further publisher models whose logging is checked the same way (the Gemini transcriber, spec A12). */
+  readonly otherModels?: readonly { readonly publisher: string; readonly modelId: string }[];
   readonly auth: GoogleAuth;
   readonly fetchImpl?: typeof fetch;
 }
@@ -221,21 +224,24 @@ export async function checkVertex(input: VertexCheckInput): Promise<string[]> {
   //    `bigqueryDestination` and `enableOtelLogging`, both flags false or absent. A body without `loggingConfig`,
   //    a key or a type we do not know, an enabled flag or a sharing provider all refuse. Messages never carry
   //    a key or a value from the body.
-  try {
-    const url =
-      `${base}/v1beta1/projects/${project}/locations/${encodeURIComponent(input.location)}` +
-      `/publishers/anthropic/models/${encodeURIComponent(input.modelId)}:fetchPublisherModelConfig`;
-    const response = await readControlPlane(input, url, [404]);
-    if (response.status !== 404) {
-      const verdict = loggingVerdict(await jsonObject(response));
-      if (verdict === "unreadable") problems.push("Vertex's request-response logging configuration cannot be read");
-      else if (verdict === "logging") problems.push("Vertex request-response logging is enabled for the model");
-      else if (verdict === "sharing") problems.push("Vertex shares the model's request-response logging with the model provider");
-    } else {
-      await response.body?.cancel().catch(() => {});
+  const models = [{ publisher: "anthropic", modelId: input.modelId }, ...(input.otherModels ?? [])];
+  for (const { publisher, modelId } of models) {
+    try {
+      const url =
+        `${base}/v1beta1/projects/${project}/locations/${encodeURIComponent(input.location)}` +
+        `/publishers/${encodeURIComponent(publisher)}/models/${encodeURIComponent(modelId)}:fetchPublisherModelConfig`;
+      const response = await readControlPlane(input, url, [404]);
+      if (response.status !== 404) {
+        const verdict = loggingVerdict(await jsonObject(response));
+        if (verdict === "unreadable") problems.push("Vertex's request-response logging configuration cannot be read");
+        else if (verdict === "logging") problems.push("Vertex request-response logging is enabled for the model");
+        else if (verdict === "sharing") problems.push("Vertex shares the model's request-response logging with the model provider");
+      } else {
+        await response.body?.cancel().catch(() => {});
+      }
+    } catch {
+      problems.push("Vertex's request-response logging configuration cannot be read");
     }
-  } catch {
-    problems.push("Vertex's request-response logging configuration cannot be read");
   }
 
   return problems;
@@ -275,6 +281,7 @@ async function providerChecksFromEnv(): Promise<{ transient: string[]; ai: strin
       projectId: env.MEETINGS_GCP_PROJECT_ID!,
       location: env.MEETINGS_VERTEX_LOCATION!,
       modelId: env.MEETINGS_VERTEX_MODEL_ID!,
+      ...(env.MEETINGS_TRANSCRIBER === "gemini" ? { otherModels: [{ publisher: "google", modelId: GEMINI_TRANSCRIBE_MODEL }] } : {}),
       auth,
     }),
   };

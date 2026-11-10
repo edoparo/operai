@@ -148,6 +148,17 @@ was not removed. The spec stays vendor-neutral; the body below is already update
   pairs is the same speech and appears once (part k's version). (b) A word found in only one version
   is still kept: no speech present in either version is dropped. (c) Only equal and near-equal pairs
   are evidence for a join (AC-6.14); a pair of different words never is.
+- **A12 — decided by the user 2026-11-10 (AC-6.2, AC-6.5, AC-6.12, Constraints, new O16), after the
+  same recording:** after A9 and A11 it still had 9 labels for 2 people, because the provider takes at
+  most 20 minutes per request and its labels restart in every part. A probe sent the whole recording
+  to a language model of the same cloud, same EU processing, in one request: 2 speakers. (a) A part is
+  now at most **30 minutes**, so a meeting up to 30 minutes is transcribed in one request with one
+  speaker numbering; longer ones keep the overlapping parts and the rules of AC-6.13 to AC-6.15.
+  (b) The service never tells the transcription how many people took part. (c) Times are per
+  segment, estimated by the transcription; a passage it drops is marked when it leaves a hole of at
+  least the gap bound between segments (AC-6.12), and AC-6.12's "no notice is not a promise" applies
+  in full. (d) The reply of the transcription is untrusted structure (as AC-7.9 for summaries): any
+  reply that is not exactly the expected shape is sampled once more, then the transcription fails.
 
 ## Problem
 
@@ -236,7 +247,7 @@ this spec does not choose vendors or mechanisms.
 - **Transcript quality bounds (A7).** The rules of AC-6.11 to AC-6.15 are decisions of this
   spec; the numbers below are bounds that the architect confirms or changes in plan.md, and
   the ACs hold with whatever values are confirmed. **Overlap bound:** consecutive transcript
-  parts overlap by at least 30 seconds and at most 2 minutes. **Gap bound:** 60 seconds of
+  parts overlap by at least 30 seconds and at most 2 minutes, and a part is at most 30 minutes (A12). **Gap bound:** 60 seconds of
   speech in the audio with no transcript text (A10; was 20). **Retry bound: 0 (A8)** - a part is
   transcribed once and never again automatically, because the provider returns the identical
   result for identical audio; raising the bound again is O15. **Repeat bound:** 8 consecutive words, and a time
@@ -892,7 +903,7 @@ history of the relationship in the CRM is complete without logging the meeting t
 
 O2 and O3 are accepted as tracked risks by the owner (2026-11-04): the work proceeds on the
 working assumptions below, which the plan may rely on. O13 was added on 2026-11-05 (A6), O14
-on 2026-11-05 (A7), O15 on 2026-11-05 (A8).
+on 2026-11-05 (A7), O15 on 2026-11-05 (A8), O16 on 2026-11-10 (A12).
 
 - [ ] O2 (accepted-as-risk) Retention beyond audio: working assumption is that transcripts and
   summaries are kept until their meeting is deleted, with no maximum life; how long the
@@ -934,6 +945,10 @@ on 2026-11-05 (A7), O15 on 2026-11-05 (A8).
   checks the within-a-part same-speaker rule of AC-6.13 (real speech wrongly kept as a duplicate when
   speaker labels differ for one person) and the repeated-tail rule for parts without word
   times. — owner: user and architect
+- [ ] O16 (A12) Verbatim fidelity of the transcription is not measured: the first recording shared 84 %
+  of its words with the previous provider, and either side may be wrong. Compare a consented
+  recording with a reference transcript written by a person (words dropped, added, smoothed;
+  speakers; segment times) before relying on transcripts as a record. — owner: user
 
 Closed by the owner on 2026-11-04 (recorded in the body): O1 languages (US-13, non-goals);
 O4 default grants (AC-10.8); O5 read-only participants (AC-5.8, AC-10.4); O6 limits accepted;

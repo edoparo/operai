@@ -122,9 +122,9 @@ operai/
 │                        # summaries, templates, cited Q&A; authorization-enforcing (`meetings:access`, `template:manage`,
 │                        # `meeting:erase`) but creator/participant reads need only a JWT (ADR-0058); audio ONLY in its own EU
 │                        # bucket (`MEETINGS_S3_*`, 29-day lifecycle verified at startup, ADR-0063); in-process durable job
-│                        # runner (ADR-0062); Google Cloud Chirp 3 + Claude on Vertex AI, EU (ADR-0069/0061); host contract
+│                        # runner (ADR-0062); Gemini (transcription) + Claude on Vertex AI, EU (ADR-0077/0069/0061); host contract
 │                        # with crm-api (ADR-0059); pushes to notify-api as `system:meetings-api` (specs/021)
-├── docs/adr/            # Architecture Decision Records (0001–0074; see ## Architecture decisions)
+├── docs/adr/            # Architecture Decision Records (0001–0077; see ## Architecture decisions)
 ├── docs/ui-inconsistencies.md  # UI/UX audit across the six frontends, with what each migration fixed
 ├── infra/               # Deploy/verify scripts + the cross-service env contract notes (README.md);
 │                        # provision-tool.sh creates/audits one tool's Railway service, Vercel project and DNS
@@ -240,8 +240,9 @@ Per-service specifics:
   `meetings:access` (granted to every `employee` by default, ADR-0068), `template:manage` and
   `meeting:erase` (admin only, erase never reads content); audio ONLY in its own EU bucket
   (`MEETINGS_S3_*`) behind a bucket-wide 29-day lifecycle rule that is verified at startup
-  (ADR-0063); transcription by Google Cloud Speech-to-Text v2 Chirp 3 batch (`eu`) through a
-  transient EU Cloud Storage bucket, long recordings in 10-minute overlapping parts, labels joined only on text evidence
+  (ADR-0063); transcription by `gemini-3.8-flash` on Vertex AI (`eu`), a meeting up to 30 minutes in one request, audio
+  inline, reply validated as structure (ADR-0077; Chirp 3 batch through a transient EU bucket kept behind
+  `MEETINGS_TRANSCRIBER=chirp`, ADR-0069), longer recordings in 30-minute overlapping parts, labels joined only on text evidence
   and separable by the creator, gaps detected and marked (ADR-0069/0070/0074), and summaries/Q&A by Claude on Vertex AI (`eu` multi-region, never `global`),
   every setting Google exposes checked at startup and the rest a recorded sign-off (ADR-0069/0061); an
   in-process Postgres job runner for asked-for work, so it runs as a single replica (ADR-0062);
@@ -455,8 +456,8 @@ wellD operates across Italy and Switzerland. Some clients are in regulated secto
   exits if it fails (ADR-0016); inventory has its own bucket, never refund's
 - Meetings handles the most sensitive content in the suite (recorded conversations), so EVERY hop
   is EU/CH and checked at startup, the process exiting if one fails (ADR-0061, AC-4.9): its own
-  audio bucket (`MEETINGS_S3_*`, never another tool's), transcription by Google Cloud Speech-to-Text
-  v2 (Chirp 3, location `eu` only), summaries and Q&A by Claude on Vertex AI through the `eu`
+  audio bucket (`MEETINGS_S3_*`, never another tool's), transcription by Gemini on Vertex AI (`eu`
+  multi-region, ADR-0077; Chirp 3 in `eu` as the rollback), summaries and Q&A by Claude on Vertex AI through the `eu`
   multi-region endpoint (`global`, `us` and London are refused; Claude Fable/Mythos excluded), and a
   transient Google Cloud Storage bucket in an EU/CH location that holds audio only while a
   transcription attempt runs (reached through its regional endpoint; 1-day lifecycle rule, soft delete
@@ -787,3 +788,4 @@ These defaults are optimized for AI coding agents (and humans) working on apps t
 - [0074] A transcript that cannot be proven complete says where it may not be — a silent omission by a producer that reports success is read downstream as a complete record (and absence as fact): detect probable gaps from an independent signal (audio energy vs the word timeline), mark final gaps (the per-part retry is suspended, tries = 1, because the provider returned byte-identical results 8 of 8 times; revisit under O15 only with DIFFERENT audio; a repetition never flags a part; duplicates removed same-speaker within a part) and have the SERVICE write the caveat on every derived artefact (summary, answer, copy); empty-with-gaps is `failed` `speech_not_transcribed`, never "no speech"; any new consumer of a transcript must carry the gaps; the gap bound is 60 s and the creator can mark a range "no speech here" after listening, which withdraws the service's caveats (amended 2026-11-09) (see docs/adr/0074-meetings-transcript-completeness-detect-retry-mark.md)
 - [0075] A privilege for looking must not become a dependency of, or a write path through, the ordinary path — estimai-api enforces ONE catalog permission, `estimate:read-all` (unconditioned, seeded to `admin` only), resolved live from `auth GET /authz/resolve` ONLY on the oversight path (`GET /estimates?whose=all`: 403 `oversight_required`, 503 `authz_unavailable`; `GET /estimates/{id}` only when no owner/collaborator relationship: 200 `access:"oversight"` else 404); own/shared estimates never call `auth`; any write route answers a holder 403 `oversight_read_only` (404 if the check fails); `oversight` is a wire value, never stored or a collaborator level; an existing level always wins; amends 0036, narrows 0037; rejected: `estimate:view`, `requireAdmin`, admin as implicit editor, enforcing every route; revisit for oversight writes, conditioned oversight or > ~500 estimates (see docs/adr/0075-estimai-oversight-permission-amends-0036.md)
 - [0076] A fact about a record is stated only by its owner, and a copy kept by messages must survive loss, repetition and reordering — crm-api pushes `{estimateId, dealId, event: linked|unlinked, at}` to estimai-api `POST /system/deal-link-notices` (service JWT, scope `deal-link-notices.send`, `sub` must be `system:crm-api`) for the EstimAI "Deal" badge; EstimAI stores only `crmDealId`/`crmLinkAt` and never learns deal content; one conditional update applies only a newer `at` (equal: unlinked wins; unlink clears only the same dealId), ordered by the CRM clock because there is one replica and at most two events per link; best effort, never fails the CRM action, repaired by the re-runnable `crm-api/scripts/backfill-estimate-links.ts`; any future deal deletion MUST send `unlinked`; grant the scope in production `SERVICE_CLIENTS` only AFTER the new auth is live (an unknown scope stops auth); a second replica, a relink path, deal content or guaranteed delivery revisits it (see docs/adr/0076-crm-pushes-deal-links-to-estimai.md)
+- [0077] When a provider's per-request limit forces a split that the product then repairs by guessing, change the limit, not the repair — meetings transcription moves from Chirp 3 (20 min per request, 10-minute parts, labels restarting per part: 9 labels for 2 people) to `gemini-3.8-flash` on Vertex AI `eu` (never `global`), model pinned in code, a meeting up to 30 minutes in ONE request (longer: 30-minute overlapping parts through the unchanged detector and stitcher), audio inline, temperature 0 + response schema, the reply accepted only as exactly `[{start,end,speaker,text}]` (one resample, then refused), segment times trusted only when ordered and inside the part, the prompt never states a speaker count, request-response logging checked off at startup for the model too; gap detection is weaker (segment-level times); Chirp 3 kept behind `MEETINGS_TRANSCRIBER=chirp`; rejected: AssemblyAI/Speechmatics/Gladia (new processor), Gemini 3.5 Transcribe (15 min per file), self-hosted Whisper+pyannote (voice embeddings, AC-6.17); supersedes 0069's transcription provider (see docs/adr/0077-meetings-transcription-gemini-on-vertex-eu.md)
