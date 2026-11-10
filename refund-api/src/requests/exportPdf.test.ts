@@ -177,6 +177,7 @@ describe("renderRequestExportPdf", () => {
           requestedAmountCents: 1050,
           km: 15,
           approvedTotalCents: 1050,
+          rejection: null,
           attachments: [],
           mileage: {
             km: 15,
@@ -237,6 +238,7 @@ const mileageLine = {
   requestedAmountCents: 1050,
   km: 15,
   approvedTotalCents: 1050,
+  rejection: null,
   attachments: [],
   mileage: {
     km: 15,

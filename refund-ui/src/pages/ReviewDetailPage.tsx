@@ -80,6 +80,12 @@ const route = getRouteApi('/review/$id')
  * client computation can never let a denied approve through, only
  * (worst case) show an enabled button the server still rejects, which
  * `errorMessageFor`'s `self_approval_forbidden` mapping below handles.
+ *
+ * Line rejection (specs/007 amendment, 2026-11-10): each line in `review`
+ * mode can be rejected on its own, with a required reason, and restored
+ * until the request is decided. When EVERY line is rejected, Approve is
+ * passively disabled the same way (refund-api answers 409
+ * `all_lines_rejected`): such a request must be rejected as a whole.
  */
 
 type PageState =
@@ -116,6 +122,7 @@ const approveSelfRestricted = (permissions: Permission[]): boolean =>
 const errorMessageFor = (error: unknown, fallback: string): string => {
   if (error instanceof ApiError) {
     if (error.code === 'self_approval_forbidden') return strings.pages.reviewDetail.decide.selfApprovalForbiddenError
+    if (error.code === 'all_lines_rejected') return strings.pages.reviewDetail.decide.allLinesRejectedTooltip
     return error.detail ?? error.title
   }
   return fallback
@@ -140,7 +147,17 @@ export default function ReviewDetailPage() {
   const { permissions } = usePermissions()
   const isOwner =
     pageState.status === 'loaded' && Boolean(currentUserId) && pageState.request.owner.userId === currentUserId
-  const approveDisabled = isOwner && approveSelfRestricted(permissions)
+  const selfApprovalBlocked = isOwner && approveSelfRestricted(permissions)
+  const allLinesRejected =
+    pageState.status === 'loaded' &&
+    pageState.request.lines.length > 0 &&
+    pageState.request.lines.every((line) => (line.rejection ?? null) !== null)
+  const approveDisabled = selfApprovalBlocked || allLinesRejected
+  const approveDisabledReason = selfApprovalBlocked
+    ? t.decide.selfApprovalTooltip
+    : allLinesRejected
+      ? t.decide.allLinesRejectedTooltip
+      : undefined
 
   useEffect(() => {
     let cancelled = false
@@ -215,6 +232,16 @@ export default function ReviewDetailPage() {
     [id, runReviewMutation],
   )
 
+  const handleRejectLine = useCallback(
+    (lineId: string, reason: string) => runReviewMutation(() => reviewApi.rejectLine(id, lineId, reason)),
+    [id, runReviewMutation],
+  )
+
+  const handleRestoreLine = useCallback(
+    (lineId: string) => runReviewMutation(() => reviewApi.restoreLine(id, lineId)),
+    [id, runReviewMutation],
+  )
+
   const handleDownloadAttachment = useCallback(
     (lineId: string, attachmentId: string) => attachmentsApi.getDownloadUrl(id, lineId, attachmentId),
     [id],
@@ -246,7 +273,7 @@ export default function ReviewDetailPage() {
       setDecisionDialog({ open: false })
       void navigate({ to: '/review', search: { confirmation: t.decide.approveConfirmation(employeeName) } })
     } catch (err) {
-      if (err instanceof ApiError && err.status === 409) {
+      if (err instanceof ApiError && err.status === 409 && err.code !== 'all_lines_rejected') {
         setDecisionDialog({ open: false })
         setGuardrail({ title: t.guardrail.title, message: t.guardrail.message })
         await reloadRequest()
@@ -382,6 +409,8 @@ export default function ReviewDetailPage() {
                   line={line}
                   mode="review"
                   onApprovedTotalChange={(cents) => handleApprovedTotalChange(line.id, cents)}
+                  onRejectLine={(reason) => handleRejectLine(line.id, reason)}
+                  onRestoreLine={() => handleRestoreLine(line.id)}
                   onDownloadAttachment={(attachmentId) => handleDownloadAttachment(line.id, attachmentId)}
                   registerRef={registerRowRef(line.id)}
                 />
@@ -393,11 +422,11 @@ export default function ReviewDetailPage() {
                 variant="primary"
                 onClick={handleApproveOpen}
                 aria-disabled={approveDisabled}
-                title={approveDisabled ? t.decide.selfApprovalTooltip : undefined}
+                title={approveDisabledReason}
                 data-testid="review-detail-approve"
               >
                 {t.decide.approveButton}
-                {approveDisabled && <span className="sr-only"> — {t.decide.selfApprovalTooltip}</span>}
+                {approveDisabledReason && <span className="sr-only"> — {approveDisabledReason}</span>}
               </Button>
               <Button variant="danger" onClick={handleRejectOpen} data-testid="review-detail-reject">
                 {t.decide.rejectButton}

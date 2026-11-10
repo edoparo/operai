@@ -272,6 +272,39 @@ describe("POST /requests/:id/submit", () => {
 // ─── POST /requests/:id/withdraw ────────────────────────────────────────────
 
 describe("POST /requests/:id/withdraw", () => {
+  it("(specs/007 amendment 2026-11-10) withdraw clears a line rejection made during the unfinished review", async () => {
+    const request = await makeRequest();
+    const line = await addCompleteLine(request.id);
+    const token = await harness.signToken({ sub: OWNER_SUB, email: OWNER_EMAIL });
+
+    await lifecycleRouter.request(`/requests/${request.id}/submit`, {
+      method: "POST",
+      headers: authHeaders(token),
+    });
+    await db.refundLine.update({
+      where: { id: line.id },
+      data: {
+        rejectionReason: "No receipt",
+        rejectedAt: new Date(),
+        rejectedByUserId: "acct-1",
+        rejectedByEmail: "acct1@x.com",
+        approvedTotalCents: 0,
+      },
+    });
+
+    const res = await lifecycleRouter.request(`/requests/${request.id}/withdraw`, {
+      method: "POST",
+      headers: authHeaders(token),
+    });
+    expect(res.status).toBe(200);
+    const after = await db.refundLine.findUniqueOrThrow({ where: { id: line.id } });
+    expect(after.rejectionReason).toBeNull();
+    expect(after.rejectedAt).toBeNull();
+    expect(after.rejectedByUserId).toBeNull();
+    expect(after.rejectedByEmail).toBeNull();
+    expect(after.approvedTotalCents).toBeNull();
+  });
+
   it("(AC-2.2) submitted → draft round-trip, writes a 'withdrawn' audit row, leaves it editable", async () => {
     const request = await makeRequest();
     const line = await addCompleteLine(request.id);

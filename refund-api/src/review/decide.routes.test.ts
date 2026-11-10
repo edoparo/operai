@@ -1213,3 +1213,191 @@ describe("decision emails", () => {
     ]);
   });
 });
+
+// ─── Line rejection (specs/007 amendment, 2026-11-10) ───────────────────────
+
+describe("POST/DELETE /review/requests/:id/lines/:lineId/reject — line rejection", () => {
+  const rejectLineReq = (requestId: string, lineId: string, token: string, reason: unknown) =>
+    decideRouter.request(`/review/requests/${requestId}/lines/${lineId}/reject`, {
+      method: "POST",
+      headers: authHeaders(token),
+      body: JSON.stringify({ reason }),
+    });
+  const restoreLineReq = (requestId: string, lineId: string, token: string) =>
+    decideRouter.request(`/review/requests/${requestId}/lines/${lineId}/reject`, {
+      method: "DELETE",
+      headers: authHeaders(token),
+    });
+
+  it("a caller without request:reject → 403, nothing written", async () => {
+    const { request, lines } = await createSubmittedRequest([{ entity: "welld_it" }]);
+    harness.setResolve(async () => NO_GRANTS);
+    const token = await harness.signToken({ sub: "emp-1", email: "emp1@x.com" });
+
+    const res = await rejectLineReq(request.id, lines[0]!.id, token, "Not refundable");
+    expect(res.status).toBe(403);
+    const line = await db.refundLine.findUniqueOrThrow({ where: { id: lines[0]!.id } });
+    expect(line.rejectionReason).toBeNull();
+  });
+
+  it("(422) an empty or whitespace-only reason is refused", async () => {
+    const { request, lines } = await createSubmittedRequest([{ entity: "welld_it" }]);
+    harness.setResolve(async () => accountingPerms("welld_it"));
+    const token = await harness.signToken({ sub: "acct-1", email: "acct1@x.com" });
+
+    expect((await rejectLineReq(request.id, lines[0]!.id, token, "")).status).toBe(422);
+    expect((await rejectLineReq(request.id, lines[0]!.id, token, "   ")).status).toBe(422);
+    expect((await rejectLineReq(request.id, lines[0]!.id, token, undefined)).status).toBe(422);
+  });
+
+  it("rejects the line: reason + who + when, approved total 0, a line_rejected audit row", async () => {
+    const { request, lines } = await createSubmittedRequest([
+      { entity: "welld_it", requestedAmountCents: 1000 },
+      { entity: "welld_it", requestedAmountCents: 2000 },
+    ]);
+    harness.setResolve(async () => accountingPerms("welld_it"));
+    const token = await harness.signToken({ sub: "acct-1", email: "acct1@x.com" });
+
+    const res = await rejectLineReq(request.id, lines[0]!.id, token, "  Personal expense  ");
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as {
+      approvedTotalCents: number | null;
+      rejection: { reason: string; rejectedAt: string; rejectedBy: { email: string } } | null;
+    };
+    expect(body.approvedTotalCents).toBe(0);
+    expect(body.rejection?.reason).toBe("Personal expense");
+    expect(body.rejection?.rejectedBy).toEqual({ email: "acct1@x.com" });
+
+    const request2 = await db.refundRequest.findUniqueOrThrow({ where: { id: request.id } });
+    expect(request2.status).toBe("submitted"); // the request itself is still undecided
+
+    const audit = await db.refundAuditEntry.findMany({ where: { requestId: request.id } });
+    expect(audit).toHaveLength(1);
+    expect(audit[0]?.action).toBe("line_rejected");
+    expect(audit[0]?.lineId).toBe(lines[0]!.id);
+    expect(audit[0]?.detail).toEqual({ reason: "Personal expense", fromCents: null });
+  });
+
+  it("approving afterwards pays the other lines and nothing for the rejected one", async () => {
+    const { request, lines } = await createSubmittedRequest([
+      { entity: "welld_it", requestedAmountCents: 1000 },
+      { entity: "welld_it", requestedAmountCents: 2000 },
+    ]);
+    harness.setResolve(async () => accountingPerms("welld_it"));
+    const token = await harness.signToken({ sub: "acct-1", email: "acct1@x.com" });
+
+    expect((await rejectLineReq(request.id, lines[0]!.id, token, "Duplicate")).status).toBe(200);
+    const res = await decideRouter.request(`/review/requests/${request.id}/approve`, {
+      method: "POST",
+      headers: authHeaders(token),
+    });
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as {
+      status: string;
+      lines: { id: string; approvedTotalCents: number | null; rejection: { reason: string } | null }[];
+      subtotals: { currency: string; requestedCents: number; approvedCents: number | null }[];
+    };
+    expect(body.status).toBe("approved");
+    const byId = new Map(body.lines.map((l) => [l.id, l]));
+    expect(byId.get(lines[0]!.id)?.approvedTotalCents).toBe(0);
+    expect(byId.get(lines[0]!.id)?.rejection?.reason).toBe("Duplicate");
+    expect(byId.get(lines[1]!.id)?.approvedTotalCents).toBe(2000);
+    expect(byId.get(lines[1]!.id)?.rejection).toBeNull();
+    expect(body.subtotals).toEqual([{ currency: "EUR", requestedCents: 3000, approvedCents: 2000 }]);
+  });
+
+  it("(409 all_lines_rejected) approve is refused when every line is rejected", async () => {
+    const { request, lines } = await createSubmittedRequest([{ entity: "welld_it" }]);
+    harness.setResolve(async () => accountingPerms("welld_it"));
+    const token = await harness.signToken({ sub: "acct-1", email: "acct1@x.com" });
+
+    expect((await rejectLineReq(request.id, lines[0]!.id, token, "No receipt")).status).toBe(200);
+    const res = await decideRouter.request(`/review/requests/${request.id}/approve`, {
+      method: "POST",
+      headers: authHeaders(token),
+    });
+    expect(res.status).toBe(409);
+    expect(((await res.json()) as { code?: string }).code).toBe("all_lines_rejected");
+    const after = await db.refundRequest.findUniqueOrThrow({ where: { id: request.id } });
+    expect(after.status).toBe("submitted");
+  });
+
+  it("(409 line_rejected) a rejected line's approved total cannot be changed, nor can it be rejected twice", async () => {
+    const { request, lines } = await createSubmittedRequest([{ entity: "welld_it" }]);
+    harness.setResolve(async () => accountingPerms("welld_it"));
+    const token = await harness.signToken({ sub: "acct-1", email: "acct1@x.com" });
+
+    expect((await rejectLineReq(request.id, lines[0]!.id, token, "No receipt")).status).toBe(200);
+    const put = await decideRouter.request(
+      `/review/requests/${request.id}/lines/${lines[0]!.id}/approved-total`,
+      { method: "PUT", headers: authHeaders(token), body: JSON.stringify({ approvedTotalCents: 500 }) },
+    );
+    expect(put.status).toBe(409);
+    expect(((await put.json()) as { code?: string }).code).toBe("line_rejected");
+
+    const again = await rejectLineReq(request.id, lines[0]!.id, token, "Again");
+    expect(again.status).toBe(409);
+    expect(((await again.json()) as { code?: string }).code).toBe("line_rejected");
+  });
+
+  it("restore clears the rejection, returns the line to untouched, writes a line_restored audit row", async () => {
+    const { request, lines } = await createSubmittedRequest([{ entity: "welld_it", requestedAmountCents: 1000 }]);
+    harness.setResolve(async () => accountingPerms("welld_it"));
+    const token = await harness.signToken({ sub: "acct-1", email: "acct1@x.com" });
+
+    expect((await rejectLineReq(request.id, lines[0]!.id, token, "Wrong entity")).status).toBe(200);
+    const res = await restoreLineReq(request.id, lines[0]!.id, token);
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as { approvedTotalCents: number | null; rejection: unknown };
+    expect(body.approvedTotalCents).toBeNull();
+    expect(body.rejection).toBeNull();
+
+    const audit = await db.refundAuditEntry.findMany({
+      where: { requestId: request.id },
+      orderBy: { createdAt: "asc" },
+    });
+    expect(audit.map((a) => a.action)).toEqual(["line_rejected", "line_restored"]);
+    expect(audit[1]?.detail).toEqual({ reason: "Wrong entity" });
+
+    // Not rejected any more → restoring again is a 409, not a silent no-op.
+    const again = await restoreLineReq(request.id, lines[0]!.id, token);
+    expect(again.status).toBe(409);
+    expect(((await again.json()) as { code?: string }).code).toBe("line_not_rejected");
+  });
+
+  it("(409) a decided request's lines can be neither rejected nor restored", async () => {
+    const { request, lines } = await createSubmittedRequest([
+      { entity: "welld_it" },
+      { entity: "welld_it" },
+    ]);
+    harness.setResolve(async () => accountingPerms("welld_it"));
+    const token = await harness.signToken({ sub: "acct-1", email: "acct1@x.com" });
+
+    expect((await rejectLineReq(request.id, lines[0]!.id, token, "Duplicate")).status).toBe(200);
+    await decideRouter.request(`/review/requests/${request.id}/approve`, {
+      method: "POST",
+      headers: authHeaders(token),
+    });
+
+    expect((await rejectLineReq(request.id, lines[1]!.id, token, "Late")).status).toBe(409);
+    expect((await restoreLineReq(request.id, lines[0]!.id, token)).status).toBe(409);
+  });
+
+  it("(404) out-of-scope caller, or a line of another request", async () => {
+    const { request, lines } = await createSubmittedRequest([{ entity: "welld_ch" }]);
+    const other = await createSubmittedRequest([{ entity: "welld_it" }]);
+    harness.setResolve(async () => accountingPerms("welld_it"));
+    const token = await harness.signToken({ sub: "acct-1", email: "acct1@x.com" });
+
+    expect((await rejectLineReq(request.id, lines[0]!.id, token, "x")).status).toBe(404);
+    expect((await rejectLineReq(other.request.id, lines[0]!.id, token, "x")).status).toBe(404);
+  });
+
+  it("(422) a reason over 2000 characters is refused", async () => {
+    const { request, lines } = await createSubmittedRequest([{ entity: "welld_it" }]);
+    harness.setResolve(async () => accountingPerms("welld_it"));
+    const token = await harness.signToken({ sub: "acct-1", email: "acct1@x.com" });
+
+    expect((await rejectLineReq(request.id, lines[0]!.id, token, "x".repeat(2001))).status).toBe(422);
+  });
+});

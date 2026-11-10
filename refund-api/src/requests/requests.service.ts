@@ -42,6 +42,12 @@ export interface LineRow {
   readonly requestedAmountCents: number;
   readonly km: number | null;
   readonly approvedTotalCents: number | null;
+  // specs/007 amendment (2026-11-10) — line rejection. Optional because the
+  // lighter list/queue/batch selects never read it; `undefined` reads as
+  // "not rejected", exactly like `null`.
+  readonly rejectionReason?: string | null;
+  readonly rejectedAt?: Date | null;
+  readonly rejectedByEmail?: string | null;
   readonly attachments?: readonly {
     readonly id: string;
     readonly fileName: string;
@@ -216,6 +222,14 @@ export function mapLine(line: LineRow, requestStatus: string): RefundLineRespons
     requestedAmountCents: line.requestedAmountCents,
     km: line.km,
     approvedTotalCents: line.approvedTotalCents,
+    rejection:
+      line.rejectionReason != null
+        ? {
+            reason: line.rejectionReason,
+            rejectedAt: (line.rejectedAt ?? new Date(0)).toISOString(),
+            rejectedBy: { email: line.rejectedByEmail ?? "" },
+          }
+        : null,
     attachments: (line.attachments ?? []).map((a) => ({
       id: a.id,
       fileName: a.fileName,

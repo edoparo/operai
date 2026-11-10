@@ -35,7 +35,7 @@ vi.mock('../lib/requestsApi', async (importOriginal) => {
 
 vi.mock('../lib/reviewApi', async (importOriginal) => {
   const original = await importOriginal<typeof import('../lib/reviewApi')>()
-  return { ...original, setApprovedTotal: vi.fn(), approve: vi.fn(), reject: vi.fn() }
+  return { ...original, setApprovedTotal: vi.fn(), approve: vi.fn(), reject: vi.fn(), rejectLine: vi.fn(), restoreLine: vi.fn() }
 })
 
 vi.mock('../lib/attachmentsApi', async (importOriginal) => {
@@ -617,5 +617,92 @@ describe('ReviewDetailPage — decided (approved/rejected) read-only variant', (
     expect(screen.queryByTestId('monthly-processing-note')).toBeNull()
     expect(screen.queryByTestId('review-detail-approve')).toBeNull()
     expect(screen.queryByTestId('review-detail-reject')).toBeNull()
+  })
+})
+
+describe('ReviewDetailPage — line rejection (specs/007 amendment, 2026-11-10)', () => {
+  const rejection = { reason: 'No receipt', rejectedAt: '2026-07-15T10:00:00.000Z', rejectedBy: { email: 'acct@welld.ch' } }
+  const twoLines: RefundRequestDetail = {
+    ...baseRequest,
+    lines: [
+      baseRequest.lines[0]!,
+      { ...baseRequest.lines[0]!, id: 'line-2', motivo: 'Lunch', requestedAmountCents: 2500 },
+    ],
+  }
+
+  it('rejecting a line needs a reason; confirming calls reviewApi.rejectLine and reloads', async () => {
+    vi.mocked(requestsApi.get).mockResolvedValueOnce(twoLines).mockResolvedValueOnce({
+      ...twoLines,
+      lines: [{ ...twoLines.lines[0]!, approvedTotalCents: 0, rejection }, twoLines.lines[1]!],
+    })
+    vi.mocked(reviewApi.rejectLine).mockResolvedValue({ ...twoLines.lines[0]!, approvedTotalCents: 0, rejection })
+    renderReviewDetailPage()
+
+    fireEvent.click(await screen.findByTestId('row-line-1-reject'))
+    // Confirm with no reason: refused client-side, nothing sent.
+    fireEvent.click(screen.getByTestId('row-line-1-reject-dialog-confirm'))
+    expect(await screen.findByText('Enter the reason for rejecting this line.')).not.toBeNull()
+    expect(reviewApi.rejectLine).not.toHaveBeenCalled()
+
+    fireEvent.change(screen.getByTestId('row-line-1-reject-reason'), { target: { value: '  No receipt ' } })
+    fireEvent.click(screen.getByTestId('row-line-1-reject-dialog-confirm'))
+    await waitFor(() => expect(reviewApi.rejectLine).toHaveBeenCalledWith('req-1', 'line-1', 'No receipt'))
+
+    expect((await screen.findByTestId('row-line-1-rejection-reason')).textContent).toBe('No receipt')
+    expect(screen.getByTestId('row-line-1-rejected-badge')).not.toBeNull()
+    expect(screen.getByTestId('row-line-1-rejected-by').textContent).toBe('Rejected by acct@welld.ch')
+    // A rejected line has no approved-total input; the other line still does.
+    expect(screen.queryByTestId('row-line-1-approved-total')).toBeNull()
+    expect(screen.getByTestId('row-line-2-approved-total')).not.toBeNull()
+    expect(screen.queryByTestId('row-line-1-reject-dialog-confirm')).toBeNull()
+    // One line left: the request can still be approved.
+    expect(screen.getByTestId('review-detail-approve').getAttribute('aria-disabled')).not.toBe('true')
+  })
+
+  it('restore calls reviewApi.restoreLine', async () => {
+    vi.mocked(requestsApi.get).mockResolvedValue({
+      ...twoLines,
+      lines: [{ ...twoLines.lines[0]!, approvedTotalCents: 0, rejection }, twoLines.lines[1]!],
+    })
+    vi.mocked(reviewApi.restoreLine).mockResolvedValue(twoLines.lines[0]!)
+    renderReviewDetailPage()
+
+    fireEvent.click(await screen.findByTestId('row-line-1-restore'))
+    await waitFor(() => expect(reviewApi.restoreLine).toHaveBeenCalledWith('req-1', 'line-1'))
+  })
+
+  it('disables Approve, with the reason, when every line is rejected', async () => {
+    vi.mocked(requestsApi.get).mockResolvedValue({
+      ...baseRequest,
+      lines: [{ ...baseRequest.lines[0]!, approvedTotalCents: 0, rejection }],
+    })
+    renderReviewDetailPage()
+
+    const approve = await screen.findByTestId('review-detail-approve')
+    expect(approve.getAttribute('aria-disabled')).toBe('true')
+    expect(approve.getAttribute('title')).toBe('Every line is rejected — reject the request instead.')
+    fireEvent.click(approve)
+    expect(screen.queryByTestId('approve-dialog-modal')).toBeNull()
+    // Rejecting the whole request stays available.
+    expect((screen.getByTestId('review-detail-reject') as HTMLButtonElement).disabled).toBe(false)
+  })
+
+  it('an approved request shows the rejected line with its reason', async () => {
+    vi.mocked(requestsApi.get).mockResolvedValue({
+      ...twoLines,
+      status: 'approved',
+      decidedAt: '2026-07-16T00:00:00.000Z',
+      decidedBy: { email: 'acct@welld.ch' },
+      lines: [
+        { ...twoLines.lines[0]!, approvedTotalCents: 0, rejection },
+        { ...twoLines.lines[1]!, approvedTotalCents: 2500 },
+      ],
+      subtotals: [{ currency: 'EUR', requestedCents: 3500, approvedCents: 2500 }],
+    })
+    renderReviewDetailPage()
+
+    expect((await screen.findByTestId('row-line-1-rejection-reason')).textContent).toBe('No receipt')
+    expect(screen.queryByTestId('row-line-2-rejection')).toBeNull()
+    expect(screen.queryByTestId('row-line-1-restore')).toBeNull()
   })
 })

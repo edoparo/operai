@@ -57,6 +57,16 @@ export type MileageInfo = {
   snapshotted: boolean
 }
 
+/**
+ * specs/007 amendment (2026-11-10) — a reviewer refused THIS line (with a
+ * mandatory reason) instead of the whole request; its approved total is 0.
+ */
+export type LineRejection = {
+  reason: string
+  rejectedAt: string
+  rejectedBy: { email: string }
+}
+
 export type RefundLine = {
   id: string
   date: string
@@ -67,6 +77,8 @@ export type RefundLine = {
   requestedAmountCents: number
   km: number | null
   approvedTotalCents: number | null
+  /** Optional on the TYPE for the same reason as `mileage` below: a missing key reads as "not rejected". */
+  rejection?: LineRejection | null
   attachments: Attachment[]
   /**
    * Optional (not just nullable) on this TYPE so existing test fixtures

@@ -21,6 +21,8 @@ export type AuditAction =
   | "approved"
   | "rejected"
   | "approved_total_set"
+  | "line_rejected"
+  | "line_restored"
   | "batch_compiled"
   | "batch_paid"
   | "batch_discarded";

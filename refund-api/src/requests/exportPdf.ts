@@ -671,9 +671,15 @@ export async function renderRequestExportPdf(
         ? `${line.km ?? "—"} km × ${formatRatePerKm(applied.ratePerKm, applied.currency)} · valid from ${formatDate(applied.validFrom)}`
         : null;
       const descriptionLines = wrapText(line.motivo || "—", fonts.value, TYPE.value, COL.description - 8);
+      // specs/007 amendment (2026-11-10): a line refused on its own carries
+      // its reason beside it — an approved figure of 0 with no explanation
+      // is exactly the question this document exists to answer.
+      const detailRejection =
+        showsApprovedAmounts && line.rejection ? `Rejected: ${line.rejection.reason}` : null;
       const detailLines = [
         ...wrapText(detailTop, fonts.value, TYPE.small, COL.detail - 8),
         ...(detailRate ? wrapText(detailRate, fonts.value, TYPE.small, COL.detail - 8) : []),
+        ...(detailRejection ? wrapText(detailRejection, fonts.value, TYPE.small, COL.detail - 8) : []),
       ];
       const rowHeight = Math.max(descriptionLines.length * 11, detailLines.length * 9.5, 14) + 7;
 

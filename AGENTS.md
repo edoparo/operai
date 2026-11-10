@@ -349,6 +349,7 @@ Use these terms consistently in code, API contracts, and UI copy.
 | `entity` | The wellD legal entity a line belongs to — `welld_it` \| `welld_ch`; drives ABAC scope (ADR-0015) |
 | `batch` | A monthly payout compilation of approved requests — `compiled` \| `paid` \| `discarded` |
 | `mileage rate` | Per-entity, effective-dated €/km series; a `travel_km` line snapshots it at submit (ADR-0023) |
+| `line rejection` | A reviewer refuses ONE line of a `submitted` request, with a required reason: approved total 0, restorable until the request is decided, cleared on withdraw; a request whose every line is rejected cannot be approved (specs/007, 2026-11-10) |
 
 Money is always integer minor units (cents); mileage rates are integer micros (ADR-0025).
 

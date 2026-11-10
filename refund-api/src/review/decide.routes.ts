@@ -44,8 +44,18 @@ import {
   RequestIdParamSchema,
 } from "../requests/requests.schemas";
 import type { RequestDetail } from "../requests/requests.schemas";
-import { approveRequest, rejectRequest, setApprovedTotal } from "./decide.repo";
-import { ApprovedTotalBodySchema, RejectBodySchema } from "./decide.schemas";
+import {
+  approveRequest,
+  rejectLine,
+  rejectRequest,
+  restoreLine,
+  setApprovedTotal,
+} from "./decide.repo";
+import {
+  ApprovedTotalBodySchema,
+  RejectBodySchema,
+  RejectLineBodySchema,
+} from "./decide.schemas";
 import { approveRestrictedForCaller, scopeForReviewAction } from "./review.service";
 
 /**
@@ -165,12 +175,13 @@ const notFoundProblem = (path: string, detail: string) => ({
   instance: path,
 });
 
-const conflictProblem = (path: string, detail: string) => ({
+const conflictProblem = (path: string, detail: string, code?: string) => ({
   type: "https://httpstatuses.com/409",
   title: "Conflict",
   status: 409 as const,
   detail,
   instance: path,
+  ...(code ? { code } : {}),
 });
 
 const payloadTooLargeProblem = (path: string, limitBytes: number) => ({
@@ -233,6 +244,17 @@ decideRouter.use(
   }),
 );
 
+decideRouter.use(
+  "/review/requests/:id/lines/:lineId/reject",
+  bodyLimit({
+    maxSize: REJECT_BODY_SIZE_LIMIT,
+    onError: (c) =>
+      c.json(payloadTooLargeProblem(c.req.path, REJECT_BODY_SIZE_LIMIT), 413),
+  }),
+);
+
+decideRouter.use("/review/requests/:id/lines/:lineId/reject", jwtMiddleware);
+decideRouter.use("/review/requests/:id/lines/:lineId/reject", authzMiddleware);
 decideRouter.use("/review/requests/:id/lines/:lineId/approved-total", jwtMiddleware);
 decideRouter.use("/review/requests/:id/lines/:lineId/approved-total", authzMiddleware);
 decideRouter.use("/review/requests/:id/approve", jwtMiddleware);
@@ -325,7 +347,7 @@ decideRouter.openapi(setApprovedTotalRoute, async (c) => {
     return c.json(notFoundProblem(c.req.path, cause.error.message), 404);
   }
   if (cause._tag === "Fail" && cause.error instanceof ConflictError) {
-    return c.json(conflictProblem(c.req.path, cause.error.message), 409);
+    return c.json(conflictProblem(c.req.path, cause.error.message, cause.error.code), 409);
   }
   throw new Error("Unexpected database failure setting the approved total");
 });
@@ -370,7 +392,9 @@ const approveRoute = createRoute({
     },
     409: {
       content: { "application/json": { schema: ProblemSchema } },
-      description: "Request is not submitted (already decided)",
+      description:
+        "Request is not submitted (already decided), or every line is " +
+        "rejected (`code: all_lines_rejected`)",
     },
   },
 });
@@ -404,7 +428,7 @@ decideRouter.openapi(approveRoute, async (c) => {
       return c.json(notFoundProblem(c.req.path, cause.error.message), 404);
     }
     if (cause._tag === "Fail" && cause.error instanceof ConflictError) {
-      return c.json(conflictProblem(c.req.path, cause.error.message), 409);
+      return c.json(conflictProblem(c.req.path, cause.error.message, cause.error.code), 409);
     }
     throw new Error("Unexpected database failure approving refund request");
   }
@@ -486,7 +510,7 @@ decideRouter.openapi(rejectRoute, async (c) => {
       return c.json(notFoundProblem(c.req.path, cause.error.message), 404);
     }
     if (cause._tag === "Fail" && cause.error instanceof ConflictError) {
-      return c.json(conflictProblem(c.req.path, cause.error.message), 409);
+      return c.json(conflictProblem(c.req.path, cause.error.message, cause.error.code), 409);
     }
     throw new Error("Unexpected database failure rejecting refund request");
   }
@@ -496,4 +520,136 @@ decideRouter.openapi(rejectRoute, async (c) => {
   await notifyDecisionBestEffort(detail.owner.userId, id, "rejected");
   await emailDecisionBestEffort(detail, "rejected");
   return c.json(detail, 200);
+});
+
+// ─── POST/DELETE /review/requests/:id/lines/:lineId/reject ────────────────
+//
+// specs/007 amendment (2026-11-10): reject ONE line, with a mandatory
+// reason, instead of the whole request — and take it back while the
+// request is still `submitted`. Gated on `request:reject`: refusing a line
+// is a rejection, and the reason is what the employee is told.
+
+const lineRejectionResponses = {
+  401: { description: "Missing or invalid Bearer JWT" },
+  403: {
+    content: { "application/json": { schema: ProblemSchema } },
+    description: "Caller lacks the `request:reject` capability",
+  },
+  404: {
+    content: { "application/json": { schema: ProblemSchema } },
+    description:
+      "Not found, out of the caller's entity scope, or the line does not belong to the request",
+  },
+  409: {
+    content: { "application/json": { schema: ProblemSchema } },
+    description:
+      "Request is not submitted, or the line is already in the requested state " +
+      "(`code: line_rejected` / `line_not_rejected`)",
+  },
+} as const;
+
+const rejectLineRoute = createRoute({
+  method: "post",
+  path: "/review/requests/{id}/lines/{lineId}/reject",
+  tags: ["Review"],
+  summary: "Reject one line of a submitted request (accounting review)",
+  description:
+    "Requires a non-empty `reason` (422 otherwise). Sets the line's approved " +
+    "total to 0 and records who rejected it and why. Submitted-only (409 " +
+    "otherwise), entity-scoped (404 if out of scope). Writes a " +
+    "'line_rejected' audit row. Approving a request whose every line is " +
+    "rejected is refused with 409 `code: all_lines_rejected`.",
+  security: [{ Bearer: [] }],
+  request: {
+    params: LineIdParamSchema,
+    body: {
+      required: true,
+      content: { "application/json": { schema: RejectLineBodySchema } },
+    },
+  },
+  responses: {
+    200: {
+      content: { "application/json": { schema: RefundLineResponseSchema } },
+      description: "Line rejected",
+    },
+    ...lineRejectionResponses,
+    422: {
+      content: { "application/json": { schema: ProblemSchema } },
+      description: "Empty (or whitespace-only) or over-long reason",
+    },
+  },
+});
+
+const restoreLineRoute = createRoute({
+  method: "delete",
+  path: "/review/requests/{id}/lines/{lineId}/reject",
+  tags: ["Review"],
+  summary: "Withdraw a line rejection (accounting review)",
+  description:
+    "Clears the line's rejection and returns its approved total to untouched " +
+    "(approve defaults it to the requested amount). Submitted-only (409 " +
+    "otherwise), entity-scoped (404 if out of scope). Writes a " +
+    "'line_restored' audit row.",
+  security: [{ Bearer: [] }],
+  request: { params: LineIdParamSchema },
+  responses: {
+    200: {
+      content: { "application/json": { schema: RefundLineResponseSchema } },
+      description: "Line restored",
+    },
+    ...lineRejectionResponses,
+  },
+});
+
+decideRouter.openapi(rejectLineRoute, async (c) => {
+  const sub = c.get("userId");
+  const email = c.get("email");
+  const { id, lineId } = c.req.valid("param");
+  const { reason } = c.req.valid("json");
+
+  const scope = scopeForReviewAction(c.get("authz"), "reject");
+  if (scope === undefined) {
+    return c.json(
+      forbiddenProblem(c.req.path, "You do not have permission to reject refund lines"),
+      403,
+    );
+  }
+
+  const exit = await Effect.runPromiseExit(rejectLine(id, lineId, reason, scope, sub, email));
+  if (exit._tag === "Success") return c.json(mapLine(exit.value, "submitted"), 200);
+
+  const cause = exit.cause;
+  if (cause._tag === "Fail" && cause.error instanceof NotFoundError) {
+    return c.json(notFoundProblem(c.req.path, cause.error.message), 404);
+  }
+  if (cause._tag === "Fail" && cause.error instanceof ConflictError) {
+    return c.json(conflictProblem(c.req.path, cause.error.message, cause.error.code), 409);
+  }
+  throw new Error("Unexpected database failure rejecting the refund line");
+});
+
+decideRouter.openapi(restoreLineRoute, async (c) => {
+  const sub = c.get("userId");
+  const email = c.get("email");
+  const { id, lineId } = c.req.valid("param");
+
+  const scope = scopeForReviewAction(c.get("authz"), "reject");
+  if (scope === undefined) {
+    return c.json(
+      forbiddenProblem(c.req.path, "You do not have permission to reject refund lines"),
+      403,
+    );
+  }
+
+  const exit = await Effect.runPromiseExit(restoreLine(id, lineId, scope, sub, email));
+  if (exit._tag === "Success") return c.json(mapLine(exit.value, "submitted"), 200);
+
+  const cause = exit.cause;
+  if (cause._tag === "Fail" && cause.error instanceof NotFoundError) {
+    return c.json(notFoundProblem(c.req.path, cause.error.message), 404);
+  }
+  if (cause._tag === "Fail" && cause.error instanceof ConflictError) {
+    return c.json(conflictProblem(c.req.path, cause.error.message, cause.error.code), 409);
+  }
+  throw new Error("Unexpected database failure restoring the refund line");
 });

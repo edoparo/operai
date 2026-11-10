@@ -127,6 +127,16 @@ export const MileageInfoSchema = z.object({
 });
 export type MileageInfo = z.infer<typeof MileageInfoSchema>;
 
+// specs/007 amendment (2026-11-10) — a reviewer refused THIS line (with a
+// mandatory reason) instead of the whole request. `null` for a line that was
+// not rejected. A rejected line's `approvedTotalCents` is 0.
+export const LineRejectionSchema = z.object({
+  reason: z.string(),
+  rejectedAt: z.string().datetime(),
+  rejectedBy: z.object({ email: z.string() }),
+});
+export type LineRejection = z.infer<typeof LineRejectionSchema>;
+
 export const RefundLineResponseSchema = z.object({
   id: z.string(),
   date: z.string(), // YYYY-MM-DD
@@ -137,6 +147,7 @@ export const RefundLineResponseSchema = z.object({
   requestedAmountCents: z.number().int(),
   km: z.number().int().nullable(),
   approvedTotalCents: z.number().int().nullable(),
+  rejection: LineRejectionSchema.nullable(),
   attachments: z.array(AttachmentResponseSchema),
   mileage: MileageInfoSchema.nullable(),
 });

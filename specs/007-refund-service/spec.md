@@ -31,6 +31,15 @@ done: 2026-07-16
   differed. The approved figure now stands alone where accounting left it untouched, and
   expands to "154,00 CHF (requested 180,00, −26,00)" only where it did not. Only the
   presentation changes; both values remain on the wire and in the API contract. See AC-3.2.
+- **2026-11-10 (post-close):** accounting can reject a SINGLE expense line instead of the
+  whole request, and must give a reason for it. A rejected line pays nothing (its approved
+  total is 0), keeps its reason and who rejected it, and can be restored while the request
+  is still `submitted`; once the request is decided it is terminal like every other review
+  figure. A request whose every line is rejected cannot be approved — it must be rejected
+  as a whole. Withdrawing a request back to `draft` clears its line rejections (the next
+  submit starts a fresh review). Adds AC-7.7–7.10 and extends AC-8.1; `request:reject`
+  gates it, no new permission. Decided records show the rejected line with its reason to
+  the employee (AC-3.2) and in the archive export.
 
 ## Problem
 
@@ -343,6 +352,22 @@ that the outcome is precise, traceable, and every rejection is explained.
   decision applies to the WHOLE request, including any lines for an entity outside their
   own scope — an accounting user is never restricted to deciding only the subset of lines
   matching their own scope; decisions are never partial by entity.
+- AC-7.7 (2026-11-10): Given a `submitted` request, when an accounting user holding
+  `request:reject` rejects one of its lines, then they must supply a non-empty reason
+  before the rejection is accepted; the line's approved total becomes 0 and the reason,
+  the rejecting user's identity and the timestamp are recorded on the line. The request
+  itself stays `submitted`.
+- AC-7.8 (2026-11-10): Given a rejected line on a `submitted` request, when the
+  accounting user restores it, then the rejection is cleared and the line's approved total
+  returns to untouched (defaulting to the requested amount on approve, AC-7.2). A rejected
+  line's approved total cannot be edited until it is restored.
+- AC-7.9 (2026-11-10): Given a `submitted` request whose every line is rejected, when an
+  accounting user tries to approve it, then the approval is refused — the request must be
+  rejected as a whole (AC-7.3).
+- AC-7.10 (2026-11-10): Given an `approved` or `paid` request with a rejected line, when
+  the employee or accounting views it (or exports it), then the line is marked as rejected
+  and shows its reason. Line rejections are terminal with the decision (AC-7.4), and a
+  withdraw back to `draft` (AC-2.2) clears them.
 
 ### US-8: Financial audit trail of accounting decisions
 
@@ -353,7 +378,8 @@ the fact.
 **Acceptance criteria:**
 - AC-8.1: Given a request transitions to `submitted`, `approved`, or `rejected`, is
   withdrawn back to `draft` (US-2, AC-2.2), or any expense line's approved total is
-  set/changed during review, then an audit entry is recorded capturing the actor,
+  set/changed during review, or a line is rejected or restored (AC-7.7/7.8, 2026-11-10),
+  then an audit entry is recorded capturing the actor,
   timestamp, the affected request/line, and what changed (including the rejection
   motivation, when applicable).
 - AC-8.2: Given a recorded audit entry, when accessed through the system, then it cannot

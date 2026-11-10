@@ -101,6 +101,11 @@ enum AuditAction {
   approved
   rejected
   approved_total_set
+  // A reviewer rejected ONE line (with a mandatory reason) or took that
+  // rejection back while the request was still `submitted` — lineId set,
+  // detail { reason } / { reason } of the rejection being withdrawn.
+  line_rejected
+  line_restored
   batch_compiled
   batch_paid
   batch_discarded
@@ -281,6 +286,17 @@ model RefundLine {
   // expense type without a partial/conditional column.
   km                   Int?
   approvedTotalCents   Int?
+
+  // ─── Line rejection (specs/007 amendment, 2026-11-10) ───────────────────
+  // A reviewer may refuse ONE line instead of the whole request. Non-null
+  // `rejectionReason` IS the rejected state (all four set together, cleared
+  // together on restore or withdraw-to-draft); a rejected line's
+  // `approvedTotalCents` is 0, so every existing consumer of the approved
+  // figure (subtotals, batch PDF, export, email) already pays nothing for it.
+  rejectionReason      String?
+  rejectedAt           DateTime?
+  rejectedByUserId     String?
+  rejectedByEmail      String?
 
   // ─── specs/009-mileage-rate: applied-rate snapshot (Decision 1) ──────────
   // All three are non-null ONLY once this line's containing request has ever

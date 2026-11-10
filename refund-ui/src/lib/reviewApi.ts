@@ -68,3 +68,15 @@ export const approve = (id: string): Promise<RefundRequestDetail> =>
 /** `POST /review/requests/:id/reject` — requires non-empty `motivation` (422 if empty, AC-7.3; client disables until non-empty as defense-in-depth's first line). */
 export const reject = (id: string, motivation: string): Promise<RefundRequestDetail> =>
   sendJson<RefundRequestDetail>(`/review/requests/${id}/reject`, 'POST', { motivation })
+
+/**
+ * `POST /review/requests/:id/lines/:lineId/reject` — refuse ONE line with a
+ * non-empty `reason` (422 if empty); its approved total becomes 0. Submitted-
+ * only (409 once decided). specs/007 amendment, 2026-11-10.
+ */
+export const rejectLine = (id: string, lineId: string, reason: string): Promise<RefundLine> =>
+  sendJson<RefundLine>(`/review/requests/${id}/lines/${lineId}/reject`, 'POST', { reason })
+
+/** `DELETE /review/requests/:id/lines/:lineId/reject` — take a line rejection back while the request is still submitted. */
+export const restoreLine = (id: string, lineId: string): Promise<RefundLine> =>
+  sendJson<RefundLine>(`/review/requests/${id}/lines/${lineId}/reject`, 'DELETE', undefined)

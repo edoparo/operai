@@ -55,6 +55,13 @@
  *     carries a full, row-identity `aria-label` ("Approved total for {date}
  *     · {motivo} · {currency}") per design.md's Accessibility section, since
  *     accounting tabs through many otherwise-identical inputs by role.
+ *     **Line rejection (specs/007 amendment, 2026-11-10):** beside the input,
+ *     a "Reject line" trigger opens a `ConfirmDialog` that REQUIRES a reason;
+ *     a rejected line replaces the input with its reason, who rejected it,
+ *     and a "Restore line" action (reversible until the request is decided).
+ *   - A rejected line also shows its status badge and reason in
+ *     `readOnlyApproved` (the decided record both sides read); its approved
+ *     figure is 0, so the amount column already says "nothing paid".
  *
  * `registerRef` lets the parent (`RequestDetailPage`/`ReviewDetailPage`)
  * capture this row's container node so `SubmitValidationSummary`'s jump
@@ -87,7 +94,16 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react'
 import type { FocusEvent } from 'react'
-import { Button, DateInput, Field, Icon, MoneyInput, listRowClassName } from '@operai/ui'
+import {
+  Button,
+  ConfirmDialog,
+  DateInput,
+  Field,
+  Icon,
+  MoneyInput,
+  StatusBadge,
+  listRowClassName,
+} from '@operai/ui'
 import { strings } from '../strings'
 import { EXPENSE_TYPES, expenseTypeLabel, requiresKm } from '../lib/expenseTypes'
 import type { ExpenseType } from '../lib/expenseTypes'
@@ -138,6 +154,10 @@ export type ExpenseLineRowProps = {
   onDownloadAttachment: (attachmentId: string) => Promise<{ url: string }>
   /** Required in `review` mode — `PUT .../lines/:lineId/approved-total`, fired only on an actual edit (see this file's `review` mode doc above). */
   onApprovedTotalChange?: (cents: number) => Promise<void>
+  /** `review` mode — `POST .../lines/:lineId/reject` with the required reason. Without it, no "Reject line" control is offered. */
+  onRejectLine?: (reason: string) => Promise<void>
+  /** `review` mode — `DELETE .../lines/:lineId/reject`, taking the rejection back. */
+  onRestoreLine?: () => Promise<void>
 }
 
 const ENTITY_OPTIONS: Entity[] = ['welld_it', 'welld_ch']
@@ -165,12 +185,15 @@ export default function ExpenseLineRow({
   onRemoveAttachment,
   onDownloadAttachment,
   onApprovedTotalChange,
+  onRejectLine,
+  onRestoreLine,
 }: ExpenseLineRowProps) {
   const t = strings.pages.requestDetail.lines
   const composerStrings = strings.pages.requestDetail.composer
   const badgeStrings = strings.badges.entity
   const currencyStrings = strings.badges.currency
   const reviewStrings = strings.pages.reviewDetail.approvedTotal
+  const rejectStrings = strings.pages.reviewDetail.lineReject
 
   const [draft, setDraft] = useState<LineDraftValue>(() => lineToDraft(line))
   const committedRef = useRef<LineDraftValue>(lineToDraft(line))
@@ -206,6 +229,16 @@ export default function ExpenseLineRow({
   const [approvedSaving, setApprovedSaving] = useState(false)
   const [approvedError, setApprovedError] = useState<string | null>(null)
 
+  // `review` mode only — the line-rejection dialog (reason required) and the
+  // restore action (specs/007 amendment, 2026-11-10).
+  const [rejectOpen, setRejectOpen] = useState(false)
+  const [rejectReason, setRejectReason] = useState('')
+  const [rejectReasonError, setRejectReasonError] = useState<string | undefined>(undefined)
+  const [rejectBusy, setRejectBusy] = useState(false)
+  const [rejectError, setRejectError] = useState<string | null>(null)
+  const [restoreBusy, setRestoreBusy] = useState(false)
+  const [restoreError, setRestoreError] = useState<string | null>(null)
+
   const setContainerRef = (node: HTMLDivElement | null) => {
     containerRef.current = node
     registerRef?.(node)
@@ -240,6 +273,43 @@ export default function ExpenseLineRow({
       setApprovedError(err instanceof ApiError ? (err.detail ?? err.title) : reviewStrings.updateError)
     } finally {
       setApprovedSaving(false)
+    }
+  }
+
+  const openRejectDialog = () => {
+    setRejectReason('')
+    setRejectReasonError(undefined)
+    setRejectError(null)
+    setRejectOpen(true)
+  }
+
+  const confirmRejectLine = async () => {
+    const reason = rejectReason.trim()
+    if (reason.length === 0) {
+      setRejectReasonError(rejectStrings.reasonRequired)
+      return
+    }
+    setRejectBusy(true)
+    setRejectError(null)
+    try {
+      await onRejectLine?.(reason)
+      setRejectOpen(false)
+    } catch (err) {
+      setRejectError(err instanceof ApiError ? (err.detail ?? err.title) : rejectStrings.updateError)
+    } finally {
+      setRejectBusy(false)
+    }
+  }
+
+  const restoreLine = async () => {
+    setRestoreBusy(true)
+    setRestoreError(null)
+    try {
+      await onRestoreLine?.()
+    } catch (err) {
+      setRestoreError(err instanceof ApiError ? (err.detail ?? err.title) : rejectStrings.updateError)
+    } finally {
+      setRestoreBusy(false)
     }
   }
 
@@ -366,6 +436,11 @@ export default function ExpenseLineRow({
   // showing different answers for the same request would be worse than either
   // being wrong alone.
   const approvedAmount = describeApprovedAmount(line.requestedAmountCents, line.approvedTotalCents, line.currency)
+  // A line refused on its own (specs/007 amendment, 2026-11-10). Shown to the
+  // reviewer while deciding and on the decided record; a still-submitted
+  // request's employee view (`readOnly`) does not show an unfinished review.
+  const rejection = line.rejection ?? null
+  const showRejection = rejection !== null && (mode === 'review' || mode === 'readOnlyApproved')
 
   /**
    * AMOUNTS ARE A COLUMN, not a value embedded in a sentence.
@@ -419,6 +494,11 @@ export default function ExpenseLineRow({
           <span className="text-text">{typeLabel(line.type)}</span>
           <EntityBadge entity={line.entity} />
           <CurrencyBadge currency={line.currency} />
+          {showRejection && (
+            <StatusBadge status="failed" data-testid={`row-${line.id}-rejected-badge`}>
+              {t.rejectedBadge}
+            </StatusBadge>
+          )}
           {line.km !== null && (
             <span className="text-soft">
               {mileage?.appliedRate
@@ -428,6 +508,14 @@ export default function ExpenseLineRow({
           )}
         </div>
         <p className="text-sm text-text">{line.motivo}</p>
+        {showRejection && rejection && (
+          <dl className="flex flex-col gap-0.5 text-sm" data-testid={`row-${line.id}-rejection`}>
+            <dt className="text-xs font-medium text-red-text">{t.rejectionReasonLabel}</dt>
+            <dd className="text-text" data-testid={`row-${line.id}-rejection-reason`}>
+              {rejection.reason}
+            </dd>
+          </dl>
+        )}
         {/* specs/009-mileage-rate AC-6.4 — the applied rate + valid-from.
             `appliedRate` is non-null only once a travel_km line has ever been
             submitted under this feature (Decision 1); a legacy pre-feature
@@ -534,8 +622,35 @@ export default function ExpenseLineRow({
       >
         {summaryCore}
 
-        {mode === 'review' && (
-          <div className="flex items-center gap-2">
+        {mode === 'review' && rejection !== null && (
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <span className="text-2xs text-soft" data-testid={`row-${line.id}-rejected-by`}>
+              {rejectStrings.rejectedBy(rejection.rejectedBy.email)}
+            </span>
+            <div className="flex items-center gap-2">
+              {restoreError && (
+                <span role="alert" className="text-xs text-red-text" data-testid={`row-${line.id}-restore-error`}>
+                  {restoreError}
+                </span>
+              )}
+              {onRestoreLine && (
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  busy={restoreBusy}
+                  onClick={() => void restoreLine()}
+                  aria-label={rejectStrings.restoreButtonLabel(line.motivo)}
+                  data-testid={`row-${line.id}-restore`}
+                >
+                  {rejectStrings.restoreButton}
+                </Button>
+              )}
+            </div>
+          </div>
+        )}
+
+        {mode === 'review' && rejection === null && (
+          <div className="flex flex-wrap items-center gap-2">
             <span aria-hidden="true" className="text-xs font-medium text-soft">
               {reviewStrings.label}
             </span>
@@ -562,7 +677,65 @@ export default function ExpenseLineRow({
                 {approvedError}
               </span>
             )}
+            {onRejectLine && (
+              <Button
+                variant="ghost"
+                size="sm"
+                className="ml-auto"
+                aria-haspopup="dialog"
+                onClick={openRejectDialog}
+                aria-label={rejectStrings.rejectButtonLabel(line.motivo)}
+                data-testid={`row-${line.id}-reject`}
+              >
+                {rejectStrings.rejectButton}
+              </Button>
+            )}
           </div>
+        )}
+
+        {rejectOpen && (
+          <ConfirmDialog
+            title={rejectStrings.dialogTitle}
+            confirmLabel={rejectStrings.confirmLabel}
+            busyLabel={rejectStrings.busyLabel}
+            cancelLabel={rejectStrings.cancelLabel}
+            closeLabel={rejectStrings.closeLabel}
+            busy={rejectBusy}
+            error={rejectError}
+            onConfirm={() => void confirmRejectLine()}
+            onCancel={() => setRejectOpen(false)}
+            testIdPrefix={`row-${line.id}-reject-dialog`}
+            fields={
+              <Field
+                label={rejectStrings.reasonLabel}
+                hint={rejectStrings.reasonHelp}
+                error={rejectReasonError}
+                required
+              >
+                {(control) => (
+                  <textarea
+                    {...control}
+                    rows={3}
+                    maxLength={2000}
+                    value={rejectReason}
+                    onChange={(e) => {
+                      setRejectReason(e.target.value)
+                      if (rejectReasonError) setRejectReasonError(undefined)
+                    }}
+                    data-testid={`row-${line.id}-reject-reason`}
+                  />
+                )}
+              </Field>
+            }
+          >
+            <p>
+              {rejectStrings.dialogBody(
+                typeLabel(line.type),
+                line.motivo,
+                formatMoney(line.requestedAmountCents, line.currency),
+              )}
+            </p>
+          </ConfirmDialog>
         )}
 
         <AttachmentList

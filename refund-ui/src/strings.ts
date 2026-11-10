@@ -204,6 +204,13 @@ const en = {
         /** `summaryCore`'s new "Rate applied" row (specs/009-mileage-rate, T13/T14, AC-6.4) — shown whenever `line.mileage.appliedRate` is non-null, in every mode `summaryCore` renders in. */
         rateAppliedLabel: 'Rate applied',
         rateAppliedValue: (rate: string, validFrom: string) => `${rate} · valid from ${validFrom}`,
+        /**
+         * specs/007 amendment (2026-11-10) — a line the reviewer refused on its
+         * own. The badge is the line's status; the reason is what the employee
+         * is owed, shown under the motivo on every decided-and-paid render.
+         */
+        rejectedBadge: 'Line rejected',
+        rejectionReasonLabel: 'Reason for rejection',
         /** Replaces the "Requested" `<dd>`'s `formatMoney` call when a travel_km line's mileage is blocked (no rate configured, AC-2.2) — never a stale/zero amount. */
         mileageBlockedAmount: '—',
       },
@@ -310,6 +317,30 @@ const en = {
         updateError: 'Could not save this change. Try again.',
         invalidAmount: 'Enter a valid, non-negative amount.',
       },
+      /**
+       * specs/007 amendment (2026-11-10) — rejecting ONE line instead of the
+       * whole request. The reason is required: the employee is owed an
+       * explanation for every euro not reimbursed. Reversible until the
+       * request is decided ("Restore line").
+       */
+      lineReject: {
+        rejectButton: 'Reject line',
+        rejectButtonLabel: (motivo: string) => `Reject line “${motivo || NO_MOTIVO_FALLBACK}”`,
+        restoreButton: 'Restore line',
+        restoreButtonLabel: (motivo: string) => `Restore line “${motivo || NO_MOTIVO_FALLBACK}”`,
+        rejectedBy: (email: string) => `Rejected by ${email}`,
+        dialogTitle: 'Reject this expense line?',
+        dialogBody: (typeLabel: string, motivo: string, amount: string) =>
+          `“${typeLabel} — ${motivo || NO_MOTIVO_FALLBACK}” (${amount}) will not be reimbursed. The rest of the request stays under review, and you can restore the line until the request is decided.`,
+        reasonLabel: 'Reason for rejection',
+        reasonHelp: 'Required — the employee will see this explanation.',
+        reasonRequired: 'Enter the reason for rejecting this line.',
+        cancelLabel: 'Cancel',
+        closeLabel: 'Close',
+        confirmLabel: 'Reject line',
+        busyLabel: 'Rejecting…',
+        updateError: 'Could not update this line. Try again.',
+      },
       decide: {
         approveButton: 'Approve',
         rejectButton: 'Reject',
@@ -331,6 +362,8 @@ const en = {
          */
         selfApprovalTooltip: 'You cannot approve a refund request you submitted yourself.',
         selfApprovalForbiddenError: 'You cannot approve a refund request you submitted yourself.',
+        /** Every line is rejected: approving would pay nothing — the request must be rejected instead (refund-api 409 `all_lines_rejected`). */
+        allLinesRejectedTooltip: 'Every line is rejected — reject the request instead.',
       },
       approveDialog: {
         title: 'Approve this request?',
@@ -827,6 +860,8 @@ const it: Strings = {
         deletedToast: 'Spesa eliminata',
         rateAppliedLabel: 'Tariffa applicata',
         rateAppliedValue: (rate: string, validFrom: string) => `${rate} · valida dal ${validFrom}`,
+        rejectedBadge: 'Spesa rifiutata',
+        rejectionReasonLabel: 'Motivo del rifiuto',
         mileageBlockedAmount: '—',
       },
       totalsHeading: 'Totali',
@@ -917,6 +952,24 @@ const it: Strings = {
         updateError: 'Impossibile salvare la modifica. Riprovare.',
         invalidAmount: 'Inserire un importo valido, non negativo.',
       },
+      lineReject: {
+        rejectButton: 'Rifiuta spesa',
+        rejectButtonLabel: (motivo: string) => `Rifiuta la spesa «${motivo || NO_MOTIVO_FALLBACK_IT}»`,
+        restoreButton: 'Ripristina spesa',
+        restoreButtonLabel: (motivo: string) => `Ripristina la spesa «${motivo || NO_MOTIVO_FALLBACK_IT}»`,
+        rejectedBy: (email: string) => `Rifiutata da ${email}`,
+        dialogTitle: 'Rifiutare questa spesa?',
+        dialogBody: (typeLabel: string, motivo: string, amount: string) =>
+          `«${typeLabel} — ${motivo || NO_MOTIVO_FALLBACK_IT}» (${amount}) non verrà rimborsata. Il resto della richiesta resta in verifica ed è possibile ripristinare la spesa finché la richiesta non è decisa.`,
+        reasonLabel: 'Motivo del rifiuto',
+        reasonHelp: 'Obbligatorio: il dipendente vedrà questa spiegazione.',
+        reasonRequired: 'Indicare il motivo del rifiuto della spesa.',
+        cancelLabel: 'Annulla',
+        closeLabel: 'Chiudi',
+        confirmLabel: 'Rifiuta spesa',
+        busyLabel: 'Rifiuto in corso…',
+        updateError: 'Impossibile aggiornare la spesa. Riprovare.',
+      },
       decide: {
         approveButton: 'Approva',
         rejectButton: 'Rifiuta',
@@ -925,6 +978,7 @@ const it: Strings = {
         genericError: 'Impossibile registrare la decisione. Riprovare.',
         selfApprovalTooltip: 'Non è possibile approvare una richiesta di rimborso inviata da sé stessi.',
         selfApprovalForbiddenError: 'Non è possibile approvare una richiesta di rimborso inviata da sé stessi.',
+        allLinesRejectedTooltip: 'Tutte le spese sono rifiutate: rifiutare invece l’intera richiesta.',
       },
       approveDialog: {
         title: 'Approvare questa richiesta?',

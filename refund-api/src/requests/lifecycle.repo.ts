@@ -330,6 +330,21 @@ export function withdrawRequest(
                   appliedRateEntryId: null,
                 },
               });
+              // specs/007 amendment (2026-11-10) — a line rejected during a
+              // review that never concluded does not survive withdraw-to-
+              // draft: the employee may now edit the line, and the next
+              // submit starts a fresh review. Its approved figure (0) is
+              // cleared with it, so no stale zero lingers.
+              await tx.refundLine.updateMany({
+                where: { requestId, rejectionReason: { not: null } },
+                data: {
+                  rejectionReason: null,
+                  rejectedAt: null,
+                  rejectedByUserId: null,
+                  rejectedByEmail: null,
+                  approvedTotalCents: null,
+                },
+              });
               await writeAuditEntry(tx, {
                 requestId,
                 actorUserId: ownerUserId,

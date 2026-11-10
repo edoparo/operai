@@ -24,6 +24,7 @@ import {
   NotFoundError,
   SelfApprovalDeniedError,
 } from "../lib/errors";
+import type { Prisma } from "../lib/generated/prisma/client";
 import { lineInclude } from "../requests/lines.repo";
 import { writeAuditEntry } from "../requests/audit";
 import type { LineRow } from "../requests/requests.service";
@@ -34,6 +35,7 @@ const toDbErr = (message: string) => (cause: unknown) =>
 interface ScopeCheckLine {
   readonly id: string;
   readonly entity: string;
+  readonly rejectionReason: string | null;
 }
 interface ScopeCheckRow {
   readonly status: string;
@@ -55,7 +57,7 @@ function fetchScopeCheckRow(
         select: {
           status: true,
           ownerUserId: true,
-          lines: { select: { id: true, entity: true } },
+          lines: { select: { id: true, entity: true, rejectionReason: true } },
         },
       }),
     catch: toDbErr("Failed to look up refund request"),
@@ -104,10 +106,20 @@ export function setApprovedTotal(
       (
         row,
       ): Effect.Effect<LineRow, DatabaseError | NotFoundError | ConflictError> => {
-        const lineExists = row.lines.some((l) => l.id === lineId);
-        if (!lineExists) {
+        const line = row.lines.find((l) => l.id === lineId);
+        if (!line) {
           return Effect.fail(
             new NotFoundError({ message: `Refund line ${lineId} not found` }),
+          );
+        }
+        // A rejected line's approved figure is 0 by definition — changing it
+        // would silently half-undo the rejection. Restore the line first.
+        if (line.rejectionReason !== null) {
+          return Effect.fail(
+            new ConflictError({
+              message: "This line is rejected — restore it before changing its approved total",
+              code: "line_rejected",
+            }),
           );
         }
         return Effect.tryPromise({
@@ -277,6 +289,17 @@ export function approveRequest(
             }),
           );
         }
+        // specs/007 amendment (2026-11-10) — approving a request whose every
+        // line was rejected would put a zero payout into the monthly batch;
+        // that request is a rejection and must be decided as one.
+        if (row.lines.length > 0 && row.lines.every((l) => l.rejectionReason !== null)) {
+          return Effect.fail(
+            new ConflictError({
+              message: "Every line of this request is rejected — reject the request instead",
+              code: "all_lines_rejected",
+            }),
+          );
+        }
         return Effect.succeed(row);
       },
     ),
@@ -346,5 +369,156 @@ export function rejectRequest(
     Effect.flatMap(() =>
       rejectTransaction(requestId, actorUserId, actorEmail, motivation, actorName),
     ),
+  );
+}
+
+// ─── POST/DELETE .../lines/:lineId/reject (specs/007 amendment, 2026-11-10) ──
+//
+// A reviewer refuses ONE line, with a mandatory reason, instead of the whole
+// request. Same gate as every other decision mutation (entity scope → 404,
+// not submitted → 409), same re-asserted `status = submitted` inside the
+// transaction, same append-only audit row. The rejection sets the line's
+// approved total to 0, so approve, subtotals, the batch PDF and the export
+// pay nothing for it without knowing about rejection at all. Reversible
+// while the request is still `submitted` (restore), frozen once decided.
+
+function lineRejectionMutation(
+  requestId: string,
+  lineId: string,
+  scope: EntityScope | null,
+  expectRejected: boolean,
+  write: (
+    tx: Prisma.TransactionClient,
+    prior: { approvedTotalCents: number | null; rejectionReason: string | null },
+  ) => Promise<void>,
+  failure: string,
+): Effect.Effect<LineRow, DatabaseError | NotFoundError | ConflictError> {
+  return ensureInScopeSubmittedRequest(requestId, scope).pipe(
+    Effect.flatMap(
+      (row): Effect.Effect<LineRow, DatabaseError | NotFoundError | ConflictError> => {
+        const line = row.lines.find((l) => l.id === lineId);
+        if (!line) {
+          return Effect.fail(
+            new NotFoundError({ message: `Refund line ${lineId} not found` }),
+          );
+        }
+        if ((line.rejectionReason !== null) !== expectRejected) {
+          return Effect.fail(
+            new ConflictError({
+              message: expectRejected
+                ? "This line is not rejected"
+                : "This line is already rejected",
+              code: expectRejected ? "line_not_rejected" : "line_rejected",
+            }),
+          );
+        }
+        return Effect.tryPromise({
+          try: () =>
+            db.$transaction(async (tx) => {
+              const { count } = await tx.refundRequest.updateMany({
+                where: { id: requestId, status: "submitted" },
+                data: { updatedAt: new Date() },
+              });
+              if (count === 0) return null;
+              const prior = await tx.refundLine.findFirst({
+                where: { id: lineId, requestId },
+                select: { approvedTotalCents: true, rejectionReason: true },
+              });
+              if (!prior || (prior.rejectionReason !== null) !== expectRejected) return null;
+              await write(tx, prior);
+              return tx.refundLine.findUniqueOrThrow({
+                where: { id: lineId },
+                include: lineInclude,
+              });
+            }),
+          catch: toDbErr(failure),
+        }).pipe(
+          Effect.flatMap((updated) =>
+            updated
+              ? Effect.succeed(updated)
+              : Effect.fail(
+                  new ConflictError({
+                    message: "Refund request changed concurrently — retry",
+                  }),
+                ),
+          ),
+        );
+      },
+    ),
+  );
+}
+
+export function rejectLine(
+  requestId: string,
+  lineId: string,
+  reason: string,
+  scope: EntityScope | null,
+  actorUserId: string,
+  actorEmail: string,
+): Effect.Effect<LineRow, DatabaseError | NotFoundError | ConflictError> {
+  return lineRejectionMutation(
+    requestId,
+    lineId,
+    scope,
+    false,
+    async (tx, prior) => {
+      await tx.refundLine.update({
+        where: { id: lineId },
+        data: {
+          rejectionReason: reason,
+          rejectedAt: new Date(),
+          rejectedByUserId: actorUserId,
+          rejectedByEmail: actorEmail,
+          approvedTotalCents: 0,
+        },
+      });
+      await writeAuditEntry(tx, {
+        requestId,
+        lineId,
+        actorUserId,
+        actorEmail,
+        action: "line_rejected",
+        detail: { reason, fromCents: prior.approvedTotalCents },
+      });
+    },
+    "Failed to reject the refund line",
+  );
+}
+
+export function restoreLine(
+  requestId: string,
+  lineId: string,
+  scope: EntityScope | null,
+  actorUserId: string,
+  actorEmail: string,
+): Effect.Effect<LineRow, DatabaseError | NotFoundError | ConflictError> {
+  return lineRejectionMutation(
+    requestId,
+    lineId,
+    scope,
+    true,
+    async (tx, prior) => {
+      // Back to "untouched": approve will default it to the requested amount,
+      // and the reviewer may set a different figure as for any other line.
+      await tx.refundLine.update({
+        where: { id: lineId },
+        data: {
+          rejectionReason: null,
+          rejectedAt: null,
+          rejectedByUserId: null,
+          rejectedByEmail: null,
+          approvedTotalCents: null,
+        },
+      });
+      await writeAuditEntry(tx, {
+        requestId,
+        lineId,
+        actorUserId,
+        actorEmail,
+        action: "line_restored",
+        detail: { reason: prior.rejectionReason },
+      });
+    },
+    "Failed to restore the refund line",
   );
 }

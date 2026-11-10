@@ -30,6 +30,12 @@ export class ForbiddenError extends Data.TaggedError("ForbiddenError")<{
 export class ConflictError extends Data.TaggedError("ConflictError")<{
   readonly message: string;
   readonly cause?: unknown;
+  /**
+   * Optional stable discriminator surfaced as the Problem JSON `code`
+   * extension member, for a 409 the UI must tell apart from the generic
+   * "changed concurrently" one (e.g. `line_rejected`, `all_lines_rejected`).
+   */
+  readonly code?: string;
 }> {}
 
 /**
