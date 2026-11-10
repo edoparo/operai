@@ -234,6 +234,8 @@ export default function ExpenseLineRow({
   const [rejectOpen, setRejectOpen] = useState(false)
   const [rejectReason, setRejectReason] = useState('')
   const [rejectReasonError, setRejectReasonError] = useState<string | undefined>(undefined)
+  const [rejectReasonTouched, setRejectReasonTouched] = useState(false)
+  const rejectReasonRef = useRef<HTMLTextAreaElement>(null)
   const [rejectBusy, setRejectBusy] = useState(false)
   const [rejectError, setRejectError] = useState<string | null>(null)
   const [restoreBusy, setRestoreBusy] = useState(false)
@@ -279,6 +281,7 @@ export default function ExpenseLineRow({
   const openRejectDialog = () => {
     setRejectReason('')
     setRejectReasonError(undefined)
+    setRejectReasonTouched(false)
     setRejectError(null)
     setRejectOpen(true)
   }
@@ -286,7 +289,10 @@ export default function ExpenseLineRow({
   const confirmRejectLine = async () => {
     const reason = rejectReason.trim()
     if (reason.length === 0) {
+      // A submit that fails validation moves focus to the invalid field
+      // (design-system.md § Forms).
       setRejectReasonError(rejectStrings.reasonRequired)
+      rejectReasonRef.current?.focus()
       return
     }
     setRejectBusy(true)
@@ -678,8 +684,10 @@ export default function ExpenseLineRow({
               </span>
             )}
             {onRejectLine && (
+              /* Chosen by meaning (design-system.md § Buttons): refusing money is
+                 a rejection, the same `danger` as the request-level Reject. */
               <Button
-                variant="ghost"
+                variant="danger"
                 size="sm"
                 className="ml-auto"
                 aria-haspopup="dialog"
@@ -715,12 +723,21 @@ export default function ExpenseLineRow({
                 {(control) => (
                   <textarea
                     {...control}
+                    ref={rejectReasonRef}
                     rows={3}
                     maxLength={2000}
                     value={rejectReason}
                     onChange={(e) => {
                       setRejectReason(e.target.value)
+                      setRejectReasonTouched(true)
                       if (rejectReasonError) setRejectReasonError(undefined)
+                    }}
+                    onBlur={() => {
+                      // Validate on blur of a TOUCHED field only — leaving an
+                      // untouched empty field is not yet an error.
+                      if (rejectReasonTouched && rejectReason.trim().length === 0) {
+                        setRejectReasonError(rejectStrings.reasonRequired)
+                      }
                     }}
                     data-testid={`row-${line.id}-reject-reason`}
                   />

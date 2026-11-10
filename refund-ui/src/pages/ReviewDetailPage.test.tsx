@@ -643,6 +643,12 @@ describe('ReviewDetailPage — line rejection (specs/007 amendment, 2026-11-10)'
     fireEvent.click(screen.getByTestId('row-line-1-reject-dialog-confirm'))
     expect(await screen.findByText('Enter the reason for rejecting this line.')).not.toBeNull()
     expect(reviewApi.rejectLine).not.toHaveBeenCalled()
+    // A failed submit moves focus to the invalid field (design-system.md § Forms).
+    expect(document.activeElement).toBe(screen.getByTestId('row-line-1-reject-reason'))
+    // A stray click on the backdrop keeps the dialog — and what was typed.
+    fireEvent.change(screen.getByTestId('row-line-1-reject-reason'), { target: { value: 'draft' } })
+    fireEvent.click(screen.getByTestId('row-line-1-reject-dialog-backdrop'))
+    expect((screen.getByTestId('row-line-1-reject-reason') as HTMLTextAreaElement).value).toBe('draft')
 
     fireEvent.change(screen.getByTestId('row-line-1-reject-reason'), { target: { value: '  No receipt ' } })
     fireEvent.click(screen.getByTestId('row-line-1-reject-dialog-confirm'))

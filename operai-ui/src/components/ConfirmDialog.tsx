@@ -72,6 +72,9 @@ export function ConfirmDialog({
       title={title}
       describedBy={bodyId}
       onClose={onCancel}
+      // A dialog holding typed input ignores the backdrop, as FormDialog does:
+      // a stray click must not throw away a reason the user has written.
+      dismissOnBackdrop={!hasFields}
       closeLabel={closeLabel}
       busy={busy}
       initialFocusRef={hasFields ? undefined : cancelRef}

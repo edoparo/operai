@@ -122,6 +122,33 @@ describe('ConfirmDialog', () => {
     expect(screen.getByRole('textbox', { name: 'Reason' })).toBeDisabled()
   })
 
+  it('with fields: ignores the backdrop so typed input survives; Escape and Cancel still close', async () => {
+    const user = userEvent.setup()
+    const onCancel = vi.fn()
+    render(
+      <ConfirmDialog
+        {...confirmProps}
+        fields={
+          <label>
+            Reason <input name="reason" />
+          </label>
+        }
+        busy={false}
+        onConfirm={vi.fn()}
+        onCancel={onCancel}
+      >
+        Body
+      </ConfirmDialog>,
+    )
+    await user.type(screen.getByRole('textbox', { name: 'Reason' }), 'Duplicate')
+    await user.click(screen.getByTestId('confirm-dialog-backdrop'))
+    expect(onCancel).not.toHaveBeenCalled()
+    expect(screen.getByRole('textbox', { name: 'Reason' })).toHaveValue('Duplicate')
+
+    await user.keyboard('{Escape}')
+    expect(onCancel).toHaveBeenCalledTimes(1)
+  })
+
   it('traps Tab inside the dialog', async () => {
     const user = userEvent.setup()
     render(

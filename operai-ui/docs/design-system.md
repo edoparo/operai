@@ -249,7 +249,7 @@ Every dialog, through `useDialogBehavior`:
   element that opened it;
 - closes on Escape, the backdrop and × — **except while busy**, when it cannot
   be dismissed and its controls are disabled. A dialog holding typed input
-  (every `FormDialog`, or `Dialog` with `dismissOnBackdrop={false}`) ignores the
+  (every `FormDialog`, a `ConfirmDialog` with `fields`, or `Dialog` with `dismissOnBackdrop={false}`) ignores the
   backdrop: a stray click must not throw the input away. A click whose press
   started inside the dialog (a text selection released outside) never closes
   anything;
