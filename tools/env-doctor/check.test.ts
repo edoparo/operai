@@ -535,7 +535,7 @@ describe("env-doctor checker — meetings (specs/021)", () => {
       "estimai-api": { secret: CLIENT_SECRET_EST, scope: "notifications.push estimate-notices.send" },
       "refund-api": { secret: CLIENT_SECRET_REF, scope: "notifications.push emails.send" },
       // crm-api holds a client of its own since specs/025 (it reads projects-api), required in production.
-      "crm-api": { secret: "k".repeat(40), scope: "notifications.push emails.send projects.purchase-orders.read" },
+      "crm-api": { secret: "k".repeat(40), scope: "notifications.push emails.send deal-link-notices.send projects.purchase-orders.read" },
       "meetings-api": { secret, scope },
     });
 
@@ -969,14 +969,16 @@ describe("env-doctor checker — the projects hand-off keys (specs/025)", () => 
     expect(warns(f)).toEqual([]);
   });
 
-  test("SERVICE_AUDIENCE is required in production on estimai-api and projects-api, not locally", () => {
+  test("SERVICE_AUDIENCE is required in production on estimai-api and projects-api; locally only on estimai-api", () => {
     for (const svc of ["estimai-api", "projects-api"] as const) {
       const s = projectsSuite();
       delete s[svc]!.SERVICE_AUDIENCE;
       expect(errText(checkSuite(s, PROD))).toContain("SERVICE_AUDIENCE is missing");
       expect(checkSuite(s, PROD).some((x) => x.scope === svc && x.message === "SERVICE_AUDIENCE is missing")).toBe(true);
-      // local: the service starts without it (every /system/* request is a 401), so it is not flagged
-      expect(errText(checkSuite(s, LOCAL))).not.toContain("SERVICE_AUDIENCE is missing");
+      // local: projects-api starts without it (every /system/* request is a 401), so it is not flagged;
+      // estimai-api's is a required key everywhere since main's deal-link notices.
+      const flaggedLocally = checkSuite(s, LOCAL).some((x) => x.scope === svc && x.message === "SERVICE_AUDIENCE is missing");
+      expect(flaggedLocally).toBe(svc === "estimai-api");
     }
   });
 
