@@ -159,6 +159,12 @@ was not removed. The spec stays vendor-neutral; the body below is already update
   least the gap bound between segments (AC-6.12), and AC-6.12's "no notice is not a promise" applies
   in full. (d) The reply of the transcription is untrusted structure (as AC-7.9 for summaries): any
   reply that is not exactly the expected shape is sampled once more, then the transcription fails.
+- **A13 — decided by the user 2026-11-10 (AC-2.10, new AC-2.12):** while recording, the creator
+  wants to keep working elsewhere in Operai with the recorder always in sight, including the voice
+  coming in (the microphone) and going out (a shared call). Leaving the meeting's page no longer
+  asks or stops: a recorder widget follows the person on every page until the audio is saved, and
+  can be moved around the window's edge. Closing or reloading the tab still asks first (the audio
+  in the tab would be lost).
 
 ## Problem
 
@@ -338,8 +344,20 @@ so that I need no bot, no platform recording and no extra software.
   and saving resumes automatically on reconnection. If the tab closes or crashes before
   reconnection, the audio captured while offline is lost (AC-4.11 forbids keeping it on the
   device); the creator is told how much when they next open the meeting.
-- AC-2.10: Given a recording or unsaved audio, when the user navigates or closes the tab, then
-  the browser asks for confirmation first.
+- AC-2.10: Given a recording or unsaved audio, when the user closes or reloads the tab, then
+  the browser asks for confirmation first. Moving elsewhere in Operai asks nothing and does not
+  stop the recording (AC-2.12); only where the suite cannot show the recorder widget does an
+  in-app navigation ask first, and a confirmed leave stops and saves. (A13)
+- AC-2.12: Given a recording or unsaved audio in this tab, when the user leaves the meeting's page
+  for any other page of Operai, then the recording goes on and a recorder widget stays visible
+  above every page until the audio is saved: whether it is recording, paused or saving, the
+  recorded time, how loud the microphone ("in") and, when a tab is shared, the shared tab ("out")
+  are, Pause / Resume, Stop, and a way back to the meeting. The widget rests on the edge of the
+  window, out of the header and footer, and can be moved around that edge by dragging or with the
+  arrow keys. If the widget cannot be shown, the suite still shows that a recording is in progress,
+  with the way back to it: a microphone in use is never invisible. Back on the meeting's page the
+  page takes over and the widget goes away. Once saved it closes by itself; a failure stays until
+  closed. (A13)
 - AC-2.11: Given a recording that reaches 3 hours, then it is warned 10 minutes before,
   and at 3 hours it stops by itself, is saved, and is processed. Only one device can record a
   given meeting at a time; a second attempt is refused with a message.

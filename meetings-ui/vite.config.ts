@@ -47,6 +47,7 @@ export default defineConfig({
         './App': './src/App.tsx',
         './MyMeetings': './src/MyMeetings.tsx',
         './HostMeetings': './src/host/HostMeetings.tsx',
+        './RecorderDock': './src/dock/RecorderDock.tsx',
         './version': './src/version.ts',
       },
       remotes: {

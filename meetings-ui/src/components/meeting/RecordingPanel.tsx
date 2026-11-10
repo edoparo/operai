@@ -17,6 +17,7 @@ import * as shellSession from 'shell/session'
 import { captureOptions, detectCapabilities, readEnvironment } from '../../capture/capabilities'
 import type { CaptureSource } from '../../capture/capabilities'
 import { beginRecording, getRecordingSession } from '../../capture/session'
+import { canHandOff, handOffToDock, isAtStake, takeBackFromDock } from '../../dock/handoff'
 import type { RecordingSession, SessionAnnouncement, SessionFailure, SessionSnapshot } from '../../capture/session'
 import { errorMessage, statusOf } from '../../lib/errors'
 import { getMeeting, updateMeeting } from '../../lib/meetingsApi'
@@ -96,10 +97,21 @@ export default function RecordingPanel({ meeting, onChanged }: RecordingPanelPro
   // What the live region says: the session's latest announcement (decided per step, see SessionAnnouncement).
   const announcement = announcementText(snapshot?.announcement ?? null)
 
-  // A panel that goes away while recording (a confirmed leave) stops and saves; a re-mount in the same tick keeps going.
+  // A panel that goes away while recording hands the session to the recorder widget (spec A13), which keeps it
+  // going; with a shell that has no widget slot, a confirmed leave stops and saves, as before. A re-mount in the
+  // same tick keeps going either way. Coming back to the meeting takes the session back from the widget.
+  const titleRef = useRef(meeting.title)
   useEffect(() => {
-    session?.attach()
-    return () => session?.detach()
+    titleRef.current = meeting.title
+  })
+  useEffect(() => {
+    if (!session) return
+    session.attach()
+    takeBackFromDock(session.meetingId)
+    return () => {
+      if (isAtStake(session.getSnapshot())) handOffToDock(session, titleRef.current)
+      session.detach()
+    }
   }, [session])
 
   // Leaving the page while audio is at stake: the browser's prompt, and the shell's for in-app navigation.
@@ -113,7 +125,8 @@ export default function RecordingPanel({ meeting, onChanged }: RecordingPanelPro
       event.returnValue = ''
     }
     window.addEventListener('beforeunload', onBeforeUnload)
-    const release = registerBlocker(stillBlocking, t.leaveMessage)
+    // With the recorder widget, moving elsewhere in Operai keeps recording: nothing to confirm (spec A13).
+    const release = canHandOff() ? noop : registerBlocker(stillBlocking, t.leaveMessage)
     return () => {
       window.removeEventListener('beforeunload', onBeforeUnload)
       release()

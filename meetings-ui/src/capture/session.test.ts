@@ -554,6 +554,26 @@ describe('leaving (AC-2.10)', () => {
     expect(paths('POST /meetings/m1/recording/stop')).toHaveLength(1)
   })
 
+  it('holders are counted (spec A13): the panel can hand the session to the widget without it stopping', async () => {
+    const { session } = setup()
+    await session.start()
+    await advance(10_000)
+    session.attach() // the panel
+    session.attach() // the widget takes it
+    session.detach() // the panel goes away
+    await advance(1_000)
+    expect(session.getSnapshot().phase).toBe('recording')
+    session.detach() // the widget lets go: nobody shows it any more
+    await advance(1)
+    await advance(5_000)
+    expect(session.getSnapshot().phase).toBe('done')
+  })
+
+  it('levels are null before the pipeline exists', () => {
+    const { session } = setup()
+    expect(session.levels()).toEqual({ input: null, output: null })
+  })
+
   it('a panel that goes away while the browser is still asking cancels the start and keeps no device', async () => {
     let release: (stream: MediaStream) => void = () => undefined
     const pending = new Promise<MediaStream>((resolve) => (release = resolve))

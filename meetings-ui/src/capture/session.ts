@@ -32,7 +32,7 @@
 import { detectCapabilities, readEnvironment } from './capabilities'
 import type { CaptureCapabilities, CaptureSource } from './capabilities'
 import { createMixer, MIC_CONSTRAINTS, TAB_CONSTRAINTS } from './mixer'
-import type { AudioContextLike, AudioMixer, TabAudioLostReason } from './mixer'
+import type { AudioContextLike, AudioLevels, AudioMixer, TabAudioLostReason } from './mixer'
 import { UPLOAD_BACKOFF, MAX_CAPTURED_MS, createUploader, isFatalUploadError } from './uploader'
 import type { Uploader, UploaderApi } from './uploader'
 import { ApiError } from '../lib/api'
@@ -127,14 +127,7 @@ export type SessionFailure = {
 
 /** What the live region says about a step of the session (design.md § Accessibility › Recording). */
 export type AnnouncementKind =
-  | 'started'
-  | 'paused'
-  | 'resumed'
-  | 'stopped'
-  | 'autoStopped'
-  | 'saved'
-  | 'restored'
-  | 'progress'
+  'started' | 'paused' | 'resumed' | 'stopped' | 'autoStopped' | 'saved' | 'restored' | 'progress'
 
 /**
  * The latest announcement-worthy step. It is decided HERE, at each `patch`, not by comparing two
@@ -225,9 +218,14 @@ export type RecordingSession = {
   resume: () => Promise<void>
   /** Stops, saves everything and calls `recording/stop`. Resolves when done or failed. */
   stop: () => Promise<void>
-  /** A panel is showing this session: cancels a pending leave. */
+  /** How loud the microphone ("in") and the shared tab ("out") are right now; nulls when not recording. */
+  levels: () => AudioLevels
+  /**
+   * Something is showing this session (the recording panel, the recorder widget, spec A13): cancels a pending
+   * leave. Holders are COUNTED, so the panel can hand the session to the widget without it stopping.
+   */
   attach: () => void
-  /** The panel went away: unless it comes back at once (React re-mounting), the session stops and saves. */
+  /** A holder went away: when none is left, unless one comes back at once (React re-mounting), the session stops and saves. */
   detach: () => void
 }
 
@@ -313,6 +311,7 @@ export function createRecordingSession(
   let tickTimer: ReturnType<typeof setInterval> | undefined
   let heartbeatTimer: ReturnType<typeof setInterval> | undefined
   let leaveTimer: ReturnType<typeof setTimeout> | undefined
+  let holders = 0
   let stopping: Promise<void> | null = null
   let starting: Promise<void> | null = null
   let beating = false
@@ -672,11 +671,15 @@ export function createRecordingSession(
     pause,
     resume,
     stop: () => stop('user'),
+    levels: () => (pipeline ? pipeline.mixer.levels() : { input: null, output: null }),
     attach() {
+      holders += 1
       clearTimeout(leaveTimer)
       leaveTimer = undefined
     },
     detach() {
+      holders = Math.max(0, holders - 1)
+      if (holders > 0) return
       clearTimeout(leaveTimer)
       // Deferred, so a re-mount in the same tick (React's development double-invoke, a parent
       // re-keying) keeps recording. A real leave stops and saves, like Stop.

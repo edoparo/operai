@@ -36,21 +36,11 @@ export default defineConfig({
       // at-runtime-via-MF situation as `*/App` above, same fix: alias to a
       // local stub so Vite's import-analysis has something resolvable before
       // a test's `vi.mock(...)` takes over (see AboutModal.test.tsx).
-      'estimai/version': fileURLToPath(
-        new URL('./src/federation/__stubs__/estimaiVersion.ts', import.meta.url),
-      ),
-      'refund/version': fileURLToPath(
-        new URL('./src/federation/__stubs__/refundVersion.ts', import.meta.url),
-      ),
-      'admin/version': fileURLToPath(
-        new URL('./src/federation/__stubs__/adminVersion.ts', import.meta.url),
-      ),
-      'notify/version': fileURLToPath(
-        new URL('./src/federation/__stubs__/notifyVersion.ts', import.meta.url),
-      ),
-      'inventory/version': fileURLToPath(
-        new URL('./src/federation/__stubs__/inventoryVersion.ts', import.meta.url),
-      ),
+      'estimai/version': fileURLToPath(new URL('./src/federation/__stubs__/estimaiVersion.ts', import.meta.url)),
+      'refund/version': fileURLToPath(new URL('./src/federation/__stubs__/refundVersion.ts', import.meta.url)),
+      'admin/version': fileURLToPath(new URL('./src/federation/__stubs__/adminVersion.ts', import.meta.url)),
+      'notify/version': fileURLToPath(new URL('./src/federation/__stubs__/notifyVersion.ts', import.meta.url)),
+      'inventory/version': fileURLToPath(new URL('./src/federation/__stubs__/inventoryVersion.ts', import.meta.url)),
       // specs/017-crm: the crm remote's tool entry and version.
       'crm/App': fileURLToPath(new URL('./src/federation/__stubs__/crmApp.tsx', import.meta.url)),
       // specs/021-meetings, T49/T51: the meetings remote's three mountable entries + ./version.
@@ -60,6 +50,9 @@ export default defineConfig({
       ),
       'meetings/HostMeetings': fileURLToPath(
         new URL('./src/federation/__stubs__/meetingsHostMeetings.tsx', import.meta.url),
+      ),
+      'meetings/RecorderDock': fileURLToPath(
+        new URL('./src/federation/__stubs__/meetingsRecorderDock.tsx', import.meta.url),
       ),
       'meetings/version': fileURLToPath(new URL('./src/federation/__stubs__/meetingsVersion.ts', import.meta.url)),
       'crm/version': fileURLToPath(new URL('./src/federation/__stubs__/crmVersion.ts', import.meta.url)),

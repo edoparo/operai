@@ -150,6 +150,13 @@ export const getMeetingsApiBaseUrl = (): string => import.meta.env.VITE_MEETINGS
  */
 export { registerNavigationBlocker } from './navigationBlocker'
 
+/**
+ * The floating slot for remotes (specs/021-meetings A13, ADR-0078): `openFloating(name, props)` shows a remote's
+ * widget above every page until `closeFloating(name)`. Implemented in ./floating (same reason as the blocker);
+ * remotes feature-detect it, so a shell that predates it simply has no widget.
+ */
+export { closeFloating, openFloating } from './floating'
+
 /** Clears the in-memory JWT cache. */
 export const clearJwtCache = (): void => {
   cachedJwt = null

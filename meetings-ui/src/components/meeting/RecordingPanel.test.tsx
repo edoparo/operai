@@ -10,6 +10,9 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 const shell = vi.hoisted(() => ({
   unregister: vi.fn(),
   registerNavigationBlocker: vi.fn(),
+  /** Set by the tests of the floating slot (spec A13); absent = a shell that predates it. */
+  openFloating: undefined as undefined | ((...args: unknown[]) => void),
+  closeFloating: undefined as undefined | ((...args: unknown[]) => void),
 }))
 
 vi.mock('shell/session', () => ({
@@ -17,10 +20,17 @@ vi.mock('shell/session', () => ({
   getMeetingsApiBaseUrl: vi.fn(() => 'http://meetings-api.test'),
   getAuthBaseUrl: vi.fn(() => 'http://auth.test'),
   registerNavigationBlocker: shell.registerNavigationBlocker,
+  get openFloating() {
+    return shell.openFloating
+  },
+  get closeFloating() {
+    return shell.closeFloating
+  },
 }))
 
 import { apiFetch } from 'shell/session'
 import { getRecordingSession } from '../../capture/session'
+import { dockSession, resetHandoffForTests, takeBackFromDock } from '../../dock/handoff'
 import type { Meeting } from '../../lib/types'
 import { en } from '../../strings'
 import { ADA, fakeApi, meeting, problem } from '../../test-support/fakeApi'
@@ -134,6 +144,9 @@ beforeEach(() => {
   shell.unregister.mockReset()
   shell.registerNavigationBlocker.mockReset()
   shell.registerNavigationBlocker.mockImplementation(() => shell.unregister)
+  shell.openFloating = undefined
+  shell.closeFloating = undefined
+  resetHandoffForTests()
 })
 
 afterEach(async () => {
@@ -542,6 +555,65 @@ describe('leaving the page (AC-2.10)', () => {
     expect(requests.filter((r) => r.endsWith('/recording/stop'))).toHaveLength(1)
     expect(shell.unregister).toHaveBeenCalled()
     expect(getRecordingSession('m1')).toBeUndefined()
+  })
+})
+
+describe('the recorder widget (spec A13)', () => {
+  // The widget keeps a session alive by design: unmount, let it go, so it stops and saves before the next test.
+  afterEach(() => {
+    cleanup()
+    takeBackFromDock('m1')
+  })
+
+  const withFloatingSlot = () => {
+    const open = vi.fn()
+    const close = vi.fn()
+    shell.openFloating = open
+    shell.closeFloating = close
+    return { open, close }
+  }
+
+  it('with the floating slot, moving elsewhere in Operai asks nothing: no in-app blocker, the browser prompt stays', async () => {
+    setup()
+    withFloatingSlot()
+    renderPanel()
+    await startRecording()
+    expect(shell.registerNavigationBlocker).not.toHaveBeenCalled()
+    const unloading = new Event('beforeunload', { cancelable: true })
+    window.dispatchEvent(unloading)
+    expect(unloading.defaultPrevented).toBe(true)
+  })
+
+  it('leaving the page while recording hands the session to the widget: it keeps recording, and the tab-close prompt stays', async () => {
+    setup()
+    const { open } = withFloatingSlot()
+    const { unmount } = renderPanel()
+    await startRecording()
+    await settle(15_000)
+    unmount()
+    await settle(1_000)
+    expect(open).toHaveBeenCalledWith('meetings.recorderDock', { meetingId: 'm1', title: draft().title })
+    expect(requests.filter((r) => r.endsWith('/recording/stop'))).toHaveLength(0)
+    expect(getRecordingSession('m1')?.getSnapshot().phase).toBe('recording')
+    expect(dockSession('m1')).toBe(getRecordingSession('m1'))
+    const unloading = new Event('beforeunload', { cancelable: true })
+    window.dispatchEvent(unloading)
+    expect(unloading.defaultPrevented).toBe(true)
+  })
+
+  it('coming back to the meeting takes the session back from the widget and closes it', async () => {
+    setup()
+    const { close } = withFloatingSlot()
+    const { unmount } = renderPanel()
+    await startRecording()
+    unmount()
+    await settle(1_000)
+    renderPanel()
+    await settle(1_000)
+    expect(close).toHaveBeenCalledWith('meetings.recorderDock')
+    expect(dockSession('m1')).toBeUndefined()
+    expect(getRecordingSession('m1')?.getSnapshot().phase).toBe('recording')
+    expect(screen.getByRole('button', { name: t.stop })).not.toBeNull()
   })
 })
 

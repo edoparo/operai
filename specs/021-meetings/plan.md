@@ -2415,6 +2415,18 @@ under different silence lists and different audio files.
 > `finalGaps`, `stitch` and `mapPhrases` unchanged. 429 is waited for (20 s, 60 s) then transient. Startup N4 also
 > checks `publishers/google/models/gemini-3.8-flash:fetchPublisherModelConfig`. No staging, no transient-bucket use.
 
+> **Amendment 2026-11-10 (spec A13, ADR-0078): the recorder widget.** The shell gains a floating slot
+> (`shell/src/lib/floating.ts`: `openFloating(name, props)` / `closeFloating(name)`, re-exported by `shell/session`;
+> `FloatingHost` mounted by `ShellLayout` outside the outlet, in `@operai/ui`'s new `FloatingPanel`, inset by the
+> header and footer, position in memory). Its content loads through the `HostExtension` loader as
+> `meetings.recorderDock` → meetings-ui's new expose `./RecorderDock`; while loading or on failure the shell shows its
+> own "Recording in progress · Open meeting" fallback. meetings-ui: `RecordingSession.attach/detach` count holders;
+> `src/dock/handoff.ts` passes the session from the panel to the widget on unmount (widget attaches, panel detaches)
+> and back on mount, and holds the tab-close prompt while it holds the session; the panel registers the in-app
+> blocker only when the shell has no slot (feature-detected). The mixer feeds one `AnalyserNode` per source and
+> `levels()` reads them (0..1); `LevelWave` samples every 90 ms while recording and the tab is visible.
+> e2e: `shell/e2e/meetings-capture.spec.ts` "moving elsewhere while recording…" replaces the AC-2.10 sidebar test.
+
 ### H-3 The gap and repetition detector (pure, `src/ai/completeness.ts`)
 
 **Sound.** The complement of the silences (speech band, −35 dB, ≥ 0.5 s) within a span. It is energy,

@@ -12,8 +12,8 @@
  *  2. Close the page mid-recording (AC-2.8, AC-4.11): after 2 minutes of silence the meeting
  *     reads `interrupted`, with the saved duration within 20 s of what was recorded; Discard
  *     returns it to draft and leaves the browser storage as it was.
- *  3. Sidebar click while recording (AC-2.10): the shell asks first; staying keeps recording,
- *     leaving stops and saves.
+ *  3. Moving elsewhere while recording (AC-2.10, spec A13): nothing is asked, the shell's floating widget keeps
+ *     recording on every page, pauses, resumes and stops it, and "Open meeting" hands it back to the page.
  *  4. After Stop the browser storage is empty of any recording (AC-4.11).
  *  5. Keyboard only (AC-13.3): Start, Pause, Resume and Stop are reachable with Tab and
  *     operated with Enter/Space, and every change is announced in the live region.
@@ -184,26 +184,53 @@ test.describe('specs/021 T89: capture robustness', () => {
     await ctx.close()
   })
 
-  test('a sidebar click while recording asks first; staying keeps recording (AC-2.10)', async ({ browser }) => {
-    test.setTimeout(150_000)
-    const id = await draftWithConsent('Leave guard')
+  test('moving elsewhere while recording keeps recording in the widget; it pauses, stops and leads back (AC-2.10, spec A13)', async ({
+    browser,
+  }) => {
+    test.setTimeout(180_000)
+    const id = await draftWithConsent('Recorder widget')
     const ctx = await personContext(browser, owner)
     const page = await ctx.newPage()
     await startRecording(page, id)
 
+    // Leaving the meeting asks nothing: the shell's floating slot takes the recording.
     await page.getByRole('navigation', { name: 'Tool navigation' }).getByRole('link', { name: 'Meetings' }).click()
-    const dialog = page.getByRole('alertdialog', { name: 'Leave this page?' })
-    await expect(dialog).toBeVisible({ timeout: 10_000 })
-    await expect(dialog).toContainText('A recording is in progress or audio is not yet saved.')
-    // Cancel: still on the meeting, still recording.
-    await dialog.getByRole('button', { name: 'Stay' }).click()
-    await expect(page).toHaveURL(new RegExp(`/my-meetings/m/${id}`))
-    await expect(page.getByTestId('meetings-recording-indicator')).toContainText('Recording')
-
-    // Leave: the shell lets go; what was captured is saved by the page before it goes.
-    await page.getByRole('navigation', { name: 'Tool navigation' }).getByRole('link', { name: 'Meetings' }).click()
-    await page.getByRole('alertdialog', { name: 'Leave this page?' }).getByRole('button', { name: 'Leave' }).click()
+    await expect(page.getByRole('alertdialog', { name: 'Leave this page?' })).toHaveCount(0)
     await expect(page).toHaveURL(/\/meetings(\/)?$/, { timeout: 30_000 })
+    const widget = page.getByRole('region', { name: 'Recording in progress' })
+    await expect(widget).toBeVisible({ timeout: 15_000 })
+    await expect(widget.getByTestId('meetings-dock-status')).toContainText('Recording')
+    await expect(widget.getByRole('meter', { name: 'Microphone level' })).toBeVisible()
+    expect((await view(id)).status).toBe('recording')
+
+    // Time passes on another page: still there, still recording, chunks still saved.
+    await page.waitForTimeout(12_000)
+    await expect(widget).toBeVisible()
+    expect((await view(id)).status).toBe('recording')
+
+    // Moved with the keyboard: it walks the edge.
+    await widget.getByRole('button', { name: 'Move the recorder' }).focus()
+    await page.keyboard.press('ArrowUp')
+    await expect(page.getByTestId('shell-floating')).toHaveAttribute('data-edge', 'right')
+
+    // Pause and resume from the widget.
+    await widget.getByRole('button', { name: 'Pause recording' }).click()
+    await expect(widget.getByTestId('meetings-dock-status')).toContainText('Paused')
+    await widget.getByRole('button', { name: 'Resume recording' }).click()
+    await expect(widget.getByTestId('meetings-dock-status')).toContainText('Recording')
+
+    // Back to the meeting: the page takes the recording back and the widget goes away.
+    await widget.getByRole('button', { name: 'Open meeting' }).click()
+    await expect(page).toHaveURL(new RegExp(`/meetings/m/${id}`), { timeout: 30_000 })
+    await expect(page.getByTestId('meetings-recording-indicator')).toContainText('Recording', { timeout: 20_000 })
+    await expect(page.getByTestId('shell-floating')).toHaveCount(0)
+
+    // Away again, and Stop from the widget saves it.
+    await page.getByRole('navigation', { name: 'Tool navigation' }).getByRole('link', { name: 'Meetings' }).click()
+    await expect(widget).toBeVisible({ timeout: 15_000 })
+    await widget.getByRole('button', { name: 'Stop' }).click()
+    await expect(widget.getByTestId('meetings-dock-status')).toContainText('Recording saved', { timeout: 60_000 })
+    await expect.poll(async () => (await view(id)).status, { timeout: 60_000 }).not.toBe('recording')
     await ctx.close()
   })
 

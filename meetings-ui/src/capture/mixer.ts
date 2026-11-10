@@ -19,13 +19,37 @@
  *
  * The mixer takes ownership of the streams it is given: `close()` stops every track, so the
  * browser's "recording" and "sharing" indicators go away.
+ *
+ * LEVELS (spec A13): each source also feeds an `AnalyserNode` that goes nowhere, so the recorder widget can draw
+ * how loud the microphone ("in": the people in the room) and the shared tab ("out": the people on the call) are.
+ * `levels()` reads them on demand, 0 to 1; nothing is kept, and a context without analysers gives nulls.
  */
 
 /** The parts of `AudioContext` the mixer uses, so a test supplies a fake. */
 export type AudioContextLike = Pick<
   AudioContext,
   'state' | 'createMediaStreamSource' | 'createMediaStreamDestination' | 'resume' | 'close'
->
+> & { createAnalyser?: AudioContext['createAnalyser'] }
+
+/** How loud each source is right now, 0 (silence) to 1; null when there is no such source to measure. */
+export type AudioLevels = { input: number | null; output: number | null }
+
+/** The analysers' window: about 21 ms at 48 kHz, enough for a level. */
+const ANALYSER_FFT = 1024
+/** RMS of speech is far below 1: this gain makes ordinary speech fill most of the scale. */
+const LEVEL_GAIN = 4
+
+/** The level of one analyser: the RMS of its current window, scaled and clamped to 0..1. */
+export function levelOf(
+  analyser: Pick<AnalyserNode, 'getFloatTimeDomainData'>,
+  buffer: Float32Array<ArrayBuffer>,
+): number {
+  analyser.getFloatTimeDomainData(buffer)
+  let sum = 0
+  for (const sample of buffer) sum += sample * sample
+  const rms = Math.sqrt(sum / Math.max(1, buffer.length))
+  return Math.min(1, rms * LEVEL_GAIN)
+}
 
 /** `getUserMedia` constraints for the microphone (plan § Browser capture): speech, mono. */
 export const MIC_CONSTRAINTS = {
@@ -54,6 +78,8 @@ export type AudioMixer = {
   readonly tabAudio: TabAudioState
   /** Subscribes; returns the unsubscribe function. Events already emitted are replayed at once. */
   on<E extends keyof MixerEvents>(event: E, listener: MixerEvents[E]): () => void
+  /** How loud the microphone and the shared tab are right now (spec A13). */
+  levels(): AudioLevels
   /** Disconnects, stops every track and closes the context. Safe to call twice. */
   close(): Promise<void>
 }
@@ -79,6 +105,19 @@ export async function createMixer({ context, microphone, tab = null }: MixerInpu
   let micSource: MediaStreamAudioSourceNode | null = null
   let tabSource: MediaStreamAudioSourceNode | null = null
   let tabState: TabAudioState = 'none'
+  let micMeter: AnalyserNode | null = null
+  let tabMeter: AnalyserNode | null = null
+  const meter = (source: MediaStreamAudioSourceNode): AnalyserNode | null => {
+    try {
+      const analyser = context.createAnalyser?.() ?? null
+      if (!analyser) return null
+      analyser.fftSize = ANALYSER_FFT
+      source.connect(analyser)
+      return analyser
+    } catch {
+      return null // a level is a nicety: never a reason not to record
+    }
+  }
 
   const listeners = new Map<keyof MixerEvents, Set<(...args: never[]) => void>>()
   const fired = new Map<keyof MixerEvents, unknown[]>()
@@ -104,6 +143,7 @@ export async function createMixer({ context, microphone, tab = null }: MixerInpu
 
     micSource = context.createMediaStreamSource(microphone)
     micSource.connect(destination)
+    micMeter = meter(micSource)
     for (const track of microphone.getTracks()) {
       const onEnded = () => emit('microphoneLost')
       track.addEventListener('ended', onEnded)
@@ -118,6 +158,7 @@ export async function createMixer({ context, microphone, tab = null }: MixerInpu
       } else {
         tabSource = context.createMediaStreamSource(tab)
         tabSource.connect(destination)
+        tabMeter = meter(tabSource)
         tabState = 'active'
         const source = tabSource
         // Any tab track ending (the video, when the person clicks "Stop sharing", or the audio) is the share ending.
@@ -141,6 +182,15 @@ export async function createMixer({ context, microphone, tab = null }: MixerInpu
 
   const output = destination.stream
   let closing: Promise<void> | null = null
+  const buffer = new Float32Array(new ArrayBuffer(ANALYSER_FFT * 4))
+  const read = (analyser: AnalyserNode | null): number | null => {
+    if (!analyser || closing) return null
+    try {
+      return levelOf(analyser, buffer)
+    } catch {
+      return null
+    }
+  }
 
   return {
     output,
@@ -156,6 +206,9 @@ export async function createMixer({ context, microphone, tab = null }: MixerInpu
       return () => {
         set.delete(listener as (...args: never[]) => void)
       }
+    },
+    levels() {
+      return { input: read(micMeter), output: tabState === 'active' ? read(tabMeter) : null }
     },
     close() {
       closing ??= (async () => {

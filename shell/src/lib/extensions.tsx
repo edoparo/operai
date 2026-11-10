@@ -29,6 +29,8 @@ export const EXTENSION_TIMEOUT_MS = 5000
 /** The extensions this shell can load, with the props each one takes. */
 export interface ExtensionProps {
   'meetings.hostMeetings': { hostApp: string; entityType: string; entityId: string }
+  /** The recorder widget, shown by the floating slot (spec A13, ADR-0078), not by a host page. */
+  'meetings.recorderDock': { meetingId: string; title: string }
 }
 
 type ExtensionName = keyof ExtensionProps
@@ -38,6 +40,7 @@ type ExtensionLoader<K extends ExtensionName> = () => Promise<{ default?: Compon
 /** One loader per extension; a name missing here is a host newer than this shell → fallback. */
 const LOADERS: { [K in ExtensionName]: ExtensionLoader<K> } = {
   'meetings.hostMeetings': () => import('meetings/HostMeetings'),
+  'meetings.recorderDock': () => import('meetings/RecorderDock'),
 }
 
 export interface HostExtensionProps<K extends ExtensionName> {

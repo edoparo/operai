@@ -136,6 +136,11 @@ const TECHNICAL = new Set([
   '/crm/$',
   // A host-extension name (lib/extensions.tsx): a dotted id, not copy.
   'meetings.hostMeetings',
+  // The floating slot (lib/floating.ts, FloatingHost): a widget id, a perimeter edge, a typeof check.
+  'meetings.recorderDock',
+  '/meetings/m/',
+  'bottom',
+  'function',
   '/meetings',
   '/meetings/$',
   '/my-meetings',

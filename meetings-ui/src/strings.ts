@@ -13,6 +13,7 @@ import { audio } from './strings/audio'
 import { capture } from './strings/capture'
 import { common } from './strings/common'
 import { consent } from './strings/consent'
+import { dock } from './strings/dock'
 import { editDetails } from './strings/editDetails'
 import { erase } from './strings/erase'
 import { host } from './strings/host'
@@ -34,6 +35,7 @@ export const en = {
   capture: capture.en,
   common: common.en,
   consent: consent.en,
+  dock: dock.en,
   editDetails: editDetails.en,
   erase: erase.en,
   host: host.en,
@@ -56,6 +58,7 @@ export const it: typeof en = {
   capture: capture.it,
   common: common.it,
   consent: consent.it,
+  dock: dock.it,
   editDetails: editDetails.it,
   erase: erase.it,
   host: host.it,

@@ -1,8 +1,9 @@
-import { type MouseEvent, type ReactNode, useCallback } from 'react'
+import { type MouseEvent, type ReactNode, useCallback, useLayoutEffect, useRef, useState } from 'react'
 import { Outlet, useBlocker } from '@tanstack/react-router'
 import { ConfirmDialog } from '@operai/ui'
 import { SidebarCollapsedProvider } from '../hooks/SidebarCollapsedProvider'
 import { useSidebarCollapsed } from '../hooks/sidebarCollapsed'
+import FloatingHost from './FloatingHost'
 import ToastHost from './ToastHost'
 import { getNavigationBlocker, isNavigationBlocked } from '../lib/navigationBlocker'
 import { strings } from '../strings'
@@ -95,6 +96,23 @@ function ShellLayoutFrame({ header, sidebar, footer }: ShellLayoutProps) {
     withResolver: true,
   })
 
+  // The chrome the floating slot keeps clear: the header's and the footer's heights, followed as they change.
+  const headerRef = useRef<HTMLElement>(null)
+  const footerRef = useRef<HTMLElement>(null)
+  const [chrome, setChrome] = useState({ header: 0, footer: 0 })
+  useLayoutEffect(() => {
+    const measure = () => {
+      const header = headerRef.current?.getBoundingClientRect().height ?? 0
+      const footer = footerRef.current?.getBoundingClientRect().height ?? 0
+      setChrome((current) => (current.header === header && current.footer === footer ? current : { header, footer }))
+    }
+    measure()
+    if (typeof ResizeObserver !== 'function') return
+    const observer = new ResizeObserver(measure)
+    for (const node of [headerRef.current, footerRef.current]) if (node) observer.observe(node)
+    return () => observer.disconnect()
+  }, [])
+
   // Belt-and-braces skip link: `href="#id"` + a focusable (tabIndex=-1) target
   // is enough in every modern browser, but jsdom/older engines don't always
   // move focus on a same-document fragment click (especially a second click
@@ -123,7 +141,7 @@ function ShellLayoutFrame({ header, sidebar, footer }: ShellLayoutProps) {
         {strings.layout.skipToContent}
       </a>
 
-      <header role="banner" className="shrink-0 border-b border-rule bg-ink-soft">
+      <header ref={headerRef} role="banner" className="shrink-0 border-b border-rule bg-ink-soft">
         {header ?? <ShellHeaderPlaceholder />}
       </header>
 
@@ -167,6 +185,10 @@ function ShellLayoutFrame({ header, sidebar, footer }: ShellLayoutProps) {
         <ToastHost />
       </div>
 
+      {/* The floating slot (specs/021-meetings A13): outside <main> and the router outlet, so a remote's widget
+          (the meetings recorder) survives every navigation. Kept clear of the header and the footer. */}
+      <FloatingHost inset={{ top: chrome.header, bottom: chrome.footer }} />
+
       {blocker.status === 'blocked' && (
         <ConfirmDialog
           tone="primary"
@@ -185,7 +207,7 @@ function ShellLayoutFrame({ header, sidebar, footer }: ShellLayoutProps) {
         </ConfirmDialog>
       )}
 
-      <footer role="contentinfo" className="shrink-0 border-t border-rule bg-ink-soft">
+      <footer ref={footerRef} role="contentinfo" className="shrink-0 border-t border-rule bg-ink-soft">
         {footer ?? <ShellFooterPlaceholder />}
       </footer>
     </div>

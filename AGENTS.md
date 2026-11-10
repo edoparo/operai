@@ -20,7 +20,9 @@ exposes a second, UNGATED entry, `./MyDevices`, mounted at the shell-owned `/dev
 (any signed-in user sees their own devices; ADR-0045). `meetings-ui` does the same with
 `./MyMeetings` at `/my-meetings` (a participant can always read what was captured about them;
 ADR-0058) and exposes a coarse `./HostMeetings` panel that a host app (today the CRM deal page)
-embeds through the shell's `HostExtension` seam with a timeout and an error boundary (ADR-0060).
+embeds through the shell's `HostExtension` seam with a timeout and an error boundary (ADR-0060). It also exposes
+`./RecorderDock`, the recorder widget the shell shows in its floating slot while a recording runs and the person
+is elsewhere in Operai (ADR-0078).
 
 Backed by seven Bun services: `auth` (identity + authorization), `estimai-api`,
 `notify-api`, `refund-api`, `inventory-api`, `crm-api`, `meetings-api`.
@@ -59,7 +61,8 @@ operai/
 │
 ├── shell/               # Suite host (Module Federation) — shared chrome + session; mounts remotes (specs/003, ADR-0006).
 │   │                    # Also owns identity-scoped non-tool screens: /account (ADR-0034), /notify (ADR-0009),
-│   │                    # the notification bell + SSE manager + ToastHost, and the About modal (ADR-0030).
+│   │                    # the notification bell + SSE manager + ToastHost, the About modal (ADR-0030), and the
+│   │                    # floating slot (`openFloating`/`closeFloating` in shell/session, FloatingHost; ADR-0078).
 │   └── e2e/             # Playwright e2e for the WHOLE suite — every remote's journeys run through the
 │                        # host, since a remote has no standalone authed bootstrap (specs/003 retired
 │                        # estimai-ui/e2e/ when it became a federated remote). helpers/: adminSession,
@@ -78,7 +81,8 @@ operai/
 │                        # crm-api and auth's user directory through shell/session (specs/017, ADR-0052/0053)
 ├── meetings-ui/         # Meetings tool — federated remote (port 5180): exposes ./App (gated, /meetings), ./MyMeetings
 │                        # (ungated, /my-meetings; ADR-0058), ./HostMeetings (panel embedded by hosts via shell/extensions,
-│                        # ADR-0060) and ./version; calls meetings-api and auth's user directory through shell/session
+│                        # ADR-0060), ./RecorderDock (the shell's floating recorder widget, ADR-0078) and ./version;
+│                        # calls meetings-api and auth's user directory through shell/session
 │                        # (specs/021)
 ├── operai-ui/           # @operai/ui — the DESIGN SYSTEM (ADR-0050): tokens/themes/fonts + component classes
 │                        # (src/styles/tokens.css, re-exported by shell/tokens.css), React components (src/components),
@@ -124,7 +128,7 @@ operai/
 │                        # bucket (`MEETINGS_S3_*`, 29-day lifecycle verified at startup, ADR-0063); in-process durable job
 │                        # runner (ADR-0062); Gemini (transcription) + Claude on Vertex AI, EU (ADR-0077/0069/0061); host contract
 │                        # with crm-api (ADR-0059); pushes to notify-api as `system:meetings-api` (specs/021)
-├── docs/adr/            # Architecture Decision Records (0001–0077; see ## Architecture decisions)
+├── docs/adr/            # Architecture Decision Records (0001–0078; see ## Architecture decisions)
 ├── docs/ui-inconsistencies.md  # UI/UX audit across the six frontends, with what each migration fixed
 ├── infra/               # Deploy/verify scripts + the cross-service env contract notes (README.md);
 │                        # provision-tool.sh creates/audits one tool's Railway service, Vercel project and DNS
@@ -789,3 +793,4 @@ These defaults are optimized for AI coding agents (and humans) working on apps t
 - [0075] A privilege for looking must not become a dependency of, or a write path through, the ordinary path — estimai-api enforces ONE catalog permission, `estimate:read-all` (unconditioned, seeded to `admin` only), resolved live from `auth GET /authz/resolve` ONLY on the oversight path (`GET /estimates?whose=all`: 403 `oversight_required`, 503 `authz_unavailable`; `GET /estimates/{id}` only when no owner/collaborator relationship: 200 `access:"oversight"` else 404); own/shared estimates never call `auth`; any write route answers a holder 403 `oversight_read_only` (404 if the check fails); `oversight` is a wire value, never stored or a collaborator level; an existing level always wins; amends 0036, narrows 0037; rejected: `estimate:view`, `requireAdmin`, admin as implicit editor, enforcing every route; revisit for oversight writes, conditioned oversight or > ~500 estimates (see docs/adr/0075-estimai-oversight-permission-amends-0036.md)
 - [0076] A fact about a record is stated only by its owner, and a copy kept by messages must survive loss, repetition and reordering — crm-api pushes `{estimateId, dealId, event: linked|unlinked, at}` to estimai-api `POST /system/deal-link-notices` (service JWT, scope `deal-link-notices.send`, `sub` must be `system:crm-api`) for the EstimAI "Deal" badge; EstimAI stores only `crmDealId`/`crmLinkAt` and never learns deal content; one conditional update applies only a newer `at` (equal: unlinked wins; unlink clears only the same dealId), ordered by the CRM clock because there is one replica and at most two events per link; best effort, never fails the CRM action, repaired by the re-runnable `crm-api/scripts/backfill-estimate-links.ts`; any future deal deletion MUST send `unlinked`; grant the scope in production `SERVICE_CLIENTS` only AFTER the new auth is live (an unknown scope stops auth); a second replica, a relink path, deal content or guaranteed delivery revisits it (see docs/adr/0076-crm-pushes-deal-links-to-estimai.md)
 - [0077] When a provider's per-request limit forces a split that the product then repairs by guessing, change the limit, not the repair — meetings transcription moves from Chirp 3 (20 min per request, 10-minute parts, labels restarting per part: 9 labels for 2 people) to `gemini-3.8-flash` on Vertex AI `eu` (never `global`), model pinned in code, a meeting up to 30 minutes in ONE request (longer: 30-minute overlapping parts through the unchanged detector and stitcher), audio inline, temperature 0 + response schema, the reply accepted only as exactly `[{start,end,speaker,text}]` (one resample, then refused), segment times trusted only when ordered and inside the part, the prompt never states a speaker count, request-response logging checked off at startup for the model too; gap detection is weaker (segment-level times); Chirp 3 kept behind `MEETINGS_TRANSCRIBER=chirp`; rejected: AssemblyAI/Speechmatics/Gladia (new processor), Gemini 3.5 Transcribe (15 min per file), self-hosted Whisper+pyannote (voice embeddings, AC-6.17); supersedes 0069's transcription provider (see docs/adr/0077-meetings-transcription-gemini-on-vertex-eu.md)
+- [0078] Something running on the person's behalf must never become invisible because the code that draws it failed — a remote may ask the shell for a FLOATING SLOT that survives navigation (`openFloating(name, props)`/`closeFloating(name)` in `shell/session`, `FloatingHost` mounted by `ShellLayout` outside the outlet, `@operai/ui` `FloatingPanel` on the window's edge clear of header/footer, dragged or moved with the arrow keys, position in memory); the shell owns the frame and a fallback ("Recording in progress · Open meeting") shown while loading and on any failure, the remote owns the content through the ADR-0060 loader (`meetings.recorderDock` → `meetings/RecorderDock`, plain-string props); the remote asks, the shell never loads a remote to find out; keeping the work alive stays the remote's job (the recorder counts holders, the panel hands the session to the widget and takes it back, the remote keeps the tab-close prompt); feature-detected both ways; amends specs/021 AC-2.10 (no in-app prompt) and adds AC-2.12; rejected: a widget in the routed page or a portal from it, the shell rendering the recorder, loading the remote on every page, persisting the position (see docs/adr/0078-shell-floating-slot-for-remote-widgets.md)

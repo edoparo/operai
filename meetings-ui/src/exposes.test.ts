@@ -5,7 +5,7 @@ import { describe, expect, it } from 'vitest'
 
 /**
  * The federation contract the shell depends on (plan § Host integration, ADR-0030/0045/0060):
- * the remote is named `meetings`, serves on the pinned port 5180, and exposes exactly the four
+ * the remote is named `meetings`, serves on the pinned port 5180, and exposes exactly the five
  * entries the shell and the host extension import. A rename here silently breaks the shell at
  * runtime (a dynamic import of a missing export), so the table is asserted against the config
  * source, and every exposed file must exist.
@@ -17,6 +17,7 @@ const EXPOSES: Record<string, string> = {
   './App': './src/App.tsx',
   './MyMeetings': './src/MyMeetings.tsx',
   './HostMeetings': './src/host/HostMeetings.tsx',
+  './RecorderDock': './src/dock/RecorderDock.tsx',
   './version': './src/version.ts',
 }
 

@@ -17,6 +17,10 @@ export const navigateSuite = (to: string): void => {
 // Takes (shouldBlock, message) in production; the stub ignores both.
 export const registerNavigationBlocker = (): (() => void) => () => undefined
 
+// The floating slot (spec A13). Takes (name, props) in production; the stub ignores them.
+export const openFloating = (): void => undefined
+export const closeFloating = (): void => undefined
+
 // No capability by default: a test of something capability-gated says what it grants.
 export const usePermissions = () => ({
   epoch: 0,

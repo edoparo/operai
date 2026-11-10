@@ -34,6 +34,11 @@ declare module 'shell/session' {
   // A shell that predates this export does not provide it, so callers feature-detect.
   export const registerNavigationBlocker: (shouldBlock: () => boolean, message: string) => () => void
 
+  // The floating slot (spec A13, ADR-0078): the shell shows a named widget of a remote above every page until it
+  // is closed. Props are plain strings. A shell that predates it does not provide them, so callers feature-detect.
+  export const openFloating: (name: 'meetings.recorderDock', props: { meetingId: string; title: string }) => void
+  export const closeFloating: (name: 'meetings.recorderDock') => void
+
   // Permission resolution (ADR-0007), used for UX hints only (plan G5).
   export interface Permission {
     resource: string

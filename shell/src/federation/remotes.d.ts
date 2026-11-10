@@ -136,6 +136,13 @@ declare module 'meetings/HostMeetings' {
   export default HostMeetings
 }
 
+declare module 'meetings/RecorderDock' {
+  import type { ComponentType } from 'react'
+
+  const RecorderDock: ComponentType<{ meetingId: string; title: string }>
+  export default RecorderDock
+}
+
 declare module 'meetings/version' {
   export const REMOTE_VERSION: string
 }

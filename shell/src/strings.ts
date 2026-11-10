@@ -41,6 +41,17 @@ const en = {
     footerPlaceholder: 'Footer placeholder — legal link, version, company info land in T8.',
   },
   /** The confirmation shown when a remote has registered a navigation blocker (specs/021-meetings, AC-2.10). */
+  floating: {
+    // The floating slot (specs/021-meetings A13): the frame around a remote's widget, and what shows while it loads
+    // or when it cannot load.
+    recorder: {
+      label: 'Recording in progress',
+      moveLabel: 'Move the recorder',
+      moveHint: 'Use the arrow keys to move it around the edge of the window.',
+      fallback: 'Recording in progress',
+      open: 'Open meeting',
+    },
+  },
   leavePage: {
     title: 'Leave this page?',
     // Shown only if the remote unregistered between the click and the render.
@@ -145,6 +156,15 @@ const it: typeof en = {
       'Segnaposto intestazione — gli elementi della suite (logo, Informazioni, menu utente, tema) arrivano con T6.',
     sidebarPlaceholder: 'Segnaposto barra laterale — il selettore degli strumenti (EstimAI, Rimborsi) arriva con T7.',
     footerPlaceholder: 'Segnaposto piè di pagina — note legali, versione e dati aziendali arrivano con T8.',
+  },
+  floating: {
+    recorder: {
+      label: 'Registrazione in corso',
+      moveLabel: 'Sposta il registratore',
+      moveHint: 'Usa i tasti freccia per spostarlo lungo il bordo della finestra.',
+      fallback: 'Registrazione in corso',
+      open: 'Apri la riunione',
+    },
   },
   leavePage: {
     title: 'Uscire da questa pagina?',

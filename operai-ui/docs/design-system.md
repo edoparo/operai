@@ -446,6 +446,18 @@ the destination says it (refund's review queue confirmation). The shell's
 action feedback. Every create, save, invite and delete confirms in one of these
 ways; silence is not feedback.
 
+## Floating — `FloatingPanel`
+
+A small panel that must stay in sight above every page while something runs on the person's behalf (the meetings
+recorder). Only the shell renders one, in its floating slot (ADR-0078); a tool never renders it on a page.
+
+- It rests on the window's edge, clear of the chrome given as `inset`, above pages and below dialogs (`z-index`
+  40). Dragging the handle snaps it to the nearest edge; with the keyboard the handle is a button and each arrow
+  key moves it a step and snaps again. `moveLabel` names the handle, `moveHint` says how to use the keys.
+- It is a named region, not a dialog: it takes no focus and traps nothing. The caller owns the position (memory).
+- The content is a row of `sm` buttons and short text; at most one line of warning under it. No primary button.
+- Motion (the glide to the edge) stops under reduced motion.
+
 ## Icons — `Icon` (INC-31)
 
 One inline-SVG set in `currentColor` on a 24px grid (Storybook: Foundations →

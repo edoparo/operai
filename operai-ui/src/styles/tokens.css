@@ -1063,6 +1063,55 @@ select:not([multiple]):not([size]) {
     color: var(--soft);
   }
 
+  /* ── FloatingPanel — <FloatingPanel> ── a small panel resting on the window's perimeter. */
+  .floating-panel {
+    position: fixed;
+    z-index: 40;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    max-width: calc(100vw - 24px);
+    padding: 6px 10px 6px 4px;
+    border: 1px solid var(--dim);
+    border-radius: 12px;
+    background: var(--ink-soft);
+    color: var(--text);
+    box-shadow: 0 12px 32px -8px rgba(0, 0, 0, 0.5);
+    transition:
+      left 0.15s ease-out,
+      top 0.15s ease-out;
+  }
+
+  .floating-panel-dragging {
+    transition: none;
+    cursor: grabbing;
+  }
+
+  .floating-panel-handle {
+    display: inline-flex;
+    flex-shrink: 0;
+    align-items: center;
+    justify-content: center;
+    width: 24px;
+    height: 32px;
+    border-radius: 6px;
+    color: var(--soft);
+    cursor: grab;
+    touch-action: none;
+  }
+
+  .floating-panel-handle:hover {
+    background: var(--ink-mid);
+    color: var(--text);
+  }
+
+  .floating-panel-body {
+    display: flex;
+    min-width: 0;
+    align-items: center;
+    gap: 8px;
+  }
+
   /* ── Form field — <Field> ────────────────────────────────────────────── */
   .field {
     display: flex;
@@ -1656,7 +1705,8 @@ select:not([multiple]):not([size]) {
     animation: none;
   }
 
-  .progress-fill {
+  .progress-fill,
+  .floating-panel {
     transition: none;
   }
 
