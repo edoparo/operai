@@ -2333,6 +2333,18 @@ ranges overlap or `B.start − A.end ≤ REPEAT_GAP_MS` = 2 000.
   "never removed" guarantee for a phrase really said twice more than 2 s apart.
 
 **D2. Across the overlap of parts k and k+1 (AC-6.13).**
+> **Amended 2026-11-10 (spec A11):** Candidates and Anchors below are replaced by a word-by-word
+> alignment of P and Q (`alignWords` in `src/ai/stitch.ts`): a Needleman–Wunsch table over tokens,
+> score equal +3, near-equal +2 (both ≥ `NEAR_MIN_LENGTH` = 4 characters, `wordSimilarity` = 1 − Levenshtein /
+> longer length ≥ `NEAR_SIMILARITY` = 0.75), different −1, one version only −1; a pair is allowed only when the
+> effective times are within `PAIR_TIME_MS` = 5 000 (the recorded seams place a part's first words up to 2.5 s off);
+> ties trace pair, then P only, then Q only. `passagesOf` cuts the alignment at `PASSAGE_BREAK` = 3 consecutive
+> columns that are not an equal/near pair, trims each piece to its first and last such pair, and keeps it as a
+> passage when it has ≥ `PASSAGE_WORDS` = 5 of them. In a passage every pair is emitted once (part k's token) and a
+> one-version token in path order; outside passages both versions are merged by start time, as before. J1 counts
+> only the equal and near pairs of the passages. The table is bounded at 16 M cells (beyond it nothing is aligned);
+> a 400-word overlap takes about 20 ms. Recorded seams: overlap-it pairs 274 words (272 before, "dei rischi" /
+> "del rischio" now once), overlap-en3 124 (61 before), the other two unchanged; joins unchanged.
 - Window: P = part k's tokens whose effective time reaches `s_k+1 − 2 s` or later, and Q = part k+1's
   tokens whose effective time starts at `e_k + 2 s` or earlier.
 - Candidates: every maximal common run of at least 8 equal tokens between P and Q whose effective time

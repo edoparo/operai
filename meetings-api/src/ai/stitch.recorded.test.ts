@@ -74,9 +74,12 @@ describe("what the real service did at the seam (AC-6.13, AC-6.14, AC-6.15)", ()
     const parts = partsOf("overlap-it");
     const out = pipeline(parts, META["overlap-it"]!.silences);
     expect(out.gaps).toEqual([]);
-    expect(out.stats).toEqual({ removedWithinPart: 0, removedInOverlap: 272, joined: 2, separate: 0, refused: { fewWords: 0, mixed: 0, contested: 0 } });
+    // A11 (was 272): the word-by-word alignment also pairs "dei rischi" with part 2's "del rischio" (same audio, heard
+    // differently), which the 8-equal-words rule left twice, alternating between the two parts.
+    expect(out.stats).toEqual({ removedWithinPart: 0, removedInOverlap: 274, joined: 2, separate: 0, refused: { fewWords: 0, mixed: 0, contested: 0 } });
     const words = out.phrases.flatMap((p) => p.text.split(" "));
-    expect(words).toHaveLength(parts[0]!.words.length + parts[1]!.words.length - 272);
+    expect(words).toHaveLength(parts[0]!.words.length + parts[1]!.words.length - 274);
+    expect(words.filter((w) => w.startsWith("rischi"))).toEqual(["rischi"]);
     expect(new Set(out.phrases.map((p) => p.speaker)).size).toBe(2);
   });
 
@@ -120,11 +123,12 @@ describe("what the real service did at the seam (AC-6.13, AC-6.14, AC-6.15)", ()
     const out = pipeline(parts, META["overlap-en3"]!.silences);
     expect(out.stats.joined).toBe(0);
     expect(out.stats.separate).toBe(3);
-    // A9: 8 and 14 aligned words (too few for the match bound) and one label at 74 % agreement (mixed)
-    expect(out.stats.refused).toEqual({ fewWords: 2, mixed: 1, contested: 0 });
-    // A8 (changed, was removedInOverlap 233): 60 untimed-tail words of part 1 repeat its own earlier text and go first,
-    // which leaves 61 aligned words in the overlap (still removed though nothing is joined).
-    expect(out.stats.removedInOverlap).toBe(61);
+    // A11 (was fewWords 2, mixed 1): the word-by-word alignment finds more matched words, so one more label has enough
+    // evidence to be judged, and its words are split between the earlier voices (mixed): still separate.
+    expect(out.stats.refused).toEqual({ fewWords: 1, mixed: 2, contested: 0 });
+    // A8 then A11 (was 233, then 61): 60 untimed-tail words of part 1 repeat its own earlier text and go first; the
+    // word-by-word alignment then pairs 124 words of the overlap (61 under the 8-equal-words rule), each kept once.
+    expect(out.stats.removedInOverlap).toBe(124);
     expect(out.stats.removedWithinPart).toBe(60);
     // KNOWN LIMIT, recorded by T124 and reported as drift on plan H-3 (R24): the 19-minute part has a 20 s hole, 1046 of
     // its 3019 words came back with no trusted time, and the credit for them (600 ms each) hides the hole, so it is not a gap.

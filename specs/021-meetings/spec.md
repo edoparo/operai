@@ -137,6 +137,17 @@ was not removed. The spec stays vendor-neutral; the body below is already update
   answers; the caveats the service already wrote because of it are withdrawn (a summary loses the
   range, and once no range is left the service's own "may be incomplete" sentences read as the plain
   ones; text the model or a person wrote is never changed). Only a new transcription brings it back.
+- **A11 — decided by the user 2026-11-10 (AC-6.13, AC-6.14), after the same recording:** naming its
+  speakers, the user found the same person under two names where two parts overlap. Chirp 3 accepts a
+  maximum speaker count but ignores it (probe on the same recording, 2026-11-10: identical output), so
+  the overlap is the lever. A passage of the overlap was the same speech only with 8 consecutive
+  EQUAL words: one word heard differently every few words left both versions in the transcript,
+  alternating between the two parts' labels. (a) The two versions of the overlap are now aligned
+  **word by word**: equal words, near-equal words (one or two letters apart) and, between them, words
+  heard differently pair up when their times are close; a stretch with enough equal or near-equal
+  pairs is the same speech and appears once (part k's version). (b) A word found in only one version
+  is still kept: no speech present in either version is dropped. (c) Only equal and near-equal pairs
+  are evidence for a join (AC-6.14); a pair of different words never is.
 
 ## Problem
 
@@ -229,7 +240,10 @@ this spec does not choose vendors or mechanisms.
   speech in the audio with no transcript text (A10; was 20). **Retry bound: 0 (A8)** - a part is
   transcribed once and never again automatically, because the provider returns the identical
   result for identical audio; raising the bound again is O15. **Repeat bound:** 8 consecutive words, and a time
-  distance of 2 seconds. **Match bound:** 20 matched words. A stretch of non-speech sound
+  distance of 2 seconds (within a part). **Overlap alignment bounds (A11):** pair time bound
+  5 seconds; near-equal = at least 4 characters and similarity (1 − edit distance / longer length)
+  at least 0.75; passage bound 5 equal or near-equal pairs; passage break 3 columns. **Match bound:**
+  20 matched words. A stretch of non-speech sound
   (music, noise) is not speech for the gap bound.
 - **Continuity evidence is text only (A7).** Whether two speaker labels of different parts are
   the same speaker is decided only from the text, the labels and the times that the
@@ -546,10 +560,17 @@ check what was actually said.
   found in only one of the two versions is kept, so that no speech present in either version
   is dropped. A repetition in a part is removed under this rule, is never a reason to
   transcribe the part again, and does not by itself mark the transcript possibly incomplete.
-  (A7, A8)
+  **In the overlap of two consecutive parts the word evidence is an alignment, not a run (A11):**
+  the two versions are aligned word by word in order; two words pair up only when their times are
+  within the pair time bound, and are equal, near-equal (normalised as above, at least the near
+  length, similarity at least the near bound) or, between such pairs, different. A stretch of the
+  alignment with at least the passage bound of equal or near-equal pairs, and no run of the passage
+  break or more other columns, is the same speech: each of its pairs appears once (the earlier
+  part's word), each of its words found in one version only is kept in place. (A7, A8, A11)
 - AC-6.14: Given two consecutive parts and a label L2 of the later part, then L2 is joined to a
   label L1 of the earlier part when all of the following hold, over the passages of the
-  overlap that are found in both parts' transcripts (matched as in AC-6.13): (a) the passages
+  overlap that are found in both parts' transcripts (matched as in AC-6.13; only equal and
+  near-equal pairs count, A11): (a) the passages
   that the later part attributes to L2 total at least the match bound in words; (b) the earlier
   part attributes at least the agreement bound (80 %) of them to the same L1; (c) at least the
   agreement bound of the matched words that the earlier part attributes to L1 are attributed

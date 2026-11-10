@@ -6,13 +6,19 @@
  * chosen words of every part into one list of phrases:
  *
  *   D1  inside a part, speech returned twice is kept once (`findRepetitions`);
- *   D2  inside the overlap of parts k and k+1, speech returned by both is kept once (part k's version), by an
- *       order-preserving alignment of runs of at least `REPEAT_WORDS` equal words; everything found in only one of
- *       the two versions is KEPT, so no speech present in either version is dropped. Aligned passages are the same
- *       audio transcribed twice, so they are the same speech whatever labels the two versions gave them (AC-6.13,
- *       A8, A9): a disagreement there is the provider's diarization jitter, not a second speaker. Within a part (D1)
+ *   D2  inside the overlap of parts k and k+1, speech returned by both is kept once (part k's version). The two
+ *       versions are aligned WORD BY WORD (A11, 2026-11-10): an order-preserving alignment that pairs equal words,
+ *       near-equal words (`NEAR_SIMILARITY`, an edit distance) and, between them, words the two versions heard
+ *       differently, but only words whose times are within `PAIR_TIME_MS`. A stretch of the alignment with at least
+ *       `PASSAGE_WORDS` equal or near-equal pairs, not cut by `PASSAGE_BREAK` consecutive other columns, is a passage:
+ *       the same audio transcribed twice, so every pair in it is the same speech whatever its words and labels
+ *       (AC-6.13, A8, A9: a label disagreement there is the provider's diarization jitter). A word found in only one
+ *       version is KEPT, inside a passage where the alignment put it, outside in time order, so no speech present in
+ *       either version is dropped. (Until A11 a passage was a run of 8 EQUAL words: one word heard differently every
+ *       few words left both versions in the transcript, alternating between the two parts' labels.) Within a part (D1)
  *       and the untimed tail the stricter rule applies: same speaker or unlabelled;
- *   J   a label of part k+1 is JOINED to a label of part k only on the evidence of the aligned words, and only when
+ *   J   a label of part k+1 is JOINED to a label of part k only on the evidence of the equal and near-equal pairs of
+ *       the passages (a pair of different words is never evidence), and only when
  *       it is MUTUAL (A9, 2026-11-09): the later label has at least `MATCH_WORDS` aligned words, at least
  *       `AGREEMENT` of them attributed to one earlier label, and at least `AGREEMENT` of that earlier label's aligned
  *       words are this later label's. A few words under the other label at a turn change no longer refuse a join
@@ -28,7 +34,7 @@
  * Nothing here is logged with content; `StitchStats` carries counts only.
  */
 
-import { REPEAT_GAP_MS, REPEAT_WORDS, findRepetitions } from "./completeness";
+import { REPEAT_GAP_MS, findRepetitions } from "./completeness";
 import type { Phrase } from "./segments";
 import { effectiveSpans, tokensOf, type Interval, type PartWords, type Token } from "./words";
 
@@ -41,8 +47,23 @@ export const MATCH_WORDS = 20;
  * two.
  */
 export const AGREEMENT = 0.8;
-/** Same-gram candidates examined per position (bounds repetitive input; a real overlap has a handful). */
-const MAX_SEEDS_PER_GRAM = 16;
+/**
+ * Overlap alignment bounds (AC-6.13, A11). Two words are near-equal when both have at least `NEAR_MIN_LENGTH`
+ * characters after normalisation and their similarity (1 - edit distance / longer length) is at least
+ * `NEAR_SIMILARITY` ("progetto"/"progetti", "dell"/"della"). A passage is a stretch of the alignment with at least
+ * `PASSAGE_WORDS` equal or near-equal pairs, cut wherever `PASSAGE_BREAK` consecutive columns are not one.
+ */
+export const NEAR_SIMILARITY = 0.75;
+export const NEAR_MIN_LENGTH = 4;
+export const PASSAGE_WORDS = 5;
+export const PASSAGE_BREAK = 3;
+/**
+ * The time bound of a pair: the two versions place the same word up to this far apart. Measured on the recorded seams:
+ * the first words of a part come back up to 2.5 s off the earlier part's times for the same words.
+ */
+export const PAIR_TIME_MS = 5_000;
+/** Bounds the alignment's table (a real overlap is a few hundred words a side); beyond it nothing is aligned. */
+const MAX_ALIGN_CELLS = 16_000_000;
 
 export interface StitchInput {
   /** Every part's chosen words, in order; `part` is 1-based and consecutive parts overlap. */
@@ -85,12 +106,6 @@ interface Item {
   readonly eff: Interval;
 }
 
-interface Anchor {
-  readonly p: number;
-  readonly q: number;
-  readonly length: number;
-}
-
 const itemsOf = (part: PartWords): Item[] => {
   const tokens = tokensOf(part.words);
   const eff = effectiveSpans(tokens, part);
@@ -110,47 +125,142 @@ const removedWithin = (part: PartWords): number => {
   return n;
 };
 
-/** D2: the order-preserving alignment of P and Q (both in token order). */
-function align(p: readonly Item[], q: readonly Item[]): Anchor[] {
-  if (p.length < REPEAT_WORDS || q.length < REPEAT_WORDS) return [];
-  const gramOf = (items: readonly Item[], at: number): string => {
-    let key = items[at]!.norm;
-    for (let k = 1; k < REPEAT_WORDS; k += 1) key += `\u0000${items[at + k]!.norm}`;
-    return key;
-  };
-  const index = new Map<string, number[]>();
-  for (let j = 0; j + REPEAT_WORDS <= q.length; j += 1) {
-    const key = gramOf(q, j);
-    const list = index.get(key);
-    if (list) list.push(j);
-    else index.set(key, [j]);
+/** Similarity of two normalised words: 1 - edit distance / longer length (0 when either is empty). */
+export function wordSimilarity(a: string, b: string): number {
+  if (a === b) return 1;
+  const n = a.length;
+  const m = b.length;
+  if (n === 0 || m === 0) return 0;
+  let prev = Array.from({ length: m + 1 }, (_, j) => j);
+  for (let i = 1; i <= n; i += 1) {
+    const cur = [i];
+    for (let j = 1; j <= m; j += 1) cur.push(Math.min(prev[j]! + 1, cur[j - 1]! + 1, prev[j - 1]! + (a[i - 1] === b[j - 1] ? 0 : 1)));
+    prev = cur;
   }
-  const near = (a: Interval, b: Interval): boolean => b.startMs - a.endMs <= REPEAT_GAP_MS && a.startMs - b.endMs <= REPEAT_GAP_MS;
+  return 1 - prev[m]! / Math.max(n, m);
+}
 
-  const candidates: (Anchor & { distance: number })[] = [];
-  for (let i = 0; i + REPEAT_WORDS <= p.length; i += 1) {
-    const seeds = index.get(gramOf(p, i));
-    if (!seeds) continue;
-    for (const j of seeds.slice(0, MAX_SEEDS_PER_GRAM)) {
-      // Maximal runs only: a run that continues an earlier one on its diagonal is not a candidate of its own.
-      if (i > 0 && j > 0 && p[i - 1]!.norm === q[j - 1]!.norm) continue;
-      let length = REPEAT_WORDS;
-      while (i + length < p.length && j + length < q.length && p[i + length]!.norm === q[j + length]!.norm) length += 1;
-      const pRange = { startMs: p[i]!.eff.startMs, endMs: p[i + length - 1]!.eff.endMs };
-      const qRange = { startMs: q[j]!.eff.startMs, endMs: q[j + length - 1]!.eff.endMs };
-      if (!near(pRange, qRange)) continue;
-      const distance = Math.abs((pRange.startMs + pRange.endMs) / 2 - (qRange.startMs + qRange.endMs) / 2);
-      candidates.push({ p: i, q: j, length, distance });
+/** How two words of the overlap compare (A11). */
+type Kind = "exact" | "near" | "other";
+const kindOf = (a: Item, b: Item): Kind => {
+  if (a.norm === b.norm) return "exact";
+  return Math.min(a.norm.length, b.norm.length) >= NEAR_MIN_LENGTH && wordSimilarity(a.norm, b.norm) >= NEAR_SIMILARITY ? "near" : "other";
+};
+/** Two words can be the same speech only when their times are within `PAIR_TIME_MS` of each other. */
+const near = (a: Interval, b: Interval): boolean => b.startMs - a.endMs <= PAIR_TIME_MS && a.startMs - b.endMs <= PAIR_TIME_MS;
+
+/** One column of the alignment: a pair (p and q), or a word of one version only. */
+interface Column {
+  readonly p: number | null;
+  readonly q: number | null;
+  readonly kind: Kind | null;
+}
+
+const SCORE: Record<Kind, number> = { exact: 3, near: 2, other: -1 };
+const GAP = -1;
+
+/**
+ * D2 (A11): the order-preserving, word-by-word alignment of P and Q (both in token order) that maximises the score
+ * (equal word +3, near-equal +2, different word -1, a word of one version only -1). Two words can form a pair only when
+ * their times are near (`near`); a pair of different words is the same audio heard differently. Deterministic: on a
+ * tie the trace prefers a pair, then a word of P only, then a word of Q only.
+ */
+function alignWords(p: readonly Item[], q: readonly Item[]): Column[] {
+  const n = p.length;
+  const m = q.length;
+  if (n === 0 || m === 0 || n * m > MAX_ALIGN_CELLS) {
+    return [...p.map((_, i) => ({ p: i, q: null, kind: null })), ...q.map((_, j) => ({ p: null, q: j, kind: null }))];
+  }
+  // 0 = pair, 1 = p only, 2 = q only
+  const move = new Uint8Array((n + 1) * (m + 1));
+  const kinds = new Uint8Array((n + 1) * (m + 1)); // 0 exact, 1 near, 2 other
+  let prev = new Float64Array(m + 1);
+  for (let j = 1; j <= m; j += 1) {
+    prev[j] = j * GAP;
+    move[j] = 2;
+  }
+  for (let i = 1; i <= n; i += 1) {
+    const cur = new Float64Array(m + 1);
+    cur[0] = i * GAP;
+    move[i * (m + 1)] = 1;
+    for (let j = 1; j <= m; j += 1) {
+      const at = i * (m + 1) + j;
+      let best = prev[j]! + GAP;
+      let how = 1;
+      if (near(p[i - 1]!.eff, q[j - 1]!.eff)) {
+        const kind = kindOf(p[i - 1]!, q[j - 1]!);
+        const diagonal = prev[j - 1]! + SCORE[kind];
+        if (diagonal >= best) {
+          best = diagonal;
+          how = 0;
+          kinds[at] = kind === "exact" ? 0 : kind === "near" ? 1 : 2;
+        }
+      }
+      const left = cur[j - 1]! + GAP;
+      if (left > best) {
+        best = left;
+        how = 2;
+      }
+      cur[j] = best;
+      move[at] = how;
+    }
+    prev = cur;
+  }
+  const columns: Column[] = [];
+  let i = n;
+  let j = m;
+  while (i > 0 || j > 0) {
+    const at = i * (m + 1) + j;
+    const how = i === 0 ? 2 : j === 0 ? 1 : move[at]!;
+    if (how === 0) {
+      columns.push({ p: i - 1, q: j - 1, kind: kinds[at] === 0 ? "exact" : kinds[at] === 1 ? "near" : "other" });
+      i -= 1;
+      j -= 1;
+    } else if (how === 1) {
+      columns.push({ p: i - 1, q: null, kind: null });
+      i -= 1;
+    } else {
+      columns.push({ p: null, q: j - 1, kind: null });
+      j -= 1;
     }
   }
-  candidates.sort((a, b) => b.length - a.length || a.distance - b.distance || a.p - b.p || a.q - b.q);
+  return columns.reverse();
+}
 
-  const accepted: Anchor[] = [];
-  for (const c of candidates) {
-    const fits = accepted.every((a) => (c.p + c.length <= a.p && c.q + c.length <= a.q) || (a.p + a.length <= c.p && a.q + a.length <= c.q));
-    if (fits) accepted.push({ p: c.p, q: c.q, length: c.length });
+const isMatch = (c: Column): boolean => c.kind === "exact" || c.kind === "near";
+
+/**
+ * The passages of the alignment that are the same speech (A11): the alignment is cut wherever `PASSAGE_BREAK` or more
+ * consecutive columns are not an equal or near-equal pair, and a piece is a passage when it holds at least
+ * `PASSAGE_WORDS` equal or near-equal pairs. Returns, per column, whether it lies in a passage.
+ */
+function passagesOf(columns: readonly Column[]): boolean[] {
+  const inPassage = new Array<boolean>(columns.length).fill(false);
+  let from = 0;
+  const close = (to: number) => {
+    // trim the piece to its first and last match: the columns around it are not anchored on both sides
+    let a = from;
+    let b = to - 1;
+    while (a <= b && !isMatch(columns[a]!)) a += 1;
+    while (b >= a && !isMatch(columns[b]!)) b -= 1;
+    let matches = 0;
+    for (let k = a; k <= b; k += 1) if (isMatch(columns[k]!)) matches += 1;
+    if (matches >= PASSAGE_WORDS) for (let k = a; k <= b; k += 1) inPassage[k] = true;
+  };
+  let misses = 0;
+  for (let k = 0; k < columns.length; k += 1) {
+    if (isMatch(columns[k]!)) {
+      misses = 0;
+      continue;
+    }
+    misses += 1;
+    if (misses === PASSAGE_BREAK) {
+      close(k - PASSAGE_BREAK + 1);
+      from = k + 1;
+    } else if (misses > PASSAGE_BREAK) from = k + 1;
   }
-  return accepted.sort((a, b) => a.p - b.p);
+  close(columns.length);
+  return inPassage;
 }
 
 /** Two sequences merged by effective start time, the first sequence's item first on a tie. Each stays in order. */
@@ -206,21 +316,21 @@ export function stitch(input: StitchInput): StitchResult {
 
     const p = items[k]!.slice(suffixStart[k]!);
     const q = items[k + 1]!.slice(0, prefixEnd[k + 1]!);
-    const anchors = align(p, q);
+    const columns = alignWords(p, q);
+    const inPassage = passagesOf(columns);
 
-    // J: who is who, from the aligned words only (AC-6.14, A9).
+    // J: who is who, from the equal and near-equal pairs of the passages only (AC-6.14, A9, A11).
     const matched = new Map<string, Map<string, number>>(); // L2 -> L1 -> words
-    const ofEarlier = new Map<string, number>(); // L1 -> its aligned words, whatever the later label
-    for (const anchor of anchors) {
-      for (let t = 0; t < anchor.length; t += 1) {
-        const l1 = p[anchor.p + t]!.label;
-        const l2 = q[anchor.q + t]!.label;
-        const row = matched.get(l2) ?? new Map<string, number>();
-        row.set(l1, (row.get(l1) ?? 0) + 1);
-        matched.set(l2, row);
-        ofEarlier.set(l1, (ofEarlier.get(l1) ?? 0) + 1);
-      }
-    }
+    const ofEarlier = new Map<string, number>(); // L1 -> its matched words, whatever the later label
+    columns.forEach((c, at) => {
+      if (!inPassage[at] || !isMatch(c)) return;
+      const l1 = p[c.p!]!.label;
+      const l2 = q[c.q!]!.label;
+      const row = matched.get(l2) ?? new Map<string, number>();
+      row.set(l1, (row.get(l1) ?? 0) + 1);
+      matched.set(l2, row);
+      ofEarlier.set(l1, (ofEarlier.get(l1) ?? 0) + 1);
+    });
     const labels = new Set(items[k + 1]!.map((it) => it.label));
     for (const l2 of [...labels].sort()) {
       const row = matched.get(l2);
@@ -239,18 +349,28 @@ export function stitch(input: StitchInput): StitchResult {
       }
     }
 
-    // The merged overlap: aligned words once, part k's version. Both versions transcribed the SAME audio, so aligned
-    // words are the same speech whatever labels they carry (AC-6.13, A8, A9).
-    let pi = 0;
-    let qi = 0;
-    for (const anchor of anchors) {
-      sequence.push(...mergeByStart(p.slice(pi, anchor.p), q.slice(qi, anchor.q)));
-      removedInOverlap += anchor.length;
-      sequence.push(...p.slice(anchor.p, anchor.p + anchor.length));
-      pi = anchor.p + anchor.length;
-      qi = anchor.q + anchor.length;
-    }
-    sequence.push(...mergeByStart(p.slice(pi), q.slice(qi)));
+    // The merged overlap. Inside a passage both versions transcribed the SAME audio, so a pair is the same speech
+    // whatever its words or labels and is kept once, part k's version (AC-6.13, A8, A9, A11); a word of one version
+    // only is kept where the alignment put it. Outside the passages every word of both versions is kept, in time order.
+    let restP: Item[] = [];
+    let restQ: Item[] = [];
+    const flushRest = () => {
+      sequence.push(...mergeByStart(restP, restQ));
+      restP = [];
+      restQ = [];
+    };
+    columns.forEach((c, at) => {
+      if (!inPassage[at]) {
+        if (c.p !== null) restP.push(p[c.p]!);
+        if (c.q !== null) restQ.push(q[c.q]!);
+        return;
+      }
+      flushRest();
+      if (c.p !== null) sequence.push(p[c.p]!);
+      else sequence.push(q[c.q!]!);
+      if (c.p !== null && c.q !== null) removedInOverlap += 1;
+    });
+    flushRest();
   }
 
   // Segments: consecutive words of one root in one part, never across a gap.

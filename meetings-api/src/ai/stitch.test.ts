@@ -101,6 +101,81 @@ describe("D2: the overlap of two parts (AC-6.13)", () => {
   });
 });
 
+describe("D2 word by word: the same audio heard differently is still the same speech (AC-6.13, A11)", () => {
+  /** `count` distinct real-looking words from `from` seconds, 0.4 s apart; `vary(i)` may change word i's text. */
+  const speech = (label: string, count: number, from: number, vary: (i: number, text: string) => string = (_i, t) => t) =>
+    Array.from({ length: count }, (_, i) => word(vary(i, `parola${i}`), label, [from + i * 0.4, from + i * 0.4 + 0.3]));
+  const seam = (one: SpeechWord[], two: SpeechWord[]) => [
+    part(1, 0, 600, pad(1, 0, 600, "p1:1", one)),
+    part(2, 510, 1110, pad(2, 510, 1110, "p2:2", [...two, ...say("p2:2", "post", 0, 5, 700)])),
+  ];
+  const words = (segments: { text: string }[]) => textOf(segments).split(" ");
+
+  it("a different word every 6 (no run of 8 equal words): kept once, part 1's version, and the labels join", () => {
+    // 37 words: the passage ends on an equal word (a different word at either end of a passage is not anchored)
+    const one = speech("p1:1", 37, 520);
+    const two = speech("p2:2", 37, 520, (i, t) => (i % 6 === 5 ? `altro${i}` : t));
+    const { segments, stats } = run(seam(one, two));
+    expect(stats.removedInOverlap).toBe(37);
+    for (let i = 0; i < 37; i += 1) expect(words(segments).filter((w) => w === `parola${i}`)).toHaveLength(1);
+    expect(words(segments).some((w) => w.startsWith("altro"))).toBe(false);
+    // the 6 different words are no evidence: 31 equal words, above the match bound
+    expect(stats.joined).toBe(1);
+  });
+
+  it("near-equal words (one letter apart) are pairs and count as evidence for a join", () => {
+    const one = speech("p1:1", 24, 520);
+    const two = speech("p2:2", 24, 520, (i, t) => (i % 2 === 0 ? `${t}e` : t));
+    const { segments, stats } = run(seam(one, two));
+    expect(stats.removedInOverlap).toBe(24);
+    expect(words(segments).some((w) => w.endsWith("e") && w.startsWith("parola"))).toBe(false);
+    expect(stats.joined).toBe(1);
+  });
+
+  it("a word found in one version only, inside a passage, is kept where it was said", () => {
+    const one = speech("p1:1", 30, 520);
+    const two = [...speech("p2:2", 30, 520).slice(0, 16), word("solo", "p2:2", [526.2, 526.3]), ...speech("p2:2", 30, 520).slice(16)];
+    const { segments } = run(seam(one, two));
+    const w = words(segments);
+    expect(w.filter((x) => x === "solo")).toHaveLength(1);
+    expect(w.indexOf("solo")).toBe(w.indexOf("parola15") + 1);
+  });
+
+  it("equal words more than the pair time bound apart are not the same speech: both stay", () => {
+    const one = speech("p1:1", 10, 520);
+    const two = speech("p2:2", 10, 560);
+    const { segments, stats } = run(seam(one, two));
+    expect(stats.removedInOverlap).toBe(0);
+    expect(words(segments).filter((w) => w === "parola3")).toHaveLength(2);
+  });
+
+  it("fewer equal words than the passage bound: no passage, both versions stay", () => {
+    const one = [...speech("p1:1", 4, 520), ...say("p1:1", "a", 0, 6, 522)];
+    const two = [...speech("p2:2", 4, 520), ...say("p2:2", "b", 0, 6, 522)];
+    const { segments, stats } = run(seam(one, two));
+    expect(stats.removedInOverlap).toBe(0);
+    expect(words(segments).filter((w) => w === "parola1")).toHaveLength(2);
+  });
+
+  it("three different words in a row cut the passage: the stretch around them stays from both versions", () => {
+    const one = speech("p1:1", 30, 520);
+    const two = speech("p2:2", 30, 520, (i, t) => (i >= 12 && i < 18 ? `diverso${i}` : t));
+    const { segments, stats } = run(seam(one, two));
+    // 12 + 12 equal words in two passages; the 6 different ones are kept from both versions
+    expect(stats.removedInOverlap).toBe(24);
+    expect(words(segments).filter((w) => w.startsWith("diverso"))).toHaveLength(6);
+    expect(words(segments).filter((w) => w === "parola14")).toHaveLength(1);
+  });
+
+  it("the word similarity is the normalised edit distance", async () => {
+    const { wordSimilarity } = await import("./stitch");
+    expect(wordSimilarity("progetto", "progetti")).toBe(0.875);
+    expect(wordSimilarity("rischio", "rischi")).toBeCloseTo(6 / 7);
+    expect(wordSimilarity("a", "")).toBe(0);
+    expect(wordSimilarity("uguale", "uguale")).toBe(1);
+  });
+});
+
 describe("D2 and the speaker condition (AC-6.13 with AC-6.14, amendment A8)", () => {
   const seam = (n: number, labelA: string, labelB: string, unlabelled: "none" | "first" | "second" = "none") => {
     const [a, b] = overlapSpeech(n, labelA, labelB);

@@ -1007,8 +1007,8 @@ describe("the recorded overlap fixtures (T124: real Chirp 3 output of a 60-minut
     const outcome = segmentsOf(await w.run("it-IT"));
     expect(outcome.gaps).toEqual([]);
     expect(w.submits).toHaveLength(2);
-    // 335 + 339 words returned, 272 of them said in both parts and kept once
-    expect(outcome.segments.flatMap((s) => s.text.split(" "))).toHaveLength(335 + 339 - 272);
+    // 335 + 339 words returned, 274 of them said in both parts and kept once (A11: 272 under the 8-equal-words rule)
+    expect(outcome.segments.flatMap((s) => s.text.split(" "))).toHaveLength(335 + 339 - 274);
     const keysOf = (part: number) => new Set(outcome.segments.filter((s) => s.part === part).map((s) => s.speakerKey));
     expect(keysOf(1).size).toBe(2);
     expect(keysOf(2)).toEqual(keysOf(1));

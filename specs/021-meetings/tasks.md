@@ -1,7 +1,7 @@
 ---
 spec: 021
 generated: 2026-11-04
-synced: 2026-11-09
+synced: 2026-11-10
 ---
 
 # Tasks: Meetings — record, transcribe, summarise and question meetings
@@ -715,6 +715,7 @@ database after `bun run db:deploy`.
 > **A9 2026-11-09 (user decision, no new spec):** mutual 80 % agreement for joins, J0 retired, overlap dedup by alignment only; shipped as a fix after closing (`meetings-api/src/ai/stitch.ts`, tests), together with list layout of AI text in meetings-ui. No task added: the change is covered by T115's tests, rewritten.
 
 > **A10 2026-11-09 (user decision, no new spec):** gap bound 60 s and "no speech here" for the creator (migration `20261109170000_transcript_gap_dismissed`, route, UI); shipped as a fix after closing, covered by its own tests (`gapDismissal.test.ts`, the route matrix, TranscriptView).
+> **A11 2026-11-10 (user decision, no new spec):** the overlap of two parts is aligned word by word (near-equal and differently heard words pair up when their times are close), so the same speech appears once and does not alternate between two speaker names; shipped as a fix after closing (`meetings-api/src/ai/stitch.ts`), covered by T115's tests and the recorded-seam tests, extended. No task added.
 > T104 closed 2026-11-06: `actionlint` 1.7.12 passes on both workflows and PR #8's `prompt-injection evals (fake model)` job is green. Its dispatched-run check cannot run before the merge (`workflow_dispatch` needs the file on `main`), so it is T128, a post-merge check that is NOT a dependency of T92, like T125 (user decision 2026-11-06; plan T104 note).
 > Re-synced 2026-11-06 after the plan addendum (draft failure.code contract, AC-3.2, already implemented in T28/T30) — no task change.
 > Re-synced 2026-11-05 for spec A8: per-part retries disabled (tries = 1), repetitions never flag a part, same-speaker duplicate rule within a part (overlap: removed unless joined to different speakers) and untimed repeated tails (follow-up commits on T115/T116). No new task; O15 tracks a different-audio retry.

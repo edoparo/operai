@@ -1,7 +1,7 @@
 # 0070 — A long recording is transcribed in parts, and speaker labels are numbered per part, never carried over
 
 **Date:** 2026-11-05
-**Status:** Accepted, amended 2026-11-05 (specs/021 plan amendment #2, spec A7, T107 findings): parts overlap, and labels are joined only on clear text evidence. Amended 2026-11-09 (spec A9): clear evidence is mutual 80 % agreement, not unanimity, and a silence in the overlap no longer refuses. Part size is 10 min (measured by spike T107), not 60.
+**Status:** Accepted, amended 2026-11-05 (specs/021 plan amendment #2, spec A7, T107 findings): parts overlap, and labels are joined only on clear text evidence. Amended 2026-11-09 (spec A9): clear evidence is mutual 80 % agreement, not unanimity, and a silence in the overlap no longer refuses. Amended 2026-11-10 (spec A11): the overlap is aligned word by word, so the same audio heard differently is still recognised as the same speech. Part size is 10 min (measured by spike T107), not 60.
 **Deciders:** wellD
 **Project:** Operai
 **Relates to:** [ADR-0074](0074-meetings-transcript-completeness-detect-retry-mark.md), [ADR-0069](0069-meetings-ai-providers-google-cloud-eu.md), [ADR-0064](0064-meetings-api-reads-audio-bytes-third-reader.md), [ADR-0067](0067-ai-output-structured-validated-plain-text.md)
@@ -84,6 +84,24 @@ their labels. On the recorded seams of the real service, 100 % and 97 % agreemen
 principle stands: text evidence only, never position, number or voice, and a false join stays
 repairable with "Separate by part". Refusals are logged by cause (few words, mixed, contested) so
 the bound can be revisited with production data.
+
+## Amendment 2026-11-10: the overlap is aligned word by word
+
+Naming the speakers of the same production recording, the user found one person under two names
+where parts overlap. A passage of the overlap counted as the same speech only with 8 consecutive
+EQUAL words, so one word heard differently every few words ("dei rischi" / "del rischio") left both
+versions in the transcript, alternating between the two parts' labels. (Asking the provider for at
+most N speakers does not help: Chirp 3 accepts `maxSpeakerCount` and ignores it, verified on that
+recording.) The two versions are now aligned word by word, in order: equal words, near-equal words
+(edit distance, at least 75 % similar, at least 4 letters) and words heard differently pair up when
+their times are within 5 s; a stretch with at least 5 equal or near-equal pairs, not interrupted by
+3 other columns, is the same speech and appears once. A word in one version only is still kept, so
+the "no speech present in either version is dropped" guarantee stands. Only equal and near-equal
+pairs are evidence for a join; a pair of different words never is, so the principle holds: text
+evidence, never voice. Rejected: one cut in the middle of the overlap (simpler, but drops speech the
+kept version silently omitted, below the 60 s gap bound nobody would be told), and a character
+distance between the last seconds of a segment and the first of the next (a single number gives no
+word-to-word mapping, and segments are already split by the labels in question).
 
 ## Failure shape
 
