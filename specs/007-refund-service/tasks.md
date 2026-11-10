@@ -1,6 +1,7 @@
 ---
 spec: 007
 generated: 2026-07-16
+synced: 2026-11-10
 ---
 
 # Tasks: Refund service (Rimborsi)
@@ -132,6 +133,18 @@ copy sourced from a centralized strings module (English-only for v1, no hardcode
 - [x] T22: Close — all gates green, spec status → done — refs: (all) — deps: T1–T21
   - done when: every task above checked; QE PASS + owasp findings resolved; a fresh passing `eval-report.md`; then `/wellforge:done 007-refund-service` flips `status: done`.
 
+## Amendment 2026-11-10 — line rejection (AC-7.7–7.10, AC-8.1 extended)
+
+- [x] T23: refund-api — reject / restore one line of a submitted request — refs: AC-7.7, AC-7.8, AC-7.9, AC-7.10, AC-8.1 — deps: T12
+  - touch: `refund-api/prisma/schema.prisma` + migration `20261110120000_line_rejection`, `src/review/decide.{repo,routes,schemas}.ts`, `src/requests/{requests.schemas,requests.service,lifecycle.repo,exportPdf,audit}.ts`, `src/lib/errors.ts`
+  - `POST`/`DELETE /review/requests/{id}/lines/{lineId}/reject` gated on `request:reject` (no catalog change); required trimmed `reason` (≤ 2000); approved total 0 on reject, untouched on restore; 409 `line_rejected`/`line_not_rejected`, approve 409 `all_lines_rejected`; withdraw clears rejections; audit `line_rejected`/`line_restored`; `rejection` on every line response; export PDF prints the reason.
+  - done when: `decide.routes.test.ts` (line rejection block) and `lifecycle.routes.test.ts` (withdraw clears it) green; full `bun test` (692) + `bun run typecheck` green.
+
+- [x] T24: refund-ui — line rejection in review detail and on decided records — refs: AC-7.7, AC-7.8, AC-7.9, AC-7.10 — deps: T18, T23
+  - touch: `refund-ui/src/components/ExpenseLineRow.tsx`, `src/pages/ReviewDetailPage.tsx`, `src/lib/{reviewApi,requestsApi}.ts`, `src/strings.ts` (en + it)
+  - "Reject line" → `ConfirmDialog` with a required reason; rejected line shows `StatusBadge failed`, reason, rejected-by and "Restore line"; Approve passively disabled when every line is rejected; `readOnlyApproved` shows the rejection to the employee.
+  - done when: `ReviewDetailPage.test.tsx` (line rejection block) green; full `pnpm test` (746), `pnpm lint`, `pnpm build` green.
+
 ---
 
 ## AC coverage (both directions)
@@ -145,7 +158,8 @@ copy sourced from a centralized strings module (English-only for v1, no hardcode
 | US-5 (5.1–5.6) queue | T11, UI T18 |
 | US-6 (6.1–6.6) inspect | T11 (6.1/6.3/6.4/6.5/6.6), T9 (6.2), UI T18 |
 | US-7 (7.1–7.6) decide | T12, UI T18 |
-| US-8 (8.1–8.3) audit | T5 (8.2/8.3 trigger+Restrict), T10/T12 (8.1 writes) |
+| US-7 (7.7–7.10) line rejection (2026-11-10) | T23, UI T24 |
+| US-8 (8.1–8.3) audit | T5 (8.2/8.3 trigger+Restrict), T10/T12/T23 (8.1 writes) |
 | Enablers | T1 (authz seam), T2 (catalog/seed), T3 (notify seam), T4 (bootstrap), T6 (authz mw), T14 (ui foundation), T19/T20 (devops) |
 
 Every task references ≥1 AC (or is a named enabler for AC-bearing tasks); every AC is served
