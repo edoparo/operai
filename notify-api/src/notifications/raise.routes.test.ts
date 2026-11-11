@@ -575,3 +575,49 @@ describe("POST /notifications — body-size cap → 413", () => {
     expect(res.status).toBe(413);
   });
 });
+
+// ─── Push dispatch (T6, specs/029-push-notifications) ─────────────────────────
+
+import { spyOn } from "bun:test";
+import { pushChannel } from "@/channels/push.channel";
+
+describe("POST /notifications — push dispatch", () => {
+  const raise = async (toast: boolean) =>
+    buildApp().request("/notifications", {
+      method: "POST",
+      headers: bearerHeader(await tokenA()),
+      body: JSON.stringify({ title: "Done", body: "Finished.", originApp: "estimai", toast }),
+    });
+
+  it("dispatches to the caller (sub) whether or not the notification asks for a toast (AC-2.2)", async () => {
+    const spy = spyOn(pushChannel, "dispatch").mockImplementation(async () => {});
+    try {
+      expect((await raise(true)).status).toBe(201);
+      expect((await raise(false)).status).toBe(201);
+      expect(spy).toHaveBeenCalledTimes(2);
+      expect(spy.mock.calls.map((c) => c[0])).toEqual([USER_A_ID, USER_A_ID]);
+      expect(spy.mock.calls.map((c) => (c[1] as unknown as { toastWorthy: boolean }).toastWorthy)).toEqual([true, false]);
+    } finally {
+      spy.mockRestore();
+    }
+  });
+
+  it("a dispatch that throws does not turn the 201 into an error, and a stalled one does not delay it (AC-2.6)", async () => {
+    const throwing = spyOn(pushChannel, "dispatch").mockImplementation(() => {
+      throw new Error("sync boom");
+    });
+    try {
+      expect((await raise(false)).status).toBe(201);
+    } finally {
+      throwing.mockRestore();
+    }
+    const stalled = spyOn(pushChannel, "dispatch").mockImplementation(() => new Promise<void>(() => {}));
+    try {
+      const started = Date.now();
+      expect((await raise(false)).status).toBe(201);
+      expect(Date.now() - started).toBeLessThan(2000);
+    } finally {
+      stalled.mockRestore();
+    }
+  });
+});

@@ -13,9 +13,13 @@
  * it into a 500) are byte-for-behaviour identical to before — see
  * raise.routes.test.ts, which is unchanged and still exercises this exact
  * path end-to-end.
+ *
+ * T6 (specs/029-push-notifications) adds one step at the end of `send`: the push
+ * dispatch, fire-and-forget (see the comment there).
  */
 
 import { Effect } from "effect";
+import { pushChannel } from "@/channels/push.channel";
 import { eventBus } from "@/notifications/eventBus";
 import {
   createNotification,
@@ -43,6 +47,16 @@ export const inAppChannel: Channel<InAppSendInput, NotificationDto> = {
       type: "notification",
       data: created,
     });
+
+    // Web push (specs/029, ADR-0084): a best-effort third delivery AFTER the row is stored
+    // and published. Deliberately not awaited, so a slow push service never delays the
+    // response, and shielded so that nothing it does can fail the request (AC-2.6).
+    // `pushChannel.dispatch` is looked up per call, so tests can replace it.
+    try {
+      void pushChannel.dispatch(input.recipientId, created).catch(() => {});
+    } catch {
+      // a synchronous failure of the push channel is as irrelevant as an async one
+    }
 
     return created;
   },

@@ -474,3 +474,146 @@ describe("POST /system/notifications — body-size cap → 413", () => {
     expect(res.status).toBe(413);
   });
 });
+
+// ─── Push dispatch (T6, specs/029-push-notifications) ─────────────────────────
+//
+// inAppChannel.send hands the stored notification to pushChannel.dispatch AFTER
+// the SSE publish, without awaiting it. The default channel is inert (PUSH_ENABLED
+// off), so these tests swap `dispatch` on the exported object (looked up per call).
+
+import { spyOn } from "bun:test";
+import * as webpush from "web-push";
+import { pushChannel, createPushChannel } from "@/channels/push.channel";
+import { createWebPushSender } from "@/push/webPushSender";
+import { createTestSubscriber } from "@/push/webPush.testutil";
+
+describe("POST /system/notifications — push dispatch", () => {
+  const post = async (app: ReturnType<typeof buildApp>, overrides?: Record<string, unknown>) =>
+    app.request("/system/notifications", {
+      method: "POST",
+      headers: { ...(await authHeader()), "Content-Type": "application/json" },
+      body: JSON.stringify(validBody(overrides)),
+    });
+
+  it("dispatches the stored notification to the recipient after the SSE publish (AC-2.2: system notifications are not toast-worthy)", async () => {
+    const order: string[] = [];
+    const unsub = eventBus.subscribe(RECIPIENT_ID, () => order.push("sse"));
+    const spy = spyOn(pushChannel, "dispatch").mockImplementation(async () => {
+      order.push("push");
+    });
+    try {
+      const res = await post(buildApp());
+      expect(res.status).toBe(201);
+      const created = (await res.json()) as { id: string };
+      expect(spy).toHaveBeenCalledTimes(1);
+      const [recipient, dto] = spy.mock.calls[0]!;
+      expect(recipient).toBe(RECIPIENT_ID);
+      expect(dto).toMatchObject({ id: created.id, originApp: "refund", title: "Rimborso approvato", toastWorthy: false });
+      expect(order).toEqual(["sse", "push"]);
+    } finally {
+      spy.mockRestore();
+      unsub();
+    }
+  });
+
+  it("a 10 s stalled push service does not delay the 201, and the row and SSE event are there (dispatch is not awaited)", async () => {
+    let release!: () => void;
+    const stalled = new Promise<void>((resolve) => (release = resolve));
+    const spy = spyOn(pushChannel, "dispatch").mockImplementation(() => stalled);
+    const events: unknown[] = [];
+    const unsub = eventBus.subscribe(RECIPIENT_ID, (e) => events.push(e));
+    try {
+      const started = Date.now();
+      const res = await post(buildApp());
+      const elapsed = Date.now() - started;
+      expect(res.status).toBe(201);
+      expect(elapsed).toBeLessThan(2000);
+      const created = (await res.json()) as { id: string };
+      expect(await testDb.notification.findUnique({ where: { id: created.id } })).not.toBeNull();
+      expect(events).toHaveLength(1);
+    } finally {
+      release();
+      spy.mockRestore();
+      unsub();
+    }
+  });
+
+  it("a dispatch that rejects, or throws synchronously, still gives 201 with the row persisted (AC-2.6)", async () => {
+    for (const impl of [
+      () => Promise.reject(new Error("boom")),
+      () => {
+        throw new Error("sync boom");
+      },
+    ]) {
+      const spy = spyOn(pushChannel, "dispatch").mockImplementation(impl as never);
+      try {
+        const res = await post(buildApp());
+        expect(res.status).toBe(201);
+        const created = (await res.json()) as { id: string };
+        expect(await testDb.notification.findUnique({ where: { id: created.id } })).not.toBeNull();
+      } finally {
+        spy.mockRestore();
+      }
+    }
+  });
+
+  it("end to end with a real sender and a fake HTTP layer: the device receives an encrypted record that decrypts to the English text (AC-2.1, 2.5, 6.3)", async () => {
+    const vapid = webpush.generateVAPIDKeys();
+    const sub = createTestSubscriber();
+    const wire: { body: Uint8Array }[] = [];
+    const channel = createPushChannel({
+      enabled: true,
+      excludedOrigins: [],
+      devices: {
+        listByUser: async (userId) => [
+          {
+            id: "dev-1",
+            userId,
+            endpoint: "https://fcm.googleapis.com/fcm/send/e2e",
+            p256dh: sub.p256dh,
+            auth: sub.auth,
+            label: "Chrome · macOS",
+            createdAt: new Date(),
+            updatedAt: new Date(),
+          },
+        ],
+        deleteAllForUser: async () => 0,
+        deleteById: async () => true,
+      },
+      contacts: { lookup: async () => ({ status: "found", email: "x@y.z", name: "X" }) },
+      sender: createWebPushSender({
+        publicKey: vapid.publicKey,
+        privateKey: vapid.privateKey,
+        subject: "mailto:ops@example.com",
+        transport: async (req) => {
+          wire.push({ body: req.body });
+          return { status: 201 };
+        },
+      }),
+      log: () => {},
+    });
+    const sent = new Promise<void>((resolve) => {
+      const original = channel.dispatch;
+      channel.dispatch = async (...args) => {
+        await original(...args);
+        resolve();
+      };
+    });
+    const spy = spyOn(pushChannel, "dispatch").mockImplementation((r, n) => channel.dispatch(r, n));
+    try {
+      const res = await post(buildApp(), {
+        title: "Titolo italiano segreto",
+        it: { title: "Titolo italiano segreto", body: "Corpo" },
+      });
+      expect(res.status).toBe(201);
+      await sent;
+      expect(wire).toHaveLength(1);
+      expect(Buffer.from(wire[0]!.body).includes(Buffer.from("Titolo italiano segreto"))).toBe(false);
+      const payload = JSON.parse(sub.decrypt(wire[0]!.body));
+      expect(payload.title).toBe("Titolo italiano segreto");
+      expect(payload.href).toBe("/refund/requests/req_123");
+    } finally {
+      spy.mockRestore();
+    }
+  });
+});
