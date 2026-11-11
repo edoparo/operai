@@ -64,6 +64,15 @@ describe('FloatingHost', () => {
     expect(navigate).toHaveBeenCalledWith('/meetings/m/m1')
   })
 
+  it('a widget that loads at once never shows the loading fallback; a slow one shows it after the delay', async () => {
+    render(<FloatingHost />)
+    act(() => openFloating('meetings.recorderDock', { meetingId: 'm1', title: 'Kick-off' }))
+    expect(screen.queryByTestId('shell-floating-fallback')).toBeNull()
+    await settle()
+    expect(screen.queryByTestId('shell-floating-fallback')).toBeNull()
+    expect(await screen.findByTestId('dock-stub')).not.toBeNull()
+  })
+
   it('moving it with the keyboard keeps the new place when it is opened again in the same tab', async () => {
     render(<FloatingHost />)
     act(() => openFloating('meetings.recorderDock', { meetingId: 'm1', title: 'Kick-off' }))

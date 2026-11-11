@@ -4,15 +4,16 @@
  * library `FloatingPanel` the person can move around the window's edge.
  *
  * The rule of every shell↔remote seam (ADR-0030, ADR-0060): the remote's failure is never the shell's. The widget
- * loads through `HostExtension` (5 s timeout, error boundary). While it loads, and if it cannot load, the shell's
- * own fallback still says that a recording is running and offers the way back to it: a microphone that is on must
- * never be invisible.
+ * loads through `HostExtension` (5 s timeout, error boundary). If it cannot load, and while a slow load passes
+ * `LOADING_FALLBACK_DELAY_MS`, the shell's own fallback still says that a recording is running and offers the way
+ * back to it: a microphone that is on must never be invisible.
  *
  * The position is kept in module memory for the tab (nothing persisted, ADR-0001's posture).
  */
 import { Button, FloatingPanel } from '@operai/ui'
 import type { FloatingInset, PerimeterPosition } from '@operai/ui'
-import { useState, useSyncExternalStore } from 'react'
+import { useEffect, useState, useSyncExternalStore } from 'react'
+import type { ReactNode } from 'react'
 import { HostExtension } from '../lib/extensions'
 import { getOpenFloating, subscribeFloating } from '../lib/floating'
 import type { FloatingEntry } from '../lib/floating'
@@ -39,9 +40,31 @@ function RecorderFallback({ meetingId }: { meetingId: string }) {
   )
 }
 
+/**
+ * While the widget loads, the fallback appears only if loading takes longer than this: the remote is usually
+ * already in the page and answers at once, and a fallback shown for one frame makes the panel jump in size.
+ */
+export const LOADING_FALLBACK_DELAY_MS = 400
+
+function AfterDelay({ children }: { children: ReactNode }) {
+  const [shown, setShown] = useState(false)
+  useEffect(() => {
+    const timer = setTimeout(() => setShown(true), LOADING_FALLBACK_DELAY_MS)
+    return () => clearTimeout(timer)
+  }, [])
+  return shown ? <>{children}</> : null
+}
+
 function Widget({ entry }: { entry: FloatingEntry }) {
   const fallback = <RecorderFallback meetingId={entry.props.meetingId} />
-  return <HostExtension name={entry.name} props={entry.props} fallback={fallback} loading={fallback} />
+  return (
+    <HostExtension
+      name={entry.name}
+      props={entry.props}
+      fallback={fallback}
+      loading={<AfterDelay>{fallback}</AfterDelay>}
+    />
+  )
 }
 
 export default function FloatingHost({ inset }: { inset?: FloatingInset }) {

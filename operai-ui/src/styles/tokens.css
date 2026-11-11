@@ -1077,13 +1077,16 @@ select:not([multiple]):not([size]) {
     background: var(--ink-soft);
     color: var(--text);
     box-shadow: 0 12px 32px -8px rgba(0, 0, 0, 0.5);
+  }
+
+  /* Only a move the person makes glides (FloatingPanel adds this for GLIDE_MS); a new size is applied at once. */
+  .floating-panel-moving {
     transition:
       left 0.15s ease-out,
       top 0.15s ease-out;
   }
 
   .floating-panel-dragging {
-    transition: none;
     cursor: grabbing;
   }
 
@@ -1706,7 +1709,7 @@ select:not([multiple]):not([size]) {
   }
 
   .progress-fill,
-  .floating-panel {
+  .floating-panel-moving {
     transition: none;
   }
 

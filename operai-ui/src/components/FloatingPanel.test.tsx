@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { cleanup, fireEvent, render, screen } from '@testing-library/react'
-import { FloatingPanel, PERIMETER_MARGIN, frameOf, placeOnPerimeter, snapToPerimeter } from './FloatingPanel'
+import { act, cleanup, fireEvent, render, screen } from '@testing-library/react'
+import { FloatingPanel, GLIDE_MS, PERIMETER_MARGIN, frameOf, placeOnPerimeter, snapToPerimeter } from './FloatingPanel'
 import type { PerimeterPosition } from './FloatingPanel'
 
 afterEach(cleanup)
@@ -40,7 +40,13 @@ describe('perimeter geometry', () => {
 describe('FloatingPanel', () => {
   const renderPanel = (position: PerimeterPosition, onPositionChange = vi.fn()) => {
     render(
-      <FloatingPanel label="Recording in progress" moveLabel="Move the recorder" moveHint="Arrow keys move it" position={position} onPositionChange={onPositionChange}>
+      <FloatingPanel
+        label="Recording in progress"
+        moveLabel="Move the recorder"
+        moveHint="Arrow keys move it"
+        position={position}
+        onPositionChange={onPositionChange}
+      >
         <span>content</span>
       </FloatingPanel>,
     )
@@ -64,6 +70,43 @@ describe('FloatingPanel', () => {
     // jsdom measures nothing (0 x 0), so from the bottom-right corner one step up lands on the right edge
     expect(next.edge).toBe('right')
     expect(next.offset).toBeLessThan(1)
+  })
+
+  it('only a move the person makes glides: a re-render with a new position from outside does not', () => {
+    vi.useFakeTimers()
+    const onChange = vi.fn()
+    const { rerender } = render(
+      <FloatingPanel
+        label="R"
+        moveLabel="Move"
+        moveHint="Keys"
+        position={{ edge: 'bottom', offset: 1 }}
+        onPositionChange={onChange}
+      >
+        <span>a</span>
+      </FloatingPanel>,
+    )
+    const region = screen.getByRole('region', { name: 'R' })
+    expect(region).not.toHaveClass('floating-panel-moving')
+    rerender(
+      <FloatingPanel
+        label="R"
+        moveLabel="Move"
+        moveHint="Keys"
+        position={{ edge: 'top', offset: 0 }}
+        onPositionChange={onChange}
+      >
+        <span>a much longer content</span>
+      </FloatingPanel>,
+    )
+    expect(region).not.toHaveClass('floating-panel-moving')
+    fireEvent.keyDown(screen.getByRole('button', { name: 'Move' }), { key: 'ArrowDown' })
+    expect(region).toHaveClass('floating-panel-moving')
+    act(() => {
+      vi.advanceTimersByTime(GLIDE_MS + 100)
+    })
+    expect(region).not.toHaveClass('floating-panel-moving')
+    vi.useRealTimers()
   })
 
   it('other keys do nothing', () => {

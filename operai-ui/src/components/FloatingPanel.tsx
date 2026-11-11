@@ -19,6 +19,9 @@ export const PERIMETER_MARGIN = 12
 /** How far one arrow key moves the panel before it snaps back to the perimeter. */
 export const KEYBOARD_STEP = 48
 
+/** How long the glide to a new place lasts (matches `.floating-panel-moving` in tokens.css). */
+export const GLIDE_MS = 150
+
 const clamp01 = (value: number) => (Number.isFinite(value) ? Math.min(1, Math.max(0, value)) : 0)
 
 /** The top-left corner of a panel of `size` resting at `position` inside `frame`. Pure. */
@@ -100,7 +103,8 @@ export type FloatingPanelProps = {
  * FloatingPanel — a small, always-visible panel that rests on the perimeter of the window, above the page and
  * below dialogs (a recorder, a running job). The person moves it by dragging its handle; it then snaps to the
  * nearest edge. With the keyboard, the handle is a button: each arrow key moves the panel one step that way and
- * it snaps again, so it can be walked around the whole edge. It never leaves the frame (the viewport minus `inset`
+ * it snaps again, so it can be walked around the whole edge. Only those moves glide; when the content or the window
+ * changes size the panel is re-placed at once, never animated. It never leaves the frame (the viewport minus `inset`
  * minus a margin) and follows a resize. It is not a dialog: it takes no focus and traps nothing.
  */
 export function FloatingPanel({
@@ -119,6 +123,16 @@ export function FloatingPanel({
   const [viewport, setViewport] = useState<Size>(() => ({ width: window.innerWidth, height: window.innerHeight }))
   const [drag, setDrag] = useState<{ left: number; top: number; dx: number; dy: number } | null>(null)
   const hintId = useId()
+  // Only a move the person makes glides; a change of size (new content, a resize) is applied at once.
+  const [gliding, setGliding] = useState(false)
+  const glideTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
+  useEffect(() => () => clearTimeout(glideTimer.current), [])
+  const moveTo = (next: PerimeterPosition) => {
+    clearTimeout(glideTimer.current)
+    setGliding(true)
+    glideTimer.current = setTimeout(() => setGliding(false), GLIDE_MS + 50)
+    onPositionChange(next)
+  }
 
   // Measure the panel (its content may change size) and follow the window.
   useLayoutEffect(() => {
@@ -126,7 +140,11 @@ export function FloatingPanel({
     if (!node) return
     const measure = () => {
       const box = node.getBoundingClientRect()
-      setSize((current) => (current.width === box.width && current.height === box.height ? current : { width: box.width, height: box.height }))
+      setSize((current) =>
+        current.width === box.width && current.height === box.height
+          ? current
+          : { width: box.width, height: box.height },
+      )
     }
     measure()
     const observer = typeof ResizeObserver === 'function' ? new ResizeObserver(measure) : null
@@ -156,21 +174,32 @@ export function FloatingPanel({
     if (!drag) return
     event.currentTarget.releasePointerCapture?.(event.pointerId)
     setDrag(null)
-    onPositionChange(snapToPerimeter({ left: drag.left, top: drag.top }, size, frame))
+    moveTo(snapToPerimeter({ left: drag.left, top: drag.top }, size, frame))
   }
 
   const onKeyDown = (event: KeyboardEvent<HTMLButtonElement>) => {
     const step = ARROWS[event.key]
     if (!step) return
     event.preventDefault()
-    onPositionChange(snapToPerimeter({ left: placed.left + step[0] * KEYBOARD_STEP, top: placed.top + step[1] * KEYBOARD_STEP }, size, frame))
+    moveTo(
+      snapToPerimeter(
+        { left: placed.left + step[0] * KEYBOARD_STEP, top: placed.top + step[1] * KEYBOARD_STEP },
+        size,
+        frame,
+      ),
+    )
   }
 
   return (
     <section
       ref={ref}
       aria-label={label}
-      className={cx('floating-panel', drag && 'floating-panel-dragging', className)}
+      className={cx(
+        'floating-panel',
+        gliding && !drag && 'floating-panel-moving',
+        drag && 'floating-panel-dragging',
+        className,
+      )}
       style={{ left: at.left, top: at.top }}
       data-edge={position.edge}
       data-testid={testId}
