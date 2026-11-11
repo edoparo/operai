@@ -52,14 +52,6 @@ enum Currency {
   EUR
 }
 
-enum ActivityType {
-  note
-  call
-  meeting
-  email
-  task
-}
-
 model Company {
   id          String        @id @default(cuid())
   name        String
@@ -89,7 +81,6 @@ model Company {
 
   contacts   Contact[]
   deals      Deal[]
-  activities Activity[]
 
   @@index([status])
   @@index([ownerUserId])
@@ -113,7 +104,6 @@ model Contact {
   createdAt  DateTime  @default(now())
   updatedAt  DateTime  @updatedAt
 
-  activities Activity[]
 
   @@index([companyId])
   @@map("contact")
@@ -144,7 +134,6 @@ model Deal {
   createdAt         DateTime  @default(now())
   updatedAt         DateTime  @updatedAt
 
-  activities  Activity[]
   estimate    DealEstimate?
   offers      DealOffer[]
   attachments DealAttachment[]
@@ -314,83 +303,4 @@ model OfferSequence {
 
   @@id([entity, year])
   @@map("offer_sequence")
-}
-
-model Activity {
-  id                String       @id @default(cuid())
-  type              ActivityType
-  subject           String
-  body              String?
-  occurredAt        DateTime
-  companyId         String
-  company           Company      @relation(fields: [companyId], references: [id], onDelete: Restrict)
-  /// Nulled when the contact is erased (D-13).
-  contactId         String?
-  contact           Contact?     @relation(fields: [contactId], references: [id], onDelete: SetNull)
-  dealId            String?
-  deal              Deal?        @relation(fields: [dealId], references: [id], onDelete: Restrict)
-  authorUserId      String
-  // Task-only fields (type = task), enforced by a CHECK.
-  dueDate           DateTime?    @db.Date
-  assigneeUserId    String?
-  completedAt       DateTime?
-  completedByUserId String?
-  /// The Meetings meeting this activity mirrors (specs/021 US-14, ADR-0059): at most one activity
-  /// per meeting (UNIQUE), and only a `meeting` activity can carry it (CHECK, raw SQL).
-  meetingId         String?      @unique
-  createdAt         DateTime     @default(now())
-  updatedAt         DateTime     @updatedAt
-
-  /// The tasks this task waits on (specs/017 US-6), and the tasks waiting on it.
-  blockedBy TaskBlocker[] @relation("BlockedTask")
-  blocks    TaskBlocker[] @relation("BlockerTask")
-  /// The wellD colleagues who took part, besides the author and the assignee (specs/017 US-8).
-  participants ActivityParticipant[]
-
-  @@index([companyId, occurredAt])
-  @@index([contactId])
-  @@index([dealId])
-  @@index([assigneeUserId, completedAt])
-  @@map("activity")
-}
-
-/// "Blocked by" between two tasks of the same company (specs/017 US-6). Both ends are tasks
-/// (checked by crm-api); deleting either task removes the link.
-/// A wellD colleague who took part in an activity (specs/017 US-8): an Operai user id, never a
-/// contact. Removing the activity removes the row.
-model ActivityParticipant {
-  activityId String
-  activity   Activity @relation(fields: [activityId], references: [id], onDelete: Cascade)
-  userId     String
-  createdBy  String
-  createdAt  DateTime @default(now())
-
-  @@id([activityId, userId])
-  @@index([userId])
-  @@map("activity_participant")
-}
-
-model TaskBlocker {
-  blockedId String
-  blocked   Activity @relation("BlockedTask", fields: [blockedId], references: [id], onDelete: Cascade)
-  blockerId String
-  blocker   Activity @relation("BlockerTask", fields: [blockerId], references: [id], onDelete: Cascade)
-  createdBy String
-  createdAt DateTime @default(now())
-
-  @@id([blockedId, blockerId])
-  @@index([blockerId])
-  @@map("task_blocker")
-}
-
-/// Content-free ordering guard per meeting (specs/021 US-14, ADR-0059): the highest notice `seq`
-/// applied. A notice with `seq <= lastSeq` is a no-op, so duplicates, retries and reordering are
-/// harmless; the row outlives the activity (a `deleted` notice sets it too), so a late `changed`
-/// can never resurrect anything. Holds no title, no date and no person.
-model MeetingHostState {
-  meetingId String   @id
-  lastSeq   Int
-  updatedAt DateTime @updatedAt
-
-  @@map("meeting_host_state")
 }

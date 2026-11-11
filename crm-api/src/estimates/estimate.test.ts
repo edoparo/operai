@@ -45,8 +45,6 @@ describe("technical estimates (specs/018 US-3)", () => {
       dueDate: addWorkingDays(link.requestedAt, 5).toISOString().slice(0, 10),
     });
     expect(activitiesApi.activities.has(link.taskId!)).toBe(true);
-    // crm-api no longer keeps the task itself.
-    expect(await db.activity.count()).toBe(0);
   });
 
   it("a failed put leaves no task and no estimate, and answers 503 (AC-1.2)", async () => {

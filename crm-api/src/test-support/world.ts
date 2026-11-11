@@ -369,7 +369,7 @@ export async function resetWorld(): Promise<void> {
   estimaiVersions.clear();
   activitiesApi.reset();
   await db.$executeRawUnsafe(
-    'TRUNCATE TABLE "offer_template", "offer_sequence", "deal_offer", "deal_attachment", "deal_estimate", "entity_profile", "activity", "deal", "contact", "company" RESTART IDENTITY CASCADE',
+    'TRUNCATE TABLE "offer_template", "offer_sequence", "deal_offer", "deal_attachment", "deal_estimate", "entity_profile", "deal", "contact", "company" RESTART IDENTITY CASCADE',
   );
   __resetAuthzCacheForTests();
   __resetIdentityCacheForTests();

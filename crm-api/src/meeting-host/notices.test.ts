@@ -12,7 +12,7 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it } from "bun:test"
 import { SignJWT, createLocalJWKSet, exportJWK, generateKeyPair } from "jose";
 import { __setDefaultJwksForTests } from "../auth/systemAuth.middleware";
 import { env } from "../lib/env";
-import { PERSONAS, activitiesApi, app, call, db, makeCompany, makeDeal, resetWorld } from "../test-support/world";
+import { PERSONAS, activitiesApi, app, call, makeCompany, makeDeal, resetWorld } from "../test-support/world";
 
 const PATH = "/system/meeting-host/v1/notices";
 // `bun test` shares one process, so `../lib/env` may have been evaluated by an earlier file before
@@ -152,14 +152,6 @@ describe("forwarded to activities-api (AC-1.4, AC-14.1 .. AC-14.7)", () => {
     expect(res.json).toEqual({ applied: false });
   });
 
-  it("crm-api keeps no copy: no activity and no meeting_host_state row is written here", async () => {
-    const { deal, meetingId } = await seed();
-    await post(notice(meetingId, deal.id, 1, "linked"));
-    await post(notice(meetingId, deal.id, 2, "deleted"));
-    expect(await db.activity.count({ where: { meetingId } })).toBe(0);
-    expect(await db.meetingHostState.count({ where: { meetingId } })).toBe(0);
-  });
-
   it("a deal that does not exist is 422 entity_not_found and nothing is forwarded, so the same seq can be retried", async () => {
     const { deal, meetingId } = await seed();
     const missing = await post(notice(meetingId, "no-such-deal", 5, "linked"));
@@ -184,7 +176,6 @@ describe("activities-api cannot answer (AC-1.4)", () => {
       expect(res.status).toBe(503);
       expect(res.json.code).toBe("activities_unavailable");
     }
-    expect(await db.meetingHostState.count({ where: { meetingId } })).toBe(0);
 
     // The same notice, once it is back, goes through.
     activitiesApi.down = false;
