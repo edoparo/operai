@@ -115,7 +115,13 @@ activityHostRouter.openapi(resolveRoute, async (c) => {
       label: row.name,
       href: `/projects/${row.id}`,
       may: { write: manage, manage },
-      assignees: [...new Set([row.projectManagerId, ...row.members.map((member) => member.userId)])],
+      // A project from a deal has no project manager until its ops-manager picks one (specs/026 D42):
+      // then only the team can be given a task.
+      assignees: [
+        ...new Set(
+          [row.projectManagerId, ...row.members.map((member) => member.userId)].filter((id): id is string => id !== null),
+        ),
+      ],
     };
   });
   return c.json({ reader, items }, 200);
