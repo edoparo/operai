@@ -1,4 +1,27 @@
+import { createECDH } from "node:crypto";
 import { z } from "zod";
+import { ORIGIN_APPS } from "../notifications/notifications.schemas";
+
+// ─── Web push (specs/029, ADR-0084) ──────────────────────────────────────────
+// VAPID keys as `web-push generate-vapid-keys` prints them: P-256, unpadded
+// base64url — a 32-byte private scalar and a 65-byte uncompressed public point.
+const decodeB64Url = (v: string, bytes: number): Buffer | null => {
+  if (!/^[A-Za-z0-9_-]+$/.test(v)) return null;
+  const buf = Buffer.from(v, "base64url");
+  // Round trip rejects non-canonical spellings (stray bits) as well as wrong lengths.
+  return buf.length === bytes && buf.toString("base64url") === v ? buf : null;
+};
+
+/** True when `priv` is the private key of `pub`. Never throws, never reveals either. */
+const privateKeyDerivesPublic = (priv: Buffer, pub: Buffer): boolean => {
+  try {
+    const ecdh = createECDH("prime256v1");
+    ecdh.setPrivateKey(priv);
+    return ecdh.getPublicKey().equals(pub);
+  } catch {
+    return false;
+  }
+};
 
 const envSchema = z.object({
   DATABASE_URL: z.string().min(1, "DATABASE_URL is required"),
@@ -64,17 +87,94 @@ const envSchema = z.object({
     .string()
     .min(32, "SERVICE_CLIENT_SECRET must be at least 32 characters")
     .optional(),
+  // ─── Web push (specs/029, ADR-0084) ────────────────────────────────────────
+  // Same literal-"true" parsing as EMAIL_ENABLED (never z.coerce.boolean()).
+  // Default OFF: with it off no VAPID variable is read and no push is attempted.
+  PUSH_ENABLED: z
+    .string()
+    .optional()
+    .transform((v) => v?.toLowerCase() === "true"),
+  // Required when enabled (enforced below); P-256 base64url, validated below.
+  VAPID_PUBLIC_KEY: z.string().optional(),
+  VAPID_PRIVATE_KEY: z.string().optional(),
+  VAPID_SUBJECT: z.string().optional(),
+  // Optional CSV of originApp values that never push; unknown values are refused
+  // even while push is off, so a typo cannot sit unnoticed until it is enabled.
+  PUSH_EXCLUDED_ORIGINS: z
+    .string()
+    .optional()
+    .transform((v) =>
+      (v ?? "")
+        .split(",")
+        .map((o) => o.trim())
+        .filter((o) => o !== ""),
+    )
+    .pipe(
+      z.array(
+        z.enum(ORIGIN_APPS, {
+          message: `PUSH_EXCLUDED_ORIGINS entries must each be one of: ${ORIGIN_APPS.join(", ")}`,
+        }),
+      ),
+    ),
 }).superRefine((v, ctx) => {
-  // All four or none. Names the missing ones, never a value.
+  // All four or none — and all four when push is enabled (the activity check,
+  // AC-5.2, resolves the recipient through auth). Names the missing ones, never a value.
   const group = ["APP_BASE_URL", "AUTH_BASE_URL", "SERVICE_CLIENT_ID", "SERVICE_CLIENT_SECRET"] as const;
   const missing = group.filter((k) => v[k] === undefined);
-  if (missing.length > 0 && missing.length < group.length) {
+  if (v.PUSH_ENABLED && missing.length > 0) {
+    for (const key of missing) {
+      ctx.addIssue({
+        code: "custom",
+        path: [key],
+        message: `${key} is required when PUSH_ENABLED=true (push resolves the recipient through auth, like email notices)`,
+      });
+    }
+  } else if (missing.length > 0 && missing.length < group.length) {
     for (const key of missing) {
       ctx.addIssue({
         code: "custom",
         path: [key],
         message: `${key} is required when any of ${group.join(", ")} is set (email notices need all four)`,
       });
+    }
+  }
+  if (v.PUSH_ENABLED) {
+    for (const key of ["VAPID_PUBLIC_KEY", "VAPID_PRIVATE_KEY", "VAPID_SUBJECT"] as const) {
+      if (!v[key]) {
+        ctx.addIssue({ code: "custom", path: [key], message: `${key} is required when PUSH_ENABLED=true` });
+      }
+    }
+    if (v.VAPID_SUBJECT && !/^(mailto:[^\s@]+@[^\s@]+|https:\/\/[^\s/]+\S*)$/i.test(v.VAPID_SUBJECT)) {
+      ctx.addIssue({
+        code: "custom",
+        path: ["VAPID_SUBJECT"],
+        message: "VAPID_SUBJECT must be a mailto: address or an https: URL",
+      });
+    }
+    if (v.VAPID_PUBLIC_KEY && v.VAPID_PRIVATE_KEY) {
+      const pub = decodeB64Url(v.VAPID_PUBLIC_KEY, 65);
+      const priv = decodeB64Url(v.VAPID_PRIVATE_KEY, 32);
+      if (!pub) {
+        ctx.addIssue({
+          code: "custom",
+          path: ["VAPID_PUBLIC_KEY"],
+          message: "VAPID_PUBLIC_KEY must be an unpadded base64url P-256 uncompressed point (65 bytes)",
+        });
+      }
+      if (!priv) {
+        ctx.addIssue({
+          code: "custom",
+          path: ["VAPID_PRIVATE_KEY"],
+          message: "VAPID_PRIVATE_KEY must be an unpadded base64url P-256 private key (32 bytes)",
+        });
+      }
+      if (pub && priv && !privateKeyDerivesPublic(priv, pub)) {
+        ctx.addIssue({
+          code: "custom",
+          path: ["VAPID_PRIVATE_KEY"],
+          message: "VAPID_PRIVATE_KEY does not derive VAPID_PUBLIC_KEY (rotate both together)",
+        });
+      }
     }
   }
   if (v.SERVICE_AUDIENCE === v.AUTH_AUDIENCE) {

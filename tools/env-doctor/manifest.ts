@@ -411,6 +411,7 @@ export const SECRET_VARS: ReadonlySet<string> = new Set([
   "JWT_PRIVATE_KEY",
   "JWT_PUBLIC_KEY",
   "RESEND_API_KEY",
+  "VAPID_PRIVATE_KEY", // notify-api's web-push signing key (specs/029); the public key is not secret
   "REFUND_S3_ACCESS_KEY_ID",
   "REFUND_S3_SECRET_ACCESS_KEY",
   "SERVICE_CLIENTS", // JSON carrying every service client's secret (auth)

@@ -13,7 +13,7 @@ Contracts: `plan.md` (approved) is binding; screens, states, copy and a11y: `des
   - work: add `web-push`; from a throwaway Bun script (not committed) send an encrypted payload to a real subscription on Chrome, Edge, Firefox and Safari (macOS); on Safari, receive pushes with a visible tab and NOT show them, three times, and observe whether permission is revoked; record Edge's endpoint host; check a PNG icon renders; add the 192×192 `push-icon.png`.
   - done when: plan.md § Risks carries a dated "Spike result" line per R1/R2/R3/G5 (works / fallback taken); if R2 forces "always show on Safari" or R1 forces the WebCrypto fallback, the spec/plan amendment is written before T6/T7 start (drift rule). Needs a person with the four browsers.
 
-- [ ] T2: notify-api push env group + env-doctor contract — refs: AC-6.1, AC-6.4 — deps: none
+- [x] T2: notify-api push env group + env-doctor contract — refs: AC-6.1, AC-6.4 — deps: none
   - touch: `notify-api/src/lib/env.ts`, `notify-api/src/lib/env.test.ts`, `notify-api/.env.example`, `tools/env-doctor/manifest.ts`, `tools/env-doctor/templates/**`, `tools/env-doctor/*.test.ts`
   - done when: env tests pass for: off by default; `"false"`/unset off; enabled without VAPID keys, subject, or the email-notice group → exit 1 naming the missing vars; private key not deriving the public key → exit 1; `PUSH_EXCLUDED_ORIGINS` with an unknown origin → exit 1; `mise run env:doctor` green with `VAPID_PRIVATE_KEY` classed secret.
 
