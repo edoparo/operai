@@ -434,6 +434,41 @@ describe('where the lead came from (specs/017 US-7)', () => {
     await waitFor(() => expect(posted).not.toBeNull())
     expect(posted).toMatchObject({ source: 'event', sourceDetail: 'Swiss Digital Day 2026' })
   })
+
+  it('suggests the details already written for the source, matched while typing', async () => {
+    let asked: string | null = null
+    let sent: Record<string, unknown> | null = null
+    await renderDeal(dealFixture({ source: 'inbound', sourceDetail: null }), MANAGER, {
+      'GET /source-details': (url) => {
+        asked = url.searchParams.get('source')
+        return {
+          status: 200,
+          body: { items: [{ value: 'Swiss Digital Day 2026', count: 3 }, { value: 'Café Tech', count: 1 }] },
+        }
+      },
+      'PATCH /deals/d1': (_url, init) => {
+        sent = body(init)
+        return { status: 200, body: dealFixture({ version: 5 }) }
+      },
+    })
+    fireEvent.click(screen.getByTestId('crm-deal-edit'))
+    const dialog = await screen.findByRole('dialog', { name: /Edit deal/ })
+    fireEvent.change(within(dialog).getByLabelText(/^Source/), { target: { value: 'event' } })
+    const input = within(dialog).getByLabelText(/^Which event/)
+    fireEvent.focus(input)
+    await waitFor(() => expect(asked).toBe('event'))
+    // case and accents do not matter
+    fireEvent.change(input, { target: { value: 'cafe' } })
+    const listbox = await within(dialog).findByRole('listbox')
+    expect(within(listbox).getAllByRole('option').map((option) => option.textContent)).toEqual(['Café Tech'])
+    fireEvent.click(within(listbox).getByRole('option'))
+    expect((input as HTMLInputElement).value).toBe('Café Tech')
+    // the chosen value is complete: no popup left behind
+    expect(within(dialog).queryByRole('listbox')).toBeNull()
+    fireEvent.click(within(dialog).getByTestId('crm-deal-form-submit'))
+    await waitFor(() => expect(sent).not.toBeNull())
+    expect(sent).toMatchObject({ source: 'event', sourceDetail: 'Café Tech' })
+  })
 })
 
 describe('new deal stages (AC-3.4)', () => {

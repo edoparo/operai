@@ -19,6 +19,8 @@ const en = {
     referral: 'A person or a company',
     other: 'Where it came from',
   } as Record<'event' | 'referral' | 'other', string>,
+  /** Announced when the detail field offers what was already written. */
+  suggestions: (count: number) => (count === 1 ? '1 suggestion already in use.' : `${count} suggestions already in use.`),
   /** "Event · Swiss Digital Day 2026" */
   summary: (source: string, detail: string | null) => (detail ? `${source} · ${detail}` : source),
 }
@@ -40,6 +42,7 @@ const it: typeof en = {
     referral: 'Una persona o un’azienda',
     other: 'Da dove arriva',
   },
+  suggestions: (count: number) => (count === 1 ? '1 suggerimento già in uso.' : `${count} suggerimenti già in uso.`),
   summary: (source: string, detail: string | null) => (detail ? `${source} · ${detail}` : source),
 }
 

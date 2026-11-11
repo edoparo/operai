@@ -224,6 +224,10 @@ export const getOfferDraft = (dealId: string, templateId: string, aiAssisted: bo
 
 export const listOffers = (dealId: string, init?: Init) => getJson<{ items: Offer[] }>(offersPath(dealId), init)
 export const generateOffer = (dealId: string, input: OfferInput) => sendJson<Offer>(offersPath(dealId), 'POST', input)
+/** specs/017 US-7: the details already written for a source, most used first (matched in the browser). */
+export type SourceDetailSuggestion = { value: string; count: number }
+export const listSourceDetails = (source: 'event' | 'referral' | 'other', init?: Init) =>
+  getJson<{ items: SourceDetailSuggestion[] }>(`/source-details${query({ source })}`, init)
 /** specs/020 US-8: where an entity's offer numbers continue from. */
 export type OfferSequence = { entity: Entity; year: number; next: number; lowestAllowed: number }
 export const getOfferSequence = (entity: Entity, init?: Init) =>
