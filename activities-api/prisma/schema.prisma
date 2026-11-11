@@ -1,0 +1,141 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../src/lib/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// Data model of specs/028-activities (plan.md § Data model, ADR-0081). One table of
+// activities for every host (CRM companies today, projects), keyed by a host reference
+// {hostApp, hostType, hostId} that is an opaque id in another service's database (no foreign
+// key across services). People are opaque `auth` user ids; names are resolved live.
+// Activity ids are text cuids, and the ids imported from crm-api are kept unchanged.
+//
+// Raw SQL in the initial migration, the ENFORCEMENT and not a duplicate (Prisma cannot
+// express CHECKs):
+//   activity  activity_host_shape            a crm activity is pre_sales on a company; a projects
+//                                            activity is an operational task on a project with no
+//                                            contact, deal or meeting
+//             activity_task_fields_only_on_tasks   due date, assignee and completion only on a task
+//             activity_completion_pair        completedAt and completedByUserId are both or neither
+//             activity_meeting_id_only_on_meetings meetingId only on a meeting activity
+//   task_blocker  task_blocker_not_self      a task never blocks itself
+// Same-host blockers and cycles stay application checks (AC-4.3), as in crm-api.
+
+enum ActivityKind {
+  pre_sales
+  operational
+}
+
+enum ActivityType {
+  note
+  call
+  meeting
+  email
+  task
+}
+
+enum HostApp {
+  crm
+  projects
+}
+
+model Activity {
+  id                String       @id @default(cuid())
+  kind              ActivityKind
+  type              ActivityType
+  hostApp           HostApp
+  /// "company" | "project" (CHECK activity_host_shape)
+  hostType          String
+  hostId            String
+  /// crm only (CHECK). Nulled when the contact is erased (AC-8.4); no foreign key, the
+  /// contact lives in crm-api.
+  contactId         String?
+  /// crm only (CHECK)
+  dealId            String?
+  /// <= 200 characters (application check)
+  subject           String
+  /// <= 10000 characters (application check)
+  body              String?
+  occurredAt        DateTime
+  authorUserId      String
+  // Task-only fields (type = task), enforced by a CHECK.
+  dueDate           DateTime?    @db.Date
+  assigneeUserId    String?
+  completedAt       DateTime?
+  completedByUserId String?
+  /// The last system completion applied (estimate notices, AC-1.3): a notice applies only
+  /// when its seq is greater, so duplicates and reordering are no-ops.
+  completionSeq     Int?
+  /// The Meetings meeting this activity mirrors (specs/021 US-14, ADR-0059): at most one
+  /// activity per meeting (UNIQUE), and only a `meeting` activity can carry it (CHECK).
+  meetingId         String?      @unique
+  createdAt         DateTime     @default(now())
+  updatedAt         DateTime     @updatedAt
+
+  /// The tasks this task waits on (specs/017 US-6), and the tasks waiting on it.
+  blockedBy    TaskBlocker[]         @relation("BlockedTask")
+  blocks       TaskBlocker[]         @relation("BlockerTask")
+  /// The wellD colleagues who took part, besides the author and the assignee (specs/017 US-8).
+  participants ActivityParticipant[]
+
+  @@index([hostApp, hostType, hostId, occurredAt])
+  @@index([contactId])
+  @@index([dealId])
+  @@index([assigneeUserId, completedAt])
+  @@map("activity")
+}
+
+/// A wellD colleague who took part in an activity: an Operai user id, never a contact.
+/// Removing the activity removes the row.
+model ActivityParticipant {
+  activityId String
+  activity   Activity @relation(fields: [activityId], references: [id], onDelete: Cascade)
+  userId     String
+  createdBy  String
+  createdAt  DateTime @default(now())
+
+  @@id([activityId, userId])
+  @@index([userId])
+  @@map("activity_participant")
+}
+
+/// "Blocked by" between two tasks of the same host (AC-4.3). Both ends are tasks (checked by
+/// activities-api); deleting either task removes the link.
+model TaskBlocker {
+  blockedId String
+  blocked   Activity @relation("BlockedTask", fields: [blockedId], references: [id], onDelete: Cascade)
+  blockerId String
+  blocker   Activity @relation("BlockerTask", fields: [blockerId], references: [id], onDelete: Cascade)
+  createdBy String
+  createdAt DateTime @default(now())
+
+  @@id([blockedId, blockerId])
+  @@index([blockerId])
+  @@map("task_blocker")
+}
+
+/// Content-free ordering guard per meeting (specs/021 US-14, ADR-0059): the highest notice
+/// `seq` applied. A notice with `seq <= lastSeq` is a no-op, so duplicates, retries and
+/// reordering are harmless. Moved here from crm-api's `meeting_host_state` so the guard
+/// commits together with the write it protects (ADR-0082).
+model MeetingMirrorState {
+  meetingId String   @id
+  lastSeq   Int
+  updatedAt DateTime @updatedAt
+
+  @@map("meeting_mirror_state")
+}
+
+/// A contact crm-api has erased (AC-8.4, ADR-0082): the id and NOTHING else. The erase handler
+/// inserts it, under `pg_advisory_xact_lock(hashtextextended('contact:' || id, 0))`, before it
+/// nulls the links; every write that sets a `contactId` takes the same lock and refuses a
+/// tombstoned id. Without it a write validated before the erasure could commit the link after
+/// the sweep, and nothing would ever remove it. Permanent: an id holds no personal data.
+model ErasedContact {
+  contactId String @id
+
+  @@map("erased_contact")
+}

@@ -119,3 +119,17 @@ notify-api/src/notifications/notifications.repo.test.ts:generic-credential-uri:1
 # reproduce. The value is a canonical fake; keeping it credential-shaped is the point of the test.
 f82991fc3f8edfa44109deea4deb8a99887795d5:meetings-api/evals/fixtures/summary.en.ts:generic-password:58
 meetings-api/evals/fixtures/summary.en.ts:generic-password:57
+
+# projects-api (specs/025) and activities-api (specs/028): the local compose Postgres default
+# credentials (postgres:postgres@localhost:5435) in .env.example, test preloads, README and
+# compose.yaml — placeholders, not secrets. Commit-prefixed entries must be regenerated if the
+# branch is squashed or rebased (fingerprints include the commit).
+activities-api/src/test-support/env.ts:generic-credential-uri:19
+activities-api/.env.example:generic-credential-uri:9
+projects-api/.env.example:generic-credential-uri:7
+projects-api/README.md:generic-credential-uri:55
+projects-api/src/test-support/env.ts:generic-credential-uri:21
+compose.yaml:generic-credential-uri:217
+compose.yaml:generic-credential-uri:270
+compose.yaml:generic-password:288
+compose.yaml:generic-password:235

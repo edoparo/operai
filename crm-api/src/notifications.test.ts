@@ -2,7 +2,7 @@ import { afterEach, beforeEach, describe, expect, it } from "bun:test";
 import { call, estimaiNotice, forgetIdentities, identities, makeCompany, makeDeal, markEstimateReady, resetWorld, estimai, offerBody } from "./test-support/world";
 import { recipientsOf, setNotifierForTests, type NotifyEvent } from "./lib/notify";
 
-/** specs/019 T7: the nine events, hooked after the commit, through an injected recording notifier. */
+/** specs/019 T7: the events crm-api sends, hooked after the commit, through an injected recording notifier. */
 describe("CRM notifications (specs/019, E1–E9)", () => {
   let events: (NotifyEvent & { to: string[] })[];
   const AMOUNT_CENTS = 8_500_050;
@@ -117,37 +117,12 @@ describe("CRM notifications (specs/019, E1–E9)", () => {
     expect(events.every((e) => e.to.length === 0)).toBe(true);
   });
 
-  it("E5 new task: the assignee, by email, linking to the task list; create and reassign, tasks only", async () => {
+  // E5 (a task assigned to you) and the tasks a completion frees are announced by activities-api now
+  // (specs/028 US-6, ADR-0082): its tests own the copy. crm-api still announces every estimate event.
+  it("creating the estimate's task for the technician sends no second notice: E1 is the only one", async () => {
     const d = await deal();
-    const create = (body: Record<string, unknown>, as: "salesCh" | "tech" = "salesCh") =>
-      call("POST", "/activities", { as, body: { type: "task", subject: "Call the client", companyId: d.company.id, dealId: d.id, ...body } });
-    const created = await create({ assigneeUserId: "user-tech", dueDate: "2026-12-31" });
-    expect(events).toHaveLength(1);
-    expect(events[0]).toMatchObject({
-      kind: "task_assigned",
-      to: ["user-tech"],
-      email: true,
-      severity: "info",
-      href: "/crm/tasks",
-      title: "New task: Call the client",
-    });
-    expect(events[0]!.body).toBe("Name of user-sales-ch assigned you a task, due 31.12.2026. Deal: Grid analytics.");
-
-    events.length = 0;
-    await create({}); // assignee defaults to the actor
-    await create({ assigneeUserId: "user-sales-ch" });
-    await call("POST", "/activities", { as: "salesCh", body: { type: "note", subject: "A note", companyId: d.company.id } });
-    expect(events.every((e) => e.to.length === 0)).toBe(true);
-
-    events.length = 0;
-    const edit = (body: Record<string, unknown>) => call("PATCH", `/activities/${created.json.id}`, { as: "salesCh", body });
-    await edit({ subject: "Renamed" });
-    await edit({ assigneeUserId: "user-tech" });
-    expect(events).toHaveLength(0);
-    await edit({ assigneeUserId: "user-colleague" });
-    expect(events).toHaveLength(1);
-    expect(events[0]).toMatchObject({ to: ["user-colleague"], href: "/crm/tasks" });
-    noMoney();
+    await request(d.id);
+    expect(events.map((e) => e.kind)).toEqual(["estimate_requested"]);
   });
 
   it("E6 estimate unlinked: the technical contact, in-app only", async () => {

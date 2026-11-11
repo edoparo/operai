@@ -36,7 +36,8 @@
 import { test, expect } from '@playwright/test'
 import { seedSession } from './helpers/seedSession'
 
-const REFUND_REMOTE_ORIGIN = 'http://localhost:5176'
+// Same origin playwright.config.ts serves (or reuses) the Refund remote on.
+const REFUND_REMOTE_ORIGIN = `http://localhost:${process.env['E2E_REFUND_REMOTE_PORT'] ?? '5176'}`
 
 test.describe('AC-6.1: a failing Refund remote shows an in-place error while the rest of the suite stays usable', () => {
   test.beforeEach(async ({ context }) => {

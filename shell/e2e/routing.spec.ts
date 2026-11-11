@@ -10,6 +10,10 @@
 import { test, expect } from '@playwright/test'
 import { seedSession } from './helpers/seedSession'
 
+// Refund's index redirects to its first screen, My requests (refund-ui/src/router.tsx), so the URL a
+// Refund link settles on is /refund/requests; /refund alone is accepted too.
+const REFUND_URL = /\/refund(\/requests)?$/
+
 test.describe('AC-3.2: selecting a tool updates the URL and is reload-safe', () => {
   test.beforeEach(async ({ context }) => {
     await seedSession(context)
@@ -25,14 +29,14 @@ test.describe('AC-3.2: selecting a tool updates the URL and is reload-safe', () 
 
     await page.getByRole('link', { name: 'Refund', exact: true }).click()
 
-    await expect(page).toHaveURL(/\/refund$/, { timeout: 15_000 })
+    await expect(page).toHaveURL(REFUND_URL, { timeout: 15_000 })
     await expect(page.getByRole('heading', { name: 'Refund', exact: true })).toBeVisible({
       timeout: 15_000,
     })
 
     await page.reload()
 
-    await expect(page).toHaveURL(/\/refund$/, { timeout: 15_000 })
+    await expect(page).toHaveURL(REFUND_URL, { timeout: 15_000 })
     await expect(page.getByRole('heading', { name: 'Refund', exact: true })).toBeVisible({
       timeout: 15_000,
     })

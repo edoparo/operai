@@ -69,7 +69,7 @@ describe("parseServiceClients", () => {
     if (!result.ok) expect(result.errors.join("\n")).not.toContain(SECRET_A);
   });
 
-  test("the scope allowlist is exactly notifications.push, emails.send, users.contact, estimate-notices.send, host-notices.send and deal-link-notices.send", () => {
+  test("the scope allowlist is exactly notifications.push, emails.send, users.contact, estimate-notices.send, host-notices.send, deal-link-notices.send, crm.companies.read and activities.write", () => {
     expect([...KNOWN_SERVICE_SCOPES]).toEqual([
       "notifications.push",
       "emails.send",
@@ -77,6 +77,8 @@ describe("parseServiceClients", () => {
       "estimate-notices.send",
       "host-notices.send",
       "deal-link-notices.send",
+      "crm.companies.read",
+      "activities.write",
     ]);
   });
 
@@ -117,6 +119,52 @@ describe("parseServiceClients", () => {
     const scopes = result.clients.get("meetings-api")?.scopes ?? [];
     expect([...scopes].sort()).toEqual(["host-notices.send", "notifications.push"]);
     expect(scopes).not.toContain("emails.send");
+  });
+
+  test("crm.companies.read is an accepted scope: a projects-api client holding it parses (specs/025)", () => {
+    const result = parseServiceClients(raw({ "projects-api": { secret: SECRET_A, scope: "crm.companies.read" } }));
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.clients.get("projects-api")?.scopes).toEqual(["crm.companies.read"]);
+  });
+
+  test("the documented projects-api entry is exactly crm.companies.read: no push, no email (specs/025)", () => {
+    const documented = DOCUMENTED_CLIENT_SCOPES["projects-api"];
+    const result = parseServiceClients(raw({ "projects-api": { secret: SECRET_A, scope: documented } }));
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.clients.get("projects-api")?.scopes).toEqual(["crm.companies.read"]);
+  });
+
+  test("activities.write is an accepted scope; a nearby misspelling is still refused (specs/028)", () => {
+    const ok = parseServiceClients(raw({ "crm-api": { secret: SECRET_A, scope: "activities.write" } }));
+    expect(ok.ok).toBe(true);
+    if (ok.ok) expect(ok.clients.get("crm-api")?.scopes).toEqual(["activities.write"]);
+    for (const scope of ["activities.writes", "activity.write", "activities", "ACTIVITIES.WRITE", "activities.read"]) {
+      expect(parseServiceClients(raw({ "crm-api": { secret: SECRET_A, scope } })).ok).toBe(false);
+    }
+  });
+
+  test("the documented crm-api entry adds activities.write to its existing three scopes (specs/028 AC-1.2)", () => {
+    const documented = DOCUMENTED_CLIENT_SCOPES["crm-api"];
+    const result = parseServiceClients(raw({ "crm-api": { secret: SECRET_A, scope: documented } }));
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect([...(result.clients.get("crm-api")?.scopes ?? [])].sort()).toEqual([
+      "activities.write",
+      "deal-link-notices.send",
+      "emails.send",
+      "notifications.push",
+    ]);
+  });
+
+  test("the documented activities-api entry is exactly notifications.push and emails.send: email notices, no write (specs/028 AC-6.1/6.3)", () => {
+    const documented = DOCUMENTED_CLIENT_SCOPES["activities-api"];
+    const result = parseServiceClients(raw({ "activities-api": { secret: SECRET_A, scope: documented } }));
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect([...(result.clients.get("activities-api")?.scopes ?? [])].sort()).toEqual(["emails.send", "notifications.push"]);
+    expect(result.clients.get("activities-api")?.scopes).not.toContain("activities.write");
   });
 
   test("a client holding emails.send parses, alone or beside notifications.push", () => {

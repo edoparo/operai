@@ -1,7 +1,8 @@
 import { useCallback, useRef, useState } from 'react'
 import { CheckboxGroupField, DateInput, DateTimeInput, Field, FormDialog, focusFirstInvalid } from '@operai/ui'
 import { ApiError } from '../lib/api'
-import { createActivity, listActivities, listContacts, listDeals, updateActivity } from '../lib/crmApi'
+import { createActivity, listActivities, updateActivity } from '../lib/activitiesApi'
+import { listContacts, listDeals } from '../lib/crmApi'
 import { fromLocalDateTimeInput, toLocalDateTimeInput } from '../lib/dates'
 import { errorMessage, fieldErrorOf } from '../lib/errors'
 import { contactName, personName } from '../lib/people'
@@ -257,7 +258,7 @@ export default function ActivityFormDialog({
               )}
             </Field>
             <PersonPicker
-            appId="crm"
+              appId="crm"
               label={t.assignee}
               value={assignee}
               onChange={setAssignee}

@@ -43,6 +43,7 @@ const en = {
     inventory: 'Inventory',
     crm: 'CRM',
     meetings: 'Meetings',
+    projects: 'Projects',
   } satisfies Record<NotificationOriginApp, string>,
   notFound: {
     title: 'Page not found',
@@ -83,6 +84,7 @@ const it: typeof en = {
     inventory: 'Inventario',
     crm: 'CRM',
     meetings: 'Riunioni',
+    projects: 'Progetti',
   },
   notFound: {
     title: 'Pagina non trovata',

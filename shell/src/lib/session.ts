@@ -45,6 +45,10 @@
  *     • The crm-api origin (VITE_CRM_API_URL), if defined (specs/017-crm).
  *     • The meetings-api origin (VITE_MEETINGS_API_URL), if defined
  *       (specs/021-meetings, T50) — and only that origin.
+ *     • The projects-api origin (VITE_PROJECTS_API_URL), if defined
+ *       (specs/025-projects).
+ *     • The activities-api origin (VITE_ACTIVITIES_API_URL), if defined
+ *       (specs/028-activities).
  *   Requests to any other origin proceed unauthenticated — no Authorization
  *   header is sent and credentials are not included cross-origin.
  *
@@ -156,6 +160,20 @@ export { registerNavigationBlocker } from './navigationBlocker'
  * remotes feature-detect it, so a shell that predates it simply has no widget.
  */
 export { closeFloating, openFloating } from './floating'
+
+/**
+ * The projects-api base URL (`VITE_PROJECTS_API_URL`, specs/025-projects), exposed
+ * for the federated `projects` remote, which ships no `VITE_*` env of its own.
+ * Lazily read, mirrors `getCrmApiBaseUrl()`.
+ */
+export const getProjectsApiBaseUrl = (): string => import.meta.env.VITE_PROJECTS_API_URL as string
+
+/**
+ * The activities-api base URL (`VITE_ACTIVITIES_API_URL`, specs/028-activities), exposed
+ * for the federated `crm` and `projects` remotes, which ship no `VITE_*` env of their own.
+ * Lazily read, mirrors `getProjectsApiBaseUrl()`.
+ */
+export const getActivitiesApiBaseUrl = (): string => import.meta.env.VITE_ACTIVITIES_API_URL as string
 
 /** Clears the in-memory JWT cache. */
 export const clearJwtCache = (): void => {
@@ -272,6 +290,26 @@ const getTrustedOrigins = (): Set<string> => {
   if (meetingsUrl) {
     try {
       trusted.add(new URL(meetingsUrl).origin)
+    } catch {
+      /* ignore invalid env value */
+    }
+  }
+
+  // specs/025-projects: projects-api origin, trusted only when configured (same shape).
+  const projectsUrl = import.meta.env.VITE_PROJECTS_API_URL as string | undefined
+  if (projectsUrl) {
+    try {
+      trusted.add(new URL(projectsUrl).origin)
+    } catch {
+      /* ignore invalid env value */
+    }
+  }
+
+  // specs/028-activities: activities-api origin, trusted only when configured (same shape).
+  const activitiesUrl = import.meta.env.VITE_ACTIVITIES_API_URL as string | undefined
+  if (activitiesUrl) {
+    try {
+      trusted.add(new URL(activitiesUrl).origin)
     } catch {
       /* ignore invalid env value */
     }

@@ -59,10 +59,11 @@ test.describe('MF shared React singleton holds across a real navigation cycle', 
     await expect(page.getByRole('heading', { name: 'Refund', exact: true })).toBeVisible({
       timeout: 15_000,
     })
-    // Refund's App calls useSession() from the federated shell/session
-    // module AND reads its own local useState-free render — its signed-in
-    // line rendering at all is the hook resolving without throwing.
-    await expect(page.getByTestId('refund-signed-in-as')).toBeVisible({ timeout: 15_000 })
+    // Refund's first screen (My requests) loads through the federated
+    // shell/session module (useSession + apiFetch): its rendering at all is
+    // the hooks resolving without throwing. (It replaced the placeholder's
+    // signed-in line, `refund-signed-in-as`, when specs/007 built the tool.)
+    await expect(page.getByTestId('refund-my-requests-page')).toBeVisible({ timeout: 15_000 })
 
     await page.getByRole('link', { name: 'EstimAI' }).click()
     await expect(page.getByRole('button', { name: /import json/i })).toBeVisible({

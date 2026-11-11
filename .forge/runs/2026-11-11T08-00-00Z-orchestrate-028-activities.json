@@ -1,0 +1,337 @@
+{
+  "schema": "wellforge-run/v3",
+  "plugin_version": "2.60.0",
+  "run_id": "2026-11-11T08-00-00Z-orchestrate-028-activities",
+  "command": "orchestrate",
+  "feature": "028-activities",
+  "rigor": "production",
+  "rigor_recorded": null,
+  "started": "2026-11-10T23:00:00Z",
+  "finished": "2026-11-11T16:00:00Z",
+  "agents": [
+    {
+      "agent": "backend-dev",
+      "task": "T1",
+      "outcome": "done; drift: activities-api needs emails.send"
+    },
+    {
+      "agent": "backend-dev",
+      "task": "T2",
+      "outcome": "done; direnv file not creatable by agents (hook)"
+    },
+    {
+      "agent": "backend-dev",
+      "task": "T4",
+      "outcome": "done"
+    },
+    {
+      "agent": "backend-dev",
+      "task": "T5",
+      "outcome": "done"
+    },
+    {
+      "agent": "frontend-dev",
+      "task": "T15",
+      "outcome": "done"
+    },
+    {
+      "agent": "frontend-dev",
+      "task": "T16",
+      "outcome": "done"
+    },
+    {
+      "agent": "architect",
+      "task": "plan amendment 1-5",
+      "outcome": "done"
+    },
+    {
+      "agent": "frontend-dev",
+      "task": "T17",
+      "outcome": "done"
+    },
+    {
+      "agent": "frontend-dev",
+      "task": "T18",
+      "outcome": "done"
+    },
+    {
+      "agent": "backend-dev",
+      "task": "T1 amended",
+      "outcome": "done"
+    },
+    {
+      "agent": "backend-dev",
+      "task": "T3",
+      "outcome": "done"
+    },
+    {
+      "agent": "backend-dev",
+      "task": "T6",
+      "outcome": "done; drift: notify origin binding"
+    },
+    {
+      "agent": "backend-dev",
+      "task": "T13",
+      "outcome": "done"
+    },
+    {
+      "agent": "devops",
+      "task": "T20",
+      "outcome": "done"
+    },
+    {
+      "agent": "architect",
+      "task": "plan amendment 6 (notify origin)",
+      "outcome": "done"
+    },
+    {
+      "agent": "backend-dev",
+      "task": "T24",
+      "outcome": "done"
+    },
+    {
+      "agent": "frontend-dev",
+      "task": "T19",
+      "outcome": "done"
+    },
+    {
+      "agent": "devops",
+      "task": "T22",
+      "outcome": "done"
+    },
+    {
+      "agent": "backend-dev",
+      "task": "T7",
+      "outcome": "done; CRM assignee regression found by orchestrator"
+    },
+    {
+      "agent": "backend-dev",
+      "task": "T8 + CRM assignee fix",
+      "outcome": "done"
+    },
+    {
+      "agent": "backend-dev",
+      "task": "T9",
+      "outcome": "done"
+    },
+    {
+      "agent": "backend-dev",
+      "task": "T10",
+      "outcome": "done; task_unblocked copy regression found by orchestrator"
+    },
+    {
+      "agent": "backend-dev",
+      "task": "T11",
+      "outcome": "done; no defects"
+    },
+    {
+      "agent": "backend-dev",
+      "task": "T12 + completion context fix",
+      "outcome": "done"
+    },
+    {
+      "agent": "backend-dev",
+      "task": "T14",
+      "outcome": "done on feat/activities-contract (ships later)"
+    },
+    {
+      "agent": "quality-engineer",
+      "task": "T21",
+      "outcome": "specs written; run BLOCKED by env"
+    },
+    {
+      "agent": "owasp-reviewer",
+      "task": "review 1",
+      "outcome": "FAIL (M1 medium)"
+    },
+    {
+      "agent": "backend-dev",
+      "task": "security fix round (M1,L1,L2,L4)",
+      "outcome": "done"
+    },
+    {
+      "agent": "architect",
+      "task": "security amendments plan + ADR-0082",
+      "outcome": "done"
+    },
+    {
+      "agent": "owasp-reviewer",
+      "task": "review 2",
+      "outcome": "PASS"
+    },
+    {
+      "agent": "quality-engineer",
+      "task": "QE 1",
+      "outcome": "FAIL (D1-D5)"
+    },
+    {
+      "agent": "frontend-dev",
+      "task": "D1",
+      "outcome": "done"
+    },
+    {
+      "agent": "backend-dev",
+      "task": "D4 + security lows",
+      "outcome": "done"
+    },
+    {
+      "agent": "product-owner",
+      "task": "D5 AC-2.5",
+      "outcome": "done"
+    },
+    {
+      "agent": "quality-engineer",
+      "task": "QE 2",
+      "outcome": "BLOCKED"
+    },
+    {
+      "agent": "owasp-reviewer",
+      "task": "review 3 (round-2 diff)",
+      "outcome": "PASS"
+    }
+  ],
+  "drift_events": [
+    {
+      "stage": "implementation",
+      "item": "activities-api client needs emails.send (AC-6.1/6.3)",
+      "owner": "architect",
+      "resolution": "plan amendment 2026-11-11 item 1; T1 amended"
+    },
+    {
+      "stage": "implementation",
+      "item": "host validation status / non-reader shapes / related tolerance / matrix exceptions",
+      "owner": "architect",
+      "resolution": "plan amendment items 2-5"
+    },
+    {
+      "stage": "implementation",
+      "item": "notify-api refuses activities-api pushes (origin projects + binding)",
+      "owner": "architect",
+      "resolution": "plan amendment item 6; new task T24"
+    },
+    {
+      "stage": "QE",
+      "item": "AC-2.5 cited but not written",
+      "owner": "product-owner",
+      "resolution": "spec amendment 2026-11-11"
+    },
+    {
+      "date": "2026-11-11",
+      "source": "eval",
+      "owner": "architect+PO",
+      "items": [
+        "completion context recorded",
+        "ids UUID v4 for crm-api caller-chosen ids",
+        "lock bound",
+        "ADR-0082 deletion guard has no DB key",
+        "owner accepted the task_unblocked notice-context narrowing (spec amendment)"
+      ]
+    }
+  ],
+  "worktree": {
+    "mode": "isolated",
+    "base_ref": "head",
+    "integration": "rebase + ff-only, linear"
+  },
+  "collision_events": [],
+  "env_faults": [
+    "projects and projects_test DBs never created locally (fixed in preflight)",
+    "activities-api direnv file cannot be created by agents (protected-file hook); a person must create it — RESOLVED: created by the user in 221a6a3d",
+    "running local stack predates the feature; stopping user processes was denied by the permission classifier, so e2e and rendered checks are BLOCKED — RESOLVED: the user restarted the stack (dev:preview); e2e 101/101",
+    "notify_test one migration behind (fixed locally by QE)",
+    "e2e AC-7.1 Everyone half depended on local dev-data volume (E2); spec made data-independent in d572a087"
+  ],
+  "fix_rounds": {
+    "used": 2,
+    "extensions": [
+      {
+        "granted_by": "user",
+        "date": "2026-11-11",
+        "for": [
+          "D6"
+        ],
+        "note": "crm-ui Tasks page focus after a row leaves the list; fixed in 4bec9e8b, verified by a fresh QE"
+      },
+      {
+        "granted_by": "user",
+        "date": "2026-11-11",
+        "for": [
+          "eval: AC-7.5 after-probe degradation",
+          "lock bound 2 s/4 s",
+          "plan/ADR drift (completion context, id format)",
+          "flaky blocker order",
+          "Delete focus test",
+          "D9 import hook timeout"
+        ],
+        "note": "fixed in 89278f6f, 01eb8abc, 2b175d8d, af7758be, cc7aa0ee, 76d9729f, b7ca30c1, f9301465"
+      }
+    ],
+    "rounds": [
+      "security round 1 (M1,L1,L2,L4)",
+      "QE round (D1,D3,D4,D5 + security lows)"
+    ]
+  },
+  "verdicts": {
+    "security": "PASS",
+    "qe": "PASS",
+    "eval": "PASS"
+  },
+  "security": {
+    "dispatched": true,
+    "matched_rules": [
+      "plan Security: YES",
+      "production reviews every batch"
+    ],
+    "reviews": [
+      "FAIL M1",
+      "PASS",
+      "PASS"
+    ],
+    "round2": "PASS (scoped to the eval-round changes; 2 low informational)"
+  },
+  "qe": {
+    "last": "BLOCKED",
+    "report": "specs/028-activities/qe-report.md",
+    "blocked_rows": [
+      "shell e2e activities-* (15)",
+      "rendered/browser pass"
+    ],
+    "verdict": "PASS",
+    "measured_at": "546f6c70",
+    "history": [
+      "BLOCKED (env) at c9a3e96a",
+      "FAIL D6 at 32a0d541",
+      "BLOCKED E2 at 4bec9e8b",
+      "PASS at d572a087",
+      "FAIL D9 at b9ef058d (full fresh sweep)",
+      "PASS at f9301465 (D9 mitigated, 41/41)"
+    ]
+  },
+  "eval": {
+    "dispatched": false,
+    "reason": "QE BLOCKED",
+    "verdict": "PASS",
+    "score": 80.0,
+    "pass_score": 80,
+    "report": "specs/028-activities/eval-report.md",
+    "commit": "3e7a7128",
+    "history": [
+      "FAIL 76.5 at 5f32ab95",
+      "PASS 80.0 at 3e7a7128"
+    ]
+  },
+  "result": "pass",
+  "notes": "T14 on branch feat/activities-contract, not merged by design (ADR-0083). Feature stays in-progress. 2026-11-11: env unblocked by the user; shell e2e fixed for local-state drift (7054645c); T21 done; D6 extension; QE PASS; eval FAIL 76.5 -> escalated to the user (fix rounds exhausted).",
+  "tokens": null,
+  "cost_usd": null,
+  "terse": false,
+  "control_run_id": null,
+  "follow_ups": [
+    "G1 My tasks silent when Projects is down",
+    "N1 blocker tie order",
+    "D7 PersonPicker Escape",
+    "D8 light badge contrast",
+    "E1 shell sidebar at 360 px",
+    "T14 contract migration on feat/activities-contract after the production import"
+  ]
+}

@@ -68,6 +68,11 @@ process.env["SERVICE_AUDIENCE"] = "operai-system";
 // specs/018: estimai-api is faked by test-support/world.ts's fetch stub; the
 // bucket by an in-memory Storage (`setStorageForTests`), so no CRM_S3_* here.
 process.env["ESTIMAI_API_URL"] = "http://estimai.test";
+// specs/028: activities-api is faked by world.ts's fetch stub, and so is auth's service-token
+// exchange. The client group is required with ACTIVITIES_API_URL (env.ts); a developer's own values win.
+process.env["ACTIVITIES_API_URL"] = "http://activities.test";
+process.env["SERVICE_CLIENT_ID"] ??= "crm-api";
+process.env["SERVICE_CLIENT_SECRET"] ??= "test-secret-test-secret-test-secret-0123";
 // specs/018 AC-3.3: the audience of the service JWTs estimai-api's notices carry.
 export const TEST_SERVICE_AUDIENCE = "operai-services";
 process.env["SERVICE_AUDIENCE"] = TEST_SERVICE_AUDIENCE;

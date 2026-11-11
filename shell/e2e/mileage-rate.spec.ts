@@ -215,16 +215,19 @@ test.describe('specs/009-mileage-rate T15: cross-service mileage flow', () => {
     // rewrites the already-submitted (now approved) line ──────────────────
     await addMileageRate(adminPage, 'welld_ch', '0.95', today)
 
-    // Employee's own view of the now-decided request: still CHF 81.00
-    // requested, still the ORIGINAL 0,81 rate — never recomputed to 0,95.
+    // Employee's own view of the now-decided request: still 81.00 requested,
+    // still the ORIGINAL 0,81 rate — never recomputed to 0,95. Accounting
+    // adjusted the amount, so the row shows the approved figure and the
+    // requested one beside it ("requested 81.00 · −11.00", refund-ui 3aecb6f1).
     await empPage.goto(`/refund/requests/${requestId}`)
     await expect(empPage.getByTestId('request-detail-approved')).toBeVisible({ timeout: 20_000 })
     const empDecidedRow = empPage
       .locator('[data-testid^="expense-line-row-"]')
       .filter({ hasText: `Client site visit ${tag}` })
-    await expect(empDecidedRow).toContainText('CHF 81.00')
+    await expect(empDecidedRow).toContainText('CHF 70.00')
+    await expect(empDecidedRow).toContainText('requested 81.00')
     await expect(empDecidedRow).toContainText('CHF 0.81/km')
-    await expect(empDecidedRow).not.toContainText('CHF 95.00')
+    await expect(empDecidedRow).not.toContainText('95.00')
     await expect(empDecidedRow).not.toContainText('CHF 0.95/km')
 
     await adminContext.close()

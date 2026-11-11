@@ -141,7 +141,7 @@ test.describe('specs/010-self-approval-control T6: segregation-of-duties journey
   test(
     'admin enables "cannot approve own request" on a role (US-1) → the accountant holding it is blocked ' +
       'approving their OWN request (US-2, AC-2.1) but can still reject/set-total on it (US-4, AC-4.1/4.2) → ' +
-      'the SAME accountant CAN approve another employee\'s request (US-2, AC-2.2)',
+      "the SAME accountant CAN approve another employee's request (US-2, AC-2.2)",
     async ({ browser }) => {
       const tag = uniqueSuffix()
       const adminEmail = `e2e-selfapproval-admin-${tag}@operai.test`
@@ -198,6 +198,10 @@ test.describe('specs/010-self-approval-control T6: segregation-of-duties journey
       await expect(approveRuleRow.locator('[data-testid="condition-chip-self-approval"]')).toBeVisible()
 
       await adminPage.getByTestId('role-save-rules').click()
+      // Wait for the save to COMPLETE: the rules list was already visible, so waiting on it let the next
+      // `goto` abort the in-flight save, leaving the role without `refund:access` (the accountant was then
+      // sent to another tool and the journey failed intermittently).
+      await expect(adminPage.getByTestId('role-rules-success')).toBeVisible({ timeout: 10_000 })
       await expect(adminPage.getByTestId('role-rules-list')).toBeVisible({ timeout: 10_000 })
 
       // ─── Assign the new role to the accountant (AC-1.2 — the resolver
@@ -239,7 +243,8 @@ test.describe('specs/010-self-approval-control T6: segregation-of-duties journey
       // ─── US-4/AC-4.2: set-approved-total on the OWN request is NOT
       // blocked by the restriction ──────────────────────────────────────
       const ownLineRow = acctPage.locator('[data-testid^="expense-line-row-"]').first()
-      const ownApprovedTotalInput = ownLineRow.locator('input[type="number"]')
+      // The approved total is a MoneyInput (`type="text"`, so a decimal comma is accepted), found by its test id.
+      const ownApprovedTotalInput = ownLineRow.locator('[data-testid$="-approved-total"]')
       await ownApprovedTotalInput.fill('40')
       await ownApprovedTotalInput.blur()
       await expect(ownLineRow.getByText('Saving…')).toHaveCount(0, { timeout: 10_000 })

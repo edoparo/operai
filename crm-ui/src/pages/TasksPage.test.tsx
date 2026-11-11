@@ -16,6 +16,7 @@ const { apiFetch } = vi.hoisted(() => ({ apiFetch: vi.fn() }))
 vi.mock('shell/session', () => ({
   apiFetch,
   getCrmApiBaseUrl: () => 'http://crm-api.test',
+  getActivitiesApiBaseUrl: () => 'http://activities-api.test',
   getAuthBaseUrl: () => 'http://auth.test',
   useSession: () => ({ data: { user: { id: 'u-ada' } } }),
 }))
@@ -152,10 +153,18 @@ describe('TasksPage — blocked by (specs/017 US-6)', () => {
     const row = await screen.findByTestId('crm-activity-t2')
     expect(row.textContent).toContain('Blocked')
     expect(row.textContent).toContain('With Paolo Paro')
-    expect(within(row).getByTestId('crm-activity-t2-waiting').textContent).toContain('Waiting on: Estimate: Grid analytics')
+    expect(within(row).getByTestId('crm-activity-t2-waiting').textContent).toContain(
+      'Waiting on: Estimate: Grid analytics',
+    )
+    // aria-disabled, not disabled: the button stays in the tab order and its hint is read (design-system rule 5).
     const done = within(row).getByTestId('crm-activity-t2-toggle')
-    expect((done as HTMLButtonElement).disabled).toBe(true)
-    expect(done.getAttribute('aria-describedby')).toBe('crm-activity-t2-blocked-hint')
+    expect(done.getAttribute('aria-disabled')).toBe('true')
+    expect((done as HTMLButtonElement).disabled).toBe(false)
+    const hint = within(row).getByTestId('crm-activity-t2-waiting')
+    expect(done.getAttribute('aria-describedby')).toBe(hint.id)
+    // The click is ignored: no complete call.
+    fireEvent.click(done)
+    expect(apiFetch.mock.calls.some(([, init]) => (init as RequestInit | undefined)?.method === 'POST')).toBe(false)
   })
 
   it('a new task can wait on the company’s open tasks; the choice is posted as blockedByIds', async () => {
@@ -224,7 +233,9 @@ describe('TasksPage — participants (specs/017 US-8)', () => {
     render(<RouterProvider router={createAppRouter()} />)
     fireEvent.click(await screen.findByTestId('crm-tasks-new'))
     const dialog = await screen.findByRole('dialog', { name: 'New task' })
-    fireEvent.change(within(dialog).getByLabelText('Subject', { exact: false }), { target: { value: 'Visit the client' } })
+    fireEvent.change(within(dialog).getByLabelText('Subject', { exact: false }), {
+      target: { value: 'Visit the client' },
+    })
     fireEvent.change(within(dialog).getByTestId('crm-activity-form-company-input'), { target: { value: 'Acme' } })
     fireEvent.click(await within(dialog).findByRole('option', { name: /Acme SA/ }))
 
@@ -269,9 +280,37 @@ describe('TasksPage — editing contact and deal (specs/017 AC-4.2)', () => {
         'GET /tasks/assignees': () => ({ status: 200, body: { items: [] } }),
         'GET /contacts': () => ({
           status: 200,
-          body: page([{ id: 'p1', firstName: 'Mirko', lastName: 'Bianchi', email: null, phone: null, jobTitle: null, company: { id: 'c1', name: 'Acme SA' }, archived: false, updatedAt: '2026-11-01T00:00:00.000Z' }]),
+          body: page([
+            {
+              id: 'p1',
+              firstName: 'Mirko',
+              lastName: 'Bianchi',
+              email: null,
+              phone: null,
+              jobTitle: null,
+              company: { id: 'c1', name: 'Acme SA' },
+              archived: false,
+              updatedAt: '2026-11-01T00:00:00.000Z',
+            },
+          ]),
         }),
-        'GET /deals': () => ({ status: 200, body: page([{ id: 'd7', title: 'Data platform', company: { id: 'c1', name: 'Acme SA' }, stage: 'lead', entity: 'welld_ch', expectedCloseDate: null, owner: ADA_REF, closedAt: null, updatedAt: '2026-11-01T00:00:00.000Z', version: 1 }]) }),
+        'GET /deals': () => ({
+          status: 200,
+          body: page([
+            {
+              id: 'd7',
+              title: 'Data platform',
+              company: { id: 'c1', name: 'Acme SA' },
+              stage: 'lead',
+              entity: 'welld_ch',
+              expectedCloseDate: null,
+              owner: ADA_REF,
+              closedAt: null,
+              updatedAt: '2026-11-01T00:00:00.000Z',
+              version: 1,
+            },
+          ]),
+        }),
         'GET /activities': () => ({ status: 200, body: page([]) }),
         'PATCH /activities/t5': (_url, init) => {
           patched = JSON.parse(String(init?.body)) as Record<string, unknown>
@@ -294,4 +333,3 @@ describe('TasksPage — editing contact and deal (specs/017 AC-4.2)', () => {
     expect(patched).toMatchObject({ contactId: 'p1', dealId: 'd7' })
   })
 })
-

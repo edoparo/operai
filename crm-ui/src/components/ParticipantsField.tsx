@@ -1,4 +1,5 @@
-import { Button, Icon } from '@operai/ui'
+import { useRef } from 'react'
+import { PersonChips } from '@operai/ui'
 import { strings } from '../strings'
 import PersonPicker from './PersonPicker'
 import type { PersonChoice } from './PersonPicker'
@@ -9,7 +10,7 @@ const MAX_PARTICIPANTS = 10
 /**
  * ParticipantsField — the wellD colleagues who took part in an activity
  * (specs/017 US-8): a picker that adds a person, and the chosen people, each
- * removable. Contacts of the client are not participants.
+ * removable (the library's `PersonChips`). Contacts of the client are not participants.
  */
 export default function ParticipantsField({
   value,
@@ -24,8 +25,9 @@ export default function ParticipantsField({
 }) {
   const t = strings.activities.form
   const full = value.length >= MAX_PARTICIPANTS
+  const root = useRef<HTMLDivElement>(null)
   return (
-    <div className="flex flex-col gap-2" data-testid={testId}>
+    <div ref={root} className="flex flex-col gap-2" data-testid={testId}>
       <PersonPicker
         appId="crm"
         label={t.participants}
@@ -38,28 +40,14 @@ export default function ParticipantsField({
         clearOnSelect
         testId={`${testId}-picker`}
       />
-      {value.length > 0 && (
-        <ul className="flex flex-wrap gap-2" aria-label={t.participants}>
-          {value.map((person) => (
-            <li
-              key={person.id}
-              className="flex items-center gap-1 rounded-md border border-rule bg-ink-soft py-0.5 pr-0.5 pl-2 text-sm text-text"
-            >
-              {person.label}
-              <Button
-                size="sm"
-                variant="ghost"
-                iconOnly
-                aria-label={t.removeParticipant(person.label)}
-                onClick={() => onChange(value.filter((other) => other.id !== person.id))}
-                data-testid={`${testId}-remove-${person.id}`}
-              >
-                <Icon name="close" />
-              </Button>
-            </li>
-          ))}
-        </ul>
-      )}
+      <PersonChips
+        label={t.participants}
+        people={value}
+        removeLabel={t.removeParticipant}
+        focusAfterRemove={() => root.current?.querySelector('input') ?? null}
+        onRemove={(id) => onChange(value.filter((other) => other.id !== id))}
+        testId={testId}
+      />
     </div>
   )
 }

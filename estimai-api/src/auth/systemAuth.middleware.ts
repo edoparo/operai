@@ -26,6 +26,7 @@
  * middleware, and a system route must never sit behind it.
  */
 
+// shared-copy:begin systemAuth
 import { createMiddleware } from "hono/factory";
 import { createRemoteJWKSet, jwtVerify, errors as joseErrors, type JWTVerifyGetKey } from "jose";
 import { env } from "../lib/env";
@@ -118,3 +119,4 @@ export const createSystemAuthMiddleware = (opts: SystemAuthOptions) => {
     return next();
   });
 };
+// shared-copy:end systemAuth

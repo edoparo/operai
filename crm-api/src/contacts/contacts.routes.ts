@@ -10,6 +10,7 @@
 import { OpenAPIHono, createRoute, z } from "@hono/zod-openapi";
 import { CONTACT_ERASE, authorized, requireCapability } from "../auth/guards";
 import type { AuthzVariables } from "../auth/authz.middleware";
+import { activities } from "../lib/activities";
 import { db } from "../lib/db";
 import type { Prisma } from "../lib/generated/prisma/client";
 import {
@@ -224,7 +225,9 @@ const eraseRoute = createRoute({
   tags: ["Contacts"],
   summary: "Erase a contact's personal data (contact:erase; irreversible)",
   description:
-    "Deletes the contact. Activities that referenced it keep their row with no contact (D-13). " +
+    "Deletes the contact. Activities that referenced it keep their row with no contact (D-13): " +
+    "activities-api is asked to unlink them FIRST (specs/028 AC-8.4), and if it cannot answer the " +
+    "erasure is a 503 `activities_unavailable` and the contact is untouched. " +
     "Free-text activity bodies are not scrubbed.",
   middleware: [...authorized, requireCapability(CONTACT_ERASE)],
   request: { params: IdParams },
@@ -339,8 +342,11 @@ for (const action of ["archive", "unarchive"] as const) {
 
 contactsRouter.openapi(eraseRoute, async (c) => {
   const { id } = c.req.valid("param");
-  // `activity.contactId` is ON DELETE SET NULL: one statement erases the row
-  // and unlinks every activity that referenced it.
+  if (!(await db.contact.findUnique({ where: { id }, select: { id: true } }))) throw notFound("Contact not found");
+  // The activities are in activities-api now (specs/028 AC-8.4, ADR-0082): they are unlinked BEFORE
+  // the contact goes, never after, so an erasure that reports success has nothing left pointing at
+  // the person. The call is idempotent; if it cannot be answered this is a 503 and nothing was deleted.
+  await activities.eraseContact(id);
   const { count } = await db.contact.deleteMany({ where: { id } });
   if (count === 0) throw notFound("Contact not found");
   // Logged without any personal data: who erased, which opaque id.

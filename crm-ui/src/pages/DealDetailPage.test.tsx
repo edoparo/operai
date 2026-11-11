@@ -19,6 +19,7 @@ const { apiFetch } = vi.hoisted(() => ({ apiFetch: vi.fn() }))
 vi.mock('shell/session', () => ({
   apiFetch,
   getCrmApiBaseUrl: () => 'http://crm-api.test',
+  getActivitiesApiBaseUrl: () => 'http://activities-api.test',
   getAuthBaseUrl: () => 'http://auth.test',
   useSession: () => ({ data: { user: { id: 'u-ada' } } }),
 }))

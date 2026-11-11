@@ -10,13 +10,21 @@
  * from the estimate's content. Notices may arrive late or out of order: one whose
  * EstimAI version is not newer than the last applied is ignored. An estimate the
  * CRM does not link answers 204 like any other, so nothing is learnt from it.
+ *
+ * The request task lives in activities-api (specs/028, AC-1.3, ADR-0082): under the same
+ * `deal_estimate` lock and version guard, the task is completed or reopened by
+ * `POST /system/v1/activities/{id}/completion` with `seq` = the EstimAI version being recorded,
+ * so activities-api applies only a newer one and a repeated or reordered call is a no-op. That
+ * call is INSIDE the transaction: if activities-api cannot answer, the transaction rolls back
+ * (version, state and task all unchanged), this answers 503, and the same notice can be sent
+ * again. The tasks the completion frees are announced by activities-api, not here.
  */
 
 import { OpenAPIHono, createRoute, z } from "@hono/zod-openapi";
 import { db } from "../lib/db";
 import { MAX_NAME, announce, clip } from "../lib/notify";
 import { validationHook } from "../lib/problem";
-import { announceUnblocked } from "../activities/blockers";
+import { activities, LOCKED_CALL } from "../lib/activities";
 import { createSystemAuthMiddleware, type SystemAuthVariables } from "../auth/systemAuth.middleware";
 
 export const ESTIMATE_NOTICES_SCOPE = "estimate-notices.send";
@@ -59,14 +67,22 @@ estimateNoticesRouter.openapi(noticeRoute, async (c) => {
   const notice = c.req.valid("json");
   const links = await db.dealEstimate.findMany({
     where: { estimateId: notice.estimateId },
-    include: { deal: { select: { id: true, title: true, ownerUserId: true } } },
+    include: { deal: { select: { id: true, title: true, ownerUserId: true, company: { select: { name: true } } } } },
   });
   for (const link of links) await apply(link, notice);
   return c.body(null, 204);
 });
 
+/**
+ * The transaction also waits for activities-api, bounded by LOCKED_CALL (2 s per attempt, 4 s in
+ * all, the 401 retry included): over Prisma's 5 s default, well under this.
+ */
+const TRANSACTION_OPTIONS = { maxWait: 5_000, timeout: 10_000 } as const;
+
 async function apply(
-  link: Awaited<ReturnType<typeof db.dealEstimate.findMany>>[number] & { deal: { id: string; title: string; ownerUserId: string } },
+  link: Awaited<ReturnType<typeof db.dealEstimate.findMany>>[number] & {
+    deal: { id: string; title: string; ownerUserId: string; company: { name: string } };
+  },
   notice: Notice,
 ): Promise<void> {
   const at = new Date(notice.at);
@@ -86,21 +102,27 @@ async function apply(
     });
     const flips = (row.state === "ready") !== ready;
     if (flips && row.taskId) {
-      await tx.activity.updateMany({
-        where: { id: row.taskId, ...(ready ? { completedAt: null } : {}) },
-        data: ready ? { completedAt: at, completedByUserId: notice.byUserId } : { completedAt: null, completedByUserId: null },
-      });
+      // `applied: false` (a repeat, an older seq, a task deleted by hand) is not a reason to hold
+      // the CRM's own state back; only an answer that never came is.
+      await activities.complete(row.taskId, {
+        completed: ready,
+        at: notice.at,
+        byUserId: notice.byUserId,
+        seq: notice.version,
+        // Where the task lives, for the "You can go ahead" notice of the tasks it frees.
+        ...(ready
+          ? { context: { companyName: clip(link.deal.company.name, MAX_NAME), dealId: link.deal.id, dealTitle: clip(link.deal.title, MAX_NAME) } }
+          : {}),
+      }, LOCKED_CALL);
     }
     return flips;
-  });
+  }, TRANSACTION_OPTIONS);
   if (!changed) return;
 
   // Who closed or reopened it is known by id only: the copy does not name them.
   const actor = { get: (_key: "userId") => notice.byUserId, req: { header: (_name: string) => undefined } };
   const deal = link.deal;
   if (ready) {
-    // specs/017 US-6: tasks that waited on the estimate task may now go ahead.
-    if (link.taskId) await announceUnblocked(actor, [link.taskId]);
     // E2 — whoever asked for it and whoever owns the deal.
     await announce(actor, {
       kind: "estimate_ready",

@@ -12,14 +12,21 @@ import { app, call, resetWorld } from "./test-support/world";
 
 beforeEach(resetWorld);
 
-const PUBLIC = new Set(["GET /health", "GET /openapi.json", "GET /docs"]);
+// `GET /system/companies` (specs/025) is guarded by a scoped SERVICE credential, not by user
+// capabilities; its own 401 matrix lives in src/system/companies.routes.test.ts.
+const PUBLIC = new Set(["GET /health", "GET /openapi.json", "GET /docs", "GET /system/companies"]);
 
 // The meeting-host contract (specs/021, ADR-0059) is the one deliberate exception to "403 without
 // crm:access": `resolve` answers a caller without it `closed`/`missing` (a 200), and `notices` is no
 // user route at all (a scoped service JWT, 401 for everything else). Each exception is asserted
 // below by name instead of by the generic rule, and the list is pinned, so another route cannot
 // hide here.
-const HOST_CONTRACT = new Set(["POST /meeting-host/v1/resolve", "POST /system/meeting-host/v1/notices"]);
+const HOST_CONTRACT = new Set([
+  "POST /meeting-host/v1/resolve",
+  "POST /system/meeting-host/v1/notices",
+  // specs/028 T4: same shape as the meeting-host resolve — `reader:false` (a 200) without crm:access.
+  "POST /activity-host/v1/resolve",
+]);
 
 const routes = [
   ...new Set(
@@ -42,7 +49,6 @@ describe("authorization matrix", () => {
       "POST /companies",
       "DELETE /contacts/:id",
       "GET /pipeline",
-      "GET /tasks",
       // specs/020
       "GET /offer-templates",
       "GET /offer-templates/:id",
@@ -75,9 +81,18 @@ describe("authorization matrix", () => {
     expect((await call(method, concrete(path), { as: "outsider", body, ifMatch: 1 })).status).toBe(403);
   });
 
+  it("crm-api serves no /activities and no /tasks route any more: they are activities-api's (specs/028 T12)", async () => {
+    expect(allRoutes.filter((key) => /^\w+ \/(activities|tasks)(\/|$)/.test(key))).toEqual([]);
+    for (const [method, path] of [["GET", "/activities"], ["POST", "/activities"], ["GET", "/tasks"], ["PATCH", "/activities/some-id"], ["DELETE", "/activities/some-id"]] as const) {
+      expect((await call(method, path, { as: "admin", body: method === "POST" ? {} : undefined })).status).toBe(404);
+    }
+    // The host contract activities-api asks is still served.
+    expect(allRoutes).toContain("POST /activity-host/v1/resolve");
+  });
+
   it("the host-contract exceptions are exactly the listed routes, and each is mounted", () => {
     for (const key of HOST_CONTRACT) expect(allRoutes).toContain(key);
-    expect(allRoutes.filter((key) => key.includes("meeting-host"))).toHaveLength(HOST_CONTRACT.size);
+    expect(allRoutes.filter((key) => key.includes("-host/"))).toHaveLength(HOST_CONTRACT.size);
   });
 
   it("POST /meeting-host/v1/resolve: 401 without a token, a 200 `closed` (not 403) without crm:access", async () => {
@@ -86,6 +101,14 @@ describe("authorization matrix", () => {
     const res = await call("POST", "/meeting-host/v1/resolve", { as: "outsider", body });
     expect(res.status).toBe(200);
     expect(res.json).toEqual({ items: [{ id: "some-id", state: "missing" }] });
+  });
+
+  it("POST /activity-host/v1/resolve: 401 without a token, a 200 `reader:false` (not 403) without crm:access", async () => {
+    const body = { entityType: "company", ids: ["some-id"] };
+    expect((await call("POST", "/activity-host/v1/resolve", { as: null, body })).status).toBe(401);
+    const res = await call("POST", "/activity-host/v1/resolve", { as: "outsider", body });
+    expect(res.status).toBe(200);
+    expect(res.json).toEqual({ reader: false, items: [], related: [] });
   });
 
   it("POST /system/meeting-host/v1/notices: a service route, 401 for every user token, whatever the grants", async () => {

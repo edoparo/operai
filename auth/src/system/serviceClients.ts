@@ -43,6 +43,12 @@ import { createHash, timingSafeEqual } from "node:crypto";
  * - `deal-link-notices.send`: post a deal-link notice (linked/unlinked) to
  *   estimai-api's `/system/deal-link-notices` (specs/024, ADR-0076).
  *   estimai-api verifies it; its sub allowlist names `system:crm-api`.
+ * - `crm.companies.read`: read CRM companies through crm-api's
+ *   `GET /system/companies` (specs/025, ADR-0080). Only projects-api holds it.
+ * - `activities.write`: write to activities-api's `/system/v1/*` routes — the
+ *   estimate-request task, completion, meeting-host state and contact erasure
+ *   (specs/028, ADR-0081/0082). Only crm-api holds it; activities-api's sub
+ *   allowlist names `system:crm-api`.
  */
 export const KNOWN_SERVICE_SCOPES = [
   "notifications.push",
@@ -51,6 +57,8 @@ export const KNOWN_SERVICE_SCOPES = [
   "estimate-notices.send",
   "host-notices.send",
   "deal-link-notices.send",
+  "crm.companies.read",
+  "activities.write",
 ] as const;
 
 /**
@@ -60,9 +68,19 @@ export const KNOWN_SERVICE_SCOPES = [
  * env value, validated by {@link parseServiceClients}.
  * - `meetings-api` (specs/021): pushes in-app notifications and relays host
  *   notices to crm-api; it never sends email (AC-12.4), so no `emails.send`.
+ * - `projects-api` (specs/025): reads CRM companies and nothing else, so exactly
+ *   `crm.companies.read` (no push, no email; ADR-0049 one scope per capability).
+ * - `crm-api` (specs/028): its three existing scopes plus `activities.write`.
+ * - `activities-api` (specs/028): `notifications.push emails.send` — its task notices
+ *   (AC-6.1/6.3) are email notices, and notify-api requires `emails.send` as well as
+ *   `notifications.push` for `email: true` (ADR-0056). No `activities.write`: it is the
+ *   service that scope writes to.
  */
 export const DOCUMENTED_CLIENT_SCOPES = {
   "meetings-api": "notifications.push host-notices.send",
+  "projects-api": "crm.companies.read",
+  "crm-api": "notifications.push emails.send deal-link-notices.send activities.write",
+  "activities-api": "notifications.push emails.send",
 } as const;
 
 /**

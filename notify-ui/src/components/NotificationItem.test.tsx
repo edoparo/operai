@@ -267,6 +267,11 @@ describe('NotificationItem', () => {
       expect(screen.getByText('The meeting was recorded and transcribed with AI.')).not.toBeNull()
     })
 
+    it('labels the projects origin (specs/028 T24)', () => {
+      render(<NotificationItem notification={{ ...withIt, originApp: 'projects' }} wasUnread={false} />)
+      expect(screen.getByTestId('notification-origin-notif-1').textContent).toBe('Projects')
+    })
+
     it('labels the meetings origin in the reader language', () => {
       render(<NotificationItem notification={withIt} wasUnread={false} />)
       expect(screen.getByTestId('notification-origin-notif-1').textContent).toBe('Meetings')

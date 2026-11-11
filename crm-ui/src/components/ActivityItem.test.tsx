@@ -15,6 +15,7 @@ vi.mock('shell/session', () => ({
   useSession: () => ({ data: { user: { id: 'u-other' } } }),
   apiFetch: vi.fn(),
   getCrmApiBaseUrl: () => 'http://crm-api.test',
+  getActivitiesApiBaseUrl: () => 'http://activities-api.test',
   getAuthBaseUrl: () => 'http://auth.test',
 }))
 

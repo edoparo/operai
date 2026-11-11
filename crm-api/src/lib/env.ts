@@ -74,13 +74,19 @@ const envSchema = z.object({
   // as ITSELF with the service client above (scope `deal-link-notices.send`).
   // Unset: the push is a no-op, logged once at startup.
   ESTIMAI_INTERNAL_URL: z.string().url("ESTIMAI_INTERNAL_URL must be a valid URL").optional(),
-  // ─── Service callers (specs/018 AC-3.3 ADR-0073, specs/021 ADR-0044/0049/0059) ─
-  // The `aud` that `auth` stamps on scoped service JWTs (the same value as
-  // notify-api's). MUST differ from AUTH_AUDIENCE so a user JWT is never a
-  // system credential. Optional at the schema level: without it
-  // `POST /system/estimate-notices` and `POST /system/meeting-host/v1/notices`
-  // answer 401 to everyone (fail closed) and the rest of the service is
-  // unaffected; the production template lists it as required (tools/env-doctor).
+  // ─── activities-api (specs/028, ADR-0082) ──────────────────────────────────
+  // Where the CRM's activities and tasks live now. crm-api calls its `/system/v1/*` routes as
+  // ITSELF (`system:crm-api`, scope `activities.write`) with the service client above, so the
+  // service client group is required with it. Unset, those calls answer 503
+  // `activities_unconfigured`; the production template lists it as required (tools/env-doctor).
+  ACTIVITIES_API_URL: z.string().url("ACTIVITIES_API_URL must be a valid URL").optional(),
+  // ─── Service credentials accepted on /system/* (specs/018 AC-3.3 ADR-0073, specs/021-meetings, specs/025-projects ADR-0080) ──
+  // The `aud` of the scoped service JWTs `auth` mints (`POST /system/service-token`);
+  // byte-identical to auth's and notify-api's, and different from AUTH_AUDIENCE so a
+  // user JWT is never a system credential. Optional so the service starts without it;
+  // unset, every /system/* request (`/system/companies`, `/system/estimate-notices`,
+  // `/system/meeting-host/v1/notices`, …) is a 401 (fail closed). tools/env-doctor
+  // lists it as required in production.
   SERVICE_AUDIENCE: z.string().min(1, "SERVICE_AUDIENCE must not be empty").optional(),
   CRM_S3_EU_ENDPOINT_HOSTS: z
     .string()
@@ -95,17 +101,18 @@ const envSchema = z.object({
   if (val.SERVICE_AUDIENCE !== undefined && val.SERVICE_AUDIENCE === val.AUTH_AUDIENCE) {
     ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["SERVICE_AUDIENCE"], message: "SERVICE_AUDIENCE must differ from AUTH_AUDIENCE (ADR-0044)" });
   }
-  if (val.ESTIMAI_INTERNAL_URL !== undefined) {
+  for (const [owner, url] of [["ESTIMAI_INTERNAL_URL", val.ESTIMAI_INTERNAL_URL], ["ACTIVITIES_API_URL", val.ACTIVITIES_API_URL]] as const) {
+    if (url === undefined) continue;
     for (const key of ["SERVICE_CLIENT_ID", "SERVICE_CLIENT_SECRET"] as const) {
       if (val[key] === undefined) {
-        ctx.addIssue({ code: z.ZodIssueCode.custom, path: [key], message: `${key} is required when ESTIMAI_INTERNAL_URL is set` });
+        ctx.addIssue({ code: z.ZodIssueCode.custom, path: [key], message: `${key} is required when ${owner} is set` });
       }
     }
   }
   const notifySet = NOTIFY_KEYS.filter((key) => val[key] !== undefined);
   if (notifySet.length > 0 && notifySet.length < NOTIFY_KEYS.length) {
-    // With ESTIMAI_INTERNAL_URL the service client may stand without the notify URL.
-    const clientOnly = val.ESTIMAI_INTERNAL_URL !== undefined && val.NOTIFY_INTERNAL_URL === undefined;
+    // With ESTIMAI_INTERNAL_URL or ACTIVITIES_API_URL the service client may stand without the notify URL.
+    const clientOnly = (val.ESTIMAI_INTERNAL_URL !== undefined || val.ACTIVITIES_API_URL !== undefined) && val.NOTIFY_INTERNAL_URL === undefined;
     for (const key of NOTIFY_KEYS.filter((k) => val[k] === undefined && !(clientOnly && k === "NOTIFY_INTERNAL_URL"))) {
       ctx.addIssue({ code: z.ZodIssueCode.custom, path: [key], message: `${key} is required when any of NOTIFY_INTERNAL_URL, SERVICE_CLIENT_ID, SERVICE_CLIENT_SECRET is set` });
     }

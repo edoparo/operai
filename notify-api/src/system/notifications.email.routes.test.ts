@@ -138,6 +138,30 @@ describe("crm origin", () => {
   });
 });
 
+describe("projects origin (specs/028 T24)", () => {
+  it("system:activities-api with both scopes: 201, emailStatus, footer 'Sent by Operai Projects'", async () => {
+    const res = await post(
+      buildApp({ status: "found", email: "a@b.test", name: "A" }),
+      BOTH,
+      validBody({ originApp: "projects", link: { href: "/projects/p_1" } }),
+      "system:activities-api",
+    );
+    expect(res.status).toBe(201);
+    expect(await statusOf(res)).toBe("sent");
+    expect(sent).toHaveLength(1);
+    expect(sent[0]?.html).toContain("Sent by Operai Projects");
+    expect(sent[0]?.html).toContain(`href="${APP_BASE_URL}/projects/p_1"`);
+  });
+
+  it("system:crm-api may not raise projects (403): no row, no lookup, no mail", async () => {
+    const res = await post(buildApp({ status: "inactive" }), BOTH, validBody({ originApp: "projects" }));
+    expect(res.status).toBe(403);
+    expect(await rowCount()).toBe(0);
+    expect(lookups).toEqual([]);
+    expect(sent).toEqual([]);
+  });
+});
+
 describe("email: true", () => {
   it("403 without emails.send: no row, no lookup, no mail", async () => {
     const res = await post(

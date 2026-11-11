@@ -2,8 +2,9 @@ import { useCallback, useId, useState } from 'react'
 import { Button, Field, ListRows, PageHeader, Pagination, StatePanel, Tabs, tabPanelProps } from '@operai/ui'
 import ActivityFormDialog from '../components/ActivityFormDialog'
 import ActivityItem from '../components/ActivityItem'
-import { LoadFailure, Loading, Saved } from '../components/LoadState'
-import { listTaskAssignees, listTasks } from '../lib/crmApi'
+import ActivityLoadFailure from '../components/ActivityLoadFailure'
+import { Loading, Saved } from '../components/LoadState'
+import { listTaskAssignees, listTasks } from '../lib/activitiesApi'
 import { personName } from '../lib/people'
 import type { Activity } from '../lib/types'
 import { useCurrentUserId } from '../hooks/useCurrentUserId'
@@ -11,6 +12,7 @@ import { useResource } from '../hooks/useResource'
 import { strings } from '../strings'
 
 const PAGE_SIZE = 25
+const TABS_ID = 'crm-tasks'
 const loadAssignees = (signal: AbortSignal) => listTaskAssignees({ signal })
 type View = 'open' | 'done'
 
@@ -50,9 +52,15 @@ export default function TasksPage() {
     tasks.retry()
   }
 
+  /** A row left the view (Mark done, Reopen, Delete): focus rests on the selected tab, stable and visible, never `body` (specs/028 design.md). */
+  const rowLeft = (message: string) => {
+    changed(message)
+    document.getElementById(`${TABS_ID}-tab-${view}`)?.focus()
+  }
+
   let content
   if (tasks.status === 'loading') content = <Loading label={t.loading} />
-  else if (tasks.status === 'error') content = <LoadFailure error={tasks.error} onRetry={tasks.retry} />
+  else if (tasks.status === 'error') content = <ActivityLoadFailure error={tasks.error} onRetry={tasks.retry} />
   else if (tasks.data!.total === 0)
     content =
       view === 'open' ? (
@@ -69,9 +77,9 @@ export default function TasksPage() {
               key={task.id}
               activity={task}
               showCompany
-              onChanged={(updated) => changed(updated.task?.completedAt ? t.completed : t.reopened)}
+              onChanged={(updated) => rowLeft(updated.task?.completedAt ? t.completed : t.reopened)}
               onEdit={setEditing}
-              onDeleted={() => changed(strings.activities.deleted)}
+              onDeleted={() => rowLeft(strings.activities.deleted)}
             />
           ))}
         </ListRows>
@@ -98,7 +106,12 @@ export default function TasksPage() {
         titleId={titleId}
         description={t.description}
         actions={
-          <Button variant="primary" onClick={() => setCreating(true)} aria-haspopup="dialog" data-testid="crm-tasks-new">
+          <Button
+            variant="primary"
+            onClick={() => setCreating(true)}
+            aria-haspopup="dialog"
+            data-testid="crm-tasks-new"
+          >
             {t.newTask}
           </Button>
         }
@@ -132,7 +145,7 @@ export default function TasksPage() {
         </div>
         <Tabs
           label={t.viewsLabel}
-          idPrefix="crm-tasks"
+          idPrefix={TABS_ID}
           value={view}
           onChange={(next) => {
             setView(next)
@@ -144,7 +157,7 @@ export default function TasksPage() {
           ]}
           testId="crm-tasks-tabs"
         />
-        <div {...tabPanelProps('crm-tasks', view)} className="flex flex-col gap-3">
+        <div {...tabPanelProps(TABS_ID, view)} className="flex flex-col gap-3">
           {saved && <Saved message={saved} onDismiss={() => setSaved(null)} />}
           {content}
         </div>

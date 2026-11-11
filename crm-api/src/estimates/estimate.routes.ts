@@ -13,6 +13,14 @@
  * "Admin" is `deal:manage` over every entity (`managesAllDeals`). Every EstimAI
  * call carries the caller's own JWT (lib/estimai.ts), so no new trust between
  * services exists. Each route answers with the updated deal.
+ *
+ * The request task and the override note live in activities-api (specs/028, ADR-0082), so they
+ * can no longer share this service's transaction. The caller chooses their ids:
+ *   request / override  PUT the activity under a fresh id BEFORE the transaction that records it;
+ *                       a failed put changes nothing here (and deletes the EstimAI estimate), a
+ *                       failed commit DELETEs the activity again (logged if that fails too);
+ *   unlink              DELETE the open task BEFORE the transaction: unavailable is a 503 and
+ *                       nothing changed, so the link and its task are never out of step.
  */
 
 import { OpenAPIHono, createRoute, z } from "@hono/zod-openapi";
@@ -25,6 +33,7 @@ import {
 } from "../auth/guards";
 import type { AuthzVariables } from "../auth/authz.middleware";
 import { db } from "../lib/db";
+import { activities } from "../lib/activities";
 import { sendDealLinkNotice } from "../lib/estimaiNotices";
 import { createEstimate, deleteEstimateQuietly, directoryEmail, shareAsEditor } from "../lib/estimai";
 import { IdParams, commonErrors, requiredText } from "../lib/http";
@@ -135,36 +144,48 @@ estimateRouter.openapi(requestRoute, async (c) => {
 
   const now = new Date();
   const dueDate = addWorkingDays(now, TASK_DUE_WORKING_DAYS);
-  await db.$transaction(async (tx) => {
-    const task = await tx.activity.create({
-      data: {
-        type: "task",
-        subject: `Estimate: ${deal.title}`.slice(0, 200),
-        body: null,
-        occurredAt: now,
-        companyId: deal.companyId,
-        dealId: deal.id,
-        authorUserId: userId,
-        assigneeUserId: technicalUserId,
-        dueDate,
-      },
-      select: { id: true },
+  // The task is created first, under an id chosen here (ADR-0082), so the link can record it.
+  const taskId = crypto.randomUUID();
+  try {
+    await activities.put(taskId, {
+      type: "task",
+      subject: `Estimate: ${deal.title}`.slice(0, 200),
+      occurredAt: now.toISOString(),
+      companyId: deal.companyId,
+      dealId: deal.id,
+      authorUserId: userId,
+      assigneeUserId: technicalUserId,
+      dueDate: dueDate.toISOString().slice(0, 10),
     });
-    const link = {
-      estimateId: estimate.id,
-      estimateName: estimate.name,
-      technicalUserId,
-      state: "requested" as const,
-      requestedBy: userId,
-      requestedAt: now,
-      readyAt: null,
-      readyBy: null,
-      taskId: task.id,
-      // A new estimate starts its own EstimAI version count (AC-3.3).
-      estimaiVersion: null,
-    };
-    await tx.dealEstimate.upsert({ where: { dealId: deal.id }, create: { dealId: deal.id, ...link }, update: link });
-  });
+  } catch (error) {
+    // Never leave an estimate nobody was asked to fill in. The put may have landed with its answer
+    // lost (a timeout), so the task is taken back too: deleting an id that is not there is a no-op.
+    await activities.removeQuietly(taskId);
+    await deleteEstimateQuietly(c, estimate.id);
+    throw error;
+  }
+  try {
+    await db.$transaction(async (tx) => {
+      const link = {
+        estimateId: estimate.id,
+        estimateName: estimate.name,
+        technicalUserId,
+        state: "requested" as const,
+        requestedBy: userId,
+        requestedAt: now,
+        readyAt: null,
+        readyBy: null,
+        taskId,
+        // A new estimate starts its own EstimAI version count (AC-3.3).
+        estimaiVersion: null,
+      };
+      await tx.dealEstimate.upsert({ where: { dealId: deal.id }, create: { dealId: deal.id, ...link }, update: link });
+    });
+  } catch (error) {
+    // The link was not recorded: the task must not outlive it.
+    await activities.removeQuietly(taskId);
+    throw error;
+  }
   // After the commit, never inside it and never failing the response (specs/024 AC-3.4).
   await sendDealLinkNotice({ estimateId: estimate.id, dealId: id, event: "linked", at: now.toISOString() });
   // E1 — the technical contact (the creating task does not notify on its own).
@@ -190,41 +211,52 @@ estimateRouter.openapi(overrideRoute, async (c) => {
   if (!managesAllDeals(c)) throw forbidden("Only an admin overrides the estimate gate", "admin_only");
   const deal = await dealOr404(id);
   const now = new Date();
-  await db.$transaction(async (tx) => {
-    if (deal.estimate) {
-      await tx.dealEstimate.update({
-        where: { dealId: id },
-        data: { overrideBy: userId, overrideReason: reason, overrideAt: now },
-      });
-    } else {
-      // No estimate at all: the override row records the decision on its own.
-      await tx.dealEstimate.create({
-        data: {
-          dealId: id,
-          estimateId: "",
-          estimateName: "",
-          technicalUserId: userId,
-          requestedBy: userId,
-          requestedAt: now,
-          overrideBy: userId,
-          overrideReason: reason,
-          overrideAt: now,
-        },
-      });
-    }
-    // The timeline keeps who let the deal through, and why (AC-3.7).
-    await tx.activity.create({
-      data: {
-        type: "note",
-        subject: "Estimate gate overridden",
-        body: reason,
-        occurredAt: now,
-        companyId: deal.companyId,
-        dealId: deal.id,
-        authorUserId: userId,
-      },
+  // The timeline keeps who let the deal through, and why (AC-3.7): written first, under an id
+  // chosen here, and taken back if the override itself cannot be recorded (ADR-0082).
+  const noteId = crypto.randomUUID();
+  try {
+    await activities.put(noteId, {
+      type: "note",
+      subject: "Estimate gate overridden",
+      body: reason,
+      occurredAt: now.toISOString(),
+      companyId: deal.companyId,
+      dealId: deal.id,
+      authorUserId: userId,
     });
-  });
+  } catch (error) {
+    // The put may have landed with its answer lost: no note without an override.
+    await activities.removeQuietly(noteId);
+    throw error;
+  }
+  try {
+    await db.$transaction(async (tx) => {
+      if (deal.estimate) {
+        await tx.dealEstimate.update({
+          where: { dealId: id },
+          data: { overrideBy: userId, overrideReason: reason, overrideAt: now },
+        });
+      } else {
+        // No estimate at all: the override row records the decision on its own.
+        await tx.dealEstimate.create({
+          data: {
+            dealId: id,
+            estimateId: "",
+            estimateName: "",
+            technicalUserId: userId,
+            requestedBy: userId,
+            requestedAt: now,
+            overrideBy: userId,
+            overrideReason: reason,
+            overrideAt: now,
+          },
+        });
+      }
+    });
+  } catch (error) {
+    await activities.removeQuietly(noteId);
+    throw error;
+  }
   // E7 — the owner and, if an estimate was requested, whoever asked for it.
   await announce(c, {
     kind: "estimate_gate_overridden",
@@ -247,6 +279,10 @@ estimateRouter.openapi(unlinkRoute, async (c) => {
   assertInScope(dealScope(c), deal.entity);
   if (!deal.estimate?.estimateId) throw notFound("This deal has no estimate");
   const { taskId, estimateId: unlinkedEstimateId } = deal.estimate;
+  // The task the request created goes with the link while it is still open; a completed one stays
+  // on the timeline as work that was done (`onlyIfOpen`). Asked BEFORE anything changes here: if
+  // activities-api cannot answer, this is a 503 and the link and its task are both untouched.
+  if (taskId) await activities.remove(taskId, { onlyIfOpen: true });
   await db.$transaction(async (tx) => {
     if (deal.estimate!.overrideAt) {
       // Keep the admin's override: only the link goes.
@@ -257,9 +293,6 @@ estimateRouter.openapi(unlinkRoute, async (c) => {
     } else {
       await tx.dealEstimate.delete({ where: { dealId: id } });
     }
-    // The task the request created goes with the link while it is still open;
-    // a completed one stays on the timeline as work that was done.
-    if (taskId) await tx.activity.deleteMany({ where: { id: taskId, completedAt: null } });
   });
   // After the commit (specs/024 AC-3.5): the PREVIOUS estimate, at the instant of the unlink.
   await sendDealLinkNotice({ estimateId: unlinkedEstimateId, dealId: id, event: "unlinked", at: new Date().toISOString() });

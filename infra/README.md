@@ -845,7 +845,7 @@ suite-wide 401):
 |---|---|
 | `AUTH_AUDIENCE` | auth + all 4 resource servers (ADR-0010; `inventory-api` is the fourth, specs/015) |
 | `SERVICE_AUDIENCE` | auth + notify-api (ADR-0044) — must be byte-identical across the two **and different from `AUTH_AUDIENCE`**; both refuse to start otherwise. `env:doctor` checks both. |
-| `<NAME>_SERVICE_CLIENT_SECRET` (`INVENTORY_`, `ESTIMAI_`, `REFUND_`) | the `secret` inside `auth`'s `SERVICE_CLIENTS` entry for that caller AND that caller's own `SERVICE_CLIENT_SECRET` (secret, 32–256 chars; ADR-0044/0049). One per caller; `auth` mints its own credential in process and has none. Set as a Railway Shared Variable directly on the project — there is no 1Password item, so it is never in a template. |
+| `<NAME>_SERVICE_CLIENT_SECRET` (`INVENTORY_`, `ESTIMAI_`, `REFUND_`, `ACTIVITIES_`) | the `secret` inside `auth`'s `SERVICE_CLIENTS` entry for that caller AND that caller's own `SERVICE_CLIENT_SECRET` (secret, 32–256 chars; ADR-0044/0049). One per caller; `auth` mints its own credential in process and has none. Set as a Railway Shared Variable directly on the project — there is no 1Password item, so it is never in a template. |
 | `AUTH_ISSUER` | all 4 resource servers (same public value) |
 | `NOTIFY_INTERNAL_URL` | auth + refund-api + estimai-api — the three services that CALL notify-api |
 
@@ -1452,6 +1452,60 @@ MEETINGS_S3_ACCESS_KEY_ID=minioadmin MEETINGS_S3_SECRET_ACCESS_KEY=minioadmin \
 MinIO has no bucket-level CORS (that step prints `SKIP`; only `--require-cors` makes it fail), and dev
 runs `MEETINGS_AI_PROVIDER=fake` until the real Google configuration exists (the fake never touches the transient bucket).
 
+### `activities-api` service (Railway) — NEW (specs/028-activities)
+
+Authoritative list: `activities-api/src/lib/env.ts` (validated at startup, exits 1 on any miss).
+Committed contract: `tools/env-doctor/templates/production/activities-api.env`. Port **8087**, DB
+`activities`, domain `activities-api.operai.welld.io`. **Backend-only**: there is no `activities-ui`;
+the CRM and Projects remotes call it from the shell's origin. It owns no object storage and no
+permission catalog (every access decision is asked of crm-api / projects-api as the caller,
+ADR-0081).
+
+| Variable | Value | Secret |
+|---|---|---|
+| `DATABASE_URL` | `…/activities` — **its own logical DB** | yes |
+| `ALLOWED_ORIGINS` | `https://operai.welld.io` (shell only) | no |
+| `AUTH_JWKS_URL` / `AUTH_BASE_URL` | internal, `http://${{auth.RAILWAY_PRIVATE_DOMAIN}}:${{auth.PORT}}…` | no |
+| `AUTH_ISSUER` / `AUTH_AUDIENCE` | public claim `${{shared.AUTH_ISSUER}}` / `${{shared.AUTH_AUDIENCE}}` | no |
+| `CRM_API_URL` / `PROJECTS_API_URL` | internal, `http://${{crm-api.RAILWAY_PRIVATE_DOMAIN}}:${{crm-api.PORT}}` / the same for `projects-api` — the hosts it asks (ADR-0081). Unset, the service exits 1 | no |
+| `NOTIFY_INTERNAL_URL` | `${{shared.NOTIFY_INTERNAL_URL}}` | no |
+| `SERVICE_CLIENT_ID` / `SERVICE_CLIENT_SECRET` | `activities-api` / `${{shared.ACTIVITIES_SERVICE_CLIENT_SECRET}}` (≥ 32 chars, byte-identical to its `SERVICE_CLIENTS` entry). All three notify variables or none | secret: yes |
+| `SERVICE_AUDIENCE` | `${{shared.SERVICE_AUDIENCE}}` — what crm-api's `/system/v1/*` calls are verified against; must differ from `AUTH_AUDIENCE` | no |
+| `ACTIVITIES_MAINTENANCE` | `false` in steady state. `true` makes every route except `GET /health` answer 503 `maintenance` (the migration window below). Any other value stops the start | no |
+| `PORT` / `NODE_ENV` | `8087` / `production` | no |
+
+**Wiring in `auth` (do this first, and only after the new `auth` is live).** `SERVICE_CLIENTS`
+gains `"activities-api":{"secret":"${{shared.ACTIVITIES_SERVICE_CLIENT_SECRET}}","scope":"notifications.push emails.send"}`
+(both scopes: the task-assigned and task-unblocked notices are email notices, ADR-0056), and
+the `crm-api` entry gains `activities.write`. An `auth` that does not know a scope named in
+`SERVICE_CLIENTS` refuses to start, which is why the order is: deploy `auth` code, then edit the variable.
+Generate the secret (≥ 32 random chars) as the Railway **Shared Variable**
+`ACTIVITIES_SERVICE_CLIENT_SECRET`, directly on the project; there is no 1Password item and it is
+never written to a template, a command line or a PR. `crm-api` needs
+`ACTIVITIES_API_URL=http://${{activities-api.RAILWAY_PRIVATE_DOMAIN}}:${{activities-api.PORT}}`.
+`notify-api` must know the `projects` origin and the binding `system:activities-api` → `crm`, `projects`
+(code, not a variable) before the first write, or every push is refused silently.
+
+**Provisioning.** The service, its logical database, both hostnames and the DNS record come from
+the `provision-tool` skill (`.claude/skills/provision-tool/SKILL.md`), backend only:
+
+```bash
+./infra/provision-tool.sh activities --port 8087 --no-ui           # read-only audit
+./infra/provision-tool.sh activities --port 8087 --no-ui --apply   # service, DB, domain, DNS
+# set the secrets it lists (DATABASE_URL by reference, SERVICE_CLIENT_SECRET shared), and
+# ACTIVITIES_MAINTENANCE=true BEFORE the first deploy (see § Activities migration)
+./infra/provision-tool.sh activities --port 8087 --no-ui --connect --apply
+```
+
+The script's shell wiring runs only for a tool with a UI, so set `VITE_ACTIVITIES_API_URL`
+(`https://activities-api.operai.welld.io`) on the shell's Vercel project by hand and redeploy the
+shell (it is read at build time; the CSP `connect-src` in `shell/vercel.json` already names the host).
+Do not open or `curl` the new hostname before the DNS record is reported live (30-minute negative cache).
+
+**Verify.** `mise run env:doctor -- --env production` before; `./infra/check.sh` after (it checks
+`/health`, the 401 on a gated route and the 401 on `/system/v1/*`; while maintenance is on it reports
+those two as a warning, not a pass).
+
 ### Provisioning a new tool
 
 `infra/provision-tool.sh <tool>` creates, or audits, everything a tool needs in
@@ -1489,6 +1543,7 @@ treat its first use as a supervised run.
 | **shell** | `VITE_AUTH_URL` / `VITE_API_URL` | `<AUTH_URL>` / `<API_URL>` |
 | | `VITE_NOTIFY_API_URL` | `<NOTIFY_API_URL>` — feeds `shell/session`'s trusted-origin allowlist and `getNotifyBaseUrl()` (the raise-capability, `useUnreadCount` SSE manager); also the origin `notify-ui` itself calls (mirrors `VITE_API_URL`/`VITE_AUTH_URL`) |
 | | `VITE_REFUND_API_URL` | **NEW (T20, specs/007-refund-service).** `<REFUND_API_URL>` — feeds `shell/session`'s trusted-origin allowlist ONLY (`getTrustedOrigins()`, `shell/src/lib/session.ts`); `refund-ui` calls refund-api using its OWN copy of this same var (own build, see the `refund-ui` row below) — both copies MUST carry the identical `<REFUND_API_URL>` value or `apiFetch` will not recognize refund-ui's request origin as trusted and every call 401s. |
+| | `VITE_ACTIVITIES_API_URL` | **NEW (specs/028).** `https://activities-api.operai.welld.io` — build-time, feeds `shell/session`'s trusted-origin allowlist AND `getActivitiesApiBaseUrl()`, which `crm-ui` and `projects-ui` use for every activity and task call (no `VITE_*` of their own; there is no `activities-ui`). `provision-tool.sh --no-ui` does not set it: set it by hand and redeploy the shell. |
 | | `VITE_INVENTORY_API_URL` | **NEW (T41/T43, specs/015).** `<INVENTORY_API_URL>` — build-time, feeds `shell/session`'s trusted-origin allowlist AND `getInventoryApiBaseUrl()`, which `inventory-ui` uses for every inventory-api call (**inventory-ui has no `VITE_INVENTORY_API_URL` of its own** — unlike `refund-ui`, it asks the shell). **Optional by design and unset by default: when unset the inventory origin is NOT trusted, `apiFetch` sends no Bearer JWT there, and every inventory call 401s** — a silent failure, so set it on the shell project and redeploy. Typed in `shell/src/vite-env.d.ts`. |
 | | `ESTIMAI_REMOTE_URL` / `REFUND_REMOTE_URL` / `ADMIN_REMOTE_URL` / `NOTIFY_REMOTE_URL` / `INVENTORY_REMOTE_URL` | `https://<estimai/refund/admin/notify/inventory>.operai.welld.io/remoteEntry.js` (the code defaults are the `localhost:517x` dev origins, so an unset value ships a shell pointing at localhost) |
 | **estimai-ui** | `VITE_API_URL` | `<API_URL>` — **required**: estimai-ui builds `${VITE_API_URL}/estimates` from its *own* value (must match the shell's) |
@@ -1731,6 +1786,132 @@ Order matters: `auth` refuses to start when `SERVICE_CLIENTS` names a scope it d
    bun scripts/backfill-estimate-links.ts            # dry run: prints how many would be sent
    bun scripts/backfill-estimate-links.ts --apply
    ```
+
+## Activities migration (specs/028, ADR-0081/0082/0083)
+
+The CRM's activities, participants, "blocked by" links and meeting host state move into the new
+`activities-api`. The move is **expand, switch, copy, unpause, contract**, with a short announced
+write pause between expand and unpause (accepted by the owner, AC-2.5). Two rules run through all
+of it: a record is "moved" only when the **found-versus-present count** says so, never because a
+command exited 0; and the CRM tables are **not dropped** until a later push, after the production
+report is clean. A push to `main` redeploys every Railway service in no fixed order (ADR-0049), so
+the order below is enforced by *what is live when*, not by the push order: wait for each deploy to
+be live (and read its log) before the next step.
+
+**Roles.** One person owns the window and is the only one who can end it (`ACTIVITIES_MAINTENANCE`
+is a manual variable; a failed copy that is not re-run leaves the pause in place). Announce the
+pause to CRM users beforehand: during it nobody can record or change a CRM activity or task, and
+the CRM shows "activities unavailable" (AC-1.5).
+
+**Step 0 - preconditions (names only).**
+`mise run env:doctor -- --env production` passes; `activities-api` exists on Railway with its own
+database (see § `activities-api` service); `ACTIVITIES_SERVICE_CLIENT_SECRET` exists as a Shared
+Variable; `ACTIVITIES_MAINTENANCE=true` is already set on `activities-api` **before its first
+deploy**; `ACTIVITIES_API_URL` is set on `crm-api`; `VITE_ACTIVITIES_API_URL` is set on the shell's
+Vercel project. You hold a connection string for the CRM database for the window of the copy (see
+Step 3); the copy writes no file and no dump.
+
+**Step 1 - Expand: the grants, notify, then the new service in maintenance.**
+Deploy, in this order, each live before the next:
+1. `auth` (new scope `activities.write` among the known scopes). Only then edit `SERVICE_CLIENTS`
+   (the `activities-api` entry; `crm-api` gains `activities.write`) and redeploy `auth`; an unknown
+   scope stops `auth`.
+2. `notify-api` (origin `projects`, binding `system:activities-api` → `crm`, `projects`, email
+   footer label). It is additive and harmless with no caller, and it must be live before Step 4,
+   the first moment `activities-api` writes and so pushes. Without it every push is refused and the
+   refusal is invisible (best effort, the write stands).
+3. `activities-api` with `ACTIVITIES_MAINTENANCE=true` (its `preDeployCommand` applies the
+   migration), and `projects-api` with its host endpoint.
+
+Verify (the service is up and refusing):
+
+```bash
+curl -s -o /dev/null -w '%{http_code}\n' https://activities-api.operai.welld.io/health   # 200: health stays up
+curl -s -o /dev/null -w '%{http_code}\n' https://activities-api.operai.welld.io/tasks    # 503: maintenance, before authentication
+```
+
+**Step 2 - Switch: the new code that stops using the old tables.**
+Deploy `crm-api` (new code; the old activity tables are still in its database, now read only by
+the copy), then `shell`, `crm-ui`, `projects-ui` and `notify-ui` (an older `notify-ui` shows the raw
+id `projects` as the origin tag: degraded, never broken). From here the CRM's activity writes go to
+`activities-api` and are refused with 503 `maintenance`; its meeting-host notices are forwarded and
+refused the same way, so the old `meeting_host_state` is frozen. Nothing writes to either side.
+
+**Step 3 - Copy: dry run, then apply, each accounted for.**
+The script is in the `activities-api` image, reaches both databases over private networking, and
+prints counts, ids and field names only (never an activity subject, body or address). Run it
+**inside** the `activities-api` service so its own `DATABASE_URL` is the target; give it the CRM
+database as `CRM_DATABASE_URL` in the environment of that one shell. The script takes both
+connection strings from the environment only and rejects `--crm-database-url`/`--database-url`
+(a URL on a command line lands in `ps` and the shell history). A source activity that refers to a
+contact erased in the target (`erased_contact`) is a `mismatched` row (field `contactId`), never
+written:
+
+```bash
+railway ssh --service activities-api
+# inside; CRM_DATABASE_URL = the crm database on the shared Postgres (private domain), set for this shell only
+bun scripts/import-crm-activities.ts            # dry run: reads, writes nothing
+bun scripts/import-crm-activities.ts            # again: every `found` must be identical (the source is frozen)
+bun scripts/import-crm-activities.ts --apply    # one transaction; it re-reads the target and compares before it commits
+bun scripts/import-crm-activities.ts --apply    # a second run: inserted=0 (re-runnable, AC-2.2)
+```
+
+Gate for every run: per table (`activity`, `activity_participant`, `task_blocker`,
+`meeting_mirror_state`) the report shows `found`, `inserted` (dry run: `to-insert`),
+`already-present` and `mismatched`, and ends with `ACCOUNTED FOR`. Exit 0 and that line are the
+condition to go on. **`mismatched` above 0, `NOT ACCOUNTED FOR`, or a `found` that changed between
+two dry runs stops the window**: nothing is written, the script repairs nothing, the pause stays
+and the decision goes back to the owner. If `--apply` fails nothing was committed (it rolls back);
+fix the cause and re-run. Keep the final report with the release notes; it is the record that the
+move was accounted for. The old tables stay untouched, so until the contract push the undo is
+"keep the CRM tables" (see Rollback by step).
+
+**Step 4 - Unpause, then prove notifications reach people.**
+Only with a clean report from Step 3: set `ACTIVITIES_MAINTENANCE=false` on `activities-api` and
+redeploy it. Then:
+
+1. `./infra/check.sh`: the 401 gates are provable again, so no maintenance warning remains for
+   `activities-api`.
+2. **Retry the meeting notices that arrived during the pause.** `meetings-api` could not deliver
+   them while `activities-api` refused (503). `unlinked`/`deleted` notices retry by themselves
+   (1 min, 5 min, 30 min, 2 h, then every 6 h) until delivered; `linked`/`changed` ones are **never**
+   retried silently and need their creator to press "Try again" on the meeting (it calls
+   `POST /meetings/:id/host-notice/retry`). List what is still undelivered since the window began
+   (read only; ids and states only; delivered rows are deleted) and have each creator retry:
+
+   ```sql
+   -- on the meetings database, read only
+   SELECT "meetingId", "creatorUserId", event, policy, state, attempts, "lastErrorCode", "createdAt"
+   FROM host_notice WHERE "hostApp" = 'crm' AND "createdAt" >= '<pause start, ISO 8601>' ORDER BY "createdAt";
+   ```
+
+   Done when the query returns no row for the window (re-run it after the creators have retried and
+   the automatic ones have had their next attempt).
+3. **Assign one test task in each host to a second person** (a CRM task on a company, a task on a
+   project) and check that each reaches that person's `/notify` page with the origin "CRM" and
+   "Projects" respectively. notify-api's `caller=system:activities-api` log line alone does **not**
+   prove it (the middleware logs it before the route's 400/403, and the push is best effort, so a
+   refusal is otherwise invisible). Delete the two test tasks afterwards.
+
+**Step 5 - Contract: a LATER push, never with the switch.**
+Only after the production report of Step 3 is filed and clean, and the CRM has run on
+`activities-api` for a while with nothing amiss, merge the separate crm-api migration (specs/028 T14)
+that drops `task_blocker`, `activity_participant`, `activity`, `meeting_host_state` and the
+`ActivityType` enum. Its commit says it ships only after the import report. It is **one-way**: take a
+database backup first, and never put it in the same push as Step 2 (AC-2.3: nothing leaves the CRM
+until the copy is accounted for). Afterwards verify that `crm-api` is healthy and that the CRM's
+timeline and tasks still load (they no longer depend on those tables).
+
+### Rollback by step
+- Before Step 3 applies: nothing was copied. Redeploy the previous `crm-api`, `crm-ui` and `shell`
+  if the CRM must come back; delete nothing.
+- After Step 3, before Step 4's unpause: the CRM tables are intact. Keep the pause on, fix the cause
+  and re-run the copy; or redeploy the previous `crm-api`/`crm-ui` (the CRM's own tables hold
+  everything up to the freeze) and leave `activities-api` in maintenance.
+- After the unpause, before Step 5: `activities-api` now holds records the CRM tables do not, so
+  going back to the previous `crm-api` loses them. Roll forward (fix and redeploy) instead; the old
+  tables are only a fallback for the state at the freeze.
+- After Step 5: one-way; restore from the backup taken before it.
 
 ## Rollback & operations
 

@@ -51,6 +51,8 @@ const SERVICE_ORIGIN_BINDINGS: Readonly<Record<string, readonly string[]>> = {
   "system:estimai-api": ["estimai"],
   "system:crm-api": ["crm"],
   "system:meetings-api": ["meetings"],
+  // specs/028 (ADR-0081): activities-api raises task notices for the CRM and Projects hosts.
+  "system:activities-api": ["crm", "projects"],
   // specs/023 (ADR-0072): auth raises access-request notices in the Admin tool.
   "system:auth": ["admin"],
 };

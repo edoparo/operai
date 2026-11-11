@@ -1,13 +1,14 @@
 import { useCallback, useState } from 'react'
 import { Button, Card, ListRows, Pagination, StatePanel } from '@operai/ui'
-import { listActivities } from '../lib/crmApi'
-import type { ActivityTarget } from '../lib/crmApi'
+import { listActivities } from '../lib/activitiesApi'
+import type { ActivityTarget } from '../lib/activitiesApi'
 import type { Activity, CompanyRef } from '../lib/types'
 import { useResource } from '../hooks/useResource'
 import { strings } from '../strings'
 import ActivityFormDialog from './ActivityFormDialog'
 import ActivityItem from './ActivityItem'
-import { LoadFailure, Loading, Saved } from './LoadState'
+import ActivityLoadFailure from './ActivityLoadFailure'
+import { Loading, Saved } from './LoadState'
 
 const PAGE_SIZE = 10
 
@@ -47,7 +48,7 @@ export default function ActivityTimeline({
 
   let content
   if (activities.status === 'loading') content = <Loading label={t.loading} rows={2} />
-  else if (activities.status === 'error') content = <LoadFailure error={activities.error} onRetry={activities.retry} />
+  else if (activities.status === 'error') content = <ActivityLoadFailure error={activities.error} onRetry={activities.retry} />
   else if (activities.data!.total === 0)
     content = (
       <StatePanel headingLevel={4} title={t.emptyTitle}>

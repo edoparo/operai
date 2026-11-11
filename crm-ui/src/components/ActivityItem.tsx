@@ -8,15 +8,17 @@ import {
   formatDateTime,
   listRowClassName,
   listRowMetaClassName,
+  TaskRow,
 } from '@operai/ui'
-import { deleteActivity, setTaskCompleted } from '../lib/crmApi'
+import { deleteActivity, setTaskCompleted } from '../lib/activitiesApi'
 import { isOverdue } from '../lib/dates'
 import { errorMessage } from '../lib/errors'
 import { personName } from '../lib/people'
+import { TASK_STATE_MEANING } from '../lib/statusMeanings'
+import type { TaskState } from '../lib/statusMeanings'
 import type { Activity } from '../lib/types'
 import { useCurrentUserId } from '../hooks/useCurrentUserId'
 import { strings } from '../strings'
-import { TaskStateBadge } from './Badges'
 
 /**
  * ActivityItem — one row of a timeline or of "Tasks": the type, subject,
@@ -24,6 +26,11 @@ import { TaskStateBadge } from './Badges'
  * state. Actions: Mark done / Reopen on a task (anyone, AC-4.3); Edit and
  * Delete for the author only (AC-4.2 — the server's 403 `author_only` is the
  * gate). `showCompany` links the company (Tasks, where rows span companies).
+ *
+ * A task renders through the library's `TaskRow` (specs/028 US-1: a move, not a
+ * redesign — the copy and the content of every line are unchanged). The one
+ * visible difference: a blocked Mark done is `aria-disabled` instead of
+ * `disabled`, so it stays reachable and its "Waiting on" line is read.
  */
 export default function ActivityItem({
   activity,
@@ -50,7 +57,6 @@ export default function ActivityItem({
   // specs/017 US-6: an open task waiting on an open task cannot be marked done.
   const blocked = task !== null && task.completedAt === null && task.blocked === true
   const openBlockers = task?.blockedBy?.filter((blocker) => !blocker.completed) ?? []
-  const hintId = `crm-activity-${activity.id}-blocked-hint`
 
   const toggle = () => {
     setBusy(true)
@@ -81,17 +87,8 @@ export default function ActivityItem({
 
   const about = [activity.contact?.name, activity.deal?.title].filter((value): value is string => Boolean(value))
 
-  return (
-    <div className={`${listRowClassName} flex-col items-stretch gap-2`} data-testid={`crm-activity-${activity.id}`}>
-      <div className="flex flex-wrap items-center gap-2">
-        <Badge tone="neutral">{strings.badges.activityType[activity.type]}</Badge>
-        {task && (
-          <TaskStateBadge
-            state={task.completedAt !== null ? 'done' : blocked ? 'blocked' : isOverdue(task) ? 'overdue' : 'open'}
-          />
-        )}
-        <span className="font-medium text-text">{activity.subject}</span>
-      </div>
+  const body = (
+    <>
       {/* A meeting activity's body is the link and nothing else (AC-14.2): never show one. */}
       {activity.body && !activity.meeting && <p className="whitespace-pre-line text-sm text-soft">{activity.body}</p>}
       {activity.meeting && (
@@ -108,58 +105,112 @@ export default function ActivityItem({
           </a>
         </p>
       )}
-      <p className={listRowMetaClassName}>
-        {t.by(personName(activity.author, currentUserId), formatDateTime(activity.occurredAt))}
-        {showCompany && (
+    </>
+  )
+
+  const byline = (
+    <>
+      {t.by(personName(activity.author, currentUserId), formatDateTime(activity.occurredAt))}
+      {showCompany && (
+        <>
+          {' · '}
+          <Link to="/companies/$id" params={{ id: activity.company.id }} className="link">
+            {strings.tasks.company(activity.company.name)}
+          </Link>
+        </>
+      )}
+      {about.length > 0 && ` · ${t.about(about.join(', '))}`}
+      {(activity.participants?.length ?? 0) > 0 &&
+        ` · ${t.with(activity.participants!.map((person) => personName(person, currentUserId)).join(', '))}`}
+    </>
+  )
+
+  const authorActions = isAuthor && (
+    <>
+      <Button size="sm" variant="ghost" onClick={() => onEdit(activity)} aria-haspopup="dialog">
+        {t.edit}
+      </Button>
+      <Button size="sm" variant="ghost" onClick={() => setConfirming(true)} aria-haspopup="dialog">
+        {t.delete}
+      </Button>
+    </>
+  )
+
+  const confirmDialog = confirming && (
+    <ConfirmDialog
+      title={t.deleteDialog.title(activity.subject)}
+      confirmLabel={t.deleteDialog.confirm}
+      busyLabel={t.deleteDialog.busy}
+      cancelLabel={strings.common.cancel}
+      closeLabel={strings.common.close}
+      busy={deleting}
+      error={deleteError}
+      onConfirm={remove}
+      onCancel={() => setConfirming(false)}
+      testIdPrefix="crm-activity-delete"
+    >
+      {t.deleteDialog.body}
+    </ConfirmDialog>
+  )
+
+  const typeBadge = <Badge tone="neutral">{strings.badges.activityType[activity.type]}</Badge>
+  const actionsLabel = t.actionsFor(activity.subject)
+
+  if (task) {
+    const state: TaskState =
+      task.completedAt !== null ? 'done' : blocked ? 'blocked' : isOverdue(task) ? 'overdue' : 'open'
+    return (
+      <TaskRow
+        state={state}
+        stateLabel={strings.badges.taskState[state]}
+        // The CRM has always shown "blocked" as pending (someone else has to act first), not as attention.
+        stateMeanings={TASK_STATE_MEANING}
+        leading={typeBadge}
+        title={activity.subject}
+        body={body}
+        meta={[
+          byline,
           <>
-            {' · '}
-            <Link to="/companies/$id" params={{ id: activity.company.id }} className="link">
-              {strings.tasks.company(activity.company.name)}
-            </Link>
-          </>
-        )}
-        {about.length > 0 && ` · ${t.about(about.join(', '))}`}
-        {(activity.participants?.length ?? 0) > 0 &&
-          ` · ${t.with(activity.participants!.map((person) => personName(person, currentUserId)).join(', '))}`}
-      </p>
-      {task && (
-        <p className={listRowMetaClassName}>
-          {task.dueDate ? t.due(formatDate(task.dueDate)) : t.noDue}
-          {task.assignee && ` · ${t.assignedTo(personName(task.assignee, currentUserId))}`}
-          {task.completedAt &&
-            task.completedBy &&
-            ` · ${t.completedBy(personName(task.completedBy, currentUserId), formatDate(task.completedAt))}`}
-        </p>
-      )}
-      {blocked && openBlockers.length > 0 && (
-        <p className={listRowMetaClassName} id={hintId} data-testid={`crm-activity-${activity.id}-waiting`}>
-          {t.waitingOn(openBlockers.map((blocker) => blocker.subject).join(', '))}. {t.blockedHint}
-        </p>
-      )}
-      {(task || isAuthor) && (
-        <div className="flex flex-wrap gap-2" role="group" aria-label={t.actionsFor(activity.subject)}>
-          {task && (
-            <Button
-              size="sm"
-              busy={busy}
-              disabled={blocked}
-              aria-describedby={blocked ? hintId : undefined}
-              onClick={toggle}
-              data-testid={`crm-activity-${activity.id}-toggle`}
-            >
-              {busy ? t.completing : task.completedAt === null ? t.complete : t.reopen}
-            </Button>
-          )}
-          {isAuthor && (
-            <Button size="sm" variant="ghost" onClick={() => onEdit(activity)} aria-haspopup="dialog">
-              {t.edit}
-            </Button>
-          )}
-          {isAuthor && (
-            <Button size="sm" variant="ghost" onClick={() => setConfirming(true)} aria-haspopup="dialog">
-              {t.delete}
-            </Button>
-          )}
+            {task.dueDate ? t.due(formatDate(task.dueDate)) : t.noDue}
+            {task.assignee && ` · ${t.assignedTo(personName(task.assignee, currentUserId))}`}
+            {task.completedAt &&
+              task.completedBy &&
+              ` · ${t.completedBy(personName(task.completedBy, currentUserId), formatDate(task.completedAt))}`}
+          </>,
+        ]}
+        waiting={
+          openBlockers.length > 0
+            ? `${t.waitingOn(openBlockers.map((blocker) => blocker.subject).join(', '))}. ${t.blockedHint}`
+            : undefined
+        }
+        onComplete={toggle}
+        completeLabel={task.completedAt === null ? t.complete : t.reopen}
+        completing={busy}
+        completingLabel={t.completing}
+        actions={authorActions}
+        actionsLabel={actionsLabel}
+        error={error}
+        testId={`crm-activity-${activity.id}`}
+        completeTestId={`crm-activity-${activity.id}-toggle`}
+        waitingTestId={`crm-activity-${activity.id}-waiting`}
+      >
+        {confirmDialog}
+      </TaskRow>
+    )
+  }
+
+  // Notes, calls, meetings and emails have no state, and TaskRow always shows one: the same row without it.
+  return (
+    <div className={`${listRowClassName} flex-col items-stretch gap-2`} data-testid={`crm-activity-${activity.id}`}>
+      <div className="flex flex-wrap items-center gap-2">
+        {typeBadge}
+        <span className="font-medium text-text">{activity.subject}</span>
+      </div>
+      {body}
+      <p className={listRowMetaClassName}>{byline}</p>
+      {isAuthor && (
+        <div className="flex flex-wrap gap-2" role="group" aria-label={actionsLabel}>
+          {authorActions}
         </div>
       )}
       {error && (
@@ -167,22 +218,7 @@ export default function ActivityItem({
           {error}
         </p>
       )}
-      {confirming && (
-        <ConfirmDialog
-          title={t.deleteDialog.title(activity.subject)}
-          confirmLabel={t.deleteDialog.confirm}
-          busyLabel={t.deleteDialog.busy}
-          cancelLabel={strings.common.cancel}
-          closeLabel={strings.common.close}
-          busy={deleting}
-          error={deleteError}
-          onConfirm={remove}
-          onCancel={() => setConfirming(false)}
-          testIdPrefix="crm-activity-delete"
-        >
-          {t.deleteDialog.body}
-        </ConfirmDialog>
-      )}
+      {confirmDialog}
     </div>
   )
 }

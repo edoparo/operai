@@ -61,6 +61,10 @@ describe("origin apps and the notification shape", () => {
     expect(ORIGIN_APPS).toContain("meetings");
   });
 
+  it("projects is a known origin app (specs/028 T24)", () => {
+    expect(ORIGIN_APPS).toContain("projects");
+  });
+
   it("NotificationSchema carries it: { title, body } | null", () => {
     const dto = {
       id: "n1",

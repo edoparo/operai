@@ -58,6 +58,23 @@ const en = {
     blockedByEmpty: 'No other open task at this company.',
     blockedByMax: 'Choose at most 10 tasks.',
   },
+  /**
+   * activities-api could not answer (specs/028 AC-1.5): not the authorization outage of `common.authUnavailable`.
+   * `host_unavailable`: it could not ask crm-api whether you may read; `maintenance`: the records are being moved.
+   * `title`/`body` replace a list; `save` is the line for a change that was refused (nothing was saved).
+   */
+  unavailable: {
+    host_unavailable: {
+      title: 'Activities cannot be shown right now',
+      body: 'The service could not confirm your access. Try again in a moment.',
+      save: 'Your access could not be confirmed. Nothing was saved. Try again.',
+    },
+    maintenance: {
+      title: 'Activities are paused for maintenance',
+      body: 'They will be back shortly.',
+      save: 'Activities are paused for maintenance. Nothing was saved.',
+    },
+  },
 }
 
 const it: typeof en = {
@@ -118,6 +135,18 @@ const it: typeof en = {
     blockedByHint: "Attività aperte di quest'azienda da completare prima. Al massimo 10.",
     blockedByEmpty: "Nessun'altra attività aperta per quest'azienda.",
     blockedByMax: 'Scegli al massimo 10 attività.',
+  },
+  unavailable: {
+    host_unavailable: {
+      title: 'Le attività non sono visibili al momento',
+      body: 'Il servizio non ha potuto confermare il tuo accesso. Riprova tra poco.',
+      save: 'Non è stato possibile confermare il tuo accesso. Non è stato salvato nulla. Riprova.',
+    },
+    maintenance: {
+      title: 'Le attività sono in pausa per manutenzione',
+      body: 'Torneranno disponibili a breve.',
+      save: 'Le attività sono in pausa per manutenzione. Non è stato salvato nulla.',
+    },
   },
 }
 

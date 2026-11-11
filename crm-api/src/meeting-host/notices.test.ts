@@ -1,17 +1,18 @@
 /**
- * `POST /system/meeting-host/v1/notices` (specs/021 T8; AC-14.1 .. AC-14.9, AC-11.8;
- * ADR-0059): the reconciler that mirrors a meeting as ONE `meeting` activity.
- * Needs Postgres (migration `20261105090000_meeting_host` applied).
+ * `POST /system/meeting-host/v1/notices` (specs/021 T8, specs/028 T12; AC-14.1 .. AC-14.9, AC-11.8,
+ * AC-1.4; ADR-0059): crm-api verifies the notice and the deal, then forwards it to activities-api's
+ * meeting mirror and relays `{ applied }`. The mirror itself (one `meeting` activity per meeting,
+ * the `seq` guard, relink, unlink, delete) is tested where it lives, in activities-api.
  *
- * The service JWT is verified for real (RS256, issuer, audience, scope, sub
- * allowlist); only the key set is local.
+ * The service JWT is verified for real (RS256, issuer, audience, scope, sub allowlist); only the
+ * key set is local, and activities-api is the stub of test-support/world.ts.
  */
 import { TEST_ISSUER } from "../test-support/testAuth"; // sets the environment before ../lib/env is read
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "bun:test";
 import { SignJWT, createLocalJWKSet, exportJWK, generateKeyPair } from "jose";
 import { __setDefaultJwksForTests } from "../auth/systemAuth.middleware";
 import { env } from "../lib/env";
-import { PERSONAS, app, call, db, makeCompany, makeDeal, resetWorld } from "../test-support/world";
+import { PERSONAS, activitiesApi, app, call, db, makeCompany, makeDeal, resetWorld } from "../test-support/world";
 
 const PATH = "/system/meeting-host/v1/notices";
 // `bun test` shares one process, so `../lib/env` may have been evaluated by an earlier file before
@@ -83,8 +84,6 @@ async function send(body: unknown, token?: string) {
 }
 const post = async (body: unknown) => send(body, await serviceToken());
 
-const rows = (meetingId: string) => db.activity.findMany({ where: { meetingId } });
-
 async function seed() {
   const company = await makeCompany();
   const deal = await makeDeal(company.id, { title: "Platform rebuild" });
@@ -92,7 +91,7 @@ async function seed() {
 }
 
 describe("who may post a notice (AC-11.8)", () => {
-  it("401 without a token, with a user JWT, with another service, with the wrong scope or audience", async () => {
+  it("401 without a token, with a user JWT, with another service, with the wrong scope or audience; nothing is forwarded", async () => {
     const { deal, meetingId } = await seed();
     const body = notice(meetingId, deal.id, 1, "linked");
     expect((await send(body)).status).toBe(401);
@@ -105,157 +104,109 @@ describe("who may post a notice (AC-11.8)", () => {
     }
     const asUser = await call("POST", PATH, { as: "admin", body });
     expect(asUser.status).toBe(401);
-    expect(await rows(meetingId)).toHaveLength(0);
+    expect(activitiesApi.calls).toHaveLength(0);
   });
 });
 
-describe("linked (AC-14.1, AC-14.2, AC-14.3)", () => {
-  it("creates one meeting activity on the deal's company, authored by the meeting's creator", async () => {
+describe("forwarded to activities-api (AC-1.4, AC-14.1 .. AC-14.7)", () => {
+  it("linked: the deal's company travels with the notice, which is sent as crm-api and relayed", async () => {
     const { company, deal, meetingId } = await seed();
-    const res = await post(notice(meetingId, deal.id, 1, "linked", { title: "Kick-off" }));
+    const body = notice(meetingId, deal.id, 1, "linked", { title: "Kick-off" });
+    const res = await post(body);
     expect(res.status).toBe(200);
     expect(res.json).toEqual({ applied: true });
-    const [activity, ...rest] = await rows(meetingId);
-    expect(rest).toHaveLength(0);
-    expect(activity).toMatchObject({
-      type: "meeting",
-      subject: "Kick-off",
-      body: null,
-      companyId: company.id,
-      dealId: deal.id,
-      contactId: null,
-      authorUserId: CREATOR,
-      meetingId,
+    expect(activitiesApi.calls).toHaveLength(1);
+    expect(activitiesApi.calls[0]).toMatchObject({ op: "mirror", id: null });
+    expect(activitiesApi.calls[0]!.authorization).toMatch(/^Bearer svc-token-/);
+    expect(activitiesApi.calls[0]!.body).toEqual({
+      noticeId: body.noticeId,
+      seq: 1,
+      event: "linked",
+      meeting: { id: meetingId, title: "Kick-off", startsAt: STARTS, creatorId: CREATOR },
+      deal: { id: deal.id, companyId: company.id },
     });
-    expect(activity!.occurredAt.toISOString()).toBe(STARTS);
   });
 
-  it("the author-only edit rule still applies to it: the creator edits, anyone else gets 403 author_only (AC-14.3)", async () => {
+  it("changed, unlinked and deleted are forwarded as they are, with no company lookup", async () => {
+    const { deal, meetingId } = await seed();
+    const changed = notice(meetingId, deal.id, 2, "changed", { title: "Renamed", startsAt: "2026-11-12T14:00:00.000Z" });
+    const unlinked = notice(meetingId, deal.id, 3, "unlinked");
+    // A deal this service does not know: only `linked` needs to look it up.
+    const deleted = notice(meetingId, "gone-deal", 4, "deleted");
+    for (const body of [changed, unlinked, deleted]) expect((await post(body)).json).toEqual({ applied: true });
+    expect(activitiesApi.calls.map((c) => [c.body.event, c.body.deal])).toEqual([
+      ["changed", { id: deal.id }],
+      ["unlinked", { id: deal.id }],
+      ["deleted", { id: "gone-deal" }],
+    ]);
+    expect(activitiesApi.calls[0]!.body.meeting).toEqual(changed.meeting);
+    expect(activitiesApi.calls[1]!.body.meeting).toEqual(unlinked.meeting);
+    expect(activitiesApi.calls[2]!.body.meeting.title).toBeNull();
+  });
+
+  it("relays activities-api's `applied: false` (a duplicate or an older notice) unchanged", async () => {
+    const { deal, meetingId } = await seed();
+    activitiesApi.mirrorApplied = false;
+    const res = await post(notice(meetingId, deal.id, 1, "linked"));
+    expect(res.status).toBe(200);
+    expect(res.json).toEqual({ applied: false });
+  });
+
+  it("crm-api keeps no copy: no activity and no meeting_host_state row is written here", async () => {
     const { deal, meetingId } = await seed();
     await post(notice(meetingId, deal.id, 1, "linked"));
-    const [activity] = await rows(meetingId);
-    const other = await call("PATCH", `/activities/${activity!.id}`, { as: "colleague", body: { subject: "Mine now" } });
-    expect(other.status).toBe(403);
-    expect(other.json.code).toBe("author_only");
-    const own = await call("PATCH", `/activities/${activity!.id}`, { as: "consultant", body: { body: "My notes" } });
-    expect(own.status).toBe(200);
+    await post(notice(meetingId, deal.id, 2, "deleted"));
+    expect(await db.activity.count({ where: { meetingId } })).toBe(0);
+    expect(await db.meetingHostState.count({ where: { meetingId } })).toBe(0);
   });
 
-  it("one activity per meeting across duplicates, retries and concurrent deliveries (AC-14.9)", async () => {
-    const { deal, meetingId } = await seed();
-    const first = notice(meetingId, deal.id, 1, "linked");
-    expect((await post(first)).json).toEqual({ applied: true });
-    expect((await post(first)).json).toEqual({ applied: false }); // exact duplicate
-    expect((await post(notice(meetingId, deal.id, 2, "linked"))).json).toEqual({ applied: true }); // retry, newer seq
-    const burst = await Promise.all(Array.from({ length: 6 }, (_, i) => post(notice(meetingId, deal.id, 10 + i, "linked"))));
-    expect(burst.every((r) => r.status === 200)).toBe(true);
-    expect(await rows(meetingId)).toHaveLength(1);
-  });
-
-  it("concurrent FIRST deliveries (no state row yet) still make one activity", async () => {
-    const { deal, meetingId } = await seed();
-    const results = await Promise.all(Array.from({ length: 6 }, () => post(notice(meetingId, deal.id, 1, "linked"))));
-    expect(results.every((r) => r.status === 200)).toBe(true);
-    expect(results.filter((r) => r.json.applied).length).toBe(1);
-    expect(await rows(meetingId)).toHaveLength(1);
-  });
-
-  it("relinking moves the activity to the new deal's company and drops a contact of the old one (AC-14.7)", async () => {
-    const { deal, meetingId } = await seed();
-    const otherCompany = await makeCompany();
-    const otherDeal = await makeDeal(otherCompany.id, { title: "Other" });
-    await post(notice(meetingId, deal.id, 1, "linked"));
-    const [activity] = await rows(meetingId);
-    const contact = (await call("POST", "/contacts", { body: { firstName: "A", lastName: "B", companyId: activity!.companyId } })).json;
-    expect((await call("PATCH", `/activities/${activity!.id}`, { as: "consultant", body: { contactId: contact.id } })).status).toBe(200);
-
-    expect((await post(notice(meetingId, otherDeal.id, 2, "linked", { title: "Renamed" }))).json).toEqual({ applied: true });
-    const moved = await rows(meetingId);
-    expect(moved).toHaveLength(1);
-    expect(moved[0]).toMatchObject({ id: activity!.id, companyId: otherCompany.id, dealId: otherDeal.id, contactId: null, subject: "Renamed" });
-  });
-
-  it("a deal that does not exist is 422 entity_not_found, creates nothing and leaves the seq free for a retry", async () => {
+  it("a deal that does not exist is 422 entity_not_found and nothing is forwarded, so the same seq can be retried", async () => {
     const { deal, meetingId } = await seed();
     const missing = await post(notice(meetingId, "no-such-deal", 5, "linked"));
     expect(missing.status).toBe(422);
     expect(missing.json.code).toBe("entity_not_found");
-    expect(await rows(meetingId)).toHaveLength(0);
-    expect(await db.meetingHostState.findUnique({ where: { meetingId } })).toBeNull();
+    expect(activitiesApi.calls).toHaveLength(0);
     expect((await post(notice(meetingId, deal.id, 5, "linked"))).json).toEqual({ applied: true });
   });
 });
 
-describe("changed (AC-14.5)", () => {
-  it("updates the subject and the occurred-at moment", async () => {
+describe("activities-api cannot answer (AC-1.4)", () => {
+  it.each([
+    ["is unreachable", () => (activitiesApi.down = true)],
+    ["is in maintenance (503)", () => (activitiesApi.fail = { mirror: 503 })],
+    ["answers 500", () => (activitiesApi.fail = { mirror: 500 })],
+    ["rejects the notice (422)", () => (activitiesApi.fail = { mirror: 422 })],
+  ])("when it %s the answer is 503 activities_unavailable, so meetings-api keeps the notice and retries", async (_label, setup) => {
     const { deal, meetingId } = await seed();
-    await post(notice(meetingId, deal.id, 1, "linked"));
-    await post(notice(meetingId, deal.id, 2, "changed", { title: "Renamed", startsAt: "2026-11-12T14:00:00.000Z" }));
-    const [activity] = await rows(meetingId);
-    expect(activity!.subject).toBe("Renamed");
-    expect(activity!.occurredAt.toISOString()).toBe("2026-11-12T14:00:00.000Z");
+    setup();
+    for (const event of ["linked", "changed", "unlinked", "deleted"] as const) {
+      const res = await post(notice(meetingId, deal.id, 1, event));
+      expect(res.status).toBe(503);
+      expect(res.json.code).toBe("activities_unavailable");
+    }
+    expect(await db.meetingHostState.count({ where: { meetingId } })).toBe(0);
+
+    // The same notice, once it is back, goes through.
+    activitiesApi.down = false;
+    activitiesApi.fail = {};
+    expect((await post(notice(meetingId, deal.id, 1, "linked"))).json).toEqual({ applied: true });
   });
 
-  it("never recreates an activity its author deleted by hand", async () => {
+  it("a 401 on the service JWT drops the token and retries once with a fresh one", async () => {
     const { deal, meetingId } = await seed();
-    await post(notice(meetingId, deal.id, 1, "linked"));
-    const [activity] = await rows(meetingId);
-    expect((await call("DELETE", `/activities/${activity!.id}`, { as: "consultant" })).status).toBe(204);
-    const res = await post(notice(meetingId, deal.id, 2, "changed", { title: "Renamed" }));
-    expect(res.status).toBe(200);
-    expect(await rows(meetingId)).toHaveLength(0);
+    activitiesApi.refuseTokens = 1;
+    const res = await post(notice(meetingId, deal.id, 1, "linked"));
+    expect(res.json).toEqual({ applied: true });
+    expect(activitiesApi.calls).toHaveLength(2);
+    expect(activitiesApi.calls[1]!.authorization).not.toBe(activitiesApi.calls[0]!.authorization);
   });
 
-  it("an out-of-order seq is ignored: the older notice cannot overwrite the newer", async () => {
+  it("a credential activities-api keeps refusing is a 503, not a loop", async () => {
     const { deal, meetingId } = await seed();
-    await post(notice(meetingId, deal.id, 1, "linked", { title: "First" }));
-    expect((await post(notice(meetingId, deal.id, 3, "changed", { title: "Third" }))).json).toEqual({ applied: true });
-    expect((await post(notice(meetingId, deal.id, 2, "changed", { title: "Second" }))).json).toEqual({ applied: false });
-    expect((await rows(meetingId))[0]!.subject).toBe("Third");
-  });
-});
-
-describe("unlinked and deleted (AC-14.6, AC-14.7)", () => {
-  it("unlinked removes the activity when it is on that deal", async () => {
-    const { deal, meetingId } = await seed();
-    await post(notice(meetingId, deal.id, 1, "linked"));
-    expect((await post(notice(meetingId, deal.id, 2, "unlinked"))).json).toEqual({ applied: true });
-    expect(await rows(meetingId)).toHaveLength(0);
-  });
-
-  it("unlinked from a deal the activity is no longer on leaves it alone (a late unlink after a relink)", async () => {
-    const { deal, meetingId } = await seed();
-    const otherDeal = await makeDeal((await makeCompany()).id);
-    await post(notice(meetingId, deal.id, 1, "linked"));
-    await post(notice(meetingId, otherDeal.id, 3, "linked"));
-    expect((await post(notice(meetingId, deal.id, 4, "unlinked"))).json).toEqual({ applied: true });
-    const [activity] = await rows(meetingId);
-    expect(activity!.dealId).toBe(otherDeal.id);
-  });
-
-  it("deleted removes it wherever it is, and a late lower-seq linked cannot bring it back", async () => {
-    const { deal, meetingId } = await seed();
-    await post(notice(meetingId, deal.id, 1, "linked"));
-    expect((await post(notice(meetingId, deal.id, 5, "deleted"))).json).toEqual({ applied: true });
-    expect(await rows(meetingId)).toHaveLength(0);
-    expect((await post(notice(meetingId, deal.id, 3, "linked"))).json).toEqual({ applied: false });
-    expect(await rows(meetingId)).toHaveLength(0);
-  });
-
-  it("deleted for a meeting the CRM never saw is accepted and recorded, so an early linked cannot follow it", async () => {
-    const { deal, meetingId } = await seed();
-    expect((await post(notice(meetingId, deal.id, 4, "deleted"))).json).toEqual({ applied: true });
-    expect((await post(notice(meetingId, deal.id, 2, "linked"))).json).toEqual({ applied: false });
-    expect(await rows(meetingId)).toHaveLength(0);
-  });
-
-  it("the guard row keeps only the meeting id and the seq: nothing with a title survives a deletion (AC-4.6)", async () => {
-    const { deal, meetingId } = await seed();
-    await post(notice(meetingId, deal.id, 1, "linked", { title: "Confidential topic" }));
-    await post(notice(meetingId, deal.id, 2, "deleted"));
-    const state = await db.meetingHostState.findUnique({ where: { meetingId } });
-    expect(Object.keys(state!).sort()).toEqual(["lastSeq", "meetingId", "updatedAt"]);
-    expect(state!.lastSeq).toBe(2);
+    activitiesApi.refuseTokens = 5;
+    const res = await post(notice(meetingId, deal.id, 1, "linked"));
+    expect(res.status).toBe(503);
+    expect(activitiesApi.calls).toHaveLength(2);
   });
 });
 
@@ -270,7 +221,7 @@ describe("a strict body (AC-14.9)", () => {
     ]) {
       expect((await post(body)).status).toBe(422);
     }
-    expect(await rows(meetingId)).toHaveLength(0);
+    expect(activitiesApi.calls).toHaveLength(0);
   });
 
   it("rejects a malformed notice with 422", async () => {
@@ -291,6 +242,6 @@ describe("a strict body (AC-14.9)", () => {
       { seq: 1 },
     ];
     for (const body of bad) expect((await post(body)).status).toBe(422);
-    expect(await rows(meetingId)).toHaveLength(0);
+    expect(activitiesApi.calls).toHaveLength(0);
   });
 });

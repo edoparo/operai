@@ -3,12 +3,13 @@ import { ORIGIN_APP_LABELS, originAppLabel, type NotificationOriginApp } from '.
 
 describe('originAppLabel', () => {
   it('labels every origin app notify-api accepts, including inventory (specs/015) and crm (specs/019)', () => {
-    const all: NotificationOriginApp[] = ['estimai', 'refund', 'admin', 'inventory', 'crm']
+    const all: NotificationOriginApp[] = ['estimai', 'refund', 'admin', 'inventory', 'crm', 'meetings', 'projects']
     for (const app of all) {
       expect(ORIGIN_APP_LABELS[app]).toBeTruthy()
     }
     expect(originAppLabel('inventory')).toBe('Inventory')
     expect(originAppLabel('crm')).toBe('CRM')
+    expect(originAppLabel('projects')).toBe('Projects')
     expect(originAppLabel('estimai')).toBe('EstimAI')
   })
 

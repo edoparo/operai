@@ -25,6 +25,8 @@ declare module 'shell/session' {
   // directory behind the owner/assignee picker (ADR-0047, ADR-0053).
   export const getCrmApiBaseUrl: () => string
   export const getAuthBaseUrl: () => string
+  // activities-api for the activity and task routes (specs/028, ADR-0081); its origin is trusted by apiFetch.
+  export const getActivitiesApiBaseUrl: () => string
 
   // Permission resolution (ADR-0007), used for UX gating only.
   export interface Permission {

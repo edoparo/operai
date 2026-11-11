@@ -61,6 +61,8 @@ const {
   getRefundApiBaseUrl,
   getInventoryApiBaseUrl,
   getMeetingsApiBaseUrl,
+  getProjectsApiBaseUrl,
+  getActivitiesApiBaseUrl,
   registerNavigationBlocker,
 } = await import('./session')
 const { getNavigationBlocker, isNavigationBlocked, resetNavigationBlocker } = await import('./navigationBlocker')
@@ -75,6 +77,8 @@ const API_URL = 'http://api.test'
 const REFUND_API_URL = 'http://refund-api.test'
 const INVENTORY_API_URL = 'http://inventory-api.test'
 const MEETINGS_API_URL = 'http://meetings-api.test'
+const PROJECTS_API_URL = 'http://projects-api.test'
+const ACTIVITIES_API_URL = 'http://activities-api.test'
 const TARGET_URL = `${API_URL}/estimates`
 const THIRD_PARTY_URL = 'https://evil.example.com/x'
 const SAME_ORIGIN_PATH = '/estimates'
@@ -383,6 +387,77 @@ describe('apiFetch', () => {
       mockFetch.mockResolvedValueOnce(okResponse())
 
       await apiFetch(`${MEETINGS_API_URL}/meetings`)
+
+      expect(mockFetch).toHaveBeenCalledTimes(1)
+      const [, init] = mockFetch.mock.calls[0]
+      const headers = (init as (RequestInit & { headers?: Record<string, string> }) | undefined)?.headers
+      expect(headers?.['Authorization']).toBeUndefined()
+    })
+
+    // specs/025-projects: projects-api origin, set via VITE_PROJECTS_API_URL, is
+    // trusted so projects-ui's calls carry the Bearer JWT.
+    it('sends Authorization header for a request to the projects-api origin (VITE_PROJECTS_API_URL)', async () => {
+      vi.stubEnv('VITE_PROJECTS_API_URL', PROJECTS_API_URL)
+      const mockFetch = vi.mocked(fetch)
+
+      mockFetch.mockResolvedValueOnce(tokenResponse(FAKE_JWT)).mockResolvedValueOnce(okResponse())
+
+      await apiFetch(`${PROJECTS_API_URL}/projects`)
+
+      expect(mockFetch).toHaveBeenCalledTimes(2)
+      const [, init] = mockFetch.mock.calls[1]
+      expect((init as RequestInit & { headers: Record<string, string> }).headers).toMatchObject({
+        Authorization: `Bearer ${FAKE_JWT}`,
+      })
+    })
+
+    it('does NOT trust the projects origin when VITE_PROJECTS_API_URL is unset', async () => {
+      const mockFetch = vi.mocked(fetch)
+      mockFetch.mockResolvedValueOnce(okResponse())
+
+      await apiFetch(`${PROJECTS_API_URL}/projects`)
+
+      expect(mockFetch).toHaveBeenCalledTimes(1)
+      const [, init] = mockFetch.mock.calls[0]
+      const headers = (init as (RequestInit & { headers?: Record<string, string> }) | undefined)?.headers
+      expect(headers?.['Authorization']).toBeUndefined()
+    })
+
+    // specs/028-activities: activities-api origin, set via VITE_ACTIVITIES_API_URL, is
+    // trusted so crm-ui's and projects-ui's calls carry the Bearer JWT (AC-1.1, AC-7.2).
+    it('sends Authorization header for a request to the activities-api origin (VITE_ACTIVITIES_API_URL)', async () => {
+      vi.stubEnv('VITE_ACTIVITIES_API_URL', ACTIVITIES_API_URL)
+      const mockFetch = vi.mocked(fetch)
+
+      mockFetch.mockResolvedValueOnce(tokenResponse(FAKE_JWT)).mockResolvedValueOnce(okResponse())
+
+      await apiFetch(`${ACTIVITIES_API_URL}/activities`)
+
+      expect(mockFetch).toHaveBeenCalledTimes(2)
+      const [, init] = mockFetch.mock.calls[1]
+      expect((init as RequestInit & { headers: Record<string, string> }).headers).toMatchObject({
+        Authorization: `Bearer ${FAKE_JWT}`,
+      })
+    })
+
+    it('does NOT trust the activities origin when VITE_ACTIVITIES_API_URL is unset', async () => {
+      const mockFetch = vi.mocked(fetch)
+      mockFetch.mockResolvedValueOnce(okResponse())
+
+      await apiFetch(`${ACTIVITIES_API_URL}/activities`)
+
+      expect(mockFetch).toHaveBeenCalledTimes(1)
+      const [, init] = mockFetch.mock.calls[0]
+      const headers = (init as (RequestInit & { headers?: Record<string, string> }) | undefined)?.headers
+      expect(headers?.['Authorization']).toBeUndefined()
+    })
+
+    it('does NOT send the Bearer to an untrusted origin while VITE_ACTIVITIES_API_URL is set', async () => {
+      vi.stubEnv('VITE_ACTIVITIES_API_URL', ACTIVITIES_API_URL)
+      const mockFetch = vi.mocked(fetch)
+      mockFetch.mockResolvedValueOnce(okResponse())
+
+      await apiFetch(THIRD_PARTY_URL)
 
       expect(mockFetch).toHaveBeenCalledTimes(1)
       const [, init] = mockFetch.mock.calls[0]
@@ -902,5 +977,43 @@ describe('registerNavigationBlocker', () => {
     unregister()
     unregister()
     expect(getNavigationBlocker()).toBeNull()
+  })
+})
+
+// getProjectsApiBaseUrl (specs/025-projects) — mirrors getCrmApiBaseUrl(): lazily
+// read, exposed so projects-ui (a remote with no VITE_* env of its own) sources the
+// API origin from the shell.
+describe('getProjectsApiBaseUrl', () => {
+  it('returns the VITE_PROJECTS_API_URL configured on the shell', () => {
+    vi.stubEnv('VITE_PROJECTS_API_URL', PROJECTS_API_URL)
+
+    expect(getProjectsApiBaseUrl()).toBe(PROJECTS_API_URL)
+  })
+
+  it('reads the env lazily, not at module-evaluation time', () => {
+    vi.stubEnv('VITE_PROJECTS_API_URL', 'http://first.test')
+    expect(getProjectsApiBaseUrl()).toBe('http://first.test')
+
+    vi.stubEnv('VITE_PROJECTS_API_URL', 'http://second.test')
+    expect(getProjectsApiBaseUrl()).toBe('http://second.test')
+  })
+})
+
+// getActivitiesApiBaseUrl (specs/028-activities) — mirrors getProjectsApiBaseUrl(): lazily
+// read, exposed so crm-ui and projects-ui (remotes with no VITE_* env of their own)
+// source the API origin from the shell.
+describe('getActivitiesApiBaseUrl', () => {
+  it('returns the VITE_ACTIVITIES_API_URL configured on the shell', () => {
+    vi.stubEnv('VITE_ACTIVITIES_API_URL', ACTIVITIES_API_URL)
+
+    expect(getActivitiesApiBaseUrl()).toBe(ACTIVITIES_API_URL)
+  })
+
+  it('reads the env lazily, not at module-evaluation time', () => {
+    vi.stubEnv('VITE_ACTIVITIES_API_URL', 'http://first.test')
+    expect(getActivitiesApiBaseUrl()).toBe('http://first.test')
+
+    vi.stubEnv('VITE_ACTIVITIES_API_URL', 'http://second.test')
+    expect(getActivitiesApiBaseUrl()).toBe('http://second.test')
   })
 })

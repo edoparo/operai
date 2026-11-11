@@ -1,6 +1,7 @@
-import { afterEach, beforeEach, describe, expect, it } from "bun:test";
-import { appAccess, call, db, estimai, estimaiNotice, makeCompany, makeDeal, resetWorld, signServiceToken, app } from "../test-support/world";
+import { afterEach, beforeEach, describe, expect, it, spyOn } from "bun:test";
+import { activitiesApi, appAccess, call, db, estimai, estimaiNotice, makeCompany, makeDeal, resetWorld, signServiceToken, app } from "../test-support/world";
 import { setDealLinkSenderForTests, type DealLinkNotice } from "../lib/estimaiNotices";
+import { activities, LOCKED_CALL } from "../lib/activities";
 import { addWorkingDays } from "./workingDays";
 
 /** specs/018 US-3: estimate requests, the ready/reopen/override lifecycle and the gate. */
@@ -13,8 +14,9 @@ describe("technical estimates (specs/018 US-3)", () => {
   };
   const request = (dealId: string, technicalUserId = "user-tech", as: "salesCh" | "admin" | "consultant" = "salesCh") =>
     call("POST", `/deals/${dealId}/estimate`, { as, body: { technicalUserId } });
+  const linkOf = (dealId: string) => db.dealEstimate.findUniqueOrThrow({ where: { dealId } });
 
-  it("creates the estimate in EstimAI, shares it with the technician, links it and tasks them", async () => {
+  it("creates the estimate in EstimAI, shares it with the technician, links it and tasks them (AC-1.2)", async () => {
     const deal = await qualifiedDeal();
     const res = await request(deal.id);
     expect(res.status).toBe(201);
@@ -25,10 +27,78 @@ describe("technical estimates (specs/018 US-3)", () => {
     expect(created).toMatchObject({ owner: "user-sales-ch", editors: ["user-tech@welld.test"] });
     expect(res.json.estimate.estimateId).toBe(created!.id);
 
-    const tasks = await call("GET", "/tasks", { as: "tech" });
-    expect(tasks.json.items).toHaveLength(1);
-    expect(tasks.json.items[0]).toMatchObject({ subject: "Estimate: Grid analytics", deal: { id: deal.id } });
-    expect(tasks.json.items[0].task.dueDate).not.toBeNull();
+    // The task is created in activities-api, as the CRM's service, under the id the link records.
+    const link = await linkOf(deal.id);
+    expect(link.taskId).toBeTruthy();
+    const [put, ...rest] = activitiesApi.calls;
+    expect(rest).toHaveLength(0);
+    expect(put).toMatchObject({ op: "put", id: link.taskId });
+    expect(put!.authorization).toMatch(/^Bearer svc-token-/);
+    expect(put!.body).toEqual({
+      type: "task",
+      subject: "Estimate: Grid analytics",
+      occurredAt: link.requestedAt.toISOString(),
+      companyId: deal.company.id,
+      dealId: deal.id,
+      authorUserId: "user-sales-ch",
+      assigneeUserId: "user-tech",
+      dueDate: addWorkingDays(link.requestedAt, 5).toISOString().slice(0, 10),
+    });
+    expect(activitiesApi.activities.has(link.taskId!)).toBe(true);
+    // crm-api no longer keeps the task itself.
+    expect(await db.activity.count()).toBe(0);
+  });
+
+  it("a failed put leaves no task and no estimate, and answers 503 (AC-1.2)", async () => {
+    const deal = await qualifiedDeal();
+    activitiesApi.fail = { put: 503 };
+    const res = await request(deal.id);
+    expect(res.json).toMatchObject({ status: 503, code: "activities_unavailable" });
+    expect(estimai.estimates.size).toBe(0);
+    expect(estimai.deletes).toHaveLength(1);
+    expect(await db.dealEstimate.count()).toBe(0);
+    expect(activitiesApi.activities.size).toBe(0);
+    // The put may have landed with its answer lost, so the id is taken back as well (a no-op if absent).
+    expect(activitiesApi.of("delete").map((c) => c.id)).toEqual(activitiesApi.puts().map((c) => c.id));
+    // ...and a retry once it is back works from a clean slate.
+    activitiesApi.fail = {};
+    expect((await request(deal.id)).status).toBe(201);
+  });
+
+  it("activities-api unreachable is the same: 503, estimate deleted, nothing linked", async () => {
+    const deal = await qualifiedDeal();
+    activitiesApi.down = true;
+    const res = await request(deal.id);
+    expect(res.json).toMatchObject({ status: 503, code: "activities_unavailable" });
+    expect(estimai.estimates.size).toBe(0);
+    expect(await db.dealEstimate.count()).toBe(0);
+  });
+
+  it("a commit that fails after the put deletes the task again (AC-1.2)", async () => {
+    const deal = await qualifiedDeal();
+    // A name Postgres cannot store (NUL): the link's insert fails, i.e. the commit does.
+    estimai.createdName = "broken\u0000name";
+    expect((await request(deal.id)).status).toBe(500);
+    const [put] = activitiesApi.puts();
+    expect(put).toBeDefined();
+    const deletes = activitiesApi.of("delete");
+    expect(deletes).toHaveLength(1);
+    expect(deletes[0]).toMatchObject({ id: put!.id });
+    expect(activitiesApi.activities.size).toBe(0);
+    expect(await db.dealEstimate.count()).toBe(0);
+  });
+
+  it("a compensation that itself fails is logged, never thrown over the real error", async () => {
+    const deal = await qualifiedDeal();
+    estimai.createdName = "broken\u0000name";
+    const log = spyOn(console, "error").mockImplementation(() => {});
+    activitiesApi.fail = { delete: 503 };
+    try {
+      expect((await request(deal.id)).status).toBe(500);
+      expect(log.mock.calls.some((args) => String(args[0]).includes("could not remove the activity"))).toBe(true);
+    } finally {
+      log.mockRestore();
+    }
   });
 
   it("refuses a technician who is not a CRM user, or cannot use EstimAI, and leaves nothing behind", async () => {
@@ -44,6 +114,7 @@ describe("technical estimates (specs/018 US-3)", () => {
     expect(estimai.estimates.size).toBe(0);
     expect(estimai.deletes).toHaveLength(1);
     expect(await db.dealEstimate.count()).toBe(0);
+    expect(activitiesApi.calls).toHaveLength(0);
   });
 
   it("a requester without EstimAI gets 403 estimai_access_required; EstimAI down is a 503", async () => {
@@ -53,6 +124,7 @@ describe("technical estimates (specs/018 US-3)", () => {
     estimai.forbidden.clear();
     estimai.down = true;
     expect((await request(deal.id)).json).toMatchObject({ status: 503, code: "estimai_unavailable" });
+    expect(activitiesApi.calls).toHaveLength(0);
   });
 
   it("only a lead or qualified deal without an estimate can request one; scope applies", async () => {
@@ -65,7 +137,7 @@ describe("technical estimates (specs/018 US-3)", () => {
     expect((await request(deal.id, "user-tech", "consultant")).status).toBe(403);
   });
 
-  it("gates proposal on a ready estimate; it is ready once closed in EstimAI (AC-3.3)", async () => {
+  it("gates proposal on a ready estimate; it is ready once closed in EstimAI, and the task is completed there (AC-1.3, AC-3.3)", async () => {
     const deal = await qualifiedDeal();
     const move = (stage: string, ifMatch: number) =>
       call("POST", `/deals/${deal.id}/stage`, { as: "salesCh", ifMatch, body: { stage } });
@@ -74,6 +146,7 @@ describe("technical estimates (specs/018 US-3)", () => {
     expect(noEstimate.json).toMatchObject({ status: 409, code: "estimate_not_ready", estimateState: null });
 
     await request(deal.id);
+    const { taskId } = await linkOf(deal.id);
     expect((await move("proposal", 1)).json).toMatchObject({ code: "estimate_not_ready", estimateState: "requested" });
     // Lost is never gated, and lost → won cannot step around the gate.
     expect((await move("lost", 1)).status).toBe(200);
@@ -82,46 +155,139 @@ describe("technical estimates (specs/018 US-3)", () => {
 
     // The CRM no longer marks it ready itself.
     expect((await call("POST", `/deals/${deal.id}/estimate/ready`, { as: "admin" })).status).toBe(404);
+    activitiesApi.calls = [];
     expect((await estimaiNotice(deal.id)).status).toBe(204);
     const ready = await call("GET", `/deals/${deal.id}`, { as: "salesCh" });
     expect(ready.json.estimate).toMatchObject({ state: "ready" });
     expect(ready.json.estimate.readyAt).not.toBeNull();
-    // The request task is done.
-    expect((await call("GET", "/tasks?status=done", { as: "tech" })).json.total).toBe(1);
+
+    // Inside the notice, the request task is completed with seq = the EstimAI version just recorded,
+    // and the labels the "You can go ahead" notice needs.
+    const readyLink = await linkOf(deal.id);
+    const [completion, ...others] = activitiesApi.calls;
+    expect(others).toHaveLength(0);
+    expect(completion).toMatchObject({ op: "completion", id: taskId });
+    expect(completion!.body).toEqual({
+      completed: true,
+      at: readyLink.readyAt!.toISOString(),
+      byUserId: "user-tech",
+      seq: readyLink.estimaiVersion,
+      context: { companyName: "Acme SA", dealId: deal.id, dealTitle: "Grid analytics" },
+    });
+    expect(activitiesApi.activities.get(taskId!)!.completedAt).not.toBeNull();
 
     expect((await move("proposal", 3)).json).toMatchObject({ stage: "proposal" });
     // Past qualified, the gate no longer applies, even if the estimate is reopened.
+    activitiesApi.calls = [];
     await estimaiNotice(deal.id, "reopened", { by: "user-sales-ch" });
     expect((await call("GET", `/deals/${deal.id}`, { as: "salesCh" })).json.estimate.state).toBe("requested");
-    expect((await call("GET", "/tasks", { as: "tech" })).json.total).toBe(1);
+    const reopened = await linkOf(deal.id);
+    expect(activitiesApi.calls).toHaveLength(1);
+    expect(activitiesApi.calls[0]).toMatchObject({ op: "completion", id: taskId, body: { completed: false, byUserId: "user-sales-ch", seq: reopened.estimaiVersion } });
+    expect(activitiesApi.activities.get(taskId!)!.completedAt).toBeNull();
     expect((await move("negotiation", 4)).status).toBe(200);
   });
 
-  it("unlinking removes the request task while it is open, and keeps a completed one", async () => {
+  it("the completion made under the deal_estimate row lock carries the 2 s / 4 s bound (plan § Risks)", async () => {
     const deal = await qualifiedDeal();
     await request(deal.id);
-    expect((await call("DELETE", `/deals/${deal.id}/estimate`, { as: "salesCh" })).status).toBe(200);
-    expect((await call("GET", "/tasks", { as: "tech" })).json.total).toBe(0);
-    expect(await db.activity.count({ where: { dealId: deal.id, type: "task" } })).toBe(0);
-
-    await request(deal.id);
-    await estimaiNotice(deal.id);
-    expect((await call("DELETE", `/deals/${deal.id}/estimate`, { as: "salesCh" })).status).toBe(200);
-    expect((await call("GET", "/tasks?status=done", { as: "tech" })).json.total).toBe(1);
+    const complete = spyOn(activities, "complete");
+    try {
+      expect((await estimaiNotice(deal.id)).status).toBe(204);
+      expect(complete).toHaveBeenCalledTimes(1);
+      expect(complete.mock.calls[0]![2]).toEqual(LOCKED_CALL);
+    } finally {
+      complete.mockRestore();
+    }
   });
 
-  it("a late notice cannot undo a newer one, and an unknown estimate is a quiet 204", async () => {
+  it("an unreachable activities-api fails the notice with 503 and changes nothing, so it can be sent again (AC-1.3)", async () => {
     const deal = await qualifiedDeal();
     await request(deal.id);
-    await estimaiNotice(deal.id, "closed", { version: 4 });
-    // The reopen of version 3 arrives after the close of version 4: ignored.
-    await estimaiNotice(deal.id, "reopened", { version: 3 });
-    expect((await call("GET", `/deals/${deal.id}`)).json.estimate.state).toBe("ready");
-    expect((await call("GET", "/tasks?status=done", { as: "tech" })).json.total).toBe(1);
-    await estimaiNotice(deal.id, "reopened", { version: 5 });
-    expect((await call("GET", `/deals/${deal.id}`)).json.estimate.state).toBe("requested");
-    expect((await call("GET", "/tasks", { as: "tech" })).json.total).toBe(1);
+    const before = await linkOf(deal.id);
+    activitiesApi.fail = { completion: 503 };
+    expect((await estimaiNotice(deal.id)).status).toBe(503);
+    const after = await linkOf(deal.id);
+    expect(after).toMatchObject({ state: "requested", estimaiVersion: before.estimaiVersion, readyAt: null });
 
+    // The same notice, once activities-api is back, applies.
+    activitiesApi.fail = {};
+    expect((await estimaiNotice(deal.id, "closed", { version: 2 })).status).toBe(204);
+    expect((await linkOf(deal.id)).state).toBe("ready");
+    expect(activitiesApi.activities.get(after.taskId!)!.completedAt).not.toBeNull();
+  });
+
+  it("an answer of applied:false (a duplicate, or a task deleted by hand) does not stop the CRM state moving", async () => {
+    const deal = await qualifiedDeal();
+    await request(deal.id);
+    const { taskId } = await linkOf(deal.id);
+    activitiesApi.activities.delete(taskId!);
+    expect((await estimaiNotice(deal.id)).status).toBe(204);
+    expect((await linkOf(deal.id)).state).toBe("ready");
+  });
+
+  it("unlinking removes the request task while it is open, and keeps a completed one (AC-1.2)", async () => {
+    const deal = await qualifiedDeal();
+    await request(deal.id);
+    const first = await linkOf(deal.id);
+    activitiesApi.calls = [];
+    expect((await call("DELETE", `/deals/${deal.id}/estimate`, { as: "salesCh" })).status).toBe(200);
+    expect(activitiesApi.calls).toHaveLength(1);
+    expect(activitiesApi.calls[0]).toMatchObject({ op: "delete", id: first.taskId, query: "?onlyIfOpen=true" });
+    expect(activitiesApi.activities.has(first.taskId!)).toBe(false);
+    expect(await db.dealEstimate.count({ where: { dealId: deal.id } })).toBe(0);
+
+    await request(deal.id);
+    const second = await linkOf(deal.id);
+    await estimaiNotice(deal.id);
+    expect((await call("DELETE", `/deals/${deal.id}/estimate`, { as: "salesCh" })).status).toBe(200);
+    // The completed task is still there: the delete was conditional.
+    expect(activitiesApi.activities.get(second.taskId!)!.completedAt).not.toBeNull();
+  });
+
+  it("an unlink with activities-api down is a 503 and nothing changes (the link, the task, the notices)", async () => {
+    const sent: DealLinkNotice[] = [];
+    setDealLinkSenderForTests(async (n) => (sent.push(n), true));
+    try {
+      const deal = await qualifiedDeal();
+      await request(deal.id);
+      sent.length = 0;
+      activitiesApi.fail = { delete: 503 };
+      const res = await call("DELETE", `/deals/${deal.id}/estimate`, { as: "salesCh" });
+      expect(res.json).toMatchObject({ status: 503, code: "activities_unavailable" });
+      expect(await db.dealEstimate.count({ where: { dealId: deal.id } })).toBe(1);
+      expect(activitiesApi.activities.size).toBe(1);
+      expect(sent).toHaveLength(0);
+    } finally {
+      setDealLinkSenderForTests(null);
+    }
+  });
+
+  it("an unlink of an override-only row calls activities-api for nothing", async () => {
+    const deal = await qualifiedDeal();
+    await call("POST", `/deals/${deal.id}/estimate/override`, { as: "admin", body: { reason: "Framework contract" } });
+    activitiesApi.calls = [];
+    expect((await call("DELETE", `/deals/${deal.id}/estimate`, { as: "salesCh" })).status).toBe(404);
+    expect(activitiesApi.calls).toHaveLength(0);
+  });
+
+  it("a late notice cannot undo a newer one, and an unknown estimate is a quiet 204 (AC-1.3)", async () => {
+    const deal = await qualifiedDeal();
+    await request(deal.id);
+    const { taskId } = await linkOf(deal.id);
+    await estimaiNotice(deal.id, "closed", { version: 4 });
+    // The reopen of version 3 arrives after the close of version 4: ignored, activities-api is not even asked.
+    activitiesApi.calls = [];
+    await estimaiNotice(deal.id, "reopened", { version: 3 });
+    expect(activitiesApi.calls).toHaveLength(0);
+    expect((await call("GET", `/deals/${deal.id}`)).json.estimate.state).toBe("ready");
+    expect(activitiesApi.activities.get(taskId!)!.completedAt).not.toBeNull();
+    await estimaiNotice(deal.id, "reopened", { version: 5 });
+    expect(activitiesApi.calls.map((c) => [c.op, c.body.seq, c.body.completed])).toEqual([["completion", 5, false]]);
+    expect((await call("GET", `/deals/${deal.id}`)).json.estimate.state).toBe("requested");
+    expect(activitiesApi.activities.get(taskId!)!.completedAt).toBeNull();
+
+    activitiesApi.calls = [];
     const token = await signServiceToken({ sub: "system:estimai-api", scope: "estimate-notices.send" });
     const unknown = await app.request("/system/estimate-notices", {
       method: "POST",
@@ -129,6 +295,7 @@ describe("technical estimates (specs/018 US-3)", () => {
       body: JSON.stringify({ estimateId: "est-nobody", event: "closed", version: 2, at: new Date().toISOString(), byUserId: "user-tech" }),
     });
     expect(unknown.status).toBe(204);
+    expect(activitiesApi.calls).toHaveLength(0);
   });
 
   it("takes only estimai-api's service credential with the notices scope", async () => {
@@ -146,20 +313,33 @@ describe("technical estimates (specs/018 US-3)", () => {
     });
     expect(res.status).toBe(401);
     expect((await call("GET", `/deals/${deal.id}`)).json.estimate.state).toBe("requested");
+    expect(activitiesApi.of("completion")).toHaveLength(0);
   });
 
-  it("an admin overrides the gate with a reason, kept on the timeline and across an unlink", async () => {
+  it("an admin overrides the gate with a reason, kept on the timeline and across an unlink (AC-1.2)", async () => {
     const deal = await qualifiedDeal();
     const override = (as: "salesCh" | "admin") =>
       call("POST", `/deals/${deal.id}/estimate/override`, { as, body: { reason: "Framework contract" } });
     expect((await override("salesCh")).json.code).toBe("admin_only");
+    expect(activitiesApi.calls).toHaveLength(0);
     const res = await override("admin");
     expect(res.json.estimate).toBeNull();
     expect(res.json.estimateOverride).toMatchObject({ reason: "Framework contract", by: { id: "user-admin" } });
     expect(res.json.estimateOverridden).toBe(true);
 
-    const timeline = await call("GET", `/activities?dealId=${deal.id}`);
-    expect(timeline.json.items[0]).toMatchObject({ type: "note", subject: "Estimate gate overridden", body: "Framework contract" });
+    // The note goes to the timeline in activities-api, authored by the admin, on the deal.
+    const [note, ...rest] = activitiesApi.calls;
+    expect(rest).toHaveLength(0);
+    expect(note).toMatchObject({ op: "put" });
+    expect(note!.body).toMatchObject({
+      type: "note",
+      subject: "Estimate gate overridden",
+      body: "Framework contract",
+      companyId: deal.company.id,
+      dealId: deal.id,
+      authorUserId: "user-admin",
+    });
+    expect(note!.body.assigneeUserId).toBeUndefined();
 
     // A request still works on an overridden deal; unlinking keeps the override.
     expect((await request(deal.id)).status).toBe(201);
@@ -167,6 +347,24 @@ describe("technical estimates (specs/018 US-3)", () => {
     expect(unlinked.json.estimate).toBeNull();
     expect(unlinked.json.estimateOverridden).toBe(true);
     expect((await call("POST", `/deals/${deal.id}/stage`, { as: "salesCh", ifMatch: 1, body: { stage: "proposal" } })).status).toBe(200);
+    // The note is not the request task: unlinking deleted only the task.
+    expect(activitiesApi.activities.has(note!.id!)).toBe(true);
+  });
+
+  it("an override whose note cannot be written records nothing (503), and one whose commit fails removes the note again", async () => {
+    const deal = await qualifiedDeal();
+    activitiesApi.fail = { put: 503 };
+    const refused = await call("POST", `/deals/${deal.id}/estimate/override`, { as: "admin", body: { reason: "x" } });
+    expect(refused.json).toMatchObject({ status: 503, code: "activities_unavailable" });
+    expect(await db.dealEstimate.count()).toBe(0);
+    expect(activitiesApi.of("delete").map((c) => c.id)).toEqual(activitiesApi.puts().map((c) => c.id));
+
+    activitiesApi.fail = {};
+    activitiesApi.calls = [];
+    // A reason Postgres cannot store (NUL): recording the override fails after the note was written.
+    expect((await call("POST", `/deals/${deal.id}/estimate/override`, { as: "admin", body: { reason: "x\u0000y" } })).status).toBe(500);
+    expect(activitiesApi.of("delete")).toHaveLength(1);
+    expect(activitiesApi.activities.size).toBe(0);
   });
 
   it("the technician must still be a CRM user when the request is made", async () => {

@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it } from "bun:test";
-import { call, db, makeCompany, resetWorld } from "../test-support/world";
+import { activitiesApi, call, db, makeCompany, resetWorld } from "../test-support/world";
 
 beforeEach(resetWorld);
 
@@ -37,20 +37,57 @@ describe("contacts (US-2)", () => {
     );
   });
 
-  it("erasure needs contact:erase and unlinks the contact's activities (AC-2.4, D-13)", async () => {
+  it("erasure needs contact:erase and unlinks the contact's activities in activities-api BEFORE deleting it (AC-2.4, D-13, AC-8.4)", async () => {
     const company = await makeCompany();
     const contact = (await call("POST", "/contacts", { body: { firstName: "Eve", lastName: "Doe", companyId: company.id } })).json;
-    const activity = await call("POST", "/activities", {
-      body: { type: "call", subject: "Intro call", companyId: company.id, contactId: contact.id },
-    });
-    expect(activity.json.contact).toEqual({ id: contact.id, name: "Eve Doe" });
+    activitiesApi.unlinked = 2;
 
     expect((await call("DELETE", `/contacts/${contact.id}`, { as: "salesCh" })).status).toBe(403);
+    expect((await call("DELETE", `/contacts/${contact.id}`, { as: "consultant" })).status).toBe(403);
+    expect(activitiesApi.calls).toHaveLength(0);
+
+    // At the moment activities-api is asked, the contact is still here: unlink first, delete after.
+    const asked: { present: boolean | null } = { present: null };
+    activitiesApi.onCall = async (seen) => {
+      if (seen.op === "erase") asked.present = (await db.contact.count({ where: { id: contact.id } })) === 1;
+    };
+    expect((await call("DELETE", `/contacts/${contact.id}`, { as: "admin" })).status).toBe(204);
+    expect(asked.present).toBe(true);
+    expect(activitiesApi.calls).toHaveLength(1);
+    expect(activitiesApi.calls[0]).toMatchObject({ op: "erase", id: contact.id });
+    expect(activitiesApi.calls[0]!.authorization).toMatch(/^Bearer svc-token-/);
+    expect(await db.contact.count()).toBe(0);
+    // Nothing left to erase: a second erase is a 404 and does not ask activities-api again.
+    expect((await call("DELETE", `/contacts/${contact.id}`)).status).toBe(404);
+    expect(activitiesApi.calls).toHaveLength(1);
+  });
+
+  it.each([
+    ["is unreachable", () => (activitiesApi.down = true)],
+    ["is in maintenance (503)", () => (activitiesApi.fail = { erase: 503 })],
+    ["answers 500", () => (activitiesApi.fail = { erase: 500 })],
+  ])("when activities-api %s the erasure is a 503 activities_unavailable and the contact is untouched (AC-8.4)", async (_label, setup) => {
+    const company = await makeCompany();
+    const contact = (await call("POST", "/contacts", { body: { firstName: "Eve", lastName: "Doe", companyId: company.id } })).json;
+    setup();
+    const res = await call("DELETE", `/contacts/${contact.id}`, { as: "admin" });
+    expect(res.status).toBe(503);
+    expect(res.json.code).toBe("activities_unavailable");
+    expect(await db.contact.count()).toBe(1);
+
+    // Once it is back, the same erase completes.
+    activitiesApi.down = false;
+    activitiesApi.fail = {};
     expect((await call("DELETE", `/contacts/${contact.id}`, { as: "admin" })).status).toBe(204);
     expect(await db.contact.count()).toBe(0);
-    const after = await call("GET", `/activities?companyId=${company.id}`);
-    expect(after.json.items[0]).toMatchObject({ id: activity.json.id, contact: null, subject: "Intro call" });
-    expect((await call("DELETE", `/contacts/${contact.id}`)).status).toBe(404);
+  });
+
+  it("a malformed answer from activities-api is a 503 too, never a silent success", async () => {
+    const company = await makeCompany();
+    const contact = (await call("POST", "/contacts", { body: { firstName: "Eve", lastName: "Doe", companyId: company.id } })).json;
+    activitiesApi.malformed = true;
+    expect((await call("DELETE", `/contacts/${contact.id}`, { as: "admin" })).status).toBe(503);
+    expect(await db.contact.count()).toBe(1);
   });
 });
 

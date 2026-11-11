@@ -268,6 +268,14 @@ describe("renderEmailTemplate — notification_notice (specs/019, ADR-0056)", ()
     expect(html).toContain("Sent by Operai CRM");
   });
 
+  it("labels the projects origin in the footer (specs/028 T24)", () => {
+    const { html } = renderEmailTemplate({
+      template: "notification_notice",
+      data: { ...data, originApp: "projects", href: "/projects/p_1" },
+    });
+    expect(html).toContain("Sent by Operai Projects");
+  });
+
   it("links to the app base URL alone when there is no link, tolerating a trailing slash", () => {
     const { html } = renderEmailTemplate({
       template: "notification_notice",

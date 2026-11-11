@@ -10,7 +10,8 @@
  * system credential), the route's scope in the space-delimited `scope` claim,
  * and a `sub` that is on the route's allowlist (`system:meetings-api` for the
  * meeting-host notices, `system:estimai-api` for the estimate notices of specs/018
- * AC-3.3, ADR-0073). A system sub that is not listed is refused: holding a
+ * AC-3.3, ADR-0073, `system:projects-api` for `GET /system/companies`, specs/025,
+ * ADR-0080). A system sub that is not listed is refused: holding a
  * service credential is not holding THIS route's.
  *
  * Every failure — no credential, any JWT defect, the wrong scope or sub —
@@ -26,6 +27,7 @@
  * `router.use("*", …)` (every router is mounted at "/", see guards.ts).
  */
 
+// shared-copy:begin systemAuth
 import { createMiddleware } from "hono/factory";
 import { createRemoteJWKSet, jwtVerify, errors as joseErrors, type JWTVerifyGetKey } from "jose";
 import { env } from "../lib/env";
@@ -118,3 +120,4 @@ export const createSystemAuthMiddleware = (opts: SystemAuthOptions) => {
     return next();
   });
 };
+// shared-copy:end systemAuth

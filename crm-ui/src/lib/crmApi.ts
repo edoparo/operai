@@ -6,8 +6,6 @@
 import { getAuthBaseUrl } from 'shell/session'
 import { getJson, query, requestJson, sendJson } from './api'
 import type {
-  Activity,
-  ActivityType,
   Company,
   CompanyStatus,
   CompanySummary,
@@ -86,7 +84,12 @@ export const createCompany = (input: CompanyInput) => sendJson<Company>('/compan
 export const updateCompany = (id: string, version: number, input: Partial<CompanyInput>) =>
   sendJson<Company>(`/companies/${encodeURIComponent(id)}`, 'PATCH', input, version)
 export const setCompanyArchived = (id: string, version: number, archived: boolean) =>
-  sendJson<Company>(`/companies/${encodeURIComponent(id)}/${archived ? 'archive' : 'unarchive'}`, 'POST', undefined, version)
+  sendJson<Company>(
+    `/companies/${encodeURIComponent(id)}/${archived ? 'archive' : 'unarchive'}`,
+    'POST',
+    undefined,
+    version,
+  )
 
 // ─── Contacts ───────────────────────────────────────────────────────────────
 
@@ -110,7 +113,12 @@ export const createContact = (input: ContactInput) => sendJson<Contact>('/contac
 export const updateContact = (id: string, version: number, input: Partial<ContactInput>) =>
   sendJson<Contact>(`/contacts/${encodeURIComponent(id)}`, 'PATCH', input, version)
 export const setContactArchived = (id: string, version: number, archived: boolean) =>
-  sendJson<Contact>(`/contacts/${encodeURIComponent(id)}/${archived ? 'archive' : 'unarchive'}`, 'POST', undefined, version)
+  sendJson<Contact>(
+    `/contacts/${encodeURIComponent(id)}/${archived ? 'archive' : 'unarchive'}`,
+    'POST',
+    undefined,
+    version,
+  )
 /** Erasure (D-13): no precondition — the record is gone either way. */
 export const eraseContact = (id: string) => sendJson<void>(`/contacts/${encodeURIComponent(id)}`, 'DELETE')
 
@@ -165,58 +173,6 @@ export const getPipeline = (entity?: Entity | '', init?: Init, year?: number, co
     `/pipeline${query({ entity, ...(year !== undefined ? { year } : {}), ...(companyId ? { companyId } : {}) })}`,
     init,
   )
-
-// ─── Activities and tasks ───────────────────────────────────────────────────
-
-export type ActivityTarget = { companyId: string } | { contactId: string } | { dealId: string }
-
-export type ActivityInput = {
-  type: ActivityType
-  subject: string
-  companyId: string
-  body?: string | null
-  occurredAt?: string
-  contactId?: string | null
-  dealId?: string | null
-  dueDate?: string | null
-  assigneeUserId?: string
-  /** Tasks only: the whole set of tasks this one waits on (specs/017 US-6). */
-  blockedByIds?: string[]
-  /** The whole set of colleagues who took part (specs/017 US-8). */
-  participantIds?: string[]
-}
-
-export type ActivityUpdate = {
-  subject?: string
-  body?: string | null
-  occurredAt?: string
-  dueDate?: string | null
-  assigneeUserId?: string
-  blockedByIds?: string[]
-  participantIds?: string[]
-  /** One of the activity's company's contacts or deals, or null to clear it (AC-4.2). */
-  contactId?: string | null
-  dealId?: string | null
-}
-
-/** `type: 'task', open: true`: a company's open tasks, the choices for "blocked by". */
-export type ActivityFilter = PageQuery & { type?: ActivityType; open?: true }
-
-export const listActivities = (target: ActivityTarget, params: ActivityFilter, init?: Init) =>
-  getJson<Page<Activity>>(`/activities${query({ ...target, ...params })}`, init)
-export const createActivity = (input: ActivityInput) => sendJson<Activity>('/activities', 'POST', input)
-export const updateActivity = (id: string, input: ActivityUpdate) =>
-  sendJson<Activity>(`/activities/${encodeURIComponent(id)}`, 'PATCH', input)
-export const deleteActivity = (id: string) => sendJson<void>(`/activities/${encodeURIComponent(id)}`, 'DELETE')
-export const setTaskCompleted = (id: string, completed: boolean) =>
-  sendJson<Activity>(`/activities/${encodeURIComponent(id)}/${completed ? 'complete' : 'reopen'}`, 'POST')
-
-/** `assignee`: `me`, `any`, or one person's auth user id. */
-export type TaskListQuery = PageQuery & { status?: 'open' | 'done'; assignee?: string }
-export const listTasks = (params: TaskListQuery, init?: Init) =>
-  getJson<Page<Activity>>(`/tasks${query(params)}`, init)
-/** Everyone tasks have been assigned to, by name (the task filter's colleagues). */
-export const listTaskAssignees = (init?: Init) => getJson<{ items: PersonRef[] }>('/tasks/assignees', init)
 
 // ─── auth: the user directory (owner/assignee picker, ADR-0047/0053) ─────────
 

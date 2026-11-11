@@ -22,6 +22,12 @@
 # override the defaults with MAPS_ORIGIN/PLACES_ORIGIN), and (specs/015) the
 # inventory-api origin in connect-src, the inventory-ui origin in script-src +
 # connect-src and the invoice-bucket origin (override INVENTORY_BUCKET_ORIGIN).
+# specs/017 + specs/025 add crm-api / crm-ui and projects-api / projects-ui to the same checks
+# (health, an anonymous 401 on a gated route, remoteEntry.js + CORS, the three CSP pins), plus
+# crm-api's service-credential route GET /system/companies answering 401 to a call with no
+# credential. Override PROJECTS_API_URL / PROJECTS_URL (ASSUMED hostnames) if the domains differ.
+# specs/028 adds activities-api (no UI of its own): healthy, the JWT gate on a user route, the
+# service-credential gate on /system/v1/*, and the CSP connect-src pin. Override ACTIVITIES_API_URL.
 # Also probes
 # notify-api's two internal endpoints (specs/006, specs/016) — see § 2b below:
 # neither accepts the retired X-Internal-Token header and neither answers an
@@ -60,6 +66,18 @@ CRM_URL="${CRM_URL:-https://crm.operai.welld.io}"
 # specs/021-meetings: provisioned 2026-11-07 (provision-tool.sh meetings --bucket).
 MEETINGS_API_URL="${MEETINGS_API_URL:-https://meetings-api.operai.welld.io}"
 MEETINGS_URL="${MEETINGS_URL:-https://meetings.operai.welld.io}"
+
+# ASSUMED hostnames (specs/025-projects): the ones shell/vercel.json's CSP already names. They
+# do NOT resolve until the Railway service / Vercel project + custom domains + DNS exist
+# (infra/provision-tool.sh) — until then the projects checks below fail by design. Override
+# both if the real domains differ.
+PROJECTS_API_URL="${PROJECTS_API_URL:-https://projects-api.operai.welld.io}"
+PROJECTS_URL="${PROJECTS_URL:-https://projects.operai.welld.io}"
+
+# ASSUMED hostname (specs/028-activities): the one shell/vercel.json's CSP already names. It does
+# NOT resolve until the Railway service + custom domain + DNS exist (provision-tool skill) — until
+# then the activities-api checks below fail by design. Override if the real domain differs.
+ACTIVITIES_API_URL="${ACTIVITIES_API_URL:-https://activities-api.operai.welld.io}"
 PREREQS_ONLY=false; [[ "${1:-}" == "--prereqs" ]] && PREREQS_ONLY=true
 
 PASS=0; FAIL=0
@@ -132,6 +150,33 @@ IAC="$(code "$INVENTORY_API_URL/assets")"
 [[ "$(code "$CRM_API_URL/health")" == 200 ]] && pass "crm-api /health 200 ($CRM_API_URL)" || fail "crm-api /health not 200 ($CRM_API_URL)"
 CAC="$(code "$CRM_API_URL/companies")"
 [[ "$CAC" == 401 ]] && pass "crm-api rejects an anonymous request on a gated route (401)" || fail "crm-api GET /companies without a token did not return 401 (got HTTP ${CAC:-?}) — the JWT gate may be missing or the service not deployed"
+# specs/025 (ADR-0080): GET /system/companies is the service-credential route projects-api reads
+# company names from. No credential at all is the frozen 401 (also the answer while SERVICE_AUDIENCE
+# is unset); a 404 means crm-api predates specs/025. No credential is used, read or printed.
+CSC="$(code "$CRM_API_URL/system/companies")"
+[[ "$CSC" == 401 ]] && pass "crm-api /system/companies rejects a call with no credential (401)" || fail "crm-api GET /system/companies without a credential did not return 401 (got HTTP ${CSC:-?}) — 404 = a crm-api build older than specs/025, anything else = the service-credential gate is not live (ADR-0080)"
+
+# projects-api (specs/025-projects): same contract — healthy (the DB connection gates the status code),
+# and the JWT gate is live. ASSUMED hostname until DNS exists — see PROJECTS_API_URL above.
+[[ "$(code "$PROJECTS_API_URL/health")" == 200 ]] && pass "projects-api /health 200 ($PROJECTS_API_URL)" || fail "projects-api /health not 200 ($PROJECTS_API_URL)"
+PAC="$(code "$PROJECTS_API_URL/projects")"
+[[ "$PAC" == 401 ]] && pass "projects-api rejects an anonymous request on a gated route (401)" || fail "projects-api GET /projects without a token did not return 401 (got HTTP ${PAC:-?}) — the JWT gate may be missing or the service not deployed"
+
+# activities-api (specs/028-activities): /health stays 200 even in maintenance (ADR-0083); the JWT gate
+# is probed on a user route and the service-credential gate on a system route (ADR-0082), with no
+# credential at all. In maintenance mode (ACTIVITIES_MAINTENANCE=true, the migration window) every
+# route but /health answers 503 `maintenance` BEFORE authentication, so the gates cannot be proven
+# then: that is reported as a warning, not a pass, and not a failure either.
+[[ "$(code "$ACTIVITIES_API_URL/health")" == 200 ]] && pass "activities-api /health 200 ($ACTIVITIES_API_URL)" || fail "activities-api /health not 200 ($ACTIVITIES_API_URL) — ASSUMED hostname until DNS exists (specs/028)"
+AAC="$(code "$ACTIVITIES_API_URL/tasks")"
+if [[ "$AAC" == 401 ]]; then pass "activities-api rejects an anonymous request on a gated route (401)"
+elif [[ "$AAC" == 503 ]]; then warn "activities-api GET /tasks answered 503 — maintenance mode (ACTIVITIES_MAINTENANCE=true)? the JWT gate cannot be proven until it is off"
+else fail "activities-api GET /tasks without a token did not return 401 (got HTTP ${AAC:-?}) — the JWT gate may be missing or the service not deployed"; fi
+ASC="$(curl -s -o /dev/null -m 8 -w '%{http_code}' -X PUT -H 'Content-Type: application/json' -d '{}' \
+  "$ACTIVITIES_API_URL/system/v1/activities/00000000-0000-4000-8000-000000000000" 2>/dev/null)"
+if [[ "$ASC" == 401 ]]; then pass "activities-api /system/v1/* rejects a call with no credential (401)"
+elif [[ "$ASC" == 503 ]]; then warn "activities-api PUT /system/v1/activities/{id} answered 503 — maintenance mode? the service-credential gate cannot be proven until it is off"
+else fail "activities-api PUT /system/v1/activities/{id} without a credential did not return 401 (got HTTP ${ASC:-?}) — 404 = a build older than specs/028 T10, anything else = the service-credential gate is not live (ADR-0082)"; fi
 
 # meetings-api (specs/021): same contract. A healthy answer also means every startup check passed
 # (EU locations, the audio bucket's 29-day rule, the transient Google bucket, Vertex settings) —
@@ -192,7 +237,7 @@ done
 # ─── 3. Frontends (Vercel) ────────────────────────────────────────────────────
 head "Frontends (Vercel)"
 [[ "$(code "$SHELL_URL/")" == 200 ]] && pass "shell 200 ($SHELL_URL) — the entry point" || fail "shell not 200 ($SHELL_URL)"
-for pair in "estimai-ui:$ESTIMAI_URL" "refund-ui:$REFUND_URL" "admin-ui:$ADMIN_URL" "notify-ui:$NOTIFY_URL" "inventory-ui:$INVENTORY_URL" "crm-ui:$CRM_URL" "meetings-ui:$MEETINGS_URL"; do
+for pair in "estimai-ui:$ESTIMAI_URL" "refund-ui:$REFUND_URL" "admin-ui:$ADMIN_URL" "notify-ui:$NOTIFY_URL" "inventory-ui:$INVENTORY_URL" "crm-ui:$CRM_URL" "meetings-ui:$MEETINGS_URL" "projects-ui:$PROJECTS_URL"; do
   name="${pair%%:*}"; url="${pair#*:}"
   re="$(hdrs "$url/remoteEntry.js")"
   if echo "$re" | grep -qiE '^HTTP.* 200'; then
@@ -205,7 +250,7 @@ head "Shell CSP + wiring"
 CSP="$(hdrs "$SHELL_URL/" | grep -i '^content-security-policy:')"
 if [[ -n "$CSP" ]]; then
   pass "CSP header present"
-  for origin in "$ESTIMAI_URL" "$REFUND_URL" "$ADMIN_URL" "$NOTIFY_URL" "$INVENTORY_URL" "$CRM_URL"; do
+  for origin in "$ESTIMAI_URL" "$REFUND_URL" "$ADMIN_URL" "$NOTIFY_URL" "$INVENTORY_URL" "$CRM_URL" "$PROJECTS_URL"; do
     echo "$CSP" | grep -q "$origin" && pass "  CSP allows $origin" || fail "  CSP is MISSING $origin (remote will be blocked)"
   done
   echo "$CSP" | grep -q "$AUTH_URL" && pass "  CSP connect-src allows auth" || warn "  CSP may not list $AUTH_URL in connect-src"
@@ -288,6 +333,29 @@ if [[ -n "$CSP" ]]; then
     pass "  CSP connect-src includes $MEETINGS_URL (meetings-ui remote chunks — specs/021)"
   else
     fail "  CSP connect-src is MISSING $MEETINGS_URL (specs/021)"
+  fi
+  # specs/028-activities — activities-api has no remote, so one pin: the CRM and projects remotes call
+  # it from the shell's origin and the browser blocks the call without connect-src.
+  if [[ -n "$CONNECT_SRC" ]] && echo "$CONNECT_SRC" | grep -q "$ACTIVITIES_API_URL"; then
+    pass "  CSP connect-src includes $ACTIVITIES_API_URL (activities-api origin — specs/028)"
+  else
+    fail "  CSP connect-src is MISSING $ACTIVITIES_API_URL — the CRM and projects activity/task calls will be blocked (specs/028)"
+  fi
+  # specs/025-projects — the same three pins for projects-api and projects-ui.
+  if [[ -n "$CONNECT_SRC" ]] && echo "$CONNECT_SRC" | grep -q "$PROJECTS_API_URL"; then
+    pass "  CSP connect-src includes $PROJECTS_API_URL (projects-api origin — specs/025)"
+  else
+    fail "  CSP connect-src is MISSING $PROJECTS_API_URL — projects-ui's API calls will be blocked (specs/025)"
+  fi
+  if [[ -n "$SCRIPT_SRC" ]] && echo "$SCRIPT_SRC" | grep -q "$PROJECTS_URL"; then
+    pass "  CSP script-src includes $PROJECTS_URL (projects-ui remote — specs/025)"
+  else
+    fail "  CSP script-src is MISSING $PROJECTS_URL — the shell cannot load projects-ui's remoteEntry.js (specs/025)"
+  fi
+  if [[ -n "$CONNECT_SRC" ]] && echo "$CONNECT_SRC" | grep -q "$PROJECTS_URL"; then
+    pass "  CSP connect-src includes $PROJECTS_URL (projects-ui remote chunks — specs/025)"
+  else
+    fail "  CSP connect-src is MISSING $PROJECTS_URL (specs/025)"
   fi
 
   # ADR-0016 — receipt uploads POST DIRECTLY to the object-storage bucket, not

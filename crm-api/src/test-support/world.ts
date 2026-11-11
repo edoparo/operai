@@ -124,6 +124,59 @@ export const estimai = {
   shareStatus: 201,
   down: false,
   deletes: [] as string[],
+  /** Answer the create with this name instead of the one asked for (to make the link's insert fail). */
+  createdName: null as string | null,
+};
+
+let tokenSerial = 0;
+
+type ActivitiesOp = "put" | "delete" | "completion" | "mirror" | "erase";
+
+/**
+ * A fake activities-api (specs/028 T12): crm-api's whole view of it is the five `/system/v1/*`
+ * calls, answered with the contract T10 implements, and auth's service-token exchange. `calls` is
+ * every request in order (what the CRM asked for); `activities` is what PUT created and DELETE
+ * removed; switches make a call fail (`fail`), the service unreachable (`down`), or the token
+ * refused (`refuseTokens`).
+ */
+export const activitiesApi = {
+  calls: [] as { op: ActivitiesOp; id: string | null; body: any; query: string; authorization: string }[],
+  activities: new Map<string, { body: any; completedAt: string | null; seq: number | null }>(),
+  /** Reject the service JWT with a 401 this many more times. */
+  refuseTokens: 0,
+  /** Service-token exchanges answered (auth stub). */
+  tokenExchanges: 0,
+  /** The network is down: fetch rejects. */
+  down: false,
+  /** An HTTP status to answer instead of the contract, per operation (e.g. `{ put: 503 }`). */
+  fail: {} as Partial<Record<ActivitiesOp, number>>,
+  /** What the stub answers a meeting notice (`applied` is activities-api's call, not crm-api's). */
+  mirrorApplied: true,
+  /** Runs when a request reaches the stub, before it answers (e.g. to look at the database at that moment). */
+  onCall: null as null | ((call: { op: ActivitiesOp; id: string | null }) => Promise<void>),
+  /** Answer 200 with a body that is not the contract's. */
+  malformed: false,
+  /** `unlinked` of the erase answer. */
+  unlinked: 0,
+  reset() {
+    this.calls = [];
+    this.activities.clear();
+    this.refuseTokens = 0;
+    this.tokenExchanges = 0;
+    this.down = false;
+    this.fail = {};
+    this.mirrorApplied = true;
+    this.unlinked = 0;
+    this.onCall = null;
+    this.malformed = false;
+  },
+  /** The activities a request body created, in order. */
+  puts() {
+    return this.calls.filter((c) => c.op === "put");
+  },
+  of(op: ActivitiesOp) {
+    return this.calls.filter((c) => c.op === op);
+  },
 };
 
 const realFetch = globalThis.fetch;
@@ -146,6 +199,66 @@ spyOn(globalThis, "fetch").mockImplementation((async (url: unknown, init?: Reque
       users: ids.map((id) => ({ id, name: `Name of ${id}`, email: `${id}@welld.test`, entity: "welld_ch" })),
     });
   }
+  if (href.endsWith("/system/service-token")) {
+    activitiesApi.tokenExchanges++;
+    // A process-wide serial, not reset with the world: the provider caches a token across tests.
+    return Response.json({ token: `svc-token-${++tokenSerial}`, expiresInSeconds: 300 });
+  }
+  if (href.startsWith("http://activities.test/")) {
+    if (activitiesApi.down) throw new TypeError("fetch failed");
+    const url = new URL(href);
+    const authorization = String((init?.headers as Record<string, string> | undefined)?.["Authorization"] ?? "");
+    const path = url.pathname;
+    const body = init?.body ? JSON.parse(String(init.body)) : undefined;
+    let op: ActivitiesOp;
+    let id: string | null = null;
+    let match: RegExpExecArray | null;
+    if ((match = /^\/system\/v1\/activities\/([^/]+)\/completion$/.exec(path))) {
+      op = "completion";
+      id = decodeURIComponent(match[1]!);
+    } else if ((match = /^\/system\/v1\/activities\/([^/]+)$/.exec(path))) {
+      op = method === "PUT" ? "put" : "delete";
+      id = decodeURIComponent(match[1]!);
+    } else if (path === "/system/v1/meeting-mirror") op = "mirror";
+    else if ((match = /^\/system\/v1\/contacts\/([^/]+)\/erase$/.exec(path))) {
+      op = "erase";
+      id = decodeURIComponent(match[1]!);
+    } else return Response.json({ status: 404 }, { status: 404 });
+    activitiesApi.calls.push({ op, id, body, query: url.search, authorization });
+    await activitiesApi.onCall?.({ op, id });
+    if (activitiesApi.malformed) return Response.json({ nope: true });
+
+    if (activitiesApi.refuseTokens > 0) {
+      activitiesApi.refuseTokens--;
+      return Response.json({ status: 401 }, { status: 401 });
+    }
+    const forced = activitiesApi.fail[op];
+    if (forced !== undefined) return Response.json({ status: forced, code: forced === 503 ? "maintenance" : undefined }, { status: forced });
+
+    switch (op) {
+      case "put": {
+        if (activitiesApi.activities.has(id!)) return Response.json({ id, created: false }, { status: 200 });
+        activitiesApi.activities.set(id!, { body, completedAt: null, seq: null });
+        return Response.json({ id, created: true }, { status: 201 });
+      }
+      case "delete": {
+        const row = activitiesApi.activities.get(id!);
+        if (row && !(url.searchParams.get("onlyIfOpen") === "true" && row.completedAt !== null)) activitiesApi.activities.delete(id!);
+        return new Response(null, { status: 204 });
+      }
+      case "completion": {
+        const row = activitiesApi.activities.get(id!);
+        if (!row || (row.seq !== null && row.seq >= body.seq)) return Response.json({ applied: false });
+        row.seq = body.seq;
+        row.completedAt = body.completed ? body.at : null;
+        return Response.json({ applied: true });
+      }
+      case "mirror":
+        return Response.json({ applied: activitiesApi.mirrorApplied });
+      case "erase":
+        return Response.json({ unlinked: activitiesApi.unlinked });
+    }
+  }
   if (href.startsWith("http://estimai.test/")) {
     if (estimai.down) return new Response("down", { status: 503 });
     if (estimai.forbidden.has(caller())) return Response.json({ status: 403 }, { status: 403 });
@@ -153,8 +266,9 @@ spyOn(globalThis, "fetch").mockImplementation((async (url: unknown, init?: Reque
     if (method === "POST" && path === "/estimates") {
       const body = JSON.parse(String(init?.body)) as { name: string; content: unknown };
       const id = `est-${estimai.estimates.size + 1}-${crypto.randomUUID().slice(0, 6)}`;
-      estimai.estimates.set(id, { id, name: body.name, owner: caller(), content: body.content, editors: [] });
-      return Response.json({ id, name: body.name }, { status: 201 });
+      const name = estimai.createdName ?? body.name;
+      estimai.estimates.set(id, { id, name, owner: caller(), content: body.content, editors: [] });
+      return Response.json({ id, name }, { status: 201 });
     }
     const match = /^\/estimates\/([^/]+)(\/collaborators)?$/.exec(path);
     const estimate = match ? estimai.estimates.get(decodeURIComponent(match[1]!)) : undefined;
@@ -253,6 +367,7 @@ export const memoryStorage: Storage = {
 
 export async function resetWorld(): Promise<void> {
   estimaiVersions.clear();
+  activitiesApi.reset();
   await db.$executeRawUnsafe(
     'TRUNCATE TABLE "offer_template", "offer_sequence", "deal_offer", "deal_attachment", "deal_estimate", "entity_profile", "activity", "deal", "contact", "company" RESTART IDENTITY CASCADE',
   );
@@ -266,6 +381,7 @@ export async function resetWorld(): Promise<void> {
   estimai.shareStatus = 201;
   estimai.down = false;
   estimai.deletes = [];
+  estimai.createdName = null;
   bucket.objects.clear();
   bucket.deleted = [];
   bucket.reads = [];

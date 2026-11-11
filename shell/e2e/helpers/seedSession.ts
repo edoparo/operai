@@ -25,6 +25,8 @@
  */
 
 import type { BrowserContext } from '@playwright/test'
+import { grantEstimaiAccess } from './estimaiFixtures'
+import { grantRefundEmployee } from './refundFixtures'
 
 const AUTH_URL =
   process.env['E2E_AUTH_URL'] ??
@@ -160,6 +162,24 @@ export const seedSession = async (context: BrowserContext): Promise<ParsedCookie
         'The session may not have been established.',
     )
   }
+  ensureSharedUserGrants()
   await context.addCookies(cookies)
   return cookies
+}
+
+let sharedUserGranted = false
+
+/**
+ * The specs that sign in as the shared user open EstimAI and Refund, and neither is granted by default
+ * (`employee` carries only `meetings:access`). Those grants used to come from whatever an earlier run had
+ * left in the local database, so a fresh or reset database failed eleven specs for no reason of their own.
+ * Grant both here, once per worker, through the same fixture script the other specs use (idempotent: a
+ * dedicated role, its rule and the assignment are reused when present). The user row exists by now: the
+ * session mint above creates it. The JWT the shell fetches next carries the bumped `perm_epoch`.
+ */
+function ensureSharedUserGrants(): void {
+  if (sharedUserGranted) return
+  grantEstimaiAccess(E2E_TEST_USER.email)
+  grantRefundEmployee(E2E_TEST_USER.email)
+  sharedUserGranted = true
 }

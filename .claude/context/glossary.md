@@ -126,6 +126,20 @@
 - **Approve** (an access request): creates an invitation for the requester through the
   invitation flow; it never creates a user by itself.
 
+### Activities (specs/028)
+- **Activity**: something that happened or must happen about a client relationship or a
+  project, recorded by an Operai user; either pre-sales or operational. _Avoid:_ event,
+  log entry, interaction.
+- **Pre-sales activity**: an activity about a CRM company (optionally one of its contacts and
+  deals): a note, call, meeting, email or task. _Avoid:_ CRM activity, sales activity.
+- **Operational activity**: an activity about a project; only tasks. _Avoid:_ project
+  activity, delivery task.
+- **Task**: an activity someone must do, with exactly one assignee and an optional due date,
+  open until done; pre-sales or operational. _Avoid:_ to-do, action item, ticket.
+- **My tasks**: the tasks assigned to the caller or in which the caller takes part. The CRM
+  shows only pre-sales ones; the project module shows both, pre-sales ones badged.
+  _Avoid:_ inbox, my work.
+
 ## Relationships
 - An **Asset** belongs to exactly one entity for its whole life and has at most one
   **Holder** and at most one `pending` **Assignment** at a time.
