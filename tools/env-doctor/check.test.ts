@@ -535,7 +535,7 @@ describe("env-doctor checker — meetings (specs/021)", () => {
       "estimai-api": { secret: CLIENT_SECRET_EST, scope: "notifications.push estimate-notices.send" },
       "refund-api": { secret: CLIENT_SECRET_REF, scope: "notifications.push emails.send" },
       // crm-api holds a client of its own since specs/026 (it reads projects-api), required in production.
-      "crm-api": { secret: "k".repeat(40), scope: "notifications.push emails.send deal-link-notices.send projects.purchase-orders.read" },
+      "crm-api": { secret: "k".repeat(40), scope: "notifications.push emails.send deal-link-notices.send activities.write projects.purchase-orders.read" },
       "meetings-api": { secret, scope },
     });
 
@@ -1201,6 +1201,7 @@ describe("env-doctor checker — activities-api (specs/028)", () => {
       SERVICE_AUDIENCE: SVC_AUD,
       CRM_INTERNAL_URL: "http://crm-api.railway.internal:8084",
       ESTIMAI_INTERNAL_URL: "http://estimai-api.railway.internal:8080",
+      NOTIFY_INTERNAL_URL: "http://notify-api.railway.internal:8080", // specs/026, production-required
       SERVICE_CLIENT_ID: "projects-api",
       SERVICE_CLIENT_SECRET: CLIENT_SECRET_PRJ,
       PORT: "8086",
