@@ -21,6 +21,7 @@ vi.mock('shell/session', () => ({
   apiFetch,
   getProjectsApiBaseUrl: () => 'http://projects-api.test',
   getAuthBaseUrl: () => 'http://auth.test',
+  getActivitiesApiBaseUrl: () => 'http://activities-api.test',
   useSession: () => ({ data: { user: { id: 'u-ada', name: 'Ada Lovelace' } } }),
 }))
 

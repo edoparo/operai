@@ -2,7 +2,7 @@
  * @vitest-environment jsdom
  *
  * ProjectDetailPage × Tasks card (specs/028 AC-3.1, AC-3.4, AC-3.5, AC-3.8): the
- * card sits between Team and Contracts, loads on its own (its failure never
+ * card sits between Team and Terms (or the purchase order), loads on its own (its failure never
  * takes the page down), every reader sees it, only a manager of an open project
  * can add, and a task added through the dialog shows up. Rendered through the
  * app's real router against a fake projects-api + activities-api.
@@ -60,13 +60,13 @@ afterEach(() => {
 })
 
 describe('the Tasks card on the project page', () => {
-  it('sits between the Team and the Contracts', async () => {
+  it('sits between the Team and the Terms', async () => {
     await renderProject(projectDetail())
     const team = await screen.findByRole('heading', { name: 'Team' })
     const tasks = await screen.findByRole('heading', { name: 'Tasks' })
-    const contracts = await screen.findByRole('heading', { name: 'Contracts' })
+    const terms = await screen.findByRole('heading', { name: 'Terms' })
     expect(team.compareDocumentPosition(tasks) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
-    expect(tasks.compareDocumentPosition(contracts) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+    expect(tasks.compareDocumentPosition(terms) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
     expect(tasks.tagName).toBe('H3')
   })
 
@@ -94,11 +94,11 @@ describe('the Tasks card on the project page', () => {
     expect(screen.queryByRole('button', { name: 'Add task' })).toBeNull()
   })
 
-  it('does not take the page down when it fails: details and contracts stay, the card says what happened', async () => {
+  it('does not take the page down when it fails: details and terms stay, the card says what happened', async () => {
     await renderProject(projectDetail(), { 'GET /tasks': () => problem(503, 'host_unavailable') })
     expect((await screen.findByTestId('project-tasks-error')).textContent).toContain('Tasks cannot be shown right now')
     expect(screen.getByTestId('project-facts')).toBeTruthy()
-    expect(screen.getByTestId('project-contracts')).toBeTruthy()
+    expect(screen.getByTestId('project-terms')).toBeTruthy()
   })
 
   it('a project still loading its tasks shows the rest of the page already', async () => {
