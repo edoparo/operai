@@ -261,7 +261,9 @@ cross-browser check in AC-2.1.
 - R2 — **confirmed.** Three pushes suppressed with a visible tab → Safari cancelled the subscription (permission still `granted`); later sends still got 201 from Apple but never reached the browser. "Show then `close()` at once" does not help: the notification stays in Notification Center. → **Fallback taken: Safari always shows** (spec AC-2.3 amended). Safari is recognised in the service worker by its subscription endpoint host `web.push.apple.com`. Because Apple keeps answering 201 for a dead subscription, the shell's boot reconciliation (T8) is what detects it on Safari.
 - G5 — Safari ignores `icon` (always the Safari compass, PNG and SVG alike); the icon matters only on Chrome/Edge/Firefox.
 - Click → focus existing window + `postMessage({navigate})` works on Safari. ✅
-- Chrome, Edge, Firefox: pending.
+- Chrome, Edge, Firefox: **deferred to T12** (not installed on the spike machine; user decision 2026-11-11). Known behaviour, to be confirmed there: Chrome/Edge tolerate pushes that show nothing while a tab is visible; Edge endpoints on `*.notify.windows.com` (WNS); Firefox's quota on silent pushes does not apply to a visible tab. Any deviation is a one-line change in T4's allowlist or T7's service-worker rule, through the drift rule.
+- Chromium forks (Dia, tested): permission and service worker work but nothing is delivered — forks without Google's push credentials have `PushManager` and no working push service. Out of scope (AC-1.6 lists supported browsers); design.md's "subscribe failed" copy covers forks whose `subscribe()` throws, a fork that subscribes but never delivers cannot be detected.
+- Icon: `shell/public/push-icon.png` (192×192, rendered from `operai.svg`) added.
 | R3 | Edge's WNS endpoint hosts differ from `*.notify.windows.com` | Verify on real Edge during the spike; the allowlist is one constant |
 | R4 | Payload over the 4 KB Web Push limit | Body truncation with a byte-budget unit test |
 | R5 | A deactivated user's devices keep receiving if the auth lookup is down | Fail closed: no send on `failed` (AC-5.2 holds); the cost is no push during an auth outage |

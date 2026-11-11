@@ -8,7 +8,7 @@ synced: 2026-11-11
 
 Contracts: `plan.md` (approved) is binding; screens, states, copy and a11y: `design.md`.
 
-- [ ] T1: Spike — prove Web Push from Bun on real browsers and settle R1/R2/R3/G5 — refs: AC-2.1, AC-2.3, AC-6.3 — deps: none
+- [x] T1: Spike — prove Web Push from Bun on real browsers and settle R1/R2/R3/G5 — refs: AC-2.1, AC-2.3, AC-6.3 — deps: none
   - touch: `notify-api/package.json`, `notify-api/bun.lock`, `specs/029-push-notifications/plan.md`, `shell/public/push-icon.png`
   - work: add `web-push`; from a throwaway Bun script (not committed) send an encrypted payload to a real subscription on Chrome, Edge, Firefox and Safari (macOS); on Safari, receive pushes with a visible tab and NOT show them, three times, and observe whether permission is revoked; record Edge's endpoint host; check a PNG icon renders; add the 192×192 `push-icon.png`.
   - done when: plan.md § Risks carries a dated "Spike result" line per R1/R2/R3/G5 (works / fallback taken); if R2 forces "always show on Safari" or R1 forces the WebCrypto fallback, the spec/plan amendment is written before T6/T7 start (drift rule). Needs a person with the four browsers.
@@ -55,7 +55,7 @@ Contracts: `plan.md` (approved) is binding; screens, states, copy and a11y: `des
 
 - [ ] T12: Cross-browser go-live check and ADR-0084 sign-off — refs: AC-2.1, AC-2.3, AC-4.1, AC-6.5 — deps: T10, T11
   - touch: `docs/adr/0084-web-push-encrypted-payloads-not-fcm.md`, `specs/029-push-notifications/qe-manual.md`
-  - done when: `qe-manual.md` records, per Chrome/Edge/Firefox/Safari on a deployed preview: push received with Operai closed within 30 s; nothing shown with a visible tab; click opens the link / `/notify`; sign-out stops pushes; and ADR-0084's "Go-live sign-off" carries owner and date. The open question on excluding Meetings (spec) is answered and reflected in `PUSH_EXCLUDED_ORIGINS`. Human task.
+  - done when: `qe-manual.md` records the T1 checks deferred from the spike (Chrome/Edge/Firefox: suppression with a visible tab keeps the subscription alive, Edge endpoint host is in T4's allowlist, PNG icon renders) and, per Chrome/Edge/Firefox/Safari on a deployed preview: push received with Operai closed within 30 s; nothing shown with a visible tab; click opens the link / `/notify`; sign-out stops pushes; and ADR-0084's "Go-live sign-off" carries owner and date. The open question on excluding Meetings (spec) is answered and reflected in `PUSH_EXCLUDED_ORIGINS`. Human task.
 
 - [ ] T13: Close — all gates green, spec status → done — refs: all — deps: T12
   - touch: `specs/029-push-notifications/*`
