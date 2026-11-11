@@ -8,6 +8,9 @@ import { resolve } from "node:path";
 
 const ROOT = resolve(import.meta.dir, "..", "..");
 const GROUP = ["APP_BASE_URL", "AUTH_BASE_URL", "SERVICE_CLIENT_ID", "SERVICE_CLIENT_SECRET"] as const;
+// A developer env can have push on; since specs/029 T2 that makes the notice group required,
+// so every case would otherwise depend on the machine it runs on.
+const PUSH_VARS = ["PUSH_ENABLED", "VAPID_PUBLIC_KEY", "VAPID_PRIVATE_KEY", "VAPID_SUBJECT", "PUSH_EXCLUDED_ORIGINS"] as const;
 const SECRET = "s".repeat(40);
 const FULL: Record<string, string> = {
   APP_BASE_URL: "https://operai.example.test",
@@ -19,6 +22,7 @@ const FULL: Record<string, string> = {
 async function boot(group: Record<string, string>) {
   const childEnv: Record<string, string | undefined> = { ...process.env };
   for (const k of GROUP) delete childEnv[k];
+  for (const k of PUSH_VARS) delete childEnv[k];
   Object.assign(childEnv, group);
   const proc = Bun.spawn(
     [

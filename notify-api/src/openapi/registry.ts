@@ -29,6 +29,12 @@ export function setupOpenAPI(app: OpenAPIHono): void {
           "All endpoints except GET /notifications/stream are behind jwtMiddleware (RS256 Bearer JWT).",
       },
       {
+        name: "Push",
+        description:
+          "Web push device registration (specs/029, ADR-0084): GET /push/config, PUT|GET /push/devices and " +
+          "DELETE /push/devices/{id}. User JWT only, scoped to the caller; a device's endpoint and keys are never returned.",
+      },
+      {
         name: "System",
         description:
           "Health checks and service metadata, plus the internal-only " +

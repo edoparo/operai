@@ -25,7 +25,7 @@ Contracts: `plan.md` (approved) is binding; screens, states, copy and a11y: `des
   - touch: `notify-api/src/push/pushEndpoint.ts`, `notify-api/src/push/pushEndpoint.test.ts`, `notify-api/src/push/deviceLabel.ts`, `notify-api/src/push/deviceLabel.test.ts`
   - done when: allowlist table passes — allowed: `fcm.googleapis.com`, `*.push.services.mozilla.com`, `web.push.apple.com`, the Edge host(s) recorded in T1; refused: `http:`, IP literals, `fcm.googleapis.com.evil.io`, userinfo (`https://fcm.googleapis.com@evil.io`), ports, > 2000 chars; label table maps Chrome/Edge/Firefox/Safari × macOS/Windows/Linux UA strings to "Browser · OS", unknown → "Unknown browser".
 
-- [ ] T5: Device routes — `GET /push/config`, `PUT|GET /push/devices`, `DELETE /push/devices/{id}` — refs: AC-1.2, AC-1.5, AC-3.1, AC-3.2, AC-3.3, AC-5.3, AC-6.1 — deps: T2, T3, T4
+- [x] T5: Device routes — `GET /push/config`, `PUT|GET /push/devices`, `DELETE /push/devices/{id}` — refs: AC-1.2, AC-1.5, AC-3.1, AC-3.2, AC-3.3, AC-5.3, AC-6.1 — deps: T2, T3, T4
   - touch: `notify-api/src/push/devices.routes.ts`, `notify-api/src/push/devices.schemas.ts`, `notify-api/src/push/devices.routes.test.ts`, `notify-api/src/index.ts`, `notify-api/src/openapi/registry.ts`
   - done when: route tests pass for every status in plan § API contracts (200/201/400/401/404/409/422/503), exact-path middleware only (a service JWT is refused, a user JWT on `/system/*` still refused), responses never contain `endpoint`/`p256dh`/`auth`, user B cannot see or delete A's device (404, row intact); OpenAPI lists the four routes.
 

@@ -141,3 +141,32 @@ describe("assembled app (real process) — REST endpoints remain Bearer-protecte
     expect(res.status).toBe(401);
   });
 });
+
+// ─── (c) Push device routes (specs/029 T5): Bearer-protected, and they gate nothing else ──
+
+describe("assembled app (real process) — push routes", () => {
+  it("every /push route answers 401 without a Bearer", async () => {
+    for (const [method, path] of [
+      ["GET", "/push/config"],
+      ["GET", "/push/devices"],
+      ["PUT", "/push/devices"],
+      ["DELETE", "/push/devices/x"],
+    ] as const) {
+      const res = await request(path, { method });
+      expect(res.status).toBe(401);
+    }
+  });
+
+  it("the openapi document lists the four push routes", async () => {
+    const doc = (await (await request("/openapi.json")).json()) as { paths: Record<string, Record<string, unknown>> };
+    expect(Object.keys(doc.paths["/push/devices"] ?? {}).sort()).toEqual(["get", "put"]);
+    expect(Object.keys(doc.paths["/push/config"] ?? {})).toEqual(["get"]);
+    expect(Object.keys(doc.paths["/push/devices/{id}"] ?? {})).toEqual(["delete"]);
+  });
+
+  it("registering them did not gate the Bearer-less stream or the health check", async () => {
+    const stream = (await (await request("/notifications/stream")).json()) as { detail: string };
+    expect(stream.detail).toBe("A stream ticket is required");
+    expect((await request("/health")).status).not.toBe(401);
+  });
+});
