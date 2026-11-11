@@ -91,7 +91,10 @@ notification, so that I see it without having Operai open.
 - AC-2.3: Given a user with push on for a browser that currently has an Operai tab open
   and visible, when a notification is raised, then that tab shows it as today (bell count,
   and a toast if it is toast-worthy, specs/005) and no system notification appears on that
-  browser.
+  browser — **except on Safari**, where the system notification appears as well (once,
+  AC-2.4). (Amended 2026-11-11 from the T1 spike: Safari cancels the push subscription
+  after a few pushes that show no notification, and a notification closed at once stays in
+  Notification Center; the user chose "always show on Safari".)
 - AC-2.4: Given a user with push on for two browsers, when a notification is
   raised, then each browser that has no visible Operai tab shows it once (no duplicates
   on the same browser).

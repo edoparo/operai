@@ -56,7 +56,9 @@ caller ─POST /system/notifications─► notify-api
                                404 / 410   → delete that device                           (AC-2.7)
                                other/error → log (device id + status only), no retry      (AC-2.6)
 browser push service ─► service worker (push event)
-   a visible window client of the shell origin exists → do nothing                        (AC-2.3)
+   a visible window client of the shell origin exists AND this browser's subscription
+     endpoint is not Apple's (web.push.apple.com) → do nothing                           (AC-2.3)
+     (Safari: always show — it cancels subscriptions after pushes that show nothing)
    else showNotification(title, {body, tag: id, data: {href}, icon: /push-icon.png})      (AC-2.1, 2.4)
 user clicks ─► notificationclick: target = href ?? "/notify"
    a shell window exists → focus it and post {navigate: target} (the page calls navigateSuite)
@@ -219,7 +221,7 @@ next visit only after the user turns push on again — documented in `infra/READ
 | AC-1.8 | component | `GET /push/config` rejects → warning `Banner` with retry in the push section; address section still rendered; retry refetches |
 | AC-2.1 | integration (notify-api) + manual | `POST /system/notifications` → fake sender called once per device with a payload that **decrypts** (test holds the subscriber private key) to the English title/body. Manual go-live check on real Chrome, Edge, Firefox, Safari with Operai closed |
 | AC-2.2 | integration | notification with `toastWorthy:false` (system route) and `true` (user route) both dispatched |
-| AC-2.3 | unit (service worker) | fake `clients.matchAll` with a visible window → `showNotification` not called; hidden only → called |
+| AC-2.3 | unit (service worker) | fake `clients.matchAll` with a visible window → `showNotification` not called; hidden only → called; visible window + subscription endpoint on `web.push.apple.com` → called |
 | AC-2.4 | integration + unit (SW) | two devices → two sends; SW uses `tag = id` |
 | AC-2.5 | integration | notification with `it` variant → decrypted payload has the English text |
 | AC-2.6 | integration | fake sender throws / returns 500 → `POST /system/notifications` still 201, row persisted, SSE event published |
@@ -253,6 +255,13 @@ cross-browser check in AC-2.1.
 |---|---|---|
 | R1 | `web-push` relies on Node crypto (ECDH P-256, HKDF, AES-GCM) and `https`; a Bun gap breaks sending | **First task:** send from Bun to a real Chrome subscription. Fallback: implement RFC 8291 on WebCrypto + `jose` (already a dependency) for VAPID |
 | R2 | Safari may revoke push permission when a push arrives and no notification is shown (the suppression of AC-2.3) | Check on Safari in the R1 spike. Fallback: on Safari always show, with `tag = id` (still no duplicate); amend AC-2.3 via the drift rule if needed |
+
+**Spike result (T1, 2026-11-11, Safari on macOS):**
+- R1 — `web-push` on Bun 1.4.2: `aes128gcm` + VAPID, plaintext absent from the body; delivered by `web.push.apple.com` (201) to a closed tab. Import it as `import * as webpush from "web-push"` — the default import fails under Bun. ✅
+- R2 — **confirmed.** Three pushes suppressed with a visible tab → Safari cancelled the subscription (permission still `granted`); later sends still got 201 from Apple but never reached the browser. "Show then `close()` at once" does not help: the notification stays in Notification Center. → **Fallback taken: Safari always shows** (spec AC-2.3 amended). Safari is recognised in the service worker by its subscription endpoint host `web.push.apple.com`. Because Apple keeps answering 201 for a dead subscription, the shell's boot reconciliation (T8) is what detects it on Safari.
+- G5 — Safari ignores `icon` (always the Safari compass, PNG and SVG alike); the icon matters only on Chrome/Edge/Firefox.
+- Click → focus existing window + `postMessage({navigate})` works on Safari. ✅
+- Chrome, Edge, Firefox: pending.
 | R3 | Edge's WNS endpoint hosts differ from `*.notify.windows.com` | Verify on real Edge during the spike; the allowlist is one constant |
 | R4 | Payload over the 4 KB Web Push limit | Body truncation with a byte-budget unit test |
 | R5 | A deactivated user's devices keep receiving if the auth lookup is down | Fail closed: no send on `failed` (AC-5.2 holds); the cost is no push during an auth outage |

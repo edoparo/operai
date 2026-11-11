@@ -35,7 +35,7 @@ Contracts: `plan.md` (approved) is binding; screens, states, copy and a11y: `des
 
 - [ ] T7: Shell service worker, its build entry and dev serving — refs: AC-2.3, AC-2.4, AC-4.1, AC-4.2 — deps: T1
   - touch: `shell/src/sw/*`, `shell/vite.config.ts`, `shell/tsconfig*.json`
-  - done when: unit tests with a fake `ServiceWorkerGlobalScope` pass (visible window → no `showNotification`; hidden only → shown with `tag = id`, `lang: 'en'`, icon `/push-icon.png`, `data: {href}`; click with/without `href` and with/without an existing window → focus + `postMessage({navigate})` / `openWindow`; malformed payload → nothing shown, no throw); `pnpm build` emits `dist/push-sw.js` as a classic script with no hash and no `import`; `pnpm dev` serves `/push-sw.js`.
+  - done when: unit tests with a fake `ServiceWorkerGlobalScope` pass (visible window → no `showNotification`, except when the subscription endpoint is on `web.push.apple.com` → shown (Safari, AC-2.3 amended); hidden only → shown with `tag = id`, `lang: 'en'`, icon `/push-icon.png`, `data: {href}`; click with/without `href` and with/without an existing window → focus + `postMessage({navigate})` / `openWindow`; malformed payload → nothing shown, no throw); `pnpm build` emits `dist/push-sw.js` as a classic script with no hash and no `import`; `pnpm dev` serves `/push-sw.js`.
 
 - [ ] T8: Shell push library, sign-out release and boot reconciliation — refs: AC-1.6, AC-1.7, AC-5.1, AC-5.3 — deps: T7
   - touch: `shell/src/lib/push.ts`, `shell/src/lib/push.test.ts`, `shell/src/lib/session.ts`, `shell/src/lib/session.test.ts`, `shell/src/components/ShellLayout.tsx`, `shell/src/components/ShellLayout.test.tsx`
