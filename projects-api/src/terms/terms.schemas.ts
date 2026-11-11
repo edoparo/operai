@@ -1,9 +1,9 @@
 /**
- * Request shapes of the terms routes (specs/024-projects T8 as renamed by specs/025 T23; AC-2.1 –
+ * Request shapes of the terms routes (specs/025-projects T8 as renamed by specs/026 T23; AC-2.1 –
  * AC-2.9, AC-1.8, AC-5.3, AC-5.4). The response shape, `Terms`, is in `projects/projects.schemas.ts`
  * with the rest of the `Project` view.
  *
- * The shape is specs/024's contract shape, renamed: `{ startDate, endDate?, terms }`, where the
+ * The shape is specs/025's contract shape, renamed: `{ startDate, endDate?, terms }`, where the
  * type-specific `terms` depend on the project's type, which only the handler knows. So the body
  * carries `terms` as an open object and `terms.ts` validates it against the schema of the type. The
  * shapes below are those per-type schemas. There is no amount, price or rate anywhere (D14, AC-2.9):

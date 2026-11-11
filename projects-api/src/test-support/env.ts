@@ -16,7 +16,7 @@ export const TEST_AUDIENCE = "operai-suite";
 export const TEST_KID = "operai-auth-rs256-v1-test";
 /** crm-api is faked by test-support/world.ts's fetch stub, at this origin. */
 export const TEST_CRM_URL = "http://crm.test";
-/** estimai-api is faked by test-support/world.ts's fetch stub, at this origin (specs/025). */
+/** estimai-api is faked by test-support/world.ts's fetch stub, at this origin (specs/026). */
 export const TEST_ESTIMAI_URL = "http://estimai.test";
 
 function testDatabaseUrl(): string {

@@ -1,5 +1,5 @@
 /**
- * Projects: list, create, read, rename / change project manager (specs/024 T5; AC-1.1,
+ * Projects: list, create, read, rename / change project manager (specs/025 T5; AC-1.1,
  * AC-1.4 – AC-1.7, AC-4.3, AC-4.4).
  *
  * Reading needs `projects:access` only (every holder reads every project, D13). Writing needs
@@ -8,8 +8,8 @@
  * once the entity is known. A project's entity, company and type are fixed at creation.
  *
  * Names are live: people come from `auth` (fail soft, ADR-0039), company names from crm-api
- * with the service credential (fail soft, ADR-0076), and so is the deal behind the purchase order of
- * a project made from one (specs/025: title and whether it is still won, fail soft). The purchase
+ * with the service credential (fail soft, ADR-0080), and so is the deal behind the purchase order of
+ * a project made from one (specs/026: title and whether it is still won, fail soft). The purchase
  * order's referent is read live too (T26, `purchase-orders/view.ts`): one CRM `ids` call, only when one
  * is set, never stored or cached — so every answer that carries a `Project` is `Cache-Control: no-store`.
  *
@@ -90,11 +90,11 @@ export const updateProjectIfVersion = (
 /**
  * The `Project` of tasks.md § API contracts: details, live names, team, purchase order, terms and
  * the dates of the terms. A project awaits its project manager when it has a purchase order and no
- * project manager yet (specs/025 D42).
+ * project manager yet (specs/026 D42).
  */
 export async function toProjectView(c: ViewContext, row: ProjectRow) {
   const order = row.purchaseOrder;
-  // The view can carry the referent's personal data (specs/025 D49): no browser or proxy may keep it (T18 M5).
+  // The view can carry the referent's personal data (specs/026 D49): no browser or proxy may keep it (T18 M5).
   noStore(c);
   const [people, company, deal, referent] = await Promise.all([
     loadPeople(c, [row.projectManagerId, order?.opsManagerId, ...row.members.map((member) => member.userId)]),
@@ -206,7 +206,7 @@ const updateProjectRoute = createRoute({
 
 export const projectsRouter = new OpenAPIHono<{ Variables: AuthzVariables }>({ defaultHook: validationHook });
 
-// The referent routes (specs/025 T26) hang off a project: `/projects/:id/purchase-order[/contacts]`.
+// The referent routes (specs/026 T26) hang off a project: `/projects/:id/purchase-order[/contacts]`.
 projectsRouter.route("/", referentRouter);
 
 projectsRouter.openapi(createProjectRoute, async (c) => {
@@ -220,7 +220,7 @@ projectsRouter.openapi(createProjectRoute, async (c) => {
   // The caller needs no check (they are in the module right now); anyone else must hold access (AC-1.6).
   await requireProjectUsers(c, [projectManagerId]);
   // Project and terms are ONE statement (a nested create), as in the take: a refusal leaves nothing behind.
-  // A hand-made project never has a purchase order: only the take makes one (specs/025 D38, D50).
+  // A hand-made project never has a purchase order: only the take makes one (specs/026 D38, D50).
   const row = await db.project.create({
     data: {
       ...projectCreateData({
@@ -287,7 +287,7 @@ projectsRouter.openapi(listProjectsRoute, async (c) => {
  * and fail soft; they are sorted after resolving, a person without a name last, ties by id.
  */
 projectsRouter.openapi(listProjectManagersRoute, async (c) => {
-  // A project awaiting its project manager has none yet (specs/025 D42): nobody to list for it.
+  // A project awaiting its project manager has none yet (specs/026 D42): nobody to list for it.
   const rows = await db.project.findMany({
     where: { projectManagerId: { not: null } },
     distinct: ["projectManagerId"],
@@ -319,7 +319,7 @@ projectsRouter.openapi(updateProjectRoute, async (c) => {
   // The FIRST project manager of a project from a deal is the ops-manager's pick (AC-4.8, D46, D47): the
   // rule reads the purchase order's `opsManagerId` from the row just loaded, and the write below is a
   // compare-and-set on the version asserted here, so the check and the write cannot be split by another
-  // save (T18 L5). Once the project has one, manage of the entity is all it takes (specs/024, A34).
+  // save (T18 L5). Once the project has one, manage of the entity is all it takes (specs/025, A34).
   const picking = requested !== undefined && current.projectManagerId === null;
   if (picking) assertCanPickProjectManager(c, current);
   assertVersion(current.version, expected);

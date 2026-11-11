@@ -6,7 +6,7 @@
  *
  * `projects`, `project`, `terms` and `purchaseOrder` belong to the list, the
  * project page, the terms and the purchase order: each task fills its own file
- * and never edits this aggregator. `queue` is the to-start queue of specs/025.
+ * and never edits this aggregator. `queue` is the to-start queue of specs/026.
  */
 import { selectStrings } from '@operai/ui'
 import { badges } from './strings/badges'

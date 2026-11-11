@@ -9,7 +9,7 @@
 "@operai/projects-ui": minor
 ---
 
-Projects hand-off (specs/025-projects-handoff, ADR-0077 to 0080): a won deal reaches OPS "in series".
+Projects hand-off (specs/026-projects-handoff, ADR-0084 to 0087): a won deal reaches OPS "in series".
 Sales (and admins) see a to-start queue of the CRM's won deals that no project has taken, read live
 (a reopened deal leaves it, a re-won one returns), and turn one into a new project with its purchase
 order (PO): type, dates and terms, an optional referent among the company's CRM contacts, and the
@@ -24,7 +24,7 @@ read-only.
 - **auth:** the `projects` catalog gains `purchase-order:bexio` (held by `accounting`: the PO's Bexio
   order id), `purchase-order:receive` and `handoff:take`; new `ops-manager` system role; `sales` gains
   `handoff:take`. New `GET /authz/users/holders`, gated on `handoff:take`, lists the holders of
-  `purchase-order:receive` for an entity as `{ id, name, unconditioned }` (ADR-0080 amends ADR-0047). New
+  `purchase-order:receive` for an entity as `{ id, name, unconditioned }` (ADR-0087 amends ADR-0047). New
   service scopes `crm.deals.read`, `crm.contacts.read`, `estimai.estimates.read` and
   `projects.purchase-orders.read`.
 - **estimai-api:** its first `/system/*` route, `GET /system/estimates/{id}/summary`, returns only

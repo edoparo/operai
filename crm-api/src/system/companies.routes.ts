@@ -24,7 +24,7 @@ import { createSystemAuthMiddleware, type SystemAuthVariables } from "../auth/sy
 
 /**
  * The one service principal this route serves. Holding `crm.companies.read` is not enough: a
- * service credential opens only the routes that list its `sub` (ADR-0076/0073 posture).
+ * service credential opens only the routes that list its `sub` (ADR-0080/0073 posture).
  */
 export const COMPANIES_ALLOWED_SUBS = ["system:projects-api"] as const;
 

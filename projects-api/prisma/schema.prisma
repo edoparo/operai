@@ -7,14 +7,14 @@ datasource db {
   provider = "postgresql"
 }
 
-// Data model of specs/024-projects (tasks.md § Data model) as re-shaped by specs/025-projects-handoff
+// Data model of specs/025-projects (tasks.md § Data model) as re-shaped by specs/026-projects-handoff
 // (tasks.md § Data model, T23): a project has 0..1 `project_terms` and 0..1 `purchase_order`.
 // Every id is TEXT (a cuid): CRM and auth ids are cuids, never uuids. People are opaque `auth`
 // user ids and the company and the deal are opaque CRM ids (no foreign key across services);
 // their names are resolved live. There is NO money anywhere in this schema (D14). Calendar dates
 // are @db.Date; man-days are numeric(6,1).
 //
-// Raw SQL in the migrations (specs/024's `*_init`, then `*_purchase_order`, which renames the
+// Raw SQL in the migrations (specs/025's `*_init`, then `*_purchase_order`, which renames the
 // contract tables and adds the purchase order), the ENFORCEMENT and not a duplicate (Prisma cannot
 // express CHECKs):
 //   project        companyId set iff the type is not `internal` (`saas` is a client type, D40);
@@ -66,7 +66,7 @@ model Project {
   /// CRM company id; set iff `type` is not `internal` (CHECK `project_company_matches_type`).
   companyId        String?
   /// `auth` user id; must hold projects:access (checked live at write time). Null only while a
-  /// project made from a deal awaits the ops-manager's pick (specs/025 D42); the API keeps it so.
+  /// project made from a deal awaits the ops-manager's pick (specs/026 D42); the API keeps it so.
   projectManagerId String?
   /// Optimistic-concurrency counter (ADR-0038, AC-1.7).
   version          Int           @default(1)
@@ -97,8 +97,8 @@ model ProjectMember {
   @@map("project_member")
 }
 
-/// The type-specific delivery terms of a project (specs/024 AC-2.3 – AC-2.8), 0..1 per project: a
-/// project made from a deal always has them, a hand-made one may (specs/025 D50). Never on an
+/// The type-specific delivery terms of a project (specs/025 AC-2.3 – AC-2.8), 0..1 per project: a
+/// project made from a deal always has them, a hand-made one may (specs/026 D50). Never on an
 /// `internal` project (CHECK `terms_not_internal`).
 model ProjectTerms {
   id        String      @id @default(cuid())
@@ -146,7 +146,7 @@ model ProjectTermsPosition {
   @@map("project_terms_position")
 }
 
-/// The delivery-side record of one won deal (specs/025 D38), 0..1 per project: born only with its
+/// The delivery-side record of one won deal (specs/026 D38), 0..1 per project: born only with its
 /// project, in the take of a deal; a hand-made project never has one. Never deleted (D34): the
 /// project relation is RESTRICT and the API has no DELETE.
 model PurchaseOrder {

@@ -1,7 +1,7 @@
 /**
  * @vitest-environment jsdom
  *
- * PickProjectManagerDialog (specs/025 AC-4.8, AC-4.9): the first project manager of a project awaiting one,
+ * PickProjectManagerDialog (specs/026 AC-4.8, AC-4.9): the first project manager of a project awaiting one,
  * picked among the holders of access to the module (the same people as the project's own manager picker,
  * ADR-0055) and sent as `PATCH /projects/{id}` `{ projectManagerId }` with the project's version as If-Match.
  * Each refusal has its own message: not the ops-manager (403 `not_ops_manager`), no access (422

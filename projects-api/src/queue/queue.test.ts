@@ -1,8 +1,8 @@
 /**
- * The to-start queue (specs/025 T6; AC-1.1, AC-1.6, AC-2.1, AC-2.2): `GET /queue` lists the CRM's won
+ * The to-start queue (specs/026 T6; AC-1.1, AC-1.6, AC-2.1, AC-2.2): `GET /queue` lists the CRM's won
  * deals without a purchase order, newest win first, read live. Runs the ASSEMBLED app against the
  * `*_test` database; the CRM is the fake of test-support/world.ts. A taken deal is seeded straight in
- * the database with its purchase order (the take itself is tested in take.test.ts). specs/025 T24: the
+ * the database with its purchase order (the take itself is tested in take.test.ts). specs/026 T24: the
  * queue is read by `handoff:take` holders only (sales, admin), under any entity.
  */
 import { beforeEach, describe, expect, it } from "bun:test";

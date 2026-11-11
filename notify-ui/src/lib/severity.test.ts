@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { ORIGIN_APP_LABELS, originAppLabel, type NotificationOriginApp } from './severity'
 
 describe('originAppLabel', () => {
-  it('labels every origin app notify-api accepts, including inventory (specs/015), crm (specs/019) and projects (specs/025)', () => {
+  it('labels every origin app notify-api accepts, including inventory (specs/015), crm (specs/019) and projects (specs/026)', () => {
     const all: NotificationOriginApp[] = ['estimai', 'refund', 'admin', 'inventory', 'crm', 'meetings', 'projects']
     for (const app of all) {
       expect(ORIGIN_APP_LABELS[app]).toBeTruthy()

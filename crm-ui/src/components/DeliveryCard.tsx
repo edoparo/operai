@@ -3,7 +3,7 @@ import type { Delivery } from '../lib/types'
 import { strings } from '../strings'
 
 /**
- * DeliveryCard — the project that carries this deal and its purchase order's Bexio order id (specs/025
+ * DeliveryCard — the project that carries this deal and its purchase order's Bexio order id (specs/026
  * AC-3.4). Read-only: the project and the order id are managed in Projects, never here.
  *
  * Three outcomes of `GET /deals/{id}`:

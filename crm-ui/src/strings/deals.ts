@@ -85,7 +85,7 @@ const en = {
     loading: 'Loading meetings…',
     unavailable: 'Meetings are unavailable. Reload the page to try again.',
   },
-  /** The deal page's Delivery card: the project that carries the deal, read from projects-api (specs/025 AC-3.4). */
+  /** The deal page's Delivery card: the project that carries the deal, read from projects-api (specs/026 AC-3.4). */
   delivery: {
     title: 'Delivery',
     project: 'Project',

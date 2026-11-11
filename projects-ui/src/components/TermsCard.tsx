@@ -9,7 +9,7 @@ import TermsBlock from './TermsBlock'
 import TermsFormDialog from './TermsFormDialog'
 
 /**
- * TermsCard — the terms of a hand-made project (specs/025 AC-5.3, AC-5.4, S5): its dates and the terms of
+ * TermsCard — the terms of a hand-made project (specs/026 AC-5.3, AC-5.4, S5): its dates and the terms of
  * its type, or none when it has none (they are optional as a whole). There is nothing of a purchase
  * order here — no deal, estimate, Bexio order id, referent or ops-manager — because a hand-made project
  * never has one (AC-5.2); a project made from a deal shows its terms inside its purchase order card.

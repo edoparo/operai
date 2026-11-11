@@ -1,5 +1,5 @@
 /**
- * A purchase order's Bexio order id (specs/024 T9 as renamed by specs/025 T23; AC-3.1, AC-3.2,
+ * A purchase order's Bexio order id (specs/025 T9 as renamed by specs/026 T23; AC-3.1, AC-3.2,
  * AC-3.3, AC-1.7, AC-4.5).
  *
  * `PUT /projects/:id/purchase-order/bexio-order` is the ONLY way to write it: it needs the
@@ -72,6 +72,6 @@ bexioRouter.openapi(setBexioOrderRoute, async (c) => {
   assertVersion(current.version, expected);
   const row = await updatePurchaseOrderIfVersion(current.id, expected, { bexioOrderId });
   c.header("ETag", etag(row.version));
-  // The echo carries the live referent too (specs/025 T26), so it is `no-store` like the rest of the order.
+  // The echo carries the live referent too (specs/026 T26), so it is `no-store` like the rest of the order.
   return c.json(await toPurchaseOrderView(c, row, project.companyId), 200);
 });

@@ -301,7 +301,7 @@ describe("renderEmailTemplate — notification_notice (specs/019, ADR-0056)", ()
     expect(subject).not.toMatch(/[\r\n]/);
   });
 
-  it("names the Projects tool in the footer for the projects origin (specs/025)", () => {
+  it("names the Projects tool in the footer for the projects origin (specs/026)", () => {
     const { html } = renderEmailTemplate({
       template: "notification_notice",
       data: { ...data, originApp: "projects", href: "/projects/handoff" },

@@ -1,5 +1,5 @@
 /**
- * GET /system/purchase-orders (specs/025-projects-handoff T4 as renamed by T23 — AC-3.4; ADR-0077): the purchase orders of
+ * GET /system/purchase-orders (specs/026-projects-handoff T4 as renamed by T23 — AC-3.4; ADR-0084): the purchase orders of
  * the asked deals, with their project's name and Bexio order id, read service-to-service by
  * crm-api for the deal page — for users who may hold no `projects:access`. It trusts a scoped
  * SERVICE credential (`projects.purchase-orders.read`), never a user JWT.
@@ -134,7 +134,7 @@ describe("GET /system/purchase-orders?dealIds= — the deal page's source (AC-3.
     expect(Object.keys(item?.project ?? {}).sort()).toEqual(["id", "name"]);
   });
 
-  it("lets no referent, ops-manager or other person leave the module through it (specs/025 D49)", async () => {
+  it("lets no referent, ops-manager or other person leave the module through it (specs/026 D49)", async () => {
     await makeOrder(`${PREFIX}-private`);
     const res = await get(`?dealIds=${PREFIX}-private`, await serviceJwt());
     const text = await res.text();
@@ -173,7 +173,7 @@ describe("GET /system/purchase-orders — only a scoped service credential opens
       ["no token", get(q)],
       ["garbage", get(q, "not.a.jwt")],
       ["another scope", serviceJwt({ scope: "crm.deals.read" }).then((t) => get(q, t))],
-      ["the retired scope of specs/024's contracts", serviceJwt({ scope: "projects.contracts.read" }).then((t) => get(q, t))],
+      ["the retired scope of specs/025's contracts", serviceJwt({ scope: "projects.contracts.read" }).then((t) => get(q, t))],
       ["no scope", serviceJwt({ scope: null }).then((t) => get(q, t))],
       ["a user audience", serviceJwt({ aud: TEST_AUDIENCE }).then((t) => get(q, t))],
       ["a user subject", serviceJwt({ sub: "user-admin" }).then((t) => get(q, t))],

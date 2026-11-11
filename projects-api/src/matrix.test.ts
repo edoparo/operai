@@ -1,6 +1,6 @@
 /**
- * Authorization matrix over the ASSEMBLED app (specs/024-projects T10; AC-4.2 – AC-4.6, ADR-0014;
- * specs/025 T9, T23 – T29: the to-start queue, terms and purchase order routes, the referent, the
+ * Authorization matrix over the ASSEMBLED app (specs/025-projects T10; AC-4.2 – AC-4.6, ADR-0014;
+ * specs/026 T9, T23 – T29: the to-start queue, terms and purchase order routes, the referent, the
  * project-manager pick; AC-1.1, AC-1.2, AC-1.9, AC-3.7, AC-4.8, AC-5.1).
  *
  * The route list is read from the app's own table, so a route added without a row here fails the
@@ -39,7 +39,7 @@ const ENTITIES: readonly Entity[] = ["welld_ch", "welld_it"];
  *   access       `projects:access` and nothing more (every holder reads every record, D13)
  *   manage-any   `project:manage` for at least one entity (a lookup, no record involved)
  *   manage       `project:manage` for the RECORD's entity (`out_of_scope` for the other one)
- *   take-any     `handoff:take` for at least one entity (specs/025 T24: the queue is read whole by any taker)
+ *   take-any     `handoff:take` for at least one entity (specs/026 T24: the queue is read whole by any taker)
  *   take         `handoff:take` AND `project:manage` for the CRM DEAL's entity, which the CRM says
  *                (`out_of_scope` for the other one; `forbidden` without `handoff:take` at all)
  *   bexio        `purchase-order:bexio`, not entity-scoped
@@ -48,7 +48,7 @@ const ENTITIES: readonly Entity[] = ["welld_ch", "welld_it"];
  *   pick         `manage` for the project's entity, and then — the project having no project manager yet —
  *                to be the purchase order's ops-manager (`purchase-order:receive` for the project's entity
  *                AND named on the row) or to hold `purchase-order:receive` for every entity (the admin
- *                override): `not_ops_manager` otherwise (specs/025 T27, D46, D47)
+ *                override): `not_ops_manager` otherwise (specs/026 T27, D46, D47)
  */
 type Need = "access" | "manage-any" | "manage" | "take-any" | "take" | "bexio" | "pick" | "host";
 
@@ -108,7 +108,7 @@ const wonDeal = (entity: Entity, over: Partial<Parameters<typeof makeDeal>[0]> =
   return deal.id;
 };
 
-/** The terms of a take or of a terms write, specs/024's contract shape: the dates and the `fixed_price` terms (the deal has no estimate). */
+/** The terms of a take or of a terms write, specs/025's contract shape: the dates and the `fixed_price` terms (the deal has no estimate). */
 const takeTerms = { startDate: "2027-01-01", terms: { deadline: "2027-06-30", maxEffortManDays: 10 } };
 /** The ops-manager each entity has in the fake auth's holders list (test-support/world.ts). */
 const OPS_OF: Record<Entity, string> = { welld_ch: "user-ops", welld_it: "user-ops-it" };
@@ -132,7 +132,7 @@ const SPECS: Record<string, RouteSpec> = {
     }),
   },
   "GET /companies": { need: "manage-any", ok: 200, prepare: async () => ({ method: "GET", path: "/companies?q=acme" }) },
-  // The to-start queue (specs/025 T24): read by `handoff:take` holders (sales, admin) whole; a take and
+  // The to-start queue (specs/026 T24): read by `handoff:take` holders (sales, admin) whole; a take and
   // the take's form (ops-managers, contacts) need `handoff:take` + manage for the DEAL's entity — the CRM,
   // not the request, says which (AC-1.1, AC-1.2, AC-1.9).
   "GET /queue": {
@@ -238,7 +238,7 @@ const SPECS: Record<string, RouteSpec> = {
       };
     },
   },
-  // The referent (specs/025 T26, AC-3.7): `project:manage` for the PROJECT's entity, the company read from its row.
+  // The referent (specs/026 T26, AC-3.7): `project:manage` for the PROJECT's entity, the company read from its row.
   "GET /projects/:id/purchase-order/contacts": {
     need: "manage",
     ok: 200,
@@ -265,7 +265,7 @@ const SPECS: Record<string, RouteSpec> = {
  * `route` is the inventory key it belongs to.
  */
 const VARIANTS: Record<string, RouteSpec & { readonly route: string }> = {
-  // The project-manager pick (specs/025 T27, AC-4.8): a project from a deal awaiting its project manager,
+  // The project-manager pick (specs/026 T27, AC-4.8): a project from a deal awaiting its project manager,
   // whose purchase order names the entity's ops-manager (OPS_OF).
   "PATCH /projects/:id (the pick on an awaiting project)": {
     route: "PATCH /projects/:id",
@@ -302,7 +302,7 @@ const ROWS: Record<string, RouteSpec> = { ...SPECS, ...VARIANTS };
 const PUBLIC = new Set(["GET /health", "GET /openapi.json", "GET /docs"]);
 
 /**
- * The service-to-service routes (specs/025): behind a scoped SERVICE credential, never a user JWT, so
+ * The service-to-service routes (specs/026): behind a scoped SERVICE credential, never a user JWT, so
  * the persona matrix below does not apply to them. Their credential matrix lives in
  * src/system/*.test.ts; the one thing asserted here is that no user, whatever they hold, opens them.
  */
@@ -324,9 +324,9 @@ interface Grants {
   readonly access: boolean;
   readonly manage: readonly Entity[];
   readonly bexio: boolean;
-  /** `handoff:take` (specs/025 T24): sales for its own entity, an admin for both. */
+  /** `handoff:take` (specs/026 T24): sales for its own entity, an admin for both. */
   readonly take: readonly Entity[];
-  /** `purchase-order:receive` (specs/025 T19): the ops-manager for its own entity, an admin for both. */
+  /** `purchase-order:receive` (specs/026 T19): the ops-manager for its own entity, an admin for both. */
   readonly receive: readonly Entity[];
   /** The entities whose seeded purchase order (`OPS_OF`) names this persona as its ops-manager. */
   readonly opsOf: readonly Entity[];
@@ -600,7 +600,7 @@ describe("authorization matrix: the project-manager pick (AC-4.8, D46, D47, T18 
     expect(await projectManagerOf(project.id)).toBeNull();
   });
 
-  it("is specs/024's rule once the project has a project manager: any manager of the entity changes it, the ops-manager's pick is over", async () => {
+  it("is specs/025's rule once the project has a project manager: any manager of the entity changes it, the ops-manager's pick is over", async () => {
     const id = await withProject("welld_ch");
     let version = 1;
     for (const persona of ["pmCh", "salesCh", "opsCh", "admin"] as const) {

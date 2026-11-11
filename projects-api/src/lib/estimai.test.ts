@@ -1,5 +1,5 @@
 /**
- * estimai-api client (specs/025 T5; AC-3.1, ADR-0078): `estimateManDays(id)` reads the figure a
+ * estimai-api client (specs/026 T5; AC-3.1, ADR-0085): `estimateManDays(id)` reads the figure a
  * fixed-price terms of a project made from a deal copy, as the service principal (the person taking the
  * deal is often no collaborator on the estimate). EstimAI is the fake of test-support/world.ts.
  */

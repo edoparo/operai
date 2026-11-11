@@ -1,5 +1,5 @@
 /**
- * estimai-api client for an estimate's man-days (specs/025 T5, AC-3.1, ADR-0078).
+ * estimai-api client for an estimate's man-days (specs/026 T5, AC-3.1, ADR-0085).
  *
  * projects-api reads `GET /system/estimates/{id}/summary` as ITSELF: the 5-minute service JWT
  * (`serviceTokens`, scope `estimai.estimates.read`), never the caller's token — the person taking a

@@ -1,5 +1,5 @@
 /**
- * crm-api's read of projects-api (specs/025-projects-handoff T10, T21, AC-3.4, ADR-0077): the deal
+ * crm-api's read of projects-api (specs/026-projects-handoff T10, T21, AC-3.4, ADR-0084): the deal
  * page shows the project that carries a deal and its purchase order's Bexio order id, read-only.
  * crm-api calls `GET /system/purchase-orders?dealIds=` as ITSELF, with the 5-minute scoped service
  * JWT (`projects.purchase-orders.read`) its own `SERVICE_CLIENT_ID` / `SERVICE_CLIENT_SECRET` buy

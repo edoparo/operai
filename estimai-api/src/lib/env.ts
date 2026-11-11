@@ -81,7 +81,7 @@ const envSchema = z.object({
   // rest of the service is unaffected; the production template lists it as
   // required (tools/env-doctor).
   // The same `aud` guards `GET /system/estimates/{id}/summary` (scope
-  // `estimai.estimates.read`, sub `system:projects-api`; specs/025, ADR-0078).
+  // `estimai.estimates.read`, sub `system:projects-api`; specs/026, ADR-0085).
   SERVICE_AUDIENCE: z.string().min(1, "SERVICE_AUDIENCE must not be empty").optional(),
 
   // ─── Third-party lookup timing/rate-limit knobs (plan.md "The third-party

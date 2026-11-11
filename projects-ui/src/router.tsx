@@ -11,7 +11,7 @@ import QueuePage from './pages/QueuePage'
  * shell mounts this remote at its gated `/projects/$` route:
  *
  *   /projects        Projects list (T12)
- *   /projects/queue  To-start queue: won deals no project has taken (specs/025)
+ *   /projects/queue  To-start queue: won deals no project has taken (specs/026)
  *   /projects/tasks  My tasks: project and pre-sales tasks together (specs/028 T19)
  *   /projects/$id    Project page: details, state, team, purchase order or terms (T13, T14, T30)
  *

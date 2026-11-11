@@ -21,9 +21,9 @@ body naming another `originApp` is `403`, and a `system:*` caller with no bindin
 | `system:refund-api` | `refund` |
 | `system:estimai-api` | `estimai` |
 | `system:crm-api` | `crm` |
-| `system:projects-api` | `projects` (specs/025) |
+| `system:projects-api` | `projects` (specs/026) |
 
-### The `projects` origin (specs/025, AC-4.3)
+### The `projects` origin (specs/026, AC-4.3)
 
 projects-api pushes **one notification** to a purchase order's ops-manager after a won deal is taken
 into a project: severity `info`, English only, a title naming the project, a body naming the company

@@ -1,7 +1,7 @@
 /**
  * @vitest-environment jsdom
  *
- * ProjectDetailPage (specs/024 AC-1.2 – AC-1.7, AC-4.4; specs/025 AC-2.3, AC-2.4, AC-3.2, AC-3.3, AC-5.2): the
+ * ProjectDetailPage (specs/025 AC-1.2 – AC-1.7, AC-4.4; specs/026 AC-2.3, AC-2.4, AC-3.2, AC-3.3, AC-5.2): the
  * details, the dates from the terms, the team and — by what the project has — a Purchase order card (a project
  * made from a deal: deal link, "no longer won" notice, estimate link, Bexio order id, its terms) or a Terms card
  * (a hand-made one, nothing of a PO); only the allowed state moves (Resume back to `stateBeforeHold`); no type

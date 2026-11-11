@@ -94,7 +94,7 @@ export const SHARED_COPIES: readonly SharedGroup[] = [
   {
     name: "manDays",
     files: ["crm-api/src/offers/scope.ts", "estimai-api/src/system/manDays.ts"],
-    why: "the Expected-effort arithmetic behind a purchase order's man-days (specs/025, ADR-0078); estimai-ui's pertCalc is the source of truth",
+    why: "the Expected-effort arithmetic behind a purchase order's man-days (specs/026, ADR-0085); estimai-ui's pertCalc is the source of truth",
   },
 ];
 

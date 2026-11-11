@@ -1,5 +1,5 @@
 /**
- * The deal page's "Delivery" read (specs/025 T10, AC-3.4): `GET /deals/{id}` gains
+ * The deal page's "Delivery" read (specs/026 T10, AC-3.4): `GET /deals/{id}` gains
  * `delivery: { project: { id, name }, bexioOrderId } | null` and `deliveryKnown`, read live from
  * projects-api with crm-api's own service credential, so a CRM user without `projects:access` sees
  * it. It FAILS SOFT: projects-api down or not configured, the deal still loads (`deliveryKnown:

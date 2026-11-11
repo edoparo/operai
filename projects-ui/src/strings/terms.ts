@@ -1,6 +1,6 @@
 /**
- * The terms of a project — its dates and the type-specific delivery terms (specs/024 AC-2.3 – AC-2.8;
- * specs/025 AC-1.8, AC-5.3, AC-5.4): the per-type form, the read-only details (shared by the purchase
+ * The terms of a project — its dates and the type-specific delivery terms (specs/025 AC-2.3 – AC-2.8;
+ * specs/026 AC-1.8, AC-5.3, AC-5.4): the per-type form, the read-only details (shared by the purchase
  * order card and the Terms card), setting an end date, the Terms card of a hand-made project.
  */
 import type { TermsRefusal } from '../lib/errors'

@@ -100,7 +100,7 @@
  *      `meetings` is registered once, here, never through `SUITE_APPS`.
  *
  *  12. {@link seedProjectsCatalog} + {@link seedProjectsGrants} (specs/021-
- *      projects — AC-4.1, AC-4.3–4.6; specs/025-projects-handoff — AC-1.1,
+ *      projects — AC-4.1, AC-4.3–4.6; specs/026-projects-handoff — AC-1.1,
  *      AC-1.9, AC-3.4, AC-4.1, AC-4.8) — register the projects module's catalog
  *      (`catalogs/projects.ts`) and attach its grants (`admin`
  *      `project:manage`, `purchase-order:bexio|receive` and `handoff:take`
@@ -139,7 +139,7 @@ export const SALES_ROLE_NAME = "sales";
 /** System role holding only `crm:access` (specs/018): technical staff who read the CRM, no financials. */
 export const CRM_TECHNICAL_ROLE_NAME = "crm-technical";
 export const PROJECT_MANAGER_ROLE_NAME = "project-manager";
-/** System role (specs/025): receives a won deal's purchase order and picks its project manager. */
+/** System role (specs/026): receives a won deal's purchase order and picks its project manager. */
 export const OPS_MANAGER_ROLE_NAME = "ops-manager";
 
 /** The four seed system roles (AC-6.2). Order is insignificant; upserts run sequentially for deterministic logging. */
@@ -250,7 +250,7 @@ export async function seedMeetingsCatalog(): Promise<void> {
 }
 
 /**
- * Registers the projects module's catalog (specs/024-projects — AC-4.1; specs/025
+ * Registers the projects module's catalog (specs/025-projects — AC-4.1; specs/026
  * — AC-1.9, AC-4.1): `projects:access`, entity-scoped `project:manage`,
  * `purchase-order:bexio|receive` and entity-scoped `handoff:take`.
  * Idempotent (full-replace upsert keyed by `appId`). `projects` is registered
@@ -699,8 +699,8 @@ export async function seedMeetingsGrants(): Promise<void> {
 }
 
 /**
- * Seeds the projects module's role grants (specs/024-projects — AC-4.3–4.6;
- * decisions D13, D35, D36; specs/025-projects-handoff — AC-1.1, AC-1.9, AC-3.4,
+ * Seeds the projects module's role grants (specs/025-projects — AC-4.3–4.6;
+ * decisions D13, D35, D36; specs/026-projects-handoff — AC-1.1, AC-1.9, AC-3.4,
  * AC-4.1, AC-4.8; decisions D38, D44, D47):
  *
  *   - `admin` — `project:manage`, `purchase-order:bexio`, `purchase-order:receive`
@@ -719,8 +719,8 @@ export async function seedMeetingsGrants(): Promise<void> {
  *     latter replaces the retired `contract:bexio`.
  *   - `employee` — nothing: projects access is admin-assigned (specs/004).
  *
- * Stale `contract:bexio` rules from specs/024 are NOT removed here: nothing of
- * specs/024–025 is deployed, and the one local database carrying them is cleaned
+ * Stale `contract:bexio` rules from specs/025 are NOT removed here: nothing of
+ * specs/025–026 is deployed, and the one local database carrying them is cleaned
  * by hand (T36).
  *
  * Idempotent and non-destructive, through {@link ensureGrant}, exactly like

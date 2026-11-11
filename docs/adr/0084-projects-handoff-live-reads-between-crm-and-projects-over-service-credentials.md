@@ -1,12 +1,12 @@
-# 0077 — The projects hand-off reads between crm-api and projects-api over scoped service credentials, deals read live and never synced
+# 0084 — The projects hand-off reads between crm-api and projects-api over scoped service credentials, deals read live and never synced
 
 **Date:** 2026-11-04
-**Status:** Accepted (specs/025-projects-handoff, tasks.md § Architecture notes "Decided here"; taken at rigor `mvp` without an architect — review before merge)
+**Status:** Accepted (specs/026-projects-handoff, tasks.md § Architecture notes "Decided here"; taken at rigor `mvp` without an architect — review before merge)
 **Deciders:** wellD
 **Project:** Operai
 
-**Amended 2026-11-05** (specs/025 steering, ledger D37–D42, D49; [ADR-0079](0079-terms-and-purchase-order-two-optional-records-of-a-project-contract-retired.md),
-[ADR-0080](0080-handoff-take-and-purchase-order-receive-capabilities-auth-holders-listing-amends-0047.md)).
+**Amended 2026-11-05** (specs/026 steering, ledger D37–D42, D49; [ADR-0086](0086-terms-and-purchase-order-two-optional-records-of-a-project-contract-retired.md),
+[ADR-0087](0087-handoff-take-and-purchase-order-receive-capabilities-auth-holders-listing-amends-0047.md)).
 The decision to read live over scoped service credentials, and every failure rule below, stand. What changed
 is the names, one route and one new channel; the text below is kept as written (it is the record of the
 2026-11-04 decision) and reads as follows:
@@ -22,13 +22,13 @@ is the names, one route and one new channel; the text below is kept as written (
 - **What a take writes** (Decision 6): the project, its terms **and** its PO in one transaction; the unique
   index that decides a race between two takes is `purchase_order.dealId`. A take is no longer "attach or new
   project": there is no attach (D39), the take needs `handoff:take` **and** `project:manage` for the deal's
-  entity (ADR-0080), and the queue is readable by sales and admins only (D37), not by every access holder.
+  entity (ADR-0087), and the queue is readable by sales and admins only (D37), not by every access holder.
 - **The Bexio order id** (Consequences) is now `purchase-order:bexio`, and still readable by every CRM user who
   opens the deal page.
 - **A third channel, with personal data: `crm.contacts.read`.** projects-api reads CRM contacts as
   `system:projects-api` through crm-api `GET /system/contacts` (`?companyId=` or `?ids=`, ≤ 20), the same system
   auth as `GET /system/deals` and one explicit shape per mode, to show and validate a PO's referent live
-  (ADR-0080). The Compliance note below ("no contact … field crosses either channel") holds for the two channels
+  (ADR-0087). The Compliance note below ("no contact … field crosses either channel") holds for the two channels
   it describes and **not for this one**: contact data flows CRM → projects-api here, never stored, cached or
   logged, and never in the opposite channel (`/system/purchase-orders` carries none).
 
@@ -36,7 +36,7 @@ is the names, one route and one new channel; the text below is kept as written (
 
 ## Context
 
-specs/025 connects the CRM pipeline to the project module (ledger D2, D4, D17): every won deal waits
+specs/026 connects the CRM pipeline to the project module (ledger D2, D4, D17): every won deal waits
 in a **to-start queue** until a person takes it into a project, the project and its contract then
 show the deal, and the CRM's deal page shows the project and the contract's Bexio order id (AC-1.1,
 AC-2.1–2.4, AC-3.3, AC-3.4). Two tools that own different facts therefore have to see each other's:
@@ -44,11 +44,11 @@ the deal's stage and estimate live in `crm-api`, the contract that took the deal
 `projects-api`.
 
 The people on each side are not each other's users. OPS and `accounting` hold no `crm:access`;
-CRM users hold no `projects:access` (D13, ADR-0075). A user JWT forwarded to the other service
+CRM users hold no `projects:access` (D13, ADR-0079). A user JWT forwarded to the other service
 answers 403 for exactly the people the feature is for, and `crm-api` rejects a user JWT on
-`/system/*` regardless (ADR-0076). specs/024 already built the channel in one direction —
+`/system/*` regardless (ADR-0080). specs/025 already built the channel in one direction —
 `projects-api` reads CRM companies as `system:projects-api` with scope `crm.companies.read`
-(ADR-0076, ADR-0044/0049 pattern). Rigor is `mvp` and the user's standing preference on uncertain
+(ADR-0080, ADR-0044/0049 pattern). Rigor is `mvp` and the user's standing preference on uncertain
 designs is the least invasive, easiest-to-change option (D17): no event, no webhook, no change to
 any CRM write path.
 
@@ -59,7 +59,7 @@ any CRM write path.
    - `projects.contracts.read`, held by the `crm-api` client, accepted by `projects-api`
      `GET /system/contracts`.
 
-   Both routes copy `crm-api`'s `src/system/systemAuth.middleware.ts` (ADR-0076): `aud =
+   Both routes copy `crm-api`'s `src/system/systemAuth.middleware.ts` (ADR-0080): `aud =
    SERVICE_AUDIENCE` (never `AUTH_AUDIENCE`), `sub = system:<client>`, the route's scope in `scope`,
    one identical `401` for every failure, a user JWT never accepted, `SERVICE_AUDIENCE` unset →
    every request is `401`. The guard rides on the route, never on a sub-app `use("*")`. Neither
@@ -104,7 +104,7 @@ any CRM write path.
 6. **Taking a deal is one write, and the database arbitrates the race.** `POST /queue/{dealId}/project`
    and `/attach` read the deal live (it must exist, be `won` now, and have no contract), check the
    caller holds `project:manage` for the **deal's** entity, then write the project and its contract
-   in **one nested create**. The unique index on `contract.dealId` (specs/024) is what decides two
+   in **one nested create**. The unique index on `contract.dealId` (specs/025) is what decides two
    concurrent takes of one deal: the loser gets `409 deal_taken`, with no project and no contract
    left behind. The explicit "already taken?" read before the write only gives the common case a
    friendly answer first; it is not the guard.
@@ -151,10 +151,10 @@ Where else this shape can appear, in the mirror-image position:
   / reopen). Rejected (D17: least invasive): it adds a write path to the CRM, a delivery guarantee
   to build, a backfill for deals already won (A26), and a place where reopened and re-won deals can
   drift. Reading live makes AC-2.1, AC-2.2 and AC-2.4 true by construction.
-- **Forward the user's JWT to the other service.** Rejected, as in ADR-0076: it fails for the people
+- **Forward the user's JWT to the other service.** Rejected, as in ADR-0080: it fails for the people
   the feature serves (CRM users holding no `projects:access`, OPS holding no `crm:access`), and
   both `/system/*` routes refuse a user JWT.
-- **Grant each side the other's access** so the plain routes work. Rejected as in ADR-0076: it widens
+- **Grant each side the other's access** so the plain routes work. Rejected as in ADR-0080: it widens
   reads to people who need one fact and contradicts D13.
 - **Reuse crm-api's notifier token provider for the projects read.** Rejected: that provider exists
   only when notify is configured, so the deal page would silently go dark in a deployment without
@@ -176,7 +176,7 @@ Where else this shape can appear, in the mirror-image position:
   `projects-api` for the deal page's Delivery card.
 - The queue holds at most the 500 newest won deals; past that it says "showing the newest 500". `q`
   and `entity` filter within them. Pagination is a knowing deferral, fine while the CRM is weeks old.
-- The Bexio order id, which ADR-0075 gave its own route and capability (`contract:bexio`) so that
+- The Bexio order id, which ADR-0079 gave its own route and capability (`contract:bexio`) so that
   only `accounting` writes it, is now **readable by every CRM user who can open the deal page**
   (AC-3.4), through `GET /system/contracts`. It remains read-only there and decides nothing.
 - A take is **entity-scoped on the deal**, not the target project: attaching a deal of one entity to

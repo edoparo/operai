@@ -49,15 +49,15 @@ import { createHash, timingSafeEqual } from "node:crypto";
  *   estimate-request task, completion, meeting-host state and contact erasure
  *   (specs/028, ADR-0081/0082). Only crm-api holds it; activities-api's sub
  *   allowlist names `system:crm-api`.
- * - `crm.deals.read`: read won deals through crm-api's `GET /system/deals` (specs/025).
+ * - `crm.deals.read`: read won deals through crm-api's `GET /system/deals` (specs/026).
  *   Only projects-api holds it.
  * - `estimai.estimates.read`: read an estimate's man-days through estimai-api's
- *   `GET /system/estimates/{id}/summary` (specs/025). Only projects-api holds it.
+ *   `GET /system/estimates/{id}/summary` (specs/026). Only projects-api holds it.
  * - `crm.contacts.read`: read a company's contacts, or contacts by id (the referent of a
- *   purchase order), through crm-api's `GET /system/contacts` (specs/025, D49). Only
+ *   purchase order), through crm-api's `GET /system/contacts` (specs/026, D49). Only
  *   projects-api holds it.
  * - `projects.purchase-orders.read`: read the purchase orders of given deals through
- *   projects-api's `GET /system/purchase-orders` (specs/025; was `projects.contracts.read`,
+ *   projects-api's `GET /system/purchase-orders` (specs/026; was `projects.contracts.read`,
  *   retired with "contract", D38). Only crm-api holds it.
  */
 export const KNOWN_SERVICE_SCOPES = [
@@ -82,11 +82,11 @@ export const KNOWN_SERVICE_SCOPES = [
  * env value, validated by {@link parseServiceClients}.
  * - `meetings-api` (specs/021): pushes in-app notifications and relays host
  *   notices to crm-api; it never sends email (AC-12.4), so no `emails.send`.
- * - `projects-api` (specs/024, 025): reads CRM companies, won deals and a PO's
+ * - `projects-api` (specs/025, 026): reads CRM companies, won deals and a PO's
  *   referent contacts, an estimate's man-days, and pushes the ops-manager's
  *   notification; it sends no email, so no `emails.send` (ADR-0049 one scope per
  *   capability; env-doctor's manifest holds the same five).
- * - `crm-api` (specs/025, specs/028): its notify and deal-link scopes, the purchase
+ * - `crm-api` (specs/026, specs/028): its notify and deal-link scopes, the purchase
  *   orders of its deals (`projects.purchase-orders.read`) and `activities.write`.
  * - `activities-api` (specs/028): `notifications.push emails.send` — its task notices
  *   (AC-6.1/6.3) are email notices, and notify-api requires `emails.send` as well as

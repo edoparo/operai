@@ -1,5 +1,5 @@
 /**
- * The referent of a purchase order (specs/025 T26; AC-3.6, AC-3.7, AC-3.8; T18 M1, M3, M5, L1, L6): the
+ * The referent of a purchase order (specs/026 T26; AC-3.6, AC-3.7, AC-3.8; T18 M1, M3, M5, L1, L6): the
  * CRM contact the client names as the person to talk to about the order.
  *
  *   GET   /projects/:id/purchase-order/contacts  the picker: the PROJECT's company's non-archived contacts

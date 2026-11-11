@@ -1,7 +1,7 @@
 /**
  * @vitest-environment jsdom
  *
- * PurchaseOrderCard (specs/025 AC-2.3, AC-2.4, AC-3.1 – AC-3.3, specs/024 AC-3.1): the purchase order of a
+ * PurchaseOrderCard (specs/026 AC-2.3, AC-2.4, AC-3.1 – AC-3.3, specs/025 AC-3.1): the purchase order of a
  * project made from a deal — the deal as a link to the CRM, the "no longer won" notice, the estimate link
  * into EstimAI, the Bexio order id (editable only with the `bexio` scope) and its terms, which only a
  * holder of manage projects changes. There is no control that detaches, moves or deletes it (D38, D39).

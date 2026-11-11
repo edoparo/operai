@@ -1,5 +1,5 @@
 /**
- * GET /system/estimates/{id}/summary (specs/025-projects-handoff T2, AC-3.1; ADR-0078) —
+ * GET /system/estimates/{id}/summary (specs/026-projects-handoff T2, AC-3.1; ADR-0085) —
  * an estimate's man-days read service-to-service. projects-api copies the figure onto a
  * fixed-price purchase order made from a won deal, for a person who is often not a collaborator
  * on the estimate, so this route trusts a scoped SERVICE credential

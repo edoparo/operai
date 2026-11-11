@@ -161,7 +161,7 @@ export const DealEstimateSchema = z.object({
 
 const EstimateOverrideSchema = z.object({ by: PersonRefSchema, reason: z.string(), at: z.string() });
 
-// specs/025 (AC-3.4): what projects-api knows of the deal, on `GET /deals/{id}` alone.
+// specs/026 (AC-3.4): what projects-api knows of the deal, on `GET /deals/{id}` alone.
 const DeliverySchema = z.object({
   project: z.object({ id: z.string(), name: z.string() }),
   // Typed in by accounting in the Projects tool; empty until then.
@@ -552,7 +552,7 @@ dealsRouter.openapi(getRoute, async (c) => {
   const row = await db.deal.findUnique({ where: { id }, include: withCompany });
   if (!row) throw notFound("Deal not found");
   c.header("ETag", etag(row.version));
-  // projects-api is read live and fails soft: it can never fail the deal page (specs/025 AC-3.4).
+  // projects-api is read live and fails soft: it can never fail the deal page (specs/026 AC-3.4).
   const [view, { known, delivery }] = await Promise.all([toView(c, row), deliveryOfDeal(id)]);
   return c.json({ ...view, delivery, deliveryKnown: known }, 200);
 });

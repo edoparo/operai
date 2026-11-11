@@ -1,7 +1,7 @@
-# 0078 — estimai-api's first `/system/*` route returns an estimate's man-days to a scoped service credential, and a contract made from a deal never lets the client set them
+# 0085 — estimai-api's first `/system/*` route returns an estimate's man-days to a scoped service credential, and a contract made from a deal never lets the client set them
 
 **Date:** 2026-11-04
-**Status:** Accepted (specs/025-projects-handoff, tasks.md § Architecture notes "Decided here"; the credential choice was the user's, 2026-11-04, at task derivation; taken at rigor `mvp` without an architect — review before merge)
+**Status:** Accepted (specs/026-projects-handoff, tasks.md § Architecture notes "Decided here"; the credential choice was the user's, 2026-11-04, at task derivation; taken at rigor `mvp` without an architect — review before merge)
 **Deciders:** wellD
 **Project:** Operai
 
@@ -17,8 +17,8 @@ JWTs: every route scopes its query to the caller's `sub` (ADR-0005) and shares r
 own collaborator ACL (ADR-0036). A user token cannot answer this question for the people who ask it.
 
 The suite already has the narrow channel for a data read between two tools: a 5-minute scoped
-service JWT minted by `auth` (ADR-0044/0049), used since specs/024 by `projects-api` to read CRM
-companies (ADR-0076) and in this spec by the deals reads (ADR-0077). The figure itself already
+service JWT minted by `auth` (ADR-0044/0049), used since specs/025 by `projects-api` to read CRM
+companies (ADR-0080) and in this spec by the deals reads (ADR-0084). The figure itself already
 exists twice: `estimai-ui`'s `pertCalc` is its source of truth, and `crm-api`'s `src/offers/scope.ts`
 is pinned to it to print man-days on an offer. The apps are installed separately and are not a
 workspace, so code is shared between them only by byte-identical copies guarded by
@@ -109,7 +109,7 @@ Where else this shape can appear, in the mirror-image position:
 - **Forward the caller's JWT to estimai-api.** Rejected: the person taking a deal is often not a
   collaborator, and estimai-api accepts only user JWTs scoped to the caller's own and shared
   estimates, so the read would fail for the people who need it. (The reasoning the user gave when
-  choosing the service credential; the same precedent as ADR-0076.)
+  choosing the service credential; the same precedent as ADR-0080.)
 - **Snapshot the man-days in crm-api when the estimate is marked ready.** Rejected: it misses
   estimates that were already ready when the module shipped and estimates an admin marked ready
   by override, and it creates a second owner of the figure.
@@ -138,7 +138,7 @@ Where else this shape can appear, in the mirror-image position:
 - In `projects-api` the service client is wired through the crm-api group only (`CRM_INTERNAL_URL`
   plus the `SERVICE_CLIENT_*` pair), so `ESTIMAI_INTERNAL_URL` set without that group still answers
   `estimai_unconfigured`. It costs nothing today, since taking a deal needs the CRM too, but it is
-  the coupling ADR-0077 removed on the crm-api side and would surprise a consumer of estimai-api
+  the coupling ADR-0084 removed on the crm-api side and would surprise a consumer of estimai-api
   that needs no CRM.
 - Rounding half up to one decimal is a lossy snapshot: a contract's man-days and the estimate's
   unrounded total may differ in the second decimal.
@@ -148,7 +148,7 @@ Where else this shape can appear, in the mirror-image position:
   any credential; every route on this edge carries its guard on the route (`middleware`), never on a
   sub-app `use("*")`, and has a test that a user JWT, another scope and no token get one identical `401`.
 - The lock on the man-days is spread across the take and the contract `PATCH` of `projects-api`
-  (specs/025 T7 and T8); any new write path on a contract must be checked against Decision 6.
+  (specs/026 T7 and T8); any new write path on a contract must be checked against Decision 6.
 - Production needs `SERVICE_AUDIENCE` on estimai-api and `ESTIMAI_INTERNAL_URL` on projects-api, and
   the `estimai.estimates.read` scope on the `projects-api` client. Missing, taking a `fixed_price`
   deal with an estimate answers `503 estimai_unconfigured` (no URL or credential in projects-api) or

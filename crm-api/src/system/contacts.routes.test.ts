@@ -1,5 +1,5 @@
 /**
- * GET /system/contacts (specs/025-projects-handoff T21, AC-3.6, AC-3.8, AC-3.9; T18 M2, L3, L8):
+ * GET /system/contacts (specs/026-projects-handoff T21, AC-3.6, AC-3.8, AC-3.9; T18 M2, L3, L8):
  * the CRM's contacts read service-to-service by projects-api with a scoped service credential
  * (`crm.contacts.read`) — the referent picker (`companyId` mode) and the referent's details on a
  * purchase order (`ids` mode), for users who may hold no `crm:access`. Real Postgres (`crm_test`);

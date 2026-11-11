@@ -1,6 +1,6 @@
 /**
- * The terms of a project: add, edit, remove — remove only on a hand-made project (specs/024 T8 as
- * renamed by specs/025 T23; AC-1.7, AC-1.8, AC-2.1 – AC-2.9, AC-3.1, AC-5.2 – AC-5.4).
+ * The terms of a project: add, edit, remove — remove only on a hand-made project (specs/025 T8 as
+ * renamed by specs/026 T23; AC-1.7, AC-1.8, AC-2.1 – AC-2.9, AC-3.1, AC-5.2 – AC-5.4).
  *
  * There is no GET: the terms come with the `Project`. Writing needs `project:manage` for the PROJECT'S
  * entity, like every write on a project. Terms have their project's type for life (D25): it is set
@@ -8,7 +8,7 @@
  * terms, created with it in the take, so `POST` is for hand-made projects (`409 terms_exist`
  * otherwise) and `DELETE` refuses a project with a purchase order (`409 terms_required`).
  *
- * The wire shape is specs/024's contract shape (`terms.schemas.ts`): `{ startDate, endDate?, terms }`.
+ * The wire shape is specs/025's contract shape (`terms.schemas.ts`): `{ startDate, endDate?, terms }`.
  * A body error names the field by its path in the body (`startDate`, `terms.deadline`,
  * `terms.hourPackage.hours`). Every write takes the version it edited through `If-Match`, as every
  * write of the module does (ADR-0038).

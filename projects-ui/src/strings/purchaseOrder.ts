@@ -1,7 +1,7 @@
 import type { PurchaseOrderRefusal } from '../lib/errors'
 
 /**
- * The purchase order (PO) of a project made from a won deal (specs/025; ledger D38): its card on the
+ * The purchase order (PO) of a project made from a won deal (specs/026; ledger D38): its card on the
  * project page — the deal, the "no longer won" notice, the estimate, the ops-manager, the referent (read
  * live from the CRM, AC-3.8 – AC-3.10, and its edit, AC-3.7), the Bexio order id. The pick of the project
  * manager is in `strings/project.ts`.

@@ -1,6 +1,6 @@
 /**
- * Projects: create, list, read, rename / change project manager (specs/024 T5; AC-1.1, AC-1.4,
- * AC-1.6, AC-1.7, AC-4.3, AC-4.4), with the specs/025 T23 shapes: a project has 0..1 terms and 0..1
+ * Projects: create, list, read, rename / change project manager (specs/025 T5; AC-1.1, AC-1.4,
+ * AC-1.6, AC-1.7, AC-4.3, AC-4.4), with the specs/026 T23 shapes: a project has 0..1 terms and 0..1
  * purchase order, may await its project manager, and never changes type (AC-2.3, AC-2.4, AC-3.2, AC-3.3,
  * AC-4.5, AC-5.1, AC-5.2). Runs the ASSEMBLED app against the `*_test` database; auth, the identity
  * service and crm-api are the fakes of test-support/world.ts.
@@ -11,7 +11,7 @@ import type { Prisma } from "../lib/generated/prisma/client";
 import { resetNotifierForTests, setNotifierForTests, type NotifyEvent } from "../lib/notify";
 import { PROJECT_TYPES } from "./projects.schemas";
 
-/** Every type but `internal` has a company, `saas` included (specs/025 D40). */
+/** Every type but `internal` has a company, `saas` included (specs/026 D40). */
 const CLIENT_TYPES = ["t_and_m", "fixed_price", "maintenance", "saas"] as const;
 
 beforeEach(async () => {
@@ -84,7 +84,7 @@ describe("POST /projects", () => {
     expect(stored).toMatchObject({ createdById: "user-pm-ch", companyId: "co-acme", state: "planned" });
   });
 
-  it("creates a saas project with its company, one project per licence (AC-5.1, specs/025 D40)", async () => {
+  it("creates a saas project with its company, one project per licence (AC-5.1, specs/026 D40)", async () => {
     const res = await create({ name: "Koordy licence", type: "saas", entity: "welld_ch", companyId: "co-acme" });
     expect(res.status).toBe(201);
     expect(res.json).toMatchObject({ type: "saas", company: { id: "co-acme", name: "Acme SA" }, awaitingProjectManager: false });
@@ -218,7 +218,7 @@ describe("POST /projects", () => {
   });
 });
 
-/** Valid optional terms at creation, per type that takes them: `{ startDate, endDate?, terms }` (AC-5.3, specs/024 AC-2.3–2.8). */
+/** Valid optional terms at creation, per type that takes them: `{ startDate, endDate?, terms }` (AC-5.3, specs/025 AC-2.3–2.8). */
 const TERMS_AT_CREATION = {
   t_and_m: { startDate: "2026-12-01", terms: { positions: [{ profile: "Senior developer", plannedManDays: 120 }, { profile: "Tester", plannedManDays: 30.5 }] } },
   fixed_price: { startDate: "2026-12-01", endDate: "2027-06-30", terms: { deadline: "2027-03-31", estimatedManDays: 40, maxEffortManDays: 55.5 } },
@@ -226,7 +226,7 @@ const TERMS_AT_CREATION = {
   saas: { startDate: "2026-12-01", endDate: "2027-11-30" },
 } as const;
 
-describe("POST /projects with terms (specs/025 T28; AC-5.1, AC-5.3, A38)", () => {
+describe("POST /projects with terms (specs/026 T28; AC-5.1, AC-5.3, A38)", () => {
   it.each(CLIENT_TYPES)("creates a %s project and its terms together: one 201, the terms nested, nothing else (AC-5.3)", async (type) => {
     const terms = TERMS_AT_CREATION[type];
     const res = await create({ name: "Koordy", type, entity: "welld_ch", companyId: "co-acme", terms });
@@ -349,7 +349,7 @@ describe("POST /projects with terms (specs/025 T28; AC-5.1, AC-5.3, A38)", () =>
   });
 });
 
-describe("POST /projects, the five types (specs/025 T28; AC-5.1, AC-5.2, D50)", () => {
+describe("POST /projects, the five types (specs/026 T28; AC-5.1, AC-5.2, D50)", () => {
   it.each(PROJECT_TYPES)(
     "creates a %s project with the company rule, the creator as project manager, planned, not awaiting, with no purchase order",
     async (type) => {
@@ -549,7 +549,7 @@ describe("GET /projects/:id", () => {
     expect(res.json.company).toEqual({ id: "co-old", name: "Legacy Ltd" });
   });
 
-  describe("the deal behind its purchase order, read live (specs/025 T8, T23; AC-2.3, AC-2.4, AC-3.2, AC-3.3)", () => {
+  describe("the deal behind its purchase order, read live (specs/026 T8, T23; AC-2.3, AC-2.4, AC-3.2, AC-3.3)", () => {
     const dealOf = async (projectId: string): Promise<unknown> =>
       (await call("GET", `/projects/${projectId}`, { as: "viewer" })).json.purchaseOrder?.deal;
 
@@ -645,9 +645,9 @@ describe("GET /projects/:id", () => {
     });
   });
 
-  // The referent is a third party's personal data (specs/025 D49): read from the CRM at every opening,
+  // The referent is a third party's personal data (specs/026 D49): read from the CRM at every opening,
   // never copied, never cached (T18 M3, M5, L3, L7). Every contact here is synthetic.
-  describe("the referent of its purchase order, read live (specs/025 T26; AC-3.8, AC-3.9, AC-3.10, S6)", () => {
+  describe("the referent of its purchase order, read live (specs/026 T26; AC-3.8, AC-3.9, AC-3.10, S6)", () => {
     const REFERENT_ID = "contact-ref";
     const contact = (over: Partial<FakeContact> = {}) =>
       makeContact({
@@ -855,7 +855,7 @@ describe("GET /project-managers", () => {
     expect(res.json).toEqual({ items: [] });
   });
 
-  it("lists nobody for a project awaiting its project manager (specs/025 D42)", async () => {
+  it("lists nobody for a project awaiting its project manager (specs/026 D42)", async () => {
     await seedDealProject();
     await seed({ name: "B", projectManagerId: "user-colleague" });
     const res = await call("GET", "/project-managers", { as: "viewer" });
@@ -976,7 +976,7 @@ describe("GET /projects", () => {
     }
   });
 
-  it("shows a saas row with its company, as every client type does, and an internal one without (AC-5.1, specs/025 D40)", async () => {
+  it("shows a saas row with its company, as every client type does, and an internal one without (AC-5.1, specs/026 D40)", async () => {
     const saas = await seed({ name: "Koordy", type: "saas", companyId: "co-zeta" });
     const lonely = await seed({ name: "Tools", type: "internal", companyId: null });
     const res = await list();
@@ -998,7 +998,7 @@ describe("GET /projects", () => {
     ]);
   });
 
-  describe("the filter `projectManagerId=none` (specs/025 T27; AC-4.5)", () => {
+  describe("the filter `projectManagerId=none` (specs/026 T27; AC-4.5)", () => {
     it("lists only the projects awaiting their project manager, with `projectManager: null` and `awaitingProjectManager: true`", async () => {
       const first = await seedDealProject({ project: { name: "Awaiting B" } });
       const second = await seedDealProject({ project: { name: "Awaiting A" }, order: { dealId: "deal-2" } });
@@ -1166,7 +1166,7 @@ describe("PATCH /projects/:id", () => {
     ["a blank name", { name: "  " }],
     ["a name over 200 characters", { name: "x".repeat(201) }],
     ["a state", { state: "active" }],
-    ["a type (it never changes, specs/025 A30)", { type: "saas" }],
+    ["a type (it never changes, specs/026 A30)", { type: "saas" }],
     ["an entity", { entity: "welld_it" }],
     ["a company", { companyId: "co-zeta" }],
   ])("is 400 `validation_failed` for %s (type, entity, company are fixed at creation)", async (_label, body) => {

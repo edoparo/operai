@@ -1,7 +1,7 @@
 /**
  * @vitest-environment jsdom
  *
- * ProjectEditDialog ("Edit details", specs/024 AC-1.6; specs/025 AC-7.1, D53): a refused field — the name
+ * ProjectEditDialog ("Edit details", specs/025 AC-1.6; specs/026 AC-7.1, D53): a refused field — the name
  * empty or too long, the project manager emptied, or either refused by the server — loses its message and
  * its invalid mark as soon as that field changes, even to a value that is still wrong; the next submit
  * checks the whole form again.

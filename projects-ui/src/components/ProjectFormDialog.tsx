@@ -42,7 +42,7 @@ type Refusal = keyof typeof REFUSAL_FIELD
 const isRefusal = (code: string | undefined): code is Refusal => code !== undefined && code in REFUSAL_FIELD
 
 /**
- * ProjectFormDialog — create a project by hand (AC-1.1; specs/025 AC-5.1, AC-5.3): name, any of the five
+ * ProjectFormDialog — create a project by hand (AC-1.1; specs/026 AC-5.1, AC-5.3): name, any of the five
  * types, wellD entity, the company of a client type, and the project manager (the caller by default). A
  * project made this way never has a purchase order (AC-5.2): nothing of one is in this form.
  *

@@ -1,6 +1,6 @@
 /**
- * The projects module's declared permission catalog (specs/024-projects — AC-4.1,
- * AC-4.3–4.6; ADR-0075; reshaped by specs/025-projects-handoff — AC-1.1, AC-1.9,
+ * The projects module's declared permission catalog (specs/025-projects — AC-4.1,
+ * AC-4.3–4.6; ADR-0079; reshaped by specs/026-projects-handoff — AC-1.1, AC-1.9,
  * AC-3.4, AC-4.1, AC-4.8).
  *
  * Mirrors `catalogs/crm.ts`'s shape: a plain constant describing the

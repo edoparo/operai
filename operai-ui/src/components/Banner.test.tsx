@@ -8,7 +8,7 @@ import { Button } from './Button'
 /**
  * jsdom has no layout, so these tests cannot measure a banner at 360px. What they can do is load the REAL
  * `.banner*` rules from tokens.css into the document and read the computed style off the rendered markup:
- * the declarations that make a banner with actions stack instead of squeezing its text (QE D1, specs/025).
+ * the declarations that make a banner with actions stack instead of squeezing its text (QE D1, specs/026).
  */
 const tokens = readFileSync(join(import.meta.dirname, '../styles/tokens.css'), 'utf-8')
 const bannerRules = [...tokens.matchAll(/^\s*(\.banner[\w-]*)\s*\{([^}]*)\}/gm)]

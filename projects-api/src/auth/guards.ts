@@ -28,11 +28,11 @@ export type Capability = readonly [resource: string, action: string];
 export const PROJECTS_ACCESS: Capability = ["projects", "access"];
 /** Create and edit projects, teams and terms and move states — entity-scoped (ADR-0015). */
 export const PROJECT_MANAGE: Capability = ["project", "manage"];
-/** Write a purchase order's Bexio order id (held by `accounting`, D35; was `contract:bexio` in specs/024). */
+/** Write a purchase order's Bexio order id (held by `accounting`, D35; was `contract:bexio` in specs/025). */
 export const PURCHASE_ORDER_BEXIO: Capability = ["purchase-order", "bexio"];
 
 /**
- * Read the to-start queue and take a won deal — entity-scoped (specs/025 T24): `sales` for its own
+ * Read the to-start queue and take a won deal — entity-scoped (specs/026 T24): `sales` for its own
  * entity, an admin unconditioned. Reading the queue needs it for ANY entity; a take, for the deal's.
  */
 export const HANDOFF_TAKE: Capability = ["handoff", "take"];

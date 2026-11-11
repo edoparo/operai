@@ -1,12 +1,12 @@
 /**
- * A project's terms, by project type (specs/024-projects T8 as renamed by specs/025 T23; AC-2.3 –
+ * A project's terms, by project type (specs/025-projects T8 as renamed by specs/026 T23; AC-2.3 –
  * AC-2.8, AC-1.8, AC-5.3): validation of the request's `terms`, the columns they are stored in, and
  * the view they are read back as.
  *
  * The database CHECKs already refuse a malformed row; these rules exist so a bad request is a
  * 400 / 422 naming the field, never a 500 from a constraint.
  *
- * The wire shape is specs/024's contract shape, renamed: `{ id, type, startDate, endDate, terms,
+ * The wire shape is specs/025's contract shape, renamed: `{ id, type, startDate, endDate, terms,
  * version }`, with the type-specific `terms` nested (`termsView`).
  */
 
@@ -52,7 +52,7 @@ export function validationFailed(issues: readonly IssueLike[], prefix: readonly 
  * Parses `raw` as `terms` for a project of `type`; throws the 400 / 422 problem when it is not valid.
  * `at` is where `terms` sits in the request body, so a problem names the field by its full path in
  * the body: `terms` on a terms write (`terms.deadline`), `terms.terms` when taking a deal
- * (`terms.terms.deadline`, specs/025).
+ * (`terms.terms.deadline`, specs/026).
  */
 export function parseTerms(type: ProjectType, raw: unknown, at: readonly string[] = ["terms"]): Terms {
   const fail = (error: { issues: readonly IssueLike[] }): never => {

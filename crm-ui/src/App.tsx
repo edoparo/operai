@@ -11,7 +11,7 @@ import { createAppRouter, type AppRouter } from './router'
 const BASEPATH = '/crm'
 
 /**
- * The router of one mount (specs/025 AC-6.1, D52). A router created once at module
+ * The router of one mount (specs/026 AC-6.1, D52). A router created once at module
  * load outlives every unmount: its browser history keeps listening to the whole
  * window, so it routes the other modules' addresses too and renders that stale match
  * when the shell mounts the module again. So the router is made when the module
@@ -24,7 +24,7 @@ const BASEPATH = '/crm'
  * comes from an address that is not ours.
  *
  * And it follows the address for as long as the module is mounted, not for as long as
- * React shows it (specs/025 AC-6.2, D53). The shell's own router hears every browser
+ * React shows it (specs/026 AC-6.2, D53). The shell's own router hears every browser
  * back and forward first and hides this module behind its pending fallback while its
  * access guard answers; React then cleans up this router's layout effects, among them
  * TanStack Router's subscription of `router.load` to the history, BEFORE this history

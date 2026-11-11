@@ -1,6 +1,6 @@
 /**
- * The state machine of a project (specs/024 AC-1.2, AC-1.3, A10). Pure: no database, no request.
- * Its type never changes (specs/025 A30, D40), so there is no type change here.
+ * The state machine of a project (specs/025 AC-1.2, AC-1.3, A10). Pure: no database, no request.
+ * Its type never changes (specs/026 A30, D40), so there is no type change here.
  */
 
 import type { ProjectState } from "./projects.schemas";

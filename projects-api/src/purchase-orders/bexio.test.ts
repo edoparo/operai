@@ -1,5 +1,5 @@
 /**
- * The Bexio order id of a purchase order (specs/024 T9 as renamed by specs/025 T23; AC-3.1, AC-3.2,
+ * The Bexio order id of a purchase order (specs/025 T9 as renamed by specs/026 T23; AC-3.1, AC-3.2,
  * AC-3.3, AC-4.5, AC-5.2). Runs the ASSEMBLED app against the `*_test` database; auth and the CRM are
  * the fakes of test-support/world.ts. Projects and purchase orders are seeded straight in the database.
  */
@@ -41,7 +41,7 @@ describe("PUT /projects/:id/purchase-order/bexio-order — accounting writes it 
     expect(await bexioOf(order.id)).toBeNull();
   });
 
-  it("answers the PurchaseOrder shape: the deal live, no estimate here, no referent yet, the ops-manager (specs/025 § API contracts)", async () => {
+  it("answers the PurchaseOrder shape: the deal live, no estimate here, no referent yet, the ops-manager (specs/026 § API contracts)", async () => {
     const { project, order } = await fixture({ order: { opsManagerId: "user-ops" } });
     const res = await putBexio(project.id, { bexioOrderId: "AB-1" });
     expect(res.json).toEqual({

@@ -1,7 +1,7 @@
-# 0079 — A project has two optional records, its terms and its purchase order: a purchase order is born only from a won deal, a hand-made project never gets one, and "contract" is retired
+# 0086 — A project has two optional records, its terms and its purchase order: a purchase order is born only from a won deal, a hand-made project never gets one, and "contract" is retired
 
 **Date:** 2026-11-05
-**Status:** Accepted (specs/025-projects-handoff, tasks.md § Architecture notes "Decided here"; steering D37–D42, grilling D43–D51; taken at rigor `mvp` without an architect — review before merge)
+**Status:** Accepted (specs/026-projects-handoff, tasks.md § Architecture notes "Decided here"; steering D37–D42, grilling D43–D51; taken at rigor `mvp` without an architect — review before merge)
 **Deciders:** wellD
 **Project:** Operai
 
@@ -9,10 +9,10 @@
 
 ## Context
 
-specs/024 modelled what a client bought as a **contract**: several per project, each with its
+specs/025 modelled what a client bought as a **contract**: several per project, each with its
 company, an `origin` (`deal` or `manual`), an optional deal id and Bexio order id, and the per-type
 delivery terms (deadline and max effort, SLA, hour package, T&M positions, licence period)
-(ADR-0075). specs/025's first draft added the deal and the estimate to it. On 2026-11-04 the user
+(ADR-0079). specs/026's first draft added the deal and the estimate to it. On 2026-11-04 the user
 steered the hand-off (ledger D37–D42) and on 2026-11-05 the grilling settled the rest (D43–D51):
 
 - What a won deal brings to delivery is **one purchase order (PO)** — the deal, its estimate, the
@@ -30,8 +30,8 @@ handed over, only for a project that came from one). The suite's rename also has
 a retired word that survives in one identifier — a capability, a scope, a route — is how two
 vocabularies drift apart.
 
-The constraint on the migration: the 025 PR is **stacked on the open PR #7** (specs/024 as it is),
-so 024's `20261103163000_init` ships first and cannot be rewritten; only 025's own, never-shipped
+The constraint on the migration: the 026 PR is **stacked on the open PR #7** (specs/025 as it is),
+so 025's `20261103163000_init` ships first and cannot be rewritten; only 026's own, never-shipped
 `*_handoff` migration is free to go (user, 2026-11-05).
 
 ## Decision
@@ -42,7 +42,7 @@ so 024's `20261103163000_init` ships first and cannot be rewritten; only 025's o
      project that has them, with its `project_terms_position` rows (CASCADE on the terms).
    - `purchase_order` (new; 0..1 per project, `projectId` UNIQUE) holds only what a won deal
      brings: `dealId` (UNIQUE NOT NULL — the database half of "a deal feeds at most one PO"),
-     `estimateId`, `bexioOrderId`, `referentContactId` (an id, ADR-0080), `opsManagerId` (NOT
+     `estimateId`, `bexioOrderId`, `referentContactId` (an id, ADR-0087), `opsManagerId` (NOT
      NULL), `createdById`, `version`.
    - The `project` keeps its company, entity, type and state; `projectManagerId` becomes
      nullable (D42) — null only while the project has a PO, a rule the API enforces.
@@ -56,13 +56,13 @@ so 024's `20261103163000_init` ships first and cannot be rewritten; only 025's o
 3. **Terms follow the project, not the deal.** A project from a deal always has terms (the API
    refuses to delete them: `409 terms_required`); a hand-made project may have them or not, and
    its holders of `project:manage` add (`POST /projects/{id}/terms`, `409 terms_exist`), edit
-   (`PATCH`, estimate-backed man-days stay server-owned, ADR-0078) and remove them (`DELETE` →
+   (`PATCH`, estimate-backed man-days stay server-owned, ADR-0085) and remove them (`DELETE` →
    `204`). `internal` has no terms (`409 terms_not_allowed`; the database agrees with
-   `terms_not_internal`). A PO is **never deleted** (no route) — the 024 "never deleted" rule
+   `terms_not_internal`). A PO is **never deleted** (no route) — the 025 "never deleted" rule
    now belongs to the PO, not to a contract.
-4. **The nested terms wire shape of 024 is kept.** `Terms = { id, type, startDate, endDate,
-   terms: <024's per-type view>, version }`; the create input is `{ startDate, endDate?, terms:
-   <024's per-type input> }` — on the terms routes, in the take's body and in `POST /projects`
+4. **The nested terms wire shape of 025 is kept.** `Terms = { id, type, startDate, endDate,
+   terms: <025's per-type view>, version }`; the create input is `{ startDate, endDate?, terms:
+   <025's per-type input> }` — on the terms routes, in the take's body and in `POST /projects`
    (T28). The per-type schemas, the validation-path rule (`terms.deadline`) and projects-ui's
    per-type form fields carry over unchanged in substance; a `Project` shows `startDate` /
    `endDate` from its terms. Every write takes its version through `If-Match` (ADR-0038), never in
@@ -72,13 +72,13 @@ so 024's `20261103163000_init` ships first and cannot be rewritten; only 025's o
    / IT "Ordine d'acquisto", "Terms" / "Termini"), the capability `contract:bexio` →
    `purchase-order:bexio`, the service scope `projects.contracts.read` →
    `projects.purchase-orders.read`, the route `GET /system/contracts` → `GET
-   /system/purchase-orders` (ADR-0077 amended). The retired scope is not a known scope any more:
+   /system/purchase-orders` (ADR-0084 amended). The retired scope is not a known scope any more:
    a `SERVICE_CLIENTS` entry carrying it refuses to start, naming the client and no secret, so a
    half-migrated deployment fails loudly instead of quietly losing the CRM deal page's delivery
    card. (In the CRM "contract" still names the rendered *offer* document, a different thing.)
 6. **The migration is stacked and guarded: refuse, do not convert.** `projects-api/prisma/
-   migrations` holds 024's `20261103163000_init` byte-for-byte and one new
-   `20261105120000_purchase_order` that transforms the 024 schema into the model above (renames
+   migrations` holds 025's `20261103163000_init` byte-for-byte and one new
+   `20261105120000_purchase_order` that transforms the 025 schema into the model above (renames
    `contract` → `project_terms` and its CHECKs → `terms_*`, drops the deal / company / origin /
    Bexio columns and the `ContractOrigin` enum, creates `purchase_order`, makes
    `projectManagerId` nullable, and replaces the company CHECK by
@@ -91,7 +91,7 @@ so 024's `20261103163000_init` ships first and cannot be rewritten; only 025's o
 7. **The database enforces what it can, the API the rest.** In the database: one terms row and one
    PO per project, `dealId` UNIQUE NOT NULL, `opsManagerId` NOT NULL, terms never on an
    `internal` project, a company iff the type is not `internal` (`saas` included), and every
-   024 terms CHECK kept under its new `terms_*` name. In the API: a project with a PO has terms;
+   025 terms CHECK kept under its new `terms_*` name. In the API: a project with a PO has terms;
    no route creates a PO except the take; `projectManagerId` is null only while the project has a
    PO. `project_terms.type` repeats the project's type so the per-type CHECKs live on one row;
    it can never diverge because the type never changes (D7).
@@ -100,7 +100,7 @@ so 024's `20261103163000_init` ships first and cannot be rewritten; only 025's o
 
 **Two facts with different origins and lifetimes stored as one record, so that "this half is absent"
 is spelled with nullable columns and CHECKs that must be kept in agreement — and a path left open
-that lets a person type in by hand what the system should only receive.** The 024 contract held
+that lets a person type in by hand what the system should only receive.** The 025 contract held
 both *what was agreed* and *what a won deal handed over*; its `origin` column and the two
 `*_handoff` CHECKs were the cost of that: a `manual` contract could carry no deal, a `deal` one
 had to, and every new rule ("a hand-made project may have terms but no PO") became another
@@ -141,7 +141,7 @@ Where else this shape can appear, in the position opposite to where it was met:
   company guessed for `saas`, Bexio id dropped or parked). Rejected: each of those is a guess about
   business data; the only databases it could matter for are development ones, which are reset.
   The guard refuses instead and says why.
-- **Rewrite or squash 024's `init` together with 025's migration.** Rejected: the 025 PR sits on
+- **Rewrite or squash 025's `init` together with 026's migration.** Rejected: the 026 PR sits on
   top of PR #7, whose migration is reviewed and ships first; editing it would make the two PRs
   disagree about the same file.
 
@@ -151,7 +151,7 @@ Where else this shape can appear, in the position opposite to where it was met:
 - Each record has one reason to exist and one creator: the take makes the PO, `project:manage`
   makes terms. "A hand-made project has no PO" and "a deal feeds one project" hold without a
   special case.
-- specs/024's terms CHECKs, per-type schemas, routes and form survive in substance, so the rename
+- specs/025's terms CHECKs, per-type schemas, routes and form survive in substance, so the rename
   is mostly mechanical in projects-api and projects-ui; the CRM deal page's `delivery` shape does
   not change, so crm-ui is untouched.
 - A database in a state the migration cannot represent stops at `db:deploy` with a message, not
@@ -164,28 +164,28 @@ Where else this shape can appear, in the position opposite to where it was met:
   never changes; a future "change type" feature reopens this.
 - The wrongly entered terms of a hand-made project can be removed, but a PO never is: a project
   made from a deal by mistake is cancelled, its deal does not return to the queue (D34).
-- ADR-0075's contract vocabulary is read through this ADR: `contracts` → terms and purchase
+- ADR-0079's contract vocabulary is read through this ADR: `contracts` → terms and purchase
   order, `contract:bexio` → `purchase-order:bexio`, "a contract is never deleted" → "a purchase
   order is never deleted". Its other decisions (the seventh tool, the denials, `If-Match`, people
   as ids, the directory gate) stand.
 
 **Risks:**
 - A deployment that already holds contracts or `saas` projects cannot run the migration until a
-  person clears them. By design; the message says so. Nothing of 024 is on `main` yet (PR #7 is open).
+  person clears them. By design; the message says so. Nothing of 025 is on `main` yet (PR #7 is open).
 - The retired scope `projects.contracts.read` in a leftover `SERVICE_CLIENTS` entry makes `auth`
   refuse to start. Intended; env-doctor's manifest and the env examples carry the new names (T35).
 
 ## Compliance notes
 
 - GDPR / nLPD impact: none added by this ADR. The PO holds ids only — `referentContactId` is an
-  opaque CRM id, never a name or contact detail (ADR-0080 records how the referent is read).
+  opaque CRM id, never a name or contact detail (ADR-0087 records how the referent is read).
 - Data residency: compliant — no new store or service; the same logical database `projects`.
 - Audit trail: the PO and terms carry `createdById`, `version` and timestamps like every record
   of the module; nothing here is Tier 1 (ADR-0033).
 
-Builds on ADR-0075 (amends its contract vocabulary, as above), ADR-0038 (`If-Match` on every
-write), ADR-0077 (amended for the renamed route and scope) and ADR-0078 (estimate-backed man-days
-are copied into the terms of a project whose PO carries an estimate id). Companion: ADR-0080
+Builds on ADR-0079 (amends its contract vocabulary, as above), ADR-0038 (`If-Match` on every
+write), ADR-0084 (amended for the renamed route and scope) and ADR-0085 (estimate-backed man-days
+are copied into the terms of a project whose PO carries an estimate id). Companion: ADR-0087
 (`handoff:take`, `purchase-order:receive`, the holders listing, the referent).
 
 ---

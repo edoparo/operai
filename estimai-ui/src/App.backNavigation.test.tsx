@@ -1,7 +1,7 @@
 /**
  * @vitest-environment jsdom
  *
- * Browser back across suite modules (specs/025 AC-6.1, D52). The shell mounts the
+ * Browser back across suite modules (specs/026 AC-6.1, D52). The shell mounts the
  * remote at `/estimai/*`; moving to another module unmounts it and the browser's
  * back button remounts it. Whatever address the browser holds, the remote shows the
  * page of THAT address — never a page matched from the address of the module the
@@ -92,7 +92,7 @@ describe('App (estimai-ui), moving to another module and back', () => {
  * shell's access guard answers, the shell hides the mounted remote behind its pending
  * fallback (a Suspense boundary) and shows it again; under strict mode (the shell's
  * own, in development) React then runs the remote's effect cleanups and setups again
- * on the SAME instance, with no render in between (specs/025 AC-6.1, QE round 2: the
+ * on the SAME instance, with no render in between (specs/026 AC-6.1, QE round 2: the
  * page came back blank).
  */
 const Gate = ({ block }: { block: Promise<void> | null }) => {
@@ -145,7 +145,7 @@ describe('App (estimai-ui), moving inside the module', () => {
 })
 
 /**
- * Back and forward inside the module (specs/025 AC-6.2, D53). The shell's own router
+ * Back and forward inside the module (specs/026 AC-6.2, D53). The shell's own router
  * listens to the same browser history, BEFORE the remote does, and answers every address
  * change with its access guard; while it answers it hides the mounted remote behind its
  * pending fallback. React renders that between the two listeners, so the remote's

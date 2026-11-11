@@ -14,12 +14,12 @@ import TermsFields from './TermsFields'
 type ProjectRef = Pick<Project, 'id' | 'type' | 'purchaseOrder'>
 
 /**
- * TermsFormDialog — add the terms of a hand-made project, or edit the terms of any project (specs/024
- * AC-2.1 – AC-2.8; specs/025 AC-1.8, AC-5.3, AC-5.4). The terms' type is the project's (never
+ * TermsFormDialog — add the terms of a hand-made project, or edit the terms of any project (specs/025
+ * AC-2.1 – AC-2.8; specs/026 AC-1.8, AC-5.3, AC-5.4). The terms' type is the project's (never
  * chosen), and the fields are that type's: fixed price (deadline, estimated man-days, max effort),
  * maintenance and SaaS (an optional SLA, prefilled 1 / 3, and an optional hour package; maintenance
  * terms need one of the two), time and material (1 to 50 positions). A SaaS's company is the
- * project's, fixed when it was made. No amount, price or rate exists in the form (specs/024 AC-2.9).
+ * project's, fixed when it was made. No amount, price or rate exists in the form (specs/025 AC-2.9).
  *
  * Errors are keyed by the server's dotted field names (lib/terms.ts), so a check made here and a
  * 400/422 from the server land on the same input. Editing sends the dates and the whole set of

@@ -16,7 +16,7 @@ import type { PersonChoice } from './PersonPicker'
 type FieldName = 'name' | 'projectManager'
 
 /**
- * ProjectEditDialog — rename a project and change its project manager (specs/024 AC-1.6).
+ * ProjectEditDialog — rename a project and change its project manager (specs/025 AC-1.6).
  * The manager is picked among the people who hold access to the module; the
  * server re-checks it (422 `not_project_user`, which lands on that field). Only
  * what changed is sent, with the project's `version` as If-Match (AC-1.7): a

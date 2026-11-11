@@ -1,5 +1,5 @@
 /**
- * auth client for the holders of `purchase-order:receive` (specs/025 T24; AC-4.1, AC-4.2, T18 L4):
+ * auth client for the holders of `purchase-order:receive` (specs/026 T24; AC-4.1, AC-4.2, T18 L4):
  * the candidates of a take's ops-manager picker and the list its choice is re-validated against.
  * Asked with the CALLER's own Bearer header, live, never cached, and fail-closed: any failure is a
  * `503 identity_unavailable`, never an empty list or a stale one. auth is the fake of

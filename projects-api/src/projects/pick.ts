@@ -1,9 +1,9 @@
 /**
- * The project-manager pick (specs/025 T27; AC-4.7 – AC-4.9, D42, D46, D47, D48; T18 L5): who may give a
+ * The project-manager pick (specs/026 T27; AC-4.7 – AC-4.9, D42, D46, D47, D48; T18 L5): who may give a
  * project made from a deal its first project manager, and when a project still awaits one.
  *
  * A project made from a deal has no project manager until its purchase order's ops-manager picks one. While
- * it has none, only that ops-manager — or an admin in their place — may set it; once it has one, specs/024's
+ * it has none, only that ops-manager — or an admin in their place — may set it; once it has one, specs/025's
  * rule applies (any holder of manage projects for the entity). The pick is a `PATCH /projects/{id}` of
  * `projectManagerId`, not a route of its own.
  */

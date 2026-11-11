@@ -1,8 +1,8 @@
 /**
- * The wire shapes of projects-api (specs/024-projects, specs/025-projects-handoff
+ * The wire shapes of projects-api (specs/025-projects, specs/026-projects-handoff
  * tasks.md § API contracts "projects-api — shapes (T23)") and of the `auth`
  * directory read. Ids are text (cuids), dates are `YYYY-MM-DD`, and no amount,
- * price or rate exists anywhere (specs/024 AC-2.9).
+ * price or rate exists anywhere (specs/025 AC-2.9).
  *
  * A project has 0..1 **terms** (its dates and the type-specific delivery terms)
  * and 0..1 **purchase order** (born only from a won deal, together with its
@@ -87,7 +87,7 @@ export type PurchaseOrder = {
 
 // ─── Terms (by project type) ─────────────────────────────────────────────────
 
-/** Take-in-charge times in whole working days, 0–60. The UI prefills 1 / 3 (specs/024 AC-2.5). */
+/** Take-in-charge times in whole working days, 0–60. The UI prefills 1 / 3 (specs/025 AC-2.5). */
 export type Sla = { highDays: number; normalDays: number }
 
 export type HourPackage = {
@@ -110,13 +110,13 @@ export type TermsMembers = FixedPriceTerms | SlaAndHoursTerms | TAndMTerms
 /**
  * What a request carries as terms — the create of the terms routes, a hand-made create's `terms` and the
  * take's `terms` (strict): the dates, and the type's members **nested** under `terms`, as `Terms` reads back
- * (specs/025 tasks.md § API contracts "projects-api — shapes (T23)"). Built in one place, `lib/termsRequest.ts`.
+ * (specs/026 tasks.md § API contracts "projects-api — shapes (T23)"). Built in one place, `lib/termsRequest.ts`.
  */
 export type TermsInput = { startDate: string; endDate?: string | null; terms?: TermsMembers }
 
 /**
  * What the terms routes' PATCH takes: any of the dates and the members. `terms`, when sent, replaces the
- * type's members whole (the rule of the old specs/024 contract PATCH); `endDate: null` reopens ended terms.
+ * type's members whole (the rule of the old specs/025 contract PATCH); `endDate: null` reopens ended terms.
  */
 export type TermsPatch = { startDate?: string; endDate?: string | null; terms?: TermsMembers }
 
@@ -174,7 +174,7 @@ export type Project = {
   updatedAt: string
 }
 
-// ─── The to-start queue and taking a deal (specs/025) ────────────────────────
+// ─── The to-start queue and taking a deal (specs/026) ────────────────────────
 
 /** A won deal no project has taken. No amount, currency, owner or notes exist on it (D14). */
 export type QueueItem = {

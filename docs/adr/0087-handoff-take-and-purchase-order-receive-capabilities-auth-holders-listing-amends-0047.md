@@ -1,7 +1,7 @@
-# 0080 — The hand-off is gated by two entity-scoped capabilities, `handoff:take` and `purchase-order:receive`; auth lists the holders of the second behind the first (`GET /authz/users/holders`, amends ADR-0047's "no other attribute"); the admin override is `oversees`, never `hasCapability`; the referent is read live and never copied
+# 0087 — The hand-off is gated by two entity-scoped capabilities, `handoff:take` and `purchase-order:receive`; auth lists the holders of the second behind the first (`GET /authz/users/holders`, amends ADR-0047's "no other attribute"); the admin override is `oversees`, never `hasCapability`; the referent is read live and never copied
 
 **Date:** 2026-11-05
-**Status:** Accepted — amends ADR-0047 for one endpoint (its `{ id, name, email, entity }` directory, its gate and its "no role or any other attribute" rule for `GET /authz/users/directory` are unchanged; see Decision 3). Specs/025-projects-handoff, tasks.md § Architecture notes and § Security rules; the security design review is `specs/025-projects-handoff/security-review.md` (T18, PASS-WITH-CHANGES, every medium folded in before the code was written). Taken at rigor `mvp` without an architect — review before merge.
+**Status:** Accepted — amends ADR-0047 for one endpoint (its `{ id, name, email, entity }` directory, its gate and its "no role or any other attribute" rule for `GET /authz/users/directory` are unchanged; see Decision 3). Specs/026-projects-handoff, tasks.md § Architecture notes and § Security rules; the security design review is `specs/026-projects-handoff/security-review.md` (T18, PASS-WITH-CHANGES, every medium folded in before the code was written). Taken at rigor `mvp` without an architect — review before merge.
 **Deciders:** wellD
 **Project:** Operai
 
@@ -9,12 +9,12 @@
 
 ## Context
 
-specs/025 hands a won deal from sales to delivery in series (ledger D37–D51):
+specs/026 hands a won deal from sales to delivery in series (ledger D37–D51):
 
 - **Sales takes the deal.** The to-start queue and "new project from a deal" belong to `sales` and
   the admins; a project manager, an ops-manager, accounting and every other `projects:access`
   holder get no queue and a `403` (D37, AC-1.9). That cannot be `project:manage`: the project
-  manager and the ops-manager hold it too (ADR-0075).
+  manager and the ops-manager hold it too (ADR-0079).
 - **An ops-manager receives the purchase order.** The take assigns the PO to a user who holds the
   `ops-manager` role for the deal's entity — or to an admin (D44) — and that user, or an admin in
   their place (D46, D47), later picks the project manager. Capabilities, not role names, decide
@@ -27,7 +27,7 @@ specs/025 hands a won deal from sales to delivery in series (ledger D37–D51):
 - **The referent is a third party's personal data shown to people who may not open the CRM.** A PO
   carries an optional referent, a CRM contact of the PO's company; its name, job title, email and
   phone are shown to every `projects:access` holder, OPS included, who holds no `crm:access`
-  (D49). The project module and the CRM are different permission domains (ADR-0075/0076).
+  (D49). The project module and the CRM are different permission domains (ADR-0079/0080).
 
 The user's standing preference on uncertain designs is the least invasive, easiest-to-change
 option; the security check of the referent read was made a gate before any of it was built (D49).
@@ -43,7 +43,7 @@ option; the security check of the referent read was made a gate before any of it
    - `purchase-order:receive` — be the ops-manager of a purchase order. Held by the new system
      role `ops-manager` (with `projects:access` and own-entity `project:manage`) for its own entity
      and by `admin` unconditioned.
-   - `purchase-order:bexio` (was `contract:bexio`, ADR-0079) stays unconditioned, `accounting` and
+   - `purchase-order:bexio` (was `contract:bexio`, ADR-0086) stays unconditioned, `accounting` and
      `admin`. The resolver keys grants by `(resource, action)` without the app id, so no other
      catalog may declare a `handoff` or `purchase-order` resource.
 2. **`GET /authz/users/holders?resource=purchase-order&action=receive&entity=welld_ch|welld_it`**
@@ -90,7 +90,7 @@ option; the security check of the referent read was made a gate before any of it
    any other holder of `project:manage` included, gets `403 not_ops_manager`. The check and the
    write sit under the `version` compare-and-set (ADR-0038), so a role lost between them cannot
    slip through. The person must hold project access (`422 not_project_user`). After the first
-   pick any holder of manage changes it as in specs/024 (A34); clearing it is
+   pick any holder of manage changes it as in specs/025 (A34); clearing it is
    `422 project_manager_required`; while awaiting, `planned` → `active` is `409
    awaiting_project_manager` (D48). **The restriction is a workflow rule, not a security
    boundary**: a project manager confers no capability, and nothing here lets one escalate.
@@ -186,7 +186,7 @@ Where else this shape can appear, in the position opposite to where it was met:
 - **Copying the referent's details onto the PO, or caching them.** Rejected (D49): the copy goes
   stale, an erasure in the CRM (specs/017 AC-2.4) would not reach it, and projects-api would
   become a second store of third-party personal data with weaker rules.
-- **Giving OPS `crm:access`** so the plain contact routes work. Rejected as in ADR-0076: it opens
+- **Giving OPS `crm:access`** so the plain contact routes work. Rejected as in ADR-0080: it opens
   every CRM record to people who need one person's details.
 
 ## Consequences
@@ -243,8 +243,8 @@ Where else this shape can appear, in the position opposite to where it was met:
   or clear and a project-manager pick; nothing is Tier 1 or Tier 2 (ADR-0033).
 
 Builds on ADR-0007 (capabilities decide), ADR-0014/0035 (forwarded caller JWT), ADR-0015 (entity
-condition), ADR-0038 (`If-Match`), ADR-0039 (live identities), ADR-0075/0079 (the projects module
-and its model) and ADR-0076/0077 (scoped service credentials, live reads). **Amends ADR-0047**
+condition), ADR-0038 (`If-Match`), ADR-0039 (live identities), ADR-0079/0086 (the projects module
+and its model) and ADR-0080/0084 (scoped service credentials, live reads). **Amends ADR-0047**
 (Decision 3 above); ADR-0053 and ADR-0055's directory changes are unaffected.
 
 ---

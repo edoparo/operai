@@ -5,7 +5,7 @@
  * controls the server would accept (AC-4.4, AC-4.5). An `auth` outage is a 503, never
  * an empty scope.
  *
- * specs/025 T24 adds `take` (the entities `handoff:take` covers: no queue and no take when empty,
+ * specs/026 T24 adds `take` (the entities `handoff:take` covers: no queue and no take when empty,
  * AC-1.9) and `oversees` (`purchase-order:receive` for EVERY entity: the admin's override of the
  * project-manager pick, AC-4.8 — computed from the grant's conditions, never from its mere presence).
  */

@@ -1,6 +1,6 @@
 /**
- * Making a project: the rules and the row, shared by every way a project is born (specs/024 T5 by
- * hand, specs/025 from a won deal). The routes own the request, the guards and the answer.
+ * Making a project: the rules and the row, shared by every way a project is born (specs/025 T5 by
+ * hand, specs/026 from a won deal). The routes own the request, the guards and the answer.
  */
 
 import type { z } from "@hono/zod-openapi";
@@ -15,7 +15,7 @@ import { isClientType, type ProjectType } from "./projects.schemas";
 /**
  * A client project has exactly one company, which the CRM knows and has not archived (the
  * picker never offers an archived one); an `internal` project has none. `saas` is a client type: one
- * project per licence, with its company (AC-1.1, AC-5.1, specs/025 D40).
+ * project per licence, with its company (AC-1.1, AC-5.1, specs/026 D40).
  */
 export async function assertCompanyFits(type: ProjectType, companyId: string | undefined): Promise<void> {
   if (!isClientType(type)) {
@@ -37,7 +37,7 @@ export interface NewProject {
   readonly type: ProjectType;
   readonly entity: "welld_ch" | "welld_it";
   readonly companyId: string | null;
-  /** `null` for a project made from a deal: it awaits the ops-manager's pick (specs/025 D42). */
+  /** `null` for a project made from a deal: it awaits the ops-manager's pick (specs/026 D42). */
   readonly projectManagerId: string | null;
   readonly createdById: string;
 }

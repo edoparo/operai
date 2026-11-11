@@ -1,5 +1,5 @@
 /**
- * The estimate's man-days figure (specs/025 T2, AC-3.1): the Expected effort WITHOUT AI gain,
+ * The estimate's man-days figure (specs/026 T2, AC-3.1): the Expected effort WITHOUT AI gain,
  * summed over activities unrounded and rounded half up once to one decimal.
  *
  * The vectors are the ones of `crm-api/src/offers/scope.test.ts` (themselves pinned to

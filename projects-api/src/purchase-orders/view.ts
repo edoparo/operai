@@ -1,5 +1,5 @@
 /**
- * The `PurchaseOrder` view (specs/025 T23, T26, tasks.md § API contracts): what a project made from a won
+ * The `PurchaseOrder` view (specs/026 T23, T26, tasks.md § API contracts): what a project made from a won
  * deal shows of its order — the deal, live; the estimate link; the Bexio order id; the referent, live; the
  * ops-manager, live.
  *

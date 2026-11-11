@@ -1,7 +1,7 @@
 /**
  * @vitest-environment jsdom
  *
- * QE additions for specs/024-projects (T19, QE-light), reworked for specs/025 (T30). The page tests prove the
+ * QE additions for specs/025-projects (T19, QE-light), reworked for specs/026 (T30). The page tests prove the
  * project-level controls vanish for a caller who manages the other entity (AC-4.4), but the terms controls and
  * the Bexio field were only exercised for a caller who manages NOTHING. These drive the whole project page,
  * through the app's real router against a fake projects-api, for each way a caller can be a reader of a project

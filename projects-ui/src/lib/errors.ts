@@ -25,7 +25,7 @@ export function fieldErrorOf(error: unknown): { field: string; message: string }
     : null
 }
 
-/** The ids a 422 `not_project_user` refuses (a PM or team member without access, specs/024 AC-1.6). */
+/** The ids a 422 `not_project_user` refuses (a PM or team member without access, specs/025 AC-1.6). */
 export function userIdsOf(error: unknown): string[] {
   if (!(error instanceof ApiError)) return []
   const ids = error.extras['userIds']
@@ -71,7 +71,7 @@ export function taskErrorMessage(error: unknown, place: 'row' | 'dialog'): strin
 }
 
 /**
- * Every Problem `code` of projects-api's routes that the UI knows (specs/024, and specs/025
+ * Every Problem `code` of projects-api's routes that the UI knows (specs/025, and specs/026
  * tasks.md § API contracts T23–T28). One list so that no task edits this file to learn a code;
  * each group below picks the ones a screen words itself.
  */
@@ -109,7 +109,7 @@ export const PROJECT_ERROR_CODES = [
   'not_project_user',
   'awaiting_project_manager',
   'invalid_transition',
-  // creating a project by hand (T28, specs/024)
+  // creating a project by hand (T28, specs/025)
   'company_required',
   'company_not_allowed',
   'company_not_found',

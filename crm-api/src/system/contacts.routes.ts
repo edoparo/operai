@@ -1,5 +1,5 @@
 /**
- * GET /system/contacts (specs/025-projects-handoff T21, AC-3.6, AC-3.8, AC-3.9; T18 M2, L3, L8) —
+ * GET /system/contacts (specs/026-projects-handoff T21, AC-3.6, AC-3.8, AC-3.9; T18 M2, L3, L8) —
  * CRM contacts read service-to-service. projects-api lists a deal company's contacts for the
  * referent picker and reads a purchase order's referent live, for users who may hold no
  * `crm:access`, so this route trusts a scoped SERVICE credential (`crm.contacts.read`), never a
@@ -23,7 +23,7 @@ import { db } from "../lib/db";
 import { problem, problemBody } from "../lib/problem";
 import { createSystemAuthMiddleware, type SystemAuthVariables } from "../auth/systemAuth.middleware";
 
-/** The one service principal this route serves: contacts are personal data, read by projects-api only (ADR-0080). */
+/** The one service principal this route serves: contacts are personal data, read by projects-api only (ADR-0087). */
 export const CONTACTS_ALLOWED_SUBS = ["system:projects-api"] as const;
 
 /** The most contacts the `companyId` mode returns (as the won-deals cap: enough, not a directory). */

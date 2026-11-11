@@ -140,7 +140,7 @@
   shows only pre-sales ones; the project module shows both, pre-sales ones badged.
   _Avoid:_ inbox, my work.
 
-### Projects hand-off (specs/025)
+### Projects hand-off (specs/026)
 - **To-start queue**: the won CRM deals that have no purchase order yet; computed live from
   the CRM on every read, never stored; seen by `sales` and admins only. _Avoid:_ backlog,
   inbox.

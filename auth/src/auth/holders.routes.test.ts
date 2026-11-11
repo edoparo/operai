@@ -1,5 +1,5 @@
 /**
- * Integration tests for GET /authz/users/holders (T20, specs/025-projects-handoff
+ * Integration tests for GET /authz/users/holders (T20, specs/026-projects-handoff
  * - refs AC-4.1, AC-4.2; security-review.md M4, L4).
  *
  * WHY THIS FILE LIVES IN `src/auth/` and not next to the route in `src/authz/`
@@ -143,7 +143,7 @@ type HoldersBody = { users: { id: string; name: string; unconditioned: boolean }
 /** A caller allowed to ask: a sales user holds handoff:take (own entity). */
 const mintCaller = (label: string) => mintUser(label, { entity: "welld_ch", systemRoles: [SALES_ROLE_NAME] });
 
-describe("GET /authz/users/holders (T20, specs/025; AC-4.1, AC-4.2)", () => {
+describe("GET /authz/users/holders (T20, specs/026; AC-4.1, AC-4.2)", () => {
   test("lists the active ops-managers of the asked entity (unconditioned: false) and the admins (true), as { id, name, unconditioned } only", async () => {
     const caller = await mintCaller("list-caller");
     const opsCh = await mintUser("ops-ch", { entity: "welld_ch", systemRoles: [OPS_MANAGER_ROLE_NAME] });

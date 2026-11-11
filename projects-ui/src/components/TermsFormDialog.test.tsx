@@ -1,7 +1,7 @@
 /**
  * @vitest-environment jsdom
  *
- * TermsFormDialog (specs/024 AC-2.3 – AC-2.9, specs/025 AC-1.8, AC-5.3, AC-5.4): each project type
+ * TermsFormDialog (specs/025 AC-2.3 – AC-2.9, specs/026 AC-1.8, AC-5.3, AC-5.4): each project type
  * shows only its own terms (SLA prefilled 1 / 3), maintenance terms without an SLA and an hour
  * package cannot be saved, the body that reaches POST / PATCH (the terms version as If-Match) —
  * the dates and the type's members side by side — the server's refusals landing on the field they
@@ -370,7 +370,7 @@ describe('the server’s refusals (AC-2.2 – AC-2.7)', () => {
   })
 })
 
-describe('editing terms (specs/024 AC-1.7, specs/025 AC-1.8, AC-5.4)', () => {
+describe('editing terms (specs/025 AC-1.7, specs/026 AC-1.8, AC-5.4)', () => {
   const fixed = termsOf('fixed_price', { deadline: '2026-12-01', estimatedManDays: 12.5, maxEffortManDays: 40 })
 
   it('starts from the stored values; nothing to save until something changes', () => {

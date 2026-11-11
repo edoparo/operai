@@ -152,8 +152,8 @@ describe("env-doctor resolver", () => {
     expect(findings.some((f) => f.level === "error" && f.message.includes('no entry for client id "someone-else"'))).toBe(true);
   });
 
-  // specs/025 T16: the shipped templates carry the hand-off keys and scopes; losing one fails offline.
-  test("the committed templates fail when a specs/025 hand-off key or scope is dropped", () => {
+  // specs/026 T16: the shipped templates carry the hand-off keys and scopes; losing one fails offline.
+  test("the committed templates fail when a specs/026 hand-off key or scope is dropped", () => {
     const check = (mutate: (s: ReturnType<typeof loadTemplateSuite>["suite"]) => void) => {
       const r = loadTemplateSuite("production");
       mutate(r.suite);

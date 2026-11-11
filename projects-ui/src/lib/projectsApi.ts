@@ -1,9 +1,9 @@
 /**
  * projectsApi — typed calls for every projects-api route the UI uses, of
- * specs/024-projects and of specs/025-projects-handoff (tasks.md § API contracts
+ * specs/025-projects and of specs/026-projects-handoff (tasks.md § API contracts
  * "projects-api — routes", T23–T28), plus the directory read on `auth`. Every
  * write of an existing project, its terms or its purchase order passes the
- * record's `version` (sent as `If-Match`, specs/024 AC-1.7); creating a project,
+ * record's `version` (sent as `If-Match`, specs/025 AC-1.7); creating a project,
  * its terms or taking a deal has no precondition.
  *
  * There is deliberately no call that attaches a deal to a project, changes a
@@ -121,7 +121,7 @@ export const updatePurchaseOrder = (projectId: string, version: number, input: {
 export const listPurchaseOrderContacts = (projectId: string, init?: Init) =>
   getJson<{ items: ContactChoice[] }>(`${purchaseOrderPath(projectId)}/contacts`, init)
 
-// ─── The to-start queue and taking a deal (specs/025) ───────────────────────
+// ─── The to-start queue and taking a deal (specs/026) ───────────────────────
 
 export type QueueQuery = { q?: string; entity?: Entity | '' }
 

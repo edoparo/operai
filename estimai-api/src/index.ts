@@ -65,7 +65,7 @@ setupOpenAPI(app);
 // before this route ever ran (the same rule as the doc routes above).
 app.route("/", dealLinkNoticesRouter);
 
-// GET /system/estimates/{id}/summary (specs/025 T2, ADR-0078) — the one service-to-service
+// GET /system/estimates/{id}/summary (specs/026 T2, ADR-0085) — a service-to-service
 // route. It carries its own guard on the route itself (a scoped service JWT, never a user
 // JWT) and MUST be mounted before the estimates routers below: `OpenAPIHono.route()` merges
 // their wildcard `.use("*", jwtMiddleware)` into this app, and a route registered after it

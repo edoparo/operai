@@ -1,6 +1,6 @@
 /**
  * The terms of a project as a form holds them (text in every input) and as the API takes
- * them (specs/024-projects AC-2.3 – AC-2.8, specs/025 tasks.md § API contracts): the empty
+ * them (specs/025-projects AC-2.3 – AC-2.8, specs/026 tasks.md § API contracts): the empty
  * form of a type, stored terms back into the form, and the form into the type's members
  * with the checks the server makes (limits, one decimal, maintenance terms need an SLA or an
  * hour package). `lib/termsRequest.ts` adds the dates and builds the request.

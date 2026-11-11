@@ -1,9 +1,9 @@
 /**
- * Test world for projects-api route tests (specs/024-projects): personas with literal
+ * Test world for projects-api route tests (specs/025-projects): personas with literal
  * permission sets, a request helper over the ASSEMBLED app, fakes for the things outside the
  * system (auth's identity and app-access endpoints, auth's service-token endpoint, auth's
  * `GET /authz/users/holders`, crm-api's `/system/companies`, `/system/deals` and `/system/contacts`,
- * estimai-api's `/system/estimates/{id}/summary`; all but the first three are specs/025), and a
+ * estimai-api's `/system/estimates/{id}/summary`; all but the first three are specs/026), and a
  * reset between tests. Every contact in here is synthetic (T18 L2).
  *
  * The environment is set by the `bun test` preload (./env.ts) before this module, or
@@ -66,7 +66,7 @@ export const PERSONAS = {
   pmCh: { sub: "user-pm-ch", entity: "welld_ch", permissions: [ACCESS, MANAGE(true)] },
   /** `sales` in wellD IT: manages welld_it projects and takes welld_it deals only. */
   salesIt: { sub: "user-sales-it", entity: "welld_it", permissions: [ACCESS, MANAGE(true), TAKE(true)] },
-  /** `sales` in wellD CH: manages welld_ch projects and takes welld_ch deals only (specs/025 T24). */
+  /** `sales` in wellD CH: manages welld_ch projects and takes welld_ch deals only (specs/026 T24). */
   salesCh: { sub: "user-sales-ch", entity: "welld_ch", permissions: [ACCESS, MANAGE(true), TAKE(true)] },
   /** `ops-manager` in wellD CH: manages welld_ch projects and may receive its purchase orders; takes nothing. */
   opsCh: { sub: "user-ops", entity: "welld_ch", permissions: [ACCESS, MANAGE(true), RECEIVE(true)] },
@@ -138,7 +138,7 @@ export interface FakeCompany {
 export type FakeDealStage = "lead" | "qualified" | "proposal" | "negotiation" | "won" | "lost";
 
 /**
- * A CRM deal as the fake `GET /system/deals` knows it (specs/025 T3 contract). `wonAt` is when it
+ * A CRM deal as the fake `GET /system/deals` knows it (specs/026 T3 contract). `wonAt` is when it
  * was won; the fake reports it only while `stage` is `won`, as crm-api does, so a test reopens a
  * deal by setting `stage` and wins it again by setting it back.
  */
@@ -212,7 +212,7 @@ function fakeCrmCompanies(url: URL, authorization: string): Response {
 }
 
 /**
- * A fake crm-api `GET /system/deals` (specs/025 T3 contract): exactly one of `stage=won` (won deals,
+ * A fake crm-api `GET /system/deals` (specs/026 T3 contract): exactly one of `stage=won` (won deals,
  * newest win first, at most `crm.wonLimit`, `truncated` beyond) or `ids` (those deals in any
  * stage, `wonAt` null unless won). A summary has no amount, currency, owner or notes.
  */
@@ -245,7 +245,7 @@ function fakeCrmDeals(url: URL, authorization: string): Response {
 }
 
 /**
- * A fake estimai-api `GET /system/estimates/{id}/summary` (specs/025 T2 contract): `200 { id, name,
+ * A fake estimai-api `GET /system/estimates/{id}/summary` (specs/026 T2 contract): `200 { id, name,
  * manDays }` for a known estimate, `404 estimate_not_found` otherwise. `manDays` is the figure
  * EstimAI would compute; a test sets it and "changes the estimate" by setting it again.
  */
@@ -266,7 +266,7 @@ function fakeEstimaiSummary(id: string, authorization: string): Response {
   return Response.json({ id, name: estimate.name, manDays: estimate.manDays });
 }
 
-// ─── auth GET /authz/users/holders (specs/025 T20) ───────────────────────────
+// ─── auth GET /authz/users/holders (specs/026 T20) ───────────────────────────
 
 export interface FakeHolder {
   readonly id: string;
@@ -321,7 +321,7 @@ function fakeHolders(url: URL, authorization: string): Response {
   return Response.json(holders.body !== undefined ? holders.body : { users: holders.users[entity] });
 }
 
-// ─── crm-api GET /system/contacts (specs/025 T21) ────────────────────────────
+// ─── crm-api GET /system/contacts (specs/026 T21) ────────────────────────────
 
 /** A CRM contact as the fake knows it. Synthetic people only (T18 L2). */
 export interface FakeContact {
@@ -473,7 +473,7 @@ export interface DealProjectSeed {
 /**
  * A project made from a deal, straight in the database (the take that makes it is tested in
  * queue/take.test.ts): planned, no project manager, its terms and its purchase order, the shape of
- * specs/025 T23. Defaults: a fixed price project of Acme in wellD CH, deal `deal-seed`, ops-manager
+ * specs/026 T23. Defaults: a fixed price project of Acme in wellD CH, deal `deal-seed`, ops-manager
  * `user-ops`; a T&M project gets one position.
  */
 export async function seedDealProject(seed: DealProjectSeed = {}) {

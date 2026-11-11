@@ -18,7 +18,7 @@ const S3_KEYS = [
   "CRM_S3_SECRET_ACCESS_KEY",
 ] as const;
 
-// specs/019: the notifier's credentials, all or none (decisions D-7). specs/025: the same service
+// specs/019: the notifier's credentials, all or none (decisions D-7). specs/026: the same service
 // client also reads projects-api (PROJECTS_INTERNAL_URL), and it pushes EstimAI's deal-link
 // notices (ESTIMAI_INTERNAL_URL) and calls activities-api (ACTIVITIES_API_URL, specs/028), so the
 // client is the pair SERVICE_CLIENT_ID + SERVICE_CLIENT_SECRET, required with any of the four URLs
@@ -71,7 +71,7 @@ const envSchema = z.object({
   // JWT (`notifications.push emails.send`) at auth. Without the group the
   // notifier is a no-op.
   NOTIFY_INTERNAL_URL: z.string().url("NOTIFY_INTERNAL_URL must be a valid URL").optional(),
-  // ─── projects-api (specs/025, ADR-0077) ────────────────────────────────────
+  // ─── projects-api (specs/026, ADR-0084) ────────────────────────────────────
   // The deal page reads its project and Bexio order id from `GET /system/purchase-orders` as ITSELF,
   // with the same service client as the notifier (scope `projects.purchase-orders.read`). Optional:
   // without it the deal page says the delivery side is unavailable and everything else works.
