@@ -21,7 +21,7 @@ Contracts: `plan.md` (approved) is binding; screens, states, copy and a11y: `des
   - touch: `notify-api/prisma/schema.prisma`, `notify-api/prisma/migrations/*`, `notify-api/src/lib/generated/**`, `notify-api/src/push/devices.repo.ts`, `notify-api/src/push/devices.repo.test.ts`
   - done when: `bun run db:migrate` applies cleanly on a fresh DB; repo tests pass for upsert-by-endpoint (new → created, existing other owner → moved, keys replaced), list by user newest-first, delete by id+user (other user → not found), delete all for user, delete by id, count per user.
 
-- [ ] T4: Endpoint allowlist and device label — refs: AC-3.1, AC-6.3 — deps: T1
+- [x] T4: Endpoint allowlist and device label — refs: AC-3.1, AC-6.3 — deps: T1
   - touch: `notify-api/src/push/pushEndpoint.ts`, `notify-api/src/push/pushEndpoint.test.ts`, `notify-api/src/push/deviceLabel.ts`, `notify-api/src/push/deviceLabel.test.ts`
   - done when: allowlist table passes — allowed: `fcm.googleapis.com`, `*.push.services.mozilla.com`, `web.push.apple.com`, the Edge host(s) recorded in T1; refused: `http:`, IP literals, `fcm.googleapis.com.evil.io`, userinfo (`https://fcm.googleapis.com@evil.io`), ports, > 2000 chars; label table maps Chrome/Edge/Firefox/Safari × macOS/Windows/Linux UA strings to "Browser · OS", unknown → "Unknown browser".
 
