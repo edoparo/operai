@@ -17,7 +17,7 @@ Contracts: `plan.md` (approved) is binding; screens, states, copy and a11y: `des
   - touch: `notify-api/src/lib/env.ts`, `notify-api/src/lib/env.test.ts`, `notify-api/.env.example`, `tools/env-doctor/manifest.ts`, `tools/env-doctor/templates/**`, `tools/env-doctor/*.test.ts`
   - done when: env tests pass for: off by default; `"false"`/unset off; enabled without VAPID keys, subject, or the email-notice group → exit 1 naming the missing vars; private key not deriving the public key → exit 1; `PUSH_EXCLUDED_ORIGINS` with an unknown origin → exit 1; `mise run env:doctor` green with `VAPID_PRIVATE_KEY` classed secret.
 
-- [ ] T3: `PushDevice` model, migration and repository — refs: AC-1.2, AC-1.5, AC-2.7, AC-3.1, AC-3.2, AC-3.3, AC-5.2, AC-5.3 — deps: none
+- [x] T3: `PushDevice` model, migration and repository — refs: AC-1.2, AC-1.5, AC-2.7, AC-3.1, AC-3.2, AC-3.3, AC-5.2, AC-5.3 — deps: none
   - touch: `notify-api/prisma/schema.prisma`, `notify-api/prisma/migrations/*`, `notify-api/src/lib/generated/**`, `notify-api/src/push/devices.repo.ts`, `notify-api/src/push/devices.repo.test.ts`
   - done when: `bun run db:migrate` applies cleanly on a fresh DB; repo tests pass for upsert-by-endpoint (new → created, existing other owner → moved, keys replaced), list by user newest-first, delete by id+user (other user → not found), delete all for user, delete by id, count per user.
 

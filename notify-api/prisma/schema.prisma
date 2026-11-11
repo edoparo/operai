@@ -74,3 +74,26 @@ model EmailDelivery {
   @@index([to, createdAt(sort: Desc)]) // per-address delivery history, newest-first
   @@map("email_delivery")
 }
+
+// PushDevice (T3, specs/029-push-notifications, plan.md §Data model, ADR-0084).
+//
+// One browser push subscription of one user. `userId` = JWT `sub`, NOT a foreign
+// key (no user table in this service, like Notification.recipientId). `endpoint`
+// is unique across ALL users: a browser re-subscribed by another account moves
+// the row to the new owner (AC-5.3) instead of keeping two owners for one browser.
+// `endpoint`, `p256dh` and `auth` are secrets of the subscription: never logged
+// and never returned by the API. Rows are deleted, never soft-deleted; no
+// delivery log (spec non-goal).
+model PushDevice {
+  id        String   @id @default(cuid())
+  userId    String
+  endpoint  String   @unique
+  p256dh    String
+  auth      String
+  label     String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId])
+  @@map("push_device")
+}
