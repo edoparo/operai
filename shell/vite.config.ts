@@ -1,4 +1,4 @@
-import { defineConfig } from 'vite'
+import { build as viteBuild, defineConfig, type Plugin } from 'vite'
 import react from '@vitejs/plugin-react'
 import { federation } from '@module-federation/vite'
 import { readFileSync } from 'node:fs'
@@ -137,6 +137,64 @@ const projectsRemoteUrl = process.env['PROJECTS_REMOTE_URL'] ?? 'http://localhos
 // singleton), since operai-ui/node_modules does not exist on Vercel.
 const operaiUiEntry = fileURLToPath(new URL('../operai-ui/src/index.ts', import.meta.url))
 
+// specs/029-push-notifications, T7: the push service worker. It must be a CLASSIC script (Firefox
+// does not reliably run module workers) at the stable, unhashed path `/push-sw.js` (the browser
+// re-fetches it by URL; a hashed name would orphan every installed worker). The MF build cannot
+// produce that as a second entry, so a nested library build bundles src/sw/push-sw.ts to one IIFE:
+// emitted as an asset on `vite build`, served from memory by the dev server (and by `vite preview`,
+// which serves dist). Vercel serves the static file before the SPA rewrite, and `/push-sw.js`
+// falls under vercel.json's `no-store` rule, so an updated worker is picked up on the next check.
+const PUSH_SW_PATH = '/push-sw.js'
+
+async function bundlePushSw(mode: string, minify: boolean): Promise<string> {
+  const result = await viteBuild({
+    configFile: false,
+    logLevel: 'warn',
+    mode,
+    publicDir: false,
+    build: {
+      write: false,
+      minify,
+      target: 'es2020',
+      lib: {
+        entry: fileURLToPath(new URL('./src/sw/push-sw.ts', import.meta.url)),
+        formats: ['iife'],
+        name: 'OperaiPushSw',
+        fileName: () => 'push-sw.js',
+      },
+    },
+  })
+  const outputs = Array.isArray(result) ? result : 'output' in result ? [result] : []
+  const chunk = outputs.flatMap((o) => o.output).find((o) => o.type === 'chunk')
+  if (!chunk || chunk.type !== 'chunk') throw new Error('push-sw: the service worker bundle produced no chunk')
+  return chunk.code
+}
+
+function pushServiceWorker(): Plugin {
+  return {
+    name: 'operai:push-service-worker',
+    configureServer(server) {
+      server.middlewares.use(PUSH_SW_PATH, (_req, res, next) => {
+        bundlePushSw('development', false).then(
+          (code) => {
+            res.setHeader('Content-Type', 'text/javascript; charset=utf-8')
+            res.setHeader('Cache-Control', 'no-store')
+            res.end(code)
+          },
+          next,
+        )
+      })
+    },
+    async generateBundle() {
+      this.emitFile({
+        type: 'asset',
+        fileName: PUSH_SW_PATH.slice(1),
+        source: await bundlePushSw('production', true),
+      })
+    },
+  }
+}
+
 export default defineConfig({
   resolve: {
     alias: { '@operai/ui': operaiUiEntry },
@@ -144,6 +202,7 @@ export default defineConfig({
   },
   plugins: [
     react(),
+    pushServiceWorker(),
     // @module-federation/vite is kept at >= 1.23.9 in package.json on purpose (specs/021, T53):
     // from 1.23 a remote's dev server seeds a React copy into the page-wide
     // `__mf_module_cache__` and the first writer wins, so a host on an older plugin (1.16, no
