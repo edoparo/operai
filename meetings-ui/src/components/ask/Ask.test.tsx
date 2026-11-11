@@ -279,7 +279,7 @@ describe('the composer (AC-9.1, AC-9.8)', () => {
     await waitFor(() => expect(posts(api)).toHaveLength(1))
   })
 
-  it('while waiting it shows the question with "Thinking…" and keeps the text', async () => {
+  it('while waiting it shows the question with "Thinking…" and the box is already empty', async () => {
     let release: () => void = () => undefined
     const gate = new Promise<void>((resolve) => (release = resolve))
     serve({
@@ -294,12 +294,12 @@ describe('the composer (AC-9.1, AC-9.8)', () => {
     await userEvent.type(box(), 'When do we ship?')
     await userEvent.click(screen.getByRole('button', { name: en.ask.composer.ask }))
     expect(await screen.findByText(en.ask.thinking)).not.toBeNull()
-    expect(box().value).toBe('When do we ship?')
+    expect(box().value).toBe('')
     release()
     expect(await screen.findByText('On Friday.')).not.toBeNull()
   })
 
-  it('a rate limit names the time to retry and keeps the question (AC-9.8)', async () => {
+  it('a rate limit names the time to retry and puts the question back in the box (AC-9.8)', async () => {
     serve({
       ...conversation([]),
       'POST /meetings/:id/conversation/questions': () => ({
@@ -319,7 +319,7 @@ describe('the composer (AC-9.1, AC-9.8)', () => {
     expect(box().value).toBe('When?')
   })
 
-  it('a refusal (409 not_ready) shows its message and keeps the question', async () => {
+  it('a refusal (409 not_ready) shows its message and puts the question back in the box', async () => {
     serve({
       ...conversation([]),
       'POST /meetings/:id/conversation/questions': () => ({ status: 409, body: problem(409, 'not_ready') }),

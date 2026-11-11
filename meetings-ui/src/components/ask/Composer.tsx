@@ -8,11 +8,14 @@ export const QUESTION_MAX = 1000
 
 export type ComposerProps = {
   busy: boolean
-  /** A failure of the last send (rate limit, refusal, outage); the question stays in the box. */
+  /** A failure of the last send (rate limit, refusal, outage); the question is put back in the box. */
   error: string | null
   /** Why asking is unavailable (no speech); the button waits, aria-disabled. */
   blockedReason: string | null
-  /** Sends the question; resolves true when it was accepted, which clears the box. */
+  /**
+   * Sends the question; resolves true when it was accepted. The box empties at once (the question shows in the
+   * conversation while it is answered); a send that was not accepted puts it back, so nothing typed is lost.
+   */
   onSend: (question: string) => Promise<boolean>
 }
 
@@ -27,7 +30,10 @@ export function Composer({ busy, error, blockedReason, onSend }: ComposerProps) 
     if (question === '') return setInvalid(strings.ask.composer.required)
     if (question.length > QUESTION_MAX) return setInvalid(strings.ask.composer.tooLong)
     setInvalid(null)
-    if (await onSend(question)) setText('')
+    setText('')
+    const accepted = await onSend(question)
+    // Not accepted: the question comes back, unless something new was typed meanwhile.
+    if (!accepted) setText((current) => (current === '' ? question : current))
   }
 
   const onKeyDown = (event: KeyboardEvent<HTMLTextAreaElement>) => {
