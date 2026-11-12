@@ -1,18 +1,80 @@
 # QE report: specs/029-push-notifications
 
-## QE verdict: FAIL        (measured at 3b157e12, full mode, rigor production, re-verification after fix round 1 of 2)
+## QE verdict: BLOCKED        (measured at 313cafaf, full mode, rigor production, re-verification after fix round 2 of 2)
 
-Pass of 2026-11-12 (afternoon), fresh agent, full sweep of all 37 ACs and design.md. The tree was clean at 3b157e12
-when every gate ran and stayed clean; this report is the only file changed. QE added no tests to the tree.
-Scratch evidence (repro scripts, logs) is in
-`/private/tmp/claude-501/-Users-matteocodogno-LAB-aiscream-operai/39cd1c38-0ef8-4330-af42-72ff15685521/scratchpad/r1/`
-(and `.../scratchpad/` for the round 0 scripts s1-s12 that were re-run).
+No row is red. D-4 is fixed and verified (component tests and live). One row could not run: the e2e spec
+`notifications.spec.ts` is still blocked by environment fault E-1 (`/notify` crashes on the running dev shell), because the
+user's restart did not apply the remedy (details under Round 2). BLOCKED has no owning dev agent and consumes no fix round.
+Real OS push delivery, the OS click, Edge's host, the AC-7.7 deployed-pair re-measure, the stored-href check and the ADR-0084
+sign-off stay `pending T12 (human)`, never passes. Security review round 1 is PASS (0 findings at or above medium), as reported by the caller.
 
-Rows that could not run here, first: real OS push delivery on Chrome, Edge and Firefox, the click-through of a real OS
-notification, Edge's WNS endpoint host, and the ADR-0084 go-live sign-off are all T12 (human), recorded below as
-`pending T12`, never as passes. The e2e spec `notifications.spec.ts` cannot pass on the running dev shell (environment
-fault E-1, still present after the user's restart) and is BLOCKED until the dev shell is healthy. One new design defect
-(D-4) is a plain FAIL on its own.
+The tree was clean at 313cafaf for every run below and QE changed only this file. Scratch evidence for round 2:
+`/private/tmp/claude-501/-Users-matteocodogno-LAB-aiscream-operai/39cd1c38-0ef8-4330-af42-72ff15685521/scratchpad/r2/` (`s20.mjs` live focus script, `e2e.txt`, `full-1..6.txt`, `auth.txt`, `ntf.txt`, `lint.txt`, `build.txt`).
+Round 1 evidence stays in `.../scratchpad/r1/`.
+
+## Round 2 (after commits 8e1fd0a7 and 313cafaf)
+
+| Check | Threshold | Actual | Result |
+|---|---|---|---|
+| D-4 component tests (`PushSettings.test.tsx`) | 7 removal sequences green | 38/38 pass in the file; the 7 sequences (first+last, last+last, first+first, middle+first, middle+last, last+first, all three down to the empty panel) pass | ✓ |
+| D-4 tests detect the bug | red when the fix is removed | with the `key={loaded.focusSeq}` line blanked (temporary, reverted with `git checkout`, tree clean after), 3 tests fail: first+last, middle+first, last+first | ✓ |
+| D-4 live, `/account`, real Chromium, 3 devices, keyboard and mouse (`r1/s17.mjs`) | focus on a row header after the 2nd removal | first+last, last+last, first+first: row header in all 6 runs (the case that gave BODY in round 1 is fixed in both modes) | ✓ |
+| D-4 live, down to the empty state (`r2/s20.mjs`, 8 runs: first x3, last x3, first+last+last, last+first+first, keyboard and mouse) | focus on neighbour row header, then on the "No devices yet" heading | 8/8: row header after the 1st and 2nd removal, heading `H4 "No devices yet"` after the 3rd | ✓ |
+| Remount does not move focus on Turn on / Turn off | focus stays on the toggle | Turn on: focus stays on the toggle (now "Turn off"); Turn off: stays on the toggle (now "Turn on"); a removal followed by Turn on: stays on the toggle. The device table DOM node is the same node across Turn on and Turn off (not remounted: `focusSeq` changes only in the removal path) | ✓ |
+| Remount does not re-announce banners | banner node untouched, nothing re-added | across a second removal the status banner (`role=status`) is the same DOM node, 0 banner nodes added (MutationObserver on the section); the banner lives outside the keyed table | ✓ |
+| shell `pnpm lint` | 0 findings | 0 | ✓ |
+| shell `pnpm build` | builds | OK | ✓ |
+| shell `pnpm vitest run`, 6 full runs | 0 fail | 6/6 green: 585 tests, 40 files each (578 in round 1 + the 7 new). The router.inventory / router.meetings flake did not appear in 6 runs | ✓ |
+| auth `direnv exec . bun test` | 0 fail | 842 pass / 0 fail, 59 files | ✓ |
+| notify-api `direnv exec . bun test` | 0 fail | 538 pass / 0 fail, 33 files | ✓ |
+| `mise run changeset:check` | OK | OK (`.changeset/web-push-notifications.md`) | ✓ |
+| e2e `push-notifications.spec.ts` | 3/3 | 3 passed | ✓ |
+| e2e `notifications.spec.ts` | all pass | 3 passed, 7 failed on the live dev shell (see E-1 below) | BLOCKED (environment) |
+| AC-4.3 full form: Notifications heading after the sign-in return | heading visible on `/notify` | URL part passes in `push-notifications.spec.ts`; the heading cannot render because `/notify` crashes | BLOCKED (E-1) |
+| Real push delivery Chrome / Edge / Firefox (AC-2.1, 2.3, 4.1); OS click | received with Operai closed | not run | pending T12 (human) |
+| Edge endpoint host (R3); AC-7.7 deployed-pair re-measure; stored-href check (T12); ADR-0084 go-live sign-off (AC-6.5); L2-L4 acceptance (T12) | recorded | not run | pending T12 (human) |
+| Spec open question: exclude Meetings (AC-6.4) | answered | closed by commit 313cafaf: no origin excluded (spec.md and tasks.md updated). Recorded, nothing to execute | ✓ (recorded) |
+
+### D-4 status: FIXED (missed earlier in round 1; round 2 adds no new defect)
+
+Root cause as filed in round 1 (an unchanged `focusRowKey` re-runs no effect in `DataTable`) is addressed by `focusSeq`
+(bumped by every removal, the device table keyed on it), so each removal is a fresh focus request. No other `focusRowKey` consumer
+needed a change (placements checked in round 1: inventory RulesPage unique key per action, library stories demo-only).
+Side effect to know about, not a defect: the table remounts per removal, so any state internal to `DataTable` is reset by a
+removal; the table has no sort or selection state today, so nothing is visible.
+
+### E-1: still present, BLOCKED (environment, no fix round)
+
+- Observed now: `/notify` on :5173 shows "Something went wrong!" with `Cannot read properties of null (reading 'isServer')`
+  (checked three ways: `r1/e1d.mjs` twice, and the error-context of `notifications.spec.ts:124`). `/account` and the other routes render.
+- Why the restart did not clear it: the dev servers were restarted at 15:18, but the remedy was not applied. At the time of
+  this pass `shell/node_modules/.vite` is still dated 13:32 and `projects-ui/node_modules/.vite` is still dated 11 Nov
+  (neither was removed), and `projects-ui/node_modules/@tanstack/react-router` is still 1.170.46 while shell, notify-ui,
+  meetings-ui, crm-ui and admin-ui have 1.170.17. QE did not restart or modify anything.
+- Result of the e2e run: `notifications.spec.ts` 3 passed, 7 failed. Six of the failures open `/notify` and show that crash
+  (AC-1.1/2.1 heading, AC-2.4, AC-3.x, AC-2.5, AC-6.2, AC-6.3). The seventh, AC-1.4/1.5 "two open tabs" (tab B badge stayed empty), does not
+  open `/notify`; it passed 3 of 3 when re-run alone, so in the full run it was a flake of the same degraded shell or of load, not a defect (not
+  attributable to 029, but it can only be closed with a healthy shell). Round 1 counted 5 failures; the AC-1.1 heading test now also fails, which fits
+  an intermittent crash rather than a change in the branch (the branch changed only PushSettings, its model and tests since round 1).
+- Exact remedy, for the environment owner: stop `mise run dev`; `rm -rf shell/node_modules/.vite projects-ui/node_modules/.vite`;
+  `cd projects-ui && pnpm install --frozen-lockfile` and confirm `node -p "require('./node_modules/@tanstack/react-router/package.json').version"`
+  prints 1.170.17 (if the lockfile really pins 1.170.46, that is a projects-ui dependency drift to fix by aligning its lockfile, a chore outside 029); restart `mise run dev`; check
+  `/notify` shows "Nothing here yet" or the list; then re-run
+  `cd shell && E2E_ESTIMAI_REMOTE_PORT=5174 E2E_REFUND_REMOTE_PORT=5175 E2E_NOTIFY_REMOTE_PORT=5176 E2E_ADMIN_REMOTE_PORT=5177 E2E_INVENTORY_REMOTE_PORT=5178 E2E_CRM_REMOTE_PORT=5179 E2E_MEETINGS_REMOTE_PORT=5180 E2E_PROJECTS_REMOTE_PORT=5181 pnpm e2e notifications.spec.ts push-notifications.spec.ts`
+  (expected 13/13). Evidence the branch is not the cause stays as in round 1 (fresh dev servers of `main` and of the branch both mount `/notify`).
+  The user may instead run that command once themselves on a healthy shell and report; that counts as `verified by: <who>, <date>`.
+- Still true: the e2e start-up prints that `SERVICE_TOKEN_RATE_LIMIT` and `SERVICE_TOKEN_RATE_WINDOW_MS` are ignored; delete them from the local auth environment.
+
+### Verdict logic
+
+No ✗ remains: D-4 is fixed, every executable gate is green at 313cafaf. The one row that did not run is the E-1 e2e (and AC-4.3's heading
+half), so the verdict is BLOCKED, not PASS. Once E-1 is cleared and the 13 e2e tests pass, the verdict becomes PASS (with the T12 rows
+still listed as human gates before `PUSH_ENABLED=true` in production). The owasp-reviewer pass is already done (round 1 PASS).
+
+# Round 1 (kept for the record; superseded where Round 2 says so)
+
+Verdict at that time: FAIL at 3b157e12 (D-4; E-1 BLOCKED). Everything below is the round 1 text, unchanged, except that D-4 is now FIXED and the
+Meetings open question is closed (see Round 2).
 
 ## Round 0 defects to status
 
