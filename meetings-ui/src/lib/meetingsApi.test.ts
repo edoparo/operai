@@ -191,6 +191,15 @@ const ROWS: Row[] = [
     reply: { gaps: [] },
   },
   // Summaries
+  { name: 'getNotes', call: () => api.getNotes('m1'), method: GET, url: '/meetings/m1/notes' },
+  {
+    name: 'saveNotes',
+    call: () => api.saveNotes('m1', 0, { type: 'doc', content: [] }),
+    method: PUT,
+    url: '/meetings/m1/notes',
+    body: { content: { type: 'doc', content: [] } },
+    ifMatch: '"0"',
+  },
   { name: 'getAgenda', call: () => api.getAgenda('m1'), method: GET, url: '/meetings/m1/agenda' },
   {
     name: 'saveAgenda',

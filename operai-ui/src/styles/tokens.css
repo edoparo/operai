@@ -1719,3 +1719,156 @@ select:not([multiple]):not([size]) {
     left: 0;
   }
 }
+
+/* ── Rich text — <RichTextEditor> (`@operai/ui/rich-text`) ───────────────── */
+@layer components {
+  .rich-text {
+    border: 1px solid var(--rule);
+    border-radius: 6px;
+    background: var(--ink-mid);
+    transition: border-color 0.15s;
+  }
+
+  .rich-text:focus-within {
+    border-color: var(--acc);
+    box-shadow: 0 0 0 2px rgba(91, 106, 247, 0.18);
+  }
+
+  .rich-text-toolbar {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 2px;
+    padding: 4px;
+    border-bottom: 1px solid var(--rule);
+  }
+
+  /* A formatting toggle: square, quiet, pressed = accent tint and border (never colour alone: aria-pressed). */
+  .rich-text-tool {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 28px;
+    height: 28px;
+    border: 1px solid transparent;
+    border-radius: 6px;
+    background: transparent;
+    color: var(--soft);
+    cursor: pointer;
+  }
+
+  .rich-text-tool:hover:not(:disabled) {
+    background: var(--ink-soft);
+    color: var(--text);
+  }
+
+  .rich-text-tool[aria-pressed='true'] {
+    background: color-mix(in srgb, var(--acc) 15%, transparent);
+    border-color: var(--acc);
+    color: var(--text);
+  }
+
+  .rich-text-tool:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+
+  .rich-text-content {
+    min-height: 10rem;
+    padding: 8px 10px;
+    font-size: 14px;
+    line-height: 1.5;
+    color: var(--text);
+    outline: none;
+    overflow-wrap: anywhere;
+  }
+
+  .rich-text-content > * + * {
+    margin-top: 0.5em;
+  }
+
+  .rich-text-content h3 {
+    font-family: var(--disp), sans-serif;
+    font-size: 16px;
+    font-weight: 700;
+  }
+
+  .rich-text-content ul {
+    list-style: disc;
+    padding-left: 1.25rem;
+  }
+
+  .rich-text-content ol {
+    list-style: decimal;
+    padding-left: 1.5rem;
+  }
+
+  .rich-text-content ul[data-type='taskList'] {
+    list-style: none;
+    padding-left: 0;
+  }
+
+  .rich-text-content ul[data-type='taskList'] li {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.5rem;
+  }
+
+  .rich-text-content ul[data-type='taskList'] li > label {
+    margin-top: 3px;
+  }
+
+  .rich-text-content ul[data-type='taskList'] li > div {
+    flex: 1;
+  }
+
+  /* A ticked item: struck through as well as ticked, so it never reads by colour alone. */
+  .rich-text-content ul[data-type='taskList'] li[data-checked='true'] > div {
+    text-decoration: line-through;
+    color: var(--soft);
+  }
+
+  .rich-text-content blockquote {
+    border-left: 2px solid var(--dim);
+    padding-left: 0.75rem;
+    color: var(--soft);
+  }
+
+  .rich-text-content code {
+    font-family: var(--mono), monospace;
+    font-size: 13px;
+    background: var(--ink-soft);
+    border-radius: 4px;
+    padding: 0 3px;
+  }
+
+  .rich-text-content pre {
+    font-family: var(--mono), monospace;
+    font-size: 13px;
+    background: var(--ink-soft);
+    border-radius: 6px;
+    padding: 8px 10px;
+    white-space: pre-wrap;
+  }
+
+  .rich-text-content hr {
+    border: 0;
+    border-top: 1px solid var(--rule);
+  }
+
+  /* The placeholder of an empty editor (TipTap's Placeholder extension). */
+  .rich-text-content p.is-editor-empty:first-child::before {
+    content: attr(data-placeholder);
+    float: left;
+    height: 0;
+    color: var(--soft);
+    pointer-events: none;
+  }
+
+  .rich-text-footer {
+    display: flex;
+    justify-content: flex-end;
+    padding: 2px 8px 4px;
+    font-size: 12px;
+    color: var(--soft);
+  }
+}

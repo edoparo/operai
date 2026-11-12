@@ -29,11 +29,25 @@ const shellRemoteUrl = process.env['SHELL_REMOTE_URL'] ?? 'http://localhost:5173
 // keeps the library's own `react` imports on this project's copy (Module Federation
 // singleton), since operai-ui/node_modules does not exist on Vercel.
 const operaiUiEntry = fileURLToPath(new URL('../operai-ui/src/index.ts', import.meta.url))
+// The library's rich-text entry, which needs TipTap: installed HERE and deduped, so the library's
+// `@tiptap/*` imports resolve to this project's copy (operai-ui/README.md § Rich text).
+const operaiUiRichText = fileURLToPath(new URL('../operai-ui/src/richText.ts', import.meta.url))
+const TIPTAP_PACKAGES = [
+  '@tiptap/core',
+  '@tiptap/extension-list',
+  '@tiptap/extensions',
+  '@tiptap/pm',
+  '@tiptap/react',
+  '@tiptap/starter-kit',
+]
 
 export default defineConfig({
   resolve: {
-    alias: { '@operai/ui': operaiUiEntry },
-    dedupe: ['react', 'react-dom'],
+    alias: [
+      { find: /^@operai\/ui\/rich-text$/, replacement: operaiUiRichText },
+      { find: /^@operai\/ui$/, replacement: operaiUiEntry },
+    ],
+    dedupe: ['react', 'react-dom', ...TIPTAP_PACKAGES],
   },
   plugins: [
     react(),

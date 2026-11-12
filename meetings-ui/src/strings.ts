@@ -21,6 +21,7 @@ import { host } from './strings/host'
 import { list } from './strings/list'
 import { meeting } from './strings/meeting'
 import { nav } from './strings/nav'
+import { notes } from './strings/notes'
 import { newMeeting } from './strings/newMeeting'
 import { participants } from './strings/participants'
 import { summaries } from './strings/summaries'
@@ -44,6 +45,7 @@ export const en = {
   list: list.en,
   meeting: meeting.en,
   nav: nav.en,
+  notes: notes.en,
   newMeeting: newMeeting.en,
   participants: participants.en,
   summaries: summaries.en,
@@ -68,6 +70,7 @@ export const it: typeof en = {
   list: list.it,
   meeting: meeting.it,
   nav: nav.it,
+  notes: notes.it,
   newMeeting: newMeeting.it,
   participants: participants.it,
   summaries: summaries.it,

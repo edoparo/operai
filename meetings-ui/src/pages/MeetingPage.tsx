@@ -15,6 +15,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import type { ReactNode } from 'react'
 import AgendaCard from '../components/agenda/AgendaCard'
 import AskPanel from '../components/ask/AskPanel'
+import NotesCard from '../components/notes/NotesCard'
 import { LoadFailure, Loading, Saved } from '../components/LoadState'
 import DeleteMeetingDialog from '../components/meeting/DeleteMeetingDialog'
 import DeleteRecordingDialog from '../components/meeting/DeleteRecordingDialog'
@@ -339,6 +340,7 @@ function MeetingView({ meeting, replace, listPath, back, created }: MeetingViewP
         <StatusPanels meeting={meeting} onChanged={changed} onRefresh={() => void refresh()} />
 
         <AgendaCard meetingId={meeting.id} live={meeting.status === 'recording'} />
+        <NotesCard meetingId={meeting.id} />
 
         <DetailsCard meeting={meeting} hostInfo={hostInfo} />
         <ParticipantsCard meeting={meeting} hostInfo={hostInfo} onChanged={changed} />

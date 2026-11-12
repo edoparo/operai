@@ -81,6 +81,7 @@ export interface Texts {
   readonly speakerLabel: string;
   readonly agendaTitle: string;
   readonly agendaNote: string;
+  readonly personalNote: string;
 }
 
 export const PLAIN_TEXTS: Texts = {
@@ -97,6 +98,7 @@ export const PLAIN_TEXTS: Texts = {
   speakerLabel: "Pat",
   agendaTitle: "Budget",
   agendaNote: "Agree the Q3 numbers.",
+  personalNote: "Ask about the Q3 budget.",
 };
 
 // ─── The world ───────────────────────────────────────────────────────────────
@@ -202,6 +204,8 @@ export async function seedWorld(kit: Kit, persona: Persona, kinds: readonly Meet
   let failedTurnId = "none";
   let agendaPointId = "none";
   if (m.ready) {
+    // someone else's private notes: no caller may ever see them through the notes route
+    await kit.db.meetingNote.create({ data: { meetingId: m.ready, userId: "u-someone-else", content: noteDoc(texts.personalNote) } });
     agendaPointId = (await kit.db.agendaPoint.create({ data: { meetingId: m.ready, position: 0, title: texts.agendaTitle, note: texts.agendaNote } })).id;
     const key = `meetings/${m.ready}/audio.ogg`;
     await kit.db.meeting.update({ where: { id: m.ready }, data: { audioKey: key } });
@@ -384,6 +388,8 @@ export interface RouteRow {
   readonly meetingScoped?: boolean;
 }
 
+/** A rich-text notes document holding `text`. */
+const noteDoc = (text: string) => ({ type: "doc", content: [{ type: "paragraph", content: [{ type: "text", text }] }] });
 const sections = (w: World) => [{ heading: w.texts.summaryHeading, instruction: w.texts.instruction }];
 const mid = (kind: MeetingKind) => (w: World) => w.m[kind]!;
 const M = (kind: MeetingKind, tail = "") => (w: World) => `/meetings/${mid(kind)(w)}${tail}`;
@@ -433,6 +439,16 @@ export const ROWS: readonly RouteRow[] = [
   }, "/participants"),
   row("POST /meetings/:id/consent", "draft", { body: (w) => ({ noticeVersion: w.consentVersion }), ok: 200, cells: CONTROL, outage: "unavailable" }, "/consent"),
   row("POST /meetings/:id/host-notice/retry", "ready", { ok: 200, cells: CONTROL, outage: "unavailable" }, "/host-notice/retry"),
+
+  // ── Notes (each person's own, private) ────────────────────────────────────
+  row("GET /meetings/:id/notes", "ready", { ok: 200, cells: READ, outage: "serves" }, "/notes"),
+  row("PUT /meetings/:id/notes", "ready", {
+    body: (w) => ({ content: noteDoc(w.texts.personalNote) }),
+    headers: { "If-Match": '"0"' },
+    ok: 200,
+    cells: READ,
+    outage: "serves",
+  }, "/notes"),
 
   // ── Agenda ────────────────────────────────────────────────────────────────
   row("GET /meetings/:id/agenda", "ready", { ok: 200, cells: READ, outage: "serves" }, "/agenda"),

@@ -28,6 +28,8 @@ import type {
   MeetingLanguage,
   MeetingRow,
   MeetingSource,
+  Notes,
+  NotesDoc,
   Page,
   PresignedPost,
   RecordingStart,
@@ -231,6 +233,14 @@ export const saveAgenda = (id: string, version: number, points: AgendaPointInput
 /** One point's covered mark; no precondition. 404 `agenda_point_not_found` when the point was removed meanwhile. */
 export const setAgendaPointCovered = (id: string, pointId: string, covered: boolean) =>
   sendJson<Agenda>(`${meetingPath(id)}/agenda/points/${enc(pointId)}/covered`, 'PUT', { covered })
+
+// ─── Notes (the caller's own, private) ──────────────────────────────────────
+
+export const getNotes = (id: string, init?: Init) => getJson<Notes>(`${meetingPath(id)}/notes`, init)
+
+/** Saves the caller's notes at `version` (0 for the first save): 409 `version_conflict` when saved meanwhile elsewhere. */
+export const saveNotes = (id: string, version: number, content: NotesDoc) =>
+  sendJson<Notes>(`${meetingPath(id)}/notes`, 'PUT', { content }, version)
 
 // ─── Summaries ──────────────────────────────────────────────────────────────
 

@@ -165,6 +165,7 @@ model Meeting {
   speakerLabels SpeakerLabel[]
   summaries     Summary[]
   agenda        AgendaPoint[]
+  notes         MeetingNote[]
   turns         ConversationTurn[]
   jobs          MeetingJob[]
 
@@ -328,6 +329,22 @@ model AgendaPoint {
 
   @@index([meetingId, position])
   @@map("agenda_point")
+}
+
+// One person's private notes on one meeting: read and written only by that person (never the creator of the
+// meeting, never a model, never a log). At most one row per (meeting, person); deleted with the meeting.
+model MeetingNote {
+  meetingId String
+  meeting   Meeting  @relation(fields: [meetingId], references: [id], onDelete: Cascade)
+  userId    String
+  // A rich-text document (TipTap JSON: a `doc` node). Data, never HTML: only the editor's schema renders it.
+  content   Json
+  // If-Match of the autosave: two tabs of the same person never overwrite each other silently.
+  version   Int      @default(1)
+  updatedAt DateTime @updatedAt
+
+  @@id([meetingId, userId])
+  @@map("meeting_note")
 }
 
 // Built-in templates live in code (src/templates/builtin.ts), never here.

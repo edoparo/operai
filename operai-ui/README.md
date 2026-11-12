@@ -90,6 +90,31 @@ app directory:
    `backdropTestId` for that.
 6. **Changeset** — select `@operai/ui` and the app when a change touches both.
 
+## Rich text (`@operai/ui/rich-text`)
+
+`RichTextEditor` (WYSIWYG: bold, italic, a heading, bulleted, numbered and check lists; no links, no
+images; the document is TipTap JSON, rendered only through the editor's schema) needs TipTap, so it ships
+from its own entry and the main `@operai/ui` stays dependency-free. An app that uses it:
+
+1. installs `@tiptap/core`, `@tiptap/react`, `@tiptap/pm`, `@tiptap/starter-kit`, `@tiptap/extension-list`
+   and `@tiptap/extensions` (the version this library's devDependencies pin, exactly);
+2. aliases both entries with exact matches (an object alias would make `@operai/ui` a prefix of the other):
+
+   ```ts
+   alias: [
+     { find: /^@operai\/ui\/rich-text$/, replacement: fileURLToPath(new URL('../operai-ui/src/richText.ts', import.meta.url)) },
+     { find: /^@operai\/ui$/, replacement: fileURLToPath(new URL('../operai-ui/src/index.ts', import.meta.url)) },
+   ],
+   ```
+
+3. adds the six `@tiptap/*` packages to `resolve.dedupe` (vite and vitest), so the library's imports
+   resolve from the app (on Vercel `operai-ui/node_modules` does not exist);
+4. adds to tsconfig `paths`: `"@operai/ui/rich-text": ["../operai-ui/src/richText.ts"]` and
+   `"@tiptap/*": ["./node_modules/@tiptap/*"]`.
+
+Tests in jsdom call `stubLayoutForRichText()` (from the same entry) once: ProseMirror needs a layout jsdom
+does not have. Today's consumer: meetings-ui (personal meeting notes).
+
 ## Versioning
 
 `@operai/ui` is a Changesets package like the apps (`lerna.json`). Because apps

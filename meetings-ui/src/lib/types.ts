@@ -247,3 +247,9 @@ export type Agenda = { version: number; points: AgendaPoint[]; can: { edit: bool
 
 /** A point as written: an existing one keeps its `id` (and its covered mark), a new one has none. */
 export type AgendaPointInput = { id?: string; title: string; note: string | null }
+
+// ─── Notes ──────────────────────────────────────────────────────────────────
+
+/** The caller's own notes on a meeting: a rich-text document (null and `version` 0 while there are none yet). */
+export type NotesDoc = { type: 'doc'; content?: unknown[]; [key: string]: unknown }
+export type Notes = { content: NotesDoc | null; version: number; updatedAt: string | null }

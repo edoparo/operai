@@ -44,13 +44,14 @@ app.use(
 // search term (AC-4.10, src/lib/logger.ts).
 app.use("*", requestLogger());
 
-// Body limit 64 KiB, except PUT /meetings/:id/text (1 MiB, plan.md § Conventions).
+// Body limit 64 KiB, except PUT /meetings/:id/text (1 MiB, plan.md § Conventions) and PUT /meetings/:id/notes
+// (a rich-text document of up to 512 KiB, notes.routes.ts).
 export const MAX_REQUEST_BODY_BYTES = 64 * 1024;
 export const MAX_TEXT_BODY_BYTES = 1024 * 1024;
 const tooLarge = (c: Context) => problem({ status: 413, detail: "Request body is too large" }, c.req.path);
 const smallBody = bodyLimit({ maxSize: MAX_REQUEST_BODY_BYTES, onError: tooLarge });
 const textBody = bodyLimit({ maxSize: MAX_TEXT_BODY_BYTES, onError: tooLarge });
-const isTextWrite = (c: Context) => c.req.method === "PUT" && /^\/meetings\/[^/]+\/text$/.test(c.req.path);
+const isTextWrite = (c: Context) => c.req.method === "PUT" && /^\/meetings\/[^/]+\/(text|notes)$/.test(c.req.path);
 app.use("*", (c, next) => (isTextWrite(c) ? textBody(c, next) : smallBody(c, next)));
 
 // ─── Routes ──────────────────────────────────────────────────────────────────
