@@ -18,7 +18,9 @@
  * subscription would outlive its server row on a DEFINITIVE failure it is unsubscribed; only an
  * inconclusive failure (network, 5xx) keeps it and reports `unverified`, to be retried next boot.
  *
- * The only thing persisted is `{deviceId, userId}` in IndexedDB — never the JWT (ADR-0001). Every
+ * The only thing persisted is `{deviceId, userId}` in IndexedDB — never the JWT (ADR-0001). Only
+ * `enablePush` (and the silent re-register of an already remembered device) creates the database;
+ * boot, sign-out and the settings reads never do (D-7). Every
  * storage access is wrapped: an unavailable store degrades to "nothing remembered", which makes
  * `reconcilePush` release the subscription rather than guess whose it is.
  *
@@ -161,18 +163,55 @@ interface StoredDevice {
   userId: string
 }
 
-const openStore = (): Promise<IDBDatabase> =>
-  new Promise((resolve, reject) => {
+/**
+ * Whether the browser says the database does not exist. `indexedDB.databases()` is missing in older
+ * browsers and may reject; then nothing is known and `false` is returned.
+ */
+async function databaseKnownAbsent(): Promise<boolean> {
+  if (typeof indexedDB.databases !== 'function') return false
+  try {
+    return !(await indexedDB.databases()).some((database) => database.name === STORE_NAME)
+  } catch {
+    return false
+  }
+}
+
+/**
+ * Opens the database. `create` is true only for Turn on: every other caller only ever reads or
+ * clears what is already there, and a browser that never turned push on must not get an empty
+ * `operai-push` database from the shell's boot work (D-7; meetings AC-4.11 expects a clean device).
+ * Without `create` it resolves `null` when the database is absent: `databases()` says so where it
+ * exists, and otherwise the upgrade that would create it is aborted, which leaves nothing behind.
+ */
+const openStore = async (create: boolean): Promise<IDBDatabase | null> => {
+  if (!create && (await databaseKnownAbsent())) return null
+  return new Promise((resolve, reject) => {
+    let uncreated = false
     const request = indexedDB.open(STORE_NAME, 1)
     request.onupgradeneeded = () => {
+      if (!create) {
+        uncreated = true
+        request.transaction?.abort()
+        return
+      }
       if (!request.result.objectStoreNames.contains(STORE_OBJECTS)) request.result.createObjectStore(STORE_OBJECTS)
     }
     request.onsuccess = () => resolve(request.result)
-    request.onerror = () => reject(request.error ?? new Error('indexedDB open failed'))
+    request.onerror = () => {
+      if (uncreated) resolve(null)
+      else reject(request.error ?? new Error('indexedDB open failed'))
+    }
   })
+}
 
-const withStore = async <T>(mode: IDBTransactionMode, run: (store: IDBObjectStore) => IDBRequest<T>): Promise<T> => {
-  const db = await openStore()
+/** Runs one request in the store; `undefined` when `create` is false and there is no database. */
+const withStore = async <T>(
+  mode: IDBTransactionMode,
+  create: boolean,
+  run: (store: IDBObjectStore) => IDBRequest<T>,
+): Promise<T | undefined> => {
+  const db = await openStore(create)
+  if (!db) return undefined
   try {
     return await new Promise<T>((resolve, reject) => {
       const tx = db.transaction(STORE_OBJECTS, mode)
@@ -195,7 +234,7 @@ const isStoredDevice = (value: unknown): value is StoredDevice =>
 /** The remembered device, or `null` when nothing (valid) is stored or the store cannot be read. */
 async function readStored(): Promise<StoredDevice | null> {
   try {
-    const value = await withStore<unknown>('readonly', (store) => store.get(STORE_KEY))
+    const value = await withStore<unknown>('readonly', false, (store) => store.get(STORE_KEY))
     return isStoredDevice(value) ? { deviceId: value.deviceId, userId: value.userId } : null
   } catch {
     return null
@@ -205,7 +244,9 @@ async function readStored(): Promise<StoredDevice | null> {
 /** `true` when written. */
 async function writeStored(value: StoredDevice): Promise<boolean> {
   try {
-    await withStore('readwrite', (store) => store.put({ deviceId: value.deviceId, userId: value.userId }, STORE_KEY))
+    await withStore('readwrite', true, (store) =>
+      store.put({ deviceId: value.deviceId, userId: value.userId }, STORE_KEY),
+    )
     return true
   } catch {
     return false
@@ -214,7 +255,7 @@ async function writeStored(value: StoredDevice): Promise<boolean> {
 
 async function clearStored(): Promise<void> {
   try {
-    await withStore('readwrite', (store) => store.delete(STORE_KEY))
+    await withStore('readwrite', false, (store) => store.delete(STORE_KEY))
   } catch {
     // nothing to clear, or nothing we can clear
   }

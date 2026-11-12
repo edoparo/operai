@@ -65,9 +65,13 @@ let idb: ReturnType<typeof createFakeIndexedDb>
 
 function createFakeIndexedDb() {
   const data = new Map<string, unknown>()
-  const state = { failOpen: false, failWrite: false }
+  // Like a real browser: the database does not exist until an open() that is allowed to finish its
+  // upgrade creates it; aborting the upgrade transaction leaves it uncreated.
+  const state = { failOpen: false, failWrite: false, exists: false, opens: 0 }
   const indexedDB = {
+    databases: async () => (state.exists ? [{ name: 'operai-push', version: 1 }] : []),
     open: () => {
+      state.opens++
       const request: Record<string, unknown> = {}
       queueMicrotask(() => {
         if (state.failOpen) {
@@ -97,7 +101,17 @@ function createFakeIndexedDb() {
           },
         }
         request.result = db
-        ;(request.onupgradeneeded as (() => void) | undefined)?.()
+        if (!state.exists) {
+          let aborted = false
+          request.transaction = { abort: () => (aborted = true) }
+          ;(request.onupgradeneeded as (() => void) | undefined)?.()
+          if (aborted) {
+            request.error = new DOMException('upgrade aborted', 'AbortError')
+            ;(request.onerror as (() => void) | undefined)?.()
+            return
+          }
+          state.exists = true
+        }
         ;(request.onsuccess as (() => void) | undefined)?.()
       })
       return request
@@ -116,7 +130,10 @@ function createFakeIndexedDb() {
     indexedDB,
     state,
     peek: () => [...data.values()][0] as { deviceId: string; userId: string } | undefined,
-    seed: (value: unknown) => data.set('this-browser', value),
+    seed: (value: unknown) => {
+      state.exists = true
+      data.set('this-browser', value)
+    },
     size: () => data.size,
   }
 }
@@ -900,6 +917,54 @@ describe('initPush', () => {
     expect(session.onBeforeSignOut).toHaveBeenCalled()
     expect(browser.subscription).not.toBeNull()
     expect(calls()).toHaveLength(0)
+  })
+
+  describe('the push database is only created by Turn on (specs/029 D-7)', () => {
+    const signedIn = () =>
+      vi.mocked(session.getCachedSession).mockReturnValue({ data: { user: { id: USER } } } as never)
+
+    it('boot for a user with no subscription and no database leaves no database behind', async () => {
+      signedIn()
+      installBrowser({ permission: 'default' })
+
+      await push.initPush()
+
+      expect(await idb.indexedDB.databases()).toEqual([])
+      expect(idb.state.opens).toBe(0)
+      expect(calls()).toHaveLength(0)
+    })
+
+    it('the same holds where indexedDB.databases() does not exist: the open is aborted, nothing is created', async () => {
+      signedIn()
+      installBrowser({ permission: 'default' })
+      delete (idb.indexedDB as { databases?: unknown }).databases
+
+      await push.initPush()
+
+      expect(idb.state.opens).toBeGreaterThan(0)
+      expect(idb.state.exists).toBe(false)
+    })
+
+    it('a subscription with no database is released and still leaves no database behind', async () => {
+      signedIn()
+      installBrowser({ permission: 'granted', subscription: makeSubscription() })
+
+      await push.initPush()
+
+      expect(browser.subscription).toBeNull()
+      expect(idb.state.exists).toBe(false)
+    })
+
+    it('Turn on creates it and the next boot reads it', async () => {
+      signedIn()
+      installBrowser({ permission: 'default', promptResult: 'granted' })
+      route('PUT', '/push/devices', () => json(201, DEVICE))
+      await push.enablePush({ userId: USER, vapidPublicKey: VAPID_KEY })
+      expect(idb.state.exists).toBe(true)
+      route('GET', '/push/devices', () => json(200, { items: [DEVICE] }))
+
+      await expect(push.reconcilePush(USER)).resolves.toEqual({ status: 'on', deviceId: DEVICE.id })
+    })
   })
 
   it('never rejects when the sign-out registration itself throws', async () => {
