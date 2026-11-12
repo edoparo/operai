@@ -1,6 +1,5 @@
 import 'shell/tokens.css'
 import { RouterProvider } from '@tanstack/react-router'
-import { DisposableRouterHost } from '@operai/ui'
 import { createAppRouter } from './router'
 
 // IMPORTANT (mirrors admin-ui/src/App.tsx's/estimai-ui/src/App.tsx's doc
@@ -48,18 +47,8 @@ import { createAppRouter } from './router'
  * identity display is suite chrome the shell already owns (Header/UserMenu),
  * not something this remote's own root re-derives.
  */
+const router = createAppRouter('/refund')
 
-// The router is built per mount, not once at module scope: the shell unmounts the
-// remote when the user leaves it and mounts it again on return, and a router
-// instance that has already been mounted does not reload on a second mount
-// (@tanstack/react-router >= 1.170.46), so it would show the route it last had
-// instead of the URL the user returned to.
-// It is also destroyed on unmount: a router's browser history wraps window.history and adds window
-// listeners that only `history.destroy()` removes, so one per mount would pile up (specs/029 security L5).
 export default function App() {
-  return (
-    <DisposableRouterHost create={() => createAppRouter('/refund')}>
-      {(router) => <RouterProvider router={router} />}
-    </DisposableRouterHost>
-  )
+  return <RouterProvider router={router} />
 }

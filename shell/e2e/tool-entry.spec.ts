@@ -1,12 +1,13 @@
 /**
- * Every tool opens from its bare URL (specs/029 D-5).
+ * Every tool opens from its bare URL (specs/029 E-1).
  *
  * EstimAI, Refund, Inventory, CRM and Admin each have an index route that redirects (`/inventory` to
  * `/inventory/assets`, and so on). The shell mounts a remote inside a Suspense boundary and suspends it on every
- * URL change, which hides the remote's tree and reveals it again; a remote whose router was torn down by that
- * hide came back as a second router that never loaded, and the page stayed empty. Reaching a tool by its sidebar
- * link, a notification link or a reload of the bare URL is the path, so that is what runs here: against the
- * REAL shell, the REAL remotes and the REAL auth, nothing mocked.
+ * URL change; a remote whose router did not reload its route when mounted a second time came back empty (the
+ * @tanstack/react-router version skew behind E-1: projects-ui resolved a newer one than the rest, and the
+ * singleton negotiation applied it to every remote). Reaching a tool by its sidebar link, a notification link or a
+ * reload of the bare URL is the path, so that is what runs here: against the REAL shell, the REAL remotes and the
+ * REAL auth, nothing mocked.
  */
 import { test, expect, type Page } from '@playwright/test'
 import { seedAdminSession, applySessionCookie } from './helpers/adminSession'

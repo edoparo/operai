@@ -1,6 +1,5 @@
 import 'shell/tokens.css'
 import { RouterProvider } from '@tanstack/react-router'
-import { DisposableRouterHost } from '@operai/ui'
 import { createAppRouter } from './router'
 
 // IMPORTANT (mirrors estimai-ui/src/App.tsx's T12/specs/003-suite-shell doc
@@ -45,18 +44,8 @@ import { createAppRouter } from './router'
  * standalone build's index.css imports the same tokens. Never inline
  * `var(--…)` styles; lint rejects them.
  */
+const router = createAppRouter('/admin')
 
-// The router is built per mount, not once at module scope: the shell unmounts the
-// remote when the user leaves it and mounts it again on return, and a router
-// instance that has already been mounted does not reload on a second mount
-// (@tanstack/react-router >= 1.170.46), so it would show the route it last had
-// instead of the URL the user returned to.
-// It is also destroyed on unmount: a router's browser history wraps window.history and adds window
-// listeners that only `history.destroy()` removes, so one per mount would pile up (specs/029 security L5).
 export default function App() {
-  return (
-    <DisposableRouterHost create={() => createAppRouter('/admin')}>
-      {(router) => <RouterProvider router={router} />}
-    </DisposableRouterHost>
-  )
+  return <RouterProvider router={router} />
 }
