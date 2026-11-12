@@ -18,7 +18,10 @@
  *     using shell's own Tailwind token classes, see `styles/tokens.css`).
  *
  * **AC-6.2 — read-only guarantee, a literal DOM constraint, not a
- * suggestion.** Everything this screen can render lives inside the single
+ * suggestion.** The address is read-only; the screen as a whole is not any more: since
+ * specs/029 it also holds the "Push notifications" section (`PushSettings`, with buttons),
+ * which is a sibling of the address section and sits OUTSIDE the region below. Everything the
+ * ADDRESS section can render lives inside the single
  * `data-testid="account-address-region"` container below, in EVERY state
  * (loading / error / empty / populated) — the plan's own AC-6.2 test queries
  * exactly that region for `input, textarea, select, [contenteditable],
@@ -49,6 +52,7 @@
 import { useEffect, useState } from 'react'
 import { Banner, Card, PageHeader, SkeletonRows, StatePanel, ToolLayout, VisuallyHidden } from '@operai/ui'
 import { getMyAddress, type AddressView } from '../lib/profileApi'
+import { PushSettings } from './PushSettings'
 import { strings } from '../strings'
 
 type AccountState = { status: 'loading' } | { status: 'error' } | { status: 'loaded'; address: AddressView | null }
@@ -134,6 +138,10 @@ export function AccountScreen() {
             ))}
         </div>
       </section>
+
+      {/* specs/029: a SIBLING section, deliberately outside the address region - it holds buttons,
+          and that region may not (AC-6.2 above). */}
+      <PushSettings />
     </ToolLayout>
   )
 }

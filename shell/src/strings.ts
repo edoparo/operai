@@ -130,6 +130,63 @@ const en = {
     none: 'No address on file',
     contactAdmin: 'Contact an admin to update this.',
   },
+  push: {
+    heading: 'Push notifications',
+    description:
+      'Get a system notification on this computer when Operai is not open. Push notifications are always in English.',
+    loading: 'Loading push notification settings…',
+    loadError: "Couldn't load your push notification settings.",
+    retry: 'Retry',
+    thisBrowser: 'This browser',
+    status: { on: 'On', off: 'Off', blocked: 'Blocked', unavailable: 'Not available' },
+    turnOn: 'Turn on',
+    turningOn: 'Waiting for your browser…',
+    turnOff: 'Turn off',
+    turningOff: 'Turning off…',
+    offHint: 'Your browser will ask for permission to show notifications.',
+    onHint: 'This browser shows a notification when Operai is not open and visible.',
+    unsupported:
+      'Push notifications are not available on this browser. They work on current desktop Chrome, Edge, Firefox and Safari on macOS.',
+    blocked:
+      "Notifications are blocked for Operai in this browser. Allow them in the browser's site settings, then reload this page.",
+    notAllowed:
+      "Push notifications weren't turned on because the browser didn't allow notifications. Choose Allow when it asks.",
+    enabled: 'Push notifications are on for this browser.',
+    disabled: 'Push notifications are off for this browser.',
+    errors: {
+      generic: "Couldn't change push notifications. Check your connection and try again.",
+      deviceLimit: 'You already have 20 devices. Remove one below, then turn this browser on.',
+      endpointNotAllowed:
+        "This browser's notification service isn't supported, so push notifications can't be turned on here.",
+      unavailable: 'Push notifications are switched off right now. Try again later.',
+      subscribeFailed:
+        "Your browser couldn't set up push notifications. Check that it allows push messaging, then try again.",
+      turnOffFailed: "Couldn't turn off push notifications. Try again.",
+    },
+    devices: {
+      title: 'Your devices',
+      caption: 'Browsers that receive your push notifications',
+      columnBrowser: 'Browser',
+      columnSince: 'Turned on',
+      columnActions: 'Actions',
+      thisBrowser: 'This browser',
+      remove: 'Remove',
+      removeLabel: (label: string, date: string) => `Remove ${label}, turned on ${date}`,
+      emptyTitle: 'No devices yet',
+      emptyBody: 'Turn on push notifications in a browser and it will appear here.',
+    },
+    removeDialog: {
+      title: (label: string) => `Remove ${label}?`,
+      body: 'It will stop receiving push notifications. You can turn them on again from that browser.',
+      bodyThisBrowser: 'This browser will stop receiving push notifications. You can turn them on again at any time.',
+      confirm: 'Remove',
+      busy: 'Removing…',
+      cancel: 'Cancel',
+      close: 'Close',
+      error: "Couldn't remove this device. Try again.",
+    },
+    removed: (label: string) => `Removed ${label}.`,
+  },
 }
 
 const it: typeof en = {
@@ -243,6 +300,63 @@ const it: typeof en = {
     retry: 'Riprova',
     none: 'Nessun indirizzo registrato',
     contactAdmin: 'Per aggiornarlo, rivolgersi a un amministratore.',
+  },
+  push: {
+    heading: 'Notifiche push',
+    description:
+      'Ricevi una notifica di sistema su questo computer quando Operai non è aperto. Le notifiche push sono sempre in inglese.',
+    loading: 'Caricamento delle impostazioni delle notifiche push…',
+    loadError: 'Impossibile caricare le impostazioni delle notifiche push.',
+    retry: 'Riprova',
+    thisBrowser: 'Questo browser',
+    status: { on: 'Attive', off: 'Disattivate', blocked: 'Bloccate', unavailable: 'Non disponibili' },
+    turnOn: 'Attiva',
+    turningOn: 'In attesa del browser…',
+    turnOff: 'Disattiva',
+    turningOff: 'Disattivazione…',
+    offHint: 'Il browser chiederà il permesso di mostrare le notifiche.',
+    onHint: 'Questo browser mostra una notifica quando Operai non è aperto e visibile.',
+    unsupported:
+      'Le notifiche push non sono disponibili su questo browser. Funzionano su Chrome, Edge, Firefox e Safari per computer (macOS) aggiornati.',
+    blocked:
+      'Le notifiche sono bloccate per Operai in questo browser. Consentile dalle impostazioni del sito nel browser, poi ricarica questa pagina.',
+    notAllowed:
+      'Le notifiche push non sono state attivate perché il browser non ha consentito le notifiche. Scegli Consenti quando lo chiede.',
+    enabled: 'Le notifiche push sono attive su questo browser.',
+    disabled: 'Le notifiche push sono disattivate su questo browser.',
+    errors: {
+      generic: 'Impossibile modificare le notifiche push. Controlla la connessione e riprova.',
+      deviceLimit: 'Hai già 20 dispositivi. Rimuovine uno qui sotto, poi attiva questo browser.',
+      endpointNotAllowed:
+        'Il servizio di notifiche di questo browser non è supportato, quindi qui non si possono attivare le notifiche push.',
+      unavailable: 'Le notifiche push sono disattivate al momento. Riprova più tardi.',
+      subscribeFailed:
+        'Il browser non è riuscito a configurare le notifiche push. Controlla che consenta i messaggi push e riprova.',
+      turnOffFailed: 'Impossibile disattivare le notifiche push. Riprova.',
+    },
+    devices: {
+      title: 'I tuoi dispositivi',
+      caption: 'Browser che ricevono le tue notifiche push',
+      columnBrowser: 'Browser',
+      columnSince: 'Attivo dal',
+      columnActions: 'Azioni',
+      thisBrowser: 'Questo browser',
+      remove: 'Rimuovi',
+      removeLabel: (label, date) => `Rimuovi ${label}, attivo dal ${date}`,
+      emptyTitle: 'Nessun dispositivo',
+      emptyBody: 'Attiva le notifiche push in un browser e comparirà qui.',
+    },
+    removeDialog: {
+      title: (label) => `Rimuovere ${label}?`,
+      body: 'Smetterà di ricevere notifiche push. Potrai riattivarle da quel browser.',
+      bodyThisBrowser: 'Questo browser smetterà di ricevere notifiche push. Potrai riattivarle in qualsiasi momento.',
+      confirm: 'Rimuovi',
+      busy: 'Rimozione…',
+      cancel: 'Annulla',
+      close: 'Chiudi',
+      error: 'Impossibile rimuovere questo dispositivo. Riprova.',
+    },
+    removed: (label) => `${label} rimosso.`,
   },
 }
 

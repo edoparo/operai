@@ -14,17 +14,40 @@
  *     address on file" (plan.md AC-6.1 test note, design.md F6 step 4).
  */
 
-import { afterEach, describe, expect, it, vi } from 'vitest'
-import { cleanup, fireEvent, render, screen } from '@testing-library/react'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { AccountScreen } from './AccountScreen'
 import { getMyAddress } from '../lib/profileApi'
+import * as push from '../lib/push'
 import type { AddressView } from '../lib/profileApi'
 
 vi.mock('../lib/profileApi', () => ({
   getMyAddress: vi.fn(),
 }))
 
+vi.mock('../lib/session', () => ({
+  useSession: vi.fn(() => ({ data: { user: { id: 'u1' } } })),
+  apiFetch: vi.fn(),
+  getCachedSession: vi.fn(),
+  getNotifyBaseUrl: vi.fn(),
+  getSession: vi.fn(),
+  navigateSuite: vi.fn(),
+  onBeforeSignOut: vi.fn(),
+}))
+
+// The push section (specs/029) is tested in PushSettings.test.tsx; here it is only a neighbour.
+vi.mock('../lib/push', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('../lib/push')>()),
+  getPushConfig: vi.fn(),
+  reconcilePush: vi.fn(),
+  listPushDevices: vi.fn(),
+  isPushSupported: vi.fn(),
+  readPermission: vi.fn(),
+  subscribePermission: vi.fn(),
+}))
+
 const mockedGetMyAddress = vi.mocked(getMyAddress)
+const mockedPush = vi.mocked(push)
 
 const FIXTURE_ADDRESS: AddressView = {
   countryCode: 'CH',
@@ -49,6 +72,15 @@ function assertZeroInteractiveElements(container: HTMLElement) {
   expect(region!.querySelector('[role="listbox"]')).toBeNull()
   expect(region!.querySelector('[role="combobox"]')).toBeNull()
 }
+
+beforeEach(() => {
+  mockedPush.getPushConfig.mockResolvedValue({ enabled: false })
+  mockedPush.isPushSupported.mockReturnValue(true)
+  mockedPush.readPermission.mockReturnValue('default')
+  mockedPush.subscribePermission.mockReturnValue(() => {})
+  mockedPush.reconcilePush.mockResolvedValue({ status: 'off' })
+  mockedPush.listPushDevices.mockResolvedValue([])
+})
 
 afterEach(() => {
   cleanup()
@@ -118,5 +150,33 @@ describe('AccountScreen (US-6)', () => {
 
     expect(await screen.findByText(FIXTURE_ADDRESS.formatted)).not.toBeNull()
     expect(mockedGetMyAddress).toHaveBeenCalledTimes(2)
+  })
+
+  it('shows no push section when push is disabled (specs/029 AC-6.1); the address section is unaffected', async () => {
+    mockedGetMyAddress.mockResolvedValue(FIXTURE_ADDRESS)
+    render(<AccountScreen />)
+    expect(await screen.findByText(FIXTURE_ADDRESS.formatted)).not.toBeNull()
+    await waitFor(() => expect(mockedPush.getPushConfig).toHaveBeenCalled())
+    expect(screen.queryByTestId('account-push-section')).toBeNull()
+  })
+
+  it('renders the push section as a sibling OUTSIDE the address region, which stays free of interactive elements (specs/012 AC-6.2)', async () => {
+    mockedGetMyAddress.mockResolvedValue(FIXTURE_ADDRESS)
+    mockedPush.getPushConfig.mockResolvedValue({ enabled: true, vapidPublicKey: 'KEY' })
+    mockedPush.listPushDevices.mockResolvedValue([
+      { id: 'd1', label: 'Chrome · macOS', createdAt: '2026-10-31T09:00:00.000Z' },
+    ])
+
+    const { container } = render(<AccountScreen />)
+
+    const section = await screen.findByTestId('account-push-section')
+    expect(await screen.findByTestId('account-push-toggle')).not.toBeNull()
+    await screen.findByText(FIXTURE_ADDRESS.formatted)
+    const region = container.querySelector('[data-testid="account-address-region"]')!
+    expect(region.contains(section)).toBe(false)
+    expect(section.contains(region)).toBe(false)
+    expect(section.parentElement).toBe(region.closest('section')!.parentElement)
+    assertZeroInteractiveElements(container)
+    expect(region.querySelectorAll('button')).toHaveLength(0)
   })
 })
