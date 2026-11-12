@@ -72,6 +72,36 @@ describe('App (./App, gated)', () => {
   })
 })
 
+describe('remount inside the shell', () => {
+  it('a remounted ./App reloads the route of the URL it is mounted at, not the one it last showed', async () => {
+    const { default: App } = await import('./App')
+    window.history.pushState(null, '', '/meetings')
+    const first = render(<App />)
+    expect(await screen.findByTestId('meetings-list-page')).not.toBeNull()
+    first.unmount()
+
+    window.history.pushState(null, '', '/meetings/nope/nothing')
+    render(<App />)
+
+    expect(await screen.findByTestId('meetings-not-found')).not.toBeNull()
+    expect(screen.queryByTestId('meetings-list-page')).toBeNull()
+  })
+
+  it('a remounted ./MyMeetings reloads the route of the URL it is mounted at, not the one it last showed', async () => {
+    const { default: MyMeetings } = await import('./MyMeetings')
+    window.history.pushState(null, '', '/my-meetings')
+    const first = render(<MyMeetings />)
+    expect(await screen.findByTestId('meetings-list-page')).not.toBeNull()
+    first.unmount()
+
+    window.history.pushState(null, '', '/my-meetings/nope/nothing')
+    render(<MyMeetings />)
+
+    expect(await screen.findByTestId('meetings-not-found')).not.toBeNull()
+    expect(screen.queryByTestId('meetings-list-page')).toBeNull()
+  })
+})
+
 describe('MyMeetings (./MyMeetings, ungated)', () => {
   it('mounts under /my-meetings with the "My meetings" h1 and NO section tabs', async () => {
     window.history.pushState(null, '', '/my-meetings')

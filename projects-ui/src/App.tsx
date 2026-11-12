@@ -1,4 +1,5 @@
 import 'shell/tokens.css'
+import { useState } from 'react'
 import { RouterProvider } from '@tanstack/react-router'
 import ProjectsShell from './components/ProjectsShell'
 import { createAppRouter } from './router'
@@ -14,8 +15,13 @@ import { createAppRouter } from './router'
  * `ProjectsShell` as its root layout; no auth guard and no chrome (the shell
  * owns both).
  */
-const router = createAppRouter('/projects', ProjectsShell)
 
+// The router is built per mount, not once at module scope: the shell unmounts the
+// remote when the user leaves it and mounts it again on return, and a router
+// instance that has already been mounted does not reload on a second mount
+// (@tanstack/react-router >= 1.170.46), so it would show the route it last had
+// instead of the URL the user returned to.
 export default function App() {
+  const [router] = useState(() => createAppRouter('/projects', ProjectsShell))
   return <RouterProvider router={router} />
 }

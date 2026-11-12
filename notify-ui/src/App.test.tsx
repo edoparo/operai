@@ -56,3 +56,18 @@ describe('App (notify-ui, mounted under /notify)', () => {
     expect(await screen.findByTestId('notify-not-found-page')).not.toBeNull()
   })
 })
+
+describe('App (notify-ui) — remount inside the shell', () => {
+  it('a remounted App reloads the route of the URL it is mounted at, not the one it last showed', async () => {
+    window.history.pushState(null, '', '/notify')
+    const first = render(<App />)
+    expect(await screen.findByTestId('notify-center-heading')).not.toBeNull()
+    first.unmount()
+
+    window.history.pushState(null, '', '/notify/whatever')
+    render(<App />)
+
+    expect(await screen.findByTestId('notify-not-found-page')).not.toBeNull()
+    expect(screen.queryByTestId('notify-center-heading')).toBeNull()
+  })
+})

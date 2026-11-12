@@ -80,3 +80,18 @@ describe('App (refund-ui, mounted under /refund)', () => {
     expect(screen.getByRole('navigation', { name: 'Refund navigation' })).not.toBeNull()
   })
 })
+
+describe('App (refund-ui) — remount inside the shell', () => {
+  it('a remounted App reloads the route of the URL it is mounted at, not the one it last showed', async () => {
+    window.history.pushState(null, '', '/refund/review')
+    const first = render(<App />)
+    expect(await screen.findByTestId('refund-review-queue-page')).not.toBeNull()
+    first.unmount()
+
+    window.history.pushState(null, '', '/refund/requests/req-9')
+    render(<App />)
+
+    expect(await screen.findByTestId('refund-request-detail-page')).not.toBeNull()
+    expect(screen.queryByTestId('refund-review-queue-page')).toBeNull()
+  })
+})

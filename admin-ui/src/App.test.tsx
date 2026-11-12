@@ -63,3 +63,18 @@ describe('App (admin-ui, mounted under /admin)', () => {
     expect(screen.queryByTestId('admin-roles-page')).toBeNull()
   })
 })
+
+describe('App (admin-ui) — remount inside the shell', () => {
+  it('a remounted App reloads the route of the URL it is mounted at, not the one it last showed', async () => {
+    window.history.pushState(null, '', '/admin/roles')
+    const first = render(<App />)
+    expect(await screen.findByTestId('admin-roles-page')).not.toBeNull()
+    first.unmount()
+
+    window.history.pushState(null, '', '/admin/audit')
+    render(<App />)
+
+    expect(await screen.findByTestId('admin-audit-page')).not.toBeNull()
+    expect(screen.queryByTestId('admin-roles-page')).toBeNull()
+  })
+})

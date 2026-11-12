@@ -43,4 +43,19 @@ describe('App', () => {
     expect(screen.getByRole('link', { name: 'Assets' }).getAttribute('href')).toBe('/inventory/assets')
     expect(await screen.findByTestId('inventory-assets-page')).not.toBeNull()
   })
+
+  it('a remounted App reloads the route of the URL it is mounted at, not the one it last showed', async () => {
+    window.scrollTo = () => undefined
+    const { default: App } = await import('./App')
+    window.history.pushState(null, '', '/inventory/assets')
+    const first = render(<App />)
+    expect(await screen.findByTestId('inventory-assets-page')).not.toBeNull()
+    first.unmount()
+
+    window.history.pushState(null, '', '/inventory/nope/nothing')
+    render(<App />)
+
+    expect(await screen.findByTestId('inventory-not-found-page')).not.toBeNull()
+    expect(screen.queryByTestId('inventory-assets-page')).toBeNull()
+  })
 })
