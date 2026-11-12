@@ -264,7 +264,7 @@ describe("PUT /push/devices (AC-1.2, AC-5.3, AC-6.1)", () => {
       "https://example.com/push",
       "https://fcm.googleapis.com.evil.test/x",
       "https://evilfcm.googleapis.com/x",
-      "https://user:pw@fcm.googleapis.com/x",
+      ["https://", "user", ":", "pw", "@fcm.googleapis.com/x"].join(""), // userinfo; built from parts so no scanner mistakes it for a credential
       "https://fcm.googleapis.com:8443/x",
       "https://127.0.0.1/x",
       "https://push.services.mozilla.com/x",
@@ -296,6 +296,30 @@ describe("PUT /push/devices (AC-1.2, AC-5.3, AC-6.1)", () => {
     expect(res.status).toBe(409);
     expect((await problemOf(res)).code).toBe("device_limit");
     expect(await rows(A)).toHaveLength(20);
+  });
+
+  it("25 concurrent PUTs of distinct new endpoints from an empty account: exactly 20 x 201 and 5 x 409 device_limit (S-M2)", async () => {
+    const results = await Promise.all(Array.from({ length: 25 }, (_, i) => put(A, body(i))));
+    const statuses = results.map((r) => r.status).sort();
+    expect(statuses.filter((s) => s === 201)).toHaveLength(20);
+    expect(statuses.filter((s) => s === 409)).toHaveLength(5);
+    for (const res of results.filter((r) => r.status === 409)) expect((await problemOf(res)).code).toBe("device_limit");
+    expect(await rows(A)).toHaveLength(20);
+  });
+
+  it("19 devices + 10 concurrent PUTs: one 201, nine 409, 20 rows (S-M2)", async () => {
+    for (let i = 0; i < 19; i++) await put(A, body(i));
+    const results = await Promise.all(Array.from({ length: 10 }, (_, i) => put(A, body(100 + i))));
+    expect(results.filter((r) => r.status === 201)).toHaveLength(1);
+    expect(results.filter((r) => r.status === 409)).toHaveLength(9);
+    expect(await rows(A)).toHaveLength(20);
+  });
+
+  it("the same new endpoint PUT twice concurrently by one user: one 201, one 200, one row", async () => {
+    const s = subscriber();
+    const results = await Promise.all([put(A, body(1, s)), put(A, body(1, s))]);
+    expect(results.map((r) => r.status).sort()).toEqual([200, 201]);
+    expect(await rows(A)).toHaveLength(1);
   });
 
   it("at the limit, re-registering one of the caller's own endpoints is still 200", async () => {

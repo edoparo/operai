@@ -35,11 +35,10 @@ import {
   PushProblemSchema,
   RegisterDeviceSchema,
 } from "./devices.schemas";
-import { countByUser, deleteByIdForUser, listByUser, upsertByEndpoint, type PushDeviceRow } from "./devices.repo";
+import { MAX_DEVICES_PER_USER, deleteByIdForUser, listByUser, upsertByEndpoint, type PushDeviceRow } from "./devices.repo";
 import { deviceLabel } from "./deviceLabel";
 import { isAllowedPushEndpoint } from "./pushEndpoint";
 
-const MAX_DEVICES_PER_USER = 20;
 const BODY_SIZE_LIMIT = 8 * 1024; // 8 KiB (plan.md §API contracts)
 
 /** Problem JSON plus the `code` extension member. */
@@ -165,23 +164,6 @@ pushDevicesRouter.openapi(registerRoute, async (c) => {
 
   const failure = () => new Error("Unexpected database failure registering a push device");
 
-  // The limit only applies to a NEW endpoint for the caller: re-registering one of their own
-  // is an update. A row held by another account would become the caller's, so it counts as new
-  // (it is not in the caller's own list). Not atomic with the upsert: two concurrent first
-  // registrations at 19 devices can both pass, ending at 21: harmless, and prune/remove trim it.
-  const count = await Effect.runPromiseExit(countByUser(userId));
-  if (count._tag === "Failure") throw failure();
-  if (count.value >= MAX_DEVICES_PER_USER) {
-    const own = await Effect.runPromiseExit(listByUser(userId));
-    if (own._tag === "Failure") throw failure();
-    if (!own.value.some((d) => d.endpoint === endpoint)) {
-      return c.json(
-        coded(409, "Conflict", "device_limit", `At most ${MAX_DEVICES_PER_USER} devices per account`, c.req.path),
-        409,
-      );
-    }
-  }
-
   const exit = await Effect.runPromiseExit(
     upsertByEndpoint({
       userId,
@@ -193,7 +175,15 @@ pushDevicesRouter.openapi(registerRoute, async (c) => {
   );
   if (exit._tag === "Failure") throw failure();
 
-  return c.json(toDto(exit.value.device), exit.value.outcome === "created" ? 201 : 200);
+  // The cap is decided inside the repository's transaction (atomic, S-M2); "limit" wrote nothing.
+  const result = exit.value;
+  if (result.outcome === "limit") {
+    return c.json(
+      coded(409, "Conflict", "device_limit", `At most ${MAX_DEVICES_PER_USER} devices per account`, c.req.path),
+      409,
+    );
+  }
+  return c.json(toDto(result.device), result.outcome === "created" ? 201 : 200);
 });
 
 // ─── GET /push/devices ───────────────────────────────────────────────────────
