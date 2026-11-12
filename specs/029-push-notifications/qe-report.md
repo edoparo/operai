@@ -1,6 +1,85 @@
 # QE report: specs/029-push-notifications
 
-## QE verdict: FAIL        (L5 re-verification, measured at 9b394e13, full mode, rigor production)
+## QE verdict: FAIL        (D-5 re-verification, measured at 64722e10, full mode, rigor production)
+
+D-5 (blank page on bare tool URLs) is FIXED and the L5 leak fix still holds, but two defects that no earlier pass could see
+because earlier passes did not run these checks remain open: **D-6** browser Back/Forward inside any tool changes the address
+and leaves the old page on screen, and **D-7** the whole-suite e2e run is red on two `meetings-capture` tests because 029's
+boot code now creates an IndexedDB database on every browser. Neither is caused by the D-5 commit (D-6 is reproduced with the old
+router shape too; D-7 comes from T8). T12 rows stay pending (human). Working tree at 64722e10 plus two UNCOMMITTED QE spec
+files under `shell/e2e/` (listed under "Tests added by QE"); no product code touched. Scripts and outputs in `/private/tmp/claude-501/-Users-matteocodogno-LAB-aiscream-operai/39cd1c38-0ef8-4330-af42-72ff15685521/scratchpad/` and `/private/tmp/claude-501/-Users-matteocodogno-LAB-aiscream-operai/39cd1c38-0ef8-4330-af42-72ff15685521/scratchpad/r4/`
+(`ext.mjs`, `ext-nav.txt`, `ext2.txt`, `back.mjs`, `exp.mjs`, `exp2.mjs`, `exp3.mjs`, `idb.mjs`, `r5-uicheck.txt`, `r5-e2e-full.txt`, `r5-rl.txt`, `r5-rh.txt`, `r5-<app>.txt`).
+
+## D-5 re-verification
+
+| Check | Threshold | Actual | Result |
+|---|---|---|---|
+| `mise run ui:check` | exit 0 | exit 0: operai-ui 184, shell 585, refund-ui 751, meetings-ui 1002 tests pass; lint, typecheck, Storybook build ok | ✓ |
+| The other six frontends (not in `ui:check`): `pnpm lint && pnpm build && pnpm test` | all exit 0 | estimai 360, inventory 1056, crm 240, admin 567, notify 50, projects 418 tests pass; lint and build exit 0 each | ✓ |
+| `node scripts/check-react-skew.mjs` | OK | OK (10 frontends, react 19.2.7, router 1.170.46) | ✓ |
+| `mise run changeset:check` | OK | OK (matched `release-router-history-on-unmount.md`, `router-per-mount-and-tanstack-alignment.md`, `router-survives-hide-and-reveal.md`, `web-push-notifications.md`) | ✓ |
+| Bare tool URL, full load, 10 mount points (`matrix.mjs`) | content | estimai, refund, inventory, crm, admin land on the redirect target and render; meetings, projects, notify, devices, my-meetings render | ✓ |
+| SPA from `/crm/pipeline` to each of the 10 (`matrix.mjs`) | content | all 10 render | ✓ |
+| 28-step walk + sidebar clicks + 22 Back steps (`walk.mjs`) | right page, 0 blank | 0 blank, 0 page errors, only the expected 403s (refund remote for an admin without refund access) | ✓ (heading-level staleness is not seen by this script; see D-6) |
+| Leak, 10 cycles per mount point (`leak.mjs`): net `popstate` and `beforeunload` listeners, `pushState`/`replaceState` identity vs the shell-only baseline | 0 and identity | 9 mount points (projects, meetings, notify, crm, inventory, estimai, refund, admin, my-meetings): 0 / 0 and `===` after cycles 1, 5 and 10 | ✓ |
+| Leak, 12 cycles on three more mount points (`ext.mjs leak`) | same | `/devices`, `/crm/contacts`, `/projects/tasks`: 0 / 0 / identity at cycles 1, 6, 12; 0 blank | ✓ |
+| LIFO interleaving: 60 random hops over 12 routes with random leave-mid-load delays, then every gated tool opened, back to /account (`ext.mjs random`) | no blank, baseline restored | 0 blank mid-run, all 6 tools open afterwards, at /account listeners 0 and identity true, 0 page/console errors | ✓ |
+| Leave while the Suspense fallback shows: network throttled (350 ms latency, 300 kB/s, cache off), leave after 150-750 ms, 16 rounds over 8 remotes (`ext.mjs slow`) | no blank, no leak | fallback seen in 16 of 16 rounds; afterwards all 6 tools render, listeners 0, identity true, 0 errors | ✓ |
+| CRM deal page + `HostMeetings` panel, 10 visits (new `router-lifecycle.spec.ts`) | card renders each time, nothing accumulates | passes: Meetings region and deal title every visit, popstate count identical on all 10 visits, 0 and identity restored at /account | ✓ |
+| Floating `RecorderDock` mounted next to CRM/Projects 10 times via the widget's Open meeting (new `router-lifecycle.spec.ts`) | nothing accumulates | passes: popstate count constant per phase over 10 cycles, 0 and identity restored after Stop and leaving | ✓ |
+| In-remote links, forward direction, every remote (`ext.mjs nav`) | URL and page update | clicking each tab/link updates the address and the page in estimai (only one screen), refund, inventory, crm, meetings, projects, admin; notify, devices, my-meetings single screen | ✓ |
+| **Browser Back/Forward inside a remote** (`ext.mjs nav`, `back.mjs`, new `remote-history.spec.ts`) | the page named by the address | **address changes, page does not**: after Back from `/crm/tasks` the URL is `/crm/contacts` and the page, its heading and the `aria-current` tab still say Tasks; same for Forward; stays until a reload. admin, inventory, projects, crm fail in the new spec at the first Back; refund and meetings show the same in `ext-nav.txt` | ✗ (D-6) |
+| e2e whole suite (`pnpm e2e`, 117 tests, run 1) | all pass | 115 passed, 2 failed (both `meetings-capture.spec.ts`, see D-7) | ✗ (D-7) |
+| e2e `tool-entry.spec.ts` (the dev's 11 tests, inside the whole run) | pass | all 11 pass | ✓ |
+| e2e the 029 specs (`notifications.spec.ts`, `push-notifications.spec.ts`, inside the whole run) | pass | all pass, including `notifications.spec.ts` AC-2.5 (the L5 failure) | ✓ |
+| Dev servers served 64722e10 | yes | the live served `crm-ui/src/App.tsx` contains `DisposableRouterHost` | ✓ |
+| Console / page errors across the live scripts | 0 | 0 page errors; console errors only the 4 expected 403s | ✓ |
+| `.changeset/release-router-history-on-unmount.md` accurate | text matches the code | wrong: describes the removed `useDisposableRouter` hook ("now creates the router on mount and destroys its history on unmount ... safe under StrictMode"); `router-survives-hide-and-reveal.md` says it was replaced, so the two changelog entries contradict each other | ✗ (docs defect D-8) |
+
+### Defects
+
+**D-6 (medium, functional; MISSED EARLIER, not new since the D-5 fix). Browser Back/Forward inside a tool shows the previous address with the current page.**
+
+- Class: every tool with more than one screen. Placements (live, `ext-nav.txt`, and the new spec): CRM Companies -> Contacts -> Tasks, Back x2, Forward x2 ✗ (heading and `aria-current` stay on Tasks); Admin Roles/Departments/Users ✗; Inventory Assets/Rules/Years ✗; Projects list/My tasks ✗; Refund (requests/review) ✗ and Meetings (list/templates/erase) ✗ in `ext-nav.txt` (same signature drift; the new spec does not drive these two). Single-screen mounts (estimai list, notify, devices, my-meetings) cannot show it. Cross-tool Back (tool to tool) is correct: the 22-step Back chain in `walk.mjs` renders the right tool every time.
+- Repro: seeded admin, open `/crm/companies`, click Contacts, click Tasks, press the browser's Back. URL `/crm/contacts`, page still Tasks. A reload shows Contacts. Clicking a link afterwards works, the next Back is stale again (`exp3.mjs`).
+- Evidence about cause (not a fix): the remote's own `popstate` handler DOES run (instrumented: both the shell's and the CRM's `onPushPopEvent` fire, `exp2.mjs`), so the history is subscribed. Replacing the `DisposableRouterHost` with a module-level singleton router (what `main` has) through a Playwright route on `crm-ui/src/App.tsx` gives exactly the same stale result (`exp.mjs singleton` vs `exp.mjs host`), so the D-5 host is not the cause and this was equally present at 85fcb037/5ee89091. What is NOT known: whether it is also stale on `main` itself. `main` uses `@tanstack/react-router` 1.170.17 everywhere; this branch moved shell and all remotes to 1.170.46 (86496298, the E-1 alignment). A main stack could not be run beside the dev one (the auth CORS list names only `http://localhost:5173`). The dev should compare on the old router version before choosing a fix. Hypothesis only: the shell hides the remote subtree on each URL change (the D-5 comment), and the router update triggered by a `popstate` renders into a tree that stays on the old match.
+- Missing test: `shell/e2e/remote-history.spec.ts` (uncommitted, red on purpose, 4 tests; each fails at its first `goBack`, forward clicks pass). Add a component-level test that mounts a real tool router through the shell's Suspense and presses Back.
+
+**D-7 (medium, regression of an existing journey; MISSED EARLIER, caused by 029 T8 d0419315, not by D-5). `operai-push` IndexedDB database exists on every browser that loads Operai, which breaks two `meetings-capture` e2e tests.**
+
+- Failures: `meetings-capture.spec.ts:146` "closing the page mid-recording ... Discard leaves the device clean (AC-2.8, AC-4.11)" (2.6 m) and `:237` "after Stop the browser storage is empty (AC-4.11)": `expect(baseline).toEqual({ local: [], session: [], indexedDb: [], caches: [] })` receives `indexedDb: ["operai-push"]`. The recording journeys themselves passed up to that assertion (the offline-40-s test and the recorder-widget journey of the same file pass, and so does the keyboard test).
+- Cause (verified): a brand-new user who only loads `/account`, never touching push, already has `["operai-push"]` in `indexedDB.databases()` (`idb.mjs`). `initPush` at shell boot runs `reconcilePush`, which opens the store (`openStore`, `indexedDB.open('operai-push', 1)`) to read the this-browser marker and so creates the database empty. Contents are a device id, not audio, so meetings AC-4.11 ("audio never written to the device") is not violated; the e2e's blanket "nothing in IndexedDB" assertion is.
+- Two possible fixes for the owner (spec / plan call, not QE): read the marker without creating the database (e.g. look for it in `indexedDB.databases()` first), or amend the meetings e2e to allow `operai-push` as the one known database and say why. Either way a person decides because the second edits another feature's acceptance journey. Not a flake: both runs of both tests are deterministic on this assertion.
+- Why earlier passes did not see it: they ran only the 029 specs plus a few non-029 ones; this is the first whole-suite run on the branch.
+
+**D-8 (low, docs). `.changeset/release-router-history-on-unmount.md` still describes `useDisposableRouter`.** It names the removed hook and claims "safe under React StrictMode"; with `router-survives-hide-and-reveal.md` in the same release the generated changelog would carry both. Reword it to `DisposableRouterHost` or fold it into the second changeset (the first one's bump list is the same nine packages). Also left over: spec/QE history mentions of the old hook are history, no action.
+
+### Passing and unchanged
+
+D-5: fixed and verified on all ten mount points, full load and SPA, with a throttled-network leave-mid-load storm and 60 random LIFO hops. L5 leak fix: holds, now also for `/devices`, `/crm/contacts`, `/projects/tasks`, the CRM deal's `HostMeetings` panel and the floating `RecorderDock` (10 cycles each). Gates green on all nine frontends. No console or page errors beyond the expected 403s. Not touched: 029 ACs, the push/auth/notify-api results of earlier sections.
+
+### Environment notes (not defects)
+
+- For the refund checks the local QE user `qe-e1r3admin@operai.test` was granted the `accounting` role (global) with the same fixture the e2e uses (`auth/scripts/e2e-invite-fixtures.ts grant-refund-accounting`); a dev database row, not product state. e2e persons are created and cleaned by the suite's own helpers.
+- `test-results/` under `shell/` holds Playwright artefacts from this pass (ignored by git).
+
+### Tests added by QE (UNCOMMITTED, per the brief)
+
+- `/Users/matteocodogno/LAB/aiscream/operai/shell/e2e/router-lifecycle.spec.ts`: 2 tests, both PASS (CRM deal + HostMeetings 10 visits; RecorderDock 10 mounts). Their sensitivity was seen: a first version with a wrong baseline failed on the wrapper-identity assertion, and a first version with the wrong selector failed on the card.
+- `/Users/matteocodogno/LAB/aiscream/operai/shell/e2e/remote-history.spec.ts`: 4 tests, all FAIL today (D-6). It should be committed with the fix (red until then), or kept out of the tree until a dev picks D-6 up; the caller decides.
+
+### Blocked / pending
+
+- pending T12 (human): unchanged (real push delivery on Chrome/Edge/Firefox, Edge WNS host, AC-7.7 deployed pair, stored-href, ADR-0084 sign-off, Meetings-exclusion decision).
+- Re-verification needs D-6 and D-7 fixed (D-8 with them): `cd shell && E2E_ESTIMAI_REMOTE_PORT=5174 E2E_REFUND_REMOTE_PORT=5175 E2E_NOTIFY_REMOTE_PORT=5176 E2E_ADMIN_REMOTE_PORT=5177 E2E_INVENTORY_REMOTE_PORT=5178 E2E_CRM_REMOTE_PORT=5179 E2E_MEETINGS_REMOTE_PORT=5180 E2E_PROJECTS_REMOTE_PORT=5181 pnpm e2e` (all 121 tests green, including `remote-history.spec.ts`), then `node /private/tmp/claude-501/-Users-matteocodogno-LAB-aiscream-operai/39cd1c38-0ef8-4330-af42-72ff15685521/scratchpad/r4/ext.mjs nav` (no STALE lines) and `leak.mjs`.
+- This is fix round 4 on the router work; the caller decides on escalation under the rigor rules (D-6 is a decision about the TanStack version or the shell/remote suspense seam, which may be a plan change).
+- owasp-reviewer: still recommended, as before (L5 is closed by evidence here; the reviewer should confirm).
+
+---
+
+## Superseded: L5 re-verification (measured at 9b394e13)
+
+## QE verdict: FAIL        (L5 re-verification, measured at 9b394e13, full mode, rigor production) -- superseded
 
 Commit 9b394e13 (`useDisposableRouter`) fixes the leak it targets, but it BREAKS every remote whose index route redirects
 (estimai, refund, inventory, crm, admin): they render an empty page. Previous verdict at 85fcb037 was PASS; this pass supersedes it
