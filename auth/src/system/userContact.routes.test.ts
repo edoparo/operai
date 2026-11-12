@@ -30,6 +30,9 @@ const SERVICE_AUDIENCE = "operai-user-contact-test";
 const URL_PATH = "/system/users/contact";
 const RUN_ID = crypto.randomUUID().slice(0, 8);
 
+// TRANSITIONAL (specs/029 T14): the retired address-keyed default; replaced by the AC-7.x rows in T15/T16.
+const LEGACY_ADDRESS_LIMIT = 20;
+
 const mutableEnv = env as unknown as Record<string, unknown>;
 const saved = { audience: env.SERVICE_AUDIENCE };
 const userIds: string[] = [];
@@ -210,7 +213,7 @@ describe("POST /system/users/contact — rate limit", () => {
         headers: { "Content-Type": "application/json", "X-Forwarded-For": ip, Authorization: `Bearer ${token}` },
         body: JSON.stringify({ userId: activeId }),
       });
-    for (let i = 0; i < env.SERVICE_TOKEN_RATE_LIMIT; i++) expect((await call()).status).toBe(200);
+    for (let i = 0; i < LEGACY_ADDRESS_LIMIT; i++) expect((await call()).status).toBe(200);
     const res = await call();
     expect(res.status).toBe(429);
     expect(res.headers.get("Retry-After")).toBeTruthy();

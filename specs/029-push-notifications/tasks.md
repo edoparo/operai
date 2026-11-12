@@ -55,7 +55,7 @@ Re-sync 2026-11-12 (QE round 0 FAIL + security review FAIL; spec re-approved wit
   - touch: `infra/README.md`, `AGENTS.md`, `.changeset/*`
   - done when: `infra/README.md` documents VAPID key generation, 1Password storage, `PUSH_ENABLED`/`PUSH_EXCLUDED_ORIGINS`, and that rotation invalidates every subscription; AGENTS.md's notify-api and shell descriptions mention the push channel, the `/push/*` routes and `/push-sw.js`; one changeset selects `@operai/notify-api` and `@operai/shell` (minor); `mise run changeset:check` green.
 
-- [ ] T14: auth — shared system rate limits, `maxKeys`, env and retired vars — refs: AC-7.4, AC-7.5, AC-7.6 — deps: none
+- [x] T14: auth — shared system rate limits, `maxKeys`, env and retired vars — refs: AC-7.4, AC-7.5, AC-7.6 — deps: none
   - touch: `auth/src/system/systemRateLimits.ts`, `auth/src/system/systemRateLimits.test.ts`, `auth/src/lib/rateLimiter.ts`, `auth/src/lib/rateLimiter.test.ts`, `auth/src/lib/env.ts`, `auth/src/system/env.startup.test.ts`, `auth/.env.example`, `tools/env-doctor/manifest.ts`, `tools/env-doctor/*.test.ts`
   - done when: plan § API contracts "auth" + the "US-7 support" test row pass — `createSystemRateLimits` (per-service allowances 300/600, one per-address invalid count shared by both endpoints, one `tooManyRequests` builder with fixed `Retry-After`), `maxKeys` overflow semantics, the four env defaults and bounds (exit 1 on bad values), retired `SERVICE_TOKEN_RATE_*` → startup warning naming them, values ignored; env-doctor flags the retired names on `auth` (`FORBIDDEN_VARS`); `cd auth && direnv exec . bun test` and typecheck green.
 

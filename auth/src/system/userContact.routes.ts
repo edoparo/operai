@@ -112,6 +112,11 @@ export const jwksFromAuth =
 
 // ─── Router ──────────────────────────────────────────────────────────────────
 
+// TRANSITIONAL (specs/029 T14 → T15/T16): the retired SERVICE_TOKEN_RATE_* defaults, until this route
+// moves to the verify-first limits of systemRateLimits.ts.
+const LEGACY_ADDRESS_LIMIT = 20;
+const LEGACY_ADDRESS_WINDOW_MS = 600_000;
+
 const unauthorized = (path: string) => ({
   type: "https://httpstatuses.com/401",
   title: "Unauthorized",
@@ -122,8 +127,8 @@ const unauthorized = (path: string) => ({
 
 export function createUserContactRouter(deps: { getJwks: GetServiceJwks }) {
   const limiter = createSlidingWindowRateLimiter({
-    limit: env.SERVICE_TOKEN_RATE_LIMIT,
-    windowMs: env.SERVICE_TOKEN_RATE_WINDOW_MS,
+    limit: LEGACY_ADDRESS_LIMIT,
+    windowMs: LEGACY_ADDRESS_WINDOW_MS,
   });
 
   const rateLimit = createMiddleware(async (c, next) => {

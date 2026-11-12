@@ -107,3 +107,58 @@ describe("createSlidingWindowRateLimiter", () => {
     expect(result.allowed).toBe(true);
   });
 });
+
+describe("createSlidingWindowRateLimiter — maxKeys (specs/029 US-7, R13)", () => {
+  const make = (maxKeys?: number) =>
+    createSlidingWindowRateLimiter({ limit: 2, windowMs: 1000, ...(maxKeys === undefined ? {} : { maxKeys }) });
+
+  test("unset: every key keeps its own count (existing limiters unchanged)", () => {
+    const limiter = make();
+    const now = 9_000_000;
+    for (let i = 0; i < 200; i++) {
+      expect(limiter.consume(`k${i}`, now).allowed).toBe(true);
+      expect(limiter.consume(`k${i}`, now).allowed).toBe(true);
+    }
+    expect(limiter.consume("k0", now).allowed).toBe(false);
+  });
+
+  test("at the cap a NEW key shares one overflow key; existing keys keep their own counts", () => {
+    const limiter = make(3);
+    const now = 9_100_000;
+    limiter.consume("a", now);
+    limiter.consume("b", now);
+    limiter.consume("c", now);
+    // d, e, f are new: they all count under the one overflow key (limit 2)
+    expect(limiter.consume("d", now).allowed).toBe(true);
+    expect(limiter.consume("e", now).allowed).toBe(true);
+    expect(limiter.consume("f", now).allowed).toBe(false);
+    // an existing key is untouched by the overflow
+    expect(limiter.consume("a", now).allowed).toBe(true);
+    expect(limiter.consume("a", now).allowed).toBe(false);
+  });
+
+  test("pruning frees capacity: after the window a new key has its own count again", () => {
+    const limiter = make(2);
+    const t0 = 9_200_000;
+    limiter.consume("a", t0);
+    limiter.consume("b", t0);
+    limiter.consume("c", t0);
+    limiter.consume("c", t0);
+    expect(limiter.consume("c", t0).allowed).toBe(false); // overflow exhausted
+    const later = t0 + 1500;
+    expect(limiter.consume("c", later).allowed).toBe(true);
+    expect(limiter.consume("c", later).allowed).toBe(true);
+    expect(limiter.consume("c", later).allowed).toBe(false); // own key now, limit 2
+    expect(limiter.consume("zz", later).allowed).toBe(true); // other new key not blocked by overflow
+  });
+
+  test("a refused attempt at the cap is not recorded (does not extend the refusal)", () => {
+    const limiter = make(1);
+    const t0 = 9_300_000;
+    limiter.consume("a", t0);
+    limiter.consume("n1", t0);
+    limiter.consume("n2", t0);
+    expect(limiter.consume("n3", t0 + 900).allowed).toBe(false);
+    expect(limiter.consume("n3", t0 + 1001).allowed).toBe(true);
+  });
+});

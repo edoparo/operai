@@ -53,7 +53,18 @@ export interface RateLimiterOptions {
    * by `consume`, so this only affects keys that go permanently quiet.
    */
   pruneIntervalMs?: number;
+  /**
+   * Upper bound on distinct keys held (default: unbounded, so existing limiters
+   * are unchanged). When the map holds `maxKeys` keys after pruning, a NEW key
+   * is counted under one shared overflow key instead of getting its own entry;
+   * keys already present keep their own counts. Bounds memory when the key is
+   * attacker-spread (a source address, specs/029 US-7 R13).
+   */
+  maxKeys?: number;
 }
+
+/** Counted in place of any new key past `maxKeys`. Not a value a caller can choose (NUL-prefixed). */
+const OVERFLOW_KEY = "\u0000overflow";
 
 /**
  * Creates an in-process sliding-window `RateLimiter`. Two calls with the same
@@ -66,8 +77,14 @@ export function createSlidingWindowRateLimiter(
   const { limit, windowMs } = options;
   const pruneIntervalMs = options.pruneIntervalMs ?? windowMs;
 
+  const { maxKeys } = options;
+  // At the cap a prune is attempted per new key, so throttle it: a flood of
+  // distinct keys must not turn every request into a full sweep.
+  const capPruneMinMs = Math.min(1000, pruneIntervalMs);
+
   const hits = new Map<string, number[]>();
-  let lastPruneAt = Date.now();
+  // Set by the first consume, so an injected clock (tests) and the real one both measure from their own start.
+  let lastPruneAt: number | undefined;
 
   function freshTimestamps(timestamps: number[], now: number): number[] {
     return timestamps.filter((t) => now - t < windowMs);
@@ -87,8 +104,14 @@ export function createSlidingWindowRateLimiter(
 
   return {
     consume(key: string, now = Date.now()): RateLimitResult {
+      lastPruneAt ??= now;
       if (now - lastPruneAt >= pruneIntervalMs) {
         pruneAll(now);
+      }
+
+      if (maxKeys !== undefined && !hits.has(key) && hits.size >= maxKeys) {
+        if (now - lastPruneAt! >= capPruneMinMs) pruneAll(now);
+        if (!hits.has(key) && hits.size >= maxKeys) key = OVERFLOW_KEY;
       }
 
       const existing = freshTimestamps(hits.get(key) ?? [], now);

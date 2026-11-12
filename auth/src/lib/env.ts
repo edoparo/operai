@@ -132,12 +132,20 @@ const envSchema = z.object({
       }
       return parsed.clients;
     }),
-  // Rate limit for the unauthenticated-by-design token endpoint, keyed by the
-  // caller's network address (see system/serviceToken.routes.ts). A legitimate
-  // client mints about one token per 4 minutes, so the default is generous
-  // enough never to bite a healthy caller across restarts and instances.
-  SERVICE_TOKEN_RATE_LIMIT: z.coerce.number().int().positive().default(20),
-  SERVICE_TOKEN_RATE_WINDOW_MS: z.coerce.number().int().positive().default(600000),
+  // ─── Limits of the two /system endpoints (specs/029 US-7, ADR-0086) ──────────
+  // `POST /system/service-token` and `POST /system/users/contact` verify the
+  // credential FIRST, then consult exactly one count: a valid credential is
+  // counted against its own calling service, an invalid one against its source
+  // address (one counter shared by both endpoints). See system/systemRateLimits.ts.
+  // All optional; they share one window. A legitimate service mints about 3
+  // tokens per 10 minutes, and notify-api does one lookup per email notice and
+  // at most one per push recipient per 30 s, so the defaults are far above use.
+  SERVICE_TOKEN_SERVICE_LIMIT: z.coerce.number().int().positive().default(300),
+  USERS_CONTACT_SERVICE_LIMIT: z.coerce.number().int().positive().default(600),
+  SYSTEM_INVALID_CREDENTIAL_LIMIT: z.coerce.number().int().positive().default(20),
+  SYSTEM_RATE_WINDOW_MS: z.coerce.number().int().min(1000).default(600000),
+  // SERVICE_TOKEN_RATE_LIMIT / SERVICE_TOKEN_RATE_WINDOW_MS (one address-keyed bucket for the whole
+  // suite, the D-1 starvation) are RETIRED: not read, see RETIRED_SYSTEM_RATE_VARS below.
   // ─── User directory (specs/015-hardware-inventory, T5; ADR-0047) ────────────
   // `GET /authz/users/directory` returns the roster of active users to holders
   // of the inventory `asset:manage` permission. Unlike app-access-check there
@@ -198,6 +206,19 @@ if (!result.success) {
     console.error(`  ${key}: ${messages?.join(", ")}`);
   }
   process.exit(1);
+}
+
+// Retired by specs/029 US-7 (ADR-0086). Ignored, never reused under a new meaning: an override sized for
+// the old per-address rule (20, or the runbook's 60) would silently cap a service below its allowance.
+// A warning rather than a refusal: an unknown variable stopping `auth` is a deploy-order hazard (ADR-0076).
+// Names only, never a value.
+const RETIRED_SYSTEM_RATE_VARS = ["SERVICE_TOKEN_RATE_LIMIT", "SERVICE_TOKEN_RATE_WINDOW_MS"] as const;
+const retiredPresent = RETIRED_SYSTEM_RATE_VARS.filter((name) => process.env[name] !== undefined);
+if (retiredPresent.length > 0) {
+  console.warn(
+    `[env] ${retiredPresent.join(", ")} ignored: retired by the per-service system limits ` +
+      "(SERVICE_TOKEN_SERVICE_LIMIT, USERS_CONTACT_SERVICE_LIMIT, SYSTEM_INVALID_CREDENTIAL_LIMIT, SYSTEM_RATE_WINDOW_MS). Delete them.",
+  );
 }
 
 export const env = result.data;

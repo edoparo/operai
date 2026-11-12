@@ -388,6 +388,26 @@ describe("env-doctor checker", () => {
     expect(f.some((x) => x.message.includes("NOTIFY_INTERNAL_TOKEN"))).toBe(false);
   });
 
+  // specs/029 US-7 (ADR-0086): the address-keyed pair is retired on auth; an override sized for the old
+  // rule (20, or the runbook's 60) would be ignored, so the leftover is flagged by name only.
+  for (const name of ["SERVICE_TOKEN_RATE_LIMIT", "SERVICE_TOKEN_RATE_WINDOW_MS"]) {
+    test(`auth holding the retired ${name} → error naming it, value never printed; other services are not flagged`, () => {
+      const s = validSuite();
+      s.auth![name] = "4242";
+      const f = checkSuite(s, PROD);
+      expect(errText(f)).toContain(`auth must not hold ${name}`);
+      expect(JSON.stringify(f)).not.toContain("4242");
+      expect(errs(f).filter((x) => x.message.includes(name)).map((x) => x.scope)).toEqual(["auth"]);
+      const other = validSuite();
+      other["refund-api"]![name] = "4242";
+      expect(errText(checkSuite(other, PROD))).not.toContain(name);
+    });
+  }
+
+  test("auth without the retired rate variables has no finding about them", () => {
+    expect(checkSuite(validSuite(), PROD).some((x) => x.message.includes("SERVICE_TOKEN_RATE"))).toBe(false);
+  });
+
   test("service client: id not registered in auth's SERVICE_CLIENTS → error", () => {
     const s = validSuite();
     s["inventory-api"]!.SERVICE_CLIENT_ID = "inventory-api-2";

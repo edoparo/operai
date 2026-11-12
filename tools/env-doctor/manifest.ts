@@ -134,6 +134,20 @@ export const FORBIDDEN_VARS: ReadonlyArray<{ name: string; services: ServiceName
     services: ["auth", "estimai-api", "notify-api", "refund-api", "inventory-api", "crm-api", "meetings-api", "projects-api", "activities-api"],
     why: "the shared notify token was retired (specs/016, ADR-0049): every caller uses its own scoped service credential",
   },
+  // specs/029 US-7 (ADR-0086): the one address-keyed bucket of the two /system endpoints is replaced by
+  // per-service allowances. auth no longer reads these two; a leftover override sized for the old rule
+  // (20, or the runbook's 60) is ignored, so the deployment would believe in a cap that does not exist.
+  // Flagged by NAME, on auth only.
+  ...(
+    [
+      ["SERVICE_TOKEN_RATE_LIMIT", "use SERVICE_TOKEN_SERVICE_LIMIT / USERS_CONTACT_SERVICE_LIMIT / SYSTEM_INVALID_CREDENTIAL_LIMIT"],
+      ["SERVICE_TOKEN_RATE_WINDOW_MS", "use SYSTEM_RATE_WINDOW_MS"],
+    ] as const
+  ).map(([name, hint]) => ({
+    name,
+    services: ["auth"] as ServiceName[],
+    why: `retired by the per-service system limits (specs/029 US-7, ADR-0086): auth ignores it; ${hint}`,
+  })),
   // specs/021 plan § Amendment 2026-11-05 (G-7, ADR-0069): the provider change to Google Cloud retired
   // these seven names. meetings-api no longer reads them; a leftover is a live Azure or AWS credential
   // (or a stale setting) nobody uses, so it is made visible. Flagged by NAME, on meetings-api only.

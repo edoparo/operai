@@ -47,6 +47,9 @@ const SERVICE_AUDIENCE = "operai-service-routes-test";
 const SECRET = "dummy-routes-secret-0123456789-abcdefgh";
 const URL_PATH = "/system/service-token";
 
+// TRANSITIONAL (specs/029 T14): the retired address-keyed default; replaced by the AC-7.x rows in T15/T16.
+const LEGACY_ADDRESS_LIMIT = 20;
+
 const mutableEnv = env as unknown as Record<string, unknown>;
 const saved = { audience: env.SERVICE_AUDIENCE, clients: env.SERVICE_CLIENTS };
 
@@ -231,7 +234,7 @@ describe("POST /system/service-token — authentication failures (AC-2.9)", () =
 describe("POST /system/service-token — rate limiting (AC-2.9)", () => {
   test("the (limit+1)th attempt from one address is 429 with Retry-After; another address is unaffected", async () => {
     const ip = freshIp();
-    const limit = env.SERVICE_TOKEN_RATE_LIMIT;
+    const limit = LEGACY_ADDRESS_LIMIT;
     for (let i = 0; i < limit; i++) {
       // Failed attempts count too: the limiter is on the attempt, not the success.
       expect((await post({ clientId: "nobody", clientSecret: SECRET }, ip)).status).toBe(401);
@@ -249,7 +252,7 @@ describe("POST /system/service-token — rate limiting (AC-2.9)", () => {
 
   test("malformed bodies are counted too — probing with invalid input cannot dodge the limiter", async () => {
     const ip = freshIp();
-    for (let i = 0; i < env.SERVICE_TOKEN_RATE_LIMIT; i++) {
+    for (let i = 0; i < LEGACY_ADDRESS_LIMIT; i++) {
       expect((await post({}, ip)).status).toBe(400);
     }
     expect((await post({}, ip)).status).toBe(429);

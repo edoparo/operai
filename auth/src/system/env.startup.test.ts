@@ -21,12 +21,20 @@ const CLIENTS = JSON.stringify({ "inventory-api": { secret: SECRET, scope: "noti
 
 async function importEnv(
   overrides: Record<string, string | undefined>,
+  script = 'await import("./src/lib/env"); console.log("ENV_OK");',
 ): Promise<{ exitCode: number; output: string }> {
   const childEnv: Record<string, string> = {};
   for (const [key, value] of Object.entries({
     ...process.env,
     SERVICE_AUDIENCE: "operai-service-startup-default",
     SERVICE_CLIENTS: undefined,
+    // The four US-7 limits and the retired pair start unset, so a case sees only what it sets.
+    SERVICE_TOKEN_SERVICE_LIMIT: undefined,
+    USERS_CONTACT_SERVICE_LIMIT: undefined,
+    SYSTEM_INVALID_CREDENTIAL_LIMIT: undefined,
+    SYSTEM_RATE_WINDOW_MS: undefined,
+    SERVICE_TOKEN_RATE_LIMIT: undefined,
+    SERVICE_TOKEN_RATE_WINDOW_MS: undefined,
     ...overrides,
   })) {
     if (value !== undefined) childEnv[key] = value;
@@ -35,7 +43,7 @@ async function importEnv(
   // `--no-env-file`: Bun would otherwise load a developer's local env file from
   // `cwd` and put back the very variables a case removes.
   const child = Bun.spawn(
-    [process.execPath, "--no-env-file", "-e", 'await import("./src/lib/env"); console.log("ENV_OK");'],
+    [process.execPath, "--no-env-file", "-e", script],
     {
       cwd: AUTH_DIR,
       env: childEnv,
@@ -220,5 +228,74 @@ describe("lib/env.ts — ALLOWED_SIGNUP_DOMAINS (specs/023 AC-1.3, AC-5.1)", () 
     // Production may refuse for an unrelated missing variable; the domain list must not be the reason.
     expect(output).not.toContain("reserved test domain");
     if (exitCode === 0) expect(output).toContain("ENV_OK");
+  });
+});
+
+// specs/029 US-7 (ADR-0086): per-service allowances for the two /system endpoints, one window, and the
+// retired address-keyed pair. Printed by a child so the effective values are read exactly as the process sees them.
+const PRINT_LIMITS =
+  'const { env } = await import("./src/lib/env"); ' +
+  "console.log(JSON.stringify([env.SERVICE_TOKEN_SERVICE_LIMIT, env.USERS_CONTACT_SERVICE_LIMIT, " +
+  "env.SYSTEM_INVALID_CREDENTIAL_LIMIT, env.SYSTEM_RATE_WINDOW_MS]));";
+
+describe("lib/env.ts — system endpoint limits (specs/029 US-7, AC-7.1/7.2/7.5)", () => {
+  test("defaults: 300 tokens, 600 lookups, 20 invalid, 600000 ms window", async () => {
+    const { exitCode, output } = await importEnv({}, PRINT_LIMITS);
+    expect(exitCode).toBe(0);
+    expect(output).toContain("[300,600,20,600000]");
+  });
+
+  test("each value is configurable", async () => {
+    const { exitCode, output } = await importEnv(
+      {
+        SERVICE_TOKEN_SERVICE_LIMIT: "50",
+        USERS_CONTACT_SERVICE_LIMIT: "70",
+        SYSTEM_INVALID_CREDENTIAL_LIMIT: "5",
+        SYSTEM_RATE_WINDOW_MS: "1000",
+      },
+      PRINT_LIMITS,
+    );
+    expect(exitCode).toBe(0);
+    expect(output).toContain("[50,70,5,1000]");
+  });
+
+  test("exits non-zero naming the variable on a non-positive, fractional or non-numeric limit", async () => {
+    for (const name of ["SERVICE_TOKEN_SERVICE_LIMIT", "USERS_CONTACT_SERVICE_LIMIT", "SYSTEM_INVALID_CREDENTIAL_LIMIT"]) {
+      for (const bad of ["0", "-1", "1.5", "lots"]) {
+        const { exitCode, output } = await importEnv({ [name]: bad }, PRINT_LIMITS);
+        expect(exitCode).not.toBe(0);
+        expect(output).toContain(name);
+      }
+    }
+  });
+
+  test("exits non-zero naming SYSTEM_RATE_WINDOW_MS below 1000 ms", async () => {
+    for (const bad of ["0", "999", "-5", "abc", "1500.5"]) {
+      const { exitCode, output } = await importEnv({ SYSTEM_RATE_WINDOW_MS: bad }, PRINT_LIMITS);
+      expect(exitCode).not.toBe(0);
+      expect(output).toContain("SYSTEM_RATE_WINDOW_MS");
+    }
+    expect((await importEnv({ SYSTEM_RATE_WINDOW_MS: "1000" }, PRINT_LIMITS)).exitCode).toBe(0);
+  });
+
+  test("the retired SERVICE_TOKEN_RATE_* are ignored: start fine, values never used, one warning names them", async () => {
+    const { exitCode, output } = await importEnv(
+      { SERVICE_TOKEN_RATE_LIMIT: "7", SERVICE_TOKEN_RATE_WINDOW_MS: "4321" },
+      PRINT_LIMITS,
+    );
+    expect(exitCode).toBe(0);
+    expect(output).toContain("[300,600,20,600000]");
+    const warnings = output.split("\n").filter((l) => l.includes("SERVICE_TOKEN_RATE_LIMIT"));
+    expect(warnings).toHaveLength(1);
+    expect(warnings[0]).toContain("SERVICE_TOKEN_RATE_WINDOW_MS");
+    expect(warnings[0]).toContain("ignored");
+    expect(output).not.toContain("4321");
+  });
+
+  test("a retired value that would have been invalid does not stop the start; no warning when unset", async () => {
+    const bad = await importEnv({ SERVICE_TOKEN_RATE_LIMIT: "0", SERVICE_TOKEN_RATE_WINDOW_MS: "x" }, PRINT_LIMITS);
+    expect(bad.exitCode).toBe(0);
+    const clean = await importEnv({}, PRINT_LIMITS);
+    expect(clean.output).not.toContain("SERVICE_TOKEN_RATE");
   });
 });
