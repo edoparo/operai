@@ -6,8 +6,10 @@
  *
  * AUTH: a service JWT, and nothing else. `auth` verifies tokens it signed
  * itself, IN PROCESS, with `jose` against better-auth's own key set — the
- * rotating RS256 keys that `/auth/jwks` publishes (`auth.api.getJwks`), read
- * fresh per call so a rotation needs no restart. Checks, like notify-api's
+ * rotating RS256 keys that `/auth/jwks` publishes (`auth.api.getJwks`), held in
+ * memory and re-read only when a token names a `kid` the cache does not hold,
+ * at most once per 30 s (`jwksFromAuth`), so a new key needs no restart and a
+ * flood of invalid tokens costs no I/O. Checks, like notify-api's
  * `systemAuth.middleware`: RS256 pinned, issuer = BETTER_AUTH_URL, `aud` =
  * SERVICE_AUDIENCE (a user JWT carries AUTH_AUDIENCE and fails here), required
  * exp/sub/aud/iss, `sub` of the form `system:<client>`, and `users.contact` in
@@ -24,19 +26,27 @@
  * WHY A FACTORY: like serviceToken.routes.ts, the key source is injected so
  * this module never imports `auth.config` (test files mock it).
  *
- * RATE LIMITING reuses the `/system/service-token` mechanism and settings
- * (network address, every attempt counted ahead of auth and validation).
+ * LIMITS (specs/029 US-7, ADR-0086), shared with `/system/service-token`: the
+ * credential is verified FIRST, then exactly one count — a valid one (RS256,
+ * issuer, audience, `system:<id>` sub AND the `users.contact` scope) against its
+ * own calling service (the verified `sub`, 600 per 10 min); anything else,
+ * including a genuine service JWT that lacks the scope, against the source
+ * address (20 per 10 min, one counter shared with the token endpoint). Both
+ * refusals are the one 429 of `systemRateLimits.tooManyRequests`; no user is
+ * looked up for either, and over the allowance the body is not even read. The
+ * work for an invalid request is bounded and I/O-free: a 4 096-character token
+ * cap, the cached key set, one RS256 verify, no database.
  */
 
 import { createRoute, OpenAPIHono } from "@hono/zod-openapi";
-import { createMiddleware } from "hono/factory";
 import { errors as joseErrors, createLocalJWKSet, jwtVerify, type JWTVerifyGetKey } from "jose";
 import { z } from "zod";
 import { db } from "../lib/db";
 import { env } from "../lib/env";
-import { createSlidingWindowRateLimiter } from "../lib/rateLimiter";
+import { readJsonBody } from "./boundedBody";
 import { SERVICE_SUB_PREFIX } from "./serviceClients";
 import { callerAddress } from "./serviceToken.routes";
+import type { SystemRateLimits } from "./systemRateLimits";
 
 export const USERS_CONTACT_SCOPE = "users.contact";
 
@@ -96,7 +106,7 @@ const postUserContactRoute = createRoute({
 
 // ─── Key source seam ─────────────────────────────────────────────────────────
 
-/** Returns the key resolver used to verify a service JWT; called once per request. */
+/** Returns the key resolver used to verify a service JWT; called once per request (it does no I/O itself). */
 export type GetServiceJwks = () => Promise<JWTVerifyGetKey>;
 
 /** The slice of better-auth's `auth` object this needs: the jwt plugin's `getJwks`. */
@@ -104,18 +114,67 @@ export interface JwksAuth {
   api: { getJwks(): Promise<{ keys: unknown[] }> };
 }
 
-/** Production key source: better-auth's current key set, the one `/auth/jwks` serves. */
-export const jwksFromAuth =
-  (authLike: JwksAuth): GetServiceJwks =>
-  async () =>
-    createLocalJWKSet((await authLike.api.getJwks()) as Parameters<typeof createLocalJWKSet>[0]);
+/** Longest bearer token examined; real service tokens are a few hundred characters. */
+export const MAX_TOKEN_CHARS = 4096;
+
+/** A key set is read again for an unknown `kid` at most this often (R16). */
+export const JWKS_REREAD_COOLDOWN_MS = 30_000;
+
+/**
+ * Production key source: better-auth's current key set, the one `/auth/jwks`
+ * serves, CACHED. Verification of an invalid token must cost no I/O (ADR-0086):
+ * the set is held in memory and re-read only when a token's `kid` matches
+ * nothing in it, and a read — successful or not — starts a cooldown during which
+ * no other read happens, whatever the flood. better-auth's jwt plugin has no
+ * `rotationInterval` configured, so keys change only by deliberate action and a
+ * new `kid` is picked up at the first token that uses it after the cooldown; a
+ * valid token refused inside that window is answered 401 (R16). Concurrent
+ * callers share one read.
+ */
+export function jwksFromAuth(
+  authLike: JwksAuth,
+  options: { now?: () => number; cooldownMs?: number } = {},
+): GetServiceJwks {
+  const now = options.now ?? Date.now;
+  const cooldownMs = options.cooldownMs ?? JWKS_REREAD_COOLDOWN_MS;
+
+  let keySet: JWTVerifyGetKey | null = null;
+  let lastReadAt: number | undefined;
+  let inflight: Promise<void> | null = null;
+
+  const cooledDown = () => lastReadAt === undefined || now() - lastReadAt >= cooldownMs;
+
+  const reload = (): Promise<void> => {
+    inflight ??= (async () => {
+      lastReadAt = now();
+      try {
+        keySet = createLocalJWKSet((await authLike.api.getJwks()) as Parameters<typeof createLocalJWKSet>[0]);
+      } catch (err) {
+        // The error class only: nothing about keys or the database.
+        console.warn("[system-jwt] key set read failed:", err instanceof Error ? err.constructor.name : "unknown");
+      } finally {
+        inflight = null;
+      }
+    })();
+    return inflight;
+  };
+
+  const resolver: JWTVerifyGetKey = async (header, token) => {
+    if (inflight) await inflight;
+    if (keySet === null && cooledDown()) await reload();
+    if (keySet === null) throw new Error("key set unavailable");
+    try {
+      return await keySet(header, token);
+    } catch (err) {
+      if (!(err instanceof joseErrors.JWKSNoMatchingKey) || !cooledDown()) throw err;
+      await reload();
+      return keySet(header, token);
+    }
+  };
+  return async () => resolver;
+}
 
 // ─── Router ──────────────────────────────────────────────────────────────────
-
-// TRANSITIONAL (specs/029 T14 → T15/T16): the retired SERVICE_TOKEN_RATE_* defaults, until this route
-// moves to the verify-first limits of systemRateLimits.ts.
-const LEGACY_ADDRESS_LIMIT = 20;
-const LEGACY_ADDRESS_WINDOW_MS = 600_000;
 
 const unauthorized = (path: string) => ({
   type: "https://httpstatuses.com/401",
@@ -125,39 +184,16 @@ const unauthorized = (path: string) => ({
   instance: path,
 });
 
-export function createUserContactRouter(deps: { getJwks: GetServiceJwks }) {
-  const limiter = createSlidingWindowRateLimiter({
-    limit: LEGACY_ADDRESS_LIMIT,
-    windowMs: LEGACY_ADDRESS_WINDOW_MS,
-  });
+export function createUserContactRouter(deps: { getJwks: GetServiceJwks; limits: SystemRateLimits }) {
+  const { limits } = deps;
 
-  const rateLimit = createMiddleware(async (c, next) => {
-    const result = limiter.consume(callerAddress(c.req.header("X-Forwarded-For")));
-    if (!result.allowed) {
-      c.header("Retry-After", String(Math.max(1, Math.ceil(result.retryAfterMs / 1000))));
-      return c.json(
-        {
-          type: "https://httpstatuses.com/429",
-          title: "Too Many Requests",
-          status: 429,
-          detail: "Too many requests. Try again later.",
-          instance: c.req.path,
-          code: "rate_limited",
-        },
-        429,
-      );
-    }
-    return next();
-  });
+  /** The verified calling service, or `failure` (the jose error code when there is one, for the log line). */
+  type Verdict = { valid: true; sub: string } | { valid: false; failure: string | null };
 
-  // Registered before the route, so a bad credential is refused before the
-  // body is even parsed (a 400 must not be reachable without a credential).
-  const serviceAuth = createMiddleware<{ Variables: { serviceSub: string } }>(async (c, next) => {
+  async function verify(authorization: string | undefined): Promise<Verdict> {
     const audience = env.SERVICE_AUDIENCE;
-    const header = c.req.header("Authorization");
-    const token = header?.startsWith("Bearer ") ? header.slice(7) : "";
-    if (!audience || !token) return c.json(unauthorized(c.req.path), 401, { "Cache-Control": "no-store" });
-
+    const token = authorization?.startsWith("Bearer ") ? authorization.slice(7) : "";
+    if (!audience || !token || token.length > MAX_TOKEN_CHARS) return { valid: false, failure: null };
     try {
       const { payload } = await jwtVerify(token, await deps.getJwks(), {
         issuer: env.BETTER_AUTH_URL,
@@ -174,46 +210,64 @@ export function createUserContactRouter(deps: { getJwks: GetServiceJwks }) {
         typeof scope !== "string" ||
         !scope.split(" ").includes(USERS_CONTACT_SCOPE)
       ) {
-        return c.json(unauthorized(c.req.path), 401, { "Cache-Control": "no-store" });
+        return { valid: false, failure: null };
       }
-      c.set("serviceSub", sub);
+      return { valid: true, sub };
     } catch (err) {
       // The jose error code only: nothing about the presented credential.
       const code = err instanceof joseErrors.JOSEError ? (err.code ?? err.constructor.name) : "JWT_VERIFY_FAILED";
-      console.warn("[system-jwt] verification failed:", code);
+      return { valid: false, failure: code };
+    }
+  }
+
+  // Not `.openapi()`: its body validator would answer a 400 before any credential check or count. The route
+  // is registered for the API document only; the handler below owns the whole order.
+  const router = new OpenAPIHono();
+  router.openAPIRegistry.registerPath(postUserContactRoute);
+
+  router.post("/system/users/contact", async (c) => {
+    // 1. Verify the credential (no I/O, no count).
+    const verdict = await verify(c.req.header("Authorization"));
+
+    // 2. Exactly one count.
+    if (!verdict.valid) {
+      const source = callerAddress(c.req.header("X-Forwarded-For"));
+      if (!limits.invalidCredentials.consume(source).allowed) {
+        limits.logRefusal("invalid", "users/contact", source);
+        return limits.tooManyRequests(c);
+      }
+      if (verdict.failure !== null) console.warn("[system-jwt] verification failed:", verdict.failure);
       return c.json(unauthorized(c.req.path), 401, { "Cache-Control": "no-store" });
     }
-    return next();
-  });
+    if (!limits.usersContact.consume(verdict.sub).allowed) {
+      limits.logRefusal("allowance", "users/contact", verdict.sub);
+      return limits.tooManyRequests(c);
+    }
 
-  const router = new OpenAPIHono<{ Variables: { serviceSub: string } }>({
-    defaultHook: (result, c) => {
-      if (!result.success) {
-        return c.json(
-          {
-            type: "https://httpstatuses.com/400",
-            title: "Bad Request",
-            status: 400,
-            // Field names and rule text only: never echo the submitted values.
-            detail: result.error.issues.map((issue) => `${issue.path.join(".")}: ${issue.message}`).join("; "),
-            instance: c.req.path,
-          },
-          400,
-        );
-      }
-      return undefined;
-    },
-  });
+    // 3. The request itself (a 400 is reachable only with a valid credential, as before).
+    const body = await readJsonBody(c.req.raw);
+    const parsed = body.ok ? UserContactRequestSchema.safeParse(body.value) : null;
+    if (!body.ok || !parsed?.success) {
+      return c.json(
+        {
+          type: "https://httpstatuses.com/400",
+          title: "Bad Request",
+          status: 400,
+          // Field names and rule text only: never echo the submitted values.
+          detail: body.ok
+            ? parsed!.error!.issues.map((issue) => `${issue.path.join(".")}: ${issue.message}`).join("; ")
+            : body.detail,
+          instance: c.req.path,
+        },
+        400,
+      );
+    }
 
-  router.use("/system/users/contact", rateLimit, serviceAuth);
-
-  router.openapi(postUserContactRoute, async (c) => {
-    const { userId } = c.req.valid("json");
     const user = await db.user.findFirst({
-      where: { id: userId, deletedAt: null },
+      where: { id: parsed.data.userId, deletedAt: null },
       select: { id: true, email: true, name: true },
     });
-    console.log(`[system] users.contact caller=${c.get("serviceSub")} found=${user !== null}`);
+    console.log(`[system] users.contact caller=${verdict.sub} found=${user !== null}`);
 
     c.header("Cache-Control", "no-store");
     if (!user) {

@@ -16,7 +16,7 @@ const { createSystemRateLimits } = await import("../system/systemRateLimits");
 const { createUserContactRouter, jwksFromAuth } = await import("../system/userContact.routes");
 
 const tokenRouter = createServiceTokenRouter({ signJwt: signWithAuth(auth), limits: createSystemRateLimits() });
-const contactRouter = createUserContactRouter({ getJwks: jwksFromAuth(auth) });
+const contactRouter = createUserContactRouter({ getJwks: jwksFromAuth(auth), limits: createSystemRateLimits() });
 
 const SERVICE_AUDIENCE = "operai-user-contact-contract-test";
 const SECRET = "dummy-contact-contract-secret-0123456789";

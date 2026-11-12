@@ -62,7 +62,7 @@ import { createRoute, OpenAPIHono } from "@hono/zod-openapi";
 import type { Context } from "hono";
 import { z } from "zod";
 import { env } from "../lib/env";
-import { readBodyCapped } from "./boundedBody";
+import { readJsonBody } from "./boundedBody";
 import {
   authenticateServiceClient,
   SERVICE_SUB_PREFIX,
@@ -215,24 +215,12 @@ export function createServiceTokenRouter(deps: { signJwt: SignServiceJwt; limits
     let credentials: { clientId: string; clientSecret: string } | null = null;
     let client: ReturnType<typeof authenticateServiceClient> = null;
 
-    const body = await readBodyCapped(c.req.raw);
+    const body = await readJsonBody(c.req.raw);
     if (!body.ok) {
-      invalid = badRequest(c, "body: too large");
+      invalid = badRequest(c, body.detail);
     } else {
-      let json: unknown;
-      let jsonError = false;
-      // Same acceptance as the schema validator it replaces: a body counts only as JSON when it says so.
-      if (/^application\/(?:[\w.+-]*\+)?json\b/i.test(c.req.header("Content-Type") ?? "")) {
-        try {
-          json = JSON.parse(body.text);
-        } catch {
-          jsonError = true;
-        }
-      }
-      const parsed = ServiceTokenRequestSchema.safeParse(json);
-      if (jsonError) {
-        invalid = badRequest(c, "body: malformed JSON");
-      } else if (!parsed.success) {
+      const parsed = ServiceTokenRequestSchema.safeParse(body.value);
+      if (!parsed.success) {
         // Field names and rule text only: never echo the submitted values.
         invalid = badRequest(
           c,

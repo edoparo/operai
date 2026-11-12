@@ -63,7 +63,7 @@ Re-sync 2026-11-12 (QE round 0 FAIL + security review FAIL; spec re-approved wit
   - touch: `auth/src/system/serviceToken.routes.ts`, `auth/src/system/serviceToken.routes.test.ts`, `auth/src/auth/service-token.contract.test.ts`, `auth/src/index.ts`
   - done when: plan § Test strategy rows AC-7.1/7.3/7.4/7.5/7.6/7.8 for service-token pass (no `X-Forwarded-For`, injected clock): 300 mints → 300 × 200; 301st → shared 429, signer not called; invalid flood → 401 then 429 at 21, a valid credential from the same address still 200; byte-identical 429s; existing success/400/401 assertions unchanged (only the old per-address limiter tests replaced).
 
-- [ ] T16: auth — `POST /system/users/contact` verifies first, cached key set, token cap — refs: AC-7.2, AC-7.3, AC-7.4, AC-7.5, AC-7.6, AC-7.8 — deps: T15
+- [x] T16: auth — `POST /system/users/contact` verifies first, cached key set, token cap — refs: AC-7.2, AC-7.3, AC-7.4, AC-7.5, AC-7.6, AC-7.8 — deps: T15
   - touch: `auth/src/system/userContact.routes.ts`, `auth/src/system/userContact.routes.test.ts`, `auth/src/auth/user-contact.contract.test.ts`, `auth/src/index.ts`
   - done when: the same rows for users/contact pass (600 lookups → 600 × 200; 601st → 429 with no DB read; invalid kinds incl. a genuine service JWT without the scope count as invalid; 10 + 10 across both routes → 429); key-set cache rows (100 verifications → 1 read, unknown `kid` → ≤ 1 re-read per 30 s, token > 4 096 chars → 401 with no read); existing 200/400/401/404 assertions unchanged.
 

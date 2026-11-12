@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { readBodyCapped } from "./boundedBody";
+import { readBodyCapped, readJsonBody } from "./boundedBody";
 
 const req = (body: string | null, headers: Record<string, string> = {}) =>
   new Request("http://x.test/", { method: "POST", body, headers });
@@ -51,5 +51,25 @@ describe("readBodyCapped", () => {
 
   test("multi-byte text decodes intact", async () => {
     expect(await readBodyCapped(req('{"n":"àèì€"}'))).toEqual({ ok: true, text: '{"n":"àèì€"}' });
+  });
+});
+
+describe("readJsonBody", () => {
+  const json = (body: string, type: string | null = "application/json") =>
+    readJsonBody(new Request("http://x.test/", { method: "POST", body, headers: type ? { "Content-Type": type } : {} }));
+
+  test("parses a JSON body", async () => {
+    expect(await json('{"a":1}')).toEqual({ ok: true, value: { a: 1 } });
+    expect(await json('{"a":1}', "application/problem+json; charset=utf-8")).toEqual({ ok: true, value: { a: 1 } });
+  });
+
+  test("a body that does not say it is JSON yields no value (a schema then refuses it)", async () => {
+    expect(await json('{"a":1}', "text/plain")).toEqual({ ok: true, value: undefined });
+    expect(await json('{"a":1}', null)).toEqual({ ok: true, value: undefined });
+  });
+
+  test("malformed and oversized bodies are failures that never echo the input", async () => {
+    expect(await json("{nope")).toEqual({ ok: false, detail: "body: malformed JSON" });
+    expect(await json(JSON.stringify({ pad: "p".repeat(5000) }))).toEqual({ ok: false, detail: "body: too large" });
   });
 });

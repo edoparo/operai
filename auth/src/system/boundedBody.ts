@@ -37,3 +37,24 @@ export async function readBodyCapped(req: Request, maxBytes = MAX_SYSTEM_BODY_BY
   }
   return { ok: true, text: new TextDecoder().decode(merged) };
 }
+
+export type JsonBody = { ok: true; value: unknown } | { ok: false; detail: string };
+
+/**
+ * `readBodyCapped` + JSON.parse, with the 400 `detail` the two /system routes
+ * answer. Only a body that says it is JSON is parsed (anything else yields
+ * `value: undefined`, which a schema rejects); nothing in a failure repeats the
+ * submitted text.
+ */
+export async function readJsonBody(req: Request): Promise<JsonBody> {
+  const body = await readBodyCapped(req);
+  if (!body.ok) return { ok: false, detail: "body: too large" };
+  if (!/^application\/(?:[\w.+-]*\+)?json\b/i.test(req.headers.get("Content-Type") ?? "")) {
+    return { ok: true, value: undefined };
+  }
+  try {
+    return { ok: true, value: JSON.parse(body.text) };
+  } catch {
+    return { ok: false, detail: "body: malformed JSON" };
+  }
+}

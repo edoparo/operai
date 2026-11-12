@@ -81,7 +81,7 @@ console.log(
     `users/contact ${env.USERS_CONTACT_SERVICE_LIMIT} per service, invalid credentials ${env.SYSTEM_INVALID_CREDENTIAL_LIMIT} per source`,
 );
 app.route("/", createServiceTokenRouter({ signJwt: signServiceJwt, limits: systemLimits }));
-app.route("/", createUserContactRouter({ getJwks: jwksFromAuth(auth) }));
+app.route("/", createUserContactRouter({ getJwks: jwksFromAuth(auth), limits: systemLimits }));
 // `auth`'s own notify credential (specs/016 T7, ADR-0048): invitation emails
 // authenticate with it. Injected here, not imported by lib/notify.ts, so that
 // module never depends on auth.config (see serviceToken.routes.ts).
