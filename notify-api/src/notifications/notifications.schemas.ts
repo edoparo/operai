@@ -22,6 +22,8 @@
  *   - absolute URLs with a scheme (`https://evil.example.com`, `javascript:alert(1)`)
  *   - protocol-relative URLs (`//evil.example.com` — browsers treat this as absolute)
  *   - backslash tricks some browsers normalise to forward slashes (`/\evil.example.com`)
+ *   - values that NORMALISE into a protocol-relative path (`/..//evil.example.com`, `/.//x`,
+ *     `/%2e%2e//x`) or that the URL parser moves to another host (`/<TAB>/evil.example.com`)
  * and requires the path to start with a single `/`.
  */
 
@@ -48,12 +50,30 @@ export const SeveritySchema = z.enum(SEVERITIES);
  * normalise `\` to `/`, which can be abused to smuggle a protocol-relative URL
  * past a naive `startsWith("/")` check), and carries no scheme (`javascript:`,
  * `data:`, `https:`, …) anywhere before the first path segment.
+ *
+ * The textual checks are not enough on their own (S-M1, specs/029): a browser (and the shell's
+ * `new URL(href, origin)`) NORMALISES before it resolves, and `/..//evil.io`, `/.//evil.io`,
+ * `/a/..//evil.io` and `/%2e%2e//evil.io` all normalise to the path `//evil.io`, which a later
+ * `https://suite` + path join or a redirect reads as a scheme-relative URL to evil.io. Tabs and
+ * newlines are dropped by the URL parser too, so `/\t/evil.io` becomes `//evil.io` outright.
+ * So the value is also resolved against a throwaway origin and must stay on it with a path that
+ * does not start with `//`. A value that cannot be parsed is rejected.
  */
+const PROBE_ORIGIN = "http://suite.invalid";
+
 export const isRelativeSuitePath = (href: string): boolean => {
   if (href.length === 0) return false;
   if (href.includes("\\")) return false;
   if (!href.startsWith("/")) return false;
   if (href.startsWith("//")) return false; // protocol-relative → treated as absolute by browsers
+  let resolved: URL;
+  try {
+    resolved = new URL(href, PROBE_ORIGIN);
+  } catch {
+    return false;
+  }
+  if (resolved.origin !== PROBE_ORIGIN) return false; // the parser moved it to another host
+  if (resolved.pathname.startsWith("//")) return false; // normalised into a scheme-relative URL
   return true;
 };
 

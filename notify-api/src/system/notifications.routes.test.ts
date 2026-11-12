@@ -376,6 +376,19 @@ describe("POST /system/notifications — validation failures → 400", () => {
     expect(res.status).toBe(400);
   });
 
+  it("400: a link.href that normalises to a protocol-relative path is rejected, nothing written (S-M1, specs/029)", async () => {
+    const app = buildApp();
+    for (const href of ["/..//evil.io", "/.//evil.io", "/a/..//evil.io", "/%2e%2e//evil.io"]) {
+      const res = await app.request("/system/notifications", {
+        method: "POST",
+        headers: { ...(await authHeader()), "Content-Type": "application/json" },
+        body: JSON.stringify(validBody({ link: { href } })),
+      });
+      expect(res.status).toBe(400);
+    }
+    expect(await testDb.notification.count({ where: { recipientId: RECIPIENT_ID } })).toBe(0);
+  });
+
   it("nothing is persisted after a 400 (no partial write)", async () => {
     const app = buildApp();
     const before = await testDb.notification.count({ where: { recipientId: RECIPIENT_ID } });

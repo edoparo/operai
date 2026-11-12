@@ -83,7 +83,7 @@ Re-sync 2026-11-12 (QE round 0 FAIL + security review FAIL; spec re-approved wit
   - touch: `shell/src/sw/pushHandlers.ts`, `shell/src/sw/pushHandlers.test.ts`, `shell/src/lib/push.ts`, `shell/src/lib/push.test.ts`, `shell/src/components/PushSettings.tsx`, `shell/src/components/PushSettings.test.tsx`
   - done when: `safeHref` and `handleServiceWorkerMessage` reject any value whose normalised pathname starts with `//` (vectors `/.//evil.io`, `/..//evil.io`, `/a/..//evil.io`, `/%2e%2e//evil.io`, plus the existing ones) → `/notify` / ignored; `enablePush` bounds `navigator.serviceWorker.ready` with a timeout and surfaces a retryable error (design F6), the button leaves the busy state and Turn on retries; amended AC-1.7 row: after an explicit sign-out and signing in again the section is off, and Turn on with permission still `granted` subscribes without a prompt UI (add the test if T8 lacks it); `pnpm lint`, `pnpm test`, `pnpm build` green.
 
-- [ ] T21: notify-api — server-side href guard (S-M1) + secret-scan false positive in the allowlist tests (D-3) — refs: AC-4.1, AC-4.2, AC-6.2 — deps: T19
+- [x] T21: notify-api — server-side href guard (S-M1) + secret-scan false positive in the allowlist tests (D-3) — refs: AC-4.1, AC-4.2, AC-6.2 — deps: T19
   - touch: `notify-api/src/notifications/notifications.schemas.ts`, `notify-api/src/notifications/notifications.schemas.test.ts`, `notify-api/src/push/pushEndpoint.test.ts`, `.betterleaksignore`
   - done when: `isRelativeSuitePath` rejects every value whose `new URL(h, 'http://x').pathname` starts with `//` (same vectors as T20) on both the system and user routes (400), existing valid hrefs still accepted; `betterleaks dir .` reports no finding on this branch's files; `direnv exec . bun test` green.
 

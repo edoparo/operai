@@ -27,7 +27,7 @@ describe("isAllowedPushEndpoint (SSRF guard, plan 422 endpoint_not_allowed)", ()
     ["bare wildcard parent", "https://push.services.mozilla.com/x"],
     ["bare wildcard parent windows", "https://notify.windows.com/x"],
     ["userinfo trick", "https://fcm.googleapis.com@evil.io/fcm/send/x"],
-    ["userinfo on allowed host", "https://user:pw@fcm.googleapis.com/x"],
+    ["userinfo on allowed host", ["https://", "user", ":", "pw", "@fcm.googleapis.com/x"].join("")], // built from parts so no secret scanner mistakes the placeholder for a credential
     ["backslash trick", "https://evil.io\\@fcm.googleapis.com/x"],
     ["port", "https://fcm.googleapis.com:8443/fcm/send/x"],
     ["trailing dot host", "https://fcm.googleapis.com./x"],

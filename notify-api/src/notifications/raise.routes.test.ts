@@ -430,6 +430,19 @@ describe("POST /notifications — validation failures → 400 (AC-4.5)", () => {
     expect(res.status).toBe(400);
   });
 
+  it("400: link.href that normalises to a protocol-relative path (S-M1, specs/029)", async () => {
+    const app = buildApp();
+    const jwt = await tokenA();
+    for (const href of ["/..//evil.io", "/.//evil.io", "/a/..//evil.io", "/%2e%2e//evil.io"]) {
+      const res = await app.request("/notifications", {
+        method: "POST",
+        headers: bearerHeader(jwt),
+        body: JSON.stringify({ ...validBody(), link: { href } }),
+      });
+      expect(res.status).toBe(400);
+    }
+  });
+
   it("400: link.href uses a javascript: scheme", async () => {
     const app = buildApp();
     const jwt = await tokenA();
