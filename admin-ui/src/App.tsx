@@ -1,6 +1,6 @@
 import 'shell/tokens.css'
 import { RouterProvider } from '@tanstack/react-router'
-import { useDisposableRouter } from '@operai/ui'
+import { DisposableRouterHost } from '@operai/ui'
 import { createAppRouter } from './router'
 
 // IMPORTANT (mirrors estimai-ui/src/App.tsx's T12/specs/003-suite-shell doc
@@ -54,6 +54,9 @@ import { createAppRouter } from './router'
 // It is also destroyed on unmount: a router's browser history wraps window.history and adds window
 // listeners that only `history.destroy()` removes, so one per mount would pile up (specs/029 security L5).
 export default function App() {
-  const router = useDisposableRouter(() => createAppRouter('/admin'))
-  return router ? <RouterProvider router={router} /> : null
+  return (
+    <DisposableRouterHost create={() => createAppRouter('/admin')}>
+      {(router) => <RouterProvider router={router} />}
+    </DisposableRouterHost>
+  )
 }

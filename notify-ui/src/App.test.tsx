@@ -73,6 +73,9 @@ describe('App (notify-ui) — remount inside the shell', () => {
   })
 })
 
+// The router is released when its element leaves the document, which is reported a microtask later.
+const removed = () => Promise.resolve()
+
 describe('notify-ui — the browser history of the router is released on unmount', () => {
   // Every router builds a browser history that wraps window.history.pushState/replaceState and adds
   // popstate/beforeunload listeners; only history.destroy() undoes that (specs/029 security L5).
@@ -101,6 +104,7 @@ describe('notify-ui — the browser history of the router is released on unmount
         const mounted = render(<App />)
         expect(await screen.findByTestId('notify-center-heading')).not.toBeNull()
         mounted.unmount()
+        await removed()
       }
       expect(seen.listeners()).toEqual([0, 0])
       expect(window.history.pushState).toBe(pushState)
@@ -125,6 +129,7 @@ describe('notify-ui — the browser history of the router is released on unmount
         )
         expect(await screen.findByTestId('notify-center-heading')).not.toBeNull()
         mounted.unmount()
+        await removed()
       }
       expect(seen.listeners()).toEqual([0, 0])
       expect(window.history.pushState).toBe(pushState)

@@ -1,6 +1,6 @@
 import 'shell/tokens.css'
 import { RouterProvider } from '@tanstack/react-router'
-import { useDisposableRouter } from '@operai/ui'
+import { DisposableRouterHost } from '@operai/ui'
 import InventoryShell from './components/InventoryShell'
 import { createAppRouter } from './router'
 
@@ -32,6 +32,9 @@ import { createAppRouter } from './router'
 // It is also destroyed on unmount: a router's browser history wraps window.history and adds window
 // listeners that only `history.destroy()` removes, so one per mount would pile up (specs/029 security L5).
 export default function App() {
-  const router = useDisposableRouter(() => createAppRouter('/inventory', InventoryShell))
-  return router ? <RouterProvider router={router} /> : null
+  return (
+    <DisposableRouterHost create={() => createAppRouter('/inventory', InventoryShell)}>
+      {(router) => <RouterProvider router={router} />}
+    </DisposableRouterHost>
+  )
 }

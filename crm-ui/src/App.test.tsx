@@ -6,8 +6,8 @@
  * the URL it is mounted at, not show the route it last displayed.
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { StrictMode } from 'react'
-import { cleanup, render, screen } from '@testing-library/react'
+import { StrictMode, Suspense, type ComponentType } from 'react'
+import { act, cleanup, render, screen, waitFor } from '@testing-library/react'
 import { fakeApi, page } from './test-support/fakeApi'
 
 const { apiFetch } = vi.hoisted(() => ({ apiFetch: vi.fn() }))
@@ -53,6 +53,9 @@ describe('App (crm-ui) — remount inside the shell', () => {
   })
 })
 
+// The router is released when its element leaves the document, which is reported a microtask later.
+const removed = () => Promise.resolve()
+
 describe('crm-ui — the browser history of the router is released on unmount', () => {
   // Every router builds a browser history that wraps window.history.pushState/replaceState and adds
   // popstate/beforeunload listeners; only history.destroy() undoes that (specs/029 security L5).
@@ -81,6 +84,7 @@ describe('crm-ui — the browser history of the router is released on unmount', 
         const mounted = render(<App />)
         expect(await screen.findByTestId('crm-tasks-page')).not.toBeNull()
         mounted.unmount()
+        await removed()
       }
       expect(seen.listeners()).toEqual([0, 0])
       expect(window.history.pushState).toBe(pushState)
@@ -105,6 +109,7 @@ describe('crm-ui — the browser history of the router is released on unmount', 
         )
         expect(await screen.findByTestId('crm-tasks-page')).not.toBeNull()
         mounted.unmount()
+        await removed()
       }
       expect(seen.listeners()).toEqual([0, 0])
       expect(window.history.pushState).toBe(pushState)
@@ -113,4 +118,67 @@ describe('crm-ui — the browser history of the router is released on unmount', 
       seen.restore()
     }
   })
+})
+
+describe('crm-ui — the bare tool URL, as the shell mounts it (specs/029 D-5)', () => {
+  // The index route redirects (/crm -> /crm/companies). The shell mounts the remote inside a Suspense boundary and,
+  // on any URL change, suspends above it: that hides the remote's tree and shows it again with its state kept.
+  // The router must come back as the SAME router: a second one never reaches the tree (it is never loaded).
+  const visible = (el: HTMLElement) => {
+    for (let n: HTMLElement | null = el; n; n = n.parentElement) if (n.style.display === 'none') return false
+    return true
+  }
+  const find = () => screen.findByTestId('crm-companies-page')
+
+  // Suspends while `hold` is set and not yet open, the way the shell does while it revalidates.
+  interface Hold {
+    open: boolean
+    promise: Promise<void>
+  }
+  function Gate({ hold }: { hold: Hold | null }) {
+    if (hold && !hold.open) throw hold.promise
+    return null
+  }
+  function Mounted({ App, hold }: { App: ComponentType; hold: Hold | null }) {
+    return (
+      <Suspense fallback={<p>shell loading</p>}>
+        <App />
+        <Gate hold={hold} />
+      </Suspense>
+    )
+  }
+
+  for (const strict of [false, true]) {
+    it(`${strict ? 'under StrictMode, ' : ''}opening /crm lands on /crm/companies and keeps it through a hide and reveal of the remote`, async () => {
+      window.scrollTo = () => undefined
+      const { default: App } = await import('./App')
+      const { pushState, replaceState } = window.history
+      window.history.pushState(null, '', '/crm')
+      const wrap = (hold: Hold | null) => {
+        const tree = <Mounted App={App} hold={hold} />
+        return strict ? <StrictMode>{tree}</StrictMode> : tree
+      }
+      const view = render(wrap(null))
+      expect(await find()).not.toBeNull()
+      expect(window.location.pathname).toBe('/crm/companies')
+
+      const hold: Hold = { open: false, promise: Promise.resolve() }
+      hold.promise = new Promise<void>((resolve) => {
+        setTimeout(() => {
+          hold.open = true
+          resolve()
+        }, 50)
+      })
+      view.rerender(wrap(hold))
+      expect(await screen.findByText('shell loading')).not.toBeNull()
+      await act(() => hold.promise)
+      await waitFor(() => expect(screen.queryByText('shell loading')).toBeNull())
+      expect(visible(await find())).toBe(true)
+
+      view.unmount()
+      await removed()
+      expect(window.history.pushState).toBe(pushState)
+      expect(window.history.replaceState).toBe(replaceState)
+    })
+  }
 })

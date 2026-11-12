@@ -1,6 +1,6 @@
 import 'shell/tokens.css'
 import { RouterProvider } from '@tanstack/react-router'
-import { useDisposableRouter } from '@operai/ui'
+import { DisposableRouterHost } from '@operai/ui'
 import MyMeetingsShell from './components/MyMeetingsShell'
 import { createMyMeetingsRouter } from './router'
 
@@ -21,6 +21,9 @@ import { createMyMeetingsRouter } from './router'
 // It is also destroyed on unmount: a router's browser history wraps window.history and adds window
 // listeners that only `history.destroy()` removes, so one per mount would pile up (specs/029 security L5).
 export default function MyMeetings() {
-  const router = useDisposableRouter(() => createMyMeetingsRouter('/my-meetings', MyMeetingsShell))
-  return router ? <RouterProvider router={router} /> : null
+  return (
+    <DisposableRouterHost create={() => createMyMeetingsRouter('/my-meetings', MyMeetingsShell)}>
+      {(router) => <RouterProvider router={router} />}
+    </DisposableRouterHost>
+  )
 }
