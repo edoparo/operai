@@ -5,6 +5,7 @@ import { join } from "node:path";
 import type { GoogleAuth } from "../lib/google/auth";
 import {
   BUSY_WAITS_MS,
+  GEMINI_PART_CONCURRENCY,
   GEMINI_PIECE_MAX_MS,
   GEMINI_TRANSCRIBE_MODEL,
   createGeminiTranscriber,
@@ -26,17 +27,43 @@ interface Call {
   body: any;
 }
 
-/** A fetch that answers each call with the next reply (a status, or a JSON body). */
-function wire(replies: (number | object)[]) {
+/** A reply streamed as several SSE chunks, or a stream that breaks after the given chunks. */
+interface Chunks {
+  chunks: object[];
+  breakAfter?: boolean;
+}
+type Reply = number | object | Chunks;
+
+const sse = (chunk: object) => `data: ${JSON.stringify(chunk)}\r\n\r\n`;
+
+/** A fetch that answers each call with the next reply (a status, one SSE chunk, or several), and counts concurrency. */
+function wire(replies: Reply[], delayMs = 0) {
   const calls: Call[] = [];
+  const stats = { inFlight: 0, maxInFlight: 0 };
   const fetchImpl = (async (url: string, init: RequestInit) => {
     calls.push({ url: String(url), body: JSON.parse(String(init.body)) });
     const next = replies.shift();
     if (next === undefined) throw new Error("no reply left");
+    stats.inFlight += 1;
+    stats.maxInFlight = Math.max(stats.maxInFlight, stats.inFlight);
+    try {
+      if (delayMs > 0) await Bun.sleep(delayMs);
+    } finally {
+      stats.inFlight -= 1;
+    }
     if (typeof next === "number") return new Response("{}", { status: next });
-    return new Response(JSON.stringify(next), { status: 200, headers: { "Content-Type": "application/json" } });
+    const { chunks, breakAfter } = "chunks" in next ? (next as Chunks) : { chunks: [next], breakAfter: false };
+    const encoder = new TextEncoder();
+    const body = new ReadableStream<Uint8Array>({
+      start(controller) {
+        for (const chunk of chunks) controller.enqueue(encoder.encode(sse(chunk)));
+        if (breakAfter) controller.error(Object.assign(new Error("socket closed"), { code: "ECONNRESET" }));
+        else controller.close();
+      },
+    });
+    return new Response(body, { status: 200, headers: { "Content-Type": "text/event-stream" } });
   }) as unknown as typeof fetch;
-  return { calls, fetchImpl };
+  return { calls, fetchImpl, stats };
 }
 
 const answer = (segments: unknown) => ({ candidates: [{ finishReason: "STOP", content: { parts: [{ text: "thinking", thought: true }, { text: JSON.stringify(segments) }] } }] });
@@ -54,8 +81,8 @@ function splitter(spans: [number, number][], silences: { startMs: number; endMs:
   }) as never;
 }
 
-const make = async (replies: (number | object)[], spans: [number, number][] = [[0, S(300)]], silences: { startMs: number; endMs: number }[] = []) => {
-  const w = wire(replies);
+const make = async (replies: Reply[], spans: [number, number][] = [[0, S(300)]], silences: { startMs: number; endMs: number }[] = [], delayMs = 0) => {
+  const w = wire(replies, delayMs);
   const slept: number[] = [];
   const t = createGeminiTranscriber({
     auth,
@@ -74,11 +101,11 @@ const audio = new Blob([new Uint8Array([1, 2, 3])]);
 const run = (t: Awaited<ReturnType<typeof make>>["t"]) => t.transcribe(audio, "it-IT", 3, undefined, { meetingId: "m1", attempt: 1 });
 
 describe("the request (EU endpoint, pinned model, untrusted reply)", () => {
-  it("goes to the EU multi-region endpoint and the pinned model, audio inline, temperature 0, a schema", async () => {
+  it("streams from the EU multi-region endpoint and the pinned model, audio inline, temperature 0, a schema", async () => {
     const { t, calls } = await make([answer([{ start: "00:01", end: "00:03", speaker: "Speaker 1", text: "buongiorno a tutti" }])]);
     await run(t);
     expect(calls).toHaveLength(1);
-    expect(calls[0]!.url).toBe(`https://aiplatform.eu.rep.googleapis.com/v1/projects/operai-meetings-test/locations/eu/publishers/google/models/${GEMINI_TRANSCRIBE_MODEL}:generateContent`);
+    expect(calls[0]!.url).toBe(`https://aiplatform.eu.rep.googleapis.com/v1/projects/operai-meetings-test/locations/eu/publishers/google/models/${GEMINI_TRANSCRIBE_MODEL}:streamGenerateContent?alt=sse`);
     const body = calls[0]!.body;
     expect(body.contents[0].parts[0].inlineData.mimeType).toBe("audio/ogg");
     expect(body.generationConfig.temperature).toBe(0);
@@ -164,6 +191,73 @@ describe("the reply", () => {
     expect(out.gaps.length).toBe(1);
     expect(out.gaps[0]!.startMs).toBeGreaterThanOrEqual(S(9));
     expect(out.gaps[0]!.endMs).toBeLessThanOrEqual(S(200));
+  });
+});
+
+describe("the stream", () => {
+  const seg = (text: string) => ({ start: "00:01", end: "00:03", speaker: "Speaker 1", text });
+
+  it("a reply split over several chunks is folded into one text; thoughts are left out", async () => {
+    const json = JSON.stringify([seg("buongiorno a tutti")]);
+    const { t } = await make([
+      {
+        chunks: [
+          { candidates: [{ content: { parts: [{ text: "pensiero", thought: true }] } }] },
+          { candidates: [{ content: { parts: [{ text: json.slice(0, 20) }] } }] },
+          { candidates: [{ content: { parts: [{ text: json.slice(20) }] }, finishReason: "STOP" }] },
+        ],
+      },
+    ]);
+    const out = await run(t);
+    if (out.kind !== "segments") throw new Error("expected segments");
+    expect(out.segments[0]!.text).toBe("buongiorno a tutti");
+  });
+
+  it("a stream that ends without a finish reason was cut: transient, never accepted", async () => {
+    const { t } = await make([{ chunks: [{ candidates: [{ content: { parts: [{ text: JSON.stringify([seg("ciao")]) }] } }] }] }]);
+    const error = (await run(t).catch((e) => e)) as TranscriptionError;
+    expect([error.code, error.transient]).toEqual(["provider_unavailable", true]);
+  });
+
+  it("a connection that breaks mid-stream is transient", async () => {
+    const { t } = await make([{ chunks: [{ candidates: [{ content: { parts: [{ text: "[" }] } }] }], breakAfter: true }]);
+    const error = (await run(t).catch((e) => e)) as TranscriptionError;
+    expect([error.code, error.transient]).toEqual(["provider_unavailable", true]);
+  });
+
+  it("logs one content-free line per request: part, outcome, status, finish reason, never the text", async () => {
+    const lines: string[] = [];
+    const log = console.log;
+    const err = console.error;
+    console.log = (...a: unknown[]) => void lines.push(a.join(" "));
+    console.error = (...a: unknown[]) => void lines.push(a.join(" "));
+    try {
+      const { t } = await make([{ candidates: [{ finishReason: "STOP", content: { parts: [{ text: JSON.stringify([seg("segreto aziendale")]) }] } }] }]);
+      await run(t);
+    } finally {
+      console.log = log;
+      console.error = err;
+    }
+    const request = lines.find((l) => l.startsWith("[transcribe] gemini request"));
+    expect(request).toMatch(/part=1\/1 sample=0 busy=0 outcome=ok status=200 finish=STOP ms=\d+ bytes=\d+/);
+    expect(lines.join("\n")).not.toContain("segreto");
+  });
+});
+
+describe("parts in flight", () => {
+  it("at most GEMINI_PART_CONCURRENCY parts are sent at once", async () => {
+    const shared = (n: number) => answer([{ start: "00:10", end: "00:20", speaker: "Speaker 1", text: `parte ${n}` }]);
+    const spans: [number, number][] = [
+      [0, S(1800)],
+      [S(1710), S(3600)],
+      [S(3510), S(5400)],
+      [S(5310), S(7000)],
+    ];
+    const { t, calls, stats } = await make([shared(1), shared(2), shared(3), shared(4)], spans, [], 20);
+    await run(t);
+    expect(calls).toHaveLength(4);
+    expect(GEMINI_PART_CONCURRENCY).toBe(2);
+    expect(stats.maxInFlight).toBe(GEMINI_PART_CONCURRENCY);
   });
 });
 

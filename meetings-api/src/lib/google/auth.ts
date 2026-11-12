@@ -31,6 +31,12 @@ export class GoogleApiError extends Error {
   constructor(
     readonly transient: boolean,
     readonly status?: number,
+    /**
+     * Why a call with no status failed, for content-free diagnostics: our `timeout`, the caller's `abort`, or the
+     * `network` (reset, DNS, TLS). `detail` is the runtime's error code (e.g. `ECONNRESET`), never a message.
+     */
+    readonly reason?: "timeout" | "abort" | "network",
+    readonly detail?: string,
   ) {
     super(`google api call failed: ${transient ? "transient" : "permanent"}${status !== undefined ? ` (HTTP ${status})` : ""}`);
     this.name = "GoogleApiError";
@@ -45,6 +51,15 @@ export function toGoogleApiError(error: unknown): GoogleApiError {
   if (error instanceof GoogleApiError) return error;
   const status = statusOf(error);
   return status === undefined ? new GoogleApiError(true) : new GoogleApiError(isTransientStatus(status), status);
+}
+
+/** A runtime error code (`ECONNRESET`, `ConnectionClosed`, `TimeoutError`): an identifier, never a message. */
+export function errorCodeOf(error: unknown): string | undefined {
+  if (typeof error !== "object" || error === null) return undefined;
+  for (const value of [(error as { code?: unknown }).code, (error as { name?: unknown }).name]) {
+    if (typeof value === "string" && /^[A-Za-z_][A-Za-z0-9_]{0,39}$/.test(value)) return value;
+  }
+  return undefined;
 }
 
 function statusOf(error: unknown): number | undefined {
@@ -157,9 +172,11 @@ export async function googleFetch(
       signal: init.signal ? AbortSignal.any([timeout, init.signal]) : timeout,
       redirect: "error",
     });
-  } catch {
-    // Timeout, abort, DNS, TLS, reset: all the same to the caller. The error text is dropped.
-    throw new GoogleApiError(true);
+  } catch (error) {
+    // Timeout, abort, DNS, TLS, reset: all the same to the caller, which retries. The error text is dropped; which
+    // of them it was, and the runtime's error code, are kept for the logs.
+    const reason = timeout.aborted ? "timeout" : init.signal?.aborted ? "abort" : "network";
+    throw new GoogleApiError(true, undefined, reason, errorCodeOf(error));
   }
   if (response.ok || init.allow?.includes(response.status)) return response;
   await response.body?.cancel().catch(() => {});
