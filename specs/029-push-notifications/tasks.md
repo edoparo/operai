@@ -87,7 +87,7 @@ Re-sync 2026-11-12 (QE round 0 FAIL + security review FAIL; spec re-approved wit
   - touch: `notify-api/src/notifications/notifications.schemas.ts`, `notify-api/src/notifications/notifications.schemas.test.ts`, `notify-api/src/push/pushEndpoint.test.ts`, `.betterleaksignore`
   - done when: `isRelativeSuitePath` rejects every value whose `new URL(h, 'http://x').pathname` starts with `//` (same vectors as T20) on both the system and user routes (400), existing valid hrefs still accepted; `betterleaks dir .` reports no finding on this branch's files; `direnv exec . bun test` green.
 
-- [ ] T22: Docs — auth limits runbook, rollout order, AGENTS.md, changeset — refs: AC-7.8, AC-6.1 — deps: T14, T15, T16, T18
+- [x] T22: Docs — auth limits runbook, rollout order, AGENTS.md, changeset — refs: AC-7.8, AC-6.1 — deps: T14, T15, T16, T18
   - touch: `infra/README.md`, `AGENTS.md`, `.changeset/*`
   - done when: `infra/README.md` documents the four new auth variables, the retired `SERVICE_TOKEN_RATE_*` (delete after auth is live), the rollout order (auth → notify-api → `PUSH_ENABLED` only after the AC-7.7 live re-measure) and the Step-0/R-1 runbook lines the plan names; AGENTS.md's auth description mentions per-service limits on its `/system` endpoints (ADR list untouched — ADR-0086/0087 are added by the ADR writer); the changeset also selects `@operai/auth` (minor); `mise run changeset:check` green.
 
