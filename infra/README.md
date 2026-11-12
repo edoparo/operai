@@ -923,7 +923,11 @@ follows bucket ①).
 | `IDENTITIES_RATE_LIMIT` / `IDENTITIES_RATE_WINDOW_MS` | **NEW (specs/013-estimate-sharing, T27).** In-process rate limit for `POST /authz/users/identities` (reuses the same `rateLimiter.ts` module as the pair above, a second instance keyed separately). Optional — code defaults `120`/`600000` apply if unset. No response-time floor needed (ADR-0039 — this endpoint leaks no existence signal the caller doesn't already hold). | no |
 | `SERVICE_AUDIENCE` | **ADR-0044, required since specs/016 (ADR-0048).** The `aud` stamped on scoped service JWTs, including `auth`'s own in-process credential for `POST /system/emails`: `${{shared.SERVICE_AUDIENCE}}`, byte-identical to `notify-api`'s and **different from `AUTH_AUDIENCE`** (startup exits otherwise). Startup also exits if it is absent. | no |
 | `SERVICE_CLIENTS` | **ADR-0044/0049.** JSON object keyed by client id, one entry per caller that asks `POST /system/service-token` (`inventory-api`, `estimai-api`, `refund-api`): `{"inventory-api":{"secret":"${{shared.INVENTORY_SERVICE_CLIENT_SECRET}}","scope":"notifications.push"},…}` — full shape in § Notify credential rollout. Secret 32–256 chars; scopes are `notifications.push` and/or `emails.send`, each client only what it needs; client id is lower-case alphanumerics and single hyphens, and `auth` is reserved (ADR-0048). Never logged; a parse failure names the rule, never a value. Revoking a client = removing its entry (tokens already minted expire within 5 minutes). Verify the shared references resolved inside the JSON in the Variables tab. | **yes** |
-| `SERVICE_TOKEN_RATE_LIMIT` / `SERVICE_TOKEN_RATE_WINDOW_MS` | **NEW (T4).** In-process limiter on `POST /system/service-token`, keyed by network address. Optional — defaults `20`/`600000`. | no |
+| `SERVICE_TOKEN_SERVICE_LIMIT` | **NEW (specs/029 US-7, ADR-0086).** Service tokens `POST /system/service-token` mints per calling service (the verified `system:<clientId>`) per window. Positive integer, optional, default `300` (steady state is about 3 per service per window). | no |
+| `USERS_CONTACT_SERVICE_LIMIT` | **NEW (specs/029 US-7, ADR-0086).** Contact lookups `POST /system/users/contact` answers per calling service per window. Only `system:notify-api` holds `users.contact`. Positive integer, optional, default `600`. | no |
+| `SYSTEM_INVALID_CREDENTIAL_LIMIT` | **NEW (specs/029 US-7, ADR-0086).** Requests with an INVALID credential per source address per window, one count shared by both routes. Positive integer, optional, default `20`. It never touches a valid credential. | no |
+| `SYSTEM_RATE_WINDOW_MS` | **NEW (specs/029 US-7, ADR-0086).** The one window of the three limits above and the value of `Retry-After` (in seconds) on their single 429. Integer >= 1000, optional, default `600000`. | no |
+| `SERVICE_TOKEN_RATE_LIMIT` / `SERVICE_TOKEN_RATE_WINDOW_MS` | **RETIRED (specs/029 US-7).** The old per-address limit (20 per 600000 ms) shared by the whole suite. Now ignored: `auth` starts, never reads the values and logs one warning naming them; env-doctor flags them on `auth` (`FORBIDDEN_VARS`). **Delete them from Railway once the new `auth` is live** (Step 0 command), and from the local direnv / 1Password source. Do not "reuse" them: an override sized for the old rule would no longer mean anything. | no |
 | `DIRECTORY_RATE_LIMIT` / `DIRECTORY_RATE_WINDOW_MS` | **NEW (T5, ADR-0047).** In-process limiter on `GET /authz/users/directory`, keyed by caller `sub`. Optional — defaults `60`/`600000`. | no |
 | `NODE_ENV` | `production` | no |
 | `PORT` | **set explicitly** (any consistent value, e.g. `8080`) so private-networking callers can reference `${{auth.PORT}}` (see § Private networking) — the service binds `env.PORT`, default 3001 if unset, but leaving it unset makes `${{auth.PORT}}` unresolvable | no |
@@ -1708,16 +1712,20 @@ for s in auth notify-api; do
   printf '%s: ' "$s"
   railway variables --service "$s" --json | jq -r 'keys[]' | grep -qx SERVICE_AUDIENCE && echo present || echo MISSING
 done
-# R-1: does production override the token endpoint's rate limit downward? (default 20 per 600000 ms)
-railway variables --service auth --json | jq -r 'keys[]' | grep '^SERVICE_TOKEN_RATE' || echo "no override (defaults apply)"
+# Retired names: the old per-address token limit (SERVICE_TOKEN_RATE_*) is ignored since specs/029 US-7.
+# Listing one is not a failure; it is a leftover to delete once the new auth is live.
+railway variables --service auth --json | jq -r 'keys[]' | grep '^SERVICE_TOKEN_RATE' || echo "none (nothing to delete)"
 ```
 
 - Anything `MISSING`: stop. Add the `${{shared.SERVICE_AUDIENCE}}` reference first (its value
   must differ from `AUTH_AUDIENCE`), otherwise push 1 stops `auth` or `notify-api` from starting.
-- If a `SERVICE_TOKEN_RATE_*` name is listed, open it in the Railway dashboard (not a secret)
-  and confirm the limit is at least 20 per window of at least 600000 ms. Three callers use
-  about 8 of 20 in steady state; a deploy that restarts all three while a 401 retry is in
-  flight eats into it.
+- If a `SERVICE_TOKEN_RATE_*` name is listed: since specs/029 US-7 it has no effect (the limit is
+  per calling service, `SERVICE_TOKEN_SERVICE_LIMIT` default 300 and `USERS_CONTACT_SERVICE_LIMIT`
+  default 600, both per `SYSTEM_RATE_WINDOW_MS`). Do not size it; delete it after the new `auth`
+  is live (§ Push notifications -> Rollout order). Only if `SERVICE_TOKEN_SERVICE_LIMIT`,
+  `USERS_CONTACT_SERVICE_LIMIT`, `SYSTEM_INVALID_CREDENTIAL_LIMIT` or `SYSTEM_RATE_WINDOW_MS` is
+  set, check that the value is not below the default (the same listing with
+  `grep -E '^(SERVICE_TOKEN_SERVICE_LIMIT|USERS_CONTACT_SERVICE_LIMIT|SYSTEM_)'`).
 - `mise run env:doctor -- --env production` passes on the committed templates.
 
 ### Step 1 - Push 1: the new mechanism is accepted, nothing uses it yet
@@ -1771,8 +1779,12 @@ and `env-doctor --live` reports no failure.
 deployments of all three, and of `notify-api`, are the active successful ones.
 
 If a call fails with HTTP 429 from `auth POST /system/service-token` in a caller log during
-this window, raise the default `SERVICE_TOKEN_RATE_LIMIT` to 60 (R-1) rather than retrying
-in a loop.
+this window, do not retry in a loop and do not set `SERVICE_TOKEN_RATE_*` (retired, ignored).
+Read `auth`'s log: `allowance exhausted caller=system:<id>` means that service passed its own
+`SERVICE_TOKEN_SERVICE_LIMIT` (300 per window by default; raise it for the environment);
+`invalid-credential limit reached` means requests with a wrong credential arrived from one
+address (fix the caller's secret). The refusal is the same 429 either way, with `Retry-After`
+set to the window in seconds.
 
 ### Step 5 - Verify with the log line only
 
@@ -2016,6 +2028,25 @@ silent default.
 | `PUSH_EXCLUDED_ORIGINS` | Optional CSV of origin apps never pushed (for example `meetings`); values are validated, an unknown one stops the start. Default empty. |
 | `APP_BASE_URL`, `AUTH_BASE_URL`, `SERVICE_CLIENT_ID`, `SERVICE_CLIENT_SECRET` | The email-notice group: **required when `PUSH_ENABLED=true`**, because a push first asks `auth` whether the recipient is still an active user (AC-5.2). Enabling push without them exits at startup. |
 
+### Rollout order (specs/029 US-7, ADR-0086/0087)
+
+Push makes `notify-api` ask `auth` about each recipient, so it depends on `auth`'s per-service
+limits. Three steps, in this order:
+
+1. **`auth` first.** It only widens what is admitted (20 per address becomes 300 service tokens and
+   600 contact lookups per calling service per window); request and answer shapes are unchanged.
+   `auth` logs `[system] limits per <ms> ms: ...` at startup: confirm the four effective values.
+   Once it is live, list `auth`'s variables for the retired `SERVICE_TOKEN_RATE_*` names (the
+   Step-0 command in § Notify credential rollout, Step 0) and delete any found from Railway, and
+   from the local direnv / 1Password source. `mise run env:doctor -- --env production --live` then
+   reports no forbidden variable.
+2. **`notify-api` second** (30 s liveness memo, single-flight, bounded send pool, atomic device
+   cap). It works against the old and the new `auth`; against the old one it is still bound by the
+   shared 20, which is why step 3 waits.
+3. **`PUSH_ENABLED=true` only after the AC-7.7 live re-measure** (specs/029 T12) passes on the
+   deployed pair. This, not merge order, is the gate: Railway redeploys every service of one push
+   in no fixed order, and neither order is harmful while push is off.
+
 ### Enabling in production
 
 1. **ADR-0084 go-live sign-off first.** `docs/adr/0084-web-push-encrypted-payloads-not-fcm.md` has a
@@ -2029,6 +2060,32 @@ silent default.
    device. With push off, `GET /push/config` answers `{ "enabled": false }` and the shell hides the section.
 4. The shell serves `/push-sw.js` at the site root (the service worker must sit at the scope it controls);
    nothing extra to configure on Vercel.
+
+### Capacity and the live re-measure
+
+- **What push costs `auth`:** at most one contact lookup per push recipient per 30 s (the liveness
+  memo; only a `found` answer is remembered, `inactive` and `failed` are asked again) plus one per
+  `email: true` notice (never memoised, ADR-0056). Against `USERS_CONTACT_SERVICE_LIMIT` (600 per
+  10 min) that leaves room for well over 100 notifications in 10 minutes. A user raising notifications
+  at themselves in a loop is bounded at 20 lookups per 10 min.
+- **Re-measure (T12, AC-7.7):** raise more than 100 notifications in 10 minutes on the dev stack, then
+  on the deployed pair, and read the logs:
+
+  ```bash
+  railway logs --service auth --since 15m | grep -E 'allowance exhausted|invalid-credential limit reached' || echo "none"
+  railway logs --service notify-api --since 15m | grep 'HTTP 429' || echo "none"
+  ```
+
+  Pass = `none` for both. `allowance exhausted caller=system:notify-api` means the 600 was reached
+  (raise `USERS_CONTACT_SERVICE_LIMIT` or find the loop); `invalid-credential limit reached` means a
+  wrong credential from one address.
+- **Send pool and memo constants** (not environment variables; changing one is a code change), exported
+  from `notify-api/src/channels/push.channel.ts`: `SEND_POOL_OPTIONS` = 16 concurrent sends, 1 000
+  queued in total, 100 queued per recipient; `ACTIVITY_MEMO_TTL_MS` = 30 000. A full queue drops the
+  push (the in-app row and SSE event stand) and logs `backlog full`.
+- **A `409 device_limit` on `PUT /push/devices`** means the atomic per-user cap of 20 devices fired for
+  a new endpoint; re-registering an existing endpoint is never refused. It is the cap working, not a
+  database fault.
 
 ### Operating notes
 

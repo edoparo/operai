@@ -221,6 +221,12 @@ degrades silently when the key is absent (ADR-0032).
 - **Database:** PostgreSQL via Prisma 7 (`@prisma/adapter-pg`)
 - **Errors:** Effect TS; RFC 7807 Problem JSON
 - **Secrets:** 1Password references via `.envrc` (direnv); see `auth/.env.example`
+- **System endpoints' limits (specs/029 US-7, ADR-0086):** `POST /system/service-token` and
+  `POST /system/users/contact` verify the credential first, then count against the verified calling
+  service only — 300 tokens (`SERVICE_TOKEN_SERVICE_LIMIT`) and 600 contact lookups
+  (`USERS_CONTACT_SERVICE_LIMIT`) per service per window (`SYSTEM_RATE_WINDOW_MS`, 10 min) — plus one
+  per-source-address count of 20 invalid credentials (`SYSTEM_INVALID_CREDENTIAL_LIMIT`) shared by both
+  routes. One byte-identical 429 with `Retry-After`. `SERVICE_TOKEN_RATE_*` are retired and ignored (env-doctor flags them).
 
 ### Resource backends (estimai-api, notify-api, refund-api, inventory-api, crm-api, meetings-api, projects-api, activities-api)
 All eight share the `auth` service's shape (see ADR-0003 — one backend stack across the monorepo;
@@ -318,7 +324,7 @@ Per-service specifics:
   (specs/029, ADR-0084/0085): standard Web Push with encrypted payloads (no FCM), sent after the in-app row is
   stored, best effort, one row per browser in `push_device`; user-JWT routes `GET /push/config`,
   `PUT`/`GET /push/devices` and `DELETE /push/devices/{id}` scoped to `sub`; a recipient `auth` reports inactive
-  loses their devices, an unanswered check sends nothing. Env: `PUSH_ENABLED` (literal `true`, default off, needs
+  loses their devices, an unanswered check sends nothing; the liveness answer `active` is remembered 30 s per user (single flight, ADR-0087) and sends go through a bounded pool (16 concurrent, 1 000 queued, 100 per recipient), a full queue dropping the push. Env: `PUSH_ENABLED` (literal `true`, default off, needs
   the email-notice group too), `VAPID_PUBLIC_KEY`/`VAPID_PRIVATE_KEY`/`VAPID_SUBJECT`, `PUSH_EXCLUDED_ORIGINS`;
   rotating the keys invalidates every subscription (infra/README.md § Push notifications). The shell serves
   `/push-sw.js` and shows nothing while an Operai tab is visible, except on Safari, which always shows
@@ -428,7 +434,7 @@ Money is always integer minor units (cents); mileage rates are integer micros (A
 | `access` | The `(appId, "access")` permission that gates whether a tool appears at all |
 | `perm_epoch` | JWT claim bumped on any grant change — forces live permission re-resolution (ADR-0007) |
 | `invitation` | A pending email-matched grant; `expired` is derived on read, never written (ADR-0013) |
-| `service client` | A non-user principal in `auth`'s `SERVICE_CLIENTS` that mints a scoped service JWT (`sub="system:<id>"`, `aud=SERVICE_AUDIENCE`, scope `notifications.push`, `emails.send`, `users.contact`, `host-notices.send`, `estimate-notices.send`, `deal-link-notices.send`, `crm.companies.read` and/or `activities.write`); today `refund-api`, `estimai-api`, `inventory-api`, `crm-api` (also `activities.write`, for activities-api's `/system/v1/*`), `meetings-api`, `notify-api`, `projects-api` and `activities-api` (`notifications.push emails.send`) (`auth` mints its own in process and may not be a client, ADR-0048/0049) |
+| `service client` | A non-user principal in `auth`'s `SERVICE_CLIENTS` that mints a scoped service JWT (`sub="system:<id>"`, `aud=SERVICE_AUDIENCE`, scope `notifications.push`, `emails.send`, `users.contact`, `host-notices.send`, `estimate-notices.send`, `deal-link-notices.send`, `crm.companies.read` and/or `activities.write`); today `refund-api`, `estimai-api`, `inventory-api`, `crm-api` (also `activities.write`, for activities-api's `/system/v1/*`), `meetings-api`, `notify-api`, `projects-api` and `activities-api` (`notifications.push emails.send`) (`auth` mints its own in process and may not be a client, ADR-0048/0049); `auth` limits each client to 300 tokens and 600 contact lookups per 10 min, counted per verified service, with one per-address count of 20 invalid credentials (ADR-0086) |
 
 ### Inventory (specs/015)
 
