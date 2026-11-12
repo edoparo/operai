@@ -1,5 +1,60 @@
 # QE report: specs/029-push-notifications
 
+## QE verdict: FAIL        (L5 re-verification, measured at 9b394e13, full mode, rigor production)
+
+Commit 9b394e13 (`useDisposableRouter`) fixes the leak it targets, but it BREAKS every remote whose index route redirects
+(estimai, refund, inventory, crm, admin): they render an empty page. Previous verdict at 85fcb037 was PASS; this pass supersedes it
+(sections below are kept as history). Evidence in `/private/tmp/claude-501/-Users-matteocodogno-LAB-aiscream-operai/39cd1c38-0ef8-4330-af42-72ff15685521/scratchpad/r4/` (`walk.mjs`/`walk.txt`, `poll.mjs`, `matrix.mjs`, `trace.mjs`, `leak.mjs`, `blank.png`, `e2e1.txt`, `e2e2.txt`, `e2e3.txt`, `uicheck.txt`). QE changed only this file; tree clean at 9b394e13.
+
+## L5 re-verification
+
+| Check | Threshold | Actual | Result |
+|---|---|---|---|
+| `mise run ui:check` | exit 0 | exit 0: operai-ui 181, shell 585, and the two consumer groups 749 and 1002 tests, all pass | ✓ |
+| `node scripts/check-react-skew.mjs` | OK | OK (10 frontends, react 19.2.7, router 1.170.46) | ✓ |
+| `mise run changeset:check` | OK | OK (`release-router-history-on-unmount.md` matched) | ✓ |
+| shell `pnpm vitest run` | 0 fail | 585 pass / 0 fail, 40 files (also inside ui:check) | ✓ |
+| Dev servers picked up the change | Vite serves 9b394e13 | yes: all ports 5173-5181 answer, and swapping one remote back to the old `App.tsx` changes behaviour (see D-5) | ✓ |
+| Leak check, 10 leave-and-return cycles per remote (`leak.mjs`: net `popstate`/`beforeunload` listeners via instrumented add/removeEventListener, `pushState`/`replaceState` identity vs. the shell-only baseline at /account) | no growth | all 9 mount points (projects, meetings, notify, crm, inventory, estimai, refund, admin, my-meetings): net listeners 0 and 0 after cycle 1, 5 and 10; both history functions `===` the baseline every time | ✓ |
+| Every gated remote + /notify + /devices + /my-meetings renders, full load (`matrix.mjs`) | content | meetings, projects, notify, devices, my-meetings render; **estimai, refund, inventory, crm, admin: empty `<main>` for 15 s** (URL becomes `/estimai/estimates`, `/refund/requests`, `/inventory/assets`, `/crm/companies`, `/admin/roles`) | ✗ |
+| Deep links on full load | right page | `/crm/pipeline`, `/inventory/assets` render; any path that hits the index redirect (`/crm`, `/inventory`, `/estimai`, `/refund`, `/admin`) is blank | ✗ |
+| SPA navigation between remotes, same 17-step walk as round 2 plus real sidebar clicks, then Back (`walk.mjs`) | right page every step | 8 of 28 forward steps blank (every step that targets one of the five redirect remotes: spa /inventory, /estimai, /refund; click /crm x2, /estimai, /admin); the others and the whole Back chain (22 entries) show the right page, including the redirect remotes once they are history entries | ✗ |
+| Shell's own navigation after many mounts | works | bell -> /notify, /account, /devices, /my-meetings, sidebar to meetings and projects all work | ✓ |
+| In-remote navigation (links inside a remote) | URL and page update | crm tabs (Contacts, Tasks, Pipeline, Companies) not exercisable after a redirect remote goes blank; on a non-redirect entry (`/crm/pipeline`) the SPA steps to /crm/contacts and /crm/tasks render | ✗ (blocked by D-5 for the redirect entries) |
+| Console / page errors | 0 | 0 page errors; console errors are only 403s from the refund remote for an admin without refund access (expected, same as round 2) | ✓ |
+| e2e `notifications.spec.ts` + `push-notifications.spec.ts`, run 1 and run 2 | 13/13 | 12 passed, 1 failed both runs: `notifications.spec.ts:200` "AC-2.5 ... clicking a notification linking to /estimai actually mounts EstimAI" (Import JSON button never appears) | ✗ |
+| e2e `activities-crm.spec.ts` | pass | 5/5 passed (its routes are non-redirect deep links) | ✓ |
+| e2e `estimai-persistence.spec.ts` | pass | 2 failed (both journeys; the EstimAI list never renders) | ✗ |
+| e2e `inventory-assignment.spec.ts` | pass | Journey 1 failed, Journeys 2 and 3 skipped after it | ✗ |
+| e2e `refund-headline.spec.ts` | pass | Journey 1 failed, Journey 2 skipped after it | ✗ |
+| No flash of an empty page that breaks a test or focus | none | the intended one-commit `null` is not the problem; the blank here is permanent (D-5) | ✗ (same defect) |
+
+### Defects
+
+**D-5 (new since 9b394e13; not missed earlier: the same walk rendered `/inventory(/assets)`, `/admin/roles`, `/crm/...` at 85fcb037). A remote whose index route throws `redirect` in `beforeLoad` renders nothing under `useDisposableRouter`.**
+
+- Class: any remote whose router has an index route that redirects. Placements (every one checked live, full load AND SPA, all blank): estimai-ui (`/estimai` -> `/estimai/estimates`) ✗, refund-ui (`/refund` -> `/refund/requests`) ✗, inventory-ui (`/inventory` -> `/inventory/assets`) ✗, crm-ui (`/crm` -> `/crm/companies`) ✗, admin-ui (`/admin` -> `/admin/roles`) ✗. Not affected, no redirect: projects-ui ✓, meetings-ui `App` and `MyMeetings` ✓, notify-ui ✓. Not affected, ungated shell mounts: /devices ✓, /account ✓. Deep links that skip the redirect (`/inventory/assets`, `/crm/pipeline`) ✓. User impact: clicking EstimAI, Refund, Inventory, CRM or Admin in the sidebar, a notification link to `/estimai`, or a reload of the bare tool URL gives a blank page; Back after leaving and a deep link are the only ways in.
+- Repro: seeded admin session, open `http://localhost:5173/inventory`. URL becomes `/inventory/assets`, `<main id="shell-main-content">` has no children (`blank.png`; `poll.mjs`: no content in 15 s). Same for the other four.
+- Causality: temporarily restoring the pre-9b394e13 `inventory-ui/src/App.tsx` (`git show 9b394e13^:...`, reverted with `git checkout`, tree clean after) makes `/inventory` render "Inventory Assets Depreciation rules ..." immediately; with the committed file it is blank. Nothing else differs.
+- Observation for the dev (hypothesis, not proven): the instrumented trace (`trace.mjs`) on `/inventory` shows the history being created, then `replaceState('/inventory/assets')` at the redirect, then a further unsubscribe/subscribe pair about 500 ms later (a third router is created and the previous one destroyed), after which nothing renders. The non-redirect load shows only the early unsubscribe/subscribe pair and renders. Something re-runs the subscription after the redirect (a Suspense hide/reveal of the remote subtree re-running the store's effect is the obvious candidate), and the newly created router never makes it into the tree. A passing unit suite does not see it because the 8 new `App.test.tsx` cases use injected/memory histories and no redirecting index route in a real federation mount.
+- Missing test (dev to add; QE wrote none): per redirecting remote, mount `App` through the real `createAppRouter` with a browser history at the bare basepath (`/inventory`) and assert the redirect target's page renders (not just that `history.destroy` runs); plus one shell e2e that opens each bare tool URL. The existing e2e specs above already fail on it (`notifications.spec.ts:200`, `estimai-persistence`, `inventory-assignment` J1, `refund-headline` J1).
+- Constraint on the fix: keep the leak result above (listeners net 0, wrapper identity restored after 10 cycles on all 9 mount points); re-run `leak.mjs`.
+
+### Passing and unchanged
+
+Leak fix works as designed on all nine mount points. Skew, changesets, shell tests, `ui:check`: green. The 9 mount points other than the five redirecting remotes render and navigate correctly, Back chain correct, 0 console/page errors.
+
+### Blocked / pending
+
+- Re-verification needs D-5 fixed; then re-run: `cd /private/tmp/claude-501/-Users-matteocodogno-LAB-aiscream-operai/39cd1c38-0ef8-4330-af42-72ff15685521/scratchpad/r4/.. && node r4/matrix.mjs && node r4/walk.mjs && node r4/leak.mjs` (scripts use the running dev stack and the local `qe-e1r3admin@operai.test` user), the two 029 e2e specs (expect 13/13), and `activities-crm`, `estimai-persistence`, `inventory-assignment`, `refund-headline` e2e (expect all green; the 4 non-029 specs were not run before this pass, so their pre-9b394e13 baseline is inferred from the D-5 causality check, not measured).
+- This is fix round 3; the caller decides on escalation under the rigor rules.
+- pending T12 (human): unchanged from below (real push delivery, Edge host, AC-7.7 deployed pair, stored-href, L2-L4, ADR-0084 sign-off).
+- owasp-reviewer: L5 itself was a security finding; recommend the reviewer confirm L5 closed after D-5 is fixed.
+
+---
+
+## Earlier passes (history)
+
 ## QE verdict: PASS        (measured at 85fcb037, full mode, rigor production, E-1 re-run)
 
 Every executable row is green; E-1 is cleared (environment fault, no fix round consumed). The rows that need a human stay
