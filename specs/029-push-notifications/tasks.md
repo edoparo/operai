@@ -71,7 +71,7 @@ Re-sync 2026-11-12 (QE round 0 FAIL + security review FAIL; spec re-approved wit
   - touch: `auth/src/system/systemCapacity.contract.test.ts`
   - done when: plan row AC-7.7 (contract) passes with production defaults and real routers: 8 clients × 30 mints + 220 lookups + 15 invalid from `"direct"` in one window → zero 429; shown to fail at the 21st request when run against the pre-US-7 routers (stash/checkout evidence in the report, not committed).
 
-- [ ] T18: notify-api — push activity memo (30 s from send), single flight, send pool, capacity test — refs: AC-5.2, AC-2.1, AC-2.4, AC-2.6, AC-7.7 — deps: none
+- [x] T18: notify-api — push activity memo (30 s from send), single flight, send pool, capacity test — refs: AC-5.2, AC-2.1, AC-2.4, AC-2.6, AC-7.7 — deps: none
   - touch: `notify-api/src/push/activityCheck.ts`, `notify-api/src/push/activityCheck.test.ts`, `notify-api/src/push/sendPool.ts`, `notify-api/src/push/sendPool.test.ts`, `notify-api/src/channels/push.channel.ts`, `notify-api/src/channels/push.channel.test.ts`, `notify-api/src/lib/userContact.ts`, `notify-api/src/push/push.capacity.test.ts`
   - done when: plan rows "AC-2.1 under load", "AC-2.4/2.6 send pool", "AC-5.2 (amended) memo" and AC-7.7 (integration) pass — real token provider + real `createUserContactClient` against a fake auth enforcing the US-7 contract with no `X-Forwarded-For`: 100 notifications / 5 recipients / 30 s → exactly 5 lookups; 40 recipients → all pushed; 120 recipients → no 429; email notices still look up every time; never > 16 sends in flight; drops logged without ids; `direnv exec . bun test` green.
 

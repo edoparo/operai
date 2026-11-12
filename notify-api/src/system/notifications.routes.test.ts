@@ -580,7 +580,7 @@ describe("POST /system/notifications — push dispatch", () => {
         deleteAllForUser: async () => 0,
         deleteById: async () => true,
       },
-      contacts: { lookup: async () => ({ status: "found", email: "x@y.z", name: "X" }) },
+      activity: { isActive: async () => "active" },
       sender: createWebPushSender({
         publicKey: vapid.publicKey,
         privateKey: vapid.privateKey,

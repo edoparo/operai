@@ -1,6 +1,8 @@
 /**
- * Recipient address lookup for email notices (specs/019-crm-notifications,
- * ADR-0056): `POST ${AUTH_BASE_URL}/system/users/contact` with the caller's
+ * Recipient lookup (specs/019-crm-notifications, ADR-0056; also read by the push
+ * channel's activity check, specs/029, which puts a 30 s memo of `found` in front of
+ * it — push/activityCheck.ts, ADR-0087; the email notice path calls this client directly,
+ * a fresh lookup every time): `POST ${AUTH_BASE_URL}/system/users/contact` with the caller's
  * own service JWT (scope `users.contact`) and `{ userId }`.
  *
  *   200 -> { id, email, name }  => "found"
@@ -68,13 +70,13 @@ export function createUserContactClient(options: UserContactClientOptions): User
           }
           if (!res.ok) {
             await res.body?.cancel().catch(() => {});
-            console.error(`[user-contact] auth answered HTTP ${res.status} — email notice not sent`);
+            console.error(`[user-contact] auth answered HTTP ${res.status} — lookup failed`);
             return { status: "failed" };
           }
           const body = (await res.json()) as Record<string, unknown> | null;
           const { email, name } = body ?? {};
           if (typeof email !== "string" || email === "") {
-            console.error("[user-contact] auth returned an unexpected body — email notice not sent");
+            console.error("[user-contact] auth returned an unexpected body — lookup failed");
             return { status: "failed" };
           }
           return { status: "found", email, name: typeof name === "string" ? name : "" };
@@ -83,7 +85,7 @@ export function createUserContactClient(options: UserContactClientOptions): User
         // Our own ServiceTokenError (status only) or the runtime's fetch/abort
         // error; neither carries the secret, a token or the address.
         console.error(
-          "[user-contact] lookup failed — email notice not sent:",
+          "[user-contact] lookup failed:",
           error instanceof Error ? error.name : "unknown error",
         );
         return { status: "failed" };

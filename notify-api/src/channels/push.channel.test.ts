@@ -9,6 +9,9 @@ import * as webpush from "web-push";
 import type { PushDeviceRow } from "@/push/devices.repo";
 import type { PushSender, PushTarget, PushTransportRequest } from "@/push/webPushSender";
 import { createWebPushSender } from "@/push/webPushSender";
+import { createActivityCheck } from "@/push/activityCheck";
+import type { SendPool } from "@/push/sendPool";
+import { createSendPool } from "@/push/sendPool";
 import { createTestSubscriber, type TestSubscriber } from "@/push/webPush.testutil";
 import type { ContactLookupResult } from "@/lib/userContact";
 import type { NotificationDto } from "@/notifications/notifications.schemas";
@@ -51,6 +54,7 @@ type Harness = {
   lookups: string[];
   listed: string[];
   logs: string[];
+  clock: { t: number };
 };
 
 const harness = (
@@ -62,9 +66,10 @@ const harness = (
     excluded?: string[];
     sender?: PushSender | null;
     listFails?: boolean;
+    pool?: SendPool;
   } = {},
 ): Harness => {
-  const h: Harness = { sent: [], deleted: [], deletedAll: [], lookups: [], listed: [], logs: [], deps: undefined! };
+  const h: Harness = { sent: [], deleted: [], deletedAll: [], lookups: [], listed: [], logs: [], clock: { t: 1_000_000 }, deps: undefined! };
   const respond = over.respond ?? (async () => ({ status: 201 }));
   h.deps = {
     enabled: over.enabled ?? true,
@@ -82,17 +87,21 @@ const harness = (
         h.deleted.push(id);
       },
     },
-    contacts:
+    activity:
       over.contact === "null"
         ? null
-        : {
-            lookup: async (u) => {
-              h.lookups.push(u);
-              return over.contact === undefined || over.contact === "null"
-                ? { status: "found", email: "a@b.c", name: "A" }
-                : over.contact;
+        : createActivityCheck(
+            {
+              lookup: async (u) => {
+                h.lookups.push(u);
+                return over.contact === undefined || over.contact === "null"
+                  ? { status: "found", email: "a@b.c", name: "A" }
+                  : over.contact;
+              },
             },
-          },
+            { ttlMs: 30_000, now: () => h.clock.t },
+          ),
+    ...(over.pool !== undefined ? { pool: over.pool } : {}),
     sender:
       over.sender !== undefined
         ? over.sender
@@ -302,6 +311,91 @@ describe("pushChannel with the real sender (AC-2.1, 6.3)", () => {
     const decrypted = JSON.parse(sub.decrypt(req.body));
     expect(decrypted.title).toBe("Titolo riservato 4711");
     expect(Object.keys(decrypted).sort()).toEqual(["body", "href", "id", "originApp", "title", "v"]);
+  });
+});
+
+describe("pushChannel.dispatch — activity memo (ADR-0087, AC-5.2)", () => {
+  it("100 notifications to one recipient within 30 s ask auth once and push every time", async () => {
+    const sub = createTestSubscriber();
+    const h = harness({ devices: [row("d1", ENDPOINT_A, sub)] });
+    const ch = createPushChannel(h.deps);
+    for (let i = 0; i < 100; i++) await ch.dispatch(USER, notification());
+    expect(h.lookups).toEqual([USER]);
+    expect(h.sent).toHaveLength(100);
+  });
+
+  it("after 30 s the user is looked up again, and a user found inactive then loses every device", async () => {
+    const sub = createTestSubscriber();
+    let answer: ContactLookupResult = { status: "found", email: "a@b.c", name: "A" };
+    const h = harness({ devices: [row("d1", ENDPOINT_A, sub)] });
+    h.deps.activity = createActivityCheck(
+      {
+        lookup: async (u) => {
+          h.lookups.push(u);
+          return answer;
+        },
+      },
+      { ttlMs: 30_000, now: () => h.clock.t },
+    );
+    const ch = createPushChannel(h.deps);
+    await ch.dispatch(USER, notification());
+    answer = { status: "inactive" }; // deactivated at d
+    h.clock.t += 10_000; // d + 10 s: the memo may still push (AC-5.2 allows up to 30 s)
+    await ch.dispatch(USER, notification());
+    expect(h.sent).toHaveLength(2);
+    h.clock.t += 20_000; // 30 s after the lookup was sent
+    await ch.dispatch(USER, notification());
+    expect(h.sent).toHaveLength(2);
+    expect(h.deletedAll).toEqual([USER]);
+    expect(h.lookups).toHaveLength(2);
+  });
+
+  it("a failed lookup is not remembered: the next notification asks again and then pushes", async () => {
+    const sub = createTestSubscriber();
+    const answers: ContactLookupResult[] = [{ status: "failed" }, { status: "found", email: "a@b.c", name: "A" }];
+    const h = harness({ devices: [row("d1", ENDPOINT_A, sub)] });
+    h.deps.activity = createActivityCheck(
+      { lookup: async () => answers.shift() ?? { status: "failed" } },
+      { ttlMs: 30_000, now: () => h.clock.t },
+    );
+    const ch = createPushChannel(h.deps);
+    await ch.dispatch(USER, notification());
+    expect(h.sent).toHaveLength(0);
+    await ch.dispatch(USER, notification());
+    expect(h.sent).toHaveLength(1);
+  });
+});
+
+describe("pushChannel.dispatch — send pool (S-M2, AC-2.4/2.6)", () => {
+  it("sends go through the pool: a full backlog drops them and logs ONE count-only line", async () => {
+    const devices = [1, 2, 3, 4].map((n) => row(`dev-${n}`, `https://fcm.googleapis.com/fcm/send/secret-${n}`, createTestSubscriber()));
+    const h = harness({ devices, pool: createSendPool({ concurrency: 1, maxQueued: 1, maxQueuedPerRecipient: 1 }) });
+    await createPushChannel(h.deps).dispatch(USER, notification());
+    // 1 in flight + 1 queued; the other 2 are dropped
+    expect(h.sent).toHaveLength(2);
+    const lines = h.logs.filter((l) => l.includes("backlog full"));
+    expect(lines).toEqual(["[push] backlog full — 2 sends dropped"]);
+    const all = h.logs.join("\n");
+    expect(all).not.toContain("dev-");
+    expect(all).not.toContain("secret-");
+    expect(all).not.toContain(USER);
+  });
+
+  it("a 404 answered through the pool still prunes that device", async () => {
+    const sub = createTestSubscriber();
+    const h = harness({
+      devices: [row("gone", ENDPOINT_A, sub)],
+      respond: async () => ({ status: 410 }),
+      pool: createSendPool({ concurrency: 1, maxQueued: 5, maxQueuedPerRecipient: 5 }),
+    });
+    await createPushChannel(h.deps).dispatch(USER, notification());
+    expect(h.deleted).toEqual(["gone"]);
+  });
+
+  it("dispatch resolves when sends are dropped", async () => {
+    const devices = [1, 2, 3].map((n) => row(`d${n}`, `https://fcm.googleapis.com/fcm/send/e${n}`, createTestSubscriber()));
+    const h = harness({ devices, pool: createSendPool({ concurrency: 1, maxQueued: 0, maxQueuedPerRecipient: 0 }) });
+    await expect(createPushChannel(h.deps).dispatch(USER, notification())).resolves.toBeUndefined();
   });
 });
 

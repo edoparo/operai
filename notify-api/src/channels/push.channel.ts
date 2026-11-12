@@ -9,9 +9,11 @@
  *  - `dispatch` NEVER throws and is never awaited by the request that raised the
  *    notification (inApp.channel.ts), so a stalled push service cannot slow the 201.
  *  - Order: push off or origin excluded -> stop (AC-6.1, 6.4); no device -> stop (auth is
- *    not asked); recipient looked up in `auth` (ADR-0056 client): inactive -> every device
- *    of the user is deleted and nothing is sent; failed -> nothing is sent and nothing is
- *    deleted (fail closed, AC-5.2). Then one send per device, no retry (AC-2.6): 404/410
+ *    not asked); recipient checked for activity (`activityCheck`: the ADR-0056 lookup behind a
+ *    30 s memo of `found`, ADR-0087): inactive -> every device of the user is deleted and
+ *    nothing is sent; failed -> nothing is sent and nothing is deleted (fail closed, AC-5.2).
+ *    Then one send per device through the process-wide send pool (16 in flight, bounded queue,
+ *    overflow dropped and counted in one log line, S-M2), no retry (AC-2.6): 404/410
  *    from the push service delete that device (AC-2.7); any other status or error is logged
  *    and the device kept. Apple answers 201 for a subscription Safari has cancelled, so only
  *    404/410 prune.
@@ -25,7 +27,7 @@
 
 import { Effect } from "effect";
 import { env } from "@/lib/env";
-import { userContact, type UserContactClient } from "@/lib/userContact";
+import { userContact } from "@/lib/userContact";
 import type { NotificationDto } from "@/notifications/notifications.schemas";
 import {
   deleteAllForUser,
@@ -33,7 +35,14 @@ import {
   listByUser,
   type PushDeviceRow,
 } from "@/push/devices.repo";
+import { createActivityCheck, type ActivityCheck } from "@/push/activityCheck";
+import { createSendPool, type SendPool } from "@/push/sendPool";
 import { createWebPushSender, type PushSender } from "@/push/webPushSender";
+
+/** A `found` from auth is reused this long (ADR-0087, AC-5.2). */
+export const ACTIVITY_MEMO_TTL_MS = 30_000;
+/** Process-wide send pool bounds (plan § Components, S-M2). */
+export const SEND_POOL_OPTIONS = { concurrency: 16, maxQueued: 1_000, maxQueuedPerRecipient: 100 } as const;
 
 /** JSON bytes (UTF-8) of the plaintext payload; the 4 KB Web Push limit minus encryption overhead, with margin. */
 export const MAX_PUSH_PAYLOAD_BYTES = 3000;
@@ -94,8 +103,11 @@ export type PushChannelDeps = {
     deleteAllForUser(userId: string): Promise<unknown>;
     deleteById(id: string): Promise<unknown>;
   };
-  contacts: UserContactClient | null;
+  /** The liveness check (30 s memo of `found`); `null` = no lookup client, fail closed. */
+  activity: ActivityCheck | null;
   sender: PushSender | null;
+  /** One pool per process; defaults to a fresh one with SEND_POOL_OPTIONS. */
+  pool?: SendPool;
   log: (message: string) => void;
 };
 
@@ -109,6 +121,7 @@ export interface PushChannel {
 const errorClass = (error: unknown): string => (error instanceof Error ? error.name : "unknown error");
 
 export function createPushChannel(deps: PushChannelDeps): PushChannel {
+  const pool = deps.pool ?? createSendPool(SEND_POOL_OPTIONS);
   const sendToDevice = async (device: PushDeviceRow, sender: PushSender, payload: string): Promise<void> => {
     try {
       const { status } = await sender.send(
@@ -136,15 +149,19 @@ export function createPushChannel(deps: PushChannelDeps): PushChannel {
         const devices = await deps.devices.listByUser(recipientId);
         if (devices.length === 0) return;
 
-        const contact = deps.contacts === null ? ({ status: "failed" } as const) : await deps.contacts.lookup(recipientId);
-        if (contact.status === "inactive") {
+        const activity = deps.activity === null ? "failed" : await deps.activity.isActive(recipientId);
+        if (activity === "inactive") {
           await deps.devices.deleteAllForUser(recipientId);
           return;
         }
-        if (contact.status !== "found") return;
+        if (activity !== "active") return;
 
         const payload = buildPushPayload(notification);
-        await Promise.all(devices.map((device) => sendToDevice(device, sender, payload)));
+        const outcomes = await Promise.all(
+          devices.map((device) => pool.run(recipientId, () => sendToDevice(device, sender, payload))),
+        );
+        const dropped = outcomes.filter((o) => o === "dropped").length;
+        if (dropped > 0) deps.log(`[push] backlog full — ${dropped} sends dropped`);
       } catch (error) {
         deps.log(`[push] dispatch failed (${errorClass(error)})`);
       }
@@ -170,7 +187,9 @@ export const pushChannel: PushChannel = createPushChannel({
     deleteAllForUser: (userId) => Effect.runPromise(deleteAllForUser(userId)),
     deleteById: (id) => Effect.runPromise(deleteById(id)),
   },
-  contacts: userContact,
+  // Push reuses a recent `found` (ADR-0087); the email notice path calls `userContact` itself, fresh every time.
+  activity: userContact === null ? null : createActivityCheck(userContact, { ttlMs: ACTIVITY_MEMO_TTL_MS }),
   sender: defaultSender(),
+  pool: createSendPool(SEND_POOL_OPTIONS),
   log: (message) => console.error(message),
 });
