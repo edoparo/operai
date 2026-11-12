@@ -333,6 +333,25 @@ async function deleteDevice(id: string): Promise<void> {
 // Turning this browser on / off, removing a device
 // ---------------------------------------------------------------------------
 
+/** How long Turn on waits for the worker to become active before giving up (D-2). */
+export const SERVICE_WORKER_READY_TIMEOUT_MS = 10_000
+
+function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
+  return new Promise<T>((resolve, reject) => {
+    const timer = setTimeout(() => reject(new Error('timeout')), ms)
+    promise.then(
+      (value) => {
+        clearTimeout(timer)
+        resolve(value)
+      },
+      (error: unknown) => {
+        clearTimeout(timer)
+        reject(error instanceof Error ? error : new Error('rejected'))
+      },
+    )
+  })
+}
+
 /**
  * Turns push on for this browser (AC-1.2/1.3). MUST be called straight from the click handler: the
  * permission prompt is the first thing it does, before any `await` (Safari requires a user gesture).
@@ -356,9 +375,15 @@ export async function enablePush(input: { userId: string; vapidPublicKey: string
   let registration: ServiceWorkerRegistration
   try {
     await navigator.serviceWorker.register(SERVICE_WORKER_URL, { scope: SERVICE_WORKER_SCOPE })
-    registration = await navigator.serviceWorker.ready
   } catch {
     throw new PushError('generic')
+  }
+  try {
+    registration = await withTimeout(navigator.serviceWorker.ready, SERVICE_WORKER_READY_TIMEOUT_MS)
+  } catch {
+    // The worker never became active (install failed, script error, blocked): nothing was subscribed
+    // or stored yet, and Turn on is the retry (design F6, D-2).
+    throw new PushError('subscribe_failed')
   }
 
   let subscription: PushSubscription
@@ -558,6 +583,9 @@ export function handleServiceWorkerMessage(data: unknown): void {
     return
   }
   if (url.origin !== window.location.origin) return
+  // The URL parser normalises `/..//evil.io` (and strips tabs/newlines) into a `//evil.io` path,
+  // which `navigateSuite` would read as scheme-relative (S-M1).
+  if (url.pathname.startsWith('//')) return
   navigateSuite(`${url.pathname}${url.search}${url.hash}`)
 }
 

@@ -69,6 +69,9 @@ export function safeHref(value: unknown, origin: string): string {
   try {
     const url = new URL(value, origin)
     if (url.origin !== origin) return FALLBACK_HREF
+    // `/..//evil.io` normalises to the path `//evil.io`; `openWindow(new URL(path, origin))` then
+    // reads it as scheme-relative (S-M1).
+    if (url.pathname.startsWith('//')) return FALLBACK_HREF
     return `${url.pathname}${url.search}${url.hash}`
   } catch {
     return FALLBACK_HREF

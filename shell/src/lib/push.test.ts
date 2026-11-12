@@ -378,6 +378,55 @@ describe('enablePush', () => {
     expect(idb.peek()).toEqual({ deviceId: 'dev-1', userId: USER })
   })
 
+  it('a worker that never activates: rejects subscribe_failed after the timeout, with no subscription, no PUT and nothing stored (D-2)', async () => {
+    vi.useFakeTimers()
+    try {
+      installBrowser({ permission: 'granted' })
+      ;(navigator.serviceWorker as unknown as { ready: Promise<unknown> }).ready = new Promise(() => {})
+      const pending = enable()
+      const outcome = pending.then(
+        () => 'resolved',
+        (error: unknown) => error,
+      )
+      await vi.advanceTimersByTimeAsync(push.SERVICE_WORKER_READY_TIMEOUT_MS - 1)
+      let settled = false
+      void outcome.then(() => (settled = true))
+      await vi.advanceTimersByTimeAsync(0)
+      expect(settled).toBe(false)
+      await vi.advanceTimersByTimeAsync(1)
+      const error = await outcome
+      expect(error).toBeInstanceOf(push.PushError)
+      expect((error as InstanceType<typeof push.PushError>).code).toBe('subscribe_failed')
+      expect(browser.subscribe).not.toHaveBeenCalled()
+      expect(callsTo('PUT', '/push/devices')).toHaveLength(0)
+      expect(idb.size()).toBe(0)
+
+      // the retry is a fresh attempt: once the worker is active it succeeds
+      ;(navigator.serviceWorker as unknown as { ready: Promise<unknown> }).ready = Promise.resolve(browser.registration)
+      route('PUT', '/push/devices', () => json(201, DEVICE))
+      await expect(enable()).resolves.toEqual(DEVICE)
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
+  it('AC-1.7: after an explicit sign-out and signing in again it is off, and Turn on with permission still granted subscribes without changing permission', async () => {
+    installBrowser({ permission: 'granted', subscription: makeSubscription('https://web.push.apple.com/live') })
+    idb.seed({ deviceId: 'dev-1', userId: USER })
+    route('DELETE', '/push/devices/dev-1', () => json(204))
+
+    await push.releasePushOnSignOut()
+    expect(browser.subscription).toBeNull()
+    await expect(push.reconcilePush(USER)).resolves.toEqual({ status: 'off' })
+    expect(browser.permission).toBe('granted')
+
+    route('PUT', '/push/devices', () => json(201, DEVICE))
+    await expect(enable()).resolves.toEqual(DEVICE)
+    expect(browser.permission).toBe('granted')
+    expect(browser.subscribe).toHaveBeenCalledOnce()
+    expect(idb.peek()).toEqual({ deviceId: 'dev-1', userId: USER })
+  })
+
   it('accepts 200 (the endpoint already existed) as well as 201', async () => {
     route('PUT', '/push/devices', () => json(200, DEVICE))
     await expect(enable()).resolves.toEqual(DEVICE)
@@ -871,6 +920,18 @@ describe('initPush', () => {
 // handleServiceWorkerMessage (T7 contract)
 // ---------------------------------------------------------------------------
 
+// S-M1 (specs/029): paths that normalise to a scheme-relative URL or move the origin. Same table as
+// shell/src/sw/pushHandlers.test.ts; here each is appended to this page's origin.
+const OPEN_REDIRECT_VECTORS = [
+  '/..//evil.io',
+  '/.//evil.io',
+  '/a/..//evil.io',
+  '/%2e%2e//evil.io',
+  '/\t/evil.io',
+  '/\n/evil.io',
+  '/\r/evil.io',
+]
+
 describe('handleServiceWorkerMessage', () => {
   const origin = window.location.origin
 
@@ -879,7 +940,7 @@ describe('handleServiceWorkerMessage', () => {
     expect(session.navigateSuite).toHaveBeenCalledWith('/crm/deals/7?tab=notes#top')
   })
 
-  it.each([
+  it.each<[string, unknown]>([
     ['another origin', { navigate: 'https://evil.example.com/crm' }],
     ['a look-alike origin', { navigate: `${origin}.evil.example.com/x` }],
     ['a userinfo trick', { navigate: `${origin}@evil.example.com/x` }],
@@ -892,6 +953,10 @@ describe('handleServiceWorkerMessage', () => {
     ['undefined', undefined],
     ['a string', `${origin}/x`],
     ['an array', [`${origin}/x`]],
+    ...OPEN_REDIRECT_VECTORS.map((v): [string, unknown] => [
+      `open-redirect vector ${JSON.stringify(v)}`,
+      { navigate: `${origin}${v}` },
+    ]),
   ])('ignores %s', (_name, data) => {
     expect(() => push.handleServiceWorkerMessage(data)).not.toThrow()
     expect(session.navigateSuite).not.toHaveBeenCalled()

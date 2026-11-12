@@ -105,6 +105,18 @@ const payload = (over: Record<string, unknown> = {}) => ({
   ...over,
 })
 
+// S-M1 (specs/029): values that normalise to a scheme-relative URL or move the origin. The same
+// table is in shell/src/lib/push.test.ts (absolute form) and notify-api's schema test.
+const OPEN_REDIRECT_VECTORS = [
+  '/..//evil.io',
+  '/.//evil.io',
+  '/a/..//evil.io',
+  '/%2e%2e//evil.io',
+  '/\t/evil.io',
+  '/\n/evil.io',
+  '/\r/evil.io',
+]
+
 describe('push event', () => {
   it('shows nothing when a window is visible (AC-2.3)', async () => {
     const f = fake({ clients: [win('hidden'), win('visible')] })
@@ -142,12 +154,16 @@ describe('push event', () => {
     expect(f.show).toHaveBeenCalledTimes(1)
   })
 
-  it.each([
+  it.each<[string, unknown, string]>([
     ['absent', undefined, '/notify'],
     ['absolute other origin', 'https://evil.io/x', '/notify'],
     ['protocol-relative', '//evil.io/x', '/notify'],
     ['backslash trick', '/\\evil.io', '/notify'],
-    ['tab trick', '/\t/evil.io', '/notify'],
+    ...OPEN_REDIRECT_VECTORS.map((v): [string, unknown, string] => [
+      `open-redirect vector ${JSON.stringify(v)}`,
+      v,
+      '/notify',
+    ]),
     ['javascript url', 'javascript:alert(1)', '/notify'],
     ['not a string', 42, '/notify'],
     ['relative with query', '/refund/requests?x=1#a', '/refund/requests?x=1#a'],
