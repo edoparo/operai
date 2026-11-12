@@ -424,7 +424,9 @@ describe('device list and removal (AC-3.1, AC-3.2)', () => {
     expect(screen.getByTestId('account-push-banner').textContent).toContain('Removed Firefox · macOS.')
     expect(toggle().textContent).toBe('Turn off')
     const next = within(screen.getByTestId('account-push-device-d3')).getByRole('rowheader')
-    expect(document.activeElement).toBe(next)
+    // DataTable moves focus in a passive effect, which React flushes after the commit that removed
+    // the dialog: waitFor can resolve on that commit's DOM mutation, one tick before the focus lands.
+    await waitFor(() => expect(document.activeElement).toBe(next))
   })
 
   it('focuses the previous row when the last one was removed', async () => {
@@ -435,7 +437,8 @@ describe('device list and removal (AC-3.1, AC-3.2)', () => {
     fireEvent.click(screen.getByTestId('account-push-device-remove-d2'))
     fireEvent.click(screen.getByTestId('account-push-remove-confirm'))
     await waitFor(() => expect(screen.queryByTestId('account-push-device-d2')).toBeNull())
-    expect(document.activeElement).toBe(within(screen.getByTestId('account-push-device-d1')).getByRole('rowheader'))
+    const previous = within(screen.getByTestId('account-push-device-d1')).getByRole('rowheader')
+    await waitFor(() => expect(document.activeElement).toBe(previous)) // passive effect: see the test above
   })
 
   it('focuses the empty state when the list becomes empty', async () => {
