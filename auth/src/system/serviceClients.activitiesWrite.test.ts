@@ -15,6 +15,7 @@ import { DOCUMENTED_CLIENT_SCOPES, parseServiceClients } from "./serviceClients"
 
 const { env } = await import("../lib/env");
 const { createServiceTokenRouter } = await import("./serviceToken.routes");
+const { createSystemRateLimits } = await import("./systemRateLimits");
 
 const { privateKey } = await generateKeyPair("RS256");
 const signJwt = async (payload: ServiceJwtPayload): Promise<string> =>
@@ -28,7 +29,7 @@ const signJwt = async (payload: ServiceJwtPayload): Promise<string> =>
     .setJti(payload.jti)
     .sign(privateKey);
 
-const router = createServiceTokenRouter({ signJwt });
+const router = createServiceTokenRouter({ signJwt, limits: createSystemRateLimits() });
 
 const SERVICE_AUDIENCE = "operai-activities-test";
 const SECRET = "dummy-activities-write-secret-0123456789-abcd";

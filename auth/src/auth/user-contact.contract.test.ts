@@ -12,9 +12,10 @@ import { db } from "../lib/db";
 const { env } = await import("../lib/env");
 const { auth } = await import("./auth.config");
 const { createServiceTokenRouter, signWithAuth } = await import("../system/serviceToken.routes");
+const { createSystemRateLimits } = await import("../system/systemRateLimits");
 const { createUserContactRouter, jwksFromAuth } = await import("../system/userContact.routes");
 
-const tokenRouter = createServiceTokenRouter({ signJwt: signWithAuth(auth) });
+const tokenRouter = createServiceTokenRouter({ signJwt: signWithAuth(auth), limits: createSystemRateLimits() });
 const contactRouter = createUserContactRouter({ getJwks: jwksFromAuth(auth) });
 
 const SERVICE_AUDIENCE = "operai-user-contact-contract-test";

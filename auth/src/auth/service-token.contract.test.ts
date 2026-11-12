@@ -42,9 +42,10 @@ const { authRouter } = await import("./auth.routes");
 const { resolveRouter } = await import("../authz/resolve.routes");
 const { identitiesRouter } = await import("../authz/identities.routes");
 const { createServiceTokenRouter, signWithAuth } = await import("../system/serviceToken.routes");
+const { createSystemRateLimits } = await import("../system/systemRateLimits");
 
 // The production wiring (src/index.ts): the real plugin signer.
-const serviceTokenRouter = createServiceTokenRouter({ signJwt: signWithAuth(auth) });
+const serviceTokenRouter = createServiceTokenRouter({ signJwt: signWithAuth(auth), limits: createSystemRateLimits() });
 
 const SERVICE_AUDIENCE = "operai-service-contract-test";
 // Obvious dummy — never a real secret.

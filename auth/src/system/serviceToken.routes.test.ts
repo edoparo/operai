@@ -11,18 +11,23 @@
  *
  * `env` is mutated per file and restored in `afterAll` — the module is shared
  * across the whole `bun test` process, so env set at import time would depend
- * on file order. Each test uses its own `X-Forwarded-For` so the in-process
- * rate limiter (keyed by network address) never couples tests together.
+ * on file order. Invalid-credential requests use their own `X-Forwarded-For` so the
+ * shared per-address count never couples tests together; the limit rows
+ * (AC-7.x, specs/029 US-7, ADR-0086) each build their own router with an injected
+ * clock and send NO `X-Forwarded-For` unless the row is about the address.
  *
  * Secrets here are obvious dummies.
  */
 
-import { afterAll, beforeAll, describe, expect, test } from "bun:test";
+import { afterAll, beforeAll, describe, expect, spyOn, test } from "bun:test";
 import { createLocalJWKSet, decodeJwt, exportJWK, generateKeyPair, jwtVerify, SignJWT } from "jose";
 import type { ServiceJwtPayload } from "./serviceToken.routes";
+import type { SystemRateLimitConfig } from "./systemRateLimits";
 
 const { env } = await import("../lib/env");
 const { createServiceTokenRouter } = await import("./serviceToken.routes");
+const { createSystemRateLimits } = await import("./systemRateLimits");
+const serviceClientsModule = await import("./serviceClients");
 
 // Throwaway key, generated in memory for this file only.
 const { publicKey, privateKey } = await generateKeyPair("RS256");
@@ -41,14 +46,11 @@ const signJwt = async (payload: ServiceJwtPayload): Promise<string> =>
     .setJti(payload.jti)
     .sign(privateKey);
 
-const serviceTokenRouter = createServiceTokenRouter({ signJwt });
+const serviceTokenRouter = createServiceTokenRouter({ signJwt, limits: createSystemRateLimits() });
 
 const SERVICE_AUDIENCE = "operai-service-routes-test";
 const SECRET = "dummy-routes-secret-0123456789-abcdefgh";
 const URL_PATH = "/system/service-token";
-
-// TRANSITIONAL (specs/029 T14): the retired address-keyed default; replaced by the AC-7.x rows in T15/T16.
-const LEGACY_ADDRESS_LIMIT = 20;
 
 const mutableEnv = env as unknown as Record<string, unknown>;
 const saved = { audience: env.SERVICE_AUDIENCE, clients: env.SERVICE_CLIENTS };
@@ -231,30 +233,249 @@ describe("POST /system/service-token — authentication failures (AC-2.9)", () =
   });
 });
 
-describe("POST /system/service-token — rate limiting (AC-2.9)", () => {
-  test("the (limit+1)th attempt from one address is 429 with Retry-After; another address is unaffected", async () => {
-    const ip = freshIp();
-    const limit = LEGACY_ADDRESS_LIMIT;
-    for (let i = 0; i < limit; i++) {
-      // Failed attempts count too: the limiter is on the attempt, not the success.
-      expect((await post({ clientId: "nobody", clientSecret: SECRET }, ip)).status).toBe(401);
-    }
-    const over = await post(good, ip);
-    expect(over.status).toBe(429);
-    expect(Number(over.headers.get("Retry-After"))).toBeGreaterThanOrEqual(1);
-    const body = (await over.json()) as Record<string, unknown>;
-    expect(body["status"]).toBe(429);
-    expect(body["code"]).toBe("rate_limited");
-    expect(JSON.stringify(body)).not.toContain("eyJ");
 
-    expect((await post(good, freshIp())).status).toBe(200);
+// ─── specs/029 US-7 (ADR-0086): verify first, then exactly one count ─────────────────────────────
+
+const WINDOW_MS = 600_000;
+const OTHER_SECRET = "dummy-routes-other-0123456789-abcdefgh";
+
+/** A router with its own limits and clock, a counting signer, and no forwarded address unless asked. */
+function limitedRouter(config: Partial<SystemRateLimitConfig> = {}) {
+  let t = 7_000_000;
+  const limits = createSystemRateLimits({ now: () => t, config });
+  let signed = 0;
+  const router = createServiceTokenRouter({
+    signJwt: async (payload) => {
+      signed += 1;
+      return signJwt(payload);
+    },
+    limits,
+  });
+  const call = (body: unknown, ip?: string, raw = false) =>
+    router.request(URL_PATH, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", ...(ip ? { "X-Forwarded-For": ip } : {}) },
+      body: raw ? (body as string) : JSON.stringify(body),
+    });
+  return { call, limits, signed: () => signed, advance: (ms: number) => (t += ms), now: () => t };
+}
+
+const twoClients = () =>
+  new Map([
+    ["inventory-api", { secret: SECRET, scopes: ["notifications.push"] }],
+    ["refund-api", { secret: OTHER_SECRET, scopes: ["emails.send"] }],
+  ]);
+const refundCreds = { clientId: "refund-api", clientSecret: OTHER_SECRET };
+
+describe("POST /system/service-token — per-service allowance (AC-7.1, AC-7.3, AC-7.4)", () => {
+  beforeAll(() => configure(SERVICE_AUDIENCE, twoClients()));
+  afterAll(() => configure(SERVICE_AUDIENCE, validClients()));
+
+  test("AC-7.1: a service mints 300 times inside one window with no forwarded address — 300 x 200, each a token", async () => {
+    const r = limitedRouter();
+    for (let i = 0; i < 300; i++) {
+      const res = await r.call(good);
+      expect(res.status).toBe(200);
+      const { token } = (await res.json()) as { token: string };
+      if (i === 0 || i === 299) expect(decodeJwt(token).sub).toBe("system:inventory-api");
+      r.advance(1);
+    }
+    expect(r.signed()).toBe(300);
   });
 
-  test("malformed bodies are counted too — probing with invalid input cannot dodge the limiter", async () => {
-    const ip = freshIp();
-    for (let i = 0; i < LEGACY_ADDRESS_LIMIT; i++) {
-      expect((await post({}, ip)).status).toBe(400);
+  test("AC-7.4: the 301st is the shared 429 with Retry-After 600, nothing minted; retries do not extend it; recovery on its own", async () => {
+    const r = limitedRouter();
+    for (let i = 0; i < 300; i++) expect((await r.call(good)).status).toBe(200);
+    const first = r.now();
+    expect(r.signed()).toBe(300);
+
+    const over = await r.call(good);
+    expect(over.status).toBe(429);
+    expect(over.headers.get("Retry-After")).toBe("600");
+    expect(r.signed()).toBe(300);
+    for (let i = 0; i < 10; i++) {
+      r.advance(10_000);
+      expect((await r.call(good)).status).toBe(429);
     }
-    expect((await post({}, ip)).status).toBe(429);
+    expect(r.signed()).toBe(300);
+    // the 300 admitted attempts were all at `first`: one window later the allowance is back
+    r.advance(first + WINDOW_MS - r.now());
+    expect((await r.call(good)).status).toBe(200);
+  });
+
+  test("AC-7.3: when A has used its whole allowance, B's call is answered exactly as on a fresh router", async () => {
+    const r = limitedRouter();
+    for (let i = 0; i < 300; i++) await r.call(good);
+    expect((await r.call(good)).status).toBe(429);
+
+    const fresh = limitedRouter();
+    const b = await r.call(refundCreds);
+    const reference = await fresh.call(refundCreds);
+    expect(b.status).toBe(200);
+    const shape = (res: { token: string; expiresInSeconds: number }) => ({
+      keys: Object.keys(res).sort(),
+      expiresInSeconds: res.expiresInSeconds,
+      claims: (({ sub, aud, iss, scope }) => ({ sub, aud, iss, scope }))(decodeJwt(res.token) as Record<string, unknown>),
+    });
+    expect(shape((await b.json()) as never)).toEqual(shape((await reference.json()) as never));
+  });
+
+  test("a service's own allowance is configurable (SERVICE_TOKEN_SERVICE_LIMIT)", async () => {
+    const r = limitedRouter({ serviceTokenLimit: 2 });
+    expect((await r.call(good)).status).toBe(200);
+    expect((await r.call(good)).status).toBe(200);
+    expect((await r.call(good)).status).toBe(429);
+    expect((await r.call(refundCreds)).status).toBe(200);
+  });
+});
+
+describe("POST /system/service-token — invalid credentials by source (AC-7.5, AC-7.6)", () => {
+  beforeAll(() => configure(SERVICE_AUDIENCE, twoClients()));
+  afterAll(() => configure(SERVICE_AUDIENCE, validClients()));
+
+  const invalidKinds = [
+    ["unknown client", { clientId: "nobody", clientSecret: SECRET }, 401],
+    ["wrong secret", { clientId: "inventory-api", clientSecret: "x".repeat(40) }, 401],
+    ["malformed body", {}, 400],
+  ] as const;
+
+  test("20 invalid requests are answered as today (401 / 400); the 21st is 429; nothing is minted for any of them", async () => {
+    for (const ip of ["198.51.100.7", undefined]) {
+      const r = limitedRouter();
+      for (let i = 0; i < 20; i++) {
+        const [, body, status] = invalidKinds[i % invalidKinds.length]!;
+        expect((await r.call(body, ip)).status).toBe(status);
+      }
+      expect((await r.call(invalidKinds[0][1], ip)).status).toBe(429);
+      expect((await r.call({}, ip)).status).toBe(429);
+      expect(r.signed()).toBe(0);
+    }
+  });
+
+  test("AC-7.5: at the same instant a valid credential from that source is 200 — also from \"direct\" — and is not counted", async () => {
+    for (const ip of ["198.51.100.8", undefined]) {
+      const r = limitedRouter();
+      for (let i = 0; i < 19; i++) {
+        expect((await r.call(invalidKinds[0][1], ip)).status).toBe(401);
+        if (i % 2 === 0) expect((await r.call(good, ip)).status).toBe(200); // valid ones interleaved
+      }
+      // 50 valid in total from this source must not have eaten the invalid budget
+      for (let i = 0; i < 40; i++) expect((await r.call(good, ip)).status).toBe(200);
+      expect((await r.call(invalidKinds[0][1], ip)).status).toBe(401); // the 20th
+      expect((await r.call(invalidKinds[0][1], ip)).status).toBe(429); // the 21st
+      expect((await r.call(good, ip)).status).toBe(200); // still passes from the flooded source
+      expect((await r.call(refundCreds, ip)).status).toBe(200);
+    }
+  });
+
+  test("another source's invalid requests never refuse this source's invalid requests below 20", async () => {
+    const r = limitedRouter();
+    for (let i = 0; i < 25; i++) await r.call(invalidKinds[0][1], "198.51.100.20");
+    expect((await r.call(invalidKinds[0][1], "198.51.100.21")).status).toBe(401);
+  });
+
+  test("refused invalid requests do not extend the period: it ends 10 minutes after the first", async () => {
+    const r = limitedRouter();
+    for (let i = 0; i < 20; i++) await r.call(invalidKinds[0][1]);
+    const first = r.now();
+    for (let i = 0; i < 5; i++) {
+      r.advance(100_000);
+      expect((await r.call(invalidKinds[0][1])).status).toBe(429);
+    }
+    r.advance(first + WINDOW_MS - r.now());
+    expect((await r.call(invalidKinds[0][1])).status).toBe(401);
+  });
+
+  test("AC-7.6(a): the invalid-flood 429 and the exhausted-service 429 are identical in status, body bytes and headers", async () => {
+    const r = limitedRouter({ serviceTokenLimit: 1 });
+    // the two buckets start 5 minutes apart
+    await r.call(good);
+    r.advance(300_000);
+    for (let i = 0; i < 20; i++) await r.call(invalidKinds[0][1]);
+    const service = await r.call(good);
+    const invalid = await r.call(invalidKinds[0][1]);
+    expect(service.status).toBe(429);
+    expect(invalid.status).toBe(429);
+    expect(await invalid.text()).toBe(await service.text());
+    const headers = (res: Response) => [...res.headers].filter(([k]) => k !== "date").sort();
+    expect(headers(invalid)).toEqual(headers(service));
+    expect(invalid.headers.get("Retry-After")).toBe("600");
+  });
+
+  test("AC-7.6(b): with A's allowance exhausted, a wrong secret for A is the frozen 401, not a 429", async () => {
+    const r = limitedRouter({ serviceTokenLimit: 1 });
+    await r.call(good);
+    expect((await r.call(good)).status).toBe(429);
+    const wrong = await r.call({ clientId: "inventory-api", clientSecret: "y".repeat(40) });
+    expect(wrong.status).toBe(401);
+    const reference = await limitedRouter().call({ clientId: "inventory-api", clientSecret: "y".repeat(40) });
+    expect(await wrong.text()).toBe(await reference.text());
+  });
+
+  test("AC-7.6(c): unknown client, wrong secret and a near-miss secret are identical 401s, and identical 429s past 20", async () => {
+    const nearMiss = SECRET.slice(0, -1) + (SECRET.endsWith("h") ? "i" : "h");
+    const attempts = [
+      { clientId: "nobody", clientSecret: SECRET },
+      { clientId: "inventory-api", clientSecret: "z".repeat(40) },
+      { clientId: "inventory-api", clientSecret: nearMiss },
+    ];
+    const r = limitedRouter();
+    const bodies: string[] = [];
+    for (const a of attempts) {
+      const res = await r.call(a);
+      expect(res.status).toBe(401);
+      bodies.push(await res.text());
+    }
+    expect(new Set(bodies).size).toBe(1);
+    for (let i = 3; i < 20; i++) await r.call(attempts[0]);
+    const refused: string[] = [];
+    for (const a of attempts) {
+      const res = await r.call(a);
+      expect(res.status).toBe(429);
+      refused.push(await res.text());
+    }
+    expect(new Set(refused).size).toBe(1);
+  });
+
+  test("AC-7.6(d): the credential comparison runs exactly once per request on the valid, 401 and both 429 paths", async () => {
+    const spy = spyOn(serviceClientsModule, "authenticateServiceClient");
+    try {
+      const r = limitedRouter({ serviceTokenLimit: 1, invalidLimit: 1 });
+      await r.call(good); // valid
+      expect(spy).toHaveBeenCalledTimes(1);
+      await r.call(good); // valid, service allowance refused (429)
+      expect(spy).toHaveBeenCalledTimes(2);
+      await r.call({ clientId: "nobody", clientSecret: SECRET }); // invalid, admitted (401)
+      expect(spy).toHaveBeenCalledTimes(3);
+      expect((await r.call({ clientId: "nobody", clientSecret: SECRET })).status).toBe(429); // invalid, refused
+      expect(spy).toHaveBeenCalledTimes(4);
+    } finally {
+      spy.mockRestore();
+    }
+  });
+
+  test("AC-7.4/7.5: neither a 401 nor a 429 reaches the signer", async () => {
+    const r = limitedRouter({ serviceTokenLimit: 1, invalidLimit: 1 });
+    await r.call(good);
+    const before = r.signed();
+    await r.call(good); // 429 (service)
+    await r.call(invalidKinds[0][1]); // 401
+    await r.call(invalidKinds[0][1]); // 429 (invalid)
+    expect(r.signed()).toBe(before);
+  });
+
+  test("a body over 4 KiB is an invalid credential: 400 'body: too large', counted against the source, never parsed", async () => {
+    const r = limitedRouter({ invalidLimit: 1 });
+    const huge = JSON.stringify({ clientId: "inventory-api", clientSecret: SECRET, pad: "p".repeat(5000) });
+    const res = await r.call(huge, undefined, true);
+    expect(res.status).toBe(400);
+    expect(((await res.json()) as { detail: string }).detail).toBe("body: too large");
+    expect((await r.call(huge, undefined, true)).status).toBe(429);
+  });
+
+  test("a body that is not JSON is the 400 of today and counts as invalid", async () => {
+    const r = limitedRouter({ invalidLimit: 1 });
+    expect((await r.call("{nope", undefined, true)).status).toBe(400);
+    expect((await r.call("{nope", undefined, true)).status).toBe(429);
   });
 });

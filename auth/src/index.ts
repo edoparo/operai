@@ -28,6 +28,7 @@ import { signinRouter } from "./signin/signin.routes";
 import { createServiceTokenRouter, signWithAuth } from "./system/serviceToken.routes";
 import { createUserContactRouter, jwksFromAuth } from "./system/userContact.routes";
 import { createSelfServiceTokenProvider } from "./system/selfServiceToken";
+import { createSystemRateLimits } from "./system/systemRateLimits";
 import { setNotifyTokenProvider } from "./lib/notify";
 import { setupOpenAPI } from "./openapi/registry";
 
@@ -73,7 +74,13 @@ app.route("/", invitationsRouter);
 app.route("/", accessRequestsRouter);
 app.route("/", inviteRouter);
 const signServiceJwt = signWithAuth(auth);
-app.route("/", createServiceTokenRouter({ signJwt: signServiceJwt }));
+// One set of limits for both /system endpoints: the invalid-credential count is shared (specs/029 US-7, ADR-0086).
+const systemLimits = createSystemRateLimits();
+console.log(
+  `[system] limits per ${env.SYSTEM_RATE_WINDOW_MS} ms: service-token ${env.SERVICE_TOKEN_SERVICE_LIMIT} per service, ` +
+    `users/contact ${env.USERS_CONTACT_SERVICE_LIMIT} per service, invalid credentials ${env.SYSTEM_INVALID_CREDENTIAL_LIMIT} per source`,
+);
+app.route("/", createServiceTokenRouter({ signJwt: signServiceJwt, limits: systemLimits }));
 app.route("/", createUserContactRouter({ getJwks: jwksFromAuth(auth) }));
 // `auth`'s own notify credential (specs/016 T7, ADR-0048): invitation emails
 // authenticate with it. Injected here, not imported by lib/notify.ts, so that

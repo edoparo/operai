@@ -42,25 +42,33 @@
  * any module FIRST loaded after that gets the stub (no `signJWT`) — which would
  * make this route's tests pass or fail depending on file order.
  *
- * RATE LIMITING keys on the caller's network address (the rightmost
- * `X-Forwarded-For` entry, which is the one the platform proxy appended, or
- * "direct" off-proxy), counted on EVERY attempt including malformed ones and
- * ahead of body validation. Not keyed by `clientId`: the id of the one real
- * client is guessable, so keying on it would let anyone lock that client out
- * by spamming its name. Per-process, like the suite's other limiter
- * (ADR-0035's named limitation). No secret, token or client id is ever logged.
+ * LIMITS (specs/029 US-7, ADR-0086): the credential is verified FIRST and then
+ * exactly one count is consulted — a valid credential against its own calling
+ * service (`system:<clientId>`, 300 per 10 min), an invalid one (malformed body,
+ * unknown client, wrong secret) against its source address (20 per 10 min, one
+ * counter shared with `/system/users/contact`). Both refusals are the one 429 of
+ * `systemRateLimits.tooManyRequests`; nothing is minted for either. The old
+ * address-keyed guard ahead of everything is gone: on the private network every
+ * service is the same address, so it starved the whole suite (D-1). The pre-
+ * verification key is still never the CLAIMED client id (anyone could lock a
+ * service out by its guessable name); the per-service key is only ever the
+ * verified one. The work for an invalid request is bounded and I/O-free: a 4 KiB
+ * body cap, one JSON parse, two SHA-256 and one constant-time compare, one map
+ * update — no database, no signer. Per-process (ADR-0035's named limitation).
+ * No secret, token, client id or address is ever logged.
  */
 
 import { createRoute, OpenAPIHono } from "@hono/zod-openapi";
-import { createMiddleware } from "hono/factory";
+import type { Context } from "hono";
 import { z } from "zod";
 import { env } from "../lib/env";
-import { createSlidingWindowRateLimiter } from "../lib/rateLimiter";
+import { readBodyCapped } from "./boundedBody";
 import {
   authenticateServiceClient,
   SERVICE_SUB_PREFIX,
   SERVICE_TOKEN_TTL_SECONDS,
 } from "./serviceClients";
+import type { SystemRateLimits } from "./systemRateLimits";
 
 // ─── Schemas ──────────────────────────────────────────────────────────────────
 // Length caps bound the work done on attacker-controlled input before any
@@ -119,7 +127,7 @@ const postServiceTokenRoute = createRoute({
   },
 });
 
-// ─── Rate limiter ────────────────────────────────────────────────────────────
+// ─── Source address ──────────────────────────────────────────────────────────
 
 /** The platform proxy's view of the caller (rightmost XFF entry), bounded in length. */
 export function callerAddress(forwardedFor: string | undefined): string {
@@ -187,90 +195,94 @@ export async function mintServiceJwt(
 
 // ─── Router ──────────────────────────────────────────────────────────────────
 
-// TRANSITIONAL (specs/029 T14 → T15/T16): the retired SERVICE_TOKEN_RATE_* defaults, until this route
-// moves to the verify-first limits of systemRateLimits.ts.
-const LEGACY_ADDRESS_LIMIT = 20;
-const LEGACY_ADDRESS_WINDOW_MS = 600_000;
+const badRequest = (c: Context, detail: string) =>
+  c.json(
+    { type: "https://httpstatuses.com/400", title: "Bad Request", status: 400, detail, instance: c.req.path },
+    400,
+  );
 
-export function createServiceTokenRouter(deps: { signJwt: SignServiceJwt }) {
-  const limiter = createSlidingWindowRateLimiter({
-    limit: LEGACY_ADDRESS_LIMIT,
-    windowMs: LEGACY_ADDRESS_WINDOW_MS,
-  });
+export function createServiceTokenRouter(deps: { signJwt: SignServiceJwt; limits: SystemRateLimits }) {
+  const { limits } = deps;
 
-  const rateLimit = createMiddleware(async (c, next) => {
-    const result = limiter.consume(callerAddress(c.req.header("X-Forwarded-For")));
-    if (!result.allowed) {
-      const retryAfterSeconds = Math.max(1, Math.ceil(result.retryAfterMs / 1000));
-      c.header("Retry-After", String(retryAfterSeconds));
-      return c.json(
-        {
-          type: "https://httpstatuses.com/429",
-          title: "Too Many Requests",
-          status: 429,
-          detail: "Too many token requests. Try again later.",
-          instance: c.req.path,
-          code: "rate_limited",
-        },
-        429,
-      );
-    }
-    return next();
-  });
+  // Not `.openapi()`: that would run the body validator (an unbounded read, and a 400 answered before any
+  // count). The route is registered for the API document only; the handler below owns the whole order.
+  const serviceTokenRouter = new OpenAPIHono();
+  serviceTokenRouter.openAPIRegistry.registerPath(postServiceTokenRoute);
 
-  const serviceTokenRouter = new OpenAPIHono({
-    defaultHook: (result, c) => {
-      if (!result.success) {
-        return c.json(
-          {
-            type: "https://httpstatuses.com/400",
-            title: "Bad Request",
-            status: 400,
-            // Field names and rule text only: never echo the submitted values.
-            detail: result.error.issues
-              .map((issue) => `${issue.path.join(".")}: ${issue.message}`)
-              .join("; "),
-            instance: c.req.path,
-          },
-          400,
-        );
+  serviceTokenRouter.post("/system/service-token", async (c) => {
+    // 1. Verify the credential. Nothing here does I/O, mints, or consults a count.
+    let invalid: Response | null = null;
+    let credentials: { clientId: string; clientSecret: string } | null = null;
+    let client: ReturnType<typeof authenticateServiceClient> = null;
+
+    const body = await readBodyCapped(c.req.raw);
+    if (!body.ok) {
+      invalid = badRequest(c, "body: too large");
+    } else {
+      let json: unknown;
+      let jsonError = false;
+      // Same acceptance as the schema validator it replaces: a body counts only as JSON when it says so.
+      if (/^application\/(?:[\w.+-]*\+)?json\b/i.test(c.req.header("Content-Type") ?? "")) {
+        try {
+          json = JSON.parse(body.text);
+        } catch {
+          jsonError = true;
+        }
       }
-      return undefined;
-    },
-  });
-
-  serviceTokenRouter.use("/system/service-token", rateLimit);
-
-  serviceTokenRouter.openapi(postServiceTokenRoute, async (c) => {
-    const { clientId, clientSecret } = c.req.valid("json");
-
-    const client = authenticateServiceClient(env.SERVICE_CLIENTS, clientId, clientSecret);
-    if (!client) {
-      // The reason (unknown client vs wrong secret) is deliberately not logged
-      // either: the log line is the only other place it could be learned from.
-      console.warn("[system/service-token] rejected credentials");
-      // The one 401: constant status and body for every credential failure
-      // (`instance` is the fixed request path, not caller-derived).
-      return c.json(
-        {
-          type: "https://httpstatuses.com/401",
-          title: "Unauthorized",
-          status: 401,
-          detail: "Invalid client credentials",
-          instance: c.req.path,
-        },
-        401,
-        { "Cache-Control": "no-store" },
-      );
+      const parsed = ServiceTokenRequestSchema.safeParse(json);
+      if (jsonError) {
+        invalid = badRequest(c, "body: malformed JSON");
+      } else if (!parsed.success) {
+        // Field names and rule text only: never echo the submitted values.
+        invalid = badRequest(
+          c,
+          parsed.error.issues.map((issue) => `${issue.path.join(".")}: ${issue.message}`).join("; "),
+        );
+      } else {
+        credentials = parsed.data;
+        // Runs once on every request that has credentials to compare, whatever the counts say.
+        client = authenticateServiceClient(env.SERVICE_CLIENTS, credentials.clientId, credentials.clientSecret);
+      }
     }
 
-    const { token } = await mintServiceJwt(deps.signJwt, {
-      clientId,
-      scopes: client.scopes,
-    });
+    // 2. Exactly one count.
+    if (client && credentials) {
+      const caller = `${SERVICE_SUB_PREFIX}${credentials.clientId}`;
+      if (!limits.serviceToken.consume(caller).allowed) {
+        limits.logRefusal("allowance", "service-token", caller);
+        return limits.tooManyRequests(c);
+      }
+      const { token } = await mintServiceJwt(deps.signJwt, {
+        clientId: credentials.clientId,
+        scopes: client.scopes,
+      });
+      c.header("Cache-Control", "no-store");
+      return c.json({ token, expiresInSeconds: SERVICE_TOKEN_TTL_SECONDS }, 200);
+    }
 
-    c.header("Cache-Control", "no-store");
-    return c.json({ token, expiresInSeconds: SERVICE_TOKEN_TTL_SECONDS }, 200);
+    const source = callerAddress(c.req.header("X-Forwarded-For"));
+    if (!limits.invalidCredentials.consume(source).allowed) {
+      limits.logRefusal("invalid", "service-token", source);
+      return limits.tooManyRequests(c);
+    }
+    if (invalid) return invalid;
+
+    // The reason (unknown client vs wrong secret) is deliberately not logged
+    // either: the log line is the only other place it could be learned from.
+    console.warn("[system/service-token] rejected credentials");
+    // The one 401: constant status and body for every credential failure
+    // (`instance` is the fixed request path, not caller-derived).
+    return c.json(
+      {
+        type: "https://httpstatuses.com/401",
+        title: "Unauthorized",
+        status: 401,
+        detail: "Invalid client credentials",
+        instance: c.req.path,
+      },
+      401,
+      { "Cache-Control": "no-store" },
+    );
   });
 
   return serviceTokenRouter;
