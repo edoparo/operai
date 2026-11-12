@@ -109,3 +109,5 @@ export {
 } from './lib/format'
 export type { DurationStyle } from './lib/format'
 export { useFocusOnMount } from './lib/useFocusOnMount'
+export { useDisposableRouter } from './lib/useDisposableRouter'
+export type { DisposableRouter } from './lib/useDisposableRouter'

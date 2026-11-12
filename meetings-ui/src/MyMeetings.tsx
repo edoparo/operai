@@ -1,6 +1,6 @@
 import 'shell/tokens.css'
-import { useState } from 'react'
 import { RouterProvider } from '@tanstack/react-router'
+import { useDisposableRouter } from '@operai/ui'
 import MyMeetingsShell from './components/MyMeetingsShell'
 import { createMyMeetingsRouter } from './router'
 
@@ -18,7 +18,9 @@ import { createMyMeetingsRouter } from './router'
 // instance that has already been mounted does not reload on a second mount
 // (@tanstack/react-router >= 1.170.46), so it would show the route it last had
 // instead of the URL the user returned to.
+// It is also destroyed on unmount: a router's browser history wraps window.history and adds window
+// listeners that only `history.destroy()` removes, so one per mount would pile up (specs/029 security L5).
 export default function MyMeetings() {
-  const [router] = useState(() => createMyMeetingsRouter('/my-meetings', MyMeetingsShell))
-  return <RouterProvider router={router} />
+  const router = useDisposableRouter(() => createMyMeetingsRouter('/my-meetings', MyMeetingsShell))
+  return router ? <RouterProvider router={router} /> : null
 }

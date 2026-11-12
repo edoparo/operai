@@ -5,6 +5,7 @@
  * `./App` (ToolLayout "Meetings" + TabNav; Erase only for `meeting:erase` holders),
  * `./MyMeetings` (ToolLayout "My meetings", no TabNav) and `./HostMeetings` (a Card, no frame).
  */
+import { StrictMode } from 'react'
 import { cleanup, render, screen } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
@@ -124,5 +125,111 @@ describe('HostMeetings (./HostMeetings)', () => {
     expect(await screen.findByRole('heading', { level: 3, name: 'Meetings' })).not.toBeNull()
     expect(screen.queryByRole('heading', { level: 1 })).toBeNull()
     expect(screen.queryByRole('navigation')).toBeNull()
+  })
+})
+
+describe('meetings-ui — the browser history of the router is released on unmount', () => {
+  // Every router builds a browser history that wraps window.history.pushState/replaceState and adds
+  // popstate/beforeunload listeners; only history.destroy() undoes that (specs/029 security L5).
+  const footprint = () => {
+    const add = vi.spyOn(window, 'addEventListener')
+    const remove = vi.spyOn(window, 'removeEventListener')
+    const live = (type: string) =>
+      add.mock.calls.filter((c) => c[0] === type).length - remove.mock.calls.filter((c) => c[0] === type).length
+    return {
+      listeners: () => [live('popstate'), live('beforeunload')],
+      restore: () => {
+        add.mockRestore()
+        remove.mockRestore()
+      },
+    }
+  }
+
+  it('App: window listeners and the pushState/replaceState wrapper chain do not grow with the number of mounts', async () => {
+    const { default: App } = await import('./App')
+    window.scrollTo = () => undefined
+    const { pushState, replaceState } = window.history
+    const seen = footprint()
+    try {
+      window.history.pushState(null, '', '/meetings')
+      for (let i = 0; i < 5; i++) {
+        const mounted = render(<App />)
+        expect(await screen.findByTestId('meetings-list-page')).not.toBeNull()
+        mounted.unmount()
+      }
+      expect(seen.listeners()).toEqual([0, 0])
+      expect(window.history.pushState).toBe(pushState)
+      expect(window.history.replaceState).toBe(replaceState)
+    } finally {
+      seen.restore()
+    }
+  })
+
+  it('under React.StrictMode, App: window listeners and the pushState/replaceState wrapper chain do not grow with the number of mounts', async () => {
+    const { default: App } = await import('./App')
+    window.scrollTo = () => undefined
+    const { pushState, replaceState } = window.history
+    const seen = footprint()
+    try {
+      window.history.pushState(null, '', '/meetings')
+      for (let i = 0; i < 5; i++) {
+        const mounted = render(
+          <StrictMode>
+            <App />
+          </StrictMode>,
+        )
+        expect(await screen.findByTestId('meetings-list-page')).not.toBeNull()
+        mounted.unmount()
+      }
+      expect(seen.listeners()).toEqual([0, 0])
+      expect(window.history.pushState).toBe(pushState)
+      expect(window.history.replaceState).toBe(replaceState)
+    } finally {
+      seen.restore()
+    }
+  })
+
+  it('MyMeetings: window listeners and the pushState/replaceState wrapper chain do not grow with the number of mounts', async () => {
+    const { default: MyMeetings } = await import('./MyMeetings')
+    window.scrollTo = () => undefined
+    const { pushState, replaceState } = window.history
+    const seen = footprint()
+    try {
+      window.history.pushState(null, '', '/my-meetings')
+      for (let i = 0; i < 5; i++) {
+        const mounted = render(<MyMeetings />)
+        expect(await screen.findByTestId('meetings-list-page')).not.toBeNull()
+        mounted.unmount()
+      }
+      expect(seen.listeners()).toEqual([0, 0])
+      expect(window.history.pushState).toBe(pushState)
+      expect(window.history.replaceState).toBe(replaceState)
+    } finally {
+      seen.restore()
+    }
+  })
+
+  it('under React.StrictMode, MyMeetings: window listeners and the pushState/replaceState wrapper chain do not grow with the number of mounts', async () => {
+    const { default: MyMeetings } = await import('./MyMeetings')
+    window.scrollTo = () => undefined
+    const { pushState, replaceState } = window.history
+    const seen = footprint()
+    try {
+      window.history.pushState(null, '', '/my-meetings')
+      for (let i = 0; i < 5; i++) {
+        const mounted = render(
+          <StrictMode>
+            <MyMeetings />
+          </StrictMode>,
+        )
+        expect(await screen.findByTestId('meetings-list-page')).not.toBeNull()
+        mounted.unmount()
+      }
+      expect(seen.listeners()).toEqual([0, 0])
+      expect(window.history.pushState).toBe(pushState)
+      expect(window.history.replaceState).toBe(replaceState)
+    } finally {
+      seen.restore()
+    }
   })
 })
