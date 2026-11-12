@@ -663,6 +663,46 @@ export function onSignOut(hook: () => void): () => void {
 }
 
 /**
+ * Awaited, time-boxed steps that need the session still alive (specs/029-push-notifications,
+ * AC-5.1). `signOut()` runs them FIRST — before the JWT, permissions and session caches clear — so
+ * a step can still call `apiFetch` with the JWT (the push device release `DELETE`s the browser's
+ * device with it). Whatever a step does, sign-out never waits longer than
+ * `BEFORE_SIGN_OUT_BUDGET_MS` for all of them together, and a step that rejects or hangs changes
+ * nothing about the sign-out. The synchronous `onSignOut` hooks above are unchanged.
+ */
+export const BEFORE_SIGN_OUT_BUDGET_MS = 2000
+
+const beforeSignOutHooks = new Set<() => Promise<void>>()
+
+/** Registers an awaited before-sign-out step. Returns an unregister function. */
+export function onBeforeSignOut(hook: () => Promise<void>): () => void {
+  beforeSignOutHooks.add(hook)
+  return () => {
+    beforeSignOutHooks.delete(hook)
+  }
+}
+
+const runBeforeSignOutHooks = async (): Promise<void> => {
+  if (beforeSignOutHooks.size === 0) return
+  const steps = [...beforeSignOutHooks].map(async (hook) => {
+    try {
+      await hook()
+    } catch {
+      // a failing step must never block or break sign-out
+    }
+  })
+  let timer: ReturnType<typeof setTimeout> | undefined
+  const budget = new Promise<void>((resolve) => {
+    timer = setTimeout(resolve, BEFORE_SIGN_OUT_BUDGET_MS)
+  })
+  try {
+    await Promise.race([Promise.all(steps), budget])
+  } finally {
+    clearTimeout(timer)
+  }
+}
+
+/**
  * Session wrappers — the single better-auth client instance for the suite.
  *
  * getSession / useSession resolve the cookie-based session as-is (mirrors
@@ -734,6 +774,7 @@ export const clearSessionCache = (): void => {
 export const signOut = async (
   ...args: Parameters<typeof authClient.signOut>
 ): Promise<Awaited<ReturnType<typeof authClient.signOut>>> => {
+  await runBeforeSignOutHooks()
   clearJwtCache()
   clearPermissionsCache()
   clearSessionCache()

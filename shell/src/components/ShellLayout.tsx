@@ -1,4 +1,4 @@
-import { type MouseEvent, type ReactNode, useCallback, useLayoutEffect, useRef, useState } from 'react'
+import { type MouseEvent, type ReactNode, useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { Outlet, useBlocker } from '@tanstack/react-router'
 import { ConfirmDialog } from '@operai/ui'
 import { SidebarCollapsedProvider } from '../hooks/SidebarCollapsedProvider'
@@ -6,6 +6,7 @@ import { useSidebarCollapsed } from '../hooks/sidebarCollapsed'
 import FloatingHost from './FloatingHost'
 import ToastHost from './ToastHost'
 import { getNavigationBlocker, isNavigationBlocked } from '../lib/navigationBlocker'
+import { initPush, listenForServiceWorkerMessages } from '../lib/push'
 import { strings } from '../strings'
 
 /**
@@ -95,6 +96,14 @@ function ShellLayoutFrame({ header, sidebar, footer }: ShellLayoutProps) {
     enableBeforeUnload: false,
     withResolver: true,
   })
+
+  // Web Push (specs/029, T8): once per shell mount, register the sign-out release and reconcile this
+  // browser with the server (never prompts); and pass the push service worker's `{navigate}` message
+  // (a notification click) to the push library, which validates it before navigating the suite.
+  useEffect(() => {
+    void initPush()
+    return listenForServiceWorkerMessages()
+  }, [])
 
   // The chrome the floating slot keeps clear: the header's and the footer's heights, followed as they change.
   const headerRef = useRef<HTMLElement>(null)

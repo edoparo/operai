@@ -64,6 +64,8 @@ const {
   getProjectsApiBaseUrl,
   getActivitiesApiBaseUrl,
   registerNavigationBlocker,
+  onBeforeSignOut,
+  onSignOut,
 } = await import('./session')
 const { getNavigationBlocker, isNavigationBlocked, resetNavigationBlocker } = await import('./navigationBlocker')
 type PermissionsResult = Awaited<ReturnType<typeof ensurePermissions>>
@@ -656,6 +658,97 @@ describe('signOut', () => {
     await signOut()
 
     expect(getCachedSession()).toBeNull()
+  })
+})
+
+describe('signOut — awaited before-sign-out step (specs/029, AC-5.1)', () => {
+  const unregister: Array<() => void> = []
+  afterEach(() => {
+    vi.useRealTimers()
+    while (unregister.length) unregister.pop()?.()
+  })
+
+  it('runs before the JWT cache clears, so the hook can still call apiFetch with the JWT', async () => {
+    const mockFetch = vi.mocked(fetch)
+    mockFetch.mockResolvedValueOnce(tokenResponse(FAKE_JWT)).mockResolvedValueOnce(okResponse())
+    await apiFetch(TARGET_URL) // primes the JWT cache
+
+    let seenAuth: string | null = null
+    unregister.push(
+      onBeforeSignOut(async () => {
+        mockFetch.mockResolvedValueOnce(okResponse())
+        await apiFetch(TARGET_URL, { method: 'DELETE' })
+        seenAuth = new Headers(mockFetch.mock.calls.at(-1)?.[1]?.headers as HeadersInit).get('Authorization')
+      }),
+    )
+
+    await signOut()
+
+    expect(seenAuth).toBe(`Bearer ${FAKE_JWT}`)
+    // no extra /auth/token round trip happened for the hook: the cache was still warm
+    expect(mockFetch.mock.calls.filter(([url]) => url === `${AUTH_URL}/auth/token`)).toHaveLength(1)
+  })
+
+  it('is awaited: the better-auth sign-out and the synchronous hooks wait for it', async () => {
+    const order: string[] = []
+    let release!: () => void
+    unregister.push(
+      onBeforeSignOut(
+        () =>
+          new Promise<void>((resolve) => {
+            release = () => {
+              order.push('before-hook-done')
+              resolve()
+            }
+          }),
+      ),
+      onSignOut(() => order.push('sync-hook')),
+    )
+    mockAuthClientSignOut.mockImplementationOnce(async () => {
+      order.push('auth-signout')
+    })
+
+    const pending = signOut()
+    await Promise.resolve()
+    expect(order).toEqual([])
+    release()
+    await pending
+
+    expect(order).toEqual(['before-hook-done', 'sync-hook', 'auth-signout'])
+  })
+
+  it('never waits more than 2 s for a hook that does not settle', async () => {
+    vi.useFakeTimers()
+    unregister.push(onBeforeSignOut(() => new Promise<void>(() => {})))
+
+    let done = false
+    const pending = signOut().then(() => {
+      done = true
+    })
+    await vi.advanceTimersByTimeAsync(1999)
+    expect(done).toBe(false)
+    await vi.advanceTimersByTimeAsync(2)
+    await pending
+
+    expect(done).toBe(true)
+    expect(mockAuthClientSignOut).toHaveBeenCalledOnce()
+  })
+
+  it('a rejecting hook does not stop the sign-out', async () => {
+    unregister.push(onBeforeSignOut(() => Promise.reject(new Error('boom'))))
+
+    await signOut()
+
+    expect(mockAuthClientSignOut).toHaveBeenCalledOnce()
+  })
+
+  it('an unregistered hook is not called', async () => {
+    const hook = vi.fn().mockResolvedValue(undefined)
+    onBeforeSignOut(hook)()
+
+    await signOut()
+
+    expect(hook).not.toHaveBeenCalled()
   })
 })
 

@@ -37,7 +37,7 @@ Contracts: `plan.md` (approved) is binding; screens, states, copy and a11y: `des
   - touch: `shell/src/sw/*`, `shell/vite.config.ts`, `shell/tsconfig*.json`
   - done when: unit tests with a fake `ServiceWorkerGlobalScope` pass (visible window → no `showNotification`, except when the subscription endpoint is on `web.push.apple.com` → shown (Safari, AC-2.3 amended); hidden only → shown with `tag = id`, `lang: 'en'`, icon `/push-icon.png`, `data: {href}`; click with/without `href` and with/without an existing window → focus + `postMessage({navigate})` / `openWindow`; malformed payload → nothing shown, no throw); `pnpm build` emits `dist/push-sw.js` as a classic script with no hash and no `import`; `pnpm dev` serves `/push-sw.js`.
 
-- [ ] T8: Shell push library, sign-out release and boot reconciliation — refs: AC-1.6, AC-1.7, AC-5.1, AC-5.3 — deps: T7
+- [x] T8: Shell push library, sign-out release and boot reconciliation — refs: AC-1.6, AC-1.7, AC-5.1, AC-5.3 — deps: T7
   - touch: `shell/src/lib/push.ts`, `shell/src/lib/push.test.ts`, `shell/src/lib/session.ts`, `shell/src/lib/session.test.ts`, `shell/src/components/ShellLayout.tsx`, `shell/src/components/ShellLayout.test.tsx`
   - done when: unit tests pass for `isPushSupported()` table; enable/disable against a fake `PushManager` and `apiFetch`; reconcile cases (on; server row missing → silent re-`PUT`, no prompt; stored user ≠ current → `unsubscribe`; permission revoked → `DELETE` + `unsubscribe`, 404 = success; any failure after subscribe → `unsubscribe`); `signOut()` sends the `DELETE` with the JWT before caches clear and never waits more than 2 s; the existing synchronous `onSignOut` tests still pass; `ShellLayout` handles the service worker's `{navigate}` message via `navigateSuite`.
 

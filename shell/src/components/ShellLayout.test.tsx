@@ -20,6 +20,13 @@ import type { ReactElement } from 'react'
 import { ShellLayout, SHELL_MAIN_CONTENT_ID } from './ShellLayout'
 import Sidebar from './Sidebar'
 import { registerNavigationBlocker, resetNavigationBlocker } from '../lib/navigationBlocker'
+import { initPush, listenForServiceWorkerMessages } from '../lib/push'
+
+// The push library is exercised in lib/push.test.ts; here only its wiring into the layout (specs/029, T8).
+vi.mock('../lib/push', () => ({
+  initPush: vi.fn().mockResolvedValue(undefined),
+  listenForServiceWorkerMessages: vi.fn(() => () => {}),
+}))
 
 // jsdom doesn't implement scrollIntoView/scrollTo; TanStack Router's
 // navigation and hash-scroll restoration call them (the latter when the URL
@@ -203,7 +210,7 @@ describe('ShellLayout — navigation blocker (AC-2.10)', () => {
     expect(screen.queryByRole('alertdialog')).toBeNull()
   })
 
-  it('asks before leaving while a blocker says so: title, the remote\'s message, focus on Stay', async () => {
+  it("asks before leaving while a blocker says so: title, the remote's message, focus on Stay", async () => {
     const user = userEvent.setup()
     registerNavigationBlocker(() => true, 'A recording is in progress. If you leave, it will be stopped and saved.')
     const router = await renderWithBlockerRouter()
@@ -302,5 +309,31 @@ describe('ShellLayout — navigation blocker (AC-2.10)', () => {
 
     await waitFor(() => expect(router.state.location.search).toEqual({ tab: 'notes' }))
     expect(screen.queryByRole('alertdialog')).toBeNull()
+  })
+})
+
+describe('ShellLayout push wiring (specs/029, T8)', () => {
+  const stop = vi.fn()
+
+  beforeEach(() => {
+    vi.mocked(initPush).mockClear()
+    stop.mockClear()
+    vi.mocked(listenForServiceWorkerMessages).mockReset().mockReturnValue(stop)
+  })
+
+  it('runs the push boot work and starts listening to the service worker once when the shell mounts', async () => {
+    await renderWithRouter(() => <ShellLayout />)
+
+    expect(initPush).toHaveBeenCalledTimes(1)
+    expect(listenForServiceWorkerMessages).toHaveBeenCalledTimes(1)
+  })
+
+  it('stops listening when the shell unmounts', async () => {
+    const { unmount } = await renderWithRouter(() => <ShellLayout />)
+    expect(stop).not.toHaveBeenCalled()
+
+    unmount()
+
+    expect(stop).toHaveBeenCalledTimes(1)
   })
 })
