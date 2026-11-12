@@ -69,8 +69,9 @@ operai/
 │
 ├── shell/               # Suite host (Module Federation) — shared chrome + session; mounts remotes (specs/003, ADR-0006).
 │   │                    # Also owns identity-scoped non-tool screens: /account (ADR-0034), /notify (ADR-0009),
-│   │                    # the notification bell + SSE manager + ToastHost, the About modal (ADR-0030), and the
-│   │                    # floating slot (`openFloating`/`closeFloating` in shell/session, FloatingHost; ADR-0078).
+│   │                    # the notification bell + SSE manager + ToastHost, the About modal (ADR-0030), the
+│   │                    # floating slot (`openFloating`/`closeFloating` in shell/session, FloatingHost; ADR-0078) and
+│   │                    # desktop push: the `/push-sw.js` service worker and the My profile push section (specs/029).
 │   └── e2e/             # Playwright e2e for the WHOLE suite — every remote's journeys run through the
 │                        # host, since a remote has no standalone authed bootstrap (specs/003 retired
 │                        # estimai-ui/e2e/ when it became a federated remote). helpers/: adminSession,
@@ -120,7 +121,7 @@ operai/
 ├── estimai-api/         # Bun + Hono + TypeScript backend — estimate persistence (specs/001, ADR-0004/0005);
 │                        # + record-level collaborator ACL, optimistic concurrency, live identity resolution
 │                        # (specs/013, ADR-0036/0037/0038/0039/0040)
-├── notify-api/          # Bun + Hono + TypeScript backend — notification persistence + SSE push, ticket-authed stream (specs/005, ADR-0008/0009); + email delivery channel via Resend, internal /system/emails (specs/006, ADR-0011); + internal /system/notifications for cross-user push (specs/007, ADR-0017)
+├── notify-api/          # Bun + Hono + TypeScript backend — notification persistence + SSE push, ticket-authed stream (specs/005, ADR-0008/0009); + email delivery channel via Resend, internal /system/emails (specs/006, ADR-0011); + internal /system/notifications for cross-user push (specs/007, ADR-0017); + Web Push channel (VAPID, encrypted payloads) with user-JWT `/push/config` and `/push/devices` routes, off by default (`PUSH_ENABLED`, specs/029, ADR-0084/0085)
 ├── refund-api/          # Bun + Hono + TypeScript backend — reimbursement persistence; authorization-enforcing
 │                        # resource server + EU object storage for receipts (specs/007, ADR-0014/0015/0016);
 │                        # + batch compile/PDF/paid lifecycle (specs/008, ADR-0018–0022), mileage rates
@@ -313,7 +314,14 @@ Per-service specifics:
   `activities-api` via the service-token endpoint) and the shared `X-Internal-Token` is refused (ADR-0049); for an
   `email: true` notification it looks the recipient's address up in `auth`
   (`POST /system/users/contact`, as `system:notify-api`, ADR-0056); a principal raises only the origins it is
-  bound to (`system:crm-api` → `crm`, `system:activities-api` → `crm` and `projects`)
+  bound to (`system:crm-api` → `crm`, `system:activities-api` → `crm` and `projects`); a **Web Push channel**
+  (specs/029, ADR-0084/0085): standard Web Push with encrypted payloads (no FCM), sent after the in-app row is
+  stored, best effort, one row per browser in `push_device`; user-JWT routes `GET /push/config`,
+  `PUT`/`GET /push/devices` and `DELETE /push/devices/{id}` scoped to `sub`; a recipient `auth` reports inactive
+  loses their devices, an unanswered check sends nothing. Env: `PUSH_ENABLED` (literal `true`, default off, needs
+  the email-notice group too), `VAPID_PUBLIC_KEY`/`VAPID_PRIVATE_KEY`/`VAPID_SUBJECT`, `PUSH_EXCLUDED_ORIGINS`;
+  rotating the keys invalidates every subscription (infra/README.md § Push notifications). The shell serves
+  `/push-sw.js` and shows nothing while an Operai tab is visible, except on Safari, which always shows
 - `refund-api` — the suite's authorization-enforcing resource server: resolves the caller's
   live permissions from `auth GET /authz/resolve` on every request, fails **closed** on an
   `auth` outage (ADR-0014); entity-scoped ABAC (ADR-0015); EU-region S3-compatible object

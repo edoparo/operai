@@ -979,6 +979,11 @@ without first moving both behind a shared store.
 | `RESEND_API_KEY` | **NEW (specs/006).** 1Password → `AIScream / OperAI - Resend API Key`. Required only when `EMAIL_ENABLED=true` (service refuses to start otherwise once enabled). | **yes** |
 | `RESEND_FROM` | **NEW (specs/006).** Verified sending address on the SPF/DKIM-configured domain, e.g. `no-reply@operai.welld.io` (Risk R5). Required only when `EMAIL_ENABLED=true`. | no |
 | `SERVICE_AUDIENCE` | **ADR-0044, required since specs/016 (ADR-0049).** `${{shared.SERVICE_AUDIENCE}}` — byte-identical to `auth`'s, **different from `AUTH_AUDIENCE`** (startup exits otherwise; it also exits if absent). The `aud` of every credential accepted on `POST /system/notifications` (scope `notifications.push`) and `POST /system/emails` (scope `emails.send`), verified through the existing `AUTH_JWKS_URL`. There is no other credential: the retired `X-Internal-Token` header is refused (401), and a leftover shared-token variable is simply not read. | no |
+| `PUSH_ENABLED` | **NEW (specs/029).** Literal `"true"` enables web push; anything else (including unset) is off. Default off. When on, the four email-notice variables below (`APP_BASE_URL`, `AUTH_BASE_URL`, `SERVICE_CLIENT_ID`, `SERVICE_CLIENT_SECRET`) and the three `VAPID_*` are required or the service exits at startup. See § Push notifications. | no |
+| `VAPID_PUBLIC_KEY` | **NEW (specs/029).** Base64url P-256 public key. Required when `PUSH_ENABLED=true`. | no |
+| `VAPID_PRIVATE_KEY` | **NEW (specs/029).** Base64url P-256 private key; startup checks it derives the public key. Required when `PUSH_ENABLED=true`. 1Password, never in the repo. | **yes** |
+| `VAPID_SUBJECT` | **NEW (specs/029).** `mailto:` or `https:` contact the push services may use. Required when `PUSH_ENABLED=true`. | no |
+| `PUSH_EXCLUDED_ORIGINS` | **NEW (specs/029).** Optional CSV of origin apps (`OriginAppSchema` values) whose notifications are never pushed. Default empty. | no |
 | `NODE_ENV` | `production` | no |
 
 **`notify-api` deploy constraints (do not relax without reading plan.md Risk
@@ -1973,6 +1978,78 @@ timeline and tasks still load (they no longer depend on those tables).
   going back to the previous `crm-api` loses them. Roll forward (fix and redeploy) instead; the old
   tables are only a fallback for the state at the freeze.
 - After Step 5: one-way; restore from the backup taken before it.
+
+## Push notifications (specs/029, ADR-0084/0085)
+
+System notifications on the user's desktop (Chrome, Edge, Firefox, Safari on macOS) through standard
+Web Push with encrypted payloads. `notify-api` holds the VAPID pair, stores one row per browser and sends
+after it has stored the in-app notification; the shell serves `/push-sw.js` and a "Push notifications"
+section in My profile. Everything is off until you turn it on; nothing below is a value.
+
+### Generate the VAPID keys (once per environment)
+
+```bash
+bunx web-push generate-vapid-keys --json     # prints {"publicKey": "...", "privateKey": "..."}
+```
+
+- One pair **per environment** (production, and any preview/staging that enables push). Never reuse the
+  production pair elsewhere.
+- Keep the output out of the shell history and the repo: copy it straight into 1Password.
+- The public key is not secret (the shell fetches it from `GET /push/config`); the private key is.
+
+### Store the private key in 1Password
+
+`tools/env-doctor/templates/production/notify-api.env` references the item
+`AIScream/OperAI - Web Push VAPID` (field `private-key`). **That item is a placeholder and does not exist
+yet.** Before enabling, either create the item in the `AIScream` vault with a `private-key` field (and keep
+the public key and the subject beside it for the operator), or change the reference in the template to the
+item you did create. env-doctor resolves references by name, so a wrong name is a failed check, not a
+silent default.
+
+### Variables on `notify-api` (Railway)
+
+| Variable | Rule |
+|---|---|
+| `PUSH_ENABLED` | Literal `true` enables, anything else is off (same parsing as `EMAIL_ENABLED`). Default off: with it off no VAPID variable is read and nothing is sent. |
+| `VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY` | Required when enabled. The service exits at startup if the private key does not derive the public key. |
+| `VAPID_SUBJECT` | Required when enabled; `mailto:` or `https:`. The push services see it with every send. |
+| `PUSH_EXCLUDED_ORIGINS` | Optional CSV of origin apps never pushed (for example `meetings`); values are validated, an unknown one stops the start. Default empty. |
+| `APP_BASE_URL`, `AUTH_BASE_URL`, `SERVICE_CLIENT_ID`, `SERVICE_CLIENT_SECRET` | The email-notice group: **required when `PUSH_ENABLED=true`**, because a push first asks `auth` whether the recipient is still an active user (AC-5.2). Enabling push without them exits at startup. |
+
+### Enabling in production
+
+1. **ADR-0084 go-live sign-off first.** `docs/adr/0084-web-push-encrypted-payloads-not-fcm.md` has a
+   "Go-live sign-off" line that reads *pending*. The owner records the date and the acceptance (push
+   services outside the EU observe the endpoint, send time, size and VAPID contact, never the content)
+   before `PUSH_ENABLED=true` is set in production. Do not enable it while that line is pending.
+2. Generate the pair, store the private key, set the variables above on `notify-api`, then
+   `mise run env:doctor -- --env production --dir ./resolved` (names and shape only, no values printed).
+3. Deploy. `notify-api` stays a single replica (unchanged). Verify with a signed-in browser: My profile
+   shows the push section, `GET /push/config` answers with the public key, and turning it on lists the
+   device. With push off, `GET /push/config` answers `{ "enabled": false }` and the shell hides the section.
+4. The shell serves `/push-sw.js` at the site root (the service worker must sit at the scope it controls);
+   nothing extra to configure on Vercel.
+
+### Operating notes
+
+- **Rotating the VAPID keys invalidates every subscription.** Each subscription was made against the old
+  public key, so sends signed with the new key are not accepted for them; only 404/410 answers delete a row
+  automatically, so those rows are not cleaned up on their own. After a rotation every user must turn push off and on again
+  in My profile, and stale rows stay until removed there or until the user is deactivated. Rotate only
+  deliberately, and announce it.
+- A device the push service reports gone (404/410) is deleted on the spot; any other failure keeps the row
+  and never fails the notification itself (the in-app row and the SSE event always stand).
+- The browser decides whether to show: on Chrome, Edge and Firefox the service worker shows nothing while an
+  Operai tab is visible (the toast covers it). **Safari always shows**, because Safari cancels a
+  subscription after pushes that show nothing (ADR-0085), so a Safari user with Operai open gets both the
+  toast and the system notification.
+- **Apple answers 201 for subscriptions that are dead.** On `web.push.apple.com` a successful send proves
+  nothing about delivery, and a cancelled Safari subscription is never reported back as 404/410; its row
+  lingers until the user removes it in My profile. Do not read "no errors from Apple" as "delivered".
+- Turning push off for one origin without redeploying code: set `PUSH_EXCLUDED_ORIGINS` and restart
+  `notify-api`. Turning it off entirely: `PUSH_ENABLED=false`; existing rows stay and are used again when
+  it is re-enabled.
+- Logs carry the device id and the push status only, never an endpoint, key, title or body.
 
 ## Rollback & operations
 
