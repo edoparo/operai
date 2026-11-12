@@ -331,9 +331,9 @@ risk; each must be closed before push is enabled in production (AC-6.1).
 - [x] ~~Do Safari's and Firefox's push services count as acceptable processors?~~ Resolved
   2026-11-11: with an encrypted payload (AC-6.3) every push service sees metadata only;
   one decision covers all three (AC-6.5).
-- [ ] Is there any origin app whose notifications must be excluded at launch (AC-6.4),
+- [x] Is there any origin app whose notifications must be excluded at launch (AC-6.4),
   e.g. Meetings, given ADR-0061? With content encrypted the default is "none excluded". —
-  owner: Matteo Codogno
+  owner: Matteo Codogno Decided 2026-11-12 by Matteo Codogno: none excluded at launch (`PUSH_EXCLUDED_ORIGINS` empty) — Meetings notifications carry only the meeting title and a status, the payload is end-to-end encrypted (ADR-0084), and lock-screen previews are an OS setting; to be recorded in ADR-0084's go-live sign-off (T12).
 - [ ] Who signs the go-live ADR entry (AC-6.5)? — owner: Matteo Codogno
 - [x] ~~Are 100 token requests and 600 contact lookups per calling service per 10 minutes
   the right figures?~~ Decided 2026-11-12 by Matteo Codogno, "Token 300 · lookup 600": the
