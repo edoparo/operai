@@ -41,6 +41,8 @@ const CANARY = {
   templateName: "CNRY-template-q7x",
   instruction: "CNRY-instruction-q7x",
   speakerLabel: "CNRY-speaker-q7x",
+  agendaTitle: "CNRY-agenda-q7x",
+  agendaNote: "CNRY-agendanote-q7x",
 } satisfies Texts;
 const TOKEN_EMAIL = "cnry.email.q7x@canary-mail.test";
 const TOKEN_NAME = "CNRY-name-q7x";

@@ -92,6 +92,11 @@ const en = {
     version_conflict: 'This changed since you opened it. Reload and try again.',
     precondition_required: 'This changed since you opened it. Reload and try again.',
     notice_outdated: 'The consent notice changed. Read the new version and confirm again.',
+    agenda_editors_only: 'Only the creator and the participants of this meeting can change its agenda.',
+    too_many_agenda_points: 'An agenda can have at most 30 points.',
+    unknown_agenda_point: 'The agenda changed since you opened it. Reload and try again.',
+    agenda_point_not_found: 'This point is no longer on the agenda. Reload to see the current agenda.',
+    agenda_empty: 'The agenda has no points to follow. Add some first.',
     consent_not_applicable: 'Text meetings need no consent.',
   },
 }
@@ -184,6 +189,11 @@ const it: typeof en = {
     version_conflict: 'Nel frattempo è cambiato. Ricarica e riprova.',
     precondition_required: 'Nel frattempo è cambiato. Ricarica e riprova.',
     notice_outdated: "L'informativa è cambiata. Leggi la nuova versione e conferma di nuovo.",
+    agenda_editors_only: 'Solo chi ha creato la riunione e i partecipanti possono modificarne la scaletta.',
+    too_many_agenda_points: 'Una scaletta può avere al massimo 30 punti.',
+    unknown_agenda_point: 'La scaletta è cambiata da quando l\'hai aperta. Ricarica e riprova.',
+    agenda_point_not_found: 'Questo punto non è più in scaletta. Ricarica per vedere la scaletta attuale.',
+    agenda_empty: 'La scaletta non ha punti da seguire. Aggiungine prima qualcuno.',
     consent_not_applicable: 'Le riunioni di testo non richiedono consenso.',
   },
 }

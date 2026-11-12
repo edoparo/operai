@@ -280,3 +280,19 @@ describe("language (AC-8.6)", () => {
     expect(names((await call("/templates", "alice")).json)[1]).toBe("Meeting minutes");
   });
 });
+
+describe("By agenda", () => {
+  it("is offered first, with the agenda's points as sections, only for a meeting whose agenda has points", async () => {
+    const m = await meeting();
+    expect(ids((await call(`/templates?meetingId=${m.id}`)).json)).not.toContain("builtin:agenda");
+
+    await db.agendaPoint.createMany({ data: [{ meetingId: m.id, position: 0, title: "Budget", note: "Agree Q3" }, { meetingId: m.id, position: 1, title: "Hiring" }] });
+    const { json } = await call(`/templates?meetingId=${m.id}`, "alice", { "Accept-Language": "it" });
+    const first = json.items[0];
+    expect(first).toMatchObject({ id: "builtin:agenda", source: "builtin", name: "Per scaletta", recommended: true });
+    expect(first.sections.map((s: { heading: string }) => s.heading)).toEqual(["Budget", "Hiring", "Altri argomenti"]);
+    // never without a meeting, and not to someone who cannot open it
+    expect(ids((await call("/templates")).json)).not.toContain("builtin:agenda");
+    expect(ids((await call(`/templates?meetingId=${m.id}`, "mallory")).json)).not.toContain("builtin:agenda");
+  });
+});

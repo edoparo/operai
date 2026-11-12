@@ -31,7 +31,8 @@ import { db } from "../lib/db";
 import type { Prisma } from "../lib/generated/prisma/client";
 import { IdParams, commonErrors, etag, requireIfMatch, versionConflict } from "../lib/http";
 import { ProblemError, forbidden, notFound, unprocessable, validationHook } from "../lib/problem";
-import { BUILTIN_TEMPLATES, TEMPLATE_LIMITS, builtinView, parseAcceptLanguage, type TemplateLanguage, type TemplateSection } from "./builtin";
+import { agendaItemsOf } from "../agenda/agenda.routes";
+import { AGENDA_TEMPLATE_ID, BUILTIN_TEMPLATES, TEMPLATE_LIMITS, agendaSnapshot, builtinView, type AgendaItem, parseAcceptLanguage, type TemplateLanguage, type TemplateSection } from "./builtin";
 
 const json = (schema: z.ZodTypeAny) => ({ content: { "application/json": { schema } } });
 
@@ -121,13 +122,17 @@ export function orderTemplates(
  * answer is "none", which is also the answer for no meeting at all, so the picker cannot be
  * used to learn whether a meeting exists or what it is linked to (AC-5.3).
  */
-async function recommendedFor(meetingId: string | undefined, caller: Caller): Promise<string[]> {
-  if (!meetingId) return [];
+async function recommendedFor(meetingId: string | undefined, caller: Caller): Promise<{ ids: string[]; agenda: AgendaItem[] }> {
+  const none = { ids: [], agenda: [] };
+  if (!meetingId) return none;
   const meeting = await loadMeetingForVisibility(meetingId);
-  if (!meeting?.hostApp || !meeting.hostEntityType) return [];
+  if (!meeting) return none;
   // A host that cannot answer grants nothing (fail closed): the picker then simply recommends nothing.
-  if ((await resolveAccess(meeting, caller)).role === null) return [];
-  return [...(hostRegistry().get(meeting.hostApp, meeting.hostEntityType)?.recommendedTemplates ?? [])];
+  if ((await resolveAccess(meeting, caller)).role === null) return none;
+  // "By agenda" exists only for a meeting whose agenda has points, and comes first.
+  const agenda = await agendaItemsOf(db, meeting.id);
+  const hostIds = meeting.hostApp && meeting.hostEntityType ? (hostRegistry().get(meeting.hostApp, meeting.hostEntityType)?.recommendedTemplates ?? []) : [];
+  return { ids: [...(agenda.length > 0 ? [AGENDA_TEMPLATE_ID] : []), ...hostIds], agenda };
 }
 
 // ─── Routes ──────────────────────────────────────────────────────────────────
@@ -149,7 +154,7 @@ templatesRouter.openapi(listRoute, async (c) => {
   const userId = c.get("userId");
   const language = parseAcceptLanguage(c.req.header("Accept-Language"));
 
-  const [rows, recommendedIds] = await Promise.all([
+  const [rows, recommended] = await Promise.all([
     db.summaryTemplate.findMany({ where: { OR: [{ scope: "shared" }, { scope: "personal", ownerUserId: userId }] } }),
     recommendedFor(meetingId, { userId, authorization: c.req.header("Authorization")!, holdsAccess: holds(c, MEETINGS_ACCESS) }),
   ]);
@@ -166,7 +171,12 @@ templatesRouter.openapi(listRoute, async (c) => {
     };
   });
 
-  return c.json({ items: orderTemplates([...rows.map(itemOfRow), ...builtins], recommendedIds) }, 200);
+  if (recommended.agenda.length > 0) {
+    const snapshot = agendaSnapshot(recommended.agenda, language);
+    builtins.push({ id: AGENDA_TEMPLATE_ID, source: "builtin", name: snapshot.name, sections: [...snapshot.sections], generalInstructions: snapshot.generalInstructions, version: 1 });
+  }
+
+  return c.json({ items: orderTemplates([...rows.map(itemOfRow), ...builtins], recommended.ids) }, 200);
 });
 
 // ─── Writing ─────────────────────────────────────────────────────────────────

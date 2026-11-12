@@ -108,6 +108,8 @@ export function SummaryCard({ meeting, summary, atLimit, focus, onResult, onErro
   // The label qualifies content, so it shows only once there is some (AC-7.13).
   const incomplete = summary.status === 'ready' && summary.possiblyIncomplete != null
   const ranges = incomplete ? gapRanges(summary) : null
+  // The agenda the summary followed, as it was when it was asked for (later changes never touch it).
+  const agenda = summary.agenda != null && summary.agenda.length > 0 ? summary.agenda : null
   return (
     <div ref={root} tabIndex={-1} data-testid={`meetings-summary-${summary.id}`}>
       <Card title={summary.template.name} className="flex flex-col gap-3">
@@ -121,6 +123,7 @@ export function SummaryCard({ meeting, summary, atLimit, focus, onResult, onErro
             {t.aiGenerated}
           </Badge>
           <Badge>{t.languages[summary.language]}</Badge>
+          {agenda !== null && <Badge data-testid="meetings-summary-follows-agenda">{strings.agenda.summary.basedOn}</Badge>}
           {summary.edited && <Badge>{t.edited}</Badge>}
           {summary.stale && <Badge tone="warning">{t.stale}</Badge>}
           {incomplete && (
@@ -131,6 +134,16 @@ export function SummaryCard({ meeting, summary, atLimit, focus, onResult, onErro
         </div>
         <p className="text-xs text-soft">{t.byline(author, formatDateTime(summary.createdAt))}</p>
         {ranges !== null && <p className="text-xs text-soft">{t.incomplete.ranges(ranges)}</p>}
+        {agenda !== null && (
+          <details className="text-xs text-soft" data-testid="meetings-summary-agenda">
+            <summary className="cursor-pointer">{strings.agenda.summary.agendaUsed}</summary>
+            <ol className="mt-1 list-decimal pl-5">
+              {agenda.map((point, index) => (
+                <li key={index}>{point.title}</li>
+              ))}
+            </ol>
+          </details>
+        )}
 
         {generating && (
           <p className="flex items-center gap-2 text-sm text-soft">

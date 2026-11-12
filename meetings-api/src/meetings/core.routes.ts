@@ -21,6 +21,8 @@ import { db } from "../lib/db";
 import type { Prisma } from "../lib/generated/prisma/client";
 import { IdParams, commonErrors } from "../lib/http";
 import { conflict, unprocessable, validationHook } from "../lib/problem";
+import { AgendaPointInput, createAgenda, tooManyPoints } from "../agenda/agenda.routes";
+import { MAX_AGENDA_POINTS } from "../templates/builtin";
 import { verifyHostReference, type HostReference } from "../hosts/reference";
 import { deliverNotices, recordNotice } from "../hosts/notices";
 import { hostRegistry } from "../hosts/registry";
@@ -45,6 +47,8 @@ const CreateBody = z.object({
   language: z.enum(MEETING_LANGUAGES),
   source: z.enum(MEETING_SOURCES),
   host: HostRefSchema.optional(),
+  /** The agenda's first points (optional); afterwards it is edited through `/meetings/:id/agenda`. */
+  agenda: z.array(AgendaPointInput).optional(),
 });
 
 const PatchBody = z.object({
@@ -112,6 +116,7 @@ coreRouter.openapi(createMeeting, async (c) => {
   const body = c.req.valid("json");
   const caller = callerOf(c);
 
+  if ((body.agenda?.length ?? 0) > MAX_AGENDA_POINTS) throw tooManyPoints();
   // Verified before anything is written, as the caller; fails closed (AC-1.5, AC-1.6, AC-11.6).
   if (body.host) await verifyHostReference(body.host, caller.authorization);
 
@@ -127,6 +132,7 @@ coreRouter.openapi(createMeeting, async (c) => {
         ...(body.host ? { hostApp: body.host.app, hostEntityType: body.host.entityType, hostEntityId: body.host.entityId } : {}),
       },
     });
+    await createAgenda(tx, meeting.id, body.agenda ?? []);
     const noticeId = body.host
       ? await recordNotice(tx, meeting, { app: body.host.app, entityType: body.host.entityType, entityId: body.host.entityId }, { event: "linked", title: meeting.title, startsAt: meeting.startsAt })
       : null;

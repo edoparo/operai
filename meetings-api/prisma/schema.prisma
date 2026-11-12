@@ -149,6 +149,9 @@ model Meeting {
   transcriptPartStartsMs Int[]     @default([])
   // where each part ENDS (specs/021 plan H-5): paired with the starts, which now overlap. Empty exactly when they are.
   transcriptPartEndsMs   Int[]     @default([])
+  // The agenda's If-Match version: bumped by every change of its points (add, edit, remove, reorder), NOT by a
+  // covered mark, so two people ticking different points never conflict.
+  agendaVersion          Int       @default(0)
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -161,6 +164,7 @@ model Meeting {
   gaps          TranscriptGap[]
   speakerLabels SpeakerLabel[]
   summaries     Summary[]
+  agenda        AgendaPoint[]
   turns         ConversationTurn[]
   jobs          MeetingJob[]
 
@@ -306,6 +310,24 @@ model Summary {
 
   @@index([meetingId, createdAt])
   @@map("summary")
+}
+
+// The meeting's agenda: ordered points (title 1..80, note <= 500, CHECKs in SQL), at most 30 per meeting (code).
+// Edited by the creator and by Operai participants holding meetings:access; deleted with the meeting.
+// `covered` is for people only: it never reaches a model.
+model AgendaPoint {
+  id        String   @id @default(cuid())
+  meetingId String
+  meeting   Meeting  @relation(fields: [meetingId], references: [id], onDelete: Cascade)
+  position  Int
+  title     String
+  note      String?
+  covered   Boolean  @default(false)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([meetingId, position])
+  @@map("agenda_point")
 }
 
 // Built-in templates live in code (src/templates/builtin.ts), never here.

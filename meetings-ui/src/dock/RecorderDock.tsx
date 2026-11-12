@@ -2,7 +2,8 @@
  * RecorderDock — the recorder widget (`./RecorderDock`, spec A13, ADR-0078): what the shell's floating slot shows
  * while a recording runs and the person is elsewhere in Operai. The shell owns the frame (position, dragging,
  * the fallback when this module cannot load); this owns the content: the state, the elapsed time, how loud the
- * microphone ("in") and the shared tab ("out") are, Pause / Resume, Stop and a way back to the meeting.
+ * microphone ("in") and the shared tab ("out") are, Pause / Resume, Stop, a way back to the meeting and, when the
+ * meeting has one, its agenda with the covered ticks.
  *
  * Props are plain strings (ADR-0060). The live session is found through the hand-off (`dockSession`): a widget
  * mounted with no session in this tab (it ended, or the module was loaded twice) shows only the way back.
@@ -14,6 +15,7 @@ import type { SessionSnapshot } from '../capture/session'
 import { strings } from '../strings'
 import { dockSession, takeBackFromDock } from './handoff'
 import type { DockProps } from './handoff'
+import DockAgenda from './DockAgenda'
 import { LevelWave } from './LevelWave'
 
 const t = strings.dock
@@ -155,6 +157,7 @@ export default function RecorderDock({ meetingId }: DockProps) {
           {problem}
         </span>
       )}
+      {live && <DockAgenda meetingId={meetingId} />}
       <VisuallyHidden live>{statusText(snapshot)}</VisuallyHidden>
     </div>
   )

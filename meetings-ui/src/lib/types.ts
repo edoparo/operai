@@ -201,6 +201,8 @@ export type Summary = {
   stale: boolean
   /** Written by the service from the gaps the summary was made under (AC-7.13); null/absent = none. */
   possiblyIncomplete?: { gaps: TimeRange[] } | null
+  /** The agenda the summary followed, as it was when it was asked for; null/absent when it used none. */
+  agenda?: AgendaItem[] | null
   createdAt: string
   version: number
   can: { edit: boolean; delete: boolean; retry: boolean }
@@ -232,3 +234,16 @@ export type EraseRow = { id: string; title: string; startsAt: string; creator: P
 
 /** `auth GET /authz/users/directory`; called WITHOUT `appId` for participants (plan G9, ADR-0066). */
 export type DirectoryUser = { id: string; name: string | null; email: string; entity: string | null }
+
+// ─── Agenda ─────────────────────────────────────────────────────────────────
+
+/** A point as a summary keeps it. */
+export type AgendaItem = { title: string; note: string | null }
+
+export type AgendaPoint = AgendaItem & { id: string; covered: boolean }
+
+/** `version` is the If-Match of a list change; a covered mark never changes it. */
+export type Agenda = { version: number; points: AgendaPoint[]; can: { edit: boolean } }
+
+/** A point as written: an existing one keeps its `id` (and its covered mark), a new one has none. */
+export type AgendaPointInput = { id?: string; title: string; note: string | null }

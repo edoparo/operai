@@ -508,7 +508,7 @@ describe("reading (AC-7.11)", () => {
     const second = await generate(m.id, "carol");
     const { json } = await list(m.id);
     expect(json.items.map((i: { id: string }) => i.id)).toEqual([second.json.id, first.json.id]);
-    expect(Object.keys(json.items[0]).sort()).toEqual(["author", "can", "createdAt", "edited", "failure", "id", "language", "possiblyIncomplete", "stale", "status", "template", "version"]);
+    expect(Object.keys(json.items[0]).sort()).toEqual(["agenda", "author", "can", "createdAt", "edited", "failure", "id", "language", "possiblyIncomplete", "stale", "status", "template", "version"]);
     expect(json.items[0].author).toEqual({ id: "carol", name: "Name of carol", status: "active" });
     expect(new Date(json.items[0].createdAt).toISOString()).toBe(json.items[0].createdAt);
   });
@@ -720,5 +720,77 @@ describe("a transcript that may be incomplete (AC-7.13)", () => {
     const res = await generate(m.id);
     await runJob(res.json.id);
     expect((await call("GET", `/meetings/${m.id}/summaries`, "carol")).json.items[0].possiblyIncomplete).toEqual({ gaps: GAPS });
+  });
+});
+
+describe("summaries that follow the agenda", () => {
+  const setAgenda = (meetingId: string, points: { title: string; note?: string | null }[]) =>
+    db.agendaPoint.createMany({ data: points.map((p, position) => ({ meetingId, position, title: p.title, note: p.note ?? null })) });
+
+  it("By agenda: one section per point, then Other topics; the agenda is kept with the summary", async () => {
+    const m = await readyMeeting();
+    await setAgenda(m.id, [{ title: "Budget", note: "Agree Q3" }, { title: "Hiring" }]);
+    const res = await generate(m.id, "carol", { templateId: "builtin:agenda", language: "en" });
+    expect(res.status).toBe(202);
+    expect(res.json).toMatchObject({ template: { name: "By agenda", source: "builtin" }, agenda: [{ title: "Budget", note: "Agree Q3" }, { title: "Hiring", note: null }] });
+
+    await runJob(res.json.id);
+    const ready = (await list(m.id)).json.items[0];
+    expect(ready.status).toBe("ready");
+    expect(ready.sections.map((s: { heading: string }) => s.heading)).toEqual(["Budget", "Hiring", "Other topics"]);
+    // the agenda's own wording went to the model as the sections, with the note as instruction
+    expect(model.requests[0]!.request.messages[0]!.text).toContain("Section 0: Budget - Agree Q3");
+  });
+
+  it("a later change of the agenda changes nothing in an existing summary; Regenerate takes the agenda as it is now", async () => {
+    const m = await readyMeeting();
+    await setAgenda(m.id, [{ title: "Budget" }]);
+    const first = await generate(m.id, "alice", { templateId: "builtin:agenda", language: "it" });
+    await runJob(first.json.id);
+    await db.agendaPoint.deleteMany({ where: { meetingId: m.id } });
+    await setAgenda(m.id, [{ title: "Budget" }, { title: "Assunzioni" }]);
+
+    const old = (await list(m.id)).json.items.find((s: { id: string }) => s.id === first.json.id);
+    expect(old.agenda).toEqual([{ title: "Budget", note: null }]);
+    expect(old.sections.map((s: { heading: string }) => s.heading)).toEqual(["Budget", "Altri argomenti"]);
+
+    const again = await call("POST", `/meetings/${m.id}/summaries/${first.json.id}/regenerate`, "alice");
+    expect(again.status).toBe(202);
+    expect(again.json.agenda).toEqual([{ title: "Budget", note: null }, { title: "Assunzioni", note: null }]);
+    await runJob(again.json.id);
+    const fresh = (await list(m.id)).json.items.find((s: { id: string }) => s.id === again.json.id);
+    expect(fresh.sections.map((s: { heading: string }) => s.heading)).toEqual(["Budget", "Assunzioni", "Altri argomenti"]);
+  });
+
+  it("Follow the agenda keeps the template's sections exactly and gives the model the agenda", async () => {
+    const m = await readyMeeting();
+    await setAgenda(m.id, [{ title: "Budget", note: "Agree Q3" }]);
+    const res = await generate(m.id, "alice", { templateId: "builtin:minutes", language: "en", followAgenda: true });
+    expect(res.status).toBe(202);
+    expect(res.json.agenda).toEqual([{ title: "Budget", note: "Agree Q3" }]);
+    await runJob(res.json.id);
+    const ready = (await list(m.id)).json.items[0];
+    expect(ready.sections.map((s: { heading: string }) => s.heading)).toEqual(["Summary", "Topics discussed", "Decisions", "Action items", "Open questions"]);
+    expect(model.requests[0]!.request.messages[0]!.text).toContain("<agenda>\nPoint 1: Budget - Agree Q3\n</agenda>");
+  });
+
+  it("without the option no agenda reaches a plain summary, even when the meeting has one", async () => {
+    const m = await readyMeeting();
+    await setAgenda(m.id, [{ title: "Budget" }]);
+    const res = await generate(m.id);
+    expect(res.json.agenda).toBeNull();
+    await runJob(res.json.id);
+    expect(model.requests[0]!.request.messages[0]!.text).not.toContain("<agenda>");
+  });
+
+  it("an empty agenda: By agenda and Follow the agenda are 409 agenda_empty, and nothing is written or counted", async () => {
+    const m = await readyMeeting();
+    for (const body of [{ templateId: "builtin:agenda" }, { templateId: "builtin:minutes", followAgenda: true }]) {
+      const res = await generate(m.id, "alice", body);
+      expect(res.status).toBe(409);
+      expect(res.json.code).toBe("agenda_empty");
+    }
+    expect(await db.summary.count({ where: { meetingId: m.id } })).toBe(0);
+    expect(await db.aiRequest.count()).toBe(0);
   });
 });

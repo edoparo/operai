@@ -11,12 +11,14 @@ import {
   Icon,
   PageHeader,
   RadioGroupField,
+  SectionsEditor,
   Skeleton,
   StatePanel,
   VisuallyHidden,
   focusFirstInvalid,
   resolveLocale,
 } from '@operai/ui'
+import { AGENDA_MAX_POINTS, blankAgendaRow, inputsOf, validateAgendaRows, type AgendaRow } from '../components/agenda/agendaRows'
 import PermissionDenied from '../components/PermissionDenied'
 import { useResource } from '../hooks/useResource'
 import { codeOf, errorMessage, fieldErrorsOf, isAuthUnavailable, statusOf } from '../lib/errors'
@@ -137,6 +139,8 @@ export default function NewMeetingPage() {
   const [format, setFormat] = useState<MeetingFormat>('online')
   const [language, setLanguage] = useState<MeetingLanguage>(() => resolveLocale())
   const [source, setSource] = useState<MeetingSource>('recorded')
+  const [agendaRows, setAgendaRows] = useState<AgendaRow[]>([])
+  const [agendaErrors, setAgendaErrors] = useState<ReturnType<typeof validateAgendaRows>>(null)
 
   const [errors, setErrors] = useState<FieldErrors>({})
   const [formError, setFormError] = useState<string | null>(null)
@@ -187,7 +191,9 @@ export default function NewMeetingPage() {
     setFormError(null)
     const found = validate()
     setErrors(found)
-    if (Object.keys(found).length > 0) {
+    const agendaFound = validateAgendaRows(agendaRows)
+    setAgendaErrors(agendaFound)
+    if (Object.keys(found).length > 0 || agendaFound !== null) {
       setFocusTick((tick) => tick + 1)
       return
     }
@@ -199,6 +205,7 @@ export default function NewMeetingPage() {
       language,
       source,
       ...(hostRef !== null ? { host: hostRef } : {}),
+      ...(agendaRows.length > 0 ? { agenda: inputsOf(agendaRows).map(({ title, note }) => ({ title, note })) } : {}),
     }
     setBusy(true)
     try {
@@ -388,6 +395,20 @@ export default function NewMeetingPage() {
               onSelect={setSource}
             />
           </RadioGroupField>
+
+          <SectionsEditor
+            sections={agendaRows}
+            onChange={(next) => {
+              setAgendaRows(next)
+              if (agendaErrors !== null) setAgendaErrors(validateAgendaRows(next))
+            }}
+            createSection={blankAgendaRow}
+            max={AGENDA_MAX_POINTS}
+            rowErrors={agendaErrors ?? undefined}
+            disabled={busy}
+            testIdPrefix="meetings-new-agenda"
+            copy={{ ...strings.agenda.dialog.sections, legend: strings.agenda.newMeeting.legend, hint: strings.agenda.newMeeting.hint }}
+          />
 
           {formError && (
             <p className="form-error" role="alert" data-testid="meetings-new-form-error">

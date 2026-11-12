@@ -40,6 +40,7 @@
 
 import { z } from "zod";
 import { LanguageModelError, languageModel, type LanguageModel } from "../../ai/languageModel";
+import { MAX_AGENDA_POINTS, MAX_SUMMARY_SECTIONS } from "../../templates/builtin";
 import { buildSummaryRequest, validateSummaryOutput, type RenderedSection, type SummaryInput } from "../../ai/prompts/summary";
 import type { PromptSegment } from "../../ai/prompts/transcript";
 import { db as defaultDb } from "../../lib/db";
@@ -67,8 +68,10 @@ const SnapshotSchema = z.object({
   source: z.enum(["builtin", "shared", "personal"]),
   templateId: z.string(),
   name: z.string(),
-  sections: z.array(z.object({ heading: z.string(), instruction: z.string() })).min(1).max(15),
+  sections: z.array(z.object({ heading: z.string(), instruction: z.string() })).min(1).max(MAX_SUMMARY_SECTIONS),
   generalInstructions: z.string().nullable(),
+  // The agenda the summary follows ("By agenda", or "Follow the agenda"); absent when it does not.
+  agenda: z.array(z.object({ title: z.string(), note: z.string().nullable() })).max(MAX_AGENDA_POINTS).optional(),
   // Resolved at enqueue time with the requester's token (see SPEAKER NAMES); absent on older snapshots.
   speakerNames: z.record(z.string(), z.string()).default({}),
 });

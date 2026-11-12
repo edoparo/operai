@@ -79,6 +79,8 @@ export interface Texts {
   readonly templateName: string;
   readonly instruction: string;
   readonly speakerLabel: string;
+  readonly agendaTitle: string;
+  readonly agendaNote: string;
 }
 
 export const PLAIN_TEXTS: Texts = {
@@ -93,6 +95,8 @@ export const PLAIN_TEXTS: Texts = {
   templateName: "My template",
   instruction: "List the decisions.",
   speakerLabel: "Pat",
+  agendaTitle: "Budget",
+  agendaNote: "Agree the Q3 numbers.",
 };
 
 // ─── The world ───────────────────────────────────────────────────────────────
@@ -124,6 +128,7 @@ export interface World {
   readonly otherTemplateId: string;
   readonly sharedTemplateId: string;
   readonly consentVersion: string;
+  readonly agendaPointId: string;
 }
 
 const DAY = 86_400_000;
@@ -195,7 +200,9 @@ export async function seedWorld(kit: Kit, persona: Persona, kinds: readonly Meet
   let failedSummaryId = "none";
   let turnId = "none";
   let failedTurnId = "none";
+  let agendaPointId = "none";
   if (m.ready) {
+    agendaPointId = (await kit.db.agendaPoint.create({ data: { meetingId: m.ready, position: 0, title: texts.agendaTitle, note: texts.agendaNote } })).id;
     const key = `meetings/${m.ready}/audio.ogg`;
     await kit.db.meeting.update({ where: { id: m.ready }, data: { audioKey: key } });
     kit.storage.put(key, 10, "audio/ogg", new Uint8Array([1, 2, 3]));
@@ -268,7 +275,7 @@ export async function seedWorld(kit: Kit, persona: Persona, kinds: readonly Meet
   const otherTemplateId = (await kit.db.summaryTemplate.create({ data: template({ scope: "personal", ownerUserId: "u-someone-else", createdBy: "u-someone-else", updatedBy: "u-someone-else", name: `${texts.templateName} other` }) as never })).id;
   const sharedTemplateId = (await kit.db.summaryTemplate.create({ data: template({ scope: "shared", name: `${texts.templateName} shared` }) as never })).id;
 
-  return { persona, caller, owner, texts, m, segmentId, summaryId, failedSummaryId, turnId, failedTurnId, sessionId, ownTemplateId, otherTemplateId, sharedTemplateId, consentVersion: CONSENT_NOTICE_VERSION };
+  return { persona, caller, owner, texts, m, segmentId, summaryId, failedSummaryId, turnId, failedTurnId, sessionId, ownTemplateId, otherTemplateId, sharedTemplateId, consentVersion: CONSENT_NOTICE_VERSION, agendaPointId };
 }
 
 // ─── Expectations ────────────────────────────────────────────────────────────
@@ -304,6 +311,15 @@ const CAPVIS: Cells = {
 const CAPVIS_AUTHOR: Cells = { ...CAPVIS, participant: [403, "author_only"] };
 /** Removing content you may open: author or creator, never a grant (AC-7.8). */
 const DELETE_CONTENT: Cells = { ...READ, participant: [403, "author_only"], participantNoAccess: [403, "author_only"] };
+/**
+ * An agenda write: the creator or an Operai participant, not frozen, with `meetings:access` (visibility 404, then
+ * role, frozen, grant). A host reader reads the agenda but never changes it (set on the rows below).
+ */
+const AGENDA_EDIT: Cells = {
+  creator: OK, creatorNoAccess: [403, "meetings_access_required"], frozenCreator: [403, "frozen"],
+  participant: OK, participantNoAccess: [403, "meetings_access_required"],
+  outsider: NOT_FOUND, outsiderNoAccess: NOT_FOUND, eraser: NOT_FOUND, anonymous: UNAUTH,
+};
 /** Delete the recording: the creator without a grant (A4), not once deactivated; erase never touches audio. */
 const DELETE_AUDIO: Cells = {
   ...CONTROL, creatorNoAccess: OK,
@@ -393,6 +409,9 @@ function row(
   } as RouteRow;
 }
 
+/** A host reader opens the meeting but is no agenda editor. */
+const agendaWrite = (r: RouteRow): RouteRow => ({ ...r, cells: { ...r.cells, hostReader: [403, "agenda_editors_only"] } });
+
 export const ROWS: readonly RouteRow[] = [
   // ── Meetings ──────────────────────────────────────────────────────────────
   row("GET /meetings", null, { path: () => "/meetings", ok: 200, cells: ANY_USER, outage: "serves" }),
@@ -414,6 +433,23 @@ export const ROWS: readonly RouteRow[] = [
   }, "/participants"),
   row("POST /meetings/:id/consent", "draft", { body: (w) => ({ noticeVersion: w.consentVersion }), ok: 200, cells: CONTROL, outage: "unavailable" }, "/consent"),
   row("POST /meetings/:id/host-notice/retry", "ready", { ok: 200, cells: CONTROL, outage: "unavailable" }, "/host-notice/retry"),
+
+  // ── Agenda ────────────────────────────────────────────────────────────────
+  row("GET /meetings/:id/agenda", "ready", { ok: 200, cells: READ, outage: "serves" }, "/agenda"),
+  agendaWrite(row("PUT /meetings/:id/agenda", "ready", {
+    body: (w) => ({ points: [{ id: w.agendaPointId, title: `${w.texts.agendaTitle} v2`, note: w.texts.agendaNote }, { title: w.texts.agendaTitle }] }),
+    headers: { "If-Match": '"0"' },
+    ok: 200,
+    cells: AGENDA_EDIT,
+    outage: "unavailable",
+  }, "/agenda")),
+  agendaWrite(row("PUT /meetings/:id/agenda/points/:pointId/covered", "ready", {
+    path: (w) => `/meetings/${w.m.ready}/agenda/points/${w.agendaPointId}/covered`,
+    body: () => ({ covered: true }),
+    ok: 200,
+    cells: AGENDA_EDIT,
+    outage: "unavailable",
+  })),
 
   // ── Hosts ─────────────────────────────────────────────────────────────────
   row("GET /hosts", null, { path: () => "/hosts", ok: 200, cells: ANY_USER, outage: "serves" }),

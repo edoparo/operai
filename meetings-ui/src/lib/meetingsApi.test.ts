@@ -191,6 +191,22 @@ const ROWS: Row[] = [
     reply: { gaps: [] },
   },
   // Summaries
+  { name: 'getAgenda', call: () => api.getAgenda('m1'), method: GET, url: '/meetings/m1/agenda' },
+  {
+    name: 'saveAgenda',
+    call: () => api.saveAgenda('m1', 3, [{ id: 'p1', title: 'Budget', note: null }, { title: 'Hiring', note: 'Q3' }]),
+    method: PUT,
+    url: '/meetings/m1/agenda',
+    body: { points: [{ id: 'p1', title: 'Budget', note: null }, { title: 'Hiring', note: 'Q3' }] },
+    ifMatch: '"3"',
+  },
+  {
+    name: 'setAgendaPointCovered',
+    call: () => api.setAgendaPointCovered('m1', 'p/1', true),
+    method: PUT,
+    url: '/meetings/m1/agenda/points/p%2F1/covered',
+    body: { covered: true },
+  },
   { name: 'listSummaries', call: () => api.listSummaries('m1'), method: GET, url: '/meetings/m1/summaries' },
   {
     name: 'generateSummary',

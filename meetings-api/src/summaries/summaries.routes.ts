@@ -45,7 +45,19 @@ import { AI_TX, readyForAi, summaryNotFound, takeAiRequest } from "../meetings/a
 import { callerOf, type CallerSource } from "../meetings/caller";
 import { speakerNamesFor, type SpeakerNames } from "../meetings/promptSegments";
 import { openMeeting, type MeetingRole } from "../meetings/visibility";
-import { TEMPLATE_LIMITS, builtinSnapshot, parseAcceptLanguage, type TemplateLanguage, type TemplateSection, type TemplateSnapshot } from "../templates/builtin";
+import { agendaItemsOf } from "../agenda/agenda.routes";
+import {
+  AGENDA_TEMPLATE_ID,
+  MAX_SUMMARY_SECTIONS,
+  TEMPLATE_LIMITS,
+  agendaSnapshot,
+  builtinSnapshot,
+  parseAcceptLanguage,
+  type AgendaItem,
+  type TemplateLanguage,
+  type TemplateSection,
+  type TemplateSnapshot,
+} from "../templates/builtin";
 
 /** AC-7.3. */
 export const MAX_SUMMARIES_PER_MEETING = 20;
@@ -72,6 +84,8 @@ const SummaryItemSchema = z.object({
    * label ("Based on a transcript that may be incomplete") and its ranges are this.
    */
   possiblyIncomplete: z.object({ gaps: z.array(z.object({ startMs: z.number().int(), endMs: z.number().int() })) }).nullable(),
+  /** The agenda the summary followed, as it was when the summary was asked for; `null` when it did not use one. */
+  agenda: z.array(z.object({ title: z.string(), note: z.string().nullable() })).nullable(),
   /** Additive to the plan's shape: why a failed summary failed (a closed code), for the plain-language reason (AC-7.9). */
   failure: z.object({ code: z.string() }).nullable(),
   createdAt: z.string(),
@@ -86,6 +100,8 @@ const SummaryParams = Params.extend({ sid: z.string().min(1).max(64) });
 const GenerateBody = z.object({
   templateId: z.string().min(1).max(64),
   language: z.enum(["en", "it"]).optional(),
+  /** Give the model the meeting's agenda to orient the template's sections (any template but "By agenda", which always does). */
+  followAgenda: z.boolean().optional(),
 });
 const EditBody = z.object({
   sections: z
@@ -99,7 +115,7 @@ const EditBody = z.object({
       }),
     )
     .min(1)
-    .max(TEMPLATE_LIMITS.sections),
+    .max(MAX_SUMMARY_SECTIONS),
 });
 
 // ─── The item ────────────────────────────────────────────────────────────────
@@ -148,6 +164,7 @@ function itemOf(row: Row, ctx: ItemContext): SummaryItem {
     edited: row.edited,
     stale: status === "ready" && row.transcriptVersion < ctx.meetingVersion,
     possiblyIncomplete: status === "ready" ? incompleteOf(row) : null,
+    agenda: Array.isArray(snapshot.agenda) && snapshot.agenda.length > 0 ? snapshot.agenda.map((p) => ({ title: p.title, note: p.note ?? null })) : null,
     failure: status !== "failed" ? null : { code: timedOut ? "timed_out" : (row.failureCode ?? "internal_error") },
     createdAt: row.createdAt.toISOString(),
     version: row.version,
@@ -260,7 +277,7 @@ const generateRoute = createRoute({
     ...commonErrors,
     202: { description: "Accepted: generating", ...json(SummaryItemSchema) },
     404: { description: "Meeting or template not found" },
-    409: { description: "not_ready, no_speech or summary_limit" },
+    409: { description: "not_ready, no_speech, summary_limit or agenda_empty" },
     429: { description: "ai_rate_limited" },
   },
 });
@@ -342,8 +359,12 @@ summariesRouter.openapi(generateRoute, async (c) => {
   await readyForAi(id);
 
   const language: TemplateLanguage = body.language ?? parseAcceptLanguage(c.req.header("Accept-Language"));
+  const usesAgenda = body.templateId === AGENDA_TEMPLATE_ID || body.followAgenda === true;
+  const agenda = usesAgenda ? await currentAgenda(id) : [];
   let snapshot: TemplateSnapshot;
-  if (body.templateId.startsWith("builtin:")) {
+  if (body.templateId === AGENDA_TEMPLATE_ID) {
+    snapshot = agendaSnapshot(agenda, language);
+  } else if (body.templateId.startsWith("builtin:")) {
     const built = builtinSnapshot(body.templateId, language);
     if (!built) throw notFound("Template not found");
     snapshot = built;
@@ -360,22 +381,51 @@ summariesRouter.openapi(generateRoute, async (c) => {
     };
   }
 
+  if (usesAgenda && body.templateId !== AGENDA_TEMPLATE_ID) snapshot = { ...snapshot, agenda };
+
   const speakerNames = await speakerNamesFor(db, id, caller.authorization);
   const row = await startSummary({ meetingId: id, userId: caller.userId, kind: "summary", snapshot: { ...snapshot, speakerNames }, language });
   const [item] = await itemsOf([row], c, "participant", row.transcriptVersion);
   return c.json(item!, 202);
 });
 
-/** The snapshot of `row` with the caller's freshly resolved speaker names. */
-async function refreshedSnapshot(row: Row, meetingId: string, authorization: string): Promise<TemplateSnapshot & { speakerNames: SpeakerNames }> {
+/** The meeting's agenda now, refused when it is empty (a summary cannot follow an empty agenda). */
+async function currentAgenda(meetingId: string): Promise<AgendaItem[]> {
+  const agenda = await agendaItemsOf(db, meetingId);
+  if (agenda.length === 0) throw conflict("agenda_empty", "The meeting's agenda has no points to follow");
+  return agenda;
+}
+
+/**
+ * The snapshot of `row` with the caller's freshly resolved speaker names. A RETRY keeps everything else (the same
+ * summary, asked again). A REGENERATE (`reloadAgenda`) of a summary that used the agenda takes the agenda as it is
+ * NOW: the "By agenda" sections are rebuilt from it, and a "Follow the agenda" summary follows the current one.
+ */
+async function refreshedSnapshot(row: Row, meetingId: string, authorization: string, reloadAgenda = false): Promise<TemplateSnapshot & { speakerNames: SpeakerNames }> {
   const old = snapshotOf(row);
+  const speakerNames = await speakerNamesFor(db, meetingId, authorization);
+  const usedAgenda = old.templateId === AGENDA_TEMPLATE_ID || (Array.isArray(old.agenda) && old.agenda.length > 0);
+  if (reloadAgenda && usedAgenda) {
+    const agenda = await currentAgenda(meetingId);
+    if (old.templateId === AGENDA_TEMPLATE_ID) return { ...agendaSnapshot(agenda, row.language), speakerNames };
+    return {
+      source: old.source ?? "personal",
+      templateId: old.templateId ?? "",
+      name: old.name ?? "",
+      sections: old.sections ?? [],
+      generalInstructions: old.generalInstructions ?? null,
+      agenda,
+      speakerNames,
+    };
+  }
   return {
     source: old.source ?? "personal",
     templateId: old.templateId ?? "",
     name: old.name ?? "",
     sections: old.sections ?? [],
     generalInstructions: old.generalInstructions ?? null,
-    speakerNames: await speakerNamesFor(db, meetingId, authorization),
+    ...(Array.isArray(old.agenda) && old.agenda.length > 0 ? { agenda: old.agenda } : {}),
+    speakerNames,
   };
 }
 
@@ -386,7 +436,7 @@ summariesRouter.openapi(regenerateRoute, async (c) => {
   const source = await summaryOf(id, sid);
   await readyForAi(id);
 
-  const snapshot = await refreshedSnapshot(source, id, caller.authorization);
+  const snapshot = await refreshedSnapshot(source, id, caller.authorization, true);
   const row = await startSummary({ meetingId: id, userId: caller.userId, kind: "regenerate", snapshot, language: source.language });
   const [item] = await itemsOf([row], c, role, row.transcriptVersion);
   return c.json(item!, 202);

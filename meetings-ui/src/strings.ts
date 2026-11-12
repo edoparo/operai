@@ -8,6 +8,7 @@
  * wired in here.
  */
 import { selectStrings } from '@operai/ui'
+import { agenda } from './strings/agenda'
 import { ask } from './strings/ask'
 import { audio } from './strings/audio'
 import { capture } from './strings/capture'
@@ -30,6 +31,7 @@ import { upload } from './strings/upload'
 
 /** The English catalog: the reference every other language is checked against. */
 export const en = {
+  agenda: agenda.en,
   ask: ask.en,
   audio: audio.en,
   capture: capture.en,
@@ -53,6 +55,7 @@ export const en = {
 
 /** The Italian catalog (INC-25): typed as the English, so a missing key does not compile. */
 export const it: typeof en = {
+  agenda: agenda.it,
   ask: ask.it,
   audio: audio.it,
   capture: capture.it,

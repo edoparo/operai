@@ -13,6 +13,8 @@ import { resolveLocale } from '@operai/ui'
 import { getAuthBaseUrl } from 'shell/session'
 import { getJson, query, requestJson, sendJson } from './api'
 import type {
+  Agenda,
+  AgendaPointInput,
   ChunkConfirm,
   ConversationTurn,
   DirectoryUser,
@@ -91,6 +93,8 @@ export type CreateMeetingInput = {
   language: MeetingLanguage
   source: MeetingSource
   host?: HostRef
+  /** The agenda's first points (optional). */
+  agenda?: { title: string; note: string | null }[]
 }
 
 export const createMeeting = (input: CreateMeetingInput) => sendJson<Meeting>('/meetings', 'POST', input)
@@ -216,13 +220,25 @@ export const editSegment = (id: string, segmentId: string, version: number, text
 export const setSpeaker = (id: string, key: string, value: { participantId: string } | { text: string } | null) =>
   sendJson<Speaker>(`${meetingPath(id)}/transcript/speakers/${enc(key)}`, 'PUT', value)
 
+// ─── Agenda ─────────────────────────────────────────────────────────────────
+
+export const getAgenda = (id: string, init?: Init) => getJson<Agenda>(`${meetingPath(id)}/agenda`, init)
+
+/** The whole list (add, edit, remove, reorder) at `version`: 409 `version_conflict` when someone changed it meanwhile. */
+export const saveAgenda = (id: string, version: number, points: AgendaPointInput[]) =>
+  sendJson<Agenda>(`${meetingPath(id)}/agenda`, 'PUT', { points }, version)
+
+/** One point's covered mark; no precondition. 404 `agenda_point_not_found` when the point was removed meanwhile. */
+export const setAgendaPointCovered = (id: string, pointId: string, covered: boolean) =>
+  sendJson<Agenda>(`${meetingPath(id)}/agenda/points/${enc(pointId)}/covered`, 'PUT', { covered })
+
 // ─── Summaries ──────────────────────────────────────────────────────────────
 
 export const listSummaries = (id: string, init?: Init) =>
   getJson<{ items: Summary[] }>(`${meetingPath(id)}/summaries`, init)
 
-/** 202 with the new (`generating`) summary; 409 `not_ready` / `no_speech` / `summary_limit`, 429 `ai_rate_limited`. */
-export const generateSummary = (id: string, body: { templateId: string; language: MeetingLanguage }) =>
+/** 202 with the new (`generating`) summary; 409 `not_ready` / `no_speech` / `summary_limit` / `agenda_empty`, 429 `ai_rate_limited`. */
+export const generateSummary = (id: string, body: { templateId: string; language: MeetingLanguage; followAgenda?: boolean }) =>
   sendJson<Summary>(`${meetingPath(id)}/summaries`, 'POST', body)
 
 export const regenerateSummary = (id: string, summaryId: string) =>

@@ -13,6 +13,7 @@ import {
 import { Link, useNavigate, useParams, useRouterState, useSearch } from '@tanstack/react-router'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import type { ReactNode } from 'react'
+import AgendaCard from '../components/agenda/AgendaCard'
 import AskPanel from '../components/ask/AskPanel'
 import { LoadFailure, Loading, Saved } from '../components/LoadState'
 import DeleteMeetingDialog from '../components/meeting/DeleteMeetingDialog'
@@ -336,6 +337,8 @@ function MeetingView({ meeting, replace, listPath, back, created }: MeetingViewP
         {saved !== null && <Saved message={saved} onDismiss={() => setSaved(null)} />}
 
         <StatusPanels meeting={meeting} onChanged={changed} onRefresh={() => void refresh()} />
+
+        <AgendaCard meetingId={meeting.id} live={meeting.status === 'recording'} />
 
         <DetailsCard meeting={meeting} hostInfo={hostInfo} />
         <ParticipantsCard meeting={meeting} hostInfo={hostInfo} onChanged={changed} />

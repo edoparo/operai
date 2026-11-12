@@ -23,8 +23,16 @@ const designCodes = (): string[] => {
   const notCodes = new Set(['code', 'reason'])
   return [...section.matchAll(/`([a-z][a-z_]+)`/g)].map((match) => match[1]!).filter((code) => !notCodes.has(code))
 }
-// Named in plan.md outside S11: AC-2.11's `interrupted` and the 404 body.
-const PLAN_EXTRA_CODES = ['interrupted', 'not_found']
+// Named in plan.md outside S11: AC-2.11's `interrupted` and the 404 body; and the agenda routes' own refusals.
+const PLAN_EXTRA_CODES = [
+  'interrupted',
+  'not_found',
+  'agenda_editors_only',
+  'too_many_agenda_points',
+  'unknown_agenda_point',
+  'agenda_point_not_found',
+  'agenda_empty',
+]
 
 describe('problem codes have a message in both languages (exhaustiveness)', () => {
   it.skipIf(!existsSync(DESIGN))('design.md § S11 lists the codes this test then checks', () => {

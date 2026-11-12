@@ -34,6 +34,12 @@ export interface BuiltinTemplate {
   readonly generalInstructions: Readonly<Record<TemplateLanguage, string | null>>;
 }
 
+/** One point of a meeting's agenda, as a summary keeps it. */
+export interface AgendaItem {
+  readonly title: string;
+  readonly note: string | null;
+}
+
 /** What a summary keeps of its template (`summary.template`, AC-7.5). */
 export interface TemplateSnapshot {
   readonly source: "builtin" | "shared" | "personal";
@@ -41,6 +47,11 @@ export interface TemplateSnapshot {
   readonly name: string;
   readonly sections: readonly TemplateSection[];
   readonly generalInstructions: string | null;
+  /**
+   * The meeting's agenda as it was when the summary was asked for, when the summary used it: the "By agenda"
+   * template (its sections ARE the points) or any other template with "Follow the agenda". Absent otherwise.
+   */
+  readonly agenda?: readonly AgendaItem[] | undefined;
 }
 
 const GENERAL = {
@@ -180,4 +191,55 @@ export function parseAcceptLanguage(header: string | undefined): TemplateLanguag
     if (best === null || q > best.q) best = { language: primary, q };
   }
   return best?.language ?? "en";
+}
+
+// ─── "By agenda" ─────────────────────────────────────────────────────────────
+
+/**
+ * The fifth built-in: its sections are the meeting's agenda points, in order, each headed by the point's title with
+ * its note as the instruction, then a closing "Other topics". It has no fixed sections, so it is not in
+ * `BUILTIN_TEMPLATES`: the picker offers it only for a meeting whose agenda has points, and the summary snapshots the
+ * agenda it was made from.
+ */
+export const AGENDA_TEMPLATE_ID = "builtin:agenda";
+
+/** At most this many points: with the "Other topics" section, a summary has at most `MAX_AGENDA_POINTS + 1` sections. */
+export const MAX_AGENDA_POINTS = 30;
+export const AGENDA_LIMITS = { title: TEMPLATE_LIMITS.heading, note: TEMPLATE_LIMITS.instruction } as const;
+/** The most sections a summary can have: a "By agenda" one. */
+export const MAX_SUMMARY_SECTIONS = Math.max(TEMPLATE_LIMITS.sections, MAX_AGENDA_POINTS + 1);
+
+const AGENDA_TEMPLATE = {
+  name: { en: "By agenda", it: "Per scaletta" },
+  otherTopics: {
+    en: { heading: "Other topics", instruction: "Anything discussed that does not belong to one of the agenda points above." },
+    it: { heading: "Altri argomenti", instruction: "Tutto ciò che è stato discusso e non rientra in uno dei punti della scaletta sopra." },
+  },
+  pointInstruction: {
+    en: "What was said, decided and agreed about this agenda point.",
+    it: "Cosa è stato detto, deciso e concordato su questo punto della scaletta.",
+  },
+} as const;
+
+/** The "By agenda" template's name in `language`. */
+export const agendaTemplateName = (language: TemplateLanguage): string => AGENDA_TEMPLATE.name[language];
+
+/** The "By agenda" sections for `agenda` in `language`: one per point, then "Other topics". */
+export function agendaSections(agenda: readonly AgendaItem[], language: TemplateLanguage): TemplateSection[] {
+  return [
+    ...agenda.map((point) => ({ heading: point.title, instruction: point.note ?? AGENDA_TEMPLATE.pointInstruction[language] })),
+    { ...AGENDA_TEMPLATE.otherTopics[language] },
+  ];
+}
+
+/** The snapshot of a "By agenda" summary of `agenda` (at least one point) in `language`. */
+export function agendaSnapshot(agenda: readonly AgendaItem[], language: TemplateLanguage): TemplateSnapshot {
+  return {
+    source: "builtin",
+    templateId: AGENDA_TEMPLATE_ID,
+    name: agendaTemplateName(language),
+    sections: agendaSections(agenda, language),
+    generalInstructions: GENERAL[language],
+    agenda: agenda.map((p) => ({ title: p.title, note: p.note })),
+  };
 }
