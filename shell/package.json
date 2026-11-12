@@ -16,7 +16,7 @@
   },
   "dependencies": {
     "@module-federation/runtime": "^2.7.0",
-    "@tanstack/react-router": "1.170.17",
+    "@tanstack/react-router": "1.170.46",
     "better-auth": "^1.7.18",
     "react": "^19.2.4",
     "react-dom": "^19.2.4"

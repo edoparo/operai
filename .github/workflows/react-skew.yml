@@ -1,5 +1,5 @@
-# react-skew — every frontend's pnpm lockfile must resolve the SAME react and
-# react-dom version. The shell and the remotes share them as Module Federation
+# react-skew — every frontend's pnpm lockfile must resolve the SAME react,
+# react-dom and @tanstack/react-router version. The shell and the remotes share them as Module Federation
 # singletons (ADR-0006); a lockfile that resolves a different version builds and
 # passes its own tests, then breaks the assembled suite (inventory-ui resolved
 # 19.3.0 while the rest resolved 19.2.7 — every remote failed).

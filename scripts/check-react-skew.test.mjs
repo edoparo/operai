@@ -6,7 +6,7 @@ import { join } from 'node:path'
 import { test } from 'node:test'
 import { checkReactSkew, readReactVersions } from './check-react-skew.mjs'
 
-const lock = (react, dom = react, extra = '') => `lockfileVersion: '9.0'
+const lock = (react, dom = react, extra = '', router = '1.170.46') => `lockfileVersion: '9.0'
 
 importers:
 
@@ -18,6 +18,9 @@ importers:
 
 packages:
 
+  '@tanstack/react-router@${router}':
+    resolution: {integrity: sha512-r}
+
   react-dom@${dom}:
     resolution: {integrity: sha512-x}
 
@@ -25,6 +28,8 @@ packages:
     resolution: {integrity: sha512-y}
 ${extra}
 snapshots:
+
+  '@tanstack/react-router@${router}(react-dom@${dom}(react@${react}))(react@${react})': {}
 
   react@${react}: {}
 `
@@ -44,6 +49,7 @@ test('reads only the packages section', () => {
   const v = readReactVersions(lock('19.2.7'))
   assert.deepEqual([...v.react], ['19.2.7'])
   assert.deepEqual([...v['react-dom']], ['19.2.7'])
+  assert.deepEqual([...v['@tanstack/react-router']], ['1.170.46'])
 })
 
 test('passes when every frontend resolves the same version', () => {
@@ -78,4 +84,28 @@ test('ignores a stray pnpm lockfile inside a Bun service', () => {
 test('fails when react and react-dom disagree', () => {
   const root = tree({ shell: lock('19.2.7', '19.2.4'), 'a-ui': lock('19.2.7', '19.2.4') })
   try { assert.ok(checkReactSkew(root).problems.some((p) => p.includes('react 19.2.7 and react-dom 19.2.4'))) } finally { rmSync(root, { recursive: true }) }
+})
+
+test('fails when one frontend resolves a different @tanstack/react-router', () => {
+  const root = tree({ shell: lock('19.2.7'), 'a-ui': lock('19.2.7'), 'b-ui': lock('19.2.7', '19.2.7', '', '1.170.17') })
+  try {
+    const { problems } = checkReactSkew(root)
+    assert.ok(
+      problems.some((p) => p.includes('@tanstack/react-router versions differ') && p.includes('1.170.17 (b-ui)')),
+      problems.join('\n'),
+    )
+  } finally { rmSync(root, { recursive: true }) }
+})
+
+test('fails (never silently passes) when a lockfile has no @tanstack/react-router entry', () => {
+  const noRouter = lock('19.2.7').replace(/  '@tanstack\/react-router@[^\n]*\n    resolution: [^\n]*\n\n/, '')
+  const root = tree({ shell: lock('19.2.7'), 'a-ui': noRouter })
+  try { assert.ok(checkReactSkew(root).problems.some((p) => p.includes('a-ui') && p.includes('no @tanstack/react-router'))) } finally { rmSync(root, { recursive: true }) }
+})
+
+test('a library that does not declare @tanstack/react-router is not required to resolve it', () => {
+  const noRouter = lock('19.2.7').replace(/  '@tanstack\/react-router@[^\n]*\n    resolution: [^\n]*\n\n/, '')
+  const root = tree({ shell: lock('19.2.7'), 'lib-ui': noRouter })
+  writeFileSync(join(root, 'lib-ui', 'package.json'), JSON.stringify({ dependencies: { react: '^19.2.7' } }))
+  try { assert.deepEqual(checkReactSkew(root).problems, []) } finally { rmSync(root, { recursive: true }) }
 })
