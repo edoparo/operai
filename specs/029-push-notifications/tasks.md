@@ -67,7 +67,7 @@ Re-sync 2026-11-12 (QE round 0 FAIL + security review FAIL; spec re-approved wit
   - touch: `auth/src/system/userContact.routes.ts`, `auth/src/system/userContact.routes.test.ts`, `auth/src/auth/user-contact.contract.test.ts`, `auth/src/index.ts`
   - done when: the same rows for users/contact pass (600 lookups → 600 × 200; 601st → 429 with no DB read; invalid kinds incl. a genuine service JWT without the scope count as invalid; 10 + 10 across both routes → 429); key-set cache rows (100 verifications → 1 read, unknown `kid` → ≤ 1 re-read per 30 s, token > 4 096 chars → 401 with no read); existing 200/400/401/404 assertions unchanged.
 
-- [ ] T17: auth — suite-capacity contract test (the test that would have caught D-1) — refs: AC-7.7 — deps: T16
+- [x] T17: auth — suite-capacity contract test (the test that would have caught D-1) — refs: AC-7.7 — deps: T16
   - touch: `auth/src/system/systemCapacity.contract.test.ts`
   - done when: plan row AC-7.7 (contract) passes with production defaults and real routers: 8 clients × 30 mints + 220 lookups + 15 invalid from `"direct"` in one window → zero 429; shown to fail at the 21st request when run against the pre-US-7 routers (stash/checkout evidence in the report, not committed).
 
