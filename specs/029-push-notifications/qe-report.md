@@ -1,18 +1,42 @@
 # QE report: specs/029-push-notifications
 
-## QE verdict: BLOCKED        (measured at 313cafaf, full mode, rigor production, re-verification after fix round 2 of 2)
+## QE verdict: PASS        (measured at 85fcb037, full mode, rigor production, E-1 re-run)
 
-No row is red. D-4 is fixed and verified (component tests and live). One row could not run: the e2e spec
-`notifications.spec.ts` is still blocked by environment fault E-1 (`/notify` crashes on the running dev shell), because the
-user's restart did not apply the remedy (details under Round 2). BLOCKED has no owning dev agent and consumes no fix round.
-Real OS push delivery, the OS click, Edge's host, the AC-7.7 deployed-pair re-measure, the stored-href check and the ADR-0084
-sign-off stay `pending T12 (human)`, never passes. Security review round 1 is PASS (0 findings at or above medium), as reported by the caller.
+Every executable row is green; E-1 is cleared (environment fault, no fix round consumed). The rows that need a human stay
+`pending T12 (human)` and are not failures: real OS push delivery on Chrome / Edge / Firefox and the OS click, the Edge endpoint host
+(R3), the AC-7.7 deployed-pair re-measure, the stored-href check, the L2-L4 acceptance and the ADR-0084 go-live sign-off (AC-6.5).
+They are gates before `PUSH_ENABLED=true` in production. Security review round 1 is PASS (0 findings at or above medium), as reported by the caller.
 
-The tree was clean at 313cafaf for every run below and QE changed only this file. Scratch evidence for round 2:
-`/private/tmp/claude-501/-Users-matteocodogno-LAB-aiscream-operai/39cd1c38-0ef8-4330-af42-72ff15685521/scratchpad/r2/` (`s20.mjs` live focus script, `e2e.txt`, `full-1..6.txt`, `auth.txt`, `ntf.txt`, `lint.txt`, `build.txt`).
-Round 1 evidence stays in `.../scratchpad/r1/`.
+QE changed only this file. Tree clean at 85fcb037 for every run below. Evidence of the re-run:
+`/private/tmp/claude-501/-Users-matteocodogno-LAB-aiscream-operai/39cd1c38-0ef8-4330-af42-72ff15685521/scratchpad/r3/` (`nav.mjs`, `deep.mjs`, `ac43.mjs`, `e2e1.txt`, `e2e2.txt`).
 
-## Round 2 (after commits 8e1fd0a7 and 313cafaf)
+## Round 2 - E-1 re-run (commits 86496298 and 85fcb037; dev servers restarted with fresh `node_modules/.vite`)
+
+| Check | Threshold | Actual | Result |
+|---|---|---|---|
+| Environment precondition | one router version, fresh caches | `shell`, `projects-ui`, `notify-ui` all resolve `@tanstack/react-router` 1.170.46; each `node_modules/.vite` dated 12 Nov 16:36 (recreated); all ports 5173-5181 answer | ✓ |
+| `/notify` on :5173, seeded session (`r3/nav.mjs`) | renders, no `isServer` crash | fresh user and admin user: "Notifications / Inbox / Mark all as read / Nothing here yet"; 0 page errors | ✓ |
+| Navigate between remotes with different deep links, admin user, all 7 gated remotes + /notify + /account (`r3/nav.mjs`, `r3/deep.mjs`), full loads, SPA pushState, and browser Back | each shows the right page | /crm/pipeline -> /projects/tasks -> /crm/contacts -> /admin/users -> /crm/pipeline -> /projects -> /notify -> /crm/tasks -> /inventory(/assets) -> /admin/roles -> /projects/tasks: every step rendered its own page (Pipeline, My tasks, Contacts, Users, Pipeline, Project list, Notifications, Tasks, Assets, Roles, My tasks); Back landed on the previous route each time; 0 page errors. Note: the refund page for that admin shows the remote's own "You no longer have refund access" state (the admin role has no refund grant), expected | ✓ |
+| e2e `notifications.spec.ts` + `push-notifications.spec.ts`, run 1 | 13/13 | 13 passed (34.5 s) | ✓ |
+| e2e same, run 2 | 13/13 | 13 passed (34.0 s) | ✓ |
+| AC-4.3 full form (`r3/ac43.mjs`) | signed-out `/notify` -> sign-in with `redirect=http://localhost:5173/notify` -> after sign-in back on `/notify` AND the Notifications heading renders | redirect param exact; after sign-in URL `/notify`; heading "Notifications" visible; 0 page errors | ✓ |
+| `node scripts/check-react-skew.mjs` | one react / react-dom / router version | OK: 10 frontends, react 19.2.7, router 1.170.46 (operai-ui does not declare the router, by design) | ✓ |
+| `node --test scripts/check-react-skew.test.mjs` | 0 fail | 10 pass / 0 fail | ✓ |
+| `mise run changeset:check` | OK | OK (`router-per-mount-and-tanstack-alignment.md`, `web-push-notifications.md`) | ✓ |
+| shell `pnpm vitest run` (once) | 0 fail | 585 pass / 0 fail, 40 files | ✓ |
+| shell `pnpm lint` | 0 findings | 0 | ✓ |
+| Real push delivery, Edge host, AC-7.7 deployed-pair, stored-href, L2-L4, ADR-0084 sign-off (AC-6.5) | recorded | not run | pending T12 (human) |
+
+### E-1 status: CLEARED (environment fault, not a product defect)
+
+Confirmed root cause as given by the caller: projects-ui resolved router 1.170.46 against 1.170.17 elsewhere, so the Module Federation
+singleton gave the shell a second router. With all nine frontends on 1.170.46 and fresh Vite caches, `/notify` renders and the seven
+previously failing `notifications.spec.ts` tests pass (13/13, twice). The remount tests of 85fcb037 are backed by the live
+deep-link walk above (remounting a remote on a different deep link shows the right page). The earlier "two open tabs" flake did not recur in two full runs.
+No new defects. Still true: the e2e start-up prints that `SERVICE_TOKEN_RATE_LIMIT` and `SERVICE_TOKEN_RATE_WINDOW_MS` are ignored; delete them from the local auth environment.
+Test users created for the walk (`qe-e1r3@`, `qe-e1r3admin@`, `qe-ac43@operai.test`) remain in the local dev database; `qe-e1r3admin` holds the admin role locally.
+
+## Round 2, first pass (after commits 8e1fd0a7 and 313cafaf; superseded by the E-1 re-run above where they differ)
 
 | Check | Threshold | Actual | Result |
 |---|---|---|---|
