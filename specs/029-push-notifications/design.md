@@ -1,6 +1,7 @@
 ---
 spec: 029
-status: draft
+status: approved
+approved: 2026-11-12
 ---
 
 # Design: Push notifications
