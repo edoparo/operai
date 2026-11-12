@@ -45,7 +45,7 @@ Contracts: `plan.md` (approved) is binding; screens, states, copy and a11y: `des
   - touch: `shell/src/components/PushSettings.tsx`, `shell/src/components/PushSettings.test.tsx`, `shell/src/components/AccountScreen.tsx`, `shell/src/components/AccountScreen.test.tsx`, `shell/src/strings.ts`, `operai-ui/src/components/Banner*` (only if `Banner` does not forward `tabIndex`; then with a story and a test)
   - done when: component tests cover every state in design.md § Screens & states and every component row of plan § Test strategy for AC-1.x/3.x/6.1; focus and live-region rules of design.md § Accessibility asserted (focus after Remove, after blocked, busy label); the section sits outside `account-address-region` and specs/012 AC-6.2's test still passes; strings parity (`catalogGaps`) and the no-hardcoded-strings scan pass; `pnpm lint` and `pnpm build` green; `mise run ui:check` green if `operai-ui` was touched.
 
-- [ ] T10: E2E — My profile push flow and signed-out deep link — refs: AC-1.1, AC-1.2, AC-1.5, AC-3.2, AC-4.3 — deps: T5, T9
+- [x] T10: E2E — My profile push flow and signed-out deep link — refs: AC-1.1, AC-1.2, AC-1.5, AC-3.2, AC-4.3 — deps: T5, T9
   - touch: `shell/e2e/push-notifications.spec.ts`, `shell/e2e/helpers/pushFixtures.ts`
   - done when: `cd shell && pnpm e2e push-notifications.spec.ts` passes against `mise run dev` with `PUSH_ENABLED=true` and test VAPID keys: fake `PushManager` via init script; turn on → device row visible; reload → still on; remove → gone; signed-out visit to `/notify` lands on sign-in and returns to `/notify`.
 
