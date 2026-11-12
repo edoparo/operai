@@ -49,7 +49,7 @@ Contracts: `plan.md` (approved) is binding; screens, states, copy and a11y: `des
   - touch: `shell/e2e/push-notifications.spec.ts`, `shell/e2e/helpers/pushFixtures.ts`
   - done when: `cd shell && pnpm e2e push-notifications.spec.ts` passes against `mise run dev` with `PUSH_ENABLED=true` and test VAPID keys: fake `PushManager` via init script; turn on → device row visible; reload → still on; remove → gone; signed-out visit to `/notify` lands on sign-in and returns to `/notify`.
 
-- [ ] T11: Runbook, AGENTS.md and changesets — refs: AC-6.1, AC-6.5 — deps: T6, T9
+- [x] T11: Runbook, AGENTS.md and changesets — refs: AC-6.1, AC-6.5 — deps: T6, T9
   - touch: `infra/README.md`, `AGENTS.md`, `.changeset/*`
   - done when: `infra/README.md` documents VAPID key generation, 1Password storage, `PUSH_ENABLED`/`PUSH_EXCLUDED_ORIGINS`, and that rotation invalidates every subscription; AGENTS.md's notify-api and shell descriptions mention the push channel, the `/push/*` routes and `/push-sw.js`; one changeset selects `@operai/notify-api` and `@operai/shell` (minor); `mise run changeset:check` green.
 
