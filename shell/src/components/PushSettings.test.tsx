@@ -441,6 +441,38 @@ describe('device list and removal (AC-3.1, AC-3.2)', () => {
     await waitFor(() => expect(document.activeElement).toBe(previous)) // passive effect: see the test above
   })
 
+  // design.md focus table: after each removal focus goes to the next row's header, else the previous one,
+  // else the empty panel. A repeat removal can name the same surviving row twice (D-4, specs/029 QE round 1).
+  const SEQUENCES: [string, string[], string[]][] = [
+    ['first then last', ['d1', 'd3'], ['d2', 'd2']],
+    ['last then last', ['d3', 'd2'], ['d2', 'd1']],
+    ['first then first', ['d1', 'd2'], ['d2', 'd3']],
+    ['middle then first', ['d2', 'd1'], ['d3', 'd3']],
+    ['middle then last', ['d2', 'd3'], ['d3', 'd1']],
+    ['last then first', ['d3', 'd1'], ['d2', 'd2']],
+    ['all three, first each time', ['d1', 'd2', 'd3'], ['d2', 'd3', '']],
+  ]
+  it.each(SEQUENCES)('keeps focus on a row header across repeated removals: %s', async (_name, removals, expected) => {
+    setup({ devices: [CHROME, FIREFOX, EDGE] })
+    m.removePushDevice.mockResolvedValue({ wasThisBrowser: false })
+    render(<PushSettings />)
+    await loaded()
+    for (const [step, id] of removals.entries()) {
+      fireEvent.click(screen.getByTestId(`account-push-device-remove-${id}`))
+      fireEvent.click(screen.getByTestId('account-push-remove-confirm'))
+      await waitFor(() => expect(screen.queryByTestId(`account-push-device-${id}`)).toBeNull())
+      if (expected[step] === '') {
+        const heading = await screen.findByText('No devices yet')
+        await waitFor(() => expect(document.activeElement).toBe(heading))
+      } else {
+        const row = within(screen.getByTestId(`account-push-device-${expected[step]}`)).getByRole('rowheader')
+        await waitFor(() => expect(document.activeElement).toBe(row))
+      }
+      // The next removal starts from the page, not from the previous focus target.
+      ;(document.activeElement as HTMLElement | null)?.blur()
+    }
+  })
+
   it('focuses the empty state when the list becomes empty', async () => {
     setup({ devices: [FIREFOX] })
     m.removePushDevice.mockResolvedValue({ wasThisBrowser: false })

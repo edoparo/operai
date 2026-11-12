@@ -19,6 +19,8 @@ export interface LoadedPush {
   thisId: string | null
   /** Row header to focus (DataTable `focusRowKey`) after a removal. */
   focusKey: string | null
+  /** Bumped by every removal; the device table is keyed on it so a repeated `focusKey` still moves focus. */
+  focusSeq: number
   /** The list became empty through a removal: the empty panel takes focus. */
   focusEmpty: boolean
 }
@@ -60,6 +62,7 @@ export async function loadPush(userId: string, onConfigured: () => void): Promis
       devices,
       thisId: reconciled.status === 'on' ? reconciled.deviceId : null,
       focusKey: null,
+      focusSeq: 0,
       focusEmpty: false,
     }
   } catch {

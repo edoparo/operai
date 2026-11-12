@@ -239,6 +239,7 @@ export function PushSettings() {
           devices: current.devices.filter((device) => device.id !== target.id),
           thisId: wasThisBrowser || current.thisId === target.id ? null : current.thisId,
           focusKey: focusAfterRemoval(current.devices, target.id),
+          focusSeq: current.focusSeq + 1,
           focusEmpty: current.devices.every((device) => device.id === target.id),
         }))
         setNote({ kind: 'success', text: t.removed(target.label) })
@@ -374,6 +375,10 @@ export function PushSettings() {
         <Card title={t.devices.title}>
           {loaded.devices.length > 0 ? (
             <DataTable
+              // DataTable focuses a row only when `focusRowKey` changes, and two removals can name the
+              // same surviving row ([A,B,C]: remove A -> B, remove C -> B; specs/029 QE D-4). A fresh
+              // mount per removal makes every removal a new focus request.
+              key={loaded.focusSeq}
               caption={t.devices.caption}
               columns={columns}
               rows={loaded.devices}
