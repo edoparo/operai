@@ -12,6 +12,7 @@
 /node_modules/
 .changeset/.status.json
 /.playwright-mcp/
+notes.md
 
 # Railway IaC cutover snapshot (railway config migrate undo) — local only
 .railway/.cac-migration.json
