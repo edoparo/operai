@@ -23,7 +23,8 @@ notifications allowed per browser, Focus off. Notifications triggered with a sel
 
 Verified by: Matteo Codogno, 2026-11-13, local dev stack (Chrome, Edge, Firefox).
 Safari: verified by Matteo Codogno, 2026-11-11, T1 spike bench (delivery, click, Safari
-always-show behaviour); D-7 check (A) still to do on Safari.
+always-show behaviour), then on 2026-11-13 on the local dev stack and the deployed preview
+(A, D, F, G and D-10 — see below).
 
 Safari run: Matteo Codogno, 2026-11-13, local dev stack (Safari, macOS). The site was first
 shown as Blocked because `Notification.permission` was `denied` (stale permission from the T1
