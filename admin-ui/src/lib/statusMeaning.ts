@@ -22,6 +22,3 @@ export const ACCESS_REQUEST_STATUS_MEANING: Record<AccessRequestStatus, StatusMe
 
 /** A seed/system role: a neutral fact worth a badge. */
 export const SYSTEM_ROLE_MEANING: StatusMeaning = 'info'
-
-/** The mileage rate in effect today. */
-export const RATE_IN_EFFECT_MEANING: StatusMeaning = 'active'

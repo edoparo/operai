@@ -1,8 +1,8 @@
 /**
  * @vitest-environment jsdom
  *
- * Component tests for MileageRatesPage — Screen ADM-1 + Modal ADM-M1 (T11,
- * specs/009-mileage-rate/tasks.md, refs AC-4.1, AC-4.2, AC-4.3, AC-4.5,
+ * Component tests for refund-ui's SettingsPage — moved from admin-ui's
+ * MileageRatesPage on 2026-11-13 (ADR-0023 amendment; specs/009-mileage-rate/tasks.md T11, refs AC-4.1, AC-4.2, AC-4.3, AC-4.5,
  * AC-4.6, AC-5.3).
  *
  * Covers:
@@ -33,7 +33,7 @@
 
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
-import MileageRatesPage from './MileageRatesPage'
+import SettingsPage from './SettingsPage'
 import type { RatesResult } from '../lib/ratesApi'
 import type { SettingResult } from '../lib/settingsApi'
 
@@ -57,10 +57,11 @@ vi.mock('../lib/settingsApi', async (importOriginal) => {
 })
 
 import * as ratesApi from '../lib/ratesApi'
-import { ApiError as RatesApiError } from '../lib/ratesApi'
+import { ApiError as RatesApiError } from '../lib/refundApi'
 import * as session from 'shell/session'
 import * as settingsApi from '../lib/settingsApi'
-import { ApiError as SettingsApiError, ACCOUNTING_DISTRIBUTION_EMAIL_KEY } from '../lib/settingsApi'
+import { ApiError as SettingsApiError } from '../lib/refundApi'
+import { ACCOUNTING_DISTRIBUTION_EMAIL_KEY } from '../lib/settingsApi'
 
 // ---------------------------------------------------------------------------
 // Fixtures
@@ -74,7 +75,7 @@ const NO_GRANTS: Permissions = { epoch: 0, apps: [], roles: [], departments: [],
 
 const managePermissions: Permissions = {
   epoch: 1,
-  apps: ['admin'],
+  apps: ['refund'],
   roles: ['admin'],
   departments: [],
   permissions: [
@@ -85,7 +86,7 @@ const managePermissions: Permissions = {
 
 const readOnlyPermissions: Permissions = {
   epoch: 1,
-  apps: ['admin'],
+  apps: ['refund'],
   roles: [],
   departments: [],
   permissions: [{ resource: 'rate', action: 'read', conditions: null }],
@@ -97,7 +98,7 @@ const readOnlyPermissions: Permissions = {
 // happy-path tests.
 const settingsManagePermissions: Permissions = {
   epoch: 1,
-  apps: ['admin'],
+  apps: ['refund'],
   roles: ['admin'],
   departments: [],
   permissions: [
@@ -111,7 +112,7 @@ const settingsManagePermissions: Permissions = {
 // settings:read WITHOUT settings:manage — the panel is shown read-only.
 const settingsReadOnlyPermissions: Permissions = {
   epoch: 1,
-  apps: ['admin'],
+  apps: ['refund'],
   roles: [],
   departments: [],
   permissions: [
@@ -187,21 +188,21 @@ afterEach(() => {
 // (A) Loading
 // ---------------------------------------------------------------------------
 
-describe('MileageRatesPage — loading', () => {
+describe('SettingsPage — loading', () => {
   it('renders SkeletonListRows under each entity heading while listRates is in-flight', () => {
     vi.mocked(session.usePermissions).mockReturnValue(settingsManagePermissions)
     vi.mocked(ratesApi.listRates).mockReturnValue(pendingPromise())
     vi.mocked(settingsApi.getSetting).mockReturnValue(pendingPromise())
 
-    render(<MileageRatesPage />)
+    render(<SettingsPage />)
 
     // 2 for the rate entities + 1 for the accounting-distribution-email panel
     // (T6, specs/011-refund-settings) — with settings:read held it also starts
     // 'loading' on the very first synchronous render, before its getSetting()
     // call resolves.
     expect(screen.getAllByTestId('skeleton-list-rows')).toHaveLength(3)
-    expect(screen.getByText('WellD CH')).not.toBeNull()
-    expect(screen.getByText('WellD Italia')).not.toBeNull()
+    expect(screen.getByText('Mileage rates · WellD CH')).not.toBeNull()
+    expect(screen.getByText('Mileage rates · WellD Italia')).not.toBeNull()
     expect(screen.queryByTestId('rates-table-welld_ch')).toBeNull()
   })
 })
@@ -210,11 +211,11 @@ describe('MileageRatesPage — loading', () => {
 // (B) Populated
 // ---------------------------------------------------------------------------
 
-describe('MileageRatesPage — populated', () => {
+describe('SettingsPage — populated', () => {
   it('renders both entities, in-effect badge on the current row only', async () => {
     vi.mocked(ratesApi.listRates).mockResolvedValue(populatedResult)
 
-    render(<MileageRatesPage />)
+    render(<SettingsPage />)
 
     await waitFor(() => {
       expect(screen.getByTestId('rates-table-welld_ch')).not.toBeNull()
@@ -264,7 +265,7 @@ describe('MileageRatesPage — populated', () => {
       ],
     })
 
-    render(<MileageRatesPage />)
+    render(<SettingsPage />)
 
     const row = await screen.findByTestId('rate-row-clr_precise')
     expect(row.textContent).toContain('CHF 0.7255/km')
@@ -273,7 +274,7 @@ describe('MileageRatesPage — populated', () => {
   it('renders "No rate configured yet for WellD Italia." for the empty entity', async () => {
     vi.mocked(ratesApi.listRates).mockResolvedValue(populatedResult)
 
-    render(<MileageRatesPage />)
+    render(<SettingsPage />)
 
     await waitFor(() => {
       expect(screen.getByTestId('rates-empty-welld_it')).not.toBeNull()
@@ -286,7 +287,7 @@ describe('MileageRatesPage — populated', () => {
 // (D) Error
 // ---------------------------------------------------------------------------
 
-describe('MileageRatesPage — error', () => {
+describe('SettingsPage — error', () => {
   it('renders an ErrorBanner and retries on click', async () => {
     vi.mocked(ratesApi.listRates)
       .mockRejectedValueOnce(
@@ -294,7 +295,7 @@ describe('MileageRatesPage — error', () => {
       )
       .mockResolvedValueOnce(populatedResult)
 
-    render(<MileageRatesPage />)
+    render(<SettingsPage />)
 
     await waitFor(() => {
       expect(screen.getByRole('alert')).not.toBeNull()
@@ -314,13 +315,13 @@ describe('MileageRatesPage — error', () => {
 // (E) Forbidden
 // ---------------------------------------------------------------------------
 
-describe('MileageRatesPage — forbidden (AC-4.6)', () => {
+describe('SettingsPage — forbidden (AC-4.6)', () => {
   it('renders PermissionDenied with a section-specific message on a 403, no add affordance', async () => {
     vi.mocked(ratesApi.listRates).mockRejectedValue(
       new RatesApiError({ type: 'about:blank', title: 'Forbidden', status: 403, detail: 'Missing rate:read' }),
     )
 
-    render(<MileageRatesPage />)
+    render(<SettingsPage />)
 
     await waitFor(() => {
       expect(screen.getByTestId('permission-denied')).not.toBeNull()
@@ -337,12 +338,12 @@ describe('MileageRatesPage — forbidden (AC-4.6)', () => {
 // (F) rate:manage gating
 // ---------------------------------------------------------------------------
 
-describe('MileageRatesPage — rate:manage gating', () => {
+describe('SettingsPage — rate:manage gating', () => {
   it('renders the tables but no "Add rate entry" button anywhere without rate:manage', async () => {
     vi.mocked(session.usePermissions).mockReturnValue(readOnlyPermissions)
     vi.mocked(ratesApi.listRates).mockResolvedValue(populatedResult)
 
-    render(<MileageRatesPage />)
+    render(<SettingsPage />)
 
     await waitFor(() => {
       expect(screen.getByTestId('rates-table-welld_ch')).not.toBeNull()
@@ -355,7 +356,7 @@ describe('MileageRatesPage — rate:manage gating', () => {
     vi.mocked(session.usePermissions).mockReturnValue(NO_GRANTS)
     vi.mocked(ratesApi.listRates).mockResolvedValue(populatedResult)
 
-    render(<MileageRatesPage />)
+    render(<SettingsPage />)
 
     await waitFor(() => {
       expect(screen.getByTestId('rates-table-welld_ch')).not.toBeNull()
@@ -368,7 +369,7 @@ describe('MileageRatesPage — rate:manage gating', () => {
 // (G)/(H)/(I) Add rate entry flow
 // ---------------------------------------------------------------------------
 
-describe('MileageRatesPage — add rate entry (Modal ADM-M1)', () => {
+describe('SettingsPage — add rate entry (Modal ADM-M1)', () => {
   it('opens the modal for the clicked entity, submits via ratesApi.addRate, reloads the list, and returns focus to the trigger', async () => {
     vi.mocked(ratesApi.listRates).mockResolvedValueOnce(populatedResult).mockResolvedValueOnce(populatedResult)
     vi.mocked(ratesApi.addRate).mockResolvedValue({
@@ -381,7 +382,7 @@ describe('MileageRatesPage — add rate entry (Modal ADM-M1)', () => {
       inEffectToday: false,
     })
 
-    render(<MileageRatesPage />)
+    render(<SettingsPage />)
 
     await waitFor(() => {
       expect(screen.getByTestId('rates-table-welld_ch')).not.toBeNull()
@@ -420,7 +421,7 @@ describe('MileageRatesPage — add rate entry (Modal ADM-M1)', () => {
   it('cancelling the modal (Escape) does not call addRate', async () => {
     vi.mocked(ratesApi.listRates).mockResolvedValue(populatedResult)
 
-    render(<MileageRatesPage />)
+    render(<SettingsPage />)
 
     await waitFor(() => {
       expect(screen.getByTestId('rates-table-welld_ch')).not.toBeNull()
@@ -446,7 +447,7 @@ describe('MileageRatesPage — add rate entry (Modal ADM-M1)', () => {
       }),
     )
 
-    render(<MileageRatesPage />)
+    render(<SettingsPage />)
 
     await waitFor(() => {
       expect(screen.getByTestId('rates-table-welld_ch')).not.toBeNull()
@@ -477,7 +478,7 @@ describe('MileageRatesPage — add rate entry (Modal ADM-M1)', () => {
       }),
     )
 
-    render(<MileageRatesPage />)
+    render(<SettingsPage />)
 
     await waitFor(() => {
       expect(screen.getByTestId('rates-table-welld_ch')).not.toBeNull()
@@ -498,7 +499,7 @@ describe('MileageRatesPage — add rate entry (Modal ADM-M1)', () => {
   it('a non-positive rate value is caught client-side without ever calling addRate', async () => {
     vi.mocked(ratesApi.listRates).mockResolvedValue(populatedResult)
 
-    render(<MileageRatesPage />)
+    render(<SettingsPage />)
 
     await waitFor(() => {
       expect(screen.getByTestId('rates-table-welld_ch')).not.toBeNull()
@@ -532,7 +533,7 @@ describe('MileageRatesPage — add rate entry (Modal ADM-M1)', () => {
       inEffectToday: false,
     })
 
-    render(<MileageRatesPage />)
+    render(<SettingsPage />)
 
     await waitFor(() => {
       expect(screen.getByTestId('rates-table-welld_ch')).not.toBeNull()
@@ -556,7 +557,7 @@ describe('MileageRatesPage — add rate entry (Modal ADM-M1)', () => {
   it('more decimals than the rate precision (6) is an error on blur, never rounded', async () => {
     vi.mocked(ratesApi.listRates).mockResolvedValue(populatedResult)
 
-    render(<MileageRatesPage />)
+    render(<SettingsPage />)
 
     await waitFor(() => {
       expect(screen.getByTestId('rates-table-welld_ch')).not.toBeNull()
@@ -582,13 +583,13 @@ describe('MileageRatesPage — add rate entry (Modal ADM-M1)', () => {
 // refs AC-1.1, AC-3.2, AC-5.3).
 // ---------------------------------------------------------------------------
 
-describe('MileageRatesPage — accounting distribution email panel', () => {
+describe('SettingsPage — accounting distribution email panel', () => {
   it('renders the current configured value and its history (AC-1.1, AC-5.3)', async () => {
     vi.mocked(session.usePermissions).mockReturnValue(settingsManagePermissions)
     vi.mocked(ratesApi.listRates).mockResolvedValue(populatedResult)
     vi.mocked(settingsApi.getSetting).mockResolvedValue(configuredSetting)
 
-    render(<MileageRatesPage />)
+    render(<SettingsPage />)
 
     await waitFor(() => {
       expect(screen.getByTestId('accounting-email-panel')).not.toBeNull()
@@ -605,7 +606,7 @@ describe('MileageRatesPage — accounting distribution email panel', () => {
     vi.mocked(ratesApi.listRates).mockResolvedValue(populatedResult)
     vi.mocked(settingsApi.getSetting).mockResolvedValue(notConfiguredSetting)
 
-    render(<MileageRatesPage />)
+    render(<SettingsPage />)
 
     await waitFor(() => {
       expect(screen.getByTestId('accounting-email-current-value')).not.toBeNull()
@@ -628,7 +629,7 @@ describe('MileageRatesPage — accounting distribution email panel', () => {
       ],
     })
 
-    render(<MileageRatesPage />)
+    render(<SettingsPage />)
 
     await waitFor(() => {
       expect(screen.getByTestId('accounting-email-input')).not.toBeNull()
@@ -662,7 +663,7 @@ describe('MileageRatesPage — accounting distribution email panel', () => {
       }),
     )
 
-    render(<MileageRatesPage />)
+    render(<SettingsPage />)
 
     await waitFor(() => {
       expect(screen.getByTestId('accounting-email-input')).not.toBeNull()
@@ -692,7 +693,7 @@ describe('MileageRatesPage — accounting distribution email panel', () => {
     vi.mocked(settingsApi.getSetting).mockResolvedValue(configuredSetting)
     vi.mocked(settingsApi.putSetting).mockResolvedValue(notConfiguredSetting)
 
-    render(<MileageRatesPage />)
+    render(<SettingsPage />)
 
     await waitFor(() => {
       expect(screen.getByTestId('accounting-email-clear')).not.toBeNull()
@@ -713,7 +714,7 @@ describe('MileageRatesPage — accounting distribution email panel', () => {
     vi.mocked(session.usePermissions).mockReturnValue(managePermissions)
     vi.mocked(ratesApi.listRates).mockResolvedValue(populatedResult)
 
-    render(<MileageRatesPage />)
+    render(<SettingsPage />)
 
     await waitFor(() => {
       expect(screen.getByTestId('rates-table-welld_ch')).not.toBeNull()
@@ -726,7 +727,7 @@ describe('MileageRatesPage — accounting distribution email panel', () => {
     vi.mocked(session.usePermissions).mockReturnValue(NO_GRANTS)
     vi.mocked(ratesApi.listRates).mockResolvedValue(populatedResult)
 
-    render(<MileageRatesPage />)
+    render(<SettingsPage />)
 
     await waitFor(() => {
       expect(screen.getByTestId('rates-table-welld_ch')).not.toBeNull()
@@ -742,7 +743,7 @@ describe('MileageRatesPage — accounting distribution email panel', () => {
       new SettingsApiError({ type: 'about:blank', title: 'Forbidden', status: 403, detail: 'Missing settings:read' }),
     )
 
-    render(<MileageRatesPage />)
+    render(<SettingsPage />)
 
     // Shown (loading) while the capability says yes, then removed on the 403.
     expect(screen.getByTestId('accounting-email-panel')).not.toBeNull()
@@ -760,7 +761,7 @@ describe('MileageRatesPage — accounting distribution email panel', () => {
     vi.mocked(ratesApi.listRates).mockResolvedValue(populatedResult)
     vi.mocked(settingsApi.getSetting).mockResolvedValue(configuredSetting)
 
-    render(<MileageRatesPage />)
+    render(<SettingsPage />)
 
     await waitFor(() => {
       expect(screen.getByTestId('accounting-email-current-value').textContent).toBe('accounting@welld.ch')

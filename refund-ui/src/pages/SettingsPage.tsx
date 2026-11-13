@@ -1,72 +1,60 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { usePermissions } from 'shell/session'
-import { Button, Card, DataTable, FactList, Field, PageHeader, StatePanel, formatDate, formatDateTime, formatNumber } from '@operai/ui'
+import {
+  Button,
+  Card,
+  DataTable,
+  FactList,
+  Field,
+  PageHeader,
+  SkeletonRows,
+  StatePanel,
+  VisuallyHidden,
+  formatDate,
+  formatDateTime,
+  formatNumber,
+} from '@operai/ui'
 import type { DataTableColumn } from '@operai/ui'
 import * as ratesApi from '../lib/ratesApi'
-import { ApiError } from '../lib/ratesApi'
-import type { MileageRateCurrency, MileageRateEntity, RateEntry, RatesResult } from '../lib/ratesApi'
+import type { EntityRates, RateEntry, RatesResult } from '../lib/ratesApi'
 import * as settingsApi from '../lib/settingsApi'
-import { ApiError as SettingsApiError, ACCOUNTING_DISTRIBUTION_EMAIL_KEY } from '../lib/settingsApi'
+import { ACCOUNTING_DISTRIBUTION_EMAIL_KEY } from '../lib/settingsApi'
 import type { SettingResult } from '../lib/settingsApi'
-import SkeletonListRows from '../components/SkeletonListRows'
+import { ApiError } from '../lib/refundApi'
+import type { Entity } from '../components/EntityBadge'
+import type { Currency } from '../lib/money'
 import ErrorBanner from '../components/ErrorBanner'
 import PermissionDenied from '../components/PermissionDenied'
 import RateInEffectBadge from '../components/RateInEffectBadge'
 import AddRateEntryModal from '../components/AddRateEntryModal'
-import { validateRate, validateValidFrom } from '../lib/rateValidation'
 import SuccessBanner from '../components/SuccessBanner'
+import { validateRate, validateValidFrom } from '../lib/rateValidation'
 import { strings } from '../strings'
 
-const t = strings.rates
+const t = strings.settings
 
 /**
- * MileageRatesPage — Screen ADM-1 (Mileage Rates) + Modal ADM-M1 (Add rate
- * entry) — T11, specs/009-mileage-rate/tasks.md, refs AC-4.1, AC-4.2, AC-4.3,
- * AC-4.5, AC-4.6, AC-5.3.
+ * SettingsPage — the refund tool's configuration (moved from admin-ui's
+ * "Refund" section on 2026-11-13; ADR-0023 amendment): one card per entity
+ * with its append-only mileage-rate history (specs/009 AC-4.1–4.7, AC-5.3) and
+ * the accounting distribution email (specs/011 AC-1.1–1.4, AC-3.2, AC-5.3).
  *
- * NEW screen — no existing admin-ui page covers this domain; closest
- * siblings (RolesPage/DepartmentsPage) are single-table, this is TWO
- * independent per-entity tables (WellD CH, WellD Italia — AC-2.3's
- * independence reflected structurally, not just logically) each with its
- * own "Add rate entry" action (design.md F5). No edit/delete affordance
- * anywhere (AC-4.7, mirrors AuditPage.tsx's own precedent for a non-mutable
- * record type) — the "Added by"/"Added on" columns already visible on every
- * row double as the audit view (AC-5.3, F6 — same payload, no separate tab).
+ * Two independent fetch/state machines, because they are two resources with
+ * two capabilities (`rate:*`, `settings:*`, ADR-0028):
+ *   - rates: always fetched; a 403 shows a section-level PermissionDenied.
+ *   - email: fetched only with `settings:read`; without it, or on a 403, the
+ *     card is not shown at all (AC-3.2).
+ * "Add rate entry" needs `rate:manage`, the email form `settings:manage` — both
+ * read from the shell's cached permissions (INC-32), so they fail CLOSED until
+ * resolved. UX only: refund-api enforces every grant server-side.
  *
- * States mirror every other admin-ui list screen (design.md "L/E/P/Err",
- * plus a per-entity Empty), with a NEW "Forbidden" 403 branch that carries a
- * section-specific `PermissionDenied` message (design.md's flagged gap — the
- * first section-level, rather than whole-tool, 403 in this app):
- *   L    — SkeletonListRows under each entity heading (one GET /rates call
- *          populates both).
- *   Forbidden — GET /rates → 403 (missing `rate:read`), or the route reached
- *          without it: PermissionDenied in place of both tables (design.md
- *          F7's reactive/defense-in-depth path — the proactive path is
- *          SectionNav.tsx hiding the nav entry entirely).
- *   Err  — ErrorBanner + Retry (mirrors RolesPage.tsx/AuditPage.tsx).
- *   Empty (per entity) — "No rate configured yet for {entity}." (no CTA of
- *          its own — the entity header's "Add rate entry" button already
- *          serves this, so a second button here would be redundant).
- *   Populated (per entity) — Rate / Valid from / Added by / Added on /
- *          Status table; the `inEffectToday` row carries `RateInEffectBadge`.
- *
- * `rate:manage` (whether "Add rate entry" renders at all — design.md F5
- * step 2) is derived at render from `shell/session`'s `usePermissions()` (the
- * shell's cached `GET /authz/me`, the same seam SectionNav.tsx uses for its
- * `rate:read` nav gate; INC-32). A failed permissions fetch resolves to no
- * grants, so the button fails CLOSED (hidden, not a crash): UX-only, never
- * the actual security boundary (that is refund-api's server-side
- * `rate:manage` gate on `POST /rates`, plan.md Security section).
- *
- * Fetch pattern: an explicit Promise chain rather than an async/await helper
- * invoked from `useEffect` — mirrors RolesPage.tsx/AuditPage.tsx's own
- * documented rationale (`react-hooks/set-state-in-effect` static analysis).
+ * Effects use an explicit Promise chain (react-hooks/set-state-in-effect).
  */
 
 // Entity names come from strings; no flag emoji (they do not render on Windows — INC-23).
-const ENTITY_LABEL: Record<MileageRateEntity, string> = strings.common.entities
+const ENTITY_LABEL: Record<Entity, string> = strings.badges.entity
 
-const ENTITY_ORDER: MileageRateEntity[] = ['welld_ch', 'welld_it']
+const ENTITY_ORDER: Entity[] = ['welld_ch', 'welld_it']
 
 type ListState =
   | { status: 'loading' }
@@ -78,7 +66,7 @@ type AddModalState =
   | { open: false }
   | {
       open: true
-      entity: MileageRateEntity
+      entity: Entity
       rate: string
       validFrom: string
       submitting: boolean
@@ -112,10 +100,10 @@ const errorMessageFor = (error: unknown): string => {
 }
 
 const settingsErrorMessageFor = (error: unknown): string => {
-  if (error instanceof SettingsApiError) {
+  if (error instanceof ApiError) {
     return error.detail ?? error.title
   }
-  return t.settings.loadError
+  return t.email.loadError
 }
 
 /** Whether `permissions` contains the given (resource, action) pair. */
@@ -148,10 +136,10 @@ const mapAddRateError = (error: ApiError): { rateError: string | null; validFrom
  * as a locale number with at least two decimals and up to the six micros
  * carry, with the currency per km — "CHF 0.81/km" (INC-27).
  */
-const formatRatePerKm = (micros: number, currency: MileageRateCurrency): string =>
+const formatRatePerKm = (micros: number, currency: Currency): string =>
   t.perKm(formatNumber(micros / 1_000_000, { minimumFractionDigits: 2, maximumFractionDigits: 6 }), currency)
 
-const rateColumns = (currency: MileageRateCurrency): DataTableColumn<RateEntry>[] => [
+const rateColumns = (currency: Currency): DataTableColumn<RateEntry>[] => [
   {
     id: 'rate',
     header: t.columns.rate,
@@ -165,7 +153,7 @@ const rateColumns = (currency: MileageRateCurrency): DataTableColumn<RateEntry>[
   { id: 'status', header: t.columns.status, render: (entry) => entry.inEffectToday && <RateInEffectBadge /> },
 ]
 
-export default function MileageRatesPage() {
+export default function SettingsPage() {
   // Capabilities from the shell's cached permissions (INC-32) — derived at
   // render; until they resolve, or on any failure, they are empty (no grants).
   const { permissions } = usePermissions()
@@ -190,7 +178,7 @@ export default function MileageRatesPage() {
   const emailInputRef = useRef<HTMLInputElement>(null)
 
   // INC-19 confirmations: per entity for a new rate entry, and for the email setting.
-  const [rateSuccess, setRateSuccess] = useState<{ entity: MileageRateEntity; message: string } | null>(null)
+  const [rateSuccess, setRateSuccess] = useState<{ entity: Entity; message: string } | null>(null)
   const [emailSuccess, setEmailSuccess] = useState<string | null>(null)
 
   // The button that opened the currently-open modal — focus returns here on
@@ -259,7 +247,7 @@ export default function MileageRatesPage() {
       })
       .catch((error: unknown) => {
         if (cancelled) return
-        if (error instanceof SettingsApiError && error.status === 403) {
+        if (error instanceof ApiError && error.status === 403) {
           setSettingsState({ status: 'hidden' })
         } else {
           setSettingsState({ status: 'error', message: settingsErrorMessageFor(error) })
@@ -295,7 +283,7 @@ export default function MileageRatesPage() {
       const setting = await settingsApi.putSetting(ACCOUNTING_DISTRIBUTION_EMAIL_KEY, trimmed === '' ? null : trimmed)
       setSettingsState((prev) => (prev.status === 'loaded' ? { ...prev, setting } : prev))
       setEmailInput(setting.value ?? '')
-      setEmailSuccess(setting.value ? t.settings.saved : t.settings.cleared)
+      setEmailSuccess(setting.value ? t.email.saved : t.email.cleared)
     } catch (error) {
       // Leaves the shown current value unchanged (AC-1.3) — settingsState is
       // only ever updated on a successful write, above.
@@ -312,7 +300,7 @@ export default function MileageRatesPage() {
       const setting = await settingsApi.putSetting(ACCOUNTING_DISTRIBUTION_EMAIL_KEY, null)
       setSettingsState((prev) => (prev.status === 'loaded' ? { ...prev, setting } : prev))
       setEmailInput('')
-      setEmailSuccess(t.settings.cleared)
+      setEmailSuccess(t.email.cleared)
     } catch (error) {
       setEmailFormError(settingsErrorMessageFor(error))
     } finally {
@@ -324,7 +312,7 @@ export default function MileageRatesPage() {
   // Add rate entry (Modal ADM-M1 — design.md F5)
   // ---------------------------------------------------------------------------
 
-  const handleAddOpen = useCallback((entity: MileageRateEntity, trigger: HTMLButtonElement) => {
+  const handleAddOpen = useCallback((entity: Entity, trigger: HTMLButtonElement) => {
     lastTriggerRef.current = trigger
     setAddModal({
       open: true,
@@ -396,7 +384,7 @@ export default function MileageRatesPage() {
   const settingsHidden = !canReadSettings || settingsState.status === 'hidden'
 
   return (
-    <section aria-labelledby="admin-rates-heading" data-testid="admin-rates-page">
+    <section aria-labelledby="refund-settings-heading" data-testid="refund-settings-page">
       {addModal.open && (
         <AddRateEntryModal
           entity={addModal.entity}
@@ -414,29 +402,30 @@ export default function MileageRatesPage() {
         />
       )}
 
-      <PageHeader title={t.heading} titleId="admin-rates-heading" description={t.description} />
+      <PageHeader title={t.heading} titleId="refund-settings-heading" description={t.description} />
 
       <div className="flex flex-col gap-4">
-        {listState.status === 'forbidden' && <PermissionDenied headingLevel={3} message={t.forbidden} />}
+        {listState.status === 'forbidden' && <PermissionDenied headingLevel={3} title={t.forbiddenTitle} message={t.forbidden} />}
 
         {listState.status === 'loading' &&
           ENTITY_ORDER.map((entity, index) => (
-            <Card key={entity} title={ENTITY_LABEL[entity]}>
+            <Card key={entity} title={t.entityRates(ENTITY_LABEL[entity])}>
               {/* One announcement for the whole screen, on the first card. */}
-              <SkeletonListRows rows={3} label={index === 0 ? t.loading : null} />
+              {index === 0 && <VisuallyHidden live>{t.loading}</VisuallyHidden>}
+              <SkeletonRows rows={3} testId="skeleton-list-rows" />
             </Card>
           ))}
 
         {listState.status === 'error' && <ErrorBanner message={listState.message} onRetry={handleRetry} />}
 
         {listState.status === 'loaded' &&
-          listState.result.entities.map((entityRates) => {
+          listState.result.entities.map((entityRates: EntityRates) => {
             const label = ENTITY_LABEL[entityRates.entity]
 
             return (
               <Card
                 key={entityRates.entity}
-                title={label}
+                title={t.entityRates(label)}
                 data-testid={`rates-section-${entityRates.entity}`}
                 action={
                   canManageRates && (
@@ -481,10 +470,15 @@ export default function MileageRatesPage() {
           })}
 
         {!settingsHidden && (
-          <Card title={t.settings.title} data-testid="accounting-email-panel">
-            <p className="text-sm text-soft mb-4">{t.settings.description}</p>
+          <Card title={t.email.title} data-testid="accounting-email-panel">
+            <p className="text-sm text-soft mb-4">{t.email.description}</p>
 
-            {settingsState.status === 'loading' && <SkeletonListRows rows={2} label={t.settings.loading} />}
+            {settingsState.status === 'loading' && (
+              <>
+                <VisuallyHidden live>{t.email.loading}</VisuallyHidden>
+                <SkeletonRows rows={2} testId="skeleton-list-rows" />
+              </>
+            )}
 
             {settingsState.status === 'error' && (
               <ErrorBanner message={settingsState.message} onRetry={handleSettingsRetry} />
@@ -496,13 +490,13 @@ export default function MileageRatesPage() {
                   items={[
                     {
                       id: 'current',
-                      term: t.settings.currentValue,
+                      term: t.email.currentValue,
                       value: (
                         <span
                           className={settingsState.setting.configured ? 'text-text' : 'text-soft'}
                           data-testid="accounting-email-current-value"
                         >
-                          {settingsState.setting.configured ? settingsState.setting.value : t.settings.notConfigured}
+                          {settingsState.setting.configured ? settingsState.setting.value : t.email.notConfigured}
                         </span>
                       ),
                     },
@@ -524,7 +518,7 @@ export default function MileageRatesPage() {
                     }}
                   >
                     <Field
-                      label={t.settings.emailAddress}
+                      label={t.email.emailAddress}
                       error={
                         emailFormError && (
                           <span role="alert" data-testid="accounting-email-error">
@@ -541,7 +535,7 @@ export default function MileageRatesPage() {
                           type="text"
                           value={emailInput}
                           onChange={(e) => handleEmailInputChange(e.target.value)}
-                          placeholder={t.settings.placeholder}
+                          placeholder={t.email.placeholder}
                           data-testid="accounting-email-input"
                           disabled={emailSaving}
                         />
@@ -549,23 +543,23 @@ export default function MileageRatesPage() {
                     </Field>
                     <div className="flex items-center gap-2">
                       <Button type="submit" variant="primary" disabled={emailSaving} data-testid="accounting-email-save">
-                        {strings.common.actions.save}
+                        {t.email.save}
                       </Button>
                       <Button
                         disabled={emailSaving || !settingsState.setting.configured}
                         onClick={() => void handleEmailClear()}
                         data-testid="accounting-email-clear"
                       >
-                        {strings.common.actions.clear}
+                        {t.email.clear}
                       </Button>
                     </div>
                   </form>
                 )}
 
                 <div>
-                  <h4 className="text-sm font-semibold text-text">{t.settings.historyTitle}</h4>
+                  <h4 className="text-sm font-semibold text-text">{t.email.historyTitle}</h4>
                   {settingsState.setting.history.length === 0 && (
-                    <p className="mt-2 text-sm text-soft">{t.settings.historyEmpty}</p>
+                    <p className="mt-2 text-sm text-soft">{t.email.historyEmpty}</p>
                   )}
                   {settingsState.setting.history.length > 0 && (
                     <ul className="mt-2 flex flex-col gap-1.5" data-testid="accounting-email-history">
@@ -575,8 +569,8 @@ export default function MileageRatesPage() {
                           data-testid={`accounting-email-history-item-${index}`}
                           className="text-2xs text-text"
                         >
-                          {t.settings.historyItem(
-                            entry.value ?? t.settings.notConfigured,
+                          {t.email.historyItem(
+                            entry.value ?? t.email.notConfigured,
                             entry.changedByEmail,
                             formatDateTime(entry.changedAt),
                           )}

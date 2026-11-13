@@ -37,10 +37,9 @@
  * `message` (T11, specs/009-mileage-rate, design.md "Gaps" — first
  * section-level 403 in this app): every screen up to this feature shares the
  * whole-tool 403 boundary, so the generic "You no longer have admin access"
- * copy has always been correct. The Mileage Rates screen's 403 is narrower —
- * a caller can be a perfectly valid admin-ui user who simply lacks
- * `rate:read`/`rate:manage` — and the generic copy would misleadingly
- * suggest total admin lockout. `message` overrides the body copy for that
+ * copy has always been correct. A section-level 403 is narrower (the Mileage
+ * Rates screen's, until it moved to refund-ui on 2026-11-13), where the
+ * generic copy would misleadingly suggest total admin lockout. `message` overrides the body copy for that
  * case; omitted, every existing call site (`<PermissionDenied />`) is
  * unaffected.
  *

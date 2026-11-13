@@ -58,6 +58,11 @@ export default function RefundShell() {
   const canReview = permissions.some(
     (permission) => permission.resource === 'request' && permission.action === 'review',
   )
+  // Settings (moved from Admin, ADR-0023 amendment): rates or the distribution email.
+  const canSeeSettings = permissions.some(
+    (permission) =>
+      (permission.resource === 'rate' || permission.resource === 'settings') && permission.action === 'read',
+  )
 
   return (
     <ToolLayout
@@ -75,6 +80,11 @@ export default function RefundShell() {
           {canReview && (
             <Link to="/batches" className={tabLinkClassName}>
               {strings.nav.monthlyProcessing}
+            </Link>
+          )}
+          {canSeeSettings && (
+            <Link to="/settings" className={tabLinkClassName}>
+              {strings.nav.settings}
             </Link>
           )}
         </TabNav>

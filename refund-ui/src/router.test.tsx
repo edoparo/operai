@@ -84,7 +84,7 @@ afterEach(() => {
 })
 
 describe('router structure', () => {
-  it('mounts the index redirect and the eight routes (requests, requests/new, requests/$id, review, review/$id, batches, batches/new, batches/$id) as direct children of root', async () => {
+  it('mounts the index redirect and the nine routes (requests, requests/new, requests/$id, review, review/$id, batches, batches/new, batches/$id, settings) as direct children of root', async () => {
     const { createAppRouter } = await importRouter()
     const routeTree = createAppRouter().routeTree as unknown as { children?: RouteTreeNode[] }
 
@@ -99,6 +99,7 @@ describe('router structure', () => {
         '/requests',
         '/requests/new',
         '/requests/$id',
+        '/settings',
         '/review',
         '/review/$id',
         '/batches',
@@ -106,7 +107,7 @@ describe('router structure', () => {
         '/batches/$id',
       ].sort(),
     )
-    expect(routeTree.children).toHaveLength(9)
+    expect(routeTree.children).toHaveLength(10)
   })
 
   it('has no `_authed` (or other guard) layout route in the tree — mirrors admin-ui/estimai-ui, ADR-0006', async () => {

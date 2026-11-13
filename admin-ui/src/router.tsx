@@ -9,7 +9,6 @@ import UserDetail from './pages/UserDetail'
 import InvitationsPage from './pages/InvitationsPage'
 import AccessRequestsPage from './pages/AccessRequestsPage'
 import AuditPage from './pages/AuditPage'
-import MileageRatesPage from './pages/MileageRatesPage'
 import NotFoundPage from './pages/NotFoundPage'
 
 // ---------------------------------------------------------------------------
@@ -146,19 +145,9 @@ export function createAppRouter(basepath?: string) {
     component: AccessRequestsPage,
   })
 
-  // Screen ADM-1 (design.md "Mileage Rates", T11, specs/009-mileage-rate) —
-  // a new, flat sibling of the four sections above, same shape as every
-  // other route in this tree. Reachability is gated client-side only by
-  // SectionNav.tsx's proactive nav-entry hide (`rate:read`) and reactively by
-  // this page's own `GET /rates` 403 → `PermissionDenied` — no route-level
-  // `beforeLoad` guard here either, same rationale as every other route
-  // (the doc comment above: a second, independent guard would be redundant,
-  // and the real enforcement is refund-api's server-side capability check).
-  const ratesRoute = createRoute({
-    getParentRoute: () => rootRoute,
-    path: '/rates',
-    component: MileageRatesPage,
-  })
+  // The mileage rates and the accounting distribution email used to live here
+  // at `/rates`; they moved to refund-ui's Settings tab (`/refund/settings`) on
+  // 2026-11-13 (ADR-0023 amendment). The old path is left to the not-found page.
 
   // ---------------------------------------------------------------------------
   // Route tree
@@ -175,7 +164,6 @@ export function createAppRouter(basepath?: string) {
     invitationsRoute,
     accessRequestsRoute,
     auditRoute,
-    ratesRoute,
   ])
 
   // `defaultNotFoundComponent` is the router-wide fallback for any path that

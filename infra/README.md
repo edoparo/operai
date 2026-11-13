@@ -652,7 +652,9 @@ suite, since every tool authenticates through `auth`). This is admin-ui's
   endpoint — its `Access-Control-Allow-Origin` is pinned to the shell origin
   too (plan.md). Redeploy the affected service after a change.
 - **`refund-api.ALLOWED_ORIGINS` gains admin-ui's OWN origin**
-  (specs/009-mileage-rate, T8, plan.md Risk R8) — admin-ui's new Mileage
+  (specs/009-mileage-rate, T8, plan.md Risk R8; **obsolete since 2026-11-13**:
+  the screen moved to refund-ui's Settings tab, ADR-0023 amendment, so admin-ui
+  no longer calls refund-api and the entry can be dropped) — admin-ui's Mileage
   Rates screen calls `refund-api`'s `/rates` endpoints directly (Bearer-authed,
   cross-origin, via `shell/session`'s `apiFetch`), the plan's chosen wiring
   (admin-ui hosts the screen; `refund-api` stays the sole data/logic owner —
@@ -1134,8 +1136,8 @@ Apply with any S3 client pointed at `REFUND_S3_ENDPOINT` (`PutBucketCors`):
 Only the **shell** origin belongs here: `refund-ui` is a federated remote
 reached through the shell (ADR-0006), so the browser `Origin` on the upload is
 always the shell's — this is deliberately narrower than refund-api's own
-`ALLOWED_ORIGINS` (which additionally carries admin-ui for the `/rates` +
-`/settings` calls, ADR-0023). Add a `http://localhost:5173` entry ONLY to a
+`ALLOWED_ORIGINS` (which carried admin-ui for the `/rates` + `/settings`
+calls until they moved to refund-ui, ADR-0023 amendment). Add a `http://localhost:5173` entry ONLY to a
 non-production bucket; `refund-api/.env.example` points local dev at the real
 bucket, so uploads will not work locally until you do.
 

@@ -39,14 +39,14 @@
  * additive confirmation, not the only evidence — a future environment where
  * this file IS blocked should still trust the levels below):
  *   - AC-1.1/1.2/1.3/1.4/1.5 — refund-api integration tests
- *     (settings/routes.test.ts) + admin-ui component tests
- *     (MileageRatesPage.test.tsx's accounting-email-panel cases)
+ *     (settings/routes.test.ts) + refund-ui component tests
+ *     (refund-ui SettingsPage.test.tsx's accounting-email-panel cases)
  *   - AC-2.1/2.2/2.3/2.4 — refund-api integration tests
  *     (batches/batches.routes.test.ts's AC-2.1/2.2/2.3/2.4 cases)
  *   - AC-2.5 — refund-api integration tests (batches/decide.routes.test.ts)
  *   - AC-3.1/3.2 — auth unit tests (authz/seed.test.ts, authz/catalogs/
  *     refund.test.ts) + refund-api integration tests (settings/routes.test.ts
- *     403 cases) + admin-ui component tests (panel-hidden-without-
+ *     403 cases) + refund-ui component tests (panel-hidden-without-
  *     settings:read case)
  *   - AC-4.1/4.2/4.3 — refund-api unit/integration tests (lib/env.test.ts,
  *     scripts/seed-setting.test.ts)
@@ -66,8 +66,8 @@ const uniqueSuffix = () => `${Date.now()}-${Math.floor(Math.random() * 1e6)}`
 
 /** Opens Admin > Refund's accounting-distribution-email panel and waits for it to load. */
 async function openSettingsPanel(page: Page): Promise<void> {
-  await page.goto('/admin/rates')
-  await expect(page.getByTestId('admin-rates-page')).toBeVisible({ timeout: 20_000 })
+  await page.goto('/refund/settings')
+  await expect(page.getByTestId('refund-settings-page')).toBeVisible({ timeout: 20_000 })
   await expect(page.getByTestId('accounting-email-panel')).toBeVisible({ timeout: 20_000 })
 }
 
@@ -291,7 +291,7 @@ test.describe('specs/011-refund-settings T8: settings → batch email journey', 
     await applySessionCookie(context, acctSession)
     const page = await context.newPage()
 
-    await page.goto('/admin/rates')
+    await page.goto('/refund/settings')
     // Without `rate:read` OR `settings:read`, this accounting-only user sees
     // neither Refund-tab panel at all (invisible, not merely disabled).
     await expect(page.getByTestId('accounting-email-panel')).toHaveCount(0, { timeout: 20_000 })

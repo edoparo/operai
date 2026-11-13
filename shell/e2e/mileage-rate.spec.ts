@@ -7,7 +7,7 @@
  * specs/008).
  *
  * Journey (US-1/2/3/4/5/6, AC-1.1/1.2/1.6/1.8/2.1/2.2/3.1/3.2/4.1/4.2/4.3/
- * 5.1/5.3/6.1/6.4): an admin opens admin-ui's NEW "Mileage Rates" screen and
+ * 5.1/5.3/6.1/6.4): an admin opens refund-ui's Settings tab (moved from admin-ui's "Mileage Rates" screen, 2026-11-13) and
  * adds a rate entry for WellD CH (US-4/US-5 — persisted, audited) → an
  * employee drafts a `travel_km` line in refund-ui for that SAME entity/date
  * and watches the amount/currency inputs replaced by a live, read-only
@@ -60,8 +60,8 @@
  *   - AC-2.1/2.3/2.4/4.4 — refund-api unit tests (resolve.test.ts)
  *   - AC-4.1/4.2/4.3/4.5/4.6/4.7/4.8/5.1/5.3 — refund-api integration tests
  *     (rates/routes.test.ts, rates/effective.routes.test.ts,
- *     lib/db.mileage-rate-immutability.test.ts) + admin-ui component tests
- *     (MileageRatesPage.test.tsx)
+ *     lib/db.mileage-rate-immutability.test.ts) + refund-ui component tests
+ *     (refund-ui SettingsPage.test.tsx)
  *   - AC-3.1/3.2/3.3 — refund-api integration tests
  *     (requests/lifecycle.routes.test.ts)
  *   - AC-6.1/6.2/6.3/6.4 — refund-api integration tests
@@ -81,15 +81,15 @@ import { grantRefundEmployee, grantRefundAccounting } from './helpers/refundFixt
 const uniqueSuffix = () => `${Date.now()}-${Math.floor(Math.random() * 1e6)}`
 const todayIso = () => new Date().toISOString().slice(0, 10)
 
-/** Opens admin-ui's Mileage Rates screen and appends one entry for `entity`, waiting for the modal to close. */
+/** Opens refund-ui's Settings tab and appends one entry for `entity`, waiting for the modal to close. */
 async function addMileageRate(
   page: Page,
   entity: 'welld_ch' | 'welld_it',
   ratePerKm: string,
   validFrom: string,
 ): Promise<void> {
-  await page.goto('/admin/rates')
-  await expect(page.getByTestId('admin-rates-page')).toBeVisible({ timeout: 20_000 })
+  await page.goto('/refund/settings')
+  await expect(page.getByTestId('refund-settings-page')).toBeVisible({ timeout: 20_000 })
   await expect(page.getByTestId(`rates-section-${entity}`)).toBeVisible({ timeout: 20_000 })
 
   await page.getByTestId(`add-rate-button-${entity}`).click()

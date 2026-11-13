@@ -8,6 +8,7 @@ import ReviewDetailPage from './pages/ReviewDetailPage'
 import BatchHistoryPage from './pages/BatchHistoryPage'
 import CompileBatchPage from './pages/CompileBatchPage'
 import BatchDetailPage from './pages/BatchDetailPage'
+import SettingsPage from './pages/SettingsPage'
 import NotFoundPage from './pages/NotFoundPage'
 
 // ---------------------------------------------------------------------------
@@ -152,6 +153,15 @@ export function createAppRouter(basepath?: string) {
     }),
   })
 
+  // Settings (mileage rates + accounting distribution email) — moved here
+  // from admin-ui's `/admin/rates` on 2026-11-13 (ADR-0023 amendment). The tab
+  // shows only with `rate:read` or `settings:read`; refund-api enforces both.
+  const settingsRoute = createRoute({
+    getParentRoute: () => rootRoute,
+    path: '/settings',
+    component: SettingsPage,
+  })
+
   // ---------------------------------------------------------------------------
   // Route tree
   // ---------------------------------------------------------------------------
@@ -166,6 +176,7 @@ export function createAppRouter(basepath?: string) {
     batchesRoute,
     compileBatchRoute,
     batchDetailRoute,
+    settingsRoute,
   ])
 
   // `defaultNotFoundComponent` is the router-wide fallback for any path that

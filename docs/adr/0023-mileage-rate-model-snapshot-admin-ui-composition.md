@@ -263,6 +263,31 @@ global capability instead, for the reasons in Decision point 4. The rate history
 append-only/self-auditing shape is recorded separately in ADR-0024; the numeric representation and
 rounding rule the computation in this ADR relies on is recorded separately in ADR-0025.
 
+
+## Amendment — 2026-11-13: the screen moves to refund-ui
+
+**Decided by:** Matteo Codogno (owner): "Dobbiamo spostare i settings dell'applicazione refund da admin all'app refund".
+
+The rate-management screen and the accounting distribution email setting (specs/011, ADR-0027/0028) now live in
+**refund-ui**, as a **Settings** tab at `/refund/settings`. Before, they were admin-ui's "Refund" section at
+`/admin/rates`.
+
+- **Visibility.** The tab shows when the caller holds `rate:read` or `settings:read`. Inside the page, "Add rate
+  entry" needs `rate:manage` and the email form needs `settings:manage`. The rules are unchanged: they are read
+  from the shell's cached permissions, they fail closed, and refund-api enforces every grant server-side.
+  Reaching `/refund` also needs `refund:access`. The seed gives it to `admin` (every app) and to `refund-admin`,
+  which are the roles that hold `rate:*` and `settings:*`.
+- **Calls.** refund-ui calls `/rates` and `/settings` through its own `refundApi` helpers. admin-ui no longer
+  calls refund-api, so admin-ui's `getRefundApiBaseUrl()` declaration was removed. The shell export stays for
+  now. The admin-ui origin in refund-api's `ALLOWED_ORIGINS` is no longer needed.
+- **What does not change.** The data model, the endpoints, the permissions, the append-only history and the
+  rounding rules all stay as they were. Only the screen moves.
+- **Reason.** The setting belongs to the tool it configures. A person managing refunds finds it next to monthly
+  processing, and admin-ui goes back to identity and access only.
+
+Decision point "admin-ui hosts the screen" above is superseded by this amendment. Everything else in this ADR
+stands. `/admin/rates` now shows admin-ui's not-found page.
+
 ---
 
 *This ADR was generated during a WellForge spec-driven session. Review and amend before committing.*

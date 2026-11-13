@@ -1,11 +1,10 @@
 /**
  * ratesApi — refund-ui's read-only client for `refund-api`'s employee-facing
  * mileage-rate resolution endpoint (T12, specs/009-mileage-rate/tasks.md;
- * plan.md "## API contracts": `GET /rates/effective`). This is the ONLY
- * rates endpoint refund-ui calls — rate MANAGEMENT (`GET`/`POST /rates`)
- * lives entirely in admin-ui's own `ratesApi.ts` (plan.md: "admin-ui — the
- * rate MANAGEMENT screen … refund-ui — the employee/accounting line UX
- * only … it only calls the employee-facing GET /rates/effective read").
+ * plan.md "## API contracts": `GET /rates/effective`), plus, since
+ * 2026-11-13, rate MANAGEMENT (`GET`/`POST /rates`) for the Settings tab,
+ * which moved here from admin-ui (ADR-0023 amendment). Management is gated
+ * server-side by `rate:read`/`rate:manage`; the employee read below is not.
  *
  * Gated by `refund:access` only (plan.md "Decision 2") — resolving a line's
  * own effective rate needs no `rate:read`/`rate:manage` capability, so this
@@ -25,7 +24,7 @@
 
 import type { Entity } from '../components/EntityBadge'
 import type { Currency } from './money'
-import { getJson } from './refundApi'
+import { getJson, sendJson } from './refundApi'
 
 /**
  * `GET /rates/effective`'s response shape (plan.md "## API contracts").
@@ -57,3 +56,41 @@ export type EffectiveRate =
  */
 export const getEffectiveRate = (entity: Entity, date: string): Promise<EffectiveRate> =>
   getJson<EffectiveRate>(`/rates/effective?entity=${encodeURIComponent(entity)}&date=${encodeURIComponent(date)}`)
+
+// ---------------------------------------------------------------------------
+// Rate management (the Settings tab; `rate:read` / `rate:manage` server-side)
+// ---------------------------------------------------------------------------
+
+/** One point in an entity's rate history — append-only, never edited (specs/009 AC-4.7). */
+export type RateEntry = {
+  id: string
+  ratePerKmMicros: number
+  /** Decimal string, display only (e.g. "0.70"). */
+  ratePerKm: string
+  /** ISO 8601 date-only (`YYYY-MM-DD`). */
+  validFrom: string
+  createdAt: string
+  createdByEmail: string
+  /** Whether this entry is the one in effect today (AC-4.3). */
+  inEffectToday: boolean
+}
+
+/** One entity's full rate history, oldest → newest (AC-4.1, also the audit view AC-5.3). */
+export type EntityRates = {
+  entity: Entity
+  currency: Currency
+  currentEntryId: string | null
+  entries: RateEntry[]
+}
+
+/** `GET /rates` — full history for both entities. */
+export type RatesResult = { entities: EntityRates[] }
+
+/** `POST /rates` body: a dot-decimal per-km rate and a valid-from date (any date, AC-4.8/4.4). */
+export type AddRateInput = { entity: Entity; ratePerKm: string; validFrom: string }
+
+/** GET /rates — 403 without `rate:read`. */
+export const listRates = (): Promise<RatesResult> => getJson<RatesResult>('/rates')
+
+/** POST /rates — 201 with the entry; 422 on a non-positive rate or a bad date; 403 without `rate:manage`. */
+export const addRate = (body: AddRateInput): Promise<RateEntry> => sendJson<RateEntry>('/rates', 'POST', body)

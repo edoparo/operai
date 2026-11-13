@@ -28,7 +28,7 @@
  * The container is `role="alert"` so the announcement fires the moment this
  * component is inserted, even before focus has had a chance to move.
  *
- * Presentational: no props, no data fetching — the screen that detects the
+ * Presentational: no data fetching (the optional props only override copy) — the screen that detects the
  * `403` (T16/T18) is responsible for catching it and rendering this
  * component instead of its normal content.
  *
@@ -39,18 +39,27 @@
 import { StatePanel } from '@operai/ui'
 import { strings } from '../strings'
 
+export type PermissionDeniedProps = {
+  /** Overrides the whole-tool heading, for a section-level denial (the Settings tab's rates). */
+  title?: string
+  /** Overrides the default body copy. */
+  message?: string
+  /** 2 when it replaces a whole page (the default), 3 under a page's own header. */
+  headingLevel?: 2 | 3
+}
+
 // @operai/ui's `StatePanel` as an alert that takes focus (ADR-0050).
-export default function PermissionDenied() {
+export default function PermissionDenied({ title, message, headingLevel = 2 }: PermissionDeniedProps = {}) {
   return (
     <StatePanel
-      title={strings.components.permissionDenied.heading}
+      title={title ?? strings.components.permissionDenied.heading}
       role="alert"
       focusOnMount
-      headingLevel={2}
+      headingLevel={headingLevel}
       testId="permission-denied"
       headingTestId="permission-denied-heading"
     >
-      {strings.components.permissionDenied.body}
+      {message ?? strings.components.permissionDenied.body}
     </StatePanel>
   )
 }

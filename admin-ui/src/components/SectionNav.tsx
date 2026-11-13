@@ -1,10 +1,8 @@
 import { Link } from '@tanstack/react-router'
 import { TabNav, tabLinkClassName } from '@operai/ui'
-import { usePermissions } from 'shell/session'
 import { strings } from '../strings'
 
-// The left-anchored admin sections (Roles, Departments, Users), followed by
-// the capability-gated Refund section (below). Audit is rendered separately,
+// The left-anchored admin sections (Roles, Departments, Users). Audit is rendered separately,
 // anchored to the FAR RIGHT (2026-07-21 UX change).
 // `to` paths are relative to admin-ui's own inner router (see ../router.tsx)
 // — TanStack Router prefixes them with the router's `basepath` (`/admin` when
@@ -19,13 +17,6 @@ const SECTIONS = [
 // Audit — anchored to the far right of the nav (rendered via `ml-auto`), kept
 // visually separate from the day-to-day management sections.
 const AUDIT_SECTION = { to: '/audit', label: strings.nav.audit } as const
-
-// Screen ADM-1 (T11, specs/009-mileage-rate) — the refund tool's admin config
-// (currently the mileage-rate screen). Labelled "Refund" in the nav (renamed
-// from "Mileage Rates", 2026-07-21) and proactively hidden for a caller who
-// lacks `rate:read` (design.md F7 — "the first capability-driven proactive UI
-// hide" in this app).
-const REFUND_SECTION = { to: '/rates', label: strings.nav.refund } as const
 
 /**
  * SectionNav — admin-ui's section switcher (T14, specs/004-auth-roles-permissions,
@@ -59,25 +50,8 @@ const REFUND_SECTION = { to: '/rates', label: strings.nav.refund } as const
  * text labels, so plain native tab order is the correct, proportionate a11y
  * posture — adding Sidebar's extra keyboard handling here would solve a
  * problem this nav doesn't have.
- *
- * Refund gate (T11, specs/009-mileage-rate, design.md F7; INC-32): reads the
- * caller's live effective permissions through the suite's one mechanism,
- * `shell/session`'s `usePermissions()` (the shell's cached `GET /authz/me`,
- * the same seam refund-ui's tabs use), and only appends the "Refund" entry if
- * `rate:read` is present. Until the permissions resolve it is EMPTY, so the
- * entry defaults to HIDDEN (never flashes in then out) and fails CLOSED on any
- * error. This is UX only — refund-api enforces `rate:read`/`rate:manage`
- * server-side on every `/rates` request; a reactive `PermissionDenied` on the
- * route itself (MileageRatesPage.tsx) is the defense-in-depth fallback for a
- * stale nav render or a direct URL visit.
  */
 export default function SectionNav() {
-  const { permissions } = usePermissions()
-  const hasRateRead = permissions.some((p) => p.resource === 'rate' && p.action === 'read')
-
-  // Left group: the management sections + (when permitted) Refund.
-  const leftSections = hasRateRead ? [...SECTIONS, REFUND_SECTION] : SECTIONS
-
   // Audit is pinned to the far right of the strip (TabNav's `end` slot).
   return (
     <TabNav
@@ -88,7 +62,7 @@ export default function SectionNav() {
         </Link>
       }
     >
-      {leftSections.map((section) => (
+      {SECTIONS.map((section) => (
         <Link key={section.to} to={section.to} className={tabLinkClassName}>
           {section.label}
         </Link>

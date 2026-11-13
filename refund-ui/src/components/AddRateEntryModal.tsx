@@ -1,51 +1,25 @@
 /**
- * AddRateEntryModal — Modal ADM-M1 (T11, specs/009-mileage-rate, design.md
- * Screen ADM-M1: "Add rate entry").
+ * AddRateEntryModal — add one entry to an entity's mileage-rate series (the
+ * Settings tab; moved from admin-ui, specs/009 design.md ADM-M1). The entity
+ * is fixed in the title, and the description says the entry is irreversible
+ * (AC-4.7).
  *
- * NEW component — the closest precedent (`CreateRoleModal`/
- * `CreateDepartmentModal`) doesn't fit: this needs an entity-locked (not
- * editable) header, a positive-decimal rate field, a backdatable/future-dated
- * date field, and framing that this action is irreversible (AC-4.7). It
- * structurally clones `CreateRoleModal.tsx`'s shell (backdrop, `role="dialog"`,
- * header/body/footer, Escape=Cancel, Tab-trap over the field list) — same
- * shell, different fields.
- *
- * Presentational: all data/callbacks arrive via props. `MileageRatesPage.tsx`
- * owns the field state and the `POST /rates` call, and maps a `422` (AC-4.5)
- * onto `rateError`/`validFromError` (see that page's `mapAddRateError`
- * comment for the field-routing rationale — plan.md documents no
- * `fields.*` contract for this endpoint, unlike submit's
- * `fields.offendingLineIds`, so the routing is a best-effort heuristic over
- * the RFC 7807 `detail` text, flagged for the architect/backend-dev to
- * confirm a real contract).
- *
- * A11y (mirrors CreateRoleModal.tsx's contract):
- *   • role="dialog" aria-modal="true" aria-labelledby.
- *   • Focus trap: Tab cycles Rate → Valid-from → Cancel → Add, and back.
- *   • Default focus: the Rate field (this form's natural first control).
- *   • Escape = Cancel; no submit is triggered.
- *   • Every field error is role="alert" + aria-invalid + aria-describedby,
- *     identical to CreateRoleModal.tsx's Name field.
-  *
- * Built on @operai/ui's `FormDialog` (ADR-0050, INC-09): the library owns
- * the frame, the focus trap (every enabled control, × included), Escape /
- * backdrop = Cancel (never while submitting), focus return and the buttons.
- *
- * Fields (INC-16/17): each a library `Field`; the rate a `MoneyInput` parsed
- * with `parseDecimal(text, 6)` — exact integer micros, the rate API's
- * precision (ADR-0025), comma or dot — and the date a `DateInput`. A touched
- * field is validated on blur; when the page reports a field error (a failed
- * submit, or a 422) focus moves to the first invalid field.
+ * Presentational: `SettingsPage` owns the field state and the `POST /rates`
+ * call and maps a 422 onto `rateError` / `validFromError`. Built on
+ * @operai/ui's `FormDialog` (focus trap, Escape = Cancel, focus return). The
+ * rate is a `MoneyInput` parsed exactly to micros (ADR-0025); a touched field
+ * is validated on blur, and a reported error moves focus to the first invalid
+ * field.
  */
 
 import { useEffect, useRef, useState } from 'react'
 import { DateInput, Field, FormDialog, MoneyInput } from '@operai/ui'
-import type { MileageRateEntity } from '../lib/ratesApi'
+import type { Entity } from './EntityBadge'
 import { validateRate, validateValidFrom } from '../lib/rateValidation'
 import { strings } from '../strings'
 
 export type AddRateEntryModalProps = {
-  entity: MileageRateEntity
+  entity: Entity
   /** Display label for the (read-only) entity header, e.g. "WellD CH". */
   entityLabel: string
   rate: string
@@ -99,14 +73,14 @@ export default function AddRateEntryModal({
   return (
     <FormDialog
       // Entity is shown read-only in the title, never editable (design.md F5 step 3).
-      title={strings.rates.addDialog.title(entityLabel)}
+      title={strings.settings.addDialog.title(entityLabel)}
       // Irreversibility notice — AC-4.7: a rate entry can never be edited or deleted.
-      description={strings.rates.addDialog.description}
+      description={strings.settings.addDialog.description}
       size="sm"
-      submitLabel={strings.rates.addRateEntry}
-      busyLabel={strings.rates.addDialog.busy}
-      cancelLabel={strings.common.actions.cancel}
-      closeLabel={strings.common.actions.cancel}
+      submitLabel={strings.settings.addRateEntry}
+      busyLabel={strings.settings.addDialog.busy}
+      cancelLabel={strings.settings.addDialog.cancel}
+      closeLabel={strings.settings.addDialog.cancel}
       busy={submitting}
       canSubmit={canSubmit}
       error={null}
@@ -116,7 +90,7 @@ export default function AddRateEntryModal({
       backdropTestId={`add-rate-modal-${entity}`}
     >
       <Field
-        label={strings.rates.addDialog.rate}
+        label={strings.settings.addDialog.rate}
         required
         error={
           shownRateError && (
@@ -145,9 +119,9 @@ export default function AddRateEntryModal({
       </Field>
 
       <Field
-        label={strings.rates.addDialog.validFrom}
+        label={strings.settings.addDialog.validFrom}
         required
-        hint={strings.rates.addDialog.validFromHint}
+        hint={strings.settings.addDialog.validFromHint}
         error={
           shownValidFromError && (
             <span role="alert" data-testid="add-rate-valid-from-error">

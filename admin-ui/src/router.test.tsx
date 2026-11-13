@@ -14,8 +14,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { cleanup, render, screen, within } from '@testing-library/react'
 import { RouterProvider } from '@tanstack/react-router'
 
-// SectionNav reads its "Refund" gate from shell/session's usePermissions()
-// (INC-32); the stub defaults to no grants, the /rates test grants rate:read.
+// Pages read capabilities from shell/session's usePermissions() (INC-32); the
+// stub defaults to no grants.
 vi.mock('shell/session', async (importOriginal) => {
   const original = await importOriginal<typeof import('shell/session')>()
   return { ...original, usePermissions: vi.fn() }
@@ -71,15 +71,12 @@ describe('router structure', () => {
     // C2) is a sibling of its list route under the same root, not nested —
     // exactly like estimai-ui's '/estimates' + '/estimates/$estimateId' pair.
     // Combined centrally as T18/T19/T20 each added their own detail route.
-    // '/rates' (Screen ADM-1, T11, specs/009-mileage-rate) is the same flat
-    // shape — a fifth section route, sibling of the other four.
     expect(childPaths).toEqual(
       [
         '/',
         '/audit',
         '/departments',
         '/departments/$id',
-        '/rates',
         '/roles',
         '/roles/$id',
         '/users',
@@ -88,7 +85,7 @@ describe('router structure', () => {
         '/users/invitations',
       ].sort(),
     )
-    expect(routeTree.children).toHaveLength(11)
+    expect(routeTree.children).toHaveLength(10)
   })
 
   it('has no `_authed` (or other guard) layout route in the tree — mirrors estimai-ui/T13, AC-2.3', async () => {
@@ -179,42 +176,5 @@ describe('the four sections route client-side', () => {
     // Chrome (nav) is not replaced by the not-found fallback.
     expect(screen.getByRole('navigation', { name: 'Admin sections' })).not.toBeNull()
     expect(screen.getAllByRole('link')).toHaveLength(4)
-  })
-})
-
-// ---------------------------------------------------------------------------
-// /rates — Screen ADM-1 (T11, specs/009-mileage-rate). A separate describe
-// block (not folded into the it.each table above) because reaching it with
-// its nav link ACTIVE requires `usePermissions()` to hold `rate:read` —
-// every other test above relies on the `beforeEach` default (no grants,
-// Refund stays hidden); this test overrides that default locally.
-// ---------------------------------------------------------------------------
-
-describe('/rates section (T11, specs/009-mileage-rate)', () => {
-  it('with rate:read granted, visiting /rates renders MileageRatesPage and activates the "Refund" nav link', async () => {
-    const grants = {
-      epoch: 1,
-      apps: ['admin'],
-      roles: ['admin'],
-      departments: [],
-      permissions: [
-        { resource: 'rate', action: 'read', conditions: null },
-        { resource: 'rate', action: 'manage', conditions: null },
-      ],
-    }
-    const session = await import('shell/session')
-    vi.mocked(session.usePermissions).mockReturnValue(grants)
-
-    window.history.pushState(null, '', '/rates')
-    const { createAppRouter } = await importRouter()
-    const router = createAppRouter()
-
-    render(<RouterProvider router={router} />)
-
-    expect(await screen.findByTestId('admin-rates-page')).not.toBeNull()
-
-    const sectionNav = screen.getByRole('navigation', { name: 'Admin sections' })
-    const activeLink = await within(sectionNav).findByRole('link', { name: 'Refund' })
-    expect(activeLink.getAttribute('aria-current')).toBe('page')
   })
 })

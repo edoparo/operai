@@ -13,7 +13,6 @@ export const en = {
   },
   system: 'System',
   systemTitle: "System roles can't be deleted",
-  rateInEffect: 'In effect',
   condition: {
     own: 'Own records',
     any: 'Any records',
@@ -38,7 +37,6 @@ export const it: typeof en = {
   },
   system: 'Di sistema',
   systemTitle: 'I ruoli di sistema non possono essere eliminati',
-  rateInEffect: 'In vigore',
   condition: {
     own: 'Solo propri record',
     any: 'Tutti i record',

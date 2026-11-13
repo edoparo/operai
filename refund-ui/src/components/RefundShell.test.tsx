@@ -78,7 +78,12 @@ async function renderShellAt(path: string) {
     path: '/batches',
     component: () => <p>batches</p>,
   })
-  const routeTree = rootRoute.addChildren([requestsRoute, reviewRoute, batchesRoute])
+  const settingsRoute = createRoute({
+    getParentRoute: () => rootRoute,
+    path: '/settings',
+    component: () => <p>settings</p>,
+  })
+  const routeTree = rootRoute.addChildren([requestsRoute, reviewRoute, batchesRoute, settingsRoute])
   const router = createRouter({ routeTree })
   const utils = render(<RouterProvider router={router} />)
   await screen.findByRole('heading', { name: /^refund$/i })
@@ -187,5 +192,31 @@ describe('RefundShell accounting nav tab gating', () => {
 
     const links = screen.getAllByRole('link')
     expect(links.map((link) => link.textContent)).toEqual(['My requests'])
+  })
+})
+
+describe('RefundShell settings tab gating (moved from Admin, ADR-0023 amendment)', () => {
+  it('shows "Settings" with rate:read', async () => {
+    usePermissions.mockReturnValue(permissionsWith([{ resource: 'rate', action: 'read' }]))
+    await renderShellAt('/requests')
+    expect(screen.getAllByRole('link').map((link) => link.textContent)).toEqual(['My requests', 'Settings'])
+  })
+
+  it('shows "Settings" with settings:read alone', async () => {
+    usePermissions.mockReturnValue(permissionsWith([{ resource: 'settings', action: 'read' }]))
+    await renderShellAt('/requests')
+    expect(screen.getAllByRole('link').map((link) => link.textContent)).toEqual(['My requests', 'Settings'])
+  })
+
+  it('hides "Settings" without either read grant (rate:manage alone does not count)', async () => {
+    usePermissions.mockReturnValue(
+      permissionsWith([REQUEST_REVIEW_UNCONDITIONED, { resource: 'rate', action: 'manage' }]),
+    )
+    await renderShellAt('/requests')
+    expect(screen.getAllByRole('link').map((link) => link.textContent)).toEqual([
+      'My requests',
+      'Review queue',
+      'Monthly processing',
+    ])
   })
 })

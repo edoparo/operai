@@ -18,7 +18,6 @@ import * as common from './strings/common'
 import * as departments from './strings/departments'
 import * as invitations from './strings/invitations'
 import * as nav from './strings/nav'
-import * as rates from './strings/rates'
 import * as roles from './strings/roles'
 import * as users from './strings/users'
 
@@ -31,7 +30,6 @@ export const en = {
   departments: departments.en,
   invitations: invitations.en,
   nav: nav.en,
-  rates: rates.en,
   roles: roles.en,
   users: users.en,
 }
@@ -45,7 +43,6 @@ export const it: typeof en = {
   departments: departments.it,
   invitations: invitations.it,
   nav: nav.it,
-  rates: rates.it,
   roles: roles.it,
   users: users.it,
 }

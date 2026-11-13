@@ -26,3 +26,6 @@ export const BATCH_STATUS_MEANING: Record<BatchStatus, StatusMeaning> = {
   paid: 'settled',
   discarded: 'voided',
 }
+
+/** The mileage rate in effect today (Settings tab) — the one live entry of a series. */
+export const RATE_IN_EFFECT_MEANING: StatusMeaning = 'active'

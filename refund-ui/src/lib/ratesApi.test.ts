@@ -15,7 +15,8 @@ vi.mock('shell/session', () => ({
 }))
 
 import { apiFetch } from 'shell/session'
-import { getEffectiveRate } from './ratesApi'
+import { addRate, getEffectiveRate, listRates } from './ratesApi'
+import { ApiError } from './refundApi'
 
 const REFUND_API_URL = 'http://refund-api.test'
 
@@ -77,5 +78,30 @@ describe('getEffectiveRate', () => {
     )
 
     await expect(getEffectiveRate('welld_ch', 'not-a-date')).rejects.toMatchObject({ status: 400 })
+  })
+})
+
+describe('rate management (Settings tab)', () => {
+  it('listRates GETs /rates', async () => {
+    vi.mocked(apiFetch).mockResolvedValueOnce(jsonResponse(200, { entities: [] }))
+    await expect(listRates()).resolves.toEqual({ entities: [] })
+    expect(String(vi.mocked(apiFetch).mock.calls[0]?.[0])).toBe(`${REFUND_API_URL}/rates`)
+  })
+
+  it('addRate POSTs the body as JSON', async () => {
+    const entry = { id: 'r1', ratePerKmMicros: 720000, ratePerKm: '0.72', validFrom: '2026-12-01' }
+    vi.mocked(apiFetch).mockResolvedValueOnce(jsonResponse(201, entry))
+    await addRate({ entity: 'welld_ch', ratePerKm: '0.72', validFrom: '2026-12-01' })
+    const [url, init] = vi.mocked(apiFetch).mock.calls[0]!
+    expect(String(url)).toBe(`${REFUND_API_URL}/rates`)
+    expect(init?.method).toBe('POST')
+    expect(JSON.parse(String(init?.body))).toEqual({ entity: 'welld_ch', ratePerKm: '0.72', validFrom: '2026-12-01' })
+  })
+
+  it('a 403 becomes an ApiError with its status', async () => {
+    vi.mocked(apiFetch).mockResolvedValueOnce(jsonResponse(403, { type: 'about:blank', title: 'Forbidden', status: 403 }))
+    const error = await listRates().catch((e: unknown) => e)
+    expect(error).toBeInstanceOf(ApiError)
+    expect((error as ApiError).status).toBe(403)
   })
 })
