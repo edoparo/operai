@@ -89,6 +89,13 @@ const envSchema = z
     SERVICE_CLIENT_ID: optionalString(),
     SERVICE_CLIENT_SECRET: z.string().min(32, "SERVICE_CLIENT_SECRET must be at least 32 characters").optional(),
 
+    // ─── System routes (specs/029 T9, ADR-0044/0089) ────────────────────────
+    // Audience of the scoped service JWTs the `/system/*` routes accept: auth's SERVICE_AUDIENCE, never
+    // the user audience. Unset, every /system request is a 401 (fail closed); tools/env-doctor lists it as
+    // required in production. Optional here on purpose: a missing value must close the route, not stop a
+    // service that holds people's recordings from starting.
+    SERVICE_AUDIENCE: z.string().min(1, "SERVICE_AUDIENCE must not be empty").optional(),
+
     // ─── Hosts (ADR-0059) ───────────────────────────────────────────────────
     // The CRM host's base URL (Railway private DNS). Required in production.
     CRM_API_URL: z.string().url("CRM_API_URL must be a valid URL").optional(),
@@ -119,6 +126,11 @@ const envSchema = z
   .superRefine((val, ctx) => {
     const issue = (key: string, message: string) => ctx.addIssue({ code: z.ZodIssueCode.custom, path: [key], message });
     const production = val.NODE_ENV === "production";
+
+    // A user JWT must never be a service credential (ADR-0044). The message names no value.
+    if (val.SERVICE_AUDIENCE !== undefined && val.SERVICE_AUDIENCE === val.AUTH_AUDIENCE) {
+      issue("SERVICE_AUDIENCE", "SERVICE_AUDIENCE must differ from AUTH_AUDIENCE (ADR-0044)");
+    }
 
     // Bucket residency (AC-4.9), only meaningful once the five values are individually valid.
     const residency = checkEuResidency(val.MEETINGS_S3_ENDPOINT, val.MEETINGS_S3_REGION, val.MEETINGS_S3_EU_ENDPOINT_HOSTS);

@@ -123,12 +123,13 @@ describe("the committed registry", () => {
     }
   });
 
-  test("registers the systemAuth guard of crm-api, estimai-api and activities-api (specs/028 T10)", () => {
+  test("registers the systemAuth guard of crm-api, estimai-api, activities-api and meetings-api (specs/028 T10, specs/029 T9)", () => {
     const g = SHARED_COPIES.find((x) => x.name === "systemAuth");
     expect(g?.files.sort()).toEqual([
       "activities-api/src/auth/systemAuth.middleware.ts",
       "crm-api/src/auth/systemAuth.middleware.ts",
       "estimai-api/src/auth/systemAuth.middleware.ts",
+      "meetings-api/src/auth/systemAuth.middleware.ts",
     ]);
   });
 
