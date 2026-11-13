@@ -7,67 +7,85 @@ verdict: PASS
 ---
 # Eval report: Push notifications
 
-Previous eval: FAIL 73.0 at 5ee89091. All floors were met. The shortfall was: no run trace (trajectory 2), router scope added in
-every remote (spec fidelity 3), and T12 still open.
+Previous eval: PASS 80.0 at e9aa198b (code at 1f392e0c), before T12. This report replaces it.
 
-What changed since then:
-- Two `wellforge-run/v3` traces now exist (`.forge/runs/2026-11-11T16-39-32Z-…` and `2026-11-12T15-46-14Z-…-029-push-notifications.json`).
-- `design.md` is `status: approved` (4404c06b).
-- The router alignment and every router-lifecycle change were reverted out of 029 (710db1d1 reverts 86496298, 85fcb037, 9b394e13 and
-  64722e10). The user decided this split at the escalation after extension round 3. E-1 is fixed by pinning projects-ui to
-  `@tanstack/react-router` 1.170.17, which every other frontend already uses.
-- D-7 is fixed (1f392e0c).
-- QE PASS at 1f392e0c: full sweep, whole e2e suite 115/0.
-- Security: final owasp review PASS with lows.
+Evaluated at HEAD b0e348dc (branch `feat/029-push-notifications`, 63 commits over `main`), rigor production. The last code
+commit is 1c722f18. Rubric `default-v2`, resolved from the plugin-bundled copy
+`/Users/matteocodogno/.claude/plugins/cache/wellforge/wellforge/2.62.1/config/eval-rubric.yml`; there is no `gates/configs/` or
+`.wellforge-gates/` copy and no `eval.md` override. `design.md` exists, so `design_fidelity` applies and the weight pool is 115.
+T13 (the close) is open by design and is not scored against.
 
-Evaluated at HEAD e9aa198b (branch `feat/029-push-notifications`, 50 commits over `main`), rigor production. The last code commit is
-1f392e0c. Rubric: `default-v2`, resolved from the plugin-bundled copy
-`/Users/matteocodogno/.claude/plugins/cache/wellforge/wellforge/2.62.1/config/eval-rubric.yml`. There is no `gates/configs/` or
-`.wellforge-gates/` copy in this repo, and no `eval.md` override. `design.md` exists, so `design_fidelity` applies and the weight pool is 115.
+What changed since the previous eval:
+- T12 recorded in `qe-manual.md` (6d99edc2, 5e0033ff, b91a1503, 1af41d5c, b0e348dc): browser checks A–G on Chrome, Edge,
+  Firefox and Safari; go-live checks H (AC-7.7 deployed pair), I (stored hrefs, L1) and J (ADR-0084 sign-off).
+- T12 found two defects. D-9 (AC-3.2, every browser): a device removed from another browser re-registered itself on its next
+  load, because `reconcilePush` silently re-PUT a missing row, as plan, design and tasks had specified. D-10 (AC-4.1, Safari):
+  clicking with no Operai tab opened nothing.
+- Fix round (user-granted extension 4): 5015586c (D-9 fix + e2e), 4a2d3918 (comment), 1c722f18 (click hardening: same-origin
+  filter, `focus()` resolving null opens a window), 816ea88a (plan/design/tasks amended for D-9). D-10 turned out to be
+  Safari-on-`localhost` only and passes on the deployed preview (qe-manual.md:45-47).
+- QE re-run PASS at b91a1503 (qe-report.md:611-700, commit 570dc266). Security re-review PASS WITH NOTES, 0 at medium or above
+  and 3 lows decided by the user (trace `2026-11-13T15-30-00Z`, `security.notes`).
+- ADR-0084 go-live sign-off given, Matteo Codogno, 2026-11-13 (`docs/adr/0084-web-push-encrypted-payloads-not-fcm.md:110`).
 
-Verification evidence used:
-- `qe-report.md`: "QE verdict: PASS (post-split verification, measured at 1f392e0c)". The auth suite ran 842/0, notify-api 538/0, shell
-  589, every other frontend green, and the whole e2e suite 115/0/0 flaky. The D-7 checks ran in real Chromium.
-- I re-ran these myself at HEAD:
-  - `shell` `push.test.ts`, `PushSettings.test.tsx`, `pushHandlers.test.ts` and `session.test.ts`: 250/250 passing.
-  - `scripts/check-react-skew.test.mjs`: 10/10 passing.
-  - `scripts/check-react-skew.mjs`: OK, one router version (1.170.17) across 10 frontends.
-- I checked every commit hash cited in the two traces against `git log`. All exist, with the task id the trace gives.
+Verification I ran myself at HEAD:
+- shell `push.test.ts`, `pushHandlers.test.ts`, `PushSettings.test.tsx`, `session.test.ts`, `pushSettingsModel`: 257/257 pass.
+- I mutated 1c722f18 twice, restored with `git checkout`, and left the tree clean:
+  - removing `if (!focused) return false` makes the two D-10 null/undefined cases fail;
+  - reverting the same-origin filter makes the three foreign/unparseable/foreign-first cases fail.
+  The new click tests are not vacuous. QE did the same for the D-9 e2e: on the pre-fix `push.ts` it fails with
+  `Expected "Off", Received "On"` (qe-report.md:628).
+- `git diff 1f392e0c..HEAD`: the only code changes since the previous eval are in `shell/src/lib/push.ts`,
+  `shell/src/lib/pushSettingsModel.ts` (comment only) and `shell/src/sw/pushHandlers.ts`, plus their tests and one e2e. No backend
+  code changed, so the backend evidence from the previous QE PASS at 1f392e0c still applies.
 
 | Dimension | Weight | Score (/5) | Floor | Weighted | Evidence |
 |---|---|---|---|---|---|
-| AC satisfaction | 35 | 4 | 4 | 28.0 | 37 of 37 ACs have an executed passing check at 1f392e0c (qe-report § "AC sweep (37 ACs)" plus the AC-to-test map). Live evidence: AC-1.1–1.8 states in real Chromium (§ Live, `states6.txt`, including AC-1.7 after an explicit sign-out); AC-4.3 by e2e; the D-1/AC-7.x dev-stack sanity check (45 × 200 mints, 40 notifications whose 40 inactive lookups pruned 40 devices with no 429). **Thin:** real OS delivery, suppression and the click (AC-2.1, 2.3, 4.1) have been observed only on Safari (T1 spike, 2026-11-11). Chrome, Edge and Firefox are covered by fakes (`push.channel.test.ts` decrypts the aes128gcm record; `pushHandlers.test.ts`). AC-6.5 is still "Go-live sign-off: pending — owner Matteo Codogno" (`docs/adr/0084-…md:108`). It is not violated, because push is off by default (AC-6.1). AC-7.7 has not been re-measured on the deployed pair. `qe-manual.md` does not exist yet. |
-| Spec fidelity / no drift | 20 | 4 | 3 | 16.0 | The router scope is gone. `git diff main...HEAD` over all nine remotes and `operai-ui` touches only `projects-ui/package.json` (`^1.168.2` → `1.170.17`) and its lockfile. Contracts match the plan: payload keys `v,id,title,body,originApp,href`; verify, then one count; 300/600/20. All amendments are recorded in the spec and in both traces' `drift_events`. **Residual extras, none tied to an AC:** the projects-ui pin, which is documented as E-1 with its own changeset (`.changeset/projects-ui-router-pin.md`); the router check added to `scripts/check-react-skew.mjs` and `react-skew.yml`; `shell/e2e/tool-entry.spec.ts`; and e147e7c1 (dev `.envrc` wiring outside any task). None changes a feature contract. The pin realigns one app to the suite-wide version, and QE showed the rest of the tree is identical to `main` (§ D-6 classification). |
-| Test quality | 20 | 4 | 3 | 16.0 | Strong core tests. The wire bytes are decrypted and checked to hold no plaintext. There is a log-hygiene assertion, and a suite-capacity contract test shown to fail on the pre-US-7 routers. The device-cap concurrency test runs on real Postgres. The 429s are byte-identical. D-7 has four new cases (`push.test.ts`, 1f392e0c): no database at boot, the aborted-upgrade fallback, release without a database, and Turn on creating the database. They assert that `databases()` is empty and that `exists` is false, so they would fail if `openStore(true)` came back on the read paths. **Gaps:** browser delivery and service-worker behaviour are tested only against fake `PushManager`/`ServiceWorkerGlobalScope`. The D-7 tests use a fake IndexedDB; only Chromium was checked live. D-1, D-4 and D-7 all escaped the suites that existed when each was introduced: D-7 came from T8 and was caught only by the whole-suite e2e in a later QE round. The QE-written `remote-history.spec.ts` was not committed (it now belongs to the router spec). |
-| Code quality & conventions | 15 | 4 | 3 | 12.0 | Idiomatic Effect plus RFC 7807 problems, and env validated with exit 1. Push is best effort and never awaited. Fan-out is bounded by a pool of 16. The activity memo is single-flight. There is one `tooManyRequests` builder. The sign-out hook is bounded to 2 s. The D-7 fix is small and well reasoned (`push.ts:166-217`): `databases()` where it exists, otherwise the version-change transaction is aborted so the new database is discarded, and only `writeStored` passes `create: true`. **Nits:** `initPush` still discards `onBeforeSignOut`'s unregister function (`push.ts:600`). That is safe only because the Set dedupes the same function and `ShellLayout` calls it once. The limiters are per process (R17, documented). Security lows L1 (moved to T12), L2–L4 (accepted) and the post-split two-tab boot race (fails toward off) are recorded in the trace. |
-| Design fidelity (UI) | 15 | 4 | 3 | 12.0 | `design.md` is `status: approved` (2026-11-12) and complete: flows F1–F10, a screens-and-states table, a reuse inventory (12 reused, 0 new) and an a11y section. QE reached every designed state live with the designed copy (§ Live "/account push section, all designed states"). It also checked `alertdialog` focus and Escape return, focus after retry and after failures, and 0 px horizontal overflow at 360 px and 320 px (O-1 no longer shows on the section). `operai-ui` is untouched. **Thin:** the design's second surface, the OS notification's content rules (title/body, `lang: 'en'`, `/push-icon.png`, tag = id, click target), has been observed only on Safari. On the other three browsers it is unit-tested only. The design was approved after implementation, not before T7–T9 (trace 1: "design.md (draft, ungated)"; approval commit 4404c06b at 11-12 16:51). |
-| Trajectory | 10 | 4 | 2 | 8.0 | Both traces are `wellforge-run/v3`. Every cited commit exists with the right task id. They show the order product-owner → architect → adr-writer → designer → T1 (with the user) → T2–T11 → owasp round 0 and QE round 0 (FAIL), then spec and plan re-approved by the user → T14–T22 → owasp round 1 PASS and QE round 1 FAIL (D-4) → fix → QE round 2 BLOCKED (E-1) → fix → QE PASS → eval FAIL 73.0. Trace 2 continues with: L5 fix → owasp → QE FAIL (D-5) → user-granted extension round 3 → QE FAIL (D-6/7/8) → escalation exit "split" (Matteo Codogno, 2026-11-12) → revert plus D-7 fix → owasp PASS → QE PASS (one dispatch failed on an API 403 and was re-dispatched). Verification was never skipped, and the cap was exceeded only with a recorded user extension. **Not 5:** trace 1 was written after the fact (committed at fd2f35f5 together with the 73.0 eval). The design gate was passed after implementation. T10 needed two attempts. `rigor_recorded` is null. |
+| AC satisfaction | 35 | 4 | 4 | 28.0 | All 37 ACs are met. Every row of T12 is now observed: AC-2.1 C, AC-2.3 E, AC-4.1/4.2 D, AC-5.1 F and AC-3.2 G on all four browsers, plus AC-1.1/1.2 B (qe-manual.md:15-22). D-9 is fixed (push.ts:549-552) and re-checked on every browser (qe-manual.md:53-54), with an e2e and two unit cases. D-10 passes on the deployed preview (qe-manual.md:19, 45-47). AC-6.5 is signed off with owner and date (ADR-0084:110). AC-7.7 passes on the deployed pair (row H, qe-manual.md:63) on top of the T17/T18 capacity tests. **Thin:** (1) AC-4.1 on Chrome, Edge and Firefox was observed at 15:04 (6d99edc2), before 1c722f18 (17:34) changed the click path. QE named this re-check as a residual risk (qe-report.md:658-661), and only Safari's background tab was re-run (1af41d5c). (2) Row H is a bare checkmark: no notification count and no log excerpt, and the earlier QE live run raised 40 notifications, under the AC's 100. (3) T12's done-when asked for the four browsers "on a deployed preview" (tasks.md:115), but Chrome, Edge and Firefox ran on the local dev stack (qe-manual.md:24). |
+| Spec fidelity / no drift | 20 | 4 | 3 | 16.0 | The D-9 fix moves the code toward the spec: AC-3.2 now holds after a reload. The contract change was made through the drift rule (816ea88a amends plan.md § reconciliation, the AC-1.7 test row, R7, design.md and T8's done-when), and the trace records it in `drift_events`. 1c722f18 is hardening inside the existing click contract and adds no scope. **Residual extras, unchanged since the previous eval:** the projects-ui router pin and its changeset, the router check in `scripts/check-react-skew.mjs` / `react-skew.yml`, `shell/e2e/tool-entry.spec.ts` (all from 710db1d1), and e147e7c1 (`notify-api/.envrc`, no task). None changes a 029 contract. The trace does not record that the user re-approved the D-9 plan amendment, only that the extension round was granted. |
+| Test quality | 20 | 4 | 3 | 16.0 | The core is as strong as before: the aes128gcm wire body is decrypted and holds no plaintext; log hygiene is asserted; the suite-capacity contract test fails on the pre-US-7 routers; the device cap is tested on real Postgres; the 429s are byte-identical. New this round: the D-9 e2e (`push-notifications.spec.ts`, 5015586c) asserts both the UI (`Off`, `No devices yet`) and the server (`listServerDevices` stays 0), and fails on the old code. The six new click cases (`pushHandlers.test.ts:286-333`) cover null/undefined `focus()`, foreign origin, unparseable url, a failing `matchAll` and foreign-first, and survive the mutations above. **Gaps:** the old unit test asserted the D-9 bug itself, because it was written to the plan, so only a human caught D-9. Browser delivery and service-worker behaviour are still tested only against fakes; that is inherent, and T12 is the substitute. |
+| Code quality & conventions | 15 | 4 | 3 | 12.0 | The D-9 change is a net deletion: a 13-line re-register branch becomes 3 lines (push.ts:549-552), with a comment stating the invariant ("Only the user's own Turn on registers a device"). `registerDevice` now has a single caller, the user-initiated enable (qe-report.md:640). `focusExistingWindow`/`isSameOrigin` (pushHandlers.ts:148-180) are small, never throw and fail toward opening a window. The same-origin filter is a strict security improvement (never focuses or posts to a foreign client). **Nits:** `initPush` still discards `onBeforeSignOut`'s unregister function (push.ts:593). Documented lows: notifications already shown are not closed on sign-out (follow-up bugfix), the cross-tab Turn on race (accepted), the empty `operai-push` database after release (accepted), and the per-process limiter (R17). |
+| Design fidelity (UI) | 15 | 4 | 3 | 12.0 | `design.md` is approved and complete (flows F1–F10, states table, reuse 12/0 new, a11y). It was amended for D-9 (the boot re-PUT and its failure state are gone, design.md "Amended 2026-11-13"). The OS-notification surface is now observed on all four browsers: English text with correct accents (C), the click target (D), no notification with a visible tab, and always shown on Safari (E). **Thin:** the design's raster icon (`/push-icon.png`, G5, design.md:116, 395) is not recorded on any browser, although T12's done-when lists "PNG icon renders" (tasks.md:115). The design specified the D-9 bug (silent re-PUT) and was approved after implementation (4404c06b). |
+| Trajectory | 10 | 4 | 2 | 8.0 | Three orchestrate traces and one eval trace, all `wellforge-run/v3`. The third trace (`2026-11-13T15-30-00Z`) records architect 816ea88a → frontend-dev 5015586c/4a2d3918/1c722f18 → main-loop 5e0033ff/b91a1503 → QE PASS 570dc266 → owasp PASS WITH NOTES, plus the D-9 drift event, the env faults (Safari stale permission, E-2 ports) and extension round 4 granted 2026-11-13. Every cited commit exists. Verification was never skipped. **Not 5:** the fix cap of 2 was exceeded twice, both times with a recorded user extension. The last trace ends `result: partial` at 19:20, and the commits that closed D-10 and T12 (1af41d5c, b0e348dc) are in no trace. `rigor_recorded` is null. Inherited: trace 1 was written after the fact, and the design gate passed after implementation. |
 | **Total** | | | | **92 / 115 = 80.0/100** | |
 
-**Verdict: PASS.** The weighted total is 80.0, which equals `pass_score` 80, and every applicable dimension is at or above its floor. The result sits exactly at the bar. It rests on spec fidelity being 4: with spec fidelity at 3 the total would be 88/115 = 76.5, a FAIL. I scored 4 because everything left over from the router work is a one-line version pin that realigns projects-ui with the suite, a CI guard and an e2e test. None of these changes a 029 contract or feature behaviour.
+**Verdict: PASS.** The weighted total is 80.0, which equals `pass_score` 80, and every applicable dimension is at or above its
+floor. AC satisfaction is exactly at its floor of 4. Nothing failed.
 
 ## Findings
 
-- **AC satisfaction (4). These rubric conditions depend on T12:**
-  - AC-2.1, AC-2.3, AC-4.1: delivery with Operai closed within 30 s, nothing shown with a visible tab, and the OS click, on Chrome, Edge and Firefox.
-  - R3: the Edge host (`*.notify.windows.com`) observed in the allowlist. Today it is assumed.
-  - AC-6.5: the ADR-0084 go-live sign-off with owner and date, plus L2–L4 recorded as accepted.
-  - AC-7.7: the deployed auth + notify-api re-measure.
-  - L1: the stored-href check against production `notification.link.href`.
-  - D-7 on Firefox and Safari. This is design/test evidence, not an AC.
+- **AC satisfaction (4, not the 5 the previous eval projected).** That projection assumed T12 would be all green with no
+  defect. T12 found D-9 and D-10, and the click fix (1c722f18) landed after the Chrome, Edge and Firefox click checks. Three
+  things lift this to 5, and none needs code:
+  1. Re-run check D (click with no tab, and with a background tab) on Chrome, Edge and Firefox at or after 1c722f18, ideally on
+     the deployed preview, and record it in `qe-manual.md`.
+  2. Add row H's figures: how many notifications were raised in what window, and the auth and notify-api log greps showing no
+     refusal.
+  3. Remove the stale "D-7 check (A) still to do on Safari" line (qe-manual.md:26), which contradicts row A.
 
-  If T12 records all of them green, this dimension goes to 5 (+7.0 raw). If any supported browser fails AC-2.1, 2.3 or 4.1, that AC is unmet, the dimension drops to 2 and the floor fails. That would be a FAIL whatever the total.
-- **Spec fidelity (4).** What remains outside the ACs is the projects-ui pin, the router check in `check-react-skew.mjs` and the `tool-entry.spec.ts` e2e (all from 710db1d1), plus e147e7c1 (`notify-api/.envrc`, no task). Each is documented. To reach 5, the separate router spec should take over the pin and the guard, and e147e7c1 should be named in a task, for example T2's touch list, via a tasks re-sync.
-- **Test quality (4).** Real delivery cannot be automated here; T12's manual record is the intended substitute. Commit QE's `remote-history.spec.ts` with the router spec. D-7 escaped the T8 tests because they never asserted on side effects at boot; the new tests now pin that.
-- **Code quality (4).** Keep the unregister function returned by `onBeforeSignOut` in `initPush`, or comment that relying on the Set's dedupe is intended. The per-process limiter (R17) must be revisited before a second `auth` replica.
-- **Design fidelity (4).** This goes to 5 when T12 records the OS-notification content (English title and body, icon, click target) on Chrome, Edge and Firefox. Next time, approve the design before frontend tasks start.
-- **Trajectory (4).** Write the trace as the run goes, not afterwards, and record `rigor_recorded`.
+  Owner: Matteo Codogno (human T12 record).
+- **Spec fidelity (4).** Unchanged. The router remnants (pin, skew guard, `tool-entry.spec.ts`) belong to the separate router
+  spec, and e147e7c1 should be named in a task. Optionally, note in the trace that the user accepted 816ea88a's plan
+  amendment. Owner: architect / main loop.
+- **Test quality (4).** D-9 shows that a test written to the plan cannot catch a plan that contradicts an AC. For the
+  reconcile and device paths, add one e2e per AC that crosses two sessions; the D-9 e2e is that shape. Owner: frontend-dev,
+  later work.
+- **Code quality (4).** Keep or comment the unregister function from `onBeforeSignOut` in `initPush`. Close already-shown
+  notifications on sign-out in the follow-up bugfix the user decided on. Revisit the per-process limiter before a second
+  `auth` replica. Owner: frontend-dev / backend-dev, follow-up.
+- **Design fidelity (4).** Record the icon rendering on each browser; this goes to 5 together with the AC re-check above.
+  Owner: Matteo Codogno.
+- **Trajectory (4).** Append the D-10 deployed-preview result and T12 completion to the trace, or let the close run's trace
+  cover them, and set `rigor_recorded`. Owner: main loop at T13.
 
-**Score with T12 recorded green** (all rows above observed, no defect): AC satisfaction 5 (+7) gives 99/115 = **86.1**. If the OS-notification surface is observed on all four browsers, design fidelity also goes to 5 (+3), giving 102/115 = **88.7**. If T12 finds a delivery failure on a supported browser, the result is **FAIL** on the ac_satisfaction floor.
+**With the cheap fixes above recorded** (D re-check on three browsers, row H figures, icon row): AC satisfaction 5 (+7.0) and
+design fidelity 5 (+3.0) give 102/115 = **88.7**.
 
 ## Recommended next step
 
-- **PASS. The spec may move to `done` once T12 is complete**, as tasks.md says: T13 depends on T12. No implementation task needs to go back through `/wellforge:implement`.
-  1. T12, done by a person: the cross-browser checks in a new `qe-manual.md`, the Edge host, the AC-7.7 deployed-pair re-measure, the stored-href check, and the ADR-0084 sign-off with owner, date and the L2–L4 acceptance. The Meetings-exclusion answer, already decided in spec.md, goes into the ADR.
-  2. Re-run `/wellforge:eval` after T12 so that T13 closes on the scored evidence (expected 86.1 to 88.7), then run `/wellforge:done 029-push-notifications`.
-  3. The separate router spec takes over O-2, O-3, the projects-ui pin, the skew guard and QE's `remote-history.spec.ts`.
+- **PASS. The spec may move to `done`**: T13, `/wellforge:done 029-push-notifications`. No task goes back through
+  `/wellforge:implement`.
+- The score sits exactly at the bar. Before or right after the close, I recommend the three `qe-manual.md` additions under
+  AC satisfaction. They take minutes and remove the only evidence gaps.
+- Follow-ups outside 029: the router spec (pin, skew guard, `remote-history.spec.ts`); the bugfix that closes shown
+  notifications on sign-out; the E-2 port map in `remote-failure.spec.ts`.
