@@ -11,6 +11,12 @@
  * `status` filters on the DERIVED status: `interrupted` is never stored, so the rows still
  * `recording` are partitioned with the same `derivedStatus` the rows are shown with. That
  * set is the caller's few live recordings, never a page worth.
+ *
+ * `ids` (at most 25, specs/029 AC-2.5, AC-2.10) is one more filter, ANDed with the caller's own
+ * set like the rest: hours-api asks it "which of these meetings may this person record hours on,
+ * and what are they called". Only a meeting the caller created or was added to as an Operai
+ * participant comes back; one they could open only through its host, someone else's, and an id
+ * that does not exist are all simply absent, with nothing to tell them apart.
  */
 
 import { OpenAPIHono, createRoute, z } from "@hono/zod-openapi";
@@ -25,11 +31,29 @@ import { derivedStatus } from "./derived";
 import { ROW_SELECT, buildMeetingRows } from "./rows";
 import { DERIVED_STATUSES, MeetingRowSchema } from "./schemas";
 
+/** The most ids one `ids` filter names: a page, so the answer is always one page (specs/029 plan.md). */
+const MAX_IDS = 25;
+const MAX_ID_LENGTH = 64;
+
+/**
+ * `ids=a,b,c`: comma-separated meeting ids, each 1-64 characters (ids are text, never uuids), at most
+ * {@link MAX_IDS}. An empty member (`ids=`, `a,,b`, a trailing comma) is a 422, not "no filter": a caller
+ * that built its list from nothing must not be handed the whole list back (crm-api's `IdsSchema` rule).
+ */
+const IdsQuery = z
+  .string()
+  .max(MAX_IDS * (MAX_ID_LENGTH + 1))
+  .openapi({ description: `Comma-separated meeting ids, at most ${MAX_IDS}. Narrows the caller's own meetings (created or Operai participant) to these; any other id, unknown or not the caller's, is simply absent.`, example: "cm0a1,cm0b2" })
+  .transform((value) => value.split(",").map((id) => id.trim()))
+  .refine((ids) => ids.length <= MAX_IDS, `At most ${MAX_IDS} ids`)
+  .refine((ids) => ids.every((id) => id.length >= 1 && id.length <= MAX_ID_LENGTH), `Every id is 1-${MAX_ID_LENGTH} characters`);
+
 const ListQuery = z.object({
   q: z.string().max(200).optional(),
   role: z.enum(["creator", "participant"]).optional(),
   status: z.enum(DERIVED_STATUSES).optional(),
   hostApp: z.string().min(1).max(64).optional(),
+  ids: IdsQuery.optional(),
   ...pageQuery(),
 });
 
@@ -50,7 +74,7 @@ const listMeetings = createRoute({
 export const listRouter = new OpenAPIHono<{ Variables: AuthzVariables }>({ defaultHook: validationHook });
 
 listRouter.openapi(listMeetings, async (c) => {
-  const { q, role, status, hostApp, page } = c.req.valid("query");
+  const { q, role, status, hostApp, ids, page } = c.req.valid("query");
   const caller = callerOf(c);
   const now = new Date();
 
@@ -65,6 +89,9 @@ listRouter.openapi(listMeetings, async (c) => {
   const needle = q?.trim();
   if (needle) filters.push({ title: { contains: likeLiteral(needle), mode: "insensitive" } });
   if (hostApp) filters.push({ hostApp });
+  // Narrows `mine`, never widens it: an id the caller may not list is absent exactly like one that does not exist.
+  // Postgres text cannot hold a NUL, so such an id names no meeting and is never sent (the driver would throw: a 500).
+  if (ids) filters.push({ id: { in: ids.filter((id) => !id.includes("\u0000")) } });
 
   if (status === "recording" || status === "interrupted") {
     const candidates = await db.meeting.findMany({
