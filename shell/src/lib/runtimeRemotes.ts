@@ -59,6 +59,10 @@
  * code from this single entry; where it is served from is orthogonal to who may
  * reach which route.
  *
+ * `hours` (specs/029-time-tracking, T23) follows the identical shape — a further optional key.
+ * Its one entry is mounted at the UNGATED `/hours/$` route (ADR-0090); where its code is served
+ * from is, again, orthogonal to who may reach the route.
+ *
  * HONEST SCOPE NOTE (see T17 report): for the common production case — a
  * remote redeployed at its EXISTING, stable custom-domain URL — the shell
  * never needs `runtime-config.json` to change at all, because the URL
@@ -82,6 +86,8 @@ export interface RuntimeRemoteConfig {
   meetings?: string
   /** specs/025-projects: the Projects remote's remoteEntry.js. */
   projects?: string
+  /** specs/029-time-tracking: the Hours remote's remoteEntry.js (one entry, ungated, plus ./version). */
+  hours?: string
 }
 
 declare global {
@@ -98,7 +104,7 @@ declare global {
 
 /** Shape `@module-federation/runtime`'s `registerRemotes` expects (mirrors vite.config.ts's static remote entries). */
 export interface RuntimeRemoteEntry {
-  name: 'estimai' | 'refund' | 'admin' | 'notify' | 'inventory' | 'crm' | 'meetings' | 'projects'
+  name: 'estimai' | 'refund' | 'admin' | 'notify' | 'inventory' | 'crm' | 'meetings' | 'projects' | 'hours'
   entry: string
   type: 'module'
   entryGlobalName: string
@@ -210,6 +216,16 @@ export async function resolveRuntimeRemotes(): Promise<RuntimeRemoteEntry[]> {
       entry: config.projects,
       type: 'module',
       entryGlobalName: 'projects',
+      shareScope: 'default',
+    })
+  }
+
+  if (config.hours) {
+    remotes.push({
+      name: 'hours',
+      entry: config.hours,
+      type: 'module',
+      entryGlobalName: 'hours',
       shareScope: 'default',
     })
   }

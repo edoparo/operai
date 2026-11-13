@@ -61,6 +61,9 @@ export default defineConfig({
       'projects/version': fileURLToPath(
         new URL('./src/federation/__stubs__/projectsVersion.ts', import.meta.url),
       ),
+      // specs/029-time-tracking: the hours remote's one entry (ungated) and its version.
+      'hours/App': fileURLToPath(new URL('./src/federation/__stubs__/hoursApp.tsx', import.meta.url)),
+      'hours/version': fileURLToPath(new URL('./src/federation/__stubs__/hoursVersion.ts', import.meta.url)),
     },
   },
   test: {

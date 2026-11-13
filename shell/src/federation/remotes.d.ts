@@ -158,3 +158,16 @@ declare module 'projects/App' {
 declare module 'projects/version' {
   export const REMOTE_VERSION: string
 }
+
+// specs/029-time-tracking (ADR-0090): the `hours` remote — `./App` (the whole hours screen,
+// UNGATED, `/hours/*`; it is not a gated tool) and `./version`.
+declare module 'hours/App' {
+  import type { ComponentType } from 'react'
+
+  const App: ComponentType
+  export default App
+}
+
+declare module 'hours/version' {
+  export const REMOTE_VERSION: string
+}
