@@ -41,6 +41,7 @@ export const SHARED_COPIES: readonly SharedGroup[] = [
       "meetings-api/src/lib/serviceToken.ts",
       "projects-api/src/lib/serviceToken.ts",
       "activities-api/src/lib/serviceToken.ts",
+      "hours-api/src/lib/serviceToken.ts",
     ],
     why: "the auth service-token client (ADR-0044/0049/0056); a fix to one copy must reach every copy",
   },
@@ -79,16 +80,26 @@ export const SHARED_COPIES: readonly SharedGroup[] = [
     ],
     why: "the service-JWT guard of every /system route (ADR-0044/0049); a fix to one copy must reach every copy",
   },
-  // meetings-api's and activities-api's problem/logger are whole-file copies of crm-api's
-  // (crm-api is the template).
+  // meetings-api's, activities-api's and hours-api's problem/logger are whole-file copies of
+  // crm-api's (crm-api is the template).
   {
     name: "problem",
-    files: ["crm-api/src/lib/problem.ts", "meetings-api/src/lib/problem.ts", "activities-api/src/lib/problem.ts"],
+    files: [
+      "crm-api/src/lib/problem.ts",
+      "meetings-api/src/lib/problem.ts",
+      "activities-api/src/lib/problem.ts",
+      "hours-api/src/lib/problem.ts",
+    ],
     why: "RFC 7807 Problem JSON helpers; the error shape is a suite contract",
   },
   {
     name: "logger",
-    files: ["crm-api/src/lib/logger.ts", "meetings-api/src/lib/logger.ts", "activities-api/src/lib/logger.ts"],
+    files: [
+      "crm-api/src/lib/logger.ts",
+      "meetings-api/src/lib/logger.ts",
+      "activities-api/src/lib/logger.ts",
+      "hours-api/src/lib/logger.ts",
+    ],
     why: "the request logger; it must keep logging no business data (data residency)",
   },
   {

@@ -93,12 +93,13 @@ describe("checkGroups", () => {
 describe("the committed registry", () => {
   const repoRoot = join(import.meta.dir, "..");
 
-  test("lists every serviceToken copy, meetings-api and projects-api included, and the registry is in sync right now", () => {
+  test("lists every serviceToken copy, meetings-api, projects-api and hours-api included, and the registry is in sync right now", () => {
     const g = SHARED_COPIES.find((x) => x.name === "serviceToken");
     expect(g?.files.sort()).toEqual([
       "activities-api/src/lib/serviceToken.ts",
       "crm-api/src/lib/serviceToken.ts",
       "estimai-api/src/lib/serviceToken.ts",
+      "hours-api/src/lib/serviceToken.ts",
       "inventory-api/src/lib/serviceToken.ts",
       "meetings-api/src/lib/serviceToken.ts",
       "notify-api/src/lib/serviceToken.ts",
@@ -112,6 +113,13 @@ describe("the committed registry", () => {
     for (const name of ["problem", "logger"]) {
       const g = SHARED_COPIES.find((x) => x.name === name);
       expect(g?.files).toContain(`activities-api/src/lib/${name}.ts`);
+    }
+  });
+
+  test("registers hours-api's problem and logger copies (specs/029 T10)", () => {
+    for (const name of ["problem", "logger"]) {
+      const g = SHARED_COPIES.find((x) => x.name === name);
+      expect(g?.files).toContain(`hours-api/src/lib/${name}.ts`);
     }
   });
 
