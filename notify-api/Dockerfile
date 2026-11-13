@@ -44,13 +44,13 @@ USER bun
 EXPOSE 8081
 
 # DATA-RESIDENCY: this image is deployed to Railway EU region only (europe-west4,
-# see railway.json). Request/response bodies are NEVER logged — hono/logger
+# see .railway/railway.ts). Request/response bodies are NEVER logged — hono/logger
 # emits method+path+status only. Notification title/body may name clients/
 # estimates — do NOT add any logger that includes request bodies or the Prisma
 # 'query' log level.
 #
 # SINGLE-INSTANCE ONLY (specs/005-notification-center plan.md Risk R2):
-# railway.json pins numReplicas: 1 — the in-process EventBus fan-out and the
+# .railway/railway.ts pins one replica — the in-process EventBus fan-out and the
 # in-process stream-ticket store are correct for exactly one running instance.
 # Do NOT enable autoscale / multiple replicas for this service without first
 # moving both seams onto Postgres LISTEN/NOTIFY + a shared ticket table (the

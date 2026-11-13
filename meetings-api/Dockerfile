@@ -45,7 +45,7 @@ USER bun
 EXPOSE 8085
 
 # DATA-RESIDENCY (specs/021-meetings): deployed to Railway EU only (see
-# railway.json), a single replica (the job runner and its LISTEN connection live
+# .railway/railway.ts), a single replica (the job runner and its LISTEN connection live
 # in this process, ADR-0062). Request/response bodies and query strings are
 # NEVER logged (src/lib/logger.ts): a title, a search term or a transcript is
 # content. Do NOT add a logger that includes them, nor Prisma's 'query' level.

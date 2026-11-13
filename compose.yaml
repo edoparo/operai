@@ -19,7 +19,7 @@ services:
   # Bun + Hono resource server for estimate persistence.
   #
   # DATA-RESIDENCY: in production this service is deployed to Railway EU region
-  # (see estimai-api/railway.json). Locally it runs against the shared Postgres
+  # (see .railway/railway.ts, service estimai-api). Locally it runs against the shared Postgres
   # instance above. Request/response bodies are never written to application logs
   # (hono/logger emits method+path+status only — enforced in src/index.ts).
   #
@@ -58,7 +58,7 @@ services:
   # Bun + Hono resource server for the notification center (specs/005).
   #
   # DATA-RESIDENCY: in production this service is deployed to Railway EU region
-  # (see notify-api/railway.json). Locally it runs against the shared Postgres
+  # (see .railway/railway.ts, service notify-api). Locally it runs against the shared Postgres
   # instance above, in its own logical database ('notify'). Same pattern as
   # 'estimai' above: there is no init script — Prisma creates the logical
   # database itself the first time migrations run against it (`migrate dev` /
@@ -101,7 +101,7 @@ services:
   # Bun + Hono resource server for the reimbursement tool (specs/007).
   #
   # DATA-RESIDENCY: in production this service is deployed to Railway EU region
-  # (see refund-api/railway.json). Locally it runs against the shared Postgres
+  # (see .railway/railway.ts, service refund-api). Locally it runs against the shared Postgres
   # instance above, in its own logical database ('refund'). Same pattern as
   # 'estimai'/'notify' above — no init script; Prisma creates the logical
   # database itself the first time migrations run (`migrate dev` / `migrate
@@ -148,7 +148,7 @@ services:
   # register (specs/015-hardware-inventory).
   #
   # DATA-RESIDENCY: in production this service is deployed to Railway EU region
-  # (see inventory-api/railway.json). Locally it runs against the shared
+  # (see .railway/railway.ts, service inventory-api). Locally it runs against the shared
   # Postgres instance above, in its own logical database ('inventory'). Same
   # pattern as 'estimai'/'notify'/'refund' above — no init script; Prisma
   # creates the logical database itself the first time migrations run
@@ -197,7 +197,7 @@ services:
   # and the project team (specs/025-projects).
   #
   # DATA-RESIDENCY: in production this service is deployed to Railway EU region
-  # (see projects-api/railway.json). Locally it runs against the shared Postgres
+  # (see .railway/railway.ts, service projects-api). Locally it runs against the shared Postgres
   # instance above, in its own logical database ('projects'). Same pattern as
   # 'estimai'/'notify'/'refund'/'inventory' above — no init script; Prisma
   # creates the logical database itself the first time migrations run
@@ -251,7 +251,7 @@ services:
   # user ..." with the caller's own JWT and fails closed.
   #
   # DATA-RESIDENCY: in production this service is deployed to Railway EU region
-  # (see activities-api/railway.json). Locally it runs against the shared Postgres
+  # (see .railway/railway.ts, service activities-api). Locally it runs against the shared Postgres
   # instance above, in its own logical database ('activities'). Same pattern as
   # 'estimai'/'notify'/'refund'/'inventory'/'projects' above — no init script; Prisma
   # creates the logical database itself the first time migrations run

@@ -39,7 +39,7 @@
 #   exist when a caller first asks for a token) — the blocks below run in that
 #   order.
 #   Migrations + the authz seed run automatically via each service's
-#   railway.json preDeployCommand (`bun run db:deploy && …`).
+#   preDeploy in .railway/railway.ts (`bun run db:deploy`; auth: `db:release`).
 #
 #   NOT automated: `refund-api`'s REFUND_S3_* (EU object storage, ADR-0016) —
 #   no bucket/1Password item exists yet (see infra/README.md § Variable
@@ -85,8 +85,8 @@
 #
 # DATA RESIDENCY: all backend services + Postgres are pinned to europe-west4.
 #   notify-api additionally never logs request/response bodies (notification
-#   title/body may name clients/estimates) and is pinned to numReplicas: 1 in
-#   notify-api/railway.json — do not scale it without reading plan.md Risk R2.
+#   title/body may name clients/estimates) and is pinned to one replica in
+#   .railway/railway.ts — do not scale it without reading plan.md Risk R2.
 #   inventory-api never logs request/response bodies either (financial figures
 #   and who holds which device are personal data); no replica pin.
 #   refund-api never logs request/response bodies either (financial figures +
@@ -292,8 +292,8 @@ deploy_or_skip estimai-api
 # ─── notify-api service vars + deploy (specs/005-notification-center) ─────────
 # Own logical DB ('notify', NOT 'estimai'); same AUTH_ISSUER/AUTH_JWKS_URL as
 # estimai-api (same issuer, same JWKS endpoint) but its OWN AUTH_AUDIENCE value
-# (must match auth's and estimai-api's — ADR-0010). railway.json (committed)
-# pins numReplicas: 1 — this script does not and must not override that.
+# (must match auth's and estimai-api's — ADR-0010). .railway/railway.ts (committed)
+# pins one replica — this script does not and must not override that.
 # SERVICE_AUDIENCE (ADR-0044) is the audience of the callers' service JWTs; it is
 # set only when exported and must equal auth's. RESEND_API_KEY is only set
 # when provided (leaving it unset keeps EMAIL_ENABLED=false safe — notify-api's
@@ -428,6 +428,6 @@ fi
 echo ""
 ok "Done. Verify with:  ./infra/check.sh"
 echo "   Health:  railway status --service auth ; railway status --service estimai-api ; railway status --service notify-api ; railway status --service refund-api ; railway status --service inventory-api"
-echo "   Migrations + authz seed run automatically via each railway.json preDeployCommand."
+echo "   Migrations + authz seed run automatically via each service's preDeploy in .railway/railway.ts."
 echo "   Reminder: refund-api's REFUND_S3_* vars still need to be set manually once its EU bucket is provisioned (infra/README.md § Variable reference)."
 echo "   Reminder: every caller's SERVICE_CLIENT_SECRET (refund-api, estimai-api, inventory-api), auth's SERVICE_CLIENTS and inventory-api's INVENTORY_S3_* are manual (infra/README.md § Notify credential rollout, step 3, § inventory-api service)."

@@ -75,7 +75,7 @@ body, no title, no transcript, no search term is ever logged. Do not add one.
 ## Image
 
 The Dockerfile installs a pinned `ffmpeg`/`ffprobe` (Debian) and runs as the non-root `bun`
-user. `railway.json` pins `numReplicas: 1`: the job runner lives in the process (ADR-0062).
+user. `.railway/railway.ts` pins one replica: the job runner lives in the process (ADR-0062).
 
 ## Prompt-injection evals (AC-7.12, AC-9.7, ADR-0067)
 

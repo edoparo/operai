@@ -4,7 +4,7 @@
  * Behind an interface so a Postgres LISTEN/NOTIFY-backed implementation can be
  * swapped in later without an application rewrite (plan.md Risk R2). v1 ships the
  * in-process implementation only — correct for exactly one `notify-api` instance
- * (Railway `numReplicas: 1` pin, see railway.json / T17).
+ * (Railway single-replica pin, see .railway/railway.ts / T17).
  *
  * Every open SSE connection for a `sub` (T7) registers one listener via subscribe().
  * publish() fans an event out to every listener currently registered for that sub —

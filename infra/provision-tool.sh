@@ -2,10 +2,17 @@
 # infra/provision-tool.sh — create (or audit) the production infrastructure of
 # ONE Operai tool: its Railway backend, its Vercel remote, and their DNS.
 #
-# It covers what infra/deploy.sh deliberately leaves manual: creating the
-# Railway service, its logical database on the shared Postgres, its bucket, the
-# custom domains, the Vercel project, the Cloudflare DNS records and the shell
-# wiring. It never sets a secret and never reads one.
+# It covers what infra/deploy.sh deliberately leaves manual: the logical
+# database on the shared Postgres, the Railway service, bucket and domain, the
+# Vercel project, the Cloudflare DNS records and the shell wiring. It never sets
+# a secret and never reads one.
+#
+# The Railway service, its bucket and its custom domain are DECLARED in
+# .railway/railway.ts (Railway IaC, ADR-0088): a person adds the block, commits
+# it, and this script checks the declaration and applies it with
+# `railway config apply`. It never writes that file and never creates a Railway
+# resource any other way. Variables stay outside IaC (`managed: false`): the
+# script still sets the template's non-secret ones through the CLI.
 #
 # USAGE
 #   ./infra/provision-tool.sh <tool> [options]            # PLAN: read-only audit
@@ -17,9 +24,10 @@
 #   --port <n>        the backend's port (default: PORT in its env-doctor template)
 #   --bucket          the backend owns a private EU bucket named <tool>
 #   --no-api          frontend only          --no-ui   backend only
-#   --connect         connect the GitHub repo to the Railway service. This starts
-#                     the FIRST BUILD — pass it only once the service's secrets
-#                     are set (the plan lists the variables still missing).
+#   --connect         allow the apply to connect the GitHub repo (the block's
+#                     `source: github(...)`). This starts the FIRST BUILD — add
+#                     the source and pass it only once the service's secrets are
+#                     set (the plan lists the variables still missing).
 #   --redeploy-shell  redeploy the shell after its two variables were added
 #                     (they are read at build time)
 #   --apply           without it nothing is created, changed or deployed
@@ -134,7 +142,8 @@ if $DO_API; then
   command -v railway >/dev/null 2>&1 || die "railway CLI not found"
   railway whoami >/dev/null 2>&1 || die "not logged in to Railway — run: railway login"
   [[ -f "${API_SVC}/Dockerfile" ]] || die "${API_SVC}/Dockerfile not found — is <tool> right?"
-  [[ -f "${API_SVC}/railway.json" ]] || die "${API_SVC}/railway.json not found (the build/deploy settings are read from it)"
+  [[ -f .railway/railway.ts ]] || die ".railway/railway.ts not found (the Railway project is declared there, ADR-0088)"
+  [[ -d node_modules/railway ]] || die "the Railway IaC SDK is not installed — run: pnpm install (at the repo root)"
   [[ -f "$TEMPLATE" ]] || die "$TEMPLATE not found — add the service to tools/env-doctor first (it is the committed variable contract)"
   [[ -n "$PORT" ]] || PORT="$(grep -E '^PORT=' "$TEMPLATE" | head -1 | cut -d= -f2)"
   [[ "$PORT" =~ ^[0-9]+$ ]] || die "no port: pass --port <n> or add PORT= to $TEMPLATE"
@@ -186,67 +195,79 @@ if $DO_API; then
   elif pg "CREATE DATABASE ${DB_NAME};" >/dev/null && [[ "$(pg "SELECT 1 FROM pg_database WHERE datname='${DB_NAME}';")" == "1" ]]; then did "database '${DB_NAME}'"
   else bad "could not create database '${DB_NAME}' (railway connect Postgres → CREATE DATABASE ${DB_NAME};)"; fi
 
-  # 2. Bucket — the tool's OWN, never another tool's (CLAUDE.md § Data residency).
+  # 2. The declaration in .railway/railway.ts. Service, bucket and domain are
+  #    Railway IaC: this script reads the file, never writes it.
+  IAC=".railway/railway.ts"
+  block="$(awk -v s="service(\"${API_SVC}\"" 'index($0, s) { on = 1 } on { print } on && /^  \}\);/ { exit }' "$IAC")"
+  DECLARED=true
+  if [[ -z "$block" ]]; then
+    DECLARED=false
+    bad "${IAC} does not declare service(\"${API_SVC}\") — add this block (and its constant to project(...).resources), commit, re-run:"
+    cat <<SNIPPET
+  const ${TOOL}Api = service("${API_SVC}", {
+    // source: github("${GITHUB_REPO}", { branch: "main", checkSuites: false, rootDirectory: "/${API_SVC}" }),  ← add for --connect, once the secrets are set
+    build: { buildEnvironment: "V3", builder: "DOCKERFILE", dockerfilePath: "Dockerfile" },
+    start: "bun run src/index.ts",
+    healthcheck: "/health",
+    healthcheckTimeout: 30,
+    preDeploy: "bun run db:deploy",
+    replicas: { "${RAILWAY_REGION}": 1 },
+    deploy: { restartPolicyMaxRetries: 3 },
+    domains: [{ domain: "${API_HOST}", port: ${PORT} }],
+  });
+SNIPPET
+    $WITH_BUCKET && echo "  const ${TOOL} = bucket(\"${BUCKET_NAME}\", { region: \"${BUCKET_REGION}\" });"
+  else
+    have "${IAC} declares ${API_SVC}"
+    if grep -qF "domain: \"${API_HOST}\", port: ${PORT}" <<<"$block"; then have "  with domain ${API_HOST} → port ${PORT}"
+    else bad "  the ${API_SVC} block does not declare domains: [{ domain: \"${API_HOST}\", port: ${PORT} }]"; DECLARED=false; fi
+    if grep -qF "\"${RAILWAY_REGION}\": 1" <<<"$block"; then have "  with one replica in ${RAILWAY_REGION} (EU)"
+    else bad "  the ${API_SVC} block does not declare replicas: { \"${RAILWAY_REGION}\": 1 } — EU only (data residency)"; DECLARED=false; fi
+  fi
   if $WITH_BUCKET; then
-    if railway bucket list --json 2>/dev/null | jq -e --arg n "$BUCKET_NAME" 'any(.[]; .name==$n)' >/dev/null; then have "bucket '${BUCKET_NAME}'"
-    elif ! $APPLY; then need "bucket '${BUCKET_NAME}' (region ${BUCKET_REGION})"
-    elif railway bucket create "$BUCKET_NAME" --region "$BUCKET_REGION" --json >/dev/null 2>&1; then did "bucket '${BUCKET_NAME}' (${BUCKET_REGION})"
-    else bad "could not create bucket '${BUCKET_NAME}'"; fi
+    if grep -qF "bucket(\"${BUCKET_NAME}\", { region: \"${BUCKET_REGION}\" })" "$IAC"; then have "${IAC} declares bucket '${BUCKET_NAME}' (${BUCKET_REGION})"
+    else bad "${IAC} does not declare bucket(\"${BUCKET_NAME}\", { region: \"${BUCKET_REGION}\" }) — the tool's OWN bucket, never another tool's"; DECLARED=false; fi
     todo "Bucket '${BUCKET_NAME}': set a CORS rule for ${SHELL_ORIGIN} (POST, GET; expose ETag, Location) and test one browser upload — this script cannot set or read bucket CORS."
   fi
 
-  # 3. The service itself, created empty: no source, so nothing builds yet.
-  svc_json="$(railway service list --json 2>/dev/null | jq -c --arg n "$API_SVC" '.[] | select(.name==$n)' 2>/dev/null)"
-  if [[ -n "$svc_json" ]]; then have "service ${API_SVC}"; SVC_EXISTS=true
-  elif ! $APPLY; then need "service ${API_SVC} (empty, no source yet)"; SVC_EXISTS=false
-  elif railway add --service "$API_SVC" --json >/dev/null 2>&1; then did "service ${API_SVC}"; SVC_EXISTS=true
-  else bad "could not create service ${API_SVC}"; SVC_EXISTS=false; fi
+  # 3. The source starts the first build, so a declared source must wait for
+  #    --connect while the service has none yet.
+  svc_id="$(railway service list --json 2>/dev/null | jq -r --arg n "$API_SVC" '.[] | select(.name==$n) | .id' 2>/dev/null)"
+  live_src=""
+  [[ -n "$svc_id" ]] && live_src="$(railway environment config --json 2>/dev/null | jq -r --arg id "$svc_id" '.services[$id].source.repo // empty' 2>/dev/null)"
+  if [[ -n "$live_src" ]]; then have "source ${live_src}"
+  elif grep -q 'source: github(' <<<"$block"; then
+    if ! $CONNECT; then bad "the ${API_SVC} block declares a source but the service has none: applying it starts the first build — set the variables first, then re-run with --connect"; DECLARED=false
+    elif ! $ON_MAIN; then bad "not connecting the source: ${API_SVC} is not on origin/main"; DECLARED=false
+    else note "the apply connects ${GITHUB_REPO}@main — the first build starts"; fi
+  elif [[ -n "$block" ]]; then
+    note "no source declared yet — nothing builds"
+    todo "When the variables on ${API_SVC} are set: uncomment its source: github(...) in ${IAC}, commit, and re-run with --connect --apply (starts the first build)."
+  fi
+
+  # 4. Plan, and apply on --apply. What is applied must be what is in git.
+  if $DECLARED && { ! git ls-files --error-unmatch "$IAC" >/dev/null 2>&1 || ! git diff --quiet HEAD -- "$IAC"; }; then
+    bad "${IAC} has uncommitted changes — commit it first: what is applied must be what is in git"; DECLARED=false
+  fi
+  if $DECLARED; then
+    plan_out="$(railway config plan --detailed-exit-code 2>&1)"; plan_rc=$?
+    case $plan_rc in
+      0) have "Railway matches ${IAC}" ;;
+      2) printf '%s\n' "$plan_out" | sed 's/^/    /'
+         if ! $APPLY; then need "railway config apply (the plan above)"
+         # Interactive on purpose: the person confirms the plan. Never --confirm-destructive.
+         elif railway config apply; then
+           if railway config plan --detailed-exit-code >/dev/null 2>&1; then did "applied ${IAC}"
+           else bad "applied, but a new plan still reports changes — run: railway config plan"; fi
+         else bad "railway config apply failed or was declined"; fi ;;
+      *) printf '%s\n' "$plan_out" | sed 's/^/    /'; bad "railway config plan failed" ;;
+    esac
+  fi
+  svc_id="$(railway service list --json 2>/dev/null | jq -r --arg n "$API_SVC" '.[] | select(.name==$n) | .id' 2>/dev/null)"
+  if [[ -n "$svc_id" ]]; then SVC_EXISTS=true
+  else SVC_EXISTS=false; note "service ${API_SVC} does not exist yet: its variables, domain and DNS follow once the apply has created it"; fi
 
   if $SVC_EXISTS; then
-    # 4. Build/deploy settings, copied from the service's own railway.json.
-    #    Railway no longer lets a new service register a config-file path, so the
-    #    file's values are set on the service directly; the file stays the source.
-    cfg() { railway environment config --json 2>/dev/null | jq -c --arg id "$(railway service list --json 2>/dev/null | jq -r --arg n "$API_SVC" '.[] | select(.name==$n) | .id')" '.services[$id] | del(.variables)'; }
-    live="$(cfg)"
-    want_pairs="$(jq -r --arg root "/${API_SVC}" --arg region "$RAILWAY_REGION" '
-      [ ["source.rootDirectory", $root],
-        ["build.builder", (.build.builder // empty)],
-        ["build.dockerfilePath", (.build.dockerfilePath // empty)],
-        ["deploy.startCommand", (.deploy.startCommand // empty)],
-        ["deploy.healthcheckPath", (.deploy.healthcheckPath // empty)],
-        ["deploy.healthcheckTimeout", (.deploy.healthcheckTimeout // empty)],
-        ["deploy.restartPolicyMaxRetries", (.deploy.restartPolicyMaxRetries // empty)],
-        ["deploy.preDeployCommand", (.deploy.preDeployCommand // empty)],
-        ["deploy.multiRegionConfig.\($region).numReplicas", 1]
-      ] | .[] | select(.[1] != null) | "\(.[0])\t\(.[1])"' "${API_SVC}/railway.json")"
-    cfgfile="$(printf '%s' "$live" | jq -r '.configFile // empty')"
-    if [[ -n "$cfgfile" ]]; then
-      # Older services registered their railway.json before Railway stopped
-      # accepting that; the file drives them, so there is nothing to copy.
-      have "build and deploy settings come from the registered config file ${cfgfile}"
-    else
-      drift=0
-      while IFS=$'\t' read -r path want; do
-        [[ -n "$path" ]] || continue
-        got="$(printf '%s' "$live" | jq -r --arg p "$path" 'getpath($p | split(".")) | if type=="array" then join(" && ") else (. // "") end | tostring' 2>/dev/null)"
-        if [[ "$got" == "$want" ]]; then continue; fi
-        drift=$((drift+1))
-        if ! $APPLY; then need "setting ${path} = ${want}"; continue; fi
-        if railway environment edit -e "$RAILWAY_ENVIRONMENT" --service-config "$API_SVC" "$path" "$want" -m "provision ${API_SVC}: ${path}" --json >/dev/null 2>&1; then did "setting ${path}"
-        else bad "could not set ${path} = ${want} — set it in the dashboard"; fi
-      done <<< "$want_pairs"
-      [[ $drift -eq 0 ]] && have "build and deploy settings match ${API_SVC}/railway.json (root /${API_SVC}, region ${RAILWAY_REGION})"
-      if $APPLY && [[ $drift -gt 0 ]]; then
-        # Re-read: the CLI's handling of numbers and lists is not documented, so trust only what the service now reports.
-        live="$(cfg)"
-        while IFS=$'\t' read -r path want; do
-          [[ -n "$path" ]] || continue
-          got="$(printf '%s' "$live" | jq -r --arg p "$path" 'getpath($p | split(".")) | if type=="array" then join(" && ") else (. // "") end | tostring' 2>/dev/null)"
-          [[ "$got" == "$want" ]] || bad "after apply, ${path} is '${got}', expected '${want}' — fix it in the dashboard"
-        done <<< "$want_pairs"
-      fi
-    fi
-
     # 5. Variables: every KEY=VALUE of the committed env-doctor template (Railway
     #    reference syntax, no secret values) plus the bucket's credentials BY
     #    REFERENCE. A name that already exists is never overwritten.
@@ -283,11 +304,9 @@ if $DO_API; then
       todo "Set the remaining variables on ${API_SVC} in Railway (secrets by hand or by reference, never through this script):${unset_required}"
     fi
 
-    # 6. Custom domain, then 7. its DNS records IMMEDIATELY.
+    # 6. Custom domain (attached by the apply), then 7. its DNS records IMMEDIATELY.
     if railway domain list --service "$API_SVC" --json 2>/dev/null | jq -e --arg d "$API_HOST" 'any(.domains[]?; .domain==$d)' >/dev/null; then have "custom domain ${API_HOST}"; DOMAIN_OK=true
-    elif ! $APPLY; then need "custom domain ${API_HOST} → port ${PORT}"; DOMAIN_OK=false
-    elif railway domain "$API_HOST" --service "$API_SVC" --port "$PORT" --json >/dev/null 2>&1; then did "custom domain ${API_HOST} → port ${PORT}"; DOMAIN_OK=true
-    else bad "could not attach ${API_HOST}"; DOMAIN_OK=false; fi
+    else need "custom domain ${API_HOST} → port ${PORT} (declared in ${IAC}, attached by the apply)"; DOMAIN_OK=false; fi
     if $DOMAIN_OK; then
       st="$(railway domain status "$API_HOST" --service "$API_SVC" --json 2>/dev/null)"
       cname="$(printf '%s' "$st" | jq -r '.domain.dnsRecords[]? | select(.recordType|test("CNAME")) | .requiredValue' | head -1)"
@@ -301,16 +320,6 @@ if $DO_API; then
       $APPLY || need "DNS CNAME + TXT for ${API_HOST} (values come from Railway once the domain is attached)"
     fi
 
-    # 8. Source. Connecting the repo starts the first build, so it is opt-in.
-    src="$(printf '%s' "$live" | jq -r '.source.repo // empty')"
-    if [[ -n "$src" ]]; then have "source ${src}"
-    elif ! $CONNECT; then
-      note "source not connected — re-run with --connect once the variables above are set (it starts the first build)"
-      todo "Connect ${API_SVC} to ${GITHUB_REPO}: re-run this script with --connect --apply."
-    elif ! $ON_MAIN; then bad "not connecting the source: ${API_SVC} is not on origin/main"
-    elif ! $APPLY; then need "source ${GITHUB_REPO}@main (starts the first build)"
-    elif railway service source connect --repo "$GITHUB_REPO" --branch main --service "$API_SVC" --json >/dev/null 2>&1; then did "source ${GITHUB_REPO}@main — first build started"
-    else bad "could not connect ${GITHUB_REPO} to ${API_SVC}"; fi
   fi
 fi
 

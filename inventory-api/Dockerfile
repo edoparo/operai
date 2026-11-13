@@ -42,7 +42,7 @@ USER bun
 EXPOSE 8083
 
 # DATA-RESIDENCY (specs/015-hardware-inventory): this image is deployed to
-# Railway EU region only (europe-west4, see railway.json) — inventory-api
+# Railway EU region only (europe-west4, see .railway/railway.ts) — inventory-api
 # handles financial figures and personal data (who holds which device).
 # Request/response bodies are NEVER logged — only method+path+status
 # (src/lib/logger.ts). Do NOT add any logger that includes body, query

@@ -155,7 +155,7 @@ VITE_AUTH_URL=http://localhost:3001 VITE_API_URL=http://localhost:8080 pnpm dev
 | # | Step | Expected | Result | Date | Tester |
 |---|------|----------|--------|------|--------|
 | J1 | Watch the estimai-api terminal while saving/importing estimates | Log lines show **only** method/path/status (e.g. `--> PUT /estimates/{id} 200`). **No** estimate `content`/body/PII in the logs (data-residency rule) | | | |
-| J2 | Inspect `estimai-api/railway.json` | The deploy region is an **EU** region (`europe-west4`) | | | |
+| J2 | Inspect the `estimai-api` block of `.railway/railway.ts` | Its replicas are in an **EU** region (`europe-west4-drams3a`) | | | |
 | J3 | (Deploy, when applicable) Confirm estimai-api + its Postgres are deployed to an EU region | Both in EU; no estimate data in provider logs beyond standard access logs | | | |
 
 ---

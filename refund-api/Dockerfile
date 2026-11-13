@@ -42,7 +42,7 @@ USER bun
 EXPOSE 8082
 
 # DATA-RESIDENCY (T19, specs/007-refund-service): this image is deployed to
-# Railway EU region only (europe-west4, see railway.json) — refund-api handles
+# Railway EU region only (europe-west4, see .railway/railway.ts) — refund-api handles
 # financial figures and receipt-attachment metadata that may carry PII (names,
 # addresses, partial card numbers per docs/adr/0016). Request/response bodies
 # are NEVER logged — hono/logger emits method+path+status only (src/index.ts /

@@ -46,7 +46,7 @@ USER bun
 EXPOSE 8084
 
 # DATA-RESIDENCY (specs/017-crm): this image is deployed to Railway EU region
-# only (europe-west4, see railway.json) — crm-api holds deal values and the
+# only (europe-west4, see .railway/railway.ts) — crm-api holds deal values and the
 # personal data of clients' contacts (third parties, GDPR). Request/response
 # bodies are NEVER logged — only method+path+status (src/lib/logger.ts). Do NOT
 # add any logger that includes body, query parameters with content (search

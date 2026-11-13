@@ -86,8 +86,8 @@ Vercel (6 projects, one origin each)          Railway project (europe-west4)
   specs/007). One Postgres instance, four logical databases (`auth`,
   `estimai`, `notify`, `refund`); service↔DB traffic stays on Railway private
   networking (`*.railway.internal`).
-  **`notify-api` is pinned to a single replica** (`railway.json`
-  `numReplicas: 1`) — its in-process EventBus fan-out and stream-ticket store
+  **`notify-api` is pinned to a single replica** (`.railway/railway.ts`,
+  `replicas: { "europe-west4-drams3a": 1 }`) — its in-process EventBus fan-out and stream-ticket store
   are correct for exactly one running instance (plan.md Risk R2). Do not
   enable autoscale/multiple replicas for this service without first moving
   both seams onto Postgres `LISTEN`/`NOTIFY` + a shared ticket table.
@@ -107,8 +107,8 @@ Vercel (6 projects, one origin each)          Railway project (europe-west4)
   ever revisited: swap the `Map` for a shared store (Redis/Postgres) behind
   the limiter's existing one-interface design (plan.md R7 "Early check") —
   do not enable autoscale/multiple replicas for `auth` or `estimai-api`
-  without doing that first. See § Variable reference's per-service
-  `railway.json` notes below for the actual pins.
+  without doing that first. The pins live in `.railway/railway.ts`
+  (§ Railway configuration as code below).
 - **`notify-api` and `estimai-api` are cross-valid JWKS resource servers**
   (ADR-0010) — both verify the same `auth`-issued tokens, so both (plus
   `auth`, which stamps the claim) require an identical **`AUTH_AUDIENCE`**
@@ -259,6 +259,42 @@ are discovered during deploy — which is why the frontends' vars come after.
 
 ---
 
+## Railway configuration as code (ADR-0088)
+
+The Railway project — every backend service, the shared Postgres and its volume, the
+buckets, custom domains, build and deploy settings, replicas and region — is declared in
+**`.railway/railway.ts`** (Railway IaC, TypeScript SDK `railway`, pinned in the root
+`package.json`). It replaces the per-service `railway.json` files (Config as Code,
+deprecated, no longer read after 2026-12-01), migrated on 2026-11-13 and removed.
+
+```bash
+pnpm install                      # once, at the repo root: the SDK the CLI evaluates the file with
+railway link -p 3bafd4c0-226f-4621-821b-a063976498a2 -e production
+railway config plan               # read-only: what would change
+railway config apply              # re-plans, shows the diff, asks for confirmation
+```
+
+Rules:
+
+- **Change the file, not the dashboard.** A dashboard edit is drift: the next plan
+  shows it and the next apply undoes it. `railway config plan --detailed-exit-code`
+  exits `2` when Railway and the file differ (the scheduled `railway-drift` workflow
+  runs it).
+- **Plan before apply, commit before apply.** What is applied must be what is in git.
+- **Never `--confirm-destructive` without reading the plan.** In a single-file setup a
+  resource missing from the file is DELETED by the apply — the Postgres, its volume and
+  the buckets included. A destructive plan is a stop, never a flag to add.
+- **Region stays `europe-west4-drams3a`** (services, Postgres, volume) and **`ams`**
+  (buckets) — data residency. A bucket's region cannot change after creation.
+- **Variables are not managed** (`variables: { managed: false }`): the file holds no
+  value and no secret; variables stay in Railway (dashboard, `deploy.sh`,
+  `provision-tool.sh`). Making them managed would put every name under the file and a
+  removed name would be deleted — a separate decision.
+- **Single-replica services stay at 1**: `notify-api`, `meetings-api`, `auth`,
+  `estimai-api` (see § Topology). Every other service is also declared at 1 today.
+- The migration's undo snapshot (`.railway/.cac-migration.json`) is local only and
+  ignored by git; after 2026-12-01 there is nothing to undo to.
+
 ## Phase 1 — Railway backends
 
 The automatable parts are in **`./infra/deploy.sh`**; the manual dashboard bits
@@ -274,7 +310,7 @@ are called out. What the script does, step by step:
    DB (`refund-api`'s first migration, `0001_init`, lands with specs/007's T5
    — until then `preDeployCommand` is a safe no-op against an empty
    migrations directory).
-3. **Deploy `auth`** (root dir `auth`, reads `auth/railway.json`): set its vars
+3. **Deploy `auth`** (root dir `auth`, settings in `.railway/railway.ts`): set its vars
    (DATABASE_URL via `${{Postgres.*}}` references, `BETTER_AUTH_SECRET`,
    `GOOGLE_*`/`GITHUB_*`, `JWT_*`, `ALLOWED_ORIGINS=<shell origin>`, `UI_HOME_URL`,
    `AUTH_AUDIENCE` (ADR-0010 — one suite-wide value; see below),
@@ -284,8 +320,8 @@ are called out. What the script does, step by step:
    **optional, code defaults apply if unset (specs/013-estimate-sharing,
    T1/T2/T27)** — `APP_ACCESS_CHECK_FLOOR_MS`/`APP_ACCESS_CHECK_RATE_LIMIT`/
    `APP_ACCESS_CHECK_RATE_WINDOW_MS` and `IDENTITIES_RATE_LIMIT`/
-   `IDENTITIES_RATE_WINDOW_MS`), then deploy. Pin **`numReplicas: 1`**
-   (`auth/railway.json` — plan.md Risk R7, see § Topology above; the
+   `IDENTITIES_RATE_WINDOW_MS`), then deploy. Pin **one replica**
+   (`.railway/railway.ts` — plan.md Risk R7, see § Topology above; the
    in-process `APP_ACCESS_CHECK`/`IDENTITIES` rate limiters are per-instance
    state). **Generate its domain** (dashboard → Settings → Networking, or a
    custom `auth.operai.welld.io`) → this is **`<AUTH_URL>`**.
@@ -299,12 +335,12 @@ are called out. What the script does, step by step:
    `SERVICE_CLIENT_ID`/`SERVICE_CLIENT_SECRET` (specs/016 — see § "Service
    clients" below), and `SHARE_LOOKUP_FLOOR_MS`/
    `SHARE_ADD_RATE_LIMIT`/`SHARE_ADD_RATE_WINDOW_MS` (optional — code
-   defaults `300`/`20`/`600000` apply if unset). Pin **`numReplicas: 1`**
-   (`estimai-api/railway.json` — plan.md Risk R7, see § Topology above; the
+   defaults `300`/`20`/`600000` apply if unset). Pin **one replica**
+   (`.railway/railway.ts` — plan.md Risk R7, see § Topology above; the
    in-process share-add rate limiter and identity cache are per-instance
    state). **Generate its domain** → **`<API_URL>`**.
-5. **Deploy `notify-api`** (root dir `notify-api`, reads `notify-api/railway.json`
-   — note it pins **`numReplicas: 1`**, do not change this without first reading
+5. **Deploy `notify-api`** (root dir `notify-api`, settings in `.railway/railway.ts`
+   — note it pins **one replica**, do not change this without first reading
    plan.md Risk R2): set `DATABASE_URL` (dbname `notify`, **not** `estimai`),
    `ALLOWED_ORIGINS=<shell origin>`, `AUTH_ISSUER=<AUTH_URL>`,
    `AUTH_JWKS_URL=<AUTH_URL>/auth/jwks`, `AUTH_AUDIENCE` (same value as the other
@@ -321,14 +357,15 @@ are called out. What the script does, step by step:
    > That means Railway ignored the service's Dockerfile and fell back to
    > **Nixpacks**, which scans the monorepo and tries to corepack-install pnpm.
    > Root cause: the service's **Root Directory is not set to the app dir**, so
-   > Railway builds from the repo root (which has no `railway.json`/`package.json`).
+   > Railway builds from the repo root (which has no Dockerfile/`package.json`).
    > **Fix:** service → **Settings → Root Directory = `<app>`** (`notify-api`,
-   > `auth`, `estimai-api`, `refund-api`, …), then redeploy — Railway then reads
-   > `<app>/railway.json` (`builder: DOCKERFILE`) and does the correct Bun build.
+   > `auth`, `estimai-api`, `refund-api`, …), then redeploy — Railway then uses
+   > `<app>/Dockerfile` (`builder: "DOCKERFILE"` in `.railway/railway.ts`) and does the correct Bun build.
+   > With IaC the root directory is the block's `source: github(..., { rootDirectory: "/<app>" })`.
    > This applies to BOTH GitHub-connected deploys and `deploy.sh`'s
    > `railway up --service <svc>` (which uploads the repo root as context; the
    > Root Directory setting is what scopes the build down to the app).
-6. **Deploy `refund-api`** (root dir `refund-api`, reads `refund-api/railway.json`
+6. **Deploy `refund-api`** (root dir `refund-api`, settings in `.railway/railway.ts`
    — T19, specs/007-refund-service): set `DATABASE_URL` (dbname `refund`,
    **not** `estimai`/`notify`), `ALLOWED_ORIGINS=<shell origin>`,
    `AUTH_ISSUER=<AUTH_URL>`, `AUTH_JWKS_URL=<AUTH_URL>/auth/jwks`,
@@ -457,9 +494,9 @@ EU bucket + credentials exist.
 /test-auth/session` mint endpoint), `BETTER_AUTH_TRUSTED_ORIGINS` (bypasses the
 validated `ALLOWED_ORIGINS` allowlist), or `PORT` (Railway injects it).
 
-**Migrations + seed run automatically** — each `railway.json` `preDeployCommand`
-is `bun run db:deploy && bun run db:seed` (for `auth`; `estimai-api`,
-`notify-api`, and `refund-api` run `db:deploy` only). `migrate deploy` is
+**Migrations + seed run automatically** — each service's `preDeploy` in
+`.railway/railway.ts` runs before the new deployment starts: `bun run db:release`
+for `auth` (migrations + the authz seed), `bun run db:deploy` for every other backend. `migrate deploy` is
 non-interactive and only applies pending migrations; the authz seed (idempotent)
 creates the system roles + app-access catalog and, on first sign-in of
 `BOOTSTRAP_ADMIN_EMAIL`, the first admin. Never edit an existing migration file.
@@ -889,7 +926,7 @@ follows bucket ①).
 | `ENABLE_TEST_AUTH` / `BETTER_AUTH_TRUSTED_ORIGINS` | **leave UNSET** (see Phase 1) | — |
 
 **`auth` deploy constraint — NEW (specs/013-estimate-sharing, T13, plan.md
-Risk R7):** `railway.json` now pins **`numReplicas: 1`** — the
+Risk R7):** `.railway/railway.ts` pins **one replica** — the
 `APP_ACCESS_CHECK_*`/`IDENTITIES_RATE_*` limiters above are in-process
 `Map`-based sliding windows, correct for exactly one running instance (same
 shape as `notify-api`'s existing SSE constraint, § Topology above). Do not
@@ -915,7 +952,7 @@ that swap doesn't require a rewrite).
 | `NODE_ENV` | `production` · `MAX_ESTIMATE_BYTES`/`MAX_IMPORT_REQUEST_BYTES` optional (defaults) |
 
 **`estimai-api` deploy constraint — NEW (specs/013-estimate-sharing, T13,
-plan.md Risk R7):** `railway.json` now pins **`numReplicas: 1`** — the
+plan.md Risk R7):** `.railway/railway.ts` pins **one replica** — the
 `SHARE_ADD_*` rate limiter AND the 60s in-process identity cache
 (`src/lib/authClient.ts`) are both per-process state, correct for exactly one
 running instance (same shape as `notify-api`'s existing SSE constraint, §
@@ -941,7 +978,7 @@ without first moving both behind a shared store.
 | `NODE_ENV` | `production` | no |
 
 **`notify-api` deploy constraints (do not relax without reading plan.md Risk
-R2):** `railway.json` pins **`numReplicas: 1`** — the in-process EventBus
+R2):** `.railway/railway.ts` pins **one replica** — the in-process EventBus
 fan-out and the in-process stream-ticket store are correct for exactly one
 running instance; a second replica silently splits both. Region **must** be
 `europe-west4` (data residency — notification title/body may name
@@ -1106,7 +1143,7 @@ any miss). Committed contract: `tools/env-doctor/templates/production/inventory-
 
 | Variable | Value | Secret |
 |---|---|---|
-| `DATABASE_URL` | `postgresql://${{Postgres.PGUSER}}:${{Postgres.PGPASSWORD}}@${{Postgres.RAILWAY_PRIVATE_DOMAIN}}:5432/inventory` — **its own logical DB, `inventory`** (create it before the first deploy; `railway.json`'s `preDeployCommand` runs `bun run db:deploy`) | yes |
+| `DATABASE_URL` | `postgresql://${{Postgres.PGUSER}}:${{Postgres.PGPASSWORD}}@${{Postgres.RAILWAY_PRIVATE_DOMAIN}}:5432/inventory` — **its own logical DB, `inventory`** (create it before the first deploy; its `preDeploy` in `.railway/railway.ts` runs `bun run db:deploy`) | yes |
 | `ALLOWED_ORIGINS` | `https://operai.welld.io` (shell origin only; a `*` fails startup). inventory-ui is a federated remote, so the browser Origin is always the shell's. | no |
 | `AUTH_JWKS_URL` | **internal** (bucket ①): `http://${{auth.RAILWAY_PRIVATE_DOMAIN}}:${{auth.PORT}}/auth/jwks` | no |
 | `AUTH_ISSUER` | `<AUTH_URL>` — **public** claim, bucket ② (`${{shared.AUTH_ISSUER}}`) | no |
@@ -1123,7 +1160,7 @@ any miss). Committed contract: `tools/env-doctor/templates/production/inventory-
 
 **Deploy notes.** No `numReplicas` pin: authorization results are cached per replica
 with a short TTL backstop and the service-token cache is per-process; neither is a
-correctness-dependent shared store. `railway.json` pins region `europe-west4`. The
+correctness-dependent shared store. `.railway/railway.ts` pins region `europe-west4-drams3a`. The
 service handles financial figures and personal data (who holds which device), so it
 must never log request/response bodies (method + path + status only,
 `inventory-api/src/lib/logger.ts`).
@@ -1515,12 +1552,20 @@ Cloudflare DNS records, the Vercel project with its first deployment, and the sh
 two build-time variables. It sets no secret and reads none.
 
 ```bash
-./infra/provision-tool.sh <tool> [--bucket]                  # plan: read-only audit
-./infra/provision-tool.sh <tool> [--bucket] --apply          # create what needs no secret
+./infra/provision-tool.sh <tool> [--bucket]                  # plan: read-only audit; prints the block to add
+# add the printed service block (and bucket) to .railway/railway.ts WITHOUT a source, commit
+./infra/provision-tool.sh <tool> [--bucket] --apply          # database, `railway config apply`, variables, DNS
 # set the remaining secrets on <tool>-api in Railway (the script lists their names)
+# uncomment the block's source: github(...), commit
 ./infra/provision-tool.sh <tool> [--bucket] --connect --redeploy-shell --apply
 ./infra/check.sh
 ```
+
+The Railway service, its bucket and its domain are declared in `.railway/railway.ts`
+(§ Railway configuration as code); the script checks the declaration, refuses to
+apply an uncommitted file, and applies it with `railway config apply`, which asks for
+confirmation. A block that declares a source while the service has none is refused
+without `--connect`, because connecting the repo starts the first build.
 
 Without `--apply` nothing is changed. It is safe to re-run: it fills gaps only, never
 overwrites a variable and never deletes. Needs the `railway`, `vercel` and `cf`
@@ -1532,8 +1577,10 @@ lookup made before the DNS record exists is cached as "no such host" for 30 minu
 The order of operations, the human decisions and the reasons behind them are in
 `.claude/skills/provision-tool/SKILL.md`.
 
-Status: the plan mode is verified against `inventory` and `refund` (both report
-nothing missing). The `--apply` path has not yet been run end to end on a new tool;
+Status: the plan mode is verified against `activities` and `meetings` (both report
+nothing missing, 2026-11-13). The `--apply` path with IaC has not yet been run on a new
+tool — in particular that `railway config apply` creates a service declared without a
+source and leaves it unbuilt is Railway's documented behaviour, not yet observed here;
 treat its first use as a supervised run.
 
 ### Frontend build-time vars (Vercel) — `VITE_*` are client-side; `*_REMOTE_URL` are Vite-config-side
@@ -1933,8 +1980,8 @@ timeline and tasks still load (they no longer depend on those tables).
   now also covers `refund-api`'s EU object-storage bucket once provisioned
   (ADR-0016).
 - **`notify-api` single-replica constraint (specs/005 Risk R2):** never scale
-  `notify-api` past `numReplicas: 1` (Railway dashboard autoscale or a
-  `railway.json` edit) without first moving its EventBus fan-out and
+  `notify-api` past one replica (Railway dashboard autoscale or a
+  `.railway/railway.ts` edit) without first moving its EventBus fan-out and
   stream-ticket store onto Postgres `LISTEN`/`NOTIFY` + a shared ticket table
   — both are designed behind an interface for that migration, but the current
   in-process implementation silently breaks (missed events, ticket
