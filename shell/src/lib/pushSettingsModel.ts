@@ -38,8 +38,8 @@ export const isLoading = (load: PushLoad): boolean => load.s === 'loading'
 export const isLoaded = (load: PushLoad): load is LoadedPush => load.s === 'loaded'
 
 /**
- * Config, then reconcile, then the device list. Reconcile goes first: it may re-register a pruned
- * row or release a stale subscription, which the list must then reflect. A failed config request
+ * Config, then reconcile, then the device list. Reconcile goes first: it may release a stale
+ * subscription (a device removed elsewhere, a lost permission), which the list must then reflect. A failed config request
  * is `failed`, NOT disabled (AC-1.8); an `unverified` reconcile reads like a failed load.
  * `onConfigured` fires once push is known to be enabled, so the section can show its loading state.
  */
