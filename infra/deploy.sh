@@ -350,7 +350,7 @@ warn "refund-api's REFUND_S3_* vars were NOT set (no bucket provisioned yet) —
 # attempted earlier is a silent 401 — it is best-effort and never rolls back a
 # mutation). The deploys above are triggered with --detach and NOT awaited:
 # confirm auth and notify-api booted (`railway status`) — auth's
-# preDeployCommand seeds the `inventory` catalog inventory-api authorizes against.
+# preDeploy (.railway/railway.ts) seeds the `inventory` catalog inventory-api authorizes against.
 #
 # Own logical DB ('inventory'); the FOURTH JWKS resource server on the shared
 # AUTH_AUDIENCE (ADR-0010). Per infra/README.md § Private networking, a CALL to

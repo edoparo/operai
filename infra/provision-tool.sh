@@ -171,7 +171,7 @@ if $DO_API; then
   section "Railway — ${API_SVC}"
   railway link -p "$RAILWAY_PROJECT_ID" -e "$RAILWAY_ENVIRONMENT" >/dev/null 2>&1 || die "could not link Railway project ${RAILWAY_PROJECT_ID}"
 
-  # 1. Logical database on the shared Postgres. The service's preDeployCommand
+  # 1. Logical database on the shared Postgres. The service's preDeploy
   #    runs its migrations, so the database must exist before the first deploy.
   #    The URL stays inside the child process; nothing is printed but the answer.
   pg() { # pg <sql> — prints the result, or returns 9 when no psql client is available

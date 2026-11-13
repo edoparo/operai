@@ -26,20 +26,20 @@ Vercel (6 projects, one origin each)          Railway project (europe-west4)
 ┌───────────────────────────────┐             ┌───────────────────────────────┐
 │ shell   https://operai.welld.io│──┐ loads    │ auth        (Bun+Hono)        │
 │         (host, entry point)    │  │ remote-  │  https://auth.operai.welld.io │
-├───────────────────────────────┤  │ Entry.js │  numReplicas: 1 (R7, specs/013│
+├───────────────────────────────┤  │ Entry.js │  1 replica (R7, specs/013     │
 │ estimai-ui  estimai.operai…    │◄─┤ at run-  │  — see below), app-access-    │
 │ refund-ui   refund.operai…     │◄─┤ time, in │  check limiter is in-process  │
 │ admin-ui    admin.operai…      │◄─┤ browser  ├───────────────────────────────┤
 │ notify-ui   notify.operai…     │◄─┘          │ estimai-api (Bun+Hono)        │
 └───────────────────────────────┘              │  https://estimai-api.operai… │
-   shell owns session; remotes                 │  numReplicas: 1 (R7, specs/013│
+   shell owns session; remotes                 │  1 replica (R7, specs/013     │
    delegate to shell/session                   │  — see below), share-add     │
                                                 │  limiter + identity cache are │
                                                 │  in-process, single-instance  │
                                                 ├───────────────────────────────┤
                                                 │ notify-api  (Bun+Hono)        │
                                                 │  https://notify-api.operai…  │
-                                                │  numReplicas: 1 (R2 — see    │
+                                                │  1 replica (R2 — see         │
                                                 │  below), SSE + ticket store  │
                                                 │  are single-instance only    │
                                                 ├───────────────────────────────┤
@@ -297,19 +297,21 @@ Rules:
 
 ## Phase 1 — Railway backends
 
-The automatable parts are in **`./infra/deploy.sh`**; the manual dashboard bits
-are called out. What the script does, step by step:
+The shape of every service — build, start, healthcheck, pre-deploy, replicas, region,
+custom domain, root directory — is **`.railway/railway.ts`** (§ above), applied with
+`railway config apply`; the steps below that say "pin", "root dir" or "domain" are
+already declared there. What is left to this phase is what IaC does not manage: the
+logical databases and the **variables**. The automatable parts of that are in
+**`./infra/deploy.sh`**; the manual bits are called out. Step by step:
 
 1. **Link** the project: `railway link "$RAILWAY_PROJECT_ID"` (env `production`).
-2. **Postgres** (manual first time): dashboard → New → Database → PostgreSQL;
-   confirm its **region is `europe-west4`** before adding data. Then create the
+2. **Postgres**: declared in `.railway/railway.ts` (`postgres("Postgres", { region:
+   "europe-west4-drams3a" })` plus its volume) — never removed from the file, an
+   apply would delete it. Then create the
    four logical DBs (the script attempts this; or `railway connect Postgres` →
    `CREATE DATABASE auth;` `CREATE DATABASE estimai;` `CREATE DATABASE notify;`
    `CREATE DATABASE refund;`). They must exist before the first deploy — each
-   service's `preDeployCommand` runs `prisma migrate deploy` against its own
-   DB (`refund-api`'s first migration, `0001_init`, lands with specs/007's T5
-   — until then `preDeployCommand` is a safe no-op against an empty
-   migrations directory).
+   service's `preDeploy` runs `prisma migrate deploy` against its own DB.
 3. **Deploy `auth`** (root dir `auth`, settings in `.railway/railway.ts`): set its vars
    (DATABASE_URL via `${{Postgres.*}}` references, `BETTER_AUTH_SECRET`,
    `GOOGLE_*`/`GITHUB_*`, `JWT_*`, `ALLOWED_ORIGINS=<shell origin>`, `UI_HOME_URL`,
@@ -323,8 +325,8 @@ are called out. What the script does, step by step:
    `IDENTITIES_RATE_WINDOW_MS`), then deploy. Pin **one replica**
    (`.railway/railway.ts` — plan.md Risk R7, see § Topology above; the
    in-process `APP_ACCESS_CHECK`/`IDENTITIES` rate limiters are per-instance
-   state). **Generate its domain** (dashboard → Settings → Networking, or a
-   custom `auth.operai.welld.io`) → this is **`<AUTH_URL>`**.
+   state). Its custom domain `auth.operai.welld.io` is declared in
+   `.railway/railway.ts` → this is **`<AUTH_URL>`**.
 4. **Deploy `estimai-api`** (root dir `estimai-api`): set `DATABASE_URL` (dbname
    `estimai`), `ALLOWED_ORIGINS`, `AUTH_ISSUER=<AUTH_URL>`,
    `AUTH_JWKS_URL=<AUTH_URL>/auth/jwks`, `AUTH_AUDIENCE` (byte-for-byte identical
@@ -358,13 +360,13 @@ are called out. What the script does, step by step:
    > **Nixpacks**, which scans the monorepo and tries to corepack-install pnpm.
    > Root cause: the service's **Root Directory is not set to the app dir**, so
    > Railway builds from the repo root (which has no Dockerfile/`package.json`).
-   > **Fix:** service → **Settings → Root Directory = `<app>`** (`notify-api`,
-   > `auth`, `estimai-api`, `refund-api`, …), then redeploy — Railway then uses
-   > `<app>/Dockerfile` (`builder: "DOCKERFILE"` in `.railway/railway.ts`) and does the correct Bun build.
-   > With IaC the root directory is the block's `source: github(..., { rootDirectory: "/<app>" })`.
-   > This applies to BOTH GitHub-connected deploys and `deploy.sh`'s
-   > `railway up --service <svc>` (which uploads the repo root as context; the
-   > Root Directory setting is what scopes the build down to the app).
+   > **Fix:** the service's block in `.railway/railway.ts` must declare
+   > `source: github(..., { rootDirectory: "/<app>" })` and `builder: "DOCKERFILE"`;
+   > `railway config plan` shows the difference, `railway config apply` restores it
+   > (a dashboard fix would be undone by the next apply). This applies to BOTH
+   > GitHub-connected deploys and `deploy.sh`'s `railway up --service <svc>` (which
+   > uploads the repo root as context; the root directory is what scopes the build
+   > down to the app).
 6. **Deploy `refund-api`** (root dir `refund-api`, settings in `.railway/railway.ts`
    — T19, specs/007-refund-service): set `DATABASE_URL` (dbname `refund`,
    **not** `estimai`/`notify`), `ALLOWED_ORIGINS=<shell origin>`,
@@ -398,8 +400,8 @@ are called out. What the script does, step by step:
    address, as the reference
    `http://operai.railway.internal:8080` —
    do NOT hand-type `notify-api.railway.internal`, which does not resolve
-   (dashboard → notify-api service → Settings → Networking → Private
-   Networking shows the real hostname: `operai.railway.internal`; see the ⚠
+   (the label is declared in `.railway/railway.ts`, notify-api's
+   `networking: { privateNetworkEndpoint: "operai" }` → `operai.railway.internal`; see the ⚠
    box in § Cross-service wiring) — **not** `<NOTIFY_API_URL>`, the public domain from step 5
    (plan.md Risk R2 / ADR-0011: this service-to-service call must stay off
    the public internet). Every caller authenticates with its own credential — set up
@@ -1011,10 +1013,11 @@ accounting-distribution-email is now an admin-managed, append-only
 (`settings:read`/`settings:manage`). See the cutover runbook immediately
 below for moving the currently-deployed value across.
 
-**`refund-api` deploy notes:** no `numReplicas` pin (unlike `notify-api`) —
-its `authzMiddleware` in-process cache (T6, ADR-0014) is a per-replica
-performance optimization with a 30s TTL backstop, not a correctness-dependent
-shared store, so normal Railway autoscale is fine. Region **must** be
+**`refund-api` deploy notes:** declared at one replica in `.railway/railway.ts`
+like every service, but with no correctness reason to stay there (unlike
+`notify-api`) — its `authzMiddleware` in-process cache (T6, ADR-0014) is a
+per-replica performance optimization with a 30s TTL backstop, not a
+correctness-dependent shared store, so raising its replicas in the file is fine. Region **must** be
 `europe-west4` (data residency — financial figures + receipt-attachment
 metadata that may carry PII, ADR-0016) and the service must never log
 request/response bodies (same `hono/logger` posture as every other backend,
@@ -1158,9 +1161,9 @@ any miss). Committed contract: `tools/env-doctor/templates/production/inventory-
 | `PORT` | `8083` — set explicitly so `${{inventory-api.PORT}}` resolves, and make the public domain target this port | no |
 | `NODE_ENV` | `production` | no |
 
-**Deploy notes.** No `numReplicas` pin: authorization results are cached per replica
-with a short TTL backstop and the service-token cache is per-process; neither is a
-correctness-dependent shared store. `.railway/railway.ts` pins region `europe-west4-drams3a`. The
+**Deploy notes.** Declared at one replica, with no correctness reason to stay there:
+authorization results are cached per replica with a short TTL backstop and the
+service-token cache is per-process; neither is a correctness-dependent shared store. `.railway/railway.ts` pins region `europe-west4-drams3a`. The
 service handles financial figures and personal data (who holds which device), so it
 must never log request/response bodies (method + path + status only,
 `inventory-api/src/lib/logger.ts`).
@@ -1205,7 +1208,7 @@ endpoint and the gated-route 401 once DNS exists (its default hostnames are assu
    and `INVENTORY_SERVICE_CLIENT_SECRET`. Never paste either into the repo or a PR.
 3. Set on **`auth`**: `SERVICE_AUDIENCE`, `SERVICE_CLIENTS` (JSON above). Set on
    **`notify-api`**: `SERVICE_AUDIENCE`. Redeploy both and confirm they boot.
-   `auth`'s `preDeployCommand` (`db:release`) seeds the `inventory` catalog and the
+   `auth`'s `preDeploy` (`db:release`) seeds the `inventory` catalog and the
    `inventory-manager` / `accounting` / `admin` grants.
 4. Railway: create the `inventory` database, the `inventory-api` service (root
    `inventory-api`, Dockerfile build, region `europe-west4`), its variables (table
@@ -1263,7 +1266,7 @@ bun scripts/import-legacy.ts --file <register.xlsx> [--user-map <users.json>] \
 Authoritative list: `meetings-api/src/lib/env.ts` (validated at startup, exits 1 on any miss).
 Committed contract: `tools/env-doctor/templates/production/meetings-api.env`. Port **8085**, DB
 `meetings`, domain `meetings-api.operai.welld.io`; the remote is `meetings-ui`
-(`meetings.operai.welld.io`, local port 5180). **Pin `numReplicas: 1`** — the job runner
+(`meetings.operai.welld.io`, local port 5180). **One replica** (declared in `.railway/railway.ts`) — the job runner
 (`MEETINGS_WORKER=on`) runs inside the process (ADR-0062).
 
 Everything below is a **checklist for a person**: nothing in this section has been provisioned yet.
@@ -1867,7 +1870,7 @@ Deploy, in this order, each live before the next:
    footer label). It is additive and harmless with no caller, and it must be live before Step 4,
    the first moment `activities-api` writes and so pushes. Without it every push is refused and the
    refusal is invisible (best effort, the write stands).
-3. `activities-api` with `ACTIVITIES_MAINTENANCE=true` (its `preDeployCommand` applies the
+3. `activities-api` with `ACTIVITIES_MAINTENANCE=true` (its `preDeploy` applies the
    migration), and `projects-api` with its host endpoint.
 
 Verify (the service is up and refusing):

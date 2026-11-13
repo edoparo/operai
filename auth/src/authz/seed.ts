@@ -911,7 +911,7 @@ export async function assignBaselineRolesToNewUser(
 
 // ─── Standalone entrypoint (`bun run db:seed`) ───────────────────────────────
 // Lets the deploy-time seed run as its own process (e.g. a Railway
-// preDeployCommand step, alongside the existing `bun run db:deploy`), in
+// preDeploy step (.railway/railway.ts), alongside the existing `bun run db:deploy`), in
 // addition to being imported directly by tests.
 if (import.meta.main) {
   seed()
