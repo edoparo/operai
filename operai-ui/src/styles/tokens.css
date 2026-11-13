@@ -1872,4 +1872,125 @@ select:not([multiple]):not([size]) {
     font-size: 12px;
     color: var(--soft);
   }
+
+  /* Upload progress, in the toolbar's free space: words, announced politely. */
+  .rich-text-status {
+    margin-left: auto;
+    align-self: center;
+    padding-inline: 6px;
+    font-size: 12px;
+    color: var(--soft);
+  }
+
+  /* An image in the text (editor and view): never wider than the column, never taller than a screenful. */
+  .rich-text-image-block {
+    margin-block: 0.5em;
+  }
+
+  .rich-text-image {
+    display: block;
+    max-width: 100%;
+    max-height: 32rem;
+    border: 1px solid var(--rule);
+    border-radius: 6px;
+  }
+
+  .rich-text-image-selected {
+    outline: 2px solid var(--acc);
+    outline-offset: 2px;
+  }
+
+  .rich-text-image-missing {
+    display: inline-flex;
+    align-items: center;
+    padding: 6px 10px;
+    border: 1px dashed var(--rule);
+    border-radius: 6px;
+    font-size: 12px;
+    color: var(--soft);
+  }
+
+  /* RichTextView: the same typography, without the editor's frame and minimum height. */
+  .rich-text-view {
+    min-height: 0;
+    padding: 0;
+  }
+
+  .rich-text-view ul[data-type='taskList'] li > input {
+    margin-top: 4px;
+  }
+
+  /* RichTextFilesView: a record's description and attachments, read-only, inside a list row. */
+  .rich-text-files-view {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+
+  /* RichTextFilesField: the attachments under the text. */
+  .rich-text-files {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    margin-top: 8px;
+  }
+
+  /* ── AttachmentList ───────────────────────────────────────────────────── */
+  .attachment-list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .attachment-list-items {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    list-style: none;
+    padding: 0;
+    margin: 0;
+  }
+
+  .attachment-list-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    min-height: 32px;
+    padding: 2px 6px;
+    border-radius: 6px;
+    font-size: 14px;
+    color: var(--soft);
+  }
+
+  .attachment-list-item:hover {
+    background: var(--ink-soft);
+  }
+
+  .attachment-list-name {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    color: var(--text);
+  }
+
+  .attachment-list-link {
+    background: none;
+    border: 0;
+    padding: 0;
+    text-align: left;
+    text-decoration: underline;
+    text-underline-offset: 2px;
+    cursor: pointer;
+  }
+
+  .attachment-list-link:hover {
+    color: var(--acc-text);
+  }
+
+  .attachment-list-meta {
+    flex-shrink: 0;
+    margin-left: auto;
+    font-size: 12px;
+  }
 }

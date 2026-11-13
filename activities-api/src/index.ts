@@ -13,6 +13,7 @@ import { handleProblemError, problem, validationHook } from "./lib/problem";
 import { setupOpenAPI } from "./openapi/registry";
 import { systemRouter } from "./system/system.routes";
 import { tasksRouter } from "./tasks/tasks.routes";
+import { filesRouter } from "./files/files.routes";
 
 // Exported so the authorization matrix (src/matrix.test.ts, T11) can read the ASSEMBLED
 // app's own route table; Bun serves only the default export below.
@@ -39,15 +40,17 @@ app.use("*", requestLogger());
 app.use("*", maintenanceGate());
 
 // A global cap on request bodies: an activity body is at most 10 000 characters, so 64 KiB
-// is generous. Refused as a 413 Problem before anything is parsed.
+// is generous. Refused as a 413 Problem before anything is parsed. Creating or editing an
+// activity may carry a task's description (≤ 128 KiB of JSON, ADR-0089), so those two writes
+// get a larger cap; nothing else does (a file's bytes never pass through here).
 export const MAX_REQUEST_BODY_BYTES = 64 * 1024;
-app.use(
-  "*",
-  bodyLimit({
-    maxSize: MAX_REQUEST_BODY_BYTES,
-    onError: (c: Context) => problem({ status: 413, detail: "Request body is too large" }, c.req.path),
-  }),
-);
+export const MAX_ACTIVITY_WRITE_BYTES = 192 * 1024;
+const isActivityWrite = (method: string, path: string) =>
+  (method === "POST" && path === "/activities") || (method === "PATCH" && /^\/activities\/[^/]+$/.test(path));
+const tooLarge = (c: Context) => problem({ status: 413, detail: "Request body is too large" }, c.req.path);
+const defaultLimit = bodyLimit({ maxSize: MAX_REQUEST_BODY_BYTES, onError: tooLarge });
+const activityWriteLimit = bodyLimit({ maxSize: MAX_ACTIVITY_WRITE_BYTES, onError: tooLarge });
+app.use("*", (c, next) => (isActivityWrite(c.req.method, c.req.path) ? activityWriteLimit(c, next) : defaultLimit(c, next)));
 
 // ─── Routes ──────────────────────────────────────────────────────────────────
 // Every area router is mounted here, once. T7–T10 add theirs.
@@ -56,6 +59,7 @@ app.route("/", healthRouter);
 app.route("/", activitiesRouter);
 app.route("/", tasksRouter);
 app.route("/", systemRouter);
+app.route("/", filesRouter);
 
 // ─── OpenAPI + Scalar UI ─────────────────────────────────────────────────────
 

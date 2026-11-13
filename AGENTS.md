@@ -154,7 +154,7 @@ operai/
 │                        # ADR-0081/0082/0083). No UI: backend-only
 ├── .railway/           # railway.ts — the Railway project as code (services, Postgres, buckets, domains, build/deploy,
 │                        # replicas, EU region); variables unmanaged; plan → apply by a person (ADR-0088)
-├── docs/adr/            # Architecture Decision Records (0001–0083, 0088; see ## Architecture decisions)
+├── docs/adr/            # Architecture Decision Records (0001–0083, 0088–0089; see ## Architecture decisions)
 ├── docs/ui-inconsistencies.md  # UI/UX audit across the six frontends, with what each migration fixed
 ├── infra/               # Deploy/verify scripts + the cross-service env contract notes (README.md);
 │                        # provision-tool.sh audits/applies one tool's Railway IaC block, creates its database, Vercel project and DNS
@@ -299,7 +299,10 @@ Per-service specifics:
   JWT (scope `activities.write`, `sub` `system:crm-api`, `aud=SERVICE_AUDIENCE`, ADR-0082); the maintenance switch
   `ACTIVITIES_MAINTENANCE=true` makes every route except `GET /health` answer 503 `maintenance` (ADR-0083);
   notifies as `system:activities-api` (`notifications.push emails.send`, bound by notify-api to the origins `crm`
-  and `projects`; best effort, the write stands); port 8087, DB `activities`, no object storage; the one-off
+  and `projects`; best effort, the write stands); a task has a rich `description` (TipTap JSON) and files —
+  images inside it, attachments under it — in activities-api's OWN EU bucket `activities` (`ACTIVITIES_S3_*`,
+  presigned POST/GET, images named by file id never by URL, object deleted before its row, ADR-0089); port 8087,
+  DB `activities`; the one-off
   `scripts/import-crm-activities.ts` copies the CRM's activities in (dry run by default, found-vs-present report)
 - `notify-api` — notification persistence + ticket-authed SSE stream (ADR-0008); pinned to a
   single production instance (in-process ticket store + fan-out); email channel via Resend;
@@ -863,3 +866,4 @@ These defaults are optimized for AI coding agents (and humans) working on apps t
 - [0082] Caller-chosen ids replace cross-service transactions — a write that used to share a transaction becomes an idempotent call under an id the caller picks, compensated on failure; an erasure is ordered before the delete and fails closed, and a guard commits with the data it protects, never in another service (see docs/adr/0082-caller-chosen-ids-replace-cross-service-transactions.md)
 - [0083] Records move between services by expand → copy → contract, and a copy is trusted only when a found-vs-present count proves every record arrived (never on exit code alone); a short announced write pause removes the dual-write and deploy-order gaps, and the source is dropped only in a later push, never with the switch (see docs/adr/0083-activities-migration-write-pause.md)
 - [0088] A setting that matters for correctness must live in exactly one place that is actually read — the Railway project (services, Postgres, volume, buckets, domains, build/deploy, replicas, EU region) is declared in `.railway/railway.ts` (Railway IaC, SDK `railway` pinned at the root), changed by a commit, previewed with `railway config plan` and applied by a person with `railway config apply`; variables stay unmanaged (no value or secret in the file); a destructive plan is a stop (in a single-file setup an omitted resource is deleted — never `--confirm-destructive` unread); `railway-drift.yml` plans on weekdays and fails on drift; the per-service `railway.json` (Config as Code, unread after 2026-12-01) were migrated by aligning the dashboard FIRST, then cutting over, then removing them; rejected: waiting for the cutoff, dashboard-only, managed variables, Terraform/Pulumi (see docs/adr/0088-railway-infrastructure-as-code.md)
+- [0089] A document that names a resource by address makes every reader fetch what the author wrote, and a delete that removes the record before its stored bytes leaves bytes nobody can reach — a task's description is TipTap JSON (tasks only, ≤ 128 KiB, a plain `body` kept as paragraphs) whose images are nodes naming one of THIS task's stored files by id (else 422 `image_not_found`), rendered as React elements, never HTML; files live in activities-api's own EU bucket `activities` (presigned POST with type/size pinned, uploader confirms, 60 s presigned GET; images png/jpeg/gif/webp ≤ 10 MiB, attachments ≤ 20 MiB, 20 per task), access is the task's (read = see, edit = add/remove), the object is deleted before its row (task delete 503 on a bucket failure, FK RESTRICT), images dropped from the text are cleaned on the next save (no sweep), and forms keep chosen files in the browser until the task is saved; amends specs/028 AC-3.6 (see docs/adr/0089-task-description-files-in-activities-api-bucket.md)

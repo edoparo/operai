@@ -29,6 +29,9 @@ import { DateOnlySchema, NUL_MESSAGE, fromDateOnly, idText, noNul, optionalText,
 import type { NotifyTarget } from "../lib/notificationCopy";
 import { validationHook } from "../lib/problem";
 import { reconcileMeeting } from "./meetingMirror";
+import { textToDoc } from "../files/description";
+import { deleteActivitiesWithFiles } from "../files/files";
+import type { Prisma } from "../lib/generated/prisma/client";
 
 export const SYSTEM_SCOPE = "activities.write";
 export const SYSTEM_CALLERS = ["system:crm-api"] as const;
@@ -240,7 +243,9 @@ systemRouter.openapi(putRoute, async (c) => {
         hostId: input.companyId,
         dealId: input.dealId ?? null,
         subject: input.subject,
-        body: input.body ?? null,
+        // A task has one text, its description (ADR-0089): a body sent for one is kept as paragraphs.
+        body: input.type === "task" ? null : (input.body ?? null),
+        ...(input.type === "task" && input.body ? { description: textToDoc(input.body) as Prisma.InputJsonValue } : {}),
         occurredAt: new Date(input.occurredAt),
         authorUserId: input.authorUserId,
         assigneeUserId: input.assigneeUserId ?? null,
@@ -256,7 +261,8 @@ systemRouter.openapi(deleteRoute, async (c) => {
   const { id } = c.req.valid("param");
   const { onlyIfOpen } = c.req.valid("query");
   // The condition is part of the DELETE, so a task completed a moment ago is never lost to a race.
-  await db.activity.deleteMany({ where: { id, hostApp: "crm", ...(onlyIfOpen === "true" ? { completedAt: null } : {}) } });
+  // Files first (objects, then rows; ADR-0089), under the same condition.
+  await deleteActivitiesWithFiles({ id, hostApp: "crm", ...(onlyIfOpen === "true" ? { completedAt: null } : {}) });
   return c.body(null, 204);
 });
 

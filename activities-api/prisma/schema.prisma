@@ -21,7 +21,12 @@ datasource db {
 //             activity_task_fields_only_on_tasks   due date, assignee and completion only on a task
 //             activity_completion_pair        completedAt and completedByUserId are both or neither
 //             activity_meeting_id_only_on_meetings meetingId only on a meeting activity
+//             activity_description_only_on_tasks  a description only on a task
+//             activity_description_doc        a description is a document (`type: "doc"`)
+//             activity_description_size       at most 128 KiB of JSON
 //   task_blocker  task_blocker_not_self      a task never blocks itself
+//   activity_file  activity_file_size        1 byte to 20 MiB
+//                  activity_file_stored_pair  storedAt is set exactly when status is stored
 // Same-host blockers and cycles stay application checks (AC-4.3), as in crm-api.
 
 enum ActivityKind {
@@ -69,6 +74,10 @@ model Activity {
   /// The last system completion applied (estimate notices, AC-1.3): a notice applies only
   /// when its seq is greater, so duplicates and reordering are no-ops.
   completionSeq     Int?
+  /// A task's rich description (a TipTap/ProseMirror document, `type: "doc"`); null on every
+  /// other type and on a task without one (CHECKs activity_description_*). Its image nodes refer
+  /// to this task's own `ActivityFile` rows by id, never to a URL.
+  description       Json?
   /// The Meetings meeting this activity mirrors (specs/021 US-14, ADR-0059): at most one
   /// activity per meeting (UNIQUE), and only a `meeting` activity can carry it (CHECK).
   meetingId         String?      @unique
@@ -80,6 +89,8 @@ model Activity {
   blocks       TaskBlocker[]         @relation("BlockerTask")
   /// The wellD colleagues who took part, besides the author and the assignee (specs/017 US-8).
   participants ActivityParticipant[]
+  /// Images and attachments of a task (its description's images and the list under it).
+  files        ActivityFile[]
 
   @@index([hostApp, hostType, hostId, occurredAt])
   @@index([contactId])
@@ -138,4 +149,44 @@ model ErasedContact {
   contactId String @id
 
   @@map("erased_contact")
+}
+
+enum ActivityFileKind {
+  /// Shown inside the description, where its image node is.
+  image
+  /// Listed under the description.
+  attachment
+}
+
+enum ActivityFileStatus {
+  /// A presigned POST was minted; the upload may never complete. Never shown.
+  pending
+  /// The uploader confirmed it and the object exists in the bucket.
+  stored
+}
+
+/// A file of a task, in activities-api's own EU bucket (ADR-0089; ADR-0016 posture): uploaded by
+/// the browser through a presigned POST, confirmed by a HEAD, read only through a ~60 s presigned
+/// GET minted after the host has confirmed the caller may read the task. The bucket object is
+/// always deleted BEFORE the row, so a row never outlives a failed delete and an object never
+/// outlives its row except for the moment between the two (ADR-0063 order).
+model ActivityFile {
+  /// UUID v4, chosen by activities-api; also the last part of the object key.
+  id               String             @id
+  activityId       String
+  activity         Activity           @relation(fields: [activityId], references: [id], onDelete: Restrict)
+  kind             ActivityFileKind
+  status           ActivityFileStatus @default(pending)
+  /// The client's name, cleaned for display (never used in the key).
+  fileName         String
+  contentType      String
+  sizeBytes        Int
+  /// `activities/<activityId>/<id>`: fixed server-side.
+  objectKey        String             @unique
+  uploadedByUserId String
+  createdAt        DateTime           @default(now())
+  storedAt         DateTime?
+
+  @@index([activityId, status])
+  @@map("activity_file")
 }

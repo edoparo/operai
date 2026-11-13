@@ -200,7 +200,9 @@ describe("PUT /system/v1/activities/{id} — create if absent (AC-1.2)", () => {
       dealId: "dl-1",
       contactId: null,
       subject: "Estimate: Website relaunch",
-      body: "Please estimate",
+      // A task has one text, its description (ADR-0089): the body crm-api sends becomes paragraphs.
+      body: null,
+      description: { type: "doc", content: [{ type: "paragraph", content: [{ type: "text", text: "Please estimate" }] }] },
       authorUserId: "user-consultant",
       assigneeUserId: "user-tech",
       completedAt: null,

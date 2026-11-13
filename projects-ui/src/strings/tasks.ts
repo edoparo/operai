@@ -107,6 +107,50 @@ const en = {
     unavailableTitle: 'Pre-sales tasks could not be loaded',
     unavailableBody: 'The CRM did not answer. Your project tasks are shown below.',
   },
+  /** A task's rich description with its images and attachments (ADR-0089). */
+  files: {
+    description: 'Description',
+    placeholder: 'What has to be done, and anything that helps. Paste or drop pictures here.',
+    hint: 'Pictures and attachments are uploaded when you save.',
+    editor: {
+      toolbar: 'Formatting',
+      bold: 'Bold',
+      italic: 'Italic',
+      heading: 'Heading',
+      bulletList: 'Bulleted list',
+      orderedList: 'Numbered list',
+      taskList: 'Checklist',
+    },
+    images: {
+      insert: 'Insert image',
+      uploading: 'Adding image…',
+      loading: 'Loading image…',
+      unavailable: 'Image not available',
+    },
+    attachments: {
+      title: 'Attachments',
+      add: 'Attach files',
+      adding: 'Uploading…',
+      download: (name: string) => `Download ${name}`,
+      remove: (name: string) => `Remove ${name}`,
+      pending: 'uploaded when you save',
+    },
+    check: { done: 'done', todo: 'to do' },
+    errors: {
+      imageType: (name: string) => `${name}: pictures can be PNG, JPEG, GIF or WebP.`,
+      attachmentType: (name: string) =>
+        `${name}: attachments can be PDF, Word, Excel, PowerPoint, text, CSV or pictures.`,
+      imageTooLarge: (name: string) => `${name} is larger than 10 MB.`,
+      attachmentTooLarge: (name: string) => `${name} is larger than 20 MB.`,
+      tooMany: 'A task has at most 20 files.',
+      notUploaded: (names: string) =>
+        `Saved, but these files could not be uploaded: ${names}. Edit the task to try again.`,
+      notRemoved: (names: string) =>
+        `Saved, but these files could not be removed: ${names}. Edit the task to try again.`,
+      storageMissing: 'Files are not set up here yet: the text was saved without them.',
+      openFailed: 'The file could not be opened. Try again in a moment.',
+    },
+  },
 }
 
 const it: typeof en = {
@@ -217,6 +261,49 @@ const it: typeof en = {
     openInCrmFor: (title: string) => `Apri nel CRM: ${title}`,
     unavailableTitle: 'Non è stato possibile caricare le attività di prevendita',
     unavailableBody: 'Il CRM non ha risposto. Qui sotto trovi le attività dei tuoi progetti.',
+  },
+  files: {
+    description: 'Descrizione',
+    placeholder: 'Cosa va fatto e tutto ciò che aiuta. Incolla o trascina qui le immagini.',
+    hint: 'Immagini e allegati vengono caricati quando salvi.',
+    editor: {
+      toolbar: 'Formattazione',
+      bold: 'Grassetto',
+      italic: 'Corsivo',
+      heading: 'Titolo',
+      bulletList: 'Elenco puntato',
+      orderedList: 'Elenco numerato',
+      taskList: 'Elenco di controllo',
+    },
+    images: {
+      insert: 'Inserisci immagine',
+      uploading: 'Aggiunta immagine…',
+      loading: 'Caricamento immagine…',
+      unavailable: 'Immagine non disponibile',
+    },
+    attachments: {
+      title: 'Allegati',
+      add: 'Allega file',
+      adding: 'Caricamento…',
+      download: (name: string) => `Scarica ${name}`,
+      remove: (name: string) => `Rimuovi ${name}`,
+      pending: 'caricato al salvataggio',
+    },
+    check: { done: 'fatto', todo: 'da fare' },
+    errors: {
+      imageType: (name: string) => `${name}: le immagini possono essere PNG, JPEG, GIF o WebP.`,
+      attachmentType: (name: string) =>
+        `${name}: gli allegati possono essere PDF, Word, Excel, PowerPoint, testo, CSV o immagini.`,
+      imageTooLarge: (name: string) => `${name} supera i 10 MB.`,
+      attachmentTooLarge: (name: string) => `${name} supera i 20 MB.`,
+      tooMany: 'Un’attività ha al massimo 20 file.',
+      notUploaded: (names: string) =>
+        `Salvata, ma questi file non sono stati caricati: ${names}. Modifica l’attività per riprovare.`,
+      notRemoved: (names: string) =>
+        `Salvata, ma questi file non sono stati rimossi: ${names}. Modifica l’attività per riprovare.`,
+      storageMissing: 'I file non sono ancora configurati qui: il testo è stato salvato senza.',
+      openFailed: 'Non è stato possibile aprire il file. Riprova tra poco.',
+    },
   },
 }
 

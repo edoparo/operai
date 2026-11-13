@@ -26,8 +26,13 @@ import { SignJWT, createLocalJWKSet, exportJWK, generateKeyPair } from "jose";
 import { __setDefaultJwksForTests } from "./auth/systemAuth.middleware";
 import { setupTestAuth, TEST_AUDIENCE, TEST_ISSUER } from "./test-support/testAuth";
 import { PERSONAS, app, bearerOf, call, db, env, hosts, makeCompany, makeProject, resetWorld, type PersonaName } from "./test-support/world";
+import { useFakeStorage, type FakeStorage } from "./test-support/storage";
 
-beforeEach(resetWorld);
+let storage: FakeStorage;
+beforeEach(async () => {
+  await resetWorld();
+  storage = useFakeStorage();
+});
 
 // ─── Route classification ────────────────────────────────────────────────────
 
@@ -53,6 +58,10 @@ const USER = [
   "POST /activities/:id/reopen",
   "GET /tasks",
   "GET /tasks/assignees",
+  "POST /activities/:id/files",
+  "POST /activities/:id/files/:fileId/confirm",
+  "GET /activities/:id/files/:fileId/url",
+  "DELETE /activities/:id/files/:fileId",
 ] as const;
 
 const mounted = [...new Set(app.routes.filter((route) => route.method !== "ALL").map((route) => `${route.method} ${route.path}`))];
@@ -124,6 +133,35 @@ const SCENARIOS: Record<HostName, readonly Scenario[]> = { crm: CRM_SCENARIOS, p
 interface Seeded {
   readonly hostId: string;
   readonly activityId: string;
+  /** A stored attachment of the task, uploaded by its author (ADR-0089). */
+  readonly fileId: string;
+  /** An upload the author started and whose bytes landed, not yet confirmed. */
+  readonly pendingId: string;
+}
+
+/** The task's files: one stored, one pending, both by its author, both in the bucket. */
+async function seedFiles(activityId: string, authorUserId: string): Promise<{ fileId: string; pendingId: string }> {
+  const fileId = crypto.randomUUID();
+  const pendingId = crypto.randomUUID();
+  for (const [id, status] of [[fileId, "stored"], [pendingId, "pending"]] as const) {
+    const objectKey = `activities/${activityId}/${id}`;
+    storage.upload(objectKey, 1234);
+    await db.activityFile.create({
+      data: {
+        id,
+        activityId,
+        kind: "attachment",
+        status,
+        storedAt: status === "stored" ? new Date() : null,
+        fileName: "offer.pdf",
+        contentType: "application/pdf",
+        sizeBytes: 1234,
+        objectKey,
+        uploadedByUserId: authorUserId,
+      },
+    });
+  }
+  return { fileId, pendingId };
 }
 
 async function seed(host: HostName, options: { closed?: boolean | undefined; completed?: boolean | undefined } = {}): Promise<Seeded> {
@@ -146,7 +184,7 @@ async function seed(host: HostName, options: { closed?: boolean | undefined; com
         participants: { create: [{ userId: "user-admin", createdBy: "user-consultant" }] },
       },
     });
-    return { hostId: company.id, activityId: row.id };
+    return { hostId: company.id, activityId: row.id, ...(await seedFiles(row.id, "user-consultant")) };
   }
   const project = makeProject("Smart meter rollout", options.closed ? { writable: false } : {});
   // bob manages some other project: a manager elsewhere is still out of scope here.
@@ -166,13 +204,13 @@ async function seed(host: HostName, options: { closed?: boolean | undefined; com
       participants: { create: [{ userId: "user-member", createdBy: "user-manager" }] },
     },
   });
-  return { hostId: project.id, activityId: row.id };
+  return { hostId: project.id, activityId: row.id, ...(await seedFiles(row.id, "user-manager")) };
 }
 
 /** Everything the activity tables hold, in a stable order: a refused request must leave it equal. */
 async function snapshot(): Promise<string> {
   const rows = await db.activity.findMany({
-    include: { participants: { orderBy: { userId: "asc" } }, blockedBy: true },
+    include: { participants: { orderBy: { userId: "asc" } }, blockedBy: true, files: { orderBy: { id: "asc" } } },
     orderBy: { id: "asc" },
   });
   return JSON.stringify(rows);
@@ -384,6 +422,57 @@ const CASES: readonly Case[] = [
       },
     },
   ]),
+
+  // ── Task files (ADR-0089): adding, confirming and removing are an edit; reading is a read ──
+  ...(
+    [
+      ["POST /activities/:id/files", 201, (s: Seeded): Req => ({ method: "POST", path: `/activities/${s.activityId}/files`, body: { kind: "attachment", fileName: "spec.pdf", contentType: "application/pdf", sizeBytes: 10 } })],
+      ["POST /activities/:id/files/:fileId/confirm", 200, (s: Seeded): Req => ({ method: "POST", path: `/activities/${s.activityId}/files/${s.pendingId}/confirm` })],
+      ["DELETE /activities/:id/files/:fileId", 204, (s: Seeded): Req => ({ method: "DELETE", path: `/activities/${s.activityId}/files/${s.fileId}` })],
+    ] as const
+  ).flatMap(([route, ok, request]): Case[] => [
+    {
+      route,
+      host: "crm",
+      what: "the author's task",
+      writes: true,
+      request,
+      expect: { reader: AUTHOR_ONLY, author: ok, assignee: AUTHOR_ONLY, participant: AUTHOR_ONLY, "non-reader": 404, "host down": DOWN },
+    },
+    {
+      route,
+      host: "projects",
+      what: "a project task",
+      writes: true,
+      request,
+      expect: {
+        "manager in scope": ok,
+        "out of scope": FORBIDDEN,
+        "assignee without manage": FORBIDDEN,
+        "participant only": FORBIDDEN,
+        "closed project, manager": READ_ONLY,
+        "closed project, assignee": FORBIDDEN,
+        "non-reader": 404,
+        "host down": DOWN,
+      },
+    },
+  ]),
+  {
+    route: "GET /activities/:id/files/:fileId/url",
+    host: "crm",
+    what: "a stored attachment",
+    writes: false,
+    request: (s) => ({ method: "GET", path: `/activities/${s.activityId}/files/${s.fileId}/url` }),
+    expect: CRM_READ,
+  },
+  {
+    route: "GET /activities/:id/files/:fileId/url",
+    host: "projects",
+    what: "a stored attachment",
+    writes: false,
+    request: (s) => ({ method: "GET", path: `/activities/${s.activityId}/files/${s.fileId}/url` }),
+    expect: PROJECT_READ,
+  },
 
   // ── GET /tasks ──
   {

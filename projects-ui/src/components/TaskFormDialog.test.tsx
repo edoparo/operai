@@ -132,6 +132,7 @@ describe('adding a task (AC-3.1)', () => {
           type: 'task',
           projectId: 'p1',
           subject: 'Send the offer',
+          description: null,
           dueDate: null,
           assigneeUserId: 'u-ada',
           blockedByIds: [],
@@ -177,11 +178,55 @@ describe('adding a task (AC-3.1)', () => {
     expect(writes()[0]!.body).toMatchObject({ dueDate: '2026-12-01', assigneeUserId: 'u-bob' })
   })
 
-  it('offers no task type and no description: a task is all this dialog can create (AC-3.6)', () => {
+  it('offers no task type (AC-3.6), and a rich description with its attachments (ADR-0089)', () => {
     renderDialog()
     expect(screen.queryByLabelText('Type')).toBeNull()
-    expect(screen.queryByLabelText('Notes')).toBeNull()
-    expect(screen.queryByLabelText('Description')).toBeNull()
+    expect(screen.getByRole('textbox', { name: 'Description' })).toBeTruthy()
+    expect(screen.getByRole('button', { name: 'Insert image' })).toBeTruthy()
+    expect(screen.getByRole('button', { name: /Attach files/ })).toBeTruthy()
+  })
+
+  it('a chosen attachment waits for the save, then is uploaded to the new task: start, bucket, confirm', async () => {
+    const bucket = vi.fn(async () => new Response(null, { status: 204 }))
+    vi.stubGlobal('fetch', bucket)
+    renderDialog({
+      'POST /activities': () => ({ status: 201, body: projectTask('t-new', { subject: 'Plan' }) }),
+      'POST /activities/t-new/files': () => ({
+        status: 201,
+        body: { fileId: 'f-1', upload: { url: 'https://bucket.test/activities', fields: { key: 'activities/t-new/f-1' } } },
+      }),
+      'POST /activities/t-new/files/f-1/confirm': () => ({
+        status: 200,
+        body: { id: 'f-1', kind: 'attachment', fileName: 'spec.pdf', contentType: 'application/pdf', sizeBytes: 3, uploadedBy: personRef('u-ada', 'Ada Lovelace'), createdAt: '2026-11-13T10:00:00Z' },
+      }),
+    })
+    type('Title', 'Plan')
+    fireEvent.change(screen.getByTestId('task-form-description-files-input'), {
+      target: { files: [new File(['pdf'], 'spec.pdf', { type: 'application/pdf' })] },
+    })
+    expect(screen.getByTestId('task-form-description-files-list').textContent).toContain('spec.pdf')
+    expect(writes()).toEqual([])
+
+    submit()
+
+    await waitFor(() => expect(onSaved).toHaveBeenCalledWith('Task added.'))
+    expect(writes().map((write) => `${write.method} ${write.path}`)).toEqual([
+      'POST /activities',
+      'POST /activities/t-new/files',
+      'POST /activities/t-new/files/f-1/confirm',
+    ])
+    expect(writes()[1]!.body).toEqual({ kind: 'attachment', fileName: 'spec.pdf', contentType: 'application/pdf', sizeBytes: 3 })
+    expect(bucket).toHaveBeenCalledWith('https://bucket.test/activities', expect.objectContaining({ method: 'POST' }))
+    vi.unstubAllGlobals()
+  })
+
+  it('a file outside the policy is refused at once and never sent', () => {
+    renderDialog()
+    fireEvent.change(screen.getByTestId('task-form-description-files-input'), {
+      target: { files: [new File(['x'], 'tool.exe', { type: 'application/x-msdownload' })] },
+    })
+    expect(screen.getByRole('alert').textContent).toContain('tool.exe')
+    expect(screen.queryByTestId('task-form-description-files-list')?.textContent ?? '').not.toContain('tool.exe')
   })
 })
 
@@ -204,6 +249,7 @@ describe('editing a task (AC-3.2, AC-3.7)', () => {
         path: '/activities/t1',
         body: {
           subject: 'Send the final offer',
+          description: null,
           dueDate: '2026-11-20',
           assigneeUserId: 'u-bob',
           blockedByIds: [],

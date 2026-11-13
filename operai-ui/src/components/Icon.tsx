@@ -173,6 +173,7 @@ const PATHS = {
   'list-bullet': <path d="M9 6h11M9 12h11M9 18h11M4.5 6h.01M4.5 12h.01M4.5 18h.01" />,
   'list-ordered': <path d="M10 6h10M10 12h10M10 18h10M4 5l1.5-1v5M3.5 9h3M3.5 14.5a1.5 1.5 0 1 1 2.5 1.2L3.5 19h3" />,
   'list-check': <path d="M11 6h9M11 12h9M11 18h9M3.5 6l1.5 1.5L8 4.5M3.5 12l1.5 1.5L8 10.5M3.5 18l1.5 1.5L8 16.5" />,
+  image: <path d="M4 5h16v14H4zM4 16l4.5-4.5 4 4 2.5-2.5L20 18M15.5 9.5h.01" />,
 } satisfies Record<string, ReactNode>
 
 export type IconName = keyof typeof PATHS

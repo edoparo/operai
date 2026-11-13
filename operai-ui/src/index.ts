@@ -10,6 +10,8 @@
  * operai-ui/docs/building-pages.md.
  */
 
+export { AttachmentList } from './components/AttachmentList'
+export type { AttachmentItem, AttachmentListProps } from './components/AttachmentList'
 export { Badge } from './components/Badge'
 export type { BadgeProps, BadgeTone } from './components/Badge'
 export { Banner, CONFIRMATION_DISMISS_MS } from './components/Banner'

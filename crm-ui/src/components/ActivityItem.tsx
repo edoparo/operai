@@ -10,7 +10,9 @@ import {
   listRowMetaClassName,
   TaskRow,
 } from '@operai/ui'
+import { RichTextFilesView } from '@operai/ui/rich-text'
 import { deleteActivity, setTaskCompleted } from '../lib/activitiesApi'
+import { openTaskFile, taskFileUrlResolver } from '../lib/taskFiles'
 import { isOverdue } from '../lib/dates'
 import { errorMessage } from '../lib/errors'
 import { personName } from '../lib/people'
@@ -91,6 +93,28 @@ export default function ActivityItem({
     <>
       {/* A meeting activity's body is the link and nothing else (AC-14.2): never show one. */}
       {activity.body && !activity.meeting && <p className="whitespace-pre-line text-sm text-soft">{activity.body}</p>}
+      {/* A task's text is its rich description, with its pictures and attachments (ADR-0089). */}
+      {task && (
+        <RichTextFilesView
+          doc={task.description ?? null}
+          attachments={(task.files ?? [])
+            .filter((file) => file.kind === 'attachment')
+            .map((file) => ({ id: file.id, name: file.fileName, sizeBytes: file.sizeBytes }))}
+          resolveImageUrl={taskFileUrlResolver(activity.id)}
+          onDownload={(item) => {
+            setError(null)
+            void openTaskFile(activity.id, item.id).then((opened) => {
+              if (!opened) setError(strings.activities.taskFiles.errors.openFailed)
+            })
+          }}
+          copy={{
+            images: strings.activities.taskFiles.images,
+            check: strings.activities.taskFiles.check,
+            attachments: strings.activities.taskFiles.attachments,
+          }}
+          testIdPrefix={`crm-activity-${activity.id}-description`}
+        />
+      )}
       {activity.meeting && (
         <p className="text-sm">
           {/* The Meetings tool is a sibling route of the shell, outside this tool's router basepath, so a plain

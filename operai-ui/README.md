@@ -92,9 +92,14 @@ app directory:
 
 ## Rich text (`@operai/ui/rich-text`)
 
-`RichTextEditor` (WYSIWYG: bold, italic, a heading, bulleted, numbered and check lists; no links, no
-images; the document is TipTap JSON, rendered only through the editor's schema) needs TipTap, so it ships
-from its own entry and the main `@operai/ui` stays dependency-free. An app that uses it:
+`RichTextEditor` (WYSIWYG: bold, italic, a heading, bulleted, numbered and check lists; no links; with
+`images`, pictures chosen, pasted or dropped, kept in the document as a FILE ID the app resolves, never a URL;
+the document is TipTap JSON, rendered only through the editor's schema) needs TipTap, so it ships from its own
+entry and the main `@operai/ui` stays dependency-free. The same entry has `RichTextView` (a document as React
+elements, read-only, light enough for a list), `RichTextFilesField` / `RichTextFilesView` (text plus attachments,
+in a form and read-only), `useDeferredFiles` / `commitDeferredFiles` (files chosen in a form wait for the save)
+and the doc helpers (`imageFileIds`, `mapImageFileIds`, `isEmptyRichText`). `AttachmentList` needs no TipTap and
+is in the main entry. An app that uses the rich-text entry:
 
 1. installs `@tiptap/core`, `@tiptap/react`, `@tiptap/pm`, `@tiptap/starter-kit`, `@tiptap/extension-list`
    and `@tiptap/extensions` (the version this library's devDependencies pin, exactly);
@@ -113,7 +118,8 @@ from its own entry and the main `@operai/ui` stays dependency-free. An app that 
    `"@tiptap/*": ["./node_modules/@tiptap/*"]`.
 
 Tests in jsdom call `stubLayoutForRichText()` (from the same entry) once: ProseMirror needs a layout jsdom
-does not have. Today's consumer: meetings-ui (personal meeting notes).
+does not have. Today's consumers: meetings-ui (personal meeting notes), crm-ui and projects-ui (task
+descriptions with images and attachments, ADR-0089).
 
 ## Versioning
 

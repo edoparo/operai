@@ -21,6 +21,7 @@ const { env } = await import("../lib/env");
 const { setRegistryForTests } = await import("../hosts/registry");
 const { __resetIdentityCacheForTests } = await import("../lib/identities");
 const { setNotifierForTests } = await import("../lib/notify");
+const { setStorageForTests } = await import("../lib/storage");
 
 export { app, db, env };
 
@@ -198,6 +199,7 @@ export async function withMaintenance<T>(fn: () => Promise<T>): Promise<T> {
 
 /** Puts the world back to its start: the tables (children first), the hosts, the auth stub and the switches. */
 export async function resetWorld(): Promise<void> {
+  await db.activityFile.deleteMany();
   await db.taskBlocker.deleteMany();
   await db.activityParticipant.deleteMany();
   await db.meetingMirrorState.deleteMany();
@@ -218,4 +220,5 @@ export async function resetWorld(): Promise<void> {
   resetAppAccess();
   __resetIdentityCacheForTests();
   setNotifierForTests(null);
+  setStorageForTests(null);
 }

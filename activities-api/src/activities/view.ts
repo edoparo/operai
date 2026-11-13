@@ -14,6 +14,7 @@ import { loadPeople } from "../lib/people";
 import type { RelatedType } from "../hosts/registry";
 import type { HostSession, OpenEntity } from "./access";
 import { mayFlags } from "./rules";
+import { FileSchema, storedFiles, toFileView } from "../files/files";
 
 export const ACTIVITY_TYPES = ["note", "call", "meeting", "email", "task"] as const;
 export const ACTIVITY_KINDS = ["pre_sales", "operational"] as const;
@@ -48,6 +49,10 @@ export const ActivitySchema = z.object({
       /** The tasks it waits on (US-6); `blocked` while any of them is open. */
       blockedBy: z.array(z.object({ id: z.string(), subject: z.string(), completed: z.boolean() })),
       blocked: z.boolean(),
+      /** The task's rich description (ADR-0089): a TipTap document, or null. */
+      description: z.record(z.string(), z.unknown()).nullable(),
+      /** Its stored images and attachments, oldest first. */
+      files: z.array(FileSchema),
     })
     .nullable(),
   may: MayFlagsSchema,
@@ -62,6 +67,7 @@ export const withRefs = {
   },
   // Insertion order (the rows of one write are staggered by `staggered`); the user id breaks any remaining tie.
   participants: { select: { userId: true }, orderBy: [{ createdAt: "asc" }, { userId: "asc" }] },
+  files: storedFiles,
 } satisfies Prisma.ActivityInclude;
 export type ActivityRow = Prisma.ActivityGetPayload<{ include: typeof withRefs }>;
 
@@ -100,6 +106,7 @@ export async function toViews(c: Caller, rows: readonly ActivityRow[], session: 
       row.assigneeUserId,
       row.completedByUserId,
       ...row.participants.map((participant) => participant.userId),
+      ...row.files.map((file) => file.uploadedByUserId),
     ]),
   );
   return rows.map((row) => {
@@ -139,6 +146,8 @@ export async function toViews(c: Caller, rows: readonly ActivityRow[], session: 
                 completed: blocker.completedAt !== null,
               })),
               blocked: row.blockedBy.some(({ blocker }) => blocker.completedAt === null),
+              description: (row.description as Record<string, unknown> | null) ?? null,
+              files: row.files.map((file) => toFileView(file, person)),
             }
           : null,
       may: mayFlags(host, open, row, userId),

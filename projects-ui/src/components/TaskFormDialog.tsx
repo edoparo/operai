@@ -1,5 +1,13 @@
-import { useCallback, useRef, useState } from 'react'
+import { useCallback, useMemo, useRef, useState } from 'react'
 import { Button, CheckboxGroupField, DateInput, Field, FormDialog, PersonChips, focusFirstInvalid } from '@operai/ui'
+import {
+  RichTextFilesField,
+  imageFileIds,
+  isLocalFileId,
+  useDeferredFiles,
+  withoutLocalImages,
+} from '@operai/ui/rich-text'
+import type { RichTextDoc } from '@operai/ui/rich-text'
 import { createTask, listProjectTasks, updateTask } from '../lib/activitiesApi'
 import type { ProjectTask } from '../lib/activitiesApi'
 import { ApiError } from '../lib/api'
@@ -8,13 +16,29 @@ import { personName } from '../lib/people'
 import type { Person, Project } from '../lib/types'
 import { first, hasErrors, maxLength, required } from '../lib/validate'
 import type { Errors } from '../lib/validate'
+import {
+  ATTACHMENT_ACCEPT,
+  IMAGE_ACCEPT,
+  MAX_FILES_PER_TASK,
+  deferredOf,
+  filesWarning,
+  openTaskFile,
+  saveDeferredFiles,
+  taskFileProblem,
+  taskFileUrlResolver,
+} from '../lib/taskFiles'
 import { useResource } from '../hooks/useResource'
 import { strings } from '../strings'
 import PersonPicker from './PersonPicker'
 import type { PersonChoice } from './PersonPicker'
 import { refName } from './TaskModel'
 
-type FieldName = 'subject' | 'dueDate' | 'assignee' | 'blockedByIds' | 'participants'
+type FieldName = 'subject' | 'description' | 'dueDate' | 'assignee' | 'blockedByIds' | 'participants'
+
+/** A description holds at most this many characters of text (the server caps its JSON at 128 KiB). */
+const DESCRIPTION_MAX_CHARS = 20_000
+
+const noStoredImages = () => Promise.reject(new Error('not saved yet'))
 
 /** The server's caps on a task's blockers (AC-4.1) and participants (AC-5.1). */
 const MAX_BLOCKERS = 10
@@ -23,6 +47,7 @@ const MAX_PARTICIPANTS = 10
 /** Server field names that are not this form's field names. */
 const SERVER_FIELDS: Record<string, FieldName> = {
   subject: 'subject',
+  description: 'description',
   dueDate: 'dueDate',
   assigneeUserId: 'assignee',
   blockedByIds: 'blockedByIds',
@@ -67,6 +92,11 @@ export default function TaskFormDialog({
   const t = strings.tasks.form
   const people = assignable(project)
   const [subject, setSubject] = useState(task?.subject ?? '')
+  // The task's text is its rich description (ADR-0089); its files wait for the save.
+  const [description, setDescription] = useState<RichTextDoc | null>(task?.task.description ?? null)
+  const storedFiles = useMemo(() => deferredOf(task?.task.files), [task])
+  const files = useDeferredFiles(storedFiles)
+  const tf = strings.tasks.files
   const [dueDate, setDueDate] = useState(task?.task.dueDate ?? '')
   const [assignee, setAssignee] = useState(() => {
     if (task) return task.task.assignee?.id ?? ''
@@ -129,6 +159,7 @@ export default function TaskFormDialog({
     }
     const body = {
       subject: subject.trim(),
+      description: withoutLocalImages(description),
       dueDate: dueDate === '' ? null : dueDate,
       ...(assignee !== '' ? { assigneeUserId: assignee } : {}),
       blockedByIds,
@@ -136,9 +167,18 @@ export default function TaskFormDialog({
     }
     setBusy(true)
     setError(null)
-    const request = task
-      ? updateTask(task.id, body).then(() => strings.tasks.saved.saved)
-      : createTask({ type: 'task', projectId: project.id, ...body }).then(() => strings.tasks.saved.added)
+    // The task first: a refused field stops here, before any file is touched. Then the files, and the
+    // description again only if it shows pictures that had no stored id until now.
+    const request = (
+      task ? updateTask(task.id, body) : createTask({ type: 'task', projectId: project.id, ...body })
+    ).then(async (saved) => {
+      const done = task ? strings.tasks.saved.saved : strings.tasks.saved.added
+      if (files.pending.length === 0 && files.removed.length === 0) return done
+      const result = await saveDeferredFiles(saved.id, description, files)
+      if (imageFileIds(description).some(isLocalFileId))
+        await updateTask(saved.id, { description: result.doc }).catch(() => undefined)
+      return filesWarning(result) ?? done
+    })
     request.then(onSaved, (failure: unknown) => {
       setBusy(false)
       setErrors(fieldsFor(failure))
@@ -165,6 +205,27 @@ export default function TaskFormDialog({
         <Field label={t.subject} required error={errors.subject} testId="task-form-subject">
           {(control) => <input {...control} value={subject} onChange={(event) => setSubject(event.target.value)} />}
         </Field>
+        <RichTextFilesField
+          label={tf.description}
+          hint={tf.hint}
+          error={errors.description}
+          initialValue={description}
+          onChange={(doc) => setDescription(doc)}
+          placeholder={tf.placeholder}
+          maxLength={DESCRIPTION_MAX_CHARS}
+          files={files}
+          resolveStoredUrl={task ? taskFileUrlResolver(task.id) : noStoredImages}
+          onDownload={(file) => {
+            if (task) void openTaskFile(task.id, file.id)
+          }}
+          imageAccept={IMAGE_ACCEPT}
+          attachmentAccept={ATTACHMENT_ACCEPT}
+          check={(file, kind) =>
+            files.files.length >= MAX_FILES_PER_TASK ? tf.errors.tooMany : taskFileProblem(file, kind)
+          }
+          copy={{ editor: tf.editor, images: tf.images, attachments: tf.attachments }}
+          testIdPrefix="task-form-description"
+        />
         <Field label={t.dueDate} error={errors.dueDate} testId="task-form-due">
           {(control) => <DateInput {...control} value={dueDate} onChange={(event) => setDueDate(event.target.value)} />}
         </Field>
@@ -253,6 +314,8 @@ function fieldsFor(failure: unknown): Errors<FieldName> {
       return { blockedByIds: failure.detail ?? strings.common.validation.fixErrors }
     case 'owner_not_app_user':
       return { participants: failure.detail ?? strings.common.validation.fixErrors }
+    case 'image_not_found':
+      return { description: failure.detail ?? strings.common.validation.fixErrors }
   }
   const named = fieldErrorOf(failure)
   const field = named ? SERVER_FIELDS[named.field] : undefined

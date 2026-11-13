@@ -63,9 +63,16 @@ describe('shell/vercel.json — meetings (specs/021 T52)', () => {
   })
 
   it('does not widen any other directive to blob:', () => {
+    // img-src too since ADR-0089: a picture chosen for a task is shown from its object URL until the task is saved.
     for (const [name, sources] of csp) {
-      if (name !== 'media-src') expect(sources, name).not.toContain('blob:')
+      if (name !== 'media-src' && name !== 'img-src') expect(sources, name).not.toContain('blob:')
     }
+  })
+
+  it('shows task pictures from the bucket and, before the save, from blob: object URLs (ADR-0089)', () => {
+    expect(csp.get('img-src')).toEqual(expect.arrayContaining(['https://t3.storageapi.dev', 'blob:']))
+    expect(csp.get('img-src')).not.toContain('*')
+    expect(csp.get('img-src')).not.toContain('https:')
   })
 
   it('keeps the existing hardening directives', () => {

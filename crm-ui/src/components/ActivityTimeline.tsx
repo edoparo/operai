@@ -107,11 +107,11 @@ export default function ActivityTimeline({
           activity={composing.activity}
           preset={preset}
           onCancel={() => setComposing(null)}
-          onSaved={() => {
+          onSaved={(_saved, warning) => {
             const wasEdit = composing.activity !== undefined
             setComposing(null)
             if (!wasEdit) setPage(1)
-            changed(wasEdit ? t.saved : t.logged)
+            changed(warning ?? (wasEdit ? t.saved : t.logged))
           }}
         />
       )}

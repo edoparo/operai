@@ -1497,9 +1497,9 @@ runs `MEETINGS_AI_PROVIDER=fake` until the real Google configuration exists (the
 Authoritative list: `activities-api/src/lib/env.ts` (validated at startup, exits 1 on any miss).
 Committed contract: `tools/env-doctor/templates/production/activities-api.env`. Port **8087**, DB
 `activities`, domain `activities-api.operai.welld.io`. **Backend-only**: there is no `activities-ui`;
-the CRM and Projects remotes call it from the shell's origin. It owns no object storage and no
-permission catalog (every access decision is asked of crm-api / projects-api as the caller,
-ADR-0081).
+the CRM and Projects remotes call it from the shell's origin. It owns no permission catalog (every
+access decision is asked of crm-api / projects-api as the caller, ADR-0081). Since ADR-0089 it owns
+one private EU bucket, `activities`, for task images and attachments.
 
 | Variable | Value | Secret |
 |---|---|---|
@@ -1511,6 +1511,8 @@ ADR-0081).
 | `NOTIFY_INTERNAL_URL` | `${{shared.NOTIFY_INTERNAL_URL}}` | no |
 | `SERVICE_CLIENT_ID` / `SERVICE_CLIENT_SECRET` | `activities-api` / `${{shared.ACTIVITIES_SERVICE_CLIENT_SECRET}}` (≥ 32 chars, byte-identical to its `SERVICE_CLIENTS` entry). All three notify variables or none | secret: yes |
 | `SERVICE_AUDIENCE` | `${{shared.SERVICE_AUDIENCE}}` — what crm-api's `/system/v1/*` calls are verified against; must differ from `AUTH_AUDIENCE` | no |
+| `ACTIVITIES_S3_BUCKET` / `_ENDPOINT` / `_ACCESS_KEY_ID` / `_SECRET_ACCESS_KEY` | **by reference** to the Railway bucket `activities` (ADR-0089): `${{activities.BUCKET}}`, `${{activities.ENDPOINT}}`, `${{activities.ACCESS_KEY_ID}}`, `${{activities.SECRET_ACCESS_KEY}}`. Unset, the file routes answer 503 `storage_unconfigured` and everything else works | keys: yes |
+| `ACTIVITIES_S3_REGION` / `ACTIVITIES_S3_EU_ENDPOINT_HOSTS` | `ams` / `t3.storageapi.dev` — the residency check at startup (ADR-0016) | no |
 | `ACTIVITIES_MAINTENANCE` | `false` in steady state. `true` makes every route except `GET /health` answer 503 `maintenance` (the migration window below). Any other value stops the start | no |
 | `PORT` / `NODE_ENV` | `8087` / `production` | no |
 
@@ -1525,6 +1527,13 @@ never written to a template, a command line or a PR. `crm-api` needs
 `ACTIVITIES_API_URL=http://${{activities-api.RAILWAY_PRIVATE_DOMAIN}}:${{activities-api.PORT}}`.
 `notify-api` must know the `projects` origin and the binding `system:activities-api` → `crm`, `projects`
 (code, not a variable) before the first write, or every push is refused silently.
+
+**Task files bucket (ADR-0089), once.** The bucket is declared in `.railway/railway.ts`
+(`bucket("activities", { region: "ams" })`): `railway config plan` shows `+ Create bucket activities`,
+`railway config apply` creates it. Then set the four `ACTIVITIES_S3_*` references above on
+activities-api, and a CORS rule on the bucket for `https://operai.welld.io` (methods POST, GET;
+expose `ETag`, `Location`), the same as the CRM's: the browser uploads straight to it. Test one
+picture and one attachment on a task. The shell's CSP already allows `img-src https://t3.storageapi.dev blob:`.
 
 **Provisioning.** The service, its logical database, both hostnames and the DNS record come from
 the `provision-tool` skill (`.claude/skills/provision-tool/SKILL.md`), backend only:

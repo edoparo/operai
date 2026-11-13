@@ -1,3 +1,4 @@
+import type { RichTextDoc } from '@operai/ui/rich-text'
 /**
  * Wire types for crm-api and the one `auth` read crm-ui makes — exactly the
  * shapes of specs/017-crm/plan.md § API contract. Money is integer minor units,
@@ -265,7 +266,22 @@ export type Pipeline = {
   stages: PipelineStage[]
 }
 
+/** An image or attachment of a task, stored in activities-api's bucket (ADR-0089). */
+export type TaskFile = {
+  id: string
+  kind: 'image' | 'attachment'
+  fileName: string
+  contentType: string
+  sizeBytes: number
+  uploadedBy: PersonRef
+  createdAt: string
+}
+
 export type ActivityTask = {
+  /** The task's rich description (TipTap JSON), or null. Absent from an older server. */
+  description?: RichTextDoc | null
+  /** Its stored images and attachments, oldest first. Absent from an older server. */
+  files?: TaskFile[]
   dueDate: string | null
   assignee: PersonRef | null
   completedAt: string | null

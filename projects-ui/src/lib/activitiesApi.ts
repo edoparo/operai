@@ -11,6 +11,7 @@
  * infers them.
  */
 import { getActivitiesApiBaseUrl } from 'shell/session'
+import type { RichTextDoc } from '@operai/ui/rich-text'
 import { query, requestJson } from './api'
 import type { Page } from './types'
 
@@ -25,7 +26,22 @@ export type PersonRef = {
 
 export type TaskBlockerRef = { id: string; subject: string; completed: boolean }
 
+/** An image or attachment of a task, stored in activities-api's bucket (ADR-0089). */
+export type TaskFile = {
+  id: string
+  kind: 'image' | 'attachment'
+  fileName: string
+  contentType: string
+  sizeBytes: number
+  uploadedBy: PersonRef
+  createdAt: string
+}
+
 export type TaskDetails = {
+  /** The task's rich description (TipTap JSON), or null. Absent from an older server. */
+  description?: RichTextDoc | null
+  /** Its stored images and attachments, oldest first. Absent from an older server. */
+  files?: TaskFile[]
   dueDate: string | null
   assignee: PersonRef | null
   completedAt: string | null
@@ -121,10 +137,13 @@ export type CreateTaskInput = {
   blockedByIds: string[]
   /** The whole set of colleagues who take part (AC-5.1). */
   participantIds: string[]
+  /** The rich description (ADR-0089); it may show only images the task already has. */
+  description?: RichTextDoc | null
 }
 
 export type UpdateTaskInput = {
   subject: string
+  description?: RichTextDoc | null
   dueDate: string | null
   /** Resent unchanged, an assignee who has left the team is accepted (AC-3.7). */
   assigneeUserId?: string
@@ -133,8 +152,40 @@ export type UpdateTaskInput = {
 }
 
 export const createTask = (input: CreateTaskInput) => send<ProjectTask>('/activities', 'POST', input)
-export const updateTask = (id: string, input: UpdateTaskInput) => send<ProjectTask>(activityPath(id), 'PATCH', input)
+export const updateTask = (id: string, input: Partial<UpdateTaskInput>) =>
+  send<ProjectTask>(activityPath(id), 'PATCH', input)
 export const deleteTask = (id: string) => send<void>(activityPath(id), 'DELETE')
 /** Done (`completed: true`) or not done (reopen); assignee or manager, also on a closed project (AC-3.3, AC-3.8). */
 export const setTaskCompleted = (id: string, completed: boolean) =>
   send<ProjectTask>(`${activityPath(id)}/${completed ? 'complete' : 'reopen'}`, 'POST')
+
+// ─── A task's files (ADR-0089) ───────────────────────────────────────────────
+// Two phases: activities-api mints a presigned POST, the browser sends the bytes straight to the
+// bucket (plain `fetch`: the bucket is not an API origin and never sees the Bearer token), then confirms.
+
+export type TaskFileUpload = { fileId: string; upload: { url: string; fields: Record<string, string> } }
+
+const filesPath = (activityId: string) => `${activityPath(activityId)}/files`
+
+export const startTaskFile = (
+  activityId: string,
+  input: { kind: TaskFile['kind']; fileName: string; contentType: string; sizeBytes: number },
+) => send<TaskFileUpload>(filesPath(activityId), 'POST', input)
+export const confirmTaskFile = (activityId: string, fileId: string) =>
+  send<TaskFile>(`${filesPath(activityId)}/${encodeURIComponent(fileId)}/confirm`, 'POST')
+export const getTaskFileUrl = (activityId: string, fileId: string) =>
+  requestJson<{ url: string; expiresAt: string }>(
+    getActivitiesApiBaseUrl(),
+    `${filesPath(activityId)}/${encodeURIComponent(fileId)}/url`,
+  )
+export const deleteTaskFile = (activityId: string, fileId: string) =>
+  send<void>(`${filesPath(activityId)}/${encodeURIComponent(fileId)}`, 'DELETE')
+
+/** The presigned POST of a started upload: the fields first, the file last. */
+export async function postToBucket(upload: TaskFileUpload['upload'], file: Blob): Promise<void> {
+  const form = new FormData()
+  for (const [name, value] of Object.entries(upload.fields)) form.append(name, value)
+  form.append('file', file)
+  const response = await fetch(upload.url, { method: 'POST', body: form })
+  if (!response.ok) throw new Error(`bucket upload failed: ${response.status}`)
+}

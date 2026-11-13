@@ -3,6 +3,8 @@ import { Button, ConfirmDialog, TaskRow, formatDate } from '@operai/ui'
 import { deleteTask, setTaskCompleted } from '../lib/activitiesApi'
 import type { ProjectTask } from '../lib/activitiesApi'
 import { codeOf, statusOf, taskErrorMessage } from '../lib/errors'
+import { RichTextFilesView } from '@operai/ui/rich-text'
+import { openTaskFile, taskFileUrlResolver } from '../lib/taskFiles'
 import { strings } from '../strings'
 import { TASK_STATE_MEANING, refName, taskState } from './TaskModel'
 
@@ -89,6 +91,26 @@ export default function ProjectTaskItem({
       stateLabel={strings.tasks.state[state]}
       stateMeanings={TASK_STATE_MEANING}
       title={task.subject}
+      body={
+        <RichTextFilesView
+          doc={task.task.description ?? null}
+          attachments={(task.task.files ?? [])
+            .filter((file) => file.kind === 'attachment')
+            .map((file) => ({ id: file.id, name: file.fileName, sizeBytes: file.sizeBytes }))}
+          resolveImageUrl={taskFileUrlResolver(task.id)}
+          onDownload={(item) => {
+            void openTaskFile(task.id, item.id).then((opened) => {
+              if (!opened) onFailed(task.id, strings.tasks.files.errors.openFailed, false)
+            })
+          }}
+          copy={{
+            images: strings.tasks.files.images,
+            check: strings.tasks.files.check,
+            attachments: strings.tasks.files.attachments,
+          }}
+          testIdPrefix={`project-task-${task.id}-description`}
+        />
+      }
       meta={[
         facts.join(' · '),
         ...(participants.length > 0

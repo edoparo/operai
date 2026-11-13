@@ -209,6 +209,9 @@ export const S3_RESIDENCY: ReadonlyArray<{ service: ServiceName; prefix: string 
   // specs/021 (ADR-0061/0063): REQUIRED — a tool without audio storage is meaningless, and
   // meetings-api additionally verifies the bucket's lifecycle rule and versioning at startup.
   { service: "meetings-api", prefix: "MEETINGS_S3" },
+  // ADR-0089: task images and attachments. Optional like the CRM's: without it the file routes
+  // answer 503 storage_unconfigured and the rest of activities-api works.
+  { service: "activities-api", prefix: "ACTIVITIES_S3" },
 ];
 export const EU_AWS_REGIONS: ReadonlyArray<string> = [
   "eu-west-1", "eu-west-2", "eu-west-3", "eu-central-1", "eu-central-2",
@@ -418,6 +421,8 @@ export const SECRET_VARS: ReadonlySet<string> = new Set([
   "CRM_S3_SECRET_ACCESS_KEY",
   "MEETINGS_S3_ACCESS_KEY_ID",
   "MEETINGS_S3_SECRET_ACCESS_KEY",
+  "ACTIVITIES_S3_ACCESS_KEY_ID",
+  "ACTIVITIES_S3_SECRET_ACCESS_KEY",
   "MEETINGS_GCP_SERVICE_ACCOUNT_KEY", // base64 service-account JSON key, carries a private key (specs/021, G-6/G-7)
   // The retired provider credentials stay redacted: if one is found live it is flagged by name
   // (FORBIDDEN_VARS) and its value must still never be surfaced.

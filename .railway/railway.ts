@@ -8,6 +8,8 @@ export default defineRailway(() => {
   const refund = bucket("refund", { region: "ams" });
   const crm = bucket("crm", { region: "ams" });
   const meetings = bucket("meetings", { region: "ams" });
+  // ADR-0089: task images and attachments (activities-api). Private, EU; a bucket's region cannot change.
+  const activities = bucket("activities", { region: "ams" });
   const refundApi = service("refund-api", {
     source: github("matteocodogno/operai", { branch: "main", checkSuites: false, rootDirectory: "/refund-api" }),
     build: { buildEnvironment: "V3", builder: "DOCKERFILE", dockerfilePath: "Dockerfile" },
@@ -112,6 +114,6 @@ export default defineRailway(() => {
 
   return project("operai", {
     variables: { managed: false },
-    resources: [refundApi, Postgres, meetingsApi, activitiesApi, crmApi, projectsApi, auth, notifyApi, estimaiApi, inventoryApi, postgresVolume, inventory, refund, crm, meetings],
+    resources: [refundApi, Postgres, meetingsApi, activitiesApi, crmApi, projectsApi, auth, notifyApi, estimaiApi, inventoryApi, postgresVolume, inventory, refund, crm, meetings, activities],
   });
 });

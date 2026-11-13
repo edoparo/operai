@@ -166,13 +166,13 @@ export default function TasksPage() {
         <ActivityFormDialog
           fixedType="task"
           onCancel={() => setCreating(false)}
-          onSaved={() => {
+          onSaved={(_saved, warning) => {
             setCreating(false)
             // The task may be the first one for its assignee: refresh the filter's colleagues.
             people.retry()
             setView('open')
             setPage(1)
-            changed(t.created)
+            changed(warning ?? t.created)
           }}
         />
       )}
@@ -181,9 +181,9 @@ export default function TasksPage() {
           company={editing.company}
           activity={editing}
           onCancel={() => setEditing(null)}
-          onSaved={() => {
+          onSaved={(_saved, warning) => {
             setEditing(null)
-            changed(strings.activities.saved)
+            changed(warning ?? strings.activities.saved)
           }}
         />
       )}

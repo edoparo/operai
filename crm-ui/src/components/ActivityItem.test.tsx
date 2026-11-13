@@ -87,3 +87,40 @@ describe('ActivityItem — other activities', () => {
     expect(screen.queryByRole('link', { name: 'Open meeting' })).toBeNull()
   })
 })
+
+describe('ActivityItem — a task with a description and files (ADR-0089)', () => {
+  const TASK: Activity = {
+    ...MEETING_ACTIVITY,
+    id: 't1',
+    type: 'task',
+    subject: 'Prepare the demo',
+    meeting: null,
+    task: {
+      dueDate: null,
+      assignee: null,
+      completedAt: null,
+      completedBy: null,
+      description: {
+        type: 'doc',
+        content: [{ type: 'paragraph', content: [{ type: 'text', text: 'Bring the ', marks: [] }, { type: 'text', text: 'cables', marks: [{ type: 'bold' }] }] }],
+      },
+      files: [
+        { id: 'f-img', kind: 'image', fileName: 'shot.png', contentType: 'image/png', sizeBytes: 10, uploadedBy: MEETING_ACTIVITY.author, createdAt: '2026-11-13T09:00:00Z' },
+        { id: 'f-pdf', kind: 'attachment', fileName: 'offer.pdf', contentType: 'application/pdf', sizeBytes: 2048, uploadedBy: MEETING_ACTIVITY.author, createdAt: '2026-11-13T09:00:00Z' },
+      ],
+    },
+  }
+
+  it('shows the formatted description and lists only the attachments, as downloads', () => {
+    show(TASK)
+    expect(screen.getByTestId('crm-activity-t1-description-text').textContent).toBe('Bring the cables')
+    expect(screen.getByText('cables').closest('strong')).not.toBeNull()
+    expect(screen.getByRole('button', { name: 'Download offer.pdf' })).not.toBeNull()
+    expect(screen.queryByText('shot.png')).toBeNull()
+  })
+
+  it('a task without a description or files shows neither', () => {
+    show({ ...TASK, task: { ...TASK.task!, description: null, files: [] } })
+    expect(screen.queryByTestId('crm-activity-t1-description-view')).toBeNull()
+  })
+})

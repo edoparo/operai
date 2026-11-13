@@ -1,5 +1,7 @@
-import { useCallback, useRef, useState } from 'react'
+import { useCallback, useMemo, useRef, useState } from 'react'
 import { CheckboxGroupField, DateInput, DateTimeInput, Field, FormDialog, focusFirstInvalid } from '@operai/ui'
+import { RichTextFilesField, imageFileIds, isLocalFileId, useDeferredFiles, withoutLocalImages } from '@operai/ui/rich-text'
+import type { DeferredFile, RichTextDoc } from '@operai/ui/rich-text'
 import { ApiError } from '../lib/api'
 import { createActivity, listActivities, updateActivity } from '../lib/activitiesApi'
 import { listContacts, listDeals } from '../lib/crmApi'
@@ -10,6 +12,17 @@ import { ACTIVITY_TYPES } from '../lib/types'
 import type { Activity, ActivityType, CompanyRef } from '../lib/types'
 import { first, hasErrors, maxLength, optional, required } from '../lib/validate'
 import type { Errors } from '../lib/validate'
+import {
+  ATTACHMENT_ACCEPT,
+  IMAGE_ACCEPT,
+  MAX_FILES_PER_TASK,
+  deferredOf,
+  filesWarning,
+  openTaskFile,
+  saveDeferredFiles,
+  taskFileProblem,
+  taskFileUrlResolver,
+} from '../lib/taskFiles'
 import { useResource } from '../hooks/useResource'
 import { strings } from '../strings'
 import CompanyPicker from './CompanyPicker'
@@ -23,6 +36,7 @@ type FieldName =
   | 'type'
   | 'subject'
   | 'body'
+  | 'description'
   | 'occurredAt'
   | 'dueDate'
   | 'assignee'
@@ -42,7 +56,13 @@ const CODE_FIELDS: Record<string, FieldName> = {
   blocker_not_in_company: 'blockedByIds',
   blocker_is_self: 'blockedByIds',
   blocker_cycle: 'blockedByIds',
+  image_not_found: 'description',
 }
+
+/** A task's description holds at most this many characters of text (the server caps its JSON at 128 KiB). */
+const DESCRIPTION_MAX_CHARS = 20_000
+
+const noStoredImages = () => Promise.reject(new Error('not saved yet'))
 
 /** Server field names that are not this form's field names. */
 const SERVER_FIELDS: Record<string, FieldName> = { assigneeUserId: 'assignee', participantIds: 'participants' }
@@ -69,14 +89,20 @@ export default function ActivityFormDialog({
   fixedType?: ActivityType
   activity?: Activity
   preset?: { contactId?: string; dealId?: string }
-  onSaved: (activity: Activity) => void
+  /** `warning`: the task was saved but some of its files were not (shown instead of "saved"). */
+  onSaved: (activity: Activity, warning?: string) => void
   onCancel: () => void
 }) {
   const t = strings.activities.form
+  const tf = strings.activities.taskFiles
   const [type, setType] = useState<ActivityType>(activity?.type ?? fixedType ?? 'note')
   const [chosenCompany, setChosenCompany] = useState<CompanyChoice | null>(null)
   const [subject, setSubject] = useState(activity?.subject ?? '')
   const [body, setBody] = useState(activity?.body ?? '')
+  // A task's text is its rich description (ADR-0089); its files wait for the save.
+  const [description, setDescription] = useState<RichTextDoc | null>(activity?.task?.description ?? null)
+  const storedFiles = useMemo(() => deferredOf(activity?.task?.files), [activity])
+  const files = useDeferredFiles(storedFiles)
   const [occurredAt, setOccurredAt] = useState(() =>
     toLocalDateTimeInput(activity ? new Date(activity.occurredAt) : new Date()),
   )
@@ -144,7 +170,7 @@ export default function ActivityFormDialog({
     const found: Errors<FieldName> = {
       company: companyId === null ? strings.common.validation.required : undefined,
       subject: first(required(subject), maxLength(subject, 200)) ?? undefined,
-      body: maxLength(body, 10_000) ?? undefined,
+      body: isTask ? undefined : (maxLength(body, 10_000) ?? undefined),
       occurredAt: !isTask && occurredIso === null ? strings.common.validation.date : undefined,
     }
     setErrors(found)
@@ -154,7 +180,7 @@ export default function ActivityFormDialog({
     }
     const text = {
       subject: subject.trim(),
-      body: optional(body),
+      ...(isTask ? { description: withoutLocalImages(description) } : { body: optional(body) }),
       participantIds: participants.map((person) => person.id),
     }
     const timing = isTask
@@ -166,7 +192,7 @@ export default function ActivityFormDialog({
       : { occurredAt: occurredIso! }
     setBusy(true)
     setError(null)
-    const request = activity
+    const saveRecord = activity
       ? updateActivity(activity.id, {
           ...text,
           ...timing,
@@ -181,7 +207,16 @@ export default function ActivityFormDialog({
           ...(contactId ? { contactId } : {}),
           ...(dealId ? { dealId } : {}),
         })
-    request.then(onSaved, (failure: unknown) => {
+    // The record first: a refused field stops here, before any file is touched. Then the files, and the
+    // description again only if it shows pictures that had no stored id until now.
+    const request = saveRecord.then(async (saved): Promise<[Activity, string | undefined]> => {
+      if (!isTask || (files.pending.length === 0 && files.removed.length === 0)) return [saved, undefined]
+      const result = await saveDeferredFiles(saved.id, description, files)
+      const placed = imageFileIds(description).some(isLocalFileId)
+      const final = placed ? await updateActivity(saved.id, { description: result.doc }).catch(() => saved) : saved
+      return [final, filesWarning(result)]
+    })
+    request.then(([saved, warning]) => onSaved(saved, warning), (failure: unknown) => {
       setBusy(false)
       const byCode = failure instanceof ApiError && failure.code ? CODE_FIELDS[failure.code] : undefined
       if (byCode && failure instanceof ApiError) {
@@ -245,11 +280,35 @@ export default function ActivityFormDialog({
         <Field label={t.subject} required error={errors.subject} testId="crm-activity-form-subject">
           {(control) => <input {...control} value={subject} onChange={(event) => setSubject(event.target.value)} />}
         </Field>
-        <Field label={t.body} error={errors.body} testId="crm-activity-form-body">
-          {(control) => (
-            <textarea {...control} rows={4} value={body} onChange={(event) => setBody(event.target.value)} />
-          )}
-        </Field>
+        {isTask ? (
+          <RichTextFilesField
+            label={tf.description}
+            hint={tf.hint}
+            error={errors.description}
+            initialValue={description}
+            onChange={(doc) => setDescription(doc)}
+            placeholder={tf.placeholder}
+            maxLength={DESCRIPTION_MAX_CHARS}
+            files={files}
+            resolveStoredUrl={activity ? taskFileUrlResolver(activity.id) : noStoredImages}
+            onDownload={(file: DeferredFile) => {
+              if (activity) void openTaskFile(activity.id, file.id)
+            }}
+            imageAccept={IMAGE_ACCEPT}
+            attachmentAccept={ATTACHMENT_ACCEPT}
+            check={(file, kind) =>
+              files.files.length >= MAX_FILES_PER_TASK ? tf.errors.tooMany : taskFileProblem(file, kind)
+            }
+            copy={{ editor: tf.editor, images: tf.images, attachments: tf.attachments }}
+            testIdPrefix="crm-activity-form-description"
+          />
+        ) : (
+          <Field label={t.body} error={errors.body} testId="crm-activity-form-body">
+            {(control) => (
+              <textarea {...control} rows={4} value={body} onChange={(event) => setBody(event.target.value)} />
+            )}
+          </Field>
+        )}
         {isTask ? (
           <>
             <Field label={t.dueDate} error={errors.dueDate} testId="crm-activity-form-due">

@@ -17,7 +17,7 @@ import type { JwtVariables } from "../auth/jwt.middleware";
 import { jwtMiddleware } from "../auth/jwt.middleware";
 import { db } from "../lib/db";
 import { assertContactNotErased } from "../lib/erasedContacts";
-import type { Prisma } from "../lib/generated/prisma/client";
+import { Prisma } from "../lib/generated/prisma/client";
 import {
   DateOnlySchema,
   IdParams,
@@ -37,10 +37,13 @@ import { announce } from "../lib/notify";
 import type { NotifyActivity, NotifyTarget } from "../lib/notificationCopy";
 import { unprocessable, validationHook } from "../lib/problem";
 import type { ActivityHost, HostApp } from "../hosts/registry";
-import { HostSession, notFoundProblem, type OpenEntity } from "./access";
+import { HostSession, type OpenEntity } from "./access";
+import { authorizationOf, ifStillThere, loadFor, type Caller } from "./load";
 import { MAX_BLOCKERS, announceUnblocked, assertBlockers, assertUnblocked, newBlockerRows, replaceBlockers } from "./blockers";
 import { changeRefused, completeRefused, createRefused, hostReadOnly, mayChange, mayComplete, mayCreate } from "./rules";
 import { staggered } from "./stagger";
+import { DescriptionSchema, imageIdsOf, isEmptyDoc, textToDoc, type Doc } from "../files/description";
+import { assertImagesOf, cleanUpAfterDescription, deleteActivitiesWithFiles } from "../files/files";
 import { ACTIVITY_TYPES, ActivitySchema, relatedIdsOf, toView, toViews, withRefs, type ActivityRow } from "./view";
 
 // ─── Schemas ─────────────────────────────────────────────────────────────────
@@ -67,6 +70,8 @@ const CreateActivitySchema = z
     type: TypeSchema,
     subject: requiredText(200),
     body: optionalText(10_000),
+    /** A task's rich description (ADR-0089); refused on any other type. */
+    description: DescriptionSchema.nullable().optional(),
     companyId: EntityIdSchema.optional(),
     projectId: EntityIdSchema.optional(),
     occurredAt: z.string().datetime({ offset: true }).optional(),
@@ -83,6 +88,7 @@ const UpdateActivitySchema = z
   .object({
     subject: requiredText(200).optional(),
     body: optionalText(10_000),
+    description: DescriptionSchema.nullable().optional(),
     occurredAt: z.string().datetime({ offset: true }).optional(),
     dueDate: DateOnlySchema.nullable().optional(),
     assigneeUserId: UserIdSchema.optional(),
@@ -107,34 +113,24 @@ const ListActivitiesQuery = z.object({
 
 // ─── Checks ──────────────────────────────────────────────────────────────────
 
-type Caller = {
-  get(key: "userId"): string;
-  req: { header(name: string): string | undefined };
-};
-
-const authorizationOf = (c: Caller) => c.req.header("Authorization") ?? "";
-
-/**
- * Prisma's "record to update not found" (P2025): the activity was deleted between the host's
- * answer and the write. To the caller it is simply gone: the same 404 as any other.
- */
-async function ifStillThere<T>(write: () => Promise<T>): Promise<T> {
-  try {
-    return await write();
-  } catch (error) {
-    if (typeof error === "object" && error !== null && (error as { code?: unknown }).code === "P2025") throw notFoundProblem();
-    throw error;
-  }
-}
 
 const taskFieldsOnNonTask = (field: string) =>
   unprocessable("Due date and assignee belong to tasks only", { field }, "task_fields_on_non_task");
 
-function hostOf(session: HostSession, row: Pick<ActivityRow, "hostApp" | "hostType">): ActivityHost {
-  const host = session.registry.get(row.hostApp, row.hostType);
-  if (!host) throw notFoundProblem();
-  return host;
+/**
+ * A task has one text, its description (ADR-0089). What a request gives for it: the description
+ * itself, or (an older client, crm-api's estimate task) a plain `body`, kept as paragraphs.
+ * `undefined` = not touched; `null` = cleared. An empty document is stored as null.
+ */
+function taskDescriptionOf(input: { body?: string | null | undefined; description?: Doc | null | undefined }): Doc | null | undefined {
+  if (input.description !== undefined) return input.description === null || isEmptyDoc(input.description) ? null : input.description;
+  if (input.body !== undefined) return input.body === null ? null : textToDoc(input.body);
+  return undefined;
 }
+
+/** Prisma's way to write a JSON column's SQL NULL. */
+const jsonOrNull = (doc: Doc | null) => (doc === null ? Prisma.DbNull : (doc as Prisma.InputJsonValue));
+
 
 /** A contact or deal only exists where the host has them: the CRM's company, never a project. */
 function assertRefsApply(host: ActivityHost, contactId: string | null | undefined, dealId: string | null | undefined): void {
@@ -375,7 +371,11 @@ activitiesRouter.openapi(createActivityRoute, async (c) => {
   if (!isTask && body.dueDate != null) throw taskFieldsOnNonTask("dueDate");
   if (!isTask && body.assigneeUserId !== undefined) throw taskFieldsOnNonTask("assigneeUserId");
   if (!isTask && body.blockedByIds !== undefined) throw taskFieldsOnNonTask("blockedByIds");
+  if (!isTask && body.description != null) throw taskFieldsOnNonTask("description");
   assertRefsApply(host, body.contactId, body.dealId);
+  const description = isTask ? (taskDescriptionOf(body) ?? null) : null;
+  // A new task has no files yet: its description cannot show an image.
+  if (description) await assertImagesOf(null, imageIdsOf(description));
 
   await session.load(host, [hostId], {
     contact: body.contactId ? [body.contactId] : [],
@@ -403,7 +403,8 @@ activitiesRouter.openapi(createActivityRoute, async (c) => {
         kind: host.kind,
         type: body.type,
         subject: body.subject,
-        body: body.body ?? null,
+        body: isTask ? null : (body.body ?? null),
+        description: jsonOrNull(description),
         occurredAt: body.occurredAt ? new Date(body.occurredAt) : new Date(),
         hostApp: host.app,
         hostType: host.entityType,
@@ -426,31 +427,6 @@ activitiesRouter.openapi(createActivityRoute, async (c) => {
   return c.json(await toView(c, row, session), 201);
 });
 
-/**
- * An existing activity and the host's answer about its entity, for this caller. Every route
- * that touches one starts here: a missing activity, an unreadable one and a missing entity are
- * the same 404 (AC-8.3), a host that cannot answer is the 503 (AC-8.2), and nothing past this
- * point runs for a caller the host did not confirm.
- */
-async function loadFor(
-  c: Caller,
-  id: string,
-  extraRelated: { contact?: readonly (string | null | undefined)[]; deal?: readonly (string | null | undefined)[] } = {},
-) {
-  const row = await db.activity.findUnique({ where: { id }, include: withRefs });
-  if (!row) throw notFoundProblem();
-  const session = new HostSession(authorizationOf(c));
-  const host = hostOf(session, row);
-  const own = relatedIdsOf([row]);
-  const present = (list: readonly (string | null | undefined)[] | undefined) => (list ?? []).filter((v): v is string => !!v);
-  await session.load(host, [row.hostId], {
-    contact: [...own.contact, ...present(extraRelated.contact)],
-    deal: [...own.deal, ...present(extraRelated.deal)],
-  });
-  const entity = session.open(host, row.hostId);
-  return { row, session, host, entity };
-}
-
 activitiesRouter.openapi(updateRoute, async (c) => {
   const { id } = c.req.valid("param");
   const body = c.req.valid("json");
@@ -464,7 +440,12 @@ activitiesRouter.openapi(updateRoute, async (c) => {
     if (body.dueDate !== undefined) throw taskFieldsOnNonTask("dueDate");
     if (body.assigneeUserId !== undefined) throw taskFieldsOnNonTask("assigneeUserId");
     if (body.blockedByIds !== undefined) throw taskFieldsOnNonTask("blockedByIds");
+    if (body.description != null) throw taskFieldsOnNonTask("description");
   }
+  const description = current.type === "task" ? taskDescriptionOf(body) : undefined;
+  const previousImages = imageIdsOf(current.description);
+  const currentImages = description === undefined ? previousImages : imageIdsOf(description);
+  if (description) await assertImagesOf(id, currentImages);
   // The entity stays: its contact and deal are checked against it (017 AC-4.1).
   assertRefsApply(host, body.contactId, body.dealId);
   assertRefs(session, current.hostId, body.contactId, body.dealId);
@@ -500,7 +481,13 @@ activitiesRouter.openapi(updateRoute, async (c) => {
       where: { id },
       data: {
         ...(body.subject !== undefined ? { subject: body.subject } : {}),
-        ...(body.body !== undefined ? { body: body.body } : {}),
+        ...(current.type === "task"
+          ? description !== undefined
+            ? { description: jsonOrNull(description), body: null }
+            : {}
+          : body.body !== undefined
+            ? { body: body.body }
+            : {}),
         ...(body.occurredAt !== undefined ? { occurredAt: new Date(body.occurredAt) } : {}),
         ...(body.dueDate !== undefined ? { dueDate: fromDateOnly(body.dueDate) ?? null } : {}),
         ...(body.assigneeUserId !== undefined ? { assigneeUserId: body.assigneeUserId } : {}),
@@ -510,6 +497,7 @@ activitiesRouter.openapi(updateRoute, async (c) => {
       include: withRefs,
     });
   }));
+  if (description !== undefined) await cleanUpAfterDescription(id, previousImages, currentImages);
   if (current.type === "task" && row.assigneeUserId !== current.assigneeUserId) await announceTask(c, session, host, row);
   await announceParticipants(c, session, host, row, addedParticipants);
   return c.json(await toView(c, row, session), 200);
@@ -520,7 +508,8 @@ activitiesRouter.openapi(deleteRoute, async (c) => {
   const { row, host, entity } = await loadFor(c, id);
   if (!mayChange(host, entity, row, c.get("userId"))) throw changeRefused(host);
   if (!entity.writable) throw hostReadOnly();
-  await db.activity.deleteMany({ where: { id } });
+  // Its files first (objects, then rows), so nothing in the bucket outlives the task (ADR-0089).
+  await deleteActivitiesWithFiles({ id });
   return c.body(null, 204);
 });
 

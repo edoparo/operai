@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { checkEuResidency, isAwsS3Endpoint } from "./s3Residency";
 
 // ─── Schema ──────────────────────────────────────────────────────────────────
 //
@@ -16,6 +17,15 @@ const booleanFlag = z
 
 /** The notifier's credentials, all or none (crm-api's rule, ADR-0049): a half-set client is a start error. */
 const NOTIFY_KEYS = ["NOTIFY_INTERNAL_URL", "SERVICE_CLIENT_ID", "SERVICE_CLIENT_SECRET"] as const;
+
+/** The task files bucket (ADR-0089), all or none; none = file routes answer 503 `storage_unconfigured`. */
+const S3_KEYS = [
+  "ACTIVITIES_S3_ENDPOINT",
+  "ACTIVITIES_S3_REGION",
+  "ACTIVITIES_S3_BUCKET",
+  "ACTIVITIES_S3_ACCESS_KEY_ID",
+  "ACTIVITIES_S3_SECRET_ACCESS_KEY",
+] as const;
 
 const envSchema = z
   .object({
@@ -60,6 +70,24 @@ const envSchema = z
     // Maintenance switch (AC-2.5, ADR-0083): true = every route but GET /health answers 503
     // `maintenance`. Absent = off. A malformed value stops the start rather than reading as off.
     ACTIVITIES_MAINTENANCE: booleanFlag.default("false"),
+    // ─── Task files bucket (ADR-0089) ─────────────────────────────────────────
+    // Its OWN private EU bucket, never another tool's. Residency is checked here: an AWS
+    // endpoint must name an EU region, any other endpoint must match the operator-declared
+    // ACTIVITIES_S3_EU_ENDPOINT_HOSTS, or the start fails (data residency, ADR-0016).
+    ACTIVITIES_S3_ENDPOINT: z.string().url("ACTIVITIES_S3_ENDPOINT must be a valid URL").optional(),
+    ACTIVITIES_S3_REGION: z.string().min(1).optional(),
+    ACTIVITIES_S3_BUCKET: z.string().min(1).optional(),
+    ACTIVITIES_S3_ACCESS_KEY_ID: z.string().min(1).optional(),
+    ACTIVITIES_S3_SECRET_ACCESS_KEY: z.string().min(1).optional(),
+    ACTIVITIES_S3_EU_ENDPOINT_HOSTS: z
+      .string()
+      .optional()
+      .transform((v) =>
+        (v ?? "")
+          .split(",")
+          .map((h) => h.trim().toLowerCase())
+          .filter((h) => h.length > 0),
+      ),
   })
   .superRefine((val, ctx) => {
     if (val.SERVICE_AUDIENCE !== undefined && val.SERVICE_AUDIENCE === val.AUTH_AUDIENCE) {
@@ -70,6 +98,22 @@ const envSchema = z
       for (const key of NOTIFY_KEYS.filter((k) => val[k] === undefined)) {
         ctx.addIssue({ code: z.ZodIssueCode.custom, path: [key], message: `${key} is required when any of ${NOTIFY_KEYS.join(", ")} is set` });
       }
+    }
+    const s3Set = S3_KEYS.filter((key) => val[key] !== undefined);
+    if (s3Set.length === 0) return;
+    if (s3Set.length < S3_KEYS.length) {
+      for (const key of S3_KEYS.filter((k) => val[k] === undefined)) {
+        ctx.addIssue({ code: z.ZodIssueCode.custom, path: [key], message: `${key} is required when any ACTIVITIES_S3_* is set` });
+      }
+      return;
+    }
+    const residencyError = checkEuResidency(val.ACTIVITIES_S3_ENDPOINT!, val.ACTIVITIES_S3_REGION!, val.ACTIVITIES_S3_EU_ENDPOINT_HOSTS);
+    if (residencyError) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: [isAwsS3Endpoint(val.ACTIVITIES_S3_ENDPOINT!) ? "ACTIVITIES_S3_REGION" : "ACTIVITIES_S3_EU_ENDPOINT_HOSTS"],
+        message: residencyError,
+      });
     }
   });
 
