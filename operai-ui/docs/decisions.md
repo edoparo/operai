@@ -473,6 +473,17 @@ argument. It is positioned in CSS under the trigger, with no portal, so it can b
 by an ancestor with `overflow: hidden`. estimai's `WarningBadge` keeps its own portal
 tooltip, which shows an icon and a title, until it is migrated.
 
+## Width scale, widened (2026-11-13)
+
+**D-65 — `default` is 80rem and `wide` is the full width.** On a wide screen the 64rem
+`default` column left almost half of the space beside the sidebar empty, and every tool's
+lists used it. The owner chose to widen the scale itself rather than switch list pages to
+`wide` route by route (which also makes the column jump between a list and its record) or
+drop the limit everywhere (very long lines in forms, transcripts and notes). `default` goes
+from 64rem to 80rem; `wide` goes from 90rem to no limit (the 24px gutter stays); `narrow`
+stays 40rem. One change in `tokens.css`, no app touched. A block of running text that
+needs a reading measure inside a wider column sets its own `max-w-*`.
+
 ## Not done (deliberately)
 
 - **refund-ui's detail pages keep their own `<h2 class="page-title">`**

@@ -33,7 +33,7 @@ renders a `<main>`, an `<h1>`, a header bar or a sidebar — the shell and
 </section>
 ```
 
-- Pick the tool's column once, on `ToolLayout`: `default` (64rem) for lists and
+- Pick the tool's column once, on `ToolLayout`: `default` (80rem) for lists and
   detail pages, `narrow` for a single form, `wide` for a data-dense workspace.
 - `PageHeader` first: title (h2), `status` badge beside it, `back` on every detail
   page (`<Link className="link"><Icon name="arrow-left" /> {t.back}</Link>`),

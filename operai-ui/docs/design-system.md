@@ -137,8 +137,8 @@ routed page in one of three columns (INC-12):
 | `width` | Column | Use |
 |---|---|---|
 | `narrow` | 40rem | a single form or profile (`/account`) |
-| `default` | 64rem | lists and detail pages (every tool) |
-| `wide` | 90rem | data-dense workspaces (EstimAI's estimate editor) |
+| `default` | 80rem | lists and detail pages (every tool) |
+| `wide` | full width (24px gutter) | data-dense workspaces (the CRM pipeline) |
 
 The shell owns everything around it — header,
 sidebar, session, the page's one `<main>` — so a remote never renders chrome or

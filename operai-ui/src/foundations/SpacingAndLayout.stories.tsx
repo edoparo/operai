@@ -7,7 +7,7 @@ import { ToolLayout } from '../components/ToolLayout'
  * Spacing comes from Tailwind's 4px scale (`gap-2` = 8px, `p-4` = 16px); the
  * library's components carry their own inner spacing. A tool picks ONE column
  * width on `ToolLayout`: `narrow` (40rem) for a single form or profile,
- * `default` (64rem) for lists and detail pages, `wide` (90rem) for
+ * `default` (80rem) for lists and detail pages, `wide` (full width) for
  * data-dense workspaces.
  */
 const meta: Meta = {
@@ -55,9 +55,9 @@ export const Scale: StoryObj = {
 }
 
 const WIDTHS = [
-  { width: 'narrow', rem: 40, cls: 'max-w-[40rem]', use: 'A single form or profile' },
-  { width: 'default', rem: 64, cls: 'max-w-[64rem]', use: 'Lists and detail pages: most tools' },
-  { width: 'wide', rem: 90, cls: 'max-w-[90rem]', use: 'Data-dense workspaces' },
+  { width: 'narrow', size: '40rem', cls: 'max-w-[40rem]', use: 'A single form or profile' },
+  { width: 'default', size: '80rem', cls: 'max-w-[80rem]', use: 'Lists and detail pages: most tools' },
+  { width: 'wide', size: 'full width', cls: 'max-w-none', use: 'Data-dense workspaces' },
 ] as const
 
 function WidthsView() {
@@ -73,7 +73,7 @@ function WidthsView() {
             <span className="flex items-center justify-between gap-3 rounded-md border border-acc bg-acc/10 px-3 py-2">
               <code className="font-mono text-xs text-acc-text">width=&quot;{entry.width}&quot;</code>
               <span className="text-xs text-soft">
-                {entry.rem}rem · {entry.use}
+                {entry.size} · {entry.use}
               </span>
             </span>
           </li>

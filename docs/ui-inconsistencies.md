@@ -222,7 +222,7 @@ The suite uses two styling dialects. shell and estimai use Tailwind palette util
 ## 3. Page layout
 
 ### INC-12: Different page frames, widths and title scales (medium)
-- **Status on `feat/operai-ui-library`:** Fixed, with one documented exception. Every tool frame is `ToolLayout` (h1 tool title, `TabNav`, no nested `<main>`) on the width scale narrow 40rem / default 64rem / wide 90rem; every page starts with `PageHeader`. refund, admin, inventory, notify, estimai's list, the shell's `/account` (narrow) and `/devices` use it. Exception: estimai's estimate editor keeps its own sticky workspace header (decisions D-40).
+- **Status on `feat/operai-ui-library`:** Fixed, with one documented exception. Every tool frame is `ToolLayout` (h1 tool title, `TabNav`, no nested `<main>`) on the width scale narrow 40rem / default 80rem / wide full width (default was 64rem and wide 90rem until 2026-11-13, D-65); every page starts with `PageHeader`. refund, admin, inventory, notify, estimai's list, the shell's `/account` (narrow) and `/devices` use it. Exception: estimai's estimate editor keeps its own sticky workspace header (decisions D-40).
 - **Evidence:**
   - refund, admin and inventory share the same tool-header frame: `max-w-5xl px-6 py-8`, an `h1 text-xl font-bold` tool name, then `h2 text-lg` page titles. See `refund-ui/src/components/RefundShell.tsx:56-58,107`, `admin-ui/src/components/AdminShell.tsx:28-30,37`, `inventory-ui/src/components/InventoryShell.tsx:97-98,135`. These are three copies of one component.
   - notify: `max-w-2xl px-6 py-16`, page `h1 text-3xl font-bold`, no tool header (`notify-ui/src/pages/NotificationCenterPage.tsx:129-134`).

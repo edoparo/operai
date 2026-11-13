@@ -8,8 +8,8 @@ import { ToolLayout } from './ToolLayout'
 /**
  * A tool's own frame inside the shell: the tool title (the page's one h1), its
  * `TabNav`, then the routed page in one of three columns — `narrow` (40rem) for
- * a single form, `default` (64rem) for lists and detail pages, `wide` (90rem)
- * for data-dense workspaces. The shell owns everything around it (header,
+ * a single form, `default` (80rem) for lists and detail pages, `wide` (full
+ * width, gutter only) for data-dense workspaces. The shell owns everything around it (header,
  * sidebar, session, the one `<main>`): a tool never renders chrome or a
  * `<main>` of its own.
  */
@@ -71,7 +71,7 @@ export const Playground: Story = {
   ),
 }
 
-/** 64rem: lists and detail pages, the column most tools use. */
+/** 80rem: lists and detail pages, the column most tools use. */
 export const DefaultWidth: Story = {
   name: 'Default width, with tabs',
   parameters: { controls: { disable: true } },
@@ -92,7 +92,7 @@ export const Narrow: Story = {
   ),
 }
 
-/** 90rem: a data-dense workspace. */
+/** Full width (gutter only): a data-dense workspace. */
 export const Wide: Story = {
   parameters: { controls: { disable: true } },
   render: () => (

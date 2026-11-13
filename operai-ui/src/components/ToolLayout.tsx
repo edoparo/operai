@@ -9,7 +9,8 @@ export type ToolLayoutProps = {
   children: ReactNode
   /**
    * Column width (INC-12): `narrow` 40rem for a single form or profile, `default`
-   * 64rem for lists and detail pages, `wide` 90rem for data-dense workspaces.
+   * 80rem for lists and detail pages, `wide` the full width (gutter only) for
+   * data-dense workspaces.
    */
   width?: 'narrow' | 'default' | 'wide'
   /** Id for the h1, so a surrounding <section aria-labelledby> can point at it. */
@@ -24,7 +25,7 @@ export type ToolLayoutProps = {
 
 /**
  * ToolLayout — a tool remote's own frame inside the shell chrome: title, tabs,
- * then the page in a 64rem column. The shell owns everything around it
+ * then the page in an 80rem column (by default). The shell owns everything around it
  * (header, sidebar, session); a remote never draws chrome of its own.
  */
 export function ToolLayout({
