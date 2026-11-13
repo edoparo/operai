@@ -1,0 +1,52 @@
+{
+  "schema": "wellforge-run/v3",
+  "plugin_version": "2.62.1",
+  "run_id": "2026-11-12T15-46-14Z-orchestrate-029-push-notifications",
+  "command": "orchestrate",
+  "feature": "029-push-notifications",
+  "rigor": "production",
+  "rigor_recorded": null,
+  "started": "2026-11-12T15:46:14Z",
+  "finished": "2026-11-13T11:19:06Z",
+  "notes": "Continuation of run 2026-11-11T16-39-32Z-orchestrate-029-push-notifications (its result: partial, eval FAIL 73.0). Covers the eval-driven L5 fix, the extension round for D-5, the escalation that split the router work out of 029 (user decision), D-7 and the post-split verification. WellForge agents became unavailable once more mid-run (plugin reload); one QE dispatch died on an API authentication error and was re-dispatched.",
+  "agents": [
+    { "agent": "frontend-dev", "outcome": "completed", "commits": ["9b394e13"], "note": "security L5 (history never destroyed per remount) — useDisposableRouter; user decision to fix it in 029" },
+    { "agent": "owasp-reviewer", "outcome": "PASS WITH NOTES", "note": "L5 closed; 2 lows (per-bundle queue, foreign outermost wrapper)" },
+    { "agent": "quality-engineer", "outcome": "FAIL", "note": "D-5: five remotes blank when their index route redirects (introduced by 9b394e13)" },
+    { "agent": "frontend-dev", "outcome": "completed", "commits": ["64722e10"], "note": "extension round 3 (user-granted): DisposableRouterHost" },
+    { "agent": "owasp-reviewer", "outcome": "PASS WITH NOTES", "note": "D-5 design: 0 ≥ medium, 3 lows" },
+    { "agent": "quality-engineer", "outcome": "FAIL", "note": "D-5 fixed; D-6 (Back/Forward stale inside a remote), D-7 (operai-push DB created at boot for everyone — caused by T8), D-8 (stale changeset)" },
+    { "agent": "frontend-dev", "outcome": "completed", "commits": ["710db1d1", "1f392e0c"], "note": "escalation exit 'split' (user decision): reverted 86496298, 85fcb037, 9b394e13, 64722e10; E-1 fixed by pinning projects-ui to @tanstack/react-router 1.170.17; kept the router skew guard and tool-entry.spec.ts; D-8 gone with the revert; D-7 fixed" },
+    { "agent": "owasp-reviewer", "outcome": "PASS WITH NOTES", "note": "post-split: revert complete, lockfile clean, D-7 sound; 2 lows (aborted-upgrade proof by fake only — then confirmed in a real browser by QE; two-tab race fails toward off)" },
+    { "agent": "quality-engineer", "outcome": "FAILED_TO_RUN", "note": "API authentication error (HTTP 403) before writing anything; re-dispatched" },
+    { "agent": "quality-engineer", "outcome": "PASS", "note": "post-split full sweep at 1f392e0c: 37/37 ACs, whole e2e suite 115/0, all gates green, D-7 confirmed in real Chromium, D-6 not reproducible at HEAD; T12 rows pending (human)" }
+  ],
+  "drift_events": [
+    { "agent": "evaluator", "artifact": "frontends (scope)", "summary": "eval FAIL 73.0 flagged the router alignment as out-of-AC scope; after D-5/D-6 the user chose to split all router work out of 029 into a separate spec (E-1 fixed minimally with a projects-ui pin)", "resolved": true },
+    { "agent": "main-loop", "artifact": "design.md", "summary": "design approved by the user (was draft, ungated)", "resolved": true }
+  ],
+  "collision_events": [],
+  "env_faults": [
+    { "agent": "main-loop", "class": "agents unavailable", "detail": "WellForge agent types disappeared again (plugin reload)", "resolved_by": "user reloaded plugins" },
+    { "agent": "quality-engineer", "class": "api", "detail": "QE dispatch terminated by an API authentication error (403)", "resolved_by": "re-dispatched" },
+    { "agent": "main-loop", "class": "app start", "detail": "dependency changes (router bump, then revert) required restarts with cleared node_modules/.vite", "resolved_by": "user restarted mise run dev twice" }
+  ],
+  "verdicts": { "qe": "PASS", "security": "PASS" },
+  "fix_rounds": { "used": 2, "cap": 2, "extensions": [ { "round": 3, "granted": "2026-11-12", "defects": ["D-5"] } ] },
+  "escalations": [ { "after": "extension round 3", "defects": ["D-6", "D-7", "D-8"], "exit": "split", "decided": "2026-11-12", "by": "Matteo Codogno" } ],
+  "security": {
+    "matched_rules": ["**/migrations/**", "session", "crypto", "always_at_tier:production"],
+    "dispatched": true,
+    "notes": [
+      "L1 (stored hrefs) — one-off production check in T12",
+      "L2–L4 accepted by the user (send-queue fill by colluding insiders; theoretical sync throw in the auth key-set reload; length-only secret validation)",
+      "L5 and its follow-on lows moved with the router work to a separate spec (reverted from 029 in 710db1d1)",
+      "post-split: two-tab race at boot can show push 'off' (fails toward off; pre-existing)"
+    ]
+  },
+  "result": "completed",
+  "tokens": null,
+  "cost_usd": null,
+  "terse": false,
+  "control_run_id": null
+}
