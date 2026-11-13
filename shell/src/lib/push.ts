@@ -505,8 +505,9 @@ export async function getThisBrowserDeviceId(userId: string): Promise<string | n
  *  - permission no longer `granted` -> best-effort DELETE, unsubscribe, forget (off)
  *  - remembered device but the browser lost the subscription (Safari) -> best-effort DELETE, forget (off)
  *  - subscription and device listed by the server -> on
- *  - listed row missing (pruned) -> silent re-PUT; a definitive refusal releases the subscription (off),
- *    an inconclusive failure keeps it (unverified)
+ *  - listed row missing (removed from another device, AC-3.2, or pruned) -> unsubscribe, forget (off).
+ *    NEVER a silent re-PUT: that would bring a removed device back on its next load and make it receive
+ *    pushes again (D-9). Only the user's own "Turn on" registers a device.
  *  - the server list cannot be read -> unverified, nothing changed
  *
  * Never rejects.
@@ -545,19 +546,11 @@ export async function reconcilePush(userId: string): Promise<PushReconcileResult
   }
   if (devices.some((device) => device.id === stored.deviceId)) return { status: 'on', deviceId: stored.deviceId }
 
-  // The server dropped the row (pruned). Permission is granted, so register the subscription again.
-  try {
-    const device = await registerDevice(subscription)
-    if (!(await writeStored({ deviceId: device.id, userId }))) return { status: 'unverified' }
-    return { status: 'on', deviceId: device.id }
-  } catch (error) {
-    if (error instanceof PushError && error.code !== 'generic') {
-      await unsubscribeQuietly(subscription)
-      await clearStored()
-      return { status: 'off' }
-    }
-    return { status: 'unverified' }
-  }
+  // The server no longer lists this device: it was removed (from another browser, AC-3.2) or pruned.
+  // Honour that. Releasing the subscription also kills the endpoint, so no push can reach this browser.
+  await unsubscribeQuietly(subscription)
+  await clearStored()
+  return { status: 'off' }
 }
 
 // ---------------------------------------------------------------------------

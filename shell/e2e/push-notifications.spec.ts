@@ -120,6 +120,30 @@ test.describe('My profile: push notifications (AC-1.1, AC-1.2, AC-1.5, AC-3.2)',
     await expect(status(page)).toHaveText('Off', { timeout: 15_000 })
     await expect(page.getByTestId(`account-push-device-${deviceId}`)).toHaveCount(0)
   })
+
+  test('removed from another session: after a reload this browser shows Off and is not re-registered (AC-3.2, D-9)', async ({
+    page,
+  }) => {
+    await page.goto('/account')
+    await expect(section(page)).toBeVisible({ timeout: 15_000 })
+    await toggle(page).click()
+    await expect(status(page)).toHaveText('On', { timeout: 15_000 })
+    await expect.poll(() => deviceIds.length).toBe(1)
+    const [deviceId] = deviceIds
+
+    // Another browser removes this device: same user, straight against the API.
+    await deleteTrackedPushDevices(token, [deviceId!])
+    expect(await listServerDevices(token)).toHaveLength(0)
+
+    await page.reload()
+    await expect(section(page)).toBeVisible({ timeout: 15_000 })
+    await expect(status(page)).toHaveText('Off', { timeout: 15_000 })
+    await expect(toggle(page)).toHaveText('Turn on')
+    await expect(page.getByTestId(`account-push-device-${deviceId}`)).toHaveCount(0)
+    await expect(page.getByText('No devices yet')).toBeVisible()
+    // Not silently registered again.
+    expect(await listServerDevices(token)).toHaveLength(0)
+  })
 })
 
 test.describe('AC-4.3: a signed-out visit to a notification deep link', () => {

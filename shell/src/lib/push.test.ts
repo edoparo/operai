@@ -691,41 +691,27 @@ describe('reconcilePush', () => {
     expect(browser.subscription).not.toBeNull()
   })
 
-  it('server row missing: silently re-PUTs the existing subscription (no prompt), stores the new id', async () => {
+  it('server row missing (removed from another device): unsubscribes, clears the store, never PUTs -> off (D-9)', async () => {
     withSubscription()
-    idb.seed({ deviceId: 'pruned', userId: USER })
+    idb.seed({ deviceId: 'removed', userId: USER })
     route('GET', '/push/devices', () => json(200, { items: [] }))
-    route('PUT', '/push/devices', () => json(201, { ...DEVICE, id: 'dev-9' }))
-
-    await expect(push.reconcilePush(USER)).resolves.toEqual({ status: 'on', deviceId: 'dev-9' })
-    const put = callsTo('PUT', '/push/devices')
-    expect(put).toHaveLength(1)
-    expect(JSON.parse(put[0]!.init!.body as string).endpoint).toBe('https://web.push.apple.com/live')
-    expect(browser.requestPermission).not.toHaveBeenCalled()
-    expect(browser.subscribe).not.toHaveBeenCalled()
-    expect(idb.peek()).toEqual({ deviceId: 'dev-9', userId: USER })
-  })
-
-  it('server row missing and the re-PUT is refused (e.g. 503 push_disabled): subscription released, store cleared -> off', async () => {
-    withSubscription()
-    idb.seed({ deviceId: 'pruned', userId: USER })
-    route('GET', '/push/devices', () => json(200, { items: [] }))
-    route('PUT', '/push/devices', () => json(503, { code: 'push_disabled' }))
 
     await expect(push.reconcilePush(USER)).resolves.toEqual({ status: 'off' })
+    expect(callsTo('PUT', '/push/devices')).toHaveLength(0)
+    expect(browser.requestPermission).not.toHaveBeenCalled()
     expect(browser.subscription).toBeNull()
     expect(idb.size()).toBe(0)
   })
 
-  it('server row missing and the re-PUT fails transiently (5xx/network): keeps the subscription, "unverified", retried next boot', async () => {
+  it('server row missing but others listed: still off, no PUT (D-9)', async () => {
     withSubscription()
-    idb.seed({ deviceId: 'pruned', userId: USER })
-    route('GET', '/push/devices', () => json(200, { items: [] }))
-    route('PUT', '/push/devices', () => json(502, {}))
+    idb.seed({ deviceId: 'removed', userId: USER })
+    route('GET', '/push/devices', () => json(200, { items: [{ ...DEVICE, id: 'someone-else' }] }))
 
-    await expect(push.reconcilePush(USER)).resolves.toEqual({ status: 'unverified' })
-    expect(browser.subscription).not.toBeNull()
-    expect(idb.peek()).toEqual({ deviceId: 'pruned', userId: USER })
+    await expect(push.reconcilePush(USER)).resolves.toEqual({ status: 'off' })
+    expect(callsTo('PUT', '/push/devices')).toHaveLength(0)
+    expect(browser.subscription).toBeNull()
+    expect(idb.size()).toBe(0)
   })
 
   it('stored user is not the current user: unsubscribes and clears, sends nothing (AC-5.3)', async () => {
