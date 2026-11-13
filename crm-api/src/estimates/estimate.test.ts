@@ -314,11 +314,12 @@ describe("technical estimates (specs/018 US-3)", () => {
     expect(activitiesApi.of("completion")).toHaveLength(0);
   });
 
-  it("an admin overrides the gate with a reason, kept on the timeline and across an unlink (AC-1.2)", async () => {
+  it("whoever manages the deal overrides the gate with a reason, kept on the timeline and across an unlink (AC-1.2)", async () => {
     const deal = await qualifiedDeal();
-    const override = (as: "salesCh" | "admin") =>
+    const override = (as: "salesCh" | "admin" | "consultant") =>
       call("POST", `/deals/${deal.id}/estimate/override`, { as, body: { reason: "Framework contract" } });
-    expect((await override("salesCh")).json.code).toBe("admin_only");
+    // Without deal:manage (a technician) there is no override; nothing reaches the timeline.
+    expect((await override("consultant")).status).toBe(403);
     expect(activitiesApi.calls).toHaveLength(0);
     const res = await override("admin");
     expect(res.json.estimate).toBeNull();
@@ -347,6 +348,21 @@ describe("technical estimates (specs/018 US-3)", () => {
     expect((await call("POST", `/deals/${deal.id}/stage`, { as: "salesCh", ifMatch: 1, body: { stage: "proposal" } })).status).toBe(200);
     // The note is not the request task: unlinking deleted only the task.
     expect(activitiesApi.activities.has(note!.id!)).toBe(true);
+  });
+
+  it("a salesperson overrides the gate of a deal of their own entity, never of another one (amended 2026-11-13)", async () => {
+    const own = await qualifiedDeal();
+    const res = await call("POST", `/deals/${own.id}/estimate/override`, { as: "salesCh", body: { reason: "Public tender" } });
+    expect(res.status).toBe(200);
+    expect(res.json.estimateOverride).toMatchObject({ reason: "Public tender", by: { id: "user-sales-ch" } });
+    expect(activitiesApi.calls[0]!.body).toMatchObject({ authorUserId: "user-sales-ch", dealId: own.id });
+
+    const company = await makeCompany({ name: "Rossi Srl" });
+    const italian = await makeDeal(company.id, { stage: "qualified", entity: "welld_it" }, "admin");
+    const refused = await call("POST", `/deals/${italian.id}/estimate/override`, { as: "salesCh", body: { reason: "x" } });
+    expect(refused.status).toBe(403);
+    expect(refused.json.code).toBe("out_of_scope");
+    expect((await call("GET", `/deals/${italian.id}`, { as: "salesCh" })).json.estimateOverride).toBeNull();
   });
 
   it("an override whose note cannot be written records nothing (503), and one whose commit fails removes the note again", async () => {

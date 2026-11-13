@@ -146,8 +146,8 @@ describe("CRM notifications (specs/019, E1–E9)", () => {
     const e = await deal({ ownerUserId: "user-colleague" }, "admin");
     await request(e.id, "admin");
     events.length = 0;
-    await call("POST", `/deals/${e.id}/estimate/override`, { as: "salesCh", body: { reason: "x" } });
-    expect(events).toHaveLength(0); // refused: admin only
+    await call("POST", `/deals/${e.id}/estimate/override`, { as: "consultant", body: { reason: "x" } });
+    expect(events).toHaveLength(0); // refused: no deal:manage
     await call("POST", `/deals/${e.id}/estimate/override`, { as: "admin", body: { reason: "Framework contract" } });
     expect(events[0]!.to).toEqual(["user-colleague"]); // requester is the actor: dropped
   });

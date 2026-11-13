@@ -111,7 +111,7 @@ offer rests on a real estimate.
     who). crm-api applies only a notice newer than the last one, so a late one changes nothing.
   - Closing completes the "estimate requested" task (AC-3.5) and tells the requester and the
     deal owner; reopening reopens the task and tells the technical contact and the requester.
-  - If the notice is lost, the deal stays `requested`; an admin can still override the gate.
+  - If the notice is lost, the deal stays `requested`; whoever manages the deal can still override the gate.
   - Closing also moves the estimate from EstimAI's default **Open** list to **Closed**, for
     everyone who can see it; archive and close are one status (specs/024, owner 2026-11-08).
 - AC-3.4 A deal moves from `qualified` (or `lead`) to `proposal` or later only if its
@@ -130,7 +130,10 @@ offer rests on a real estimate.
 - AC-3.7 If the EstimAI estimate is deleted or the requester loses access, the deal shows
   the link as unavailable.
   - The gate (AC-3.4) then needs a new request.
-  - An admin can override it with a reason, which is recorded on the deal's timeline.
+  - Whoever manages the deal (`deal:manage` for its entity: the deal's salespeople and admins) can override it
+    with a reason, which is recorded on the deal's timeline. A deal of another entity is 403 `out_of_scope`.
+    (Amended 2026-11-13, owner: "tutti i sales devono poter mandare avanti un deal anche senza stima tecnica,
+    non solo gli admin"; it was admins only, i.e. `deal:manage` over every entity.)
 
 ### US-4 Offers are generated and kept
 As a salesperson, I want to generate the offer from the deal and its estimate and keep

@@ -29,7 +29,7 @@ const en = {
   unlink: 'Unlink',
   override: 'Proceed without estimate',
   overrideTooltip:
-    'Admins only. Lets this deal move to offer in preparation, offer sent or won without a ready estimate. You give a reason, which stays on the deal and in its timeline.',
+    'Lets this deal move to offer in preparation, offer sent or won without a ready estimate. You give a reason, which stays on the deal and in its timeline.',
   working: 'Working…',
   unlinkDialog: {
     title: 'Unlink the estimate?',
@@ -97,7 +97,7 @@ const it: typeof en = {
   unlink: 'Scollega',
   override: 'Procedi senza stima',
   overrideTooltip:
-    "Solo per gli amministratori. Permette a questa opportunità di passare a offerta in preparazione, offerta inviata o vinta senza una stima pronta. Indichi un motivo, che resta sull'opportunità e nella cronologia.",
+    "Permette a questa opportunità di passare a offerta in preparazione, offerta inviata o vinta senza una stima pronta. Indichi un motivo, che resta sull'opportunità e nella cronologia.",
   working: 'Operazione in corso…',
   unlinkDialog: {
     title: 'Scollegare la stima?',

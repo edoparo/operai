@@ -3,14 +3,16 @@
  *
  *   POST   /deals/{id}/estimate           request one: create it in EstimAI, share it
  *                                         with the technical contact, link it, task them
- *   POST   /deals/{id}/estimate/override  an admin lets the deal past the gate anyway
+ *   POST   /deals/{id}/estimate/override  whoever manages the deal lets it past the gate anyway
  *   DELETE /deals/{id}/estimate           unlink (the estimate stays in EstimAI; its open task goes)
  *
  * The estimate becomes `ready` (and back to `requested`) only when it is closed
  * (or reopened) in EstimAI: estimai-api tells the CRM through
  * `POST /system/estimate-notices` (estimateNotices.routes.ts, AC-3.3, ADR-0073).
  *
- * "Admin" is `deal:manage` over every entity (`managesAllDeals`). Every EstimAI
+ * Every route here, the override included, is `deal:manage` in the deal's entity (403 `out_of_scope`
+ * otherwise): the owner of the sales flow decides, with a reason kept on the timeline (amended
+ * 2026-11-13: the override used to need `deal:manage` over every entity, i.e. an admin). Every EstimAI
  * call carries the caller's own JWT (lib/estimai.ts), so no new trust between
  * services exists. Each route answers with the updated deal.
  *
@@ -28,7 +30,6 @@ import {
   DEAL_MANAGE,
   authorized,
   dealScope,
-  managesAllDeals,
   requireCapability,
 } from "../auth/guards";
 import type { AuthzVariables } from "../auth/authz.middleware";
@@ -39,7 +40,7 @@ import { createEstimate, deleteEstimateQuietly, directoryEmail, shareAsEditor } 
 import { IdParams, commonErrors, requiredText } from "../lib/http";
 import { requireCrmUsers } from "../lib/identities";
 import { MAX_NAME, MAX_REASON, announce, clip, formatDueDate } from "../lib/notify";
-import { ProblemError, forbidden, notFound, validationHook } from "../lib/problem";
+import { ProblemError, notFound, validationHook } from "../lib/problem";
 import { assertInScope, toDealView, withCompany } from "../deals/deals.routes";
 import { addWorkingDays } from "./workingDays";
 
@@ -71,7 +72,7 @@ const overrideRoute = createRoute({
   method: "post",
   path: "/deals/{id}/estimate/override",
   tags: ["Estimates"],
-  summary: "Let the deal past the estimate gate without a ready estimate (admin)",
+  summary: "Let the deal past the estimate gate without a ready estimate (deal:manage, entity-scoped)",
   middleware: managing,
   request: {
     params: IdParams,
@@ -208,8 +209,9 @@ estimateRouter.openapi(overrideRoute, async (c) => {
   const { id } = c.req.valid("param");
   const { reason } = c.req.valid("json");
   const userId = c.get("userId");
-  if (!managesAllDeals(c)) throw forbidden("Only an admin overrides the estimate gate", "admin_only");
   const deal = await dealOr404(id);
+  // Anyone who manages this deal (its entity) may let it through, with a reason (amended 2026-11-13).
+  assertInScope(dealScope(c), deal.entity);
   const now = new Date();
   // The timeline keeps who let the deal through, and why (AC-3.7): written first, under an id
   // chosen here, and taken back if the override itself cannot be recorded (ADR-0082).

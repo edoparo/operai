@@ -19,7 +19,6 @@ import { estimaiEstimateHref } from '../lib/links'
 import { personName } from '../lib/people'
 import type { Deal } from '../lib/types'
 import { maxLength, required } from '../lib/validate'
-import { useCrmCapabilities } from '../hooks/scopeContext'
 import { useCurrentUserId } from '../hooks/useCurrentUserId'
 import { strings } from '../strings'
 import { EstimateStateBadge } from './Badges'
@@ -47,7 +46,6 @@ export default function EstimateCard({
 }) {
   const t = strings.estimate
   const currentUserId = useCurrentUserId()
-  const { managesAll } = useCrmCapabilities()
   const { estimate, estimateOverride } = deal
   const [dialog, setDialog] = useState<Dialog>(null)
   const [busy, setBusy] = useState(false)
@@ -56,7 +54,8 @@ export default function EstimateCard({
   const [reasonError, setReasonError] = useState<string | null>(null)
 
   const canRequest = estimate === null && canManage && GATED_STAGES.includes(deal.stage)
-  const canOverride = managesAll && estimateOverride === null && estimate?.state !== 'ready'
+  // Whoever manages this deal (its entity) may let it through, with a reason (amended 2026-11-13: was admins only).
+  const canOverride = canManage && estimateOverride === null && estimate?.state !== 'ready'
 
   const close = () => {
     setDialog(null)

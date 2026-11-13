@@ -286,8 +286,12 @@ describe('Estimate card (US-3)', () => {
       expect(screen.queryByTestId('crm-estimate-request')).toBeNull()
     })
 
-    it('Proceed without estimate is for the admin only, explained by a tooltip, needs a reason, and shows who did it', async () => {
+    it('Proceed without estimate is for whoever manages the deal, explained by a tooltip, needs a reason, and shows who did it', async () => {
+      // A salesperson of the deal's entity sees it; one of another entity does not (amended 2026-11-13).
       await renderDeal(dealFixture(), MANAGER)
+      expect(screen.getByTestId('crm-estimate-override-open')).not.toBeNull()
+      cleanup()
+      await renderDeal(dealFixture(), { deal: ['welld_it'], financials: true, managesAll: false })
       expect(screen.queryByTestId('crm-estimate-override-open')).toBeNull()
       cleanup()
 

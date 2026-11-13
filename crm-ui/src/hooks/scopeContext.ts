@@ -19,7 +19,7 @@ export type CrmCapabilities = {
   canErase: boolean
   /** The caller sees amounts, weighted values, totals, notes and offers. */
   financials: boolean
-  /** `deal:manage` over every entity: may override the estimate gate and act for others. */
+  /** `deal:manage` over every entity: may act for others (e.g. delete anyone's offer). */
   managesAll: boolean
 }
 
