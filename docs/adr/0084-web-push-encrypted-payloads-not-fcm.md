@@ -1,7 +1,7 @@
 # 0084 — Push notifications use standard Web Push, with each payload encrypted by notify-api, not FCM
 
 **Date:** 2026-11-11  
-**Status:** Accepted (production go-live pending the sign-off below, AC-6.5)  
+**Status:** Accepted (go-live signed off 2026-11-13, AC-6.5)  
 **Deciders:** Matteo Codogno (owner; chose standard Web Push at the specs/029 planning gate, 2026-11-11)  
 **Project:** Operai  
 **Relates to:** [ADR-0011](0011-notify-api-email-channel-service-trust.md), [ADR-0056](0056-notify-api-resolves-email-notice-address-from-auth.md), [ADR-0061](0061-meetings-ai-providers-eu-zero-retention.md), [ADR-0069](0069-meetings-ai-providers-google-cloud-eu.md), [ADR-0001](0001-jwt-in-memory-never-web-storage.md)
@@ -90,7 +90,7 @@ Recognise it by: a new third-party delivery call whose body is built from a noti
 
 **Risks:**
 - Push services observe metadata for every push sent (AC-6.3). This design cannot remove it; the go-live sign-off below accepts it.
-- Meetings exclusion is undecided (specs/029 open question). The default is "none excluded"; `PUSH_EXCLUDED_ORIGINS` is the handle if the owner excludes it. Meetings content is the most sensitive in the suite (ADR-0061, ADR-0069).
+- Meetings exclusion: decided 2026-11-12, none excluded (owner). `PUSH_EXCLUDED_ORIGINS` is the handle if the owner excludes it. Meetings content is the most sensitive in the suite (ADR-0061, ADR-0069).
 - R1: `web-push` on Bun is checked first, by sending to a real Chrome subscription; the fallback is Option D.
 - R2: Safari may revoke permission when a push arrives and nothing is shown; checked in the same spike.
 - R3: Edge's push host may not match `*.notify.windows.com`; verified on real Edge, and the allowlist is one constant to correct.
@@ -105,7 +105,7 @@ Recognise it by: a new third-party delivery call whose body is built from a noti
 **Go-live sign-off (AC-6.5), required before `PUSH_ENABLED=true` in production:**
 
 - Decision accepted: push services observe the metadata listed above for every push sent, and no content.
-- **Go-live sign-off: pending — owner Matteo Codogno** (record the date, and the acceptance, here before enabling)
+- **Go-live sign-off: given — Matteo Codogno, 2026-11-13.** Accepted: push services (Google, Microsoft, Mozilla, Apple) see ciphertext and delivery metadata only, never content, including outside the EU; no origin is excluded (Meetings included, `PUSH_EXCLUDED_ORIGINS` empty); security lows L2–L4 of specs/029 accepted.
 
 ---
 

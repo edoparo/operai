@@ -12,11 +12,11 @@ notifications allowed per browser, Focus off. Notifications triggered with a sel
 
 | Check | AC | Chrome | Edge | Firefox | Safari |
 |---|---|---|---|---|---|
-| A. No `operai-push` database before turning push on (D-7) | — | ✅ | ✅ | ✅ | pending (console check) |
+| A. No `operai-push` database before turning push on (D-7) | — | ✅ | ✅ | ✅ | ✅ (deployed preview) |
 | B. No permission prompt on load; Turn on → On + "This browser" row | AC-1.1, 1.2 | ✅ | ✅ | ✅ | ✅ (T1 spike) |
 | B. Endpoint host accepted by the allowlist (R3) | AC-6.3 | ✅ | ✅ (Edge host accepted; exact host not recorded) | ✅ | ✅ `web.push.apple.com` |
 | C. Notification shown with Operai closed, within ~30 s, text/accents correct | AC-2.1 | ✅ | ✅ | ✅ | ✅ (T1 spike) |
-| D. Click opens `/notify` (new tab) / focuses the background tab | AC-4.1, 4.2 | ✅ | ✅ | ✅ | background tab ✅ · no tab ❌ **D-10** |
+| D. Click opens `/notify` (new tab) / focuses the background tab | AC-4.1, 4.2 | ✅ | ✅ | ✅ | background tab ✅ · no tab ✅ on the deployed preview (D-10 was localhost-only) |
 | E. No system notification with Operai visible; after 3 suppressed pushes delivery still works | AC-2.3 | ✅ | ✅ | ✅ | shows with Operai visible ✅ (expected, ADR-0085) |
 | F. No push after explicit sign-out | AC-5.1 | ✅ | ✅ | ✅ | ✅ |
 | G. Removing the device from another browser stops pushes | AC-3.2 | ✅ (re-checked after D-9 fix) | ✅ (re-checked) | ✅ (re-checked) | ✅ (after D-9 fix) |
@@ -43,8 +43,8 @@ Defects found on Safari (fix-round extension granted by the user, 2026-11-13):
   and with `openWindow` called first, before any awaited lookup. So neither user-activation
   expiry nor the close is the cause; Safari itself declines the open on this origin.
   Commit `1c722f18` (same-origin filter, null `focus()` → open) is kept as hardening; it does
-  not fix D-10. **Open: re-check on the deployed preview (HTTPS, real domain).** If it fails
-  there too, it is a Safari limitation and AC-4.1 needs a Safari exception (user decision).
+  not fix D-10. **Resolved:** on the deployed preview (HTTPS, real domain) the click with no Operai tab
+  opens Operai — Matteo Codogno, 2026-11-13. D-10 was a Safari behaviour on `localhost` only.
 
 Safari after `1c722f18` (QE re-run residual risk): click with Operai open in a **background**
 tab focuses that tab and navigates to `/notify`, no extra tab — ✅ verified by Matteo Codogno,
@@ -60,6 +60,6 @@ product defect; the Chrome run was repeated and passed.
 
 | Check | Ref | Status |
 |---|---|---|
-| H. AC-7.7 on the deployed pair: auth deployed before notify-api, startup line `[system] limits per 600000 ms: …`, retired `SERVICE_TOKEN_RATE_*` removed; > 100 notifications in 10 min with no `allowance exhausted` / `invalid-credential limit reached` in auth and no `HTTP 429` in notify-api | AC-7.7, R11 | pending |
-| I. No stored `notification.link.href` in production fails the new `isRelativeSuitePath` guard | security L1 | pending |
-| J. ADR-0084 go-live sign-off: owner + date, no origin excluded, L2–L4 accepted, push services see metadata only | AC-6.5 | pending |
+| H. AC-7.7 on the deployed pair: auth deployed before notify-api, startup line `[system] limits per 600000 ms: …`, retired `SERVICE_TOKEN_RATE_*` removed; > 100 notifications in 10 min with no `allowance exhausted` / `invalid-credential limit reached` in auth and no `HTTP 429` in notify-api | AC-7.7, R11 | ✅ Matteo Codogno, 2026-11-13 |
+| I. No stored `notification.link.href` in production fails the new `isRelativeSuitePath` guard | security L1 | ✅ 0 failing — Matteo Codogno, 2026-11-13 |
+| J. ADR-0084 go-live sign-off: owner + date, no origin excluded, L2–L4 accepted, push services see metadata only | AC-6.5 | ✅ signed off in ADR-0084, 2026-11-13 |
