@@ -23,6 +23,7 @@ import { describeHost, hostNames, suiteLinkProps, useHosts } from '../lib/hostLi
 import { createFolder, deleteFolder, fileMeeting, listFolders, listMeetings, renameFolder } from '../lib/meetingsApi'
 import { errorMessage } from '../lib/errors'
 import { FolderNameDialog } from '../components/folders/FolderNameDialog'
+import { ManageFoldersDialog } from '../components/folders/ManageFoldersDialog'
 import { MEETING_STATUS_MEANING } from '../lib/statusMeanings'
 import type { DerivedStatus, HostInfo, MeetingFolder, MeetingRow } from '../lib/types'
 import { strings } from '../strings'
@@ -102,6 +103,8 @@ export default function MeetingsListPage({ mine }: MeetingsListPageProps) {
   const [notice, setNotice] = useState<string | null>(deleted ? t.deleted : null)
   const [failure, setFailure] = useState<string | null>(null)
   const [dialog, setDialog] = useState<FolderDialog | null>(null)
+  // The folder list stays open behind a rename, delete or create started from it (dialogs stack).
+  const [managing, setManaging] = useState(false)
   const [deleting, setDeleting] = useState(false)
   const [deleteError, setDeleteError] = useState<string | null>(null)
 
@@ -404,14 +407,31 @@ export default function MeetingsListPage({ mine }: MeetingsListPageProps) {
           </form>
           {folders !== null && (
             <div className="mt-3 flex flex-wrap items-center gap-2" data-testid="meetings-list-folder-actions">
-              <Button size="sm" onClick={() => setDialog({ kind: 'create' })} data-testid="meetings-list-folder-new">
+              <Button
+                size="sm"
+                aria-haspopup="dialog"
+                onClick={() => setDialog({ kind: 'create' })}
+                data-testid="meetings-list-folder-new"
+              >
                 {strings.folders.newFolder}
               </Button>
+              {folders.length > 0 && (
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  aria-haspopup="dialog"
+                  onClick={() => setManaging(true)}
+                  data-testid="meetings-list-folder-manage"
+                >
+                  {strings.folders.manage}
+                </Button>
+              )}
               {selectedFolder !== null && (
                 <>
                   <Button
                     size="sm"
                     variant="ghost"
+                    aria-haspopup="dialog"
                     onClick={() => setDialog({ kind: 'rename', folder: selectedFolder })}
                     data-testid="meetings-list-folder-rename"
                   >
@@ -420,6 +440,7 @@ export default function MeetingsListPage({ mine }: MeetingsListPageProps) {
                   <Button
                     size="sm"
                     variant="ghost"
+                    aria-haspopup="dialog"
                     onClick={() => {
                       setDeleteError(null)
                       setDialog({ kind: 'delete', folder: selectedFolder })
@@ -434,6 +455,18 @@ export default function MeetingsListPage({ mine }: MeetingsListPageProps) {
           )}
         </Card>
 
+        {managing && folders !== null && (
+          <ManageFoldersDialog
+            folders={folders}
+            onCreate={() => setDialog({ kind: 'create' })}
+            onRename={(target) => setDialog({ kind: 'rename', folder: target })}
+            onDelete={(target) => {
+              setDeleteError(null)
+              setDialog({ kind: 'delete', folder: target })
+            }}
+            onClose={() => setManaging(false)}
+          />
+        )}
         {(dialog?.kind === 'create' || dialog?.kind === 'rename') && (
           <FolderNameDialog
             mode={dialog.kind}

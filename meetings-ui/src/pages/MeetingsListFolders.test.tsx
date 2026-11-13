@@ -182,4 +182,41 @@ describe('personal folders (ADR-0090)', () => {
     expect(calls('DELETE', '/folders/f-acme')).toHaveLength(1)
     await waitFor(() => expect(lastQuery()?.['folder']).toBeUndefined())
   })
+
+  it('lists every folder in "Manage folders", renames and deletes from there without choosing it first', async () => {
+    let items = [...FOLDERS]
+    serve({
+      'GET /meetings': () => ({ status: 200, body: rows() }),
+      'GET /folders': () => ({ status: 200, body: { items } }),
+      'PATCH /folders/:id': (_url, init, params) => {
+        const name = JSON.parse(String(init?.body)).name
+        items = items.map((f) => (f.id === params['id'] ? { ...f, name } : f))
+        return { status: 200, body: items.find((f) => f.id === params['id']) }
+      },
+      'DELETE /folders/:id': (_url, _init, params) => {
+        items = items.filter((f) => f.id !== params['id'])
+        return { status: 204 }
+      },
+    })
+    await renderList()
+    await userEvent.click(await screen.findByTestId('meetings-list-folder-manage'))
+    const dialog = screen.getByTestId('folders-manage')
+    expect(within(dialog).getByText('ACME')).not.toBeNull()
+    expect(within(dialog).getByText(en.folders.manageDialog.count(1))).not.toBeNull()
+
+    await userEvent.click(within(dialog).getByRole('button', { name: en.folders.manageDialog.rename('Archive') }))
+    const name = screen.getByTestId('folder-rename-name')
+    await userEvent.clear(name)
+    await userEvent.type(name, 'Old stuff')
+    await userEvent.click(screen.getByTestId('folder-rename-submit'))
+    await waitFor(() => expect(within(screen.getByTestId('folders-manage')).getByText('Old stuff')).not.toBeNull())
+
+    await userEvent.click(within(screen.getByTestId('folders-manage')).getByRole('button', { name: en.folders.manageDialog.delete('ACME') }))
+    await userEvent.click(screen.getByTestId('folder-delete-confirm'))
+    await waitFor(() => expect(within(screen.getByTestId('folders-manage')).queryByText('ACME')).toBeNull())
+    expect(calls('DELETE', '/folders/f-acme')).toHaveLength(1)
+
+    await userEvent.click(screen.getByTestId('folders-manage-done'))
+    expect(screen.queryByTestId('folders-manage')).toBeNull()
+  })
 })
