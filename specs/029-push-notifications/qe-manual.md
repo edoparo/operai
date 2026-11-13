@@ -19,7 +19,7 @@ notifications allowed per browser, Focus off. Notifications triggered with a sel
 | D. Click opens `/notify` (new tab) / focuses the background tab | AC-4.1, 4.2 | ✅ | ✅ | ✅ | background tab ✅ · no tab ❌ **D-10** |
 | E. No system notification with Operai visible; after 3 suppressed pushes delivery still works | AC-2.3 | ✅ | ✅ | ✅ | shows with Operai visible ✅ (expected, ADR-0085) |
 | F. No push after explicit sign-out | AC-5.1 | ✅ | ✅ | ✅ | ✅ |
-| G. Removing the device from another browser stops pushes | AC-3.2 | ✅* | ✅* | ✅* | ❌ **D-9** |
+| G. Removing the device from another browser stops pushes | AC-3.2 | ✅ (re-checked after D-9 fix) | ✅ (re-checked) | ✅ (re-checked) | ✅ (after D-9 fix) |
 
 Verified by: Matteo Codogno, 2026-11-13, local dev stack (Chrome, Edge, Firefox).
 Safari: verified by Matteo Codogno, 2026-11-11, T1 spike bench (delivery, click, Safari
@@ -35,7 +35,19 @@ Defects found on Safari (fix-round extension granted by the user, 2026-11-13):
   missing. *G passed on Chrome/Edge/Firefox only because the removed browser was not reloaded
   afterwards; G must be re-run on every browser after the fix.
 - **D-10 (AC-4.1, Safari):** with no Operai tab open, clicking the push does not open Operai
-  (with a background tab it focuses and navigates correctly).
+  (with a background tab it focuses and navigates correctly). The T1 spike had verified only the
+  focus path on Safari, never `openWindow`. Diagnosis on localhost (temporary logs in the
+  worker, not committed): the click reaches the worker, `matchAll` returns no window, and
+  `clients.openWindow('http://localhost:5173/notify')` **resolves `null` without opening
+  anything** — not rejected. Same result with `notification.close()` moved after `openWindow`,
+  and with `openWindow` called first, before any awaited lookup. So neither user-activation
+  expiry nor the close is the cause; Safari itself declines the open on this origin.
+  Commit `1c722f18` (same-origin filter, null `focus()` → open) is kept as hardening; it does
+  not fix D-10. **Open: re-check on the deployed preview (HTTPS, real domain).** If it fails
+  there too, it is a Safari limitation and AC-4.1 needs a Safari exception (user decision).
+
+D-9 re-check after `5015586c` (Matteo Codogno, 2026-11-13): removing a browser from another
+browser and reloading the removed one leaves the list correct on every browser.
 
 Note: an initial Chrome failure (`getSubscription()` null) was an operator error, not a
 product defect; the Chrome run was repeated and passed.
