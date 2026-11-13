@@ -1,10 +1,11 @@
 ---
 id: 029
 slug: push-notifications
-status: approved
+status: done
 rigor: production
 created: 2026-11-11
 approved: 2026-11-12
+done: 2026-11-13
 ---
 
 # Push notifications
