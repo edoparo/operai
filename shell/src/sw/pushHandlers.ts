@@ -15,6 +15,7 @@ const FALLBACK_HREF = '/notify'
 const SAFARI_PUSH_HOST = 'web.push.apple.com'
 
 export interface ClientLike {
+  readonly url: string
   readonly visibilityState: 'visible' | 'hidden' | 'prerender'
   focus(): Promise<unknown>
   postMessage(message: unknown): void
@@ -141,22 +142,40 @@ async function onClick(scope: PushScope, event: NotificationClickEventLike): Pro
   const stored = typeof data === 'object' && data !== null ? (data as Record<string, unknown>)['href'] : undefined
   const target = new URL(safeHref(stored, scope.location.origin), scope.location.origin).href
 
+  // Reuse an Operai window only when it is provably alive: same-origin, and `focus()` resolves to a
+  // client. Safari can list a stale client whose `focus()` resolves to null (D-10), and treating that as
+  // success leaves the click doing nothing. Anything short of a focused window opens a new one.
+  if (await focusExistingWindow(scope, target)) return
   try {
-    const windows = await scope.clients.matchAll({ type: 'window', includeUncontrolled: true })
-    const existing = windows.find((w) => w.visibilityState === 'visible') ?? windows[0]
-    if (existing) {
-      try {
-        await existing.focus()
-        // Contract with the shell (T8): { navigate: <absolute same-origin URL> }.
-        existing.postMessage({ navigate: target })
-        return
-      } catch {
-        // The window went away or refused focus: open a fresh one below.
-      }
-    }
     await scope.clients.openWindow(target)
   } catch {
     // openWindow can be refused (no user activation); the notification is already closed.
+  }
+}
+
+async function focusExistingWindow(scope: PushScope, target: string): Promise<boolean> {
+  try {
+    const windows = await scope.clients.matchAll({ type: 'window', includeUncontrolled: true })
+    const sameOrigin = windows.filter((w) => isSameOrigin(w.url, scope.location.origin))
+    const existing = sameOrigin.find((w) => w.visibilityState === 'visible') ?? sameOrigin[0]
+    if (!existing) return false
+    const focused = await existing.focus()
+    if (!focused) return false
+    // Contract with the shell (T8): { navigate: <absolute same-origin URL> }.
+    existing.postMessage({ navigate: target })
+    return true
+  } catch {
+    // The lookup failed, or the window went away or refused focus: the caller opens a fresh one.
+    return false
+  }
+}
+
+function isSameOrigin(url: unknown, origin: string): boolean {
+  if (typeof url !== 'string') return false
+  try {
+    return new URL(url).origin === origin
+  } catch {
+    return false
   }
 }
 

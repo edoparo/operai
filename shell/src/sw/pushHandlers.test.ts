@@ -89,8 +89,9 @@ function fake(opts: {
 }
 
 const win = (visibilityState: 'visible' | 'hidden', extra: Partial<ClientLike> = {}): ClientLike => ({
+  url: `${ORIGIN}/`,
   visibilityState,
-  focus: vi.fn(async () => undefined) as unknown as ClientLike['focus'],
+  focus: vi.fn(async () => ({})) as unknown as ClientLike['focus'],
   postMessage: vi.fn(),
   ...extra,
 })
@@ -280,6 +281,54 @@ describe('notificationclick', () => {
     const f = fake({ clients: [broken] })
     await f.click({ href: '/x' })
     expect(f.openWindow).toHaveBeenCalledWith(`${ORIGIN}/x`)
+  })
+
+  it.each([null, undefined])(
+    'opens a window when focus() resolves to %s (stale Safari client, D-10)',
+    async (value) => {
+      const stale = win('hidden', { focus: vi.fn(async () => value) as unknown as ClientLike['focus'] })
+      const f = fake({ clients: [stale] })
+      await f.click({ href: '/x' })
+      expect(stale.postMessage).not.toHaveBeenCalled()
+      expect(f.openWindow).toHaveBeenCalledWith(`${ORIGIN}/x`)
+    },
+  )
+
+  it('ignores a client that is not on this origin and opens a window', async () => {
+    const foreign = win('visible', { url: 'https://evil.io/' })
+    const f = fake({ clients: [foreign] })
+    await f.click({ href: '/x' })
+    expect(foreign.focus).not.toHaveBeenCalled()
+    expect(foreign.postMessage).not.toHaveBeenCalled()
+    expect(f.openWindow).toHaveBeenCalledWith(`${ORIGIN}/x`)
+  })
+
+  it('ignores a client with an unparseable url and opens a window', async () => {
+    const odd = win('visible', { url: '' })
+    const f = fake({ clients: [odd] })
+    await f.click({ href: '/x' })
+    expect(odd.focus).not.toHaveBeenCalled()
+    expect(f.openWindow).toHaveBeenCalledWith(`${ORIGIN}/x`)
+  })
+
+  it('opens a window when the client lookup itself fails', async () => {
+    const f = fake({
+      matchAll: async () => {
+        throw new Error('boom')
+      },
+    })
+    await f.click({ href: '/x' })
+    expect(f.openWindow).toHaveBeenCalledWith(`${ORIGIN}/x`)
+  })
+
+  it('uses the same-origin window when a foreign one is listed first', async () => {
+    const foreign = win('visible', { url: 'https://evil.io/' })
+    const mine = win('hidden')
+    const f = fake({ clients: [foreign, mine] })
+    await f.click({ href: '/x' })
+    expect(mine.postMessage).toHaveBeenCalledWith({ navigate: `${ORIGIN}/x` })
+    expect(foreign.focus).not.toHaveBeenCalled()
+    expect(f.openWindow).not.toHaveBeenCalled()
   })
 
   it('does not throw when opening a window fails', async () => {
