@@ -46,6 +46,10 @@ Defects found on Safari (fix-round extension granted by the user, 2026-11-13):
   not fix D-10. **Open: re-check on the deployed preview (HTTPS, real domain).** If it fails
   there too, it is a Safari limitation and AC-4.1 needs a Safari exception (user decision).
 
+Still to do on Safari after `1c722f18` (QE re-run residual risk): click with Operai open in a
+**background** tab must focus that tab and navigate to `/notify` (the earlier pass predates the
+commit, which now treats a `null` from `focus()` as "no window").
+
 D-9 re-check after `5015586c` (Matteo Codogno, 2026-11-13): removing a browser from another
 browser and reloading the removed one leaves the list correct on every browser.
 

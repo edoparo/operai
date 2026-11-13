@@ -1,0 +1,43 @@
+{
+  "schema": "wellforge-run/v3",
+  "plugin_version": "2.62.1",
+  "run_id": "2026-11-13T15-30-00Z-orchestrate-029-push-notifications",
+  "command": "orchestrate",
+  "feature": "029-push-notifications",
+  "rigor": "production",
+  "rigor_recorded": null,
+  "started": "2026-11-13T15:30:00Z",
+  "finished": "2026-11-13T19:20:05Z",
+  "notes": "Continuation after T12 manual checks. Chrome/Edge/Firefox A–G passed; Safari found D-9 (removed device re-registered on reload, all browsers, AC-3.2) and D-10 (Safari click with no Operai tab opens nothing, AC-4.1). The user granted one extension round. D-9 fixed and re-checked by the user on all browsers. D-10 diagnosed with temporary worker logs (not committed): Safari's clients.openWindow resolves null on localhost even when called first; kept 1c722f18 as hardening; D-10 open pending the deployed-preview check.",
+  "agents": [
+    { "agent": "architect", "outcome": "completed", "commits": ["816ea88a"], "note": "plan/design/tasks amended: missing server row releases the subscription, never re-PUT (D-9)" },
+    { "agent": "frontend-dev", "outcome": "completed", "commits": ["5015586c", "4a2d3918", "1c722f18"], "note": "D-9 fix + e2e; D-10 hardening (same-origin filter, null focus → openWindow); RENDERED: no for D-10" },
+    { "agent": "main-loop", "outcome": "completed", "commits": ["5e0033ff", "b91a1503"], "note": "T12 Safari results and D-10 diagnosis recorded in qe-manual.md; diagnostic logs reverted" },
+    { "agent": "quality-engineer", "outcome": "PASS", "commits": ["570dc266"], "note": "shell gates green, push e2e 4/4 twice, D-9 e2e proven non-vacuous, whole suite 115 + 1 env fault (E-2); D-10 open (manual, deployed)" },
+    { "agent": "owasp-reviewer", "outcome": "PASS WITH NOTES", "note": "0 ≥ medium, 3 lows" }
+  ],
+  "drift_events": [
+    { "agent": "main-loop", "artifact": "plan.md, design.md, tasks.md", "summary": "D-9: the silent boot re-PUT of a missing device row contradicted AC-3.2 → missing row releases the subscription (off)", "resolved": true }
+  ],
+  "collision_events": [],
+  "env_faults": [
+    { "agent": "main-loop", "class": "browser permission", "detail": "Safari reported Notification.permission denied for localhost (stale from the T1 bench)", "resolved_by": "user reset Safari/macOS notification settings" },
+    { "agent": "quality-engineer", "class": "ports", "detail": "E-2: remote-failure.spec.ts aborts port 5176 as Refund's remote; on the dev stack that is notify-ui", "resolved_by": "passes with the documented E2E_*_REMOTE_PORT map" }
+  ],
+  "verdicts": { "qe": "PASS", "security": "PASS" },
+  "fix_rounds": { "used": 2, "cap": 2, "extensions": [ { "round": 3, "granted": "2026-11-12", "defects": ["D-5"] }, { "round": 4, "granted": "2026-11-13", "defects": ["D-9", "D-10"] } ] },
+  "security": {
+    "matched_rules": ["session", "always_at_tier:production"],
+    "dispatched": true,
+    "notes": [
+      "low: notifications already shown are not closed on sign-out/removal (content stays in Notification Center on a shared machine) → follow-up bugfix after 029 (user decision 2026-11-13)",
+      "low: cross-tab race at Turn on can drop a fresh subscription (fails toward not delivering) → accepted (user decision 2026-11-13)",
+      "info/low: empty operai-push database remains after release → accepted (user decision 2026-11-13)"
+    ]
+  },
+  "result": "partial",
+  "tokens": null,
+  "cost_usd": null,
+  "terse": false,
+  "control_run_id": null
+}
