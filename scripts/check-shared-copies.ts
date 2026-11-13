@@ -84,6 +84,7 @@ export const SHARED_COPIES: readonly SharedGroup[] = [
       "crm-api/src/auth/systemAuth.middleware.ts",
       "estimai-api/src/auth/systemAuth.middleware.ts",
       "activities-api/src/auth/systemAuth.middleware.ts",
+      "meetings-api/src/auth/systemAuth.middleware.ts",
     ],
     why: "the service-JWT guard of every /system route (ADR 20261006-scoped-service-jwt-fourth-notify-caller/0049); a fix to one copy must reach every copy",
   },
