@@ -12,6 +12,7 @@
     "meetings-api",
     "projects-api",
     "activities-api",
+    "hours-api",
     "shell",
     "estimai-ui",
     "refund-ui",
@@ -19,6 +20,7 @@
     "crm-ui",
     "meetings-ui",
     "projects-ui",
+    "hours-ui",
     "notify-ui",
     "admin-ui",
     "operai-ui"
