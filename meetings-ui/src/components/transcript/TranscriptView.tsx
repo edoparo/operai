@@ -25,6 +25,7 @@ import { SegmentRow } from './SegmentRow'
 import { DismissGapDialog } from './DismissGapDialog'
 import { SeparateSpeakerDialog } from './SeparateSpeakerDialog'
 import { SpeakerRenameDialog } from './SpeakerRenameDialog'
+import { groupSpeakers, longestLine } from './speakerGroups'
 
 export type TranscriptViewProps = {
   meeting: Meeting
@@ -110,7 +111,10 @@ function TranscriptBody({
   const speakersList = useRef<HTMLUListElement>(null)
   const audioKept = meeting.audio.state === 'kept'
   const [editing, setEditing] = useState<string | null>(null)
+  /** The speaker group being renamed (every label in it gets the new name). */
   const [renaming, setRenaming] = useState<string | null>(null)
+  /** The speaker group whose lines alone are shown, or null for the whole transcript. */
+  const [onlyGroup, setOnlyGroup] = useState<string | null>(null)
   const [separating, setSeparating] = useState<string | null>(null)
   const [dismissing, setDismissing] = useState<TimeRange | null>(null)
   const [stale, setStale] = useState(false)
@@ -130,6 +134,22 @@ function TranscriptBody({
   }, [editing])
 
   const segments = useMemo(() => inOrder(transcript.segments), [transcript.segments])
+  // One chip per person: labels assigned to the same participant (or renamed alike) are one speaker.
+  const groups = useMemo(
+    () => groupSpeakers(transcript.speakers, meeting.participants),
+    [transcript.speakers, meeting.participants],
+  )
+  const lineCounts = useMemo(() => {
+    const counts = new Map<string, number>()
+    for (const segment of segments) {
+      if (segment.speakerKey !== null) counts.set(segment.speakerKey, (counts.get(segment.speakerKey) ?? 0) + 1)
+    }
+    return counts
+  }, [segments])
+  const linesOf = (keys: string[]) => keys.reduce((sum, key) => sum + (lineCounts.get(key) ?? 0), 0)
+  // A filter on a group that a rename merged away (or split) shows everything again.
+  const only = groups.find((group) => group.id === onlyGroup) ?? null
+  const renamingGroup = groups.find((group) => group.id === renaming) ?? null
   // Counts and highlights come from the data, never from the DOM.
   const hits = useMemo(() => segments.map((segment) => findMatches(segment.text, query)), [segments, query])
   const total = hits.reduce((sum, ranges) => sum + ranges.length, 0)
@@ -214,7 +234,14 @@ function TranscriptBody({
   const seenParts = new Set<number>()
   let label = isText ? strings.transcript.passagesHeading : strings.transcript.heading
   let open: Extract<Block, { kind: 'rows' }> | null = null
-  for (const [index, segment] of segments.entries()) {
+  if (only !== null) {
+    // One speaker's lines: a single list, in transcript order, without part dividers or gap markers.
+    const indexes = segments.flatMap((segment, index) =>
+      segment.speakerKey !== null && only.keys.includes(segment.speakerKey) ? [index] : [],
+    )
+    blocks.push({ kind: 'rows', label: strings.transcript.speakerFilter.showing(only.name, indexes.length), indexes })
+  }
+  for (const [index, segment] of only === null ? segments.entries() : []) {
     for (const gap of markers.get(index) ?? []) {
       blocks.push({ kind: 'gap', gap })
       open = null
@@ -234,9 +261,10 @@ function TranscriptBody({
     }
     open.indexes.push(index)
   }
-  for (const gap of markers.get(segments.length) ?? []) blocks.push({ kind: 'gap', gap })
+  if (only === null) for (const gap of markers.get(segments.length) ?? []) blocks.push({ kind: 'gap', gap })
 
-  const listSpeakers = transcript.speakers.length > 0 && (canEdit || transcript.speakers.some((s) => s.joined))
+  // Everyone who can read the transcript gets the chips: they filter by speaker; only an editor renames.
+  const listSpeakers = transcript.speakers.length > 0 && !isText
   return (
     <div className="flex flex-col gap-4" data-testid="meetings-transcript">
       {/* The tools: listen, search, take the text away. One card, so they read as one bar. */}
@@ -296,7 +324,12 @@ function TranscriptBody({
                     {clockOf(gap.startMs)}–{clockOf(gap.endMs)}
                   </span>
                   {audioKept && (
-                    <Button variant="ghost" size="sm" aria-label={playLabel(gap.startMs)} onClick={playFrom(gap.startMs)}>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      aria-label={playLabel(gap.startMs)}
+                      onClick={playFrom(gap.startMs)}
+                    >
                       <Icon name="play" /> {strings.transcript.incomplete.play}
                     </Button>
                   )}
@@ -336,23 +369,64 @@ function TranscriptBody({
               aria-label={strings.transcript.speakersHeading}
               className="flex flex-wrap items-center gap-2"
             >
-              {transcript.speakers.map((speaker) => {
-                const name = speakerNameOf(speaker.key, transcript.speakers, meeting.participants) ?? ''
+              {groups.map((group) => {
+                const { name } = group
+                const single = group.speakers.length === 1 ? group.speakers[0]! : null
                 const onlyPart =
-                  manyParts && !speaker.joined && speaker.parts.length === 1 ? speaker.parts[0] : undefined
+                  single !== null && manyParts && !single.joined && single.parts.length === 1
+                    ? single.parts[0]
+                    : undefined
+                const joined = group.speakers.filter((speaker) => speaker.joined)
+                const selected = only?.id === group.id
+                const sample = audioKept ? longestLine(group, segments) : null
+                const lines = linesOf(group.keys)
                 return (
                   <li
-                    key={speaker.key}
-                    className="flex flex-wrap items-center gap-1 rounded-full border border-rule bg-ink-mid py-0.5 pl-3 pr-1 text-sm"
+                    key={group.id}
+                    data-testid="meetings-speaker-chip"
+                    className={
+                      selected
+                        ? 'flex flex-wrap items-center gap-1 rounded-full border border-acc bg-acc/10 py-0.5 pl-1 pr-1 text-sm'
+                        : 'flex flex-wrap items-center gap-1 rounded-full border border-rule bg-ink-mid py-0.5 pl-1 pr-1 text-sm'
+                    }
                   >
-                    <span>{name}</span>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      aria-pressed={selected}
+                      title={strings.transcript.speakerFilter.show(name)}
+                      onClick={() => setOnlyGroup(selected ? null : group.id)}
+                      data-testid="meetings-speaker-filter"
+                    >
+                      <span className="text-sm text-text">{name}</span>
+                      <span className="text-xs text-soft">{strings.transcript.speakerFilter.lines(lines)}</span>
+                    </Button>
+                    {group.speakers.length > 1 && (
+                      <span className="text-xs text-soft">
+                        ({strings.transcript.speakerFilter.merged(group.speakers.length)})
+                      </span>
+                    )}
                     {onlyPart !== undefined && (
                       <span className="text-xs text-soft">({strings.transcript.joined.part(onlyPart)})</span>
                     )}
-                    {speaker.joined && (
+                    {joined.length > 0 && (
                       <span className="flex items-center gap-1 text-xs text-soft">
-                        <Icon name="users" /> {strings.transcript.joined.note(partsText(speaker.parts))}
+                        <Icon name="users" />{' '}
+                        {strings.transcript.joined.note(
+                          partsText([...new Set(joined.flatMap((speaker) => speaker.parts))].sort((a, b) => a - b)),
+                        )}
                       </span>
+                    )}
+                    {sample !== null && (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        aria-label={strings.transcript.speakerFilter.listenLabel(name)}
+                        onClick={() => audio.current?.playRange(sample.startMs, sample.endMs)}
+                        data-testid="meetings-speaker-listen"
+                      >
+                        <Icon name="play" /> {strings.transcript.speakerFilter.listen}
+                      </Button>
                     )}
                     {canEdit && (
                       <Button
@@ -360,26 +434,43 @@ function TranscriptBody({
                         size="sm"
                         aria-haspopup="dialog"
                         aria-label={strings.transcript.rename(name)}
-                        onClick={() => setRenaming(speaker.key)}
+                        onClick={() => setRenaming(group.id)}
                       >
                         <Icon name="pencil" />
                       </Button>
                     )}
-                    {canEdit && speaker.joined && (
-                      <Button
-                        variant="secondary"
-                        size="sm"
-                        aria-haspopup="dialog"
-                        aria-label={strings.transcript.joined.separateLabel(name)}
-                        onClick={() => setSeparating(speaker.key)}
-                      >
-                        {strings.transcript.joined.separate}
-                      </Button>
-                    )}
+                    {canEdit &&
+                      joined.map((speaker) => (
+                        <Button
+                          key={speaker.key}
+                          variant="secondary"
+                          size="sm"
+                          aria-haspopup="dialog"
+                          aria-label={strings.transcript.joined.separateLabel(name)}
+                          onClick={() => setSeparating(speaker.key)}
+                        >
+                          {strings.transcript.joined.separate}
+                        </Button>
+                      ))}
                   </li>
                 )
               })}
             </ul>
+          </div>
+        )}
+        {only !== null && (
+          <div className="flex flex-wrap items-center gap-2" data-testid="meetings-speaker-filter-bar">
+            <p role="status" className="text-sm text-soft">
+              {strings.transcript.speakerFilter.showing(only.name, linesOf(only.keys))}
+            </p>
+            <Button
+              variant="secondary"
+              size="sm"
+              onClick={() => setOnlyGroup(null)}
+              data-testid="meetings-speaker-show-all"
+            >
+              {strings.transcript.speakerFilter.showAll}
+            </Button>
           </div>
         )}
         {focusSegmentId !== null && onBackToAnswer !== null && (
@@ -485,20 +576,22 @@ function TranscriptBody({
           )
         })}
       </Card>
-      {renaming !== null && (
+      {renamingGroup !== null && (
         <SpeakerRenameDialog
           meetingId={meeting.id}
-          speaker={transcript.speakers.find((speaker) => speaker.key === renaming)!}
-          currentName={speakerNameOf(renaming, transcript.speakers, meeting.participants) ?? ''}
+          speakers={renamingGroup.speakers}
+          currentName={renamingGroup.name}
           participants={meeting.participants}
           onClose={() => setRenaming(null)}
           onSaved={(saved) => {
-            // A rename changes the label, never which parts the key covers.
+            // A rename changes the labels, never which parts a key covers.
+            const labels = new Map(saved.map((speaker) => [speaker.key, speaker.label]))
             onTranscript({
               ...transcript,
-              speakers: transcript.speakers.map((speaker) =>
-                speaker.key === saved.key ? { ...speaker, label: saved.label } : speaker,
-              ),
+              speakers: transcript.speakers.map((speaker) => {
+                const label = labels.get(speaker.key)
+                return label === undefined ? speaker : { ...speaker, label }
+              }),
             })
             setRenaming(null)
           }}

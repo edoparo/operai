@@ -40,6 +40,13 @@ const serveTranscript = (body = transcript()) =>
 const view = (meeting = participantMeeting(), extra: Partial<Parameters<typeof TranscriptView>[0]> = {}) =>
   render(<TranscriptView meeting={meeting} focusSegmentId={null} onBackToAnswer={null} {...extra} />)
 
+/** The transcript's lines: the items of its ordered lists (the speakers' chips are list items too). */
+const rowsNow = () => [...document.querySelectorAll<HTMLElement>('ol > li')]
+const findRows = async () => {
+  await waitFor(() => expect(rowsNow().length).toBeGreaterThan(0))
+  return rowsNow()
+}
+
 beforeEach(() => {
   vi.mocked(apiFetch).mockReset()
 })
@@ -49,7 +56,7 @@ describe('TranscriptView: reading (AC-6.1)', () => {
   it('lists segments in order with time and speaker label', async () => {
     serveTranscript()
     view()
-    const rows = await screen.findAllByRole('listitem')
+    const rows = await findRows()
     expect(rows).toHaveLength(2)
     expect(within(rows[0]!).getByText('00:00:12')).not.toBeNull()
     expect(within(rows[0]!).getByText('Speaker 1')).not.toBeNull()
@@ -68,7 +75,7 @@ describe('TranscriptView: reading (AC-6.1)', () => {
       ],
     })
     view()
-    const rows = await screen.findAllByRole('listitem')
+    const rows = await findRows()
     const hidden = (element: HTMLElement) => element.closest('.visually-hidden') !== null
     expect(hidden(within(rows[0]!).getByText('Speaker 1'))).toBe(false)
     expect(hidden(within(rows[1]!).getByText('Speaker 1'))).toBe(true)
@@ -79,7 +86,7 @@ describe('TranscriptView: reading (AC-6.1)', () => {
     const t = transcript()
     serveTranscript({ ...t, segments: [...t.segments].reverse() })
     view()
-    const rows = await screen.findAllByRole('listitem')
+    const rows = await findRows()
     expect(within(rows[0]!).getByText('00:00:12')).not.toBeNull()
   })
 
@@ -96,8 +103,8 @@ describe('TranscriptView: reading (AC-6.1)', () => {
         participants: [{ id: 'p1', kind: 'external', name: 'Barbara Liskov', organisation: null }],
       }),
     )
-    expect(await screen.findByText('Barbara Liskov')).not.toBeNull()
-    expect(screen.getByText('The client')).not.toBeNull()
+    expect(within((await findRows())[0]!).getByText('Barbara Liskov')).not.toBeNull()
+    expect(within(rowsNow()[1]!).getByText('The client')).not.toBeNull()
   })
 
   it('a text meeting shows passages with no times and no speakers (AC-6.1)', async () => {
@@ -133,7 +140,7 @@ describe('TranscriptView: reading (AC-6.1)', () => {
       }),
     )
     const { container } = view()
-    await screen.findByRole('listitem')
+    await findRows()
     expect(container.querySelector('img')).toBeNull()
     expect(container.querySelector('a')).toBeNull()
     expect(container.textContent).toContain('<img src=x onerror=alert(1)> [click](https://evil.test) **bold**')
@@ -154,7 +161,7 @@ describe('TranscriptView: reading (AC-6.1)', () => {
     })
     view()
     await userEvent.click(await screen.findByRole('button', { name: en.common.retry }))
-    expect((await screen.findAllByRole('listitem')).length).toBe(2)
+    expect((await findRows()).length).toBe(2)
   })
 })
 
@@ -198,8 +205,8 @@ describe('TranscriptView: transcript parts (AC-6.1, AC-6.2, AC-6.15)', () => {
       en.transcript.parts.divider(3, '02:00:00'),
     ])
     // The divider is not a list item: it sits right before the list that starts with its part.
-    expect(screen.getAllByRole('listitem')).toHaveLength(3)
-    expect(screen.getAllByRole('list')).toHaveLength(3)
+    expect(rowsNow()).toHaveLength(3)
+    expect(document.querySelectorAll('ol')).toHaveLength(3)
     expect(dividers[0]!.nextElementSibling).toBe(screen.getByTestId('meetings-segment-b1').parentElement)
     expect(dividers[1]!.nextElementSibling).toBe(screen.getByTestId('meetings-segment-c1').parentElement)
     expect(screen.getByTestId('meetings-segment-b1').previousElementSibling).toBeNull()
@@ -277,7 +284,10 @@ describe('TranscriptView: transcript parts (AC-6.1, AC-6.2, AC-6.15)', () => {
     })
     view()
     await screen.findByText('Start of part two.')
-    expect(screen.getAllByText('Ada')).toHaveLength(2)
+    // one chip for both labels, and the name on the lines of each part
+    const chips = screen.getAllByTestId('meetings-speaker-chip').filter((chip) => chip.textContent?.includes('Ada'))
+    expect(chips).toHaveLength(1)
+    expect(chips[0]!.textContent).toContain(en.transcript.speakerFilter.merged(2))
   })
 
   it('searching keeps the dividers (they are structure, not matches)', async () => {
@@ -478,8 +488,14 @@ describe('TranscriptView: a transcript that may be incomplete (AC-6.12, AC-6.5)'
       'POST /meetings/:id/transcript/gaps/dismiss': () => ({ status: 200, body: { gaps: [] } }),
     })
     view(readyMeeting({ audio: { state: 'deleted' } }))
-    await userEvent.click(within(await screen.findByTestId('meetings-transcript-incomplete')).getByRole('button', { name: /as no speech/ }))
-    await userEvent.click(within(await screen.findByRole('alertdialog')).getByRole('button', { name: en.transcript.incomplete.dismissDialog.confirm }))
+    await userEvent.click(
+      within(await screen.findByTestId('meetings-transcript-incomplete')).getByRole('button', { name: /as no speech/ }),
+    )
+    await userEvent.click(
+      within(await screen.findByRole('alertdialog')).getByRole('button', {
+        name: en.transcript.incomplete.dismissDialog.confirm,
+      }),
+    )
     await waitFor(() => expect(screen.queryByTestId('meetings-transcript-incomplete')).toBeNull())
     expect(screen.queryAllByTestId('meetings-transcript-gap')).toHaveLength(0)
   })
@@ -670,7 +686,7 @@ describe('TranscriptView: citation target (F12)', () => {
     Element.prototype.scrollIntoView = scroll
     const onBack = vi.fn()
     view(participantMeeting(), { focusSegmentId: 'seg2', onBackToAnswer: onBack })
-    const rows = await screen.findAllByRole('listitem')
+    const rows = await findRows()
     expect(rows[1]!.getAttribute('aria-current')).toBe('true')
     expect(rows[0]!.getAttribute('aria-current')).toBeNull()
     expect(within(rows[1]!).getByText(en.transcript.citedPassage)).not.toBeNull()

@@ -10,6 +10,8 @@ import { strings } from '../../strings'
 export type AudioHandle = {
   /** Seeks to `ms` and plays (AC-6.5). */
   playFrom: (ms: number) => void
+  /** Plays `startMs`..`endMs` and pauses at the end: one line, to recognise a voice. */
+  playRange: (startMs: number, endMs: number) => void
 }
 
 export type AudioControlProps = {
@@ -67,14 +69,34 @@ function KeptAudio({ meetingId, until, ref }: { meetingId: string; until: string
     }
   }
 
+  // Where a `playRange` stops (seconds); any other play clears it.
+  const stopAt = useRef<number | null>(null)
+
   useImperativeHandle(ref, () => ({
     playFrom: (ms) => {
       const element = player.current
       if (element === null) return
+      stopAt.current = null
       element.currentTime = ms / 1000
       void element.play()?.catch(() => undefined)
     },
+    playRange: (startMs, endMs) => {
+      const element = player.current
+      if (element === null) return
+      element.currentTime = startMs / 1000
+      stopAt.current = endMs / 1000
+      void element.play()?.catch(() => undefined)
+    },
   }))
+
+  const onTimeUpdate = () => {
+    const element = player.current
+    if (element === null || stopAt.current === null) return
+    if (element.currentTime >= stopAt.current) {
+      stopAt.current = null
+      element.pause()
+    }
+  }
 
   const onError = () => {
     if (retried.current) {
@@ -104,6 +126,7 @@ function KeptAudio({ meetingId, until, ref }: { meetingId: string; until: string
           className="w-full"
           onError={onError}
           onLoadedMetadata={onLoadedMetadata}
+          onTimeUpdate={onTimeUpdate}
           onCanPlay={() => {
             retried.current = false
           }}

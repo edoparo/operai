@@ -77,6 +77,17 @@ const en = {
   textRequired: 'Enter the text of the segment.',
   textTooLong: 'The text can be at most 10,000 characters.',
   speakersHeading: 'Speakers',
+  speakerFilter: {
+    /** The chip's name button: shows only this speaker's lines. */
+    show: (name: string) => `Show only ${name}`,
+    showing: (name: string, n: number) =>
+      n === 1 ? `Showing only ${name}: 1 line` : `Showing only ${name}: ${n} lines`,
+    showAll: 'Show all',
+    lines: (n: number) => (n === 1 ? '1 line' : `${n} lines`),
+    merged: (n: number) => `from ${n} labels`,
+    listen: 'Listen',
+    listenLabel: (name: string) => `Listen to ${name}: plays their longest line`,
+  },
   rename: (name: string) => `Rename ${name}`,
   renameTitle: 'Rename speaker',
   renameDescription: 'The new name applies to every segment of this speaker.',
@@ -161,6 +172,15 @@ const it: typeof en = {
   textRequired: 'Inserisci il testo del segmento.',
   textTooLong: 'Il testo può avere al massimo 10.000 caratteri.',
   speakersHeading: 'Voci',
+  speakerFilter: {
+    show: (name: string) => `Mostra solo ${name}`,
+    showing: (name: string, n: number) => (n === 1 ? `Solo ${name}: 1 intervento` : `Solo ${name}: ${n} interventi`),
+    showAll: 'Mostra tutti',
+    lines: (n: number) => (n === 1 ? '1 intervento' : `${n} interventi`),
+    merged: (n: number) => `da ${n} etichette`,
+    listen: 'Ascolta',
+    listenLabel: (name: string) => `Ascolta ${name}: riproduce il suo intervento più lungo`,
+  },
   rename: (name: string) => `Rinomina ${name}`,
   renameTitle: 'Rinomina la voce',
   renameDescription: 'Il nuovo nome vale per tutti i segmenti di questa voce.',

@@ -13,11 +13,15 @@ const CUSTOM = '@custom'
 
 export type SpeakerRenameDialogProps = {
   meetingId: string
-  speaker: Speaker
+  /**
+   * The labels shown as this one speaker (one, or several assigned to the same person): the new name applies to
+   * every one of them, so the speaker stays one.
+   */
+  speakers: Speaker[]
   /** What the speaker is called now, for the dialog's heading context. */
   currentName: string
   participants: Participant[]
-  onSaved: (speaker: Speaker) => void
+  onSaved: (speakers: Speaker[]) => void
   onClose: () => void
 }
 
@@ -27,12 +31,14 @@ const initialChoice = (speaker: Speaker): string =>
 /** Rename a speaker: a participant, free text (1-100), or back to "Speaker n" — applied to all its segments (AC-6.2). */
 export function SpeakerRenameDialog({
   meetingId,
-  speaker,
+  speakers,
   currentName,
   participants,
   onSaved,
   onClose,
 }: SpeakerRenameDialogProps) {
+  const speaker = speakers[0]!
+  const joined = speakers.filter((candidate) => candidate.joined)
   const [choice, setChoice] = useState(initialChoice(speaker))
   const [text, setText] = useState(speaker.label.kind === 'text' ? speaker.label.text : '')
   const [nameError, setNameError] = useState<string | null>(null)
@@ -52,7 +58,10 @@ export function SpeakerRenameDialog({
     setFailure(null)
     setBusy(true)
     try {
-      onSaved(await setSpeaker(meetingId, speaker.key, value))
+      // One label at a time, in order; a failure stops there and says so.
+      const saved: Speaker[] = []
+      for (const each of speakers) saved.push(await setSpeaker(meetingId, each.key, value))
+      onSaved(saved)
     } catch (error) {
       setBusy(false)
       setFailure(errorMessage(error))
@@ -65,7 +74,10 @@ export function SpeakerRenameDialog({
       description={[
         `${currentName}.`,
         strings.transcript.renameDescription,
-        speaker.joined ? `${strings.transcript.joined.note(partsText(speaker.parts))}.` : null,
+        speakers.length > 1 ? `${strings.transcript.speakerFilter.merged(speakers.length)}.` : null,
+        joined.length > 0
+          ? `${strings.transcript.joined.note(partsText([...new Set(joined.flatMap((s) => s.parts))].sort((a, b) => a - b)))}.`
+          : null,
       ]
         .filter((part): part is string => part !== null)
         .join(' ')}
