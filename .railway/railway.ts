@@ -10,8 +10,13 @@ export default defineRailway(() => {
   const meetings = bucket("meetings", { region: "ams" });
   const refundApi = service("refund-api", {
     source: github("matteocodogno/operai", { branch: "main", checkSuites: false, rootDirectory: "/refund-api" }),
-    build: { buildEnvironment: "V3", builder: "RAILPACK" },
+    build: { buildEnvironment: "V3", builder: "DOCKERFILE", dockerfilePath: "Dockerfile" },
+    start: "bun run src/index.ts",
+    healthcheck: "/health",
+    healthcheckTimeout: 30,
+    preDeploy: "bun run db:deploy",
     replicas: { "europe-west4-drams3a": 1 },
+    deploy: { restartPolicyMaxRetries: 3 },
     domains: ["refund-api.operai.welld.io"],
     networking: { privateNetworkEndpoint: "operai-b6e4" },
   });
@@ -61,23 +66,36 @@ export default defineRailway(() => {
   });
   const auth = service("auth", {
     source: github("matteocodogno/operai", { branch: "main", checkSuites: false, rootDirectory: "/auth" }),
-    build: { buildEnvironment: "V3", builder: "RAILPACK" },
+    build: { buildEnvironment: "V3", builder: "DOCKERFILE", dockerfilePath: "Dockerfile" },
+    start: "bun run src/index.ts",
+    healthcheck: "/health",
+    healthcheckTimeout: 30,
+    preDeploy: "bun run db:release",
     replicas: { "europe-west4-drams3a": 1 },
-    deploy: { limitOverride: { containers: { cpu: 24, memoryBytes: 24000000000 } } },
+    deploy: { restartPolicyMaxRetries: 3, limitOverride: { containers: { cpu: 24, memoryBytes: 24000000000 } } },
     domains: [{ domain: "auth.operai.welld.io", port: 3001 }],
   });
   const notifyApi = service("notify-api", {
     source: github("matteocodogno/operai", { branch: "main", checkSuites: false, rootDirectory: "/notify-api" }),
     build: { buildEnvironment: "V3", builder: "DOCKERFILE", dockerfilePath: "Dockerfile" },
+    start: "bun run src/index.ts",
+    healthcheck: "/health",
+    healthcheckTimeout: 30,
+    preDeploy: "bun run db:deploy",
     replicas: { "europe-west4-drams3a": 1 },
+    deploy: { restartPolicyMaxRetries: 3 },
     domains: ["notify-api.operai.welld.io"],
     networking: { privateNetworkEndpoint: "operai" },
   });
   const estimaiApi = service("estimai-api", {
     source: github("matteocodogno/operai", { branch: "main", checkSuites: false, rootDirectory: "/estimai-api" }),
-    build: { buildEnvironment: "V3", builder: "RAILPACK" },
+    build: { buildEnvironment: "V3", builder: "DOCKERFILE", dockerfilePath: "Dockerfile" },
+    start: "bun run src/index.ts",
+    healthcheck: "/health",
+    healthcheckTimeout: 30,
+    preDeploy: "bun run db:deploy",
     replicas: { "europe-west4-drams3a": 1 },
-    deploy: { limitOverride: { containers: { cpu: 24, memoryBytes: 24000000000 } } },
+    deploy: { restartPolicyMaxRetries: 3, limitOverride: { containers: { cpu: 24, memoryBytes: 24000000000 } } },
     domains: ["estimai-api.operai.welld.io"],
   });
   const inventoryApi = service("inventory-api", {
