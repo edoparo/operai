@@ -59,6 +59,10 @@ import { createHash, timingSafeEqual } from "node:crypto";
  * - `projects.purchase-orders.read`: read the purchase orders of given deals through
  *   projects-api's `GET /system/purchase-orders` (specs/026; was `projects.contracts.read`,
  *   retired with "contract", D38). Only crm-api holds it.
+ * - `meetings.hosts.read`: read which host record (today a CRM deal) each meeting is linked to,
+ *   through meetings-api's `GET /system/meetings/hosts` (specs/029, ADR-0089). Only hours-api
+ *   holds it; meetings-api's sub allowlist names `system:hours-api`. It answers `{id, host}` and
+ *   nothing else — no title, participant or duration.
  */
 export const KNOWN_SERVICE_SCOPES = [
   "notifications.push",
@@ -73,6 +77,7 @@ export const KNOWN_SERVICE_SCOPES = [
   "crm.contacts.read",
   "estimai.estimates.read",
   "projects.purchase-orders.read",
+  "meetings.hosts.read",
 ] as const;
 
 /**
@@ -92,12 +97,16 @@ export const KNOWN_SERVICE_SCOPES = [
  *   (AC-6.1/6.3) are email notices, and notify-api requires `emails.send` as well as
  *   `notifications.push` for `email: true` (ADR-0056). No `activities.write`: it is the
  *   service that scope writes to.
+ * - `hours-api` (specs/029): `meetings.hosts.read` only — it asks meetings-api which deal a
+ *   meeting is linked to (ADR-0089). Everything else it asks of the other services is asked as
+ *   the caller, with the user's JWT, so it holds no other scope and sends no notification.
  */
 export const DOCUMENTED_CLIENT_SCOPES = {
   "meetings-api": "notifications.push host-notices.send",
   "projects-api": "crm.companies.read crm.deals.read crm.contacts.read estimai.estimates.read notifications.push",
   "crm-api": "notifications.push emails.send deal-link-notices.send activities.write projects.purchase-orders.read",
   "activities-api": "notifications.push emails.send",
+  "hours-api": "meetings.hosts.read",
 } as const;
 
 /**
