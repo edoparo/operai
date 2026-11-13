@@ -12,18 +12,30 @@ notifications allowed per browser, Focus off. Notifications triggered with a sel
 
 | Check | AC | Chrome | Edge | Firefox | Safari |
 |---|---|---|---|---|---|
-| A. No `operai-push` database before turning push on (D-7) | — | ✅ | ✅ | ✅ | pending |
+| A. No `operai-push` database before turning push on (D-7) | — | ✅ | ✅ | ✅ | pending (console check) |
 | B. No permission prompt on load; Turn on → On + "This browser" row | AC-1.1, 1.2 | ✅ | ✅ | ✅ | ✅ (T1 spike) |
 | B. Endpoint host accepted by the allowlist (R3) | AC-6.3 | ✅ | ✅ (Edge host accepted; exact host not recorded) | ✅ | ✅ `web.push.apple.com` |
 | C. Notification shown with Operai closed, within ~30 s, text/accents correct | AC-2.1 | ✅ | ✅ | ✅ | ✅ (T1 spike) |
-| D. Click opens `/notify` (new tab) / focuses the background tab | AC-4.1, 4.2 | ✅ | ✅ | ✅ | ✅ (T1 spike) |
-| E. No system notification with Operai visible; after 3 suppressed pushes delivery still works | AC-2.3 | ✅ | ✅ | ✅ | n/a — always shows (ADR-0085) |
-| F. No push after explicit sign-out | AC-5.1 | ✅ | ✅ | ✅ | — |
-| G. Removing the device from another browser stops pushes | AC-3.2 | ✅ | ✅ | ✅ | — |
+| D. Click opens `/notify` (new tab) / focuses the background tab | AC-4.1, 4.2 | ✅ | ✅ | ✅ | background tab ✅ · no tab ❌ **D-10** |
+| E. No system notification with Operai visible; after 3 suppressed pushes delivery still works | AC-2.3 | ✅ | ✅ | ✅ | shows with Operai visible ✅ (expected, ADR-0085) |
+| F. No push after explicit sign-out | AC-5.1 | ✅ | ✅ | ✅ | ✅ |
+| G. Removing the device from another browser stops pushes | AC-3.2 | ✅* | ✅* | ✅* | ❌ **D-9** |
 
 Verified by: Matteo Codogno, 2026-11-13, local dev stack (Chrome, Edge, Firefox).
 Safari: verified by Matteo Codogno, 2026-11-11, T1 spike bench (delivery, click, Safari
 always-show behaviour); D-7 check (A) still to do on Safari.
+
+Safari run: Matteo Codogno, 2026-11-13, local dev stack (Safari, macOS). The site was first
+shown as Blocked because `Notification.permission` was `denied` (stale permission from the T1
+bench); resolved in Safari/macOS settings — the Blocked state itself behaved as designed.
+
+Defects found on Safari (fix-round extension granted by the user, 2026-11-13):
+- **D-9 (AC-3.2, all browsers):** a device removed from another browser re-registers itself on
+  the removed browser's next load — `reconcilePush` silently re-PUT a subscription whose row was
+  missing. *G passed on Chrome/Edge/Firefox only because the removed browser was not reloaded
+  afterwards; G must be re-run on every browser after the fix.
+- **D-10 (AC-4.1, Safari):** with no Operai tab open, clicking the push does not open Operai
+  (with a background tab it focuses and navigates correctly).
 
 Note: an initial Chrome failure (`getSubscription()` null) was an operator error, not a
 product defect; the Chrome run was repeated and passed.
