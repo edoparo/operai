@@ -605,3 +605,72 @@ the hand-over. The dev for D-4 should add the component test described under the
   for the refusal strings to close the AC-7.7 live row on the deployed pair.
 - Re-verification needs: D-4 fixed with its component test; E-1 cleared and `notifications.spec.ts` rerun. This is fix
   round 2 of 2; if D-4 is not fixed in it, the caller escalates per the rigor rules.
+
+---
+
+## D-9/D-10 re-run (2026-11-13)
+
+### QE verdict: PASS (measured at b91a1503; D-10 stays OPEN as a manual item, not an automatable defect)
+
+Scope: targeted re-run after commits 5015586c (D-9 fix), 4a2d3918 (comment), 1c722f18 (D-10 hardening),
+816ea88a (plan/design/tasks amendment). Production tier, full mode. Tests added by QE: none (the dev's e2e for
+D-9 was executed and mutation-checked, below). Working tree clean before and after.
+
+| Check | Threshold | Actual | Result |
+|---|---|---|---|
+| shell `pnpm lint` | 0 errors | 0 errors | ✓ |
+| shell `pnpm build` (tsc -b + vite) | succeeds | built | ✓ |
+| shell `pnpm test` | all green | 40 files, 594/594 | ✓ |
+| `push-notifications.spec.ts`, run 1 | 4/4 | 4/4 | ✓ |
+| `push-notifications.spec.ts`, run 2 (flakiness) | 4/4 | 4/4 | ✓ |
+| New D-9 e2e fails on the old code | must fail | with `push.ts` from 5015586c^ restored: `Expected "Off", Received "On"`; file restored afterwards, tree clean | ✓ (not a vacuous test) |
+| Notification specs (`notifications`, `activities-notify`, `push-notifications`) | green | 12/12 | ✓ |
+| Whole e2e, default ports | 115/0 baseline | 115 passed, 1 failed (`remote-failure.spec.ts`) | see Environment fault |
+| `remote-failure` + notification specs with the documented port map | green | 16/16 (remote-failure passes, 6.2 s) | ✓ |
+| AC-3.2 (D-9) | holds | unit (2 reconcile cases) + e2e + user's manual G re-check on Chrome/Edge/Firefox/Safari | ✓ |
+| AC-4.1 Safari with no tab open (D-10) | — | not verifiable locally | OPEN (manual, deployed preview) |
+
+### D-9 review against the amended plan
+- Missing row after a successful list read: `reconcilePush` unsubscribes (`unsubscribeQuietly`), `clearStored()`,
+  returns `off`. No PUT, and no DELETE (the row is already gone). Unit test asserts `callsTo('PUT')` is 0,
+  `browser.subscription` null, store empty, no permission request.
+- Unreadable list: the `listPushDevices()` catch returns `unverified` before any mutation; unchanged and still covered.
+- Other branches (no stored/no subscription -> off; other user's marker -> unsubscribe+clear; permission not granted or
+  subscription lost -> best-effort DELETE + clear; row present -> on) are untouched by the diff.
+- No path re-PUTs on load: `registerDevice` has one remaining caller, the user-initiated enable flow (push.ts:445).
+  `reconcilePush` has only the two callers (`pushSettingsModel`, and the boot call at push.ts:595), both read-only
+  with respect to the server except the existing best-effort DELETE. The removed branch was the only silent register.
+- Accepted consequence (per the amended plan): a row pruned by notify-api on 404/410 also leaves the browser Off
+  instead of silently re-registering; the user turns it on again. Not a defect against AC-1.7/3.2 as amended.
+
+### D-10 review (1c722f18)
+- Chrome/Edge/Firefox path unchanged in behaviour: same-origin window preferred visible-first, `focus()` then
+  `postMessage({navigate})`; no window -> `openWindow`. `WindowClient.focus()` resolves to the client on those
+  engines, so the new "null/undefined -> treat as dead, open a window" rule does not trigger; the new unit cases
+  cover null/undefined focus, foreign origin, unparseable url, failing `matchAll`, and a foreign-first list.
+  Security-wise the same-origin filter is a strict improvement (never focuses or posts to a foreign client).
+- D-10 itself is NOT fixed by this commit (per qe-manual.md diagnosis: Safari's `clients.openWindow` resolves null on
+  localhost even when called first). It is recorded as open; AC-4.1 is NOT marked PASS for Safari with no tab open.
+  Needs: user re-check on the deployed preview (HTTPS, real domain); if it still fails there, a Safari exception to
+  AC-4.1 is a user decision.
+- Residual risk to put on that same manual pass (not a defect today, not executable here): the commit makes a Safari
+  client whose `focus()` resolves null fall through to `openWindow`, which on localhost resolves null. qe-manual.md
+  records the Safari "background tab focuses and navigates" case as passing, but not whether it was re-run AFTER
+  1c722f18. If Safari's `focus()` on a live background tab resolves null/undefined, that previously working path
+  would now do nothing. Re-run Safari check D (background tab) on the deployed preview too, and on Chrome/Edge/Firefox
+  after the next push.
+
+### Environment faults (separate from defects)
+- E-2: `remote-failure.spec.ts` fails with default ports while `mise run dev` is up. The spec aborts requests to
+  `E2E_REFUND_REMOTE_PORT` (default 5176), which on the dev stack is notify-ui's dev server; Playwright reuses the
+  running servers and the shell resolves the Refund remote on 5175, so nothing is aborted and the in-place error never
+  shows. Reproduced twice, identical. With the documented map
+  (`E2E_ESTIMAI_REMOTE_PORT=5174 E2E_REFUND_REMOTE_PORT=5175 E2E_NOTIFY_REMOTE_PORT=5176 E2E_ADMIN_REMOTE_PORT=5177
+  E2E_INVENTORY_REMOTE_PORT=5178 E2E_CRM_REMOTE_PORT=5179 E2E_MEETINGS_REMOTE_PORT=5180 E2E_PROJECTS_REMOTE_PORT=5181`)
+  it passes. The spec file is untouched since specs/025/028 and the commits under test touch no shell routing or
+  remote loading. I did not re-run the whole suite under the port map (10 min); the other 115 passed at default ports
+  and the four notification-related files passed under both configurations.
+
+### Pending (unchanged, human)
+- D-10 Safari no-tab click on the deployed preview; Safari background-tab click re-check after 1c722f18.
+- Go-live rows H, I, J in qe-manual.md; owasp-reviewer pass still recommended before close (plan § Security).
