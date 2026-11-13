@@ -8,6 +8,8 @@
  *     `listPushDevices`, and the writes below;
  *   - turning this browser on and off (`enablePush`, `disablePush`) and removing any device
  *     (`removePushDevice`);
+ *   - the on-load offer (`findPushOffer`, AC-1.9) and its remembered answer (`hasDeclinedPush`,
+ *     `recordPushDeclined`: one localStorage flag per user, never the JWT);
  *   - boot work (`initPush`): the sign-out release is registered, and the browser is reconciled with
  *     the server (`reconcilePush`) — this is how a subscription the browser dropped (Safari cancels
  *     one after pushes that show nothing, while Apple keeps answering 201), a revoked permission or
@@ -18,7 +20,8 @@
  * subscription would outlive its server row on a DEFINITIVE failure it is unsubscribed; only an
  * inconclusive failure (network, 5xx) keeps it and reports `unverified`, to be retried next boot.
  *
- * The only thing persisted is `{deviceId, userId}` in IndexedDB — never the JWT (ADR-0001). Only
+ * What is persisted: `{deviceId, userId}` in IndexedDB and, once a user says no, a per-user
+ * `operai-push-declined:<userId>` flag in localStorage — never the JWT (ADR-0001). Only
  * `enablePush` (and the silent re-register of an already remembered device) creates the database;
  * boot, sign-out and the settings reads never do (D-7). Every
  * storage access is wrapped: an unavailable store degrades to "nothing remembered", which makes
@@ -84,6 +87,18 @@ export type PushReconcileResult =
   | { status: 'off' }
   /** Could not be checked right now (server unreachable); nothing was changed. */
   | { status: 'unverified' }
+
+/** What the shell's boot work found: the signed-in user and this browser's state for them. */
+export interface PushBoot {
+  userId: string
+  result: PushReconcileResult
+}
+
+/** The on-load offer (specs/029 AC-1.9): who it is for and the key Turn on subscribes with. */
+export interface PushOffer {
+  userId: string
+  vapidPublicKey: string
+}
 
 // ---------------------------------------------------------------------------
 // Constants
@@ -258,6 +273,39 @@ async function clearStored(): Promise<void> {
     await withStore('readwrite', false, (store) => store.delete(STORE_KEY))
   } catch {
     // nothing to clear, or nothing we can clear
+  }
+}
+
+// ---------------------------------------------------------------------------
+// The on-load offer's answer (specs/029 AC-1.9) — one flag per user in localStorage
+// ---------------------------------------------------------------------------
+
+const DECLINED_KEY_PREFIX = 'operai-push-declined:'
+
+/** Whether this user said no to push in this browser (the offer, Turn off, or removing it). */
+export function hasDeclinedPush(userId: string): boolean {
+  try {
+    return window.localStorage.getItem(DECLINED_KEY_PREFIX + userId) === '1'
+  } catch {
+    // storage unavailable: nothing remembered, so the offer may come back — never an error
+    return false
+  }
+}
+
+/** Records that this user does not want push in this browser; the on-load offer stops asking. */
+export function recordPushDeclined(userId: string): void {
+  try {
+    window.localStorage.setItem(DECLINED_KEY_PREFIX + userId, '1')
+  } catch {
+    // storage unavailable: the offer may be shown again on a later load
+  }
+}
+
+function clearPushDeclined(userId: string): void {
+  try {
+    window.localStorage.removeItem(DECLINED_KEY_PREFIX + userId)
+  } catch {
+    // nothing to clear
   }
 }
 
@@ -444,6 +492,8 @@ export async function enablePush(input: { userId: string; vapidPublicKey: string
   try {
     device = await registerDevice(subscription)
     if (!(await writeStored({ deviceId: device.id, userId: input.userId }))) throw new PushError('generic')
+    // Turned on is the latest answer: after a later sign-out (which releases the browser) the offer may ask again.
+    clearPushDeclined(input.userId)
     return device
   } catch (error) {
     if (device) await deleteDevice(device.id).catch(() => {})
@@ -548,8 +598,10 @@ export async function reconcilePush(userId: string): Promise<PushReconcileResult
 
   // The server no longer lists this device: it was removed (from another browser, AC-3.2) or pruned.
   // Honour that. Releasing the subscription also kills the endpoint, so no push can reach this browser.
+  // Removing it was the user's answer for this browser, so the on-load offer does not ask again (AC-1.9).
   await unsubscribeQuietly(subscription)
   await clearStored()
+  recordPushDeclined(userId)
   return { status: 'off' }
 }
 
@@ -586,15 +638,40 @@ const currentUserId = async (): Promise<string | undefined> => {
 
 /**
  * Shell boot (called once by `ShellLayout`): registers the sign-out release, then reconciles this
- * browser for the signed-in user. Never prompts, never rejects.
+ * browser for the signed-in user and returns what it found (`undefined` with no user or on any
+ * failure). Never prompts, never rejects.
  */
-export async function initPush(): Promise<void> {
+export async function initPush(): Promise<PushBoot | undefined> {
   try {
     onBeforeSignOut(releasePushOnSignOut)
     const userId = await currentUserId()
-    if (userId) await reconcilePush(userId)
+    if (userId) return { userId, result: await reconcilePush(userId) }
   } catch {
     // push is an enhancement; a boot failure must never reach the shell
+  }
+  return undefined
+}
+
+/** Paths where the push setting itself is on screen, so the on-load offer stays out of the way. */
+const OFFER_SKIPPED_PATHS = ['/account']
+
+/**
+ * Whether to offer push when Operai loads (specs/029 AC-1.9), from the boot result: the browser
+ * supports push, it is off here, the user has not answered (no decline recorded, notifications not
+ * blocked), the page is not My profile, and the deployment has push enabled. Reads only — the offer's
+ * Turn on is what asks the browser. Never rejects; any failure means no offer.
+ */
+export async function findPushOffer(boot: PushBoot | undefined, pathname: string): Promise<PushOffer | null> {
+  try {
+    if (!boot || boot.result.status !== 'off') return null
+    if (OFFER_SKIPPED_PATHS.some((path) => pathname === path || pathname.startsWith(`${path}/`))) return null
+    const permission = readPermission()
+    if (permission === null || permission === 'denied') return null
+    if (hasDeclinedPush(boot.userId)) return null
+    const config = await getPushConfig()
+    return config.enabled ? { userId: boot.userId, vapidPublicKey: config.vapidPublicKey } : null
+  } catch {
+    return null
   }
 }
 

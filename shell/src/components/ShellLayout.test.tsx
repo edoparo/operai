@@ -20,11 +20,14 @@ import type { ReactElement } from 'react'
 import { ShellLayout, SHELL_MAIN_CONTENT_ID } from './ShellLayout'
 import Sidebar from './Sidebar'
 import { registerNavigationBlocker, resetNavigationBlocker } from '../lib/navigationBlocker'
-import { initPush, listenForServiceWorkerMessages } from '../lib/push'
+import { findPushOffer, initPush, listenForServiceWorkerMessages } from '../lib/push'
 
 // The push library is exercised in lib/push.test.ts; here only its wiring into the layout (specs/029, T8).
 vi.mock('../lib/push', () => ({
   initPush: vi.fn().mockResolvedValue(undefined),
+  findPushOffer: vi.fn().mockResolvedValue(null),
+  enablePush: vi.fn(),
+  recordPushDeclined: vi.fn(),
   listenForServiceWorkerMessages: vi.fn(() => () => {}),
 }))
 
@@ -335,5 +338,27 @@ describe('ShellLayout push wiring (specs/029, T8)', () => {
     unmount()
 
     expect(stop).toHaveBeenCalledTimes(1)
+  })
+
+  it('asks the push library for an on-load offer with the boot result and the current path (AC-1.9)', async () => {
+    const boot = { userId: 'user-1', result: { status: 'off' as const } }
+    vi.mocked(initPush).mockResolvedValueOnce(boot)
+    vi.mocked(findPushOffer).mockClear().mockResolvedValueOnce(null)
+
+    await renderWithRouter(() => <ShellLayout />)
+
+    await waitFor(() => expect(findPushOffer).toHaveBeenCalledWith(boot, '/'))
+    expect(screen.queryByRole('alertdialog')).toBeNull()
+  })
+
+  it('shows the offer when there is one, and closes it on No thanks (AC-1.9)', async () => {
+    vi.mocked(findPushOffer).mockResolvedValueOnce({ userId: 'user-1', vapidPublicKey: 'key' })
+
+    await renderWithRouter(() => <ShellLayout />)
+
+    const dialog = await screen.findByRole('alertdialog', { name: 'Turn on push notifications?' })
+    expect(dialog).toBeTruthy()
+    await userEvent.click(screen.getByRole('button', { name: 'No thanks' }))
+    await waitFor(() => expect(screen.queryByRole('alertdialog')).toBeNull())
   })
 })

@@ -4,9 +4,11 @@ import { ConfirmDialog } from '@operai/ui'
 import { SidebarCollapsedProvider } from '../hooks/SidebarCollapsedProvider'
 import { useSidebarCollapsed } from '../hooks/sidebarCollapsed'
 import FloatingHost from './FloatingHost'
+import PushPrompt from './PushPrompt'
 import ToastHost from './ToastHost'
 import { getNavigationBlocker, isNavigationBlocked } from '../lib/navigationBlocker'
-import { initPush, listenForServiceWorkerMessages } from '../lib/push'
+import { findPushOffer, initPush, listenForServiceWorkerMessages } from '../lib/push'
+import type { PushOffer } from '../lib/push'
 import { strings } from '../strings'
 
 /**
@@ -98,11 +100,22 @@ function ShellLayoutFrame({ header, sidebar, footer }: ShellLayoutProps) {
   })
 
   // Web Push (specs/029, T8): once per shell mount, register the sign-out release and reconcile this
-  // browser with the server (never prompts); and pass the push service worker's `{navigate}` message
-  // (a notification click) to the push library, which validates it before navigating the suite.
+  // browser with the server; then, when this user has not answered yet here, offer push (AC-1.9 — the
+  // browser itself asks only after the offer's Turn on). Also pass the push service worker's
+  // `{navigate}` message (a notification click) to the push library, which validates it first.
+  const [pushOffer, setPushOffer] = useState<PushOffer | null>(null)
   useEffect(() => {
+    let active = true
     void initPush()
-    return listenForServiceWorkerMessages()
+      .then((boot) => findPushOffer(boot, window.location.pathname))
+      .then((offer) => {
+        if (active) setPushOffer(offer)
+      })
+    const stop = listenForServiceWorkerMessages()
+    return () => {
+      active = false
+      stop()
+    }
   }, [])
 
   // The chrome the floating slot keeps clear: the header's and the footer's heights, followed as they change.
@@ -197,6 +210,8 @@ function ShellLayoutFrame({ header, sidebar, footer }: ShellLayoutProps) {
       {/* The floating slot (specs/021-meetings A13): outside <main> and the router outlet, so a remote's widget
           (the meetings recorder) survives every navigation. Kept clear of the header and the footer. */}
       <FloatingHost inset={{ top: chrome.header, bottom: chrome.footer }} />
+
+      {pushOffer && <PushPrompt offer={pushOffer} onClose={() => setPushOffer(null)} />}
 
       {blocker.status === 'blocked' && (
         <ConfirmDialog

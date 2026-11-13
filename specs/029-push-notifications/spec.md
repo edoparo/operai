@@ -70,7 +70,8 @@ that Operai can reach me there when it is closed.
 - AC-1.1: Given a signed-in user on a browser that offers push (see AC-1.6) who has not
   turned push on for it, when they open My profile (`/account`), then they see a push
   setting for "this browser" in the off state, and the browser has NOT asked them for
-  notification permission.
+  notification permission. (Amended 2026-11-14: Operai's own on-load question is AC-1.9;
+  the browser's prompt still never appears without the user's click.)
 - AC-1.2: Given that setting in the off state, when the user turns it on and grants the
   browser's permission, then the setting shows on, and this browser appears in their list
   of push devices (US-3).
@@ -107,6 +108,20 @@ that Operai can reach me there when it is closed.
 - AC-1.8: Given the push settings cannot be loaded (the notification service does not
   answer), when the user opens My profile, then the push section shows a warning with a
   retry, and the rest of My profile is unaffected. (Added 2026-11-11, design finding G3.)
+- AC-1.9: Given a signed-in user on a browser that offers push (AC-1.6), with push off for
+  them on it, notifications not blocked in the browser (AC-1.4), and no earlier answer from
+  them on this browser, when Operai loads on any page other than My profile, then Operai
+  asks — in its own dialog, not the browser's prompt — whether to turn push notifications
+  on. "Turn on" is exactly AC-1.2/AC-1.3 (the browser's permission prompt comes only after
+  this click); "No thanks", Escape or closing the dialog is an answer, and so are turning
+  push off in My profile and removing this browser from the device list (here or from
+  another browser): after an answer the dialog is not shown again to that user on that
+  browser. The answer is per user and per browser, kept in the browser, and cleared when the
+  user turns push on, so after an explicit sign-out (AC-5.1, AC-1.7) the dialog may ask
+  again. A failed "Turn on" other than a refused or dismissed permission keeps the dialog
+  open with the error and is not an answer. Turning push on and off in My profile is
+  unchanged. Nothing is asked when push is disabled for the deployment (AC-6.1) or its
+  settings cannot be read. (Added 2026-11-14 by Matteo Codogno, after go-live.)
 
 ### US-2: A notification reaches me when Operai is closed
 

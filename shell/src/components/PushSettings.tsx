@@ -37,6 +37,7 @@ import type { DataTableColumn } from '@operai/ui'
 import {
   disablePush,
   enablePush,
+  recordPushDeclined,
   isPushSupported,
   readPermission,
   removePushDevice,
@@ -206,6 +207,8 @@ export function PushSettings() {
     disablePush().then(
       () => {
         busyRef.current = false
+        // Turning it off is an answer: the on-load offer does not ask this user again here (AC-1.9).
+        recordPushDeclined(userId)
         if (!mountedRef.current) return
         setTurningOff(false)
         updateLoaded((current) => ({
@@ -231,6 +234,7 @@ export function PushSettings() {
     setRemoveError(null)
     removePushDevice(target.id).then(
       ({ wasThisBrowser }) => {
+        if (wasThisBrowser) recordPushDeclined(userId)
         if (!mountedRef.current) return
         setRemoveBusy(false)
         setRemoveTarget(null)

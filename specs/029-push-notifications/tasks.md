@@ -98,3 +98,7 @@ Re-sync 2026-11-12 (QE round 0 FAIL + security review FAIL; spec re-approved wit
 - [x] T13: Close — all gates green, spec status → done — refs: all — deps: T12
   - touch: `specs/029-push-notifications/*`
   - done when: QE PASS, owasp-reviewer PASS (plan § Security: YES), fresh passing `eval-report.md`, no drift; `/wellforge:done 029-push-notifications` succeeds.
+
+- [x] T23: shell — on-load offer to turn push on (post-go-live amendment, user request 2026-11-14) — refs: AC-1.9, AC-1.1 — deps: T13
+  - touch: `shell/src/lib/push.ts`, `shell/src/lib/push.test.ts`, `shell/src/components/PushPrompt.tsx`, `shell/src/components/PushPrompt.test.tsx`, `shell/src/components/ShellLayout.tsx`, `shell/src/components/ShellLayout.test.tsx`, `shell/src/components/PushSettings.tsx`, `shell/src/components/PushSettings.test.tsx`, `shell/src/strings.ts`, `shell/e2e/push-notifications.spec.ts`, `.changeset/*`
+  - done when: `initPush` returns the boot result and `findPushOffer` offers push only when supported, off here, not blocked, no answer recorded for this user, not on `/account`, and push enabled for the deployment; a `ConfirmDialog` asks, Turn on calls `enablePush` from the click, No thanks / Escape / × record the answer (localStorage, per user), turning off or removing this browser (in My profile or from another browser, D-9 path) records it, turning on clears it; unit tests, the two AC-1.9 e2e journeys, `pnpm lint`, `pnpm test`, `pnpm build` green. Done directly on main at the user's request, without a QE/eval re-run.

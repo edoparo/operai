@@ -187,6 +187,14 @@ const en = {
     },
     removed: (label: string) => `Removed ${label}.`,
   },
+  pushPrompt: {
+    title: 'Turn on push notifications?',
+    body: 'Get a system notification on this computer when Operai is not open. Your browser will ask for permission next. You can change this at any time in My profile.',
+    confirm: 'Turn on',
+    busy: 'Waiting for your browser…',
+    cancel: 'No thanks',
+    close: 'Close',
+  },
 }
 
 const it: typeof en = {
@@ -357,6 +365,14 @@ const it: typeof en = {
       error: 'Impossibile rimuovere questo dispositivo. Riprova.',
     },
     removed: (label) => `${label} rimosso.`,
+  },
+  pushPrompt: {
+    title: 'Attivare le notifiche push?',
+    body: 'Ricevi una notifica di sistema su questo computer quando Operai non è aperto. Subito dopo il browser ti chiederà il permesso. Puoi cambiare idea in qualsiasi momento dal tuo profilo.',
+    confirm: 'Attiva',
+    busy: 'In attesa del browser…',
+    cancel: 'No, grazie',
+    close: 'Chiudi',
   },
 }
 

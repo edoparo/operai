@@ -5,7 +5,7 @@
  * Only the browser's push machinery is faked (helpers/pushFixtures.ts `installFakePush`): headless
  * Chromium cannot get a real subscription; real delivery is the manual cross-browser check (AC-2.1, T12).
  *
- * Covers: AC-1.1 (nothing asked on load), AC-1.2 (turn on -> subscribed and listed), AC-1.5 (turn off ->
+ * Covers: AC-1.1 (nothing asked on My profile), AC-1.9 (the on-load offer: Turn on, No thanks remembered), AC-1.2 (turn on -> subscribed and listed), AC-1.5 (turn off ->
  * gone from the server and the list), AC-3.2 (remove a device from the list), and AC-4.3 (a signed-out
  * visit to a deep link lands on sign-in and returns to it).
  *
@@ -143,6 +143,64 @@ test.describe('My profile: push notifications (AC-1.1, AC-1.2, AC-1.5, AC-3.2)',
     await expect(page.getByText('No devices yet')).toBeVisible()
     // Not silently registered again.
     expect(await listServerDevices(token)).toHaveLength(0)
+  })
+})
+
+test.describe('On-load offer (AC-1.9)', () => {
+  let token = ''
+  let deviceIds: string[] = []
+  const offer = (page: Page) => page.getByRole('alertdialog', { name: 'Turn on push notifications?' })
+
+  test.beforeEach(async ({ context, page }) => {
+    const cookies = await seedSession(context)
+    token = await tokenFor(`${cookies[0].name}=${cookies[0].value}`)
+    expect((await readPushConfig(token)).enabled, 'ENV: notify-api must run with PUSH_ENABLED=true').toBe(true)
+    await deleteTrackedPushDevices(
+      token,
+      (await listServerDevices(token)).map((device) => device.id),
+    )
+    await installFakePush(context, SHELL_ORIGIN)
+    deviceIds = trackPushDevices(page)
+  })
+
+  test.afterEach(async () => {
+    if (token) await deleteTrackedPushDevices(token, deviceIds)
+  })
+
+  test('Turn on in the offer registers this browser; after a reload nothing is asked and My profile shows On', async ({
+    page,
+  }) => {
+    await page.goto('/notify')
+    await expect(offer(page)).toBeVisible({ timeout: 15_000 })
+    await offer(page).getByRole('button', { name: 'Turn on' }).click()
+    await expect(offer(page)).toHaveCount(0, { timeout: 15_000 })
+    await expect.poll(() => deviceIds.length).toBe(1)
+    expect(await listServerDevices(token)).toHaveLength(1)
+
+    await page.reload()
+    await page.waitForTimeout(2_000)
+    await expect(offer(page)).toHaveCount(0)
+
+    await page.goto('/account')
+    await expect(status(page)).toHaveText('On', { timeout: 15_000 })
+  })
+
+  test('No thanks is remembered: no offer after a reload, and My profile can still turn push on', async ({ page }) => {
+    await page.goto('/notify')
+    await expect(offer(page)).toBeVisible({ timeout: 15_000 })
+    await offer(page).getByRole('button', { name: 'No thanks' }).click()
+    await expect(offer(page)).toHaveCount(0)
+    expect(await listServerDevices(token)).toHaveLength(0)
+
+    await page.reload()
+    await page.waitForTimeout(2_000)
+    await expect(offer(page)).toHaveCount(0)
+
+    await page.goto('/account')
+    await expect(section(page)).toBeVisible({ timeout: 15_000 })
+    await expect(offer(page)).toHaveCount(0)
+    await toggle(page).click()
+    await expect(status(page)).toHaveText('On', { timeout: 15_000 })
   })
 })
 

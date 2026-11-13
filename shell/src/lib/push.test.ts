@@ -235,6 +235,7 @@ function route(method: string, path: string, response: () => Response | Promise<
 }
 
 beforeEach(() => {
+  window.localStorage.clear()
   idb = createFakeIndexedDb()
   vi.stubGlobal('indexedDB', idb.indexedDB)
   installBrowser()
@@ -701,6 +702,8 @@ describe('reconcilePush', () => {
     expect(browser.requestPermission).not.toHaveBeenCalled()
     expect(browser.subscription).toBeNull()
     expect(idb.size()).toBe(0)
+    // removing it was the user's answer: the on-load offer does not ask again here (AC-1.9)
+    expect(push.hasDeclinedPush(USER)).toBe(true)
   })
 
   it('server row missing but others listed: still off, no PUT (D-9)', async () => {
@@ -1038,3 +1041,84 @@ describe('listenForServiceWorkerMessages', () => {
     expect(() => push.listenForServiceWorkerMessages()()).not.toThrow()
   })
 })
+
+// ---------------------------------------------------------------------------
+// The on-load offer (AC-1.9)
+// ---------------------------------------------------------------------------
+
+describe('findPushOffer and the remembered answer (AC-1.9)', () => {
+  const off = { userId: USER, result: { status: 'off' as const } }
+  const enabledConfig = () => route('GET', '/push/config', () => json(200, { enabled: true, vapidPublicKey: VAPID_KEY }))
+
+  it('offers push to a user who has not answered, on a supported browser that has not blocked notifications', async () => {
+    installBrowser({ permission: 'default' })
+    enabledConfig()
+
+    await expect(push.findPushOffer(off, '/estimai')).resolves.toEqual({ userId: USER, vapidPublicKey: VAPID_KEY })
+    // reading only: nothing asked, nothing created
+    expect(browser.requestPermission).not.toHaveBeenCalled()
+    expect(idb.size()).toBe(0)
+  })
+
+  it('also offers it when permission is already granted but push is off here (e.g. after a sign-out)', async () => {
+    installBrowser({ permission: 'granted' })
+    enabledConfig()
+
+    await expect(push.findPushOffer(off, '/')).resolves.toEqual({ userId: USER, vapidPublicKey: VAPID_KEY })
+  })
+
+  it.each([
+    ['no boot result (no signed-in user, or boot failed)', undefined, '/'],
+    ['already on', { userId: USER, result: { status: 'on' as const, deviceId: 'dev-1' } }, '/'],
+    ['state unverified', { userId: USER, result: { status: 'unverified' as const } }, '/'],
+    ['on My profile, where the setting is', off, '/account'],
+  ])('no offer: %s', async (_label, boot, path) => {
+    installBrowser({ permission: 'default' })
+    enabledConfig()
+
+    await expect(push.findPushOffer(boot, path)).resolves.toBeNull()
+  })
+
+  it('no offer when notifications are blocked, or push is not supported', async () => {
+    enabledConfig()
+    installBrowser({ permission: 'denied' })
+    await expect(push.findPushOffer(off, '/')).resolves.toBeNull()
+    installBrowser({ withPushManager: false })
+    await expect(push.findPushOffer(off, '/')).resolves.toBeNull()
+  })
+
+  it('no offer once this user said no; another user on the same browser is still asked', async () => {
+    installBrowser({ permission: 'default' })
+    enabledConfig()
+    push.recordPushDeclined(USER)
+
+    await expect(push.findPushOffer(off, '/')).resolves.toBeNull()
+    await expect(push.findPushOffer({ ...off, userId: OTHER_USER }, '/')).resolves.not.toBeNull()
+  })
+
+  it('no offer when push is disabled for the deployment, or the config cannot be read', async () => {
+    installBrowser({ permission: 'default' })
+    route('GET', '/push/config', () => json(200, { enabled: false }))
+    await expect(push.findPushOffer(off, '/')).resolves.toBeNull()
+    route('GET', '/push/config', () => json(503))
+    await expect(push.findPushOffer(off, '/')).resolves.toBeNull()
+  })
+
+  it('turning push on clears an earlier no, so a later sign-out lets the offer ask again', async () => {
+    installBrowser({ permission: 'default', promptResult: 'granted' })
+    route('PUT', '/push/devices', () => json(201, DEVICE))
+    push.recordPushDeclined(USER)
+
+    await push.enablePush({ userId: USER, vapidPublicKey: VAPID_KEY })
+
+    expect(push.hasDeclinedPush(USER)).toBe(false)
+  })
+
+  it('initPush returns the signed-in user and the reconcile result', async () => {
+    vi.mocked(session.getCachedSession).mockReturnValue({ data: { user: { id: USER } } } as never)
+    installBrowser({ permission: 'default' })
+
+    await expect(push.initPush()).resolves.toEqual({ userId: USER, result: { status: 'off' } })
+  })
+})
+

@@ -364,6 +364,8 @@ describe('turn off (AC-1.5)', () => {
     expect(screen.getByTestId('account-push-banner').textContent).toContain(
       'Push notifications are off for this browser.',
     )
+    // turning it off is an answer: the on-load offer does not ask again (AC-1.9)
+    expect(push.hasDeclinedPush('u1')).toBe(true)
   })
 
   it('on failure stays On, shows a danger alert, and Turn off is the retry', async () => {
