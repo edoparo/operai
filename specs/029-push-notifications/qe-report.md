@@ -1,6 +1,140 @@
 # QE report: specs/029-push-notifications
 
-## QE verdict: FAIL        (D-5 re-verification, measured at 64722e10, full mode, rigor production)
+## QE verdict: PASS        (post-split verification, measured at 1f392e0c, full mode, rigor production)
+
+PASS covers everything a QE agent can execute. The T12 rows (real Chrome/Edge/Firefox delivery with Operai closed, OS click, Edge
+WNS host, the AC-7.7 deployed pair, the stored-href check, the ADR-0084 go-live sign-off, the Meetings-exclusion answer) are the
+human gate and stay "pending T12 (human)"; they are not executed by this pass and are listed in the table, not hidden.
+Tree at 1f392e0c was clean at the start and is clean at the end (the temporary spec copy and the temporary main worktree
+were removed); nothing was committed except what the caller commits (this file). No product code touched, no service restarted.
+
+Result against the previous pass (D-5 re-verification, FAIL on D-6, D-7, D-8):
+- **D-7 FIXED** (1f392e0c). Real Chromium: a fresh user who only loads `/account` has no `operai-push` database (`indexedDB.databases()` is `[]`), also after reload, after visiting `/notify`, `/crm`, `/projects`, `/meetings`, `/devices`, with the settings section visible, and after an explicit sign-out. The two `meetings-capture` e2e tests that failed (146 and 237) now pass.
+- **D-8 GONE** with the revert (the stale changeset no longer exists; `projects-ui-router-pin.md` is accurate).
+- **D-6 does NOT reproduce at this HEAD** (details below), so there is nothing to classify as a 029 defect.
+- **D-5 holds** after the revert: every bare tool URL renders, full load and SPA.
+- E-1 (mixed router versions) is closed by the pin: all frontends resolve `@tanstack/react-router` 1.170.17 and the guard checks it.
+- No new defect. Three observations (pre-existing router behaviour, now owned by the separate router spec) are listed at the end.
+
+Evidence in `/private/tmp/claude-501/-Users-matteocodogno-LAB-aiscream-operai/39cd1c38-0ef8-4330-af42-72ff15685521/scratchpad/r6/` (`e2e-full1.txt`, `matrix6b.txt`, `states6.txt`, `idb6.txt`, `idb3.txt`, `d6-spec.txt`, `ext6-nav.txt`, `leak6.txt`, `random6.txt`, `leaks6.json`, per-gate `*-tc.txt`, `*-test.txt`, `uicheck.txt`, `<app>.txt`, scripts `idb2.mjs`, `idb3.mjs`, `matrix6.mjs`, `states.mjs`, `ext6.mjs`, `e404c.mjs`, `adminmint.sh`, `d1/`). Earlier-round scripts in `.../scratchpad/r1` and `.../r4`.
+
+## Post-split verification (measured at 1f392e0c)
+
+### Gates
+
+| Check | Threshold | Actual | Result |
+|---|---|---|---|
+| auth `direnv exec . bun run typecheck` | 0 errors | 0 errors | ✓ |
+| auth `direnv exec . bun test` | 0 fail | 842 pass / 0 fail, 59 files | ✓ |
+| notify-api `direnv exec . bun run typecheck` | 0 errors | 0 errors | ✓ |
+| notify-api `direnv exec . bun test` | 0 fail | 538 pass / 0 fail, 33 files | ✓ |
+| `mise run ui:check` (operai-ui, shell, refund-ui, meetings-ui: typecheck, lint, tests, Storybook build) | exit 0 | exit 0; tests operai-ui 174, shell 589, refund-ui 746, meetings-ui 996 all pass | ✓ |
+| estimai-ui `pnpm lint && pnpm build && pnpm test` | exit 0 | exit 0; 355 tests | ✓ |
+| inventory-ui | exit 0 | exit 0; 1051 tests | ✓ |
+| crm-ui | exit 0 | exit 0; 235 tests | ✓ |
+| admin-ui | exit 0 | exit 0; 562 tests | ✓ |
+| notify-ui | exit 0 | exit 0; 47 tests | ✓ |
+| projects-ui | exit 0 | exit 0; 415 tests | ✓ |
+| tools/env-doctor `bun test` | 0 fail | 206 pass / 0 fail | ✓ |
+| `mise run env:doctor` | green | all checks passed | ✓ |
+| `mise run changeset:check` | OK | OK (matched `projects-ui-router-pin.md`, `web-push-notifications.md`) | ✓ |
+| `mise run shared:check` | in sync | 6 groups in sync | ✓ |
+| `node scripts/check-react-skew.mjs` | OK | OK: 10 frontends, one react / react-dom / router version (router 1.170.17 everywhere; operai-ui has none) | ✓ |
+| `node --test scripts/check-react-skew.test.mjs` | 0 fail | 10 pass / 0 fail | ✓ |
+| Secret scan, betterleaks dir mode, 105 files this branch touched (redacted output) | 0 new | 2 hits, both pre-existing on main with their lines untouched by this branch: `auth/.env.example:21` (private-key rule), `tools/env-doctor/check.test.ts:551` (generic-api-key). 0 new | ✓ |
+| Build warnings | none new | only the known third-party `IMPORT_IS_UNDEFINED` and chunk-size notices, none from 029 code | ✓ |
+
+### e2e, whole suite (`cd shell && E2E_*_REMOTE_PORT=... pnpm e2e`, `e2e-full1.txt`)
+
+| Check | Threshold | Actual | Result |
+|---|---|---|---|
+| Whole suite | all pass | **115 passed, 0 failed, 0 flaky** (10.0 min). The previous pass counted 117 because it carried two uncommitted QE specs | ✓ |
+| `tool-entry.spec.ts` | 11/11 | 11 passed (5 full loads, 5 sidebar clicks, leave-and-return) | ✓ |
+| `meetings-capture.spec.ts` (D-7) | 6/6 | 6 passed, including :146 "Discard leaves the device clean" and :237 "after Stop the browser storage is empty" | ✓ |
+| `push-notifications.spec.ts` | 3/3 | 3 passed | ✓ |
+| `notifications.spec.ts` | all | 10 of 10 passed, including AC-2.5 | ✓ |
+| Pre-existing / branch classification of failures | n/a | no failures to classify | ✓ |
+
+### Live, real Chromium against the running stack (seeded sessions via `POST /test-auth/session`)
+
+| Check | Threshold | Actual | Result |
+|---|---|---|---|
+| **D-7: `operai-push` absent for a user who never enabled push** (`idb2.mjs`, `idb6.txt`) | `indexedDB.databases()` empty | `[]` after load, reload, `/notify`, `/crm`, `/projects`, `/meetings`, `/devices`, settings section visible, and after explicit sign-out (read on the shell origin). Also `[]` with permission already granted and push never on. Positive control: Turn on creates `["operai-push"]`; Turn off and reload leave the browser Off, server list 0 | ✓ |
+| D-7 fallback path (no `indexedDB.databases()` API, as in older browsers) (`idb3.mjs`) | nothing created until Turn on | `[]` at boot, `["operai-push"]` after Turn on, reload while On reads the marker and shows On, Turn off leaves server 0 | ✓ (Chromium only; Firefox/Safari pending T12) |
+| Every remote on a bare URL, full load (10 mount points, admin user) (`matrix6.mjs`) | renders | estimai -> `/estimai/estimates`, refund -> `/refund/requests`, inventory -> `/inventory/assets`, crm -> `/crm/companies`, admin -> `/admin/roles`, meetings, projects, notify, devices, my-meetings all render | ✓ |
+| Every remote reached by SPA navigation from `/crm/pipeline` | renders | same 10, all render | ✓ |
+| Deep links, full load (10) | renders at that URL | `/estimai/estimates`, `/refund/requests`, `/inventory/assets`, `/inventory/rules`, `/crm/contacts`, `/crm/tasks`, `/admin/users`, `/projects/tasks`, `/meetings/templates`, `/notify` all render at their own address | ✓ |
+| /account push section, all designed states (`states.mjs`, `states6.txt`) | every state with its copy | disabled: section absent, address section still there; config failed: warning + no toggle; devices failed: Retry works and focus lands on the toggle; loading: live region "Loading push notification settings…"; Off with 0 prompts on load and the empty list; refused: Blocked + alert + no toggle; blocked at load; dismissed: Off + alert, server 0; unsupported: "Not available"; PUT 409 / 422 / 503 / 500 each with its own message, status Off, browser subscription removed, focus on the toggle; subscribe throws: its message; On: success banner, "This browser" marker; remove dialog is an `alertdialog` focusing Cancel, Escape closes and returns focus to the row's button; 360 px and 320 px: 0 px horizontal overflow | ✓ |
+| AC-1.7 and remove-focus rule (`r1/s15.mjs`) | as amended | after explicit sign-out + sign-in: Off, server 0, permission still granted; Turn on works; session ended without sign-out then same user: still On; removing rows leaves focus on a row header, never on `body` | ✓ |
+| D-1 live sanity (`d1/mints-valid.ts`, `d1/load.ts`, `r1/seed.ts`, `r1/after.ts`) | > 20 lookups in the window, no refusal | 45 consecutive service-token mints with crm-api's credential: 45 x 200; 40 notifications through `POST /system/notifications` to 40 recipients that each own a push device: 40 x 201, afterwards 40 of 45 seeded devices gone (40 lookups answered `inactive`; a 429 would have kept them) and the 5 never notified remained; 45 seeded devices and 40 notifications removed after the run | ✓ |
+| Console / page errors across the scripts | 0 | 0 page errors; network 4xx only the expected 403 (`refund-api /requests` for an admin without refund access) and the observation O-3 below | ✓ |
+
+### D-6 classification (browser Back/Forward inside a remote)
+
+| Check | Threshold | Actual | Result |
+|---|---|---|---|
+| At this HEAD: CRM Companies -> Contacts -> Tasks, Back x2, Forward x2 (`back6.mjs`) | page names the address | URL and heading agree at every step | ✓ |
+| At this HEAD: the QE spec that was red in the previous pass (`remote-history.spec.ts`, 4 journeys CRM, Admin, Inventory, Projects, copied in temporarily from the scratchpad and removed again) | 4/4 | 4 passed (`d6-spec.txt`) | ✓ |
+| At this HEAD: `ext6.mjs nav` over all 10 mount points, plus Refund with an accounting user (3 screens) | 0 stale pages | `bad 0` on every mount point, 0 page errors | ✓ |
+| On `main` | classify | **not run on a main stack** (a second stack cannot be hosted beside the dev one: auth's CORS list names only :5173, and services must not be restarted). Classified by identity instead: `git diff --stat main HEAD` over shell routing and the remotes' `App.tsx`, `package.json` and lockfiles is empty except the projects-ui pin; `main` has no newer commit touching shell, crm-ui or admin-ui. So the code and dependency tree that pass here are `main`'s | n/a |
+
+Conclusion: D-6 was **not a 029 defect and not on this branch's final tree**. It appeared only with the router alignment to 1.170.46 (86496298 and the per-mount commits that built on it, all reverted by 710db1d1). Hypothesis (not run by QE): on `main` the same drift can show when projects-ui's `^1.168.2` resolves to 1.170.46 and that copy wins the Module Federation singleton, i.e. E-1; the router spec should test "open Projects first, then CRM, press Back" on a main-equivalent tree before choosing its fix.
+
+### AC sweep (37 ACs)
+
+All 37 ACs have an executed passing check on this commit: the notify-api (538) and auth (842) suites, the shell suite (589, incl. `push.test.ts` with the D-7 cases, `PushSettings.test.tsx`, `pushHandlers.test.ts`, `session.test.ts`), the three e2e spec files above, and the live runs above. The AC to test map of the earlier round (section "AC to test map" below) is unchanged because none of the code it names changed except `shell/src/lib/push.ts` (D-7), whose tests are in the green shell run and the live rows above. AC-1.1/1.2/1.5/1.7, 2.1-2.7, 3.x, 5.x, 6.1-6.4, 7.1-7.8 re-executed by the suites; 1.1-1.8 additionally live (states table); 4.3 by e2e. AC-2.1/2.3/4.1 real-browser delivery and AC-6.5 are T12.
+
+### design.md
+
+| Check | Threshold | Actual | Result |
+|---|---|---|---|
+| Design states | all present | the 10 states and the error variants above, with the designed copy | ✓ |
+| Accessibility | keyboard, ARIA, focus per design | dialog role and focus, Escape return, focus after retry and after failures, no horizontal overflow at 360/320 | ✓ |
+| Component reuse | 12 reuse : 0 new | unchanged: `PushSettings.tsx` composes library parts; `operai-ui` untouched by this branch (`git diff` empty) | ✓ |
+
+### T12 (human), unchanged
+
+| Check | Result |
+|---|---|
+| Real push delivery Chrome / Edge / Firefox with Operai closed, within 30 s; nothing with a visible tab; OS click opens the link or `/notify`; sign-out stops pushes; PNG icon on the three browsers | pending T12 (human) |
+| Edge endpoint host `*.notify.windows.com` in the allowlist (R3) | pending T12 (human) |
+| AC-7.7 on the deployed auth + notify-api pair (grep of the two terminals for the refusal strings) | pending T12 (human) |
+| Stored-href check on real devices | pending T12 (human) |
+| D-7 fix on Firefox and Safari (the `indexedDB.databases()` absent/present paths were exercised in Chromium only) | pending T12 (human) |
+| ADR-0084 go-live sign-off (owner + date); the Meetings-exclusion question | pending T12 (human) |
+| Safari delivery | verified by: Matteo Codogno, 2026-11-11, T1 spike (as recorded in plan.md) |
+
+### Observations (not 029 defects; pre-existing router behaviour, for the separate router spec)
+
+- **O-2 (L5 residual, by the user's decision).** The remotes' module-level routers are subscribed to the browser history for the page's lifetime and are not released when the person leaves a tool. Measured at this HEAD (`leak6.txt`, 12 leave-and-return cycles each): net `popstate`/`beforeunload` listeners +1/+1 after the first visit and constant at cycles 1, 6 and 12 on crm, projects, admin, inventory; after a 60-hop random walk across all tools the count is 9/9 (one per distinct tool mounted), not growing per visit, 0 blank pages mid-run, all six gated tools open afterwards. This is `main`'s behaviour (the code is identical) and bounded by the number of tools. The L5 fix is no longer part of 029; the stored `{deviceId, userId}` record is not involved.
+- **O-3 (low; stray request after leaving Projects).** `e404c.mjs`: open `/projects`, then SPA-navigate to `/admin` or `/crm`: projects-ui's still-subscribed router matches the foreign path as a project id and issues `GET :8086/projects/admin` (or `/projects/crm`), answered 404 (`/projects` to `/account` and `/crm` to `/projects` show nothing). No visible effect and no data returned; it is the same cause as O-2 (the router outlives the mount). Pre-existing by code identity (projects-ui source unchanged on this branch apart from the version pin); not run on `main`.
+- **O-1 (unchanged, earlier rounds).** The 320 px sidebar observation is pre-existing.
+
+### Defects
+
+None open. D-1 to D-8 status: D-1 FIXED (round 1, re-sanity above), D-2 FIXED, D-3 FIXED, D-4 FIXED (round 2), D-5 FIXED and holding, D-6 does not reproduce (see classification), D-7 FIXED (this pass), D-8 gone with the revert.
+
+### Environment faults
+
+None this pass. (The `matrix` run with the old `qe-e1r3admin` user landed every tool on Meetings because that seeded user no longer holds the admin role in the dev database; a fresh admin user was minted for the real run. That was a fixture state, not a product behaviour.)
+
+### Tests added by QE
+
+None committed. `remote-history.spec.ts` (4 journeys, green at this HEAD) is kept at `/private/tmp/claude-501/-Users-matteocodogno-LAB-aiscream-operai/39cd1c38-0ef8-4330-af42-72ff15685521/scratchpad/router-followup/remote-history.spec.ts` together with `router-lifecycle.spec.ts`, as inputs for the separate router spec.
+
+### Security
+
+owasp-reviewer: the final review is PASS with two lows (per the caller); its request for a real-browser check that `indexedDB.databases()` is empty after boot for a user who never enabled push is answered above (Chromium, with and without the `databases()` API). No further pass needed for this delta.
+
+### Blocked / pending
+
+Nothing blocked. Pending T12 (human) rows as listed above.
+
+---
+
+## Superseded: D-5 re-verification (measured at 64722e10)
+
+## QE verdict: FAIL        (D-5 re-verification, measured at 64722e10, full mode, rigor production) -- superseded
 
 D-5 (blank page on bare tool URLs) is FIXED and the L5 leak fix still holds, but two defects that no earlier pass could see
 because earlier passes did not run these checks remain open: **D-6** browser Back/Forward inside any tool changes the address
