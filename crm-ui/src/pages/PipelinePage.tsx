@@ -68,7 +68,7 @@ export default function PipelinePage() {
       ]),
     [entity, year, company],
   )
-  const board = useResource(load)
+  const board = useResource(load, { cacheKey: `pipeline:${JSON.stringify([entity, year, company?.id ?? null])}` })
   const shownYear = board.data?.[0].year ?? year ?? new Date().getFullYear()
   const years = board.data?.[0].years ?? [shownYear]
 

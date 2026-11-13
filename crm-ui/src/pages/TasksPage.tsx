@@ -45,7 +45,7 @@ export default function TasksPage() {
     (signal: AbortSignal) => listTasks({ status: view, assignee, page, pageSize: PAGE_SIZE }, { signal }),
     [view, assignee, page],
   )
-  const tasks = useResource(load)
+  const tasks = useResource(load, { cacheKey: `crm-tasks:${JSON.stringify([view, assignee, page])}` })
 
   const changed = (message: string) => {
     setSaved(message)

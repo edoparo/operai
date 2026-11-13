@@ -29,7 +29,7 @@ const GROUPS: readonly TemplateSource[] = ['personal', 'shared', 'builtin']
  */
 export default function TemplatesPage() {
   const t = strings.templates
-  const resource = useResource(fetchTemplates)
+  const resource = useResource(fetchTemplates, { cacheKey: 'templates' })
   const notice = useRouterState({ select: (state) => state.location.state.templatesNotice })
   const [noticeDismissed, setNoticeDismissed] = useState(false)
 

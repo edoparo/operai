@@ -109,7 +109,10 @@ export default function MeetingsListPage({ mine }: MeetingsListPageProps) {
   const [deleteError, setDeleteError] = useState<string | null>(null)
 
   // The person's own folders (ADR-0090). A convenience: when they cannot be loaded, the list works without them.
-  const foldersResource = useResource(useCallback((signal: AbortSignal) => listFolders({ signal }), []))
+  const foldersResource = useResource(
+    useCallback((signal: AbortSignal) => listFolders({ signal }), []),
+    { cacheKey: 'folders' },
+  )
   const folders = foldersResource.status === 'ready' ? (foldersResource.data?.items ?? []) : null
 
   // Typing searches after a pause; the applied value is what the request carries.
@@ -136,7 +139,10 @@ export default function MeetingsListPage({ mine }: MeetingsListPageProps) {
       ),
     [q, role, status, hostApp, folder, page],
   )
-  const resource = useResource(fetcher)
+  // Remembered per entry and filter set: coming back, or reloading after a move, never blanks the table.
+  const resource = useResource(fetcher, {
+    cacheKey: `meetings:${mine ? 'mine' : 'app'}:${JSON.stringify([q, role, status, hostApp, folder, page])}`,
+  })
 
   // The pager outlives a page change (focus stays on the button just pressed), so the last total is kept.
   if (resource.status === 'ready' && resource.data !== null && resource.data.total !== knownTotal) {

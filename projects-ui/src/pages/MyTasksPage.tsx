@@ -68,7 +68,7 @@ export default function MyTasksPage() {
     (signal: AbortSignal) => listMyTasks({ status: view, page: pageNumber, pageSize: PAGE_SIZE }, { signal }),
     [view, pageNumber],
   )
-  const tasks = useResource(load)
+  const tasks = useResource(load, { cacheKey: `my-tasks:${JSON.stringify([view, pageNumber])}` })
 
   /** Where focus rests when a row leaves the view: the selected tab is stable and visible. */
   const focusTab = () => document.getElementById(`${TABS_ID}-tab-${view}`)?.focus()

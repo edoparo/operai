@@ -53,9 +53,11 @@ export default function ProjectsPage() {
     (signal: AbortSignal) => listProjects({ page, q: q.trim(), type, state, projectManagerId }, { signal }),
     [page, q, type, state, projectManagerId],
   )
-  const projects = useResource(load)
+  const projects = useResource(load, {
+    cacheKey: `projects:${JSON.stringify([page, q.trim(), type, state, projectManagerId])}`,
+  })
   const loadManagers = useCallback((signal: AbortSignal) => getProjectManagers({ signal }), [])
-  const managers = useResource(loadManagers)
+  const managers = useResource(loadManagers, { cacheKey: 'project-managers' })
 
   const columns: DataTableColumn<ProjectSummary>[] = [
     {

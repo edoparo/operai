@@ -56,10 +56,12 @@ export default function CompaniesPage() {
       ),
     [q, status, ownerId, showArchived, sort, page],
   )
-  const companies = useResource(load)
+  const companies = useResource(load, {
+    cacheKey: `companies:${JSON.stringify([q.trim(), status, ownerId, showArchived, sort, page])}`,
+  })
   const loadOwners = useCallback((signal: AbortSignal) => listCompanyOwners({ signal }), [])
   // The owner filter's choices; if they fail to load, the filter offers "Mine" only.
-  const owners = useResource(loadOwners)
+  const owners = useResource(loadOwners, { cacheKey: 'company-owners' })
   const otherOwners = (owners.data?.items ?? []).filter((person) => person.id !== currentUserId)
 
   const baseColumns: DataTableColumn<CompanySummary>[] = [

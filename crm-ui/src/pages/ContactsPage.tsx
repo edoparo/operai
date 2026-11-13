@@ -54,7 +54,9 @@ export default function ContactsPage() {
       ),
     [q, showArchived, sort, page],
   )
-  const contacts = useResource(load)
+  const contacts = useResource(load, {
+    cacheKey: `contacts:${JSON.stringify([q.trim(), showArchived, sort, page])}`,
+  })
 
   const columns: DataTableColumn<ContactSummary>[] = [
     {
