@@ -27,6 +27,18 @@ const AUDIT_SECTION = { to: '/audit', label: strings.nav.audit } as const
 // hide" in this app).
 const REFUND_SECTION = { to: '/rates', label: strings.nav.refund } as const
 
+// The time tracking tool's admin configuration: the categories and the two work-type lists people
+// pick from when they record hours (T31, specs/029-time-tracking, AC-3.3). Same pattern as Refund:
+// out of the DOM until `usePermissions()` resolves and holds `time-list:manage`, never disabled.
+const TIME_LISTS_SECTION = { to: '/time-lists', label: strings.nav.timeLists } as const
+
+/** Whether `permissions` contains the given (resource, action) pair. */
+const hasCapability = (
+  permissions: { resource: string; action: string }[],
+  resource: string,
+  action: string,
+): boolean => permissions.some((p) => p.resource === resource && p.action === action)
+
 /**
  * SectionNav — admin-ui's section switcher (T14, specs/004-auth-roles-permissions,
  * design.md component inventory: "admin-ui secondary nav
@@ -70,13 +82,20 @@ const REFUND_SECTION = { to: '/rates', label: strings.nav.refund } as const
  * server-side on every `/rates` request; a reactive `PermissionDenied` on the
  * route itself (MileageRatesPage.tsx) is the defense-in-depth fallback for a
  * stale nav render or a direct URL visit.
+ *
+ * Time lists gate (T31, specs/029-time-tracking, AC-3.3): the same mechanism for
+ * `time-list:manage`. hours-api enforces that permission live on every list
+ * write; `TimeListsPage` renders `PermissionDenied` for a direct visit without it.
  */
 export default function SectionNav() {
   const { permissions } = usePermissions()
-  const hasRateRead = permissions.some((p) => p.resource === 'rate' && p.action === 'read')
 
-  // Left group: the management sections + (when permitted) Refund.
-  const leftSections = hasRateRead ? [...SECTIONS, REFUND_SECTION] : SECTIONS
+  // Left group: the management sections + (when permitted) Refund and Time lists, in that order.
+  const leftSections = [
+    ...SECTIONS,
+    ...(hasCapability(permissions, 'rate', 'read') ? [REFUND_SECTION] : []),
+    ...(hasCapability(permissions, 'time-list', 'manage') ? [TIME_LISTS_SECTION] : []),
+  ]
 
   // Audit is pinned to the far right of the strip (TabNav's `end` slot).
   return (

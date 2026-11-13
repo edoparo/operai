@@ -39,6 +39,12 @@ declare module 'shell/session' {
    * plan.md's "admin-ui → refund-api call path" decision.
    */
   export const getRefundApiBaseUrl: () => string
+  /**
+   * The hours-api base URL (the shell's VITE_HOURS_API_URL — T21/T31, specs/029-time-tracking).
+   * admin-ui's `timeListsApi.ts` builds `/time-lists`, `/time-categories` and `/work-types` request
+   * URLs against this, the way `ratesApi.ts` does with `getRefundApiBaseUrl()` (ADR-0023, ADR-0090).
+   */
+  export const getHoursApiBaseUrl: () => string
   export const signOut: (...args: unknown[]) => Promise<unknown>
   export const clearJwtCache: () => void
 

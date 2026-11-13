@@ -8,6 +8,8 @@ export const en = {
   audit: 'Audit',
   /** The refund tool's admin configuration (mileage rates, distribution email). */
   refund: 'Refund',
+  /** The time tracking tool's admin configuration: categories and work types (specs/029). */
+  timeLists: 'Time lists',
   usersViewsLabel: 'Users section views',
   activeUsers: 'Active users',
   invitations: 'Invitations',
@@ -22,6 +24,7 @@ export const it: typeof en = {
   users: 'Utenti',
   audit: 'Audit',
   refund: 'Rimborsi',
+  timeLists: 'Elenchi ore',
   usersViewsLabel: 'Viste della sezione utenti',
   activeUsers: 'Utenti attivi',
   invitations: 'Inviti',

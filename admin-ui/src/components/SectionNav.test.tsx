@@ -71,7 +71,19 @@ async function renderNavAt(path: string) {
   const usersRoute = createRoute({ getParentRoute: () => rootRoute, path: '/users', component: () => <p>users</p> })
   const auditRoute = createRoute({ getParentRoute: () => rootRoute, path: '/audit', component: () => <p>audit</p> })
   const ratesRoute = createRoute({ getParentRoute: () => rootRoute, path: '/rates', component: () => <p>rates</p> })
-  const routeTree = rootRoute.addChildren([rolesRoute, departmentsRoute, usersRoute, auditRoute, ratesRoute])
+  const timeListsRoute = createRoute({
+    getParentRoute: () => rootRoute,
+    path: '/time-lists',
+    component: () => <p>time lists</p>,
+  })
+  const routeTree = rootRoute.addChildren([
+    rolesRoute,
+    departmentsRoute,
+    usersRoute,
+    auditRoute,
+    ratesRoute,
+    timeListsRoute,
+  ])
   const router = createRouter({ routeTree })
   const utils = render(<RouterProvider router={router} />)
   await screen.findByRole('link', { name: 'Roles' })
@@ -178,5 +190,86 @@ describe('SectionNav "Refund" gate (T11, specs/009-mileage-rate)', () => {
 
     expect(vi.mocked(session.usePermissions)).toHaveBeenCalled()
     expect(fetchSpy).not.toHaveBeenCalled()
+  })
+})
+
+// ---------------------------------------------------------------------------
+// Time lists gate (T31, specs/029-time-tracking, AC-3.3) — the same pattern as the Refund gate:
+// out of the DOM until the permissions resolve and hold `time-list:manage`, never disabled.
+// ---------------------------------------------------------------------------
+
+describe('SectionNav "Time lists" gate (T31, specs/029-time-tracking)', () => {
+  const timeListManage = { resource: 'time-list', action: 'manage', conditions: null }
+
+  it('is out of the DOM while the permissions have not resolved (the shell’s empty result)', async () => {
+    await renderNavAt('/roles')
+
+    expect(screen.queryByRole('link', { name: 'Time lists' })).toBeNull()
+    expect(screen.getAllByRole('link')).toHaveLength(4)
+  })
+
+  it('is out of the DOM for a caller whose permissions do not include time-list:manage', async () => {
+    const session = await import('shell/session')
+    vi.mocked(session.usePermissions).mockReturnValue(
+      grant([
+        { resource: 'rate', action: 'read', conditions: null },
+        { resource: 'role', action: 'edit', conditions: null },
+        // Same action, another resource: not the permission this link needs.
+        { resource: 'time-entry', action: 'manage', conditions: null },
+        // Same resource, another action: seeing the lists is not managing them.
+        { resource: 'time-list', action: 'read', conditions: null },
+      ]),
+    )
+
+    await renderNavAt('/roles')
+
+    expect(screen.queryByRole('link', { name: 'Time lists' })).toBeNull()
+  })
+
+  it('is a real link to /time-lists once time-list:manage is held, with Audit still anchored last', async () => {
+    const session = await import('shell/session')
+    vi.mocked(session.usePermissions).mockReturnValue(grant([timeListManage]))
+
+    await renderNavAt('/roles')
+
+    const link = await screen.findByRole('link', { name: 'Time lists' })
+    expect(link.tagName).toBe('A')
+    expect(link.getAttribute('href')).toBe('/time-lists')
+    expect(screen.getAllByRole('link').map((l) => l.textContent)).toEqual([
+      'Roles',
+      'Departments',
+      'Users',
+      'Time lists',
+      'Audit',
+    ])
+  })
+
+  it('sits after Refund when both permissions are held', async () => {
+    const session = await import('shell/session')
+    vi.mocked(session.usePermissions).mockReturnValue(
+      grant([{ resource: 'rate', action: 'read', conditions: null }, timeListManage]),
+    )
+
+    await renderNavAt('/roles')
+
+    await screen.findByRole('link', { name: 'Time lists' })
+    expect(screen.getAllByRole('link').map((l) => l.textContent)).toEqual([
+      'Roles',
+      'Departments',
+      'Users',
+      'Refund',
+      'Time lists',
+      'Audit',
+    ])
+  })
+
+  it('marks "Time lists" active with aria-current="page" when on /time-lists', async () => {
+    const session = await import('shell/session')
+    vi.mocked(session.usePermissions).mockReturnValue(grant([timeListManage]))
+
+    await renderNavAt('/time-lists')
+
+    const link = await screen.findByRole('link', { name: 'Time lists' })
+    expect(link.getAttribute('aria-current')).toBe('page')
   })
 })

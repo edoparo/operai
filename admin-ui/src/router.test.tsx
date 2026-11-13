@@ -21,6 +21,13 @@ vi.mock('shell/session', async (importOriginal) => {
   return { ...original, usePermissions: vi.fn() }
 })
 
+// hours-api's list routes do not exist yet (T12, specs/029-time-tracking): the /time-lists test
+// runs the real page against a faked client, so no request leaves the test.
+vi.mock('./lib/timeListsApi', async (importOriginal) => {
+  const original = await importOriginal<typeof import('./lib/timeListsApi')>()
+  return { ...original, listTimeLists: vi.fn() }
+})
+
 // ---------------------------------------------------------------------------
 // Types
 // ---------------------------------------------------------------------------
@@ -72,7 +79,8 @@ describe('router structure', () => {
     // exactly like estimai-ui's '/estimates' + '/estimates/$estimateId' pair.
     // Combined centrally as T18/T19/T20 each added their own detail route.
     // '/rates' (Screen ADM-1, T11, specs/009-mileage-rate) is the same flat
-    // shape — a fifth section route, sibling of the other four.
+    // shape — a fifth section route, sibling of the other four. '/time-lists' (T31,
+    // specs/029-time-tracking) is the same flat shape again.
     expect(childPaths).toEqual(
       [
         '/',
@@ -82,13 +90,14 @@ describe('router structure', () => {
         '/rates',
         '/roles',
         '/roles/$id',
+        '/time-lists',
         '/users',
         '/users/$id',
         '/users/access-requests',
         '/users/invitations',
       ].sort(),
     )
-    expect(routeTree.children).toHaveLength(11)
+    expect(routeTree.children).toHaveLength(12)
   })
 
   it('has no `_authed` (or other guard) layout route in the tree — mirrors estimai-ui/T13, AC-2.3', async () => {
@@ -216,5 +225,64 @@ describe('/rates section (T11, specs/009-mileage-rate)', () => {
     const sectionNav = screen.getByRole('navigation', { name: 'Admin sections' })
     const activeLink = await within(sectionNav).findByRole('link', { name: 'Refund' })
     expect(activeLink.getAttribute('aria-current')).toBe('page')
+  })
+})
+
+// ---------------------------------------------------------------------------
+// /time-lists (T31, specs/029-time-tracking, AC-3.3). The route lives here, in the inner router,
+// and not in App.tsx. As for /rates, the nav link is gated by usePermissions(), so a test that
+// reaches the page with its link ACTIVE overrides the no-grants default.
+// ---------------------------------------------------------------------------
+
+describe('/time-lists section (T31, specs/029-time-tracking)', () => {
+  const lists = { categories: [], workTypes: { project: [], deal: [] } }
+
+  // `restoreAllMocks` in the file's afterEach does not clear a vi.fn()'s history: start each test clean.
+  beforeEach(async () => {
+    const api = await import('./lib/timeListsApi')
+    vi.mocked(api.listTimeLists).mockReset()
+  })
+
+  const managesTimeLists = {
+    epoch: 1,
+    apps: ['admin'],
+    roles: ['admin'],
+    departments: [],
+    permissions: [{ resource: 'time-list', action: 'manage', conditions: null }],
+  }
+
+  it('with time-list:manage, visiting /time-lists renders TimeListsPage and activates the "Time lists" nav link', async () => {
+    const session = await import('shell/session')
+    vi.mocked(session.usePermissions).mockReturnValue(managesTimeLists)
+    const api = await import('./lib/timeListsApi')
+    vi.mocked(api.listTimeLists).mockResolvedValue(lists)
+
+    window.history.pushState(null, '', '/time-lists')
+    const { createAppRouter } = await importRouter()
+    const router = createAppRouter()
+
+    render(<RouterProvider router={router} />)
+
+    expect(await screen.findByTestId('time-lists-page')).not.toBeNull()
+    expect(await screen.findByTestId('time-lists-loaded')).not.toBeNull()
+
+    const sectionNav = screen.getByRole('navigation', { name: 'Admin sections' })
+    const activeLink = await within(sectionNav).findByRole('link', { name: 'Time lists' })
+    expect(activeLink.getAttribute('aria-current')).toBe('page')
+  })
+
+  it('without the permission, a direct visit to /time-lists shows PermissionDenied and no nav link, and fetches nothing', async () => {
+    const api = await import('./lib/timeListsApi')
+
+    window.history.pushState(null, '', '/time-lists')
+    const { createAppRouter } = await importRouter()
+    const router = createAppRouter()
+
+    render(<RouterProvider router={router} />)
+
+    expect(await screen.findByTestId('permission-denied')).not.toBeNull()
+    const sectionNav = screen.getByRole('navigation', { name: 'Admin sections' })
+    expect(within(sectionNav).queryByRole('link', { name: 'Time lists' })).toBeNull()
+    expect(api.listTimeLists).not.toHaveBeenCalled()
   })
 })

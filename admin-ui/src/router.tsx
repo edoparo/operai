@@ -10,6 +10,7 @@ import InvitationsPage from './pages/InvitationsPage'
 import AccessRequestsPage from './pages/AccessRequestsPage'
 import AuditPage from './pages/AuditPage'
 import MileageRatesPage from './pages/MileageRatesPage'
+import TimeListsPage from './pages/TimeListsPage'
 import NotFoundPage from './pages/NotFoundPage'
 
 // ---------------------------------------------------------------------------
@@ -160,6 +161,18 @@ export function createAppRouter(basepath?: string) {
     component: MileageRatesPage,
   })
 
+  // Time lists (T31, specs/029-time-tracking, design.md S5) — the categories and the two work-type
+  // lists, served by hours-api. A flat sibling like `/rates`, and gated the same way: client-side by
+  // SectionNav.tsx's proactive nav-entry hide (`time-list:manage`) and by the page's own
+  // `PermissionDenied`, no route-level `beforeLoad` guard; the real enforcement is hours-api's live
+  // `time-list:manage` check on every list write. The route is registered here, not in App.tsx
+  // (specs/029 R3: the shared App.tsx stays untouched).
+  const timeListsRoute = createRoute({
+    getParentRoute: () => rootRoute,
+    path: '/time-lists',
+    component: TimeListsPage,
+  })
+
   // ---------------------------------------------------------------------------
   // Route tree
   // ---------------------------------------------------------------------------
@@ -176,6 +189,7 @@ export function createAppRouter(basepath?: string) {
     accessRequestsRoute,
     auditRoute,
     ratesRoute,
+    timeListsRoute,
   ])
 
   // `defaultNotFoundComponent` is the router-wide fallback for any path that
