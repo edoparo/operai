@@ -1,0 +1,19 @@
+{
+  "schema": "wellforge-run/v3",
+  "plugin_version": "2.62.1",
+  "run_id": "2026-11-13T11-22-20Z-eval-029-push-notifications",
+  "command": "eval",
+  "feature": "029-push-notifications",
+  "rigor": "production",
+  "rigor_recorded": null,
+  "started": "2026-11-13T11:20:00Z",
+  "finished": "2026-11-13T11:22:20Z",
+  "agents": [ { "agent": "evaluator", "outcome": "PASS", "score": 80.0, "note": "at e9aa198b (code at 1f392e0c); AC satisfaction 4 pending T12 — with T12 green: 86.1" } ],
+  "drift_events": [],
+  "verdicts": { "eval": "PASS" },
+  "result": "completed",
+  "tokens": null,
+  "cost_usd": null,
+  "terse": false,
+  "control_run_id": null
+}
