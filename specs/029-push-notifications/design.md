@@ -36,8 +36,11 @@ Entry: UserMenu "My profile" -> `/account`. The section loads in two steps, in t
 | `on` | subscription exists, stored userId = me, deviceId in server list (AC-1.7) | status "On" + "Turn off" |
 | `off` | everything else | status "Off" + "Turn on" (AC-1.1: no permission prompt on load) |
 
-The browser's permission is never requested on load. A silent re-`PUT` of a pruned row (AC-1.7)
-shows no UI; if that silent re-`PUT` fails the section simply shows `off`.
+The browser's permission is never requested on load. A browser subscription whose row is missing from
+the server list (removed from another browser, AC-3.2, or pruned, AC-2.7) is released on load and the
+section shows `off`, with no UI announcement; it is never re-registered silently, and turning it on again
+is the user's Turn on. (Amended 2026-11-13, D-9, T12: replaces a silent re-`PUT` of the missing row,
+which brought a device removed from another browser back.)
 
 ### F2 - Turn on this browser (US-1 AC-1.2)
 Entry: "Turn on" (a user gesture; required by Safari).
@@ -398,7 +401,9 @@ Hotspots: (1) focus after Remove when the trigger disappears; (2) focus after Tu
   read-only needs updating. No contradiction as long as the region boundary is respected.
 - **G7 - Failure modes the plan does not map to copy:** `subscribe()` throwing (Brave and other forks pass
   support detection but have push off), 422 `endpoint_not_allowed` for an unlisted push service, and a
-  silent boot re-`PUT` failing (409/422): designed above; the third surfaces only as `off`.
+  silent boot re-`PUT` failing (409/422): designed above; the third surfaces only as `off`. (Amended
+  2026-11-13, D-9, T12: the boot re-`PUT` no longer exists, so the third case is gone; a missing row is
+  simply `off`.)
 - **G8 - Multi-tab.** Turning push on in one tab does not update an open My profile in another tab of the
   same browser until it reloads; acceptable, not designed. Mention only if QE reports it.
 - **ACs with no UI surface:** AC-2.6, 2.7, 5.1-5.3, 6.2-6.5 (behaviour only).
