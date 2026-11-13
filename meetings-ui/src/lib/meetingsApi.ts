@@ -24,6 +24,7 @@ import type {
   HostRef,
   HostView,
   Meeting,
+  MeetingFolder,
   MeetingFormat,
   MeetingLanguage,
   MeetingRow,
@@ -81,11 +82,28 @@ export type MeetingListQuery = {
   role?: 'creator' | 'participant'
   status?: DerivedStatus
   hostApp?: string
+  /** One of the caller's folder ids, or `none` (ADR-0090). */
+  folder?: string
   page?: number
 }
 
 export const listMeetings = (params: MeetingListQuery = {}, init?: Init) =>
   getJson<Page<MeetingRow>>(`/meetings${query(params)}`, init)
+
+// ─── Folders (each person's own, ADR-0090) ──────────────────────────────────
+
+export const listFolders = (init?: Init) => getJson<{ items: MeetingFolder[] }>('/folders', init)
+
+export const createFolder = (name: string) => sendJson<MeetingFolder>('/folders', 'POST', { name })
+
+export const renameFolder = (id: string, name: string) =>
+  sendJson<MeetingFolder>(`/folders/${encodeURIComponent(id)}`, 'PATCH', { name })
+
+export const deleteFolder = (id: string) => sendJson<void>(`/folders/${encodeURIComponent(id)}`, 'DELETE')
+
+/** `null` takes the meeting out of every folder of the caller's. */
+export const fileMeeting = (id: string, folderId: string | null) =>
+  sendJson<{ folderId: string | null }>(`${meetingPath(id)}/folder`, 'PUT', { folderId })
 
 export type CreateMeetingInput = {
   title: string

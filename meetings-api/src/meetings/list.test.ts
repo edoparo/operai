@@ -56,7 +56,7 @@ describe("who sees what (AC-10.1)", () => {
     expect(titles(body)).toEqual(["Newer mine", "Invited", "Older mine"]);
     expect(body["items"].map((i: { role: string }) => i.role)).toEqual(["creator", "participant", "creator"]);
     expect(body).toMatchObject({ total: 3, page: 1, pageSize: 25 });
-    expect(Object.keys(body["items"][0]).sort()).toEqual(["creator", "format", "host", "id", "role", "startsAt", "status", "summaryCount", "title"]);
+    expect(Object.keys(body["items"][0]).sort()).toEqual(["creator", "folderId", "format", "host", "id", "role", "startsAt", "status", "summaryCount", "title"]);
     expect(body["items"][0]).toMatchObject({ format: "online", status: "ready", host: null, summaryCount: 0, creator: { id: "alice", name: "Name alice", status: "active" } });
   });
 

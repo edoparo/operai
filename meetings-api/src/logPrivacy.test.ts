@@ -44,6 +44,7 @@ const CANARY = {
   agendaTitle: "CNRY-agenda-q7x",
   agendaNote: "CNRY-agendanote-q7x",
   personalNote: "CNRY-personalnote-q7x",
+  folderName: "CNRY-folder-q7x",
 } satisfies Texts;
 const TOKEN_EMAIL = "cnry.email.q7x@canary-mail.test";
 const TOKEN_NAME = "CNRY-name-q7x";

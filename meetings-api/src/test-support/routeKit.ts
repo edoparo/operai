@@ -177,7 +177,7 @@ export async function createKit() {
       for (const key of storage.keys()) await storage.deleteObject(key);
       __resetAuthzCacheForTests();
       __resetIdentityCacheForTests();
-      await db.$executeRawUnsafe('TRUNCATE "meeting_job", "meeting", "host_notice", "meeting_deletion" CASCADE');
+      await db.$executeRawUnsafe('TRUNCATE "meeting_job", "meeting", "host_notice", "meeting_deletion", "meeting_folder" CASCADE');
     },
   };
 }

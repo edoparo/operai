@@ -17,6 +17,7 @@ import { consent } from './strings/consent'
 import { dock } from './strings/dock'
 import { editDetails } from './strings/editDetails'
 import { erase } from './strings/erase'
+import { folders } from './strings/folders'
 import { host } from './strings/host'
 import { list } from './strings/list'
 import { meeting } from './strings/meeting'
@@ -41,6 +42,7 @@ export const en = {
   dock: dock.en,
   editDetails: editDetails.en,
   erase: erase.en,
+  folders: folders.en,
   host: host.en,
   list: list.en,
   meeting: meeting.en,
@@ -66,6 +68,7 @@ export const it: typeof en = {
   dock: dock.it,
   editDetails: editDetails.it,
   erase: erase.it,
+  folders: folders.it,
   host: host.it,
   list: list.it,
   meeting: meeting.it,

@@ -81,6 +81,7 @@ export interface Texts {
   readonly speakerLabel: string;
   readonly agendaTitle: string;
   readonly agendaNote: string;
+  readonly folderName: string;
   readonly personalNote: string;
 }
 
@@ -98,6 +99,7 @@ export const PLAIN_TEXTS: Texts = {
   speakerLabel: "Pat",
   agendaTitle: "Budget",
   agendaNote: "Agree the Q3 numbers.",
+  folderName: "Clients",
   personalNote: "Ask about the Q3 budget.",
 };
 
@@ -131,6 +133,9 @@ export interface World {
   readonly sharedTemplateId: string;
   readonly consentVersion: string;
   readonly agendaPointId: string;
+  /** A folder of the caller's own ("none" for the anonymous persona), and one of someone else's. */
+  readonly ownFolderId: string;
+  readonly otherFolderId: string;
 }
 
 const DAY = 86_400_000;
@@ -279,7 +284,10 @@ export async function seedWorld(kit: Kit, persona: Persona, kinds: readonly Meet
   const otherTemplateId = (await kit.db.summaryTemplate.create({ data: template({ scope: "personal", ownerUserId: "u-someone-else", createdBy: "u-someone-else", updatedBy: "u-someone-else", name: `${texts.templateName} other` }) as never })).id;
   const sharedTemplateId = (await kit.db.summaryTemplate.create({ data: template({ scope: "shared", name: `${texts.templateName} shared` }) as never })).id;
 
-  return { persona, caller, owner, texts, m, segmentId, summaryId, failedSummaryId, turnId, failedTurnId, sessionId, ownTemplateId, otherTemplateId, sharedTemplateId, consentVersion: CONSENT_NOTICE_VERSION, agendaPointId };
+  const ownFolderId = caller === null ? "none" : (await kit.db.meetingFolder.create({ data: { ownerUserId: caller, name: `${texts.folderName} own` } })).id;
+  const otherFolderId = (await kit.db.meetingFolder.create({ data: { ownerUserId: "u-someone-else", name: `${texts.folderName} other` } })).id;
+
+  return { persona, caller, owner, texts, m, segmentId, summaryId, failedSummaryId, turnId, failedTurnId, sessionId, ownTemplateId, otherTemplateId, sharedTemplateId, consentVersion: CONSENT_NOTICE_VERSION, agendaPointId, ownFolderId, otherFolderId };
 }
 
 // ─── Expectations ────────────────────────────────────────────────────────────
@@ -340,6 +348,11 @@ const NEEDS_ACCESS: Cells = {
 };
 /** Not about a meeting: any signed-in user. */
 const ANY_USER: Cells = { creator: OK, creatorNoAccess: OK, frozenCreator: OK, participant: OK, participantNoAccess: OK, outsider: OK, outsiderNoAccess: OK, eraser: OK, anonymous: UNAUTH };
+/** Someone else's folder: the 404 of a missing one, for everyone. */
+const NOBODY: Cells = {
+  creator: NOT_FOUND, creatorNoAccess: NOT_FOUND, frozenCreator: NOT_FOUND, participant: NOT_FOUND, participantNoAccess: NOT_FOUND,
+  outsider: NOT_FOUND, outsiderNoAccess: NOT_FOUND, eraser: NOT_FOUND, anonymous: UNAUTH,
+};
 /** The erase screen: `meeting:erase`. */
 const ERASE_ONLY: Cells = {
   creator: [403], creatorNoAccess: [403], frozenCreator: [403], participant: [403], participantNoAccess: [403],
@@ -439,6 +452,15 @@ export const ROWS: readonly RouteRow[] = [
   }, "/participants"),
   row("POST /meetings/:id/consent", "draft", { body: (w) => ({ noticeVersion: w.consentVersion }), ok: 200, cells: CONTROL, outage: "unavailable" }, "/consent"),
   row("POST /meetings/:id/host-notice/retry", "ready", { ok: 200, cells: CONTROL, outage: "unavailable" }, "/host-notice/retry"),
+
+  // ── Folders (each person's own, private; ADR-0090) ────────────────────────
+  row("GET /folders", null, { path: () => "/folders", ok: 200, cells: ANY_USER, outage: "serves" }),
+  row("POST /folders", null, { path: () => "/folders", body: (w) => ({ name: `${w.texts.folderName} new` }), ok: 201, cells: ANY_USER, outage: "serves" }),
+  row("PATCH /folders/:id", null, { path: (w) => `/folders/${w.ownFolderId}`, body: (w) => ({ name: `${w.texts.folderName} v2` }), ok: 200, cells: ANY_USER, outage: "serves" }),
+  { ...row("PATCH /folders/:id", null, { path: (w) => `/folders/${w.otherFolderId}`, body: (w) => ({ name: `${w.texts.folderName} v2` }), ok: 200, cells: NOBODY, outage: "serves" }), variant: "someone else's" },
+  row("DELETE /folders/:id", null, { path: (w) => `/folders/${w.ownFolderId}`, ok: 204, cells: ANY_USER, outage: "serves" }),
+  { ...row("DELETE /folders/:id", null, { path: (w) => `/folders/${w.otherFolderId}`, ok: 204, cells: NOBODY, outage: "serves" }), variant: "someone else's" },
+  row("PUT /meetings/:id/folder", "ready", { body: (w) => ({ folderId: w.ownFolderId }), ok: 200, cells: READ, outage: "serves" }, "/folder"),
 
   // ── Notes (each person's own, private) ────────────────────────────────────
   row("GET /meetings/:id/notes", "ready", { ok: 200, cells: READ, outage: "serves" }, "/notes"),

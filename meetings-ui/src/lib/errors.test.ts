@@ -32,6 +32,10 @@ const PLAN_EXTRA_CODES = [
   'unknown_agenda_point',
   'agenda_point_not_found',
   'agenda_empty',
+  // Personal folders (ADR-0090).
+  'folder_name_taken',
+  'folder_limit',
+  'folder_not_found',
 ]
 
 describe('problem codes have a message in both languages (exhaustiveness)', () => {

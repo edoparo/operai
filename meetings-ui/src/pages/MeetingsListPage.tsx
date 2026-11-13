@@ -3,8 +3,10 @@ import type { FormEvent } from 'react'
 import { Link, useRouterState } from '@tanstack/react-router'
 import {
   Badge,
+  Banner,
   Button,
   Card,
+  ConfirmDialog,
   DataTable,
   PageHeader,
   Pagination,
@@ -18,9 +20,11 @@ import { LoadFailure, Loading, Saved } from '../components/LoadState'
 import { useCapabilityHints } from '../hooks/useCapabilityHints'
 import { useResource } from '../hooks/useResource'
 import { describeHost, hostNames, suiteLinkProps, useHosts } from '../lib/hostLinks'
-import { listMeetings } from '../lib/meetingsApi'
+import { createFolder, deleteFolder, fileMeeting, listFolders, listMeetings, renameFolder } from '../lib/meetingsApi'
+import { errorMessage } from '../lib/errors'
+import { FolderNameDialog } from '../components/folders/FolderNameDialog'
 import { MEETING_STATUS_MEANING } from '../lib/statusMeanings'
-import type { DerivedStatus, HostInfo, MeetingRow } from '../lib/types'
+import type { DerivedStatus, HostInfo, MeetingFolder, MeetingRow } from '../lib/types'
 import { strings } from '../strings'
 
 export type MeetingsListPageProps = {
@@ -39,10 +43,14 @@ type Filters = {
   role: '' | 'creator' | 'participant'
   status: '' | DerivedStatus
   hostApp: string
+  /** '' = every meeting, 'none' = filed nowhere, else one of the person's folder ids (ADR-0090). */
+  folder: string
   page: number
 }
 
-const NO_FILTERS: Filters = { q: '', role: '', status: '', hostApp: '', page: 1 }
+const NO_FILTERS: Filters = { q: '', role: '', status: '', hostApp: '', folder: '', page: 1 }
+
+type FolderDialog = { kind: 'create' } | { kind: 'rename'; folder: MeetingFolder } | { kind: 'delete'; folder: MeetingFolder }
 
 /** One option per registered app (an app may register several entity kinds), labelled in the page language. */
 const hostAppOptions = (hosts: HostInfo[] | null) => {
@@ -82,6 +90,7 @@ export default function MeetingsListPage({ mine }: MeetingsListPageProps) {
   const roleId = useId()
   const statusId = useId()
   const hostAppId = useId()
+  const folderId = useId()
 
   const [filters, setFilters] = useState<Filters>(NO_FILTERS)
   const [searchText, setSearchText] = useState('')
@@ -91,6 +100,14 @@ export default function MeetingsListPage({ mine }: MeetingsListPageProps) {
     select: (state) => (state.location.state as { meetingDeleted?: boolean } | undefined)?.meetingDeleted === true,
   })
   const [notice, setNotice] = useState<string | null>(deleted ? t.deleted : null)
+  const [failure, setFailure] = useState<string | null>(null)
+  const [dialog, setDialog] = useState<FolderDialog | null>(null)
+  const [deleting, setDeleting] = useState(false)
+  const [deleteError, setDeleteError] = useState<string | null>(null)
+
+  // The person's own folders (ADR-0090). A convenience: when they cannot be loaded, the list works without them.
+  const foldersResource = useResource(useCallback((signal: AbortSignal) => listFolders({ signal }), []))
+  const folders = foldersResource.status === 'ready' ? (foldersResource.data?.items ?? []) : null
 
   // Typing searches after a pause; the applied value is what the request carries.
   const typed = searchText.trim()
@@ -100,7 +117,7 @@ export default function MeetingsListPage({ mine }: MeetingsListPageProps) {
     return () => clearTimeout(timer)
   }, [typed, filters.q])
 
-  const { q, role, status, hostApp, page } = filters
+  const { q, role, status, hostApp, folder, page } = filters
   const fetcher = useCallback(
     (signal: AbortSignal) =>
       listMeetings(
@@ -110,10 +127,11 @@ export default function MeetingsListPage({ mine }: MeetingsListPageProps) {
           ...(role ? { role } : {}),
           ...(status ? { status } : {}),
           ...(hostApp ? { hostApp } : {}),
+          ...(folder ? { folder } : {}),
         },
         { signal },
       ),
-    [q, role, status, hostApp, page],
+    [q, role, status, hostApp, folder, page],
   )
   const resource = useResource(fetcher)
 
@@ -134,7 +152,56 @@ export default function MeetingsListPage({ mine }: MeetingsListPageProps) {
     // the search field is the first filter and always there, so focus goes there, not to <body>.
     searchRef.current?.focus()
   }
-  const filtered = q !== '' || role !== '' || status !== '' || hostApp !== ''
+  const filtered = q !== '' || role !== '' || status !== '' || hostApp !== '' || folder !== ''
+  const selectedFolder = folders?.find((f) => f.id === folder) ?? null
+
+  const announce = (message: string) => {
+    setFailure(null)
+    setNotice(message)
+  }
+
+  const move = async (row: MeetingRow, target: string) => {
+    const next = target === '' ? null : target
+    try {
+      await fileMeeting(row.id, next)
+      const name = folders?.find((f) => f.id === next)?.name
+      announce(name ? strings.folders.moved(row.title, name) : strings.folders.removed(row.title))
+      resource.retry()
+      foldersResource.retry()
+    } catch {
+      setNotice(null)
+      setFailure(strings.folders.moveFailed(row.title))
+    }
+  }
+
+  const saveFolder = async (name: string) => {
+    if (dialog?.kind === 'rename') {
+      const renamed = await renameFolder(dialog.folder.id, name)
+      announce(strings.folders.renameDialog.done(renamed.name))
+    } else {
+      const created = await createFolder(name)
+      announce(strings.folders.create.done(created.name))
+    }
+    setDialog(null)
+    foldersResource.retry()
+  }
+
+  const removeFolder = async (target: MeetingFolder) => {
+    setDeleting(true)
+    setDeleteError(null)
+    try {
+      await deleteFolder(target.id)
+      setDialog(null)
+      announce(strings.folders.deleteDialog.done(target.name))
+      if (folder === target.id) change({ folder: '' })
+      else resource.retry()
+      foldersResource.retry()
+    } catch (error) {
+      setDeleteError(errorMessage(error))
+    } finally {
+      setDeleting(false)
+    }
+  }
 
   const columns: DataTableColumn<MeetingRow>[] = [
     {
@@ -160,6 +227,29 @@ export default function MeetingsListPage({ mine }: MeetingsListPageProps) {
       ),
     },
     { id: 'role', header: t.table.role, render: (row) => <Badge>{t.role[row.role]}</Badge> },
+    ...(folders === null
+      ? []
+      : [
+          {
+            id: 'folder',
+            header: strings.folders.column,
+            render: (row: MeetingRow) => (
+              <select
+                aria-label={strings.folders.rowLabel(row.title)}
+                value={row.folderId ?? ''}
+                onChange={(event) => void move(row, event.target.value)}
+                data-testid={`meetings-list-folder-${row.id}`}
+              >
+                <option value="">{strings.folders.noFolder}</option>
+                {folders.map((f) => (
+                  <option key={f.id} value={f.id}>
+                    {f.name}
+                  </option>
+                ))}
+              </select>
+            ),
+          },
+        ]),
   ]
 
   const actions = canUseMeetings ? (
@@ -220,8 +310,34 @@ export default function MeetingsListPage({ mine }: MeetingsListPageProps) {
       <PageHeader title={mine ? t.myHeading : t.heading} titleId="meetings-list-page-heading" actions={actions} />
       <div className="flex flex-col gap-4">
         {notice !== null && <Saved message={notice} onDismiss={() => setNotice(null)} />}
+        {failure !== null && (
+          <Banner tone="danger" compact onDismiss={() => setFailure(null)} dismissLabel={strings.folders.dismiss}>
+            {failure}
+          </Banner>
+        )}
         <Card>
           <form role="search" aria-label={t.filters.title} onSubmit={search} className="flex flex-wrap items-end gap-3">
+            {folders !== null && (
+              <div className="flex flex-col gap-1">
+                <label htmlFor={folderId} className="field-label">
+                  {strings.folders.filter}
+                </label>
+                <select
+                  id={folderId}
+                  value={folder}
+                  onChange={(event) => change({ folder: event.target.value })}
+                  data-testid="meetings-list-folder-filter"
+                >
+                  <option value="">{strings.folders.all}</option>
+                  <option value="none">{strings.folders.none}</option>
+                  {folders.map((f) => (
+                    <option key={f.id} value={f.id}>
+                      {strings.folders.option(f.name, f.meetingCount)}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
             <div className="flex min-w-48 flex-1 flex-col gap-1">
               <label htmlFor={searchId} className="field-label">
                 {t.filters.search}
@@ -286,7 +402,62 @@ export default function MeetingsListPage({ mine }: MeetingsListPageProps) {
               </Button>
             )}
           </form>
+          {folders !== null && (
+            <div className="mt-3 flex flex-wrap items-center gap-2" data-testid="meetings-list-folder-actions">
+              <Button size="sm" onClick={() => setDialog({ kind: 'create' })} data-testid="meetings-list-folder-new">
+                {strings.folders.newFolder}
+              </Button>
+              {selectedFolder !== null && (
+                <>
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    onClick={() => setDialog({ kind: 'rename', folder: selectedFolder })}
+                    data-testid="meetings-list-folder-rename"
+                  >
+                    {strings.folders.rename}
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    onClick={() => {
+                      setDeleteError(null)
+                      setDialog({ kind: 'delete', folder: selectedFolder })
+                    }}
+                    data-testid="meetings-list-folder-delete"
+                  >
+                    {strings.folders.delete}
+                  </Button>
+                </>
+              )}
+            </div>
+          )}
         </Card>
+
+        {(dialog?.kind === 'create' || dialog?.kind === 'rename') && (
+          <FolderNameDialog
+            mode={dialog.kind}
+            initialName={dialog.kind === 'rename' ? dialog.folder.name : ''}
+            onSave={saveFolder}
+            onCancel={() => setDialog(null)}
+          />
+        )}
+        {dialog?.kind === 'delete' && (
+          <ConfirmDialog
+            title={strings.folders.deleteDialog.title(dialog.folder.name)}
+            confirmLabel={strings.folders.deleteDialog.confirm}
+            busyLabel={strings.folders.deleteDialog.busy}
+            cancelLabel={strings.folders.cancel}
+            closeLabel={strings.folders.cancel}
+            busy={deleting}
+            error={deleteError}
+            onConfirm={() => void removeFolder(dialog.folder)}
+            onCancel={() => setDialog(null)}
+            testIdPrefix="folder-delete"
+          >
+            {strings.folders.deleteDialog.body}
+          </ConfirmDialog>
+        )}
 
         {results()}
 

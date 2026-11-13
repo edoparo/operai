@@ -1,6 +1,7 @@
 import { OpenAPIHono } from "@hono/zod-openapi";
 import { agendaRouter } from "../agenda/agenda.routes";
 import { notesRouter } from "../notes/notes.routes";
+import { foldersRouter } from "../folders/folders.routes";
 import { noticeRetryRouter } from "../hosts/noticeRetry.routes";
 import { coreRouter } from "./core.routes";
 import { consentRouter } from "./consent.routes";
@@ -22,3 +23,4 @@ meetingsRouter.route("/", consentRouter);
 meetingsRouter.route("/", noticeRetryRouter);
 meetingsRouter.route("/", agendaRouter);
 meetingsRouter.route("/", notesRouter);
+meetingsRouter.route("/", foldersRouter);

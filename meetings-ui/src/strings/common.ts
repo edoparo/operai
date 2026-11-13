@@ -53,6 +53,9 @@ const en = {
   },
   errors: {
     not_found: 'This was not found. It may have been deleted, or you may not have access to it.',
+    folder_name_taken: 'You already have a folder with this name.',
+    folder_limit: 'You have reached the limit of 200 folders. Delete one you no longer use.',
+    folder_not_found: 'This folder no longer exists. Reload the page.',
     consent_required: 'Confirm the consent notice before capturing audio.',
     not_draft: 'This meeting has already started capturing, so this cannot be done now.',
     recording_elsewhere: 'This meeting is being recorded in another tab or on another device.',
@@ -150,6 +153,9 @@ const it: typeof en = {
   },
   errors: {
     not_found: 'Non trovato. Potrebbe essere stato eliminato oppure potresti non avere accesso.',
+    folder_name_taken: 'Hai già una cartella con questo nome.',
+    folder_limit: 'Hai raggiunto il limite di 200 cartelle. Eliminane una che non usi più.',
+    folder_not_found: 'Questa cartella non esiste più. Ricarica la pagina.',
     consent_required: "Conferma l'informativa sul consenso prima di acquisire l'audio.",
     not_draft: "Questa riunione ha già iniziato l'acquisizione: ora non è possibile.",
     recording_elsewhere: "Questa riunione è in registrazione in un'altra scheda o su un altro dispositivo.",

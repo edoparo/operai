@@ -191,6 +191,12 @@ const ROWS: Row[] = [
     reply: { gaps: [] },
   },
   // Summaries
+  // Folders (ADR-0090)
+  { name: 'listFolders', call: () => api.listFolders(), method: GET, url: '/folders' },
+  { name: 'createFolder', call: () => api.createFolder('Clients'), method: POST, url: '/folders', body: { name: 'Clients' } },
+  { name: 'renameFolder', call: () => api.renameFolder('f1', 'ACME'), method: PATCH, url: '/folders/f1', body: { name: 'ACME' } },
+  { name: 'deleteFolder', call: () => api.deleteFolder('f1'), method: DELETE, url: '/folders/f1' },
+  { name: 'fileMeeting', call: () => api.fileMeeting('m1', null), method: PUT, url: '/meetings/m1/folder', body: { folderId: null } },
   { name: 'getNotes', call: () => api.getNotes('m1'), method: GET, url: '/meetings/m1/notes' },
   {
     name: 'saveNotes',

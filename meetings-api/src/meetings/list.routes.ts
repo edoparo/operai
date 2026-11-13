@@ -11,6 +11,9 @@
  * `status` filters on the DERIVED status: `interrupted` is never stored, so the rows still
  * `recording` are partitioned with the same `derivedStatus` the rows are shown with. That
  * set is the caller's few live recordings, never a page worth.
+ *
+ * `folder` narrows to one of the caller's OWN folders (ADR-0090), or `none` for the meetings they filed nowhere;
+ * a folder id that is not theirs simply matches nothing. Each row carries the caller's own `folderId`.
  */
 
 import { OpenAPIHono, createRoute, z } from "@hono/zod-openapi";
@@ -30,6 +33,8 @@ const ListQuery = z.object({
   role: z.enum(["creator", "participant"]).optional(),
   status: z.enum(DERIVED_STATUSES).optional(),
   hostApp: z.string().min(1).max(64).optional(),
+  /** One of the caller's folder ids, or `none`. */
+  folder: z.string().min(1).max(64).optional(),
   ...pageQuery(),
 });
 
@@ -50,7 +55,7 @@ const listMeetings = createRoute({
 export const listRouter = new OpenAPIHono<{ Variables: AuthzVariables }>({ defaultHook: validationHook });
 
 listRouter.openapi(listMeetings, async (c) => {
-  const { q, role, status, hostApp, page } = c.req.valid("query");
+  const { q, role, status, hostApp, folder, page } = c.req.valid("query");
   const caller = callerOf(c);
   const now = new Date();
 
@@ -65,6 +70,8 @@ listRouter.openapi(listMeetings, async (c) => {
   const needle = q?.trim();
   if (needle) filters.push({ title: { contains: likeLiteral(needle), mode: "insensitive" } });
   if (hostApp) filters.push({ hostApp });
+  if (folder === "none") filters.push({ folderEntries: { none: { userId: caller.userId } } });
+  else if (folder) filters.push({ folderEntries: { some: { userId: caller.userId, folderId: folder } } });
 
   if (status === "recording" || status === "interrupted") {
     const candidates = await db.meeting.findMany({
@@ -83,10 +90,18 @@ listRouter.openapi(listMeetings, async (c) => {
     db.meeting.findMany({ where, select: ROW_SELECT, orderBy: [{ startsAt: "desc" }, { id: "desc" }], ...skipTake(page) }),
   ]);
 
-  const items = await buildMeetingRows(found, {
-    authorization: caller.authorization,
-    now,
-    roleOf: (row) => (row.creatorUserId === caller.userId ? "creator" : "participant"),
-  });
+  const [rows, entries] = await Promise.all([
+    buildMeetingRows(found, {
+      authorization: caller.authorization,
+      now,
+      roleOf: (row) => (row.creatorUserId === caller.userId ? "creator" : "participant"),
+    }),
+    db.meetingFolderEntry.findMany({
+      where: { userId: caller.userId, meetingId: { in: found.map((m) => m.id) } },
+      select: { meetingId: true, folderId: true },
+    }),
+  ]);
+  const folderOf = new Map(entries.map((e) => [e.meetingId, e.folderId]));
+  const items = rows.map((row) => ({ ...row, folderId: folderOf.get(row.id) ?? null }));
   return c.json({ items, total, page, pageSize: PAGE_SIZE as typeof PAGE_SIZE }, 200);
 });

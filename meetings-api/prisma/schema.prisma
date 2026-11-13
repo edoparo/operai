@@ -166,6 +166,7 @@ model Meeting {
   summaries     Summary[]
   agenda        AgendaPoint[]
   notes         MeetingNote[]
+  folderEntries MeetingFolderEntry[]
   turns         ConversationTurn[]
   jobs          MeetingJob[]
 
@@ -345,6 +346,34 @@ model MeetingNote {
 
   @@id([meetingId, userId])
   @@map("meeting_note")
+}
+
+// One person's own folder for organising the meetings they see (ADR-0090). Private to its owner: no other person, role
+// or service reads it. A name is unique per owner ignoring case (partial index in raw SQL).
+model MeetingFolder {
+  id          String               @id @default(cuid())
+  ownerUserId String
+  name        String
+  createdAt   DateTime             @default(now())
+  updatedAt   DateTime             @updatedAt
+  entries     MeetingFolderEntry[]
+
+  @@index([ownerUserId])
+  @@map("meeting_folder")
+}
+
+// Where ONE person keeps ONE meeting: at most one folder per (meeting, person). Deleted with the meeting or the folder.
+model MeetingFolderEntry {
+  meetingId String
+  meeting   Meeting       @relation(fields: [meetingId], references: [id], onDelete: Cascade)
+  userId    String
+  folderId  String
+  folder    MeetingFolder @relation(fields: [folderId], references: [id], onDelete: Cascade)
+  createdAt DateTime      @default(now())
+
+  @@id([meetingId, userId])
+  @@index([userId, folderId])
+  @@map("meeting_folder_entry")
 }
 
 // Built-in templates live in code (src/templates/builtin.ts), never here.

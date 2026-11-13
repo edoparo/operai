@@ -39,6 +39,16 @@ export type MeetingRow = {
   role: 'creator' | 'participant'
   summaryCount: number
   creator: PersonRef
+  /** The caller's OWN folder for this meeting (ADR-0090); only `GET /meetings` carries it. */
+  folderId?: string | null
+}
+
+/** One of the caller's own meeting folders (ADR-0090). */
+export type MeetingFolder = {
+  id: string
+  name: string
+  /** The meetings in it the caller can still open. */
+  meetingCount: number
 }
 
 export type Participant =
