@@ -1,5 +1,5 @@
 /**
- * SSE stream endpoints (T7, specs/005-notification-center, ADR-0008, plan.md
+ * SSE stream endpoints (T7, specs/20260713-notification-center, ADR 20260713-sse-stream-auth-short-lived-ticket, plan.md
  * §API contracts "SSE stream authentication").
  *
  * POST /notifications/stream-ticket — Bearer/JWKS-authed (jwtMiddleware, same as
@@ -9,10 +9,10 @@
  *   only in the next request's query string.
  *
  * GET /notifications/stream?ticket=<t> — deliberately NOT behind jwtMiddleware
- *   (EventSource sends no Authorization header — ADR-0008). Instead it consumes
+ *   (EventSource sends no Authorization header — ADR 20260713-sse-stream-auth-short-lived-ticket). Instead it consumes
  *   the ticket via ticketStore.consume(): unknown / expired / already-used are
  *   all indistinguishable to the caller and all produce the same 401 Problem
- *   JSON with the stream never opening (ADR-0008 Decision item 3). A valid
+ *   JSON with the stream never opening (ADR 20260713-sse-stream-auth-short-lived-ticket Decision item 3). A valid
  *   ticket resolves the bound sub and the stream subscribes to that sub's
  *   EventBus events for as long as the connection is open (bounded by
  *   MAX_STREAM_DURATION).
@@ -32,7 +32,7 @@
  *     onmessage/addEventListener consumers).
  *   Connection closes after MAX_STREAM_DURATION seconds, forcing the client to
  *     mint a fresh ticket and reconnect (the closest revocation lever available
- *     to a stateless JWKS verifier — ADR-0008).
+ *     to a stateless JWKS verifier — ADR 20260713-sse-stream-auth-short-lived-ticket).
  *
  * connectionCount() (T3 EventBus) is incremented/decremented by this route's
  * subscribe()/unsubscribe() calls — GET /health's active-SSE-connection-count
@@ -60,7 +60,7 @@ export const streamRouter = new OpenAPIHono<{ Variables: JwtVariables }>();
 // prefix "/" on the parent (Hono merges the child's route table, middleware
 // included, under the given prefix) — that would silently gate the ticket-only
 // GET /notifications/stream route behind a Bearer-JWT requirement it must never
-// have (ADR-0008: EventSource cannot send an Authorization header at all).
+// have (ADR 20260713-sse-stream-auth-short-lived-ticket: EventSource cannot send an Authorization header at all).
 
 const streamTicketRoute = createRoute({
   method: "post",
@@ -68,9 +68,9 @@ const streamTicketRoute = createRoute({
   tags: ["Notifications"],
   summary: "Mint a short-lived, single-use SSE handshake ticket",
   description:
-    "Bearer/JWKS-authed (ADR-0005). Returns an opaque ticket bound to the caller's " +
+    "Bearer/JWKS-authed (ADR 20260703-jwt-resource-server-remote-jwks). Returns an opaque ticket bound to the caller's " +
     "sub, valid once, for ~30 seconds — used to open GET /notifications/stream, " +
-    "which EventSource cannot authenticate with a Bearer header (ADR-0008).",
+    "which EventSource cannot authenticate with a Bearer header (ADR 20260713-sse-stream-auth-short-lived-ticket).",
   responses: {
     200: {
       content: { "application/json": { schema: StreamTicketResponseSchema } },
@@ -109,7 +109,7 @@ streamRouter.get("/notifications/stream", async (c) => {
     );
   }
 
-  // consume() is atomic get-and-delete (ADR-0008) — unknown, expired, and
+  // consume() is atomic get-and-delete (ADR 20260713-sse-stream-auth-short-lived-ticket) — unknown, expired, and
   // already-used tickets are indistinguishable here, all → 401, stream never opens.
   const sub = ticketStore.consume(ticket);
 
@@ -156,7 +156,7 @@ streamRouter.get("/notifications/stream", async (c) => {
       }, HEARTBEAT_INTERVAL_MS);
 
       // Bound the connection lifetime — forces a re-ticket + reconnect, the
-      // closest revocation lever available to a stateless JWKS verifier (ADR-0008).
+      // closest revocation lever available to a stateless JWKS verifier (ADR 20260713-sse-stream-auth-short-lived-ticket).
       const maxDurationTimer = setTimeout(
         () => {
           cleanup();

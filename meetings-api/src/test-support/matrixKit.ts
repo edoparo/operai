@@ -1,11 +1,11 @@
 /**
- * The assembled-app tests of specs/021-meetings T42 (matrix.test.ts, authz-outage.test.ts,
+ * The assembled-app tests of specs/20261104-meetings T42 (matrix.test.ts, authz-outage.test.ts,
  * logPrivacy.test.ts) all walk the SAME table: one row per route of the real app, with the
  * request that makes it succeed and what each kind of caller must get. Keeping it in one place
  * is the point: a route added without a row fails the matrix, and the outage and log-privacy
  * tests cannot drift from it.
  *
- *   PERSONAS   nine callers, each defined by their relationship to ONE meeting (ADR-0058) and
+ *   PERSONAS   nine callers, each defined by their relationship to ONE meeting (ADR 20261104-meetings-tool-shape-visibility-by-participation) and
  *              their grants: creator, creator who lost `meetings:access` (A4), creator who was
  *              deactivated (frozen, AC-5.11), participant, participant without access (AC-10.4),
  *              an outsider with / without access, an `meeting:erase` + `template:manage`
@@ -453,7 +453,7 @@ export const ROWS: readonly RouteRow[] = [
   row("POST /meetings/:id/consent", "draft", { body: (w) => ({ noticeVersion: w.consentVersion }), ok: 200, cells: CONTROL, outage: "unavailable" }, "/consent"),
   row("POST /meetings/:id/host-notice/retry", "ready", { ok: 200, cells: CONTROL, outage: "unavailable" }, "/host-notice/retry"),
 
-  // ── Folders (each person's own, private; ADR-0090) ────────────────────────
+  // ── Folders (each person's own, private; ADR 20261113-personal-meeting-folders) ────────────────────────
   row("GET /folders", null, { path: () => "/folders", ok: 200, cells: ANY_USER, outage: "serves" }),
   row("POST /folders", null, { path: () => "/folders", body: (w) => ({ name: `${w.texts.folderName} new` }), ok: 201, cells: ANY_USER, outage: "serves" }),
   row("PATCH /folders/:id", null, { path: (w) => `/folders/${w.ownFolderId}`, body: (w) => ({ name: `${w.texts.folderName} v2` }), ok: 200, cells: ANY_USER, outage: "serves" }),

@@ -1,6 +1,6 @@
 /**
- * settingsApi — refund-api's refund-settings surface (specs/011-refund-settings,
- * ADR-0027/0028), for the Settings tab (moved here from admin-ui, 2026-11-13).
+ * settingsApi — refund-api's refund-settings surface (specs/20260722-refund-settings,
+ * ADR 20260722-refund-settings-append-only-self-auditing-store/0028), for the Settings tab (moved here from admin-ui, 2026-11-13).
  * `settings:read` / `settings:manage` are enforced server-side on both read and
  * write; errors are refundApi's `ApiError` (403 without the grant, 404 for an
  * unknown key, 422 for a malformed email — nothing persisted).

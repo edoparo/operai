@@ -9,8 +9,8 @@ import { hashInvitationToken, timingSafeEqualHex } from "../invitations/token";
 import { env } from "../lib/env";
 
 /**
- * Hosted invite-landing page (T9, specs/006-user-invitations — refs US-2
- * AC-2.2/AC-2.5, plan.md "Invite link & landing", ADR-0002 precedent).
+ * Hosted invite-landing page (T9, specs/20260713-user-invitations — refs US-2
+ * AC-2.2/AC-2.5, plan.md "Invite link & landing", ADR 20260607-sign-in-page-hosted-by-auth-service precedent).
  *
  * Server-rendered HTML at `GET /invite?id=<invId>&token=<raw>`, following
  * `signin.routes.ts`'s established pattern (Hono JSX/`html` tagged
@@ -18,7 +18,7 @@ import { env } from "../lib/env";
  * unauthenticated — the token itself grants NO access; it only gates this
  * VIEW and, on a valid pending match, prefills the "continue with
  * Google/GitHub" action. Actual activation happens strictly at the
- * verified-OAuth-email match in `user.create.after` (T8, ADR-0012) — this
+ * verified-OAuth-email match in `user.create.after` (T8, ADR 20260714-invitation-activation-hooks-soft-delete-lifecycle) — this
  * page never writes to the database.
  *
  * `GET /invite/state?id&token` is the JSON seam behind the HTML page (also
@@ -329,7 +329,7 @@ inviteRouter.get("/invite/state", async (c) => {
   const id = c.req.query("id");
   const token = c.req.query("token");
   const resolved = await resolveInviteState(id, token);
-  // Security-review fix #3 (specs/006-user-invitations, A02): this URL
+  // Security-review fix #3 (specs/20260713-user-invitations, A02): this URL
   // carries the raw invite token in its query string — never leak it via the
   // Referer header on any outbound request a client might make from this
   // response's context.
@@ -363,7 +363,7 @@ inviteRouter.get("/invite", async (c) => {
   );
   c.header("X-Frame-Options", "DENY");
   c.header("X-Content-Type-Options", "nosniff");
-  // Security-review fix #3 (specs/006-user-invitations, A02): this URL
+  // Security-review fix #3 (specs/20260713-user-invitations, A02): this URL
   // carries the raw invite token (`?id=...&token=...`) and the page also
   // loads Google Fonts cross-origin — never leak the token via the Referer
   // header on that (or any future) outbound request.

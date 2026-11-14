@@ -1,5 +1,5 @@
 /**
- * "No speech here" (specs/021 A10): the creator listened to a possible gap and marks it as holding no speech. The
+ * "No speech here" (specs/20261104-meetings A10): the creator listened to a possible gap and marks it as holding no speech. The
  * gap is then ignored everywhere a gap counts (the transcript's notice and markers, a new summary's caveat, a new
  * answer's caveat), and the caveats the service already wrote because of it are withdrawn: the summaries' snapshot
  * loses the range, and once no gap is left the service's own "may be incomplete" sentences go back to the plain ones.

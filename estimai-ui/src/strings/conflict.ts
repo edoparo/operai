@@ -1,4 +1,4 @@
-/** strings.conflict — the optimistic-concurrency banner (specs/013, ADR-0038). */
+/** strings.conflict — the optimistic-concurrency banner (specs/20260807-estimate-sharing, ADR 20260807-optimistic-concurrency-version-if-match-cas-amends-0004). */
 export const en = {
   title409: (name: string) => `${name} saved changes to this estimate since you opened it.`,
   title409Unknown: 'Someone else saved changes to this estimate since you opened it.',

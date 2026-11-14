@@ -1,4 +1,4 @@
-/** Request schema for `PATCH /assets/{id}` (T13, specs/015; AC-1.9, AC-10.1). */
+/** Request schema for `PATCH /assets/{id}` (T13, specs/20261006-hardware-inventory; AC-1.9, AC-10.1). */
 
 import { z } from "@hono/zod-openapi";
 import { MAX_INT, isoDate } from "../depreciation/rules.schemas";

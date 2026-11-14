@@ -2,13 +2,13 @@
  * @vitest-environment jsdom
  *
  * Router structure + navigation tests for notify-ui's inner router (T14,
- * specs/005-notification-center/tasks.md). Mirrors
+ * specs/20260713-notification-center/tasks.md). Mirrors
  * admin-ui/src/router.test.tsx's technique (structural assertions on the
  * route tree + behavioral RouterProvider renders), using the basepath-less
  * `createAppRouter()` factory; App.test.tsx separately covers the exposed
  * remote's own hardcoded `/notify` basepath.
  *
- * T15 (specs/005-notification-center/tasks.md) mocks `./lib/notificationsApi`
+ * T15 (specs/20260713-notification-center/tasks.md) mocks `./lib/notificationsApi`
  * — see App.test.tsx's identical doc-comment note: `NotificationCenterPage`
  * now fetches on mount, and these tests only assert on the heading/not-found
  * fallback (rendered before any fetch settles), so a never-resolving pending

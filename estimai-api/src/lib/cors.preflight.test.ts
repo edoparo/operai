@@ -1,6 +1,6 @@
 /**
  * Regression test for the CORS-policy defect found by the T25 e2e pass on
- * specs/013-estimate-sharing: `allowHeaders`/`allowMethods`/`exposeHeaders`
+ * specs/20260807-estimate-sharing: `allowHeaders`/`allowMethods`/`exposeHeaders`
  * in src/lib/cors.ts (mounted "*" in index.ts) were never updated for this
  * feature's new HTTP surface, so every real cross-origin browser preflight —
  * the shell (localhost:5173) calling estimai-api (localhost:8080), always a
@@ -35,7 +35,7 @@ process.env["ALLOWED_ORIGINS"] ??= "http://localhost:5173";
 process.env["AUTH_JWKS_URL"] ??= "http://localhost:3001/auth/jwks";
 process.env["AUTH_ISSUER"] ??= "http://localhost:3001";
 process.env["AUTH_AUDIENCE"] ??= "operai-suite";
-process.env["NODE_ENV"] = "test"; // not ??=: a shell may export NODE_ENV=development and the first file to load @/lib/env freezes it for the process (T22, specs/016)
+process.env["NODE_ENV"] = "test"; // not ??=: a shell may export NODE_ENV=development and the first file to load @/lib/env freezes it for the process (T22, specs/20261013-notify-service-credentials)
 process.env["AUTH_BASE_URL"] ??= "http://localhost:3001";
 process.env["SERVICE_CLIENT_ID"] ??= "estimai-api";
 process.env["SERVICE_CLIENT_SECRET"] ??=
@@ -73,9 +73,9 @@ function preflight(
   });
 }
 
-describe("CORS preflight — estimai-api's real HTTP surface (specs/013 T25 regression)", () => {
+describe("CORS preflight — estimai-api's real HTTP surface (specs/20260807-estimate-sharing T25 regression)", () => {
   // ── Defect 1: If-Match missing from allowHeaders ─────────────────────────
-  // T7/ADR-0038 made If-Match REQUIRED on PUT /estimates/{id}. A browser
+  // T7/ADR 20260807-optimistic-concurrency-version-if-match-cas-amends-0004 made If-Match REQUIRED on PUT /estimates/{id}. A browser
   // preflighting a PUT with an If-Match header must see it echoed back in
   // Access-Control-Allow-Headers, or it refuses to send the real request —
   // i.e. saving is entirely broken cross-origin without this.

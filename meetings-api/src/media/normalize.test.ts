@@ -19,7 +19,7 @@ import {
 import { ffmpegBinary, ffprobeBinary, runTool } from "./probe";
 
 // AC-3.1 (video never leaves this step), AC-2.6 (recordings, paused gaps), AC-4.4
-// (audioCreatedAt) and ADR-0064: prepare_audio streams the chunks or the original to a
+// (audioCreatedAt) and ADR 20261104-meetings-api-reads-audio-bytes-third-reader: prepare_audio streams the chunks or the original to a
 // per-job temp dir, runs a hardened ffmpeg, stores audio.ogg, deletes the sources and
 // always removes the temp dir.
 
@@ -28,7 +28,7 @@ useKit();
 const scratch = mkdtempSync(join(tmpdir(), "normalize-test-"));
 afterAll(() => rmSync(scratch, { recursive: true, force: true }));
 
-/** The demuxers auto-detection may pick (ADR-0064 point 3): every other one, hls/concat/dash/sdp included, is refused before it opens anything. */
+/** The demuxers auto-detection may pick (ADR 20261104-meetings-api-reads-audio-bytes-third-reader point 3): every other one, hls/concat/dash/sdp included, is refused before it opens anything. */
 const FORMAT_WHITELIST = "mov,mp4,m4a,matroska,webm,ogg,wav,mp3,aac,flac";
 
 const EBML = [0x1a, 0x45, 0xdf, 0xa3];
@@ -91,7 +91,7 @@ describe("groupIntoRuns: a rebuilt MediaRecorder starts a second container mid-r
   });
 });
 
-describe("buildFfmpegArgs (ADR-0064 point 4)", () => {
+describe("buildFfmpegArgs (ADR 20261104-meetings-api-reads-audio-bytes-third-reader point 4)", () => {
   it("one input: exactly the documented hardened command", () => {
     expect(buildFfmpegArgs(["/w/run-0"], "/w/audio.ogg")).toEqual([
       "-nostdin", "-hide_banner", "-v", "error", "-y",

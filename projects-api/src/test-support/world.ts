@@ -1,5 +1,5 @@
 /**
- * Test world for projects-api route tests (specs/025-projects): personas with literal
+ * Test world for projects-api route tests (specs/20261103-projects): personas with literal
  * permission sets, a request helper over the ASSEMBLED app, fakes for the three things
  * outside the system (auth's identity and app-access endpoints, auth's service-token
  * endpoint, crm-api's `/system/companies`), and a reset between tests.
@@ -90,7 +90,7 @@ async function tokenFor(name: PersonaName): Promise<string> {
 export const identities = { down: false, calls: 0 };
 export const authSystem = { down: false, tokenCalls: 0 };
 
-/** Ids auth reports as holding `projects:access` (POST /authz/app-access-check, ADR-0055). Tests may edit it. */
+/** Ids auth reports as holding `projects:access` (POST /authz/app-access-check, ADR 20261101-app-access-check-by-user-id-and-directory-app-filter). Tests may edit it. */
 export const appAccess = { projects: new Set<string>() };
 function resetAppAccess(): void {
   appAccess.projects = new Set(
@@ -105,7 +105,7 @@ resetAppAccess();
 export const SERVICE_JWT = "service-jwt-for-projects-api";
 
 /**
- * A fake crm-api `GET /system/companies` (specs/025 T2 contract): `q` is a case-insensitive
+ * A fake crm-api `GET /system/companies` (specs/20261103-projects T2 contract): `q` is a case-insensitive
  * substring over non-archived names, `ids` are comma-separated and include archived ones,
  * `limit` defaults to 20, or to `ids.length` when only `ids` is given.
  */

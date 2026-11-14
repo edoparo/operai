@@ -1,5 +1,5 @@
 // Test-only resolution stub for the `notify/App` federated module (T13,
-// specs/005-notification-center).
+// specs/20260713-notification-center).
 //
 // Vite's import-analysis needs a real, resolvable module for every
 // static/dynamic import specifier in a transformed file — even one a test's

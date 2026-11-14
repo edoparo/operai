@@ -1,5 +1,5 @@
 /**
- * The outcome of validating untrusted model output (ADR-0067).
+ * The outcome of validating untrusted model output (ADR 20261104-ai-output-structured-validated-plain-text).
  *
  * A failure carries a CLOSED reason code and nothing the model wrote: reasons are logged and
  * stored as a failure code, and model output is the one thing that must never travel there

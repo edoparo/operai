@@ -2,7 +2,7 @@
 
 ## Terms
 
-### Hardware inventory (specs/015)
+### Hardware inventory (specs/20261006-hardware-inventory)
 - **Asset**: one physical hardware unit owned by one entity, from registration until
   disposal; never a quantity (13 monitors are 13 assets). _Avoid:_ device (UI copy only),
   item, row.
@@ -37,10 +37,10 @@
 - **Hardware accountant**: the capability to see schedules and book values, maintain
   depreciation rules, dispose of assets and close fiscal years.
 
-### Service-to-service credentials (specs/016)
+### Service-to-service credentials (specs/20261013-notify-service-credentials)
 - **Shared token**: the single static secret `auth`, `refund-api` and `estimai-api`
   used to present to the notification service's internal endpoints; retired by
-  specs/016 (ADR-0049) and refused since. _Avoid:_ internal token, system token.
+  specs/20261013-notify-service-credentials (ADR 20261013-all-notify-callers-scoped-credentials-shared-token-retired) and refused since. _Avoid:_ internal token, system token.
 - **Service credential**: what a service client presents to the notification service:
   short-lived, issued by `auth` to that one client, carrying its identity and scopes.
   _Avoid:_ service token where the shared token could be meant.
@@ -48,9 +48,9 @@
   in-app notification) or **email** (send an email).
 - **Caller**: a service that reaches the notification service's internal endpoints.
 - **Transition**: the period in which the notification service accepted both the shared
-  token and service credentials; it ended with specs/016's third push.
+  token and service credentials; it ended with specs/20261013-notify-service-credentials's third push.
 
-### Meetings (specs/021)
+### Meetings (specs/20261104-meetings)
 - **Meeting**: one conversation captured in Operai, with one source, a transcript,
   summaries and per-user conversations. _Avoid:_ call, session, recording (the recording
   is only its audio).
@@ -93,10 +93,10 @@
   numbering; labels from different parts are merged only by renaming. _Avoid:_ chunk (that is
   the ~10 s upload slice).
 - **Transcription result**: the text output of transcribing a recording; the one item a
-  processor may keep, for about 5 days (specs/021 A6).
+  processor may keep, for about 5 days (specs/20261104-meetings A6).
 - **Transient copy**: audio held in wellD-controlled EU/CH storage only for one
-  transcription attempt (specs/021 AC-4.12). _Avoid:_ staging file, temp upload.
-- **Live mode** (specs/022): a per-recording-session switch on a `recorded` meeting that makes
+  transcription attempt (specs/20261104-meetings AC-4.12). _Avoid:_ staging file, temp upload.
+- **Live mode** (specs/20261105-meetings-live): a per-recording-session switch on a `recorded` meeting that makes
   provisional text and live questions available to the creator.
 - **Provisional transcript** (live text): unlabelled, creator-only text produced during
   recording and replaced by the final transcript. _Avoid:_ transcript (that is the final one).
@@ -114,7 +114,7 @@
   leaves behind.
 - **AI request**: one summary generation or one question to a meeting — the unit of the
   per-user hourly limit.
-### Access to the suite (specs/023)
+### Access to the suite (specs/20261105-signup-gate)
 - **Allowed domain**: an email domain whose holders may become Operai users at all —
   `welld.ch` and `welld.it`; matched exactly and case-insensitively, subdomains excluded.
   _Avoid:_ whitelist, company domain.
@@ -126,7 +126,7 @@
 - **Approve** (an access request): creates an invitation for the requester through the
   invitation flow; it never creates a user by itself.
 
-### Activities (specs/028)
+### Activities (specs/20261110-activities)
 - **Activity**: something that happened or must happen about a client relationship or a
   project, recorded by an Operai user; either pre-sales or operational. _Avoid:_ event,
   log entry, interaction.
@@ -155,4 +155,4 @@
 
 ## Open ambiguities
 - Whether the `welld_ch` **Residual value** is kept until **Disposal** or written off the
-  year after the **Schedule** ends (specs/015 O4) — owner: accounting.
+  year after the **Schedule** ends (specs/20261006-hardware-inventory O4) — owner: accounting.

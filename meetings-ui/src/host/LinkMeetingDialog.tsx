@@ -26,7 +26,7 @@ export type LinkMeetingDialogProps = {
 }
 
 /**
- * LinkMeetingDialog — "Link an existing meeting" (specs/021-meetings F1b, S6, T76; plan G2). Lists the
+ * LinkMeetingDialog — "Link an existing meeting" (specs/20261104-meetings F1b, S6, T76; plan G2). Lists the
  * caller's own meetings that can be linked to this record (`GET /hosts/:app/:type/:id/linkable-meetings`:
  * created by them, not frozen, not already on it) and links the chosen one with
  * `PATCH /meetings/:id { host }`. The host resolves the record as the caller on that request, so a

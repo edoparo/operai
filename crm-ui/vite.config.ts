@@ -4,18 +4,18 @@ import { federation } from '@module-federation/vite'
 import { readFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 
-// specs/017-crm: crm-ui — the CRM tool's federated REMOTE (ADR-0006),
+// specs/20261101-crm: crm-ui — the CRM tool's federated REMOTE (ADR 20260709-suite-frontend-module-federation),
 // modelled on inventory-ui/vite.config.ts. Two exposed modules: `./App` (the
 // access-gated tool, mounted at the shell's `/crm/*`) and `./version`
-// (ADR-0030, the About modal). `requiredVersion` for every shared singleton is
+// (ADR 20260803-suite-version-generated-file-federated-export, the About modal). `requiredVersion` for every shared singleton is
 // read from this package's own dependency ranges so the graph cannot drift.
 const pkg = JSON.parse(readFileSync(new URL('./package.json', import.meta.url), 'utf-8'))
 
 // Build-time dev default only, overridable via env var (the shell's runtime
-// remote resolution is separate, ADR-0006): the shell dev server's pinned port.
+// remote resolution is separate, ADR 20260709-suite-frontend-module-federation): the shell dev server's pinned port.
 const shellRemoteUrl = process.env['SHELL_REMOTE_URL'] ?? 'http://localhost:5173/remoteEntry.js'
 
-// @operai/ui (operai-ui/, ADR-0050) is compiled from SOURCE by this build; `dedupe`
+// @operai/ui (operai-ui/, ADR 20261031-shared-ui-library-consumed-as-source) is compiled from SOURCE by this build; `dedupe`
 // keeps the library's own `react` imports on this project's copy (Module Federation
 // singleton), since operai-ui/node_modules does not exist on Vercel.
 const operaiUiEntry = fileURLToPath(new URL('../operai-ui/src/index.ts', import.meta.url))
@@ -74,7 +74,7 @@ export default defineConfig({
   ],
   define: {
     // Consumed by src/version.ts's REMOTE_VERSION — this remote's own
-    // version, exposed federated as `./version` (ADR-0030).
+    // version, exposed federated as `./version` (ADR 20260803-suite-version-generated-file-federated-export).
     __REMOTE_VERSION__: JSON.stringify(pkg.version),
   },
   build: {

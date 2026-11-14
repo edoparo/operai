@@ -1,5 +1,5 @@
 /**
- * The maintenance switch (specs/028 AC-2.5, ADR-0083): while the CRM activities are being
+ * The maintenance switch (specs/20261110-activities AC-2.5, ADR 20261110-activities-migration-write-pause): while the CRM activities are being
  * copied in, nothing may read or write. Every route but GET /health answers 503
  * `maintenance`, whoever asks and whatever they ask.
  */

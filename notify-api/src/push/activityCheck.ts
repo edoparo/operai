@@ -1,8 +1,8 @@
 /**
- * The push channel's recipient liveness check (T18, specs/029-push-notifications,
- * ADR-0087, AC-5.2 as amended 2026-11-12).
+ * The push channel's recipient liveness check (T18, specs/20261111-push-notifications,
+ * ADR 20261112-push-liveness-answer-reused-30-seconds, AC-5.2 as amended 2026-11-12).
  *
- * Wraps the ADR-0056 `UserContactClient` for the PUSH channel only. Asking auth once per
+ * Wraps the ADR 20261101-notify-api-resolves-email-notice-address-from-auth `UserContactClient` for the PUSH channel only. Asking auth once per
  * notification spends an allowance shared with every email notice (D-1), so:
  *
  *  - a `found` answer is remembered for `ttlMs` (30 s) per user, counted from the moment the
@@ -15,7 +15,7 @@
  *    only for users auth said are active. Expired entries are dropped on access.
  *
  * The email-notice path does NOT use this: it calls the client directly, so every email notice
- * is a fresh lookup (ADR-0056). notify-api is one process (ADR-0008), so the memo is coherent.
+ * is a fresh lookup (ADR 20261101-notify-api-resolves-email-notice-address-from-auth). notify-api is one process (ADR 20260713-sse-stream-auth-short-lived-ticket), so the memo is coherent.
  */
 
 import type { UserContactClient } from "@/lib/userContact";

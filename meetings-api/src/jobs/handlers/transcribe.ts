@@ -1,6 +1,6 @@
 /**
- * The `transcribe` job (specs/021-meetings T32; plan.md § Processing, § AI providers; ADR-0061,
- * ADR-0062; AC-6.1, AC-6.7, AC-6.9, AC-6.10, AC-12.2, AC-13.2).
+ * The `transcribe` job (specs/20261104-meetings T32; plan.md § Processing, § AI providers; ADR 20261104-meetings-ai-providers-eu-zero-retention,
+ * ADR 20261104-durable-job-runner-work-queued-state-derived; AC-6.1, AC-6.7, AC-6.9, AC-6.10, AC-12.2, AC-13.2).
  *
  * Takes `audio.ogg` (put there by `prepare_audio`), sends it to the transcriber with the
  * meeting's OWN locale (chosen by its creator, never detected) and writes the outcome:
@@ -89,7 +89,7 @@ export function createTranscribeHandler(overrides: Partial<TranscribeDeps> = {})
         await deps.transcriber()
       ).transcribe(audio, LOCALE_OF[meeting.language], maxSpeakersFor(participants), ctx.signal, { meetingId, attempt: ctx.attempt });
       const segments = outcome.kind === "segments" ? outcome.segments : [];
-      // Where each part starts and ends (ADR-0070, H-5; they overlap): [0] and its end for one part, none for a meeting
+      // Where each part starts and ends (ADR 20261105-meetings-transcript-parts-speaker-labels-per-part, H-5; they overlap): [0] and its end for one part, none for a meeting
       // that heard nothing. The gaps (AC-6.12) only exist with a transcript.
       const hasTranscript = outcome.kind === "segments" && segments.length > 0;
       const partStartsMs = hasTranscript ? [...outcome.partStartsMs] : [];

@@ -1,5 +1,5 @@
 /**
- * Data loading for the fiscal-year views and the close (T19/T20, specs/015).
+ * Data loading for the fiscal-year views and the close (T19/T20, specs/20261006-hardware-inventory).
  * One entity at a time: every asset, its rules, every stored figure and the
  * fiscal_year rows. Hundreds of assets, a handful of years (plan R-8), so a
  * handful of flat queries and the arithmetic in memory.
@@ -50,7 +50,7 @@ export const toRollAsset = (a: Asset): RollAsset => ({
   legacyImported: a.legacyImported,
 });
 
-/** The rule in force for the asset, resolved on read (ADR-0046); throws when none applies. */
+/** The rule in force for the asset, resolved on read (ADR 20261006-depreciation-derived-on-read-closed-years-snapshotted); throws when none applies. */
 export function ruleResolver(ctx: EntityContext): (asset: RollAsset) => RuleInputs {
   return (asset) => {
     const rule = resolveRule(ctx.rules, ctx.entity, asset.purchaseDate);

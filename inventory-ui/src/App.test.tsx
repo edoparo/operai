@@ -1,7 +1,7 @@
 /**
  * @vitest-environment jsdom
  *
- * App wiring (T28, specs/015-hardware-inventory): the exposed `./App` root
+ * App wiring (T28, specs/20261006-hardware-inventory): the exposed `./App` root
  * mounts the inner router rebased to `/inventory` with InventoryShell as its
  * root layout, so the shell's chrome, the capability tabs and the routed page
  * all appear for `/inventory/assets`.

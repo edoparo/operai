@@ -1,5 +1,5 @@
 /**
- * Integration tests for GET /requests/:id/export (ADR-0043).
+ * Integration tests for GET /requests/:id/export (ADR 20260908-request-archive-export-refund-api-reads-attachment-bytes).
  *
  * SCOPE NOTE — read before adding to this file. These cover the ACCESS gate,
  * the archivable-status gate and the byte budget: every path that resolves
@@ -169,7 +169,7 @@ describe("GET /requests/:id/export", () => {
     expect(res.status).toBe(200);
   });
 
-  // ADR-0005 / the sibling GET /requests/:id: a denial must never distinguish
+  // ADR 20260703-jwt-resource-server-remote-jwks / the sibling GET /requests/:id: a denial must never distinguish
   // "exists but not yours" from "does not exist". An export route must not
   // become the one place existence leaks.
   it("a non-owner, non-reviewer gets 404 — never 403", async () => {
@@ -272,7 +272,7 @@ describe("GET /requests/:id/export", () => {
   });
 
   // A `pending` attachment is one whose direct-to-bucket upload never
-  // completed (ADR-0016). Its object may not exist, so counting it toward the
+  // completed (ADR 20260716-eu-object-storage-refund-attachments). Its object may not exist, so counting it toward the
   // budget — or trying to embed it — would fail an export over a file that is
   // not part of the record.
   it("ignores pending (never-confirmed) attachments entirely", async () => {
@@ -365,7 +365,7 @@ describe("GET /requests/:id/export — settlement state and filename", () => {
   });
 });
 
-// ─── Rejected requests are archivable (ADR-0043 amendment, 2026-09-09) ──────
+// ─── Rejected requests are archivable (ADR 20260908-request-archive-export-refund-api-reads-attachment-bytes amendment, 2026-09-09) ──────
 //
 // Rejected was grouped with draft/submitted and refused. That was wrong: those
 // are still moving, a rejected request is terminal — and it is the document a

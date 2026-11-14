@@ -1,5 +1,5 @@
 /**
- * specs/016 AC-5.2 (T14): the shared notify token is not a setting notify-api
+ * specs/20261013-notify-service-credentials AC-5.2 (T14): the shared notify token is not a setting notify-api
  * reads or requires, and a deployment that still has it set (any value, even a
  * short or empty one) starts normally. env.ts runs process.exit(1) at import
  * time, so each case boots it in a child process with the variable present or

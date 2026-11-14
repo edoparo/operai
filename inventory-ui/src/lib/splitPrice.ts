@@ -1,6 +1,6 @@
 /**
  * splitPrice — how a multi-unit registration's total becomes N unit prices
- * (T30, specs/015-hardware-inventory; AC-1.3; plan.md § API contracts).
+ * (T30, specs/20261006-hardware-inventory; AC-1.3; plan.md § API contracts).
  *
  * Mirrors the backend rule, which is the source of truth (inventory-api task
  * T8): each unit is `floor(total / n)` cents and the remaining cents go on the

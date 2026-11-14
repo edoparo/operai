@@ -25,7 +25,7 @@ export type JwtVariables = {
 const JWKS = createRemoteJWKSet(new URL(env.AUTH_JWKS_URL));
 
 /**
- * JWKS-verifier readiness (ADR-0005 cold-start note; plan.md §API contracts
+ * JWKS-verifier readiness (ADR 20260703-jwt-resource-server-remote-jwks cold-start note; plan.md §API contracts
  * "GET /health … additionally report JWKS-verifier readiness"). `JWKS.jwks()`
  * is a synchronous getter over jose's in-memory cache — it never triggers a
  * network fetch itself, it only reports whether at least one fetch has
@@ -53,7 +53,7 @@ const unauthorized = (detail: string, path: string) =>
 // ─── Middleware ───────────────────────────────────────────────────────────────
 
 /**
- * JWT resource-server middleware (ADR-0005).
+ * JWT resource-server middleware (ADR 20260703-jwt-resource-server-remote-jwks).
  *
  * 1. Reads Authorization: Bearer <jwt>. Missing / malformed → 401 Problem JSON.
  * 2. Verifies the RS256 signature against the auth service JWKS (cached remote fetch).
@@ -88,9 +88,9 @@ export const jwtMiddleware = createMiddleware<{
 
   // 2. Verify RS256 signature, issuer, audience, and expiry via cached remote JWKS.
   //    algorithms: ['RS256'] pins the algorithm — rejects alg:none and HS256.
-  //    audience (ADR-0010): notify-api is the suite's first real second JWKS
+  //    audience (ADR 20260713-jwt-audience-claim-enforcement): notify-api is the suite's first real second JWKS
   //    resource server — a token missing or carrying the wrong `aud` is rejected
-  //    here, closing the cross-service token-replay gap ADR-0005/ADR-0007 deferred.
+  //    here, closing the cross-service token-replay gap ADR 20260703-jwt-resource-server-remote-jwks/ADR 20260713-authz-hand-rolled-rbac-abac-epoch-claims deferred.
   let payload: JWTPayload;
   try {
     const result = await jwtVerify(token, JWKS, {

@@ -1,5 +1,5 @@
 /**
- * offerRules — the offer document's client-side rules (specs/020 AC-3.3), the
+ * offerRules — the offer document's client-side rules (specs/20261102-crm-offer-document AC-3.3), the
  * same limits crm-api enforces on a template and on a generate body, so a form
  * never submits what the server will refuse. Pure: no React, no I/O. The
  * server stays the authority.

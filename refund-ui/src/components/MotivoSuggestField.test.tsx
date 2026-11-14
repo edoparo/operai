@@ -1,7 +1,7 @@
 /**
  * @vitest-environment jsdom
  *
- * Component tests for MotivoSuggestField (T13, specs/014-motivo-autocomplete/
+ * Component tests for MotivoSuggestField (T13, specs/20260811-motivo-autocomplete/
  * tasks.md; plan.md "## Test strategy", ui-comp rows). Covers AC-1.1, AC-1.2,
  * AC-1.3, AC-1.5, AC-1.6, AC-1.7, AC-1.8, AC-5.2, AC-5.3, AC-5.5 and AC-5.6,
  * plus design.md's scroll-into-view accessibility requirement, which lives

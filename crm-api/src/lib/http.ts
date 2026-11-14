@@ -1,7 +1,7 @@
 /**
- * Shared request/response pieces of every crm-api route group (specs/017-crm,
+ * Shared request/response pieces of every crm-api route group (specs/20261101-crm,
  * plan.md § API contract): the paging query, the optimistic-concurrency
- * precondition (D-7, ADR-0038 posture) and the shapes several groups return.
+ * precondition (D-7, ADR 20260807-optimistic-concurrency-version-if-match-cas-amends-0004 posture) and the shapes several groups return.
  */
 
 import { z } from "@hono/zod-openapi";
@@ -39,7 +39,7 @@ export const skipTake = (page: number, pageSize: number) => ({
 export const ArchivedFilterSchema = z.enum(["false", "true", "all"]).default("false");
 
 /**
- * A list's order (specs/017 US-9): `sort` names one of `columns`, `order` its
+ * A list's order (specs/20261101-crm US-9): `sort` names one of `columns`, `order` its
  * direction. Without `sort` the list keeps its default order.
  */
 export const sortQuery = <const C extends readonly [string, ...string[]]>(columns: C) => ({
@@ -47,7 +47,7 @@ export const sortQuery = <const C extends readonly [string, ...string[]]>(column
   order: z.enum(["asc", "desc"]).default("asc"),
 });
 
-/** Where a company or a lead came from (specs/017 US-7). */
+/** Where a company or a lead came from (specs/20261101-crm US-7). */
 export const LEAD_SOURCES = ["inbound", "outbound", "event", "referral", "other"] as const;
 export const LeadSourceSchema = z.enum(LEAD_SOURCES);
 

@@ -1,9 +1,9 @@
 /**
- * Test-only fixture bridge for specs/015-hardware-inventory e2e (T45).
+ * Test-only fixture bridge for specs/20261006-hardware-inventory e2e (T45).
  *
  * Inventory access is deliberately admin-assigned (spec AC-9.6: the `employee`
  * role carries nothing), and the manager / accountant grants are
- * entity-conditioned (ADR-0015), so a user needs BOTH a real role and a
+ * entity-conditioned (ADR 20260716-entity-scoped-abac-refund-api), so a user needs BOTH a real role and a
  * `user.entity`. There is no test-only "make me an inventory manager" endpoint
  * (nor should there be); this mirrors `refundFixtures.ts` and shells out to
  * `auth/scripts/e2e-invite-fixtures.ts` (`grant-inventory-role`), which writes
@@ -14,7 +14,7 @@
  * for SETUP and for out-of-band verification (a notification landed, an asset's
  * state). Every assertion about what a person sees is made through the browser.
  *
- * Closing a fiscal year is irreversible (row-level triggers, ADR-0046) and the
+ * Closing a fiscal year is irreversible (row-level triggers, ADR 20261006-depreciation-derived-on-read-closed-years-snapshotted) and the
  * `inventory` database is shared with local dev, so `pickClosableYear` chooses
  * the year to close dynamically instead of assuming a clean database.
  */
@@ -61,7 +61,7 @@ function runFixtureScript(args: string[]): string {
  * entity. `inventory-manager` holds `inventory:access` + `asset:manage`;
  * `accounting` holds `inventory:access` + `ledger:manage`; both scoped to the
  * user's own entity. Re-grant AFTER minting the session token: the grant bumps
- * `perm_epoch`, and a token minted earlier simply re-resolves live (ADR-0007).
+ * `perm_epoch`, and a token minted earlier simply re-resolves live (ADR 20260713-authz-hand-rolled-rbac-abac-epoch-claims).
  */
 export function grantInventoryRole(email: string, role: InventoryRole, entity: InventoryEntity): void {
   runFixtureScript(['grant-inventory-role', email, role, entity])

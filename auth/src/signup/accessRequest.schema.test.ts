@@ -1,5 +1,5 @@
 /**
- * specs/023 T1: the `access_request` table's closed value sets are enforced by
+ * specs/20261105-signup-gate T1: the `access_request` table's closed value sets are enforced by
  * the database (CHECK constraints in the migration), not only by app code.
  */
 import { afterEach, describe, expect, test } from "bun:test";

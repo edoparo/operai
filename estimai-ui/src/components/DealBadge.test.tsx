@@ -1,7 +1,7 @@
 /**
  * @vitest-environment jsdom
  *
- * DealBadge (specs/024 AC-3.2, AC-3.3): a link to the deal with CRM access, a
+ * DealBadge (specs/20261108-estimate-list-oversight AC-3.2, AC-3.3): a link to the deal with CRM access, a
  * plain badge without; never anything but the word "Deal".
  */
 import { afterEach, describe, expect, it, vi } from 'vitest'

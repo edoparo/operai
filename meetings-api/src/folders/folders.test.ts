@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, spyOn } from "bun:test";
 import { createKit, type Kit } from "../test-support/routeKit";
 
-// Personal meeting folders (ADR-0090): each person's own, one level, a meeting in at most one folder per person.
+// Personal meeting folders (ADR 20261113-personal-meeting-folders): each person's own, one level, a meeting in at most one folder per person.
 
 const kit: Kit = await createKit();
 

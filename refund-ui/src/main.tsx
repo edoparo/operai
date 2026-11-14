@@ -3,7 +3,7 @@ import { createRoot } from 'react-dom/client'
 import './index.css'
 import App from './App'
 
-// Dev/test-only standalone bootstrap (T15, specs/003-suite-shell): lets
+// Dev/test-only standalone bootstrap (T15, specs/20260709-suite-shell): lets
 // refund-ui build, run, and test entirely on its own, outside the shell —
 // mirrors estimai-ui/src/main.tsx's standalone bootstrap (T12). App itself
 // (see App.tsx) already imports `shell/session` and `shell/tokens.css` as a

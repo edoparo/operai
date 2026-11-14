@@ -201,7 +201,7 @@ describe("dedupeWidest (pure) — union, dedup, widest-wins precedence", () => {
     expect(dedupeWidest(input)).toEqual([perm("estimate", "view", null)]);
   });
 
-  test("ownership:any beats ownership:own (ADR-0007 / plan.md: ownership:any ⊃ own)", () => {
+  test("ownership:any beats ownership:own (ADR 20260713-authz-hand-rolled-rbac-abac-epoch-claims / plan.md: ownership:any ⊃ own)", () => {
     const input = [
       perm("estimate", "view", { ownership: "own" }),
       perm("estimate", "view", { ownership: "any" }),
@@ -279,7 +279,7 @@ describe("dedupeWidest (pure) — union, dedup, widest-wins precedence", () => {
     expect(dedupeWidest([])).toEqual([]);
   });
 
-  // specs/010-self-approval-control, ADR-0026, plan.md Risk R1 — the
+  // specs/20260721-self-approval-control, ADR 20260721-self-approval-condition-and-403-exception, plan.md Risk R1 — the
   // self-approval attribute lives on the SAME `attributes[]` axis as
   // `entity`, so it is subject to the identical widest-wins composition
   // rules as every other attribute condition. These tests document (rather

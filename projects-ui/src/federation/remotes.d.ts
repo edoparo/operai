@@ -1,5 +1,5 @@
 // Ambient module declarations for the shell modules projects-ui consumes as a
-// remote (specs/025-projects). Module Federation resolves `shell/session` and
+// remote (specs/20261103-projects). Module Federation resolves `shell/session` and
 // `shell/tokens.css` at runtime through a virtual module tsc cannot see; the
 // `dts` option is off in vite.config.ts so this remote builds without a live
 // shell. Keep in sync by hand with shell/src/lib/session.ts (T15 adds
@@ -23,13 +23,13 @@ declare module 'shell/session' {
   export const apiFetch: (input: RequestInfo | URL, init?: RequestInit) => Promise<Response>
 
   // projects-api for every call to this tool's backend; `auth` for the user
-  // directory behind the project manager and team pickers (ADR-0053, ADR-0055).
+  // directory behind the project manager and team pickers (ADR 20261101-user-directory-gate-widened-to-deal-manage, ADR 20261101-app-access-check-by-user-id-and-directory-app-filter).
   export const getProjectsApiBaseUrl: () => string
   export const getAuthBaseUrl: () => string
-  // activities-api for the project Tasks card and My tasks (specs/028-activities, T15).
+  // activities-api for the project Tasks card and My tasks (specs/20261110-activities, T15).
   export const getActivitiesApiBaseUrl: () => string
 
-  // Permission resolution (ADR-0007), used for UX gating only.
+  // Permission resolution (ADR 20260713-authz-hand-rolled-rbac-abac-epoch-claims), used for UX gating only.
   export interface Permission {
     resource: string
     action: string

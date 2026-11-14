@@ -1,6 +1,6 @@
 /**
  * notificationsApi — typed client for the notify-api endpoints the
- * notification center itself calls (T15, specs/005-notification-center/tasks.md):
+ * notification center itself calls (T15, specs/20260713-notification-center/tasks.md):
  * `GET /notifications` and `POST /notifications/mark-all-read`. Mirrors
  * `admin-ui/src/lib/adminApi.ts`'s conventions (typed request/response
  * shapes, `apiFetch` imported directly from the federated `shell/session`
@@ -31,7 +31,7 @@ export interface NotificationLink {
 }
 
 /**
- * The optional Italian variant a system caller may attach (ADR-0065). The sender does not know the
+ * The optional Italian variant a system caller may attach (ADR 20261104-bilingual-system-notifications). The sender does not know the
  * reader's language, so the reader picks: see `localizedText` (./severity).
  */
 export interface NotificationItalianVariant {
@@ -44,7 +44,7 @@ export interface Notification {
   id: string
   title: string
   body: string
-  /** Italian variant, `null`/absent for a notification that carries none (ADR-0065). */
+  /** Italian variant, `null`/absent for a notification that carries none (ADR 20261104-bilingual-system-notifications). */
   it?: NotificationItalianVariant | null
   severity: NotificationSeverity
   originApp: NotificationOriginApp

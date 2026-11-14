@@ -1,7 +1,7 @@
 /**
  * refund-api → notify-api internal cross-user in-app push client (T13,
- * specs/007-refund-service, plan.md "On decision → notify the employee"
- * (AC-3.6), ADR-0017; +`notifyPaid`, T6, specs/008-refund-monthly-processing,
+ * specs/20260716-refund-service, plan.md "On decision → notify the employee"
+ * (AC-3.6), ADR 20260716-system-notifications-cross-user-trigger; +`notifyPaid`, T6, specs/20260719-refund-monthly-processing,
  * plan.md § Email "Employee `paid` push (US-5, AC-5.1)").
  *
  * Deliberately isolated in its own module — mirrors `auth/src/lib/notify.ts`'s
@@ -9,14 +9,14 @@
  * `authz/resolveClient.ts`, T6) — so `decide.routes.ts` and its tests can
  * `mock.module()` this single function rather than mocking global `fetch`.
  *
- * Calls the internal, NON-user-JWT `POST /system/notifications` (ADR-0017),
+ * Calls the internal, NON-user-JWT `POST /system/notifications` (ADR 20260716-system-notifications-cross-user-trigger),
  * authenticated as refund-api itself with the scoped 5-minute service JWT
  * from `serviceToken.ts` (`Authorization: Bearer`, scope `notifications.push`;
- * specs/016, ADR-0044/0049, which retired the shared internal token; notify-api
+ * specs/20261013-notify-service-credentials, ADR 20261006-scoped-service-jwt-fourth-notify-caller/0049, which retired the shared internal token; notify-api
  * binds `system:refund-api` to `originApp: "refund"`) — deliberately NOT the deciding accounting user's own Bearer JWT, because the
  * recipient is a DIFFERENT user (the request's owner), not the caller.
  *
- * BEST-EFFORT (ADR-0017 §4): this function NEVER throws. A non-2xx response
+ * BEST-EFFORT (ADR 20260716-system-notifications-cross-user-trigger §4): this function NEVER throws. A non-2xx response
  * or a network failure is caught and logged — no financial/PII detail in the
  * log, only the request id and outcome. `decide.routes.ts` awaits this AFTER
  * its own decision transaction has already committed and must never roll
@@ -25,10 +25,10 @@
  * always sees the outcome on their next `GET /requests/:id` regardless of
  * push delivery.
  *
- * Copy is English-only (specs/007's i18n-for-v1 decision — see refund-ui's
+ * Copy is English-only (specs/20260716-refund-service's i18n-for-v1 decision — see refund-ui's
  * `strings.ts` doc comment for the same call made on the frontend side; no
  * bilingual IT+EN string here either) and deliberately generic: no rejection
- * motivation or amount is included in the push body (ADR-0017 Compliance
+ * motivation or amount is included in the push body (ADR 20260716-system-notifications-cross-user-trigger Compliance
  * notes — "no attachment content or full financial detail, only a status
  * summary and a link"); the full outcome is only ever visible after the
  * employee opens the already access-controlled `GET /requests/:id`.
@@ -103,7 +103,7 @@ export async function notifyDecision(
   }
 }
 
-// ─── Mark-paid fan-out (T6, specs/008-refund-monthly-processing, US-5) ─────
+// ─── Mark-paid fan-out (T6, specs/20260719-refund-monthly-processing, US-5) ─────
 
 export interface NotifyPaidInput {
   readonly recipientId: string;
@@ -114,7 +114,7 @@ export interface NotifyPaidInput {
  * `POST {NOTIFY_INTERNAL_URL}/system/notifications` (service Bearer) — one call per included
  * request's OWNER (`recipientId`), fired after mark-paid's transaction has
  * committed (batches/decide.routes.ts). Copy is deliberately generic — "no
- * amount/other-employee detail in the push" (plan.md § Email, ADR-0017
+ * amount/other-employee detail in the push" (plan.md § Email, ADR 20260716-system-notifications-cross-user-trigger
  * posture); the concrete `paid` state + `paidAt` live behind the already
  * access-controlled `GET /requests/:id`.
  *

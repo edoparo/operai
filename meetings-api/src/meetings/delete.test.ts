@@ -4,7 +4,7 @@ import { createFakeTransientStorage, type FakeTransientStorage } from "../lib/go
 import { setTransientStorageForTests } from "../lib/google/transientStorage";
 import { createKit, type Kit } from "../test-support/routeKit";
 
-// AC-4.6, AC-4.8, AC-5.12, AC-14.6 (specs/021 T25): deleting a meeting, by its creator or by
+// AC-4.6, AC-4.8, AC-5.12, AC-14.6 (specs/20261104-meetings T25): deleting a meeting, by its creator or by
 // a holder of meeting:erase, with the storage prefix first and a content-free trace after.
 
 const kit: Kit = await createKit();

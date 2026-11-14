@@ -1,6 +1,6 @@
 /**
- * Shared invitation creation (T6, specs/023-signup-gate — AC-5.1, AC-5.2, AC-3.2;
- * plan.md "Invitations limited to allowed domains"; ADR-0071).
+ * Shared invitation creation (T6, specs/20261105-signup-gate — AC-5.1, AC-5.2, AC-3.2;
+ * plan.md "Invitations limited to allowed domains"; ADR 20261105-access-only-by-invitation-waiting-list).
  *
  * Extracted from `POST /admin/invitations` so the route and the access-request
  * approval (T7) create an invitation the same way:
@@ -56,7 +56,7 @@ export type ValidationResult =
   | { ok: true; value: ValidInvitation }
   | { ok: false; problem: InvitationProblem };
 
-/** True for a Prisma unique-constraint violation (P2002) — the concurrent-create race (specs/006 fix #7). */
+/** True for a Prisma unique-constraint violation (P2002) — the concurrent-create race (specs/20260713-user-invitations fix #7). */
 export function isUniqueConstraintViolation(error: unknown): boolean {
   return error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002";
 }
@@ -104,7 +104,7 @@ export async function validateInvitation(
     if (missing.length > 0) return fail({ status: 422, detail: `Unknown department id(s): ${missing.join(", ")}` });
   }
 
-  // ── 409 — an active user already owns this email (specs/006 AC-1.3) ────
+  // ── 409 — an active user already owns this email (specs/20260713-user-invitations AC-1.3) ────
   const activeUser = await db.user.findFirst({
     where: { email: { equals: email, mode: "insensitive" }, deletedAt: null },
     select: { id: true },
@@ -117,7 +117,7 @@ export async function validateInvitation(
     });
   }
 
-  // ── 409 — a live pending invitation already exists (specs/006 AC-1.4) ──
+  // ── 409 — a live pending invitation already exists (specs/20260713-user-invitations AC-1.4) ──
   const existingPending = await findLivePendingInvitationByEmail(db, email);
   if (existingPending) {
     return fail({
@@ -132,7 +132,7 @@ export async function validateInvitation(
 
 /**
  * Insert the invitation inside the caller's transaction. Reconcile-on-write
- * (ADR-0013) runs in the same transaction so the partial-unique index never
+ * (ADR 20260714-invitation-lifecycle-derived-expiry-state) runs in the same transaction so the partial-unique index never
  * sees a stale row. May throw a P2002 ({@link isUniqueConstraintViolation}).
  */
 export async function createInvitationInTx(

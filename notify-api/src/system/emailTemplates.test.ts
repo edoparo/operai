@@ -1,8 +1,8 @@
 /**
- * Unit tests for renderEmailTemplate (T7, specs/008-refund-monthly-processing,
- * plan.md §Email, ADR-0021), covering the new `refund_batch_compiled`
+ * Unit tests for renderEmailTemplate (T7, specs/20260719-refund-monthly-processing,
+ * plan.md §Email, ADR 20260719-refund-batch-signed-link-email-delivery), covering the new `refund_batch_compiled`
  * template — deep link + batch reference render, every field is
- * HTML-escaped (no injection surface, ADR-0011 posture reused), the shape is
+ * HTML-escaped (no injection surface, ADR 20260714-notify-api-email-channel-service-trust posture reused), the shape is
  * fixed (English-only, no attachment/PDF/presigned-URL content) — and a
  * regression check that the existing `invitation`/`invitation_resend`
  * templates are unaffected by the refactor to a single correlated
@@ -12,7 +12,7 @@
 import { describe, expect, it } from "bun:test";
 import { renderEmailTemplate } from "./emailTemplates";
 
-describe("renderEmailTemplate — refund_batch_compiled (T7, ADR-0021)", () => {
+describe("renderEmailTemplate — refund_batch_compiled (T7, ADR 20260719-refund-batch-signed-link-email-delivery)", () => {
   const baseData = {
     batchUrl: "https://app.operai.welld.io/refund/batches/batch_123",
     batchReference: "batch_123",
@@ -128,7 +128,7 @@ describe("renderEmailTemplate — invitation family (regression)", () => {
   });
 });
 
-// ─── Decision emails (specs/007-refund-service AC-3.6, email channel) ──────
+// ─── Decision emails (specs/20260716-refund-service AC-3.6, email channel) ──────
 
 describe("renderEmailTemplate — refund_decision_approved", () => {
   const baseData = {
@@ -173,7 +173,7 @@ describe("renderEmailTemplate — refund_decision_approved", () => {
     expect(html).toContain("CHF 7,00");
   });
 
-  it("escapes every interpolated field (no injection surface, ADR-0011 posture)", () => {
+  it("escapes every interpolated field (no injection surface, ADR 20260714-notify-api-email-channel-service-trust posture)", () => {
     const { html } = renderEmailTemplate({
       template: "refund_decision_approved",
       data: {
@@ -244,7 +244,7 @@ describe("renderEmailTemplate — refund_decision_rejected", () => {
   });
 });
 
-describe("renderEmailTemplate — notification_notice (specs/019, ADR-0056)", () => {
+describe("renderEmailTemplate — notification_notice (specs/20261101-crm-notifications, ADR 20261101-notify-api-resolves-email-notice-address-from-auth)", () => {
   const data = {
     title: "Estimate requested",
     body: "Acme asked for an estimate on Big deal.",
@@ -268,7 +268,7 @@ describe("renderEmailTemplate — notification_notice (specs/019, ADR-0056)", ()
     expect(html).toContain("Sent by Operai CRM");
   });
 
-  it("labels the projects origin in the footer (specs/028 T24)", () => {
+  it("labels the projects origin in the footer (specs/20261110-activities T24)", () => {
     const { html } = renderEmailTemplate({
       template: "notification_notice",
       data: { ...data, originApp: "projects", href: "/projects/p_1" },

@@ -1,5 +1,5 @@
 /**
- * Zod/OpenAPI schemas for `GET /line-suggestions` (T2, specs/014-motivo-autocomplete,
+ * Zod/OpenAPI schemas for `GET /line-suggestions` (T2, specs/20260811-motivo-autocomplete,
  * plan.md § API contracts).
  *
  * ┌──────────────────────────────────────────────────────────────────────────┐
@@ -55,7 +55,7 @@ export type SuggestionsQuery = z.infer<typeof SuggestionsQuerySchema>;
 
 /**
  * One trip signature — a DERIVED view over the caller's own past
- * `travel_km` lines, never a stored record (spec Domain language, ADR-0013
+ * `travel_km` lines, never a stored record (spec Domain language, ADR 20260714-invitation-lifecycle-derived-expiry-state
  * lineage).
  */
 export const TripSuggestionSchema = z.object({

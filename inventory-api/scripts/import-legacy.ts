@@ -1,6 +1,6 @@
 /**
  * One-off import of the legacy Excel hardware register for `welld_ch`
- * (T23, specs/015-hardware-inventory; US-12, AC-12.1 to AC-12.9; ADR-0046).
+ * (T23, specs/20261006-hardware-inventory; US-12, AC-12.1 to AC-12.9; ADR 20261006-depreciation-derived-on-read-closed-years-snapshotted).
  * A script, not a route and not a screen (spec non-goal).
  *
  *   bun scripts/import-legacy.ts --file <register.xlsx> [--user-map <users.json>]

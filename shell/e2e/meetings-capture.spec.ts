@@ -1,5 +1,5 @@
 /**
- * T89 — Capture robustness (specs/021-meetings: AC-2.8, AC-2.9, AC-2.10, AC-4.11, AC-13.3).
+ * T89 — Capture robustness (specs/20261104-meetings: AC-2.8, AC-2.9, AC-2.10, AC-4.11, AC-13.3).
  *
  * The in-browser recorder runs for real (MediaRecorder -> presigned chunk uploads to MinIO ->
  * meetings-api) against the REAL assembled shell + meetings-ui. The microphone is the harness's
@@ -42,7 +42,7 @@ interface MeetingView {
   recording: { live: boolean; durationMs: number; lostMs: number | null } | null
 }
 
-test.describe('specs/021 T89: capture robustness', () => {
+test.describe('specs/20261104-meetings T89: capture robustness', () => {
   let owner: Person
   const created: string[] = []
 

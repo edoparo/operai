@@ -28,7 +28,7 @@ app.use(
   "*",
   cors({
     origin: env.ALLOWED_ORIGINS,
-    // If-Match / ETag carry the optimistic-concurrency version (AC-1.7, ADR-0038).
+    // If-Match / ETag carry the optimistic-concurrency version (AC-1.7, ADR 20260807-optimistic-concurrency-version-if-match-cas-amends-0004).
     allowHeaders: ["Content-Type", "Authorization", "If-Match"],
     exposeHeaders: ["ETag"],
     allowMethods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],

@@ -1,13 +1,13 @@
 /**
  * The two guard stacks every inventory-api route picks from (T7, specs/015-
- * hardware-inventory; AC-9.7, ADR-0014, ADR-0045). Making the choice a named
+ * hardware-inventory; AC-9.7, ADR 20260716-refund-api-authorization-enforcing-resource-server, ADR 20261006-ungated-second-federated-entry-of-a-gated-remote). Making the choice a named
  * export, rather than two middleware calls repeated on each route, is what
  * makes the split between "needs a capability" and "needs only a login"
  * visible in the route table and testable on its own.
  *
  *   authorized     JWT + live authorization (`GET /authz/resolve`). Every route
  *                  except `/me/*` and `/health`. An `auth` outage is a 503.
- *   identityOnly   JWT only. The `/me/*` routes (ADR-0045): a user with no
+ *   identityOnly   JWT only. The `/me/*` routes (ADR 20261006-ungated-second-federated-entry-of-a-gated-remote): a user with no
  *                  inventory grant at all must reach their own devices, so the
  *                  authorization middleware is deliberately NOT in this stack
  *                  and an `auth` outage does not affect them — every query is
@@ -42,7 +42,7 @@ export const LEDGER_MANAGE: Capability = ["ledger", "manage"];
  * 403 unless the caller holds AT LEAST ONE of `needs` (any scope). Must run
  * after `authzMiddleware`. Whether the caller may touch a particular asset is a
  * separate, record-level question answered with `scopeFor` / `assetInScope`
- * and a 404 — this is the capability gate only (ADR-0014).
+ * and a 404 — this is the capability gate only (ADR 20260716-refund-api-authorization-enforcing-resource-server).
  */
 export const requireCapability = (
   ...needs: readonly Capability[]

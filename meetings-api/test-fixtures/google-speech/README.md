@@ -2,7 +2,7 @@
 
 Two kinds, and the tests say which they use.
 
-## RECORDED (T107, 2026-11-05, specs/021 plan G-3 / G-12)
+## RECORDED (T107, 2026-11-05, specs/20261104-meetings plan G-3 / G-12)
 
 Taken from the real service (Chirp 3, `eu`, BatchRecognize, output to Cloud Storage) for SYNTHETIC audio (macOS `say`,
 two voices, Italian and English), then scrubbed: project id and number, bucket name, operation ids and object names
@@ -26,7 +26,7 @@ real shape: ONE result for the whole file).
 
 Each output document also carries a top-level `metadata.prompt` (Google's instruction text; no content of ours).
 
-## RECORDED OVERLAP AND QUALITY FIXTURES (T124, 2026-11-05, specs/021 plan H-10)
+## RECORDED OVERLAP AND QUALITY FIXTURES (T124, 2026-11-05, specs/20261104-meetings plan H-10)
 
 From the real service (Chirp 3, `eu`, BatchRecognize) on SYNTHETIC audio (macOS `say`: it/en voices alternating as speakers, with pauses; sentences
 generated from a small vocabulary, so the text is meaningless and carries no personal data). Spike runs: a 60-minute Italian file (2 voices, 8 parts of the

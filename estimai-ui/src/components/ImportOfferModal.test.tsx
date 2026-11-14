@@ -2,7 +2,7 @@
  * @vitest-environment jsdom
  *
  * Tests for T12 — ImportOfferModal + useImportOffer wired into EstimatesPage.
- * specs/001-estimate-persistence, AC-5.1, AC-5.3, AC-5.4.
+ * specs/20260606-estimate-persistence, AC-5.1, AC-5.3, AC-5.4.
  *
  * Covers:
  *   (A) offer-shown:
@@ -168,7 +168,7 @@ afterEach(() => {
 // Tests
 // ---------------------------------------------------------------------------
 
-describe('ImportOfferModal (T12, specs/001)', () => {
+describe('ImportOfferModal (T12, specs/20260606-estimate-persistence)', () => {
   // -------------------------------------------------------------------------
   // (A) offer-shown
   // -------------------------------------------------------------------------

@@ -1,8 +1,8 @@
 import { beforeEach, describe, expect, it } from "bun:test";
 import { call, makeCompany, makeDeal, resetWorld } from "../test-support/world";
 
-/** specs/018 US-1: without deal:financials the money is left out, not zeroed. */
-describe("financial visibility (specs/018 US-1)", () => {
+/** specs/20261101-crm-sales-flow US-1: without deal:financials the money is left out, not zeroed. */
+describe("financial visibility (specs/20261101-crm-sales-flow US-1)", () => {
   beforeEach(resetWorld);
 
   it("a technician sees the deal without amount, currency or notes", async () => {

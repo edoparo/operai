@@ -1,6 +1,6 @@
 /**
  * Response shapes for the submit/withdraw lifecycle endpoints (T10,
- * specs/007-refund-service, AC-1.5/1.6).
+ * specs/20260716-refund-service, AC-1.5/1.6).
  *
  * CONTRACT NOTE: the frontend (T16) parses the incomplete-line 422 response
  * expecting the offending line ids under the EXACT field name

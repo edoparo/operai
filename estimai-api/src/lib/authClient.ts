@@ -1,6 +1,6 @@
 /**
  * Thin HTTP client for the two `auth`-hosted third-party endpoints this
- * feature introduces (T5, specs/013-estimate-sharing, plan.md "The
+ * feature introduces (T5, specs/20260807-estimate-sharing, plan.md "The
  * third-party lookup" and "Display identity").
  *
  * Deliberately isolated in its own module, mirroring `refund-api/src/authz/
@@ -22,7 +22,7 @@
  *
  *   - `checkAppAccess` FAILS CLOSED (throws on any non-2xx response or
  *     network failure). It answers an AUTHORIZATION question (plan.md:
- *     "adding a collaborator... fails closed, 503 — ADR-0014's posture,
+ *     "adding a collaborator... fails closed, 503 — ADR 20260716-refund-api-authorization-enforcing-resource-server's posture,
  *     because it is an authorization decision"). The caller
  *     (collaborators.routes.ts, T8) is responsible for turning that
  *     rejection into a 503 `authorization_service_unavailable` and creating
@@ -116,7 +116,7 @@ const unknownIdentity = (id: string): Identity => ({
 
 // `auth POST /authz/users/identities` rejects a request with more than
 // MAX_IDS ids with a 400 (`auth/src/authz/identities.routes.ts`). Collaborator
-// counts on an estimate are explicitly uncapped (specs/013 Non-goals — "no
+// counts on an estimate are explicitly uncapped (specs/20260807-estimate-sharing Non-goals — "no
 // cap" was confirmed at the spec gate), so `resolveIdentities` may be asked
 // to resolve more than that in one call. This constant MUST stay in sync
 // with `auth`'s `MAX_IDS`.
@@ -238,10 +238,10 @@ export async function resolveIdentities(
 
 // ─── GET /authz/resolve — the caller's live permissions, fails CLOSED ────────
 //
-// The ONE role-based question estimai-api asks `auth` (specs/024, ADR-0075):
+// The ONE role-based question estimai-api asks `auth` (specs/20261108-estimate-list-oversight, ADR 20261108-estimai-oversight-permission-amends-0036):
 // does the caller hold `estimate:read-all`? Copied in shape from
-// crm-api/src/authz/resolveClient.ts (no workspace, ADR-0003). Forwards the
-// caller's own Bearer header verbatim — no new credential (ADR-0014 point 1).
+// crm-api/src/authz/resolveClient.ts (no workspace, ADR 20260703-estimai-api-bun-hono-typescript). Forwards the
+// caller's own Bearer header verbatim — no new credential (ADR 20260716-refund-api-authorization-enforcing-resource-server point 1).
 // Throws on any non-2xx, timeout or unreadable body; the caller maps that to
 // the fail-closed 503 and must never read it as "no permission".
 

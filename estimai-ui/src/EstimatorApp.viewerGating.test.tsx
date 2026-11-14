@@ -1,7 +1,7 @@
 /**
  * @vitest-environment jsdom
  *
- * T17 (specs/013-estimate-sharing/tasks.md; design.md S5 "Viewer mode") —
+ * T17 (specs/20260807-estimate-sharing/tasks.md; design.md S5 "Viewer mode") —
  * the task's named EARLY CHECK: "mounting the editor as a viewer asserts
  * ZERO enabled mutating controls anywhere in the tree, while useEstimator's
  * computed outputs are deep-equal to the owner's and the export / link-share
@@ -260,7 +260,7 @@ describe('T17 named early check — viewer mount has zero enabled mutating contr
     renderEditor('viewer')
 
     // The "Share link" button this test also used to assert was removed on
-    // 2026-08-09 with the whole anonymous link-share mechanism (specs/013 US-8
+    // 2026-08-09 with the whole anonymous link-share mechanism (specs/20260807-estimate-sharing US-8
     // amendment). The exports remain the point of AC-3.1: read-only means no
     // content editing, NOT feature removal.
     const clientBtn = screen.getByRole('button', { name: /client/i }) as HTMLButtonElement

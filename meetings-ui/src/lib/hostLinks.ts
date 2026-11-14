@@ -1,6 +1,6 @@
 /**
  * hostLinks — how the list, the new-meeting page and the host panel talk about a host record
- * (specs/021-meetings design.md S1, S2, S6): the registry's labels, the "<Entity> · <title>"
+ * (specs/20261104-meetings design.md S1, S2, S6): the registry's labels, the "<Entity> · <title>"
  * text, and a link that leaves this remote through the shell's router (`navigateSuite`).
  *
  * The registry (`GET /hosts`) is decoration: a failed or slow load degrades to the raw app and

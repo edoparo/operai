@@ -1,8 +1,8 @@
 /**
  * @vitest-environment jsdom
  *
- * Tests for the tool registry (specs/015-hardware-inventory, T42, AC-4.1/AC-9.6).
- * `inventory` is a gated tool; `/devices` (ADR-0045) is deliberately NOT one.
+ * Tests for the tool registry (specs/20261006-hardware-inventory, T42, AC-4.1/AC-9.6).
+ * `inventory` is a gated tool; `/devices` (ADR 20261006-ungated-second-federated-entry-of-a-gated-remote) is deliberately NOT one.
  */
 import { afterEach, describe, expect, it } from 'vitest'
 import {
@@ -41,13 +41,13 @@ describe('TOOLS — inventory', () => {
     expect(resolveLastToolPath()).toBe('/inventory')
   })
 
-  it('has no entry for /devices — an identity-scoped screen, not a tool (ADR-0045)', () => {
+  it('has no entry for /devices — an identity-scoped screen, not a tool (ADR 20261006-ungated-second-federated-entry-of-a-gated-remote)', () => {
     expect(TOOLS.some((t) => t.to === '/devices' || t.id === ('devices' as never))).toBe(false)
     expect(isToolId('devices')).toBe(false)
   })
 })
 
-// specs/017-crm: the CRM is a gated tool, after Inventory.
+// specs/20261101-crm: the CRM is a gated tool, after Inventory.
 describe('TOOLS — crm', () => {
   it('lists CRM at /crm and resolves it as a tool id', () => {
     expect(TOOLS.find((t) => t.id === 'crm')).toEqual({ id: 'crm', label: 'CRM', to: '/crm' })
@@ -56,8 +56,8 @@ describe('TOOLS — crm', () => {
   })
 })
 
-// specs/021-meetings: Meetings is a gated tool, after the CRM. `/my-meetings`
-// (ungated, identity-scoped; ADR-0045 shape) is deliberately NOT an entry.
+// specs/20261104-meetings: Meetings is a gated tool, after the CRM. `/my-meetings`
+// (ungated, identity-scoped; ADR 20261006-ungated-second-federated-entry-of-a-gated-remote shape) is deliberately NOT an entry.
 describe('TOOLS — meetings', () => {
   it('lists Meetings at /meetings and resolves it as a tool id', () => {
     expect(TOOLS.find((t) => t.id === 'meetings')).toEqual({ id: 'meetings', label: 'Meetings', to: '/meetings' })
@@ -77,7 +77,7 @@ describe('TOOLS — meetings', () => {
   })
 })
 
-// specs/025-projects (AC-4.1): Projects is a gated tool, after CRM. The id is the
+// specs/20261103-projects (AC-4.1): Projects is a gated tool, after CRM. The id is the
 // auth catalog resource (`projects`), so the sidebar's `apps.includes(tool.id)`
 // filter shows it exactly to the callers `/authz/me` reports `projects:access` for.
 describe('TOOLS — projects', () => {

@@ -1,6 +1,6 @@
 /**
  * AttachmentDownloadLink — click-to-download control for one stored receipt
- * attachment (T17, specs/007-refund-service/tasks.md; design.md F6 step 1,
+ * attachment (T17, specs/20260716-refund-service/tasks.md; design.md F6 step 1,
  * Component inventory: "AttachmentDownloadLink (accounting's read-only
  * mode) … click → mint presigned GET → open"). Used by `AttachmentList` in
  * BOTH modes — `readOnly` (accounting's Screen A2, and the employee's own

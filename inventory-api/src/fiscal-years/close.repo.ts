@@ -1,6 +1,6 @@
 /**
- * Closing a fiscal year (T20, specs/015-hardware-inventory; AC-8.4..AC-8.7,
- * AC-11.1, ADR-0046). The ONE write that materialises figures.
+ * Closing a fiscal year (T20, specs/20261006-hardware-inventory; AC-8.4..AC-8.7,
+ * AC-11.1, ADR 20261006-depreciation-derived-on-read-closed-years-snapshotted). The ONE write that materialises figures.
  *
  * One transaction, under the entity advisory lock (`lockEntity`), which every
  * dated write (register, price/date edit, dispose, rule) takes too: a write

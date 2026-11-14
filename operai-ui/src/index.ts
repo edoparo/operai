@@ -1,5 +1,5 @@
 /**
- * @operai/ui — the Operai design system (ADR-0050).
+ * @operai/ui — the Operai design system (ADR 20261031-shared-ui-library-consumed-as-source).
  *
  * Consumed as SOURCE: an app aliases `@operai/ui` to this file (vite.config.ts,
  * vitest.config.ts, tsconfig paths) and its own bundler compiles it. The CSS

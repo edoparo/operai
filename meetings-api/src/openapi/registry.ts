@@ -8,7 +8,7 @@ export function setupOpenAPI(app: OpenAPIHono): void {
       title: "Operai Meetings API",
       version: "0.1.0",
       description:
-        "Record, transcribe, summarise and question meetings (specs/021-meetings). " +
+        "Record, transcribe, summarise and question meetings (specs/20261104-meetings). " +
         "Requires a valid RS256 Bearer JWT issued by the Operai auth service; " +
         "visibility is by participation, capabilities are resolved live from auth.",
       contact: { name: "wellD", url: "https://welld.ch" },

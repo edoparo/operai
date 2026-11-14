@@ -2,7 +2,7 @@
  * @vitest-environment jsdom
  *
  * Unit tests for src/lib/refundApi.ts — the thin, generic refund-api call
- * plumbing (T14, specs/007-refund-service/tasks.md).
+ * plumbing (T14, specs/20260716-refund-service/tasks.md).
  *
  * Strategy (mirrors admin-ui/src/lib/adminApi.test.ts / estimai-ui/src/lib/
  * estimatesApi.test.ts): `shell/session`'s `apiFetch` is mocked at the module
@@ -54,7 +54,7 @@ describe('getJson', () => {
     expect(String(url)).toBe(`${REFUND_API_URL}/requests/r1`)
   })
 
-  it('forwards an optional RequestInit (e.g. an AbortSignal) straight through to apiFetch (T7, specs/014)', async () => {
+  it('forwards an optional RequestInit (e.g. an AbortSignal) straight through to apiFetch (T7, specs/20260811-motivo-autocomplete)', async () => {
     vi.mocked(apiFetch).mockResolvedValueOnce(makeResponse(200, { suggestions: [] }))
     const controller = new AbortController()
 

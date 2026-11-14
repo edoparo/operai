@@ -8,18 +8,18 @@ Module-Federation shell that hosts each tool as a runtime remote.
 |---|---|
 | `shell/` | Suite host — shared chrome (header/sidebar/footer) + single session; mounts each tool as a federated remote |
 | `estimai-ui/` | EstimAI, as a federated remote |
-| `refund-ui/` | Reimbursement tool (federated remote) — expense requests + accounting review/decision (specs/007) |
-| `admin-ui/` | Admin tool (federated remote) — roles, departments, users & fine-grained permissions (specs/004); user invitations, resend/revoke & soft-delete (specs/006, admin-only) |
-| `inventory-ui/` | Hardware inventory (federated remote) — asset register, assignments, depreciation ledger and year close; plus the ungated "My devices" screen at `/devices` (specs/015, ADR-0045) |
-| `projects-ui/` | Projects (federated remote) — the delivery work wellD runs: projects with their type, state, project manager and team, and their contracts' delivery terms and Bexio order id; no money (specs/025, ADR-0079) |
-| `notify-ui/` | Notification center (federated remote) — the `/notify` page; reached from the header bell (specs/005) |
-| `auth/` | Bun + Hono auth service — OAuth, sessions, RS256 JWT + JWKS, hosted sign-in; + authorization (roles/departments/permissions, admin API, ADR-0007); user invitations + soft-delete + hosted invite landing (specs/006) |
+| `refund-ui/` | Reimbursement tool (federated remote) — expense requests + accounting review/decision (specs/20260716-refund-service) |
+| `admin-ui/` | Admin tool (federated remote) — roles, departments, users & fine-grained permissions (specs/20260713-auth-roles-permissions); user invitations, resend/revoke & soft-delete (specs/20260713-user-invitations, admin-only) |
+| `inventory-ui/` | Hardware inventory (federated remote) — asset register, assignments, depreciation ledger and year close; plus the ungated "My devices" screen at `/devices` (specs/20261006-hardware-inventory, ADR 20261006-ungated-second-federated-entry-of-a-gated-remote) |
+| `projects-ui/` | Projects (federated remote) — the delivery work wellD runs: projects with their type, state, project manager and team, and their contracts' delivery terms and Bexio order id; no money (specs/20261103-projects, ADR 20261103-projects-tool-shape-and-authorization) |
+| `notify-ui/` | Notification center (federated remote) — the `/notify` page; reached from the header bell (specs/20260713-notification-center) |
+| `auth/` | Bun + Hono auth service — OAuth, sessions, RS256 JWT + JWKS, hosted sign-in; + authorization (roles/departments/permissions, admin API, ADR 20260713-authz-hand-rolled-rbac-abac-epoch-claims); user invitations + soft-delete + hosted invite landing (specs/20260713-user-invitations) |
 | `estimai-api/` | Estimate-persistence backend (Bun + Hono) |
-| `notify-api/` | Notification backend (Bun + Hono) — persistence + SSE push, ticket-authed stream (specs/005, ADR-0008/0009); + email delivery via Resend, internal `/system/emails` (specs/006, ADR-0011); + internal `/system/notifications` for cross-user push (specs/007, ADR-0017) |
-| `refund-api/` | Reimbursement backend (Bun + Hono) — authorization-enforcing resource server, EU object storage for receipt attachments (specs/007, ADR-0014/0015/0016) |
-| `inventory-api/` | Hardware-inventory backend (Bun + Hono) — authorization-enforcing resource server, EU object storage for invoices, depreciation derived on read with immutable year closes; pushes notifications to notify-api with a scoped service JWT (specs/015, ADR-0044/0046/0047) |
-| `projects-api/` | Projects backend (Bun + Hono) — authorization-enforcing resource server, entity-scoped writes with optimistic concurrency; reads CRM company names from crm-api with a scoped service credential (specs/025, ADR-0079/0080) |
-| `activities-api/` | Activities backend (Bun + Hono) — the activities, tasks and blockers of the CRM (pre-sales) and Projects (operational); no UI and no permission catalog of its own: every access decision is asked of the host as the caller, failing closed (specs/028, ADR-0081/0082/0083) |
+| `notify-api/` | Notification backend (Bun + Hono) — persistence + SSE push, ticket-authed stream (specs/20260713-notification-center, ADR 20260713-sse-stream-auth-short-lived-ticket/0009); + email delivery via Resend, internal `/system/emails` (specs/20260713-user-invitations, ADR 20260714-notify-api-email-channel-service-trust); + internal `/system/notifications` for cross-user push (specs/20260716-refund-service, ADR 20260716-system-notifications-cross-user-trigger) |
+| `refund-api/` | Reimbursement backend (Bun + Hono) — authorization-enforcing resource server, EU object storage for receipt attachments (specs/20260716-refund-service, ADR 20260716-refund-api-authorization-enforcing-resource-server/0015/0016) |
+| `inventory-api/` | Hardware-inventory backend (Bun + Hono) — authorization-enforcing resource server, EU object storage for invoices, depreciation derived on read with immutable year closes; pushes notifications to notify-api with a scoped service JWT (specs/20261006-hardware-inventory, ADR 20261006-scoped-service-jwt-fourth-notify-caller/0046/0047) |
+| `projects-api/` | Projects backend (Bun + Hono) — authorization-enforcing resource server, entity-scoped writes with optimistic concurrency; reads CRM company names from crm-api with a scoped service credential (specs/20261103-projects, ADR 20261103-projects-tool-shape-and-authorization/0080) |
+| `activities-api/` | Activities backend (Bun + Hono) — the activities, tasks and blockers of the CRM (pre-sales) and Projects (operational); no UI and no permission catalog of its own: every access decision is asked of the host as the caller, failing closed (specs/20261110-activities, ADR 20261110-activities-service-access-delegated-to-host/0082/0083) |
 | `specs/`, `docs/adr/` | Spec-driven workflow + Architecture Decision Records |
 | `infra/` | Deploy config + runbooks (Railway, Vercel) |
 
@@ -37,13 +37,13 @@ One-time setup:
    `direnv allow refund-api`, `direnv allow inventory-api`, `direnv allow crm-api`, `direnv allow projects-api`, `direnv allow activities-api` and `direnv allow admin-ui`, and set up
    the 1Password service account described in
    [1Password for local development](#1password-for-local-development). All eight backends require `AUTH_AUDIENCE` (the same suite-wide value, e.g. `operai-suite`) — the
-   `aud` claim `auth` stamps and the resource servers verify (ADR-0010); a mismatch rejects
+   `aud` claim `auth` stamps and the resource servers verify (ADR 20260713-jwt-audience-claim-enforcement); a mismatch rejects
    every token with 401. Set `ENABLE_TEST_AUTH=true` for a seeded local session, and provide
    real `GOOGLE_CLIENT_ID`/`GOOGLE_CLIENT_SECRET` (with
    `http://localhost:3001/auth/callback/google` as an authorized redirect URI) if you want
    Google login locally. `refund-api`, `estimai-api`, `inventory-api`, `crm-api`, `projects-api` and `activities-api` each need
    `SERVICE_CLIENT_ID`/`SERVICE_CLIENT_SECRET` (their own credentials for `auth`'s
-   service-token endpoint, matching an entry of `auth`'s `SERVICE_CLIENTS`; ADR-0049) — see
+   service-token endpoint, matching an entry of `auth`'s `SERVICE_CLIENTS`; ADR 20261013-all-notify-callers-scoped-credentials-shared-token-retired) — see
    each `.env.example`. `refund-api`'s object-storage vars (`REFUND_S3_*`) are documented
    but not yet enforced (no bucket provisioned yet); `inventory-api` also needs its own
    `INVENTORY_S3_*` bucket.
@@ -71,19 +71,19 @@ open **http://localhost:5173**.
 | shell (host) | **5173** | ← open this |
 | estimai-ui (remote) | 5174 | pinned in `vite.config.ts` (`strictPort`) |
 | refund-ui (remote) | 5175 | |
-| notify-ui (remote) | 5176 | notification center `/notify` (specs/005) |
-| admin-ui (remote) | 5177 | roles & permissions admin (specs/004) |
-| inventory-ui (remote) | 5178 | hardware inventory + `/devices` (specs/015) |
-| crm-ui (remote) | 5179 | CRM (specs/017) |
-| projects-ui (remote) | 5181 | Projects (specs/025) |
+| notify-ui (remote) | 5176 | notification center `/notify` (specs/20260713-notification-center) |
+| admin-ui (remote) | 5177 | roles & permissions admin (specs/20260713-auth-roles-permissions) |
+| inventory-ui (remote) | 5178 | hardware inventory + `/devices` (specs/20261006-hardware-inventory) |
+| crm-ui (remote) | 5179 | CRM (specs/20261101-crm) |
+| projects-ui (remote) | 5181 | Projects (specs/20261103-projects) |
 | auth | 3001 | Bun + Hono |
 | estimai-api | 8080 | Bun + Hono |
-| notify-api | 8081 | Bun + Hono — SSE push (specs/005) |
-| refund-api | 8082 | Bun + Hono — authz-enforcing resource server (specs/007) |
-| inventory-api | 8083 | Bun + Hono — authz-enforcing resource server (specs/015) |
-| crm-api | 8084 | Bun + Hono — authz-enforcing resource server (specs/017) |
-| projects-api | 8086 | Bun + Hono — authz-enforcing resource server (specs/025) |
-| activities-api | 8087 | Bun + Hono — activities and tasks of the CRM and Projects; access asked of the host (specs/028) |
+| notify-api | 8081 | Bun + Hono — SSE push (specs/20260713-notification-center) |
+| refund-api | 8082 | Bun + Hono — authz-enforcing resource server (specs/20260716-refund-service) |
+| inventory-api | 8083 | Bun + Hono — authz-enforcing resource server (specs/20261006-hardware-inventory) |
+| crm-api | 8084 | Bun + Hono — authz-enforcing resource server (specs/20261101-crm) |
+| projects-api | 8086 | Bun + Hono — authz-enforcing resource server (specs/20261103-projects) |
+| activities-api | 8087 | Bun + Hono — activities and tasks of the CRM and Projects; access asked of the host (specs/20261110-activities) |
 | Postgres | 5435 | `docker compose` (databases: `auth`, `estimai`, `notify`, `refund`, `inventory`, `crm`, `projects`, `activities`) |
 | MinIO | 9000 / 9001 | `docker compose` — local S3 + console for receipts and invoices |
 

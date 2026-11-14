@@ -1,12 +1,12 @@
 /**
- * Resend client wrapper (T2, specs/006-user-invitations, ADR-0011).
+ * Resend client wrapper (T2, specs/20260713-user-invitations, ADR 20260714-notify-api-email-channel-service-trust).
  *
  * A thin seam around the `resend` SDK so `src/channels/email.channel.ts` never
  * imports the SDK directly — keeps the provider swappable and gives the
  * channel a single narrow function to mock in tests.
  *
  * The client is constructed lazily (not at module-eval time): when
- * `EMAIL_ENABLED` is false (test/local default, ADR-0011/T2), `RESEND_API_KEY`
+ * `EMAIL_ENABLED` is false (test/local default, ADR 20260714-notify-api-email-channel-service-trust/T2), `RESEND_API_KEY`
  * is typically unset, and `new Resend(undefined)` would be a footgun waiting
  * to be called by mistake. `sendEmail()` is also never invoked in that mode —
  * the email channel stubs the send before this module's function is called —
@@ -45,7 +45,7 @@ export type SendEmailResult =
  * Sends one transactional email via Resend. Never throws — network/API
  * failures are translated into `{ ok: false, error }` so callers (the email
  * channel) can record `EmailDelivery.status = "failed"` and return a soft
- * failure rather than propagating a 5xx (plan.md §API contracts, ADR-0011).
+ * failure rather than propagating a 5xx (plan.md §API contracts, ADR 20260714-notify-api-email-channel-service-trust).
  *
  * `error` is a short, safe-to-store reason string — never the raw SDK/network
  * error object (log-hygiene posture shared with the rest of notify-api: no

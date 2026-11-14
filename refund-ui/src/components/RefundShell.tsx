@@ -5,7 +5,7 @@ import { strings } from '../strings'
 
 /**
  * RefundShell — refund-ui's own root layout (T14,
- * specs/007-refund-service/tasks.md: "RefundShell root layout: heading + a
+ * specs/20260716-refund-service/tasks.md: "RefundShell root layout: heading + a
  * two-item nav … + <Outlet/>, mirroring AdminShell"), wired as the inner
  * router's root route component (see ../router.tsx's
  * `createRootRoute({ component: RefundShell })`).
@@ -15,7 +15,7 @@ import { strings } from '../strings'
  * "Monthly processing" — design.md's `RefundShell` spec), and the
  * `<Outlet/>` the routes (../pages/*.tsx) render into. No suite chrome
  * duplicated here (Header/UserMenu/bell/ThemeToggle, sign-out, …) — per
- * ADR-0006 and design.md's own `RefundShell` note ("No suite chrome
+ * ADR 20260709-suite-frontend-module-federation and design.md's own `RefundShell` note ("No suite chrome
  * duplicated … that already wraps refund-ui from the shell"), that chrome
  * already exists once in the shell. No auth guard either — the shell's own
  * `_authed` guard already runs before refund-ui is ever mounted (same
@@ -26,10 +26,10 @@ import { strings } from '../strings'
  * comment this replaces claimed refund-ui had "no cheap way to know the
  * caller's permissions client-side" (design.md's Gap #7) — that premise is
  * now OUTDATED: the shell already resolves the caller's full effective
- * permission set (ADR-0007's `GET /authz/me`) and exposes it to every remote
+ * permission set (ADR 20260713-authz-hand-rolled-rbac-abac-epoch-claims's `GET /authz/me`) and exposes it to every remote
  * via `shell/session`'s `usePermissions()` (the exact same seam the shell's
  * own `Sidebar` uses to filter its tool list). `canReview` below is true for
- * ANY `request:review` grant, conditioned or not — entity-scoping (ADR-0015)
+ * ANY `request:review` grant, conditioned or not — entity-scoping (ADR 20260716-entity-scoped-abac-refund-api)
  * is enforced server-side per-request, so mere presence of the capability is
  * enough to decide whether the tab is worth showing at all. Before the
  * initial `/authz/me` fetch settles, `usePermissions()` synchronously returns
@@ -40,13 +40,13 @@ import { strings } from '../strings'
  * requests regardless of `request:review`.
  *
  * This client-side hide is UX-only defense-in-depth, NOT the real gate: the
- * server-side 403 (refund-api's `authzMiddleware`, ADR-0014) and the
+ * server-side 403 (refund-api's `authzMiddleware`, ADR 20260716-refund-api-authorization-enforcing-resource-server) and the
  * `PermissionDenied` screens on A1 (Review queue) / B1 (Monthly processing)
  * remain the actual enforcement — a deep link typed/followed by a
  * non-accounting user still lands on `PermissionDenied`, exactly as before.
  * Do not remove that handling on the strength of this nav change.
   *
- * Layout from @operai/ui (ADR-0050): `ToolLayout` (tool title + tabs + the
+ * Layout from @operai/ui (ADR 20261031-shared-ui-library-consumed-as-source): `ToolLayout` (tool title + tabs + the
  * page column — a <div>, not a second <main>: the shell's layout owns the
  * page's one main landmark) and `TabNav`. TanStack Router's <Link> sets
  * `aria-current="page"` on the active tab; the library's `.tab-link` styles
@@ -58,7 +58,7 @@ export default function RefundShell() {
   const canReview = permissions.some(
     (permission) => permission.resource === 'request' && permission.action === 'review',
   )
-  // Settings (moved from Admin, ADR-0023 amendment): rates or the distribution email.
+  // Settings (moved from Admin, ADR 20260720-mileage-rate-model-snapshot-admin-ui-composition amendment): rates or the distribution email.
   const canSeeSettings = permissions.some(
     (permission) =>
       (permission.resource === 'rate' || permission.resource === 'settings') && permission.action === 'read',

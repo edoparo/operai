@@ -235,7 +235,7 @@ describe('BatchDetailPage — resend email', () => {
   })
 })
 
-describe('BatchDetailPage — delivery status display (specs/011-refund-settings AC-2.2)', () => {
+describe('BatchDetailPage — delivery status display (specs/20260722-refund-settings AC-2.2)', () => {
   it('emailStatus:"blocked_unconfigured" renders the distinguishable, actionable blocked message', async () => {
     vi.mocked(batchesApi.get).mockResolvedValue({
       ...compiledBatch,

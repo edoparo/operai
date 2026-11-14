@@ -2,7 +2,7 @@
  * @vitest-environment jsdom
  *
  * Component tests for refund-ui's SettingsPage — moved from admin-ui's
- * MileageRatesPage on 2026-11-13 (ADR-0023 amendment; specs/009-mileage-rate/tasks.md T11, refs AC-4.1, AC-4.2, AC-4.3, AC-4.5,
+ * MileageRatesPage on 2026-11-13 (ADR 20260720-mileage-rate-model-snapshot-admin-ui-composition amendment; specs/20260720-mileage-rate/tasks.md T11, refs AC-4.1, AC-4.2, AC-4.3, AC-4.5,
  * AC-4.6, AC-5.3).
  *
  * Covers:
@@ -92,8 +92,8 @@ const readOnlyPermissions: Permissions = {
   permissions: [{ resource: 'rate', action: 'read', conditions: null }],
 }
 
-// T6, specs/011-refund-settings — grants BOTH settings:read and
-// settings:manage (mirrors ADR-0028's seed: the two are granted together to
+// T6, specs/20260722-refund-settings — grants BOTH settings:read and
+// settings:manage (mirrors ADR 20260722-settings-catalog-permission-config-not-rate's seed: the two are granted together to
 // admin/refund-admin), used for the accounting-distribution-email panel's
 // happy-path tests.
 const settingsManagePermissions: Permissions = {
@@ -197,7 +197,7 @@ describe('SettingsPage — loading', () => {
     render(<SettingsPage />)
 
     // 2 for the rate entities + 1 for the accounting-distribution-email panel
-    // (T6, specs/011-refund-settings) — with settings:read held it also starts
+    // (T6, specs/20260722-refund-settings) — with settings:read held it also starts
     // 'loading' on the very first synchronous render, before its getSetting()
     // call resolves.
     expect(screen.getAllByTestId('skeleton-list-rows')).toHaveLength(3)
@@ -579,7 +579,7 @@ describe('SettingsPage — add rate entry (Modal ADM-M1)', () => {
 })
 
 // ---------------------------------------------------------------------------
-// Accounting distribution email panel (T6, specs/011-refund-settings/tasks.md,
+// Accounting distribution email panel (T6, specs/20260722-refund-settings/tasks.md,
 // refs AC-1.1, AC-3.2, AC-5.3).
 // ---------------------------------------------------------------------------
 

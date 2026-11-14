@@ -1,6 +1,6 @@
 /**
  * Route tests for GET /push/config, PUT|GET /push/devices and DELETE /push/devices/{id}
- * (T5, specs/029-push-notifications, plan.md §API contracts, AC-1.2 / 1.5 / 3.1 / 3.2 /
+ * (T5, specs/20261111-push-notifications, plan.md §API contracts, AC-1.2 / 1.5 / 3.1 / 3.2 /
  * 3.3 / 5.3 / 6.1).
  *
  * Strategy mirrors list.routes.test.ts: real Postgres on a fresh Prisma client injected as

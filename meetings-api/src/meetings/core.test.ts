@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, spyOn } from "bun:test";
 import { createKit, type Kit } from "../test-support/routeKit";
 
-// AC-1.1 to AC-1.6, AC-1.8, AC-2.3, AC-3.5, AC-11.6 (specs/021 T19): create, get and patch
+// AC-1.1 to AC-1.6, AC-1.8, AC-2.3, AC-3.5, AC-11.6 (specs/20261104-meetings T19): create, get and patch
 // a meeting's metadata, language and source, through the real app and Postgres.
 
 const kit: Kit = await createKit();

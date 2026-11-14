@@ -1,6 +1,6 @@
 /**
  * EstimAI persistence journey — create / save / reload / reopen / delete,
- * running against the SHELL-MOUNTED EstimAI remote (T18, specs/003-suite-shell).
+ * running against the SHELL-MOUNTED EstimAI remote (T18, specs/20260709-suite-shell).
  *
  * ──────────────────────────────────────────────────────────────────────────
  * WHY THIS LIVES HERE (relocated from estimai-ui/e2e/persistence.spec.ts)

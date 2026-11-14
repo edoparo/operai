@@ -19,7 +19,7 @@ const t = strings.roles
 
 /**
  * RolesPage — Screen A1 (Roles list) + Modal M1 (Create role) — T17,
- * specs/004-auth-roles-permissions/tasks.md, refs AC-1.1, AC-2.4.
+ * specs/20260713-auth-roles-permissions/tasks.md, refs AC-1.1, AC-2.4.
  *
  * Replaces T14's placeholder with the real screen: a table (Name /
  * Description / System badge / rule count / Edit-Delete — design.md's "Key

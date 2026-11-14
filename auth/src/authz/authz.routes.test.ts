@@ -1,5 +1,5 @@
 /**
- * Integration tests for GET /authz/me (T6, specs/004-auth-roles-permissions
+ * Integration tests for GET /authz/me (T6, specs/20260713-auth-roles-permissions
  * — AC-4.1, AC-3.3, AC-4.4).
  *
  * Strategy: mock `../auth/auth.config` (the `auth` object `sessionMiddleware`

@@ -1,6 +1,6 @@
 /**
  * Pure, DB-free normalization + response mapping for the refund-settings
- * surface (T3, specs/011-refund-settings, plan.md § API contracts).
+ * surface (T3, specs/20260722-refund-settings, plan.md § API contracts).
  */
 
 import type { SettingRow } from "./repo";
@@ -24,7 +24,7 @@ export function isNoOpValue(normalized: string | null, current: string | null): 
 /**
  * Maps a setting key's FULL chronological history (oldest -> newest,
  * settings/repo.ts's `listSettingHistory`) to the shared GET/PUT response
- * shape. "Current" is derived as the LAST row (D1/D3, ADR-0013/0024
+ * shape. "Current" is derived as the LAST row (D1/D3, ADR 20260714-invitation-lifecycle-derived-expiry-state/0024
  * lineage) — an empty history means never configured (`configured: false`,
  * `value: null`, `updatedAt/updatedByEmail: null`, `history: []`).
  */

@@ -5,7 +5,7 @@ import { listCompanies } from '../lib/crmApi'
 import type { CompanySummary, Entity, LeadSource } from '../lib/types'
 import { strings } from '../strings'
 
-/** `source`: the company's own (specs/017 US-7), which a new deal starts from. */
+/** `source`: the company's own (specs/20261101-crm US-7), which a new deal starts from. */
 export type CompanyChoice = {
   id: string
   name: string

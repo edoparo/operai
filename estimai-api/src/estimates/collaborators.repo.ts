@@ -1,6 +1,6 @@
 /**
  * Prisma data-access layer for collaborator management (T8/T9,
- * specs/013-estimate-sharing, plan.md "Data model" / "API contracts —
+ * specs/20260807-estimate-sharing, plan.md "Data model" / "API contracts —
  * estimai-api — new").
  *
  * This module is DB-only — it never calls `auth` (that requires the caller's
@@ -294,7 +294,7 @@ export const deleteCollaboratorByUserId = (
 // ─── T10 — notification wiring ─────────────────────────────────────────────
 
 /**
- * Reads a single estimate's current `name` (T10, specs/013-estimate-sharing,
+ * Reads a single estimate's current `name` (T10, specs/20260807-estimate-sharing,
  * plan.md "Notifications (US-7)"). The ONLY thing `POST`/owner-initiated
  * `DELETE .../collaborators/{collaboratorId}` need from the `estimate` row
  * that isn't already carried by `resolveAccess`'s narrower `{level, version,

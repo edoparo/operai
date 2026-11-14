@@ -17,7 +17,7 @@ export type TurnProps = {
 
 /**
  * One question and its answer. The question and the AI's answer are plain text — React text nodes in
- * a `whitespace-pre-line` paragraph, never HTML or Markdown (ADR-0067).
+ * a `whitespace-pre-line` paragraph, never HTML or Markdown (ADR 20261104-ai-output-structured-validated-plain-text).
  */
 export function Turn({ meetingId, turn, onOpenSource, onRetry, onOpenNotice }: TurnProps) {
   const answer = turn.status === 'answered' ? turn.answer : null

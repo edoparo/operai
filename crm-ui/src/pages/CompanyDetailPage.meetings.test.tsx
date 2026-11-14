@@ -1,7 +1,7 @@
 /**
  * @vitest-environment jsdom
  *
- * AC-11.7 (specs/021): in this release the company page does not roll up its
+ * AC-11.7 (specs/20261104-meetings): in this release the company page does not roll up its
  * deals' meetings. Only the deal page hosts the Meetings extension; the company
  * page renders no extension and never even imports the seam.
  */

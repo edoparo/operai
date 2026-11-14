@@ -1,5 +1,5 @@
 /**
- * Invoice files (T21, specs/015-hardware-inventory; AC-10.4 to AC-10.7).
+ * Invoice files (T21, specs/20261006-hardware-inventory; AC-10.4 to AC-10.7).
  * Real router + middleware over the harness, real Postgres. Most tests replace
  * the storage layer's network calls (HEAD/DELETE) with an in-memory bucket and
  * keep real request signing; the last block runs mint -> upload -> confirm ->

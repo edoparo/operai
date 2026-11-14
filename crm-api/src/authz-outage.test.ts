@@ -1,6 +1,6 @@
 /**
- * AC-5.1 / ADR-0014: an `auth` outage on /authz/resolve is a 503, never an allow.
- * Added by QE (specs/017-crm). The resolve fixture is restored in `finally`
+ * AC-5.1 / ADR 20260716-refund-api-authorization-enforcing-resource-server: an `auth` outage on /authz/resolve is a 503, never an allow.
+ * Added by QE (specs/20261101-crm). The resolve fixture is restored in `finally`
  * because the test harness is shared by every file in the process.
  */
 import { beforeEach, describe, expect, it } from "bun:test";

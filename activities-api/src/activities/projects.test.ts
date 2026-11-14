@@ -1,5 +1,5 @@
 /**
- * Project tasks (specs/028 US-3, US-5, US-6; AC-3.1..3.3, 3.6..3.8, 5.1, 5.2, 6.1, 6.2, 8.1..8.3),
+ * Project tasks (specs/20261110-activities US-3, US-5, US-6; AC-3.1..3.3, 3.6..3.8, 5.1, 5.2, 6.1, 6.2, 8.1..8.3),
  * against the projects test host. Same routes and same code as the CRM's; the differences are the
  * registry's data and the host's answer, which is what these tests pin.
  *

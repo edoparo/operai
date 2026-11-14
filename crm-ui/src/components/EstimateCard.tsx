@@ -29,7 +29,7 @@ const GATED_STAGES = ['lead', 'qualified']
 type Dialog = 'request' | 'unlink' | 'override' | null
 
 /**
- * EstimateCard — the deal's technical estimate (specs/018 US-3): none (request
+ * EstimateCard — the deal's technical estimate (specs/20261101-crm-sales-flow US-3): none (request
  * it), or linked (state, who, when, the link into EstimAI) with the actions the
  * caller may take. Every action answers with the updated deal, which the page
  * adopts (`onChanged`). Visibility of each button mirrors the server's rule;

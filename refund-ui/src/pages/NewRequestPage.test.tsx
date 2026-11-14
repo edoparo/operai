@@ -1,7 +1,7 @@
 /**
  * @vitest-environment jsdom
  *
- * Component tests for NewRequestPage (T16, specs/007-refund-service/
+ * Component tests for NewRequestPage (T16, specs/20260716-refund-service/
  * tasks.md, design.md F1 step 1). Covers: the spinner while `POST
  * /requests` is in flight, a successful create redirecting to Screen R2,
  * and a failed create rendering "Try again" / "Back to my requests".

@@ -1,6 +1,6 @@
 /**
  * ApproveAccessRequestModal — the approve dialog of the Access requests screen
- * (T9, specs/023, design.md S2). A `FormDialog` with the two library
+ * (T9, specs/20261105-signup-gate, design.md S2). A `FormDialog` with the two library
  * `CheckboxGroupField`s (roles, departments), none preselected, exactly like
  * `InviteUserModal` minus the email input (the requester's address is fixed).
  *

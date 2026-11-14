@@ -1,9 +1,9 @@
 /**
  * googlePlaces — the Google Places API (New) client module (T7,
- * specs/012-employee-address/tasks.md, refs AC-2.1, AC-2.2, AC-2.4, AC-2.5,
- * AC-3.2; ADR-0032; plan.md "Google Maps autocomplete").
+ * specs/20260803-employee-address/tasks.md, refs AC-2.1, AC-2.2, AC-2.4, AC-2.5,
+ * AC-3.2; ADR 20260804-google-places-browser-direct-referrer-restricted-key; plan.md "Google Maps autocomplete").
  *
- * Browser-direct, never proxied through `auth` (ADR-0032 decision #1) — the
+ * Browser-direct, never proxied through `auth` (ADR 20260804-google-places-browser-direct-referrer-restricted-key decision #1) — the
  * admin's browser calls Google using a public, referrer-restricted,
  * API-restricted, quota-capped key (`VITE_GOOGLE_MAPS_API_KEY`,
  * admin-ui's first `import.meta.env.VITE_*`).
@@ -18,7 +18,7 @@
  * ⚠ `locationBias` is used for the CH/IT ranking preference (AC-2.4).
  * `includedRegionCodes` MUST NEVER be set on the constructed request — it is
  * a RESTRICTION, not a bias, and would make every non-CH/IT address
- * unreachable, silently violating AC-2.4 (ADR-0032 decision #3, plan.md R3).
+ * unreachable, silently violating AC-2.4 (ADR 20260804-google-places-browser-direct-referrer-restricted-key decision #3, plan.md R3).
  * `googlePlaces.test.ts` asserts the constructed request object HAS
  * `locationBias` and DOES NOT HAVE `includedRegionCodes`.
  *
@@ -184,7 +184,7 @@ export const ADDRESS_PRIMARY_TYPES = ['street_address', 'route', 'premise', 'sub
  * `AutocompleteSuggestion.fetchAutocompleteSuggestions()`.
  *
  * ⚠ Deliberately never adds `includedRegionCodes` — see this module's doc
- * comment and plan.md R3 / ADR-0032. `locationBias` is a preference;
+ * comment and plan.md R3 / ADR 20260804-google-places-browser-direct-referrer-restricted-key. `locationBias` is a preference;
  * `includedRegionCodes` would be a restriction and would break AC-2.4.
  */
 export const buildAutocompleteRequest = (

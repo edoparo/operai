@@ -1,6 +1,6 @@
 /**
  * PermissionDenied — in-place authorization-failure state (T22,
- * specs/004-auth-roles-permissions, design.md Screen E1: "Permission denied
+ * specs/20260713-auth-roles-permissions, design.md Screen E1: "Permission denied
  * (in-place, admin-ui)").
  *
  * Fires when an admin API call returns `403` *after* admin-ui is already
@@ -34,7 +34,7 @@
  * screen) is responsible for catching it and rendering this component
  * instead of its normal content.
  *
- * `message` (T11, specs/009-mileage-rate, design.md "Gaps" — first
+ * `message` (T11, specs/20260720-mileage-rate, design.md "Gaps" — first
  * section-level 403 in this app): every screen up to this feature shares the
  * whole-tool 403 boundary, so the generic "You no longer have admin access"
  * copy has always been correct. A section-level 403 is narrower (the Mileage

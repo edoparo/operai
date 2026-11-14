@@ -1,6 +1,6 @@
 /**
  * RoutePendingFallback — the router's content-area pending fallback (QE fix,
- * specs/012-employee-address: extracted out of `router.tsx`).
+ * specs/20260803-employee-address: extracted out of `router.tsx`).
  *
  * Shown ONLY while an app-switch (or cold-cache) tool route's `beforeLoad` is
  * awaiting its Promise (`createToolAccessBeforeLoad` → `revalidatePermissions()`

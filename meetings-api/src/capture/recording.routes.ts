@@ -1,11 +1,11 @@
 /**
  * Browser recording: start, chunk confirm, chunk re-mint, heartbeat, stop,
- * process and discard (specs/021-meetings plan.md § Browser capture, § API
+ * process and discard (specs/20261104-meetings plan.md § Browser capture, § API
  * contracts "Capture"; AC-2.1, AC-2.6..AC-2.11; amendments A1, A2, G3).
  *
  * The chunk protocol in one paragraph. `start` creates the ONE live session and
  * returns the presigned POST for seq 0; the browser POSTs the chunk straight to the
- * bucket (ADR-0016, never through here) and then calls `confirm`, which HEADs the
+ * bucket (ADR 20260716-eu-object-storage-refund-attachments, never through here) and then calls `confirm`, which HEADs the
  * object and answers with the policy for seq + 1. While paused, or while chunks are
  * queued offline, a heartbeat every 30 s keeps the meeting from reading
  * `interrupted` (which is DERIVED from `lastChunkAt` / `lastBeatAt`, never written

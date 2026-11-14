@@ -1,6 +1,6 @@
 /**
  * Unit tests for src/lib/addressApi.ts — typed API client for `auth`'s
- * employee-address surface (T9, specs/012-employee-address/tasks.md, refs
+ * employee-address surface (T9, specs/20260803-employee-address/tasks.md, refs
  * AC-1.1, AC-1.2, AC-1.3, AC-5.3).
  *
  * Strategy mirrors ratesApi.test.ts exactly: `shell/session`'s `apiFetch` is

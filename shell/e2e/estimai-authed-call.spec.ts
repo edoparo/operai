@@ -1,5 +1,5 @@
 /**
- * T16 — Authenticated backend calls succeed inside the shell (specs/003-suite-shell)
+ * T16 — Authenticated backend calls succeed inside the shell (specs/20260709-suite-shell)
  *
  * Refs: AC-2.2 — a signed-in user opening a tool (EstimAI) makes authenticated
  * backend calls (to estimai-api) succeed without any further sign-in prompt.

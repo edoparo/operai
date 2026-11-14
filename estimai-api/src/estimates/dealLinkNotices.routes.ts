@@ -1,7 +1,7 @@
 /**
  * POST /system/deal-link-notices — crm-api tells EstimAI which CRM deal an
- * estimate belongs to, or that it no longer does (specs/024 US-3, AC-3.3,
- * AC-3.5, AC-3.6; ADR-0076, the mirror of ADR-0073). EstimAI keeps the link as
+ * estimate belongs to, or that it no longer does (specs/20261108-estimate-list-oversight US-3, AC-3.3,
+ * AC-3.5, AC-3.6; ADR 20261108-crm-pushes-deal-links-to-estimai, the mirror of ADR 20261105-estimai-closes-the-estimate-crm-follows). EstimAI keeps the link as
  * two columns, `crmDealId` and `crmLinkAt`, and shows the deal on the list.
  *
  * Service-to-service only: a service JWT of `system:crm-api` with scope
@@ -21,7 +21,7 @@
  *     undoes cannot land afterwards. Where it is linked to a DIFFERENT deal it
  *     changes nothing at all, `crmLinkAt` included: advancing it would shut out
  *     the newer link's own notice if that arrives late. (The CRM never relinks
- *     an estimate — a new request is a new estimate, specs/018 AC-3.1 — so that
+ *     an estimate — a new request is a new estimate, specs/20261101-crm-sales-flow AC-3.1 — so that
  *     branch is a guard, not a flow.)
  *
  * Raw SQL, not `updateMany`: Prisma's `@updatedAt` would stamp the estimate as

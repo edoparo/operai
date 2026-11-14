@@ -1,9 +1,9 @@
 /**
  * @vitest-environment jsdom
  *
- * Tests for resolveRuntimeRemotes (specs/015-hardware-inventory, T41, AC-9.6):
+ * Tests for resolveRuntimeRemotes (specs/20261006-hardware-inventory, T41, AC-9.6):
  * the `inventory` remote follows the exact shape of the other four — resolved
- * from the runtime config when present, omitted when absent (ADR-0006).
+ * from the runtime config when present, omitted when absent (ADR 20260709-suite-frontend-module-federation).
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { resolveRuntimeRemotes } from './runtimeRemotes'
@@ -32,7 +32,7 @@ describe('resolveRuntimeRemotes', () => {
     ])
   })
 
-  it('resolves the projects remote from window.__OPERAI_RUNTIME_CONFIG__ (specs/025-projects)', async () => {
+  it('resolves the projects remote from window.__OPERAI_RUNTIME_CONFIG__ (specs/20261103-projects)', async () => {
     window.__OPERAI_RUNTIME_CONFIG__ = { projects: 'https://projects.example.test/remoteEntry.js' }
 
     await expect(resolveRuntimeRemotes()).resolves.toEqual([
@@ -61,7 +61,7 @@ describe('resolveRuntimeRemotes', () => {
     expect(remotes.map((r) => r.name)).toEqual(['inventory'])
   })
 
-  it('resolves the meetings remote from window.__OPERAI_RUNTIME_CONFIG__ (specs/021-meetings)', async () => {
+  it('resolves the meetings remote from window.__OPERAI_RUNTIME_CONFIG__ (specs/20261104-meetings)', async () => {
     window.__OPERAI_RUNTIME_CONFIG__ = { meetings: 'https://meetings.example.test/remoteEntry.js' }
 
     await expect(resolveRuntimeRemotes()).resolves.toEqual([

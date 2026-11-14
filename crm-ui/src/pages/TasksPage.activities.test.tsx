@@ -1,7 +1,7 @@
 /**
  * @vitest-environment jsdom
  *
- * TasksPage on activities-api (specs/028): CRM tasks are read from activities-api, pre-sales only
+ * TasksPage on activities-api (specs/20261110-activities): CRM tasks are read from activities-api, pre-sales only
  * (AC-1.1), and when it cannot answer (`host_unavailable`, `maintenance`) the list area says so with
  * Retry while the header, filter and tabs stay (AC-1.5) — words distinct from the authorization outage.
  */

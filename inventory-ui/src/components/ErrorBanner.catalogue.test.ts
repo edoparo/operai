@@ -1,5 +1,5 @@
 /**
- * The error catalogue's string contract (T25, specs/015-hardware-inventory;
+ * The error catalogue's string contract (T25, specs/20261006-hardware-inventory;
  * design.md § Error and conflict catalogue). Lives under components/ because
  * the catalogue is what ErrorBanner, GuardrailDialog and the field errors
  * present; it must not live in src/strings/, where strings.test.ts treats

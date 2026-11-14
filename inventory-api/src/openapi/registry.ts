@@ -10,7 +10,7 @@ export function setupOpenAPI(app: OpenAPIHono): void {
       version: "0.1.0",
       description:
         "Hardware inventory and depreciation register for the Inventory tool " +
-        "(specs/015-hardware-inventory): assets, assignments, the " +
+        "(specs/20261006-hardware-inventory): assets, assignments, the " +
         "depreciation ledger and fiscal-year roll-forward, invoice files and " +
         "an immutable history. Requires a valid RS256 Bearer JWT issued by " +
         "the Operai auth service.",

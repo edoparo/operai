@@ -1,9 +1,9 @@
 /**
- * Depreciation schedule and per-year figures (specs/015 plan § "Schedule function", ADR-0046).
+ * Depreciation schedule and per-year figures (specs/20261006-hardware-inventory plan § "Schedule function", ADR 20261006-depreciation-derived-on-read-closed-years-snapshotted).
  *
  * Pure: no I/O, no Prisma, no env, no clock. All amounts are integer cents; the only rounding is
  * `roundHalfUp` (money.ts), and the final year of every schedule takes the remainder so the book
- * value lands exactly on the residual (ADR-0025: round once, one canonical rule).
+ * value lands exactly on the residual (ADR 20260720-mileage-rate-money-precision-integer-micros: round once, one canonical rule).
  *
  * Years are plain integers (the purchase *year*, never a date): there is no pro-rata, so a 1 Jan
  * and a 31 Dec purchase are the same input (AC-5.2).

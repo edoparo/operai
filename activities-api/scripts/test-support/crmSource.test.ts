@@ -1,5 +1,5 @@
 /**
- * The source helper's own contract (specs/028 QE D9): the databases a test hook writes to do not
+ * The source helper's own contract (specs/20261110-activities QE D9): the databases a test hook writes to do not
  * wait for the disk at commit, and the helper only ever creates, changes and drops `*_test` and
  * `import_src_*` databases.
  */

@@ -1,7 +1,7 @@
 /**
  * @vitest-environment jsdom
  *
- * Component tests for ThemeToggle (T6, specs/003-suite-shell, AC-1.4).
+ * Component tests for ThemeToggle (T6, specs/20260709-suite-shell, AC-1.4).
  *
  * Covers the cycle system → light → dark → system, the aria-label/title reflecting
  * the current theme (THEME_LABEL), persistence to localStorage under the

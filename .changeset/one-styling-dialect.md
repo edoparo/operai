@@ -8,7 +8,7 @@
 "@operai/inventory-ui": patch
 ---
 
-One styling dialect across the suite (ADR-0051): colours and fonts are Tailwind
+One styling dialect across the suite (ADR 20261031-one-styling-dialect-token-utilities): colours and fonts are Tailwind
 utilities generated from the shared design tokens, never inline styles, and a
 lint rule keeps it that way. Hover and focus colours now apply where inline
 colours used to override them, date pickers follow the light theme, EstimAI's

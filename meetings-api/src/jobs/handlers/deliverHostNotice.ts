@@ -3,7 +3,7 @@ import { attemptDelivery, noticeRetryDelayMs } from "../../hosts/notices";
 import { TransientJobError, type JobHandler } from "../runner";
 
 /**
- * Delivers an `unlinked` / `deleted` host notice until it is delivered (specs/021 T20,
+ * Delivers an `unlinked` / `deleted` host notice until it is delivered (specs/20261104-meetings T20,
  * AC-14.6; plan.md § Host integration contract → "Delivery"). The job was queued with the
  * notice, due a minute after the change; each failure re-queues it through the runner
  * (`TransientJobError` with the schedule's delay: 5 m, 30 m, 2 h, then every 6 h) and its

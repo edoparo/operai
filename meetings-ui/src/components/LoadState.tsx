@@ -28,7 +28,7 @@ export type LoadFailureProps = {
 /**
  * The failed-load state, sorted by `describeFailure` (lib/errors.ts):
  * 403 → PermissionDenied; 404 → the not-found panel; 503 from `auth` → the "authorization service
- * unavailable" banner (ADR-0014, AC-10.6); a 403 that means "you can open this but not do that"
+ * unavailable" banner (ADR 20260716-refund-api-authorization-enforcing-resource-server, AC-10.6); a 403 that means "you can open this but not do that"
  * (frozen, creator only) → an inline warning, not a replaced page; anything else → a warning
  * banner with the message. Everything but the 403 and the 404 offers Retry.
  */

@@ -1,7 +1,7 @@
 /**
  * Shell frame contract — the DOCUMENT must never scroll; only `<main>` may.
  *
- * ADR-0006 gives the shell the frame. `ShellLayout` realises it as a fixed-viewport
+ * ADR 20260709-suite-frontend-module-federation gives the shell the frame. `ShellLayout` realises it as a fixed-viewport
  * frame: header and footer pinned (`shrink-0`), the root `h-screen overflow-hidden`,
  * and exactly one scroll region — `<main>` (`flex-1 overflow-y-auto`). `<main>`
  * scrolling as far as its content is CORRECT and expected (the admin user-detail
@@ -73,7 +73,7 @@ async function expectNoDocumentScroll(page: Page, where: string): Promise<void> 
     `${where}: the document scrolls ${overshoot}px beyond the viewport. In the shell's ` +
       `fixed-viewport frame only <main> may scroll. The usual cause is an absolutely-positioned ` +
       `element (Tailwind's \`sr-only\` is \`position: absolute\`) escaping <main>'s overflow clip ` +
-      `because <main> lost its \`relative\` class — see ShellLayout and ADR-0006.` +
+      `because <main> lost its \`relative\` class — see ShellLayout and ADR 20260709-suite-frontend-module-federation.` +
       (escaped.length ? `\nEscaped elements: ${escaped.join(', ')}` : ''),
   ).toBeLessThanOrEqual(ROUNDING_TOLERANCE_PX)
 }
@@ -92,7 +92,7 @@ async function expectNoDocumentScroll(page: Page, where: string): Promise<void> 
  * worse than a narrower guard that is always meaningful. The case below seeds its
  * OWN admin user, so it is self-sufficient and unaffected by that drift.
  */
-test.describe('ADR-0006 frame contract: only <main> scrolls, never the document', () => {
+test.describe('ADR 20260709-suite-frontend-module-federation frame contract: only <main> scrolls, never the document', () => {
   test('the admin user-detail page — taller than the viewport, with sr-only text below the fold', async ({
     browser,
   }) => {

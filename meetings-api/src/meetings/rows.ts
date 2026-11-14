@@ -1,5 +1,5 @@
 /**
- * `MeetingRow`: the compact meeting every LIST returns (specs/021-meetings plan.md
+ * `MeetingRow`: the compact meeting every LIST returns (specs/20261104-meetings plan.md
  * § API contracts; AC-10.2, AC-10.3, AC-11.2). Three lists share it (My meetings, a host
  * entity's meetings, the linkable meetings), so how a row's derived status, summary count,
  * creator and host label are decided lives here once.

@@ -1,7 +1,7 @@
 /**
  * @vitest-environment jsdom
  *
- * useScope (T28, specs/015-hardware-inventory; plan.md § API contracts
+ * useScope (T28, specs/20261006-hardware-inventory; plan.md § API contracts
  * `GET /scope`; design.md Resolutions G1/G11): loads the entities each
  * capability covers and derives "empty" — both lists empty — which the tool
  * layout turns into the "no entity in your scope" state.

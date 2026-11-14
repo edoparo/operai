@@ -1,6 +1,6 @@
 /**
  * mixer — the Web Audio graph that turns "microphone, and maybe the audio of a shared tab" into
- * ONE stream for the `MediaRecorder` (specs/021-meetings plan § Browser capture, AC-2.4/2.5):
+ * ONE stream for the `MediaRecorder` (specs/20261104-meetings plan § Browser capture, AC-2.4/2.5):
  *
  *   microphone ──▶ MediaStreamSource ─┐
  *                                      ├─▶ MediaStreamAudioDestination ──▶ output (to the recorder)

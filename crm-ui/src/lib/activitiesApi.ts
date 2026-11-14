@@ -1,6 +1,6 @@
 /**
  * activitiesApi — typed calls for the activity and task routes of activities-api
- * (specs/028-activities/plan.md § API contracts). These moved out of `crmApi.ts`:
+ * (specs/20261110-activities/plan.md § API contracts). These moved out of `crmApi.ts`:
  * activities-api owns them now, crm-api only answers its host `resolve` call.
  *
  * Same transport as crm-api (`apiFetch` through `shell/session`, Problem JSON →
@@ -30,16 +30,16 @@ export type ActivityInput = {
   subject: string
   companyId: string
   body?: string | null
-  /** Tasks only: the rich description (ADR-0089); it may show only images the task already has. */
+  /** Tasks only: the rich description (ADR 20261113-task-description-files-in-activities-api-bucket); it may show only images the task already has. */
   description?: RichTextDoc | null
   occurredAt?: string
   contactId?: string | null
   dealId?: string | null
   dueDate?: string | null
   assigneeUserId?: string
-  /** Tasks only: the whole set of tasks this one waits on (specs/017 US-6). */
+  /** Tasks only: the whole set of tasks this one waits on (specs/20261101-crm US-6). */
   blockedByIds?: string[]
-  /** The whole set of colleagues who took part (specs/017 US-8). */
+  /** The whole set of colleagues who took part (specs/20261101-crm US-8). */
   participantIds?: string[]
 }
 
@@ -77,7 +77,7 @@ export const listTasks = (params: TaskListQuery, init?: Init) =>
 export const listTaskAssignees = (init?: Init) =>
   getJson<{ items: PersonRef[] }>(`/tasks/assignees${query({ kind: 'pre_sales' })}`, init)
 
-// ─── A task's files (ADR-0089) ───────────────────────────────────────────────
+// ─── A task's files (ADR 20261113-task-description-files-in-activities-api-bucket) ───────────────────────────────────────────────
 // Two phases, like a deal's attachments: activities-api mints a presigned POST, the browser sends
 // the bytes straight to the bucket (plain `fetch`, never the Bearer token), then confirms.
 

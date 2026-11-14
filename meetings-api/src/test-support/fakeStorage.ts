@@ -1,5 +1,5 @@
 /**
- * An in-memory `Storage` for tests (specs/021-meetings). It keeps the same
+ * An in-memory `Storage` for tests (specs/20261104-meetings). It keeps the same
  * contract as the real one: the same fixed keys, the same refusals (a content
  * type outside the allowlist, a prefix that is not exactly one meeting's), and
  * the same "an outage throws" behaviour, so route tests exercise the 503 paths

@@ -1,4 +1,4 @@
-/** How a person (an Operai user) is shown and picked (ADR-0039, ADR-0047). */
+/** How a person (an Operai user) is shown and picked (ADR 20260807-live-identity-resolution-by-id-fail-soft, ADR 20261006-user-directory-endpoint-capability-gated). */
 const en = {
   deleted: 'Deleted user',
   unknown: 'Unknown user',

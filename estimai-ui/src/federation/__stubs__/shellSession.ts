@@ -1,5 +1,5 @@
 // Test-only resolution stub for the `shell/session` federated module (T13,
-// specs/003-suite-shell/tasks.md).
+// specs/20260709-suite-shell/tasks.md).
 //
 // Vite's import-analysis needs a real, resolvable module for every
 // static import specifier in a transformed file — even one a test's

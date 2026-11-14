@@ -1,6 +1,6 @@
 /**
  * Letterhead, place of issue and standard terms of each wellD entity
- * (specs/018 O2; specs/020 US-2).
+ * (specs/20261101-crm-sales-flow O2; specs/20261102-crm-offer-document US-2).
  *
  *   GET  /entity-profiles                           deal:financials (the terms are commercial)
  *   PUT  /entity-profiles/{entity}                  deal:manage covering that entity
@@ -12,7 +12,7 @@
  * of it: only the upload flow moves them). Not an audit record: the offers
  * snapshot what they printed, so changing the letterhead never rewrites one.
  *
- * The letterhead upload is two-phase like the deal attachments (ADR-0016
+ * The letterhead upload is two-phase like the deal attachments (ADR 20260716-eu-object-storage-refund-attachments
  * posture): the browser POSTs straight to the EU bucket under
  * `letterheads/<entity>/<uuid>.pdf`, then confirm reads the object, checks it
  * with pdf-lib (one A4 page) and only then points the profile at it. A key

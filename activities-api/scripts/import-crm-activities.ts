@@ -1,5 +1,5 @@
 /**
- * One-off import of the CRM's activities into activities-api (specs/028 US-2, ADR-0083).
+ * One-off import of the CRM's activities into activities-api (specs/20261110-activities US-2, ADR 20261110-activities-migration-write-pause).
  *
  *   CRM_DATABASE_URL=<url> DATABASE_URL=<url> bun scripts/import-crm-activities.ts [--apply]
  *
@@ -19,7 +19,7 @@
  *   would produce. Any difference, or a meeting already mirrored by another activity, is a
  *   mismatch: nothing is written (not even the rows that would have been fine) and the exit
  *   code is 1 (AC-2.3).
- * - The copy is trusted by a count, not by its exit code (ADR-0083): per table the report shows
+ * - The copy is trusted by a count, not by its exit code (ADR 20261110-activities-migration-write-pause): per table the report shows
  *   found / inserted / already present / mismatched, and with `--apply` the target is re-read
  *   INSIDE the transaction and compared again; unless every source row is present with equal
  *   fields the transaction rolls back and the exit code is 1.
@@ -31,7 +31,7 @@
  *   bodies are free text about clients. Connection strings are never printed.
  *
  * Exit codes: 0 accounted for (dry run: nothing in the way), 1 mismatch or failure, 2 usage.
- * Pause activities-api writes first (ACTIVITIES_MAINTENANCE=true, ADR-0083): with writes on
+ * Pause activities-api writes first (ACTIVITIES_MAINTENANCE=true, ADR 20261110-activities-migration-write-pause): with writes on
  * either side the count proves nothing.
  */
 

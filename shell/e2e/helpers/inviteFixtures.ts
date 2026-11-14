@@ -1,5 +1,5 @@
 /**
- * Test-only fixture bridge for specs/006-user-invitations e2e (T14).
+ * Test-only fixture bridge for specs/20260713-user-invitations e2e (T14).
  *
  * Two things this feature's e2e needs have NO production-facing seam:
  *   1. Granting the `admin` role to a freshly test-auth-seeded @operai.test
@@ -43,7 +43,7 @@ const SCRIPT_ARGS = ['run', 'scripts/e2e-invite-fixtures.ts']
  *
  * The previous order (direnv-only) made this harness require an unlocked
  * 1Password vault even on machines whose `auth/.env` already had everything
- * the script needs — which is why specs/012's e2e could not be executed at
+ * the script needs — which is why specs/20260803-employee-address's e2e could not be executed at
  * all on 2026-08-04. Preferring `bun` costs nothing when direnv IS the setup
  * (the fallback still runs) and unblocks the machines where it isn't.
  */

@@ -2,7 +2,7 @@
  * Wire-level helpers shared by the estimate routers (estimates.routes.ts and
  * lifecycle.routes.ts): RFC 7807 Problem bodies + their OpenAPI schemas, the
  * `If-Match` parser, and the repo-row → wire-shape mapping with live,
- * fail-soft display identities (ADR-0039).
+ * fail-soft display identities (ADR 20260807-live-identity-resolution-by-id-fail-soft).
  *
  * Moved out of estimates.routes.ts verbatim (behaviour unchanged) when the
  * close/reopen routes needed the same pieces: importing estimates.routes.ts
@@ -41,8 +41,8 @@ export const problemPayloadTooLarge = (path: string, actualBytes: number, limitB
   instance: path,
 });
 
-// T6 (specs/013-estimate-sharing) — the 403 half of the denial taxonomy
-// (ADR-0037): a relationship to the record exists but the caller's level is
+// T6 (specs/20260807-estimate-sharing) — the 403 half of the denial taxonomy
+// (ADR 20260807-denial-taxonomy-shared-records-403-vs-404): a relationship to the record exists but the caller's level is
 // insufficient for the attempted operation. `code` is the stable
 // machine-readable discriminant the plan's API contracts specify
 // (e.g. "owner_only").
@@ -55,7 +55,7 @@ export const problemForbidden = (path: string, detail: string, code: string) => 
   instance: path,
 });
 
-// T7 (specs/013-estimate-sharing, ADR-0038) — `If-Match` is REQUIRED on PUT
+// T7 (specs/20260807-estimate-sharing, ADR 20260807-optimistic-concurrency-version-if-match-cas-amends-0004) — `If-Match` is REQUIRED on PUT
 // (and on close/reopen). Absent or malformed → 428, checked BEFORE the size
 // guard and BEFORE any DB access (plan.md's fixed evaluation order: 401 → 400
 // → 428 → 413 → 404/403 → 409), so a request that never carried a usable
@@ -107,7 +107,7 @@ export const problemEstimateState = (path: string, err: EstimateStateError) => (
   instance: path,
 });
 
-// specs/024 (ADR-0075) — oversight. `oversight_required`: `whose=all` without
+// specs/20261108-estimate-list-oversight (ADR 20261108-estimai-oversight-permission-amends-0036) — oversight. `oversight_required`: `whose=all` without
 // `estimate:read-all`. `oversight_read_only`: a write on an estimate the caller
 // may read only through that permission. `authz_unavailable`: `auth` could not
 // answer on a path that needs it — fail closed, never "allow".
@@ -174,13 +174,13 @@ export const parseIfMatch = (raw: string | undefined | null): number | null => {
   return Number.isInteger(version) && version >= 1 ? version : null;
 };
 
-// ─── Display identity helpers (T6, specs/013-estimate-sharing) ──────────────
+// ─── Display identity helpers (T6, specs/20260807-estimate-sharing) ──────────────
 //
 // Repo functions return raw `sub`s — never a resolved identity (that requires
 // an outbound `auth` call using the CALLER'S OWN Bearer token, which only
 // exists in the route handler). Resolution goes through
 // authClient.resolveIdentities (fails SOFT — never throws, degrades to
-// "unknown" — ADR-0039) and the `id` field is stripped before it reaches the
+// "unknown" — ADR 20260807-live-identity-resolution-by-id-fail-soft) and the `id` field is stripped before it reaches the
 // wire: the response Identity shape is {status, name} only, never a raw sub.
 
 export type IdentityResolver = typeof resolveIdentities;

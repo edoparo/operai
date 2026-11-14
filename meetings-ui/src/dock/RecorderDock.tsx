@@ -1,11 +1,11 @@
 /**
- * RecorderDock — the recorder widget (`./RecorderDock`, spec A13, ADR-0078): what the shell's floating slot shows
+ * RecorderDock — the recorder widget (`./RecorderDock`, spec A13, ADR 20261110-shell-floating-slot-for-remote-widgets): what the shell's floating slot shows
  * while a recording runs and the person is elsewhere in Operai. The shell owns the frame (position, dragging,
  * the fallback when this module cannot load); this owns the content: the state, the elapsed time, how loud the
  * microphone ("in") and the shared tab ("out") are, Pause / Resume, Stop, a way back to the meeting and, when the
  * meeting has one, its agenda with the covered ticks.
  *
- * Props are plain strings (ADR-0060). The live session is found through the hand-off (`dockSession`): a widget
+ * Props are plain strings (ADR 20261104-host-extension-federated-panel-through-the-shell). The live session is found through the hand-off (`dockSession`): a widget
  * mounted with no session in this tab (it ended, or the module was loaded twice) shows only the way back.
  */
 import { Button, Icon, VisuallyHidden, formatDuration } from '@operai/ui'

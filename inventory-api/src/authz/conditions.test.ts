@@ -1,6 +1,6 @@
 /**
  * Unit tests for inventory-api's condition evaluators (T7, specs/015-hardware-
- * inventory; AC-9.4, AC-9.5; ADR-0007/0014/0015). Pure functions: no DB, no
+ * inventory; AC-9.4, AC-9.5; ADR 20260713-authz-hand-rolled-rbac-abac-epoch-claims/0014/0015). Pure functions: no DB, no
  * network.
  */
 
@@ -93,7 +93,7 @@ describe("scopeFor (AC-9.4, AC-9.5)", () => {
     expect(scopeFor([], "asset", "manage", "welld_ch")).toEqual([]);
   });
 
-  it("two grants of one pair: widest wins, in either order (ADR-0007)", () => {
+  it("two grants of one pair: widest wins, in either order (ADR 20260713-authz-hand-rolled-rbac-abac-epoch-claims)", () => {
     const both = [conditioned("asset", "manage"), unconditioned("asset", "manage")];
     expect(scopeFor(both, "asset", "manage", "welld_ch")).toEqual([...ENTITIES]);
     expect(scopeFor([...both].reverse(), "asset", "manage", "welld_ch")).toEqual([

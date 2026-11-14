@@ -41,7 +41,7 @@ interface ActivityTableProps {
   onReorder: (fromIndex: number, toIndex: number) => void
   activityWarnings: Map<string, WarningCode[]>
   /**
-   * T17 (specs/013-estimate-sharing/tasks.md; design.md S5 "Viewer mode"):
+   * T17 (specs/20260807-estimate-sharing/tasks.md; design.md S5 "Viewer mode"):
    * fed straight from context's single `canEdit` gate (`!canEdit`) — never
    * re-derived here. Defaults to `false` so every pre-existing call site
    * (this feature predates viewer access) keeps its exact prior full-edit
@@ -361,7 +361,7 @@ function SortableRow({
   )
 }
 
-// PlainRow — T17's viewer-mode row (specs/013-estimate-sharing/tasks.md;
+// PlainRow — T17's viewer-mode row (specs/20260807-estimate-sharing/tasks.md;
 // design.md S5: "drag handle renders empty, non-interactive"). Deliberately
 // does NOT call useSortable — that hook requires a surrounding DndContext,
 // which the readOnly render path skips entirely (there is nothing to drag).
@@ -419,7 +419,7 @@ const ActivityTable = memo(function ActivityTable({
   const actWarningsRef = useRef<Map<string, WarningCode[]>>(new Map())
   const visibleRowIdxRef = useRef<Map<string, number>>(new Map())
   const visibleIdsRef = useRef<string[]>([])
-  // T17 (specs/013-estimate-sharing/tasks.md): same ref pattern as the rest of
+  // T17 (specs/20260807-estimate-sharing/tasks.md): same ref pattern as the rest of
   // this block — `columns` below has [] deps, so every cell closure reads the
   // CURRENT readOnly value through this ref rather than closing over a stale one.
   const readOnlyRef = useRef(readOnly)

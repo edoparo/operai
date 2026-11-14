@@ -1,10 +1,10 @@
 /**
- * T15 — Cross-service mileage-rate e2e journey (specs/009-mileage-rate, QE
+ * T15 — Cross-service mileage-rate e2e journey (specs/20260720-mileage-rate, QE
  * verification pass). Drives the REAL assembled shell host + admin-ui/
- * refund-ui remotes (ADR-0006) against the REAL refund-api/auth services —
+ * refund-ui remotes (ADR 20260709-suite-frontend-module-federation) against the REAL refund-api/auth services —
  * no mocking — mirroring this suite's existing cross-app e2e convention
- * (refund-headline.spec.ts specs/007, refund-batches-headline.spec.ts
- * specs/008).
+ * (refund-headline.spec.ts specs/20260716-refund-service, refund-batches-headline.spec.ts
+ * specs/20260719-refund-monthly-processing).
  *
  * Journey (US-1/2/3/4/5/6, AC-1.1/1.2/1.6/1.8/2.1/2.2/3.1/3.2/4.1/4.2/4.3/
  * 5.1/5.3/6.1/6.4): an admin opens refund-ui's Settings tab (moved from admin-ui's "Mileage Rates" screen, 2026-11-13) and
@@ -104,7 +104,7 @@ async function addMileageRate(
 
 test.describe.configure({ mode: 'serial' })
 
-test.describe('specs/009-mileage-rate T15: cross-service mileage flow', () => {
+test.describe('specs/20260720-mileage-rate T15: cross-service mileage flow', () => {
   test('admin adds a rate → employee drafts + submits a computed travel_km line → accounting sees the applied rate → a later rate change never disturbs the submitted line (US-1/2/3/4/5/6, AC-1.1/1.2/1.6/1.8/2.1/2.2/3.1/4.1/4.2/5.1/6.1/6.4)', async ({
     browser,
   }) => {

@@ -1,5 +1,5 @@
 /**
- * T16 — Chrome persistence + design-system consistency (specs/003-suite-shell)
+ * T16 — Chrome persistence + design-system consistency (specs/20260709-suite-shell)
  *
  * Refs: AC-1.2 (chrome stays mounted and unchanged when the active tool
  * switches — no reload/flicker, only the content area swaps), AC-1.3 (any
@@ -125,7 +125,7 @@ test.describe('AC-1.3: remotes render in the shared Operai design system', () =>
     // Refund's tool title (the library's ToolLayout) takes its font from the
     // `--disp` token — a CSS custom property refund-ui never defines itself;
     // only the shell-exposed `shell/tokens.css` (federated module, T3; the
-    // library's tokens since ADR-0050) defines it. A resolved "Syne" here is direct proof the
+    // library's tokens since ADR 20261031-shared-ui-library-consumed-as-source) defines it. A resolved "Syne" here is direct proof the
     // remote is rendering with the SAME shared token file as the shell
     // chrome, not a local copy or unstyled fallback.
     const headingFont = await heading.evaluate((el) => getComputedStyle(el).fontFamily)

@@ -14,8 +14,8 @@ export class NotFoundError extends Data.TaggedError("NotFoundError")<{
  * A relationship to the record exists (caller is a collaborator, or an
  * owner-only action attempted by a non-owner collaborator) but the caller's
  * level is insufficient for the attempted operation. This is DISTINCT from
- * NotFoundError (T6, specs/013-estimate-sharing, plan.md "Access resolution
- * inside estimai-api" / ADR-0037): a stranger with NO relationship gets
+ * NotFoundError (T6, specs/20260807-estimate-sharing, plan.md "Access resolution
+ * inside estimai-api" / ADR 20260807-denial-taxonomy-shared-records-403-vs-404): a stranger with NO relationship gets
  * NotFoundError → 404; a collaborator who knows the record exists but lacks
  * the required level gets ForbiddenError → 403. `code` is the stable
  * machine-readable RFC 7807 `code` extension (e.g. "owner_only",
@@ -28,8 +28,8 @@ export class ForbiddenError extends Data.TaggedError("ForbiddenError")<{
 }> {}
 
 /**
- * Optimistic-concurrency conflict (T7, specs/013-estimate-sharing, ADR-0038
- * "amends ADR-0004" — supersedes last-write-wins).
+ * Optimistic-concurrency conflict (T7, specs/20260807-estimate-sharing, ADR 20260807-optimistic-concurrency-version-if-match-cas-amends-0004
+ * "amends ADR 20260703-estimate-persistence-jsonb-document" — supersedes last-write-wins).
  *
  * Raised by `updateEstimate`'s single-statement CAS when the caller's access
  * level IS sufficient (owner or editor — otherwise a ForbiddenError/
@@ -41,7 +41,7 @@ export class ForbiddenError extends Data.TaggedError("ForbiddenError")<{
  * `currentVersion`/`updatedAt` are DB facts and always present; the caller's
  * `lastModifiedByUserId` (a raw `sub`) is resolved to a display Identity in
  * estimates.routes.ts (best-effort, via authClient.resolveIdentities, which
- * never throws — ADR-0039) because that requires the caller's own Bearer
+ * never throws — ADR 20260807-live-identity-resolution-by-id-fail-soft) because that requires the caller's own Bearer
  * token, which this DB-only layer does not have.
  */
 export class ConflictError extends Data.TaggedError("ConflictError")<{

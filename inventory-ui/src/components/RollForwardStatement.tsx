@@ -5,7 +5,7 @@ import { strings } from '../strings'
 
 /**
  * RollForwardStatement — the five-line roll-forward of a fiscal year (T38,
- * specs/015-hardware-inventory; design.md T6, § Accessibility "Data tables";
+ * specs/20261006-hardware-inventory; design.md T6, § Accessibility "Data tables";
  * AC-8.1): opening book value, less disposals, plus purchases, less
  * depreciation, equals closing book value.
  *

@@ -1,7 +1,7 @@
 /**
- * S3-compatible object storage wrapper (T9, specs/007-refund-service,
- * ADR-0016; +`putObject`, T2, specs/008-refund-monthly-processing,
- * ADR-0019).
+ * S3-compatible object storage wrapper (T9, specs/20260716-refund-service,
+ * ADR 20260716-eu-object-storage-refund-attachments; +`putObject`, T2, specs/20260719-refund-monthly-processing,
+ * ADR 20260719-refund-batch-pdf-generation-pdf-lib).
  *
  * For RECEIPT bytes, refund-api's own process NEVER touches them — it only
  * mints presigned URLs (POST for upload, GET for download) and HEADs
@@ -33,7 +33,7 @@ import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 import { env } from "./env";
 import { needsPathStyleAddressing } from "./s3Residency";
 
-// ─── Policy constants (ADR-0016 § Limits) ──────────────────────────────────
+// ─── Policy constants (ADR 20260716-eu-object-storage-refund-attachments § Limits) ──────────────────────────────────
 
 export const MAX_ATTACHMENT_BYTES = 10 * 1024 * 1024; // 10 MiB
 export const ALLOWED_CONTENT_TYPES = [
@@ -61,7 +61,7 @@ const s3 = new S3Client({
   },
 });
 
-// ─── fileName sanitization (path-traversal defense, ADR-0016 § Key namespacing) ──
+// ─── fileName sanitization (path-traversal defense, ADR 20260716-eu-object-storage-refund-attachments § Key namespacing) ──
 
 /**
  * Strips path separators, `..` traversal, and any character outside a safe
@@ -153,7 +153,7 @@ export async function mintPresignedGet(
   );
 }
 
-// ─── PutObject (server-authored bytes — batch PDFs only, T2/ADR-0019) ───────
+// ─── PutObject (server-authored bytes — batch PDFs only, T2/ADR 20260719-refund-batch-pdf-generation-pdf-lib) ───────
 
 /**
  * Uploads bytes refund-api generated itself (currently: only the compiled-
@@ -176,14 +176,14 @@ export async function putObject(
   );
 }
 
-// ─── Read (archive export only — see ADR-0043) ───────────────────────────────
+// ─── Read (archive export only — see ADR 20260908-request-archive-export-refund-api-reads-attachment-bytes) ───────────────────────────────
 
 /**
  * Total receipt bytes a single request export may pull into memory.
  *
- * This exists because ADR-0016's original posture — refund-api never touches
+ * This exists because ADR 20260716-eu-object-storage-refund-attachments's original posture — refund-api never touches
  * receipt bytes — was what kept this service from being a memory bottleneck,
- * and the archive export (ADR-0043) gives that up deliberately. Nothing else
+ * and the archive export (ADR 20260908-request-archive-export-refund-api-reads-attachment-bytes) gives that up deliberately. Nothing else
  * bounds it: `MAX_ATTACHMENT_BYTES` caps ONE attachment at 10 MiB, and there
  * is no cap at all on attachments per request, so an unbounded export could
  * pull hundreds of MiB into a small container and take the whole service down
@@ -200,11 +200,11 @@ export const MAX_EXPORT_RECEIPT_BYTES = 64 * 1024 * 1024; // 64 MiB
  * Downloads one object's bytes into this process.
  *
  * DELIBERATE DEPARTURE from this module's own "refund-api never touches
- * receipt bytes" rule (ADR-0016, see the module doc above) — the ONE caller
- * permitted to use it is the per-request archive export (ADR-0043), which
+ * receipt bytes" rule (ADR 20260716-eu-object-storage-refund-attachments, see the module doc above) — the ONE caller
+ * permitted to use it is the per-request archive export (ADR 20260908-request-archive-export-refund-api-reads-attachment-bytes), which
  * cannot embed a receipt it is not allowed to read. It is NOT a download
  * proxy: nothing here streams an attachment back to a client, which is what
- * ADR-0016 actually forbids and which `mintPresignedGet` still exists to do.
+ * ADR 20260716-eu-object-storage-refund-attachments actually forbids and which `mintPresignedGet` still exists to do.
  *
  * Do not reach for this from a read/list/detail route. If a client needs a
  * receipt, mint a presigned GET and let the browser fetch it direct from the

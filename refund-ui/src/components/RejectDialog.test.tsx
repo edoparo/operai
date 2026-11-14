@@ -1,7 +1,7 @@
 /**
  * @vitest-environment jsdom
  *
- * Component tests for RejectDialog (T18, specs/007-refund-service/
+ * Component tests for RejectDialog (T18, specs/20260716-refund-service/
  * tasks.md). Covers: role="alertdialog" + labelling, default focus on the
  * textarea, disabled-until-non-empty confirm (AC-7.3's client-side half),
  * Escape = Cancel, the Tab focus trap across [textarea, Cancel, Confirm],

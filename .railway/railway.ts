@@ -8,7 +8,7 @@ export default defineRailway(() => {
   const refund = bucket("refund", { region: "ams" });
   const crm = bucket("crm", { region: "ams" });
   const meetings = bucket("meetings", { region: "ams" });
-  // ADR-0089: task images and attachments (activities-api). Private, EU; a bucket's region cannot change.
+  // ADR 20261113-task-description-files-in-activities-api-bucket: task images and attachments (activities-api). Private, EU; a bucket's region cannot change.
   const activities = bucket("activities", { region: "ams" });
   const refundApi = service("refund-api", {
     source: github("matteocodogno/operai", { branch: "main", checkSuites: false, rootDirectory: "/refund-api" }),

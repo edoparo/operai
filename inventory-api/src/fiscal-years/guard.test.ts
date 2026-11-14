@@ -1,5 +1,5 @@
 /**
- * Closed-year guard and entity lock (T9, specs/015-hardware-inventory; AC-1.7).
+ * Closed-year guard and entity lock (T9, specs/20261006-hardware-inventory; AC-1.7).
  * Real Postgres: the lock and the boundary read are database behaviour, and a
  * mock would only prove that the mock was called.
  */

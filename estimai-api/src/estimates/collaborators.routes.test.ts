@@ -1,6 +1,6 @@
 /**
  * Integration tests for GET / POST /estimates/{id}/collaborators (T8,
- * specs/013-estimate-sharing).
+ * specs/20260807-estimate-sharing).
  *
  * Strategy
  * ────────
@@ -67,7 +67,7 @@ process.env["ALLOWED_ORIGINS"] ??= "http://localhost:5173";
 process.env["AUTH_JWKS_URL"] ??= "http://localhost:3001/auth/jwks";
 process.env["AUTH_ISSUER"] ??= "http://localhost:3001";
 process.env["AUTH_AUDIENCE"] ??= "operai-suite";
-process.env["NODE_ENV"] = "test"; // not ??=: a shell may export NODE_ENV=development and the first file to load @/lib/env freezes it for the process (T22, specs/016)
+process.env["NODE_ENV"] = "test"; // not ??=: a shell may export NODE_ENV=development and the first file to load @/lib/env freezes it for the process (T22, specs/20261013-notify-service-credentials)
 process.env["AUTH_BASE_URL"] ??= "http://localhost:3001";
 process.env["SERVICE_CLIENT_ID"] ??= "estimai-api";
 process.env["SERVICE_CLIENT_SECRET"] ??=
@@ -298,7 +298,7 @@ describe("AC-1.2 — the generic rejection is ONE fixed status/code/detail for B
 
     // Both causes collapse to eligible:false at the authClient layer — this
     // mock cannot even express "why", by construction (mirrors auth's own
-    // ADR-0035 collapse).
+    // ADR 20260807-third-party-app-access-decision-endpoint-forwarded-jwt collapse).
     const app = buildApp({ checkAppAccess: alwaysIneligible });
 
     const resA = await app.request(`/estimates/${estimate.id}/collaborators`, {
@@ -730,7 +730,7 @@ describe("GET /estimates/{id}/collaborators", () => {
 
 // ═══════════════════════════════════════════════════════════════════════
 // T9 — PATCH / DELETE {collaboratorId} / DELETE me (manage, revoke, leave)
-// (specs/013-estimate-sharing — refs AC-5.1, AC-5.2, AC-5.3, AC-6.1, AC-6.2)
+// (specs/20260807-estimate-sharing — refs AC-5.1, AC-5.2, AC-5.3, AC-6.1, AC-6.2)
 // ═══════════════════════════════════════════════════════════════════════
 
 // ─── AC-5.1 — a level change takes effect on the collaborator's NEXT
@@ -1263,7 +1263,7 @@ describe("AC-5.3 — no live-disconnection mechanism exists for estimates (regre
       const source = await Bun.file(new URL(relativePath, import.meta.url)).text();
       // A route path shaped like a live-connection endpoint (mirrors
       // notify-api's OWN /notifications/stream — the ONE such route in the
-      // whole suite, ADR-0008 — which estimai-api must never grow a sibling
+      // whole suite, ADR 20260713-sse-stream-auth-short-lived-ticket — which estimai-api must never grow a sibling
       // of for estimates).
       expect(source).not.toMatch(/\.(get|post|put|patch|delete|route)\(\s*["'`][^"'`]*\/(stream|sse|socket|ws)\b/i);
       // No WebSocket/EventSource/SSE machinery imported or referenced at all.
@@ -1446,7 +1446,7 @@ describe("AC-6.2 — the owner has no grant to leave", () => {
 });
 
 // ═══════════════════════════════════════════════════════════════════════════
-// T10 — notification wiring (AC-7.1, AC-7.2, AC-7.3, specs/013-estimate-sharing)
+// T10 — notification wiring (AC-7.1, AC-7.2, AC-7.3, specs/20260807-estimate-sharing)
 // ═══════════════════════════════════════════════════════════════════════════
 //
 // notify.ts's own HTTP-payload shape (originApp:"estimai", the granted link,
@@ -1498,7 +1498,7 @@ describe("AC-7.1 — POST grant → notifyCollaboratorGranted called exactly onc
     });
   });
 
-  // specs/016 AC-4.3 — the REAL notify client, whose service-credential
+  // specs/20261013-notify-service-credentials AC-4.3 — the REAL notify client, whose service-credential
   // provider is disabled under NODE_ENV=test and so rejects (the stand-in for
   // auth down / refusing to issue a token): the grant is still committed and
   // the response is still 201.
@@ -1675,7 +1675,7 @@ describe("AC-7.3 — no notification anywhere in estimates.routes.ts (PUT /estim
   });
 });
 
-describe("Mutual exclusion (ADR-0011's invariant, extended to the third token holder) — collaborator routes accept ONLY a user JWT, never X-Internal-Token; estimai-api exposes no /system/* route", () => {
+describe("Mutual exclusion (ADR 20260714-notify-api-email-channel-service-trust's invariant, extended to the third token holder) — collaborator routes accept ONLY a user JWT, never X-Internal-Token; estimai-api exposes no /system/* route", () => {
   it("a request carrying X-Internal-Token but NO Authorization Bearer header is rejected (401), not treated as an alternative credential", async () => {
     const owner = freshOwner();
     ownerIdsToClean.add(owner.id);
@@ -1696,7 +1696,7 @@ describe("Mutual exclusion (ADR-0011's invariant, extended to the third token ho
     expect(res.status).toBe(401);
   });
 
-  it("estimai-api registers no /system/* route in these files (index.ts, collaborators.routes.ts, estimates.routes.ts, health.routes.ts) — it is an outbound notify-api CALLER only, never an inbound internal-token SERVER (ADR-0040); its one system route, deal-link-notices (scoped service JWT, ADR-0076), lives in its own module", async () => {
+  it("estimai-api registers no /system/* route in these files (index.ts, collaborators.routes.ts, estimates.routes.ts, health.routes.ts) — it is an outbound notify-api CALLER only, never an inbound internal-token SERVER (ADR 20260807-estimai-api-third-notify-internal-token-holder); its one system route, deal-link-notices (scoped service JWT, ADR 20261108-crm-pushes-deal-links-to-estimai), lives in its own module", async () => {
     const filesToScan = [
       "../index.ts",
       "./estimates.routes.ts",
@@ -1708,16 +1708,16 @@ describe("Mutual exclusion (ADR-0011's invariant, extended to the third token ho
       // Matches a route-registration call targeting a "/system" path
       // (e.g. `.get("/system/...`, `.post('/system/...`) — NOT merely the
       // substring "/system" appearing in a comment or doc string, so this
-      // stays robust to prose mentioning ADR-0011/0017/0040's /system/*
+      // stays robust to prose mentioning ADR 20260714-notify-api-email-channel-service-trust/0017/0040's /system/*
       // precedent in notify-api.
       expect(source).not.toMatch(/\.(get|post|put|patch|delete|route)\(\s*["'`]\/system/);
     }
   });
 });
 
-// ─── specs/024 — oversight: a read-all holder with no relationship manages nothing ──
+// ─── specs/20261108-estimate-list-oversight — oversight: a read-all holder with no relationship manages nothing ──
 
-describe("collaborator routes for an oversight-only caller (specs/024, AC-1.4)", () => {
+describe("collaborator routes for an oversight-only caller (specs/20261108-estimate-list-oversight, AC-1.4)", () => {
   const REAL_FETCH = globalThis.fetch;
   afterEach(() => {
     globalThis.fetch = REAL_FETCH;

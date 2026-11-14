@@ -1,6 +1,6 @@
 /**
  * activitiesApi — typed calls for the activities-api routes projects-ui uses
- * (specs/028-activities, plan § API contracts): the tasks of one project, and
+ * (specs/20261110-activities, plan § API contracts): the tasks of one project, and
  * create / edit / delete / complete / reopen for a project task.
  *
  * Same transport as projectsApi (`requestJson` → `shell/session`'s `apiFetch`,
@@ -17,7 +17,7 @@ import type { Page } from './types'
 
 type Init = { signal?: AbortSignal }
 
-/** A user as activities-api reports them, resolved live and failing soft (ADR-0039). */
+/** A user as activities-api reports them, resolved live and failing soft (ADR 20260807-live-identity-resolution-by-id-fail-soft). */
 export type PersonRef = {
   id: string
   name: string | null
@@ -26,7 +26,7 @@ export type PersonRef = {
 
 export type TaskBlockerRef = { id: string; subject: string; completed: boolean }
 
-/** An image or attachment of a task, stored in activities-api's bucket (ADR-0089). */
+/** An image or attachment of a task, stored in activities-api's bucket (ADR 20261113-task-description-files-in-activities-api-bucket). */
 export type TaskFile = {
   id: string
   kind: 'image' | 'attachment'
@@ -137,7 +137,7 @@ export type CreateTaskInput = {
   blockedByIds: string[]
   /** The whole set of colleagues who take part (AC-5.1). */
   participantIds: string[]
-  /** The rich description (ADR-0089); it may show only images the task already has. */
+  /** The rich description (ADR 20261113-task-description-files-in-activities-api-bucket); it may show only images the task already has. */
   description?: RichTextDoc | null
 }
 
@@ -159,7 +159,7 @@ export const deleteTask = (id: string) => send<void>(activityPath(id), 'DELETE')
 export const setTaskCompleted = (id: string, completed: boolean) =>
   send<ProjectTask>(`${activityPath(id)}/${completed ? 'complete' : 'reopen'}`, 'POST')
 
-// ─── A task's files (ADR-0089) ───────────────────────────────────────────────
+// ─── A task's files (ADR 20261113-task-description-files-in-activities-api-bucket) ───────────────────────────────────────────────
 // Two phases: activities-api mints a presigned POST, the browser sends the bytes straight to the
 // bucket (plain `fetch`: the bucket is not an API origin and never sees the Bearer token), then confirms.
 

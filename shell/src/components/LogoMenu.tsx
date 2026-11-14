@@ -1,7 +1,7 @@
 /**
  * LogoMenu — the suite logo as a dropdown trigger in the shell header.
  *
- * Relocated from estimai-ui/src/components/LogoMenu.tsx (T6, specs/003-suite-shell,
+ * Relocated from estimai-ui/src/components/LogoMenu.tsx (T6, specs/20260709-suite-shell,
  * AC-1.4). Clicking the logo opens a small menu; its "About" item calls onAbout (the
  * parent owns the About modal). `APP_NAME` resolves to "Operai" (the suite) via
  * ../lib/appInfo. The menu itself — opening, keyboard, closing — is the library

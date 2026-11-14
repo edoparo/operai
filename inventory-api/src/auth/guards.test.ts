@@ -1,6 +1,6 @@
 /**
- * The guard split (T7, specs/015-hardware-inventory; AC-9.7, ADR-0014,
- * ADR-0045): routes behind `authorized` need a JWT AND live authorization;
+ * The guard split (T7, specs/20261006-hardware-inventory; AC-9.7, ADR 20260716-refund-api-authorization-enforcing-resource-server,
+ * ADR 20261006-ungated-second-federated-entry-of-a-gated-remote): routes behind `authorized` need a JWT AND live authorization;
  * routes behind `identityOnly` (the `/me/*` family) need a JWT and nothing
  * else — in particular they never call `auth` and do not fail when it is down.
  *
@@ -56,7 +56,7 @@ beforeEach(() => {
 const get = (path: string, withToken = true) =>
   app.request(path, withToken ? { headers: { Authorization: `Bearer ${token}` } } : {});
 
-describe("identityOnly (the /me/* stack, ADR-0045)", () => {
+describe("identityOnly (the /me/* stack, ADR 20261006-ungated-second-federated-entry-of-a-gated-remote)", () => {
   it("a user with no permissions at all gets through", async () => {
     harness.setResolve(grants());
     const res = await get("/me/ping");

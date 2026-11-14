@@ -1,6 +1,6 @@
 /**
  * GuardrailDialog — acknowledge-only dialog for a server-side guardrail that
- * genuinely blocked an action (T15, specs/004-auth-roles-permissions,
+ * genuinely blocked an action (T15, specs/20260713-auth-roles-permissions,
  * design.md Dialog D2: "Guardrail blocked").
  *
  * Fires for the last-admin-removal guard (AC-6.4) and the system-role-delete
@@ -25,7 +25,7 @@
  *   • Default focus on "OK".
  *   • Backdrop click matches Escape's behavior (also acknowledges).
  *
- * Now @operai/ui's `NoticeDialog` (ADR-0050, INC-09), which owns the frame,
+ * Now @operai/ui's `NoticeDialog` (ADR 20261031-shared-ui-library-consumed-as-source, INC-09), which owns the frame,
  * the single-button focus, Escape/backdrop = acknowledge and focus return;
  * this file binds admin-ui's copy and test ids.
  */

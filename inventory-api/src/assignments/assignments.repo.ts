@@ -1,5 +1,5 @@
 /**
- * Assignments, manager side (T15, specs/015; AC-2.1, AC-2.2, AC-2.5, AC-2.10,
+ * Assignments, manager side (T15, specs/20261006-hardware-inventory; AC-2.1, AC-2.2, AC-2.5, AC-2.10,
  * AC-11.1). One transaction each: asset row lock, fresh read, checks, write,
  * history. At most one `pending` per asset is enforced by the database
  * (`assignment_one_pending`); its violation is mapped here rather than trusting

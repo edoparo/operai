@@ -1,11 +1,11 @@
 /**
- * The task lists (specs/028-activities US-3 AC-3.4/3.5, US-7; plan § API contracts):
+ * The task lists (specs/20261110-activities US-3 AC-3.4/3.5, US-7; plan § API contracts):
  *
  *   GET /tasks            the CRM Tasks page, one project's Tasks card, and "My tasks" across
  *                         both tools — one route, one order, one view (`ActivityView`)
  *   GET /tasks/assignees  the people tasks of one kind were given to (the Tasks page filter)
  *
- * No permission is held here (ADR-0081). Every list asks the host(s) that own the tasks, as the
+ * No permission is held here (ADR 20261110-activities-service-access-delegated-to-host). Every list asks the host(s) that own the tasks, as the
  * caller: a single-kind list needs a host that lets the caller read (404 otherwise, the same
  * answer as for anything that does not exist, AC-8.3) and that can answer (503
  * `host_unavailable`, fail closed, AC-8.2). The one list that mixes hosts, `kind=all`, is the
@@ -190,7 +190,7 @@ tasksRouter.openapi(tasksRoute, async (c) => {
 
 // Everyone who has been given a task of this kind, for the Tasks page filter. A reader of the
 // kind's host can already read every task of it with its assignee (`assignee=any`), so this
-// projection gives them nothing new (ADR-0042's reconstructibility test) and needs no directory
+// projection gives them nothing new (ADR 20260811-derived-projection-reuses-existing-gate-reconstructibility-test's reconstructibility test) and needs no directory
 // permission: the host's answer is the whole gate.
 tasksRouter.openapi(assigneesRoute, async (c) => {
   const { kind } = c.req.valid("query");

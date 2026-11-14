@@ -1,7 +1,7 @@
 /**
  * @vitest-environment jsdom
  *
- * The meetings list's personal folders (ADR-0090): the filter, filing a row, and the folder dialogs.
+ * The meetings list's personal folders (ADR 20261113-personal-meeting-folders): the filter, filing a row, and the folder dialogs.
  * Rendered inside the real inner router against `fakeApi` standing in for `shell/session`'s `apiFetch`.
  */
 import { RouterProvider, createMemoryHistory } from '@tanstack/react-router'
@@ -83,7 +83,7 @@ const calls = (method: string, path: string) =>
     .mock.calls.filter(([input, init]) => (init?.method ?? 'GET') === method && new URL(String(input)).pathname === path)
     .map(([, init]) => (init?.body ? JSON.parse(String(init.body)) : null))
 
-describe('personal folders (ADR-0090)', () => {
+describe('personal folders (ADR 20261113-personal-meeting-folders)', () => {
   it('shows no folder controls when the folders cannot be loaded; the list still works', async () => {
     serve({ 'GET /meetings': () => ({ status: 200, body: rows() }), 'GET /folders': () => ({ status: 503, body: problem(503) }) })
     await renderList()

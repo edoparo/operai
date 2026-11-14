@@ -1,5 +1,5 @@
 /**
- * Footer — the shell's suite-level footer content (specs/003-suite-shell, T8, AC-1.5).
+ * Footer — the shell's suite-level footer content (specs/20260709-suite-shell, T8, AC-1.5).
  *
  * Fills the `footer` slot `ShellLayout` (T5) exposes on its own `<footer
  * role="contentinfo">` landmark — this component renders *inside* that landmark as

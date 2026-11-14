@@ -1,6 +1,6 @@
 /**
  * shell tool registry — the single source of truth for the suite's tool
- * id ↔ mount-path mapping (specs/003-suite-shell, T10, AC-3.4; also consumed
+ * id ↔ mount-path mapping (specs/20260709-suite-shell, T10, AC-3.4; also consumed
  * by Sidebar, T7, AC-3.1/AC-5.1).
  *
  * Centralized here so the tool ids/paths are declared exactly once. Before
@@ -30,7 +30,7 @@ export interface SuiteTool {
  * other change is needed for it to appear in the sidebar; update the
  * `ToolId` union above too so the redirect/writer logic recognizes it.
  *
- * `admin` (specs/004-auth-roles-permissions, T24, AC-7.1/AC-7.2, ADR-0006/0007):
+ * `admin` (specs/20260713-auth-roles-permissions, T24, AC-7.1/AC-7.2, ADR 20260709-suite-frontend-module-federation/0007):
  * every entry here is a *candidate* tool — Sidebar only renders the subset
  * present in the signed-in user's `usePermissions().apps`, so `admin` (and
  * any other entry) only appears in the nav for users actually granted that
@@ -40,20 +40,20 @@ export const TOOLS: readonly SuiteTool[] = [
   { id: 'estimai', label: strings.tools.estimai, to: '/estimai' },
   { id: 'refund', label: strings.tools.refund, to: '/refund' },
   { id: 'admin', label: strings.tools.admin, to: '/admin' },
-  // specs/015-hardware-inventory, T42 (AC-9.6): a gated tool like the three
+  // specs/20261006-hardware-inventory, T42 (AC-9.6): a gated tool like the three
   // above. Its sibling screen `/devices` ("My devices") is deliberately NOT an
   // entry here — it is identity-scoped and reachable by every signed-in user
-  // regardless of grants (ADR-0045), so it must never appear in the
+  // regardless of grants (ADR 20261006-ungated-second-federated-entry-of-a-gated-remote), so it must never appear in the
   // permission-filtered sidebar nor be recorded as a last-used tool.
   { id: 'inventory', label: strings.tools.inventory, to: '/inventory' },
-  // specs/017-crm: a gated tool, shown to holders of `crm:access` (ADR-0052).
+  // specs/20261101-crm: a gated tool, shown to holders of `crm:access` (ADR 20261101-crm-tool-shape-and-authorization).
   { id: 'crm', label: strings.tools.crm, to: '/crm' },
-  // specs/021-meetings (ADR-0058): a gated tool. Its sibling `/my-meetings` is
+  // specs/20261104-meetings (ADR 20261104-meetings-tool-shape-visibility-by-participation): a gated tool. Its sibling `/my-meetings` is
   // deliberately NOT an entry here — identity-scoped and reachable by every
-  // signed-in user (ADR-0045 shape), so it never appears in the filtered sidebar
+  // signed-in user (ADR 20261006-ungated-second-federated-entry-of-a-gated-remote shape), so it never appears in the filtered sidebar
   // nor is recorded as a last-used tool.
   { id: 'meetings', label: strings.tools.meetings, to: '/meetings' },
-  // specs/025-projects: a gated tool, shown to holders of `projects:access`. The id
+  // specs/20261103-projects: a gated tool, shown to holders of `projects:access`. The id
   // is the auth catalog resource, which is what `/authz/me`'s `apps` carries.
   { id: 'projects', label: strings.tools.projects, to: '/projects' },
 ]

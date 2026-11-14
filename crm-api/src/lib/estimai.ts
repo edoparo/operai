@@ -1,9 +1,9 @@
 /**
  * The calls crm-api makes to estimai-api and to auth's user directory for the
- * estimate flow (specs/018 US-3/US-4). Every call carries the CALLER's own JWT
+ * estimate flow (specs/20261101-crm-sales-flow US-3/US-4). Every call carries the CALLER's own JWT
  * (forwarded): the salesperson creates, shares and reads the estimate as
  * themselves, so no new trust between services exists and estimai-api keeps
- * applying its own record-level rules (ADR-0036/0037).
+ * applying its own record-level rules (ADR 20260807-record-level-acl-resource-server-owned-access-primitive/0037).
  *
  * Failures map to problems the UI can explain:
  *   ESTIMAI_API_URL unset      → 503 estimai_unconfigured
@@ -116,7 +116,7 @@ export async function createEstimate(c: CallerSource, name: string): Promise<{ i
 }
 
 /**
- * Grants `email` editor access to the estimate (specs/013). A 422 means
+ * Grants `email` editor access to the estimate (specs/20260807-estimate-sharing). A 422 means
  * estimai-api refused the person (they cannot use EstimAI).
  */
 export async function shareAsEditor(c: CallerSource, estimateId: string, email: string): Promise<void> {
@@ -157,7 +157,7 @@ const unexpected = (status: number, what: string) => {
 
 /**
  * The email of an active user who holds `(appId, "access")`, from auth's user
- * directory (ADR-0047/0053/0055; the caller holds `deal:manage`, which opens it).
+ * directory (ADR 20261006-user-directory-endpoint-capability-gated/0053/0055; the caller holds `deal:manage`, which opens it).
  * `null` when the person is not in that filtered list.
  */
 export async function directoryEmail(c: CallerSource, userId: string, appId: string): Promise<string | null> {

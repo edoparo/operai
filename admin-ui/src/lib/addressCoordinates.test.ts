@@ -1,6 +1,6 @@
 /**
  * Unit tests for src/lib/addressCoordinates.ts — the AC-2.6 coordinate-
- * staleness truth table (T8, specs/012-employee-address/tasks.md).
+ * staleness truth table (T8, specs/20260803-employee-address/tasks.md).
  */
 
 import { describe, expect, it } from 'vitest'

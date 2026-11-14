@@ -1,7 +1,7 @@
 /**
  * @vitest-environment jsdom
  *
- * Page tests for RulesPage (T37, specs/015-hardware-inventory; design.md T4, F11,
+ * Page tests for RulesPage (T37, specs/20261006-hardware-inventory; design.md T4, F11,
  * § Accessibility "T4 rules"; refs AC-6.1, AC-6.2, AC-6.5). `rulesApi`, `getScope`
  * and `usePermissions` are mocked at their seams; the New rule dialog is the real
  * one (it has its own tests) so the add flow is asserted end to end.

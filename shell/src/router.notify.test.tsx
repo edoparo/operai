@@ -52,7 +52,7 @@ vi.mock('./lib/session', () => ({
   // branch, exactly as before this getter existed (see
   // router.session-guard.test.tsx for the synchronous warm-cache fast path).
   getCachedSession: vi.fn(() => null),
-  // T11 (specs/005): Header mounts Bell → useUnreadCount() (notifications.ts),
+  // T11 (specs/20260713-notification-center): Header mounts Bell → useUnreadCount() (notifications.ts),
   // which imports apiFetch/onSignOut from this module. Mounting the router in
   // these tests renders the chrome, so the session mock must supply them
   // (fail-closed no-ops — the SSE ticket-mint just degrades gracefully).

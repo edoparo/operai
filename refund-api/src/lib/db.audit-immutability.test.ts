@@ -1,6 +1,6 @@
 /**
- * Audit-trail immutability integration tests (T5, specs/007-refund-service,
- * ADR-0018 — refs AC-8.2, AC-8.3).
+ * Audit-trail immutability integration tests (T5, specs/20260716-refund-service,
+ * ADR 20260716-immutable-financial-audit-trail-refund — refs AC-8.2, AC-8.3).
  *
  * Strategy
  * ────────
@@ -33,7 +33,7 @@ import { Prisma } from "./generated/prisma/client";
 const asPromise = <T>(value: PromiseLike<T>): Promise<T> =>
   Promise.resolve(value);
 
-describe("RefundAuditEntry immutability (ADR-0018)", () => {
+describe("RefundAuditEntry immutability (ADR 20260716-immutable-financial-audit-trail-refund)", () => {
   afterAll(async () => {
     // TRUNCATE bypasses the row-level BEFORE DELETE trigger (unlike DELETE),
     // so cleanup does not itself get blocked by the guarantee under test.

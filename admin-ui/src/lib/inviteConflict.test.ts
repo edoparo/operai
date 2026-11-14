@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { en, it as itCatalog } from '../strings'
 import { domainNotAllowedMessage } from './inviteConflict'
 
-describe('domainNotAllowedMessage (specs/023 T8, AC-5.1)', () => {
+describe('domainNotAllowedMessage (specs/20261105-signup-gate T8, AC-5.1)', () => {
   const problem = {
     allowedDomains: ['welld.ch', 'welld.it'],
     detail: 'Invitations can only be sent to welld.ch, welld.it addresses',

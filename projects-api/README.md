@@ -1,16 +1,16 @@
 # projects-api
 
-The Projects module's resource server (specs/025-projects): the delivery work wellD runs,
+The Projects module's resource server (specs/20261103-projects): the delivery work wellD runs,
 its team and its contracts, and the Bexio order id. Bun + Hono + Prisma, port **8086**,
 logical database **`projects`**. Live API reference at `http://localhost:8086/docs`.
 
-It is authorization-enforcing (ADR-0014): every route except `/health` needs a valid JWT
+It is authorization-enforcing (ADR 20260716-refund-api-authorization-enforcing-resource-server): every route except `/health` needs a valid JWT
 and the `projects:access` permission, resolved live from auth. If auth cannot answer, the
 route answers 503 `authz_unavailable`, never "allow". Writes are further scoped by
 `project:manage` (entity) and `contract:bexio` (see `GET /scope`).
 
 CRM company names are read from crm-api with a service credential (`crm.companies.read`,
-ADR-0080): projects-api trades its service client for a 5-minute JWT at auth and calls
+ADR 20261103-projects-api-reads-crm-companies-with-scoped-service-credential): projects-api trades its service client for a 5-minute JWT at auth and calls
 `GET /system/companies`.
 
 ## Environment

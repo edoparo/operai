@@ -1,7 +1,7 @@
 /**
  * @vitest-environment jsdom
  *
- * Settings of specs/020: the letterhead (three-call upload), the offer-template
+ * Settings of specs/20261102-crm-offer-document: the letterhead (three-call upload), the offer-template
  * list and the template editor, through the real router and request code.
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'

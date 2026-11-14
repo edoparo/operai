@@ -1,8 +1,8 @@
 /**
- * `GET /rules` and `POST /rules` (T10, specs/015-hardware-inventory; AC-6.1..6.5).
+ * `GET /rules` and `POST /rules` (T10, specs/20261006-hardware-inventory; AC-6.1..6.5).
  *
  * `ledger:manage` with entity scope on both. Capability absent -> 403 (guard);
- * entity outside the caller's ledger scope -> 404 (ADR-0014). There is no
+ * entity outside the caller's ledger scope -> 404 (ADR 20260716-refund-api-authorization-enforcing-resource-server). There is no
  * update or delete route: a rule is only ever appended (AC-6.5).
  */
 

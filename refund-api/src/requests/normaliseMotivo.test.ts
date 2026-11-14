@@ -1,12 +1,12 @@
 /**
- * Unit tests for `normaliseMotivo` (T1, specs/014-motivo-autocomplete, plan D3)
+ * Unit tests for `normaliseMotivo` (T1, specs/20260811-motivo-autocomplete, plan D3)
  * — pure, DB-free (`bun:test`, no Prisma/HTTP).
  *
  * Exercised against the canonical `MOTIVO_FOLD_VECTORS` table exported from
  * `normaliseMotivo.ts`, so `refund-ui`'s mirrored fold
  * (`refund-ui/src/lib/tripSuggestions.ts`, T8) can assert the IDENTICAL table
  * and the two implementations can never silently diverge (plan risk R2). This
- * is the ADR-0025 mirrored-rule-with-shared-vectors pattern, exactly as
+ * is the ADR 20260720-mileage-rate-money-precision-integer-micros mirrored-rule-with-shared-vectors pattern, exactly as
  * `computeMileageAmountCents` + `mileage-vectors.json` already do it.
  *
  * Beyond the table, the suite pins the fold's *properties* — idempotency,

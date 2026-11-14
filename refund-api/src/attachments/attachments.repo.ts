@@ -1,6 +1,6 @@
 /**
- * Prisma data-access layer for Attachment (T9, specs/007-refund-service,
- * ADR-0016).
+ * Prisma data-access layer for Attachment (T9, specs/20260716-refund-service,
+ * ADR 20260716-eu-object-storage-refund-attachments).
  *
  * Storage I/O (presigned URLs, HEAD, delete) lives in `../lib/storage.ts` and
  * is orchestrated by `attachments.routes.ts` — this module is DB-only, same

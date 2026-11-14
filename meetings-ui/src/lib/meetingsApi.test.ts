@@ -191,7 +191,7 @@ const ROWS: Row[] = [
     reply: { gaps: [] },
   },
   // Summaries
-  // Folders (ADR-0090)
+  // Folders (ADR 20261113-personal-meeting-folders)
   { name: 'listFolders', call: () => api.listFolders(), method: GET, url: '/folders' },
   { name: 'createFolder', call: () => api.createFolder('Clients'), method: POST, url: '/folders', body: { name: 'Clients' } },
   { name: 'renameFolder', call: () => api.renameFolder('f1', 'ACME'), method: PATCH, url: '/folders/f1', body: { name: 'ACME' } },

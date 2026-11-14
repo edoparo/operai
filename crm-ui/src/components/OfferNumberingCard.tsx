@@ -15,7 +15,7 @@ const referenceOf = (next: number, year: number) => `${String(next).padStart(4, 
 
 /**
  * OfferNumberingCard — where ONE entity's offer numbers continue from this year
- * (specs/020 US-8), so the CRM follows wellD's document system. The server
+ * (specs/20261102-crm-offer-document US-8), so the CRM follows wellD's document system. The server
  * refuses a number an offer already carries (409 `offer_number_used`).
  */
 export default function OfferNumberingCard({ entity }: { entity: Entity }) {

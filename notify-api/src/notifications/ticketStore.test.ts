@@ -1,5 +1,5 @@
 /**
- * Unit tests for InProcessTicketStore (T3, specs/005-notification-center, ADR-0008).
+ * Unit tests for InProcessTicketStore (T3, specs/20260713-notification-center, ADR 20260713-sse-stream-auth-short-lived-ticket).
  *
  * done when: "bun test proves … ticket mint→consume is single-use + expires".
  */

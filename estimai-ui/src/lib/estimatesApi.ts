@@ -3,7 +3,7 @@
  *
  * All requests are routed through `apiFetch`, which:
  *   • Attaches `Authorization: Bearer <jwt>` to requests targeting VITE_API_URL
- *     (a trusted origin per ADR-0001 — no change to api.ts required).
+ *     (a trusted origin per ADR 20260607-jwt-in-memory-never-web-storage — no change to api.ts required).
  *   • Handles 401 token-refresh-retry-redirect transparently.
  *
  * Error handling:
@@ -15,8 +15,8 @@
  * Base URL:
  *   Always read from `import.meta.env.VITE_API_URL` — never hardcoded.
  *
- * Optimistic concurrency (T15, specs/013-estimate-sharing/tasks.md; plan.md
- * "### Optimistic concurrency (US-4)", ADR-0038): `PUT /estimates/:id`
+ * Optimistic concurrency (T15, specs/20260807-estimate-sharing/tasks.md; plan.md
+ * "### Optimistic concurrency (US-4)", ADR 20260807-optimistic-concurrency-version-if-match-cas-amends-0004): `PUT /estimates/:id`
  * REQUIRES an `If-Match: "<version>"` precondition — an absent/malformed one
  * is a 428, never a silent last-write-wins fallback. `update()` therefore
  * takes the caller's currently-known `version` as a required parameter and
@@ -61,7 +61,7 @@ export type EstimateUpsert = {
  * modified"). `AccessLevel` (viewer|editor) is the grant-level union already
  * established by T14's `AccessLevelBadge`; `owner` is not a grant, so it is
  * added on top here rather than folding it into that component's type.
- * `oversight` (specs/024) is a WIRE value only: a caller holding
+ * `oversight` (specs/20261108-estimate-list-oversight) is a WIRE value only: a caller holding
  * `estimate:read-all` reading an estimate they neither own nor collaborate on.
  * It is read-only, never stored and never a collaborator level.
  */
@@ -115,7 +115,7 @@ export type EstimateFull = {
   content: EstimateContent
   createdAt: string
   updatedAt: string
-  /** Optimistic-concurrency token (ADR-0038) — send back as `If-Match` on the next `update()`. */
+  /** Optimistic-concurrency token (ADR 20260807-optimistic-concurrency-version-if-match-cas-amends-0004) — send back as `If-Match` on the next `update()`. */
   version: number
   access: EstimateAccess
   owner: EstimateIdentity | null
@@ -152,7 +152,7 @@ export type EstimateImportResult = {
  * responses. `code` is a stable, i18n-safe machine-readable discriminator
  * some errors carry on top of `status` (plan.md "## API contracts": "extended
  * with a stable machine-readable `code` on the new failure modes" — the same
- * precedent ADR-0026/0029 set in refund-api's `ApiProblem`), e.g.
+ * precedent ADR 20260721-self-approval-condition-and-403-exception/0029 set in refund-api's `ApiProblem`), e.g.
  * `"estimate_version_conflict"`, `"precondition_required"`, `"owner_only"`.
  */
 export type ApiProblem = {
@@ -200,7 +200,7 @@ export class ApiError extends Error {
  * version mismatch, AC-4.1) and 428 (`code: "precondition_required"` — a
  * missing/malformed `If-Match`) — plan.md's deliberate design: "both 409 and
  * 428 funnel to the same ConflictError path" so callers (T16) have exactly
- * one thing to catch and one UX to show (ADR-0038: 428 maps to the same
+ * one thing to catch and one UX to show (ADR 20260807-optimistic-concurrency-version-if-match-cas-amends-0004: 428 maps to the same
  * "reload required" flow as 409). `currentVersion`/`updatedAt`/`lastModifiedBy`
  * are the server's best-effort context on a 409; they are `undefined` on 428
  * (there is nothing yet to compare against) — callers must not assume they
@@ -377,7 +377,7 @@ export const get = async (id: string): Promise<EstimateFull> => {
 
 /**
  * PUT /estimates/:id
- * Updates an estimate in place, guarded by optimistic concurrency (ADR-0038,
+ * Updates an estimate in place, guarded by optimistic concurrency (ADR 20260807-optimistic-concurrency-version-if-match-cas-amends-0004,
  * US-4). `version` is REQUIRED — it is the caller's last-known
  * `EstimateFull.version`/the version this `update()` adopted last time — and
  * is always sent as `If-Match: "<version>"`; there is no way to call this

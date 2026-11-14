@@ -2,8 +2,8 @@
   "schema": "wellforge-run/v3",
   "run_id": "2026-11-05T14-05-18Z-implement-023-signup-gate",
   "command": "implement",
-  "args": "023-signup-gate T7,T9",
-  "feature": "023-signup-gate",
+  "args": "20261105-signup-gate T7,T9",
+  "feature": "20261105-signup-gate",
   "feature_resolution": "explicit",
   "rigor": "production",
   "plugin_version": "2.56.0",
@@ -13,7 +13,7 @@
   "worktree": {
     "mode": "parallel-manual-worktree",
     "path": "/Users/matteocodogno/LAB/aiscream/operai-main",
-    "reason": "T7 (auth) and T9 (admin-ui) share no touch: path; Agent-tool worktree isolation would branch from the primary checkout (feat/021-meetings), so T9 ran in a manual git worktree ../operai-t9 on feat/023-t9 created from main, T7 in operai-main",
+    "reason": "T7 (auth) and T9 (admin-ui) share no touch: path; Agent-tool worktree isolation would branch from the primary checkout (feat/20261104-meetings), so T9 ran in a manual git worktree ../operai-t9 on feat/023-t9 created from main, T7 in operai-main",
     "preflight": {
       "database": "accept — only T7 uses operai_auth_main",
       "ports": "accept — no servers started",
@@ -44,7 +44,7 @@
   "findings": [
     {"severity": "low", "source": "owasp", "file": "auth/src/signup/accessRequests.routes.ts", "summary": "409 detail passed through from validateInvitation includes the existing invitation id (admin-only)"},
     {"severity": "low", "source": "owasp", "file": "auth/src/signup/accessRequests.routes.ts", "summary": "no rate limit on admin approve/reject (consistent with other /admin/* routers)"},
-    {"severity": "low", "source": "owasp", "file": "auth/src/signup/accessRequests.routes.ts", "summary": "audit data includes requester email (same as invitations, Tier-2 per ADR-0033)"}
+    {"severity": "low", "source": "owasp", "file": "auth/src/signup/accessRequests.routes.ts", "summary": "audit data includes requester email (same as invitations, Tier-2 per ADR 20260804-two-tier-audit-assurance-auth-audit-log-application-level)"}
   ],
   "verdicts": {"qe": "PASS", "security": "PASS"},
   "security": {

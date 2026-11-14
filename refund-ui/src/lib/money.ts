@@ -1,5 +1,5 @@
 /**
- * money — refund-ui's money display (T14, specs/007; plan.md R7: one shared
+ * money — refund-ui's money display (T14, specs/20260716-refund-service; plan.md R7: one shared
  * cents → display formatter). INC-27: the formatting itself is the suite's
  * `formatMoney`/`formatAmount` from `@operai/ui` (Intl, the resolved locale:
  * `EUR 1,234.50` in English, `1234,50 EUR` in Italian); this module only
@@ -8,7 +8,7 @@
  * compositions (`describeApprovedAmount`, `formatRatePerKm`).
  *
  * Input is always integer minor units: refund-api never puts a float amount on
- * the wire (ADR-0025). Parsing typed amounts is `parseDecimal`'s job
+ * the wire (ADR 20260720-mileage-rate-money-precision-integer-micros). Parsing typed amounts is `parseDecimal`'s job
  * (`lineDraft.ts`), never this module's.
  */
 
@@ -102,7 +102,7 @@ export const describeApprovedAmount = (
  * A per-km mileage rate, e.g. `CHF 0.70/km` (en) / `0,70 CHF/km` (it) — the
  * same currency placement as `formatMoney`, so the employee's live
  * `km × rate = amount` breakdown and accounting's "Rate applied" read alike
- * (specs/009). `ratePerKm` is refund-api's own decimal STRING ("0.70"); its
+ * (specs/20260720-mileage-rate). `ratePerKm` is refund-api's own decimal STRING ("0.70"); its
  * precision is kept (never rounded to two places), and the value is never
  * re-derived from micros here — that is `computeMileageAmountCents`'s job.
  */

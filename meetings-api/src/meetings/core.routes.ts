@@ -1,5 +1,5 @@
 /**
- * Create, read and edit a meeting (specs/021-meetings plan.md § API contracts → Meetings;
+ * Create, read and edit a meeting (specs/20261104-meetings plan.md § API contracts → Meetings;
  * AC-1.1 to AC-1.8, AC-2.3, AC-3.5, AC-11.6).
  *
  *   POST  /meetings        `meetings:access`. A host reference is verified AS THE CALLER

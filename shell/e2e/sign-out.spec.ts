@@ -1,5 +1,5 @@
 /**
- * Suite-wide sign-out (T18, specs/003-suite-shell, AC-2.4).
+ * Suite-wide sign-out (T18, specs/20260709-suite-shell, AC-2.4).
  *
  * ──────────────────────────────────────────────────────────────────────────
  * WHY THIS LIVES HERE (relocated from estimai-ui/e2e/session-expiry.spec.ts's
@@ -21,7 +21,7 @@
  *   intercepted by the shell's `_authed` guard and redirected to sign-in.
  *
  * The shell's UserMenu default sign-out (`void signOut()`) clears the shared
- * in-memory JWT cache (ADR-0001) and calls better-auth's signOut; the auth
+ * in-memory JWT cache (ADR 20260607-jwt-in-memory-never-web-storage) and calls better-auth's signOut; the auth
  * service trusts the shell's origin (localhost:5173 is in ALLOWED_ORIGINS),
  * so the /auth/sign-out POST actually deletes the server-side session row.
  */

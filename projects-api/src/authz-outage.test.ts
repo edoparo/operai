@@ -1,5 +1,5 @@
 /**
- * AC-4.2 / ADR-0014: an `auth` outage on /authz/resolve is a 503, never an allow. The
+ * AC-4.2 / ADR 20260716-refund-api-authorization-enforcing-resource-server: an `auth` outage on /authz/resolve is a 503, never an allow. The
  * resolve fixture is restored in `finally` because the test harness is shared by every
  * file in the process.
  */

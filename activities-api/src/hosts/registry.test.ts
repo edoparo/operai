@@ -1,5 +1,5 @@
 /**
- * The host registry is data (specs/028 plan.md § Access, ADR-0081): two hosts, the rules of
+ * The host registry is data (specs/20261110-activities plan.md § Access, ADR 20261110-activities-service-access-delegated-to-host): two hosts, the rules of
  * each as fields. These tests pin the rules, so a change to one is a visible diff.
  */
 import { describe, expect, it } from "bun:test";

@@ -1,5 +1,5 @@
 /**
- * Disposing of an asset (T18, specs/015; AC-7.1..AC-7.6, AC-11.1, ADR-0046).
+ * Disposing of an asset (T18, specs/20261006-hardware-inventory; AC-7.1..AC-7.6, AC-11.1, ADR 20261006-depreciation-derived-on-read-closed-years-snapshotted).
  *
  * A disposal is a DATED write: it moves book value into a fiscal year's
  * disposals line. So, in ONE transaction: the entity advisory lock FIRST (a

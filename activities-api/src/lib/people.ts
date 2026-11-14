@@ -1,5 +1,5 @@
 /**
- * Person references in responses (specs/028; carried over from crm-api, D-15): collect every
+ * Person references in responses (specs/20261110-activities; carried over from crm-api, D-15): collect every
  * user id a response mentions, resolve them in one `resolveIdentities` call (fail soft), then
  * map each id to its `PersonRef`.
  */

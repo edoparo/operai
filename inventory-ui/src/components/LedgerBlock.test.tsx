@@ -1,7 +1,7 @@
 /**
  * @vitest-environment jsdom
  *
- * Component tests for LedgerBlock (T34, specs/015-hardware-inventory; design.md
+ * Component tests for LedgerBlock (T34, specs/20261006-hardware-inventory; design.md
  * § T2 ledger region, F9, F10, § Accessibility "T2 detail"; refs AC-5.8, AC-7.1,
  * AC-7.3, AC-7.5). DisposeDialog is replaced by a fake (it has its own tests)
  * that exposes the callbacks the block reacts to.

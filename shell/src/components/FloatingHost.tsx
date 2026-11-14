@@ -1,14 +1,14 @@
 /**
- * FloatingHost (specs/021-meetings A13, ADR-0078) — mounted once by `ShellLayout`, outside the routed page, so it
+ * FloatingHost (specs/20261104-meetings A13, ADR 20261110-shell-floating-slot-for-remote-widgets) — mounted once by `ShellLayout`, outside the routed page, so it
  * survives every navigation. It shows the widget a remote asked for (`openFloating` in `shell/session`) in a
  * library `FloatingPanel` the person can move around the window's edge.
  *
- * The rule of every shell↔remote seam (ADR-0030, ADR-0060): the remote's failure is never the shell's. The widget
+ * The rule of every shell↔remote seam (ADR 20260803-suite-version-generated-file-federated-export, ADR 20261104-host-extension-federated-panel-through-the-shell): the remote's failure is never the shell's. The widget
  * loads through `HostExtension` (5 s timeout, error boundary). If it cannot load, and while a slow load passes
  * `LOADING_FALLBACK_DELAY_MS`, the shell's own fallback still says that a recording is running and offers the way
  * back to it: a microphone that is on must never be invisible.
  *
- * The position is kept in module memory for the tab (nothing persisted, ADR-0001's posture).
+ * The position is kept in module memory for the tab (nothing persisted, ADR 20260607-jwt-in-memory-never-web-storage's posture).
  */
 import { Button, FloatingPanel } from '@operai/ui'
 import type { FloatingInset, PerimeterPosition } from '@operai/ui'

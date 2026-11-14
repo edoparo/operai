@@ -1,5 +1,5 @@
 /**
- * Shapes of the prompt-injection evals (specs/021-meetings T83; AC-7.12, AC-9.7; ADR-0067 point 6).
+ * Shapes of the prompt-injection evals (specs/20261104-meetings T83; AC-7.12, AC-9.7; ADR 20261104-ai-output-structured-validated-plain-text point 6).
  *
  * WHAT A FIXTURE IS. A synthetic transcript (Italian or English, never personal) with
  * planted attacks, plus the replies a model that OBEYED those attacks would submit, one per

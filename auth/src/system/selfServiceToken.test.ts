@@ -1,6 +1,6 @@
 /**
- * Unit tests for the self-mint provider (T2, specs/016 — refs AC-1.4, AC-2.1;
- * ADR-0048): the credential `auth` presents to notify-api, minted in process.
+ * Unit tests for the self-mint provider (T2, specs/20261013-notify-service-credentials — refs AC-1.4, AC-2.1;
+ * ADR 20261013-auth-mints-own-service-credential-in-process): the credential `auth` presents to notify-api, minted in process.
  *
  * Signer is an injected throwaway RS256 key (this file must not import
  * `auth.config`; see serviceToken.routes.ts). The REAL plugin signer is covered

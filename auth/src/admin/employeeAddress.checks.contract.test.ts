@@ -1,9 +1,9 @@
 /**
  * DB-level CHECK constraint tests for `employee_address` (T1,
- * specs/012-employee-address/tasks.md; plan.md "Data model" migration
+ * specs/20260803-employee-address/tasks.md; plan.md "Data model" migration
  * `20260804094012_employee_address`).
  *
- * QE fix (specs/012-employee-address fix round): T1 was implemented and its
+ * QE fix (specs/20260803-employee-address fix round): T1 was implemented and its
  * CHECKs were verified BY HAND with `psql` at the time, but no test was ever
  * committed proving they actually bite — this file is that test. Every case
  * below inserts directly via `$executeRawUnsafe`, deliberately bypassing
@@ -13,7 +13,7 @@
  * ever removed, weakened, or bypassed by a future direct-DB write path.
  *
  * ── CHECK-count reconciliation (QE fix) ─────────────────────────────────────
- * The eval report (specs/012-employee-address/eval-report.md) observed "five
+ * The eval report (specs/20260803-employee-address/eval-report.md) observed "five
  * DB CHECKs" on the live schema; plan.md's migration SQL names four. Verified
  * directly against the live schema (`pg_constraint` for `employee_address`,
  * `contype` column): there are EXACTLY FOUR constraints of type `c` (CHECK) —

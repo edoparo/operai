@@ -1,13 +1,13 @@
 /**
- * T17 — Employee address end-to-end journey (specs/012-employee-address,
+ * T17 — Employee address end-to-end journey (specs/20260803-employee-address,
  * plan.md "Test strategy → e2e", tasks.md T17). Drives the REAL assembled
- * shell host + admin-ui remote (ADR-0006) against the REAL `auth` service —
+ * shell host + admin-ui remote (ADR 20260709-suite-frontend-module-federation) against the REAL `auth` service —
  * no backend mocking — mirroring this suite's existing cross-app e2e
  * convention (invitations.spec.ts, mileage-rate.spec.ts, refund-headline
  * .spec.ts).
  *
  * Journey (plan.md's own four numbered steps, US-1/US-2/US-4/US-6,
- * AC-1.2/AC-6.1/AC-6.2 — the un-gated `/account` route guarantee, ADR-0034,
+ * AC-1.2/AC-6.1/AC-6.2 — the un-gated `/account` route guarantee, ADR 20260804-shell-identity-scoped-non-tool-screens-account-route,
  * is the one thing only e2e can prove; every other AC this feature touches
  * is independently proven at unit/integration/component level per plan.md's
  * test-strategy table):
@@ -166,7 +166,7 @@ async function installFakeGooglePlaces(page: Page): Promise<void> {
 
 test.describe.configure({ mode: 'serial' })
 
-test.describe('specs/012-employee-address T17: admin sets an employee address end-to-end, the employee sees it read-only', () => {
+test.describe('specs/20260803-employee-address T17: admin sets an employee address end-to-end, the employee sees it read-only', () => {
   test('admin edits an employee address via suggestion selection, it survives a reload, and the SAME non-admin employee can see it (read-only) at /account but never reach /admin/*', async ({
     browser,
   }) => {
@@ -236,7 +236,7 @@ test.describe('specs/012-employee-address T17: admin sets an employee address en
     await expect(empPage.getByTestId('admin-user-detail-page')).toHaveCount(0, { timeout: 15_000 })
     await expect(empPage).not.toHaveURL(/\/admin(\/|$)/, { timeout: 15_000 })
 
-    // ─── Step 4b: /account IS reachable and shows the SAME address, read-only (AC-6.1/AC-6.2, ADR-0034) ──
+    // ─── Step 4b: /account IS reachable and shows the SAME address, read-only (AC-6.1/AC-6.2, ADR 20260804-shell-identity-scoped-non-tool-screens-account-route) ──
     await empPage.goto('/account')
     await expect(empPage.getByTestId('account-screen')).toBeVisible({ timeout: 20_000 })
     await expect(empPage.getByTestId('account-address-formatted')).toContainText('Via Roma 1', {

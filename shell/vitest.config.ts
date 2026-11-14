@@ -3,12 +3,12 @@ import { defineConfig } from 'vitest/config'
 
 export default defineConfig({
   resolve: {
-    // One React for the app and the library's source (ADR-0050).
+    // One React for the app and the library's source (ADR 20261031-shared-ui-library-consumed-as-source).
     dedupe: ['react', 'react-dom'],
-    // T9 (specs/003-suite-shell/tasks.md): router.tsx dynamically imports
+    // T9 (specs/20260709-suite-shell/tasks.md): router.tsx dynamically imports
     // the suite's federated remotes (`estimai/App`, `refund/App`, `admin/App`
-    // — T25, specs/004-auth-roles-permissions — and now `notify/App` — T13,
-    // specs/005-notification-center). These bare specifiers only resolve at
+    // — T25, specs/20260713-auth-roles-permissions — and now `notify/App` — T13,
+    // specs/20260713-notification-center). These bare specifiers only resolve at
     // runtime via the `@module-federation/vite` plugin configured in
     // vite.config.ts — a plugin this test config deliberately does not load
     // (unit tests mock the remotes instead of depending on a live
@@ -19,13 +19,13 @@ export default defineConfig({
     // resolution — see src/federation/__stubs__/*.tsx for why they're never
     // actually rendered.
     alias: {
-      // The shared component library, compiled from source (ADR-0050).
+      // The shared component library, compiled from source (ADR 20261031-shared-ui-library-consumed-as-source).
       '@operai/ui': fileURLToPath(new URL('../operai-ui/src/index.ts', import.meta.url)),
       'estimai/App': fileURLToPath(new URL('./src/federation/__stubs__/estimaiApp.tsx', import.meta.url)),
       'refund/App': fileURLToPath(new URL('./src/federation/__stubs__/refundApp.tsx', import.meta.url)),
       'admin/App': fileURLToPath(new URL('./src/federation/__stubs__/adminApp.tsx', import.meta.url)),
       'notify/App': fileURLToPath(new URL('./src/federation/__stubs__/notifyApp.tsx', import.meta.url)),
-      // specs/015-hardware-inventory, T41 (ADR-0045): the inventory remote's
+      // specs/20261006-hardware-inventory, T41 (ADR 20261006-ungated-second-federated-entry-of-a-gated-remote): the inventory remote's
       // two mountable entries — gated `./App` and ungated `./MyDevices`.
       'inventory/App': fileURLToPath(new URL('./src/federation/__stubs__/inventoryApp.tsx', import.meta.url)),
       'inventory/MyDevices': fileURLToPath(
@@ -41,9 +41,9 @@ export default defineConfig({
       'admin/version': fileURLToPath(new URL('./src/federation/__stubs__/adminVersion.ts', import.meta.url)),
       'notify/version': fileURLToPath(new URL('./src/federation/__stubs__/notifyVersion.ts', import.meta.url)),
       'inventory/version': fileURLToPath(new URL('./src/federation/__stubs__/inventoryVersion.ts', import.meta.url)),
-      // specs/017-crm: the crm remote's tool entry and version.
+      // specs/20261101-crm: the crm remote's tool entry and version.
       'crm/App': fileURLToPath(new URL('./src/federation/__stubs__/crmApp.tsx', import.meta.url)),
-      // specs/021-meetings, T49/T51: the meetings remote's three mountable entries + ./version.
+      // specs/20261104-meetings, T49/T51: the meetings remote's three mountable entries + ./version.
       'meetings/App': fileURLToPath(new URL('./src/federation/__stubs__/meetingsApp.tsx', import.meta.url)),
       'meetings/MyMeetings': fileURLToPath(
         new URL('./src/federation/__stubs__/meetingsMyMeetings.tsx', import.meta.url),
@@ -56,7 +56,7 @@ export default defineConfig({
       ),
       'meetings/version': fileURLToPath(new URL('./src/federation/__stubs__/meetingsVersion.ts', import.meta.url)),
       'crm/version': fileURLToPath(new URL('./src/federation/__stubs__/crmVersion.ts', import.meta.url)),
-      // specs/025-projects: the projects remote's tool entry and version.
+      // specs/20261103-projects: the projects remote's tool entry and version.
       'projects/App': fileURLToPath(new URL('./src/federation/__stubs__/projectsApp.tsx', import.meta.url)),
       'projects/version': fileURLToPath(
         new URL('./src/federation/__stubs__/projectsVersion.ts', import.meta.url),

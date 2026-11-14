@@ -1,9 +1,9 @@
 /**
- * Company relationship status automations (specs/017 O2, resolved 2026-11-02).
+ * Company relationship status automations (specs/20261101-crm O2, resolved 2026-11-02).
  *
  * - Won → customer is WRITTEN when a deal moves to `won` (deals.routes): a
  *   prospect or former client that wins a deal becomes a customer.
- * - Inactive → former is DERIVED ON READ, never written by a sweep (ADR-0013): a
+ * - Inactive → former is DERIVED ON READ, never written by a sweep (ADR 20260714-invitation-lifecycle-derived-expiry-state): a
  *   stored `customer` with at least one won deal, none won in the last
  *   LAPSE_MONTHS months and no open deal reads as `former`. A customer with no
  *   won deal at all (set by hand) keeps its status: there is nothing to lapse.

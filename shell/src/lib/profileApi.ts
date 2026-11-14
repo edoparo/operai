@@ -1,6 +1,6 @@
 /**
  * shell/profileApi — the shell-owned client for the employee self-view
- * (specs/012-employee-address, T14, US-6, AC-6.1/6.2/6.3/6.4; ADR-0034).
+ * (specs/20260803-employee-address, T14, US-6, AC-6.1/6.2/6.3/6.4; ADR 20260804-shell-identity-scoped-non-tool-screens-account-route).
  *
  * Wraps `GET /me/address` (auth/src/profile/address.routes.ts, plan.md
  * "Employee self surface"). That endpoint is strictly self-scoped by
@@ -15,7 +15,7 @@
  *
  * Goes through `apiFetch`/`getAuthBaseUrl` (./session) — the same
  * trusted-origin/Bearer-attach/401-refresh machinery every other Operai API
- * call in the suite uses (ADR-0001). `updatedByUserId` is deliberately
+ * call in the suite uses (ADR 20260607-jwt-in-memory-never-web-storage). `updatedByUserId` is deliberately
  * absent from `AddressView` below: the server never sends it on this
  * endpoint (plan.md "the data subject's transparency right does not extend
  * to learning which admin edited their record — least exposure"), so there

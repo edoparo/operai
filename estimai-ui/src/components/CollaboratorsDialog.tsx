@@ -1,6 +1,6 @@
 /**
  * CollaboratorsDialog — add/list/change-level/remove/leave collaborators on
- * an estimate (T20/T21, specs/013-estimate-sharing/tasks.md; design.md
+ * an estimate (T20/T21, specs/20260807-estimate-sharing/tasks.md; design.md
  * "## Screens & states → S2 — owner mode, S3 — collaborator/member mode").
  *
  * Two render branches, one component (design.md's Component inventory:
@@ -30,7 +30,7 @@
  * the estimate; T22 (the toolbar wiring) is the first real caller of either
  * branch — out of scope here.
  *
- * The frame is @operai/ui's `Dialog` (ADR-0050): backdrop, header with a close icon,
+ * The frame is @operai/ui's `Dialog` (ADR 20261031-shared-ui-library-consumed-as-source): backdrop, header with a close icon,
  * modal semantics, focus trap, Escape and focus return.
  *
  * Every failure state named by design.md S2 is a distinct, reachable render:
@@ -412,7 +412,7 @@ function OwnerCollaboratorsDialog({ estimateId, onClose }: OwnerCollaboratorsDia
 
   // ---- a11y -----------------------------------------------------------------
   // Focus on the email field, the Tab trap, Escape and focus return come from
-  // @operai/ui's Dialog (ADR-0050). Its dialog stack keeps the nested
+  // @operai/ui's Dialog (ADR 20261031-shared-ui-library-consumed-as-source). Its dialog stack keeps the nested
   // Remove-confirm on top: while it is open, Escape and Tab belong to it alone.
 
   // ---------------------------------------------------------------------------

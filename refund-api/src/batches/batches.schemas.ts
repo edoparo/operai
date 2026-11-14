@@ -1,5 +1,5 @@
 /**
- * Zod schemas for the compiled-batch surfaces (T3, specs/008-refund-monthly-processing,
+ * Zod schemas for the compiled-batch surfaces (T3, specs/20260719-refund-monthly-processing,
  * plan.md § API contracts / § Data model).
  *
  * `BatchSubtotalSchema` (currency + approvedCents only, non-nullable) is the
@@ -18,7 +18,7 @@
 import { z } from "zod";
 import { OwnerSchema, SubtotalSchema } from "../requests/requests.schemas";
 
-// specs/011-refund-settings, ADR-0029 — widened with "blocked_unconfigured"
+// specs/20260722-refund-settings, ADR 20260722-batch-email-recipient-live-resolution-amends-0021 — widened with "blocked_unconfigured"
 // (a send/resend attempt that never reached notify-api because the
 // accounting-distribution-email setting was unconfigured, AC-2.2),
 // distinguishable from an ordinary "failed" notify-api/Resend outage. ONE
@@ -155,7 +155,7 @@ export const BatchSummarySchema = z.object({
 });
 export type BatchSummary = z.infer<typeof BatchSummarySchema>;
 
-// ─── POST /batches/:id/email (resend — AC-3.3, T5; 422 on unconfigured, T4 specs/011) ──
+// ─── POST /batches/:id/email (resend — AC-3.3, T5; 422 on unconfigured, T4 specs/20260722-refund-settings) ──
 
 export const BatchEmailActionResponseSchema = z.object({
   emailStatus: z.enum(EMAIL_STATUS_VALUES),

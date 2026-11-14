@@ -1,6 +1,6 @@
 /**
- * Draft-travel_km live-recompute (T5, specs/009-mileage-rate, Decision 1,
- * ADR-0013, AC-2.4, AC-3.2, Risk R2).
+ * Draft-travel_km live-recompute (T5, specs/20260720-mileage-rate, Decision 1,
+ * ADR 20260714-invitation-lifecycle-derived-expiry-state, AC-2.4, AC-3.2, Risk R2).
  *
  * `GET /requests/:id` must recompute each DRAFT travel_km line's amount
  * against the CURRENTLY effective rate on every read — never trust the

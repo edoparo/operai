@@ -7,11 +7,11 @@ import type { MiddlewareHandler } from "hono";
  * `url.slice(url.indexOf("/", 8))`, which keeps everything after the origin —
  * INCLUDING the query string. That leaks live credentials into application
  * logs whenever a query param carries one: notify-api's
- * `GET /notifications/stream?ticket=<t>` (ADR-0008) puts the single-use SSE
+ * `GET /notifications/stream?ticket=<t>` (ADR 20260713-sse-stream-auth-short-lived-ticket) puts the single-use SSE
  * ticket in the query string, so the stock logger would write a live,
  * still-valid (up to its ~30s TTL) ticket into every log line for that
  * request — a log reader within the TTL could replay it, contradicting
- * ADR-0008's "never logged" posture. This also matters for estimai-api, which
+ * ADR 20260713-sse-stream-auth-short-lived-ticket's "never logged" posture. This also matters for estimai-api, which
  * shares this same logger module: no current route puts a credential in a
  * query string, but establishing the pattern here means any future
  * query-string-authenticated route (streaming or otherwise) is safe by

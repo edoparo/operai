@@ -1,5 +1,5 @@
 /**
- * Capability x route matrix fixtures (T44, specs/015-hardware-inventory;
+ * Capability x route matrix fixtures (T44, specs/20261006-hardware-inventory;
  * AC-9.1 to AC-9.5, AC-9.7, AC-11.1).
  *
  * This file is DATA plus helpers; `src/matrix.test.ts` is the test. The

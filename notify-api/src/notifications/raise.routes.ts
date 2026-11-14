@@ -1,9 +1,9 @@
 /**
- * POST /notifications — raise endpoint (T4, specs/005-notification-center,
+ * POST /notifications — raise endpoint (T4, specs/20260713-notification-center,
  * plan.md §API contracts / §Architecture "raise → persist → push → badge" sequence).
  *
- * Flow: jwtMiddleware (ADR-0005 + ADR-0010) → zod-validate body → the inApp
- * channel (T2, specs/006-user-invitations) INSERTs (recipientId := JWT sub)
+ * Flow: jwtMiddleware (ADR 20260703-jwt-resource-server-remote-jwks + ADR 20260713-jwt-audience-claim-enforcement) → zod-validate body → the inApp
+ * channel (T2, specs/20260713-user-invitations) INSERTs (recipientId := JWT sub)
  * and publish()es the event to the EventBus (T3) so every open SSE stream for
  * that sub receives it (T7 wires the consumption side). The persist+publish
  * sequence itself is unchanged from before the T2 channel refactor — only its
@@ -44,7 +44,7 @@ export const raiseRouter = new OpenAPIHono<{ Variables: JwtVariables }>();
 // same prefix (`app.route("/", raiseRouter)` etc.), and Hono merges each
 // child router's middleware into ONE flat route table once mounted — a "*"
 // registered on ANY sub-router therefore applies to the WHOLE app, including
-// `GET /notifications/stream`, which per ADR-0008 MUST be reachable WITHOUT a
+// `GET /notifications/stream`, which per ADR 20260713-sse-stream-auth-short-lived-ticket MUST be reachable WITHOUT a
 // Bearer (EventSource cannot send one; it is authed by the query-string
 // ticket instead). This mirrors the precedent already documented in
 // stream.routes.ts's stream-ticket route.

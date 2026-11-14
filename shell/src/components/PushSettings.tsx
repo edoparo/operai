@@ -1,10 +1,10 @@
 /**
- * PushSettings — the "Push notifications" section of My profile (specs/029-push-notifications, T9;
+ * PushSettings — the "Push notifications" section of My profile (specs/20261111-push-notifications, T9;
  * design.md § Flows F1-F7, § Screens & states, § Accessibility; AC-1.1-1.6, 1.8, 3.1, 3.2, 6.1).
  *
  * A composition of `@operai/ui` parts (no switch exists in the library: a status line and one
  * `Button`). It sits BESIDE the address section on `AccountScreen`, never inside
- * `account-address-region` (specs/012 AC-6.2: that region has no interactive element).
+ * `account-address-region` (specs/20260803-employee-address AC-6.2: that region has no interactive element).
  *
  * All browser and notify-api work is `../lib/push` (T8); this file holds state and copy only:
  *   - nothing is drawn until `GET /push/config` answers; `enabled:false` draws nothing (AC-6.1); a
@@ -380,7 +380,7 @@ export function PushSettings() {
           {loaded.devices.length > 0 ? (
             <DataTable
               // DataTable focuses a row only when `focusRowKey` changes, and two removals can name the
-              // same surviving row ([A,B,C]: remove A -> B, remove C -> B; specs/029 QE D-4). A fresh
+              // same surviving row ([A,B,C]: remove A -> B, remove C -> B; specs/20261111-push-notifications QE D-4). A fresh
               // mount per removal makes every removal a new focus request.
               key={loaded.focusSeq}
               caption={t.devices.caption}

@@ -11,7 +11,7 @@ import { strings } from '../strings'
 
 /**
  * LedgerBlock — the accountant's region of the asset detail page (T34, specs/
- * 015-hardware-inventory; design.md § T2 ledger region, F9, F10, § Accessibility
+ * 20261006-hardware-inventory; design.md § T2 ledger region, F9, F10, § Accessibility
  * "T2 detail"; AC-5.8, AC-7.1, AC-7.3, AC-7.4, AC-7.5). Its props are fixed by
  * T32; the page renders it only for `ledger:manage`, and it renders NOTHING
  * (not an empty block) when the server sent no `ledger`.

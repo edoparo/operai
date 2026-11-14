@@ -8,7 +8,7 @@ import { fileURLToPath } from 'node:url'
 // stay in sync with this package's own dependency ranges rather than being
 // hardcoded (see the T12 comment further down). The suite-level About dialog
 // (which used to read the app version from here, via __APP_VERSION__) is now
-// owned by the shell — specs/003-suite-shell, T6/T14.
+// owned by the shell — specs/20260709-suite-shell, T6/T14.
 //
 // The same `pkg.version` now also backs `__REMOTE_VERSION__` (version-bump
 // plan §C): this remote's OWN version, exposed via Module Federation as
@@ -18,7 +18,7 @@ import { fileURLToPath } from 'node:url'
 // `shared.requiredVersion` entries — no new cross-directory risk.
 const pkg = JSON.parse(readFileSync(new URL('./package.json', import.meta.url), 'utf-8'))
 
-// T12 (specs/003-suite-shell/tasks.md): estimai-ui as a Module Federation
+// T12 (specs/20260709-suite-shell/tasks.md): estimai-ui as a Module Federation
 // REMOTE — not a host. It exposes a single root component, `./App` (see
 // src/App.tsx), that the shell (T9/T11, out of scope here) mounts under its
 // `/estimai/*` catch-all route. Shared singletons mirror shell/vite.config.ts
@@ -29,7 +29,7 @@ const pkg = JSON.parse(readFileSync(new URL('./package.json', import.meta.url), 
 // package's own dependency ranges (package.json) rather than hardcoded, so
 // they cannot silently drift from what estimai-ui actually ships.
 //
-// T13 (specs/003-suite-shell/tasks.md, AC-2.3): estimai-ui is ALSO, now, a
+// T13 (specs/20260709-suite-shell/tasks.md, AC-2.3): estimai-ui is ALSO, now, a
 // consumer — it makes the shell a `remotes` entry so it can import the
 // shell-exposed `shell/session` module (shell/src/lib/session.ts, T4) rather
 // than holding its own JWT cache / better-auth client (see src/lib/api.ts,
@@ -53,7 +53,7 @@ const pkg = JSON.parse(readFileSync(new URL('./package.json', import.meta.url), 
 const shellRemoteUrl =
   process.env['SHELL_REMOTE_URL'] ?? 'http://localhost:5173/remoteEntry.js'
 
-// @operai/ui (operai-ui/, ADR-0050) is compiled from SOURCE by this build; `dedupe`
+// @operai/ui (operai-ui/, ADR 20261031-shared-ui-library-consumed-as-source) is compiled from SOURCE by this build; `dedupe`
 // keeps the library's own `react` imports on this project's copy (Module Federation
 // singleton), since operai-ui/node_modules does not exist on Vercel.
 const operaiUiEntry = fileURLToPath(new URL('../operai-ui/src/index.ts', import.meta.url))

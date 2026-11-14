@@ -3,8 +3,8 @@
  *
  * Component tests for UserMenu.
  *
- * Ported from estimai-ui/src/components/UserMenu.test.tsx (T6, specs/003-suite-shell,
- * AC-1.4; originally T8, specs/002) — unchanged. The user menu is an avatar button that
+ * Ported from estimai-ui/src/components/UserMenu.test.tsx (T6, specs/20260709-suite-shell,
+ * AC-1.4; originally T8, specs/20260606-ui-auth-integration) — unchanged. The user menu is an avatar button that
  * opens a dropdown. The avatar is always visible; the full name/email, "My profile", and
  * the sign-out control live inside the menu.
  *
@@ -14,7 +14,7 @@
  *   (c) the name is NOT visible until the menu is opened.
  *   (d) the sign-out item inside the menu calls onSignOut.
  *   (e) the menu closes on Escape.
- *   (f) "My profile" (T15, specs/012-employee-address, US-6 AC-6.1, ADR-0034) is a real
+ *   (f) "My profile" (T15, specs/20260803-employee-address, US-6 AC-6.1, ADR 20260804-shell-identity-scoped-non-tool-screens-account-route) is a real
  *       link to /account and closes the menu when activated.
  *
  * `renderUserMenu` wraps every render in a real, minimal TanStack Router harness
@@ -204,7 +204,7 @@ describe('UserMenu', () => {
     })
   })
 
-  describe('(g) "My devices" links to /devices (T42, specs/015-hardware-inventory, AC-4.1, ADR-0045)', () => {
+  describe('(g) "My devices" links to /devices (T42, specs/20261006-hardware-inventory, AC-4.1, ADR 20261006-ungated-second-federated-entry-of-a-gated-remote)', () => {
     it('is a real link directly after "My profile", visible to any signed-in user', async () => {
       await renderUserMenu({ user: { name: 'Alice Welld', email: null, image: null }, onSignOut: () => {} })
       openMenu('Alice Welld')
@@ -232,7 +232,7 @@ describe('UserMenu', () => {
     // resolved once for the suite (<html lang>), not by this menu at render time.
   })
 
-  describe('(h) "My meetings" links to /my-meetings (specs/021-meetings, AC-10.1, ADR-0045 shape)', () => {
+  describe('(h) "My meetings" links to /my-meetings (specs/20261104-meetings, AC-10.1, ADR 20261006-ungated-second-federated-entry-of-a-gated-remote shape)', () => {
     it('is a real link directly after "My devices", visible to any signed-in user', async () => {
       await renderUserMenu({ user: { name: 'Alice Welld', email: null, image: null }, onSignOut: () => {} })
       openMenu('Alice Welld')

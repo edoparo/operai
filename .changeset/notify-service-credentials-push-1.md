@@ -3,8 +3,8 @@
 "@operai/notify-api": minor
 ---
 
-First of three pushes that retire the shared notification token (specs/016,
-ADR-0048/0049). `notify-api` now accepts a scoped service credential on both
+First of three pushes that retire the shared notification token (specs/20261013-notify-service-credentials,
+ADR 20261013-auth-mints-own-service-credential-in-process/0049). `notify-api` now accepts a scoped service credential on both
 internal routes (`/system/notifications` with `notifications.push`,
 `/system/emails` with `emails.send`), logs which caller made each accepted call,
 and treats `NOTIFY_INTERNAL_TOKEN` as optional. `auth` knows the `emails.send`

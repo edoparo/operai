@@ -1,5 +1,5 @@
 /**
- * Tests for formatIdentity (T14, specs/013-estimate-sharing/tasks.md).
+ * Tests for formatIdentity (T14, specs/20260807-estimate-sharing/tasks.md).
  *
  * Covers the three wire statuses `auth POST /authz/users/identities` can
  * return, plus the defensive "active but blank name" edge case — the rule

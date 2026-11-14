@@ -52,7 +52,7 @@ export default function TasksPage() {
     tasks.retry()
   }
 
-  /** A row left the view (Mark done, Reopen, Delete): focus rests on the selected tab, stable and visible, never `body` (specs/028 design.md). */
+  /** A row left the view (Mark done, Reopen, Delete): focus rests on the selected tab, stable and visible, never `body` (specs/20261110-activities design.md). */
   const rowLeft = (message: string) => {
     changed(message)
     document.getElementById(`${TABS_ID}-tab-${view}`)?.focus()

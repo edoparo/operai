@@ -1,4 +1,4 @@
-/** Project tasks: the Tasks card on the project page, its row and its dialogs (specs/028, T18). */
+/** Project tasks: the Tasks card on the project page, its row and its dialogs (specs/20261110-activities, T18). */
 const en = {
   title: 'Tasks',
   add: 'Add task',
@@ -107,7 +107,7 @@ const en = {
     unavailableTitle: 'Pre-sales tasks could not be loaded',
     unavailableBody: 'The CRM did not answer. Your project tasks are shown below.',
   },
-  /** A task's rich description with its images and attachments (ADR-0089). */
+  /** A task's rich description with its images and attachments (ADR 20261113-task-description-files-in-activities-api-bucket). */
   files: {
     description: 'Description',
     placeholder: 'What has to be done, and anything that helps. Paste or drop pictures here.',

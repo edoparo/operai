@@ -1,6 +1,6 @@
 /**
  * Unit tests for EXPENSE_TYPES / requiresKm (T14,
- * specs/007-refund-service/tasks.md — "EXPENSE_TYPES constant … the 12
+ * specs/20260716-refund-service/tasks.md — "EXPENSE_TYPES constant … the 12
  * types with id + label"). Guards the two facts every later screen (T16's
  * ExpenseLineComposer/ExpenseLineRow) depends on: exactly twelve distinct,
  * wire-format ids, and `km` gated on exactly one of them (AC-1.2).

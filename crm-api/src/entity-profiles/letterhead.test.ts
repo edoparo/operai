@@ -3,7 +3,7 @@ import { PDFDocument, degrees } from "pdf-lib";
 import { bucket, call, db, resetWorld } from "../test-support/world";
 import { checkLetterhead } from "./letterhead";
 
-/** specs/020 US-2: the letterhead upload, validation and download. */
+/** specs/20261102-crm-offer-document US-2: the letterhead upload, validation and download. */
 const PROFILE = { legalName: "wellD SA", addressLines: ["Via Example 1"], placeOfIssue: null };
 
 async function pdf(pages = 1, size: [number, number] = [595.28, 841.89], rotate = 0): Promise<Uint8Array> {

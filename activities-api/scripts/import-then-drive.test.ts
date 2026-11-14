@@ -1,5 +1,5 @@
 /**
- * specs/028 AC-2.1 and AC-2.4, the half the import suite does not reach: rows that CAME from the
+ * specs/20261110-activities AC-2.1 and AC-2.4, the half the import suite does not reach: rows that CAME from the
  * CRM through the import script still behave. T13's own tests prove the copy is equal field by
  * field; the plan's § Test strategy row "2.1, 2.2, 2.4" also asks that "estimate task + meeting
  * activity still [be] driven by 1.3/1.4 after import". This file drives them:
@@ -29,7 +29,7 @@ const targetUrl = process.env["DATABASE_URL"]!;
 const source = await provisionCrmSource(targetUrl, "drive");
 const sourceUrl = source.url;
 const crm = source.sql;
-// The pool opens here, with no time limit, not inside the first beforeEach (5 s) (specs/028 QE D9).
+// The pool opens here, with no time limit, not inside the first beforeEach (5 s) (specs/20261110-activities QE D9).
 await db.$connect();
 
 const SERVICE_AUD = "operai-system-import-test";

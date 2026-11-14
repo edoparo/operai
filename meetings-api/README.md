@@ -1,10 +1,10 @@
 # meetings-api
 
-The Meetings tool's resource server (specs/021-meetings): record, upload or paste a meeting,
+The Meetings tool's resource server (specs/20261104-meetings): record, upload or paste a meeting,
 transcribe it, summarise it with templates and ask questions of it. Bun + Hono + Prisma, port
 **8085**, logical database **`meetings`**. Live API reference at `http://localhost:8085/docs`.
 
-Contract: `specs/021-meetings/plan.md` (§ Architecture, § Data model, § API contracts).
+Contract: `specs/20261104-meetings/plan.md` (§ Architecture, § Data model, § API contracts).
 
 ## Run
 
@@ -56,7 +56,7 @@ and validated when set, so `mise run dev` needs no Google project. At start, wit
 Google's control plane and exits 1 unless the transient bucket is fit (N2), Vertex data caching is disabled for the
 project (N3, `GET .../cacheConfig` answers `disableCache: true`) and request-response logging is not enabled for the
 model (N4). The settings Google exposes through no API (Speech data logging, the contract, Advanced AI consent) are
-go-live sign-offs in `infra/README.md`, not code (ADR-0069).
+go-live sign-offs in `infra/README.md`, not code (ADR 20261105-meetings-ai-providers-google-cloud-eu).
 
 | `MEETINGS_WORKER` | `on` (default), `off` or `only`: the job runner runs in this process |
 | `MEETINGS_TEST_HOSTS` | JSON array of test hosts; refused in production |
@@ -75,9 +75,9 @@ body, no title, no transcript, no search term is ever logged. Do not add one.
 ## Image
 
 The Dockerfile installs a pinned `ffmpeg`/`ffprobe` (Debian) and runs as the non-root `bun`
-user. `.railway/railway.ts` pins one replica: the job runner lives in the process (ADR-0062).
+user. `.railway/railway.ts` pins one replica: the job runner lives in the process (ADR 20261104-durable-job-runner-work-queued-state-derived).
 
-## Prompt-injection evals (AC-7.12, AC-9.7, ADR-0067)
+## Prompt-injection evals (AC-7.12, AC-9.7, ADR 20261104-ai-output-structured-validated-plain-text)
 
 `evals/` holds synthetic Italian and English meetings with planted attacks and a runner. The
 content is invented (people, companies, `.example` hosts), never personal, so it may be sent to a
@@ -127,7 +127,7 @@ model resisting them.
 
 1. `bun run typecheck && bun test` and `bun run eval` (fake) green.
 2. **`bun run eval --live` with `MEETINGS_VERTEX_MODEL_ID` set to the model id that will be deployed. Required**
-   for every release and for every `MEETINGS_VERTEX_MODEL_ID` change (ADR-0069, ADR-0067). A change of model id
+   for every release and for every `MEETINGS_VERTEX_MODEL_ID` change (ADR 20261105-meetings-ai-providers-google-cloud-eu, ADR 20261104-ai-output-structured-validated-plain-text). A change of model id
    is not merged without a green live run recorded in the PR.
 3. Paste the block the live run prints (model id, date, fixture count, PASS) into the PR.
 

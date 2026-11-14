@@ -1,5 +1,5 @@
 /**
- * dates — refund-ui's date display (T16, specs/007). API values stay ISO 8601;
+ * dates — refund-ui's date display (T16, specs/20260716-refund-service). API values stay ISO 8601;
  * INC-26: the formatting is the suite's `formatDate`/`formatDateTime` from
  * `@operai/ui` — numeric `DD.MM.YYYY` (24-hour `HH:mm` for a timestamp) for
  * every viewer, the civil format in both CH and IT, so an employee in Italy and

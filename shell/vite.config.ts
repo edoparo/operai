@@ -73,9 +73,9 @@ const suiteVersion = readSuiteVersion()
 
 // Module Federation host config.
 //
-// `@module-federation/vite` (MF2 runtime, per ADR-0006) officially supports
+// `@module-federation/vite` (MF2 runtime, per ADR 20260709-suite-frontend-module-federation) officially supports
 // Vite 8 — its peerDependencies declare "vite": "^5 || ^6 || ^7 || ^8" as of
-// 1.16.x. The R1 gate (T2, specs/003-suite-shell/tasks.md) proved this clean
+// 1.16.x. The R1 gate (T2, specs/20260709-suite-shell/tasks.md) proved this clean
 // against a throwaway seed remote (`mf-seed-remote/`, since deleted — see
 // docs/adr/0006 and the T2 run trace for the proof); no R1 fallback (pinning
 // Vite down a minor, or switching to @originjs/vite-plugin-federation) was
@@ -99,45 +99,45 @@ const suiteVersion = readSuiteVersion()
 // is unaffected by these dev defaults.
 const estimaiRemoteUrl = process.env['ESTIMAI_REMOTE_URL'] ?? 'http://localhost:5174/remoteEntry.js'
 const refundRemoteUrl = process.env['REFUND_REMOTE_URL'] ?? 'http://localhost:5175/remoteEntry.js'
-// T25 (specs/004-auth-roles-permissions/tasks.md): admin-ui (T13) as a third
+// T25 (specs/20260713-auth-roles-permissions/tasks.md): admin-ui (T13) as a third
 // suite remote — same env-override + localhost dev-default pattern as
 // estimai/refund above. Dev default targets admin-ui's own pinned port
 // (5177, see admin-ui/vite.config.ts).
 const adminRemoteUrl = process.env['ADMIN_REMOTE_URL'] ?? 'http://localhost:5177/remoteEntry.js'
-// T13 (specs/005-notification-center/tasks.md): notify-ui (T14) — the
+// T13 (specs/20260713-notification-center/tasks.md): notify-ui (T14) — the
 // notification center's federated remote. Same env-override + localhost
 // dev-default pattern as estimai/refund/admin above. Dev default targets
 // notify-ui's own pinned port (5176, see notify-ui/vite.config.ts).
 const notifyRemoteUrl = process.env['NOTIFY_REMOTE_URL'] ?? 'http://localhost:5176/remoteEntry.js'
 
-// T41 (specs/015-hardware-inventory/tasks.md): inventory-ui — the hardware
+// T41 (specs/20261006-hardware-inventory/tasks.md): inventory-ui — the hardware
 // inventory tool's federated remote. Same env-override + localhost dev-default
 // pattern as the four above; dev default targets its own pinned port (5178).
-// One remote exposes TWO mountable entries (ADR-0045): ./App (gated tool) and
+// One remote exposes TWO mountable entries (ADR 20261006-ungated-second-federated-entry-of-a-gated-remote): ./App (gated tool) and
 // ./MyDevices (ungated, identity-scoped). The shell build never requires this
 // remote to be running — `dts` stays off and the entry is only fetched at runtime.
 const inventoryRemoteUrl = process.env['INVENTORY_REMOTE_URL'] ?? 'http://localhost:5178/remoteEntry.js'
 
-// specs/017-crm: crm-ui, the CRM's federated remote. Same pattern; dev default
+// specs/20261101-crm: crm-ui, the CRM's federated remote. Same pattern; dev default
 // targets its own pinned port (5179).
 const crmRemoteUrl = process.env['CRM_REMOTE_URL'] ?? 'http://localhost:5179/remoteEntry.js'
 
-// specs/021-meetings: meetings-ui, the Meetings tool's federated remote (port 5180).
-// One remote, THREE mountable entries (ADR-0045 shape): ./App (gated `/meetings/$`),
+// specs/20261104-meetings: meetings-ui, the Meetings tool's federated remote (port 5180).
+// One remote, THREE mountable entries (ADR 20261006-ungated-second-federated-entry-of-a-gated-remote shape): ./App (gated `/meetings/$`),
 // ./MyMeetings (ungated `/my-meetings/$`) and ./HostMeetings (the host panel loaded
-// through this shell's own `./extensions` expose, ADR-0060).
+// through this shell's own `./extensions` expose, ADR 20261104-host-extension-federated-panel-through-the-shell).
 const meetingsRemoteUrl = process.env['MEETINGS_REMOTE_URL'] ?? 'http://localhost:5180/remoteEntry.js'
 
-// specs/025-projects: projects-ui, the Projects module's federated remote. Same
+// specs/20261103-projects: projects-ui, the Projects module's federated remote. Same
 // pattern; dev default targets its own pinned port (5181).
 const projectsRemoteUrl = process.env['PROJECTS_REMOTE_URL'] ?? 'http://localhost:5181/remoteEntry.js'
 
-// @operai/ui (operai-ui/, ADR-0050) is compiled from SOURCE by this build; `dedupe`
+// @operai/ui (operai-ui/, ADR 20261031-shared-ui-library-consumed-as-source) is compiled from SOURCE by this build; `dedupe`
 // keeps the library's own `react` imports on this project's copy (Module Federation
 // singleton), since operai-ui/node_modules does not exist on Vercel.
 const operaiUiEntry = fileURLToPath(new URL('../operai-ui/src/index.ts', import.meta.url))
 
-// specs/029-push-notifications, T7: the push service worker. It must be a CLASSIC script (Firefox
+// specs/20261111-push-notifications, T7: the push service worker. It must be a CLASSIC script (Firefox
 // does not reliably run module workers) at the stable, unhashed path `/push-sw.js` (the browser
 // re-fetches it by URL; a hashed name would orphan every installed worker). The MF build cannot
 // produce that as a second entry, so a nested library build bundles src/sw/push-sw.ts to one IIFE:
@@ -203,7 +203,7 @@ export default defineConfig({
   plugins: [
     react(),
     pushServiceWorker(),
-    // @module-federation/vite is kept at >= 1.23.9 in package.json on purpose (specs/021, T53):
+    // @module-federation/vite is kept at >= 1.23.9 in package.json on purpose (specs/20261104-meetings, T53):
     // from 1.23 a remote's dev server seeds a React copy into the page-wide
     // `__mf_module_cache__` and the first writer wins, so a host on an older plugin (1.16, no
     // cache) never owns React and a remote's copy leaks into the shell: "Invalid hook call /
@@ -211,7 +211,7 @@ export default defineConfig({
     // The host on the same protocol seeds first and every remote reuses its React.
     federation({
       name: 'shell',
-      // BUGFIX (found by T16's real-browser e2e run, specs/003-suite-shell):
+      // BUGFIX (found by T16's real-browser e2e run, specs/20260709-suite-shell):
       // without an explicit `filename`, the plugin emits the shell's own
       // remote entry under a hashed asset name instead of a stable
       // `/remoteEntry.js`. estimai-ui and refund-ui already set this
@@ -234,7 +234,7 @@ export default defineConfig({
       // startup. Not needed anyway: both remotes' shapes are declared via
       // src/federation/remotes.d.ts (ambient module declarations, T9).
       dts: false,
-      // T3 (specs/003-suite-shell/tasks.md): the shell doubles as a producer
+      // T3 (specs/20260709-suite-shell/tasks.md): the shell doubles as a producer
       // for the shared Operai design tokens (fonts, palette, Tailwind
       // `@theme` block — see src/styles/tokens.css), per the plan's
       // federation contract (`shell` exposes `./tokens.css`, `./session`).
@@ -243,25 +243,25 @@ export default defineConfig({
       // supports. Remotes (estimai-ui T12/T13, refund-ui T15) import this
       // as `shell/tokens.css` instead of duplicating the stylesheet, so the
       // whole suite renders in one design system (AC-1.3).
-      // T4 (specs/003-suite-shell/tasks.md): the shell also exposes the
+      // T4 (specs/20260709-suite-shell/tasks.md): the shell also exposes the
       // shared session/runtime module — the in-memory-JWT `apiFetch`, the
       // better-auth client wrappers (getSession/useSession/signOut), and the
       // trusted-origin Bearer guard, extracted from estimai-ui's
-      // src/lib/api.ts + authClient.ts (ADR-0001). Remotes import
-      // `shell/session` instead of holding their own copy, so the ADR-0001
+      // src/lib/api.ts + authClient.ts (ADR 20260607-jwt-in-memory-never-web-storage). Remotes import
+      // `shell/session` instead of holding their own copy, so the ADR 20260607-jwt-in-memory-never-web-storage
       // in-memory JWT is cached ONCE for the whole suite (plan.md federation
       // contract).
       exposes: {
         './tokens.css': './src/styles/tokens.css',
         './session': './src/lib/session.ts',
-        // specs/021-meetings, T51 (ADR-0060): the host-extension seam. A host
+        // specs/20261104-meetings, T51 (ADR 20261104-host-extension-federated-panel-through-the-shell): the host-extension seam. A host
         // (crm-ui's deal page) embeds another remote's panel through
         // `shell/extensions` → HostExtension, which owns the timeout, the error
         // boundary and the host's fallback.
         './extensions': './src/lib/extensions.tsx',
       },
       remotes: {
-        // T9 (specs/003-suite-shell/tasks.md): the two real suite tools.
+        // T9 (specs/20260709-suite-shell/tasks.md): the two real suite tools.
         // Shape mirrors the retired seed remote's entry exactly (proven
         // working by the R1 gate) — only the name/URL differ.
         estimai: {
@@ -287,7 +287,7 @@ export default defineConfig({
           entryGlobalName: 'admin',
           shareScope: 'default',
         },
-        // T13 (specs/005-notification-center/tasks.md): notify-ui (T14) —
+        // T13 (specs/20260713-notification-center/tasks.md): notify-ui (T14) —
         // the notification center remote. Same shape as estimai/refund/admin
         // above. Unlike those, the shell route that mounts this remote
         // (`/notify/$`, src/router.tsx) is deliberately NOT app-access-gated
@@ -299,9 +299,9 @@ export default defineConfig({
           entryGlobalName: 'notify',
           shareScope: 'default',
         },
-        // T41 (specs/015-hardware-inventory): inventory-ui. Its ./App is mounted
+        // T41 (specs/20261006-hardware-inventory): inventory-ui. Its ./App is mounted
         // at the access-gated `/inventory/$`; its ./MyDevices at the UNGATED
-        // `/devices` (ADR-0045) — see src/router.tsx.
+        // `/devices` (ADR 20261006-ungated-second-federated-entry-of-a-gated-remote) — see src/router.tsx.
         inventory: {
           type: 'module',
           name: 'inventory',
@@ -309,7 +309,7 @@ export default defineConfig({
           entryGlobalName: 'inventory',
           shareScope: 'default',
         },
-        // specs/017-crm: crm-ui, mounted at the access-gated `/crm/$`.
+        // specs/20261101-crm: crm-ui, mounted at the access-gated `/crm/$`.
         crm: {
           type: 'module',
           name: 'crm',
@@ -317,7 +317,7 @@ export default defineConfig({
           entryGlobalName: 'crm',
           shareScope: 'default',
         },
-        // specs/021-meetings: meetings-ui. ./App is mounted at the access-gated
+        // specs/20261104-meetings: meetings-ui. ./App is mounted at the access-gated
         // `/meetings/$`; ./MyMeetings at the UNGATED `/my-meetings/$`; ./HostMeetings
         // is loaded by HostExtension (src/lib/extensions.tsx).
         meetings: {
@@ -327,7 +327,7 @@ export default defineConfig({
           entryGlobalName: 'meetings',
           shareScope: 'default',
         },
-        // specs/025-projects: projects-ui, mounted at the access-gated `/projects/$`.
+        // specs/20261103-projects: projects-ui, mounted at the access-gated `/projects/$`.
         projects: {
           type: 'module',
           name: 'projects',

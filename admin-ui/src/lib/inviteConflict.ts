@@ -29,7 +29,7 @@ export const inviteConflictMessageFor = (detail: string | undefined): string => 
 }
 
 /**
- * Message for a 422 `code: "domain_not_allowed"` (specs/023, AC-5.1): the
+ * Message for a 422 `code: "domain_not_allowed"` (specs/20261105-signup-gate, AC-5.1): the
  * allowed domains rendered in the UI language from the `allowedDomains`
  * extension, else the server's English `detail`, else the generic copy. The
  * caller decides it is this case by `error.code`, never by prose.

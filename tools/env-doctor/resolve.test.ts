@@ -110,7 +110,7 @@ describe("env-doctor resolver", () => {
     expect(bad).toEqual([]);
   });
 
-  // The done-when of specs/015 T43, against the SHIPPED templates (not a hand-built suite).
+  // The done-when of specs/20261006-hardware-inventory T43, against the SHIPPED templates (not a hand-built suite).
   test("the committed templates fail when SERVICE_AUDIENCE drifts between auth and notify-api", () => {
     const r = loadTemplateSuite("production");
     r.suite.auth!.SERVICE_AUDIENCE = "operai-service";
@@ -119,7 +119,7 @@ describe("env-doctor resolver", () => {
     expect(findings.some((f) => f.level === "error" && f.message.includes("SERVICE_AUDIENCE is not identical"))).toBe(true);
   });
 
-  // specs/021 T81 done-when, against the SHIPPED templates.
+  // specs/20261104-meetings T81 done-when, against the SHIPPED templates.
   test("the committed templates fail when meetings-api's registry entry loses host-notices.send", () => {
     const r = loadTemplateSuite("production");
     r.suite.auth!.SERVICE_CLIENTS = r.suite.auth!.SERVICE_CLIENTS!.replace("notifications.push host-notices.send", "notifications.push");

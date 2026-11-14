@@ -3,9 +3,9 @@ import { defineConfig } from 'vitest/config'
 
 export default defineConfig({
   resolve: {
-    // One React for the app and the library's source (ADR-0050).
+    // One React for the app and the library's source (ADR 20261031-shared-ui-library-consumed-as-source).
     dedupe: ['react', 'react-dom'],
-    // T14 (specs/005-notification-center/tasks.md): App.tsx consumes the
+    // T14 (specs/20260713-notification-center/tasks.md): App.tsx consumes the
     // suite's shared shell modules (`shell/session`, `shell/tokens.css`).
     // These bare specifiers only resolve at runtime via the
     // `@module-federation/vite` plugin configured in vite.config.ts — a
@@ -17,7 +17,7 @@ export default defineConfig({
     // identical treatment — see src/federation/__stubs__/* for why they're
     // never actually used for real values.
     alias: {
-      // The shared component library, compiled from source (ADR-0050).
+      // The shared component library, compiled from source (ADR 20261031-shared-ui-library-consumed-as-source).
       '@operai/ui': fileURLToPath(new URL('../operai-ui/src/index.ts', import.meta.url)),
       'shell/session': fileURLToPath(new URL('./src/federation/__stubs__/shellSession.ts', import.meta.url)),
       'shell/tokens.css': fileURLToPath(new URL('./src/federation/__stubs__/shellTokens.css', import.meta.url)),

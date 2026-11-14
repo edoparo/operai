@@ -44,7 +44,7 @@ type Filters = {
   role: '' | 'creator' | 'participant'
   status: '' | DerivedStatus
   hostApp: string
-  /** '' = every meeting, 'none' = filed nowhere, else one of the person's folder ids (ADR-0090). */
+  /** '' = every meeting, 'none' = filed nowhere, else one of the person's folder ids (ADR 20261113-personal-meeting-folders). */
   folder: string
   page: number
 }
@@ -75,7 +75,7 @@ function HostCell({ row, hosts }: { row: MeetingRow; hosts: HostInfo[] | null })
 }
 
 /**
- * The meetings list, for both entries (specs/021-meetings S1, T55): what the caller created or
+ * The meetings list, for both entries (specs/20261104-meetings S1, T55): what the caller created or
  * takes part in, newest first, 25 per page, filtered on the server. `./MyMeetings` shows it with no
  * tool frame, so its links to the tool (New meeting, Templates) go through the shell's router.
  *
@@ -108,7 +108,7 @@ export default function MeetingsListPage({ mine }: MeetingsListPageProps) {
   const [deleting, setDeleting] = useState(false)
   const [deleteError, setDeleteError] = useState<string | null>(null)
 
-  // The person's own folders (ADR-0090). A convenience: when they cannot be loaded, the list works without them.
+  // The person's own folders (ADR 20261113-personal-meeting-folders). A convenience: when they cannot be loaded, the list works without them.
   const foldersResource = useResource(
     useCallback((signal: AbortSignal) => listFolders({ signal }), []),
     { cacheKey: 'folders' },

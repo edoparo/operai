@@ -1,5 +1,5 @@
 /**
- * The wire shapes of projects-api (specs/025-projects, tasks.md § API contracts)
+ * The wire shapes of projects-api (specs/20261103-projects, tasks.md § API contracts)
  * and of the `auth` directory read. Ids are text (cuids), dates are `YYYY-MM-DD`,
  * and no amount, price or rate exists anywhere (AC-2.9).
  */
@@ -21,7 +21,7 @@ export type CompanyChoice = { id: string; name: string; entity: Entity }
 
 export type Page<T> = { items: T[]; total: number; page: number; pageSize: number }
 
-/** `GET /scope`: what the caller may manage (UX gating only; the server's 403 is the gate, ADR-0014). */
+/** `GET /scope`: what the caller may manage (UX gating only; the server's 403 is the gate, ADR 20260716-refund-api-authorization-enforcing-resource-server). */
 export type Scope = { manage: Entity[]; managesAll: boolean; bexio: boolean }
 
 export type ProjectSummary = {
@@ -99,11 +99,11 @@ export type ContractTerms =
 
 export type Contract = ContractSummary & {
   projectId: string
-  /** Filled by the CRM hand-off (specs/026); `null` for a contract entered by hand. */
+  /** Filled by the CRM hand-off (specs/20261103-projects-handoff); `null` for a contract entered by hand. */
   dealId: string | null
   terms: ContractTerms
   version: number
 }
 
-/** One row of `auth GET /authz/users/directory` (ADR-0047). */
+/** One row of `auth GET /authz/users/directory` (ADR 20261006-user-directory-endpoint-capability-gated). */
 export type DirectoryUser = { id: string; name: string | null; email: string; entity: string | null }

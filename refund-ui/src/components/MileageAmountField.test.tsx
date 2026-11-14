@@ -1,7 +1,7 @@
 /**
  * @vitest-environment jsdom
  *
- * Component tests for MileageAmountField (T13, specs/009-mileage-rate/
+ * Component tests for MileageAmountField (T13, specs/20260720-mileage-rate/
  * tasks.md, AC-1.2/1.3/1.8/2.2/2.4). `lib/ratesApi.ts` is mocked at the
  * module level (refund-api's `rates/` module doesn't exist yet — see
  * ratesApi.ts's own doc comment) so every state transition (Idle →

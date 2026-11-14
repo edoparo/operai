@@ -1,4 +1,4 @@
-/** Where a company or a lead came from (specs/017 US-7): the field, its values and its detail. */
+/** Where a company or a lead came from (specs/20261101-crm US-7): the field, its values and its detail. */
 import type { LeadSource } from '../lib/types'
 
 const en = {

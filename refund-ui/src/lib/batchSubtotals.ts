@@ -1,6 +1,6 @@
 /**
  * batchSubtotals — `formatBatchSubtotalsPreview`, a compact single-line
- * per-currency join for list rows (T10, specs/008-refund-monthly-processing/
+ * per-currency join for list rows (T10, specs/20260719-refund-monthly-processing/
  * tasks.md; design.md Component inventory: "formatBatchSubtotalsPreview
  * (lib) — NEW — Condensed single-line join for Screen B1's rows, mirroring
  * formatSubtotalsPreview's shape but over the one-figure {currency,

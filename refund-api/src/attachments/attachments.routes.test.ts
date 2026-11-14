@@ -1,6 +1,6 @@
 /**
  * Integration tests for the attachment endpoints (T9,
- * specs/007-refund-service, ADR-0016).
+ * specs/20260716-refund-service, ADR 20260716-eu-object-storage-refund-attachments).
  *
  * Strategy: real Postgres, jwt/authz mocked (see requests.routes.test.ts's
  * header comment). Object storage is ALSO mocked here (`../lib/storage`) —
@@ -54,7 +54,7 @@ let headResponse: { sizeBytes: number; contentType: string } | null = {
 // factory that returns only the exports THIS file needs leaves every other
 // importer of ../lib/storage (export.routes.ts needs getObject, storage.test.ts
 // the real functions) with a module missing its exports when this file happens
-// to run first (--randomize). Spread the real module underneath (T21, specs/016).
+// to run first (--randomize). Spread the real module underneath (T21, specs/20261013-notify-service-credentials).
 // @ts-expect-error -- the query suffix is a runtime-only cache-buster
 const realStorage = (await import("../lib/storage?real")) as typeof import("../lib/storage");
 

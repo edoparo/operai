@@ -1,11 +1,11 @@
 /**
- * Regression test for a middleware-scoping defect (specs/005-notification-center,
- * ADR-0008): list.routes.ts / raise.routes.ts / markRead.routes.ts each used to
+ * Regression test for a middleware-scoping defect (specs/20260713-notification-center,
+ * ADR 20260713-sse-stream-auth-short-lived-ticket): list.routes.ts / raise.routes.ts / markRead.routes.ts each used to
  * register `router.use("*", jwtMiddleware)`. Because index.ts mounts every
  * notifications router at the SAME prefix (`app.route("/", listRouter)` etc.),
  * Hono merges every child router's middleware into ONE flat route table once
  * mounted — a "*" registered on ANY sub-router therefore applied to the WHOLE
- * app, including `GET /notifications/stream`, which per ADR-0008 MUST be
+ * app, including `GET /notifications/stream`, which per ADR 20260713-sse-stream-auth-short-lived-ticket MUST be
  * reachable WITHOUT a Bearer (EventSource cannot send one; the stream is
  * authed by the query-string ticket instead). That bug made every SSE
  * connection 401 before the ticket was ever consulted.
@@ -83,7 +83,7 @@ const request = (path: string, init?: RequestInit) => fetch(`${BASE_URL}${path}`
 
 // ─── (a) The SSE stream must NEVER be gated by jwtMiddleware ────────────────
 
-describe("assembled app (real process) — GET /notifications/stream is reachable without a Bearer (ADR-0008)", () => {
+describe("assembled app (real process) — GET /notifications/stream is reachable without a Bearer (ADR 20260713-sse-stream-auth-short-lived-ticket)", () => {
   it("no Authorization header, no ticket → the TICKET-validation 401, not jwtMiddleware's Bearer 401", async () => {
     const res = await request("/notifications/stream");
 
@@ -142,7 +142,7 @@ describe("assembled app (real process) — REST endpoints remain Bearer-protecte
   });
 });
 
-// ─── (c) Push device routes (specs/029 T5): Bearer-protected, and they gate nothing else ──
+// ─── (c) Push device routes (specs/20261111-push-notifications T5): Bearer-protected, and they gate nothing else ──
 
 describe("assembled app (real process) — push routes", () => {
   it("every /push route answers 401 without a Bearer", async () => {

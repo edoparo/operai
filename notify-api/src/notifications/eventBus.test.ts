@@ -1,5 +1,5 @@
 /**
- * Unit tests for InProcessEventBus (T3, specs/005-notification-center).
+ * Unit tests for InProcessEventBus (T3, specs/20260713-notification-center).
  *
  * done when: "bun test proves publish→subscriber delivery and ticket mint→consume
  * is single-use + expires" — this file covers the publish→subscriber half;

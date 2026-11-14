@@ -1,5 +1,5 @@
 /**
- * splitPrice (T30, specs/015-hardware-inventory; AC-1.3): each unit is the total
+ * splitPrice (T30, specs/20261006-hardware-inventory; AC-1.3): each unit is the total
  * divided by N rounded down to the cent, the remaining cents go on the LAST unit,
  * so the N prices sum exactly to the total. Mirrors inventory-api's rule (task
  * T8); both assert the identical vectors in `split-vectors.json`.

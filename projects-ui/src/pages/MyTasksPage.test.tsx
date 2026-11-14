@@ -1,7 +1,7 @@
 /**
  * @vitest-environment jsdom
  *
- * MyTasksPage (specs/028 US-7, AC-7.2 – AC-7.5): the caller's project tasks and
+ * MyTasksPage (specs/20261110-activities US-7, AC-7.2 – AC-7.5): the caller's project tasks and
  * pre-sales tasks in the one order the server sent, a Pre-sales badge on every
  * CRM task, done / not done only where the row's own `may.complete` says so,
  * "Open in CRM" built from the company id, and the notice when the CRM could not

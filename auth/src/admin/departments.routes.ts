@@ -1,5 +1,5 @@
 /**
- * Admin departments API (spec 004-auth-roles-permissions, T9 — refs AC-1.2).
+ * Admin departments API (spec 20260713-auth-roles-permissions, T9 — refs AC-1.2).
  *
  * `department` is the "group" primitive: an admin creates a department,
  * confers roles onto it (`PUT /:id/roles`), and adds members to it

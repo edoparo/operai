@@ -1,5 +1,5 @@
 /**
- * Log privacy over the ASSEMBLED app (specs/021-meetings T42; AC-4.10): "logs and error reports
+ * Log privacy over the ASSEMBLED app (specs/20261104-meetings T42; AC-4.10): "logs and error reports
  * hold identifiers and sizes only". Canary strings are planted in everything a person writes or
  * says (title, transcript, summary, question, answer, template, external participant) and in the
  * caller's own token (email, display name), then every route of the real route table is run as

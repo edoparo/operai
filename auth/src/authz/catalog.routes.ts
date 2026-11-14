@@ -1,5 +1,5 @@
 /**
- * Permission catalog routes (T5, specs/004-auth-roles-permissions — refs
+ * Permission catalog routes (T5, specs/20260713-auth-roles-permissions — refs
  * AC-3.1, AC-3.2). See `catalog.ts` for the full design rationale.
  *
  *   - `PUT /authz/catalog` — idempotent, full-replace upsert of ONE app's
@@ -8,7 +8,7 @@
  *     app's checked-in declaration and calls this endpoint (plan.md
  *     "Catalog registration"); it also exists so a future independently
  *     deployed app can self-register without an `auth` redeploy
- *     (ADR-0007 §7). Guarded by `requireAdmin` only for now — a
+ *     (ADR 20260713-authz-hand-rolled-rbac-abac-epoch-claims §7). Guarded by `requireAdmin` only for now — a
  *     service-key auth path for unattended app self-registration is
  *     explicitly out of scope for this task.
  *   - `GET /admin/catalog` — the full catalog (every registered app's

@@ -30,7 +30,7 @@ export function setupOpenAPI(app: OpenAPIHono): void {
       {
         name: "Collaborators",
         description:
-          "Record-level estimate sharing (specs/013-estimate-sharing, ADR-0036) — " +
+          "Record-level estimate sharing (specs/20260807-estimate-sharing, ADR 20260807-record-level-acl-resource-server-owned-access-primitive) — " +
           "list/add/change-level/remove collaborators and self-leave",
       },
       {

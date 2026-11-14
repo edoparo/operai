@@ -35,7 +35,7 @@ export function taskState(task: Pick<ProjectTask, 'task'>, now = new Date()): Ta
   return due !== null && due < today(now) ? 'overdue' : 'open'
 }
 
-/** How a person reference reads (ADR-0039): the live name, or what is known about the account. */
+/** How a person reference reads (ADR 20260807-live-identity-resolution-by-id-fail-soft): the live name, or what is known about the account. */
 export function refName(person: PersonRef | null, currentUserId: string | null = null): string {
   if (person === null) return strings.common.none
   if (person.status === 'system') return strings.tasks.person.system

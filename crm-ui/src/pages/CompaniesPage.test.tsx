@@ -115,7 +115,7 @@ describe('CompaniesPage', () => {
     expect(apiFetch.mock.calls.some(([, init]) => (init as RequestInit | undefined)?.method === 'POST')).toBe(false)
   })
 
-  it('posts the legal name, street and postal code of the offer’s client block (specs/020 AC-5.1)', async () => {
+  it('posts the legal name, street and postal code of the offer’s client block (specs/20261102-crm-offer-document AC-5.1)', async () => {
     let posted: Record<string, unknown> | null = null
     await renderAt({
       'GET /companies': () => ({ status: 200, body: page([]) }),
@@ -188,7 +188,7 @@ describe('CompaniesPage', () => {
     })
   })
 
-  it('a lapsed customer reads as former client, with the reason on its page (specs/017 AC-1.9)', async () => {
+  it('a lapsed customer reads as former client, with the reason on its page (specs/20261101-crm AC-1.9)', async () => {
     const lapsed = companySummary({ status: 'former', statusLapsed: true, openDealCount: 0 })
     apiFetch.mockImplementation(
       fakeApi({
@@ -250,7 +250,7 @@ describe('CompaniesPage', () => {
     expect(sent).toMatchObject({ jobTitle: 'CIO' })
   })
 
-  it('adds an existing contact from another company, saying it moves, with the contact’s version (specs/017 AC-2.5)', async () => {
+  it('adds an existing contact from another company, saying it moves, with the contact’s version (specs/20261101-crm AC-2.5)', async () => {
     const carla = {
       id: 'p2',
       firstName: 'Carla',

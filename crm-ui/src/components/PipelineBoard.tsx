@@ -32,7 +32,7 @@ import { strings } from '../strings'
  *   a whole lane, Space drops, Escape cancels, Enter opens the deal. Every step
  *   is announced.
  * - A deal outside the caller's `deal:manage` scope is a plain link card; the
- *   server's 403 stays the gate (ADR-0014).
+ *   server's 403 stays the gate (ADR 20260716-refund-api-authorization-enforcing-resource-server).
  *
  * The board only reports the drop (`onMove`); the page performs the write.
  */

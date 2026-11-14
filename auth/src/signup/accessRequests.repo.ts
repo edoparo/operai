@@ -1,5 +1,5 @@
 /**
- * The waiting list's write side (specs/023, ADR-0071). `recordAccessRequest`
+ * The waiting list's write side (specs/20261105-signup-gate, ADR 20261105-access-only-by-invitation-waiting-list). `recordAccessRequest`
  * follows plan.md's state table. It writes through the module `db` client, NOT
  * through better-auth's transaction: the sign-up gate throws right after, which
  * rolls that transaction back, and the request must survive (T-INT-2).

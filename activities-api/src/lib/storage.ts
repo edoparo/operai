@@ -1,5 +1,5 @@
 /**
- * S3-compatible object storage for task files (ADR-0089; ADR-0016 posture). Ported from
+ * S3-compatible object storage for task files (ADR 20261113-task-description-files-in-activities-api-bucket; ADR 20260716-eu-object-storage-refund-attachments posture). Ported from
  * crm-api/src/lib/storage.ts, minus the paths activities-api has no use for (it never reads
  * or writes bytes itself).
  *

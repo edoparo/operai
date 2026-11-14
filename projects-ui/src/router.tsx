@@ -6,15 +6,15 @@ import ProjectDetailPage from './pages/ProjectDetailPage'
 import ProjectsPage from './pages/ProjectsPage'
 
 /**
- * projects-ui's inner router (specs/025-projects), basepath `/projects` — the
+ * projects-ui's inner router (specs/20261103-projects), basepath `/projects` — the
  * shell mounts this remote at its gated `/projects/$` route:
  *
  *   /projects        Projects list (T12)
- *   /projects/tasks  My tasks: project and pre-sales tasks together (specs/028 T19)
+ *   /projects/tasks  My tasks: project and pre-sales tasks together (specs/20261110-activities T19)
  *   /projects/$id    Project page: details, state, team, contracts (T13, T14)
  *
  * The routes below are relative to the basepath. No auth guard and no chrome
- * (ADR-0006). `Root` is the layout seam: App.tsx passes `ProjectsShell`; tests
+ * (ADR 20260709-suite-frontend-module-federation). `Root` is the layout seam: App.tsx passes `ProjectsShell`; tests
  * may render a page under a bare `<Outlet/>`.
  */
 export function createAppRouter(basepath?: string, Root: RouteComponent = Outlet) {

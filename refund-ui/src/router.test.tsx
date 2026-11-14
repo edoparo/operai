@@ -2,14 +2,14 @@
  * @vitest-environment jsdom
  *
  * Router structure + navigation tests for refund-ui's inner router (T14,
- * specs/007-refund-service/tasks.md — "the router mounts all five routes
+ * specs/20260716-refund-service/tasks.md — "the router mounts all five routes
  * with placeholder screens"). Mirrors admin-ui/src/router.test.tsx's
  * technique (structural assertions on the route tree + behavioral
  * RouterProvider renders), using the basepath-less `createAppRouter()`
  * factory; App.test.tsx separately covers the exposed remote's own
  * hardcoded `/refund` basepath.
  *
- * T16 update (specs/007-refund-service/tasks.md): `/requests`, `/requests/
+ * T16 update (specs/20260716-refund-service/tasks.md): `/requests`, `/requests/
  * new`, and `/requests/$id` are no longer static placeholders — they fetch
  * via `requestsApi` (built on `shell/session`'s `apiFetch`).
  *
@@ -22,7 +22,7 @@
  * RequestDetailPage.test.tsx, ReviewQueuePage.test.tsx,
  * ReviewDetailPage.test.tsx).
  *
- * T9 update (specs/008-refund-monthly-processing/tasks.md): `/batches`,
+ * T9 update (specs/20260719-refund-monthly-processing/tasks.md): `/batches`,
  * `/batches/new`, and `/batches/$id` (Screens B1/B2/B3) are added, still as
  * static placeholders (real screens are T11-T13) — same "prove the route
  * mounts, real fetch behavior belongs to the screen's own test file"
@@ -36,7 +36,7 @@ import { RouterProvider } from '@tanstack/react-router'
 vi.mock('shell/session', () => ({
   apiFetch: vi.fn(),
   // RefundShell (the router's root component) reads usePermissions() to
-  // gate the "Review queue"/"Monthly processing" tabs (specs/008 follow-up,
+  // gate the "Review queue"/"Monthly processing" tabs (specs/20260719-refund-monthly-processing follow-up,
   // RefundShell.tsx); these ROUTING-level tests aren't about that gate, so
   // grant request:review unconditionally to preserve the pre-existing
   // "all three tabs render" shape. RefundShell.test.tsx covers the gate
@@ -49,7 +49,7 @@ vi.mock('shell/session', () => ({
     permissions: [{ resource: 'request', action: 'review' }],
   })),
   // ReviewDetailPage reads useSession() for the self-approval-control passive
-  // disable check (specs/010-self-approval-control) — these ROUTING-level
+  // disable check (specs/20260721-self-approval-control) — these ROUTING-level
   // tests aren't about that check either; `data: null` (no signed-in
   // identity) keeps the Approve button's enabled state exactly as before.
   // ReviewDetailPage.test.tsx covers the disable/enable behavior itself.
@@ -110,7 +110,7 @@ describe('router structure', () => {
     expect(routeTree.children).toHaveLength(10)
   })
 
-  it('has no `_authed` (or other guard) layout route in the tree — mirrors admin-ui/estimai-ui, ADR-0006', async () => {
+  it('has no `_authed` (or other guard) layout route in the tree — mirrors admin-ui/estimai-ui, ADR 20260709-suite-frontend-module-federation', async () => {
     const { createAppRouter } = await importRouter()
     const routeTree = createAppRouter().routeTree as unknown as { children?: RouteTreeNode[] }
 

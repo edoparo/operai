@@ -2,7 +2,7 @@
  * @vitest-environment jsdom
  *
  * Component tests for RolesPage — Screen A1 + Modal M1 (T17,
- * specs/004-auth-roles-permissions).
+ * specs/20260713-auth-roles-permissions).
  *
  * Covers:
  *   (A) Loading: adminApi.listRoles is pending → SkeletonListRows is visible.

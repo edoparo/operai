@@ -1,6 +1,6 @@
 /**
- * Prisma data-access layer for push devices (T3, specs/029-push-notifications,
- * plan.md §Data model, ADR-0084).
+ * Prisma data-access layer for push devices (T3, specs/20261111-push-notifications,
+ * plan.md §Data model, ADR 20261111-web-push-encrypted-payloads-not-fcm).
  *
  * SECURITY: `userId` is the verified JWT `sub`, never taken from a request body.
  * Rows carry the subscription secrets (`endpoint`, `p256dh`, `auth`); this layer
@@ -16,7 +16,7 @@
  *    written. See the comment on the function for why that is complete.
  *  - listByUser:        the caller's rows, newest first (id breaks ties)
  *  - deleteByIdForUser: id AND userId in one predicate; someone else's id is
- *                       NotFoundError, identical to an unknown id (ADR-0005)
+ *                       NotFoundError, identical to an unknown id (ADR 20260703-jwt-resource-server-remote-jwks)
  *  - deleteAllForUser:  sign-out / user deactivation, idempotent
  *  - deleteById:        pruning an invalid subscription (404/410 from the push
  *                       service), no owner check: it is internal, never routed

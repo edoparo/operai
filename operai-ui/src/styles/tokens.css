@@ -1,5 +1,5 @@
 /*
- * Operai shared design tokens — @operai/ui (operai-ui/, ADR-0050).
+ * Operai shared design tokens — @operai/ui (operai-ui/, ADR 20261031-shared-ui-library-consumed-as-source).
  *
  * Single source of truth for the suite's design system: the DM Sans / DM
  * Mono / Syne type family, the dark-ink color palette (+ light-theme
@@ -9,7 +9,7 @@
  * `.data-table`, `.tab-link`, `.field`, …) the React components in
  * ../components render. Rules for using them: operai-ui/docs/design-system.md.
  *
- * Moved here from shell/src/styles/tokens.css (ADR-0050). That file still
+ * Moved here from shell/src/styles/tokens.css (ADR 20261031-shared-ui-library-consumed-as-source). That file still
  * exists as a one-line `@import` of this one, so the shell's federated
  * `./tokens.css` export and every remote's `import 'shell/tokens.css'` keep
  * working unchanged.
@@ -36,7 +36,7 @@
  * in shell/vite.config.ts) so a remote consuming it at runtime (refund-ui's
  * App reads the palette CSS vars via `var(--…)`) gets the shared custom
  * properties even where Tailwind's build-time utilities aren't available — see
- * specs/003-suite-shell/plan.md's federation contract.
+ * specs/20260709-suite-shell/plan.md's federation contract.
  *
  * Consuming stylesheet must `@import "tailwindcss";` BEFORE importing this
  * file, so the `@theme` block below extends Tailwind's generated theme
@@ -49,7 +49,7 @@
    `border-rule`, `bg-org/10`, `font-mono`, …). `inline` makes each utility
    read the custom property itself (`color: var(--soft)`), so the light theme
    and data-theme switches below only redefine the plain properties: one
-   definition per token, no second `--color-*` copy to keep in sync (ADR-0051).
+   definition per token, no second `--color-*` copy to keep in sync (ADR 20261031-one-styling-dialect-token-utilities).
    `--color-*: initial` drops Tailwind's default palette, so `text-gray-500`
    or `bg-white` do not exist: only the suite's tokens are colours. */
 @theme inline {
@@ -501,7 +501,7 @@ select:not([multiple]):not([size]) {
 }
 
 /* ════════════════════════════════════════════════════════════════════════════
- * @operai/ui component classes (ADR-0050)
+ * @operai/ui component classes (ADR 20261031-shared-ui-library-consumed-as-source)
  *
  * The React components in operai-ui/src/components render these classes and
  * nothing else: no Tailwind utilities, no inline colours. A component therefore

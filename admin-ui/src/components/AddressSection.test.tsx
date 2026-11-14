@@ -1,7 +1,7 @@
 /**
  * @vitest-environment jsdom
  *
- * Component tests for AddressSection (T11, specs/012-employee-address/tasks.md,
+ * Component tests for AddressSection (T11, specs/20260803-employee-address/tasks.md,
  * refs AC-1.1, AC-1.3, AC-2.2, AC-2.3, AC-2.6, AC-3.1, AC-3.2, AC-3.3, AC-5.3).
  *
  * Strategy: `../lib/addressApi` (the `auth` HTTP client, T9) and

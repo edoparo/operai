@@ -1,4 +1,4 @@
-/** Query and response schemas for the asset reads (T12, specs/015). */
+/** Query and response schemas for the asset reads (T12, specs/20261006-hardware-inventory). */
 
 import { z } from "@hono/zod-openapi";
 import { EntitySchema } from "../depreciation/rules.schemas";

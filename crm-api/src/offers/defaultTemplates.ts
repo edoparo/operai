@@ -1,5 +1,5 @@
 /**
- * The offer templates seeded for an entity that has none (specs/020 AC-2.3).
+ * The offer templates seeded for an entity that has none (specs/20261102-crm-offer-document AC-2.3).
  * Written from the seven offers wellD supplied on 2026-11-02, with every
  * client-specific detail removed. Texts use the markup of spec AC-1.6 and the
  * placeholders the draft resolves ({deal}, {issuer}, {client}, {currency},

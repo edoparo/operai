@@ -1,5 +1,5 @@
 /**
- * Wire shapes for `/me/*` (T16, specs/015; AC-4.1, AC-4.2, ADR-0045).
+ * Wire shapes for `/me/*` (T16, specs/20261006-hardware-inventory; AC-4.1, AC-4.2, ADR 20261006-ungated-second-federated-entry-of-a-gated-remote).
  *
  * Own serializer, never `AssetView`: a `MyDevice` is built field by field from
  * five named values, so a price, a currency, an entity or a ledger figure

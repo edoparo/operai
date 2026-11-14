@@ -1,10 +1,10 @@
 /**
- * Authorization matrix over the ASSEMBLED app (specs/017-crm AC-5.1): every
+ * Authorization matrix over the ASSEMBLED app (specs/20261101-crm AC-5.1): every
  * route the app serves, except `/health` and the API docs, refuses a missing
  * token with 401 and a caller without `crm:access` with 403 — before any
  * validation or lookup. The route list is read from the app's own table, so a
  * route added without the guard fails here. A `/system` route takes a service
- * credential only (ADR-0073): every user token there is a 401.
+ * credential only (ADR 20261105-estimai-closes-the-estimate-crm-follows): every user token there is a 401.
  */
 
 import { beforeEach, describe, expect, it } from "bun:test";
@@ -12,11 +12,11 @@ import { app, call, resetWorld } from "./test-support/world";
 
 beforeEach(resetWorld);
 
-// `GET /system/companies` (specs/025) is guarded by a scoped SERVICE credential, not by user
+// `GET /system/companies` (specs/20261103-projects) is guarded by a scoped SERVICE credential, not by user
 // capabilities; its own 401 matrix lives in src/system/companies.routes.test.ts.
 const PUBLIC = new Set(["GET /health", "GET /openapi.json", "GET /docs", "GET /system/companies"]);
 
-// The meeting-host contract (specs/021, ADR-0059) is the one deliberate exception to "403 without
+// The meeting-host contract (specs/20261104-meetings, ADR 20261104-meeting-host-contract-resolve-and-notices) is the one deliberate exception to "403 without
 // crm:access": `resolve` answers a caller without it `closed`/`missing` (a 200), and `notices` is no
 // user route at all (a scoped service JWT, 401 for everything else). Each exception is asserted
 // below by name instead of by the generic rule, and the list is pinned, so another route cannot
@@ -24,7 +24,7 @@ const PUBLIC = new Set(["GET /health", "GET /openapi.json", "GET /docs", "GET /s
 const HOST_CONTRACT = new Set([
   "POST /meeting-host/v1/resolve",
   "POST /system/meeting-host/v1/notices",
-  // specs/028 T4: same shape as the meeting-host resolve — `reader:false` (a 200) without crm:access.
+  // specs/20261110-activities T4: same shape as the meeting-host resolve — `reader:false` (a 200) without crm:access.
   "POST /activity-host/v1/resolve",
 ]);
 
@@ -49,7 +49,7 @@ describe("authorization matrix", () => {
       "POST /companies",
       "DELETE /contacts/:id",
       "GET /pipeline",
-      // specs/020
+      // specs/20261102-crm-offer-document
       "GET /offer-templates",
       "GET /offer-templates/:id",
       "POST /offer-templates",
@@ -61,7 +61,7 @@ describe("authorization matrix", () => {
       "POST /entity-profiles/:entity/letterhead",
       "POST /entity-profiles/:entity/letterhead/confirm",
       "GET /entity-profiles/:entity/letterhead",
-      // specs/018 AC-3.3
+      // specs/20261101-crm-sales-flow AC-3.3
       "POST /system/estimate-notices",
     ]) {
       expect(routes).toContain(expected);
@@ -81,7 +81,7 @@ describe("authorization matrix", () => {
     expect((await call(method, concrete(path), { as: "outsider", body, ifMatch: 1 })).status).toBe(403);
   });
 
-  it("crm-api serves no /activities and no /tasks route any more: they are activities-api's (specs/028 T12)", async () => {
+  it("crm-api serves no /activities and no /tasks route any more: they are activities-api's (specs/20261110-activities T12)", async () => {
     expect(allRoutes.filter((key) => /^\w+ \/(activities|tasks)(\/|$)/.test(key))).toEqual([]);
     for (const [method, path] of [["GET", "/activities"], ["POST", "/activities"], ["GET", "/tasks"], ["PATCH", "/activities/some-id"], ["DELETE", "/activities/some-id"]] as const) {
       expect((await call(method, path, { as: "admin", body: method === "POST" ? {} : undefined })).status).toBe(404);

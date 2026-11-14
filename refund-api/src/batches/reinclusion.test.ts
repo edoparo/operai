@@ -1,5 +1,5 @@
 /**
- * QE addition (specs/008-refund-monthly-processing verification pass) —
+ * QE addition (specs/20260719-refund-monthly-processing verification pass) —
  * AC-7.3's full "discarded, then re-included in a different, later batch"
  * scenario: "that fact and the batch's identity remain permanently attached
  * to its audit history, even if the batch was later discarded and the

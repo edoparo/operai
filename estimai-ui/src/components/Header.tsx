@@ -13,7 +13,7 @@ type HeaderProps = {
   lastSavedAt?: string | null
   onNameChange: (name: string) => void
   /**
-   * T17 (specs/013-estimate-sharing/tasks.md; design.md S5): fed from
+   * T17 (specs/20260807-estimate-sharing/tasks.md; design.md S5): fed from
    * context's single `canEdit` gate (`!canEdit`). Defaults to `false` so
    * every pre-existing call site keeps its exact prior full-edit behaviour.
    * The name input becomes `readOnly` (not `disabled`); the save-status
@@ -30,7 +30,7 @@ export default function Header({ name, saveStatus, lastSavedAt = null, onNameCha
   return (
     <header className="bg-ink-soft border-b border-rule px-4 sticky top-0 z-10">
       {/* Single desktop-only row. estimai-ui runs inside the desktop-only suite
-          shell (specs/003), so there is no separate mobile header — one row is
+          shell (specs/20260709-suite-shell), so there is no separate mobile header — one row is
           all this chrome needs. (Responsive variant utilities now behave
           correctly in-shell too: the suite runs a single shell-owned Tailwind
           sheet, so the old cross-sheet `sm:*` cascade is gone — see

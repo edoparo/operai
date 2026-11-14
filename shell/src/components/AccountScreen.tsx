@@ -1,12 +1,12 @@
 /**
  * AccountScreen — shell route `/account` ("My profile" in UserMenu), the
- * employee self-view (specs/012-employee-address, T14, US-6,
+ * employee self-view (specs/20260803-employee-address, T14, US-6,
  * AC-6.1/AC-6.2/AC-6.3/AC-6.4; design.md "F6 — Employee views their own
- * address, read-only" / "`AccountScreen` — shell route `/account`"; ADR-0034).
+ * address, read-only" / "`AccountScreen` — shell route `/account`"; ADR 20260804-shell-identity-scoped-non-tool-screens-account-route).
  *
  * Mirrors `NoAccessScreen.tsx` structurally (a small, shell-local, zero-
  * dependency screen component) and is built entirely from reused parts:
- *   - the page frame and states from `@operai/ui` (ADR-0050): `ToolLayout`
+ *   - the page frame and states from `@operai/ui` (ADR 20261031-shared-ui-library-consumed-as-source): `ToolLayout`
  *     (narrow) + `PageHeader`, `SkeletonRows` with a polite `VisuallyHidden`
  *     line while loading, a `warning` `Banner` (role="alert") with its
  *     `type="button"` Retry on failure;
@@ -19,7 +19,7 @@
  *
  * **AC-6.2 — read-only guarantee, a literal DOM constraint, not a
  * suggestion.** The address is read-only; the screen as a whole is not any more: since
- * specs/029 it also holds the "Push notifications" section (`PushSettings`, with buttons),
+ * specs/20261111-push-notifications it also holds the "Push notifications" section (`PushSettings`, with buttons),
  * which is a sibling of the address section and sits OUTSIDE the region below. Everything the
  * ADDRESS section can render lives inside the single
  * `data-testid="account-address-region"` container below, in EVERY state
@@ -139,7 +139,7 @@ export function AccountScreen() {
         </div>
       </section>
 
-      {/* specs/029: a SIBLING section, deliberately outside the address region - it holds buttons,
+      {/* specs/20261111-push-notifications: a SIBLING section, deliberately outside the address region - it holds buttons,
           and that region may not (AC-6.2 above). */}
       <PushSettings />
     </ToolLayout>

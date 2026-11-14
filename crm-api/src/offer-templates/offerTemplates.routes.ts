@@ -1,5 +1,5 @@
 /**
- * Offer templates (specs/020 US-2; plan.md § API): the named starting points of
+ * Offer templates (specs/20261102-crm-offer-document US-2; plan.md § API): the named starting points of
  * an offer, owned by one entity and written in one language.
  *
  *   GET    /offer-templates?entity=&includeArchived=   deal:financials; seeds the fourteen defaults on first read
@@ -10,9 +10,9 @@
  *   POST   /offer-templates/{id}/archive | /restore   as create; If-Match required
  *
  * Reads are open to every `deal:financials` holder of either entity (a template
- * carries prices; ADR-0052's "reads are team knowledge" posture). Writes outside
+ * carries prices; ADR 20261101-crm-tool-shape-and-authorization's "reads are team knowledge" posture). Writes outside
  * the caller's entity are 403 `out_of_scope`, not 404: the caller can read the
- * template (ADR-0052's branch). Seeding is lazy and idempotent (ADR-0013 posture:
+ * template (ADR 20261101-crm-tool-shape-and-authorization's branch). Seeding is lazy and idempotent (ADR 20260714-invitation-lifecycle-derived-expiry-state posture:
  * no migration data, no cron): an entity with NO template row at all - archived
  * ones count - gets the defaults, under an advisory lock so concurrent first
  * reads insert them once.

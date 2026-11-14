@@ -1,5 +1,5 @@
 /**
- * Unit tests for the email channel (T2, specs/006-user-invitations, ADR-0011).
+ * Unit tests for the email channel (T2, specs/20260713-user-invitations, ADR 20260714-notify-api-email-channel-service-trust).
  *
  * done when (tasks.md T2): "unit: email channel records delivery; inApp
  * unchanged". The inApp half is proven by raise.routes.test.ts continuing to

@@ -56,7 +56,7 @@ const summaryText = (summary: Summary): string => {
 
 /**
  * One summary. Everything the AI wrote is rendered as plain text — React text nodes, its paragraphs and
- * lists laid out by `AiText`, never HTML or Markdown (ADR-0067).
+ * lists laid out by `AiText`, never HTML or Markdown (ADR 20261104-ai-output-structured-validated-plain-text).
  */
 export function SummaryCard({ meeting, summary, atLimit, focus, onResult, onError, onDeleted, onReload }: SummaryCardProps) {
   const t = strings.summaries

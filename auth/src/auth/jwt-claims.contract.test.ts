@@ -1,11 +1,11 @@
 /**
- * JWT claim contract test (T3, specs/004-auth-roles-permissions; extended by
- * T8, specs/005-notification-center — ADR-0010 `aud` claim).
+ * JWT claim contract test (T3, specs/20260713-auth-roles-permissions; extended by
+ * T8, specs/20260713-notification-center — ADR 20260713-jwt-audience-claim-enforcement `aud` claim).
  *
  * plan.md "The JWT claim seam" replaces the dead `jwt.fields` no-op with a
  * real `definePayload` that returns a MINIMAL, deliberate claim set:
  * `{ email, name, image, perm_epoch, aud }`, with `sub` left to the plugin
- * default (`getSubject` → `user.id` — ADR-0005, never changed here).
+ * default (`getSubject` → `user.id` — ADR 20260703-jwt-resource-server-remote-jwks, never changed here).
  *
  * Risk R2 (plan.md "Risks") is exactly what this test guards against:
  * "`definePayload` drops a claim a consumer needs" — `estimai-api`'s
@@ -13,7 +13,7 @@
  * (estimai-api/src/auth/jwt.middleware.ts) and 401s if either is absent.
  * A regression here would silently break every resource server.
  *
- * ADR-0010 (T8) adds `aud` to that same minimal set: `auth` stamps
+ * ADR 20260713-jwt-audience-claim-enforcement (T8) adds `aud` to that same minimal set: `auth` stamps
  * `env.AUTH_AUDIENCE` as the JWT's standard `aud` claim so resource servers
  * can (T9) reject tokens scoped to a different audience — closing the
  * cross-service replay gap now that notify-api is the suite's first real
@@ -29,7 +29,7 @@
  *   2. GET  /auth/token         → better-auth's jwt plugin signs a real
  *      RS256 JWT via `definePayload`.
  *   3. GET  /auth/jwks          → the SAME rotating-kid JWKS that signed the
- *      token (ADR-0005 correction: NOT /.well-known/jwks.json, which serves
+ *      token (ADR 20260703-jwt-resource-server-remote-jwks correction: NOT /.well-known/jwks.json, which serves
  *      an unrelated static env keypair — see that ADR's "Correction" note).
  *   4. `jose.jwtVerify` the token against that JWKS — the exact mechanism
  *      estimai-api's jwtMiddleware uses (createRemoteJWKSet + RS256 pin) —
@@ -125,7 +125,7 @@ describe("JWT claim contract — definePayload (T3, R2)", () => {
     expect(typeof token).toBe("string");
     expect(token.length).toBeGreaterThan(0);
 
-    // ── 3. Fetch the JWKS that actually signed this token (ADR-0005: the
+    // ── 3. Fetch the JWKS that actually signed this token (ADR 20260703-jwt-resource-server-remote-jwks: the
     //        rotating-kid `/auth/jwks`, NOT the orphaned /.well-known one) ──
     const jwksRes = await authRouter.request("/auth/jwks", { method: "GET" });
     expect(jwksRes.status).toBe(200);
@@ -134,7 +134,7 @@ describe("JWT claim contract — definePayload (T3, R2)", () => {
 
     const JWKS = createLocalJWKSet(jwks as { keys: never[] });
 
-    // ── 4. Verify exactly as estimai-api's jwtMiddleware does (ADR-0005):
+    // ── 4. Verify exactly as estimai-api's jwtMiddleware does (ADR 20260703-jwt-resource-server-remote-jwks):
     //        RS256-pinned signature + issuer check — then inspect claims ───
     const { payload } = await jwtVerify(token, JWKS, {
       issuer: env.BETTER_AUTH_URL,
@@ -148,7 +148,7 @@ describe("JWT claim contract — definePayload (T3, R2)", () => {
     // AC-4.3 / plan.md claim seam — perm_epoch present and correct.
     expect(payload["perm_epoch"]).toBe(0);
 
-    // ADR-0010 (T8, specs/005-notification-center) — the standard `aud`
+    // ADR 20260713-jwt-audience-claim-enforcement (T8, specs/20260713-notification-center) — the standard `aud`
     // claim, stamped from env.AUTH_AUDIENCE via definePayload. Verify it two
     // ways: (a) the decoded payload carries the exact configured value, and
     // (b) re-verifying the SAME token with jose's `audience` option (the
@@ -193,7 +193,7 @@ describe("JWT claim contract — definePayload (T3, R2)", () => {
 
   test("perm_epoch reflects the DB column at mint time, not a stale value (definePayload reads via Prisma)", async () => {
     // Bump the fixture user's permissionEpoch directly in the DB (simulating
-    // an authz mutation elsewhere bumping it per ADR-0007 decision 4), then
+    // an authz mutation elsewhere bumping it per ADR 20260713-authz-hand-rolled-rbac-abac-epoch-claims decision 4), then
     // mint a fresh token and confirm the new value is carried — proving
     // definePayload reads the live column rather than a cached snapshot.
     expect(fixtureUserId).toBeDefined();

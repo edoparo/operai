@@ -36,7 +36,7 @@ describe('MonthlyProcessingNote', () => {
     render(<MonthlyProcessingNote />)
     const note = screen.getByTestId('monthly-processing-note')
 
-    // Token utilities since ADR-0051: the soft text colour, no accent, no
+    // Token utilities since ADR 20261031-one-styling-dialect-token-utilities: the soft text colour, no accent, no
     // border colour and no fill.
     expect(note.className).toContain('text-soft')
     expect(note.className).not.toMatch(/\b(text|bg|border)-acc/)

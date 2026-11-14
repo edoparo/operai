@@ -28,7 +28,7 @@ import { strings } from '../strings'
 const fetchTemplates = (signal: AbortSignal) => listTemplates({}, { signal })
 
 /**
- * Template read view (specs/021-meetings S8, T74): name and type, the general instructions and the
+ * Template read view (specs/20261104-meetings S8, T74): name and type, the general instructions and the
  * ordered sections, with Duplicate for everyone, Edit and Delete only where the caller may.
  *
  * "May" is a UI hint (plan G5): a personal template is the caller's own (the list returns no one

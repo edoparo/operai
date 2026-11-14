@@ -1,6 +1,6 @@
 /**
  * Unit tests for the trip-signature fold-merge, ranking and cap (T4,
- * specs/014-motivo-autocomplete).
+ * specs/20260811-motivo-autocomplete).
  *
  * No database, no Hono, no clock — every assertion here is a property of the
  * pure function, so a failure points at the domain rule rather than at

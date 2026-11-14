@@ -1,6 +1,6 @@
 /**
  * Wire types for inventory-api and the one `auth` read inventory-ui makes —
- * typed exactly as specs/015-hardware-inventory/plan.md § API contracts (as
+ * typed exactly as specs/20261006-hardware-inventory/plan.md § API contracts (as
  * amended 2026-10-06), including the `Ledger`-optional `AssetView`. Money is
  * integer cents, calendar dates are `YYYY-MM-DD`, timestamps ISO 8601; the UI
  * only ever displays these, never computes with them (the shared

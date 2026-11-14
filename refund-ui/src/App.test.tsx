@@ -2,9 +2,9 @@
  * @vitest-environment jsdom
  *
  * Component tests for App.tsx — refund-ui's exposed `./App` (T14,
- * specs/007-refund-service/tasks.md).
+ * specs/20260716-refund-service/tasks.md).
  *
- * The T15/specs/003 placeholder's tests (heading + coming-soon copy + shared-
+ * The T15/specs/20260709-suite-shell placeholder's tests (heading + coming-soon copy + shared-
  * session demonstration) are superseded: T14 replaces that static
  * placeholder with refund-ui's own inner TanStack Router (src/router.tsx),
  * rebased to basepath `/refund` (src/App.tsx's `createAppRouter('/refund')`).

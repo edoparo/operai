@@ -1,29 +1,29 @@
 /**
- * Refund's declared permission catalog (T2, specs/007-refund-service — refs
- * AC-1.1, AC-5.4, AC-7.5, AC-8.2; plan.md "Authz integration"; ADR-0007 §7).
- * Extended by T1, specs/009-mileage-rate (plan.md "Architecture §auth",
+ * Refund's declared permission catalog (T2, specs/20260716-refund-service — refs
+ * AC-1.1, AC-5.4, AC-7.5, AC-8.2; plan.md "Authz integration"; ADR 20260713-authz-hand-rolled-rbac-abac-epoch-claims §7).
+ * Extended by T1, specs/20260720-mileage-rate (plan.md "Architecture §auth",
  * Decision 2) with a third resource, `rate` — see below.
  *
  * Mirrors `catalogs/estimai.ts`'s shape: a plain constant describing the
  * (resource, action, supportedConditions) surface `refund-api` enforces
- * server-side (ADR-0014) — NOT a database row. `../seed.ts`'s
+ * server-side (ADR 20260716-refund-api-authorization-enforcing-resource-server) — NOT a database row. `../seed.ts`'s
  * `seedRefundCatalog` registers it via `upsertAppCatalog` (one full-replace
  * upsert keyed by `appId`), so the admin-ui rule composer can build roles
  * against it and `refund-api`'s `authzMiddleware` (T6) can gate real routes
  * against the SAME declared (resource, action) pairs.
  *
- * Extended by T1, specs/010-self-approval-control (plan.md Decision D1;
- * ADR-0026): `request.approve` gains a SECOND supported condition,
+ * Extended by T1, specs/20260721-self-approval-control (plan.md Decision D1;
+ * ADR 20260721-self-approval-condition-and-403-exception): `request.approve` gains a SECOND supported condition,
  * `self-approval` — a segregation-of-duties deny-carve-out
  * (`{key:"self-approval", match:"deny"}`, opposite polarity from `entity`'s
  * `match:"user"`), declared on `approve` ONLY (D3/AC-4.3) — never on
  * `reject`/`set-approved-total`/`review`/`read`/`create`. This is the ONLY
- * code change specs/010 makes in `auth`: the attribute rides the existing
+ * code change specs/20260721-self-approval-control makes in `auth`: the attribute rides the existing
  * free-form `attributes[]` machinery (resolver `toRuleConditions`, the wire
  * schemas, and `findRuleViolations`'s catalog gate) unchanged.
  *
- * Extended by T1, specs/011-refund-settings (plan.md "Architecture §auth",
- * Decision D2; ADR-0028) with a FOURTH resource, `settings` — see below.
+ * Extended by T1, specs/20260722-refund-settings (plan.md "Architecture §auth",
+ * Decision D2; ADR 20260722-settings-catalog-permission-config-not-rate) with a FOURTH resource, `settings` — see below.
  *
  * `refund` was previously an access-only stub registered by
  * `seedAppAccessCatalog`'s `SUITE_APPS` list (spec 004). This is refund's
@@ -44,36 +44,36 @@
  *       - `read`                — `["ownership"]` (an employee reads their
  *                                  own requests; `ownership:own`)
  *       - `review`              — `["entity"]` (accounting: queue + full
- *                                  detail, entity-scoped per ADR-0015)
+ *                                  detail, entity-scoped per ADR 20260716-entity-scoped-abac-refund-api)
  *       - `set-approved-total`  — `["entity"]`
- *       - `approve`             — `["entity", "self-approval"]` (specs/010,
- *                                  ADR-0026 — the self-approval SoD condition
+ *       - `approve`             — `["entity", "self-approval"]` (specs/20260721-self-approval-control,
+ *                                  ADR 20260721-self-approval-condition-and-403-exception — the self-approval SoD condition
  *                                  is declared here ONLY)
  *       - `reject`              — `["entity"]`
  *     Submit/withdraw/edit/delete of a draft are authorized by `create` +
  *     ownership of the request (the creator) per plan.md — they are
  *     deliberately NOT separate catalog actions.
- *   - `rate` (T1, specs/009-mileage-rate) — the mileage-rate configuration
+ *   - `rate` (T1, specs/20260720-mileage-rate) — the mileage-rate configuration
  *     resource, with `read`/`manage` actions. BOTH deliberately declare NO
  *     `supportedConditions` — a stark contrast with `request`'s entity-scoped
- *     accounting actions (ADR-0015): rate configuration is suite-wide, not
+ *     accounting actions (ADR 20260716-entity-scoped-abac-refund-api): rate configuration is suite-wide, not
  *     per-entity, so there is no attribute to condition on (plan.md
  *     "Architecture §auth", Decision 2). Rate storage/logic itself lives
  *     entirely in `refund-api` — this catalog only declares the permission
  *     surface; `auth` never gains a rate data table or API.
- *   - `settings` (T1, specs/011-refund-settings; ADR-0028) — the refund
+ *   - `settings` (T1, specs/20260722-refund-settings; ADR 20260722-settings-catalog-permission-config-not-rate) — the refund
  *     config resource (currently one setting: the accounting distribution
  *     email), with `read`/`manage` actions. Both deliberately declare NO
  *     `supportedConditions` — global/unconditioned, the same shape as `rate`
  *     (plan.md "Architecture §auth", Decision D2) — but this is a DISTINCT
  *     resource from `rate`, not a third action on it: a distribution mailbox
  *     is not a rate, and conflating the two would make the two admin
- *     surfaces un-separable/un-auditable in isolation (ADR-0028). Unlike
+ *     surfaces un-separable/un-auditable in isolation (ADR 20260722-settings-catalog-permission-config-not-rate). Unlike
  *     `rate:read` (deliberately ungated for `GET /rates/effective`'s
- *     employee-facing read, ADR-0023), `settings:read` IS a real
+ *     employee-facing read, ADR 20260720-mileage-rate-model-snapshot-admin-ui-composition), `settings:read` IS a real
  *     authorization boundary — a non-holder must not even learn the mailbox
  *     exists (AC-3.2). Settings storage/logic itself lives entirely in
- *     `refund-api` (the `refund_setting` table, ADR-0027) — this catalog
+ *     `refund-api` (the `refund_setting` table, ADR 20260722-refund-settings-append-only-self-auditing-store) — this catalog
  *     only declares the permission surface; `auth` never gains a settings
  *     data table or API.
  *
@@ -90,7 +90,7 @@ import type { AppCatalogInput } from "../catalog";
 /** Refund's app id across the Operai suite catalog/role system. */
 export const REFUND_APP_ID = "refund";
 
-/** The `request` resource's entity-scoped accounting actions (ADR-0015). */
+/** The `request` resource's entity-scoped accounting actions (ADR 20260716-entity-scoped-abac-refund-api). */
 const ENTITY_SCOPED_CONDITIONS = ["entity"];
 
 /** Refund's full declared catalog — registered by `seedRefundCatalog` (T2). */
@@ -117,7 +117,7 @@ export const REFUND_CATALOG: AppCatalogInput = {
         {
           key: "approve",
           label: "Approve",
-          // `self-approval` (specs/010, ADR-0026) is declared on `approve`
+          // `self-approval` (specs/20260721-self-approval-control, ADR 20260721-self-approval-condition-and-403-exception) is declared on `approve`
           // ONLY — never spread onto review/set-approved-total/reject, which
           // keep `ENTITY_SCOPED_CONDITIONS` unchanged (D3/AC-4.3).
           supportedConditions: [...ENTITY_SCOPED_CONDITIONS, "self-approval"],

@@ -1,5 +1,5 @@
 /**
- * The registry rules as pure functions (specs/028 plan § Access; AC-3.2, AC-3.3, AC-3.8, AC-8.1):
+ * The registry rules as pure functions (specs/20261110-activities plan § Access; AC-3.2, AC-3.3, AC-3.8, AC-8.1):
  * the same functions the `may` flags of a view and the checks of a write both use, so the table
  * below is the whole authorization matrix of the activity routes, host by host.
  */

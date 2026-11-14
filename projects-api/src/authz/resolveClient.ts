@@ -1,5 +1,5 @@
 /**
- * Thin HTTP client for `auth GET /authz/resolve` (specs/025-projects, ADR-0014
+ * Thin HTTP client for `auth GET /authz/resolve` (specs/20261103-projects, ADR 20260716-refund-api-authorization-enforcing-resource-server
  * point 1). Copied from projects-api/src/authz/resolveClient.ts.
  *
  * Deliberately isolated in its own module — mirrors `auth/src/lib/notify.ts`'s
@@ -11,7 +11,7 @@
  * across test files run in the same bun worker).
  *
  * Forwards the CALLER'S OWN Bearer `Authorization` header verbatim — no new
- * service credential is introduced (ADR-0014 point 1: "the same RS256 token
+ * service credential is introduced (ADR 20260716-refund-api-authorization-enforcing-resource-server point 1: "the same RS256 token
  * the end user already presented to projects-api").
  */
 
@@ -51,7 +51,7 @@ export interface ResolveResponse {
  * (the full `"Bearer <jwt>"` string) verbatim.
  *
  * Throws on any non-2xx response or network failure — callers (authzMiddleware)
- * are responsible for translating that into the fail-closed 503 (ADR-0014
+ * are responsible for translating that into the fail-closed 503 (ADR 20260716-refund-api-authorization-enforcing-resource-server
  * point 4: an auth outage must never be treated as "allow").
  */
 export async function fetchAuthzResolve(

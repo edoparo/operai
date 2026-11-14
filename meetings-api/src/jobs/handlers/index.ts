@@ -7,7 +7,7 @@ import { prepareAudio } from "./prepareAudio";
 import { summarize } from "./summarize";
 import { transcribe } from "./transcribe";
 
-/** One handler per job kind (ADR-0062). A later task replaces a stub by editing its own file only. */
+/** One handler per job kind (ADR 20261104-durable-job-runner-work-queued-state-derived). A later task replaces a stub by editing its own file only. */
 export const handlers: Record<JobKind, JobHandler> = {
   prepare_audio: prepareAudio,
   transcribe,

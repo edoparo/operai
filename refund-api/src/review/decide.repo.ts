@@ -1,14 +1,14 @@
 /**
  * Prisma data-access layer for accounting decisions (T12,
- * specs/007-refund-service, AC-7.1-7.6, US-8/ADR-0018).
+ * specs/20260716-refund-service, AC-7.1-7.6, US-8/ADR 20260716-immutable-financial-audit-trail-refund).
  *
  * `ensureInScopeSubmittedRequest` is the shared gate for every decision
  * mutation (PUT approved-total, POST approve, POST reject) — it evaluates
- * ADR-0015's "at least one line matches" predicate (`requestInScope`,
+ * ADR 20260716-entity-scoped-abac-refund-api's "at least one line matches" predicate (`requestInScope`,
  * SAME function T6/T11 use) BEFORE the status check, so an out-of-scope
  * caller always gets 404 regardless of the request's status (never a 409,
  * which would leak state to someone who shouldn't even see the request
- * exists — ADR-0005/0015 posture). `scope === null` (T11's fail-closed
+ * exists — ADR 20260703-jwt-resource-server-remote-jwks/0015 posture). `scope === null` (T11's fail-closed
  * data-integrity edge case) always denies, matching zero lines.
  *
  * Every mutation writes an append-only audit row (audit.ts, AC-8.1) inside
@@ -39,7 +39,7 @@ interface ScopeCheckLine {
 }
 interface ScopeCheckRow {
   readonly status: string;
-  // specs/010-self-approval-control, ADR-0026 — a harmless extra column on
+  // specs/20260721-self-approval-control, ADR 20260721-self-approval-condition-and-403-exception — a harmless extra column on
   // the shared scope-check select (plan.md D2); only `approveRequest`'s own
   // self-approval branch below reads it, `ensureInScopeSubmittedRequest`
   // (shared by set-approved-total/reject) never does.
@@ -235,7 +235,7 @@ function approveTransaction(
 }
 
 /**
- * specs/010-self-approval-control, ADR-0026 — approve gains a dedicated
+ * specs/20260721-self-approval-control, ADR 20260721-self-approval-condition-and-403-exception — approve gains a dedicated
  * ownership check the SHARED `ensureInScopeSubmittedRequest` gate deliberately
  * does NOT carry (US-4: the restriction is approve-only; putting it in the
  * shared gate would bleed into reject/set-approved-total). Fetches the row
@@ -289,7 +289,7 @@ export function approveRequest(
             }),
           );
         }
-        // specs/007 amendment (2026-11-10) — approving a request whose every
+        // specs/20260716-refund-service amendment (2026-11-10) — approving a request whose every
         // line was rejected would put a zero payout into the monthly batch;
         // that request is a rejection and must be decided as one.
         if (row.lines.length > 0 && row.lines.every((l) => l.rejectionReason !== null)) {
@@ -372,7 +372,7 @@ export function rejectRequest(
   );
 }
 
-// ─── POST/DELETE .../lines/:lineId/reject (specs/007 amendment, 2026-11-10) ──
+// ─── POST/DELETE .../lines/:lineId/reject (specs/20260716-refund-service amendment, 2026-11-10) ──
 //
 // A reviewer refuses ONE line, with a mandatory reason, instead of the whole
 // request. Same gate as every other decision mutation (entity scope → 404,

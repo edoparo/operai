@@ -1,12 +1,12 @@
 /**
- * meetingsApi — one typed function per meetings-api route (specs/021-meetings plan.md § API
+ * meetingsApi — one typed function per meetings-api route (specs/20261104-meetings plan.md § API
  * contracts), plus the one `auth` read the participant picker needs. No UI, no state: pages and
  * hooks call these; `api.ts` owns the transport, the Problem mapping and `If-Match`.
  *
  * Reads take an optional `init` (an `AbortSignal`). Every id taken from data is path-encoded, so
  * an id can never change the route it is spliced into. Writes of a versioned record
  * (a transcript segment, a summary, a template) take the `version` they were read at and send it
- * as `If-Match` (ADR-0038, plan G8). Money does not exist here; durations are integer ms and
+ * as `If-Match` (ADR 20260807-optimistic-concurrency-version-if-match-cas-amends-0004, plan G8). Money does not exist here; durations are integer ms and
  * instants are ISO 8601 strings.
  */
 import { resolveLocale } from '@operai/ui'
@@ -82,7 +82,7 @@ export type MeetingListQuery = {
   role?: 'creator' | 'participant'
   status?: DerivedStatus
   hostApp?: string
-  /** One of the caller's folder ids, or `none` (ADR-0090). */
+  /** One of the caller's folder ids, or `none` (ADR 20261113-personal-meeting-folders). */
   folder?: string
   page?: number
 }
@@ -90,7 +90,7 @@ export type MeetingListQuery = {
 export const listMeetings = (params: MeetingListQuery = {}, init?: Init) =>
   getJson<Page<MeetingRow>>(`/meetings${query(params)}`, init)
 
-// ─── Folders (each person's own, ADR-0090) ──────────────────────────────────
+// ─── Folders (each person's own, ADR 20261113-personal-meeting-folders) ──────────────────────────────────
 
 export const listFolders = (init?: Init) => getJson<{ items: MeetingFolder[] }>('/folders', init)
 
@@ -333,11 +333,11 @@ export const listEraseMeetings = (
   init?: Init,
 ) => getJson<Page<EraseRow>>(`/erase/meetings${query(params)}`, init)
 
-// ─── auth: the user directory (participant picker, ADR-0047 / ADR-0066) ─────
+// ─── auth: the user directory (participant picker, ADR 20261006-user-directory-endpoint-capability-gated / ADR 20261104-user-directory-gate-meetings-access) ─────
 
 /**
  * Every active user. Deliberately WITHOUT `appId` (plan G9): a participant needs no tool grant
- * (AC-10.4), so everyone must be pickable; ADR-0055's filter would hide people without `meetings`.
+ * (AC-10.4), so everyone must be pickable; ADR 20261101-app-access-check-by-user-id-and-directory-app-filter's filter would hide people without `meetings`.
  */
 export const listDirectory = (init?: Init) =>
   requestJson<{ users: DirectoryUser[] }>(getAuthBaseUrl(), '/authz/users/directory', init)

@@ -1,5 +1,5 @@
 /**
- * crmApi — typed calls for every crm-api route of specs/017-crm/plan.md
+ * crmApi — typed calls for every crm-api route of specs/20261101-crm/plan.md
  * § API contract, plus the directory read on `auth`. Mutations of an existing
  * company, contact or deal pass the record's `version` (sent as `If-Match`).
  */
@@ -44,7 +44,7 @@ export const getScope = (init?: Init) => getJson<Scope>('/scope', init)
 
 // ─── Companies ──────────────────────────────────────────────────────────────
 
-/** A list's order (specs/017 US-9): the server sorts, so the order covers every page. */
+/** A list's order (specs/20261101-crm US-9): the server sorts, so the order covers every page. */
 export type ListOrder<S extends string> = { sort?: S; order?: 'asc' | 'desc' }
 export type CompanySort = 'name' | 'status' | 'entity' | 'industry' | 'city'
 export type ContactSort = 'name' | 'company' | 'jobTitle' | 'email'
@@ -69,7 +69,7 @@ export type CompanyInput = {
   legalName?: string | null
   street?: string | null
   postalCode?: string | null
-  /** specs/017 US-7. */
+  /** specs/20261101-crm US-7. */
   source?: LeadSource | null
   sourceDetail?: string | null
   ownerUserId?: string
@@ -139,7 +139,7 @@ export type DealListQuery = PageQuery & {
 export type DealInput = {
   companyId: string
   title: string
-  /** Optional: a lead often has no figure yet (specs/017 AC-3.2). */
+  /** Optional: a lead often has no figure yet (specs/20261101-crm AC-3.2). */
   amountCents?: number | null
   currency: Currency
   stage?: DealStage
@@ -147,7 +147,7 @@ export type DealInput = {
   expectedCloseDate?: string | null
   ownerUserId?: string
   notes?: string | null
-  /** specs/017 US-7. */
+  /** specs/20261101-crm US-7. */
   source?: LeadSource | null
   sourceDetail?: string | null
 }
@@ -167,20 +167,20 @@ export const moveDealStage = (id: string, version: number, stage: DealStage, los
     lostReason !== undefined && lostReason !== '' ? { stage, lostReason } : { stage },
     version,
   )
-/** `year`: whose won and lost deals count (specs/017 AC-3.6); this year when absent. `companyId`: one company's deals. */
+/** `year`: whose won and lost deals count (specs/20261101-crm AC-3.6); this year when absent. `companyId`: one company's deals. */
 export const getPipeline = (entity?: Entity | '', init?: Init, year?: number, companyId?: string) =>
   getJson<Pipeline>(
     `/pipeline${query({ entity, ...(year !== undefined ? { year } : {}), ...(companyId ? { companyId } : {}) })}`,
     init,
   )
 
-// ─── auth: the user directory (owner/assignee picker, ADR-0047/0053) ─────────
+// ─── auth: the user directory (owner/assignee picker, ADR 20261006-user-directory-endpoint-capability-gated/0053) ─────────
 
-/** `appId` keeps only users who hold `(appId, "access")` (specs/018, ADR-0055). */
+/** `appId` keeps only users who hold `(appId, "access")` (specs/20261101-crm-sales-flow, ADR 20261101-app-access-check-by-user-id-and-directory-app-filter). */
 export const listDirectory = (appId?: string, init?: Init) =>
   requestJson<{ users: DirectoryUser[] }>(getAuthBaseUrl(), `/authz/users/directory${query({ appId })}`, init)
 
-// ─── Estimates (specs/018 US-3): every call answers with the updated deal ────
+// ─── Estimates (specs/20261101-crm-sales-flow US-3): every call answers with the updated deal ────
 
 const estimatePath = (dealId: string) => `/deals/${encodeURIComponent(dealId)}/estimate`
 export const requestEstimate = (dealId: string, technicalUserId: string) =>
@@ -224,17 +224,17 @@ export const getOfferDraft = (dealId: string, templateId: string, aiAssisted: bo
 
 export const listOffers = (dealId: string, init?: Init) => getJson<{ items: Offer[] }>(offersPath(dealId), init)
 export const generateOffer = (dealId: string, input: OfferInput) => sendJson<Offer>(offersPath(dealId), 'POST', input)
-/** specs/017 US-7: the details already written for a source, most used first (matched in the browser). */
+/** specs/20261101-crm US-7: the details already written for a source, most used first (matched in the browser). */
 export type SourceDetailSuggestion = { value: string; count: number }
 export const listSourceDetails = (source: 'event' | 'referral' | 'other', init?: Init) =>
   getJson<{ items: SourceDetailSuggestion[] }>(`/source-details${query({ source })}`, init)
-/** specs/020 US-8: where an entity's offer numbers continue from. */
+/** specs/20261102-crm-offer-document US-8: where an entity's offer numbers continue from. */
 export type OfferSequence = { entity: Entity; year: number; next: number; lowestAllowed: number }
 export const getOfferSequence = (entity: Entity, init?: Init) =>
   getJson<OfferSequence>(`/offer-sequences/${encodeURIComponent(entity)}`, init)
 export const setOfferSequence = (entity: Entity, year: number, next: number) =>
   sendJson<OfferSequence>(`/offer-sequences/${encodeURIComponent(entity)}`, 'PUT', { year, next })
-/** specs/020 US-7: an offer's own content, to edit it or to start the next revision from it. */
+/** specs/20261102-crm-offer-document US-7: an offer's own content, to edit it or to start the next revision from it. */
 export const getOfferForm = (dealId: string, offerId: string, init?: Init) =>
   getJson<OfferForm>(`${offersPath(dealId)}/${encodeURIComponent(offerId)}/form`, init)
 /** Re-generates an offer that has not been sent: same reference, new PDF. */
@@ -295,7 +295,7 @@ export const listEntityProfiles = (init?: Init) => getJson<{ items: EntityProfil
 export const saveEntityProfile = (entity: Entity, input: EntityProfileInput) =>
   sendJson<EntityProfile>(`/entity-profiles/${entity}`, 'PUT', input)
 
-// ─── Letterhead: three calls, like a deal attachment (specs/020 AC-2.5) ──────
+// ─── Letterhead: three calls, like a deal attachment (specs/20261102-crm-offer-document AC-2.5) ──────
 
 export type LetterheadUpload = { key: string; upload: { url: string; fields: Record<string, string> } }
 
@@ -305,7 +305,7 @@ export const confirmLetterhead = (entity: Entity, key: string) =>
   sendJson<EntityProfile>(`${letterheadPath(entity)}/confirm`, 'POST', { key })
 export const getLetterheadDownload = (entity: Entity) => getJson<{ url: string }>(letterheadPath(entity))
 
-// ─── Offer templates (specs/020 US-2) ───────────────────────────────────────
+// ─── Offer templates (specs/20261102-crm-offer-document US-2) ───────────────────────────────────────
 
 /** Templates are saved whole; a new one names its entity beside the content. */
 export type OfferTemplateInput = OfferTemplateContent

@@ -1,9 +1,9 @@
 /**
- * Status transitions (T14, specs/015-hardware-inventory; AC-1.8, AC-3.1..3.5):
+ * Status transitions (T14, specs/20261006-hardware-inventory; AC-1.8, AC-3.1..3.5):
  * `POST /assets/{id}/{receive|return|repair|repair-done|lost|found}`.
  *
  * `asset:manage` over the asset's entity. Capability absent -> 403 (guard); an
- * asset outside the caller's asset scope, or unknown -> 404 (ADR-0014). The
+ * asset outside the caller's asset scope, or unknown -> 404 (ADR 20260716-refund-api-authorization-enforcing-resource-server). The
  * state machine lives in transitions.repo.ts. The response is the updated
  * `AssetView`, with `ledger` when the caller also holds `ledger:manage` over
  * the entity (same projection as the reads).

@@ -100,7 +100,7 @@ function ContractsCard({
  * ProjectDetailPage — one project (US-1, AC-1.2 – AC-1.7): its details with the
  * derived dates, the team, the tasks and the contracts. A holder of manage projects for the
  * project's entity gets the state actions, the type change, and the edit
- * dialogs; anyone else reads (the server's 403 is the gate, ADR-0014).
+ * dialogs; anyone else reads (the server's 403 is the gate, ADR 20260716-refund-api-authorization-enforcing-resource-server).
  */
 export default function ProjectDetailPage() {
   const t = strings.project

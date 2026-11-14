@@ -1,12 +1,12 @@
 import { ApiError } from './api'
 import { strings } from '../strings'
 
-/** The Problem `code`s with which activities-api says it cannot answer at all (specs/028 AC-1.5). */
+/** The Problem `code`s with which activities-api says it cannot answer at all (specs/20261110-activities AC-1.5). */
 export type ActivitiesUnavailable = 'host_unavailable' | 'maintenance'
 
 /**
  * Which "activities unavailable" state a failure is, or null. It reads the Problem `code`, never the
- * status: a bare 503 is still the authorization outage (ADR-0014) and keeps its own wording.
+ * status: a bare 503 is still the authorization outage (ADR 20260716-refund-api-authorization-enforcing-resource-server) and keeps its own wording.
  */
 export function activitiesUnavailableOf(error: unknown): ActivitiesUnavailable | null {
   if (!(error instanceof ApiError)) return null

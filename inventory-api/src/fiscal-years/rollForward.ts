@@ -1,6 +1,6 @@
 /**
- * The yearly roll-forward (T19, specs/015-hardware-inventory; AC-8.1, AC-8.2,
- * AC-8.3, AC-7.2, AC-7.7, ADR-0046). Pure: assets, a rule per asset and the
+ * The yearly roll-forward (T19, specs/20261006-hardware-inventory; AC-8.1, AC-8.2,
+ * AC-8.3, AC-7.2, AC-7.7, ADR 20261006-depreciation-derived-on-read-closed-years-snapshotted). Pure: assets, a rule per asset and the
  * stored figures in, one entity-year statement out. No I/O, no clock.
  *
  * Where a year's per-asset figures come from:

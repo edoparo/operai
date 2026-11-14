@@ -18,7 +18,7 @@ export type DismissGapDialogProps = {
 }
 
 /**
- * "No speech here" (specs/021 A10): the creator listened to a possible gap and nobody speaks in it. It is a
+ * "No speech here" (specs/20261104-meetings A10): the creator listened to a possible gap and nobody speaks in it. It is a
  * confirmation (primary: nothing is deleted, but only a new transcription brings the warning back). A 404 or a 409
  * `not_ready` means the page is out of date, so the dialog closes and the page offers to reload.
  */

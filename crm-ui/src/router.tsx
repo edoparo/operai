@@ -12,7 +12,7 @@ import TasksPage from './pages/TasksPage'
 import { TemplateEditPage, TemplateNewPage } from './pages/TemplateEditorPage'
 
 /**
- * crm-ui's inner router (specs/017-crm plan.md § UI), basepath `/crm`:
+ * crm-ui's inner router (specs/20261101-crm plan.md § UI), basepath `/crm`:
  *
  *   /companies          Companies list         /contacts/$id   Contact detail
  *   /companies/$id      Company detail         /pipeline       Pipeline board
@@ -22,7 +22,7 @@ import { TemplateEditPage, TemplateNewPage } from './pages/TemplateEditorPage'
  *                                              /settings/templates/$templateId  Offer template editor
  *                                              /               → /companies
  *
- * No auth guard and no chrome (ADR-0006). `Root` is the layout seam: App.tsx
+ * No auth guard and no chrome (ADR 20260709-suite-frontend-module-federation). `Root` is the layout seam: App.tsx
  * passes `CrmShell`; tests may render a page under a bare `<Outlet/>`.
  */
 export function createAppRouter(basepath?: string, Root: RouteComponent = Outlet) {

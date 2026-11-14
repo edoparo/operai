@@ -2,7 +2,7 @@
  * @vitest-environment jsdom
  *
  * Component tests for NotificationCenterPage (T15,
- * specs/005-notification-center/tasks.md). Mocks `../lib/notificationsApi`
+ * specs/20260713-notification-center/tasks.md). Mocks `../lib/notificationsApi`
  * (module-level, mirrors admin-ui/src/pages/UsersPage.test.tsx's
  * `vi.mock('../lib/adminApi', ...)`) and `shell/session`'s `resetUnreadCount`
  * (this page's only direct import from it).

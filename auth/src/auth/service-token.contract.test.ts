@@ -1,6 +1,6 @@
 /**
- * R-4 contract test (T4, specs/015-hardware-inventory — plan.md risk R-4,
- * ADR-0044): a token minted by `POST /system/service-token` verifies through
+ * R-4 contract test (T4, specs/20261006-hardware-inventory — plan.md risk R-4,
+ * ADR 20261006-scoped-service-jwt-fourth-notify-caller): a token minted by `POST /system/service-token` verifies through
  * `auth`'s REAL published JWKS with exactly the checks `notify-api`'s
  * `/system/notifications` applies
  * (`notify-api/src/system/notificationsAuth.middleware.ts`, T6):
@@ -16,7 +16,7 @@
  * and published at `/auth/jwks` — the URL every resource server's
  * `AUTH_JWKS_URL` points at. The env `JWT_PRIVATE_KEY`/`JWT_PUBLIC_KEY` pair
  * (served at `/.well-known/jwks.json`) is an unrelated static keypair
- * (ADR-0005's correction), so the task's stated fallback of "sign with jose
+ * (ADR 20260703-jwt-resource-server-remote-jwks's correction), so the task's stated fallback of "sign with jose
  * using JWT_PRIVATE_KEY" would produce tokens no resource server can verify.
  * The plugin's server-only `signJWT` endpoint signs an arbitrary payload with
  * the same key and `kid`, which is what this test proves end to end. The JWKS

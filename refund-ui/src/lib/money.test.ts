@@ -1,7 +1,7 @@
 /**
  * @vitest-environment jsdom
  *
- * Unit tests for formatMoney (T14, specs/007-refund-service/tasks.md —
+ * Unit tests for formatMoney (T14, specs/20260716-refund-service/tasks.md —
  * "formatMoney unit tests pass per currency (EUR/CHF, 2 decimals)").
  * Answers plan.md's R7 risk directly: money as cents mis-formatting
  * (off-by-100), unit-tested per currency.
@@ -101,7 +101,7 @@ describe('formatMoney — integer-cents contract', () => {
   })
 })
 
-describe('formatRatePerKm (specs/009-mileage-rate)', () => {
+describe('formatRatePerKm (specs/20260720-mileage-rate)', () => {
   it('shows the rate with its currency code, per km, placed like formatMoney', () => {
     expect(formatRatePerKm('0.70', 'CHF')).toBe('CHF 0.70/km')
     expect(formatRatePerKm('0.70', 'EUR')).toBe('EUR 0.70/km')

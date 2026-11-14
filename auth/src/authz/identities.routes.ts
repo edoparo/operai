@@ -1,7 +1,7 @@
 /**
  * POST /authz/users/identities — id-keyed DISPLAY IDENTITY resolution (T3,
- * specs/013-estimate-sharing — refs AC-2.1, AC-10.5; plan.md "Display
- * identity"; ADR-0039).
+ * specs/20260807-estimate-sharing — refs AC-2.1, AC-10.5; plan.md "Display
+ * identity"; ADR 20260807-live-identity-resolution-by-id-fail-soft).
  *
  * Lets a caller who already holds a set of opaque `sub`s (e.g. an estimate's
  * owner/collaborator ids, learned from `estimai-api`'s own data — never from
@@ -33,9 +33,9 @@
  * Fails SOFT at the call site (`estimai-api`'s `authClient.resolveIdentities`,
  * T5) — a throwing/erroring call there degrades every id to
  * `status:"unknown"` rather than surfacing an error, in explicit, named
- * contrast to T2's fail-CLOSED authorization decision (ADR-0039).
+ * contrast to T2's fail-CLOSED authorization decision (ADR 20260807-live-identity-resolution-by-id-fail-soft).
  *
- * RATE LIMITING (T27, specs/013-estimate-sharing — closes a drift): plan.md's
+ * RATE LIMITING (T27, specs/20260807-estimate-sharing — closes a drift): plan.md's
  * API-contracts block lists a `429 + Retry-After` response for this route,
  * but T1/T3 shipped it unthrottled because neither plan.md nor T1's env
  * additions (`APP_ACCESS_CHECK_*`, scoped to T2's endpoint) provisioned a
@@ -47,7 +47,7 @@
  * gets NO response-time floor. `app-access-check`'s floor exists to equalise
  * two negative causes that would otherwise leak an enumeration signal; this
  * endpoint only resolves ids the caller already holds and never returns an
- * existence-implying distinction worth equalising (ADR-0039) — a floor here
+ * existence-implying distinction worth equalising (ADR 20260807-live-identity-resolution-by-id-fail-soft) — a floor here
  * would only slow every list render for no security benefit.
  */
 

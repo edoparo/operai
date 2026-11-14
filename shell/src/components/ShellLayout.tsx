@@ -12,7 +12,7 @@ import type { PushOffer } from '../lib/push'
 import { strings } from '../strings'
 
 /**
- * ShellLayout — the persistent multi-region app-shell frame (specs/003-suite-shell,
+ * ShellLayout — the persistent multi-region app-shell frame (specs/20260709-suite-shell,
  * T5, AC-1.1).
  *
  * Four landmark regions, mounted once for the whole suite session:
@@ -25,7 +25,7 @@ import { strings } from '../strings'
  *                                    (AC-1.2 — chrome must not remount/flicker).
  *   - footer   → `role="contentinfo"` — legal/version/company info (T8)
  *
- * A fifth, non-landmark piece — `ToastHost` (T12, specs/005-notification-center) — is
+ * A fifth, non-landmark piece — `ToastHost` (T12, specs/20260713-notification-center) — is
  * mounted once here too, as a sibling of `<main>` inside the middle row. It is a
  * `position: fixed` overlay (see ToastHost.tsx), so its DOM position doesn't drive its
  * visual placement, but living beside `<main>` (not inside it) keeps it outside whatever
@@ -87,7 +87,7 @@ export function ShellLayout(props: ShellLayoutProps) {
 function ShellLayoutFrame({ header, sidebar, footer }: ShellLayoutProps) {
   const { collapsed } = useSidebarCollapsed()
 
-  // Navigation blocker (specs/021-meetings, T50, AC-2.10): a remote that must not
+  // Navigation blocker (specs/20261104-meetings, T50, AC-2.10): a remote that must not
   // be left casually (meetings-ui while recording) registers one through
   // `shell/session`; in-app navigation then waits for the person's answer. Only a
   // change of PAGE asks — a search/hash update on the same pathname does not. The
@@ -99,7 +99,7 @@ function ShellLayoutFrame({ header, sidebar, footer }: ShellLayoutProps) {
     withResolver: true,
   })
 
-  // Web Push (specs/029, T8): once per shell mount, register the sign-out release and reconcile this
+  // Web Push (specs/20261111-push-notifications, T8): once per shell mount, register the sign-out release and reconcile this
   // browser with the server; then, when this user has not answered yet here, offer push (AC-1.9 — the
   // browser itself asks only after the offer's Turn on). Also pass the push service worker's
   // `{navigate}` message (a notification click) to the push library, which validates it first.
@@ -207,7 +207,7 @@ function ShellLayoutFrame({ header, sidebar, footer }: ShellLayoutProps) {
         <ToastHost />
       </div>
 
-      {/* The floating slot (specs/021-meetings A13): outside <main> and the router outlet, so a remote's widget
+      {/* The floating slot (specs/20261104-meetings A13): outside <main> and the router outlet, so a remote's widget
           (the meetings recorder) survives every navigation. Kept clear of the header and the footer. */}
       <FloatingHost inset={{ top: chrome.header, bottom: chrome.footer }} />
 

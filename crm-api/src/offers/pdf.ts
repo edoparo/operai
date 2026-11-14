@@ -1,6 +1,6 @@
 /**
- * Renders an offer PDF from its snapshot (specs/018 AC-4.1). Server-side with
- * `pdf-lib` and the standard Helvetica (ADR-0019: pure TS, no headless browser).
+ * Renders an offer PDF from its snapshot (specs/20261101-crm-sales-flow AC-4.1). Server-side with
+ * `pdf-lib` and the standard Helvetica (ADR 20260719-refund-batch-pdf-generation-pdf-lib: pure TS, no headless browser).
  * Deterministic for a given snapshot except for the PDF's own metadata dates,
  * which are pinned to the offer's date.
  *

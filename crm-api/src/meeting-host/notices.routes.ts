@@ -1,10 +1,10 @@
 /**
- * `POST /system/meeting-host/v1/notices` (specs/021 T8, US-14; plan.md § Host
- * integration contract; ADR-0059): the host half of "a meeting was linked / changed / unlinked /
+ * `POST /system/meeting-host/v1/notices` (specs/20261104-meetings T8, US-14; plan.md § Host
+ * integration contract; ADR 20261104-meeting-host-contract-resolve-and-notices): the host half of "a meeting was linked / changed / unlinked /
  * deleted". meetings-api sends it as itself (scoped service JWT, scope `host-notices.send`, sub
  * allowlist `system:meetings-api`); no user JWT is a credential here.
  *
- * Since specs/028 (T12, AC-1.4) the meeting activity lives in activities-api, and so does the
+ * Since specs/20261110-activities (T12, AC-1.4) the meeting activity lives in activities-api, and so does the
  * ordering guard: crm-api no longer writes `activity` or `meeting_host_state`. It keeps what only
  * it can answer, the deal, and FORWARDS the notice to activities-api's
  * `POST /system/v1/meeting-mirror` as itself, relaying `{ applied }` unchanged:
@@ -17,11 +17,11 @@
  * The `seq <= lastSeq` guard moved with the data (activities-api `meeting_mirror_state`), so the
  * guard and the write commit together and a failed forward can never advance it. activities-api
  * unavailable (down, in maintenance, anything but a 200) is a 503 `activities_unavailable`:
- * meetings-api's outbox keeps the notice and retries it (ADR-0059).
+ * meetings-api's outbox keeps the notice and retries it (ADR 20261104-meeting-host-contract-resolve-and-notices).
  *
  * The author is the meeting's `creatorId`. crm-api trusts it because meetings-api resolved the deal
  * AS that creator in the same request before emitting `linked`; the author-only edit rule of
- * specs/017 AC-4.2 then applies unchanged (AC-14.3). The body is strict: any other key is a 422,
+ * specs/20261101-crm AC-4.2 then applies unchanged (AC-14.3). The body is strict: any other key is a 422,
  * so nothing but this shape (no agenda, no transcript, no summary) can ever reach the CRM.
  */
 

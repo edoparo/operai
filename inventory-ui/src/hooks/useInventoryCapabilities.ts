@@ -12,10 +12,10 @@ export type InventoryCapabilities = {
 /**
  * useInventoryCapabilities — derives `{canManageAssets, canManageLedger}` from
  * `usePermissions()` once, so every screen gates the same way (T28,
- * specs/015-hardware-inventory; design.md § Component inventory).
+ * specs/20261006-hardware-inventory; design.md § Component inventory).
  *
  * The gate is the PRESENCE of the grant, conditioned or not: entity scoping
- * (ADR-0015) is enforced server-side and surfaced through `GET /scope`
+ * (ADR 20260716-entity-scoped-abac-refund-api) is enforced server-side and surfaced through `GET /scope`
  * (`useScope`), so a conditioned grant must still show its tab. Before the
  * shell's `/authz/me` fetch settles `usePermissions()` is empty and both flags
  * are false (the tabs appear a tick late — the RefundShell precedent); the shell
@@ -23,7 +23,7 @@ export type InventoryCapabilities = {
  * not normally see that tick.
  *
  * This is UX, not the gate: hiding a control here never replaces the server's
- * 403 (ADR-0014, AC-9.7).
+ * 403 (ADR 20260716-refund-api-authorization-enforcing-resource-server, AC-9.7).
  */
 export function useInventoryCapabilities(): InventoryCapabilities {
   const { permissions } = usePermissions()

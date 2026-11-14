@@ -1,7 +1,7 @@
 /**
  * @vitest-environment jsdom
  *
- * Component tests for ApproveDialog (T18, specs/007-refund-service/
+ * Component tests for ApproveDialog (T18, specs/20260716-refund-service/
  * tasks.md). Thin wrapper over ConfirmDeleteModal — focus-trap/Escape/
  * confirm behavior is already covered by ConfirmDeleteModal.test.tsx; these
  * tests only assert ApproveDialog's own wiring: the positive tone, the

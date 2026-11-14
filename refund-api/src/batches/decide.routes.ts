@@ -1,6 +1,6 @@
 /**
  * Batch terminal-transition endpoints — mark-paid (T6) and discard (T8),
- * specs/008-refund-monthly-processing.
+ * specs/20260719-refund-monthly-processing.
  *
  *   POST /batches/:id/mark-paid → 200 BatchDetail (AC-4.1-4.4, AC-5.1, AC-7.2)
  *   POST /batches/:id/discard   → 200 BatchDetail (AC-6.1-6.3, AC-7.3)
@@ -15,7 +15,7 @@
  * is gated on `request:review` (the same capability compile/candidates use).
  *
  * Mark-paid additionally fans out a per-owner best-effort `paid` push
- * (`notifyPaid`, lib/notify.ts, ADR-0017/US-5) AFTER its transaction has
+ * (`notifyPaid`, lib/notify.ts, ADR 20260716-system-notifications-cross-user-trigger/US-5) AFTER its transaction has
  * committed — wrapped in its own try/catch here as defense-in-depth on top
  * of `notifyPaid`'s own never-throws contract (mirrors
  * `review/decide.routes.ts`'s `notifyDecisionBestEffort`), so the mark-paid
@@ -119,7 +119,7 @@ async function fetchDetailAfterTransition(batchId: string) {
 }
 
 /**
- * Fires the post-mark-paid per-owner notification (US-5, ADR-0017). Never
+ * Fires the post-mark-paid per-owner notification (US-5, ADR 20260716-system-notifications-cross-user-trigger). Never
  * throws — even though `notifyPaid` already promises never to reject, this
  * extra try/catch is deliberate defense-in-depth.
  */
@@ -200,7 +200,7 @@ batchDecideRouter.openapi(markPaidRoute, async (c) => {
 
   const { paidRequestOwners } = exit.value;
   for (const { requestId, ownerUserId } of paidRequestOwners) {
-    // Post-commit, best-effort (US-5/ADR-0017) — never blocks or fails this response.
+    // Post-commit, best-effort (US-5/ADR 20260716-system-notifications-cross-user-trigger) — never blocks or fails this response.
     await notifyPaidBestEffort(ownerUserId, requestId);
   }
 

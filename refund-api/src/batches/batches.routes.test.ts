@@ -1,6 +1,6 @@
 /**
  * Integration tests for candidate preview + compile (T3) and the batch read
- * surfaces (T4, specs/008-refund-monthly-processing, plan.md § Atomic claim
+ * surfaces (T4, specs/20260719-refund-monthly-processing, plan.md § Atomic claim
  * / no-double-pay, § API contracts).
  *
  * Strategy — mirrors decide.routes.test.ts's header comment: real Postgres
@@ -32,7 +32,7 @@
  * AC-6.3    a discarded batch's membership is STILL visible (via
  *           RefundBatchItem, not the nulled live batchId pointer)
  * AC-3.4    GET /batches/:id/pdf-url mints post-authz, 404, and lazily
- *           regenerates the PDF object on a storage miss (ADR-0019)
+ *           regenerates the PDF object on a storage miss (ADR 20260719-refund-batch-pdf-generation-pdf-lib)
  *
  * AC coverage (T5 done-when)
  * ──────────────────────────
@@ -44,8 +44,8 @@
  *        never recompiles; 200 on an ordinary send/failure outcome
  * AC-3.4 the email `to` is only the configured distribution address
  *
- * AC coverage (T4, specs/011-refund-settings — LIVE recipient resolution +
- * blocked-send, ADR-0029; supersedes ADR-0021's compile-time freeze)
+ * AC coverage (T4, specs/20260722-refund-settings — LIVE recipient resolution +
+ * blocked-send, ADR 20260722-batch-email-recipient-live-resolution-amends-0021; supersedes ADR 20260719-refund-batch-signed-link-email-delivery's compile-time freeze)
  * ──────────────────────────
  * AC-2.1 compile succeeds identically (batch/items/audit/PDF) whether the
  *        accounting-distribution-email setting is configured or not
@@ -81,11 +81,11 @@ process.env["REFUND_S3_BUCKET"] = "test-bucket";
 process.env["REFUND_S3_ACCESS_KEY_ID"] = "test-key";
 process.env["REFUND_S3_SECRET_ACCESS_KEY"] = "test-secret";
 process.env["REFUND_APP_BASE_URL"] = "http://localhost:5173";
-// specs/011-refund-settings (AC-4.1) — deliberately NO
+// specs/20260722-refund-settings (AC-4.1) — deliberately NO
 // REFUND_ACCOUNTING_DISTRIBUTION_EMAIL here: env.ts no longer declares it at
 // all, and the accounting-distribution-email is now the LIVE
 // `refund_setting` row seeded per-test via `seedAccountingDistributionEmail`
-// below (D6, ADR-0029).
+// below (D6, ADR 20260722-batch-email-recipient-live-resolution-amends-0021).
 
 const harness = setupTestAuth();
 await harness.init();
@@ -101,7 +101,7 @@ interface PutObjectCall {
 let putObjectCalls: PutObjectCall[] = [];
 let mintPresignedGetCalls: string[] = [];
 // T4's pdfLink.ts HEAD-checks the object before minting (lazy-regen on a
-// miss, ADR-0019) — every object this test suite ever `putObject`s is
+// miss, ADR 20260719-refund-batch-pdf-generation-pdf-lib) — every object this test suite ever `putObject`s is
 // tracked here so `headObject` can report it as present, matching real S3
 // semantics without a live bucket.
 const storedObjectKeys = new Set<string>();
@@ -116,7 +116,7 @@ let mintPresignedGetShouldFail = false;
 // factory that returns only the exports THIS file needs leaves every other
 // importer of ../lib/storage (export.routes.ts needs getObject, storage.test.ts
 // the real functions) with a module missing its exports when this file happens
-// to run first (--randomize). Spread the real module underneath (T21, specs/016).
+// to run first (--randomize). Spread the real module underneath (T21, specs/20261013-notify-service-credentials).
 // @ts-expect-error -- the query suffix is a runtime-only cache-buster
 const realStorage = (await import("../lib/storage?real")) as typeof import("../lib/storage");
 
@@ -156,13 +156,13 @@ let notifyBatchCompiledOutcome: { status: "sent" | "failed"; deliveryId: string 
 
 // Spread the real module underneath: this mock is process-wide and decide.routes
 // (notifyDecisionEmail) imports the same specifier; a partial factory breaks that
-// file's import when this one runs first under --randomize (T21, specs/016).
+// file's import when this one runs first under --randomize (T21, specs/20261013-notify-service-credentials).
 // @ts-expect-error -- the query suffix is a runtime-only cache-buster
 const realNotifyEmail = (await import("../lib/notifyEmail?real")) as typeof import("../lib/notifyEmail");
 
 // When set, the stand-in below hands the call to the REAL client with this
 // transport instead of returning the scripted outcome — so a route test can
-// drive the real credential / provider-rejection path (T9, specs/016, AC-4.3).
+// drive the real credential / provider-rejection path (T9, specs/20261013-notify-service-credentials, AC-4.3).
 let realClientTransport: import("../lib/notifyPost").NotifyTransport | null = null;
 
 mock.module("../lib/notifyEmail", () => ({
@@ -273,8 +273,8 @@ async function createApprovedRequest(
 }
 
 /**
- * specs/011-refund-settings — seeds the LIVE accounting-distribution-email
- * setting (D6, ADR-0029). This suite deliberately does NOT seed it by
+ * specs/20260722-refund-settings — seeds the LIVE accounting-distribution-email
+ * setting (D6, ADR 20260722-batch-email-recipient-live-resolution-amends-0021). This suite deliberately does NOT seed it by
  * default in `beforeEach` (mirrors the real "unconfigured until an admin
  * sets it" starting state, AC-4.3) — any test whose email assertions
  * require a configured recipient calls this explicitly.
@@ -508,11 +508,11 @@ describe("POST /batches", () => {
     expect(batchRow.status).toBe("compiled");
     expect(batchRow.pdfObjectKey).toBe(`refund/batches/${body.id}/compiled.pdf`);
     // recipientEmailSnapshot is now per-attempt delivery PROVENANCE (D6,
-    // ADR-0029) — populated by the post-commit auto-send reading the LIVE
+    // ADR 20260722-batch-email-recipient-live-resolution-amends-0021) — populated by the post-commit auto-send reading the LIVE
     // setting, not a compile-time freeze.
     expect(batchRow.recipientEmailSnapshot).toBe("accounting@welld.ch");
 
-    // The PDF was rendered and stored post-commit (T2/ADR-0019).
+    // The PDF was rendered and stored post-commit (T2/ADR 20260719-refund-batch-pdf-generation-pdf-lib).
     expect(putObjectCalls).toHaveLength(1);
     expect(putObjectCalls[0]?.objectKey).toBe(batchRow.pdfObjectKey);
     expect(putObjectCalls[0]?.contentType).toBe("application/pdf");
@@ -664,7 +664,7 @@ describe("POST /batches", () => {
   });
 });
 
-// ─── specs/009-mileage-rate (T7, AC-6.3) — mileage lines flow through batch compile ──
+// ─── specs/20260720-mileage-rate (T7, AC-6.3) — mileage lines flow through batch compile ──
 
 describe("POST /batches — a travel_km line's snapshot flows through with no special-casing (AC-6.3)", () => {
   async function createApprovedMileageRequest() {
@@ -1001,7 +1001,7 @@ describe("GET /batches/:id/pdf-url", () => {
     expect(mintPresignedGetCalls.length).toBe(1);
   });
 
-  it("(ADR-0019) lazily regenerates the PDF when the stored object is missing", async () => {
+  it("(ADR 20260719-refund-batch-pdf-generation-pdf-lib) lazily regenerates the PDF when the stored object is missing", async () => {
     const request = await createApprovedRequest(
       [{ entity: "welld_it", approvedTotalCents: 900 }],
       { ownerUserId: "emp-regen", ownerEmail: "regen@x.com" },
@@ -1125,7 +1125,7 @@ describe("POST /batches — compilation email auto-send", () => {
     ["auth refused (401)", "auth /system/service-token responded with HTTP 401"],
     ["auth rate-limited (429)", "auth /system/service-token responded with HTTP 429"],
   ] as const) {
-    it(`(specs/016 AC-4.3) the REAL email client with the credential unobtainable (${label}): compile still 201, batch compiled, emailStatus:failed, nothing sent`, async () => {
+    it(`(specs/20261013-notify-service-credentials AC-4.3) the REAL email client with the credential unobtainable (${label}): compile still 201, batch compiled, emailStatus:failed, nothing sent`, async () => {
       await seedAccountingDistributionEmail("accounting@welld.ch");
       await createApprovedRequest([{ entity: "welld_it" }], { ownerUserId: "emp-a" });
       const { ServiceTokenError } = await import("../lib/serviceToken");
@@ -1162,7 +1162,7 @@ describe("POST /batches — compilation email auto-send", () => {
     });
   }
 
-  it("(specs/016 AC-1.2) the REAL email client sends the service Bearer and no X-Internal-Token from the compile route", async () => {
+  it("(specs/20261013-notify-service-credentials AC-1.2) the REAL email client sends the service Bearer and no X-Internal-Token from the compile route", async () => {
     await seedAccountingDistributionEmail("accounting@welld.ch");
     await createApprovedRequest([{ entity: "welld_it" }], { ownerUserId: "emp-a" });
     const seen: Array<{ url: string; authorization: string | null; internalToken: string | null }> = [];
@@ -1215,7 +1215,7 @@ describe("POST /batches — compilation email auto-send", () => {
     expect(body.email.lastAttemptAt).not.toBeNull();
   });
 
-  // ─── specs/011-refund-settings (T4, ADR-0029) — AC-2.1/2.2/2.3 ──────────
+  // ─── specs/20260722-refund-settings (T4, ADR 20260722-batch-email-recipient-live-resolution-amends-0021) — AC-2.1/2.2/2.3 ──────────
 
   it("(AC-2.1) compile succeeds identically (batch+items+audit+PDF) when the setting is UNCONFIGURED", async () => {
     // Deliberately NOT seeding the setting — starts unconfigured.
@@ -1277,7 +1277,7 @@ describe("POST /batches — compilation email auto-send", () => {
     const problem = (await resendRes.json()) as { status: number; code: string; detail: string };
     expect(problem.code).toBe("accounting_distribution_email_unconfigured");
     expect(problem.detail).toContain("Admin > Refund");
-    // notify-api was never even called — distinct from an ordinary outage (ADR-0011's 200/"failed").
+    // notify-api was never even called — distinct from an ordinary outage (ADR 20260714-notify-api-email-channel-service-trust's 200/"failed").
     expect(notifyBatchCompiledCalls).toHaveLength(0);
 
     const batchRow = await db.refundBatch.findUniqueOrThrow({ where: { id: compiled.id } });
@@ -1386,7 +1386,7 @@ describe("POST /batches/:id/email", () => {
         createdByUserId: "acct-1",
         createdByEmail: "acct1@x.com",
         pdfObjectKey: `refund/batches/${crypto.randomUUID()}/compiled.pdf`,
-        // A STALE value from a prior attempt (or, pre-ADR-0029, a compile-
+        // A STALE value from a prior attempt (or, pre-ADR 20260722-batch-email-recipient-live-resolution-amends-0021, a compile-
         // time freeze) — the live resend below must NOT reuse this; it must
         // resolve the CURRENT setting instead (proves D6's live-resolution,
         // not a lingering frozen snapshot).

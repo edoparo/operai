@@ -1,5 +1,5 @@
 /**
- * `ffprobe` on a user-supplied file, hardened per ADR-0064 (specs/021-meetings
+ * `ffprobe` on a user-supplied file, hardened per ADR 20261104-meetings-api-reads-audio-bytes-third-reader (specs/20261104-meetings
  * AC-3.1, AC-3.2; plan.md R15). A media demuxer that can follow playlists and URLs is
  * also a network client, so the file is never trusted before this says it is a plain
  * audio or video container:
@@ -38,7 +38,7 @@ const MAX_TOOL_OUTPUT_BYTES = 1024 * 1024;
 export const ffprobeBinary = (): string => process.env["FFPROBE_PATH"] ?? "ffprobe";
 export const ffmpegBinary = (): string => process.env["FFMPEG_PATH"] ?? "ffmpeg";
 
-/** ADR-0064 point 3. A demuxer name from ffprobe is a comma list (`mov,mp4,m4a,3gp,3g2,mj2`): one allowed part is enough. */
+/** ADR 20261104-meetings-api-reads-audio-bytes-third-reader point 3. A demuxer name from ffprobe is a comma list (`mov,mp4,m4a,3gp,3g2,mj2`): one allowed part is enough. */
 const ALLOWED_DEMUXERS: ReadonlySet<string> = new Set(["mov", "mp4", "m4a", "matroska", "webm", "ogg", "wav", "mp3", "aac", "flac"]);
 
 export type RejectReason = "unsupported_type" | "no_audio" | "too_long";

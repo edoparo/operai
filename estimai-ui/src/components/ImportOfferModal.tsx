@@ -12,7 +12,7 @@
  * Presentational: all data and callbacks arrive via props. The container
  * (EstimatesPage / useImportOffer) owns the logic — this component only renders.
  *
- * Frame: @operai/ui's `Dialog` (ADR-0050, INC-09) — modal, labelled by its
+ * Frame: @operai/ui's `Dialog` (ADR 20261031-shared-ui-library-consumed-as-source, INC-09) — modal, labelled by its
  * title, Tab trapped over every enabled control (× included), focus returned
  * to the trigger on close. Skip is `ghost`, Import all and the results-phase
  * Close acknowledgement are `primary`.

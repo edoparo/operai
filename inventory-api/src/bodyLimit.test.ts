@@ -1,5 +1,5 @@
 /**
- * The global request-body cap (specs/015 security review L7), over the
+ * The global request-body cap (specs/20261006-hardware-inventory security review L7), over the
  * ASSEMBLED app: 64 KiB everywhere, the stricter 8 KiB kept on
  * `POST /invoice-files`, and the refusal is a 413 Problem JSON, never a parse.
  */

@@ -2,7 +2,7 @@
 
 Audit of the six frontends (shell, estimai-ui, refund-ui, admin-ui, notify-ui,
 inventory-ui) done on 2026-10-31, before extracting the shared component library
-`@operai/ui` (`operai-ui/`, ADR-0050). Every finding cites code in at least two
+`@operai/ui` (`operai-ui/`, ADR 20261031-shared-ui-library-consumed-as-source). Every finding cites code in at least two
 apps; line numbers refer to `main` at a45961d (tokens to the pre-move
 `shell/src/styles/tokens.css`).
 
@@ -10,7 +10,7 @@ Each finding carries its status on the branch `feat/operai-ui-library`, which
 extracted the library and then moved all six frontends onto it. The
 decisions behind the fixes are in `operai-ui/docs/decisions.md`.
 
-> **Two styling dialects — resolved (ADR-0051).** The audit's baseline found the shell and
+> **Two styling dialects — resolved (ADR 20261031-one-styling-dialect-token-utilities).** The audit's baseline found the shell and
 > estimai-ui styling tokens with Tailwind utilities while refund, admin, notify and inventory
 > used inline `style={{ color: 'var(--…)' }}` (about 850 token values). All six frontends now
 > use token utilities only (`text-soft`, `bg-org/10`), generated from `@theme inline`; an
@@ -66,13 +66,13 @@ the follow-ups they leave, all recorded in `operai-ui/docs/decisions.md`:
 - **Empty states inside cards in inventory** still use an h3 under the card's
   h3; `StatePanel` now accepts `headingLevel={4}`.
 - **refund-ui's motivo autocomplete** (`MotivoSuggestField`) stays its own
-  combobox: specs/014 makes it a combobox only on `travel_km` lines and forbids
+  combobox: specs/20260811-motivo-autocomplete makes it a combobox only on `travel_km` lines and forbids
   any empty, loading or error line in its popup, the opposite of the library
   `Combobox`'s caller-owned empty state.
 - **Visual review in the running suite** is still to do: every change was
   verified by unit tests, lint, type-checks and builds, not in a browser with the
   whole stack, and the e2e suite has not been run. The specs that still looked
-  for the specs/003 sidebar label "Refund (Rimborsi)" and the "coming soon"
+  for the specs/20260709-suite-shell sidebar label "Refund (Rimborsi)" and the "coming soon"
   placeholder now match the current tool ("Refund", exact).
 
 ## Baseline metrics (component `.tsx` files, per app)
@@ -117,7 +117,7 @@ The suite uses two styling dialects. shell and estimai use Tailwind palette util
 - **Recommendation.** Add `@source "../../notify-ui/src";`, or have the library generate a scan list covering every remote.
 
 ### INC-03: The standalone CSS copies do not match tokens.css (medium, dev parity)
-- **Status on `feat/operai-ui-library`:** Fixed. Every remote's standalone `index.css` is now Tailwind + `operai-ui/src/styles/tokens.css` + a library scan, with no copy of the tokens (ADR-0051); inventory keeps its own focus ring (INC-04).
+- **Status on `feat/operai-ui-library`:** Fixed. Every remote's standalone `index.css` is now Tailwind + `operai-ui/src/styles/tokens.css` + a library scan, with no copy of the tokens (ADR 20261031-one-styling-dialect-token-utilities); inventory keeps its own focus ring (INC-04).
 - **Description.** The tokens header says each remote keeps "its own copy of the SAME rules" in `src/index.css`. Only estimai does, and its copy is stale. refund, admin, notify and inventory import only `tailwindcss`, so their standalone builds have no palette `@theme`, base inputs, checkbox, select chevron or `.btn`. In those apps that is partly mitigated because `App.tsx` imports `shell/tokens.css` at runtime.
 - **Evidence:**
   - `estimai-ui/src/index.css:1-268` copies `@theme`, `:root`, light theme, base layer, checkbox and chevron, but has **no `@layer components`**. The committed tokens file has `.btn` at line 228, `.card` at 284 and `.btn-primary` at 302. estimai standalone therefore cannot render `.btn`/`.card`.
@@ -137,7 +137,7 @@ The suite uses two styling dialects. shell and estimai use Tailwind palette util
 - **Recommendation.** Move a global `:focus-visible` ring into the library tokens.
 
 ### INC-05: Hardcoded colours, and an "AI purple" that is not a token (medium)
-- **Status on `feat/operai-ui-library`:** Fixed. No hex or `rgba()` remains in app code: estimai's AI purple is the new `--ai` token (`#b47fff` dark, `#7d3fd6` light), its hardcoded `rgba()` tints became token opacities (`bg-org/12`, `bg-acc/7`), and lint rejects colour literals and arbitrary colour classes (ADR-0051).
+- **Status on `feat/operai-ui-library`:** Fixed. No hex or `rgba()` remains in app code: estimai's AI purple is the new `--ai` token (`#b47fff` dark, `#7d3fd6` light), its hardcoded `rgba()` tints became token opacities (`bg-org/12`, `bg-acc/7`), and lint rejects colour literals and arbitrary colour classes (ADR 20261031-one-styling-dialect-token-utilities).
 - **Description.** AGENTS.md names a "purple AI accent" as part of the design system, but it only exists as an arbitrary hex in estimai. Tints are also written as raw `rgba()` instead of `color-mix`/`--acc-lo`.
 - **Evidence:**
   - `estimai-ui/src/components/SummaryTable.tsx:38,133,261,264,273,319,322,325` and `MetricsBar.tsx:42,48` hardcode `#b47fff`.
@@ -400,7 +400,7 @@ The suite uses two styling dialects. shell and estimai use Tailwind palette util
   - The currency maps differ (refund EUR/CHF/USD/GBP at `:34-39`, inventory EUR/CHF at `:24-27`).
   - estimai uses `toLocaleString()` with the browser locale and no currency for AI cost (`estimai-ui/src/components/SummaryTable.tsx:262,320`, `MetricsBar.tsx:40`).
   - admin shows mileage rates without the refund helper.
-- **Recommendation.** One library `formatMoney(cents, currency, locale)` via `Intl.NumberFormat`, keeping the integer-cents contract (ADR-0025).
+- **Recommendation.** One library `formatMoney(cents, currency, locale)` via `Intl.NumberFormat`, keeping the integer-cents contract (ADR 20260720-mileage-rate-money-precision-integer-micros).
 
 ### INC-28: Title Case versus sentence case (low)
 - **Status on `feat/operai-ui-library`:** Fixed. Sentence case for headings, labels, tabs, dialog titles and column headers in both languages.

@@ -1,5 +1,5 @@
 /**
- * Zod schemas for the Notifications API (T4/T5/T6/T7, specs/005-notification-center).
+ * Zod schemas for the Notifications API (T4/T5/T6/T7, specs/20260713-notification-center).
  *
  * RaiseNotificationSchema — POST /notifications request body.
  * NotificationSchema      — the shape returned for a single notification (201 / list items / SSE payload).
@@ -51,7 +51,7 @@ export const SeveritySchema = z.enum(SEVERITIES);
  * past a naive `startsWith("/")` check), and carries no scheme (`javascript:`,
  * `data:`, `https:`, …) anywhere before the first path segment.
  *
- * The textual checks are not enough on their own (S-M1, specs/029): a browser (and the shell's
+ * The textual checks are not enough on their own (S-M1, specs/20261111-push-notifications): a browser (and the shell's
  * `new URL(href, origin)`) NORMALISES before it resolves, and `/..//evil.io`, `/.//evil.io`,
  * `/a/..//evil.io` and `/%2e%2e//evil.io` all normalise to the path `//evil.io`, which a later
  * `https://suite` + path join or a redirect reads as a scheme-relative URL to evil.io. Tabs and
@@ -91,7 +91,7 @@ export const LinkSchema = z.object({
 
 export type Link = z.infer<typeof LinkSchema>;
 
-// ─── Italian variant (specs/021-meetings, ADR-0065) ──────────────────────────
+// ─── Italian variant (specs/20261104-meetings, ADR 20261104-bilingual-system-notifications) ──────────────────────────
 //
 // Optional second rendering of title/body for system callers that know both
 // languages. Same limits as the English fields; all-or-nothing (a half-filled
@@ -128,7 +128,7 @@ export const NotificationSchema = z.object({
   originApp: OriginAppSchema,
   link: LinkSchema.optional(),
   // Italian variant or null — present on every surface that renders a
-  // notification (list item, SSE payload), so a reader never loses it (ADR-0065).
+  // notification (list item, SSE payload), so a reader never loses it (ADR 20261104-bilingual-system-notifications).
   it: ItVariantSchema.nullable(),
   toastWorthy: z.boolean(),
   readAt: z.string().datetime().nullable(),
@@ -162,7 +162,7 @@ export const MarkAllReadResponseSchema = z.object({
   count: z.literal(0),
 });
 
-// ─── POST /notifications/stream-ticket (T7, ADR-0008) ────────────────────────
+// ─── POST /notifications/stream-ticket (T7, ADR 20260713-sse-stream-auth-short-lived-ticket) ────────────────────────
 
 export const StreamTicketResponseSchema = z.object({
   ticket: z.string(),

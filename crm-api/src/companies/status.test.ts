@@ -1,7 +1,7 @@
 import { describe, expect, it } from "bun:test";
 import { effectiveStatus, isLapsed, lapseCutoff } from "./status";
 
-describe("company status lapse (specs/017 AC-1.9)", () => {
+describe("company status lapse (specs/20261101-crm AC-1.9)", () => {
   const now = new Date("2026-11-02T10:00:00Z");
   const recent = new Date("2026-03-01T10:00:00Z");
   const old = new Date("2025-11-01T10:00:00Z");

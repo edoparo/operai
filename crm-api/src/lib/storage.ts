@@ -1,8 +1,8 @@
 /**
- * S3-compatible object storage for offers and attachments (specs/018 US-4;
- * ADR-0016 posture). Ported from inventory-api/src/lib/storage.ts, plus one
+ * S3-compatible object storage for offers and attachments (specs/20261101-crm-sales-flow US-4;
+ * ADR 20260716-eu-object-storage-refund-attachments posture). Ported from inventory-api/src/lib/storage.ts, plus one
  * write path inventory has no use for: `putObject` of an offer PDF that crm-api
- * itself authors (the same category as refund-api's batch PDF, ADR-0019).
+ * itself authors (the same category as refund-api's batch PDF, ADR 20260719-refund-batch-pdf-generation-pdf-lib).
  *
  * crm-api never proxies a file a client asked for:
  * - attachments go up through a presigned POST (the browser uploads straight
@@ -32,9 +32,9 @@ import { needsPathStyleAddressing } from "./s3Residency";
 // ─── Policy (AC-4.3) ─────────────────────────────────────────────────────────
 
 export const MAX_ATTACHMENT_BYTES = 20 * 1024 * 1024; // 20 MiB
-/** A letterhead is one A4 page (specs/020 AC-2.1). */
+/** A letterhead is one A4 page (specs/20261102-crm-offer-document AC-2.1). */
 export const MAX_LETTERHEAD_BYTES = 5 * 1024 * 1024; // 5 MiB
-/** The most the offer generator reads from the bucket in one go (ADR-0057). */
+/** The most the offer generator reads from the bucket in one go (ADR 20261102-crm-api-reads-attachment-bytes-for-offer-annexes). */
 export const MAX_OFFER_ATTACHMENT_BYTES = 20 * 1024 * 1024; // 20 MiB
 export const ATTACHMENT_CONTENT_TYPES = [
   "application/pdf",
@@ -120,7 +120,7 @@ export interface Storage {
   /** Response type and disposition are pinned in the signed URL, never taken from the object. */
   mintPresignedGet(objectKey: string, options: { contentType: string; fileName: string }): Promise<string>;
   /**
-   * Reads an object's bytes into memory (ADR-0057). Callers bound the size from
+   * Reads an object's bytes into memory (ADR 20261102-crm-api-reads-attachment-bytes-for-offer-annexes). Callers bound the size from
    * the database BEFORE calling; `maxBytes` is a second, hard stop on what is read.
    */
   getObject(objectKey: string, maxBytes: number): Promise<Uint8Array>;

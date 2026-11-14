@@ -1,5 +1,5 @@
 /**
- * The canonical motivo fold (T1, specs/014-motivo-autocomplete, plan D3).
+ * The canonical motivo fold (T1, specs/20260811-motivo-autocomplete, plan D3).
  *
  * Pure, DB-free, I/O-free. Collapses the cosmetic variations an employee
  * introduces when re-typing the same trip — casing, accents, stray whitespace —
@@ -15,7 +15,7 @@
  * │ of `normaliseMotivo` below, and its test suite asserts the SAME          │
  * │ `MOTIVO_FOLD_VECTORS` table exported from this file. The monorepo is     │
  * │ deliberately mixed pnpm/Bun with no shared workspace package, so a       │
- * │ single shared module is not available — this is the ADR-0025             │
+ * │ single shared module is not available — this is the ADR 20260720-mileage-rate-money-precision-integer-micros             │
  * │ mirrored-rule-with-shared-test-vectors pattern, exactly as              │
  * │ `computeMileageAmountCents` + `mileage-vectors.json` already do it.      │
  * │                                                                          │

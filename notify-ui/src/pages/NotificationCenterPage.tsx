@@ -17,14 +17,14 @@ import { strings } from '../strings'
 
 /**
  * NotificationCenterPage — notify-ui's single, flat screen (T15,
- * specs/005-notification-center/tasks.md, design.md "Notification center
+ * specs/20260713-notification-center/tasks.md, design.md "Notification center
  * page" / Flow 2 / Flow 3 / Flow 4). Replaces T14's placeholder.
  *
  * `GET /notifications` (US-2, AC-2.2/2.3/2.4) drives four states — Loading /
  * Populated / Empty / Error — the same L/E/P/Err shape every other admin-ui
  * list screen uses (`../pages/UsersPage.tsx` etc.), re-authored locally
  * since admin-ui's `SkeletonListRows`/`ErrorBanner` can't be imported across
- * the Module Federation boundary (ADR-0006) and this page's own scope
+ * the Module Federation boundary (ADR 20260709-suite-frontend-module-federation) and this page's own scope
  * (T15's touch list) is the page + `NotificationItem` + the severity lookup
  * only — not a library of new shared components.
  *

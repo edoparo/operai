@@ -1,9 +1,9 @@
 /**
  * ratesApi — refund-ui's read-only client for `refund-api`'s employee-facing
- * mileage-rate resolution endpoint (T12, specs/009-mileage-rate/tasks.md;
+ * mileage-rate resolution endpoint (T12, specs/20260720-mileage-rate/tasks.md;
  * plan.md "## API contracts": `GET /rates/effective`), plus, since
  * 2026-11-13, rate MANAGEMENT (`GET`/`POST /rates`) for the Settings tab,
- * which moved here from admin-ui (ADR-0023 amendment). Management is gated
+ * which moved here from admin-ui (ADR 20260720-mileage-rate-model-snapshot-admin-ui-composition amendment). Management is gated
  * server-side by `rate:read`/`rate:manage`; the employee read below is not.
  *
  * Gated by `refund:access` only (plan.md "Decision 2") — resolving a line's
@@ -13,7 +13,7 @@
  * every other `requestsApi.ts`/`reviewApi.ts` call already made from here.
  *
  * DRIFT NOTE (flagged in this task's implementation report): refund-api's
- * `rates/` module (T3/T4, specs/009-mileage-rate/tasks.md) is NOT YET
+ * `rates/` module (T3/T4, specs/20260720-mileage-rate/tasks.md) is NOT YET
  * IMPLEMENTED as of this task — this worktree has no `refund-api/src/rates/`
  * at all. This module targets the documented CONTRACT (plan.md "## API
  * contracts"), the same "build against the contract, not a running service"
@@ -61,7 +61,7 @@ export const getEffectiveRate = (entity: Entity, date: string): Promise<Effectiv
 // Rate management (the Settings tab; `rate:read` / `rate:manage` server-side)
 // ---------------------------------------------------------------------------
 
-/** One point in an entity's rate history — append-only, never edited (specs/009 AC-4.7). */
+/** One point in an entity's rate history — append-only, never edited (specs/20260720-mileage-rate AC-4.7). */
 export type RateEntry = {
   id: string
   ratePerKmMicros: number

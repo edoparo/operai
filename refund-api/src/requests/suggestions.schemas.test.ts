@@ -1,5 +1,5 @@
 /**
- * Schema unit tests for `GET /line-suggestions` (T2, specs/014-motivo-autocomplete).
+ * Schema unit tests for `GET /line-suggestions` (T2, specs/20260811-motivo-autocomplete).
  *
  * These are the AC-4.3 assertions that hold WITHOUT a server, a database or a
  * caller: the query surface itself cannot address another subject, because it

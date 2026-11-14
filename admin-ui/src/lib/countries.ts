@@ -1,5 +1,5 @@
 /**
- * countries — the Country control's data (specs/012, design.md "Country
+ * countries — the Country control's data (specs/20260803-employee-address, design.md "Country
  * control"): a bundled ISO 3166-1 alpha-2 code list and a localized display
  * name per code via `Intl.DisplayNames`. Names are never hand-authored; the
  * language is the suite's one resolved locale (`resolveLocale()`, INC-25).

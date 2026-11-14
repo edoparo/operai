@@ -2,7 +2,7 @@
  * @vitest-environment jsdom
  *
  * Unit tests for src/lib/collaboratorsApi.ts — typed API client for the five
- * `/estimates/:id/collaborators…` endpoints (T15, specs/013-estimate-sharing/
+ * `/estimates/:id/collaborators…` endpoints (T15, specs/20260807-estimate-sharing/
  * tasks.md).
  *
  * Strategy (mirrors estimatesApi.test.ts's established pattern):

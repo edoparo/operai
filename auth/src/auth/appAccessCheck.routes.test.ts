@@ -128,7 +128,7 @@ async function callCheckBody(
   return { status: res.status, body: (await res.json()) as Record<string, unknown> };
 }
 
-describe("POST /authz/app-access-check by userId (specs/018, ADR-0055)", () => {
+describe("POST /authz/app-access-check by userId (specs/20261101-crm-sales-flow, ADR 20261101-app-access-check-by-user-id-and-directory-app-filter)", () => {
   test("an active target holding (appId,access) is eligible:true + userId", async () => {
     const caller = await mintTokenForNewUser("uid-caller");
     await grantAppAccess(caller.userId, APP_ID, "uid-caller");
@@ -176,7 +176,7 @@ describe("POST /authz/app-access-check by userId (specs/018, ADR-0055)", () => {
   });
 });
 
-describe("POST /authz/app-access-check (T2, specs/013-estimate-sharing)", () => {
+describe("POST /authz/app-access-check (T2, specs/20260807-estimate-sharing)", () => {
   beforeAll(async () => {
     const probe = await testAuthRouter.request("/test-auth/session", {
       method: "POST",
@@ -250,7 +250,7 @@ describe("POST /authz/app-access-check (T2, specs/013-estimate-sharing)", () => 
     expect(body["code"]).toBe("app_access_required");
   });
 
-  test("a soft-deleted CALLER (residual JWT, ADR-0012) gets 403 app_access_required even though the token still verifies", async () => {
+  test("a soft-deleted CALLER (residual JWT, ADR 20260714-invitation-activation-hooks-soft-delete-lifecycle) gets 403 app_access_required even though the token still verifies", async () => {
     const caller = await mintTokenForNewUser("soft-deleted-caller");
     await grantAppAccess(caller.userId, APP_ID, "soft-deleted-caller");
     await db.user.update({ where: { id: caller.userId }, data: { deletedAt: new Date() } });

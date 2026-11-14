@@ -1,6 +1,6 @@
 /**
- * "Blocked by" between tasks (specs/028 US-4, AC-4.1..4.3, AC-6.3; carried over from crm-api's
- * specs/017 US-6). A task may wait on other tasks of the SAME host entity: the company of a
+ * "Blocked by" between tasks (specs/20261110-activities US-4, AC-4.1..4.3, AC-6.3; carried over from crm-api's
+ * specs/20261101-crm US-6). A task may wait on other tasks of the SAME host entity: the company of a
  * CRM task, the project of a project task. While one of them is open the task cannot be
  * completed (409 `task_blocked`); when the last one closes, the blocked task's assignee is
  * told, in-app and by email (`task_unblocked`).

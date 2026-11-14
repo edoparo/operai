@@ -1,8 +1,8 @@
 /**
- * crm-api client for CRM companies (specs/025-projects T5, ADR-0080).
+ * crm-api client for CRM companies (specs/20261103-projects T5, ADR 20261103-projects-api-reads-crm-companies-with-scoped-service-credential).
  *
  * projects-api reads `GET /system/companies` as ITSELF: a 5-minute service JWT with scope
- * `crm.companies.read` (`serviceTokens`, ADR-0044/0049), never the caller's token — a
+ * `crm.companies.read` (`serviceTokens`, ADR 20261006-scoped-service-jwt-fourth-notify-caller/0049), never the caller's token — a
  * project-module user may hold no `crm:access` (D13), and the CRM rejects a user JWT on
  * that route anyway.
  *

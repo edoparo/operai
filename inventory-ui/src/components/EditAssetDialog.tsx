@@ -16,7 +16,7 @@ import { strings } from '../strings'
 import { fillTemplate } from '../strings/errors'
 
 /**
- * EditAssetDialog — "Edit details" (T32, specs/015-hardware-inventory;
+ * EditAssetDialog — "Edit details" (T32, specs/20261006-hardware-inventory;
  * design.md F6, § Dialogs, § Error and conflict catalogue; AC-1.9, AC-3.6,
  * AC-10.1).
  *

@@ -1,5 +1,5 @@
 /**
- * Test support for the recording code (specs/021-meetings T63, T64): fake media tracks and streams,
+ * Test support for the recording code (specs/20261104-meetings T63, T64): fake media tracks and streams,
  * a fake `AudioContext`, a fake `MediaRecorder` that emits one chunk per `timeslice` of RECORDED time
  * (so fake timers drive it, and a paused recorder emits nothing), and `installFakeBrowserCapture`,
  * which puts them where `capture/capabilities.ts` and `capture/session.ts` look for the real ones.

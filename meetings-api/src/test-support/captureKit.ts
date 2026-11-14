@@ -1,5 +1,5 @@
 /**
- * Route-test kit for the media lane (capture, transcript, audio; specs/021-meetings).
+ * Route-test kit for the media lane (capture, transcript, audio; specs/20261104-meetings).
  * Boots the REAL assembled app (`src/index.ts`) against the real test database,
  * with the JWT/resolve mocks (testAuth), an in-memory storage, and a stubbed
  * `auth POST /authz/users/identities`.

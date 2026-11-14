@@ -1,7 +1,7 @@
 /**
  * @vitest-environment jsdom
  *
- * The participants card and the Edit participants dialog (specs/021-meetings T60; design.md S3 ›
+ * The participants card and the Edit participants dialog (specs/20261104-meetings T60; design.md S3 ›
  * People and access, S4, F13; AC-5.1, AC-5.4, AC-5.5, AC-5.10, plan G6, G9): the library
  * `PersonPicker` over the user directory called WITHOUT `appId`, external people with a name and an
  * organisation, at most 30, deleted users shown as deleted, and focus that survives a removal.

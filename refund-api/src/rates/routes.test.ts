@@ -1,6 +1,6 @@
 /**
  * Integration tests for the mileage-rate management endpoints (T4,
- * specs/009-mileage-rate, plan.md § API contracts, Decision 2).
+ * specs/20260720-mileage-rate, plan.md § API contracts, Decision 2).
  *
  * Strategy — mirrors batches.routes.test.ts's header comment: real Postgres
  * (compose, `refund` database), jwt/authz mocked via test-support/testAuth.ts.

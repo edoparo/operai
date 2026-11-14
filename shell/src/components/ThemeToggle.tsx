@@ -1,7 +1,7 @@
 /**
  * ThemeToggle — cycles system → light → dark → system.
  *
- * Extracted (T6, specs/003-suite-shell, AC-1.4) from the inline theme-toggle button
+ * Extracted (T6, specs/20260709-suite-shell, AC-1.4) from the inline theme-toggle button
  * markup previously inside estimai-ui/src/components/Header.tsx (the `themeButton` JSX)
  * plus the cycle handler estimai-ui's EstimatorApp.tsx wired in as `onCycleTheme`.
  *

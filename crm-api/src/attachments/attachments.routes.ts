@@ -1,6 +1,6 @@
 /**
- * Files attached to a deal (specs/018 AC-4.3/4.4; plan.md § Offers and
- * attachments). Two-phase like inventory's invoice files (ADR-0016 posture):
+ * Files attached to a deal (specs/20261101-crm-sales-flow AC-4.3/4.4; plan.md § Offers and
+ * attachments). Two-phase like inventory's invoice files (ADR 20260716-eu-object-storage-refund-attachments posture):
  *
  *   POST   /deals/{id}/attachments                     a pending row + a presigned POST (≤ 20 MiB, allowed types)
  *   POST   /deals/{id}/attachments/{aid}/confirm       the uploader: HEAD the object, then `stored`

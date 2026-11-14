@@ -1,5 +1,5 @@
 /**
- * The system routes of activities-api (specs/028 T10; AC-1.2, AC-1.3, AC-1.4, AC-8.4; ADR-0082,
+ * The system routes of activities-api (specs/20261110-activities T10; AC-1.2, AC-1.3, AC-1.4, AC-8.4; ADR 20261110-caller-chosen-ids-replace-cross-service-transactions,
  * plan § API contracts). What crm-api used to do inside its own transactions, it now asks for as
  * itself: a scoped service JWT (scope `activities.write`, `sub` `system:crm-api`, `aud` =
  * SERVICE_AUDIENCE). No user JWT is a credential here, and every credential failure is the same
@@ -16,7 +16,7 @@
  * These routes own CRM records only (`hostApp = crm`): a project activity is never touched by
  * them, whatever the id. crm-api has already decided who may do what, as the user, before it
  * calls; nothing here asks a host. The identity of every write is chosen by the caller, so each
- * call is idempotent and compensable (ADR-0082).
+ * call is idempotent and compensable (ADR 20261110-caller-chosen-ids-replace-cross-service-transactions).
  */
 
 import { OpenAPIHono, createRoute, z } from "@hono/zod-openapi";
@@ -113,7 +113,7 @@ const deleteRoute = createRoute({
  * What crm-api holds when it forwards a completion and activities-api cannot ask (no user JWT, so
  * no host session): the labels the "You can go ahead" notice shows of where a freed task lives.
  * Plain bounded strings, strict, and both deal members or neither: the CRM's wording is
- * "Deal: <title>." when the task is on a deal, "Company: <name>." otherwise (specs/017 US-6).
+ * "Deal: <title>." when the task is on a deal, "Company: <name>." otherwise (specs/20261101-crm US-6).
  */
 const CompletionContext = z
   .object({
@@ -157,7 +157,7 @@ const completionRoute = createRoute({
 
 /**
  * Strict at every level: nothing but this shape (no agenda, no transcript, no summary) can reach
- * the CRM's timeline (specs/021 AC-4.6). `linked`/`changed` carry the title and the start,
+ * the CRM's timeline (specs/20261104-meetings AC-4.6). `linked`/`changed` carry the title and the start,
  * `unlinked`/`deleted` carry neither, so nothing with a title survives a deletion in
  * meetings-api's outbox. The deal's company is needed to place a `linked` meeting only: the
  * other events find the activity by its meeting, so crm-api need not look the deal up for them.
@@ -243,7 +243,7 @@ systemRouter.openapi(putRoute, async (c) => {
         hostId: input.companyId,
         dealId: input.dealId ?? null,
         subject: input.subject,
-        // A task has one text, its description (ADR-0089): a body sent for one is kept as paragraphs.
+        // A task has one text, its description (ADR 20261113-task-description-files-in-activities-api-bucket): a body sent for one is kept as paragraphs.
         body: input.type === "task" ? null : (input.body ?? null),
         ...(input.type === "task" && input.body ? { description: textToDoc(input.body) as Prisma.InputJsonValue } : {}),
         occurredAt: new Date(input.occurredAt),
@@ -261,14 +261,14 @@ systemRouter.openapi(deleteRoute, async (c) => {
   const { id } = c.req.valid("param");
   const { onlyIfOpen } = c.req.valid("query");
   // The condition is part of the DELETE, so a task completed a moment ago is never lost to a race.
-  // Files first (objects, then rows; ADR-0089), under the same condition.
+  // Files first (objects, then rows; ADR 20261113-task-description-files-in-activities-api-bucket), under the same condition.
   await deleteActivitiesWithFiles({ id, hostApp: "crm", ...(onlyIfOpen === "true" ? { completedAt: null } : {}) });
   return c.body(null, 204);
 });
 
 /**
  * What the notice shows of where a freed task lives. The system call has no user JWT, so no host
- * can be asked (ADR-0081 asks as the caller, and crm-api forwards no user): the labels come from
+ * can be asked (ADR 20261110-activities-service-access-delegated-to-host asks as the caller, and crm-api forwards no user): the labels come from
  * the `context` crm-api sent, which describes the COMPLETED task's company and deal. A freed task
  * of the same company gets the company's name; it gets the deal's title only if it is on that same
  * deal, never another deal's. Anything the context does not cover degrades to a dash, and the
@@ -316,7 +316,7 @@ systemRouter.openapi(completionRoute, async (c) => {
   });
 
   if (outcome.newlyDone) {
-    // specs/017 US-6: tasks that waited on this one may now go ahead. Best effort, after the commit.
+    // specs/20261101-crm US-6: tasks that waited on this one may now go ahead. Best effort, after the commit.
     const actor = { get: (_key: "userId") => byUserId, req: { header: (_name: string) => undefined } };
     await announceUnblocked(actor, [id], targetOf(outcome.hostId, context));
   }

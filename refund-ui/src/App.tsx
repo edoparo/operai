@@ -16,7 +16,7 @@ import { createAppRouter } from './router'
  * (see vite.config.ts's `exposes`) — what the shell's `/refund/*` catch-all
  * route mounts.
  *
- * T14 (specs/007-refund-service/tasks.md): replaces the T15/specs/003
+ * T14 (specs/20260716-refund-service/tasks.md): replaces the T15/specs/20260709-suite-shell
  * static placeholder with refund-ui's own inner TanStack Router
  * (src/router.tsx), rebased to basepath `/refund` — same federation contract
  * admin-ui's/estimai-ui's `./App` already establish:
@@ -32,12 +32,12 @@ import { createAppRouter } from './router'
  * the router + shell they mount into.
  *
  * Demonstrates the shared session/design tokens exactly as the prior
- * placeholder did (ADR-0001/ADR-0006): imports `shell/tokens.css` as a
+ * placeholder did (ADR 20260607-jwt-in-memory-never-web-storage/ADR 20260709-suite-frontend-module-federation): imports `shell/tokens.css` as a
  * side-effect so the shared Operai fonts + palette CSS custom properties are
  * present regardless of whether this component runs inside the shell or
  * standalone (src/main.tsx).
  * Colours and fonts are Tailwind token utilities (`text-soft`, `bg-ink-mid`,
- * `font-disp`, …), the suite's one styling dialect (ADR-0051): the shell's
+ * `font-disp`, …), the suite's one styling dialect (ADR 20261031-one-styling-dialect-token-utilities): the shell's
  * single Tailwind sheet scans this source with the shared `@theme`, and the
  * standalone build's index.css imports the same tokens. Never inline
  * `var(--…)` styles; lint rejects them.

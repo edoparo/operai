@@ -10,7 +10,7 @@ import ContactPicker from './ContactPicker'
 
 /**
  * LinkContactDialog — add an existing contact to a company from the company
- * page (specs/017 AC-2.5). A contact has one company: one already at another
+ * page (specs/20261101-crm AC-2.5). A contact has one company: one already at another
  * company is moved, and the dialog says so before it happens. The contact is
  * read first for its version, then saved with If-Match like any edit.
  */

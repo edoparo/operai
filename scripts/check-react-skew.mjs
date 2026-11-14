@@ -4,7 +4,7 @@
  * SAME `react` / `react-dom` / `@tanstack/react-router` version?
  *
  * WHY. The shell and every remote share `react` / `react-dom` as Module
- * Federation singletons (ADR-0006). Each frontend is installed on its own, so
+ * Federation singletons (ADR 20260709-suite-frontend-module-federation). Each frontend is installed on its own, so
  * each lockfile resolves React independently; when they disagree the singleton
  * negotiation picks the highest version and the others run against a React
  * they were never installed with. That broke every remote once already
@@ -16,7 +16,7 @@
  * and projects-ui's federation `shared` config), and its behaviour changes
  * between patch versions: 1.170.46 stopped reloading a router that is mounted a
  * second time, which 1.170.17 did, so the one copy the singleton negotiation
- * picks decides how EVERY remote behaves (specs/029 E-1).
+ * picks decides how EVERY remote behaves (specs/20261111-push-notifications E-1).
  *
  * HOW. Reads only `lerna.json` and each frontend's `pnpm-lock.yaml` with plain
  * text parsing — no install, no network, no dependencies. A "frontend" is any
@@ -148,7 +148,7 @@ function main() {
     return
   }
   for (const p of problems) console.error(`[react-skew] FAIL: ${p}`)
-  console.error('[react-skew] Module Federation shares react, react-dom and @tanstack/react-router as singletons across the suite (ADR-0006); align the odd app with `pnpm update react react-dom @tanstack/react-router` in its directory (pin the exact version in package.json) and commit its lockfile.')
+  console.error('[react-skew] Module Federation shares react, react-dom and @tanstack/react-router as singletons across the suite (ADR 20260709-suite-frontend-module-federation); align the odd app with `pnpm update react react-dom @tanstack/react-router` in its directory (pin the exact version in package.json) and commit its lockfile.')
   process.exit(1)
 }
 

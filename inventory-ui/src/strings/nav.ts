@@ -1,5 +1,5 @@
 /**
- * strings.nav — the tool layout's copy (T28, specs/015-hardware-inventory;
+ * strings.nav — the tool layout's copy (T28, specs/20261006-hardware-inventory;
  * design.md § T0 InventoryShell and Resolutions G1/G11): the heading, the tab
  * navigation and the states the layout shows before a page does.
  */

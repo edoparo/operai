@@ -1,0 +1,21 @@
+---
+spec: 20261102
+status: in-progress
+synced: 2026-11-06
+---
+
+# Tasks — CRM offer document (specs/20261102-crm-offer-document)
+
+| ID | Task | Depends on | State | Verified by |
+|---|---|---|---|---|
+| T1 | Spec, plan, decisions; shared types `crm-api/src/offers/contract.ts`; Italian seed templates `defaultTemplates.ts` | — | [x] | typecheck |
+| T2 | crm-api renderer: `markup.ts` (parser), `pdf.ts` → `renderContractPdf(snapshot, inputs)` with letterhead, corner mask, index (two passes, only with annex), cost table, acceptance, annex lettering, Annex A, appended PDFs, `n/N`; legacy 018 renderer kept for old snapshots only if still referenced | T1 | [x] | `markup.test.ts` (14) + `contractPdf.test.ts` (34, incl. long-word timing and index alignment); seven templates rendered on the real letterhead and checked visually |
+| T3 | crm-api data + API: migration (Company fields, EntityProfile place + letterhead, OfferTemplate, OfferSequence, DealOffer sequence columns); templates CRUD + lazy seed (IT + EN translations); letterhead upload/confirm/download; `timeline.ts` + shared vectors; draft route (placeholders, perRelease split, manDays); generate route (new body, cost math, numbering, attachments bounded read); companies fields; ADR 20261102-crm-api-reads-attachment-bytes-for-offer-annexes; matrix rows | T1 | [x] | crm-api 239 tests on `crm_test` + typecheck; estimai-ui `useEstimator.test.ts` (4); migration `20261102155018_offer_templates`; ADR 20261102-crm-api-reads-attachment-bytes-for-offer-annexes |
+| T4 | crm-ui: company fields; Settings letterhead + templates list + template editor; generate dialog on templates; offers list yearly figure; strings en/it | T3 | [x] | crm-ui lint, build, 178 tests (43 new or rewritten) |
+| T5 | Changeset, AGENTS.md (crm-api note, ADR 20261102-crm-api-reads-attachment-bytes-for-offer-annexes), crm-api README | T2–T4 | [x] | `.changeset/crm-offer-document.md`, AGENTS.md crm-api note + ADR 20261102-crm-api-reads-attachment-bytes-for-offer-annexes line |
+| T6 | Visual check: generate the seven templates against the real letterhead and compare with the examples | T2, T3 | [x] | seven Italian templates rendered on the real letterhead (renderer task); full-flow PDFs pending T7 |
+| T7 | Browser smoke through the stack | T4 | [ ] | after `mise run dev` restart |
+| T8 | Edit until sent, then revise (US-7): `sentAt`/`sentBy`/`version` on offers + backfill migration, `GET …/form`, `PUT` with If-Match, `POST …/sent`, generate refuses a revision while unsent; dialog in edit and revise modes, Sent badge, Edit / New revision actions | T4 | [x] | crm-api 275/275 on `crm_test`; crm-ui lint + build + 192 tests |
+| T9 | Offer numbering setting (US-8): `GET`/`PUT /offer-sequences/{entity}` (row lock against a generation in flight, never below a used number), numbering card in Settings | T8 | [x] | crm-api 280/280 on `crm_test`; crm-ui lint + build + 194 tests |
+| T10 | Offer without an estimate on an overridden deal (AC-3.6 exception): draft and generate accept it with an empty estimate, no annex, no timeline table; dialog hides AI and annex | T9 | [x] | crm-api typecheck + pure tests (DB tests not run: local DB auth); crm-ui lint + build + 198 tests |
+| T11 | A deal whose earlier offers were all deleted unsent takes a new number (AC-4.1 amendment), so the numbering setting applies; a sent or live offer still holds it | T9 | [x] | crm-api typecheck; DB tests written, not run (local DB auth) |

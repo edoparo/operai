@@ -1,5 +1,5 @@
 /**
- * Asking the host (specs/028 plan § Access, ADR-0081; AC-8.1, AC-8.2, AC-8.3).
+ * Asking the host (specs/20261110-activities plan § Access, ADR 20261110-activities-service-access-delegated-to-host; AC-8.1, AC-8.2, AC-8.3).
  *
  * activities-api holds no permission of its own: whether the caller may read an entity, and
  * what they may do with it, is the answer of the host that owns it, asked as the caller on

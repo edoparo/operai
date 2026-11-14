@@ -15,7 +15,7 @@ import {
   runTool,
 } from "./probe";
 
-// AC-3.1 / AC-3.2 (ADR-0064 point 3): what ffprobe must show before an upload is
+// AC-3.1 / AC-3.2 (ADR 20261104-meetings-api-reads-audio-bytes-third-reader point 3): what ffprobe must show before an upload is
 // accepted: an allowlisted demuxer, an audio stream, a duration of at most 3 h.
 
 const FIXTURES = join(import.meta.dir, "../../test-fixtures/media");
@@ -87,7 +87,7 @@ describe("judgeProbe", () => {
   });
 });
 
-describe("how ffprobe is invoked (ADR-0064 point 3)", () => {
+describe("how ffprobe is invoked (ADR 20261104-meetings-api-reads-audio-bytes-third-reader point 3)", () => {
   it("over https: only https, tls and tcp may be opened", () => {
     expect(protocolsFor("https://bucket.s3.eu-west-1.amazonaws.com/meetings/m1/original?X-Amz=1")).toBe("https,tls,tcp");
   });

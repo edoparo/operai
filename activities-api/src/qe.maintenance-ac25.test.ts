@@ -1,5 +1,5 @@
 /**
- * QE (specs/028 AC-2.5): while the pause is on nothing can be recorded or changed, what was recorded before
+ * QE (specs/20261110-activities AC-2.5): while the pause is on nothing can be recorded or changed, what was recorded before
  * the pause is still there afterwards, unchanged, and recording works again once the pause is lifted.
  * src/lib/maintenance.test.ts pins the 503 on every route; this pins the DATA half of the criterion.
  */

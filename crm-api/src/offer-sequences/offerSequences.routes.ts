@@ -1,5 +1,5 @@
 /**
- * Offer numbering (specs/020 US-8, 2026-11-04): where an entity's offer numbers
+ * Offer numbering (specs/20261102-crm-offer-document US-8, 2026-11-04): where an entity's offer numbers
  * continue from, so the CRM follows wellD's document system instead of starting
  * at 1. The counter is `offer_sequence` (entity, year, last); generation takes
  * `last + 1` (offers.routes). Setting the next number can never hand out a

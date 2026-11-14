@@ -1,5 +1,5 @@
 /**
- * CRM notifications (specs/019-crm-notifications; ADR-0049). The after-commit
+ * CRM notifications (specs/20261101-crm-notifications; ADR 20261013-all-notify-callers-scoped-credentials-shared-token-retired). The after-commit
  * push of the nine events in plan.md to notify-api's `POST /system/notifications`,
  * authenticated with the scoped service JWT from `serviceToken.ts`
  * (`notifications.push emails.send`). notify-api binds `system:crm-api` to
@@ -175,7 +175,7 @@ export async function announce(
     if (!active) return;
     const actorId = c.get("userId");
     if (recipientsOf({ actorId, recipientIds: spec.recipientIds }).length === 0) return;
-    // A service call (specs/018 AC-3.3) carries no user JWT to resolve the actor's name with.
+    // A service call (specs/20261101-crm-sales-flow AC-3.3) carries no user JWT to resolve the actor's name with.
     const authorization = c.req.header("Authorization");
     const name = authorization ? (await resolveIdentities(authorization, [actorId])).get(actorId)?.name?.trim() : undefined;
     const { copy, ...rest } = spec;

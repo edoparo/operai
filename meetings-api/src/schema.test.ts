@@ -1,7 +1,7 @@
 import { afterAll, beforeEach, describe, expect, it } from "bun:test";
 import { db } from "./lib/db";
 
-// The database enforces what the application also checks (specs/021 plan.md
+// The database enforces what the application also checks (specs/20261104-meetings plan.md
 // § Data model): each constraint is proven by the row it rejects, named, and by
 // a control row that differs only in the offending member and is accepted.
 // Needs a migrated `meetings_test` database (`bun run db:deploy`).

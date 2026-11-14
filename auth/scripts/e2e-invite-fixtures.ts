@@ -1,5 +1,5 @@
 /**
- * QE/e2e-only fixture helper (specs/006-user-invitations, T14).
+ * QE/e2e-only fixture helper (specs/20260713-user-invitations, T14).
  *
  * The invite-link raw token is NEVER retrievable through any production
  * surface once an invitation exists (plan.md: only `tokenHash` — a SHA-256
@@ -37,12 +37,12 @@
  *   bun run scripts/e2e-invite-fixtures.ts seed-access-request <email> <name> [provider]
  *   bun run scripts/e2e-invite-fixtures.ts clear-access-requests <emailOrPrefix>
  *
- * `seed-access-request` / `clear-access-requests` (specs/023-signup-gate, T10):
+ * `seed-access-request` / `clear-access-requests` (specs/20261105-signup-gate, T10):
  * real OAuth cannot run in e2e and `/test-auth/session` deliberately bypasses the
  * sign-up gate (AC-1.9), so a waiting-list row can only come from the database.
  * The row is the one `recordAccessRequest` writes for a refused first sign-in.
  *
- * The two `grant-refund-*` commands (specs/007-refund-service, T21 QE
+ * The two `grant-refund-*` commands (specs/20260716-refund-service, T21 QE
  * verification) plug the SAME kind of gap `grant-role` plugs above: refund
  * permissions are deliberately admin-assigned, not automatic for the
  * `employee` role (spec.md Constraints — "holding `employee` does not by
@@ -54,12 +54,12 @@
  * refund-api's live `GET /authz/resolve` call resolves these test users
  * through the exact same code path a real admin-granted user would.
  *
- * `grant-estimai-access` (specs/013-estimate-sharing, T25 QE e2e) plugs the
+ * `grant-estimai-access` (specs/20260807-estimate-sharing, T25 QE e2e) plugs the
  * identical gap for EstimAI's own `(estimai, access)` grant: the baseline
  * `employee` role assigned on sign-up (`assignBaselineRolesToNewUser`)
  * carries NO `estimai:access` PermissionRule (verified against
  * `auth/src/authz/seed.ts` — nothing grants it by default), yet T2's `POST
- * /authz/app-access-check` (ADR-0035) gates BOTH the calling owner (caller
+ * /authz/app-access-check` (ADR 20260807-third-party-app-access-decision-endpoint-forwarded-jwt) gates BOTH the calling owner (caller
  * gate: must hold `(appId,"access")` themselves) and the target collaborator
  * (eligibility: must hold it too) on exactly this grant. Without a way to
  * seed it, the T25 collaboration journey could never reach a real 201 — it
@@ -90,7 +90,7 @@ async function grantRole(email: string, roleName: string): Promise<void> {
     create: { userId: user.id, roleId: role.id },
   });
   // Bump permissionEpoch so a live-resolved session picks the grant up
-  // immediately (ADR-0007 — mirrors what the real admin role-grant route does).
+  // immediately (ADR 20260713-authz-hand-rolled-rbac-abac-epoch-claims — mirrors what the real admin role-grant route does).
   await db.user.update({
     where: { id: user.id },
     data: { permissionEpoch: { increment: 1 } },
@@ -120,7 +120,7 @@ async function seedInvitation(email: string, roleNames: string[]): Promise<void>
   console.log(JSON.stringify({ id: invitation.id, token: raw }));
 }
 
-/** e2e-only custom role carrying exactly the refund employee grants (specs/007). */
+/** e2e-only custom role carrying exactly the refund employee grants (specs/20260716-refund-service). */
 const E2E_REFUND_EMPLOYEE_ROLE_NAME = "e2e-refund-employee";
 
 async function bumpEpoch(userId: string): Promise<void> {
@@ -191,7 +191,7 @@ async function grantRefundEmployee(email: string): Promise<void> {
  * admin-seeded `accounting` role (auth/src/authz/seed.ts
  * `seedAccountingRoleGrants` — entity-conditioned review/approve/reject/
  * set-approved-total) AND sets `user.entity` to `entity` (`welld_it` |
- * `welld_ch`) so ADR-0015's entity-scope predicate has a real attribute to
+ * `welld_ch`) so ADR 20260716-entity-scoped-abac-refund-api's entity-scope predicate has a real attribute to
  * match against. `entity === "global"` instead sets `user.entity` to null
  * AND additionally grants an UNCONDITIONED `request:review`/`approve`/
  * `reject`/`set-approved-total` set via a second `e2e-refund-global` role
@@ -242,14 +242,14 @@ async function grantRefundAccounting(email: string, entity: string): Promise<voi
   console.log(JSON.stringify({ ok: true, userId: user.id, roleId: accountingRole.id, entity }));
 }
 
-/** e2e-only custom role carrying exactly the EstimAI app-access grant (specs/013). */
+/** e2e-only custom role carrying exactly the EstimAI app-access grant (specs/20260807-estimate-sharing). */
 const E2E_ESTIMAI_ACCESS_ROLE_NAME = "e2e-estimai-access";
 
 /**
  * Grants the (already test-auth-seeded) user at `email` `(estimai, access)`
  * — via a dedicated, idempotently-created `e2e-estimai-access` role, the
  * same shape {@link grantRefundEmployee} uses. Needed by BOTH sides of a
- * specs/013 collaborator-add call: the owner (caller gate on `auth POST
+ * specs/20260807-estimate-sharing collaborator-add call: the owner (caller gate on `auth POST
  * /authz/app-access-check`) and the target collaborator (the eligibility
  * check itself).
  */
@@ -284,9 +284,9 @@ async function grantEstimaiAccess(email: string): Promise<void> {
 /**
  * Assigns the (already test-auth-seeded) user at `email` one of inventory's
  * REAL seeded roles (`inventory-manager`, `accounting` — auth/src/authz/seed.ts
- * `seedInventoryGrants`, specs/015) AND sets `user.entity` so the roles'
+ * `seedInventoryGrants`, specs/20261006-hardware-inventory) AND sets `user.entity` so the roles'
  * entity-conditioned grants (`{key:"entity", match:"user"}`) have an attribute
- * to match (ADR-0015). `global` clears `user.entity`; the role's conditioned
+ * to match (ADR 20260716-entity-scoped-abac-refund-api). `global` clears `user.entity`; the role's conditioned
  * grant then yields no entity at all — inventory has no "global" composition
  * like refund's e2e-refund-global, so use the `admin` role for both entities.
  * Plain `grant-role` cannot do this: it leaves `user.entity` untouched.

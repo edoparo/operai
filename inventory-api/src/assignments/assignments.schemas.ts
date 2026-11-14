@@ -1,4 +1,4 @@
-/** Schemas and the after-commit event shape for assignments (T15, specs/015). */
+/** Schemas and the after-commit event shape for assignments (T15, specs/20261006-hardware-inventory). */
 
 import { z } from "@hono/zod-openapi";
 

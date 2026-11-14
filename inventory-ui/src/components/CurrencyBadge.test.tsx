@@ -1,7 +1,7 @@
 /**
  * @vitest-environment jsdom
  *
- * Component tests for CurrencyBadge (T25, specs/015-hardware-inventory; INC-23).
+ * Component tests for CurrencyBadge (T25, specs/20261006-hardware-inventory; INC-23).
  * Covers: every currency renders its ISO code as text exactly once (never
  * colour only), with no symbol glyph duplicating the code, and every variant is
  * the same neutral library badge.

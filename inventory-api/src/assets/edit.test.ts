@@ -1,5 +1,5 @@
 /**
- * `PATCH /assets/{id}` (T13, specs/015-hardware-inventory; AC-1.9, AC-3.6,
+ * `PATCH /assets/{id}` (T13, specs/20261006-hardware-inventory; AC-1.9, AC-3.6,
  * AC-5.9, AC-10.1, AC-11.1). Real router + middleware over the harness, real
  * Postgres; `auth` identities are stubbed.
  */

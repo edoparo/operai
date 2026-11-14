@@ -13,7 +13,7 @@ import NotFoundPage from './pages/NotFoundPage'
 
 // ---------------------------------------------------------------------------
 // createAppRouter — factory, not a module-scope singleton (T14,
-// specs/007-refund-service/tasks.md: "an inner TanStack Router at
+// specs/20260716-refund-service/tasks.md: "an inner TanStack Router at
 // basepath:'/refund' with routes requests/requests/new/requests/$id/review/
 // review/$id"). Mirrors admin-ui/src/router.tsx's T14 (specs/004-auth-roles-
 // permissions) factory exactly, same shape:
@@ -30,7 +30,7 @@ import NotFoundPage from './pages/NotFoundPage'
 // route-tree state, same reasoning as admin-ui's/estimai-ui's routers.
 //
 // No `_authed` (or `access`) guard here — same rationale as admin-ui's
-// router (ADR-0006): the shell's own `_authed` guard, and (per a later
+// router (ADR 20260709-suite-frontend-module-federation): the shell's own `_authed` guard, and (per a later
 // per-tool `access` guard, if ever added) already runs before refund-ui is
 // ever mounted. `RefundShell` (./components/RefundShell.tsx) is the "App
 // root that renders the nav + an <Outlet/>" this task's description asks
@@ -115,7 +115,7 @@ export function createAppRouter(basepath?: string) {
     component: ReviewDetailPage,
   })
 
-  // Screen B1 (Batch history, specs/008 T9 placeholder — real screen T13) —
+  // Screen B1 (Batch history, specs/20260719-refund-monthly-processing T9 placeholder — real screen T13) —
   // a sibling of every other route in this flat tree, entry point for every
   // accounting monthly-processing flow (design.md F8, US-8).
   const batchesRoute = createRoute({
@@ -135,7 +135,7 @@ export function createAppRouter(basepath?: string) {
   })
 
   // Screen B3 (Batch detail — also the email deep-link landing page, T12,
-  // specs/008-refund-monthly-processing/tasks.md) — a sibling of
+  // specs/20260719-refund-monthly-processing/tasks.md) — a sibling of
   // `batchesRoute`, not nested.
   //
   // `validateSearch` carries the SAME one-shot `confirmation` flash-message
@@ -154,7 +154,7 @@ export function createAppRouter(basepath?: string) {
   })
 
   // Settings (mileage rates + accounting distribution email) — moved here
-  // from admin-ui's `/admin/rates` on 2026-11-13 (ADR-0023 amendment). The tab
+  // from admin-ui's `/admin/rates` on 2026-11-13 (ADR 20260720-mileage-rate-model-snapshot-admin-ui-composition amendment). The tab
   // shows only with `rate:read` or `settings:read`; refund-api enforces both.
   const settingsRoute = createRoute({
     getParentRoute: () => rootRoute,

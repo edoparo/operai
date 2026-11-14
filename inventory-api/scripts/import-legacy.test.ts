@@ -1,5 +1,5 @@
 /**
- * The legacy import end to end (T23, specs/015-hardware-inventory; AC-12.1 to
+ * The legacy import end to end (T23, specs/20261006-hardware-inventory; AC-12.1 to
  * AC-12.9): a SYNTHETIC workbook written to a temp file, the real script entry
  * (`runImport`), real Postgres. The real register is never used here.
  */

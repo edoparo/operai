@@ -1,7 +1,7 @@
 /**
  * @vitest-environment jsdom
  *
- * Component tests for AccessRequestsPage (T9, specs/023, design.md F1-F4, F7, S1-S3).
+ * Component tests for AccessRequestsPage (T9, specs/20261105-signup-gate, design.md F1-F4, F7, S1-S3).
  *
  * `../lib/adminApi` is mocked at module level keeping the real `ApiError`.
  */

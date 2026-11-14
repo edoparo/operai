@@ -153,7 +153,7 @@ describe('PipelinePage board', () => {
     expect(within(screen.getByTestId('crm-pipeline-stage-won')).getByText('Closed in 2026')).not.toBeNull()
   })
 
-  it('marks a deal whose technical estimate is still being worked on (specs/018)', async () => {
+  it('marks a deal whose technical estimate is still being worked on (specs/20261101-crm-sales-flow)', async () => {
     await renderBoard()
     const waiting = screen.getByTestId('crm-pipeline-deal-d2')
     expect(within(waiting).getByTestId('crm-pipeline-awaiting-estimate-d2').textContent).toBe('Waiting for estimate')

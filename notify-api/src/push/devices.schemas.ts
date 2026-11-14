@@ -1,5 +1,5 @@
 /**
- * Zod schemas for the push device routes (T5, specs/029-push-notifications, plan.md
+ * Zod schemas for the push device routes (T5, specs/20261111-push-notifications, plan.md
  * §API contracts). The response DTO is deliberately the ONLY shape a device leaves the
  * service in: `endpoint`, `p256dh` and `auth` are subscription secrets and have no field here.
  */

@@ -1,5 +1,5 @@
 /**
- * Request and response schemas shared by the meeting route groups (specs/021-meetings
+ * Request and response schemas shared by the meeting route groups (specs/20261104-meetings
  * plan.md § API contracts). The response shapes are built by `view.ts` / `rows.ts`
  * (typed there), so here they are documented for OpenAPI without being re-declared.
  */
@@ -10,11 +10,11 @@ import type { MeetingRow } from "./rows";
 
 export const MeetingSchema = z
   .custom<MeetingView>((value) => typeof value === "object" && value !== null)
-  .openapi({ type: "object", description: "The Meeting of specs/021 plan.md § API contracts" });
+  .openapi({ type: "object", description: "The Meeting of specs/20261104-meetings plan.md § API contracts" });
 
 export const MeetingRowSchema = z
   .custom<MeetingRow>((value) => typeof value === "object" && value !== null)
-  .openapi({ type: "object", description: "A MeetingRow of specs/021 plan.md § API contracts" });
+  .openapi({ type: "object", description: "A MeetingRow of specs/20261104-meetings plan.md § API contracts" });
 
 /** `{ app, entityType, entityId }`: a reference to an entity in a host tool. */
 export const HostRefSchema = z

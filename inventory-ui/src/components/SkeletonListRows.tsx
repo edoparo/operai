@@ -2,7 +2,7 @@
  * SkeletonListRows — presentational loading skeleton (T25, specs/015-hardware-
  * inventory; design.md § Screens & states: "Loading: SkeletonListRows plus an
  * sr-only aria-live="polite" line"). Re-authored from refund-ui's component
- * (ADR-0006: no cross-remote imports) with the same props and markup:
+ * (ADR 20260709-suite-frontend-module-federation: no cross-remote imports) with the same props and markup:
  * placeholder rows with an animated pulse, a name column plus a trailing
  * actions column, `rows` defaulting to 3.
  *
@@ -10,7 +10,7 @@
  * screen provides the aria-live line that announces the loading state
  * (`strings.common.skeletonListRows.loadingLabel` is the default text).
  *
- * Now a thin adapter over @operai/ui's `SkeletonRows` (ADR-0050), keeping the
+ * Now a thin adapter over @operai/ui's `SkeletonRows` (ADR 20261031-shared-ui-library-consumed-as-source), keeping the
  * `skeleton-list-rows` test id and the four trailing action placeholders.
  */
 

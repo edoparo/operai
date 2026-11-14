@@ -1,5 +1,5 @@
 /**
- * Reads a request body with a hard ceiling (specs/029 US-7, ADR-0086): the two
+ * Reads a request body with a hard ceiling (specs/20261111-push-notifications US-7, ADR 20261112-system-endpoints-limited-per-verified-service): the two
  * /system endpoints do work for INVALID credentials too (a valid one must be
  * recognised from any source), so what that work reads must be bounded before
  * any parsing. A declared `Content-Length` over the cap is refused without

@@ -1,7 +1,7 @@
 /**
  * @vitest-environment jsdom
  *
- * Tests for T9 + T11 (specs/001-estimate-persistence):
+ * Tests for T9 + T11 (specs/20260606-estimate-persistence):
  *
  *   (A) Load — EstimatorProvider initialised from API content: the editor
  *       renders the loaded name/author and computed values (PERT/Expected/
@@ -103,7 +103,7 @@ const fixtureActs: Activity[] = [
 
 // A successful mock response shape.
 //
-// T15 (specs/013-estimate-sharing/tasks.md) widened `EstimateFull` with
+// T15 (specs/20260807-estimate-sharing/tasks.md) widened `EstimateFull` with
 // `version`/`access`/`owner` (T16's fixture note: "the tree does not
 // typecheck until they are fixed"). `version: 1` matches every fixture
 // provider render below, none of which pass `initialVersion` — so the
@@ -949,7 +949,7 @@ describe('(E) Rename cascade: renaming a release keeps its activities linked', (
 })
 
 // ---------------------------------------------------------------------------
-// (F) T16 (specs/013-estimate-sharing/tasks.md) — access-derived `canEdit`
+// (F) T16 (specs/20260807-estimate-sharing/tasks.md) — access-derived `canEdit`
 //     gating and 409/428 conflict suppression:
 //
 //   (a) a viewer fires ZERO PUTs, even after a state change (AC-3.1/AC-3.3
@@ -957,7 +957,7 @@ describe('(E) Rename cascade: renaming a release keeps its activities linked', (
 //       context itself must refuse, not just hide the controls)
 //   (b) an editor/owner save sends `If-Match` with the currently-known
 //       version and adopts the server's returned version for the next
-//       save (AC-3.2, ADR-0038)
+//       save (AC-3.2, ADR 20260807-optimistic-concurrency-version-if-match-cas-amends-0004)
 //   (c) a ConflictError (409 or 428) enters `conflict`, and SUSPENDS every
 //       future autosave attempt — advancing timers by 10× the debounce
 //       after the conflict fires NO further PUT (plan.md "Test strategy":

@@ -55,7 +55,7 @@ export const requireAuth = createMiddleware<{
 /**
  * Rejects requests from an authenticated caller who does not hold the
  * `admin` role with RFC 7807 403 (spec 004, T4 — AC-1.5). This is a role
- * gate, not an ownership check — distinct from ADR-0005's per-record 404
+ * gate, not an ownership check — distinct from ADR 20260703-jwt-resource-server-remote-jwks's per-record 404
  * (which hides existence of a resource the caller doesn't own). Here the
  * caller's identity is fully known; we are simply denying them the admin
  * surface, so `403 Forbidden` — not `404` — is the correct, non-leaking

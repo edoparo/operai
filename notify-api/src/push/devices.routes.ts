@@ -1,6 +1,6 @@
 /**
  * GET /push/config, PUT|GET /push/devices, DELETE /push/devices/{id}
- * (T5, specs/029-push-notifications, plan.md §API contracts, ADR-0084).
+ * (T5, specs/20261111-push-notifications, plan.md §API contracts, ADR 20261111-web-push-encrypted-payloads-not-fcm).
  *
  * User-JWT routes (jwtMiddleware, aud=AUTH_AUDIENCE), scoped exclusively to the verified
  * `sub`: the owner is never read from a path, query or body. A service JWT therefore
@@ -13,7 +13,7 @@
  *  - SSRF: notify-api POSTs to the registered endpoint, so PUT checks the host against
  *    the single `PUSH_ENDPOINT_HOSTS` allowlist (push/pushEndpoint.ts), the same one the
  *    sender re-checks.
- *  - Someone else's device id is a 404 identical to an unknown id (ADR-0005).
+ *  - Someone else's device id is a 404 identical to an unknown id (ADR 20260703-jwt-resource-server-remote-jwks).
  *
  * Only PUT is gated by PUSH_ENABLED (503 push_disabled, before body validation): GET and
  * DELETE keep working while push is off so a user can always see and remove what is stored.
@@ -71,7 +71,7 @@ pushDevicesRouter.onError((err, c) => {
 
 // Every middleware below is scoped to ONE exact path — NEVER `.use("*", …)`. index.ts
 // merges every router into one flat route table, so a "*" here would gate the whole app
-// (GET /notifications/stream must stay Bearer-less, ADR-0008; /system/* takes a service
+// (GET /notifications/stream must stay Bearer-less, ADR 20260713-sse-stream-auth-short-lived-ticket; /system/* takes a service
 // JWT only). See list.routes.ts and stream.routes.ts for the precedent.
 pushDevicesRouter.use("/push/config", jwtMiddleware);
 pushDevicesRouter.use(
@@ -213,7 +213,7 @@ const deleteRoute = createRoute({
   path: "/push/devices/{id}",
   tags: ["Push"],
   summary: "Remove one of the caller's push devices",
-  description: "404 when the id does not exist OR belongs to another user, with an identical body (ADR-0005).",
+  description: "404 when the id does not exist OR belongs to another user, with an identical body (ADR 20260703-jwt-resource-server-remote-jwks).",
   request: { params: DeviceIdParamSchema },
   responses: {
     204: { description: "Deleted (AC-1.5, AC-3.2)" },

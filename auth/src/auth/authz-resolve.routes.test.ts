@@ -1,6 +1,6 @@
 /**
- * Integration tests for GET /authz/resolve (T1, specs/007-refund-service —
- * refs AC-5.4, AC-6.4, AC-7.5; ADR-0014).
+ * Integration tests for GET /authz/resolve (T1, specs/20260716-refund-service —
+ * refs AC-5.4, AC-6.4, AC-7.5; ADR 20260716-refund-api-authorization-enforcing-resource-server).
  *
  * Strategy: exercise the REAL token-mint flow end-to-end against the live
  * local Postgres (no mocks on auth.config/definePayload/the jwt plugin) —
@@ -13,7 +13,7 @@
  *   2. GET  /auth/token        → better-auth's jwt plugin signs a real RS256
  *      JWT (the SAME rotating-kid keypair `authz/resolveAuth.middleware.ts`
  *      verifies against via `/auth/jwks` — never the unrelated static
- *      `/.well-known/jwks.json` env keypair, per ADR-0005's correction).
+ *      `/.well-known/jwks.json` env keypair, per ADR 20260703-jwt-resource-server-remote-jwks's correction).
  *   3. Authorization: Bearer <token> → GET /authz/resolve.
  *
  * WHY THIS FILE LIVES IN `src/auth/`, NOT `src/authz/` (its "natural" home
@@ -116,7 +116,7 @@ async function makeRole(label: string) {
   return role;
 }
 
-describe("GET /authz/resolve (T1, specs/007-refund-service)", () => {
+describe("GET /authz/resolve (T1, specs/20260716-refund-service)", () => {
   beforeAll(async () => {
     // Sanity: the test-auth gate must be live for this whole file's mint flow.
     const probe = await testAuthRouter.request("/test-auth/session", {
@@ -185,7 +185,7 @@ describe("GET /authz/resolve (T1, specs/007-refund-service)", () => {
       jobTitle: string | null;
     };
     expect(body.sub).toBe(userId);
-    // The baseline `employee` role carries meetings:access once seeded (specs/021, AC-10.8); nothing else.
+    // The baseline `employee` role carries meetings:access once seeded (specs/20261104-meetings, AC-10.8); nothing else.
     expect(
       (body.permissions as { resource: string; action: string }[]).filter(
         (p) => !(p.resource === "meetings" && p.action === "access"),
@@ -195,7 +195,7 @@ describe("GET /authz/resolve (T1, specs/007-refund-service)", () => {
     expect(body.jobTitle).toBeNull();
   });
 
-  test("a soft-deleted caller's still-valid token resolves to no permissions and no attributes (ADR-0012 escalation path)", async () => {
+  test("a soft-deleted caller's still-valid token resolves to no permissions and no attributes (ADR 20260714-invitation-activation-hooks-soft-delete-lifecycle escalation path)", async () => {
     const role = await makeRole("soft-deleted");
     await db.permissionRule.create({
       data: { roleId: role.id, resource: "inventory", action: "access" },
@@ -339,7 +339,7 @@ describe("GET /authz/resolve (T1, specs/007-refund-service)", () => {
     expect(res.status).toBe(401);
   });
 
-  test("401s when the token carries the wrong audience (ADR-0010)", async () => {
+  test("401s when the token carries the wrong audience (ADR 20260713-jwt-audience-claim-enforcement)", async () => {
     // Temporarily mint under a DIFFERENT AUTH_AUDIENCE than what this
     // process's resolveAuth.middleware will verify against — produces a
     // validly-signed token whose `aud` claim mismatches, exactly like

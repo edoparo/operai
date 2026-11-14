@@ -1,5 +1,5 @@
 /**
- * T107, the Google spike (specs/021-meetings plan.md § Amendment 2026-11-05 G-2, G-3, G-5, G-8; a RELEASE
+ * T107, the Google spike (specs/20261104-meetings plan.md § Amendment 2026-11-05 G-2, G-3, G-5, G-8; a RELEASE
  * GATE, not a test): drives the REAL adapters against a sandbox Google Cloud project and prints measurements.
  *
  *   direnv exec meetings-api sh -c 'MEETINGS_AI_PROVIDER=real bun scripts/spike-google-speech.ts --audio <file> --locale it-IT'

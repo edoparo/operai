@@ -1,6 +1,6 @@
 /**
  * Fixed, escaped templates for the internal email channel (T3,
- * specs/006-user-invitations, plan.md "Resend + i18n + failure", ADR-0011).
+ * specs/20260713-user-invitations, plan.md "Resend + i18n + failure", ADR 20260714-notify-api-email-channel-service-trust).
  *
  * `invitation`/`invitation_resend` are bilingual (IT + EN, in ONE email) —
  * the invitee has no User row and thus no locale preference. CLAUDE.md's
@@ -8,14 +8,14 @@
  * AC-2.1 ("offered in both Italian and English") are satisfied by rendering
  * both languages in a single message rather than guessing one.
  *
- * `refund_batch_compiled` (T7, specs/008-refund-monthly-processing,
- * ADR-0021) is deliberately **English-only** — the refund suite's v1 has no
+ * `refund_batch_compiled` (T7, specs/20260719-refund-monthly-processing,
+ * ADR 20260719-refund-batch-signed-link-email-delivery) is deliberately **English-only** — the refund suite's v1 has no
  * Italian copy anywhere (spec 008 Non-goals) — and carries an **in-app deep
  * link**, never an attachment or a raw presigned URL: the recipient must
  * sign in and pass the same authz check as any other in-app batch view
  * before the PDF itself is ever reachable (AC-3.5).
  *
- * SECURITY (fixed templates, no injection surface — ADR-0011 Risks / plan.md
+ * SECURITY (fixed templates, no injection surface — ADR 20260714-notify-api-email-channel-service-trust Risks / plan.md
  * Security "template injection"): the only variable inputs are each
  * template's own `data.*` fields (the destination `to` is never
  * interpolated into the body at all). Every one is HTML-escaped before
@@ -43,7 +43,7 @@ export type InvitationTemplateData = {
 
 /**
  * refund-api's `data` shape for `refund_batch_compiled` (T7,
- * specs/008-refund-monthly-processing, plan.md §Email, ADR-0021).
+ * specs/20260719-refund-monthly-processing, plan.md §Email, ADR 20260719-refund-batch-signed-link-email-delivery).
  * `batchUrl` is an in-app deep link (`<REFUND_APP_BASE_URL>/refund/batches/<id>`)
  * — never a storage/presigned URL — and `requestCount` is a plain integer
  * (nothing to escape); every other field is a string, escaped like any other
@@ -63,7 +63,7 @@ export type RefundBatchCompiledTemplateData = {
  * link (`<REFUND_APP_BASE_URL>/refund/requests/<id>`), same posture as
  * `batchUrl`. `approvedTotals` arrives as integer minor units and is
  * formatted here at render time — refund-api owns money COMPUTATION
- * (ADR-0025's round-exactly-once rule), this owns its presentation, the same
+ * (ADR 20260720-mileage-rate-money-precision-integer-micros's round-exactly-once rule), this owns its presentation, the same
  * split `refund_batch_compiled` already uses for `cutoff`/`requestCount`.
  */
 export type RefundDecisionApprovedTemplateData = {
@@ -78,7 +78,7 @@ export type RefundDecisionRejectedTemplateData = {
 };
 
 /**
- * `notification_notice` (specs/019-crm-notifications, ADR-0056). Unlike every
+ * `notification_notice` (specs/20261101-crm-notifications, ADR 20261101-notify-api-resolves-email-notice-address-from-auth). Unlike every
  * template above, this one is not a caller-supplied `data` shape: notify-api
  * builds it from the notification it just stored, so it is reachable only
  * from POST /system/notifications and never from /system/emails (where the
@@ -175,10 +175,10 @@ const renderInvitation = (
 };
 
 /**
- * `refund_batch_compiled` (T7, specs/008-refund-monthly-processing,
- * plan.md §Email, ADR-0021) — English-only. Body carries the in-app deep
+ * `refund_batch_compiled` (T7, specs/20260719-refund-monthly-processing,
+ * plan.md §Email, ADR 20260719-refund-batch-signed-link-email-delivery) — English-only. Body carries the in-app deep
  * link (`batchUrl`) as the sole call to action; no PDF/attachment/presigned
- * URL anywhere in the template (ADR-0021 Non-goal).
+ * URL anywhere in the template (ADR 20260719-refund-batch-signed-link-email-delivery Non-goal).
  */
 const renderRefundBatchCompiled = (
   data: RefundBatchCompiledTemplateData,
@@ -213,7 +213,7 @@ const renderRefundBatchCompiled = (
  * against the compiled PDF sees the same figure written the same way. This
  * is presentation only — it never rounds, because it never receives anything
  * to round: `amountCents` is already the exact integer refund-api computed
- * under ADR-0025's round-exactly-once rule.
+ * under ADR 20260720-mileage-rate-money-precision-integer-micros's round-exactly-once rule.
  *
  * `currency` is zod-bound to the four supported codes and `amountCents` to an
  * integer (emails.schemas.ts), so neither can carry markup — but the currency
@@ -228,7 +228,7 @@ const formatMinorUnits = (amountCents: number, currency: string): string => {
 };
 
 /**
- * `refund_decision_approved` (specs/007-refund-service AC-3.6) — English-only,
+ * `refund_decision_approved` (specs/20260716-refund-service AC-3.6) — English-only,
  * matching `refund_batch_compiled` rather than the bilingual invitation
  * family: an employee HAS a User row and a suite locale, so guessing a
  * language in the mail body would contradict the app they are about to open.
@@ -263,7 +263,7 @@ const renderRefundDecisionApproved = (
 };
 
 /**
- * `refund_decision_rejected` (specs/007-refund-service AC-3.6) — English-only,
+ * `refund_decision_rejected` (specs/20260716-refund-service AC-3.6) — English-only,
  * same reasoning as the approved variant.
  *
  * Deliberately carries NO amount (nothing was approved) and NO rejection
@@ -302,7 +302,7 @@ const ORIGIN_APP_LABELS: Readonly<Record<string, string>> = {
 };
 
 /**
- * `notification_notice` — English-only (specs/019 D-5), the email twin of an
+ * `notification_notice` — English-only (specs/20261101-crm-notifications D-5), the email twin of an
  * in-app notification: the title, the body text, one button back into Operai
  * and a footer naming the origin tool. No per-event fields, so one fixed,
  * escaped template serves every tool.

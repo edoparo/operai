@@ -1,5 +1,5 @@
 /**
- * QE exploratory probes (specs/028), contract edges the feature tests do not name. Each case states the
+ * QE exploratory probes (specs/20261110-activities), contract edges the feature tests do not name. Each case states the
  * expectation from the spec; a failure here is a defect, not a test to adjust.
  */
 import { beforeEach, describe, expect, it } from "bun:test";

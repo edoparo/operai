@@ -1,6 +1,6 @@
 /**
- * Tell every effective admin that someone asked to join (specs/023 AC-4.1, AC-4.3;
- * ADR-0072). Recipients are `getEffectiveAdminUserIds` (direct role or via a
+ * Tell every effective admin that someone asked to join (specs/20261105-signup-gate AC-4.1, AC-4.3;
+ * ADR 20261105-auth-pushes-admin-notifications). Recipients are `getEffectiveAdminUserIds` (direct role or via a
  * department, active users only). Each goes to notify-api's
  * `POST /system/notifications` with `email: true`; notify-api resolves the
  * address, so `auth` sends none.

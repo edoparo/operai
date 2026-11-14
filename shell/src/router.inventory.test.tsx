@@ -2,7 +2,7 @@
  * @vitest-environment jsdom
  *
  * Tests for the `/inventory/$` tool route and the ungated `/devices` route
- * (specs/015-hardware-inventory, T42, AC-4.1, AC-9.6; ADR-0045 — the plan's
+ * (specs/20261006-hardware-inventory, T42, AC-4.1, AC-9.6; ADR 20261006-ungated-second-federated-entry-of-a-gated-remote — the plan's
  * R-5 early check: one remote, two entries, two different guards).
  *
  * Mirrors router.account.test.tsx / router.notify.test.tsx: real RouterProvider,
@@ -135,7 +135,7 @@ describe('/inventory/$ — the access-gated tool route (AC-9.6)', () => {
     expect(screen.getByRole('link', { name: 'Inventory' }).getAttribute('href')).toBe('/inventory')
   })
 
-  it('carries an app-access beforeLoad on /inventory/$ and none on /devices (ADR-0045)', async () => {
+  it('carries an app-access beforeLoad on /inventory/$ and none on /devices (ADR 20261006-ungated-second-federated-entry-of-a-gated-remote)', async () => {
     grantApps(['inventory'])
     const { router } = await renderShellAt('/inventory')
     await screen.findByTestId('inventory-app')
@@ -146,7 +146,7 @@ describe('/inventory/$ — the access-gated tool route (AC-9.6)', () => {
   })
 })
 
-describe('/devices — the ungated, identity-scoped route (AC-4.1, ADR-0045)', () => {
+describe('/devices — the ungated, identity-scoped route (AC-4.1, ADR 20261006-ungated-second-federated-entry-of-a-gated-remote)', () => {
   it('mounts inventory/MyDevices for a caller with ZERO grants, with no redirect', async () => {
     grantApps([])
 

@@ -1,6 +1,6 @@
 /**
- * Integration tests for authzMiddleware (T7, specs/015-hardware-inventory,
- * ADR-0014; AC-9.7). Ported from refund-api/src/auth/authz.middleware.test.ts.
+ * Integration tests for authzMiddleware (T7, specs/20261006-hardware-inventory,
+ * ADR 20260716-refund-api-authorization-enforcing-resource-server; AC-9.7). Ported from refund-api/src/auth/authz.middleware.test.ts.
  *
  * Strategy
  * ────────
@@ -238,7 +238,7 @@ describe("authzMiddleware", () => {
     }
   });
 
-  it("auth outage (resolve client throws) → 503, NEVER 200 (fail-closed, ADR-0014 point 4)", async () => {
+  it("auth outage (resolve client throws) → 503, NEVER 200 (fail-closed, ADR 20260716-refund-api-authorization-enforcing-resource-server point 4)", async () => {
     resolveImpl = async () => {
       throw new Error("simulated auth outage — connection refused");
     };

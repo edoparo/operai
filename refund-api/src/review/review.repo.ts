@@ -1,11 +1,11 @@
 /**
  * Prisma data-access layer for the accounting review queue (T11,
- * specs/007-refund-service, AC-5.1/5.2/5.3/5.5/5.6).
+ * specs/20260716-refund-service, AC-5.1/5.2/5.3/5.5/5.6).
  *
  * Deliberately fetches EVERY `submitted` request, regardless of entity — the
  * entity-scope filter is applied afterwards in review.service.ts via the
  * SAME `requestInScope` predicate requests.service.ts's `canReadRequest`
- * already uses for the record-level `GET /requests/:id` check (T7). ADR-0015
+ * already uses for the record-level `GET /requests/:id` check (T7). ADR 20260716-entity-scoped-abac-refund-api
  * Risks names this explicitly: the queue's scoping and the record-level
  * gate must never diverge, so both surfaces call the ONE shared predicate
  * function rather than each encoding their own "at least one line matches"
@@ -36,7 +36,7 @@ const toDbErr = (message: string) => (cause: unknown) =>
  * a monthly batch (`batchId IS NULL`) — the "approved but not processed" set
  * the accounting user asked to keep visible here. An approved request drops
  * off the queue the moment it is compiled into a batch (its `batchId` is set,
- * specs/008/ADR-0020). `draft`/`rejected`/`paid`, and `approved` rows already
+ * specs/20260719-refund-monthly-processing/ADR 20260719-refund-batch-paid-lifecycle-extension). `draft`/`rejected`/`paid`, and `approved` rows already
  * in a batch, are excluded. NEWEST-submitted-first, mixed by status — the
  * UI's status badge distinguishes the two.
  *

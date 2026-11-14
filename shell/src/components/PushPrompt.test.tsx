@@ -1,7 +1,7 @@
 /**
  * @vitest-environment jsdom
  *
- * PushPrompt — the on-load offer (specs/029-push-notifications, AC-1.9). The push library is mocked:
+ * PushPrompt — the on-load offer (specs/20261111-push-notifications, AC-1.9). The push library is mocked:
  * its own behaviour (permission, subscribe, the remembered answer) is lib/push.test.ts's business.
  */
 

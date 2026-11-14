@@ -1,5 +1,5 @@
 /**
- * specs/028-activities T21 — My tasks in the project module (`/projects/tasks`), through the REAL assembled
+ * specs/20261110-activities T21 — My tasks in the project module (`/projects/tasks`), through the REAL assembled
  * shell, projects-ui and crm-ui against the REAL activities-api, crm-api, projects-api and auth.
  *
  *   AC-7.2  the caller's project tasks and pre-sales tasks in one list, in the order of AC-3.4, every pre-sales
@@ -39,7 +39,7 @@ const runId = newRunId()
 
 test.describe.configure({ mode: 'serial' })
 
-test.describe('specs/028 T21: My tasks with pre-sales tasks (US-7)', () => {
+test.describe('specs/20261110-activities T21: My tasks with pre-sales tasks (US-7)', () => {
   let admin: Person
   let sales: Person
   let company: CompanyRow
@@ -157,7 +157,7 @@ test.describe('specs/028 T21: My tasks with pre-sales tasks (US-7)', () => {
     await expect(page.getByRole('heading', { name: company.name })).toBeVisible({ timeout: 30_000 })
 
     // Anything else is the CRM's rules, not the project module's: a colleague who did not write the task is
-    // refused an edit (specs/017 AC-4.2), whichever tool asks, and the task is unchanged.
+    // refused an edit (specs/20261101-crm AC-4.2), whichever tool asks, and the task is unchanged.
     const edit = await apiCall(ACTIVITIES_API_URL, admin, 'PATCH', `/activities/${preSales.id}`, { subject: 'changed' })
     expect(edit.status).toBe(403)
     expect((await getTaskViaApi(sales, preSales.id, { companyId: company.id }))?.subject).toBe(preSales.subject)

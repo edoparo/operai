@@ -1,6 +1,6 @@
 /**
  * Integration tests for GET /notifications + GET /notifications/unread-count
- * (T5, specs/005-notification-center).
+ * (T5, specs/20260713-notification-center).
  *
  * Strategy mirrors raise.routes.test.ts (real Postgres, mocked jwtMiddleware
  * against a local JWKS, fresh Prisma client pointed at the real DATABASE_URL).
@@ -93,7 +93,7 @@ import { config as dotenvConfig } from "dotenv";
 dotenvConfig({ path: new URL("../../.env", import.meta.url).pathname, override: true });
 
 // Shared process-level env: restore in afterAll so these overrides do not leak
-// into later files of a single-process `bun test` (T20, specs/016).
+// into later files of a single-process `bun test` (T20, specs/20261013-notify-service-credentials).
 const ENV_OVERRIDES: Record<string, string> = {
   ALLOWED_ORIGINS: "http://localhost:5173",
   AUTH_JWKS_URL: "http://localhost:3001/auth/jwks",
@@ -256,7 +256,7 @@ describe("GET /notifications — ordering (AC-2.3)", () => {
   });
 });
 
-// ─── Italian variant (T5, specs/021-meetings, ADR-0065) ───────────────────────
+// ─── Italian variant (T5, specs/20261104-meetings, ADR 20261104-bilingual-system-notifications) ───────────────────────
 
 describe("GET /notifications — Italian variant `it`", () => {
   it("returns it: { title, body } for a row with a variant and it: null for one without", async () => {

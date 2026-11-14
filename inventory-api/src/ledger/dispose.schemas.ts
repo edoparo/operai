@@ -1,4 +1,4 @@
-/** Request schema for `POST /assets/{id}/dispose` (T18, specs/015; AC-7.1, AC-7.3). */
+/** Request schema for `POST /assets/{id}/dispose` (T18, specs/20261006-hardware-inventory; AC-7.1, AC-7.3). */
 
 import { z } from "@hono/zod-openapi";
 import { MAX_INT, isoDate } from "../depreciation/rules.schemas";

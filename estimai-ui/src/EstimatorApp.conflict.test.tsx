@@ -1,7 +1,7 @@
 /**
  * @vitest-environment jsdom
  *
- * T18 (specs/013-estimate-sharing/tasks.md; design.md S4) — integration
+ * T18 (specs/20260807-estimate-sharing/tasks.md; design.md S4) — integration
  * wiring between EstimatorApp.tsx and the real ConflictBanner: proves
  * "Reload latest" triggers a route invalidate and "Save as a copy" posts
  * the local content, plus the exclusivity/Header-4th-state guarantees.

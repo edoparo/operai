@@ -1,7 +1,7 @@
 /**
- * Shared request/response pieces of every projects-api route group (specs/025-projects,
+ * Shared request/response pieces of every projects-api route group (specs/20261103-projects,
  * tasks.md § API contracts): the paging query, the optimistic-concurrency
- * precondition (AC-1.7, ADR-0038) and the shapes several groups return. Copied from
+ * precondition (AC-1.7, ADR 20260807-optimistic-concurrency-version-if-match-cas-amends-0004) and the shapes several groups return. Copied from
  * crm-api/src/lib/http.ts.
  */
 
@@ -80,7 +80,7 @@ export const isRecordNotFound = (error: unknown): boolean =>
   typeof error === "object" && error !== null && (error as { code?: unknown }).code === "P2025";
 
 /**
- * The error for a compare-and-set that matched no row (AC-1.7, ADR-0038): someone saved first
+ * The error for a compare-and-set that matched no row (AC-1.7, ADR 20260807-optimistic-concurrency-version-if-match-cas-amends-0004): someone saved first
  * (409 `version_conflict` carrying the version now stored) or the record is gone (404).
  */
 export const casMiss = (now: { version: number } | null, notFoundDetail: string): ProblemError =>

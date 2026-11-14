@@ -19,7 +19,7 @@ const SECTIONS = [
 const AUDIT_SECTION = { to: '/audit', label: strings.nav.audit } as const
 
 /**
- * SectionNav — admin-ui's section switcher (T14, specs/004-auth-roles-permissions,
+ * SectionNav — admin-ui's section switcher (T14, specs/20260713-auth-roles-permissions,
  * design.md component inventory: "admin-ui secondary nav
  * (Roles/Departments/Users/Audit tabs) — NEW"). Mounted once by AdminShell
  * (../components/AdminShell.tsx), the inner router's root route component,

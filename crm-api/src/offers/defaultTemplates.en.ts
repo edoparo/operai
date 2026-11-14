@@ -1,5 +1,5 @@
 /**
- * The English counterparts of the seven Italian seed templates (specs/020
+ * The English counterparts of the seven Italian seed templates (specs/20261102-crm-offer-document
  * AC-2.3), in the same order and with the same structure, markup and
  * placeholders as `defaultTemplates.ts`. Client-facing contract text: a
  * faithful, professional British-English rendering of the Italian originals,

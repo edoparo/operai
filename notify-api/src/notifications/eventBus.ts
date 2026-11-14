@@ -1,5 +1,5 @@
 /**
- * EventBus — in-process publish/subscribe seam (T3, specs/005-notification-center).
+ * EventBus — in-process publish/subscribe seam (T3, specs/20260713-notification-center).
  *
  * Behind an interface so a Postgres LISTEN/NOTIFY-backed implementation can be
  * swapped in later without an application rewrite (plan.md Risk R2). v1 ships the
@@ -57,7 +57,7 @@ export interface EventBus {
 
 /**
  * In-process EventBus — a `Map<sub, Set<listener>>`. Correct for a single instance
- * only (plan.md Risk R2 / ADR-0008 consequences); publish() is synchronous and
+ * only (plan.md Risk R2 / ADR 20260713-sse-stream-auth-short-lived-ticket consequences); publish() is synchronous and
  * fire-and-forget (SSE push is best-effort — plan.md Risk R5).
  */
 export class InProcessEventBus implements EventBus {

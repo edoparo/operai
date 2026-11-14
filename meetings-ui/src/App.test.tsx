@@ -1,7 +1,7 @@
 /**
  * @vitest-environment jsdom
  *
- * The three exposed React entries (specs/021-meetings, design.md § Conventions › Frame):
+ * The three exposed React entries (specs/20261104-meetings, design.md § Conventions › Frame):
  * `./App` (ToolLayout "Meetings" + TabNav; Erase only for `meeting:erase` holders),
  * `./MyMeetings` (ToolLayout "My meetings", no TabNav) and `./HostMeetings` (a Card, no frame).
  */

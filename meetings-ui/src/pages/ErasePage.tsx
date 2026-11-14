@@ -50,7 +50,7 @@ const classifyDirectoryError = (error: unknown): PersonLoadFailure => {
 const loadDirectory = async (signal: AbortSignal) => (await listDirectory({ signal })).users
 
 /**
- * Erase (specs/021-meetings S9, T75; AC-4.6, AC-4.7, AC-4.8, AC-5.12) — for holders of
+ * Erase (specs/20261104-meetings S9, T75; AC-4.6, AC-4.7, AC-4.8, AC-5.12) — for holders of
  * `meeting:erase`: find a meeting by title, creator or date and delete it. The list shows title,
  * date and creator ONLY, and nothing in it links to the meeting: holding the role never grants
  * reading content (AC-4.8). Filters apply on Search, not per keystroke. The tab is hidden without

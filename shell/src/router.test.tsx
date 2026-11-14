@@ -2,8 +2,8 @@
  * @vitest-environment jsdom
  *
  * Unit tests for the `_authed` layout route guard in src/router.tsx (T9,
- * specs/003-suite-shell, AC-2.1). Ported from estimai-ui/src/router.test.tsx
- * (T7, specs/002) — same guard contract, now backed by shell/session's
+ * specs/20260709-suite-shell, AC-2.1). Ported from estimai-ui/src/router.test.tsx
+ * (T7, specs/20260606-ui-auth-integration) — same guard contract, now backed by shell/session's
  * getSession (T4) instead of estimai-ui's own authClient:
  *
  *   - Resolves the session via shell/session's getSession() (cookie-based).

@@ -1,4 +1,4 @@
-/** Live names (AC-1.6) and the write-time module-access check (ADR-0055), against the auth fakes. */
+/** Live names (AC-1.6) and the write-time module-access check (ADR 20261101-app-access-check-by-user-id-and-directory-app-filter), against the auth fakes. */
 import { beforeEach, describe, expect, it } from "bun:test";
 import { PERSONAS, appAccess, identities, resetWorld } from "../test-support/world";
 import { ProblemError } from "./problem";

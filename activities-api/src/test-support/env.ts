@@ -35,7 +35,7 @@ process.env["PROJECTS_API_URL"] = "http://127.0.0.1:2";
 // The notifier and the system audience are unset unless a test sets them (T6, T10): a
 // developer's real credentials must not leak into the suite.
 for (const key of ["NOTIFY_INTERNAL_URL", "SERVICE_CLIENT_ID", "SERVICE_CLIENT_SECRET", "SERVICE_AUDIENCE"]) delete process.env[key];
-// The task files bucket (ADR-0089) is unset too: the file tests swap in a fake storage
+// The task files bucket (ADR 20261113-task-description-files-in-activities-api-bucket) is unset too: the file tests swap in a fake storage
 // (setStorageForTests), and a developer's MinIO or Railway credentials must never be reached.
 for (const key of [
   "ACTIVITIES_S3_ENDPOINT",

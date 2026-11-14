@@ -1,6 +1,6 @@
 /**
  * AddressSection — the admin-facing address editor, its states, and the
- * per-employee change-history panel (T11, specs/012-employee-address/tasks.md,
+ * per-employee change-history panel (T11, specs/20260803-employee-address/tasks.md,
  * refs AC-1.1, AC-1.3, AC-2.2, AC-2.3, AC-2.6, AC-3.1, AC-3.2, AC-3.3, AC-5.3;
  * design.md "Screen C2 extension — AddressSection").
  *

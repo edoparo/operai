@@ -1,5 +1,5 @@
 /**
- * Access resolution for estimates (T6, specs/013-estimate-sharing).
+ * Access resolution for estimates (T6, specs/20260807-estimate-sharing).
  *
  * `resolveAccess` is the single source of truth for "what can this caller do
  * with this estimate" — every owner-scoped query in estimates.repo.ts (and,
@@ -12,9 +12,9 @@
  * row's level; else `null` (no relationship at all).
  *
  * DENIAL TAXONOMY (plan.md "Access resolution inside estimai-api" — a
- * deliberate narrowing of ADR-0005's blanket "not owned = 404"):
+ * deliberate narrowing of ADR 20260703-jwt-resource-server-remote-jwks's blanket "not owned = 404"):
  *   - `null` (no relationship at all)         → the caller maps this to 404.
- *     A stranger learns nothing about the estimate's existence (ADR-0005
+ *     A stranger learns nothing about the estimate's existence (ADR 20260703-jwt-resource-server-remote-jwks
  *     intact).
  *   - non-null but the level is insufficient  → the caller maps this to 403.
  *     A viewer attempting PUT, or any collaborator attempting DELETE/
@@ -37,7 +37,7 @@ export type AccessLevel = "owner" | "editor" | "viewer";
 /**
  * What a response may say about the caller's relationship: a real level, or
  * `oversight` — a permission holder (`estimate:read-all`) with NO relationship
- * to the estimate (specs/024, ADR-0075). WIRE ONLY: never stored, never a
+ * to the estimate (specs/20261108-estimate-list-oversight, ADR 20261108-estimai-oversight-permission-amends-0036). WIRE ONLY: never stored, never a
  * collaborator level, never produced by `resolveAccess`.
  */
 export type WireAccess = AccessLevel | "oversight";
@@ -54,7 +54,7 @@ export interface ResolvedAccess {
  * Returns `null` when the estimate does not exist OR the caller has no
  * relationship to it (owner or collaborator) — the two cases are
  * INDISTINGUISHABLE to every caller of this function, by construction
- * (AC-1.6 / ADR-0005).
+ * (AC-1.6 / ADR 20260703-jwt-resource-server-remote-jwks).
  */
 export const resolveAccess = (
   estimateId: string,

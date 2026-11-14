@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Test harness for infra/meetings-gcs-transient-policy.sh (specs/021 T106). NO real cloud calls: a fake
+# Test harness for infra/meetings-gcs-transient-policy.sh (specs/20261104-meetings T106). NO real cloud calls: a fake
 # `gcloud` is put first on PATH and answers from fixture files in a temp directory. It records every
 # invocation so the --apply cases can assert exactly what would have been changed.
 #

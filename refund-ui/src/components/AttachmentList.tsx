@@ -1,5 +1,5 @@
 /**
- * AttachmentList — per-line receipt attachments (T17, specs/007-refund-service/
+ * AttachmentList — per-line receipt attachments (T17, specs/20260716-refund-service/
  * tasks.md; design.md F1 step 5, Component inventory: "AttachmentList /
  * per-file upload state machine — trigger-button convention ported from
  * EstimatesPage.tsx's hidden-file-input pattern; the phase-state-machine
@@ -20,7 +20,7 @@
  *     "uploading" span — from the UI's perspective all three phases are
  *     equally "in flight"; design.md only asks for these four states).
  *     Already-persisted attachments render via `AttachmentDownloadLink` plus
- *     a "×" Remove (draft-only). Post-close UX amendment (specs/007,
+ *     a "×" Remove (draft-only). Post-close UX amendment (specs/20260716-refund-service,
  *     2026-07-17 — overrides design.md F1 step 5's original no-confirm
  *     decision): clicking "×" now opens a `ConfirmDeleteModal` naming the
  *     file, confirm before it actually removes.

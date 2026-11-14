@@ -1,5 +1,5 @@
 /**
- * Reading an asset's history (T22, specs/015; AC-11.3, AC-11.4). The log is
+ * Reading an asset's history (T22, specs/20261006-hardware-inventory; AC-11.3, AC-11.4). The log is
  * append-only (Tier 1), so this is the only thing that ever reads it back.
  */
 

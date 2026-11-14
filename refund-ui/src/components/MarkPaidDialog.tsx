@@ -1,6 +1,6 @@
 /**
  * MarkPaidDialog — the irreversible, money-moving confirm for marking a
- * compiled batch as paid (T12, specs/008-refund-monthly-processing/tasks.md,
+ * compiled batch as paid (T12, specs/20260719-refund-monthly-processing/tasks.md,
  * design.md F4 step 2, Component inventory, Accessibility).
  *
  * Shows the batch's request count + per-currency totals (`BatchSubtotalsPanel`)

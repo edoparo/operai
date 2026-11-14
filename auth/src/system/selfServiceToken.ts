@@ -1,5 +1,5 @@
 /**
- * `auth`'s own notify credential, minted in process (T2, specs/016; ADR-0048).
+ * `auth`'s own notify credential, minted in process (T2, specs/20261013-notify-service-credentials; ADR 20261013-auth-mints-own-service-credential-in-process).
  *
  * `auth` is the issuer of service tokens and also a caller of notify-api
  * (`POST /system/emails`, invitation mail), so it does not authenticate to
@@ -23,7 +23,7 @@ import { RESERVED_SERVICE_CLIENT_ID } from "./serviceClients";
 import { mintServiceJwt, type SignServiceJwt } from "./serviceToken.routes";
 
 /**
- * The scopes `auth` presents: invitation email, and (specs/023, ADR-0072) in-app
+ * The scopes `auth` presents: invitation email, and (specs/20261105-signup-gate, ADR 20261105-auth-pushes-admin-notifications) in-app
  * pushes for access-request notices, which also need `emails.send` for `email: true`.
  */
 export const SELF_SERVICE_SCOPES: readonly string[] = ["emails.send", "notifications.push"];

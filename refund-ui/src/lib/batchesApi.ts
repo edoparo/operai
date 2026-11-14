@@ -38,10 +38,10 @@ export type BatchStatus = 'compiled' | 'paid' | 'discarded'
 /**
  * A batch's email delivery status (plan.md `RefundBatch.emailStatus`) —
  * `null` only pre-first-attempt. `"blocked_unconfigured"` (specs/011-refund-
- * settings, ADR-0029/D5) is a distinct, actionable status: the accounting
+ * settings, ADR 20260722-batch-email-recipient-live-resolution-amends-0021/D5) is a distinct, actionable status: the accounting
  * distribution email is unset at send/resend time, so refund-api never even
  * attempts a delivery — deliberately distinguishable from an ordinary
- * `"failed"` (a real Resend/notify-api outage, ADR-0011's best-effort `200`).
+ * `"failed"` (a real Resend/notify-api outage, ADR 20260714-notify-api-email-channel-service-trust's best-effort `200`).
  */
 export type BatchEmailStatus = 'sent' | 'failed' | 'blocked_unconfigured' | null
 

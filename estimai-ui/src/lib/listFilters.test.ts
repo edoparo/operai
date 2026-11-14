@@ -1,7 +1,7 @@
 /**
  * @vitest-environment jsdom
  *
- * The list filters' URL and sessionStorage rules (specs/024 AC-2.6).
+ * The list filters' URL and sessionStorage rules (specs/20261108-estimate-list-oversight AC-2.6).
  */
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import {

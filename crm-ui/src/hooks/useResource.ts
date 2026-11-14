@@ -20,7 +20,7 @@ export type ResourceOptions = {
    * Opts the page into stale-while-revalidate: the last answer is remembered under this key, in memory,
    * for the life of the tab, so coming back to the page shows it at once and reloads it behind, and a
    * `retry` keeps it on screen instead of a skeleton. The key must name everything the fetcher depends
-   * on (filters, page, id). Never persisted: memory only, like the JWT (ADR-0001).
+   * on (filters, page, id). Never persisted: memory only, like the JWT (ADR 20260607-jwt-in-memory-never-web-storage).
    *
    * Leave it out where a reload must rebuild what is on screen (an editor that re-seeds its form from a
    * fresh load after a 409): there a retry still goes through `loading`.

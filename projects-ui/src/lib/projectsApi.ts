@@ -1,5 +1,5 @@
 /**
- * projectsApi — typed calls for every projects-api route of specs/025-projects
+ * projectsApi — typed calls for every projects-api route of specs/20261103-projects
  * (tasks.md § API contracts), plus the directory read on `auth`. Every write of
  * an existing project or contract passes the record's `version` (sent as
  * `If-Match`, AC-1.7); creating a project or a contract has no precondition.
@@ -102,9 +102,9 @@ export const updateContract = (projectId: string, contractId: string, version: n
 export const setBexioOrderId = (projectId: string, contractId: string, version: number, bexioOrderId: string | null) =>
   sendJson<Contract>(`${contractPath(projectId, contractId)}/bexio-order`, 'PUT', { bexioOrderId }, version)
 
-// ─── auth: the user directory (PM and team pickers, ADR-0053/0055) ──────────
+// ─── auth: the user directory (PM and team pickers, ADR 20261101-user-directory-gate-widened-to-deal-manage/0055) ──────────
 
-/** Only users who hold `(projects, "access")` (ADR-0055): a PM and a member must hold it (AC-1.6). */
+/** Only users who hold `(projects, "access")` (ADR 20261101-app-access-check-by-user-id-and-directory-app-filter): a PM and a member must hold it (AC-1.6). */
 export const listDirectory = (init?: Init) =>
   requestJson<{ users: DirectoryUser[] }>(
     getAuthBaseUrl(),

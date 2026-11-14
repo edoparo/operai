@@ -1,10 +1,10 @@
 /**
- * `GET /assets/{id}/history` (T22, specs/015-hardware-inventory; AC-11.3,
+ * `GET /assets/{id}/history` (T22, specs/20261006-hardware-inventory; AC-11.3,
  * AC-11.4).
  *
  * Either capability reads, within its entity scope. Like `GET /assets/{id}`
  * the route has no capability gate: a caller with neither capability, an asset
- * outside their scope and an unknown id are all the same 404 (ADR-0014,
+ * outside their scope and an unknown id are all the same 404 (ADR 20260716-refund-api-authorization-enforcing-resource-server,
  * AC-4.3), so a grant-less user learns nothing about someone else's device.
  *
  * Nothing is filtered by capability. The log holds the purchase price (an
@@ -13,7 +13,7 @@
  * book value, rule or schedule, which are never recorded on an asset event.
  *
  * Actor ids and the user ids in `holder` / `assignee` changes are resolved to
- * identities LIVE (ADR-0039), failing soft to `unknown`; `system:*` actors
+ * identities LIVE (ADR 20260807-live-identity-resolution-by-id-fail-soft), failing soft to `unknown`; `system:*` actors
  * are `system` and never sent to `auth`. A renamed or deleted person is never
  * frozen into the history.
  */

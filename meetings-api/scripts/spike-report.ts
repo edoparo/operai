@@ -1,5 +1,5 @@
 /**
- * Pure helpers of the Google spike's CONTENT-FREE report (T124, specs/021-meetings plan.md H-1 to H-4, H-10).
+ * Pure helpers of the Google spike's CONTENT-FREE report (T124, specs/20261104-meetings plan.md H-1 to H-4, H-10).
  *
  * The spike (`spike-google-speech.ts`) drives the real service on SYNTHETIC audio whose words are known: a
  * `--reference` file lists every utterance (speaker, start, end, text). This module aligns the transcript's words

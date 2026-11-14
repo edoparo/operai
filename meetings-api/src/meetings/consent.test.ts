@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, spyOn } from "bun:test";
 import { createKit, type Kit } from "../test-support/routeKit";
 
-// AC-4.1, AC-4.3 (specs/021 T24): the consent attestation of a recorded or uploaded meeting.
+// AC-4.1, AC-4.3 (specs/20261104-meetings T24): the consent attestation of a recorded or uploaded meeting.
 
 const kit: Kit = await createKit();
 // After the kit: importing a route module first would load the real JWT middleware before the kit mocks it.

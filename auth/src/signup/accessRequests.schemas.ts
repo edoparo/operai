@@ -1,5 +1,5 @@
 /**
- * Zod wire schemas for the access-request admin API (T7, specs/023-signup-gate —
+ * Zod wire schemas for the access-request admin API (T7, specs/20261105-signup-gate —
  * plan.md § API contracts).
  */
 

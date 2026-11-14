@@ -1,5 +1,5 @@
 // Test-only resolution stub for the `shell/session` federated module (T13,
-// specs/004-auth-roles-permissions). Mirrors
+// specs/20260713-auth-roles-permissions). Mirrors
 // refund-ui/src/federation/__stubs__/shellSession.ts's rationale exactly:
 // Vite's import-analysis needs a real, resolvable module for every static
 // import specifier in a transformed file — even one a test's

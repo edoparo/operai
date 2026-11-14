@@ -1,13 +1,13 @@
 /**
  * Prisma data-access layer for the append-only `refund_setting` key/value
- * store (T3, specs/011-refund-settings, plan.md § Data model, ADR-0027).
+ * store (T3, specs/20260722-refund-settings, plan.md § Data model, ADR 20260722-refund-settings-append-only-self-auditing-store).
  *
  * `refund_setting` is append-only (AC-5.2, the DB-level trigger added by
  * T2's migration) — this module intentionally offers no update/delete
  * function; the enforcement backstop lives at the database layer, not here.
  *
  * The CURRENT value of a key is DERIVED ON READ as the latest row for that
- * key (D1/D3, ADR-0013/0024 lineage) — `listSettingHistory` fetches the FULL
+ * key (D1/D3, ADR 20260714-invitation-lifecycle-derived-expiry-state/0024 lineage) — `listSettingHistory` fetches the FULL
  * chronological history and the caller (settings/service.ts) derives
  * "current" as the last element, exactly mirroring `rates/repo.ts` +
  * `rates/service.ts`'s split.
@@ -64,7 +64,7 @@ export function listSettingHistory(
  * last row IS the current value (avoids fetching the full history when only
  * the live value is needed). Used by `batches/email.ts` (T4) to resolve the
  * `accounting-distribution-email` setting live at EVERY send/resend attempt
- * (D6, ADR-0029) — this is the ONE place that read happens, so "live" can
+ * (D6, ADR 20260722-batch-email-recipient-live-resolution-amends-0021) — this is the ONE place that read happens, so "live" can
  * never mean two different things across the send path.
  */
 export function fetchCurrentSettingValue(

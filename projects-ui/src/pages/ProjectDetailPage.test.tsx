@@ -349,7 +349,7 @@ describe('editing the name and the project manager (AC-1.6, AC-1.7)', () => {
     expect(screen.getByRole('heading', { level: 2, name: 'Intranet 2' })).not.toBeNull()
   })
 
-  it('picks the project manager among the people with access to the module (ADR-0055)', async () => {
+  it('picks the project manager among the people with access to the module (ADR 20261101-app-access-check-by-user-id-and-directory-app-filter)', async () => {
     await renderProject(projectDetail(), {
       'PATCH /projects/p1': () => ({ status: 200, body: projectDetail({ projectManager: BOB_PERSON, version: 4 }) }),
     })

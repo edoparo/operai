@@ -9,7 +9,7 @@ import { createTranscribeHandler } from "./transcribe";
 
 // AC-6.7 (no speech -> ready), AC-6.9 (failed + code, no partial transcript), AC-6.10 (stage),
 // AC-12.2 (the requester is told: title and outcome only), AC-13.2 (the meeting's locale only);
-// ADR-0062 (the claim is re-checked at commit). The transcriber is the fake; needs `meetings_test`.
+// ADR 20261104-durable-job-runner-work-queued-state-derived (the claim is re-checked at commit). The transcriber is the fake; needs `meetings_test`.
 
 const NOW = new Date("2026-11-05T10:00:00Z");
 let fake: FakeTranscriber;
@@ -120,7 +120,7 @@ describe("a transcript comes back", () => {
   });
 });
 
-describe("transcript parts (ADR-0070, AC-6.1, AC-6.2)", () => {
+describe("transcript parts (ADR 20261105-meetings-transcript-parts-speaker-labels-per-part, AC-6.1, AC-6.2)", () => {
   const seg = (ordinal: number, speakerKey: string, startMs: number) => ({ ordinal, startMs, endMs: startMs + 1000, speakerKey, text: `line ${ordinal}` });
 
   it("hands the transcriber the meeting and the attempt (the transient prefix is per attempt)", async () => {
@@ -327,7 +327,7 @@ describe("a failure (AC-6.9)", () => {
 });
 
 describe("guards", () => {
-  it("a stale claim writes nothing and notifies nobody (ADR-0062)", async () => {
+  it("a stale claim writes nothing and notifies nobody (ADR 20261104-durable-job-runner-work-queued-state-derived)", async () => {
     const m = await setup();
     await run(m.id, { stale: true });
     expect(await reread(m.id)).toMatchObject({ status: "processing", stage: "preparing" });

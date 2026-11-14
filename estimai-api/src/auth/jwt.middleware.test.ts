@@ -1,5 +1,5 @@
 /**
- * JWT middleware tests (T3, specs/001-estimate-persistence)
+ * JWT middleware tests (T3, specs/20260606-estimate-persistence)
  *
  * Strategy: generate a fixture RS256 keypair at test startup; build an in-memory
  * JWKS with createLocalJWKSet; mock `createRemoteJWKSet` from jose so the
@@ -75,7 +75,7 @@ mock.module("jose", () => {
 // These assignments run synchronously before the dynamic import below.
 
 // bun runs every file in ONE process and process-level env is shared, so these
-// overrides are undone in afterAll (T22, specs/016). DATABASE_URL is the
+// overrides are undone in afterAll (T22, specs/20261013-notify-service-credentials). DATABASE_URL is the
 // exception and is never overridden: this file never connects to a database, so
 // a placeholder is set only when nothing real is present. An afterAll restore is
 // NOT enough for it, because bun already evaluates the next file's static imports
@@ -88,7 +88,7 @@ const ENV_OVERRIDES: Record<string, string> = {
   AUTH_ISSUER: TEST_ISSUER,
   AUTH_AUDIENCE: TEST_AUDIENCE,
   NODE_ENV: "test",
-  // Required since T5 (specs/013-estimate-sharing) — env.ts now validates these
+  // Required since T5 (specs/20260807-estimate-sharing) — env.ts now validates these
   // at module-eval time regardless of whether this test file exercises them.
   AUTH_BASE_URL: "http://localhost:3001",
   SERVICE_CLIENT_ID: "estimai-api",
@@ -115,7 +115,7 @@ afterAll(() => {
 // assignments above are fully in effect before jwt.middleware.ts is evaluated.
 //
 // Two process-wide hazards when this runs in one `bun test` process with the
-// other files (T22, specs/016):
+// other files (T22, specs/20261013-notify-service-credentials):
 //  1. other files `mock.module("@/auth/jwt.middleware", …)` with their own fake
 //     middleware; a plain import here would hand back THAT, which verifies with a
 //     different keypair, so every valid token here gets 401. The query string
@@ -163,7 +163,7 @@ const signValid = async (overrides?: {
   email?: string;
   kid?: string;
   privateKeyOverride?: CryptoKey;
-  // ADR-0010: the `aud` claim. `null` omits the claim entirely (pre-ADR-0010
+  // ADR 20260713-jwt-audience-claim-enforcement: the `aud` claim. `null` omits the claim entirely (pre-ADR 20260713-jwt-audience-claim-enforcement
   // token shape); any string sets a specific (possibly wrong) audience value.
   // Defaults to the correct TEST_AUDIENCE so existing callers keep passing.
   audience?: string | null;
@@ -318,13 +318,13 @@ describe("jwtMiddleware", () => {
     expect(handlerRan.value).toBe(false);
   });
 
-  // ─── (d2) Missing audience claim → 401 (ADR-0010) ────────────────────────
+  // ─── (d2) Missing audience claim → 401 (ADR 20260713-jwt-audience-claim-enforcement) ────────────────────────
 
-  it("(d2) token with no 'aud' claim at all — 401, handler does not run (ADR-0010)", async () => {
+  it("(d2) token with no 'aud' claim at all — 401, handler does not run (ADR 20260713-jwt-audience-claim-enforcement)", async () => {
     const handlerRan = { value: false };
     const app = buildApp(handlerRan);
 
-    // audience: null omits setAudience() entirely — simulates a pre-ADR-0010
+    // audience: null omits setAudience() entirely — simulates a pre-ADR 20260713-jwt-audience-claim-enforcement
     // token that predates the claim.
     const jwt = await signValid({ audience: null });
     const res = await app.request("/protected", {
@@ -336,9 +336,9 @@ describe("jwtMiddleware", () => {
     expect(handlerRan.value).toBe(false);
   });
 
-  // ─── (d3) Wrong audience claim → 401 (ADR-0010) ──────────────────────────
+  // ─── (d3) Wrong audience claim → 401 (ADR 20260713-jwt-audience-claim-enforcement) ──────────────────────────
 
-  it("(d3) token with a different (wrong) 'aud' value — 401, handler does not run (ADR-0010)", async () => {
+  it("(d3) token with a different (wrong) 'aud' value — 401, handler does not run (ADR 20260713-jwt-audience-claim-enforcement)", async () => {
     const handlerRan = { value: false };
     const app = buildApp(handlerRan);
 

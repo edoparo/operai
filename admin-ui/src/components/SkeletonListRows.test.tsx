@@ -1,7 +1,7 @@
 /**
  * @vitest-environment jsdom
  *
- * Component tests for SkeletonListRows (T15, specs/004-auth-roles-permissions).
+ * Component tests for SkeletonListRows (T15, specs/20260713-auth-roles-permissions).
  *
  * Covers:
  *   (A) renders the default 3 rows, aria-hidden (no semantic content of its

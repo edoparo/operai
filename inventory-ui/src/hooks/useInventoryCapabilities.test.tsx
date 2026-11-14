@@ -1,10 +1,10 @@
 /**
  * @vitest-environment jsdom
  *
- * useInventoryCapabilities (T28, specs/015-hardware-inventory; design.md §
+ * useInventoryCapabilities (T28, specs/20261006-hardware-inventory; design.md §
  * Component inventory: "derives {canManageAssets, canManageLedger} from
  * usePermissions() once, so every screen gates the same way"). The gate is the
- * PRESENCE of the grant: entity scoping (ADR-0015) is enforced server-side and
+ * PRESENCE of the grant: entity scoping (ADR 20260716-entity-scoped-abac-refund-api) is enforced server-side and
  * reported by `GET /scope`, so a conditioned grant counts the same as an
  * unconditioned one. UX only — the real gate is inventory-api's (AC-9.7).
  */

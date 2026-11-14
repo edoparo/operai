@@ -1,5 +1,5 @@
 /**
- * Pure mapping tests for the Italian variant (T5, specs/021-meetings, ADR-0065):
+ * Pure mapping tests for the Italian variant (T5, specs/20261104-meetings, ADR 20261104-bilingual-system-notifications):
  * row <-> DTO. No database: the round trip through Postgres is covered in
  * system/notifications.routes.test.ts and list.routes.test.ts.
  */

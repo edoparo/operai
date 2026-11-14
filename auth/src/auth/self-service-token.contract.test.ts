@@ -1,6 +1,6 @@
 /**
- * Contract test for the self-mint provider (T2, specs/016 — refs AC-1.4,
- * AC-2.1; ADR-0048): the token `auth` presents to notify-api, minted with the
+ * Contract test for the self-mint provider (T2, specs/20261013-notify-service-credentials — refs AC-1.4,
+ * AC-2.1; ADR 20261013-auth-mints-own-service-credential-in-process): the token `auth` presents to notify-api, minted with the
  * REAL better-auth jwt plugin, verifies against `/auth/jwks` with exactly the
  * checks notify-api applies, and is useless on a user route.
  *

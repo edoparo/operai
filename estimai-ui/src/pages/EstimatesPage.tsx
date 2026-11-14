@@ -59,7 +59,7 @@ const UNKNOWN_OWNER: EstimateIdentity = { status: 'unknown', name: null }
  * (verified by reading it), so padding in the row's own id as a throwaway,
  * unused `id` is behaviorally inert — a narrow workaround kept local to this
  * file rather than widening `identity.ts`'s exported type, which is outside
- * this task's touch list (T23, specs/013-estimate-sharing/tasks.md). Flagged
+ * this task's touch list (T23, specs/20260807-estimate-sharing/tasks.md). Flagged
  * back to the caller as a real (if small) T14/T23 contract gap.
  */
 const ownerIdentityFor = (item: EstimateListItem) => ({
@@ -118,7 +118,7 @@ export default function EstimatesPage() {
   const [deletedNotice, setDeletedNotice] = useState(false)
 
   // ---------------------------------------------------------------------------
-  // Filters (specs/024): URL search params, mirrored to sessionStorage
+  // Filters (specs/20261108-estimate-list-oversight): URL search params, mirrored to sessionStorage
   // ---------------------------------------------------------------------------
 
   // UX gating only — the server answers 403 to `whose=all` without the permission.

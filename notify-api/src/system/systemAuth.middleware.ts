@@ -1,6 +1,6 @@
 /**
- * systemAuthMiddleware (specs/015 T6, ADR-0044; generalised by specs/016 T3,
- * ADR-0049; shared token removed by specs/016 T14) — the ONLY auth for
+ * systemAuthMiddleware (specs/20261006-hardware-inventory T6, ADR 20261006-scoped-service-jwt-fourth-notify-caller; generalised by specs/20261013-notify-service-credentials T3,
+ * ADR 20261013-all-notify-callers-scoped-credentials-shared-token-retired; shared token removed by specs/20261013-notify-service-credentials T14) — the ONLY auth for
  * `POST /system/notifications` and `POST /system/emails`. Each route builds it
  * with the ONE scope it requires (`notifications.push` / `emails.send`) and it
  * accepts exactly one credential:
@@ -51,9 +51,9 @@ const SERVICE_ORIGIN_BINDINGS: Readonly<Record<string, readonly string[]>> = {
   "system:estimai-api": ["estimai"],
   "system:crm-api": ["crm"],
   "system:meetings-api": ["meetings"],
-  // specs/028 (ADR-0081): activities-api raises task notices for the CRM and Projects hosts.
+  // specs/20261110-activities (ADR 20261110-activities-service-access-delegated-to-host): activities-api raises task notices for the CRM and Projects hosts.
   "system:activities-api": ["crm", "projects"],
-  // specs/023 (ADR-0072): auth raises access-request notices in the Admin tool.
+  // specs/20261105-signup-gate (ADR 20261105-auth-pushes-admin-notifications): auth raises access-request notices in the Admin tool.
   "system:auth": ["admin"],
 };
 

@@ -1,7 +1,7 @@
 /**
  * @vitest-environment jsdom
  *
- * Component tests for GuardrailDialog (T15, specs/007-refund-service,
+ * Component tests for GuardrailDialog (T15, specs/20260716-refund-service,
  * design.md F2/F6 "409 → GuardrailDialog").
  *
  * Covers:

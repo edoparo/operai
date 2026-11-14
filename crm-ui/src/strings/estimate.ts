@@ -1,4 +1,4 @@
-/** The deal page's Estimate card: request, state, hand-over and the gate override (specs/018 US-3). */
+/** The deal page's Estimate card: request, state, hand-over and the gate override (specs/20261101-crm-sales-flow US-3). */
 const en = {
   title: 'Technical estimate',
   none: 'No technical estimate has been requested for this deal.',

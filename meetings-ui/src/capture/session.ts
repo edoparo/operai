@@ -1,5 +1,5 @@
 /**
- * session — the RecordingSession controller (specs/021-meetings plan § Browser capture, D-4; AC-2.1,
+ * session — the RecordingSession controller (specs/20261104-meetings plan § Browser capture, D-4; AC-2.1,
  * AC-2.2, AC-2.6 to AC-2.9, AC-2.11, AC-4.11).
  *
  * It is a module-level controller, NOT a component: it owns the microphone, the Web Audio graph, the

@@ -1,8 +1,8 @@
 /**
- * The consolidated service-JWT middleware serves three /system routes (specs/021 AC-11.8, specs/018
- * AC-3.3, specs/025 `GET /system/companies`). A service credential is valid for ITS route only: meetings-api's host-notices token must
+ * The consolidated service-JWT middleware serves three /system routes (specs/20261104-meetings AC-11.8, specs/20261101-crm-sales-flow
+ * AC-3.3, specs/20261103-projects `GET /system/companies`). A service credential is valid for ITS route only: meetings-api's host-notices token must
  * not open the estimate-notices route and estimai-api's estimate-notices token must not open the
- * host-notices route, whatever else each token carries (QE rebase-seam check, specs/021).
+ * host-notices route, whatever else each token carries (QE rebase-seam check, specs/20261104-meetings).
  */
 import { TEST_ISSUER } from "../test-support/testAuth"; // sets the environment before ../lib/env is read
 import { beforeEach, describe, expect, it } from "bun:test";

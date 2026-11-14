@@ -1,5 +1,5 @@
 /**
- * Prisma data-access layer for mileage rates (T4, specs/009-mileage-rate).
+ * Prisma data-access layer for mileage rates (T4, specs/20260720-mileage-rate).
  *
  * `mileage_rate` is append-only (AC-4.7/5.2, the DB-level trigger added by
  * T2's migration) — this module intentionally offers no update/delete

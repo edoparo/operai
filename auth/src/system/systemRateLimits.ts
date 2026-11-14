@@ -1,7 +1,7 @@
 /**
  * The limits of the two internal endpoints every backend calls —
- * `POST /system/service-token` (ADR-0044/0049) and `POST /system/users/contact`
- * (ADR-0056) — as decided by specs/029 US-7 and ADR-0086.
+ * `POST /system/service-token` (ADR 20261006-scoped-service-jwt-fourth-notify-caller/0049) and `POST /system/users/contact`
+ * (ADR 20261101-notify-api-resolves-email-notice-address-from-auth) — as decided by specs/20261111-push-notifications US-7 and ADR 20261112-system-endpoints-limited-per-verified-service.
  *
  * THE RULE: a rate limit is keyed by the identity it is meant to bound, and a
  * credential is verified before any count is consulted. The routes verify
@@ -20,7 +20,7 @@
  * forwarded address reaches `auth`, so every service is the same "direct"
  * caller and the suite shared one bucket of 20 (D-1). Why not key the
  * pre-verification count by the claimed client id: anyone could then lock a
- * service out by its guessable name (ADR-0086 option E).
+ * service out by its guessable name (ADR 20261112-system-endpoints-limited-per-verified-service option E).
  *
  * Both refusals are the SAME response, built only by `tooManyRequests`: its
  * status, body and headers are a function of the request path and the window,
@@ -29,7 +29,7 @@
  * credential was valid). A refused attempt is never recorded (the limiter's
  * `consume` semantics), so retrying during a refusal does not extend it.
  *
- * Per process, like the suite's other limiters (ADR-0035): a second `auth`
+ * Per process, like the suite's other limiters (ADR 20260807-third-party-app-access-decision-endpoint-forwarded-jwt): a second `auth`
  * instance would double every allowance (R17). `RateLimiter` is the seam for a
  * shared store.
  */

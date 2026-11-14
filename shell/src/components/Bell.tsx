@@ -1,5 +1,5 @@
 /**
- * Bell — shell header notification-bell button (T11, specs/005-notification-center,
+ * Bell — shell header notification-bell button (T11, specs/20260713-notification-center,
  * plan.md "Shell changes" item 1, design.md "Bell (shell header chrome)").
  *
  * Placed in Header.tsx beside ThemeToggle (design.md's chrome layout:

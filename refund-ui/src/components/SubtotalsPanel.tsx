@@ -1,14 +1,14 @@
 /**
  * SubtotalsPanel — the request's Totals card: one figure group per **currency** present in a request's
  * `subtotals[]`, never a blended total and never a synthesized zero-value
- * card for an absent currency (T16, specs/007-refund-service/tasks.md;
+ * card for an absent currency (T16, specs/20260716-refund-service/tasks.md;
  * design.md F3 step 3: "always renders … as independent per-currency
  * cards … there is no code path that sums them into a single figure … never
  * a synthesized zero-value card for a currency with no lines"; Component
  * inventory: "SubtotalsPanel — NEW, small — … content (never-blended
  * per-currency requested/approved) is new").
  *
- * Post-close change (specs/007): subtotals now group by currency, not
+ * Post-close change (specs/20260716-refund-service): subtotals now group by currency, not
  * entity (see `../lib/subtotals.ts`'s doc comment) — a request can carry
  * more than two cards (e.g. EUR + CHF + USD) since entity no longer bounds
  * the currency set to two. Each card renders a `CurrencyBadge`, not an

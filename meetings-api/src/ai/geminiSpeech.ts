@@ -1,9 +1,9 @@
 /**
- * Transcription by Gemini on Vertex AI, EU multi-region (specs/021-meetings spec A12, plan § Amendment 2026-11-10,
- * ADR-0077; AC-6.1, AC-6.2, AC-6.5, AC-6.7, AC-6.11 to AC-6.15, AC-13.2, AC-4.9).
+ * Transcription by Gemini on Vertex AI, EU multi-region (specs/20261104-meetings spec A12, plan § Amendment 2026-11-10,
+ * ADR 20261110-meetings-transcription-gemini-on-vertex-eu; AC-6.1, AC-6.2, AC-6.5, AC-6.7, AC-6.11 to AC-6.15, AC-13.2, AC-4.9).
  *
  * WHY: Chirp 3 takes at most 20 minutes per request and loses speech beyond 10, so a meeting was transcribed in
- * 10-minute parts whose speaker labels restart in every part and can be joined only on text evidence (ADR-0070). The
+ * 10-minute parts whose speaker labels restart in every part and can be joined only on text evidence (ADR 20261105-meetings-transcript-parts-speaker-labels-per-part). The
  * first production recording (2 people, 25 minutes) came back with 9 labels. Gemini takes the whole recording in one
  * request and keeps one numbering for all of it: the same recording came back with 2 speakers (probe 2026-11-10).
  *
@@ -16,7 +16,7 @@
  *      than five minutes, and the unary call lost such replies on the way back (Vertex logged 200, we saw a dropped
  *      connection); a stream sends bytes as the transcript is written. Its chunks are folded into one reply text;
  *      a stream that ends without a finish reason was cut, and is retried, never accepted;
- *   3. the reply is UNTRUSTED (ADR-0067): it is accepted only as exactly the schema (an array of {start, end, speaker,
+ *   3. the reply is UNTRUSTED (ADR 20261104-ai-output-structured-validated-plain-text): it is accepted only as exactly the schema (an array of {start, end, speaker,
  *      text}, strings, bounded); anything else is resampled once and then refused. Times are a model's estimate: a
  *      segment's times are trusted only when they are well-formed, ordered and inside the part, and its words share
  *      them in proportion to their length; otherwise the words are untimed;
@@ -24,7 +24,7 @@
  *      (`stitch.ts`) as Chirp's, so gaps, duplicates and label joins follow the same rules (one part: nothing to join).
  *
  * WHAT IS NEVER DONE: the prompt never says how many people took part (a cap would merge two voices, and a false
- * merge is worse than a false split, ADR-0070); provider text is never logged or stored, logs carry counts only;
+ * merge is worse than a false split, ADR 20261105-meetings-transcript-parts-speaker-labels-per-part); provider text is never logged or stored, logs carry counts only;
  * failures map into the closed codes by HTTP status and finish reason only.
  */
 
@@ -40,7 +40,7 @@ import { stitch } from "./stitch";
 import type { PartWords, SpeechWord } from "./words";
 import { TranscriptionError, type TranscribeContext, type Transcriber, type TranscriptionLocale, type TranscriptionOutcome } from "./transcriber";
 
-/** The pinned model (ADR-0061: a model change is a code change, with a fresh comparison on a real recording). */
+/** The pinned model (ADR 20261104-meetings-ai-providers-eu-zero-retention: a model change is a code change, with a fresh comparison on a real recording). */
 export const GEMINI_TRANSCRIBE_MODEL = "gemini-3.8-flash";
 /** One request per part of at most this long: 25 minutes needed about 8 k output tokens and 6 k of thinking. */
 export const GEMINI_PIECE_MAX_MS = 30 * 60_000;
@@ -57,7 +57,7 @@ export const MAX_OUTPUT_TOKENS = 65_535;
 export const GEMINI_PART_CONCURRENCY = 2;
 /** The streamed reply, at most: 30 minutes of speech is about 40 KiB of JSON, the thinking is not sent. */
 export const MAX_REPLY_BYTES = 4 * 1024 * 1024;
-/** A reply that is not the schema is sampled again this many times, then refused (ADR-0067). */
+/** A reply that is not the schema is sampled again this many times, then refused (ADR 20261104-ai-output-structured-validated-plain-text). */
 export const RESAMPLES = 1;
 /** Capacity refusals (429) are shared across Vertex users: wait and try again within the attempt. */
 export const BUSY_WAITS_MS: readonly number[] = [20_000, 60_000];
@@ -127,7 +127,7 @@ export interface ReplySegment {
   readonly text: string;
 }
 
-/** The reply text as exactly the schema, or null (ADR-0067: anything else is not accepted, never repaired). */
+/** The reply text as exactly the schema, or null (ADR 20261104-ai-output-structured-validated-plain-text: anything else is not accepted, never repaired). */
 export function parseReply(raw: string): ReplySegment[] | null {
   let value: unknown;
   try {

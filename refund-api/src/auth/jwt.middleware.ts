@@ -29,7 +29,7 @@ export type JwtVariables = {
    * The `perm_epoch` claim from the verified JWT (auth/src/auth/auth.config.ts
    * `definePayload`) — a monotonically-increasing staleness marker bumped
    * whenever an admin changes this user's roles/permissions/departments.
-   * Consumed by authzMiddleware (T6, ADR-0014) as half of its
+   * Consumed by authzMiddleware (T6, ADR 20260716-refund-api-authorization-enforcing-resource-server) as half of its
    * `(sub, perm_epoch)` permission cache key: a grant change bumps the
    * epoch, so the caller's NEXT refreshed token carries a new epoch, which
    * is a cache-key miss at refund-api, forcing a fresh `/authz/resolve`
@@ -63,10 +63,10 @@ const unauthorized = (detail: string, path: string) =>
 // ─── Middleware ───────────────────────────────────────────────────────────────
 
 /**
- * JWT resource-server middleware (ADR-0005, audience enforcement per ADR-0010).
+ * JWT resource-server middleware (ADR 20260703-jwt-resource-server-remote-jwks, audience enforcement per ADR 20260713-jwt-audience-claim-enforcement).
  *
  * This is the identity layer only — it proves WHO is calling. refund-api is
- * the suite's first *authorization*-enforcing resource server (ADR-0014):
+ * the suite's first *authorization*-enforcing resource server (ADR 20260716-refund-api-authorization-enforcing-resource-server):
  * capability/condition checks (WHAT they may do) are layered on top by a
  * separate authzMiddleware (T6), which runs after this one and resolves the
  * caller's permissions live from `auth GET /authz/resolve`.
@@ -74,7 +74,7 @@ const unauthorized = (detail: string, path: string) =>
  * 1. Reads Authorization: Bearer <jwt>. Missing / malformed → 401 Problem JSON.
  * 2. Verifies the RS256 signature against the auth service JWKS (cached remote fetch).
  *    Algorithm is pinned to RS256 — alg:none / HS256 confusion rejected.
- *    issuer is pinned to AUTH_ISSUER; audience is pinned to AUTH_AUDIENCE (ADR-0010) —
+ *    issuer is pinned to AUTH_ISSUER; audience is pinned to AUTH_AUDIENCE (ADR 20260713-jwt-audience-claim-enforcement) —
  *    a token missing the `aud` claim, or carrying a value other than AUTH_AUDIENCE, fails
  *    verification here.
  * 3. Any verification failure (expired, bad signature, wrong issuer/kid/alg/audience) → 401.
@@ -137,7 +137,7 @@ export const jwtMiddleware = createMiddleware<{
   }
 
   // 4. Set context variables for downstream route handlers.
-  //    perm_epoch (T6, ADR-0014): read straight off the already-verified
+  //    perm_epoch (T6, ADR 20260716-refund-api-authorization-enforcing-resource-server): read straight off the already-verified
   //    payload — no additional trust decision, just extraction. A
   //    non-numeric/missing claim degrades to 0 rather than failing
   //    verification (identity, not authorization, is this middleware's job).

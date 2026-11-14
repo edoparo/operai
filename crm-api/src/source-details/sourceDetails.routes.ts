@@ -1,13 +1,13 @@
 /**
- * `GET /source-details?source=event|referral|other` (specs/017 US-7): the
+ * `GET /source-details?source=event|referral|other` (specs/20261101-crm US-7): the
  * details already written for one lead source, across companies and deals, so
  * the forms can offer them and the same event is not recorded three ways.
  *
  * Every `crm:access` holder already reads every company and deal with its
- * source detail (ADR-0052), so this projection reuses that gate and needs no
- * permission of its own (ADR-0042's reconstructibility test). The list is the
+ * source detail (ADR 20261101-crm-tool-shape-and-authorization), so this projection reuses that gate and needs no
+ * permission of its own (ADR 20260811-derived-projection-reuses-existing-gate-reconstructibility-test's reconstructibility test). The list is the
  * whole corpus for that source, matched in the browser: the typed text never
- * reaches the server (ADR-0041's shape).
+ * reaches the server (ADR 20260811-client-side-autocomplete-server-projected-corpus-app-code-folding's shape).
  *
  * Spellings that differ only by case, accents or spacing are one entry; the
  * most used spelling names it. Ordered by use, then alphabetically.

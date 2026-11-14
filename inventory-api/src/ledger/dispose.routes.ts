@@ -1,9 +1,9 @@
 /**
- * `POST /assets/{id}/dispose` (T18, specs/015-hardware-inventory; AC-7.1..AC-7.6).
+ * `POST /assets/{id}/dispose` (T18, specs/20261006-hardware-inventory; AC-7.1..AC-7.6).
  *
  * `ledger:manage` over the asset's entity: capability absent (including an
  * inventory-manager-only caller) -> 403 (guard); unknown or out-of-scope asset
- * -> 404 (ADR-0014). Irreversible: there is no route that restores a status.
+ * -> 404 (ADR 20260716-refund-api-authorization-enforcing-resource-server). Irreversible: there is no route that restores a status.
  * The response is the updated `AssetView` with `ledger` (the caller holds
  * `ledger:manage` for this entity by construction).
  */

@@ -1,18 +1,18 @@
 /**
- * The floating-slot registry (specs/021-meetings A13, ADR-0078).
+ * The floating-slot registry (specs/20261104-meetings A13, ADR 20261110-shell-floating-slot-for-remote-widgets).
  *
  * A remote that has something the person must keep seeing while they move around Operai (meetings-ui while it
  * records) calls `openFloating(name, props)` through `shell/session`; the shell's `FloatingHost` (mounted once by
  * `ShellLayout`, outside the routed page) then shows that remote's widget above every page, in a `FloatingPanel`
  * the person can move around the window's edge, until `closeFloating(name)`. The shell owns the frame and the
  * fallback; the remote owns the content, loaded through the `HostExtension` loader (timeout, error boundary,
- * ADR-0060). Props are plain strings.
+ * ADR 20261104-host-extension-federated-panel-through-the-shell). Props are plain strings.
  *
  * Why its own module and not inline in session.ts: the same reason as `navigationBlocker.ts` — session.ts is
  * mocked wholesale by most router tests, and ShellLayout would otherwise force every mock to learn new exports.
  * session.ts re-exports `openFloating` / `closeFloating`, so the federated seam is one module.
  *
- * Module-scope memory only (ADR-0001's posture): nothing is persisted. Never throws to the caller: a bad name or
+ * Module-scope memory only (ADR 20260607-jwt-in-memory-never-web-storage's posture): nothing is persisted. Never throws to the caller: a bad name or
  * a broken listener must not break the remote that asked.
  */
 

@@ -43,7 +43,7 @@ describe('requests', () => {
     expect(lastInit().signal).toBe(controller.signal)
   })
 
-  it('a mutation of a versioned record sends If-Match with the quoted version (ADR-0038)', async () => {
+  it('a mutation of a versioned record sends If-Match with the quoted version (ADR 20260807-optimistic-concurrency-version-if-match-cas-amends-0004)', async () => {
     vi.mocked(apiFetch).mockResolvedValue(json(200, { id: 't1' }))
     await sendJson('/templates/t1', 'PATCH', { name: 'New' }, 7)
     expect(lastInit().method).toBe('PATCH')

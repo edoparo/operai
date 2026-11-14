@@ -1,5 +1,5 @@
 /**
- * The asset history recorder (T9, specs/015-hardware-inventory; AC-11.1,
+ * The asset history recorder (T9, specs/20261006-hardware-inventory; AC-11.1,
  * AC-11.2, AC-11.3; plan.md "AssetEvent", design G2).
  *
  * Every mutating route calls `recordEvent` INSIDE its own transaction, so the

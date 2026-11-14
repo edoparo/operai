@@ -1,6 +1,6 @@
 /**
  * PermissionDenied — in-place authorization-failure state (T15,
- * specs/007-refund-service/tasks.md, design.md Screen R1: "an employee whose
+ * specs/20260716-refund-service/tasks.md, design.md Screen R1: "an employee whose
  * refund:access/request:read grant was revoked … sees PermissionDenied
  * (ported, unchanged)"; Screen A1: "a user without request:review at all …
  * sees PermissionDenied (ported, unchanged) in place of the table, no
@@ -8,8 +8,8 @@
  * admin-ui/src/components/PermissionDenied.tsx").
  *
  * History: this used to be a re-authored copy of another remote's component
- * (a remote cannot import another remote's source, ADR-0006). It now renders
- * @operai/ui's `StatePanel` (ADR-0050) and only binds refund-ui's copy and test ids.
+ * (a remote cannot import another remote's source, ADR 20260709-suite-frontend-module-federation). It now renders
+ * @operai/ui's `StatePanel` (ADR 20261031-shared-ui-library-consumed-as-source) and only binds refund-ui's copy and test ids.
  *
  * Fires when a `403` comes back from `GET /requests` (Screen R1) or
  * `GET /review/requests` (Screen A1) — refund access is never automatic
@@ -48,7 +48,7 @@ export type PermissionDeniedProps = {
   headingLevel?: 2 | 3
 }
 
-// @operai/ui's `StatePanel` as an alert that takes focus (ADR-0050).
+// @operai/ui's `StatePanel` as an alert that takes focus (ADR 20261031-shared-ui-library-consumed-as-source).
 export default function PermissionDenied({ title, message, headingLevel = 2 }: PermissionDeniedProps = {}) {
   return (
     <StatePanel

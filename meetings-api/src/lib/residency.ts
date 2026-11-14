@@ -1,6 +1,6 @@
 /**
- * Synchronous residency checks for the AI providers (specs/021-meetings AC-4.9,
- * plan.md § Amendment 2026-11-05 G-5, ADR-0069). Pure functions over the
+ * Synchronous residency checks for the AI providers (specs/20261104-meetings AC-4.9,
+ * plan.md § Amendment 2026-11-05 G-5, ADR 20261105-meetings-ai-providers-google-cloud-eu). Pure functions over the
  * configured strings: `env.ts` runs them while parsing, so a misconfiguration
  * stops the process before it listens.
  *

@@ -2,7 +2,7 @@
  * @vitest-environment jsdom
  *
  * Component tests for CreateDepartmentModal — Modal M2 (T19,
- * specs/004-auth-roles-permissions).
+ * specs/20260713-auth-roles-permissions).
  *
  * Covers:
  *   (A) role="dialog" labelled by the title; default focus on the Name field.

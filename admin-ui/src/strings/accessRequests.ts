@@ -1,4 +1,4 @@
-/** strings.accessRequests — the waiting list of people who signed in without an invitation (specs/023). */
+/** strings.accessRequests — the waiting list of people who signed in without an invitation (specs/20261105-signup-gate). */
 export const en = {
   heading: 'Access requests',
   description: 'People with a wellD account who signed in without an invitation. Approve to invite them, or reject.',

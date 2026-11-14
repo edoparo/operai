@@ -1,7 +1,7 @@
 /**
  * @vitest-environment jsdom
  *
- * Component tests for InvoiceFilePanel (T35, specs/015-hardware-inventory; design.md
+ * Component tests for InvoiceFilePanel (T35, specs/20261006-hardware-inventory; design.md
  * F8, § T2 invoice region, § Error and conflict catalogue, § Accessibility "Invoice
  * panel"; refs AC-10.4, AC-10.5, AC-10.6 and the Resolutions G6/Q2). The HTTP seam
  * is `lib/api` (`sendJson`, `getJson`) plus the global `fetch` for the bucket POST,

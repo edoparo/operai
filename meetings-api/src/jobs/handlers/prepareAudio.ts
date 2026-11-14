@@ -1,5 +1,5 @@
 /**
- * `prepare_audio` (specs/021-meetings T30; AC-3.1, AC-2.6, AC-4.4; ADR-0064; ADR-0062).
+ * `prepare_audio` (specs/20261104-meetings T30; AC-3.1, AC-2.6, AC-4.4; ADR 20261104-meetings-api-reads-audio-bytes-third-reader; ADR 20261104-durable-job-runner-work-queued-state-derived).
  *
  * Turns what the creator recorded or uploaded into `meetings/<id>/audio.ogg` and hands
  * over to `transcribe`:
@@ -163,7 +163,7 @@ export function createPrepareAudio(deps: PrepareDeps = {}): JobHandler {
 
   /**
    * AC-3.2 for an UPLOADED file only the decode could measure (no stated duration, then past the
-   * 3 h cap): refuse it like the confirm-time probe does. Order matters (ADR-0063 discipline):
+   * 3 h cap): refuse it like the confirm-time probe does. Order matters (ADR 20261104-audio-retention-bucket-lifecycle-verified-at-startup discipline):
    *   1. a guard commit proves this attempt still owns a `processing` meeting, so a stale or
    *      superseded attempt deletes nothing;
    *   2. the original object(s) are deleted. If that fails we do NOT pretend: the caller keeps the
@@ -229,7 +229,7 @@ export function createPrepareAudio(deps: PrepareDeps = {}): JobHandler {
 
       // 2. One valid container per run. The LOCAL files are probed: what is decoded is exactly
       //    what was probed, through the demuxer the probe named. All of it runs under the process's
-      //    one ffmpeg slot (ADR-0064): a second prepare_audio, or the transcribe job's splitter, waits.
+      //    one ffmpeg slot (ADR 20261104-meetings-api-reads-audio-bytes-third-reader): a second prepare_audio, or the transcribe job's splitter, waits.
       const output = join(workDir, "audio.ogg");
       const { durationMs } = await withFfmpegSlot(async () => {
         const inputs = meeting.source === "uploaded" ? files : await groupIntoRuns(workDir, files);

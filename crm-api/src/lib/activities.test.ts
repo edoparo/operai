@@ -1,5 +1,5 @@
 /**
- * The activities-api client on its own (specs/028 T12; ADR-0082): what the route tests cannot see
+ * The activities-api client on its own (specs/20261110-activities T12; ADR 20261110-caller-chosen-ids-replace-cross-service-transactions): what the route tests cannot see
  * through the world's stub — the shape of each request, the token handling, and that every way of
  * not getting an answer is the same 503. `fetchImpl` and a token provider are injected, so no
  * environment and no database are involved.
@@ -192,7 +192,7 @@ describe("activities client token handling", () => {
   });
 });
 
-describe("a call made under a row lock is bounded (specs/028 plan § Risks: 2 s, the lock is never held for long)", () => {
+describe("a call made under a row lock is bounded (specs/20261110-activities plan § Risks: 2 s, the lock is never held for long)", () => {
   const completion = { completed: true, at: "2026-11-10T09:00:00.000Z", byUserId: "u", seq: 1 } as const;
   const hangUntilAborted = (signal: AbortSignal) =>
     new Promise<Response>((_resolve, reject) => signal.addEventListener("abort", () => reject(new DOMException("timeout", "TimeoutError"))));

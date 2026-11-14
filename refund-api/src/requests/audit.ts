@@ -1,7 +1,7 @@
 /**
- * Append-only financial audit trail writer (T10, specs/007-refund-service,
- * US-8, ADR-0018; +`batchId`/`batch_compiled|batch_paid|batch_discarded`,
- * T3, specs/008-refund-monthly-processing, ADR-0022).
+ * Append-only financial audit trail writer (T10, specs/20260716-refund-service,
+ * US-8, ADR 20260716-immutable-financial-audit-trail-refund; +`batchId`/`batch_compiled|batch_paid|batch_discarded`,
+ * T3, specs/20260719-refund-monthly-processing, ADR 20260719-refund-batch-audit-trail-extension).
  *
  * Every write happens INSIDE the same transaction as the state-relevant
  * event it records (`submitted`, `withdrawn` here; `approved`/`rejected`/

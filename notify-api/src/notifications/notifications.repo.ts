@@ -1,11 +1,11 @@
 /**
  * Prisma data-access layer for the Notifications API
- * (T4/T5/T6, specs/005-notification-center).
+ * (T4/T5/T6, specs/20260713-notification-center).
  *
  * SECURITY: every function is scoped by `recipientId` derived from the verified
  * JWT `sub`. recipientId is NEVER taken from the request body — only from the
  * context variable set by jwtMiddleware after RS256 signature + audience
- * verification (ADR-0005, ADR-0010).
+ * verification (ADR 20260703-jwt-resource-server-remote-jwks, ADR 20260713-jwt-audience-claim-enforcement).
  *
  * Ownership is enforced at the query level, mirroring estimai-api's
  * estimates.repo.ts pattern:
@@ -56,7 +56,7 @@ export const toDto = (row: NotificationRow): NotificationDto => {
     originApp: row.originApp as NotificationDto["originApp"],
     ...(link !== undefined ? { link } : {}),
     // Both columns or neither: a half-stored pair degrades to English (null)
-    // rather than rendering blank (ADR-0065).
+    // rather than rendering blank (ADR 20261104-bilingual-system-notifications).
     it: row.titleIt !== null && row.bodyIt !== null ? { title: row.titleIt, body: row.bodyIt } : null,
     toastWorthy: row.toastWorthy,
     readAt: row.readAt ? row.readAt.toISOString() : null,
@@ -73,7 +73,7 @@ export type CreateNotificationInput = {
   severity: string;
   originApp: string;
   link?: Link | undefined;
-  /** Optional Italian variant (specs/021, ADR-0065); stored as titleIt/bodyIt. */
+  /** Optional Italian variant (specs/20261104-meetings, ADR 20261104-bilingual-system-notifications); stored as titleIt/bodyIt. */
   it?: ItVariant | undefined;
   toastWorthy: boolean;
 };

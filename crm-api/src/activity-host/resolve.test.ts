@@ -1,5 +1,5 @@
 /**
- * `POST /activity-host/v1/resolve` (specs/028 T4; AC-8.1, AC-8.3; ADR-0081): the host half of
+ * `POST /activity-host/v1/resolve` (specs/20261110-activities T4; AC-8.1, AC-8.3; ADR 20261110-activities-service-access-delegated-to-host): the host half of
  * "may THIS caller read the activities of these companies?", answered live from the caller's own
  * forwarded JWT. A `crm:access` holder gets `reader:true`, each company `open` (label, href,
  * `writable`, `may`) or `missing`, and the related contacts/deals OF THOSE COMPANIES only; anyone
@@ -58,7 +58,7 @@ describe("a caller who holds crm:access", () => {
     ]);
   });
 
-  it("reads are open to every holder: a company outside the caller's entity still opens (ADR-0052)", async () => {
+  it("reads are open to every holder: a company outside the caller's entity still opens (ADR 20261101-crm-tool-shape-and-authorization)", async () => {
     const company = await makeCompany({ entity: "welld_it" });
     expect(PERSONAS.salesCh.entity).toBe("welld_ch");
     expect((await resolve("salesCh", [company.id])).json.items[0].state).toBe("open");

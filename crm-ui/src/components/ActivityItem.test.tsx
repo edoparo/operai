@@ -1,7 +1,7 @@
 /**
  * @vitest-environment jsdom
  *
- * ActivityItem and the Meetings mirror (specs/021 AC-14.2, AC-14.3, AC-14.4): an
+ * ActivityItem and the Meetings mirror (specs/20261104-meetings AC-14.2, AC-14.3, AC-14.4): an
  * activity that mirrors a meeting shows its title and date, its author by live
  * name, and an "Open meeting" link into the Meetings tool. Its body is the link
  * and nothing else, so no content of the meeting is ever rendered here.
@@ -88,7 +88,7 @@ describe('ActivityItem — other activities', () => {
   })
 })
 
-describe('ActivityItem — a task with a description and files (ADR-0089)', () => {
+describe('ActivityItem — a task with a description and files (ADR 20261113-task-description-files-in-activities-api-bucket)', () => {
   const TASK: Activity = {
     ...MEETING_ACTIVITY,
     id: 't1',

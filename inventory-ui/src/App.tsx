@@ -12,7 +12,7 @@ import { createAppRouter } from './router'
 /**
  * App — inventory-ui's gated tool root, exposed via Module Federation as
  * `./App` (vite.config.ts `exposes`) and mounted by the shell at the
- * access-gated `/inventory/*` (ADR-0006, ADR-0045). It owns an inner TanStack
+ * access-gated `/inventory/*` (ADR 20260709-suite-frontend-module-federation, ADR 20261006-ungated-second-federated-entry-of-a-gated-remote). It owns an inner TanStack
  * Router rebased to `/inventory`; no auth guard and no chrome (the shell owns
  * both). `InventoryShell` (T28) is the router's root layout: heading, capability
  * tabs and the scope states.

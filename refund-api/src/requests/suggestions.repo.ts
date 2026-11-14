@@ -1,5 +1,5 @@
 /**
- * Prisma data-access for `GET /line-suggestions` (T3, specs/014-motivo-autocomplete).
+ * Prisma data-access for `GET /line-suggestions` (T3, specs/20260811-motivo-autocomplete).
  *
  * ┌──────────────────────────────────────────────────────────────────────────┐
  * │ SECURITY — THE OWNER SCOPE IS NOT NEGOTIABLE.                            │
@@ -7,13 +7,13 @@
  * │ `ownerUserId` is the caller's verified JWT `sub` and NOTHING ELSE. There │
  * │ is no code path, and no route parameter (suggestions.schemas.ts), by     │
  * │ which a caller can influence it — not their own permissions, not their   │
- * │ entity, not a query string (AC-4.1/4.2/4.3, ADR-0005 pattern).           │
+ * │ entity, not a query string (AC-4.1/4.2/4.3, ADR 20260703-jwt-resource-server-remote-jwks pattern).           │
  * │                                                                          │
  * │ In particular this function takes NO authorization context at all. That  │
- * │ is deliberate: an entity/review scope (ADR-0015) is a REVIEW concept,    │
+ * │ is deliberate: an entity/review scope (ADR 20260716-entity-scoped-abac-refund-api) is a REVIEW concept,    │
  * │ and this is a self-scoped read, so there is deliberately no parameter    │
  * │ here through which a global `request:review` grant could widen the       │
- * │ result set (ADR-0042). Widening is not merely denied — it is             │
+ * │ result set (ADR 20260811-derived-projection-reuses-existing-gate-reconstructibility-test). Widening is not merely denied — it is             │
  * │ inexpressible.                                                           │
  * └──────────────────────────────────────────────────────────────────────────┘
  *

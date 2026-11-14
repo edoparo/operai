@@ -1,6 +1,6 @@
 /**
- * Isolation guarantees for the scoped service JWT (specs/015 T6, ADR-0044;
- * env contract changed by specs/016 T3, ADR-0049),
+ * Isolation guarantees for the scoped service JWT (specs/20261006-hardware-inventory T6, ADR 20261006-scoped-service-jwt-fourth-notify-caller;
+ * env contract changed by specs/20261013-notify-service-credentials T3, ADR 20261013-all-notify-callers-scoped-credentials-shared-token-retired),
  * each checked in a throwaway subprocess with an explicit, hand-built env so
  * the result cannot depend on this process's env or on test file order.
  *
@@ -9,7 +9,7 @@
  *     aud is accepted by the same fixture (positive control).
  *  2. env.ts exits non-zero when SERVICE_AUDIENCE equals AUTH_AUDIENCE or is
  *     unset/empty, and starts fine when it differs.
- *  3. The retired shared-token variable is not a setting (specs/016 T14,
+ *  3. The retired shared-token variable is not a setting (specs/20261013-notify-service-credentials T14,
  *     AC-5.2): env.ts starts whether it is present, absent, empty or short,
  *     and never reads it.
  */
@@ -105,7 +105,7 @@ describe("SERVICE_AUDIENCE startup validation (env.ts)", () => {
     expect((await load({ SERVICE_AUDIENCE: "operai-system-aud" })).code).toBe(0);
   });
 
-  it("exits non-zero naming it when unset or empty (required since specs/016)", async () => {
+  it("exits non-zero naming it when unset or empty (required since specs/20261013-notify-service-credentials)", async () => {
     const { SERVICE_AUDIENCE: _omit, ...withoutAudience } = BASE_ENV;
     for (const r of [
       await run(`${ROOT}src/lib/env.ts`, withoutAudience, tmpdir()),

@@ -2,7 +2,7 @@
  * @vitest-environment jsdom
  *
  * Tests for CollaboratorsDialog — owner mode (T20) and member mode (T21),
- * specs/013-estimate-sharing/tasks.md. The toolbar entry that opens this
+ * specs/20260807-estimate-sharing/tasks.md. The toolbar entry that opens this
  * dialog (T22) is out of scope — this dialog is rendered directly here,
  * exactly as a future call site would.
  *
@@ -122,7 +122,7 @@ afterEach(() => {
 // Tests
 // ---------------------------------------------------------------------------
 
-describe('CollaboratorsDialog — owner mode (T20, specs/013)', () => {
+describe('CollaboratorsDialog — owner mode (T20, specs/20260807-estimate-sharing)', () => {
   describe('role/labelling', () => {
     it('renders as an accessible dialog labelled by its visible heading', async () => {
       vi.mocked(collaboratorsApi.list).mockResolvedValue([])
@@ -570,7 +570,7 @@ describe('CollaboratorsDialog — member mode: Leave confirms to the caller (INC
   })
 })
 
-describe('CollaboratorsDialog — member mode (T21, specs/013)', () => {
+describe('CollaboratorsDialog — member mode (T21, specs/20260807-estimate-sharing)', () => {
   describe('spare content (AC-6.1) — no form, no list', () => {
     it('renders the dialog as accessible, labelled by its heading, with no add form and no collaborator list', () => {
       renderMemberDialog()

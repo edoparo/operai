@@ -1,5 +1,5 @@
 /**
- * `DELETE /meetings/:id` (specs/021-meetings plan.md § API contracts → Meetings; AC-4.6,
+ * `DELETE /meetings/:id` (specs/20261104-meetings plan.md § API contracts → Meetings; AC-4.6,
  * AC-4.8, AC-5.11, AC-5.12, AC-14.6). Two ways in, both final:
  *
  *   creator   the creator, while their account is active. NEEDS NO CAPABILITY: removing
@@ -11,7 +11,7 @@
  *
  * The order is what keeps the promise "nothing of it remains":
  *   1. the storage prefixes go FIRST: the transient transcription bucket's `transcribe/<id>/`
- *      (a transcript copy and staged audio, ADR-0069, AC-4.12), then `meetings/<id>/`. If either
+ *      (a transcript copy and staged audio, ADR 20261105-meetings-ai-providers-google-cloud-eu, AC-4.12), then `meetings/<id>/`. If either
  *      fails the answer is 503 `storage_unavailable` and nothing at all has been deleted, so the
  *      meeting can be deleted again later; the reverse order would orphan audio no row points to.
  *      The transient one goes first because losing it costs nothing, whereas audio deleted from
@@ -125,7 +125,7 @@ deleteRouter.openapi(deleteMeeting, async (c) => {
   try {
     await storage.deletePrefix(prefix);
   } catch {
-    // The bucket's own lifecycle rule removes any straggler within 30 days (ADR-0063).
+    // The bucket's own lifecycle rule removes any straggler within 30 days (ADR 20261104-audio-retention-bucket-lifecycle-verified-at-startup).
     console.warn("[meetings] late sweep of a deleted meeting's prefix failed");
   }
   // A Speech operation still running at deletion time can write its output after step 1: that is a transcript,

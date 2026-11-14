@@ -1,14 +1,14 @@
 /**
- * Deals and the pipeline (specs/017-crm US-3; plan.md § Deals).
+ * Deals and the pipeline (specs/20261101-crm US-3; plan.md § Deals).
  *
  * Reads need `crm:access` only — every CRM user sees the pipeline. Writes need
- * `deal:manage`, entity-scoped (ADR-0015): a capability-absent caller gets the
+ * `deal:manage`, entity-scoped (ADR 20260716-entity-scoped-abac-refund-api): a capability-absent caller gets the
  * generic 403, a holder acting outside their entity a 403 `out_of_scope` — not
  * a 404, because the deal is readable and its existence no secret (D-5).
  *
- * specs/018:
+ * specs/20261101-crm-sales-flow:
  * - a caller without `deal:financials` gets every deal and the pipeline with
- *   the money left out: no amount, currency, notes or totals (US-1, ADR-0054);
+ *   the money left out: no amount, currency, notes or totals (US-1, ADR 20261101-crm-financial-visibility-permission);
  * - a deal leaves `lead`/`qualified` for `proposal` or later only with its
  *   estimate `ready` or the gate overridden (US-3, AC-3.4).
  */
@@ -116,7 +116,7 @@ const ListDealsQuery = z.object({
   // The pipeline board: open deals plus the deals won or lost this calendar year (the same
   // set `GET /pipeline` totals), so the board's Won and Lost columns match its figures.
   board: z.enum(["true"]).optional(),
-  // specs/017 AC-3.6: the calendar year whose won and lost deals the board shows (this one by default).
+  // specs/20261101-crm AC-3.6: the calendar year whose won and lost deals the board shows (this one by default).
   year: BoardYearSchema.optional(),
   companyId: z.string().max(64).optional(),
   ownerId: z.string().max(64).optional(),
@@ -130,7 +130,7 @@ const DealSummarySchema = z.object({
   title: z.string(),
   company: z.object({ id: z.string(), name: z.string() }),
   stage: StageSchema,
-  // Left out for a caller without deal:financials (specs/018 US-1); null while not yet known.
+  // Left out for a caller without deal:financials (specs/20261101-crm-sales-flow US-1); null while not yet known.
   amountCents: z.number().int().nullable().optional(),
   currency: CurrencySchema.optional(),
   entity: EntitySchema,
@@ -140,9 +140,9 @@ const DealSummarySchema = z.object({
   owner: PersonRefSchema,
   closedAt: z.string().nullable(),
   updatedAt: z.string(),
-  // The If-Match precondition for a stage move straight from the board (ADR-0038).
+  // The If-Match precondition for a stage move straight from the board (ADR 20260807-optimistic-concurrency-version-if-match-cas-amends-0004).
   version: z.number().int(),
-  // The estimate gate at a glance: null (none), requested, ready (specs/018 US-3).
+  // The estimate gate at a glance: null (none), requested, ready (specs/20261101-crm-sales-flow US-3).
   estimateState: z.enum(["requested", "ready"]).nullable(),
   /** Whether an admin overrode the estimate gate (AC-3.7). */
   estimateOverridden: z.boolean(),
@@ -162,7 +162,7 @@ const EstimateOverrideSchema = z.object({ by: PersonRefSchema, reason: z.string(
 
 const DealSchema = DealSummarySchema.extend({
   lostReason: z.string().nullable(),
-  // Left out for a caller without deal:financials: notes often carry prices (specs/018 O3).
+  // Left out for a caller without deal:financials: notes often carry prices (specs/20261101-crm-sales-flow O3).
   notes: z.string().nullable().optional(),
   createdAt: z.string(),
   estimate: DealEstimateSchema.nullable(),
@@ -211,7 +211,7 @@ const PipelineSchema = z.object({
   year: z.number().int(),
   /** The years with won or lost deals, newest first, this year always included (the year picker). */
   years: z.array(z.number().int()),
-  // `totals` is left out for a caller without deal:financials (specs/018 US-1).
+  // `totals` is left out for a caller without deal:financials (specs/20261101-crm-sales-flow US-1).
   stages: z.array(
     z.object({ stage: StageSchema, count: z.number().int(), totals: z.array(CurrencyTotalsSchema).optional() }),
   ),
@@ -303,7 +303,7 @@ export function assertInScope(scope: readonly Entity[], entity: Entity): void {
   }
 }
 
-// ─── Estimate gate (specs/018 AC-3.4) ────────────────────────────────────────
+// ─── Estimate gate (specs/20261101-crm-sales-flow AC-3.4) ────────────────────────────────────────
 
 /**
  * Stages from which the gate applies, and the stages it guards. `lost` is in the
@@ -335,7 +335,7 @@ export function assertEstimateGate(
   });
 }
 
-// ─── Notifications (specs/019) ───────────────────────────────────────────────
+// ─── Notifications (specs/20261101-crm-notifications) ───────────────────────────────────────────────
 
 const dealRef = (row: DealRow) => clip(row.title, MAX_NAME);
 
@@ -608,7 +608,7 @@ dealsRouter.openapi(stageRoute, async (c) => {
     previousStage = current.stage;
     return stageTransition(stage, lostReason, new Date(), current);
   });
-  // specs/017 AC-1.8: winning a deal makes a prospect or former client a customer. Its own
+  // specs/20261101-crm AC-1.8: winning a deal makes a prospect or former client a customer. Its own
   // write, after the deal's CAS; idempotent, so a retry of the move cannot double it.
   if (previousStage !== row.stage && row.stage === "won") {
     await db.company.updateMany({

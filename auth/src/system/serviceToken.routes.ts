@@ -1,8 +1,8 @@
 /**
  * POST /system/service-token — client-credentials issuance of a short-lived,
- * scoped RS256 service JWT (T4, specs/015-hardware-inventory — refs AC-2.8,
+ * scoped RS256 service JWT (T4, specs/20261006-hardware-inventory — refs AC-2.8,
  * AC-2.9; plan.md "Service authentication for the notification push";
- * ADR-0044, which realises ADR-0040's hard stop for a fourth notify caller).
+ * ADR 20261006-scoped-service-jwt-fourth-notify-caller, which realises ADR 20260807-estimai-api-third-notify-internal-token-holder's hard stop for a fourth notify caller).
  *
  * The caller (`inventory-api`) presents `{clientId, clientSecret}`; the secret
  * is checked against that client's entry in `SERVICE_CLIENTS`
@@ -23,7 +23,7 @@
  * `/auth/jwks` publishes and every resource server verifies against. NOT
  * `jose` + `JWT_PRIVATE_KEY`: that env pair is a separate static keypair
  * served at `/.well-known/jwks.json` that signs nothing in this service
- * (ADR-0005 correction), so tokens signed with it would fail verification
+ * (ADR 20260703-jwt-resource-server-remote-jwks correction), so tokens signed with it would fail verification
  * everywhere. `serviceToken.contract.test.ts` pins this end to end.
  *
  * FAILURE SHAPE. Unknown client and wrong secret are the SAME response, byte
@@ -42,7 +42,7 @@
  * any module FIRST loaded after that gets the stub (no `signJWT`) — which would
  * make this route's tests pass or fail depending on file order.
  *
- * LIMITS (specs/029 US-7, ADR-0086): the credential is verified FIRST and then
+ * LIMITS (specs/20261111-push-notifications US-7, ADR 20261112-system-endpoints-limited-per-verified-service): the credential is verified FIRST and then
  * exactly one count is consulted — a valid credential against its own calling
  * service (`system:<clientId>`, 300 per 10 min), an invalid one (malformed body,
  * unknown client, wrong secret) against its source address (20 per 10 min, one
@@ -54,7 +54,7 @@
  * service out by its guessable name); the per-service key is only ever the
  * verified one. The work for an invalid request is bounded and I/O-free: a 4 KiB
  * body cap, one JSON parse, two SHA-256 and one constant-time compare, one map
- * update — no database, no signer. Per-process (ADR-0035's named limitation).
+ * update — no database, no signer. Per-process (ADR 20260807-third-party-app-access-decision-endpoint-forwarded-jwt's named limitation).
  * No secret, token, client id or address is ever logged.
  */
 
@@ -165,7 +165,7 @@ export const signWithAuth =
 /**
  * The one place a service token's claims are built and signed — used by the
  * endpoint above and by the self-mint provider (`selfServiceToken.ts`,
- * ADR-0048), so the two cannot drift in audience, lifetime or claim shape.
+ * ADR 20261013-auth-mints-own-service-credential-in-process), so the two cannot drift in audience, lifetime or claim shape.
  * `exp` (seconds) is returned so a caching caller needs no JWT decode.
  */
 export async function mintServiceJwt(

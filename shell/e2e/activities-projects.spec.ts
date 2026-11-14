@@ -1,5 +1,5 @@
 /**
- * specs/028-activities T21 — the project page's Tasks card (projects-ui) through the REAL assembled shell
+ * specs/20261110-activities T21 — the project page's Tasks card (projects-ui) through the REAL assembled shell
  * against the REAL projects-api, activities-api and auth.
  *
  *   AC-3.1  title required, due date and assignee optional (empty = the author); assignee limited to PM + team
@@ -51,7 +51,7 @@ async function openTasks(page: Page, projectId: string) {
   return card
 }
 
-test.describe('specs/028 T21: the project Tasks card (US-3, US-4, US-5)', () => {
+test.describe('specs/20261110-activities T21: the project Tasks card (US-3, US-4, US-5)', () => {
   let admin: Person
   let member: Person // on the team: projects:access, no manage
   let viewer: Person // NOT on the team: projects:access, no manage

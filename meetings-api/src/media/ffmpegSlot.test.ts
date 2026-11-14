@@ -1,7 +1,7 @@
 import { describe, expect, it } from "bun:test";
 import { ffmpegSlotState, withFfmpegSlot } from "./ffmpegSlot";
 
-// ADR-0064: one ffmpeg at a time per process, enforced per invocation (plan G-11), not per job kind.
+// ADR 20261104-meetings-api-reads-audio-bytes-third-reader: one ffmpeg at a time per process, enforced per invocation (plan G-11), not per job kind.
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 

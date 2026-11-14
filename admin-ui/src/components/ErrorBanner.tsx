@@ -1,9 +1,9 @@
 /**
  * ErrorBanner — inline RFC 7807 error banner with a Retry action (T15,
- * specs/004-auth-roles-permissions).
+ * specs/20260713-auth-roles-permissions).
  *
  * Ported pattern, merging two existing estimai-ui shapes admin-ui cannot
- * import across the Module Federation boundary (ADR-0006):
+ * import across the Module Federation boundary (ADR 20260709-suite-frontend-module-federation):
  *   • `estimai-ui/src/components/ToastBanner.tsx` — role="alert" strip,
  *     border-left accent, optional dismiss "×".
  *   • `estimai-ui/src/pages/EstimatesPage.tsx`'s inline list-error banner —
@@ -24,7 +24,7 @@
  * is inserted, without requiring focus to move there. "Retry" and "Dismiss"
  * are real `<button>`s.
  *
- * Now @operai/ui's `Banner tone="warning"` (ADR-0050): a recoverable failure
+ * Now @operai/ui's `Banner tone="warning"` (ADR 20261031-shared-ui-library-consumed-as-source): a recoverable failure
  * is orange, Retry is a `secondary` `sm` Button, × an icon-only ghost Button.
  */
 

@@ -1,6 +1,6 @@
 /**
  * RejectDialog — destructive-outcome confirm dialog with an embedded,
- * REQUIRED motivation textarea (T18, specs/007-refund-service/tasks.md;
+ * REQUIRED motivation textarea (T18, specs/20260716-refund-service/tasks.md;
  * design.md F6 step 5, Component inventory: "RejectDialog — NEW — No
  * in-repo dialog combines a destructive confirm with an embedded
  * required-field form … ConfirmDeleteModal's shell (backdrop/trap/Escape/
@@ -16,7 +16,7 @@
  * an immediately legible reason via the dialog's own instructional text
  * (design.md Accessibility).
  *
- * Built from @operai/ui (ADR-0050): the `Dialog` frame (as an
+ * Built from @operai/ui (ADR 20261031-shared-ui-library-consumed-as-source): the `Dialog` frame (as an
  * `alertdialog` — rejecting is a decision, not a form), a `Field` for the
  * motivation and library `Button`s. The library owns the focus trap (every
  * enabled control, × included), Escape/backdrop = Cancel (never while

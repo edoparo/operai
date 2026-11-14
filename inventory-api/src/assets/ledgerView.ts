@@ -1,6 +1,6 @@
 /**
- * The `Ledger` projection (T12, specs/015-hardware-inventory; AC-5.3, AC-5.7,
- * AC-5.8, AC-7.8, AC-8.6, ADR-0046). Pure: rows in, plain objects out.
+ * The `Ledger` projection (T12, specs/20261006-hardware-inventory; AC-5.3, AC-5.7,
+ * AC-5.8, AC-7.8, AC-8.6, ADR 20261006-depreciation-derived-on-read-closed-years-snapshotted). Pure: rows in, plain objects out.
  *
  * Where a year's figure comes from:
  *   - a CLOSED year with a stored `asset_year_figure` row -> that row, always

@@ -1,7 +1,7 @@
 /**
- * Recipient lookup (specs/019-crm-notifications, ADR-0056; also read by the push
- * channel's activity check, specs/029, which puts a 30 s memo of `found` in front of
- * it — push/activityCheck.ts, ADR-0087; the email notice path calls this client directly,
+ * Recipient lookup (specs/20261101-crm-notifications, ADR 20261101-notify-api-resolves-email-notice-address-from-auth; also read by the push
+ * channel's activity check, specs/20261111-push-notifications, which puts a 30 s memo of `found` in front of
+ * it — push/activityCheck.ts, ADR 20261112-push-liveness-answer-reused-30-seconds; the email notice path calls this client directly,
  * a fresh lookup every time): `POST ${AUTH_BASE_URL}/system/users/contact` with the caller's
  * own service JWT (scope `users.contact`) and `{ userId }`.
  *

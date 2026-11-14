@@ -1,5 +1,5 @@
 /**
- * Unit tests for the `auth` outbound client (T5, specs/013-estimate-sharing).
+ * Unit tests for the `auth` outbound client (T5, specs/20260807-estimate-sharing).
  *
  * This module IS the network boundary being tested (unlike a route test that
  * would `mock.module()` this file), so global `fetch` is mocked directly —
@@ -432,7 +432,7 @@ describe("resolveIdentities", () => {
   });
 });
 
-describe("fetchResolvedPermissions (specs/024) — fails CLOSED", () => {
+describe("fetchResolvedPermissions (specs/20261108-estimate-list-oversight) — fails CLOSED", () => {
   it("GETs /authz/resolve with the caller's Authorization header verbatim and returns the permissions", async () => {
     let capturedUrl: string | undefined;
     let capturedInit: RequestInit | undefined;

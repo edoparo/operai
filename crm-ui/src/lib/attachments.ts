@@ -1,5 +1,5 @@
 /**
- * The upload policy crm-api enforces (specs/018 AC-4.3), mirrored so a bad file
+ * The upload policy crm-api enforces (specs/20261101-crm-sales-flow AC-4.3), mirrored so a bad file
  * is refused before any request is made. The server stays the authority: its
  * `attachment_type_not_allowed` / `attachment_too_large` answer the same way.
  */

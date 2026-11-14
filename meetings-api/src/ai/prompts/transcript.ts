@@ -1,6 +1,6 @@
 /**
- * The transcript block of a prompt (specs/021-meetings plan.md § Summaries and
- * ask-the-meeting; ADR-0067 point 2; AC-7.12, AC-9.7).
+ * The transcript block of a prompt (specs/20261104-meetings plan.md § Summaries and
+ * ask-the-meeting; ADR 20261104-ai-output-structured-validated-plain-text point 2; AC-7.12, AC-9.7).
  *
  * A transcript is text spoken or pasted by anyone, so it is UNTRUSTED INPUT. It goes
  * into the request as quoted data between `<transcript>` tags, one line per segment:

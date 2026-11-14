@@ -1,7 +1,7 @@
 import type { RichTextDoc } from '@operai/ui/rich-text'
 /**
  * Wire types for crm-api and the one `auth` read crm-ui makes — exactly the
- * shapes of specs/017-crm/plan.md § API contract. Money is integer minor units,
+ * shapes of specs/20261101-crm/plan.md § API contract. Money is integer minor units,
  * calendar dates `YYYY-MM-DD`, instants ISO 8601; the UI displays them and
  * never re-derives a figure the API computes (the pipeline's weighted totals).
  */
@@ -11,7 +11,7 @@ export type Currency = 'CHF' | 'EUR'
 export type CompanyStatus = 'prospect' | 'customer' | 'former'
 export type DealStage = 'lead' | 'qualified' | 'proposal' | 'negotiation' | 'won' | 'lost'
 export type ActivityType = 'note' | 'call' | 'meeting' | 'email' | 'task'
-/** Where a company or a lead came from (specs/017 US-7). */
+/** Where a company or a lead came from (specs/20261101-crm US-7). */
 export type LeadSource = 'inbound' | 'outbound' | 'event' | 'referral' | 'other'
 
 export const ENTITIES: readonly Entity[] = ['welld_ch', 'welld_it']
@@ -19,7 +19,7 @@ export const CURRENCIES: readonly Currency[] = ['CHF', 'EUR']
 export const COMPANY_STATUSES: readonly CompanyStatus[] = ['prospect', 'customer', 'former']
 export const DEAL_STAGES: readonly DealStage[] = ['lead', 'qualified', 'proposal', 'negotiation', 'won', 'lost']
 export const OPEN_STAGES: readonly DealStage[] = ['lead', 'qualified', 'proposal', 'negotiation']
-/** A new deal starts here only: proposal and later need a ready estimate (specs/018 AC-3.4). */
+/** A new deal starts here only: proposal and later need a ready estimate (specs/20261101-crm-sales-flow AC-3.4). */
 export const NEW_DEAL_STAGES: readonly DealStage[] = ['lead', 'qualified']
 export const ACTIVITY_TYPES: readonly ActivityType[] = ['note', 'call', 'meeting', 'email', 'task']
 export const LEAD_SOURCES: readonly LeadSource[] = ['inbound', 'outbound', 'event', 'referral', 'other']
@@ -40,7 +40,7 @@ export type Page<T> = { items: T[]; total: number; page: number; pageSize: numbe
 export type Scope = {
   deal: Entity[]
   canErase: boolean
-  /** `deal:financials`: the caller sees money (specs/018 US-1). Absent from an older server = false. */
+  /** `deal:financials`: the caller sees money (specs/20261101-crm-sales-flow US-1). Absent from an older server = false. */
   financials?: boolean
   /** `deal:manage` over every entity: the admin's reach (override, mark ready for anyone). */
   managesAll?: boolean
@@ -50,7 +50,7 @@ export type CompanySummary = {
   id: string
   name: string
   status: CompanyStatus
-  /** `status` is `former` because no deal was won in twelve months and none is open (specs/017 AC-1.9). */
+  /** `status` is `former` because no deal was won in twelve months and none is open (specs/20261101-crm AC-1.9). */
   statusLapsed: boolean
   entity: Entity
   industry: string | null
@@ -60,14 +60,14 @@ export type CompanySummary = {
   archived: boolean
   contactCount: number
   openDealCount: number
-  /** specs/017 US-7. Absent from an older server. */
+  /** specs/20261101-crm US-7. Absent from an older server. */
   source?: LeadSource | null
   sourceDetail?: string | null
   updatedAt: string
 }
 
 export type Company = CompanySummary & {
-  /** Registered name, street and postal code: the offer's client block (specs/020 AC-5.1). */
+  /** Registered name, street and postal code: the offer's client block (specs/20261102-crm-offer-document AC-5.1). */
   legalName: string | null
   street: string | null
   postalCode: string | null
@@ -102,7 +102,7 @@ export type DealSummary = {
   amountCents?: number | null
   currency?: Currency
   entity: Entity
-  /** specs/017 US-7. Absent from an older server. */
+  /** specs/20261101-crm US-7. Absent from an older server. */
   source?: LeadSource | null
   sourceDetail?: string | null
   expectedCloseDate: string | null
@@ -110,7 +110,7 @@ export type DealSummary = {
   closedAt: string | null
   updatedAt: string
   version: number
-  /** The estimate gate at a glance (specs/018 US-3). */
+  /** The estimate gate at a glance (specs/20261101-crm-sales-flow US-3). */
   estimateState: EstimateState | null
   estimateOverridden: boolean
 }
@@ -155,10 +155,10 @@ export type Offer = {
   createdBy: PersonRef
   createdAt: string
   deleted: boolean
-  /** Recurring total, shown beside the price (specs/020); absent on an older server. */
+  /** Recurring total, shown beside the price (specs/20261102-crm-offer-document); absent on an older server. */
   yearlyCents?: number
   templateName?: string | null
-  /** When and by whom it was marked sent; null while it can still be edited (specs/020 US-7). */
+  /** When and by whom it was marked sent; null while it can still be edited (specs/20261102-crm-offer-document US-7). */
   sent?: { at: string; by: PersonRef } | null
   /** The If-Match precondition of an edit. */
   version?: number
@@ -191,7 +191,7 @@ export type EntityProfile = {
   updatedAt: string
 }
 
-// ─── Offer templates and the generate draft (specs/020) ─────────────────────
+// ─── Offer templates and the generate draft (specs/20261102-crm-offer-document) ─────────────────────
 
 export type CostKind = 'one_off' | 'yearly' | 'discount'
 export type OfferSection = { heading: string; body: string; costs: boolean }
@@ -266,7 +266,7 @@ export type Pipeline = {
   stages: PipelineStage[]
 }
 
-/** An image or attachment of a task, stored in activities-api's bucket (ADR-0089). */
+/** An image or attachment of a task, stored in activities-api's bucket (ADR 20261113-task-description-files-in-activities-api-bucket). */
 export type TaskFile = {
   id: string
   kind: 'image' | 'attachment'
@@ -286,7 +286,7 @@ export type ActivityTask = {
   assignee: PersonRef | null
   completedAt: string | null
   completedBy: PersonRef | null
-  /** The tasks it waits on (specs/017 US-6); `blocked` while any of them is open. Absent from an older server. */
+  /** The tasks it waits on (specs/20261101-crm US-6); `blocked` while any of them is open. Absent from an older server. */
   blockedBy?: { id: string; subject: string; completed: boolean }[]
   blocked?: boolean
 }
@@ -301,11 +301,11 @@ export type Activity = {
   contact: { id: string; name: string } | null
   deal: { id: string; title: string } | null
   author: PersonRef
-  /** The wellD colleagues who took part (specs/017 US-8). Absent from an older server. */
+  /** The wellD colleagues who took part (specs/20261101-crm US-8). Absent from an older server. */
   participants?: PersonRef[]
   task: ActivityTask | null
   /**
-   * The meeting this activity mirrors (specs/021 US-14): set only on a `meeting`
+   * The meeting this activity mirrors (specs/20261104-meetings US-14): set only on a `meeting`
    * activity that Meetings created. Its body is null — the link is the content.
    * Absent from a server that predates Meetings.
    */
@@ -314,7 +314,7 @@ export type Activity = {
   updatedAt: string
 }
 
-/** One row of `auth GET /authz/users/directory` (ADR-0047). */
+/** One row of `auth GET /authz/users/directory` (ADR 20261006-user-directory-endpoint-capability-gated). */
 export type DirectoryUser = { id: string; name: string | null; email: string; entity: string | null }
 
 export type PageQuery = { page?: number; pageSize?: number }

@@ -1,5 +1,5 @@
 /**
- * Shared route-integration test harness (T7, specs/017-crm).
+ * Shared route-integration test harness (T7, specs/20261101-crm).
  * Ported from inventory-api/src/test-support/testAuth.ts.
  *
  * Mocks the TWO network-calling dependencies every gated route sits behind —
@@ -63,17 +63,17 @@ process.env["AUTH_ISSUER"] = TEST_ISSUER;
 process.env["AUTH_AUDIENCE"] = TEST_AUDIENCE;
 process.env["AUTH_BASE_URL"] = TEST_ISSUER;
 process.env["NODE_ENV"] = "test";
-// specs/021: the `aud` of scoped service JWTs (must differ from AUTH_AUDIENCE).
+// specs/20261104-meetings: the `aud` of scoped service JWTs (must differ from AUTH_AUDIENCE).
 process.env["SERVICE_AUDIENCE"] = "operai-system";
-// specs/018: estimai-api is faked by test-support/world.ts's fetch stub; the
+// specs/20261101-crm-sales-flow: estimai-api is faked by test-support/world.ts's fetch stub; the
 // bucket by an in-memory Storage (`setStorageForTests`), so no CRM_S3_* here.
 process.env["ESTIMAI_API_URL"] = "http://estimai.test";
-// specs/028: activities-api is faked by world.ts's fetch stub, and so is auth's service-token
+// specs/20261110-activities: activities-api is faked by world.ts's fetch stub, and so is auth's service-token
 // exchange. The client group is required with ACTIVITIES_API_URL (env.ts); a developer's own values win.
 process.env["ACTIVITIES_API_URL"] = "http://activities.test";
 process.env["SERVICE_CLIENT_ID"] ??= "crm-api";
 process.env["SERVICE_CLIENT_SECRET"] ??= "test-secret-test-secret-test-secret-0123";
-// specs/018 AC-3.3: the audience of the service JWTs estimai-api's notices carry.
+// specs/20261101-crm-sales-flow AC-3.3: the audience of the service JWTs estimai-api's notices carry.
 export const TEST_SERVICE_AUDIENCE = "operai-services";
 process.env["SERVICE_AUDIENCE"] = TEST_SERVICE_AUDIENCE;
 
@@ -88,7 +88,7 @@ export interface TestAuthHarness {
   /** Generates the fixture RS256 keypair. Call once, before signing tokens. */
   init(): Promise<void>;
   signToken(options: SignTokenOptions): Promise<string>;
-  /** A service JWT like auth's `POST /system/service-token` mints (ADR-0044). */
+  /** A service JWT like auth's `POST /system/service-token` mints (ADR 20261006-scoped-service-jwt-fourth-notify-caller). */
   signServiceToken(options: { sub: string; scope: string; audience?: string }): Promise<string>;
   /** Swaps the `GET /authz/resolve` fixture response for subsequent requests. */
   setResolve(

@@ -9,7 +9,7 @@ const KNOWN = new Set(["deal", "issuer", "client", "currency", "epics", "phases"
 const placeholdersOf = (value: unknown): string[] =>
   [...JSON.stringify(value).matchAll(PLACEHOLDER)].map((m) => m[1]!).sort();
 
-describe("the seeded defaults (specs/020 AC-2.3)", () => {
+describe("the seeded defaults (specs/20261102-crm-offer-document AC-2.3)", () => {
   it("are seven Italian and seven English templates, each valid under the template schema", () => {
     expect(DEFAULT_TEMPLATES_IT).toHaveLength(7);
     expect(DEFAULT_TEMPLATES_EN).toHaveLength(7);
@@ -45,7 +45,7 @@ describe("the seeded defaults (specs/020 AC-2.3)", () => {
   });
 });
 
-describe("offer templates (specs/020 US-2)", () => {
+describe("offer templates (specs/20261102-crm-offer-document US-2)", () => {
   beforeEach(resetWorld);
 
   const list = async (entity = "welld_ch", extra = "", as: "admin" | "salesCh" = "admin") =>

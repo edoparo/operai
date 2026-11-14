@@ -1,10 +1,10 @@
 /**
- * Invoice-file persistence (T21, specs/015-hardware-inventory; AC-10.4 to
+ * Invoice-file persistence (T21, specs/20261006-hardware-inventory; AC-10.4 to
  * AC-10.7). One `invoice_file` row per uploaded object; an asset points at it
  * through `invoiceFileId`. A file linked to N assets is still ONE row (AC-10.5).
  * Only `stored` rows are ever surfaced; a `pending` row is a mint whose upload
  * was never confirmed and is simply invisible (orphans are reconciled on read,
- * ADR-0016/0013: no cron, no sweep).
+ * ADR 20260716-eu-object-storage-refund-attachments/0013: no cron, no sweep).
  */
 
 import { db } from "../lib/db";
@@ -32,7 +32,7 @@ export interface InvoiceFileRow {
 export const MAX_PENDING_FILES_PER_USER = 20;
 /**
  * Only pending rows younger than this count toward the cap: abandoned mints
- * are never swept (ADR-0013: no cron), so without a window twenty of them would
+ * are never swept (ADR 20260714-invitation-lifecycle-derived-expiry-state: no cron), so without a window twenty of them would
  * lock a user out for good. Older than the presigned POST's own validity by far.
  */
 export const PENDING_WINDOW_MS = 60 * 60 * 1000;

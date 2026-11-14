@@ -1,7 +1,7 @@
 /**
  * @vitest-environment jsdom
  *
- * Component tests for AssetStatusBadge (T26, specs/015-hardware-inventory;
+ * Component tests for AssetStatusBadge (T26, specs/20261006-hardware-inventory;
  * design.md § NEW components and § Accessibility "Badges and chips").
  *
  * Covers: six variants, each readable as text (the label is the accessible

@@ -41,9 +41,9 @@ const en = {
     sidebarPlaceholder: 'Sidebar placeholder — tool switcher (EstimAI, Refund) lands in T7.',
     footerPlaceholder: 'Footer placeholder — legal link, version, company info land in T8.',
   },
-  /** The confirmation shown when a remote has registered a navigation blocker (specs/021-meetings, AC-2.10). */
+  /** The confirmation shown when a remote has registered a navigation blocker (specs/20261104-meetings, AC-2.10). */
   floating: {
-    // The floating slot (specs/021-meetings A13): the frame around a remote's widget, and what shows while it loads
+    // The floating slot (specs/20261104-meetings A13): the frame around a remote's widget, and what shows while it loads
     // or when it cannot load.
     recorder: {
       label: 'Recording in progress',

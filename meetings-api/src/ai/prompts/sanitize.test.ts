@@ -1,7 +1,7 @@
 import { describe, expect, it } from "bun:test";
 import { sanitizeProse, urlsIn } from "./sanitize";
 
-// ADR-0067 point 4: AI output is rendered as plain text. No Markdown links or images, no URL
+// ADR 20261104-ai-output-structured-validated-plain-text point 4: AI output is rendered as plain text. No Markdown links or images, no URL
 // the meeting did not contain, no markup, and no line that reads like a system banner.
 
 const clean = (text: string, transcript = "") => sanitizeProse(text, urlsIn(transcript));

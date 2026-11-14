@@ -2,7 +2,7 @@
  * aiErrorMessage — what to say when a request that uses the AI fails (summaries, questions).
  *
  * A 429 names the time to retry from `Retry-After` (AC-13.4, AC-9.8); a 503 from `auth` says the
- * permission check is down (ADR-0014); everything else is the standard message for its code.
+ * permission check is down (ADR 20260716-refund-api-authorization-enforcing-resource-server); everything else is the standard message for its code.
  */
 import { formatDateTime } from '@operai/ui'
 import { ApiError } from '../lib/api'

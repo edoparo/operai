@@ -1,9 +1,9 @@
 /**
  * @vitest-environment jsdom
  *
- * Component tests for SectionNav (T14, specs/004-auth-roles-permissions/tasks.md).
+ * Component tests for SectionNav (T14, specs/20260713-auth-roles-permissions/tasks.md).
  * The capability-gated "Refund" entry moved to refund-ui's Settings tab on
- * 2026-11-13 (ADR-0023 amendment).
+ * 2026-11-13 (ADR 20260720-mileage-rate-model-snapshot-admin-ui-composition amendment).
  *
  * Uses a real, minimal TanStack Router harness (mirrors
  * shell/src/components/Sidebar.test.tsx's own technique exactly, same

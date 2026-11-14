@@ -2,7 +2,7 @@ import { getRouteApi } from '@tanstack/react-router'
 import { EstimatorProvider } from '../context/EstimatorContext'
 import EstimatorApp from '../EstimatorApp'
 
-// T13 (specs/003-suite-shell/tasks.md): route id no longer includes the
+// T13 (specs/20260709-suite-shell/tasks.md): route id no longer includes the
 // `_authed` prefix — the guarding layout route it belonged to was removed
 // (AC-2.3, src/router.tsx). The route itself (path, loader, component) is
 // unchanged; only its id in the tree shifted up one level.
@@ -11,7 +11,7 @@ const route = getRouteApi('/estimates/$estimateId')
 /**
  * EstimatePage — mounts after the router loader resolves the estimate from
  * the API. The loader guarantees the current user has SOME relationship to
- * the estimate — owner, editor, or viewer (T16, specs/013-estimate-sharing/
+ * the estimate — owner, editor, or viewer (T16, specs/20260807-estimate-sharing/
  * tasks.md: `EstimateFull.access`) — or redirects to /estimates (404 / error,
  * unchanged from spec 001).
  *
@@ -20,7 +20,7 @@ const route = getRouteApi('/estimates/$estimateId')
  * subsequent mutations flow through the context and are auto-saved via
  * debounced, `If-Match`-guarded PUT to the API when `canEdit` — never for a
  * viewer (AC-1.1, AC-1.2, AC-2.2, AC-3.1, AC-4.1, AC-4.2). `owner` and
- * `collaboratorCount` (T22, specs/013-estimate-sharing/tasks.md) are also
+ * `collaboratorCount` (T22, specs/20260807-estimate-sharing/tasks.md) are also
  * threaded straight through from `EstimateFull` — the toolbar's
  * Collaborators button/"Shared by" chip and `CollaboratorsDialog` read them
  * from context rather than this page re-fetching or re-deriving anything.
@@ -29,9 +29,9 @@ export default function EstimatePage() {
   const { estimateId } = route.useParams()
   const estimate = route.useLoaderData()
 
-  // T16 (specs/013-estimate-sharing/tasks.md; plan.md "### Frontend
+  // T16 (specs/20260807-estimate-sharing/tasks.md; plan.md "### Frontend
   // (estimai-ui)"): the remount key moves from `updatedAt` to `version`.
-  // `updatedAt` was never a safe precondition token (ADR-0038's own
+  // `updatedAt` was never a safe precondition token (ADR 20260807-optimistic-concurrency-version-if-match-cas-amends-0004's own
   // rejection of it — millisecond/microsecond round-trip mismatches make it
   // fragile); `version` is the same integer optimistic-concurrency token
   // the autosave effect already tracks. It still serves this key's original

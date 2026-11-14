@@ -1,16 +1,16 @@
 /**
- * T25 — Estimate sharing e2e journeys (specs/013-estimate-sharing, QE
+ * T25 — Estimate sharing e2e journeys (specs/20260807-estimate-sharing, QE
  * verification pass). Drives the REAL assembled shell host + estimai-ui
- * remote (ADR-0006) against the REAL estimai-api/auth services — no
+ * remote (ADR 20260709-suite-frontend-module-federation) against the REAL estimai-api/auth services — no
  * mocking — mirroring this suite's existing cross-app e2e convention
  * (refund-headline.spec.ts, estimai-persistence.spec.ts).
  *
  * ──────────────────────────────────────────────────────────────────────────
  * WHY THIS LIVES HERE, NOT `estimai-ui/e2e/`
  *
- * specs/013's own tasks.md (T25) names `estimai-ui/e2e/estimate-sharing.
+ * specs/20260807-estimate-sharing's own tasks.md (T25) names `estimai-ui/e2e/estimate-sharing.
  * spec.ts` and "the existing seeded-session helper in estimai-ui/e2e/". That
- * directory does not exist any more: T18 of specs/003-suite-shell retired
+ * directory does not exist any more: T18 of specs/20260709-suite-shell retired
  * estimai-ui's standalone e2e outright (commit 23c8833, "estimai-ui
  * standalone e2e retired (it is a federated remote now, no standalone authed
  * bootstrap); genuine journeys … relocated to shell/e2e") once estimai-ui
@@ -18,11 +18,11 @@
  * JWT/apiFetch and dropped its own `_authed` guard — it structurally cannot
  * mint an authenticated session on its own any more (`import('shell/session')`
  * has nothing to resolve against without the shell served). Every other
- * estimai journey since specs/003 (import, persistence, identity/JWKS, the
+ * estimai journey since specs/20260709-suite-shell (import, persistence, identity/JWKS, the
  * authed-call smoke test) already lives in `shell/e2e/` for the identical
  * reason; this file follows that same, current, working convention rather
  * than resurrecting a directory the codebase deliberately deleted. See the
- * T25 QE report for the full drift note back to specs/013.
+ * T25 QE report for the full drift note back to specs/20260807-estimate-sharing.
  *
  * WHAT THIS PROVES:
  *   Journey 1 (US-1/2/3/5/6/7, AC-1.1/2.1/3.1/5.2/6.1) — owner shares an
@@ -43,11 +43,11 @@
  * `(estimai, access)` PermissionRule a real admin would grant — verified
  * against `auth/src/authz/seed.ts` that the baseline `employee` role carries
  * NO such grant by default. Two independent things need it: (1) the shell's
- * OWN `/estimai/*` route guard (specs/004 T25, `createToolAccessBeforeLoad`)
+ * OWN `/estimai/*` route guard (specs/20260713-auth-roles-permissions T25, `createToolAccessBeforeLoad`)
  * redirects to `/no-access` unless `GET /authz/me`'s `apps` includes
  * "estimai" — this gates EVERY user in EVERY journey below, including
  * Journey 2's solo owner who never shares anything; (2) T2's `auth POST
- * /authz/app-access-check` (ADR-0035) additionally needs it on BOTH the
+ * /authz/app-access-check` (ADR 20260807-third-party-app-access-decision-endpoint-forwarded-jwt) additionally needs it on BOTH the
  * calling owner (caller gate) and the target collaborator (eligibility) for
  * the share flow specifically.
  *
@@ -55,7 +55,7 @@
  * as every other spec in this directory): PostgreSQL (localhost:5435), auth
  * (localhost:3001, ENABLE_TEST_AUTH=true), estimai-api (localhost:8080,
  * AUTH_BASE_URL pointed at the same auth instance — required for the share
- * path per specs/013's fail-closed posture, unlike the plain editor).
+ * path per specs/20260807-estimate-sharing's fail-closed posture, unlike the plain editor).
  */
 import { test, expect, type Page } from '@playwright/test'
 import { seedUserSession, applySessionCookie } from './helpers/adminSession'
@@ -141,7 +141,7 @@ async function createNamedEstimate(page: Page, name: string, activityName: strin
 // when every step succeeds well within its own generous inner timeout.
 test.describe.configure({ mode: 'serial', timeout: 120_000 })
 
-test.describe('specs/013-estimate-sharing T25: headline journeys', () => {
+test.describe('specs/20260807-estimate-sharing T25: headline journeys', () => {
   test('Journey 1 — owner shares → collaborator sees it with the right badge → viewer cannot edit → promote to editor → editor saves → owner revokes → disappears (AC-1.1/2.1/3.1/5.2/6.1)', async ({
     browser,
   }) => {
@@ -151,7 +151,7 @@ test.describe('specs/013-estimate-sharing T25: headline journeys', () => {
     const estimateName = `Sharing Journey ${tag}`
 
     const ownerSession = await seedUserSession(ownerEmail, 'E2E Share Owner')
-    grantEstimaiAccess(ownerEmail) // caller gate on auth POST /authz/app-access-check (ADR-0035)
+    grantEstimaiAccess(ownerEmail) // caller gate on auth POST /authz/app-access-check (ADR 20260807-third-party-app-access-decision-endpoint-forwarded-jwt)
     const collabSession = await seedUserSession(collabEmail, 'E2E Share Collaborator')
     grantEstimaiAccess(collabEmail) // eligibility target for the same check
 
@@ -202,7 +202,7 @@ test.describe('specs/013-estimate-sharing T25: headline journeys', () => {
     // The owner's RESOLVED name, not just the access-level badge — a
     // completely broken identity contract (e.g. `auth POST
     // /authz/users/identities` unreachable/misconfigured) still renders a
-    // non-crashing "Unknown wellD member" placeholder (ADR-0039 fail-soft)
+    // non-crashing "Unknown wellD member" placeholder (ADR 20260807-live-identity-resolution-by-id-fail-soft fail-soft)
     // and would pass an assertion that only checked the badge. Asserting
     // the real owner name here is the one place this e2e can catch that
     // failure mode end-to-end, at negligible added fragility (same
@@ -243,7 +243,7 @@ test.describe('specs/013-estimate-sharing T25: headline journeys', () => {
 
     // AC-3.1's second half: a direct API PUT attempt (bypassing the UI
     // entirely) must be refused too — the UI gating is not the real control.
-    // Driven from Node directly (ADR-0001: the JWT lives in a module-scope
+    // Driven from Node directly (ADR 20260607-jwt-in-memory-never-web-storage: the JWT lives in a module-scope
     // variable inside the page, never window-visible, so there is nothing to
     // read via page.evaluate()) using the collaborator's own seeded token —
     // the same trust level as their real browser session.
@@ -252,7 +252,7 @@ test.describe('specs/013-estimate-sharing T25: headline journeys', () => {
     })
     expect(directGetRes.status, 'A viewer must still be able to GET (AC-3.1: read stays allowed)').toBe(200)
     const etag = directGetRes.headers.get('etag')
-    expect(etag, 'GET must carry an ETag for If-Match (ADR-0038)').toBeTruthy()
+    expect(etag, 'GET must carry an ETag for If-Match (ADR 20260807-optimistic-concurrency-version-if-match-cas-amends-0004)').toBeTruthy()
     const body = (await directGetRes.json()) as { name: string; author: string; content: unknown }
 
     const directPutRes = await fetch(`${ESTIMAI_API_URL}/estimates/${estimateId}`, {
@@ -359,9 +359,9 @@ test.describe('specs/013-estimate-sharing T25: headline journeys', () => {
     const estimateName = `Conflict Journey ${tag}`
 
     // Solo owner — estimai-api's own read/write path never gates on
-    // estimai:access (ADR-0036: it is not an authorization-enforcing
+    // estimai:access (ADR 20260807-record-level-acl-resource-server-owned-access-primitive: it is not an authorization-enforcing
     // resource server), but the SHELL's own `/estimai/*` route guard
-    // (specs/004 T25, `createToolAccessBeforeLoad`) does: it redirects to
+    // (specs/20260713-auth-roles-permissions T25, `createToolAccessBeforeLoad`) does: it redirects to
     // `/no-access` unless the caller's `GET /authz/me` `apps` includes
     // "estimai", regardless of what the tool underneath requires. Every user
     // reaching the shell-mounted editor in these tests needs this grant.

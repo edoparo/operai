@@ -1,5 +1,5 @@
 /**
- * Contract test (T2, specs/019): a token minted by `POST /system/service-token`
+ * Contract test (T2, specs/20261101-crm-notifications): a token minted by `POST /system/service-token`
  * with scope `users.contact` is accepted by `POST /system/users/contact` using
  * the REAL in-process key source (`jwksFromAuth(auth)` — better-auth's key
  * set), and a user JWT is refused. Lives in `src/auth/` for the same reason as

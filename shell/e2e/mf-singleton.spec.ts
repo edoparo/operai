@@ -1,6 +1,6 @@
 /**
  * T16 — Module Federation shared-singleton check, in a real browser
- * (specs/003-suite-shell)
+ * (specs/20260709-suite-shell)
  *
  * This is not a distinct spec AC — it is the R2 watch item carried forward
  * from T9/T13's implementation notes: the build-time `[IMPORT_IS_UNDEFINED]`
@@ -62,7 +62,7 @@ test.describe('MF shared React singleton holds across a real navigation cycle', 
     // Refund's first screen (My requests) loads through the federated
     // shell/session module (useSession + apiFetch): its rendering at all is
     // the hooks resolving without throwing. (It replaced the placeholder's
-    // signed-in line, `refund-signed-in-as`, when specs/007 built the tool.)
+    // signed-in line, `refund-signed-in-as`, when specs/20260716-refund-service built the tool.)
     await expect(page.getByTestId('refund-my-requests-page')).toBeVisible({ timeout: 15_000 })
 
     await page.getByRole('link', { name: 'EstimAI' }).click()
@@ -84,7 +84,7 @@ test.describe('MF shared React singleton holds across a real navigation cycle', 
   })
 })
 
-// specs/015-hardware-inventory, T45 (ADR-0045): inventory-ui exposes a SECOND,
+// specs/20261006-hardware-inventory, T45 (ADR 20261006-ungated-second-federated-entry-of-a-gated-remote): inventory-ui exposes a SECOND,
 // ungated federated entry (`./MyDevices`) mounted at the shell's `/devices`, next
 // to its gated `./App` at `/inventory`. Both come from ONE remote container, so
 // this is the case the singleton negotiation is most likely to get wrong: two

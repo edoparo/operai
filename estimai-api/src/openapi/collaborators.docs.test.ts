@@ -1,5 +1,5 @@
 /**
- * Tests for T11 (specs/013-estimate-sharing): OpenAPI registration for the
+ * Tests for T11 (specs/20260807-estimate-sharing): OpenAPI registration for the
  * five collaborator-management routes, plus a regression guard for the
  * `/openapi.json`/`/docs` shadowing bug T6's agent flagged and T11 fixed.
  *

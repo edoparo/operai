@@ -1,12 +1,12 @@
 /**
- * notify-api internal email client (T6, specs/006-user-invitations —
+ * notify-api internal email client (T6, specs/20260713-user-invitations —
  * plan.md "auth → notify-api internal email send", "Service-to-service auth"
  * ADR candidate, risk R2/R5).
  *
  * Calls notify-api's internal, NON-user-JWT endpoint `POST /system/emails`,
  * authenticated as `auth` itself: `Authorization: Bearer <service JWT>`,
- * `sub="system:auth"`, `scope="emails.send"`, minted in process (specs/016 T7,
- * ADR-0048, ADR-0049). It is deliberately NOT the calling admin's session JWT
+ * `sub="system:auth"`, `scope="emails.send"`, minted in process (specs/20261013-notify-service-credentials T7,
+ * ADR 20261013-auth-mints-own-service-credential-in-process, ADR 20261013-all-notify-callers-scoped-credentials-shared-token-retired). It is deliberately NOT the calling admin's session JWT
  * (plan.md: forwarding the admin's token would conflate the admin's identity
  * with a system send and let any admin-scoped token reach the email surface),
  * and no longer the shared `X-Internal-Token`. `NOTIFY_INTERNAL_URL` is
@@ -149,13 +149,13 @@ export async function sendInvitationEmail(
   }
 }
 
-// ─── pushSystemNotification (specs/023 T4, ADR-0072) ─────────────────────────
+// ─── pushSystemNotification (specs/20261105-signup-gate T4, ADR 20261105-auth-pushes-admin-notifications) ─────────────────────────
 
 /**
  * The slice of notify-api's `POST /system/notifications` body `auth` sends
  * (notify-api/src/system/notifications.schemas.ts). `email: true` asks
  * notify-api to also mail the recipient, resolving the address itself through
- * `auth POST /system/users/contact` (ADR-0056): `auth` sends no address.
+ * `auth POST /system/users/contact` (ADR 20261101-notify-api-resolves-email-notice-address-from-auth): `auth` sends no address.
  */
 export interface SystemNotificationInput {
   readonly recipientId: string;

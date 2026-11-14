@@ -1,9 +1,9 @@
 /**
- * `POST /fiscal-years/{entity}/{year}/close` (T20, specs/015-hardware-inventory;
- * AC-8.4..AC-8.7, ADR-0046).
+ * `POST /fiscal-years/{entity}/{year}/close` (T20, specs/20261006-hardware-inventory;
+ * AC-8.4..AC-8.7, ADR 20261006-depreciation-derived-on-read-closed-years-snapshotted).
  *
  * `ledger:manage` with entity scope: capability absent -> 403 (guard); entity
- * outside the caller's ledger scope -> 404 (ADR-0014). Success is 201 with the
+ * outside the caller's ledger scope -> 404 (ADR 20260716-refund-api-authorization-enforcing-resource-server). Success is 201 with the
  * closed `FiscalYearView` - the same view `GET` returns from then on. There is
  * deliberately no reopen, update or delete route for a fiscal year (AC-8.7).
  */

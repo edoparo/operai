@@ -1,5 +1,5 @@
 /**
- * Test-only fixture bridge for specs/028-activities e2e (T21).
+ * Test-only fixture bridge for specs/20261110-activities e2e (T21).
  *
  * Two kinds of helper live here, and the specs keep them apart:
  *
@@ -124,7 +124,7 @@ export async function seedPerson(
 /**
  * Replaces a dedicated persona's roles (e.g. a salesperson who loses the CRM: AC-7.4) and returns the person
  * with a FRESH token. The role change bumps `perm_epoch`, but the epoch is a claim of the token: a resource
- * server caches permissions by `(sub, perm_epoch)` for up to 30 s (ADR-0014), so the old token would still be
+ * server caches permissions by `(sub, perm_epoch)` for up to 30 s (ADR 20260716-refund-api-authorization-enforcing-resource-server), so the old token would still be
  * answered with the old grants. The browser gets a new token the same way, by signing in again.
  */
 export async function changePersona(
@@ -195,7 +195,7 @@ async function mustCall<T = Json>(
     // Hint for the single most likely local fault: the stack was started before this feature.
     const hint =
       result.status === 401 || result.status === 404 || result.status === 503
-        ? ' (is the stack started with the specs/028 env? see the header of activities-crm.spec.ts)'
+        ? ' (is the stack started with the specs/20261110-activities env? see the header of activities-crm.spec.ts)'
         : ''
     throw new Error(
       `[activitiesFixtures] ${method} ${base}${route} -> ${result.status}: ${JSON.stringify(result.body).slice(0, 400)}${hint}`,

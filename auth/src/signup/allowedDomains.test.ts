@@ -3,7 +3,7 @@ import { isAllowedDomain, isReservedTestDomain, parseAllowedDomains } from "./al
 
 const DOMAINS = ["welld.ch", "welld.it"];
 
-describe("isAllowedDomain (specs/023 AC-1.8)", () => {
+describe("isAllowedDomain (specs/20261105-signup-gate AC-1.8)", () => {
   const table: Array<[string, boolean]> = [
     ["Name@WellD.CH", true],
     ["a@welld.it", true],
@@ -38,7 +38,7 @@ describe("parseAllowedDomains", () => {
   }
 });
 
-describe("isReservedTestDomain (specs/023 plan.md amendment 2026-11-05)", () => {
+describe("isReservedTestDomain (specs/20261105-signup-gate plan.md amendment 2026-11-05)", () => {
   const table: Array<[string, boolean]> = [
     ["operai.test", true],
     ["a.b.example", true],
@@ -59,7 +59,7 @@ describe("isReservedTestDomain (specs/023 plan.md amendment 2026-11-05)", () => 
   }
 });
 
-describe("trailing-dot domains (specs/023 T14)", () => {
+describe("trailing-dot domains (specs/20261105-signup-gate T14)", () => {
   test("the parser rejects a trailing-dot entry, so operai.test. cannot slip past the reserved check", () => {
     expect(() => parseAllowedDomains("welld.ch,operai.test.")).toThrow();
     expect(() => parseAllowedDomains("welld.ch.")).toThrow();

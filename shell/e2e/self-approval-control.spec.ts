@@ -1,12 +1,12 @@
 /**
- * T6 — Segregation-of-duties e2e journey (specs/010-self-approval-control,
+ * T6 — Segregation-of-duties e2e journey (specs/20260721-self-approval-control,
  * QE verification pass). Drives the REAL assembled shell host +
- * admin-ui/refund-ui remotes (ADR-0006) against the REAL auth/refund-api
+ * admin-ui/refund-ui remotes (ADR 20260709-suite-frontend-module-federation) against the REAL auth/refund-api
  * services — no mocking — mirroring this suite's existing cross-app e2e
- * convention (refund-headline.spec.ts specs/007, refund-batches-headline.
- * spec.ts specs/008, mileage-rate.spec.ts specs/009).
+ * convention (refund-headline.spec.ts specs/20260716-refund-service, refund-batches-headline.
+ * spec.ts specs/20260719-refund-monthly-processing, mileage-rate.spec.ts specs/20260720-mileage-rate).
  *
- * Journey (US-1/2/3/4, refs plan.md D1/D2/D5, ADR-0026): an admin creates a
+ * Journey (US-1/2/3/4, refs plan.md D1/D2/D5, ADR 20260721-self-approval-condition-and-403-exception): an admin creates a
  * dedicated role in admin-ui and, via the RoleEditor rule composer, grants it
  * the full refund accounting+employee surface (`refund:access`,
  * `request:create`, `request:read` own, `request:review`,
@@ -137,7 +137,7 @@ async function createAndSubmitRequest(page: Page, motivo: string, today: string)
 
 test.describe.configure({ mode: 'serial' })
 
-test.describe('specs/010-self-approval-control T6: segregation-of-duties journey', () => {
+test.describe('specs/20260721-self-approval-control T6: segregation-of-duties journey', () => {
   test(
     'admin enables "cannot approve own request" on a role (US-1) → the accountant holding it is blocked ' +
       'approving their OWN request (US-2, AC-2.1) but can still reject/set-total on it (US-4, AC-4.1/4.2) → ' +

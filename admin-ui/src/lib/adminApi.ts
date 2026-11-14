@@ -1,6 +1,6 @@
 /**
  * adminApi — typed API client for the `auth` service's authorization surface
- * (T16, specs/004-auth-roles-permissions/tasks.md): every `/admin/*` route plus the
+ * (T16, specs/20260713-auth-roles-permissions/tasks.md): every `/admin/*` route plus the
  * caller-facing `GET /authz/me`, per plan.md's "## API contracts" section.
  *
  * Mirrors `estimai-ui/src/lib/estimatesApi.ts`'s conventions exactly (typed
@@ -14,9 +14,9 @@
  *     and the request collapses to a broken relative URL). The shell owns the
  *     one configured auth origin.
  *   • `apiFetch` is imported directly from the federated `shell/session` module
- *     (ADR-0001/ADR-0006) rather than through a local `./api` facade — admin-ui has
+ *     (ADR 20260607-jwt-in-memory-never-web-storage/ADR 20260709-suite-frontend-module-federation) rather than through a local `./api` facade — admin-ui has
  *     no such facade yet and this task's `touch:` list is this file alone
- *     (specs/004-auth-roles-permissions/tasks.md T16). `shell/session`'s `apiFetch`
+ *     (specs/20260713-auth-roles-permissions/tasks.md T16). `shell/session`'s `apiFetch`
  *     already attaches the Bearer JWT to `VITE_AUTH_URL` as a trusted origin (it IS
  *     the auth service) and handles the 401 refresh-retry-redirect transparently —
  *     see `admin-ui/src/federation/remotes.d.ts` for the ambient module shape and
@@ -49,7 +49,7 @@ import { apiFetch, getAuthBaseUrl } from 'shell/session'
 /**
  * Attribute condition targets — plan.md "conditions JSON shape" (AC-2.3).
  *
- * `'self-approval'` (specs/010-self-approval-control T4, ADR-0026) is a NEW
+ * `'self-approval'` (specs/20260721-self-approval-control T4, ADR 20260721-self-approval-condition-and-403-exception) is a NEW
  * key added alongside the pre-existing entity/department/jobTitle keys — but
  * it's a different *polarity*: those three mean "record attr must equal the
  * actor's" (`match:"user"`), while self-approval means "deny when the actor
@@ -67,8 +67,8 @@ export type OwnershipCondition = 'own' | 'any'
 
 /**
  * One attribute constraint. `match:"user"` (plan.md) = record attr must
- * equal the actor's (entity/department/jobTitle). `match:"deny"` (ADR-0026,
- * specs/010) = the opposite polarity — deny when the actor IS the record's
+ * equal the actor's (entity/department/jobTitle). `match:"deny"` (ADR 20260721-self-approval-condition-and-403-exception,
+ * specs/20260721-self-approval-control) = the opposite polarity — deny when the actor IS the record's
  * owner; used exclusively by `{key:"self-approval", match:"deny"}`.
  */
 export type AttributeCondition = {
@@ -296,7 +296,7 @@ export type ApiProblem = {
   status: number
   detail?: string
   instance?: string
-  /** Machine-readable discriminant (specs/023 plan.md): branch on this, never on `detail` prose. */
+  /** Machine-readable discriminant (specs/20261105-signup-gate plan.md): branch on this, never on `detail` prose. */
   code?: string
   /** Sent with `code: "domain_not_allowed"` so the UI can render the list in its own language. */
   allowedDomains?: string[]
@@ -405,7 +405,7 @@ const getJson = async <T>(path: string): Promise<T> => {
 /**
  * DELETE helper — no request body, but (unlike `deleteRole`/`deleteDepartment`
  * below) the response DOES carry a JSON body (`{ id, deletedAt }` — plan.md
- * `DELETE /admin/users/:id`, T10 specs/006-user-invitations). Throws ApiError
+ * `DELETE /admin/users/:id`, T10 specs/20260713-user-invitations). Throws ApiError
  * on non-2xx.
  */
 const deleteJson = async <T>(path: string): Promise<T> => {
@@ -590,7 +590,7 @@ export const putUserDepartments = async (id: string, departmentIds: string[]): P
 export const getUserPermissions = async (id: string): Promise<EffectivePermissions> =>
   getJson<EffectivePermissions>(`/admin/users/${encodeURIComponent(id)}/permissions`)
 
-/** `DELETE /admin/users/:id` response (T10, specs/006-user-invitations, plan.md). */
+/** `DELETE /admin/users/:id` response (T10, specs/20260713-user-invitations, plan.md). */
 export type DeleteUserResult = {
   id: string
   deletedAt: string
@@ -630,12 +630,12 @@ export const bulkDeleteUsers = async (userIds: string[]): Promise<BulkDeleteUser
   sendJson<BulkDeleteUsersResult>('/admin/users/delete', 'POST', { userIds })
 
 // ---------------------------------------------------------------------------
-// Admin — invitations (T12, specs/006-user-invitations, plan.md "Invitation
+// Admin — invitations (T12, specs/20260713-user-invitations, plan.md "Invitation
 // admin API" / "InvitationDetailSchema")
 // ---------------------------------------------------------------------------
 
 /**
- * `status` is always the EFFECTIVE status (plan.md, ADR-0013) — a past-window
+ * `status` is always the EFFECTIVE status (plan.md, ADR 20260714-invitation-lifecycle-derived-expiry-state) — a past-window
  * `pending` row renders `expired` here; `expired` is never a distinct stored
  * value, only ever observed through this field.
  */
@@ -751,7 +751,7 @@ export const listAudit = async (params: PageParams = {}): Promise<Paginated<Audi
   getJson<Paginated<AuditLogEntry>>(`/admin/audit${buildQuery({ page: params.page, pageSize: params.pageSize })}`)
 
 // ---------------------------------------------------------------------------
-// Admin — access requests (specs/023-signup-gate, plan.md § API contracts)
+// Admin — access requests (specs/20261105-signup-gate, plan.md § API contracts)
 // ---------------------------------------------------------------------------
 
 export type AccessRequestStatus = 'pending' | 'approved' | 'rejected'

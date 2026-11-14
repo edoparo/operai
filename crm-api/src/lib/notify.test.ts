@@ -35,7 +35,7 @@ function harness(statuses: number[] = [201], tokensIssued: string[] = ["t1", "t2
   return { calls, invalidated, notifier: createNotifier({ baseUrl: "http://notify.test", tokens, fetchImpl }) };
 }
 
-describe("crm-api notifier (specs/019 T6)", () => {
+describe("crm-api notifier (specs/20261101-crm-notifications T6)", () => {
   it("posts one request per recipient with the contract's shape, never to the actor, never twice", async () => {
     const { calls, notifier } = harness();
     await notifier.notify(event);

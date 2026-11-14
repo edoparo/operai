@@ -15,7 +15,7 @@
  *       (d) non-2xx response thrown as ApiError with the correct status/title
  *   • The 413 / Problem-error path is tested explicitly (AC-1.4 caller side).
  *   • No hardcoded API URL: the base URL comes from VITE_API_URL via vi.stubEnv.
- *   • T15 additions (specs/013-estimate-sharing/tasks.md): `update()` now
+ *   • T15 additions (specs/20260807-estimate-sharing/tasks.md): `update()` now
  *     REQUIRES a `version` argument and always sends `If-Match`; both 409 and
  *     428 must reject with `ConflictError` carrying `currentVersion`/
  *     `lastModifiedBy` (409) or nothing extra (428) — never the base `ApiError`.
@@ -358,7 +358,7 @@ describe('update(id, body, version)', () => {
     expect(result.version).toBe(2)
   })
 
-  it('always sends If-Match with the given version (ADR-0038 — required on every PUT)', async () => {
+  it('always sends If-Match with the given version (ADR 20260807-optimistic-concurrency-version-if-match-cas-amends-0004 — required on every PUT)', async () => {
     vi.mocked(apiFetch).mockResolvedValueOnce(okResponse(fixedFull))
     await update('est-001', fixedUpsert, 7)
 

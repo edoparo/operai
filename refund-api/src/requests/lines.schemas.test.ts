@@ -1,6 +1,6 @@
 /**
  * Unit tests for the expense-line validation schema and the submit-time
- * completeness re-check (T8, specs/007-refund-service, AC-1.2/1.6).
+ * completeness re-check (T8, specs/20260716-refund-service, AC-1.2/1.6).
  */
 
 import { describe, it, expect } from "bun:test";

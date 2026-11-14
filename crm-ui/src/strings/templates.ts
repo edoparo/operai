@@ -1,4 +1,4 @@
-/** Offer templates, the section and cost-line editors and the letterhead (specs/020). */
+/** Offer templates, the section and cost-line editors and the letterhead (specs/20261102-crm-offer-document). */
 const en = {
   letterhead: {
     title: (entity: string) => `${entity} letterhead`,

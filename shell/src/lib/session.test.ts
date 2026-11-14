@@ -3,7 +3,7 @@
  *
  * Unit tests for src/lib/session.ts — JWT cache + apiFetch interceptor.
  *
- * Ported from estimai-ui/src/lib/api.test.ts (T4, specs/003-suite-shell) —
+ * Ported from estimai-ui/src/lib/api.test.ts (T4, specs/20260709-suite-shell) —
  * the shell now owns the extracted `apiFetch`/JWT-cache implementation, so
  * these tests move with it. They cover the interceptor contract at the unit
  * level:
@@ -290,7 +290,7 @@ describe('apiFetch', () => {
       })
     })
 
-    // T20 (specs/007-refund-service, tasks.md "Trusted-origin fix"): proves
+    // T20 (specs/20260716-refund-service, tasks.md "Trusted-origin fix"): proves
     // getTrustedOrigins() (session.ts, unexported) includes the refund-api
     // origin once VITE_REFUND_API_URL is set — mirrors this describe block's
     // own auth-origin assertion above, and matches how specs/005-notification-
@@ -313,7 +313,7 @@ describe('apiFetch', () => {
       })
     })
 
-    // T41 (specs/015-hardware-inventory, AC-9.6): inventory-api origin, set via
+    // T41 (specs/20261006-hardware-inventory, AC-9.6): inventory-api origin, set via
     // VITE_INVENTORY_API_URL, is trusted so inventory-ui's calls (and the
     // ungated /me/* devices calls) carry the Bearer JWT.
     it('sends Authorization header for a request to the inventory-api origin (VITE_INVENTORY_API_URL)', async () => {
@@ -353,7 +353,7 @@ describe('apiFetch', () => {
       expect(mockFetch).toHaveBeenCalledTimes(1)
     })
 
-    // specs/021-meetings, T50 (AC-2.10 wiring): meetings-api origin, set via
+    // specs/20261104-meetings, T50 (AC-2.10 wiring): meetings-api origin, set via
     // VITE_MEETINGS_API_URL, is trusted so meetings-ui's calls carry the Bearer
     // JWT — and ONLY that origin does.
     it('sends Authorization header for a request to the meetings-api origin (VITE_MEETINGS_API_URL)', async () => {
@@ -396,7 +396,7 @@ describe('apiFetch', () => {
       expect(headers?.['Authorization']).toBeUndefined()
     })
 
-    // specs/025-projects: projects-api origin, set via VITE_PROJECTS_API_URL, is
+    // specs/20261103-projects: projects-api origin, set via VITE_PROJECTS_API_URL, is
     // trusted so projects-ui's calls carry the Bearer JWT.
     it('sends Authorization header for a request to the projects-api origin (VITE_PROJECTS_API_URL)', async () => {
       vi.stubEnv('VITE_PROJECTS_API_URL', PROJECTS_API_URL)
@@ -425,7 +425,7 @@ describe('apiFetch', () => {
       expect(headers?.['Authorization']).toBeUndefined()
     })
 
-    // specs/028-activities: activities-api origin, set via VITE_ACTIVITIES_API_URL, is
+    // specs/20261110-activities: activities-api origin, set via VITE_ACTIVITIES_API_URL, is
     // trusted so crm-ui's and projects-ui's calls carry the Bearer JWT (AC-1.1, AC-7.2).
     it('sends Authorization header for a request to the activities-api origin (VITE_ACTIVITIES_API_URL)', async () => {
       vi.stubEnv('VITE_ACTIVITIES_API_URL', ACTIVITIES_API_URL)
@@ -661,7 +661,7 @@ describe('signOut', () => {
   })
 })
 
-describe('signOut — awaited before-sign-out step (specs/029, AC-5.1)', () => {
+describe('signOut — awaited before-sign-out step (specs/20261111-push-notifications, AC-5.1)', () => {
   const unregister: Array<() => void> = []
   afterEach(() => {
     vi.useRealTimers()
@@ -754,7 +754,7 @@ describe('signOut — awaited before-sign-out step (specs/029, AC-5.1)', () => {
 
 // ---------------------------------------------------------------------------
 // Permission resolution — ensurePermissions / revalidatePermissions /
-// usePermissions (T23, specs/004-auth-roles-permissions).
+// usePermissions (T23, specs/20260713-auth-roles-permissions).
 //
 // GET /authz/me is reached through apiFetch (same trusted-origin/Bearer/401
 // machinery as the JWT), so every scenario below primes a /auth/token
@@ -921,7 +921,7 @@ describe('usePermissions', () => {
 
 // ---------------------------------------------------------------------------
 // navigateSuite / registerSuiteNavigate — the cross-remote navigation seam
-// (follow-up to specs/005-notification-center, T15/AC-2.5). NOTE: the
+// (follow-up to specs/20260713-notification-center, T15/AC-2.5). NOTE: the
 // underlying registry is module-scope and NOT reset by beforeEach (there is
 // no `resetSuiteNavigate` — production only ever registers once, from
 // main.tsx), so the "falls back" case is asserted FIRST, before any test in
@@ -950,7 +950,7 @@ describe('navigateSuite', () => {
 })
 
 // ---------------------------------------------------------------------------
-// getRefundApiBaseUrl (T9, specs/009-mileage-rate) — mirrors getAuthBaseUrl()
+// getRefundApiBaseUrl (T9, specs/20260720-mileage-rate) — mirrors getAuthBaseUrl()
 // exactly: a thin, lazily-read accessor over VITE_REFUND_API_URL, exposed so
 // a remote (admin-ui's new ratesApi.ts) can source refund-api's origin from
 // the shell instead of its own (nonexistent) import.meta.env.
@@ -976,7 +976,7 @@ describe('getAuthBaseUrl / getRefundApiBaseUrl', () => {
   })
 })
 
-// getInventoryApiBaseUrl (T41, specs/015-hardware-inventory) — mirrors
+// getInventoryApiBaseUrl (T41, specs/20261006-hardware-inventory) — mirrors
 // getRefundApiBaseUrl(): lazily read, exposed so inventory-ui (a remote with
 // no VITE_* env of its own) sources the API origin from the shell.
 describe('getInventoryApiBaseUrl', () => {
@@ -995,7 +995,7 @@ describe('getInventoryApiBaseUrl', () => {
   })
 })
 
-// getMeetingsApiBaseUrl (specs/021-meetings, T50) — mirrors getCrmApiBaseUrl():
+// getMeetingsApiBaseUrl (specs/20261104-meetings, T50) — mirrors getCrmApiBaseUrl():
 // lazily read, exposed so meetings-ui (no VITE_* env of its own) asks the shell.
 describe('getMeetingsApiBaseUrl', () => {
   it('returns the VITE_MEETINGS_API_URL configured on the shell', () => {
@@ -1013,7 +1013,7 @@ describe('getMeetingsApiBaseUrl', () => {
   })
 })
 
-// registerNavigationBlocker (specs/021-meetings, T50, AC-2.10, ADR-0060 seam
+// registerNavigationBlocker (specs/20261104-meetings, T50, AC-2.10, ADR 20261104-host-extension-federated-panel-through-the-shell seam
 // family): the remote declares "do not let the user navigate away right now";
 // the shell's ShellLayout honours it with useBlocker. One blocker at a time.
 describe('registerNavigationBlocker', () => {
@@ -1073,7 +1073,7 @@ describe('registerNavigationBlocker', () => {
   })
 })
 
-// getProjectsApiBaseUrl (specs/025-projects) — mirrors getCrmApiBaseUrl(): lazily
+// getProjectsApiBaseUrl (specs/20261103-projects) — mirrors getCrmApiBaseUrl(): lazily
 // read, exposed so projects-ui (a remote with no VITE_* env of its own) sources the
 // API origin from the shell.
 describe('getProjectsApiBaseUrl', () => {
@@ -1092,7 +1092,7 @@ describe('getProjectsApiBaseUrl', () => {
   })
 })
 
-// getActivitiesApiBaseUrl (specs/028-activities) — mirrors getProjectsApiBaseUrl(): lazily
+// getActivitiesApiBaseUrl (specs/20261110-activities) — mirrors getProjectsApiBaseUrl(): lazily
 // read, exposed so crm-ui and projects-ui (remotes with no VITE_* env of their own)
 // source the API origin from the shell.
 describe('getActivitiesApiBaseUrl', () => {

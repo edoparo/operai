@@ -1,5 +1,5 @@
 /**
- * Route-test kit for the meeting routes (specs/021-meetings): the REAL assembled app
+ * Route-test kit for the meeting routes (specs/20261104-meetings): the REAL assembled app
  * (src/index.ts) over the REAL Postgres (`meetings_test`), with everything outside the
  * service faked at its edge:
  *

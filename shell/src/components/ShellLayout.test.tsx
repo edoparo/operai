@@ -1,7 +1,7 @@
 /**
  * @vitest-environment jsdom
  *
- * Component tests for ShellLayout (specs/003-suite-shell, T5, AC-1.1).
+ * Component tests for ShellLayout (specs/20260709-suite-shell, T5, AC-1.1).
  *
  * ShellLayout renders a real TanStack Router `<Outlet/>` (not a children
  * prop) because T9 mounts it as the root layout route's component, and the
@@ -22,7 +22,7 @@ import Sidebar from './Sidebar'
 import { registerNavigationBlocker, resetNavigationBlocker } from '../lib/navigationBlocker'
 import { findPushOffer, initPush, listenForServiceWorkerMessages } from '../lib/push'
 
-// The push library is exercised in lib/push.test.ts; here only its wiring into the layout (specs/029, T8).
+// The push library is exercised in lib/push.test.ts; here only its wiring into the layout (specs/20261111-push-notifications, T8).
 vi.mock('../lib/push', () => ({
   initPush: vi.fn().mockResolvedValue(undefined),
   findPushOffer: vi.fn().mockResolvedValue(null),
@@ -176,7 +176,7 @@ describe('ShellLayout', () => {
   })
 })
 
-// specs/021-meetings, T50 (AC-2.10): the shell honours a navigation blocker a
+// specs/20261104-meetings, T50 (AC-2.10): the shell honours a navigation blocker a
 // remote registered through shell/session — useBlocker + a ConfirmDialog.
 describe('ShellLayout — navigation blocker (AC-2.10)', () => {
   async function renderWithBlockerRouter() {
@@ -315,7 +315,7 @@ describe('ShellLayout — navigation blocker (AC-2.10)', () => {
   })
 })
 
-describe('ShellLayout push wiring (specs/029, T8)', () => {
+describe('ShellLayout push wiring (specs/20261111-push-notifications, T8)', () => {
   const stop = vi.fn()
 
   beforeEach(() => {

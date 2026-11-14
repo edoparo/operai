@@ -4,7 +4,7 @@
  * Tests for AboutModal — shows the suite's info (name, description), the author
  * (linked), and the version, and closes on Escape / backdrop.
  *
- * Ported from estimai-ui/src/components/AboutModal.test.tsx (T6, specs/003-suite-shell,
+ * Ported from estimai-ui/src/components/AboutModal.test.tsx (T6, specs/20260709-suite-shell,
  * AC-1.4). Behavior is unchanged; APP_NAME/APP_VERSION now resolve to the suite's
  * values via the relocated, suite-level ../lib/appInfo.
  *
@@ -183,7 +183,7 @@ describe('AboutModal', () => {
       expect(screen.getByTestId('remote-version-notify').textContent).toBe('0.1.0')
     })
 
-    // T41 (specs/015-hardware-inventory, ADR-0030): the Inventory row.
+    // T41 (specs/20261006-hardware-inventory, ADR 20260803-suite-version-generated-file-federated-export): the Inventory row.
     it('lists Inventory among the real default sources', async () => {
       render(<AboutModal onClose={() => {}} />)
 

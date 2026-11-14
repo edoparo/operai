@@ -1,6 +1,6 @@
 /**
- * The guard stack and capabilities every projects-api route uses (specs/025-projects,
- * ADR-0014, ADR-0079). Copied in shape from crm-api/src/auth/guards.ts.
+ * The guard stack and capabilities every projects-api route uses (specs/20261103-projects,
+ * ADR 20260716-refund-api-authorization-enforcing-resource-server, ADR 20261103-projects-tool-shape-and-authorization). Copied in shape from crm-api/src/auth/guards.ts.
  *
  *   authorized   JWT + live authorization (`GET /authz/resolve`) + `projects:access`.
  *                Every route except `/health`. An `auth` outage is a 503.
@@ -26,7 +26,7 @@ export type Capability = readonly [resource: string, action: string];
 
 /** Tool access: read every project and contract. */
 export const PROJECTS_ACCESS: Capability = ["projects", "access"];
-/** Create and edit projects, teams and contracts and move states — entity-scoped (ADR-0015). */
+/** Create and edit projects, teams and contracts and move states — entity-scoped (ADR 20260716-entity-scoped-abac-refund-api). */
 export const PROJECT_MANAGE: Capability = ["project", "manage"];
 /** Write a contract's Bexio order id (held by `accounting`, D35). */
 export const CONTRACT_BEXIO: Capability = ["contract", "bexio"];
@@ -36,7 +36,7 @@ export interface AuthzSource {
   get(key: "authz"): AuthzVariables["authz"];
 }
 
-/** Entities the caller manages projects for (ADR-0015). */
+/** Entities the caller manages projects for (ADR 20260716-entity-scoped-abac-refund-api). */
 export const manageScope = (c: AuthzSource): Entity[] => {
   const { permissions, entity } = c.get("authz");
   return scopeFor(permissions, PROJECT_MANAGE[0], PROJECT_MANAGE[1], entity);

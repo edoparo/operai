@@ -1,6 +1,6 @@
 /**
  * strings.ledger — the Ledger block of the asset detail page, its schedule table
- * and the Dispose dialog (T34, specs/015-hardware-inventory; design.md § T2
+ * and the Dispose dialog (T34, specs/20261006-hardware-inventory; design.md § T2
  * ledger region, F9, F10, § Irreversible actions, § Error and conflict
  * catalogue). Templates with `{name}` placeholders go through `fillTemplate`;
  * money is always formatted by the caller with `formatMoney`.

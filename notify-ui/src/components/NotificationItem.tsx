@@ -7,7 +7,7 @@ import type { Notification } from '../lib/notificationsApi'
 
 /**
  * NotificationItem — one row of the notification center list (T15,
- * specs/005-notification-center/tasks.md, design.md "Notification center
+ * specs/20260713-notification-center/tasks.md, design.md "Notification center
  * page" / "NotificationItem row"). Renders (AC-2.2):
  *   - severity icon (aria-hidden) + sr-only severity label
  *   - title (heavier weight when `wasUnread` this session)
@@ -37,7 +37,7 @@ import type { Notification } from '../lib/notificationsApi'
  * `basepath: '/notify'`). A `<Link>` here would resolve that path RELATIVE
  * TO notify-ui's basepath (producing `/notify/estimai/estimates/abc`, a
  * dead route that 404s inside notify-ui and never reaches the target
- * remote) — there is no shared router *instance* across remotes (ADR-0006:
+ * remote) — there is no shared router *instance* across remotes (ADR 20260709-suite-frontend-module-federation:
  * `@tanstack/react-router` is a shared MF *library* singleton, not a shared
  * router instance), so a remote's inner `<Link>` cannot navigate outside
  * its own basepath. This is exercised at the unit level here (a real anchor
@@ -46,7 +46,7 @@ import type { Notification } from '../lib/notificationsApi'
  * boundary explicitly since it is the first notify-ui code to link to a
  * path outside its own basepath.
  *
- * Follow-up (specs/005-notification-center, ADR-0006-consistent): a plain
+ * Follow-up (specs/20260713-notification-center, ADR-0006-consistent): a plain
  * `<a href>` alone means every click — even an unmodified left-click meant
  * to stay in-app — performs a full DOCUMENT reload, since the browser has no
  * way to know the target lives inside the same federated suite. The anchor
@@ -76,7 +76,7 @@ export interface NotificationItemProps {
 
 export default function NotificationItem({ notification, wasUnread }: NotificationItemProps) {
   const meta = SEVERITY_META[notification.severity]
-  // The reader's language picks the variant, not the sender (ADR-0065).
+  // The reader's language picks the variant, not the sender (ADR 20261104-bilingual-system-notifications).
   const { title, body: bodyText } = localizedText(notification)
 
   // The library list row (INC-33): border, padding, surface and — for a row

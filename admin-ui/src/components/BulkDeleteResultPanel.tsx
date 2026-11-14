@@ -1,6 +1,6 @@
 /**
  * BulkDeleteResultPanel — persistent bulk soft-delete result report (T11,
- * specs/006-user-invitations, design.md Panel N3: "Bulk delete result — no
+ * specs/20260713-user-invitations, design.md Panel N3: "Bulk delete result — no
  * precedent in-repo").
  *
  * Renders directly above the Users list table after a

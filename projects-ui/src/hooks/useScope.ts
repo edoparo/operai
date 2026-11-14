@@ -5,7 +5,7 @@ import type { Entity, Scope } from '../lib/types'
  * The caller's projects scope (`GET /scope`), loaded once by `ProjectsShell` and
  * read by every page: which entities `project:manage` covers, whether that is
  * every entity (the admin), and whether they may write a contract's Bexio order
- * id. UX only — the server's 403 is the gate (ADR-0014). The default is "may
+ * id. UX only — the server's 403 is the gate (ADR 20260716-refund-api-authorization-enforcing-resource-server). The default is "may
  * manage nothing", so a control gated on it never appears before the scope is
  * known.
  */

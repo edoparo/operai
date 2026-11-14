@@ -42,11 +42,11 @@ export const SHARED_COPIES: readonly SharedGroup[] = [
       "projects-api/src/lib/serviceToken.ts",
       "activities-api/src/lib/serviceToken.ts",
     ],
-    why: "the auth service-token client (ADR-0044/0049/0056); a fix to one copy must reach every copy",
+    why: "the auth service-token client (ADR 20261006-scoped-service-jwt-fourth-notify-caller/0049/0056); a fix to one copy must reach every copy",
   },
   // s3Residency is registered as TWO narrow regions on purpose. Each copy re-points the
   // MEETINGS_/CRM_/INVENTORY_S3_* names and its refusal messages (meetings-api's deliberately
-  // never echo the endpoint, host or region, specs/021 T11; crm/inventory-api's do), so
+  // never echo the endpoint, host or region, specs/20261104-meetings T11; crm/inventory-api's do), so
   // `checkEuResidency` cannot be byte-identical. Only the allowlist helpers (region list,
   // isAwsS3Endpoint, host matching) and the path-style rule are shared; the divergent function
   // is outside the markers. refund-api's copy is structured differently and is not in a group.
@@ -58,7 +58,7 @@ export const SHARED_COPIES: readonly SharedGroup[] = [
       "meetings-api/src/lib/s3Residency.ts",
       "activities-api/src/lib/s3Residency.ts",
     ],
-    why: "the EU region list and endpoint-host matching of the data-residency guard (ADR-0016); a fix must reach every bucket-owning service",
+    why: "the EU region list and endpoint-host matching of the data-residency guard (ADR 20260716-eu-object-storage-refund-attachments); a fix must reach every bucket-owning service",
   },
   {
     name: "s3ResidencyAddressing",
@@ -79,7 +79,7 @@ export const SHARED_COPIES: readonly SharedGroup[] = [
       "estimai-api/src/auth/systemAuth.middleware.ts",
       "activities-api/src/auth/systemAuth.middleware.ts",
     ],
-    why: "the service-JWT guard of every /system route (ADR-0044/0049); a fix to one copy must reach every copy",
+    why: "the service-JWT guard of every /system route (ADR 20261006-scoped-service-jwt-fourth-notify-caller/0049); a fix to one copy must reach every copy",
   },
   // meetings-api's and activities-api's problem/logger are whole-file copies of crm-api's
   // (crm-api is the template).

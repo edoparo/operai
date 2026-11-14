@@ -12,7 +12,7 @@ import {
 
 // ─── Schema ──────────────────────────────────────────────────────────────────
 //
-// The full environment of specs/021-meetings (plan.md § Environment), validated
+// The full environment of specs/20261104-meetings (plan.md § Environment), validated
 // at import. A misconfiguration exits 1 naming the VARIABLE, never its value
 // (AC-4.9: the output is read by operators and log aggregators, and half of
 // these values are secrets). Hence every custom message below is value-free and
@@ -54,18 +54,18 @@ const envSchema = z
       )
       .refine((origins) => origins.length > 0, "ALLOWED_ORIGINS is empty")
       .refine((origins) => origins.every((o) => o !== "*"), "ALLOWED_ORIGINS must not contain a wildcard"),
-    // ─── Identity (JWKS resource server, ADR-0005/0010) ─────────────────────
+    // ─── Identity (JWKS resource server, ADR 20260703-jwt-resource-server-remote-jwks/0010) ─────────────────────
     AUTH_JWKS_URL: z.string().url("AUTH_JWKS_URL must be a valid URL"),
     AUTH_ISSUER: z.string().url("AUTH_ISSUER must be a valid URL"),
-    // Suite-wide JWT audience (ADR-0010): a token without it, or with another value, is a 401.
+    // Suite-wide JWT audience (ADR 20260713-jwt-audience-claim-enforcement): a token without it, or with another value, is a 401.
     AUTH_AUDIENCE: z.string().min(1, "AUTH_AUDIENCE is required"),
-    // `auth`: GET /authz/resolve (ADR-0014), POST /authz/users/identities (ADR-0039),
-    // POST /system/service-token (ADR-0044/0049).
+    // `auth`: GET /authz/resolve (ADR 20260716-refund-api-authorization-enforcing-resource-server), POST /authz/users/identities (ADR 20260807-live-identity-resolution-by-id-fail-soft),
+    // POST /system/service-token (ADR 20261006-scoped-service-jwt-fourth-notify-caller/0049).
     AUTH_BASE_URL: z.string().url("AUTH_BASE_URL must be a valid URL"),
     PORT: z.coerce.number().int().positive().default(8085),
     NODE_ENV: oneOf(["development", "production", "test"], "NODE_ENV").default("development"),
 
-    // ─── The audio bucket (ADR-0016 posture; ADR-0063) ──────────────────────
+    // ─── The audio bucket (ADR 20260716-eu-object-storage-refund-attachments posture; ADR 20261104-audio-retention-bucket-lifecycle-verified-at-startup) ──────────────────────
     // Own bucket and credentials, never another service's. Private: every read
     // is a presigned GET minted after the visibility check.
     MEETINGS_S3_ENDPOINT: z.string().url("MEETINGS_S3_ENDPOINT must be a valid URL"),
@@ -83,22 +83,22 @@ const envSchema = z
           .filter((h) => h.length > 0),
       ),
 
-    // ─── notify-api (ADR-0044/0049): in-app notifications as `system:meetings-api` ─
+    // ─── notify-api (ADR 20261006-scoped-service-jwt-fourth-notify-caller/0049): in-app notifications as `system:meetings-api` ─
     // All or none; required in production.
     NOTIFY_INTERNAL_URL: z.string().url("NOTIFY_INTERNAL_URL must be a valid URL").optional(),
     SERVICE_CLIENT_ID: optionalString(),
     SERVICE_CLIENT_SECRET: z.string().min(32, "SERVICE_CLIENT_SECRET must be at least 32 characters").optional(),
 
-    // ─── Hosts (ADR-0059) ───────────────────────────────────────────────────
+    // ─── Hosts (ADR 20261104-meeting-host-contract-resolve-and-notices) ───────────────────────────────────────────────────
     // The CRM host's base URL (Railway private DNS). Required in production.
     CRM_API_URL: z.string().url("CRM_API_URL must be a valid URL").optional(),
     // JSON array of host definitions; TEST ONLY, refused in production. Its shape is
     // validated by the host registry (src/hosts/registry.ts).
     MEETINGS_TEST_HOSTS: z.string().optional(),
 
-    // ─── AI providers (ADR-0061 principle, ADR-0069 providers) ──────────────
+    // ─── AI providers (ADR 20261104-meetings-ai-providers-eu-zero-retention principle, ADR 20261105-meetings-ai-providers-google-cloud-eu providers) ──────────────
     MEETINGS_AI_PROVIDER: oneOf(["real", "fake"], "MEETINGS_AI_PROVIDER").default("real"),
-    // Which transcriber (spec A12, ADR-0077): Gemini on Vertex (default) or Chirp 3, kept for a rollback.
+    // Which transcriber (spec A12, ADR 20261110-meetings-transcription-gemini-on-vertex-eu): Gemini on Vertex (default) or Chirp 3, kept for a rollback.
     MEETINGS_TRANSCRIBER: oneOf(["gemini", "chirp"], "MEETINGS_TRANSCRIBER").default("gemini"),
     // Speech-to-Text v2 (Chirp 3): the endpoint host is derived from the location, never configured (S1).
     MEETINGS_SPEECH_LOCATION: optionalString(),
@@ -113,7 +113,7 @@ const envSchema = z
     // Refused when set (S5): the adapter derives its own base URL and must not be redirected by the environment.
     ANTHROPIC_VERTEX_BASE_URL: z.string().optional(),
 
-    // ─── Worker (ADR-0062) ──────────────────────────────────────────────────
+    // ─── Worker (ADR 20261104-durable-job-runner-work-queued-state-derived) ──────────────────────────────────────────────────
     MEETINGS_WORKER: oneOf(["on", "off", "only"], "MEETINGS_WORKER").default("on"),
   })
   .superRefine((val, ctx) => {

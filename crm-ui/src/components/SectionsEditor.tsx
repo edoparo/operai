@@ -7,12 +7,12 @@ import { strings } from '../strings'
 
 /**
  * SectionsEditor — the ordered list of headed sections of an offer template or
- * of an offer being prepared (specs/020 AC-3.3): heading, text, the ONE section
+ * of an offer being prepared (specs/20261102-crm-offer-document AC-3.3): heading, text, the ONE section
  * that carries the cost table, move up/down, remove, add. One component for the
  * template page and the generate dialog; it is controlled and shows the errors
  * it is given (`check`, from `checkSections`) once the page has validated.
  *
- * The list itself is the library's `SectionsEditor` (specs/021, extracted from
+ * The list itself is the library's `SectionsEditor` (specs/20261104-meetings, extracted from
  * here); this adapter binds the CRM's copy and limits, reads `check` into
  * messages, and supplies the offer-specific part through the row slot: the
  * "costs section" radio, which marks exactly one row.

@@ -1,5 +1,5 @@
 /**
- * The production path, minus the database (ADR-0067).
+ * The production path, minus the database (ADR 20261104-ai-output-structured-validated-plain-text).
  *
  * Every step that touches model input or output is the REAL one: the prompt builders
  * (`buildSummaryRequest`, `buildAnswerRequest`: escaping and the fixed system prompt), the

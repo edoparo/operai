@@ -1,16 +1,16 @@
 /**
- * Push channel (T6, specs/029-push-notifications, ADR-0084).
+ * Push channel (T6, specs/20261111-push-notifications, ADR 20261111-web-push-encrypted-payloads-not-fcm).
  *
  * A THIRD delivery of a notification that `inAppChannel.send` has already persisted and
  * published: it encrypts the notification for each of the recipient's registered browsers
  * and hands it to that browser's push service (Web Push, VAPID; the service worker decides
- * whether to show it, ADR-0085). It is best effort and strictly after the fact:
+ * whether to show it, ADR 20261111-push-suppression-decided-by-the-browser). It is best effort and strictly after the fact:
  *
  *  - `dispatch` NEVER throws and is never awaited by the request that raised the
  *    notification (inApp.channel.ts), so a stalled push service cannot slow the 201.
  *  - Order: push off or origin excluded -> stop (AC-6.1, 6.4); no device -> stop (auth is
- *    not asked); recipient checked for activity (`activityCheck`: the ADR-0056 lookup behind a
- *    30 s memo of `found`, ADR-0087): inactive -> every device of the user is deleted and
+ *    not asked); recipient checked for activity (`activityCheck`: the ADR 20261101-notify-api-resolves-email-notice-address-from-auth lookup behind a
+ *    30 s memo of `found`, ADR 20261112-push-liveness-answer-reused-30-seconds): inactive -> every device of the user is deleted and
  *    nothing is sent; failed -> nothing is sent and nothing is deleted (fail closed, AC-5.2).
  *    Then one send per device through the process-wide send pool (16 in flight, bounded queue,
  *    overflow dropped and counted in one log line, S-M2), no retry (AC-2.6): 404/410
@@ -39,7 +39,7 @@ import { createActivityCheck, type ActivityCheck } from "@/push/activityCheck";
 import { createSendPool, type SendPool } from "@/push/sendPool";
 import { createWebPushSender, type PushSender } from "@/push/webPushSender";
 
-/** A `found` from auth is reused this long (ADR-0087, AC-5.2). */
+/** A `found` from auth is reused this long (ADR 20261112-push-liveness-answer-reused-30-seconds, AC-5.2). */
 export const ACTIVITY_MEMO_TTL_MS = 30_000;
 /** Process-wide send pool bounds (plan § Components, S-M2). */
 export const SEND_POOL_OPTIONS = { concurrency: 16, maxQueued: 1_000, maxQueuedPerRecipient: 100 } as const;
@@ -187,7 +187,7 @@ export const pushChannel: PushChannel = createPushChannel({
     deleteAllForUser: (userId) => Effect.runPromise(deleteAllForUser(userId)),
     deleteById: (id) => Effect.runPromise(deleteById(id)),
   },
-  // Push reuses a recent `found` (ADR-0087); the email notice path calls `userContact` itself, fresh every time.
+  // Push reuses a recent `found` (ADR 20261112-push-liveness-answer-reused-30-seconds); the email notice path calls `userContact` itself, fresh every time.
   activity: userContact === null ? null : createActivityCheck(userContact, { ttlMs: ACTIVITY_MEMO_TTL_MS }),
   sender: defaultSender(),
   pool: createSendPool(SEND_POOL_OPTIONS),

@@ -1,7 +1,7 @@
 /**
  * @vitest-environment jsdom
  *
- * Component tests for ErrorBanner (T15, specs/007-refund-service).
+ * Component tests for ErrorBanner (T15, specs/20260716-refund-service).
  *
  * Covers:
  *   (A) renders as role="alert" with the given message.

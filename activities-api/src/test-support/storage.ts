@@ -1,5 +1,5 @@
 /**
- * An in-memory stand-in for the task files bucket (ADR-0089): what the routes would have asked
+ * An in-memory stand-in for the task files bucket (ADR 20261113-task-description-files-in-activities-api-bucket): what the routes would have asked
  * of S3, and what S3 would hold. `upload(key, bytes)` is the browser's presigned POST landing;
  * `failDeletes` makes every delete throw, as a bucket outage would.
  */

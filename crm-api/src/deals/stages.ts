@@ -1,5 +1,5 @@
 /**
- * Deal stages and pipeline arithmetic (specs/017-crm, spec § Domain language;
+ * Deal stages and pipeline arithmetic (specs/20261101-crm, spec § Domain language;
  * decisions D-8, D-9, D-10). Pure: no DB, no clock except where passed in.
  */
 
@@ -24,7 +24,7 @@ export const STAGE_PROBABILITY: Readonly<Record<DealStage, number>> = {
 
 /**
  * `amount × probability / 100`, rounded half up, exactly once per deal (D-9,
- * ADR-0025's one-rule posture). Integer arithmetic on BigInt so no float ever
+ * ADR 20260720-mileage-rate-money-precision-integer-micros's one-rule posture). Integer arithmetic on BigInt so no float ever
  * touches money; amounts are ≥ 0, so "half up" and "half away from zero" agree.
  */
 export function weightedCents(amountCents: bigint, stage: DealStage): bigint {

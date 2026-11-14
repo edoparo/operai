@@ -1,10 +1,10 @@
 /**
- * The `AssetView` serializer (T11, specs/015-hardware-inventory; plan.md § Shared
+ * The `AssetView` serializer (T11, specs/20261006-hardware-inventory; plan.md § Shared
  * shapes). It builds everything EXCEPT `ledger`: that projection depends on the
  * caller holding `ledger:manage` and is added by T12's `ledgerView.ts`, so an
  * inventory manager's response can never carry a schedule by construction.
  *
- * Holder and assignee names are resolved live (ADR-0039) by the caller and passed
+ * Holder and assignee names are resolved live (ADR 20260807-live-identity-resolution-by-id-fail-soft) by the caller and passed
  * in as a map; this module does no I/O.
  */
 

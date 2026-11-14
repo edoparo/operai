@@ -1,5 +1,5 @@
 /**
- * A task's description files (ADR-0089), the browser's side: the policy activities-api enforces
+ * A task's description files (ADR 20261113-task-description-files-in-activities-api-bucket), the browser's side: the policy activities-api enforces
  * (mirrored so a bad file is refused before any request; the server stays the authority), the
  * upload in three calls, short-lived URLs remembered for less than they live, and the save of a
  * form's deferred files after the task itself is saved (`commitDeferredFiles`, @operai/ui).

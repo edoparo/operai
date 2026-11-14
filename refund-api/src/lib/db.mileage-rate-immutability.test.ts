@@ -1,6 +1,6 @@
 /**
- * Mileage-rate immutability integration tests (T7, specs/009-mileage-rate,
- * AC-4.7, AC-5.2, ADR-0018) — mirrors `db.audit-immutability.test.ts`
+ * Mileage-rate immutability integration tests (T7, specs/20260720-mileage-rate,
+ * AC-4.7, AC-5.2, ADR 20260716-immutable-financial-audit-trail-refund) — mirrors `db.audit-immutability.test.ts`
  * verbatim in structure.
  *
  * Strategy
@@ -50,7 +50,7 @@ async function makeRateEntry() {
   });
 }
 
-describe("MileageRate immutability (specs/009-mileage-rate, ADR-0018)", () => {
+describe("MileageRate immutability (specs/20260720-mileage-rate, ADR 20260716-immutable-financial-audit-trail-refund)", () => {
   beforeEach(async () => {
     await truncateRefundTables();
   });

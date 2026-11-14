@@ -1,9 +1,9 @@
 /**
- * In-process sliding-window rate limiter (T5, specs/013-estimate-sharing,
+ * In-process sliding-window rate limiter (T5, specs/20260807-estimate-sharing,
  * plan.md "Rate limiting (the share dialog is now a probe endpoint)").
  *
  * The suite has no rate limiting anywhere today — this and `auth`'s own
- * `POST /authz/app-access-check` limiter (specs/013 T1) are the first. A
+ * `POST /authz/app-access-check` limiter (specs/20260807-estimate-sharing T1) are the first. A
  * `Map<sub, timestamps[]>` sliding window, no new dependency, with a
  * periodic sweep so long-idle keys don't leak memory forever.
  *

@@ -1,7 +1,7 @@
 /**
  * @vitest-environment jsdom
  *
- * TaskFormDialog (specs/028 AC-3.1, AC-3.2, AC-3.7, AC-4.1, AC-5.1): a title is
+ * TaskFormDialog (specs/20261110-activities AC-3.1, AC-3.2, AC-3.7, AC-4.1, AC-5.1): a title is
  * required; the assignee is optional and limited to the project manager and the
  * team, except that a departed assignee stays selectable and saves unchanged;
  * blockers come from the project's other open tasks (at most 10); participants
@@ -178,7 +178,7 @@ describe('adding a task (AC-3.1)', () => {
     expect(writes()[0]!.body).toMatchObject({ dueDate: '2026-12-01', assigneeUserId: 'u-bob' })
   })
 
-  it('offers no task type (AC-3.6), and a rich description with its attachments (ADR-0089)', () => {
+  it('offers no task type (AC-3.6), and a rich description with its attachments (ADR 20261113-task-description-files-in-activities-api-bucket)', () => {
     renderDialog()
     expect(screen.queryByLabelText('Type')).toBeNull()
     expect(screen.getByRole('textbox', { name: 'Description' })).toBeTruthy()

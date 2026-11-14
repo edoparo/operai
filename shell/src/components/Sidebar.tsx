@@ -1,5 +1,5 @@
 /**
- * Sidebar — the suite tool switcher (specs/003-suite-shell, T7, AC-3.1, AC-5.1).
+ * Sidebar — the suite tool switcher (specs/20260709-suite-shell, T7, AC-3.1, AC-5.1).
  *
  * Fills the `sidebar` slot inside ShellLayout's (T5) own `<nav aria-label="Tool
  * navigation">` landmark — this component renders its list *inside* that existing
@@ -12,7 +12,7 @@
  * `TOOLS` array in ../lib/tools, not individually hand-authored markup, so adding a
  * future tool is a one-line change, not a redesign.
  *
- * App-access filtering (specs/004-auth-roles-permissions, T24, AC-7.1/AC-7.2): the
+ * App-access filtering (specs/20260713-auth-roles-permissions, T24, AC-7.1/AC-7.2): the
  * rendered list is `TOOLS` filtered down to the ids present in the signed-in user's
  * `usePermissions().apps` (shell/session, T23) — a data-only change, no new markup or
  * interaction. `usePermissions()` resolves synchronously to `EMPTY_PERMISSIONS`

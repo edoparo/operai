@@ -1,6 +1,6 @@
 /**
  * POST /system/estimate-notices — estimai-api tells the CRM that an estimate was
- * closed or reopened (specs/018 AC-3.3, ADR-0073). Closed in EstimAI is the only
+ * closed or reopened (specs/20261101-crm-sales-flow AC-3.3, ADR 20261105-estimai-closes-the-estimate-crm-follows). Closed in EstimAI is the only
  * way an estimate becomes ready: the deal's estimate turns `ready`, its task is
  * completed and the requester and the deal owner are told; reopened turns it back
  * to `requested` and reopens the task.
@@ -11,7 +11,7 @@
  * EstimAI version is not newer than the last applied is ignored. An estimate the
  * CRM does not link answers 204 like any other, so nothing is learnt from it.
  *
- * The request task lives in activities-api (specs/028, AC-1.3, ADR-0082): under the same
+ * The request task lives in activities-api (specs/20261110-activities, AC-1.3, ADR 20261110-caller-chosen-ids-replace-cross-service-transactions): under the same
  * `deal_estimate` lock and version guard, the task is completed or reopened by
  * `POST /system/v1/activities/{id}/completion` with `seq` = the EstimAI version being recorded,
  * so activities-api applies only a newer one and a repeated or reordered call is a no-op. That

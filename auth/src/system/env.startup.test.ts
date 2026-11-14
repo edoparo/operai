@@ -1,6 +1,6 @@
 /**
  * Startup validation of the service-token env (T4, specs/015-hardware-
- * inventory — ADR-0044): `lib/env.ts` must exit non-zero when
+ * inventory — ADR 20261006-scoped-service-jwt-fourth-notify-caller): `lib/env.ts` must exit non-zero when
  * `SERVICE_AUDIENCE` equals `AUTH_AUDIENCE`, when clients are configured
  * without an audience, or when `SERVICE_CLIENTS` is malformed — and must never
  * print a secret while doing so.
@@ -62,14 +62,14 @@ async function importEnv(
 // Built from parts so `git grep` for the retired name in auth/src stays empty (T7 done-when).
 const RETIRED_TOKEN_VAR = ["NOTIFY", "INTERNAL", "TOKEN"].join("_");
 
-describe("lib/env.ts — service-token startup validation (ADR-0044)", () => {
+describe("lib/env.ts — service-token startup validation (ADR 20261006-scoped-service-jwt-fourth-notify-caller)", () => {
   test("starts with an audience and no clients (no service caller yet)", async () => {
     const { exitCode, output } = await importEnv({});
     expect(exitCode).toBe(0);
     expect(output).toContain("ENV_OK");
   });
 
-  // specs/016 T7: the shared notify token is retired. `auth` must start whether
+  // specs/20261013-notify-service-credentials T7: the shared notify token is retired. `auth` must start whether
   // or not a stale copy of it is still set (push 2 ships before it is deleted).
   test("starts with the retired shared notify token present", async () => {
     const { exitCode, output } = await importEnv({
@@ -110,7 +110,7 @@ describe("lib/env.ts — service-token startup validation (ADR-0044)", () => {
     expect(exitCode).not.toBe(0);
   });
 
-  test("exits non-zero naming SERVICE_AUDIENCE when it is missing, even with no clients (specs/016)", async () => {
+  test("exits non-zero naming SERVICE_AUDIENCE when it is missing, even with no clients (specs/20261013-notify-service-credentials)", async () => {
     const { exitCode, output } = await importEnv({ SERVICE_AUDIENCE: undefined });
     expect(exitCode).not.toBe(0);
     expect(output).toContain("SERVICE_AUDIENCE");
@@ -141,7 +141,7 @@ describe("lib/env.ts — service-token startup validation (ADR-0044)", () => {
   });
 });
 
-describe("lib/env.ts — ALLOWED_SIGNUP_DOMAINS (specs/023 AC-1.3, AC-5.1)", () => {
+describe("lib/env.ts — ALLOWED_SIGNUP_DOMAINS (specs/20261105-signup-gate AC-1.3, AC-5.1)", () => {
   test("starts with a valid list", async () => {
     const { exitCode, output } = await importEnv({ ALLOWED_SIGNUP_DOMAINS: "welld.ch,welld.it" });
     expect(exitCode).toBe(0);
@@ -163,7 +163,7 @@ describe("lib/env.ts — ALLOWED_SIGNUP_DOMAINS (specs/023 AC-1.3, AC-5.1)", () 
     }
   });
 
-  // specs/023 T13: a reserved test domain is local/e2e configuration only (plan.md amendment 2026-11-05).
+  // specs/20261105-signup-gate T13: a reserved test domain is local/e2e configuration only (plan.md amendment 2026-11-05).
   test("starts with a reserved test domain outside production when ENABLE_TEST_AUTH is true", async () => {
     const { exitCode, output } = await importEnv({
       NODE_ENV: "development",
@@ -186,7 +186,7 @@ describe("lib/env.ts — ALLOWED_SIGNUP_DOMAINS (specs/023 AC-1.3, AC-5.1)", () 
     }
   });
 
-  // specs/023 T14: the reserved-domain allowance is tied to the test-auth gate, not only to NODE_ENV.
+  // specs/20261105-signup-gate T14: the reserved-domain allowance is tied to the test-auth gate, not only to NODE_ENV.
   test("exits when the list holds a reserved test domain and ENABLE_TEST_AUTH is not true", async () => {
     for (const flag of [undefined, "false", "0"]) {
       const { exitCode, output } = await importEnv({
@@ -231,14 +231,14 @@ describe("lib/env.ts — ALLOWED_SIGNUP_DOMAINS (specs/023 AC-1.3, AC-5.1)", () 
   });
 });
 
-// specs/029 US-7 (ADR-0086): per-service allowances for the two /system endpoints, one window, and the
+// specs/20261111-push-notifications US-7 (ADR 20261112-system-endpoints-limited-per-verified-service): per-service allowances for the two /system endpoints, one window, and the
 // retired address-keyed pair. Printed by a child so the effective values are read exactly as the process sees them.
 const PRINT_LIMITS =
   'const { env } = await import("./src/lib/env"); ' +
   "console.log(JSON.stringify([env.SERVICE_TOKEN_SERVICE_LIMIT, env.USERS_CONTACT_SERVICE_LIMIT, " +
   "env.SYSTEM_INVALID_CREDENTIAL_LIMIT, env.SYSTEM_RATE_WINDOW_MS]));";
 
-describe("lib/env.ts — system endpoint limits (specs/029 US-7, AC-7.1/7.2/7.5)", () => {
+describe("lib/env.ts — system endpoint limits (specs/20261111-push-notifications US-7, AC-7.1/7.2/7.5)", () => {
   test("defaults: 300 tokens, 600 lookups, 20 invalid, 600000 ms window", async () => {
     const { exitCode, output } = await importEnv({}, PRINT_LIMITS);
     expect(exitCode).toBe(0);

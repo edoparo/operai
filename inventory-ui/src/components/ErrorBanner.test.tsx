@@ -1,7 +1,7 @@
 /**
  * @vitest-environment jsdom
  *
- * Component tests for ErrorBanner (T25, specs/015-hardware-inventory; carried over from refund-ui, plus the 503 variant).
+ * Component tests for ErrorBanner (T25, specs/20261006-hardware-inventory; carried over from refund-ui, plus the 503 variant).
  *
  * Covers:
  *   (A) renders as role="alert" with the given message.

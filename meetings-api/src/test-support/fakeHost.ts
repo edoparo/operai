@@ -1,5 +1,5 @@
 /**
- * A fake host for tests (specs/021-meetings plan.md § Host integration contract,
+ * A fake host for tests (specs/20261104-meetings plan.md § Host integration contract,
  * "Proved generically by the fake host"). A `Bun.serve` that implements the two
  * endpoints a host owns, over an in-memory entity table:
  *

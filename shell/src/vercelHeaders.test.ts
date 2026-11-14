@@ -1,6 +1,6 @@
 /**
- * Static contract on `shell/vercel.json` (specs/021-meetings T52): the shell's document governs the
- * CSP of every federated remote (ADR-0006), so the meetings remote, meetings-api and the audio
+ * Static contract on `shell/vercel.json` (specs/20261104-meetings T52): the shell's document governs the
+ * CSP of every federated remote (ADR 20260709-suite-frontend-module-federation), so the meetings remote, meetings-api and the audio
  * bucket must be named here or the browser refuses them with no server-side trace. Also pins the
  * Permissions-Policy that lets the recorder ask for the microphone and screen audio (AC-2.2, AC-2.4)
  * and keeps the camera off (AC-6.5).
@@ -45,7 +45,7 @@ function directives(csp: string): Map<string, string[]> {
 
 const csp = directives(headerOnCatchAll('Content-Security-Policy'))
 
-describe('shell/vercel.json — meetings (specs/021 T52)', () => {
+describe('shell/vercel.json — meetings (specs/20261104-meetings T52)', () => {
   it('loads the meetings remote as a script', () => {
     expect(csp.get('script-src')).toContain('https://meetings.operai.welld.io')
   })
@@ -63,13 +63,13 @@ describe('shell/vercel.json — meetings (specs/021 T52)', () => {
   })
 
   it('does not widen any other directive to blob:', () => {
-    // img-src too since ADR-0089: a picture chosen for a task is shown from its object URL until the task is saved.
+    // img-src too since ADR 20261113-task-description-files-in-activities-api-bucket: a picture chosen for a task is shown from its object URL until the task is saved.
     for (const [name, sources] of csp) {
       if (name !== 'media-src' && name !== 'img-src') expect(sources, name).not.toContain('blob:')
     }
   })
 
-  it('shows task pictures from the bucket and, before the save, from blob: object URLs (ADR-0089)', () => {
+  it('shows task pictures from the bucket and, before the save, from blob: object URLs (ADR 20261113-task-description-files-in-activities-api-bucket)', () => {
     expect(csp.get('img-src')).toEqual(expect.arrayContaining(['https://t3.storageapi.dev', 'blob:']))
     expect(csp.get('img-src')).not.toContain('*')
     expect(csp.get('img-src')).not.toContain('https:')

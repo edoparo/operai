@@ -1,5 +1,5 @@
 /**
- * T10 — Push notifications end-to-end (specs/029-push-notifications; plan § Test strategy, E2E note).
+ * T10 — Push notifications end-to-end (specs/20261111-push-notifications; plan § Test strategy, E2E note).
  *
  * Drives the REAL shell (My profile, `/account`) against the REAL auth and notify-api `/push/*` routes.
  * Only the browser's push machinery is faked (helpers/pushFixtures.ts `installFakePush`): headless

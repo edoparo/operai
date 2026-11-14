@@ -1,8 +1,8 @@
 /**
- * api — the one place crm-ui talks HTTP (specs/017-crm).
+ * api — the one place crm-ui talks HTTP (specs/20261101-crm).
  *
  * Every authenticated call goes through `shell/session`'s `apiFetch`
- * (ADR-0001/ADR-0006): it attaches the Bearer JWT to trusted origins only and
+ * (ADR 20260607-jwt-in-memory-never-web-storage/ADR 20260709-suite-frontend-module-federation): it attaches the Bearer JWT to trusted origins only and
  * handles the 401 refresh-retry-redirect. crm-api's base URL comes from the
  * shell (`getCrmApiBaseUrl()`); the directory call to `auth` passes
  * `getAuthBaseUrl()` to `requestJson` itself.
@@ -13,7 +13,7 @@
  * holds its extension members (`companyId`, `currentVersion`, `field`, …). A
  * network failure is not an ApiError: `fetch`'s rejection propagates.
  *
- * Optimistic concurrency (ADR-0038, plan.md § Concurrency): every mutation of
+ * Optimistic concurrency (ADR 20260807-optimistic-concurrency-version-if-match-cas-amends-0004, plan.md § Concurrency): every mutation of
  * an existing company, contact or deal carries `If-Match: "<version>"` —
  * `sendJson`'s `version` argument — and a 428/409 comes back as an ApiError the
  * page turns into the "reload" banner (`isStaleWrite`).

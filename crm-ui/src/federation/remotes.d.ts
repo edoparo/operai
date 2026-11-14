@@ -1,5 +1,5 @@
 // Ambient module declarations for the shell modules crm-ui consumes as a
-// remote (specs/017-crm, specs/021-meetings). Module Federation resolves
+// remote (specs/20261101-crm, specs/20261104-meetings). Module Federation resolves
 // `shell/session`, `shell/extensions` and `shell/tokens.css` at runtime through a virtual module tsc cannot see; the
 // `dts` option is off in vite.config.ts so this remote builds without a live
 // shell. Keep in sync by hand with shell/src/lib/session.ts.
@@ -22,13 +22,13 @@ declare module 'shell/session' {
   export const apiFetch: (input: RequestInfo | URL, init?: RequestInit) => Promise<Response>
 
   // crm-api for every call to this tool's backend; `auth` for the user
-  // directory behind the owner/assignee picker (ADR-0047, ADR-0053).
+  // directory behind the owner/assignee picker (ADR 20261006-user-directory-endpoint-capability-gated, ADR 20261101-user-directory-gate-widened-to-deal-manage).
   export const getCrmApiBaseUrl: () => string
   export const getAuthBaseUrl: () => string
-  // activities-api for the activity and task routes (specs/028, ADR-0081); its origin is trusted by apiFetch.
+  // activities-api for the activity and task routes (specs/20261110-activities, ADR 20261110-activities-service-access-delegated-to-host); its origin is trusted by apiFetch.
   export const getActivitiesApiBaseUrl: () => string
 
-  // Permission resolution (ADR-0007), used for UX gating only.
+  // Permission resolution (ADR 20260713-authz-hand-rolled-rbac-abac-epoch-claims), used for UX gating only.
   export interface Permission {
     resource: string
     action: string
@@ -46,7 +46,7 @@ declare module 'shell/session' {
   export const usePermissions: () => PermissionsResult
 }
 
-// The host-extension seam (specs/021-meetings, ADR-0060): a federated panel the
+// The host-extension seam (specs/20261104-meetings, ADR 20261104-host-extension-federated-panel-through-the-shell): a federated panel the
 // shell loads on behalf of a host, raced against a timeout, with an error
 // boundary; a failure of any kind renders `fallback`. Keep in sync by hand with
 // shell/src/lib/extensions.tsx. crm-ui imports it DYNAMICALLY and treats a

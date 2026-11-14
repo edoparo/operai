@@ -6,7 +6,7 @@
 import { parseDecimal } from '@operai/ui'
 import { strings } from '../strings'
 
-/** The rate's field error, or null when it parses to a positive amount of micros (≤ 6 decimals, ADR-0025). */
+/** The rate's field error, or null when it parses to a positive amount of micros (≤ 6 decimals, ADR 20260720-mileage-rate-money-precision-integer-micros). */
 export const validateRate = (rate: string): string | null => {
   const micros = parseDecimal(rate, 6)
   return micros === null || micros <= 0 ? strings.settings.rateError : null

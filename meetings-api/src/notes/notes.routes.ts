@@ -17,7 +17,7 @@
  * The service never interprets it beyond that: it is stored and returned as data, and only the editor's schema
  * renders it (no HTML is ever produced from it here).
  *
- * CONCURRENCY. The autosave sends the version it last saw (ADR-0038): the same person typing in two tabs gets a 409
+ * CONCURRENCY. The autosave sends the version it last saw (ADR 20260807-optimistic-concurrency-version-if-match-cas-amends-0004): the same person typing in two tabs gets a 409
  * in the stale one instead of a silent overwrite.
  */
 
@@ -118,7 +118,7 @@ notesRouter.openapi(putRoute, async (c) => {
       throw versionConflict((await notesOf(id, caller.userId)).version);
     }
   } else {
-    // Compare-and-set on the version the caller saw (ADR-0038).
+    // Compare-and-set on the version the caller saw (ADR 20260807-optimistic-concurrency-version-if-match-cas-amends-0004).
     const saved = await db.meetingNote.updateMany({ where: { ...key, version: expected }, data: { content, version: { increment: 1 } } });
     if (saved.count === 0) throw versionConflict((await notesOf(id, caller.userId)).version);
   }

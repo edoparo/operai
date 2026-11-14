@@ -1,6 +1,6 @@
 /**
  * Zod schemas for the collaborator-management endpoints (T8/T9,
- * specs/013-estimate-sharing, plan.md "API contracts — estimai-api — new").
+ * specs/20260807-estimate-sharing, plan.md "API contracts — estimai-api — new").
  *
  * DELIBERATELY NOT used for hono `zValidator`/`createRoute` request-body
  * validation on `POST /estimates/{id}/collaborators` — see collaborators.routes.ts's
@@ -48,7 +48,7 @@ export type UpdateCollaboratorRequest = z.infer<typeof UpdateCollaboratorRequest
  * A single collaborator, as returned by GET (list) / POST (create) / PATCH
  * (update). `id` is the GRANT's id — never the collaborator's `sub` (plan.md:
  * "user ids are not put into URLs or list payloads"). `identity` is resolved
- * live via `authClient.resolveIdentities` (ADR-0039, fails soft to "unknown").
+ * live via `authClient.resolveIdentities` (ADR 20260807-live-identity-resolution-by-id-fail-soft, fails soft to "unknown").
  */
 export const CollaboratorSchema = z.object({
   id: z.string(),

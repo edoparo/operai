@@ -1,11 +1,11 @@
 /**
  * @vitest-environment jsdom
  *
- * Tests for HostExtension (specs/021-meetings, T51, AC-11.6, ADR-0060):
+ * Tests for HostExtension (specs/20261104-meetings, T51, AC-11.6, ADR 20261104-host-extension-federated-panel-through-the-shell):
  * the seam through which a host (crm-ui's deal page) embeds the Meetings panel.
  * Its one job beyond mounting is to NEVER become the host page's failure: a
  * rejected import, a 5 s timeout, a missing export and a render-time throw all
- * render the host's own `fallback`, and nothing is rethrown (ADR-0030).
+ * render the host's own `fallback`, and nothing is rethrown (ADR 20260803-suite-version-generated-file-federated-export).
  *
  * The federated module is replaced per test with `vi.doMock` + a fresh import of
  * `./extensions`, the shape router.inventory.test.tsx uses for a failing remote.

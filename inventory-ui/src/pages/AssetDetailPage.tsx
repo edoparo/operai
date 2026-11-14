@@ -34,7 +34,7 @@ import type { AssetView, Identity } from '../lib/types'
 import { strings } from '../strings'
 
 /**
- * AssetDetailPage — T2, one asset (T32, specs/015-hardware-inventory; design.md
+ * AssetDetailPage — T2, one asset (T32, specs/20261006-hardware-inventory; design.md
  * § T2, F6, § Accessibility "T2 detail"; AC-1.9, AC-3.6, AC-10.1).
  *
  * The page is a FRAME: it owns the load (and every load failure state), the

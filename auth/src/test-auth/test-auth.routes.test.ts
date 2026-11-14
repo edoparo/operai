@@ -44,7 +44,7 @@ const savedEnv = {
 };
 import * as realCookies from "better-auth/cookies";
 
-// specs/023 T3 (AC-1.9): a NEW test user is created straight in the database
+// specs/20261105-signup-gate T3 (AC-1.9): a NEW test user is created straight in the database
 // (outside the sign-up gate, which would refuse `@operai.test`) plus the
 // baseline roles, so these tests read and clean the real rows.
 async function rolesOf(email: string): Promise<string[]> {
@@ -173,7 +173,7 @@ mock.module("../auth/auth.config", () => ({
 }));
 
 // Spread the real exports: module mocks are process-wide and the real auth.config (loaded by
-// the invitation tests, specs/023 T13) needs the rest of this module.
+// the invitation tests, specs/20261105-signup-gate T13) needs the rest of this module.
 mock.module("better-auth/cookies", () => ({
   ...realCookies,
   getCookies: mockGetCookies,
@@ -785,7 +785,7 @@ describe("POST /test-auth/session — name upsert for existing user (DEFECT 2 fi
     const router = await openGate();
     await postMintSession(router, { email: "brand-new@operai.test", name: "Fresh User" });
 
-    // New user path: the row is written directly (specs/023), updateUser is not called
+    // New user path: the row is written directly (specs/20261105-signup-gate), updateUser is not called
     expect(await db.user.count({ where: { email: "brand-new@operai.test" } })).toBe(1);
     expect(mockInternalAdapter.updateUser).not.toHaveBeenCalled();
   });

@@ -1,7 +1,7 @@
 /**
  * @vitest-environment jsdom
  *
- * Page tests for FiscalYearsPage (T38, specs/015-hardware-inventory; design.md T5,
+ * Page tests for FiscalYearsPage (T38, specs/20261006-hardware-inventory; design.md T5,
  * F12; refs AC-8.1). `fiscalYearsApi`, `getScope` and `usePermissions` are the seams.
  */
 

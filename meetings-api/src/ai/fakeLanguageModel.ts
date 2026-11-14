@@ -8,7 +8,7 @@
  *   - answer: cites the first transcript segment header (`[S<n> ...]`) it finds in
  *     the request, or reports `notInMeeting` when the request holds none.
  *
- * Tests script the opposite, a HOSTILE model, to prove the validators (ADR-0067):
+ * Tests script the opposite, a HOSTILE model, to prove the validators (ADR 20261104-ai-output-structured-validated-plain-text):
  *
  *   fake.respondWith({ sections: [...extra, renamed, forged...] })
  *   fake.failWith(new LanguageModelError("provider_unavailable", true, 503))

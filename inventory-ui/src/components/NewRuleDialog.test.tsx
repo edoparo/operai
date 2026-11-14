@@ -1,7 +1,7 @@
 /**
  * @vitest-environment jsdom
  *
- * Component tests for NewRuleDialog (T37, specs/015-hardware-inventory; design.md
+ * Component tests for NewRuleDialog (T37, specs/20261006-hardware-inventory; design.md
  * F11, § Irreversible actions "New rule", § Error and conflict catalogue; refs
  * AC-6.2, AC-6.3, AC-6.4, AC-6.5). `rulesApi.createRule` is the data seam.
  */

@@ -1,4 +1,4 @@
-# railway-drift — does Railway still match .railway/railway.ts? (ADR-0088)
+# railway-drift — does Railway still match .railway/railway.ts? (ADR 20261113-railway-infrastructure-as-code)
 #
 # Read-only: `railway config plan --detailed-exit-code` exits 0 when Railway
 # matches the file, 2 when they differ (a dashboard edit, or a committed change

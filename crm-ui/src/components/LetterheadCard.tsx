@@ -31,7 +31,7 @@ function letterheadFailure(error: unknown): string {
 }
 
 /**
- * LetterheadCard — the entity's letterhead PDF (specs/020 AC-2.5): upload,
+ * LetterheadCard — the entity's letterhead PDF (specs/20261102-crm-offer-document AC-2.5): upload,
  * replace and download, with who uploaded it and when. Upload is three calls
  * like a deal attachment: crm-api issues a presigned POST, the browser posts the
  * file to the bucket with plain `fetch` (the bucket must never see the Bearer

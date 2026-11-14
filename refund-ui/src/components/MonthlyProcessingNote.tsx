@@ -1,6 +1,6 @@
 /**
  * MonthlyProcessingNote — a one-line footnote to an approved request's totals
- * (T16, specs/007-refund-service/tasks.md, design.md F4/US-4).
+ * (T16, specs/20260716-refund-service/tasks.md, design.md F4/US-4).
  *
  * WEIGHT. This used to be a bordered, accent-tinted panel with its own accent
  * heading — the loudest element on the page, while being the least important

@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { closeFloating, getOpenFloating, openFloating, resetFloatingForTests, subscribeFloating } from './floating'
 
-// specs/021-meetings A13, ADR-0078: the floating-slot registry behind `shell/session`'s openFloating/closeFloating.
+// specs/20261104-meetings A13, ADR 20261110-shell-floating-slot-for-remote-widgets: the floating-slot registry behind `shell/session`'s openFloating/closeFloating.
 
 afterEach(resetFloatingForTests)
 

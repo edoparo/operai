@@ -32,7 +32,7 @@ description = "Check this branch's diff against main for a missing changeset (lo
 run = "node scripts/check-changeset.mjs --base=$(git merge-base HEAD main) --head=HEAD"
 
 # Module Federation shares `react`/`react-dom` as singletons across the shell and
-# every remote (ADR-0006), yet each frontend is installed — and its lockfile
+# every remote (ADR 20260709-suite-frontend-module-federation), yet each frontend is installed — and its lockfile
 # resolved — on its own. A frontend whose lockfile resolves a different React
 # builds and passes its own tests but breaks the assembled suite. This reads the
 # lockfiles as text (no install, no network) and fails on any difference. Also
@@ -41,7 +41,7 @@ run = "node scripts/check-changeset.mjs --base=$(git merge-base HEAD main) --hea
 description = "Fail if the frontends' pnpm lockfiles resolve different react/react-dom versions (Module Federation singleton)"
 run = "node scripts/check-react-skew.mjs"
 
-# --- @operai/ui (operai-ui/, ADR-0050): the shared design system. Apps compile
+# --- @operai/ui (operai-ui/, ADR 20261031-shared-ui-library-consumed-as-source): the shared design system. Apps compile
 # its source, so a library change is checked in the library AND in every app
 # that consumes it (today: the shell, for tokens.css, and refund-ui). ---
 [tasks."ui:storybook"]
@@ -76,13 +76,13 @@ run = "bun scripts/check-shared-copies.ts"
 description = "Check cross-service env vars for a target env (shared/internal/public/CORS invariants)"
 run = "bun tools/env-doctor/index.ts"
 
-# specs/028: the shell reads the activities-api origin from VITE_ACTIVITIES_API_URL (trusted origin for the
+# specs/20261110-activities: the shell reads the activities-api origin from VITE_ACTIVITIES_API_URL (trusted origin for the
 # Bearer + the base URL crm-ui / projects-ui call). Defaulted here so a fresh checkout works without editing
 # the shell's dotenv file; an exported value (or that file) still wins. Vite bakes it at BUILD time, so
 # dev:preview exports it before the build too.
 #
-# Run the WHOLE Operai suite locally (Module Federation, specs/003 + specs/005
-# + specs/007 + specs/015): Postgres + MinIO (local S3 for refund receipts and
+# Run the WHOLE Operai suite locally (Module Federation, specs/20260709-suite-shell + specs/20260713-notification-center
+# + specs/20260716-refund-service + specs/20261006-hardware-inventory): Postgres + MinIO (local S3 for refund receipts and
 # inventory invoices) + all SIX backends + the six tool frontends, one
 # command. Ports: auth 3001, estimai-api 8080, notify-api 8081, refund-api
 # 8082, inventory-api 8083, crm-api 8084, meetings-api 8085, projects-api 8086, activities-api 8087, shell 5173,
@@ -105,12 +105,12 @@ run = "bun tools/env-doctor/index.ts"
 # direnv's shell hook does NOT fire on its own (without this, the backends fall
 # back to placeholder creds and e.g. Google OAuth fails with `invalid_client`).
 #
-# meetings-api (specs/021) has NO .envrc yet: its `direnv exec .` below loads nothing
+# meetings-api (specs/20261104-meetings) has NO .envrc yet: its `direnv exec .` below loads nothing
 # until one is added (mirror crm-api/.envrc: DATABASE_URL, AUTH_*, MEETINGS_S3_*, provider
 # keys), so until then those variables must be in the calling shell.
 #
 # Frontend env: admin-ui ALSO has its own `.envrc` (VITE_GOOGLE_MAPS_API_KEY,
-# specs/012 / ADR-0032) and so runs through `direnv exec .` too — note the
+# specs/20260803-employee-address / ADR 20260804-google-places-browser-direct-referrer-restricted-key) and so runs through `direnv exec .` too — note the
 # `cd` is load-bearing: direnv keys off the CURRENT directory, so
 # `pnpm --dir admin-ui` would leave the shell at the repo root and silently skip
 # the .envrc. The other three frontends have no .envrc and stay on `pnpm --dir`.
@@ -173,7 +173,7 @@ export VITE_ACTIVITIES_API_URL="${VITE_ACTIVITIES_API_URL:-http://localhost:8087
 docker compose up -d postgres minio minio-createbucket
 # admin-ui builds through direnv: Vite bakes `import.meta.env.VITE_*` at BUILD
 # time, so without its .envrc here the preview bundle ships with no Maps key and
-# address autocomplete degrades silently (AC-3.2, specs/012) — invisibly.
+# address autocomplete degrades silently (AC-3.2, specs/20260803-employee-address) — invisibly.
 pnpm --dir shell build && pnpm --dir estimai-ui build && pnpm --dir refund-ui build && pnpm --dir inventory-ui build && pnpm --dir crm-ui build && pnpm --dir meetings-ui build && pnpm --dir projects-ui build && (cd admin-ui && direnv exec . pnpm build) && pnpm --dir notify-ui build
 trap 'kill 0' EXIT INT TERM
 (cd auth && direnv exec . bun run dev) &

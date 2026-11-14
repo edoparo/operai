@@ -7,7 +7,7 @@ import { strings } from '../strings'
  * MeetingsShell — `./App`'s root layout: the tool title (h1), its section tabs and the routed
  * page (ToolLayout `default` width, design.md § Conventions › Frame). No suite chrome and no
  * auth guard: the shell owns both and mounts this remote only for `meetings:access` holders
- * (ADR-0006, ADR-0007).
+ * (ADR 20260709-suite-frontend-module-federation, ADR 20260713-authz-hand-rolled-rbac-abac-epoch-claims).
  *
  * Meetings and Templates are open to every holder; the Erase tab shows only for a
  * `meeting:erase` holder. That is a UI hint read from the shell's permission snapshot (plan G5):

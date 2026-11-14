@@ -3,7 +3,7 @@
   "plugin_version": "2.56.0",
   "run_id": "2026-10-08T11-40-00Z-orchestrate-015-hardware-inventory",
   "command": "orchestrate",
-  "feature": "015-hardware-inventory",
+  "feature": "20261006-hardware-inventory",
   "rigor": "production",
   "rigor_recorded": null,
   "started": "2026-10-08T11:40:00Z",
@@ -50,7 +50,7 @@
     "dispatched": true,
     "notes": [
       "M1 (unbounded fiscal-year close) fixed for years after the current one in da898e8; closing the current year is still allowed pending a spec decision",
-      "M2 (a soft-deleted user keeps permissions via /authz/resolve for the 7-day JWT lifetime) fixed on the user's instruction after the run: /authz/resolve returns no permissions for a soft-deleted caller; ADR-0012 amended",
+      "M2 (a soft-deleted user keeps permissions via /authz/resolve for the 7-day JWT lifetime) fixed on the user's instruction after the run: /authz/resolve returns no permissions for a soft-deleted caller; ADR 20260714-invitation-activation-hooks-soft-delete-lifecycle amended",
       "L1, L2, L3, L7 fixed; L4 (future dates), L5 (self-assignment), L6 (X-Forwarded-For rate-limit key) open"
     ]
   },

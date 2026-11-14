@@ -3,7 +3,7 @@ import { computeRelease } from './useEstimator'
 import type { Activity, Parameters, Release } from '../types'
 
 /**
- * Shared vectors with crm-api's `src/offers/timeline.ts` (specs/020 D-13): the
+ * Shared vectors with crm-api's `src/offers/timeline.ts` (specs/20261102-crm-offer-document D-13): the
  * offer's {timeline} table mirrors the `best`/`worst` elapsed days of
  * `computeRelease`. crm-api/src/offers/timeline.test.ts asserts the SAME
  * numbers from the same inputs — if the elapsed chain changes here, change

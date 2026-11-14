@@ -34,7 +34,7 @@ const healthRoute = createRoute({
   summary: "Health check",
   description:
     "Returns service health including database connectivity, JWKS-verifier readiness " +
-    "(ADR-0005 cold-start note), and the active SSE connection count (ops visibility, " +
+    "(ADR 20260703-jwt-resource-server-remote-jwks cold-start note), and the active SSE connection count (ops visibility, " +
     "plan.md §API contracts). Returns 503 when Prisma cannot reach PostgreSQL.",
   responses: {
     200: {

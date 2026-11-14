@@ -1,7 +1,7 @@
 /**
  * @vitest-environment jsdom
  *
- * Component tests for GuardrailDialog (T25, specs/015-hardware-inventory;
+ * Component tests for GuardrailDialog (T25, specs/20261006-hardware-inventory;
  * carried over from refund-ui; design.md § Error and conflict catalogue: every
  * 409 conflict acknowledges through this dialog, then the page refetches).
  *

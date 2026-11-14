@@ -1,5 +1,5 @@
 /**
- * T16 — A failing remote does not break the suite (specs/003-suite-shell)
+ * T16 — A failing remote does not break the suite (specs/20260709-suite-shell)
  *
  * Refs: AC-6.1 — a tool that fails to load (network error / load failure)
  * shows a clear in-place error in the content area; chrome and the OTHER

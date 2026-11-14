@@ -1,5 +1,5 @@
 /**
- * Invite-link token helper (T5, specs/006-user-invitations — refs R3, AC-3.3).
+ * Invite-link token helper (T5, specs/20260713-user-invitations — refs R3, AC-3.3).
  *
  * The raw token is the ONLY thing embedded in the invite link
  * (`<BETTER_AUTH_URL>/invite?id=<invId>&token=<raw>`, plan.md "Invite link &
@@ -20,7 +20,7 @@
  *     URL is unchanged.
  *   - The token itself grants NO access — activation is strictly the
  *     verified-OAuth-email match at the `user.create.after`/
- *     `session.create.before` hooks (T8, ADR-0012). A leaked link at worst
+ *     `session.create.before` hooks (T8, ADR 20260714-invitation-activation-hooks-soft-delete-lifecycle). A leaked link at worst
  *     reveals invite state + one email address (`GET /invite/state`, T9).
  */
 

@@ -1,5 +1,5 @@
 /**
- * Last-admin guard (T10, specs/004-auth-roles-permissions — AC-6.4).
+ * Last-admin guard (T10, specs/20260713-auth-roles-permissions — AC-6.4).
  *
  * Extracted into its own module (rather than living inline in
  * `users.routes.ts`) for two reasons:
@@ -57,8 +57,8 @@ export async function findAdminRoleId(client: PrismaClientLike): Promise<string 
  * All user ids that are currently effective admins: DIRECT `user_role` OR
  * via a department that confers the `admin` role.
  *
- * Both queries filter `user: { deletedAt: null }` (specs/006-user-invitations,
- * T7 — ADR-0012, plan.md Risk R7): a soft-deleted user still has their
+ * Both queries filter `user: { deletedAt: null }` (specs/20260713-user-invitations,
+ * T7 — ADR 20260714-invitation-activation-hooks-soft-delete-lifecycle, plan.md Risk R7): a soft-deleted user still has their
  * `UserRole`/`UserDepartment` rows physically retained (deletion never
  * touches them), so without this filter a just-deleted admin would still be
  * counted as an "other effective admin" and could wrongly let a genuinely

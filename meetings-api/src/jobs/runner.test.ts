@@ -14,7 +14,7 @@ import {
   type Runner,
 } from "./runner";
 
-// Needs a migrated `meetings_test` database. specs/021 AC-6.9, AC-7.9; ADR-0062.
+// Needs a migrated `meetings_test` database. specs/20261104-meetings AC-6.9, AC-7.9; ADR 20261104-durable-job-runner-work-queued-state-derived.
 
 const DATABASE_URL = process.env["DATABASE_URL"]!;
 const runners: Runner[] = [];
@@ -417,7 +417,7 @@ describe("concurrency", () => {
     expect(peak).toBe(2);
   });
 
-  it("two prepare_audio jobs are both claimed, but their ffmpeg stretches never overlap (ADR-0064 per invocation)", async () => {
+  it("two prepare_audio jobs are both claimed, but their ffmpeg stretches never overlap (ADR 20261104-meetings-api-reads-audio-bytes-third-reader per invocation)", async () => {
     await Promise.all([insert({ kind: "prepare_audio" }), insert({ kind: "prepare_audio" }), insert({ kind: "prepare_audio" })]);
     let handlersActive = 0;
     let handlersPeak = 0;
@@ -581,7 +581,7 @@ describe("the handler table", () => {
   });
 });
 
-describe("what the runner may do to a meeting (ADR-0013/0062)", () => {
+describe("what the runner may do to a meeting (ADR 20260714-invitation-lifecycle-derived-expiry-state/0062)", () => {
   const source = readFileSync(join(import.meta.dir, "runner.ts"), "utf8");
   // code, not comments
   const code = source.replace(/\/\*[\s\S]*?\*\//g, "").replace(/^\s*\/\/.*$/gm, "");

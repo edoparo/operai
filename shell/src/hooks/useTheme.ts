@@ -1,7 +1,7 @@
 /**
  * useTheme — shell-owned theme (system/light/dark) state + persistence.
  *
- * Relocated from estimai-ui/src/hooks/useTheme.ts (T6, specs/003-suite-shell, AC-1.4).
+ * Relocated from estimai-ui/src/hooks/useTheme.ts (T6, specs/20260709-suite-shell, AC-1.4).
  *
  * The storage key MUST stay in sync with shell/index.html's pre-mount
  * theme-flash-avoidance inline script (T1), which reads `operai-theme` from

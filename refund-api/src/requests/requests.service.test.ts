@@ -1,5 +1,5 @@
 /**
- * Unit tests for `computeSubtotals` (T7, specs/009-mileage-rate, AC-6.2) —
+ * Unit tests for `computeSubtotals` (T7, specs/20260720-mileage-rate, AC-6.2) —
  * pure, DB-free (Vitest-equivalent bun:test, no Prisma/HTTP).
  *
  * AC-6.2: a `travel_km` line's (computed, or once snapshotted, fixed)

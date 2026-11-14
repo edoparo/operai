@@ -12,7 +12,7 @@ const t = strings.audit
 
 /**
  * AuditPage — Screen D1 (design.md "Audit log — paginated reverse-chron
- * table + row-expand diff", T21, specs/004-auth-roles-permissions/tasks.md).
+ * table + row-expand diff", T21, specs/20260713-auth-roles-permissions/tasks.md).
  *
  * Replaces T14's placeholder with the real screen: a paginated,
  * reverse-chronological semantic `<table>` (Timestamp / Actor / Action /

@@ -1,6 +1,6 @@
 /**
  * `GET /rates/effective` — the employee-facing live-recompute read (T4,
- * specs/009-mileage-rate, AC-1.2/1.3, AC-2.1, AC-2.2).
+ * specs/20260720-mileage-rate, AC-1.2/1.3, AC-2.1, AC-2.2).
  *
  * A SEPARATE router from `routes.ts` (registered as its own
  * `app.route("/", ...)` in src/index.ts, mirrors the requestsRouter(400)/

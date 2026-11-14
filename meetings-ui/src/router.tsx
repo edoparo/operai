@@ -10,8 +10,8 @@ import TemplatesPage from './pages/TemplatesPage'
 import TemplateViewPage from './pages/TemplateViewPage'
 
 /**
- * meetings-ui's two inner routers (specs/021-meetings design.md § Conventions › Routes). No auth
- * guard and no chrome (ADR-0006): `Root` is the layout seam, `MeetingsShell` for `./App` and
+ * meetings-ui's two inner routers (specs/20261104-meetings design.md § Conventions › Routes). No auth
+ * guard and no chrome (ADR 20260709-suite-frontend-module-federation): `Root` is the layout seam, `MeetingsShell` for `./App` and
  * `MyMeetingsShell` for `./MyMeetings`; tests may render a page under a bare `<Outlet/>`.
  *
  * `./App`, basepath `/meetings` (gated by `meetings:access` in the shell):
@@ -22,7 +22,7 @@ import TemplateViewPage from './pages/TemplateViewPage'
  *                                                       /templates/$id/edit   Template editor
  *                                                       /erase                Erase (meeting:erase)
  *
- * `./MyMeetings`, basepath `/my-meetings` (UNGATED, ADR-0045; every signed-in user): `/` and `/m/$id`.
+ * `./MyMeetings`, basepath `/my-meetings` (UNGATED, ADR 20261006-ungated-second-federated-entry-of-a-gated-remote; every signed-in user): `/` and `/m/$id`.
  *
  * Both lists are the router's `/`, so a page links to its list with `to="/"` and the basepath does
  * the rest. There is deliberately no `declare module … Register`: two routers with different trees

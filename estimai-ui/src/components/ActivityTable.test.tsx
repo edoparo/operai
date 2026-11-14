@@ -69,7 +69,7 @@ describe('ActivityTable — "Add activity" is reachable at the bottom', () => {
 })
 
 // ---------------------------------------------------------------------------
-// T17 (specs/013-estimate-sharing/tasks.md; design.md S5) — readOnly gating.
+// T17 (specs/20260807-estimate-sharing/tasks.md; design.md S5) — readOnly gating.
 //
 // Covers every row in design.md's S5 table for ActivityTable specifically:
 //   - text/number cells become readOnly, not disabled (still focusable)

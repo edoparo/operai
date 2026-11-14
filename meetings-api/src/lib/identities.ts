@@ -1,5 +1,5 @@
 /**
- * People, by id (specs/021-meetings AC-5.10, AC-5.11, AC-5.12; ADR-0039).
+ * People, by id (specs/20261104-meetings AC-5.10, AC-5.11, AC-5.12; ADR 20260807-live-identity-resolution-by-id-fail-soft).
  * Derived from crm-api/src/lib/identities.ts.
  *
  * meetings-api stores only opaque `auth` user ids. A person is looked up LIVE

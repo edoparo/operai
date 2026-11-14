@@ -55,7 +55,7 @@ describe('amountToCents', () => {
 
   // Stricter than the old `Math.round(Number(raw) * 100)`, deliberately: each
   // of these used to be accepted (and the first silently rounded).
-  it('refuses a third decimal instead of rounding it (ADR-0025: round once, at compute time)', () => {
+  it('refuses a third decimal instead of rounding it (ADR 20260720-mileage-rate-money-precision-integer-micros: round once, at compute time)', () => {
     expect(amountToCents('10.005')).toBeNull()
   })
 
@@ -149,7 +149,7 @@ describe('lineToDraft / lineDraftToPayload round-trip', () => {
     expect(payload.km).toBe(120)
   })
 
-  it('omits requestedAmountCents/currency from a travel_km payload — server-derived (specs/009-mileage-rate AC-1.1/1.6)', () => {
+  it('omits requestedAmountCents/currency from a travel_km payload — server-derived (specs/20260720-mileage-rate AC-1.1/1.6)', () => {
     const kmLine: RefundLine = { ...baseLine, type: 'travel_km', km: 120, requestedAmountCents: 4550 }
     const payload = lineDraftToPayload(lineToDraft(kmLine))
     expect(payload).toEqual({
@@ -217,7 +217,7 @@ describe('isLineDraftComplete', () => {
     expect(isLineDraftComplete({ ...base, type: 'postal', km: '' })).toBe(true)
   })
 
-  it('for travel_km: amount/currency are dropped from the check entirely (specs/009-mileage-rate AC-1.1)', () => {
+  it('for travel_km: amount/currency are dropped from the check entirely (specs/20260720-mileage-rate AC-1.1)', () => {
     const kmDraft = { ...base, type: 'travel_km' as const, km: '10', amount: '', currency: '' as const }
     expect(isLineDraftComplete(kmDraft)).toBe(true)
   })

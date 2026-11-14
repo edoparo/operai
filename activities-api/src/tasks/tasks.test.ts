@@ -1,6 +1,6 @@
 /**
- * The task lists (specs/028-activities US-3 AC-3.4/3.5, US-7; plan § API contracts): `GET /tasks`
- * and `GET /tasks/assignees`. crm-api's Tasks-page scenarios (specs/017 AC-4.3/4.4/8.2: me / any /
+ * The task lists (specs/20261110-activities US-3 AC-3.4/3.5, US-7; plan § API contracts): `GET /tasks`
+ * and `GET /tasks/assignees`. crm-api's Tasks-page scenarios (specs/20261101-crm AC-4.3/4.4/8.2: me / any /
  * a colleague, participants) ported against the crm test host, plus the new ones: one project's
  * tasks, the mixed "My tasks" list with a host that cannot answer, and a host that is not a reader.
  *
@@ -50,7 +50,7 @@ async function seed(s: Seed) {
 
 const subjects = (res: { json: { items: { subject: string }[] } }) => res.json.items.map((t) => t.subject);
 
-describe("GET /tasks — the CRM Tasks page (ported from crm-api, specs/017 AC-4.3, AC-4.4, AC-8.2)", () => {
+describe("GET /tasks — the CRM Tasks page (ported from crm-api, specs/20261101-crm AC-4.3, AC-4.4, AC-8.2)", () => {
   beforeEach(resetWorld);
 
   it("my open tasks by due date, no date last; done ones newest completion first; any; a colleague", async () => {

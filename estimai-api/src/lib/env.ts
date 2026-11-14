@@ -8,7 +8,7 @@ const envSchema = z.object({
     .transform((v) => v.split(",").map((o) => o.trim())),
   AUTH_JWKS_URL: z.string().url("AUTH_JWKS_URL must be a valid URL"),
   AUTH_ISSUER: z.string().url("AUTH_ISSUER must be a valid URL"),
-  // Suite-wide JWT audience value (ADR-0010). Must match the `audience` claim
+  // Suite-wide JWT audience value (ADR 20260713-jwt-audience-claim-enforcement). Must match the `audience` claim
   // stamped by the auth service's jwt plugin. A token missing this claim, or
   // carrying a different value, is rejected with 401 by jwtMiddleware.
   AUTH_AUDIENCE: z.string().min(1, "AUTH_AUDIENCE is required"),
@@ -26,7 +26,7 @@ const envSchema = z.object({
     .enum(["development", "production", "test"])
     .default("development"),
 
-  // ─── Estimate sharing outbound clients (T5, specs/013-estimate-sharing) ───
+  // ─── Estimate sharing outbound clients (T5, specs/20260807-estimate-sharing) ───
   //
   // Base URL of the `auth` service, used ONLY to call the Bearer-FORWARDED
   // (never a service credential) `POST /authz/app-access-check` (eligibility
@@ -38,7 +38,7 @@ const envSchema = z.object({
   // dereferenceable as an HTTP base), mirrors refund-api's AUTH_BASE_URL.
   AUTH_BASE_URL: z.string().url("AUTH_BASE_URL must be a valid URL"),
 
-  // ─── notify-api internal call (T5, ADR-0017; credential: specs/016, ADR-0049) ──
+  // ─── notify-api internal call (T5, ADR 20260716-system-notifications-cross-user-trigger; credential: specs/20261013-notify-service-credentials, ADR 20261013-all-notify-callers-scoped-credentials-shared-token-retired) ──
   //
   // estimai-api authenticates to notify-api's `/system/notifications` as itself:
   // it exchanges this client-credentials pair at `auth POST /system/service-token`
@@ -71,12 +71,12 @@ const envSchema = z.object({
     .url("CRM_INTERNAL_URL must be a valid absolute URL")
     .optional(),
 
-  // ─── crm-api deal-link notices (specs/024, ADR-0076) ────────────────────
+  // ─── crm-api deal-link notices (specs/20261108-estimate-list-oversight, ADR 20261108-crm-pushes-deal-links-to-estimai) ────────────────────
   //
   // `aud` of the scoped service JWTs accepted on `POST /system/deal-link-notices`
   // (scope `deal-link-notices.send`, sub `system:crm-api`). Must be the
   // `SERVICE_AUDIENCE` auth stamps on service tokens, and must differ from
-  // AUTH_AUDIENCE so a user JWT is never a system credential (ADR-0044).
+  // AUTH_AUDIENCE so a user JWT is never a system credential (ADR 20261006-scoped-service-jwt-fourth-notify-caller).
   // OPTIONAL: unset, the route answers 401 to everyone (fail closed) and the
   // rest of the service is unaffected; the production template lists it as
   // required (tools/env-doctor).
@@ -103,7 +103,7 @@ const envSchema = z.object({
     ctx.addIssue({
       code: z.ZodIssueCode.custom,
       path: ["SERVICE_AUDIENCE"],
-      message: "SERVICE_AUDIENCE must differ from AUTH_AUDIENCE (ADR-0044)",
+      message: "SERVICE_AUDIENCE must differ from AUTH_AUDIENCE (ADR 20261006-scoped-service-jwt-fourth-notify-caller)",
     });
   }
 });

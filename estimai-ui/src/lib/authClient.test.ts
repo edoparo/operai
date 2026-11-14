@@ -1,7 +1,7 @@
 /**
  * @vitest-environment jsdom
  *
- * Delegation tests for src/lib/authClient.ts (T13, specs/003-suite-shell/tasks.md).
+ * Delegation tests for src/lib/authClient.ts (T13, specs/20260709-suite-shell/tasks.md).
  *
  * Before T13, this file created its OWN `better-auth/react` client instance.
  * T13 replaces that with a facade over the shell-exposed `shell/session`

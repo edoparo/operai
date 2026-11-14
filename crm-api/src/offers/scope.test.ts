@@ -7,7 +7,7 @@ import type { EstimateDocument } from "../lib/estimai";
  * Shared vectors with estimai-ui's `pertCalc` / `deriveOP` (AGENTS.md §
  * Estimation model): if EstimAI's arithmetic changes, these must change too.
  */
-describe("offer scope arithmetic (specs/018 AC-4.1)", () => {
+describe("offer scope arithmetic (specs/20261101-crm-sales-flow AC-4.1)", () => {
   const options = { aiAssisted: false, globalAiGain: 0.3 };
 
   it("PERT and Expected = PERT + risk", () => {

@@ -4,7 +4,7 @@ import { strings } from '../strings'
 
 /**
  * MyMeetingsShell — `./MyMeetings`' root layout: the "My meetings" h1 and the routed page, with
- * no TabNav (the `MyDevices` precedent, ADR-0045). The entry is UNGATED: every signed-in user
+ * no TabNav (the `MyDevices` precedent, ADR 20261006-ungated-second-federated-entry-of-a-gated-remote). The entry is UNGATED: every signed-in user
  * reaches it, so it asks no capability hook and calls no scope route; each control is decided
  * by the meeting's own `can` flags.
  */

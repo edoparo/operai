@@ -165,7 +165,7 @@ describe("deals (US-3)", () => {
   });
 });
 
-describe("the board's calendar year (specs/017 AC-3.6)", () => {
+describe("the board's calendar year (specs/20261101-crm AC-3.6)", () => {
   it("shows every open deal, and the won and lost deals of the year asked for, this one by default", async () => {
     const company = await makeCompany();
     const year = new Date().getUTCFullYear();

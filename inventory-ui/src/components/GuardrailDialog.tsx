@@ -1,18 +1,18 @@
 /**
  * GuardrailDialog — the single-action conflict acknowledgement (T25,
- * specs/015-hardware-inventory; design.md § Component inventory: "Conflict
+ * specs/20261006-hardware-inventory; design.md § Component inventory: "Conflict
  * acknowledgement — refund-ui/src/components/GuardrailDialog.tsx"). Every 409
  * in the error catalogue (`invalid_transition`, `assignment_pending`,
  * `asset_disposed`, `already_closed`) lands here, then the page refetches.
  *
  * Re-authored from refund-ui's component with the same props and behaviour
- * (ADR-0006: no cross-remote imports): an `alertdialog` with one action that is
+ * (ADR 20260709-suite-frontend-module-federation: no cross-remote imports): an `alertdialog` with one action that is
  * focused on open; Escape and the backdrop acknowledge (there is no unsafe
  * action to escape to); Tab is pinned on the single button. Added: closing
  * returns focus to the element that had it before, when it is still in the page
  * (design.md § Accessibility).
  *
- * Now a thin adapter over @operai/ui's `NoticeDialog` (ADR-0050, INC-09/21):
+ * Now a thin adapter over @operai/ui's `NoticeDialog` (ADR 20261031-shared-ui-library-consumed-as-source, INC-09/21):
  * same props, copy and data-testids (`guardrail-dialog` backdrop,
  * `guardrail-dialog-ok`).
  */

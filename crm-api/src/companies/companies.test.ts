@@ -23,7 +23,7 @@ describe("companies (US-1)", () => {
     expect(res.headers.get("ETag")).toBe('"1"');
   });
 
-  it("keeps the registered name, street and postal code for the offer's client block (specs/020 AC-5.1)", async () => {
+  it("keeps the registered name, street and postal code for the offer's client block (specs/20261102-crm-offer-document AC-5.1)", async () => {
     const created = await call("POST", "/companies", {
       as: "consultant",
       body: { name: "Acme", status: "prospect", entity: "welld_ch", legalName: " Acme Holding SA ", street: "Via Roma 1", postalCode: "IT-23807" },
@@ -162,7 +162,7 @@ describe("companies (US-1)", () => {
   });
 });
 
-describe("company status automations (specs/017 AC-1.8, AC-1.9)", () => {
+describe("company status automations (specs/20261101-crm AC-1.8, AC-1.9)", () => {
   async function winDeal(companyId: string) {
     const deal = await makeDeal(companyId);
     await markEstimateReady(deal.id);
@@ -206,7 +206,7 @@ describe("company status automations (specs/017 AC-1.8, AC-1.9)", () => {
   });
 });
 
-describe("where it came from (specs/017 US-7)", () => {
+describe("where it came from (specs/20261101-crm US-7)", () => {
   it("a company keeps its source and detail; clearing the source clears the detail", async () => {
     const created = await call("POST", "/companies", {
       body: { name: "Avanzato", status: "prospect", entity: "welld_ch", source: "event", sourceDetail: "Swiss Digital Day 2026" },
@@ -224,7 +224,7 @@ describe("where it came from (specs/017 US-7)", () => {
 });
 
 
-describe("sorting and the owner filter (specs/017 US-9)", () => {
+describe("sorting and the owner filter (specs/20261101-crm US-9)", () => {
   const names = (res: { json: { items: { name: string }[] } }) => res.json.items.map((item) => item.name);
 
   it("sorts by a column, either way, empty values last, then by name", async () => {

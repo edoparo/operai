@@ -1,5 +1,5 @@
 /**
- * Unit tests for the sliding-window rate limiter (specs/013-estimate-sharing,
+ * Unit tests for the sliding-window rate limiter (specs/20260807-estimate-sharing,
  * T1 — done-when: "a unit test proves the limiter admits N and rejects N+1
  * within the window and re-admits after it"). Uses the injectable `now`
  * clock so the whole suite runs deterministically with no real sleeps.
@@ -108,7 +108,7 @@ describe("createSlidingWindowRateLimiter", () => {
   });
 });
 
-describe("createSlidingWindowRateLimiter — maxKeys (specs/029 US-7, R13)", () => {
+describe("createSlidingWindowRateLimiter — maxKeys (specs/20261111-push-notifications US-7, R13)", () => {
   const make = (maxKeys?: number) =>
     createSlidingWindowRateLimiter({ limit: 2, windowMs: 1000, ...(maxKeys === undefined ? {} : { maxKeys }) });
 

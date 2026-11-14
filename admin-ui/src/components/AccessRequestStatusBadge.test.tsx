@@ -1,7 +1,7 @@
 /**
  * @vitest-environment jsdom
  *
- * AccessRequestStatusBadge (T9, specs/023): text label AND icon, tone from lib/statusMeaning.ts.
+ * AccessRequestStatusBadge (T9, specs/20261105-signup-gate): text label AND icon, tone from lib/statusMeaning.ts.
  */
 import { afterEach, describe, expect, it } from 'vitest'
 import { cleanup, render, screen } from '@testing-library/react'

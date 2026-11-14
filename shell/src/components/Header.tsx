@@ -1,6 +1,6 @@
 /**
  * Header — composes the T6 header chrome for the `_shell` layout route (T9,
- * specs/003-suite-shell, AC-1.4).
+ * specs/20260709-suite-shell, AC-1.4).
  *
  * Wiring only: every piece it composes (LogoMenu, UserMenu, ThemeToggle,
  * AboutModal) already exists as its own file from T6. Extracted to its own
@@ -22,7 +22,7 @@
  * truthiness check rather than assumed non-null (mirrors EstimatorApp.tsx's
  * existing `authClient.useSession()` usage in estimai-ui).
  *
- * Bell (T11, specs/005-notification-center, design.md) sits between ThemeToggle and
+ * Bell (T11, specs/20260713-notification-center, design.md) sits between ThemeToggle and
  * UserMenu — "grouping the two small icon-buttons together, with the (differently
  * shaped) avatar/identity control last" (design.md "Bell (shell header chrome)"). Unlike
  * UserMenu, it renders unconditionally (not gated on `user`): it has no dependency on the

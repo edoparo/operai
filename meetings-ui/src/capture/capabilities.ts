@@ -1,6 +1,6 @@
 /**
  * capabilities — what THIS browser can capture, as a pure function of facts about it
- * (specs/021-meetings plan § Browser capture, AC-2.4). The facts are read once from the
+ * (specs/20261104-meetings plan § Browser capture, AC-2.4). The facts are read once from the
  * browser globals (`readEnvironment`), so the matrix is tested with stubbed environments for
  * Chrome, Edge, Firefox and Safari and the UI never sniffs a user agent itself.
  *

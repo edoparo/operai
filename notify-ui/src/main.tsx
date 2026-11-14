@@ -3,7 +3,7 @@ import { createRoot } from 'react-dom/client'
 import './index.css'
 import App from './App'
 
-// Dev/test-only standalone bootstrap (T14, specs/005-notification-center):
+// Dev/test-only standalone bootstrap (T14, specs/20260713-notification-center):
 // lets notify-ui build, run, and test entirely on its own, outside the shell
 // — mirrors admin-ui/src/main.tsx's and refund-ui/src/main.tsx's standalone
 // bootstrap exactly. App itself (see App.tsx) already imports `shell/session`

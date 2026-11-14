@@ -1,12 +1,12 @@
 /**
  * Pure, DB-free helpers backing every accounting review/decide surface (T11,
- * specs/007-refund-service, ADR-0015).
+ * specs/20260716-refund-service, ADR 20260716-entity-scoped-abac-refund-api).
  *
  * `scopeForReviewAction` is the ONE place a caller's entity scope is derived
  * for a given `request` action (`review`, `set-approved-total`, `approve`,
  * `reject`) — reused verbatim by the queue (T11), the per-line total edit,
  * and approve/reject (T12), so all four surfaces evaluate scope identically
- * (ADR-0015 Risks: "a single shared predicate/query fragment backing both
+ * (ADR 20260716-entity-scoped-abac-refund-api Risks: "a single shared predicate/query fragment backing both
  * surfaces"). It composes the SAME two building blocks
  * requests.service.ts's `canReadRequest` already uses for its accounting
  * branch: `findPermission` (which specific grant, if any) +
@@ -37,9 +37,9 @@ export type ReviewAction =
  *
  * Returns:
  *  - `undefined` — the caller holds NO grant for `(request, action)` at all
- *    → capability-absent → **403** (ADR-0014 point 3).
+ *    → capability-absent → **403** (ADR 20260716-refund-api-authorization-enforcing-resource-server point 3).
  *  - `null` — the caller holds a conditioned grant but has no resolved
- *    `entity` attribute → matches nothing (ADR-0015's fail-closed
+ *    `entity` attribute → matches nothing (ADR 20260716-entity-scoped-abac-refund-api's fail-closed
  *    data-integrity edge case) → treated as a record-level **404** (or an
  *    empty queue), never a 403 (the capability itself IS present).
  *  - an `EntityScope` — the caller's real scope: either a specific entity
@@ -56,8 +56,8 @@ export function scopeForReviewAction(
 
 /**
  * Whether the caller's OWN resolved `request:approve` grant carries the
- * self-approval segregation-of-duties restriction (specs/010,
- * ADR-0026) — composes INDEPENDENTLY of `scopeForReviewAction`'s entity
+ * self-approval segregation-of-duties restriction (specs/20260721-self-approval-control,
+ * ADR 20260721-self-approval-condition-and-403-exception) — composes INDEPENDENTLY of `scopeForReviewAction`'s entity
  * scope (AC-1.3/AC-2.4: the two conditions are evaluated side by side, never
  * one inside the other). `false` when the caller holds no `approve` grant at
  * all — that case is (and remains) a wholesale capability-absent 403 handled
@@ -71,7 +71,7 @@ export function approveRestrictedForCaller(authz: AuthzContext): boolean {
   );
 }
 
-/** Filters queue rows to those in scope — reuses `requestInScope` verbatim (ADR-0015). */
+/** Filters queue rows to those in scope — reuses `requestInScope` verbatim (ADR 20260716-entity-scoped-abac-refund-api). */
 export function filterQueueInScope(
   rows: readonly QueueRequestRow[],
   scope: EntityScope,

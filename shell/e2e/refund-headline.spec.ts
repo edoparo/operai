@@ -1,7 +1,7 @@
 /**
- * T21 — Refund headline e2e journeys (specs/007-refund-service, QE
+ * T21 — Refund headline e2e journeys (specs/20260716-refund-service, QE
  * verification pass). Drives the REAL assembled shell host + refund-ui
- * remote (ADR-0006) against the REAL refund-api/auth/notify-api services —
+ * remote (ADR 20260709-suite-frontend-module-federation) against the REAL refund-api/auth/notify-api services —
  * no mocking — mirroring this suite's existing cross-app e2e convention
  * (invitations.spec.ts, notifications.spec.ts, refund-placeholder.spec.ts).
  *
@@ -32,7 +32,7 @@
  *
  * Fixtures: refundFixtures.ts (grantRefundEmployee/grantRefundAccounting)
  * grants the REAL Role/PermissionRule/UserRole rows a real admin would grant
- * via the specs/004 admin GUI — refund-api's `GET /authz/resolve` resolves
+ * via the specs/20260713-auth-roles-permissions admin GUI — refund-api's `GET /authz/resolve` resolves
  * these test users through the exact same code path as production.
  */
 import { test, expect, type Page } from '@playwright/test'
@@ -48,7 +48,7 @@ const uniqueSuffix = () => `${Date.now()}-${Math.floor(Math.random() * 1e6)}`
  * Fills the composer, submits it with "Add line" and waits for the row to
  * appear.
  *
- * specs/009-mileage-rate DEFECT FIX (QE pass): `composer-amount` no longer
+ * specs/20260720-mileage-rate DEFECT FIX (QE pass): `composer-amount` no longer
  * renders at all for `type: 'travel_km'` (AC-1.1/1.6 — a computed, read-only
  * breakdown replaces it), so unconditionally filling it (this helper's
  * ORIGINAL behavior) times out for a travel_km fixture. Guarded below; no
@@ -56,7 +56,7 @@ const uniqueSuffix = () => `${Date.now()}-${Math.floor(Math.random() * 1e6)}`
  * was swapped to `travel_train` — see below) since a travel_km line's amount
  * is no longer freely choosable and would additionally require a mileage
  * rate configured for its entity/date, which this 007 journey has no reason
- * to depend on. specs/009's OWN mileage flow has its dedicated coverage in
+ * to depend on. specs/20260720-mileage-rate's OWN mileage flow has its dedicated coverage in
  * `mileage-rate.spec.ts` (T15).
  */
 async function addExpenseLine(
@@ -91,7 +91,7 @@ async function fetchNotifications(token: string): Promise<{ items: { title: stri
 
 test.describe.configure({ mode: 'serial' })
 
-test.describe('specs/007-refund-service T21: headline journeys', () => {
+test.describe('specs/20260716-refund-service T21: headline journeys', () => {
   test('Journey 1 — mixed-entity compose → submit → scoped accounting adjusts + approves → employee sees requested-vs-approved, notification, monthly note (AC-2.1/3.2/3.6/4.1/6.5/7.2/7.6)', async ({
     browser,
   }) => {
@@ -127,7 +127,7 @@ test.describe('specs/007-refund-service T21: headline journeys', () => {
     // Line 2 — WellD CH (CHF), a second manual-amount type — proves the
     // mixed-entity request (AC-3.5). Was `travel_km` (which used to also
     // exercise the type-driven km field, AC-1.2 007-era); swapped to
-    // `travel_train` under specs/009-mileage-rate (QE pass, DEFECT FIX): a
+    // `travel_train` under specs/20260720-mileage-rate (QE pass, DEFECT FIX): a
     // travel_km line's amount is no longer freely choosable (it's a
     // computed `km × the entity's in-effect mileage rate`, AC-1.1/2.1), so
     // hardcoding `amount: '30'` here no longer reflects reality and would
@@ -210,7 +210,7 @@ test.describe('specs/007-refund-service T21: headline journeys', () => {
 
     // AC-3.6: a real in-app notification was pushed via notify-api — checked
     // directly against notify-api's own REST surface (no UI dependency on
-    // the shell's bell, which is out of this feature's own scope, ADR-0009).
+    // the shell's bell, which is out of this feature's own scope, ADR 20260713-notification-center-standalone-service-shell-seam).
     const empToken = empSession.token
     await expect
       .poll(async () => {

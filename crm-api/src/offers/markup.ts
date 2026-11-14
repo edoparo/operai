@@ -1,5 +1,5 @@
 /**
- * The offer text markup of specs/020 AC-1.6, parsed into blocks the contract
+ * The offer text markup of specs/20261102-crm-offer-document AC-1.6, parsed into blocks the contract
  * renderer lays out. Pure: no I/O, never throws — anything it does not
  * understand degrades to a paragraph. Placeholders are NOT resolved here (the
  * draft does it, D-9): a leftover `{...}` prints literally.

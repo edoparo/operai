@@ -1,7 +1,7 @@
 /**
  * @vitest-environment jsdom
  *
- * Component tests for CloseYearDialog (T38, specs/015-hardware-inventory; design.md
+ * Component tests for CloseYearDialog (T38, specs/20261006-hardware-inventory; design.md
  * § Irreversible actions "Close year", § Error and conflict catalogue; refs AC-8.4,
  * AC-8.5, AC-8.7). `fiscalYearsApi` is the seam; the dialog shell is the real one.
  */

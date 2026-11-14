@@ -1,6 +1,6 @@
 /**
- * Closing a fiscal year (T20, specs/015-hardware-inventory; AC-8.4..AC-8.7,
- * AC-1.7, AC-5.9, AC-6.3, AC-7.4, AC-11.1, ADR-0046). Real routers, real
+ * Closing a fiscal year (T20, specs/20261006-hardware-inventory; AC-8.4..AC-8.7,
+ * AC-1.7, AC-5.9, AC-6.3, AC-7.4, AC-11.1, ADR 20261006-depreciation-derived-on-read-closed-years-snapshotted). Real routers, real
  * Postgres, real advisory locks.
  */
 
@@ -412,7 +412,7 @@ describe("a closed year cannot change (AC-8.6, AC-8.7)", () => {
   });
 });
 
-describe("a dated write racing the close ends up in the figures or is refused, never neither (ADR-0046)", () => {
+describe("a dated write racing the close ends up in the figures or is refused, never neither (ADR 20261006-depreciation-derived-on-read-closed-years-snapshotted)", () => {
   /** Holds the entity lock until `release()`, so we can queue two requests behind it in a known order. */
   async function holdLock() {
     let release!: () => void;

@@ -20,21 +20,21 @@ const envSchema = z
         (origins) => origins.every((o) => o !== "*"),
         "ALLOWED_ORIGINS must not contain a wildcard",
       ),
-    // ─── Identity (JWKS resource server, ADR-0005/0010) ─────────────────────
+    // ─── Identity (JWKS resource server, ADR 20260703-jwt-resource-server-remote-jwks/0010) ─────────────────────
     AUTH_JWKS_URL: z.string().url("AUTH_JWKS_URL must be a valid URL"),
     AUTH_ISSUER: z.string().url("AUTH_ISSUER must be a valid URL"),
-    // Suite-wide JWT audience (ADR-0010). A token missing the claim, or
+    // Suite-wide JWT audience (ADR 20260713-jwt-audience-claim-enforcement). A token missing the claim, or
     // carrying a different value, is rejected with 401.
     AUTH_AUDIENCE: z.string().min(1, "AUTH_AUDIENCE is required"),
     // Base URL of the `auth` service: the Bearer-forwarded GET /authz/resolve
-    // (ADR-0014), POST /authz/users/identities (ADR-0039) and
-    // POST /system/service-token (ADR-0044).
+    // (ADR 20260716-refund-api-authorization-enforcing-resource-server), POST /authz/users/identities (ADR 20260807-live-identity-resolution-by-id-fail-soft) and
+    // POST /system/service-token (ADR 20261006-scoped-service-jwt-fourth-notify-caller).
     AUTH_BASE_URL: z.string().url("AUTH_BASE_URL must be a valid URL"),
     PORT: z.coerce.number().int().positive().default(8083),
     NODE_ENV: z
       .enum(["development", "production", "test"])
       .default("development"),
-    // ─── Invoice-file object storage (ADR-0016 posture) ─────────────────────
+    // ─── Invoice-file object storage (ADR 20260716-eu-object-storage-refund-attachments posture) ─────────────────────
     // Own bucket and credentials — never refund-api's. All five core vars are
     // required; the service refuses to start without a fully configured
     // bucket. The bucket MUST be private: every read is a ~60 s presigned GET
@@ -63,12 +63,12 @@ const envSchema = z
       ),
     // ─── notify-api internal call (plan § Service authentication) ───────────
     // Push goes to POST /system/notifications authenticated with a scoped
-    // service JWT minted by auth (ADR-0044/0049). Production: notify-api's
+    // service JWT minted by auth (ADR 20261006-scoped-service-jwt-fourth-notify-caller/0049). Production: notify-api's
     // PRIVATE-networking address, never its public domain.
     NOTIFY_INTERNAL_URL: z
       .string()
       .url("NOTIFY_INTERNAL_URL must be a valid absolute URL"),
-    // Client-credentials pair for auth POST /system/service-token (ADR-0044).
+    // Client-credentials pair for auth POST /system/service-token (ADR 20261006-scoped-service-jwt-fourth-notify-caller).
     // `SERVICE_CLIENT_ID` must match an entry of auth's SERVICE_CLIENTS.
     SERVICE_CLIENT_ID: z.string().min(1, "SERVICE_CLIENT_ID is required"),
     SERVICE_CLIENT_SECRET: z

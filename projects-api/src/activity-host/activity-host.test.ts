@@ -1,5 +1,5 @@
 /**
- * The activity-host contract projects-api serves to activities-api (specs/028 T5; AC-3.2, AC-3.5,
+ * The activity-host contract projects-api serves to activities-api (specs/20261110-activities T5; AC-3.2, AC-3.5,
  * AC-3.8, AC-8.1, plan.md § Host contract). Runs the ASSEMBLED app against the `*_test` database.
  */
 import { beforeEach, describe, expect, it } from "bun:test";

@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, spyOn } from "bun:test";
 import { createKit, type Kit } from "../test-support/routeKit";
 
-// AC-10.1, AC-10.2, AC-10.3, AC-11.5 (specs/021 T23): "My meetings", the list every signed-in
+// AC-10.1, AC-10.2, AC-10.3, AC-11.5 (specs/20261104-meetings T23): "My meetings", the list every signed-in
 // user gets: creator or Operai participant only, filters, 25 a page, newest first, host labels.
 
 const kit: Kit = await createKit();

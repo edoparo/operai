@@ -2,7 +2,7 @@
  * @vitest-environment jsdom
  *
  * Tests for the `/meetings/$` tool route and the ungated `/my-meetings/$`
- * route (specs/021-meetings, T49, AC-10.1, AC-10.4, AC-10.5, AC-1.4; ADR-0045
+ * route (specs/20261104-meetings, T49, AC-10.1, AC-10.4, AC-10.5, AC-1.4; ADR 20261006-ungated-second-federated-entry-of-a-gated-remote
  * shape: one remote, two entries, two different guards).
  *
  * Mirrors router.account.test.tsx / router.notify.test.tsx: real RouterProvider,
@@ -135,7 +135,7 @@ describe('/meetings/$ — the access-gated tool route (AC-10.1, AC-1.4)', () => 
     expect(screen.getByRole('link', { name: 'Meetings' }).getAttribute('href')).toBe('/meetings')
   })
 
-  it('carries an app-access beforeLoad on /meetings/$ and none on /my-meetings/$ (ADR-0045 shape)', async () => {
+  it('carries an app-access beforeLoad on /meetings/$ and none on /my-meetings/$ (ADR 20261006-ungated-second-federated-entry-of-a-gated-remote shape)', async () => {
     grantApps(['meetings'])
     const { router } = await renderShellAt('/meetings')
     await screen.findByTestId('meetings-app')

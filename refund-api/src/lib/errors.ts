@@ -39,10 +39,10 @@ export class ConflictError extends Data.TaggedError("ConflictError")<{
 }> {}
 
 /**
- * specs/010-self-approval-control, ADR-0026 — a restricted `request:approve`
+ * specs/20260721-self-approval-control, ADR 20260721-self-approval-condition-and-403-exception — a restricted `request:approve`
  * grant (`{key:"self-approval", match:"deny"}`) was used to attempt approving
  * a request the caller themselves owns. Maps to a distinguishable 403 (NOT
- * the suite's usual "not yours = 404", ADR-0005/0014) because the caller
+ * the suite's usual "not yours = 404", ADR 20260703-jwt-resource-server-remote-jwks/0014) because the caller
  * provably owns and can otherwise act on the record — see decide.routes.ts.
  */
 export class SelfApprovalDeniedError extends Data.TaggedError(

@@ -11,7 +11,7 @@ import { strings } from '../strings'
 import { fillTemplate } from '../strings/errors'
 
 /**
- * AssignDialog — "Assign..." (T33, specs/015-hardware-inventory; design.md F3,
+ * AssignDialog — "Assign..." (T33, specs/20261006-hardware-inventory; design.md F3,
  * § Dialogs, § Accessibility "Holder picker"; AC-2.1, AC-2.2, AC-2.10): a
  * `dialog` with one field, the holder picker, a `Combobox` over `auth`'s active
  * user directory (`directoryApi`). The directory is fetched once when the dialog

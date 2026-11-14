@@ -1,7 +1,7 @@
 /**
  * @vitest-environment jsdom
  *
- * Component tests for PermissionDenied (T22, specs/004-auth-roles-permissions,
+ * Component tests for PermissionDenied (T22, specs/20260713-auth-roles-permissions,
  * design.md Screen E1).
  *
  * Covers:
@@ -44,7 +44,7 @@ describe('PermissionDenied', () => {
     expect(screen.queryByText(/retry/i)).toBeNull()
   })
 
-  // T11 (specs/009-mileage-rate) — the `message` prop, added for the Mileage
+  // T11 (specs/20260720-mileage-rate) — the `message` prop, added for the Mileage
   // Rates screen's first section-level 403 (design.md "Gaps").
   it('renders the default body copy when no message prop is given', () => {
     render(<PermissionDenied />)

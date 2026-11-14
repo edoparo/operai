@@ -1,5 +1,5 @@
 /**
- * The push service worker's behaviour (specs/029, ADR-0085), written against a minimal view of the
+ * The push service worker's behaviour (specs/20261111-push-notifications, ADR 20261111-push-suppression-decided-by-the-browser), written against a minimal view of the
  * worker scope so a test can drive it with a fake. `push-sw.ts` binds it to the real `self`.
  *
  * The server builds the content (design.md F8); this code only decides show-or-suppress and where a
@@ -120,7 +120,7 @@ async function onPush(scope: PushScope, event: PushEventLike): Promise<void> {
   }
   if (!message) return
 
-  // Safari first: it must show every push (ADR-0085 amended), so the window lookup is moot there.
+  // Safari first: it must show every push (ADR 20261111-push-suppression-decided-by-the-browser amended), so the window lookup is moot there.
   if (!(await isSafari(scope)) && (await hasVisibleWindow(scope))) return
 
   try {

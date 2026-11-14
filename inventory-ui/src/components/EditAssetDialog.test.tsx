@@ -1,7 +1,7 @@
 /**
  * @vitest-environment jsdom
  *
- * Component tests for EditAssetDialog (T32, specs/015-hardware-inventory;
+ * Component tests for EditAssetDialog (T32, specs/20261006-hardware-inventory;
  * design.md F6, § Dialogs, § Error and conflict catalogue; refs AC-1.9,
  * AC-3.6, AC-10.1). `assetsApi` is the only seam; the dialog renders inside a
  * memory router because the `serial_conflict` message links to the other asset.

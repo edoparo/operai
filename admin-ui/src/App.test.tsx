@@ -2,7 +2,7 @@
  * @vitest-environment jsdom
  *
  * Component tests for App.tsx — admin-ui's exposed `./App` (T14,
- * specs/004-auth-roles-permissions/tasks.md).
+ * specs/20260713-auth-roles-permissions/tasks.md).
  *
  * T13's placeholder tests (heading + coming-soon copy + shared-session
  * demonstration) are superseded: T14 replaces that static placeholder with

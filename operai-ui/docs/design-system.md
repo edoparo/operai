@@ -1,10 +1,10 @@
 # Operai design system
 
 The suite's shared visual and interaction rules. They are implemented once, in
-`@operai/ui` (this package, ADR-0050):
+`@operai/ui` (this package, ADR 20261031-shared-ui-library-consumed-as-source):
 
 - **tokens and component classes**: `src/styles/tokens.css`, which the shell
-  loads and every remote receives as `shell/tokens.css` (ADR-0006);
+  loads and every remote receives as `shell/tokens.css` (ADR 20260709-suite-frontend-module-federation);
 - **React components**: `src/components/`, exported from `src/index.ts`;
 - **showcase**: Storybook (`mise run ui:storybook`), every story in both themes
   and checked for accessibility.
@@ -16,7 +16,7 @@ it here, to the library and to a story before using it in a second app.
 ## Principles
 
 1. **One implementation.** A pattern used by two apps lives in the library. A
-   remote never copies another remote's component (ADR-0006 forbids importing
+   remote never copies another remote's component (ADR 20260709-suite-frontend-module-federation forbids importing
    it; the library is the shared place).
 2. **Copy belongs to the app.** Library components take every user-visible
    string as a prop, from the app's `strings.ts`. The library has no
@@ -30,7 +30,7 @@ it here, to the library and to a story before using it in a second app.
    on a library component. Layout utilities (margin, width, flex) are fine. If a
    case does not fit, add a variant to the library.
 
-## Styling — one dialect (ADR-0051)
+## Styling — one dialect (ADR 20261031-one-styling-dialect-token-utilities)
 
 Three layers, each with one job:
 
@@ -142,7 +142,7 @@ routed page in one of three columns (INC-12):
 
 The shell owns everything around it — header,
 sidebar, session, the page's one `<main>` — so a remote never renders chrome or
-a `<main>` of its own (ADR-0006; INC-29).
+a `<main>` of its own (ADR 20260709-suite-frontend-module-federation; INC-29).
 
 Tabs are links with `className={tabLinkClassName}`. TanStack Router's `<Link>`
 sets `aria-current="page"` on the active one, which is what the style keys on. A
@@ -409,7 +409,7 @@ A page shows exactly one state at a time:
 | State | Render |
 |---|---|
 | loading | `SkeletonRows` (aria-hidden) + `<VisuallyHidden live>` "Loading …" |
-| load failed | `Banner tone="warning"` with Retry (and the 503 "authorization service unavailable" title where it applies, ADR-0014) |
+| load failed | `Banner tone="warning"` with Retry (and the 503 "authorization service unavailable" title where it applies, ADR 20260716-refund-api-authorization-enforcing-resource-server) |
 | forbidden | `StatePanel role="alert" focusOnMount` |
 | empty | `StatePanel` (no action if the page header already has it) |
 | loaded | the content |
@@ -449,7 +449,7 @@ ways; silence is not feedback.
 ## Floating — `FloatingPanel`
 
 A small panel that must stay in sight above every page while something runs on the person's behalf (the meetings
-recorder). Only the shell renders one, in its floating slot (ADR-0078); a tool never renders it on a page.
+recorder). Only the shell renders one, in its floating slot (ADR 20261110-shell-floating-slot-for-remote-widgets); a tool never renders it on a page.
 
 - It rests on the window's edge, clear of the chrome given as `inset`, above pages and below dialogs (`z-index`
   40). Dragging the handle snaps it to the nearest edge; with the keyboard the handle is a button and each arrow
@@ -492,7 +492,7 @@ Icons). Rules:
 
 ## Formatting (INC-26, INC-27)
 
-Display only; APIs keep ISO 8601 and integer minor units (ADR-0025).
+Display only; APIs keep ISO 8601 and integer minor units (ADR 20260720-mileage-rate-money-precision-integer-micros).
 
 | What | Function | en | it |
 |---|---|---|---|
@@ -538,7 +538,7 @@ Never format a date, an amount or a number by hand, and never with
 | `shell`, `estimai-ui`, `refund-ui`, `admin-ui`, `notify-ui`, `inventory-ui` | on `@operai/ui`: frames, pages, buttons, dialogs, forms, data, feedback, statuses, icons, copy (en + it) and formatting |
 
 Documented exceptions: estimai's editing grids and workspace header, refund's motivo
-autocomplete (specs/014 rules out the library `Combobox`'s empty states).
+autocomplete (specs/20260811-motivo-autocomplete rules out the library `Combobox`'s empty states).
 
 New code in any app uses the library. Existing screens are migrated app by app;
 `docs/ui-inconsistencies.md` lists what each migration fixes.

@@ -1,6 +1,6 @@
 /**
  * T16 — Tool routing: URL reflects active tool, reload-safe, deep-link-safe
- * (specs/003-suite-shell)
+ * (specs/20260709-suite-shell)
  *
  * Refs: AC-3.2 (selecting a tool updates the URL; the location is shareable
  * and survives a reload), AC-3.3 (a URL that points directly at a specific

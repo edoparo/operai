@@ -1,6 +1,6 @@
 /**
  * addressApi — typed API client for `auth`'s employee-address surface (T9,
- * specs/012-employee-address/tasks.md, refs AC-1.1, AC-1.2, AC-1.3, AC-5.3;
+ * specs/20260803-employee-address/tasks.md, refs AC-1.1, AC-1.2, AC-1.3, AC-5.3;
  * plan.md "API contracts").
  *
  * Mirrors `./adminApi.ts`/`./ratesApi.ts`'s conventions exactly (typed
@@ -13,7 +13,7 @@
  * Base URL is the **auth service** origin (`/admin/users/{id}/address` and
  * `/admin/audit` are served there) — obtained from `shell/session`'s
  * `getAuthBaseUrl()`, exactly like `adminApi.ts`'s `authBase()`. Backend
- * counterpart (T3, T5, specs/012-employee-address/tasks.md) is being built
+ * counterpart (T3, T5, specs/20260803-employee-address/tasks.md) is being built
  * in parallel by another agent — this client is written strictly against
  * plan.md's documented contract, not against a live implementation.
  *

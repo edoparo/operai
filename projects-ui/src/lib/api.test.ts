@@ -53,7 +53,7 @@ describe('requests', () => {
     expect(apiFetch).toHaveBeenCalledWith('http://projects-api.test/scope', undefined)
   })
 
-  it('a mutation of an existing project sends If-Match with the quoted version (AC-1.7, ADR-0038)', async () => {
+  it('a mutation of an existing project sends If-Match with the quoted version (AC-1.7, ADR 20260807-optimistic-concurrency-version-if-match-cas-amends-0004)', async () => {
     vi.mocked(apiFetch).mockResolvedValue(json(200, { id: 'p1' }))
     await updateProject('p1', 7, { name: 'New' })
     expect(lastUrl().pathname).toBe('/projects/p1')
@@ -149,7 +149,7 @@ describe('requests', () => {
     await expect(sendJson('/projects/x', 'POST')).resolves.toBeUndefined()
   })
 
-  it('the directory read targets auth, filtered to the projects module (ADR-0055)', async () => {
+  it('the directory read targets auth, filtered to the projects module (ADR 20261101-app-access-check-by-user-id-and-directory-app-filter)', async () => {
     vi.mocked(apiFetch).mockResolvedValue(json(200, { users: [] }))
     await listDirectory()
     const url = lastUrl()

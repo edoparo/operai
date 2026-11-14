@@ -2,7 +2,7 @@
   "schema": "wellforge-run/v1",
   "run_id": "2026-08-03T20-15-00Z-orchestrate-012-employee-address",
   "command": "orchestrate",
-  "feature": "012-employee-address",
+  "feature": "20260803-employee-address",
   "rigor": "production",
   "started": "2026-08-03T20:15:00Z",
   "finished": "2026-08-04T16:10:00Z",
@@ -23,7 +23,7 @@
     {
       "agent": "adr-writer",
       "outcome": "completed",
-      "note": "ADR-0031..0034 + CLAUDE.md index mirror (exactly 4 lines added)",
+      "note": "ADR 20260804-employee-address-auth-identity-attribute-1to1-table..0034 + CLAUDE.md index mirror (exactly 4 lines added)",
       "commits": [
         "98267d0"
       ]
@@ -48,7 +48,7 @@
         "T13"
       ],
       "outcome": "blocked",
-      "note": "ABORTED DISPATCH: spec artifacts were untracked in the main checkout, so the git worktree could not see specs/012-employee-address/ at all. Agent correctly refused to invent the API and Google request contracts and stopped instead of guessing. Orchestrator error, not agent error",
+      "note": "ABORTED DISPATCH: spec artifacts were untracked in the main checkout, so the git worktree could not see specs/20260803-employee-address/ at all. Agent correctly refused to invent the API and Google request contracts and stopped instead of guessing. Orchestrator error, not agent error",
       "worktree": "worktree-agent-a407e89df2522410a"
     },
     {
@@ -154,7 +154,7 @@
       "agent": "evaluator",
       "outcome": "PASS",
       "score": 90,
-      "note": "No dimension below floor. Verified by probing the composed auth app and querying the live schema (pg_trigger empty, app role retains UPDATE/DELETE on audit_log \u2014 exactly as ADR-0033 claims). Found 3 defects the deterministic gates missed"
+      "note": "No dimension below floor. Verified by probing the composed auth app and querying the live schema (pg_trigger empty, app role retains UPDATE/DELETE on audit_log \u2014 exactly as ADR 20260804-two-tier-audit-assurance-auth-audit-log-application-level claims). Found 3 defects the deterministic gates missed"
     },
     {
       "agent": "quality-engineer",
@@ -177,18 +177,18 @@
     {
       "agent": "architect",
       "artifact": "spec.md",
-      "summary": "AC-5.2 required database-level audit immutability, but auth's audit_log has none \u2014 no trigger, rule or revoked grant in any of the three migrations, and five test files call auditLog.deleteMany today. The user had constrained the plan to reuse that mechanism, so the AC was unsatisfiable as written. Escalated to the user with three options; user chose to amend AC-5.2 down to application-level immutability (2026-08-04) rather than add a trigger or a sibling table. Recorded as ADR-0033",
+      "summary": "AC-5.2 required database-level audit immutability, but auth's audit_log has none \u2014 no trigger, rule or revoked grant in any of the three migrations, and five test files call auditLog.deleteMany today. The user had constrained the plan to reuse that mechanism, so the AC was unsatisfiable as written. Escalated to the user with three options; user chose to amend AC-5.2 down to application-level immutability (2026-08-04) rather than add a trigger or a sibling table. Recorded as ADR 20260804-two-tier-audit-assurance-auth-audit-log-application-level",
       "resolved": true
     },
     {
       "agent": "designer",
       "artifact": "design.md",
-      "summary": "design.md specified a free-text country input while plan.md required ISO 3166-1 alpha-2 with a DB CHECK and server-side regex. A manually-typed 'Italia' would have 422'd on exactly the AC-3.1/AC-3.2 degraded path that must always work. Resolved to a bundled ISO list behind the same combobox primitive, with Intl.DisplayNames labels \u2014 the only option consistent with the already-approved plan and ADR-0031",
+      "summary": "design.md specified a free-text country input while plan.md required ISO 3166-1 alpha-2 with a DB CHECK and server-side regex. A manually-typed 'Italia' would have 422'd on exactly the AC-3.1/AC-3.2 degraded path that must always work. Resolved to a bundled ISO list behind the same combobox primitive, with Intl.DisplayNames labels \u2014 the only option consistent with the already-approved plan and ADR 20260804-employee-address-auth-identity-attribute-1to1-table",
       "resolved": true
     },
     {
       "agent": "orchestrator",
-      "artifact": "specs/012-employee-address/",
+      "artifact": "specs/20260803-employee-address/",
       "summary": "ORCHESTRATION DEFECT: the first implementation batch was dispatched while the spec artifacts were still untracked in git. Worktree isolation checks out a committed ref, so all four agents saw a tree with no spec at all. Caught because the admin-ui agent refused to invent the contracts and stopped. Fixed by committing the artifacts (98267d0) and re-dispatching; three agents were killed mid-run and re-launched",
       "resolved": true
     },

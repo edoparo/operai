@@ -1,7 +1,7 @@
 /**
  * @vitest-environment jsdom
  *
- * Pure parts of the push section's model (specs/029, T9): browser mode order (design F1) and the
+ * Pure parts of the push section's model (specs/20261111-push-notifications, T9): browser mode order (design F1) and the
  * focus target after a removal (design F5).
  */
 import { describe, expect, it, vi } from 'vitest'

@@ -68,7 +68,7 @@ const CODE_FIELDS: Record<string, FieldName> = {
 
 /**
  * DealFormDialog — create a deal (optionally at a fixed company) or edit one.
- * The stage is chosen at creation only, among lead and qualified (specs/018 AC-3.4: later stages need a ready estimate); later
+ * The stage is chosen at creation only, among lead and qualified (specs/20261101-crm-sales-flow AC-3.4: later stages need a ready estimate); later
  * moves go through MoveStageDialog. The entity is limited to the entities the
  * caller manages deals for (`GET /scope`); it defaults to the company's when
  * that is in scope. The owner picker appears when editing.
@@ -101,7 +101,7 @@ export default function DealFormDialog({
     entity: deal?.entity ?? defaultEntity(company?.entity),
     expected: deal?.expectedCloseDate ?? '',
     notes: deal?.notes ?? '',
-    // A new lead starts from the company's source (specs/017 US-7); it can differ.
+    // A new lead starts from the company's source (specs/20261101-crm US-7); it can differ.
     source: deal ? (deal.source ?? '') : (company?.source ?? ''),
     sourceDetail: deal ? (deal.sourceDetail ?? '') : (company?.sourceDetail ?? ''),
   }))
@@ -124,7 +124,7 @@ export default function DealFormDialog({
   }
 
   const submit = () => {
-    // Optional (specs/017 AC-3.2): empty is "not known yet"; anything typed must parse.
+    // Optional (specs/20261101-crm AC-3.2): empty is "not known yet"; anything typed must parse.
     const amountEmpty = draft.amount.trim() === ''
     const amountCents = amountEmpty ? null : parseDecimal(draft.amount)
     const amountInvalid = !hideMoney && !amountEmpty && amountCents === null

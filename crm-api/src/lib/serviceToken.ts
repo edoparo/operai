@@ -1,6 +1,6 @@
 /**
- * Service-token client (specs/019-crm-notifications, from inventory-api;
- * ADR-0044/0049). Exchanges `SERVICE_CLIENT_ID`/`SERVICE_CLIENT_SECRET` for the
+ * Service-token client (specs/20261101-crm-notifications, from inventory-api;
+ * ADR 20261006-scoped-service-jwt-fourth-notify-caller/0049). Exchanges `SERVICE_CLIENT_ID`/`SERVICE_CLIENT_SECRET` for the
  * 5-minute RS256 service JWT `auth POST /system/service-token` mints, and
  * hands it to `notify.ts` as the Bearer credential for notify-api's
  * `/system/notifications`.
@@ -114,7 +114,7 @@ export function createServiceTokenProvider(options: ServiceTokenProviderOptions)
 
 /**
  * The provider wired from the environment, or `null` when none of the notifier group,
- * ESTIMAI_INTERNAL_URL (deal-link notices) and ACTIVITIES_API_URL (specs/028) is configured
+ * ESTIMAI_INTERNAL_URL (deal-link notices) and ACTIVITIES_API_URL (specs/20261110-activities) is configured
  * (env.ts): crm-api then pushes nothing.
  */
 export const serviceTokens: ServiceTokenProvider | null =

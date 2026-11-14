@@ -1,7 +1,7 @@
 /**
  * @vitest-environment jsdom
  *
- * Component tests for PermissionDenied (T15, specs/007-refund-service,
+ * Component tests for PermissionDenied (T15, specs/20260716-refund-service,
  * design.md Screen R1/A1 "PD").
  *
  * Covers:

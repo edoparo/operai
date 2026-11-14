@@ -1,5 +1,5 @@
 /**
- * Employee request-level endpoints (T7, specs/007-refund-service).
+ * Employee request-level endpoints (T7, specs/20260716-refund-service).
  *
  *   POST   /requests       → 201 draft, owner = JWT sub (NEVER the body)
  *   GET    /requests       → 200 [{id,status,updatedAt,subtotals}] (own only)
@@ -10,7 +10,7 @@
  *   - POST/GET (no target record) — missing `request:create`/`request:read`
  *     capability → 403 (nothing record-level to hide).
  *   - GET/DELETE by :id — EVERY denial (not found, not owned, missing
- *     capability, out-of-scope) → 404, never 403 (ADR-0005 "not yours = not
+ *     capability, out-of-scope) → 404, never 403 (ADR 20260703-jwt-resource-server-remote-jwks "not yours = not
  *     found"; AC-2.5 "non-owner non-accounting denied").
  *
  * GET /requests/:id is the SAME route accounting uses (plan.md lists it under
@@ -249,7 +249,7 @@ requestsRouter.openapi(getRequestRoute, async (c) => {
     return c.json(notFoundProblem(c.req.path, `Refund request ${id} not found`), 404);
   }
 
-  // specs/009-mileage-rate (Decision 1, ADR-0013): a DRAFT request's
+  // specs/20260720-mileage-rate (Decision 1, ADR 20260714-invitation-lifecycle-derived-expiry-state): a DRAFT request's
   // travel_km lines are recomputed against the CURRENTLY effective rate on
   // every read — never served stale (Risk R2). Ever-submitted requests pass
   // through unchanged (their mileage lines are frozen — buildMileageInfo

@@ -1,7 +1,7 @@
 /**
  * Audio normalisation: whatever the browser recorded, or the user uploaded, becomes
- * ONE mono 16 kHz Opus file with no video (specs/021-meetings AC-3.1, AC-2.6, AC-4.4;
- * plan.md § Processing; ADR-0064 point 4).
+ * ONE mono 16 kHz Opus file with no video (specs/20261104-meetings AC-3.1, AC-2.6, AC-4.4;
+ * plan.md § Processing; ADR 20261104-meetings-api-reads-audio-bytes-third-reader point 4).
  *
  * The command is the ADR's, with `-protocol_whitelist file,pipe` in front of EVERY
  * input (it is an input option) so a crafted file cannot make ffmpeg open a network
@@ -28,7 +28,7 @@ import { FORMAT_WHITELIST, MAX_AUDIO_MS, buildProbeArgs, ffmpegBinary, ffprobeBi
 
 export { ToolMissingError } from "./probe";
 
-/** ADR-0064 point 4. */
+/** ADR 20261104-meetings-api-reads-audio-bytes-third-reader point 4. */
 export const FFMPEG_TIMEOUT_MS = 20 * 60_000;
 /** A recording may run 60 s past 3 h (AC-2.11); the result is held to the same bound. */
 export const MAX_NORMALIZED_MS = MAX_AUDIO_MS + 60_000;
@@ -105,7 +105,7 @@ export async function groupIntoRuns(dir: string, chunkFiles: readonly string[]):
 
 // ─── ffmpeg ──────────────────────────────────────────────────────────────────
 
-/** The hardened argument vector (ADR-0064 point 4); one input is exactly the documented command. */
+/** The hardened argument vector (ADR 20261104-meetings-api-reads-audio-bytes-third-reader point 4); one input is exactly the documented command. */
 export function buildFfmpegArgs(
   inputs: readonly string[],
   output: string,

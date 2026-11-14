@@ -1,5 +1,5 @@
 /**
- * Status transitions (T14, specs/015-hardware-inventory; AC-1.8, AC-3.1..3.5,
+ * Status transitions (T14, specs/20261006-hardware-inventory; AC-1.8, AC-3.1..3.5,
  * AC-11.1). Real router + middleware over the harness, real Postgres.
  */
 

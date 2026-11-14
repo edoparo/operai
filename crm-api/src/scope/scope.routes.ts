@@ -1,8 +1,8 @@
 /**
- * `GET /scope` (specs/017-crm, plan.md § Scope): which entities `deal:manage`
+ * `GET /scope` (specs/20261101-crm, plan.md § Scope): which entities `deal:manage`
  * covers for the caller, and whether they may erase contacts — so crm-ui offers
  * exactly the controls the server would accept. An `auth` outage is a 503,
- * never an empty scope. specs/018 adds `financials` (the caller sees money) and
+ * never an empty scope. specs/20261101-crm-sales-flow adds `financials` (the caller sees money) and
  * `managesAll` (deal:manage over every entity: the admin's override reach).
  */
 

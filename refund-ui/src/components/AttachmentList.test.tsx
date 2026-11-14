@@ -1,9 +1,9 @@
 /**
  * @vitest-environment jsdom
  *
- * Component tests for AttachmentList (T17, specs/007-refund-service/
- * tasks.md; post-close UX amendment, specs/007, 2026-07-17 — see
- * `specs/007-refund-service/design.md`'s dated amendment note). Covers:
+ * Component tests for AttachmentList (T17, specs/20260716-refund-service/
+ * tasks.md; post-close UX amendment, specs/20260716-refund-service, 2026-07-17 — see
+ * `specs/20260716-refund-service/design.md`'s dated amendment note). Covers:
  * per-file client-side rejection (oversize/wrong type), the
  * queued→uploading→stored/failed phase state machine, the attachment-remove
  * confirm modal (open → confirm → onRemove called; cancel → not removed),

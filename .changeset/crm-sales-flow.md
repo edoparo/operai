@@ -4,7 +4,7 @@
 "@operai/auth": minor
 ---
 
-CRM sales flow (specs/018-crm-sales-flow, ADR-0054/0055):
+CRM sales flow (specs/20261101-crm-sales-flow, ADR 20261101-crm-financial-visibility-permission/0055):
 - **Technical role:** a new `crm-technical` role that sees the CRM without the money. The new
   `deal:financials` permission is held by `admin` and `sales`.
 - **Estimates:** technical estimates are requested from a deal and created in EstimAI with the

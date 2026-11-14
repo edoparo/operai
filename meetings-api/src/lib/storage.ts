@@ -1,6 +1,6 @@
 /**
- * S3-compatible object storage for meeting audio (specs/021-meetings, ADR-0016
- * posture, ADR-0063). Adapted from crm-api/src/lib/storage.ts.
+ * S3-compatible object storage for meeting audio (specs/20261104-meetings, ADR 20260716-eu-object-storage-refund-attachments
+ * posture, ADR 20261104-audio-retention-bucket-lifecycle-verified-at-startup). Adapted from crm-api/src/lib/storage.ts.
  *
  * The bucket holds ONLY audio: recording chunks, an uploaded original, and the
  * normalised `audio.ogg`. Transcripts and everything else live in Postgres. One
@@ -12,7 +12,7 @@
  *   uploads straight to the EU bucket) and are HEADed at confirm time;
  * - playback is a presigned GET minted after the visibility check.
  * The bucket is private; there is no other client-facing path. (The service does
- * READ bytes itself to normalise audio: ADR-0064, a separate, bounded reader.)
+ * READ bytes itself to normalise audio: ADR 20261104-meetings-api-reads-audio-bytes-third-reader, a separate, bounded reader.)
  *
  * Every key is built here, from a meeting id and a number (or a fresh random token),
  * and checked again before use: a caller cannot name the key it writes, and no method
@@ -21,7 +21,7 @@
  * An S3 POST policy is not single-use, so a FIXED key stays writable until the policy
  * expires: the bytes a probe approved could be replaced before they are decoded. An upload
  * therefore gets a fresh key per mint (`upload/<uuid>`), the route persists it, and
- * everything downstream uses only that stored key (ADR-0064; plan.md § Capture).
+ * everything downstream uses only that stored key (ADR 20261104-meetings-api-reads-audio-bytes-third-reader; plan.md § Capture).
  *
  * Routes call the wired instance's methods (never destructure them) so a test can
  * replace it with `setStorageForTests`.
@@ -163,7 +163,7 @@ export class ObjectTooLargeError extends Error {
   }
 }
 
-/** `audio.ogg` is <= ~45 MB (ADR-0064); this is the hard ceiling on a put. */
+/** `audio.ogg` is <= ~45 MB (ADR 20261104-meetings-api-reads-audio-bytes-third-reader); this is the hard ceiling on a put. */
 export const MAX_AUDIO_PUT_BYTES = 100 * 1024 * 1024;
 
 /** What an upload mint returns: the policy for the browser, and the key the policy is pinned to (for the server to keep). */
@@ -197,7 +197,7 @@ export interface Storage {
    */
   deletePrefix(prefix: string): Promise<number>;
   /**
-   * ADR-0064: the ONE streaming read of object bytes (for `prepare_audio`). Streams the
+   * ADR 20261104-meetings-api-reads-audio-bytes-third-reader: the ONE streaming read of object bytes (for `prepare_audio`). Streams the
    * object to `destPath` on disk, never into memory, and fails with `ObjectTooLargeError`
    * as soon as it would pass `maxBytes`. Returns the bytes written.
    */

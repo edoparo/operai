@@ -117,7 +117,7 @@ function RadioOption<T extends string>({
 }
 
 /**
- * The new meeting page (specs/021-meetings S2, F1, F2; T56): a form (a page, not a dialog), opened
+ * The new meeting page (specs/20261104-meetings S2, F1, F2; T56): a form (a page, not a dialog), opened
  * from the list or from a host record (`?hostApp&hostType&hostId`). A host record is looked up as the
  * caller, its title prefills the title, and it is shown read-only as "<Entity> · <title>".
  * A meeting is never created against a record that could not be checked (AC-11.6), but a standalone

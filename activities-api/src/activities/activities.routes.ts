@@ -1,9 +1,9 @@
 /**
- * Activities and tasks (specs/028-activities US-1, US-3, US-5, US-6, US-8; plan § API
- * contracts). The CRM's rules of specs/017 US-4 carried over unchanged, plus the project
+ * Activities and tasks (specs/20261110-activities US-1, US-3, US-5, US-6, US-8; plan § API
+ * contracts). The CRM's rules of specs/20261101-crm US-4 carried over unchanged, plus the project
  * module's: every route here is the same code for both hosts, and what differs (who edits, who
  * completes, which types exist, who may be assigned) is the host registry's DATA and the
- * host's ANSWER about this entity for this caller (ADR-0081), never a branch on the app.
+ * host's ANSWER about this entity for this caller (ADR 20261110-activities-service-access-delegated-to-host), never a branch on the app.
  *
  * No permission is held here. Each route asks the host that owns the entity, as the caller
  * (`HostSession`): a host that cannot answer is 503 `host_unavailable` and nothing is
@@ -53,7 +53,7 @@ const UserIdSchema = idText();
 const EntityIdSchema = idText();
 /** The tasks this one waits on (US-6): the whole set, replacing any previous one. */
 const BlockedByIdsSchema = z.array(idText()).max(MAX_BLOCKERS);
-/** The wellD colleagues who took part (US-8, specs/028 US-5): the whole set, replacing any previous one. */
+/** The wellD colleagues who took part (US-8, specs/20261110-activities US-5): the whole set, replacing any previous one. */
 export const MAX_PARTICIPANTS = 10;
 const ParticipantIdsSchema = z.array(UserIdSchema).max(MAX_PARTICIPANTS);
 
@@ -70,7 +70,7 @@ const CreateActivitySchema = z
     type: TypeSchema,
     subject: requiredText(200),
     body: optionalText(10_000),
-    /** A task's rich description (ADR-0089); refused on any other type. */
+    /** A task's rich description (ADR 20261113-task-description-files-in-activities-api-bucket); refused on any other type. */
     description: DescriptionSchema.nullable().optional(),
     companyId: EntityIdSchema.optional(),
     projectId: EntityIdSchema.optional(),
@@ -118,7 +118,7 @@ const taskFieldsOnNonTask = (field: string) =>
   unprocessable("Due date and assignee belong to tasks only", { field }, "task_fields_on_non_task");
 
 /**
- * A task has one text, its description (ADR-0089). What a request gives for it: the description
+ * A task has one text, its description (ADR 20261113-task-description-files-in-activities-api-bucket). What a request gives for it: the description
  * itself, or (an older client, crm-api's estimate task) a plain `body`, kept as paragraphs.
  * `undefined` = not touched; `null` = cleared. An empty document is stored as null.
  */
@@ -155,7 +155,7 @@ function assertRefs(
   }
 }
 
-/** US-8 / specs/028 AC-5.1: distinct ids, each an active user of the host's app (the caller needs no check). */
+/** US-8 / specs/20261110-activities AC-5.1: distinct ids, each an active user of the host's app (the caller needs no check). */
 async function assertParticipants(c: Caller, host: ActivityHost, ids: readonly string[]): Promise<string[]> {
   const unique = [...new Set(ids)];
   await requireAppUsers(
@@ -169,8 +169,8 @@ async function assertParticipants(c: Caller, host: ActivityHost, ids: readonly s
 /**
  * Whether an edit that names an assignee has it checked. A host that lists its assignees (a
  * project, AC-3.7) checks only a CHANGED one: one resent unchanged, who has since left the
- * team, is accepted. A host that does not (the CRM, specs/018 AC-2.2) checks the one an edit
- * names every time, changed or not, exactly as crm-api did (specs/028 US-1: the CRM keeps
+ * team, is accepted. A host that does not (the CRM, specs/20261101-crm-sales-flow AC-2.2) checks the one an edit
+ * names every time, changed or not, exactly as crm-api did (specs/20261110-activities US-1: the CRM keeps
  * behaving as today). The caller naming themselves is never asked (`requireAppUsers`).
  */
 const assigneeToCheck = (host: ActivityHost, named: string, current: string | null): boolean =>
@@ -395,7 +395,7 @@ activitiesRouter.openapi(createActivityRoute, async (c) => {
   if (isTask && body.assigneeUserId !== undefined) await assertAssignable(c, host, entity, body.assigneeUserId);
 
   // The contact's lock is taken first and held to the commit, so an erasure of it (crm-api) either
-  // sees this row and unlinks it, or commits first and this create is refused (AC-8.4, ADR-0082).
+  // sees this row and unlinks it, or commits first and this create is refused (AC-8.4, ADR 20261110-caller-chosen-ids-replace-cross-service-transactions).
   const row = await db.$transaction(async (tx) => {
     if (body.contactId) await assertContactNotErased(tx, body.contactId);
     return tx.activity.create({
@@ -463,7 +463,7 @@ activitiesRouter.openapi(updateRoute, async (c) => {
   }
 
   const row = await ifStillThere(() => db.$transaction(async (tx) => {
-    // First, so the lock is held from before the link is written to the commit (AC-8.4, ADR-0082).
+    // First, so the lock is held from before the link is written to the commit (AC-8.4, ADR 20261110-caller-chosen-ids-replace-cross-service-transactions).
     if (body.contactId) await assertContactNotErased(tx, body.contactId);
     if (blockerIds !== undefined) await replaceBlockers(tx, id, blockerIds, userId);
     if (participantIds !== undefined) {
@@ -508,7 +508,7 @@ activitiesRouter.openapi(deleteRoute, async (c) => {
   const { row, host, entity } = await loadFor(c, id);
   if (!mayChange(host, entity, row, c.get("userId"))) throw changeRefused(host);
   if (!entity.writable) throw hostReadOnly();
-  // Its files first (objects, then rows), so nothing in the bucket outlives the task (ADR-0089).
+  // Its files first (objects, then rows), so nothing in the bucket outlives the task (ADR 20261113-task-description-files-in-activities-api-bucket).
   await deleteActivitiesWithFiles({ id });
   return c.body(null, 204);
 });

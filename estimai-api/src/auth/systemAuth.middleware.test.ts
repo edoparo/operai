@@ -1,5 +1,5 @@
 /**
- * systemAuth middleware (specs/024 T4, AC-3.5): the only credential for
+ * systemAuth middleware (specs/20261108-estimate-list-oversight T4, AC-3.5): the only credential for
  * `POST /system/deal-link-notices` is a scoped service JWT of `system:crm-api`.
  * A tiny Hono app with the middleware and a recording handler proves what stops
  * and what passes; keys and JWKS are generated in memory and injected, so

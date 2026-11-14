@@ -1,6 +1,6 @@
 /**
  * Parsing and validation of the `SERVICE_CLIENTS` env value (T4, specs/015-
- * hardware-inventory — ADR-0044): the per-client entries that
+ * hardware-inventory — ADR 20261006-scoped-service-jwt-fourth-notify-caller): the per-client entries that
  * `POST /system/service-token` authenticates against.
  *
  * Kept free of any import from `../lib/env` (which imports THIS file to
@@ -17,7 +17,7 @@
  *   to confuse with a user id.
  * - secret: >= 32 chars (mirrors `inventory-api`'s own `SERVICE_CLIENT_SECRET`
  *   minimum) and <= 256.
- * - client id `auth` is reserved (specs/016): `auth` mints its own credential
+ * - client id `auth` is reserved (specs/20261013-notify-service-credentials): `auth` mints its own credential
  *   in process as `system:auth`, so no configured client may claim that `sub`.
  * - scope: space-delimited, each entry from {@link KNOWN_SERVICE_SCOPES}. A
  *   typo or an invented scope refuses to start rather than minting a token
@@ -31,23 +31,23 @@ import { createHash, timingSafeEqual } from "node:crypto";
 
 /**
  * Scopes a service token may carry. Adding one is a deliberate code change, not an env edit.
- * - `notifications.push` / `emails.send`: the notify-api capabilities (ADR-0049).
+ * - `notifications.push` / `emails.send`: the notify-api capabilities (ADR 20261013-all-notify-callers-scoped-credentials-shared-token-retired).
  * - `users.contact`: resolve one active user's `{id, email, name}` through
- *   `POST /system/users/contact` (specs/019, D-1). Only notify-api holds it.
+ *   `POST /system/users/contact` (specs/20261101-crm-notifications, D-1). Only notify-api holds it.
  * - `estimate-notices.send`: tell crm-api an EstimAI estimate was closed or
- *   reopened (`POST /system/estimate-notices`, specs/018 AC-3.3, ADR-0073).
+ *   reopened (`POST /system/estimate-notices`, specs/20261101-crm-sales-flow AC-3.3, ADR 20261105-estimai-closes-the-estimate-crm-follows).
  *   Only estimai-api holds it.
  * - `host-notices.send`: post a meeting's link/change/delete notice to a host
- *   app's `/system/meeting-host/v1/notices` (specs/021, AC-11.8). crm-api
+ *   app's `/system/meeting-host/v1/notices` (specs/20261104-meetings, AC-11.8). crm-api
  *   verifies it; the sub allowlist there names `system:meetings-api`.
  * - `deal-link-notices.send`: post a deal-link notice (linked/unlinked) to
- *   estimai-api's `/system/deal-link-notices` (specs/024, ADR-0076).
+ *   estimai-api's `/system/deal-link-notices` (specs/20261108-estimate-list-oversight, ADR 20261108-crm-pushes-deal-links-to-estimai).
  *   estimai-api verifies it; its sub allowlist names `system:crm-api`.
  * - `crm.companies.read`: read CRM companies through crm-api's
- *   `GET /system/companies` (specs/025, ADR-0080). Only projects-api holds it.
+ *   `GET /system/companies` (specs/20261103-projects, ADR 20261103-projects-api-reads-crm-companies-with-scoped-service-credential). Only projects-api holds it.
  * - `activities.write`: write to activities-api's `/system/v1/*` routes — the
  *   estimate-request task, completion, meeting-host state and contact erasure
- *   (specs/028, ADR-0081/0082). Only crm-api holds it; activities-api's sub
+ *   (specs/20261110-activities, ADR 20261110-activities-service-access-delegated-to-host/0082). Only crm-api holds it; activities-api's sub
  *   allowlist names `system:crm-api`.
  */
 export const KNOWN_SERVICE_SCOPES = [
@@ -66,14 +66,14 @@ export const KNOWN_SERVICE_SCOPES = [
  * deploy contract in `tools/env-doctor`'s manifest repeats them). Documentation
  * pinned by a test, never read at runtime: the live set is the `SERVICE_CLIENTS`
  * env value, validated by {@link parseServiceClients}.
- * - `meetings-api` (specs/021): pushes in-app notifications and relays host
+ * - `meetings-api` (specs/20261104-meetings): pushes in-app notifications and relays host
  *   notices to crm-api; it never sends email (AC-12.4), so no `emails.send`.
- * - `projects-api` (specs/025): reads CRM companies and nothing else, so exactly
- *   `crm.companies.read` (no push, no email; ADR-0049 one scope per capability).
- * - `crm-api` (specs/028): its three existing scopes plus `activities.write`.
- * - `activities-api` (specs/028): `notifications.push emails.send` — its task notices
+ * - `projects-api` (specs/20261103-projects): reads CRM companies and nothing else, so exactly
+ *   `crm.companies.read` (no push, no email; ADR 20261013-all-notify-callers-scoped-credentials-shared-token-retired one scope per capability).
+ * - `crm-api` (specs/20261110-activities): its three existing scopes plus `activities.write`.
+ * - `activities-api` (specs/20261110-activities): `notifications.push emails.send` — its task notices
  *   (AC-6.1/6.3) are email notices, and notify-api requires `emails.send` as well as
- *   `notifications.push` for `email: true` (ADR-0056). No `activities.write`: it is the
+ *   `notifications.push` for `email: true` (ADR 20261101-notify-api-resolves-email-notice-address-from-auth). No `activities.write`: it is the
  *   service that scope writes to.
  */
 export const DOCUMENTED_CLIENT_SCOPES = {
@@ -84,7 +84,7 @@ export const DOCUMENTED_CLIENT_SCOPES = {
 } as const;
 
 /**
- * Client id `auth` itself mints under (`sub="system:auth"`, in process — specs/016).
+ * Client id `auth` itself mints under (`sub="system:auth"`, in process — specs/20261013-notify-service-credentials).
  * Reserved so no `SERVICE_CLIENTS` entry can authenticate as the issuer.
  */
 export const RESERVED_SERVICE_CLIENT_ID = "auth";
@@ -92,7 +92,7 @@ export const RESERVED_SERVICE_CLIENT_ID = "auth";
 /** `sub` prefix of every service principal — what `notify-api` checks for. */
 export const SERVICE_SUB_PREFIX = "system:";
 
-/** Lifetime of a minted service token (ADR-0044: 5 minutes). */
+/** Lifetime of a minted service token (ADR 20261006-scoped-service-jwt-fourth-notify-caller: 5 minutes). */
 export const SERVICE_TOKEN_TTL_SECONDS = 300 as const;
 
 export interface ServiceClient {

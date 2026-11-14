@@ -1,6 +1,6 @@
 /**
- * Meetings notifications (specs/021-meetings AC-12.1 to AC-12.5; ADR-0049,
- * ADR-0065). The after-commit, best-effort push to notify-api's
+ * Meetings notifications (specs/20261104-meetings AC-12.1 to AC-12.5; ADR 20261013-all-notify-callers-scoped-credentials-shared-token-retired,
+ * ADR 20261104-bilingual-system-notifications). The after-commit, best-effort push to notify-api's
  * `POST /system/notifications`, authenticated with the scoped service JWT from
  * `serviceToken.ts` (`notifications.push`). notify-api binds
  * `system:meetings-api` to `originApp: "meetings"`.

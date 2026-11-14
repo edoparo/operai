@@ -1,5 +1,5 @@
 /**
- * Mileage-rate management endpoints (T4, specs/009-mileage-rate,
+ * Mileage-rate management endpoints (T4, specs/20260720-mileage-rate,
  * plan.md § API contracts, Decision 2).
  *
  *   GET  /rates   → 200 per-entity history (also the audit view, AC-4.1/5.3)
@@ -13,7 +13,7 @@
  * wholesale 403, mirroring batches.routes.ts's `GET /batches` posture (no
  * record-level denial semantics apply here; there is no "owner" of a rate).
  * Same `authzMiddleware`/`hasCapability` machinery every other refund-api
- * route uses (ADR-0014) — fails closed (503) on an `auth` outage.
+ * route uses (ADR 20260716-refund-api-authorization-enforcing-resource-server) — fails closed (503) on an `auth` outage.
  *
  * `createdByUserId`/`createdByEmail` are ALWAYS taken from the caller's
  * verified JWT (`c.get("userId")`/`c.get("email")`), NEVER the request body

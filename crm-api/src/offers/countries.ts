@@ -1,4 +1,4 @@
-/** Country names for the client block (specs/020 AC-1.2): the offer's language, never the UI's. */
+/** Country names for the client block (specs/20261102-crm-offer-document AC-1.2): the offer's language, never the UI's. */
 
 import type { OfferLanguage } from "./contract";
 

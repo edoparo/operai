@@ -1,5 +1,5 @@
 /**
- * Real-artifact coverage for the ADR-0030 `./version` federated export
+ * Real-artifact coverage for the ADR 20260803-suite-version-generated-file-federated-export `./version` federated export
  * (QE finding on the version-bump feature, chore/version-release-enforcement).
  *
  * ../hooks/useRemoteVersions.test's four failure-shape cases (see
@@ -78,7 +78,7 @@ function remoteDir(dirName: string): string {
   return path.resolve(__dirname, '../../../', dirName)
 }
 
-// inventory-ui is built by later tasks of specs/015 (T2+); until its package
+// inventory-ui is built by later tasks of specs/20261006-hardware-inventory (T2+); until its package
 // exists there is no artifact to build and load, so it joins the run only once
 // its directory does (the shell never requires the remote to be present).
 const REMOTES: readonly RemoteFixture[] = ALL_REMOTES.filter((r) =>

@@ -1,5 +1,5 @@
 /**
- * crm-api → activities-api system client (specs/028 T12; AC-1.2 .. AC-1.4, AC-8.4; ADR-0082).
+ * crm-api → activities-api system client (specs/20261110-activities T12; AC-1.2 .. AC-1.4, AC-8.4; ADR 20261110-caller-chosen-ids-replace-cross-service-transactions).
  *
  * The CRM's activities and tasks live in activities-api now. What crm-api used to write inside its
  * own transactions it asks for here, AS ITSELF: the scoped 5-minute service JWT of

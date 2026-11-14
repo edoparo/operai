@@ -1,10 +1,10 @@
 /**
  * `GET /fiscal-years?entity` and `GET /fiscal-years/{entity}/{year}` (T19,
- * specs/015-hardware-inventory; AC-8.1..AC-8.3, ADR-0046).
+ * specs/20261006-hardware-inventory; AC-8.1..AC-8.3, ADR 20261006-depreciation-derived-on-read-closed-years-snapshotted).
  *
  * `ledger:manage` with entity scope: capability absent -> 403 (guard); an entity
  * outside the caller's ledger scope, or a year the entity has no figures for
- * (before its first year, or past the current one) -> 404 (ADR-0014).
+ * (before its first year, or past the current one) -> 404 (ADR 20260716-refund-api-authorization-enforcing-resource-server).
  *
  * Open years are derived, closed years are read from the stored rows - see
  * rollForward.ts. `closable` (list only) = the previous year is closed, or this

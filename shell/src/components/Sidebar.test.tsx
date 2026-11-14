@@ -1,8 +1,8 @@
 /**
  * @vitest-environment jsdom
  *
- * Component tests for Sidebar (specs/003-suite-shell, T7, AC-3.1, AC-5.1;
- * app-access filtering added in specs/004-auth-roles-permissions, T24,
+ * Component tests for Sidebar (specs/20260709-suite-shell, T7, AC-3.1, AC-5.1;
+ * app-access filtering added in specs/20260713-auth-roles-permissions, T24,
  * AC-7.1, AC-7.2).
  *
  * Uses a real, minimal TanStack Router harness (mirroring router.integration.test.tsx's

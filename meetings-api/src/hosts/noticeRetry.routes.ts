@@ -1,5 +1,5 @@
 /**
- * `POST /meetings/:id/host-notice/retry` (specs/021 T20; AC-11.9, AC-14.8, AC-14.10).
+ * `POST /meetings/:id/host-notice/retry` (specs/20261104-meetings T20; AC-11.9, AC-14.8, AC-14.10).
  * "Try again" for a `linked` / `changed` notice that could not be delivered. Creator
  * control: a stranger gets the identical 404, anyone else `creator_only`, a frozen meeting
  * `frozen` (no creator-less retry, AC-14.10), a creator without `meetings:access`

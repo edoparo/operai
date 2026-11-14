@@ -1,7 +1,7 @@
 /**
  * @vitest-environment jsdom
  *
- * The deal page of specs/018 (CRM sales flow), through the real router and the
+ * The deal page of specs/20261101-crm-sales-flow (CRM sales flow), through the real router and the
  * real request code: money hidden without deal:financials (US-1), the estimate
  * card (request, hand-over, visibility of each action; US-3), the offer dialog
  * and the proposal question (US-4, AC-4.5), the attachment upload (AC-4.3) and
@@ -352,7 +352,7 @@ describe('gate message in the stage dialog (AC-3.4)', () => {
   })
 })
 
-describe('amount not known yet (specs/017 AC-3.2)', () => {
+describe('amount not known yet (specs/20261101-crm AC-3.2)', () => {
   it('shows “Not set yet” and no weighted value', async () => {
     await renderDeal(dealFixture({ amountCents: null }), MANAGER)
     const facts = screen.getByTestId('crm-deal-facts').textContent
@@ -382,7 +382,7 @@ describe('amount not known yet (specs/017 AC-3.2)', () => {
   })
 })
 
-describe('where the lead came from (specs/017 US-7)', () => {
+describe('where the lead came from (specs/20261101-crm US-7)', () => {
   it('shows the source with its detail, and the detail field follows the source', async () => {
     let sent: Record<string, unknown> | null = null
     await renderDeal(dealFixture({ source: 'referral', sourceDetail: 'Mario Rossi' }), MANAGER, {
@@ -602,7 +602,7 @@ describe('Offers card (US-4)', () => {
     await within(dialog).findByTestId('crm-offer-form')
   }
 
-  it('a deal an admin let go without an estimate can have an offer, with no AI or annex choice (specs/018 AC-3.7)', async () => {
+  it('a deal an admin let go without an estimate can have an offer, with no AI or annex choice (specs/20261101-crm-sales-flow AC-3.7)', async () => {
     await renderDeal(dealFixture({ stage: 'proposal', estimateOverridden: true }), MANAGER, {
       'GET /offer-templates': () => ({ status: 200, body: { items: [TEMPLATE_EN] } }),
       'GET /contacts': () => ({ status: 200, body: page([]) }),
@@ -866,7 +866,7 @@ describe('Offers card (US-4)', () => {
     expect(screen.getByTestId('crm-offer-template-o2').textContent).toBe('Template: Standard EN')
   })
 
-  // specs/020 US-7: an offer from a template, not sent yet.
+  // specs/20261102-crm-offer-document US-7: an offer from a template, not sent yet.
   const DOC = { ...OFFER, reference: '0001/2026', templateName: 'Standard EN', sent: null, version: 3 }
   const SENT_DOC = { ...DOC, sent: { at: '2026-11-03T10:00:00.000Z', by: ADA }, version: 4 }
 
@@ -1098,7 +1098,7 @@ describe('Settings screen', () => {
     expect(screen.getByTestId('crm-settings-welld_it')).not.toBeNull()
   })
 
-  it('sets where the offer numbers continue from, and refuses a number an offer already uses (specs/020 US-8)', async () => {
+  it('sets where the offer numbers continue from, and refuses a number an offer already uses (specs/20261102-crm-offer-document US-8)', async () => {
     let put: Record<string, unknown> | null = null
     await render_(MANAGER, {
       'GET /entity-profiles': () => ({ status: 200, body: { items: [] } }),

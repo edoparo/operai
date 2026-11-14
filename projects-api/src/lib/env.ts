@@ -2,8 +2,8 @@ import { z } from "zod";
 
 // ─── Schema ──────────────────────────────────────────────────────────────────
 //
-// projects-api is an authorization-enforcing resource server (specs/025, ADR-0014).
-// It reads CRM company names from crm-api with a service credential (ADR-0080), an
+// projects-api is an authorization-enforcing resource server (specs/20261103-projects, ADR 20260716-refund-api-authorization-enforcing-resource-server).
+// It reads CRM company names from crm-api with a service credential (ADR 20261103-projects-api-reads-crm-companies-with-scoped-service-credential), an
 // OPTIONAL group, all-or-nothing: without it the service starts, a company name is
 // `null` and the company picker answers 503 `crm_unavailable`, so a developer's local
 // setup keeps working before the group is configured. The production template lists
@@ -25,19 +25,19 @@ const envSchema = z
       )
       .refine((origins) => origins.length > 0, "ALLOWED_ORIGINS is empty")
       .refine((origins) => origins.every((o) => o !== "*"), "ALLOWED_ORIGINS must not contain a wildcard"),
-    // ─── Identity (JWKS resource server, ADR-0005/0010) ─────────────────────
+    // ─── Identity (JWKS resource server, ADR 20260703-jwt-resource-server-remote-jwks/0010) ─────────────────────
     AUTH_JWKS_URL: z.string().url("AUTH_JWKS_URL must be a valid URL"),
     AUTH_ISSUER: z.string().url("AUTH_ISSUER must be a valid URL"),
-    // Suite-wide JWT audience (ADR-0010). A token missing the claim, or carrying
+    // Suite-wide JWT audience (ADR 20260713-jwt-audience-claim-enforcement). A token missing the claim, or carrying
     // a different value, is rejected with 401.
     AUTH_AUDIENCE: z.string().min(1, "AUTH_AUDIENCE is required"),
     // Base URL of the `auth` service: the Bearer-forwarded GET /authz/resolve
-    // (ADR-0014), POST /authz/users/identities (ADR-0039), POST /authz/app-access-check
-    // (ADR-0055) and, for the service credential, POST /system/service-token (ADR-0044).
+    // (ADR 20260716-refund-api-authorization-enforcing-resource-server), POST /authz/users/identities (ADR 20260807-live-identity-resolution-by-id-fail-soft), POST /authz/app-access-check
+    // (ADR 20261101-app-access-check-by-user-id-and-directory-app-filter) and, for the service credential, POST /system/service-token (ADR 20261006-scoped-service-jwt-fourth-notify-caller).
     AUTH_BASE_URL: z.string().url("AUTH_BASE_URL must be a valid URL"),
     PORT: z.coerce.number().int().positive().default(8086),
     NODE_ENV: z.enum(["development", "production", "test"]).default("development"),
-    // ─── crm-api, read as ITSELF (specs/025, ADR-0080) ───────────────────────
+    // ─── crm-api, read as ITSELF (specs/20261103-projects, ADR 20261103-projects-api-reads-crm-companies-with-scoped-service-credential) ───────────────────────
     // projects-api trades its service client for a 5-minute scoped JWT
     // (`crm.companies.read`) at auth and calls crm-api `GET /system/companies`.
     CRM_INTERNAL_URL: z.string().url("CRM_INTERNAL_URL must be a valid URL").optional(),

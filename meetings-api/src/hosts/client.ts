@@ -1,6 +1,6 @@
 /**
- * The single HTTP adapter to a host (specs/021-meetings plan.md § Host integration
- * contract, ADR-0059; AC-11.4, AC-11.10). The CRM and the test hosts go through
+ * The single HTTP adapter to a host (specs/20261104-meetings plan.md § Host integration
+ * contract, ADR 20261104-meeting-host-contract-resolve-and-notices; AC-11.4, AC-11.10). The CRM and the test hosts go through
  * THIS code, with no host-specific branch anywhere in meetings-api.
  *
  * meetings-api calls a host for exactly two things, and this module exports
@@ -8,7 +8,7 @@
  *
  *   resolve(host, authorization, ids)   "may THIS CALLER open these entities?"
  *       POST {baseUrl}/meeting-host/v1/resolve, the caller's own JWT forwarded
- *       verbatim (ADR-0035 model: no new secret, the host applies its own live
+ *       verbatim (ADR 20260807-third-party-app-access-decision-endpoint-forwarded-jwt model: no new secret, the host applies its own live
  *       authorization). Batches of at most 25. 2 s timeout.
  *   sendNotice(host, notice, tokens)    the host notice
  *       POST {baseUrl}/system/meeting-host/v1/notices, a scoped service JWT

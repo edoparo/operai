@@ -1,7 +1,7 @@
 /**
  * @vitest-environment jsdom
  *
- * Page tests for MyDevicesPage (T31, specs/015-hardware-inventory; design.md
+ * Page tests for MyDevicesPage (T31, specs/20261006-hardware-inventory; design.md
  * § D1, F14, Q3 as resolved, § Accessibility "D1 my devices"; refs AC-2.3,
  * AC-2.4, AC-4.1, AC-4.2, AC-4.4).
  *
@@ -149,7 +149,7 @@ describe('the two sections (AC-4.1)', () => {
   })
 })
 
-describe('no money, no scope, no capability (AC-4.2, ADR-0045)', () => {
+describe('no money, no scope, no capability (AC-4.2, ADR 20261006-ungated-second-federated-entry-of-a-gated-remote)', () => {
   it('the rendered DOM contains no currency text, even if the payload carried a price', async () => {
     const leaky = {
       ...held(),

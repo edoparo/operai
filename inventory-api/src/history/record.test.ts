@@ -1,5 +1,5 @@
 /**
- * The history recorder (T9, specs/015-hardware-inventory; AC-11.1, AC-11.2).
+ * The history recorder (T9, specs/20261006-hardware-inventory; AC-11.1, AC-11.2).
  * Real Postgres: the guarantees are "same transaction" and "append-only",
  * which only the database can show.
  */

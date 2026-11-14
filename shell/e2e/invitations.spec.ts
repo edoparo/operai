@@ -1,6 +1,6 @@
 /**
  * T14 — User invitations, resend, and user deletion: end-to-end
- * (specs/006-user-invitations).
+ * (specs/20260713-user-invitations).
  *
  * Drives the REAL assembled shell + admin-ui (+ auth, +notify-api for the
  * email-delivery side-effect) in a browser — admin-ui had NO prior e2e
@@ -62,7 +62,7 @@ const AUTH_URL = (
 const RUN = Date.now().toString(36)
 const ADMIN_EMAIL = `inv-admin-${RUN}@operai.test`
 
-test.describe('specs/006-user-invitations — e2e (T14)', () => {
+test.describe('specs/20260713-user-invitations — e2e (T14)', () => {
   test.afterAll(() => {
     cleanupFixtures(RUN)
   })

@@ -1,5 +1,5 @@
 /**
- * T87 — Meetings access journeys (specs/021-meetings: AC-10.1, AC-10.4, AC-10.5, AC-1.4).
+ * T87 — Meetings access journeys (specs/20261104-meetings: AC-10.1, AC-10.4, AC-10.5, AC-1.4).
  *
  * Drives the REAL assembled shell + meetings-ui + crm-ui remotes against the real
  * auth / meetings-api / crm-api. Access to a meeting is decided by the RECORD
@@ -39,7 +39,7 @@ import {
 
 const runId = newRunId()
 
-test.describe('specs/021 T87: access journeys', () => {
+test.describe('specs/20261104-meetings T87: access journeys', () => {
   let creator: Person // holder who creates meetings A and B
   let reader: Person // loses meetings:access after creating their own meeting; participant on A only
   let granted: Person // holder, participant on A

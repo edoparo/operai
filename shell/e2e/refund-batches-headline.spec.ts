@@ -1,9 +1,9 @@
 /**
  * T15 — Monthly refund processing headline e2e journeys
- * (specs/008-refund-monthly-processing, QE verification pass). Drives the
- * REAL assembled shell host + refund-ui remote (ADR-0006) against the REAL
+ * (specs/20260719-refund-monthly-processing, QE verification pass). Drives the
+ * REAL assembled shell host + refund-ui remote (ADR 20260709-suite-frontend-module-federation) against the REAL
  * refund-api/auth/notify-api services — no mocking — mirroring
- * refund-headline.spec.ts's (specs/007) own cross-app e2e convention.
+ * refund-headline.spec.ts's (specs/20260716-refund-service) own cross-app e2e convention.
  *
  * Journey 1 (US-1/2/3/4/5, AC-1.1/1.2/1.6/2.1/3.1/3.2/4.1/5.1/5.2/5.3): two
  * employees each compose a single-line request in a DIFFERENT entity/currency
@@ -56,7 +56,7 @@ const uniqueSuffix = () => `${Date.now()}-${Math.floor(Math.random() * 1e6)}`
  * Composes a single expense line and submits the draft, returning the
  * request id (mirrors refund-headline.spec.ts).
  *
- * specs/009-mileage-rate DEFECT FIX (QE pass): for `type: 'travel_km'`,
+ * specs/20260720-mileage-rate DEFECT FIX (QE pass): for `type: 'travel_km'`,
  * `ExpenseLineComposer` now hides `composer-amount`/`composer-currency`
  * entirely (AC-1.1/1.6 — a computed, read-only breakdown replaces them),
  * so unconditionally filling them (this helper's ORIGINAL behavior) times
@@ -65,7 +65,7 @@ const uniqueSuffix = () => `${Date.now()}-${Math.floor(Math.random() * 1e6)}`
  * fixture below was swapped to `travel_train` — a manual-amount type — to
  * avoid ALSO depending on a mileage rate being configured for its
  * entity/date, which this monthly-processing suite has no reason to seed).
- * specs/009's OWN mileage flow gets its dedicated coverage in
+ * specs/20260720-mileage-rate's OWN mileage flow gets its dedicated coverage in
  * `mileage-rate.spec.ts` (T15).
  */
 async function composeAndSubmit(
@@ -136,7 +136,7 @@ const EMPLOYEE_GROUP = /^batch-employee-group-(?!list$)[A-Za-z0-9]+$/
 
 test.describe.configure({ mode: 'serial' })
 
-test.describe('specs/008-refund-monthly-processing T15: headline journeys', () => {
+test.describe('specs/20260719-refund-monthly-processing T15: headline journeys', () => {
   // A compile claims every eligible request in the database, and other journeys
   // leave approved-but-unbatched ones behind; start from an empty candidate set
   // so the preview/detail assertions below are exact on a re-run too.
@@ -178,7 +178,7 @@ test.describe('specs/008-refund-monthly-processing T15: headline journeys', () =
     const empBContext = await browser.newContext()
     await applySessionCookie(empBContext, empBSession)
     const empBPage = await empBContext.newPage()
-    // NOTE (QE pass, specs/009-mileage-rate): was `type: 'travel_km'` — swapped
+    // NOTE (QE pass, specs/20260720-mileage-rate): was `type: 'travel_km'` — swapped
     // to `travel_train` (see composeAndSubmit's doc comment above). This suite
     // cares about mixed-employee/mixed-currency batch mechanics, not mileage,
     // so a manual-amount type preserves the original coverage intent without

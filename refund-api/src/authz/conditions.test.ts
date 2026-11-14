@@ -1,6 +1,6 @@
 /**
  * Unit tests for refund-api's local condition evaluators (T6,
- * specs/007-refund-service, ADR-0014/ADR-0015).
+ * specs/20260716-refund-service, ADR 20260716-refund-api-authorization-enforcing-resource-server/ADR 20260716-entity-scoped-abac-refund-api).
  *
  * Pure functions, no DB/network — see conditions.ts's own doc comment for
  * what each helper backs.
@@ -88,7 +88,7 @@ describe("ownershipOwn", () => {
   });
 });
 
-// ─── requestInScope (ADR-0015) ──────────────────────────────────────────────
+// ─── requestInScope (ADR 20260716-entity-scoped-abac-refund-api) ──────────────────────────────────────────────
 
 describe("requestInScope", () => {
   it("single-entity scope: matches when the caller's entity equals the request's single line entity", () => {
@@ -140,7 +140,7 @@ describe("requestInScope", () => {
   });
 });
 
-// ─── entityScopeForPermission (ADR-0015 point 1) ───────────────────────────
+// ─── entityScopeForPermission (ADR 20260716-entity-scoped-abac-refund-api point 1) ───────────────────────────
 
 describe("entityScopeForPermission", () => {
   it("an unconditioned grant (conditions: null) resolves to GLOBAL_ENTITY_SCOPE", () => {
@@ -180,7 +180,7 @@ describe("entityScopeForPermission", () => {
   });
 });
 
-// ─── approveSelfRestricted (specs/010-self-approval-control, ADR-0026) ─────
+// ─── approveSelfRestricted (specs/20260721-self-approval-control, ADR 20260721-self-approval-condition-and-403-exception) ─────
 
 describe("approveSelfRestricted", () => {
   it("returns true when attributes contains {key:'self-approval', match:'deny'}", () => {

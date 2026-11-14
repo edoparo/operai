@@ -17,7 +17,7 @@ const t = strings.departments
 
 /**
  * DepartmentsPage — Screen B1 (design.md "Departments list", T19,
- * specs/004-auth-roles-permissions/tasks.md). Replaces T14's placeholder.
+ * specs/20260713-auth-roles-permissions/tasks.md). Replaces T14's placeholder.
  *
  * Browse/create/delete departments (AC-1.2). List/create/delete states
  * mirror Screen A1's pattern exactly per design.md ("L/E/P/Err mirror Screen

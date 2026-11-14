@@ -1,12 +1,12 @@
 /**
  * collaboratorsApi — typed API client for estimai-api's five collaborator
- * endpoints (T15, specs/013-estimate-sharing/tasks.md; plan.md "### `estimai-api`
+ * endpoints (T15, specs/20260807-estimate-sharing/tasks.md; plan.md "### `estimai-api`
  * — new (all under the existing `estimatesRouter`…)"). Reuses `estimatesApi`'s
  * `ApiError`/`ApiProblem`/`EstimateIdentity` rather than redeclaring them —
  * both clients share one RFC 7807 Problem shape and one embedded-identity
  * vocabulary.
  *
- * All requests go through `apiFetch` (ADR-0001) — same interceptor, same
+ * All requests go through `apiFetch` (ADR 20260607-jwt-in-memory-never-web-storage) — same interceptor, same
  * Bearer-JWT/401-retry contract as estimatesApi.ts. Never a second fetch path.
  *
  * Error-code discrimination:

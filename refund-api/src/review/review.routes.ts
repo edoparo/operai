@@ -1,5 +1,5 @@
 /**
- * Accounting review queue endpoint (T11, specs/007-refund-service).
+ * Accounting review queue endpoint (T11, specs/20260716-refund-service).
  *
  *   GET /review/requests → 200 [{id,owner,submittedAt,subtotals}]
  *                           (submitted ∧ in the caller's entity scope)
@@ -9,7 +9,7 @@
  * (T7's `canReadRequest` already evaluates the owner-OR-in-scope-accounting
  * predicate); nothing new is added here for it.
  *
- * Denial semantics (plan.md § API contracts, ADR-0015):
+ * Denial semantics (plan.md § API contracts, ADR 20260716-entity-scoped-abac-refund-api):
  *   - No `request:review` grant AT ALL → 403 (capability-absent, AC-5.4).
  *   - A conditioned grant whose scope matches zero submitted requests, or
  *     whose caller has no resolved `entity` attribute → 200 with an EMPTY

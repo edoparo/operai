@@ -1,4 +1,4 @@
-/** Response schema for `GET /assets/{id}/history` (T22, specs/015; plan.md § Assets). */
+/** Response schema for `GET /assets/{id}/history` (T22, specs/20261006-hardware-inventory; plan.md § Assets). */
 
 import { z } from "@hono/zod-openapi";
 

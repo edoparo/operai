@@ -1,7 +1,7 @@
 /**
- * Zod schemas for POST /system/emails (T3, specs/006-user-invitations,
- * plan.md §API contracts, ADR-0011; extended by T7,
- * specs/008-refund-monthly-processing, ADR-0021 for `refund_batch_compiled`).
+ * Zod schemas for POST /system/emails (T3, specs/20260713-user-invitations,
+ * plan.md §API contracts, ADR 20260714-notify-api-email-channel-service-trust; extended by T7,
+ * specs/20260719-refund-monthly-processing, ADR 20260719-refund-batch-signed-link-email-delivery for `refund_batch_compiled`).
  *
  * `template` is a closed enum (EMAIL_TEMPLATES, src/channels/email.channel.ts)
  * — an unrecognised template name is a 400, never silently accepted. `data`
@@ -28,10 +28,10 @@ export const SendEmailDataSchema = z.object({
     .datetime({ offset: true, message: "data.expiresAt must be ISO 8601" }),
 });
 
-// specs/008-refund-monthly-processing T7 (plan.md §Email, ADR-0021) —
+// specs/20260719-refund-monthly-processing T7 (plan.md §Email, ADR 20260719-refund-batch-signed-link-email-delivery) —
 // `refund_batch_compiled`'s `data` shape. `batchUrl` is an in-app deep link
 // (`<REFUND_APP_BASE_URL>/refund/batches/<id>`), never a storage/presigned
-// URL (ADR-0021) — validated only as a well-formed URL string here, its
+// URL (ADR 20260719-refund-batch-signed-link-email-delivery) — validated only as a well-formed URL string here, its
 // origin is refund-api's concern, not this channel's.
 export const RefundBatchCompiledDataSchema = z.object({
   batchUrl: z
@@ -52,7 +52,7 @@ export const RefundBatchCompiledDataSchema = z.object({
     .nonnegative("data.requestCount must be >= 0"),
 });
 
-// specs/007-refund-service AC-3.6 (email channel extension) — the decision
+// specs/20260716-refund-service AC-3.6 (email channel extension) — the decision
 // emails' `data` shapes. `requestUrl` is an in-app deep link
 // (`<REFUND_APP_BASE_URL>/refund/requests/<id>`), the same posture as
 // `batchUrl` above: the employee signs in and passes the ordinary ownership
@@ -67,7 +67,7 @@ export const RefundBatchCompiledDataSchema = z.object({
 const ApprovedTotalSchema = z.object({
   currency: z.enum(["EUR", "CHF", "USD", "GBP"]),
   // Integer minor units, never a formatted string (CLAUDE.md money handling,
-  // ADR-0025) — rendering to "CHF 2156,00" happens at template render time.
+  // ADR 20260720-mileage-rate-money-precision-integer-micros) — rendering to "CHF 2156,00" happens at template render time.
   // Signed: an approved total is never negative today, but bounding it here
   // rather than assuming is cheaper than a corrupted email.
   amountCents: z
@@ -90,7 +90,7 @@ export const RefundDecisionApprovedDataSchema = z.object({
   requestUrl: RequestUrlSchema,
   decidedAt: DecidedAtSchema,
   // One entry per currency on the request (a request's lines may straddle
-  // currencies — specs/007's 2026-07-17 amendment). Capped at the four
+  // currencies — specs/20260716-refund-service's 2026-07-17 amendment). Capped at the four
   // supported currencies so a malformed caller cannot inflate the body.
   approvedTotals: z.array(ApprovedTotalSchema).min(1).max(4),
 });

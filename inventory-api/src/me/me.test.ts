@@ -1,6 +1,6 @@
 /**
- * `/me/*` (T16, specs/015-hardware-inventory; AC-2.3, AC-2.4, AC-2.6, AC-2.7,
- * AC-4.1, AC-4.2, AC-4.4; ADR-0045). JWT only: the harness's authz fixture is
+ * `/me/*` (T16, specs/20261006-hardware-inventory; AC-2.3, AC-2.4, AC-2.6, AC-2.7,
+ * AC-4.1, AC-4.2, AC-4.4; ADR 20261006-ungated-second-federated-entry-of-a-gated-remote). JWT only: the harness's authz fixture is
  * made to FAIL for the whole file, so every test also proves these routes do
  * not depend on `auth /authz/resolve`.
  */

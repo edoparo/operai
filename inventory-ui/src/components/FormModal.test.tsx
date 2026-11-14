@@ -1,7 +1,7 @@
 /**
  * @vitest-environment jsdom
  *
- * Component tests for FormModal (T25, specs/015-hardware-inventory; the form
+ * Component tests for FormModal (T25, specs/20261006-hardware-inventory; the form
  * dialog pattern of admin-ui's AddRateEntryModal — design.md § Component
  * inventory "Form modal pattern", § Accessibility "Dialogs").
  *

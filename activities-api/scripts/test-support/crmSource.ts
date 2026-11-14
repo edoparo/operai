@@ -1,5 +1,5 @@
 /**
- * The CRM database as the import script reads it, provisioned by the test itself (specs/028 QE D4).
+ * The CRM database as the import script reads it, provisioned by the test itself (specs/20261110-activities QE D4).
  *
  * The import script reads four tables of crm-api: `activity`, `activity_participant`,
  * `task_blocker` and `meeting_host_state`. T14 drops them from crm-api's schema, so a test that
@@ -36,7 +36,7 @@ export function urlForDatabase(base: string, name: string): string {
 }
 
 /**
- * Test databases do not wait for the WAL flush at commit (specs/028 QE D9). The first hook of a
+ * Test databases do not wait for the WAL flush at commit (specs/20261110-activities QE D9). The first hook of a
  * run (seed plus TRUNCATE ... CASCADE, a dozen commits) once took more than its 5 s limit on a
  * shared Postgres whose own log shows checkpoints syncing for 5 s; every commit of a test hook is
  * a wait on the same disk as that checkpoint. The tests assert on data, never on durability.

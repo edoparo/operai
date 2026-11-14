@@ -1,5 +1,5 @@
 /**
- * QE wiring test (specs/016 T7, AC-1.4): the REAL entry point (`src/index.ts`)
+ * QE wiring test (specs/20261013-notify-service-credentials T7, AC-1.4): the REAL entry point (`src/index.ts`)
  * must inject `auth`'s own credential into `lib/notify`. Unit tests replace the
  * provider, so only this proves the production wiring: without it every
  * invitation email would be reported `failed` ("not configured").

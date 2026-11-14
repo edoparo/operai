@@ -402,7 +402,7 @@ describe("a result whose words change speaker (AC-6.2)", () => {
   });
 });
 
-describe("three parts (ADR-0070)", () => {
+describe("three parts (ADR 20261105-meetings-transcript-parts-speaker-labels-per-part)", () => {
   const outputs: Record<number, string> = {
     1: fixture("output-two-speakers.json"), // speakers 1 and 2
     2: fixture("output-two-speakers.json"), // 1 and 2 again: DIFFERENT people as far as we can know
@@ -534,7 +534,7 @@ describe("failures map into the closed codes (G-8) and the prefix is emptied eac
     expect(await rejection(w.run())).toMatchObject({ code: "provider_rejected", transient: false });
   });
 
-  it("cleans up only its own attempt's prefix: a newer attempt's staged parts survive, on success and on failure (ADR-0062 stale attempt)", async () => {
+  it("cleans up only its own attempt's prefix: a newer attempt's staged parts survive, on success and on failure (ADR 20261104-durable-job-runner-work-queued-state-derived stale attempt)", async () => {
     const newer = `transcribe/${MEETING}/${ATTEMPT + 1}/in/1.ogg`;
     const w = world();
     w.storage.seed(newer, "newer attempt's audio");

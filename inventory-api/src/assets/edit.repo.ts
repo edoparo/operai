@@ -1,5 +1,5 @@
 /**
- * Editing an asset (T13, specs/015; AC-1.9, AC-3.6, AC-5.9, AC-10.1, AC-11.1).
+ * Editing an asset (T13, specs/20261006-hardware-inventory; AC-1.9, AC-3.6, AC-5.9, AC-10.1, AC-11.1).
  *
  * One transaction: [entity lock if price/date], asset row lock, fresh read,
  * guards, update, history. Any throw rolls the lot back.
@@ -52,7 +52,7 @@ export async function editAsset(input: EditInput): Promise<string> {
         if (!pre) throw notFound("Asset not found");
         entity = pre.entity;
 
-        // Entity lock FIRST (ADR-0046), then the row: a close in flight must
+        // Entity lock FIRST (ADR 20261006-depreciation-derived-on-read-closed-years-snapshotted), then the row: a close in flight must
         // commit before this edit reads the closed boundary.
         if (wantsDated) await lockEntity(tx, pre.entity);
         await lockAsset(tx, id);

@@ -1,4 +1,4 @@
-/** specs/029 (T2, AC-6.4): the web-push private key is a secret and never printed. */
+/** specs/20261111-push-notifications (T2, AC-6.4): the web-push private key is a secret and never printed. */
 import { describe, expect, test } from "bun:test";
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";

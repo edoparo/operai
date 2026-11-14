@@ -24,7 +24,7 @@ const days = (doc: EstimateDocument) => {
 };
 const FULL = { parallelism: 0.7, sprintDays: 10, workingDaysMonth: 20, qaDeployDays: 0, qaTestDays: 0, pmDays: 0 };
 
-describe("timeline: the estimate model's elapsed chain (specs/020 D-13)", () => {
+describe("timeline: the estimate model's elapsed chain (specs/20261102-crm-offer-document D-13)", () => {
   it("vector 1: 2 FTE with QA and PM overhead", () => {
     const doc = estimate([act(2, 4, 9, 0.5), act(3, 5, 8), act(10, 20, 40, 2)], 2, { ...FULL, qaDeployDays: 1, qaTestDays: 1, pmDays: 2 });
     expect(days(doc)).toEqual({ best: 14, worst: 42 });

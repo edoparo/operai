@@ -10,7 +10,7 @@ import { OUTPUT_TRIES, honestSummaryModel, templateOf } from "./pipeline";
 import type { AttackClass, Channel, SummaryFixture } from "./types";
 import { WIRE_PAYLOAD, recordWire, wireChannels } from "./wire";
 
-// specs/021-meetings T83: AC-7.12, AC-9.7, ADR-0067 point 6. The CI-mode run (fake model) is the
+// specs/20261104-meetings T83: AC-7.12, AC-9.7, ADR 20261104-ai-output-structured-validated-plain-text point 6. The CI-mode run (fake model) is the
 // gate; these tests pin that the gate is real: it passes on the shipped defences, it fails when a
 // model's obedience is judged, and its assertions fail on the failure they claim to catch.
 
@@ -79,7 +79,7 @@ describe("CI mode (fake model): the server contains an obedient model", () => {
     expect(prose.every((c) => c.outcome === "accepted" && !c.failed)).toBe(true);
   });
 
-  it("holds every ADR-0067 position at once on the fixture that attacks all of them", async () => {
+  it("holds every ADR 20261104-ai-output-structured-validated-plain-text position at once on the fixture that attacks all of them", async () => {
     const results = await evaluateAll(FIXTURES.filter((f) => f.id === "en-answer-markup-and-links" || f.id === "it-summary-fake-delimiters"));
     expect(results.every((r) => r.ok)).toBe(true);
   });

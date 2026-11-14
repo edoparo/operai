@@ -58,7 +58,7 @@ const en = {
     blockedByEmpty: 'No other open task at this company.',
     blockedByMax: 'Choose at most 10 tasks.',
   },
-  /** A task's rich description with its images and attachments (ADR-0089). */
+  /** A task's rich description with its images and attachments (ADR 20261113-task-description-files-in-activities-api-bucket). */
   taskFiles: {
     description: 'Description',
     placeholder: 'What has to be done, and anything that helps. Paste or drop pictures here.',
@@ -100,7 +100,7 @@ const en = {
     },
   },
   /**
-   * activities-api could not answer (specs/028 AC-1.5): not the authorization outage of `common.authUnavailable`.
+   * activities-api could not answer (specs/20261110-activities AC-1.5): not the authorization outage of `common.authUnavailable`.
    * `host_unavailable`: it could not ask crm-api whether you may read; `maintenance`: the records are being moved.
    * `title`/`body` replace a list; `save` is the line for a change that was refused (nothing was saved).
    */

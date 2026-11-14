@@ -1,6 +1,6 @@
 /**
  * Candidate preview + compile + read + resend endpoints (T3/T4/T5,
- * specs/008-refund-monthly-processing).
+ * specs/20260719-refund-monthly-processing).
  *
  *   GET  /batches/candidates?cutoff= → 200 CandidatePreview (dry run, US-2, T3)
  *   POST /batches {cutoff?}          → 201 BatchDetail (the atomic-claim core, T3;
@@ -14,7 +14,7 @@
  * reused verbatim via `scopeForReviewAction` (review.service.ts) — else 403
  * (AC-1.8). The candidate set (and what compile can claim) is entity-scoped
  * via the SAME predicate the 007 review queue uses (`requestInScope`,
- * ADR-0015); a conditioned grant with no resolved caller entity (`scope ===
+ * ADR 20260716-entity-scoped-abac-refund-api); a conditioned grant with no resolved caller entity (`scope ===
  * null`) matches nothing — an empty candidate list for the GET, and the
  * empty-set 422 refusal for the POST (never a 403 — the capability itself
  * IS present).
@@ -34,18 +34,18 @@
  *
  * `GET /batches/:id`'s and `GET /batches/:id/pdf-url`'s PDF link is minted
  * via the shared `resolvePdfLink` (pdfLink.ts) — lazily regenerating the
- * object if a prior `PutObject` never landed (ADR-0019 regenerable-cache
+ * object if a prior `PutObject` never landed (ADR 20260719-refund-batch-pdf-generation-pdf-lib regenerable-cache
  * posture), so a discarded/paid batch's PDF still resolves.
  *
- * The compilation email (T5, AC-3.1/3.3, ADR-0021; LIVE-resolution +
- * blocked-send widened by specs/011-refund-settings, ADR-0029) is sent via
+ * The compilation email (T5, AC-3.1/3.3, ADR 20260719-refund-batch-signed-link-email-delivery; LIVE-resolution +
+ * blocked-send widened by specs/20260722-refund-settings, ADR 20260722-batch-email-recipient-live-resolution-amends-0021) is sent via
  * the SAME `sendCompilationEmailBestEffort` helper (email.ts) at TWO
  * trigger points: post-commit at the end of the compile handler (auto-send)
  * and from the dedicated resend route below — both persist `emailStatus`/
  * `emailLastAttemptAt`/`emailDeliveryId`/`recipientEmailSnapshot` (now
  * per-attempt delivery provenance, not a compile-time freeze) on the batch
  * identically. Best effort: a notify-api failure NEVER fails or rolls back
- * the triggering compile/resend response (ADR-0011 posture); an
+ * the triggering compile/resend response (ADR 20260714-notify-api-email-channel-service-trust posture); an
  * UNCONFIGURED accounting-distribution-email setting also never fails
  * compile (AC-2.1) but DOES turn a resend into a 422 (D5).
  *
@@ -112,14 +112,14 @@ const unprocessableProblem = (path: string, detail: string) => ({
 });
 
 /**
- * specs/011-refund-settings (D5, ADR-0029) — the distinguishable 422 a
+ * specs/20260722-refund-settings (D5, ADR 20260722-batch-email-recipient-live-resolution-amends-0021) — the distinguishable 422 a
  * RESEND returns when the accounting-distribution-email setting is
  * unconfigured: same RFC 7807 shape as `unprocessableProblem`, plus a
  * stable extension member `code:"accounting_distribution_email_unconfigured"`
- * (mirrors specs/010's `code` discriminator pattern, e.g.
+ * (mirrors specs/20260721-self-approval-control's `code` discriminator pattern, e.g.
  * `review/decide.routes.ts`'s `selfApprovalForbiddenProblem`). Distinct from
  * an ordinary notify-api/Resend outage, which stays a best-effort 200 with
- * `emailStatus:"failed"` (ADR-0011) — never this 422.
+ * `emailStatus:"failed"` (ADR 20260714-notify-api-email-channel-service-trust) — never this 422.
  */
 const accountingEmailUnconfiguredProblem = (path: string) => ({
   type: "https://httpstatuses.com/422",
@@ -283,7 +283,7 @@ const compileRoute = createRoute({
     "`cutoff` (defaults to now), creates the RefundBatch + immutable " +
     "RefundBatchItems, writes a batch_compiled audit row per request, then " +
     "(best-effort, post-commit) renders and stores the batch PDF (AC-1.9/1.10; " +
-    "T2/ADR-0019). Two concurrent compiles never double-claim the same " +
+    "T2/ADR 20260719-refund-batch-pdf-generation-pdf-lib). Two concurrent compiles never double-claim the same " +
     "request (AC-1.2/1.5). Refuses with 422 if the locked candidate set is " +
     "empty — nothing is created (AC-1.4). 403 if the caller holds no " +
     "`request:review` grant at all (AC-1.8). The compilation email (T5) is " +
@@ -341,7 +341,7 @@ batchesRouter.openapi(compileRoute, async (c) => {
     );
   }
 
-  // specs/011-refund-settings (D6, AC-2.1) — compile is fully decoupled
+  // specs/20260722-refund-settings (D6, AC-2.1) — compile is fully decoupled
   // from the accounting-distribution-email setting; no recipient is passed
   // or read here at all.
   const exit = await Effect.runPromiseExit(compileBatch(cutoff, scope, sub, email));
@@ -356,7 +356,7 @@ batchesRouter.openapi(compileRoute, async (c) => {
 
   const batch = exit.value;
 
-  // Post-commit, best-effort (ADR-0019 regenerable-cache posture): a failed
+  // Post-commit, best-effort (ADR 20260719-refund-batch-pdf-generation-pdf-lib regenerable-cache posture): a failed
   // PutObject does NOT lose the committed batch — pdfObjectKey is already
   // persisted deterministically; a later read (T4, via resolvePdfLink)
   // lazily re-renders on miss. `pdfStored` gates whether we even ATTEMPT to
@@ -385,7 +385,7 @@ batchesRouter.openapi(compileRoute, async (c) => {
   }
 
   // Auto-send the compilation email (T5, AC-3.1) — best-effort, post-commit,
-  // NEVER blocks or fails this response (ADR-0011 posture). The outcome is
+  // NEVER blocks or fails this response (ADR 20260714-notify-api-email-channel-service-trust posture). The outcome is
   // persisted on the batch row by sendCompilationEmailBestEffort itself;
   // reflect it in THIS response by folding it into the local `batch` object
   // rather than re-fetching.
@@ -435,7 +435,7 @@ const resendEmailRoute = createRoute({
   summary: "Resend the compilation email for an already-compiled batch",
   description:
     "Mints a fresh `/system/emails` call to the LIVE accounting-" +
-    "distribution-email setting (specs/011-refund-settings, D6, ADR-0029 — " +
+    "distribution-email setting (specs/20260722-refund-settings, D6, ADR 20260722-batch-email-recipient-live-resolution-amends-0021 — " +
     "supersedes the original compile-time `recipientEmailSnapshot` freeze), " +
     "resolved fresh at THIS attempt — never a value baked in at a previous " +
     "deploy or send. Works regardless of the batch's status (`compiled`, " +
@@ -443,7 +443,7 @@ const resendEmailRoute = createRoute({
     "PDF. 200 with the resulting `emailStatus` on an ordinary notify-api " +
     "outcome (sent/failed, AC-3.3); 422 with " +
     "`code:\"accounting_distribution_email_unconfigured\"` when the setting " +
-    "is unconfigured (D5, specs/011) — distinguishable from an ordinary " +
+    "is unconfigured (D5, specs/20260722-refund-settings) — distinguishable from an ordinary " +
     "notify-api/Resend failure, which stays a 200 with `emailStatus:\"failed\"`.",
   security: [{ Bearer: [] }],
   request: { params: BatchIdParamSchema },
@@ -491,7 +491,7 @@ batchesRouter.openapi(resendEmailRoute, async (c) => {
 
   const outcome = await sendCompilationEmailBestEffort(batch, batch.requests.length);
 
-  // D5 (specs/011-refund-settings) — a RESEND while unconfigured is a
+  // D5 (specs/20260722-refund-settings) — a RESEND while unconfigured is a
   // distinguishable 422, unlike the auto-send-on-compile path (AC-2.1),
   // which never fails on this. The side effect (emailStatus persisted as
   // "blocked_unconfigured") already happened inside
@@ -559,7 +559,7 @@ const getBatchRoute = createRoute({
     "Regardless of status — `compiled`, `paid`, or `discarded` all resolve " +
     "here (AC-2.1/6.3). Capability-gated (`request:review`), NOT " +
     "entity-scoped (D1). The `pdf` link is minted (and, if the object is " +
-    "missing, lazily regenerated — ADR-0019) only AFTER the capability " +
+    "missing, lazily regenerated — ADR 20260719-refund-batch-pdf-generation-pdf-lib) only AFTER the capability " +
     "check passes. `pdf` is `null` (never a failed response) if that " +
     "render/store/presign step could not complete right now (OWASP A04 " +
     "fix round) — the rest of the batch detail is always still returned.",
@@ -616,7 +616,7 @@ const pdfUrlRoute = createRoute({
   description:
     "Accounting-only, never employee-reachable (AC-3.4) — minted only AFTER " +
     "the `request:review` capability check passes. Lazily regenerates the " +
-    "PDF object if it is missing (ADR-0019 regenerable-cache posture), so a " +
+    "PDF object if it is missing (ADR 20260719-refund-batch-pdf-generation-pdf-lib regenerable-cache posture), so a " +
     "discarded/paid batch's PDF still resolves (AC-1.10/6.3). Unlike `GET " +
     "/batches/:id` (which folds a link failure into `pdf: null` on an " +
     "otherwise-200 body), THIS route's entire purpose is the link — a " +

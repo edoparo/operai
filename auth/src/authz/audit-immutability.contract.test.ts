@@ -1,5 +1,5 @@
 /**
- * AC-5.2 regression tripwire (T6, specs/012-employee-address; ADR-0033
+ * AC-5.2 regression tripwire (T6, specs/20260803-employee-address; ADR 20260804-two-tier-audit-assurance-auth-audit-log-application-level
  * "Tier 2 — application-level immutability only" for `auth`'s `audit_log`).
  *
  * `audit_log` carries NO database-level immutability (no trigger, no rule,
@@ -18,7 +18,7 @@
  *       regex) — it catches the failure mode actually worth defending
  *       against: someone adding a mutating call to a route/service module.
  *       The scan runs against each file's WHOLE content (not line-by-line —
- *       QE fix, specs/012-employee-address: a line-by-line scan let
+ *       QE fix, specs/20260803-employee-address: a line-by-line scan let
  *       `db.auditLog` on one line and `.deleteMany()` on the next evade the
  *       tripwire entirely, since neither line alone matches the pattern).
  *       Excludes `**\/*.test.ts`, `src/test-setup.ts`, and

@@ -12,7 +12,7 @@ import { strings } from '../strings'
  * nobody has used yet is typed as before. The list is fetched once per mount
  * and filtered here, by substring, case-insensitively. A failed fetch is
  * silent — the field is then exactly the plain input it replaced (the suite's
- * posture for an optional enrichment, ADR-0032).
+ * posture for an optional enrichment, ADR 20260804-google-places-browser-direct-referrer-restricted-key).
  *
  * The popup opens while typing (or on ArrowDown) and only when there is
  * something to offer: no "no matches" row, and nothing when the only match is

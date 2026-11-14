@@ -1,5 +1,5 @@
 /**
- * Zod schemas for the Estimates API (T4, specs/001-estimate-persistence).
+ * Zod schemas for the Estimates API (T4, specs/20260606-estimate-persistence).
  *
  * EstimateContent  — stored verbatim in JSONB; mirrors the UI's ProjectData
  *                    shape (params / releases / acts).
@@ -115,7 +115,7 @@ export const EstimateUpsertSchema = z.object({
 
 export type EstimateUpsert = z.infer<typeof EstimateUpsertSchema>;
 
-// ─── Access / identity shapes (T6, specs/013-estimate-sharing) ──────────────
+// ─── Access / identity shapes (T6, specs/20260807-estimate-sharing) ──────────────
 //
 // AccessLevelSchema mirrors src/estimates/access.ts's AccessLevel — kept as an
 // independent zod definition (rather than z.nativeEnum over the string union)
@@ -128,7 +128,7 @@ export type EstimateUpsert = z.infer<typeof EstimateUpsertSchema>;
 // (plan.md "Display identity"); `estimai-api` looks the identity up by the
 // owner's `userId` internally and only ever serialises {status, name}.
 
-// `oversight` (specs/024): wire-only — a read-all permission holder with no
+// `oversight` (specs/20261108-estimate-list-oversight): wire-only — a read-all permission holder with no
 // relationship to the estimate. Collaborator APIs use their own schema and
 // reject it.
 export const AccessLevelSchema = z.enum(["owner", "editor", "viewer", "oversight"]);
@@ -153,7 +153,7 @@ export type Identity = z.infer<typeof IdentitySchema>;
  * display identity (AC-2.1, AC-10.5).
  */
 /**
- * `GET /estimates` query (specs/024). `status` absent = open AND closed (the
+ * `GET /estimates` query (specs/20261108-estimate-list-oversight). `status` absent = open AND closed (the
  * import offer dedupes against the whole account); an unknown value is a 400.
  */
 export const ListStatusSchema = z.enum(["open", "closed"]);
@@ -172,7 +172,7 @@ export const EstimateListItemSchema = z.object({
   owner: IdentitySchema.nullable(),
   // ISO timestamp while the estimate is closed (read-only until reopened); null while open.
   closedAt: z.string().datetime().nullable(),
-  // The CRM deal this estimate belongs to, pushed by crm-api (specs/024, ADR-0076); null when unlinked.
+  // The CRM deal this estimate belongs to, pushed by crm-api (specs/20261108-estimate-list-oversight, ADR 20261108-crm-pushes-deal-links-to-estimai); null when unlinked.
   crmDealId: z.string().nullable(),
 });
 

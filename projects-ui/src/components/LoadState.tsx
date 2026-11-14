@@ -17,7 +17,7 @@ export function Loading({ label, rows = 3 }: { label: string; rows?: number }) {
 
 /**
  * The failed-load state: 403 → PermissionDenied; 503 → the "authorization
- * service unavailable" banner (ADR-0014); anything else → a warning banner
+ * service unavailable" banner (ADR 20260716-refund-api-authorization-enforcing-resource-server); anything else → a warning banner
  * with the Problem detail. Each with Retry except the 403.
  */
 export function LoadFailure({ error, onRetry }: { error: unknown; onRetry: () => void }) {

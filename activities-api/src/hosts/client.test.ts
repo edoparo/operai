@@ -1,5 +1,5 @@
 /**
- * The resolve client (specs/028 T3; AC-8.1, AC-8.2, AC-8.3; plan.md § Host contract): the one
+ * The resolve client (specs/20261110-activities T3; AC-8.1, AC-8.2, AC-8.3; plan.md § Host contract): the one
  * HTTP adapter to a host. These tests run it against the scriptable test hosts, over real HTTP.
  *
  * Rules pinned here: the caller's Authorization is forwarded verbatim; 25 ids per call; a 2 s

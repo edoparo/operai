@@ -1,5 +1,5 @@
 /**
- * crm-api → estimai-api deal-link notice client (specs/024 US-3, ADR-0076;
+ * crm-api → estimai-api deal-link notice client (specs/20261108-estimate-list-oversight US-3, ADR 20261108-crm-pushes-deal-links-to-estimai;
  * mirror of estimai-api's `crmNotices.ts`).
  *
  * The CRM owns which deal an estimate is linked to; EstimAI shows it as a

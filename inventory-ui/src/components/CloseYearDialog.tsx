@@ -10,7 +10,7 @@ import { strings } from '../strings'
 import { fillTemplate } from '../strings/errors'
 
 /**
- * CloseYearDialog — "Close fiscal year {year}?" (T38, specs/015-hardware-inventory;
+ * CloseYearDialog — "Close fiscal year {year}?" (T38, specs/20261006-hardware-inventory;
  * design.md F12, § Irreversible actions "Close year", § Error and conflict
  * catalogue; AC-8.4, AC-8.5, AC-8.7): an `IrreversibleActionDialog` whose
  * consequence shows the five roll-forward lines, then states that the year is

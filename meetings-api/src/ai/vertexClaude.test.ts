@@ -108,7 +108,7 @@ describe("the endpoint (R13, S2)", () => {
   });
 });
 
-describe("the request (AC-7.10, ADR-0067)", () => {
+describe("the request (AC-7.10, ADR 20261104-ai-output-structured-validated-plain-text)", () => {
   it("carries the system prompt, the messages, max_tokens and exactly ONE tool, with NO tool_choice and NO thinking (H-8)", async () => {
     const { model, seen } = build(() => jsonResponse(reply()));
     await model.complete(REQUEST, SCHEMA);

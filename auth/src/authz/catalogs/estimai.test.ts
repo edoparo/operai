@@ -1,6 +1,6 @@
 /**
  * Unit tests for EstimAI's declared catalog constant (T26,
- * specs/004-auth-roles-permissions — refs AC-3.4). Pure structural checks —
+ * specs/20260713-auth-roles-permissions — refs AC-3.4). Pure structural checks —
  * no DB, no registration — the registration path itself (`upsertAppCatalog`
  * via `seedEstimaiCatalog`) is covered by `../seed.test.ts`.
  */
@@ -25,7 +25,7 @@ describe("ESTIMAI_CATALOG (T26, AC-3.4)", () => {
     });
   });
 
-  test("declares the `estimate` resource with view/create/edit/delete and read-all (specs/024)", () => {
+  test("declares the `estimate` resource with view/create/edit/delete and read-all (specs/20261108-estimate-list-oversight)", () => {
     const estimateResource = ESTIMAI_CATALOG.resources.find((r) => r.key === "estimate");
     expect(estimateResource).toBeDefined();
     expect(estimateResource?.actions.map((a) => a.key).sort()).toEqual([
@@ -42,7 +42,7 @@ describe("ESTIMAI_CATALOG (T26, AC-3.4)", () => {
     for (const action of (estimateResource?.actions ?? []).filter((a) => a.key !== "read-all")) {
       expect(action.supportedConditions.sort()).toEqual(["department", "entity", "ownership"]);
     }
-    // specs/024, ADR-0075: read-all is global, no conditions.
+    // specs/20261108-estimate-list-oversight, ADR 20261108-estimai-oversight-permission-amends-0036: read-all is global, no conditions.
     expect(estimateResource?.actions.find((a) => a.key === "read-all")?.supportedConditions).toEqual([]);
     // Guard against an empty-array false positive above.
     expect(estimateResource?.actions.length).toBeGreaterThan(0);

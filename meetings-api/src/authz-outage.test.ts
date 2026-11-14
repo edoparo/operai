@@ -1,5 +1,5 @@
 /**
- * `auth` is down (specs/021-meetings T42; AC-10.6, AC-10.4, ADR-0058): `GET /authz/resolve` fails
+ * `auth` is down (specs/20261104-meetings T42; AC-10.6, AC-10.4, ADR 20261104-meetings-tool-shape-visibility-by-participation): `GET /authz/resolve` fails
  * for every request. Over the assembled app and the SAME route table as the matrix:
  *
  *   - a route that needs no capability (`selfScoped`, plus the creator's own deletions) keeps

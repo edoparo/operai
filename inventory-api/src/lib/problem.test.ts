@@ -1,5 +1,5 @@
 /**
- * Problem JSON helpers (specs/015-hardware-inventory, plan.md § API contracts).
+ * Problem JSON helpers (specs/20261006-hardware-inventory, plan.md § API contracts).
  * The contract the built UI depends on: extension members are TOP-LEVEL.
  */
 

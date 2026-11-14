@@ -1,5 +1,5 @@
 /**
- * Summaries (specs/021-meetings US-7; plan.md § API contracts → Summaries; ADR-0062, ADR-0067).
+ * Summaries (specs/20261104-meetings US-7; plan.md § API contracts → Summaries; ADR 20261104-durable-job-runner-work-queued-state-derived, ADR 20261104-ai-output-structured-validated-plain-text).
  *
  *   GET    /meetings/:id/summaries                       selfScoped + visibility; `can` per item (G4)
  *   POST   /meetings/:id/summaries                       capability + visibility; 202, enqueues `summarize`
@@ -15,13 +15,13 @@
  *
  * SPEAKER NAMES. A job has no caller token, so the names of Operai participants are resolved HERE,
  * once per request, with the caller's JWT and stored in the snapshot (`template.speakerNames`,
- * `speakerNamesFor`). The look-up is soft (ADR-0039): an outage leaves a speaker as "Speaker n".
+ * `speakerNamesFor`). The look-up is soft (ADR 20260807-live-identity-resolution-by-id-fail-soft): an outage leaves a speaker as "Speaker n".
  *
  * LOCKS. The 20-summary limit is counted under `pg_advisory_xact_lock` on the meeting, taken BEFORE
  * the per-user lock of the AI limiter, always in that order, so two requests cannot take the 21st
  * slot and cannot deadlock. A refused request throws inside the transaction and writes nothing.
  *
- * DERIVED STATE (ADR-0013/0062). `stale` is `summary.transcriptVersion < meeting.transcriptVersion`
+ * DERIVED STATE (ADR 20260714-invitation-lifecycle-derived-expiry-state/0062). `stale` is `summary.transcriptVersion < meeting.transcriptVersion`
  * of a READY summary. A `generating` row whose current attempt is older than 10 minutes READS
  * `failed` (code `timed_out`) and can be retried; nothing writes that. The attempt's age is its
  * job's `createdAt` (a retry restarts the clock without touching `summary.createdAt`).
@@ -497,7 +497,7 @@ summariesRouter.openapi(editRoute, async (c) => {
   }
 
   const sections = body.sections.map((s, index) => ({ heading: s.heading, body: s.body, notDiscussed: existing[index]!.notDiscussed && existing[index]!.body === s.body }));
-  // Compare-and-set on the version the caller edited (ADR-0038).
+  // Compare-and-set on the version the caller edited (ADR 20260807-optimistic-concurrency-version-if-match-cas-amends-0004).
   const saved = await db.summary.updateMany({
     where: { id: sid, version: expected, status: "ready" },
     data: { sections: sections as unknown as Prisma.InputJsonValue, edited: true, version: { increment: 1 } },

@@ -1,9 +1,9 @@
 /**
  * @vitest-environment jsdom
  *
- * Component tests for RefundShell (T14, specs/007-refund-service/tasks.md;
+ * Component tests for RefundShell (T14, specs/20260716-refund-service/tasks.md;
  * accounting-tab permission gate added as a follow-up to
- * specs/008-refund-monthly-processing).
+ * specs/20260719-refund-monthly-processing).
  *
  * Uses a real, minimal TanStack Router harness (mirrors
  * admin-ui/src/components/SectionNav.test.tsx's technique exactly, same
@@ -195,7 +195,7 @@ describe('RefundShell accounting nav tab gating', () => {
   })
 })
 
-describe('RefundShell settings tab gating (moved from Admin, ADR-0023 amendment)', () => {
+describe('RefundShell settings tab gating (moved from Admin, ADR 20260720-mileage-rate-model-snapshot-admin-ui-composition amendment)', () => {
   it('shows "Settings" with rate:read', async () => {
     usePermissions.mockReturnValue(permissionsWith([{ resource: 'rate', action: 'read' }]))
     await renderShellAt('/requests')

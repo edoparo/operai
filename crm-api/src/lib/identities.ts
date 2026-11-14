@@ -1,7 +1,7 @@
 /**
- * Display-identity resolution for owners, authors and assignees (specs/017-crm,
- * ADR-0039; decisions D-15). Copied from inventory-api/src/lib/identities.ts,
- * plus `requireCrmUsers` for writes (specs/018 US-2).
+ * Display-identity resolution for owners, authors and assignees (specs/20261101-crm,
+ * ADR 20260807-live-identity-resolution-by-id-fail-soft; decisions D-15). Copied from inventory-api/src/lib/identities.ts,
+ * plus `requireCrmUsers` for writes (specs/20261101-crm-sales-flow US-2).
  *
  * crm-api stores only opaque auth user ids. Names are resolved LIVE from
  * `auth POST /authz/users/identities` at read time, never copied into this
@@ -64,7 +64,7 @@ function toIdentity(raw: unknown): Identity | null {
   if (status === "active") {
     return { id, status, name: typeof name === "string" && name !== "" ? name : null };
   }
-  // A name is surfaced for an active user only (AC-10.5 of specs/013): a
+  // A name is surfaced for an active user only (AC-10.5 of specs/20260807-estimate-sharing): a
   // deleted or unknown one must not carry an identity that implies otherwise.
   if (status === "deleted") return { id, status, name: null };
   return unknown(id);
@@ -144,8 +144,8 @@ export async function resolveIdentities(
 
 /**
  * The write-time check for a person a record is given to: an owner or a task
- * assignee must be an active Operai user who can open the CRM (specs/018 US-2,
- * ADR-0055). Asked of `auth POST /authz/app-access-check {appId:"crm", userId}`
+ * assignee must be an active Operai user who can open the CRM (specs/20261101-crm-sales-flow US-2,
+ * ADR 20261101-app-access-check-by-user-id-and-directory-app-filter). Asked of `auth POST /authz/app-access-check {appId:"crm", userId}`
  * with the caller's own JWT, one id at a time (a write names one or two).
  *
  * - The caller themselves needs no check: they are using the CRM right now.

@@ -1,5 +1,5 @@
 /**
- * A deal's technical estimate (specs/018 US-3; plan.md § Estimates).
+ * A deal's technical estimate (specs/20261101-crm-sales-flow US-3; plan.md § Estimates).
  *
  *   POST   /deals/{id}/estimate           request one: create it in EstimAI, share it
  *                                         with the technical contact, link it, task them
@@ -8,7 +8,7 @@
  *
  * The estimate becomes `ready` (and back to `requested`) only when it is closed
  * (or reopened) in EstimAI: estimai-api tells the CRM through
- * `POST /system/estimate-notices` (estimateNotices.routes.ts, AC-3.3, ADR-0073).
+ * `POST /system/estimate-notices` (estimateNotices.routes.ts, AC-3.3, ADR 20261105-estimai-closes-the-estimate-crm-follows).
  *
  * Every route here, the override included, is `deal:manage` in the deal's entity (403 `out_of_scope`
  * otherwise): the owner of the sales flow decides, with a reason kept on the timeline (amended
@@ -16,7 +16,7 @@
  * call carries the caller's own JWT (lib/estimai.ts), so no new trust between
  * services exists. Each route answers with the updated deal.
  *
- * The request task and the override note live in activities-api (specs/028, ADR-0082), so they
+ * The request task and the override note live in activities-api (specs/20261110-activities, ADR 20261110-caller-chosen-ids-replace-cross-service-transactions), so they
  * can no longer share this service's transaction. The caller chooses their ids:
  *   request / override  PUT the activity under a fresh id BEFORE the transaction that records it;
  *                       a failed put changes nothing here (and deletes the EstimAI estimate), a
@@ -51,7 +51,7 @@ const managing = [...authorized, requireCapability(DEAL_MANAGE)];
 /** A task due this many working days after the request (AC-3.5). */
 const TASK_DUE_WORKING_DAYS = 5;
 
-/** The wording the nine notification events share (specs/019): never money. */
+/** The wording the nine notification events share (specs/20261101-crm-notifications): never money. */
 const dealRef = (deal: { title: string }) => clip(deal.title, MAX_NAME);
 const dealHref = (id: string) => `/crm/deals/${id}`;
 
@@ -145,7 +145,7 @@ estimateRouter.openapi(requestRoute, async (c) => {
 
   const now = new Date();
   const dueDate = addWorkingDays(now, TASK_DUE_WORKING_DAYS);
-  // The task is created first, under an id chosen here (ADR-0082), so the link can record it.
+  // The task is created first, under an id chosen here (ADR 20261110-caller-chosen-ids-replace-cross-service-transactions), so the link can record it.
   const taskId = crypto.randomUUID();
   try {
     await activities.put(taskId, {
@@ -187,7 +187,7 @@ estimateRouter.openapi(requestRoute, async (c) => {
     await activities.removeQuietly(taskId);
     throw error;
   }
-  // After the commit, never inside it and never failing the response (specs/024 AC-3.4).
+  // After the commit, never inside it and never failing the response (specs/20261108-estimate-list-oversight AC-3.4).
   await sendDealLinkNotice({ estimateId: estimate.id, dealId: id, event: "linked", at: now.toISOString() });
   // E1 — the technical contact (the creating task does not notify on its own).
   await announce(c, {
@@ -214,7 +214,7 @@ estimateRouter.openapi(overrideRoute, async (c) => {
   assertInScope(dealScope(c), deal.entity);
   const now = new Date();
   // The timeline keeps who let the deal through, and why (AC-3.7): written first, under an id
-  // chosen here, and taken back if the override itself cannot be recorded (ADR-0082).
+  // chosen here, and taken back if the override itself cannot be recorded (ADR 20261110-caller-chosen-ids-replace-cross-service-transactions).
   const noteId = crypto.randomUUID();
   try {
     await activities.put(noteId, {
@@ -296,7 +296,7 @@ estimateRouter.openapi(unlinkRoute, async (c) => {
       await tx.dealEstimate.delete({ where: { dealId: id } });
     }
   });
-  // After the commit (specs/024 AC-3.5): the PREVIOUS estimate, at the instant of the unlink.
+  // After the commit (specs/20261108-estimate-list-oversight AC-3.5): the PREVIOUS estimate, at the instant of the unlink.
   await sendDealLinkNotice({ estimateId: unlinkedEstimateId, dealId: id, event: "unlinked", at: new Date().toISOString() });
   // E6 — the technical contact is told the estimate no longer counts.
   await announce(c, {

@@ -109,7 +109,7 @@
   embedded as an image. An "Export PDF" button appears on an approved request
   for its owner and for accounting reviewers.
 
-  This is the first time refund-api reads attachment bytes at all (ADR-0043).
+  This is the first time refund-api reads attachment bytes at all (ADR 20260908-request-archive-export-refund-api-reads-attachment-bytes).
   Receipts were previously reachable only through presigned URLs the browser
   followed itself, which is still how receipt downloads work — but an archive
   cannot embed a file it may not read. The exposure is bounded: a request whose

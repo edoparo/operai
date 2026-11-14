@@ -1,7 +1,7 @@
 /**
  * @vitest-environment jsdom
  *
- * CrmShell (specs/017-crm plan.md § UI): the tool frame stays on screen while
+ * CrmShell (specs/20261101-crm plan.md § UI): the tool frame stays on screen while
  * `GET /scope` loads, fails (warning banner; the 503 auth-unavailable variant;
  * 403 PermissionDenied) or succeeds (the routed page, with the scope handed
  * down through ScopeContext).

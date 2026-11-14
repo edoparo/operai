@@ -1,6 +1,6 @@
 /**
  * Integration tests for the accounting review queue (T11,
- * specs/007-refund-service).
+ * specs/20260716-refund-service).
  *
  * Strategy — mirrors requests.routes.test.ts's header comment: real Postgres
  * (compose, `refund` database), jwt/authz mocked via test-support/testAuth.ts.
@@ -233,7 +233,7 @@ describe("GET /review/requests", () => {
   });
 
   it("(AC-5.3) a request that was submitted then withdrawn (back to draft) is absent", async () => {
-    // Withdraw is modeled as a status transition back to draft (ADR-0015/R6)
+    // Withdraw is modeled as a status transition back to draft (ADR 20260716-entity-scoped-abac-refund-api/R6)
     // — a request with a prior 'submitted' audit history is indistinguishable
     // in the queue query from one that was never submitted; both are simply
     // status=draft and excluded.
@@ -357,7 +357,7 @@ describe("GET /review/requests", () => {
 
     harness.setResolve(async () => accountingPerms("welld_it"));
     // Deliberately mismatch: the fixture below has a conditioned grant but no
-    // entity attribute at all (data-integrity edge case, ADR-0015).
+    // entity attribute at all (data-integrity edge case, ADR 20260716-entity-scoped-abac-refund-api).
     harness.setResolve(async () => ({
       sub: "",
       epoch: 1,

@@ -3,7 +3,7 @@
   "plugin_version": "2.55.0",
   "run_id": "2026-10-06T22-01-40Z-orchestrate-015-hardware-inventory",
   "command": "orchestrate",
-  "feature": "015-hardware-inventory",
+  "feature": "20261006-hardware-inventory",
   "rigor": "production",
   "rigor_recorded": null,
   "started": "2026-10-06T22:01:40Z",

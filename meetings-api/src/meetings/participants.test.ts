@@ -2,7 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, spyOn } from "bun:test";
 import { createKit, type Kit } from "../test-support/routeKit";
 import { createNotifier, setNotifierForTests } from "../lib/notify";
 
-// AC-5.1, AC-5.4, AC-5.9, AC-5.10, AC-12.1 (specs/021 T24): the participant list.
+// AC-5.1, AC-5.4, AC-5.9, AC-5.10, AC-12.1 (specs/20261104-meetings T24): the participant list.
 
 const kit: Kit = await createKit();
 
@@ -192,7 +192,7 @@ describe("a deleted participant (AC-5.10)", () => {
   });
 });
 
-// AC-12.3 (T92 QE, specs/021): a notification failure never undoes or fails the action. The
+// AC-12.3 (T92 QE, specs/20261104-meetings): a notification failure never undoes or fails the action. The
 // notifier's own unit tests prove it never rejects; these prove the ROUTE is unaffected whichever
 // way the notifier breaks (rejects, throws before returning a promise, notify-api 500, token
 // service down).

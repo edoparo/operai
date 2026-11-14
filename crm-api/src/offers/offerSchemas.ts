@@ -1,5 +1,5 @@
 /**
- * Validation shared by the template routes and the generate route (specs/020
+ * Validation shared by the template routes and the generate route (specs/20261102-crm-offer-document
  * AC-3.3). The limits are the spec's; a template is held to the same ones as an
  * offer so a template can never prefill a dialog that then refuses to submit.
  */

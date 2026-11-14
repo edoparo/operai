@@ -1,5 +1,5 @@
 /**
- * `parseEnv` (specs/028 T3): the host URLs are required, the notifier's credentials are all
+ * `parseEnv` (specs/20261110-activities T3): the host URLs are required, the notifier's credentials are all
  * or none, and no error message ever carries a received value.
  */
 import { describe, expect, it } from "bun:test";

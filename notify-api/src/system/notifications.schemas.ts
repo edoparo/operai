@@ -1,15 +1,15 @@
 /**
- * Zod schemas for POST /system/notifications (T3, specs/007-refund-service,
- * plan.md "On decision → notify the employee" (AC-3.6), ADR-0017).
+ * Zod schemas for POST /system/notifications (T3, specs/20260716-refund-service,
+ * plan.md "On decision → notify the employee" (AC-3.6), ADR 20260716-system-notifications-cross-user-trigger).
  *
  * This is the cross-user counterpart to `raise.routes.ts`'s user-JWT
  * `POST /notifications`: the recipient is a DIFFERENT user than the caller
  * (an internal service, not an end user), so — unlike RaiseNotificationSchema
  * (notifications.schemas.ts), which deliberately has NO recipient field
- * (OWASP A01, ADR-0009) — this schema REQUIRES `recipientId` and trusts it,
+ * (OWASP A01, ADR 20260713-notification-center-standalone-service-shell-seam) — this schema REQUIRES `recipientId` and trusts it,
  * because the caller is authenticated by its own scoped service credential
- * (ADR-0044/0049), not a user JWT whose `sub` would otherwise be spoofable
- * identity. ADR-0009's reserved
+ * (ADR 20261006-scoped-service-jwt-fourth-notify-caller/0049), not a user JWT whose `sub` would otherwise be spoofable
+ * identity. ADR 20260713-notification-center-standalone-service-shell-seam's reserved
  * `recipient` seam is realized here, not on the user-facing route.
  *
  * Reuses SeveritySchema / OriginAppSchema / LinkSchema / NotificationSchema
@@ -37,11 +37,11 @@ export const SystemNotificationRequestSchema = z.object({
   title: z.string().min(1, "title is required").max(200, "title must be at most 200 characters"),
   body: z.string().min(1, "body is required").max(2000, "body must be at most 2000 characters"),
   link: LinkSchema.optional(),
-  // specs/021-meetings (ADR-0065): optional Italian rendering of title/body.
+  // specs/20261104-meetings (ADR 20261104-bilingual-system-notifications): optional Italian rendering of title/body.
   // The reader picks it from <html lang>; omit it and the notification renders
   // exactly as before. Never combined with the email path (English template).
   it: ItVariantSchema.optional(),
-  // specs/019-crm-notifications (ADR-0056): also send the notification as an
+  // specs/20261101-crm-notifications (ADR 20261101-notify-api-resolves-email-notice-address-from-auth): also send the notification as an
   // email to the recipient, whose address notify-api resolves from `auth`.
   // The caller never supplies an address. Needs the `emails.send` scope too.
   email: z.boolean().optional(),

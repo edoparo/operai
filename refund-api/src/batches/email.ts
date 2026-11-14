@@ -1,8 +1,8 @@
 /**
  * Shared "resolve the live setting, send the compilation email, record the
- * outcome" helper (T5, specs/008-refund-monthly-processing, plan.md §
- * Email, ADR-0021; LIVE-resolution + blocked-send widened by T4,
- * specs/011-refund-settings, plan.md D5/D6, ADR-0029).
+ * outcome" helper (T5, specs/20260719-refund-monthly-processing, plan.md §
+ * Email, ADR 20260719-refund-batch-signed-link-email-delivery; LIVE-resolution + blocked-send widened by T4,
+ * specs/20260722-refund-settings, plan.md D5/D6, ADR 20260722-batch-email-recipient-live-resolution-amends-0021).
  *
  * ONE function backs BOTH triggers that must send this email: the
  * auto-send hook at the end of `POST /batches`' compile handler
@@ -11,8 +11,8 @@
  * "how its outcome is persisted" can never drift between the two call
  * sites (AC-3.1/3.3 both go through the exact same path).
  *
- * ADR-0021's per-batch compile-time `recipientEmailSnapshot` FREEZE is
- * SUPERSEDED (ADR-0029, D6): this function resolves the LIVE
+ * ADR 20260719-refund-batch-signed-link-email-delivery's per-batch compile-time `recipientEmailSnapshot` FREEZE is
+ * SUPERSEDED (ADR 20260722-batch-email-recipient-live-resolution-amends-0021, D6): this function resolves the LIVE
  * `accounting-distribution-email` refund_setting (src/settings/) at EVERY
  * attempt, never a value baked in at a previous deploy or a previous send
  * (AC-2.3). Unconfigured (the setting has no value) → the email is NOT
@@ -21,7 +21,7 @@
  * decides how to surface that: compile never fails on it (AC-2.1), a resend
  * turns it into a 422 (D5).
  *
- * NEVER throws (best-effort, ADR-0011 posture) — a compile or resend
+ * NEVER throws (best-effort, ADR 20260714-notify-api-email-channel-service-trust posture) — a compile or resend
  * request must always complete regardless of notify-api's (or the settings
  * repo's) availability. `notifyBatchCompiled` (lib/notifyEmail.ts) already
  * never throws; the outer try/catch here is deliberate defense-in-depth,

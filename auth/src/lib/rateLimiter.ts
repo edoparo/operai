@@ -1,5 +1,5 @@
 /**
- * Reusable in-process sliding-window rate limiter (specs/013-estimate-sharing,
+ * Reusable in-process sliding-window rate limiter (specs/20260807-estimate-sharing,
  * T1 — the suite's FIRST rate limiter, plan.md "Rate limiting"). Used by
  * `POST /authz/app-access-check` (T2) to bound 40 attempts / 10 min per
  * caller `sub`, and mirrored verbatim by `estimai-api`'s own limiter (T5) for
@@ -58,7 +58,7 @@ export interface RateLimiterOptions {
    * are unchanged). When the map holds `maxKeys` keys after pruning, a NEW key
    * is counted under one shared overflow key instead of getting its own entry;
    * keys already present keep their own counts. Bounds memory when the key is
-   * attacker-spread (a source address, specs/029 US-7 R13).
+   * attacker-spread (a source address, specs/20261111-push-notifications US-7 R13).
    */
   maxKeys?: number;
 }

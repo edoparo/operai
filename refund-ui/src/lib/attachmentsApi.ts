@@ -1,6 +1,6 @@
 /**
  * attachmentsApi — typed line-attachment operations against `refund-api`'s
- * attachment endpoints (T17, specs/007-refund-service/tasks.md; plan.md
+ * attachment endpoints (T17, specs/20260716-refund-service/tasks.md; plan.md
  * "## Object storage" + "### Employee endpoints"), built on `./refundApi.ts`'s
  * generic `getJson`/`sendJson`/`deleteJson` plumbing, mirroring
  * `./requestsApi.ts`'s own convention.
@@ -27,7 +27,7 @@
  *
  * The bucket upload step is deliberately **not** an `apiFetch`/`refund-api`
  * call at all — it POSTs directly to the presigned bucket URL using the
- * global `fetch`, never `shell/session`'s `apiFetch` (ADR-0001's Bearer JWT
+ * global `fetch`, never `shell/session`'s `apiFetch` (ADR 20260607-jwt-in-memory-never-web-storage's Bearer JWT
  * must never reach the storage provider's origin; plan.md "Object storage":
  * "the browser uploads directly to the EU bucket").
  */
@@ -36,7 +36,7 @@ import type { Attachment } from './requestsApi'
 import { deleteJson, getJson, sendJson } from './refundApi'
 
 // ---------------------------------------------------------------------------
-// Client-side validation constants (mirrors refund-api's ADR-0016 policy —
+// Client-side validation constants (mirrors refund-api's ADR 20260716-eu-object-storage-refund-attachments policy —
 // re-declared here since refund-ui cannot import refund-api's `src/lib/
 // storage.ts` across the service boundary; the server re-enforces every one
 // of these inside the signed POST policy + at `confirm` time regardless, so

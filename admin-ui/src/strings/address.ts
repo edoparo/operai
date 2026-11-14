@@ -1,5 +1,5 @@
 /**
- * strings.address — the employee address section of the user detail (specs/012),
+ * strings.address — the employee address section of the user detail (specs/20260803-employee-address),
  * folded in from the former `lib/addressCopy.ts` (INC-24/25): the language is
  * now resolved once by the library, never by this app.
  *

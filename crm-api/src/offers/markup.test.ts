@@ -3,7 +3,7 @@ import { parseInline, parseMarkup } from "./markup";
 
 const text = (runs: readonly { text: string }[]) => runs.map((r) => r.text).join("");
 
-/** specs/020 AC-1.6: the offer text markup. */
+/** specs/20261102-crm-offer-document AC-1.6: the offer text markup. */
 describe("parseMarkup", () => {
   it("splits paragraphs on blank lines and keeps a single newline as a line break", () => {
     const blocks = parseMarkup("one\ntwo\n\nthree");

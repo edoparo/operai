@@ -1,6 +1,6 @@
 /**
- * The host-notice outbox (specs/021-meetings plan.md § Host integration contract →
- * "Delivery", ADR-0059; AC-11.8, AC-11.9, AC-14.6, AC-14.8, AC-14.10, AC-14.11).
+ * The host-notice outbox (specs/20261104-meetings plan.md § Host integration contract →
+ * "Delivery", ADR 20261104-meeting-host-contract-resolve-and-notices; AC-11.8, AC-11.9, AC-14.6, AC-14.8, AC-14.10, AC-14.11).
  *
  * A change that a host must hear about (a meeting linked, retitled or moved, unlinked,
  * deleted) writes a `host_notice` row IN THE CHANGE'S TRANSACTION (`recordNotice`), so a

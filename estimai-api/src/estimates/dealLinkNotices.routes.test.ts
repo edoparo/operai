@@ -1,6 +1,6 @@
 /**
- * Integration tests for POST /system/deal-link-notices (specs/024 T4, AC-3.3,
- * AC-3.5, AC-3.6; ADR-0076) against the real Postgres. Keys and JWKS are
+ * Integration tests for POST /system/deal-link-notices (specs/20261108-estimate-list-oversight T4, AC-3.3,
+ * AC-3.5, AC-3.6; ADR 20261108-crm-pushes-deal-links-to-estimai) against the real Postgres. Keys and JWKS are
  * generated in memory and injected into the router, so nothing needs a live
  * `auth`. The credential matrix itself is systemAuth.middleware.test.ts; here
  * the route proves it is wired to the right scope/sub/audience, and the

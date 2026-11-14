@@ -7,7 +7,7 @@ datasource db {
   provider = "postgresql"
 }
 
-// Data model of specs/028-activities (plan.md § Data model, ADR-0081). One table of
+// Data model of specs/20261110-activities (plan.md § Data model, ADR 20261110-activities-service-access-delegated-to-host). One table of
 // activities for every host (CRM companies today, projects), keyed by a host reference
 // {hostApp, hostType, hostId} that is an opaque id in another service's database (no foreign
 // key across services). People are opaque `auth` user ids; names are resolved live.
@@ -78,16 +78,16 @@ model Activity {
   /// other type and on a task without one (CHECKs activity_description_*). Its image nodes refer
   /// to this task's own `ActivityFile` rows by id, never to a URL.
   description       Json?
-  /// The Meetings meeting this activity mirrors (specs/021 US-14, ADR-0059): at most one
+  /// The Meetings meeting this activity mirrors (specs/20261104-meetings US-14, ADR 20261104-meeting-host-contract-resolve-and-notices): at most one
   /// activity per meeting (UNIQUE), and only a `meeting` activity can carry it (CHECK).
   meetingId         String?      @unique
   createdAt         DateTime     @default(now())
   updatedAt         DateTime     @updatedAt
 
-  /// The tasks this task waits on (specs/017 US-6), and the tasks waiting on it.
+  /// The tasks this task waits on (specs/20261101-crm US-6), and the tasks waiting on it.
   blockedBy    TaskBlocker[]         @relation("BlockedTask")
   blocks       TaskBlocker[]         @relation("BlockerTask")
-  /// The wellD colleagues who took part, besides the author and the assignee (specs/017 US-8).
+  /// The wellD colleagues who took part, besides the author and the assignee (specs/20261101-crm US-8).
   participants ActivityParticipant[]
   /// Images and attachments of a task (its description's images and the list under it).
   files        ActivityFile[]
@@ -128,10 +128,10 @@ model TaskBlocker {
   @@map("task_blocker")
 }
 
-/// Content-free ordering guard per meeting (specs/021 US-14, ADR-0059): the highest notice
+/// Content-free ordering guard per meeting (specs/20261104-meetings US-14, ADR 20261104-meeting-host-contract-resolve-and-notices): the highest notice
 /// `seq` applied. A notice with `seq <= lastSeq` is a no-op, so duplicates, retries and
 /// reordering are harmless. Moved here from crm-api's `meeting_host_state` so the guard
-/// commits together with the write it protects (ADR-0082).
+/// commits together with the write it protects (ADR 20261110-caller-chosen-ids-replace-cross-service-transactions).
 model MeetingMirrorState {
   meetingId String   @id
   lastSeq   Int
@@ -140,7 +140,7 @@ model MeetingMirrorState {
   @@map("meeting_mirror_state")
 }
 
-/// A contact crm-api has erased (AC-8.4, ADR-0082): the id and NOTHING else. The erase handler
+/// A contact crm-api has erased (AC-8.4, ADR 20261110-caller-chosen-ids-replace-cross-service-transactions): the id and NOTHING else. The erase handler
 /// inserts it, under `pg_advisory_xact_lock(hashtextextended('contact:' || id, 0))`, before it
 /// nulls the links; every write that sets a `contactId` takes the same lock and refuses a
 /// tombstoned id. Without it a write validated before the erasure could commit the link after
@@ -165,11 +165,11 @@ enum ActivityFileStatus {
   stored
 }
 
-/// A file of a task, in activities-api's own EU bucket (ADR-0089; ADR-0016 posture): uploaded by
+/// A file of a task, in activities-api's own EU bucket (ADR 20261113-task-description-files-in-activities-api-bucket; ADR 20260716-eu-object-storage-refund-attachments posture): uploaded by
 /// the browser through a presigned POST, confirmed by a HEAD, read only through a ~60 s presigned
 /// GET minted after the host has confirmed the caller may read the task. The bucket object is
 /// always deleted BEFORE the row, so a row never outlives a failed delete and an object never
-/// outlives its row except for the moment between the two (ADR-0063 order).
+/// outlives its row except for the moment between the two (ADR 20261104-audio-retention-bucket-lifecycle-verified-at-startup order).
 model ActivityFile {
   /// UUID v4, chosen by activities-api; also the last part of the object key.
   id               String             @id

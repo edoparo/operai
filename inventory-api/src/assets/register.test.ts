@@ -1,5 +1,5 @@
 /**
- * `POST /assets` (T11, specs/015-hardware-inventory; AC-1.1..1.7, AC-10.2).
+ * `POST /assets` (T11, specs/20261006-hardware-inventory; AC-1.1..1.7, AC-10.2).
  * Real router, real middleware over the harness, real Postgres.
  */
 

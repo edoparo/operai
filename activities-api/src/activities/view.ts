@@ -1,5 +1,5 @@
 /**
- * The activity view (specs/028 plan § API contracts): crm-api's `ActivityView` unchanged, plus
+ * The activity view (specs/20261110-activities plan § API contracts): crm-api's `ActivityView` unchanged, plus
  * `kind`, `project {id, name}|null` and `may {edit, delete, complete}` computed per caller from
  * the host's answer and the registry rules (design G4: the UI never guesses). No hrefs: the
  * UIs build `/crm/...` and `/projects/...` links from ids (design G8). Labels (company, contact,
@@ -26,7 +26,7 @@ export const ActivitySchema = z.object({
   kind: z.enum(ACTIVITY_KINDS),
   type: z.enum(ACTIVITY_TYPES),
   subject: z.string(),
-  /** Null for a meeting activity: its content is the meeting, reached through `meeting` (specs/021 AC-14.2). */
+  /** Null for a meeting activity: its content is the meeting, reached through `meeting` (specs/20261104-meetings AC-14.2). */
   body: z.string().nullable(),
   occurredAt: z.string(),
   /** The CRM company (a pre-sales activity), else null. */
@@ -36,9 +36,9 @@ export const ActivitySchema = z.object({
   contact: z.object({ id: z.string(), name: z.string().nullable() }).nullable(),
   deal: z.object({ id: z.string(), title: z.string().nullable() }).nullable(),
   author: PersonRefSchema,
-  /** The wellD colleagues who took part, besides the author and the assignee (US-8, specs/028 US-5). */
+  /** The wellD colleagues who took part, besides the author and the assignee (US-8, specs/20261110-activities US-5). */
   participants: z.array(PersonRefSchema),
-  /** The Meetings meeting this activity mirrors (specs/021 US-14), or null. */
+  /** The Meetings meeting this activity mirrors (specs/20261104-meetings US-14), or null. */
   meeting: z.object({ id: z.string(), href: z.string() }).nullable(),
   task: z
     .object({
@@ -49,7 +49,7 @@ export const ActivitySchema = z.object({
       /** The tasks it waits on (US-6); `blocked` while any of them is open. */
       blockedBy: z.array(z.object({ id: z.string(), subject: z.string(), completed: z.boolean() })),
       blocked: z.boolean(),
-      /** The task's rich description (ADR-0089): a TipTap document, or null. */
+      /** The task's rich description (ADR 20261113-task-description-files-in-activities-api-bucket): a TipTap document, or null. */
       description: z.record(z.string(), z.unknown()).nullable(),
       /** Its stored images and attachments, oldest first. */
       files: z.array(FileSchema),

@@ -1,7 +1,7 @@
 /**
  * @vitest-environment jsdom
  *
- * Unit tests for src/lib/suggestionsApi.ts (T9, specs/014-motivo-autocomplete/
+ * Unit tests for src/lib/suggestionsApi.ts (T9, specs/20260811-motivo-autocomplete/
  * tasks.md, AC-5.2).
  *
  * Strategy mirrors `ratesApi.test.ts` / `refundApi.test.ts`: `shell/session`'s

@@ -1,5 +1,5 @@
 /**
- * AC-4.1 (specs/011-refund-settings) — refund-api's environment schema no
+ * AC-4.1 (specs/20260722-refund-settings) — refund-api's environment schema no
  * longer declares, requires, or validates `REFUND_ACCOUNTING_DISTRIBUTION_EMAIL`
  * (superseded by the admin-managed `accounting-distribution-email`
  * refund_setting, src/settings/). Boot must succeed with the var absent from
@@ -37,7 +37,7 @@ const REQUIRED_ENV_WITHOUT_ACCOUNTING_DISTRIBUTION_EMAIL: Record<string, string>
   NODE_ENV: "test",
 };
 
-describe("env.ts (AC-4.1, specs/011-refund-settings)", () => {
+describe("env.ts (AC-4.1, specs/20260722-refund-settings)", () => {
   it("parses successfully with NO REFUND_ACCOUNTING_DISTRIBUTION_EMAIL present at all", async () => {
     const proc = Bun.spawn({
       cmd: [
@@ -60,7 +60,7 @@ describe("env.ts (AC-4.1, specs/011-refund-settings)", () => {
     expect(stderr).not.toContain("REFUND_ACCOUNTING_DISTRIBUTION_EMAIL");
   });
 
-  // AC-4.2 (specs/016-notify-service-credentials) — each service-credential
+  // AC-4.2 (specs/20261013-notify-service-credentials) — each service-credential
   // setting is required, and a deployment without one exits naming it.
   async function boot(overrides: Record<string, string | undefined>) {
     const env: Record<string, string> = {
@@ -74,7 +74,7 @@ describe("env.ts (AC-4.1, specs/011-refund-settings)", () => {
     const proc = Bun.spawn({
       // `--no-env-file`: Bun otherwise auto-loads the dotenv file in the cwd into
       // the child; on a configured machine it defines SERVICE_CLIENT_* and turns
-      // every "variable is missing" case into a successful boot (T21, specs/016).
+      // every "variable is missing" case into a successful boot (T21, specs/20261013-notify-service-credentials).
       cmd: [
         "bun",
         "--no-env-file",
@@ -113,10 +113,10 @@ describe("env.ts (AC-4.1, specs/011-refund-settings)", () => {
     expect(stderr).not.toContain(short);
   });
 
-  // AC-5.2 (specs/016) — the shared token is out of the schema: a deployment
+  // AC-5.2 (specs/20261013-notify-service-credentials) — the shared token is out of the schema: a deployment
   // that has not yet had it deleted (the rollout's middle step) must still start.
   // The name is assembled so `git grep` for the retired variable stays empty
-  // across src/ (specs/016 T9 done-when).
+  // across src/ (specs/20261013-notify-service-credentials T9 done-when).
   const RETIRED_TOKEN = ["NOTIFY", "INTERNAL", "TOKEN"].join("_");
   for (const [label, value] of [
     ["absent", undefined],

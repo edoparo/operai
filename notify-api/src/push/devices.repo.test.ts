@@ -1,5 +1,5 @@
 /**
- * Repository tests for PushDevice (T3, specs/029-push-notifications).
+ * Repository tests for PushDevice (T3, specs/20261111-push-notifications).
  * Real Postgres (DATABASE_URL via direnv), like the other repo/route tests.
  * Every row this file creates belongs to a `t3-` prefixed user and is removed in
  * afterEach, so it never touches rows of the running dev stack.

@@ -1,5 +1,5 @@
 /**
- * T90 — Failure and deletion (specs/021-meetings: AC-11.6, AC-4.6, AC-4.7).
+ * T90 — Failure and deletion (specs/20261104-meetings: AC-11.6, AC-4.6, AC-4.7).
  *
  *  1. meetings-api is down (AC-11.6): the deal page still loads and its Meetings card shows the
  *     "Meetings are unavailable right now" banner with Retry; the rest of the page is untouched.
@@ -30,7 +30,7 @@ import {
 const runId = newRunId()
 const SECRET = 'The merger codename is Bluebird.'
 
-test.describe('specs/021 T90: failure and deletion', () => {
+test.describe('specs/20261104-meetings T90: failure and deletion', () => {
   let creator: Person
   let eraser: Person
   const leftovers: string[] = []

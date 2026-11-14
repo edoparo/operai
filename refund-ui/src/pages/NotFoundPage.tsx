@@ -3,7 +3,7 @@ import { strings } from '../strings'
 
 /**
  * NotFoundPage — refund-ui's inner-router-wide not-found fallback (T14,
- * specs/007-refund-service/tasks.md's router foundation). Wired as
+ * specs/20260716-refund-service/tasks.md's router foundation). Wired as
  * `defaultNotFoundComponent` in `createAppRouter` (../router.tsx), so any
  * unmatched path under refund-ui's basepath renders this instead of a blank
  * screen — mirrors `admin-ui/src/pages/NotFoundPage.tsx` exactly, including

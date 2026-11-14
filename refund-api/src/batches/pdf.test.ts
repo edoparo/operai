@@ -1,7 +1,7 @@
 /**
  * Unit tests for the compiled-batch PDF renderer (T2,
- * specs/008-refund-monthly-processing, ADR-0019; Unicode-font hardening —
- * OWASP A04, specs/008 QE/security finding).
+ * specs/20260719-refund-monthly-processing, ADR 20260719-refund-batch-pdf-generation-pdf-lib; Unicode-font hardening —
+ * OWASP A04, specs/20260719-refund-monthly-processing QE/security finding).
  *
  * `pdf-lib` FlateDecode-compresses content streams by default, so a saved
  * PDF's drawn text never appears as a literal ASCII substring in the raw
@@ -40,7 +40,7 @@
  *   text search, since nothing attachment-shaped is ever passed in)
  * - AC-1.9: a request whose lines are all $0-approved is rendered on the
  *   same terms as any other (not silently dropped)
- * - Determinism (ADR-0019 decision 5): two renders of the same input are
+ * - Determinism (ADR 20260719-refund-batch-pdf-generation-pdf-lib decision 5): two renders of the same input are
  *   byte-identical; employee section order does not depend on input order
  *
  * OWASP A04 coverage (this fix)
@@ -124,7 +124,7 @@ const bobEmployee: BatchPdfEmployee = {
 };
 
 describe("batchPdfObjectKey", () => {
-  it("builds the batch-scoped, PII-free key (ADR-0019 § Object storage)", () => {
+  it("builds the batch-scoped, PII-free key (ADR 20260719-refund-batch-pdf-generation-pdf-lib § Object storage)", () => {
     expect(batchPdfObjectKey("batch-abc123")).toBe(
       "refund/batches/batch-abc123/compiled.pdf",
     );

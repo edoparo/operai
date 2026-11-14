@@ -1,5 +1,5 @@
 /**
- * POST /notifications/mark-all-read (T6, specs/005-notification-center, US-3).
+ * POST /notifications/mark-all-read (T6, specs/20260713-notification-center, US-3).
  *
  * Sets readAt := now() for every currently-unread notification belonging to the
  * caller (recipientId := JWT sub). Idempotent by construction: notifications.repo's
@@ -25,7 +25,7 @@ export const markReadRouter = new OpenAPIHono<{ Variables: JwtVariables }>();
 // the same prefix (`app.route("/", markReadRouter)` etc.), and Hono merges
 // each child router's middleware into ONE flat route table once mounted — a
 // "*" registered on ANY sub-router therefore gates the WHOLE app, including
-// `GET /notifications/stream`, which per ADR-0008 MUST be reachable WITHOUT a
+// `GET /notifications/stream`, which per ADR 20260713-sse-stream-auth-short-lived-ticket MUST be reachable WITHOUT a
 // Bearer (EventSource cannot send one; it is authed by the query-string
 // ticket instead). This mirrors the precedent already documented in
 // stream.routes.ts's stream-ticket route.

@@ -2,7 +2,7 @@
   "schema": "wellforge-run/v1",
   "run_id": "2026-07-10T11-26-30Z-implement-003-suite-shell",
   "command": "implement",
-  "feature": "003-suite-shell",
+  "feature": "20260709-suite-shell",
   "rigor": "production",
   "started": "2026-07-10T11:02:30Z",
   "finished": "2026-07-10T11:26:30Z",

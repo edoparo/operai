@@ -3,7 +3,7 @@
   "plugin_version": "2.60.0",
   "run_id": "2026-11-11T08-00-00Z-orchestrate-028-activities",
   "command": "orchestrate",
-  "feature": "028-activities",
+  "feature": "20261110-activities",
   "rigor": "production",
   "rigor_recorded": null,
   "started": "2026-11-10T23:00:00Z",
@@ -151,7 +151,7 @@
     },
     {
       "agent": "architect",
-      "task": "security amendments plan + ADR-0082",
+      "task": "security amendments plan + ADR 20261110-caller-chosen-ids-replace-cross-service-transactions",
       "outcome": "done"
     },
     {
@@ -223,7 +223,7 @@
         "completion context recorded",
         "ids UUID v4 for crm-api caller-chosen ids",
         "lock bound",
-        "ADR-0082 deletion guard has no DB key",
+        "ADR 20261110-caller-chosen-ids-replace-cross-service-transactions deletion guard has no DB key",
         "owner accepted the task_unblocked notice-context narrowing (spec amendment)"
       ]
     }
@@ -291,7 +291,7 @@
   },
   "qe": {
     "last": "BLOCKED",
-    "report": "specs/028-activities/qe-report.md",
+    "report": "specs/20261110-activities/qe-report.md",
     "blocked_rows": [
       "shell e2e activities-* (15)",
       "rendered/browser pass"
@@ -313,7 +313,7 @@
     "verdict": "PASS",
     "score": 80.0,
     "pass_score": 80,
-    "report": "specs/028-activities/eval-report.md",
+    "report": "specs/20261110-activities/eval-report.md",
     "commit": "3e7a7128",
     "history": [
       "FAIL 76.5 at 5f32ab95",
@@ -321,7 +321,7 @@
     ]
   },
   "result": "pass",
-  "notes": "T14 on branch feat/activities-contract, not merged by design (ADR-0083). Feature stays in-progress. 2026-11-11: env unblocked by the user; shell e2e fixed for local-state drift (7054645c); T21 done; D6 extension; QE PASS; eval FAIL 76.5 -> escalated to the user (fix rounds exhausted).",
+  "notes": "T14 on branch feat/activities-contract, not merged by design (ADR 20261110-activities-migration-write-pause). Feature stays in-progress. 2026-11-11: env unblocked by the user; shell e2e fixed for local-state drift (7054645c); T21 done; D6 extension; QE PASS; eval FAIL 76.5 -> escalated to the user (fix rounds exhausted).",
   "tokens": null,
   "cost_usd": null,
   "terse": false,

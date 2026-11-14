@@ -1,5 +1,5 @@
 /**
- * Who may do what with an activity (specs/028 plan § Access; AC-3.2, AC-3.3, AC-3.8, AC-8.1).
+ * Who may do what with an activity (specs/20261110-activities plan § Access; AC-3.2, AC-3.3, AC-3.8, AC-8.1).
  *
  * Pure functions of three things: the host's REGISTRY entry (the rule it follows: `editBy`,
  * `completeBy`, `assignees`, `types`), the host's ANSWER about this entity for this caller

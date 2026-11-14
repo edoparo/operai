@@ -1,5 +1,5 @@
 /**
- * Personal meeting folders (ADR-0090): each person organises the meetings they see into folders of their own.
+ * Personal meeting folders (ADR 20261113-personal-meeting-folders): each person organises the meetings they see into folders of their own.
  *
  *   GET    /folders                  the caller's folders, name order, each with how many of its meetings they can open
  *   POST   /folders                  create one (`{ name }`); 409 `folder_name_taken`, 422 `folder_limit` past 200

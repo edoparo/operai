@@ -1,5 +1,5 @@
 /**
- * The durable job runner (specs/021-meetings plan.md D-6, ADR-0062; AC-6.9, AC-7.9).
+ * The durable job runner (specs/20261104-meetings plan.md D-6, ADR 20261104-durable-job-runner-work-queued-state-derived; AC-6.9, AC-7.9).
  *
  * Work that must outlive a request (normalising audio, transcribing, summarising,
  * delivering a host notice) is a row in `meeting_job`. A route enqueues it in its own
@@ -11,14 +11,14 @@
  *     running one whose LEASE has expired (the process holding it died);
  *   - lease 2 minutes, heartbeated every 30 s; a heartbeat that finds the claim gone
  *     aborts the handler's signal;
- *   - at most 2 jobs at a time; ffmpeg is exclusive per INVOCATION (`withFfmpegSlot`, ADR-0064 / plan
+ *   - at most 2 jobs at a time; ffmpeg is exclusive per INVOCATION (`withFfmpegSlot`, ADR 20261104-meetings-api-reads-audio-bytes-third-reader / plan
  *     G-11), not per job kind: a `transcribe` waiting on Google holds no slot and blocks nobody;
  *   - a transient error is retried up to the job's `maxAttempts` (default 3) with
  *     backoff 30 s, 2 min, 10 min; a permanent error fails at once;
  *   - SIGTERM: stop claiming, let running work finish within the grace period; what
  *     is cut off is re-claimed when its lease expires.
  *
- * THE DISTINCTION FROM ADR-0013, plainly. ADR-0013 forbids a sweep that writes
+ * THE DISTINCTION FROM ADR 20260714-invitation-lifecycle-derived-expiry-state, plainly. ADR 20260714-invitation-lifecycle-derived-expiry-state forbids a sweep that writes
  * LIFECYCLE STATE BY TIME. This runner only executes work somebody asked for, and the
  * only rows it writes are `meeting_job` rows (its own state, lease and retry clock). It
  * never touches a `meeting` row and never scans for "expired" things: `interrupted`,

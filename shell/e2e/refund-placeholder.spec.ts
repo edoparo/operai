@@ -1,13 +1,13 @@
 /**
- * T16 — Refund is authed-only (specs/003-suite-shell)
+ * T16 — Refund is authed-only (specs/20260709-suite-shell)
  *
  * Refs: AC-5.2 — selecting Refund shows the tool inside the shell,
  * authenticated by the shell's session (it renders content only for a
  * signed-in user, and calls its API with the shared session — not a locally
  * re-created auth client).
  *
- * specs/003 shipped a "coming soon" placeholder that printed the session
- * identity; specs/007 replaced it with the real tool. The signed-in case now
+ * specs/20260709-suite-shell shipped a "coming soon" placeholder that printed the session
+ * identity; specs/20260716-refund-service replaced it with the real tool. The signed-in case now
  * proves the shared session by the tool's first screen loading its data from
  * refund-api through `shell/session`'s apiFetch.
  */

@@ -1,12 +1,12 @@
 /**
- * Real-JWKS identity + real-backend 401 (T18, specs/003-suite-shell).
+ * Real-JWKS identity + real-backend 401 (T18, specs/20260709-suite-shell).
  *
  * ──────────────────────────────────────────────────────────────────────────
  * WHY THIS LIVES HERE (relocated from estimai-ui/e2e/auth-identity.spec.ts)
  *
  * These live-stack assertions verify the auth ↔ estimai-api chain (JWKS
  * verification, ownership isolation, RFC 7807 errors) and the shared
- * `shell/session` apiFetch circuit (ADR-0001) against a REAL estimai-api 401 —
+ * `shell/session` apiFetch circuit (ADR 20260607-jwt-in-memory-never-web-storage) against a REAL estimai-api 401 —
  * not mocks. They historically lived in estimai-ui/e2e because estimai-ui was
  * the only frontend; the JWKS/ownership tests (1)-(4),(6) are pure Node-context
  * HTTP tests that never touched estimai-ui's UI at all, so they kept passing
@@ -15,7 +15,7 @@
  * suite is retired, and so the browser real-401 test (5) drives the ACTUAL
  * shipping surface: EstimAI mounted in the shell, using shell/session's apiFetch.
  *
- * The ADR-0001 refresh-retry-redirect circuit is also unit-covered (with mocked
+ * The ADR 20260607-jwt-in-memory-never-web-storage refresh-retry-redirect circuit is also unit-covered (with mocked
  * fetch) in shell/src/lib/session.test.ts; test (5) is the real-backend-401
  * end-to-end counterpart.
  *
@@ -216,10 +216,10 @@ test.describe('real JWT verified against live JWKS resolves the correct user', (
   })
 })
 
-// ─── Real-backend 401 → ADR-0001 refresh-retry-redirect (browser) ───────────
+// ─── Real-backend 401 → ADR 20260607-jwt-in-memory-never-web-storage refresh-retry-redirect (browser) ───────────
 
 test.describe('shell/session apiFetch redirects to sign-in on a real estimai-api 401', () => {
-  test('(5) EstimAI in the shell with an invalid Bearer triggers the ADR-0001 redirect', async ({
+  test('(5) EstimAI in the shell with an invalid Bearer triggers the ADR 20260607-jwt-in-memory-never-web-storage redirect', async ({
     context,
     page,
   }) => {

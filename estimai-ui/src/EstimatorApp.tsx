@@ -47,7 +47,7 @@ import { Analytics } from '@vercel/analytics/react'
 import { SpeedInsights } from '@vercel/speed-insights/react'
 
 /**
- * T22 (specs/013-estimate-sharing/tasks.md; design.md "## Toolbar
+ * T22 (specs/20260807-estimate-sharing/tasks.md; design.md "## Toolbar
  * composition decision"): tiny local label helper for the "Shared by
  * {owner} · {level}" chip. Mirrors `CollaboratorsDialog.tsx`'s own private
  * `levelLabel` — duplicated here rather than exported from that
@@ -66,7 +66,7 @@ function lifecycleErrorMessage(err: unknown): string {
 
 export default function EstimatorApp() {
   // The suite-level chrome (logo/About, avatar menu + sign-out, theme toggle)
-  // is now owned by the shell (specs/003-suite-shell, T6/T9/T14) — it is not
+  // is now owned by the shell (specs/20260709-suite-shell, T6/T9/T14) — it is not
   // rendered here. `authClient.useSession()` is still read below, but only to
   // source the author-backfill value; `shell/session` (via T13's authClient
   // facade) is what actually supplies the session.
@@ -160,13 +160,13 @@ export default function EstimatorApp() {
   // debounce, a save in flight, a failed save or a conflict all keep it off.
   const closeBlocked = hasUnsavedChanges || saveStatus === 'saving' || conflict !== null
 
-  // T17 (specs/013-estimate-sharing/tasks.md; design.md S5 "single canEdit
+  // T17 (specs/20260807-estimate-sharing/tasks.md; design.md S5 "single canEdit
   // gate"): the ONE place this component derives readOnly — every child
   // below reads this same value, never re-deriving `canEdit` itself (plan
   // risk R5).
   const readOnly = !canEdit
 
-  // T18 (specs/013-estimate-sharing/tasks.md; design.md S4) — the two
+  // T18 (specs/20260807-estimate-sharing/tasks.md; design.md S4) — the two
   // ConflictBanner actions.
   //
   // "Reload latest": a route invalidate re-runs the current route's loader
@@ -201,7 +201,7 @@ export default function EstimatorApp() {
   // imported), without overwriting an author already recorded on the estimate.
   useEffect(() => {
     // Only an editor of an open estimate may change the document: a closed one,
-    // a viewer and an oversight reader (specs/024) must never get a local edit —
+    // a viewer and an oversight reader (specs/20261108-estimate-list-oversight) must never get a local edit —
     // it would mark the document dirty and, for an admin, put their name on
     // somebody else's estimate.
     if (author || !canEdit) return
@@ -552,7 +552,7 @@ export default function EstimatorApp() {
               non-actionable-looking chip that opens the same dialog in its
               read-only member mode. The anonymous "Share link" (lz-string
               payload in a URL fragment + /share page) that used to sit here
-              was removed on 2026-08-09 — see specs/013's US-8 amendment. */}
+              was removed on 2026-08-09 — see specs/20260807-estimate-sharing's US-8 amendment. */}
           {access === 'owner' ? (
             <Button
               size="sm"
@@ -810,7 +810,7 @@ export default function EstimatorApp() {
           `<main>` `relative` + `overflow-y-auto`), so it now stops above the
           shell chrome instead of on top of it. A remote must not position
           anything against the viewport — that space belongs to the shell
-          (ADR-0006). */}
+          (ADR 20260709-suite-frontend-module-federation). */}
       <footer className="sticky bottom-0 z-10 flex justify-end px-4 py-2 pointer-events-none">
         <Button
           variant="ghost"

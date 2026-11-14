@@ -1,6 +1,6 @@
 /*
  * The suite's design tokens now live in the shared library @operai/ui
- * (operai-ui/src/styles/tokens.css, ADR-0050). This file stays as the shell's
+ * (operai-ui/src/styles/tokens.css, ADR 20261031-shared-ui-library-consumed-as-source). This file stays as the shell's
  * stable entry point: shell/src/index.css imports it, and Module Federation
  * exposes it as `./tokens.css` to every remote (`import 'shell/tokens.css'`).
  * Do not add rules here — add them to the library.

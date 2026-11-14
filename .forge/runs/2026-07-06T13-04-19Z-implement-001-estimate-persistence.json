@@ -2,7 +2,7 @@
   "schema": "wellforge-run/v1",
   "run_id": "2026-07-06T13-04-19Z-implement-001-estimate-persistence",
   "command": "implement",
-  "feature": "001-estimate-persistence",
+  "feature": "20260606-estimate-persistence",
   "tier": "production",
   "started": "2026-07-06T13:04:19Z",
   "finished": "2026-07-06T13:12:33Z",

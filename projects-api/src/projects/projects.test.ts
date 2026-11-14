@@ -1,5 +1,5 @@
 /**
- * Projects: create, list, read, rename / change project manager (specs/025 T5;
+ * Projects: create, list, read, rename / change project manager (specs/20261103-projects T5;
  * AC-1.1, AC-1.4, AC-1.5, AC-1.6, AC-1.7, AC-4.3, AC-4.4). Runs the ASSEMBLED app against the
  * `*_test` database; auth, the identity service and crm-api are the fakes of
  * test-support/world.ts.
@@ -360,7 +360,7 @@ describe("GET /project-managers", () => {
     expect(res.json).toEqual({ items: [] });
   });
 
-  it("names people live, shows a deleted one as deleted, and sorts an unnamed one after the named (ADR-0039)", async () => {
+  it("names people live, shows a deleted one as deleted, and sorts an unnamed one after the named (ADR 20260807-live-identity-resolution-by-id-fail-soft)", async () => {
     await seed({ name: "A", projectManagerId: "user-gone" });
     await seed({ name: "B", projectManagerId: "user-colleague" });
     const res = await call("GET", "/project-managers", { as: "viewer" });

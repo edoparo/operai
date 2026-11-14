@@ -1,5 +1,5 @@
 /**
- * pushFixtures — Web Push e2e support (specs/029-push-notifications, T10).
+ * pushFixtures — Web Push e2e support (specs/20261111-push-notifications, T10).
  *
  * Headless Chromium cannot obtain a real push subscription (there is no push service to talk to), so
  * `installFakePush` replaces ONLY the browser half: the page's `PushManager` (the one hanging off every

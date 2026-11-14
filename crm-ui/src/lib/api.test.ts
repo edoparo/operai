@@ -36,7 +36,7 @@ describe('requests', () => {
     expect(apiFetch).toHaveBeenCalledWith('http://crm-api.test/companies', undefined)
   })
 
-  it('a mutation of an existing record sends If-Match with the quoted version (ADR-0038)', async () => {
+  it('a mutation of an existing record sends If-Match with the quoted version (ADR 20260807-optimistic-concurrency-version-if-match-cas-amends-0004)', async () => {
     vi.mocked(apiFetch).mockResolvedValue(json(200, { id: 'd1' }))
     await updateDeal('d1', 7, { title: 'New' })
     const init = lastInit()

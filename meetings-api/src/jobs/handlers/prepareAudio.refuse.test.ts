@@ -7,7 +7,7 @@ import { PermanentJobError, TransientJobError, type JobContext } from "../runner
 import { createPrepareAudio } from "./prepareAudio";
 
 // AC-3.2: an UPLOADED file that states no duration is accepted at confirm and only turns out
-// to be over 3 h when ffmpeg hits its output cap in `prepare_audio` (ADR-0064 round 3). It must
+// to be over 3 h when ffmpeg hits its output cap in `prepare_audio` (ADR 20261104-meetings-api-reads-audio-bytes-third-reader round 3). It must
 // then be REFUSED like any over-long file: the original deleted first, the meeting back in
 // `draft` with the reason (`failure.code = too_long`), the creator told, and a new upload possible.
 // A recording that is too long keeps today's behaviour (failed, sources kept, retryable).

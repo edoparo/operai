@@ -1,6 +1,6 @@
 /**
  * Unit tests for refund's declared catalog constant (T2,
- * specs/007-refund-service — refs AC-1.1, AC-5.4, AC-7.5, AC-8.2). Pure
+ * specs/20260716-refund-service — refs AC-1.1, AC-5.4, AC-7.5, AC-8.2). Pure
  * structural checks — no DB, no registration — the registration path itself
  * (`upsertAppCatalog` via `seedRefundCatalog`) is covered by `../seed.test.ts`.
  */
@@ -45,7 +45,7 @@ describe("REFUND_CATALOG (T2, AC-1.1/5.4/7.5/8.2)", () => {
     expect(read?.supportedConditions).toEqual(["ownership"]);
   });
 
-  test("review/set-approved-total/reject each support only `entity` (ADR-0015)", () => {
+  test("review/set-approved-total/reject each support only `entity` (ADR 20260716-entity-scoped-abac-refund-api)", () => {
     const requestResource = REFUND_CATALOG.resources.find((r) => r.key === "request");
     for (const key of ["review", "set-approved-total", "reject"]) {
       const action = requestResource?.actions.find((a) => a.key === key);
@@ -60,7 +60,7 @@ describe("REFUND_CATALOG (T2, AC-1.1/5.4/7.5/8.2)", () => {
   });
 });
 
-describe("REFUND_CATALOG self-approval condition (T1, specs/010-self-approval-control — AC-4.3, AC-5.1; ADR-0026)", () => {
+describe("REFUND_CATALOG self-approval condition (T1, specs/20260721-self-approval-control — AC-4.3, AC-5.1; ADR 20260721-self-approval-condition-and-403-exception)", () => {
   test("`approve` supports both `entity` and `self-approval` — the declared surface grows from one to two", () => {
     const requestResource = REFUND_CATALOG.resources.find((r) => r.key === "request");
     const approve = requestResource?.actions.find((a) => a.key === "approve");
@@ -77,7 +77,7 @@ describe("REFUND_CATALOG self-approval condition (T1, specs/010-self-approval-co
   });
 });
 
-describe("REFUND_CATALOG `rate` resource (T1, specs/009-mileage-rate)", () => {
+describe("REFUND_CATALOG `rate` resource (T1, specs/20260720-mileage-rate)", () => {
   test("declares exactly `read` and `manage` actions", () => {
     const rateResource = REFUND_CATALOG.resources.find((r) => r.key === "rate");
     expect(rateResource).toBeDefined();
@@ -93,7 +93,7 @@ describe("REFUND_CATALOG `rate` resource (T1, specs/009-mileage-rate)", () => {
   });
 });
 
-describe("REFUND_CATALOG `settings` resource (T1, specs/011-refund-settings — AC-3.1; ADR-0028)", () => {
+describe("REFUND_CATALOG `settings` resource (T1, specs/20260722-refund-settings — AC-3.1; ADR 20260722-settings-catalog-permission-config-not-rate)", () => {
   test("declares exactly `read` and `manage` actions", () => {
     const settingsResource = REFUND_CATALOG.resources.find((r) => r.key === "settings");
     expect(settingsResource).toBeDefined();
@@ -108,7 +108,7 @@ describe("REFUND_CATALOG `settings` resource (T1, specs/011-refund-settings — 
     }
   });
 
-  test("`settings` is a DISTINCT resource from `rate` — NOT a reuse of rate:manage (ADR-0028)", () => {
+  test("`settings` is a DISTINCT resource from `rate` — NOT a reuse of rate:manage (ADR 20260722-settings-catalog-permission-config-not-rate)", () => {
     const settingsResource = REFUND_CATALOG.resources.find((r) => r.key === "settings");
     const rateResource = REFUND_CATALOG.resources.find((r) => r.key === "rate");
     expect(settingsResource).toBeDefined();

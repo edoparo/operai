@@ -1,7 +1,7 @@
 /**
  * @vitest-environment jsdom
  *
- * The Erase page (specs/021-meetings T75; design.md S9, F14; AC-4.6, AC-4.7, AC-4.8, AC-5.12): find
+ * The Erase page (specs/20261104-meetings T75; design.md S9, F14; AC-4.6, AC-4.7, AC-4.8, AC-5.12): find
  * a meeting by title, creator or date and delete it, seeing title, date and creator only, with no
  * way into the content. The Erase tab itself is hidden without the `meeting:erase` hint
  * (App.test.tsx pins that).

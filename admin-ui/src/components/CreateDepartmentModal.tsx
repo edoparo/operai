@@ -1,6 +1,6 @@
 /**
  * CreateDepartmentModal — Modal M2 (design.md "Create-role / Create-department
- * modal (M1/M2)", T19, specs/004-auth-roles-permissions/tasks.md).
+ * modal (M1/M2)", T19, specs/20260713-auth-roles-permissions/tasks.md).
  *
  * Small name+description dialog, structurally modeled on
  * `ConfirmDeleteModal`'s dialog shell (backdrop, header/body/footer, Escape)
@@ -31,7 +31,7 @@
  *     the inline error area is shared between that and a 409 from the
  *     server so there is exactly one place errors surface.
  *
- * Built on @operai/ui's `FormDialog` (ADR-0050, INC-09): the library owns
+ * Built on @operai/ui's `FormDialog` (ADR 20261031-shared-ui-library-consumed-as-source, INC-09): the library owns
  * the frame, the focus trap (now over every enabled control, the header ×
  * included), Escape/backdrop = Cancel (never while submitting), focus return
  * and the buttons.

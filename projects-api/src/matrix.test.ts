@@ -1,5 +1,5 @@
 /**
- * Authorization matrix over the ASSEMBLED app (specs/025-projects T10; AC-4.2 – AC-4.6, ADR-0014).
+ * Authorization matrix over the ASSEMBLED app (specs/20261103-projects T10; AC-4.2 – AC-4.6, ADR 20260716-refund-api-authorization-enforcing-resource-server).
  *
  * The route list is read from the app's own table, so a route added without a row here fails the
  * inventory test, and one added without a guard fails the matrix. Every route is then driven by
@@ -36,7 +36,7 @@ const ENTITIES: readonly Entity[] = ["welld_ch", "welld_it"];
  *   manage-any   `project:manage` for at least one entity (a lookup, no record involved)
  *   manage       `project:manage` for the RECORD's entity (`out_of_scope` for the other one)
  *   bexio        `contract:bexio`, not entity-scoped
- *   host         the activity-host contract (specs/028 T5): any caller with a valid token and a live
+ *   host         the activity-host contract (specs/20261110-activities T5): any caller with a valid token and a live
  *                authz answer gets 200, a non-holder of `projects:access` as `reader:false`
  */
 type Need = "access" | "manage-any" | "manage" | "bexio" | "host";
@@ -386,7 +386,7 @@ describe("authorization matrix: scope (AC-4.4, AC-4.5, AC-4.6)", () => {
   });
 });
 
-// ─── An auth outage is a refusal, never an allow (AC-4.2, ADR-0014) ──────────
+// ─── An auth outage is a refusal, never an allow (AC-4.2, ADR 20260716-refund-api-authorization-enforcing-resource-server) ──────────
 
 describe("authorization matrix: auth outage", () => {
   const subOf = (header: string): string =>

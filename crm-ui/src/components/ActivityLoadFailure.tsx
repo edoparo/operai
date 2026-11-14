@@ -4,9 +4,9 @@ import { strings } from '../strings'
 import { LoadFailure } from './LoadState'
 
 /**
- * ActivityLoadFailure — the failed-load state of the activity timeline and of "Tasks" (specs/028 AC-1.5).
+ * ActivityLoadFailure — the failed-load state of the activity timeline and of "Tasks" (specs/20261110-activities AC-1.5).
  * When activities-api answers `host_unavailable` or `maintenance` the list area says so, in words of its
- * own and distinct from the authorization outage (ADR-0014), with Retry; the page frame, the other cards
+ * own and distinct from the authorization outage (ADR 20260716-refund-api-authorization-enforcing-resource-server), with Retry; the page frame, the other cards
  * and the Tasks filters and tabs stay. Every other failure is the usual `LoadFailure`.
  */
 export default function ActivityLoadFailure({ error, onRetry }: { error: unknown; onRetry: () => void }) {

@@ -1,6 +1,6 @@
 /**
  * ApproveDialog — non-destructive confirm dialog for "Approve" (T18,
- * specs/007-refund-service/tasks.md, design.md F6 step 4; Component
+ * specs/20260716-refund-service/tasks.md, design.md F6 step 4; Component
  * inventory: "ApproveDialog — Reuse (ported, extended) — ConfirmDeleteModal's
  * shell, ported + a new non-destructive tone='positive' variant").
  *

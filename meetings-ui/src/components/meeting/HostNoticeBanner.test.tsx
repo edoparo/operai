@@ -1,7 +1,7 @@
 /**
  * @vitest-environment jsdom
  *
- * The host-notice failure banner (specs/021-meetings T59; design.md F11; AC-11.9, AC-14.8,
+ * The host-notice failure banner (specs/20261104-meetings T59; design.md F11; AC-11.9, AC-14.8,
  * AC-14.10): creator-only, never blocking, the host's own sentence from its registration (plan
  * G7), Try again while `can.retryHostNotice`.
  */

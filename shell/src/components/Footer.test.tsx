@@ -1,7 +1,7 @@
 /**
  * @vitest-environment jsdom
  *
- * Component tests for Footer (specs/003-suite-shell, T8, AC-1.5).
+ * Component tests for Footer (specs/20260709-suite-shell, T8, AC-1.5).
  *
  * Asserts the three required content pieces (legal link, version, company info) and
  * the "normal document flow" placement decision from plan.md/design.md: no

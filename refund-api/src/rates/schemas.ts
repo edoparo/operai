@@ -1,6 +1,6 @@
 /**
  * Zod schemas for the mileage-rate management + effective-rate surfaces
- * (T4, specs/009-mileage-rate, plan.md § API contracts).
+ * (T4, specs/20260720-mileage-rate, plan.md § API contracts).
  *
  * Deliberately self-contained (no import from `requests/lines.schemas.ts`) —
  * the rates module is T2/T3-dependent only (tasks.md), never T5, so it
@@ -32,7 +32,7 @@ const CalendarDateSchema = IsoDateOnlyShapeSchema.refine(isValidCalendarDate, {
 // ─── POST /rates (AC-4.2, AC-4.5) ──────────────────────────────────────────
 
 // Up to 6 decimal places — matches ratePerKmMicros' precision (1e-6 major
-// units, ADR-0025). No leading '+'/'-' — a rate is always a positive
+// units, ADR 20260720-mileage-rate-money-precision-integer-micros). No leading '+'/'-' — a rate is always a positive
 // magnitude typed by the admin; negativity/zero is rejected below (AC-4.5).
 const RATE_PER_KM_DECIMAL_RE = /^\d+(\.\d{1,6})?$/;
 

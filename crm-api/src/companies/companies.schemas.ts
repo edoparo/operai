@@ -40,7 +40,7 @@ const editable = {
   industry: optionalText(100),
   city: optionalText(100),
   country: CountrySchema,
-  /** The registered name, street and postal code printed in an offer's client block (specs/020 AC-5.1). */
+  /** The registered name, street and postal code printed in an offer's client block (specs/20261102-crm-offer-document AC-5.1). */
   legalName: optionalText(200),
   street: optionalText(200),
   postalCode: optionalText(20),
@@ -89,7 +89,7 @@ export const ListCompaniesQuery = z.object({
 export const CompanySummarySchema = z.object({
   id: z.string(),
   name: z.string(),
-  /** The effective status: a lapsed customer reads `former` (specs/017 AC-1.9). */
+  /** The effective status: a lapsed customer reads `former` (specs/20261101-crm AC-1.9). */
   status: CompanyStatusSchema,
   /** True when `status` is `former` only because the relationship lapsed. */
   statusLapsed: z.boolean(),

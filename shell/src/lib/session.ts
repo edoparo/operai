@@ -1,21 +1,21 @@
 /**
  * shell/session — the Operai suite's single shared session/runtime module.
  *
- * Extracted from estimai-ui/src/lib/api.ts + authClient.ts (T4, specs/003-suite-shell,
- * ADR-0001, ADR-0006). The shell exposes this module via Module Federation as
+ * Extracted from estimai-ui/src/lib/api.ts + authClient.ts (T4, specs/20260709-suite-shell,
+ * ADR 20260607-jwt-in-memory-never-web-storage, ADR 20260709-suite-frontend-module-federation). The shell exposes this module via Module Federation as
  * `./session` so every remote (estimai-ui, refund-ui, …) consumes ONE in-memory
  * JWT cache and ONE better-auth client instance for the whole suite, instead of
  * each tool holding its own copy. estimai-ui keeps its own copy of api.ts/
  * authClient.ts until it is rewired to consume `shell/session` (T13) — this
  * file is not imported by estimai-ui yet.
  *
- * JWT caching strategy (ADR-0001):
+ * JWT caching strategy (ADR 20260607-jwt-in-memory-never-web-storage):
  *   The RS256 JWT is cached in module-scope memory only — never written to
  *   localStorage, sessionStorage, IndexedDB, or any other persistent storage.
  *   The 7-day session cookie managed by better-auth is the sole durable
  *   credential; the JWT is a derived, re-fetchable artifact.
  *
- * Refresh protocol (per ADR-0001):
+ * Refresh protocol (per ADR 20260607-jwt-in-memory-never-web-storage):
  *   1. No JWT cached → fetch GET /auth/token, cache result, attach Bearer header.
  *   2. Request returns 401 → clear cache, re-fetch /auth/token once, retry once.
  *   3. Retry also returns 401 → clear cache, redirect to sign-in page with
@@ -27,12 +27,12 @@
  *     • The auth service origin (VITE_AUTH_URL).
  *     • The API service origin (VITE_API_URL), if that env var is defined.
  *     • The notify-api origin (VITE_NOTIFY_API_URL), if that env var is
- *       defined (T10, specs/005-notification-center) — trusted so
+ *       defined (T10, specs/20260713-notification-center) — trusted so
  *       `raiseNotification`/the SSE ticket mint/`GET /notifications/*` (this
  *       module's notification seam, notify-ui) go through this same
  *       Bearer-attach machinery.
  *     • The refund-api origin (VITE_REFUND_API_URL), if that env var is
- *       defined (T20, specs/007-refund-service — closes the drift flagged by
+ *       defined (T20, specs/20260716-refund-service — closes the drift flagged by
  *       refund-ui's own T14: `refund-ui/src/lib/refundApi.ts` read
  *       `VITE_REFUND_API_URL` and called through `apiFetch` from day one, but
  *       until this origin was added here every refund-api request went out
@@ -41,25 +41,25 @@
  *       resource server, not the auth service, so it gets its own entry
  *       rather than reusing VITE_API_URL.
  *     • The inventory-api origin (VITE_INVENTORY_API_URL), if defined (T41,
- *       specs/015-hardware-inventory) — same shape as refund-api above.
- *     • The crm-api origin (VITE_CRM_API_URL), if defined (specs/017-crm).
+ *       specs/20261006-hardware-inventory) — same shape as refund-api above.
+ *     • The crm-api origin (VITE_CRM_API_URL), if defined (specs/20261101-crm).
  *     • The meetings-api origin (VITE_MEETINGS_API_URL), if defined
- *       (specs/021-meetings, T50) — and only that origin.
+ *       (specs/20261104-meetings, T50) — and only that origin.
  *     • The projects-api origin (VITE_PROJECTS_API_URL), if defined
- *       (specs/025-projects).
+ *       (specs/20261103-projects).
  *     • The activities-api origin (VITE_ACTIVITIES_API_URL), if defined
- *       (specs/028-activities).
+ *       (specs/20261110-activities).
  *   Requests to any other origin proceed unauthenticated — no Authorization
  *   header is sent and credentials are not included cross-origin.
  *
- * Permission resolution (T23, specs/004-auth-roles-permissions, ADR-0007):
+ * Permission resolution (T23, specs/20260713-auth-roles-permissions, ADR 20260713-authz-hand-rolled-rbac-abac-epoch-claims):
  *   Roles/permissions are deliberately NOT embedded in the JWT (only a
- *   forward-looking `perm_epoch` claim rides the token — see ADR-0007). The
+ *   forward-looking `perm_epoch` claim rides the token — see ADR 20260713-authz-hand-rolled-rbac-abac-epoch-claims). The
  *   shell instead resolves the caller's effective permissions **live** via
  *   `GET /authz/me` on the auth service, through the same `apiFetch` machinery
  *   used for every other trusted-origin call (Bearer attach + 401 refresh/
  *   retry/redirect). The result is cached in module-scope memory only — never
- *   web storage (ADR-0001) — and is:
+ *   web storage (ADR 20260607-jwt-in-memory-never-web-storage) — and is:
  *     • populated lazily by `ensurePermissions()` (first call fetches; later
  *       calls return the cache);
  *     • force-refreshed by `ensurePermissions({ force: true })` (aliased as
@@ -106,7 +106,7 @@ const getRefundApiUrl = (): string => import.meta.env.VITE_REFUND_API_URL as str
 
 /**
  * The refund-api base URL (`VITE_REFUND_API_URL`), exposed for federated
- * remotes (T9, specs/009-mileage-rate, plan.md "admin-ui → refund-api call
+ * remotes (T9, specs/20260720-mileage-rate, plan.md "admin-ui → refund-api call
  * path"). admin-ui's new `ratesApi.ts` calls refund-api's `/rates` endpoints
  * directly (a cross-service call, not proxied through auth) and — exactly
  * like `getAuthBaseUrl()` above — ships no `VITE_REFUND_API_URL` of its own,
@@ -117,7 +117,7 @@ export const getRefundApiBaseUrl = (): string => getRefundApiUrl()
 
 /**
  * Returns the inventory-api base URL from the Vite environment (T41,
- * specs/015-hardware-inventory). Lazily read, mirrors getRefundApiUrl().
+ * specs/20261006-hardware-inventory). Lazily read, mirrors getRefundApiUrl().
  */
 const getInventoryApiUrl = (): string => import.meta.env.VITE_INVENTORY_API_URL as string
 
@@ -130,21 +130,21 @@ const getInventoryApiUrl = (): string => import.meta.env.VITE_INVENTORY_API_URL 
 export const getInventoryApiBaseUrl = (): string => getInventoryApiUrl()
 
 /**
- * The crm-api base URL (`VITE_CRM_API_URL`, specs/017-crm), exposed for the
+ * The crm-api base URL (`VITE_CRM_API_URL`, specs/20261101-crm), exposed for the
  * federated `crm` remote, which ships no `VITE_*` env of its own. Lazily read,
  * mirrors `getInventoryApiBaseUrl()`.
  */
 export const getCrmApiBaseUrl = (): string => import.meta.env.VITE_CRM_API_URL as string
 
 /**
- * The meetings-api base URL (`VITE_MEETINGS_API_URL`, specs/021-meetings, T50),
+ * The meetings-api base URL (`VITE_MEETINGS_API_URL`, specs/20261104-meetings, T50),
  * exposed for the federated `meetings` remote, which ships no `VITE_*` env of its
  * own. Lazily read, mirrors `getCrmApiBaseUrl()`.
  */
 export const getMeetingsApiBaseUrl = (): string => import.meta.env.VITE_MEETINGS_API_URL as string
 
 /**
- * The navigation-blocker seam for remotes (specs/021-meetings, T50, AC-2.10):
+ * The navigation-blocker seam for remotes (specs/20261104-meetings, T50, AC-2.10):
  * `registerNavigationBlocker(shouldBlock, message)` returns an unregister
  * function; while `shouldBlock()` is true the shell asks the person to confirm
  * before any in-app navigation (ShellLayout's `useBlocker`). Implemented in
@@ -155,21 +155,21 @@ export const getMeetingsApiBaseUrl = (): string => import.meta.env.VITE_MEETINGS
 export { registerNavigationBlocker } from './navigationBlocker'
 
 /**
- * The floating slot for remotes (specs/021-meetings A13, ADR-0078): `openFloating(name, props)` shows a remote's
+ * The floating slot for remotes (specs/20261104-meetings A13, ADR 20261110-shell-floating-slot-for-remote-widgets): `openFloating(name, props)` shows a remote's
  * widget above every page until `closeFloating(name)`. Implemented in ./floating (same reason as the blocker);
  * remotes feature-detect it, so a shell that predates it simply has no widget.
  */
 export { closeFloating, openFloating } from './floating'
 
 /**
- * The projects-api base URL (`VITE_PROJECTS_API_URL`, specs/025-projects), exposed
+ * The projects-api base URL (`VITE_PROJECTS_API_URL`, specs/20261103-projects), exposed
  * for the federated `projects` remote, which ships no `VITE_*` env of its own.
  * Lazily read, mirrors `getCrmApiBaseUrl()`.
  */
 export const getProjectsApiBaseUrl = (): string => import.meta.env.VITE_PROJECTS_API_URL as string
 
 /**
- * The activities-api base URL (`VITE_ACTIVITIES_API_URL`, specs/028-activities), exposed
+ * The activities-api base URL (`VITE_ACTIVITIES_API_URL`, specs/20261110-activities), exposed
  * for the federated `crm` and `projects` remotes, which ship no `VITE_*` env of their own.
  * Lazily read, mirrors `getProjectsApiBaseUrl()`.
  */
@@ -233,7 +233,7 @@ const getTrustedOrigins = (): Set<string> => {
     }
   }
 
-  // T10 (specs/005-notification-center): notify-api origin — raiseNotification,
+  // T10 (specs/20260713-notification-center): notify-api origin — raiseNotification,
   // the SSE stream-ticket mint, and GET /notifications/* (this module's
   // notification seam, notify-ui) all go through apiFetch too.
   const notifyUrl = import.meta.env.VITE_NOTIFY_API_URL as string | undefined
@@ -245,12 +245,12 @@ const getTrustedOrigins = (): Set<string> => {
     }
   }
 
-  // T20 (specs/007-refund-service, tasks.md "Trusted-origin fix"): refund-api
+  // T20 (specs/20260716-refund-service, tasks.md "Trusted-origin fix"): refund-api
   // origin — refund-ui's requestsApi/reviewApi/attachments calls (all via
   // refund-ui/src/lib/refundApi.ts's getJson/sendJson/deleteJson, which
   // already call apiFetch) need the Bearer JWT attached the same way every
   // other resource server's calls do. Without this entry every refund-api
-  // request 401s (ADR-0001: apiFetch only attaches Authorization to a
+  // request 401s (ADR 20260607-jwt-in-memory-never-web-storage: apiFetch only attaches Authorization to a
   // trusted origin).
   const refundUrl = import.meta.env.VITE_REFUND_API_URL as string | undefined
   if (refundUrl) {
@@ -261,7 +261,7 @@ const getTrustedOrigins = (): Set<string> => {
     }
   }
 
-  // T41 (specs/015-hardware-inventory, AC-9.6): inventory-api origin — both
+  // T41 (specs/20261006-hardware-inventory, AC-9.6): inventory-api origin — both
   // inventory-ui's gated calls and the ungated /me/* devices calls go through
   // apiFetch and need the Bearer JWT. Trusted only when configured; no
   // default, so an unset env never widens the allowlist.
@@ -274,7 +274,7 @@ const getTrustedOrigins = (): Set<string> => {
     }
   }
 
-  // specs/017-crm: crm-api origin, trusted only when configured (same shape).
+  // specs/20261101-crm: crm-api origin, trusted only when configured (same shape).
   const crmUrl = import.meta.env.VITE_CRM_API_URL as string | undefined
   if (crmUrl) {
     try {
@@ -284,7 +284,7 @@ const getTrustedOrigins = (): Set<string> => {
     }
   }
 
-  // specs/021-meetings, T50: meetings-api origin, trusted only when configured
+  // specs/20261104-meetings, T50: meetings-api origin, trusted only when configured
   // (same shape; an unset env never widens the allowlist).
   const meetingsUrl = import.meta.env.VITE_MEETINGS_API_URL as string | undefined
   if (meetingsUrl) {
@@ -295,7 +295,7 @@ const getTrustedOrigins = (): Set<string> => {
     }
   }
 
-  // specs/025-projects: projects-api origin, trusted only when configured (same shape).
+  // specs/20261103-projects: projects-api origin, trusted only when configured (same shape).
   const projectsUrl = import.meta.env.VITE_PROJECTS_API_URL as string | undefined
   if (projectsUrl) {
     try {
@@ -305,7 +305,7 @@ const getTrustedOrigins = (): Set<string> => {
     }
   }
 
-  // specs/028-activities: activities-api origin, trusted only when configured (same shape).
+  // specs/20261110-activities: activities-api origin, trusted only when configured (same shape).
   const activitiesUrl = import.meta.env.VITE_ACTIVITIES_API_URL as string | undefined
   if (activitiesUrl) {
     try {
@@ -629,7 +629,7 @@ export function usePermissions(): PermissionsResult {
 }
 
 /**
- * Sign-out teardown hooks (T10, specs/005-notification-center, ADR-0009 R8).
+ * Sign-out teardown hooks (T10, specs/20260713-notification-center, ADR 20260713-notification-center-standalone-service-shell-seam R8).
  *
  * `signOut()` must close the shell's live SSE notification connection on
  * every identity change (notifications.ts's `closeSseConnection()`), so a
@@ -663,7 +663,7 @@ export function onSignOut(hook: () => void): () => void {
 }
 
 /**
- * Awaited, time-boxed steps that need the session still alive (specs/029-push-notifications,
+ * Awaited, time-boxed steps that need the session still alive (specs/20261111-push-notifications,
  * AC-5.1). `signOut()` runs them FIRST — before the JWT, permissions and session caches clear — so
  * a step can still call `apiFetch` with the JWT (the push device release `DELETE`s the browser's
  * device with it). Whatever a step does, sign-out never waits longer than
@@ -706,7 +706,7 @@ const runBeforeSignOutHooks = async (): Promise<void> => {
  * Session wrappers — the single better-auth client instance for the suite.
  *
  * getSession / useSession resolve the cookie-based session as-is (mirrors
- * estimai-ui/src/router.tsx's `_authed` guard usage, ADR-0002).
+ * estimai-ui/src/router.tsx's `_authed` guard usage, ADR 20260607-sign-in-page-hosted-by-auth-service).
  *
  * signOut additionally clears the shared in-memory JWT cache and the
  * permissions cache *before* ending the better-auth session, so a suite-wide
@@ -788,7 +788,7 @@ export const signOut = async (
     // guard (it only redirects on navigation), so without an explicit redirect a
     // signed-out user is stranded on the now-session-less page (avatar gone, but
     // no login screen). Send them to the hosted sign-in page — the SAME target
-    // the guard uses (`<AUTH_URL>/sign-in?redirect=<current URL>`, ADR-0002) — via
+    // the guard uses (`<AUTH_URL>/sign-in?redirect=<current URL>`, ADR 20260607-sign-in-page-hosted-by-auth-service) — via
     // a full-document navigation. In a finally so it fires even if the better-auth
     // sign-out call rejects (e.g. a transient network error), which still leaves
     // the local caches cleared above.
@@ -805,7 +805,7 @@ export const signOut = async (
  * drive a client-side navigation into ANOTHER remote's route — each remote
  * runs its own inner TanStack Router scoped to its own `basepath` (`/notify`,
  * `/estimai`, …), and there is no shared router *instance* across the
- * federation boundary (ADR-0006: `@tanstack/react-router` is a shared MF
+ * federation boundary (ADR 20260709-suite-frontend-module-federation: `@tanstack/react-router` is a shared MF
  * *library* singleton, not a shared router instance). Only the SHELL's
  * top-level router (basepath `/`, `shell/src/router.tsx`) knows every remote's
  * route, so cross-remote navigation must go through it.
@@ -860,7 +860,7 @@ export function navigateSuite(to: string): void {
 
 /**
  * Re-exports the shell's notification transport seam (T10,
- * specs/005-notification-center, ADR-0009) so it rides the suite's existing
+ * specs/20260713-notification-center, ADR 20260713-notification-center-standalone-service-shell-seam) so it rides the suite's existing
  * `shell/session` federation export (vite.config.ts `exposes['./session']`)
  * — the same module every remote already imports for
  * `apiFetch`/`usePermissions`. See notifications.ts's file-level doc for why

@@ -1,5 +1,5 @@
 /**
- * A contract's Bexio order id (specs/025 T9; AC-3.1, AC-3.2, AC-3.3, AC-1.7, AC-4.5).
+ * A contract's Bexio order id (specs/20261103-projects T9; AC-3.1, AC-3.2, AC-3.3, AC-1.7, AC-4.5).
  *
  * `PUT /projects/:id/contracts/:contractId/bexio-order` is the ONLY way to write it: it needs the
  * `contract:bexio` capability (the `accounting` role, D35) — not `project:manage`, and not scoped
@@ -9,7 +9,7 @@
  * started and closed with or without it (AC-3.3), so no other route looks at it.
  *
  * It is a write on the contract like any other: `If-Match` required, and it bumps the contract's
- * `version` (ADR-0038).
+ * `version` (ADR 20260807-optimistic-concurrency-version-if-match-cas-amends-0004).
  */
 
 import { OpenAPIHono, createRoute, z } from "@hono/zod-openapi";

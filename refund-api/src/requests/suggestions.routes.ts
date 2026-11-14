@@ -1,6 +1,6 @@
 /**
  * `GET /line-suggestions` — the employee's own past `travel_km` trip
- * signatures, grouped, ranked and capped (T5, specs/014-motivo-autocomplete).
+ * signatures, grouped, ranked and capped (T5, specs/20260811-motivo-autocomplete).
  *
  * ┌──────────────────────────────────────────────────────────────────────────┐
  * │ MOUNTED AT TOP LEVEL — NEVER UNDER `/requests/…`.                        │
@@ -19,7 +19,7 @@
  * contract is **400** (matching `rates/effective.routes.ts`'s query-validation
  * convention, plan § API contracts) rather than `linesRouter`'s 422-for-bodies.
  *
- * ── Authorization (plan D4 / ADR-0042) ──────────────────────────────────────
+ * ── Authorization (plan D4 / ADR 20260811-derived-projection-reuses-existing-gate-reconstructibility-test) ──────────────────────────────────────
  *
  * Gated by the EXISTING `request:read` capability. No new catalog resource, no
  * new permission, no `auth` change of any kind: this route returns a strictly
@@ -31,21 +31,21 @@
  * Two enforcement properties, both deliberate:
  *
  *  1. Capability absent → **403**, never 404. There is no record being
- *     addressed here, so there is no existence to hide (ADR-0014 point 3,
+ *     addressed here, so there is no existence to hide (ADR 20260716-refund-api-authorization-enforcing-resource-server point 3,
  *     matching `GET /requests` exactly). No 404 path exists on this route at
- *     all, so there is no ADR-0005/0037-style 403-vs-404 question to answer.
+ *     all, so there is no ADR 20260703-jwt-resource-server-remote-jwks/0037-style 403-vs-404 question to answer.
  *  2. The handler **IGNORES THE GRANT'S CONDITIONS ENTIRELY** and scopes to
  *     the JWT `sub` unconditionally. This is what makes AC-4.2 structural
  *     rather than incidental: a caller holding an unconditioned/global
  *     `request:review` — or even a hypothetically unconditioned
  *     `request:read` — still gets exactly their own lines, because
  *     `fetchTravelKmTriples` takes no scope argument at all and widening is
- *     therefore inexpressible. ADR-0015's entity-scope predicate is
+ *     therefore inexpressible. ADR 20260716-entity-scoped-abac-refund-api's entity-scope predicate is
  *     deliberately NOT consulted: it is a review concept, this is a
  *     self-scoped read.
  *
  * `authzMiddleware` still fails CLOSED (503) on an `auth` outage, unchanged
- * (ADR-0014 point 4). The client swallows that silently (AC-5.2) — that is a
+ * (ADR 20260716-refund-api-authorization-enforcing-resource-server point 4). The client swallows that silently (AC-5.2) — that is a
  * client-side posture, not a server-side weakening.
  *
  * ── Privacy ─────────────────────────────────────────────────────────────────
@@ -139,7 +139,7 @@ const lineSuggestionsRoute = createRoute({
     },
     503: {
       content: { "application/json": { schema: ProblemSchema } },
-      description: "Authorization service unavailable (fail-closed, ADR-0014)",
+      description: "Authorization service unavailable (fail-closed, ADR 20260716-refund-api-authorization-enforcing-resource-server)",
     },
   },
 });

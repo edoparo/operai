@@ -29,7 +29,7 @@ import { env } from "../lib/env";
 
 const RUN_ID = crypto.randomUUID().slice(0, 8);
 
-// specs/023: invitations are limited to ALLOWED_SIGNUP_DOMAINS. The fixtures in this file use
+// specs/20261105-signup-gate: invitations are limited to ALLOWED_SIGNUP_DOMAINS. The fixtures in this file use
 // `@operai.test` addresses, so that domain is allowed for this file only (the env singleton is
 // shared by every test file in the process, hence the restore in afterAll); the outside-domain
 // cases below use gmail.com, which is never allowed.
@@ -401,7 +401,7 @@ describe("Invitation admin API (T6)", () => {
     expect(body.code).toBe("pending_invitation_exists");
   });
 
-  test("(security-review fix #7, specs/006-user-invitations, A04) two concurrent creates for the SAME email race past the pre-check — exactly one 201, the other 409 (never 500)", async () => {
+  test("(security-review fix #7, specs/20260713-user-invitations, A04) two concurrent creates for the SAME email race past the pre-check — exactly one 201, the other 409 (never 500)", async () => {
     asAdmin();
     mockEmailSent();
     const { invitationsRouter } = await import("./invitations.routes");
@@ -690,7 +690,7 @@ describe("Invitation admin API (T6)", () => {
   });
 });
 
-// ─── AC-4.3: the REAL email client behind the routes (specs/016) ──────────────
+// ─── AC-4.3: the REAL email client behind the routes (specs/20261013-notify-service-credentials) ──────────────
 //
 // The tests above script the client's outcome. These drive create and resend
 // through the real `sendInvitationEmail` with a controllable token provider and
@@ -698,7 +698,7 @@ describe("Invitation admin API (T6)", () => {
 // never rolls back the invitation and surfaces as the existing best-effort
 // outcome (`emailDelivery: "failed"` + `lastEmailStatus`/`lastEmailError`).
 
-describe("Invitation routes with the real email client (specs/016 AC-4.3, ADR-0049)", () => {
+describe("Invitation routes with the real email client (specs/20261013-notify-service-credentials AC-4.3, ADR 20261013-all-notify-callers-scoped-credentials-shared-token-retired)", () => {
   const realFetch = globalThis.fetch;
   let fetchCalls: { authorization: string | null }[] = [];
   let invalidated: string[] = [];
@@ -850,7 +850,7 @@ describe("Invitation routes with the real email client (specs/016 AC-4.3, ADR-00
   });
 });
 
-describe("Invitations limited to allowed domains (specs/023 T6 — AC-5.1, AC-5.2)", () => {
+describe("Invitations limited to allowed domains (specs/20261105-signup-gate T6 — AC-5.1, AC-5.2)", () => {
   async function postBody(body: unknown) {
     const { invitationsRouter } = await import("./invitations.routes");
     return invitationsRouter.request("/admin/invitations", {

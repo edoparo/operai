@@ -133,7 +133,7 @@ describe('TranscriptView: reading (AC-6.1)', () => {
     expect(screen.queryByRole('button', { name: /passage 0/i })).toBeNull()
   })
 
-  it('renders AI-free text as plain text: markup and Markdown appear literally (ADR-0067)', async () => {
+  it('renders AI-free text as plain text: markup and Markdown appear literally (ADR 20261104-ai-output-structured-validated-plain-text)', async () => {
     serveTranscript(
       transcript({
         segments: [segment({ text: '<img src=x onerror=alert(1)> [click](https://evil.test) **bold**' })],

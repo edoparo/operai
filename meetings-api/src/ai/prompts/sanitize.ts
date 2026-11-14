@@ -1,5 +1,5 @@
 /**
- * Neutralising model prose (specs/021-meetings AC-7.12, AC-9.7; ADR-0067 points 3 and 4).
+ * Neutralising model prose (specs/20261104-meetings AC-7.12, AC-9.7; ADR 20261104-ai-output-structured-validated-plain-text points 3 and 4).
  *
  * What a summary body or an answer says is the model's prose, and the model read text
  * written by whoever spoke in the meeting. Shape is the server's (headings, order, count,

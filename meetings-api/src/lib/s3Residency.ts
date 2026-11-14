@@ -1,12 +1,12 @@
 /**
- * EU-residency + path-style-addressing helpers for the Meetings audio bucket (specs/021-meetings,
- * AC-4.9; ADR-0016 posture). Copied from crm-api/src/lib/s3Residency.ts with the variable
+ * EU-residency + path-style-addressing helpers for the Meetings audio bucket (specs/20261104-meetings,
+ * AC-4.9; ADR 20260716-eu-object-storage-refund-attachments posture). Copied from crm-api/src/lib/s3Residency.ts with the variable
  * names re-pointed at `MEETINGS_S3_*`. One deliberate change: a refusal never echoes the
  * endpoint, host or region that was configured (the startup contract of T11: a
  * misconfiguration is named by variable, its value stays out of the logs).
  */
 
-// ─── EU-residency guard for the Meetings audio bucket (ADR-0016 posture) ───────
+// ─── EU-residency guard for the Meetings audio bucket (ADR 20260716-eu-object-storage-refund-attachments posture) ───────
 //
 // Same endpoint-aware rule as refund-api/src/lib/s3Residency.ts (OWASP A05):
 //
@@ -65,7 +65,7 @@ export function checkEuResidency(
   if (isAwsS3Endpoint(endpoint)) {
     if (!(EU_AWS_REGIONS as readonly string[]).includes(region)) {
       return (
-        `MEETINGS_S3_REGION is not an EU AWS region (data residency, ADR-0016/AGENTS.md). ` +
+        `MEETINGS_S3_REGION is not an EU AWS region (data residency, ADR 20260716-eu-object-storage-refund-attachments/AGENTS.md). ` +
         `Allowed: ${EU_AWS_REGIONS.join(", ")}`
       );
     }
@@ -83,14 +83,14 @@ export function checkEuResidency(
     return (
       "MEETINGS_S3_ENDPOINT is a non-AWS endpoint, but MEETINGS_S3_EU_ENDPOINT_HOSTS is empty/unset: " +
       "residency cannot be verified without an operator-declared EU allowlist (data residency, " +
-      "ADR-0016/AGENTS.md). Set it to a comma-separated list of EU endpoint host suffixes."
+      "ADR 20260716-eu-object-storage-refund-attachments/AGENTS.md). Set it to a comma-separated list of EU endpoint host suffixes."
     );
   }
 
   if (!hostMatchesEuAllowlist(hostname, euEndpointHosts)) {
     return (
       "MEETINGS_S3_ENDPOINT host does not match any entry in MEETINGS_S3_EU_ENDPOINT_HOSTS: " +
-      "refusing to start with an unverified non-EU endpoint (data residency, ADR-0016/AGENTS.md)."
+      "refusing to start with an unverified non-EU endpoint (data residency, ADR 20260716-eu-object-storage-refund-attachments/AGENTS.md)."
     );
   }
   return null;

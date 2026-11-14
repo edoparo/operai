@@ -2,15 +2,15 @@
   "schema": "wellforge-run/v1",
   "run_id": "2026-07-21T16-30-00Z-orchestrate-010-self-approval-control",
   "command": "orchestrate",
-  "feature": "010-self-approval-control",
+  "feature": "20260721-self-approval-control",
   "rigor": "production",
   "started": "2026-07-21T14:00:00Z",
   "finished": "2026-07-21T16:30:00Z",
-  "worktree": "isolation used for the parallel implementation batch (4 dependency-independent agents across separate repos: auth / refund-api / admin-ui / refund-ui); each ff-merged feat/010-self-approval-control (which carried spec/plan/tasks/ADR-0026, committed BEFORE dispatch — the 009 artifact-commit slip was not repeated) then committed on its own branch; the orchestrator cherry-picked the 5 task commits linearly onto the feature branch (no --no-ff merge commits, per CLAUDE.md); checkboxes reconciled centrally",
+  "worktree": "isolation used for the parallel implementation batch (4 dependency-independent agents across separate repos: auth / refund-api / admin-ui / refund-ui); each ff-merged feat/20260721-self-approval-control (which carried spec/plan/tasks/ADR 20260721-self-approval-condition-and-403-exception, committed BEFORE dispatch — the 009 artifact-commit slip was not repeated) then committed on its own branch; the orchestrator cherry-picked the 5 task commits linearly onto the feature branch (no --no-ff merge commits, per CLAUDE.md); checkboxes reconciled centrally",
   "agents": [
     { "agent": "product-owner", "stage": "spec", "outcome": "completed", "note": "spec.md: 6 stories, 24 ACs; grounded against real code (approve supportedConditions, ownershipOwn 404 pattern, ConditionChip enum); flagged the deliberate 403-not-404 exception; 5 open questions all deferred to the architect" },
     { "agent": "architect", "stage": "plan", "outcome": "completed", "note": "plan.md: attribute {key:self-approval,match:deny} (catalog-only auth change), inline enforcement in the approve decide path, 403 code:self_approval_forbidden, structured log (not audit row); resolved all 5 open questions; surfaced R1 (widest-wins can union the restriction away) for the gate" },
-    { "agent": "adr-writer", "stage": "plan", "outcome": "completed", "note": "ADR 0026 (self-approval condition + 403-not-404 exception, logging-not-audit-row folded in) + CLAUDE.md index" },
+    { "agent": "adr-writer", "stage": "plan", "outcome": "completed", "note": "ADR 20260721-self-approval-condition-and-403-exception (self-approval condition + 403-not-404 exception, logging-not-audit-row folded in) + CLAUDE.md index" },
     { "agent": "backend-dev", "tasks": ["T1"], "outcome": "completed", "commits": ["caac172"], "note": "auth: request.approve.supportedConditions -> [entity, self-approval] (the ONLY code change); roundtrip/validator/backward-compat tests; 326 auth tests pass" },
     { "agent": "backend-dev", "tasks": ["T2","T3"], "outcome": "completed", "commits": ["2ad0273","42c4dda"], "note": "refund-api: approveSelfRestricted predicate (own branch, never entity path) + approveRestrictedForCaller; enforce in approve decide path with typed SelfApprovalDeniedError BEFORE entity-404/status-409, 403 code discriminator, refund.self_approval_denied log; 35+36 tests pass; INTRODUCED a typecheck regression (stale approveRequest call in db.batches-schema.test.ts) it mislabeled as pre-existing" },
     { "agent": "frontend-dev", "tasks": ["T4"], "outcome": "completed", "commits": ["71ec117"], "note": "admin-ui: distinct self-approval chip + RoleEditor 'Segregation of duties' toggle, persists {key:self-approval,match:deny}, match widened user|deny; 295 tests pass" },
@@ -29,7 +29,7 @@
   "collision_events": [],
   "verdicts": { "qe": "PASS (after the typecheck-regression fix; all 24 ACs; e2e authored, live run env-blocked)", "owasp": "PASS (0 findings)", "eval": "PASS (93/100)" },
   "result": "completed",
-  "notes": "7 tasks across auth/refund-api/admin-ui/refund-ui + e2e. Extends specs/004+007. 2 human gates (spec, plan) approved; the plan was NOT revised (both gate decisions matched the architect's recommendation). New ADR 0026. Spec artifacts committed BEFORE dispatching worktree agents (the 009 slip avoided). Non-blocking follow-ups: run the T6 e2e in a 1Password-available env; shared dev-DB employee-role seed pollution causes 4 auth full-suite failures unrelated to this feature (separate cleanup); R1 escalation (widthScore sub-term for the self-approval flag) named for if approve is ever granted from multiple roles. Feature branch feat/010-self-approval-control NOT yet merged to main/pushed (user's call).",
+  "notes": "7 tasks across auth/refund-api/admin-ui/refund-ui + e2e. Extends specs/20260713-auth-roles-permissions+007. 2 human gates (spec, plan) approved; the plan was NOT revised (both gate decisions matched the architect's recommendation). New ADR 20260721-self-approval-condition-and-403-exception. Spec artifacts committed BEFORE dispatching worktree agents (the 009 slip avoided). Non-blocking follow-ups: run the T6 e2e in a 1Password-available env; shared dev-DB employee-role seed pollution causes 4 auth full-suite failures unrelated to this feature (separate cleanup); R1 escalation (widthScore sub-term for the self-approval flag) named for if approve is ever granted from multiple roles. Feature branch feat/20260721-self-approval-control NOT yet merged to main/pushed (user's call).",
   "tokens": null,
   "cost_usd": null
 }

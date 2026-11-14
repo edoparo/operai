@@ -1,6 +1,6 @@
 /**
- * Zod schemas for the attachment endpoints (T9, specs/007-refund-service,
- * ADR-0016).
+ * Zod schemas for the attachment endpoints (T9, specs/20260716-refund-service,
+ * ADR 20260716-eu-object-storage-refund-attachments).
  */
 
 import { z } from "zod";

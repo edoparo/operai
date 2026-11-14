@@ -1,7 +1,7 @@
 /**
  * Time-based meeting state, DERIVED on read with an injected clock and never
- * written by a sweep or a queue (specs/021-meetings plan.md § Browser capture
- * "Liveness and `interrupted`", § Retention D-9; ADR-0013 lineage; AC-2.8, AC-2.9,
+ * written by a sweep or a queue (specs/20261104-meetings plan.md § Browser capture
+ * "Liveness and `interrupted`", § Retention D-9; ADR 20260714-invitation-lifecycle-derived-expiry-state lineage; AC-2.8, AC-2.9,
  * AC-4.4). Pure: no database, no `Date.now()`, no side effect.
  */
 

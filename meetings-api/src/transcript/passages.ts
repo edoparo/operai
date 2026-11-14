@@ -1,5 +1,5 @@
 /**
- * Turns pasted text into transcript passages (specs/021-meetings AC-3.4, AC-6.1).
+ * Turns pasted text into transcript passages (specs/20261104-meetings AC-3.4, AC-6.1).
  *
  * A passage is about 1,000 characters, cut at paragraph boundaries: consecutive
  * paragraphs are packed into one passage while they fit, a paragraph longer than the

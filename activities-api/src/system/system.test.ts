@@ -1,5 +1,5 @@
 /**
- * The system routes (specs/028 T10; AC-1.2, AC-1.3, AC-1.4, AC-8.4; ADR-0082): what crm-api calls,
+ * The system routes (specs/20261110-activities T10; AC-1.2, AC-1.3, AC-1.4, AC-8.4; ADR 20261110-caller-chosen-ids-replace-cross-service-transactions): what crm-api calls,
  * as itself, in place of the transactions it used to share with the activities. Real Postgres
  * (`activities_test`) and the ASSEMBLED app; the service JWTs are signed with a key whose JWKS is
  * injected into the middleware, so no live `auth` is needed.
@@ -200,7 +200,7 @@ describe("PUT /system/v1/activities/{id} — create if absent (AC-1.2)", () => {
       dealId: "dl-1",
       contactId: null,
       subject: "Estimate: Website relaunch",
-      // A task has one text, its description (ADR-0089): the body crm-api sends becomes paragraphs.
+      // A task has one text, its description (ADR 20261113-task-description-files-in-activities-api-bucket): the body crm-api sends becomes paragraphs.
       body: null,
       description: { type: "doc", content: [{ type: "paragraph", content: [{ type: "text", text: "Please estimate" }] }] },
       authorUserId: "user-consultant",

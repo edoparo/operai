@@ -8,7 +8,7 @@ import * as estimatesApi from './lib/estimatesApi'
 import type { EstimateFull } from './lib/estimatesApi'
 
 // ---------------------------------------------------------------------------
-// createAppRouter — factory, not a module-scope singleton (T12, specs/003)
+// createAppRouter — factory, not a module-scope singleton (T12, specs/20260709-suite-shell)
 //
 // estimai-ui is now consumed two ways:
 //   - Standalone (dev/test bootstrap, src/main.tsx): createAppRouter() with
@@ -24,7 +24,7 @@ import type { EstimateFull } from './lib/estimatesApi'
 // module scope, as before) so that two router instances — one per basepath —
 // never share mutable route-tree state.
 //
-// T13 (specs/003-suite-shell/tasks.md, AC-2.3): this router NO LONGER runs
+// T13 (specs/20260709-suite-shell/tasks.md, AC-2.3): this router NO LONGER runs
 // its own `_authed` session guard. estimai-ui runs as a federated remote
 // inside the shell; the shell's OWN `_authed` guard (shell/src/router.tsx,
 // T9) already resolves the session — via the SAME shared `shell/session`
@@ -62,7 +62,7 @@ export function createAppRouter(basepath?: string) {
   const estimatesRoute = createRoute({
     getParentRoute: () => rootRoute,
     path: '/estimates',
-    // specs/024: the list's "Whose" and "Status" filters are search params,
+    // specs/20261108-estimate-list-oversight: the list's "Whose" and "Status" filters are search params,
     // defaults omitted. Entering without any restores the last choice of this
     // session (AC-2.6) by a replace-redirect, so the first fetch already uses it.
     validateSearch: validateListSearch,
@@ -79,7 +79,7 @@ export function createAppRouter(basepath?: string) {
     // Loader: fetch the full estimate from the API.
     // On 404 (not found / no relationship / permission withdrawn): redirect to the list.
     // On any other failure (503 `authz_unavailable` on an oversight open, network,
-    // 500): rethrow, so `errorComponent` says so and offers Retry (specs/024 AC-1.7) —
+    // 500): rethrow, so `errorComponent` says so and offers Retry (specs/20261108-estimate-list-oversight AC-1.7) —
     // a silent redirect would hide that the authorization service is down.
     loader: async ({ params }): Promise<EstimateFull> => {
       // Track last-opened in localStorage so T12 import and other tooling can

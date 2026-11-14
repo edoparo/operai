@@ -1,6 +1,6 @@
 /**
- * The host registry (specs/021-meetings plan.md § Host integration contract,
- * ADR-0059). A host is DATA, never a branch in a route: the meeting screens
+ * The host registry (specs/20261104-meetings plan.md § Host integration contract,
+ * ADR 20261104-meeting-host-contract-resolve-and-notices). A host is DATA, never a branch in a route: the meeting screens
  * render any host from `GET /hosts`, which is what makes AC-11.4 ("a new host
  * needs no change to the meeting screens") true by construction.
  *
@@ -61,7 +61,7 @@ export const publicView = (host: HostDefinition): PublicHost => ({
   recommendedTemplates: host.recommendedTemplates,
 });
 
-// ─── The host contract's types (ADR-0059) ───────────────────────────────────
+// ─── The host contract's types (ADR 20261104-meeting-host-contract-resolve-and-notices) ───────────────────────────────────
 
 /** What a host answers about one entity, for one caller. */
 export interface HostEntity {

@@ -1,12 +1,12 @@
 /**
- * The process-wide Web Push send pool (T18, specs/029-push-notifications, S-M2, AC-2.4/2.6).
+ * The process-wide Web Push send pool (T18, specs/20261111-push-notifications, S-M2, AC-2.4/2.6).
  *
  * Why: a recipient has up to 20 devices and every notification fans out to all of them. Without
  * a bound, a burst of notifications opens thousands of simultaneous requests to the push
  * services (10 s timeout each) and holds their buffers. The pool keeps at most `concurrency`
  * sends in flight across ALL dispatches, queues the rest first-in first-out, and DROPS what
  * would overflow a queue bound: a push is best effort and never retried (AC-2.6), the in-app
- * notification is already stored. notify-api runs one instance (ADR-0008), so process-wide is
+ * notification is already stored. notify-api runs one instance (ADR 20260713-sse-stream-auth-short-lived-ticket), so process-wide is
  * suite-wide.
  *
  * `run` never rejects; an error inside `send` is the caller's to log (the channel's sender

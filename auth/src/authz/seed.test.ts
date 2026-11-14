@@ -1,5 +1,5 @@
 /**
- * Tests for the bootstrap seed (T11/T26, specs/004-auth-roles-permissions —
+ * Tests for the bootstrap seed (T11/T26, specs/20260713-auth-roles-permissions —
  * refs AC-6.1, AC-6.2, AC-6.3, AC-3.4).
  *
  * Strategy: everything here is exercised directly against the real local
@@ -132,7 +132,7 @@ describe("seedAppAccessCatalog (T11, US-7)", () => {
     expect(SUITE_APPS.some((app) => app.appId === "estimai")).toBe(false);
   });
 
-  test("refund is excluded from SUITE_APPS (T2, specs/007) — it declares/registers its own full catalog, not this one", () => {
+  test("refund is excluded from SUITE_APPS (T2, specs/20260716-refund-service) — it declares/registers its own full catalog, not this one", () => {
     expect(SUITE_APPS.some((app) => app.appId === "refund")).toBe(false);
   });
 });
@@ -159,7 +159,7 @@ describe("seedEstimaiCatalog (T26, AC-3.4)", () => {
       "view",
     ]);
     for (const action of estimateResource?.actions ?? []) {
-      // specs/024: read-all is global — it declares no conditions (ADR-0075).
+      // specs/20261108-estimate-list-oversight: read-all is global — it declares no conditions (ADR 20261108-estimai-oversight-permission-amends-0036).
       const expected = action.key === "read-all" ? [] : ["department", "entity", "ownership"];
       expect(action.supportedConditions.sort()).toEqual(expected);
     }
@@ -179,7 +179,7 @@ describe("seedEstimaiCatalog (T26, AC-3.4)", () => {
   });
 });
 
-describe("seedEstimaiGrants (specs/024 — AC-1.8; ADR-0075)", () => {
+describe("seedEstimaiGrants (specs/20261108-estimate-list-oversight — AC-1.8; ADR 20261108-estimai-oversight-permission-amends-0036)", () => {
   async function clearEstimateGrants() {
     await db.permissionRule.deleteMany({ where: { resource: "estimate", action: "read-all" } });
   }
@@ -212,9 +212,9 @@ describe("seedEstimaiGrants (specs/024 — AC-1.8; ADR-0075)", () => {
   });
 });
 
-// ─── T2, specs/007-refund-service ───────────────────────────────────────────
+// ─── T2, specs/20260716-refund-service ───────────────────────────────────────────
 
-describe("seedRefundCatalog (T2, specs/007-refund-service — AC-1.1, AC-5.4, AC-7.5, AC-8.2)", () => {
+describe("seedRefundCatalog (T2, specs/20260716-refund-service — AC-1.1, AC-5.4, AC-7.5, AC-8.2)", () => {
   test("registers refund's full catalog — app access + request create/read/review/set-approved-total/approve/reject, idempotent on re-run", async () => {
     await seedRefundCatalog();
     await seedRefundCatalog(); // re-run — full-replace upsert, must not duplicate
@@ -238,8 +238,8 @@ describe("seedRefundCatalog (T2, specs/007-refund-service — AC-1.1, AC-5.4, AC
     expect(byKey.get("read")).toEqual(["ownership"]);
     expect(byKey.get("review")).toEqual(["entity"]);
     expect(byKey.get("set-approved-total")).toEqual(["entity"]);
-    // `approve` additionally declares `self-approval` (specs/010, T1,
-    // AC-5.1; ADR-0026) — every other action's declared conditions are
+    // `approve` additionally declares `self-approval` (specs/20260721-self-approval-control, T1,
+    // AC-5.1; ADR 20260721-self-approval-condition-and-403-exception) — every other action's declared conditions are
     // unchanged (AC-4.3).
     expect(byKey.get("approve")).toEqual(["entity", "self-approval"]);
     expect(byKey.get("reject")).toEqual(["entity"]);
@@ -258,7 +258,7 @@ describe("seedRefundCatalog (T2, specs/007-refund-service — AC-1.1, AC-5.4, AC
     expect(requestResource?.actions).toHaveLength(6);
   });
 
-  test("GET /admin/catalog's backing read (getFullCatalog) includes refund's `rate` resource (T1, specs/009-mileage-rate)", async () => {
+  test("GET /admin/catalog's backing read (getFullCatalog) includes refund's `rate` resource (T1, specs/20260720-mileage-rate)", async () => {
     await seedRefundCatalog();
 
     const { getFullCatalog } = await import("./catalog");
@@ -274,7 +274,7 @@ describe("seedRefundCatalog (T2, specs/007-refund-service — AC-1.1, AC-5.4, AC
     }
   });
 
-  test("GET /admin/catalog's backing read (getFullCatalog) includes refund's `settings` resource (T1, specs/011-refund-settings, ADR-0028)", async () => {
+  test("GET /admin/catalog's backing read (getFullCatalog) includes refund's `settings` resource (T1, specs/20260722-refund-settings, ADR 20260722-settings-catalog-permission-config-not-rate)", async () => {
     await seedRefundCatalog();
 
     const { getFullCatalog } = await import("./catalog");
@@ -291,7 +291,7 @@ describe("seedRefundCatalog (T2, specs/007-refund-service — AC-1.1, AC-5.4, AC
   });
 });
 
-describe("seedAccountingRoleGrants (T2, specs/007-refund-service — AC-5.4, AC-6.4, AC-7.5; ADR-0015)", () => {
+describe("seedAccountingRoleGrants (T2, specs/20260716-refund-service — AC-5.4, AC-6.4, AC-7.5; ADR 20260716-entity-scoped-abac-refund-api)", () => {
   test("accounting gets refund:access + entity-conditioned review/set-approved-total/approve/reject; employee gets none; idempotent on re-run", async () => {
     await seedSystemRoles();
     await seedAccountingRoleGrants();
@@ -301,7 +301,7 @@ describe("seedAccountingRoleGrants (T2, specs/007-refund-service — AC-5.4, AC-
     expect(accounting).not.toBeNull();
 
     // Scoped to refund's resources (`refund`, `request`): `seedInventoryGrants`
-    // (T3, specs/015) ALSO grants this same shared `accounting` role
+    // (T3, specs/20261006-hardware-inventory) ALSO grants this same shared `accounting` role
     // inventory:access + ledger:manage, and role rows persist across this
     // file/run (shared DB), so an unscoped count would depend on WHEN that
     // other seed step last ran — the same situation as `refund-admin`'s
@@ -323,7 +323,7 @@ describe("seedAccountingRoleGrants (T2, specs/007-refund-service — AC-5.4, AC-
       const rule = accountingRules.find((r) => r.resource === "request" && r.action === action);
       expect(rule).toBeDefined();
       // Exact match — in particular `approve`'s conditions carry ONLY the
-      // pre-existing `entity` attribute, never `self-approval` (specs/010,
+      // pre-existing `entity` attribute, never `self-approval` (specs/20260721-self-approval-control,
       // T1, AC-3.2: the seed never retrofits the restriction onto any
       // existing role).
       expect(rule?.conditions).toEqual({ attributes: [{ key: "entity", match: "user" }] });
@@ -331,7 +331,7 @@ describe("seedAccountingRoleGrants (T2, specs/007-refund-service — AC-5.4, AC-
 
     // No approve/reject/etc. rule carries an unconditioned (global) grant —
     // this seed ships only the entity-scoped role, never an
-    // "accounting-global" role (Gate-2 decision D3; ADR-0015 point 4).
+    // "accounting-global" role (Gate-2 decision D3; ADR 20260716-entity-scoped-abac-refund-api point 4).
     expect(accountingRules.every((r) => r.resource !== "accounting-global")).toBe(true);
 
     // employee deliberately gets NOTHING refund-related — fully admin-assigned
@@ -352,7 +352,7 @@ describe("seedAccountingRoleGrants (T2, specs/007-refund-service — AC-5.4, AC-
   });
 
   test(
-    "no seeded role/rule carries `self-approval` (specs/010, T1, AC-3.2/3.3) — the catalog " +
+    "no seeded role/rule carries `self-approval` (specs/20260721-self-approval-control, T1, AC-3.2/3.3) — the catalog " +
       "gaining the option is additive-only, never retrofitted onto `accounting` or `refund-admin`",
     async () => {
       await seedSystemRoles();
@@ -378,7 +378,7 @@ describe("seedAccountingRoleGrants (T2, specs/007-refund-service — AC-5.4, AC-
 
 // ─── Post-close follow-up: `refund-admin` role ──────────────────────────────
 
-describe("seedRefundAdminRole (post-close follow-up, specs/007-refund-service)", () => {
+describe("seedRefundAdminRole (post-close follow-up, specs/20260716-refund-service)", () => {
   test("creates a system `refund-admin` role with refund:access + all 6 request actions, every one UNCONDITIONED, idempotent on re-run", async () => {
     await seedRefundAdminRole();
     await seedRefundAdminRole(); // re-run must not duplicate
@@ -387,8 +387,8 @@ describe("seedRefundAdminRole (post-close follow-up, specs/007-refund-service)",
     expect(role).not.toBeNull();
     expect(role!.isSystem).toBe(true);
 
-    // Scoped to exclude `rate`/`settings` (T1, specs/009-mileage-rate + T1,
-    // specs/011-refund-settings — seedRateAdminGrants/seedSettingsAdminGrants
+    // Scoped to exclude `rate`/`settings` (T1, specs/20260720-mileage-rate + T1,
+    // specs/20260722-refund-settings — seedRateAdminGrants/seedSettingsAdminGrants
     // ALSO grant this same shared `refund-admin` role rate:read/manage and
     // settings:read/manage; since role rows persist across this whole
     // file/run rather than being reset per test, an unscoped count here would
@@ -409,7 +409,7 @@ describe("seedRefundAdminRole (post-close follow-up, specs/007-refund-service)",
     for (const action of requestActions) {
       const rule = rules.find((r) => r.resource === "request" && r.action === action);
       expect(rule).toBeDefined();
-      // Every action — INCLUDING the ADR-0015 entity-scoped four — carries
+      // Every action — INCLUDING the ADR 20260716-entity-scoped-abac-refund-api entity-scoped four — carries
       // NO conditions: an unconditioned grant resolves to GLOBAL_ENTITY_SCOPE
       // in refund-api (conditions.ts's entityScopeForPermission), which is
       // what makes this role a true cross-entity superuser rather than a
@@ -438,9 +438,9 @@ describe("seedRefundAdminRole (post-close follow-up, specs/007-refund-service)",
   });
 });
 
-// ─── T1, specs/009-mileage-rate ─────────────────────────────────────────────
+// ─── T1, specs/20260720-mileage-rate ─────────────────────────────────────────────
 
-describe("seedRateAdminGrants (T1, specs/009-mileage-rate — plan.md Architecture §auth, Decision 2)", () => {
+describe("seedRateAdminGrants (T1, specs/20260720-mileage-rate — plan.md Architecture §auth, Decision 2)", () => {
   test("grants rate:read + rate:manage to `admin` and `refund-admin`, unconditioned, idempotent on re-run", async () => {
     await seedSystemRoles();
     await seedRefundAdminRole();
@@ -477,9 +477,9 @@ describe("seedRateAdminGrants (T1, specs/009-mileage-rate — plan.md Architectu
   });
 });
 
-// ─── T1, specs/011-refund-settings ──────────────────────────────────────────
+// ─── T1, specs/20260722-refund-settings ──────────────────────────────────────────
 
-describe("seedSettingsAdminGrants (T1, specs/011-refund-settings — plan.md Architecture §auth, Decision D2; ADR-0028)", () => {
+describe("seedSettingsAdminGrants (T1, specs/20260722-refund-settings — plan.md Architecture §auth, Decision D2; ADR 20260722-settings-catalog-permission-config-not-rate)", () => {
   test("grants settings:read + settings:manage to `admin` and `refund-admin`, unconditioned, idempotent on re-run", async () => {
     await seedSystemRoles();
     await seedRefundAdminRole();
@@ -515,7 +515,7 @@ describe("seedSettingsAdminGrants (T1, specs/011-refund-settings — plan.md Arc
     }
   });
 
-  test("`settings` grants are separate from `rate` grants — NOT a reuse of rate:manage (ADR-0028)", async () => {
+  test("`settings` grants are separate from `rate` grants — NOT a reuse of rate:manage (ADR 20260722-settings-catalog-permission-config-not-rate)", async () => {
     await seedSystemRoles();
     await seedRefundAdminRole();
     await seedRateAdminGrants();
@@ -542,9 +542,9 @@ describe("seedSettingsAdminGrants (T1, specs/011-refund-settings — plan.md Arc
 
 // ─── Baseline role assignment (AC-6.1, AC-6.3) ──────────────────────────────
 
-// ─── T3, specs/015-hardware-inventory ───────────────────────────────────────
+// ─── T3, specs/20261006-hardware-inventory ───────────────────────────────────────
 
-describe("seedInventoryCatalog (T3, specs/015 — AC-9.1)", () => {
+describe("seedInventoryCatalog (T3, specs/20261006-hardware-inventory — AC-9.1)", () => {
   test("registers inventory's full catalog — app access + asset:manage + ledger:manage (entity-scoped), idempotent on re-run", async () => {
     await seedInventoryCatalog();
     await seedInventoryCatalog(); // re-run — full-replace upsert, must not duplicate
@@ -574,7 +574,7 @@ describe("seedInventoryCatalog (T3, specs/015 — AC-9.1)", () => {
   });
 });
 
-describe("seedInventoryGrants (T3, specs/015 — AC-9.3/9.4/9.5/9.6; ADR-0015)", () => {
+describe("seedInventoryGrants (T3, specs/20261006-hardware-inventory — AC-9.3/9.4/9.5/9.6; ADR 20260716-entity-scoped-abac-refund-api)", () => {
   const ENTITY_CONDITION = { attributes: [{ key: "entity", match: "user" }] };
 
   // Role/rule rows persist in the shared DB across runs, and the seed only ever
@@ -674,7 +674,7 @@ describe("seedInventoryGrants (T3, specs/015 — AC-9.3/9.4/9.5/9.6; ADR-0015)",
     const refundOrder = [{ resource: "asc" as const }, { action: "asc" as const }];
     const refundBefore = await db.permissionRule.findMany({ where: refundWhere, orderBy: refundOrder });
 
-    // An admin widens accounting's ledger grant to global via the specs/004 GUI.
+    // An admin widens accounting's ledger grant to global via the specs/20260713-auth-roles-permissions GUI.
     const ledger = await db.permissionRule.findFirstOrThrow({
       where: { roleId: accounting.id, resource: "ledger", action: "manage" },
     });
@@ -864,10 +864,10 @@ describe("seed() — runs every deploy-time step", () => {
     expect(accountingRefundRules.length).toBeGreaterThanOrEqual(4);
 
     // seed() also seeds the refund-admin role (post-close follow-up), now
-    // extended by T1 (specs/009-mileage-rate) with the `rate` resource's two
+    // extended by T1 (specs/20260720-mileage-rate) with the `rate` resource's two
     // unconditioned actions on top of its original 7 (refund:access + 6
     // request actions) — 9 total — and further extended by T1
-    // (specs/011-refund-settings, ADR-0028) with the `settings` resource's
+    // (specs/20260722-refund-settings, ADR 20260722-settings-catalog-permission-config-not-rate) with the `settings` resource's
     // two unconditioned actions — 11 total.
     const refundAdmin = await db.role.findUnique({ where: { name: REFUND_ADMIN_ROLE_NAME } });
     expect(refundAdmin).not.toBeNull();
@@ -876,14 +876,14 @@ describe("seed() — runs every deploy-time step", () => {
     });
     expect(refundAdminRules.length).toBe(11);
 
-    // seed() also grants rate:read + rate:manage to `admin` (T1, specs/009-mileage-rate).
+    // seed() also grants rate:read + rate:manage to `admin` (T1, specs/20260720-mileage-rate).
     const admin = await db.role.findUnique({ where: { name: ADMIN_ROLE_NAME } });
     const adminRateRules = await db.permissionRule.findMany({
       where: { roleId: admin!.id, resource: "rate" },
     });
     expect(adminRateRules.map((r) => r.action).sort()).toEqual(["manage", "read"]);
 
-    // seed() also grants settings:read + settings:manage to `admin` (T1, specs/011-refund-settings).
+    // seed() also grants settings:read + settings:manage to `admin` (T1, specs/20260722-refund-settings).
     const adminSettingsRules = await db.permissionRule.findMany({
       where: { roleId: admin!.id, resource: "settings" },
     });
@@ -904,8 +904,8 @@ describe("seedAdminRoleGrants — admin can reach the whole suite (bootstrap usa
     expect(adminAccess.map((r) => r.resource).sort()).toEqual([...ALL_APP_IDS].sort());
     expect(adminAccess.length).toBe(ALL_APP_IDS.length); // idempotent — no dups
 
-    // Employees get no app access from here (fully admin-assigned, specs/004);
-    // the one default grant, `meetings:access` (specs/021), is seedMeetingsGrants'.
+    // Employees get no app access from here (fully admin-assigned, specs/20260713-auth-roles-permissions);
+    // the one default grant, `meetings:access` (specs/20261104-meetings), is seedMeetingsGrants'.
     const employee = await db.role.findUnique({ where: { name: EMPLOYEE_ROLE_NAME } });
     const employeeRules = await db.permissionRule.findMany({
       where: { roleId: employee!.id, NOT: { resource: MEETINGS_APP_ID, action: "access" } },
@@ -944,9 +944,9 @@ describe("ensureBootstrapAdmin — promotes an already-existing account", () => 
   });
 });
 
-// ─── specs/017-crm ──────────────────────────────────────────────────────────
+// ─── specs/20261101-crm ──────────────────────────────────────────────────────────
 
-describe("seedCrmCatalog (specs/017 — AC-5.1)", () => {
+describe("seedCrmCatalog (specs/20261101-crm — AC-5.1)", () => {
   test("registers the CRM catalog — crm:access + entity-scoped deal:manage + contact:erase, idempotent", async () => {
     await seedCrmCatalog();
     await seedCrmCatalog();
@@ -969,7 +969,7 @@ describe("seedCrmCatalog (specs/017 — AC-5.1)", () => {
   });
 });
 
-describe("seedCrmGrants (specs/017 — AC-5.2, D-4)", () => {
+describe("seedCrmGrants (specs/20261101-crm — AC-5.2, D-4)", () => {
   const ENTITY_CONDITION = { attributes: [{ key: "entity", match: "user" }] };
   const CRM_RESOURCES = [CRM_APP_ID, "deal", "contact"];
 
@@ -999,7 +999,7 @@ describe("seedCrmGrants (specs/017 — AC-5.2, D-4)", () => {
     await seedCrmGrants();
     const role = await db.role.findUniqueOrThrow({ where: { name: SALES_ROLE_NAME } });
     expect(role.isSystem).toBe(true);
-    // CRM grants only: `sales` also holds projects grants since specs/025.
+    // CRM grants only: `sales` also holds projects grants since specs/20261103-projects.
     const rules = await db.permissionRule.findMany({ where: { roleId: role.id, resource: { in: CRM_RESOURCES } } });
     expect(rules.map((r) => `${r.resource}:${r.action}`).sort()).toEqual(["crm:access", "deal:financials", "deal:manage"]);
     expect(rules.find((r) => r.action === "financials")?.conditions).toBeNull();
@@ -1038,9 +1038,9 @@ describe("seedCrmGrants (specs/017 — AC-5.2, D-4)", () => {
   });
 });
 
-// ─── specs/021-meetings ─────────────────────────────────────────────────────
+// ─── specs/20261104-meetings ─────────────────────────────────────────────────────
 
-describe("seedMeetingsCatalog (specs/021 — AC-10.8)", () => {
+describe("seedMeetingsCatalog (specs/20261104-meetings — AC-10.8)", () => {
   test("registers the Meetings catalog — meetings:access, template:manage, meeting:erase, all unconditioned, idempotent", async () => {
     await seedMeetingsCatalog();
     await seedMeetingsCatalog();
@@ -1060,7 +1060,7 @@ describe("seedMeetingsCatalog (specs/021 — AC-10.8)", () => {
   });
 });
 
-describe("seedMeetingsGrants (specs/021 — AC-10.8, AC-1.4, AC-10.5)", () => {
+describe("seedMeetingsGrants (specs/20261104-meetings — AC-10.8, AC-1.4, AC-10.5)", () => {
   const MEETINGS_RESOURCES = [MEETINGS_APP_ID, "template", "meeting"];
 
   async function clearMeetingsGrants() {
@@ -1121,9 +1121,9 @@ describe("seedMeetingsGrants (specs/021 — AC-10.8, AC-1.4, AC-10.5)", () => {
   });
 });
 
-// ─── specs/025-projects ─────────────────────────────────────────────────────
+// ─── specs/20261103-projects ─────────────────────────────────────────────────────
 
-describe("seedProjectsCatalog (specs/025 — AC-4.1)", () => {
+describe("seedProjectsCatalog (specs/20261103-projects — AC-4.1)", () => {
   test("registers the projects catalog — projects:access + entity-scoped project:manage + contract:bexio, idempotent", async () => {
     await seedProjectsCatalog();
     await seedProjectsCatalog();
@@ -1143,7 +1143,7 @@ describe("seedProjectsCatalog (specs/025 — AC-4.1)", () => {
   });
 });
 
-describe("seedProjectsGrants (specs/025 — AC-4.3–4.6, D13, D35, D36)", () => {
+describe("seedProjectsGrants (specs/20261103-projects — AC-4.3–4.6, D13, D35, D36)", () => {
   const ENTITY_CONDITION = { attributes: [{ key: "entity", match: "user" }] };
   const PROJECTS_RESOURCES = [PROJECTS_APP_ID, "project", "contract"];
   const GRANTED_ROLES = [ADMIN_ROLE_NAME, SALES_ROLE_NAME, ACCOUNTING_ROLE_NAME, PROJECT_MANAGER_ROLE_NAME];

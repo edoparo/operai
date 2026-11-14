@@ -15,15 +15,15 @@ datasource db {
 // expense types, the four-state lifecycle, the two wellD legal entities, the
 // five audit actions, the two-phase upload status) and Postgres-level enum
 // constraints add a second, DB-native line of defense for financial data —
-// consistent with this plan's overall "defense in depth" posture (ADR-0018).
+// consistent with this plan's overall "defense in depth" posture (ADR 20260716-immutable-financial-audit-trail-refund).
 
 // draft|submitted|approved|rejected|paid. `withdrawn` is NOT a status — it is
 // an AuditAction recording the submitted→draft transition (Gate-2 D1,
 // plan.md Risk R6).
 //
-// `paid` (specs/008-refund-monthly-processing, ADR-0020) is a fifth, terminal
+// `paid` (specs/20260719-refund-monthly-processing, ADR 20260719-refund-batch-paid-lifecycle-extension) is a fifth, terminal
 // value — it SUPERSEDES the original 007 "do not add a fifth value here"
-// freeze (that freeze was never given its own ADR; ADR-0020 is the canonical
+// freeze (that freeze was never given its own ADR; ADR 20260719-refund-batch-paid-lifecycle-extension is the canonical
 // record of why it no longer holds). `paid` inherits every existing
 // mutation guard for free: 007's edit/delete/decide guards gate on
 // `status == 'draft'` or `status == 'submitted'` only — `paid` is neither,
@@ -37,7 +37,7 @@ enum RefundStatus {
   paid
 }
 
-// Compiled-batch lifecycle (specs/008-refund-monthly-processing, ADR-0020).
+// Compiled-batch lifecycle (specs/20260719-refund-monthly-processing, ADR 20260719-refund-batch-paid-lifecycle-extension).
 // Exactly three values, each reached at most once per batch, both exits
 // (paid, discarded) are terminal and mutually exclusive (compare-and-swap
 // on `status='compiled'` — see RefundBatch below).
@@ -87,13 +87,13 @@ enum ExpenseType {
   telephone
 }
 
-// One row per audited state-relevant event (US-8, ADR-0018). Written inside
+// One row per audited state-relevant event (US-8, ADR 20260716-immutable-financial-audit-trail-refund). Written inside
 // the same transaction as the event it records.
 //
-// batch_compiled|batch_paid|batch_discarded (specs/008-refund-monthly-processing,
-// ADR-0020/0022) extend this in place — one row per affected request per
+// batch_compiled|batch_paid|batch_discarded (specs/20260719-refund-monthly-processing,
+// ADR 20260719-refund-batch-paid-lifecycle-extension/0022) extend this in place — one row per affected request per
 // batch action, `batchId` set on these three only (see RefundAuditEntry
-// below). No new table, no new trigger: the existing ADR-0018 immutability
+// below). No new table, no new trigger: the existing ADR 20260716-immutable-financial-audit-trail-refund immutability
 // trigger applies to these rows unchanged.
 enum AuditAction {
   submitted
@@ -111,7 +111,7 @@ enum AuditAction {
   batch_discarded
 }
 
-// Two-phase presigned upload (ADR-0016, wired by T9): `pending` until the
+// Two-phase presigned upload (ADR 20260716-eu-object-storage-refund-attachments, wired by T9): `pending` until the
 // browser's direct-to-bucket upload is confirmed via HEAD, then `stored`.
 // Only `stored` attachments are ever surfaced by refund-api's own routes.
 enum UploadStatus {
@@ -122,18 +122,18 @@ enum UploadStatus {
 // ─── Models ─────────────────────────────────────────────────────────────────
 
 // RefundRequest — the top-level expense-reimbursement document (T5,
-// specs/007-refund-service, plan.md § Data model).
+// specs/20260716-refund-service, plan.md § Data model).
 //
-// ownerUserId is the JWT `sub` (ADR-0005 pattern) — NEVER taken from the
+// ownerUserId is the JWT `sub` (ADR 20260703-jwt-resource-server-remote-jwks pattern) — NEVER taken from the
 // request body; every query is scoped to it (employee-owned) or to the
-// entity-scope predicate (accounting review, ADR-0015). ownerEmail/ownerName
+// entity-scope predicate (accounting review, ADR 20260716-entity-scoped-abac-refund-api). ownerEmail/ownerName
 // are snapshots taken at creation time for accounting display (AC-6.1) — this
 // service holds no `User` table (users live only in the `auth` DB), mirroring
 // estimai-api/notify-api's sub-as-foreign-key-less-ownership convention.
 //
 // A request has NO single entity — its lines may straddle both welld_it and
 // welld_ch (AC-3.5/6.6) — so entity scoping is evaluated per-request via "at
-// least one line matches" (ADR-0015), never via a column on this table.
+// least one line matches" (ADR 20260716-entity-scoped-abac-refund-api), never via a column on this table.
 model RefundRequest {
   id                  String       @id @default(cuid())
   ownerUserId         String
@@ -153,7 +153,7 @@ model RefundRequest {
   decidedByName       String?
   // Non-null iff status == rejected (AC-7.3); left null/untouched otherwise.
   rejectionMotivation String?
-  // LIVE batch claim pointer (specs/008-refund-monthly-processing, ADR-0020).
+  // LIVE batch claim pointer (specs/20260719-refund-monthly-processing, ADR 20260719-refund-batch-paid-lifecycle-extension).
   // NULL = eligible for a future compile; non-null = currently claimed by a
   // `compiled` or `paid` RefundBatch. Nulled on discard (released back to
   // the candidate pool) and overwritable by a later batch once released —
@@ -172,13 +172,13 @@ model RefundRequest {
 
   @@index([ownerUserId, status]) // list-own (AC-3.1)
   @@index([status]) // queue base filter (AC-5.1), combined with the line entity join at query time
-  @@index([status, batchId, decidedAt]) // candidate query: approved ∧ batchId NULL ∧ decidedAt<=cutoff (specs/008 AC-1.2)
+  @@index([status, batchId, decidedAt]) // candidate query: approved ∧ batchId NULL ∧ decidedAt<=cutoff (specs/20260719-refund-monthly-processing AC-1.2)
   @@map("refund_request")
 }
 
 // RefundBatch — a compiled run: a frozen set of `approved` requests as of a
-// chosen cutoff, tied to one generated PDF (specs/008-refund-monthly-processing,
-// ADR-0019/0020). Never mutated in place beyond its own terminal-once status
+// chosen cutoff, tied to one generated PDF (specs/20260719-refund-monthly-processing,
+// ADR 20260719-refund-batch-pdf-generation-pdf-lib/0020). Never mutated in place beyond its own terminal-once status
 // transition and the email/paid/discarded provenance fields below.
 model RefundBatch {
   id                     String      @id @default(cuid())
@@ -186,9 +186,9 @@ model RefundBatch {
   status                 BatchStatus @default(compiled)
   createdByUserId        String // generating accounting user (AC-1.6 header)
   createdByEmail         String
-  // refund/batches/{id}/compiled.pdf — no PII in the key (ADR-0019).
+  // refund/batches/{id}/compiled.pdf — no PII in the key (ADR 20260719-refund-batch-pdf-generation-pdf-lib).
   pdfObjectKey           String      @unique
-  // specs/011-refund-settings, ADR-0029 — AMENDS ADR-0021: this used to be
+  // specs/20260722-refund-settings, ADR 20260722-batch-email-recipient-live-resolution-amends-0021 — AMENDS ADR 20260719-refund-batch-signed-link-email-delivery: this used to be
   // the configured distribution address captured (frozen) at compile time;
   // it is now nullable, per-attempt delivery PROVENANCE ONLY — "the address
   // the last send/resend attempt targeted" — never the source of truth for
@@ -201,7 +201,7 @@ model RefundBatch {
   // send/resend. "sent" | "failed" | "blocked_unconfigured" | null (never
   // attempted) — validated at the application boundary, not a DB enum
   // (mirrors notify-api's own delivery-status convention). The third value
-  // (specs/011-refund-settings, ADR-0029) marks a send/resend attempt that
+  // (specs/20260722-refund-settings, ADR 20260722-batch-email-recipient-live-resolution-amends-0021) marks a send/resend attempt that
   // never reached notify-api because the accounting-distribution-email
   // setting was unconfigured — distinguishable from an ordinary "failed"
   // notify-api/Resend outage.
@@ -227,11 +227,11 @@ model RefundBatch {
   @@map("refund_batch")
 }
 
-// RefundBatchItem — immutable membership snapshot (specs/008-refund-monthly-processing,
-// ADR-0020). Records that a request was ONCE in a batch, kept forever even
+// RefundBatchItem — immutable membership snapshot (specs/20260719-refund-monthly-processing,
+// ADR 20260719-refund-batch-paid-lifecycle-extension). Records that a request was ONCE in a batch, kept forever even
 // after discard and even if the request is later re-included in a different
 // batch (AC-6.3, AC-7.3). This — NOT RefundRequest.batchId — is the durable
-// membership of record and the input ADR-0019's PDF renderer reads from, so
+// membership of record and the input ADR 20260719-refund-batch-pdf-generation-pdf-lib's PDF renderer reads from, so
 // a discarded batch's PDF still resolves (AC-1.10/6.3). onDelete: Restrict
 // on both FKs — never deleted, and makes a once-batched request/batch
 // physically undeletable.
@@ -265,7 +265,7 @@ model RefundBatchItem {
 // `entity`; any (entity, currency) combination is valid, and subtotals now
 // group purely by the stored `currency`, never by entity.
 //
-// specs/009-mileage-rate amendment: for `type == travel_km` lines ONLY,
+// specs/20260720-mileage-rate amendment: for `type == travel_km` lines ONLY,
 // `currency` is forced server-side from `entity` (welld_ch→CHF, welld_it→EUR)
 // rather than independently chosen — see appliedRate* below and
 // requests/lines.repo.ts. Every other type's currency field is unaffected.
@@ -287,7 +287,7 @@ model RefundLine {
   km                   Int?
   approvedTotalCents   Int?
 
-  // ─── Line rejection (specs/007 amendment, 2026-11-10) ───────────────────
+  // ─── Line rejection (specs/20260716-refund-service amendment, 2026-11-10) ───────────────────
   // A reviewer may refuse ONE line instead of the whole request. Non-null
   // `rejectionReason` IS the rejected state (all four set together, cleared
   // together on restore or withdraw-to-draft); a rejected line's
@@ -298,12 +298,12 @@ model RefundLine {
   rejectedByUserId     String?
   rejectedByEmail      String?
 
-  // ─── specs/009-mileage-rate: applied-rate snapshot (Decision 1) ──────────
+  // ─── specs/20260720-mileage-rate: applied-rate snapshot (Decision 1) ──────────
   // All three are non-null ONLY once this line's containing request has ever
   // reached `submitted` AND it is currently frozen — written together inside
   // the submit transaction (lifecycle.repo.ts), cleared together back to null
   // on withdraw-to-draft (AC-3.1/3.2). Null for: a draft/never-submitted
-  // travel_km line (live/derived-on-read, ADR-0013), any non-travel_km line,
+  // travel_km line (live/derived-on-read, ADR 20260714-invitation-lifecycle-derived-expiry-state), any non-travel_km line,
   // and a legacy pre-feature submitted travel_km line (AC-1.7, this
   // migration never backfills). onDelete: Restrict — a MileageRate a line
   // references can never be deleted (and MileageRate rows are never deleted
@@ -319,17 +319,17 @@ model RefundLine {
   updatedAt DateTime @updatedAt
 
   @@index([requestId])
-  @@index([requestId, entity]) // backs the per-request "at least one line matches" entity-scope predicate (ADR-0015)
+  @@index([requestId, entity]) // backs the per-request "at least one line matches" entity-scope predicate (ADR 20260716-entity-scoped-abac-refund-api)
   @@index([appliedRateEntryId]) // FK lookup / provenance queries
   @@map("refund_line")
 }
 
 // MileageRate — a per-entity, effective-dated mileage rate entry
-// (specs/009-mileage-rate, US-4/US-5). Append-only: the SAME
+// (specs/20260720-mileage-rate, US-4/US-5). Append-only: the SAME
 // `BEFORE UPDATE/DELETE`-raising trigger pattern as `refund_audit_entry`
-// (ADR-0018) is added by this model's migration — no update/delete route is
+// (ADR 20260716-immutable-financial-audit-trail-refund) is added by this model's migration — no update/delete route is
 // ever written for it (AC-4.7/5.2). This table IS its own audit trail
-// (AC-5.1/5.3, ADR-0022 parallel) — actor/timestamp/entity/value/validFrom
+// (AC-5.1/5.3, ADR 20260719-refund-batch-audit-trail-extension parallel) — actor/timestamp/entity/value/validFrom
 // all already live on the row; a separate audit table would be redundant
 // (RefundAuditEntry is FK'd `requestId NOT NULL` and cannot represent a
 // non-request-scoped event like a rate change).
@@ -343,7 +343,7 @@ model RefundLine {
 // `validFrom` may be past, present, or future relative to `createdAt`
 // (AC-4.8) — effective-rate resolution is always computed on read
 // (`resolveEffectiveRate`, rates/resolve.ts), never a scheduled/cron flip
-// (ADR-0013, spec Non-goal).
+// (ADR 20260714-invitation-lifecycle-derived-expiry-state, spec Non-goal).
 model MileageRate {
   id              String   @id @default(cuid())
   entity          Entity
@@ -362,16 +362,16 @@ model MileageRate {
 }
 
 // RefundSetting — an append-only key/value refund-configuration store
-// (specs/011-refund-settings, D1/D3, ADR-0027). Introduces exactly one key
+// (specs/20260722-refund-settings, D1/D3, ADR 20260722-refund-settings-append-only-self-auditing-store). Introduces exactly one key
 // today (`accounting-distribution-email`, replacing the
-// REFUND_ACCOUNTING_DISTRIBUTION_EMAIL env var, ADR-0029) but the shape is
+// REFUND_ACCOUNTING_DISTRIBUTION_EMAIL env var, ADR 20260722-batch-email-recipient-live-resolution-amends-0021) but the shape is
 // deliberately generic — a future setting is a new `key`, never a schema
 // migration (Domain language, spec.md).
 //
 // The CURRENT value of a key is DERIVED ON READ as the latest row for that
-// key (ADR-0013/0024 lineage) — there is no separate "current value" column
+// key (ADR 20260714-invitation-lifecycle-derived-expiry-state/0024 lineage) — there is no separate "current value" column
 // anywhere. Append-only: the SAME `BEFORE UPDATE/DELETE`-raising trigger
-// pattern as `mileage_rate`/`refund_audit_entry` (ADR-0018/0024) is added by
+// pattern as `mileage_rate`/`refund_audit_entry` (ADR 20260716-immutable-financial-audit-trail-refund/0024) is added by
 // this model's migration — no update/delete route is ever written for it
 // (AC-5.2). This table IS its own audit trail (AC-5.1/5.3, D3) — actor/
 // timestamp/value all already live on the row; `RefundAuditEntry` cannot
@@ -397,14 +397,14 @@ model RefundSetting {
 }
 
 // Attachment — a receipt file attached to a specific expense line (T5;
-// object-storage wiring lands in T9, ADR-0016).
+// object-storage wiring lands in T9, ADR 20260716-eu-object-storage-refund-attachments).
 //
 // objectKey is globally unique (refund/{requestId}/{lineId}/{attachmentId}/
 // {safeName}) — the presigned-upload/download key, never guessable, no user
 // PII in the key itself. uploadStatus starts `pending` (two-phase presigned
 // upload — mint, then confirm via HEAD); only `stored` attachments are ever
 // returned by refund-api's own read routes (T9's reconcile-on-read posture,
-// no cron, ADR-0013 precedent).
+// no cron, ADR 20260714-invitation-lifecycle-derived-expiry-state precedent).
 model Attachment {
   id     String     @id @default(cuid())
   lineId String
@@ -422,12 +422,12 @@ model Attachment {
   @@map("attachment")
 }
 
-// RefundAuditEntry — append-only financial audit trail (US-8, ADR-0018).
+// RefundAuditEntry — append-only financial audit trail (US-8, ADR 20260716-immutable-financial-audit-trail-refund).
 //
 // IMMUTABILITY IS ENFORCED AT THE DATABASE LEVEL, not merely by the absence
 // of an update/delete route: this migration's raw SQL adds a `BEFORE
 // UPDATE/DELETE` trigger on this table that RAISEs an exception on any write
-// attempt (ADR-0018 decision 2 — a raising trigger was chosen over a silent
+// attempt (ADR 20260716-immutable-financial-audit-trail-refund decision 2 — a raising trigger was chosen over a silent
 // `CREATE RULE ... DO INSTEAD NOTHING`, so an inadvertent write attempt fails
 // loudly). Never add an update/delete route for this model.
 //
@@ -444,7 +444,7 @@ model RefundAuditEntry {
   lineId    String?
   // Set on batch_compiled|batch_paid|batch_discarded rows only; null on every
   // pre-existing 007 action, which has no batch to reference
-  // (specs/008-refund-monthly-processing, ADR-0022). onDelete: Restrict
+  // (specs/20260719-refund-monthly-processing, ADR 20260719-refund-batch-audit-trail-extension). onDelete: Restrict
   // matches the requestId FK above — a RefundBatch with audit history is as
   // physically undeletable as a request with audit history.
   batchId   String?

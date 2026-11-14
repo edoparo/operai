@@ -1,5 +1,5 @@
 /**
- * Test world for crm-api route tests (specs/017-crm § Test strategy): personas
+ * Test world for crm-api route tests (specs/20261101-crm § Test strategy): personas
  * with literal permission sets, a request helper over the ASSEMBLED app, a
  * stub for `auth POST /authz/users/identities`, and table cleanup.
  *
@@ -47,7 +47,7 @@ export const PERSONAS = {
   /** No CRM grant at all. */
   outsider: { sub: "user-outsider", entity: "welld_ch", permissions: [] },
   /**
-   * `crm:access` only — the `crm-technical` role (specs/018): reads everything
+   * `crm:access` only — the `crm-technical` role (specs/20261101-crm-sales-flow): reads everything
    * but the money, edits companies/contacts/activities, no deals.
    */
   consultant: { sub: "user-consultant", entity: "welld_ch", permissions: [ACCESS] },
@@ -57,7 +57,7 @@ export const PERSONAS = {
   colleague: { sub: "user-colleague", entity: "welld_it", permissions: [ACCESS] },
   /** `sales` role in wellD CH: deals of welld_ch only. */
   salesCh: { sub: "user-sales-ch", entity: "welld_ch", permissions: [ACCESS, DEALS(true), MONEY] },
-  /** deal:manage without deal:financials — unsupported by the seed, tested anyway (specs/018 AC-5.2). */
+  /** deal:manage without deal:financials — unsupported by the seed, tested anyway (specs/20261101-crm-sales-flow AC-5.2). */
   managerNoMoney: { sub: "user-manager-no-money", entity: "welld_ch", permissions: [ACCESS, DEALS(true)] },
   /** Admin: everything, both entities. */
   admin: { sub: "user-admin", entity: null, permissions: [ACCESS, DEALS(false), ERASE, MONEY] },
@@ -94,7 +94,7 @@ export const identities = { down: false, calls: 0 };
 
 /**
  * auth's app access, for `POST /authz/app-access-check` and the directory's
- * `?appId=` filter (ADR-0055). CRM users are the personas holding `crm:access`
+ * `?appId=` filter (ADR 20261101-app-access-check-by-user-id-and-directory-app-filter). CRM users are the personas holding `crm:access`
  * plus `user-tech`; EstimAI users are listed explicitly. Tests may edit both.
  */
 export const appAccess = {
@@ -113,7 +113,7 @@ function resetAppAccess(): void {
 resetAppAccess();
 
 /**
- * A fake estimai-api (specs/018): estimates by id, their editors by email, and
+ * A fake estimai-api (specs/20261101-crm-sales-flow): estimates by id, their editors by email, and
  * switches to make it refuse the caller or a collaborator.
  */
 export const estimai = {
@@ -133,7 +133,7 @@ let tokenSerial = 0;
 type ActivitiesOp = "put" | "delete" | "completion" | "mirror" | "erase";
 
 /**
- * A fake activities-api (specs/028 T12): crm-api's whole view of it is the five `/system/v1/*`
+ * A fake activities-api (specs/20261110-activities T12): crm-api's whole view of it is the five `/system/v1/*`
  * calls, answered with the contract T10 implements, and auth's service-token exchange. `calls` is
  * every request in order (what the CRM asked for); `activities` is what PUT created and DELETE
  * removed; switches make a call fail (`fail`), the service unreachable (`down`), or the token
@@ -329,11 +329,11 @@ export async function call(method: string, path: string, options: CallOptions = 
   return { status: res.status, json, headers: res.headers };
 }
 
-/** An in-memory bucket: what was put, minted and deleted (specs/018). */
+/** An in-memory bucket: what was put, minted and deleted (specs/20261101-crm-sales-flow). */
 export const bucket = {
   objects: new Map<string, { bytes: Uint8Array | null; contentType: string; sizeBytes: number }>(),
   deleted: [] as string[],
-  /** Keys read through `getObject`, in order (ADR-0057: nothing is read before the size check). */
+  /** Keys read through `getObject`, in order (ADR 20261102-crm-api-reads-attachment-bytes-for-offer-annexes: nothing is read before the size check). */
   reads: [] as string[],
   /** The `maxBytes` of the last presigned POST (letterhead 5 MiB, attachments 20 MiB). */
   lastPostMaxBytes: 0,
@@ -401,7 +401,7 @@ export async function makeCompany(overrides: Record<string, unknown> = {}, as: P
 
 /**
  * Links a ready estimate to a deal straight in the database, for tests about
- * something other than the estimate flow (specs/018 gate, AC-3.4).
+ * something other than the estimate flow (specs/20261101-crm-sales-flow gate, AC-3.4).
  */
 export async function markEstimateReady(dealId: string, technicalUserId = "user-tech") {
   const now = new Date();
@@ -426,7 +426,7 @@ const estimaiVersions = new Map<string, number>();
 
 /**
  * What estimai-api sends when the deal's estimate is closed or reopened in EstimAI
- * (specs/018 AC-3.3): `POST /system/estimate-notices` with its service JWT.
+ * (specs/20261101-crm-sales-flow AC-3.3): `POST /system/estimate-notices` with its service JWT.
  */
 export async function estimaiNotice(
   dealId: string,
@@ -462,7 +462,7 @@ export async function makeDeal(companyId: string, overrides: Record<string, unkn
 
 /**
  * The generate body a dialog would send after loading the draft of `templateName`
- * (specs/020): the entity's seeded templates are listed, the draft fetched, the
+ * (specs/20261102-crm-offer-document): the entity's seeded templates are listed, the draft fetched, the
  * draft's fields mapped onto the body, and `overrides` applied last.
  */
 export async function offerBody(

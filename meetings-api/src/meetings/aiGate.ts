@@ -1,5 +1,5 @@
 /**
- * What summaries and questions have in common (specs/021-meetings plan.md § Authorization
+ * What summaries and questions have in common (specs/20261104-meetings plan.md § Authorization
  * "Action matrix": generate / regenerate / retry / ask need visibility + `meetings:access` +
  * `ready` + speech + the AI rate limit; AC-6.7, AC-7.1, AC-9.1).
  *

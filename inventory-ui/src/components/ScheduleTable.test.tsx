@@ -1,7 +1,7 @@
 /**
  * @vitest-environment jsdom
  *
- * Component tests for ScheduleTable (T34, specs/015-hardware-inventory; design.md
+ * Component tests for ScheduleTable (T34, specs/20261006-hardware-inventory; design.md
  * § T2 ledger region, § Accessibility "Data tables"; refs AC-5.8).
  * Presentation only: every figure arrives from the server and is only formatted.
  */

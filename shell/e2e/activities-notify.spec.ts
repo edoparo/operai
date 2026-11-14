@@ -1,5 +1,5 @@
 /**
- * specs/028-activities T21 — a project task assigned to a team member reaches their notification center
+ * specs/20261110-activities T21 — a project task assigned to a team member reaches their notification center
  * (AC-6.1), through the REAL assembled shell, projects-ui and notify-ui against the REAL activities-api (which
  * pushes as `system:activities-api`), notify-api, projects-api and auth.
  *
@@ -30,7 +30,7 @@ import {
 
 const runId = newRunId()
 
-test.describe('specs/028 T21: a project task reaches the assignee’s notifications (AC-6.1)', () => {
+test.describe('specs/20261110-activities T21: a project task reaches the assignee’s notifications (AC-6.1)', () => {
   let admin: Person
   let member: Person
 

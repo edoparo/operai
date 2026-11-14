@@ -1,6 +1,6 @@
 /**
  * ConflictBanner — US-4's non-dismissable recovery surface for a 409/428
- * save conflict (T18, specs/013-estimate-sharing/tasks.md; design.md S4).
+ * save conflict (T18, specs/20260807-estimate-sharing/tasks.md; design.md S4).
  *
  * A **new** component, not an extension of the save-feedback Banner (formerly the local `ToastBanner.tsx`) — that
  * component's contract (message + at most one optional dismiss) cannot

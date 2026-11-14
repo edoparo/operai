@@ -1,7 +1,7 @@
 /**
  * @vitest-environment jsdom
  *
- * The meetings list, both entries (specs/021-meetings T55; AC-10.1, 10.2, 10.3, 10.5, 10.7, 11.5):
+ * The meetings list, both entries (specs/20261104-meetings T55; AC-10.1, 10.2, 10.3, 10.5, 10.7, 11.5):
  * `./App` at /meetings and `./MyMeetings` at /my-meetings. Pages are rendered inside the real inner
  * routers (a memory history), against `fakeApi` standing in for `shell/session`'s `apiFetch`.
  */

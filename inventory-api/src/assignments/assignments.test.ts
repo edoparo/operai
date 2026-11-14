@@ -1,5 +1,5 @@
 /**
- * Assignments, manager side (T15, specs/015-hardware-inventory; AC-2.1, AC-2.2,
+ * Assignments, manager side (T15, specs/20261006-hardware-inventory; AC-2.1, AC-2.2,
  * AC-2.5, AC-2.10, AC-11.1). Real router + middleware over the harness, real
  * Postgres; `auth` identities are stubbed.
  */

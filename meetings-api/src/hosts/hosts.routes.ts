@@ -1,5 +1,5 @@
 /**
- * Host routes (specs/021-meetings plan.md § API contracts → Hosts, ADR-0059; AC-1.1,
+ * Host routes (specs/20261104-meetings plan.md § API contracts → Hosts, ADR 20261104-meeting-host-contract-resolve-and-notices; AC-1.1,
  * AC-1.7, AC-5.5, AC-5.6, AC-11.2, AC-11.3, AC-11.4). A host is DATA: none of these routes
  * branches on which host it is, so a new host needs no change here (AC-11.4).
  *

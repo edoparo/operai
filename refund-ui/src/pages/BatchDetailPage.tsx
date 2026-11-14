@@ -22,7 +22,7 @@ const route = getRouteApi('/batches/$id')
 
 /**
  * BatchDetailPage — Screen B3 ("Batch detail", `/refund/batches/$id` — T12,
- * specs/008-refund-monthly-processing/tasks.md, design.md "Screen B3"/F2/F3/
+ * specs/20260719-refund-monthly-processing/tasks.md, design.md "Screen B3"/F2/F3/
  * F4/F6). Replaces T9's placeholder. Also the email deep-link landing page
  * (design.md F2/F3 — a compilation email's "app deep link" resolves here,
  * gated by this page's own `403`/`404` handling exactly like a direct visit).

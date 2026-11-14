@@ -1,7 +1,7 @@
 /**
  * @vitest-environment jsdom
  *
- * Component tests for InventoryShell (T28, specs/015-hardware-inventory;
+ * Component tests for InventoryShell (T28, specs/20261006-hardware-inventory;
  * design.md § T0 InventoryShell and § Screens & states; refs AC-9.1, AC-9.3,
  * AC-9.4, AC-9.6; Resolutions G1/G11).
  *
@@ -88,7 +88,7 @@ describe('structure', () => {
     expect(screen.getByRole('navigation', { name: 'Inventory sections' })).not.toBeNull()
   })
 
-  it('renders the tabs as real links and the routed page, with no <main> of its own (the shell owns it, ADR-0006)', async () => {
+  it('renders the tabs as real links and the routed page, with no <main> of its own (the shell owns it, ADR 20260709-suite-frontend-module-federation)', async () => {
     await renderShellAt('/assets')
 
     screen.getAllByRole('link').forEach((link) => expect(link.tagName).toBe('A'))

@@ -1,6 +1,6 @@
 /**
  * Contracts of a project: create by hand, read, edit terms and dates, end — never delete
- * (specs/025 T8; AC-1.7, AC-2.1 – AC-2.10, AC-4.3, AC-4.4).
+ * (specs/20261103-projects T8; AC-1.7, AC-2.1 – AC-2.10, AC-4.3, AC-4.4).
  *
  * Reading needs `projects:access` only (D13). Writing needs `project:manage` for the PROJECT'S
  * entity, like every write on a project. A contract has its project's type for life (D25): it is
@@ -82,7 +82,7 @@ export function contractView(row: ContractRow, company: (id: string) => { id: st
   };
 }
 
-/** One contract's view, its company name read live (fail soft, ADR-0080). */
+/** One contract's view, its company name read live (fail soft, ADR 20261103-projects-api-reads-crm-companies-with-scoped-service-credential). */
 export async function toContractView(row: ContractRow) {
   return contractView(row, await companyRefs([row.companyId]));
 }

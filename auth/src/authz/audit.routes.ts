@@ -40,7 +40,7 @@ const AuditLogEntrySchema = z.object({
 const AuditLogQuerySchema = z.object({
   page: z.coerce.number().int().min(1).default(1),
   pageSize: z.coerce.number().int().min(1).max(100).default(20),
-  // Additive optional filters (T5, specs/012-employee-address — refs AC-5.3).
+  // Additive optional filters (T5, specs/20260803-employee-address — refs AC-5.3).
   // admin-ui's Address history panel calls this with
   // `targetType=user&targetId=<id>&action=user.address.set`.
   targetType: z.string().min(1).optional(),

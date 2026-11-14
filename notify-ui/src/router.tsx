@@ -6,10 +6,10 @@ import { strings } from './strings'
 
 // ---------------------------------------------------------------------------
 // createAppRouter — factory, not a module-scope singleton (T14,
-// specs/005-notification-center/tasks.md — "give notify-ui its inner
+// specs/20260713-notification-center/tasks.md — "give notify-ui its inner
 // TanStack Router (basepath `/notify`)"). Mirrors estimai-ui/src/router.tsx's
-// T12 (specs/003-suite-shell) and admin-ui/src/router.tsx's T14
-// (specs/004-auth-roles-permissions) factories exactly, same shape:
+// T12 (specs/20260709-suite-shell) and admin-ui/src/router.tsx's T14
+// (specs/20260713-auth-roles-permissions) factories exactly, same shape:
 //
 //   - Standalone (dev/test bootstrap, src/main.tsx): createAppRouter() with
 //     no basepath — routes resolve at the document root.
@@ -23,10 +23,10 @@ import { strings } from './strings'
 // state, same reasoning as every other remote's router.
 //
 // No `_authed` (or `access`) guard here — same rationale as every other
-// remote's inner router (estimai-ui/admin-ui/refund-ui, ADR-0006): the
+// remote's inner router (estimai-ui/admin-ui/refund-ui, ADR 20260709-suite-frontend-module-federation): the
 // shell's own `_authed` guard already runs before notify-ui is ever mounted.
 // Unlike admin-ui, there is also no per-tool `access` guard to add later —
-// plan.md/ADR-0007 deliberately keep `/notify` reachable by any signed-in
+// plan.md/ADR 20260713-authz-hand-rolled-rbac-abac-epoch-claims deliberately keep `/notify` reachable by any signed-in
 // user (every user has notifications), not gated behind app access.
 //
 // Unlike admin-ui (four sections) or estimai-ui (list/editor/share), the

@@ -32,7 +32,7 @@ export const SERVICES = {
   "crm-api": { platform: "railway", kind: "backend" },
   "meetings-api": { platform: "railway", kind: "backend" },
   "projects-api": { platform: "railway", kind: "backend" },
-  // specs/028-activities: the shared activities/tasks/blockers store (ADR-0081). No UI of its own:
+  // specs/20261110-activities: the shared activities/tasks/blockers store (ADR 20261110-activities-service-access-delegated-to-host). No UI of its own:
   // the CRM and projects remotes render it.
   "activities-api": { platform: "railway", kind: "backend" },
   shell: { platform: "vercel", kind: "frontend" },
@@ -65,11 +65,11 @@ export const ORIGINS: Record<string, Partial<Record<ServiceName, string | null>>
     "estimai-ui": null,
     // ASSUMED (matches the shell CSP in shell/vercel.json) — confirm the real Vercel domain.
     "inventory-ui": "https://inventory.operai.welld.io",
-    // ASSUMED (matches the shell CSP, specs/017-crm) — confirm once the Vercel project exists.
+    // ASSUMED (matches the shell CSP, specs/20261101-crm) — confirm once the Vercel project exists.
     "crm-ui": "https://crm.operai.welld.io",
-    // ASSUMED (specs/021-meetings, plan § Rollout) — confirm once the Vercel project exists.
+    // ASSUMED (specs/20261104-meetings, plan § Rollout) — confirm once the Vercel project exists.
     "meetings-ui": "https://meetings.operai.welld.io",
-    // ASSUMED (matches the shell CSP in shell/vercel.json, specs/025-projects) — confirm once the Vercel project exists.
+    // ASSUMED (matches the shell CSP in shell/vercel.json, specs/20261103-projects) — confirm once the Vercel project exists.
     "projects-ui": "https://projects.operai.welld.io",
   },
   preview: {
@@ -92,13 +92,13 @@ export const ORIGINS: Record<string, Partial<Record<ServiceName, string | null>>
 /** Vars that MUST hold a byte-for-byte identical value across the listed services. */
 export const SHARED_VARS: ReadonlyArray<{ name: string; services: ServiceName[] }> = [
   { name: "AUTH_AUDIENCE", services: ["auth", "estimai-api", "notify-api", "refund-api", "inventory-api", "crm-api", "meetings-api", "projects-api", "activities-api"] },
-  // The `aud` auth stamps on scoped service JWTs and notify-api verifies (ADR-0044).
-  // specs/018 AC-3.3: crm-api verifies estimai-api's notices against it too (ADR-0073).
-  // crm-api verifies them too since specs/021: meetings-api posts host notices to it as
-  // `system:meetings-api` with scope `host-notices.send` (ADR-0059), and projects-api reads
-  // `GET /system/companies` as `system:projects-api` (specs/025-projects).
-  // specs/024: estimai-api verifies crm-api's deal-link notices against it (ADR-0076).
-  // specs/028 (ADR-0082): activities-api verifies crm-api's /system/v1/* calls (scope `activities.write`,
+  // The `aud` auth stamps on scoped service JWTs and notify-api verifies (ADR 20261006-scoped-service-jwt-fourth-notify-caller).
+  // specs/20261101-crm-sales-flow AC-3.3: crm-api verifies estimai-api's notices against it too (ADR 20261105-estimai-closes-the-estimate-crm-follows).
+  // crm-api verifies them too since specs/20261104-meetings: meetings-api posts host notices to it as
+  // `system:meetings-api` with scope `host-notices.send` (ADR 20261104-meeting-host-contract-resolve-and-notices), and projects-api reads
+  // `GET /system/companies` as `system:projects-api` (specs/20261103-projects).
+  // specs/20261108-estimate-list-oversight: estimai-api verifies crm-api's deal-link notices against it (ADR 20261108-crm-pushes-deal-links-to-estimai).
+  // specs/20261110-activities (ADR 20261110-caller-chosen-ids-replace-cross-service-transactions): activities-api verifies crm-api's /system/v1/* calls (scope `activities.write`,
   // sub `system:crm-api`) against it.
   { name: "SERVICE_AUDIENCE", services: ["auth", "notify-api", "crm-api", "estimai-api", "activities-api"] },
 ];
@@ -106,7 +106,7 @@ export const SHARED_VARS: ReadonlyArray<{ name: string; services: ServiceName[] 
 /**
  * Pairs of vars that must hold DIFFERENT values on the same service. A service
  * token must be useless on every user route and a user JWT useless on every
- * system route, which holds only while the two audiences differ (ADR-0044);
+ * system route, which holds only while the two audiences differ (ADR 20261006-scoped-service-jwt-fourth-notify-caller);
  * `auth` and `notify-api` each refuse to start when they are equal, and this
  * catches it before the deploy. Compared only where both values are concrete
  * (a literal, or resolved by --resolve/--dir/--live) — two different
@@ -117,13 +117,13 @@ export const DISTINCT_VARS: ReadonlyArray<{ a: string; b: string; services: Serv
     a: "SERVICE_AUDIENCE",
     b: "AUTH_AUDIENCE",
     services: ["auth", "notify-api", "crm-api", "estimai-api", "activities-api"],
-    why: "a service token would be accepted on user routes and a user JWT on /system/notifications, /system/estimate-notices, /system/meeting-host/v1/notices, /system/deal-link-notices, /system/companies or /system/v1/* (ADR-0044)",
+    why: "a service token would be accepted on user routes and a user JWT on /system/notifications, /system/estimate-notices, /system/meeting-host/v1/notices, /system/deal-link-notices, /system/companies or /system/v1/* (ADR 20261006-scoped-service-jwt-fourth-notify-caller)",
   },
 ];
 
 /**
  * Vars a service must NOT hold. The shared internal notify token was retired by
- * specs/016 (ADR-0049): every notify-api caller authenticates with its own scoped
+ * specs/20261013-notify-service-credentials (ADR 20261013-all-notify-callers-scoped-credentials-shared-token-retired): every notify-api caller authenticates with its own scoped
  * service JWT, and notify-api no longer reads the variable. A leftover is harmless
  * to a running service (none of them reads it) but means the retirement is not
  * finished — and it is a live secret nobody uses. Flagged by NAME, on all five.
@@ -132,9 +132,9 @@ export const FORBIDDEN_VARS: ReadonlyArray<{ name: string; services: ServiceName
   {
     name: "NOTIFY_INTERNAL_TOKEN",
     services: ["auth", "estimai-api", "notify-api", "refund-api", "inventory-api", "crm-api", "meetings-api", "projects-api", "activities-api"],
-    why: "the shared notify token was retired (specs/016, ADR-0049): every caller uses its own scoped service credential",
+    why: "the shared notify token was retired (specs/20261013-notify-service-credentials, ADR 20261013-all-notify-callers-scoped-credentials-shared-token-retired): every caller uses its own scoped service credential",
   },
-  // specs/029 US-7 (ADR-0086): the one address-keyed bucket of the two /system endpoints is replaced by
+  // specs/20261111-push-notifications US-7 (ADR 20261112-system-endpoints-limited-per-verified-service): the one address-keyed bucket of the two /system endpoints is replaced by
   // per-service allowances. auth no longer reads these two; a leftover override sized for the old rule
   // (20, or the runbook's 60) is ignored, so the deployment would believe in a cap that does not exist.
   // Flagged by NAME, on auth only.
@@ -146,9 +146,9 @@ export const FORBIDDEN_VARS: ReadonlyArray<{ name: string; services: ServiceName
   ).map(([name, hint]) => ({
     name,
     services: ["auth"] as ServiceName[],
-    why: `retired by the per-service system limits (specs/029 US-7, ADR-0086): auth ignores it; ${hint}`,
+    why: `retired by the per-service system limits (specs/20261111-push-notifications US-7, ADR 20261112-system-endpoints-limited-per-verified-service): auth ignores it; ${hint}`,
   })),
-  // specs/021 plan § Amendment 2026-11-05 (G-7, ADR-0069): the provider change to Google Cloud retired
+  // specs/20261104-meetings plan § Amendment 2026-11-05 (G-7, ADR 20261105-meetings-ai-providers-google-cloud-eu): the provider change to Google Cloud retired
   // these seven names. meetings-api no longer reads them; a leftover is a live Azure or AWS credential
   // (or a stale setting) nobody uses, so it is made visible. Flagged by NAME, on meetings-api only.
   ...(
@@ -164,12 +164,12 @@ export const FORBIDDEN_VARS: ReadonlyArray<{ name: string; services: ServiceName
   ).map(([name, hint]) => ({
     name,
     services: ["meetings-api"] as ServiceName[],
-    why: `retired by the provider change to Google Cloud (specs/021, ADR-0069): ${hint}`,
+    why: `retired by the provider change to Google Cloud (specs/20261104-meetings, ADR 20261105-meetings-ai-providers-google-cloud-eu): ${hint}`,
   })),
 ];
 
 /**
- * Service-token client credentials (ADR-0044). `auth.SERVICE_CLIENTS` is a JSON
+ * Service-token client credentials (ADR 20261006-scoped-service-jwt-fourth-notify-caller). `auth.SERVICE_CLIENTS` is a JSON
  * object keyed by client id; each caller's own id + secret vars must match its
  * entry, and the entry must carry the scope the receiving service requires.
  */
@@ -183,29 +183,29 @@ export const SERVICE_CLIENT_LINKS: ReadonlyArray<{
   idVar: string;
   secretVar: string;
   registry: { service: ServiceName; var: string };
-  /** Exactly the scopes the caller needs: a missing one fails, so does an extra one (least privilege, specs/016 AC-2.1). */
+  /** Exactly the scopes the caller needs: a missing one fails, so does an extra one (least privilege, specs/20261013-notify-service-credentials AC-2.1). */
   requiredScopes: readonly string[];
 }> = [
   { ...LINK_BASE, caller: "inventory-api", requiredScopes: ["notifications.push"] },
-  // specs/018 AC-3.3: estimai-api also tells crm-api an estimate was closed or reopened (ADR-0073).
+  // specs/20261101-crm-sales-flow AC-3.3: estimai-api also tells crm-api an estimate was closed or reopened (ADR 20261105-estimai-closes-the-estimate-crm-follows).
   { ...LINK_BASE, caller: "estimai-api", requiredScopes: ["notifications.push", "estimate-notices.send"] },
   { ...LINK_BASE, caller: "refund-api", requiredScopes: ["notifications.push", "emails.send"] },
-  // specs/019: crm-api pushes CRM notifications, some with an email notice (both scopes, D-3);
-  // notify-api looks up the notice's address in auth (ADR-0056). Both optional until provisioned.
-  // specs/024: crm-api also tells estimai-api which deal an estimate belongs to (ADR-0076).
-  // specs/028 (ADR-0082): crm-api also writes to activities-api (the migration copy, the host's deal
+  // specs/20261101-crm-notifications: crm-api pushes CRM notifications, some with an email notice (both scopes, D-3);
+  // notify-api looks up the notice's address in auth (ADR 20261101-notify-api-resolves-email-notice-address-from-auth). Both optional until provisioned.
+  // specs/20261108-estimate-list-oversight: crm-api also tells estimai-api which deal an estimate belongs to (ADR 20261108-crm-pushes-deal-links-to-estimai).
+  // specs/20261110-activities (ADR 20261110-caller-chosen-ids-replace-cross-service-transactions): crm-api also writes to activities-api (the migration copy, the host's deal
   // delete/erase/transfer calls) as `system:crm-api`.
   { ...LINK_BASE, caller: "crm-api", requiredScopes: ["notifications.push", "emails.send", "deal-link-notices.send", "activities.write"] },
   { ...LINK_BASE, caller: "notify-api", requiredScopes: ["users.contact"] },
-  // specs/021: meetings-api pushes meeting notifications (notify-api) and posts host notices to
-  // crm-api (ADR-0059). No emails.send: an email notice, if ever wanted, is a deliberate widening.
+  // specs/20261104-meetings: meetings-api pushes meeting notifications (notify-api) and posts host notices to
+  // crm-api (ADR 20261104-meeting-host-contract-resolve-and-notices). No emails.send: an email notice, if ever wanted, is a deliberate widening.
   { ...LINK_BASE, caller: "meetings-api", requiredScopes: ["notifications.push", "host-notices.send"] },
-  // specs/025: projects-api reads CRM company names from crm-api as itself (ADR-0080). It sends no
+  // specs/20261103-projects: projects-api reads CRM company names from crm-api as itself (ADR 20261103-projects-api-reads-crm-companies-with-scoped-service-credential). It sends no
   // notifications, so it holds exactly this one scope. The group is optional locally and required in
   // production (PRODUCTION_REQUIRED_KEYS).
   { ...LINK_BASE, caller: "projects-api", requiredScopes: ["crm.companies.read"] },
-  // specs/028: activities-api pushes task notifications to notify-api, some with an email notice
-  // (AC-6.1/6.3, ADR-0056), so BOTH scopes: without emails.send notify-api refuses every email notice
+  // specs/20261110-activities: activities-api pushes task notifications to notify-api, some with an email notice
+  // (AC-6.1/6.3, ADR 20261101-notify-api-resolves-email-notice-address-from-auth), so BOTH scopes: without emails.send notify-api refuses every email notice
   // and only the in-app row is written. It calls the hosts as the caller, never as itself.
   { ...LINK_BASE, caller: "activities-api", requiredScopes: ["notifications.push", "emails.send"] },
 ];
@@ -218,12 +218,12 @@ export const SERVICE_CLIENT_LINKS: ReadonlyArray<{
 export const S3_RESIDENCY: ReadonlyArray<{ service: ServiceName; prefix: string }> = [
   { service: "refund-api", prefix: "REFUND_S3" },
   { service: "inventory-api", prefix: "INVENTORY_S3" },
-  // specs/018: optional until the CRM bucket is provisioned (crm-api starts without it).
+  // specs/20261101-crm-sales-flow: optional until the CRM bucket is provisioned (crm-api starts without it).
   { service: "crm-api", prefix: "CRM_S3" },
-  // specs/021 (ADR-0061/0063): REQUIRED — a tool without audio storage is meaningless, and
+  // specs/20261104-meetings (ADR 20261104-meetings-ai-providers-eu-zero-retention/0063): REQUIRED — a tool without audio storage is meaningless, and
   // meetings-api additionally verifies the bucket's lifecycle rule and versioning at startup.
   { service: "meetings-api", prefix: "MEETINGS_S3" },
-  // ADR-0089: task images and attachments. Optional like the CRM's: without it the file routes
+  // ADR 20261113-task-description-files-in-activities-api-bucket: task images and attachments. Optional like the CRM's: without it the file routes
   // answer 503 storage_unconfigured and the rest of activities-api works.
   { service: "activities-api", prefix: "ACTIVITIES_S3" },
 ];
@@ -255,21 +255,21 @@ export const INTERNAL_URL_VARS: ReadonlyArray<{
   target: ServiceName;
 }> = [
   { name: "AUTH_JWKS_URL", services: ["estimai-api", "notify-api", "refund-api", "inventory-api", "crm-api", "meetings-api", "projects-api", "activities-api"], target: "auth" },
-  // specs/019: notify-api resolves an email notice's address through auth (ADR-0056).
+  // specs/20261101-crm-notifications: notify-api resolves an email notice's address through auth (ADR 20261101-notify-api-resolves-email-notice-address-from-auth).
   { name: "AUTH_BASE_URL", services: ["refund-api", "inventory-api", "crm-api", "notify-api", "meetings-api", "projects-api", "activities-api"], target: "auth" },
   { name: "NOTIFY_INTERNAL_URL", services: ["auth", "refund-api", "inventory-api", "crm-api", "meetings-api", "activities-api"], target: "notify-api" },
-  // specs/018: crm-api calls estimai-api with the caller's JWT (estimate requests, offers).
+  // specs/20261101-crm-sales-flow: crm-api calls estimai-api with the caller's JWT (estimate requests, offers).
   { name: "ESTIMAI_API_URL", services: ["crm-api"], target: "estimai-api" },
-  // specs/018 AC-3.3: estimai-api tells crm-api an estimate was closed or reopened (ADR-0073).
-  // specs/025: projects-api reads CRM companies from crm-api with its own service credential (ADR-0080).
+  // specs/20261101-crm-sales-flow AC-3.3: estimai-api tells crm-api an estimate was closed or reopened (ADR 20261105-estimai-closes-the-estimate-crm-follows).
+  // specs/20261103-projects: projects-api reads CRM companies from crm-api with its own service credential (ADR 20261103-projects-api-reads-crm-companies-with-scoped-service-credential).
   { name: "CRM_INTERNAL_URL", services: ["estimai-api", "projects-api"], target: "crm-api" },
-  // specs/024: crm-api tells estimai-api an estimate was linked to or unlinked from a deal (ADR-0076).
+  // specs/20261108-estimate-list-oversight: crm-api tells estimai-api an estimate was linked to or unlinked from a deal (ADR 20261108-crm-pushes-deal-links-to-estimai).
   { name: "ESTIMAI_INTERNAL_URL", services: ["crm-api"], target: "estimai-api" },
-  // specs/021: meetings-api calls the CRM host's resolve (as the caller) and notices (as itself), ADR-0059.
-  // specs/028 (ADR-0081): activities-api asks each host "may this user ..." with the caller's own JWT.
+  // specs/20261104-meetings: meetings-api calls the CRM host's resolve (as the caller) and notices (as itself), ADR 20261104-meeting-host-contract-resolve-and-notices.
+  // specs/20261110-activities (ADR 20261110-activities-service-access-delegated-to-host): activities-api asks each host "may this user ..." with the caller's own JWT.
   { name: "CRM_API_URL", services: ["meetings-api", "activities-api"], target: "crm-api" },
   { name: "PROJECTS_API_URL", services: ["activities-api"], target: "projects-api" },
-  // specs/028 (ADR-0082): crm-api calls activities-api's user routes (as the caller) and /system/v1/* (as itself).
+  // specs/20261110-activities (ADR 20261110-caller-chosen-ids-replace-cross-service-transactions): crm-api calls activities-api's user routes (as the caller) and /system/v1/* (as itself).
   { name: "ACTIVITIES_API_URL", services: ["crm-api"], target: "activities-api" },
 ];
 
@@ -279,7 +279,7 @@ export const PUBLIC_URL_VARS: ReadonlyArray<{ name: string; services: ServiceNam
   { name: "BETTER_AUTH_URL", services: ["auth"] },
   { name: "UI_HOME_URL", services: ["auth"] },
   { name: "REFUND_APP_BASE_URL", services: ["refund-api"] },
-  // specs/019: the shell origin the email notice links to.
+  // specs/20261101-crm-notifications: the shell origin the email notice links to.
   { name: "APP_BASE_URL", services: ["notify-api"] },
 ];
 
@@ -288,18 +288,18 @@ export const CORS_REQUIREMENTS: ReadonlyArray<{ backend: ServiceName; mustAllow:
   { backend: "auth", mustAllow: ["shell"] },
   { backend: "estimai-api", mustAllow: ["shell"] },
   { backend: "notify-api", mustAllow: ["shell"] },
-  // refund-api additionally serves admin-ui's DIRECT cross-origin /rates + /settings calls (ADR-0023).
+  // refund-api additionally serves admin-ui's DIRECT cross-origin /rates + /settings calls (ADR 20260720-mileage-rate-model-snapshot-admin-ui-composition).
   { backend: "refund-api", mustAllow: ["shell", "admin-ui"] },
-  // inventory-ui is a remote reached through the shell, so the browser Origin is the shell's (ADR-0006).
+  // inventory-ui is a remote reached through the shell, so the browser Origin is the shell's (ADR 20260709-suite-frontend-module-federation).
   { backend: "inventory-api", mustAllow: ["shell"] },
-  // crm-ui is a remote reached through the shell (specs/017-crm).
+  // crm-ui is a remote reached through the shell (specs/20261101-crm).
   { backend: "crm-api", mustAllow: ["shell"] },
-  // meetings-ui is a remote reached through the shell (specs/021); the audio bucket's own CORS rule
+  // meetings-ui is a remote reached through the shell (specs/20261104-meetings); the audio bucket's own CORS rule
   // (shell origin, POST + GET) is separate and cannot be checked here: infra/meetings-bucket-policy.sh.
   { backend: "meetings-api", mustAllow: ["shell"] },
-  // projects-ui is a remote reached through the shell (specs/025-projects).
+  // projects-ui is a remote reached through the shell (specs/20261103-projects).
   { backend: "projects-api", mustAllow: ["shell"] },
-  // The CRM and projects remotes call activities-api from the shell's origin (ADR-0006); there is no activities-ui.
+  // The CRM and projects remotes call activities-api from the shell's origin (ADR 20260709-suite-frontend-module-federation); there is no activities-ui.
   { backend: "activities-api", mustAllow: ["shell"] },
 ];
 
@@ -313,32 +313,32 @@ export const REQUIRED_KEYS: Partial<Record<ServiceName, string[]>> = {
   auth: [
     "DATABASE_URL", "BETTER_AUTH_SECRET", "BETTER_AUTH_URL", "AUTH_AUDIENCE",
     "ALLOWED_ORIGINS", "UI_HOME_URL", "NOTIFY_INTERNAL_URL", "PORT",
-    // SERVICE_AUDIENCE is required by auth's env.ts (specs/016, ADR-0048); SERVICE_CLIENTS is
+    // SERVICE_AUDIENCE is required by auth's env.ts (specs/20261013-notify-service-credentials, ADR 20261013-auth-mints-own-service-credential-in-process); SERVICE_CLIENTS is
     // optional there but required by the contract: without it the service-token endpoint
     // authenticates nobody and the callers' pushes are silently dead.
     "SERVICE_AUDIENCE", "SERVICE_CLIENTS",
-    // specs/023: the sign-up gate's allowed domains; auth's env.ts exits without it.
+    // specs/20261105-signup-gate: the sign-up gate's allowed domains; auth's env.ts exits without it.
     "ALLOWED_SIGNUP_DOMAINS",
   ],
   "estimai-api": [
     "DATABASE_URL", "ALLOWED_ORIGINS", "AUTH_ISSUER", "AUTH_JWKS_URL", "AUTH_AUDIENCE", "PORT",
-    "SERVICE_CLIENT_ID", "SERVICE_CLIENT_SECRET", // specs/016: estimai-api authenticates to notify-api as itself
-    // specs/018 AC-3.3: optional in estimai-api's env.ts, required by the contract: without it a
-    // closed estimate never becomes ready in the CRM (ADR-0073).
+    "SERVICE_CLIENT_ID", "SERVICE_CLIENT_SECRET", // specs/20261013-notify-service-credentials: estimai-api authenticates to notify-api as itself
+    // specs/20261101-crm-sales-flow AC-3.3: optional in estimai-api's env.ts, required by the contract: without it a
+    // closed estimate never becomes ready in the CRM (ADR 20261105-estimai-closes-the-estimate-crm-follows).
     "CRM_INTERNAL_URL",
-    // specs/024: optional in estimai-api's env.ts (the deal-link notice route then refuses every
-    // call), required by the contract: without it the EstimAI "Deal" badge never appears (ADR-0076).
+    // specs/20261108-estimate-list-oversight: optional in estimai-api's env.ts (the deal-link notice route then refuses every
+    // call), required by the contract: without it the EstimAI "Deal" badge never appears (ADR 20261108-crm-pushes-deal-links-to-estimai).
     "SERVICE_AUDIENCE",
   ],
   "notify-api": [
     "DATABASE_URL", "ALLOWED_ORIGINS", "AUTH_ISSUER", "AUTH_JWKS_URL", "AUTH_AUDIENCE", "PORT",
-    // Required by notify-api's env.ts since specs/016: the only credential its /system routes accept.
+    // Required by notify-api's env.ts since specs/20261013-notify-service-credentials: the only credential its /system routes accept.
     "SERVICE_AUDIENCE",
   ],
   "refund-api": [
     "DATABASE_URL", "ALLOWED_ORIGINS", "AUTH_ISSUER", "AUTH_JWKS_URL", "AUTH_BASE_URL", "AUTH_AUDIENCE",
     "NOTIFY_INTERNAL_URL", "REFUND_APP_BASE_URL", "PORT",
-    "SERVICE_CLIENT_ID", "SERVICE_CLIENT_SECRET", // specs/016
+    "SERVICE_CLIENT_ID", "SERVICE_CLIENT_SECRET", // specs/20261013-notify-service-credentials
   ],
   // The S3 bucket name and both credentials are set directly on the Railway service (no
   // 1Password item yet), so the committed template omits them and they are not required here;
@@ -348,20 +348,20 @@ export const REQUIRED_KEYS: Partial<Record<ServiceName, string[]>> = {
     "NOTIFY_INTERNAL_URL", "SERVICE_CLIENT_ID", "SERVICE_CLIENT_SECRET",
     "INVENTORY_S3_ENDPOINT", "INVENTORY_S3_REGION", "INVENTORY_S3_EU_ENDPOINT_HOSTS", "PORT",
   ],
-  // specs/017-crm: a plain resource server — no notify calls (D-14). specs/018 adds
+  // specs/20261101-crm: a plain resource server — no notify calls (D-14). specs/20261101-crm-sales-flow adds
   // ESTIMAI_API_URL and CRM_S3_*, optional in crm-api's env.ts (the estimate and file routes
   // answer 503 without them) and therefore not required here until they are provisioned (T16).
-  // specs/019 adds NOTIFY_INTERNAL_URL + SERVICE_CLIENT_*, optional the same way (019 D-7, T11).
-  // specs/018 AC-3.3: SERVICE_AUDIENCE is optional in env.ts (the notices route then refuses
-  // everything) but required by the contract, like CRM_INTERNAL_URL on estimai-api (ADR-0073).
+  // specs/20261101-crm-notifications adds NOTIFY_INTERNAL_URL + SERVICE_CLIENT_*, optional the same way (019 D-7, T11).
+  // specs/20261101-crm-sales-flow AC-3.3: SERVICE_AUDIENCE is optional in env.ts (the notices route then refuses
+  // everything) but required by the contract, like CRM_INTERNAL_URL on estimai-api (ADR 20261105-estimai-closes-the-estimate-crm-follows).
   "crm-api": [
     "DATABASE_URL", "ALLOWED_ORIGINS", "AUTH_ISSUER", "AUTH_JWKS_URL", "AUTH_BASE_URL", "AUTH_AUDIENCE", "PORT",
-    // specs/021: crm-api verifies the scoped service JWT meetings-api posts host notices with (ADR-0059).
+    // specs/20261104-meetings: crm-api verifies the scoped service JWT meetings-api posts host notices with (ADR 20261104-meeting-host-contract-resolve-and-notices).
     // Required by the contract: without it every notice is a silent 401 and the deal never learns about
     // its meetings. (crm-api's own env.ts may treat it as optional until the host endpoints ship.)
     "SERVICE_AUDIENCE",
   ],
-  // specs/021-meetings. A plain-REQUIRED set (no "optional group"): the tool is meaningless without audio
+  // specs/20261104-meetings. A plain-REQUIRED set (no "optional group"): the tool is meaningless without audio
   // storage, transcription or an LLM (plan § Environment). The bucket NAME and its two credentials are
   // set by reference to the Railway bucket by infra/provision-tool.sh --bucket and stay out of the
   // committed template (as for crm-api / inventory-api), so they are not required here; meetings-api's own
@@ -378,12 +378,12 @@ export const REQUIRED_KEYS: Partial<Record<ServiceName, string[]>> = {
     "MEETINGS_GCP_PROJECT_ID", "MEETINGS_GCP_SERVICE_ACCOUNT_KEY", "MEETINGS_GCS_TRANSIENT_BUCKET",
     "MEETINGS_AI_PROVIDER", "PORT",
   ],
-  // specs/025-projects: a JWKS + authorization-enforcing resource server (ADR-0014). Its CRM
+  // specs/20261103-projects: a JWKS + authorization-enforcing resource server (ADR 20260716-refund-api-authorization-enforcing-resource-server). Its CRM
   // service-credential group is optional in env.ts, so it is listed in PRODUCTION_REQUIRED_KEYS instead.
   "projects-api": [
     "DATABASE_URL", "ALLOWED_ORIGINS", "AUTH_ISSUER", "AUTH_JWKS_URL", "AUTH_BASE_URL", "AUTH_AUDIENCE", "PORT",
   ],
-  // specs/028-activities (ADR-0081/0082): a JWKS + host-delegating resource server. CRM_API_URL and
+  // specs/20261110-activities (ADR 20261110-activities-service-access-delegated-to-host/0082): a JWKS + host-delegating resource server. CRM_API_URL and
   // PROJECTS_API_URL are the hosts it asks (without them every read is 503 host_unavailable);
   // NOTIFY_INTERNAL_URL + SERVICE_CLIENT_* let it notify as itself; SERVICE_AUDIENCE is what crm-api's
   // /system/v1/* calls are verified against. ACTIVITIES_MAINTENANCE is a runbook switch (default false),
@@ -401,12 +401,12 @@ export const REQUIRED_KEYS: Partial<Record<ServiceName, string[]>> = {
  * environment (production/preview) — a local run is not flagged for lacking them.
  */
 export const PRODUCTION_REQUIRED_KEYS: Partial<Record<ServiceName, string[]>> = {
-  // crm-api's SERVICE_AUDIENCE is in REQUIRED_KEYS since specs/018 AC-3.3 (ADR-0073); specs/025's
-  // `GET /system/companies` relies on the same key (ADR-0080), so no production-only entry is needed.
-  // specs/025: projects-api's all-or-none CRM group — without it a company name is `null` and the
+  // crm-api's SERVICE_AUDIENCE is in REQUIRED_KEYS since specs/20261101-crm-sales-flow AC-3.3 (ADR 20261105-estimai-closes-the-estimate-crm-follows); specs/20261103-projects's
+  // `GET /system/companies` relies on the same key (ADR 20261103-projects-api-reads-crm-companies-with-scoped-service-credential), so no production-only entry is needed.
+  // specs/20261103-projects: projects-api's all-or-none CRM group — without it a company name is `null` and the
   // company picker answers 503 `crm_unavailable`.
   "projects-api": ["CRM_INTERNAL_URL", "SERVICE_CLIENT_ID", "SERVICE_CLIENT_SECRET"],
-  // specs/028: where crm-api reaches activities-api. Without it the CRM's activity, task and blocker
+  // specs/20261110-activities: where crm-api reaches activities-api. Without it the CRM's activity, task and blocker
   // routes have no store.
   "crm-api": ["ACTIVITIES_API_URL"],
 };
@@ -425,7 +425,7 @@ export const SECRET_VARS: ReadonlySet<string> = new Set([
   "JWT_PRIVATE_KEY",
   "JWT_PUBLIC_KEY",
   "RESEND_API_KEY",
-  "VAPID_PRIVATE_KEY", // notify-api's web-push signing key (specs/029); the public key is not secret
+  "VAPID_PRIVATE_KEY", // notify-api's web-push signing key (specs/20261111-push-notifications); the public key is not secret
   "REFUND_S3_ACCESS_KEY_ID",
   "REFUND_S3_SECRET_ACCESS_KEY",
   "SERVICE_CLIENTS", // JSON carrying every service client's secret (auth)
@@ -438,7 +438,7 @@ export const SECRET_VARS: ReadonlySet<string> = new Set([
   "MEETINGS_S3_SECRET_ACCESS_KEY",
   "ACTIVITIES_S3_ACCESS_KEY_ID",
   "ACTIVITIES_S3_SECRET_ACCESS_KEY",
-  "MEETINGS_GCP_SERVICE_ACCOUNT_KEY", // base64 service-account JSON key, carries a private key (specs/021, G-6/G-7)
+  "MEETINGS_GCP_SERVICE_ACCOUNT_KEY", // base64 service-account JSON key, carries a private key (specs/20261104-meetings, G-6/G-7)
   // The retired provider credentials stay redacted: if one is found live it is flagged by name
   // (FORBIDDEN_VARS) and its value must still never be surfaced.
   "AZURE_SPEECH_KEY",

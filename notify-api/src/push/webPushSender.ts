@@ -1,5 +1,5 @@
 /**
- * Web Push sender (T6, specs/029-push-notifications, ADR-0084).
+ * Web Push sender (T6, specs/20261111-push-notifications, ADR 20261111-web-push-encrypted-payloads-not-fcm).
  *
  * `web-push` does the cryptography (RFC 8291 `aes128gcm` payload encryption, RFC 8292
  * VAPID); the HTTP request is OURS so that it is injectable (tests never reach a push

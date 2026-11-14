@@ -2,7 +2,7 @@
  * @vitest-environment jsdom
  *
  * Tests for T10 — ConfirmDeleteModal + delete wiring in EstimatesPage.
- * specs/001-estimate-persistence, AC-3.1, AC-3.2.
+ * specs/20260606-estimate-persistence, AC-3.1, AC-3.2.
  *
  * Covers:
  *   (A) confirm → estimatesApi.remove called with the right id, list refreshed,
@@ -88,7 +88,7 @@ import ConfirmDeleteModal from './ConfirmDeleteModal'
 // Fixtures
 // ---------------------------------------------------------------------------
 
-// T15 (specs/013-estimate-sharing/tasks.md) widened EstimateListItem with
+// T15 (specs/20260807-estimate-sharing/tasks.md) widened EstimateListItem with
 // `access`/`owner` (T16's fixture note) — both fixtures here are the
 // caller's own estimates, so `access: 'owner'` / `owner: null` matches
 // estimatesApi's documented contract ("owner is null when access is
@@ -150,7 +150,7 @@ const renderWithItems = async () => {
 // Tests
 // ---------------------------------------------------------------------------
 
-describe('ConfirmDeleteModal (T10, specs/001)', () => {
+describe('ConfirmDeleteModal (T10, specs/20260606-estimate-persistence)', () => {
   // (E) Per-row aria-label — checked first since it does not require opening the modal
   describe('(E) per-row delete aria-label', () => {
     it('each delete button has an aria-label that includes the estimate name', async () => {
@@ -196,7 +196,7 @@ describe('ConfirmDeleteModal (T10, specs/001)', () => {
       // After remove, list returns only Beta (Alpha is gone)
       vi.mocked(estimatesApi.remove).mockResolvedValue(undefined)
       // The page lists with a query (Whose/Status); the import offer's account
-      // list has none (specs/024) — only the page's calls are sequenced here.
+      // list has none (specs/20261108-estimate-list-oversight) — only the page's calls are sequenced here.
       let pageCalls = 0
       vi.mocked(estimatesApi.list).mockImplementation(async (query) => {
         if (!query) return [itemAlpha, itemBeta]
@@ -322,7 +322,7 @@ describe('ConfirmDeleteModal (T10, specs/001)', () => {
 })
 
 // ---------------------------------------------------------------------------
-// (G) T19 — generalized title / bodyText / confirmLabel props (specs/013)
+// (G) T19 — generalized title / bodyText / confirmLabel props (specs/20260807-estimate-sharing)
 //
 // Renders ConfirmDeleteModal directly (not via EstimatesPage, whose call site
 // deliberately omits the new props to prove the default-copy path). Confirms
@@ -331,7 +331,7 @@ describe('ConfirmDeleteModal (T10, specs/001)', () => {
 // overridden — same shape, different words.
 // ---------------------------------------------------------------------------
 
-describe('ConfirmDeleteModal — generalized title/bodyText/confirmLabel (T19, specs/013)', () => {
+describe('ConfirmDeleteModal — generalized title/bodyText/confirmLabel (T19, specs/20260807-estimate-sharing)', () => {
   const baseProps = {
     estimateName: 'Alpha Project',
     isDeleting: false,

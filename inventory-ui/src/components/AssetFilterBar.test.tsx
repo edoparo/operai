@@ -1,7 +1,7 @@
 /**
  * @vitest-environment jsdom
  *
- * Component tests for AssetFilterBar (T29, specs/015-hardware-inventory;
+ * Component tests for AssetFilterBar (T29, specs/20261006-hardware-inventory;
  * design.md § T1, F7, § Accessibility "T1 list"; refs AC-3.7, AC-3.8, AC-10.3,
  * AC-12.10).
  *

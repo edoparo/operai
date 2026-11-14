@@ -13,7 +13,7 @@ import { router } from './router'
 import { resolveRuntimeRemotes } from './lib/runtimeRemotes'
 import { registerSuiteNavigate } from './lib/session'
 
-// Follow-up to specs/005-notification-center (T15/AC-2.5): registers this
+// Follow-up to specs/20260713-notification-center (T15/AC-2.5): registers this
 // shell's real router.navigate as the suite-wide cross-remote navigation
 // function (session.ts's `navigateSuite` seam) — see that file's doc comment
 // for why the registration happens here rather than session.ts importing the
@@ -28,7 +28,7 @@ registerSuiteNavigate((to) => {
   void router.navigate({ to })
 })
 
-// T17 (specs/003-suite-shell/tasks.md, AC-5.3): resolve remote entry
+// T17 (specs/20260709-suite-shell/tasks.md, AC-5.3): resolve remote entry
 // overrides at RUNTIME (see src/lib/runtimeRemotes.ts) before the router
 // mounts and before any route's `beforeLoad`/component can trigger the
 // first `import('estimai/App')` / `import('refund/App')` — `registerRemotes`

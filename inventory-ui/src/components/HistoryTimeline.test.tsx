@@ -1,7 +1,7 @@
 /**
  * @vitest-environment jsdom
  *
- * Component tests for HistoryTimeline (T36, specs/015-hardware-inventory; design.md
+ * Component tests for HistoryTimeline (T36, specs/20261006-hardware-inventory; design.md
  * F13, § T2 History, § Accessibility "T2 detail"; refs AC-11.3, AC-11.4 and the
  * Resolutions G2/G9). `historyApi.getAssetHistory` is the data seam.
  */

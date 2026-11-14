@@ -52,7 +52,7 @@ describe.skipIf(!hasFfmpeg)("prepare_audio with the real ffprobe and ffmpeg", ()
     expect(readdirSync(tmpRoot)).toEqual([]);
   });
 
-  it("a browser-saved WebM/Opus upload with NO duration header is accepted and normalised (ADR-0064: MediaRecorder writes none)", async () => {
+  it("a browser-saved WebM/Opus upload with NO duration header is accepted and normalised (ADR 20261104-meetings-api-reads-audio-bytes-third-reader: MediaRecorder writes none)", async () => {
     // -live 1: the Matroska muxer writes no Duration, like MediaRecorder's output.
     await ff(["-f", "lavfi", "-i", "sine=f=440:d=2", "-c:a", "libopus", "-b:a", "32k", "-f", "webm", "-live", "1", join(scratch, "nodur.webm")]);
     expect(await probeMedia(join(scratch, "nodur.webm"))).toMatchObject({ ok: true, durationMs: null });

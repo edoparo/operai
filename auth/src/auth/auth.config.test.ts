@@ -8,7 +8,7 @@
  * load and stores options on `auth.options`, but no DB connection is opened
  * until the first actual request. The one exception is the
  * `databaseHooks.user.create.after` group below (T11,
- * specs/004-auth-roles-permissions — AC-6.1/6.3), which DOES touch the real
+ * specs/20260713-auth-roles-permissions — AC-6.1/6.3), which DOES touch the real
  * Postgres: it is the one place that proves `auth.config.ts`'s registered
  * hook is actually wired to `authz/seed.ts`'s `assignBaselineRolesToNewUser`
  * (not merely that the function works in isolation — see
@@ -75,7 +75,7 @@ describe("auth config — structural assertions (no mock)", () => {
     expect(onAPIError?.errorURL).not.toBe(`${env.BETTER_AUTH_URL}/`);
   });
 
-  test("(specs/023) the sign-up gate is registered as databaseHooks.user.create.before", async () => {
+  test("(specs/20261105-signup-gate) the sign-up gate is registered as databaseHooks.user.create.before", async () => {
     const { auth: realAuth } = await import("./auth.config");
     const options = realAuth.options as {
       databaseHooks?: { user?: { create?: { before?: unknown } } };
@@ -158,7 +158,7 @@ describe("databaseHooks.user.create.after — bootstrap wiring (T11, AC-6.1/AC-6
   });
 });
 
-// ─── T8, specs/006-user-invitations ─────────────────────────────────────────
+// ─── T8, specs/20260713-user-invitations ─────────────────────────────────────────
 //
 // R1 spike, then the two activation hooks (AC-2.3/2.4, AC-5.2/5.10). See
 // `auth.config.ts`'s doc comments on `applyLivePendingInvitationOnUserCreate`
@@ -166,7 +166,7 @@ describe("databaseHooks.user.create.after — bootstrap wiring (T11, AC-6.1/AC-6
 // these tests prove the WIRING + the specific AC behaviours, not re-derive
 // the design.
 
-describe("R1 spike — session.create.before abort contract (T8, specs/006-user-invitations)", () => {
+describe("R1 spike — session.create.before abort contract (T8, specs/20260713-user-invitations)", () => {
   // FINDING (recorded here and in the commit message): against the pinned
   // better-auth version (1.6.23, see bun.lock), a `session.create.before`
   // hook that returns `false` makes `internalAdapter.createSession(userId)`
@@ -602,7 +602,7 @@ describe("session.create.before — soft-delete gate + re-activation (T8, AC-5.2
       },
     });
     createdUserIds.push(user.id);
-    // Prior (pre-deletion) role grant, physically retained per ADR-0012 —
+    // Prior (pre-deletion) role grant, physically retained per ADR 20260714-invitation-activation-hooks-soft-delete-lifecycle —
     // re-activation must REPLACE this, not keep it alongside the new grant.
     await db.userRole.create({ data: { userId: user.id, roleId: priorRole.id } });
 
@@ -845,7 +845,7 @@ describe("first-time OAuth sign-in is NOT gated (boundary of the soft-delete gat
     const { auth: realAuth } = await import("./auth.config");
     const ctx = await realAuth.$context;
 
-    // specs/023: a first sign-in now needs a live invitation and an allowed
+    // specs/20261105-signup-gate: a first sign-in now needs a live invitation and an allowed
     // domain (the sign-up gate). The ordering this test pins is unchanged.
     const { db } = await import("../lib/db");
     const email = `first-time-${crypto.randomUUID()}@welld.ch`;

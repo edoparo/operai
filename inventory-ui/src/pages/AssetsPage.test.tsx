@@ -1,7 +1,7 @@
 /**
  * @vitest-environment jsdom
  *
- * Page tests for AssetsPage (T29, specs/015-hardware-inventory; design.md § T1
+ * Page tests for AssetsPage (T29, specs/20261006-hardware-inventory; design.md § T1
  * Assets list, F7; refs AC-3.7, AC-3.8, AC-10.3, AC-12.10).
  *
  * A real TanStack Router on a memory history, so "each control updates the URL"

@@ -1,6 +1,6 @@
 /**
  * EstimateFilters — the estimates list's "Whose" and "Status" controls
- * (specs/024 US-1/US-2). Whose is rendered only for a user holding
+ * (specs/20261108-estimate-list-oversight US-1/US-2). Whose is rendered only for a user holding
  * `(estimate, read-all)` — absent, never disabled; it is a UX convenience, the
  * server is the gate. Selects apply on change.
  */

@@ -15,7 +15,7 @@ const t = strings.departments.detail
 
 /**
  * DepartmentDetail — Screen B2 (design.md "Department detail", T19,
- * specs/004-auth-roles-permissions/tasks.md). New page, route `/departments/$id`
+ * specs/20260713-auth-roles-permissions/tasks.md). New page, route `/departments/$id`
  * (../router.tsx).
  *
  * Three independently-saved sections (AC-1.2):

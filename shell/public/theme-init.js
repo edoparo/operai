@@ -1,5 +1,5 @@
 // Apply stored theme before React mounts to avoid flash of wrong theme.
-// Extracted from an inline <script> in index.html (T17, specs/003-suite-shell)
+// Extracted from an inline <script> in index.html (T17, specs/20260709-suite-shell)
 // so the shell's Content-Security-Policy (shell/vercel.json) can omit
 // 'unsafe-inline' from script-src — a static external file served same-origin
 // is allowed by 'self' alone. Behavior is unchanged: same IIFE, same

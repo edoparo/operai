@@ -1,5 +1,5 @@
 /**
- * `GET /scope` (T7, specs/015-hardware-inventory, plan.md § API contracts →
+ * `GET /scope` (T7, specs/20261006-hardware-inventory, plan.md § API contracts →
  * Scope; AC-9.4, AC-9.5).
  *
  * Tells the UI which entities each capability covers for the caller, so the
@@ -10,7 +10,7 @@
  *
  * Goes through `authzMiddleware` (it needs the resolved permissions) but
  * requires NO capability, and is therefore not under `/me/*`, which skips
- * authorization altogether (ADR-0045). An `auth` outage is a 503, never an
+ * authorization altogether (ADR 20261006-ungated-second-federated-entry-of-a-gated-remote). An `auth` outage is a 503, never an
  * empty scope: a UI that read "[]" as "no access" would be lying.
  */
 

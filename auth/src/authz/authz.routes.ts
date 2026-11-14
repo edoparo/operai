@@ -1,8 +1,8 @@
 /**
  * GET /authz/me — the caller's live effective permissions (T6,
- * specs/004-auth-roles-permissions — refs AC-4.1, AC-3.3, AC-4.4).
+ * specs/20260713-auth-roles-permissions — refs AC-4.1, AC-3.3, AC-4.4).
  *
- * Per ADR-0007 / plan.md "API contracts", permissions are never embedded in
+ * Per ADR 20260713-authz-hand-rolled-rbac-abac-epoch-claims / plan.md "API contracts", permissions are never embedded in
  * the JWT (only identity + `perm_epoch` are) — every consumer resolves the
  * live truth from this endpoint instead, so a revoked/changed grant takes
  * effect on the caller's very next call (AC-4.3), not on token expiry.
@@ -94,7 +94,7 @@ const getMeRoute = createRoute({
   summary: "Get the caller's live effective permissions",
   description:
     "Resolves the signed-in caller's effective permissions live — never " +
-    "from the JWT (ADR-0007). `apps` is the subset of resources the caller " +
+    "from the JWT (ADR 20260713-authz-hand-rolled-rbac-abac-epoch-claims). `apps` is the subset of resources the caller " +
     "holds the `access` action on (AC-3.3). Absence of a (resource,action) " +
     "pair means no access (default-deny, AC-4.4).",
   responses: {

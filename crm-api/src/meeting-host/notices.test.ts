@@ -1,6 +1,6 @@
 /**
- * `POST /system/meeting-host/v1/notices` (specs/021 T8, specs/028 T12; AC-14.1 .. AC-14.9, AC-11.8,
- * AC-1.4; ADR-0059): crm-api verifies the notice and the deal, then forwards it to activities-api's
+ * `POST /system/meeting-host/v1/notices` (specs/20261104-meetings T8, specs/20261110-activities T12; AC-14.1 .. AC-14.9, AC-11.8,
+ * AC-1.4; ADR 20261104-meeting-host-contract-resolve-and-notices): crm-api verifies the notice and the deal, then forwards it to activities-api's
  * meeting mirror and relays `{ applied }`. The mirror itself (one `meeting` activity per meeting,
  * the `seq` guard, relink, unlink, delete) is tested where it lives, in activities-api.
  *

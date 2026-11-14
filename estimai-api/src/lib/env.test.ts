@@ -1,8 +1,8 @@
 /**
  * Startup-validation tests for the new estimate-sharing environment
- * variables (T5, specs/013-estimate-sharing) — `AUTH_BASE_URL`,
+ * variables (T5, specs/20260807-estimate-sharing) — `AUTH_BASE_URL`,
  * `NOTIFY_INTERNAL_URL`, `SERVICE_CLIENT_ID`, `SERVICE_CLIENT_SECRET` are REQUIRED
- * (no default; specs/016 AC-4.2 — the service credential replaced the shared
+ * (no default; specs/20261013-notify-service-credentials AC-4.2 — the service credential replaced the shared
  * notify token);
  * `SHARE_LOOKUP_FLOOR_MS`, `SHARE_ADD_RATE_LIMIT`, `SHARE_ADD_RATE_WINDOW_MS`
  * have defaults and must NOT block boot when absent.
@@ -33,7 +33,7 @@ async function spawnEnvImport(env: Record<string, string>) {
   const proc = Bun.spawn({
     // `--no-env-file`: Bun otherwise auto-loads the dotenv file in the cwd into the
     // child; on a configured machine it defines SERVICE_CLIENT_* and turns every
-    // "variable is missing" case into a successful boot (T22, specs/016).
+    // "variable is missing" case into a successful boot (T22, specs/20261013-notify-service-credentials).
     cmd: [
       "bun",
       "--no-env-file",
@@ -53,7 +53,7 @@ async function spawnEnvImport(env: Record<string, string>) {
   return { exitCode, stderr };
 }
 
-describe("env.ts — estimate-sharing outbound-client variables (T5, specs/013)", () => {
+describe("env.ts — estimate-sharing outbound-client variables (T5, specs/20260807-estimate-sharing)", () => {
   it("boots successfully with only the required vars present (all new defaults applied)", async () => {
     const { exitCode, stderr } = await spawnEnvImport(BASE_REQUIRED_ENV);
     expect(exitCode).toBe(0);
@@ -74,7 +74,7 @@ describe("env.ts — estimate-sharing outbound-client variables (T5, specs/013)"
     expect(stderr).toContain("NOTIFY_INTERNAL_URL");
   });
 
-  // AC-4.2 (specs/016) — each service-credential setting is required, and a
+  // AC-4.2 (specs/20261013-notify-service-credentials) — each service-credential setting is required, and a
   // deployment without one exits naming it.
   for (const name of ["SERVICE_CLIENT_ID", "SERVICE_CLIENT_SECRET"]) {
     it(`exits non-zero naming ${name} when it is absent`, async () => {
@@ -106,13 +106,13 @@ describe("env.ts — estimate-sharing outbound-client variables (T5, specs/013)"
   });
 });
 
-// AC-5.2 (specs/016) — the retired shared notify token is not a setting this
+// AC-5.2 (specs/20261013-notify-service-credentials) — the retired shared notify token is not a setting this
 // service reads, requires or documents; a deployment that still has it set
 // starts normally. The name is assembled so this file does not itself contain
 // it (the repo-wide scan below would otherwise flag its own test).
 const RETIRED_TOKEN = ["NOTIFY", "INTERNAL", "TOKEN"].join("_");
 
-describe("env.ts — the retired shared notify token (AC-5.2, specs/016)", () => {
+describe("env.ts — the retired shared notify token (AC-5.2, specs/20261013-notify-service-credentials)", () => {
   it("boots with the retired variable absent", async () => {
     const { exitCode, stderr } = await spawnEnvImport(BASE_REQUIRED_ENV);
     expect(exitCode).toBe(0);
@@ -180,7 +180,7 @@ describe("env.ts — CRM_INTERNAL_URL (estimate close/reopen notices to crm-api)
   });
 });
 
-describe("env.ts — SERVICE_AUDIENCE (deal-link notices from crm-api, specs/024)", () => {
+describe("env.ts — SERVICE_AUDIENCE (deal-link notices from crm-api, specs/20261108-estimate-list-oversight)", () => {
   it("is optional: boots without it", async () => {
     const { exitCode } = await spawnEnvImport(BASE_REQUIRED_ENV);
     expect(exitCode).toBe(0);

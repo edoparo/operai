@@ -1,5 +1,5 @@
 /**
- * Reading assets (T12, specs/015-hardware-inventory; AC-3.7, AC-3.8, AC-4.3,
+ * Reading assets (T12, specs/20261006-hardware-inventory; AC-3.7, AC-3.8, AC-4.3,
  * AC-5.7, AC-5.8, AC-9.2, AC-10.3, AC-12.10) plus the pure ledger builder.
  * Real routers over the harness, real Postgres; `auth` identities are stubbed.
  */

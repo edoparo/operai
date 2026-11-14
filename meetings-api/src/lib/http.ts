@@ -1,7 +1,7 @@
 /**
- * Shared request/response pieces of every meetings-api route group (specs/021
+ * Shared request/response pieces of every meetings-api route group (specs/20261104-meetings
  * plan.md § API contracts → Conventions): the paging query, the
- * optimistic-concurrency precondition (ADR-0038 posture) and the shapes several
+ * optimistic-concurrency precondition (ADR 20260807-optimistic-concurrency-version-if-match-cas-amends-0004 posture) and the shapes several
  * groups return. Adapted from crm-api/src/lib/http.ts.
  */
 
@@ -32,7 +32,7 @@ export const skipTake = (page: number) => ({
   take: PAGE_SIZE,
 });
 
-// ─── Concurrency (ADR-0038) ──────────────────────────────────────────────────
+// ─── Concurrency (ADR 20260807-optimistic-concurrency-version-if-match-cas-amends-0004) ──────────────────────────────────────────────────
 
 export const etag = (version: number): string => `"${version}"`;
 

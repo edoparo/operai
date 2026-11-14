@@ -1,6 +1,6 @@
 /**
- * Permission catalog module (T5, specs/004-auth-roles-permissions — refs
- * AC-3.1, AC-3.2, AC-3.3, plan.md "Catalog registration" + ADR-0007 §7).
+ * Permission catalog module (T5, specs/20260713-auth-roles-permissions — refs
+ * AC-3.1, AC-3.2, AC-3.3, plan.md "Catalog registration" + ADR 20260713-authz-hand-rolled-rbac-abac-epoch-claims §7).
  *
  * Each app in the Operai suite ships a typed catalog declaration (resources
  * → actions → the condition types each action supports) and registers it
@@ -11,7 +11,7 @@
  * permission can never have a role rule written against it.
  *
  * `permission_rule.resource`/`.action` are plain strings, NOT foreign keys
- * into `catalog_resource`/`catalog_action` (ADR-0007 §7: apps are
+ * into `catalog_resource`/`catalog_action` (ADR 20260713-authz-hand-rolled-rbac-abac-epoch-claims §7: apps are
  * independently deployable and register their catalog over HTTP, so a rule
  * and its declaring app's catalog entry are never in the same migration or
  * even necessarily the same database). Off-catalog rejection is therefore a

@@ -1,10 +1,10 @@
 /**
- * Shared test-only cleanup helper (T7+, specs/007-refund-service; +
- * `refund_batch`, T3, specs/008-refund-monthly-processing; + `mileage_rate`,
- * T2, specs/009-mileage-rate; + `refund_setting`, T2, specs/011-refund-settings).
+ * Shared test-only cleanup helper (T7+, specs/20260716-refund-service; +
+ * `refund_batch`, T3, specs/20260719-refund-monthly-processing; + `mileage_rate`,
+ * T2, specs/20260720-mileage-rate; + `refund_setting`, T2, specs/20260722-refund-settings).
  *
  * TRUNCATE, not DELETE — TRUNCATE does not fire the row-level `BEFORE DELETE`
- * trigger on `refund_audit_entry`/`mileage_rate`/`refund_setting` (ADR-0018/
+ * trigger on `refund_audit_entry`/`mileage_rate`/`refund_setting` (ADR 20260716-immutable-financial-audit-trail-refund/
  * 0024/0027), so cleanup is never blocked by the very immutability guarantee
  * under test elsewhere in the suite (mirrors `src/lib/db.audit-immutability.
  * test.ts`'s own `afterAll`).
@@ -16,7 +16,7 @@
  * CASCADE-truncating the tables that point AT them does not, by itself, also
  * truncate them — a prior version of this helper omitted `refund_batch`,
  * which left `RefundBatch` rows (and their `pdfObjectKey` uniqueness)
- * accumulating across test runs (specs/008 T3 fix); `mileage_rate`/
+ * accumulating across test runs (specs/20260719-refund-monthly-processing T3 fix); `mileage_rate`/
  * `refund_setting` are added up front here to avoid the same class of bug.
  */
 

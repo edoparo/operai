@@ -1,7 +1,7 @@
 /**
  * @vitest-environment jsdom
  *
- * Component tests for EstimatesPage — T8, specs/001-estimate-persistence.
+ * Component tests for EstimatesPage — T8, specs/20260606-estimate-persistence.
  *
  * Covers:
  *   (A) Loading: estimatesApi.list is pending → the loading SkeletonRows is visible.
@@ -12,10 +12,10 @@
  *       surface and no the loading SkeletonRows visible (AC-2.3).
  *   (D) Error: estimatesApi.list rejects → an error surface renders and the
  *       component does not crash.
- *   (E) Chrome dedup (specs/003-suite-shell, T14, AC-4.2): the page no longer
+ *   (E) Chrome dedup (specs/20260709-suite-shell, T14, AC-4.2): the page no longer
  *       renders its own logo image or UserMenu — those are shell-owned now —
  *       but keeps its tool-scoped "Import JSON" and "New estimate" actions.
- *   (F) Shared row (specs/013-estimate-sharing, T23, AC-2.1/AC-2.2/AC-10.4):
+ *   (F) Shared row (specs/20260807-estimate-sharing, T23, AC-2.1/AC-2.2/AC-10.4):
  *       a shared row is distinguishable from an owned row by testid (never by
  *       CSS class), carries an `AccessLevelBadge` + the owner's identity via
  *       `formatIdentity`, and has no owner-only Delete action.
@@ -270,7 +270,7 @@ describe('EstimatesPage', () => {
     })
   })
 
-  // (E) Chrome dedup (specs/003-suite-shell, T14, AC-4.2)
+  // (E) Chrome dedup (specs/20260709-suite-shell, T14, AC-4.2)
   describe('(E) chrome dedup — suite-level controls are shell-owned, not duplicated here', () => {
     it('does not render its own logo image or UserMenu, but keeps Import JSON / New estimate', async () => {
       vi.mocked(estimatesApi.list).mockResolvedValue([itemA, itemB])
@@ -295,7 +295,7 @@ describe('EstimatesPage', () => {
   })
 
   // (F) Shared row — distinguishable by testid, badge + identity, no Delete
-  // (specs/013-estimate-sharing, T23, AC-2.1 / AC-2.2 / AC-10.4)
+  // (specs/20260807-estimate-sharing, T23, AC-2.1 / AC-2.2 / AC-10.4)
   describe('(F) shared row — testid-distinguishable, AccessLevelBadge + owner identity, no Delete', () => {
     it('renders owned and shared rows with distinct testids, an AccessLevelBadge and formatIdentity owner text on the shared row, and Delete only on the owned row', async () => {
       const sharedItem: EstimateListItem = {
@@ -338,7 +338,7 @@ describe('EstimatesPage', () => {
   })
 
   // (G) Orphaned / unresolved owner identity — never blank, never a raw id,
-  // never an error (specs/013-estimate-sharing, T23, AC-10.4 / AC-10.5)
+  // never an error (specs/20260807-estimate-sharing, T23, AC-10.4 / AC-10.5)
   describe('(G) orphaned / unresolved owner identity', () => {
     it('renders "Former wellD member" for a deleted owner and keeps Delete absent (orphaned row, AC-10.4)', async () => {
       const orphanedItem: EstimateListItem = {
@@ -396,7 +396,7 @@ describe('EstimatesPage', () => {
   })
 
   // (H) Empty-state gating keys off the COMBINED owned+shared list length
-  // (specs/013-estimate-sharing, T23, AC-2.3)
+  // (specs/20260807-estimate-sharing, T23, AC-2.3)
   describe('(H) empty-state gating — combined owned+shared length, not owned-only', () => {
     it('does NOT render the empty state when the user has only a shared estimate', async () => {
       const sharedOnlyItem: EstimateListItem = {
@@ -542,7 +542,7 @@ describe('EstimatesPage', () => {
   })
 
   // -------------------------------------------------------------------------
-  // specs/024 — filters, oversight rows, deal badge
+  // specs/20261108-estimate-list-oversight — filters, oversight rows, deal badge
   // -------------------------------------------------------------------------
 
   const stranger: EstimateListItem = {

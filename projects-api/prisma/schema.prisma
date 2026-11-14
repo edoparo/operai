@@ -7,7 +7,7 @@ datasource db {
   provider = "postgresql"
 }
 
-// Data model of specs/025-projects (tasks.md § Data model). Every id is TEXT (a cuid):
+// Data model of specs/20261103-projects (tasks.md § Data model). Every id is TEXT (a cuid):
 // CRM and auth ids are cuids, never uuids. People are opaque `auth` user ids and the
 // company is an opaque CRM company id (no foreign key across services); their names are
 // resolved live. There is NO money anywhere in this schema (D14). Calendar dates are
@@ -44,7 +44,7 @@ enum ProjectState {
   cancelled
 }
 
-/// Where a contract came from: typed in by hand, or created from a won deal (specs/026).
+/// Where a contract came from: typed in by hand, or created from a won deal (specs/20261103-projects-handoff).
 enum ContractOrigin {
   manual
   deal
@@ -68,7 +68,7 @@ model Project {
   companyId        String?
   /// `auth` user id; must hold projects:access (checked live at write time).
   projectManagerId String
-  /// Optimistic-concurrency counter (ADR-0038, AC-1.7).
+  /// Optimistic-concurrency counter (ADR 20260807-optimistic-concurrency-version-if-match-cas-amends-0004, AC-1.7).
   version          Int          @default(1)
   createdById      String
   createdAt        DateTime     @default(now())
@@ -107,7 +107,7 @@ model Contract {
   /// CRM company id.
   companyId         String
   origin            ContractOrigin @default(manual)
-  /// The won deal this contract came from; filled by specs/026. Unique: a deal yields one contract.
+  /// The won deal this contract came from; filled by specs/20261103-projects-handoff. Unique: a deal yields one contract.
   dealId            String?        @unique
   /// Typed in by accounting (contract:bexio); unchecked free text (A24).
   bexioOrderId      String?        @db.VarChar(64)

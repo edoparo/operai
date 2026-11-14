@@ -2,7 +2,7 @@
  * lineDraft — the shared "in-progress expense line form" shape and its
  * validation/conversion helpers, used by both `ExpenseLineComposer` (a new,
  * not-yet-persisted line) and `ExpenseLineRow` (an existing persisted line
- * being edited in place) — T16, specs/007-refund-service/tasks.md.
+ * being edited in place) — T16, specs/20260716-refund-service/tasks.md.
  *
  * A draft's fields are always plain strings (what an `<input>`/`<select>`
  * actually holds), never the typed wire values `POST/PUT
@@ -20,7 +20,7 @@
  * type-driven presence/validity logic here means `ExpenseLineComposer`/
  * `ExpenseLineRow` don't each reimplement the branch.
  *
- * `currency` (post-close change, specs/007): a separately-stored,
+ * `currency` (post-close change, specs/20260716-refund-service): a separately-stored,
  * independently-selectable field — no longer derived from `entity` — with
  * its own no-default select (same "explicit, deliberate choice" pattern as
  * `entity`/`type`, AC-1.2). Any entity/currency pair is valid; this module
@@ -74,7 +74,7 @@ export const lineToDraft = (line: RefundLine): LineDraftValue => ({
  * Parses a major-unit amount string (e.g. "45.50" or "45,50") into integer
  * cents. Delegates to @operai/ui's `parseDecimal` (INC-17): exact string
  * parsing, a comma or a dot, at most two decimals — never `Math.round(n * 100)`
- * (ADR-0025: round exactly once, at compute time; an amount typed with a third
+ * (ADR 20260720-mileage-rate-money-precision-integer-micros: round exactly once, at compute time; an amount typed with a third
  * decimal is refused, not silently rounded). Returns `null` for empty, negative,
  * exponent or otherwise malformed input — callers must treat `null` as "not a
  * valid amount yet," never coerce it to `0`.
@@ -89,7 +89,7 @@ export const centsToAmountInput = (cents: number): string => (cents / 100).toFix
  * and valid (AC-1.2) — `km` is only checked when `requiresKm(type)`, and its
  * absence/invalidity never blocks a draft of any other type.
  *
- * specs/009-mileage-rate amendment (design.md F1 "Add/Done enable
+ * specs/20260720-mileage-rate amendment (design.md F1 "Add/Done enable
  * condition"): for `travel_km`, "complete" becomes date + type + motivo +
  * entity + `km > 0` — amount/currency are DROPPED from this check (they no
  * longer exist as fields for this type, AC-1.1). `rateInEffect` is
@@ -140,7 +140,7 @@ export const isLineDraftBlank = (draft: LineDraftValue): boolean =>
  * `isLineDraftComplete(draft)` is true — an incomplete draft's payload would
  * carry a `0`/`NaN` in place of a required field.
  *
- * specs/009-mileage-rate amendment (AC-1.1/AC-1.6, plan.md "## API
+ * specs/20260720-mileage-rate amendment (AC-1.1/AC-1.6, plan.md "## API
  * contracts"): for `travel_km`, `requestedAmountCents`/`currency` are
  * server-derived and OMITTED from the payload entirely — never a
  * client-guessed `0`/entity guess sent as if it were authoritative. Every

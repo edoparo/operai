@@ -1,17 +1,17 @@
 /**
- * Playback and deletion of a meeting's audio (specs/021-meetings plan.md § API
- * contracts "Capture"; AC-4.4, AC-4.5, AC-6.5; amendment A4; ADR-0063).
+ * Playback and deletion of a meeting's audio (specs/20261104-meetings plan.md § API
+ * contracts "Capture"; AC-4.4, AC-4.5, AC-6.5; amendment A4; ADR 20261104-audio-retention-bucket-lifecycle-verified-at-startup).
  *
  *   GET    /meetings/:id/audio   selfScoped + visibility: a 15-minute presigned GET, never
- *                                proxied bytes (ADR-0016). Expiry is DERIVED from
- *                                `audioCreatedAt + 29 d` (ADR-0013); the first read that
+ *                                proxied bytes (ADR 20260716-eu-object-storage-refund-attachments). Expiry is DERIVED from
+ *                                `audioCreatedAt + 29 d` (ADR 20260714-invitation-lifecycle-derived-expiry-state); the first read that
  *                                observes it deletes the object, lazily and idempotently,
  *                                and records `audioDeletedAt`. The bucket's lifecycle rule is
  *                                the guarantee; this only keeps the meeting's own record honest.
  *   DELETE /meetings/:id/audio   the creator's, not frozen, and NEEDING NO `meetings:access`:
  *                                removing your own data never depends on a grant (A4). Deletes
  *                                everything under the meeting's prefix, and the transient
- *                                transcription bucket's `transcribe/<id>/` (ADR-0069, AC-4.12),
+ *                                transcription bucket's `transcribe/<id>/` (ADR 20261105-meetings-ai-providers-google-cloud-eu, AC-4.12),
  *                                FIRST, then records it, so a storage failure is a 503 with
  *                                nothing changed (AC-4.5).
  */

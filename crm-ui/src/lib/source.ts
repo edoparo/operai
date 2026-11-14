@@ -1,4 +1,4 @@
-/** Where a company or a lead came from (specs/017 US-7): what a form sends and how it reads. */
+/** Where a company or a lead came from (specs/20261101-crm US-7): what a form sends and how it reads. */
 import { strings } from '../strings'
 import { hasSourceDetail } from './types'
 import type { LeadSource } from './types'

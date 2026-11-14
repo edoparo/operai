@@ -1,5 +1,5 @@
 /**
- * systemAuth middleware (specs/021 T6, AC-11.8): the only credential for
+ * systemAuth middleware (specs/20261104-meetings T6, AC-11.8): the only credential for
  * `POST /system/meeting-host/v1/notices` is a scoped service JWT. A tiny Hono
  * app with the middleware and a recording handler proves what stops and what
  * passes; keys and JWKS are generated in memory and injected, so nothing here

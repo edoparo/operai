@@ -1,11 +1,11 @@
 /**
- * meetings-api's authorization middleware (specs/021-meetings, ADR-0014).
+ * meetings-api's authorization middleware (specs/20261104-meetings, ADR 20260716-refund-api-authorization-enforcing-resource-server).
  * Copied from crm-api/src/auth/authz.middleware.ts, plus ONE structural
  * difference (plan.md § Shape, AC-10.6): an OPTIONAL variant.
  *
  * Both variants resolve the caller's permissions live from `auth GET
  * /authz/resolve`, forwarding the caller's own already-verified Bearer token
- * verbatim (no new credential, ADR-0014 point 1), cached by `(sub, perm_epoch)`
+ * verbatim (no new credential, ADR 20260716-refund-api-authorization-enforcing-resource-server point 1), cached by `(sub, perm_epoch)`
  * with a 30 s hard TTL backstop (point 2). They differ only in what an `auth`
  * outage does:
  *
@@ -117,7 +117,7 @@ const serviceUnavailable = (detail: string, path: string) =>
 
 // ─── Middleware ─────────────────────────────────────────────────────────────
 
-/** Fail CLOSED (ADR-0014 point 4): an unreachable `auth` is a 503, never "allow". */
+/** Fail CLOSED (ADR 20260716-refund-api-authorization-enforcing-resource-server point 4): an unreachable `auth` is a 503, never "allow". */
 export const authzMiddleware = createMiddleware<{ Variables: AuthzVariables }>(async (c, next) => {
   const context = await resolve(c);
   if (!context) {

@@ -1,6 +1,6 @@
 /**
  * identity — the single place that turns a live-resolved `auth` identity
- * (T14, specs/013-estimate-sharing/tasks.md; plan.md "### Display identity")
+ * (T14, specs/20260807-estimate-sharing/tasks.md; plan.md "### Display identity")
  * into display text, per AC-10.5's rule: never render stale/misleading
  * identity information implying an account is still active.
  *
@@ -16,7 +16,7 @@
  * is decided in exactly one place.
  *
  * `formatIdentity` accepts `Identity | EstimateIdentity` (T18,
- * specs/013-estimate-sharing/tasks.md): `estimatesApi.ts`'s `EstimateIdentity`
+ * specs/20260807-estimate-sharing/tasks.md): `estimatesApi.ts`'s `EstimateIdentity`
  * — the id-less shape embedded inline on `owner`/`lastModifiedBy` — already
  * documented this acceptance ("T14's formatIdentity reads only .status/.name,
  * so it accepts this shape too despite the missing id") before any real

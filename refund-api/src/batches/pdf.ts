@@ -1,11 +1,11 @@
 /**
- * Compiled-batch PDF renderer (T2, specs/008-refund-monthly-processing,
- * ADR-0019; Unicode-font hardening — OWASP A04, specs/008 QE/security
+ * Compiled-batch PDF renderer (T2, specs/20260719-refund-monthly-processing,
+ * ADR 20260719-refund-batch-pdf-generation-pdf-lib; Unicode-font hardening — OWASP A04, specs/20260719-refund-monthly-processing QE/security
  * finding).
  *
  * A pure, deterministic function: `RefundBatchItem`-derived data in, a PDF
  * `Buffer` out. Built with `pdf-lib` (pure TypeScript, zero native modules,
- * no headless browser — ADR-0019 decision 1) directly from primitives (text
+ * no headless browser — ADR 20260719-refund-batch-pdf-generation-pdf-lib decision 1) directly from primitives (text
  * runs, rules, an embedded Unicode font) — no HTML/CSS layout engine.
  *
  * FONT CHOICE (OWASP A04 fix — chosen over character sanitization): the
@@ -29,16 +29,16 @@
  * function of its Unicode input: legitimate non-Latin names render
  * correctly, anything the bundled font can't shape degrades to a harmless
  * blank glyph, and nothing ever throws. Bundling two ~560KB TTFs was judged
- * "reasonably sized" (ADR-0019's own bar) against the alternative of a
+ * "reasonably sized" (ADR 20260719-refund-batch-pdf-generation-pdf-lib's own bar) against the alternative of a
  * lossy sanitize-to-`?` pass that would mangle real people's names on a
  * document accounting relies on for payroll reconciliation. Full CJK/emoji
  * *glyph* coverage was explicitly out of scope — those alphabets need
  * several more MB of separate font families each, which was judged
  * impractical to bundle here; those names still degrade safely (blank
- * glyphs) rather than crashing the renderer, matching the ADR-0019
+ * glyphs) rather than crashing the renderer, matching the ADR 20260719-refund-batch-pdf-generation-pdf-lib
  * "regenerable, not perfect" posture already established for this cache.
  *
- * DETERMINISM (ADR-0019 decision 5, ADR regenerable-cache posture): the only
+ * DETERMINISM (ADR 20260719-refund-batch-pdf-generation-pdf-lib decision 5, ADR regenerable-cache posture): the only
  * "now" this module ever renders is the caller-supplied `generatedAt` — the
  * batch's stored `createdAt` — NEVER `Date.now()`. `pdf-lib` embeds a
  * creation/modification date in the PDF trailer by default when neither is
@@ -65,7 +65,7 @@
  *
  * Currency amounts render as ISO codes (`EUR 45,50`), not symbols — the
  * embedded font's coverage does not reliably cover every currency glyph
- * across providers either (ADR-0019 decision 2, plan.md Risk R7).
+ * across providers either (ADR 20260719-refund-batch-pdf-generation-pdf-lib decision 2, plan.md Risk R7).
  */
 
 import { PDFDocument, rgb, type PDFFont, type PDFPage } from "pdf-lib";
@@ -102,7 +102,7 @@ function loadFontBytes(): Promise<LoadedFontBytes> {
  * no employee/PII in the key. Deliberately a SIBLING of, not nested under,
  * the `refund/{requestId}/…` receipt namespace, so a bucket lifecycle rule
  * scoped to unconfirmed receipt uploads (007 R4) can never catch a batch PDF
- * (ADR-0019 decision 3, plan.md Risk R8).
+ * (ADR 20260719-refund-batch-pdf-generation-pdf-lib decision 3, plan.md Risk R8).
  */
 export function batchPdfObjectKey(batchId: string): string {
   return `refund/batches/${batchId}/compiled.pdf`;
@@ -170,7 +170,7 @@ function isoTimestamp(date: Date): string {
 // The renderer must not depend on the order the caller happened to hand it
 // employees/requests in — a regenerated PDF (cache miss, resend) must be
 // byte-identical to the original render regardless of any incidental query
-// ordering difference (ADR-0019 decision 5).
+// ordering difference (ADR 20260719-refund-batch-pdf-generation-pdf-lib decision 5).
 
 function sortedEmployees(
   employees: readonly BatchPdfEmployee[],
@@ -235,7 +235,7 @@ export async function renderBatchPdf(input: BatchPdfInput): Promise<Buffer> {
   doc.registerFontkit(fontkit);
   // Close the "pdf-lib embeds current wall-clock time by default" gap — the
   // ONLY timestamp this document ever carries is the caller-supplied
-  // generatedAt (module doc; ADR-0019 decision 5).
+  // generatedAt (module doc; ADR 20260719-refund-batch-pdf-generation-pdf-lib decision 5).
   doc.setCreationDate(input.generatedAt);
   doc.setModificationDate(input.generatedAt);
   doc.setTitle(`Refund batch ${input.batchId}`);

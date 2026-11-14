@@ -43,7 +43,7 @@ vi.mock('../lib/attachmentsApi', async (importOriginal) => {
   return { ...original, getDownloadUrl: vi.fn() }
 })
 
-// specs/010-self-approval-control — `useSession`/`usePermissions` (shell/session)
+// specs/20260721-self-approval-control — `useSession`/`usePermissions` (shell/session)
 // ARE mocked here, deliberately (mirrors RefundShell.test.tsx's own rationale):
 // they're the two dependencies the passive Approve-disable check adds.
 // Defaults (`beforeEach`) return no signed-in identity and no permissions at
@@ -192,7 +192,7 @@ describe('ReviewDetailPage — submitted (decidable) variant', () => {
     expect(input.getAttribute('aria-label')).toBe('Approved total for 01.07.2026 · Pens · EUR')
   })
 
-  // QE regression (specs/007-refund-service, T21 verification pass) — same
+  // QE regression (specs/20260716-refund-service, T21 verification pass) — same
   // defect as ReviewQueuePage.test.tsx's own "DEFECT (QE)" case: refund-api
   // NEVER populates `owner.name` (verified live — `POST /requests` always
   // calls `createDraftRequest(sub, email, null)`, requests.routes.ts, since
@@ -312,10 +312,10 @@ describe('ReviewDetailPage — submitted (decidable) variant', () => {
   })
 })
 
-// specs/010-self-approval-control (plan.md D5, ADR-0026) — T5: passive UI
+// specs/20260721-self-approval-control (plan.md D5, ADR 20260721-self-approval-condition-and-403-exception) — T5: passive UI
 // reflection of the self-approval segregation-of-duties control. `baseRequest`
 // is owned by `u1` (owner.userId, above).
-describe('ReviewDetailPage — self-approval control (specs/010)', () => {
+describe('ReviewDetailPage — self-approval control (specs/20260721-self-approval-control)', () => {
   it('disables Approve with an explanatory tooltip when the caller owns the request AND their approve grant carries the self-approval restriction', async () => {
     useSessionMock.mockReturnValue({ data: { user: { id: 'u1' } } })
     usePermissionsMock.mockReturnValue(permissionsWith([REQUEST_APPROVE_SELF_RESTRICTED]))
@@ -597,7 +597,7 @@ describe('ReviewDetailPage — decided (approved/rejected) read-only variant', (
     expect(screen.queryByTestId('row-line-1-approved-total')).toBeNull()
   })
 
-  it('paid: shows requested + approved per line, a "Paid on <date> by <email>" line, no MonthlyProcessingNote, and no decide actions (T13, specs/008-refund-monthly-processing)', async () => {
+  it('paid: shows requested + approved per line, a "Paid on <date> by <email>" line, no MonthlyProcessingNote, and no decide actions (T13, specs/20260719-refund-monthly-processing)', async () => {
     const paidRequest: RefundRequestDetail = {
       ...baseRequest,
       status: 'paid',
@@ -620,7 +620,7 @@ describe('ReviewDetailPage — decided (approved/rejected) read-only variant', (
   })
 })
 
-describe('ReviewDetailPage — line rejection (specs/007 amendment, 2026-11-10)', () => {
+describe('ReviewDetailPage — line rejection (specs/20260716-refund-service amendment, 2026-11-10)', () => {
   const rejection = { reason: 'No receipt', rejectedAt: '2026-07-15T10:00:00.000Z', rejectedBy: { email: 'acct@welld.ch' } }
   const twoLines: RefundRequestDetail = {
     ...baseRequest,

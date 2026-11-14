@@ -1,11 +1,11 @@
 /**
  * The text, link and channel of every activities notification, English and Italian, per host
- * (specs/028 US-6, AC-6.1..6.4; ADR-0065). notify-api has no per-user language, so the
+ * (specs/20261110-activities US-6, AC-6.1..6.4; ADR 20261104-bilingual-system-notifications). notify-api has no per-user language, so the
  * service sends BOTH: `title`/`body` in English and `it: { title, body }`, and notify-ui /
  * the shell's ToastHost pick one from `<html lang>`.
  *
  * - CRM: the English copy and the hrefs are exactly what crm-api sent before the activities
- *   moved here (specs/019, E5/US-8/specs/017 US-6); only `it` is new.
+ *   moved here (specs/20261101-crm-notifications, E5/US-8/specs/20261101-crm US-6); only `it` is new.
  * - Projects: the same sentences with "Project: <name>." as the context, opening the project
  *   (`/projects/<id>`).
  * - Pure: no env, no I/O. A function takes the activity's own fields, the host's labels and
@@ -122,7 +122,7 @@ function contextOf(lang: Lang, target: NotifyTarget): string {
   return target.deal ? `${label.deal}: ${clip(target.deal.title, MAX_NAME)}` : `${label.company}: ${clip(target.company.name, MAX_NAME)}`;
 }
 
-/** Whether the recipient is also emailed (ADR-0056: `email: true`, needs `emails.send`). */
+/** Whether the recipient is also emailed (ADR 20261101-notify-api-resolves-email-notice-address-from-auth: `email: true`, needs `emails.send`). */
 const EMAIL: Record<NotifyKind, boolean> = {
   task_assigned: true,
   activity_participant_added: false,

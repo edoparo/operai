@@ -1,7 +1,7 @@
 /**
  * @vitest-environment jsdom
  *
- * Component tests for AttachmentDownloadLink (T17, specs/007-refund-service/
+ * Component tests for AttachmentDownloadLink (T17, specs/20260716-refund-service/
  * tasks.md). Covers: idle → minting → open on success, and the inline error
  * state when `onDownload` rejects.
  */

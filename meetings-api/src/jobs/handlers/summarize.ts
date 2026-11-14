@@ -1,5 +1,5 @@
 /**
- * The `summarize` job (specs/021-meetings T94; plan.md § Summaries; ADR-0062, ADR-0067;
+ * The `summarize` job (specs/20261104-meetings T94; plan.md § Summaries; ADR 20261104-durable-job-runner-work-queued-state-derived, ADR 20261104-ai-output-structured-validated-plain-text;
  * AC-7.5, AC-7.6, AC-7.9, AC-7.10).
  *
  * Builds the prompt from the summary's own TEMPLATE SNAPSHOT (not the live template: edits and
@@ -29,10 +29,10 @@
  * that goes through this job again, so it carries them too.
  *
  * ONE PUSH. Exactly one notification, to the author, after the terminal write: the meeting title and
- * the outcome, never the summary (AC-7.6, ADR-0065). It is best-effort and sent AFTER the commit.
+ * the outcome, never the summary (AC-7.6, ADR 20261104-bilingual-system-notifications). It is best-effort and sent AFTER the commit.
  *
  * SPEAKER NAMES. A job has no caller token, so it cannot look an Operai participant's name up
- * (`auth` identities are fetched with the caller's own JWT, ADR-0039). The request that enqueued it
+ * (`auth` identities are fetched with the caller's own JWT, ADR 20260807-live-identity-resolution-by-id-fail-soft). The request that enqueued it
  * did have one, and stored every speaker's name in the snapshot (`template.speakerNames`, built by
  * `speakerNamesFor`). The job uses ONLY that map: a speaker it does not name is "Speaker n", and a
  * label edited after the request is not read.

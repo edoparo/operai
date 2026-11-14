@@ -4,13 +4,13 @@ import { RouterProvider } from '@tanstack/react-router'
 import './index.css'
 import { createAppRouter } from './router'
 
-// Dev/test-only standalone bootstrap (T12, specs/003-suite-shell): kept so
+// Dev/test-only standalone bootstrap (T12, specs/20260709-suite-shell): kept so
 // estimai-ui still builds and tests entirely on its own, outside the shell.
 // No basepath — routes resolve at the document root exactly as before this
 // task. The shell mounts the federated remote instead (see src/App.tsx,
 // exposed as `./App`), which rebases the same router under `/estimai`.
 //
-// STANDALONE-DEV LIMITATION (T13, specs/003-suite-shell/tasks.md, AC-2.3):
+// STANDALONE-DEV LIMITATION (T13, specs/20260709-suite-shell/tasks.md, AC-2.3):
 // since T13, src/lib/api.ts and src/lib/authClient.ts import the federated
 // `shell/session` module instead of holding their own JWT cache / better-auth
 // client. Running `pnpm dev` in estimai-ui alone (no shell dev server

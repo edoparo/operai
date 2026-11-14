@@ -16,7 +16,7 @@ function harness(ok: (n: DealLinkNotice) => boolean = () => true) {
   };
 }
 
-describe("backfill-estimate-links (specs/024 AC-3.7)", () => {
+describe("backfill-estimate-links (specs/20261108-estimate-list-oversight AC-3.7)", () => {
   beforeEach(async () => {
     await resetWorld();
     const company = await makeCompany();

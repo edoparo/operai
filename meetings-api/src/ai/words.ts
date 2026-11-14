@@ -1,6 +1,6 @@
 /**
  * The provider-neutral word model of one transcript part, and the rules every transcript-quality step shares
- * (specs/021-meetings plan.md § Amendment 2026-11-05 #2, H-2 and H-3; AC-6.11 to AC-6.15, AC-6.17).
+ * (specs/20261104-meetings plan.md § Amendment 2026-11-05 #2, H-2 and H-3; AC-6.11 to AC-6.15, AC-6.17).
  *
  * Pure: no provider type, no audio, no import from `src/media`. A word carries only what the transcription returned
  * (text, a speaker label, a noise-marker flag and a TRUSTED time or none). That is the whole input of the

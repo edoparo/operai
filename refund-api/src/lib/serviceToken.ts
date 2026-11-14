@@ -1,6 +1,6 @@
 /**
- * Service-token client (T8, specs/016-notify-service-credentials; AC-4.2;
- * ADR-0044/0049; copied from inventory-api's). Exchanges `SERVICE_CLIENT_ID`/`SERVICE_CLIENT_SECRET` for the
+ * Service-token client (T8, specs/20261013-notify-service-credentials; AC-4.2;
+ * ADR 20261006-scoped-service-jwt-fourth-notify-caller/0049; copied from inventory-api's). Exchanges `SERVICE_CLIENT_ID`/`SERVICE_CLIENT_SECRET` for the
  * 5-minute RS256 service JWT `auth POST /system/service-token` mints, and
  * hands it to the notify callers as the Bearer credential for notify-api's
  * `/system` routes (wired by T9).

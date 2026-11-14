@@ -1,5 +1,5 @@
 /**
- * Unit tests for the per-request archive renderer (ADR-0043).
+ * Unit tests for the per-request archive renderer (ADR 20260908-request-archive-export-refund-api-reads-attachment-bytes).
  *
  * `renderRequestExportPdf` is pure — it takes already-fetched receipt bytes
  * and does no I/O — so these need no storage mock at all. That is the whole
@@ -75,7 +75,7 @@ describe("renderRequestExportPdf", () => {
     const parsed = await PDFDocument.load(buffer, { updateMetadata: false });
     expect(parsed.getPageCount()).toBeGreaterThanOrEqual(1);
     expect(parsed.getTitle()).toContain("req_123");
-    // ADR-0019 decision 5: the ONLY clock in the document is generatedAt.
+    // ADR 20260719-refund-batch-pdf-generation-pdf-lib decision 5: the ONLY clock in the document is generatedAt.
     expect(parsed.getCreationDate()?.toISOString()).toBe("2026-09-08T12:00:00.000Z");
     expect(parsed.getModificationDate()?.toISOString()).toBe("2026-09-08T12:00:00.000Z");
   });

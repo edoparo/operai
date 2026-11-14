@@ -1,5 +1,5 @@
 /**
- * Checks an uploaded letterhead (specs/020 AC-2.5): a PDF pdf-lib can read, with
+ * Checks an uploaded letterhead (specs/20261102-crm-offer-document AC-2.5): a PDF pdf-lib can read, with
  * exactly one A4 page. Pure: bytes in, verdict out.
  */
 

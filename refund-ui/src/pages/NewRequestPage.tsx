@@ -6,7 +6,7 @@ import * as requestsApi from '../lib/requestsApi'
 import { ApiError } from '../lib/refundApi'
 
 /**
- * NewRequestPage — `/refund/requests/new` (T16, specs/007-refund-service/
+ * NewRequestPage — `/refund/requests/new` (T16, specs/20260716-refund-service/
  * tasks.md, design.md F1 step 1: "`/refund/requests/new` immediately calls
  * `POST /requests` (no body) and redirects to `/refund/requests/$id` on
  * success … A brief centered spinner covers the round trip; on failure, an

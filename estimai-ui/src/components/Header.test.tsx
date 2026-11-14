@@ -2,7 +2,7 @@
  * @vitest-environment jsdom
  *
  * Component tests for Header — the editor's in-content top bar
- * (specs/003-suite-shell, T14, AC-4.2).
+ * (specs/20260709-suite-shell, T14, AC-4.2).
  *
  * The shell now owns the suite-level chrome (logo/About dropdown, the
  * signed-in user's avatar/menu + sign-out, the theme toggle) — Header no
@@ -85,7 +85,7 @@ describe('Header', () => {
 })
 
 // ---------------------------------------------------------------------------
-// T17 (specs/013-estimate-sharing/tasks.md; design.md S5) — readOnly gating.
+// T17 (specs/20260807-estimate-sharing/tasks.md; design.md S5) — readOnly gating.
 //
 // design.md's table for Header: "name input becomes readOnly; the
 // save-status span is omitted entirely (nothing ever autosaves, so there's
@@ -120,7 +120,7 @@ describe('Header — readOnly (viewer) gating (T17, AC-3.1/AC-3.2)', () => {
 })
 
 // ---------------------------------------------------------------------------
-// T18 (specs/013-estimate-sharing/tasks.md; design.md S4) — the 4th
+// T18 (specs/20260807-estimate-sharing/tasks.md; design.md S4) — the 4th
 // save-status state: "Not saving — reload to continue", shown whenever
 // autosave is suspended (saveStatus === 'conflict').
 // ---------------------------------------------------------------------------

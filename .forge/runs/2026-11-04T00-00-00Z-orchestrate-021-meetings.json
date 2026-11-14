@@ -3,7 +3,7 @@
   "plugin_version": "2.56.0",
   "run_id": "2026-11-04T00-00-00Z-orchestrate-021-meetings",
   "command": "orchestrate",
-  "feature": "021-meetings",
+  "feature": "20261104-meetings",
   "rigor": "production",
   "rigor_recorded": null,
   "started": "2026-11-04T00:00:00Z",
@@ -12,24 +12,24 @@
     {
       "agent": "product-owner",
       "outcome": "completed",
-      "artifact": "specs/021-meetings/spec.md",
+      "artifact": "specs/20261104-meetings/spec.md",
       "notes": "draft, O1-O12 folded, A1-A4 amendments"
     },
     {
       "agent": "architect",
       "outcome": "completed",
-      "artifact": "specs/021-meetings/plan.md",
+      "artifact": "specs/20261104-meetings/plan.md",
       "notes": "plan + amendments (design stage G1-G9, T94, T19-T34); drafted tasks.md (94 tasks)"
     },
     {
       "agent": "adr-writer",
       "outcome": "completed",
-      "notes": "ADR-0058..0068; 0059/0060/0066 amended; 0064 amended twice after security review"
+      "notes": "ADR 20261104-meetings-tool-shape-visibility-by-participation..0068; 0059/0060/0066 amended; 0064 amended twice after security review"
     },
     {
       "agent": "designer",
       "outcome": "completed",
-      "artifact": "specs/021-meetings/design.md"
+      "artifact": "specs/20261104-meetings/design.md"
     },
     {
       "agent": "backend-dev",
@@ -402,7 +402,7 @@
     {
       "agent": "adr-writer",
       "outcome": "completed",
-      "notes": "ADR-0064 round 3"
+      "notes": "ADR 20261104-meetings-api-reads-audio-bytes-third-reader round 3"
     },
     {
       "agent": "evaluator",
@@ -529,7 +529,7 @@
       "real-ffmpeg suite not in CI",
       "deactivated user with unexpired JWT keeps read access (needs active flag from /authz/resolve)",
       "no per-user transcription/upload quota",
-      "directory readable by all employees (ADR-0066 accepted)",
+      "directory readable by all employees (ADR 20261104-user-directory-gate-meetings-access accepted)",
       "15-min playback URL not revocable",
       "live-eval environment protection is a repo setting"
     ]

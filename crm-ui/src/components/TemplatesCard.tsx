@@ -11,7 +11,7 @@ import { strings } from '../strings'
 import { LoadFailure, Loading } from './LoadState'
 
 /**
- * TemplatesCard — one entity's offer templates (specs/020 US-2): name,
+ * TemplatesCard — one entity's offer templates (specs/20261102-crm-offer-document US-2): name,
  * language, last update and the row actions edit / duplicate / archive, with a
  * "show archived" toggle that turns archive into restore. Archiving is
  * recoverable, so it asks nothing; it carries the row's version (If-Match) and a

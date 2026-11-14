@@ -13,7 +13,7 @@ import { strings } from '../strings'
 
 /**
  * SettingsPage — the letterhead and standard terms printed on offers, one form
- * per entity the caller manages deals for (specs/018 O2). The tab is shown to
+ * per entity the caller manages deals for (specs/20261101-crm-sales-flow O2). The tab is shown to
  * `deal:manage` holders only; the list itself needs `deal:financials` (a 403
  * renders the denied state) and a save needs `deal:manage` over that entity.
  */

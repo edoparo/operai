@@ -1,10 +1,10 @@
 /**
- * Startup checks that need the network (specs/021-meetings AC-4.4, AC-4.9,
- * ADR-0063, ADR-0069). The residency checks that can be decided from the
+ * Startup checks that need the network (specs/20261104-meetings AC-4.4, AC-4.9,
+ * ADR 20261104-audio-retention-bucket-lifecycle-verified-at-startup, ADR 20261105-meetings-ai-providers-google-cloud-eu). The residency checks that can be decided from the
  * environment alone live in `env.ts` / `residency.ts`; these ask the audio bucket,
  * the transient bucket and Vertex's control plane.
  *
- * Audio is deleted by the BUCKET, not by this service (no cron, ADR-0013): one
+ * Audio is deleted by the BUCKET, not by this service (no cron, ADR 20260714-invitation-lifecycle-derived-expiry-state): one
  * bucket-wide lifecycle rule expires every object within 30 days of creation.
  * That promise to users (AC-4.4) is only as good as the rule being there, so the
  * service REFUSES TO START unless:
@@ -79,7 +79,7 @@ export async function checkBucket(client: S3Client, bucket: string): Promise<str
   return problems;
 }
 
-// ─── The transient processing bucket (N2; AC-4.9, AC-4.12, ADR-0069) ─────────
+// ─── The transient processing bucket (N2; AC-4.9, AC-4.12, ADR 20261105-meetings-ai-providers-google-cloud-eu) ─────────
 //
 // Chirp 3 reads audio only from Cloud Storage, so each transcription attempt stages its parts in a bucket of
 // ours (plan § G-2). The promise users get (AC-4.12) is only as good as that bucket's own rules, because
@@ -135,7 +135,7 @@ export async function checkTransientBucket(input: { bucket: string; auth: Google
   return transientBucketProblems(config);
 }
 
-// ─── Vertex AI: caching and request-response logging (N3, N4; AC-4.9, ADR-0069) ─────────
+// ─── Vertex AI: caching and request-response logging (N3, N4; AC-4.9, ADR 20261105-meetings-ai-providers-google-cloud-eu) ─────────
 //
 // Two facts about the language model are not in our repository and are not on the request: whether the
 // PROJECT caches prompts (Google documents implicit caching for its own models, and the setting is
@@ -216,7 +216,7 @@ export async function checkVertex(input: VertexCheckInput): Promise<string[]> {
   }
 
   // N4: request-response logging not enabled for this exact location and model, and no data sharing with the
-  // model provider. Passes ONLY on positive, understood evidence (ADR-0061: not understood = refuse):
+  // model provider. Passes ONLY on positive, understood evidence (ADR 20261104-meetings-ai-providers-eu-zero-retention: not understood = refuse):
   //  - a 404, Google's documented "no PublisherModelConfig exists, the default disabled state" [G6]. T107 must
   //    confirm that against the sandbox project; if a real project answers differently, this is where to look;
   //  - a 200 whose body is exactly the documented shape - top-level keys within `loggingConfig` and
@@ -256,15 +256,15 @@ export async function runStartupChecks(client: S3Client, bucket: string): Promis
   const { transient, ai } = await providerChecksFromEnv();
   if (audio.length === 0 && ai.length === 0 && transient.length === 0) return;
   if (audio.length > 0) {
-    console.error("Audio storage is not fit for recordings, refusing to start (AC-4.4, ADR-0063):");
+    console.error("Audio storage is not fit for recordings, refusing to start (AC-4.4, ADR 20261104-audio-retention-bucket-lifecycle-verified-at-startup):");
     for (const problem of audio) console.error(`  - ${problem}`);
   }
   if (transient.length > 0) {
-    console.error("The transient transcription bucket is not fit to stage audio, refusing to start (AC-4.9, AC-4.12, ADR-0069):");
+    console.error("The transient transcription bucket is not fit to stage audio, refusing to start (AC-4.9, AC-4.12, ADR 20261105-meetings-ai-providers-google-cloud-eu):");
     for (const problem of transient) console.error(`  - ${problem}`);
   }
   if (ai.length > 0) {
-    console.error("The language model is not fit to process meetings, refusing to start (AC-4.9, ADR-0069):");
+    console.error("The language model is not fit to process meetings, refusing to start (AC-4.9, ADR 20261105-meetings-ai-providers-google-cloud-eu):");
     for (const problem of ai) console.error(`  - ${problem}`);
   }
   process.exit(1);

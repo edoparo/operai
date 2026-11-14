@@ -1,13 +1,13 @@
 /**
  * Integration tests for POST /system/notifications (T3,
- * specs/007-refund-service, ADR-0017).
+ * specs/20260716-refund-service, ADR 20260716-system-notifications-cross-user-trigger).
  *
  * Strategy mirrors system/emails.routes.test.ts: real Postgres (compose,
  * host:5435, database: notify) — no DB mocking. Imports the REAL `env` (see
  * emails.routes.test.ts's file header for why `env` is never mock.module()'d
  * — it's a process-wide singleton and other files in this same bun test run
  * depend on its real fields), authenticating with an in-memory scoped service
- * JWT (specs/016 T14: the only credential).
+ * JWT (specs/20261013-notify-service-credentials T14: the only credential).
  *
  * done when (tasks.md T3): a valid service credential pushes a notification to an
  * arbitrary recipientId, persisted (Notification row, recipientId ==
@@ -25,7 +25,7 @@ import { Hono } from "hono";
 import { env } from "@/lib/env";
 
 
-// ─── Service credential (specs/016 T14: the only credential) ──────────────────
+// ─── Service credential (specs/20261013-notify-service-credentials T14: the only credential) ──────────────────
 // Keys and JWKS are generated in memory and injected into the auth middleware,
 // so the test exercises the real middleware without a live auth service.
 
@@ -72,7 +72,7 @@ const { eventBus } = await import("@/notifications/eventBus");
 const testDb = freshDb;
 // The caller (a hypothetical accounting user acting through refund-api) and
 // the recipient (the request owner) are DIFFERENT users — the whole point of
-// this cross-user route (ADR-0017). Neither is ever derived from a JWT here;
+// this cross-user route (ADR 20260716-system-notifications-cross-user-trigger). Neither is ever derived from a JWT here;
 // this route accepts no JWT at all.
 const CALLER_SUB = "system-notifications-test-caller";
 const RECIPIENT_ID = "system-notifications-test-recipient";
@@ -159,7 +159,7 @@ describe("POST /system/notifications — valid service credential", () => {
 
     // Fanned out over the recipient's SSE stream, and NOT the (unrelated,
     // never-addressed) caller's — proves cross-user targeting, the entire
-    // point of this route (ADR-0017 vs. the self-only POST /notifications).
+    // point of this route (ADR 20260716-system-notifications-cross-user-trigger vs. the self-only POST /notifications).
     expect(recipientEvents).toHaveLength(1);
     expect(recipientEvents[0]).toEqual({ type: "notification", data: created });
     expect(callerEvents).toHaveLength(0);
@@ -216,9 +216,9 @@ describe("POST /system/notifications — valid service credential", () => {
   });
 });
 
-// ─── Auth (ADR-0011 §Security R2, ADR-0017 §3) ─────────────────────────────────
+// ─── Auth (ADR 20260714-notify-api-email-channel-service-trust §Security R2, ADR 20260716-system-notifications-cross-user-trigger §3) ─────────────────────────────────
 
-describe("POST /system/notifications — service-credential auth (ADR-0011, ADR-0017, ADR-0049)", () => {
+describe("POST /system/notifications — service-credential auth (ADR 20260714-notify-api-email-channel-service-trust, ADR 20260716-system-notifications-cross-user-trigger, ADR 20261013-all-notify-callers-scoped-credentials-shared-token-retired)", () => {
   it("401: no credential, nothing persisted", async () => {
     const app = buildApp();
     const before = await testDb.notification.count({ where: { recipientId: RECIPIENT_ID } });
@@ -376,7 +376,7 @@ describe("POST /system/notifications — validation failures → 400", () => {
     expect(res.status).toBe(400);
   });
 
-  it("400: a link.href that normalises to a protocol-relative path is rejected, nothing written (S-M1, specs/029)", async () => {
+  it("400: a link.href that normalises to a protocol-relative path is rejected, nothing written (S-M1, specs/20261111-push-notifications)", async () => {
     const app = buildApp();
     for (const href of ["/..//evil.io", "/.//evil.io", "/a/..//evil.io", "/%2e%2e//evil.io"]) {
       const res = await app.request("/system/notifications", {
@@ -408,7 +408,7 @@ describe("POST /system/notifications — validation failures → 400", () => {
   });
 });
 
-// ─── Italian variant (T5, specs/021-meetings, ADR-0065) ───────────────────────
+// ─── Italian variant (T5, specs/20261104-meetings, ADR 20261104-bilingual-system-notifications) ───────────────────────
 
 describe("POST /system/notifications — optional Italian variant `it`", () => {
   const IT = { title: "Trascrizione pronta", body: "La riunione e stata registrata e trascritta con l'IA." };
@@ -488,7 +488,7 @@ describe("POST /system/notifications — body-size cap → 413", () => {
   });
 });
 
-// ─── Push dispatch (T6, specs/029-push-notifications) ─────────────────────────
+// ─── Push dispatch (T6, specs/20261111-push-notifications) ─────────────────────────
 //
 // inAppChannel.send hands the stored notification to pushChannel.dispatch AFTER
 // the SSE publish, without awaiting it. The default channel is inert (PUSH_ENABLED

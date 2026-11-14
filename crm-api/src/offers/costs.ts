@@ -1,6 +1,6 @@
 /**
- * The money of an offer, computed once at generation time (specs/020 AC-1.5,
- * AC-3.3, AC-3.4; D-6, D-14; ADR-0025 posture): integer cents, BigInt
+ * The money of an offer, computed once at generation time (specs/20261102-crm-offer-document AC-1.5,
+ * AC-3.3, AC-3.4; D-6, D-14; ADR 20260720-mileage-rate-money-precision-integer-micros posture): integer cents, BigInt
  * intermediates (a line may reach 10^13 cents × 10^5), one rounding rule.
  *
  *   line total          = unit amount × quantity

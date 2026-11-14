@@ -1,5 +1,5 @@
 /**
- * Admin Employee Address API (T3, specs/012-employee-address — refs AC-1.1,
+ * Admin Employee Address API (T3, specs/20260803-employee-address — refs AC-1.1,
  * AC-1.2, AC-1.3, AC-1.4, AC-2.4, AC-2.5, AC-3.3, AC-3.4, AC-4.1, AC-5.1,
  * AC-5.4, AC-6.3, AC-6.4).
  *
@@ -13,18 +13,18 @@
  * its `requireAdmin` gate is RE-DECLARED here, not inherited. Forgetting the
  * line below would silently expose every employee's home address to any
  * authenticated user. `userAddress.routes.test.ts` asserts a non-admin gets
- * `403` on BOTH verbs, against a colleague's id AND their own — see ADR-0031
+ * `403` on BOTH verbs, against a colleague's id AND their own — see ADR 20260804-employee-address-auth-identity-attribute-1to1-table
  * "Risks" and plan.md's R12.
  *
  *   userAddressRouter.use("/admin/users/*", sessionMiddleware, requireAuth, requireAdmin);
  *
  * ── Status-code posture (plan.md "API contracts") ───────────────────────────
- * This is a role gate on a surface, NOT ADR-0005/0014's per-record 404 —
+ * This is a role gate on a surface, NOT ADR 20260703-jwt-resource-server-remote-jwks/0014's per-record 404 —
  * `requireAdmin` already answers "not an admin" with 403 (there is nothing
  * about a specific resource's existence to hide). A soft-deleted or unknown
  * `:id` still 404s, mirroring every other `/admin/users/:id` route.
  *
- * ── `audit_log` scope guarantee (ADR-0033) ──────────────────────────────────
+ * ── `audit_log` scope guarantee (ADR 20260804-two-tier-audit-assurance-auth-audit-log-application-level) ──────────────────────────────────
  * Every write below runs through the EXISTING `withAudit()` (../authz/
  * audit.ts) with NO changes to that module. `affectedUserIds: []` is
  * deliberate (see the PUT handler) — an address change is not a permission

@@ -4,7 +4,7 @@ import { fileURLToPath } from 'node:url'
 import { describe, expect, it } from 'vitest'
 
 /**
- * The suite runs ONE React (Module Federation singleton, ADR-0006). A floating range in this
+ * The suite runs ONE React (Module Federation singleton, ADR 20260709-suite-frontend-module-federation). A floating range in this
  * remote resolved react 19.3.1 while the shell and every other remote ran 19.2.7, and with both
  * registered the shell crashed ("Cannot read properties of null (reading 'useState')"). The
  * versions are pinned exactly here and checked against crm-ui's lockfile, the suite reference.

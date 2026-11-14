@@ -26,7 +26,7 @@ export type TaskState = 'open' | 'overdue' | 'blocked' | 'done'
 export const TASK_STATE_MEANING: Record<TaskState, StatusMeaning> = {
   open: 'pending',
   overdue: 'attention',
-  // Waiting on another task (specs/017 US-6): someone else has to act first.
+  // Waiting on another task (specs/20261101-crm US-6): someone else has to act first.
   blocked: 'pending',
   done: 'settled',
 }

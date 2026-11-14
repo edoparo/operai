@@ -1,7 +1,7 @@
 // Ambient module declarations for the suite's federated remotes (T9,
-// specs/003-suite-shell/tasks.md; admin/App added in T25,
-// specs/004-auth-roles-permissions/tasks.md; notify/App added in T13,
-// specs/005-notification-center/tasks.md). Module Federation resolves
+// specs/20260709-suite-shell/tasks.md; admin/App added in T25,
+// specs/20260713-auth-roles-permissions/tasks.md; notify/App added in T13,
+// specs/20260713-notification-center/tasks.md). Module Federation resolves
 // `estimai/App`, `refund/App`, `admin/App` and `notify/App` at runtime via a
 // virtual module the host's TypeScript program cannot see, so without these
 // declarations `tsc` reports TS2307 ("Cannot find module"). Hand-written
@@ -16,7 +16,7 @@
 // T13, notify-ui/src/App.tsx T14) — the shell mounts it via RemoteMount (T11)
 // inside the `/estimai/*`/`/refund/*`/`/admin/*`/`/notify/*` routes
 // (src/router.tsx). `/notify/*`, unlike the other three, is NOT
-// app-access-gated (plan.md, specs/005-notification-center) — that's a
+// app-access-gated (plan.md, specs/20260713-notification-center) — that's a
 // routing/permissions concern in router.tsx, unrelated to this module shape
 // declaration.
 
@@ -59,7 +59,7 @@ declare module 'notify/App' {
 // missing this export entirely (i.e. one that predates this change) must
 // degrade gracefully rather than being a type error at the call site.
 
-// specs/015-hardware-inventory, T41 (ADR-0045): the `inventory` remote is the
+// specs/20261006-hardware-inventory, T41 (ADR 20261006-ungated-second-federated-entry-of-a-gated-remote): the `inventory` remote is the
 // first to expose TWO mountable entries — `./App` (the gated tool, mounted at
 // `/inventory/*`) and `./MyDevices` (the identity-scoped devices screen,
 // mounted at the ungated `/devices`). Both are prop-less root components, like
@@ -99,7 +99,7 @@ declare module 'inventory/version' {
   export const REMOTE_VERSION: string
 }
 
-// specs/017-crm: the `crm` remote — `./App` (the gated tool, `/crm/*`) and `./version`.
+// specs/20261101-crm: the `crm` remote — `./App` (the gated tool, `/crm/*`) and `./version`.
 declare module 'crm/App' {
   import type { ComponentType } from 'react'
 
@@ -111,9 +111,9 @@ declare module 'crm/version' {
   export const REMOTE_VERSION: string
 }
 
-// specs/021-meetings (ADR-0058/0060): the `meetings` remote — `./App` (the gated
+// specs/20261104-meetings (ADR 20261104-meetings-tool-shape-visibility-by-participation/0060): the `meetings` remote — `./App` (the gated
 // tool, `/meetings/*`), `./MyMeetings` (the ungated identity-scoped entry,
-// `/my-meetings/*`; ADR-0045 shape), `./HostMeetings` (the panel a host embeds
+// `/my-meetings/*`; ADR 20261006-ungated-second-federated-entry-of-a-gated-remote shape), `./HostMeetings` (the panel a host embeds
 // through the shell's `./extensions` expose, props are three strings) and `./version`.
 declare module 'meetings/App' {
   import type { ComponentType } from 'react'
@@ -147,7 +147,7 @@ declare module 'meetings/version' {
   export const REMOTE_VERSION: string
 }
 
-// specs/025-projects: the `projects` remote — `./App` (the gated tool, `/projects/*`) and `./version`.
+// specs/20261103-projects: the `projects` remote — `./App` (the gated tool, `/projects/*`) and `./version`.
 declare module 'projects/App' {
   import type { ComponentType } from 'react'
 

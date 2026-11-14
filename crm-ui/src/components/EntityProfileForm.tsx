@@ -16,7 +16,7 @@ const splitLines = (text: string): string[] =>
     .filter((line) => line !== '')
 
 /**
- * EntityProfileForm — the letterhead and standard terms of ONE entity (specs/018
+ * EntityProfileForm — the letterhead and standard terms of ONE entity (specs/20261101-crm-sales-flow
  * O2), saved whole with `PUT /entity-profiles/:entity`. Offers snapshot what
  * they printed, so saving never rewrites an issued offer.
  */

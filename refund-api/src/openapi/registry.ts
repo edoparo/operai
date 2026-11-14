@@ -11,7 +11,7 @@ export function setupOpenAPI(app: OpenAPIHono): void {
       description:
         "Reimbursement request API for the Refund tool. " +
         "Employee expense requests, entity-scoped accounting review and " +
-        "decisions, and an immutable financial audit trail (specs/007). " +
+        "decisions, and an immutable financial audit trail (specs/20260716-refund-service). " +
         "Requires a valid RS256 Bearer JWT issued by the Operai auth service.",
       contact: {
         name: "wellD",
@@ -31,14 +31,14 @@ export function setupOpenAPI(app: OpenAPIHono): void {
         name: "Review",
         description:
           "Entity-scoped accounting review queue and decisions, plus the " +
-          "post-decision employee notification (T11-T13, specs/007-refund-service).",
+          "post-decision employee notification (T11-T13, specs/20260716-refund-service).",
       },
       {
         name: "Batches",
         description:
           "Monthly compiled-batch processing — candidate preview, the " +
           "atomic compile claim, and (in later tasks) reads, email, " +
-          "mark-paid, and discard (specs/008-refund-monthly-processing).",
+          "mark-paid, and discard (specs/20260719-refund-monthly-processing).",
       },
       {
         name: "Rates",
@@ -46,7 +46,7 @@ export function setupOpenAPI(app: OpenAPIHono): void {
           "Per-entity, effective-dated mileage rates — admin-managed " +
           "history/audit (rate:read/rate:manage) and the employee-facing " +
           "effective-rate lookup (refund:access) that drives computed " +
-          "travel_km amounts (specs/009-mileage-rate).",
+          "travel_km amounts (specs/20260720-mileage-rate).",
       },
       {
         name: "Suggestions",
@@ -64,7 +64,7 @@ export function setupOpenAPI(app: OpenAPIHono): void {
           "Admin-managed refund configuration — an append-only key/value " +
           "store (settings:read/settings:manage), currently exposing the " +
           "accounting-distribution-email setting the compiled-batch email " +
-          "(specs/008) is sent to (specs/011-refund-settings).",
+          "(specs/20260719-refund-monthly-processing) is sent to (specs/20260722-refund-settings).",
       },
     ],
   });

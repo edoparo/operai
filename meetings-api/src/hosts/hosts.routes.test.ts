@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, spyOn } from "bun:test";
 import { createKit, type Kit } from "../test-support/routeKit";
 
-// AC-1.1, AC-1.7, AC-5.5, AC-5.6, AC-11.2, AC-11.3, AC-11.4 (specs/021 T21): the registry,
+// AC-1.1, AC-1.7, AC-5.5, AC-5.6, AC-11.2, AC-11.3, AC-11.4 (specs/20261104-meetings T21): the registry,
 // the entity lookup, a host entity's meetings and the linkable meetings (G2), with the
 // `testhost` fake and a CRM-shaped `crm/deal` on the same fake.
 

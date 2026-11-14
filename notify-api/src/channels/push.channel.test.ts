@@ -1,5 +1,5 @@
 /**
- * Push channel (T6, specs/029-push-notifications, ADR-0084). The repository, the
+ * Push channel (T6, specs/20261111-push-notifications, ADR 20261111-web-push-encrypted-payloads-not-fcm). The repository, the
  * recipient lookup and the sender are injected; the encryption test wires the REAL
  * sender to a fake HTTP transport and decrypts what would have gone on the wire.
  */
@@ -314,7 +314,7 @@ describe("pushChannel with the real sender (AC-2.1, 6.3)", () => {
   });
 });
 
-describe("pushChannel.dispatch — activity memo (ADR-0087, AC-5.2)", () => {
+describe("pushChannel.dispatch — activity memo (ADR 20261112-push-liveness-answer-reused-30-seconds, AC-5.2)", () => {
   it("100 notifications to one recipient within 30 s ask auth once and push every time", async () => {
     const sub = createTestSubscriber();
     const h = harness({ devices: [row("d1", ENDPOINT_A, sub)] });

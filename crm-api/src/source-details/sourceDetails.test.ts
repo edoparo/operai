@@ -4,7 +4,7 @@ import { foldDetail } from "./sourceDetails.routes";
 
 beforeEach(resetWorld);
 
-describe("GET /source-details (specs/017 US-7)", () => {
+describe("GET /source-details (specs/20261101-crm US-7)", () => {
   it("lists the details of one source across companies and deals, one entry per spelling family, most used first", async () => {
     const a = await makeCompany({ source: "event", sourceDetail: "Swiss Digital Day 2026" });
     await makeCompany({ source: "event", sourceDetail: "swiss  digital day 2026" });

@@ -1,6 +1,6 @@
 /**
- * The projects module's declared permission catalog (specs/025-projects — AC-4.1,
- * AC-4.3–4.6; ADR-0079).
+ * The projects module's declared permission catalog (specs/20261103-projects — AC-4.1,
+ * AC-4.3–4.6; ADR 20261103-projects-tool-shape-and-authorization).
  *
  * Mirrors `catalogs/crm.ts`'s shape: a plain constant describing the
  * (resource, action, supportedConditions) surface `projects-api` enforces
@@ -12,7 +12,7 @@
  *     tool AND is the whole read capability: every holder reads every project
  *     and contract (D13). `projects` is registered ONLY here, never also through
  *     `SUITE_APPS` (a second full-replace registration would prune it).
- *   - `project` — `manage`, supporting the `entity` condition (ADR-0015): create
+ *   - `project` — `manage`, supporting the `entity` condition (ADR 20260716-entity-scoped-abac-refund-api): create
  *     and edit projects, their team and contracts, and move their states, for the
  *     holder's own entity, or both when unconditioned.
  *   - `contract` — `bexio`, no conditions: write a contract's Bexio order id

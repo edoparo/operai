@@ -46,7 +46,7 @@ app.use(
   }),
 );
 
-// Redacted request logger (security-review fix #1, specs/006-user-invitations):
+// Redacted request logger (security-review fix #1, specs/20260713-user-invitations):
 // hono/logger() logs the full path INCLUDING the query string, which would
 // write the live `GET /invite?id&token=<raw>` invitation token into every log
 // line for that request — see src/lib/logger.ts.
@@ -74,7 +74,7 @@ app.route("/", invitationsRouter);
 app.route("/", accessRequestsRouter);
 app.route("/", inviteRouter);
 const signServiceJwt = signWithAuth(auth);
-// One set of limits for both /system endpoints: the invalid-credential count is shared (specs/029 US-7, ADR-0086).
+// One set of limits for both /system endpoints: the invalid-credential count is shared (specs/20261111-push-notifications US-7, ADR 20261112-system-endpoints-limited-per-verified-service).
 const systemLimits = createSystemRateLimits();
 console.log(
   `[system] limits per ${env.SYSTEM_RATE_WINDOW_MS} ms: service-token ${env.SERVICE_TOKEN_SERVICE_LIMIT} per service, ` +
@@ -82,7 +82,7 @@ console.log(
 );
 app.route("/", createServiceTokenRouter({ signJwt: signServiceJwt, limits: systemLimits }));
 app.route("/", createUserContactRouter({ getJwks: jwksFromAuth(auth), limits: systemLimits }));
-// `auth`'s own notify credential (specs/016 T7, ADR-0048): invitation emails
+// `auth`'s own notify credential (specs/20261013-notify-service-credentials T7, ADR 20261013-auth-mints-own-service-credential-in-process): invitation emails
 // authenticate with it. Injected here, not imported by lib/notify.ts, so that
 // module never depends on auth.config (see serviceToken.routes.ts).
 export const selfServiceTokenProvider = createSelfServiceTokenProvider({ signJwt: signServiceJwt });

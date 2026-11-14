@@ -1,12 +1,12 @@
 /**
- * Test-only fixture bridge for specs/013-estimate-sharing e2e (T25, QE pass).
+ * Test-only fixture bridge for specs/20260807-estimate-sharing e2e (T25, QE pass).
  *
  * Mirrors `refundFixtures.ts` exactly: EstimAI's `(estimai, access)` grant is
  * NOT on the baseline `employee` role assigned at sign-up (verified against
  * `auth/src/authz/seed.ts` — nothing grants it by default; `estimai` is
  * deliberately excluded from `SUITE_APPS`'s bare-access seeding because it
  * declares its own full catalog), yet T2's `auth POST /authz/app-access-check`
- * (ADR-0035) requires it on BOTH sides of a collaborator-add call: the owner
+ * (ADR 20260807-third-party-app-access-decision-endpoint-forwarded-jwt) requires it on BOTH sides of a collaborator-add call: the owner
  * (caller gate) and the target collaborator (the eligibility decision
  * itself). There is no test-only "make me EstimAI-eligible" endpoint (nor
  * should there be, for the same reason `inviteFixtures.ts`'s `grantRole` and

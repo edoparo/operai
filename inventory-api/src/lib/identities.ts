@@ -1,6 +1,6 @@
 /**
  * Display-identity resolution for holders and actors (T9, specs/015-hardware-
- * inventory; AC-3.7, AC-11.3; ADR-0039). Mirrors estimai-api/src/lib/authClient.ts
+ * inventory; AC-3.7, AC-11.3; ADR 20260807-live-identity-resolution-by-id-fail-soft). Mirrors estimai-api/src/lib/authClient.ts
  * `resolveIdentities`, plus the `system` status this feature adds.
  *
  * inventory-api stores only opaque auth user ids (`holderUserId`,
@@ -14,7 +14,7 @@
  * degrades the affected ids to `{status:"unknown", name:null}` and the read the
  * caller was serving still succeeds. That is the opposite of this service's
  * authorization path (`authzMiddleware`), which fails CLOSED with a 503; the two
- * are not to be harmonised (ADR-0039 vs ADR-0014).
+ * are not to be harmonised (ADR 20260807-live-identity-resolution-by-id-fail-soft vs ADR 20260716-refund-api-authorization-enforcing-resource-server).
  *
  * `system:*` ids (the launch seed, the legacy import) are not users: they map to
  * status `system` locally and are never sent to `auth`.
@@ -74,7 +74,7 @@ function toIdentity(raw: unknown): Identity | null {
   if (status === "active") {
     return { id, status, name: typeof name === "string" && name !== "" ? name : null };
   }
-  // A name is surfaced for an active user only (AC-10.5 of specs/013): a
+  // A name is surfaced for an active user only (AC-10.5 of specs/20260807-estimate-sharing): a
   // deleted or unknown one must not carry an identity that implies otherwise.
   if (status === "deleted") return { id, status, name: null };
   return unknown(id);

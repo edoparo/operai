@@ -58,7 +58,7 @@ afterEach(() => {
 })
 
 describe('summary cards (AC-7.2, AC-7.11)', () => {
-  it('lays out the lines the model wrote as a list as a real list, each item still plain text (ADR-0067)', async () => {
+  it('lays out the lines the model wrote as a list as a real list, each item still plain text (ADR 20261104-ai-output-structured-validated-plain-text)', async () => {
     serve(list([summary({ sections: [{ heading: 'Decisions', body: 'Agreed:\n- Ship on <b>Friday</b>\n- Freeze the scope' }] })]))
     panel()
     const card = await screen.findByRole('region', { name: 'Sales discovery' })
@@ -90,7 +90,7 @@ describe('summary cards (AC-7.2, AC-7.11)', () => {
     expect(screen.getByText(en.summaries.edited)).not.toBeNull()
   })
 
-  it('renders AI output as plain text: markup and Markdown links appear literally (ADR-0067)', async () => {
+  it('renders AI output as plain text: markup and Markdown links appear literally (ADR 20261104-ai-output-structured-validated-plain-text)', async () => {
     const hostile = '<img src=x onerror=alert(1)> [click](https://evil.test) <script>alert(2)</script> **bold**'
     serve(list([summary({ sections: [{ heading: '<b>Decisions</b>', body: hostile }] })]))
     const { container } = render(

@@ -55,7 +55,7 @@ services:
       start_period: 15s
 
   # ─── notify-api ─────────────────────────────────────────────────────────────
-  # Bun + Hono resource server for the notification center (specs/005).
+  # Bun + Hono resource server for the notification center (specs/20260713-notification-center).
   #
   # DATA-RESIDENCY: in production this service is deployed to Railway EU region
   # (see .railway/railway.ts, service notify-api). Locally it runs against the shared Postgres
@@ -98,7 +98,7 @@ services:
       start_period: 15s
 
   # ─── refund-api ─────────────────────────────────────────────────────────────
-  # Bun + Hono resource server for the reimbursement tool (specs/007).
+  # Bun + Hono resource server for the reimbursement tool (specs/20260716-refund-service).
   #
   # DATA-RESIDENCY: in production this service is deployed to Railway EU region
   # (see .railway/railway.ts, service refund-api). Locally it runs against the shared Postgres
@@ -108,9 +108,9 @@ services:
   # deploy`). Request/response bodies are never written to application logs
   # (hono/logger emits method+path+status only, enforced in src/index.ts) —
   # this service additionally handles financial figures and receipt-attachment
-  # metadata that may carry PII (ADR-0016). Receipt BYTES themselves never
+  # metadata that may carry PII (ADR 20260716-eu-object-storage-refund-attachments). Receipt BYTES themselves never
   # transit this container — they go direct-to-bucket via presigned URLs
-  # (REFUND_S3_*, a separate EU-region object-storage resource, ADR-0016).
+  # (REFUND_S3_*, a separate EU-region object-storage resource, ADR 20260716-eu-object-storage-refund-attachments).
   #
   # Prerequisites:
   #   1. Copy refund-api/.env.example → refund-api/.env and fill in values.
@@ -145,7 +145,7 @@ services:
 
   # ─── inventory-api ──────────────────────────────────────────────────────────
   # Bun + Hono resource server for the hardware inventory and depreciation
-  # register (specs/015-hardware-inventory).
+  # register (specs/20261006-hardware-inventory).
   #
   # DATA-RESIDENCY: in production this service is deployed to Railway EU region
   # (see .railway/railway.ts, service inventory-api). Locally it runs against the shared
@@ -194,7 +194,7 @@ services:
 
   # ─── projects-api ───────────────────────────────────────────────────────────
   # Bun + Hono resource server for the projects module: projects, their contracts
-  # and the project team (specs/025-projects).
+  # and the project team (specs/20261103-projects).
   #
   # DATA-RESIDENCY: in production this service is deployed to Railway EU region
   # (see .railway/railway.ts, service projects-api). Locally it runs against the shared Postgres
@@ -246,7 +246,7 @@ services:
 
   # ─── activities-api ─────────────────────────────────────────────────────────
   # Bun + Hono resource server holding the activities, tasks and blockers of the CRM and of
-  # the projects module (specs/028-activities, ADR-0081/0082/0083). It owns no permission
+  # the projects module (specs/20261110-activities, ADR 20261110-activities-service-access-delegated-to-host/0082/0083). It owns no permission
   # catalog: every read and write asks the record's host (crm-api, projects-api) "may this
   # user ..." with the caller's own JWT and fails closed.
   #
@@ -299,7 +299,7 @@ services:
 
   # ─── minio (local S3-compatible object storage) ─────────────────────────────
   # LOCAL-DEV-ONLY stand-in for the production EU-region bucket refund-api uses
-  # for receipt attachments (ADR-0016). S3-compatible, path-style addressing
+  # for receipt attachments (ADR 20260716-eu-object-storage-refund-attachments). S3-compatible, path-style addressing
   # (refund-api/src/lib/storage.ts auto-enables forcePathStyle for any non-AWS
   # endpoint); buckets are PRIVATE by default — matching the "bucket must be
   # private, receipts served only via presigned URLs" requirement. In
@@ -347,7 +347,7 @@ services:
   # stays PRIVATE (no anonymous access), then exits. Re-running compose is
   # idempotent (`mb --ignore-existing`).
   #
-  # The `meetings` bucket (specs/021, ADR-0063) holds recorded audio only. It gets ONE
+  # The `meetings` bucket (specs/20261104-meetings, ADR 20261104-audio-retention-bucket-lifecycle-verified-at-startup) holds recorded audio only. It gets ONE
   # bucket-wide lifecycle rule (expire after 29 days, no prefix filter) and must never be
   # versioned: meetings-api refuses to start against a bucket without that rule or with
   # versioning Enabled. The rule is replaced on every run (`rm --all` then `add`) rather

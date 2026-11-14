@@ -4,7 +4,7 @@ import { NOT_DISCUSSED, NOT_FOUND_INCOMPLETE } from "../ai/prompts/summary";
 import { CREATOR, OTHER, call, db, json, kit, mkMeeting, useKit } from "../test-support/captureKit";
 import { answerWithoutCaveat, withoutDismissed } from "./gapDismissal";
 
-// specs/021 A10: the creator marks a possible gap "no speech here" after listening; it is then ignored everywhere,
+// specs/20261104-meetings A10: the creator marks a possible gap "no speech here" after listening; it is then ignored everywhere,
 // and the caveats the service wrote because of it are withdrawn (service-written text only).
 
 useKit();

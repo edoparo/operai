@@ -1,5 +1,5 @@
 /* Test-only resolution stub for the `shell/tokens.css` federated module
- * (T13, specs/004-auth-roles-permissions). Same rationale as
+ * (T13, specs/20260713-auth-roles-permissions). Same rationale as
  * shellSession.ts in this directory: Vite's import-analysis needs a real,
  * resolvable module for the `import 'shell/tokens.css'` side-effect import
  * in App.tsx even though unit tests never assert on the actual token values

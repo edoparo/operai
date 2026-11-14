@@ -18,11 +18,11 @@ import { readLastToolId, recordLastTool, resolveLastToolPath, TOOLS, type ToolId
 import { strings } from './strings'
 
 // ---------------------------------------------------------------------------
-// Shell router — the integration keystone (T9, specs/003-suite-shell).
+// Shell router — the integration keystone (T9, specs/20260709-suite-shell).
 //
 // Composes everything built by the earlier tasks into a real, guarded,
 // routed app:
-//   - `_authed` (pathless): the suite-wide session guard (AC-2.1, ADR-0002),
+//   - `_authed` (pathless): the suite-wide session guard (AC-2.1, ADR 20260607-sign-in-page-hosted-by-auth-service),
 //     ported verbatim from estimai-ui's `_authed` route (T4's `shell/session`
 //     supplies `getSession` instead of estimai-ui's own `authClient`).
 //   - `_shell` (pathless, child of `_authed`): renders ShellLayout (T5) with
@@ -61,7 +61,7 @@ import { strings } from './strings'
 //     captured uniformly here rather than only wiring the sidebar's click
 //     handler.
 //
-// T25 (specs/004-auth-roles-permissions, US-7, AC-7.3/7.4/7.5) adds:
+// T25 (specs/20260713-auth-roles-permissions, US-7, AC-7.3/7.4/7.5) adds:
 //   - `/admin/$`: a third tool route, mounting the new `admin-ui` remote
 //     exactly like `/estimai/$`/`/refund/$` (see "New admin-ui remote"
 //     below).
@@ -98,7 +98,7 @@ import { strings } from './strings'
 //     granted apps at all — reached either via the root `/` redirect (below)
 //     or via a tool route's access guard.
 //
-// T13 (specs/005-notification-center, US-2 AC-2.1) adds:
+// T13 (specs/20260713-notification-center, US-2 AC-2.1) adds:
 //   - `/notify/$`: mounts the new `notify-ui` remote via RemoteMount exactly
 //     like the tool routes above (see "New notify-ui remote" below) — SAME
 //     mounting mechanism, but a DELIBERATE DIVERGENCE from the app-access
@@ -112,7 +112,7 @@ import { strings } from './strings'
 //     inside the shared chrome — only the per-tool access check is skipped.
 //     Reached from the bell (T11), not the nav.
 //
-// T14/T15 (specs/012-employee-address, US-6 AC-6.1; ADR-0034) add:
+// T14/T15 (specs/20260803-employee-address, US-6 AC-6.1; ADR 20260804-shell-identity-scoped-non-tool-screens-account-route) add:
 //   - `/account`: renders `AccountScreen` (T14) directly — the employee
 //     self-view of their own stored address. Structurally identical to
 //     `/notify` above (child of `shellRoute`, NO `beforeLoad` app-access
@@ -142,7 +142,7 @@ const rootRoute = createRootRoute({ component: () => <Outlet /> })
 // `<AUTH_URL>/sign-in?redirect=<current absolute URL>`. The `redirect` value
 // is the real window.location.href — open-redirect safe because the auth
 // service only ever honours its own ALLOWED_ORIGINS allowlist when deciding
-// where to send the user back to (ADR-0002), not because this value is
+// where to send the user back to (ADR 20260607-sign-in-page-hosted-by-auth-service), not because this value is
 // validated client-side.
 //
 // Bug fix (2026-07): this guard used to call `getSession()` unconditionally
@@ -277,24 +277,24 @@ const indexRoute = createRoute({
 
 const loadEstimaiApp = () => import('estimai/App')
 const loadRefundApp = () => import('refund/App')
-// T25 (specs/004-auth-roles-permissions, US-1 host side): admin-ui's exposed
+// T25 (specs/20260713-auth-roles-permissions, US-1 host side): admin-ui's exposed
 // root — same loader shape as the two above.
 const loadAdminApp = () => import('admin/App')
-// T13 (specs/005-notification-center): notify-ui's exposed root — same
+// T13 (specs/20260713-notification-center): notify-ui's exposed root — same
 // loader shape as the three above.
 const loadNotifyApp = () => import('notify/App')
-// specs/015-hardware-inventory, T42 (ADR-0045): inventory-ui exposes TWO
+// specs/20261006-hardware-inventory, T42 (ADR 20261006-ungated-second-federated-entry-of-a-gated-remote): inventory-ui exposes TWO
 // mountable entries — `./App` (the gated tool, `/inventory/$`) and
 // `./MyDevices` (the identity-scoped devices screen, ungated `/devices`).
 const loadInventoryApp = () => import('inventory/App')
 const loadMyDevices = () => import('inventory/MyDevices')
-// specs/017-crm: crm-ui's gated tool entry (`/crm/$`).
+// specs/20261101-crm: crm-ui's gated tool entry (`/crm/$`).
 const loadCrmApp = () => import('crm/App')
-// specs/021-meetings (ADR-0045 shape): meetings-ui exposes `./App` (the gated tool,
+// specs/20261104-meetings (ADR 20261006-ungated-second-federated-entry-of-a-gated-remote shape): meetings-ui exposes `./App` (the gated tool,
 // `/meetings/$`) and `./MyMeetings` (the identity-scoped entry, ungated `/my-meetings/$`).
 const loadMeetingsApp = () => import('meetings/App')
 const loadMyMeetings = () => import('meetings/MyMeetings')
-// specs/025-projects: projects-ui's gated tool entry (`/projects/$`).
+// specs/20261103-projects: projects-ui's gated tool entry (`/projects/$`).
 const loadProjectsApp = () => import('projects/App')
 
 // ---------------------------------------------------------------------------
@@ -407,7 +407,7 @@ const inventoryRoute = createRoute({
   component: () => <RemoteMount loader={loadInventoryApp} moduleLabel={strings.tools.inventory} />,
 })
 
-// specs/017-crm (ADR-0052): the CRM, a gated tool like the four above.
+// specs/20261101-crm (ADR 20261101-crm-tool-shape-and-authorization): the CRM, a gated tool like the four above.
 const crmRoute = createRoute({
   getParentRoute: () => shellRoute,
   path: '/crm/$',
@@ -415,7 +415,7 @@ const crmRoute = createRoute({
   component: () => <RemoteMount loader={loadCrmApp} moduleLabel={strings.tools.crm} />,
 })
 
-// specs/021-meetings (ADR-0058): Meetings, a gated tool like the five above.
+// specs/20261104-meetings (ADR 20261104-meetings-tool-shape-visibility-by-participation): Meetings, a gated tool like the five above.
 const meetingsRoute = createRoute({
   getParentRoute: () => shellRoute,
   path: '/meetings/$',
@@ -423,7 +423,7 @@ const meetingsRoute = createRoute({
   component: () => <RemoteMount loader={loadMeetingsApp} moduleLabel={strings.tools.meetings} />,
 })
 
-// specs/025-projects (AC-4.1): the Projects module, gated by `projects:access`.
+// specs/20261103-projects (AC-4.1): the Projects module, gated by `projects:access`.
 const projectsRoute = createRoute({
   getParentRoute: () => shellRoute,
   path: '/projects/$',
@@ -432,14 +432,14 @@ const projectsRoute = createRoute({
 })
 
 // ---------------------------------------------------------------------------
-// `/devices` — "My devices" (specs/015-hardware-inventory, T42, US-4 AC-4.1,
-// ADR-0045). The second, UNGATED federated entry of the inventory remote:
+// `/devices` — "My devices" (specs/20261006-hardware-inventory, T42, US-4 AC-4.1,
+// ADR 20261006-ungated-second-federated-entry-of-a-gated-remote). The second, UNGATED federated entry of the inventory remote:
 // every signed-in user must see the devices assigned to them and answer a
 // pending assignment, including one holding NO `inventory:access` grant — yet
 // the tool itself stays absent from such a user's navigation (AC-9.6).
 //
 // Same shape as `/notify/$` above, with the same three deliberate absences:
-//   - NO `beforeLoad` app-access guard (ADR-0034's test: every signed-in user
+//   - NO `beforeLoad` app-access guard (ADR 20260804-shell-identity-scoped-non-tool-screens-account-route's test: every signed-in user
 //     must reach it). The `_authed` session guard on the parent still applies.
 //   - NO `recordLastTool`: there is no `ToolId` for it and it is absent from
 //     `TOOLS`; writing `operai_last_tool` here would corrupt the same-app/
@@ -447,9 +447,9 @@ const projectsRoute = createRoute({
 //     `createToolAccessBeforeLoad`).
 //   - NOT under the `/inventory` prefix, which would inherit the tool guard.
 // Not a splat route: MyDevices is a single screen with no inner router.
-// Tool BUSINESS LOGIC stays in the remote (ADR-0009); the shell owns only this
+// Tool BUSINESS LOGIC stays in the remote (ADR 20260713-notification-center-standalone-service-shell-seam); the shell owns only this
 // route and the UserMenu link. A failing remote shows RemoteMount's in-place
-// error with the chrome intact (ADR-0030's degrade-silently rule).
+// error with the chrome intact (ADR 20260803-suite-version-generated-file-federated-export's degrade-silently rule).
 // ---------------------------------------------------------------------------
 
 const devicesRoute = createRoute({
@@ -459,8 +459,8 @@ const devicesRoute = createRoute({
 })
 
 // ---------------------------------------------------------------------------
-// `/my-meetings/$` — "My meetings" (specs/021-meetings, AC-10.1, AC-10.4,
-// ADR-0045 shape, ADR-0034's test). The second, UNGATED federated entry of the
+// `/my-meetings/$` — "My meetings" (specs/20261104-meetings, AC-10.1, AC-10.4,
+// ADR 20261006-ungated-second-federated-entry-of-a-gated-remote shape, ADR 20260804-shell-identity-scoped-non-tool-screens-account-route's test). The second, UNGATED federated entry of the
 // meetings remote: a participant without `meetings:access` must still read the
 // meetings they were added to, while the tool itself stays absent from their
 // navigation. Every deep link (notifications, the CRM activity, host panel rows)
@@ -484,7 +484,7 @@ const myMeetingsRoute = createRoute({
 // adminRoute above (same catch-all `/$` shape, same RemoteMount boundary,
 // same parent — `shellRoute`, so it still sits under the `_authed` session
 // guard and inside the shared chrome) with exactly ONE difference: NO
-// `beforeLoad`. plan.md "Shell changes" (specs/005-notification-center) is
+// `beforeLoad`. plan.md "Shell changes" (specs/20260713-notification-center) is
 // explicit that `/notify` is deliberately NOT app-access-gated — every
 // signed-in user has notifications (US-6), and the spec's non-goal forbids
 // re-gating notification visibility by app-access. Consequently this route
@@ -501,8 +501,8 @@ const notifyRoute = createRoute({
 })
 
 // ---------------------------------------------------------------------------
-// `/account` — AccountScreen (T14/T15, specs/012-employee-address, US-6
-// AC-6.1, ADR-0034). Deliberately NO `beforeLoad` — see the T14/T15 module
+// `/account` — AccountScreen (T14/T15, specs/20260803-employee-address, US-6
+// AC-6.1, ADR 20260804-shell-identity-scoped-non-tool-screens-account-route). Deliberately NO `beforeLoad` — see the T14/T15 module
 // doc above for why (mirrors `/notify` exactly). Not a splat/catch-all route
 // like the tool routes: `AccountScreen` mounts no inner router of its own
 // (unlike a federated remote), so there is no sub-path to catch.

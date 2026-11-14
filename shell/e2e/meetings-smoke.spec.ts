@@ -1,5 +1,5 @@
 /**
- * T86 — Meetings harness smoke (specs/021-meetings, AC-11.4 harness).
+ * T86 — Meetings harness smoke (specs/20261104-meetings, AC-11.4 harness).
  *
  * Proves the e2e harness itself end to end, before the journeys build on it:
  * a person is seeded with a real session, a meeting is seeded through
@@ -28,7 +28,7 @@ import {
 
 const runId = newRunId()
 
-test.describe('specs/021 T86: meetings harness smoke', () => {
+test.describe('specs/20261104-meetings T86: meetings harness smoke', () => {
   let holder: Person
   let noGrant: Person
   let sharedRolesBefore: string[] = []

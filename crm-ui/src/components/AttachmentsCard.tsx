@@ -34,7 +34,7 @@ function attachmentFailure(error: unknown): string {
 }
 
 /**
- * AttachmentsCard — files on the deal, for every `crm:access` holder (specs/018
+ * AttachmentsCard — files on the deal, for every `crm:access` holder (specs/20261101-crm-sales-flow
  * AC-4.3/4.4). Upload is three calls: crm-api issues a presigned POST, the
  * browser posts the file to the bucket with plain `fetch` (the bucket is not an
  * API origin and must never see the Bearer token), then crm-api confirms it.

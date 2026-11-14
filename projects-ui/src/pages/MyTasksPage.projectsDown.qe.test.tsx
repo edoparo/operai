@@ -1,7 +1,7 @@
 /**
  * @vitest-environment jsdom
  *
- * QE (specs/028 pass 2026-11-11): the converse of AC-7.5. activities-api's `GET /tasks?kind=all` also
+ * QE (specs/20261110-activities pass 2026-11-11): the converse of AC-7.5. activities-api's `GET /tasks?kind=all` also
  * answers `unavailable: ["projects"]` with only the pre-sales rows when the PROJECTS host fails (its own
  * tasks.test.ts pins that, since T9 and again for the label call in 89278f6f). The page only reads
  * `unavailable.includes('crm')`, so the list is silently short. design.md S4 and the spec say nothing

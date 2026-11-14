@@ -4,7 +4,7 @@ import { ACCESS_REQUEST_STATUS_MEANING } from '../lib/statusMeaning'
 import { strings } from '../strings'
 
 /**
- * AccessRequestStatusBadge — a waiting-list request's status (T9, specs/023):
+ * AccessRequestStatusBadge — a waiting-list request's status (T9, specs/20261105-signup-gate):
  * the library `StatusBadge` with the meaning from `lib/statusMeaning.ts` and
  * the label from `strings.badges.accessRequestStatus`.
  */

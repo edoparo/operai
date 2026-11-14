@@ -1,12 +1,12 @@
 /**
  * GET / POST /estimates/{id}/collaborators — the collaborator "add path"
- * (T8, specs/013-estimate-sharing — refs AC-1.1, AC-1.2, AC-1.3, AC-1.4,
+ * (T8, specs/20260807-estimate-sharing — refs AC-1.1, AC-1.2, AC-1.3, AC-1.4,
  * AC-1.5, AC-5.4; plan.md "API contracts — estimai-api — new").
  *
  * ALSO — PATCH /estimates/{id}/collaborators/{collaboratorId},
  * DELETE /estimates/{id}/collaborators/{collaboratorId}, and
  * DELETE /estimates/{id}/collaborators/me — manage / revoke / leave (T9,
- * specs/013-estimate-sharing — refs AC-5.1, AC-5.2, AC-5.3, AC-6.1, AC-6.2).
+ * specs/20260807-estimate-sharing — refs AC-5.1, AC-5.2, AC-5.3, AC-6.1, AC-6.2).
  * See the dedicated "T9" section further down this file for that trio's
  * documentation (registration-order constraint, notification scope
  * boundary, next-request-only enforcement).
@@ -64,7 +64,7 @@
  *      (an email-snapshot mismatch cannot create a duplicate grant)
  *   9. after commit, best-effort notify (AC-7.1)
  *
- * STEP 9 (T10, specs/013's notification wiring, deps: T8, T9): AFTER the
+ * STEP 9 (T10, specs/20260807-estimate-sharing's notification wiring, deps: T8, T9): AFTER the
  * INSERT above commits, `deps.notifyCollaboratorGranted` (defaulting to
  * `src/lib/notify.ts`'s real export) fires once, best-effort — see
  * `bestEffortNotify`/`resolveEstimateNameForNotify` further down this file.
@@ -78,7 +78,7 @@
  * fixed non-interpolated detail string, for BOTH ineligibility causes
  * ("no such user" and "user exists but lacks EstimAI access" — `auth`
  * already collapses these into the same `{eligible:false}` body at the
- * source, ADR-0035). Floored to `SHARE_LOOKUP_FLOOR_MS`, timed from the very
+ * source, ADR 20260807-third-party-app-access-decision-endpoint-forwarded-jwt). Floored to `SHARE_LOOKUP_FLOOR_MS`, timed from the very
  * top of the handler so the floor covers the whole round trip (duplicate
  * check + the `auth` call), matching `auth`'s own floor on its
  * `eligible:false` path. No other branch of this handler is floored.
@@ -196,8 +196,8 @@ const problemForbidden = (path: string, detail: string, code: string) => ({
 
 // "No relationship to this estimate" (resolveAccess === null): 404 for a
 // stranger — byte-identical to AC-1.6 — but 403 `oversight_read_only` for a
-// holder of `estimate:read-all` looking at a real estimate (specs/024, AC-1.4,
-// ADR-0075). The permission is asked of `auth` only here, never on the
+// holder of `estimate:read-all` looking at a real estimate (specs/20261108-estimate-list-oversight, AC-1.4,
+// ADR 20261108-estimai-oversight-permission-amends-0036). The permission is asked of `auth` only here, never on the
 // owner/collaborator path.
 async function noRelationship(
   c: Context<{ Variables: JwtVariables }>,
@@ -306,7 +306,7 @@ async function resolveEstimateNameForNotify(estimateId: string): Promise<string>
   return "this estimate";
 }
 
-// ─── Display identity helper (ADR-0039 — fails SOFT, never gates access) ────
+// ─── Display identity helper (ADR 20260807-live-identity-resolution-by-id-fail-soft — fails SOFT, never gates access) ────
 
 const toWireIdentity = (resolved: ResolvedIdentity): Collaborator["identity"] => ({
   status: resolved.status,
@@ -619,7 +619,7 @@ export function registerCollaboratorRoutes(
   });
 
   // ═══════════════════════════════════════════════════════════════════════
-  // T9 — manage / revoke / leave (specs/013-estimate-sharing, refs AC-5.1,
+  // T9 — manage / revoke / leave (specs/20260807-estimate-sharing, refs AC-5.1,
   // AC-5.2, AC-5.3, AC-6.1, AC-6.2; plan.md "API contracts — estimai-api —
   // new")
   // ═══════════════════════════════════════════════════════════════════════
@@ -643,7 +643,7 @@ export function registerCollaboratorRoutes(
   // NO NOTIFICATION IS FIRED BY `PATCH` (AC-7.3 — a level change is
   // deliberately silent) OR BY `DELETE .../me` (AC-7.2 excludes self-leave).
   // The owner-initiated `DELETE .../collaborators/{collaboratorId}` DOES
-  // carry a best-effort removal notification (T10, specs/013): AFTER the
+  // carry a best-effort removal notification (T10, specs/20260807-estimate-sharing): AFTER the
   // DELETE below commits, `deps.notifyCollaboratorRemoved` fires once, with
   // NO `link` (plan.md: "the target would 404") — see
   // `bestEffortNotify`/`resolveEstimateNameForNotify` further up this file.

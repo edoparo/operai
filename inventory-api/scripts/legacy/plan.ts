@@ -1,6 +1,6 @@
 /**
  * Turns the decoded sheet into the exact set of rows the import would write
- * (T23, specs/015-hardware-inventory; US-12, ADR-0046). Pure: no database, no
+ * (T23, specs/20261006-hardware-inventory; US-12, ADR 20261006-depreciation-derived-on-read-closed-years-snapshotted). Pure: no database, no
  * clock, no I/O, so the dry-run and the apply are the same computation and a
  * test can check every figure.
  *

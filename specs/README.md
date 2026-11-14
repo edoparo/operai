@@ -39,4 +39,4 @@ to run on an unapproved spec; `/welld-dev:tasks` refuses to run on an unapproved
 The spec is the source of truth. If implementation reveals the spec or plan is wrong:
 stop, update `spec.md`/`plan.md` first, re-run `/welld-dev:tasks` to re-sync, then
 continue coding. Reference task IDs in commit messages:
-`feat(report): add CSV serializer (T1, specs/002)`.
+`feat(report): add CSV serializer (T1, specs/20260606-ui-auth-integration)`.

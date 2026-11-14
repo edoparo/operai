@@ -96,7 +96,7 @@ const fromDraft = (draft: OfferDraft): Form => ({
   validity: String(draft.validityDays),
 })
 
-/** An offer's own content (specs/020 US-7): its contacts and PDFs come back chosen. */
+/** An offer's own content (specs/20261102-crm-offer-document US-7): its contacts and PDFs come back chosen. */
 const fromForm = (offerForm: OfferForm): Form => ({
   ...fromDraft(offerForm),
   contactIds: [...offerForm.contactIds],
@@ -109,7 +109,7 @@ export type OfferSource = { offer: Offer; mode: 'edit' | 'revise' }
 const isPdf = (attachment: Attachment) => attachment.contentType === 'application/pdf'
 
 /**
- * GenerateOfferDialog — prepares an offer from a template (specs/020 US-3):
+ * GenerateOfferDialog — prepares an offer from a template (specs/20261102-crm-offer-document US-3):
  * pick a template, review the draft the server fills in (placeholders, the deal
  * amount and the estimate's figures), edit every text and cost line, choose the
  * contacts and the deal PDFs to append, then post. The totals shown are the
@@ -127,7 +127,7 @@ export default function GenerateOfferDialog({
   onCancel,
 }: {
   deal: Deal
-  /** Start from an existing offer instead of a template (specs/020 US-7). */
+  /** Start from an existing offer instead of a template (specs/20261102-crm-offer-document US-7). */
   source?: OfferSource
   onGenerated: (offer: Offer) => void
   onCancel: () => void

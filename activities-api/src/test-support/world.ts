@@ -1,5 +1,5 @@
 /**
- * Test world for activities-api route tests (specs/028-activities): a request helper over
+ * Test world for activities-api route tests (specs/20261110-activities): a request helper over
  * the ASSEMBLED app with a signed-in persona, the scriptable crm and projects test hosts
  * behind the REAL registry and resolve client (hosts.ts), a stub of the two `auth` endpoints
  * the routes call (identities, app-access-check), and a reset between tests.
@@ -134,7 +134,7 @@ export interface Persona {
 export const PERSONAS = {
   alice: { sub: "user-alice" },
   bob: { sub: "user-bob" },
-  // CRM (specs/017 personas): all hold crm access.
+  // CRM (specs/20261101-crm personas): all hold crm access.
   consultant: { sub: "user-consultant" },
   colleague: { sub: "user-colleague" },
   tech: { sub: "user-tech" },

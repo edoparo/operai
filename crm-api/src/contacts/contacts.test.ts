@@ -91,7 +91,7 @@ describe("contacts (US-2)", () => {
   });
 });
 
-describe("contact sorting (specs/017 US-9)", () => {
+describe("contact sorting (specs/20261101-crm US-9)", () => {
   it("sorts by name, company, job title or email; empty values last", async () => {
     const zeta = await makeCompany({ name: "Zeta" });
     const acme = await makeCompany({ name: "Acme" });

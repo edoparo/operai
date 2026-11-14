@@ -1,7 +1,7 @@
 /**
  * @vitest-environment jsdom
  *
- * Unit tests for src/lib/requestsApi.ts (T16, specs/007-refund-service/
+ * Unit tests for src/lib/requestsApi.ts (T16, specs/20260716-refund-service/
  * tasks.md) — the typed employee-facing operations built on refundApi.ts's
  * generic plumbing. Strategy mirrors refundApi.test.ts: `shell/session`'s
  * `apiFetch` is mocked at the module level.

@@ -1,6 +1,6 @@
 /**
  * AccessRequestsPage — the waiting list of people who signed in without an
- * invitation (T9, specs/023-signup-gate, design.md S1–S3, flows F1–F4 and F7).
+ * invitation (T9, specs/20261105-signup-gate, design.md S1–S3, flows F1–F4 and F7).
  * Route `/users/access-requests` (../router.tsx), third tab of `UsersSubNav`.
  *
  * Status filter (Pending by default — component state, not URL, so the

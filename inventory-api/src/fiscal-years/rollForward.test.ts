@@ -1,5 +1,5 @@
 /**
- * The roll-forward builder (T19, specs/015; AC-8.1, AC-8.2, AC-8.3, AC-7.2, AC-7.3, ADR-0046).
+ * The roll-forward builder (T19, specs/20261006-hardware-inventory; AC-8.1, AC-8.2, AC-8.3, AC-7.2, AC-7.3, ADR 20261006-depreciation-derived-on-read-closed-years-snapshotted).
  * Pure: assets, rule and stored rows in, a statement out. Property-style: a seeded
  * generator builds mixed asset sets (native + anchored, disposed mid-life, threshold
  * expensed, bought in the year) and every set must satisfy the statement's invariants.

@@ -1,7 +1,7 @@
 /**
  * Shared "resolve a batch's downloadable PDF link" helper (T4,
- * specs/008-refund-monthly-processing, ADR-0019 regenerable-cache posture;
- * fail-soft hardening — OWASP A04 fix round, specs/008 QE/security finding).
+ * specs/20260719-refund-monthly-processing, ADR 20260719-refund-batch-pdf-generation-pdf-lib regenerable-cache posture;
+ * fail-soft hardening — OWASP A04 fix round, specs/20260719-refund-monthly-processing QE/security finding).
  *
  * Used by every surface that must hand back a fresh, short-lived presigned
  * GET for a batch's compiled PDF: `GET /batches/:id`, `GET
@@ -9,7 +9,7 @@
  * discard (T6/T8) — all of them need the SAME "HEAD, lazily regenerate on
  * miss, mint" sequence, so it lives in one place rather than four.
  *
- * The PDF object is a regenerable cache, not the source of truth (ADR-0019):
+ * The PDF object is a regenerable cache, not the source of truth (ADR 20260719-refund-batch-pdf-generation-pdf-lib):
  * if the compile-time `PutObject` ever failed, or the object is otherwise
  * missing, this function deterministically re-renders it from the batch's
  * frozen `RefundBatchItem` membership (via `toBatchPdfEmployees`) — this is
@@ -18,7 +18,7 @@
  *
  * FAIL-SOFT (OWASP A04 fix round): this function used to let ANY failure —
  * a `headObject`/`renderBatchPdf`/`putObject`/`mintPresignedGet` error —
- * propagate up as an uncaught rejection. Combined with the ADR-0019 lazy-
+ * propagate up as an uncaught rejection. Combined with the ADR 20260719-refund-batch-pdf-generation-pdf-lib lazy-
  * regenerate design, that turned a single bad render (the pre-fix
  * `pdf.ts` threw on a non-WinAnsi display name) into a PERMANENTLY
  * unreadable batch: every subsequent `GET /batches/:id` re-attempted the

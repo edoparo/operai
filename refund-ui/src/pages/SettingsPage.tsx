@@ -35,12 +35,12 @@ const t = strings.settings
 
 /**
  * SettingsPage — the refund tool's configuration (moved from admin-ui's
- * "Refund" section on 2026-11-13; ADR-0023 amendment): one card per entity
- * with its append-only mileage-rate history (specs/009 AC-4.1–4.7, AC-5.3) and
- * the accounting distribution email (specs/011 AC-1.1–1.4, AC-3.2, AC-5.3).
+ * "Refund" section on 2026-11-13; ADR 20260720-mileage-rate-model-snapshot-admin-ui-composition amendment): one card per entity
+ * with its append-only mileage-rate history (specs/20260720-mileage-rate AC-4.1–4.7, AC-5.3) and
+ * the accounting distribution email (specs/20260722-refund-settings AC-1.1–1.4, AC-3.2, AC-5.3).
  *
  * Two independent fetch/state machines, because they are two resources with
- * two capabilities (`rate:*`, `settings:*`, ADR-0028):
+ * two capabilities (`rate:*`, `settings:*`, ADR 20260722-settings-catalog-permission-config-not-rate):
  *   - rates: always fetched; a 403 shows a section-level PermissionDenied.
  *   - email: fetched only with `settings:read`; without it, or on a 403, the
  *     card is not shown at all (AC-3.2).
@@ -77,7 +77,7 @@ type AddModalState =
 
 /**
  * State for the accounting-distribution-email panel (T6,
- * specs/011-refund-settings/tasks.md, refs AC-1.1, AC-3.2, AC-5.3).
+ * specs/20260722-refund-settings/tasks.md, refs AC-1.1, AC-3.2, AC-5.3).
  *
  * `hidden` is the reactive path: "GET /settings/:key came back 403 anyway"
  * (mirrors the rate section's `forbidden` handling but as an outright absence
@@ -132,7 +132,7 @@ const mapAddRateError = (error: ApiError): { rateError: string | null; validFrom
 }
 
 /**
- * A rate per km for display: integer micros of the currency unit (ADR-0025)
+ * A rate per km for display: integer micros of the currency unit (ADR 20260720-mileage-rate-money-precision-integer-micros)
  * as a locale number with at least two decimals and up to the six micros
  * carry, with the currency per km — "CHF 0.81/km" (INC-27).
  */
@@ -165,10 +165,10 @@ export default function SettingsPage() {
   const [reloadToken, setReloadToken] = useState(0)
   const [addModal, setAddModal] = useState<AddModalState>({ open: false })
 
-  // Accounting distribution email panel (T6, specs/011-refund-settings) — an
+  // Accounting distribution email panel (T6, specs/20260722-refund-settings) — an
   // entirely independent fetch/state machine from the rate section above:
   // different resource, different capability (`settings:read`/`manage`,
-  // ADR-0028), so it is gated and reloaded on its own rather than piggy-backing
+  // ADR 20260722-settings-catalog-permission-config-not-rate), so it is gated and reloaded on its own rather than piggy-backing
   // on the rate section's `listState`.
   const [settingsState, setSettingsState] = useState<SettingsState>({ status: 'loading' })
   const [settingsReloadToken, setSettingsReloadToken] = useState(0)
@@ -220,7 +220,7 @@ export default function SettingsPage() {
   }, [])
 
   // ---------------------------------------------------------------------------
-  // Accounting distribution email panel (T6, specs/011-refund-settings)
+  // Accounting distribution email panel (T6, specs/20260722-refund-settings)
   // ---------------------------------------------------------------------------
 
   // Same Promise-chain rationale as the rate-list effect above
@@ -344,7 +344,7 @@ export default function SettingsPage() {
 
     // Client-side pre-check (design.md ADM-M1: "Field error … or client-side
     // pre-check" both render the same field-level message).
-    // INC-17: the rate is parsed exactly into integer micros (ADR-0025's rate
+    // INC-17: the rate is parsed exactly into integer micros (ADR 20260720-mileage-rate-money-precision-integer-micros's rate
     // precision, up to 6 decimals), comma or dot, never through a float. Both
     // fields are checked so every error shows at once; the modal then focuses
     // the first invalid one.

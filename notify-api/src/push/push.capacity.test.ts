@@ -1,12 +1,12 @@
 /**
- * Push under load (T18, specs/029-push-notifications, plan rows "AC-2.1 under load",
+ * Push under load (T18, specs/20261111-push-notifications, plan rows "AC-2.1 under load",
  * "AC-5.2 (amended) memo" and AC-7.7 integration; QE D-1).
  *
  * Nothing between notify-api's route and auth's contract is stubbed: the REAL
  * `createServiceTokenProvider`, the REAL `createUserContactClient`, the REAL activity check,
  * the REAL push channel and the REAL `POST /system/notifications` router (real Postgres for the
  * notification rows) talk over HTTP to a FAKE AUTH on `Bun.serve` that enforces auth's US-7
- * contract (ADR-0086, auth/src/system/systemRateLimits.ts):
+ * contract (ADR 20261112-system-endpoints-limited-per-verified-service, auth/src/system/systemRateLimits.ts):
  *
  *   - 300 service tokens and 600 contact lookups per verified calling service per window,
  *   - one invalid-credential count per source ADDRESS (20 per window, both endpoints), and
@@ -311,7 +311,7 @@ describe("AC-2.1 under load — the real client against auth's US-7 contract (D-
   });
 });
 
-describe("AC-5.2 memo against the real client (ADR-0087)", () => {
+describe("AC-5.2 memo against the real client (ADR 20261112-push-liveness-answer-reused-30-seconds)", () => {
   it("a user deactivated at d: a notification at d + 10 s may still push (memo), at d + 30 s nothing is sent and every device is deleted", async () => {
     const [u] = users(1) as [string];
     current = await rig(new Set([u]));

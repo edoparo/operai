@@ -1,4 +1,4 @@
-/** Schemas for the invoice-file routes (T21, specs/015-hardware-inventory; plan § Invoice files). */
+/** Schemas for the invoice-file routes (T21, specs/20261006-hardware-inventory; plan § Invoice files). */
 
 import { z } from "@hono/zod-openapi";
 import { EntitySchema } from "../depreciation/rules.schemas";

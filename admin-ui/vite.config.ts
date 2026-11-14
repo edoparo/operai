@@ -4,10 +4,10 @@ import { federation } from '@module-federation/vite'
 import { readFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 
-// T13 (specs/004-auth-roles-permissions/tasks.md): admin-ui — the Roles &
+// T13 (specs/20260713-auth-roles-permissions/tasks.md): admin-ui — the Roles &
 // Permissions management GUI's dedicated Module Federation REMOTE (plan.md
-// "New admin-ui remote (ADR-0006 shape)"). Mirrors refund-ui/vite.config.ts
-// (T15, specs/003-suite-shell) exactly — same federation shape, same shared
+// "New admin-ui remote (ADR 20260709-suite-frontend-module-federation shape)"). Mirrors refund-ui/vite.config.ts
+// (T15, specs/20260709-suite-shell) exactly — same federation shape, same shared
 // singletons, same dev-default pattern — so the whole suite's remotes stay
 // structurally identical. requiredVersion for shared singletons is sourced
 // from this package's own dependency ranges so the graph cannot silently
@@ -29,7 +29,7 @@ const pkg = JSON.parse(readFileSync(new URL('./package.json', import.meta.url), 
 // admin-ui consumes shell/session + shell/tokens.css from there.
 const shellRemoteUrl = process.env['SHELL_REMOTE_URL'] ?? 'http://localhost:5173/remoteEntry.js'
 
-// @operai/ui (operai-ui/, ADR-0050) is compiled from SOURCE by this build; `dedupe`
+// @operai/ui (operai-ui/, ADR 20261031-shared-ui-library-consumed-as-source) is compiled from SOURCE by this build; `dedupe`
 // keeps the library's own `react` imports on this project's copy (Module Federation
 // singleton), since operai-ui/node_modules does not exist on Vercel.
 const operaiUiEntry = fileURLToPath(new URL('../operai-ui/src/index.ts', import.meta.url))
@@ -58,7 +58,7 @@ export default defineConfig({
       // `shell/session` (shared auth) and `shell/tokens.css` (shared design
       // tokens) — see src/App.tsx. This makes admin-ui bidirectional, same
       // as the shell itself and refund-ui (plan.md federation contract;
-      // ADR-0006): the shell is a host to admin-ui's exposed `./App`, and
+      // ADR 20260709-suite-frontend-module-federation): the shell is a host to admin-ui's exposed `./App`, and
       // admin-ui is in turn a host to the shell's exposed
       // `./session`/`./tokens.css`.
       exposes: {

@@ -8,7 +8,7 @@ import { PermanentJobError, TransientJobError, createRunner, enqueueJob, type Jo
 import { createSummarizeHandler } from "./summarize";
 
 // AC-7.5 (the snapshot), AC-7.6 (notifies the author), AC-7.9 (failed, never partial), AC-7.10, AC-7.12;
-// ADR-0062 (attemptId guard + claim check at commit), ADR-0067. The language model is the fake; needs
+// ADR 20261104-durable-job-runner-work-queued-state-derived (attemptId guard + claim check at commit), ADR 20261104-ai-output-structured-validated-plain-text. The language model is the fake; needs
 // a migrated `meetings_test` database.
 
 const SNAPSHOT = {
@@ -332,7 +332,7 @@ describe("a failed run leaves no partial text (AC-7.9)", () => {
   });
 });
 
-describe("a stale result is discarded (ADR-0062)", () => {
+describe("a stale result is discarded (ADR 20261104-durable-job-runner-work-queued-state-derived)", () => {
   it("a job whose attemptId is not the summary's has been superseded by a retry: no model call, no write, no push", async () => {
     const { summary } = await setup({ summary: { attemptId: "attempt-2" } });
     await run(summary.id, {}, "attempt-1");

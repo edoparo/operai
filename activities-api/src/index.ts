@@ -35,13 +35,13 @@ app.use(
 // (activity subjects and notes are free text about clients, see src/lib/logger.ts).
 app.use("*", requestLogger());
 
-// The maintenance switch (AC-2.5, ADR-0083): before authentication and before any route,
+// The maintenance switch (AC-2.5, ADR 20261110-activities-migration-write-pause): before authentication and before any route,
 // so nothing reads or writes while the CRM activities are being copied.
 app.use("*", maintenanceGate());
 
 // A global cap on request bodies: an activity body is at most 10 000 characters, so 64 KiB
 // is generous. Refused as a 413 Problem before anything is parsed. Creating or editing an
-// activity may carry a task's description (≤ 128 KiB of JSON, ADR-0089), so those two writes
+// activity may carry a task's description (≤ 128 KiB of JSON, ADR 20261113-task-description-files-in-activities-api-bucket), so those two writes
 // get a larger cap; nothing else does (a file's bytes never pass through here).
 export const MAX_REQUEST_BODY_BYTES = 64 * 1024;
 export const MAX_ACTIVITY_WRITE_BYTES = 192 * 1024;

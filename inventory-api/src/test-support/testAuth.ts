@@ -1,5 +1,5 @@
 /**
- * Shared route-integration test harness (T7, specs/015-hardware-inventory).
+ * Shared route-integration test harness (T7, specs/20261006-hardware-inventory).
  * Ported from refund-api/src/test-support/testAuth.ts.
  *
  * Mocks the TWO network-calling dependencies every gated route sits behind —

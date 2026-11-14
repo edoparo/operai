@@ -1,5 +1,5 @@
 /**
- * GET /system/companies (specs/025-projects T2, ADR-0080) — CRM companies read
+ * GET /system/companies (specs/20261103-projects T2, ADR 20261103-projects-api-reads-crm-companies-with-scoped-service-credential) — CRM companies read
  * service-to-service. projects-api resolves company names and lets a project
  * manager pick a company, for users who may hold no `crm:access` (D13), so this
  * route trusts a scoped SERVICE credential (`crm.companies.read`), never a user
@@ -24,7 +24,7 @@ import { createSystemAuthMiddleware, type SystemAuthVariables } from "../auth/sy
 
 /**
  * The one service principal this route serves. Holding `crm.companies.read` is not enough: a
- * service credential opens only the routes that list its `sub` (ADR-0059/0073 posture).
+ * service credential opens only the routes that list its `sub` (ADR 20261104-meeting-host-contract-resolve-and-notices/0073 posture).
  */
 export const COMPANIES_ALLOWED_SUBS = ["system:projects-api"] as const;
 

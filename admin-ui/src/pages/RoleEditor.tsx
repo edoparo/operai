@@ -31,7 +31,7 @@ const t = strings.roles.editor
 
 /**
  * RoleEditor — Screen A2 (Role editor / rule builder, "the hardest screen"
- * per design.md) — T18, specs/004-auth-roles-permissions/tasks.md, refs
+ * per design.md) — T18, specs/20260713-auth-roles-permissions/tasks.md, refs
  * AC-2.1–2.4, AC-3.1, AC-3.2.
  *
  * New page at the new `/roles/$id` route (router.tsx, added alongside this
@@ -72,7 +72,7 @@ const ATTRIBUTE_LABELS: Record<AttributeConditionKey, string> = t.attributeLabel
 
 const ATTRIBUTE_KEYS: AttributeConditionKey[] = ['entity', 'department', 'jobTitle']
 
-/** The self-approval condition's catalog key (specs/010-self-approval-control, ADR-0026). */
+/** The self-approval condition's catalog key (specs/20260721-self-approval-control, ADR 20260721-self-approval-condition-and-403-exception). */
 const SELF_APPROVAL_KEY: AttributeConditionKey = 'self-approval'
 
 // Hover/focus help for each attribute condition (native `title` tooltip, the
@@ -138,7 +138,7 @@ type ComposerState = {
   actionKey: string | null
   ownership: OwnershipCondition
   attributes: ReadonlySet<AttributeConditionKey>
-  /** The self-approval restriction toggle (specs/010, ADR-0026) — kept as an independent field, never merged into `attributes` (AC-1.1/1.3), since it's a distinct deny-carve-out, not an affirmative scope attribute. */
+  /** The self-approval restriction toggle (specs/20260721-self-approval-control, ADR 20260721-self-approval-condition-and-403-exception) — kept as an independent field, never merged into `attributes` (AC-1.1/1.3), since it's a distinct deny-carve-out, not an affirmative scope attribute. */
   selfApproval: boolean
   statusMessage: string
 }
@@ -402,7 +402,7 @@ export default function RoleEditor() {
         .map((key) => ({ key, match: 'user' as const }))
       // Self-approval composes independently, alongside any entity/department/
       // jobTitle attributes — both persist as separate `attributes[]` entries
-      // on the same rule (AC-1.3/AC-2.4, ADR-0026's `match:"deny"` sentinel).
+      // on the same rule (AC-1.3/AC-2.4, ADR 20260721-self-approval-condition-and-403-exception's `match:"deny"` sentinel).
       if (composer.selfApproval) attributeEntries.push({ key: SELF_APPROVAL_KEY, match: 'deny' })
       if (attributeEntries.length > 0) conditions.attributes = attributeEntries
     }
@@ -784,8 +784,8 @@ export default function RoleEditor() {
                     )}
 
                     {/*
-                     * Self-approval restriction (specs/010-self-approval-control T4,
-                     * ADR-0026) — deliberately its OWN fieldset, separate from the
+                     * Self-approval restriction (specs/20260721-self-approval-control T4,
+                     * ADR 20260721-self-approval-condition-and-403-exception) — deliberately its OWN fieldset, separate from the
                      * entity/department/jobTitle group above (AC-1.1): opposite
                      * polarity (`match:"deny"` vs `match:"user"`), independently
                      * toggleable, and composes with — never replaces — the entity

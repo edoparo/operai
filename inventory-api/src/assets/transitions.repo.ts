@@ -1,5 +1,5 @@
 /**
- * Status transitions (T14, specs/015; AC-1.8, AC-3.1..3.5, AC-11.1).
+ * Status transitions (T14, specs/20261006-hardware-inventory; AC-1.8, AC-3.1..3.5, AC-11.1).
  *
  * Table-driven: each route names the statuses it may start from and where it
  * lands. One transaction per call: asset row lock, fresh read, checks, then a

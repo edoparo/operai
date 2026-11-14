@@ -1,4 +1,4 @@
-/** Schemas for the fiscal-year reads (T19, specs/015; plan.md § Ledger). */
+/** Schemas for the fiscal-year reads (T19, specs/20261006-hardware-inventory; plan.md § Ledger). */
 
 import { z } from "@hono/zod-openapi";
 import { EntitySchema } from "../depreciation/rules.schemas";

@@ -1,13 +1,13 @@
 /**
- * specs/024-estimate-list-oversight T10 — the admin's "All estimates" journey.
+ * specs/20261108-estimate-list-oversight T10 — the admin's "All estimates" journey.
  *
  * An owner creates an estimate through the API; an admin who neither owns nor
- * collaborates on it switches the list to All, opens it read-only (ADR-0075:
+ * collaborates on it switches the list to All, opens it read-only (ADR 20261108-estimai-oversight-permission-amends-0036:
  * `access: "oversight"`, no close, no sharing), then the owner closes it and
  * the admin finds it under All + Closed. The Deal badge is covered at
  * integration level: this stack has no crm-api → estimai-api service credential.
  *
- * Needs the whole stack up (`mise run dev`) with specs/024 deployed locally:
+ * Needs the whole stack up (`mise run dev`) with specs/20261108-estimate-list-oversight deployed locally:
  * the estimai-api migration applied and auth re-seeded (`estimate:read-all`).
  */
 import { test, expect, type Page } from '@playwright/test'
@@ -59,7 +59,7 @@ async function whenListLoaded(page: Page, action: () => Promise<unknown>): Promi
 
 test.describe.configure({ mode: 'serial', timeout: 120_000 })
 
-test.describe('specs/024-estimate-list-oversight T10', () => {
+test.describe('specs/20261108-estimate-list-oversight T10', () => {
   test('an admin lists every estimate, opens a stranger’s read-only, and finds it under Closed once closed (AC-1.1/1.4/2.1/2.2)', async ({
     browser,
   }) => {

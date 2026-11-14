@@ -1,5 +1,5 @@
 /**
- * Ask the meeting (specs/021-meetings US-9; plan.md § API contracts → Conversation; ADR-0067).
+ * Ask the meeting (specs/20261104-meetings US-9; plan.md § API contracts → Conversation; ADR 20261104-ai-output-structured-validated-plain-text).
  *
  *   GET    /meetings/:id/conversation                         selfScoped + visibility: the CALLER'S own turns
  *   POST   /meetings/:id/conversation/questions               capability + visibility: synchronous, 201
@@ -11,10 +11,10 @@
  * MEETING is still required first (the identical 404), and clearing needs no capability.
  *
  * SYNCHRONOUS. An ask holds the caller's token, so Operai participants' names are resolved LIVE
- * (soft, ADR-0039) instead of from a snapshot. It takes its AI slot and writes the `pending` turn in
+ * (soft, ADR 20260807-live-identity-resolution-by-id-fail-soft) instead of from a snapshot. It takes its AI slot and writes the `pending` turn in
  * one transaction (a refusal writes nothing), then calls the model OUTSIDE any transaction with a
  * time limit of its own, and writes `answered` or `failed` under a compare-and-set on `pending`. A
- * `pending` turn older than 2 minutes READS `failed` (a crash mid-call), never swept (ADR-0013/0062).
+ * `pending` turn older than 2 minutes READS `failed` (a crash mid-call), never swept (ADR 20260714-invitation-lifecycle-derived-expiry-state/0062).
  *
  * CONTEXT (AC-9.2, AC-9.4). The model sees the WHOLE current transcript of THIS meeting and the
  * caller's last 10 answered turns: no summary, no title, no host data, no other meeting, no one

@@ -1,13 +1,13 @@
 /**
- * Cloud Speech-to-Text v2, model Chirp 3, `BatchRecognize` (specs/021-meetings plan.md § Amendment 2026-11-05
- * G-2, G-3, G-8 and #2 H-1 to H-4, ADR-0069, ADR-0070; AC-6.1, AC-6.2, AC-6.5, AC-6.7, AC-6.9 to AC-6.15, AC-13.2,
+ * Cloud Speech-to-Text v2, model Chirp 3, `BatchRecognize` (specs/20261104-meetings plan.md § Amendment 2026-11-05
+ * G-2, G-3, G-8 and #2 H-1 to H-4, ADR 20261105-meetings-ai-providers-google-cloud-eu, ADR 20261105-meetings-transcript-parts-speaker-labels-per-part; AC-6.1, AC-6.2, AC-6.5, AC-6.7, AC-6.9 to AC-6.15, AC-13.2,
  * AC-13.4, AC-4.10, AC-4.12).
  *
  * WHY A BUCKET: Chirp 3 diarizes only in `Recognize` (<= 1 minute) and `BatchRecognize`, and BatchRecognize reads
  * audio only from a `gs://` URI. So one attempt stages its audio in the transient EU bucket (src/lib/google),
  * Speech writes its output beside it, and everything is deleted as soon as it has been used (below). Nothing is kept.
  *
- * ONE ATTEMPT (one claim of the `transcribe` job, ADR-0062):
+ * ONE ATTEMPT (one claim of the `transcribe` job, ADR 20261104-durable-job-runner-work-queued-state-derived):
  *   1. empty the prefixes of OLDER attempts of this meeting (`transcribe/<meetingId>/<n>/`, n < this attempt:
  *      leftovers, including late output). Never this attempt's or a newer one's: a job whose lease was lost can
  *      still be running while the runner has claimed attempt n+1, and a stale attempt must not delete what the live
@@ -29,7 +29,7 @@
  * nothing reaches Postgres until the job's one commit. A lost lease or a dead process drops everything held.
  *
  * ERRORS ON A TRY. On try 1, any provider error is the failure of the whole attempt (a transient one is retried by the
- * runner, ADR-0062; a permanent one fails the meeting). On try 2 or 3 it is an improvement that did not happen: the
+ * runner, ADR 20261104-durable-job-runner-work-queued-state-derived; a permanent one fails the meeting). On try 2 or 3 it is an improvement that did not happen: the
  * part settles with its best try, which is then marked. A lost lease always aborts. Transcription never writes an
  * `ai_request` row, retries included (AC-13.4); the stage stays `transcribing` (AC-6.10).
  *
@@ -42,7 +42,7 @@
  * minutes early, a word stamped hours late), so a word is trusted only when it is plausible and inside its part
  * (`spanOf`); a word with no trusted time is simply untimed, and the detector and the stitcher know how to place it.
  *
- * SPEAKERS (H-2, ADR-0070): diarization labels are per word and per file, namespaced by part (`p2:1`). A label of a
+ * SPEAKERS (H-2, ADR 20261105-meetings-transcript-parts-speaker-labels-per-part): diarization labels are per word and per file, namespaced by part (`p2:1`). A label of a
  * later part is joined to an earlier part's only by `stitch.ts`, from the words of the overlap and nothing else; the
  * adapter never decides who is who and never sees a voice.
  *

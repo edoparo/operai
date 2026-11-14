@@ -1,5 +1,5 @@
 /**
- * Prompt-injection evals for meetings-api (specs/021-meetings T83; AC-7.12, AC-9.7; ADR-0067).
+ * Prompt-injection evals for meetings-api (specs/20261104-meetings T83; AC-7.12, AC-9.7; ADR 20261104-ai-output-structured-validated-plain-text).
  *
  *   bun run eval                      fake model, no network, no database: the CI gate
  *   bun run eval --obey <fixture-id>  negative control: that fixture's obedient replies judged

@@ -1,16 +1,16 @@
 /**
  * estimai-api → notify-api internal cross-user in-app push client (T5/T10,
- * specs/013-estimate-sharing, plan.md "Notifications (US-7) — the third
- * internal caller", ADR-0017, ADR-0040).
+ * specs/20260807-estimate-sharing, plan.md "Notifications (US-7) — the third
+ * internal caller", ADR 20260716-system-notifications-cross-user-trigger, ADR 20260807-estimai-api-third-notify-internal-token-holder).
  *
  * A VERBATIM-CONTRACT reuse of `refund-api/src/lib/notify.ts`: isolated in
  * its own single-function-per-concern module (so `collaborators.routes.ts`
  * and its tests can `mock.module()` this file rather than mocking global
  * `fetch`), and this module NEVER THROWS. Calls the internal, NON-user-JWT
- * `POST /system/notifications` (ADR-0017), authenticated as estimai-api
+ * `POST /system/notifications` (ADR 20260716-system-notifications-cross-user-trigger), authenticated as estimai-api
  * itself with the scoped 5-minute service JWT from `serviceToken.ts`
- * (`Authorization: Bearer`, scope `notifications.push`; specs/016, ADR-0044/
- * ADR-0049, which retired the shared internal token) — deliberately NOT the
+ * (`Authorization: Bearer`, scope `notifications.push`; specs/20261013-notify-service-credentials, ADR 20261006-scoped-service-jwt-fourth-notify-caller/
+ * ADR 20261013-all-notify-callers-scoped-credentials-shared-token-retired, which retired the shared internal token) — deliberately NOT the
  * granting/revoking owner's own Bearer JWT, because the recipient is a
  * DIFFERENT user (the collaborator), not the caller. notify-api binds
  * `system:estimai-api` to `originApp: "estimai"`.
@@ -28,7 +28,7 @@
  * additive — the collaborator sees the estimate on their next list load
  * regardless of delivery, plan.md R6).
  *
- * Copy is English-only (mirrors specs/007's i18n-for-v1 decision — see
+ * Copy is English-only (mirrors specs/20260716-refund-service's i18n-for-v1 decision — see
  * `estimai-ui/src/strings.ts`'s doc comment, T14, for the same call made on
  * the frontend side).
  */

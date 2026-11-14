@@ -7,10 +7,10 @@ datasource db {
   provider = "postgresql"
 }
 
-// Data model of specs/021-meetings (plan.md § Data model). People are opaque
-// `auth` user ids, their names resolved live (ADR-0039). Time-based states
+// Data model of specs/20261104-meetings (plan.md § Data model). People are opaque
+// `auth` user ids, their names resolved live (ADR 20260807-live-identity-resolution-by-id-fail-soft). Time-based states
 // (interrupted, audio expired, frozen, stale summary, stuck answer) are DERIVED
-// on read and never stored (ADR-0013/0062).
+// on read and never stored (ADR 20260714-invitation-lifecycle-derived-expiry-state/0062).
 //
 // Raw SQL in the initial migration, the ENFORCEMENT and not a duplicate:
 //   - CHECK meeting_host_all_or_none        hostApp/hostEntityType/hostEntityId all or none
@@ -23,7 +23,7 @@ datasource db {
 //   - CHECKs on text lengths (title, names, question)
 //   - UNIQUE recording_session_live_key     one live session per meeting (partial)
 //   - UNIQUE summary_template_personal_name_key / _shared_name_key (partial, lower(name))
-//   - Tier-1 append-only trigger on meeting_deletion (ADR-0018 mechanism)
+//   - Tier-1 append-only trigger on meeting_deletion (ADR 20260716-immutable-financial-audit-trail-refund mechanism)
 
 enum MeetingFormat {
   in_person
@@ -144,10 +144,10 @@ model Meeting {
   // left `processing`
   processedAt            DateTime?
   transcriptVersion      Int       @default(0)
-  // where each transcript PART starts (ADR-0070): [0] for one part, [0, t2, ...] for a long recording;
+  // where each transcript PART starts (ADR 20261105-meetings-transcript-parts-speaker-labels-per-part): [0] for one part, [0, t2, ...] for a long recording;
   // empty for a `text` meeting and for `noSpeech`. Written with the segments, replaced on a retry.
   transcriptPartStartsMs Int[]     @default([])
-  // where each part ENDS (specs/021 plan H-5): paired with the starts, which now overlap. Empty exactly when they are.
+  // where each part ENDS (specs/20261104-meetings plan H-5): paired with the starts, which now overlap. Empty exactly when they are.
   transcriptPartEndsMs   Int[]     @default([])
   // The agenda's If-Match version: bumped by every change of its points (add, edit, remove, reorder), NOT by a
   // covered mark, so two people ticking different points never conflict.
@@ -348,7 +348,7 @@ model MeetingNote {
   @@map("meeting_note")
 }
 
-// One person's own folder for organising the meetings they see (ADR-0090). Private to its owner: no other person, role
+// One person's own folder for organising the meetings they see (ADR 20261113-personal-meeting-folders). Private to its owner: no other person, role
 // or service reads it. A name is unique per owner ignoring case (partial index in raw SQL).
 model MeetingFolder {
   id          String               @id @default(cuid())
@@ -471,8 +471,8 @@ model HostNotice {
 }
 
 // Content-free (no title column, AC-4.6). Tier-1 append-only: a BEFORE
-// UPDATE/DELETE trigger (ADR-0018 mechanism); tests reset it with TRUNCATE,
-// which a row trigger does not block (cf. ADR-0033).
+// UPDATE/DELETE trigger (ADR 20260716-immutable-financial-audit-trail-refund mechanism); tests reset it with TRUNCATE,
+// which a row trigger does not block (cf. ADR 20260804-two-tier-audit-assurance-auth-audit-log-application-level).
 model MeetingDeletion {
   id              String   @id @default(cuid())
   meetingId       String

@@ -1,5 +1,5 @@
 /**
- * Admin roles API (T8, specs/004-auth-roles-permissions — refs AC-1.1,
+ * Admin roles API (T8, specs/20260713-auth-roles-permissions — refs AC-1.1,
  * AC-2.1–2.4, AC-3.2).
  *
  * `role` is a named bundle of `permission_rule`s (resource+action+optional

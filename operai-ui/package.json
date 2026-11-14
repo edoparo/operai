@@ -3,7 +3,7 @@
   "private": true,
   "version": "0.1.0",
   "type": "module",
-  "description": "Operai design system: tokens, theme, React components and the Storybook that showcases them. Consumed as source by every frontend (ADR-0050).",
+  "description": "Operai design system: tokens, theme, React components and the Storybook that showcases them. Consumed as source by every frontend (ADR 20261031-shared-ui-library-consumed-as-source).",
   "exports": {
     ".": "./src/index.ts",
     "./tokens.css": "./src/styles/tokens.css",

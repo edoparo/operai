@@ -1,5 +1,5 @@
 /**
- * Employee self-address API (T4, specs/012-employee-address — refs AC-6.1,
+ * Employee self-address API (T4, specs/20260803-employee-address — refs AC-6.1,
  * AC-6.2, AC-6.3, AC-6.4).
  *
  *   GET /me/address    the caller's OWN current address, or null
@@ -88,7 +88,7 @@ const getMyAddressRoute = createRoute({
     },
     404: {
       content: { "application/json": { schema: ProblemJsonSchema } },
-      description: "Defensive only — a soft-deleted caller cannot reach this route at all (ADR-0012 revokes their sessions)",
+      description: "Defensive only — a soft-deleted caller cannot reach this route at all (ADR 20260714-invitation-activation-hooks-soft-delete-lifecycle revokes their sessions)",
     },
   },
 });
@@ -96,7 +96,7 @@ const getMyAddressRoute = createRoute({
 addressRouter.openapi(getMyAddressRoute, async (c) => {
   const caller = c.get("user")!;
 
-  // Defensive only: ADR-0012 synchronously revokes every session on
+  // Defensive only: ADR 20260714-invitation-activation-hooks-soft-delete-lifecycle synchronously revokes every session on
   // soft-delete, so a soft-deleted user's Bearer/cookie session should
   // already be invalid by the time sessionMiddleware runs. This 404 exists
   // purely as a second layer of defence, never expected to be reachable in

@@ -10,7 +10,7 @@ import { cx } from '../lib/cx'
  * Parses the decimal STRING exactly (never `Math.round(n * 100)`, where
  * `1.15 * 100` is 114.99999999999999), accepts the comma the suite displays
  * as well as a dot, and refuses an extra decimal instead of rounding it
- * (ADR-0025: round exactly once, at compute time). From inventory-ui's
+ * (ADR 20260720-mileage-rate-money-precision-integer-micros: round exactly once, at compute time). From inventory-ui's
  * `amountToCents`, generalised.
  */
 export function parseDecimal(raw: string, decimals = 2): number | null {

@@ -1,6 +1,6 @@
 /**
  * Integration tests for the batch terminal transitions — mark-paid (T6) and
- * discard (T8), specs/008-refund-monthly-processing, plan.md § Atomic claim
+ * discard (T8), specs/20260719-refund-monthly-processing, plan.md § Atomic claim
  * / no-double-pay "mark-paid / discard terminal CAS".
  *
  * Strategy — mirrors `review/decide.routes.test.ts`'s header comment: real
@@ -39,7 +39,7 @@
  * AC-6.3 RefundBatchItem membership rows are retained (never deleted)
  * AC-7.3 one `batch_discarded` audit row per affected request
  *
- * AC coverage (T4, specs/011-refund-settings)
+ * AC coverage (T4, specs/20260722-refund-settings)
  * ──────────────────────────
  * AC-2.5 mark-paid on a `blocked_unconfigured` batch succeeds exactly like
  *        any other failed-delivery batch (AC-4.2) — an unconfigured
@@ -88,7 +88,7 @@ let mintPresignedGetShouldFail = false;
 // factory that returns only the exports THIS file needs leaves every other
 // importer of ../lib/storage (export.routes.ts needs getObject, storage.test.ts
 // the real functions) with a module missing its exports when this file happens
-// to run first (--randomize). Spread the real module underneath (T21, specs/016).
+// to run first (--randomize). Spread the real module underneath (T21, specs/20261013-notify-service-credentials).
 // @ts-expect-error -- the query suffix is a runtime-only cache-buster
 const realStorage = (await import("../lib/storage?real")) as typeof import("../lib/storage");
 
@@ -126,7 +126,7 @@ let notifyPaidCalls: NotifyPaidCall[] = [];
 let notifyShouldFail = false;
 const originalFetch = globalThis.fetch;
 
-// The service credential (specs/016, T9): the wired provider is disabled under
+// The service credential (specs/20261013-notify-service-credentials, T9): the wired provider is disabled under
 // NODE_ENV=test, so swap in a stub for this file (restored in afterAll).
 // `tokenFailure` makes it reject like auth down / 401 / 429.
 let tokenFailure: Error | null = null;
@@ -360,7 +360,7 @@ describe("POST /batches/:id/mark-paid", () => {
     expect(auditRows.every((r) => r.actorUserId === "acct-approver")).toBe(true);
   });
 
-  it("(specs/016 AC-1.1) the per-owner paid push authenticates with the service Bearer and never sends X-Internal-Token", async () => {
+  it("(specs/20261013-notify-service-credentials AC-1.1) the per-owner paid push authenticates with the service Bearer and never sends X-Internal-Token", async () => {
     const { batch } = await createCompiledBatch([
       { ownerUserId: "emp-a", ownerEmail: "a@x.com", approvedTotalCents: 500 },
     ]);
@@ -382,7 +382,7 @@ describe("POST /batches/:id/mark-paid", () => {
     ["auth refused (401)", "auth /system/service-token responded with HTTP 401"],
     ["auth rate-limited (429)", "auth /system/service-token responded with HTTP 429"],
   ] as const) {
-    it(`(specs/016 AC-4.3) mark-paid with the credential unobtainable (${label}) commits and returns 200, sending no push`, async () => {
+    it(`(specs/20261013-notify-service-credentials AC-4.3) mark-paid with the credential unobtainable (${label}) commits and returns 200, sending no push`, async () => {
       const { batch, requestIds } = await createCompiledBatch([
         { ownerUserId: "emp-a", ownerEmail: "a@x.com", approvedTotalCents: 500 },
         { ownerUserId: "emp-b", ownerEmail: "b@x.com", approvedTotalCents: 750 },
@@ -405,11 +405,11 @@ describe("POST /batches/:id/mark-paid", () => {
     });
   }
 
-  it("(AC-2.5, specs/011-refund-settings) mark-paid succeeds on a batch whose email was blocked_unconfigured — exactly like any other failed delivery (AC-4.2)", async () => {
+  it("(AC-2.5, specs/20260722-refund-settings) mark-paid succeeds on a batch whose email was blocked_unconfigured — exactly like any other failed delivery (AC-4.2)", async () => {
     const { batch } = await createCompiledBatch([
       { ownerUserId: "emp-a", ownerEmail: "a@x.com", approvedTotalCents: 500 },
     ]);
-    // The setting was unconfigured at compile/send time (ADR-0029) — this
+    // The setting was unconfigured at compile/send time (ADR 20260722-batch-email-recipient-live-resolution-amends-0021) — this
     // is never a barrier to marking the batch paid, exactly as AC-4.2
     // already establishes for an ordinary "failed" delivery above.
     await db.refundBatch.update({

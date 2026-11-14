@@ -3,7 +3,7 @@ import { checkEuResidency, isAwsS3Endpoint } from "./s3Residency";
 
 // ─── Schema ──────────────────────────────────────────────────────────────────
 //
-// crm-api is an authorization-enforcing resource server (specs/017). specs/018
+// crm-api is an authorization-enforcing resource server (specs/20261101-crm). specs/20261101-crm-sales-flow
 // adds two OPTIONAL integrations, each all-or-nothing: estimai-api (estimate
 // requests, offers) and an EU bucket (offers, attachments). Without them the
 // service starts and only those routes answer 503, so a developer's local setup
@@ -18,7 +18,7 @@ const S3_KEYS = [
   "CRM_S3_SECRET_ACCESS_KEY",
 ] as const;
 
-// specs/019: the notifier's credentials, all or none (decisions D-7).
+// specs/20261101-crm-notifications: the notifier's credentials, all or none (decisions D-7).
 const NOTIFY_KEYS = ["NOTIFY_INTERNAL_URL", "SERVICE_CLIENT_ID", "SERVICE_CLIENT_SECRET"] as const;
 
 const envSchema = z.object({
@@ -37,24 +37,24 @@ const envSchema = z.object({
       (origins) => origins.every((o) => o !== "*"),
       "ALLOWED_ORIGINS must not contain a wildcard",
     ),
-  // ─── Identity (JWKS resource server, ADR-0005/0010) ───────────────────────
+  // ─── Identity (JWKS resource server, ADR 20260703-jwt-resource-server-remote-jwks/0010) ───────────────────────
   AUTH_JWKS_URL: z.string().url("AUTH_JWKS_URL must be a valid URL"),
   AUTH_ISSUER: z.string().url("AUTH_ISSUER must be a valid URL"),
-  // Suite-wide JWT audience (ADR-0010). A token missing the claim, or carrying
+  // Suite-wide JWT audience (ADR 20260713-jwt-audience-claim-enforcement). A token missing the claim, or carrying
   // a different value, is rejected with 401.
   AUTH_AUDIENCE: z.string().min(1, "AUTH_AUDIENCE is required"),
   // Base URL of the `auth` service: the Bearer-forwarded GET /authz/resolve
-  // (ADR-0014) and POST /authz/users/identities (ADR-0039).
+  // (ADR 20260716-refund-api-authorization-enforcing-resource-server) and POST /authz/users/identities (ADR 20260807-live-identity-resolution-by-id-fail-soft).
   AUTH_BASE_URL: z.string().url("AUTH_BASE_URL must be a valid URL"),
   PORT: z.coerce.number().int().positive().default(8084),
   NODE_ENV: z
     .enum(["development", "production", "test"])
     .default("development"),
-  // ─── estimai-api (specs/018 US-3/US-4) ─────────────────────────────────────
+  // ─── estimai-api (specs/20261101-crm-sales-flow US-3/US-4) ─────────────────────────────────────
   // Called with the CALLER's forwarded JWT only (no service credential): the
   // salesperson creates and reads the estimate as themselves.
   ESTIMAI_API_URL: z.string().url("ESTIMAI_API_URL must be a valid URL").optional(),
-  // ─── Offers and attachments bucket (ADR-0016 posture, specs/018 US-4) ──────
+  // ─── Offers and attachments bucket (ADR 20260716-eu-object-storage-refund-attachments posture, specs/20261101-crm-sales-flow US-4) ──────
   // Own bucket and credentials — never refund's or inventory's. Private: every
   // read is a ~60 s presigned GET minted after the authorization check.
   CRM_S3_ENDPOINT: z.string().url("CRM_S3_ENDPOINT must be a valid URL").optional(),
@@ -62,25 +62,25 @@ const envSchema = z.object({
   CRM_S3_BUCKET: z.string().min(1).optional(),
   CRM_S3_ACCESS_KEY_ID: z.string().min(1).optional(),
   CRM_S3_SECRET_ACCESS_KEY: z.string().min(1).optional(),
-  // ─── notify-api (specs/019, ADR-0049) ──────────────────────────────────────
+  // ─── notify-api (specs/20261101-crm-notifications, ADR 20261013-all-notify-callers-scoped-credentials-shared-token-retired) ──────────────────────────────────────
   // crm-api pushes as ITSELF: it trades its service client for a 5-minute scoped
   // JWT (`notifications.push emails.send`) at auth. Without the group the
   // notifier is a no-op.
   NOTIFY_INTERNAL_URL: z.string().url("NOTIFY_INTERNAL_URL must be a valid URL").optional(),
   SERVICE_CLIENT_ID: z.string().min(1).optional(),
   SERVICE_CLIENT_SECRET: z.string().min(32, "SERVICE_CLIENT_SECRET must be at least 32 characters").optional(),
-  // ─── estimai-api (specs/024 US-3, ADR-0076) ────────────────────────────────
+  // ─── estimai-api (specs/20261108-estimate-list-oversight US-3, ADR 20261108-crm-pushes-deal-links-to-estimai) ────────────────────────────────
   // Base URL (Railway private network) for the deal-link notices crm-api pushes
   // as ITSELF with the service client above (scope `deal-link-notices.send`).
   // Unset: the push is a no-op, logged once at startup.
   ESTIMAI_INTERNAL_URL: z.string().url("ESTIMAI_INTERNAL_URL must be a valid URL").optional(),
-  // ─── activities-api (specs/028, ADR-0082) ──────────────────────────────────
+  // ─── activities-api (specs/20261110-activities, ADR 20261110-caller-chosen-ids-replace-cross-service-transactions) ──────────────────────────────────
   // Where the CRM's activities and tasks live now. crm-api calls its `/system/v1/*` routes as
   // ITSELF (`system:crm-api`, scope `activities.write`) with the service client above, so the
   // service client group is required with it. Unset, those calls answer 503
   // `activities_unconfigured`; the production template lists it as required (tools/env-doctor).
   ACTIVITIES_API_URL: z.string().url("ACTIVITIES_API_URL must be a valid URL").optional(),
-  // ─── Service credentials accepted on /system/* (specs/018 AC-3.3 ADR-0073, specs/021-meetings, specs/025-projects ADR-0080) ──
+  // ─── Service credentials accepted on /system/* (specs/20261101-crm-sales-flow AC-3.3 ADR 20261105-estimai-closes-the-estimate-crm-follows, specs/20261104-meetings, specs/20261103-projects ADR 20261103-projects-api-reads-crm-companies-with-scoped-service-credential) ──
   // The `aud` of the scoped service JWTs `auth` mints (`POST /system/service-token`);
   // byte-identical to auth's and notify-api's, and different from AUTH_AUDIENCE so a
   // user JWT is never a system credential. Optional so the service starts without it;
@@ -99,7 +99,7 @@ const envSchema = z.object({
     ),
 }).superRefine((val, ctx) => {
   if (val.SERVICE_AUDIENCE !== undefined && val.SERVICE_AUDIENCE === val.AUTH_AUDIENCE) {
-    ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["SERVICE_AUDIENCE"], message: "SERVICE_AUDIENCE must differ from AUTH_AUDIENCE (ADR-0044)" });
+    ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["SERVICE_AUDIENCE"], message: "SERVICE_AUDIENCE must differ from AUTH_AUDIENCE (ADR 20261006-scoped-service-jwt-fourth-notify-caller)" });
   }
   for (const [owner, url] of [["ESTIMAI_INTERNAL_URL", val.ESTIMAI_INTERNAL_URL], ["ACTIVITIES_API_URL", val.ACTIVITIES_API_URL]] as const) {
     if (url === undefined) continue;

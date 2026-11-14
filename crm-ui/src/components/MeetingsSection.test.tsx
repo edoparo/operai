@@ -1,7 +1,7 @@
 /**
  * @vitest-environment jsdom
  *
- * MeetingsSection (specs/021 AC-11.2, AC-11.6; ADR-0060, ADR-0030): the deal
+ * MeetingsSection (specs/20261104-meetings AC-11.2, AC-11.6; ADR 20261104-host-extension-federated-panel-through-the-shell, ADR 20260803-suite-version-generated-file-federated-export): the deal
  * page's Meetings section is Meetings' own panel, loaded through
  * `shell/extensions`. crm-ui imports the seam dynamically and keeps its own
  * fallback, so a shell that predates the expose, a failing import or a panel

@@ -319,7 +319,7 @@ function TemplateForm({ template, onStale, onOutcome }: TemplateFormProps) {
 }
 
 /**
- * Template editor, new and edit (specs/021-meetings S8, T74): name, scope (shared only for a
+ * Template editor, new and edit (specs/20261104-meetings S8, T74): name, scope (shared only for a
  * `template:manage` holder; fixed once saved), general instructions and 1 to 15 sections on the
  * library `SectionsEditor`. A save of an existing template carries the version it read as `If-Match`
  * (plan G8): a 409/428 shows the stale-write banner, and Reload fetches the template again and

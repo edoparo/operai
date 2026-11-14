@@ -1,5 +1,5 @@
 /**
- * Integration tests for the Estimates CRUD endpoints (T4, specs/001-estimate-persistence).
+ * Integration tests for the Estimates CRUD endpoints (T4, specs/20260606-estimate-persistence).
  *
  * Strategy
  * ────────
@@ -51,7 +51,7 @@ import {
 // clears `resolveIdentities`' in-process 60s identity cache between tests so
 // one test's stubbed identity can never leak into the next via a cache hit.
 //
-// Imported DYNAMICALLY, after the environment block below (specs/016 T10):
+// Imported DYNAMICALLY, after the environment block below (specs/20261013-notify-service-credentials T10):
 // `@/lib/authClient` loads `./env`, which validates at module-eval time, and a
 // static import is hoisted above every `process.env` assignment in this file —
 // so it would validate the developer's shell instead of this file's fixtures.
@@ -70,13 +70,13 @@ let localJWKS: Awaited<ReturnType<typeof createLocalJWKSet>>;
 // two public keys share the same kid in the in-memory JWKS.
 const TEST_KID_A = "operai-auth-rs256-v1";
 const TEST_KID_B = "operai-auth-rs256-v2";
-// USER_C (T6, specs/013-estimate-sharing) — a third fixture user with NO
+// USER_C (T6, specs/20260807-estimate-sharing) — a third fixture user with NO
 // relationship (no ownership, no grant) to any estimate. Used for the
 // AC-1.6 denial-taxonomy tests: an unrelated stranger must get 404,
 // byte-identical to a genuinely absent id.
 const TEST_KID_C = "operai-auth-rs256-v3";
 const TEST_ISSUER = "http://localhost:3001";
-const TEST_AUDIENCE = "operai-suite"; // ADR-0010 — must match AUTH_AUDIENCE below
+const TEST_AUDIENCE = "operai-suite"; // ADR 20260713-jwt-audience-claim-enforcement — must match AUTH_AUDIENCE below
 
 const USER_A_ID = "test-user-a-t4";
 const USER_B_ID = "test-user-b-t4";
@@ -120,7 +120,7 @@ mock.module("@/auth/jwt.middleware", () => {
         if (!jwksProxy) throw new Error("JWKS proxy not initialised");
         const { payload } = await jose.jwtVerify(token, jwksProxy, {
           issuer: TEST_ISSUER,
-          audience: TEST_AUDIENCE, // ADR-0010 — mirrors jwt.middleware.ts's env.AUTH_AUDIENCE pin
+          audience: TEST_AUDIENCE, // ADR 20260713-jwt-audience-claim-enforcement — mirrors jwt.middleware.ts's env.AUTH_AUDIENCE pin
           algorithms: ["RS256"],
         });
         const userId = payload.sub;
@@ -159,7 +159,7 @@ process.env["AUTH_JWKS_URL"] = "http://localhost:3001/.well-known/jwks.json";
 process.env["AUTH_ISSUER"] = TEST_ISSUER;
 process.env["AUTH_AUDIENCE"] = TEST_AUDIENCE;
 process.env["NODE_ENV"] = "test";
-// Required since T5 (specs/013-estimate-sharing) — env.ts now validates these
+// Required since T5 (specs/20260807-estimate-sharing) — env.ts now validates these
 // at module-eval time regardless of whether this test file exercises them.
 process.env["AUTH_BASE_URL"] ??= "http://localhost:3001";
 process.env["SERVICE_CLIENT_ID"] ??= "estimai-api";
@@ -220,7 +220,7 @@ const buildApp = () => {
 // wire — see the module-level comment on the `@/lib/authClient` import.
 
 const RAW_FETCH = globalThis.fetch;
-// specs/024: a caller with no relationship to an estimate makes the route ask
+// specs/20261108-estimate-list-oversight: a caller with no relationship to an estimate makes the route ask
 // `auth GET /authz/resolve` whether they hold `estimate:read-all`. Unless a test
 // stubs it, the default answer is "no permission", so the taxonomy tests above
 // (a stranger's 404) don't depend on a real `auth` being reachable.
@@ -284,11 +284,11 @@ const signToken = async (
   kid: string,
   sub: string,
   email: string,
-  // ADR-0010: `aud` claim. `null` omits it (pre-ADR-0010 token shape);
+  // ADR 20260713-jwt-audience-claim-enforcement: `aud` claim. `null` omits it (pre-ADR 20260713-jwt-audience-claim-enforcement token shape);
   // defaults to the correct TEST_AUDIENCE so every existing caller keeps
   // minting valid tokens without change.
   audience: string | null = TEST_AUDIENCE,
-  // Extra claims (specs/024: `perm_epoch`, which keys the oversight cache).
+  // Extra claims (specs/20261108-estimate-list-oversight: `perm_epoch`, which keys the oversight cache).
   claims: Record<string, unknown> = {},
 ): Promise<string> => {
   const jwt = new SignJWT({ email, ...claims })
@@ -1312,15 +1312,15 @@ describe("AC-4.2 — unauthenticated requests rejected on all endpoints", () => 
   });
 });
 
-// ─── ADR-0010: JWT audience (`aud`) enforcement (T9, specs/005-notification-center) ──
+// ─── ADR 20260713-jwt-audience-claim-enforcement: JWT audience (`aud`) enforcement (T9, specs/20260713-notification-center) ──
 //
-// Closes the cross-service replay gap ADR-0005 deferred: a token missing the `aud`
+// Closes the cross-service replay gap ADR 20260703-jwt-resource-server-remote-jwks deferred: a token missing the `aud`
 // claim entirely, or carrying a value other than AUTH_AUDIENCE, must be rejected —
 // even though its signature, issuer, and expiry are otherwise perfectly valid. This
 // is the concrete regression guard for "a token minted for a different resource
 // server must not be accepted here."
 
-describe("ADR-0010 — audience (aud) claim enforcement", () => {
+describe("ADR 20260713-jwt-audience-claim-enforcement — audience (aud) claim enforcement", () => {
   it("token with no 'aud' claim at all — 401, nothing persisted", async () => {
     const app = buildApp();
     const jwtNoAud = await signToken(
@@ -1409,7 +1409,7 @@ describe("ADR-0010 — audience (aud) claim enforcement", () => {
 });
 
 // ═══════════════════════════════════════════════════════════════════════════════
-// T6 — POST /estimates/import (AC-5.2, AC-5.4, specs/001-estimate-persistence)
+// T6 — POST /estimates/import (AC-5.2, AC-5.4, specs/20260606-estimate-persistence)
 // ═══════════════════════════════════════════════════════════════════════════════
 //
 // These tests share the fixture keypair, JWKS proxy, JWT helpers, and Hono app
@@ -2457,7 +2457,7 @@ describe("coerce fix (4) — garbage string in a numeric field is rejected at en
 });
 
 // ═══════════════════════════════════════════════════════════════════════════
-// T6 — Access resolution + denial taxonomy (specs/013-estimate-sharing)
+// T6 — Access resolution + denial taxonomy (specs/20260807-estimate-sharing)
 // ═══════════════════════════════════════════════════════════════════════════
 //
 // Collaborator grants are seeded DIRECTLY via testDb.estimateCollaborator
@@ -2470,7 +2470,7 @@ describe("coerce fix (4) — garbage string in a numeric field is rejected at en
 //
 // No live `auth` server runs in this test environment, so every
 // resolveIdentities() call degrades to {status:"unknown", name:null}
-// (ADR-0039, fail-soft) — asserted explicitly below as the CORRECT
+// (ADR 20260807-live-identity-resolution-by-id-fail-soft, fail-soft) — asserted explicitly below as the CORRECT
 // behaviour, not a test gap.
 
 describe("T6 / AC-1.6 — denial taxonomy: a stranger's 404 is byte-identical to a genuinely absent id", () => {
@@ -2511,7 +2511,7 @@ describe("T6 / AC-1.6 — denial taxonomy: a stranger's 404 is byte-identical to
     expect(absentRes.status).toBe(404);
     const absentBody = await absentRes.json();
 
-    // The whole point of AC-1.6/ADR-0005: "not yours" and "does not exist"
+    // The whole point of AC-1.6/ADR 20260703-jwt-resource-server-remote-jwks: "not yours" and "does not exist"
     // must be indistinguishable, even to the same caller probing the same
     // id twice.
     expect(strangerBody).toEqual(absentBody);
@@ -2765,7 +2765,7 @@ describe("T6 / AC-2.1/2.2/2.3 — GET /estimates includes owned UNION shared, wi
     expect(sharedRow?.owner).toEqual({ status: "active", name: "Alice A" });
   });
 
-  it("FAULT INJECTION (ADR-0039) — GET /estimates: auth /authz/users/identities deliberately down → owner degrades to {status:'unknown', name:null}, response still 200", async () => {
+  it("FAULT INJECTION (ADR 20260807-live-identity-resolution-by-id-fail-soft) — GET /estimates: auth /authz/users/identities deliberately down → owner degrades to {status:'unknown', name:null}, response still 200", async () => {
     const app = buildApp();
     const jwtA = await tokenA();
     const jwtB = await tokenB();
@@ -2795,7 +2795,7 @@ describe("T6 / AC-2.1/2.2/2.3 — GET /estimates includes owned UNION shared, wi
     // Deliberate fault injection — not an accident of this environment
     // lacking a live `auth` server. Whatever the real deployment's `auth`
     // reachability is, THIS test forces the failure and asserts the
-    // documented fail-soft contract (ADR-0039).
+    // documented fail-soft contract (ADR 20260807-live-identity-resolution-by-id-fail-soft).
     stubIdentitiesFetchDown();
 
     const listB = await app.request("/estimates", {
@@ -2856,7 +2856,7 @@ describe("T6 / AC-2.1/2.2/2.3 — GET /estimates includes owned UNION shared, wi
     expect(body.collaboratorCount).toBeUndefined();
   });
 
-  it("FAULT INJECTION (ADR-0039) — GET /estimates/{id}: auth /authz/users/identities deliberately down → owner degrades to {status:'unknown', name:null}, response still 200", async () => {
+  it("FAULT INJECTION (ADR 20260807-live-identity-resolution-by-id-fail-soft) — GET /estimates/{id}: auth /authz/users/identities deliberately down → owner degrades to {status:'unknown', name:null}, response still 200", async () => {
     const app = buildApp();
     const jwtA = await tokenA();
     const jwtB = await tokenB();
@@ -3186,7 +3186,7 @@ describe("T6 / AC-5.2 (read-side) — once a grant is gone, the former collabora
 // ─── T7 / AC-3.1/3.2, AC-4.1/4.2/4.3/4.4 — optimistic concurrency ────────────
 //
 // version CAS, REQUIRED If-Match, ETag, 428/403/404/409 — plan.md
-// "Optimistic concurrency (US-4)", ADR-0038 (amends ADR-0004's last-write-wins).
+// "Optimistic concurrency (US-4)", ADR 20260807-optimistic-concurrency-version-if-match-cas-amends-0004 (amends ADR 20260703-estimate-persistence-jsonb-document's last-write-wins).
 
 describe("T7 — optimistic concurrency: version CAS, If-Match required, ETag, 409/428", () => {
   const putWith = (
@@ -3366,7 +3366,7 @@ describe("T7 — optimistic concurrency: version CAS, If-Match required, ETag, 4
     expect(row.version).toBe(2);
   });
 
-  it("FAULT INJECTION (ADR-0039) — PUT with a stale If-Match: auth /authz/users/identities deliberately down → lastModifiedBy degrades to {status:'unknown', name:null}, 409 still returned (never blocked by identity resolution)", async () => {
+  it("FAULT INJECTION (ADR 20260807-live-identity-resolution-by-id-fail-soft) — PUT with a stale If-Match: auth /authz/users/identities deliberately down → lastModifiedBy degrades to {status:'unknown', name:null}, 409 still returned (never blocked by identity resolution)", async () => {
     const app = buildApp();
     const jwt = await tokenA();
     const postRes = await app.request("/estimates", {
@@ -3705,9 +3705,9 @@ describe("closed estimates — GET/list expose closedAt/closedBy, PUT refused wi
   });
 });
 
-// ─── specs/024 T2 — list filters: `status`, and `crmDealId` on the item ──────
+// ─── specs/20261108-estimate-list-oversight T2 — list filters: `status`, and `crmDealId` on the item ──────
 
-describe("specs/024 — GET /estimates?status=open|closed (AC-2.2, AC-2.3, AC-2.5) and crmDealId (AC-3.3)", () => {
+describe("specs/20261108-estimate-list-oversight — GET /estimates?status=open|closed (AC-2.2, AC-2.3, AC-2.5) and crmDealId (AC-3.3)", () => {
   type ListItem = { id: string; name: string; closedAt: string | null; crmDealId: string | null; access: string };
 
   const seed = async (userId: string, name: string, extra: { closedAt?: Date; crmDealId?: string } = {}) =>
@@ -3787,13 +3787,13 @@ describe("specs/024 — GET /estimates?status=open|closed (AC-2.2, AC-2.3, AC-2.
   });
 });
 
-// ─── specs/024 T3 — oversight: `estimate:read-all` held by an admin (USER_C) ──
+// ─── specs/20261108-estimate-list-oversight T3 — oversight: `estimate:read-all` held by an admin (USER_C) ──
 //
 // USER_C is the "admin" here: no ownership, no grant — only the permission,
 // answered by a stubbed `auth GET /authz/resolve`. Every test that must prove
 // "no resolver call" reads the counter, not just the status.
 
-describe("specs/024 — oversight read path (AC-1.2, AC-1.3, AC-1.4, AC-1.5, AC-1.6, AC-1.7)", () => {
+describe("specs/20261108-estimate-list-oversight — oversight read path (AC-1.2, AC-1.3, AC-1.4, AC-1.5, AC-1.6, AC-1.7)", () => {
   const READ_ALL = { resource: "estimate", action: "read-all", conditions: null };
   const OTHER = { resource: "estimate", action: "view", conditions: null };
 

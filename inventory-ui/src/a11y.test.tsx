@@ -1,7 +1,7 @@
 /**
  * @vitest-environment jsdom
  *
- * Accessibility pass for inventory-ui (T40, specs/015-hardware-inventory;
+ * Accessibility pass for inventory-ui (T40, specs/20261006-hardware-inventory;
  * design.md § Accessibility; refs AC-4.1, AC-9.6). Two independent checks.
  *
  * 1. STRUCTURE. Every page and dialog is rendered with representative data in its
@@ -11,7 +11,7 @@
  *    covered by check 2, which does the arithmetic from the real tokens instead.
  *    Pages that sit in the tool layout are rendered inside the real
  *    `InventoryShell` (h1, nav landmark), itself inside a `<main>` as the host shell
- *    provides one around every remote (ADR-0006); `MyDevicesPage` and the dialogs
+ *    provides one around every remote (ADR 20260709-suite-frontend-module-federation); `MyDevicesPage` and the dialogs
  *    get a bare `<main>` for the same reason.
  *
  * 2. CONTRAST. The six `AssetStatusBadge` variants and the "To verify" chip (on both
@@ -669,7 +669,7 @@ type Theme = 'dark' | 'light'
 type Rgb = [number, number, number]
 
 const read = (relative: string) => readFileSync(new URL(relative, import.meta.url), 'utf8')
-// The suite's tokens live in @operai/ui since ADR-0050 (shell/src/styles/tokens.css only @imports them).
+// The suite's tokens live in @operai/ui since ADR 20261031-shared-ui-library-consumed-as-source (shell/src/styles/tokens.css only @imports them).
 const TOKENS_CSS = read('../../operai-ui/src/styles/tokens.css')
 const INDEX_CSS = read('./index.css')
 

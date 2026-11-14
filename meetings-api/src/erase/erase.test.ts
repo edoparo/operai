@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, spyOn } from "bun:test";
 import { createKit, type Kit } from "../test-support/routeKit";
 
-// AC-4.7, AC-4.8 (specs/021 T25): the erase screen's search, which shows title, date and
+// AC-4.7, AC-4.8 (specs/20261104-meetings T25): the erase screen's search, which shows title, date and
 // creator and nothing else.
 
 const kit: Kit = await createKit();

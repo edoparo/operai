@@ -1,6 +1,6 @@
 /**
  * NoAccessScreen — Screen S1, the shell's `/no-access` empty state
- * (specs/004-auth-roles-permissions, T25, design.md "Screen S1 — Shell
+ * (specs/20260713-auth-roles-permissions, T25, design.md "Screen S1 — Shell
  * `/no-access`", AC-7.4).
  *
  * Rendered by the `/no-access` route (src/router.tsx) inside the shell's

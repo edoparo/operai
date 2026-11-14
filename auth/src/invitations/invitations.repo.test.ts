@@ -1,6 +1,6 @@
 /**
- * Tests for the invitation domain repo (T5, specs/006-user-invitations —
- * ADR-0012/0013). Two groups:
+ * Tests for the invitation domain repo (T5, specs/20260713-user-invitations —
+ * ADR 20260714-invitation-activation-hooks-soft-delete-lifecycle/0013). Two groups:
  *
  *   - `effectiveInvitationStatus` / `buildEffectiveStatusWhere` /
  *     `isTerminalStatus` — pure functions, no DB.
@@ -31,7 +31,7 @@ const HOUR = 60 * 60 * 1000;
 
 // ─── Pure function tests ─────────────────────────────────────────────────────
 
-describe("effectiveInvitationStatus (ADR-0013)", () => {
+describe("effectiveInvitationStatus (ADR 20260714-invitation-lifecycle-derived-expiry-state)", () => {
   const now = new Date("2026-07-14T12:00:00.000Z");
 
   test("pending, not yet expired → pending", () => {
@@ -128,7 +128,7 @@ describe("buildEffectiveStatusWhere", () => {
 
 // ─── DB-backed tests ──────────────────────────────────────────────────────────
 
-describe("invitations.repo — DB integration (ADR-0013 reconcile-on-write)", () => {
+describe("invitations.repo — DB integration (ADR 20260714-invitation-lifecycle-derived-expiry-state reconcile-on-write)", () => {
   const createdInvitationIds: string[] = [];
   const createdUserIds: string[] = [];
 

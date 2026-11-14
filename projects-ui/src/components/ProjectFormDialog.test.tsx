@@ -168,7 +168,7 @@ describe('creating a project (AC-1.1)', () => {
     expect(posted()).not.toHaveProperty('companyId')
   })
 
-  it('sends another project manager when one is picked from the module’s people (ADR-0055)', async () => {
+  it('sends another project manager when one is picked from the module’s people (ADR 20261101-app-access-check-by-user-id-and-directory-app-filter)', async () => {
     const dialog = renderDialog()
     fireEvent.change(within(dialog).getByLabelText(/^Name/), { target: { value: 'Ops tooling' } })
     fireEvent.change(within(dialog).getByLabelText(/^Type/), { target: { value: 'internal' } })

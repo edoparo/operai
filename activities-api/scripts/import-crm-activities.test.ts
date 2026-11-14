@@ -1,5 +1,5 @@
 /**
- * Import script (specs/028 T13, AC-2.1–2.4) against a CRM source and an activities-api test
+ * Import script (specs/20261110-activities T13, AC-2.1–2.4) against a CRM source and an activities-api test
  * database.
  *
  * The SOURCE is provisioned by this suite (test-support/crmSource.ts): its own database, holding
@@ -26,7 +26,7 @@ const sourceUrl = source.url;
 const crm = source.sql;
 const act = new SQL(targetUrl);
 // Connect now, with no time limit, not inside the first beforeEach (5 s): that hook was the only
-// place a timed hook opened a connection (specs/028 QE D9).
+// place a timed hook opened a connection (specs/20261110-activities QE D9).
 await act.unsafe(`SELECT 1`);
 
 const SECRET_SUBJECT = "Renewal talk with ACME about the Zurich site";

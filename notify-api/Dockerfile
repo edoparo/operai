@@ -49,7 +49,7 @@ EXPOSE 8081
 # estimates — do NOT add any logger that includes request bodies or the Prisma
 # 'query' log level.
 #
-# SINGLE-INSTANCE ONLY (specs/005-notification-center plan.md Risk R2):
+# SINGLE-INSTANCE ONLY (specs/20260713-notification-center plan.md Risk R2):
 # .railway/railway.ts pins one replica — the in-process EventBus fan-out and the
 # in-process stream-ticket store are correct for exactly one running instance.
 # Do NOT enable autoscale / multiple replicas for this service without first

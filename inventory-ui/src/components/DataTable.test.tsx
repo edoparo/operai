@@ -1,7 +1,7 @@
 /**
  * @vitest-environment jsdom
  *
- * Component tests for DataTable (T26, specs/015-hardware-inventory; design.md
+ * Component tests for DataTable (T26, specs/20261006-hardware-inventory; design.md
  * § NEW components "DataTable" and § Accessibility "Data tables"): an
  * sr-only caption naming the table, `scope` headers, the row header cell,
  * right-aligned tabular numeric cells, a focusable labelled scroll region, no

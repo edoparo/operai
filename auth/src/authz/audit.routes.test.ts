@@ -311,7 +311,7 @@ describe("GET /admin/audit (T7)", () => {
     expect(indices[0]).toBe(SEED_COUNT - 1);
   });
 
-  // ─── T5, specs/012-employee-address (AC-5.3) ─────────────────────────────
+  // ─── T5, specs/20260803-employee-address (AC-5.3) ─────────────────────────────
   // Additive `targetType`/`targetId`/`action` filters on this SAME route —
   // the only change this feature makes to the audit area.
 

@@ -1,7 +1,7 @@
 /**
  * Contract test: what `GET /authz/resolve` returns for the seeded inventory
- * roles (T3, specs/015-hardware-inventory — refs AC-9.3, AC-9.4, AC-9.5,
- * AC-9.6; ADR-0015, ADR-0014).
+ * roles (T3, specs/20261006-hardware-inventory — refs AC-9.3, AC-9.4, AC-9.5,
+ * AC-9.6; ADR 20260716-entity-scoped-abac-refund-api, ADR 20260716-refund-api-authorization-enforcing-resource-server).
  *
  * `inventory-api` evaluates the entity condition locally from exactly this
  * response (`permissions[].conditions.attributes` + the caller's `entity`), so

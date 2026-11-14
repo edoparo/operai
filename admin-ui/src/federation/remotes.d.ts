@@ -1,5 +1,5 @@
 // Ambient module declarations for the shell modules admin-ui consumes as a
-// remote (T13, specs/004-auth-roles-permissions/tasks.md). Module Federation
+// remote (T13, specs/20260713-auth-roles-permissions/tasks.md). Module Federation
 // resolves `shell/session` and `shell/tokens.css` at runtime via a virtual
 // module TypeScript's program cannot see, so without these declarations
 // `tsc` reports TS2307/TS2306 ("Cannot find module"). Hand-written rather

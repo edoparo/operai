@@ -1,12 +1,12 @@
 /**
  * GET /notifications (list) + GET /notifications/unread-count
- * (T5, specs/005-notification-center, plan.md §API contracts, US-2/US-6).
+ * (T5, specs/20260713-notification-center, plan.md §API contracts, US-2/US-6).
  *
- * Both routes are jwtMiddleware-protected (ADR-0005 + ADR-0010) and scoped
+ * Both routes are jwtMiddleware-protected (ADR 20260703-jwt-resource-server-remote-jwks + ADR 20260713-jwt-audience-claim-enforcement) and scoped
  * exclusively by recipientId := JWT sub — never from a query/path parameter.
  *
  * DRIFT NOTE (reported to the caller, not silently resolved): tasks.md T5's
- * "done when" line says "… not-owned → 404 (ADR-0005)", and plan.md's AC-6.2
+ * "done when" line says "… not-owned → 404 (ADR 20260703-jwt-resource-server-remote-jwks)", and plan.md's AC-6.2
  * test-strategy row says "B fetching A's id → 404". Neither plan.md's
  * §API contracts section for GET /notifications (a pure list, no :id path
  * param) nor the rest of this spec defines any single-notification-by-id GET
@@ -38,7 +38,7 @@ export const listRouter = new OpenAPIHono<{ Variables: JwtVariables }>();
 // the same prefix (`app.route("/", listRouter)` etc.), and Hono merges each
 // child router's middleware into ONE flat route table once mounted — a "*"
 // registered on ANY sub-router therefore gates the WHOLE app, including
-// `GET /notifications/stream`, which per ADR-0008 MUST be reachable WITHOUT a
+// `GET /notifications/stream`, which per ADR 20260713-sse-stream-auth-short-lived-ticket MUST be reachable WITHOUT a
 // Bearer (EventSource cannot send one; it is authed by the query-string
 // ticket instead). This mirrors the precedent already documented in
 // stream.routes.ts's stream-ticket route.

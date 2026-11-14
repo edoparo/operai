@@ -1,7 +1,7 @@
 /**
  * @vitest-environment jsdom
  *
- * Component tests for BulkDeleteResultPanel (T11, specs/006-user-invitations,
+ * Component tests for BulkDeleteResultPanel (T11, specs/20260713-user-invitations,
  * design.md Panel N3).
  *
  * Covers:

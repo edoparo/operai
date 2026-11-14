@@ -1,4 +1,4 @@
-/** Shapes shared by the legacy-import modules (T23, specs/015-hardware-inventory; US-12). */
+/** Shapes shared by the legacy-import modules (T23, specs/20261006-hardware-inventory; US-12). */
 
 /** One worksheet row as plain values; `col` is the spreadsheet column letter A-P. Formulas are already resolved to their cached result. */
 export interface SheetRow {

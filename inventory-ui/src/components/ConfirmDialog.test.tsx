@@ -1,7 +1,7 @@
 /**
  * @vitest-environment jsdom
  *
- * Component tests for ConfirmDialog (T25, specs/015-hardware-inventory,
+ * Component tests for ConfirmDialog (T25, specs/20261006-hardware-inventory,
  * design.md § Component inventory: "Confirm dialogs (return, lost, cancel
  * assignment, decline)"). Carried over from refund-ui's ConfirmDeleteModal
  * (same props, same behaviour), plus the two rules design.md § Accessibility

@@ -1,7 +1,7 @@
 /**
  * @vitest-environment jsdom
  *
- * Component tests for AuditPage — Screen D1 (T21, specs/004-auth-roles-permissions).
+ * Component tests for AuditPage — Screen D1 (T21, specs/20260713-auth-roles-permissions).
  *
  * Covers:
  *   (A) Loading: adminApi.listAudit is pending → SkeletonListRows is visible.

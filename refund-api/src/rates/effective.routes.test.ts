@@ -1,5 +1,5 @@
 /**
- * Integration tests for `GET /rates/effective` (T4, specs/009-mileage-rate,
+ * Integration tests for `GET /rates/effective` (T4, specs/20260720-mileage-rate,
  * AC-1.2/1.3, AC-2.1, AC-2.2, Decision 2).
  *
  * AC coverage

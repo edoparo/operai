@@ -1,5 +1,5 @@
 /**
- * Invoice files (T21, specs/015-hardware-inventory; AC-10.4 to AC-10.7;
+ * Invoice files (T21, specs/20261006-hardware-inventory; AC-10.4 to AC-10.7;
  * plan § Invoice files). Either capability (`asset:manage` or `ledger:manage`),
  * scoped by the file's `entity`:
  *
@@ -9,7 +9,7 @@
  *   PUT  /invoice-files/{id}/assets  link a stored file to assets (replaces)
  *   GET  /invoice-files/{id}/url     a 60 s presigned GET
  *
- * Denials follow ADR-0014. The mint is a capability gate (403, and 403 for an
+ * Denials follow ADR 20260716-refund-api-authorization-enforcing-resource-server. The mint is a capability gate (403, and 403 for an
  * entity outside the caller's scope, as `POST /assets` does: the entity is a
  * body value, not an addressed record). Every route that ADDRESSES a file is
  * 404 for a caller with no capability, an out-of-scope file, an unknown id, or

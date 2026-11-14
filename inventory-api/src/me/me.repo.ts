@@ -1,6 +1,6 @@
 /**
- * `/me/*` data access (T16, specs/015; AC-2.3, AC-2.4, AC-2.7, AC-4.1,
- * ADR-0045). Every query is scoped to the verified `sub` the caller passes in;
+ * `/me/*` data access (T16, specs/20261006-hardware-inventory; AC-2.3, AC-2.4, AC-2.7, AC-4.1,
+ * ADR 20261006-ungated-second-federated-entry-of-a-gated-remote). Every query is scoped to the verified `sub` the caller passes in;
  * there is no query by asset or assignment alone that is not re-checked
  * against it.
  */

@@ -24,7 +24,7 @@ vi.mock('shell/session', () => ({
   useSession: () => ({ data: { user: { id: 'u-ada' } } }),
 }))
 
-// The Meetings panel is Meetings' own, loaded through `shell/extensions` (ADR-0060).
+// The Meetings panel is Meetings' own, loaded through `shell/extensions` (ADR 20261104-host-extension-federated-panel-through-the-shell).
 const { hostExtensionProps } = vi.hoisted(() => ({ hostExtensionProps: [] as unknown[] }))
 vi.mock('shell/extensions', () => ({
   HostExtension: ({ props }: { props: unknown }) => {

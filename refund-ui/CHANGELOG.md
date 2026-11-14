@@ -17,7 +17,7 @@
   embedded as an image. An "Export PDF" button appears on an approved request
   for its owner and for accounting reviewers.
 
-  This is the first time refund-api reads attachment bytes at all (ADR-0043).
+  This is the first time refund-api reads attachment bytes at all (ADR 20260908-request-archive-export-refund-api-reads-attachment-bytes).
   Receipts were previously reachable only through presigned URLs the browser
   followed itself, which is still how receipt downloads work — but an archive
   cannot embed a file it may not read. The exposure is bounded: a request whose
@@ -90,7 +90,7 @@
   the total rather than an announcement of its own. Its "Monthly processing"
   heading is gone; at body weight the sentence introduces itself.
 
-  The copy is untouched, so specs/007's AC-4.1 still holds — it requires the UI
+  The copy is untouched, so specs/20260716-refund-service's AC-4.1 still holds — it requires the UI
   to state the monthly cadence, not to shout it.
 
 - 7f29ff7: The request archive PDF now reads like a document rather than a data dump.
@@ -163,7 +163,7 @@
 
   Only the presentation changes — both values remain on the wire and in the API
   contract — and the rule lives in one shared helper, so a line and its totals
-  card can never disagree about whether an amount moved. specs/007's AC-3.2 is
+  card can never disagree about whether an amount moved. specs/20260716-refund-service's AC-3.2 is
   amended to match: its stated purpose ("see exactly where, if anywhere, an
   amount was adjusted") is what motivated the change; showing both figures
   everywhere worked against it.

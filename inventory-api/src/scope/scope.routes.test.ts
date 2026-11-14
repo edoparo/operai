@@ -1,5 +1,5 @@
 /**
- * `GET /scope` (T7, specs/015-hardware-inventory; AC-9.4, AC-9.5, AC-9.7).
+ * `GET /scope` (T7, specs/20261006-hardware-inventory; AC-9.4, AC-9.5, AC-9.7).
  *
  * Real router + real auth/authz middleware over the shared harness (RS256
  * verification against a local key set, `GET /authz/resolve` replaced by a

@@ -1,5 +1,5 @@
 /**
- * EntityBadge — the legal entity an expense line belongs to (specs/007).
+ * EntityBadge — the legal entity an expense line belongs to (specs/20260716-refund-service).
  * Shows the entity only; `CurrencyBadge` renders the currency, which is an
  * independent field on each line. Neutral for both entities: an entity is
  * metadata, and green on a row is left to mean "approved" alone.

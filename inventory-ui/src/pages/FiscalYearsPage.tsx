@@ -16,7 +16,7 @@ import type { Entity, FiscalYearSummary } from '../lib/types'
 import { strings } from '../strings'
 
 /**
- * FiscalYearsPage — T5, `/years` (T38, specs/015-hardware-inventory; design.md T5,
+ * FiscalYearsPage — T5, `/years` (T38, specs/20261006-hardware-inventory; design.md T5,
  * F12; AC-8.1): one section per entity of `GET /scope`'s `ledger` list, each a
  * table of that entity's fiscal years, newest first — year, Open / Closed (a
  * StatusBadge: label + icon, never colour alone), the closed-on date, and a link to the year's

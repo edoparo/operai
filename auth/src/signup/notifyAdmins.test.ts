@@ -1,5 +1,5 @@
 /**
- * specs/023 T4 (AC-4.1, AC-4.3; ADR-0072): `notifyAdminsOfAccessRequest` posts one
+ * specs/20261105-signup-gate T4 (AC-4.1, AC-4.3; ADR 20261105-auth-pushes-admin-notifications): `notifyAdminsOfAccessRequest` posts one
  * notification per EFFECTIVE admin (direct or via department, active only) and
  * never throws or blocks its caller.
  */

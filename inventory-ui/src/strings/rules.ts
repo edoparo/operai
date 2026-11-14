@@ -1,6 +1,6 @@
 /**
  * strings.rules — the Depreciation rules screen and the New rule dialog (T37,
- * specs/015-hardware-inventory; design.md T4, F11, § Irreversible actions "New
+ * specs/20261006-hardware-inventory; design.md T4, F11, § Irreversible actions "New
  * rule", § Error and conflict catalogue; AC-6.1 to AC-6.5). Templates with
  * `{name}` placeholders in `strings.errors` go through `fillTemplate`; money is
  * formatted by the caller with `formatMoney`.

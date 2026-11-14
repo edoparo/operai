@@ -1,5 +1,5 @@
 /**
- * `GET /companies?q=` (specs/025 T5, AC-1.1, ADR-0080): the company picker for the create
+ * `GET /companies?q=` (specs/20261103-projects T5, AC-1.1, ADR 20261103-projects-api-reads-crm-companies-with-scoped-service-credential): the company picker for the create
  * form, a thin proxy over crm-api's `/system/companies` read with the service credential.
  * Needs `project:manage` (any entity): only someone who can create a project needs to pick a
  * company, and a plain reader sees company names through the projects themselves.

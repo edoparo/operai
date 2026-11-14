@@ -1,5 +1,5 @@
 /**
- * What the capture, transcript and audio routes share (specs/021-meetings
+ * What the capture, transcript and audio routes share (specs/20261104-meetings
  * plan.md § Authorization "Action matrix", § API contracts).
  *
  * `callerOf` and `creatorControl` live in `../meetings/caller` (one builder for every
@@ -39,7 +39,7 @@ export async function openForControl(id: string, caller: ViewCaller): Promise<Op
  * at 120 requests per 10 minutes, and a recording makes ~8 such calls a minute, so a
  * lookup per call would get a one-hour recording throttled into 503s. The creator
  * was checked live when the recording started and is checked live again at stop,
- * process and discard; a deactivated account has its sessions revoked (ADR-0012),
+ * process and discard; a deactivated account has its sessions revoked (ADR 20260714-invitation-activation-hooks-soft-delete-lifecycle),
  * and the only window left is the residual life of the JWT already in the tab.
  */
 export async function openForCapture(id: string, caller: ViewCaller): Promise<Opened> {

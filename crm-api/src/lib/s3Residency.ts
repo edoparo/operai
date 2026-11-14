@@ -1,12 +1,12 @@
 /**
  * EU-residency + path-style-addressing helpers for the CRM offers and attachments bucket
- * (specs/018-crm-sales-flow; ADR-0016 posture). Ported from inventory-api, itself ported from
+ * (specs/20261101-crm-sales-flow; ADR 20260716-eu-object-storage-refund-attachments posture). Ported from inventory-api, itself ported from
  * refund-api/src/lib/s3Residency.ts with the variable names re-pointed at
  * `CRM_S3_*`; moved out of env.ts, which T1 had inlined them in until
  * this task.
  */
 
-// ─── EU-residency guard for the CRM offers and attachments bucket (ADR-0016 posture) ───────
+// ─── EU-residency guard for the CRM offers and attachments bucket (ADR 20260716-eu-object-storage-refund-attachments posture) ───────
 //
 // Same endpoint-aware rule as refund-api/src/lib/s3Residency.ts (OWASP A05):
 //
@@ -66,7 +66,7 @@ export function checkEuResidency(
     if (!(EU_AWS_REGIONS as readonly string[]).includes(region)) {
       return (
         `CRM_S3_REGION "${region}" is not an EU AWS region (data ` +
-        `residency, ADR-0016/CLAUDE.md). Allowed: ${EU_AWS_REGIONS.join(", ")}`
+        `residency, ADR 20260716-eu-object-storage-refund-attachments/CLAUDE.md). Allowed: ${EU_AWS_REGIONS.join(", ")}`
       );
     }
     return null;
@@ -84,7 +84,7 @@ export function checkEuResidency(
       `CRM_S3_ENDPOINT "${endpoint}" is a non-AWS endpoint, but ` +
       `CRM_S3_EU_ENDPOINT_HOSTS is empty/unset — residency cannot be ` +
       `verified without an operator-declared EU allowlist (data residency, ` +
-      `ADR-0016/CLAUDE.md). Set it to a comma-separated list of EU endpoint ` +
+      `ADR 20260716-eu-object-storage-refund-attachments/CLAUDE.md). Set it to a comma-separated list of EU endpoint ` +
       `host suffixes.`
     );
   }
@@ -94,7 +94,7 @@ export function checkEuResidency(
       `CRM_S3_ENDPOINT host "${hostname}" does not match any entry in ` +
       `CRM_S3_EU_ENDPOINT_HOSTS (${euEndpointHosts.join(", ")}) — ` +
       `refusing to start with an unverified non-EU endpoint (data residency, ` +
-      `ADR-0016/CLAUDE.md).`
+      `ADR 20260716-eu-object-storage-refund-attachments/CLAUDE.md).`
     );
   }
   return null;

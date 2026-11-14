@@ -1,5 +1,5 @@
 /**
- * DealBadge — marks an estimate that belongs to a CRM deal (specs/024 US-3).
+ * DealBadge — marks an estimate that belongs to a CRM deal (specs/20261108-estimate-list-oversight US-3).
  *
  * EstimAI knows only that a deal exists and its id (AC-3.3), so the badge never
  * shows a title, company or amount. With `(crm, access)` it is a real link to

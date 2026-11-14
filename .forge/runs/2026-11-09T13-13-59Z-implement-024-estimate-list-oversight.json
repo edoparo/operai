@@ -3,7 +3,7 @@
  "plugin_version": "2.56.0",
  "run_id": "2026-11-09T13-13-59Z-implement-024-estimate-list-oversight",
  "command": "implement",
- "feature": "024-estimate-list-oversight",
+ "feature": "20261108-estimate-list-oversight",
  "rigor": "production",
  "rigor_recorded": null,
  "started": "2026-11-09T13:00:00Z",
@@ -36,9 +36,9 @@
   "dispatched": true,
   "notes": [
    "PASS WITH NOTES: 0 critical, 0 high, 0 medium, 4 low",
-   "LOW oversight.ts:55-97 30 s grant cache: an old-epoch token keeps oversight up to 30 s after revocation (ADR-0014 backstop)",
+   "LOW oversight.ts:55-97 30 s grant cache: an old-epoch token keeps oversight up to 30 s after revocation (ADR 20260716-refund-api-authorization-enforcing-resource-server backstop)",
    "LOW dealLinkNotices.routes.ts: `at` has no upper bound; a far-future at from crm-api would pin the link state",
-   "LOW estimates.routes.ts:356-377 whose=all list unbounded (ADR-0075 revisit trigger > ~500 estimates)",
+   "LOW estimates.routes.ts:356-377 whose=all list unbounded (ADR 20261108-estimai-oversight-permission-amends-0036 revisit trigger > ~500 estimates)",
    "LOW/info oversight.ts:79-83 outage log includes the fetch error text (internal host)"
   ]
  },

@@ -18,7 +18,7 @@ import type { Currency, Entity, Identity, Rule, RulesList } from '../lib/types'
 import { strings } from '../strings'
 
 /**
- * RulesPage — T4, `/rules` (T37, specs/015-hardware-inventory; design.md T4, F11,
+ * RulesPage — T4, `/rules` (T37, specs/20261006-hardware-inventory; design.md T4, F11,
  * § Accessibility "T4 rules"; AC-6.1, AC-6.2, AC-6.5), modelled on admin-ui's
  * MileageRatesPage: one section per entity of `GET /scope`'s `ledger` list, each a
  * table of EVERY rule (past, in force, scheduled) with who added it and when, and

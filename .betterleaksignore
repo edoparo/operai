@@ -6,7 +6,7 @@
 # auth/src/test-setup.ts uses a placeholder BETTER_AUTH_SECRET for unit tests — not a real secret
 auth/src/test-setup.ts:generic-api-key:20
 
-# auth/src/auth/auth.config.test.ts (T8, specs/006-user-invitations) — same placeholder
+# auth/src/auth/auth.config.test.ts (T8, specs/20260713-user-invitations) — same placeholder
 # secret string, reused to construct scratch betterAuth() instances for the R1 spike
 # (session.create.before abort-contract check) — not a real secret
 auth/src/auth/auth.config.test.ts:generic-api-key:173
@@ -28,11 +28,11 @@ estimai-api/src/auth/jwt.middleware.test.ts:generic-api-key:146
 # notify-api/src/auth/jwt.middleware.test.ts — same in-test generated CryptoKey pattern
 notify-api/src/auth/jwt.middleware.test.ts:generic-api-key:138
 
-# refund-api/src/auth/jwt.middleware.test.ts (T4, specs/007-refund-service) — same
+# refund-api/src/auth/jwt.middleware.test.ts (T4, specs/20260716-refund-service) — same
 # in-test generated CryptoKey pattern as estimai-api/notify-api above
 refund-api/src/auth/jwt.middleware.test.ts:generic-api-key:162
 
-# infra/check.sh (specs/006, reworked by specs/016) — deliberately BOGUS literal string
+# infra/check.sh (specs/20260713-user-invitations, reworked by specs/20261013-notify-service-credentials) — deliberately BOGUS literal string
 # ("not-a-credential") sent as the retired X-Internal-Token header to assert both
 # notify-api /system routes reject it with 401. Not a real secret.
 infra/check.sh:curl-auth-header:166
@@ -102,7 +102,7 @@ f3d016d93a7c609dbc4b7193e8b472afea76da11:refund-api/src/lib/serviceToken.test.ts
 # This file's own earlier comment quoted those compose defaults (fixed since):
 798af6a98795b78d84aa4ef41857a80f33be734a:.betterleaksignore:generic-password:58
 
-# specs/021-meetings (T92) — reviewed placeholders, none is a real secret.
+# specs/20261104-meetings (T92) — reviewed placeholders, none is a real secret.
 # meetings-api test preload + README: the local compose Postgres default credentials for a
 # throwaway meetings_test DB (same pattern as crm-api/src/test-support/testAuth.ts and the
 # inventory-api entries above). The README line and the commit-less forms are for the working tree.
@@ -120,7 +120,7 @@ notify-api/src/notifications/notifications.repo.test.ts:generic-credential-uri:1
 f82991fc3f8edfa44109deea4deb8a99887795d5:meetings-api/evals/fixtures/summary.en.ts:generic-password:58
 meetings-api/evals/fixtures/summary.en.ts:generic-password:57
 
-# projects-api (specs/025) and activities-api (specs/028): the local compose Postgres default
+# projects-api (specs/20261103-projects) and activities-api (specs/20261110-activities): the local compose Postgres default
 # credentials (postgres:postgres@localhost:5435) in .env.example, test preloads, README and
 # compose.yaml — placeholders, not secrets. Commit-prefixed entries must be regenerated if the
 # branch is squashed or rebased (fingerprints include the commit).

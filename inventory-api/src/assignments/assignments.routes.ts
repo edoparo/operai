@@ -1,5 +1,5 @@
 /**
- * Assignments, manager side (T15, specs/015-hardware-inventory; AC-2.1, AC-2.2,
+ * Assignments, manager side (T15, specs/20261006-hardware-inventory; AC-2.1, AC-2.2,
  * AC-2.5, AC-2.10): `POST /assets/{id}/assignments` and
  * `POST /assignments/{id}/cancel`.
  *

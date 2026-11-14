@@ -1,11 +1,11 @@
 /**
- * Admin-session seeding for specs/006-user-invitations e2e (T14).
+ * Admin-session seeding for specs/20260713-user-invitations e2e (T14).
  *
  * Mirrors `seedSession.ts`'s Set-Cookie-mint pattern (and
  * `notifications.spec.ts`'s Node-context `seedUser`/token helpers) but for an
  * ADMIN-privileged @operai.test user — needed because every invitation/
  * delete screen this feature adds lives behind `requireAdmin`
- * (specs/004-auth-roles-permissions), and there is no test-only "mint an
+ * (specs/20260713-auth-roles-permissions), and there is no test-only "mint an
  * admin session" endpoint (nor should there be — see inviteFixtures.ts's doc
  * comment on why role-granting goes through direct DB access instead).
  */

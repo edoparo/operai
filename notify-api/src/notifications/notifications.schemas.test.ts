@@ -1,5 +1,5 @@
 /**
- * The link.href open-redirect guard (T21, specs/029-push-notifications, S-M1, AC-4.1/4.2/6.2).
+ * The link.href open-redirect guard (T21, specs/20261111-push-notifications, S-M1, AC-4.1/4.2/6.2).
  * A href reaches the browser through the in-app list, the SSE stream and now a Web Push payload
  * a service worker opens, so the server refuses anything that does not stay on the suite origin
  * AFTER URL normalisation.

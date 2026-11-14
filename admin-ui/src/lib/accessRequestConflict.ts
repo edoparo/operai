@@ -1,5 +1,5 @@
 /**
- * accessRequestOutcomeFor — maps a failed approve/reject call (specs/023, design.md F2–F4)
+ * accessRequestOutcomeFor — maps a failed approve/reject call (specs/20261105-signup-gate, design.md F2–F4)
  * onto what the page does. Decided by `ApiError.status` and `code`, never by the English
  * `detail` (unlike the older `inviteConflict.ts`).
  *

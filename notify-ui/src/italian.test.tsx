@@ -54,7 +54,7 @@ describe('notification center in Italian', () => {
     expect(document.querySelector('time')?.textContent).toBe('2 ore fa')
   })
 
-  it('labels the projects origin "Progetti" (specs/028 T24)', async () => {
+  it('labels the projects origin "Progetti" (specs/20261110-activities T24)', async () => {
     vi.mocked(markAllRead).mockResolvedValue({ updated: 0, count: 0 })
     vi.mocked(listNotifications).mockResolvedValue({
       items: [

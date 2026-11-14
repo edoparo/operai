@@ -1,5 +1,5 @@
 /**
- * Admin Users API (T10, specs/004-auth-roles-permissions — refs AC-1.3,
+ * Admin Users API (T10, specs/20260713-auth-roles-permissions — refs AC-1.3,
  * AC-1.4, AC-2.3, AC-6.4).
  *
  * All routes are guarded by `sessionMiddleware` + `requireAuth` +
@@ -106,7 +106,7 @@ const UserDetailSchema = z.object({
   departments: z.array(DepartmentSummarySchema),
 });
 
-// ─── Soft-delete schemas (T7, specs/006-user-invitations — refs US-5, US-6) ───
+// ─── Soft-delete schemas (T7, specs/20260713-user-invitations — refs US-5, US-6) ───
 
 const DeleteUserResponseSchema = z.object({
   id: z.string(),
@@ -309,7 +309,7 @@ const listUsersRoute = createRoute({
 usersRouter.openapi(listUsersRoute, async (c) => {
   const { page, pageSize, q } = c.req.valid("query");
 
-  // AC-5.3 (specs/006-user-invitations, T7): a soft-deleted user is gone
+  // AC-5.3 (specs/20260713-user-invitations, T7): a soft-deleted user is gone
   // from every user-facing list — filtered out here, not merely hidden by
   // the UI, so no client can discover them via this endpoint either.
   const whereClause: Prisma.UserWhereInput = {
@@ -412,7 +412,7 @@ usersRouter.openapi(getUserRoute, async (c) => {
     },
   });
 
-  // AC-5.4 (specs/006-user-invitations, T7): a soft-deleted user's record is
+  // AC-5.4 (specs/20260713-user-invitations, T7): a soft-deleted user's record is
   // retained internally (audit/referential integrity) but there is no
   // admin-facing way to browse them — the detail endpoint 404s exactly as
   // if the row didn't exist, same as an unknown id.
@@ -437,21 +437,21 @@ usersRouter.openapi(getUserRoute, async (c) => {
 
 // ─── DELETE /admin/users/:id ──────────────────────────────────────────────────
 //
-// Soft-delete (T7, specs/006-user-invitations — refs US-5, AC-5.1, AC-5.3–5.9;
-// ADR-0012). Per-delete, inside a single `withAudit` transaction:
+// Soft-delete (T7, specs/20260713-user-invitations — refs US-5, AC-5.1, AC-5.3–5.9;
+// ADR 20260714-invitation-activation-hooks-soft-delete-lifecycle). Per-delete, inside a single `withAudit` transaction:
 //   1. AC-5.6 (absolute, checked first, independent of admin-count): the
 //      caller can never delete their own account through this action.
 //   2. 404 if the target doesn't exist or is already soft-deleted (AC-5.4 —
 //      no admin-facing way to "see" a soft-deleted user at all).
 //   3. AC-5.5: the last-admin guard (reused from `./lastAdminGuard.ts`,
-//      T10/specs/004) — deletion always removes ALL effective access, so
+//      T10/specs/20260713-auth-roles-permissions) — deletion always removes ALL effective access, so
 //      `willBeAdminAfter` is unconditionally `false` here (unlike the
 //      roles/departments routes, which pass the caller's proposed new set).
 //   4. `deletedAt`/`deletedByUserId` set + a SYNCHRONOUS `session.deleteMany`
 //      in the SAME transaction (AC-5.1 — not a background job) + the
 //      `withAudit` epoch bump + `user.delete` audit row (AC-5.8). The user's
 //      `Account`/`UserRole`/`UserDepartment` rows are retained untouched
-//      (AC-5.4, ADR-0012) — only `deletedAt` changes.
+//      (AC-5.4, ADR 20260714-invitation-activation-hooks-soft-delete-lifecycle) — only `deletedAt` changes.
 
 const deleteUserRoute = createRoute({
   method: "delete",
@@ -462,7 +462,7 @@ const deleteUserRoute = createRoute({
     "Soft-deletes a user: marks deletedAt, synchronously revokes every " +
     "active session, and bumps their permission epoch. The user's own " +
     "record and their UserRole/UserDepartment/Account rows are retained " +
-    "(ADR-0012) — nothing is physically removed.",
+    "(ADR 20260714-invitation-activation-hooks-soft-delete-lifecycle) — nothing is physically removed.",
   request: { params: IdParamSchema },
   responses: {
     200: {
@@ -571,7 +571,7 @@ usersRouter.openapi(deleteUserRoute, async (c) => {
 
 // ─── POST /admin/users/delete (bulk) ──────────────────────────────────────────
 //
-// Bulk soft-delete (T7, specs/006-user-invitations — refs US-6, AC-6.1–6.5).
+// Bulk soft-delete (T7, specs/20260713-user-invitations — refs US-6, AC-6.1–6.5).
 // Partial-success, never all-or-nothing (AC-6.2/6.3): each requested id is
 // processed in its own `withAudit` transaction, SEQUENTIALLY (not
 // `Promise.all`) — deliberate, so that deleting several admins in one batch
@@ -734,7 +734,7 @@ usersRouter.openapi(patchUserRoute, async (c) => {
     where: { id },
     select: { id: true, email: true, entity: true, jobTitle: true, deletedAt: true },
   });
-  // Security-review fix #2 (specs/006-user-invitations): a soft-deleted user
+  // Security-review fix #2 (specs/20260713-user-invitations): a soft-deleted user
   // has no admin-facing existence (AC-5.4, mirroring GET/DELETE .../:id) — a
   // caller must not be able to mutate a soft-deleted user's attributes.
   if (!existing || existing.deletedAt !== null) {
@@ -844,7 +844,7 @@ usersRouter.openapi(putUserRolesRoute, async (c) => {
     where: { id },
     select: { id: true, email: true, deletedAt: true },
   });
-  // Security-review fix #2 (specs/006-user-invitations): a soft-deleted
+  // Security-review fix #2 (specs/20260713-user-invitations): a soft-deleted
   // user's roles can never be mutated (AC-5.4) — treat them as gone, same as
   // GET/DELETE .../:id.
   if (!target || target.deletedAt !== null) {
@@ -1005,7 +1005,7 @@ usersRouter.openapi(putUserDepartmentsRoute, async (c) => {
     where: { id },
     select: { id: true, email: true, deletedAt: true },
   });
-  // Security-review fix #2 (specs/006-user-invitations): a soft-deleted
+  // Security-review fix #2 (specs/20260713-user-invitations): a soft-deleted
   // user's departments can never be mutated (AC-5.4) — treat them as gone,
   // same as GET/DELETE .../:id.
   if (!target || target.deletedAt !== null) {
@@ -1155,7 +1155,7 @@ usersRouter.openapi(getUserPermissionsRoute, async (c) => {
     where: { id },
     select: { id: true, deletedAt: true },
   });
-  // Security-review fix #2 (specs/006-user-invitations): a soft-deleted
+  // Security-review fix #2 (specs/20260713-user-invitations): a soft-deleted
   // user's effective permissions must never be readable (AC-5.4) — treat
   // them as gone, same as GET/DELETE .../:id.
   if (!exists || exists.deletedAt !== null) {

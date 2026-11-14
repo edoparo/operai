@@ -63,7 +63,7 @@ describe.each(REMOTE_VERSION_SOURCES)(
       expect(shellViteConfigSource).toMatch(remoteBlockRe)
     })
 
-    // inventory-ui is built by later tasks of specs/015 (T2+); until its
+    // inventory-ui is built by later tasks of specs/20261006-hardware-inventory (T2+); until its
     // vite.config.ts exists there is nothing on the remote side to compare, so
     // the shell-side checks above are the only ones that can run.
     const remoteViteConfigPath = path.resolve(__dirname, '../../../', REMOTE_DIRS[id], 'vite.config.ts')
@@ -79,7 +79,7 @@ it('REMOTE_VERSION_SOURCES covers exactly the known remote directories, no more,
   expect(new Set(REMOTE_VERSION_SOURCES.map((s) => s.id))).toEqual(new Set(Object.keys(REMOTE_DIRS)))
 })
 
-// specs/015-hardware-inventory, T41 (ADR-0045): inventory-ui exposes TWO
+// specs/20261006-hardware-inventory, T41 (ADR 20261006-ungated-second-federated-entry-of-a-gated-remote): inventory-ui exposes TWO
 // entries besides ./version — the gated ./App and the ungated ./MyDevices —
 // so the shell declares both ambient modules.
 describe("'inventory' — the two federated entries are declared for tsc", () => {
@@ -88,7 +88,7 @@ describe("'inventory' — the two federated entries are declared for tsc", () =>
   })
 })
 
-// specs/021-meetings (ADR-0045 shape, ADR-0060): the meetings remote exposes three
+// specs/20261104-meetings (ADR 20261006-ungated-second-federated-entry-of-a-gated-remote shape, ADR 20261104-host-extension-federated-panel-through-the-shell): the meetings remote exposes three
 // mountable entries besides ./version, and the shell exposes the host-extension seam.
 describe("'meetings' — the federated entries are declared for tsc, and the seam is exposed", () => {
   it.each(['meetings/App', 'meetings/MyMeetings', 'meetings/HostMeetings'])("remotes.d.ts declares '%s'", (specifier) => {
@@ -135,7 +135,7 @@ describe('runtime-config.example.json', () => {
   })
 })
 
-// specs/017-crm: the shell's CSP lets the page load the CRM remote and reach crm-api.
+// specs/20261101-crm: the shell's CSP lets the page load the CRM remote and reach crm-api.
 describe('vercel.json CSP — crm origins', () => {
   const vercel = JSON.parse(readFileSync(path.resolve(__dirname, '../../vercel.json'), 'utf-8')) as {
     headers: { source: string; headers: { key: string; value: string }[] }[]
@@ -159,7 +159,7 @@ describe('vercel.json CSP — crm origins', () => {
   })
 })
 
-// specs/025-projects: the shell's CSP lets the page load the Projects remote and reach projects-api.
+// specs/20261103-projects: the shell's CSP lets the page load the Projects remote and reach projects-api.
 describe('vercel.json CSP — projects origins', () => {
   const vercel = JSON.parse(readFileSync(path.resolve(__dirname, '../../vercel.json'), 'utf-8')) as {
     headers: { source: string; headers: { key: string; value: string }[] }[]

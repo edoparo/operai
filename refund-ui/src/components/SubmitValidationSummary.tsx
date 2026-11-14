@@ -1,6 +1,6 @@
 /**
  * SubmitValidationSummary — lists the expense lines a `422 POST
- * /requests/:id/submit` named as incomplete (T16, specs/007-refund-service/
+ * /requests/:id/submit` named as incomplete (T16, specs/20260716-refund-service/
  * tasks.md, AC-1.6; design.md F2 step 1: "a SubmitValidationSummary banner
  * lists exactly the offending line ids the response body names, each entry
  * a jump link that scrolls to and focuses the corresponding ExpenseLineRow —

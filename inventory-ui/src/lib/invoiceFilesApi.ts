@@ -5,7 +5,7 @@ import type { Entity, InvoiceContentType, InvoiceUploadRequest, MintedInvoiceUpl
  * Invoice files (either capability, scoped to `entity`): mint a presigned POST,
  * upload to the EU bucket, confirm, then link to assets sharing the invoice
  * reference. The bucket step never goes through `apiFetch` — the suite's
- * Bearer JWT must not reach the storage provider's origin (ADR-0001; the same
+ * Bearer JWT must not reach the storage provider's origin (ADR 20260607-jwt-in-memory-never-web-storage; the same
  * rule as refund-ui's attachments). There is no unlink route.
  */
 

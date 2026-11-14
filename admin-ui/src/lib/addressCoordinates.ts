@@ -1,6 +1,6 @@
 /**
  * addressCoordinates — the AC-2.6 coordinate-staleness rule, as a pure
- * function (T8, specs/012-employee-address/tasks.md, refs AC-2.6, AC-3.4;
+ * function (T8, specs/20260803-employee-address/tasks.md, refs AC-2.6, AC-3.4;
  * plan.md "AC-2.6 — the coordinate-staleness rule, as a contract").
  *
  * A suggestion selection captures coordinates (AC-2.5). If the admin then

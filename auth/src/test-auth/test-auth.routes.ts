@@ -39,7 +39,7 @@ const signCookieValue = async (value: string, secret: string): Promise<string> =
 };
 
 /**
- * Dev/test-only session-mint endpoint (T14, specs/002).
+ * Dev/test-only session-mint endpoint (T14, specs/20260606-ui-auth-integration).
  *
  * POST /test-auth/session
  *
@@ -58,7 +58,7 @@ const signCookieValue = async (value: string, secret: string): Promise<string> =
  *
  * This endpoint is a test seam — it does NOT enable emailAndPassword sign-in
  * and does NOT add any production-visible authentication path.  It writes the
- * user row directly (outside the sign-up gate, specs/023) and uses the
+ * user row directly (outside the sign-up gate, specs/20261105-signup-gate) and uses the
  * better-auth internalAdapter to create the session.
  */
 
@@ -153,7 +153,7 @@ testAuthRouter.post("/test-auth/session", async (c) => {
     // This keeps e2e name-assertions from being DB-state-dependent.
     await adapter.updateUser(userId, { name: body.name });
   } else {
-    // specs/023 (ADR-0071, AC-1.9): NOT `adapter.createUser`. That call fires
+    // specs/20261105-signup-gate (ADR 20261105-access-only-by-invitation-waiting-list, AC-1.9): NOT `adapter.createUser`. That call fires
     // `databaseHooks.user.create.before` (the sign-up gate), which refuses an
     // `@operai.test` address, and an exemption inside the gate would put a test
     // branch into the production sign-up path. The row is written directly and

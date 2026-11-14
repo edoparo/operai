@@ -1,7 +1,7 @@
 /**
- * Auth matrix for the two internal routes (specs/015 T6, ADR-0044; specs/016
- * T3, ADR-0049): one scoped middleware, each route requiring its own scope.
- * specs/016 T14: the shared X-Internal-Token is gone; the header is never a credential.
+ * Auth matrix for the two internal routes (specs/20261006-hardware-inventory T6, ADR 20261006-scoped-service-jwt-fourth-notify-caller; specs/20261013-notify-service-credentials
+ * T3, ADR 20261013-all-notify-callers-scoped-credentials-shared-token-retired): one scoped middleware, each route requiring its own scope.
+ * specs/20261013-notify-service-credentials T14: the shared X-Internal-Token is gone; the header is never a credential.
  *
  * No DB: a tiny Hono app with the auth middleware + a recording handler
  * proves the guard stops (or lets through) the request. Keys and the JWKS are
@@ -105,7 +105,7 @@ const post = (app: App, headers: Record<string, string>) =>
 
 const bearer = (t: string) => ({ Authorization: `Bearer ${t}` });
 
-describe("the retired shared token (specs/016 T14, AC-5.1)", () => {
+describe("the retired shared token (specs/20261013-notify-service-credentials T14, AC-5.1)", () => {
   it("X-Internal-Token with any value alone -> 401, handler not run", async () => {
     for (const scope of ["notifications.push", "emails.send"] as const) {
       for (const v of RETIRED_HEADER_VALUES) {
@@ -139,7 +139,7 @@ describe("scoped service JWT", () => {
     expect(seen.origins).toEqual(["inventory"]);
   });
 
-  it("system:crm-api is bound to the crm origin only (specs/019)", async () => {
+  it("system:crm-api is bound to the crm origin only (specs/20261101-crm-notifications)", async () => {
     const { app, seen } = buildApp();
     const res = await post(app, bearer(await sign({ sub: "system:crm-api" })));
     expect(res.status).toBe(200);

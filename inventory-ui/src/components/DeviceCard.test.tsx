@@ -1,7 +1,7 @@
 /**
  * @vitest-environment jsdom
  *
- * Component tests for DeviceCard (T31, specs/015-hardware-inventory; design.md
+ * Component tests for DeviceCard (T31, specs/20261006-hardware-inventory; design.md
  * § D1 and § Accessibility "D1 my devices"; AC-2.3, AC-2.4, AC-4.1, AC-4.2).
  */
 

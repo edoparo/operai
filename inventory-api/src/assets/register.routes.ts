@@ -1,5 +1,5 @@
 /**
- * `POST /assets` (T11, specs/015-hardware-inventory; AC-1.1..1.7, AC-10.2).
+ * `POST /assets` (T11, specs/20261006-hardware-inventory; AC-1.1..1.7, AC-10.2).
  *
  * `asset:manage`. Capability absent -> 403 (guard); entity outside the caller's
  * asset scope -> 403 (the entity is a body value, not an addressed record, so

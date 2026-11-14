@@ -2,7 +2,7 @@
  * @vitest-environment jsdom
  *
  * Unit tests for src/lib/notifications.ts — the shell notification transport
- * seam (T10, specs/005-notification-center).
+ * seam (T10, specs/20260713-notification-center).
  *
  * Covers, per tasks.md T10's "done when":
  *   (a) raiseNotification — posts to the right URL, request body carries no
@@ -248,7 +248,7 @@ describe('raiseNotification', () => {
     })
   })
 
-  it("round-trips originApp 'inventory' (specs/015 mirror of notify-api's ORIGIN_APPS)", async () => {
+  it("round-trips originApp 'inventory' (specs/20261006-hardware-inventory mirror of notify-api's ORIGIN_APPS)", async () => {
     const result = await raiseNotification({
       title: 'Device assigned',
       body: 'A device was assigned to you.',
@@ -264,7 +264,7 @@ describe('raiseNotification', () => {
     expect(sent['originApp']).toBe('inventory')
   })
 
-  it("round-trips originApp 'crm' (specs/019 mirror of notify-api's ORIGIN_APPS)", async () => {
+  it("round-trips originApp 'crm' (specs/20261101-crm-notifications mirror of notify-api's ORIGIN_APPS)", async () => {
     const result = await raiseNotification({
       title: 'Estimate requested',
       body: 'An estimate was requested.',
@@ -622,7 +622,7 @@ describe('trusted origins', () => {
 })
 
 // ---------------------------------------------------------------------------
-// (f) signOut closes the tab's open SSE connection (ADR-0009 R8)
+// (f) signOut closes the tab's open SSE connection (ADR 20260713-notification-center-standalone-service-shell-seam R8)
 // ---------------------------------------------------------------------------
 
 describe('signOut', () => {

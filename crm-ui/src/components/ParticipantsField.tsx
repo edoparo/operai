@@ -4,12 +4,12 @@ import { strings } from '../strings'
 import PersonPicker from './PersonPicker'
 import type { PersonChoice } from './PersonPicker'
 
-/** The server's cap on an activity's participants (specs/017 US-8). */
+/** The server's cap on an activity's participants (specs/20261101-crm US-8). */
 const MAX_PARTICIPANTS = 10
 
 /**
  * ParticipantsField — the wellD colleagues who took part in an activity
- * (specs/017 US-8): a picker that adds a person, and the chosen people, each
+ * (specs/20261101-crm US-8): a picker that adds a person, and the chosen people, each
  * removable (the library's `PersonChips`). Contacts of the client are not participants.
  */
 export default function ParticipantsField({

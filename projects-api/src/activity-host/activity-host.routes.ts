@@ -1,6 +1,6 @@
 /**
- * The activity-host contract (specs/028-activities T5; AC-3.2, AC-3.5, AC-3.8, AC-8.1, plan.md
- * § Host contract, ADR-0081). activities-api holds the tasks of a project but no permission
+ * The activity-host contract (specs/20261110-activities T5; AC-3.2, AC-3.5, AC-3.8, AC-8.1, plan.md
+ * § Host contract, ADR 20261110-activities-service-access-delegated-to-host). activities-api holds the tasks of a project but no permission
  * catalog: on every request it asks THIS service, with the caller's own JWT, who the caller is
  * to the project.
  *

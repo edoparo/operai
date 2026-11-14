@@ -10,7 +10,7 @@
   change is captured in the existing audit trail. Employees gain a new "My
   profile" page (reachable from the account menu) where they can see their own
   address, read-only.
-- 2b11a53: New Inventory tool (specs/015): a hardware register with assets, employee-confirmed
+- 2b11a53: New Inventory tool (specs/20261006-hardware-inventory): a hardware register with assets, employee-confirmed
   assignment, a depreciation ledger with fiscal-year close, and invoice files.
 
   `inventory-api` and `inventory-ui` are new. The shell mounts the gated `/inventory` route

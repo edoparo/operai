@@ -1,7 +1,7 @@
 /**
  * @vitest-environment jsdom
  *
- * ActivityTimeline on a company page (specs/028 AC-1.1, AC-1.5): activities are read from activities-api;
+ * ActivityTimeline on a company page (specs/20261110-activities AC-1.1, AC-1.5): activities are read from activities-api;
  * when it cannot answer (`host_unavailable`, `maintenance`) the Activity card says so — words of its own,
  * distinct from the authorization outage — and the rest of the page stays. A write refused for the same
  * reason says nothing was saved.

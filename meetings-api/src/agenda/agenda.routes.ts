@@ -12,7 +12,7 @@
  * fail closed: an identity outage is a 503, never a pass). Order: visibility (the identical 404), role, frozen, grant.
  *
  * CONCURRENCY. The list carries `meeting.agendaVersion`: every change of the points bumps it and needs `If-Match`
- * (ADR-0038), so a change made from an out-of-date list is a 409 and overwrites nothing. A covered mark does NOT bump
+ * (ADR 20260807-optimistic-concurrency-version-if-match-cas-amends-0004), so a change made from an out-of-date list is a 409 and overwrites nothing. A covered mark does NOT bump
  * it and needs no precondition: two people ticking different points never conflict, and a full replace keeps the
  * marks of the points it keeps (it never sends them). A tick on a point that is gone is a 404 `agenda_point_not_found`.
  *

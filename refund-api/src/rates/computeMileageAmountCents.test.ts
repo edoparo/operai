@@ -1,5 +1,5 @@
 /**
- * Unit tests for `computeMileageAmountCents` (T3, specs/009-mileage-rate,
+ * Unit tests for `computeMileageAmountCents` (T3, specs/20260720-mileage-rate,
  * Decision 3) — exercised against the SHARED vector fixture
  * (`mileage-vectors.json`) so refund-ui's mirrored implementation (T12) can
  * assert byte-for-byte identical results (R1).

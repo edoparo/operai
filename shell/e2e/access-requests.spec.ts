@@ -1,5 +1,5 @@
 /**
- * specs/023-signup-gate T10 — the waiting-list journeys through the real shell.
+ * specs/20261105-signup-gate T10 — the waiting-list journeys through the real shell.
  *
  *   AC-3.2   an admin approves a pending request choosing a role: it moves to
  *            Approved and an invitation (with that role) appears under Invitations
@@ -26,7 +26,7 @@ const RUN = Date.now().toString(36)
 const ADMIN_EMAIL = `ar-admin-${RUN}@operai.test`
 const EMPLOYEE_EMAIL = `ar-employee-${RUN}@operai.test`
 
-test.describe('specs/023-signup-gate — waiting list e2e (T10)', () => {
+test.describe('specs/20261105-signup-gate — waiting list e2e (T10)', () => {
   test.afterAll(() => {
     clearAccessRequests(RUN)
     cleanupFixtures(RUN)

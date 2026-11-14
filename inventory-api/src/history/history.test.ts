@@ -1,5 +1,5 @@
 /**
- * `GET /assets/{id}/history` (T22, specs/015-hardware-inventory; AC-11.3,
+ * `GET /assets/{id}/history` (T22, specs/20261006-hardware-inventory; AC-11.3,
  * AC-11.4, AC-9.2, AC-9.4, AC-4.3). Real routers over the harness, real Postgres.
  */
 
@@ -188,7 +188,7 @@ describe("order, actor and typed changes (AC-11.3)", () => {
   });
 });
 
-describe("identities (ADR-0039)", () => {
+describe("identities (ADR 20260807-live-identity-resolution-by-id-fail-soft)", () => {
   it("system actors are 'system' and never sent to auth; a deleted account stays marked deleted; auth down -> unknown", async () => {
     const a = await seed();
     await event(a.id, { action: "imported", actorUserId: "system:legacy-import", actorEmail: "system@x" });

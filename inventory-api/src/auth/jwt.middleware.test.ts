@@ -1,5 +1,5 @@
 /**
- * JWT middleware tests (T7, specs/015-hardware-inventory; AC-9.7)
+ * JWT middleware tests (T7, specs/20261006-hardware-inventory; AC-9.7)
  *
  * Strategy: generate a fixture RS256 keypair at test startup; build an in-memory
  * JWKS with createLocalJWKSet; mock `createRemoteJWKSet` from jose so the
@@ -8,8 +8,8 @@
  * Each test mounts a tiny Hono app with jwtMiddleware + a protected dummy route
  * that records whether it ran (to prove the guard stopped the request). Mirrors
  * estimai-api/src/auth/jwt.middleware.test.ts verbatim (same middleware, same
- * ADR-0005/ADR-0010 identity contract) — inventory-api's authorization layer
- * (ADR-0014) is added on top by authzMiddleware and is covered by its own tests.
+ * ADR 20260703-jwt-resource-server-remote-jwks/ADR 20260713-jwt-audience-claim-enforcement identity contract) — inventory-api's authorization layer
+ * (ADR 20260716-refund-api-authorization-enforcing-resource-server) is added on top by authzMiddleware and is covered by its own tests.
  * Ported from refund-api/src/auth/jwt.middleware.test.ts.
  */
 
@@ -115,11 +115,11 @@ const signValid = async (overrides?: {
   email?: string;
   kid?: string;
   privateKeyOverride?: CryptoKey;
-  // ADR-0010: the `aud` claim. `null` omits the claim entirely (pre-ADR-0010
+  // ADR 20260713-jwt-audience-claim-enforcement: the `aud` claim. `null` omits the claim entirely (pre-ADR 20260713-jwt-audience-claim-enforcement
   // token shape); any string sets a specific (possibly wrong) audience value.
   // Defaults to the correct TEST_AUDIENCE so existing callers keep passing.
   audience?: string | null;
-  // T6/ADR-0014: the `perm_epoch` claim (auth.config.ts's definePayload).
+  // T6/ADR 20260716-refund-api-authorization-enforcing-resource-server: the `perm_epoch` claim (auth.config.ts's definePayload).
   // `undefined` (default) omits the claim entirely, exercising the "missing
   // claim degrades to 0" path; any number sets a specific epoch value.
   permEpoch?: number;
@@ -193,13 +193,13 @@ describe("jwtMiddleware", () => {
     };
     expect(body.userId).toBe("user-abc-123");
     expect(body.email).toBe("alice@example.com");
-    // T6/ADR-0014: perm_epoch is read straight off the verified payload.
+    // T6/ADR 20260716-refund-api-authorization-enforcing-resource-server: perm_epoch is read straight off the verified payload.
     expect(body.permEpoch).toBe(7);
     // Handler MUST have run — verify the middleware passed through.
     expect(handlerRan.value).toBe(true);
   });
 
-  // ─── (h) perm_epoch claim handling (T6, ADR-0014) ─────────────────────────
+  // ─── (h) perm_epoch claim handling (T6, ADR 20260716-refund-api-authorization-enforcing-resource-server) ─────────────────────────
 
   it("(h) token with no 'perm_epoch' claim — passes, permEpoch defaults to 0", async () => {
     const handlerRan = { value: false };
@@ -317,13 +317,13 @@ describe("jwtMiddleware", () => {
     expect(handlerRan.value).toBe(false);
   });
 
-  // ─── (d2) Missing audience claim → 401 (ADR-0010) ────────────────────────
+  // ─── (d2) Missing audience claim → 401 (ADR 20260713-jwt-audience-claim-enforcement) ────────────────────────
 
-  it("(d2) token with no 'aud' claim at all — 401, handler does not run (ADR-0010)", async () => {
+  it("(d2) token with no 'aud' claim at all — 401, handler does not run (ADR 20260713-jwt-audience-claim-enforcement)", async () => {
     const handlerRan = { value: false };
     const app = buildApp(handlerRan);
 
-    // audience: null omits setAudience() entirely — simulates a pre-ADR-0010
+    // audience: null omits setAudience() entirely — simulates a pre-ADR 20260713-jwt-audience-claim-enforcement
     // token that predates the claim.
     const jwt = await signValid({ audience: null });
     const res = await app.request("/protected", {
@@ -335,9 +335,9 @@ describe("jwtMiddleware", () => {
     expect(handlerRan.value).toBe(false);
   });
 
-  // ─── (d3) Wrong audience claim → 401 (ADR-0010) ──────────────────────────
+  // ─── (d3) Wrong audience claim → 401 (ADR 20260713-jwt-audience-claim-enforcement) ──────────────────────────
 
-  it("(d3) token with a different (wrong) 'aud' value — 401, handler does not run (ADR-0010)", async () => {
+  it("(d3) token with a different (wrong) 'aud' value — 401, handler does not run (ADR 20260713-jwt-audience-claim-enforcement)", async () => {
     const handlerRan = { value: false };
     const app = buildApp(handlerRan);
 

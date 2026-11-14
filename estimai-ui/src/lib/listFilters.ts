@@ -1,5 +1,5 @@
 /**
- * The estimates list's two filters (specs/024): "Whose" (mine | all) and
+ * The estimates list's two filters (specs/20261108-estimate-list-oversight): "Whose" (mine | all) and
  * "Status" (open | closed). They live in the route's search params, with the
  * defaults omitted from the URL, and are mirrored to sessionStorage so a return
  * to /estimates without params restores the last choice (AC-2.6).

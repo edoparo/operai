@@ -1,6 +1,6 @@
 /**
  * AccessLevelBadge — a collaborator's access level on a shared estimate (T14,
- * specs/013-estimate-sharing/tasks.md), reused by the collaborators dialog
+ * specs/20260807-estimate-sharing/tasks.md), reused by the collaborators dialog
  * (owner and member modes) and the estimates list's shared rows.
  *
  * An access level is a role, not a status (INC-23), so it is the library
@@ -18,7 +18,7 @@ import { strings } from '../strings'
 export type AccessLevel = 'viewer' | 'editor'
 
 /**
- * What the badge can show: a grant level, or `oversight` (specs/024) — a right
+ * What the badge can show: a grant level, or `oversight` (specs/20261108-estimate-list-oversight) — a right
  * that comes from `estimate:read-all`, not from a share. It is a wire value only,
  * never a grant, so it is NOT part of `AccessLevel`.
  */

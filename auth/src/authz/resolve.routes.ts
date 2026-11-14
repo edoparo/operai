@@ -1,13 +1,13 @@
 /**
  * GET /authz/resolve — the caller's live effective permissions, for a
- * Bearer-authed RESOURCE SERVER (T1, specs/007-refund-service — refs AC-5.4,
- * AC-6.4, AC-7.5; ADR-0014).
+ * Bearer-authed RESOURCE SERVER (T1, specs/20260716-refund-service — refs AC-5.4,
+ * AC-6.4, AC-7.5; ADR 20260716-refund-api-authorization-enforcing-resource-server).
  *
  * A sibling of `GET /authz/me` (spec 004's session-cookie-gated equivalent
  * for the shell), authenticated instead by `resolveAuth.middleware.ts`'s
  * `bearerJwtMiddleware` — because a resource server such as `refund-api`
  * holds no better-auth session cookie, only the caller's own already-verified
- * Bearer JWT, which it forwards here verbatim (ADR-0014 point 1; no new
+ * Bearer JWT, which it forwards here verbatim (ADR 20260716-refund-api-authorization-enforcing-resource-server point 1; no new
  * service credential is introduced).
  *
  * Returns the CALLER'S OWN resolution only — same guard posture as
@@ -19,9 +19,9 @@
  * entity, jobTitle }`. `permissions`/`epoch` are identical in meaning to
  * `/authz/me`'s (see `authz.routes.ts`'s doc comment for the full
  * conditions/default-deny semantics — unchanged here). `entity`/`jobTitle`
- * are the ONE deliberate widening beyond `/authz/me` (ADR-0014 point 1): the
+ * are the ONE deliberate widening beyond `/authz/me` (ADR 20260716-refund-api-authorization-enforcing-resource-server point 1): the
  * caller's own attribute values, so a resource server can evaluate a
- * `{key:"entity", match:"user"}` condition (specs/004, applied by ADR-0015)
+ * `{key:"entity", match:"user"}` condition (specs/20260713-auth-roles-permissions, applied by ADR 20260716-entity-scoped-abac-refund-api)
  * against a record locally, without a second round trip. Safe because it is
  * (a) the caller's own data, (b) delivered only over this already-
  * authenticated channel, and (c) still never embedded in the JWT itself.
@@ -86,7 +86,7 @@ const getResolveRoute = createRoute({
   description:
     "Resolves the Bearer token's own caller's effective permissions live — " +
     "the resource-server-facing sibling of the session-cookie-gated " +
-    "GET /authz/me (ADR-0014). Never resolves any user other than the " +
+    "GET /authz/me (ADR 20260716-refund-api-authorization-enforcing-resource-server). Never resolves any user other than the " +
     "token's own `sub`. Includes the caller's own `entity`/`jobTitle` " +
     "attributes so a resource server can evaluate ABAC conditions locally.",
   responses: {
@@ -121,12 +121,12 @@ resolveRouter.openapi(getResolveRoute, async (c) => {
   ]);
 
   // A soft-deleted caller resolves to NOTHING. Deletion keeps the user's
-  // `user_role`/`user_department` rows (ADR-0012), so the resolver alone
+  // `user_role`/`user_department` rows (ADR 20260714-invitation-activation-hooks-soft-delete-lifecycle), so the resolver alone
   // would still return every grant for as long as an already-issued JWT
-  // lives. This is ADR-0012's named escalation path, applied at the one
+  // lives. This is ADR 20260714-invitation-activation-hooks-soft-delete-lifecycle's named escalation path, applied at the one
   // place every authorization-enforcing resource server asks. Answered as a
   // 200 with no grants, never a 401/403: resource servers turn any non-2xx
-  // from this route into their fail-closed 503 (ADR-0014), which would report
+  // from this route into their fail-closed 503 (ADR 20260716-refund-api-authorization-enforcing-resource-server), which would report
   // a removed user as an `auth` outage instead of denying them.
   if (profile.deletedAt !== null) {
     return c.json(

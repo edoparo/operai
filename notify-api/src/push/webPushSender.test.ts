@@ -1,5 +1,5 @@
 /**
- * webPushSender (T6, specs/029-push-notifications): VAPID + RFC 8291 encryption over an
+ * webPushSender (T6, specs/20261111-push-notifications): VAPID + RFC 8291 encryption over an
  * injectable HTTP transport. Nothing here reaches a real push service.
  */
 

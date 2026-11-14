@@ -1,7 +1,7 @@
 /**
  * POST /system/emails — internal email-send endpoint (T3,
- * specs/006-user-invitations, plan.md §API contracts, ADR-0011; extended by
- * T7, specs/008-refund-monthly-processing, ADR-0021 for
+ * specs/20260713-user-invitations, plan.md §API contracts, ADR 20260714-notify-api-email-channel-service-trust; extended by
+ * T7, specs/20260719-refund-monthly-processing, ADR 20260719-refund-batch-signed-link-email-delivery for
  * `refund_batch_compiled`).
  *
  * Flow: systemAuthMiddleware scoped to `emails.send` (a service JWT — NOT
@@ -11,7 +11,7 @@
  * (src/channels/email.channel.ts) sends via Resend (or stubs, per
  * EMAIL_ENABLED) and records one EmailDelivery row.
  *
- * Failure handling (plan.md, ADR-0011): a Resend/network failure is a SOFT
+ * Failure handling (plan.md, ADR 20260714-notify-api-email-channel-service-trust): a Resend/network failure is a SOFT
  * failure. This route always returns 200 with `{ deliveryId, status, error? }`
  * — the caller (auth or refund-api) treats non-"sent" as a signal to show
  * "email failed, resend" rather than ever seeing a 5xx that would fail the
@@ -44,9 +44,9 @@ export const createSystemEmailsRouter = (
   // Scoped to this router's ONE exact path only — NEVER `.use("*", …)`. See
   // raise.routes.ts's file header for why a "*" middleware on any sub-router
   // mounted in index.ts would leak onto every other route once merged,
-  // including GET /notifications/stream (ADR-0008, no-Bearer) and every
+  // including GET /notifications/stream (ADR 20260713-sse-stream-auth-short-lived-ticket, no-Bearer) and every
   // jwtMiddleware-protected route (which must NEVER accept this internal
-  // token — ADR-0011's mutual-exclusion invariant).
+  // token — ADR 20260714-notify-api-email-channel-service-trust's mutual-exclusion invariant).
   systemEmailsRouter.use(
     "/system/emails",
     bodyLimit({
@@ -73,7 +73,7 @@ export const createSystemEmailsRouter = (
     summary: "Send a transactional email via the internal email channel",
     description:
       "Internal-only endpoint authenticated by a service JWT with scope " +
-      "`emails.send` (ADR-0049) — never a user JWT. Renders a fixed, per-template escaped template and sends " +
+      "`emails.send` (ADR 20261013-all-notify-callers-scoped-credentials-shared-token-retired) — never a user JWT. Renders a fixed, per-template escaped template and sends " +
       "via Resend, recording an EmailDelivery row. A Resend/network failure is " +
       'a soft failure surfaced as {"status":"failed"}, never a 5xx.',
     request: {

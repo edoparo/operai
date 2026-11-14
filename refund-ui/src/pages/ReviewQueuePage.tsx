@@ -24,7 +24,7 @@ const route = getRouteApi('/review')
 
 /**
  * ReviewQueuePage — Screen A1 ("Review queue", `/refund/review` — T18,
- * specs/007-refund-service/tasks.md, design.md "Screen A1"/F5). Replaces
+ * specs/20260716-refund-service/tasks.md, design.md "Screen A1"/F5). Replaces
  * T14's placeholder: the entity-scoped worklist of every `submitted` request
  * PLUS every `approved`-but-not-yet-batched one (007 AC-5.2 amendment,
  * 2026-07-21 — accounting wanted approved-but-not-processed requests to stay

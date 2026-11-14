@@ -1,5 +1,5 @@
 /**
- * The transcript: read it, correct a segment, name a speaker (specs/021-meetings
+ * The transcript: read it, correct a segment, name a speaker (specs/20261104-meetings
  * plan.md § API contracts "Transcript"; AC-6.1, AC-6.2, AC-6.3, AC-6.8).
  *
  *   GET   /meetings/:id/transcript                      selfScoped + visibility
@@ -8,7 +8,7 @@
  *   POST  /meetings/:id/transcript/speakers/:key/separate   creator-control (AC-6.16)
  *   POST  /meetings/:id/transcript/gaps/dismiss         creator-control ("no speech here", A10)
  *
- * A segment edit bumps the segment's `version` (ADR-0038 CAS) and the MEETING's
+ * A segment edit bumps the segment's `version` (ADR 20260807-optimistic-concurrency-version-if-match-cas-amends-0004 CAS) and the MEETING's
  * `transcriptVersion`, which is how a summary made from an earlier text reads "stale"
  * (AC-6.8). An edit enqueues nothing: nothing is regenerated automatically. A speaker
  * label is per KEY, so naming one applies to every segment that carries it.
@@ -67,7 +67,7 @@ const RangeSchema = z.object({ startMs: z.number().int().min(0), endMs: z.number
 const TranscriptSchema = z.object({
   version: z.number().int(),
   /**
-   * The transcript parts (ADR-0070, H-6): `[]` for a text meeting and for one that heard nothing, else one entry per
+   * The transcript parts (ADR 20261105-meetings-transcript-parts-speaker-labels-per-part, H-6): `[]` for a text meeting and for one that heard nothing, else one entry per
    * part (1-based `index`), overlapping: a part's end is not the next part's start.
    */
   parts: z.array(z.object({ index: z.number().int().min(1), startMs: z.number().int().min(0), endMs: z.number().int().min(0) })),

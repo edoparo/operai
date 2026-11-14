@@ -12,7 +12,7 @@ const MAX_MEMBERS = 100
 
 /**
  * TeamDialog — edit the whole team in one go: remove people, add people picked
- * among those who hold access to the module (the directory, ADR-0055), then one
+ * among those who hold access to the module (the directory, ADR 20261101-app-access-check-by-user-id-and-directory-app-filter), then one
  * `PUT` replaces the team (AC-1.6). The server re-checks every member (422
  * `not_project_user` naming the ids, 503 `identity_unavailable`); a stale save
  * (AC-1.7) closes the dialog and is the page's (`onStale`).

@@ -1,7 +1,7 @@
 /**
  * @vitest-environment jsdom
  *
- * Component tests for AssignDialog (T33, specs/015-hardware-inventory; design.md
+ * Component tests for AssignDialog (T33, specs/20261006-hardware-inventory; design.md
  * F3, § Dialogs, § Accessibility "Holder picker"; refs AC-2.1, AC-2.2, AC-2.10).
  * `directoryApi` and `assignmentsApi` are the data seams.
  */

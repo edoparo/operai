@@ -2,11 +2,11 @@
   "schema": "wellforge-run/v1",
   "run_id": "2026-07-20T00-30-06Z-orchestrate-008-refund-monthly-processing",
   "command": "orchestrate",
-  "feature": "008-refund-monthly-processing",
+  "feature": "20260719-refund-monthly-processing",
   "rigor": "production",
   "started": "2026-07-19T00:00:00Z",
   "finished": "2026-07-20T00:30:06Z",
-  "worktree": "isolation used for every implementation batch of >=2 dependency-independent agents (Agent tool isolation: worktree); each agent ff-merged feat/008-refund-monthly-processing then committed on its own branch; commits cherry-picked linearly onto the feature branch (no --no-ff merge commits, per the CLAUDE.md convention), checkboxes reconciled centrally",
+  "worktree": "isolation used for every implementation batch of >=2 dependency-independent agents (Agent tool isolation: worktree); each agent ff-merged feat/20260719-refund-monthly-processing then committed on its own branch; commits cherry-picked linearly onto the feature branch (no --no-ff merge commits, per the CLAUDE.md convention), checkboxes reconciled centrally",
   "agents": [
     { "agent": "product-owner", "stage": "spec", "outcome": "completed", "note": "spec.md: 8 stories, 35->36 ACs; folded 5 resolved open questions (signed-link email, reuse accounting/refund-admin authz, configured distribution address, indefinite retention, staleness non-goal)" },
     { "agent": "architect", "stage": "plan", "outcome": "completed", "note": "plan.md: pdf-lib server-side generation, RefundBatch + paid 5th status, atomic FOR-UPDATE+CAS claim, terminal CAS; returned 3 under-constraint flags (D1 batch-read scope, D2 email link, D3 mark-paid capability) all confirmed by user matching its interpretation" },
@@ -38,7 +38,7 @@
   "collision_events": [],
   "verdicts": { "qe": "PASS (36/36 ACs; e2e authored, live run env-blocked)", "owasp": "PASS (1 medium fixed & re-verified)", "eval": "PASS (95/100)" },
   "result": "completed",
-  "notes": "16 tasks across refund-api/notify-api/refund-ui + devops, extending specs/007. 2 human gates (spec, plan) approved. Feature branch feat/008-refund-monthly-processing NOT yet merged to main/pushed (user's call). Conditional: T15 e2e authored+committed (shell/e2e/refund-batches-headline.spec.ts) but its live run needs a 1Password-available environment (CI or the user's machine) — every AC it exercises has an executed integration/unit proof. Follow-ups (non-blocking): run the e2e in a 1Password env; test-infra reset of the aws-sdk mock so storage.test.ts is green in the full suite; OWASP lows accepted (paidBy mirrors 007 decidedBy; batchUrl scheme not allowlisted, not exploitable).",
+  "notes": "16 tasks across refund-api/notify-api/refund-ui + devops, extending specs/20260716-refund-service. 2 human gates (spec, plan) approved. Feature branch feat/20260719-refund-monthly-processing NOT yet merged to main/pushed (user's call). Conditional: T15 e2e authored+committed (shell/e2e/refund-batches-headline.spec.ts) but its live run needs a 1Password-available environment (CI or the user's machine) — every AC it exercises has an executed integration/unit proof. Follow-ups (non-blocking): run the e2e in a 1Password env; test-infra reset of the aws-sdk mock so storage.test.ts is green in the full suite; OWASP lows accepted (paidBy mirrors 007 decidedBy; batchUrl scheme not allowlisted, not exploitable).",
   "tokens": null,
   "cost_usd": null
 }

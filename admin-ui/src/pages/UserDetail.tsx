@@ -1,7 +1,7 @@
 /**
  * UserDetail — Screen C2 (design.md "User detail — attributes + role/department
  * assignment + the AC-6.4 last-admin GuardrailDialog D2", T20,
- * specs/004-auth-roles-permissions/tasks.md). Mounted at `/users/$id`
+ * specs/20260713-auth-roles-permissions/tasks.md). Mounted at `/users/$id`
  * (../router.tsx).
  *
  * Three independently-saved sections, matching design.md's F4/Screen C2 split
@@ -41,7 +41,7 @@
  * (`react-hooks/set-state-in-effect` false positive on an async function that
  * calls a state setter after an `await`).
  *
- * --- Design-fidelity gap closed post-T10 (design.md Screen U3, specs/006-user-invitations) ---
+ * --- Design-fidelity gap closed post-T10 (design.md Screen U3, specs/20260713-user-invitations) ---
  * Gains: a "Delete user" button in the header area — the SAME `ConfirmDeleteModal`
  * (soft-delete `body` copy) and the SAME `adminApi.deleteUser` call
  * `UsersPage.tsx`'s row action already uses (T10), wired independently here
@@ -56,11 +56,11 @@
  * success, navigates back to `/users` (mirrors `RoleEditor.tsx`'s
  * delete-then-navigate-to-list pattern, design.md Screen U3).
  *
- * --- Address section (T12, specs/012-employee-address/tasks.md, AC-4.2) ---
+ * --- Address section (T12, specs/20260803-employee-address/tasks.md, AC-4.2) ---
  * A fourth, independently-loaded block: `AddressSection` (T11), mounted
  * ONLY for a caller who holds the literal `admin` role — plan.md's Constraint
  * that this feature reuses the EXISTING `requireAdmin` gate rather than
- * minting a new catalog permission (deliberate counterpoint to ADR-0028).
+ * minting a new catalog permission (deliberate counterpoint to ADR 20260722-settings-catalog-permission-config-not-rate).
  * Resolved at render from `shell/session`'s `usePermissions().roles` (the
  * shell's cached `GET /authz/me`, the suite's one permissions mechanism;
  * INC-32). A failed permissions fetch resolves to no grants, so the section
@@ -162,7 +162,7 @@ export default function UserDetail() {
   const [deleteError, setDeleteError] = useState<string | null>(null)
   const [deleteGuardrailMessage, setDeleteGuardrailMessage] = useState<string | null>(null)
 
-  // --- Address section visibility (T12, specs/012-employee-address, AC-4.2) ---
+  // --- Address section visibility (T12, specs/20260803-employee-address, AC-4.2) ---
   // Without the `admin` role the section is ABSENT from the DOM, never a
   // disabled placeholder (AC-4.2 "a denied capability is invisible, not
   // merely disabled"); empty permissions (unresolved or failed) hide it too.
@@ -529,7 +529,7 @@ export default function UserDetail() {
               </div>
             </Card>
 
-            {/* Address (T11/T12, specs/012-employee-address) — AC-4.2: absent from the
+            {/* Address (T11/T12, specs/20260803-employee-address) — AC-4.2: absent from the
                 DOM entirely for a non-admin, never a disabled variant of itself. */}
             {showAddress && <AddressSection userId={state.user.id} />}
           </div>

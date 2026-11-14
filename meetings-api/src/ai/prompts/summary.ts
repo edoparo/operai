@@ -1,6 +1,6 @@
 /**
- * The summary prompt and its output validator (specs/021-meetings plan.md § Summaries;
- * ADR-0067; AC-7.2, AC-7.10, AC-7.12, AC-8.6).
+ * The summary prompt and its output validator (specs/20261104-meetings plan.md § Summaries;
+ * ADR 20261104-ai-output-structured-validated-plain-text; AC-7.2, AC-7.10, AC-7.12, AC-8.6).
  *
  * REQUEST. A fixed English system prompt (the task, the rule that the transcript is quoted
  * data and never instructions) and ONE user message: the output language, the template

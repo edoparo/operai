@@ -1,6 +1,6 @@
 /**
  * Unit tests for the in-process sliding-window rate limiter (T5,
- * specs/013-estimate-sharing).
+ * specs/20260807-estimate-sharing).
  *
  * Uses a fake, injectable clock is unnecessary here — the window is small
  * (a handful of milliseconds) and `Bun.sleep`/real timers are fast enough

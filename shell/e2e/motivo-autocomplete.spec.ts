@@ -1,16 +1,16 @@
 /**
- * T15 — Motivo-autocomplete end-to-end journeys (specs/014-motivo-autocomplete,
+ * T15 — Motivo-autocomplete end-to-end journeys (specs/20260811-motivo-autocomplete,
  * QE verification pass). Drives the REAL assembled shell host + refund-ui
- * remote (ADR-0006) against the REAL refund-api/auth services — no mocking of
+ * remote (ADR 20260709-suite-frontend-module-federation) against the REAL refund-api/auth services — no mocking of
  * the feature itself — mirroring this suite's cross-app e2e convention
- * (refund-headline.spec.ts specs/007, mileage-rate.spec.ts specs/009).
+ * (refund-headline.spec.ts specs/20260716-refund-service, mileage-rate.spec.ts specs/20260720-mileage-rate).
  *
  * ┌──────────────────────────────────────────────────────────────────────────┐
  * │ THIS FILE LIVES IN `shell/e2e/`, NEVER IN `refund-ui`.                   │
  * │                                                                          │
  * │ refund-ui is a federated REMOTE: it has no standalone authed bootstrap   │
- * │ (no router guard, no session, no chrome of its own — ADR-0006), so every │
- * │ remote's journeys run through the host. specs/003 retired                │
+ * │ (no router guard, no session, no chrome of its own — ADR 20260709-suite-frontend-module-federation), so every │
+ * │ remote's journeys run through the host. specs/20260709-suite-shell retired                │
  * │ `estimai-ui/e2e/` for exactly this reason.                               │
  * └──────────────────────────────────────────────────────────────────────────┘
  *
@@ -40,7 +40,7 @@
  * ## Why the corpus is deterministic despite a shared local dev DB
  *
  * Each run mints a UNIQUE `@operai.test` employee. Suggestions are strictly
- * self-scoped to the verified JWT `sub` (AC-4.1/4.2, ADR-0042), so that
+ * self-scoped to the verified JWT `sub` (AC-4.1/4.2, ADR 20260811-derived-projection-reuses-existing-gate-reconstructibility-test), so that
  * employee's corpus is EXACTLY the five lines this run seeds and nothing else
  * — no leftovers from a previous run, and no need for a rare-trigram query.
  * That property is itself a live, incidental check of AC-4.1: if the endpoint
@@ -123,7 +123,7 @@ interface EffectiveRate {
   ratePerKmMicros?: number
 }
 
-/** ADR-0025's canonical rule, mirrored here so the expected amount is computed, never hardcoded. */
+/** ADR 20260720-mileage-rate-money-precision-integer-micros's canonical rule, mirrored here so the expected amount is computed, never hardcoded. */
 const computeAmountCents = (km: number, ratePerKmMicros: number): number =>
   Math.floor((km * ratePerKmMicros) / 10_000 + 0.5)
 
@@ -136,7 +136,7 @@ const formatMoney = (cents: number, currency: string): string =>
 
 test.describe.configure({ mode: 'serial' })
 
-test.describe('specs/014-motivo-autocomplete T15: motivo autocomplete through the shell', () => {
+test.describe('specs/20260811-motivo-autocomplete T15: motivo autocomplete through the shell', () => {
   test('a past trip is offered while typing, picked BY KEYBOARD ONLY, fills motivo + km + entity and re-derives the amount — and saves nothing until Add is pressed (AC-1.2/1.4/1.5/1.7/2.1/2.2/2.3/2.5/3.1–3.7/5.3/5.6)', async ({
     browser,
   }) => {
@@ -147,7 +147,7 @@ test.describe('specs/014-motivo-autocomplete T15: motivo autocomplete through th
 
     const empSession = await seedUserSession(empEmail, 'E2E Motivo Employee')
     grantRefundEmployee(empEmail)
-    // `admin` carries rate:read + rate:manage (auth's seed, specs/009 T1) — the
+    // `admin` carries rate:read + rate:manage (auth's seed, specs/20260720-mileage-rate T1) — the
     // rate is what makes the post-pick amount a real recompute rather than
     // "No mileage rate configured yet".
     const adminSession = await seedAdminSession(adminEmail, 'E2E Motivo Admin')
@@ -408,7 +408,7 @@ test.describe('specs/014-motivo-autocomplete T15: motivo autocomplete through th
  * retry affordance or an empty state — on ANY failure path.
  *
  * `role="status"` is deliberately NOT asserted away: `MileageAmountField`
- * (specs/009) legitimately renders one for every `travel_km` line, and it is
+ * (specs/20260720-mileage-rate) legitimately renders one for every `travel_km` line, and it is
  * not this feature's surface. Shell toasts have no `data-testid`, so they are
  * matched by the `sr-only` "Severity: …" line every toast renders.
  */

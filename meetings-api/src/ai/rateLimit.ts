@@ -1,5 +1,5 @@
 /**
- * The AI request limiter (specs/021-meetings plan.md § Rate limit; AC-13.4, AC-9.8):
+ * The AI request limiter (specs/20261104-meetings plan.md § Rate limit; AC-13.4, AC-9.8):
  * at most 30 AI requests per user per ROLLING hour, summaries and questions together.
  *
  * `ai_request(userId, kind, at)` is an append-only, content-free row per summary
@@ -8,7 +8,7 @@
  * `pg_advisory_xact_lock`, so two racing requests cannot both take the 30th slot. The
  * 31st is refused with the seconds until the oldest request in the window leaves it.
  * The same transaction deletes THAT user's rows older than the window, so there is no
- * sweep (ADR-0013: nothing is written by a clock, only on the way through).
+ * sweep (ADR 20260714-invitation-lifecycle-derived-expiry-state: nothing is written by a clock, only on the way through).
  *
  * The rows reference no meeting, summary or turn: deleting content, or clearing a
  * conversation, never refunds a request (the point of a cost limit).

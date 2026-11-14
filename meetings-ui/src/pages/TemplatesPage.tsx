@@ -23,7 +23,7 @@ const fetchTemplates = (signal: AbortSignal) => listTemplates({}, { signal })
 const GROUPS: readonly TemplateSource[] = ['personal', 'shared', 'builtin']
 
 /**
- * Templates list (specs/021-meetings S7, T74): the caller's personal templates, the shared ones and
+ * Templates list (specs/20261104-meetings S7, T74): the caller's personal templates, the shared ones and
  * the built-in ones, in three cards, each a table of name, number of sections and type. A built-in
  * group is never empty; the other two say so and point at duplicating.
  */

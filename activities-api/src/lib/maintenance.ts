@@ -3,7 +3,7 @@ import { env } from "./env";
 import { problem } from "./problem";
 
 /**
- * The maintenance switch (specs/028 AC-2.5, ADR-0083). While `ACTIVITIES_MAINTENANCE=true`
+ * The maintenance switch (specs/20261110-activities AC-2.5, ADR 20261110-activities-migration-write-pause). While `ACTIVITIES_MAINTENANCE=true`
  * every request except `GET /health` is refused with 503 `maintenance` BEFORE authentication
  * and before anything reads or writes the database, so the CRM -> activities-api copy runs
  * against data nobody can change. `/health` stays up so Railway does not restart the service

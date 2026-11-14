@@ -1,7 +1,7 @@
 /**
  * @vitest-environment jsdom
  *
- * The new meeting page (specs/021-meetings T56; AC-1.1, 1.2, 1.3, 1.5, 1.6, 11.6; design.md S2, F1, F2):
+ * The new meeting page (specs/20261104-meetings T56; AC-1.1, 1.2, 1.3, 1.5, 1.6, 11.6; design.md S2, F1, F2):
  * rendered inside the real `./App` router on a memory history, against `fakeApi`.
  */
 import { RouterProvider, createMemoryHistory } from '@tanstack/react-router'

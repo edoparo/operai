@@ -1,5 +1,5 @@
 /**
- * Integration tests for the SSE endpoints (T7, specs/005-notification-center, ADR-0008).
+ * Integration tests for the SSE endpoints (T7, specs/20260713-notification-center, ADR 20260713-sse-stream-auth-short-lived-ticket).
  *
  * done when (tasks.md T7): integration tests — invalid/expired/used ticket → 401
  * (stream never opens); valid ticket streams a `notification` event on raise and
@@ -11,7 +11,7 @@
  * process-wide — per its own docs, "If the module is already loaded, exports
  * are overwritten" — which would leak into ticketStore.test.ts's own import of
  * `InProcessTicketStore` when the whole suite runs together), the "expired
- * ticket" test uses the REAL singleton (real ~30s TTL, ADR-0008) together with
+ * ticket" test uses the REAL singleton (real ~30s TTL, ADR 20260713-sse-stream-auth-short-lived-ticket) together with
  * `setSystemTime()` to fast-forward the clock past the TTL without a real 30s
  * wait, then restores real time immediately after. ticketStore.test.ts (unit)
  * separately covers the TTL mechanics generically with a parameterized TTL;
@@ -94,7 +94,7 @@ mock.module("@/auth/jwt.middleware", () => {
 });
 
 // Shared process-level env: restore in afterAll so these overrides do not leak
-// into later files of a single-process `bun test` (T20, specs/016).
+// into later files of a single-process `bun test` (T20, specs/20261013-notify-service-credentials).
 const ENV_OVERRIDES: Record<string, string> = {
   ALLOWED_ORIGINS: "http://localhost:5173",
   AUTH_JWKS_URL: "http://localhost:3001/auth/jwks",
@@ -277,7 +277,7 @@ describe("GET /notifications/stream — invalid/expired/used ticket → 401, str
     const ticket = ticketStore.mint(USER_A_ID);
 
     try {
-      // Fast-forward past the real ADR-0008 ~30s TTL without a real 30s wait
+      // Fast-forward past the real ADR 20260713-sse-stream-auth-short-lived-ticket ~30s TTL without a real 30s wait
       // (see file header EXPIRY TEST STRATEGY).
       setSystemTime(new Date(Date.now() + 31_000));
 
@@ -345,7 +345,7 @@ describe("GET /notifications/stream — valid ticket", () => {
     expect(JSON.parse(events[0]?.data ?? "{}")).toEqual(payload);
   });
 
-  it("a notification's Italian variant `it` reaches the live stream intact (ADR-0065)", async () => {
+  it("a notification's Italian variant `it` reaches the live stream intact (ADR 20261104-bilingual-system-notifications)", async () => {
     const app = buildApp();
     const ticket = ticketStore.mint(USER_A_ID);
 

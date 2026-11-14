@@ -1,5 +1,5 @@
 /**
- * Integration tests for the access-request admin API (T7, specs/023-signup-gate —
+ * Integration tests for the access-request admin API (T7, specs/20261105-signup-gate —
  * AC-2.5, AC-3.1–3.7, AC-3.9, AC-3.10; plan.md § Test strategy).
  *
  * The real `auth` instance runs (so AC-3.3 can drive better-auth's own

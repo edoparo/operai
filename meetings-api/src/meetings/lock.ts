@@ -1,5 +1,5 @@
 /**
- * A row lock on one meeting, for the writes that read-then-change it (specs/021-meetings).
+ * A row lock on one meeting, for the writes that read-then-change it (specs/20261104-meetings).
  * Two creator edits of the same meeting (a source switch racing a consent, two participant
  * replacements) must not interleave their reads and writes, so each takes this lock first
  * and re-reads what it checks. Held until the transaction ends.

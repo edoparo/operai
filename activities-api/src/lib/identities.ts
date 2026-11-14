@@ -1,6 +1,6 @@
 /**
  * Display-identity resolution and the write-time "is this an Operai user of that app" check
- * (specs/028-activities; carried over from crm-api `lib/identities.ts`, ADR-0039/0055).
+ * (specs/20261110-activities; carried over from crm-api `lib/identities.ts`, ADR 20260807-live-identity-resolution-by-id-fail-soft/0055).
  *
  * activities-api stores only opaque auth user ids. Names are resolved LIVE from
  * `auth POST /authz/users/identities` at read time, never copied into this database.
@@ -63,7 +63,7 @@ function toIdentity(raw: unknown): Identity | null {
   if (status === "active") {
     return { id, status, name: typeof name === "string" && name !== "" ? name : null };
   }
-  // A name is surfaced for an active user only (AC-10.5 of specs/013): a
+  // A name is surfaced for an active user only (AC-10.5 of specs/20260807-estimate-sharing): a
   // deleted or unknown one must not carry an identity that implies otherwise.
   if (status === "deleted") return { id, status, name: null };
   return unknown(id);
@@ -151,7 +151,7 @@ export async function resolveIdentities(
 
 /**
  * The write-time check for a person a record is given to: an assignee or a participant must
- * be an active Operai user who can open the host's app (specs/018 US-2, ADR-0055; specs/028
+ * be an active Operai user who can open the host's app (specs/20261101-crm-sales-flow US-2, ADR 20261101-app-access-check-by-user-id-and-directory-app-filter; specs/20261110-activities
  * AC-5.1). Asked of `auth POST /authz/app-access-check {appId, userId}` with the caller's own
  * JWT, one id at a time (a write names a handful).
  *

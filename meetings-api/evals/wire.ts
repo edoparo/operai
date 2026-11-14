@@ -1,5 +1,5 @@
 /**
- * The provider level of the evals (specs/021-meetings T121; plan H-8, H-10; AC-7.9, AC-7.12, AC-9.6, AC-9.7; ADR-0067).
+ * The provider level of the evals (specs/20261104-meetings T121; plan H-8, H-10; AC-7.9, AC-7.12, AC-9.6, AC-9.7; ADR 20261104-ai-output-structured-validated-plain-text).
  *
  * Why it exists. The model is offered ONE tool and is not forced to call it, so what comes back can be plain text, two
  * calls, another tool, a call cut off at `max_tokens`, or a valid call wrapped in text or thinking. Those are decided

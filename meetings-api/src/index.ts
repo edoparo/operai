@@ -23,7 +23,7 @@ import { createS3Client } from "./lib/storage";
 import { runStartupChecks } from "./lib/startupChecks";
 import { startWorker } from "./jobs/handlers";
 
-// Exported so the assembled-app tests (specs/021 T42) can read the real route
+// Exported so the assembled-app tests (specs/20261104-meetings T42) can read the real route
 // table; Bun serves only the default export below.
 export const app = new OpenAPIHono({ defaultHook: validationHook });
 
@@ -112,12 +112,12 @@ app.notFound((c) =>
 
 // ─── Start ───────────────────────────────────────────────────────────────────
 
-// The 30-day audio deletion is the bucket's own lifecycle rule (AC-4.4, ADR-0063):
+// The 30-day audio deletion is the bucket's own lifecycle rule (AC-4.4, ADR 20261104-audio-retention-bucket-lifecycle-verified-at-startup):
 // refuse to start (exit 1) unless it is there and versioning is not enabled.
 // Skipped under test, where storage is faked.
 if (env.NODE_ENV !== "test") await runStartupChecks(createS3Client(), env.MEETINGS_S3_BUCKET);
 
-// The durable job runner lives in this process (ADR-0062; MEETINGS_WORKER=off disables it).
+// The durable job runner lives in this process (ADR 20261104-durable-job-runner-work-queued-state-derived; MEETINGS_WORKER=off disables it).
 if (env.NODE_ENV !== "test") await startWorker();
 
 console.log(`Meetings API → http://localhost:${env.PORT}`);

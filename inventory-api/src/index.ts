@@ -61,7 +61,7 @@ app.use(
 
 app.route("/", healthRouter);
 // One router per route group, each an empty stub in T1 and filled by its own
-// later task — so no later task edits this file (specs/015 tasks.md header).
+// later task — so no later task edits this file (specs/20261006-hardware-inventory tasks.md header).
 app.route("/", scopeRouter);
 app.route("/", meRouter);
 app.route("/", assetReadRouter);

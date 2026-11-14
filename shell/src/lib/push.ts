@@ -1,10 +1,10 @@
 /**
- * shell/push — the browser side of Web Push (specs/029-push-notifications, T8; plan § "Enable /
- * disable / sign-out (shell)", ADR-0084/0085). No UI: `PushSettings` (T9) builds on this module.
+ * shell/push — the browser side of Web Push (specs/20261111-push-notifications, T8; plan § "Enable /
+ * disable / sign-out (shell)", ADR 20261111-web-push-encrypted-payloads-not-fcm/0085). No UI: `PushSettings` (T9) builds on this module.
  *
  * What lives here:
  *   - support detection (`isPushSupported`, `readPermission`, `subscribePermission`);
- *   - the notify-api `/push/*` calls through `apiFetch` (ADR-0001): `getPushConfig`,
+ *   - the notify-api `/push/*` calls through `apiFetch` (ADR 20260607-jwt-in-memory-never-web-storage): `getPushConfig`,
  *     `listPushDevices`, and the writes below;
  *   - turning this browser on and off (`enablePush`, `disablePush`) and removing any device
  *     (`removePushDevice`);
@@ -21,7 +21,7 @@
  * inconclusive failure (network, 5xx) keeps it and reports `unverified`, to be retried next boot.
  *
  * What is persisted: `{deviceId, userId}` in IndexedDB and, once a user says no, a per-user
- * `operai-push-declined:<userId>` flag in localStorage — never the JWT (ADR-0001). Only
+ * `operai-push-declined:<userId>` flag in localStorage — never the JWT (ADR 20260607-jwt-in-memory-never-web-storage). Only
  * `enablePush` (and the silent re-register of an already remembered device) creates the database;
  * boot, sign-out and the settings reads never do (D-7). Every
  * storage access is wrapped: an unavailable store degrades to "nothing remembered", which makes
@@ -94,7 +94,7 @@ export interface PushBoot {
   result: PushReconcileResult
 }
 
-/** The on-load offer (specs/029 AC-1.9): who it is for and the key Turn on subscribes with. */
+/** The on-load offer (specs/20261111-push-notifications AC-1.9): who it is for and the key Turn on subscribes with. */
 export interface PushOffer {
   userId: string
   vapidPublicKey: string
@@ -170,7 +170,7 @@ export function subscribePermission(listener: (permission: NotificationPermissio
 }
 
 // ---------------------------------------------------------------------------
-// The remembered device — {deviceId, userId} in IndexedDB, nothing else (ADR-0001)
+// The remembered device — {deviceId, userId} in IndexedDB, nothing else (ADR 20260607-jwt-in-memory-never-web-storage)
 // ---------------------------------------------------------------------------
 
 interface StoredDevice {
@@ -277,7 +277,7 @@ async function clearStored(): Promise<void> {
 }
 
 // ---------------------------------------------------------------------------
-// The on-load offer's answer (specs/029 AC-1.9) — one flag per user in localStorage
+// The on-load offer's answer (specs/20261111-push-notifications AC-1.9) — one flag per user in localStorage
 // ---------------------------------------------------------------------------
 
 const DECLINED_KEY_PREFIX = 'operai-push-declined:'
@@ -656,7 +656,7 @@ export async function initPush(): Promise<PushBoot | undefined> {
 const OFFER_SKIPPED_PATHS = ['/account']
 
 /**
- * Whether to offer push when Operai loads (specs/029 AC-1.9), from the boot result: the browser
+ * Whether to offer push when Operai loads (specs/20261111-push-notifications AC-1.9), from the boot result: the browser
  * supports push, it is off here, the user has not answered (no decline recorded, notifications not
  * blocked), the page is not My profile, and the deployment has push enabled. Reads only — the offer's
  * Turn on is what asks the browser. Never rejects; any failure means no offer.

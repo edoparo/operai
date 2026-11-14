@@ -1,5 +1,5 @@
 /**
- * QE-added (specs/016 T3 done-when): through the REAL routes, an accepted push
+ * QE-added (specs/20261013-notify-service-credentials T3 done-when): through the REAL routes, an accepted push
  * and an accepted email log exactly the caller line, and no console channel
  * ever sees the token, the recipient address, the title or the body.
  */

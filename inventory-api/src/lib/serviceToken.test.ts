@@ -1,6 +1,6 @@
 /**
- * Service-token client (T17, specs/015-hardware-inventory; AC-2.8, AC-2.9;
- * ADR-0044). `auth` is a stubbed `fetch`; time is an injected clock.
+ * Service-token client (T17, specs/20261006-hardware-inventory; AC-2.8, AC-2.9;
+ * ADR 20261006-scoped-service-jwt-fourth-notify-caller). `auth` is a stubbed `fetch`; time is an injected clock.
  */
 
 import { describe, it, expect, spyOn } from "bun:test";

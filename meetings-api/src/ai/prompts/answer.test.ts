@@ -16,7 +16,7 @@ import {
 import type { PromptSegment } from "./transcript";
 
 // AC-9.1 (answer in the question's language), AC-9.2 (only this transcript), AC-9.3 (cited, or
-// "not in the meeting"), AC-9.4 (the last 10 turns), AC-9.7 (injection), ADR-0067.
+// "not in the meeting"), AC-9.4 (the last 10 turns), AC-9.7 (injection), ADR 20261104-ai-output-structured-validated-plain-text.
 
 const SEGMENTS: PromptSegment[] = [
   { id: "seg-a", ordinal: 0, startMs: 0, speakerLabel: "Speaker 1", text: "We decided to ship on Friday." },
@@ -148,7 +148,7 @@ describe("a valid answer", () => {
   });
 });
 
-describe("no answer goes uncited (AC-9.3, ADR-0067)", () => {
+describe("no answer goes uncited (AC-9.3, ADR 20261104-ai-output-structured-validated-plain-text)", () => {
   const notIn = (language: "en" | "it") => ({ ok: true as const, value: { text: NOT_IN_MEETING[language], citations: [], notInMeeting: true } });
 
   it("turns an answer with NO citation into the 'meeting does not contain this' answer", () => {

@@ -26,13 +26,13 @@ Vercel (6 projects, one origin each)          Railway project (europe-west4)
 ┌───────────────────────────────┐             ┌───────────────────────────────┐
 │ shell   https://operai.welld.io│──┐ loads    │ auth        (Bun+Hono)        │
 │         (host, entry point)    │  │ remote-  │  https://auth.operai.welld.io │
-├───────────────────────────────┤  │ Entry.js │  1 replica (R7, specs/013     │
+├───────────────────────────────┤  │ Entry.js │  1 replica (R7, specs/20260807-estimate-sharing     │
 │ estimai-ui  estimai.operai…    │◄─┤ at run-  │  — see below), app-access-    │
 │ refund-ui   refund.operai…     │◄─┤ time, in │  check limiter is in-process  │
 │ admin-ui    admin.operai…      │◄─┤ browser  ├───────────────────────────────┤
 │ notify-ui   notify.operai…     │◄─┘          │ estimai-api (Bun+Hono)        │
 └───────────────────────────────┘              │  https://estimai-api.operai… │
-   shell owns session; remotes                 │  1 replica (R7, specs/013     │
+   shell owns session; remotes                 │  1 replica (R7, specs/20260807-estimate-sharing     │
    delegate to shell/session                   │  — see below), share-add     │
                                                 │  limiter + identity cache are │
                                                 │  in-process, single-instance  │
@@ -46,7 +46,7 @@ Vercel (6 projects, one origin each)          Railway project (europe-west4)
                                                 │ refund-api  (Bun+Hono)        │
                                                 │  https://refund-api.operai…  │
                                                 │  → EU object storage (S3-    │
-                                                │    compatible, ADR-0016) —   │
+                                                │    compatible, ADR 20260716-eu-object-storage-refund-attachments) —   │
                                                 │    receipt attachments,      │
                                                 │    presigned direct-to-bucket│
                                                 ├───────────────────────────────┤
@@ -58,32 +58,32 @@ Vercel (6 projects, one origin each)          Railway project (europe-west4)
                                                 │ estimai-api, notify-api,      │
                                                 │ refund-api → auth /auth/jwks  │
                                                 │ refund-api → auth /authz/     │
-                                                │   resolve (ADR-0014)          │
+                                                │   resolve (ADR 20260716-refund-api-authorization-enforcing-resource-server)          │
                                                 │ estimai-api → auth /authz/    │
                                                 │   app-access-check +          │
                                                 │   /authz/users/identities     │
-                                                │   (specs/013, ADR-0035/0039)  │
+                                                │   (specs/20260807-estimate-sharing, ADR 20260807-third-party-app-access-decision-endpoint-forwarded-jwt/0039)  │
                                                 │ refund-api → notify-api       │
                                                 │   /system/notifications       │
-                                                │   (ADR-0017)                  │
+                                                │   (ADR 20260716-system-notifications-cross-user-trigger)                  │
                                                 │ estimai-api → notify-api      │
                                                 │   /system/notifications       │
-                                                │   (specs/013, ADR-0040)       │
+                                                │   (specs/20260807-estimate-sharing, ADR 20260807-estimai-api-third-notify-internal-token-holder)       │
                                                 └───────────────────────────────┘
 ```
 
 - **Frontends:** the `shell` is the human entry point (`operai.welld.io`); the
   four tools (`estimai-ui`, `refund-ui`, `admin-ui`, `notify-ui`) are
   runtime-federated remotes, each on its own subdomain, loaded cross-origin by
-  the shell (ADR-0006). `notify-ui` (specs/005) is the notification-center
+  the shell (ADR 20260709-suite-frontend-module-federation). `notify-ui` (specs/20260713-notification-center) is the notification-center
   page; the shell's own bell/toast/SSE seam is shipped inside the shell bundle
-  itself, not this remote (ADR-0009) — see the shell-side notes in
-  `specs/005-notification-center/plan.md`.
+  itself, not this remote (ADR 20260713-notification-center-standalone-service-shell-seam) — see the shell-side notes in
+  `specs/20260713-notification-center/plan.md`.
 - **Backends:** `auth` (OAuth, sessions, RS256 JWT + JWKS, hosted sign-in,
   authorization/admin API), `estimai-api` (estimate persistence), `notify-api`
-  (notification persistence + SSE push, specs/005), and `refund-api`
+  (notification persistence + SSE push, specs/20260713-notification-center), and `refund-api`
   (reimbursement persistence + authorization-enforcing resource server,
-  specs/007). One Postgres instance, four logical databases (`auth`,
+  specs/20260716-refund-service). One Postgres instance, four logical databases (`auth`,
   `estimai`, `notify`, `refund`); service↔DB traffic stays on Railway private
   networking (`*.railway.internal`).
   **`notify-api` is pinned to a single replica** (`.railway/railway.ts`,
@@ -92,10 +92,10 @@ Vercel (6 projects, one origin each)          Railway project (europe-west4)
   enable autoscale/multiple replicas for this service without first moving
   both seams onto Postgres `LISTEN`/`NOTIFY` + a shared ticket table.
   `refund-api` has no equivalent constraint — its `authzMiddleware` cache
-  (ADR-0014) is a per-replica performance optimization with a 30s TTL
+  (ADR 20260716-refund-api-authorization-enforcing-resource-server) is a per-replica performance optimization with a 30s TTL
   backstop, not a correctness-dependent single-instance store.
   **`auth` and `estimai-api` are now ALSO pinned to a single replica each**
-  (specs/013-estimate-sharing, T13, plan.md Risk R7) — `auth`'s
+  (specs/20260807-estimate-sharing, T13, plan.md Risk R7) — `auth`'s
   `APP_ACCESS_CHECK_*` rate limiter (T1, `src/lib/rateLimiter.ts`) and
   `estimai-api`'s `SHARE_ADD_*` rate limiter + 60s in-process identity cache
   (T5, `src/lib/rateLimiter.ts`/`authClient.ts`) are both `Map`-based,
@@ -110,22 +110,22 @@ Vercel (6 projects, one origin each)          Railway project (europe-west4)
   without doing that first. The pins live in `.railway/railway.ts`
   (§ Railway configuration as code below).
 - **`notify-api` and `estimai-api` are cross-valid JWKS resource servers**
-  (ADR-0010) — both verify the same `auth`-issued tokens, so both (plus
+  (ADR 20260713-jwt-audience-claim-enforcement) — both verify the same `auth`-issued tokens, so both (plus
   `auth`, which stamps the claim) require an identical **`AUTH_AUDIENCE`**
   value or a token minted for one is structurally valid at the other.
-  `refund-api` (specs/007) is a THIRD JWKS resource server on the same
+  `refund-api` (specs/20260716-refund-service) is a THIRD JWKS resource server on the same
   `AUTH_AUDIENCE` value — see § Variable reference.
-- **`auth` → `notify-api` service-to-service email trigger** (specs/006-user-invitations,
-  ADR-0011): `auth` calls `notify-api`'s internal `POST /system/emails` to send
+- **`auth` → `notify-api` service-to-service email trigger** (specs/20260713-user-invitations,
+  ADR 20260714-notify-api-email-channel-service-trust): `auth` calls `notify-api`'s internal `POST /system/emails` to send
   invite/resend emails (Resend, bilingual) — the suite's first non-user-JWT
-  cross-service call. Since specs/016 (ADR-0048/0049) `auth` authenticates it with its
+  cross-service call. Since specs/20261013-notify-service-credentials (ADR 20261013-auth-mints-own-service-credential-in-process/0049) `auth` authenticates it with its
   own scoped 5-minute service JWT (`sub=system:auth`, scope `emails.send`), minted in
   process — there is no shared secret any more. This call is routed over Railway **private
   networking** (`NOTIFY_INTERNAL_URL` → `notify-api.railway.internal`), not
   the public `<NOTIFY_API_URL>` domain the browser uses for SSE — see
   § Variable reference and § Phase 1 step 7.
 - **`refund-api` → `auth` `/authz/resolve` + `refund-api` → `notify-api`
-  `/system/notifications`** (specs/007-refund-service, ADR-0014/ADR-0017):
+  `/system/notifications`** (specs/20260716-refund-service, ADR 20260716-refund-api-authorization-enforcing-resource-server/ADR 20260716-system-notifications-cross-user-trigger):
   `refund-api` is the suite's first AUTHORIZATION-enforcing resource server —
   every request resolves the caller's live permissions from `auth GET
   /authz/resolve` (forwarding the caller's own Bearer JWT, no new secret,
@@ -134,30 +134,30 @@ Vercel (6 projects, one origin each)          Railway project (europe-west4)
   `POST /system/notifications` (mirrors `/system/emails`'s shape), and, for the
   monthly batch email, `POST /system/emails`, each authenticated with its own scoped
   service JWT (scopes `notifications.push` + `emails.send`) from `auth POST
-  /system/service-token` (ADR-0049). Both calls should
+  /system/service-token` (ADR 20261013-all-notify-callers-scoped-credentials-shared-token-retired). Both calls should
   prefer Railway **private networking** where the target service's private
   hostname is known, same posture as `auth`'s existing `NOTIFY_INTERNAL_URL`.
-- **`refund-api` → EU object storage** (specs/007-refund-service, ADR-0016): a
+- **`refund-api` → EU object storage** (specs/20260716-refund-service, ADR 20260716-eu-object-storage-refund-attachments): a
   SEPARATE S3-compatible bucket resource (not a Railway service) — receipt
   attachments never transit `refund-api`'s own process (presigned
   direct-to-bucket upload/download). See § Variable reference's `refund-api`
   section and this task's follow-up note on provisioning (not yet done).
 - **`estimai-api` → `auth` `/authz/app-access-check` + `/authz/users/identities`,
-  `estimai-api` → `notify-api` `/system/notifications`** (specs/013-estimate-sharing,
-  T13, ADR-0035/ADR-0036/ADR-0039/ADR-0040): estimate sharing (US-1..US-7)
+  `estimai-api` → `notify-api` `/system/notifications`** (specs/20260807-estimate-sharing,
+  T13, ADR 20260807-third-party-app-access-decision-endpoint-forwarded-jwt/ADR 20260807-record-level-acl-resource-server-owned-access-primitive/ADR 20260807-live-identity-resolution-by-id-fail-soft/ADR 20260807-estimai-api-third-notify-internal-token-holder): estimate sharing (US-1..US-7)
   adds `estimai-api`'s first outbound calls to two sibling services, using
   its own `AUTH_BASE_URL` env var (a NEW var — distinct from the
   pre-existing `AUTH_ISSUER`/`AUTH_JWKS_URL` claim-verification values).
   Both `auth` calls forward the CALLER's own Bearer JWT (no new credential;
-  `POST /authz/app-access-check` fails CLOSED on error per ADR-0035,
+  `POST /authz/app-access-check` fails CLOSED on error per ADR 20260807-third-party-app-access-decision-endpoint-forwarded-jwt,
   `POST /authz/users/identities` fails SOFT to `status:"unknown"` per
-  ADR-0039 — deliberately different failure postures on the same service,
+  ADR 20260807-live-identity-resolution-by-id-fail-soft — deliberately different failure postures on the same service,
   see each ADR). `estimai-api` deliberately does **not** become an
-  authorization-enforcing resource server like `refund-api` (ADR-0036) —
+  authorization-enforcing resource server like `refund-api` (ADR 20260807-record-level-acl-resource-server-owned-access-primitive) —
   per-record ACLs live in `estimai-api`'s own `estimate_collaborator` table,
   not in `auth`'s catalog. The `notify-api` call reuses `refund-api`'s exact
   `/system/notifications` contract, authenticated with `estimai-api`'s own
-  scoped service JWT (scope `notifications.push` only; ADR-0049 — see
+  scoped service JWT (scope `notifications.push` only; ADR 20261013-all-notify-callers-scoped-credentials-shared-token-retired — see
   § "Service clients" below). Both calls are additionally bounded by
   `estimai-api`'s own `SHARE_ADD_RATE_LIMIT`/`_WINDOW_MS` and
   `SHARE_LOOKUP_FLOOR_MS` (plan.md AC-1.2's anti-enumeration timing floor,
@@ -179,8 +179,8 @@ Vercel (6 projects, one origin each)          Railway project (europe-west4)
     (notify-api's real private host is `operai.railway.internal`, NOT
     `notify-api.railway.internal` — see the ⚠ box in § Cross-service wiring) —
     distinct from `<NOTIFY_API_URL>` above. `auth`'s server-side `POST /system/emails` call
-    (specs/006-user-invitations, ADR-0011) AND `refund-api`'s server-side
-    `POST /system/notifications` call (specs/007, ADR-0017) both use this;
+    (specs/20260713-user-invitations, ADR 20260714-notify-api-email-channel-service-trust) AND `refund-api`'s server-side
+    `POST /system/notifications` call (specs/20260716-refund-service, ADR 20260716-system-notifications-cross-user-trigger) both use this;
     never given to a browser, never the public domain — see § Phase 1 step 7.
   - `<INVENTORY_API_URL>` = the **inventory-api** service's **public** domain
     (e.g. `https://inventory-api.operai.welld.io`). Only the browser references it,
@@ -192,8 +192,8 @@ Vercel (6 projects, one origin each)          Railway project (europe-west4)
     allowlist — and the `refund-ui` project itself); it is also the origin
     the shell CSP's `connect-src` must allow (see Phase 3).
 
-- **`inventory-api` and `inventory-ui`** (specs/015-hardware-inventory, T43;
-  ADR-0044..0047) are the fifth backend and sixth frontend project. The diagram
+- **`inventory-api` and `inventory-ui`** (specs/20261006-hardware-inventory, T43;
+  ADR 20261006-scoped-service-jwt-fourth-notify-caller..0047) are the fifth backend and sixth frontend project. The diagram
   above predates them; they add a sixth Vercel project (`inventory-ui` →
   `inventory.operai.welld.io`, a remote exposing `./App`, `./MyDevices` and
   `./version`), a fifth Railway service (`inventory-api` → `inventory-api.operai.welld.io`,
@@ -202,11 +202,11 @@ Vercel (6 projects, one origin each)          Railway project (europe-west4)
   (calls `auth GET /authz/resolve` and `POST /authz/users/identities` on the
   caller's forwarded JWT) and the one of four notify callers: it pushes to
   `notify-api POST /system/notifications` with a 5-minute scoped service JWT
-  minted by `auth POST /system/service-token` (ADR-0044/0049). Browsers also call
-  `auth GET /authz/users/directory` directly from `inventory-ui` (ADR-0047).
+  minted by `auth POST /system/service-token` (ADR 20261006-scoped-service-jwt-fourth-notify-caller/0049). Browsers also call
+  `auth GET /authz/users/directory` directly from `inventory-ui` (ADR 20261006-user-directory-endpoint-capability-gated).
   Full variable list and the manual rollout steps: § `inventory-api` service.
 - **Service tokens are signed by better-auth's rotating key, NOT by
-  `JWT_PRIVATE_KEY`** (ADR-0044, plan risk R-4, resolved in the T4 contract
+  `JWT_PRIVATE_KEY`** (ADR 20261006-scoped-service-jwt-fourth-notify-caller, plan risk R-4, resolved in the T4 contract
   test): the token carries the same `kid` that `auth` publishes at
   `/auth/jwks`, and `notify-api` verifies it against its existing `AUTH_JWKS_URL`
   (`aud = SERVICE_AUDIENCE`, `scope` containing `notifications.push`). The
@@ -216,7 +216,7 @@ Vercel (6 projects, one origin each)          Railway project (europe-west4)
 
 **Hostnames.** The `*.operai.welld.io` scheme is the proposed, welld.io-parented
 layout (shared registrable parent matters for the credentialed `/auth/token`
-cookie call — ADR-0001 R7). If the real domains differ, update them here **and**
+cookie call — ADR 20260607-jwt-in-memory-never-web-storage R7). If the real domains differ, update them here **and**
 in the static `vercel.json` CSP/redirect strings (Vercel doesn't interpolate env
 vars into those).
 
@@ -259,7 +259,7 @@ are discovered during deploy — which is why the frontends' vars come after.
 
 ---
 
-## Railway configuration as code (ADR-0088)
+## Railway configuration as code (ADR 20261113-railway-infrastructure-as-code)
 
 The Railway project — every backend service, the shared Postgres and its volume, the
 buckets, custom domains, build and deploy settings, replicas and region — is declared in
@@ -315,11 +315,11 @@ logical databases and the **variables**. The automatable parts of that are in
 3. **Deploy `auth`** (root dir `auth`, settings in `.railway/railway.ts`): set its vars
    (DATABASE_URL via `${{Postgres.*}}` references, `BETTER_AUTH_SECRET`,
    `GOOGLE_*`/`GITHUB_*`, `JWT_*`, `ALLOWED_ORIGINS=<shell origin>`, `UI_HOME_URL`,
-   `AUTH_AUDIENCE` (ADR-0010 — one suite-wide value; see below),
-   `NOTIFY_INTERNAL_URL` (specs/006-user-invitations, ADR-0011 — see below),
-   `SERVICE_AUDIENCE` + `SERVICE_CLIENTS` (ADR-0044/0049 — see § "Service clients"
+   `AUTH_AUDIENCE` (ADR 20260713-jwt-audience-claim-enforcement — one suite-wide value; see below),
+   `NOTIFY_INTERNAL_URL` (specs/20260713-user-invitations, ADR 20260714-notify-api-email-channel-service-trust — see below),
+   `SERVICE_AUDIENCE` + `SERVICE_CLIENTS` (ADR 20261006-scoped-service-jwt-fourth-notify-caller/0049 — see § "Service clients"
    below), `BOOTSTRAP_ADMIN_EMAIL`, `NODE_ENV=production`, and —
-   **optional, code defaults apply if unset (specs/013-estimate-sharing,
+   **optional, code defaults apply if unset (specs/20260807-estimate-sharing,
    T1/T2/T27)** — `APP_ACCESS_CHECK_FLOOR_MS`/`APP_ACCESS_CHECK_RATE_LIMIT`/
    `APP_ACCESS_CHECK_RATE_WINDOW_MS` and `IDENTITIES_RATE_LIMIT`/
    `IDENTITIES_RATE_WINDOW_MS`), then deploy. Pin **one replica**
@@ -330,11 +330,11 @@ logical databases and the **variables**. The automatable parts of that are in
 4. **Deploy `estimai-api`** (root dir `estimai-api`): set `DATABASE_URL` (dbname
    `estimai`), `ALLOWED_ORIGINS`, `AUTH_ISSUER=<AUTH_URL>`,
    `AUTH_JWKS_URL=<AUTH_URL>/auth/jwks`, `AUTH_AUDIENCE` (byte-for-byte identical
-   to `auth`'s), `NODE_ENV`, and — **NEW (specs/013-estimate-sharing, T13)** —
+   to `auth`'s), `NODE_ENV`, and — **NEW (specs/20260807-estimate-sharing, T13)** —
    `AUTH_BASE_URL` (internal, bucket ① — same private-DNS shape as
    `refund-api`'s own `AUTH_BASE_URL`, see step 8 below), `NOTIFY_INTERNAL_URL`
    (internal, set at step 8 alongside `auth`'s and `refund-api`'s),
-   `SERVICE_CLIENT_ID`/`SERVICE_CLIENT_SECRET` (specs/016 — see § "Service
+   `SERVICE_CLIENT_ID`/`SERVICE_CLIENT_SECRET` (specs/20261013-notify-service-credentials — see § "Service
    clients" below), and `SHARE_LOOKUP_FLOOR_MS`/
    `SHARE_ADD_RATE_LIMIT`/`SHARE_ADD_RATE_WINDOW_MS` (optional — code
    defaults `300`/`20`/`600000` apply if unset). Pin **one replica**
@@ -348,7 +348,7 @@ logical databases and the **variables**. The automatable parts of that are in
    `AUTH_JWKS_URL=<AUTH_URL>/auth/jwks`, `AUTH_AUDIENCE` (same value as the other
    two), `MAX_STREAM_DURATION` (seconds; default `1800`),
    `SERVICE_AUDIENCE` (same value as `auth`'s — see § "Service clients" below),
-   `EMAIL_ENABLED`/`RESEND_API_KEY`/`RESEND_FROM` (specs/006-user-invitations —
+   `EMAIL_ENABLED`/`RESEND_API_KEY`/`RESEND_FROM` (specs/20260713-user-invitations —
    see below), `NODE_ENV=production`. Confirm region **`europe-west4`** (data
    residency — notification bodies may name clients/estimates and must stay
    EU-only, never logged). **Generate its domain** → this is
@@ -368,19 +368,19 @@ logical databases and the **variables**. The automatable parts of that are in
    > uploads the repo root as context; the root directory is what scopes the build
    > down to the app).
 6. **Deploy `refund-api`** (root dir `refund-api`, settings in `.railway/railway.ts`
-   — T19, specs/007-refund-service): set `DATABASE_URL` (dbname `refund`,
+   — T19, specs/20260716-refund-service): set `DATABASE_URL` (dbname `refund`,
    **not** `estimai`/`notify`), `ALLOWED_ORIGINS=<shell origin>`,
    `AUTH_ISSUER=<AUTH_URL>`, `AUTH_JWKS_URL=<AUTH_URL>/auth/jwks`,
    `AUTH_AUDIENCE` (same value as the other three), `NOTIFY_INTERNAL_URL`
    (notify-api's **private**-networking address — same value as `auth`'s, see
-   step 8), `SERVICE_CLIENT_ID`/`SERVICE_CLIENT_SECRET` (specs/016 — see
+   step 8), `SERVICE_CLIENT_ID`/`SERVICE_CLIENT_SECRET` (specs/20261013-notify-service-credentials — see
    § "Service clients" below), `REFUND_S3_ENDPOINT`/`REFUND_S3_REGION`/`REFUND_S3_BUCKET`/
    `REFUND_S3_ACCESS_KEY_ID`/`REFUND_S3_SECRET_ACCESS_KEY` (EU-region object
-   storage, ADR-0016 — **NOT YET PROVISIONED**, see § Variable reference),
+   storage, ADR 20260716-eu-object-storage-refund-attachments — **NOT YET PROVISIONED**, see § Variable reference),
    `REFUND_APP_BASE_URL` (monthly batch processing, T14,
-   specs/008-refund-monthly-processing, ADR-0021 — see § Variable
+   specs/20260719-refund-monthly-processing, ADR 20260719-refund-batch-signed-link-email-delivery — see § Variable
    reference), `NODE_ENV=production`. Do **NOT** set
-   `REFUND_ACCOUNTING_DISTRIBUTION_EMAIL` — as of specs/011-refund-settings
+   `REFUND_ACCOUNTING_DISTRIBUTION_EMAIL` — as of specs/20260722-refund-settings
    this is no longer a `refund-api` env var at all (AC-4.1); see
    § "Cutover — accounting-distribution-email setting" below for the
    one-time post-deploy step that replaces it. Confirm region
@@ -393,8 +393,8 @@ logical databases and the **variables**. The automatable parts of that are in
    `refund-api.AUTH_ISSUER`) and redeploy `auth`. Re-run the script with
    `AUTH_PUBLIC_URL=<AUTH_URL>` once the domain exists.
 8. **Wire the invitation email channel + refund decision notifications +
-   estimate-sharing notifications** (specs/006-user-invitations ADR-0011,
-   specs/007-refund-service ADR-0017, specs/013-estimate-sharing ADR-0040):
+   estimate-sharing notifications** (specs/20260713-user-invitations ADR 20260714-notify-api-email-channel-service-trust,
+   specs/20260716-refund-service ADR 20260716-system-notifications-cross-user-trigger, specs/20260807-estimate-sharing ADR 20260807-estimai-api-third-notify-internal-token-holder):
    set `auth`'s, `refund-api`'s, **and now `estimai-api`'s**
    `NOTIFY_INTERNAL_URL` to notify-api's **Railway private** networking
    address, as the reference
@@ -403,7 +403,7 @@ logical databases and the **variables**. The automatable parts of that are in
    (the label is declared in `.railway/railway.ts`, notify-api's
    `networking: { privateNetworkEndpoint: "operai" }` → `operai.railway.internal`; see the ⚠
    box in § Cross-service wiring) — **not** `<NOTIFY_API_URL>`, the public domain from step 5
-   (plan.md Risk R2 / ADR-0011: this service-to-service call must stay off
+   (plan.md Risk R2 / ADR 20260714-notify-api-email-channel-service-trust: this service-to-service call must stay off
    the public internet). Every caller authenticates with its own credential — set up
    the service clients as described in § "Service clients" below (no shared
    secret). Also set `estimai-api`'s `AUTH_BASE_URL` to
@@ -411,23 +411,23 @@ logical databases and the **variables**. The automatable parts of that are in
    private-DNS shape as `refund-api`'s own `AUTH_BASE_URL` two rows up in §
    Variable reference's ① table) — it is the base for `estimai-api`'s
    `POST /authz/app-access-check` and `POST /authz/users/identities` calls
-   (specs/013-estimate-sharing, ADR-0035/0039). Set `notify-api`'s
+   (specs/20260807-estimate-sharing, ADR 20260807-third-party-app-access-decision-endpoint-forwarded-jwt/0039). Set `notify-api`'s
    `EMAIL_ENABLED=true` with real `RESEND_API_KEY`/`RESEND_FROM` only once
    the Resend sending domain is verified (see § Resend domain setup below) —
    until then, leave `EMAIL_ENABLED=false` so invite emails are stubbed
    (recorded, not actually sent) rather than failing loudly.
 
-**`AUTH_AUDIENCE` (ADR-0010) — one value, FOUR services (as of specs/007).**
+**`AUTH_AUDIENCE` (ADR 20260713-jwt-audience-claim-enforcement) — one value, FOUR services (as of specs/20260716-refund-service).**
 `notify-api` was the suite's first real second JWKS resource server, so a
 token minted for `estimai-api` would otherwise be structurally valid at
-`notify-api` (and vice versa); `refund-api` (specs/007) is now a third. `auth`
+`notify-api` (and vice versa); `refund-api` (specs/20260716-refund-service) is now a third. `auth`
 stamps the `audience` claim on every JWT it issues; `estimai-api`,
 `notify-api`, AND `refund-api` each verify `audience` against their own
 `AUTH_AUDIENCE`. **All four services must carry the byte-for-byte identical
 value** (local default: `operai-suite`, see each service's `.env.example`) — a
 drifted value fails every request closed (401) in that environment, not open.
 
-**Service clients (ADR-0044, ADR-0048, ADR-0049; specs/016) — one credential per
+**Service clients (ADR 20261006-scoped-service-jwt-fourth-notify-caller, ADR 20261013-auth-mints-own-service-credential-in-process, ADR 20261013-all-notify-callers-scoped-credentials-shared-token-retired; specs/20261013-notify-service-credentials) — one credential per
 notify-api caller, no shared secret, no user identity.** `notify-api`'s two internal routes
 are `POST /system/emails` (scope `emails.send`) and `POST /system/notifications` (scope
 `notifications.push`). Every caller authenticates **as itself** with
@@ -437,11 +437,11 @@ verified by `notify-api` through its existing `AUTH_JWKS_URL`. The callers are:
 
 | Caller | `sub` | Scope(s) | Obtains its credential by |
 |---|---|---|---|
-| `auth` | `system:auth` | `emails.send` | minting it in process (ADR-0048); the client id `auth` is **reserved** — a `SERVICE_CLIENTS` entry named `auth` refuses to start |
+| `auth` | `system:auth` | `emails.send` | minting it in process (ADR 20261013-auth-mints-own-service-credential-in-process); the client id `auth` is **reserved** — a `SERVICE_CLIENTS` entry named `auth` refuses to start |
 | `refund-api` | `system:refund-api` | `notifications.push` + `emails.send` | `auth POST /system/service-token` with `SERVICE_CLIENT_ID` / `SERVICE_CLIENT_SECRET` |
-| `estimai-api` | `system:estimai-api` | `notifications.push` + `estimate-notices.send` (crm-api `POST /system/estimate-notices`, ADR-0073; needs `CRM_INTERNAL_URL` on estimai-api and `SERVICE_AUDIENCE` on crm-api) | same |
+| `estimai-api` | `system:estimai-api` | `notifications.push` + `estimate-notices.send` (crm-api `POST /system/estimate-notices`, ADR 20261105-estimai-closes-the-estimate-crm-follows; needs `CRM_INTERNAL_URL` on estimai-api and `SERVICE_AUDIENCE` on crm-api) | same |
 | `inventory-api` | `system:inventory-api` | `notifications.push` | same |
-| `crm-api` | `system:crm-api` | `notifications.push` + `emails.send` + `deal-link-notices.send` (estimai-api `POST /system/deal-link-notices`, specs/024, ADR-0076; needs `ESTIMAI_INTERNAL_URL` on crm-api and `SERVICE_AUDIENCE` on estimai-api) | same |
+| `crm-api` | `system:crm-api` | `notifications.push` + `emails.send` + `deal-link-notices.send` (estimai-api `POST /system/deal-link-notices`, specs/20261108-estimate-list-oversight, ADR 20261108-crm-pushes-deal-links-to-estimai; needs `ESTIMAI_INTERNAL_URL` on crm-api and `SERVICE_AUDIENCE` on estimai-api) | same |
 
 A person creates, per client, one Railway **Shared Variable** `<NAME>_SERVICE_CLIENT_SECRET`
 (32-256 random chars, e.g. `openssl rand -hex 32`, no 1Password item), references it from
@@ -457,10 +457,10 @@ working. To **rotate** one caller's secret, change its shared variable and redep
 that caller (a window of 401s on that caller's pushes is the cost; the push is best-effort and
 never rolls back the originating action). A leaked secret lets its holder send what its scopes
 allow (for `refund-api`, email over wellD's Resend domain — plan.md Risk R2) until its entry is
-removed; it is never logged. The previous shared token was retired by specs/016: § Notify
+removed; it is never logged. The previous shared token was retired by specs/20261013-notify-service-credentials: § Notify
 credential rollout below is the history of that migration.
 
-**Resend domain setup (plan.md Risk R5, ADR-0011 compliance notes).** Before
+**Resend domain setup (plan.md Risk R5, ADR 20260714-notify-api-email-channel-service-trust compliance notes).** Before
 setting `EMAIL_ENABLED=true` in production:
 1. Add `operai.welld.io` (or the chosen sending subdomain) as a verified
    domain in the Resend dashboard.
@@ -482,7 +482,7 @@ a verified domain.
 ```bash
 export RAILWAY_PROJECT_ID=...        # from 1Password
 export BOOTSTRAP_ADMIN_EMAIL=you@welld.ch
-export AUTH_AUDIENCE=operai-suite    # ADR-0010 — identical across auth + estimai-api + notify-api + refund-api
+export AUTH_AUDIENCE=operai-suite    # ADR 20260713-jwt-audience-claim-enforcement — identical across auth + estimai-api + notify-api + refund-api
 export AUTH_PUBLIC_URL=https://auth.operai.welld.io   # after the auth domain exists
 direnv exec auth ./infra/deploy.sh
 ```
@@ -522,9 +522,9 @@ here); env-var sync + redeploy is automatable (`./infra/deploy.sh --vercel`).
    | `shell` | `operai.welld.io` | **Reassign** from the old `estimai-ui` project — the human entry point |
    | `estimai-ui` | `estimai.operai.welld.io` | remote-only; keeps a redirect for the old URL (below) |
    | `refund-ui` | `refund.operai.welld.io` | remote-only |
-   | `admin-ui` | `admin.operai.welld.io` | remote-only (roles & permissions, specs/004) |
-   | `notify-ui` | `notify.operai.welld.io` | remote-only (notification center, specs/005) |
-   | `inventory-ui` | `inventory.operai.welld.io` | remote-only (hardware inventory, specs/015; exposes `./App`, `./MyDevices`, `./version`) |
+   | `admin-ui` | `admin.operai.welld.io` | remote-only (roles & permissions, specs/20260713-auth-roles-permissions) |
+   | `notify-ui` | `notify.operai.welld.io` | remote-only (notification center, specs/20260713-notification-center) |
+   | `inventory-ui` | `inventory.operai.welld.io` | remote-only (hardware inventory, specs/20261006-hardware-inventory; exposes `./App`, `./MyDevices`, `./version`) |
 
 3. **Env vars** (Settings → Environment Variables, Production **and** Preview;
    all build-time → **redeploy** after changing). See **§ Variable reference**.
@@ -538,16 +538,16 @@ here); env-var sync + redeploy is automatable (`./infra/deploy.sh --vercel`).
    `shell/public/runtime-config.example.json` — includes `admin`) — the shell
    reads it at every page load (`shell/src/lib/runtimeRemotes.ts`). **Note:**
    as of this task (T20), `shell/vite.config.ts` does not yet declare a
-   `notify` remote (`NOTIFY_REMOTE_URL`) — that lands with specs/005's T13,
+   `notify` remote (`NOTIFY_REMOTE_URL`) — that lands with specs/20260713-notification-center's T13,
    mirroring `ADMIN_REMOTE_URL` exactly. `notify-ui` is deployable and
    reachable on its own domain today; the shell mounting it at `/notify` is a
    separate, not-yet-merged app-code change, not an infra gap.
 
-**Google Maps API key — provisioning (`admin-ui`, T16, specs/012-employee-address,
-ADR-0032) — before setting `VITE_GOOGLE_MAPS_API_KEY` in the `admin-ui` Vercel
+**Google Maps API key — provisioning (`admin-ui`, T16, specs/20260803-employee-address,
+ADR 20260804-google-places-browser-direct-referrer-restricted-key) — before setting `VITE_GOOGLE_MAPS_API_KEY` in the `admin-ui` Vercel
 project.** `admin-ui`'s AddressSection calls **Google Places API (New)**
 browser-direct from the admin's own browser — never proxied through `auth`
-(ADR-0032: routing a third party through the identity service would put
+(ADR 20260804-google-places-browser-direct-referrer-restricted-key: routing a third party through the identity service would put
 Google's latency/availability on the critical path of every tool in the
 suite, since every tool authenticates through `auth`). This is admin-ui's
 **first** `VITE_*` var and its **first** third-party credential.
@@ -563,13 +563,13 @@ suite, since every tool authenticates through `auth`). This is admin-ui's
 
    > ⚠️ **The referrer list must contain the SHELL's origins, not
    > admin-ui's.** admin-ui runs as a Module Federation remote *inside the
-   > shell's document* (ADR-0006) — the `Referer` header on every Google call
+   > shell's document* (ADR 20260709-suite-frontend-module-federation) — the `Referer` header on every Google call
    > from that page is the **top-level** URL, i.e. the shell's, **never**
    > `admin.operai.welld.io`. Listing admin-ui's own origin here fails
    > **100% of requests** — and because AC-3.2 makes the feature degrade
    > silently (no error banner, no blocked save, just an address field that
    > quietly never suggests anything), that failure is **invisible** until
-   > someone happens to notice. This is risk **R2** (plan.md/ADR-0032) and
+   > someone happens to notice. This is risk **R2** (plan.md/ADR 20260804-google-places-browser-direct-referrer-restricted-key) and
    > the single easiest way to ship this feature broken. Add exactly:
    > - `https://operai.welld.io/*`
    > - `http://localhost:5173/*`
@@ -585,7 +585,7 @@ suite, since every tool authenticates through `auth`). This is admin-ui's
    miss for this repo** (see § Phase 3 "Shell CSP" below — it happened on
    2026-07-31 with the receipt-bucket `connect-src` entry, and would recur
    here without this step). `admin-ui` runs Module-Federated *inside the
-   shell's own document* (ADR-0006), so the **shell's** CSP governs the page,
+   shell's own document* (ADR 20260709-suite-frontend-module-federation), so the **shell's** CSP governs the page,
    not admin-ui's own `vercel.json` — exactly the same fact step 2's referrer
    box relies on. Add `https://maps.googleapis.com` to `script-src` (the
    `<script>` bootstrap `googlePlaces.ts` injects) and add BOTH
@@ -623,7 +623,7 @@ suite, since every tool authenticates through `auth`). This is admin-ui's
    Environment Variables (Production **and** Preview), sourced from the
    1Password item above, then **redeploy** (build-time vars need a rebuild —
    § Phase 2 step 3). It goes on no other Vercel project, and never on
-   Railway. Deliberately **not** a `shell/session` getter (ADR-0032 Option E)
+   Railway. Deliberately **not** a `shell/session` getter (ADR 20260804-google-places-browser-direct-referrer-restricted-key Option E)
    — that module is for suite-wide service origins the shell configures for
    every tool; a single remote's own third-party credential doesn't belong
    in a module every remote imports.
@@ -644,7 +644,7 @@ suite, since every tool authenticates through `auth`). This is admin-ui's
 ## Phase 3 — Cross-wire origins + OAuth
 
 - **`ALLOWED_ORIGINS`** on all backends (`auth`, `estimai-api`,
-  `notify-api`, `refund-api`, and `inventory-api` as of specs/015) must be the **shell's** origin
+  `notify-api`, `refund-api`, and `inventory-api` as of specs/20261006-hardware-inventory) must be the **shell's** origin
   (`https://operai.welld.io`) — that's what CORS + better-auth
   `trustedOrigins` validate. Only the shell's origin is needed: the remotes
   never call the backends directly (they delegate to `shell/session`, which
@@ -652,13 +652,13 @@ suite, since every tool authenticates through `auth`). This is admin-ui's
   endpoint — its `Access-Control-Allow-Origin` is pinned to the shell origin
   too (plan.md). Redeploy the affected service after a change.
 - **`refund-api.ALLOWED_ORIGINS` gains admin-ui's OWN origin**
-  (specs/009-mileage-rate, T8, plan.md Risk R8; **obsolete since 2026-11-13**:
-  the screen moved to refund-ui's Settings tab, ADR-0023 amendment, so admin-ui
+  (specs/20260720-mileage-rate, T8, plan.md Risk R8; **obsolete since 2026-11-13**:
+  the screen moved to refund-ui's Settings tab, ADR 20260720-mileage-rate-model-snapshot-admin-ui-composition amendment, so admin-ui
   no longer calls refund-api and the entry can be dropped) — admin-ui's Mileage
   Rates screen calls `refund-api`'s `/rates` endpoints directly (Bearer-authed,
   cross-origin, via `shell/session`'s `apiFetch`), the plan's chosen wiring
   (admin-ui hosts the screen; `refund-api` stays the sole data/logic owner —
-  see ADR-0023). When admin-ui runs COMPOSED inside the shell (the normal
+  see ADR 20260720-mileage-rate-model-snapshot-admin-ui-composition). When admin-ui runs COMPOSED inside the shell (the normal
   path in production), the browser Origin is already the SHELL's — already
   covered by the entry above, no change needed there. The NEW origin this
   bullet adds is for admin-ui's OWN origin — its standalone dev server
@@ -682,15 +682,15 @@ suite, since every tool authenticates through `auth`). This is admin-ui's
   the classic miss for a streaming feature (plan.md Risk R6). `notify.operai.
   welld.io` (the remote, in `script-src` **and** `connect-src`) and
   `notify-api.operai.welld.io` (the SSE origin, in `connect-src`) are already
-  present in `shell/vercel.json`'s CSP string (specs/005 T19) — `check.sh`
+  present in `shell/vercel.json`'s CSP string (specs/20260713-notification-center T19) — `check.sh`
   asserts this pin so a future edit that drops it fails loudly.
   `refund-api.operai.welld.io` was added to `connect-src` (T20,
-  specs/007-refund-service) — `refund-api` never streams (no SSE), but it's an
+  specs/20260716-refund-service) — `refund-api` never streams (no SSE), but it's an
   ordinary fetch target from `refund-ui`'s calls (via `shell/session`'s
   `apiFetch`) and `connect-src` governs `fetch`/`XHR` origins too, not just
   EventSource.
   **`connect-src` must ALSO include the receipt-bucket origin**
-  (`https://t3.storageapi.dev`, ADR-0016): receipt uploads POST *directly* to
+  (`https://t3.storageapi.dev`, ADR 20260716-eu-object-storage-refund-attachments): receipt uploads POST *directly* to
   the bucket, so that request is subject to the shell's CSP even though no
   Operai service is involved. Missing on 2026-07-31 — uploads stayed broken
   after the bucket's CORS rule was fixed, because CSP blocks the request
@@ -699,7 +699,7 @@ suite, since every tool authenticates through `auth`). This is admin-ui's
   added.
   **`script-src` AND `connect-src` must include the two Google origins**
   (`https://maps.googleapis.com`, `https://places.googleapis.com`,
-  specs/012-employee-address, ADR-0032 — see § Phase 2 step 4): `admin-ui`
+  specs/20260803-employee-address, ADR 20260804-google-places-browser-direct-referrer-restricted-key — see § Phase 2 step 4): `admin-ui`
   runs Module-Federated inside the shell's document, so the shell's CSP (not
   admin-ui's own `vercel.json`) governs the `<script>` bootstrap and the
   Places API (New) SDK's fetch/XHR calls. `script-src` needs only
@@ -714,7 +714,7 @@ suite, since every tool authenticates through `auth`). This is admin-ui's
   *(Known gap: Vercel Preview deploys get `*.vercel.app` URLs the pinned CSP
   won't match — assign preview subdomains or relax CSP via Edge Middleware;
   not implemented.)*
-  **Inventory (specs/015):** `shell/vercel.json` already carries
+  **Inventory (specs/20261006-hardware-inventory):** `shell/vercel.json` already carries
   `https://inventory.operai.welld.io` in `script-src` and `connect-src` and
   `https://inventory-api.operai.welld.io` in `connect-src`. Those hostnames are an
   assumption until the domains exist: if the real ones differ, edit the file and
@@ -757,12 +757,12 @@ every resource server verifies against — **not** `/.well-known/jwks.json`, an
 orphaned env-key endpoint), each remote's `remoteEntry.js` + CORS header (five:
 `estimai-ui`, `refund-ui`, `admin-ui`, `notify-ui`), the shell CSP pins
 (including the `notify-api` SSE `connect-src` pin, R6, the `refund-api`
-`connect-src` pin, T20, the receipt-bucket `connect-src` pin, ADR-0016 —
+`connect-src` pin, T20, the receipt-bucket `connect-src` pin, ADR 20260716-eu-object-storage-refund-attachments —
 override its default with `REFUND_BUCKET_ORIGIN` — and the Google Maps
-`script-src`/`connect-src` pins, ADR-0032/specs/012-employee-address), and
+`script-src`/`connect-src` pins, ADR 20260804-google-places-browser-direct-referrer-restricted-key/specs/20260803-employee-address), and
 warns if `notify-api`'s health payload doesn't
 look JWKS-ready. It also probes both of notify-api's internal routes, `POST
-$NOTIFY_API_URL/system/emails` and `/system/notifications` (specs/006, specs/016): a
+$NOTIFY_API_URL/system/emails` and `/system/notifications` (specs/20260713-user-invitations, specs/20261013-notify-service-credentials): a
 call with no credential must get 401, and so must one carrying the retired
 `X-Internal-Token` header (proves the service-credential gate is deployed and
 live and the shared-token path is gone). No credential is read or sent. Then, in a browser at
@@ -838,7 +838,7 @@ calls silently fail.
 > both `auth` and `refund-api` held a literal
 > `http://notify-api.railway.internal:8080`, which silently killed every
 > invitation email and every refund decision/paid push for as long as it was
-> set (both call sites are best-effort by design — ADR-0011/ADR-0017 — so
+> set (both call sites are best-effort by design — ADR 20260714-notify-api-email-channel-service-trust/ADR 20260716-system-notifications-cross-user-trigger — so
 > nothing surfaced to users, only `[notify]`/`[notifyEmail] failed to reach
 > notify-api` lines in refund-api's logs). `env:doctor --live` now flags a
 > hardcoded internal host that doesn't match the target's real private domain.
@@ -851,8 +851,8 @@ calls silently fail.
 | Var | Owner(s) | Value |
 |---|---|---|
 | `AUTH_JWKS_URL` | estimai-api, notify-api, refund-api, inventory-api | `http://${{auth.RAILWAY_PRIVATE_DOMAIN}}:${{auth.PORT}}/auth/jwks` |
-| `AUTH_BASE_URL` | inventory-api (`GET /authz/resolve`, `POST /authz/users/identities`, `POST /system/service-token`, specs/015); refund-api (the `GET /authz/resolve` call); estimai-api (the `POST /authz/app-access-check` + `POST /authz/users/identities` calls, specs/013-estimate-sharing, ADR-0035/0039) | `http://${{auth.RAILWAY_PRIVATE_DOMAIN}}:${{auth.PORT}}` |
-| `NOTIFY_INTERNAL_URL` | auth, refund-api, estimai-api (specs/013-estimate-sharing, ADR-0040), inventory-api (specs/015, ADR-0044) | `http://operai.railway.internal:8080` |
+| `AUTH_BASE_URL` | inventory-api (`GET /authz/resolve`, `POST /authz/users/identities`, `POST /system/service-token`, specs/20261006-hardware-inventory); refund-api (the `GET /authz/resolve` call); estimai-api (the `POST /authz/app-access-check` + `POST /authz/users/identities` calls, specs/20260807-estimate-sharing, ADR 20260807-third-party-app-access-decision-endpoint-forwarded-jwt/0039) | `http://${{auth.RAILWAY_PRIVATE_DOMAIN}}:${{auth.PORT}}` |
+| `NOTIFY_INTERNAL_URL` | auth, refund-api, estimai-api (specs/20260807-estimate-sharing, ADR 20260807-estimai-api-third-notify-internal-token-holder), inventory-api (specs/20261006-hardware-inventory, ADR 20261006-scoped-service-jwt-fourth-notify-caller) | `http://operai.railway.internal:8080` |
 
 **Use the Railway reference-variable form above (`${{svc.PORT}}`) — do NOT
 hardcode the port.** A service listens on exactly ONE port (its `PORT`), and it
@@ -884,9 +884,9 @@ suite-wide 401):
 
 | Var | Shared by |
 |---|---|
-| `AUTH_AUDIENCE` | auth + all 4 resource servers (ADR-0010; `inventory-api` is the fourth, specs/015) |
-| `SERVICE_AUDIENCE` | auth + notify-api (ADR-0044) — must be byte-identical across the two **and different from `AUTH_AUDIENCE`**; both refuse to start otherwise. `env:doctor` checks both. |
-| `<NAME>_SERVICE_CLIENT_SECRET` (`INVENTORY_`, `ESTIMAI_`, `REFUND_`, `ACTIVITIES_`) | the `secret` inside `auth`'s `SERVICE_CLIENTS` entry for that caller AND that caller's own `SERVICE_CLIENT_SECRET` (secret, 32–256 chars; ADR-0044/0049). One per caller; `auth` mints its own credential in process and has none. Set as a Railway Shared Variable directly on the project — there is no 1Password item, so it is never in a template. |
+| `AUTH_AUDIENCE` | auth + all 4 resource servers (ADR 20260713-jwt-audience-claim-enforcement; `inventory-api` is the fourth, specs/20261006-hardware-inventory) |
+| `SERVICE_AUDIENCE` | auth + notify-api (ADR 20261006-scoped-service-jwt-fourth-notify-caller) — must be byte-identical across the two **and different from `AUTH_AUDIENCE`**; both refuse to start otherwise. `env:doctor` checks both. |
+| `<NAME>_SERVICE_CLIENT_SECRET` (`INVENTORY_`, `ESTIMAI_`, `REFUND_`, `ACTIVITIES_`) | the `secret` inside `auth`'s `SERVICE_CLIENTS` entry for that caller AND that caller's own `SERVICE_CLIENT_SECRET` (secret, 32–256 chars; ADR 20261006-scoped-service-jwt-fourth-notify-caller/0049). One per caller; `auth` mints its own credential in process and has none. Set as a Railway Shared Variable directly on the project — there is no 1Password item, so it is never in a template. |
 | `AUTH_ISSUER` | all 4 resource servers (same public value) |
 | `NOTIFY_INTERNAL_URL` | auth + refund-api + estimai-api — the three services that CALL notify-api |
 
@@ -895,7 +895,7 @@ Set each as a Railway **Shared Variable** once; each service then references
 
 > `NOTIFY_INTERNAL_URL` was added to this list on 2026-08-10, after the private-
 > domain trap below had silently broken it for the **third** time (auth and
-> refund-api on 2026-07-31; estimai-api from the day specs/013 shipped until it
+> refund-api on 2026-07-31; estimai-api from the day specs/20260807-estimate-sharing shipped until it
 > was noticed in production). It is one value used by three services and there
 > is no reason for three independently-editable copies of it. Sharing it means
 > the private-domain question is answered **once**, and a future service rename
@@ -916,24 +916,24 @@ follows bucket ①).
 | `JWT_PRIVATE_KEY` / `JWT_PUBLIC_KEY` | 1Password → `AIScream / OperAI Private Key` (RS256 PEM; `.pem` gitignored) | **yes** |
 | `ALLOWED_ORIGINS` | `https://operai.welld.io` (shell origin; no wildcard/trailing slash) | no |
 | `UI_HOME_URL` | `https://operai.welld.io/` (post-login fallback; origin ∈ ALLOWED_ORIGINS) | no |
-| `AUTH_AUDIENCE` | **NEW (ADR-0010).** One suite-wide value (e.g. `operai-suite`), byte-for-byte identical to `estimai-api.AUTH_AUDIENCE` and `notify-api.AUTH_AUDIENCE`. Stamped as the JWT `audience` claim on every token `auth` mints; closes the cross-service token-replay gap now that `notify-api` is a second JWKS resource server. | no |
-| `NOTIFY_INTERNAL_URL` | **NEW (specs/006, ADR-0011).** notify-api's Railway **private**-networking address — always write it as `${{shared.NOTIFY_INTERNAL_URL}}` (shared — see ③; its value is the literal `http://operai.railway.internal:8080`), **never** a hand-typed `notify-api.railway.internal` (that host does not exist — see the ⚠ box in § Cross-service wiring), and **not** `<NOTIFY_API_URL>` (the public domain). Base URL for the `POST /system/emails` call (`src/lib/notify.ts`). | no |
-| `BOOTSTRAP_ADMIN_EMAIL` | email of the first admin (specs/004 AC-6.1; gets `admin` on first sign-in). Set on Railway, not committed. | no |
-| `APP_ACCESS_CHECK_FLOOR_MS` / `APP_ACCESS_CHECK_RATE_LIMIT` / `APP_ACCESS_CHECK_RATE_WINDOW_MS` | **NEW (specs/013-estimate-sharing, T1/T2).** In-process anti-enumeration floor + rate limit for `POST /authz/app-access-check` (ADR-0035). Optional — code defaults `150`/`40`/`600000` apply if unset; set explicitly only to tune per environment. | no |
-| `IDENTITIES_RATE_LIMIT` / `IDENTITIES_RATE_WINDOW_MS` | **NEW (specs/013-estimate-sharing, T27).** In-process rate limit for `POST /authz/users/identities` (reuses the same `rateLimiter.ts` module as the pair above, a second instance keyed separately). Optional — code defaults `120`/`600000` apply if unset. No response-time floor needed (ADR-0039 — this endpoint leaks no existence signal the caller doesn't already hold). | no |
-| `SERVICE_AUDIENCE` | **ADR-0044, required since specs/016 (ADR-0048).** The `aud` stamped on scoped service JWTs, including `auth`'s own in-process credential for `POST /system/emails`: `${{shared.SERVICE_AUDIENCE}}`, byte-identical to `notify-api`'s and **different from `AUTH_AUDIENCE`** (startup exits otherwise). Startup also exits if it is absent. | no |
-| `SERVICE_CLIENTS` | **ADR-0044/0049.** JSON object keyed by client id, one entry per caller that asks `POST /system/service-token` (`inventory-api`, `estimai-api`, `refund-api`): `{"inventory-api":{"secret":"${{shared.INVENTORY_SERVICE_CLIENT_SECRET}}","scope":"notifications.push"},…}` — full shape in § Notify credential rollout. Secret 32–256 chars; scopes are `notifications.push` and/or `emails.send`, each client only what it needs; client id is lower-case alphanumerics and single hyphens, and `auth` is reserved (ADR-0048). Never logged; a parse failure names the rule, never a value. Revoking a client = removing its entry (tokens already minted expire within 5 minutes). Verify the shared references resolved inside the JSON in the Variables tab. | **yes** |
-| `SERVICE_TOKEN_SERVICE_LIMIT` | **NEW (specs/029 US-7, ADR-0086).** Service tokens `POST /system/service-token` mints per calling service (the verified `system:<clientId>`) per window. Positive integer, optional, default `300` (steady state is about 3 per service per window). | no |
-| `USERS_CONTACT_SERVICE_LIMIT` | **NEW (specs/029 US-7, ADR-0086).** Contact lookups `POST /system/users/contact` answers per calling service per window. Only `system:notify-api` holds `users.contact`. Positive integer, optional, default `600`. | no |
-| `SYSTEM_INVALID_CREDENTIAL_LIMIT` | **NEW (specs/029 US-7, ADR-0086).** Requests with an INVALID credential per source address per window, one count shared by both routes. Positive integer, optional, default `20`. It never touches a valid credential. | no |
-| `SYSTEM_RATE_WINDOW_MS` | **NEW (specs/029 US-7, ADR-0086).** The one window of the three limits above and the value of `Retry-After` (in seconds) on their single 429. Integer >= 1000, optional, default `600000`. | no |
-| `SERVICE_TOKEN_RATE_LIMIT` / `SERVICE_TOKEN_RATE_WINDOW_MS` | **RETIRED (specs/029 US-7).** The old per-address limit (20 per 600000 ms) shared by the whole suite. Now ignored: `auth` starts, never reads the values and logs one warning naming them; env-doctor flags them on `auth` (`FORBIDDEN_VARS`). **Delete them from Railway once the new `auth` is live** (Step 0 command), and from the local direnv / 1Password source. Do not "reuse" them: an override sized for the old rule would no longer mean anything. | no |
-| `DIRECTORY_RATE_LIMIT` / `DIRECTORY_RATE_WINDOW_MS` | **NEW (T5, ADR-0047).** In-process limiter on `GET /authz/users/directory`, keyed by caller `sub`. Optional — defaults `60`/`600000`. | no |
+| `AUTH_AUDIENCE` | **NEW (ADR 20260713-jwt-audience-claim-enforcement).** One suite-wide value (e.g. `operai-suite`), byte-for-byte identical to `estimai-api.AUTH_AUDIENCE` and `notify-api.AUTH_AUDIENCE`. Stamped as the JWT `audience` claim on every token `auth` mints; closes the cross-service token-replay gap now that `notify-api` is a second JWKS resource server. | no |
+| `NOTIFY_INTERNAL_URL` | **NEW (specs/20260713-user-invitations, ADR 20260714-notify-api-email-channel-service-trust).** notify-api's Railway **private**-networking address — always write it as `${{shared.NOTIFY_INTERNAL_URL}}` (shared — see ③; its value is the literal `http://operai.railway.internal:8080`), **never** a hand-typed `notify-api.railway.internal` (that host does not exist — see the ⚠ box in § Cross-service wiring), and **not** `<NOTIFY_API_URL>` (the public domain). Base URL for the `POST /system/emails` call (`src/lib/notify.ts`). | no |
+| `BOOTSTRAP_ADMIN_EMAIL` | email of the first admin (specs/20260713-auth-roles-permissions AC-6.1; gets `admin` on first sign-in). Set on Railway, not committed. | no |
+| `APP_ACCESS_CHECK_FLOOR_MS` / `APP_ACCESS_CHECK_RATE_LIMIT` / `APP_ACCESS_CHECK_RATE_WINDOW_MS` | **NEW (specs/20260807-estimate-sharing, T1/T2).** In-process anti-enumeration floor + rate limit for `POST /authz/app-access-check` (ADR 20260807-third-party-app-access-decision-endpoint-forwarded-jwt). Optional — code defaults `150`/`40`/`600000` apply if unset; set explicitly only to tune per environment. | no |
+| `IDENTITIES_RATE_LIMIT` / `IDENTITIES_RATE_WINDOW_MS` | **NEW (specs/20260807-estimate-sharing, T27).** In-process rate limit for `POST /authz/users/identities` (reuses the same `rateLimiter.ts` module as the pair above, a second instance keyed separately). Optional — code defaults `120`/`600000` apply if unset. No response-time floor needed (ADR 20260807-live-identity-resolution-by-id-fail-soft — this endpoint leaks no existence signal the caller doesn't already hold). | no |
+| `SERVICE_AUDIENCE` | **ADR 20261006-scoped-service-jwt-fourth-notify-caller, required since specs/20261013-notify-service-credentials (ADR 20261013-auth-mints-own-service-credential-in-process).** The `aud` stamped on scoped service JWTs, including `auth`'s own in-process credential for `POST /system/emails`: `${{shared.SERVICE_AUDIENCE}}`, byte-identical to `notify-api`'s and **different from `AUTH_AUDIENCE`** (startup exits otherwise). Startup also exits if it is absent. | no |
+| `SERVICE_CLIENTS` | **ADR 20261006-scoped-service-jwt-fourth-notify-caller/0049.** JSON object keyed by client id, one entry per caller that asks `POST /system/service-token` (`inventory-api`, `estimai-api`, `refund-api`): `{"inventory-api":{"secret":"${{shared.INVENTORY_SERVICE_CLIENT_SECRET}}","scope":"notifications.push"},…}` — full shape in § Notify credential rollout. Secret 32–256 chars; scopes are `notifications.push` and/or `emails.send`, each client only what it needs; client id is lower-case alphanumerics and single hyphens, and `auth` is reserved (ADR 20261013-auth-mints-own-service-credential-in-process). Never logged; a parse failure names the rule, never a value. Revoking a client = removing its entry (tokens already minted expire within 5 minutes). Verify the shared references resolved inside the JSON in the Variables tab. | **yes** |
+| `SERVICE_TOKEN_SERVICE_LIMIT` | **NEW (specs/20261111-push-notifications US-7, ADR 20261112-system-endpoints-limited-per-verified-service).** Service tokens `POST /system/service-token` mints per calling service (the verified `system:<clientId>`) per window. Positive integer, optional, default `300` (steady state is about 3 per service per window). | no |
+| `USERS_CONTACT_SERVICE_LIMIT` | **NEW (specs/20261111-push-notifications US-7, ADR 20261112-system-endpoints-limited-per-verified-service).** Contact lookups `POST /system/users/contact` answers per calling service per window. Only `system:notify-api` holds `users.contact`. Positive integer, optional, default `600`. | no |
+| `SYSTEM_INVALID_CREDENTIAL_LIMIT` | **NEW (specs/20261111-push-notifications US-7, ADR 20261112-system-endpoints-limited-per-verified-service).** Requests with an INVALID credential per source address per window, one count shared by both routes. Positive integer, optional, default `20`. It never touches a valid credential. | no |
+| `SYSTEM_RATE_WINDOW_MS` | **NEW (specs/20261111-push-notifications US-7, ADR 20261112-system-endpoints-limited-per-verified-service).** The one window of the three limits above and the value of `Retry-After` (in seconds) on their single 429. Integer >= 1000, optional, default `600000`. | no |
+| `SERVICE_TOKEN_RATE_LIMIT` / `SERVICE_TOKEN_RATE_WINDOW_MS` | **RETIRED (specs/20261111-push-notifications US-7).** The old per-address limit (20 per 600000 ms) shared by the whole suite. Now ignored: `auth` starts, never reads the values and logs one warning naming them; env-doctor flags them on `auth` (`FORBIDDEN_VARS`). **Delete them from Railway once the new `auth` is live** (Step 0 command), and from the local direnv / 1Password source. Do not "reuse" them: an override sized for the old rule would no longer mean anything. | no |
+| `DIRECTORY_RATE_LIMIT` / `DIRECTORY_RATE_WINDOW_MS` | **NEW (T5, ADR 20261006-user-directory-endpoint-capability-gated).** In-process limiter on `GET /authz/users/directory`, keyed by caller `sub`. Optional — defaults `60`/`600000`. | no |
 | `NODE_ENV` | `production` | no |
 | `PORT` | **set explicitly** (any consistent value, e.g. `8080`) so private-networking callers can reference `${{auth.PORT}}` (see § Private networking) — the service binds `env.PORT`, default 3001 if unset, but leaving it unset makes `${{auth.PORT}}` unresolvable | no |
 | `ENABLE_TEST_AUTH` / `BETTER_AUTH_TRUSTED_ORIGINS` | **leave UNSET** (see Phase 1) | — |
 
-**`auth` deploy constraint — NEW (specs/013-estimate-sharing, T13, plan.md
+**`auth` deploy constraint — NEW (specs/20260807-estimate-sharing, T13, plan.md
 Risk R7):** `.railway/railway.ts` pins **one replica** — the
 `APP_ACCESS_CHECK_*`/`IDENTITIES_RATE_*` limiters above are in-process
 `Map`-based sliding windows, correct for exactly one running instance (same
@@ -950,16 +950,16 @@ that swap doesn't require a rewrite).
 | `ALLOWED_ORIGINS` | `https://operai.welld.io` |
 | `AUTH_ISSUER` | `<AUTH_URL>` (== auth `BETTER_AUTH_URL`; **public** claim — bucket ②; use `${{shared.AUTH_ISSUER}}`) |
 | `AUTH_JWKS_URL` | **internal** (bucket ①): `http://auth.railway.internal:3001/auth/jwks` (**not** the public `<AUTH_URL>`, **not** `/.well-known/jwks.json`) |
-| `AUTH_AUDIENCE` | **ADR-0010.** `${{shared.AUTH_AUDIENCE}}` — same value as every service; `jwtVerify` pins `audience`; a token with a missing/wrong `aud` is rejected 401. | no |
-| `AUTH_BASE_URL` | **NEW (specs/013-estimate-sharing, T13).** **internal** (bucket ①): `http://${{auth.RAILWAY_PRIVATE_DOMAIN}}:${{auth.PORT}}` — base for the Bearer-forwarded `POST /authz/app-access-check` (fails CLOSED, ADR-0035) and `POST /authz/users/identities` (fails SOFT, ADR-0039) calls. **Required** — `src/lib/env.ts` `process.exit(1)`s if absent. | no |
-| `NOTIFY_INTERNAL_URL` | **NEW (specs/013-estimate-sharing, T13).** **internal** (bucket ①): `${{shared.NOTIFY_INTERNAL_URL}}` (shared — see ③; its value is the literal `http://operai.railway.internal:8080`) — **not** `<NOTIFY_API_URL>`, the public domain. **Required.** | no |
-| `SERVICE_CLIENT_ID` | **specs/016 (ADR-0049).** `estimai-api` — must be a key of `auth`'s `SERVICE_CLIENTS` (scope `notifications.push` only). **Required** — `src/lib/env.ts` `process.exit(1)`s if absent. | no |
-| `SERVICE_CLIENT_SECRET` | **specs/016 (ADR-0049).** `${{shared.ESTIMAI_SERVICE_CLIENT_SECRET}}` — byte-identical to that entry's `secret`; 32–256 chars. **Required.** Used to ask `auth POST /system/service-token` (via `AUTH_BASE_URL`) for the 5-minute credential presented to `notify-api`. | **yes** |
-| `SERVICE_AUDIENCE` | **specs/024 (ADR-0076).** `${{shared.SERVICE_AUDIENCE}}` — the `aud` of the service JWT crm-api posts deal-link notices with; byte-identical to `auth`'s, **different** from `AUTH_AUDIENCE`. Optional in `src/lib/env.ts`: unset, `POST /system/deal-link-notices` refuses every call and the "Deal" badge never changes. | no |
-| `SHARE_LOOKUP_FLOOR_MS` / `SHARE_ADD_RATE_LIMIT` / `SHARE_ADD_RATE_WINDOW_MS` | **NEW (specs/013-estimate-sharing, T13).** Anti-enumeration floor (AC-1.2) + rate limit for `POST /estimates/{id}/collaborators`. Optional — code defaults `300`/`20`/`600000` apply if unset. | no |
+| `AUTH_AUDIENCE` | **ADR 20260713-jwt-audience-claim-enforcement.** `${{shared.AUTH_AUDIENCE}}` — same value as every service; `jwtVerify` pins `audience`; a token with a missing/wrong `aud` is rejected 401. | no |
+| `AUTH_BASE_URL` | **NEW (specs/20260807-estimate-sharing, T13).** **internal** (bucket ①): `http://${{auth.RAILWAY_PRIVATE_DOMAIN}}:${{auth.PORT}}` — base for the Bearer-forwarded `POST /authz/app-access-check` (fails CLOSED, ADR 20260807-third-party-app-access-decision-endpoint-forwarded-jwt) and `POST /authz/users/identities` (fails SOFT, ADR 20260807-live-identity-resolution-by-id-fail-soft) calls. **Required** — `src/lib/env.ts` `process.exit(1)`s if absent. | no |
+| `NOTIFY_INTERNAL_URL` | **NEW (specs/20260807-estimate-sharing, T13).** **internal** (bucket ①): `${{shared.NOTIFY_INTERNAL_URL}}` (shared — see ③; its value is the literal `http://operai.railway.internal:8080`) — **not** `<NOTIFY_API_URL>`, the public domain. **Required.** | no |
+| `SERVICE_CLIENT_ID` | **specs/20261013-notify-service-credentials (ADR 20261013-all-notify-callers-scoped-credentials-shared-token-retired).** `estimai-api` — must be a key of `auth`'s `SERVICE_CLIENTS` (scope `notifications.push` only). **Required** — `src/lib/env.ts` `process.exit(1)`s if absent. | no |
+| `SERVICE_CLIENT_SECRET` | **specs/20261013-notify-service-credentials (ADR 20261013-all-notify-callers-scoped-credentials-shared-token-retired).** `${{shared.ESTIMAI_SERVICE_CLIENT_SECRET}}` — byte-identical to that entry's `secret`; 32–256 chars. **Required.** Used to ask `auth POST /system/service-token` (via `AUTH_BASE_URL`) for the 5-minute credential presented to `notify-api`. | **yes** |
+| `SERVICE_AUDIENCE` | **specs/20261108-estimate-list-oversight (ADR 20261108-crm-pushes-deal-links-to-estimai).** `${{shared.SERVICE_AUDIENCE}}` — the `aud` of the service JWT crm-api posts deal-link notices with; byte-identical to `auth`'s, **different** from `AUTH_AUDIENCE`. Optional in `src/lib/env.ts`: unset, `POST /system/deal-link-notices` refuses every call and the "Deal" badge never changes. | no |
+| `SHARE_LOOKUP_FLOOR_MS` / `SHARE_ADD_RATE_LIMIT` / `SHARE_ADD_RATE_WINDOW_MS` | **NEW (specs/20260807-estimate-sharing, T13).** Anti-enumeration floor (AC-1.2) + rate limit for `POST /estimates/{id}/collaborators`. Optional — code defaults `300`/`20`/`600000` apply if unset. | no |
 | `NODE_ENV` | `production` · `MAX_ESTIMATE_BYTES`/`MAX_IMPORT_REQUEST_BYTES` optional (defaults) |
 
-**`estimai-api` deploy constraint — NEW (specs/013-estimate-sharing, T13,
+**`estimai-api` deploy constraint — NEW (specs/20260807-estimate-sharing, T13,
 plan.md Risk R7):** `.railway/railway.ts` pins **one replica** — the
 `SHARE_ADD_*` rate limiter AND the 60s in-process identity cache
 (`src/lib/authClient.ts`) are both per-process state, correct for exactly one
@@ -969,7 +969,7 @@ Topology above). A second replica would silently multiply the effective
 from whichever replica answers. Do not enable autoscale/multiple replicas
 without first moving both behind a shared store.
 
-### `notify-api` service (Railway) — NEW (specs/005-notification-center)
+### `notify-api` service (Railway) — NEW (specs/20260713-notification-center)
 
 | Variable | Value | Secret |
 |---|---|---|
@@ -977,17 +977,17 @@ without first moving both behind a shared store.
 | `ALLOWED_ORIGINS` | `https://operai.welld.io` (shell origin) — also what the SSE stream's `Access-Control-Allow-Origin` echoes | no |
 | `AUTH_JWKS_URL` | **internal** (bucket ①): `http://auth.railway.internal:3001/auth/jwks` (same endpoint every resource server uses — **not** the public `<AUTH_URL>`, **not** `/.well-known/jwks.json`) | no |
 | `AUTH_ISSUER` | `<AUTH_URL>` (== auth `BETTER_AUTH_URL`; **public** claim — bucket ②; `${{shared.AUTH_ISSUER}}`) | no |
-| `AUTH_AUDIENCE` | **ADR-0010.** `${{shared.AUTH_AUDIENCE}}` — byte-for-byte identical suite-wide; a drifted value here either rejects everything (401) or (worse, if unset elsewhere) allows cross-service token replay. | no |
-| `MAX_STREAM_DURATION` | Seconds an SSE connection may stay open before the server forces a reconnect (ADR-0008). Default `1800` (~30 min). | no |
-| `EMAIL_ENABLED` | **NEW (specs/006).** `"true"` (exact string, case-insensitive) to make real Resend calls; any other value (including unset) stubs the send and still records an `EmailDelivery` row. Default `false` — safe for first deploys before the Resend domain is verified (see § Resend domain setup). | no |
-| `RESEND_API_KEY` | **NEW (specs/006).** 1Password → `AIScream / OperAI - Resend API Key`. Required only when `EMAIL_ENABLED=true` (service refuses to start otherwise once enabled). | **yes** |
-| `RESEND_FROM` | **NEW (specs/006).** Verified sending address on the SPF/DKIM-configured domain, e.g. `no-reply@operai.welld.io` (Risk R5). Required only when `EMAIL_ENABLED=true`. | no |
-| `SERVICE_AUDIENCE` | **ADR-0044, required since specs/016 (ADR-0049).** `${{shared.SERVICE_AUDIENCE}}` — byte-identical to `auth`'s, **different from `AUTH_AUDIENCE`** (startup exits otherwise; it also exits if absent). The `aud` of every credential accepted on `POST /system/notifications` (scope `notifications.push`) and `POST /system/emails` (scope `emails.send`), verified through the existing `AUTH_JWKS_URL`. There is no other credential: the retired `X-Internal-Token` header is refused (401), and a leftover shared-token variable is simply not read. | no |
-| `PUSH_ENABLED` | **NEW (specs/029).** Literal `"true"` enables web push; anything else (including unset) is off. Default off. When on, the four email-notice variables below (`APP_BASE_URL`, `AUTH_BASE_URL`, `SERVICE_CLIENT_ID`, `SERVICE_CLIENT_SECRET`) and the three `VAPID_*` are required or the service exits at startup. See § Push notifications. | no |
-| `VAPID_PUBLIC_KEY` | **NEW (specs/029).** Base64url P-256 public key. Required when `PUSH_ENABLED=true`. | no |
-| `VAPID_PRIVATE_KEY` | **NEW (specs/029).** Base64url P-256 private key; startup checks it derives the public key. Required when `PUSH_ENABLED=true`. 1Password, never in the repo. | **yes** |
-| `VAPID_SUBJECT` | **NEW (specs/029).** `mailto:` or `https:` contact the push services may use. Required when `PUSH_ENABLED=true`. | no |
-| `PUSH_EXCLUDED_ORIGINS` | **NEW (specs/029).** Optional CSV of origin apps (`OriginAppSchema` values) whose notifications are never pushed. Default empty. | no |
+| `AUTH_AUDIENCE` | **ADR 20260713-jwt-audience-claim-enforcement.** `${{shared.AUTH_AUDIENCE}}` — byte-for-byte identical suite-wide; a drifted value here either rejects everything (401) or (worse, if unset elsewhere) allows cross-service token replay. | no |
+| `MAX_STREAM_DURATION` | Seconds an SSE connection may stay open before the server forces a reconnect (ADR 20260713-sse-stream-auth-short-lived-ticket). Default `1800` (~30 min). | no |
+| `EMAIL_ENABLED` | **NEW (specs/20260713-user-invitations).** `"true"` (exact string, case-insensitive) to make real Resend calls; any other value (including unset) stubs the send and still records an `EmailDelivery` row. Default `false` — safe for first deploys before the Resend domain is verified (see § Resend domain setup). | no |
+| `RESEND_API_KEY` | **NEW (specs/20260713-user-invitations).** 1Password → `AIScream / OperAI - Resend API Key`. Required only when `EMAIL_ENABLED=true` (service refuses to start otherwise once enabled). | **yes** |
+| `RESEND_FROM` | **NEW (specs/20260713-user-invitations).** Verified sending address on the SPF/DKIM-configured domain, e.g. `no-reply@operai.welld.io` (Risk R5). Required only when `EMAIL_ENABLED=true`. | no |
+| `SERVICE_AUDIENCE` | **ADR 20261006-scoped-service-jwt-fourth-notify-caller, required since specs/20261013-notify-service-credentials (ADR 20261013-all-notify-callers-scoped-credentials-shared-token-retired).** `${{shared.SERVICE_AUDIENCE}}` — byte-identical to `auth`'s, **different from `AUTH_AUDIENCE`** (startup exits otherwise; it also exits if absent). The `aud` of every credential accepted on `POST /system/notifications` (scope `notifications.push`) and `POST /system/emails` (scope `emails.send`), verified through the existing `AUTH_JWKS_URL`. There is no other credential: the retired `X-Internal-Token` header is refused (401), and a leftover shared-token variable is simply not read. | no |
+| `PUSH_ENABLED` | **NEW (specs/20261111-push-notifications).** Literal `"true"` enables web push; anything else (including unset) is off. Default off. When on, the four email-notice variables below (`APP_BASE_URL`, `AUTH_BASE_URL`, `SERVICE_CLIENT_ID`, `SERVICE_CLIENT_SECRET`) and the three `VAPID_*` are required or the service exits at startup. See § Push notifications. | no |
+| `VAPID_PUBLIC_KEY` | **NEW (specs/20261111-push-notifications).** Base64url P-256 public key. Required when `PUSH_ENABLED=true`. | no |
+| `VAPID_PRIVATE_KEY` | **NEW (specs/20261111-push-notifications).** Base64url P-256 private key; startup checks it derives the public key. Required when `PUSH_ENABLED=true`. 1Password, never in the repo. | **yes** |
+| `VAPID_SUBJECT` | **NEW (specs/20261111-push-notifications).** `mailto:` or `https:` contact the push services may use. Required when `PUSH_ENABLED=true`. | no |
+| `PUSH_EXCLUDED_ORIGINS` | **NEW (specs/20261111-push-notifications).** Optional CSV of origin apps (`OriginAppSchema` values) whose notifications are never pushed. Default empty. | no |
 | `NODE_ENV` | `production` | no |
 
 **`notify-api` deploy constraints (do not relax without reading plan.md Risk
@@ -999,42 +999,42 @@ clients/estimates) and the service must never log request/response bodies
 (reuses `estimai-api`'s method+path+status-only `hono/logger` posture, enforced
 in `notify-api/src/index.ts` and called out in `notify-api/Dockerfile`).
 
-### `refund-api` service (Railway) — NEW (specs/007-refund-service, T19)
+### `refund-api` service (Railway) — NEW (specs/20260716-refund-service, T19)
 
 | Variable | Value | Secret |
 |---|---|---|
 | `DATABASE_URL` | `postgresql://${{Postgres.PGUSER}}:${{Postgres.PGPASSWORD}}@${{Postgres.RAILWAY_PRIVATE_DOMAIN}}:5432/refund` — **its own logical DB, `refund`** | yes |
-| `ALLOWED_ORIGINS` | `https://operai.welld.io` (shell origin) **+ admin-ui's own origin** (specs/009-mileage-rate, T8: `https://admin.operai.welld.io` — or its Preview URL, see § Phase 3 — for the `/rates` Mileage Rates screen's direct cross-origin call; composed-shell traffic is already covered by the shell origin alone) | no |
+| `ALLOWED_ORIGINS` | `https://operai.welld.io` (shell origin) **+ admin-ui's own origin** (specs/20260720-mileage-rate, T8: `https://admin.operai.welld.io` — or its Preview URL, see § Phase 3 — for the `/rates` Mileage Rates screen's direct cross-origin call; composed-shell traffic is already covered by the shell origin alone) | no |
 | `AUTH_JWKS_URL` | **internal** (bucket ①): `http://auth.railway.internal:3001/auth/jwks` (same endpoint every resource server uses — **not** the public `<AUTH_URL>`, **not** `/.well-known/jwks.json`) | no |
 | `AUTH_ISSUER` | `<AUTH_URL>` (== auth `BETTER_AUTH_URL`; **public** claim — bucket ②, `${{shared.AUTH_ISSUER}}`). Pinned as the JWT `iss` in `jwt.middleware.ts`. NOTE: `refund-api`'s `GET /authz/resolve` call does **not** use this — it uses the separate `AUTH_BASE_URL` below (`resolveClient.ts`). | no |
-| `AUTH_BASE_URL` | **internal** (bucket ①): `http://auth.railway.internal:3001` — the base `refund-api`'s `authzMiddleware`/`resolveClient.ts` builds `GET /authz/resolve` against (ADR-0014). A *call*, so internal DNS; distinct from `AUTH_ISSUER`. (This is the var that was `localhost` in prod → 503.) | no |
-| `AUTH_AUDIENCE` | **ADR-0010.** `${{shared.AUTH_AUDIENCE}}` — byte-for-byte identical suite-wide; `refund-api` is the THIRD JWKS resource server on this shared value. | no |
-| `NOTIFY_INTERNAL_URL` | notify-api's **private**-networking address — always `${{shared.NOTIFY_INTERNAL_URL}}` (shared — see ③; its value is the literal `http://operai.railway.internal:8080`), **never** a hand-typed `notify-api.railway.internal` (see the ⚠ box in § Cross-service wiring) — for the decision→notification push (`POST /system/notifications`, T13, ADR-0017). **Not** `<NOTIFY_API_URL>` (the public domain). | no |
-| `SERVICE_CLIENT_ID` | **specs/016 (ADR-0049).** `refund-api` — must be a key of `auth`'s `SERVICE_CLIENTS` with scopes `notifications.push` and `emails.send`. **Required** — `src/lib/env.ts` exits if absent. | no |
-| `SERVICE_CLIENT_SECRET` | **specs/016 (ADR-0049).** `${{shared.REFUND_SERVICE_CLIENT_SECRET}}` — byte-identical to that entry's `secret`; 32–256 chars. **Required.** For the decision push (`/system/notifications`) and the batch email (`/system/emails`). | **yes** |
-| `REFUND_S3_ENDPOINT` / `REFUND_S3_REGION` / `REFUND_S3_BUCKET` / `REFUND_S3_ACCESS_KEY_ID` / `REFUND_S3_SECRET_ACCESS_KEY` | EU-region S3-compatible object storage for receipt attachments (ADR-0016) — `REFUND_S3_REGION` validated against an EU allowlist at startup once T9 lands. **NOT YET PROVISIONED as of T19** — no bucket exists, no 1Password item exists. See this task's final report / § "Object storage — provisioning" below before T9. | **yes** |
-| `REFUND_APP_BASE_URL` | **NEW (T14, specs/008-refund-monthly-processing, ADR-0021).** Absolute base URL of the shell-hosted app — **the shell's own public origin**, e.g. `https://operai.welld.io`, same value as `refund-api.ALLOWED_ORIGINS`/every other backend's shell-origin row — **not** `<REFUND_API_URL>`. Used to build the compiled-batch email's in-app deep link `${REFUND_APP_BASE_URL}/refund/batches/:id`; the email never carries a raw presigned S3 URL. | no |
+| `AUTH_BASE_URL` | **internal** (bucket ①): `http://auth.railway.internal:3001` — the base `refund-api`'s `authzMiddleware`/`resolveClient.ts` builds `GET /authz/resolve` against (ADR 20260716-refund-api-authorization-enforcing-resource-server). A *call*, so internal DNS; distinct from `AUTH_ISSUER`. (This is the var that was `localhost` in prod → 503.) | no |
+| `AUTH_AUDIENCE` | **ADR 20260713-jwt-audience-claim-enforcement.** `${{shared.AUTH_AUDIENCE}}` — byte-for-byte identical suite-wide; `refund-api` is the THIRD JWKS resource server on this shared value. | no |
+| `NOTIFY_INTERNAL_URL` | notify-api's **private**-networking address — always `${{shared.NOTIFY_INTERNAL_URL}}` (shared — see ③; its value is the literal `http://operai.railway.internal:8080`), **never** a hand-typed `notify-api.railway.internal` (see the ⚠ box in § Cross-service wiring) — for the decision→notification push (`POST /system/notifications`, T13, ADR 20260716-system-notifications-cross-user-trigger). **Not** `<NOTIFY_API_URL>` (the public domain). | no |
+| `SERVICE_CLIENT_ID` | **specs/20261013-notify-service-credentials (ADR 20261013-all-notify-callers-scoped-credentials-shared-token-retired).** `refund-api` — must be a key of `auth`'s `SERVICE_CLIENTS` with scopes `notifications.push` and `emails.send`. **Required** — `src/lib/env.ts` exits if absent. | no |
+| `SERVICE_CLIENT_SECRET` | **specs/20261013-notify-service-credentials (ADR 20261013-all-notify-callers-scoped-credentials-shared-token-retired).** `${{shared.REFUND_SERVICE_CLIENT_SECRET}}` — byte-identical to that entry's `secret`; 32–256 chars. **Required.** For the decision push (`/system/notifications`) and the batch email (`/system/emails`). | **yes** |
+| `REFUND_S3_ENDPOINT` / `REFUND_S3_REGION` / `REFUND_S3_BUCKET` / `REFUND_S3_ACCESS_KEY_ID` / `REFUND_S3_SECRET_ACCESS_KEY` | EU-region S3-compatible object storage for receipt attachments (ADR 20260716-eu-object-storage-refund-attachments) — `REFUND_S3_REGION` validated against an EU allowlist at startup once T9 lands. **NOT YET PROVISIONED as of T19** — no bucket exists, no 1Password item exists. See this task's final report / § "Object storage — provisioning" below before T9. | **yes** |
+| `REFUND_APP_BASE_URL` | **NEW (T14, specs/20260719-refund-monthly-processing, ADR 20260719-refund-batch-signed-link-email-delivery).** Absolute base URL of the shell-hosted app — **the shell's own public origin**, e.g. `https://operai.welld.io`, same value as `refund-api.ALLOWED_ORIGINS`/every other backend's shell-origin row — **not** `<REFUND_API_URL>`. Used to build the compiled-batch email's in-app deep link `${REFUND_APP_BASE_URL}/refund/batches/:id`; the email never carries a raw presigned S3 URL. | no |
 | `NODE_ENV` | `production` | no |
 
-**`REFUND_ACCOUNTING_DISTRIBUTION_EMAIL` — REMOVED (specs/011-refund-settings,
+**`REFUND_ACCOUNTING_DISTRIBUTION_EMAIL` — REMOVED (specs/20260722-refund-settings,
 AC-4.1).** Do **NOT** set this on the `refund-api` Railway service — the
 running service does not read, require, or validate it at all anymore. The
 accounting-distribution-email is now an admin-managed, append-only
-`refund_setting` row (ADR-0027/0029), viewable/editable in Admin > Refund
+`refund_setting` row (ADR 20260722-refund-settings-append-only-self-auditing-store/0029), viewable/editable in Admin > Refund
 (`settings:read`/`settings:manage`). See the cutover runbook immediately
 below for moving the currently-deployed value across.
 
 **`refund-api` deploy notes:** declared at one replica in `.railway/railway.ts`
 like every service, but with no correctness reason to stay there (unlike
-`notify-api`) — its `authzMiddleware` in-process cache (T6, ADR-0014) is a
+`notify-api`) — its `authzMiddleware` in-process cache (T6, ADR 20260716-refund-api-authorization-enforcing-resource-server) is a
 per-replica performance optimization with a 30s TTL backstop, not a
 correctness-dependent shared store, so raising its replicas in the file is fine. Region **must** be
 `europe-west4` (data residency — financial figures + receipt-attachment
-metadata that may carry PII, ADR-0016) and the service must never log
+metadata that may carry PII, ADR 20260716-eu-object-storage-refund-attachments) and the service must never log
 request/response bodies (same `hono/logger` posture as every other backend,
 enforced in `refund-api/src/index.ts`, called out in `refund-api/Dockerfile`).
 
-**Cutover — accounting-distribution-email setting (T5, specs/011-refund-settings,
+**Cutover — accounting-distribution-email setting (T5, specs/20260722-refund-settings,
 D7).** A one-time, OPERATOR-RUN step, run **once**, immediately after this
 deploy lands (the migration that creates `refund_setting` — T2 — must already
 be applied). It is deliberately **not** a schema migration carrying the value
@@ -1060,7 +1060,7 @@ DATABASE_URL=<refund-api's production DATABASE_URL> \
    row — never attributed to a real admin who didn't actually make the
    change). A second run (accidental re-run, redeploy, CI retry) is a
    guaranteed no-op — it never appends a duplicate or overwrites anything
-   (the table is append-only at the DB level, ADR-0027).
+   (the table is append-only at the DB level, ADR 20260722-refund-settings-append-only-self-auditing-store).
 3. Verify: `GET /settings/accounting-distribution-email` (as an admin/
    `refund-admin`, via Admin > Refund or the API directly) shows
    `configured:true` with the expected value and `updatedByEmail:"system-cutover@welld.ch"`.
@@ -1069,11 +1069,11 @@ DATABASE_URL=<refund-api's production DATABASE_URL> \
    the running code — this step is housekeeping, not a functional dependency).
 
 There is no cron/scheduled version of this script and none should ever be
-added (ADR-0013 posture, mirrors the mileage-rate/settings "derived-on-read,
+added (ADR 20260714-invitation-lifecycle-derived-expiry-state posture, mirrors the mileage-rate/settings "derived-on-read,
 never scheduled" lineage) — it is a single deliberate command run by a human
 at cutover time, never a recurring job.
 
-**Object storage — provisioning (DONE).** ADR-0016 named AWS S3 `eu-south-1`
+**Object storage — provisioning (DONE).** ADR 20260716-eu-object-storage-refund-attachments named AWS S3 `eu-south-1`
 (Milan) or Scaleway `fr-par` as primary candidates, leaving "the exact vendor
 an implementation-time choice within this allowlist." What was actually
 provisioned is a **Railway S3-compatible bucket** — a custom, non-AWS endpoint
@@ -1088,7 +1088,7 @@ are set directly on the `refund-api` Railway service (they are NOT in
 > `REFUND_S3_EU_ENDPOINT_HOSTS` does **not** by itself prove the bucket sits
 > in the EU — the startup guard checks the *endpoint host*, not the geography.
 > `REFUND_S3_REGION` is `ams`, which reads as Amsterdam and is consistent with
-> ADR-0016, but it is a vendor string this repo cannot verify. Given data
+> ADR 20260716-eu-object-storage-refund-attachments, but it is a vendor string this repo cannot verify. Given data
 > residency is a hard requirement (CLAUDE.md § Data residency), confirm the
 > bucket's region once in the Railway dashboard and treat that as the record.
 
@@ -1104,7 +1104,7 @@ the Railway service — there is still no 1Password item for them):
 | `REFUND_S3_ACCESS_KEY_ID` / `REFUND_S3_SECRET_ACCESS_KEY` | secret |
 
 **Receipt bucket CORS — MANDATORY, and easy to miss.** The browser uploads
-receipts **directly to the bucket**, never through refund-api (ADR-0016):
+receipts **directly to the bucket**, never through refund-api (ADR 20260716-eu-object-storage-refund-attachments):
 `refund-ui/src/lib/attachmentsApi.ts`'s `uploadToPresignedPost` issues a
 cross-origin `POST` from the shell origin straight to the presigned URL. The
 bucket must therefore carry a CORS rule naming that origin, or the browser
@@ -1138,19 +1138,19 @@ Apply with any S3 client pointed at `REFUND_S3_ENDPOINT` (`PutBucketCors`):
 >    `Content-Type` in `pdf`/`jpeg`/`png` — `src/lib/storage.ts`).
 >
 > Note that the compiled-batch PDF is NOT a counter-example when uploads are
-> broken: refund-api writes it server-side with `PutObject` (ADR-0019), so it
+> broken: refund-api writes it server-side with `PutObject` (ADR 20260719-refund-batch-pdf-generation-pdf-lib), so it
 > passes none of these gates. A working batch PDF tells you the credentials
 > and endpoint are fine — nothing more.
 
 Only the **shell** origin belongs here: `refund-ui` is a federated remote
-reached through the shell (ADR-0006), so the browser `Origin` on the upload is
+reached through the shell (ADR 20260709-suite-frontend-module-federation), so the browser `Origin` on the upload is
 always the shell's — this is deliberately narrower than refund-api's own
 `ALLOWED_ORIGINS` (which carried admin-ui for the `/rates` + `/settings`
-calls until they moved to refund-ui, ADR-0023 amendment). Add a `http://localhost:5173` entry ONLY to a
+calls until they moved to refund-ui, ADR 20260720-mileage-rate-model-snapshot-admin-ui-composition amendment). Add a `http://localhost:5173` entry ONLY to a
 non-production bucket; `refund-api/.env.example` points local dev at the real
 bucket, so uploads will not work locally until you do.
 
-### `inventory-api` service (Railway) — NEW (specs/015-hardware-inventory)
+### `inventory-api` service (Railway) — NEW (specs/20261006-hardware-inventory)
 
 Authoritative list: `inventory-api/src/lib/env.ts` (validated at startup, exits 1 on
 any miss). Committed contract: `tools/env-doctor/templates/production/inventory-api.env`.
@@ -1161,8 +1161,8 @@ any miss). Committed contract: `tools/env-doctor/templates/production/inventory-
 | `ALLOWED_ORIGINS` | `https://operai.welld.io` (shell origin only; a `*` fails startup). inventory-ui is a federated remote, so the browser Origin is always the shell's. | no |
 | `AUTH_JWKS_URL` | **internal** (bucket ①): `http://${{auth.RAILWAY_PRIVATE_DOMAIN}}:${{auth.PORT}}/auth/jwks` | no |
 | `AUTH_ISSUER` | `<AUTH_URL>` — **public** claim, bucket ② (`${{shared.AUTH_ISSUER}}`) | no |
-| `AUTH_AUDIENCE` | `${{shared.AUTH_AUDIENCE}}` — the fourth resource server on this value (ADR-0010) | no |
-| `AUTH_BASE_URL` | **internal** (bucket ①): `http://${{auth.RAILWAY_PRIVATE_DOMAIN}}:${{auth.PORT}}` — base for `GET /authz/resolve` (ADR-0014; fails **closed**, 503), `POST /authz/users/identities` (ADR-0039; fails soft) and `POST /system/service-token` (ADR-0044) | no |
+| `AUTH_AUDIENCE` | `${{shared.AUTH_AUDIENCE}}` — the fourth resource server on this value (ADR 20260713-jwt-audience-claim-enforcement) | no |
+| `AUTH_BASE_URL` | **internal** (bucket ①): `http://${{auth.RAILWAY_PRIVATE_DOMAIN}}:${{auth.PORT}}` — base for `GET /authz/resolve` (ADR 20260716-refund-api-authorization-enforcing-resource-server; fails **closed**, 503), `POST /authz/users/identities` (ADR 20260807-live-identity-resolution-by-id-fail-soft; fails soft) and `POST /system/service-token` (ADR 20261006-scoped-service-jwt-fourth-notify-caller) | no |
 | `NOTIFY_INTERNAL_URL` | **internal**: `${{shared.NOTIFY_INTERNAL_URL}}` (literal `http://operai.railway.internal:8080`) — never the public domain, never a hand-typed `notify-api.railway.internal` | no |
 | `SERVICE_CLIENT_ID` | `inventory-api` — must be a key of `auth`'s `SERVICE_CLIENTS` | no |
 | `SERVICE_CLIENT_SECRET` | `${{shared.INVENTORY_SERVICE_CLIENT_SECRET}}` — byte-identical to that entry's `secret`; at least 32 chars | **yes** |
@@ -1237,7 +1237,7 @@ endpoint and the gated-route 401 once DNS exists (its default hostnames are assu
    (spec O1) before the first `welld_it` asset is registered.**
 9. Legacy register import — below.
 
-#### Legacy register import (one-off, specs/015 US-12)
+#### Legacy register import (one-off, specs/20261006-hardware-inventory US-12)
 
 `inventory-api/scripts/import-legacy.ts` imports the legacy Excel register for
 `welld_ch`. It is a script, not a route. **Dry-run is the default and writes nothing.**
@@ -1272,13 +1272,13 @@ bun scripts/import-legacy.ts --file <register.xlsx> [--user-map <users.json>] \
 - The opening-balance figure (spec O3) is an accounting decision. Do not invent it, and
   do not paste it into the repo or a PR.
 
-### `meetings-api` service (Railway) — NEW (specs/021-meetings)
+### `meetings-api` service (Railway) — NEW (specs/20261104-meetings)
 
 Authoritative list: `meetings-api/src/lib/env.ts` (validated at startup, exits 1 on any miss).
 Committed contract: `tools/env-doctor/templates/production/meetings-api.env`. Port **8085**, DB
 `meetings`, domain `meetings-api.operai.welld.io`; the remote is `meetings-ui`
 (`meetings.operai.welld.io`, local port 5180). **One replica** (declared in `.railway/railway.ts`) — the job runner
-(`MEETINGS_WORKER=on`) runs inside the process (ADR-0062).
+(`MEETINGS_WORKER=on`) runs inside the process (ADR 20261104-durable-job-runner-work-queued-state-derived).
 
 Everything below is a **checklist for a person**: nothing in this section has been provisioned yet.
 
@@ -1289,9 +1289,9 @@ Everything below is a **checklist for a person**: nothing in this section has be
 | `AUTH_JWKS_URL` / `AUTH_BASE_URL` | internal, `http://${{auth.RAILWAY_PRIVATE_DOMAIN}}:${{auth.PORT}}…` | no |
 | `AUTH_ISSUER` / `AUTH_AUDIENCE` | public claim `${{shared.AUTH_ISSUER}}` / `${{shared.AUTH_AUDIENCE}}` (the sixth resource server on this value) | no |
 | `NOTIFY_INTERNAL_URL` | `${{shared.NOTIFY_INTERNAL_URL}}` | no |
-| `CRM_API_URL` | internal, `http://${{crm-api.RAILWAY_PRIVATE_DOMAIN}}:${{crm-api.PORT}}` — the host contract (ADR-0059) | no |
+| `CRM_API_URL` | internal, `http://${{crm-api.RAILWAY_PRIVATE_DOMAIN}}:${{crm-api.PORT}}` — the host contract (ADR 20261104-meeting-host-contract-resolve-and-notices) | no |
 | `SERVICE_CLIENT_ID` / `SERVICE_CLIENT_SECRET` | `meetings-api` / `${{shared.MEETINGS_SERVICE_CLIENT_SECRET}}` (≥ 32 chars, byte-identical to its `SERVICE_CLIENTS` entry) | secret: yes |
-| `MEETINGS_S3_ENDPOINT` / `_REGION` / `_EU_ENDPOINT_HOSTS` | the audio bucket; a non-AWS endpoint needs its host in the EU list or the service exits 1 (ADR-0016 lineage) | no |
+| `MEETINGS_S3_ENDPOINT` / `_REGION` / `_EU_ENDPOINT_HOSTS` | the audio bucket; a non-AWS endpoint needs its host in the EU list or the service exits 1 (ADR 20260716-eu-object-storage-refund-attachments lineage) | no |
 | `MEETINGS_S3_BUCKET` / `_ACCESS_KEY_ID` / `_SECRET_ACCESS_KEY` | set by reference to the Railway bucket by `provision-tool.sh --bucket`; **its own bucket and credentials**, never crm's or refund's | secrets: yes |
 | `MEETINGS_SPEECH_LOCATION` | `eu` — the only value accepted (Chirp 3 is GA in `eu` and `us` only); the Speech endpoint is derived, never configured | no |
 | `MEETINGS_VERTEX_LOCATION` | `eu` recommended; `europe-west1` and `europe-west4` are also accepted. `global`, `us` and anything else are refused; the base URL is derived | no |
@@ -1303,7 +1303,7 @@ Everything below is a **checklist for a person**: nothing in this section has be
 | `MEETINGS_TEST_HOSTS` | **must not be set** in production (the service exits 1) | — |
 | `PORT` / `NODE_ENV` | `8085` / `production` | no |
 
-**The audio bucket (ADR-0063, AC-4.4) — the service refuses to start without this.** A private
+**The audio bucket (ADR 20261104-audio-retention-bucket-lifecycle-verified-at-startup, AC-4.4) — the service refuses to start without this.** A private
 EU bucket, holding audio only (`meetings/<id>/…`), with one bucket-wide lifecycle rule that
 expires every object after **29 days**, no prefix filter, versioning **off**, and a CORS rule for
 the shell origin (`POST` for the presigned upload, `GET` for playback). `provision-tool.sh`
@@ -1329,7 +1329,7 @@ proves the rule exists; the shell CSP must also list the bucket in `connect-src`
 `media-src` (playback) — see the note under `inventory-api` above; all three gates fail alike as
 "upload failed".
 
-**Google Cloud (ADR-0061 principle, ADR-0069; plan "Amendment 2026-11-05" G-2, G-5, G-6) — verified at
+**Google Cloud (ADR 20261104-meetings-ai-providers-eu-zero-retention principle, ADR 20261105-meetings-ai-providers-google-cloud-eu; plan "Amendment 2026-11-05" G-2, G-5, G-6) — verified at
 startup, so it must exist before the first deploy.** Transcription is Cloud Speech-to-Text v2 (Chirp 3,
 `BatchRecognize`) through a **transient EU bucket**; summaries and Q&A are Claude on Vertex AI in the
 `eu` multi-region. Everything the Google APIs let the service read is checked at startup (exit 1,
@@ -1503,13 +1503,13 @@ MEETINGS_S3_ACCESS_KEY_ID=minioadmin MEETINGS_S3_SECRET_ACCESS_KEY=minioadmin \
 MinIO has no bucket-level CORS (that step prints `SKIP`; only `--require-cors` makes it fail), and dev
 runs `MEETINGS_AI_PROVIDER=fake` until the real Google configuration exists (the fake never touches the transient bucket).
 
-### `activities-api` service (Railway) — NEW (specs/028-activities)
+### `activities-api` service (Railway) — NEW (specs/20261110-activities)
 
 Authoritative list: `activities-api/src/lib/env.ts` (validated at startup, exits 1 on any miss).
 Committed contract: `tools/env-doctor/templates/production/activities-api.env`. Port **8087**, DB
 `activities`, domain `activities-api.operai.welld.io`. **Backend-only**: there is no `activities-ui`;
 the CRM and Projects remotes call it from the shell's origin. It owns no permission catalog (every
-access decision is asked of crm-api / projects-api as the caller, ADR-0081). Since ADR-0089 it owns
+access decision is asked of crm-api / projects-api as the caller, ADR 20261110-activities-service-access-delegated-to-host). Since ADR 20261113-task-description-files-in-activities-api-bucket it owns
 one private EU bucket, `activities`, for task images and attachments.
 
 | Variable | Value | Secret |
@@ -1518,18 +1518,18 @@ one private EU bucket, `activities`, for task images and attachments.
 | `ALLOWED_ORIGINS` | `https://operai.welld.io` (shell only) | no |
 | `AUTH_JWKS_URL` / `AUTH_BASE_URL` | internal, `http://${{auth.RAILWAY_PRIVATE_DOMAIN}}:${{auth.PORT}}…` | no |
 | `AUTH_ISSUER` / `AUTH_AUDIENCE` | public claim `${{shared.AUTH_ISSUER}}` / `${{shared.AUTH_AUDIENCE}}` | no |
-| `CRM_API_URL` / `PROJECTS_API_URL` | internal, `http://${{crm-api.RAILWAY_PRIVATE_DOMAIN}}:${{crm-api.PORT}}` / the same for `projects-api` — the hosts it asks (ADR-0081). Unset, the service exits 1 | no |
+| `CRM_API_URL` / `PROJECTS_API_URL` | internal, `http://${{crm-api.RAILWAY_PRIVATE_DOMAIN}}:${{crm-api.PORT}}` / the same for `projects-api` — the hosts it asks (ADR 20261110-activities-service-access-delegated-to-host). Unset, the service exits 1 | no |
 | `NOTIFY_INTERNAL_URL` | `${{shared.NOTIFY_INTERNAL_URL}}` | no |
 | `SERVICE_CLIENT_ID` / `SERVICE_CLIENT_SECRET` | `activities-api` / `${{shared.ACTIVITIES_SERVICE_CLIENT_SECRET}}` (≥ 32 chars, byte-identical to its `SERVICE_CLIENTS` entry). All three notify variables or none | secret: yes |
 | `SERVICE_AUDIENCE` | `${{shared.SERVICE_AUDIENCE}}` — what crm-api's `/system/v1/*` calls are verified against; must differ from `AUTH_AUDIENCE` | no |
-| `ACTIVITIES_S3_BUCKET` / `_ENDPOINT` / `_ACCESS_KEY_ID` / `_SECRET_ACCESS_KEY` | **by reference** to the Railway bucket `activities` (ADR-0089): `${{activities.BUCKET}}`, `${{activities.ENDPOINT}}`, `${{activities.ACCESS_KEY_ID}}`, `${{activities.SECRET_ACCESS_KEY}}`. Unset, the file routes answer 503 `storage_unconfigured` and everything else works | keys: yes |
-| `ACTIVITIES_S3_REGION` / `ACTIVITIES_S3_EU_ENDPOINT_HOSTS` | `ams` / `t3.storageapi.dev` — the residency check at startup (ADR-0016) | no |
+| `ACTIVITIES_S3_BUCKET` / `_ENDPOINT` / `_ACCESS_KEY_ID` / `_SECRET_ACCESS_KEY` | **by reference** to the Railway bucket `activities` (ADR 20261113-task-description-files-in-activities-api-bucket): `${{activities.BUCKET}}`, `${{activities.ENDPOINT}}`, `${{activities.ACCESS_KEY_ID}}`, `${{activities.SECRET_ACCESS_KEY}}`. Unset, the file routes answer 503 `storage_unconfigured` and everything else works | keys: yes |
+| `ACTIVITIES_S3_REGION` / `ACTIVITIES_S3_EU_ENDPOINT_HOSTS` | `ams` / `t3.storageapi.dev` — the residency check at startup (ADR 20260716-eu-object-storage-refund-attachments) | no |
 | `ACTIVITIES_MAINTENANCE` | `false` in steady state. `true` makes every route except `GET /health` answer 503 `maintenance` (the migration window below). Any other value stops the start | no |
 | `PORT` / `NODE_ENV` | `8087` / `production` | no |
 
 **Wiring in `auth` (do this first, and only after the new `auth` is live).** `SERVICE_CLIENTS`
 gains `"activities-api":{"secret":"${{shared.ACTIVITIES_SERVICE_CLIENT_SECRET}}","scope":"notifications.push emails.send"}`
-(both scopes: the task-assigned and task-unblocked notices are email notices, ADR-0056), and
+(both scopes: the task-assigned and task-unblocked notices are email notices, ADR 20261101-notify-api-resolves-email-notice-address-from-auth), and
 the `crm-api` entry gains `activities.write`. An `auth` that does not know a scope named in
 `SERVICE_CLIENTS` refuses to start, which is why the order is: deploy `auth` code, then edit the variable.
 Generate the secret (≥ 32 random chars) as the Railway **Shared Variable**
@@ -1539,7 +1539,7 @@ never written to a template, a command line or a PR. `crm-api` needs
 `notify-api` must know the `projects` origin and the binding `system:activities-api` → `crm`, `projects`
 (code, not a variable) before the first write, or every push is refused silently.
 
-**Task files bucket (ADR-0089), once.** The bucket is declared in `.railway/railway.ts`
+**Task files bucket (ADR 20261113-task-description-files-in-activities-api-bucket), once.** The bucket is declared in `.railway/railway.ts`
 (`bucket("activities", { region: "ams" })`): `railway config plan` shows `+ Create bucket activities`,
 `railway config apply` creates it. Then set the four `ACTIVITIES_S3_*` references above on
 activities-api, and a CORS rule on the bucket for `https://operai.welld.io` (methods POST, GET;
@@ -1612,9 +1612,9 @@ treat its first use as a supervised run.
 |---|---|---|
 | **shell** | `VITE_AUTH_URL` / `VITE_API_URL` | `<AUTH_URL>` / `<API_URL>` |
 | | `VITE_NOTIFY_API_URL` | `<NOTIFY_API_URL>` — feeds `shell/session`'s trusted-origin allowlist and `getNotifyBaseUrl()` (the raise-capability, `useUnreadCount` SSE manager); also the origin `notify-ui` itself calls (mirrors `VITE_API_URL`/`VITE_AUTH_URL`) |
-| | `VITE_REFUND_API_URL` | **NEW (T20, specs/007-refund-service).** `<REFUND_API_URL>` — feeds `shell/session`'s trusted-origin allowlist ONLY (`getTrustedOrigins()`, `shell/src/lib/session.ts`); `refund-ui` calls refund-api using its OWN copy of this same var (own build, see the `refund-ui` row below) — both copies MUST carry the identical `<REFUND_API_URL>` value or `apiFetch` will not recognize refund-ui's request origin as trusted and every call 401s. |
-| | `VITE_ACTIVITIES_API_URL` | **NEW (specs/028).** `https://activities-api.operai.welld.io` — build-time, feeds `shell/session`'s trusted-origin allowlist AND `getActivitiesApiBaseUrl()`, which `crm-ui` and `projects-ui` use for every activity and task call (no `VITE_*` of their own; there is no `activities-ui`). `provision-tool.sh --no-ui` does not set it: set it by hand and redeploy the shell. |
-| | `VITE_INVENTORY_API_URL` | **NEW (T41/T43, specs/015).** `<INVENTORY_API_URL>` — build-time, feeds `shell/session`'s trusted-origin allowlist AND `getInventoryApiBaseUrl()`, which `inventory-ui` uses for every inventory-api call (**inventory-ui has no `VITE_INVENTORY_API_URL` of its own** — unlike `refund-ui`, it asks the shell). **Optional by design and unset by default: when unset the inventory origin is NOT trusted, `apiFetch` sends no Bearer JWT there, and every inventory call 401s** — a silent failure, so set it on the shell project and redeploy. Typed in `shell/src/vite-env.d.ts`. |
+| | `VITE_REFUND_API_URL` | **NEW (T20, specs/20260716-refund-service).** `<REFUND_API_URL>` — feeds `shell/session`'s trusted-origin allowlist ONLY (`getTrustedOrigins()`, `shell/src/lib/session.ts`); `refund-ui` calls refund-api using its OWN copy of this same var (own build, see the `refund-ui` row below) — both copies MUST carry the identical `<REFUND_API_URL>` value or `apiFetch` will not recognize refund-ui's request origin as trusted and every call 401s. |
+| | `VITE_ACTIVITIES_API_URL` | **NEW (specs/20261110-activities).** `https://activities-api.operai.welld.io` — build-time, feeds `shell/session`'s trusted-origin allowlist AND `getActivitiesApiBaseUrl()`, which `crm-ui` and `projects-ui` use for every activity and task call (no `VITE_*` of their own; there is no `activities-ui`). `provision-tool.sh --no-ui` does not set it: set it by hand and redeploy the shell. |
+| | `VITE_INVENTORY_API_URL` | **NEW (T41/T43, specs/20261006-hardware-inventory).** `<INVENTORY_API_URL>` — build-time, feeds `shell/session`'s trusted-origin allowlist AND `getInventoryApiBaseUrl()`, which `inventory-ui` uses for every inventory-api call (**inventory-ui has no `VITE_INVENTORY_API_URL` of its own** — unlike `refund-ui`, it asks the shell). **Optional by design and unset by default: when unset the inventory origin is NOT trusted, `apiFetch` sends no Bearer JWT there, and every inventory call 401s** — a silent failure, so set it on the shell project and redeploy. Typed in `shell/src/vite-env.d.ts`. |
 | | `ESTIMAI_REMOTE_URL` / `REFUND_REMOTE_URL` / `ADMIN_REMOTE_URL` / `NOTIFY_REMOTE_URL` / `INVENTORY_REMOTE_URL` | `https://<estimai/refund/admin/notify/inventory>.operai.welld.io/remoteEntry.js` (the code defaults are the `localhost:517x` dev origins, so an unset value ships a shell pointing at localhost) |
 | **estimai-ui** | `VITE_API_URL` | `<API_URL>` — **required**: estimai-ui builds `${VITE_API_URL}/estimates` from its *own* value (must match the shell's) |
 | | `VITE_AUTH_URL` / `SHELL_REMOTE_URL` | standalone-only / `https://operai.welld.io/remoteEntry.js` |
@@ -1622,32 +1622,32 @@ treat its first use as a supervised run.
 | | `SHELL_REMOTE_URL` | `https://operai.welld.io/remoteEntry.js` |
 | **inventory-ui** | `SHELL_REMOTE_URL` | `https://operai.welld.io/remoteEntry.js` (no backend vars of its own: inventory-api via `getInventoryApiBaseUrl()`, the user directory via `getAuthBaseUrl()`, both from the shell) |
 | **admin-ui**, **notify-ui** | `SHELL_REMOTE_URL` | `https://operai.welld.io/remoteEntry.js` (no backend vars of their own — `notify-ui`'s calls to `notify-api` go through the shared `shell/session` module's `VITE_NOTIFY_API_URL`, same pattern `admin-ui` uses for the auth service's admin API) |
-| **admin-ui** | `VITE_GOOGLE_MAPS_API_KEY` | **NEW (T16, specs/012-employee-address, ADR-0032).** Google Places API (New) + Maps JavaScript API browser key, referrer-restricted to the **shell's** origins (not admin-ui's own — see § Phase 2's "Google Maps API key — provisioning"). admin-ui's own third-party credential, deliberately **not** a `shell/session` getter. |
+| **admin-ui** | `VITE_GOOGLE_MAPS_API_KEY` | **NEW (T16, specs/20260803-employee-address, ADR 20260804-google-places-browser-direct-referrer-restricted-key).** Google Places API (New) + Maps JavaScript API browser key, referrer-restricted to the **shell's** origins (not admin-ui's own — see § Phase 2's "Google Maps API key — provisioning"). admin-ui's own third-party credential, deliberately **not** a `shell/session` getter. |
 
 Cross-service wiring: `auth.BETTER_AUTH_URL == estimai-api.AUTH_ISSUER ==
 notify-api.AUTH_ISSUER == refund-api.AUTH_ISSUER`; `estimai-api.AUTH_JWKS_URL
 == notify-api.AUTH_JWKS_URL == refund-api.AUTH_JWKS_URL == <AUTH_URL>/auth/jwks`;
 all four backends' `ALLOWED_ORIGINS == shell origin`;
 **`auth.AUTH_AUDIENCE == estimai-api.AUTH_AUDIENCE == notify-api.AUTH_AUDIENCE
-== refund-api.AUTH_AUDIENCE`** (ADR-0010 — extended to `refund-api` as of
-specs/007); **`auth.SERVICE_AUDIENCE == notify-api.SERVICE_AUDIENCE`, and each
+== refund-api.AUTH_AUDIENCE`** (ADR 20260713-jwt-audience-claim-enforcement — extended to `refund-api` as of
+specs/20260716-refund-service); **`auth.SERVICE_AUDIENCE == notify-api.SERVICE_AUDIENCE`, and each
 `refund-api` / `estimai-api` / `inventory-api` `SERVICE_CLIENT_ID` is a key of
 `auth.SERVICE_CLIENTS` whose `secret` equals that service's `SERVICE_CLIENT_SECRET`
-and whose scopes are exactly what it needs** (ADR-0044/0049, specs/016);
+and whose scopes are exactly what it needs** (ADR 20261006-scoped-service-jwt-fourth-notify-caller/0049, specs/20261013-notify-service-credentials);
 `auth.NOTIFY_INTERNAL_URL == refund-api.NOTIFY_INTERNAL_URL` is notify-api's **private**-networking
 address, distinct from `<NOTIFY_API_URL>`/`VITE_NOTIFY_API_URL` (the public
 address every other row above uses); **`shell.VITE_REFUND_API_URL ==
 refund-ui.VITE_REFUND_API_URL == <REFUND_API_URL>`** (T20 — two independent
 Vercel projects, one value; a drift here silently breaks the Bearer-attach
 trusted-origins check even though both builds succeed); **`refund-api.REFUND_APP_BASE_URL ==
-refund-api.ALLOWED_ORIGINS == <shell origin>`** (T14, specs/008-refund-monthly-processing,
-ADR-0021 — the compiled-batch email's deep link must resolve inside the same shell origin
+refund-api.ALLOWED_ORIGINS == <shell origin>`** (T14, specs/20260719-refund-monthly-processing,
+ADR 20260719-refund-batch-signed-link-email-delivery — the compiled-batch email's deep link must resolve inside the same shell origin
 CORS/trustedOrigins already allow; a drift here doesn't break the build, it just mails a
 dead or untrusted link).
-**specs/015 additions:** `auth.AUTH_AUDIENCE == … == inventory-api.AUTH_AUDIENCE`;
+**specs/20261006-hardware-inventory additions:** `auth.AUTH_AUDIENCE == … == inventory-api.AUTH_AUDIENCE`;
 `inventory-api.AUTH_ISSUER == auth.BETTER_AUTH_URL`; **`auth.SERVICE_AUDIENCE ==
 notify-api.SERVICE_AUDIENCE`, and each differs from its own service's
-`AUTH_AUDIENCE`** (ADR-0044); `inventory-api.SERVICE_CLIENT_ID` is a key of
+`AUTH_AUDIENCE`** (ADR 20261006-scoped-service-jwt-fourth-notify-caller); `inventory-api.SERVICE_CLIENT_ID` is a key of
 `auth.SERVICE_CLIENTS` whose `secret` equals `inventory-api.SERVICE_CLIENT_SECRET` and
 whose `scope` contains `notifications.push`; no service holds the retired shared token
 (`env:doctor` flags it by name); `inventory-api.INVENTORY_S3_ENDPOINT`'s host is in
@@ -1657,7 +1657,7 @@ bucket's own CORS rule are checked by `mise run env:doctor`
 
 ---
 
-## Notify credential rollout (specs/016, ADR-0048/0049)
+## Notify credential rollout (specs/20261013-notify-service-credentials, ADR 20261013-auth-mints-own-service-credential-in-process/0049)
 
 > **Rollout completed on 2026-10-30.** All three pushes and Manual A/B are done:
 > every caller uses its own service credential, `NOTIFY_INTERNAL_TOKEN` is deleted from
@@ -1671,7 +1671,7 @@ then deleted. A push to `main` redeploys all five Railway services at once, in n
 order, so the safe order is **three pushes with manual steps between them**. Each step
 starts only when the previous one is confirmed.
 
-Roles: **P1/P2/P3** are pushes (T6, T13 and T18 in `specs/016-notify-service-credentials/tasks.md`
+Roles: **P1/P2/P3** are pushes (T6, T13 and T18 in `specs/20261013-notify-service-credentials/tasks.md`
 are done by a person, never by an agent). **Manual A/B** edit Railway variables. No step below
 reads or prints a variable value; where a check lists variables it lists **names only**
 (`| jq -r 'keys[]'` keeps the values off the terminal).
@@ -1680,7 +1680,7 @@ reads or prints a variable value; where a check lists variables it lists **names
 
 | Variable | Where | Role |
 |---|---|---|
-| `SERVICE_AUDIENCE` | Shared Variable; referenced by `auth` and `notify-api` | The `aud` on service JWTs. **Required in both from push 1**; must differ from `AUTH_AUDIENCE` and be identical on the two. Already set in production since specs/015. |
+| `SERVICE_AUDIENCE` | Shared Variable; referenced by `auth` and `notify-api` | The `aud` on service JWTs. **Required in both from push 1**; must differ from `AUTH_AUDIENCE` and be identical on the two. Already set in production since specs/20261006-hardware-inventory. |
 | `INVENTORY_SERVICE_CLIENT_SECRET` | Shared Variable | Exists. `inventory-api` is unchanged. |
 | `ESTIMAI_SERVICE_CLIENT_SECRET` | Shared Variable (**new**, Manual A) | One secret, 32-256 chars. Referenced inside `auth`'s `SERVICE_CLIENTS` and by `estimai-api`'s `SERVICE_CLIENT_SECRET`. |
 | `REFUND_SERVICE_CLIENT_SECRET` | Shared Variable (**new**, Manual A) | Same, for `refund-api`. |
@@ -1691,7 +1691,7 @@ reads or prints a variable value; where a check lists variables it lists **names
 `SERVICE_CLIENTS` on `auth` after Manual A (as in
 `tools/env-doctor/templates/production/auth.env`; the secrets are Railway references, never
 literals). Each client holds exactly the scopes it needs; `estimai-api` and `inventory-api`
-must not hold `emails.send`, and a client id of `auth` is refused at startup (ADR-0048):
+must not hold `emails.send`, and a client id of `auth` is refused at startup (ADR 20261013-auth-mints-own-service-credential-in-process):
 
 ```json
 {
@@ -1712,14 +1712,14 @@ for s in auth notify-api; do
   printf '%s: ' "$s"
   railway variables --service "$s" --json | jq -r 'keys[]' | grep -qx SERVICE_AUDIENCE && echo present || echo MISSING
 done
-# Retired names: the old per-address token limit (SERVICE_TOKEN_RATE_*) is ignored since specs/029 US-7.
+# Retired names: the old per-address token limit (SERVICE_TOKEN_RATE_*) is ignored since specs/20261111-push-notifications US-7.
 # Listing one is not a failure; it is a leftover to delete once the new auth is live.
 railway variables --service auth --json | jq -r 'keys[]' | grep '^SERVICE_TOKEN_RATE' || echo "none (nothing to delete)"
 ```
 
 - Anything `MISSING`: stop. Add the `${{shared.SERVICE_AUDIENCE}}` reference first (its value
   must differ from `AUTH_AUDIENCE`), otherwise push 1 stops `auth` or `notify-api` from starting.
-- If a `SERVICE_TOKEN_RATE_*` name is listed: since specs/029 US-7 it has no effect (the limit is
+- If a `SERVICE_TOKEN_RATE_*` name is listed: since specs/20261111-push-notifications US-7 it has no effect (the limit is
   per calling service, `SERVICE_TOKEN_SERVICE_LIMIT` default 300 and `USERS_CONTACT_SERVICE_LIMIT`
   default 600, both per `SYSTEM_RATE_WINDOW_MS`). Do not size it; delete it after the new `auth`
   is live (§ Push notifications -> Rollout order). Only if `SERVICE_TOKEN_SERVICE_LIMIT`,
@@ -1843,7 +1843,7 @@ failure (it flags the retired variable by name on any service).
 
 ---
 
-## EstimAI oversight and deal badge rollout (specs/024, ADR-0075/0076)
+## EstimAI oversight and deal badge rollout (specs/20261108-estimate-list-oversight, ADR 20261108-estimai-oversight-permission-amends-0036/0076)
 
 Order matters: `auth` refuses to start when `SERVICE_CLIENTS` names a scope it does not know.
 
@@ -1865,14 +1865,14 @@ Order matters: `auth` refuses to start when `SERVICE_CLIENTS` names a scope it d
    bun scripts/backfill-estimate-links.ts --apply
    ```
 
-## Activities migration (specs/028, ADR-0081/0082/0083)
+## Activities migration (specs/20261110-activities, ADR 20261110-activities-service-access-delegated-to-host/0082/0083)
 
 The CRM's activities, participants, "blocked by" links and meeting host state move into the new
 `activities-api`. The move is **expand, switch, copy, unpause, contract**, with a short announced
 write pause between expand and unpause (accepted by the owner, AC-2.5). Two rules run through all
 of it: a record is "moved" only when the **found-versus-present count** says so, never because a
 command exited 0; and the CRM tables are **not dropped** until a later push, after the production
-report is clean. A push to `main` redeploys every Railway service in no fixed order (ADR-0049), so
+report is clean. A push to `main` redeploys every Railway service in no fixed order (ADR 20261013-all-notify-callers-scoped-credentials-shared-token-retired), so
 the order below is enforced by *what is live when*, not by the push order: wait for each deploy to
 be live (and read its log) before the next step.
 
@@ -1973,7 +1973,7 @@ redeploy it. Then:
 
 **Step 5 - Contract: a LATER push, never with the switch.**
 Only after the production report of Step 3 is filed and clean, and the CRM has run on
-`activities-api` for a while with nothing amiss, merge the separate crm-api migration (specs/028 T14)
+`activities-api` for a while with nothing amiss, merge the separate crm-api migration (specs/20261110-activities T14)
 that drops `task_blocker`, `activity_participant`, `activity`, `meeting_host_state` and the
 `ActivityType` enum. Its commit says it ships only after the import report. It is **one-way**: take a
 database backup first, and never put it in the same push as Step 2 (AC-2.3: nothing leaves the CRM
@@ -1991,7 +1991,7 @@ timeline and tasks still load (they no longer depend on those tables).
   tables are only a fallback for the state at the freeze.
 - After Step 5: one-way; restore from the backup taken before it.
 
-## Push notifications (specs/029, ADR-0084/0085)
+## Push notifications (specs/20261111-push-notifications, ADR 20261111-web-push-encrypted-payloads-not-fcm/0085)
 
 System notifications on the user's desktop (Chrome, Edge, Firefox, Safari on macOS) through standard
 Web Push with encrypted payloads. `notify-api` holds the VAPID pair, stores one row per browser and sends
@@ -2028,7 +2028,7 @@ silent default.
 | `PUSH_EXCLUDED_ORIGINS` | Optional CSV of origin apps never pushed (for example `meetings`); values are validated, an unknown one stops the start. Default empty. |
 | `APP_BASE_URL`, `AUTH_BASE_URL`, `SERVICE_CLIENT_ID`, `SERVICE_CLIENT_SECRET` | The email-notice group: **required when `PUSH_ENABLED=true`**, because a push first asks `auth` whether the recipient is still an active user (AC-5.2). Enabling push without them exits at startup. |
 
-### Rollout order (specs/029 US-7, ADR-0086/0087)
+### Rollout order (specs/20261111-push-notifications US-7, ADR 20261112-system-endpoints-limited-per-verified-service/0087)
 
 Push makes `notify-api` ask `auth` about each recipient, so it depends on `auth`'s per-service
 limits. Three steps, in this order:
@@ -2043,13 +2043,13 @@ limits. Three steps, in this order:
 2. **`notify-api` second** (30 s liveness memo, single-flight, bounded send pool, atomic device
    cap). It works against the old and the new `auth`; against the old one it is still bound by the
    shared 20, which is why step 3 waits.
-3. **`PUSH_ENABLED=true` only after the AC-7.7 live re-measure** (specs/029 T12) passes on the
+3. **`PUSH_ENABLED=true` only after the AC-7.7 live re-measure** (specs/20261111-push-notifications T12) passes on the
    deployed pair. This, not merge order, is the gate: Railway redeploys every service of one push
    in no fixed order, and neither order is harmful while push is off.
 
 ### Enabling in production
 
-1. **ADR-0084 go-live sign-off first.** `docs/adr/0084-web-push-encrypted-payloads-not-fcm.md` has a
+1. **ADR 20261111-web-push-encrypted-payloads-not-fcm go-live sign-off first.** `docs/adr/20261111-web-push-encrypted-payloads-not-fcm.md` has a
    "Go-live sign-off" line that reads *pending*. The owner records the date and the acceptance (push
    services outside the EU observe the endpoint, send time, size and VAPID contact, never the content)
    before `PUSH_ENABLED=true` is set in production. Do not enable it while that line is pending.
@@ -2065,7 +2065,7 @@ limits. Three steps, in this order:
 
 - **What push costs `auth`:** at most one contact lookup per push recipient per 30 s (the liveness
   memo; only a `found` answer is remembered, `inactive` and `failed` are asked again) plus one per
-  `email: true` notice (never memoised, ADR-0056). Against `USERS_CONTACT_SERVICE_LIMIT` (600 per
+  `email: true` notice (never memoised, ADR 20261101-notify-api-resolves-email-notice-address-from-auth). Against `USERS_CONTACT_SERVICE_LIMIT` (600 per
   10 min) that leaves room for well over 100 notifications in 10 minutes. A user raising notifications
   at themselves in a loop is bounded at 20 lookups per 10 min.
 - **Re-measure (T12, AC-7.7):** raise more than 100 notifications in 10 minutes on the dev stack, then
@@ -2098,7 +2098,7 @@ limits. Three steps, in this order:
   and never fails the notification itself (the in-app row and the SSE event always stand).
 - The browser decides whether to show: on Chrome, Edge and Firefox the service worker shows nothing while an
   Operai tab is visible (the toast covers it). **Safari always shows**, because Safari cancels a
-  subscription after pushes that show nothing (ADR-0085), so a Safari user with Operai open gets both the
+  subscription after pushes that show nothing (ADR 20261111-push-suppression-decided-by-the-browser), so a Safari user with Operai open gets both the
   toast and the system notification.
 - **Apple answers 201 for subscriptions that are dead.** On `web.push.apple.com` a successful send proves
   nothing about delivery, and a cancelled Safari subscription is never reported back as 404/410; its row
@@ -2126,23 +2126,23 @@ limits. Three steps, in this order:
   respectively — the same no-body-logging rule applies to both). Don't add a
   CDN/log-aggregator/backup target that routes EU data outside the EU — this
   now also covers `refund-api`'s EU object-storage bucket once provisioned
-  (ADR-0016).
-- **`notify-api` single-replica constraint (specs/005 Risk R2):** never scale
+  (ADR 20260716-eu-object-storage-refund-attachments).
+- **`notify-api` single-replica constraint (specs/20260713-notification-center Risk R2):** never scale
   `notify-api` past one replica (Railway dashboard autoscale or a
   `.railway/railway.ts` edit) without first moving its EventBus fan-out and
   stream-ticket store onto Postgres `LISTEN`/`NOTIFY` + a shared ticket table
   — both are designed behind an interface for that migration, but the current
   in-process implementation silently breaks (missed events, ticket
   mint↔connect mismatches) across two or more instances.
-- **Service-client secret rotation / revocation (specs/016, ADR-0049):** if one caller's
+- **Service-client secret rotation / revocation (specs/20261013-notify-service-credentials, ADR 20261013-all-notify-callers-scoped-credentials-shared-token-retired):** if one caller's
   secret is suspected, set a new value on its `<NAME>_SERVICE_CLIENT_SECRET` Shared
   Variable and redeploy `auth` (its `SERVICE_CLIENTS` references it) and that caller. To cut
   a caller off at once, remove its entry from `SERVICE_CLIENTS` and redeploy `auth`;
   credentials already minted expire within 5 minutes. The other callers are unaffected —
   there is no shared secret to rotate in lockstep. Never log the value; `railway variables`
   output containing it should not be pasted into chat/tickets.
-- **`/system/emails` and `/system/notifications` network exposure (specs/006
-  Risk R2, specs/007 ADR-0017, specs/016):** the scoped service credential is the enforced
+- **`/system/emails` and `/system/notifications` network exposure (specs/20260713-user-invitations
+  Risk R2, specs/20260716-refund-service ADR 20260716-system-notifications-cross-user-trigger, specs/20261013-notify-service-credentials):** the scoped service credential is the enforced
   access control regardless of network path, but reduce exposure further by keeping
   `auth`'s and `refund-api`'s `NOTIFY_INTERNAL_URL` on notify-api's Railway
   **private**-networking hostname (never the public `<NOTIFY_API_URL>`
@@ -2167,9 +2167,9 @@ limits. Three steps, in this order:
 
 ---
 
-## Users who entered without an invitation (specs/023, ADR-0071, AC-6.2)
+## Users who entered without an invitation (specs/20261105-signup-gate, ADR 20261105-access-only-by-invitation-waiting-list, AC-6.2)
 
-Since specs/023 `auth` creates a user only for an email in `ALLOWED_SIGNUP_DOMAINS` that
+Since specs/20261105-signup-gate `auth` creates a user only for an email in `ALLOWED_SIGNUP_DOMAINS` that
 holds a live pending invitation (or is the bootstrap admin, whose email must also be in an allowed domain); an allowed-domain email without one
 joins the waiting list and an outside-domain email is refused. Users who signed in before that are left untouched
 (AC-1.6); these two read-only queries list them so an admin can review by hand. Run them
@@ -2203,16 +2203,16 @@ Locally: `psql "$DATABASE_URL" -f query.sql`, or `bunx prisma db execute --stdin
 
 ---
 
-## Audit-log redaction — GDPR/nLPD subject-erasure requests (specs/012-employee-address, ADR-0033, Risk R5)
+## Audit-log redaction — GDPR/nLPD subject-erasure requests (specs/20260803-employee-address, ADR 20260804-two-tier-audit-assurance-auth-audit-log-application-level, Risk R5)
 
-As of specs/012, `auth`'s `audit_log` carries employee home addresses
+As of specs/20260803-employee-address, `auth`'s `audit_log` carries employee home addresses
 (`user.address.set` entries) in its `data.before`/`data.after` payload. Per
-**ADR-0033** — a deliberate, user-decided (2026-08-04) two-tier
+**ADR 20260804-two-tier-audit-assurance-auth-audit-log-application-level** — a deliberate, user-decided (2026-08-04) two-tier
 audit-assurance model for the suite — `audit_log` is **Tier 2
 (application-level immutability only)**: no mutating export from the audit
 module, no mutating route on the audit API, no production code path that
 updates or deletes a row. This is unlike the suite's Tier 1 tables
-(`RefundAuditEntry`/`MileageRate`/`RefundSetting`, ADR-0018/0024/0027), which
+(`RefundAuditEntry`/`MileageRate`/`RefundSetting`, ADR 20260716-immutable-financial-audit-trail-refund/0024/0027), which
 carry a database-level `BEFORE UPDATE/DELETE` trigger and are permanently
 unremovable by design.
 
@@ -2230,7 +2230,7 @@ pressure.
    access **and** explicit authorization for this specific request — e.g.
    wellD's DPO/privacy lead, or an engineer they've directed. This is
    deliberately **not** a self-service admin-panel action, because none
-   exists (by design — ADR-0033 §1(c): every mutating verb on `/admin/audit`
+   exists (by design — ADR 20260804-two-tier-audit-assurance-auth-audit-log-application-level §1(c): every mutating verb on `/admin/audit`
    and `/admin/audit/{id}` returns `404`). Treat the absence of a UI for this
    as a feature, not a gap to fill.
 2. **Scope the redaction to an enumerated `audit_log.id` set — never a broad
@@ -2268,13 +2268,13 @@ pressure.
    no mechanism to audit changes made to it.
 5. **Do not automate this.** No cron, no scheduled job, no self-service admin
    action — consistent with this suite's standing "derived-on-read, never
-   scheduled" posture for one-time operator actions (ADR-0013 lineage,
+   scheduled" posture for one-time operator actions (ADR 20260714-invitation-lifecycle-derived-expiry-state lineage,
    mirrored by the accounting-distribution-email cutover script above in §
    Variable reference). Every redaction is a deliberate, individually
    authorized command run by a human against production, exactly once per
    request.
 
-See **ADR-0033** for the full reasoning — why `audit_log` is Tier 2 rather
+See **ADR 20260804-two-tier-audit-assurance-auth-audit-log-application-level** for the full reasoning — why `audit_log` is Tier 2 rather
 than Tier 1, why that is a deliberate trade-off rather than an oversight, and
 the escalation path (dropping `AuditLog.actorUserId`'s FK first) if a future
 regulatory or product trigger requires raising `audit_log` to Tier 1.

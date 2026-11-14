@@ -1,5 +1,5 @@
 /**
- * InviteUserModal — Modal N1 (T12, specs/006-user-invitations, design.md
+ * InviteUserModal — Modal N1 (T12, specs/20260713-user-invitations, design.md
  * "Modal N1 (Invite user)").
  *
  * A `FormDialog` with the email field and two library `CheckboxGroupField`s

@@ -1,7 +1,7 @@
 /**
  * @vitest-environment jsdom
  *
- * Component tests for NoAccessScreen (specs/004-auth-roles-permissions, T25,
+ * Component tests for NoAccessScreen (specs/20260713-auth-roles-permissions, T25,
  * design.md Screen S1, AC-7.4): the required copy is present, and the
  * heading receives programmatic focus on mount (design.md Accessibility —
  * mirrors ShellLayout's skip-link-target technique).

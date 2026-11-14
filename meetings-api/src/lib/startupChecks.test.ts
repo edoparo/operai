@@ -23,7 +23,7 @@ import type { GoogleAuth } from "./google/auth";
 import { checkVertexModelId } from "./residency";
 import type { BucketConfig } from "./google/transientStorage";
 
-// AC-4.4 / ADR-0063: the 30-day deletion is the bucket's own lifecycle rule, so
+// AC-4.4 / ADR 20261104-audio-retention-bucket-lifecycle-verified-at-startup: the 30-day deletion is the bucket's own lifecycle rule, so
 // the service refuses to start unless that rule is verifiably there.
 
 type Versioning = { Status?: string } | Error;
@@ -140,7 +140,7 @@ describe("what a refusal says", () => {
   });
 });
 
-// ─── Vertex: caching and logging (N3, N4; AC-4.9, ADR-0069) ──────────────────
+// ─── Vertex: caching and logging (N3, N4; AC-4.9, ADR 20261105-meetings-ai-providers-google-cloud-eu) ──────────────────
 
 type Answer = Response | Error;
 
@@ -269,7 +269,7 @@ describe("vertex N4: request-response logging is not enabled for the model", () 
     }
   });
 
-  it("refuses a 200 it does not understand: no loggingConfig, an unknown top-level or loggingConfig key, a wrong type (ADR-0061)", async () => {
+  it("refuses a 200 it does not understand: no loggingConfig, an unknown top-level or loggingConfig key, a wrong type (ADR 20261104-meetings-ai-providers-eu-zero-retention)", async () => {
     for (const body of [
       {},
       { name: "x" },
@@ -345,7 +345,7 @@ describe("vertex N4: request-response logging is not enabled for the model", () 
   });
 });
 
-// ─── The transient processing bucket (N2; AC-4.9, AC-4.12, ADR-0069) ───────
+// ─── The transient processing bucket (N2; AC-4.9, AC-4.12, ADR 20261105-meetings-ai-providers-google-cloud-eu) ───────
 
 const goodTransient = (): BucketConfig => ({
   location: "EUROPE-WEST4",

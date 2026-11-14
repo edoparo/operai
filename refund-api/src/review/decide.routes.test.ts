@@ -1,6 +1,6 @@
 /**
- * Integration tests for accounting decisions (T12, specs/007-refund-service)
- * + the post-decision notify trigger (T13, AC-3.6, ADR-0017).
+ * Integration tests for accounting decisions (T12, specs/20260716-refund-service)
+ * + the post-decision notify trigger (T13, AC-3.6, ADR 20260716-system-notifications-cross-user-trigger).
  *
  * Strategy — mirrors requests.routes.test.ts's header comment: real Postgres
  * (compose, `refund` database), jwt/authz mocked via test-support/testAuth.ts.
@@ -65,7 +65,7 @@ let notifyCalls: NotifyCall[] = [];
 let notifyShouldFail = false;
 
 /**
- * The decision EMAIL channel (specs/007-refund-service AC-3.6, email
+ * The decision EMAIL channel (specs/20260716-refund-service AC-3.6, email
  * extension) — captured the same way as the in-app push above: by
  * intercepting notify-api's HTTP surface, never by `mock.module`.
  *
@@ -82,7 +82,7 @@ let emailCalls: EmailCall[] = [];
 let emailShouldFail = false;
 const originalFetch = globalThis.fetch;
 
-// ─── The service credential (specs/016, T9) ─────────────────────────────────
+// ─── The service credential (specs/20261013-notify-service-credentials, T9) ─────────────────────────────────
 // The wired provider is disabled under NODE_ENV=test, which would keep every
 // push off the (faked) wire. Swap in a stub for this file and put it back in
 // afterAll; `tokenFailure` makes it reject like auth down / 401 / 429.
@@ -176,7 +176,7 @@ const accountingPerms = (entity: string | null): ResolveResponse => ({
   jobTitle: null,
 });
 
-// specs/010-self-approval-control, ADR-0026 — same shape as `accountingPerms`,
+// specs/20260721-self-approval-control, ADR 20260721-self-approval-condition-and-403-exception — same shape as `accountingPerms`,
 // but the `approve` grant additionally carries the self-approval restriction
 // (`{key:"self-approval", match:"deny"}`), composed alongside the entity
 // attribute when `entity` is set (AC-2.4). review/reject/set-approved-total
@@ -424,9 +424,9 @@ describe("PUT /review/requests/:id/lines/:lineId/approved-total", () => {
   });
 });
 
-// ─── specs/009-mileage-rate (T7, AC-6.1) — approved-total on a travel_km line ──
+// ─── specs/20260720-mileage-rate (T7, AC-6.1) — approved-total on a travel_km line ──
 
-describe("PUT .../approved-total on a travel_km (mileage) line — specs/009-mileage-rate, AC-6.1", () => {
+describe("PUT .../approved-total on a travel_km (mileage) line — specs/20260720-mileage-rate, AC-6.1", () => {
   async function createSubmittedMileageRequest() {
     const request = await db.refundRequest.create({
       data: {
@@ -582,7 +582,7 @@ describe("POST /review/requests/:id/approve", () => {
     expect(row.status).toBe("approved");
   });
 
-  it("(specs/016 AC-1.1/1.2) the push and the email both authenticate with the service Bearer and never send X-Internal-Token", async () => {
+  it("(specs/20261013-notify-service-credentials AC-1.1/1.2) the push and the email both authenticate with the service Bearer and never send X-Internal-Token", async () => {
     const { request } = await createSubmittedRequest([{ entity: "welld_it" }]);
     harness.setResolve(async () => accountingPerms("welld_it"));
     const token = await harness.signToken({ sub: "acct-1", email: "acct1@x.com" });
@@ -606,7 +606,7 @@ describe("POST /review/requests/:id/approve", () => {
     ["auth rate-limited (429)", "auth /system/service-token responded with HTTP 429"],
   ] as const) {
     for (const outcome of ["approve", "reject"] as const) {
-      it(`(specs/016 AC-4.3) ${outcome} with the credential unobtainable (${label}) commits and returns 200, sending nothing`, async () => {
+      it(`(specs/20261013-notify-service-credentials AC-4.3) ${outcome} with the credential unobtainable (${label}) commits and returns 200, sending nothing`, async () => {
         const { request } = await createSubmittedRequest([{ entity: "welld_it" }]);
         tokenFailure = new ServiceTokenError(message);
         harness.setResolve(async () => accountingPerms("welld_it"));
@@ -674,9 +674,9 @@ describe("POST /review/requests/:id/approve", () => {
   });
 });
 
-// ─── POST .../approve — self-approval restriction (specs/010, ADR-0026) ─────
+// ─── POST .../approve — self-approval restriction (specs/20260721-self-approval-control, ADR 20260721-self-approval-condition-and-403-exception) ─────
 
-describe("POST /review/requests/:id/approve — self-approval restriction (specs/010-self-approval-control, ADR-0026)", () => {
+describe("POST /review/requests/:id/approve — self-approval restriction (specs/20260721-self-approval-control, ADR 20260721-self-approval-condition-and-403-exception)", () => {
   it("(AC-2.1) owner + restricted approve grant → 403 code:self_approval_forbidden; request/line-totals/audit unchanged", async () => {
     const { request, lines } = await createSubmittedRequest(
       [{ entity: "welld_it", requestedAmountCents: 1000 }],
@@ -859,9 +859,9 @@ describe("POST /review/requests/:id/approve — self-approval restriction (specs
 });
 
 // ─── Reject / set-approved-total on the caller's OWN request — UNAFFECTED by
-// the self-approval restriction (specs/010, US-4, AC-4.1/4.2) ─────────────
+// the self-approval restriction (specs/20260721-self-approval-control, US-4, AC-4.1/4.2) ─────────────
 
-describe("Reject / set-approved-total on caller's own restricted request — not blocked (specs/010-self-approval-control, US-4)", () => {
+describe("Reject / set-approved-total on caller's own restricted request — not blocked (specs/20260721-self-approval-control, US-4)", () => {
   it("(AC-4.1) reject on an owned request, with a restricted approve grant, is NOT blocked", async () => {
     const { request } = await createSubmittedRequest([{ entity: "welld_it" }], {
       ownerUserId: "acct-1",
@@ -1104,7 +1104,7 @@ describe("POST /review/requests/:id/reject", () => {
   });
 });
 
-// ─── Decision emails (specs/007-refund-service AC-3.6, email channel) ──────
+// ─── Decision emails (specs/20260716-refund-service AC-3.6, email channel) ──────
 //
 // Email is a SECOND channel for the same event the in-app push already
 // covers. The tests that matter most here are the two independence ones: the
@@ -1214,7 +1214,7 @@ describe("decision emails", () => {
   });
 });
 
-// ─── Line rejection (specs/007 amendment, 2026-11-10) ───────────────────────
+// ─── Line rejection (specs/20260716-refund-service amendment, 2026-11-10) ───────────────────────
 
 describe("POST/DELETE /review/requests/:id/lines/:lineId/reject — line rejection", () => {
   const rejectLineReq = (requestId: string, lineId: string, token: string, reason: unknown) =>

@@ -37,7 +37,7 @@ const BackLink = () => (
 )
 
 /**
- * TemplateEditor — one offer template as a full page (specs/020 US-2): texts,
+ * TemplateEditor — one offer template as a full page (specs/20261102-crm-offer-document US-2): texts,
  * the section list, the default cost lines with the table columns and the
  * annex switch. The same client rules as the server (`lib/offerRules`). A save
  * carries the template's version as If-Match; a stale answer shows the reload

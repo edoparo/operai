@@ -1,25 +1,25 @@
 /**
  * refund-api → notify-api internal compilation-email client (T5,
- * specs/008-refund-monthly-processing, plan.md § Email, ADR-0021).
+ * specs/20260719-refund-monthly-processing, plan.md § Email, ADR 20260719-refund-batch-signed-link-email-delivery).
  *
  * Mirrors `notify.ts`'s pattern for calling out to another Operai service —
  * isolated in its own module so `batches/email.ts` and its tests can
  * `mock.module()` this one function rather than mocking global `fetch`.
  *
- * Calls the internal, NON-user-JWT `POST /system/emails` (ADR-0011),
+ * Calls the internal, NON-user-JWT `POST /system/emails` (ADR 20260714-notify-api-email-channel-service-trust),
  * authenticated as refund-api itself with the scoped 5-minute service JWT from
- * `serviceToken.ts` (`Authorization: Bearer`, scope `emails.send`; specs/016,
- * ADR-0049, which retired the shared `X-Internal-Token` this file used to
+ * `serviceToken.ts` (`Authorization: Bearer`, scope `emails.send`; specs/20261013-notify-service-credentials,
+ * ADR 20261013-all-notify-callers-scoped-credentials-shared-token-retired, which retired the shared `X-Internal-Token` this file used to
  * send). Both call sites here go through `notifyPost.ts`.
  *
  * The email body carries an APP DEEP LINK (`batchUrl`), never a presigned
- * S3 URL and never a PDF attachment (AC-3.5, ADR-0021 — "no standalone,
+ * S3 URL and never a PDF attachment (AC-3.5, ADR 20260719-refund-batch-signed-link-email-delivery — "no standalone,
  * unauthenticated, or permanent access"). The recipient must sign in and
  * pass the SAME `request:review` authz check as any in-app batch view
  * before a short-lived presigned GET is ever minted (GET
  * /batches/:id/pdf-url, T4).
  *
- * BEST-EFFORT (ADR-0011 posture): this function NEVER throws. A non-2xx
+ * BEST-EFFORT (ADR 20260714-notify-api-email-channel-service-trust posture): this function NEVER throws. A non-2xx
  * response, a malformed body, or a network failure is caught and mapped to
  * `{status:"failed", deliveryId:null}` — no financial/PII detail in the
  * log, only the batch id and outcome. The caller (`batches/email.ts`)
@@ -39,7 +39,7 @@ export interface NotifyBatchCompiledInput {
   readonly cutoff: Date;
   readonly generatedAt: Date;
   readonly requestCount: number;
-  /** The single configured distribution address — specs/011-refund-settings, resolved LIVE from the `accounting-distribution-email` refund_setting at each attempt (ADR-0029, never a per-employee address, never a value baked in at a previous deploy). */
+  /** The single configured distribution address — specs/20260722-refund-settings, resolved LIVE from the `accounting-distribution-email` refund_setting at each attempt (ADR 20260722-batch-email-recipient-live-resolution-amends-0021, never a per-employee address, never a value baked in at a previous deploy). */
   readonly recipientEmail: string;
 }
 
@@ -102,7 +102,7 @@ export async function notifyBatchCompiled(
   }
 }
 
-// ─── Decision emails (specs/007-refund-service AC-3.6, email channel) ───────
+// ─── Decision emails (specs/20260716-refund-service AC-3.6, email channel) ───────
 
 export interface NotifyDecisionEmailInput {
   readonly requestId: string;
@@ -111,13 +111,13 @@ export interface NotifyDecisionEmailInput {
    * on the request at creation time, not resolved live from `auth`.
    *
    * That is the deliberate choice, and it is the opposite of what estimai-api
-   * does for collaborator display (ADR-0039's live id→identity lookup). The
-   * reasoning differs because the use differs: ADR-0039 resolves live so a
+   * does for collaborator display (ADR 20260807-live-identity-resolution-by-id-fail-soft's live id→identity lookup). The
+   * reasoning differs because the use differs: ADR 20260807-live-identity-resolution-by-id-fail-soft resolves live so a
    * shared estimate never implies an ACTIVE account that no longer exists;
    * here the address is a delivery target for a financial decision about a
    * request THIS person filed, and the snapshot is the address they filed it
    * under. Resolving live would also put `auth` on the decision path, which
-   * ADR-0036's "no hard runtime dependency" posture avoids, and would make a
+   * ADR 20260807-record-level-acl-resource-server-owned-access-primitive's "no hard runtime dependency" posture avoids, and would make a
    * decision email fail for a soft-deleted employee who still has money owed.
    */
   readonly recipientEmail: string;
@@ -136,7 +136,7 @@ export interface NotifyDecisionEmailOutcome {
  * `notify.ts`'s in-app push already covers (AC-3.6). Both are best-effort and
  * independent: an email failure must not suppress the in-app notification,
  * and neither may touch the decision, which has already committed by the time
- * this runs (ADR-0017 §4).
+ * this runs (ADR 20260716-system-notifications-cross-user-trigger §4).
  *
  * Never throws — every failure path is caught and mapped to a "failed"
  * outcome, mirroring `notifyBatchCompiled` above. Unlike a batch's

@@ -1,5 +1,5 @@
 /**
- * `GET /erase/meetings` (specs/021-meetings plan.md § API contracts → Erase; AC-4.7,
+ * `GET /erase/meetings` (specs/20261104-meetings plan.md § API contracts → Erase; AC-4.7,
  * AC-4.8). The erase screen's search: any meeting by title, creator or date, and what it
  * returns is ONLY `{ id, title, startsAt, creator }`. No status, host, participant, count or
  * a word of content, and finding a meeting here opens nothing: every content route still

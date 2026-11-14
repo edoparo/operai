@@ -1,7 +1,7 @@
 /**
  * @vitest-environment jsdom
  *
- * Page tests for AssetDetailPage (T32, specs/015-hardware-inventory; design.md
+ * Page tests for AssetDetailPage (T32, specs/20261006-hardware-inventory; design.md
  * § T2 Asset detail, F6, § Accessibility "T2 detail"; refs AC-1.9, AC-3.6,
  * AC-10.1).
  *

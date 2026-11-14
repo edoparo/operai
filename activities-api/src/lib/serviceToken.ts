@@ -1,9 +1,9 @@
 /**
- * Service-token client (specs/028-activities T6, copied from crm-api; ADR-0044/0049).
+ * Service-token client (specs/20261110-activities T6, copied from crm-api; ADR 20261006-scoped-service-jwt-fourth-notify-caller/0049).
  * Exchanges `SERVICE_CLIENT_ID`/`SERVICE_CLIENT_SECRET` for the 5-minute RS256 service JWT
  * `auth POST /system/service-token` mints, and hands it to `notify.ts` as the Bearer
  * credential for notify-api's `/system/notifications` (scopes `notifications.push` and
- * `emails.send`, the latter for the two email kinds, ADR-0056).
+ * `emails.send`, the latter for the two email kinds, ADR 20261101-notify-api-resolves-email-notice-address-from-auth).
  *
  * - Cached in memory; refetched once the token is within 60 s of expiry.
  * - SINGLE-FLIGHT: concurrent callers share one in-flight exchange (a burst of

@@ -1,4 +1,4 @@
-/** Request/response schemas for `POST /assets` (T11, specs/015). */
+/** Request/response schemas for `POST /assets` (T11, specs/20261006-hardware-inventory). */
 
 import { z } from "@hono/zod-openapi";
 import { EntitySchema, MAX_INT, isoDate } from "../depreciation/rules.schemas";

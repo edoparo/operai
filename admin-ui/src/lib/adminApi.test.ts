@@ -2,7 +2,7 @@
  * @vitest-environment jsdom
  *
  * Unit tests for src/lib/adminApi.ts — typed API client for the auth service's
- * `/admin/*` + `/authz/me` routes (T16, specs/004-auth-roles-permissions).
+ * `/admin/*` + `/authz/me` routes (T16, specs/20260713-auth-roles-permissions).
  *
  * Strategy (mirrors estimai-ui/src/lib/estimatesApi.test.ts):
  *   • `shell/session`'s `apiFetch` is mocked at the module level so tests
@@ -581,7 +581,7 @@ describe('users', () => {
     await expectApiError(() => getUserPermissions('user-1'), 403)
   })
 
-  // --- Soft-delete (T10/T11, specs/006-user-invitations) ---
+  // --- Soft-delete (T10/T11, specs/20260713-user-invitations) ---
 
   it('deleteUser(id) issues DELETE /admin/users/:id with no body and returns { id, deletedAt }', async () => {
     const fixedDeleteResult: DeleteUserResult = { id: 'user-1', deletedAt: '2026-07-14T10:00:00.000Z' }
@@ -637,7 +637,7 @@ describe('users', () => {
 })
 
 // ---------------------------------------------------------------------------
-// Invitations (T12, specs/006-user-invitations)
+// Invitations (T12, specs/20260713-user-invitations)
 // ---------------------------------------------------------------------------
 
 describe('invitations', () => {
@@ -810,10 +810,10 @@ describe('ApiError fallback mapping', () => {
 })
 
 // ---------------------------------------------------------------------------
-// Problem codes + access requests (T8, specs/023-signup-gate)
+// Problem codes + access requests (T8, specs/20261105-signup-gate)
 // ---------------------------------------------------------------------------
 
-describe('ApiError problem extensions (specs/023 T8)', () => {
+describe('ApiError problem extensions (specs/20261105-signup-gate T8)', () => {
   it('copies code and allowedDomains from the problem body', async () => {
     vi.mocked(apiFetch).mockResolvedValueOnce(
       makeResponse(422, {
@@ -858,7 +858,7 @@ const fixedAccessRequest: AccessRequestDetail = {
   invitationId: null,
 }
 
-describe('access requests client (specs/023 T8)', () => {
+describe('access requests client (specs/20261105-signup-gate T8)', () => {
   it('listAccessRequests() defaults to no query and returns the page', async () => {
     const page = { items: [fixedAccessRequest], page: 1, pageSize: 20, total: 1 }
     vi.mocked(apiFetch).mockResolvedValueOnce(okResponse(page))
@@ -954,7 +954,7 @@ describe('access requests client (specs/023 T8)', () => {
   })
 })
 
-describe('path ids are URL-encoded (specs/023 T14)', () => {
+describe('path ids are URL-encoded (specs/20261105-signup-gate T14)', () => {
   const hostile = 'a/../b?x=1#y'
   const encoded = encodeURIComponent(hostile)
 

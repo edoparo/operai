@@ -9,9 +9,9 @@ datasource db {
 
 // ─── Models ───────────────────────────────────────────────────────────────────
 
-// Notification (T2, specs/005-notification-center, plan.md §Data model).
+// Notification (T2, specs/20260713-notification-center, plan.md §Data model).
 //
-// recipientId = JWT `sub` (ADR-0005). v1: always == the caller's sub. NOT a
+// recipientId = JWT `sub` (ADR 20260703-jwt-resource-server-remote-jwks). v1: always == the caller's sub. NOT a
 // foreign key — notify-api is a resource server with no user table (users
 // live only in the auth DB); ownership is enforced by the sub predicate, like
 // estimai-api's Estimate.userId.
@@ -28,7 +28,7 @@ model Notification {
   recipientId String
   title       String
   body        String
-  // Optional Italian variant (specs/021-meetings, ADR-0065). Both set or both
+  // Optional Italian variant (specs/20261104-meetings, ADR 20261104-bilingual-system-notifications). Both set or both
   // null (the zod boundary requires the pair); the READER picks it from
   // <html lang>, English title/body stay the fallback.
   titleIt     String?
@@ -47,7 +47,7 @@ model Notification {
   @@map("notification")
 }
 
-// EmailDelivery (T1, specs/006-user-invitations, plan.md §Data model, ADR-0011).
+// EmailDelivery (T1, specs/20260713-user-invitations, plan.md §Data model, ADR 20260714-notify-api-email-channel-service-trust).
 //
 // A delivery-log row for notify-api's SECOND channel (email, alongside the
 // existing in-app/SSE channel above). Addresses a RAW email string — there is
@@ -60,7 +60,7 @@ model Notification {
 // future async delivery path — v1 never leaves a row in that state).
 // `providerId` is Resend's message id (present only when status == "sent").
 // `error` is a short failure reason (present only when status == "failed") —
-// never the raw Resend/network error object (ADR-0011 Risks: never log the
+// never the raw Resend/network error object (ADR 20260714-notify-api-email-channel-service-trust Risks: never log the
 // internal token or email content; this column follows the same posture).
 model EmailDelivery {
   id         String   @id @default(cuid())
@@ -75,7 +75,7 @@ model EmailDelivery {
   @@map("email_delivery")
 }
 
-// PushDevice (T3, specs/029-push-notifications, plan.md §Data model, ADR-0084).
+// PushDevice (T3, specs/20261111-push-notifications, plan.md §Data model, ADR 20261111-web-push-encrypted-payloads-not-fcm).
 //
 // One browser push subscription of one user. `userId` = JWT `sub`, NOT a foreign
 // key (no user table in this service, like Notification.recipientId). `endpoint`

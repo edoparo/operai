@@ -1,7 +1,7 @@
 /**
  * ExpenseLineRow — one expense line, in one of four modes (T16/T18,
- * specs/007-refund-service/tasks.md; **post-close UX amendment, specs/007,
- * 2026-07-17** — see `specs/007-refund-service/design.md`'s dated amendment
+ * specs/20260716-refund-service/tasks.md; **post-close UX amendment, specs/20260716-refund-service,
+ * 2026-07-17** — see `specs/20260716-refund-service/design.md`'s dated amendment
  * note for the full rationale):
  *
  *   - `edit` (Screen R2 `draft` variant): a committed line renders as a
@@ -55,7 +55,7 @@
  *     carries a full, row-identity `aria-label` ("Approved total for {date}
  *     · {motivo} · {currency}") per design.md's Accessibility section, since
  *     accounting tabs through many otherwise-identical inputs by role.
- *     **Line rejection (specs/007 amendment, 2026-11-10):** beside the input,
+ *     **Line rejection (specs/20260716-refund-service amendment, 2026-11-10):** beside the input,
  *     a "Reject line" trigger opens a `ConfirmDialog` that REQUIRES a reason;
  *     a rejected line replaces the input with its reason, who rejected it,
  *     and a "Restore line" action (reversible until the request is decided).
@@ -230,7 +230,7 @@ export default function ExpenseLineRow({
   const [approvedError, setApprovedError] = useState<string | null>(null)
 
   // `review` mode only — the line-rejection dialog (reason required) and the
-  // restore action (specs/007 amendment, 2026-11-10).
+  // restore action (specs/20260716-refund-service amendment, 2026-11-10).
   const [rejectOpen, setRejectOpen] = useState(false)
   const [rejectReason, setRejectReason] = useState('')
   const [rejectReasonError, setRejectReasonError] = useState<string | undefined>(undefined)
@@ -427,7 +427,7 @@ export default function ExpenseLineRow({
   // presentation everywhere they aren't the live editable form.
   // -------------------------------------------------------------------------
 
-  // specs/009-mileage-rate — `line.mileage` is present (non-null) only for a
+  // specs/20260720-mileage-rate — `line.mileage` is present (non-null) only for a
   // travel_km line; `?? null` also covers pre-feature test fixtures that
   // predate this field entirely (`RefundLine.mileage` is optional exactly
   // for that reason, see requestsApi.ts's own doc comment).
@@ -442,7 +442,7 @@ export default function ExpenseLineRow({
   // showing different answers for the same request would be worse than either
   // being wrong alone.
   const approvedAmount = describeApprovedAmount(line.requestedAmountCents, line.approvedTotalCents, line.currency)
-  // A line refused on its own (specs/007 amendment, 2026-11-10). Shown to the
+  // A line refused on its own (specs/20260716-refund-service amendment, 2026-11-10). Shown to the
   // reviewer while deciding and on the decided record; a still-submitted
   // request's employee view (`readOnly`) does not show an unfinished review.
   const rejection = line.rejection ?? null
@@ -522,7 +522,7 @@ export default function ExpenseLineRow({
             </dd>
           </dl>
         )}
-        {/* specs/009-mileage-rate AC-6.4 — the applied rate + valid-from.
+        {/* specs/20260720-mileage-rate AC-6.4 — the applied rate + valid-from.
             `appliedRate` is non-null only once a travel_km line has ever been
             submitted under this feature (Decision 1); a legacy pre-feature
             submitted line omits this pair entirely (graceful degradation —
@@ -824,7 +824,7 @@ export default function ExpenseLineRow({
           )}
         </Field>
 
-        {/* specs/009-mileage-rate AC-1.1: for travel_km, Amount is replaced by the
+        {/* specs/20260720-mileage-rate AC-1.1: for travel_km, Amount is replaced by the
             read-only computed breakdown (MileageAmountField) — not merely disabled. */}
         {showKm ? (
           <div className="flex flex-col gap-1">
@@ -862,7 +862,7 @@ export default function ExpenseLineRow({
           )}
         </Field>
 
-        {/* specs/009-mileage-rate AC-1.6: for travel_km, currency is entity-designated,
+        {/* specs/20260720-mileage-rate AC-1.6: for travel_km, currency is entity-designated,
             never independently selectable — the select is absent, not disabled. */}
         {!showKm && (
           <Field label={composerStrings.currencyLabel} error={validation.errorFor('currency')} required>

@@ -1,10 +1,10 @@
 /**
  * A meeting's transcript as a prompt sees it, and the names its speakers carry there
- * (specs/021-meetings plan.md § Summaries and ask-the-meeting; AC-7.10, AC-9.2).
+ * (specs/20261104-meetings plan.md § Summaries and ask-the-meeting; AC-7.10, AC-9.2).
  *
  * SPEAKER NAMES. A speaker key (`s1`, `s2`, ...) is shown as, in order: the creator's free-text
  * label, an external participant's name, an Operai participant's display name, else "Speaker n".
- * An Operai participant's name is looked up LIVE from `auth` with the caller's own JWT (ADR-0039,
+ * An Operai participant's name is looked up LIVE from `auth` with the caller's own JWT (ADR 20260807-live-identity-resolution-by-id-fail-soft,
  * soft: an outage or a deactivated user simply leaves the label as "Speaker n"). Two callers:
  *   - a summary REQUEST (generate / regenerate / retry) has the caller's token, so it resolves the
  *     names once and stores them in the summary's snapshot (`template.speakerNames`); the

@@ -1,6 +1,6 @@
 /**
- * The three guard stacks every meetings-api route uses (specs/021-meetings,
- * plan.md § Shape, ADR-0058; AC-10.6, AC-1.4, AC-5.10).
+ * The three guard stacks every meetings-api route uses (specs/20261104-meetings,
+ * plan.md § Shape, ADR 20261104-meetings-tool-shape-visibility-by-participation; AC-10.6, AC-1.4, AC-5.10).
  *
  *   selfScoped       JWT only, plus an OPTIONAL authz resolve that never refuses.
  *                    Reading a meeting one created or was invited to must not
@@ -15,7 +15,7 @@
  * copies a sub-app's `use("*")` onto the whole app (crm-api's rule).
  *
  * No role ever grants reading: visibility is creator / participant / host reader
- * (ADR-0058) and lives in the handlers, not here.
+ * (ADR 20261104-meetings-tool-shape-visibility-by-participation) and lives in the handlers, not here.
  */
 
 import type { MiddlewareHandler } from "hono";

@@ -1,9 +1,9 @@
 /**
- * Rule resolution (T10, specs/015-hardware-inventory; AC-6.2, ADR-0046).
+ * Rule resolution (T10, specs/20261006-hardware-inventory; AC-6.2, ADR 20261006-depreciation-derived-on-read-closed-years-snapshotted).
  *
  * An asset stores no rule. Its rule is the latest one for its entity whose
  * `effectiveFrom` is on or before its purchase date, resolved on every read
- * (the `resolveEffectiveRate` idiom of ADR-0023). A rule appended later with
+ * (the `resolveEffectiveRate` idiom of ADR 20260720-mileage-rate-model-snapshot-admin-ui-composition). A rule appended later with
  * `effectiveFrom = D` therefore changes the answer only for purchase dates
  * `>= D`, with no recomputation job. Ties on `effectiveFrom` go to the later
  * `createdAt`, then to the larger id so the answer is deterministic.

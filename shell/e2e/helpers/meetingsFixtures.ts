@@ -1,5 +1,5 @@
 /**
- * Test-only fixture bridge for specs/021-meetings e2e (T86).
+ * Test-only fixture bridge for specs/20261104-meetings e2e (T86).
  *
  * Meetings access is record-based (creator / participant / host reader, never a
  * role) plus ONE capability, `meetings:access`, which the baseline `employee`
@@ -137,7 +137,7 @@ export interface Person extends SeededSession {
 /**
  * Seeds a session for a new `@operai.test` user and leaves it with the persona's
  * roles. The token is minted AFTER the role change (it carries identity only,
- * ADR-0007, so this is belt and braces).
+ * ADR 20260713-authz-hand-rolled-rbac-abac-epoch-claims, so this is belt and braces).
  */
 export async function seedPerson(label: string, persona: MeetingsPersona, runId: string): Promise<Person> {
   const name = `Mtg ${label} ${runId}`

@@ -1,6 +1,6 @@
 /**
  * Pure, DB-free mapping/grouping helpers for the compiled-batch surfaces
- * (T3, specs/008-refund-monthly-processing).
+ * (T3, specs/20260719-refund-monthly-processing).
  *
  * Reuses `computeSubtotals` (requests.service.ts, 007's "never blended"
  * per-currency rule) as the ONE place money is summed, both for the
@@ -12,7 +12,7 @@
  * `scopeForReviewAction`/`requestInScope` are reused VERBATIM from
  * review.service.ts / authz/conditions.ts — candidate-set visibility must
  * never diverge from the review queue's own entity-scope predicate
- * (ADR-0015 Risks, carried forward by this feature per plan.md).
+ * (ADR 20260716-entity-scoped-abac-refund-api Risks, carried forward by this feature per plan.md).
  */
 
 import { requestInScope, type EntityScope } from "../authz/conditions";

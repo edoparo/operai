@@ -1,14 +1,14 @@
 /**
  * Pure, DB-free mapping + access-predicate helpers shared by every
  * request/line/attachment/lifecycle route handler (T7-T10,
- * specs/007-refund-service).
+ * specs/20260716-refund-service).
  *
  * Kept separate from requests.repo.ts (Prisma I/O) so the response-shaping
  * and authorization-predicate logic can be unit tested without a database,
  * and so lines.routes.ts / attachments.routes.ts / lifecycle.routes.ts can
  * reuse the SAME `canReadRequest` predicate that GET /requests/:id uses —
  * the plan is explicit that queue visibility and record-level access must
- * never desync (ADR-0015 Risks).
+ * never desync (ADR 20260716-entity-scoped-abac-refund-api Risks).
  */
 
 import type { AuthzContext } from "../auth/authz.middleware";
@@ -42,7 +42,7 @@ export interface LineRow {
   readonly requestedAmountCents: number;
   readonly km: number | null;
   readonly approvedTotalCents: number | null;
-  // specs/007 amendment (2026-11-10) — line rejection. Optional because the
+  // specs/20260716-refund-service amendment (2026-11-10) — line rejection. Optional because the
   // lighter list/queue/batch selects never read it; `undefined` reads as
   // "not rejected", exactly like `null`.
   readonly rejectionReason?: string | null;
@@ -54,7 +54,7 @@ export interface LineRow {
     readonly contentType: string;
     readonly sizeBytes: number;
   }[];
-  // ─── specs/009-mileage-rate: applied-rate snapshot (Decision 1) ──────────
+  // ─── specs/20260720-mileage-rate: applied-rate snapshot (Decision 1) ──────────
   // The FROZEN values written inside the submit transaction (T6) — non-null
   // only once the containing request has ever reached `submitted` AND this
   // line's rate was successfully resolved at that moment. `undefined` is
@@ -65,7 +65,7 @@ export interface LineRow {
   readonly appliedRateValidFrom?: Date | null;
   // Populated ONLY by requests/mileageHydration.ts for a DRAFT travel_km
   // line — the entity's CURRENTLY effective rate for this line's (entity,
-  // date), live-recomputed on every read (Decision 1, ADR-0013). `null`
+  // date), live-recomputed on every read (Decision 1, ADR 20260714-invitation-lifecycle-derived-expiry-state). `null`
   // means no rate is in effect (AC-2.2); `undefined` means "not resolved for
   // this row" (non-draft, non-travel_km, or a caller that doesn't hydrate).
   readonly liveRate?: { readonly ratePerKmMicros: number; readonly validFrom: string } | null;
@@ -84,7 +84,7 @@ export interface RequestRow {
   readonly createdAt: Date;
   readonly updatedAt: Date;
   readonly lines: readonly LineRow[];
-  // AC-5.2 (specs/008-refund-monthly-processing): the request's CURRENT
+  // AC-5.2 (specs/20260719-refund-monthly-processing): the request's CURRENT
   // batch claim (RefundRequest.batchId → RefundBatch), if any — a `compiled`
   // (not yet paid) batch has `paidAt`/`paidByEmail` still null, so no extra
   // status gate is needed at the query layer; mapRequestDetail still asserts
@@ -148,7 +148,7 @@ const isoDateOnly = (d: Date): string => {
 };
 
 /**
- * Builds the `mileage` breakdown for a travel_km line (specs/009-mileage-rate,
+ * Builds the `mileage` breakdown for a travel_km line (specs/20260720-mileage-rate,
  * AC-1.8, AC-2.2, AC-3.x, AC-6.4) — `null` for any other type.
  *
  * `isDraft` (the CONTAINING REQUEST's status, not the line's own state) is
@@ -278,7 +278,7 @@ export function mapRequestListItem(request: RequestRow): RequestListItem {
   };
 }
 
-// ─── Shared access predicate (ADR-0014/0015) ───────────────────────────────
+// ─── Shared access predicate (ADR 20260716-refund-api-authorization-enforcing-resource-server/0015) ───────────────────────────────
 //
 // Backs every "/requests/:id and its subroutes" denial (GET detail, the
 // attachment signed-GET mint) that must be a record-level 404, NEVER a

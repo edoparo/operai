@@ -1,5 +1,5 @@
 /**
- * Regression test for security-review fix #1 (specs/006-user-invitations
+ * Regression test for security-review fix #1 (specs/20260713-user-invitations
  * bounded fix round): the request logger must never write a query string —
  * only method + path + status + duration — so a live invite token in
  * `GET /invite?id=<invId>&token=<raw>` is never persisted to application logs.

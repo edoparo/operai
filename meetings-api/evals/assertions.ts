@@ -1,5 +1,5 @@
 /**
- * The deterministic assertions (ADR-0067 point 6). Written against the SPEC, not against the
+ * The deterministic assertions (ADR 20261104-ai-output-structured-validated-plain-text point 6). Written against the SPEC, not against the
  * sanitizer: the role-banner, URL and markup checks are independent of `sanitize.ts` (they fold
  * Unicode and ignore invisible characters, which is what an attacker's output would exploit), so
  * a weakness of the implementation shows up here instead of being re-derived by it.

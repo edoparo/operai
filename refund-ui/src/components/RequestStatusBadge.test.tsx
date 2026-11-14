@@ -1,9 +1,9 @@
 /**
  * @vitest-environment jsdom
  *
- * Component tests for RequestStatusBadge (T15, specs/007-refund-service,
+ * Component tests for RequestStatusBadge (T15, specs/20260716-refund-service,
  * design.md F3 step 2 / AC-3.4; +`paid` variant, T9,
- * specs/008-refund-monthly-processing/tasks.md).
+ * specs/20260719-refund-monthly-processing/tasks.md).
  *
  * Covers: all five variants render a glyph AND a text label (never
  * color-only), `submitted` reads "Awaiting decision" — never confusable with

@@ -1,5 +1,5 @@
 /**
- * strings.sharing — account-based estimate sharing (specs/013): the toolbar
+ * strings.sharing — account-based estimate sharing (specs/20260807-estimate-sharing): the toolbar
  * entry, the collaborators dialog (owner and member modes), its errors, the
  * identity placeholders and the access-level badge. The Italian follows
  * design.md's "## i18n" table where it had one.

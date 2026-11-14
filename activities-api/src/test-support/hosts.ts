@@ -1,5 +1,5 @@
 /**
- * Scriptable test hosts for activities-api tests (specs/028-activities plan.md § Test strategy;
+ * Scriptable test hosts for activities-api tests (specs/20261110-activities plan.md § Test strategy;
  * the meetings-api `fakeHost` pattern). ONE `Bun.serve` that plays both real hosts over HTTP,
  * through the same client code as production, with no host-specific path in activities-api:
  *
@@ -49,7 +49,7 @@ export interface HostMode {
   /**
    * The failure above applies only to a call that names ids (the label call); the cheap
    * "may I read at all?" probe (`ids: []`) is answered normally. For a host that answers the
-   * probe and then fails (specs/028 AC-7.5).
+   * probe and then fails (specs/20261110-activities AC-7.5).
    */
   onlyWhenIdsAsked?: boolean;
 }

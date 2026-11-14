@@ -1,8 +1,8 @@
 /**
- * The transient processing bucket (specs/021-meetings plan.md § Amendment 2026-11-05 G-2, ADR-0069; AC-4.5,
+ * The transient processing bucket (specs/20261104-meetings plan.md § Amendment 2026-11-05 G-2, ADR 20261105-meetings-ai-providers-google-cloud-eu; AC-4.5,
  * AC-4.6, AC-4.9, AC-4.12): the one place Google can read audio from. Chirp 3 `BatchRecognize` accepts only
  * `gs://` URIs, so each `transcribe` attempt stages its parts here and Speech writes its output beside them.
- * Bytes live here only while one attempt runs; Railway's bucket stays the only place audio is KEPT (ADR-0063).
+ * Bytes live here only while one attempt runs; Railway's bucket stays the only place audio is KEPT (ADR 20261104-audio-retention-bucket-lifecycle-verified-at-startup).
  *
  *   transcribe/<meetingId>/<attempt>/in/<k>.ogg         part k, uploaded once, deleted when the part settles
  *   transcribe/<meetingId>/<attempt>/out/<k>-<t>/...    what Speech writes for try t of part k (H-4: its own

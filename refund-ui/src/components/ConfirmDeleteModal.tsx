@@ -1,15 +1,15 @@
 /**
  * ConfirmDeleteModal — accessible confirmation dialog for a destructive
- * refund-ui action ("Delete request" — T15, specs/007-refund-service/tasks.md,
+ * refund-ui action ("Delete request" — T15, specs/20260716-refund-service/tasks.md,
  * design.md F1 step 7: "'Delete request' → ConfirmDeleteModal (ported, own
  * copy) … used as-is"; Component inventory: "ConfirmDeleteModal — Reuse
  * (ported pattern) — admin-ui/src/components/ConfirmDeleteModal.tsx").
  *
- Now a thin adapter over @operai/ui's `ConfirmDialog` (ADR-0050), which
+ Now a thin adapter over @operai/ui's `ConfirmDialog` (ADR 20261031-shared-ui-library-consumed-as-source), which
  * owns the frame, the focus trap, the keyboard contract and the look; this
  * file keeps refund-ui's props, copy and test ids so no call site changed.
  * It replaced a re-authoring of `admin-ui/src/components/ConfirmDeleteModal.tsx`
- * (a remote cannot import another remote's source, ADR-0006 — the reason the
+ * (a remote cannot import another remote's source, ADR 20260709-suite-frontend-module-federation — the reason the
  * shared library exists). Generalised to any named entity (here: a draft
  * refund request) via `entityLabel` + `itemName`. Used as-is by T16's "Delete request" flow —
  * design.md does not ask for an extended variant here (unlike `ApproveDialog`,
@@ -35,10 +35,10 @@
  *   • deleting  — "Deleting…" + spinner, both buttons disabled, not dismissible
  *   • error     — inline error text between body and footer; both buttons re-enabled
  *
- * T18 extension (specs/007-refund-service/tasks.md, design.md Component
+ * T18 extension (specs/20260716-refund-service/tasks.md, design.md Component
  * inventory: "ApproveDialog — Reuse (ported, extended) — ConfirmDeleteModal's
  * shell, ported + a new non-destructive tone='positive' variant … the same
- * kind of backward-compatible prop extension specs/006 already applied to
+ * kind of backward-compatible prop extension specs/20260713-user-invitations already applied to
  * this component's body prop"): `tone` (`positive` = the
  * library's `primary` confirm button, `destructive` = `danger`)/`title`/`confirmLabel`/
  * `confirmingLabel`/`testIdPrefix` are all optional, defaulting to this

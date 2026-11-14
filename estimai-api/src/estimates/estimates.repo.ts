@@ -1,7 +1,7 @@
 /**
  * Prisma data-access layer for the Estimates API.
- * (T4, specs/001-estimate-persistence; widened for sharing in T6,
- * specs/013-estimate-sharing — see plan.md "Access resolution inside
+ * (T4, specs/20260606-estimate-persistence; widened for sharing in T6,
+ * specs/20260807-estimate-sharing — see plan.md "Access resolution inside
  * estimai-api" / the per-call-site table.)
  *
  * SECURITY: every function is scoped by `userId` derived from the verified JWT `sub`.
@@ -14,7 +14,7 @@
  *  - getById: where: { id } gated by resolveAccess() — ANY relationship (owner, editor,
  *             or viewer) is sufficient to read; no relationship → 404 (AC-1.6)
  *  - update:  version-CAS + editor-collaborator predicate, ONE statement (T7,
- *             specs/013): updateMany({ where: { id, version, OR: [owner,
+ *             specs/20260807-estimate-sharing): updateMany({ where: { id, version, OR: [owner,
  *             editor-collaborator] }, data: { ..., version: increment(1) } }).
  *             A viewer's write can never match the OR, so `count === 0` for a
  *             viewer regardless of whether the supplied version is current —
@@ -22,7 +22,7 @@
  *  - delete:  deleteMany({ where: { id, userId } }) unchanged (owner-only, AC-3.3);
  *             count===0 now branches through resolveAccess() to distinguish
  *             "no relationship" (404) from "collaborator, not owner" (403 owner_only)
- *             — the denial taxonomy in plan.md / ADR-0037.
+ *             — the denial taxonomy in plan.md / ADR 20260807-denial-taxonomy-shared-records-403-vs-404.
  *
  * This file does NOT call `auth` for display-identity resolution — that is an
  * HTTP round trip requiring the caller's Authorization header, which lives in
@@ -91,7 +91,7 @@ export interface EstimateListRow {
   readonly access: WireAccess;
   readonly ownerId: string;
   readonly closedAt: string | null;
-  /** The CRM deal this estimate is linked to (pushed by crm-api, ADR-0076); null when unlinked. */
+  /** The CRM deal this estimate is linked to (pushed by crm-api, ADR 20261108-crm-pushes-deal-links-to-estimai); null when unlinked. */
   readonly crmDealId: string | null;
 }
 
@@ -171,11 +171,11 @@ export const listEstimates = (
     try: async () => {
       const rows = await db.estimate.findMany({
         where: {
-          // `whose=all` (specs/024) is the oversight read: the route has already
+          // `whose=all` (specs/20261108-estimate-list-oversight) is the oversight read: the route has already
           // checked `estimate:read-all`. Rows the caller owns or collaborates on keep
           // their level; every other row is `oversight`.
           ...(whose === "all" ? {} : { OR: [{ userId }, { collaborators: { some: { userId } } }] }),
-          // specs/024: absent = both (the import offer needs the whole account).
+          // specs/20261108-estimate-list-oversight: absent = both (the import offer needs the whole account).
           ...(status === "open" ? { closedAt: null } : {}),
           ...(status === "closed" ? { closedAt: { not: null } } : {}),
         },
@@ -218,7 +218,7 @@ export const listEstimates = (
  * never level-gated, only writes/deletes/management are).
  *
  * Returns NotFoundError when the id does not exist OR the caller has no
- * relationship to it — the two cases are indistinguishable (AC-1.6, ADR-0005).
+ * relationship to it — the two cases are indistinguishable (AC-1.6, ADR 20260703-jwt-resource-server-remote-jwks).
  *
  * `collaboratorCount` is populated only when the caller is the owner.
  */
@@ -261,7 +261,7 @@ export const getEstimateById = (
 
 /**
  * Read an estimate with NO relationship to it, for a caller the route has
- * already verified holds `estimate:read-all` (specs/024, AC-1.4). The row
+ * already verified holds `estimate:read-all` (specs/20261108-estimate-list-oversight, AC-1.4). The row
  * carries `access: "oversight"` and no `collaboratorCount`. Call it only after
  * `getEstimateById` answered NotFound: an owner or collaborator keeps their own
  * level (AC-1.5). A nonexistent id is NotFound, as everywhere.
@@ -282,7 +282,7 @@ export const getEstimateAsOversight = (
 
 /**
  * Update an existing estimate in place via optimistic concurrency (T7,
- * specs/013-estimate-sharing, ADR-0038 — amends ADR-0004's last-write-wins).
+ * specs/20260807-estimate-sharing, ADR 20260807-optimistic-concurrency-version-if-match-cas-amends-0004 — amends ADR 20260703-estimate-persistence-jsonb-document's last-write-wins).
  *
  * ONE STATEMENT, no TOCTOU window (plan.md "Optimistic concurrency (US-4)"):
  * the access predicate (owner OR an editor-level collaborator grant) lives
@@ -309,7 +309,7 @@ export const getEstimateAsOversight = (
  * reported (plan.md's fixed evaluation order 404/403 → 409, so a stranger's
  * probe — even carrying a syntactically valid `If-Match` — can never elicit
  * a 409 that would confirm the record exists):
- *   - no relationship at all      → NotFoundError (404, AC-1.6/ADR-0005)
+ *   - no relationship at all      → NotFoundError (404, AC-1.6/ADR 20260703-jwt-resource-server-remote-jwks)
  *   - a relationship, but viewer  → ForbiddenError code:"insufficient_access" (403, AC-3.1)
  *   - owner or editor, estimate closed → EstimateStateError code:"estimate_closed" (409)
  *   - owner or editor             → the version must have been stale → ConflictError (409)
@@ -425,7 +425,7 @@ export const updateEstimate = (
  * Delete an estimate by id. The delete predicate stays owner-only, unchanged
  * (AC-3.3/AC-9.1 — only the owner may delete; collaborators cascade away).
  *
- * count === 0 now branches through `resolveAccess` (T6, ADR-0037):
+ * count === 0 now branches through `resolveAccess` (T6, ADR 20260807-denial-taxonomy-shared-records-403-vs-404):
  *   - no relationship at all         → NotFoundError (404, AC-1.6)
  *   - a relationship, but not owner  → ForbiddenError code:"owner_only" (403)
  * count > 0 → success (void).
@@ -449,7 +449,7 @@ export const deleteEstimate = (
 
     // count === 0 — either no relationship at all, or a collaborator (viewer
     // or editor) attempted an owner-only operation. Distinguish via
-    // resolveAccess (T6, ADR-0037): 404 vs 403 owner_only.
+    // resolveAccess (T6, ADR 20260807-denial-taxonomy-shared-records-403-vs-404): 404 vs 403 owner_only.
     const resolved = yield* resolveAccess(id, userId);
     if (resolved === null) {
       return yield* Effect.fail(new NotFoundError({ message: `Estimate ${id} not found` }));

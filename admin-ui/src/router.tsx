@@ -13,9 +13,9 @@ import NotFoundPage from './pages/NotFoundPage'
 
 // ---------------------------------------------------------------------------
 // createAppRouter — factory, not a module-scope singleton (T14,
-// specs/004-auth-roles-permissions/tasks.md — "give admin-ui its inner
+// specs/20260713-auth-roles-permissions/tasks.md — "give admin-ui its inner
 // TanStack Router (basepath `/admin`, mirroring estimai-ui's `createAppRouter`
-// factory)"). Mirrors estimai-ui/src/router.tsx's T12 (specs/003-suite-shell)
+// factory)"). Mirrors estimai-ui/src/router.tsx's T12 (specs/20260709-suite-shell)
 // factory exactly, same shape, new routes:
 //
 //   - Standalone (dev/test bootstrap, src/main.tsx): createAppRouter() with
@@ -31,7 +31,7 @@ import NotFoundPage from './pages/NotFoundPage'
 // route-tree state, same reasoning as estimai-ui's router.
 //
 // No `_authed` (or `access`) guard here either — same rationale as
-// estimai-ui's router (specs/003-suite-shell, AC-2.3) and design.md's F7:
+// estimai-ui's router (specs/20260709-suite-shell, AC-2.3) and design.md's F7:
 // the shell's own `_authed` guard, and (per a later task of this feature) a
 // per-tool `access` guard, already run before admin-ui is ever mounted. A
 // second, independent guard here would be redundant; a mid-session 403 from
@@ -68,7 +68,7 @@ export function createAppRouter(basepath?: string) {
     component: RolesPage,
   })
 
-  // Screen A2 (Role editor / rule composer — T18, specs/004-auth-roles-permissions).
+  // Screen A2 (Role editor / rule composer — T18, specs/20260713-auth-roles-permissions).
   // A sibling of `rolesRoute` under the same root, exactly like estimai-ui's
   // `/estimates` + `/estimates/$estimateId` pair (src/router.tsx) — not a
   // nested child of `rolesRoute`, since neither route renders the other's
@@ -117,7 +117,7 @@ export function createAppRouter(basepath?: string) {
     component: UserDetail,
   })
 
-  // Screen U2 (design.md "Invitations list", T10/T12, specs/006-user-invitations)
+  // Screen U2 (design.md "Invitations list", T10/T12, specs/20260713-user-invitations)
   // — the Users section's second tab (UsersSubNav), reached at
   // `/users/invitations`. A flat sibling of `usersRoute`/`userDetailRoute`
   // under the same root, same shape as every other route in this tree — NOT
@@ -136,7 +136,7 @@ export function createAppRouter(basepath?: string) {
     component: InvitationsPage,
   })
 
-  // Access requests (T9, specs/023) — the waiting list, third Users tab. Same
+  // Access requests (T9, specs/20261105-signup-gate) — the waiting list, third Users tab. Same
   // static-vs-dynamic precedence as `/users/invitations` above: the literal
   // segment wins over `/users/$id` regardless of order (asserted in router.test.tsx).
   const accessRequestsRoute = createRoute({
@@ -147,7 +147,7 @@ export function createAppRouter(basepath?: string) {
 
   // The mileage rates and the accounting distribution email used to live here
   // at `/rates`; they moved to refund-ui's Settings tab (`/refund/settings`) on
-  // 2026-11-13 (ADR-0023 amendment). The old path is left to the not-found page.
+  // 2026-11-13 (ADR 20260720-mileage-rate-model-snapshot-admin-ui-composition amendment). The old path is left to the not-found page.
 
   // ---------------------------------------------------------------------------
   // Route tree

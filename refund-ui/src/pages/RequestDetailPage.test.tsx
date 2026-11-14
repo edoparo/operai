@@ -2,7 +2,7 @@
  * @vitest-environment jsdom
  *
  * Component tests for RequestDetailPage — Screen R2 (T16,
- * specs/007-refund-service/tasks.md). `../lib/requestsApi` is mocked at the
+ * specs/20260716-refund-service/tasks.md). `../lib/requestsApi` is mocked at the
  * module level (keeping the real `SubmitValidationApiError`/`ApiError`
  * classes via `importOriginal`). RequestDetailPage renders real `<Link>`s
  * and calls `useNavigate` (delete-request success), so — mirroring
@@ -233,7 +233,7 @@ describe('RequestDetailPage — draft variant', () => {
   })
 })
 
-describe('RequestDetailPage — draft: summary rows + confirm-on-delete (post-close UX amendment, specs/007)', () => {
+describe('RequestDetailPage — draft: summary rows + confirm-on-delete (post-close UX amendment, specs/20260716-refund-service)', () => {
   const withTwoLines = { ...baseRequest, lines: [oneLine, { ...oneLine, id: 'line-2', motivo: 'Taxi' }] }
 
   it('shows an "Expense lines (N)" heading above the committed lines, and the composer stays visually/structurally separate', async () => {
@@ -474,7 +474,7 @@ describe('RequestDetailPage — rejected variant', () => {
   })
 })
 
-describe('RequestDetailPage — paid variant (T13, specs/008-refund-monthly-processing)', () => {
+describe('RequestDetailPage — paid variant (T13, specs/20260719-refund-monthly-processing)', () => {
   it('shows the "Paid on <date>" line, requested+approved per line, no MonthlyProcessingNote, and no "New request" link', async () => {
     const paidRequest = {
       ...baseRequest,
@@ -507,7 +507,7 @@ describe('RequestDetailPage — attachment wiring (T17)', () => {
 
     renderRequestDetailPage()
     await waitFor(() => expect(screen.getByTestId('row-line-1-edit')).not.toBeNull())
-    // The attach input only exists once the summary row is expanded (post-close amendment, specs/007).
+    // The attach input only exists once the summary row is expanded (post-close amendment, specs/20260716-refund-service).
     fireEvent.click(screen.getByTestId('row-line-1-edit'))
     await waitFor(() => expect(screen.getByTestId('attachment-input-line-1')).not.toBeNull())
 

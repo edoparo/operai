@@ -1,23 +1,23 @@
 /**
- * `POST /meeting-host/v1/resolve` (specs/021 T7; plan.md § Host integration
- * contract, ADR-0059): the host half of "may THIS caller open these entities?".
+ * `POST /meeting-host/v1/resolve` (specs/20261104-meetings T7; plan.md § Host integration
+ * contract, ADR 20261104-meeting-host-contract-resolve-and-notices): the host half of "may THIS caller open these entities?".
  *
  * Authenticated with the CALLER's own JWT, forwarded verbatim by meetings-api
- * (ADR-0035 model: no new secret), and resolved live against `auth` on every
- * call (ADR-0014): an `auth` outage is a 503, never an `open`. The route
+ * (ADR 20260807-third-party-app-access-decision-endpoint-forwarded-jwt model: no new secret), and resolved live against `auth` on every
+ * call (ADR 20260716-refund-api-authorization-enforcing-resource-server): an `auth` outage is a 503, never an `open`. The route
  * deliberately does NOT carry `requireCapability(crm:access)`: a host answers
  * `closed` (a 200), not 403, to a caller who may not open the entity, so one
  * call answers a mixed batch.
  *
  *   crm:access held    -> existing deal: `open` + title + href + hostVisible;
  *                         unknown id: `missing`. Reads are open to every holder
- *                         (ADR-0052), so entity scope plays no part here.
+ *                         (ADR 20261101-crm-tool-shape-and-authorization), so entity scope plays no part here.
  *   crm:access absent  -> existing deal: `closed`; unknown id: `missing`. Neither
  *                         carries a title (the accepted existence oracle: ids
  *                         are unguessable cuids and nothing about the deal leaks).
  *
  * `hostVisible` is what this host requires for a host-visible meeting:
- * `deal:financials` (AC-5.6, ADR-0054). It is only ever present on `open`.
+ * `deal:financials` (AC-5.6, ADR 20261101-crm-financial-visibility-permission). It is only ever present on `open`.
  */
 
 import { OpenAPIHono, createRoute, z } from "@hono/zod-openapi";
@@ -30,7 +30,7 @@ import { db } from "../lib/db";
 import { commonErrors } from "../lib/http";
 import { validationHook } from "../lib/problem";
 
-/** The most ids one call may ask about (ADR-0059). */
+/** The most ids one call may ask about (ADR 20261104-meeting-host-contract-resolve-and-notices). */
 export const MAX_RESOLVE_IDS = 25;
 
 const ResolveBody = z

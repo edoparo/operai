@@ -1,5 +1,5 @@
 /**
- * Turning a host reference into a verified one (specs/021-meetings plan.md § Host
+ * Turning a host reference into a verified one (specs/20261104-meetings plan.md § Host
  * integration contract; AC-1.1, AC-1.5, AC-1.6, AC-1.7, AC-11.6). Creating a meeting with a
  * host, relinking one, and `GET /hosts/:app/:type/:id` all ask the same question, so they
  * share this one answer:

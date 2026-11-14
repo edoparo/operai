@@ -1,8 +1,8 @@
 /**
  * systemAuth middleware — the only credential of estimai-api's `/system` route
- * (specs/024 T4, AC-3.5; ADR-0076, mechanism of ADR-0044/0049). Copied from
+ * (specs/20261108-estimate-list-oversight T4, AC-3.5; ADR 20261108-crm-pushes-deal-links-to-estimai, mechanism of ADR 20261006-scoped-service-jwt-fourth-notify-caller/0049). Copied from
  * crm-api/src/auth/systemAuth.middleware.ts — the repo has no workspace
- * (ADR-0003), so each resource server owns its copy.
+ * (ADR 20260703-estimai-api-bun-hono-typescript), so each resource server owns its copy.
  *
  * The ONLY credential on a `/system/*` route is a scoped service JWT minted by
  * `auth` (`POST /system/service-token`): RS256 via the suite JWKS, issuer

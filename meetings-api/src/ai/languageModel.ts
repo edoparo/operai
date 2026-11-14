@@ -1,7 +1,7 @@
 /**
- * The language-model seam (specs/021-meetings plan.md § AI providers and § Summaries
- * and ask-the-meeting; ADR-0061, ADR-0067; AC-7.10). One real implementation
- * (`vertexClaude.ts`, Claude on Vertex AI in the EU, ADR-0069) and a fake
+ * The language-model seam (specs/20261104-meetings plan.md § AI providers and § Summaries
+ * and ask-the-meeting; ADR 20261104-meetings-ai-providers-eu-zero-retention, ADR 20261104-ai-output-structured-validated-plain-text; AC-7.10). One real implementation
+ * (`vertexClaude.ts`, Claude on Vertex AI in the EU, ADR 20261105-meetings-ai-providers-google-cloud-eu) and a fake
  * (`fakeLanguageModel.ts`); a fallback provider would sit behind the same interface.
  *
  * STRUCTURED OUTPUT ONLY. `complete` offers the model ONE "tool" (not forced, plan H-8), and that
@@ -31,7 +31,7 @@ export interface OutputSchema {
   readonly jsonSchema: Readonly<Record<string, unknown>>;
 }
 
-/** The names of the two forced tools (ADR-0067); the prompt builders and the fake share them. */
+/** The names of the two forced tools (ADR 20261104-ai-output-structured-validated-plain-text); the prompt builders and the fake share them. */
 export const SUMMARY_TOOL = "submit_summary";
 export const ANSWER_TOOL = "submit_answer";
 

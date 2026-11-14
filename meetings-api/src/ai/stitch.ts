@@ -1,5 +1,5 @@
 /**
- * Stitching the parts of one transcript (specs/021-meetings plan.md § Amendment 2026-11-05 #2, H-2; AC-6.2,
+ * Stitching the parts of one transcript (specs/20261104-meetings plan.md § Amendment 2026-11-05 #2, H-2; AC-6.2,
  * AC-6.13, AC-6.14, AC-6.15, AC-6.17).
  *
  * A long recording is transcribed in OVERLAPPING parts, each with its own speaker numbering. This module turns the

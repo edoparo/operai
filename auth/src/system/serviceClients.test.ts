@@ -1,6 +1,6 @@
 /**
  * Unit tests for `SERVICE_CLIENTS` parsing and client authentication (T4,
- * specs/015-hardware-inventory — ADR-0044). Pure: no DB, no env, no network.
+ * specs/20261006-hardware-inventory — ADR 20261006-scoped-service-jwt-fourth-notify-caller). Pure: no DB, no env, no network.
  */
 
 import { describe, expect, test } from "bun:test";
@@ -82,7 +82,7 @@ describe("parseServiceClients", () => {
     ]);
   });
 
-  test("a client holding deal-link-notices.send parses, beside notifications.push (specs/024)", () => {
+  test("a client holding deal-link-notices.send parses, beside notifications.push (specs/20261108-estimate-list-oversight)", () => {
     const result = parseServiceClients(
       raw({ "crm-api": { secret: SECRET_A, scope: "notifications.push deal-link-notices.send" } }),
     );
@@ -91,7 +91,7 @@ describe("parseServiceClients", () => {
     expect(result.clients.get("crm-api")?.scopes).toEqual(["notifications.push", "deal-link-notices.send"]);
   });
 
-  test("a client holding host-notices.send parses, alone or beside notifications.push (specs/021)", () => {
+  test("a client holding host-notices.send parses, alone or beside notifications.push (specs/20261104-meetings)", () => {
     const result = parseServiceClients(
       raw({
         "meetings-api": { secret: SECRET_A, scope: "notifications.push host-notices.send" },
@@ -121,14 +121,14 @@ describe("parseServiceClients", () => {
     expect(scopes).not.toContain("emails.send");
   });
 
-  test("crm.companies.read is an accepted scope: a projects-api client holding it parses (specs/025)", () => {
+  test("crm.companies.read is an accepted scope: a projects-api client holding it parses (specs/20261103-projects)", () => {
     const result = parseServiceClients(raw({ "projects-api": { secret: SECRET_A, scope: "crm.companies.read" } }));
     expect(result.ok).toBe(true);
     if (!result.ok) return;
     expect(result.clients.get("projects-api")?.scopes).toEqual(["crm.companies.read"]);
   });
 
-  test("the documented projects-api entry is exactly crm.companies.read: no push, no email (specs/025)", () => {
+  test("the documented projects-api entry is exactly crm.companies.read: no push, no email (specs/20261103-projects)", () => {
     const documented = DOCUMENTED_CLIENT_SCOPES["projects-api"];
     const result = parseServiceClients(raw({ "projects-api": { secret: SECRET_A, scope: documented } }));
     expect(result.ok).toBe(true);
@@ -136,7 +136,7 @@ describe("parseServiceClients", () => {
     expect(result.clients.get("projects-api")?.scopes).toEqual(["crm.companies.read"]);
   });
 
-  test("activities.write is an accepted scope; a nearby misspelling is still refused (specs/028)", () => {
+  test("activities.write is an accepted scope; a nearby misspelling is still refused (specs/20261110-activities)", () => {
     const ok = parseServiceClients(raw({ "crm-api": { secret: SECRET_A, scope: "activities.write" } }));
     expect(ok.ok).toBe(true);
     if (ok.ok) expect(ok.clients.get("crm-api")?.scopes).toEqual(["activities.write"]);
@@ -145,7 +145,7 @@ describe("parseServiceClients", () => {
     }
   });
 
-  test("the documented crm-api entry adds activities.write to its existing three scopes (specs/028 AC-1.2)", () => {
+  test("the documented crm-api entry adds activities.write to its existing three scopes (specs/20261110-activities AC-1.2)", () => {
     const documented = DOCUMENTED_CLIENT_SCOPES["crm-api"];
     const result = parseServiceClients(raw({ "crm-api": { secret: SECRET_A, scope: documented } }));
     expect(result.ok).toBe(true);
@@ -158,7 +158,7 @@ describe("parseServiceClients", () => {
     ]);
   });
 
-  test("the documented activities-api entry is exactly notifications.push and emails.send: email notices, no write (specs/028 AC-6.1/6.3)", () => {
+  test("the documented activities-api entry is exactly notifications.push and emails.send: email notices, no write (specs/20261110-activities AC-6.1/6.3)", () => {
     const documented = DOCUMENTED_CLIENT_SCOPES["activities-api"];
     const result = parseServiceClients(raw({ "activities-api": { secret: SECRET_A, scope: documented } }));
     expect(result.ok).toBe(true);

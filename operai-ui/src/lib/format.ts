@@ -4,7 +4,7 @@ import type { Locale } from './i18n'
 /**
  * The suite's formatters (INC-26, INC-27): one way to show a date, a time, an
  * amount and a number, on `Intl`. Display only — APIs exchange ISO 8601 dates
- * and integer minor units (ADR-0025); never parse what these return.
+ * and integer minor units (ADR 20260720-mileage-rate-money-precision-integer-micros); never parse what these return.
  *
  *   formatDate('2026-10-31')            31.10.2026   (both languages)
  *   formatDateTime('2026-10-31T14:05Z') 31.10.2026 15:05
@@ -75,7 +75,7 @@ const assertMinorUnits = (name: string, minor: number) => {
   if (!Number.isSafeInteger(minor)) throw new TypeError(`${name}: expected integer minor units, got ${minor}`)
 }
 
-/** An amount with its ISO currency code. `minor` is integer cents (ADR-0025). */
+/** An amount with its ISO currency code. `minor` is integer cents (ADR 20260720-mileage-rate-money-precision-integer-micros). */
 export function formatMoney(minor: number, currency: string, locale: Locale = resolveLocale()): string {
   assertMinorUnits('formatMoney', minor)
   return minus(

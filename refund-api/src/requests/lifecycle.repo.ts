@@ -1,6 +1,6 @@
 /**
- * Submit / withdraw lifecycle transitions (T10, specs/007-refund-service,
- * AC-1.5/1.6/2.1/2.2/2.3, US-8/ADR-0018; + specs/009-mileage-rate T6
+ * Submit / withdraw lifecycle transitions (T10, specs/20260716-refund-service,
+ * AC-1.5/1.6/2.1/2.2/2.3, US-8/ADR 20260716-immutable-financial-audit-trail-refund; + specs/20260720-mileage-rate T6
  * submit-time mileage snapshot, AC-1.4, AC-2.2, AC-3.1, AC-3.2, Decision 1).
  *
  * Both transitions write an append-only audit row (`audit.ts`) inside the
@@ -10,7 +10,7 @@
  * `draft`, which is sufficient to make those guards start refusing (AC-2.3),
  * no separate enforcement needed here.
  *
- * specs/009-mileage-rate (Decision 1 — "pinned at submit, never during
+ * specs/20260720-mileage-rate (Decision 1 — "pinned at submit, never during
  * draft"): submit re-resolves each travel_km line's effective rate ONE MORE
  * TIME (never trusts whatever the draft happened to cache — Risk R5, "a rate
  * added between last draft save and submit") and, if every travel_km line
@@ -110,7 +110,7 @@ function resolveMileageSnapshots(
   );
 }
 
-// ─── Submit (AC-1.5/1.6/2.1; + specs/009-mileage-rate AC-1.4/2.2/3.1) ──────
+// ─── Submit (AC-1.5/1.6/2.1; + specs/20260720-mileage-rate AC-1.4/2.2/3.1) ──────
 
 export function submitRequest(
   requestId: string,
@@ -190,7 +190,7 @@ export function submitRequest(
           );
         }
 
-        // specs/009-mileage-rate (AC-2.2, Decision 1) — every travel_km line
+        // specs/20260720-mileage-rate (AC-2.2, Decision 1) — every travel_km line
         // that IS complete (km > 0) must ALSO have a rate in effect right
         // now, or the whole submission is refused, naming the offending
         // line(s), the SAME 422 shape as the completeness check above.
@@ -315,7 +315,7 @@ export function withdrawRequest(
                 data: { status: "draft" },
               });
               if (count === 0) return false;
-              // specs/009-mileage-rate (Decision 1, AC-3.2) — withdraw
+              // specs/20260720-mileage-rate (Decision 1, AC-3.2) — withdraw
               // clears the frozen snapshot on every travel_km line of this
               // request, in the SAME transaction as the status flip. The
               // line returns to LIVE mode (mileageHydration.ts recomputes on
@@ -330,7 +330,7 @@ export function withdrawRequest(
                   appliedRateEntryId: null,
                 },
               });
-              // specs/007 amendment (2026-11-10) — a line rejected during a
+              // specs/20260716-refund-service amendment (2026-11-10) — a line rejected during a
               // review that never concluded does not survive withdraw-to-
               // draft: the employee may now edit the line, and the next
               // submit starts a fresh review. Its approved figure (0) is

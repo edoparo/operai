@@ -1,7 +1,7 @@
 /**
  * @vitest-environment jsdom
  *
- * ProjectDetailPage × Tasks card (specs/028 AC-3.1, AC-3.4, AC-3.5, AC-3.8): the
+ * ProjectDetailPage × Tasks card (specs/20261110-activities AC-3.1, AC-3.4, AC-3.5, AC-3.8): the
  * card sits between Team and Contracts, loads on its own (its failure never
  * takes the page down), every reader sees it, only a manager of an open project
  * can add, and a task added through the dialog shows up. Rendered through the

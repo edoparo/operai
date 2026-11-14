@@ -1,8 +1,8 @@
 /**
  * @vitest-environment jsdom
  *
- * Component tests for ConditionChip (T15, specs/004-auth-roles-permissions;
- * `self-approval` kind added T4, specs/010-self-approval-control).
+ * Component tests for ConditionChip (T15, specs/20260713-auth-roles-permissions;
+ * `self-approval` kind added T4, specs/20260721-self-approval-control).
  *
  * Covers:
  *   (A) each of the 6 kinds (own/any/entity/department/jobTitle/

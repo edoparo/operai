@@ -4,7 +4,7 @@ import { createRunner, type Runner } from "../jobs/runner";
 import { deliverHostNotice } from "../jobs/handlers/deliverHostNotice";
 import { deliverNotices, recordNotice, retryFailedNotices } from "./notices";
 
-// AC-11.8, AC-11.9, AC-14.6, AC-14.8, AC-14.10, AC-14.11 (specs/021 T20): the host-notice
+// AC-11.8, AC-11.9, AC-14.6, AC-14.8, AC-14.10, AC-14.11 (specs/20261104-meetings T20): the host-notice
 // outbox, its one awaited attempt, the manual vs until-delivered policies, the retry route.
 
 // At the top level, so the kit's teardown is registered for this file (not for a hook).

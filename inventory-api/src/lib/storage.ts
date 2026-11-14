@@ -1,8 +1,8 @@
 /**
  * S3-compatible object storage for invoice files (T21, specs/015-hardware-
- * inventory; AC-10.4, AC-10.6, AC-10.7; ADR-0016 posture). Ported from
+ * inventory; AC-10.4, AC-10.6, AC-10.7; ADR 20260716-eu-object-storage-refund-attachments posture). Ported from
  * refund-api/src/lib/storage.ts, minus the paths inventory has no use for
- * (no PutObject of server-authored bytes, no GetObject: ADR-0043's bounded
+ * (no PutObject of server-authored bytes, no GetObject: ADR 20260908-request-archive-export-refund-api-reads-attachment-bytes's bounded
  * departure is refund-api's alone).
  *
  * inventory-api NEVER touches invoice bytes. It mints a presigned POST (the

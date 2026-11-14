@@ -25,7 +25,7 @@ const route = getRouteApi('/requests')
 
 /**
  * MyRequestsPage — Screen R1 ("My requests", `/refund/requests` — T16,
- * specs/007-refund-service/tasks.md, design.md "Screen R1"). Replaces T14's
+ * specs/20260716-refund-service/tasks.md, design.md "Screen R1"). Replaces T14's
  * placeholder with the real screen: a flat list of the caller's own
  * requests (status badge + last-updated date + a compact per-currency
  * subtotal preview), "New request", and every list state design.md names.

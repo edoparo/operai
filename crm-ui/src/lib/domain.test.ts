@@ -71,7 +71,7 @@ describe('dates', () => {
   })
 })
 
-describe('personName (ADR-0039)', () => {
+describe('personName (ADR 20260807-live-identity-resolution-by-id-fail-soft)', () => {
   it('shows the live name of an active user and never a stale one', () => {
     expect(personName({ id: 'u1', name: 'Ada', status: 'active' })).toBe('Ada')
     expect(personName({ id: 'u1', name: 'Ada', status: 'active' }, 'u1')).toBe('Ada (You)')

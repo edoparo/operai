@@ -1,11 +1,11 @@
 /**
- * Accounting decision endpoints (T12, specs/007-refund-service).
+ * Accounting decision endpoints (T12, specs/20260716-refund-service).
  *
  *   PUT  /review/requests/:id/lines/:lineId/approved-total → 200 line
  *   POST /review/requests/:id/approve                      → 200 request
  *   POST /review/requests/:id/reject                       → 200 request
  *
- * Entity-scoped (404 out of scope, mirroring GET /requests/:id — ADR-0015),
+ * Entity-scoped (404 out of scope, mirroring GET /requests/:id — ADR 20260716-entity-scoped-abac-refund-api),
  * capability-gated per action (403 absent — `request:set-approved-total`/
  * `approve`/`reject`), submitted-only (409 otherwise, AC-7.4). Both approve
  * and reject are WHOLE-REQUEST decisions, including out-of-scope lines
@@ -13,12 +13,12 @@
  * scope, only gates ACCESS to the request via the same "at least one line
  * matches" predicate.
  *
- * T13 adds the post-commit notify trigger (AC-3.6, ADR-0017): after an
+ * T13 adds the post-commit notify trigger (AC-3.6, ADR 20260716-system-notifications-cross-user-trigger): after an
  * approve/reject decision COMMITS, `notifyDecision` (lib/notify.ts) pushes
  * an in-app notification to the request owner. Best-effort — wrapped in its
  * own try/catch here as a second line of defense on top of `notify.ts`'s own
  * internal catch-everything contract, so a decision's HTTP response can
- * NEVER fail or roll back because of a notify-side error (ADR-0017 §4).
+ * NEVER fail or roll back because of a notify-side error (ADR 20260716-system-notifications-cross-user-trigger §4).
  *
  * BODY SIZE GUARD (OWASP A04 fix): only approved-total (a single integer
  * field) and reject (a free-text `motivation` with NO schema-level max
@@ -61,7 +61,7 @@ import { approveRestrictedForCaller, scopeForReviewAction } from "./review.servi
 /**
  * Fires the post-decision notification (T13, AC-3.6). Never throws — even
  * though `notifyDecision` already promises never to reject, this extra
- * try/catch is deliberate defense-in-depth (ADR-0017 §4: a notify failure
+ * try/catch is deliberate defense-in-depth (ADR 20260716-system-notifications-cross-user-trigger §4: a notify failure
  * must NEVER fail or roll back the decision response).
  */
 async function notifyDecisionBestEffort(
@@ -81,14 +81,14 @@ async function notifyDecisionBestEffort(
 }
 
 /**
- * Fires the post-decision EMAIL (specs/007-refund-service AC-3.6, email
+ * Fires the post-decision EMAIL (specs/20260716-refund-service AC-3.6, email
  * channel) — a second, independent channel alongside the in-app push above.
  *
  * Independent in both directions, which is why this is its own function and
  * its own try/catch rather than a branch inside `notifyDecisionBestEffort`:
  * an email outage must not suppress the in-app notification, and an in-app
  * failure must not suppress the email. Both are awaited AFTER the decision
- * has committed and neither can fail the response (ADR-0017 §4).
+ * has committed and neither can fail the response (ADR 20260716-system-notifications-cross-user-trigger §4).
  *
  * `approvedTotals` is derived from the decision's own re-fetched detail, so
  * the figure in the email is the one the employee sees in-app — never a
@@ -133,7 +133,7 @@ const forbiddenProblem = (path: string, detail: string) => ({
 });
 
 /**
- * specs/010-self-approval-control, ADR-0026 point 6 — the distinguishable
+ * specs/20260721-self-approval-control, ADR 20260721-self-approval-condition-and-403-exception point 6 — the distinguishable
  * self-approval 403: same RFC 7807 shape as `forbiddenProblem`, plus a
  * stable extension member `code: "self_approval_forbidden"` (AC-6.1's
  * i18n-safe discriminator). The pre-existing capability-absent 403
@@ -149,11 +149,11 @@ const selfApprovalForbiddenProblem = (path: string) => ({
 });
 
 /**
- * specs/010-self-approval-control, ADR-0026 point 5 (plan.md D4) — a
+ * specs/20260721-self-approval-control, ADR 20260721-self-approval-condition-and-403-exception point 5 (plan.md D4) — a
  * structured, parseable log event on every self-approval denial (AC-6.2:
  * distinct, attempted-but-denied, never "nothing happened"; AC-6.3: who /
  * which request / when). Deliberately NOT a new `RefundAuditEntry` row (see
- * ADR-0026 for the rejected alternative) — this is a security/operational
+ * ADR 20260721-self-approval-condition-and-403-exception for the rejected alternative) — this is a security/operational
  * event, not a financial state transition.
  */
 function logSelfApprovalDenied(actorUserId: string, requestId: string): void {
@@ -280,7 +280,7 @@ const setApprovedTotalRoute = createRoute({
   summary: "Set a line's approved total (accounting review)",
   description:
     "Submitted-only (409 otherwise, AC-7.4), entity-scoped (404 if out of " +
-    "scope, ADR-0015). Writes an approved_total_set audit row (AC-8.1).",
+    "scope, ADR 20260716-entity-scoped-abac-refund-api). Writes an approved_total_set audit row (AC-8.1).",
   security: [{ Bearer: [] }],
   request: {
     params: LineIdParamSchema,
@@ -364,11 +364,11 @@ const approveRoute = createRoute({
     "finalized to its set value, defaulting to the requested amount for " +
     "any line left untouched (AC-7.2). Whole-request, including lines for " +
     "an entity outside the caller's own scope (AC-7.6). Writes an " +
-    "'approved' audit row (AC-8.1). specs/010-self-approval-control: if the " +
+    "'approved' audit row (AC-8.1). specs/20260721-self-approval-control: if the " +
     "caller's `request:approve` grant carries the self-approval restriction " +
     "and the caller owns the request, denied with 403 " +
     "`code: self_approval_forbidden` BEFORE the entity-scope 404 and the " +
-    "status 409 (ADR-0026).",
+    "status 409 (ADR 20260721-self-approval-condition-and-403-exception).",
   security: [{ Bearer: [] }],
   request: { params: RequestIdParamSchema },
   responses: {
@@ -380,8 +380,8 @@ const approveRoute = createRoute({
     403: {
       content: { "application/json": { schema: ProblemSchema } },
       description:
-        "Caller lacks the `request:approve` capability, OR (specs/010, " +
-        "ADR-0026) the caller owns the request and their approve grant " +
+        "Caller lacks the `request:approve` capability, OR (specs/20260721-self-approval-control, " +
+        "ADR 20260721-self-approval-condition-and-403-exception) the caller owns the request and their approve grant " +
         "carries the self-approval restriction — distinguished by the " +
         "extension member `code: \"self_approval_forbidden\"`, absent on " +
         "the capability-absent case.",
@@ -434,7 +434,7 @@ decideRouter.openapi(approveRoute, async (c) => {
   }
 
   const detail = await fetchDetailAfterDecision(id);
-  // Post-commit, best-effort (AC-3.6/ADR-0017) — never blocks or fails this response.
+  // Post-commit, best-effort (AC-3.6/ADR 20260716-system-notifications-cross-user-trigger) — never blocks or fails this response.
   await notifyDecisionBestEffort(detail.owner.userId, id, "approved");
   await emailDecisionBestEffort(detail, "approved");
   return c.json(detail, 200);
@@ -516,7 +516,7 @@ decideRouter.openapi(rejectRoute, async (c) => {
   }
 
   const detail = await fetchDetailAfterDecision(id);
-  // Post-commit, best-effort (AC-3.6/ADR-0017) — never blocks or fails this response.
+  // Post-commit, best-effort (AC-3.6/ADR 20260716-system-notifications-cross-user-trigger) — never blocks or fails this response.
   await notifyDecisionBestEffort(detail.owner.userId, id, "rejected");
   await emailDecisionBestEffort(detail, "rejected");
   return c.json(detail, 200);
@@ -524,7 +524,7 @@ decideRouter.openapi(rejectRoute, async (c) => {
 
 // ─── POST/DELETE /review/requests/:id/lines/:lineId/reject ────────────────
 //
-// specs/007 amendment (2026-11-10): reject ONE line, with a mandatory
+// specs/20260716-refund-service amendment (2026-11-10): reject ONE line, with a mandatory
 // reason, instead of the whole request — and take it back while the
 // request is still `submitted`. Gated on `request:reject`: refusing a line
 // is a rejection, and the reason is what the employee is told.

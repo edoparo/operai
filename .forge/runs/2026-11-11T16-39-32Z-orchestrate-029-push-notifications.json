@@ -4,7 +4,7 @@
   "plugin_versions_seen": ["2.60.0", "2.61.1", "2.62.1"],
   "run_id": "2026-11-11T16-39-32Z-orchestrate-029-push-notifications",
   "command": "orchestrate",
-  "feature": "029-push-notifications",
+  "feature": "20261111-push-notifications",
   "rigor": "production",
   "rigor_recorded": null,
   "started": "2026-11-11T16:39:32Z",
@@ -13,7 +13,7 @@
   "agents": [
     { "agent": "product-owner", "outcome": "completed", "note": "spec drafted in the main loop via /wellforge:spec (approved 2026-11-11); re-runs 2026-11-12: AC-1.6/1.7 amendment, AC-5.2 + US-7, US-7 figures + valid-credential rule" },
     { "agent": "architect", "outcome": "completed", "note": "plan drafted in the main loop via /wellforge:plan (approved 2026-11-11); re-runs 2026-11-12: D-1/S-M2 amendment, US-7 extension (re-approved 2026-11-12)" },
-    { "agent": "adr-writer", "outcome": "completed", "note": "ADR-0084, ADR-0085 (2026-11-11); ADR-0086, ADR-0087 (2026-11-12)" },
+    { "agent": "adr-writer", "outcome": "completed", "note": "ADR 20261111-web-push-encrypted-payloads-not-fcm, ADR 20261111-push-suppression-decided-by-the-browser (2026-11-11); ADR 20261112-system-endpoints-limited-per-verified-service, ADR 20261112-push-liveness-answer-reused-30-seconds (2026-11-12)" },
     { "agent": "designer", "outcome": "completed", "note": "design.md (draft, ungated); 12 reused / 0 new components; findings G1–G6 folded into spec and plan" },
     { "agent": "main-loop", "tasks": ["T1"], "outcome": "completed", "commits": ["1af871ad", "35c5c609"], "note": "spike run interactively with the user on Safari; Chrome/Edge/Firefox deferred to T12 by user decision" },
     { "agent": "backend-dev", "tasks": ["T3"], "outcome": "completed", "commits": ["34fc1495"] },
@@ -46,11 +46,11 @@
   ],
   "drift_events": [
     { "agent": "main-loop", "artifact": "spec.md", "summary": "push only toast-worthy notifications would push nothing (system notifications are never toast-worthy) → every notification is pushed (user decision)", "resolved": true },
-    { "agent": "main-loop", "artifact": "spec.md", "summary": "FCM sends plaintext to Google → standard Web Push with encrypted payloads (user decision, ADR-0084)", "resolved": true },
+    { "agent": "main-loop", "artifact": "spec.md", "summary": "FCM sends plaintext to Google → standard Web Push with encrypted payloads (user decision, ADR 20261111-web-push-encrypted-payloads-not-fcm)", "resolved": true },
     { "agent": "designer", "artifact": "spec.md, plan.md", "summary": "G1–G6: unsupported browsers keep the device list; dismissed prompt is not 'blocked'; config failure state; revoked permission reconciliation; PNG icon; section outside the address region", "resolved": true },
-    { "agent": "main-loop", "artifact": "spec.md, plan.md, ADR-0085", "summary": "T1 spike: Safari cancels the subscription after pushes that show nothing → Safari always shows (user decision)", "resolved": true },
+    { "agent": "main-loop", "artifact": "spec.md, plan.md, ADR 20261111-push-suppression-decided-by-the-browser", "summary": "T1 spike: Safari cancels the subscription after pushes that show nothing → Safari always shows (user decision)", "resolved": true },
     { "agent": "quality-engineer", "artifact": "spec.md", "summary": "AC-1.7 contradicted AC-5.1; AC-1.6 listed browsers while the product detects capability → both amended", "resolved": true },
-    { "agent": "quality-engineer", "artifact": "plan.md, spec.md", "summary": "D-1: auth's per-address limiter keyed every private-network caller as one → AC-5.2 amended to 30 s, US-7 added (gate 1 and gate 2 re-opened and re-approved by the user), ADR-0086/0087", "resolved": true },
+    { "agent": "quality-engineer", "artifact": "plan.md, spec.md", "summary": "D-1: auth's per-address limiter keyed every private-network caller as one → AC-5.2 amended to 30 s, US-7 added (gate 1 and gate 2 re-opened and re-approved by the user), ADR 20261112-system-endpoints-limited-per-verified-service/0087", "resolved": true },
     { "agent": "quality-engineer", "artifact": "frontends (scope addition)", "summary": "E-1: @tanstack/react-router skew between projects-ui and the other frontends → aligned to 1.170.46 and router per mount in every remote, explicitly decided by the user on this branch", "resolved": true }
   ],
   "collision_events": [],

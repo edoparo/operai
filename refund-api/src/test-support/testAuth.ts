@@ -1,5 +1,5 @@
 /**
- * Shared route-integration test harness (T7+, specs/007-refund-service).
+ * Shared route-integration test harness (T7+, specs/20260716-refund-service).
  *
  * Mocks the TWO network-calling dependencies every gated route sits behind —
  * `../auth/jwt.middleware` (RS256 verification) and `../authz/resolveClient`

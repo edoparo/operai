@@ -1,7 +1,7 @@
 /**
  * @vitest-environment jsdom
  *
- * Component tests for UserDetail — Screen C2 (T20, specs/004-auth-roles-permissions).
+ * Component tests for UserDetail — Screen C2 (T20, specs/20260713-auth-roles-permissions).
  *
  * Covers:
  *   (A) Loading: adminApi.getUser is pending → SkeletonListRows is visible.
@@ -28,7 +28,7 @@
  *       button is disabled-with-explanation on the acting admin's own page
  *       (same `useSession()` convention as Screen U1); a 422 (last-admin
  *       guard) surfaces via GuardrailDialog, not an inline dialog error.
- *   (I) Address section visibility (T12, specs/012-employee-address, AC-4.2):
+ *   (I) Address section visibility (T12, specs/20260803-employee-address, AC-4.2):
  *       with `usePermissions().roles` lacking `admin`, `AddressSection` is
  *       ABSENT from the DOM (`queryByTestId('address-section')` is `null`) —
  *       not merely disabled, and no `GET /admin/users/:id/address` call is
@@ -400,7 +400,7 @@ describe('UserDetail', () => {
     })
   })
 
-  // (H) "Delete user" (design.md Screen U3, closed post-T10, specs/006-user-invitations)
+  // (H) "Delete user" (design.md Screen U3, closed post-T10, specs/20260713-user-invitations)
   describe('delete user', () => {
     it('Delete user opens ConfirmDeleteModal; confirming calls deleteUser and navigates to /users', async () => {
       setupLoaded()
@@ -496,7 +496,7 @@ describe('UserDetail', () => {
     })
   })
 
-  // (I) Address section visibility — T12, specs/012-employee-address, AC-4.2
+  // (I) Address section visibility — T12, specs/20260803-employee-address, AC-4.2
   describe('address section visibility (AC-4.2)', () => {
     it('is absent from the DOM when usePermissions().roles lacks "admin" — not merely disabled', async () => {
       setupLoaded()

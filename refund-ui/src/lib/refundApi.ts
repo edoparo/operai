@@ -1,6 +1,6 @@
 /**
  * refundApi — thin, generic infrastructure for calling `refund-api` (T14,
- * specs/007-refund-service/tasks.md: "API client: a thin module using
+ * specs/20260716-refund-service/tasks.md: "API client: a thin module using
  * shell/session's apiFetch … Base URL from env/runtime config per-env").
  *
  * This task ships the FOUNDATION only — no `refund-api` endpoint exists yet
@@ -27,7 +27,7 @@
  *   constant, never hardcoded (T14's own instruction: "Base URL from
  *   env/runtime config per-env").
  *
- * Auth — `apiFetch` from `shell/session` (ADR-0001/ADR-0006): attaches the
+ * Auth — `apiFetch` from `shell/session` (ADR 20260607-jwt-in-memory-never-web-storage/ADR 20260709-suite-frontend-module-federation): attaches the
  * Bearer JWT and handles the 401 refresh-retry-redirect transparently, but
  * ONLY for requests targeting an origin the shell's own trusted-origins
  * allowlist recognizes (`shell/src/lib/session.ts`'s `getTrustedOrigins()`).
@@ -35,9 +35,9 @@
  *   DRIFT (flagged in this task's implementation report, not fixed here —
  *   out of this task's `refund-ui/src/` touch scope): that allowlist today
  *   covers `VITE_AUTH_URL`/`VITE_API_URL`/`VITE_NOTIFY_API_URL` only — no
- *   refund-api entry exists. specs/005-notification-center added its own
+ *   refund-api entry exists. specs/20260713-notification-center added its own
  *   `VITE_NOTIFY_API_URL` origin via a DEDICATED shell task (its T10,
- *   "notification seam in shell/session"); specs/007's tasks.md has no
+ *   "notification seam in shell/session"); specs/20260716-refund-service's tasks.md has no
  *   equivalent task for refund-api's origin (T19 "devops" and T20
  *   "federation & routing" both come close but neither explicitly owns this).
  *   Until `shell/src/lib/session.ts` trusts `VITE_REFUND_API_URL`, `apiFetch`
@@ -58,7 +58,7 @@ export const refundApiBase = (): string => import.meta.env.VITE_REFUND_API_URL a
  * responses (plan.md "## API contracts": "All errors are RFC-7807 Problem
  * JSON (type,title,status,detail,instance)"). Mirrors adminApi.ts/
  * estimatesApi.ts's `ApiProblem`, PLUS an optional `code` extension member
- * (specs/010-self-approval-control, plan.md D5 / ADR-0026): a stable,
+ * (specs/20260721-self-approval-control, plan.md D5 / ADR 20260721-self-approval-condition-and-403-exception): a stable,
  * i18n-safe discriminator some 403s carry (e.g. `"self_approval_forbidden"`)
  * to distinguish them from other same-status denials without parsing the
  * (localized/variable) `detail` string.
@@ -76,7 +76,7 @@ export type ApiProblem = {
  * Thrown by every refund-api call helper below on a non-2xx response.
  * Callers branch on `error.status` — refund-api's own contract table
  * (plan.md) names 401/403/404/409/422/503 across its various routes. `code`
- * is the optional stable discriminator some 403s carry (specs/010); absent
+ * is the optional stable discriminator some 403s carry (specs/20260721-self-approval-control); absent
  * on most errors, including the pre-existing capability-absent 403.
  */
 export class ApiError extends Error {
@@ -131,14 +131,14 @@ const jsonHeaders = { 'Content-Type': 'application/json' }
  * GET helper — no body, throws ApiError on non-2xx. `path` is
  * refund-api-root-relative (e.g. `/requests`).
  *
- * `init` (T7, specs/014-motivo-autocomplete) is PURELY ADDITIVE and optional:
+ * `init` (T7, specs/20260811-motivo-autocomplete) is PURELY ADDITIVE and optional:
  * it is forwarded verbatim to `apiFetch`, which already forwards it to
  * `fetch`. It exists so a caller can pass an `AbortSignal` (`MotivoSuggestField`
  * cancels its corpus fetch on unmount / on the 5 s timeout) — every pre-existing
  * call site keeps calling `getJson(path)` with one argument and behaves
  * identically.
  *
- * It cannot be used to weaken `apiFetch`'s trusted-origin contract (ADR-0001,
+ * It cannot be used to weaken `apiFetch`'s trusted-origin contract (ADR 20260607-jwt-in-memory-never-web-storage,
  * plan.md Security §6): `apiFetch` spreads `init` FIRST and then overrides both
  * `credentials: 'include'` and the `Authorization` header with the JWT it
  * resolved itself, so an `init.headers.Authorization` or `init.credentials`

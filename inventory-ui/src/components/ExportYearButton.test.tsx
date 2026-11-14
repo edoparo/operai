@@ -1,7 +1,7 @@
 /**
  * @vitest-environment jsdom
  *
- * Component tests for ExportYearButton (T39, specs/015-hardware-inventory; design.md
+ * Component tests for ExportYearButton (T39, specs/20261006-hardware-inventory; design.md
  * F12 step 5, § Accessibility "T6 year detail"; refs AC-8.8, AC-8.9). The real
  * builder runs (it has its own tests); the browser seams — `URL.createObjectURL`
  * and the anchor click that starts a download — are faked and recorded.

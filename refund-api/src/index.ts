@@ -49,17 +49,17 @@ app.route("/", healthRouter);
 // authorization) — kept as a lightweight diagnostic route alongside the real
 // domain routers below.
 app.route("/", whoamiRouter);
-// requestsRouter: employee request-level endpoints (T7, specs/007-refund-service).
+// requestsRouter: employee request-level endpoints (T7, specs/20260716-refund-service).
 app.route("/", requestsRouter);
-// requestExportRouter: the per-request archive PDF (ADR-0043). Registered
+// requestExportRouter: the per-request archive PDF (ADR 20260908-request-archive-export-refund-api-reads-attachment-bytes). Registered
 // before linesRouter purely for readability — its path (/requests/:id/export)
 // cannot collide with any line route.
 app.route("/", requestExportRouter);
-// linesRouter: expense-line endpoints (T8, specs/007-refund-service).
+// linesRouter: expense-line endpoints (T8, specs/20260716-refund-service).
 app.route("/", linesRouter);
 // suggestionsRouter: GET /line-suggestions — the caller's own past travel_km
 // trip signatures, for the composer's motivo autocomplete (T5,
-// specs/014-motivo-autocomplete).
+// specs/20260811-motivo-autocomplete).
 //
 // MOUNTED AT TOP LEVEL, DELIBERATELY NOT UNDER `/requests/…`: requestsRouter
 // above owns `GET /requests/{id}`, and it is registered FIRST, so a path like
@@ -68,30 +68,30 @@ app.route("/", linesRouter);
 // total feature outage. See suggestions.routes.ts's header and its
 // registration-order regression test.
 app.route("/", suggestionsRouter);
-// attachmentsRouter: receipt attachments + EU object storage (T9, specs/007-refund-service).
+// attachmentsRouter: receipt attachments + EU object storage (T9, specs/20260716-refund-service).
 app.route("/", attachmentsRouter);
-// lifecycleRouter: submit/withdraw + audit (T10, specs/007-refund-service).
+// lifecycleRouter: submit/withdraw + audit (T10, specs/20260716-refund-service).
 app.route("/", lifecycleRouter);
-// reviewRouter: accounting review queue (T11, specs/007-refund-service).
+// reviewRouter: accounting review queue (T11, specs/20260716-refund-service).
 app.route("/", reviewRouter);
 // decideRouter: accounting decisions (set-approved-total/approve/reject),
-// specs/007-refund-service (T12; T13 adds the post-decision notify trigger).
+// specs/20260716-refund-service (T12; T13 adds the post-decision notify trigger).
 app.route("/", decideRouter);
 // batchesRouter: compiled-batch candidate preview + compile (the atomic
-// claim) + reads + compilation email, specs/008-refund-monthly-processing
+// claim) + reads + compilation email, specs/20260719-refund-monthly-processing
 // (T3/T4/T5).
 app.route("/", batchesRouter);
 // batchDecideRouter: batch terminal transitions — mark-paid + discard,
-// specs/008-refund-monthly-processing (T6/T8).
+// specs/20260719-refund-monthly-processing (T6/T8).
 app.route("/", batchDecideRouter);
 // ratesRouter: mileage-rate management (GET/POST /rates), gated by the new
-// rate:read/rate:manage capability — specs/009-mileage-rate (T4).
+// rate:read/rate:manage capability — specs/20260720-mileage-rate (T4).
 app.route("/", ratesRouter);
 // rateEffectiveRouter: GET /rates/effective, the employee-facing live-recompute
-// read gated by refund:access only — specs/009-mileage-rate (T4).
+// read gated by refund:access only — specs/20260720-mileage-rate (T4).
 app.route("/", rateEffectiveRouter);
 // settingsRouter: refund-settings management (GET/PUT /settings/:key), gated
-// by the new settings:read/settings:manage capability — specs/011-refund-settings (T3).
+// by the new settings:read/settings:manage capability — specs/20260722-refund-settings (T3).
 app.route("/", settingsRouter);
 
 // ─── OpenAPI + Scalar UI ─────────────────────────────────────────────────────

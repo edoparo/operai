@@ -1,7 +1,7 @@
 /**
  * MileageAmountField — the read-only `km × rate = amount` breakdown that
  * replaces the Amount/Currency inputs for a `travel_km` expense line (T13,
- * specs/009-mileage-rate/tasks.md, AC-1.1/1.2/1.3/1.6/1.8/2.2; design.md
+ * specs/20260720-mileage-rate/tasks.md, AC-1.1/1.2/1.3/1.6/1.8/2.2; design.md
  * "Screen R2" / the state table under "## Screens & states").
  *
  * Purely a display + client-side data-fetching component: it takes the

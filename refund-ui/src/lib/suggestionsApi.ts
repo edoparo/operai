@@ -1,6 +1,6 @@
 /**
  * suggestionsApi — refund-ui's client for `refund-api`'s one new read,
- * `GET /line-suggestions?type=travel_km` (T9, specs/014-motivo-autocomplete/
+ * `GET /line-suggestions?type=travel_km` (T9, specs/20260811-motivo-autocomplete/
  * tasks.md; plan.md "## API contracts" + "### Client contract").
  *
  * The endpoint is parameterless beyond a single-member `type` enum and is
@@ -18,7 +18,7 @@
  *
  * The response is `Cache-Control: no-store` server-side (plan D7) and the
  * parsed corpus is held in component memory only — never `localStorage`/
- * `sessionStorage`/IndexedDB (ADR-0001's posture applied to personal data,
+ * `sessionStorage`/IndexedDB (ADR 20260607-jwt-in-memory-never-web-storage's posture applied to personal data,
  * and the spec's own explicit non-goal).
  */
 
@@ -27,7 +27,7 @@ import { getJson } from './refundApi'
 
 /**
  * One trip signature — a derived view over the caller's own past `travel_km`
- * lines, never a stored record (spec.md Domain language; ADR-0013 lineage).
+ * lines, never a stored record (spec.md Domain language; ADR 20260714-invitation-lifecycle-derived-expiry-state lineage).
  * Mirrors `TripSuggestionSchema` in plan.md "## API contracts" exactly.
  */
 export type TripSuggestion = {

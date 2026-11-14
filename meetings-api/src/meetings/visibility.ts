@@ -1,6 +1,6 @@
 /**
  * Who can open a meeting, and whether its creator's controls are frozen
- * (specs/021-meetings plan.md § Authorization, ADR-0058; AC-5.2, AC-5.3, AC-5.7,
+ * (specs/20261104-meetings plan.md § Authorization, ADR 20261104-meetings-tool-shape-visibility-by-participation; AC-5.2, AC-5.3, AC-5.7,
  * AC-5.11, AC-5.13, AC-4.8).
  *
  * Visibility is exactly three roles and NO capability ever grants reading:

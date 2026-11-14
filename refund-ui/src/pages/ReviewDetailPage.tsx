@@ -26,7 +26,7 @@ const route = getRouteApi('/review/$id')
 
 /**
  * ReviewDetailPage — Screen A2 ("Review detail & decide",
- * `/refund/review/$id` — T18, specs/007-refund-service/tasks.md,
+ * `/refund/review/$id` — T18, specs/20260716-refund-service/tasks.md,
  * design.md "Screen A2"/F6). Replaces T14's placeholder. `GET /requests/:id`
  * is the SAME route the employee side uses (`requestsApi.get`) — plan.md's
  * contract table gives it accounting-specific semantics (whole-request, all
@@ -41,7 +41,7 @@ const route = getRouteApi('/review/$id')
  *     own approved/rejected detail (design.md F6 step 8: "accounting's
  *     'inspect a past decision' need is met by the SAME read-only render
  *     path"), plus the "Requested by" identity line every A2 render shows.
- *   - `paid` (T13, specs/008-refund-monthly-processing/tasks.md, design.md
+ *   - `paid` (T13, specs/20260719-refund-monthly-processing/tasks.md, design.md
  *     F4 step 4): structured IDENTICALLY to `approved` (full
  *     `readOnlyApproved` line list, `SubtotalsPanel showApproved`) PLUS a
  *     "Paid on `<date>` by `<email>`" line, MINUS `MonthlyProcessingNote` —
@@ -68,8 +68,8 @@ const route = getRouteApi('/review/$id')
  * A1 … with an aria-live confirmation") — see router.tsx's `validateSearch`
  * on the `/review` route and ReviewQueuePage's own read-and-strip of it.
  *
- * Self-approval control (specs/010-self-approval-control, plan.md D5,
- * ADR-0026): the Approve button is PASSIVELY disabled (`aria-disabled` +
+ * Self-approval control (specs/20260721-self-approval-control, plan.md D5,
+ * ADR 20260721-self-approval-condition-and-403-exception): the Approve button is PASSIVELY disabled (`aria-disabled` +
  * `title`, never hidden — the suite's house pattern, mirrors admin-ui's
  * UserDetail.tsx "You can't delete your own account") when the caller owns
  * this request (their `sub`, from `shell/session`'s `useSession()`, matches
@@ -81,7 +81,7 @@ const route = getRouteApi('/review/$id')
  * (worst case) show an enabled button the server still rejects, which
  * `errorMessageFor`'s `self_approval_forbidden` mapping below handles.
  *
- * Line rejection (specs/007 amendment, 2026-11-10): each line in `review`
+ * Line rejection (specs/20260716-refund-service amendment, 2026-11-10): each line in `review`
  * mode can be rejected on its own, with a required reason, and restored
  * until the request is decided. When EVERY line is rejected, Approve is
  * passively disabled the same way (refund-api answers 409
@@ -101,13 +101,13 @@ type DecisionDialogState =
 
 type GuardrailState = { title: string; message: string } | null
 
-/** The free-form condition shape `request.approve`'s grant carries (ADR-0007) — only the one attribute shape this feature reads. */
+/** The free-form condition shape `request.approve`'s grant carries (ADR 20260713-authz-hand-rolled-rbac-abac-epoch-claims) — only the one attribute shape this feature reads. */
 type ConditionAttribute = { key: string; match: string }
 type RuleConditions = { attributes?: ConditionAttribute[] }
 
 /**
  * True iff the caller's resolved permission set grants `request:approve`
- * with the self-approval deny attribute (specs/010, plan.md D1: an
+ * with the self-approval deny attribute (specs/20260721-self-approval-control, plan.md D1: an
  * OPPOSITE-polarity `match:"deny"` sentinel — deliberately its own check,
  * never routed through any entity/scope-matching logic, mirroring
  * refund-api's `approveSelfRestricted` predicate).
@@ -142,7 +142,7 @@ export default function ReviewDetailPage() {
   const rowNodesRef = useRef(new Map<string, HTMLDivElement>())
   const linesTitle = strings.pages.requestDetail.lines.sectionHeading
 
-  // specs/010-self-approval-control (plan.md D5) — passive UI reflection only.
+  // specs/20260721-self-approval-control (plan.md D5) — passive UI reflection only.
   const currentUserId = useSession().data?.user?.id
   const { permissions } = usePermissions()
   const isOwner =
@@ -324,7 +324,7 @@ export default function ReviewDetailPage() {
       )}
 
       {/* Title block and the archive export share one row, the export pushed
-          right as a secondary action (ADR-0043). It sits in the header rather
+          right as a secondary action (ADR 20260908-request-archive-export-refund-api-reads-attachment-bytes). It sits in the header rather
           than in the body because it acts on the WHOLE request, not on the
           section it would otherwise have been wedged between. Rendered only
           for an approved request, matching the endpoint's archivable-status

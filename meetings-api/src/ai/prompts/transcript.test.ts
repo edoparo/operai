@@ -1,7 +1,7 @@
 import { describe, expect, it } from "bun:test";
 import { escapeLabel, escapeText, formatClock, segmentLine, transcriptBlock, type PromptSegment } from "./transcript";
 
-// ADR-0067 point 2: angle brackets and the `[S` marker are escaped inside segment text, so a
+// ADR 20261104-ai-output-structured-validated-plain-text point 2: angle brackets and the `[S` marker are escaped inside segment text, so a
 // speaker cannot close the block or forge a segment header. AC-7.12, AC-9.7.
 
 const seg = (ordinal: number, text: string, extra: Partial<PromptSegment> = {}): PromptSegment => ({

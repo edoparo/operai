@@ -82,7 +82,7 @@ async function callIdentities(
   return { status: res.status, body: json };
 }
 
-describe("POST /authz/users/identities (T3, specs/013-estimate-sharing)", () => {
+describe("POST /authz/users/identities (T3, specs/20260807-estimate-sharing)", () => {
   beforeAll(async () => {
     const probe = await testAuthRouter.request("/test-auth/session", {
       method: "POST",
@@ -202,7 +202,7 @@ describe("POST /authz/users/identities (T3, specs/013-estimate-sharing)", () => 
     expect(res.status).toBe(401);
   });
 
-  // ── T27: rate limiting (specs/013-estimate-sharing) — closes the drift
+  // ── T27: rate limiting (specs/20260807-estimate-sharing) — closes the drift
   // documented in this route's header comment: plan.md's contract lists
   // 429 + Retry-After, but T3 shipped unthrottled. T27 reuses T1's
   // rateLimiter.ts with its own IDENTITIES_RATE_LIMIT/_WINDOW_MS pair.

@@ -1,5 +1,5 @@
 /**
- * Service-token client (specs/019-crm-notifications; ADR-0044/0049/0056).
+ * Service-token client (specs/20261101-crm-notifications; ADR 20261006-scoped-service-jwt-fourth-notify-caller/0049/0056).
  * Exchanges `SERVICE_CLIENT_ID`/`SERVICE_CLIENT_SECRET` for the 5-minute RS256
  * service JWT `auth POST /system/service-token` mints; notify-api presents it
  * to `auth POST /system/users/contact` (scope `users.contact`) to resolve an

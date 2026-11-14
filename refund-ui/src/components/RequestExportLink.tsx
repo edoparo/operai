@@ -1,11 +1,11 @@
 /**
  * RequestExportLink — click-to-download control for a request's archive PDF
- * (ADR-0043): every expense line plus every receipt, in one file, for filing.
+ * (ADR 20260908-request-archive-export-refund-api-reads-attachment-bytes): every expense line plus every receipt, in one file, for filing.
  *
  * A `<button>` rather than an `<a href>`, for a different reason than
  * `BatchPdfLink`'s. That one avoids an anchor because its presigned URL goes
  * stale in ~60s; this one avoids it because the endpoint is authenticated by
- * the in-memory Bearer JWT (ADR-0001), which a top-level navigation would
+ * the in-memory Bearer JWT (ADR 20260607-jwt-in-memory-never-web-storage), which a top-level navigation would
  * never send — there is no URL a browser could follow on its own. The bytes
  * are fetched and handed over as a Blob.
  *

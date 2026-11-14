@@ -47,7 +47,7 @@ export default function PipelinePage() {
   const [losing, setLosing] = useState<DealSummary | null>(null)
   const [notice, setNotice] = useState<string | null>(null)
   const [failure, setFailure] = useState<string | null>(null)
-  /** A move the estimate gate refused: the deal and the server's explanation (specs/018 AC-3.4). */
+  /** A move the estimate gate refused: the deal and the server's explanation (specs/20261101-crm-sales-flow AC-3.4). */
   const [gate, setGate] = useState<{ deal: DealSummary; detail: string } | null>(null)
   const [stale, setStale] = useState(false)
 

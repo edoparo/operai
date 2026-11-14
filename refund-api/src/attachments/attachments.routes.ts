@@ -1,5 +1,5 @@
 /**
- * Attachment endpoints (T9, specs/007-refund-service, ADR-0016).
+ * Attachment endpoints (T9, specs/20260716-refund-service, ADR 20260716-eu-object-storage-refund-attachments).
  *
  *   POST   /requests/:id/lines/:lineId/attachments             → mint (draft-only)
  *   POST   /requests/:id/lines/:lineId/attachments/:aid/confirm → HEAD-verify → stored
@@ -11,7 +11,7 @@
  * `findRequestWithLines` + `canReadRequest` (the SAME predicate GET
  * /requests/:id uses) so an in-scope accounting reviewer can also download a
  * submitted request's receipts (AC-6.2), and the signed URL is minted ONLY
- * after that check passes (ADR-0016 § Download).
+ * after that check passes (ADR 20260716-eu-object-storage-refund-attachments § Download).
  *
  * BODY SIZE GUARD (OWASP A04 fix): only the mint route (POST .../attachments)
  * accepts a JSON body — confirm/delete/get-url take none. bodyLimit is
@@ -19,7 +19,7 @@
  * wildcard), mirroring notify-api's systemNotificationsRouter precedent of
  * scoping bodyLimit to a single exact path rather than leaking it onto
  * sibling routes with no body. Receipt BYTES themselves never transit this
- * router (ADR-0016) — this cap is only for the small upload-metadata body
+ * router (ADR 20260716-eu-object-storage-refund-attachments) — this cap is only for the small upload-metadata body
  * (fileName/contentType/sizeBytes), fires BEFORE jwtMiddleware/authzMiddleware.
  */
 
@@ -168,7 +168,7 @@ const mintAttachmentRoute = createRoute({
   description:
     "Draft-only (409 otherwise). Returns a presigned POST — the browser " +
     "uploads directly to the EU bucket; refund-api never touches the file " +
-    "bytes (ADR-0016). content-length-range (<=10 MiB) and Content-Type are " +
+    "bytes (ADR 20260716-eu-object-storage-refund-attachments). content-length-range (<=10 MiB) and Content-Type are " +
     "pinned inside the signed policy itself.",
   security: [{ Bearer: [] }],
   request: {
@@ -249,7 +249,7 @@ const confirmAttachmentRoute = createRoute({
   summary: "Confirm a completed upload",
   description:
     "HEADs the object and re-validates its actual size/content-type against " +
-    "the metadata recorded at mint time (ADR-0016 defense-in-depth); flips " +
+    "the metadata recorded at mint time (ADR 20260716-eu-object-storage-refund-attachments defense-in-depth); flips " +
     "`uploadStatus` to `stored` on match. 409 if the object is missing or " +
     "the metadata mismatches, or if the request is no longer a draft.",
   security: [{ Bearer: [] }],
@@ -400,7 +400,7 @@ attachmentsRouter.openapi(deleteAttachmentRoute, async (c) => {
 
   // Best-effort object delete — a storage-side failure (network blip,
   // already-gone object) is logged but must not block removing the DB
-  // record; a decision the plan leaves to implementation (ADR-0016 names no
+  // record; a decision the plan leaves to implementation (ADR 20260716-eu-object-storage-refund-attachments names no
   // cron for orphan cleanup either way).
   try {
     await deleteObject(attachment.objectKey);
@@ -426,7 +426,7 @@ const getAttachmentUrlRoute = createRoute({
   description:
     "Owner OR in-scope accounting only (404 otherwise — same predicate as " +
     "GET /requests/:id). The signed GET (~60s) is minted ONLY after that " +
-    "check passes (ADR-0016). Only a `stored` attachment is ever reachable.",
+    "check passes (ADR 20260716-eu-object-storage-refund-attachments). Only a `stored` attachment is ever reachable.",
   security: [{ Bearer: [] }],
   request: { params: AttachmentIdParamSchema },
   responses: {

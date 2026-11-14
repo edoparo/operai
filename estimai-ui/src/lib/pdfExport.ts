@@ -63,7 +63,7 @@ export async function exportPdf({ name, author, acts, summary, totals, params }:
 
   // ── Async assets (logo) ───────────────────────────────────────────────────
   // A "Scan to view online" QR used to sit bottom-right, encoding the anonymous
-  // share link. That link mechanism was removed on 2026-08-09 (see specs/013's
+  // share link. That link mechanism was removed on 2026-08-09 (see specs/20260807-estimate-sharing's
   // US-8 amendment); with no account-free view to point at, the QR went too.
   const logoDataUrl = await svgToDataUrl('/estimai-light.svg', 256)
 

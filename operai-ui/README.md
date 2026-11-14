@@ -2,7 +2,7 @@
 
 The Operai design system: design tokens and themes, the component classes, the
 React components built on them, and a Storybook that shows every component and
-the suite's page types. Shared by every Operai frontend (ADR-0050).
+the suite's page types. Shared by every Operai frontend (ADR 20261031-shared-ui-library-consumed-as-source).
 
 | What | Where |
 |---|---|
@@ -48,7 +48,7 @@ here serves Storybook and the tests only.
 
 ## Adopting the library in an app
 
-The library is compiled from source by the app that uses it (ADR-0050). In the
+The library is compiled from source by the app that uses it (ADR 20261031-shared-ui-library-consumed-as-source). In the
 app directory:
 
 1. **`vite.config.ts`** — alias the package and keep one React:
@@ -119,7 +119,7 @@ is in the main entry. An app that uses the rich-text entry:
 
 Tests in jsdom call `stubLayoutForRichText()` (from the same entry) once: ProseMirror needs a layout jsdom
 does not have. Today's consumers: meetings-ui (personal meeting notes), crm-ui and projects-ui (task
-descriptions with images and attachments, ADR-0089).
+descriptions with images and attachments, ADR 20261113-task-description-files-in-activities-api-bucket).
 
 ## Versioning
 

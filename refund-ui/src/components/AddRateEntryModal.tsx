@@ -1,13 +1,13 @@
 /**
  * AddRateEntryModal — add one entry to an entity's mileage-rate series (the
- * Settings tab; moved from admin-ui, specs/009 design.md ADM-M1). The entity
+ * Settings tab; moved from admin-ui, specs/20260720-mileage-rate design.md ADM-M1). The entity
  * is fixed in the title, and the description says the entry is irreversible
  * (AC-4.7).
  *
  * Presentational: `SettingsPage` owns the field state and the `POST /rates`
  * call and maps a 422 onto `rateError` / `validFromError`. Built on
  * @operai/ui's `FormDialog` (focus trap, Escape = Cancel, focus return). The
- * rate is a `MoneyInput` parsed exactly to micros (ADR-0025); a touched field
+ * rate is a `MoneyInput` parsed exactly to micros (ADR 20260720-mileage-rate-money-precision-integer-micros); a touched field
  * is validated on blur, and a reported error moves focus to the first invalid
  * field.
  */

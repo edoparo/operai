@@ -1,7 +1,7 @@
 /**
  * @vitest-environment jsdom
  *
- * Component tests for Bell (T11, specs/005-notification-center, design.md "Bell (shell
+ * Component tests for Bell (T11, specs/20260713-notification-center, design.md "Bell (shell
  * header chrome)").
  *
  * Uses a real, minimal TanStack Router harness (mirroring Sidebar.test.tsx's technique)

@@ -3,7 +3,7 @@ import { strings } from '../strings'
 
 /**
  * NotFoundPage — admin-ui's inner-router-wide not-found fallback (T14,
- * specs/004-auth-roles-permissions/tasks.md's "not-found route"). Wired as
+ * specs/20260713-auth-roles-permissions/tasks.md's "not-found route"). Wired as
  * `defaultNotFoundComponent` in `createAppRouter` (../router.tsx), so any
  * unmatched path under admin-ui's basepath (e.g. a stale bookmark or
  * typo'd `/admin/whatever`) renders this instead of a blank screen — no

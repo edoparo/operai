@@ -1,4 +1,4 @@
-/** The deal page's Offers card and the generate dialog (specs/018 US-4). */
+/** The deal page's Offers card and the generate dialog (specs/20261101-crm-sales-flow US-4). */
 const en = {
   title: 'Offers',
   loading: 'Loading the offers…',

@@ -1,5 +1,5 @@
 /**
- * No two catalogs may declare the same resource key (specs/021-meetings —
+ * No two catalogs may declare the same resource key (specs/20261104-meetings —
  * AC-10.8, plan § Authorization).
  *
  * The resolver and the shell's `PermissionsResult` key grants by

@@ -1,6 +1,6 @@
 /**
- * Integration tests for POST /system/emails (T3, specs/006-user-invitations,
- * ADR-0011; extended by T7, specs/008-refund-monthly-processing, ADR-0021
+ * Integration tests for POST /system/emails (T3, specs/20260713-user-invitations,
+ * ADR 20260714-notify-api-email-channel-service-trust; extended by T7, specs/20260719-refund-monthly-processing, ADR 20260719-refund-batch-signed-link-email-delivery
  * for the `refund_batch_compiled` template).
  *
  * Strategy mirrors notifications/raise.routes.test.ts: real Postgres
@@ -14,7 +14,7 @@
  * process-wide singleton (bun test runs every file in one process) and other
  * files (stream.routes.test.ts) depend on its real fields. This file imports
  * the REAL `env`, authenticates with an in-memory scoped service JWT
- * (specs/016 T14: the only credential), and mutates only
+ * (specs/20261013-notify-service-credentials T14: the only credential), and mutates only
  * `EMAIL_ENABLED` for the Resend-failure test, restoring it in `afterEach`.
  *
  * done when (tasks.md T3): valid token → send (stub/real) 200
@@ -37,7 +37,7 @@ import { env } from "@/lib/env";
 
 const ORIGINAL_EMAIL_ENABLED = env.EMAIL_ENABLED;
 
-// ─── Service credential (specs/016 T14: the only credential) ──────────────────
+// ─── Service credential (specs/20261013-notify-service-credentials T14: the only credential) ──────────────────
 // Keys and JWKS are generated in memory and injected into the auth middleware,
 // so the test exercises the real middleware without a live auth service.
 
@@ -214,9 +214,9 @@ describe("POST /system/emails — valid service credential", () => {
   });
 });
 
-// ─── Auth (Security R2, ADR-0011) ─────────────────────────────────────────────
+// ─── Auth (Security R2, ADR 20260714-notify-api-email-channel-service-trust) ─────────────────────────────────────────────
 
-describe("POST /system/emails — service-credential auth (Security R2, ADR-0011, ADR-0049)", () => {
+describe("POST /system/emails — service-credential auth (Security R2, ADR 20260714-notify-api-email-channel-service-trust, ADR 20261013-all-notify-callers-scoped-credentials-shared-token-retired)", () => {
   it("401: no credential, nothing persisted", async () => {
     const app = buildApp();
     const before = await testDb.emailDelivery.count({
@@ -308,7 +308,7 @@ describe("POST /system/emails — validation failures → 400", () => {
     expect(res.status).toBe(400);
   });
 
-  it("400: `notification_notice` is not callable here (its address comes only from auth, specs/019)", async () => {
+  it("400: `notification_notice` is not callable here (its address comes only from auth, specs/20261101-crm-notifications)", async () => {
     const app = buildApp();
     const res = await app.request("/system/emails", {
       method: "POST",
@@ -387,8 +387,8 @@ describe("POST /system/emails — validation failures → 400", () => {
   });
 });
 
-// ─── refund_batch_compiled template (T7, specs/008-refund-monthly-processing,
-// plan.md §Email, ADR-0021) ────────────────────────────────────────────────
+// ─── refund_batch_compiled template (T7, specs/20260719-refund-monthly-processing,
+// plan.md §Email, ADR 20260719-refund-batch-signed-link-email-delivery) ────────────────────────────────────────────────
 
 const validRefundBatchBody = (overrides?: Record<string, unknown>) => ({
   to: `${TEST_ADDRESS_PREFIX}-accounting@example.com`,
@@ -403,7 +403,7 @@ const validRefundBatchBody = (overrides?: Record<string, unknown>) => ({
   ...overrides,
 });
 
-describe("POST /system/emails — refund_batch_compiled (T7, ADR-0021)", () => {
+describe("POST /system/emails — refund_batch_compiled (T7, ADR 20260719-refund-batch-signed-link-email-delivery)", () => {
   it("200: valid deep-link body → {deliveryId, status:'sent'}, EmailDelivery recorded with the new template", async () => {
     const app = buildApp();
     const res = await app.request("/system/emails", {
@@ -578,7 +578,7 @@ describe("POST /system/emails — refund_batch_compiled (T7, ADR-0021)", () => {
   });
 });
 
-// ─── Decision emails (specs/007-refund-service AC-3.6, email channel) ──────
+// ─── Decision emails (specs/20260716-refund-service AC-3.6, email channel) ──────
 
 const post = async (body: unknown) =>
   buildApp().request("/system/emails", {
@@ -635,7 +635,7 @@ describe("POST /system/emails — refund decision templates", () => {
     expect(res.status).toBe(400);
   });
 
-  it("400: amountCents is a float, not integer minor units (ADR-0025)", async () => {
+  it("400: amountCents is a float, not integer minor units (ADR 20260720-mileage-rate-money-precision-integer-micros)", async () => {
     const body = validApprovedBody();
     const res = await post({
       ...body,

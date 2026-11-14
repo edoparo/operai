@@ -32,7 +32,7 @@ RUN bun install --frozen-lockfile --production
 COPY --chown=bun:bun --from=builder /app/src ./src
 COPY --chown=bun:bun --from=builder /app/prisma ./prisma
 COPY --chown=bun:bun tsconfig.json prisma.config.ts ./
-# The deal-link backfill (specs/024, ADR-0076) runs INSIDE this service, where its
+# The deal-link backfill (specs/20261108-estimate-list-oversight, ADR 20261108-crm-pushes-deal-links-to-estimai) runs INSIDE this service, where its
 # variables and private networking live: `railway ssh --service crm-api`, then
 # `bun scripts/backfill-estimate-links.ts [--apply]`.
 COPY --chown=bun:bun scripts/backfill-estimate-links.ts ./scripts/
@@ -45,7 +45,7 @@ USER bun
 
 EXPOSE 8084
 
-# DATA-RESIDENCY (specs/017-crm): this image is deployed to Railway EU region
+# DATA-RESIDENCY (specs/20261101-crm): this image is deployed to Railway EU region
 # only (europe-west4, see .railway/railway.ts) — crm-api holds deal values and the
 # personal data of clients' contacts (third parties, GDPR). Request/response
 # bodies are NEVER logged — only method+path+status (src/lib/logger.ts). Do NOT

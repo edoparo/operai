@@ -1,7 +1,7 @@
 /**
  * Display-identity resolution for project managers and team members
- * (specs/025-projects, ADR-0039). Copied from crm-api/src/lib/identities.ts, with
- * `requireProjectUsers` for writes in place of its `requireCrmUsers` (ADR-0055).
+ * (specs/20261103-projects, ADR 20260807-live-identity-resolution-by-id-fail-soft). Copied from crm-api/src/lib/identities.ts, with
+ * `requireProjectUsers` for writes in place of its `requireCrmUsers` (ADR 20261101-app-access-check-by-user-id-and-directory-app-filter).
  *
  * projects-api stores only opaque auth user ids. Names are resolved LIVE from
  * `auth POST /authz/users/identities` at read time, never copied into this
@@ -64,7 +64,7 @@ function toIdentity(raw: unknown): Identity | null {
   if (status === "active") {
     return { id, status, name: typeof name === "string" && name !== "" ? name : null };
   }
-  // A name is surfaced for an active user only (AC-10.5 of specs/013): a
+  // A name is surfaced for an active user only (AC-10.5 of specs/20260807-estimate-sharing): a
   // deleted or unknown one must not carry an identity that implies otherwise.
   if (status === "deleted") return { id, status, name: null };
   return unknown(id);
@@ -145,7 +145,7 @@ export async function resolveIdentities(
 /**
  * The write-time check for the people a project is given to: a project manager or a
  * team member must be an active Operai user who holds `projects:access` (AC-1.6,
- * ADR-0055). Asked of `auth POST /authz/app-access-check {appId:"projects", userId}`
+ * ADR 20261101-app-access-check-by-user-id-and-directory-app-filter). Asked of `auth POST /authz/app-access-check {appId:"projects", userId}`
  * with the caller's own JWT, one id at a time (`auth` has no batch form and rate-limits
  * the route per caller, so the ids are distinct and the calls sequential).
  *

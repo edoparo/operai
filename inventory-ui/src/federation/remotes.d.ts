@@ -1,5 +1,5 @@
 // Ambient module declarations for the shell modules inventory-ui consumes as a
-// remote (T24, specs/015-hardware-inventory). Module Federation resolves
+// remote (T24, specs/20261006-hardware-inventory). Module Federation resolves
 // `shell/session` and `shell/tokens.css` at runtime via a virtual module
 // TypeScript's program cannot see, so without these declarations `tsc`
 // reports TS2307/TS2306 ("Cannot find module"). Hand-written rather than
@@ -38,9 +38,9 @@ declare module 'shell/session' {
   export const getInventoryApiBaseUrl: () => string
   export const getAuthBaseUrl: () => string
 
-  // Permission resolution (specs/004-auth-roles-permissions, ADR-0007) — added
+  // Permission resolution (specs/20260713-auth-roles-permissions, ADR 20260713-authz-hand-rolled-rbac-abac-epoch-claims) — added
   // for the layout's client-side "hide the accounting nav tabs" UX gate
-  // (specs/008-refund-monthly-processing follow-up). Mirrors
+  // (specs/20260719-refund-monthly-processing follow-up). Mirrors
   // shell/src/lib/session.ts's `Permission`/`PermissionsResult`/`usePermissions`
   // exactly; only the members inventory-ui actually consumes are typed here.
   export interface Permission {

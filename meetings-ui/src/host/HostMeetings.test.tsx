@@ -1,7 +1,7 @@
 /**
  * @vitest-environment jsdom
  *
- * The host panel and its link dialog (specs/021-meetings T76; AC-1.4, 1.7, 11.2, 11.3, 11.6, 14.1;
+ * The host panel and its link dialog (specs/20261104-meetings T76; AC-1.4, 1.7, 11.2, 11.3, 11.6, 14.1;
  * design.md S6, F1b; plan G2): `HostMeetings` as the shell's `HostExtension` renders it inside a
  * host's page (no router of its own), against `fakeApi`.
  */

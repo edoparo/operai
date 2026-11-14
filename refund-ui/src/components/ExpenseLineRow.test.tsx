@@ -1,9 +1,9 @@
 /**
  * @vitest-environment jsdom
  *
- * Component tests for ExpenseLineRow (T16/T17, specs/007-refund-service/
- * tasks.md; post-close UX amendment, specs/007, 2026-07-17 — see
- * `specs/007-refund-service/design.md`'s dated amendment note). Covers:
+ * Component tests for ExpenseLineRow (T16/T17, specs/20260716-refund-service/
+ * tasks.md; post-close UX amendment, specs/20260716-refund-service, 2026-07-17 — see
+ * `specs/20260716-refund-service/design.md`'s dated amendment note). Covers:
  * `edit` mode's collapsed-summary-by-default render, Edit expanding it to
  * the full field form and Done collapsing it back (still exercising the
  * blur-commit-as-one-PUT behavior, not per-keystroke), the line-delete
@@ -352,7 +352,7 @@ describe('ExpenseLineRow — read-only modes', () => {
     expect(row.textContent).not.toContain('Approved')
   })
 
-  it('readOnly shows the entity and currency as two separate badges (post-close split, specs/007)', () => {
+  it('readOnly shows the entity and currency as two separate badges (post-close split, specs/20260716-refund-service)', () => {
     render(
       <ExpenseLineRow
         line={{ ...line, entity: 'welld_it', currency: 'USD' }}
@@ -584,13 +584,13 @@ describe('ExpenseLineRow — review mode (T18, accounting)', () => {
 })
 
 // -----------------------------------------------------------------------------
-// specs/009-mileage-rate — travel_km lines: hidden amount/currency + the
+// specs/20260720-mileage-rate — travel_km lines: hidden amount/currency + the
 // live MileageAmountField in expanded edit mode (AC-1.1/1.5/1.6), and the
 // "Rate applied" dt/dd + km-annotation across every summaryCore render
 // (AC-6.4, AC-1.7/1.8).
 // -----------------------------------------------------------------------------
 
-describe('ExpenseLineRow — edit mode, expanded, travel_km (specs/009-mileage-rate)', () => {
+describe('ExpenseLineRow — edit mode, expanded, travel_km (specs/20260720-mileage-rate)', () => {
   const kmLine: RefundLine = {
     ...line,
     id: 'km-1',
@@ -652,7 +652,7 @@ describe('ExpenseLineRow — edit mode, expanded, travel_km (specs/009-mileage-r
   })
 })
 
-describe('ExpenseLineRow — summaryCore, travel_km (specs/009-mileage-rate)', () => {
+describe('ExpenseLineRow — summaryCore, travel_km (specs/20260720-mileage-rate)', () => {
   it('collapsed edit-mode summary appends the live applied rate next to km, and shows the live computed amount (AC-1.7/1.8)', () => {
     const draftKmLine: RefundLine = {
       ...line,

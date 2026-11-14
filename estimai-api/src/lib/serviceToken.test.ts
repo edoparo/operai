@@ -1,6 +1,6 @@
 /**
- * Service-token client (T10, specs/016-notify-service-credentials; AC-4.2;
- * ADR-0044). `auth` is a stubbed `fetch`; time is an injected clock.
+ * Service-token client (T10, specs/20261013-notify-service-credentials; AC-4.2;
+ * ADR 20261006-scoped-service-jwt-fourth-notify-caller). `auth` is a stubbed `fetch`; time is an injected clock.
  */
 
 import { describe, it, expect, spyOn } from "bun:test";

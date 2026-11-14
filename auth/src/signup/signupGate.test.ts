@@ -1,5 +1,5 @@
 /**
- * specs/023 T5 (ADR-0071): the sign-up gate, driven through better-auth's REAL
+ * specs/20261105-signup-gate T5 (ADR 20261105-access-only-by-invitation-waiting-list): the sign-up gate, driven through better-auth's REAL
  * `internalAdapter.createOAuthUser` (the call the OAuth callback makes), so
  * the abort contract (T-INT-1, T-INT-2) is pinned against the pinned version.
  */

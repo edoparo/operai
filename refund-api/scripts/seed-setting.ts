@@ -1,5 +1,5 @@
 /**
- * Cutover seed script (T5, specs/011-refund-settings, plan.md D7).
+ * Cutover seed script (T5, specs/20260722-refund-settings, plan.md D7).
  *
  * A one-time, OPERATOR-RUN maintenance command — never a server startup env
  * read, never a schema migration carrying the value (AC-4.1 stays strictly

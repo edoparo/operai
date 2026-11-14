@@ -1,6 +1,6 @@
 /**
- * The requester's notification when processing ends (specs/021-meetings AC-12.2, AC-12.4;
- * ADR-0065): the meeting TITLE and the OUTCOME, nothing else (the copy catalog takes no
+ * The requester's notification when processing ends (specs/20261104-meetings AC-12.2, AC-12.4;
+ * ADR 20261104-bilingual-system-notifications): the meeting TITLE and the OUTCOME, nothing else (the copy catalog takes no
  * other input). Shared by `prepare_audio` and `transcribe`, the two jobs that can end a
  * processing run, so the recipient rule lives once.
  *

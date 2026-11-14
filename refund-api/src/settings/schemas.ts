@@ -1,5 +1,5 @@
 /**
- * Zod schemas for the refund-settings surface (T3, specs/011-refund-settings,
+ * Zod schemas for the refund-settings surface (T3, specs/20260722-refund-settings,
  * plan.md § API contracts).
  */
 

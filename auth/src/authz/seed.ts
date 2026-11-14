@@ -1,7 +1,7 @@
 /**
  * Bootstrap seed for the authorization domain (T11/T26, specs/004-auth-roles-
  * permissions — refs AC-6.1, AC-6.2, AC-6.3, AC-3.4; plan.md "Bootstrap &
- * seed" + "Catalog registration"; ADR-0007).
+ * seed" + "Catalog registration"; ADR 20260713-authz-hand-rolled-rbac-abac-epoch-claims).
  *
  * Independent, idempotent responsibilities, all safe to re-run any number of
  * times (at every deploy, and from tests) — roles + catalog, admin app-access
@@ -31,7 +31,7 @@
  *      `estimai` is registered exactly once, here, with its complete
  *      catalog; `seedAppAccessCatalog`'s `SUITE_APPS` list only ever
  *      contains apps that don't (yet) declare more than bare access.
- *   4. {@link seedRefundCatalog} (T2, specs/007-refund-service — AC-1.1,
+ *   4. {@link seedRefundCatalog} (T2, specs/20260716-refund-service — AC-1.1,
  *      AC-5.4, AC-7.5, AC-8.2) — register refund's FULL declared catalog
  *      (`catalogs/refund.ts`: app `access` + the `request` resource's
  *      create/read/review/set-approved-total/approve/reject actions) via the
@@ -40,7 +40,7 @@
  *      bare access, so it is registered exactly once, here.
  *   5. {@link seedAccountingRoleGrants} (T2, AC-7.5) — attach the entity-
  *      conditioned review/decision grants to the `accounting` system role
- *      (ADR-0015). Deliberately does NOT touch `employee` (refund access is
+ *      (ADR 20260716-entity-scoped-abac-refund-api). Deliberately does NOT touch `employee` (refund access is
  *      fully admin-assigned, Gate-2 decision D2) and does NOT create a
  *      separate `accounting-global` role (Gate-2 decision D3 — "global"
  *      scope is composed by an admin adding an unconditioned grant on top of
@@ -56,37 +56,37 @@
  *      deliberately separate from, `seedAccountingRoleGrants` — it does NOT
  *      create the previously-rejected `accounting-global` role; `refund-admin`
  *      is its own named role an admin opts a specific user into.
- *   7. {@link seedRateAdminGrants} (T1, specs/009-mileage-rate — plan.md
+ *   7. {@link seedRateAdminGrants} (T1, specs/20260720-mileage-rate — plan.md
  *      "Architecture §auth", Decision 2) — grants `rate:read` + `rate:manage`
  *      (`catalogs/refund.ts`'s new `rate` resource) to the `admin` and
  *      `refund-admin` system roles. Both actions are UNCONDITIONED in the
  *      catalog itself (no entity scope, unlike `request`'s accounting
  *      actions), so there is no `conditions` payload to attach here either —
  *      unlike `seedAccountingRoleGrants`/`seedRefundAdminRole`, whose grants
- *      populate (or deliberately omit) the ADR-0015 entity condition, a rate
+ *      populate (or deliberately omit) the ADR 20260716-entity-scoped-abac-refund-api entity condition, a rate
  *      grant is simply present or absent. Deliberately does NOT touch
  *      `employee` or `accounting` — rate configuration is an admin-only
  *      surface, not part of the accounting review workflow.
- *   8. {@link seedSettingsAdminGrants} (T1, specs/011-refund-settings —
- *      plan.md "Architecture §auth", Decision D2; ADR-0028) — grants
+ *   8. {@link seedSettingsAdminGrants} (T1, specs/20260722-refund-settings —
+ *      plan.md "Architecture §auth", Decision D2; ADR 20260722-settings-catalog-permission-config-not-rate) — grants
  *      `settings:read` + `settings:manage` (`catalogs/refund.ts`'s new
  *      `settings` resource) to the `admin` and `refund-admin` system roles,
  *      mirroring {@link seedRateAdminGrants} exactly. This is a NEW,
  *      DISTINCT permission — deliberately NOT a reuse of `rate:manage`
- *      (ADR-0028) — so it gets its own seed function rather than piggy-
+ *      (ADR 20260722-settings-catalog-permission-config-not-rate) — so it gets its own seed function rather than piggy-
  *      backing on the rate grants. Deliberately does NOT touch `employee` or
  *      `accounting` — refund settings are an admin-only surface.
  *
  *   9. {@link seedInventoryCatalog} + {@link seedInventoryGrants} (T3,
- *      specs/015-hardware-inventory — AC-9.1, AC-9.3–9.6) — register
+ *      specs/20261006-hardware-inventory — AC-9.1, AC-9.3–9.6) — register
  *      inventory's FULL catalog (`catalogs/inventory.ts`) and attach its role
  *      grants (`admin` all three unconditioned, `accounting` access +
  *      entity-scoped `ledger:manage`, the new `inventory-manager` system role
  *      access + entity-scoped `asset:manage`). `inventory` is registered once,
  *      here, never through `SUITE_APPS`.
  *
- *  10. {@link seedCrmCatalog} + {@link seedCrmGrants} (specs/017-crm — AC-5.1,
- *      AC-5.2; ADR-0052) — register the CRM's catalog (`catalogs/crm.ts`) and
+ *  10. {@link seedCrmCatalog} + {@link seedCrmGrants} (specs/20261101-crm — AC-5.1,
+ *      AC-5.2; ADR 20261101-crm-tool-shape-and-authorization) — register the CRM's catalog (`catalogs/crm.ts`) and
  *      attach its grants (`admin` all unconditioned, the new `sales` system role
  *      `crm:access` + entity-scoped `deal:manage`). `crm` is registered once,
  *      here, never through `SUITE_APPS`.
@@ -95,7 +95,7 @@
  *      meetings — AC-10.8, AC-1.4, AC-10.5) — register the Meetings catalog
  *      (`catalogs/meetings.ts`) and attach its grants: `employee` gets
  *      `meetings:access` (the FIRST default grant on `employee`, a departure
- *      from specs/004 forced by AC-10.8), `admin` gets `template:manage` and
+ *      from specs/20260713-auth-roles-permissions forced by AC-10.8), `admin` gets `template:manage` and
  *      `meeting:erase` (its `meetings:access` comes from `ALL_APP_IDS`).
  *      `meetings` is registered once, here, never through `SUITE_APPS`.
  *
@@ -132,7 +132,7 @@ export const ACCOUNTING_ROLE_NAME = "accounting";
 export const REFUND_ADMIN_ROLE_NAME = "refund-admin";
 export const INVENTORY_MANAGER_ROLE_NAME = "inventory-manager";
 export const SALES_ROLE_NAME = "sales";
-/** System role holding only `crm:access` (specs/018): technical staff who read the CRM, no financials. */
+/** System role holding only `crm:access` (specs/20261101-crm-sales-flow): technical staff who read the CRM, no financials. */
 export const CRM_TECHNICAL_ROLE_NAME = "crm-technical";
 export const PROJECT_MANAGER_ROLE_NAME = "project-manager";
 
@@ -202,7 +202,7 @@ export async function seedEstimaiCatalog(): Promise<void> {
 }
 
 /**
- * Registers refund's full declared catalog (T2, specs/007-refund-service —
+ * Registers refund's full declared catalog (T2, specs/20260716-refund-service —
  * AC-1.1, AC-5.4, AC-7.5, AC-8.2) — `catalogs/refund.ts`'s `REFUND_CATALOG`
  * (app `access` + the `request` resource's create/read/review/
  * set-approved-total/approve/reject actions, each with its declared
@@ -225,7 +225,7 @@ export async function seedInventoryCatalog(): Promise<void> {
 }
 
 /**
- * Registers the CRM's catalog (specs/017-crm — AC-5.1): `crm:access`,
+ * Registers the CRM's catalog (specs/20261101-crm — AC-5.1): `crm:access`,
  * entity-scoped `deal:manage` and `contact:erase`. Idempotent (full-replace
  * upsert keyed by `appId`). `crm` is registered ONLY here, never via `SUITE_APPS`.
  */
@@ -234,7 +234,7 @@ export async function seedCrmCatalog(): Promise<void> {
 }
 
 /**
- * Registers the Meetings catalog (specs/021-meetings — AC-10.8):
+ * Registers the Meetings catalog (specs/20261104-meetings — AC-10.8):
  * `meetings:access`, `template:manage` and `meeting:erase`, all unconditioned.
  * Idempotent (full-replace upsert keyed by `appId`). `meetings` is registered
  * ONLY here, never via `SUITE_APPS`.
@@ -244,7 +244,7 @@ export async function seedMeetingsCatalog(): Promise<void> {
 }
 
 /**
- * Registers the projects module's catalog (specs/025-projects — AC-4.1):
+ * Registers the projects module's catalog (specs/20261103-projects — AC-4.1):
  * `projects:access`, entity-scoped `project:manage` and `contract:bexio`.
  * Idempotent (full-replace upsert keyed by `appId`). `projects` is registered
  * ONLY here, never via `SUITE_APPS`.
@@ -285,18 +285,18 @@ export const ALL_APP_IDS: readonly string[] = [
 ];
 
 /**
- * The entity attribute condition (specs/004, applied by ADR-0015): "the
+ * The entity attribute condition (specs/20260713-auth-roles-permissions, applied by ADR 20260716-entity-scoped-abac-refund-api): "the
  * record's entity must equal the acting user's `entity` attribute". Attached
  * to every entity-scoped `accounting` grant below.
  */
 const REFUND_ENTITY_CONDITION = { attributes: [{ key: "entity", match: "user" }] };
 
-/** The `request` resource actions the `accounting` role is granted, entity-scoped (ADR-0015). */
+/** The `request` resource actions the `accounting` role is granted, entity-scoped (ADR 20260716-entity-scoped-abac-refund-api). */
 const ACCOUNTING_REQUEST_ACTIONS = ["review", "set-approved-total", "approve", "reject"] as const;
 
 /**
- * Seeds the `accounting` role's refund grants (T2, specs/007-refund-service
- * — AC-5.4, AC-6.4, AC-7.5; plan.md "Role → permission mapping"; ADR-0015).
+ * Seeds the `accounting` role's refund grants (T2, specs/20260716-refund-service
+ * — AC-5.4, AC-6.4, AC-7.5; plan.md "Role → permission mapping"; ADR 20260716-entity-scoped-abac-refund-api).
  * Grants `refund:access` (unconditional — same shape as every other app-
  * access grant) plus `request:review`/`set-approved-total`/`approve`/
  * `reject`, each carrying the entity condition {@link REFUND_ENTITY_CONDITION}
@@ -304,12 +304,12 @@ const ACCOUNTING_REQUEST_ACTIONS = ["review", "set-approved-total", "approve", "
  * does NOT touch:
  *   - `employee` — refund access is fully admin-assigned (Gate-2 decision
  *     D2); an employee gets `refund:access`/`request:create`/`request:read`
- *     only once an admin grants them via the existing specs/004 GUI.
+ *     only once an admin grants them via the existing specs/20260713-auth-roles-permissions GUI.
  *   - a separate `accounting-global` role — "global" (both-entity) review
  *     scope is composed by an admin additionally granting an UNCONDITIONED
  *     `request:review` (etc.) to a user who already holds this role; the
  *     resolver's pre-existing widest-wins union promotes them to global with
- *     no second role needed (Gate-2 decision D3; ADR-0015 point 4).
+ *     no second role needed (Gate-2 decision D3; ADR 20260716-entity-scoped-abac-refund-api point 4).
  * Idempotent: each (role, resource, action) grant is created only when
  * absent, mirroring {@link seedAdminRoleGrants}'s pattern exactly.
  */
@@ -380,7 +380,7 @@ const REFUND_ADMIN_REQUEST_ACTIONS = [
  * resolves to `GLOBAL_ENTITY_SCOPE`: `canReadRequest`'s accounting branch,
  * the review queue (`GET /review/requests`), and every decide route
  * (approve/reject/set-approved-total, `decide.routes.ts`) all accept that
- * scope for every request regardless of owner or entity (ADR-0015's
+ * scope for every request regardless of owner or entity (ADR 20260716-entity-scoped-abac-refund-api's
  * pre-existing widest-wins union — the SAME mechanism Gate-2 decision D3
  * already established for a manually-composed "global" accounting grant,
  * here pre-bundled into a role instead of left to a one-off admin action).
@@ -420,7 +420,7 @@ export async function seedRefundAdminRole(): Promise<void> {
     });
     if (!existing) {
       // Omit `conditions` → defaults to null (an unconditional grant) for
-      // EVERY action, including the four ADR-0015 entity-scoped ones — see
+      // EVERY action, including the four ADR 20260716-entity-scoped-abac-refund-api entity-scoped ones — see
       // this function's doc comment for why that's required, not incidental.
       await db.permissionRule.create({
         data: { roleId: refundAdminRole.id, resource: "request", action },
@@ -429,18 +429,18 @@ export async function seedRefundAdminRole(): Promise<void> {
   }
 }
 
-/** The `rate` resource's two actions (T1, specs/009-mileage-rate) — both UNCONDITIONED. */
+/** The `rate` resource's two actions (T1, specs/20260720-mileage-rate) — both UNCONDITIONED. */
 const RATE_ACTIONS = ["read", "manage"] as const;
 
-/** The system roles granted `rate:read`/`rate:manage` (T1, specs/009-mileage-rate). */
+/** The system roles granted `rate:read`/`rate:manage` (T1, specs/20260720-mileage-rate). */
 const RATE_ADMIN_ROLE_NAMES = [ADMIN_ROLE_NAME, REFUND_ADMIN_ROLE_NAME] as const;
 
 /**
- * Seeds `rate:read`/`rate:manage` grants (T1, specs/009-mileage-rate —
+ * Seeds `rate:read`/`rate:manage` grants (T1, specs/20260720-mileage-rate —
  * plan.md "Architecture §auth", Decision 2) onto the `admin` and
  * `refund-admin` system roles. `catalogs/refund.ts`'s `rate` resource
  * declares both actions with NO `supportedConditions` — a deliberate
- * contrast with `request`'s entity-scoped accounting actions (ADR-0015) —
+ * contrast with `request`'s entity-scoped accounting actions (ADR 20260716-entity-scoped-abac-refund-api) —
  * so, unlike {@link seedAccountingRoleGrants}/{@link seedRefundAdminRole},
  * there is no `conditions` payload to compute here; each grant is either
  * present or absent. Mirrors {@link seedRefundAdminRole}'s upsert-then-check
@@ -469,21 +469,21 @@ export async function seedRateAdminGrants(): Promise<void> {
   }
 }
 
-/** The `settings` resource's two actions (T1, specs/011-refund-settings) — both UNCONDITIONED. */
+/** The `settings` resource's two actions (T1, specs/20260722-refund-settings) — both UNCONDITIONED. */
 const SETTINGS_ACTIONS = ["read", "manage"] as const;
 
-/** The system roles granted `settings:read`/`settings:manage` (T1, specs/011-refund-settings). */
+/** The system roles granted `settings:read`/`settings:manage` (T1, specs/20260722-refund-settings). */
 const SETTINGS_ADMIN_ROLE_NAMES = [ADMIN_ROLE_NAME, REFUND_ADMIN_ROLE_NAME] as const;
 
 /**
  * Seeds `settings:read`/`settings:manage` grants (T1, specs/011-refund-
- * settings — plan.md "Architecture §auth", Decision D2; ADR-0028) onto the
+ * settings — plan.md "Architecture §auth", Decision D2; ADR 20260722-settings-catalog-permission-config-not-rate) onto the
  * `admin` and `refund-admin` system roles. `catalogs/refund.ts`'s NEW
  * `settings` resource declares both actions with NO `supportedConditions` —
- * global, exactly like `rate` (ADR-0023/0028) — so, mirroring
+ * global, exactly like `rate` (ADR 20260720-mileage-rate-model-snapshot-admin-ui-composition/0028) — so, mirroring
  * {@link seedRateAdminGrants} exactly, there is no `conditions` payload to
  * compute here; each grant is either present or absent. This is a genuinely
- * NEW permission, deliberately NOT a reuse of `rate:manage` (ADR-0028) — a
+ * NEW permission, deliberately NOT a reuse of `rate:manage` (ADR 20260722-settings-catalog-permission-config-not-rate) — a
  * distribution mailbox is not a rate, and conflating the two would make the
  * two admin surfaces un-separable. Idempotent: each (role, resource, action)
  * grant is created only when absent. Deliberately does NOT touch `employee`
@@ -525,8 +525,8 @@ async function ensureGrant(
 }
 
 /**
- * Seeds inventory's role grants (T3, specs/015-hardware-inventory — AC-9.3,
- * AC-9.4, AC-9.5, AC-9.6; plan.md "Authorization model (`auth`)"; ADR-0015):
+ * Seeds inventory's role grants (T3, specs/20261006-hardware-inventory — AC-9.3,
+ * AC-9.4, AC-9.5, AC-9.6; plan.md "Authorization model (`auth`)"; ADR 20260716-entity-scoped-abac-refund-api):
  *
  *   - `admin` — `asset:manage` + `ledger:manage`, UNCONDITIONED (both
  *     entities, via the resolver's widest-wins union). Its `inventory:access`
@@ -539,12 +539,12 @@ async function ensureGrant(
  *     `asset:manage`, entity-conditioned. NOT `ledger:manage`.
  *   - `employee` — nothing: inventory access is fully admin-assigned (AC-9.6).
  *     An employee's own devices are reached through the ungated `/me/*`
- *     routes (ADR-0045), which need no grant.
+ *     routes (ADR 20261006-ungated-second-federated-entry-of-a-gated-remote), which need no grant.
  *
  * Idempotent and non-destructive: each (role, resource, action) grant is
  * created only when absent ({@link ensureGrant}), so a re-seed at every
  * deploy never duplicates a row and never resets conditions an admin has
- * since edited through the specs/004 GUI, and it never touches a grant it
+ * since edited through the specs/20260713-auth-roles-permissions GUI, and it never touches a grant it
  * does not own (refund's). The `accounting` role is upserted defensively, as
  * in {@link seedAccountingRoleGrants}, so the seed is safe in any order.
  */
@@ -589,7 +589,7 @@ export async function seedInventoryGrants(): Promise<void> {
 }
 
 /**
- * Grants `estimate:read-all` (specs/024, ADR-0075) to `admin` only,
+ * Grants `estimate:read-all` (specs/20261108-estimate-list-oversight, ADR 20261108-estimai-oversight-permission-amends-0036) to `admin` only,
  * unconditioned. Idempotent and non-destructive through {@link ensureGrant},
  * like {@link seedCrmGrants}; the `admin` role is upserted defensively.
  */
@@ -603,15 +603,15 @@ export async function seedEstimaiGrants(): Promise<void> {
 }
 
 /**
- * Seeds the CRM's role grants (specs/017-crm — AC-5.2; decisions D-4):
+ * Seeds the CRM's role grants (specs/20261101-crm — AC-5.2; decisions D-4):
  *
  *   - `admin` — `deal:manage` and `contact:erase`, UNCONDITIONED. Its
  *     `crm:access` comes from {@link seedAdminRoleGrants} (`ALL_APP_IDS`).
  *   - `sales` (NEW system role) — `crm:access` + `deal:manage` conditioned on
  *     the entity ({@link REFUND_ENTITY_CONDITION}): a salesperson manages the
  *     deals of their own entity and reads everything else.
- *   - `employee` — nothing: CRM access is admin-assigned (specs/004).
- *   - specs/018: `admin` and `sales` also get `deal:financials` (unconditioned);
+ *   - `employee` — nothing: CRM access is admin-assigned (specs/20260713-auth-roles-permissions).
+ *   - specs/20261101-crm-sales-flow: `admin` and `sales` also get `deal:financials` (unconditioned);
  *     the new system role `crm-technical` holds only `crm:access`.
  *
  * Idempotent and non-destructive, through {@link ensureGrant}, exactly like
@@ -645,7 +645,7 @@ export async function seedCrmGrants(): Promise<void> {
   );
   await ensureGrant(salesRole.id, "deal", "financials");
 
-  // specs/018: `crm-technical` — read/collaborate only (crm:access), no deal
+  // specs/20261101-crm-sales-flow: `crm-technical` — read/collaborate only (crm:access), no deal
   // management and no financials.
   const technicalRole = await db.role.upsert({
     where: { name: CRM_TECHNICAL_ROLE_NAME },
@@ -660,13 +660,13 @@ export async function seedCrmGrants(): Promise<void> {
 }
 
 /**
- * Seeds the Meetings role grants (specs/021-meetings — AC-10.8, AC-1.4,
+ * Seeds the Meetings role grants (specs/20261104-meetings — AC-10.8, AC-1.4,
  * AC-10.5; plan § Authorization):
  *
  *   - `employee` — `meetings:access`, unconditioned. The FIRST default grant on
  *     `employee`: every signed-in employee can create meetings and be invited
  *     to them without an admin step (AC-10.8), a deliberate departure from
- *     specs/004's "employees get no default grants".
+ *     specs/20260713-auth-roles-permissions's "employees get no default grants".
  *   - `admin` — `template:manage` and `meeting:erase`, unconditioned. Its
  *     `meetings:access` comes from {@link seedAdminRoleGrants} (`ALL_APP_IDS`).
  *   - nothing else: no role ever grants reading a meeting.
@@ -692,7 +692,7 @@ export async function seedMeetingsGrants(): Promise<void> {
 }
 
 /**
- * Seeds the projects module's role grants (specs/025-projects — AC-4.3–4.6;
+ * Seeds the projects module's role grants (specs/20261103-projects — AC-4.3–4.6;
  * decisions D13, D35, D36):
  *
  *   - `admin` — `project:manage` and `contract:bexio`, UNCONDITIONED. Its
@@ -701,7 +701,7 @@ export async function seedMeetingsGrants(): Promise<void> {
  *     conditioned on the entity ({@link REFUND_ENTITY_CONDITION}).
  *   - `sales` — gains the same two grants as `project-manager` (A29).
  *   - `accounting` — gains `projects:access` + `contract:bexio` (no manage).
- *   - `employee` — nothing: projects access is admin-assigned (specs/004).
+ *   - `employee` — nothing: projects access is admin-assigned (specs/20260713-auth-roles-permissions).
  *
  * Idempotent and non-destructive, through {@link ensureGrant}, exactly like
  * {@link seedCrmGrants}.
@@ -764,8 +764,8 @@ export async function seedProjectsGrants(): Promise<void> {
  * resolves to `apps: []` and is stranded on the shell's `/no-access` screen —
  * unable to reach the very Admin tool needed to grant anyone (themselves
  * included) anything. So `admin` must be able to see the whole suite out of the
- * box. Employees get no default grants but `meetings:access` (specs/021) — other app access is fully
- * admin-assigned (product decision, specs/004). Idempotent: each
+ * box. Employees get no default grants but `meetings:access` (specs/20261104-meetings) — other app access is fully
+ * admin-assigned (product decision, specs/20260713-auth-roles-permissions). Idempotent: each
  * (role, resource, action) grant is created only when absent.
  */
 export async function seedAdminRoleGrants(): Promise<void> {

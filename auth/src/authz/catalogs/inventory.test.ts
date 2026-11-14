@@ -22,13 +22,13 @@ describe("INVENTORY_CATALOG (T3, AC-9.1/9.3/9.4/9.5)", () => {
     ]);
   });
 
-  test("`asset` declares exactly `manage`, supporting only the `entity` condition (ADR-0015)", () => {
+  test("`asset` declares exactly `manage`, supporting only the `entity` condition (ADR 20260716-entity-scoped-abac-refund-api)", () => {
     const asset = INVENTORY_CATALOG.resources.find((r) => r.key === "asset");
     expect(asset?.actions.map((a) => a.key)).toEqual(["manage"]);
     expect(asset?.actions[0]?.supportedConditions).toEqual(["entity"]);
   });
 
-  test("`ledger` declares exactly `manage`, supporting only the `entity` condition (ADR-0015)", () => {
+  test("`ledger` declares exactly `manage`, supporting only the `entity` condition (ADR 20260716-entity-scoped-abac-refund-api)", () => {
     const ledger = INVENTORY_CATALOG.resources.find((r) => r.key === "ledger");
     expect(ledger?.actions.map((a) => a.key)).toEqual(["manage"]);
     expect(ledger?.actions[0]?.supportedConditions).toEqual(["entity"]);

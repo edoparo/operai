@@ -2,9 +2,9 @@
  * AC-5.7 (as amended 2026-08-11) — "this feature's components introduce no
  * user-facing string literal inline, and every string this feature adds is
  * reachable through a key path on `strings.ts` and is typed against its
- * exported type" (T14, specs/014-motivo-autocomplete/tasks.md).
+ * exported type" (T14, specs/20260811-motivo-autocomplete/tasks.md).
  *
- * Ported from `estimai-ui/src/lib/noHardcodedStrings.test.ts`, which specs/013
+ * Ported from `estimai-ui/src/lib/noHardcodedStrings.test.ts`, which specs/20260807-estimate-sharing
  * introduced for the same purpose. Deliberately a SOURCE-LEVEL grep rather
  * than a rendering test: the rendering assertions already live in
  * `MotivoSuggestField.test.tsx` / `ExpenseLineComposer.test.tsx`, whereas this
@@ -51,7 +51,7 @@ function extractStringLiterals(rawSource: string): string[] {
 // A literal made only of utility classes (a className, or one branch of a
 // conditional class) is styling, never copy: recognised by shape instead of
 // being allowlisted string by string, so restyling a component cannot break
-// this test (ADR-0051). Each class must start with a known utility family.
+// this test (ADR 20261031-one-styling-dialect-token-utilities). Each class must start with a known utility family.
 const UTILITY_CLASS =
   /^(?:[a-z-]+:)*-?(?:text|bg|border|font|p[xytblr]?|m[xytblr]?|gap|space|w|h|size|min|max|flex|grid|inline|items|justify|self|place|content|rounded|shadow|overflow|whitespace|leading|tracking|z|top|bottom|left|right|inset|opacity|cursor|transition|duration|ease|animate|ring|outline|fill|stroke|divide|col|row|order|tabular|line|list|object|aspect|basis|grow|shrink|break|decoration|underline|select|pointer|resize|align|sr|motion|truncate|tabular|btn|card|link|tab|badge|banner|dialog|field|form|page|tool|list|skeleton|spinner|state|fact|data)(?:-[a-z0-9./[\]%()#,_-]+)?$/
 const UTILITY_WORDS = new Set([
@@ -105,7 +105,7 @@ const CSS_TOKENS = [
   'var(--soft)',
   'var(--text)',
   // Tone-as-text tokens and @operai/ui class names / Button variants
-  // (ADR-0050) — styling vocabulary, never copy.
+  // (ADR 20261031-shared-ui-library-consumed-as-source) — styling vocabulary, never copy.
   'var(--red-text)',
   'var(--org-text)',
   'var(--grn-text)',
@@ -118,7 +118,7 @@ const CSS_TOKENS = [
   'sm',
 ]
 
-describe('AC-5.7 — no hardcoded user-facing strings outside strings.ts (specs/014 files)', () => {
+describe('AC-5.7 — no hardcoded user-facing strings outside strings.ts (specs/20260811-motivo-autocomplete files)', () => {
   it('src/lib/tripSuggestions.ts contains only Unicode normalisation-form tokens', () => {
     assertOnlyAllowlisted(
       './tripSuggestions.ts',
@@ -213,7 +213,7 @@ describe('AC-5.7 — no hardcoded user-facing strings outside strings.ts (specs/
       '../components/ExpenseLineComposer.tsx',
       new Set([
         ...CSS_TOKENS,
-        // Wire-contract enum values (specs/007 `Entity`/`Currency`), matched
+        // Wire-contract enum values (specs/20260716-refund-service `Entity`/`Currency`), matched
         // and emitted, never displayed — their LABELS come from
         // `strings.badges.entity` / `strings.badges.currency`.
         'welld_it',
@@ -279,7 +279,7 @@ describe('AC-5.7 — no hardcoded user-facing strings outside strings.ts (specs/
 
 // ─── Every component and page (INC-24) ────────────────────────────────────
 //
-// The allowlists above pin specs/014's files literal by literal. This second
+// The allowlists above pin specs/20260811-motivo-autocomplete's files literal by literal. This second
 // half covers EVERY non-test `.tsx` under src/ with the TypeScript parser, so a
 // file added later is covered the moment it exists. It flags the only places
 // JSX can carry copy: JSX text, a string-literal child, and a string value for

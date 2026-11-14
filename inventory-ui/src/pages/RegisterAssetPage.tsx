@@ -18,7 +18,7 @@ import { strings } from '../strings'
 import { fillTemplate } from '../strings/errors'
 
 /**
- * RegisterAssetPage — T3, `/assets/new` (T30, specs/015-hardware-inventory;
+ * RegisterAssetPage — T3, `/assets/new` (T30, specs/20261006-hardware-inventory;
  * design.md § T3, F1, § Error and conflict catalogue; AC-1.1 to AC-1.7).
  *
  * `asset:manage` only (UX gate; the server's 403 is the real one). The entity

@@ -1,6 +1,6 @@
 /**
  * The scope table of an offer: an EstimAI estimate's effort per release and
- * epic (specs/018 AC-4.1, O1). Pure and DB-free.
+ * epic (specs/20261101-crm-sales-flow AC-4.1, O1). Pure and DB-free.
  *
  * It mirrors the part of estimai-ui's `useEstimator.ts` an offer prints, never
  * the elapsed/FTE chain (an offer quotes effort, not a schedule):
@@ -12,7 +12,7 @@
  *
  * Inputs may be strings (EstimAI stores what the grid typed). Figures are kept
  * as man-days in tenths (integers), summed unrounded and rounded once per line,
- * like the money rule of ADR-0025. `scope.test.ts` pins shared vectors against
+ * like the money rule of ADR 20260720-mileage-rate-money-precision-integer-micros. `scope.test.ts` pins shared vectors against
  * estimai-ui's `pertCalc`.
  */
 
@@ -148,7 +148,7 @@ export function buildScope(
   return { aiAssisted: options.aiAssisted, releases, manDaysTenths: tenths(total) };
 }
 
-/** Expected man-days per release, unrounded (specs/020 D-13: the weights of a per-phase split). */
+/** Expected man-days per release, unrounded (specs/20261102-crm-offer-document D-13: the weights of a per-phase split). */
 export function releaseManDays(
   estimate: EstimateDocument,
   options: { aiAssisted: boolean; unassignedLabel: string; noEpicLabel: string },
@@ -162,5 +162,5 @@ export function totalManDays(estimate: EstimateDocument, aiAssisted: boolean): n
   return sum(estimate.content.acts.map((act) => expectedOf(act, { aiAssisted, globalAiGain })));
 }
 
-/** Round half up to a whole number, once (ADR-0025 posture). */
+/** Round half up to a whole number, once (ADR 20260720-mileage-rate-money-precision-integer-micros posture). */
 export const roundHalfUp = (value: number): number => Math.round(value + Number.EPSILON);

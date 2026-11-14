@@ -1,6 +1,6 @@
 /**
  * The `host-notices.send` service scope end to end through the token endpoint
- * (specs/021-meetings, T3 — AC-11.8, AC-12.4): a client parsed from
+ * (specs/20261104-meetings, T3 — AC-11.8, AC-12.4): a client parsed from
  * `SERVICE_CLIENTS` with the scope gets it in its minted JWT, and an unknown
  * scope never reaches a token because the entry does not parse.
  *
@@ -66,7 +66,7 @@ const mint = (clientId: string) =>
     body: JSON.stringify({ clientId, clientSecret: SECRET }),
   });
 
-describe("host-notices.send (specs/021 — AC-11.8, AC-12.4)", () => {
+describe("host-notices.send (specs/20261104-meetings — AC-11.8, AC-12.4)", () => {
   test("mints a token for meetings-api whose scope is notifications.push host-notices.send, sub system:meetings-api", async () => {
     const res = await mint("meetings-api");
     expect(res.status).toBe(200);

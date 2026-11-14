@@ -1,7 +1,7 @@
 /**
  * @vitest-environment jsdom
  *
- * Unit tests for src/lib/push.ts (specs/029-push-notifications, T8): support detection, enable /
+ * Unit tests for src/lib/push.ts (specs/20261111-push-notifications, T8): support detection, enable /
  * disable / remove against a fake PushManager and a fake apiFetch, boot reconciliation, the
  * sign-out release and the service worker's `{navigate}` message.
  *
@@ -457,7 +457,7 @@ describe('enablePush', () => {
     expect([...key]).toEqual([0, 31, 191])
   })
 
-  it('stores only {deviceId,userId} - never a token or the keys (ADR-0001)', async () => {
+  it('stores only {deviceId,userId} - never a token or the keys (ADR 20260607-jwt-in-memory-never-web-storage)', async () => {
     route('PUT', '/push/devices', () => json(201, DEVICE))
     await enable()
     expect(Object.keys(idb.peek()!).sort()).toEqual(['deviceId', 'userId'])
@@ -908,7 +908,7 @@ describe('initPush', () => {
     expect(calls()).toHaveLength(0)
   })
 
-  describe('the push database is only created by Turn on (specs/029 D-7)', () => {
+  describe('the push database is only created by Turn on (specs/20261111-push-notifications D-7)', () => {
     const signedIn = () =>
       vi.mocked(session.getCachedSession).mockReturnValue({ data: { user: { id: USER } } } as never)
 
@@ -974,7 +974,7 @@ describe('initPush', () => {
 // handleServiceWorkerMessage (T7 contract)
 // ---------------------------------------------------------------------------
 
-// S-M1 (specs/029): paths that normalise to a scheme-relative URL or move the origin. Same table as
+// S-M1 (specs/20261111-push-notifications): paths that normalise to a scheme-relative URL or move the origin. Same table as
 // shell/src/sw/pushHandlers.test.ts; here each is appended to this page's origin.
 const OPEN_REDIRECT_VECTORS = [
   '/..//evil.io',

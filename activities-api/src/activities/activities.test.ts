@@ -1,6 +1,6 @@
 /**
- * Activities and tasks on a CRM company (specs/028 AC-1.1, AC-8.1, AC-8.3): crm-api's
- * `activities.test.ts` scenarios (specs/017 US-4, specs/021 US-14) ported to activities-api,
+ * Activities and tasks on a CRM company (specs/20261110-activities AC-1.1, AC-8.1, AC-8.3): crm-api's
+ * `activities.test.ts` scenarios (specs/20261101-crm US-4, specs/20261104-meetings US-14) ported to activities-api,
  * against the crm test host. The CRM must behave exactly as it did when crm-api served these
  * routes. What is new is asserted too: the view's `kind` and `may`, the labels that now come
  * from the host, and that the host's answer, not a role, decides who reads.
@@ -13,7 +13,7 @@ import { appAccess, authStub, bearerOf, call, db, hosts, makeCompany, makeContac
 
 beforeEach(resetWorld);
 
-describe("activities and tasks (specs/017 US-4)", () => {
+describe("activities and tasks (specs/20261101-crm US-4)", () => {
   it("logs an activity on a company, newest first, with live author names and the host's label (AC-4.1, AC-4.5)", async () => {
     const company = await makeCompany("Acme SA");
     await call("POST", "/activities", {
@@ -122,7 +122,7 @@ describe("activities and tasks (specs/017 US-4)", () => {
     expect(refused.json).toMatchObject({ code: "not_a_task", field: "type" });
   });
 
-  it("an assignee must be a CRM user (specs/018 AC-2.2)", async () => {
+  it("an assignee must be a CRM user (specs/20261101-crm-sales-flow AC-2.2)", async () => {
     const company = await makeCompany();
     const task = (assigneeUserId: string) =>
       call("POST", "/activities", { body: { type: "task", subject: "T", companyId: company.id, assigneeUserId } });
@@ -146,7 +146,7 @@ describe("activities and tasks (specs/017 US-4)", () => {
     expect(authStub.accessChecks).toEqual([]);
   });
 
-  it("an assignee changed by a later edit is checked; the CRM's author may reassign (specs/018 AC-2.2)", async () => {
+  it("an assignee changed by a later edit is checked; the CRM's author may reassign (specs/20261101-crm-sales-flow AC-2.2)", async () => {
     const company = await makeCompany();
     const task = (await call("POST", "/activities", { as: "consultant", body: { type: "task", subject: "T", companyId: company.id } })).json;
     const bad = await call("PATCH", `/activities/${task.id}`, { as: "consultant", body: { assigneeUserId: "user-outsider" } });
@@ -157,7 +157,7 @@ describe("activities and tasks (specs/017 US-4)", () => {
     expect(cleared.json.task.dueDate).toBeNull();
   });
 
-  it("the CRM re-checks the assignee on EVERY edit that names one, changed or not, as crm-api did (specs/028 US-1)", async () => {
+  it("the CRM re-checks the assignee on EVERY edit that names one, changed or not, as crm-api did (specs/20261110-activities US-1)", async () => {
     const company = makeCompany();
     const task = (
       await call("POST", "/activities", { as: "consultant", body: { type: "task", subject: "T", companyId: company.id, assigneeUserId: "user-tech" } })
@@ -202,7 +202,7 @@ describe("activities and tasks (specs/017 US-4)", () => {
   });
 });
 
-describe("a task that waits on an open task cannot be completed (specs/017 US-6; the rules to set blockers are T8's)", () => {
+describe("a task that waits on an open task cannot be completed (specs/20261101-crm US-6; the rules to set blockers are T8's)", () => {
   it("is refused as task_blocked naming the open blockers, and goes through once they are done", async () => {
     const company = makeCompany();
     const mk = async (subject: string) =>
@@ -279,7 +279,7 @@ describe("a contact's or deal's activities are listed only under companies the C
   });
 });
 
-describe("a meeting activity (specs/021 US-14, AC-14.2, AC-14.4)", () => {
+describe("a meeting activity (specs/20261104-meetings US-14, AC-14.2, AC-14.4)", () => {
   // What the notices reconciler writes, inserted directly: this file is about how it READS.
   async function meetingActivity(companyId: string, dealId: string, extra: { body?: string } = {}) {
     const meetingId = crypto.randomUUID();

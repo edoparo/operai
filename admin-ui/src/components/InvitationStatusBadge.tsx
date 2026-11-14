@@ -5,7 +5,7 @@ import { strings } from '../strings'
 
 /**
  * InvitationStatusBadge — an invitation's effective status (T12,
- * specs/006-user-invitations): pending / accepted / expired / revoked, as the
+ * specs/20260713-user-invitations): pending / accepted / expired / revoked, as the
  * library `StatusBadge` (INC-23) with the meaning from `lib/statusMeaning.ts`
  * and the label from `strings.badges.invitationStatus`.
  */

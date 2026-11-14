@@ -10,14 +10,14 @@ const envSchema = z
       .transform((v) => v.split(",").map((o) => o.trim())),
     AUTH_JWKS_URL: z.string().url("AUTH_JWKS_URL must be a valid URL"),
     AUTH_ISSUER: z.string().url("AUTH_ISSUER must be a valid URL"),
-    // Suite-wide JWT audience value (ADR-0010). Must match the `audience` claim
+    // Suite-wide JWT audience value (ADR 20260713-jwt-audience-claim-enforcement). Must match the `audience` claim
     // stamped by the auth service's jwt plugin. A token missing this claim, or
     // carrying a different value, is rejected with 401 by jwtMiddleware.
     // refund-api is the suite's first *authorization*-enforcing resource server
-    // (ADR-0014) built on top of this identity layer — capability/condition
+    // (ADR 20260716-refund-api-authorization-enforcing-resource-server) built on top of this identity layer — capability/condition
     // enforcement is layered in by T6, not this bootstrap.
     AUTH_AUDIENCE: z.string().min(1, "AUTH_AUDIENCE is required"),
-    // ─── authzMiddleware (T6, specs/007-refund-service, ADR-0014) ────────────
+    // ─── authzMiddleware (T6, specs/20260716-refund-service, ADR 20260716-refund-api-authorization-enforcing-resource-server) ────────────
     // Base URL of the `auth` service, used ONLY to call the Bearer-forwarded
     // `GET /authz/resolve` (T1) so refund-api can resolve the caller's own
     // effective refund permissions + entity/jobTitle locally-cached
@@ -30,7 +30,7 @@ const envSchema = z
     NODE_ENV: z
       .enum(["development", "production", "test"])
       .default("development"),
-    // ─── Object storage (T9, specs/007-refund-service, ADR-0016) ─────────────
+    // ─── Object storage (T9, specs/20260716-refund-service, ADR 20260716-eu-object-storage-refund-attachments) ─────────────
     // EU-region S3-compatible bucket for receipt attachments — presigned URLs
     // ONLY (src/lib/storage.ts); refund-api's own process never touches file
     // bytes. All five are required — the service refuses to start without a
@@ -77,11 +77,11 @@ const envSchema = z
           .map((h) => h.trim().toLowerCase())
           .filter((h) => h.length > 0),
       ),
-    // ─── notify-api internal call (T13, specs/007-refund-service, ADR-0017) ──
+    // ─── notify-api internal call (T13, specs/20260716-refund-service, ADR 20260716-system-notifications-cross-user-trigger) ──
     // refund-api → notify-api `POST /system/notifications` and `/system/emails`
     // (best-effort, never rolls back the business action — src/lib/notify.ts,
     // notifyEmail.ts). Authenticated with refund-api's own service JWT
-    // (SERVICE_CLIENT_* below, specs/016, ADR-0049). The retired shared token
+    // (SERVICE_CLIENT_* below, specs/20261013-notify-service-credentials, ADR 20261013-all-notify-callers-scoped-credentials-shared-token-retired). The retired shared token
     // is no longer read — a deployment that still sets it starts normally and
     // the value is ignored.
     // notify-api's base URL for this internal call. Local: notify-api's own
@@ -91,7 +91,7 @@ const envSchema = z
     NOTIFY_INTERNAL_URL: z
       .string()
       .url("NOTIFY_INTERNAL_URL must be a valid absolute URL"),
-    // ─── Service credential (specs/016, AC-4.2, ADR-0044/0049) ───────────────
+    // ─── Service credential (specs/20261013-notify-service-credentials, AC-4.2, ADR 20261006-scoped-service-jwt-fourth-notify-caller/0049) ───────────────
     // Client-credentials pair for auth `POST /system/service-token`: the
     // scoped 5-minute JWT refund-api will present to notify-api. Required, so
     // a deployment without them exits at startup naming the variable.
@@ -100,9 +100,9 @@ const envSchema = z
     SERVICE_CLIENT_SECRET: z
       .string()
       .min(32, "SERVICE_CLIENT_SECRET must be at least 32 characters"),
-    // ─── Monthly batch processing (T14, specs/008-refund-monthly-processing,
-    // ADR-0021) ────────────────────────────────────────────────────────────
-    // specs/011-refund-settings (AC-4.1, D7, ADR-0029) — the accounting/
+    // ─── Monthly batch processing (T14, specs/20260719-refund-monthly-processing,
+    // ADR 20260719-refund-batch-signed-link-email-delivery) ────────────────────────────────────────────────────────────
+    // specs/20260722-refund-settings (AC-4.1, D7, ADR 20260722-batch-email-recipient-live-resolution-amends-0021) — the accounting/
     // payroll distribution address the compiled-batch email (AC-3.1/3.4) is
     // sent to is NO LONGER a startup env var. It is now the admin-managed
     // `accounting-distribution-email` refund_setting (src/settings/),
@@ -119,7 +119,7 @@ const envSchema = z
     // origin, e.g. https://operai.welld.io — NOT refund-api's own URL and
     // NOT VITE_REFUND_API_URL, which is refund-api's origin), used to build
     // the compiled-batch email's in-app deep link
-    // `${REFUND_APP_BASE_URL}/refund/batches/:id` (ADR-0021). The email
+    // `${REFUND_APP_BASE_URL}/refund/batches/:id` (ADR 20260719-refund-batch-signed-link-email-delivery). The email
     // carries this link, never a raw presigned S3 URL — the recipient must
     // sign in and pass the same `request:review` authz check as any in-app
     // batch view before a short-lived presigned GET is minted. Required.

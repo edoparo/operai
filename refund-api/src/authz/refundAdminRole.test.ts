@@ -5,7 +5,7 @@
  * EVERY refund route — including reading and deciding a request that is
  * neither owned by the caller nor in the caller's own entity.
  *
- * `auth GET /authz/resolve` is out of process for refund-api (ADR-0014) — it
+ * `auth GET /authz/resolve` is out of process for refund-api (ADR 20260716-refund-api-authorization-enforcing-resource-server) — it
  * is not re-tested here. This file instead takes the EXACT (resource,
  * action, conditions) shape `seedRefundAdminRole` writes (7 grants, every
  * one carrying `conditions: null`) as a fixture standing in for what
@@ -73,7 +73,7 @@ const REFUND_ADMIN_AUTHZ: AuthzContext = {
 const OUT_OF_SCOPE_OWNER_ID = "some-other-employee";
 const CALLER_SUB = "refund-admin-user";
 
-describe("refund-admin role grants (post-close follow-up, specs/007-refund-service)", () => {
+describe("refund-admin role grants (post-close follow-up, specs/20260716-refund-service)", () => {
   it("holds every refund capability at all (hasCapability true for all 7 grants)", () => {
     expect(hasCapability(REFUND_ADMIN_PERMISSIONS, "refund", "access")).toBe(true);
     for (const action of [

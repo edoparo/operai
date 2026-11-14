@@ -3,7 +3,7 @@ import { foldDetail, matchDetails } from './source'
 
 const items = [{ value: 'Swiss Digital Day 2026' }, { value: 'Café Tech' }, { value: 'Digital Summit' }]
 
-describe('source detail suggestions (specs/017 US-7)', () => {
+describe('source detail suggestions (specs/20261101-crm US-7)', () => {
   it('folds case, accents and spacing like crm-api', () => {
     expect(foldDetail('  Café   TECH ')).toBe('cafe tech')
   })

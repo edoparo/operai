@@ -6,7 +6,7 @@ import { wordsOfPart } from "./googleSpeech";
 import { stitch } from "./stitch";
 import { tokensOf, type Interval, type PartWords } from "./words";
 
-// T124 (specs/021-meetings plan H-10): the stitcher and the detector on RECORDED Chirp 3 outputs (the real service, 2026-11-05,
+// T124 (specs/20261104-meetings plan H-10): the stitcher and the detector on RECORDED Chirp 3 outputs (the real service, 2026-11-05,
 // synthetic macOS `say` audio, scrubbed; test-fixtures/google-speech/README.md), not on hand-built ones.
 //   AC-6.17 replay: the recorded overlap outputs run with three different silence lists and two different audio files must
 //   give identical joins and the same speaker for every word. AC-6.14/6.15 on what the service really did: a clean join, a

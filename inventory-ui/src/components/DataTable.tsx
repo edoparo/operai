@@ -2,7 +2,7 @@ import { DataTable as LibraryDataTable } from '@operai/ui'
 import type { DataTableColumn, DataTableProps } from '@operai/ui'
 
 /**
- * DataTable — the one table primitive (T26, specs/015-hardware-inventory;
+ * DataTable — the one table primitive (T26, specs/20261006-hardware-inventory;
  * design.md § NEW components: "no table primitive exists; MileageRatesPage
  * inlines one. Six tables here need the same caption, `scope`, numeric
  * right-alignment and responsive scroll wrapper"). The assets list, rules,
@@ -27,7 +27,7 @@ import type { DataTableColumn, DataTableProps } from '@operai/ui'
  *
  * Empty and loading states are the page's: with no rows only the header renders.
  *
- * Now a thin adapter over @operai/ui's `DataTable` (ADR-0050), which was
+ * Now a thin adapter over @operai/ui's `DataTable` (ADR 20261031-shared-ui-library-consumed-as-source), which was
  * extracted from this component: same props and test ids.
  */
 

@@ -28,7 +28,7 @@ const route = getRouteApi('/requests/$id')
 
 /**
  * RequestDetailPage — Screen R2 (draft composer / request detail,
- * `/refund/requests/$id` — T16, specs/007-refund-service/tasks.md,
+ * `/refund/requests/$id` — T16, specs/20260716-refund-service/tasks.md,
  * design.md "Screen R2"). Replaces T14's placeholder. One route, five
  * `status`-driven render variants plus L/Err/NF/G, exactly as design.md
  * lists them:
@@ -40,7 +40,7 @@ const route = getRouteApi('/requests/$id')
  *   - `approved`  — requested + approved per line and per currency;
  *                   MonthlyProcessingNote (only here — AC-4.2).
  *   - `rejected`  — rejection-motivation block; "New request" link.
- *   - `paid`      — (T13, specs/008-refund-monthly-processing/tasks.md,
+ *   - `paid`      — (T13, specs/20260719-refund-monthly-processing/tasks.md,
  *                   design.md F5) the SAME requested+approved layout as
  *                   `approved` (reuses `ExpenseLineRow`'s `readOnlyApproved`
  *                   mode/`SubtotalsPanel showApproved` unchanged — reaching
@@ -248,7 +248,7 @@ export default function RequestDetailPage() {
   }, [])
 
   // ---------------------------------------------------------------------------
-  // Attachment mutations (T17, specs/007-refund-service/tasks.md) — mint/
+  // Attachment mutations (T17, specs/20260716-refund-service/tasks.md) — mint/
   // upload/confirm and remove are draft-only on the wire (same 409 → mint-only
   // routes as line mutations, plan.md "### Employee endpoints"); a 409 here
   // surfaces the same GuardrailDialog + reload as `runLineMutation`, then
@@ -401,7 +401,7 @@ export default function RequestDetailPage() {
       )}
 
       {/* Title + status and the archive export share one row, the export
-          pushed right as a secondary action (ADR-0043) — it acts on the whole
+          pushed right as a secondary action (ADR 20260908-request-archive-export-refund-api-reads-attachment-bytes) — it acts on the whole
           request, so it belongs beside the title rather than inside one of the
           body sections. Approved-only, matching the endpoint's
           archivable-status gate. */}

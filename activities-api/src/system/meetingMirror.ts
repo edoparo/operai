@@ -1,13 +1,13 @@
 /**
- * The meeting activity of a deal (specs/028 AC-1.4; carried over from crm-api's
- * `meeting-host/notices.routes.ts`, specs/021 US-14, ADR-0059): meetings-api tells the CRM that a
+ * The meeting activity of a deal (specs/20261110-activities AC-1.4; carried over from crm-api's
+ * `meeting-host/notices.routes.ts`, specs/20261104-meetings US-14, ADR 20261104-meeting-host-contract-resolve-and-notices): meetings-api tells the CRM that a
  * meeting was linked, changed, relinked, unlinked or deleted, crm-api validates the deal and
  * forwards the notice here, and the meeting is mirrored as ONE `meeting` activity found by
  * `activity.meetingId` (UNIQUE).
  *
  * Everything runs in one transaction under `pg_advisory_xact_lock(hash(meetingId))`, so concurrent
  * deliveries for the same meeting serialise, and notices are ordered by `seq` through
- * `meeting_mirror_state`. The guard now lives WITH the data (ADR-0082): the state and the
+ * `meeting_mirror_state`. The guard now lives WITH the data (ADR 20261110-caller-chosen-ids-replace-cross-service-transactions): the state and the
  * activity commit together, so a failed write never advances the guard (which would lose the
  * change) and a repeated delivery never writes twice.
  *
@@ -63,7 +63,7 @@ export async function reconcileMeeting(notice: MeetingNotice): Promise<boolean> 
             occurredAt,
             hostId: companyId,
             dealId: deal.id,
-            // A contact belongs to the company the activity is on (specs/017 AC-4.1).
+            // A contact belongs to the company the activity is on (specs/20261101-crm AC-4.1).
             ...(existing.hostId !== companyId ? { contactId: null } : {}),
           },
         });

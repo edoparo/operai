@@ -1,5 +1,5 @@
 /**
- * Integration tests for the admin Users API (T10, specs/004 — refs AC-1.3,
+ * Integration tests for the admin Users API (T10, specs/20260713-auth-roles-permissions — refs AC-1.3,
  * AC-1.4, AC-2.3, AC-6.4).
  *
  * Strategy: mock `../auth/auth.config` (the `auth` object `sessionMiddleware`
@@ -299,7 +299,7 @@ describe("Admin Users API (T10)", () => {
       expect(res.status).toBe(404);
     });
 
-    test("404s for a soft-deleted user (security-review fix #2, specs/006-user-invitations, AC-5.4)", async () => {
+    test("404s for a soft-deleted user (security-review fix #2, specs/20260713-user-invitations, AC-5.4)", async () => {
       const adminRoleId = await ensureAdminRole();
       const admin = await makeUser("patch-actor-softdeleted");
       await assignRole(admin.id, adminRoleId);
@@ -379,7 +379,7 @@ describe("Admin Users API (T10)", () => {
       expect(body.status).toBe(422);
     });
 
-    test("404s for a soft-deleted user (security-review fix #2, specs/006-user-invitations, AC-5.4)", async () => {
+    test("404s for a soft-deleted user (security-review fix #2, specs/20260713-user-invitations, AC-5.4)", async () => {
       const adminRoleId = await ensureAdminRole();
       const admin = await makeUser("roles-actor-softdeleted");
       await assignRole(admin.id, adminRoleId);
@@ -570,7 +570,7 @@ describe("Admin Users API (T10)", () => {
       expect(res.status).toBe(422);
     });
 
-    test("404s for a soft-deleted user (security-review fix #2, specs/006-user-invitations, AC-5.4)", async () => {
+    test("404s for a soft-deleted user (security-review fix #2, specs/20260713-user-invitations, AC-5.4)", async () => {
       const adminRoleId = await ensureAdminRole();
       const admin = await makeUser("depts-actor-softdeleted");
       await assignRole(admin.id, adminRoleId);
@@ -691,7 +691,7 @@ describe("Admin Users API (T10)", () => {
       expect(res.status).toBe(404);
     });
 
-    test("404s for a soft-deleted user (security-review fix #2, specs/006-user-invitations, AC-5.4)", async () => {
+    test("404s for a soft-deleted user (security-review fix #2, specs/20260713-user-invitations, AC-5.4)", async () => {
       const adminRoleId = await ensureAdminRole();
       const admin = await makeUser("perms-actor-softdeleted");
       await assignRole(admin.id, adminRoleId);
@@ -709,7 +709,7 @@ describe("Admin Users API (T10)", () => {
     });
   });
 
-  // ── DELETE /admin/users/:id (soft-delete, T7, specs/006-user-invitations) ──
+  // ── DELETE /admin/users/:id (soft-delete, T7, specs/20260713-user-invitations) ──
 
   describe("DELETE /admin/users/:id", () => {
     test("403s (RFC 7807) when the authenticated caller is not an admin (AC-5.9)", async () => {
@@ -879,7 +879,7 @@ describe("Admin Users API (T10)", () => {
     });
   });
 
-  // ── POST /admin/users/delete (bulk soft-delete, T7, specs/006-user-invitations) ──
+  // ── POST /admin/users/delete (bulk soft-delete, T7, specs/20260713-user-invitations) ──
 
   describe("POST /admin/users/delete", () => {
     test("403s (RFC 7807) when the authenticated caller is not an admin (AC-6.5)", async () => {

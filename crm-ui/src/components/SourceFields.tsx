@@ -8,7 +8,7 @@ import type { LeadSource } from '../lib/types'
 import { strings } from '../strings'
 
 /**
- * SourceFields — where a company or a lead came from (specs/017 US-7): the
+ * SourceFields — where a company or a lead came from (specs/20261101-crm US-7): the
  * source, and for an event, a referral or "other" a detail naming which event,
  * who referred it, or what else. Shared by the company and deal forms.
  *

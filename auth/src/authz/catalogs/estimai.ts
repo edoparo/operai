@@ -1,6 +1,6 @@
 /**
- * EstimAI's declared permission catalog (T26, specs/004-auth-roles-permissions
- * — refs AC-3.4; plan.md "Catalog registration"; ADR-0007 §7).
+ * EstimAI's declared permission catalog (T26, specs/20260713-auth-roles-permissions
+ * — refs AC-3.4; plan.md "Catalog registration"; ADR 20260713-authz-hand-rolled-rbac-abac-epoch-claims §7).
  *
  * Every Operai suite app ships a typed catalog declaration — a plain constant,
  * not a database row — describing the (resource, action, supportedConditions)
@@ -18,7 +18,7 @@
  *     domain resource — one full-replace upsert per appId, not two
  *     potentially-conflicting ones.
  *   - `estimate` — the domain resource — with `view`/`create`/`edit`/`delete`
- *     actions. Per the conditions model (plan.md, ADR-0007 §7), each action
+ *     actions. Per the conditions model (plan.md, ADR 20260713-authz-hand-rolled-rbac-abac-epoch-claims §7), each action
  *     declares `["ownership", "entity", "department"]` as its
  *     `supportedConditions`, so an admin can later compose a rule such as
  *     "edit only estimates you own" (ownership) or "view estimates for your
@@ -36,7 +36,7 @@ import type { AppCatalogInput } from "../catalog";
 export const ESTIMAI_APP_ID = "estimai";
 
 /**
- * The conditions model (plan.md "conditions model" / ADR-0007 §7): ownership
+ * The conditions model (plan.md "conditions model" / ADR 20260713-authz-hand-rolled-rbac-abac-epoch-claims §7): ownership
  * (the caller owns the record) plus the two attribute conditions carried on
  * `user.entity`/department membership. Shared across every `estimate` action
  * so admins can compose the same kinds of rules regardless of which action
@@ -69,7 +69,7 @@ export const ESTIMAI_CATALOG: AppCatalogInput = {
           label: "Delete",
           supportedConditions: ESTIMATE_SUPPORTED_CONDITIONS,
         },
-        // specs/024, ADR-0075: global read-only oversight of every estimate.
+        // specs/20261108-estimate-list-oversight, ADR 20261108-estimai-oversight-permission-amends-0036: global read-only oversight of every estimate.
         // No conditions — estimai-api enforces it (the one permission it asks
         // `auth` about) and does not evaluate ownership/entity rules.
         { key: "read-all", label: "Read every estimate", supportedConditions: [] },

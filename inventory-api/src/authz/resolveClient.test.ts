@@ -1,5 +1,5 @@
 /**
- * `fetchAuthzResolve` (T7, specs/015-hardware-inventory; ADR-0014 point 4):
+ * `fetchAuthzResolve` (T7, specs/20261006-hardware-inventory; ADR 20260716-refund-api-authorization-enforcing-resource-server point 4):
  * every way `auth` can misbehave must END IN A THROW, which authzMiddleware
  * turns into the fail-closed 503 — never into an empty or partial permission
  * set that a handler would then crash on or, worse, read as "no restrictions".

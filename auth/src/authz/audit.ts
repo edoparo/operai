@@ -1,5 +1,5 @@
 /**
- * Audit trail helper (T7, specs/004-auth-roles-permissions).
+ * Audit trail helper (T7, specs/20260713-auth-roles-permissions).
  *
  * Every mutating admin route (roles, departments, users — T8/T9/T10) MUST
  * route its write through `withAudit()` so that, in a single Prisma
@@ -49,7 +49,7 @@ export type AuditedMutation<T> = (tx: Prisma.TransactionClient) => Promise<T>;
  * already knows before/after ahead of time) or a function of the mutation's
  * result (when the "after" state — e.g. a generated id — only exists once
  * the mutation has run). Either form may yield an ARRAY when one mutation
- * must leave several rows (specs/023: approving an access request writes
+ * must leave several rows (specs/20261105-signup-gate: approving an access request writes
  * `invitation.create` and `access_request.approve`); all rows are written in
  * the same transaction, in array order.
  */
@@ -122,7 +122,7 @@ export async function withAudit<T>({
 
 /**
  * Pagination input for {@link listAuditLog}. `targetType`/`targetId`/`action`
- * (T5, specs/012-employee-address — refs AC-5.3) are additive, optional
+ * (T5, specs/20260803-employee-address — refs AC-5.3) are additive, optional
  * filters on the existing `@@index([targetType, targetId])` — every other
  * line of this function is unchanged.
  */

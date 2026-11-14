@@ -31,7 +31,7 @@
     },
     {
       "agent": "adr-writer",
-      "tasks": ["ADR-0030"],
+      "tasks": ["ADR 20260803-suite-version-generated-file-federated-export"],
       "outcome": "completed",
       "commits": ["94cb128"],
       "worktree": "worktree-agent-ac50575d146e14d31"

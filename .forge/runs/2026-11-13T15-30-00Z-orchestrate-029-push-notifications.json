@@ -3,7 +3,7 @@
   "plugin_version": "2.62.1",
   "run_id": "2026-11-13T15-30-00Z-orchestrate-029-push-notifications",
   "command": "orchestrate",
-  "feature": "029-push-notifications",
+  "feature": "20261111-push-notifications",
   "rigor": "production",
   "rigor_recorded": null,
   "started": "2026-11-13T15:30:00Z",
@@ -57,7 +57,7 @@
         "1af41d5c",
         "b0e348dc"
       ],
-      "note": "Safari background-tab click re-checked; T12 deployed checks (D-10 resolved on HTTPS preview, Safari A, H, I) and ADR-0084 sign-off recorded by the user"
+      "note": "Safari background-tab click re-checked; T12 deployed checks (D-10 resolved on HTTPS preview, Safari A, H, I) and ADR 20261111-web-push-encrypted-payloads-not-fcm sign-off recorded by the user"
     },
     {
       "agent": "evaluator",

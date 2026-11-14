@@ -1,5 +1,5 @@
 /**
- * RFC 7807 Problem JSON for inventory-api (specs/015-hardware-inventory,
+ * RFC 7807 Problem JSON for inventory-api (specs/20261006-hardware-inventory,
  * plan.md § API contracts: "Errors are RFC 7807 Problem JSON with a `code`
  * where listed").
  *

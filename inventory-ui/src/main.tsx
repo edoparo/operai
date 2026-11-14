@@ -3,7 +3,7 @@ import { createRoot } from 'react-dom/client'
 import './index.css'
 import App from './App'
 
-// Dev/test-only standalone bootstrap (T24, specs/015-hardware-inventory): lets
+// Dev/test-only standalone bootstrap (T24, specs/20261006-hardware-inventory): lets
 // inventory-ui build, run, and test entirely on its own, outside the shell —
 // mirrors refund-ui/src/main.tsx's standalone bootstrap. App itself
 // (see App.tsx) already imports `shell/session` and `shell/tokens.css` as a

@@ -1,7 +1,7 @@
 /**
  * @vitest-environment jsdom
  *
- * Component tests for ErrorBanner (T15, specs/004-auth-roles-permissions).
+ * Component tests for ErrorBanner (T15, specs/20260713-auth-roles-permissions).
  *
  * Covers:
  *   (A) renders as role="alert" with the given message.

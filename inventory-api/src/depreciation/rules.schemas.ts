@@ -1,5 +1,5 @@
 /**
- * Request/response schemas for the rules routes (T10, specs/015) plus the
+ * Request/response schemas for the rules routes (T10, specs/20261006-hardware-inventory) plus the
  * calendar-date schema other inventory routes reuse.
  */
 

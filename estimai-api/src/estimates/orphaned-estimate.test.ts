@@ -1,14 +1,14 @@
 /**
  * Cross-service test — an estimate owner's soft-delete in `auth` leaves the
  * estimate and every collaborator grant untouched in `estimai-api` (T12,
- * specs/013-estimate-sharing — refs AC-10.1, AC-10.2, AC-10.3, AC-10.4;
+ * specs/20260807-estimate-sharing — refs AC-10.1, AC-10.2, AC-10.3, AC-10.4;
  * plan.md "Data model" → "Cascade behaviour" → "US-10 (owner soft-deleted)").
  *
  * WHAT THIS TEST IS ACTUALLY PROVING
  * ───────────────────────────────────
  * AC-10.1 is satisfied by the ABSENCE of a mechanism, not the presence of
  * one: `estimai-api` has no FK to `auth`'s `user` table (separate logical
- * databases), and ADR-0012 point 3 already fixes that resource servers do
+ * databases), and ADR 20260714-invitation-activation-hooks-soft-delete-lifecycle point 3 already fixes that resource servers do
  * nothing at delete time. A test that only re-reads the estimate row after
  * calling auth's delete route and finds it unchanged would ALSO pass if a
  * future well-intentioned change added a delete-time cascade that happened
@@ -109,7 +109,7 @@ process.env["ALLOWED_ORIGINS"] ??= "http://localhost:5173";
 process.env["AUTH_JWKS_URL"] ??= "http://localhost:3001/auth/jwks";
 process.env["AUTH_ISSUER"] ??= "http://localhost:3001";
 process.env["AUTH_AUDIENCE"] ??= "operai-suite";
-process.env["NODE_ENV"] = "test"; // not ??=: a shell may export NODE_ENV=development and the first file to load @/lib/env freezes it for the process (T22, specs/016)
+process.env["NODE_ENV"] = "test"; // not ??=: a shell may export NODE_ENV=development and the first file to load @/lib/env freezes it for the process (T22, specs/20261013-notify-service-credentials)
 process.env["AUTH_BASE_URL"] ??= "http://localhost:3001";
 process.env["SERVICE_CLIENT_ID"] ??= "estimai-api";
 process.env["SERVICE_CLIENT_SECRET"] ??=
@@ -241,7 +241,7 @@ const { resolveAccess } = await import("./access");
 // `@/auth/jwt.middleware` at first import; sharing the process-wide instance
 // would let this file's load order decide which jwtMiddleware (real, or the fake
 // estimates.routes.test.ts mocks) the other file's requests hit, and with this
-// file first every request there got 401 (T22, specs/016).
+// file first every request there got 401 (T22, specs/20261013-notify-service-credentials).
 // @ts-expect-error -- the query suffix is a runtime-only cache-buster
 const { estimatesRouter } = (await import("./estimates.routes?real")) as typeof import("./estimates.routes");
 
@@ -389,7 +389,7 @@ beforeAll(async () => {
 
   // ── estimai-api fixtures: an estimate owned by the REAL auth owner id,
   // plus one editor and one viewer collaborator grant (arbitrary ids — no
-  // FK to auth, ADR-0036, so these need not be real auth accounts).
+  // FK to auth, ADR 20260807-record-level-acl-resource-server-owned-access-primitive, so these need not be real auth accounts).
   const content = makeContent();
   const sizeBytes = new TextEncoder().encode(JSON.stringify(content)).length;
   const estimate = await estimaiDb.estimate.create({

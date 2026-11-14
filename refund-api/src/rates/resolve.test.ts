@@ -1,5 +1,5 @@
 /**
- * Unit tests for `resolveEffectiveRate` (T3, specs/009-mileage-rate,
+ * Unit tests for `resolveEffectiveRate` (T3, specs/20260720-mileage-rate,
  * AC-2.1, AC-2.3, AC-2.4, AC-4.4).
  */
 

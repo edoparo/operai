@@ -1,7 +1,7 @@
 /**
  * AboutModal — the About dialog, describing the Operai suite itself.
  *
- * Relocated from estimai-ui/src/components/AboutModal.tsx (T6, specs/003-suite-shell,
+ * Relocated from estimai-ui/src/components/AboutModal.tsx (T6, specs/20260709-suite-shell,
  * AC-1.4) — structurally unchanged. Content is sourced from the relocated,
  * suite-level ../lib/appInfo (name/description/version = Operai the suite, not a single
  * tool). The EstimAI original's "Part of the {APP_SUITE} suite" subtitle is dropped here

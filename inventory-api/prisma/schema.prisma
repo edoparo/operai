@@ -7,15 +7,15 @@ datasource db {
   provider = "postgresql"
 }
 
-// Data model of specs/015-hardware-inventory (plan.md § Data model, T2). Money
-// is integer cents throughout (ADR-0025 posture), calendar dates are @db.Date.
+// Data model of specs/20261006-hardware-inventory (plan.md § Data model, T2). Money
+// is integer cents throughout (ADR 20260720-mileage-rate-money-precision-integer-micros posture), calendar dates are @db.Date.
 //
 // Things Prisma cannot express live as raw SQL in the initial migration and are
 // the ENFORCEMENT, not a duplicate of anything here:
 //   - asset_serial_live      partial unique (entity, serialNumber), live assets only
 //   - assignment_one_pending partial unique (assetId) where status = 'pending'
 //   - four CHECKs            currency follows entity, price > 0, rule bounds
-//   - Tier 1 immutability triggers (ADR-0018/0024/0033/0046) on
+//   - Tier 1 immutability triggers (ADR 20260716-immutable-financial-audit-trail-refund/0024/0033/0046) on
 //     depreciation_rule, fiscal_year, asset_year_figure and asset_event
 //   - the two launch depreciation rules (AC-6.6), actor `system:launch-seed`
 
@@ -110,7 +110,7 @@ model Asset {
   // CHECK asset_price_positive: > 0
   purchasePriceCents Int
   status             AssetStatus
-  // auth user id, deliberately not a FK (auth owns identity, ADR-0039)
+  // auth user id, deliberately not a FK (auth owns identity, ADR 20260807-live-identity-resolution-by-id-fail-soft)
   holderUserId       String?
   locationNote       String?
   supplier           String?
@@ -149,10 +149,10 @@ model Assignment {
   @@map("assignment")
 }
 
-/// Append-only (DB trigger, ADR-0024 lineage): a rule is never edited, a
+/// Append-only (DB trigger, ADR 20260720-mileage-rate-history-self-auditing-table lineage): a rule is never edited, a
 /// correction is a NEW row. The rule in force for an asset is the latest one
 /// for its entity with effectiveFrom <= purchaseDate, ties broken by createdAt,
-/// resolved on read (ADR-0046) — so there is deliberately no FK from asset.
+/// resolved on read (ADR 20261006-depreciation-derived-on-read-closed-years-snapshotted) — so there is deliberately no FK from asset.
 model DepreciationRule {
   id                     String         @id @default(cuid())
   entity                 Entity

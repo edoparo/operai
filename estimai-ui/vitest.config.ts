@@ -3,9 +3,9 @@ import { defineConfig } from 'vitest/config'
 
 export default defineConfig({
   resolve: {
-    // One React for the app and the library's source (ADR-0050).
+    // One React for the app and the library's source (ADR 20261031-shared-ui-library-consumed-as-source).
     dedupe: ['react', 'react-dom'],
-    // T13 (specs/003-suite-shell/tasks.md): src/lib/api.ts and
+    // T13 (specs/20260709-suite-shell/tasks.md): src/lib/api.ts and
     // src/lib/authClient.ts now import the federated `shell/session` module
     // (see vite.config.ts's `remotes` + src/federation/remotes.d.ts's ambient
     // type declaration). That bare specifier only resolves at runtime via the
@@ -20,7 +20,7 @@ export default defineConfig({
     // when a test exercises it unmocked. Mirrors shell/vitest.config.ts's own
     // `resolve.alias` for `estimai/App`/`refund/App` exactly.
     alias: {
-      // The shared component library, compiled from source (ADR-0050).
+      // The shared component library, compiled from source (ADR 20261031-shared-ui-library-consumed-as-source).
       '@operai/ui': fileURLToPath(new URL('../operai-ui/src/index.ts', import.meta.url)),
       'shell/session': fileURLToPath(
         new URL('./src/federation/__stubs__/shellSession.ts', import.meta.url),

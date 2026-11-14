@@ -231,7 +231,7 @@ function Panel({ hostApp, entityType, entityId }: HostMeetingsProps) {
 
 /**
  * HostMeetings — the remote's third exposed entry, `./HostMeetings` (vite.config.ts `exposes`),
- * loaded by the shell's `HostExtension` inside a host's page, e.g. the CRM deal (ADR-0060). It draws
+ * loaded by the shell's `HostExtension` inside a host's page, e.g. the CRM deal (ADR 20261104-host-extension-federated-panel-through-the-shell). It draws
  * a `Card` and no frame of its own, and no router: its links leave through the shell
  * (`navigateSuite`). The list is what the caller may open on this record (AC-11.2); "Start meeting"
  * and "Link an existing meeting" are offered only to a `meetings:access` holder (AC-1.4). A failure

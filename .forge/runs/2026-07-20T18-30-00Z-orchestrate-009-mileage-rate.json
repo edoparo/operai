@@ -2,11 +2,11 @@
   "schema": "wellforge-run/v1",
   "run_id": "2026-07-20T18-30-00Z-orchestrate-009-mileage-rate",
   "command": "orchestrate",
-  "feature": "009-mileage-rate",
+  "feature": "20260720-mileage-rate",
   "rigor": "production",
   "started": "2026-07-20T12:00:00Z",
   "finished": "2026-07-20T18:30:00Z",
-  "worktree": "isolation used for the parallel implementation batch (4 dependency-independent agents across separate repos: refund-api / auth / shell+admin-ui / refund-ui); each ff-merged feat/009-mileage-rate then committed on its own branch; the orchestrator cherry-picked the task commits linearly onto the feature branch (no --no-ff merge commits, per CLAUDE.md), skipping one agent's internal merge commit; checkboxes reconciled centrally",
+  "worktree": "isolation used for the parallel implementation batch (4 dependency-independent agents across separate repos: refund-api / auth / shell+admin-ui / refund-ui); each ff-merged feat/20260720-mileage-rate then committed on its own branch; the orchestrator cherry-picked the task commits linearly onto the feature branch (no --no-ff merge commits, per CLAUDE.md), skipping one agent's internal merge commit; checkboxes reconciled centrally",
   "agents": [
     { "agent": "product-owner", "stage": "spec", "outcome": "completed", "note": "spec.md: 6 stories, 27->31 ACs; folded 3 user-decided open questions (append-only rate entries, backdating allowed, show rate breakdown); 3 remaining open questions deferred to architect" },
     { "agent": "architect", "stage": "plan", "outcome": "completed", "note": "plan.md: rate logic in refund-api (not auth), MileageRate append-only self-auditing table, snapshot-at-submit, new global rate permission, integer-micros precision; resolved all 3 open questions; REVISED at plan gate per user direction to host the management screen in admin-ui (chose call-path A: admin-ui->refund-api /rates cross-origin via shell/session apiFetch + getRefundApiBaseUrl(); rejected B: proxy via auth)" },
@@ -32,7 +32,7 @@
   "collision_events": [],
   "verdicts": { "qe": "PASS (all ACs covered; e2e authored, live run env-blocked)", "owasp": "PASS (0 findings; 2 informational, 1 fixed)", "eval": "PASS (95/100)" },
   "result": "completed",
-  "notes": "16 tasks across auth/refund-api/shell/admin-ui/refund-ui + e2e. Extends specs/007+008. 2 human gates (spec, plan) approved; plan re-presented once after the user moved the rate screen to admin-ui. New ADRs 0023-0025. Feature branch feat/009-mileage-rate NOT yet merged to main/pushed (user's call) — note main still lacks 007/008 too; the whole refund stack (007/008/009 + earlier session fixes) is stacked on this branch. Follow-ups (non-blocking): run the T15 e2e in a 1Password-available env with a fresh refund-api process (its openapi didn't list /rates on the stale shared dev instance); devops test-DB isolation for auth's seed tests; optional tighten of admin-ui both-fields 422 mapping.",
+  "notes": "16 tasks across auth/refund-api/shell/admin-ui/refund-ui + e2e. Extends specs/20260716-refund-service+008. 2 human gates (spec, plan) approved; plan re-presented once after the user moved the rate screen to admin-ui. New ADRs 0023-0025. Feature branch feat/20260720-mileage-rate NOT yet merged to main/pushed (user's call) — note main still lacks 007/008 too; the whole refund stack (007/008/009 + earlier session fixes) is stacked on this branch. Follow-ups (non-blocking): run the T15 e2e in a 1Password-available env with a fresh refund-api process (its openapi didn't list /rates on the stale shared dev instance); devops test-DB isolation for auth's seed tests; optional tighten of admin-ui both-fields 422 mapping.",
   "tokens": null,
   "cost_usd": null
 }

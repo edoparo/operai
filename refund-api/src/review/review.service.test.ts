@@ -1,7 +1,7 @@
 /**
  * Unit tests for `review.service.ts`'s pure, DB-free helpers.
  *
- * `approveRestrictedForCaller` (specs/010-self-approval-control, ADR-0026,
+ * `approveRestrictedForCaller` (specs/20260721-self-approval-control, ADR 20260721-self-approval-condition-and-403-exception,
  * T2) — see conditions.test.ts for the underlying `approveSelfRestricted`
  * predicate's own coverage; this file exercises the thin wrapper that locates
  * the caller's `request:approve` grant via `findPermission`.
@@ -11,7 +11,7 @@ import { describe, it, expect } from "bun:test";
 import { approveRestrictedForCaller } from "./review.service";
 import type { AuthzContext } from "../auth/authz.middleware";
 
-describe("approveRestrictedForCaller (specs/010-self-approval-control, ADR-0026)", () => {
+describe("approveRestrictedForCaller (specs/20260721-self-approval-control, ADR 20260721-self-approval-condition-and-403-exception)", () => {
   it("true when the caller's approve grant carries the self-approval restriction", () => {
     const authz: AuthzContext = {
       permissions: [

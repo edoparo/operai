@@ -1,6 +1,6 @@
 /**
  * runtimeRemotes — production runtime resolution for the shell's federated
- * remote URLs (T17, specs/003-suite-shell, AC-5.3, plan.md Deploy + Risk R6).
+ * remote URLs (T17, specs/20260709-suite-shell, AC-5.3, plan.md Deploy + Risk R6).
  *
  * PROBLEM this solves: `shell/vite.config.ts` declares `estimai`/`refund`/
  * `admin` remote entries using `process.env['ESTIMAI_REMOTE_URL']` /
@@ -40,12 +40,12 @@
  * `runtime-config.json`, so `fetch()` 404s, this resolves to `{}`, and
  * behavior is byte-for-byte identical to before this file existed.
  *
- * `admin` (specs/004-auth-roles-permissions, T27) was added to this override
+ * `admin` (specs/20260713-auth-roles-permissions, T27) was added to this override
  * list following the exact same shape as `estimai`/`refund` above — no new
  * mechanism, just a third optional key so the Admin (Roles & Permissions)
- * remote's origin can be repointed the same way, per AC-5.3 / ADR-0006.
+ * remote's origin can be repointed the same way, per AC-5.3 / ADR 20260709-suite-frontend-module-federation.
  *
- * `notify` (specs/005-notification-center, T13) follows the identical shape —
+ * `notify` (specs/20260713-notification-center, T13) follows the identical shape —
  * a fourth optional key so the notification center remote's origin can be
  * repointed the same way. Unlike `estimai`/`refund`/`admin`, the shell route
  * that mounts it (`/notify/$`, src/router.tsx) is deliberately NOT
@@ -53,8 +53,8 @@
  * concern, orthogonal to this module's job of resolving WHERE the remote's
  * code is served from.
  *
- * `inventory` (specs/015-hardware-inventory, T41) follows the identical shape —
- * a fifth optional key. One remote, TWO shell routes (ADR-0045): the gated
+ * `inventory` (specs/20261006-hardware-inventory, T41) follows the identical shape —
+ * a fifth optional key. One remote, TWO shell routes (ADR 20261006-ungated-second-federated-entry-of-a-gated-remote): the gated
  * `/inventory/$` tool route and the ungated `/devices` route both resolve their
  * code from this single entry; where it is served from is orthogonal to who may
  * reach which route.
@@ -76,11 +76,11 @@ export interface RuntimeRemoteConfig {
   admin?: string
   notify?: string
   inventory?: string
-  /** specs/017-crm: the CRM remote's remoteEntry.js. */
+  /** specs/20261101-crm: the CRM remote's remoteEntry.js. */
   crm?: string
-  /** specs/021-meetings: the Meetings remote's remoteEntry.js (three mountable entries + ./version). */
+  /** specs/20261104-meetings: the Meetings remote's remoteEntry.js (three mountable entries + ./version). */
   meetings?: string
-  /** specs/025-projects: the Projects remote's remoteEntry.js. */
+  /** specs/20261103-projects: the Projects remote's remoteEntry.js. */
   projects?: string
 }
 

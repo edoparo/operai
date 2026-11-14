@@ -1,6 +1,6 @@
 /**
- * Prisma data-access layer for expense lines (T8, specs/007-refund-service;
- * + specs/009-mileage-rate travel_km write derivation, T5).
+ * Prisma data-access layer for expense lines (T8, specs/20260716-refund-service;
+ * + specs/20260720-mileage-rate travel_km write derivation, T5).
  *
  * Every mutation is draft-only (409 otherwise) and ownership-scoped (404
  * otherwise) — see `ensureOwnedDraftRequest` below, shared by create/update/
@@ -8,7 +8,7 @@
  * (inside the same transaction) so `GET /requests` list ordering reflects
  * recent line edits, not just request-level changes.
  *
- * specs/009-mileage-rate (AC-1.6, Security A04): for a `travel_km` line,
+ * specs/20260720-mileage-rate (AC-1.6, Security A04): for a `travel_km` line,
  * `currency` and `requestedAmountCents` are ALWAYS server-derived —
  * `resolveLineWriteData` looks up the effective rate for (entity, date)
  * BEFORE the write transaction opens (a plain read of the append-only
@@ -66,7 +66,7 @@ interface LineWriteData {
  * Resolves the final, server-authoritative field values for a line write —
  * pure passthrough for non-travel_km types (007 behavior, unchanged); for
  * travel_km, resolves the effective rate for (entity, date) and computes
- * the amount (specs/009-mileage-rate, AC-1.6).
+ * the amount (specs/20260720-mileage-rate, AC-1.6).
  */
 function resolveLineWriteData(body: LineBody): Effect.Effect<LineWriteData, DatabaseError> {
   const date = new Date(`${body.date}T00:00:00.000Z`);

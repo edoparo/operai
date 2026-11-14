@@ -4,8 +4,8 @@ import { setDealLinkSenderForTests, type DealLinkNotice } from "../lib/estimaiNo
 import { activities, LOCKED_CALL } from "../lib/activities";
 import { addWorkingDays } from "./workingDays";
 
-/** specs/018 US-3: estimate requests, the ready/reopen/override lifecycle and the gate. */
-describe("technical estimates (specs/018 US-3)", () => {
+/** specs/20261101-crm-sales-flow US-3: estimate requests, the ready/reopen/override lifecycle and the gate. */
+describe("technical estimates (specs/20261101-crm-sales-flow US-3)", () => {
   beforeEach(resetWorld);
 
   const qualifiedDeal = async () => {
@@ -395,8 +395,8 @@ describe("technical estimates (specs/018 US-3)", () => {
   });
 });
 
-/** specs/024 US-3: the deal-link notices (AC-3.4, AC-3.5, AC-3.8). */
-describe("deal-link notices to EstimAI (specs/024 US-3)", () => {
+/** specs/20261108-estimate-list-oversight US-3: the deal-link notices (AC-3.4, AC-3.5, AC-3.8). */
+describe("deal-link notices to EstimAI (specs/20261108-estimate-list-oversight US-3)", () => {
   const sent: DealLinkNotice[] = [];
   beforeEach(async () => {
     await resetWorld();

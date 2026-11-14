@@ -1,17 +1,17 @@
 /**
  * systemAuth middleware — the only credential of crm-api's `/system` routes
- * (specs/021 T6, AC-11.8; specs/018 AC-3.3; ADR-0044/0049 mechanism, ADR-0059).
+ * (specs/20261104-meetings T6, AC-11.8; specs/20261101-crm-sales-flow AC-3.3; ADR 20261006-scoped-service-jwt-fourth-notify-caller/0049 mechanism, ADR 20261104-meeting-host-contract-resolve-and-notices).
  * Copied from notify-api/src/system/systemAuth.middleware.ts — the repo has no
- * workspace (ADR-0003), so each resource server owns its copy.
+ * workspace (ADR 20260703-estimai-api-bun-hono-typescript), so each resource server owns its copy.
  *
  * The ONLY credential on a `/system/*` route is a scoped service JWT minted by
  * `auth` (`POST /system/service-token`): RS256 via the suite JWKS, issuer
  * pinned, `aud` = SERVICE_AUDIENCE (never AUTH_AUDIENCE, so a user JWT is not a
  * system credential), the route's scope in the space-delimited `scope` claim,
  * and a `sub` that is on the route's allowlist (`system:meetings-api` for the
- * meeting-host notices, `system:estimai-api` for the estimate notices of specs/018
- * AC-3.3, ADR-0073, `system:projects-api` for `GET /system/companies`, specs/025,
- * ADR-0080). A system sub that is not listed is refused: holding a
+ * meeting-host notices, `system:estimai-api` for the estimate notices of specs/20261101-crm-sales-flow
+ * AC-3.3, ADR 20261105-estimai-closes-the-estimate-crm-follows, `system:projects-api` for `GET /system/companies`, specs/20261103-projects,
+ * ADR 20261103-projects-api-reads-crm-companies-with-scoped-service-credential). A system sub that is not listed is refused: holding a
  * service credential is not holding THIS route's.
  *
  * Every failure — no credential, any JWT defect, the wrong scope or sub —

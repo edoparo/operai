@@ -1,5 +1,5 @@
 /**
- * `GET /meetings`: "My meetings" (specs/021-meetings plan.md § API contracts → Meetings;
+ * `GET /meetings`: "My meetings" (specs/20261104-meetings plan.md § API contracts → Meetings;
  * AC-10.1, AC-10.2, AC-10.3, AC-11.5). Every signed-in user gets it, with no grant at all
  * and while `auth` is down (`selfScoped`, AC-10.6).
  *
@@ -12,7 +12,7 @@
  * `recording` are partitioned with the same `derivedStatus` the rows are shown with. That
  * set is the caller's few live recordings, never a page worth.
  *
- * `folder` narrows to one of the caller's OWN folders (ADR-0090), or `none` for the meetings they filed nowhere;
+ * `folder` narrows to one of the caller's OWN folders (ADR 20261113-personal-meeting-folders), or `none` for the meetings they filed nowhere;
  * a folder id that is not theirs simply matches nothing. Each row carries the caller's own `folderId`.
  */
 

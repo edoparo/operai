@@ -1,7 +1,7 @@
 /**
  * systemAuth middleware — the only credential of activities-api's `/system/v1/*` routes
- * (specs/028 T10; ADR-0044/0049 mechanism, ADR-0082). A shared copy of
- * crm-api/src/auth/systemAuth.middleware.ts — the repo has no workspace (ADR-0003), so each
+ * (specs/20261110-activities T10; ADR 20261006-scoped-service-jwt-fourth-notify-caller/0049 mechanism, ADR 20261110-caller-chosen-ids-replace-cross-service-transactions). A shared copy of
+ * crm-api/src/auth/systemAuth.middleware.ts — the repo has no workspace (ADR 20260703-estimai-api-bun-hono-typescript), so each
  * resource server owns its copy and `scripts/check-shared-copies.ts` keeps the marked region
  * identical across them.
  *

@@ -1,6 +1,6 @@
 /**
- * Claude on Vertex AI, EU, through `@anthropic-ai/vertex-sdk` (specs/021-meetings plan.md § Amendment
- * 2026-11-05 G-4, G-8, ADR-0069, ADR-0067; AC-7.9, AC-7.10, AC-9.6, AC-4.10).
+ * Claude on Vertex AI, EU, through `@anthropic-ai/vertex-sdk` (specs/20261104-meetings plan.md § Amendment
+ * 2026-11-05 G-4, G-8, ADR 20261105-meetings-ai-providers-google-cloud-eu, ADR 20261104-ai-output-structured-validated-plain-text; AC-7.9, AC-7.10, AC-9.6, AC-4.10).
  *
  * THE SDK'S ENVIRONMENT DEFAULTS DO NOT APPLY. Left alone it reads `ANTHROPIC_VERTEX_BASE_URL`,
  * `CLOUD_ML_REGION` and `ANTHROPIC_VERTEX_PROJECT_ID`, falls back to Application Default Credentials, and
@@ -9,14 +9,14 @@
  *     `eu` multi-region), so an ambient override cannot redirect traffic (R13);
  *   - `region` and `projectId`: the SDK puts them in the path (`.../projects/<p>/locations/<region>/...`);
  *   - `authClient`: the service account's JWT client (src/lib/google/auth.ts), never ADC;
- *   - `maxRetries: 0` and `timeout: 60 s`: the job runner owns retry (ADR-0062), a hidden retry would
+ *   - `maxRetries: 0` and `timeout: 60 s`: the job runner owns retry (ADR 20261104-durable-job-runner-work-queued-state-derived), a hidden retry would
  *     multiply the deadline.
  *
  * ONE UNFORCED TOOL, and the only tool is the output schema (AC-7.10, plan H-8): the request carries no `tool_choice`
  * (Sonnet 5.5 refuses "tool" and "any") and no `thinking` (`disabled` is refused; an enabling value is never sent).
  * There is no other tool, no server tool (web search, code execution), no `cache_control` (Vertex prompt caching
  * is stored for minutes to an hour), no `advanced_ai_enabled` and no beta. Because the call is not forced, the
- * guarantee is the acceptance rule below plus the schema validators, never the mechanism (ADR-0067).
+ * guarantee is the acceptance rule below plus the schema validators, never the mechanism (ADR 20261104-ai-output-structured-validated-plain-text).
  *
  * Errors become `LanguageModelError` with a closed code and a status (plan § G-8). Provider text can echo the
  * prompt, so it is never copied into a message or a log line.

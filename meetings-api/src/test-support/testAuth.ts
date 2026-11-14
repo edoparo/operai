@@ -1,5 +1,5 @@
 /**
- * Shared route-integration test harness (specs/021-meetings).
+ * Shared route-integration test harness (specs/20261104-meetings).
  * Ported from crm-api/src/test-support/testAuth.ts.
  *
  * Mocks the TWO network-calling dependencies every gated route sits behind —

@@ -1,5 +1,5 @@
 /**
- * A task's images and attachments (ADR-0089; ADR-0016 posture, two-phase like crm-api's deal
+ * A task's images and attachments (ADR 20261113-task-description-files-in-activities-api-bucket; ADR 20260716-eu-object-storage-refund-attachments posture, two-phase like crm-api's deal
  * attachments):
  *
  *   POST   /activities/{id}/files                     a pending row + a presigned POST (type and size pinned)
@@ -8,7 +8,7 @@
  *   DELETE /activities/{id}/files/{fileId}            object first, then the row
  *
  * The stored files are listed in the task's own view (`task.files`). Access is the task's,
- * asked of the host as the caller on every request (ADR-0081): whoever may read the task sees
+ * asked of the host as the caller on every request (ADR 20261110-activities-service-access-delegated-to-host): whoever may read the task sees
  * and downloads its files; whoever may edit it adds and removes them (the same `mayChange` and
  * `writable` as an edit, so a closed project's task is read-only, AC-3.8). A file of another
  * task, or one still pending, is the same 404 as one that does not exist.

@@ -1,5 +1,5 @@
 /**
- * The host registry (specs/028-activities plan.md § Access, ADR-0081). A host is DATA, never a
+ * The host registry (specs/20261110-activities plan.md § Access, ADR 20261110-activities-service-access-delegated-to-host). A host is DATA, never a
  * branch in a route: each rule that differs between the CRM and Projects (who edits, who
  * completes, who may be assigned, which types exist) is a field below, read by the routes of
  * T7-T9 without an `if (app === "crm")`. Same shape as meetings-api `hosts/registry.ts`.

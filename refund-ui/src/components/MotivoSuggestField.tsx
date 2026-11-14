@@ -1,7 +1,7 @@
 /**
  * MotivoSuggestField — the Motivo text input of a `travel_km` expense line,
  * with an ARIA combobox-with-listbox popup offering the employee's own past
- * trips (T11, specs/014-motivo-autocomplete/tasks.md; design.md in full).
+ * trips (T11, specs/20260811-motivo-autocomplete/tasks.md; design.md in full).
  *
  * It is the SAME `<input id="composer-motivo">` the composer has always had:
  * this component layers behaviour onto it, it does not add, move or restyle a
@@ -56,7 +56,7 @@
  *    broken silent state (plan Security §5). It never propagates to
  *    `ExpenseLineComposer`'s own `error` state.
  *  - MEMORY ONLY. Component state that dies with the composer — never
- *    `localStorage`/`sessionStorage`/IndexedDB (ADR-0001's posture applied to
+ *    `localStorage`/`sessionStorage`/IndexedDB (ADR 20260607-jwt-in-memory-never-web-storage's posture applied to
  *    personal data, and the spec's own explicit non-goal).
  *
  * ## The two traps this component exists to not fall into
@@ -143,7 +143,7 @@ export default function MotivoSuggestField({
   const t = strings.components.motivoSuggest
   const entityLabels = strings.badges.entity
 
-  /** Memory only — never any web storage (plan D7, ADR-0001's posture). */
+  /** Memory only — never any web storage (plan D7, ADR 20260607-jwt-in-memory-never-web-storage's posture). */
   const [corpus, setCorpus] = useState<readonly TripSuggestion[]>([])
   const [focused, setFocused] = useState(false)
   /** Set by a pick and by Escape; cleared ONLY by the input's own `onChange` (trap 2 above). */

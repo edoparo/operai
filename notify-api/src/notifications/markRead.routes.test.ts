@@ -1,5 +1,5 @@
 /**
- * Integration tests for POST /notifications/mark-all-read (T6, specs/005-notification-center).
+ * Integration tests for POST /notifications/mark-all-read (T6, specs/20260713-notification-center).
  *
  * Strategy mirrors list.routes.test.ts / raise.routes.test.ts.
  *
@@ -83,7 +83,7 @@ import { config as dotenvConfig } from "dotenv";
 dotenvConfig({ path: new URL("../../.env", import.meta.url).pathname, override: true });
 
 // Shared process-level env: restore in afterAll so these overrides do not leak
-// into later files of a single-process `bun test` (T20, specs/016).
+// into later files of a single-process `bun test` (T20, specs/20261013-notify-service-credentials).
 const ENV_OVERRIDES: Record<string, string> = {
   ALLOWED_ORIGINS: "http://localhost:5173",
   AUTH_JWKS_URL: "http://localhost:3001/auth/jwks",

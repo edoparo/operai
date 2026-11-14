@@ -4,14 +4,14 @@ import { federation } from '@module-federation/vite'
 import { readFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 
-// specs/021-meetings: meetings-ui — the Meetings tool's federated REMOTE (ADR-0006),
+// specs/20261104-meetings: meetings-ui — the Meetings tool's federated REMOTE (ADR 20260709-suite-frontend-module-federation),
 // modelled on crm-ui/vite.config.ts. Four exposed modules:
 //   `./App`           the access-gated tool, mounted at the shell's `/meetings/*`;
 //   `./MyMeetings`    the UNGATED identity-scoped list + detail, mounted at the
-//                     shell-owned `/my-meetings/*` (ADR-0045, ADR-0058);
+//                     shell-owned `/my-meetings/*` (ADR 20261006-ungated-second-federated-entry-of-a-gated-remote, ADR 20261104-meetings-tool-shape-visibility-by-participation);
 //   `./HostMeetings`  the panel a host app (the CRM deal page) embeds through the
-//                     shell's `./extensions` (ADR-0060);
-//   `./version`       ADR-0030, the About modal.
+//                     shell's `./extensions` (ADR 20261104-host-extension-federated-panel-through-the-shell);
+//   `./version`       ADR 20260803-suite-version-generated-file-federated-export, the About modal.
 // `requiredVersion` for every shared singleton is read from this package's own
 // dependency ranges so the graph cannot drift.
 const pkg = JSON.parse(readFileSync(new URL('./package.json', import.meta.url), 'utf-8'))
@@ -22,10 +22,10 @@ const pkg = JSON.parse(readFileSync(new URL('./package.json', import.meta.url), 
 const caret = (version: string) => (/^\d/.test(version) ? `^${version}` : version)
 
 // Build-time dev default only, overridable via env var (the shell's runtime
-// remote resolution is separate, ADR-0006): the shell dev server's pinned port.
+// remote resolution is separate, ADR 20260709-suite-frontend-module-federation): the shell dev server's pinned port.
 const shellRemoteUrl = process.env['SHELL_REMOTE_URL'] ?? 'http://localhost:5173/remoteEntry.js'
 
-// @operai/ui (operai-ui/, ADR-0050) is compiled from SOURCE by this build; `dedupe`
+// @operai/ui (operai-ui/, ADR 20261031-shared-ui-library-consumed-as-source) is compiled from SOURCE by this build; `dedupe`
 // keeps the library's own `react` imports on this project's copy (Module Federation
 // singleton), since operai-ui/node_modules does not exist on Vercel.
 const operaiUiEntry = fileURLToPath(new URL('../operai-ui/src/index.ts', import.meta.url))
@@ -86,7 +86,7 @@ export default defineConfig({
   ],
   define: {
     // Consumed by src/version.ts's REMOTE_VERSION — this remote's own
-    // version, exposed federated as `./version` (ADR-0030).
+    // version, exposed federated as `./version` (ADR 20260803-suite-version-generated-file-federated-export).
     __REMOTE_VERSION__: JSON.stringify(pkg.version),
   },
   build: {

@@ -7,7 +7,7 @@ interface ParametersPanelProps {
   params: Parameters
   onUpdate: (key: keyof Parameters, value: string) => void
   /**
-   * T17 (specs/013-estimate-sharing/tasks.md; design.md S5): fed from
+   * T17 (specs/20260807-estimate-sharing/tasks.md; design.md S5): fed from
    * context's single `canEdit` gate (`!canEdit`). Defaults to `false` so
    * every pre-existing call site keeps its exact prior full-edit behaviour.
    * Every number input becomes `readOnly` (not `disabled`) — stays

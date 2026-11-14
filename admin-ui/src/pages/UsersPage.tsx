@@ -1,6 +1,6 @@
 /**
  * UsersPage — Screen C1 (design.md "Users list — search+pagination", T20,
- * specs/004-auth-roles-permissions/tasks.md). Replaces T14's placeholder.
+ * specs/20260713-auth-roles-permissions/tasks.md). Replaces T14's placeholder.
  *
  * A search input (name/email → `?q=`, design.md's plan-drift-fix) drives a
  * paginated table (`adminApi.listUsers({ q, page, pageSize })`, plan.md
@@ -28,7 +28,7 @@
  * (`react-hooks/set-state-in-effect` false positive on an async function
  * that calls a state setter after an `await`).
  *
- * --- T10, specs/006-user-invitations (design.md Screen U1) ---
+ * --- T10, specs/20260713-user-invitations (design.md Screen U1) ---
  * Gains: `UsersSubNav` ("Active users" | "Invitations") above the search
  * input; a per-row soft-delete action (`DELETE /admin/users/:id`, plan.md)
  * behind `ConfirmDeleteModal`'s extended `body` prop. The acting admin's own
@@ -37,14 +37,14 @@
  * Delete-button convention exactly (design.md: "disabled + explained", not
  * silent omission) — never native `disabled`, so the control stays
  * perceivable/focusable to assistive tech. Self-identity comes from
- * `shell/session`'s `useSession()` (already federated, ADR-0001/0006 — no
+ * `shell/session`'s `useSession()` (already federated, ADR 20260607-jwt-in-memory-never-web-storage/0006 — no
  * new endpoint). A `422` (the last-admin guard, AC-5.5 — self-delete AC-5.6
  * is UI-unreachable since the button is disabled, but defended anyway)
  * surfaces via `GuardrailDialog`, the same "genuinely blocked, nothing to
  * retry" shape `UserDetail.tsx` already uses for the identical guard on
  * roles/departments saves.
  *
- * --- T11, specs/006-user-invitations (design.md Screen U1 / Panel N3) ---
+ * --- T11, specs/20260713-user-invitations (design.md Screen U1 / Panel N3) ---
  * Gains: a leftmost checkbox column with a tri-state "select all on this
  * page" header checkbox (`role="region" aria-label="Bulk actions"` action bar
  * once ≥1 row is checked, `POST /admin/users/delete`), and a persistent
@@ -56,7 +56,7 @@
  * treatment (T10) — it therefore never needs the server's defense-in-depth
  * self-skip either, though the bulk endpoint still defends against it.
  *
- * --- Design-fidelity gap closed post-T12 (design.md Screen U1, specs/006-user-invitations) ---
+ * --- Design-fidelity gap closed post-T12 (design.md Screen U1, specs/20260713-user-invitations) ---
  * Gains: a "Invite user" button next to the heading — Screen U1's own entry
  * point into F1, parallel to (and independent of) the Invitations tab's
  * identical button (T12, ./InvitationsPage.tsx). Opens the SAME
@@ -352,7 +352,7 @@ export default function UsersPage() {
   }, [inviteModal])
 
   // ---------------------------------------------------------------------------
-  // Single-row soft-delete (Dialog N2 — design.md F3, T10 specs/006-user-invitations)
+  // Single-row soft-delete (Dialog N2 — design.md F3, T10 specs/20260713-user-invitations)
   // ---------------------------------------------------------------------------
 
   const handleDeleteRequest = useCallback(
@@ -398,7 +398,7 @@ export default function UsersPage() {
   }, [deleteModal])
 
   // ---------------------------------------------------------------------------
-  // Bulk soft-delete (Panel N3 — design.md F4, T11 specs/006-user-invitations)
+  // Bulk soft-delete (Panel N3 — design.md F4, T11 specs/20260713-user-invitations)
   // ---------------------------------------------------------------------------
 
   const selectableUsers = useMemo(

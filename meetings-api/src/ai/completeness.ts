@@ -1,5 +1,5 @@
 /**
- * The gap and repetition detector (specs/021-meetings plan.md § Amendment 2026-11-05 #2, H-3; AC-6.7, AC-6.11,
+ * The gap and repetition detector (specs/20261104-meetings plan.md § Amendment 2026-11-05 #2, H-3; AC-6.7, AC-6.11,
  * AC-6.12, AC-6.13).
  *
  * WHY: Chirp 3 sometimes returns a part with a stretch of speech simply left out (T107: 19-45 % of the words of

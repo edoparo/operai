@@ -1,5 +1,5 @@
 /**
- * Push-subscription endpoint allowlist (T4, specs/029-push-notifications,
+ * Push-subscription endpoint allowlist (T4, specs/20261111-push-notifications,
  * plan.md §API contracts `PUT /push/devices` -> 422 `endpoint_not_allowed`).
  *
  * SECURITY (SSRF): notify-api POSTs to the endpoint a client registers. Only the push

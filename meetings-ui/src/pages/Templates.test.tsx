@@ -1,7 +1,7 @@
 /**
  * @vitest-environment jsdom
  *
- * The templates pages (specs/021-meetings T74; AC-8.1 to AC-8.4, plan G8; design.md S7, S8): the list,
+ * The templates pages (specs/20261104-meetings T74; AC-8.1 to AC-8.4, plan G8; design.md S7, S8): the list,
  * the read view, and the editor on the library `SectionsEditor`, rendered inside the real `./App`
  * router on a memory history, against `fakeApi`.
  */

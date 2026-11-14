@@ -1,13 +1,13 @@
 import { defineConfig, devices } from '@playwright/test'
 
 /**
- * Playwright configuration for shell e2e tests (T16, specs/003-suite-shell).
+ * Playwright configuration for shell e2e tests (T16, specs/20260709-suite-shell).
  *
  * This is the cross-app suite: it drives the REAL assembled shell host
  * together with the real remotes (estimai-ui, refund-ui, notify-ui) in a
  * browser, with a seeded better-auth session — the convergence point for
  * shell-chrome (T3-T11), estimai-migration (T12-T14), refund-stub (T15), and
- * the notification center (specs/005-notification-center, T21).
+ * the notification center (specs/20260713-notification-center, T21).
  *
  * Prerequisites (must be running before `pnpm e2e`):
  *   1. Postgres: `docker compose up -d` (localhost:5435)
@@ -17,12 +17,12 @@ import { defineConfig, devices } from '@playwright/test'
  *      required for AC-2.2 (authenticated backend calls succeed inside the
  *      shell).
  *   4. notify-api: `bun run dev` in `notify-api/` (localhost:8081) —
- *      required for specs/005's US-1..US-6 (bell/badge, center, SSE, toasts).
+ *      required for specs/20260713-notification-center's US-1..US-6 (bell/badge, center, SSE, toasts).
  *   5. refund-api: `bun run dev` in `refund-api/` (localhost:8082) — required
- *      for specs/007's headline journeys (refund-headline.spec.ts, T21):
+ *      for specs/20260716-refund-service's headline journeys (refund-headline.spec.ts, T21):
  *      compose/submit/review/decide/notify. refund-api's post-decision
  *      notification is authenticated with its own scoped service credential
- *      (ADR-0049): `auth` needs a `SERVICE_CLIENTS` entry for it plus
+ *      (ADR 20261013-all-notify-callers-scoped-credentials-shared-token-retired): `auth` needs a `SERVICE_CLIENTS` entry for it plus
  *      `SERVICE_AUDIENCE`, `refund-api` needs `SERVICE_CLIENT_ID` and
  *      `SERVICE_CLIENT_SECRET`, and `notify-api` needs `SERVICE_AUDIENCE`;
  *      without them the notification silently no-ops. Real object-storage
@@ -31,11 +31,11 @@ import { defineConfig, devices } from '@playwright/test'
  *      never attaches a receipt (AC-1.7: attachments are always optional),
  *      since no EU bucket is provisioned for local/CI e2e.
  *   6. inventory-api: `bun run dev` in `inventory-api/` (localhost:8083) — required
- *      for specs/015's journeys (inventory-assignment.spec.ts, inventory-ledger.spec.ts,
+ *      for specs/20261006-hardware-inventory's journeys (inventory-assignment.spec.ts, inventory-ledger.spec.ts,
  *      T45). Its assignment/decision notifications (AC-2.8/2.9) also need `auth`'s
  *      `SERVICE_AUDIENCE` + `SERVICE_CLIENTS` and `notify-api`'s `SERVICE_AUDIENCE`
- *      (ADR-0044); without them the push fails soft and those two ACs cannot pass.
- *   7. specs/028-activities (activities-*.spec.ts, T21): projects-api (8086), crm-api (8084) and
+ *      (ADR 20261006-scoped-service-jwt-fourth-notify-caller); without them the push fails soft and those two ACs cannot pass.
+ *   7. specs/20261110-activities (activities-*.spec.ts, T21): projects-api (8086), crm-api (8084) and
  *      activities-api (8087), each with the env listed at the top of activities-crm.spec.ts
  *      (activities-api's URL on crm-api, its SERVICE_CLIENTS entry and `activities.write` in `auth`,
  *      VITE_ACTIVITIES_API_URL / VITE_PROJECTS_API_URL on the shell build). projects-ui is served here
@@ -44,7 +44,7 @@ import { defineConfig, devices } from '@playwright/test'
  * Every notification the suite raises (invitation email from `auth`, refund
  * decisions and batch emails from `refund-api`, collaborator changes from
  * `estimai-api`, assignments from `inventory-api`) is sent under that caller's
- * own scoped service credential (ADR-0049). There is no shared token to keep
+ * own scoped service credential (ADR 20261013-all-notify-callers-scoped-credentials-shared-token-retired). There is no shared token to keep
  * identical across services, and none is a prerequisite here.
  *
  * All five frontends (shell, estimai-ui, refund-ui, notify-ui, admin-ui) are
@@ -80,19 +80,19 @@ const authUrl =
 const apiUrl =
   process.env['E2E_API_URL'] ?? process.env['VITE_API_URL'] ?? 'http://localhost:8080'
 
-// notify-api base URL (specs/005-notification-center). Mirrors apiUrl above —
+// notify-api base URL (specs/20260713-notification-center). Mirrors apiUrl above —
 // E2E_NOTIFY_API_URL / VITE_NOTIFY_API_URL override, default matches
 // notify-api's pinned local port (8081, notify-api/vite... n/a, see
 // notify-api/.env.example PORT=8081).
 const notifyApiUrl =
   process.env['E2E_NOTIFY_API_URL'] ?? process.env['VITE_NOTIFY_API_URL'] ?? 'http://localhost:8081'
 
-// refund-api base URL (specs/007-refund-service, T21). Mirrors apiUrl/
+// refund-api base URL (specs/20260716-refund-service, T21). Mirrors apiUrl/
 // notifyApiUrl above. Needed on BOTH sides of the federation boundary:
 // refund-ui reads it directly (src/lib/refundApi.ts's `refundApiBase()`)
 // AND the shell needs it at ITS OWN build time too, because
 // `shell/src/lib/session.ts`'s `getTrustedOrigins()` (the allowlist
-// `apiFetch` checks before attaching the Bearer JWT, ADR-0001) is compiled
+// `apiFetch` checks before attaching the Bearer JWT, ADR 20260607-jwt-in-memory-never-web-storage) is compiled
 // into the SHELL bundle, not refund-ui's — without this, refund-ui's calls
 // to refund-api would go out with no Authorization header and 401
 // unconditionally (see refundApi.ts's own "DRIFT" doc comment, closed by
@@ -100,15 +100,15 @@ const notifyApiUrl =
 const refundApiUrl =
   process.env['E2E_REFUND_API_URL'] ?? process.env['VITE_REFUND_API_URL'] ?? 'http://localhost:8082'
 
-// inventory-api base URL (specs/015-hardware-inventory, T45). Needed by the SHELL's
+// inventory-api base URL (specs/20261006-hardware-inventory, T45). Needed by the SHELL's
 // own build for the same reason as refundApiUrl above (trusted-origin allowlist).
 const inventoryApiUrl =
   process.env['E2E_INVENTORY_API_URL'] ??
   process.env['VITE_INVENTORY_API_URL'] ??
   'http://localhost:8083'
 
-// crm-api / meetings-api base URLs (specs/017 / specs/021). The SHELL's build needs both
-// for the trusted-origin allowlist (ADR-0001), exactly like refundApiUrl above.
+// crm-api / meetings-api base URLs (specs/20261101-crm / specs/20261104-meetings). The SHELL's build needs both
+// for the trusted-origin allowlist (ADR 20260607-jwt-in-memory-never-web-storage), exactly like refundApiUrl above.
 const crmApiUrl =
   process.env['E2E_CRM_API_URL'] ?? process.env['VITE_CRM_API_URL'] ?? 'http://localhost:8084'
 const meetingsApiUrl =
@@ -116,8 +116,8 @@ const meetingsApiUrl =
   process.env['VITE_MEETINGS_API_URL'] ??
   'http://localhost:8085'
 
-// projects-api / activities-api base URLs (specs/025 / specs/028-activities, T21). Same reason as the
-// ones above: the SHELL's build bakes both into its trusted-origin allowlist (ADR-0001) and exposes them
+// projects-api / activities-api base URLs (specs/20261103-projects / specs/20261110-activities, T21). Same reason as the
+// ones above: the SHELL's build bakes both into its trusted-origin allowlist (ADR 20260607-jwt-in-memory-never-web-storage) and exposes them
 // to the remotes (`getProjectsApiBaseUrl`, `getActivitiesApiBaseUrl`); without VITE_ACTIVITIES_API_URL
 // crm-ui and projects-ui send no Bearer token to activities-api and every call 401s.
 const projectsApiUrl =
@@ -135,7 +135,7 @@ const shellPort = process.env['E2E_SHELL_PORT'] ?? '5173'
 const shellUrl = `http://localhost:${shellPort}`
 const estimaiRemoteOrigin = `http://localhost:${process.env['E2E_ESTIMAI_REMOTE_PORT'] ?? '5175'}`
 const refundRemoteOrigin = `http://localhost:${process.env['E2E_REFUND_REMOTE_PORT'] ?? '5176'}`
-// notify-ui added for T21 (specs/005-notification-center). This e2e harness
+// notify-ui added for T21 (specs/20260713-notification-center). This e2e harness
 // already uses its OWN port numbering for the built+previewed remotes,
 // distinct from mise.toml's `dev`/`dev:preview` HMR port assignments
 // (estimai-ui/refund-ui above are on 5175/5176 here, not their mise.toml dev
@@ -145,18 +145,18 @@ const refundRemoteOrigin = `http://localhost:${process.env['E2E_REFUND_REMOTE_PO
 // already claimed by refundRemoteOrigin in THIS file's numbering, so 5178
 // (free here) is used for its e2e preview instance only.
 const notifyRemoteOrigin = `http://localhost:${process.env['E2E_NOTIFY_REMOTE_PORT'] ?? '5178'}`
-// admin-ui (specs/004-auth-roles-permissions T25, specs/006-user-invitations
+// admin-ui (specs/20260713-auth-roles-permissions T25, specs/20260713-user-invitations
 // T14) — the Roles/Permissions/Invitations admin GUI. Was federated into the
-// shell's router/vite.config (ADMIN_REMOTE_URL) back in specs/004 but never
+// shell's router/vite.config (ADMIN_REMOTE_URL) back in specs/20260713-auth-roles-permissions but never
 // added to THIS webServer array, so admin-ui had NO real browser e2e coverage
 // until this feature's T14 — every ACL/roles/departments AC that named "e2e"
-// in specs/004's own test-strategy table was, in practice, only verified at
+// in specs/20260713-auth-roles-permissions's own test-strategy table was, in practice, only verified at
 // the component (vitest) level. 5179 is the next free e2e-preview slot.
 const adminRemoteOrigin = `http://localhost:${process.env['E2E_ADMIN_REMOTE_PORT'] ?? '5179'}`
-// inventory-ui (specs/015-hardware-inventory, T45) — gated `./App` at /inventory,
+// inventory-ui (specs/20261006-hardware-inventory, T45) — gated `./App` at /inventory,
 // ungated `./MyDevices` at /devices. 5180 is the next free e2e-preview slot.
 const inventoryRemoteOrigin = `http://localhost:${process.env['E2E_INVENTORY_REMOTE_PORT'] ?? '5180'}`
-// crm-ui (specs/017) and meetings-ui (specs/021-meetings, T86): the next two free e2e-preview
+// crm-ui (specs/20261101-crm) and meetings-ui (specs/20261104-meetings, T86): the next two free e2e-preview
 // slots. The meetings journeys reach a deal's Meetings card (crm-ui `HostExtension` -> meetings-ui
 // `./HostMeetings`), so both remotes must be served. The ports are overridable for a machine that
 // already serves them (the `mise run dev` stack has crm-ui on 5179 and meetings-ui on 5180:
@@ -164,7 +164,7 @@ const inventoryRemoteOrigin = `http://localhost:${process.env['E2E_INVENTORY_REM
 // reuses whatever answers on those URLs).
 const crmRemoteOrigin = `http://localhost:${process.env['E2E_CRM_REMOTE_PORT'] ?? '5181'}`
 const meetingsRemoteOrigin = `http://localhost:${process.env['E2E_MEETINGS_REMOTE_PORT'] ?? '5182'}`
-// projects-ui (specs/025, specs/028-activities T21): ./App at /projects, with the Tasks card and My tasks.
+// projects-ui (specs/20261103-projects, specs/20261110-activities T21): ./App at /projects, with the Tasks card and My tasks.
 // 5183 is the next free e2e-preview slot (the `mise run dev` stack has it on 5181:
 // `E2E_PROJECTS_REMOTE_PORT=5181 pnpm e2e activities-*`; Playwright then reuses what answers there).
 const projectsRemoteOrigin = `http://localhost:${process.env['E2E_PROJECTS_REMOTE_PORT'] ?? '5183'}`
@@ -203,7 +203,7 @@ export default defineConfig({
       use: { ...devices['Desktop Chrome'] },
     },
     {
-      // specs/021-meetings (T86). Chromium with a FAKE microphone: the permission prompt is
+      // specs/20261104-meetings (T86). Chromium with a FAKE microphone: the permission prompt is
       // auto-accepted and getUserMedia returns a synthetic tone, so the in-browser recorder runs
       // for real with no hardware (where the OS audio stack is unreachable, e.g. a sandboxed
       // macOS shell, Chromium's fake device never answers; the fixtures then install a WebAudio
@@ -269,7 +269,7 @@ export default defineConfig({
       },
     },
     {
-      // notify-ui (specs/005-notification-center, T21) — added alongside
+      // notify-ui (specs/20260713-notification-center, T21) — added alongside
       // estimai-ui/refund-ui above so AC-1.4/1.5/2.1/2.4/2.5/3.x/5.x/6.x can
       // be driven against the REAL federated notification-center remote, not
       // a mock. Consumes shell/session (Bearer JWT + the notification
@@ -286,7 +286,7 @@ export default defineConfig({
       },
     },
     {
-      // admin-ui (specs/006-user-invitations T14 — see adminRemoteOrigin doc
+      // admin-ui (specs/20260713-user-invitations T14 — see adminRemoteOrigin doc
       // comment above for why this entry is new). Same shape as
       // estimai-ui/refund-ui/notify-ui above: independently built + previewed,
       // consumes shell/session + shell/tokens.css.
@@ -317,7 +317,7 @@ export default defineConfig({
       },
     },
     {
-      // inventory-ui (specs/015-hardware-inventory, T45). It reads no VITE_* of its
+      // inventory-ui (specs/20261006-hardware-inventory, T45). It reads no VITE_* of its
       // own: the inventory-api origin comes from the shell (getInventoryApiBaseUrl).
       command: `pnpm build && pnpm preview --port ${new URL(inventoryRemoteOrigin).port} --strictPort`,
       cwd: '../inventory-ui',
@@ -331,7 +331,7 @@ export default defineConfig({
       },
     },
     {
-      // crm-ui (specs/017): the deal page that hosts the Meetings card (specs/021).
+      // crm-ui (specs/20261101-crm): the deal page that hosts the Meetings card (specs/20261104-meetings).
       command: `pnpm build && pnpm preview --port ${crmRemotePort} --strictPort`,
       cwd: '../crm-ui',
       url: crmRemoteOrigin,
@@ -344,7 +344,7 @@ export default defineConfig({
       },
     },
     {
-      // meetings-ui (specs/021-meetings, T86): ./App, ./MyMeetings, ./HostMeetings, ./version.
+      // meetings-ui (specs/20261104-meetings, T86): ./App, ./MyMeetings, ./HostMeetings, ./version.
       // Reads no VITE_* of its own: the meetings-api origin comes from the shell.
       command: `pnpm build && pnpm preview --port ${meetingsRemotePort} --strictPort`,
       cwd: '../meetings-ui',
@@ -358,7 +358,7 @@ export default defineConfig({
       },
     },
     {
-      // projects-ui (specs/028-activities, T21): the project page's Tasks card and /projects/tasks.
+      // projects-ui (specs/20261110-activities, T21): the project page's Tasks card and /projects/tasks.
       // Reads no VITE_* of its own: the projects-api and activities-api origins come from the shell.
       command: `pnpm build && pnpm preview --port ${projectsRemotePort} --strictPort`,
       cwd: '../projects-ui',

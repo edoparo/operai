@@ -1,9 +1,9 @@
 /**
- * One-off backfill of deal links into EstimAI (specs/024 AC-3.7, ADR-0076).
+ * One-off backfill of deal links into EstimAI (specs/20261108-estimate-list-oversight AC-3.7, ADR 20261108-crm-pushes-deal-links-to-estimai).
  *
  *   bun scripts/backfill-estimate-links.ts [--apply]
  *
- * Before specs/024, estimai-api knew nothing of which deal an estimate belongs
+ * Before specs/20261108-estimate-list-oversight, estimai-api knew nothing of which deal an estimate belongs
  * to. Run this once after both services are deployed: it sends one `linked`
  * deal-link notice per `deal_estimate` row that still holds an estimate
  * (`estimateId <> ''`), with `at` = the row's `requestedAt`.

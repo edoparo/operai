@@ -1,9 +1,9 @@
 /**
- * Task blockers (specs/028 US-4, AC-4.1..4.3, AC-6.3): crm-api's `blockers.test.ts` (specs/017
+ * Task blockers (specs/20261110-activities US-4, AC-4.1..4.3, AC-6.3): crm-api's `blockers.test.ts` (specs/20261101-crm
  * US-6) ported against the crm test host, plus the same rules for the project host and across
  * the two hosts (`blocker_not_in_host`).
  *
- * "Same company" of specs/017 is "same host entity" here: the company of a CRM task, the
+ * "Same company" of specs/20261101-crm is "same host entity" here: the company of a CRM task, the
  * project of a project task. A pre-sales task and an operational one never block each other.
  * crm-api's last scenario (the EstimAI notice completing the estimate task) goes through the
  * system completion route, which is T10's.
@@ -43,7 +43,7 @@ const projectTask = async (projectId: string, extra: Record<string, unknown> = {
 
 const unblocked = () => events.filter((e) => e.kind === "task_unblocked");
 
-describe("CRM task blockers (specs/017 US-6)", () => {
+describe("CRM task blockers (specs/20261101-crm US-6)", () => {
   it("a task waits on tasks of the same company; the view says which and whether it is blocked (AC-4.1)", async () => {
     const company = makeCompany();
     const deal = makeDeal(company.id);
@@ -262,7 +262,7 @@ describe("CRM task blockers (specs/017 US-6)", () => {
   });
 });
 
-describe("project task blockers (specs/028 AC-4.1..4.3)", () => {
+describe("project task blockers (specs/20261110-activities AC-4.1..4.3)", () => {
   it("a project task waits on tasks of the same project (AC-4.1)", async () => {
     const project = makeProject();
     const survey = await projectTask(project.id, { subject: "Site survey" });

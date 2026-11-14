@@ -1,13 +1,13 @@
 /**
- * Access-request admin API (T7, specs/023-signup-gate — AC-2.5, AC-3.1–3.7,
- * AC-3.9, AC-3.10; plan.md § Admin API and approval; ADR-0071).
+ * Access-request admin API (T7, specs/20261105-signup-gate — AC-2.5, AC-3.1–3.7,
+ * AC-3.9, AC-3.10; plan.md § Admin API and approval; ADR 20261105-access-only-by-invitation-waiting-list).
  *
  *   GET  /admin/access-requests               the waiting list, filtered by status
  *   POST /admin/access-requests/:id/approve   creates the invitation, then decides
  *   POST /admin/access-requests/:id/reject    decides, sends nothing
  *
  * Every route sits behind `sessionMiddleware` + `requireAuth` + `requireAdmin`
- * like the other `/admin/*` routers. Approval reuses specs/006's invitation
+ * like the other `/admin/*` routers. Approval reuses specs/20260713-user-invitations's invitation
  * creation (`../invitations/createInvitation`): there is still no user row until
  * the person's own first sign-in matches the invitation.
  */

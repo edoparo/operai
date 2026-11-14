@@ -1,7 +1,7 @@
 /**
- * Unit tests for refund-api's four notify-api call sites (T13, specs/007;
- * `notifyPaid` T6, specs/008; the email pair T5, specs/008 and specs/007;
- * credential: T9, specs/016, AC-1.1, AC-1.2, AC-4.3, AC-5.2, ADR-0049).
+ * Unit tests for refund-api's four notify-api call sites (T13, specs/20260716-refund-service;
+ * `notifyPaid` T6, specs/20260719-refund-monthly-processing; the email pair T5, specs/20260719-refund-monthly-processing and specs/20260716-refund-service;
+ * credential: T9, specs/20261013-notify-service-credentials, AC-1.1, AC-1.2, AC-4.3, AC-5.2, ADR 20261013-all-notify-callers-scoped-credentials-shared-token-retired).
  *
  * Push (`notify.ts`): `notifyDecision`, `notifyPaid` -> `/system/notifications`,
  * scope `notifications.push`. Email (`notifyEmail.ts`): `notifyBatchCompiled`,
@@ -35,7 +35,7 @@ process.env["REFUND_S3_SECRET_ACCESS_KEY"] = "test-secret";
 
 const { notifyDecision, notifyPaid } = await import("./notify");
 // `?real`: batches.routes.test.ts mock.module()s ./notifyEmail process-wide; this
-// file tests the real client, so it must not pick up that stand-in (T21, specs/016).
+// file tests the real client, so it must not pick up that stand-in (T21, specs/20261013-notify-service-credentials).
 // @ts-expect-error -- the query suffix is a runtime-only cache-buster
 const { notifyBatchCompiled, notifyDecisionEmail } = (await import("./notifyEmail?real")) as typeof import("./notifyEmail");
 const { ServiceTokenError } = await import("./serviceToken");

@@ -1,6 +1,6 @@
 /**
- * The text of every meetings notification, English and Italian (specs/021
- * AC-12.1, AC-12.2, AC-12.5; ADR-0065). notify-api has no per-user language, so
+ * The text of every meetings notification, English and Italian (specs/20261104-meetings
+ * AC-12.1, AC-12.2, AC-12.5; ADR 20261104-bilingual-system-notifications). notify-api has no per-user language, so
  * the service sends BOTH: `title`/`body` in English and `it: { title, body }`,
  * and notify-ui / the shell's ToastHost pick one from `<html lang>`.
  *

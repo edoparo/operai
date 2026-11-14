@@ -1,7 +1,7 @@
 /**
- * The transcription seam (specs/021-meetings plan.md § AI providers, ADR-0061;
+ * The transcription seam (specs/20261104-meetings plan.md § AI providers, ADR 20261104-meetings-ai-providers-eu-zero-retention;
  * AC-6.2, AC-6.7, AC-13.2). Two real implementations, chosen by `MEETINGS_TRANSCRIBER`: `geminiSpeech.ts`
- * (Gemini on Vertex AI, EU, the default since spec A12 / ADR-0077) and `googleSpeech.ts` (Chirp 3, ADR-0069, kept for
+ * (Gemini on Vertex AI, EU, the default since spec A12 / ADR 20261110-meetings-transcription-gemini-on-vertex-eu) and `googleSpeech.ts` (Chirp 3, ADR 20261105-meetings-ai-providers-google-cloud-eu, kept for
  * a rollback), and a fake (`fakeTranscriber.ts`).
  *
  * The LOCALE is the meeting's language, chosen by its creator, never detected
@@ -27,7 +27,7 @@ export type TranscriptionOutcome =
       readonly kind: "segments";
       readonly segments: readonly DraftSegment[];
       /**
-       * Where each transcript PART starts in the recording (ADR-0070): `[0]` for one part, `[0, t2, ...]` for a
+       * Where each transcript PART starts in the recording (ADR 20261105-meetings-transcript-parts-speaker-labels-per-part): `[0]` for one part, `[0, t2, ...]` for a
        * long recording transcribed in parts. Non-empty, first element 0, ascending.
        */
       readonly partStartsMs: readonly number[];

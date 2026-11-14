@@ -12,7 +12,7 @@ import { strings } from '../strings'
 import { fillTemplate } from '../strings/errors'
 
 /**
- * DisposeDialog — "Dispose..." (T34, specs/015-hardware-inventory; design.md
+ * DisposeDialog — "Dispose..." (T34, specs/20261006-hardware-inventory; design.md
  * F10, § Irreversible actions, § Error and conflict catalogue; AC-7.1, AC-7.3,
  * AC-7.4, AC-7.5): an `IrreversibleActionDialog` whose form holds the disposal
  * date (default today, not before the purchase date), the reason (the five of

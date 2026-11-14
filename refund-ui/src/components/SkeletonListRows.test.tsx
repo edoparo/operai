@@ -1,7 +1,7 @@
 /**
  * @vitest-environment jsdom
  *
- * Component tests for SkeletonListRows (T15, specs/007-refund-service).
+ * Component tests for SkeletonListRows (T15, specs/20260716-refund-service).
  *
  * Covers:
  *   (A) renders the default 3 rows, aria-hidden (no semantic content of its

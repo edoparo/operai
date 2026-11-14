@@ -32,7 +32,7 @@ export function errorMessage(error: unknown): string {
 /** 503s that are NOT "auth is unreachable": each has its own message and the dialog stays open. */
 const OTHER_503_CODES = new Set(['storage_unavailable', 'host_unavailable', 'identity_unavailable'])
 
-/** A capability route answered 503 because `auth` cannot be reached (AC-10.6, ADR-0014). */
+/** A capability route answered 503 because `auth` cannot be reached (AC-10.6, ADR 20260716-refund-api-authorization-enforcing-resource-server). */
 export const isAuthUnavailable = (error: unknown): boolean => {
   if (!(error instanceof ApiError) || error.status !== 503) return false
   return error.code === undefined || !OTHER_503_CODES.has(error.code)

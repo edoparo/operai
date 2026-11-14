@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # infra/meetings-bucket-policy.sh - apply or verify the retention policy of the meetings AUDIO
-# bucket on any S3-compatible endpoint (specs/021-meetings, ADR-0063, AC-4.4).
+# bucket on any S3-compatible endpoint (specs/20261104-meetings, ADR 20261104-audio-retention-bucket-lifecycle-verified-at-startup, AC-4.4).
 #
 # WHY THIS EXISTS. Recorded audio is deleted by the bucket, not by our code: one bucket-wide
 # lifecycle rule expires every object after 29 days, with versioning off (a versioned delete is
@@ -40,7 +40,7 @@
 #
 # REQUIRES    the AWS CLI (v1 or v2) and jq. Used here only as a generic S3 client against --endpoint.
 #
-# WHY THESE RULES. See specs/021-meetings/plan.md section "Retention and deletion of bytes" and
+# WHY THESE RULES. See specs/20261104-meetings/plan.md section "Retention and deletion of bytes" and
 # infra/README.md section "Meetings". The rule has NO prefix filter on purpose: it also caps the
 # chunks of a meeting that was never processed and abandoned presigned uploads.
 

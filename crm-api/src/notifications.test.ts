@@ -2,8 +2,8 @@ import { afterEach, beforeEach, describe, expect, it } from "bun:test";
 import { call, estimaiNotice, forgetIdentities, identities, makeCompany, makeDeal, markEstimateReady, resetWorld, estimai, offerBody } from "./test-support/world";
 import { recipientsOf, setNotifierForTests, type NotifyEvent } from "./lib/notify";
 
-/** specs/019 T7: the events crm-api sends, hooked after the commit, through an injected recording notifier. */
-describe("CRM notifications (specs/019, E1–E9)", () => {
+/** specs/20261101-crm-notifications T7: the events crm-api sends, hooked after the commit, through an injected recording notifier. */
+describe("CRM notifications (specs/20261101-crm-notifications, E1–E9)", () => {
   let events: (NotifyEvent & { to: string[] })[];
   const AMOUNT_CENTS = 8_500_050;
 
@@ -118,7 +118,7 @@ describe("CRM notifications (specs/019, E1–E9)", () => {
   });
 
   // E5 (a task assigned to you) and the tasks a completion frees are announced by activities-api now
-  // (specs/028 US-6, ADR-0082): its tests own the copy. crm-api still announces every estimate event.
+  // (specs/20261110-activities US-6, ADR 20261110-caller-chosen-ids-replace-cross-service-transactions): its tests own the copy. crm-api still announces every estimate event.
   it("creating the estimate's task for the technician sends no second notice: E1 is the only one", async () => {
     const d = await deal();
     await request(d.id);

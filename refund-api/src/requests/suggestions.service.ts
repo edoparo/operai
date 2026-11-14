@@ -1,5 +1,5 @@
 /**
- * Trip-signature fold-merge, ranking and capping (T4, specs/014-motivo-autocomplete).
+ * Trip-signature fold-merge, ranking and capping (T4, specs/20260811-motivo-autocomplete).
  *
  * PURE — no Prisma, no Hono, no clock of its own (the window cutoff takes
  * `now` as an argument). Everything here is directly unit-testable, which is
@@ -44,7 +44,7 @@ export const MAX_TRIP_SUGGESTIONS = 200;
 /**
  * The inclusive lower bound of the suggestion window, computed from the
  * server clock per request (plan § Data model) — never a stored or scheduled
- * value (ADR-0013 posture).
+ * value (ADR 20260714-invitation-lifecycle-derived-expiry-state posture).
  *
  * UTC throughout: the column is `@db.Date` (stored at UTC midnight) and the
  * <=2h offset between UTC and Europe/Rome is immaterial at a 24-month

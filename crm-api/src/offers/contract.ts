@@ -1,10 +1,10 @@
 /**
  * The shapes shared by offer templates, the generate route and the contract
- * renderer (specs/020). Pure types: no I/O, no Prisma.
+ * renderer (specs/20261102-crm-offer-document). Pure types: no I/O, no Prisma.
  *
  * Money is integer minor units throughout; a percentage discount is basis
  * points (1–10 000) and is turned into cents exactly once, at generation time
- * (ADR-0025 posture). The renderer never computes money: it prints what the
+ * (ADR 20260720-mileage-rate-money-precision-integer-micros posture). The renderer never computes money: it prints what the
  * snapshot says.
  */
 
@@ -90,7 +90,7 @@ export interface OfferAttachmentRef {
   readonly sizeBytes: number;
 }
 
-/** The snapshot of a specs/020 offer. Older (018) snapshots have no `kind`. */
+/** The snapshot of a specs/20261102-crm-offer-document offer. Older (018) snapshots have no `kind`. */
 export interface ContractSnapshot {
   readonly kind: "contract";
   readonly template: { readonly id: string; readonly name: string };

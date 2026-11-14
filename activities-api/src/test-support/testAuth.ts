@@ -1,11 +1,11 @@
 /**
- * Shared route-integration test harness (specs/028-activities T2), adapted from
+ * Shared route-integration test harness (specs/20261110-activities T2), adapted from
  * projects-api/src/test-support/testAuth.ts.
  *
  * Mocks the one network-calling identity dependency every user route sits behind —
  * `../auth/jwt.middleware` (RS256 verification) — so route tests exercise the REAL Hono app
  * + REAL Postgres (compose, `activities_test` database) without a live `auth` service.
- * activities-api has no authz middleware to mock: access is asked of the host (ADR-0081),
+ * activities-api has no authz middleware to mock: access is asked of the host (ADR 20261110-activities-service-access-delegated-to-host),
  * and the host is faked by the test hosts of T3.
  *
  * `bun test` runs every file in ONE process and `mock.module` is process-global, so the

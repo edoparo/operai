@@ -2,7 +2,7 @@
   "schema": "wellforge-run/v1",
   "run_id": "2026-06-24T10-44-00Z-implement-002-ui-auth-integration",
   "command": "implement",
-  "feature": "002-ui-auth-integration",
+  "feature": "20260606-ui-auth-integration",
   "started": "2026-06-24T10:44:00Z",
   "finished": "2026-06-24T10:52:02Z",
   "agents": [

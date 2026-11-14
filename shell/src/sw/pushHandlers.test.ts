@@ -1,5 +1,5 @@
 /**
- * The push service worker's behaviour (specs/029 T7; AC-2.3, AC-2.4, AC-4.1, AC-4.2, ADR-0085),
+ * The push service worker's behaviour (specs/20261111-push-notifications T7; AC-2.3, AC-2.4, AC-4.1, AC-4.2, ADR 20261111-push-suppression-decided-by-the-browser),
  * driven through a fake service-worker global scope — jsdom has no worker runtime.
  */
 import { describe, expect, it, vi } from 'vitest'
@@ -106,7 +106,7 @@ const payload = (over: Record<string, unknown> = {}) => ({
   ...over,
 })
 
-// S-M1 (specs/029): values that normalise to a scheme-relative URL or move the origin. The same
+// S-M1 (specs/20261111-push-notifications): values that normalise to a scheme-relative URL or move the origin. The same
 // table is in shell/src/lib/push.test.ts (absolute form) and notify-api's schema test.
 const OPEN_REDIRECT_VECTORS = [
   '/..//evil.io',

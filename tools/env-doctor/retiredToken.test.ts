@@ -3,7 +3,7 @@ import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
 import { join, relative, resolve } from "node:path";
 import { BACKENDS, FORBIDDEN_VARS, type ServiceName } from "./manifest";
 
-// specs/016 AC-5.2: the retired shared notify token is not a setting any service
+// specs/20261013-notify-service-credentials AC-5.2: the retired shared notify token is not a setting any service
 // reads, requires or documents. The env contract flags a deployed copy
 // (check.test.ts); this guards the code, so the name cannot creep back into a
 // service's `src/` (a schema, a header read, a comment that calls it current).
@@ -45,7 +45,7 @@ describe("the retired shared notify token is absent from every service's src/", 
   }
 });
 
-// specs/021 plan § Amendment 2026-11-05 (G-7, T105): the Azure and AWS provider variables meetings-api
+// specs/20261104-meetings plan § Amendment 2026-11-05 (G-7, T105): the Azure and AWS provider variables meetings-api
 // used to read are retired by the move to Google Cloud. The contract flags a deployed copy by name
 // (check.test.ts); this pins the manifest, so the list cannot shrink by accident.
 describe("the seven variables retired by the Google Cloud provider change are forbidden on meetings-api", () => {

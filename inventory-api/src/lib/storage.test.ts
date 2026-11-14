@@ -1,6 +1,6 @@
 /**
- * Object storage (T21, specs/015-hardware-inventory; AC-10.4, AC-10.6, AC-10.7;
- * ADR-0016 posture). Unit tests stub the S3 client's `send` but keep REAL
+ * Object storage (T21, specs/20261006-hardware-inventory; AC-10.4, AC-10.6, AC-10.7;
+ * ADR 20260716-eu-object-storage-refund-attachments posture). Unit tests stub the S3 client's `send` but keep REAL
  * request signing; one round trip runs against the configured bucket (local
  * MinIO) and is skipped, visibly and with its reason, when that is unreachable.
  */

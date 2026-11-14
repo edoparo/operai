@@ -1,7 +1,7 @@
 /**
  * @vitest-environment jsdom
  *
- * Component tests for DepartmentsPage — Screen B1 (T19, specs/004-auth-roles-permissions).
+ * Component tests for DepartmentsPage — Screen B1 (T19, specs/20260713-auth-roles-permissions).
  *
  * Covers:
  *   (A) Loading: adminApi.listDepartments is pending → SkeletonListRows visible.

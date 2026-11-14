@@ -45,7 +45,7 @@ type FieldName =
   | 'blockedByIds'
   | 'participants'
 
-/** The server's cap on a task's blockers (specs/017 US-6). */
+/** The server's cap on a task's blockers (specs/20261101-crm US-6). */
 const MAX_BLOCKERS = 10
 
 const CODE_FIELDS: Record<string, FieldName> = {
@@ -99,7 +99,7 @@ export default function ActivityFormDialog({
   const [chosenCompany, setChosenCompany] = useState<CompanyChoice | null>(null)
   const [subject, setSubject] = useState(activity?.subject ?? '')
   const [body, setBody] = useState(activity?.body ?? '')
-  // A task's text is its rich description (ADR-0089); its files wait for the save.
+  // A task's text is its rich description (ADR 20261113-task-description-files-in-activities-api-bucket); its files wait for the save.
   const [description, setDescription] = useState<RichTextDoc | null>(activity?.task?.description ?? null)
   const storedFiles = useMemo(() => deferredOf(activity?.task?.files), [activity])
   const files = useDeferredFiles(storedFiles)

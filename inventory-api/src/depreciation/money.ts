@@ -1,5 +1,5 @@
 /**
- * Integer-cent money helpers for the depreciation maths (specs/015, ADR-0025/0046).
+ * Integer-cent money helpers for the depreciation maths (specs/20261006-hardware-inventory, ADR 20260720-mileage-rate-money-precision-integer-micros/0046).
  * Pure: no I/O, no env. No float ever enters a result.
  */
 

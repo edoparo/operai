@@ -1,7 +1,7 @@
 /**
- * Unit tests for the notify-api client (T5, specs/013-estimate-sharing,
- * ADR-0017; credential switched to the service JWT by T10, specs/016,
- * ADR-0044/0049). The network and the token provider are injected stubs —
+ * Unit tests for the notify-api client (T5, specs/20260807-estimate-sharing,
+ * ADR 20260716-system-notifications-cross-user-trigger; credential switched to the service JWT by T10, specs/20261013-notify-service-credentials,
+ * ADR 20261006-scoped-service-jwt-fourth-notify-caller/0049). The network and the token provider are injected stubs —
  * this module IS the boundary under test.
  *
  * Coverage: the push carries `Authorization: Bearer <provider token>` and no

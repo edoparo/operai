@@ -1,5 +1,5 @@
 /**
- * PushPrompt — the on-load offer to turn push on (specs/029-push-notifications, AC-1.9).
+ * PushPrompt — the on-load offer to turn push on (specs/20261111-push-notifications, AC-1.9).
  *
  * `ShellLayout` mounts it when `findPushOffer` says this user has not answered yet in this browser.
  * It is Operai's own question, never the browser's: the browser asks for notification permission only

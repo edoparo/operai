@@ -1,4 +1,4 @@
-/** The deal page's Attachments card (specs/018 AC-4.3, AC-4.4). */
+/** The deal page's Attachments card (specs/20261101-crm-sales-flow AC-4.3, AC-4.4). */
 const en = {
   title: 'Attachments',
   loading: 'Loading the attachments…',

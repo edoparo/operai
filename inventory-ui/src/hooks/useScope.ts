@@ -18,7 +18,7 @@ type Outcome = { attempt: number; scope: Scope; error?: undefined } | { attempt:
 
 /**
  * useScope — loads `GET /scope`, the entities each capability covers for the
- * caller (T28, specs/015-hardware-inventory; plan.md § API contracts), and
+ * caller (T28, specs/20261006-hardware-inventory; plan.md § API contracts), and
  * derives "empty" for the "no entity in your scope" state.
  *
  * `enabled` is false for a caller with no capability (the layout renders

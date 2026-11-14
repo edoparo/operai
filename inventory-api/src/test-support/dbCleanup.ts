@@ -1,9 +1,9 @@
 /**
- * Shared test-only cleanup helper (T2, specs/015-hardware-inventory).
+ * Shared test-only cleanup helper (T2, specs/20261006-hardware-inventory).
  *
  * TRUNCATE, not DELETE: TRUNCATE does not fire the row-level `BEFORE DELETE`
  * trigger on the four append-only tables (depreciation_rule, fiscal_year,
- * asset_year_figure, asset_event — ADR-0018/0024/0046), so cleanup is never
+ * asset_year_figure, asset_event — ADR 20260716-immutable-financial-audit-trail-refund/0024/0046), so cleanup is never
  * blocked by the very guarantee under test elsewhere in the suite. Mirrors
  * `refund-api/src/test-support/dbCleanup.ts`.
  *
@@ -13,7 +13,7 @@
  *
  * `depreciation_rule` is the one table that is NOT simply emptied: the two
  * launch rules (AC-6.6) are migration data, and every schedule resolves its
- * rule from that table (ADR-0046), so a test database with no rules would turn
+ * rule from that table (ADR 20261006-depreciation-derived-on-read-closed-years-snapshotted), so a test database with no rules would turn
  * every later route test into "no rule in force". The cleanup therefore
  * truncates it and puts the two launch rows straight back, with the same ids
  * and values as the initial migration. `immutability.test.ts` asserts those

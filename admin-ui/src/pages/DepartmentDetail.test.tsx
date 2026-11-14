@@ -1,7 +1,7 @@
 /**
  * @vitest-environment jsdom
  *
- * Component tests for DepartmentDetail — Screen B2 (T19, specs/004-auth-roles-permissions).
+ * Component tests for DepartmentDetail — Screen B2 (T19, specs/20260713-auth-roles-permissions).
  *
  * Uses a real, minimal TanStack Router harness (mirrors
  * SectionNav.test.tsx's technique) rather than mocking `getRouteApi`/`Link`:

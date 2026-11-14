@@ -12,7 +12,7 @@ import { strings } from '../strings'
 const AUTOSAVE_DEBOUNCE_MS = 1500
 
 /**
- * `'conflict'` (T16, specs/013-estimate-sharing/tasks.md; plan.md "###
+ * `'conflict'` (T16, specs/20260807-estimate-sharing/tasks.md; plan.md "###
  * Frontend": "on 409/428 enters a conflict state and suspends further
  * autosaves") is the 4th state design.md S4 names for `Header`'s
  * save-status span ("Not saving — reload to continue") — a distinct state
@@ -97,7 +97,7 @@ export type EstimatorContextValue = {
    */
   conflict: ConflictInfo | null
   /**
-   * The estimate's owner identity (T22, specs/013-estimate-sharing/
+   * The estimate's owner identity (T22, specs/20260807-estimate-sharing/
    * tasks.md; `EstimateFull.owner`) — `null` when `access === 'owner'`
    * (there is no "owner of your own estimate" to resolve), populated for a
    * collaborator so the toolbar's "Shared by {owner} · {level}" chip (and
@@ -177,14 +177,14 @@ type Props = {
    */
   initialAccess?: EstimateAccess
   /**
-   * The optimistic-concurrency version this session starts from (ADR-0038)
+   * The optimistic-concurrency version this session starts from (ADR 20260807-optimistic-concurrency-version-if-match-cas-amends-0004)
    * — the `If-Match` value the first autosave will send. Defaults to `1`
    * for the same back-compat reason as `initialAccess`: a real load always
    * supplies `EstimateFull.version`.
    */
   initialVersion?: number
   /**
-   * `EstimateFull.owner` (T22, specs/013-estimate-sharing/tasks.md).
+   * `EstimateFull.owner` (T22, specs/20260807-estimate-sharing/tasks.md).
    * Defaults to `null` — the same back-compat reason as `initialAccess`:
    * every pre-existing call site predating T22 never had an owner identity
    * to pass, and `null` is also the API's own value for an owned estimate.
@@ -243,13 +243,13 @@ export function EstimatorProvider({
   const [closedAt, setClosedAt] = useState<string | null>(initialClosedAt ?? null)
   const [closedBy, setClosedBy] = useState<EstimateIdentity | null>(initialClosedBy ?? null)
   const [closedWhileEditing, setClosedWhileEditing] = useState(false)
-  // Oversight (specs/024) is read-only like a viewer: only the owner and an editor
+  // Oversight (specs/20261108-estimate-list-oversight) is read-only like a viewer: only the owner and an editor
   // may change the document or its open/closed state.
   const canChangeLifecycle = access === 'owner' || access === 'editor'
   const canEdit = canChangeLifecycle && closedAt === null
 
   // owner/collaboratorCount are likewise fixed for the provider's lifetime
-  // (T22, specs/013-estimate-sharing/tasks.md) — plain consts, not state;
+  // (T22, specs/20260807-estimate-sharing/tasks.md) — plain consts, not state;
   // nothing in this feature changes them mid-mount.
   const owner: EstimateIdentity | null = initialOwner ?? null
   const collaboratorCount: number | undefined = initialCollaboratorCount
@@ -300,7 +300,7 @@ export function EstimatorProvider({
 
   // Auto-save: debounced PUT to the API whenever state changes.
   //
-  // T16 (specs/013-estimate-sharing/tasks.md; plan.md "### Frontend";
+  // T16 (specs/20260807-estimate-sharing/tasks.md; plan.md "### Frontend";
   // design.md S4/R5) adds two gates on top of T9/T11's original behaviour:
   //
   //   (a) AC-3.1/AC-3.3 — a viewer never autosaves at all. Checked first,
@@ -342,7 +342,7 @@ export function EstimatorProvider({
       estimatesApi
         .update(estimateId, { name, author, content }, versionRef.current)
         .then((updated) => {
-          // (b) AC-3.2/ADR-0038: adopt the server's new version so the
+          // (b) AC-3.2/ADR 20260807-optimistic-concurrency-version-if-match-cas-amends-0004: adopt the server's new version so the
           // *next* autosave's If-Match is correct.
           versionRef.current = updated.version
           setVersion(updated.version)

@@ -1,6 +1,6 @@
 /**
  * POST /system/users/contact — resolve ONE active user's contact details for a
- * service principal (specs/019-crm-notifications T2, D-1/D-2; plan.md "auth —
+ * service principal (specs/20261101-crm-notifications T2, D-1/D-2; plan.md "auth —
  * POST /system/users/contact"). notify-api calls it at send time to turn a
  * user id into the address of an email notice; callers never handle addresses.
  *
@@ -18,7 +18,7 @@
  * learns nothing about which check failed.
  *
  * ONE USER PER CALL (D-2): the endpoint is useless for harvesting the roster.
- * Unknown and soft-deleted users are the SAME 404, byte for byte (ADR-0012).
+ * Unknown and soft-deleted users are the SAME 404, byte for byte (ADR 20260714-invitation-activation-hooks-soft-delete-lifecycle).
  *
  * LOGGING: one line per accepted call, `[system] users.contact caller=<sub>
  * found=<bool>` — never the id, email or name.
@@ -26,7 +26,7 @@
  * WHY A FACTORY: like serviceToken.routes.ts, the key source is injected so
  * this module never imports `auth.config` (test files mock it).
  *
- * LIMITS (specs/029 US-7, ADR-0086), shared with `/system/service-token`: the
+ * LIMITS (specs/20261111-push-notifications US-7, ADR 20261112-system-endpoints-limited-per-verified-service), shared with `/system/service-token`: the
  * credential is verified FIRST, then exactly one count — a valid one (RS256,
  * issuer, audience, `system:<id>` sub AND the `users.contact` scope) against its
  * own calling service (the verified `sub`, 600 per 10 min); anything else,
@@ -122,7 +122,7 @@ export const JWKS_REREAD_COOLDOWN_MS = 30_000;
 
 /**
  * Production key source: better-auth's current key set, the one `/auth/jwks`
- * serves, CACHED. Verification of an invalid token must cost no I/O (ADR-0086):
+ * serves, CACHED. Verification of an invalid token must cost no I/O (ADR 20261112-system-endpoints-limited-per-verified-service):
  * the set is held in memory and re-read only when a token's `kid` matches
  * nothing in it, and a read — successful or not — starts a cooldown during which
  * no other read happens, whatever the flood. better-auth's jwt plugin has no

@@ -1,5 +1,5 @@
 /**
- * Suite-capacity contract for the two /system endpoints (specs/029 US-7, AC-7.7, ADR-0086).
+ * Suite-capacity contract for the two /system endpoints (specs/20261111-push-notifications US-7, AC-7.7, ADR 20261112-system-endpoints-limited-per-verified-service).
  *
  * The test that would have caught D-1. The earlier unit tests drove ONE caller against ONE
  * limiter and so could not see that the whole suite shared a single address bucket of 20: on

@@ -1,5 +1,5 @@
 /**
- * specs/029 (T2, AC-6.1/6.4): the web-push env group. env.ts runs process.exit(1)
+ * specs/20261111-push-notifications (T2, AC-6.1/6.4): the web-push env group. env.ts runs process.exit(1)
  * at import time, so each case boots it in a child process (as env.emailNotices.test.ts
  * does) — the shared `@/lib/db` singleton in THIS process is never touched.
  * Failures name the variables, never a value.

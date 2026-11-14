@@ -1,7 +1,7 @@
 /**
  * @vitest-environment jsdom
  *
- * ApproveAccessRequestModal (T9, specs/023, design.md S2): requester shown, roles and
+ * ApproveAccessRequestModal (T9, specs/20261105-signup-gate, design.md S2): requester shown, roles and
  * departments none preselected, default-access helper, submit/cancel, busy, inline error.
  */
 import { afterEach, describe, expect, it, vi } from 'vitest'

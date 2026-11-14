@@ -1,5 +1,5 @@
 /**
- * The `{timeline}` table of an offer (specs/020 AC-1.6, D-13): per release, the
+ * The `{timeline}` table of an offer (specs/20261102-crm-offer-document AC-1.6, D-13): per release, the
  * elapsed working months of the best case (optimistic values) and of the worst
  * case (pessimistic values). Pure and DB-free.
  *

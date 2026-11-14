@@ -1,5 +1,5 @@
 /**
- * The non-visual half of the My profile push section (specs/029-push-notifications, T9): the load
+ * The non-visual half of the My profile push section (specs/20261111-push-notifications, T9): the load
  * state machine's data, the browser mode, and the mapping from `enablePush` failures to copy.
  * `components/PushSettings.tsx` renders it. This is a `.ts` module so the state vocabulary
  * (`failed`, `denied`, `not_allowed` ...) is not mistaken for user-visible copy by the

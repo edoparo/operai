@@ -7,9 +7,9 @@ datasource db {
   provider = "postgresql"
 }
 
-// Data model of specs/017-crm (plan.md § Data model). Money is integer minor
-// units (ADR-0025 posture); calendar dates are @db.Date. People are opaque
-// `auth` user ids, their names resolved live (ADR-0039, decisions D-15).
+// Data model of specs/20261101-crm (plan.md § Data model). Money is integer minor
+// units (ADR 20260720-mileage-rate-money-precision-integer-micros posture); calendar dates are @db.Date. People are opaque
+// `auth` user ids, their names resolved live (ADR 20260807-live-identity-resolution-by-id-fail-soft, decisions D-15).
 //
 // Raw SQL in the initial migration, the ENFORCEMENT and not a duplicate:
 //   - company_name_lower_key  UNIQUE (lower(name)), archived companies included (D-11)
@@ -29,7 +29,7 @@ enum CompanyStatus {
   former
 }
 
-/// Where a company or a lead came from (specs/017 US-7).
+/// Where a company or a lead came from (specs/20261101-crm US-7).
 enum LeadSource {
   inbound
   outbound
@@ -62,7 +62,7 @@ model Company {
   city        String?
   /// ISO 3166-1 alpha-2, upper case.
   country     String?
-  /// Printed in the offer's client block when set (specs/020 AC-5.1).
+  /// Printed in the offer's client block when set (specs/20261102-crm-offer-document AC-5.1).
   legalName   String?
   street      String?
   postalCode  String?
@@ -72,7 +72,7 @@ model Company {
   sourceDetail String?
   ownerUserId String
   archivedAt  DateTime?
-  /// Optimistic-concurrency counter (ADR-0038 posture, D-7).
+  /// Optimistic-concurrency counter (ADR 20260807-optimistic-concurrency-version-if-match-cas-amends-0004 posture, D-7).
   version     Int           @default(1)
   createdBy   String
   updatedBy   String
@@ -115,7 +115,7 @@ model Deal {
   company           Company   @relation(fields: [companyId], references: [id], onDelete: Restrict)
   title             String
   stage             DealStage @default(lead)
-  /// Null until it is known: a lead often has no figure yet (specs/017 AC-3.2, 2026-11-04).
+  /// Null until it is known: a lead often has no figure yet (specs/20261101-crm AC-3.2, 2026-11-04).
   amountCents       BigInt?
   currency          Currency
   entity            Entity
@@ -149,7 +149,7 @@ enum EstimateState {
   ready
 }
 
-/// The deal's link to one EstimAI estimate (specs/018 US-3). `estimateId` is an
+/// The deal's link to one EstimAI estimate (specs/20261101-crm-sales-flow US-3). `estimateId` is an
 /// estimai-api id, never dereferenced by a foreign key: that service owns it.
 model DealEstimate {
   dealId          String        @id
@@ -181,7 +181,7 @@ enum OfferLanguage {
   it
 }
 
-/// A generated offer PDF (specs/018 US-4). Immutable once written: only the
+/// A generated offer PDF (specs/20261101-crm-sales-flow US-4). Immutable once written: only the
 /// soft-delete pair ever changes; a deleted number is never reused.
 model DealOffer {
   id           String        @id @default(cuid())
@@ -193,7 +193,7 @@ model DealOffer {
   currency     Currency
   validityDays Int
   terms        String?
-  /// The offer number (`NNNN/YYYY`, specs/020 D-5): null for specs/018 offers.
+  /// The offer number (`NNNN/YYYY`, specs/20261102-crm-offer-document D-5): null for specs/20261101-crm-sales-flow offers.
   /// A deal's sequenced offers all share the first one's year and number.
   sequenceYear Int?
   sequenceNo   Int?
@@ -203,8 +203,8 @@ model DealOffer {
   sizeBytes    Int
   createdBy    String
   createdAt    DateTime      @default(now())
-  /// specs/020 US-7: an offer is edited in place until it is marked sent; after that a change
-  /// is a new revision. `version` is the If-Match precondition of an edit (ADR-0038 posture).
+  /// specs/20261102-crm-offer-document US-7: an offer is edited in place until it is marked sent; after that a change
+  /// is a new revision. `version` is the If-Match precondition of an edit (ADR 20260807-optimistic-concurrency-version-if-match-cas-amends-0004 posture).
   sentAt       DateTime?
   sentBy       String?
   version      Int           @default(1)
@@ -222,7 +222,7 @@ enum AttachmentStatus {
   stored
 }
 
-/// A file uploaded to a deal (specs/018 AC-4.3). Two-phase like inventory's
+/// A file uploaded to a deal (specs/20261101-crm-sales-flow AC-4.3). Two-phase like inventory's
 /// invoice files: `pending` until crm-api has seen the object, then `stored`.
 model DealAttachment {
   id          String           @id @default(cuid())
@@ -242,7 +242,7 @@ model DealAttachment {
   @@map("deal_attachment")
 }
 
-/// Letterhead and default offer terms of one wellD entity (specs/018 O2).
+/// Letterhead and default offer terms of one wellD entity (specs/20261101-crm-sales-flow O2).
 model EntityProfile {
   entity       Entity   @id
   legalName    String
@@ -251,9 +251,9 @@ model EntityProfile {
   iban         String?
   offerTermsEn String?
   offerTermsIt String?
-  /// Printed beside the date of an offer (specs/020 AC-1.2); "Lugano" when null.
+  /// Printed beside the date of an offer (specs/20261102-crm-offer-document AC-1.2); "Lugano" when null.
   placeOfIssue String?
-  /// Key of the letterhead PDF in the CRM bucket (specs/020 AC-2.1).
+  /// Key of the letterhead PDF in the CRM bucket (specs/20261102-crm-offer-document AC-2.1).
   letterheadKey String?
   letterheadBy  String?
   letterheadAt  DateTime?
@@ -263,7 +263,7 @@ model EntityProfile {
   @@map("entity_profile")
 }
 
-/// A named starting point for an offer, owned by one entity (specs/020 AC-2.2).
+/// A named starting point for an offer, owned by one entity (specs/20261102-crm-offer-document AC-2.2).
 /// Raw SQL in the migration, the ENFORCEMENT: offer_template_entity_name_active_key
 /// UNIQUE (entity, lower(name)) WHERE "archivedAt" IS NULL.
 model OfferTemplate {
@@ -282,7 +282,7 @@ model OfferTemplate {
   showTotal       Boolean       @default(false)
   acceptanceLabel String?
   annex           Boolean       @default(false)
-  /// If-Match concurrency counter (ADR-0038 posture).
+  /// If-Match concurrency counter (ADR 20260807-optimistic-concurrency-version-if-match-cas-amends-0004 posture).
   version         Int           @default(1)
   archivedAt      DateTime?
   createdBy       String
@@ -294,7 +294,7 @@ model OfferTemplate {
   @@map("offer_template")
 }
 
-/// The last offer number taken per entity and year (specs/020 D-5). Taken with
+/// The last offer number taken per entity and year (specs/20261102-crm-offer-document D-5). Taken with
 /// INSERT … ON CONFLICT DO UPDATE inside the generation transaction.
 model OfferSequence {
   entity Entity

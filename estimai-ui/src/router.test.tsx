@@ -1,7 +1,7 @@
 /**
  * @vitest-environment jsdom
  *
- * Router structure tests for estimai-ui (T13, specs/003-suite-shell/tasks.md).
+ * Router structure tests for estimai-ui (T13, specs/20260709-suite-shell/tasks.md).
  *
  * Before T13, this file unit-tested the router's own pathless `_authed`
  * guard — a real session check that threw a full-page redirect to the
@@ -99,7 +99,7 @@ describe('router has no _authed guard (T13, AC-2.3)', () => {
       .sort()
 
     // `/share` was the fourth until 2026-08-09, when the anonymous link-share
-    // was removed (specs/013 US-8 amendment). Asserting its ABSENCE matters:
+    // was removed (specs/20260807-estimate-sharing US-8 amendment). Asserting its ABSENCE matters:
     // that route rendered estimate content with no session at all.
     expect(childPaths).toEqual(['/', '/estimates', '/estimates/$estimateId'].sort())
     expect(childPaths).not.toContain('/share')
@@ -130,7 +130,7 @@ describe('no independent sign-in redirect (T13, AC-2.3)', () => {
   })
 })
 
-describe('the list restores its filters (specs/024 AC-2.6)', () => {
+describe('the list restores its filters (specs/20261108-estimate-list-oversight AC-2.6)', () => {
   it('entering /estimates without params restores the last choice of the session, by replace', async () => {
     sessionStorage.setItem(FILTERS_STORAGE_KEY, JSON.stringify({ whose: 'all', status: 'closed' }))
     window.history.pushState(null, '', '/estimates')
@@ -155,7 +155,7 @@ describe('the list restores its filters (specs/024 AC-2.6)', () => {
   })
 })
 
-describe('/estimates/$estimateId loader failures (specs/024 AC-1.7)', () => {
+describe('/estimates/$estimateId loader failures (specs/20261108-estimate-list-oversight AC-1.7)', () => {
   it('redirects to the list on 404 — no relationship, or the permission was withdrawn (AC-1.6)', async () => {
     vi.mocked(estimatesApi.get).mockRejectedValue(
       new estimatesApi.ApiError({ type: 't', title: 'Not found', status: 404 }),

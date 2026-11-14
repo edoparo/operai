@@ -1,5 +1,5 @@
 /**
- * Every tool opens from its bare URL (specs/029 E-1).
+ * Every tool opens from its bare URL (specs/20261111-push-notifications E-1).
  *
  * EstimAI, Refund, Inventory, CRM and Admin each have an index route that redirects (`/inventory` to
  * `/inventory/assets`, and so on). The shell mounts a remote inside a Suspense boundary and suspends it on every

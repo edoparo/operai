@@ -19,7 +19,7 @@ import {
 } from "./split";
 
 // plan § H-1: overlapping parts of at most 10 min, both edges in a pause where one exists, written by one
-// output-seeking stream copy each; the silence pass runs on every recording; the ADR-0064 hardening; one slot.
+// output-seeking stream copy each; the silence pass runs on every recording; the ADR 20261104-meetings-api-reads-audio-bytes-third-reader hardening; one slot.
 
 const s = (seconds: number) => Math.round(seconds * 1000);
 const silence = (from: number, to: number) => ({ startMs: s(from), endMs: s(to) });
@@ -158,7 +158,7 @@ describe("chooseParts (plan H-1)", () => {
   });
 });
 
-describe("the ffmpeg command lines (ADR-0064 hardening)", () => {
+describe("the ffmpeg command lines (ADR 20261104-meetings-api-reads-audio-bytes-third-reader hardening)", () => {
   const joined = (args: string[]) => args.join(" ");
 
   it("both passes whitelist the file protocol only, pin ogg and whitelist the formats", () => {

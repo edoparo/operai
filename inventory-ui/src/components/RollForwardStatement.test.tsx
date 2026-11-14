@@ -1,7 +1,7 @@
 /**
  * @vitest-environment jsdom
  *
- * Component tests for RollForwardStatement (T38, specs/015-hardware-inventory;
+ * Component tests for RollForwardStatement (T38, specs/20261006-hardware-inventory;
  * design.md T6, § Accessibility "Data tables"; refs AC-8.1).
  */
 

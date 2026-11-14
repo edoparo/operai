@@ -1,5 +1,5 @@
 /**
- * Pure, DB-free mileage-amount computation (T3, specs/009-mileage-rate,
+ * Pure, DB-free mileage-amount computation (T3, specs/20260720-mileage-rate,
  * Decision 3).
  *
  * `amountCents = roundHalfUp(km * ratePerKmMicros / 10_000)`

@@ -1,10 +1,10 @@
 /**
  * Pure, DB-free authorization-condition helpers (T7, specs/015-hardware-
- * inventory, ADR-0014 point 3 + ADR-0015; AC-9.4, AC-9.5).
+ * inventory, ADR 20260716-refund-api-authorization-enforcing-resource-server point 3 + ADR 20260716-entity-scoped-abac-refund-api; AC-9.4, AC-9.5).
  *
  * `auth`'s resolver persists and surfaces `conditions` on each permission but
  * NEVER evaluates them against a real record — that is the consuming app's job
- * (ADR-0007 point 6, ADR-0014). These are inventory-api's evaluators, ported
+ * (ADR 20260713-authz-hand-rolled-rbac-abac-epoch-claims point 6, ADR 20260716-refund-api-authorization-enforcing-resource-server). These are inventory-api's evaluators, ported
  * from refund-api/src/authz/conditions.ts and re-pointed at this tool's one
  * condition: the entity. They differ from refund-api in ONE deliberate way: a
  * grant carrying a condition they do not recognise grants NOTHING here (refund
@@ -14,12 +14,12 @@
  *   - `scopeFor`                          which entities does a grant cover?
  *   - `assetInScope`                      is this asset inside such a set?
  *
- * Unlike refund (ADR-0015: "at least one LINE's entity matches"), scope here is
+ * Unlike refund (ADR 20260716-entity-scoped-abac-refund-api: "at least one LINE's entity matches"), scope here is
  * evaluated per ASSET and is exact: an asset has exactly one entity for its
  * whole life (AC-1.9, `entity` is immutable), so there is no "at least one" to
  * reason about.
  *
- * Denials built on these follow ADR-0014: capability absent → 403; asset out of
+ * Denials built on these follow ADR 20260716-refund-api-authorization-enforcing-resource-server: capability absent → 403; asset out of
  * scope → 404 (no existence leak).
  */
 
@@ -62,7 +62,7 @@ export function findPermission(
   );
 }
 
-// ─── Entity scope (ADR-0015, reused by plan.md § Authorization model) ──────
+// ─── Entity scope (ADR 20260716-entity-scoped-abac-refund-api, reused by plan.md § Authorization model) ──────
 
 type GrantKind = "unrestricted" | "entity" | "unrecognised";
 
@@ -119,7 +119,7 @@ function warnUnrecognised(permission: ResolvedPermission): void {
  *   - carries a condition we do not recognise    → nothing from that grant, plus a
  *     warning (fails closed; see `grantKind` for why this differs from refund-api)
  *
- * Several grants of the same pair are unioned, widest wins (ADR-0007): a
+ * Several grants of the same pair are unioned, widest wins (ADR 20260713-authz-hand-rolled-rbac-abac-epoch-claims): a
  * conditioned one plus an unconditioned one covers both entities. `auth`'s
  * resolver already de-duplicates, so this is defence in depth, not the main
  * path. The result is in the fixed `ENTITIES` order with no duplicates.

@@ -1,8 +1,8 @@
 /**
- * Authorization matrix over the ASSEMBLED app (specs/028-activities T11; AC-8.1, AC-8.2, AC-8.3,
+ * Authorization matrix over the ASSEMBLED app (specs/20261110-activities T11; AC-8.1, AC-8.2, AC-8.3,
  * AC-3.2, AC-3.3, AC-3.8; plan § Access and § Test strategy "Host route guard matrices").
  *
- * activities-api holds no permission of its own (ADR-0081): every user route asks the host that
+ * activities-api holds no permission of its own (ADR 20261110-activities-service-access-delegated-to-host): every user route asks the host that
  * owns the entity, as the caller, and the host's ANSWER is the whole authorization. So the matrix
  * is host x route x caller, and what each caller is allowed is written out below as LITERALS taken
  * from the spec, never computed from the rules under test (src/activities/rules.ts):
@@ -133,7 +133,7 @@ const SCENARIOS: Record<HostName, readonly Scenario[]> = { crm: CRM_SCENARIOS, p
 interface Seeded {
   readonly hostId: string;
   readonly activityId: string;
-  /** A stored attachment of the task, uploaded by its author (ADR-0089). */
+  /** A stored attachment of the task, uploaded by its author (ADR 20261113-task-description-files-in-activities-api-bucket). */
   readonly fileId: string;
   /** An upload the author started and whose bytes landed, not yet confirmed. */
   readonly pendingId: string;
@@ -423,7 +423,7 @@ const CASES: readonly Case[] = [
     },
   ]),
 
-  // ── Task files (ADR-0089): adding, confirming and removing are an edit; reading is a read ──
+  // ── Task files (ADR 20261113-task-description-files-in-activities-api-bucket): adding, confirming and removing are an edit; reading is a read ──
   ...(
     [
       ["POST /activities/:id/files", 201, (s: Seeded): Req => ({ method: "POST", path: `/activities/${s.activityId}/files`, body: { kind: "attachment", fileName: "spec.pdf", contentType: "application/pdf", sizeBytes: 10 } })],

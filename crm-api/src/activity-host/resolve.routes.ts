@@ -1,16 +1,16 @@
 /**
- * `POST /activity-host/v1/resolve` (specs/028 T4; plan.md § Host contract, ADR-0081): the host half
+ * `POST /activity-host/v1/resolve` (specs/20261110-activities T4; plan.md § Host contract, ADR 20261110-activities-service-access-delegated-to-host): the host half
  * of "may THIS caller read the activities of these companies?", asked by activities-api.
  *
- * Authenticated with the CALLER's own JWT, forwarded verbatim (ADR-0035 model: no new secret) and
- * resolved live against `auth` on every call (ADR-0014): an `auth` outage is a 503, never a
+ * Authenticated with the CALLER's own JWT, forwarded verbatim (ADR 20260807-third-party-app-access-decision-endpoint-forwarded-jwt model: no new secret) and
+ * resolved live against `auth` on every call (ADR 20260716-refund-api-authorization-enforcing-resource-server): an `auth` outage is a 503, never a
  * `reader`. Like the meeting-host resolve, the route does NOT carry `requireCapability(crm:access)`:
  * a host answers `reader:false` (a 200), not 403, to a caller who may not read.
  *
  *   crm:access held   -> `reader:true`; each company `open` (label, href, `writable:true`,
  *                        `may.write = may.manage = true`) or `missing`; each related contact/deal
  *                        that belongs to one of the ASKED companies, with its `parentId`.
- *                        Reads are open to every holder (ADR-0052): entity scope plays no part.
+ *                        Reads are open to every holder (ADR 20261101-crm-tool-shape-and-authorization): entity scope plays no part.
  *   crm:access absent -> `reader:false`, no items, no related: nothing about any record leaks,
  *                        not even whether it exists.
  *   `ids: []`         -> only `reader` is answered (no items, no related).

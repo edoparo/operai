@@ -1,5 +1,5 @@
 /**
- * Renders a specs/020 contract offer on the entity's letterhead (US-1).
+ * Renders a specs/20261102-crm-offer-document contract offer on the entity's letterhead (US-1).
  *
  * pdf-lib with the standard Helvetica fonts only. The letterhead is embedded
  * once and drawn behind every contract and Annex A page; its baked-in page

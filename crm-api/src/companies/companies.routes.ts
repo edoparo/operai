@@ -1,5 +1,5 @@
 /**
- * Companies (specs/017-crm US-1; plan.md § Companies). Every route needs
+ * Companies (specs/20261101-crm US-1; plan.md § Companies). Every route needs
  * `crm:access` only (D-3): the relationship record is shared by the team.
  * Writes to an existing company carry `If-Match` (D-7).
  */
@@ -59,7 +59,7 @@ async function toViews(c: HeaderSource, rows: readonly CompanyRow[]) {
       id: row.id,
       name: row.name,
       status: effectiveStatus(facts, now),
-      // True when `status` reads `former` because the relationship lapsed (specs/017 AC-1.9).
+      // True when `status` reads `former` because the relationship lapsed (specs/20261101-crm AC-1.9).
       statusLapsed: isLapsed(facts, now),
       entity: row.entity,
       industry: row.industry,
@@ -227,7 +227,7 @@ const ownersRoute = createRoute({
 });
 
 // US-9: every crm:access holder already reads each company's owner, so this projection
-// gives them nothing new (ADR-0042's reconstructibility test) and needs no directory permission.
+// gives them nothing new (ADR 20260811-derived-projection-reuses-existing-gate-reconstructibility-test's reconstructibility test) and needs no directory permission.
 companiesRouter.openapi(ownersRoute, async (c) => {
   const rows = await db.company.findMany({ distinct: ["ownerUserId"], select: { ownerUserId: true }, take: 500 });
   const ids = rows.map((row) => row.ownerUserId);

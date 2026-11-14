@@ -1,5 +1,5 @@
 /**
- * Prisma data-access layer for EmailDelivery (T2, specs/006-user-invitations).
+ * Prisma data-access layer for EmailDelivery (T2, specs/20260713-user-invitations).
  *
  * Mirrors notifications.repo.ts's Effect-wrapped-Prisma-call convention. One
  * row is written per send ATTEMPT (never updated in place) — see

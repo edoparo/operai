@@ -1,6 +1,6 @@
 /**
  * Integration tests for the employee request-level endpoints (T7,
- * specs/007-refund-service).
+ * specs/20260716-refund-service).
  *
  * Strategy
  * ────────
@@ -191,7 +191,7 @@ describe("POST /requests", () => {
   });
 
   it(
-    "(AC-4.4, specs/010-self-approval-control, ADR-0026) creating a request is entirely " +
+    "(AC-4.4, specs/20260721-self-approval-control, ADR 20260721-self-approval-condition-and-403-exception) creating a request is entirely " +
       "unaffected even when the caller ALSO holds a restricted request:approve grant on " +
       "themselves — the self-approval restriction is inert until an approve attempt",
     async () => {
@@ -424,7 +424,7 @@ describe("GET /requests/:id", () => {
     expect(res.status).toBe(200);
   });
 
-  // ─── T11 additions (specs/007-refund-service) ──────────────────────────
+  // ─── T11 additions (specs/20260716-refund-service) ──────────────────────────
   //
   // These exercise the SAME shared GET /requests/:id route accounting uses
   // (canReadRequest, requests.service.ts) — added here rather than in a new
@@ -493,7 +493,7 @@ describe("GET /requests/:id", () => {
     expect(body.lines[0]?.approvedTotalCents).toBe(800);
   });
 
-  // ─── AC-5.2 (specs/008-refund-monthly-processing) additions ────────────
+  // ─── AC-5.2 (specs/20260719-refund-monthly-processing) additions ────────────
   //
   // A `paid` request's batch claim (RefundRequest.batchId → RefundBatch)
   // carries the "when it was paid" (AC-5.2) — surfaced here as paidAt/paidBy
@@ -592,7 +592,7 @@ describe("GET /requests/:id", () => {
     expect(body.paidBy).toBeNull();
   });
 
-  // QE addition (specs/008-refund-monthly-processing verification pass,
+  // QE addition (specs/20260719-refund-monthly-processing verification pass,
   // adversarial focus item): AC-5.5 — "any request regardless of status
   // (including `paid`)" must still deny a non-owner, non-accounting caller.
   // The plan/tasks AC→test map only exercised this on a `draft` request
@@ -636,7 +636,7 @@ describe("GET /requests/:id", () => {
   });
 });
 
-// ─── GET /requests/:id — travel_km mileage (specs/009-mileage-rate, T5) ────
+// ─── GET /requests/:id — travel_km mileage (specs/20260720-mileage-rate, T5) ────
 
 async function addMileageRate(
   entity: "welld_ch" | "welld_it",
@@ -655,7 +655,7 @@ async function addMileageRate(
   });
 }
 
-describe("GET /requests/:id — draft travel_km live recompute (specs/009-mileage-rate)", () => {
+describe("GET /requests/:id — draft travel_km live recompute (specs/20260720-mileage-rate)", () => {
   it("(AC-2.4/AC-3.2) recomputes live after a rate change with no line edit; subtotals agree", async () => {
     await addMileageRate("welld_ch", 700000, "2026-01-01");
     const request = await db.refundRequest.create({
@@ -738,7 +738,7 @@ describe("GET /requests/:id — draft travel_km live recompute (specs/009-mileag
   });
 });
 
-describe("GET /requests/:id — frozen (ever-submitted) travel_km lines (specs/009-mileage-rate)", () => {
+describe("GET /requests/:id — frozen (ever-submitted) travel_km lines (specs/20260720-mileage-rate)", () => {
   async function makeFrozenLine(status: "submitted" | "approved" | "rejected" | "paid") {
     const request = await db.refundRequest.create({
       data: { ownerUserId: "emp-mileage-3", ownerEmail: "emp-mileage-3@x.com", status },

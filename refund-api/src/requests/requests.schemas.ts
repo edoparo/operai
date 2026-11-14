@@ -1,6 +1,6 @@
 /**
  * Zod schemas + wire-shape types shared across the request/line/attachment/
- * lifecycle routers (T7-T10, specs/007-refund-service).
+ * lifecycle routers (T7-T10, specs/20260716-refund-service).
  *
  * Domain enums mirror `prisma/schema.prisma` verbatim (T5) — kept here as the
  * single source of truth for the HTTP boundary so every router imports the
@@ -30,7 +30,7 @@ export const EXPENSE_TYPE_VALUES = [
 ] as const;
 export type ExpenseTypeValue = (typeof EXPENSE_TYPE_VALUES)[number];
 
-// specs/008-refund-monthly-processing (ADR-0020) adds the fifth, terminal
+// specs/20260719-refund-monthly-processing (ADR 20260719-refund-batch-paid-lifecycle-extension) adds the fifth, terminal
 // `paid` value — QE fix (verification pass): this list had drifted from the
 // Prisma `RefundStatus` enum (which DOES include `paid`, migration
 // 20260719220430_add_batches), leaving the OpenAPI-documented contract
@@ -50,7 +50,7 @@ export const REFUND_STATUS_VALUES = [
 ] as const;
 export type RefundStatusValue = (typeof REFUND_STATUS_VALUES)[number];
 
-// 2026-07-17 amendment (specs/007-refund-service): currency is now an
+// 2026-07-17 amendment (specs/20260716-refund-service): currency is now an
 // INDEPENDENTLY-STORED per-line field, decoupled from `entity` — any
 // (entity, currency) combination is valid. This reverses the original
 // "currency derived from entity, never stored" decision; see plan.md §
@@ -58,7 +58,7 @@ export type RefundStatusValue = (typeof REFUND_STATUS_VALUES)[number];
 export const CURRENCY_VALUES = ["EUR", "CHF", "USD", "GBP"] as const;
 export type CurrencyValue = (typeof CURRENCY_VALUES)[number];
 
-// specs/009-mileage-rate: for `travel_km` lines ONLY, currency is no longer
+// specs/20260720-mileage-rate: for `travel_km` lines ONLY, currency is no longer
 // independently chosen — it is forced server-side from `entity` (a narrow,
 // type-scoped reversal of the 2026-07-17 amendment above, which decoupled
 // currency from entity for every line suite-wide). Every other expense type
@@ -103,10 +103,10 @@ export const AttachmentResponseSchema = z.object({
 });
 export type AttachmentResponse = z.infer<typeof AttachmentResponseSchema>;
 
-// specs/009-mileage-rate: the applied-rate breakdown for a travel_km line
+// specs/20260720-mileage-rate: the applied-rate breakdown for a travel_km line
 // (AC-1.8, AC-2.2, AC-3.x, AC-6.4) — `null` for every non-travel_km line.
 // `appliedRate` is the LIVE effective rate while draft (re-resolved on every
-// read, Decision 1/ADR-0013) or the FROZEN snapshot once the containing
+// read, Decision 1/ADR 20260714-invitation-lifecycle-derived-expiry-state) or the FROZEN snapshot once the containing
 // request has ever been submitted (`snapshotted: true`); `null` when no rate
 // is/was in effect (AC-2.2) OR for a legacy pre-feature submitted line
 // (R3 — the amount is still shown via `requestedAmountCents`, just without a
@@ -127,7 +127,7 @@ export const MileageInfoSchema = z.object({
 });
 export type MileageInfo = z.infer<typeof MileageInfoSchema>;
 
-// specs/007 amendment (2026-11-10) — a reviewer refused THIS line (with a
+// specs/20260716-refund-service amendment (2026-11-10) — a reviewer refused THIS line (with a
 // mandatory reason) instead of the whole request. `null` for a line that was
 // not rejected. A rejected line's `approvedTotalCents` is 0.
 export const LineRejectionSchema = z.object({
@@ -189,7 +189,7 @@ export const RequestDetailSchema = z.object({
   decidedAt: z.string().datetime().nullable(),
   decidedBy: DecidedBySchema.nullable(),
   rejectionMotivation: z.string().nullable(),
-  // AC-5.2 (specs/008-refund-monthly-processing): derived from the request's
+  // AC-5.2 (specs/20260719-refund-monthly-processing): derived from the request's
   // claimed RefundBatch (RefundRequest.batchId → RefundBatch.paidAt/
   // paidByEmail) — null unless status === 'paid' (i.e. the batch has itself
   // been marked paid). The SAME GET /requests/:id route both the employee

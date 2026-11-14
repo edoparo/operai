@@ -1,5 +1,5 @@
 /**
- * RequestStatusBadge — a refund request's status (specs/007, specs/008):
+ * RequestStatusBadge — a refund request's status (specs/20260716-refund-service, specs/20260719-refund-monthly-processing):
  * draft / submitted ("Awaiting decision", never confusable with a decision,
  * AC-3.4) / approved / rejected / paid. Tone and icon come from the library's
  * status dictionary through `REQUEST_STATUS_MEANING`; the label from strings.

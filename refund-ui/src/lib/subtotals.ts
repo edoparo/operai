@@ -1,6 +1,6 @@
 /**
  * subtotals — the per-currency `Subtotal` shape shared by every screen that
- * renders `RefundRequest.subtotals[]` (T16, specs/007-refund-service/tasks.md;
+ * renders `RefundRequest.subtotals[]` (T16, specs/20260716-refund-service/tasks.md;
  * plan.md "## API contracts" Shared shapes: "subtotals … never blended
  * (AC-3.5/6.6)"), plus a compact single-line formatter for list rows (Screen
  * R1's "a short subtotal preview", design.md; Screen A1 reuses the same
@@ -8,7 +8,7 @@
  * `SubtotalsPanel`: "reusing the same subtotal-formatting logic … just
  * condensed to one line instead of full cards").
  *
- * Post-close change (specs/007): subtotals are now grouped by the stored
+ * Post-close change (specs/20260716-refund-service): subtotals are now grouped by the stored
  * **currency**, not entity — currency became a separately-stored,
  * independently-selectable line field (see `EntityBadge.tsx`'s doc comment),
  * so a request can carry EUR + CHF + USD subtotals with no entity grouping

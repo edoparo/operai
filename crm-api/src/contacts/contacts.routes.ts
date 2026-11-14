@@ -1,5 +1,5 @@
 /**
- * Contacts (specs/017-crm US-2; plan.md § Contacts). Every route needs
+ * Contacts (specs/20261101-crm US-2; plan.md § Contacts). Every route needs
  * `crm:access`; erasure additionally needs `contact:erase` (D-13). Writes to an
  * existing contact carry `If-Match` (D-7).
  *
@@ -226,7 +226,7 @@ const eraseRoute = createRoute({
   summary: "Erase a contact's personal data (contact:erase; irreversible)",
   description:
     "Deletes the contact. Activities that referenced it keep their row with no contact (D-13): " +
-    "activities-api is asked to unlink them FIRST (specs/028 AC-8.4), and if it cannot answer the " +
+    "activities-api is asked to unlink them FIRST (specs/20261110-activities AC-8.4), and if it cannot answer the " +
     "erasure is a 503 `activities_unavailable` and the contact is untouched. " +
     "Free-text activity bodies are not scrubbed.",
   middleware: [...authorized, requireCapability(CONTACT_ERASE)],
@@ -343,7 +343,7 @@ for (const action of ["archive", "unarchive"] as const) {
 contactsRouter.openapi(eraseRoute, async (c) => {
   const { id } = c.req.valid("param");
   if (!(await db.contact.findUnique({ where: { id }, select: { id: true } }))) throw notFound("Contact not found");
-  // The activities are in activities-api now (specs/028 AC-8.4, ADR-0082): they are unlinked BEFORE
+  // The activities are in activities-api now (specs/20261110-activities AC-8.4, ADR 20261110-caller-chosen-ids-replace-cross-service-transactions): they are unlinked BEFORE
   // the contact goes, never after, so an erasure that reports success has nothing left pointing at
   // the person. The call is idempotent; if it cannot be answered this is a 503 and nothing was deleted.
   await activities.eraseContact(id);

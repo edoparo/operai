@@ -1,7 +1,7 @@
 /**
  * @vitest-environment jsdom
  *
- * Component tests for UsersSubNav (T10, specs/006-user-invitations).
+ * Component tests for UsersSubNav (T10, specs/20260713-user-invitations).
  *
  * Mirrors SectionNav.test.tsx's technique exactly (real minimal TanStack
  * Router harness — the whole point of "aria-current on the active view"

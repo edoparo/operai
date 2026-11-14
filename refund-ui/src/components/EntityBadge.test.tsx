@@ -1,10 +1,10 @@
 /**
  * @vitest-environment jsdom
  *
- * Component tests for EntityBadge (T15, specs/007-refund-service, design.md
+ * Component tests for EntityBadge (T15, specs/20260716-refund-service, design.md
  * Component inventory: "EntityBadge (WellD Italia·EUR / WellD CH·CHF chip)").
  *
- * Post-close change (specs/007): currency is now a separately-stored,
+ * Post-close change (specs/20260716-refund-service): currency is now a separately-stored,
  * independently-selectable line field, no longer derived from entity — this
  * badge shows the entity ONLY (see `EntityBadge.tsx`'s doc comment and
  * `CurrencyBadge.test.tsx` for the currency chip's own coverage).

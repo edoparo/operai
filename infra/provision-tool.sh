@@ -8,7 +8,7 @@
 # a secret and never reads one.
 #
 # The Railway service, its bucket and its custom domain are DECLARED in
-# .railway/railway.ts (Railway IaC, ADR-0088): a person adds the block, commits
+# .railway/railway.ts (Railway IaC, ADR 20261113-railway-infrastructure-as-code): a person adds the block, commits
 # it, and this script checks the declaration and applies it with
 # `railway config apply`. It never writes that file and never creates a Railway
 # resource any other way. Variables stay outside IaC (`managed: false`): the
@@ -54,7 +54,7 @@ set -uo pipefail
 RAILWAY_PROJECT_ID="${RAILWAY_PROJECT_ID:-3bafd4c0-226f-4621-821b-a063976498a2}"   # project `operai`
 RAILWAY_ENVIRONMENT="${RAILWAY_ENVIRONMENT:-production}"
 RAILWAY_REGION="${RAILWAY_REGION:-europe-west4-drams3a}"   # EU — data residency (CLAUDE.md)
-BUCKET_REGION="${BUCKET_REGION:-ams}"                      # EU — ADR-0016
+BUCKET_REGION="${BUCKET_REGION:-ams}"                      # EU — ADR 20260716-eu-object-storage-refund-attachments
 VERCEL_SCOPE="${VERCEL_SCOPE:-aiscream}"
 VERCEL_SHELL_PROJECT="${VERCEL_SHELL_PROJECT:-operai}"
 GITHUB_REPO="${GITHUB_REPO:-matteocodogno/operai}"
@@ -142,7 +142,7 @@ if $DO_API; then
   command -v railway >/dev/null 2>&1 || die "railway CLI not found"
   railway whoami >/dev/null 2>&1 || die "not logged in to Railway — run: railway login"
   [[ -f "${API_SVC}/Dockerfile" ]] || die "${API_SVC}/Dockerfile not found — is <tool> right?"
-  [[ -f .railway/railway.ts ]] || die ".railway/railway.ts not found (the Railway project is declared there, ADR-0088)"
+  [[ -f .railway/railway.ts ]] || die ".railway/railway.ts not found (the Railway project is declared there, ADR 20261113-railway-infrastructure-as-code)"
   [[ -d node_modules/railway ]] || die "the Railway IaC SDK is not installed — run: pnpm install (at the repo root)"
   [[ -f "$TEMPLATE" ]] || die "$TEMPLATE not found — add the service to tools/env-doctor first (it is the committed variable contract)"
   [[ -n "$PORT" ]] || PORT="$(grep -E '^PORT=' "$TEMPLATE" | head -1 | cut -d= -f2)"

@@ -1,6 +1,6 @@
 /**
- * Splitting one recording into OVERLAPPING parts for Chirp 3 (specs/021-meetings plan.md § Amendment 2026-11-05
- * G-3 and #2 H-1, ADR-0069, ADR-0070; AC-6.1, AC-6.2, AC-6.5, AC-6.10, AC-6.11, AC-6.14).
+ * Splitting one recording into OVERLAPPING parts for Chirp 3 (specs/20261104-meetings plan.md § Amendment 2026-11-05
+ * G-3 and #2 H-1, ADR 20261105-meetings-ai-providers-google-cloud-eu, ADR 20261105-meetings-transcript-parts-speaker-labels-per-part; AC-6.1, AC-6.2, AC-6.5, AC-6.10, AC-6.11, AC-6.14).
  *
  * Google accepts at most 20 minutes of audio per `BatchRecognize` file and, measured (T107), silently drops speech
  * from parts much longer than 10 minutes, so a recording is transcribed in parts of at most `PIECE_MAX_MS`. Each part
@@ -16,7 +16,7 @@
  *
  * The constants are code, never environment (plan H-1); the T124 spike set them, final since O14 was dropped (2026-11-08).
  *
- * HARDENING (ADR-0064, unchanged): the input is our own derived `audio.ogg`, never a user-chosen file, and still
+ * HARDENING (ADR 20261104-meetings-api-reads-audio-bytes-third-reader, unchanged): the input is our own derived `audio.ogg`, never a user-chosen file, and still
  * every ffmpeg runs with `-protocol_whitelist file`, the input format pinned (`-f ogg`) and `-format_whitelist`,
  * a minimal child environment (`PATH`, `TMPDIR`: none of the service's secrets, the Google key above all), a
  * timeout, an output size cap and the job's work directory. The whole stretch runs inside the process's one

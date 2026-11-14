@@ -1,6 +1,6 @@
 /**
  * OpenAPI DOC-ONLY registration for the five collaborator-management routes
- * (T11, specs/013-estimate-sharing, plan.md "API contracts — estimai-api —
+ * (T11, specs/20260807-estimate-sharing, plan.md "API contracts — estimai-api —
  * new").
  *
  * WHY DOC-ONLY, NOT `.openapi()`: T8 deliberately registered
@@ -218,7 +218,7 @@ export function registerCollaboratorOpenApiDocs(
       summary: "Remove a collaborator (owner only)",
       description:
         "AC-5.2. A best-effort push notification follows, with NO link " +
-        "(AC-7.2, T10, ADR-0040) — the target would 404 on the estimate the " +
+        "(AC-7.2, T10, ADR 20260807-estimai-api-third-notify-internal-token-holder) — the target would 404 on the estimate the " +
         "moment they open it.",
       request: { params: CollaboratorParamSchema },
       responses: {

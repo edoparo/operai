@@ -1,8 +1,8 @@
 import { beforeEach, describe, expect, it } from "bun:test";
 import { bucket, call, makeCompany, makeDeal, resetWorld } from "../test-support/world";
 
-/** specs/018 AC-4.3/4.4 and AC-1.3: two-phase upload, limits, who downloads and deletes. */
-describe("attachments (specs/018)", () => {
+/** specs/20261101-crm-sales-flow AC-4.3/4.4 and AC-1.3: two-phase upload, limits, who downloads and deletes. */
+describe("attachments (specs/20261101-crm-sales-flow)", () => {
   beforeEach(resetWorld);
 
   const start = (dealId: string, as: "consultant" | "salesCh" | "admin", body: Record<string, unknown> = {}) =>

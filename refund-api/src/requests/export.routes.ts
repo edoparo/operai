@@ -1,5 +1,5 @@
 /**
- * GET /requests/:id/export — the per-request archive PDF (ADR-0043).
+ * GET /requests/:id/export — the per-request archive PDF (ADR 20260908-request-archive-export-refund-api-reads-attachment-bytes).
  *
  * Its own router module, not an addition to `requests.routes.ts`, for the
  * reason `test-support/testAuth.ts` documents: no two test FILES may import
@@ -7,23 +7,23 @@
  *
  * ACCESS reuses `canReadRequest` verbatim — the owner, or an accounting
  * reviewer whose entity scope the request falls in. No new catalog
- * permission, by ADR-0042's reconstructibility test: a holder of the
+ * permission, by ADR 20260811-derived-projection-reuses-existing-gate-reconstructibility-test's reconstructibility test: a holder of the
  * existing grant can already see every line and open every receipt through
  * the presigned GETs, so this endpoint withholds nothing they lack and a new
  * permission would advertise a control that does not exist. Denials are 404,
- * never 403, matching `GET /requests/:id` (ADR-0005 "not yours = not found")
+ * never 403, matching `GET /requests/:id` (ADR 20260703-jwt-resource-server-remote-jwks "not yours = not found")
  * — an export route must not become the one place existence leaks.
  *
  * APPROVED-ONLY (409 otherwise). The feature exists to archive a finished
  * financial record; a draft's mileage is still recomputed on every read
- * (specs/009 Decision 1) and a submitted request has no approved figures at
+ * (specs/20260720-mileage-rate Decision 1) and a submitted request has no approved figures at
  * all, so a PDF of either would be a snapshot of something still moving —
  * exactly the thing an archive must not be. `paid` is deliberately allowed
  * too: it is `approved` that has since been paid out, and refusing to
  * archive a request BECAUSE it completed would be absurd.
  *
  * MEMORY. This is the one route in the service that pulls receipt bytes into
- * the process (ADR-0043's departure from ADR-0016). `MAX_EXPORT_RECEIPT_BYTES`
+ * the process (ADR 20260908-request-archive-export-refund-api-reads-attachment-bytes's departure from ADR 20260716-eu-object-storage-refund-attachments). `MAX_EXPORT_RECEIPT_BYTES`
  * is enforced from the DB's `sizeBytes` column BEFORE a single object is
  * fetched, so an oversized request costs one query and a 413 rather than a
  * partially-downloaded heap.
@@ -61,7 +61,7 @@ const problem = (status: 404 | 409 | 413 | 502, title: string, path: string, det
  * "it is in a batch that has not paid out" and "it is settled" — the middle
  * one being the easiest to mistake for the last if the document only said
  * "Approved". A discarded batch releases its requests back to the pool
- * (ADR-0020), so `batchId` is null again and the first case covers it
+ * (ADR 20260719-refund-batch-paid-lifecycle-extension), so `batchId` is null again and the first case covers it
  * correctly with no special-casing.
  */
 function describeSettlement(
@@ -136,7 +136,7 @@ requestExportRouter.use("/requests/:id/export", authzMiddleware);
 /**
  * Statuses final enough to archive.
  *
- * `rejected` was added on 2026-09-09 (ADR-0043 amendment). Grouping it with
+ * `rejected` was added on 2026-09-09 (ADR 20260908-request-archive-export-refund-api-reads-attachment-bytes amendment). Grouping it with
  * draft/submitted was wrong: those are still moving — a draft's mileage is
  * recomputed on every read and a submitted request has no decision at all —
  * whereas a rejected request is TERMINAL. It is also the document an employee
@@ -171,7 +171,7 @@ const exportRoute = createRoute({
       description:
         "Not found, not owned, not in the caller's review scope, or the " +
         "caller holds no relevant capability — every denial is 404 so " +
-        "existence is never leaked (ADR-0005, matching GET /requests/:id)",
+        "existence is never leaked (ADR 20260703-jwt-resource-server-remote-jwks, matching GET /requests/:id)",
     },
     409: {
       content: { "application/json": { schema: ProblemSchema } },
@@ -352,7 +352,7 @@ requestExportRouter.openapi(exportRoute, async (c) => {
 
   c.header("Content-Type", "application/pdf");
   c.header("Content-Disposition", `attachment; filename="${fileName}"`);
-  // Personal financial data — never cached by an intermediary (ADR-0041's
+  // Personal financial data — never cached by an intermediary (ADR 20260811-client-side-autocomplete-server-projected-corpus-app-code-folding's
   // no-store posture, extended from the JWT to derived personal documents).
   c.header("Cache-Control", "no-store");
   return c.body(pdf as unknown as ArrayBuffer);

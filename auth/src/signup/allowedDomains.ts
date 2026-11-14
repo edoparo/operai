@@ -1,6 +1,6 @@
 /**
  * The domains whose accounts may join the waiting list or be invited
- * (specs/023, ADR-0071). Pure: no env import, so `lib/env.ts` can use the parser.
+ * (specs/20261105-signup-gate, ADR 20261105-access-only-by-invitation-waiting-list). Pure: no env import, so `lib/env.ts` can use the parser.
  */
 
 /** A lower-case DNS name with at least two labels (letters, digits, hyphen). */

@@ -1,5 +1,5 @@
 /**
- * The process-wide Web Push send pool (T18, specs/029-push-notifications, S-M2):
+ * The process-wide Web Push send pool (T18, specs/20261111-push-notifications, S-M2):
  * at most 16 sends in flight, a bounded FIFO queue, overflow dropped (best effort, AC-2.6).
  */
 

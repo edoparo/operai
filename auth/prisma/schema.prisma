@@ -28,12 +28,12 @@ model User {
   entity          String?
   jobTitle        String?
 
-  // ─── Soft delete (spec 006-user-invitations, T4/T7 — AC-5.x) ───────────────
+  // ─── Soft delete (spec 20260713-user-invitations, T4/T7 — AC-5.x) ───────────────
   // null = active; set = soft-deleted. Nullable with NO default (R7): a
   // migration adding this column performs no backfill/rewrite of existing
   // rows, which all continue to read as active. Deletion in this feature is
   // ALWAYS soft — the row, its Account rows, and its UserRole/UserDepartment
-  // rows are retained (see ADR-0012); resource servers do nothing at delete
+  // rows are retained (see ADR 20260714-invitation-activation-hooks-soft-delete-lifecycle); resource servers do nothing at delete
   // time. `deletedByUserId` is a plain audit convenience column (the
   // authoritative record is the `audit_log` row written by the delete
   // transaction) — deliberately NOT a FK relation, so a deleted actor never
@@ -48,15 +48,15 @@ model User {
   userDepartments UserDepartment[]
   auditLogs       AuditLog[]
 
-  // ─── Employee address (specs/012-employee-address, ADR-0031) ───────────────
+  // ─── Employee address (specs/20260803-employee-address, ADR 20260804-employee-address-auth-identity-attribute-1to1-table) ───────────────
   // 1:1, optional — row absence IS "no address on file" (Domain language).
   address EmployeeAddress?
 
-  // ─── Invitations (spec 006-user-invitations, T4) ───────────────────────────
+  // ─── Invitations (spec 20260713-user-invitations, T4) ───────────────────────────
   invitationsSent     Invitation[] @relation("InvitationInviter")
   invitationsAccepted Invitation[] @relation("InvitationAcceptor")
 
-  // ─── Access requests (specs/023, ADR-0071) ─────────────────────────────────
+  // ─── Access requests (specs/20261105-signup-gate, ADR 20261105-access-only-by-invitation-waiting-list) ─────────────────────────────────
   accessRequestsDecided AccessRequest[] @relation("AccessRequestDecider")
 
   @@index([deletedAt])
@@ -276,21 +276,21 @@ model AuditLog {
   @@map("audit_log")
 }
 
-// ─── Employee address (specs/012-employee-address, ADR-0031) ─────────────────
-// Employee home address (specs/012). One current address per user, or none —
+// ─── Employee address (specs/20260803-employee-address, ADR 20260804-employee-address-auth-identity-attribute-1to1-table) ─────────────────
+// Employee home address (specs/20260803-employee-address). One current address per user, or none —
 // the ROW's existence is the "address on file" flag (Domain language). There
 // is deliberately no history table: superseded values live only in
-// `audit_log` (US-5, via the same `withAudit` mechanism ADR-0033 leaves
+// `audit_log` (US-5, via the same `withAudit` mechanism ADR 20260804-two-tier-audit-assurance-auth-audit-log-application-level leaves
 // entirely unchanged — this model has NO relation to AuditLog and this
 // migration touches no column, FK, or `onDelete` behaviour of `audit_log`).
-// Cascades on user delete; production deletion is soft (ADR-0012), so this
+// Cascades on user delete; production deletion is soft (ADR 20260714-invitation-activation-hooks-soft-delete-lifecycle), so this
 // only ever fires for hard deletes (tests/fixtures).
 model EmployeeAddress {
   userId String @id
   user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   // The four REQUIRED structured components (AC-1.4). NOT NULL *is* the
-  // "all four or none" guarantee (ADR-0031 Decision point 2).
+  // "all four or none" guarantee (ADR 20260804-employee-address-auth-identity-attribute-1to1-table Decision point 2).
   countryCode String // ISO 3166-1 alpha-2, upper-case; CHECK ~ '^[A-Z]{2}$'
   city        String
   street      String
@@ -314,7 +314,7 @@ model EmployeeAddress {
   @@map("employee_address")
 }
 
-// ─── Invitations (spec 006-user-invitations) ─────────────────────────────────
+// ─── Invitations (spec 20260713-user-invitations) ─────────────────────────────────
 // Invitation lifecycle: see docs/adr/0012 (activation hooks + soft-delete) and
 // docs/adr/0013 (derived `expired` state, schedulerless). Stored `status` is
 // only ever `pending | accepted | revoked` — `expired` is ALWAYS computed
@@ -351,7 +351,7 @@ model Invitation {
   @@map("invitation")
 }
 
-// specs/023 (ADR-0071). The waiting list. Not a user: grants nothing.
+// specs/20261105-signup-gate (ADR 20261105-access-only-by-invitation-waiting-list). The waiting list. Not a user: grants nothing.
 // CHECK constraints on status/provider live in the migration SQL.
 model AccessRequest {
   id               String      @id @default(cuid())
@@ -378,4 +378,4 @@ model AccessRequest {
 // invitation (email) WHERE status = 'pending'` — cannot be expressed in the
 // Prisma schema language (no partial-index support). It is appended as raw
 // SQL to the migration this model was introduced in
-// (prisma/migrations/*_invitation_lifecycle/migration.sql) — see ADR-0013.
+// (prisma/migrations/*_invitation_lifecycle/migration.sql) — see ADR 20260714-invitation-lifecycle-derived-expiry-state.

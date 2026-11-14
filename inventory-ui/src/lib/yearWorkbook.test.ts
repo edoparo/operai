@@ -1,5 +1,5 @@
 /**
- * Builder tests for `buildYearWorkbook` (T39, specs/015-hardware-inventory; design.md
+ * Builder tests for `buildYearWorkbook` (T39, specs/20261006-hardware-inventory; design.md
  * F12 step 5; refs AC-8.8, AC-8.9). Every assertion reads the produced workbook
  * BACK from its serialised bytes, so what is checked is the file a user opens, not
  * the in-memory object.

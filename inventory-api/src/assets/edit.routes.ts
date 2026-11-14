@@ -1,11 +1,11 @@
 /**
- * `PATCH /assets/{id}` (T13, specs/015-hardware-inventory; AC-1.9, AC-3.6,
+ * `PATCH /assets/{id}` (T13, specs/20261006-hardware-inventory; AC-1.9, AC-3.6,
  * AC-5.9, AC-10.1).
  *
  * Either capability reaches the route; WHICH FIELDS depends on the capability:
  * `supplier` and `invoiceRef` for either, everything else for `asset:manage`
  * over the asset's entity (an accountant-only caller sending anything else is
- * 403). An asset outside every scope the caller holds is 404 (ADR-0014).
+ * 403). An asset outside every scope the caller holds is 404 (ADR 20260716-refund-api-authorization-enforcing-resource-server).
  * `entity` and `currency` are immutable and refused as unknown fields (422).
  */
 

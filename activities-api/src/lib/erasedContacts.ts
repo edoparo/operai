@@ -1,5 +1,5 @@
 /**
- * Contact erasure under concurrency (specs/028 AC-8.4, ADR-0082; OWASP review M1).
+ * Contact erasure under concurrency (specs/20261110-activities AC-8.4, ADR 20261110-caller-chosen-ids-replace-cross-service-transactions; OWASP review M1).
  *
  * The contact lives in crm-api, so no foreign key nulls `activity.contactId` when it is deleted:
  * crm-api asks for the links to be removed first. A sweep alone cannot stop a write that passed

@@ -1,5 +1,5 @@
 /**
- * The four built-in summary templates (specs/021-meetings AC-8.1, AC-8.6; plan.md
+ * The four built-in summary templates (specs/20261104-meetings AC-8.1, AC-8.6; plan.md
  * § Data model). They live in CODE, not in the table: nothing to seed, nothing a user or
  * a migration can edit, and an id that is stable across environments. Read-only by
  * construction - every view is a copy, and the CRUD routes refuse a `builtin:` id.
@@ -7,7 +7,7 @@
  * Names, headings and instructions exist in English and Italian. A summary in a language
  * snapshots the built-in in THAT language (`builtinSnapshot`), so its headings read in the
  * output language (AC-8.6); the server renders headings from the snapshot, never from
- * model output (ADR-0067).
+ * model output (ADR 20261104-ai-output-structured-validated-plain-text).
  */
 
 export type TemplateLanguage = "en" | "it";

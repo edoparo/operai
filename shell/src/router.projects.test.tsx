@@ -1,9 +1,9 @@
 /**
  * @vitest-environment jsdom
  *
- * Tests for the `/projects/$` tool route (specs/025-projects, T15, AC-4.1): the
+ * Tests for the `/projects/$` tool route (specs/20261103-projects, T15, AC-4.1): the
  * Projects module appears in the suite only for holders of `projects:access`
- * (ADR-0007 posture), the same gate the other tools sit behind.
+ * (ADR 20260713-authz-hand-rolled-rbac-abac-epoch-claims posture), the same gate the other tools sit behind.
  *
  * Mirrors router.inventory.test.tsx: real RouterProvider, `window.history`
  * navigation, federated remotes mocked via `vi.mock`, `./router` re-imported fresh

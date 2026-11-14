@@ -3,7 +3,7 @@ import { strings } from '../strings'
 
 /**
  * NotFoundPage — notify-ui's inner-router-wide not-found fallback (T14,
- * specs/005-notification-center/tasks.md), wired as `defaultNotFoundComponent`
+ * specs/20260713-notification-center/tasks.md), wired as `defaultNotFoundComponent`
  * in `createAppRouter` (../router.tsx). Mirrors
  * `admin-ui/src/pages/NotFoundPage.tsx` exactly (same technique, same
  * rationale): any unmatched path under notify-ui's basepath (e.g. a stale

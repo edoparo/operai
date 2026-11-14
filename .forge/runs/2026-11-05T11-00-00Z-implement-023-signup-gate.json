@@ -2,8 +2,8 @@
   "schema": "wellforge-run/v3",
   "run_id": "2026-11-05T11-00-00Z-implement-023-signup-gate",
   "command": "implement",
-  "args": "023-signup-gate T1,T2,T3,T4,T8,T11",
-  "feature": "023-signup-gate",
+  "args": "20261105-signup-gate T1,T2,T3,T4,T8,T11",
+  "feature": "20261105-signup-gate",
   "feature_resolution": "explicit",
   "rigor": "production",
   "plugin_version": "2.56.0",
@@ -20,7 +20,7 @@
   "worktree": {
     "mode": "sequential-main-tree",
     "path": "/Users/matteocodogno/LAB/aiscream/operai-main",
-    "reason": "agent worktree isolation would branch from the primary checkout (feat/021-meetings), and the batch shares the isolated *_main databases",
+    "reason": "agent worktree isolation would branch from the primary checkout (feat/20261104-meetings), and the batch shares the isolated *_main databases",
     "isolated": [
       "databases operai_auth_main, notify_main via session wrapper with-main-db.sh"
     ]

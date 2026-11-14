@@ -1,4 +1,4 @@
-/** The Settings tab: letterhead and standard terms per entity (specs/018 O2). */
+/** The Settings tab: letterhead and standard terms per entity (specs/20261101-crm-sales-flow O2). */
 const en = {
   heading: 'Settings',
   description: 'The letterhead and standard terms printed on offers, one profile per wellD entity you manage deals for.',

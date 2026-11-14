@@ -24,7 +24,7 @@ app.use("*", corsMiddleware);
 // Log method / PATH ONLY (no query string) / status / duration — NEVER log
 // bodies (data-residency constraint: estimate content must not appear in
 // logs). Query strings are dropped too — shared src/lib/logger.ts posture
-// with notify-api, whose GET /notifications/stream?ticket=<t> (ADR-0008)
+// with notify-api, whose GET /notifications/stream?ticket=<t> (ADR 20260713-sse-stream-auth-short-lived-ticket)
 // carries a live single-use credential in the query string that hono/logger's
 // stock implementation would otherwise write to application logs.
 app.use("*", requestLogger());
@@ -35,7 +35,7 @@ app.route("/", healthRouter);
 
 // ─── OpenAPI + Scalar UI ─────────────────────────────────────────────────────
 //
-// T11 (specs/013-estimate-sharing) — MUST be registered on `app` BEFORE
+// T11 (specs/20260807-estimate-sharing) — MUST be registered on `app` BEFORE
 // `importEstimatesRouter`/`estimatesRouter` are mounted below. Both of those
 // routers apply a wildcard `.use("*", jwtMiddleware)` to themselves (T5/T8);
 // `OpenAPIHono.route()` merges a mounted sub-router's routes (middleware
@@ -57,7 +57,7 @@ app.route("/", healthRouter);
 // calls below is still present by the time any request actually arrives.
 setupOpenAPI(app);
 
-// POST /system/deal-link-notices (specs/024, ADR-0076) — crm-api's service JWT,
+// POST /system/deal-link-notices (specs/20261108-estimate-list-oversight, ADR 20261108-crm-pushes-deal-links-to-estimai) — crm-api's service JWT,
 // verified by its own per-route middleware. MUST be mounted BEFORE the two
 // routers below: each carries a wildcard `.use("*", jwtMiddleware)` that, once
 // merged earlier in the route table, would answer a service token with a 401
@@ -69,7 +69,7 @@ app.route("/", dealLinkNoticesRouter);
 // chain — it is never subject to estimatesRouter's 2 MiB cap (OWASP A04 fix).
 app.route("/", importEstimatesRouter);
 // GET/POST/PATCH/DELETE /estimates/{id}/collaborators[...] (T8/T9,
-// specs/013-estimate-sharing) attach directly onto estimatesRouter — called
+// specs/20260807-estimate-sharing) attach directly onto estimatesRouter — called
 // AFTER estimates.routes.ts's own module-load-time bodyLimit/jwtMiddleware
 // `.use("*", …)` calls have already run (guaranteed: the import above fully
 // evaluates that module first), so these routes inherit the same

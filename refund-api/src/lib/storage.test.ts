@@ -1,6 +1,6 @@
 /**
  * Unit tests for the S3-compatible storage wrapper (T9,
- * specs/007-refund-service, ADR-0016).
+ * specs/20260716-refund-service, ADR 20260716-eu-object-storage-refund-attachments).
  *
  * Strategy: mock `@aws-sdk/s3-presigned-post`'s `createPresignedPost` and
  * `@aws-sdk/s3-request-presigner`'s `getSignedUrl` (the two functions
@@ -75,12 +75,12 @@ mock.module("@aws-sdk/s3-request-presigner", () => ({
 }));
 
 // `?real`: route test files `mock.module("../lib/storage")` process-wide; a plain
-// import here would get their fake under --randomize (T21, specs/016).
+// import here would get their fake under --randomize (T21, specs/20261013-notify-service-credentials).
 // @ts-expect-error -- the query suffix is a runtime-only cache-buster
 const storage = (await import("./storage?real")) as typeof import("./storage");
 // `../lib/env` parses process.env ONCE per process; when another file loaded it
 // first (--randomize) the bucket is that run's, not the override above. Assert
-// against the bucket the module is actually configured with (T21, specs/016).
+// against the bucket the module is actually configured with (T21, specs/20261013-notify-service-credentials).
 const { env: enforced } = await import("./env");
 const { S3Client, DeleteObjectCommand, PutObjectCommand, NotFound } = await import(
   "@aws-sdk/client-s3"
@@ -177,7 +177,7 @@ describe("deleteObject", () => {
 });
 
 describe("putObject", () => {
-  it("sends a PutObjectCommand with the given key, body, content-type, and bucket (T2, specs/008)", async () => {
+  it("sends a PutObjectCommand with the given key, body, content-type, and bucket (T2, specs/20260719-refund-monthly-processing)", async () => {
     let captured: InstanceType<typeof PutObjectCommand> | null = null;
     const sendSpy = spyOn(S3Client.prototype, "send").mockImplementationOnce(
       async (command: unknown) => {

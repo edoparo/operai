@@ -1,5 +1,5 @@
 /**
- * Refund-settings management endpoints (T3, specs/011-refund-settings,
+ * Refund-settings management endpoints (T3, specs/20260722-refund-settings,
  * plan.md § API contracts).
  *
  *   GET /settings/{key} → 200 current value + configured flag + chronological
@@ -10,16 +10,16 @@
  *                          at the DB by T2's migration, AC-5.2).
  *
  * Both gated by the NEW, unconditioned `settings` catalog resource (D2,
- * ADR-0028): `settings:read` for GET, `settings:manage` for PUT. Neither is
+ * ADR 20260722-settings-catalog-permission-config-not-rate): `settings:read` for GET, `settings:manage` for PUT. Neither is
  * entity-scoped — a missing capability is a wholesale 403/404-free denial,
  * mirroring `rates/routes.ts`'s posture (there is no "owner" of a suite-wide
  * setting). An UNKNOWN key (not in the descriptor registry, `settings/
  * registry.ts`) is a 404 on BOTH routes — checked AFTER the capability gate,
- * so a non-holder learns nothing about which keys exist (US-3, ADR-0028:
+ * so a non-holder learns nothing about which keys exist (US-3, ADR 20260722-settings-catalog-permission-config-not-rate:
  * "a non-holder must not even learn the mailbox exists").
  *
  * Same `authzMiddleware`/`hasCapability` machinery every other refund-api
- * route uses (ADR-0014) — fails closed (503) on an `auth` outage.
+ * route uses (ADR 20260716-refund-api-authorization-enforcing-resource-server) — fails closed (503) on an `auth` outage.
  *
  * `createdByUserId`/`createdByEmail` on a PUT-appended row are ALWAYS taken
  * from the caller's verified JWT (`c.get("userId")`/`c.get("email")`), NEVER
@@ -116,7 +116,7 @@ const getSettingRoute = createRoute({
   summary: "Get a refund setting's current value + change history",
   description:
     "Current value is derived as the latest row for this key (D1/D3, " +
-    "ADR-0013/0024 lineage) — `configured:false` and `value:null` when the " +
+    "ADR 20260714-invitation-lifecycle-derived-expiry-state/0024 lineage) — `configured:false` and `value:null` when the " +
     "key has never been set or was last explicitly cleared (AC-1.1/1.4). " +
     "`history` is chronological, oldest -> newest (AC-5.3). Gated by " +
     "`settings:read`. An unregistered `key` (settings/registry.ts) is a 404.",

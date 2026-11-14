@@ -1,6 +1,6 @@
 /**
  * The `activities.write` service scope end to end through the token endpoint
- * (specs/028-activities, T1 — AC-1.2, AC-1.3, AC-1.4, AC-8.4): a client parsed from
+ * (specs/20261110-activities, T1 — AC-1.2, AC-1.3, AC-1.4, AC-8.4): a client parsed from
  * `SERVICE_CLIENTS` with the scope gets it in its minted JWT, and an unknown scope
  * never reaches a token because the entry does not parse.
  *
@@ -73,7 +73,7 @@ const scopesOf = async (clientId: string): Promise<string[]> => {
   return String(claims["scope"]).split(" ");
 };
 
-describe("activities.write (specs/028 — AC-1.2, AC-1.3, AC-1.4, AC-8.4)", () => {
+describe("activities.write (specs/20261110-activities — AC-1.2, AC-1.3, AC-1.4, AC-8.4)", () => {
   test("a token minted for crm-api carries activities.write beside its existing scopes", async () => {
     const scopes = await scopesOf("crm-api");
     expect(scopes).toContain("activities.write");

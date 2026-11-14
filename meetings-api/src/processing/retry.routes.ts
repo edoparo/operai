@@ -1,6 +1,6 @@
 /**
- * `POST /meetings/:id/retry` (specs/021-meetings plan.md § API contracts "Capture", § Processing;
- * AC-6.9, AC-6.10, AC-12.2; ADR-0062). The creator asks for failed processing to run again,
+ * `POST /meetings/:id/retry` (specs/20261104-meetings plan.md § API contracts "Capture", § Processing;
+ * AC-6.9, AC-6.10, AC-12.2; ADR 20261104-durable-job-runner-work-queued-state-derived). The creator asks for failed processing to run again,
  * while the audio is still kept.
  *
  *   - `failed` only (409 `not_failed`; a second tap finds `processing` and queues nothing);
@@ -13,7 +13,7 @@
  *     meeting's row lock, so exactly one job exists iff the meeting left `failed`;
  *   - the caller becomes `processingRequestedBy`: they are the one told how this run ended.
  *
- * Expiry is DERIVED against an injectable clock (ADR-0013); nothing here writes time-based state.
+ * Expiry is DERIVED against an injectable clock (ADR 20260714-invitation-lifecycle-derived-expiry-state); nothing here writes time-based state.
  */
 
 import { OpenAPIHono, createRoute } from "@hono/zod-openapi";

@@ -1,6 +1,6 @@
 /**
  * Integration tests for the submit/withdraw lifecycle endpoints (T10,
- * specs/007-refund-service, US-8/ADR-0018).
+ * specs/20260716-refund-service, US-8/ADR 20260716-immutable-financial-audit-trail-refund).
  *
  * Strategy: real Postgres, jwt/authz mocked — see requests.routes.test.ts's
  * header comment.
@@ -148,7 +148,7 @@ describe("POST /requests/:id/submit", () => {
   });
 
   it(
-    "(AC-4.4, specs/010-self-approval-control, ADR-0026) submitting the caller's own " +
+    "(AC-4.4, specs/20260721-self-approval-control, ADR 20260721-self-approval-condition-and-403-exception) submitting the caller's own " +
       "request is entirely unaffected even when they ALSO hold a restricted request:approve " +
       "grant — the self-approval restriction only ever activates at an approve attempt, never " +
       "at create/submit",
@@ -272,7 +272,7 @@ describe("POST /requests/:id/submit", () => {
 // ─── POST /requests/:id/withdraw ────────────────────────────────────────────
 
 describe("POST /requests/:id/withdraw", () => {
-  it("(specs/007 amendment 2026-11-10) withdraw clears a line rejection made during the unfinished review", async () => {
+  it("(specs/20260716-refund-service amendment 2026-11-10) withdraw clears a line rejection made during the unfinished review", async () => {
     const request = await makeRequest();
     const line = await addCompleteLine(request.id);
     const token = await harness.signToken({ sub: OWNER_SUB, email: OWNER_EMAIL });
@@ -381,7 +381,7 @@ describe("POST /requests/:id/withdraw", () => {
   });
 });
 
-// ─── specs/009-mileage-rate (T6) — submit/withdraw mileage snapshot ────────
+// ─── specs/20260720-mileage-rate (T6) — submit/withdraw mileage snapshot ────────
 
 async function addMileageRate(
   entity: "welld_ch" | "welld_it",
@@ -415,7 +415,7 @@ async function addMileageLine(requestId: string, km = 240, entity: "welld_ch" | 
   });
 }
 
-describe("POST /requests/:id/submit — mileage snapshot (specs/009-mileage-rate, T6)", () => {
+describe("POST /requests/:id/submit — mileage snapshot (specs/20260720-mileage-rate, T6)", () => {
   it("(AC-2.2) a travel_km line with NO rate in effect refuses the whole submission, naming it", async () => {
     const request = await makeRequest();
     const line = await addMileageLine(request.id);
@@ -496,7 +496,7 @@ describe("POST /requests/:id/submit — mileage snapshot (specs/009-mileage-rate
   });
 });
 
-describe("POST /requests/:id/withdraw — mileage snapshot clears (specs/009-mileage-rate, T6, AC-3.2)", () => {
+describe("POST /requests/:id/withdraw — mileage snapshot clears (specs/20260720-mileage-rate, T6, AC-3.2)", () => {
   it("clears appliedRate* back to null, and the response itself shows the LIVE recomputed amount", async () => {
     await addMileageRate("welld_ch", 700000, "2026-01-01");
     const request = await makeRequest();

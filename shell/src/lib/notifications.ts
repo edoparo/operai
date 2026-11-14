@@ -1,10 +1,10 @@
 /**
  * shell/notifications — the shell-owned notification transport seam (T10,
- * specs/005-notification-center, plan.md "Shell changes", design.md,
- * ADR-0008, ADR-0009).
+ * specs/20260713-notification-center, plan.md "Shell changes", design.md,
+ * ADR 20260713-sse-stream-auth-short-lived-ticket, ADR 20260713-notification-center-standalone-service-shell-seam).
  *
  * This module is the ONLY place notification transport/session glue lives in
- * the shell (ADR-0009 Constraint 4 — "no notification business logic lives
+ * the shell (ADR 20260713-notification-center-standalone-service-shell-seam Constraint 4 — "no notification business logic lives
  * here"). It owns:
  *   - `raiseNotification()`      — the raise-capability seam (US-4): wraps
  *     `apiFetch(POST {notifyBase}/notifications)`. The request type has no
@@ -23,9 +23,9 @@
  *   - `subscribeToasts()`        — the toast-worthy-event subscription seam
  *     `ToastHost` (T12) consumes; not itself a UI component.
  *   - The internal SSE connection manager: mints a stream ticket
- *     (ADR-0008), opens one `EventSource` per tab, dispatches `notification`/
+ *     (ADR 20260713-sse-stream-auth-short-lived-ticket), opens one `EventSource` per tab, dispatches `notification`/
  *     `unread-reset` events, and reconnects (with a FRESH ticket — a
- *     consumed ticket is worthless, ADR-0008) on error/disconnect,
+ *     consumed ticket is worthless, ADR 20260713-sse-stream-auth-short-lived-ticket) on error/disconnect,
  *     re-syncing the count from REST on every (re)connect (plan.md Risk R3).
  *
  * Circular-import note: this file imports `apiFetch`/`onSignOut` from
@@ -67,7 +67,7 @@ export interface NotificationLink {
 }
 
 /**
- * The optional Italian variant a system caller may attach (ADR-0065). The sender does not know the
+ * The optional Italian variant a system caller may attach (ADR 20261104-bilingual-system-notifications). The sender does not know the
  * reader's language, so the reader picks: see `localizedText`.
  */
 export interface NotificationItalianVariant {
@@ -80,7 +80,7 @@ export interface Notification {
   id: string
   title: string
   body: string
-  /** Italian variant, `null`/absent for a notification that carries none (ADR-0065). */
+  /** Italian variant, `null`/absent for a notification that carries none (ADR 20261104-bilingual-system-notifications). */
   it?: NotificationItalianVariant | null
   severity: NotificationSeverity
   originApp: NotificationOriginApp
@@ -93,7 +93,7 @@ export interface Notification {
 /**
  * `POST /notifications` request body (RaiseNotificationSchema). Deliberately
  * has NO `recipient`/`recipientId` field — v1 always targets the caller
- * (JWT `sub`); this is the forward-compat seam ADR-0009 documents (a future
+ * (JWT `sub`); this is the forward-compat seam ADR 20260713-notification-center-standalone-service-shell-seam documents (a future
  * `recipient` field is additive, not a breaking change to this type).
  */
 export interface RaiseNotificationInput {
@@ -108,7 +108,7 @@ export interface RaiseNotificationInput {
 const isText = (value: unknown): value is string => typeof value === 'string' && value.trim() !== ''
 
 /**
- * The title and body in the reader's language (ADR-0065, AC-12.5): the Italian variant when
+ * The title and body in the reader's language (ADR 20261104-bilingual-system-notifications, AC-12.5): the Italian variant when
  * `<html lang>` is `it` and the notification carries a complete one, the default text otherwise.
  * A missing or half-empty variant degrades to the default, never to a blank toast or a mixed pair.
  * Read at render time, so it follows the current `<html lang>`.
@@ -234,7 +234,7 @@ export function resetUnreadCount(): void {
 // ---------------------------------------------------------------------------
 // subscribeToasts — the toast-worthy-event subscription seam (US-5).
 // ToastHost (T12) is the consumer; this module only ever PRODUCES events —
-// it renders nothing and decides nothing about HOW a toast looks (ADR-0009:
+// it renders nothing and decides nothing about HOW a toast looks (ADR 20260713-notification-center-standalone-service-shell-seam:
 // "the shell renders exactly what notify-api decides").
 // ---------------------------------------------------------------------------
 
@@ -266,7 +266,7 @@ export function subscribeToasts(listener: (event: ToastEvent) => void): () => vo
 }
 
 // ---------------------------------------------------------------------------
-// Internal SSE connection manager (ADR-0008, ADR-0009, plan.md "SSE stream
+// Internal SSE connection manager (ADR 20260713-sse-stream-auth-short-lived-ticket, ADR 20260713-notification-center-standalone-service-shell-seam, plan.md "SSE stream
 // authentication", Risks R3/R4/R8).
 //
 // One EventSource per tab, opened lazily on first `useUnreadCount()` mount.
@@ -357,7 +357,7 @@ async function syncUnreadCountFromRest(): Promise<void> {
 
 /**
  * Mints a fresh, single-use SSE handshake ticket via the normal Bearer/JWKS
- * path (ADR-0008). Returns `null` (rather than throwing) when the mint
+ * path (ADR 20260713-sse-stream-auth-short-lived-ticket). Returns `null` (rather than throwing) when the mint
  * fails — e.g. the caller is signed out, in which case there is nothing to
  * connect to yet; a later `ensureSseConnection()` call (the next
  * `useUnreadCount()` mount, or the reconnect path below) tries again.
@@ -495,7 +495,7 @@ function ensureSseConnection(): void {
 /**
  * Closes the tab's SSE connection and resets all connection-manager state,
  * without attempting to reopen it. Exported for tests; the sign-out
- * teardown below is the production caller (ADR-0009 R8).
+ * teardown below is the production caller (ADR 20260713-notification-center-standalone-service-shell-seam R8).
  */
 export function closeSseConnection(): void {
   clearReconnectTimer()
@@ -505,7 +505,7 @@ export function closeSseConnection(): void {
 }
 
 // ---------------------------------------------------------------------------
-// Sign-out teardown (ADR-0009 R8, plan.md "signOut closes + reconnects").
+// Sign-out teardown (ADR 20260713-notification-center-standalone-service-shell-seam R8, plan.md "signOut closes + reconnects").
 //
 // session.ts's signOut() must close this tab's live SSE connection on every
 // identity change so a signed-out user's stream never lingers, and so the
@@ -535,7 +535,7 @@ function ensureSignOutTeardownRegistered(): void {
     // caller, which is exactly the kind of dangling work that turns into an
     // unhandled rejection once whatever triggered it (a component, a test)
     // has already gone away. "Closing and re-establishing the connection on
-    // every identity change" (ADR-0009 R8) still holds: closeSseConnection()
+    // every identity change" (ADR 20260713-notification-center-standalone-service-shell-seam R8) still holds: closeSseConnection()
     // fully resets connection-manager state, so the NEXT real trigger — a
     // `useUnreadCount()` mount for whichever identity is signed in next
     // (AC-6.3) — opens a correct, fresh connection on its own via the

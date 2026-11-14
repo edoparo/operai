@@ -3,7 +3,7 @@
 Decisions taken while extracting the library and migrating refund-ui on the
 branch `feat/operai-ui-library` (2026-10-31), without a review in between. Each
 one says what was decided, why, and how to undo it if the review disagrees. The
-architectural decision is ADR-0050; this log is the detail under it.
+architectural decision is ADR 20261031-shared-ui-library-consumed-as-source; this log is the detail under it.
 
 ## Structure and consumption
 
@@ -12,7 +12,7 @@ Next to the apps, like every other package, and listed in `lerna.json` and in
 `scripts/check-changeset.mjs` so Changesets versions it. Undo: rename the folder
 and the alias paths in the consumers.
 
-**D-02 — Consumed as source through a Vite alias, not installed.** See ADR-0050
+**D-02 — Consumed as source through a Vite alias, not installed.** See ADR 20261031-shared-ui-library-consumed-as-source
 § Options: `link:` gives two Reacts or a missing React on Vercel, `file:` goes
 stale, a workspace is ruled out by AGENTS.md, Module Federation would make every
 component an untyped runtime dependency. The cost is three config entries per
@@ -179,7 +179,7 @@ load before building a page.
 **D-26 — The audit is `docs/ui-inconsistencies.md`,** 33 findings with
 evidence and, per finding, what this branch fixed.
 
-## Styling dialect (ADR-0051), applied to all six frontends
+## Styling dialect (ADR 20261031-one-styling-dialect-token-utilities), applied to all six frontends
 
 **D-27 — Token utilities are the one dialect.** Inline `var(--…)` styles (refund, admin,
 notify, inventory: ~850 token values) were converted to Tailwind token utilities, the dialect
@@ -206,7 +206,7 @@ both ≥ 5.6:1), replacing ten `text-[#b47fff]` classes. estimai's hardcoded `rg
 use token opacities and therefore follow the light theme, which they did not before.
 
 **D-32 — Remotes' standalone stylesheets import the library tokens** instead of copies
-(estimai's was a 270-line copy). This supersedes the ADR-0006 addendum's "keep the copy in sync".
+(estimai's was a 270-line copy). This supersedes the ADR 20260709-suite-frontend-module-federation addendum's "keep the copy in sync".
 
 **D-33 — String-scan tests recognise utility-class lists.** refund-ui and estimai-ui's
 `noHardcodedStrings` tests allowlisted each `className` string verbatim, so any restyle broke
@@ -325,7 +325,7 @@ and refund's line editor no longer drops an invalid edit on Done.
 
 **D-47 — Feedback where the person acted.** Every create/save/invite/delete confirms
 (compact success Banner, a live region, or the destination after navigation). The shell's
-`ToastHost` stays for notifications from elsewhere (ADR-0009 keeps that seam narrow).
+`ToastHost` stays for notifications from elsewhere (ADR 20260713-notification-center-standalone-service-shell-seam keeps that seam narrow).
 Orange = retryable failure, red = failed action or field error.
 
 **D-48 — Dialogs lock page scroll** while any is open, restored when the last closes.
@@ -401,7 +401,7 @@ busy button is no longer dimmed to 70% (that put a primary label under 4.5:1).
 `Field` control props, and now keeps the highlighted option scrolled into view, which
 `aria-activedescendant` does not do (a long holder list needed it). inventory's unused
 `inputClassName`/`inputStyle` props were dropped. refund-ui's `MotivoSuggestField` stays its
-own: specs/014 wants no empty, loading or error line in its popup and the combobox role only
+own: specs/20260811-motivo-autocomplete wants no empty, loading or error line in its popup and the combobox role only
 on `travel_km` lines; reconsider if a third plain autocomplete appears.
 
 **D-57 — `Drawer`: a modal panel from the right, for reference content.** Built on
@@ -459,14 +459,14 @@ form layout, not a list of choices, and stay as they are.
 **D-63 — What stays in the apps after the sweep.** Same-named files across apps are adapters,
 not copies: `ErrorBanner`, `GuardrailDialog`, `PermissionDenied`, `ConfirmDeleteModal`,
 `SkeletonListRows`, `NotFoundPage`, admin's `SuccessBanner` and refund's `ToastBanner` bind
-the app's strings and the e2e test ids to a library component (ADR-0050), and stay app-side
+the app's strings and the e2e test ids to a library component (ADR 20261031-shared-ui-library-consumed-as-source), and stay app-side
 so copy stays in each strings module. `EntityBadge`/`CurrencyBadge` (refund, inventory) map
 domain values to `Badge`; the library holds no domain values. estimai's `FormulaPopover` and
 `WarningBadge` tooltip are single-app; they move to the library if a second app needs a
 popover.
 
 **D-64 — `Tooltip` (2026-11-01).** The CRM became the second app that needs one: its
-"Proceed without estimate" action (specs/018) needs a sentence its label cannot hold. The
+"Proceed without estimate" action (specs/20261101-crm-sales-flow) needs a sentence its label cannot hold. The
 library's `Tooltip` opens on hover and on keyboard focus, closes with Escape (WCAG 1.4.13),
 and links to its trigger through `aria-describedby`, which the caller spreads from a render
 argument. It is positioned in CSS under the trigger, with no portal, so it can be clipped

@@ -1,7 +1,7 @@
 /**
  * @vitest-environment jsdom
  *
- * TasksPage focus (specs/028 design.md "Focus after row actions", D6): when Mark done or Reopen
+ * TasksPage focus (specs/20261110-activities design.md "Focus after row actions", D6): when Mark done or Reopen
  * removes the row from the current view, focus moves to the selected tab — never to `body`. Delete does the same;
  * cancelling its confirm leaves the row and the dialog returns focus to the row's Delete button.
  */

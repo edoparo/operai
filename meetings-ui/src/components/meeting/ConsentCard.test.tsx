@@ -1,7 +1,7 @@
 /**
  * @vitest-environment jsdom
  *
- * The consent card (specs/021-meetings T61; design.md F3; AC-4.1, AC-4.2, AC-4.3, AC-2.1): the
+ * The consent card (specs/20261104-meetings T61; design.md F3; AC-4.1, AC-4.2, AC-4.3, AC-2.1): the
  * versioned notice with its five statements, one explicit tick, the copyable announcement, and the
  * collapsed attestation once given. Capture controls are the page's to hide until then.
  */

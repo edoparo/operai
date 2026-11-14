@@ -1,7 +1,7 @@
 /**
  * @vitest-environment jsdom
  *
- * Component tests for InviteUserModal (T12, specs/006-user-invitations,
+ * Component tests for InviteUserModal (T12, specs/20260713-user-invitations,
  * design.md Modal N1).
  *
  * Covers:
@@ -180,7 +180,7 @@ describe('InviteUserModal', () => {
   })
 })
 
-describe('InviteUserModal domain_not_allowed message (specs/023 T8, AC-5.1)', () => {
+describe('InviteUserModal domain_not_allowed message (specs/20261105-signup-gate T8, AC-5.1)', () => {
   it('shows the domain message as the email field error, focused, and not as a general error', () => {
     render(
       <InviteUserModal

@@ -1,14 +1,14 @@
 /**
  * GuardrailDialog — acknowledge-only dialog for a server-side guardrail that
- * genuinely blocked an action (T15, specs/007-refund-service/tasks.md,
+ * genuinely blocked an action (T15, specs/20260716-refund-service/tasks.md,
  * design.md F2 steps 2/6, F6 step 6: "409 on either action … GuardrailDialog";
  * Component inventory: "GuardrailDialog — Reuse (ported pattern) —
  * admin-ui/src/components/GuardrailDialog.tsx — 409-race, genuinely-blocked
  * cases").
  *
  * History: this used to be a re-authored copy of another remote's component
- * (a remote cannot import another remote's source, ADR-0006). It now renders
- * @operai/ui's `NoticeDialog` (ADR-0050) and only binds refund-ui's copy and test ids.
+ * (a remote cannot import another remote's source, ADR 20260709-suite-frontend-module-federation). It now renders
+ * @operai/ui's `NoticeDialog` (ADR 20261031-shared-ui-library-consumed-as-source) and only binds refund-ui's copy and test ids.
  *
  * Fires for every 409-race case this feature's design names: withdraw after
  * a decision (F2 step 2), a stale-UI submit/edit/delete attempt on an
@@ -36,7 +36,7 @@
  *   • Default focus on "OK".
  *   • Backdrop click matches Escape's behavior (also acknowledges).
   *
- * Now @operai/ui's `NoticeDialog` (ADR-0050), which owns the frame, the
+ * Now @operai/ui's `NoticeDialog` (ADR 20261031-shared-ui-library-consumed-as-source), which owns the frame, the
  * single-button focus, Escape/backdrop = acknowledge, and focus return.
  */
 

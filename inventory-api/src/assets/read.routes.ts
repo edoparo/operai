@@ -1,5 +1,5 @@
 /**
- * `GET /assets`, `GET /assets/{id}` and `GET /suppliers` (T12, specs/015-hardware-inventory;
+ * `GET /assets`, `GET /assets/{id}` and `GET /suppliers` (T12, specs/20261006-hardware-inventory;
  * AC-3.7, AC-3.8, AC-4.3, AC-5.7, AC-5.8, AC-9.2, AC-10.3, AC-12.10).
  *
  * Either capability reads. What comes back depends on which:
@@ -8,7 +8,7 @@
  *     entity scope — `{ bookValueCents }` on list items, the full schedule on
  *     the detail. An inventory manager's response has no `ledger` key at all.
  *
- * Denials (ADR-0014): the list needs a capability (403). The detail does NOT
+ * Denials (ADR 20260716-refund-api-authorization-enforcing-resource-server): the list needs a capability (403). The detail does NOT
  * use the capability gate: a caller with neither capability, or an asset
  * outside their scope, or an unknown id, are all the same 404, so a grant-less
  * user learns nothing about someone else's device (AC-4.3).
@@ -16,7 +16,7 @@
  * `GET /suppliers` lists the supplier names already on assets the caller can
  * read, for the supplier field's suggestions. It takes no parameter: the
  * client filters the list itself, so what is being typed never reaches the
- * server (ADR-0041 posture). Same gate and same entity scope as the list.
+ * server (ADR 20260811-client-side-autocomplete-server-projected-corpus-app-code-folding posture). Same gate and same entity scope as the list.
  */
 
 import { OpenAPIHono, createRoute, z } from "@hono/zod-openapi";

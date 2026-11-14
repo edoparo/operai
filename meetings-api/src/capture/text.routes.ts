@@ -1,6 +1,6 @@
 /**
  * `PUT /meetings/:id/text`: pasted or typed text becomes the transcript
- * (specs/021-meetings AC-3.4, AC-6.1; plan.md § Capture).
+ * (specs/20261104-meetings AC-3.4, AC-6.1; plan.md § Capture).
  *
  * A `text` meeting has no consent attestation (G1) and no audio, so nothing is
  * queued: the passages are written and the meeting is `ready` in the same

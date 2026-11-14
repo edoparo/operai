@@ -1,6 +1,6 @@
 /**
  * EstimAI legacy-localStorage import journey — offer / accept / partial-failure /
- * decline, running against the SHELL-MOUNTED EstimAI remote (T18, specs/003-suite-shell).
+ * decline, running against the SHELL-MOUNTED EstimAI remote (T18, specs/20260709-suite-shell).
  *
  * ──────────────────────────────────────────────────────────────────────────
  * WHY THIS LIVES HERE (relocated from estimai-ui/e2e/import.spec.ts)

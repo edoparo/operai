@@ -1,6 +1,6 @@
 /**
  * expenseTypes — the twelve fixed expense-line categories carried over from
- * the paper form (T14, specs/007-refund-service/tasks.md; spec.md "Domain
+ * the paper form (T14, specs/20260716-refund-service/tasks.md; spec.md "Domain
  * language" table). Single source of truth for `ExpenseLineComposer`/
  * `ExpenseLineRow`'s type `<select>` (T16) and for spec.md's own
  * English-identifier/Italian-source-form-label pairing — see design.md's

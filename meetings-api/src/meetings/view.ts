@@ -1,6 +1,6 @@
 /**
- * The `Meeting` a caller sees (specs/021-meetings plan.md § API contracts,
- * § Authorization "Action matrix", amendments A1, A2, A4, G1, G3, ADR-0058).
+ * The `Meeting` a caller sees (specs/20261104-meetings plan.md § API contracts,
+ * § Authorization "Action matrix", amendments A1, A2, A4, G1, G3, ADR 20261104-meetings-tool-shape-visibility-by-participation).
  *
  *   buildMeetingView   PURE: loaded facts + injected clock in, the contract's
  *                      `Meeting` out. Every derived field (status incl.

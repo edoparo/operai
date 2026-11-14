@@ -52,7 +52,7 @@ describe("GET /meetings/:id/transcript", () => {
     ]);
   });
 
-  it("lists the parts: one entry per part, 1-based, with where each starts and ends (ADR-0070, H-6)", async () => {
+  it("lists the parts: one entry per part, 1-based, with where each starts and ends (ADR 20261105-meetings-transcript-parts-speaker-labels-per-part, H-6)", async () => {
     const m = await ready({ transcriptPartStartsMs: [0, 510_000, 1_020_000], transcriptPartEndsMs: [600_000, 1_110_000, 1_620_000] });
     const body = await json<Transcript>(await get(m.id));
     expect(body.parts).toEqual([

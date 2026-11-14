@@ -1,7 +1,7 @@
 /**
  * @vitest-environment jsdom
  *
- * Component tests for ConfirmDeleteModal (T15, specs/004-auth-roles-permissions,
+ * Component tests for ConfirmDeleteModal (T15, specs/20260713-auth-roles-permissions,
  * design.md Dialog D1).
  *
  * Covers:
@@ -133,7 +133,7 @@ describe('ConfirmDeleteModal', () => {
     expect(screen.getByText(/Untitled/)).not.toBeNull()
   })
 
-  // --- body override (T10, specs/006-user-invitations, design.md Dialog N2) ---
+  // --- body override (T10, specs/20260713-user-invitations, design.md Dialog N2) ---
 
   it('renders the default hard-delete copy verbatim when `body` is omitted (backward compatibility)', () => {
     render(<ConfirmDeleteModal {...baseProps} />)

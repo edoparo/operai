@@ -1,6 +1,6 @@
 # Vertex AI control-plane fixtures
 
-RECORDED 2026-11-05 (T107, specs/021) against the sandbox project through `https://aiplatform.eu.rep.googleapis.com`,
+RECORDED 2026-11-05 (T107, specs/20261104-meetings) against the sandbox project through `https://aiplatform.eu.rep.googleapis.com`,
 then scrubbed (project number and id replaced). They are the answers `checkVertex` (N3, N4) is tested against:
 
 - `cache-config.json`: `GET /v1/projects/<p>/cacheConfig`, HTTP 200. The `eu` host DOES serve it.

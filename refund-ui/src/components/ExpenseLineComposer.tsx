@@ -1,6 +1,6 @@
 /**
  * ExpenseLineComposer — the "add a new expense line" form on Screen R2's
- * `draft` variant (T16, specs/007-refund-service/tasks.md, AC-1.2; design.md
+ * `draft` variant (T16, specs/20260716-refund-service/tasks.md, AC-1.2; design.md
  * F1 step 3). Collects Date/Expense type/Motivo/Requested amount/Entity, and
  * — only once Expense type is `travel_km` — a required `km` field
  * (AC-1.2: "inapplicable — not shown/not required", not merely disabled).
@@ -16,7 +16,7 @@
  * else blank) and stays mounted, open for rapid successive adds (design.md:
  * "the composer resets and stays open").
  *
- * Currency (post-close change, specs/007): a separately-stored,
+ * Currency (post-close change, specs/20260716-refund-service): a separately-stored,
  * independently-selectable field, no longer derived from entity — its own
  * `<select>` with the same explicit "Select a currency…" no-default pattern
  * as entity/type (AC-1.2), required for "Add line" to enable. Any
@@ -33,7 +33,7 @@
  *     `rule-composer-status` technique) — a sighted user sees the field
  *     appear, a screen-reader user needs the same information stated.
  *
- * Motivo autocomplete (T12, specs/014-motivo-autocomplete/tasks.md): the raw
+ * Motivo autocomplete (T12, specs/20260811-motivo-autocomplete/tasks.md): the raw
  * Motivo `<input>` is now rendered by `MotivoSuggestField`, which layers an
  * ARIA combobox over the SAME element — same `id`/`data-testid`
  * `composer-motivo`, same `required`/`disabled`, one JSX node across both
@@ -48,7 +48,7 @@
  * fill-the-blanks merge whose result depends on typing order). The DATE is
  * deliberately untouched (AC-3.2 — a new claim is a new date), nothing is
  * saved (AC-3.7), and no amount/currency control exists for this type to fill
- * (AC-3.3, specs/009). `MileageAmountField` is already a pure function of
+ * (AC-3.3, specs/20260720-mileage-rate). `MileageAmountField` is already a pure function of
  * `(entity, date, km)`, so it re-derives the amount on its own with NO new
  * wiring (AC-3.5). A successful add bumps `corpusEpoch`, so the trip just
  * claimed becomes suggestible on the next threshold crossing (plan D6).
@@ -246,7 +246,7 @@ export default function ExpenseLineComposer({ onAdd }: ExpenseLineComposerProps)
           )}
         </div>
 
-        {/* specs/009-mileage-rate AC-1.1: for travel_km, Amount is replaced by the
+        {/* specs/20260720-mileage-rate AC-1.1: for travel_km, Amount is replaced by the
             read-only computed breakdown (MileageAmountField) — not merely disabled. */}
         {showKm ? (
           <div className="flex flex-col gap-1">
@@ -287,7 +287,7 @@ export default function ExpenseLineComposer({ onAdd }: ExpenseLineComposerProps)
           )}
         </Field>
 
-        {/* specs/009-mileage-rate AC-1.6: for travel_km, currency is entity-designated,
+        {/* specs/20260720-mileage-rate AC-1.6: for travel_km, currency is entity-designated,
             never independently selectable — the select is absent, not disabled. */}
         {!showKm && (
           <Field label={t.currencyLabel} error={validation.errorFor('currency')} required>

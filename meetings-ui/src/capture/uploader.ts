@@ -1,5 +1,5 @@
 /**
- * uploader — sends the recording's chunks to the bucket, in order, from memory (specs/021-meetings
+ * uploader — sends the recording's chunks to the bucket, in order, from memory (specs/20261104-meetings
  * plan § Browser capture › Chunk protocol, AC-2.6, AC-2.9, AC-4.11).
  *
  *   enqueue(chunk) ─▶ [ in-memory FIFO ] ─▶ POST to the bucket (presigned) ─▶ confirm to meetings-api

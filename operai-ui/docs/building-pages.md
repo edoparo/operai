@@ -57,7 +57,7 @@ Render exactly one of these, in this order of checks:
 | empty | `<StatePanel title={t.empty.heading}>{t.empty.body}</StatePanel>` |
 | loaded | the content, step 3 |
 
-A 503 from an authorization-enforcing API (ADR-0014) is the same `Banner` with
+A 503 from an authorization-enforcing API (ADR 20260716-refund-api-authorization-enforcing-resource-server) is the same `Banner` with
 `title` = "Authorization service unavailable".
 
 ## 3. Content by page type

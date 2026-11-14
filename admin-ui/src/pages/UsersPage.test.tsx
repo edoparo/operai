@@ -1,9 +1,9 @@
 /**
  * @vitest-environment jsdom
  *
- * Component tests for UsersPage — Screen C1 (T20, specs/004-auth-roles-permissions)
+ * Component tests for UsersPage — Screen C1 (T20, specs/20260713-auth-roles-permissions)
  * + Screen U1's row soft-delete extension (T10) + bulk select/delete (T11,
- * specs/006-user-invitations).
+ * specs/20260713-user-invitations).
  *
  * Covers:
  *   (A) Loading: adminApi.listUsers is pending → SkeletonListRows is visible.
@@ -347,7 +347,7 @@ describe('UsersPage', () => {
     })
   })
 
-  // (G) Row delete (T10, specs/006-user-invitations)
+  // (G) Row delete (T10, specs/20260713-user-invitations)
   it('Delete on a row opens ConfirmDeleteModal; confirming calls deleteUser and the list re-fetches (row vanishes, AC-5.3)', async () => {
     vi.mocked(adminApi.listUsers)
       .mockResolvedValueOnce(pageOf([userA, userB]))
@@ -451,7 +451,7 @@ describe('UsersPage', () => {
     expect(screen.getByText(/last administrator/)).not.toBeNull()
   })
 
-  // (J) Bulk select (T11, specs/006-user-invitations)
+  // (J) Bulk select (T11, specs/20260713-user-invitations)
   describe('bulk select', () => {
     it('checking a row shows the bulk action bar with a live count; no bar with nothing selected', async () => {
       vi.mocked(adminApi.listUsers).mockResolvedValue(pageOf([userA, userB, userC]))

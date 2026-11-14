@@ -1,5 +1,5 @@
 /**
- * Registering assets (T11, specs/015; AC-1.1..1.7, AC-10.2).
+ * Registering assets (T11, specs/20261006-hardware-inventory; AC-1.1..1.7, AC-10.2).
  *
  * One transaction per request: entity lock, closed-year check, serial check,
  * every asset row and its `registered` event. Any throw rolls the lot back, so a

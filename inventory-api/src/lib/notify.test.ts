@@ -1,6 +1,6 @@
 /**
- * Assignment notifications (T17, specs/015-hardware-inventory; AC-2.8, AC-2.9;
- * ADR-0044). Two layers over a stubbed network (`auth` token endpoint and
+ * Assignment notifications (T17, specs/20261006-hardware-inventory; AC-2.8, AC-2.9;
+ * ADR 20261006-scoped-service-jwt-fourth-notify-caller). Two layers over a stubbed network (`auth` token endpoint and
  * `notify-api`):
  *   - the notifier itself, with an injected `fetch` and token provider;
  *   - the REAL assignments and /me routers, real Postgres, with the notifier

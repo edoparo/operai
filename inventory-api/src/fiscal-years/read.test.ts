@@ -1,6 +1,6 @@
 /**
- * Fiscal years: list and roll-forward view (T19, specs/015-hardware-inventory;
- * AC-8.1, AC-8.2, AC-8.3, AC-7.2, AC-7.3, AC-9.4, ADR-0046). Real router +
+ * Fiscal years: list and roll-forward view (T19, specs/20261006-hardware-inventory;
+ * AC-8.1, AC-8.2, AC-8.3, AC-7.2, AC-7.3, AC-9.4, ADR 20261006-depreciation-derived-on-read-closed-years-snapshotted). Real router +
  * middleware over the harness, real Postgres.
  */
 

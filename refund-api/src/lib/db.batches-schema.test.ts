@@ -1,6 +1,6 @@
 /**
- * Schema/migration integration tests for T1 (specs/008-refund-monthly-processing,
- * ADR-0020/0022). T1 is schema + migration only — no routes/services exist
+ * Schema/migration integration tests for T1 (specs/20260719-refund-monthly-processing,
+ * ADR 20260719-refund-batch-paid-lifecycle-extension/0022). T1 is schema + migration only — no routes/services exist
  * yet (T2+ land those) — so this file exercises the Prisma client + raw SQL
  * directly against real Postgres, the same strategy as
  * `db.audit-immutability.test.ts`.
@@ -14,7 +14,7 @@
  *   onDelete: Restrict on every new FK (RefundRequest.batchId,
  *   RefundBatchItem.batchId/requestId, RefundAuditEntry.batchId).
  * - the candidate-query index (status, batchId, decidedAt) is present.
- * - (ADR-0020 decision 1) `paid` inherits 007's mutation immunity for free —
+ * - (ADR 20260719-refund-batch-paid-lifecycle-extension decision 1) `paid` inherits 007's mutation immunity for free —
  *   a `paid` request rejects edit (lines.repo's draft-only guard) and
  *   decide (decide.repo's submitted-only guard) exactly like
  *   approved/rejected, with ZERO guard-code changes required.
@@ -56,10 +56,10 @@ async function makeBatch(pdfObjectKey: string) {
   });
 }
 
-describe("RefundBatch / RefundBatchItem schema (specs/008 T1, ADR-0020/0022)", () => {
+describe("RefundBatch / RefundBatchItem schema (specs/20260719-refund-monthly-processing T1, ADR 20260719-refund-batch-paid-lifecycle-extension/0022)", () => {
   afterAll(async () => {
     // Children first (Restrict FKs), CASCADE handles the rest — TRUNCATE
-    // does not fire the refund_audit_entry row-level trigger (ADR-0018),
+    // does not fire the refund_audit_entry row-level trigger (ADR 20260716-immutable-financial-audit-trail-refund),
     // mirroring db.audit-immutability.test.ts's own cleanup.
     await db.$executeRawUnsafe(
       'TRUNCATE TABLE "refund_batch_item", "refund_audit_entry", "attachment", "refund_line", "refund_batch", "refund_request" RESTART IDENTITY CASCADE',
@@ -299,7 +299,7 @@ describe("RefundBatch / RefundBatchItem schema (specs/008 T1, ADR-0020/0022)", (
     expect(rows).toHaveLength(1);
   });
 
-  it("(ADR-0020 decision 1) a `paid` request rejects a line edit exactly like approved/rejected — zero new guard code", async () => {
+  it("(ADR 20260719-refund-batch-paid-lifecycle-extension decision 1) a `paid` request rejects a line edit exactly like approved/rejected — zero new guard code", async () => {
     const request = await db.refundRequest.create({
       data: {
         ownerUserId: "schema-immune-1",
@@ -317,7 +317,7 @@ describe("RefundBatch / RefundBatchItem schema (specs/008 T1, ADR-0020/0022)", (
     }
   });
 
-  it("(ADR-0020 decision 1) a `paid` request rejects a decision (approve) exactly like a non-submitted request", async () => {
+  it("(ADR 20260719-refund-batch-paid-lifecycle-extension decision 1) a `paid` request rejects a decision (approve) exactly like a non-submitted request", async () => {
     const request = await db.refundRequest.create({
       data: {
         ownerUserId: "schema-immune-2",

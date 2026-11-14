@@ -1,6 +1,6 @@
 /**
- * `/me/*` — the employee's own devices (T16, specs/015-hardware-inventory;
- * AC-2.3, AC-2.4, AC-2.6, AC-2.7, AC-4.1, AC-4.2, AC-4.4; ADR-0045).
+ * `/me/*` — the employee's own devices (T16, specs/20261006-hardware-inventory;
+ * AC-2.3, AC-2.4, AC-2.6, AC-2.7, AC-4.1, AC-4.2, AC-4.4; ADR 20261006-ungated-second-federated-entry-of-a-gated-remote).
  *
  * JWT ONLY. These routes use `identityOnly` (no `authzMiddleware`, no catalog
  * permission): a user with no inventory grant must reach their own devices,

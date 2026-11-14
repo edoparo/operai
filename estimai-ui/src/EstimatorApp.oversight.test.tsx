@@ -1,7 +1,7 @@
 /**
  * @vitest-environment jsdom
  *
- * Oversight mode of the estimate page (specs/024 AC-1.4, AC-1.5, AC-2.4): an
+ * Oversight mode of the estimate page (specs/20261108-estimate-list-oversight AC-1.4, AC-1.5, AC-2.4): an
  * admin who reaches an estimate only through `estimate:read-all` sees it in
  * full and can export it, but nothing is editable or closable, collaborators
  * are not offered, and merely opening it never dirties the document.

@@ -1,4 +1,4 @@
-/** Copy for each person's own meeting folders (ADR-0090): the list filter, the row's folder, and the folder dialogs. */
+/** Copy for each person's own meeting folders (ADR 20261113-personal-meeting-folders): the list filter, the row's folder, and the folder dialogs. */
 const en = {
   filter: 'Folder',
   all: 'All meetings',

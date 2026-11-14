@@ -1,13 +1,13 @@
 /**
- * Unit tests for computeMileageAmountCents (T12, specs/009-mileage-rate/
- * tasks.md; plan.md "Decision 3" / ADR-0025).
+ * Unit tests for computeMileageAmountCents (T12, specs/20260720-mileage-rate/
+ * tasks.md; plan.md "Decision 3" / ADR 20260720-mileage-rate-money-precision-integer-micros).
  *
  * DRIFT NOTE (see computeMileageAmountCents.ts's own doc comment for the
  * full analysis): this task's brief and plan.md's own worked JSON example
  * (`computedAmountCents: 168000` for `km: 240` / `ratePerKmMicros: 700000`)
- * both name a vector that is 10× the value the Decision-3/ADR-0025 FORMULA
+ * both name a vector that is 10× the value the Decision-3/ADR 20260720-mileage-rate-money-precision-integer-micros FORMULA
  * actually produces (16800). This suite exercises the formula — mathematically
- * self-consistent and verified against ADR-0025's own worked reasoning ("CHF
+ * self-consistent and verified against ADR 20260720-mileage-rate-money-precision-integer-micros's own worked reasoning ("CHF
  * 0.70/km × 240 km = CHF 168.00") — not the inconsistent literal figure.
  * `km=1, ratePerKmMicros=15000 → 2` (the half-up tie) is the one vector from
  * the brief that DOES match the formula, and is reproduced verbatim below.

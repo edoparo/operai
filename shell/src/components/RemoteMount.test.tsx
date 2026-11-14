@@ -2,7 +2,7 @@
  * @vitest-environment jsdom
  *
  * Integration tests for RemoteMount — the content-area remote boundary
- * (specs/003-suite-shell, T11, AC-6.1).
+ * (specs/20260709-suite-shell, T11, AC-6.1).
  *
  * Since a real `remoteEntry.js` can't be made to fail deterministically in a
  * unit test, these tests drive the boundary with an injected `loader` thunk

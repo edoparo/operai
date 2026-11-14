@@ -17,7 +17,7 @@ import {
 } from "./geminiSpeech";
 import { TranscriptionError } from "./transcriber";
 
-// Spec A12 / ADR-0077: Gemini on Vertex AI (EU) as the transcriber. The wire and the split are stubbed.
+// Spec A12 / ADR 20261110-meetings-transcription-gemini-on-vertex-eu: Gemini on Vertex AI (EU) as the transcriber. The wire and the split are stubbed.
 
 const auth: GoogleAuth = { accessToken: async () => "token", client: {} as never } as unknown as GoogleAuth;
 const S = (s: number) => s * 1000;
@@ -145,7 +145,7 @@ describe("the reply", () => {
     expect(out.parts).toEqual([{ startMs: 0, endMs: S(300) }]);
   });
 
-  it("a reply that is not the schema is sampled once more, then the transcription is refused (ADR-0067)", async () => {
+  it("a reply that is not the schema is sampled once more, then the transcription is refused (ADR 20261104-ai-output-structured-validated-plain-text)", async () => {
     const bad = { candidates: [{ finishReason: "STOP", content: { parts: [{ text: "Here is the transcript: ..." }] } }] };
     const { t, calls } = await make([bad, bad]);
     const error = await run(t).catch((e) => e);
@@ -291,7 +291,7 @@ describe("failures map to the closed codes", () => {
   });
 });
 
-describe("long recordings: parts, joined by the stitcher (ADR-0070)", () => {
+describe("long recordings: parts, joined by the stitcher (ADR 20261105-meetings-transcript-parts-speaker-labels-per-part)", () => {
   it("two overlapping parts: the overlap once, the voice joined", async () => {
     const shared = Array.from({ length: 30 }, (_, i) => `comune${i}`).join(" ");
     const { t, calls } = await make(

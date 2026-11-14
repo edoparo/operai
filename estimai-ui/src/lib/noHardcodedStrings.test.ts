@@ -83,7 +83,7 @@ function extract(rawSource: string, jsx = true): { literals: string[]; jsxText: 
 }
 
 // A literal made only of utility classes (a className, or one branch of a
-// conditional class) is styling, never copy (ADR-0051).
+// conditional class) is styling, never copy (ADR 20261031-one-styling-dialect-token-utilities).
 const UTILITY_CLASS =
   /^(?:[a-z-]+:)*-?(?:text|bg|border|font|p[xytblr]?|m[xytblr]?|gap|space|w|h|size|min|max|flex|grid|inline|items|justify|self|place|content|rounded|shadow|overflow|whitespace|leading|tracking|z|top|bottom|left|right|inset|opacity|cursor|transition|duration|ease|animate|ring|outline|fill|stroke|divide|col|row|order|tabular|line|list|object|aspect|basis|grow|shrink|break|decoration|underline|select|pointer|resize|align|sr|motion|truncate|btn|card|link|tab|badge|banner|dialog|field|form|page|tool|skeleton|spinner|state|fact|data|backdrop|translate|origin|group|touch|visually|is|active|focus|hover|placeholder|caret|accent|table|uppercase|normal-case|no)(?:-[a-z0-9./[\]%()#,_-]+)?$/
 const UTILITY_WORDS = new Set([

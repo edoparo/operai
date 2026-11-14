@@ -55,7 +55,7 @@ app.use("*", requestLogger());
 // 413 Problem before anything is parsed.
 export const MAX_REQUEST_BODY_BYTES = 64 * 1024;
 // An offer or a template carries up to 15 sections of 20 000 characters
-// (specs/020 AC-3.3), so those bodies get a larger, still bounded, cap.
+// (specs/20261102-crm-offer-document AC-3.3), so those bodies get a larger, still bounded, cap.
 export const MAX_DOCUMENT_BODY_BYTES = 1024 * 1024;
 const tooLarge = (c: Context) => problem({ status: 413, detail: "Request body is too large" }, c.req.path);
 const smallBody = bodyLimit({ maxSize: MAX_REQUEST_BODY_BYTES, onError: tooLarge });

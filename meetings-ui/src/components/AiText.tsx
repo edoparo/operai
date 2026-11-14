@@ -2,7 +2,7 @@ import { cx } from '@operai/ui'
 import { textBlocks } from '../lib/textBlocks'
 
 export type AiTextProps = {
-  /** Plain text written by the model (ADR-0067). */
+  /** Plain text written by the model (ADR 20261104-ai-output-structured-validated-plain-text). */
   text: string
   /** Secondary text, e.g. a section the meeting did not discuss. */
   soft?: boolean
@@ -10,7 +10,7 @@ export type AiTextProps = {
 
 /**
  * AI-written plain text with its paragraphs and lists laid out as such. Every block is a React text node: nothing
- * the model wrote is ever read as HTML or Markdown (ADR-0067).
+ * the model wrote is ever read as HTML or Markdown (ADR 20261104-ai-output-structured-validated-plain-text).
  */
 export function AiText({ text, soft = false }: AiTextProps) {
   const tone = soft ? 'text-soft' : 'text-text'

@@ -1,11 +1,11 @@
 /**
  * ErrorBanner — inline RFC 7807 error banner with a Retry action (T15,
- * specs/007-refund-service/tasks.md, design.md Component inventory:
+ * specs/20260716-refund-service/tasks.md, design.md Component inventory:
  * "ErrorBanner — Reuse (ported pattern) — admin-ui/src/components/ErrorBanner.tsx").
  *
  * History: this used to be a re-authored copy of another remote's component
- * (a remote cannot import another remote's source, ADR-0006). It now renders
- * @operai/ui's `Banner` (ADR-0050) and only binds refund-ui's copy and test ids.
+ * (a remote cannot import another remote's source, ADR 20260709-suite-frontend-module-federation). It now renders
+ * @operai/ui's `Banner` (ADR 20261031-shared-ui-library-consumed-as-source) and only binds refund-ui's copy and test ids.
  *
  * Presentational: the caller extracts `detail`/`title` off its own
  * `ApiError`-shaped error (`src/lib/refundApi.ts`) and passes plain strings
@@ -17,7 +17,7 @@
  *
  * Now a thin adapter over @operai/ui's `Banner` (tone `warning`: a
  * recoverable failure with Retry), binding refund-ui's copy and test ids
- * (ADR-0050).
+ * (ADR 20261031-shared-ui-library-consumed-as-source).
  *
  * A11y: `role="alert"` — assistive tech announces the message as soon as it
  * is inserted, without requiring focus to move there. "Retry" and "Dismiss"

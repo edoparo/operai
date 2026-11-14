@@ -1,5 +1,5 @@
 /**
- * CreateRoleModal — Modal M1 (T17, specs/004-auth-roles-permissions,
+ * CreateRoleModal — Modal M1 (T17, specs/20260713-auth-roles-permissions,
  * design.md Screen A1 / F2 step 2: "'New role' → Modal M1 (Create role)
  * (name, description) → `POST /admin/roles`").
  *
@@ -26,7 +26,7 @@
  *     unlike a destructive confirm's "safe default is Cancel").
  *   • Escape = Cancel; no submit is triggered.
  *
- * Built on @operai/ui's `FormDialog` (ADR-0050, INC-09): the library owns
+ * Built on @operai/ui's `FormDialog` (ADR 20261031-shared-ui-library-consumed-as-source, INC-09): the library owns
  * the frame, the focus trap (every enabled control, × included), Escape /
  * backdrop = Cancel (never while submitting), focus return and the buttons.
  */

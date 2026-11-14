@@ -140,7 +140,7 @@ describe('ReviewQueuePage — list states', () => {
     expect(reviewApi.listQueue).toHaveBeenCalledTimes(2)
   })
 
-  // QE regression (specs/007-refund-service, T21 verification pass) — the
+  // QE regression (specs/20260716-refund-service, T21 verification pass) — the
   // REAL refund-api wire contract sends `owner.name: null` for every request
   // ever created: `POST /requests` always calls `createDraftRequest(sub,
   // email, null)` (requests.routes.ts) because the JWT carries no `name`

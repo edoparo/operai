@@ -59,7 +59,7 @@ vi.mock('./lib/session', () => ({
   ensurePermissions,
   revalidatePermissions,
   getCachedPermissions,
-  // T11 (specs/005-notification-center): Header mounts Bell, which reads
+  // T11 (specs/20260713-notification-center): Header mounts Bell, which reads
   // useUnreadCount() (shell/src/lib/notifications.ts) on every render of the
   // shared chrome these tests exercise. notifications.ts imports
   // apiFetch/onSignOut from this same module.

@@ -2,7 +2,7 @@
  * seedSession — programmatically establish a better-auth session for e2e tests.
  *
  * Copied from `estimai-ui/e2e/helpers/seedSession.ts` verbatim (T16,
- * specs/003-suite-shell — reuse, not reinvent, per that task's scope). The
+ * specs/20260709-suite-shell — reuse, not reinvent, per that task's scope). The
  * shell now owns the suite-wide `_authed` guard (T9), so this is the shell
  * suite's own copy of the exact same seeding mechanism estimai-ui's e2e
  * suite already used.

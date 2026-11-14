@@ -1,6 +1,6 @@
 /**
  * requestsApi — typed employee-facing operations against `refund-api`'s
- * request/line/lifecycle endpoints (T16, specs/007-refund-service/tasks.md),
+ * request/line/lifecycle endpoints (T16, specs/20260716-refund-service/tasks.md),
  * built on `./refundApi.ts`'s generic `getJson`/`sendJson`/`deleteJson`
  * plumbing exactly as that file's own doc comment anticipates ("T16's
  * requests/lines … will build its typed operations on top of").
@@ -39,7 +39,7 @@ export type Attachment = {
 
 /**
  * `RefundLine.mileage` — present only for `travel_km` lines, `null`
- * otherwise (specs/009-mileage-rate/plan.md "## API contracts": "the single
+ * otherwise (specs/20260720-mileage-rate/plan.md "## API contracts": "the single
  * carrier for AC-1.8 breakdown, AC-2.2 block, AC-6.4 review display, and
  * AC-3.x freeze state"). `appliedRate` is the LIVE effective rate while the
  * line is still draft (`snapshotted: false`) and the FROZEN rate captured at
@@ -58,7 +58,7 @@ export type MileageInfo = {
 }
 
 /**
- * specs/007 amendment (2026-11-10) — a reviewer refused THIS line (with a
+ * specs/20260716-refund-service amendment (2026-11-10) — a reviewer refused THIS line (with a
  * mandatory reason) instead of the whole request; its approved total is 0.
  */
 export type LineRejection = {
@@ -82,7 +82,7 @@ export type RefundLine = {
   attachments: Attachment[]
   /**
    * Optional (not just nullable) on this TYPE so existing test fixtures
-   * across the app that predate specs/009-mileage-rate keep compiling
+   * across the app that predate specs/20260720-mileage-rate keep compiling
    * without every one of them being touched — treat a missing key exactly
    * like `null` (no mileage data) at every read site. The real wire
    * contract always sends the key (plan.md), null for non-travel_km.
@@ -113,13 +113,13 @@ export type RefundRequestDetail = {
   decidedBy: { email: string } | null
   rejectionMotivation: string | null
   /**
-   * Set only once `status==='paid'` (specs/008-refund-monthly-processing,
+   * Set only once `status==='paid'` (specs/20260719-refund-monthly-processing,
    * T13, design.md F4/F5 — the SAME `GET /requests/:id` route both the
    * employee and accounting sides use, plan.md line 80: "sees `paid` +
    * `paidAt`"). `paidBy` is rendered only on the accounting-facing
    * `ReviewDetailPage` ("Paid on `<date>` by `<email>`") — the employee-facing
    * `RequestDetailPage` shows the date alone, never who processed it. Not
-   * shown explicitly in specs/008 plan.md's own shape table (drift note: this
+   * shown explicitly in specs/20260719-refund-monthly-processing plan.md's own shape table (drift note: this
    * task's own report flags the exact field names as an assumption pending
    * backend confirmation, the same posture this file's own doc comment
    * already takes for the rest of this contract).
@@ -134,12 +134,12 @@ export type RefundRequestDetail = {
 
 /**
  * Body shared by `POST /requests/:id/lines` and `PUT /requests/:id/lines/:lineId`
- * (plan.md). `currency` (post-close change, specs/007): a separately-stored,
+ * (plan.md). `currency` (post-close change, specs/20260716-refund-service): a separately-stored,
  * independently-selectable field — REQUIRED, independent of `entity` (any
  * combination is valid; refund-api no longer derives it from entity) — for
  * every type EXCEPT `travel_km`.
  *
- * `requestedAmountCents`/`currency` (specs/009-mileage-rate amendment,
+ * `requestedAmountCents`/`currency` (specs/20260720-mileage-rate amendment,
  * AC-1.1/AC-1.6): for a `travel_km` line, both are server-derived —
  * `lineDraftToPayload` (`lib/lineDraft.ts`) omits them from the wire body
  * entirely rather than sending a client-guessed value, and refund-api
@@ -262,12 +262,12 @@ export const withdraw = (id: string): Promise<RefundRequestDetail> =>
   sendJson<RefundRequestDetail>(`/requests/${id}/withdraw`, 'POST', undefined)
 
 /**
- * `GET /requests/:id/export` — the archive PDF (ADR-0043).
+ * `GET /requests/:id/export` — the archive PDF (ADR 20260908-request-archive-export-refund-api-reads-attachment-bytes).
  *
  * Unlike every other call in this module this one returns BYTES, not JSON, so
  * it uses `apiFetch` directly rather than `getJson`. It also cannot be a
  * plain `<a href>` or `window.open`: the endpoint requires the Bearer JWT that
- * only `apiFetch` attaches (ADR-0001 keeps the token in memory, never in a
+ * only `apiFetch` attaches (ADR 20260607-jwt-in-memory-never-web-storage keeps the token in memory, never in a
  * cookie the browser would send on a top-level navigation), so the bytes must
  * be fetched and handed to the user as a Blob.
  *

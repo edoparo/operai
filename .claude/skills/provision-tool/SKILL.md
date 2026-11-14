@@ -35,7 +35,7 @@ several points where the user must act or decide, and a subagent cannot stop to 
 ./infra/check.sh                                       # 7. finish line
 ```
 
-The Railway service, its bucket and its custom domain are Railway IaC (ADR-0088,
+The Railway service, its bucket and its custom domain are Railway IaC (ADR 20261113-railway-infrastructure-as-code,
 `infra/README.md` § Railway configuration as code): you edit `.railway/railway.ts`,
 the script only checks and applies it. Show the user the plan output — including
 the `railway config plan` diff it prints — and get a yes before step 3; the apply

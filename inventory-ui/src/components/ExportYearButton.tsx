@@ -5,7 +5,7 @@ import { strings } from '../strings'
 
 /**
  * ExportYearButton — "Export XLSX" on the year detail page (T38 stub, filled by
- * T39; specs/015-hardware-inventory; design.md F12 step 5, § Accessibility "T6
+ * T39; specs/20261006-hardware-inventory; design.md F12 step 5, § Accessibility "T6
  * year detail"; AC-8.8, AC-8.9). The props are the T38 contract: the
  * `FiscalYearView` being shown, which is everything the export needs.
  *

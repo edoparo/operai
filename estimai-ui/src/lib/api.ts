@@ -1,12 +1,12 @@
 /**
- * api — facade over the shell's shared session module (T13, specs/003-suite-shell).
+ * api — facade over the shell's shared session module (T13, specs/20260709-suite-shell).
  *
  * Before T13 this file OWNED the in-memory JWT cache + `apiFetch` interceptor
- * (ADR-0001) for estimai-ui alone. estimai-ui now runs as a Module Federation
+ * (ADR 20260607-jwt-in-memory-never-web-storage) for estimai-ui alone. estimai-ui now runs as a Module Federation
  * remote inside the `shell` host (T12); the shell exposes that exact
  * implementation ONCE for the whole suite as `shell/session` (T4), extracted
  * verbatim from this file at that task. Every tool (estimai-ui, refund-ui, …)
- * now delegates here instead of holding its own JWT cache, so the ADR-0001
+ * now delegates here instead of holding its own JWT cache, so the ADR 20260607-jwt-in-memory-never-web-storage
  * token is cached a single time for the whole suite and a suite-wide sign-out
  * (shell/session's `signOut`) invalidates it everywhere at once (AC-2.3/AC-2.4).
  *

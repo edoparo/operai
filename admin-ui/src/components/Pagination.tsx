@@ -1,5 +1,5 @@
 /**
- * Pagination — shared paginated-list control (T15, specs/004-auth-roles-permissions,
+ * Pagination — shared paginated-list control (T15, specs/20260713-auth-roles-permissions,
  * design.md "Pagination control (shared within admin-ui)").
  *
  * Now an adapter over @operai/ui's Pagination (INC-15). Originally a

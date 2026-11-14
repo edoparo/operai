@@ -113,7 +113,7 @@ function checkRequiredKeys(suite: SuiteEnv, opts: CheckOptions): Finding[] {
   for (const svc of BACKENDS) {
     const env = suite[svc];
     if (!env) continue; // service not in scope for this run
-    // Keys a service treats as optional locally but production must hold (specs/025) join the list only for a prod-like env.
+    // Keys a service treats as optional locally but production must hold (specs/20261103-projects) join the list only for a prod-like env.
     const keys = [...(REQUIRED_KEYS[svc] ?? []), ...(opts.isProdLike ? (PRODUCTION_REQUIRED_KEYS[svc] ?? []) : [])];
     for (const key of keys) {
       const v = env[key];
@@ -531,7 +531,7 @@ function checkS3Residency(suite: SuiteEnv): Finding[] {
 }
 
 // ── Layer B9: a reserved test domain must not be an allowed sign-up domain in production ──
-// specs/023 plan.md amendment 2026-11-05: `operai.test` is local/e2e configuration only. auth exits at
+// specs/20261105-signup-gate plan.md amendment 2026-11-05: `operai.test` is local/e2e configuration only. auth exits at
 // startup on it under NODE_ENV=production; this reports it before the deploy.
 function checkSignupDomains(suite: SuiteEnv, opts: CheckOptions): Finding[] {
   if (!opts.isProdLike) return [];

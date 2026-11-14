@@ -1,7 +1,7 @@
 /**
  * @vitest-environment jsdom
  *
- * The Edit details dialog (specs/021-meetings T58; design.md S3c, F7b; AC-1.7, AC-1.8, AC-2.3,
+ * The Edit details dialog (specs/20261104-meetings T58; design.md S3c, F7b; AC-1.7, AC-1.8, AC-2.3,
  * AC-3.5): which fields are editable comes from the meeting's `can` flags, Remove link sends
  * `host: null`, and host visibility is NOT here (it lives only in the People and access card).
  */

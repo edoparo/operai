@@ -1,15 +1,15 @@
 # crm-api
 
-The CRM's resource server (specs/017-crm, ADR-0052): companies, contacts, deals, the pipeline,
+The CRM's resource server (specs/20261101-crm, ADR 20261101-crm-tool-shape-and-authorization): companies, contacts, deals, the pipeline,
 activities and tasks. Bun + Hono + Prisma, port **8084**, logical database **`crm`**. Live API
 reference at `http://localhost:8084/docs`.
 
 ## Environment
 
 The environment is validated at startup by `src/lib/env.ts`. The resource-server set is
-required. specs/018 adds two optional groups: without them, crm-api starts and only the
+required. specs/20261101-crm-sales-flow adds two optional groups: without them, crm-api starts and only the
 estimate routes, or the offer and attachment routes, answer 503 (`estimai_unconfigured`,
-`storage_unconfigured`). specs/019 adds a third, the notify group: without it nothing is
+`storage_unconfigured`). specs/20261101-crm-notifications adds a third, the notify group: without it nothing is
 sent and nothing fails.
 
 | Variable | Local value | Notes |
@@ -26,8 +26,8 @@ sent and nothing fails.
 | `CRM_S3_REGION` | `us-east-1` | an opaque placeholder for a non-AWS endpoint |
 | `CRM_S3_BUCKET` | `operai-crm-files-dev` | created by `minio-createbucket` in compose.yaml |
 | `CRM_S3_ACCESS_KEY_ID` / `CRM_S3_SECRET_ACCESS_KEY` | the MinIO root user (`minioadmin` / `minioadmin` by default) | secrets in any shared environment |
-| `CRM_S3_EU_ENDPOINT_HOSTS` | `localhost` | required for a non-AWS endpoint: the EU residency allowlist (ADR-0016) |
-| `NOTIFY_INTERNAL_URL` | `http://localhost:8081` | optional group, all three or none (specs/019): without it the CRM sends no notifications |
+| `CRM_S3_EU_ENDPOINT_HOSTS` | `localhost` | required for a non-AWS endpoint: the EU residency allowlist (ADR 20260716-eu-object-storage-refund-attachments) |
+| `NOTIFY_INTERNAL_URL` | `http://localhost:8081` | optional group, all three or none (specs/20261101-crm-notifications): without it the CRM sends no notifications |
 | `SERVICE_CLIENT_ID` | `crm-api` | its entry in auth's `SERVICE_CLIENTS` needs scope `notifications.push emails.send` |
 | `SERVICE_CLIENT_SECRET` | the secret of that entry, at least 32 characters | secret |
 

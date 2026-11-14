@@ -1,6 +1,6 @@
 /**
- * The database half of the legacy import (T23, specs/015-hardware-inventory;
- * US-12, ADR-0046). One transaction, under the entity advisory lock every dated
+ * The database half of the legacy import (T23, specs/20261006-hardware-inventory;
+ * US-12, ADR 20261006-depreciation-derived-on-read-closed-years-snapshotted). One transaction, under the entity advisory lock every dated
  * write takes, so an import and a register/close on `welld_ch` serialise; any
  * throw rolls the lot back. The tables it writes to (`asset_year_figure`,
  * `fiscal_year`, `asset_event`) are append-only at the database, so a wrong

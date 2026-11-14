@@ -1,7 +1,7 @@
 /**
  * @vitest-environment jsdom
  *
- * Component tests for AccountScreen (specs/012-employee-address, T14, US-6,
+ * Component tests for AccountScreen (specs/20260803-employee-address, T14, US-6,
  * AC-6.1/AC-6.2; design.md "`AccountScreen` — shell route `/account`").
  *
  * Per this task's done-when:
@@ -35,7 +35,7 @@ vi.mock('../lib/session', () => ({
   onBeforeSignOut: vi.fn(),
 }))
 
-// The push section (specs/029) is tested in PushSettings.test.tsx; here it is only a neighbour.
+// The push section (specs/20261111-push-notifications) is tested in PushSettings.test.tsx; here it is only a neighbour.
 vi.mock('../lib/push', async (importOriginal) => ({
   ...(await importOriginal<typeof import('../lib/push')>()),
   getPushConfig: vi.fn(),
@@ -152,7 +152,7 @@ describe('AccountScreen (US-6)', () => {
     expect(mockedGetMyAddress).toHaveBeenCalledTimes(2)
   })
 
-  it('shows no push section when push is disabled (specs/029 AC-6.1); the address section is unaffected', async () => {
+  it('shows no push section when push is disabled (specs/20261111-push-notifications AC-6.1); the address section is unaffected', async () => {
     mockedGetMyAddress.mockResolvedValue(FIXTURE_ADDRESS)
     render(<AccountScreen />)
     expect(await screen.findByText(FIXTURE_ADDRESS.formatted)).not.toBeNull()
@@ -160,7 +160,7 @@ describe('AccountScreen (US-6)', () => {
     expect(screen.queryByTestId('account-push-section')).toBeNull()
   })
 
-  it('renders the push section as a sibling OUTSIDE the address region, which stays free of interactive elements (specs/012 AC-6.2)', async () => {
+  it('renders the push section as a sibling OUTSIDE the address region, which stays free of interactive elements (specs/20260803-employee-address AC-6.2)', async () => {
     mockedGetMyAddress.mockResolvedValue(FIXTURE_ADDRESS)
     mockedPush.getPushConfig.mockResolvedValue({ enabled: true, vapidPublicKey: 'KEY' })
     mockedPush.listPushDevices.mockResolvedValue([

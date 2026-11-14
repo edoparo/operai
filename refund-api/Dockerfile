@@ -41,14 +41,14 @@ USER bun
 
 EXPOSE 8082
 
-# DATA-RESIDENCY (T19, specs/007-refund-service): this image is deployed to
+# DATA-RESIDENCY (T19, specs/20260716-refund-service): this image is deployed to
 # Railway EU region only (europe-west4, see .railway/railway.ts) — refund-api handles
 # financial figures and receipt-attachment metadata that may carry PII (names,
 # addresses, partial card numbers per docs/adr/0016). Request/response bodies
 # are NEVER logged — hono/logger emits method+path+status only (src/index.ts /
 # src/lib/logger.ts). Do NOT add any logger that includes body, query
 # parameters with content, or the Prisma 'query' log level. Object storage
-# (REFUND_S3_*, ADR-0016) is a SEPARATE EU-region resource — receipt bytes
+# (REFUND_S3_*, ADR 20260716-eu-object-storage-refund-attachments) is a SEPARATE EU-region resource — receipt bytes
 # never transit this container (presigned direct-to-bucket upload/download).
 #
 # The CMD is intentionally a shell form so the entrypoint can be overridden

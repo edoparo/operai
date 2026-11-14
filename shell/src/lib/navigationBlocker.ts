@@ -1,5 +1,5 @@
 /**
- * The navigation-blocker registry (specs/021-meetings, T50, AC-2.10).
+ * The navigation-blocker registry (specs/20261104-meetings, T50, AC-2.10).
  *
  * A remote that must not be left casually (meetings-ui while it is recording or
  * holds unsaved chunks) calls `registerNavigationBlocker(shouldBlock, message)`
@@ -14,9 +14,9 @@
  * otherwise force every one of those mocks to learn a new export. `session.ts`
  * re-exports `registerNavigationBlocker`, so the federated seam is unchanged.
  *
- * Module-scope memory only (ADR-0001's posture): nothing here is persisted.
+ * Module-scope memory only (ADR 20260607-jwt-in-memory-never-web-storage's posture): nothing here is persisted.
  *
- * Failure posture (ADR-0030, ADR-0060): a broken remote must never trap the
+ * Failure posture (ADR 20260803-suite-version-generated-file-federated-export, ADR 20261104-host-extension-federated-panel-through-the-shell): a broken remote must never trap the
  * person. A `shouldBlock` that throws counts as "do not block", and an
  * unregister from a replaced registration never removes the newer one.
  */

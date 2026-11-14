@@ -3,10 +3,10 @@ import { createRoot } from 'react-dom/client'
 import './index.css'
 import App from './App'
 
-// Dev/test-only standalone bootstrap (T13, specs/004-auth-roles-permissions):
+// Dev/test-only standalone bootstrap (T13, specs/20260713-auth-roles-permissions):
 // lets admin-ui build, run, and test entirely on its own, outside the shell
 // — mirrors refund-ui/src/main.tsx's standalone bootstrap (T15,
-// specs/003-suite-shell) exactly. App itself (see App.tsx) already imports
+// specs/20260709-suite-shell) exactly. App itself (see App.tsx) already imports
 // `shell/session` and `shell/tokens.css` as a federated remote, so
 // standalone dev mode (`pnpm --dir admin-ui dev`) requires the shell's dev
 // server to actually be running to resolve those — same constraint the

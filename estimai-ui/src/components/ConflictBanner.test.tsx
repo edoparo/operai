@@ -1,7 +1,7 @@
 /**
  * @vitest-environment jsdom
  *
- * Component tests for ConflictBanner (T18, specs/013-estimate-sharing/
+ * Component tests for ConflictBanner (T18, specs/20260807-estimate-sharing/
  * tasks.md; design.md S4/Accessibility).
  *
  * Covers the done-when: renders on the three ConflictInfo shapes with their

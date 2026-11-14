@@ -1,7 +1,7 @@
 /**
- * Participants of a CRM activity (specs/017 US-8) and moving an activity between a company's
- * contacts and deals (specs/017 AC-4.2): crm-api's `participants.test.ts` ported against the
- * crm test host (specs/028 AC-1.1, AC-6.2).
+ * Participants of a CRM activity (specs/20261101-crm US-8) and moving an activity between a company's
+ * contacts and deals (specs/20261101-crm AC-4.2): crm-api's `participants.test.ts` ported against the
+ * crm test host (specs/20261110-activities AC-1.1, AC-6.2).
  */
 import { afterEach, beforeEach, describe, expect, it } from "bun:test";
 import { authStub, call, hosts, makeCompany, makeContact, makeDeal, resetWorld } from "../test-support/world";
@@ -10,7 +10,7 @@ import { renderNotification } from "../lib/notificationCopy";
 
 type Seen = NotifyEvent & { to: string[]; email: boolean; href: string };
 
-describe("activity participants (specs/017 US-8)", () => {
+describe("activity participants (specs/20261101-crm US-8)", () => {
   let events: Seen[];
 
   beforeEach(async () => {
@@ -128,7 +128,7 @@ describe("activity participants (specs/017 US-8)", () => {
   });
 });
 
-describe("changing an activity's contact and deal (specs/017 AC-4.2)", () => {
+describe("changing an activity's contact and deal (specs/20261101-crm AC-4.2)", () => {
   beforeEach(resetWorld);
 
   it("the author moves it to another contact or deal of the same company, or clears them", async () => {

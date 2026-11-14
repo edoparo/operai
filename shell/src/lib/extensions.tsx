@@ -1,14 +1,14 @@
 /**
- * Host extensions (specs/021-meetings, T51, AC-11.6, ADR-0060) — exposed as
+ * Host extensions (specs/20261104-meetings, T51, AC-11.6, ADR 20261104-host-extension-federated-panel-through-the-shell) — exposed as
  * `shell/extensions`.
  *
  * A host app (today: crm-ui's deal page) embeds a panel owned by another remote
  * (Meetings' `./HostMeetings`) with `<HostExtension name="meetings.hostMeetings"
  * props={…} fallback={…} />`. The shell owns the seam so the host never declares
  * the other remote as its own Module Federation remote (composition belongs to
- * the shell, ADR-0006).
+ * the shell, ADR 20260709-suite-frontend-module-federation).
  *
- * The one rule (ADR-0030, restated by ADR-0060): the other side's code failure
+ * The one rule (ADR 20260803-suite-version-generated-file-federated-export, restated by ADR 20261104-host-extension-federated-panel-through-the-shell): the other side's code failure
  * must never become the host page's failure. A rejected import (remote down,
  * version skew), a 5 s timeout, a module without the export, and a render-time
  * throw (error boundary) ALL render the host's own `fallback`; nothing is ever
@@ -29,7 +29,7 @@ export const EXTENSION_TIMEOUT_MS = 5000
 /** The extensions this shell can load, with the props each one takes. */
 export interface ExtensionProps {
   'meetings.hostMeetings': { hostApp: string; entityType: string; entityId: string }
-  /** The recorder widget, shown by the floating slot (spec A13, ADR-0078), not by a host page. */
+  /** The recorder widget, shown by the floating slot (spec A13, ADR 20261110-shell-floating-slot-for-remote-widgets), not by a host page. */
   'meetings.recorderDock': { meetingId: string; title: string }
 }
 

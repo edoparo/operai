@@ -1,4 +1,4 @@
-# meetings-eval — prompt-injection evals for meetings-api (specs/021 T84, AC-7.12, AC-9.7, ADR-0067).
+# meetings-eval — prompt-injection evals for meetings-api (specs/20261104-meetings T84, AC-7.12, AC-9.7, ADR 20261104-ai-output-structured-validated-plain-text).
 #
 # CI MODE ONLY. This job runs the evals against the scripted fake model: no network, no database,
 # no secrets (the workflow token is read-only and no `secrets.*` is referenced). The `--live` run
@@ -44,7 +44,7 @@ jobs:
       - name: Guard — no cloud credentials in the job
         run: |
           set -eu
-          # Google (the providers, specs/021 plan G-7), plus the previous providers' and generic names, so a
+          # Google (the providers, specs/20261104-meetings plan G-7), plus the previous providers' and generic names, so a
           # credential of any cloud cannot ride into this job. AZURE_EXTENSION_DIR is exempt: the runner
           # image itself sets it (a path to the az CLI extensions, no credential).
           hits="$(env | grep -E '^(MEETINGS_GCP_|MEETINGS_VERTEX_|MEETINGS_SPEECH_|GOOGLE_|CLOUDSDK_|ANTHROPIC_|AWS_|AZURE_)' | grep -v '^AZURE_EXTENSION_DIR=' | cut -d= -f1 || true)"

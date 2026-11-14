@@ -1,5 +1,5 @@
 /**
- * T45 — Inventory ledger journey (specs/015-hardware-inventory).
+ * T45 — Inventory ledger journey (specs/20261006-hardware-inventory).
  *
  * Drives the REAL assembled shell host + inventory-ui remote against the REAL
  * auth / inventory-api; nothing is mocked. A hardware accountant (the real
@@ -17,7 +17,7 @@
  *      roll-forward lines, no provisional marker.
  *
  * DATA AND WHY IT IS SAFE TO RE-RUN. Closing a year is irreversible (row-level
- * triggers, ADR-0046) and the `inventory` database is the one local dev uses, so
+ * triggers, ADR 20261006-depreciation-derived-on-read-closed-years-snapshotted) and the `inventory` database is the one local dev uses, so
  * this spec never assumes a clean database. `pickClosableYear` (see
  * inventoryFixtures.ts) closes the next closable year of an entity, in order,
  * starting from 2020 and never past the current UTC year (that is a 409
@@ -101,7 +101,7 @@ function readWorkbook(file: string): { strings: string[]; numbers: number[] } {
   return { strings, numbers }
 }
 
-test.describe('specs/015 T45: ledger journey', () => {
+test.describe('specs/20261006-hardware-inventory T45: ledger journey', () => {
   test('an accountant sees the schedule, disposes, exports the open year, closes it and exports the closed year (AC-8.4/8.8/8.9)', async ({
     browser,
   }) => {

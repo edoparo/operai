@@ -1,5 +1,5 @@
 /**
- * Unit tests for src/lib/googlePlaces.ts (T7, specs/012-employee-address/tasks.md,
+ * Unit tests for src/lib/googlePlaces.ts (T7, specs/20260803-employee-address/tasks.md,
  * refs AC-2.1, AC-2.2, AC-2.4, AC-2.5, AC-3.2).
  *
  * `createAddressSuggester` is driven with fake timers against an injected

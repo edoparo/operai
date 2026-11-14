@@ -12,7 +12,7 @@
  * ── The single highest-consequence assertion in this file ──────────────────
  * "non-admin gets 403 on BOTH verbs, against a colleague's id AND their own"
  * — proves `userAddressRouter`'s re-declared `requireAdmin` gate line is
- * actually present (plan.md / ADR-0031: a forgotten line here silently
+ * actually present (plan.md / ADR 20260804-employee-address-auth-identity-attribute-1to1-table: a forgotten line here silently
  * exposes every employee's home address).
  */
 
@@ -379,7 +379,7 @@ describe("Admin Employee Address API (T3)", () => {
 
   // ── Regression: a malformed-but-non-blank countryCode 422s, never 500s ────
   //
-  // Flagged by QE during specs/012 verification: "CHE" (or any string that
+  // Flagged by QE during specs/20260803-employee-address verification: "CHE" (or any string that
   // isn't exactly two uppercase letters) is non-blank, so it sailed past
   // `normalizeAndValidate`'s completeness check, reached
   // `tx.employeeAddress.upsert(...)`, and was rejected by the DB's
@@ -779,7 +779,7 @@ describe("Admin Employee Address API (T3)", () => {
   //
   // The tests above only ever change `countryCode`/`city`/`street` (three of
   // the eight fields `normalizedAddressesEqual` compares). Flagged by QE
-  // during specs/012 verification: nothing previously proved that a change
+  // during specs/20260803-employee-address verification: nothing previously proved that a change
   // confined to ONLY an optional field (postalCode, region) or ONLY the
   // coordinate pair is correctly detected as a REAL change rather than
   // silently swallowed as a no-op — a plausible regression (e.g. a future

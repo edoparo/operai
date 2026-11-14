@@ -1,5 +1,5 @@
 /**
- * Dispose (T18, specs/015-hardware-inventory; AC-7.1, AC-7.3..AC-7.6, AC-11.1).
+ * Dispose (T18, specs/20261006-hardware-inventory; AC-7.1, AC-7.3..AC-7.6, AC-11.1).
  * Real routers + middleware over the harness, real Postgres.
  */
 

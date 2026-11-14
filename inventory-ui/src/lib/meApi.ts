@@ -4,7 +4,7 @@ import type { MyDevice, MyDevicesResponse } from './types'
 /**
  * The ungated `/me/*` routes behind the devices view (US-4): JWT only, no
  * catalog permission, always scoped to the caller's `sub` server-side. Nothing
- * here asks for a capability or for `/scope` (ADR-0045).
+ * here asks for a capability or for `/scope` (ADR 20261006-ungated-second-federated-entry-of-a-gated-remote).
  */
 
 const assignmentPath = (id: string, action: 'confirm' | 'decline') =>

@@ -5,7 +5,7 @@ import { join } from "node:path";
 import type { S3Client } from "@aws-sdk/client-s3";
 import { ObjectTooLargeError, createStorage } from "./storage";
 
-// ADR-0064: the streaming read (to disk, bounded) and the audio.ogg put.
+// ADR 20261104-meetings-api-reads-audio-bytes-third-reader: the streaming read (to disk, bounded) and the audio.ogg put.
 
 const dir = mkdtempSync(join(tmpdir(), "storage-stream-"));
 afterAll(() => rmSync(dir, { recursive: true, force: true }));

@@ -1,9 +1,9 @@
 /**
- * TicketStore — SSE stream-handshake ticket seam (T3, specs/005-notification-center,
- * ADR-0008).
+ * TicketStore — SSE stream-handshake ticket seam (T3, specs/20260713-notification-center,
+ * ADR 20260713-sse-stream-auth-short-lived-ticket).
  *
  * `EventSource` cannot send an Authorization header, so the SSE handshake is
- * authenticated by a short-lived, single-use, sub-bound ticket instead (ADR-0008):
+ * authenticated by a short-lived, single-use, sub-bound ticket instead (ADR 20260713-sse-stream-auth-short-lived-ticket):
  *   1. POST /notifications/stream-ticket (Bearer/JWKS-authed, T7) calls mint(sub)
  *      and returns the opaque ticket to the client.
  *   2. GET /notifications/stream?ticket=… (T7) calls consume(ticket); a valid,
@@ -14,7 +14,7 @@
  * the mint↔consume ticket must be visible across instances at that point, which
  * the v1 in-process store cannot provide.
  *
- * SECURITY (ADR-0008 "Ticket replay within the TTL window"): consume() MUST be a
+ * SECURITY (ADR 20260713-sse-stream-auth-short-lived-ticket "Ticket replay within the TTL window"): consume() MUST be a
  * single atomic get-and-delete, not a separate read then write — otherwise two
  * near-simultaneous stream-open requests for the same ticket could both observe
  * "not yet consumed". The in-process implementation achieves this by relying on
@@ -30,7 +30,7 @@ export interface TicketStore {
    * Atomically consume a ticket: if it exists, is unexpired, and has not already
    * been consumed, returns the bound `sub` and removes the ticket (single-use).
    * Otherwise returns `undefined` (unknown / expired / already-used ticket — the
-   * caller MUST treat all three identically as a 401, per ADR-0008 — never leak
+   * caller MUST treat all three identically as a 401, per ADR 20260713-sse-stream-auth-short-lived-ticket — never leak
    * which case occurred).
    */
   consume(ticket: string): string | undefined;
@@ -41,12 +41,12 @@ type TicketEntry = {
   expiresAt: number; // epoch ms
 };
 
-/** Ticket TTL — ADR-0008: "~30 seconds". */
+/** Ticket TTL — ADR 20260713-sse-stream-auth-short-lived-ticket: "~30 seconds". */
 export const TICKET_TTL_MS = 30_000;
 
 /**
  * In-process ticket store — a `Map<ticket, {sub, expiresAt}>`. Correct for a
- * single `notify-api` instance only (ADR-0008 Consequences / plan.md Risk R2).
+ * single `notify-api` instance only (ADR 20260713-sse-stream-auth-short-lived-ticket Consequences / plan.md Risk R2).
  */
 export class InProcessTicketStore implements TicketStore {
   private readonly tickets = new Map<string, TicketEntry>();

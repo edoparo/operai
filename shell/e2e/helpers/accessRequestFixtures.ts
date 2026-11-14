@@ -1,5 +1,5 @@
 /**
- * Test-only fixture bridge for specs/023-signup-gate e2e (T10).
+ * Test-only fixture bridge for specs/20261105-signup-gate e2e (T10).
  *
  * A waiting-list row is only ever written by a refused first OAuth sign-in, and
  * real OAuth cannot run in e2e (`/test-auth/session` deliberately bypasses the

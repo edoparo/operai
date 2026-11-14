@@ -1,17 +1,17 @@
 /**
  * inventory-api's authorization-enforcing middleware (T7, specs/015-hardware-
- * inventory, ADR-0014). Copied from refund-api/src/auth/authz.middleware.ts —
- * the repo has no workspace (ADR-0003), so each resource server owns its copy.
+ * inventory, ADR 20260716-refund-api-authorization-enforcing-resource-server). Copied from refund-api/src/auth/authz.middleware.ts —
+ * the repo has no workspace (ADR 20260703-estimai-api-bun-hono-typescript), so each resource server owns its copy.
  *
  * Runs AFTER `jwtMiddleware` on every gated route (identity is already
  * established — `c.var.userId`/`email`/`permEpoch`). Resolves the caller's
  * INVENTORY permissions live from `auth GET /authz/resolve`, forwarding the
  * caller's own already-verified Bearer token verbatim (no new credential,
- * ADR-0014 point 1). Sets `c.var.authz = { permissions, entity }` for
+ * ADR 20260716-refund-api-authorization-enforcing-resource-server point 1). Sets `c.var.authz = { permissions, entity }` for
  * downstream route handlers (T7+) to gate on via `src/authz/conditions.ts`'s
  * helpers.
  *
- * Caching (ADR-0014 point 2): keyed by `(sub, perm_epoch)` — the epoch read
+ * Caching (ADR 20260716-refund-api-authorization-enforcing-resource-server point 2): keyed by `(sub, perm_epoch)` — the epoch read
  * off the caller's OWN verified JWT by jwtMiddleware. A grant change bumps
  * `perm_epoch` at `auth`; the caller's next refreshed token carries the new
  * epoch, which is a cache-key MISS here, forcing a fresh resolve. A short
@@ -19,14 +19,14 @@
  * bounding worst-case staleness independent of how promptly any individual
  * client refreshes its own token.
  *
- * Fail-closed (ADR-0014 point 4): if `/authz/resolve` is unreachable or
+ * Fail-closed (ADR 20260716-refund-api-authorization-enforcing-resource-server point 4): if `/authz/resolve` is unreachable or
  * returns a non-2xx response, this middleware responds 503 — it NEVER falls
  * back to "allow", and it never serves a stale/expired cache entry to paper
  * over the outage. Every authorization-gated route now has a hard runtime
  * dependency on `auth`'s availability; this is an accepted trade-off given
  * this feature's financial-data weight, not a defect.
  *
- * NOT applied to `/me/*` (ADR-0045): the devices view must work for a user
+ * NOT applied to `/me/*` (ADR 20261006-ungated-second-federated-entry-of-a-gated-remote): the devices view must work for a user
  * with no inventory grant at all, so those routes use `jwtMiddleware` alone
  * (see `guards.ts`). `GET /scope` is the opposite case — it needs the resolved
  * permissions but requires no capability.
@@ -114,7 +114,7 @@ export const authzMiddleware = createMiddleware<{
     const resolved = await fetchAuthzResolve(authorizationHeader);
     context = { permissions: resolved.permissions, entity: resolved.entity };
   } catch (err) {
-    // Fail CLOSED (ADR-0014 point 4) — never fall back to "allow", and never
+    // Fail CLOSED (ADR 20260716-refund-api-authorization-enforcing-resource-server point 4) — never fall back to "allow", and never
     // serve a stale cache entry to paper over the outage.
     console.error(
       "[authz] auth GET /authz/resolve failed — denying request (fail-closed):",

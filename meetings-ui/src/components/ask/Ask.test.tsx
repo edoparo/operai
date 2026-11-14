@@ -127,7 +127,7 @@ describe('the conversation (AC-9.1, AC-9.3, AC-9.5)', () => {
     expect(screen.queryByText(en.ask.sources)).toBeNull()
   })
 
-  it('renders question and answer as plain text (ADR-0067)', async () => {
+  it('renders question and answer as plain text (ADR 20261104-ai-output-structured-validated-plain-text)', async () => {
     const hostile = '<img src=x onerror=alert(1)> [click](https://evil.test) **bold**'
     serve(conversation([turn({ question: hostile, answer: { text: hostile, notInMeeting: false, citations: [] } })]))
     const { container } = render(<AskPanel meeting={readyMeeting()} onOpenSource={vi.fn()} />)

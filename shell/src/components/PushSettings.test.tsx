@@ -1,7 +1,7 @@
 /**
  * @vitest-environment jsdom
  *
- * Component tests for PushSettings (specs/029-push-notifications, T9; AC-1.1-1.6, 1.8, 3.1, 3.2, 6.1;
+ * Component tests for PushSettings (specs/20261111-push-notifications, T9; AC-1.1-1.6, 1.8, 3.1, 3.2, 6.1;
  * design.md § Screens & states, § Accessibility). `../lib/push` is replaced at its edge (the calls
  * the browser and notify-api sit behind); `PushError` stays real so the component's error mapping
  * is exercised.
@@ -444,7 +444,7 @@ describe('device list and removal (AC-3.1, AC-3.2)', () => {
   })
 
   // design.md focus table: after each removal focus goes to the next row's header, else the previous one,
-  // else the empty panel. A repeat removal can name the same surviving row twice (D-4, specs/029 QE round 1).
+  // else the empty panel. A repeat removal can name the same surviving row twice (D-4, specs/20261111-push-notifications QE round 1).
   const SEQUENCES: [string, string[], string[]][] = [
     ['first then last', ['d1', 'd3'], ['d2', 'd2']],
     ['last then last', ['d3', 'd2'], ['d2', 'd1']],

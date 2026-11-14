@@ -1,6 +1,6 @@
 /**
- * Pure, DB-free authorization-condition helpers (specs/017-crm, ADR-0014
- * point 3 + ADR-0015). Ported from inventory-api/src/authz/conditions.ts,
+ * Pure, DB-free authorization-condition helpers (specs/20261101-crm, ADR 20260716-refund-api-authorization-enforcing-resource-server
+ * point 3 + ADR 20260716-entity-scoped-abac-refund-api). Ported from inventory-api/src/authz/conditions.ts,
  * which fails CLOSED on a condition it does not recognise; kept as is.
  *
  *   - `hasCapability` / `findPermission`  does the resolved set contain the grant?
@@ -10,7 +10,7 @@
  * The CRM's one entity-scoped capability is `deal:manage`: a deal has one
  * entity, so scope is exact. Unlike inventory, every CRM user can READ every
  * deal, so a write outside the scope is a 403 `out_of_scope`, not a 404
- * (decisions D-5, ADR-0037's "relationship exists" branch).
+ * (decisions D-5, ADR 20260807-denial-taxonomy-shared-records-403-vs-404's "relationship exists" branch).
  */
 
 import type { ResolveConditions, ResolvedPermission } from "./resolveClient";
@@ -52,7 +52,7 @@ export function findPermission(
   );
 }
 
-// ─── Entity scope (ADR-0015, reused by plan.md § Authorization model) ──────
+// ─── Entity scope (ADR 20260716-entity-scoped-abac-refund-api, reused by plan.md § Authorization model) ──────
 
 type GrantKind = "unrestricted" | "entity" | "unrecognised";
 
@@ -109,7 +109,7 @@ function warnUnrecognised(permission: ResolvedPermission): void {
  *   - carries a condition we do not recognise    → nothing from that grant, plus a
  *     warning (fails closed; see `grantKind` for why this differs from refund-api)
  *
- * Several grants of the same pair are unioned, widest wins (ADR-0007): a
+ * Several grants of the same pair are unioned, widest wins (ADR 20260713-authz-hand-rolled-rbac-abac-epoch-claims): a
  * conditioned one plus an unconditioned one covers both entities. `auth`'s
  * resolver already de-duplicates, so this is defence in depth, not the main
  * path. The result is in the fixed `ENTITIES` order with no duplicates.

@@ -1,7 +1,7 @@
 /**
  * @vitest-environment jsdom
  *
- * Component tests for SystemBadge (T15, specs/004-auth-roles-permissions).
+ * Component tests for SystemBadge (T15, specs/20260713-auth-roles-permissions).
  *
  * Covers:
  *   (A) renders both a glyph (aria-hidden, decorative) and the text "System"

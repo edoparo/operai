@@ -1,6 +1,6 @@
 /// <reference types="vite/client" />
 
-// Injected at build time by Vite `define` (see vite.config.ts, T6, specs/003-suite-shell).
+// Injected at build time by Vite `define` (see vite.config.ts, T6, specs/20260709-suite-shell).
 // Absent under vitest, where src/lib/appInfo.ts falls back to a placeholder version.
 declare const __APP_VERSION__: string
 
@@ -8,7 +8,7 @@ declare const __APP_VERSION__: string
 // design are typed here; the rest are read with an `as string` cast at their call site.
 interface ImportMetaEnv {
   /**
-   * Public origin of inventory-api (specs/015-hardware-inventory, T41/T43), e.g.
+   * Public origin of inventory-api (specs/20261006-hardware-inventory, T41/T43), e.g.
    * `https://inventory-api.operai.welld.io`. Optional: when unset, `getTrustedOrigins()`
    * does NOT add an inventory origin, so `apiFetch` sends no Bearer JWT there and
    * `getInventoryApiBaseUrl()` returns `undefined` at runtime. Set it on the shell
@@ -16,24 +16,24 @@ interface ImportMetaEnv {
    */
   readonly VITE_INVENTORY_API_URL?: string
   /**
-   * Public origin of crm-api (specs/017-crm), e.g. `https://crm-api.operai.welld.io`.
+   * Public origin of crm-api (specs/20261101-crm), e.g. `https://crm-api.operai.welld.io`.
    * Optional, like VITE_INVENTORY_API_URL: unset → not trusted, no Bearer JWT sent.
    */
   readonly VITE_CRM_API_URL?: string
   /**
-   * Public origin of meetings-api (specs/021-meetings, T50), e.g.
+   * Public origin of meetings-api (specs/20261104-meetings, T50), e.g.
    * `https://meetings-api.operai.welld.io`. Optional, like VITE_CRM_API_URL: unset → not
    * trusted, no Bearer JWT sent; meetings-ui has no copy of its own (it asks the shell).
    */
   readonly VITE_MEETINGS_API_URL?: string
   /**
-   * Public origin of projects-api (specs/025-projects), e.g.
+   * Public origin of projects-api (specs/20261103-projects), e.g.
    * `https://projects-api.operai.welld.io`. Optional, like VITE_CRM_API_URL: unset →
    * not trusted, no Bearer JWT sent.
    */
   readonly VITE_PROJECTS_API_URL?: string
   /**
-   * Public origin of activities-api (specs/028-activities), e.g.
+   * Public origin of activities-api (specs/20261110-activities), e.g.
    * `https://activities-api.operai.welld.io`. Optional, like VITE_PROJECTS_API_URL: unset →
    * not trusted, no Bearer JWT sent.
    */

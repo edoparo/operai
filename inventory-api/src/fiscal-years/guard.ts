@@ -1,6 +1,6 @@
 /**
  * Closed-year guard and per-entity write lock (T9, specs/015-hardware-
- * inventory; AC-1.7, plan.md "Other decisions → Closed-year guard", ADR-0046).
+ * inventory; AC-1.7, plan.md "Other decisions → Closed-year guard", ADR 20261006-depreciation-derived-on-read-closed-years-snapshotted).
  *
  * A fiscal year is closed for an entity exactly when a `fiscal_year` row exists
  * for it, and years close strictly in order (T20's `previous_year_open`), so

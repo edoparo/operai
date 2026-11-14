@@ -18,13 +18,13 @@ import { LoadFailure, Loading } from './LoadState'
 type Dialog = 'generate' | 'proposal' | { delete: Offer } | { sent: Offer } | { source: OfferSource } | null
 
 /**
- * OffersCard — the deal's offer versions, newest first (specs/018 US-4). Only
+ * OffersCard — the deal's offer versions, newest first (specs/20261101-crm-sales-flow US-4). Only
  * rendered for a caller with `deal:financials`: an offer prints the price.
  * Generating needs `deal:manage` over the deal and a ready estimate, or an
  * admin's override of the estimate gate; on a `qualified` deal the person is then asked whether to move it to proposal
  * (AC-4.5). Download opens the short-lived link in a new tab.
  *
- * specs/020 US-7: the newest offer is edited in place until it is marked sent;
+ * specs/20261102-crm-offer-document US-7: the newest offer is edited in place until it is marked sent;
  * marking it sent freezes it and moves an open deal before `negotiation` there.
  * After that the header offers "New revision", which starts from the sent one.
  */
@@ -50,7 +50,7 @@ export default function OffersCard({
   const [error, setError] = useState<string | null>(null)
   const [notice, setNotice] = useState<string | null>(null)
 
-  // A ready estimate, or an admin's go-ahead without one (specs/018 AC-3.7).
+  // A ready estimate, or an admin's go-ahead without one (specs/20261101-crm-sales-flow AC-3.7).
   const ready = deal.estimate?.state === 'ready' || deal.estimateOverridden
   const close = () => {
     setDialog(null)
@@ -128,7 +128,7 @@ export default function OffersCard({
   const items = offers.status === 'ready' ? offers.data!.items : []
   // The newest offer still listed: the only one edited or marked sent.
   const latest = items.find((offer) => !offer.deleted)
-  // An offer from a template (specs/020); older ones are neither edited nor revised from.
+  // An offer from a template (specs/20261102-crm-offer-document); older ones are neither edited nor revised from.
   const latestIsDocument = latest !== undefined && (latest.templateName ?? null) !== null
   const latestSent = latest?.sent != null
   const editable = (offer: Offer) => canManage && offer.id === latest?.id && latestIsDocument && !latestSent

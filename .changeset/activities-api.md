@@ -10,7 +10,7 @@
 "@operai/projects-ui": minor
 ---
 
-Add activities-api (specs/028, ADR-0081/0082/0083): one backend-only service for the activities, tasks and
+Add activities-api (specs/20261110-activities, ADR 20261110-activities-service-access-delegated-to-host/0082/0083): one backend-only service for the activities, tasks and
 task blockers of the CRM and of Projects, with no permission catalog of its own, so every access decision is
 asked of the host (`crm-api`, `projects-api`) as the caller and fails closed. `crm-api` moves its activities,
 participants, blockers and meeting host state out (they are copied in once by

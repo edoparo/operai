@@ -1,5 +1,5 @@
 /**
- * Unit tests for the money helpers (T25, specs/015-hardware-inventory),
+ * Unit tests for the money helpers (T25, specs/20261006-hardware-inventory),
  * carried over from refund-ui/src/lib/money.test.ts (EUR and CHF only — the
  * only two currencies inventory-api carries) plus `amountToCents`, the
  * money-input parser ported from refund-ui's `lineDraft.ts` and tightened:

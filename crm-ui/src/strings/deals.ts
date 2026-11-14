@@ -79,7 +79,7 @@ const en = {
     readOnly:
       'You can see this deal but not change it: managing deals of this entity needs a permission you do not have.',
   },
-  /** The Meetings section (specs/021, ADR-0060): the panel is Meetings' own; these are the host's loading and fallback copy. */
+  /** The Meetings section (specs/20261104-meetings, ADR 20261104-host-extension-federated-panel-through-the-shell): the panel is Meetings' own; these are the host's loading and fallback copy. */
   meetings: {
     heading: 'Meetings',
     loading: 'Loading meetings…',

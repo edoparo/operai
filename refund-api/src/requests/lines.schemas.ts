@@ -1,13 +1,13 @@
 /**
  * Zod validation for expense-line create/update bodies (T8,
- * specs/007-refund-service, AC-1.2/1.6).
+ * specs/20260716-refund-service, AC-1.2/1.6).
  *
  * Required: date, type, motivo, entity; `km`: required and > 0 IFF
  * type === "travel_km"; rejected (422) if present for any other type. PUT
  * reuses the SAME schema as POST — "editing a line commits the whole line
  * object" (plan.md § API contracts).
  *
- * `currency`/`requestedAmountCents` (specs/009-mileage-rate amendment):
+ * `currency`/`requestedAmountCents` (specs/20260720-mileage-rate amendment):
  * REQUIRED for every type EXCEPT `travel_km` (2026-07-17 amendment —
  * independently-stored, NOT derived from entity; any (entity, currency)
  * combination is valid, see 007 plan.md § Money handling — unchanged for

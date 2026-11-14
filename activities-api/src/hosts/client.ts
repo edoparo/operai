@@ -1,12 +1,12 @@
 /**
- * The single HTTP adapter to an activity host (specs/028-activities plan.md § Access and
- * § Host contract, ADR-0081; AC-8.1, AC-8.2, AC-8.3). crm-api and projects-api go through THIS
+ * The single HTTP adapter to an activity host (specs/20261110-activities plan.md § Access and
+ * § Host contract, ADR 20261110-activities-service-access-delegated-to-host; AC-8.1, AC-8.2, AC-8.3). crm-api and projects-api go through THIS
  * code, with no host-specific branch anywhere in activities-api (meetings-api `hosts/client.ts`
  * is the model).
  *
  *   resolve(host, authorization, {ids, related?})   "what may THIS CALLER do with these entities?"
  *       POST {baseUrl}/activity-host/v1/resolve, the caller's own Authorization forwarded
- *       verbatim (ADR-0059 model: no new secret, the host applies its own live authorization).
+ *       verbatim (ADR 20261104-meeting-host-contract-resolve-and-notices model: no new secret, the host applies its own live authorization).
  *       At most 25 ids per call, a 2 s timeout, `redirect:"error"`, never cached.
  *
  * What counts as an answer (plan amendments 2026-11-11):

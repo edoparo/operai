@@ -1,5 +1,5 @@
 /**
- * `PUT /meetings/:id/participants` (specs/021-meetings plan.md § API contracts → Meetings;
+ * `PUT /meetings/:id/participants` (specs/20261104-meetings plan.md § API contracts → Meetings;
  * AC-5.1, AC-5.4, AC-5.9, AC-5.10, AC-12.1). Creator control. A full replace of the list:
  * up to 30 entries, each an active Operai user (checked LIVE and fail closed: an identity
  * outage is a 503, never "assume active") or an external with a name and an optional
@@ -76,7 +76,7 @@ participantsRouter.openapi(putParticipants, async (c) => {
     throw unprocessable(`A meeting has at most ${MAX_PARTICIPANTS} participants`, { field: "participants" }, "too_many_participants");
   }
 
-  // Live and fail closed (AC-5.1, ADR-0039): an inactive or unknown user is refused by position.
+  // Live and fail closed (AC-5.1, ADR 20260807-live-identity-resolution-by-id-fail-soft): an inactive or unknown user is refused by position.
   const userIds = [...new Set(participants.flatMap((p) => (p.userId !== undefined ? [p.userId] : [])))];
   if (userIds.length > 0) {
     const found = await requireIdentities(caller.authorization, userIds);

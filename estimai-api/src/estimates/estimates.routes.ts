@@ -1,7 +1,7 @@
 /**
- * Estimates CRUD router (T4+T5, specs/001-estimate-persistence;
- * widened for sharing in T6, specs/013-estimate-sharing; optimistic
- * concurrency added in T7, ADR-0038).
+ * Estimates CRUD router (T4+T5, specs/20260606-estimate-persistence;
+ * widened for sharing in T6, specs/20260807-estimate-sharing; optimistic
+ * concurrency added in T7, ADR 20260807-optimistic-concurrency-version-if-match-cas-amends-0004).
  *
  * All routes are protected by jwtMiddleware (set userId/email on context).
  * Every repository call is scoped by userId derived from the verified JWT sub.
@@ -38,9 +38,9 @@
  *   - The two routers are mounted separately in index.ts so their bodyLimit
  *     middleware chains are completely independent (no double-capping).
  *
- * DENIAL TAXONOMY (T6, plan.md "Access resolution inside estimai-api", ADR-0037
- * — a deliberate narrowing of ADR-0005's blanket "not owned = 404"):
- *   - NO relationship at all (stranger)              → 404 (AC-1.6, ADR-0005 intact)
+ * DENIAL TAXONOMY (T6, plan.md "Access resolution inside estimai-api", ADR 20260807-denial-taxonomy-shared-records-403-vs-404
+ * — a deliberate narrowing of ADR 20260703-jwt-resource-server-remote-jwks's blanket "not owned = 404"):
+ *   - NO relationship at all (stranger)              → 404 (AC-1.6, ADR 20260703-jwt-resource-server-remote-jwks intact)
  *   - a relationship exists but the level is short    → 403 with a stable `code`
  *     (DELETE's "owner_only"; PUT's "insufficient_access" for a viewer, T7 —
  *     a collaborator attempting either already knows the estimate exists,
@@ -158,7 +158,7 @@ export const checkContentSize = (
 // headroom for the JSON envelope around a max-size (1 MiB) content (AC-1.4, DoS).
 const BODY_SIZE_LIMIT = 2 * 1024 * 1024; // 2 MiB
 
-/** ADR-0075's revisit trigger for the unpaginated `whose=all` list. */
+/** ADR 20261108-estimai-oversight-permission-amends-0036's revisit trigger for the unpaginated `whose=all` list. */
 export const OVERSIGHT_LIST_REVISIT_ROWS = 500;
 
 // Import endpoint: must accommodate up to 200 elements each up to MAX_ESTIMATE_BYTES
@@ -324,8 +324,8 @@ const listEstimatesRoute = createRoute({
     "Returns every estimate the caller owns OR holds a collaborator grant on, " +
     "ordered newest-first (T6, AC-2.1/2.2/2.3). Returns an empty array for a " +
     "user with no estimates and no grants — this is not an error. " +
-    "`status=open|closed` filters on the closed state (specs/024); absent " +
-    "returns both. `whose=all` (specs/024, ADR-0075) lists EVERY estimate and " +
+    "`status=open|closed` filters on the closed state (specs/20261108-estimate-list-oversight); absent " +
+    "returns both. `whose=all` (specs/20261108-estimate-list-oversight, ADR 20261108-estimai-oversight-permission-amends-0036) lists EVERY estimate and " +
     "needs `estimate:read-all`: rows the caller owns or collaborates on keep " +
     "their level, every other row is `access: \"oversight\"`. An unknown " +
     "`status`/`whose` value is a 400.",
@@ -362,7 +362,7 @@ estimatesRouter.openapi(listEstimatesRoute, async (c) => {
 
   const { status, whose } = c.req.valid("query");
 
-  // The only path that asks `auth` anything (ADR-0075). `mine`/absent never does.
+  // The only path that asks `auth` anything (ADR 20261108-estimai-oversight-permission-amends-0036). `mine`/absent never does.
   if (whose === "all") {
     try {
       if (!(await holdsReadAll(userId, authHeader))) {
@@ -386,12 +386,12 @@ estimatesRouter.openapi(listEstimatesRoute, async (c) => {
 
   const rows = exit.value;
 
-  // The oversight list is unpaginated by design (ADR-0075): listing columns only,
+  // The oversight list is unpaginated by design (ADR 20261108-estimai-oversight-permission-amends-0036): listing columns only,
   // owners resolved once per distinct owner. Past ~500 rows the ADR is revisited,
   // so say so where operators look (security review 2026-11-09).
   if (whose === "all" && rows.length > OVERSIGHT_LIST_REVISIT_ROWS) {
     console.warn(
-      `[oversight] whose=all returned ${rows.length} estimates (> ${OVERSIGHT_LIST_REVISIT_ROWS}): ADR-0075 says to add pagination`,
+      `[oversight] whose=all returned ${rows.length} estimates (> ${OVERSIGHT_LIST_REVISIT_ROWS}): ADR 20261108-estimai-oversight-permission-amends-0036 says to add pagination`,
     );
   }
 
@@ -425,7 +425,7 @@ const getEstimateRoute = createRoute({
     "Returns the full estimate including content to ANY caller with a " +
     "relationship to it — owner, editor, or viewer (T6, AC-3.1). Returns 404 " +
     "if the estimate does not exist or the caller has no relationship to it " +
-    "at all (AC-1.6 — no existence leak, ADR-0005/ADR-0037). The response " +
+    "at all (AC-1.6 — no existence leak, ADR 20260703-jwt-resource-server-remote-jwks/ADR 20260807-denial-taxonomy-shared-records-403-vs-404). The response " +
     'carries an `ETag: "<version>"` header (T7) — the precondition value a ' +
     "subsequent PUT must echo back via `If-Match`.",
   request: {
@@ -459,7 +459,7 @@ estimatesRouter.openapi(getEstimateRoute, async (c) => {
 
   let exit = await Effect.runPromiseExit(getEstimateById(id, userId));
 
-  // Oversight fallback (specs/024, ADR-0075): consulted ONLY when the caller
+  // Oversight fallback (specs/20261108-estimate-list-oversight, ADR 20261108-estimai-oversight-permission-amends-0036): consulted ONLY when the caller
   // has no relationship to the estimate, so an owner's or collaborator's read
   // never touches `auth` and an existing level always wins (AC-1.5).
   if (
@@ -504,8 +504,8 @@ const updateEstimateRoute = createRoute({
   summary: "Update an estimate",
   description:
     "Updates the estimate in place (same id, no duplicate) via optimistic " +
-    "concurrency (T7, specs/013-estimate-sharing, ADR-0038 — amends " +
-    "ADR-0004's last-write-wins). `If-Match` is REQUIRED and must echo the " +
+    "concurrency (T7, specs/20260807-estimate-sharing, ADR 20260807-optimistic-concurrency-version-if-match-cas-amends-0004 — amends " +
+    "ADR 20260703-estimate-persistence-jsonb-document's last-write-wins). `If-Match` is REQUIRED and must echo the " +
     "estimate's current `ETag`/`version`; a stale value yields 409, an " +
     "absent or malformed one yields 428. Evaluation order is fixed: " +
     "401 → 400 → 428 → 413 → 404/403 → 409, so a stranger's probe (even " +
@@ -551,7 +551,7 @@ const updateEstimateRoute = createRoute({
     403: {
       content: { "application/json": { schema: ProblemWithCodeSchema } },
       description:
-        'A relationship exists but the caller\'s level is insufficient — code: "insufficient_access" (T7, AC-3.1); or the caller may read the estimate only through estimate:read-all — code: "oversight_read_only" (specs/024)',
+        'A relationship exists but the caller\'s level is insufficient — code: "insufficient_access" (T7, AC-3.1); or the caller may read the estimate only through estimate:read-all — code: "oversight_read_only" (specs/20261108-estimate-list-oversight)',
     },
     404: {
       content: { "application/json": { schema: ProblemSchema } },
@@ -659,7 +659,7 @@ const deleteEstimateRoute = createRoute({
     "Deletes the estimate; every EstimateCollaborator grant cascades away " +
     "(AC-9.1). Owner-only (AC-3.3) — a collaborator (editor or viewer) gets " +
     "403 owner_only, NOT 404, because they already know the estimate exists " +
-    "(T6, ADR-0037). 404 is reserved for callers with no relationship at all.",
+    "(T6, ADR 20260807-denial-taxonomy-shared-records-403-vs-404). 404 is reserved for callers with no relationship at all.",
   request: {
     params: EstimateIdParamSchema,
   },
@@ -674,7 +674,7 @@ const deleteEstimateRoute = createRoute({
     403: {
       content: { "application/json": { schema: ProblemWithCodeSchema } },
       description:
-        "Caller is a collaborator, not the owner — code: owner_only (AC-3.3); or may read the estimate only through estimate:read-all — code: oversight_read_only (specs/024)",
+        "Caller is a collaborator, not the owner — code: owner_only (AC-3.3); or may read the estimate only through estimate:read-all — code: oversight_read_only (specs/20261108-estimate-list-oversight)",
     },
     404: {
       content: { "application/json": { schema: ProblemSchema } },

@@ -267,7 +267,7 @@ describe("env-doctor checker", () => {
     expect(errs(f)).toEqual([]);
   });
 
-  // ── specs/015-hardware-inventory (T43): service tokens, inventory-api ──────
+  // ── specs/20261006-hardware-inventory (T43): service tokens, inventory-api ──────
   test("SERVICE_AUDIENCE differing between auth and notify-api → error", () => {
     const s = validSuite();
     s["notify-api"]!.SERVICE_AUDIENCE = "another-audience";
@@ -304,13 +304,13 @@ describe("env-doctor checker", () => {
     expect(warns(f)).toEqual([]);
   });
 
-  test("a missing ALLOWED_SIGNUP_DOMAINS on auth is an error (auth exits at startup, specs/023)", () => {
+  test("a missing ALLOWED_SIGNUP_DOMAINS on auth is an error (auth exits at startup, specs/20261105-signup-gate)", () => {
     const s = validSuite();
     delete s.auth!.ALLOWED_SIGNUP_DOMAINS;
     expect(errText(checkSuite(s, PROD))).toContain("ALLOWED_SIGNUP_DOMAINS is missing");
   });
 
-  test("a reserved test domain in auth's ALLOWED_SIGNUP_DOMAINS is an error in production (specs/023)", () => {
+  test("a reserved test domain in auth's ALLOWED_SIGNUP_DOMAINS is an error in production (specs/20261105-signup-gate)", () => {
     for (const bad of ["welld.ch,welld.it,operai.test", "welld.ch,mail.example", "x.invalid", "a.localhost"]) {
       const s = validSuite();
       s.auth!.ALLOWED_SIGNUP_DOMAINS = bad;
@@ -363,7 +363,7 @@ describe("env-doctor checker", () => {
     expect(errText(checkSuite(s, PROD))).toContain("targets port 8081");
   });
 
-  // specs/016 AC-5.3: the retired shared token is forbidden on every service, flagged by name only.
+  // specs/20261013-notify-service-credentials AC-5.3: the retired shared token is forbidden on every service, flagged by name only.
   for (const svc of ["auth", "estimai-api", "notify-api", "refund-api", "inventory-api"] as const) {
     test(`${svc} holding the retired shared token → error, value never printed`, () => {
       const s = validSuite();
@@ -388,7 +388,7 @@ describe("env-doctor checker", () => {
     expect(f.some((x) => x.message.includes("NOTIFY_INTERNAL_TOKEN"))).toBe(false);
   });
 
-  // specs/029 US-7 (ADR-0086): the address-keyed pair is retired on auth; an override sized for the old
+  // specs/20261111-push-notifications US-7 (ADR 20261112-system-endpoints-limited-per-verified-service): the address-keyed pair is retired on auth; an override sized for the old
   // rule (20, or the runbook's 60) would be ignored, so the leftover is flagged by name only.
   for (const name of ["SERVICE_TOKEN_RATE_LIMIT", "SERVICE_TOKEN_RATE_WINDOW_MS"]) {
     test(`auth holding the retired ${name} → error naming it, value never printed; other services are not flagged`, () => {
@@ -543,9 +543,9 @@ describe("env-doctor checker", () => {
   });
 });
 
-// specs/021-meetings, T81 — meetings-api joins the contract: a resource server, a notify caller, a
+// specs/20261104-meetings, T81 — meetings-api joins the contract: a resource server, a notify caller, a
 // crm-api host-notice caller (crm-api now verifies service tokens), and an audio-bucket owner.
-describe("env-doctor checker — meetings (specs/021)", () => {
+describe("env-doctor checker — meetings (specs/20261104-meetings)", () => {
   const CLIENT_SECRET_MEET = "m".repeat(40);
   // A synthetic stand-in for the base64 service-account key; the tests assert it is never printed.
   const GCP_KEY = "eyJzeW50aGV0aWMta2V5LW5ldmVyLXByaW50ZWQi" + "Z".repeat(24);
@@ -569,7 +569,7 @@ describe("env-doctor checker — meetings (specs/021)", () => {
       AUTH_BASE_URL: "http://auth.railway.internal:3001",
       AUTH_AUDIENCE: AUD,
       SERVICE_AUDIENCE: SVC_AUD,
-      ACTIVITIES_API_URL: "http://activities-api.railway.internal:8087", // specs/028, production-required
+      ACTIVITIES_API_URL: "http://activities-api.railway.internal:8087", // specs/20261110-activities, production-required
       PORT: "8084",
     };
     s["meetings-api"] = {
@@ -740,7 +740,7 @@ describe("env-doctor checker — meetings (specs/021)", () => {
     expect(JSON.stringify(f)).not.toContain(TOKEN);
   });
 
-  // specs/021 plan § Amendment 2026-11-05 (G-7, T105): the provider change to Google Cloud.
+  // specs/20261104-meetings plan § Amendment 2026-11-05 (G-7, T105): the provider change to Google Cloud.
   test("a missing MEETINGS_GCP_SERVICE_ACCOUNT_KEY is reported by name, and no value is printed", () => {
     const s = meetingsSuite();
     delete s["meetings-api"]!.MEETINGS_GCP_SERVICE_ACCOUNT_KEY;
@@ -828,9 +828,9 @@ describe("env-doctor checker — meetings (specs/021)", () => {
   });
 });
 
-// specs/025-projects: projects-api (a new resource server) reads CRM companies from crm-api with a scoped
+// specs/20261103-projects: projects-api (a new resource server) reads CRM companies from crm-api with a scoped
 // service credential; crm-api gains SERVICE_AUDIENCE. The baseline is the suite above plus the two services.
-describe("env-doctor checker — projects-api and the crm-api service audience (specs/025)", () => {
+describe("env-doctor checker — projects-api and the crm-api service audience (specs/20261103-projects)", () => {
   const CLIENT_SECRET_PROJECTS = "p".repeat(40);
   const projectsRegistry = (scope = "crm.companies.read") =>
     JSON.stringify({
@@ -849,7 +849,7 @@ describe("env-doctor checker — projects-api and the crm-api service audience (
       AUTH_BASE_URL: "http://auth.railway.internal:3001",
       AUTH_AUDIENCE: AUD,
       SERVICE_AUDIENCE: SVC_AUD,
-      ACTIVITIES_API_URL: "http://activities-api.railway.internal:8087", // specs/028, production-required
+      ACTIVITIES_API_URL: "http://activities-api.railway.internal:8087", // specs/20261110-activities, production-required
       PORT: "8084",
     };
     s["projects-api"] = {
@@ -884,7 +884,7 @@ describe("env-doctor checker — projects-api and the crm-api service audience (
     }
   });
 
-  test("crm-api SERVICE_AUDIENCE is required in production and locally (ADR-0073; /system/companies relies on it too)", () => {
+  test("crm-api SERVICE_AUDIENCE is required in production and locally (ADR 20261105-estimai-closes-the-estimate-crm-follows; /system/companies relies on it too)", () => {
     const s = projectsSuite();
     delete s["crm-api"]!.SERVICE_AUDIENCE;
     expect(errText(checkSuite(s, PROD))).toContain("SERVICE_AUDIENCE is missing");
@@ -958,10 +958,10 @@ describe("env-doctor checker — projects-api and the crm-api service audience (
   });
 });
 
-// specs/028-activities: activities-api (a new resource server that asks the hosts, ADR-0081) is called by
-// crm-api with a scoped service credential (ADR-0082) and notifies as itself (ADR-0056). The baseline is the
+// specs/20261110-activities: activities-api (a new resource server that asks the hosts, ADR 20261110-activities-service-access-delegated-to-host) is called by
+// crm-api with a scoped service credential (ADR 20261110-caller-chosen-ids-replace-cross-service-transactions) and notifies as itself (ADR 20261101-notify-api-resolves-email-notice-address-from-auth). The baseline is the
 // suite above plus crm-api, projects-api and activities-api.
-describe("env-doctor checker — activities-api (specs/028)", () => {
+describe("env-doctor checker — activities-api (specs/20261110-activities)", () => {
   const CLIENT_SECRET_CRM = "m".repeat(40);
   const CLIENT_SECRET_ACT = "a".repeat(40);
   const CLIENT_SECRET_PRJ = "p".repeat(40);

@@ -12,7 +12,7 @@ import { strings } from '../strings'
 /**
  * MyDevicesPage — D1, the employee's own devices (T31, specs/015-hardware-
  * inventory; design.md § D1, F14, Q3 as resolved; AC-2.3, AC-2.4, AC-4.1,
- * AC-4.2, AC-4.4). Mounted at the UNGATED `/devices` (ADR-0045), so it works for
+ * AC-4.2, AC-4.4). Mounted at the UNGATED `/devices` (ADR 20261006-ungated-second-federated-entry-of-a-gated-remote), so it works for
  * a user with no grant at all: it reads only `meApi`, never `GET /scope` and no
  * capability hook, and it uses the `MyDevice` types, never `AssetView`, so there
  * is no price, currency, entity or book value for it to show (AC-4.2).

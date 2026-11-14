@@ -1,6 +1,6 @@
 /**
- * `refund_setting` immutability integration tests (T2, specs/011-refund-settings,
- * AC-5.2, ADR-0027) — mirrors `db.mileage-rate-immutability.test.ts` verbatim
+ * `refund_setting` immutability integration tests (T2, specs/20260722-refund-settings,
+ * AC-5.2, ADR 20260722-refund-settings-append-only-self-auditing-store) — mirrors `db.mileage-rate-immutability.test.ts` verbatim
  * in structure.
  *
  * Strategy
@@ -48,7 +48,7 @@ async function makeSettingRow() {
   });
 }
 
-describe("RefundSetting immutability (specs/011-refund-settings, ADR-0027)", () => {
+describe("RefundSetting immutability (specs/20260722-refund-settings, ADR 20260722-refund-settings-append-only-self-auditing-store)", () => {
   beforeEach(async () => {
     await truncateRefundTables();
   });

@@ -1,6 +1,6 @@
 /**
- * `POST /meeting-host/v1/resolve` (specs/021 T7; AC-1.5, AC-5.6, AC-5.7, AC-11.5;
- * ADR-0059): "may THIS caller open these deals?", answered live from the caller's
+ * `POST /meeting-host/v1/resolve` (specs/20261104-meetings T7; AC-1.5, AC-5.6, AC-5.7, AC-11.5;
+ * ADR 20261104-meeting-host-contract-resolve-and-notices): "may THIS caller open these deals?", answered live from the caller's
  * own forwarded JWT. A caller without `crm:access` gets `closed` for deals that
  * exist and `missing` for the rest (a 200, not a 403, so one call answers a mixed
  * batch); a holder gets `open` + title + href, and `hostVisible` mirrors
@@ -47,7 +47,7 @@ describe("a caller who holds crm:access", () => {
     ]);
   });
 
-  it("reads are open to every holder: a deal outside the caller's entity scope still opens (ADR-0052)", async () => {
+  it("reads are open to every holder: a deal outside the caller's entity scope still opens (ADR 20261101-crm-tool-shape-and-authorization)", async () => {
     const deal = await makeDeal((await makeCompany({ entity: "welld_it" })).id, { entity: "welld_it" });
     expect(PERSONAS.salesCh.entity).toBe("welld_ch");
     expect((await resolve("salesCh", [deal.id])).json.items[0].state).toBe("open");

@@ -1,5 +1,5 @@
 {
-  "_comment": "Canonical vectors for depreciation/schedule.ts (specs/015, ADR-0046, ADR-0025). Amounts are integer cents. `splitPrice` is a verbatim copy of inventory-ui/src/lib/split-vectors.json (schedule.test.ts asserts parity so the two cannot drift). `schedule` rows: schedule(priceCents, purchaseYear, rule, anchor?) must equal `expected` exactly.",
+  "_comment": "Canonical vectors for depreciation/schedule.ts (specs/20261006-hardware-inventory, ADR 20261006-depreciation-derived-on-read-closed-years-snapshotted, ADR 20260720-mileage-rate-money-precision-integer-micros). Amounts are integer cents. `splitPrice` is a verbatim copy of inventory-ui/src/lib/split-vectors.json (schedule.test.ts asserts parity so the two cannot drift). `schedule` rows: schedule(priceCents, purchaseYear, rule, anchor?) must equal `expected` exactly.",
   "splitPrice": [
     {
       "totalCents": 100,

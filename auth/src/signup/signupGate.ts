@@ -1,5 +1,5 @@
 /**
- * The sign-up gate (specs/023, ADR-0071): `databaseHooks.user.create.before`.
+ * The sign-up gate (specs/20261105-signup-gate, ADR 20261105-access-only-by-invitation-waiting-list): `databaseHooks.user.create.before`.
  * It runs only when better-auth is about to create a user row for an identity
  * it has never seen, so existing users are untouched (AC-1.6, AC-1.7).
  *

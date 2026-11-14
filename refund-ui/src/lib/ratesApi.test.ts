@@ -1,7 +1,7 @@
 /**
  * @vitest-environment jsdom
  *
- * Unit tests for src/lib/ratesApi.ts (T12, specs/009-mileage-rate/tasks.md).
+ * Unit tests for src/lib/ratesApi.ts (T12, specs/20260720-mileage-rate/tasks.md).
  * Strategy mirrors reviewApi.test.ts/requestsApi.test.ts: `shell/session`'s
  * `apiFetch` is mocked at the module level — refund-api's `rates/` module
  * (T3/T4) doesn't exist yet, so this targets the documented contract

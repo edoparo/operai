@@ -1,5 +1,5 @@
 /**
- * Integration tests for `GET /line-suggestions` (T6, specs/014-motivo-autocomplete).
+ * Integration tests for `GET /line-suggestions` (T6, specs/20260811-motivo-autocomplete).
  *
  * Real Hono router, REAL compose Postgres; only the two network-calling
  * dependencies (`jwt.middleware`, `authz/resolveClient`) are mocked, via
@@ -102,7 +102,7 @@ const ACCOUNTING_WELLD_IT = perms(
 
 /**
  * Accounting with GLOBAL review scope — an UNCONDITIONED `request:review`,
- * which is exactly how ADR-0015's widest-wins union expresses "sees every
+ * which is exactly how ADR 20260716-entity-scoped-abac-refund-api's widest-wins union expresses "sees every
  * entity". This is AC-4.2's caller.
  */
 const ACCOUNTING_GLOBAL = perms(
@@ -421,7 +421,7 @@ describe("owner scoping (AC-4.1, AC-4.2)", () => {
     const suggestions = await suggestionsFor(OWNER, ACCOUNTING_GLOBAL);
 
     // The same caller can legitimately REVIEW B's request (unconditioned
-    // review = every entity, ADR-0015) — and still sees none of it here.
+    // review = every entity, ADR 20260716-entity-scoped-abac-refund-api) — and still sees none of it here.
     expect(suggestions).toHaveLength(1);
     expect(suggestions[0]?.count).toBe(2);
     expect(JSON.stringify(suggestions)).not.toContain("Zurigo");

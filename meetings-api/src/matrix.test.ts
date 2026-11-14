@@ -1,5 +1,5 @@
 /**
- * Authorization matrix over the ASSEMBLED app (specs/021-meetings T42; AC-5.8, AC-5.3, AC-4.8,
+ * Authorization matrix over the ASSEMBLED app (specs/20261104-meetings T42; AC-5.8, AC-5.3, AC-4.8,
  * AC-10.4): role × action, read from the app's own route table, so a route added without a row in
  * `test-support/matrixKit.ts` fails here. Each cell is a fresh world (a real meeting, its
  * transcript, summaries, conversation, templates) and the real route; the expectation is the 2xx the

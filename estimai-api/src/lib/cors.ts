@@ -5,7 +5,7 @@
  * throwaway Hono app and issue real `OPTIONS` preflight requests against it,
  * instead of asserting on the shape of a config object (which unit tests
  * mocking the transport would never exercise — the bug this file fixes,
- * specs/013-estimate-sharing T25 e2e defect, was invisible to the pre-existing
+ * specs/20260807-estimate-sharing T25 e2e defect, was invisible to the pre-existing
  * suite for exactly that reason).
  *
  * Every entry below is required by a real cross-origin call this feature
@@ -17,7 +17,7 @@ import { env } from "./env";
 
 export const corsMiddleware = cors({
   origin: env.ALLOWED_ORIGINS,
-  // "If-Match" — REQUIRED on PUT /estimates/{id} (T7, ADR-0038). Without it
+  // "If-Match" — REQUIRED on PUT /estimates/{id} (T7, ADR 20260807-optimistic-concurrency-version-if-match-cas-amends-0004). Without it
   // in allowHeaders, every cross-origin save — i.e. every save from the
   // shell-hosted editor, since shell and estimai-api are always on different
   // origins — is blocked at the preflight before it ever reaches the

@@ -1,6 +1,6 @@
 /**
  * Prisma data-access layer for compiled-batch candidate preview + compile
- * (T3, specs/008-refund-monthly-processing, plan.md § API contracts /
+ * (T3, specs/20260719-refund-monthly-processing, plan.md § API contracts /
  * § Atomic claim / no-double-pay).
  *
  * Two distinct read paths, deliberately different in shape:
@@ -10,7 +10,7 @@
  *    `listSubmittedRequests` convention ("fetch everything, filter in the
  *    service layer via the ONE shared `requestInScope` predicate") so
  *    candidate-preview visibility can never desync from compile-time claim
- *    visibility (ADR-0015 Risks, reused verbatim by this feature).
+ *    visibility (ADR 20260716-entity-scoped-abac-refund-api Risks, reused verbatim by this feature).
  *
  *  - `compileBatch` (POST /batches) pushes the entity-scope filter DOWN INTO
  *    the locking `SELECT … FOR UPDATE` itself (raw SQL — Prisma's query
@@ -110,8 +110,8 @@ export interface BatchRow {
   readonly createdByEmail: string;
   readonly createdAt: Date;
   readonly pdfObjectKey: string;
-  // specs/011-refund-settings, ADR-0029 — no longer the compile-time-frozen
-  // configured address (ADR-0021, superseded); nullable per-attempt
+  // specs/20260722-refund-settings, ADR 20260722-batch-email-recipient-live-resolution-amends-0021 — no longer the compile-time-frozen
+  // configured address (ADR 20260719-refund-batch-signed-link-email-delivery, superseded); nullable per-attempt
   // delivery PROVENANCE ONLY, null until the first send/resend attempt. The
   // live `accounting-distribution-email` setting (src/settings/) is the
   // actual source of truth, resolved fresh at every attempt.
@@ -153,7 +153,7 @@ class EmptyCandidateSetError extends Data.TaggedError("EmptyCandidateSetError")<
  * everything Prisma's `$transaction` callback attempted) and nothing is
  * created (AC-1.4).
  *
- * specs/011-refund-settings, ADR-0029 (D6) — compile no longer takes a
+ * specs/20260722-refund-settings, ADR 20260722-batch-email-recipient-live-resolution-amends-0021 (D6) — compile no longer takes a
  * recipient email at all: it is now FULLY DECOUPLED from the accounting-
  * distribution-email setting (AC-2.1). `recipientEmailSnapshot` starts
  * `null` on every freshly-compiled batch; the send path (batches/email.ts)
@@ -400,10 +400,10 @@ export function listBatchSummaries(): Effect.Effect<
   });
 }
 
-// ─── Email delivery status write-back (T5; widened T4 specs/011) ──────────
+// ─── Email delivery status write-back (T5; widened T4 specs/20260722-refund-settings) ──────────
 
 /**
- * `"blocked_unconfigured"` (specs/011-refund-settings, ADR-0029) marks a
+ * `"blocked_unconfigured"` (specs/20260722-refund-settings, ADR 20260722-batch-email-recipient-live-resolution-amends-0021) marks a
  * send/resend attempt that never reached notify-api because the
  * `accounting-distribution-email` setting was unconfigured at attempt time
  * — distinguishable from an ordinary `"failed"` notify-api/Resend outage

@@ -2,7 +2,7 @@
  * @vitest-environment jsdom
  *
  * Integration tests for the app-access route guard (T25,
- * specs/004-auth-roles-permissions, US-7, AC-7.3/7.4/7.5): a tool route the
+ * specs/20260713-auth-roles-permissions, US-7, AC-7.3/7.4/7.5): a tool route the
  * signed-in user lacks `access` for must never mount that tool's remote —
  * it redirects to a permitted tool, or to `/no-access` (Screen S1) if the
  * user has none at all — and a revocation is caught on the very next
@@ -66,7 +66,7 @@ vi.mock('./lib/session', () => ({
   // ALSO means these tests never call the mocked `getSession()` — asserted
   // nowhere here, but see router.session-guard.test.tsx for that behavior.
   getCachedSession,
-  // T11 (specs/005-notification-center): Header now mounts Bell, which reads
+  // T11 (specs/20260713-notification-center): Header now mounts Bell, which reads
   // useUnreadCount() (shell/src/lib/notifications.ts) on every render of the
   // shared chrome these tests exercise via ShellLayout/Header. notifications.ts
   // imports apiFetch/onSignOut from this same module, so a mock of

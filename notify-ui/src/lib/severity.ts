@@ -1,6 +1,6 @@
 /**
  * Severity + origin-app lookups for the notification center (T15,
- * specs/005-notification-center/tasks.md, design.md "Screens & states →
+ * specs/20260713-notification-center/tasks.md, design.md "Screens & states →
  * Notification center page" / "Component inventory").
  *
  * Labels come from the strings module (INC-24) and the icons are library
@@ -16,7 +16,7 @@
  * the same design tokens (`--acc`/`--grn`/`--org`/`--red`) `shell/tokens.css`
  * already defines — same *pattern* as estimai-ui's `healthWarnings.ts`
  * `WARNING_META` (code → icon/colorClass/copy lookup), not importable here
- * (different domain, different remote, ADR-0006).
+ * (different domain, different remote, ADR 20260709-suite-frontend-module-federation).
  *
  * `ORIGIN_APP_LABELS` maps notify-api's `originApp` enum (notify-api's
  * `ORIGIN_APPS`) to the suite's human-facing tool names (AC-2.2/2.3 "origin
@@ -36,7 +36,7 @@ export interface SeverityMeta {
   icon: IconName
   /** Human-readable label — read by assistive tech as "Severity: <label>". */
   label: string
-  /** Token utility for the icon's accent colour (design.md's severity table; ADR-0051). */
+  /** Token utility for the icon's accent colour (design.md's severity table; ADR 20261031-one-styling-dialect-token-utilities). */
   iconClassName: string
 }
 
@@ -59,7 +59,7 @@ export function originAppLabel(originApp: string): string {
 const isText = (value: unknown): value is string => typeof value === 'string' && value.trim() !== ''
 
 /**
- * The title and body in the reader's language (ADR-0065, AC-12.5): the Italian variant when
+ * The title and body in the reader's language (ADR 20261104-bilingual-system-notifications, AC-12.5): the Italian variant when
  * `<html lang>` is `it` and the notification carries a complete one, the default text otherwise.
  * A missing or half-empty variant degrades to the default, never to a blank row or a mixed pair.
  * Read at render time, so it follows the current `<html lang>`. Lives here, not in

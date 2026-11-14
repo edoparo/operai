@@ -1,6 +1,6 @@
 /**
  * Contract tests for the optional Italian variant on POST /system/notifications
- * (T5, specs/021-meetings, ADR-0065): same limits as the English fields,
+ * (T5, specs/20261104-meetings, ADR 20261104-bilingual-system-notifications): same limits as the English fields,
  * all-or-nothing, never blank.
  */
 
@@ -61,7 +61,7 @@ describe("origin apps and the notification shape", () => {
     expect(ORIGIN_APPS).toContain("meetings");
   });
 
-  it("projects is a known origin app (specs/028 T24)", () => {
+  it("projects is a known origin app (specs/20261110-activities T24)", () => {
     expect(ORIGIN_APPS).toContain("projects");
   });
 

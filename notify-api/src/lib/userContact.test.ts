@@ -1,5 +1,5 @@
 /**
- * Contact lookup client (specs/019-crm-notifications, ADR-0056): the 200 / 404 /
+ * Contact lookup client (specs/20261101-crm-notifications, ADR 20261101-notify-api-resolves-email-notice-address-from-auth): the 200 / 404 /
  * 401-retry / failure mapping, with auth stubbed. Nothing sensitive is logged.
  */
 

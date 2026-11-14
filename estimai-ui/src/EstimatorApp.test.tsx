@@ -2,7 +2,7 @@
  * @vitest-environment jsdom
  *
  * Integration test for the saveError → <Banner> render wiring in
- * EstimatorApp.tsx (Gap-1, specs/001-estimate-persistence, AC-1.3 render layer).
+ * EstimatorApp.tsx (Gap-1, specs/20260606-estimate-persistence, AC-1.3 render layer).
  *
  * The production path under test:
  *   EstimatorProvider sets saveError (on estimatesApi.update rejection)
@@ -47,7 +47,7 @@ vi.mock('@tanstack/react-router', () => ({
     </a>
   ),
   useNavigate: () => vi.fn(),
-  // T18 (specs/013-estimate-sharing/tasks.md) added a `useRouter()` call to
+  // T18 (specs/20260807-estimate-sharing/tasks.md) added a `useRouter()` call to
   // EstimatorApp.tsx (ConflictBanner's "Reload latest" → router.invalidate())
   // — required here so this pre-existing mock still satisfies every hook the
   // real component now calls. This file's own stale `EstimateFull` fixture
@@ -233,7 +233,7 @@ describe('EstimatorApp: saveError → save-feedback Banner render wiring (AC-1.3
 // rendered again, or if the badge stops reporting the save.
 // ---------------------------------------------------------------------------
 
-// T22 (specs/013-estimate-sharing/tasks.md): this fixture was missing
+// T22 (specs/20260807-estimate-sharing/tasks.md): this fixture was missing
 // `version`/`access`/`owner` — all required on `EstimateFull` since T15
 // widened that type (T16's fixture note flagged this file's stale literal
 // as the last remaining `pnpm build` failure on the branch, deliberately
@@ -390,9 +390,9 @@ describe('EstimatorApp: save feedback — header badge, never a success Banner',
 // ---------------------------------------------------------------------------
 // Test: toolbar composition — "Collaborators"/chip is the ONLY sharing entry.
 //
-// Originally T22 (specs/013) asserted TWO entries side by side: the anonymous
+// Originally T22 (specs/20260807-estimate-sharing) asserted TWO entries side by side: the anonymous
 // "Share link" and the account-based "Collaborators". The link mechanism was
-// removed on 2026-08-09 (specs/013 US-8 amendment), so the assertions below
+// removed on 2026-08-09 (specs/20260807-estimate-sharing US-8 amendment), so the assertions below
 // are inverted: the toolbar must expose the Collaborators affordance and NO
 // link-sharing affordance at all.
 //

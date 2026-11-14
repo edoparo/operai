@@ -1,7 +1,7 @@
 /**
  * @vitest-environment jsdom
  *
- * Component tests for EntityBadge (T25, specs/015-hardware-inventory; INC-23).
+ * Component tests for EntityBadge (T25, specs/20261006-hardware-inventory; INC-23).
  * Covers: both variants render the entity's name as text (never colour only),
  * no currency and no flag emoji (flags do not render on Windows), and both use
  * the same neutral library badge — an entity is metadata, not a status.

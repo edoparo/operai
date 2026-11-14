@@ -23,7 +23,7 @@ const failureText = (error: unknown): string =>
 
 /**
  * PersonPicker — choose an Operai user who holds access to the Projects module
- * (`auth`'s directory filtered by `appId=projects`, ADR-0053, ADR-0055): a
+ * (`auth`'s directory filtered by `appId=projects`, ADR 20261101-user-directory-gate-widened-to-deal-manage, ADR 20261101-app-access-check-by-user-id-and-directory-app-filter): a
  * project manager or a team member (AC-1.6). The list is fetched once and
  * filtered client-side by name or email.
  *

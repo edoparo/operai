@@ -1,5 +1,5 @@
 /**
- * The Meetings' declared permission catalog (specs/021-meetings — AC-10.8,
+ * The Meetings' declared permission catalog (specs/20261104-meetings — AC-10.8,
  * AC-1.4, AC-10.5; plan § Authorization).
  *
  * Mirrors `catalogs/crm.ts`'s shape: a plain constant describing the

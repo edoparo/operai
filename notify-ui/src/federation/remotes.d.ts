@@ -1,5 +1,5 @@
 // Ambient module declarations for the shell modules notify-ui consumes as a
-// remote (T14, specs/005-notification-center/tasks.md). Module Federation
+// remote (T14, specs/20260713-notification-center/tasks.md). Module Federation
 // resolves `shell/session` and `shell/tokens.css` at runtime via a virtual
 // module TypeScript's program cannot see, so without these declarations
 // `tsc` reports TS2307/TS2306 ("Cannot find module"). Hand-written rather
@@ -10,7 +10,7 @@
 // the shell's exposed `./session`/`./tokens.css` shape changes
 // (shell/src/lib/session.ts, shell/src/styles/tokens.css).
 //
-// T15 (specs/005-notification-center/tasks.md) extends this declaration with
+// T15 (specs/20260713-notification-center/tasks.md) extends this declaration with
 // the notification-specific seam T10 added to `shell/src/lib/notifications.ts`
 // (re-exported through `shell/session`'s `export * from './notifications'`):
 // `getNotifyBaseUrl` (notificationsApi.ts builds `/notifications`/
@@ -20,7 +20,7 @@
 // declared here — notify-ui's own page never calls them (only `Bell.tsx` /
 // other remotes' raise call sites do).
 //
-// Follow-up (specs/005-notification-center, ADR-0006-consistent) adds
+// Follow-up (specs/20260713-notification-center, ADR-0006-consistent) adds
 // `navigateSuite` — `NotificationItem.tsx`'s cross-remote, no-full-reload
 // navigation seam (session.ts's `registerSuiteNavigate`/`navigateSuite`
 // pair). Declared directly on `shell/session` (not re-exported via

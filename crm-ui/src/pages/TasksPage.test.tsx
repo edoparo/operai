@@ -117,7 +117,7 @@ describe('TasksPage — New task', () => {
   })
 })
 
-describe('TasksPage — blocked by (specs/017 US-6)', () => {
+describe('TasksPage — blocked by (specs/20261101-crm US-6)', () => {
   const blockedTask = {
     id: 't2',
     type: 'task',
@@ -203,7 +203,7 @@ describe('TasksPage — blocked by (specs/017 US-6)', () => {
   })
 })
 
-describe('TasksPage — participants (specs/017 US-8)', () => {
+describe('TasksPage — participants (specs/20261101-crm US-8)', () => {
   it('adds colleagues as participants, removes one, and posts the rest as participantIds', async () => {
     let posted: Record<string, unknown> | null = null
     apiFetch.mockImplementation(
@@ -256,7 +256,7 @@ describe('TasksPage — participants (specs/017 US-8)', () => {
   })
 })
 
-describe('TasksPage — editing contact and deal (specs/017 AC-4.2)', () => {
+describe('TasksPage — editing contact and deal (specs/20261101-crm AC-4.2)', () => {
   it('editing an activity shows its contact and deal, and sends the change', async () => {
     let patched: Record<string, unknown> | null = null
     const TASK = {

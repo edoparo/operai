@@ -1,11 +1,11 @@
 /**
- * Provider phrases to transcript segments (specs/021-meetings AC-6.1, AC-6.2,
+ * Provider phrases to transcript segments (specs/20261104-meetings AC-6.1, AC-6.2,
  * AC-6.7). Pure: no provider type leaks past `Phrase`, so a second transcriber
- * (the Voxtral fallback, ADR-0061) maps into the same shape.
+ * (the Voxtral fallback, ADR 20261104-meetings-ai-providers-eu-zero-retention) maps into the same shape.
  *
  * Speaker keys are `s1`, `s2`, ... by FIRST APPEARANCE in time order, so the
  * "Speaker n" a reader sees does not depend on the provider's own numbering
- * (a provider numbers its speakers in whatever order it likes; the Google adapter namespaces them per part, ADR-0070). One voice, or a
+ * (a provider numbers its speakers in whatever order it likes; the Google adapter namespaces them per part, ADR 20261105-meetings-transcript-parts-speaker-labels-per-part). One voice, or a
  * provider that did not diarize, gives one key.
  */
 

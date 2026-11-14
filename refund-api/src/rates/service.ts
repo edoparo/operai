@@ -1,6 +1,6 @@
 /**
  * Pure, DB-free mapping + micros<->decimal-string conversion for the
- * mileage-rate management surface (T4, specs/009-mileage-rate, ADR-0025).
+ * mileage-rate management surface (T4, specs/20260720-mileage-rate, ADR 20260720-mileage-rate-money-precision-integer-micros).
  */
 
 import { ENTITY_CURRENCY, type CurrencyValue, type EntityValue } from "../requests/requests.schemas";
@@ -12,13 +12,13 @@ import type {
   RateHistoryResponse,
 } from "./schemas";
 
-// ─── micros <-> decimal string (ADR-0025 — exact, no float multiplication) ──
+// ─── micros <-> decimal string (ADR 20260720-mileage-rate-money-precision-integer-micros — exact, no float multiplication) ──
 
 /**
  * Parses a validated decimal string (`AddRateBodySchema`'s `ratePerKm`,
  * already regex-shaped to <=6 fractional digits) into integer micros.
  * String-based (not `Number(x) * 1e6`) so the conversion is exact — no
- * floating-point representation error can enter (ADR-0025 point 4).
+ * floating-point representation error can enter (ADR 20260720-mileage-rate-money-precision-integer-micros point 4).
  */
 export function decimalToMicros(decimal: string): number {
   const [intPart = "0", fracPart = ""] = decimal.split(".");

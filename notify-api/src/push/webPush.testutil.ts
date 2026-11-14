@@ -1,5 +1,5 @@
 /**
- * Test helpers for the push channel (T6, specs/029): a fake browser subscriber and an
+ * Test helpers for the push channel (T6, specs/20261111-push-notifications): a fake browser subscriber and an
  * RFC 8291 (`aes128gcm`) decryptor. NOT shipped code and not a test file.
  */
 

@@ -1,10 +1,10 @@
 /**
- * authClient — facade over the shell's shared session module (T13, specs/003-suite-shell).
+ * authClient — facade over the shell's shared session module (T13, specs/20260709-suite-shell).
  *
  * Before T13 this file created its own `better-auth/react` client instance
  * pointed at VITE_AUTH_URL. estimai-ui now runs as a Module Federation remote
  * inside the `shell` host (T12), and the shell exposes ONE better-auth client
- * for the whole suite via `shell/session` (T4, ADR-0001/ADR-0002) so every
+ * for the whole suite via `shell/session` (T4, ADR 20260607-jwt-in-memory-never-web-storage/ADR 20260607-sign-in-page-hosted-by-auth-service) so every
  * tool shares the same session state and the same in-memory JWT cache
  * instead of each holding an independent copy.
  *

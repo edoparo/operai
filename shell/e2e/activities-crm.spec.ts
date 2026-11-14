@@ -1,5 +1,5 @@
 /**
- * specs/028-activities T21 — the CRM side of the activities move, through the REAL assembled shell and
+ * specs/20261110-activities T21 — the CRM side of the activities move, through the REAL assembled shell and
  * crm-ui against the REAL crm-api, activities-api, projects-api and auth.
  *
  *   AC-1.1  the CRM's activities, tasks and blockers behave as before the move (log a note, a task, a task
@@ -12,7 +12,7 @@
  * activities on a deal (AC-1.4) stay covered by meetings-deal.spec.ts, which runs in the `meetings` project.
  *
  * ═══ PREREQUISITES (what must be running, with which env) ═══════════════════════════════════════════════
- * Everything below is the specs/028 wiring on top of the stack the other e2e specs already need
+ * Everything below is the specs/20261110-activities wiring on top of the stack the other e2e specs already need
  * (Postgres/MinIO, auth :3001 with ENABLE_TEST_AUTH=true, notify-api :8081, crm-api :8084, projects-api :8086).
  * A stack started BEFORE this feature lacks all of it and these specs then fail at setup (401/404/503 from the
  * fixture calls, which say so in their message), they do not skip.
@@ -70,7 +70,7 @@ const runId = newRunId()
 
 test.describe.configure({ mode: 'serial' })
 
-test.describe('specs/028 T21: the CRM keeps working (US-1) and shows only pre-sales tasks (AC-7.1)', () => {
+test.describe('specs/20261110-activities T21: the CRM keeps working (US-1) and shows only pre-sales tasks (AC-7.1)', () => {
   let admin: Person
   let sales: Person
   let company: CompanyRow
@@ -152,7 +152,7 @@ test.describe('specs/028 T21: the CRM keeps working (US-1) and shows only pre-sa
     await expect(secondRow).not.toContainText('Done', { timeout: 15_000 })
     await expect(secondToggle).toHaveText('Mark done')
 
-    // The author edits and deletes their own activity (AC-4.2 of specs/017).
+    // The author edits and deletes their own activity (AC-4.2 of specs/20261101-crm).
     await firstRow.getByRole('button', { name: 'Edit' }).click()
     const editDialog = page.getByRole('dialog')
     await editDialog.getByLabel('Subject').fill(`${firstTask} (revised)`)
@@ -169,7 +169,7 @@ test.describe('specs/028 T21: the CRM keeps working (US-1) and shows only pre-sa
     await ctx.close()
   })
 
-  test('a participant is shown ("With …") and an activity logged from the deal page keeps its deal (AC-1.1, specs/017 US-8)', async ({
+  test('a participant is shown ("With …") and an activity logged from the deal page keeps its deal (AC-1.1, specs/20261101-crm US-8)', async ({
     browser,
   }) => {
     const subject = `Kickoff call ${runId}`

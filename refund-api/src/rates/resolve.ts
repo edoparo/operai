@@ -1,5 +1,5 @@
 /**
- * Pure, DB-free effective-rate resolution (T3, specs/009-mileage-rate,
+ * Pure, DB-free effective-rate resolution (T3, specs/20260720-mileage-rate,
  * AC-2.1, AC-2.3, AC-2.4, AC-4.4).
  *
  * "In effect" (spec Domain language): for a given entity and date D, the

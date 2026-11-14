@@ -1,6 +1,6 @@
 /**
- * The CRM's declared permission catalog (specs/017-crm — AC-5.1, AC-5.2;
- * decisions D-3; ADR-0052).
+ * The CRM's declared permission catalog (specs/20261101-crm — AC-5.1, AC-5.2;
+ * decisions D-3; ADR 20261101-crm-tool-shape-and-authorization).
  *
  * Mirrors `catalogs/inventory.ts`'s shape: a plain constant describing the
  * (resource, action, supportedConditions) surface `crm-api` enforces
@@ -12,9 +12,9 @@
  *     AND is the whole read/collaborate capability: companies, contacts,
  *     activities and reading deals. `crm` is registered ONLY here, never also
  *     through `SUITE_APPS` (a second full-replace registration would prune it).
- *   - `deal` — `manage`, supporting the `entity` condition (ADR-0015): create,
+ *   - `deal` — `manage`, supporting the `entity` condition (ADR 20260716-entity-scoped-abac-refund-api): create,
  *     edit and move deals of the holder's own entity, or both when unconditioned;
- *     and `financials` (specs/018), unconditioned: see/edit a deal's money.
+ *     and `financials` (specs/20261101-crm-sales-flow), unconditioned: see/edit a deal's money.
  *   - `contact` — `erase`, no conditions: the irreversible deletion of a
  *     contact's personal data (GDPR art. 17, D-13).
  *
@@ -39,8 +39,8 @@ export const CRM_CATALOG: AppCatalogInput = {
       label: "Deal",
       actions: [
         { key: "manage", label: "Manage", supportedConditions: ["entity"] },
-        // Sees and edits a deal's money (value, quote lines, margin) — specs/018
-        // (ADR-0054). Unconditioned: financial visibility is not entity-scoped.
+        // Sees and edits a deal's money (value, quote lines, margin) — specs/20261101-crm-sales-flow
+        // (ADR 20261101-crm-financial-visibility-permission). Unconditioned: financial visibility is not entity-scoped.
         { key: "financials", label: "View and edit financials", supportedConditions: [] },
       ],
     },

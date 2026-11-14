@@ -20,7 +20,7 @@ const classifyError = (error: unknown): PersonLoadFailure => {
 
 /**
  * PersonPicker — choose an Operai user (an owner, an assignee) from `auth`'s
- * directory (ADR-0047, widened to `deal:manage` holders by ADR-0053). The
+ * directory (ADR 20261006-user-directory-endpoint-capability-gated, widened to `deal:manage` holders by ADR 20261101-user-directory-gate-widened-to-deal-manage). The
  * behaviour is the library's `PersonPicker` (fetched once, filtered by name or
  * email in the browser); this adapter binds the CRM's directory call, its error
  * reading and its copy.
@@ -49,7 +49,7 @@ export default function PersonPicker({
   required?: boolean
   /** Ids not offered (people already chosen). */
   exclude?: readonly string[]
-  /** Empties the field after a choice: the picker adds people to a list (specs/017 US-8). */
+  /** Empties the field after a choice: the picker adds people to a list (specs/20261101-crm US-8). */
   clearOnSelect?: boolean
   testId: string
 }) {

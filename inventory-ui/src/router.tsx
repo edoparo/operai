@@ -15,7 +15,7 @@ import RegisterAssetPage from './pages/RegisterAssetPage'
 import RulesPage from './pages/RulesPage'
 
 /**
- * inventory-ui's inner router (T24, specs/015-hardware-inventory), the tool's
+ * inventory-ui's inner router (T24, specs/20261006-hardware-inventory), the tool's
  * six screens from design.md § Screens & states:
  *
  *   /assets                       T1 Assets list
@@ -27,11 +27,11 @@ import RulesPage from './pages/RulesPage'
  *
  * The employee devices view (D1) is deliberately NOT here: it is the remote's
  * second, ungated entry (`./MyDevices`, mounted by the shell at `/devices`,
- * ADR-0045) and has no inner router.
+ * ADR 20261006-ungated-second-federated-entry-of-a-gated-remote) and has no inner router.
  *
  * Every page is a placeholder file in T24; the owning task fills the body of
  * its own page file, so no later task edits this one. The route tree carries
- * NO auth guard and no chrome of its own (ADR-0006) — capability gating is
+ * NO auth guard and no chrome of its own (ADR 20260709-suite-frontend-module-federation) — capability gating is
  * the layout's job (T28).
  *
  * `Root` is the layout seam: it defaults to a bare `<Outlet/>`, and T28's

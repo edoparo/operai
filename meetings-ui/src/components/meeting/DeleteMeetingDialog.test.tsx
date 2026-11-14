@@ -1,7 +1,7 @@
 /**
  * @vitest-environment jsdom
  *
- * The Delete meeting dialog (specs/021-meetings T75; design.md S3c, F14; AC-4.6, AC-5.12): says what
+ * The Delete meeting dialog (specs/20261104-meetings T75; design.md S3c, F14; AC-4.6, AC-5.12): says what
  * is deleted and that it cannot be undone, needs the acknowledgement, and keeps the dialog open
  * (with "Nothing was deleted") when storage is unavailable.
  */

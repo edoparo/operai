@@ -1,5 +1,5 @@
 /**
- * Records SCRUBBED reply shapes of the pinned Vertex model for the unforced single tool (specs/021 plan H-8, T120):
+ * Records SCRUBBED reply shapes of the pinned Vertex model for the unforced single tool (specs/20261104-meetings plan H-8, T120):
  *   cd meetings-api && MEETINGS_AI_PROVIDER=real bun scripts/record-vertex-replies.ts --out <dir>
  * Synthetic content only, at most 5 calls. Writes `messages-<case>.json` (status + scrubbed reply or error body) and
  * prints one value-free line per case. The project id/number, ids, tokens and thinking signatures never reach the files.

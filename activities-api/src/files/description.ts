@@ -1,5 +1,5 @@
 /**
- * A task's description (ADR-0089): a TipTap/ProseMirror document, stored as JSONB and returned
+ * A task's description (ADR 20261113-task-description-files-in-activities-api-bucket): a TipTap/ProseMirror document, stored as JSONB and returned
  * as it was saved. activities-api never renders it; the UIs render it as React elements (no
  * HTML), so a node they do not know is simply not shown. What the server does enforce:
  *

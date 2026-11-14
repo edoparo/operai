@@ -1,6 +1,6 @@
 /**
  * strings.assets — the Assets list (T1) and its filter bar (T29,
- * specs/015-hardware-inventory; design.md § T1, F7 and Resolutions Q5).
+ * specs/20261006-hardware-inventory; design.md § T1, F7 and Resolutions Q5).
  * Message values with `{name}` placeholders go through `fillTemplate`.
  */
 const en = {

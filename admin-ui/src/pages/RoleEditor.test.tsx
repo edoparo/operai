@@ -2,7 +2,7 @@
  * @vitest-environment jsdom
  *
  * Component tests for RoleEditor — Screen A2, the rule composer (T18,
- * specs/004-auth-roles-permissions).
+ * specs/20260713-auth-roles-permissions).
  *
  * Covers:
  *   (A) Loading: skeleton while role + catalog are both in-flight.
@@ -352,7 +352,7 @@ describe('RoleEditor — building a conditioned rule', () => {
   })
 })
 
-describe('RoleEditor — self-approval condition (T4, specs/010-self-approval-control, ADR-0026)', () => {
+describe('RoleEditor — self-approval condition (T4, specs/20260721-self-approval-control, ADR 20260721-self-approval-condition-and-403-exception)', () => {
   it('offers a self-approval toggle distinct from the entity checkbox for request.approve; not offered for reject (AC-1.1/1.6)', async () => {
     await renderLoaded()
     fireEvent.click(screen.getByTestId('rule-composer-toggle'))

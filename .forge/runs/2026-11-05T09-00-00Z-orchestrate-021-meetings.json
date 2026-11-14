@@ -3,7 +3,7 @@
   "plugin_version": "2.56.0",
   "run_id": "2026-11-05T09-00-00Z-orchestrate-021-meetings",
   "command": "orchestrate",
-  "feature": "021-meetings",
+  "feature": "20261104-meetings",
   "rigor": "production",
   "rigor_recorded": null,
   "started": "2026-11-05T09:00:00Z",
@@ -73,7 +73,7 @@
     {
       "agent": "product-owner",
       "outcome": "completed",
-      "artifact": "specs/022-meetings-live/spec.md (approved)"
+      "artifact": "specs/20261105-meetings-live/spec.md (approved)"
     },
     {
       "agent": "backend-dev",

@@ -1,12 +1,12 @@
 #!/usr/bin/env bash
 # infra/meetings-gcs-transient-policy.sh - apply or verify the rules of the meetings TRANSIENT
-# Google Cloud Storage bucket (specs/021-meetings, plan "Amendment 2026-11-05" G-2 and check N2,
-# ADR-0069, AC-4.4, AC-4.9).
+# Google Cloud Storage bucket (specs/20261104-meetings, plan "Amendment 2026-11-05" G-2 and check N2,
+# ADR 20261105-meetings-ai-providers-google-cloud-eu, AC-4.4, AC-4.9).
 #
 # WHY THIS EXISTS. Cloud Speech-to-Text v2 batch recognition (Chirp 3) accepts audio ONLY as a
 # gs:// object, so every transcription attempt copies its audio parts into this bucket and Google
 # writes the result back to it. The bucket is a transient processing hop, never a place audio is
-# kept (the audio of record is the Railway bucket, ADR-0063). meetings-api reads the same facts at
+# kept (the audio of record is the Railway bucket, ADR 20261104-audio-retention-bucket-lifecycle-verified-at-startup). meetings-api reads the same facts at
 # startup (check N2) and REFUSES TO START when one is wrong; this script is the operator's way to
 # set them and to prove them BEFORE a deploy, without starting the service.
 #

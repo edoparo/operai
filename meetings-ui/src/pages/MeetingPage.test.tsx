@@ -1,7 +1,7 @@
 /**
  * @vitest-environment jsdom
  *
- * The meeting page frame (specs/021-meetings T57; design.md S3, S3a, S3b, F9, F15, F16): the
+ * The meeting page frame (specs/20261104-meetings T57; design.md S3, S3a, S3b, F9, F15, F16): the
  * header, the banners, the details card, the ONE status panel per derived status, the content
  * tabs and the card slots. The cards and panels other tasks own are replaced by stubs here: each
  * has its own tests; this file pins how the frame decides what to show.

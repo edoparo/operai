@@ -1,6 +1,6 @@
 /**
  * InvitationsPage — Screen U2 (design.md "Invitations list", T12,
- * specs/006-user-invitations). Route `/users/invitations` (../router.tsx,
+ * specs/20260713-user-invitations). Route `/users/invitations` (../router.tsx,
  * registered in T10 pointing at this same file — the T10 placeholder is
  * fully replaced here).
  *

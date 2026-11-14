@@ -92,7 +92,7 @@ export default function TaskFormDialog({
   const t = strings.tasks.form
   const people = assignable(project)
   const [subject, setSubject] = useState(task?.subject ?? '')
-  // The task's text is its rich description (ADR-0089); its files wait for the save.
+  // The task's text is its rich description (ADR 20261113-task-description-files-in-activities-api-bucket); its files wait for the save.
   const [description, setDescription] = useState<RichTextDoc | null>(task?.task.description ?? null)
   const storedFiles = useMemo(() => deferredOf(task?.task.files), [task])
   const files = useDeferredFiles(storedFiles)

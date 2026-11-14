@@ -11,7 +11,7 @@ export type ManageFoldersDialogProps = {
 }
 
 /**
- * Every one of the person's own folders (ADR-0090), each with its rename and delete actions. Those open their own
+ * Every one of the person's own folders (ADR 20261113-personal-meeting-folders), each with its rename and delete actions. Those open their own
  * dialog on top of this one (dialogs stack, design-system § Dialogs), so this stays open behind them.
  */
 export function ManageFoldersDialog({ folders, onCreate, onRename, onDelete, onClose }: ManageFoldersDialogProps) {

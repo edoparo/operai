@@ -1,7 +1,7 @@
 /**
  * @vitest-environment jsdom
  *
- * Page tests for RegisterAssetPage (T30, specs/015-hardware-inventory;
+ * Page tests for RegisterAssetPage (T30, specs/20261006-hardware-inventory;
  * design.md § T3, F1, § Error and conflict catalogue; refs AC-1.1 to AC-1.7).
  *
  * A real TanStack Router on a memory history so "success navigates to ..." is

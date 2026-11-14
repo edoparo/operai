@@ -1,5 +1,5 @@
 /**
- * BatchStatusBadge — a compilation batch's lifecycle status (specs/008):
+ * BatchStatusBadge — a compilation batch's lifecycle status (specs/20260719-refund-monthly-processing):
  * compiled (awaiting payment), paid (settled — the same meaning, hence the
  * same icon, as a paid request), discarded (voided). Tone and icon come from
  * the library's status dictionary through `BATCH_STATUS_MEANING`.

@@ -22,7 +22,7 @@ import BatchStatusBadge from '../components/BatchStatusBadge'
 
 /**
  * BatchHistoryPage — Screen B1 ("Batch history", `/refund/batches` — T13,
- * specs/008-refund-monthly-processing/tasks.md, design.md "Screen B1"/F8).
+ * specs/20260719-refund-monthly-processing/tasks.md, design.md "Screen B1"/F8).
  * Replaces T9's placeholder: the entry point for every accounting
  * monthly-processing flow — a flat list of EVERY batch regardless of status
  * (AC-8.2, never filtered to only `compiled`), mirroring `MyRequestsPage`/

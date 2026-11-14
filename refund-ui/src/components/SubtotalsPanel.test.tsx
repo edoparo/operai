@@ -1,7 +1,7 @@
 /**
  * @vitest-environment jsdom
  *
- * Post-close change (specs/007): subtotals are now grouped by currency, not
+ * Post-close change (specs/20260716-refund-service): subtotals are now grouped by currency, not
  * entity (see `../lib/subtotals.ts`'s doc comment) — cards key on `currency`
  * and render `CurrencyBadge`, and a request can carry more than two cards.
  */

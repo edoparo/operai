@@ -1,7 +1,7 @@
 /**
  * @vitest-environment jsdom
  *
- * Component tests for LoadMore (T26, specs/015-hardware-inventory; design.md
+ * Component tests for LoadMore (T26, specs/20261006-hardware-inventory; design.md
  * § NEW components "LoadMore" and § Accessibility T1 list: "Load more keeps
  * focus on its button and announces '{n} more assets loaded'; when the last
  * page loads the button is removed").

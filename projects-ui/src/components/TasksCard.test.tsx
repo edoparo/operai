@@ -1,7 +1,7 @@
 /**
  * @vitest-environment jsdom
  *
- * TasksCard (specs/028 AC-3.2 – AC-3.4, AC-3.8, AC-4.2, AC-5.2): the project's
+ * TasksCard (specs/20261110-activities AC-3.2 – AC-3.4, AC-3.8, AC-4.2, AC-5.2): the project's
  * tasks as the server orders them, Open / Done, overdue and blocked rows, the
  * buttons each row shows (only where the server's `may` flags say so, never on
  * a closed project's Add), complete / reopen / delete with their refusals, and

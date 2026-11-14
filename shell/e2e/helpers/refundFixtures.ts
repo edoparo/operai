@@ -1,10 +1,10 @@
 /**
- * Test-only fixture bridge for specs/007-refund-service e2e (T21, QE pass).
+ * Test-only fixture bridge for specs/20260716-refund-service e2e (T21, QE pass).
  *
  * Refund permissions are deliberately admin-assigned, never automatic for
  * the built-in `employee` role (spec.md Constraints — "holding `employee`
  * does not by itself grant refund access"), and accounting review is
- * entity-scoped via the `user.entity` attribute (ADR-0015). There is no
+ * entity-scoped via the `user.entity` attribute (ADR 20260716-entity-scoped-abac-refund-api). There is no
  * test-only "make me a refund employee/accounting user" endpoint (nor
  * should there be, for the same reason `shell/e2e/helpers/inviteFixtures.ts`
  * gives for its own `grantRole`). This file mirrors that exact pattern —

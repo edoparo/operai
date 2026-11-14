@@ -8,7 +8,7 @@
  * Each test mounts a tiny Hono app with jwtMiddleware + a protected dummy route
  * that records whether it ran (to prove the guard stopped the request).
  *
- * ADR-0010 additions (AUTH_AUDIENCE fold-in, specs/005 T9-notify-api-half):
+ * ADR 20260713-jwt-audience-claim-enforcement additions (AUTH_AUDIENCE fold-in, specs/20260713-notification-center T9-notify-api-half):
  *   (h) token missing `aud` → 401
  *   (i) token with wrong `aud` → 401
  *   (j) token with the correct `aud` → 200 (regression guard — audience check
@@ -73,7 +73,7 @@ mock.module("jose", () => {
 // bun runs every file in ONE process and process-level env is shared, so these
 // overrides must be undone in afterAll. Left in place, the fake DATABASE_URL is
 // what every later DB-backed file captures (and builds its Prisma client with),
-// and they all fail with P1000 (T20, specs/016).
+// and they all fail with P1000 (T20, specs/20261013-notify-service-credentials).
 const ENV_OVERRIDES: Record<string, string> = {
   DATABASE_URL: "postgresql://test:test@localhost:5435/test",
   ALLOWED_ORIGINS: "http://localhost:5173",
@@ -366,7 +366,7 @@ describe("jwtMiddleware (notify-api)", () => {
     querySpy.mockRestore();
   });
 
-  // ─── ADR-0010: audience verification ─────────────────────────────────────
+  // ─── ADR 20260713-jwt-audience-claim-enforcement: audience verification ─────────────────────────────────────
 
   it("(h) token with NO aud claim — 401, handler does not run", async () => {
     const handlerRan = { value: false };

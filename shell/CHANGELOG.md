@@ -10,7 +10,7 @@
   change is captured in the existing audit trail. Employees gain a new "My
   profile" page (reachable from the account menu) where they can see their own
   address, read-only.
-- 2b11a53: New Inventory tool (specs/015): a hardware register with assets, employee-confirmed
+- 2b11a53: New Inventory tool (specs/20261006-hardware-inventory): a hardware register with assets, employee-confirmed
   assignment, a depreciation ledger with fiscal-year close, and invoice files.
 
   `inventory-api` and `inventory-ui` are new. The shell mounts the gated `/inventory` route
@@ -45,7 +45,7 @@
 
 - 590047b: Add the receipt-bucket origin (`https://t3.storageapi.dev`) to the shell CSP's
   `connect-src`. Receipt uploads POST directly to the object-storage bucket
-  (ADR-0016), so that request is governed by the shell's CSP even though no
+  (ADR 20260716-eu-object-storage-refund-attachments), so that request is governed by the shell's CSP even though no
   Operai service is involved — without this pin the browser blocks every upload
   before it leaves the page, regardless of the bucket's CORS rule.
 - 09025ee: Serve the SPA document with `Cache-Control: no-store`. CSP rides on a response

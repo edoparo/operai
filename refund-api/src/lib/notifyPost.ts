@@ -1,6 +1,6 @@
 /**
  * The one place refund-api talks to notify-api's `/system` routes (T9,
- * specs/016-notify-service-credentials; AC-1.1, AC-1.2, AC-4.3, ADR-0044/0049).
+ * specs/20261013-notify-service-credentials; AC-1.1, AC-1.2, AC-4.3, ADR 20261006-scoped-service-jwt-fourth-notify-caller/0049).
  *
  * `notify.ts` (push, scope `notifications.push`) and `notifyEmail.ts` (email,
  * scope `emails.send`) both go through `postToNotify`, so the credential

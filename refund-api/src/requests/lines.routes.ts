@@ -1,5 +1,5 @@
 /**
- * Expense-line endpoints (T8, specs/007-refund-service).
+ * Expense-line endpoints (T8, specs/20260716-refund-service).
  *
  *   POST   /requests/:id/lines          → 201 line
  *   PUT    /requests/:id/lines/:lineId  → 200 line (whole-object replace)

@@ -1,6 +1,6 @@
 /**
  * Human label for a registered device, derived from the User-Agent header (T4,
- * specs/029-push-notifications, AC-3.1 / AC-6.3): "Chrome · macOS". The UA is
+ * specs/20261111-push-notifications, AC-3.1 / AC-6.3): "Chrome · macOS". The UA is
  * attacker-controlled text, so it is only ever matched, never echoed: the output is
  * built from the fixed strings below.
  */

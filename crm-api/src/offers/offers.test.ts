@@ -3,7 +3,7 @@ import { PDFDocument } from "pdf-lib";
 import { bucket, call, db, estimai, estimaiNotice, makeCompany, makeDeal, offerBody, resetWorld } from "../test-support/world";
 import { setStorageForTests } from "../lib/storage";
 
-/** specs/018 US-4 (list, download, delete) on the specs/020 generate flow. */
+/** specs/20261101-crm-sales-flow US-4 (list, download, delete) on the specs/20261102-crm-offer-document generate flow. */
 const YEAR = new Date().getUTCFullYear();
 
 const PROFILE = {
@@ -63,7 +63,7 @@ const putProfile = (entity: "welld_ch" | "welld_it" = "welld_ch") =>
   call("PUT", `/entity-profiles/${entity}`, { as: "admin", body: { ...PROFILE, ...(entity === "welld_it" ? { legalName: "wellD Srl" } : {}) } });
 const generate = (dealId: string, body: unknown, as: "salesCh" | "admin" = "admin") =>
   call("POST", `/deals/${dealId}/offers`, { as, body });
-/** specs/020 US-7: a next revision needs the previous offer sent. */
+/** specs/20261102-crm-offer-document US-7: a next revision needs the previous offer sent. */
 const markSent = (dealId: string, offerId: string) => call("POST", `/deals/${dealId}/offers/${offerId}/sent`);
 /** Generates, then marks it sent, so the deal's next generation is a revision. */
 const generateSent = async (dealId: string, body: unknown) => {
@@ -91,7 +91,7 @@ async function storeAttachment(dealId: string, over: Partial<{ fileName: string;
   return row;
 }
 
-describe("offer draft (specs/020 AC-3.1)", () => {
+describe("offer draft (specs/20261102-crm-offer-document AC-3.1)", () => {
   beforeEach(resetWorld);
 
   it("needs a ready estimate, the entity profile and an active template of the deal's entity", async () => {
@@ -204,7 +204,7 @@ describe("offer draft (specs/020 AC-3.1)", () => {
   });
 });
 
-describe("offer generation (specs/020 US-1, US-3, US-4)", () => {
+describe("offer generation (specs/20261102-crm-offer-document US-1, US-3, US-4)", () => {
   beforeEach(resetWorld);
 
   it("needs a ready estimate and the entity's profile", async () => {
@@ -221,7 +221,7 @@ describe("offer generation (specs/020 US-1, US-3, US-4)", () => {
     expect((await generate(it.deal.id, good, "salesCh")).json.code).toBe("out_of_scope");
   });
 
-  it("a deal an admin let go without an estimate gets an offer with no scope, no man-days and no annex (specs/018 AC-3.7)", async () => {
+  it("a deal an admin let go without an estimate gets an offer with no scope, no man-days and no annex (specs/20261101-crm-sales-flow AC-3.7)", async () => {
     const company = await makeCompany();
     const deal = await makeDeal(company.id, { amountCents: 1_500_000 }, "admin");
     await call("POST", `/deals/${deal.id}/estimate/override`, { as: "admin", body: { reason: "Fixed-price service" } });
@@ -546,7 +546,7 @@ describe("offer generation (specs/020 US-1, US-3, US-4)", () => {
       expect(bucket.reads).toEqual([]);
     });
 
-    it("checks the total size from the database BEFORE reading any object (ADR-0057)", async () => {
+    it("checks the total size from the database BEFORE reading any object (ADR 20261102-crm-api-reads-attachment-bytes-for-offer-annexes)", async () => {
       const { deal } = await readyDeal();
       await putProfile();
       const big1 = await storeAttachment(deal.id, { sizeBytes: 12 * 1024 * 1024 });
@@ -619,7 +619,7 @@ describe("offer list, download and delete", () => {
     ]);
   });
 
-  it("keeps listing and downloading specs/018 offers (OF-… reference, legacy snapshot)", async () => {
+  it("keeps listing and downloading specs/20261101-crm-sales-flow offers (OF-… reference, legacy snapshot)", async () => {
     const { deal } = await readyDeal();
     const legacy = {
       language: "en",
@@ -680,7 +680,7 @@ describe("entity profiles", () => {
   });
 });
 
-describe("edit until sent, then revise (specs/020 US-7)", () => {
+describe("edit until sent, then revise (specs/20261102-crm-offer-document US-7)", () => {
   beforeEach(resetWorld);
 
   const form = (dealId: string, offerId: string) => call("GET", `/deals/${dealId}/offers/${offerId}/form`);
@@ -783,7 +783,7 @@ describe("edit until sent, then revise (specs/020 US-7)", () => {
   });
 });
 
-describe("offer numbering setting (specs/020 US-8)", () => {
+describe("offer numbering setting (specs/20261102-crm-offer-document US-8)", () => {
   beforeEach(resetWorld);
   const seq = (entity = "welld_ch", as: "admin" | "salesCh" | "consultant" = "admin") =>
     call("GET", `/offer-sequences/${entity}`, { as });

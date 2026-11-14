@@ -12,7 +12,7 @@ import { strings } from '../strings'
 import { fillTemplate } from '../strings/errors'
 
 /**
- * NewRuleDialog — "New rule for {entity}" (T37, specs/015-hardware-inventory;
+ * NewRuleDialog — "New rule for {entity}" (T37, specs/20261006-hardware-inventory;
  * design.md F11, § Irreversible actions "New rule", § Error and conflict
  * catalogue; AC-6.2, AC-6.3, AC-6.4, AC-6.5): an `IrreversibleActionDialog` whose
  * form holds the effective date, the useful life (whole years, at least 1), the

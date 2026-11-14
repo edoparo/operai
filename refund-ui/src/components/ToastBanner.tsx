@@ -10,8 +10,8 @@
  *     interrupting (unlike `role="alert"`'s assertive announcement).
  *
  * History: this used to be a re-authored copy of another remote's component
- * (a remote cannot import another remote's source, ADR-0006). It now renders
- * @operai/ui's `Banner (compact)` (ADR-0050) and only binds refund-ui's copy and test ids.
+ * (a remote cannot import another remote's source, ADR 20260709-suite-frontend-module-federation). It now renders
+ * @operai/ui's `Banner (compact)` (ADR 20261031-shared-ui-library-consumed-as-source) and only binds refund-ui's copy and test ids.
  *
  * Copy sourced from `strings.ts` (T14/T15 convention: no hardcoded UI
  * strings) — only the dismiss button's `aria-label` is static; `message`
@@ -36,7 +36,7 @@ export type ToastBannerProps = {
   tone?: 'error' | 'success'
 }
 
-// A thin adapter over @operai/ui's compact `Banner` (ADR-0050): the library
+// A thin adapter over @operai/ui's compact `Banner` (ADR 20261031-shared-ui-library-consumed-as-source): the library
 // owns the roles, the auto-dismiss timer and the look; this binds the copy.
 // A failed save (or a failed resend) is an action that failed next to the form
 // or button the person used, so it takes the `danger` tone (red, INC-20) —

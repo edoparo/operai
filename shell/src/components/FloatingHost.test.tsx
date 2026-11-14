@@ -4,7 +4,7 @@
 import { act, cleanup, render, screen } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
-// specs/021-meetings A13, ADR-0078: the shell's floating slot. The widget is the meetings remote's
+// specs/20261104-meetings A13, ADR 20261110-shell-floating-slot-for-remote-widgets: the shell's floating slot. The widget is the meetings remote's
 // `./RecorderDock`; here it is a stub, or missing.
 
 const dock = vi.hoisted(() => ({ mode: 'ok' as 'ok' | 'throw' }))

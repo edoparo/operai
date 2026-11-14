@@ -5,7 +5,7 @@
  * (generic title/body/tone props)").
  *
  * Re-authored from refund-ui's ConfirmDeleteModal with the same props and
- * behaviour (ADR-0006: no cross-remote imports): Cancel is the default focus,
+ * behaviour (ADR 20260709-suite-frontend-module-federation: no cross-remote imports): Cancel is the default focus,
  * Escape / backdrop / × cancel, Tab is trapped between the two buttons, an
  * in-flight state disables both and shows a spinner, an inline `role="alert"`
  * error sits above the footer. The default copy is the hard-delete wording;
@@ -18,7 +18,7 @@
  *   - closing returns focus to the element that had it when the dialog opened,
  *     if it is still in the page (else the page moves focus to its heading).
  *
- * Now a thin adapter over @operai/ui's `ConfirmDialog` (ADR-0050, INC-09/21),
+ * Now a thin adapter over @operai/ui's `ConfirmDialog` (ADR 20261031-shared-ui-library-consumed-as-source, INC-09/21),
  * which was extracted from this component: same props, copy and data-testids
  * (the backdrop keeps `${testIdPrefix}-modal`). The library traps Tab over
  * every enabled control, the header × included.

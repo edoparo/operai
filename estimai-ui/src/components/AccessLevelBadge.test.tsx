@@ -1,7 +1,7 @@
 /**
  * @vitest-environment jsdom
  *
- * Component tests for AccessLevelBadge (T14, specs/013-estimate-sharing/
+ * Component tests for AccessLevelBadge (T14, specs/20260807-estimate-sharing/
  * tasks.md, design.md Component inventory / Accessibility → "Estimates list
  * (S6)").
  *
@@ -64,7 +64,7 @@ describe('AccessLevelBadge', () => {
   })
 })
 
-describe('AccessLevelBadge — oversight (specs/024)', () => {
+describe('AccessLevelBadge — oversight (specs/20261108-estimate-list-oversight)', () => {
   it('is told apart from Viewer by its label text, not by its (shared) eye glyph', () => {
     const { unmount } = render(<AccessLevelBadge level="oversight" />)
     const oversight = screen.getByTestId('access-level-badge').textContent

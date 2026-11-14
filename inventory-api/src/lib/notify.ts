@@ -1,6 +1,6 @@
 /**
- * Assignment notifications (T17, specs/015-hardware-inventory; AC-2.8, AC-2.9;
- * ADR-0044). The after-commit fill for `assignmentHooks.afterCommit`:
+ * Assignment notifications (T17, specs/20261006-hardware-inventory; AC-2.8, AC-2.9;
+ * ADR 20261006-scoped-service-jwt-fourth-notify-caller). The after-commit fill for `assignmentHooks.afterCommit`:
  *
  *   created    -> the ASSIGNEE: "A device is waiting for your confirmation",
  *                 linking to `/devices`;
@@ -10,10 +10,10 @@
  *
  * Calls notify-api's `POST /system/notifications` authenticated with the scoped
  * service JWT from `serviceToken.ts` (`Authorization: Bearer`, scope
- * `notifications.push`; ADR-0044/0049). notify-api binds `system:inventory-api` to
+ * `notifications.push`; ADR 20261006-scoped-service-jwt-fourth-notify-caller/0049). notify-api binds `system:inventory-api` to
  * `originApp: "inventory"`.
  *
- * STRICTLY BEST-EFFORT (same posture as refund-api's `notifyDecision`, ADR-0017
+ * STRICTLY BEST-EFFORT (same posture as refund-api's `notifyDecision`, ADR 20260716-system-notifications-cross-user-trigger
  * §4): `notifyAssignment` never throws. Whatever goes wrong — no token, a
  * timeout, a 5xx, a refused request — is logged (status/outcome and ids only:
  * never a token, the secret, a response body, or the description) and

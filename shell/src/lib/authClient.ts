@@ -3,10 +3,10 @@ import { createAuthClient } from 'better-auth/react'
 /**
  * better-auth client for the Operai suite shell.
  *
- * Extracted from estimai-ui/src/lib/authClient.ts (T4, specs/003-suite-shell) —
+ * Extracted from estimai-ui/src/lib/authClient.ts (T4, specs/20260709-suite-shell) —
  * the shell now owns the ONE better-auth client instance for the whole suite;
  * remotes consume it indirectly via `shell/session` instead of holding their
- * own copy (ADR-0001, ADR-0006). estimai-ui keeps its own copy until it is
+ * own copy (ADR 20260607-jwt-in-memory-never-web-storage, ADR 20260709-suite-frontend-module-federation). estimai-ui keeps its own copy until it is
  * rewired to consume `shell/session` (T13); this file is not imported by
  * estimai-ui.
  *
@@ -19,7 +19,7 @@ import { createAuthClient } from 'better-auth/react'
  *
  * The auth service also exposes GET /auth/token (cookie-authenticated) which returns
  * the RS256 JWT consumed by session.ts. That endpoint is reached directly via fetch
- * (not via this client) and the resulting token is cached in memory per ADR-0001.
+ * (not via this client) and the resulting token is cached in memory per ADR 20260607-jwt-in-memory-never-web-storage.
  */
 export const authClient = createAuthClient({
   baseURL: import.meta.env.VITE_AUTH_URL,

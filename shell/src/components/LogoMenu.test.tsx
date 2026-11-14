@@ -4,7 +4,7 @@
  * Tests for LogoMenu — the header logo as a dropdown whose "About" item opens
  * the About dialog (via the onAbout callback).
  *
- * Ported from estimai-ui/src/components/LogoMenu.test.tsx (T6, specs/003-suite-shell,
+ * Ported from estimai-ui/src/components/LogoMenu.test.tsx (T6, specs/20260709-suite-shell,
  * AC-1.4) — unchanged, since the relocated component is behaviorally identical.
  */
 

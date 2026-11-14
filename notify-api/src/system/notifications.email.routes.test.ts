@@ -1,6 +1,6 @@
 /**
- * POST /system/notifications with `email: true` (specs/019-crm-notifications,
- * ADR-0056): the `crm` origin binding, the second-scope gate (403 before any
+ * POST /system/notifications with `email: true` (specs/20261101-crm-notifications,
+ * ADR 20261101-notify-api-resolves-email-notice-address-from-auth): the `crm` origin binding, the second-scope gate (403 before any
  * row), and the `emailStatus` outcomes. The address lookup and the email
  * channel are injected stubs; the notification row is the real thing (compose
  * Postgres, same setup as notifications.routes.test.ts).
@@ -138,7 +138,7 @@ describe("crm origin", () => {
   });
 });
 
-describe("projects origin (specs/028 T24)", () => {
+describe("projects origin (specs/20261110-activities T24)", () => {
   it("system:activities-api with both scopes: 201, emailStatus, footer 'Sent by Operai Projects'", async () => {
     const res = await post(
       buildApp({ status: "found", email: "a@b.test", name: "A" }),

@@ -14,7 +14,7 @@ import SkeletonListRows from './SkeletonListRows'
  * inventory; design.md § T0 InventoryShell), passed to `createAppRouter` by
  * App.tsx as the router's root route component. Re-authored from refund-ui's
  * RefundShell: an h1, a labelled tab nav and the routed `<Outlet/>` — no suite
- * chrome (the shell owns it, ADR-0006) and no auth guard.
+ * chrome (the shell owns it, ADR 20260709-suite-frontend-module-federation) and no auth guard.
  *
  * Capability gating (AC-9.1, 9.3, 9.4, 9.6; UX only — the server's 403 is the
  * gate, AC-9.7). A tab the caller lacks the capability for is ABSENT from the
@@ -29,13 +29,13 @@ import SkeletonListRows from './SkeletonListRows'
  * renders, in place of the page,
  *   - a skeleton with a polite "Loading inventory…" line while it loads;
  *   - `ErrorBanner` with Retry on failure — the 503 "authorization service
- *     unavailable" variant for a fail-closed `auth` outage (ADR-0014);
+ *     unavailable" variant for a fail-closed `auth` outage (ADR 20260716-refund-api-authorization-enforcing-resource-server);
  *   - "No entity in your scope" when both lists are empty (a user with tool
  *     access whose grants are entity-conditioned with no entity). Plain page
  *     text, distinct from an empty list: nothing is wrong with the list.
  * The heading and tabs stay on screen in every state.
  *
- * Layout from @operai/ui (ADR-0050, INC-12): `ToolLayout` (tool title h1 +
+ * Layout from @operai/ui (ADR 20261031-shared-ui-library-consumed-as-source, INC-12): `ToolLayout` (tool title h1 +
  * tabs + the page column — a <div>, not a second <main>: the shell owns the
  * page's one main landmark) and `TabNav`. TanStack Router's <Link> sets
  * `aria-current="page"` on the active tab; the library's `.tab-link` styles it.

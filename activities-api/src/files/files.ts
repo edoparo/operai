@@ -1,9 +1,9 @@
 /**
- * A task's files (ADR-0089): what the view shows of them, which images a description may
+ * A task's files (ADR 20261113-task-description-files-in-activities-api-bucket): what the view shows of them, which images a description may
  * name, the clean-up of images a description no longer shows, and deleting a task together
  * with its files.
  *
- * The one ordering rule: the bucket object is deleted BEFORE its row (ADR-0063). A row whose
+ * The one ordering rule: the bucket object is deleted BEFORE its row (ADR 20261104-audio-retention-bucket-lifecycle-verified-at-startup). A row whose
  * object could not be deleted stays, so the next clean-up or delete tries again; an object is
  * never left without a row that leads back to it.
  */

@@ -1,6 +1,6 @@
 /**
  * Oversight — read-only access to every estimate for a holder of the
- * `estimate:read-all` permission (specs/024, ADR-0075; amends ADR-0036).
+ * `estimate:read-all` permission (specs/20261108-estimate-list-oversight, ADR 20261108-estimai-oversight-permission-amends-0036; amends ADR 20260807-record-level-acl-resource-server-owned-access-primitive).
  *
  * estimai-api still resolves record access locally (`access.ts`: owner or a
  * collaborator row). This module is the ONE exception: it asks `auth GET
@@ -76,7 +76,7 @@ export async function holdsReadAll(sub: string, authorizationHeader: string): Pr
   let holds: boolean;
   try {
     const permissions = await fetchResolvedPermissions(authorizationHeader);
-    // The catalog declares no conditions for read-all (ADR-0075), so any grant is the grant.
+    // The catalog declares no conditions for read-all (ADR 20261108-estimai-oversight-permission-amends-0036), so any grant is the grant.
     holds = permissions.some((p) => p.resource === READ_ALL_RESOURCE && p.action === READ_ALL_ACTION);
   } catch (err) {
     // The error's name only: a fetch error's message can name auth's internal host.

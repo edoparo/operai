@@ -1,6 +1,6 @@
 /**
- * The ask-the-meeting prompt and its output validator (specs/021-meetings plan.md
- * § Summaries and ask-the-meeting; ADR-0067; AC-9.1 to AC-9.4, AC-9.7).
+ * The ask-the-meeting prompt and its output validator (specs/20261104-meetings plan.md
+ * § Summaries and ask-the-meeting; ADR 20261104-ai-output-structured-validated-plain-text; AC-9.1 to AC-9.4, AC-9.7).
  *
  * REQUEST. A fixed English system prompt, then alternating messages: the FIRST user message
  * carries the escaped transcript and the first question; each earlier answered turn follows as

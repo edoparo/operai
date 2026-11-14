@@ -1,7 +1,7 @@
 /**
  * EU-residency + path-style-addressing helpers shared by `env.ts` (startup
  * assertion) and `storage.ts` (S3 client construction) — T9,
- * specs/007-refund-service, ADR-0016, plan Risk R8.
+ * specs/20260716-refund-service, ADR 20260716-eu-object-storage-refund-attachments, plan Risk R8.
  *
  * DEPLOYMENT NOTE (mid-task correction from the coordinator): the actual
  * provisioned bucket is a **Railway S3-compatible bucket in EU Amsterdam** —
@@ -31,7 +31,7 @@
  * operator-declared, never assumed.
  */
 
-/** AWS regions whose physical location is EU (ADR-0016 Risk R8). */
+/** AWS regions whose physical location is EU (ADR 20260716-eu-object-storage-refund-attachments Risk R8). */
 export const EU_AWS_REGIONS = [
   "eu-west-1",
   "eu-west-2",
@@ -85,7 +85,7 @@ export function checkEuResidency(
     if (!(EU_AWS_REGIONS as readonly string[]).includes(region)) {
       return (
         `REFUND_S3_REGION "${region}" is not an EU AWS region (data residency, ` +
-        `ADR-0016/CLAUDE.md). Allowed: ${EU_AWS_REGIONS.join(", ")}`
+        `ADR 20260716-eu-object-storage-refund-attachments/CLAUDE.md). Allowed: ${EU_AWS_REGIONS.join(", ")}`
       );
     }
     return null;
@@ -109,7 +109,7 @@ export function checkEuResidency(
       `REFUND_S3_ENDPOINT "${endpoint}" is a non-AWS endpoint, but ` +
       `REFUND_S3_EU_ENDPOINT_HOSTS is empty/unset — residency cannot be ` +
       `verified for a non-AWS endpoint without an operator-declared EU ` +
-      `allowlist (data residency, ADR-0016/CLAUDE.md). Set ` +
+      `allowlist (data residency, ADR 20260716-eu-object-storage-refund-attachments/CLAUDE.md). Set ` +
       `REFUND_S3_EU_ENDPOINT_HOSTS to a comma-separated list of EU endpoint ` +
       `host suffixes (e.g. "s3.railway-eu-amsterdam.example.com").`
     );
@@ -120,7 +120,7 @@ export function checkEuResidency(
       `REFUND_S3_ENDPOINT host "${hostname}" does not match any entry in ` +
       `REFUND_S3_EU_ENDPOINT_HOSTS (${euEndpointHosts.join(", ")}) — refusing ` +
       `to start with an unverified non-EU endpoint (data residency, ` +
-      `ADR-0016/CLAUDE.md).`
+      `ADR 20260716-eu-object-storage-refund-attachments/CLAUDE.md).`
     );
   }
   return null;

@@ -1,6 +1,6 @@
 /**
  * strings — every user-facing string of inventory-ui, in English and Italian
- * (INC-24/25; specs/015 design.md Resolutions G12/Q1 shipped English first). Components import `strings` and
+ * (INC-24/25; specs/20261006-hardware-inventory design.md Resolutions G12/Q1 shipped English first). Components import `strings` and
  * never inline copy; `lib/noHardcodedStrings.test.ts` enforces that over all of
  * `src/`.
  *

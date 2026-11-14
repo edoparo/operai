@@ -1,7 +1,7 @@
 /**
  * Prisma data-access layer for the batch terminal transitions — mark-paid
- * (T6) and discard (T8), specs/008-refund-monthly-processing, plan.md §
- * Atomic claim / no-double-pay "mark-paid / discard terminal CAS", ADR-0020.
+ * (T6) and discard (T8), specs/20260719-refund-monthly-processing, plan.md §
+ * Atomic claim / no-double-pay "mark-paid / discard terminal CAS", ADR 20260719-refund-batch-paid-lifecycle-extension.
  *
  * Both actions share the SAME shape: `UPDATE refund_batch SET status=…
  * WHERE id=:B AND status='compiled'` — the `status='compiled'` predicate is
@@ -140,7 +140,7 @@ export interface DiscardResult {
  * Terminal CAS `compiled → discarded` + releases the batch's requests back
  * to the candidate pool (`batchId = NULL`, status stays `approved` — AC-6.1)
  * in ONE `$transaction`. `RefundBatchItem` rows are NEVER touched — they
- * are the permanent membership record (AC-6.3/7.3, ADR-0020) and are what
+ * are the permanent membership record (AC-6.3/7.3, ADR 20260719-refund-batch-paid-lifecycle-extension) and are what
  * lets a discarded batch's PDF still resolve (T4's `resolvePdfLink`).
  */
 export function discardBatch(

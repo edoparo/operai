@@ -1,6 +1,6 @@
 /**
  * tripSuggestions — the pure client half of motivo autocomplete (T8,
- * specs/014-motivo-autocomplete/tasks.md; plan.md "## Pure client matching
+ * specs/20260811-motivo-autocomplete/tasks.md; plan.md "## Pure client matching
  * contract", D2/D3). No React, no network, no storage: three total functions
  * over plain data, re-run synchronously on every keystroke (plan D2 —
  * matching is deliberately NOT debounced, only the one corpus fetch is).
@@ -13,7 +13,7 @@
  * │ `tripSuggestions.test.ts` asserts that module's exported                 │
  * │ `MOTIVO_FOLD_VECTORS` table (28 vectors) verbatim. The monorepo is       │
  * │ deliberately mixed pnpm/Bun with no shared workspace package, so a       │
- * │ single shared module is not available — this is the ADR-0025             │
+ * │ single shared module is not available — this is the ADR 20260720-mileage-rate-money-precision-integer-micros             │
  * │ mirrored-rule-with-shared-test-vectors pattern, exactly as               │
  * │ `computeMileageAmountCents` + its shared vectors already do it.          │
  * │                                                                          │

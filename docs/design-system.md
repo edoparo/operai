@@ -1,7 +1,7 @@
 # Operai design system — moved
 
 The design system now lives in the shared library **`@operai/ui`** (`operai-ui/`,
-ADR-0050):
+ADR 20261031-shared-ui-library-consumed-as-source):
 
 - rules — what to use when: [`operai-ui/docs/design-system.md`](../operai-ui/docs/design-system.md)
 - how to build a page: [`operai-ui/docs/building-pages.md`](../operai-ui/docs/building-pages.md)

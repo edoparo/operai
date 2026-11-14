@@ -1,34 +1,34 @@
 /**
  * GET /authz/users/directory — the roster of active users, for the inventory
- * assign picker and holder filter (T5, specs/015-hardware-inventory — refs
- * AC-2.1, AC-3.7; plan.md "User directory for the assign picker"; ADR-0047).
+ * assign picker and holder filter (T5, specs/20261006-hardware-inventory — refs
+ * AC-2.1, AC-3.7; plan.md "User directory for the assign picker"; ADR 20261006-user-directory-endpoint-capability-gated).
  *
  * THIS IS A FACT ENDPOINT, AND THE GATE IS ITS WHOLE SAFETY ARGUMENT. It
  * returns a list of people, so it is acceptable only because it is gated on a
  * named capability whose holders have a business need to pick a person. It is
- * the deliberate, narrow exception to ADR-0039's "no email/search" stance —
+ * the deliberate, narrow exception to ADR 20260807-live-identity-resolution-by-id-fail-soft's "no email/search" stance —
  * `POST /authz/users/identities` stays id-keyed and untouched — and it must not
  * erode in either direction:
  *
  *   - GATE: the caller must hold an entry of {@link DIRECTORY_GATE_PERMISSIONS}
- *     (the `inventory` catalog's `asset:manage`, since ADR-0053 the `crm`
- *     catalog's `deal:manage`, since ADR-0066 the `meetings` catalog's
- *     `meetings:access` and since specs/025-projects the `projects` catalog's
+ *     (the `inventory` catalog's `asset:manage`, since ADR 20261101-user-directory-gate-widened-to-deal-manage the `crm`
+ *     catalog's `deal:manage`, since ADR 20261104-user-directory-gate-meetings-access the `meetings` catalog's
+ *     `meetings:access` and since specs/20261103-projects the `projects` catalog's
  *     `project:manage`, each under ANY entity scope) — an explicit
  *     allowlist, resolved live through `auth`'s own resolver (revocation is
  *     immediate). A second consuming app is ADDED to
  *     that list deliberately; the gate is never relaxed to "any app-access
  *     holder" or "any signed-in user". `ledger:manage` alone does NOT open it.
- *     Otherwise 403. A soft-deleted caller with a still-valid JWT (ADR-0012's
+ *     Otherwise 403. A soft-deleted caller with a still-valid JWT (ADR 20260714-invitation-activation-hooks-soft-delete-lifecycle's
  *     residual window) is refused 403 as well.
  *   - SHAPE: exactly `{id, name, email, entity}` per user. No address, job
  *     title, role, or any other attribute — adding a field is a change to
- *     ADR-0047, not a drive-by.
+ *     ADR 20261006-user-directory-endpoint-capability-gated, not a drive-by.
  *   - POPULATION: active users only (`deletedAt IS NULL`), BOTH entities, even
  *     to an entity-scoped manager: the entity scope on `asset:manage`
  *     constrains which ASSETS they see, not which PEOPLE they can pick
- *     (ADR-0047 point 4).
- *   - ONE optional query parameter, `appId` (ADR-0055): narrows the roster to users
+ *     (ADR 20261006-user-directory-endpoint-capability-gated point 4).
+ *   - ONE optional query parameter, `appId` (ADR 20261101-app-access-check-by-user-id-and-directory-app-filter): narrows the roster to users
  *     holding `(appId,"access")`. Same gate, same shape — narrower output only.
  *     No pagination, no search.
  *
@@ -58,26 +58,26 @@ import { resolveEffectivePermissions } from "./resolver";
 import { bearerJwtMiddleware, type ResolveAuthVariables } from "./resolveAuth.middleware";
 
 /**
- * The permissions that open the directory — an explicit allowlist (ADR-0047
+ * The permissions that open the directory — an explicit allowlist (ADR 20261006-user-directory-endpoint-capability-gated
  * point 2). Held under ANY entity condition: a conditioned grant is still a
  * grant. (`INVENTORY_APP_ID` is the catalog the resource belongs to; the
  * resolver keys permissions by `(resource, action)`.)
  */
 export const DIRECTORY_GATE_PERMISSIONS: readonly { resource: string; action: string }[] = [
   { resource: "asset", action: "manage" }, // the `inventory` catalog's asset:manage
-  // The `crm` catalog's deal:manage (specs/017, ADR-0053): the owner and
+  // The `crm` catalog's deal:manage (specs/20261101-crm, ADR 20261101-user-directory-gate-widened-to-deal-manage): the owner and
   // assignee picker. Deliberately NOT crm:access — reading the CRM is no reason
   // to list people. The resolver matches (resource, action) without the app id,
   // so no other catalog may declare a `deal` resource with a `manage` action:
   // it would open this gate too (crm.test.ts checks resource keys stay unique).
   { resource: "deal", action: "manage" },
-  // The `meetings` catalog's meetings:access (specs/021, ADR-0066): the meeting
+  // The `meetings` catalog's meetings:access (specs/20261104-meetings, ADR 20261104-user-directory-gate-meetings-access): the meeting
   // participant picker, the third consumer. Every employee holds it by default
   // (AC-10.8), so the roster (name, email, entity) is visible to every employee
   // by design; the picker calls it WITHOUT `?appId=` because a participant needs
   // no tool grant (AC-10.4). `template:manage` / `meeting:erase` do not open it.
   { resource: "meetings", action: "access" },
-  // The `projects` catalog's project:manage (specs/025, ADR-0055): the project
+  // The `projects` catalog's project:manage (specs/20261103-projects, ADR 20261101-app-access-check-by-user-id-and-directory-app-filter): the project
   // manager and team pickers. Deliberately NOT projects:access (reading the
   // projects is no reason to list people) nor contract:bexio. Same resource-key
   // uniqueness rule as above: no other catalog may declare a `project` resource.
@@ -93,7 +93,7 @@ const DirectoryUserSchema = z.object({
   entity: z.string().nullable(),
 });
 
-// Optional app filter (ADR-0055): same appId shape as app-access-check.
+// Optional app filter (ADR 20261101-app-access-check-by-user-id-and-directory-app-filter): same appId shape as app-access-check.
 const DirectoryQuerySchema = z.object({
   appId: z
     .string()
@@ -124,8 +124,8 @@ const getDirectoryRoute = createRoute({
     `Returns every active user as { id, name, email, entity }, name-sorted, both entities. ` +
     `The caller must hold the '${INVENTORY_APP_ID}' catalog's asset:manage, the 'crm' catalog's ` +
     `deal:manage, the 'meetings' catalog's meetings:access or the 'projects' catalog's project:manage ` +
-    `permission under any entity scope (403 otherwise, ADR-0047/0053/0055/0066). Not paginated, ` +
-    `takes no query parameters, never returns soft-deleted users or any other attribute (ADR-0047).`,
+    `permission under any entity scope (403 otherwise, ADR 20261006-user-directory-endpoint-capability-gated/0053/0055/0066). Not paginated, ` +
+    `takes no query parameters, never returns soft-deleted users or any other attribute (ADR 20261006-user-directory-endpoint-capability-gated).`,
   request: { query: DirectoryQuerySchema },
   responses: {
     400: {
@@ -205,7 +205,7 @@ directoryRouter.openapi(getDirectoryRoute, async (c) => {
     );
   }
 
-  // ── 403: the capability gate, resolved live (ADR-0007), and not soft-deleted.
+  // ── 403: the capability gate, resolved live (ADR 20260713-authz-hand-rolled-rbac-abac-epoch-claims), and not soft-deleted.
   const [callerRow, callerPermissions] = await Promise.all([
     db.user.findUnique({ where: { id: callerId }, select: { deletedAt: true } }),
     Effect.runPromise(resolveEffectivePermissions(callerId)),
@@ -236,11 +236,11 @@ directoryRouter.openapi(getDirectoryRoute, async (c) => {
     select: { id: true, name: true, email: true, entity: true },
   });
 
-  // Optional narrowing (ADR-0055): only users who hold (appId,"access"). The
+  // Optional narrowing (ADR 20261101-app-access-check-by-user-id-and-directory-app-filter): only users who hold (appId,"access"). The
   // gate above is unchanged, so this only ever shrinks the output. The resolver
   // is per-user, so this is a bounded concurrent loop over the active roster —
   // acceptable at wellD's size (tens of users; the endpoint is unpaginated by
-  // ADR-0047 on that same premise). An unknown appId simply matches nobody.
+  // ADR 20261006-user-directory-endpoint-capability-gated on that same premise). An unknown appId simply matches nobody.
   const { appId } = c.req.valid("query");
   if (appId !== undefined) {
     const holds = await Promise.all(

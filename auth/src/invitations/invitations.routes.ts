@@ -1,10 +1,10 @@
 /**
- * Invitation admin API (T6, specs/006-user-invitations — refs US-1
+ * Invitation admin API (T6, specs/20260713-user-invitations — refs US-1
  * (AC-1.1–1.14), US-3 (AC-3.1–3.6), US-4 (AC-4.1–4.4); plan.md "Invitation
- * admin API"; ADR-0012, ADR-0013).
+ * admin API"; ADR 20260714-invitation-activation-hooks-soft-delete-lifecycle, ADR 20260714-invitation-lifecycle-derived-expiry-state).
  *
  * Every route is guarded by `sessionMiddleware` + `requireAuth` +
- * `requireAdmin` (specs/004, T4) — non-admins get RFC 7807 `403`, mirroring
+ * `requireAdmin` (specs/20260713-auth-roles-permissions, T4) — non-admins get RFC 7807 `403`, mirroring
  * every other `admin/*` router in this service.
  *
  *   POST   /admin/invitations              create + send the invite email
@@ -13,7 +13,7 @@
  *   POST   /admin/invitations/:id/revoke    terminal, invalidates the link
  *
  * Every mutating route routes its domain write through `withAudit()`
- * (specs/004, `../authz/audit.ts`) so the write and its `audit_log` row
+ * (specs/20260713-auth-roles-permissions, `../authz/audit.ts`) so the write and its `audit_log` row
  * commit atomically (AC-1.7/AC-3.5/AC-1.12). `affectedUserIds` is always
  * `[]` here — creating/resending/revoking an INVITATION never changes any
  * EXISTING user's effective permissions (that only happens later, at
@@ -178,7 +178,7 @@ invitationsRouter.openapi(createInvitationRoute, async (c) => {
   const actor = c.get("user")!;
 
   // Validation, the audited transaction and the after-commit email live in
-  // `createInvitation.ts`, shared with the access-request approval (specs/023).
+  // `createInvitation.ts`, shared with the access-request approval (specs/20261105-signup-gate).
   const result = await createInvitation(body, actor);
   if (!result.ok) {
     const problem = result.problem;

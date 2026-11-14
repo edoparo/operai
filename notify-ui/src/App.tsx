@@ -7,7 +7,7 @@ import { createAppRouter } from './router'
 // `index.css` here. The shell owns the single Tailwind sheet for the whole
 // suite; importing notify-ui's own compiled Tailwind here would put a SECOND
 // full Tailwind sheet on the shell's page (the double-header / broken-
-// responsive bug — see index.css's own doc comment, ADR-0006 addendum). The
+// responsive bug — see index.css's own doc comment, ADR 20260709-suite-frontend-module-federation addendum). The
 // standalone bootstrap (main.tsx) DOES import index.css: outside the shell
 // there is no shell sheet, so it's notify-ui's only source of Tailwind +
 // tokens.
@@ -17,7 +17,7 @@ import { createAppRouter } from './router'
  * (see vite.config.ts's `exposes`) — what the shell's `/notify/*` always-
  * available catch-all route (T13, a later task of this feature) mounts.
  *
- * T14 (specs/005-notification-center/tasks.md): scaffold-only. Gives
+ * T14 (specs/20260713-notification-center/tasks.md): scaffold-only. Gives
  * notify-ui its own inner TanStack Router (src/router.tsx) rebased to
  * basepath `/notify` — same federation contract every other remote already
  * established (admin-ui's `./App`, T13/T14 of specs/004-auth-roles-
@@ -34,9 +34,9 @@ import { createAppRouter } from './router'
  * "Notification center page").
  *
  * No auth guard here either — same rationale as every other remote's inner
- * router (estimai-ui/admin-ui/refund-ui, ADR-0006): the shell's own
+ * router (estimai-ui/admin-ui/refund-ui, ADR 20260709-suite-frontend-module-federation): the shell's own
  * `_authed` guard already runs before notify-ui is ever mounted, and per
- * plan.md/ADR-0007 `/notify` is deliberately NOT an app-access-gated route
+ * plan.md/ADR 20260713-authz-hand-rolled-rbac-abac-epoch-claims `/notify` is deliberately NOT an app-access-gated route
  * (every signed-in user has notifications) — so there is no per-tool
  * `access` guard to add here either, unlike admin-ui.
  *
@@ -47,7 +47,7 @@ import { createAppRouter } from './router'
  * duplicate `<style>` injection) or standalone (src/main.tsx, dev/test
  * bootstrap — where it's the ONLY source of the palette).
  * Colours and fonts are Tailwind token utilities (`text-soft`, `bg-ink-mid`,
- * `font-disp`, …), the suite's one styling dialect (ADR-0051): the shell's
+ * `font-disp`, …), the suite's one styling dialect (ADR 20261031-one-styling-dialect-token-utilities): the shell's
  * single Tailwind sheet scans this source with the shared `@theme`, and the
  * standalone build's index.css imports the same tokens. Never inline
  * `var(--…)` styles; lint rejects them.

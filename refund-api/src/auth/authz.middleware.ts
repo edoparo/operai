@@ -1,16 +1,16 @@
 /**
- * refund-api's authorization-enforcing middleware (T6, specs/007-refund-service,
- * ADR-0014).
+ * refund-api's authorization-enforcing middleware (T6, specs/20260716-refund-service,
+ * ADR 20260716-refund-api-authorization-enforcing-resource-server).
  *
  * Runs AFTER `jwtMiddleware` on every gated route (identity is already
  * established — `c.var.userId`/`email`/`permEpoch`). Resolves the caller's
  * REFUND permissions live from `auth GET /authz/resolve`, forwarding the
  * caller's own already-verified Bearer token verbatim (no new credential,
- * ADR-0014 point 1). Sets `c.var.authz = { permissions, entity }` for
+ * ADR 20260716-refund-api-authorization-enforcing-resource-server point 1). Sets `c.var.authz = { permissions, entity }` for
  * downstream route handlers (T7+) to gate on via `src/authz/conditions.ts`'s
  * helpers.
  *
- * Caching (ADR-0014 point 2): keyed by `(sub, perm_epoch)` — the epoch read
+ * Caching (ADR 20260716-refund-api-authorization-enforcing-resource-server point 2): keyed by `(sub, perm_epoch)` — the epoch read
  * off the caller's OWN verified JWT by jwtMiddleware. A grant change bumps
  * `perm_epoch` at `auth`; the caller's next refreshed token carries the new
  * epoch, which is a cache-key MISS here, forcing a fresh resolve. A short
@@ -18,7 +18,7 @@
  * bounding worst-case staleness independent of how promptly any individual
  * client refreshes its own token.
  *
- * Fail-closed (ADR-0014 point 4): if `/authz/resolve` is unreachable or
+ * Fail-closed (ADR 20260716-refund-api-authorization-enforcing-resource-server point 4): if `/authz/resolve` is unreachable or
  * returns a non-2xx response, this middleware responds 503 — it NEVER falls
  * back to "allow", and it never serves a stale/expired cache entry to paper
  * over the outage. Every authorization-gated route now has a hard runtime
@@ -107,7 +107,7 @@ export const authzMiddleware = createMiddleware<{
     const resolved = await fetchAuthzResolve(authorizationHeader);
     context = { permissions: resolved.permissions, entity: resolved.entity };
   } catch (err) {
-    // Fail CLOSED (ADR-0014 point 4) — never fall back to "allow", and never
+    // Fail CLOSED (ADR 20260716-refund-api-authorization-enforcing-resource-server point 4) — never fall back to "allow", and never
     // serve a stale cache entry to paper over the outage.
     console.error(
       "[authz] auth GET /authz/resolve failed — denying request (fail-closed):",

@@ -4,7 +4,7 @@ import { federation } from '@module-federation/vite'
 import { readFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 
-// T15 (specs/003-suite-shell/tasks.md): refund-ui — a second, independently
+// T15 (specs/20260709-suite-shell/tasks.md): refund-ui — a second, independently
 // built/deployed Module Federation REMOTE, proving the multi-tool pattern
 // (US-5, AC-5.1–AC-5.3). requiredVersion for shared singletons is sourced
 // from this package's own dependency ranges (mirrors estimai-ui/vite.config.ts,
@@ -28,7 +28,7 @@ const pkg = JSON.parse(readFileSync(new URL('./package.json', import.meta.url), 
 // mistake was masked until the local-dev port scheme was pinned.)
 const shellRemoteUrl = process.env['SHELL_REMOTE_URL'] ?? 'http://localhost:5173/remoteEntry.js'
 
-// @operai/ui (operai-ui/, ADR-0050) is consumed as SOURCE: this build compiles
+// @operai/ui (operai-ui/, ADR 20261031-shared-ui-library-consumed-as-source) is consumed as SOURCE: this build compiles
 // the library's .tsx files itself, so there is no install or publish step and
 // no version to drift. `dedupe` makes the library's own `react` imports
 // resolve from THIS project (operai-ui/node_modules is not installed on
@@ -59,7 +59,7 @@ export default defineConfig({
       // `shell/session` (shared auth, T4) and `shell/tokens.css` (shared
       // design tokens, T3) — see src/App.tsx. This makes refund-ui
       // bidirectional, same as the shell itself (plan.md federation
-      // contract; ADR-0006): the shell is a host to refund-ui's exposed
+      // contract; ADR 20260709-suite-frontend-module-federation): the shell is a host to refund-ui's exposed
       // `./App`, and refund-ui is in turn a host to the shell's exposed
       // `./session`/`./tokens.css`.
       exposes: {

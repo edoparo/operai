@@ -1,9 +1,9 @@
 /**
- * Activities notifications (specs/028 US-6, AC-6.1..6.4; ADR-0049, ADR-0065). The after-write
+ * Activities notifications (specs/20261110-activities US-6, AC-6.1..6.4; ADR 20261013-all-notify-callers-scoped-credentials-shared-token-retired, ADR 20261104-bilingual-system-notifications). The after-write
  * push of `task_assigned`, `activity_participant_added` and `task_unblocked` to notify-api's
  * `POST /system/notifications`, authenticated with the scoped service JWT from
  * `serviceToken.ts` (`notifications.push emails.send`: the two email kinds are sent with
- * `email: true`, which notify-api refuses without `emails.send`, ADR-0056). notify-api binds
+ * `email: true`, which notify-api refuses without `emails.send`, ADR 20261101-notify-api-resolves-email-notice-address-from-auth). notify-api binds
  * `system:activities-api` to the origin apps `crm` and `projects`.
  *
  * Carried over from crm-api's `notify.ts` (same posture, same pattern):
@@ -155,7 +155,7 @@ export function setNotifierForTests(notifier: Notifier | null): void {
 
 /**
  * The actor's display name, resolved LIVE with the caller's own JWT from
- * `auth POST /authz/users/identities` (ADR-0039) through the shared resolver (60 s cache,
+ * `auth POST /authz/users/identities` (ADR 20260807-live-identity-resolution-by-id-fail-soft) through the shared resolver (60 s cache,
  * fail soft). Any problem, or a user who is not active, is `undefined`.
  */
 async function resolveActorName(authorization: string, actorId: string): Promise<string | undefined> {

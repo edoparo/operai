@@ -1,5 +1,5 @@
 /**
- * Service-token client (specs/021-meetings, copied from crm-api; ADR-0044/0049).
+ * Service-token client (specs/20261104-meetings, copied from crm-api; ADR 20261006-scoped-service-jwt-fourth-notify-caller/0049).
  * Exchanges `SERVICE_CLIENT_ID`/`SERVICE_CLIENT_SECRET` for the 5-minute RS256
  * service JWT `auth POST /system/service-token` mints. meetings-api uses it as
  * `system:meetings-api` for two things (scopes `notifications.push` and
@@ -17,7 +17,7 @@
  *   failure: it could echo what was sent).
  *
  * The region between the markers is byte-identical in every copy (checked by
- * scripts/check-shared-copies.ts, registered by specs/021 T43). `serviceTokens`
+ * scripts/check-shared-copies.ts, registered by specs/20261104-meetings T43). `serviceTokens`
  * (bottom) is the one wired from the environment.
  */
 

@@ -1,6 +1,6 @@
 /**
  * Per-request archive PDF — every expense line PLUS every receipt, embedded
- * (ADR-0043).
+ * (ADR 20260908-request-archive-export-refund-api-reads-attachment-bytes).
  *
  * DELIBERATE CONTRAST WITH `batches/pdf.ts`. That renderer's module doc says
  * it "never reads or references `Attachment` rows — receipt files are never
@@ -13,7 +13,7 @@
  *
  * PURE AND TOTAL, exactly like `renderBatchPdf`: it receives already-fetched
  * receipt BYTES and never performs I/O of its own. Fetching (and the budget
- * that bounds it) is the route's job — that keeps the ADR-0016 departure
+ * that bounds it) is the route's job — that keeps the ADR 20260716-eu-object-storage-refund-attachments departure
  * confined to one call site instead of buried inside a renderer, and keeps
  * this module trivially testable with synthetic bytes.
  *
@@ -40,7 +40,7 @@ import {
 // ─── Input shape ─────────────────────────────────────────────────────────────
 
 /**
- * One receipt, already downloaded. `contentType` is one of ADR-0016's three
+ * One receipt, already downloaded. `contentType` is one of ADR 20260716-eu-object-storage-refund-attachments's three
  * allowed types — the renderer refuses anything else rather than guessing,
  * because a mislabelled receipt silently dropped from an archive is the exact
  * failure this feature exists to prevent.
@@ -78,7 +78,7 @@ export interface RequestExportInput {
   readonly receipts: readonly ExportReceipt[];
   /**
    * The single "now" this document carries. Supplied by the caller so the
-   * renderer stays deterministic — same reasoning as ADR-0019 decision 5,
+   * renderer stays deterministic — same reasoning as ADR 20260719-refund-batch-pdf-generation-pdf-lib decision 5,
    * which closed pdf-lib's default of stamping wall-clock time.
    */
   readonly generatedAt: Date;
@@ -671,7 +671,7 @@ export async function renderRequestExportPdf(
         ? `${line.km ?? "—"} km × ${formatRatePerKm(applied.ratePerKm, applied.currency)} · valid from ${formatDate(applied.validFrom)}`
         : null;
       const descriptionLines = wrapText(line.motivo || "—", fonts.value, TYPE.value, COL.description - 8);
-      // specs/007 amendment (2026-11-10): a line refused on its own carries
+      // specs/20260716-refund-service amendment (2026-11-10): a line refused on its own carries
       // its reason beside it — an approved figure of 0 with no explanation
       // is exactly the question this document exists to answer.
       const detailRejection =

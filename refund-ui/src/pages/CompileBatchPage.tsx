@@ -16,7 +16,7 @@ import BatchEmployeeGroupList from '../components/BatchEmployeeGroupList'
 
 /**
  * CompileBatchPage — Screen B2 ("Compile & preview", `/refund/batches/new`
- * — T11, specs/008-refund-monthly-processing/tasks.md, design.md F1/Screen
+ * — T11, specs/20260719-refund-monthly-processing/tasks.md, design.md F1/Screen
  * B2). Replaces T9's placeholder.
  *
  * Loads with the cutoff pre-filled to "now" and immediately fires

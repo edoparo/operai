@@ -1,7 +1,7 @@
 /**
- * Inventory's declared permission catalog (T3, specs/015-hardware-inventory —
+ * Inventory's declared permission catalog (T3, specs/20261006-hardware-inventory —
  * refs AC-9.1, AC-9.3, AC-9.4, AC-9.5, AC-9.6; plan.md "Authorization model
- * (`auth`)"; ADR-0007 §7, ADR-0015).
+ * (`auth`)"; ADR 20260713-authz-hand-rolled-rbac-abac-epoch-claims §7, ADR 20260716-entity-scoped-abac-refund-api).
  *
  * Mirrors `catalogs/refund.ts`'s shape: a plain constant describing the
  * (resource, action, supportedConditions) surface `inventory-api` enforces
@@ -21,9 +21,9 @@
  *   - `ledger` — `manage`, supporting the `entity` condition. The **hardware
  *     accountant** capability (depreciation figures, fiscal years, rules).
  *
- * `entity` is ADR-0015's `{key:"entity", match:"user"}`: a conditioned grant
+ * `entity` is ADR 20260716-entity-scoped-abac-refund-api's `{key:"entity", match:"user"}`: a conditioned grant
  * scopes the holder to their own `user.entity`; an unconditioned grant covers
- * both entities (the resolver's widest-wins union, ADR-0007). `inventory-api`
+ * both entities (the resolver's widest-wins union, ADR 20260713-authz-hand-rolled-rbac-abac-epoch-claims). `inventory-api`
  * evaluates it per ASSET (an asset has one entity for life), which is exact —
  * unlike refund, where it is evaluated at request level.
  *
@@ -36,7 +36,7 @@ import type { AppCatalogInput } from "../catalog";
 /** Inventory's app id across the Operai suite catalog/role system. */
 export const INVENTORY_APP_ID = "inventory";
 
-/** The entity-scoped actions' supported conditions (ADR-0015). */
+/** The entity-scoped actions' supported conditions (ADR 20260716-entity-scoped-abac-refund-api). */
 const ENTITY_SCOPED_CONDITIONS = ["entity"];
 
 /** Inventory's full declared catalog — registered by `seedInventoryCatalog` (T3). */

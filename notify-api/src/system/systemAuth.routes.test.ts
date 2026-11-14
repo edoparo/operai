@@ -1,11 +1,11 @@
 /**
  * Route-level tests for the scoped system middleware on BOTH internal routes
- * (specs/015 T6, ADR-0044; specs/016 T3, ADR-0049).
+ * (specs/20261006-hardware-inventory T6, ADR 20261006-scoped-service-jwt-fourth-notify-caller; specs/20261013-notify-service-credentials T3, ADR 20261013-all-notify-callers-scoped-credentials-shared-token-retired).
  *
  * The auth matrix itself lives in systemAuth.middleware.test.ts; this file
  * proves the wiring: what is persisted, the origin binding (403), that each
  * route requires its OWN scope, that an `emails.send` credential renders every
- * email template, and (specs/016 T14, AC-5.1) that `X-Internal-Token` with any
+ * email template, and (specs/20261013-notify-service-credentials T14, AC-5.1) that `X-Internal-Token` with any
  * value is refused on both routes with nothing persisted. Real Postgres (like notifications.routes.test.ts); the JWKS is
  * in-memory and injected, so no live auth service is needed.
  */
@@ -129,7 +129,7 @@ describe("POST /system/notifications with a service JWT", () => {
     expect(await count()).toBe(0);
   });
 
-  it("201: system:auth may raise as 'admin' (specs/023, ADR-0072)", async () => {
+  it("201: system:auth may raise as 'admin' (specs/20261105-signup-gate, ADR 20261105-auth-pushes-admin-notifications)", async () => {
     const res = await send(
       { Authorization: `Bearer ${await serviceJwt("system:auth")}` },
       body({ originApp: "admin", link: { href: "/admin/users/access-requests" } }),
@@ -300,7 +300,7 @@ describe("origin bindings for the migrated callers", () => {
   });
 });
 
-describe("origin binding for meetings-api (specs/021 T5, ADR-0065)", () => {
+describe("origin binding for meetings-api (specs/20261104-meetings T5, ADR 20261104-bilingual-system-notifications)", () => {
   it("meetings-api may raise 'meetings' (201) but neither 'crm' nor 'refund' (403)", async () => {
     const t = await serviceJwt("system:meetings-api");
     expect((await send(bearer(t), body({ originApp: "meetings" }))).status).toBe(201);
@@ -324,7 +324,7 @@ describe("origin binding for meetings-api (specs/021 T5, ADR-0065)", () => {
   });
 });
 
-describe("origin binding for activities-api (specs/028 T24)", () => {
+describe("origin binding for activities-api (specs/20261110-activities T24)", () => {
   it("activities-api may raise 'crm' and 'projects' (201) but not refund/meetings/admin (403)", async () => {
     const t = await serviceJwt("system:activities-api");
     expect((await send(bearer(t), body({ originApp: "crm" }))).status).toBe(201);

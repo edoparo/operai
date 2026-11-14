@@ -1,10 +1,10 @@
 /**
- * Formatted-address derivation (T2, specs/012-employee-address — refs AC-1.1,
+ * Formatted-address derivation (T2, specs/20260803-employee-address — refs AC-1.1,
  * plan.md "Data model → `formatted` is derived, never stored").
  *
  * The Domain language defines the formatted address as "derived from its
  * structured components" — it is therefore computed fresh on every read,
- * NEVER persisted (ADR-0031 Decision point 3; ADR-0013/ADR-0019 lineage). This
+ * NEVER persisted (ADR 20260804-employee-address-auth-identity-attribute-1to1-table Decision point 3; ADR 20260714-invitation-lifecycle-derived-expiry-state/ADR 20260719-refund-batch-pdf-generation-pdf-lib lineage). This
  * is the ONE implementation; no other module composes this string.
  *
  * `locale` is negotiated from the request's `Accept-Language` header by the

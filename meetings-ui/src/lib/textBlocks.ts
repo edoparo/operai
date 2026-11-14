@@ -1,6 +1,6 @@
 /**
  * The paragraphs and lists inside a plain-text AI body (a summary section, an answer). The model writes plain text
- * (ADR-0067); its lists are lines that start with "- ", "• ", "* " or "1. ". This only groups lines into blocks so the
+ * (ADR 20261104-ai-output-structured-validated-plain-text); its lists are lines that start with "- ", "• ", "* " or "1. ". This only groups lines into blocks so the
  * UI can render a list as a list: no markup is interpreted, every item stays text.
  */
 export type TextBlock =

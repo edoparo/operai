@@ -16,7 +16,7 @@ function tokens() {
   return { provider, invalidated };
 }
 
-describe("deal-link notice client (specs/024 AC-3.4/3.5/3.8)", () => {
+describe("deal-link notice client (specs/20261108-estimate-list-oversight AC-3.4/3.5/3.8)", () => {
   it("posts exactly the four contract fields with the service token", async () => {
     const calls: { url: string; init: RequestInit }[] = [];
     const send = createDealLinkNoticeClient({

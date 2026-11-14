@@ -1,5 +1,5 @@
 /**
- * The caller of a meeting route, built ONCE from the Hono context (specs/021-meetings
+ * The caller of a meeting route, built ONCE from the Hono context (specs/20261104-meetings
  * T93's note; plan.md § Authorization). Every route that opens a meeting turns the
  * context into a `ViewCaller` here, so `holdsAccess` / `holdsErase` / `capabilities`
  * can never be derived two different ways.

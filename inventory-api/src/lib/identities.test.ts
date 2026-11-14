@@ -1,5 +1,5 @@
 /**
- * `resolveIdentities` (T9, specs/015-hardware-inventory; ADR-0039): live,
+ * `resolveIdentities` (T9, specs/20261006-hardware-inventory; ADR 20260807-live-identity-resolution-by-id-fail-soft): live,
  * id-keyed, chunked at 100, cached briefly, and — above all — never throws.
  * `fetch` is stubbed; no `auth` is involved.
  */

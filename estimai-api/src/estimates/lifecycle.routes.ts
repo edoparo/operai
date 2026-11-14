@@ -7,7 +7,7 @@
  * A closed estimate is READ-ONLY for everybody until reopened (PUT answers
  * 409 `estimate_closed`); DELETE and collaborator management stay allowed.
  *
- * Access and concurrency mirror PUT /estimates/{id} exactly (ADR-0037/0038):
+ * Access and concurrency mirror PUT /estimates/{id} exactly (ADR 20260807-denial-taxonomy-shared-records-403-vs-404/0038):
  * owner or `editor` collaborator; a viewer gets 403 `insufficient_access`, no
  * relationship 404; `If-Match: "<version>"` is REQUIRED (absent/malformed →
  * 428, stale → 409 `estimate_version_conflict`, same problem shape as PUT).

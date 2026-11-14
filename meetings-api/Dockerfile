@@ -14,8 +14,8 @@ COPY src ./src
 RUN bun run node_modules/prisma/build/index.js generate
 
 # ─── Production stage ─────────────────────────────────────────────────────────
-# Debian (not alpine) because ffmpeg/ffprobe run inside this service (specs/021
-# plan.md D-7, ADR-0064): the audio is normalised here, video never leaves it.
+# Debian (not alpine) because ffmpeg/ffprobe run inside this service (specs/20261104-meetings
+# plan.md D-7, ADR 20261104-meetings-api-reads-audio-bytes-third-reader): the audio is normalised here, video never leaves it.
 FROM oven/bun:1.4-slim AS production
 
 WORKDIR /app
@@ -44,9 +44,9 @@ USER bun
 
 EXPOSE 8085
 
-# DATA-RESIDENCY (specs/021-meetings): deployed to Railway EU only (see
+# DATA-RESIDENCY (specs/20261104-meetings): deployed to Railway EU only (see
 # .railway/railway.ts), a single replica (the job runner and its LISTEN connection live
-# in this process, ADR-0062). Request/response bodies and query strings are
+# in this process, ADR 20261104-durable-job-runner-work-queued-state-derived). Request/response bodies and query strings are
 # NEVER logged (src/lib/logger.ts): a title, a search term or a transcript is
 # content. Do NOT add a logger that includes them, nor Prisma's 'query' level.
 CMD ["bun", "run", "src/index.ts"]

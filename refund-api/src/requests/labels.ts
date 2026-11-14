@@ -13,7 +13,7 @@
  * deliberately not npm-linked — CLAUDE.md's ### Git section explains that a
  * workspace would break the per-app installs and the Vercel/Railway deploys.
  * So the labels are mirrored, exactly as `computeMileageAmountCents` is
- * mirrored (ADR-0025), and `document-labels.json` beside this file is the
+ * mirrored (ADR 20260720-mileage-rate-money-precision-integer-micros), and `document-labels.json` beside this file is the
  * contract both sides check themselves against: `labels.test.ts` here, and
  * `documentLabels.parity.test.ts` in refund-ui. Change the JSON first.
  *
@@ -50,7 +50,7 @@ export const requestStatusLabel = (status: string): string => REQUEST_STATUS[sta
  * is a one-glance summary, and a summary that names two entities invites the
  * reader to treat one of them as THE entity for the whole request — which is
  * exactly the wrong conclusion when a per-line entity is what drives ABAC
- * scope (ADR-0015) and, downstream, which establishment books the cost. The
+ * scope (ADR 20260716-entity-scoped-abac-refund-api) and, downstream, which establishment books the cost. The
  * per-line values remain the record; the header must not compete with them.
  */
 export const entityHeaderLabel = (entities: readonly string[]): string => {

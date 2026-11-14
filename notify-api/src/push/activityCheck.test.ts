@@ -1,5 +1,5 @@
 /**
- * The push channel's liveness check (T18, specs/029-push-notifications, ADR-0087, AC-5.2 amended):
+ * The push channel's liveness check (T18, specs/20261111-push-notifications, ADR 20261112-push-liveness-answer-reused-30-seconds, AC-5.2 amended):
  * a `found` answer is reused for 30 s counted from when the lookup was SENT, concurrent checks for
  * one user share one lookup, and nothing but `found` is ever remembered.
  */
@@ -35,7 +35,7 @@ const script = (answers: ContactLookupResult[] | "found", hold = false): Script 
 
 const check = (s: Script) => createActivityCheck(s.client, { ttlMs: 30_000, now: () => s.clock.t });
 
-describe("activityCheck — memo of found (ADR-0087)", () => {
+describe("activityCheck — memo of found (ADR 20261112-push-liveness-answer-reused-30-seconds)", () => {
   it("maps found / inactive / failed to active / inactive / failed", async () => {
     for (const [answer, expected] of [
       [FOUND, "active"],

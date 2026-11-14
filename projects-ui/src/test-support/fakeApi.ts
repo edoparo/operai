@@ -79,7 +79,7 @@ export const projectDetail = (overrides: Partial<Project> = {}): Project => ({
   ...overrides,
 })
 
-/** A person as activities-api reports them (`PersonRef`, ADR-0039). */
+/** A person as activities-api reports them (`PersonRef`, ADR 20260807-live-identity-resolution-by-id-fail-soft). */
 export const personRef = (
   id: string,
   name: string | null = id,
@@ -87,7 +87,7 @@ export const personRef = (
 ) => ({ id, name, status })
 
 /**
- * One project task as `GET /tasks?projectId=` returns it (specs/028 plan § API
+ * One project task as `GET /tasks?projectId=` returns it (specs/20261110-activities plan § API
  * contracts): open, due 2026-11-20, assigned to Ada, every `may` flag on.
  */
 export const projectTask = (id: string, over: Record<string, unknown> = {}, task: Record<string, unknown> = {}) => ({

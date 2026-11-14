@@ -1,10 +1,10 @@
 /**
  * T8 — Refund settings ⇄ batch email cross-service e2e journey
- * (specs/011-refund-settings, QE verification pass). Drives the REAL
- * assembled shell host + admin-ui/refund-ui remotes (ADR-0006) against the
+ * (specs/20260722-refund-settings, QE verification pass). Drives the REAL
+ * assembled shell host + admin-ui/refund-ui remotes (ADR 20260709-suite-frontend-module-federation) against the
  * REAL refund-api/auth services — no mocking — mirroring this suite's
- * existing cross-app e2e convention (refund-headline.spec.ts specs/007,
- * refund-batches-headline.spec.ts specs/008, mileage-rate.spec.ts specs/009).
+ * existing cross-app e2e convention (refund-headline.spec.ts specs/20260716-refund-service,
+ * refund-batches-headline.spec.ts specs/20260719-refund-monthly-processing, mileage-rate.spec.ts specs/20260720-mileage-rate).
  *
  * Journey (US-1/2/4, AC-1.1/1.2/1.5/2.1/2.2/2.3/2.4/2.5/3.2): an admin opens
  * Admin > Refund and sets the accounting distribution email (US-1, AC-1.1/
@@ -25,7 +25,7 @@
  * This does NOT assert on the actual Resend delivery outcome for the
  * "configured" sends (no guaranteed live Resend delivery in this env,
  * mirroring refund-batches-headline.spec.ts's own posture for AC-3.2) — it
- * asserts on what specs/011 actually changed: the STRUCTURAL distinction
+ * asserts on what specs/20260722-refund-settings actually changed: the STRUCTURAL distinction
  * between "blocked_unconfigured" (a 422 + a specific, actionable copy) and
  * an ordinary send attempt, and that the configured/unconfigured transition
  * takes effect on the very next attempt with no restart.
@@ -54,7 +54,7 @@
  *     (settings/routes.test.ts, lib/db.refund-setting-immutability.test.ts)
  *
  * Fixtures: adminSession.ts (seedAdminSession — real `admin` role, which
- * auth's seed grants `settings:read`+`settings:manage`, T1, ADR-0028) +
+ * auth's seed grants `settings:read`+`settings:manage`, T1, ADR 20260722-settings-catalog-permission-config-not-rate) +
  * refundFixtures.ts (grantRefundEmployee/grantRefundAccounting) — same real
  * Role/PermissionRule/UserRole rows a real admin would grant.
  */
@@ -147,7 +147,7 @@ async function approveFromQueue(page: Page, requestId: string): Promise<void> {
 
 test.describe.configure({ mode: 'serial' })
 
-test.describe('specs/011-refund-settings T8: settings → batch email journey', () => {
+test.describe('specs/20260722-refund-settings T8: settings → batch email journey', () => {
   test('admin sets the distribution email → compile targets it live (no restart) → clearing blocks resend distinguishably while compile/mark-paid keep working → re-configuring reaches a previously-blocked batch (US-1/2/4, AC-1.1/1.2/1.5/2.1/2.2/2.3/2.4/2.5/3.2)', async ({
     browser,
   }) => {
@@ -284,7 +284,7 @@ test.describe('specs/011-refund-settings T8: settings → batch email journey', 
     const acctSession = await seedUserSession(acctEmail, 'E2E Settings No-Access Accounting')
     // Accounting-scoped review/approve grants — deliberately NOT `admin` or
     // `refund-admin`, so this user holds no `settings:read`/`settings:manage`
-    // at all (T1/ADR-0028's seed grants those ONLY to admin/refund-admin).
+    // at all (T1/ADR 20260722-settings-catalog-permission-config-not-rate's seed grants those ONLY to admin/refund-admin).
     grantRefundAccounting(acctEmail, 'global')
 
     const context = await browser.newContext()

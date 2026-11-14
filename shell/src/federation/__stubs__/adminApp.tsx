@@ -1,5 +1,5 @@
 // Test-only resolution stub for the `admin/App` federated module (T25,
-// specs/004-auth-roles-permissions).
+// specs/20260713-auth-roles-permissions).
 //
 // Vite's import-analysis needs a real, resolvable module for every
 // static/dynamic import specifier in a transformed file — even one a test's

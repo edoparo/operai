@@ -1,6 +1,6 @@
 /**
- * Unit tests for the invitation email client (T7, specs/016 — refs AC-1.4,
- * AC-4.3, AC-5.2; ADR-0048): the call carries `auth`'s own service JWT as a
+ * Unit tests for the invitation email client (T7, specs/20261013-notify-service-credentials — refs AC-1.4,
+ * AC-4.3, AC-5.2; ADR 20261013-auth-mints-own-service-credential-in-process): the call carries `auth`'s own service JWT as a
  * Bearer token, never the retired shared token, and every failure is
  * surfaced as `{ status: "failed" }` instead of a throw.
  */
@@ -103,7 +103,7 @@ describe("sendInvitationEmail", () => {
   });
 });
 
-describe("sendInvitationEmail — one retry on 401 (AC-4.3, ADR-0049)", () => {
+describe("sendInvitationEmail — one retry on 401 (AC-4.3, ADR 20261013-all-notify-callers-scoped-credentials-shared-token-retired)", () => {
   function sequencedProvider() {
     const issued: string[] = [];
     const invalidated: string[] = [];
@@ -175,7 +175,7 @@ describe("sendInvitationEmail — one retry on 401 (AC-4.3, ADR-0049)", () => {
   });
 });
 
-// ─── pushSystemNotification (specs/023 T4, AC-4.1, AC-4.3; ADR-0072) ─────────
+// ─── pushSystemNotification (specs/20261105-signup-gate T4, AC-4.1, AC-4.3; ADR 20261105-auth-pushes-admin-notifications) ─────────
 
 const { pushSystemNotification } = await import("./notify");
 
@@ -249,7 +249,7 @@ describe("pushSystemNotification", () => {
   });
 });
 
-describe("notify client never returns a raw error message (specs/023 T14)", () => {
+describe("notify client never returns a raw error message (specs/20261105-signup-gate T14)", () => {
   test("a network error carrying the internal host reports only the error name", async () => {
     setNotifyTokenProvider({ getToken: async () => "tok", invalidate: () => {} });
     stubFetch(() => {

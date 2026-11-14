@@ -2,7 +2,7 @@ import { createECDH } from "node:crypto";
 import { z } from "zod";
 import { ORIGIN_APPS } from "../notifications/notifications.schemas";
 
-// ─── Web push (specs/029, ADR-0084) ──────────────────────────────────────────
+// ─── Web push (specs/20261111-push-notifications, ADR 20261111-web-push-encrypted-payloads-not-fcm) ──────────────────────────────────────────
 // VAPID keys as `web-push generate-vapid-keys` prints them: P-256, unpadded
 // base64url — a 32-byte private scalar and a 65-byte uncompressed public point.
 const decodeB64Url = (v: string, bytes: number): Buffer | null => {
@@ -31,10 +31,10 @@ const envSchema = z.object({
     .transform((v) => v.split(",").map((o) => o.trim())),
   AUTH_JWKS_URL: z.string().url("AUTH_JWKS_URL must be a valid URL"),
   AUTH_ISSUER: z.string().url("AUTH_ISSUER must be a valid URL"),
-  // ADR-0010: notify-api is the suite's first real second JWKS resource server —
+  // ADR 20260713-jwt-audience-claim-enforcement: notify-api is the suite's first real second JWKS resource server —
   // tokens are structurally cross-valid between estimai-api and notify-api unless
-  // both verify a shared `aud` claim. Required, not optional: ADR-0010 fires the
-  // deferred ADR-0005/ADR-0007 hardening trigger now rather than deferring again.
+  // both verify a shared `aud` claim. Required, not optional: ADR 20260713-jwt-audience-claim-enforcement fires the
+  // deferred ADR 20260703-jwt-resource-server-remote-jwks/ADR 20260713-authz-hand-rolled-rbac-abac-epoch-claims hardening trigger now rather than deferring again.
   // Value MUST exactly match the `AUTH_AUDIENCE` the `auth` service stamps.
   AUTH_AUDIENCE: z.string().min(1, "AUTH_AUDIENCE is required"),
   // SSE stream bound lifetime (seconds) — plan.md §API contracts: "Server closes
@@ -44,7 +44,7 @@ const envSchema = z.object({
   NODE_ENV: z
     .enum(["development", "production", "test"])
     .default("development"),
-  // ─── Email channel (T2, specs/006-user-invitations, ADR-0011) ──────────────
+  // ─── Email channel (T2, specs/20260713-user-invitations, ADR 20260714-notify-api-email-channel-service-trust) ──────────────
   // EMAIL_ENABLED gates whether the `email` channel actually calls Resend.
   // Default OFF: test/local runs never need a real Resend key — with it off,
   // the channel stubs the send and still records an EmailDelivery row
@@ -63,14 +63,14 @@ const envSchema = z.object({
   // optional at the schema level so test/local can leave them unset.
   RESEND_API_KEY: z.string().optional(),
   RESEND_FROM: z.string().optional(),
-  // ─── System-to-system auth: scoped service JWT (specs/015, ADR-0044; the only credential since specs/016) ─
+  // ─── System-to-system auth: scoped service JWT (specs/20261006-hardware-inventory, ADR 20261006-scoped-service-jwt-fourth-notify-caller; the only credential since specs/20261013-notify-service-credentials) ─
   // `aud` that `auth` stamps on service tokens (POST /system/service-token and
   // its in-process self-mint). MUST differ from AUTH_AUDIENCE so a user JWT is
   // never a system credential and a service token is never a user credential
   // (enforced below; the process exits otherwise). Required: it is now the
   // only credential for both internal routes once the shared token is retired.
   SERVICE_AUDIENCE: z.string().min(1, "SERVICE_AUDIENCE is required"),
-  // ─── Email notices (specs/019-crm-notifications, ADR-0056) ─────────────────
+  // ─── Email notices (specs/20261101-crm-notifications, ADR 20261101-notify-api-resolves-email-notice-address-from-auth) ─────────────────
   // Optional group, ALL FOUR or none (enforced below): what notify-api needs to
   // resolve a recipient's address from `auth` (POST /system/users/contact, as
   // its own service client) and to build the absolute link in the email.
@@ -87,7 +87,7 @@ const envSchema = z.object({
     .string()
     .min(32, "SERVICE_CLIENT_SECRET must be at least 32 characters")
     .optional(),
-  // ─── Web push (specs/029, ADR-0084) ────────────────────────────────────────
+  // ─── Web push (specs/20261111-push-notifications, ADR 20261111-web-push-encrypted-payloads-not-fcm) ────────────────────────────────────────
   // Same literal-"true" parsing as EMAIL_ENABLED (never z.coerce.boolean()).
   // Default OFF: with it off no VAPID variable is read and no push is attempted.
   PUSH_ENABLED: z
@@ -181,12 +181,12 @@ const envSchema = z.object({
     ctx.addIssue({
       code: "custom",
       path: ["SERVICE_AUDIENCE"],
-      message: "SERVICE_AUDIENCE must differ from AUTH_AUDIENCE (ADR-0044)",
+      message: "SERVICE_AUDIENCE must differ from AUTH_AUDIENCE (ADR 20261006-scoped-service-jwt-fourth-notify-caller)",
     });
   }
   // Cross-field: EMAIL_ENABLED=true means real sends are attempted, so the
   // Resend credentials become mandatory (they stay optional at rest so
-  // test/local can run with the channel stubbed, per ADR-0011/T2).
+  // test/local can run with the channel stubbed, per ADR 20260714-notify-api-email-channel-service-trust/T2).
   if (v.EMAIL_ENABLED) {
     if (!v.RESEND_API_KEY) {
       ctx.addIssue({

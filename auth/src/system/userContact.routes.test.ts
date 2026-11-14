@@ -10,7 +10,7 @@
  * DB: user fixtures are created and removed here; assertions look only at this
  * run's ids. Requests of the older rows use their own `X-Forwarded-For` so the
  * shared per-address count never couples tests together; the limit rows (AC-7.x,
- * specs/029 US-7, ADR-0086) build their own router with an injected clock and
+ * specs/20261111-push-notifications US-7, ADR 20261112-system-endpoints-limited-per-verified-service) build their own router with an injected clock and
  * send NO `X-Forwarded-For` unless the row is about the address.
  */
 
@@ -204,7 +204,7 @@ describe("POST /system/users/contact — logging", () => {
   });
 });
 
-// ─── specs/029 US-7 (ADR-0086): verify first, then exactly one count ─────────────────────────────
+// ─── specs/20261111-push-notifications US-7 (ADR 20261112-system-endpoints-limited-per-verified-service): verify first, then exactly one count ─────────────────────────────
 
 const WINDOW_MS = 600_000;
 

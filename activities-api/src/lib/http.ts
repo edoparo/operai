@@ -1,5 +1,5 @@
 /**
- * Request/response pieces shared by the route groups (specs/028-activities; carried over from
+ * Request/response pieces shared by the route groups (specs/20261110-activities; carried over from
  * crm-api `lib/http.ts`, minus what activities-api has no use for: no If-Match here, plan
  * D-7). Paging, text and date schemas, the person reference and the error list of the
  * OpenAPI document.

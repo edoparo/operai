@@ -1,5 +1,5 @@
 /**
- * Integration test for the cutover seed script (T5, specs/011-refund-settings,
+ * Integration test for the cutover seed script (T5, specs/20260722-refund-settings,
  * plan.md D7, AC-4.2).
  *
  * AC coverage
@@ -27,7 +27,7 @@ afterAll(async () => {
   await truncateRefundTables();
 });
 
-describe("seedAccountingDistributionEmail (T5, specs/011-refund-settings)", () => {
+describe("seedAccountingDistributionEmail (T5, specs/20260722-refund-settings)", () => {
   it("(AC-4.2) appends the initial row when the key has no rows yet", async () => {
     const result = await seedAccountingDistributionEmail("accounting@welld.ch");
     expect(result.outcome).toBe("seeded");

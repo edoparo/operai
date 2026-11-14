@@ -1,7 +1,7 @@
 /**
  * @vitest-environment jsdom
  *
- * Unit tests for src/lib/reviewApi.ts (T18, specs/007-refund-service/
+ * Unit tests for src/lib/reviewApi.ts (T18, specs/20260716-refund-service/
  * tasks.md). Strategy mirrors requestsApi.test.ts: `shell/session`'s
  * `apiFetch` is mocked at the module level.
  */

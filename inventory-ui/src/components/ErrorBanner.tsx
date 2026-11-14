@@ -1,16 +1,16 @@
 /**
  * ErrorBanner — inline RFC 7807 error banner with a Retry action (T25,
- * specs/015-hardware-inventory; design.md § Component inventory: "Fetch error —
+ * specs/20261006-hardware-inventory; design.md § Component inventory: "Fetch error —
  * refund-ui/src/components/ErrorBanner.tsx (adds the 503 heading as a
  * prop-level variant, no new component)").
  *
  * Re-authored from refund-ui's ErrorBanner (a remote cannot import another
- * remote's source, ADR-0006): same props, same `role="alert"` contract, same
+ * remote's source, ADR 20260709-suite-frontend-module-federation): same props, same `role="alert"` contract, same
  * idle / retry / dismiss behaviour. Presentational — the caller extracts
  * `detail` off its own `ApiError` and passes plain strings in.
  *
  * The one addition is `variant="authUnavailable"`, the 503 fail-closed
- * presentation (ADR-0014: an `auth` outage denies, never allows): it carries
+ * presentation (ADR 20260716-refund-api-authorization-enforcing-resource-server: an `auth` outage denies, never allows): it carries
  * its own heading "Authorization service unavailable" and, unless the caller
  * overrides `message`, the body "We cannot verify your access right now.
  * Nothing was changed." It is the same alert with the same Retry; for a write
@@ -19,7 +19,7 @@
  * A11y: `role="alert"` — assistive tech announces the message when it is
  * inserted, without focus moving there. Retry and Dismiss are real `<button>`s.
  *
- * Now a thin adapter over @operai/ui's `Banner tone="warning"` (ADR-0050):
+ * Now a thin adapter over @operai/ui's `Banner tone="warning"` (ADR 20261031-shared-ui-library-consumed-as-source):
  * same props, copy and data-testids (`error-banner`, `-heading`, `-retry`,
  * `-dismiss`).
  */

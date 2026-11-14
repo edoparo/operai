@@ -3,7 +3,7 @@ import type { FiscalYearView, Identity } from './types'
 import { strings } from '../strings'
 
 /**
- * yearWorkbook — the XLSX of one fiscal year (T39, specs/015-hardware-inventory;
+ * yearWorkbook — the XLSX of one fiscal year (T39, specs/20261006-hardware-inventory;
  * design.md F12 step 5; AC-8.8, AC-8.9), built in the browser with `exceljs` (the
  * `estimai-ui` precedent). This module statically imports `exceljs`, so it is only
  * ever loaded through a dynamic `import()` from `ExportYearButton` — the heavy

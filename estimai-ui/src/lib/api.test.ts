@@ -1,7 +1,7 @@
 /**
  * @vitest-environment jsdom
  *
- * Delegation tests for src/lib/api.ts (T13, specs/003-suite-shell/tasks.md).
+ * Delegation tests for src/lib/api.ts (T13, specs/20260709-suite-shell/tasks.md).
  *
  * Before T13, this file unit-tested the full JWT-cache + apiFetch interceptor
  * contract (Bearer attachment, 401 refresh-retry, trusted-origin guard,
@@ -9,7 +9,7 @@
  * implementation. T13 removes that implementation: estimai-ui now runs as a
  * federated remote inside the shell (T12), and `apiFetch`/`clearJwtCache` are
  * re-exported from the shell-owned `shell/session` module (T4) instead, so
- * the ADR-0001 in-memory JWT is cached ONCE for the whole suite.
+ * the ADR 20260607-jwt-in-memory-never-web-storage in-memory JWT is cached ONCE for the whole suite.
  *
  * That full interceptor-contract coverage was not dropped, only relocated:
  * it lives in shell/src/lib/session.test.ts now, ported verbatim from this

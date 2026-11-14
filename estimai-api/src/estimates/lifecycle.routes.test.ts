@@ -422,9 +422,9 @@ describe("a closed estimate is read-only (updateEstimate)", () => {
   });
 });
 
-// ─── specs/024 — oversight: a read-all holder with no relationship may not close/reopen ──
+// ─── specs/20261108-estimate-list-oversight — oversight: a read-all holder with no relationship may not close/reopen ──
 
-describe("close/reopen by an oversight-only caller (specs/024, AC-1.4)", () => {
+describe("close/reopen by an oversight-only caller (specs/20261108-estimate-list-oversight, AC-1.4)", () => {
   const REAL_FETCH = globalThis.fetch;
   afterEach(() => {
     globalThis.fetch = REAL_FETCH;

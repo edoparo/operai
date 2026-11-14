@@ -1,5 +1,5 @@
 /**
- * FormModal — the form `dialog` shell (T25, specs/015-hardware-inventory;
+ * FormModal — the form `dialog` shell (T25, specs/20261006-hardware-inventory;
  * design.md § Component inventory: "Form modal pattern —
  * admin-ui/src/components/AddRateEntryModal.tsx"). The Assign, Edit, new-rule
  * and dispose dialogs render their fields inside it.
@@ -26,7 +26,7 @@
  *   - closing returns focus to the element that had it when the dialog opened,
  *     if it is still in the page.
  *
- * Now a thin adapter over @operai/ui's `FormDialog` (ADR-0050), which was
+ * Now a thin adapter over @operai/ui's `FormDialog` (ADR 20261031-shared-ui-library-consumed-as-source), which was
  * extracted from this component: same props, copy and data-testids
  * (`-backdrop`, `-cancel`, `-submit`, `-error`; the × is `-close`).
  */

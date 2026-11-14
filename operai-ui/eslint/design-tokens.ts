@@ -1,5 +1,5 @@
 /**
- * The suite's one styling dialect, enforced (ADR-0051). Every frontend's
+ * The suite's one styling dialect, enforced (ADR 20261031-one-styling-dialect-token-utilities). Every frontend's
  * eslint.config.js spreads this into its config:
  *
  *   import { designTokenRules } from '../operai-ui/eslint/design-tokens.ts'
@@ -18,7 +18,7 @@
  */
 
 const MESSAGE =
-  'Design tokens go through Tailwind token utilities (text-soft, bg-ink-mid, border-rule, bg-org/10, font-mono) or @operai/ui classes, never through var(--…) or a colour value in TypeScript (ADR-0051, operai-ui/docs/design-system.md § Styling).'
+  'Design tokens go through Tailwind token utilities (text-soft, bg-ink-mid, border-rule, bg-org/10, font-mono) or @operai/ui classes, never through var(--…) or a colour value in TypeScript (ADR 20261031-one-styling-dialect-token-utilities, operai-ui/docs/design-system.md § Styling).'
 
 const TYPE_MESSAGE =
   'Font sizes come from the type scale: text-2xs (11px), text-xs (12), text-sm (14), text-base (16), text-lg (18), text-xl (20), text-2xl (24) — never an arbitrary text-[Npx] (INC-06, operai-ui/docs/design-system.md § Type).'

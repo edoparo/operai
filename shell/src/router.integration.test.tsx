@@ -1,7 +1,7 @@
 /**
  * @vitest-environment jsdom
  *
- * Integration tests for the shell router (T9, specs/003-suite-shell):
+ * Integration tests for the shell router (T9, specs/20260709-suite-shell):
  *   - deep-linking directly to `/estimai/...` and `/refund` resolves the
  *     correct tool as the FIRST paint of the content area (AC-3.2, AC-3.3)
  *   - the shared chrome (header/footer, rendered by the `_shell` layout
@@ -33,7 +33,7 @@ import { RouterProvider } from '@tanstack/react-router'
 // ---------------------------------------------------------------------------
 
 // Fully-permissioned fixture shared by usePermissions/ensurePermissions/
-// revalidatePermissions below (T24/T25, specs/004-auth-roles-permissions).
+// revalidatePermissions below (T24/T25, specs/20260713-auth-roles-permissions).
 // These tests deep-link into both estimai and refund routes, and each tool
 // route's access guard (router.tsx, T25) now force-revalidates permissions
 // on every navigation — `revalidatePermissions()` must therefore resolve a
@@ -68,7 +68,7 @@ vi.mock('./lib/session', () => ({
   // `getSession()` branch (see router.session-guard.test.tsx for the
   // synchronous warm-cache fast path).
   getCachedSession: vi.fn(() => null),
-  // T11 (specs/005-notification-center): Header now mounts Bell, which reads
+  // T11 (specs/20260713-notification-center): Header now mounts Bell, which reads
   // useUnreadCount() (shell/src/lib/notifications.ts) on every render of the
   // shared chrome these tests exercise. notifications.ts imports
   // apiFetch/onSignOut from this same module, so this mock must supply them

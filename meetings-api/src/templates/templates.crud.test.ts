@@ -182,7 +182,7 @@ describe("a personal template is private (AC-8.2)", () => {
   });
 });
 
-describe("update with If-Match (G8, ADR-0038)", () => {
+describe("update with If-Match (G8, ADR 20260807-optimistic-concurrency-version-if-match-cas-amends-0004)", () => {
   it("428 precondition_required without If-Match, or with one that is not a plain version", async () => {
     const t = (await create()).json;
     for (const ifMatch of [undefined, "", "1", "W/\"1\"", '"1", "2"', '"abc"', '"-1"', '"1.5"']) {

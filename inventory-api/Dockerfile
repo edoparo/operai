@@ -41,13 +41,13 @@ USER bun
 
 EXPOSE 8083
 
-# DATA-RESIDENCY (specs/015-hardware-inventory): this image is deployed to
+# DATA-RESIDENCY (specs/20261006-hardware-inventory): this image is deployed to
 # Railway EU region only (europe-west4, see .railway/railway.ts) — inventory-api
 # handles financial figures and personal data (who holds which device).
 # Request/response bodies are NEVER logged — only method+path+status
 # (src/lib/logger.ts). Do NOT add any logger that includes body, query
 # parameters with content, or the Prisma 'query' log level. Invoice files live
-# in a SEPARATE EU-region bucket (INVENTORY_S3_*, ADR-0016 posture) reached
+# in a SEPARATE EU-region bucket (INVENTORY_S3_*, ADR 20260716-eu-object-storage-refund-attachments posture) reached
 # only via presigned URLs.
 #
 CMD ["bun", "run", "src/index.ts"]

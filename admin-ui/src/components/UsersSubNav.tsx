@@ -3,7 +3,7 @@ import { TabNav, tabLinkClassName } from '@operai/ui'
 import { strings } from '../strings'
 
 // The Users-section views, in the order design.md's Screen U1/U2 uses
-// ("Active users" | "Invitations"), plus the waiting list (specs/023).
+// ("Active users" | "Invitations"), plus the waiting list (specs/20261105-signup-gate).
 // Each carries an explicit `testId` — never derived from `to`, so a new view
 // can't silently reuse another's id. `to` paths are relative to
 // admin-ui's own inner router (see ../router.tsx) — TanStack Router prefixes
@@ -16,8 +16,8 @@ const VIEWS = [
 ] as const
 
 /**
- * UsersSubNav — the Users section's own tab strip (three views since specs/023) (T10,
- * specs/006-user-invitations, design.md Screen U1: "UsersSubNav — a two-item
+ * UsersSubNav — the Users section's own tab strip (three views since specs/20261105-signup-gate) (T10,
+ * specs/20260713-user-invitations, design.md Screen U1: "UsersSubNav — a two-item
  * tab strip … above the existing search input"). Rendered independently by
  * both `../pages/UsersPage.tsx` (Screen U1) and `../pages/InvitationsPage.tsx`
  * (Screen U2) — unlike `SectionNav`, which is mounted once by `AdminShell`

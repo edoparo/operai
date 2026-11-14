@@ -1,8 +1,8 @@
 /**
  * @vitest-environment jsdom
  *
- * Tests for the `/account` route registration (T15, specs/012-employee-address,
- * US-6 AC-6.1; ADR-0034; plan.md "Where US-6 lives" / design.md F6).
+ * Tests for the `/account` route registration (T15, specs/20260803-employee-address,
+ * US-6 AC-6.1; ADR 20260804-shell-identity-scoped-non-tool-screens-account-route; plan.md "Where US-6 lives" / design.md F6).
  *
  * Two properties, both required by this task's done-when:
  *
@@ -11,7 +11,7 @@
  *      guard (unlike `/estimai`, `/refund`, `/admin` —
  *      router.access-guard.test.tsx — and structurally identical to
  *      `/notify`, router.notify.test.tsx). This is the entire point of the
- *      ADR-0034 placement: every signed-in employee must reach their own
+ *      ADR 20260804-shell-identity-scoped-non-tool-screens-account-route placement: every signed-in employee must reach their own
  *      address regardless of which tools they've been granted.
  *   2. The "My profile" item appears in the UserMenu dropdown and links to
  *      `/account` (UserMenu.test.tsx covers this in isolation; this file
@@ -54,7 +54,7 @@ vi.mock('./lib/session', () => ({
   // branch, exactly as before this getter existed (see
   // router.session-guard.test.tsx for the synchronous warm-cache fast path).
   getCachedSession: vi.fn(() => null),
-  // T11 (specs/005): Header mounts Bell → useUnreadCount() (notifications.ts),
+  // T11 (specs/20260713-notification-center): Header mounts Bell → useUnreadCount() (notifications.ts),
   // which imports apiFetch/onSignOut from this module. Mounting the router in
   // these tests renders the chrome, so the session mock must supply them
   // (fail-closed no-ops — the SSE ticket-mint just degrades gracefully).
@@ -138,7 +138,7 @@ afterEach(() => {
 // Tests
 // ---------------------------------------------------------------------------
 
-describe('/account route registration (T15, AC-6.1, ADR-0034)', () => {
+describe('/account route registration (T15, AC-6.1, ADR 20260804-shell-identity-scoped-non-tool-screens-account-route)', () => {
   it('mounts AccountScreen at /account for a caller with ZERO granted apps — NOT app-access-gated', async () => {
     usePermissions.mockReturnValue(permissionsWith([]))
     ensurePermissions.mockResolvedValue(permissionsWith([]))

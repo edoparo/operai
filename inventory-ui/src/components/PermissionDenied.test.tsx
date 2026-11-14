@@ -1,7 +1,7 @@
 /**
  * @vitest-environment jsdom
  *
- * Component tests for PermissionDenied (T25, specs/015-hardware-inventory,
+ * Component tests for PermissionDenied (T25, specs/20261006-hardware-inventory,
  * carried over from refund-ui; design.md § Screens & states "403").
  *
  * Covers:

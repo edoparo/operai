@@ -1,5 +1,5 @@
 /**
- * CurrencyBadge — an expense line's or subtotal's currency (specs/007),
+ * CurrencyBadge — an expense line's or subtotal's currency (specs/20260716-refund-service),
  * separate from `EntityBadge`. Neutral for every currency: the ISO code is
  * what tells them apart, and colour on a row is left to the decision.
  */

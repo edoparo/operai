@@ -1,5 +1,5 @@
 /**
- * Integration tests for POST /notifications (T4, specs/005-notification-center).
+ * Integration tests for POST /notifications (T4, specs/20260713-notification-center).
  *
  * Strategy mirrors estimai-api/src/estimates/estimates.routes.test.ts:
  * - Real Postgres (compose, host:5435, database: notify) — no DB mocking.
@@ -113,7 +113,7 @@ import { config as dotenvConfig } from "dotenv";
 dotenvConfig({ path: new URL("../../.env", import.meta.url).pathname, override: true });
 
 // Shared process-level env: restore in afterAll so these overrides do not leak
-// into later files of a single-process `bun test` (T20, specs/016).
+// into later files of a single-process `bun test` (T20, specs/20261013-notify-service-credentials).
 const ENV_OVERRIDES: Record<string, string> = {
   ALLOWED_ORIGINS: "http://localhost:5173",
   AUTH_JWKS_URL: "http://localhost:3001/auth/jwks",
@@ -430,7 +430,7 @@ describe("POST /notifications — validation failures → 400 (AC-4.5)", () => {
     expect(res.status).toBe(400);
   });
 
-  it("400: link.href that normalises to a protocol-relative path (S-M1, specs/029)", async () => {
+  it("400: link.href that normalises to a protocol-relative path (S-M1, specs/20261111-push-notifications)", async () => {
     const app = buildApp();
     const jwt = await tokenA();
     for (const href of ["/..//evil.io", "/.//evil.io", "/a/..//evil.io", "/%2e%2e//evil.io"]) {
@@ -551,7 +551,7 @@ describe("POST /notifications — unauthenticated → 401", () => {
     expect(after).toBe(before);
   });
 
-  // ADR-0011 (T3, specs/006-user-invitations): jwtMiddleware and the new
+  // ADR 20260714-notify-api-email-channel-service-trust (T3, specs/20260713-user-invitations): jwtMiddleware and the new
   // /system/emails internalTokenMiddleware are mutually exclusive by route,
   // never layered. jwtMiddleware only ever reads Authorization: Bearer — an
   // X-Internal-Token header (even a real one) is simply not a credential it
@@ -589,7 +589,7 @@ describe("POST /notifications — body-size cap → 413", () => {
   });
 });
 
-// ─── Push dispatch (T6, specs/029-push-notifications) ─────────────────────────
+// ─── Push dispatch (T6, specs/20261111-push-notifications) ─────────────────────────
 
 import { spyOn } from "bun:test";
 import { pushChannel } from "@/channels/push.channel";

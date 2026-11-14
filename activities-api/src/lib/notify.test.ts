@@ -20,7 +20,7 @@ const project: NotifyTarget = { host: "projects", project: { id: "pr-1", name: "
 
 const task = { id: "act-1", type: "task", subject: "Call the client", dueDate: "2026-12-31" } as const;
 
-describe("copy catalog (specs/028 US-6, ADR-0065)", () => {
+describe("copy catalog (specs/20261110-activities US-6, ADR 20261104-bilingual-system-notifications)", () => {
   it("CRM task_assigned is byte-for-byte what crm-api sends today", () => {
     const n = renderNotification("task_assigned", { activity: task, target: crmDeal }, "Ada");
     expect(n).toMatchObject({
@@ -141,7 +141,7 @@ const quiet = async (fn: () => Promise<void>) => {
   return logged;
 };
 
-describe("notifier (specs/028 AC-6.1..6.4)", () => {
+describe("notifier (specs/20261110-activities AC-6.1..6.4)", () => {
   it("posts one request per recipient with the contract's shape (en + it, link, email flag), never to the actor", async () => {
     const { calls, notifier } = harness();
     await notifier.notify(event);

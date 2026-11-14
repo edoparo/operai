@@ -1,8 +1,8 @@
 /**
  * POST /authz/app-access-check — the third-party app-access ELIGIBILITY
- * DECISION endpoint (T2, specs/013-estimate-sharing — refs AC-1.1, AC-1.2;
+ * DECISION endpoint (T2, specs/20260807-estimate-sharing — refs AC-1.1, AC-1.2;
  * plan.md "The third-party lookup (AC-1.1/AC-1.2) — the hard problem";
- * ADR-0035).
+ * ADR 20260807-third-party-app-access-decision-endpoint-forwarded-jwt).
  *
  * Answers, for a caller who already holds `(appId,"access")` themselves:
  * "is this email address an active Operai user who holds `appId` app
@@ -39,7 +39,7 @@
  *
  * Caller gate (who may ask): the caller must themselves hold `(appId,
  * "access")` — resolved via the existing `resolveEffectivePermissions`, no
- * new catalog permission — AND must not be soft-deleted (ADR-0012's residual-
+ * new catalog permission — AND must not be soft-deleted (ADR 20260714-invitation-activation-hooks-soft-delete-lifecycle's residual-
  * JWT window means a just-deleted caller's token can still verify). Either
  * failure → 403 `app_access_required`. Only someone who can use `appId`
  * themselves may ask about `appId` eligibility for someone else.
@@ -85,7 +85,7 @@ const sleep = (ms: number): Promise<void> =>
 // ─── Schemas ──────────────────────────────────────────────────────────────────
 
 // Exactly one probe key: `email` (estimai collaborators) or `userId` (crm-api,
-// which only knows auth ids — ADR-0055). Both or neither → 400.
+// which only knows auth ids — ADR 20261101-app-access-check-by-user-id-and-directory-app-filter). Both or neither → 400.
 const AppAccessCheckRequestSchema = z
   .object({
     appId: z
@@ -132,7 +132,7 @@ const postAppAccessCheckRoute = createRoute({
     "Returns eligible:true/userId or eligible:false — the SAME body, " +
     "status, and (quantised) timing for no-such-user, soft-deleted-target, " +
     "and lacks-app-access. POST so the probed email never reaches a URL. " +
-    "Body is { appId, email } or { appId, userId } (exactly one, ADR-0055). " +
+    "Body is { appId, email } or { appId, userId } (exactly one, ADR 20261101-app-access-check-by-user-id-and-directory-app-filter). " +
     "Caller must hold (appId,\"access\") themselves and must not be " +
     "soft-deleted.",
   request: {
@@ -215,7 +215,7 @@ appAccessCheckRouter.openapi(postAppAccessCheckRoute, async (c) => {
   // a `db.user.findUnique` PLUS a full `resolveEffectivePermissions` (two
   // `findMany`s) — so it must be the thing metered. An authenticated caller
   // who does not hold `(appId,"access")`, or a soft-deleted user riding
-  // ADR-0012's accepted residual-JWT window, gets an immediate 403 from the
+  // ADR 20260714-invitation-activation-hooks-soft-delete-lifecycle's accepted residual-JWT window, gets an immediate 403 from the
   // gate; if the limiter ran after that check it would never be charged,
   // and that caller could loop unlimited requests against this identity
   // service for free. Do not "harmonise" these two orders — they differ on
@@ -267,7 +267,7 @@ appAccessCheckRouter.openapi(postAppAccessCheckRoute, async (c) => {
   // that index). `deletedAt IS NULL` is folded into the SAME query, so
   // "no such user" and "soft-deleted user" are the identical zero-row
   // result — not merely similarly timed, but the same query outcome.
-  // The userId probe (ADR-0055) is the same shape: one parameterised query on
+  // The userId probe (ADR 20261101-app-access-check-by-user-id-and-directory-app-filter) is the same shape: one parameterised query on
   // the primary key with `deletedAt IS NULL` folded in.
   const rows =
     probeUserId !== undefined

@@ -1,7 +1,7 @@
 /**
  * @vitest-environment jsdom
  *
- * QE additions (specs/028 design.md § Accessibility, § S2): focus rules of the task dialog that the
+ * QE additions (specs/20261110-activities design.md § Accessibility, § S2): focus rules of the task dialog that the
  * dev tests do not pin.
  *
  *  - "Dialogs: ... Focus on Title" when the dialog opens.

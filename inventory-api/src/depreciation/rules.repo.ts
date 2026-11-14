@@ -1,5 +1,5 @@
 /**
- * Rules persistence (T10, specs/015). The table is append-only at the database
+ * Rules persistence (T10, specs/20261006-hardware-inventory). The table is append-only at the database
  * (T2's trigger): there is a list and an insert, and nothing else.
  */
 

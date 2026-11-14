@@ -4,9 +4,9 @@ import type { Entity, Scope } from '../lib/types'
 /**
  * The caller's CRM scope (`GET /scope`), loaded once by `CrmShell` and read by
  * every page: which entities `deal:manage` covers, whether the caller may
- * erase a contact, whether they see money (`deal:financials`, specs/018 US-1)
+ * erase a contact, whether they see money (`deal:financials`, specs/20261101-crm-sales-flow US-1)
  * and whether they manage deals of every entity (the admin). UX only — the
- * server's 403 is the gate (ADR-0014). A missing flag counts as false, so an
+ * server's 403 is the gate (ADR 20260716-refund-api-authorization-enforcing-resource-server). A missing flag counts as false, so an
  * older server never leaks a figure.
  */
 export const ScopeContext = createContext<Scope>({ deal: [], canErase: false })

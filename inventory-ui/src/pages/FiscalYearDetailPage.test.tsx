@@ -1,7 +1,7 @@
 /**
  * @vitest-environment jsdom
  *
- * Page tests for FiscalYearDetailPage (T38, specs/015-hardware-inventory; design.md
+ * Page tests for FiscalYearDetailPage (T38, specs/20261006-hardware-inventory; design.md
  * T6, F12, § Accessibility "T6 year detail"; refs AC-8.1, AC-8.4, AC-8.5, AC-8.7).
  * `fiscalYearsApi` and `usePermissions` are the seams; the statement, the Close
  * dialog and the (stub) export button are the real components.

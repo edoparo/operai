@@ -1,6 +1,6 @@
 /**
- * Upload a recording made elsewhere (specs/021-meetings US-3, AC-3.1..AC-3.3;
- * plan.md § Browser capture "Upload"; ADR-0064).
+ * Upload a recording made elsewhere (specs/20261104-meetings US-3, AC-3.1..AC-3.3;
+ * plan.md § Browser capture "Upload"; ADR 20261104-meetings-api-reads-audio-bytes-third-reader).
  *
  *   POST /meetings/:id/upload          mints ONE presigned POST at a key minted for that policy
  *                                      alone (`meetings/<id>/upload/<uuid>`: a POST policy is

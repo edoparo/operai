@@ -1,8 +1,8 @@
 /**
- * api — the one place inventory-ui talks HTTP (T24, specs/015-hardware-inventory).
+ * api — the one place inventory-ui talks HTTP (T24, specs/20261006-hardware-inventory).
  *
  * Every authenticated call goes through `shell/session`'s `apiFetch`
- * (ADR-0001/ADR-0006): it attaches the Bearer JWT to trusted origins only and
+ * (ADR 20260607-jwt-in-memory-never-web-storage/ADR 20260709-suite-frontend-module-federation): it attaches the Bearer JWT to trusted origins only and
  * handles the 401 refresh-retry-redirect, so nothing here touches a token. The
  * base URL is never hardcoded or baked into this build: inventory-api's comes
  * from the shell's `getInventoryApiBaseUrl()` (T41), and the one call this app

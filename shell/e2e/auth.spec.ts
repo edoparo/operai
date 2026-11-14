@@ -1,5 +1,5 @@
 /**
- * T16 — Suite-wide session guard (specs/003-suite-shell)
+ * T16 — Suite-wide session guard (specs/20260709-suite-shell)
  *
  * Refs: AC-2.5 (session persists on reload), and the RELOCATED coverage of
  * `estimai-ui/e2e/login-wall.spec.ts`'s AC-1.1 (anonymous visit → sign-in,

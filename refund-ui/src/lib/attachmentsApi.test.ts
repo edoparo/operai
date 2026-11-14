@@ -1,12 +1,12 @@
 /**
  * @vitest-environment jsdom
  *
- * Unit tests for src/lib/attachmentsApi.ts (T17, specs/007-refund-service/
+ * Unit tests for src/lib/attachmentsApi.ts (T17, specs/20260716-refund-service/
  * tasks.md). Strategy mirrors requestsApi.test.ts for the refund-api-bound
  * calls (mock `shell/session`'s `apiFetch`), plus a dedicated block for
  * `uploadToPresignedPost`, which deliberately does NOT go through
  * `apiFetch` — it mocks the global `fetch` instead, since that call must
- * never carry the suite's Bearer JWT (ADR-0001).
+ * never carry the suite's Bearer JWT (ADR 20260607-jwt-in-memory-never-web-storage).
  */
 
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'

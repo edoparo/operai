@@ -2,7 +2,7 @@
  * @vitest-environment jsdom
  *
  * Router structure + navigation tests for admin-ui's inner router (T14,
- * specs/004-auth-roles-permissions/tasks.md — "give admin-ui its inner
+ * specs/20260713-auth-roles-permissions/tasks.md — "give admin-ui its inner
  * TanStack Router … done when: the four sections route client-side under
  * `/admin`"). Mirrors estimai-ui/src/router.test.tsx's technique (structural
  * assertions on the route tree + behavioral RouterProvider renders), using
@@ -118,7 +118,7 @@ describe('the four sections route client-side', () => {
     expect(await screen.findByTestId(testId)).not.toBeNull()
 
     // Scoped to the "Admin sections" landmark specifically — the Users
-    // section (T10, specs/006-user-invitations) additionally renders its own
+    // section (T10, specs/20260713-user-invitations) additionally renders its own
     // UsersSubNav ("Active users"/"Invitations") landmark, which must not be
     // confused with SectionNav's four top-level links here.
     const sectionNav = screen.getByRole('navigation', { name: 'Admin sections' })
@@ -143,7 +143,7 @@ describe('the four sections route client-side', () => {
     expect(screen.queryByTestId('admin-user-detail-page')).toBeNull()
   })
 
-  it('visiting /users/access-requests renders the Access requests page, not the /users/$id detail route (specs/023, AC-3.1)', async () => {
+  it('visiting /users/access-requests renders the Access requests page, not the /users/$id detail route (specs/20261105-signup-gate, AC-3.1)', async () => {
     window.history.pushState(null, '', '/users/access-requests')
     const { createAppRouter } = await importRouter()
     const router = createAppRouter()

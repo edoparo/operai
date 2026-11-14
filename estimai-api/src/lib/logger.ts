@@ -8,7 +8,7 @@ import type { MiddlewareHandler } from "hono";
  * INCLUDING the query string. That leaks live credentials into application
  * logs whenever a query param carries one. No current estimai-api route puts
  * a credential in a query string, but notify-api's structurally identical
- * `GET /notifications/stream?ticket=<t>` (ADR-0008) does, and this logger
+ * `GET /notifications/stream?ticket=<t>` (ADR 20260713-sse-stream-auth-short-lived-ticket) does, and this logger
  * module is shared verbatim across both services (same posture as
  * jwtMiddleware) to establish one pattern rather than a per-service opt-out:
  * any future query-string-authenticated route is safe by default.

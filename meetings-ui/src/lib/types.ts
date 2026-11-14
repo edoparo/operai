@@ -1,5 +1,5 @@
 /**
- * Wire types of meetings-api (specs/021-meetings plan.md § API contracts › Conventions).
+ * Wire types of meetings-api (specs/20261104-meetings plan.md § API contracts › Conventions).
  *
  * Declarations only, no logic: they mirror the contract so the placeholder cards of T53 can
  * export their final prop types before the data layer (T54) exists. T54 extends this file
@@ -39,11 +39,11 @@ export type MeetingRow = {
   role: 'creator' | 'participant'
   summaryCount: number
   creator: PersonRef
-  /** The caller's OWN folder for this meeting (ADR-0090); only `GET /meetings` carries it. */
+  /** The caller's OWN folder for this meeting (ADR 20261113-personal-meeting-folders); only `GET /meetings` carries it. */
   folderId?: string | null
 }
 
-/** One of the caller's own meeting folders (ADR-0090). */
+/** One of the caller's own meeting folders (ADR 20261113-personal-meeting-folders). */
 export type MeetingFolder = {
   id: string
   name: string
@@ -242,7 +242,7 @@ export type ConversationTurn = {
 
 export type EraseRow = { id: string; title: string; startsAt: string; creator: PersonRef }
 
-/** `auth GET /authz/users/directory`; called WITHOUT `appId` for participants (plan G9, ADR-0066). */
+/** `auth GET /authz/users/directory`; called WITHOUT `appId` for participants (plan G9, ADR 20261104-user-directory-gate-meetings-access). */
 export type DirectoryUser = { id: string; name: string | null; email: string; entity: string | null }
 
 // ─── Agenda ─────────────────────────────────────────────────────────────────

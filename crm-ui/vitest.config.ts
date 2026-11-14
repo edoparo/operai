@@ -3,7 +3,7 @@ import { defineConfig } from 'vitest/config'
 
 export default defineConfig({
   resolve: {
-    // One React for the app and the library's source (ADR-0050).
+    // One React for the app and the library's source (ADR 20261031-shared-ui-library-consumed-as-source).
     dedupe: [
       'react',
       'react-dom',
@@ -22,7 +22,7 @@ export default defineConfig({
     // src/federation/__stubs__/* (never used for real values). Mirrors
     // refund-ui/vitest.config.ts.
     alias: [
-      // The shared component library, compiled from source (ADR-0050); exact matches, the longer first.
+      // The shared component library, compiled from source (ADR 20261031-shared-ui-library-consumed-as-source); exact matches, the longer first.
       { find: /^@operai\/ui\/rich-text$/, replacement: fileURLToPath(new URL('../operai-ui/src/richText.ts', import.meta.url)) },
       { find: /^@operai\/ui$/, replacement: fileURLToPath(new URL('../operai-ui/src/index.ts', import.meta.url)) },
       { find: 'shell/session', replacement: fileURLToPath(new URL('./src/federation/__stubs__/shellSession.ts', import.meta.url)) },

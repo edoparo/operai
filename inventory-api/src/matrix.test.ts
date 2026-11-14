@@ -1,6 +1,6 @@
 /**
  * Capability x route matrix and event-per-mutation test over the ASSEMBLED app
- * (T44, specs/015-hardware-inventory; AC-9.1 to AC-9.5, AC-9.7, AC-11.1).
+ * (T44, specs/20261006-hardware-inventory; AC-9.1 to AC-9.5, AC-9.7, AC-11.1).
  *
  * Nothing here is a per-router wrapper: `app` is `src/index.ts`'s own app, with
  * the real JWT-shaped and authorization middleware (over the shared harness: a
@@ -371,7 +371,7 @@ describe("capability x route matrix", () => {
     );
 
     it(
-      `${label}: with auth unreachable it is ${c.identity ? "unaffected (/me is JWT only, ADR-0045)" : "503 fail-closed"}`,
+      `${label}: with auth unreachable it is ${c.identity ? "unaffected (/me is JWT only, ADR 20261006-ungated-second-federated-entry-of-a-gated-remote)" : "503 fail-closed"}`,
       async () => {
         const failures: string[] = [];
         const w = await M.seedWorld();

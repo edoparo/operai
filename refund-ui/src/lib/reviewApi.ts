@@ -1,6 +1,6 @@
 /**
  * reviewApi — typed accounting-facing operations against `refund-api`'s
- * review/decision endpoints (T18, specs/007-refund-service/tasks.md; plan.md
+ * review/decision endpoints (T18, specs/20260716-refund-service/tasks.md; plan.md
  * "### Accounting endpoints"), built on `./refundApi.ts`'s generic
  * `getJson`/`sendJson` plumbing, mirroring `./requestsApi.ts`'s convention.
  *
@@ -36,7 +36,7 @@ import { getJson, sendJson } from './refundApi'
  * decision) or `'approved'` (decided but not yet compiled into a monthly
  * batch); the queue now mixes both and the UI badge distinguishes them.
  * `owner.name` is `string | null` (QE-verified
- * defect, specs/007-refund-service): `refund-api` never populates it — the
+ * defect, specs/20260716-refund-service): `refund-api` never populates it — the
  * JWT carries no `name` claim, only `sub`/`email` — so it's `null` on every
  * real response. Never read `owner.name` directly for display; use
  * `strings.ts`'s `ownerDisplay(owner)` instead.
@@ -72,7 +72,7 @@ export const reject = (id: string, motivation: string): Promise<RefundRequestDet
 /**
  * `POST /review/requests/:id/lines/:lineId/reject` — refuse ONE line with a
  * non-empty `reason` (422 if empty); its approved total becomes 0. Submitted-
- * only (409 once decided). specs/007 amendment, 2026-11-10.
+ * only (409 once decided). specs/20260716-refund-service amendment, 2026-11-10.
  */
 export const rejectLine = (id: string, lineId: string, reason: string): Promise<RefundLine> =>
   sendJson<RefundLine>(`/review/requests/${id}/lines/${lineId}/reject`, 'POST', { reason })

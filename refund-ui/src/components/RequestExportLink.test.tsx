@@ -1,7 +1,7 @@
 /**
  * @vitest-environment jsdom
  *
- * Component tests for RequestExportLink (ADR-0043).
+ * Component tests for RequestExportLink (ADR 20260908-request-archive-export-refund-api-reads-attachment-bytes).
  *
  * The interesting behaviour is not "does it call the API" but the two things
  * that would quietly hurt users: collapsing distinct, non-retryable failures

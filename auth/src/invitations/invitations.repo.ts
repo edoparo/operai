@@ -1,18 +1,18 @@
 /**
- * Invitation domain repo (T5, specs/006-user-invitations — refs US-1, US-4;
- * ADR-0012, ADR-0013).
+ * Invitation domain repo (T5, specs/20260713-user-invitations — refs US-1, US-4;
+ * ADR 20260714-invitation-activation-hooks-soft-delete-lifecycle, ADR 20260714-invitation-lifecycle-derived-expiry-state).
  *
  * Centralizes every Prisma access to the `invitation` table so the
  * effective-status computation and the reconcile-on-write step are each
  * implemented EXACTLY ONCE and reused by every consumer (`invitations.routes.ts`
- * (T6), `invite.routes.ts` (T9), and the activation hook (T8)) — ADR-0013's
+ * (T6), `invite.routes.ts` (T9), and the activation hook (T8)) — ADR 20260714-invitation-lifecycle-derived-expiry-state's
  * named risk is "inconsistent effective-status computation across call
  * sites" if this logic is re-derived ad hoc per caller.
  *
  * `status` on the row is only ever `pending | accepted | revoked` as a
  * matter of admin-triggered action — with ONE deliberate exception:
  * {@link reconcileExpiredPending} physically writes the literal value
- * `expired` (ADR-0013 point 4), the one place a stored value must be
+ * `expired` (ADR 20260714-invitation-lifecycle-derived-expiry-state point 4), the one place a stored value must be
  * current for the partial-unique index (`invitation_pending_email_key`,
  * `WHERE status = 'pending'`) to correctly release a dead row. Every other
  * consumer of "is this expired" goes through {@link effectiveInvitationStatus}
@@ -48,7 +48,7 @@ export function normalizeEmail(email: string): string {
 }
 
 /**
- * THE single shared effective-status computation (ADR-0013 point 1/2):
+ * THE single shared effective-status computation (ADR 20260714-invitation-lifecycle-derived-expiry-state point 1/2):
  * `status=='pending' && expiresAt<=now ? 'expired' : status`. Every reader
  * (list, detail, landing) MUST go through this function rather than
  * re-deriving the check.
@@ -90,14 +90,14 @@ export function buildEffectiveStatusWhere(
 }
 
 /**
- * Reconcile-on-write (ADR-0013 point 4): inside the SAME transaction as a
+ * Reconcile-on-write (ADR 20260714-invitation-lifecycle-derived-expiry-state point 4): inside the SAME transaction as a
  * subsequent insert, flips any of `email`'s past-expiry `status='pending'`
  * rows to the physical terminal value `'expired'`. This is what lets
  * `invitation_pending_email_key` (the partial-unique index scoped to
  * `WHERE status='pending'`) never block a legitimately fresh invitation for
  * an address whose only prior invitation is dead (AC-1.5/AC-1.14). Must be
  * called BEFORE the insert, inside the same `tx` — never as a separate,
- * non-atomic statement (ADR-0013 risk).
+ * non-atomic statement (ADR 20260714-invitation-lifecycle-derived-expiry-state risk).
  */
 export async function reconcileExpiredPending(
   tx: Prisma.TransactionClient,
@@ -112,7 +112,7 @@ export async function reconcileExpiredPending(
 
 /**
  * A LIVE pending invitation for `email` — `status='pending' AND
- * expiresAt>now`, matching ADR-0013 point 3 EXACTLY (the query the
+ * expiresAt>now`, matching ADR 20260714-invitation-lifecycle-derived-expiry-state point 3 EXACTLY (the query the
  * activation hook, T8, filters on directly — a lazily-expired row is simply
  * excluded, with the same effect as checking effective status). Also reused
  * by T6's `POST /admin/invitations` 409 "live-pending invitation exists"

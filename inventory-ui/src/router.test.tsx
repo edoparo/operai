@@ -2,7 +2,7 @@
  * @vitest-environment jsdom
  *
  * Router structure + navigation tests for inventory-ui's inner router (T24,
- * specs/015-hardware-inventory — "the router test resolves all six routes and
+ * specs/20261006-hardware-inventory — "the router test resolves all six routes and
  * the not-found route"). Mirrors refund-ui/src/router.test.tsx: structural
  * assertions on the route tree plus behavioural RouterProvider renders on the
  * basepath-less `createAppRouter()` factory. Every page is a placeholder in
@@ -57,14 +57,14 @@ describe('router structure', () => {
     )
   })
 
-  it('has no `_authed` (or other guard) layout route in the tree — ADR-0006: a remote owns no auth guard', async () => {
+  it('has no `_authed` (or other guard) layout route in the tree — ADR 20260709-suite-frontend-module-federation: a remote owns no auth guard', async () => {
     const { createAppRouter } = await importRouter()
     const routeTree = createAppRouter().routeTree as unknown as { children?: RouteTreeNode[] }
 
     expect((routeTree.children ?? []).map((child) => child.id)).not.toContain('_authed')
   })
 
-  it('does not route the devices view: /devices is the shell-owned ungated entry (ADR-0045), not part of this tree', async () => {
+  it('does not route the devices view: /devices is the shell-owned ungated entry (ADR 20261006-ungated-second-federated-entry-of-a-gated-remote), not part of this tree', async () => {
     const { createAppRouter } = await importRouter()
     const routeTree = createAppRouter().routeTree as unknown as { children?: RouteTreeNode[] }
 

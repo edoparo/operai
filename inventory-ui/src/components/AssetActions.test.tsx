@@ -1,7 +1,7 @@
 /**
  * @vitest-environment jsdom
  *
- * Component tests for AssetActions (T33, specs/015-hardware-inventory; design.md
+ * Component tests for AssetActions (T33, specs/20261006-hardware-inventory; design.md
  * F3, F5, § Dialogs, § Error and conflict catalogue, § Accessibility "T2
  * detail"; refs AC-1.8, AC-2.1, AC-2.2, AC-2.5, AC-2.10, AC-3.1 to AC-3.5).
  * `assetsApi` and `assignmentsApi` are the seams; AssignDialog is replaced by a

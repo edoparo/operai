@@ -1,7 +1,7 @@
 /**
  * @vitest-environment jsdom
  *
- * Component tests for InvitationStatusBadge (T12, specs/006-user-invitations).
+ * Component tests for InvitationStatusBadge (T12, specs/20260713-user-invitations).
  *
  * Covers: all four variants render a glyph AND a text label (never
  * color-only), with visually distinct colors.

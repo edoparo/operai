@@ -1,16 +1,16 @@
 /**
  * ConfirmDeleteModal — accessible confirmation dialog for destructive estimate
- * deletion (US-3, AC-3.1, AC-3.2, specs/001-estimate-persistence).
+ * deletion (US-3, AC-3.1, AC-3.2, specs/20260606-estimate-persistence).
  *
  * Presentational: all data and callbacks arrive via props. EstimatesPage owns
  * the state and the API call.
  *
- * Generalized (T19, specs/013-estimate-sharing, AC-5.2/AC-6.1) — `title` /
+ * Generalized (T19, specs/20260807-estimate-sharing, AC-5.2/AC-6.1) — `title` /
  * `bodyText` / `confirmLabel` are optional overrides so this same dialog also
  * backs the Remove-collaborator and Leave-estimate confirmations (design.md's
  * component inventory). All three default to the delete-estimate copy.
  *
- * Now a thin adapter over @operai/ui's `ConfirmDialog` (ADR-0050, INC-09):
+ * Now a thin adapter over @operai/ui's `ConfirmDialog` (ADR 20261031-shared-ui-library-consumed-as-source, INC-09):
  * `role="alertdialog"`, focus on Cancel on open, Tab trapped over every
  * enabled control (the header × included), Escape/backdrop/× cancel except
  * while in flight, focus returned to the trigger on close. Cancel is `ghost`,

@@ -1,5 +1,5 @@
 /**
- * The dialog prefill of an offer (specs/020 AC-3.1, D-9, D-13, D-14): a template
+ * The dialog prefill of an offer (specs/20261102-crm-offer-document AC-3.1, D-9, D-13, D-14): a template
  * with its placeholders replaced and its default cost lines resolved against the
  * deal and the ready estimate. Pure and DB-free; the route loads the inputs.
  *

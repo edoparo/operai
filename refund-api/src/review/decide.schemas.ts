@@ -1,6 +1,6 @@
 /**
  * Zod schemas for accounting decision request bodies (T12,
- * specs/007-refund-service, AC-7.1/7.3).
+ * specs/20260716-refund-service, AC-7.1/7.3).
  */
 
 import { z } from "zod";
@@ -15,7 +15,7 @@ export const ApprovedTotalBodySchema = z.object({
 });
 export type ApprovedTotalBody = z.infer<typeof ApprovedTotalBodySchema>;
 
-// specs/007 amendment (2026-11-10) — rejecting ONE line needs a reason just
+// specs/20260716-refund-service amendment (2026-11-10) — rejecting ONE line needs a reason just
 // like rejecting the whole request does: the employee must be told why.
 // Capped at 2000 characters so the reason fits the export PDF's detail column.
 export const RejectLineBodySchema = z.object({

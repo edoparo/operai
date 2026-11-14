@@ -2,8 +2,8 @@
   "schema": "wellforge-run/v3",
   "run_id": "2026-11-05T18-18-47Z-implement-023-signup-gate",
   "command": "implement",
-  "args": "023-signup-gate T15",
-  "feature": "023-signup-gate",
+  "args": "20261105-signup-gate T15",
+  "feature": "20261105-signup-gate",
   "feature_resolution": "explicit",
   "rigor": "production",
   "plugin_version": "2.56.0",
@@ -14,7 +14,7 @@
   "agents": [
     {"agent": "wellforge:backend-dev", "tasks": ["T15"], "outcome": "completed", "commits": ["8bef6b8"]},
     {"agent": "wellforge:owasp-reviewer", "tasks": ["T15"], "outcome": "PASS WITH NOTES"},
-    {"agent": "wellforge:quality-engineer", "tasks": ["T15"], "outcome": "FAIL", "note": "specs/006 Non-goals amendment omitted the outside-domain refusal; old sentence left below"},
+    {"agent": "wellforge:quality-engineer", "tasks": ["T15"], "outcome": "FAIL", "note": "specs/20260713-user-invitations Non-goals amendment omitted the outside-domain refusal; old sentence left below"},
     {"agent": "coordinator", "tasks": ["T15"], "outcome": "fix round 1", "commits": ["18f9aa6"], "note": "two-line docs fix inside T15 touch:"},
     {"agent": "wellforge:quality-engineer", "tasks": ["T15"], "outcome": "PASS"}
   ],
@@ -26,7 +26,7 @@
     {"severity": "low", "source": "owasp", "file": "infra/README.md", "summary": "query (b) hardcodes welld.ch/welld.it; keep in sync with ALLOWED_SIGNUP_DOMAINS"}
   ],
   "verdicts": {"qe": "PASS", "security": "PASS"},
-  "security": {"dispatched": true, "notes": ["docs only; 1 low note"], "matched_rules": ["production tier: every batch", "specs/004-auth-roles-permissions/spec.md"]},
+  "security": {"dispatched": true, "notes": ["docs only; 1 low note"], "matched_rules": ["production tier: every batch", "specs/20260713-auth-roles-permissions/spec.md"]},
   "result": "completed",
   "rigor_recorded": null,
   "control_run_id": null,

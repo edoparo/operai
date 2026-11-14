@@ -1,5 +1,5 @@
 /**
- * `POST /meetings/:id/consent` (specs/021-meetings plan.md § API contracts → Meetings;
+ * `POST /meetings/:id/consent` (specs/20261104-meetings plan.md § API contracts → Meetings;
  * AC-4.1, AC-4.3). The creator's attestation that everyone present was told and agreed:
  * who gave it, when, and WHICH VERSION of the notice they were shown. Creator control.
  *

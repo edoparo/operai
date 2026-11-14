@@ -1,5 +1,5 @@
 /**
- * A task's description and files (ADR-0089): the upload in two phases, the limits, the short
+ * A task's description and files (ADR 20261113-task-description-files-in-activities-api-bucket): the upload in two phases, the limits, the short
  * URLs, the images a description may show, the clean-up of images it stops showing, and that
  * deleting a task (by a user or by crm-api's compensation) deletes its objects first and keeps
  * everything when the bucket refuses. Who may do what is the matrix's (src/matrix.test.ts).

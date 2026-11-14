@@ -10,7 +10,7 @@ export function setupOpenAPI(app: OpenAPIHono): void {
       version: "0.1.0",
       description:
         "Companies, contacts, deals, the sales pipeline and activities for the " +
-        "CRM tool (specs/017-crm). Requires a valid RS256 Bearer JWT issued by " +
+        "CRM tool (specs/20261101-crm). Requires a valid RS256 Bearer JWT issued by " +
         "the Operai auth service and the crm:access permission.",
       contact: {
         name: "wellD",

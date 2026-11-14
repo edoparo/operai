@@ -1,6 +1,6 @@
 /**
- * Unit tests for the shared limits of the two /system endpoints (specs/029 US-7,
- * ADR-0086): per-service allowances for verified credentials, ONE per-address
+ * Unit tests for the shared limits of the two /system endpoints (specs/20261111-push-notifications US-7,
+ * ADR 20261112-system-endpoints-limited-per-verified-service): per-service allowances for verified credentials, ONE per-address
  * count for invalid ones shared by both endpoints, one byte-identical 429.
  */
 

@@ -4,7 +4,7 @@
 "@operai/shell": patch
 ---
 
-New shared design system `@operai/ui` (operai-ui/, ADR-0050): the suite's tokens,
+New shared design system `@operai/ui` (operai-ui/, ADR 20261031-shared-ui-library-consumed-as-source): the suite's tokens,
 themes and component classes move into it from the shell, together with React
 components (buttons, dialogs, banners, badges, fields, tables, page and tool
 layout, empty and loading states) and a Storybook. refund-ui is the first app

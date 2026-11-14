@@ -1,5 +1,5 @@
 /**
- * T88 — The deal journey (specs/021-meetings: AC-1.1, AC-2.2, AC-11.2, AC-11.3, AC-14.1,
+ * T88 — The deal journey (specs/20261104-meetings: AC-1.1, AC-2.2, AC-11.2, AC-11.3, AC-14.1,
  * AC-14.4, AC-5.6). crm-ui hosts the Meetings card (`./HostMeetings` through the shell's
  * HostExtension); meetings-api resolves the deal as the caller and tells crm-api in a notice.
  *
@@ -33,7 +33,7 @@ import {
 const runId = newRunId()
 const SECRET = 'The merger codename is Bluebird.'
 
-test.describe('specs/021 T88: deal journey', () => {
+test.describe('specs/20261104-meetings T88: deal journey', () => {
   let sales: Person
   let reader: Person // a second salesperson: deal:financials, not a participant
   let technical: Person

@@ -1,7 +1,7 @@
 /**
- * The process-level ffmpeg slot (specs/021-meetings plan.md § Amendment 2026-11-05 G-11; ADR-0062, ADR-0064).
+ * The process-level ffmpeg slot (specs/20261104-meetings plan.md § Amendment 2026-11-05 G-11; ADR 20261104-durable-job-runner-work-queued-state-derived, ADR 20261104-meetings-api-reads-audio-bytes-third-reader).
  *
- * ADR-0064 allows ONE ffmpeg at a time per process. Until the Google change the job runner enforced it by job
+ * ADR 20261104-meetings-api-reads-audio-bytes-third-reader allows ONE ffmpeg at a time per process. Until the Google change the job runner enforced it by job
  * KIND (never two `prepare_audio` at once). The `transcribe` job now runs ffmpeg too (it splits a long
  * recording), but only for seconds before it waits up to 45 minutes on Google, so a kind-level exclusion
  * would block every `prepare_audio` for that whole wait. The exclusion therefore moves to the invocation: each

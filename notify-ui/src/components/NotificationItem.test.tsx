@@ -2,7 +2,7 @@
  * @vitest-environment jsdom
  *
  * Component tests for NotificationItem — the notification-center row (T15,
- * specs/005-notification-center/tasks.md).
+ * specs/20260713-notification-center/tasks.md).
  *
  * Covers:
  *   (A) Base render: severity icon is aria-hidden, a sr-only "Severity: X"
@@ -23,7 +23,7 @@
  *       "/notify/estimai/estimates/abc", which 404s inside notify-ui and
  *       never reaches the target remote. A real anchor's `href` is left
  *       alone by the browser and is handled by the shell's own top-level
- *       router once the resulting navigation reaches it (ADR-0006).
+ *       router once the resulting navigation reaches it (ADR 20260709-suite-frontend-module-federation).
  *   (E) Follow-up (ADR-0006-consistent): a plain left-click on the row
  *       calls `shell/session`'s `navigateSuite` (no full reload) instead of
  *       letting the browser follow the anchor's `href`; a MODIFIED click
@@ -223,8 +223,8 @@ describe('NotificationItem', () => {
     })
   })
 
-  // (F) Bilingual system notifications (ADR-0065, AC-12.5): the READER picks the variant.
-  describe('Italian variant (ADR-0065)', () => {
+  // (F) Bilingual system notifications (ADR 20261104-bilingual-system-notifications, AC-12.5): the READER picks the variant.
+  describe('Italian variant (ADR 20261104-bilingual-system-notifications)', () => {
     const withIt: Notification = {
       ...baseNotification,
       title: 'Transcript ready',
@@ -267,7 +267,7 @@ describe('NotificationItem', () => {
       expect(screen.getByText('The meeting was recorded and transcribed with AI.')).not.toBeNull()
     })
 
-    it('labels the projects origin (specs/028 T24)', () => {
+    it('labels the projects origin (specs/20261110-activities T24)', () => {
       render(<NotificationItem notification={{ ...withIt, originApp: 'projects' }} wasUnread={false} />)
       expect(screen.getByTestId('notification-origin-notif-1').textContent).toBe('Projects')
     })

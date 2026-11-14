@@ -1,6 +1,6 @@
 /**
  * Direct (non-HTTP) unit/integration tests for the last-admin guard (T10,
- * specs/004-auth-roles-permissions — AC-6.4).
+ * specs/20260713-auth-roles-permissions — AC-6.4).
  *
  * Why not only test this through `users.routes.test.ts`'s HTTP layer: the
  * guard deliberately counts department-conferred admin as "effective admin"
@@ -248,7 +248,7 @@ describe("lastAdminGuard (T10, AC-6.4)", () => {
     await assertNotRemovingLastAdmin(db, adminRoleId, target.id, true, false);
   });
 
-  // specs/006-user-invitations, T7 — plan.md Risk R7 / ADR-0012: a
+  // specs/20260713-user-invitations, T7 — plan.md Risk R7 / ADR 20260714-invitation-activation-hooks-soft-delete-lifecycle: a
   // soft-deleted user's `UserRole`/`UserDepartment` rows are RETAINED
   // (deletion never touches them), so `getEffectiveAdminUserIds` must
   // explicitly filter `deletedAt: null` or a just-deleted admin would still
@@ -297,7 +297,7 @@ describe("lastAdminGuard (T10, AC-6.4)", () => {
 
     await isolateAsSoleAdmin(adminRoleId, target.id, async () => {
       // `softDeletedSibling` still holds the `admin` UserRole row (retained
-      // per ADR-0012) but is soft-deleted, so they must NOT count as cover —
+      // per ADR 20260714-invitation-activation-hooks-soft-delete-lifecycle) but is soft-deleted, so they must NOT count as cover —
       // this must still throw exactly as if target were the sole admin.
       await expect(
         assertNotRemovingLastAdmin(db, adminRoleId, target.id, true, false),

@@ -1,5 +1,5 @@
 /**
- * CurrencyBadge — the currency chip (T25, specs/015-hardware-inventory;
+ * CurrencyBadge — the currency chip (T25, specs/20261006-hardware-inventory;
  * INC-23). A neutral `Badge` from @operai/ui showing the ISO code only
  * (EUR, CHF): a symbol beside the code would say the same thing twice.
  */

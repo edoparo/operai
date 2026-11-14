@@ -1,10 +1,10 @@
 /**
- * Summary templates (specs/021-meetings US-8; plan.md § API contracts → Templates).
+ * Summary templates (specs/20261104-meetings US-8; plan.md § API contracts → Templates).
  * Capability `meetings:access`.
  *
  *   GET    /templates?meetingId=   the picker: recommended for the meeting's host, then personal, shared, built-in
  *   POST   /templates              create a personal template, or a shared one with `template:manage`
- *   PATCH  /templates/:id          change one; If-Match required (428 / 409, G8, ADR-0038)
+ *   PATCH  /templates/:id          change one; If-Match required (428 / 409, G8, ADR 20260807-optimistic-concurrency-version-if-match-cas-amends-0004)
  *   DELETE /templates/:id          delete one
  *   POST   /templates/:id/duplicate  a personal copy of a built-in, shared or own template (AC-8.4)
  *
@@ -15,7 +15,7 @@
  * WHO MAY DO WHAT. Every route needs `meetings:access`. A personal template exists only for its
  * owner: for anyone else (a template manager included) it does not exist - 404, identical to an id
  * that was never issued. A shared one is visible to every holder and changed only by a
- * `template:manage` holder (403 otherwise: the caller can see it, ADR-0037's branch). A built-in is
+ * `template:manage` holder (403 otherwise: the caller can see it, ADR 20260807-denial-taxonomy-shared-records-403-vs-404's branch). A built-in is
  * read-only for everyone: 403 `builtin_readonly`.
  *
  * EDITS NEVER REACH A SUMMARY (AC-7.5, AC-8.7): a summary keeps its own snapshot, and nothing
@@ -72,7 +72,7 @@ export const TemplateItemSchema = z.object({
   sections: z.array(SectionSchema),
   generalInstructions: z.string().nullable(),
   recommended: z.boolean(),
-  /** The `If-Match` precondition of a PATCH (ADR-0038, G8). */
+  /** The `If-Match` precondition of a PATCH (ADR 20260807-optimistic-concurrency-version-if-match-cas-amends-0004, G8). */
   version: z.number().int(),
 });
 
@@ -333,7 +333,7 @@ templatesRouter.openapi(updateTemplateRoute, async (c) => {
   };
   if (Object.keys(changes).length === 0) return c.json(withEtag(c, itemOfRow(row)), 200);
 
-  // Compare-and-set on the version the caller edited (ADR-0038): a concurrent writer makes this match nothing.
+  // Compare-and-set on the version the caller edited (ADR 20260807-optimistic-concurrency-version-if-match-cas-amends-0004): a concurrent writer makes this match nothing.
   const saved = await db.summaryTemplate
     .updateMany({ where: { id, version: expected }, data: { ...changes, updatedBy: userId, version: { increment: 1 } } })
     .catch((error: unknown) => {

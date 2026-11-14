@@ -1,6 +1,6 @@
 /**
- * Unit tests for the EU-residency guard (OWASP A05 fix, specs/007-refund-service,
- * ADR-0016 Risk R8).
+ * Unit tests for the EU-residency guard (OWASP A05 fix, specs/20260716-refund-service,
+ * ADR 20260716-eu-object-storage-refund-attachments Risk R8).
  *
  * Coverage (fix round done-when):
  *   - AWS-EU endpoint + EU region → pass

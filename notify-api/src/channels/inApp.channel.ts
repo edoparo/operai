@@ -1,10 +1,10 @@
 /**
- * inApp channel (T2, specs/006-user-invitations, ADR-0011).
+ * inApp channel (T2, specs/20260713-user-invitations, ADR 20260714-notify-api-email-channel-service-trust).
  *
- * TODAY'S notification behaviour (specs/005) refactored behind the Channel
+ * TODAY'S notification behaviour (specs/20260713-notification-center) refactored behind the Channel
  * interface — UNCHANGED. Addresses a `sub` (recipientId): persists a
  * Notification row via notifications.repo.ts, then publishes it to every
- * open SSE stream for that sub via the EventBus (specs/005 T3).
+ * open SSE stream for that sub via the EventBus (specs/20260713-notification-center T3).
  *
  * raise.routes.ts (POST /notifications, user-JWT) is the only caller. This
  * refactor moves the persist-then-publish sequence out of the route handler
@@ -14,7 +14,7 @@
  * raise.routes.test.ts, which is unchanged and still exercises this exact
  * path end-to-end.
  *
- * T6 (specs/029-push-notifications) adds one step at the end of `send`: the push
+ * T6 (specs/20261111-push-notifications) adds one step at the end of `send`: the push
  * dispatch, fire-and-forget (see the comment there).
  */
 
@@ -41,14 +41,14 @@ export const inAppChannel: Channel<InAppSendInput, NotificationDto> = {
     const created = exit.value;
 
     // Publish AFTER persistence succeeds — the DB is the source of truth
-    // (specs/005 plan.md Risk R3/R5); a dropped publish never loses the
+    // (specs/20260713-notification-center plan.md Risk R3/R5); a dropped publish never loses the
     // notification, only the live push.
     eventBus.publish(input.recipientId, {
       type: "notification",
       data: created,
     });
 
-    // Web push (specs/029, ADR-0084): a best-effort third delivery AFTER the row is stored
+    // Web push (specs/20261111-push-notifications, ADR 20261111-web-push-encrypted-payloads-not-fcm): a best-effort third delivery AFTER the row is stored
     // and published. Deliberately not awaited, so a slow push service never delays the
     // response, and shielded so that nothing it does can fail the request (AC-2.6).
     // `pushChannel.dispatch` is looked up per call, so tests can replace it.

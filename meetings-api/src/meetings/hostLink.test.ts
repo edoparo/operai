@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, spyOn } from "bun:test";
 import { createKit, type Kit } from "../test-support/routeKit";
 
-// AC-1.7, AC-5.5, AC-5.6, AC-5.7, AC-11.8, AC-14.5, AC-14.7 (specs/021 T22): linking,
+// AC-1.7, AC-5.5, AC-5.6, AC-5.7, AC-11.8, AC-14.5, AC-14.7 (specs/20261104-meetings T22): linking,
 // relinking and unlinking a meeting, host-visible, and the notices each change sends.
 
 const kit: Kit = await createKit();

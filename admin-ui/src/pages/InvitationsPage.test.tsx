@@ -1,7 +1,7 @@
 /**
  * @vitest-environment jsdom
  *
- * Component tests for InvitationsPage — Screen U2 (T12, specs/006-user-invitations).
+ * Component tests for InvitationsPage — Screen U2 (T12, specs/20260713-user-invitations).
  *
  * Covers:
  *   (A) Loading / populated / empty / error list states (mirrors UsersPage.test.tsx).
@@ -357,7 +357,7 @@ describe('InvitationsPage', () => {
       })
     })
 
-    it('422 domain_not_allowed (specs/023 AC-5.1) names the domains on the email field, not the general alert', async () => {
+    it('422 domain_not_allowed (specs/20261105-signup-gate AC-5.1) names the domains on the email field, not the general alert', async () => {
       vi.mocked(adminApi.listInvitations).mockResolvedValue(pageOf([]))
       vi.mocked(adminApi.createInvitation).mockRejectedValue(
         new ApiError({

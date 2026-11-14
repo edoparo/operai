@@ -108,14 +108,14 @@ describe("the committed registry", () => {
     expect(checkGroups(SHARED_COPIES, repoRoot)).toEqual([]);
   });
 
-  test("registers activities-api's problem and logger copies (specs/028 T2)", () => {
+  test("registers activities-api's problem and logger copies (specs/20261110-activities T2)", () => {
     for (const name of ["problem", "logger"]) {
       const g = SHARED_COPIES.find((x) => x.name === name);
       expect(g?.files).toContain(`activities-api/src/lib/${name}.ts`);
     }
   });
 
-  test("registers the systemAuth guard of crm-api, estimai-api and activities-api (specs/028 T10)", () => {
+  test("registers the systemAuth guard of crm-api, estimai-api and activities-api (specs/20261110-activities T10)", () => {
     const g = SHARED_COPIES.find((x) => x.name === "systemAuth");
     expect(g?.files.sort()).toEqual([
       "activities-api/src/auth/systemAuth.middleware.ts",
@@ -124,7 +124,7 @@ describe("the committed registry", () => {
     ]);
   });
 
-  test("registers meetings-api's other copies (specs/021 T43)", () => {
+  test("registers meetings-api's other copies (specs/20261104-meetings T43)", () => {
     for (const name of ["s3ResidencyAllowlist", "s3ResidencyAddressing", "problem", "logger"]) {
       const g = SHARED_COPIES.find((x) => x.name === name);
       expect(g?.files).toContain(`meetings-api/src/lib/${name.startsWith("s3") ? "s3Residency" : name}.ts`);

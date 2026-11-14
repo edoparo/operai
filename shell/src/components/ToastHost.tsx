@@ -1,5 +1,5 @@
 /**
- * ToastHost — the shell-chrome toast overlay (T12, specs/005-notification-center,
+ * ToastHost — the shell-chrome toast overlay (T12, specs/20260713-notification-center,
  * design.md "Toast (ToastHost, shell-chrome overlay)", US-5: AC-5.1, AC-5.2, AC-5.3,
  * AC-5.5).
  *
@@ -153,7 +153,7 @@ export default function ToastHost() {
 
 function Toast({ item, onDismiss }: { item: ToastItem; onDismiss: () => void }) {
   const { notification } = item
-  // The reader's language picks the variant, not the sender (ADR-0065).
+  // The reader's language picks the variant, not the sender (ADR 20261104-bilingual-system-notifications).
   const { title, body } = localizedText(notification)
   const severity = notification.severity
   const duration = AUTO_DISMISS_MS[severity]

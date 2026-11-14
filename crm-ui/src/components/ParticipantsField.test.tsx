@@ -1,7 +1,7 @@
 /**
  * @vitest-environment jsdom
  *
- * ParticipantsField (specs/028 design.md § Accessibility): removing a participant chip returns focus to the
+ * ParticipantsField (specs/20261110-activities design.md § Accessibility): removing a participant chip returns focus to the
  * picker input, not to <body>.
  */
 import { afterEach, describe, expect, it, vi } from 'vitest'

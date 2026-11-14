@@ -5,7 +5,7 @@ import { strings } from '../strings'
 
 /**
  * DeviceCard — one device on the employee's "My devices" view (T31,
- * specs/015-hardware-inventory; design.md § D1, § Accessibility "D1 my devices";
+ * specs/20261006-hardware-inventory; design.md § D1, § Accessibility "D1 my devices";
  * AC-2.3, AC-2.4, AC-4.1, AC-4.2).
  *
  * Presentational, and deliberately narrow: it takes a `MyDevice` and renders

@@ -1,14 +1,14 @@
 /**
- * T45 — Inventory assignment journeys (specs/015-hardware-inventory).
+ * T45 — Inventory assignment journeys (specs/20261006-hardware-inventory).
  *
- * Drives the REAL assembled shell host + inventory-ui remote (ADR-0006/0045)
+ * Drives the REAL assembled shell host + inventory-ui remote (ADR 20260709-suite-frontend-module-federation/0045)
  * against the REAL auth / inventory-api / notify-api. Nothing is mocked or
  * stubbed.
  *
  * Journey 1 (AC-2.3, AC-4.1, AC-9.6): an inventory manager registers a device
  * through the form and assigns it to an employee who holds NO grant at all. The
  * employee has no Inventory entry in the navigation, `/inventory` sends them to
- * a tool they do hold (Meetings since specs/021, `/no-access` before it), yet `/devices` (the ungated second federated entry, ADR-0045)
+ * a tool they do hold (Meetings since specs/20261104-meetings, `/no-access` before it), yet `/devices` (the ungated second federated entry, ADR 20261006-ungated-second-federated-entry-of-a-gated-remote)
  * lists the offered device with its description, category, serial number and
  * date and no price, and confirming it makes the employee the holder, which the
  * manager then sees on the asset.
@@ -18,7 +18,7 @@
  * notification in the shell bell, follows its link to `/devices` and confirms;
  * the manager who created the assignment is told it was confirmed. A second
  * assignment is declined, and the manager is told that. These two ACs depend on
- * inventory-api's scoped service-JWT push to notify-api (ADR-0044); see the
+ * inventory-api's scoped service-JWT push to notify-api (ADR 20261006-scoped-service-jwt-fourth-notify-caller); see the
  * `E2E_INVENTORY_PUSH` note on the test.
  *
  * Fixtures: inventoryFixtures.ts grants the REAL `inventory-manager` role and
@@ -58,7 +58,7 @@ async function inContext(browser: Browser, session: SeededSession): Promise<Brow
 async function seedPeople(): Promise<{ manager: SeededSession; employee: SeededSession }> {
   const manager = await seedUserSession(`inv-mgr-${runId}@operai.test`, MANAGER_NAME)
   // The grant must exist BEFORE the first resolve; the token minted above carries
-  // identity only (ADR-0007), so there is nothing to re-mint.
+  // identity only (ADR 20260713-authz-hand-rolled-rbac-abac-epoch-claims), so there is nothing to re-mint.
   grantInventoryRole(manager.email, 'inventory-manager', 'welld_ch')
   // The assignee: a signed-in user with no role beyond the baseline `employee`.
   const employee = await seedUserSession(`inv-emp-${runId}@operai.test`, EMPLOYEE_NAME)
@@ -67,7 +67,7 @@ async function seedPeople(): Promise<{ manager: SeededSession; employee: SeededS
 
 test.describe.configure({ mode: 'serial' })
 
-test.describe('specs/015 T45: assignment journeys', () => {
+test.describe('specs/20261006-hardware-inventory T45: assignment journeys', () => {
   let manager: SeededSession
   let employee: SeededSession
 
@@ -118,7 +118,7 @@ test.describe('specs/015 T45: assignment journeys', () => {
     const employeeCtx = await inContext(browser, employee)
     const emp = await employeeCtx.newPage()
     await emp.goto('/')
-    // specs/021 (AC-10.8): the baseline `employee` role now carries `meetings:access`, so a person with
+    // specs/20261104-meetings (AC-10.8): the baseline `employee` role now carries `meetings:access`, so a person with
     // no OTHER grant lands on Meetings, not `/no-access`. The point of this journey is unchanged: no
     // Inventory entry for them.
     await expect(emp).toHaveURL(/\/meetings(\/|$)/, { timeout: 20_000 })
@@ -184,7 +184,7 @@ test.describe('specs/015 T45: assignment journeys', () => {
     expect(assignmentId, 'the assignment view must expose the pending assignment id').toBeTruthy()
 
     // AC-2.7: any user other than the assignee is refused by the server (and, per
-    // ADR-0045, told it does not exist).
+    // ADR 20261006-ungated-second-federated-entry-of-a-gated-remote, told it does not exist).
     const outsider = await seedUserSession(`inv-out-${runId}@operai.test`, `Inv Outsider ${runId}`)
     const refused = await inventoryCall(outsider, 'POST', `/me/assignments/${assignmentId}/confirm`, undefined, [404])
     expect(refused.status).toBe(404)
@@ -213,7 +213,7 @@ test.describe('specs/015 T45: assignment journeys', () => {
     await employeeCtx.close()
   })
 
-  // AC-2.8 / AC-2.9 need the notification push of ADR-0044, which only works when
+  // AC-2.8 / AC-2.9 need the notification push of ADR 20261006-scoped-service-jwt-fourth-notify-caller, which only works when
   // `auth` has SERVICE_AUDIENCE + SERVICE_CLIENTS, `notify-api` has SERVICE_AUDIENCE
   // and `inventory-api` has SERVICE_CLIENT_ID + SERVICE_CLIENT_SECRET (a client
   // `auth` knows). Without them the push fails soft (the assignment still
@@ -226,7 +226,7 @@ test.describe('specs/015 T45: assignment journeys', () => {
   }) => {
     test.fixme(
       process.env['E2E_INVENTORY_PUSH'] === 'unconfigured',
-      'BLOCKED on env: auth SERVICE_AUDIENCE + SERVICE_CLIENTS and notify-api SERVICE_AUDIENCE are unset, so inventory-api cannot push (ADR-0044).',
+      'BLOCKED on env: auth SERVICE_AUDIENCE + SERVICE_CLIENTS and notify-api SERVICE_AUDIENCE are unset, so inventory-api cannot push (ADR 20261006-scoped-service-jwt-fourth-notify-caller).',
     )
 
     const confirmedAsset = await registerAssetViaApi(manager, {

@@ -154,7 +154,7 @@ describe("withAudit — transactional audit + epoch bump (T7, AC-5.1/AC-4.3)", (
     expect(refreshedTarget.permissionEpoch).toBe(0);
   });
 
-  test("an array of entries writes every row in the one transaction (specs/023 T6)", async () => {
+  test("an array of entries writes every row in the one transaction (specs/20261105-signup-gate T6)", async () => {
     const actor = await createTestUser("actor-multi");
     const marker = `t6-multi-${RUN_ID}`;
 

@@ -1,8 +1,8 @@
 /**
- * api — the one place meetings-ui talks HTTP (specs/021-meetings).
+ * api — the one place meetings-ui talks HTTP (specs/20261104-meetings).
  *
  * Every authenticated call goes through `shell/session`'s `apiFetch`
- * (ADR-0001/ADR-0006): it attaches the Bearer JWT to trusted origins only and
+ * (ADR 20260607-jwt-in-memory-never-web-storage/ADR 20260709-suite-frontend-module-federation): it attaches the Bearer JWT to trusted origins only and
  * handles the 401 refresh-retry-redirect. meetings-api's base URL comes from the
  * shell (`getMeetingsApiBaseUrl()`); the directory call to `auth` passes
  * `getAuthBaseUrl()` to `requestJson` itself.
@@ -13,7 +13,7 @@
  * holds its extension members (`missing`, `currentVersion`, `field`, `index`, …). A
  * network failure is not an ApiError: `fetch`'s rejection propagates.
  *
- * Optimistic concurrency (ADR-0038, plan.md § Concurrency): every mutation of
+ * Optimistic concurrency (ADR 20260807-optimistic-concurrency-version-if-match-cas-amends-0004, plan.md § Concurrency): every mutation of
  * an existing template, transcript segment or summary carries `If-Match: "<version>"` —
  * `sendJson`'s `version` argument — and a 428/409 comes back as an ApiError the
  * page turns into the "reload" banner (`isStaleWrite`).
@@ -112,7 +112,7 @@ export const ifMatch = (version: number): string => `"${version}"`
 /**
  * POST/PATCH/DELETE against meetings-api. Omit `body` for the body-less routes
  * (retry, discard); pass `version` for a mutation of a versioned record (a template,
- * a transcript segment, a summary), which then sends `If-Match` (plan G8, ADR-0038).
+ * a transcript segment, a summary), which then sends `If-Match` (plan G8, ADR 20260807-optimistic-concurrency-version-if-match-cas-amends-0004).
  */
 export const sendJson = <T>(path: string, method: string, body?: unknown, version?: number): Promise<T> => {
   const headers: Record<string, string> = {}

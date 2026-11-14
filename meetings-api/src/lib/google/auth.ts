@@ -1,8 +1,8 @@
 /**
- * Google credentials for meetings-api (specs/021-meetings plan.md § Amendment 2026-11-05 G-6, ADR-0069):
+ * Google credentials for meetings-api (specs/20261104-meetings plan.md § Amendment 2026-11-05 G-6, ADR 20261105-meetings-ai-providers-google-cloud-eu):
  * ONE service account, from the explicit key in `MEETINGS_GCP_SERVICE_ACCOUNT_KEY`, never Application
  * Default Credentials. ADC would pick up whatever the host happens to hold (a developer's `gcloud login`, a
- * metadata server), which is exactly the "a setting nobody made in our code" failure ADR-0061 names.
+ * metadata server), which is exactly the "a setting nobody made in our code" failure ADR 20261104-meetings-ai-providers-eu-zero-retention names.
  *
  * Built on google-auth-library's `JWT` client: it signs the assertion, exchanges it at
  * `oauth2.googleapis.com` (carries no content) and caches the access token until shortly before it expires.
@@ -86,7 +86,7 @@ export interface GoogleAuthOptions {
 export function createGoogleAuth(options: GoogleAuthOptions): GoogleAuth {
   const transporter = new gaxios.Gaxios({
     timeout: TOKEN_TIMEOUT_MS,
-    // The job runner owns retry (ADR-0062); a hidden retry here would multiply it.
+    // The job runner owns retry (ADR 20261104-durable-job-runner-work-queued-state-derived); a hidden retry here would multiply it.
     retry: false,
     retryConfig: { retry: 0 },
     ...(options.fetchImpl ? { fetchImplementation: options.fetchImpl } : {}),

@@ -1,5 +1,5 @@
 {
-  "_comment": "CANONICAL display labels for refund documents, shared by refund-api's PDF renderers and refund-ui's screens. Neither package imports the other (they are not npm-linked — see CLAUDE.md ### Git), so this file is the contract and BOTH sides assert against it: refund-api/src/requests/labels.test.ts and refund-ui/src/lib/documentLabels.parity.test.ts. Change a label here first, then both implementations. Same mechanism as rates/mileage-vectors.json (ADR-0025).",
+  "_comment": "CANONICAL display labels for refund documents, shared by refund-api's PDF renderers and refund-ui's screens. Neither package imports the other (they are not npm-linked — see CLAUDE.md ### Git), so this file is the contract and BOTH sides assert against it: refund-api/src/requests/labels.test.ts and refund-ui/src/lib/documentLabels.parity.test.ts. Change a label here first, then both implementations. Same mechanism as rates/mileage-vectors.json (ADR 20260720-mileage-rate-money-precision-integer-micros).",
   "expenseType": {
     "travel_highway": "Travel — highway",
     "travel_km": "Travel — mileage (km)",

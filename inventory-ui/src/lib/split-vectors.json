@@ -1,5 +1,5 @@
 {
-  "_comment": "Shared test vectors for splitPrice (specs/015 AC-1.3): each unit = floor(totalCents / quantity), the remaining cents go on the LAST unit. Mirrored by inventory-api task T8, which MUST assert these identical vectors.",
+  "_comment": "Shared test vectors for splitPrice (specs/20261006-hardware-inventory AC-1.3): each unit = floor(totalCents / quantity), the remaining cents go on the LAST unit. Mirrored by inventory-api task T8, which MUST assert these identical vectors.",
   "vectors": [
     { "totalCents": 100, "quantity": 1, "eachCents": 100, "lastCents": 100 },
     { "totalCents": 100, "quantity": 2, "eachCents": 50, "lastCents": 50 },

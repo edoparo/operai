@@ -1,5 +1,5 @@
 /**
- * Depreciation rules (T10, specs/015-hardware-inventory; AC-6.1..6.5).
+ * Depreciation rules (T10, specs/20261006-hardware-inventory; AC-6.1..6.5).
  * Real router + real middleware over the shared harness, real Postgres.
  */
 

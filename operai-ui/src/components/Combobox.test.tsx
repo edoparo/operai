@@ -1,8 +1,8 @@
 /**
  * @vitest-environment jsdom
  *
- * Combobox — moved here from admin-ui (specs/012, the address and country
- * fields) and inventory-ui (specs/015, the holder and supplier pickers), which
+ * Combobox — moved here from admin-ui (specs/20260803-employee-address, the address and country
+ * fields) and inventory-ui (specs/20261006-hardware-inventory, the holder and supplier pickers), which
  * each carried a copy of the component and of these tests.
  *
  *   (A) keyboard-only operation end-to-end (↑/↓/Home/End/Enter/Escape).

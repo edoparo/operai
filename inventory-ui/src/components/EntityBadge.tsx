@@ -1,5 +1,5 @@
 /**
- * EntityBadge — the wellD legal-entity chip (T25, specs/015-hardware-inventory;
+ * EntityBadge — the wellD legal-entity chip (T25, specs/20261006-hardware-inventory;
  * INC-23). A neutral `Badge` from @operai/ui with the entity's name: an entity
  * is metadata, not a status, so it never borrows a semantic tone. No flag
  * emoji: flags do not render on Windows, and the name already says it.

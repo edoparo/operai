@@ -1,6 +1,6 @@
 /**
  * Integration tests for GET /authz/users/directory (T5, specs/015-hardware-
- * inventory — refs AC-2.1, AC-3.7; ADR-0047).
+ * inventory — refs AC-2.1, AC-3.7; ADR 20261006-user-directory-endpoint-capability-gated).
  *
  * WHY THIS FILE LIVES IN `src/auth/` and not next to the route in `src/authz/`
  * (the task's listed path): the real Bearer-token mint flow needs the real
@@ -50,7 +50,7 @@ async function mintUser(
     name?: string;
     entity?: string;
     grants?: { resource: string; action: string; conditions?: object }[];
-    /** Keep the baseline `employee` role. Off by default: once seeded it carries meetings:access (specs/021), which opens the directory on its own. */
+    /** Keep the baseline `employee` role. Off by default: once seeded it carries meetings:access (specs/20261104-meetings), which opens the directory on its own. */
     keepBaselineRole?: boolean;
   } = {},
 ): Promise<Fixture> {
@@ -102,7 +102,7 @@ type DirectoryBody = { users: { id: string; name: string | null; email: string; 
 
 const ENTITY_CONDITION = { attributes: [{ key: "entity", match: "user" }] };
 
-describe("GET /authz/users/directory (T5, specs/015-hardware-inventory; ADR-0047)", () => {
+describe("GET /authz/users/directory (T5, specs/20261006-hardware-inventory; ADR 20261006-user-directory-endpoint-capability-gated)", () => {
   test("a holder of asset:manage gets active users of BOTH entities, each with exactly id/name/email/entity", async () => {
     const manager = await mintUser("mgr", {
       entity: "welld_ch",
@@ -119,7 +119,7 @@ describe("GET /authz/users/directory (T5, specs/015-hardware-inventory; ADR-0047
     expect(Object.keys(body)).toEqual(["users"]);
     const byId = new Map(body.users.map((u) => [u.id, u]));
 
-    // Entity-scoped manager (welld_ch) still sees the other entity's people: ADR-0047 point 4.
+    // Entity-scoped manager (welld_ch) still sees the other entity's people: ADR 20261006-user-directory-endpoint-capability-gated point 4.
     expect(byId.get(itUser.userId)).toEqual({
       id: itUser.userId,
       name: itUser.name,
@@ -195,7 +195,7 @@ describe("GET /authz/users/directory (T5, specs/015-hardware-inventory; ADR-0047
     expect((await callDirectory(accessOnly.token)).status).toBe(403);
   });
 
-  // specs/017-crm, ADR-0053: the CRM's owner/assignee picker is the second consumer.
+  // specs/20261101-crm, ADR 20261101-user-directory-gate-widened-to-deal-manage: the CRM's owner/assignee picker is the second consumer.
   test("a holder of the crm catalog's deal:manage (entity-scoped) gets the roster", async () => {
     const sales = await mintUser("crm-sales", {
       grants: [
@@ -208,7 +208,7 @@ describe("GET /authz/users/directory (T5, specs/015-hardware-inventory; ADR-0047
     expect(((await res.json()) as DirectoryBody).users.some((u) => u.id === sales.userId)).toBe(true);
   });
 
-  test("crm:access alone, or contact:erase, does NOT open the directory (ADR-0053)", async () => {
+  test("crm:access alone, or contact:erase, does NOT open the directory (ADR 20261101-user-directory-gate-widened-to-deal-manage)", async () => {
     const reader = await mintUser("crm-reader", { grants: [{ resource: "crm", action: "access" }] });
     const eraser = await mintUser("crm-eraser", {
       grants: [
@@ -220,8 +220,8 @@ describe("GET /authz/users/directory (T5, specs/015-hardware-inventory; ADR-0047
     expect((await callDirectory(eraser.token)).status).toBe(403);
   });
 
-  // specs/021-meetings, ADR-0066: the third consumer is the meeting participant picker.
-  test("a caller holding only meetings:access gets 200 and the unfiltered list (ADR-0066)", async () => {
+  // specs/20261104-meetings, ADR 20261104-user-directory-gate-meetings-access: the third consumer is the meeting participant picker.
+  test("a caller holding only meetings:access gets 200 and the unfiltered list (ADR 20261104-user-directory-gate-meetings-access)", async () => {
     const attendee = await mintUser("mtg-only", { entity: "welld_ch", grants: [{ resource: "meetings", action: "access" }] });
     // Neither of these holds any tool grant: a participant needs none (AC-10.4), so all must be pickable.
     const itUser = await mintUser("mtg-it", { entity: "welld_it" });
@@ -237,7 +237,7 @@ describe("GET /authz/users/directory (T5, specs/015-hardware-inventory; ADR-0047
     for (const user of body.users) expect(Object.keys(user).sort()).toEqual(["email", "entity", "id", "name"]);
   });
 
-  test("template:manage, meeting:erase or a meetings lookalike alone do NOT open the directory (ADR-0066)", async () => {
+  test("template:manage, meeting:erase or a meetings lookalike alone do NOT open the directory (ADR 20261104-user-directory-gate-meetings-access)", async () => {
     const admin = await mintUser("mtg-admin-caps", {
       grants: [
         { resource: "template", action: "manage" },
@@ -261,7 +261,7 @@ describe("GET /authz/users/directory (T5, specs/015-hardware-inventory; ADR-0047
     expect((await callDirectory(attendee.token)).status).toBe(403);
   });
 
-  // specs/025-projects, ADR-0055: the project manager / team pickers are the fourth consumer.
+  // specs/20261103-projects, ADR 20261101-app-access-check-by-user-id-and-directory-app-filter: the project manager / team pickers are the fourth consumer.
   test("a holder of the projects catalog's project:manage (entity-scoped) gets the roster", async () => {
     const manager = await mintUser("projects-manager", {
       grants: [
@@ -296,7 +296,7 @@ describe("GET /authz/users/directory (T5, specs/015-hardware-inventory; ADR-0047
     expect((await callDirectory(lookalike.token)).status).toBe(403);
   });
 
-  test("a soft-deleted holder with a still-valid token gets 403 (ADR-0012 residual JWT)", async () => {
+  test("a soft-deleted holder with a still-valid token gets 403 (ADR 20260714-invitation-activation-hooks-soft-delete-lifecycle residual JWT)", async () => {
     const manager = await mintUser("deleted-holder", { grants: [{ resource: "asset", action: "manage" }] });
     expect((await callDirectory(manager.token)).status).toBe(200);
 
@@ -335,8 +335,8 @@ describe("GET /authz/users/directory (T5, specs/015-hardware-inventory; ADR-0047
   }, 60000);
 });
 
-// specs/018, ADR-0055: optional ?appId narrows the roster to holders of (appId,"access").
-describe("GET /authz/users/directory?appId= (specs/018, ADR-0055)", () => {
+// specs/20261101-crm-sales-flow, ADR 20261101-app-access-check-by-user-id-and-directory-app-filter: optional ?appId narrows the roster to holders of (appId,"access").
+describe("GET /authz/users/directory?appId= (specs/20261101-crm-sales-flow, ADR 20261101-app-access-check-by-user-id-and-directory-app-filter)", () => {
   const callFiltered = (token: string, qs: string) =>
     directoryRouter.request(`/authz/users/directory${qs}`, { headers: { Authorization: `Bearer ${token}` } });
 

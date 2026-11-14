@@ -1,6 +1,6 @@
 /**
  * computeMileageAmountCents — the canonical `km × rate → cents` rounding
- * rule (T12, specs/009-mileage-rate/tasks.md; plan.md "Decision 3" / ADR-0025),
+ * rule (T12, specs/20260720-mileage-rate/tasks.md; plan.md "Decision 3" / ADR 20260720-mileage-rate-money-precision-integer-micros),
  * mirrored client-side in refund-ui for `MileageAmountField`'s LIVE PREVIEW
  * only (plan.md Risk R1: "one canonical rule … a single shared test-vector
  * set exercised by BOTH refund-api and refund-ui unit tests, and the server
@@ -8,9 +8,9 @@
  *
  * Both `km` and `ratePerKmMicros` are integers (`km` — refund-api's `Int`
  * column; `ratePerKmMicros` — an integer count of `1e-6` major-currency-units
- * per km, ADR-0025), so `km × ratePerKmMicros` is an EXACT integer product —
+ * per km, ADR 20260720-mileage-rate-money-precision-integer-micros), so `km × ratePerKmMicros` is an EXACT integer product —
  * the single division by `10_000` (⇔ `÷1e6` to major units, `×100` to cents)
- * is the only rounding step in the whole chain, per ADR-0025's explicit "no
+ * is the only rounding step in the whole chain, per ADR 20260720-mileage-rate-money-precision-integer-micros's explicit "no
  * intermediate rounding" requirement.
  *
  * Rounding rule: round HALF UP (not half-even/banker's) — `Math.floor(x +
@@ -27,7 +27,7 @@
  */
 
 /**
- * Integer-only, single-rounding `km × rate → cents` (Decision 3, ADR-0025).
+ * Integer-only, single-rounding `km × rate → cents` (Decision 3, ADR 20260720-mileage-rate-money-precision-integer-micros).
  * `km` and `ratePerKmMicros` must both be non-negative integers — this
  * function has no opinion on `km > 0` (AC-1.4's own validation, enforced
  * elsewhere) or on whether a rate is even in effect (`rateInEffect`, resolved

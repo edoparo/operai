@@ -1,8 +1,8 @@
 /**
- * Person references in responses (specs/025-projects, AC-1.6): collect every user id a
+ * Person references in responses (specs/20261103-projects, AC-1.6): collect every user id a
  * response mentions, resolve them in one `resolveIdentities` call (fail soft), then map
  * each id to its `Person = { id, name, deleted }`. Names are live, never stored
- * (ADR-0039); an unknown or deleted user has `name: null`.
+ * (ADR 20260807-live-identity-resolution-by-id-fail-soft); an unknown or deleted user has `name: null`.
  */
 
 import type { HeaderSource } from "./http";

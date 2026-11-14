@@ -1,6 +1,6 @@
 /**
  * Schema/migration tests for EstimateCollaborator + version + lastModifiedByUserId
- * (T4, specs/013-estimate-sharing).
+ * (T4, specs/20260807-estimate-sharing).
  *
  * Strategy
  * ────────

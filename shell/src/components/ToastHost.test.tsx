@@ -1,7 +1,7 @@
 /**
  * @vitest-environment jsdom
  *
- * Component tests for ToastHost (T12, specs/005-notification-center,
+ * Component tests for ToastHost (T12, specs/20260713-notification-center,
  * design.md "Toast (ToastHost, shell-chrome overlay)", US-5: AC-5.1, AC-5.2,
  * AC-5.3, AC-5.5).
  *
@@ -259,7 +259,7 @@ describe('ToastHost', () => {
     expect(within(toast).getByText('Severity: error', { selector: '.sr-only' })).toBeDefined()
   })
 
-  // Bilingual system notifications (ADR-0065, AC-12.5): the reader picks the variant.
+  // Bilingual system notifications (ADR 20261104-bilingual-system-notifications, AC-12.5): the reader picks the variant.
   describe('Italian variant', () => {
     const meetingsNotification = (overrides: Partial<Notification> = {}): Notification =>
       makeNotification({

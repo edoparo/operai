@@ -7,7 +7,7 @@
 import type { StatusMeaning } from '@operai/ui'
 import type { AssetStatus } from './types'
 
-/** An asset's lifecycle status (specs/015 § Domain language). */
+/** An asset's lifecycle status (specs/20261006-hardware-inventory § Domain language). */
 export const ASSET_STATUS_MEANING: Record<AssetStatus, StatusMeaning> = {
   ordered: 'pending',
   in_stock: 'stored',

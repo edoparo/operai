@@ -1,6 +1,6 @@
 import { strings } from '../strings'
 
-/** MarkupHelp — the collapsible formatting and placeholder reference beside the text fields (specs/020 AC-1.6). */
+/** MarkupHelp — the collapsible formatting and placeholder reference beside the text fields (specs/20261102-crm-offer-document AC-1.6). */
 export default function MarkupHelp() {
   const t = strings.templates.markup
   const rows = (items: readonly [string, string][]) => (

@@ -1,6 +1,6 @@
 /**
  * LoadMore — the "show the next page" control for a cursor-paged list (T26,
- * specs/015-hardware-inventory; design.md § NEW components: "admin-ui
+ * specs/20261006-hardware-inventory; design.md § NEW components: "admin-ui
  * `Pagination` is page-number + total based; the API is cursor-only
  * (`nextCursor`)").
  *

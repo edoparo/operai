@@ -1,7 +1,7 @@
 /**
  * Loading one activity for a request: the row and the host's answer about its entity, for
- * this caller (specs/028 AC-8.2, AC-8.3). Shared by the activity routes and the task file
- * routes (ADR-0089), so both refuse exactly alike.
+ * this caller (specs/20261110-activities AC-8.2, AC-8.3). Shared by the activity routes and the task file
+ * routes (ADR 20261113-task-description-files-in-activities-api-bucket), so both refuse exactly alike.
  */
 
 import { db } from "../lib/db";

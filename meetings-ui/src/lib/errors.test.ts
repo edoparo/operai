@@ -14,7 +14,7 @@ const problem = (status: number, code?: string, extras: Record<string, unknown> 
  * design (so a code added there without a message fails here); the rest are the codes the plan
  * names outside that list.
  */
-const DESIGN = path.join(path.dirname(fileURLToPath(import.meta.url)), '../../../specs/021-meetings/design.md')
+const DESIGN = path.join(path.dirname(fileURLToPath(import.meta.url)), '../../../specs/20261104-meetings/design.md')
 const designCodes = (): string[] => {
   const text = readFileSync(DESIGN, 'utf-8')
   // The code list is the first paragraph; the paragraph after it mentions `lib/errors.ts` and other tokens.
@@ -32,7 +32,7 @@ const PLAN_EXTRA_CODES = [
   'unknown_agenda_point',
   'agenda_point_not_found',
   'agenda_empty',
-  // Personal folders (ADR-0090).
+  // Personal folders (ADR 20261113-personal-meeting-folders).
   'folder_name_taken',
   'folder_limit',
   'folder_not_found',

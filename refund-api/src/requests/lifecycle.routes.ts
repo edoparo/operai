@@ -1,5 +1,5 @@
 /**
- * Submit / withdraw lifecycle endpoints (T10, specs/007-refund-service).
+ * Submit / withdraw lifecycle endpoints (T10, specs/20260716-refund-service).
  *
  *   POST /requests/:id/submit   → 200 request (submitted)
  *   POST /requests/:id/withdraw → 200 request (draft)
@@ -80,7 +80,7 @@ function requireCreateCapabilityOr404(
  * exists and is owned by re-writing its status a moment ago); throws on an
  * unexpected DB failure so the global 500 handler takes over.
  *
- * specs/009-mileage-rate (AC-3.2): after a WITHDRAW, the request is back to
+ * specs/20260720-mileage-rate (AC-3.2): after a WITHDRAW, the request is back to
  * `draft` — its travel_km lines must reflect the CURRENT rate config
  * immediately in this very response, not a stale snapshot. Hydration is a
  * no-op after a successful SUBMIT (status is already `submitted` there), so

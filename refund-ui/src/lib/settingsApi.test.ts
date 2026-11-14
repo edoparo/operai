@@ -1,7 +1,7 @@
 /**
  * @vitest-environment jsdom
  *
- * settingsApi — the accounting distribution email setting (specs/011), called
+ * settingsApi — the accounting distribution email setting (specs/20260722-refund-settings), called
  * from the Settings tab. `apiFetch` is mocked; refund-api's base URL is the
  * app's own env.
  */

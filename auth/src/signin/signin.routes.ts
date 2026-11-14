@@ -6,7 +6,7 @@ import { env } from "../lib/env";
 type Html = HtmlEscapedString | Promise<HtmlEscapedString>;
 
 /**
- * Hosted sign-in page for the Operai suite (ADR-0002).
+ * Hosted sign-in page for the Operai suite (ADR 20260607-sign-in-page-hosted-by-auth-service).
  *
  * Server-rendered HTML served at `GET /sign-in`. It offers "Continue with
  * Google" and "Continue with GitHub" controls, each wired to the existing
@@ -49,7 +49,7 @@ type Provider = {
 };
 
 // Inline SVG marks keep the page self-contained (no external asset fetch,
-// CSP-friendly per ADR-0002).
+// CSP-friendly per ADR 20260607-sign-in-page-hosted-by-auth-service).
 const GOOGLE_ICON = raw(
   '<svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true">' +
     '<path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92a5.06 5.06 0 0 1-2.2 3.32v2.77h3.57c2.08-1.92 3.27-4.74 3.27-8.1z"/>' +
@@ -129,7 +129,7 @@ function resolveCallbackURL(redirect: string | undefined): string {
  *   - `unable_to_create_session` — the identity is valid and the provider
  *     round-trip SUCCEEDED, but `session.create.before` refused the session.
  *     In this service that hook is `gateOrReactivateSoftDeletedSession`, whose
- *     only real branch is "this account was deactivated" (ADR-0012 AC-5.2), so
+ *     only real branch is "this account was deactivated" (ADR 20260714-invitation-activation-hooks-soft-delete-lifecycle AC-5.2), so
  *     the message says exactly that instead of "please try again" — retrying
  *     can never help, and telling the user to retry is what made this failure
  *     read as a broken login for as long as it did. Not an information leak:
@@ -141,7 +141,7 @@ function resolveCallbackURL(redirect: string | undefined): string {
  *     profile (typically a missing `email` scope)
  */
 const ERROR_MESSAGES: Record<string, string> = {
-  // specs/023 (ADR-0071): the sign-up gate's three refusals.
+  // specs/20261105-signup-gate (ADR 20261105-access-only-by-invitation-waiting-list): the sign-up gate's three refusals.
   access_request_pending:
     "You don't have access to Operai yet. Your request has been recorded and " +
     "an administrator will review it.",
@@ -426,7 +426,7 @@ signinRouter.get("/sign-in", (c) => {
     .replace(/\//g, "_")
     .replace(/=/g, "");
 
-  // Security headers required by ADR-0002.
+  // Security headers required by ADR 20260607-sign-in-page-hosted-by-auth-service.
   //
   // CSP note: the page has a single inline `<script>` guarded by the nonce.
   // `style-src` allows inline styles (the :root token block) and the Google

@@ -1,5 +1,5 @@
 /**
- * Structural checks of the Meetings catalog constant (specs/021-meetings —
+ * Structural checks of the Meetings catalog constant (specs/20261104-meetings —
  * AC-10.8, AC-1.4, AC-10.5). The registration path and the role grants are
  * covered by `../seed.test.ts`.
  */
@@ -7,7 +7,7 @@
 import { describe, expect, test } from "bun:test";
 import { MEETINGS_APP_ID, MEETINGS_CATALOG } from "./meetings";
 
-describe("MEETINGS_CATALOG (specs/021)", () => {
+describe("MEETINGS_CATALOG (specs/20261104-meetings)", () => {
   test("declares appId `meetings` with a condition-free `access` action", () => {
     expect(MEETINGS_APP_ID).toBe("meetings");
     expect(MEETINGS_CATALOG.appId).toBe("meetings");

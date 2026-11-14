@@ -32,7 +32,7 @@ const loadingCard = (
 )
 
 /**
- * `shell/extensions` promises never to throw (ADR-0030), but this seam runs
+ * `shell/extensions` promises never to throw (ADR 20260803-suite-version-generated-file-federated-export), but this seam runs
  * across a deploy boundary, so the deal page does not rely on it: a render-time
  * throw anywhere under the panel is contained to the Meetings card.
  */
@@ -53,13 +53,13 @@ class Contain extends Component<{ children: ReactNode }, { failed: boolean }> {
 }
 
 /**
- * MeetingsSection — the "Meetings" card of the deal page (specs/021 AC-11.2).
+ * MeetingsSection — the "Meetings" card of the deal page (specs/20261104-meetings AC-11.2).
  * The panel is Meetings' own, a federated component loaded through the shell's
  * `shell/extensions` seam with `{hostApp:'crm', entityType:'deal', entityId}`
- * (ADR-0060). crm-ui imports the seam dynamically: a shell that predates the
+ * (ADR 20261104-host-extension-federated-panel-through-the-shell). crm-ui imports the seam dynamically: a shell that predates the
  * expose, a failing import or a module without `HostExtension` renders this
  * card's own fallback with the same heading, and the rest of the page is
- * unaffected (AC-11.6, ADR-0030). No retry: a failed module import is cached,
+ * unaffected (AC-11.6, ADR 20260803-suite-version-generated-file-federated-export). No retry: a failed module import is cached,
  * so the fallback says to reload the page.
  *
  * Deals only: the company page rolls up no meetings in this release (AC-11.7).

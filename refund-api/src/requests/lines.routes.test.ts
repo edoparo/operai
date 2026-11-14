@@ -1,6 +1,6 @@
 /**
  * Integration tests for the expense-line endpoints (T8,
- * specs/007-refund-service).
+ * specs/20260716-refund-service).
  *
  * Strategy: real Postgres, jwt/authz mocked — see requests.routes.test.ts's
  * header comment (same pattern, own harness instance).
@@ -251,7 +251,7 @@ describe("POST /requests/:id/lines", () => {
   });
 });
 
-// ─── POST /requests/:id/lines — travel_km write derivation (specs/009-mileage-rate, T5) ──
+// ─── POST /requests/:id/lines — travel_km write derivation (specs/20260720-mileage-rate, T5) ──
 
 async function addRate(entity: "welld_ch" | "welld_it", ratePerKmMicros: number, validFrom: string) {
   return db.mileageRate.create({
@@ -266,7 +266,7 @@ async function addRate(entity: "welld_ch" | "welld_it", ratePerKmMicros: number,
   });
 }
 
-describe("POST /requests/:id/lines — travel_km write derivation (specs/009-mileage-rate)", () => {
+describe("POST /requests/:id/lines — travel_km write derivation (specs/20260720-mileage-rate)", () => {
   it("(AC-1.1/1.8) computes the amount and returns the full mileage breakdown", async () => {
     await addRate("welld_ch", 700000, "2026-01-01");
     const request = await makeRequest();
@@ -401,7 +401,7 @@ describe("PUT /requests/:id/lines/:lineId", () => {
       method: "PUT",
       headers: authHeaders(token),
       // NOT travel_km — a travel_km line's requestedAmountCents/currency are
-      // server-derived, never honored from the client (specs/009-mileage-rate,
+      // server-derived, never honored from the client (specs/20260720-mileage-rate,
       // AC-1.6; see this file's separate "travel_km" describe block below for
       // that behavior). This test's own intent is the generic "PUT replaces
       // the whole line object" contract, unrelated to mileage.

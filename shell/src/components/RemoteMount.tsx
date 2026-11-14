@@ -1,5 +1,5 @@
 /**
- * RemoteMount — the content-area remote boundary (specs/003-suite-shell, T11,
+ * RemoteMount — the content-area remote boundary (specs/20260709-suite-shell, T11,
  * AC-6.1, US-6).
  *
  * A reusable wrapper that mounts a lazily-loaded federated remote's exposed root

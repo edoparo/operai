@@ -1,6 +1,6 @@
 /**
  * handoff — passing a live recording from the recording panel to the recorder widget and back (spec A13,
- * ADR-0078).
+ * ADR 20261110-shell-floating-slot-for-remote-widgets).
  *
  * The panel lives on the meeting page. When the person leaves that page while audio is at stake, the panel asks
  * the shell (through `shell/session`) to show the widget, and the widget's hold keeps the session alive: holders
@@ -19,7 +19,7 @@
 import * as shellSession from 'shell/session'
 import type { RecordingSession, SessionSnapshot } from '../capture/session'
 
-/** The shell's name for the widget; its props are plain strings (ADR-0060). */
+/** The shell's name for the widget; its props are plain strings (ADR 20261104-host-extension-federated-panel-through-the-shell). */
 export const DOCK = 'meetings.recorderDock'
 export type DockProps = { meetingId: string; title: string }
 

@@ -1,6 +1,6 @@
 /**
  * strings.invoice — the Invoice panel of the asset detail page (T35,
- * specs/015-hardware-inventory; design.md § T2 invoice region, F8, § Error and
+ * specs/20261006-hardware-inventory; design.md § T2 invoice region, F8, § Error and
  * conflict catalogue, § Accessibility "Invoice panel"). Error messages for
  * 413 / 415 / `upload_not_found` / `invoice_ref_mismatch` are the catalogue's
  * (`strings.errors`); only the panel's own copy lives here.

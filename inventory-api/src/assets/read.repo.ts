@@ -1,5 +1,5 @@
 /**
- * Asset reads (T12, specs/015). Data loading only: scope filtering happens in
+ * Asset reads (T12, specs/20261006-hardware-inventory). Data loading only: scope filtering happens in
  * the `where`, and the capability-dependent projection is the route's job.
  */
 

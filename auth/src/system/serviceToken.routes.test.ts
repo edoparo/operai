@@ -1,6 +1,6 @@
 /**
  * Integration tests for POST /system/service-token (T4, specs/015-hardware-
- * inventory — refs AC-2.8, AC-2.9; ADR-0044).
+ * inventory — refs AC-2.8, AC-2.9; ADR 20261006-scoped-service-jwt-fourth-notify-caller).
  *
  * Route logic only, with an injected signer backed by a throwaway in-memory
  * RS256 key: this file must not depend on `auth.config` (see the "WHY A
@@ -13,7 +13,7 @@
  * across the whole `bun test` process, so env set at import time would depend
  * on file order. Invalid-credential requests use their own `X-Forwarded-For` so the
  * shared per-address count never couples tests together; the limit rows
- * (AC-7.x, specs/029 US-7, ADR-0086) each build their own router with an injected
+ * (AC-7.x, specs/20261111-push-notifications US-7, ADR 20261112-system-endpoints-limited-per-verified-service) each build their own router with an injected
  * clock and send NO `X-Forwarded-For` unless the row is about the address.
  *
  * Secrets here are obvious dummies.
@@ -234,7 +234,7 @@ describe("POST /system/service-token — authentication failures (AC-2.9)", () =
 });
 
 
-// ─── specs/029 US-7 (ADR-0086): verify first, then exactly one count ─────────────────────────────
+// ─── specs/20261111-push-notifications US-7 (ADR 20261112-system-endpoints-limited-per-verified-service): verify first, then exactly one count ─────────────────────────────
 
 const WINDOW_MS = 600_000;
 const OTHER_SECRET = "dummy-routes-other-0123456789-abcdefgh";

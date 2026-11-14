@@ -14,12 +14,12 @@ const envSchema = z.object({
   GITHUB_CLIENT_SECRET: z.string().min(1, "GITHUB_CLIENT_SECRET is required"),
   JWT_PRIVATE_KEY: z.string().min(1, "JWT_PRIVATE_KEY is required"),
   JWT_PUBLIC_KEY: z.string().min(1, "JWT_PUBLIC_KEY is required"),
-  // ─── JWT audience (ADR-0010, specs/005-notification-center T8) ────────────
+  // ─── JWT audience (ADR 20260713-jwt-audience-claim-enforcement, specs/20260713-notification-center T8) ────────────
   // Stamped as the `aud` claim on every JWT this service mints (jwt plugin's
   // `definePayload`, auth.config.ts) so resource servers can reject tokens
   // scoped to a different audience. v1 is a single suite-wide value shared
   // by every current resource server (estimai-api, notify-api) — NOT yet a
-  // per-service value (see ADR-0010 "Consequences"). Whatever value is set
+  // per-service value (see ADR 20260713-jwt-audience-claim-enforcement "Consequences"). Whatever value is set
   // here MUST exactly match the `AUTH_AUDIENCE` each resource server verifies
   // against, or every request will fail closed once T9 turns on verification.
   // Not a secret — a config identifier — but still sourced from env, never
@@ -45,7 +45,7 @@ const envSchema = z.object({
     .string()
     .email("BOOTSTRAP_ADMIN_EMAIL must be a valid email address")
     .optional(),
-  // ─── Sign-up gate (specs/023, ADR-0071) ─────────────────────────────────────
+  // ─── Sign-up gate (specs/20261105-signup-gate, ADR 20261105-access-only-by-invitation-waiting-list) ─────────────────────────────────────
   // Only these domains may join the waiting list or be invited. Deployment
   // configuration, not an admin setting. Required: missing or malformed exits.
   ALLOWED_SIGNUP_DOMAINS: z.string().transform((value, ctx) => {
@@ -59,14 +59,14 @@ const envSchema = z.object({
       return z.NEVER;
     }
   }),
-  // ─── notify-api internal email channel (specs/006-user-invitations, T6) ───
+  // ─── notify-api internal email channel (specs/20260713-user-invitations, T6) ───
   // The base URL of notify-api's internal, NON-user-JWT endpoint
   // `POST /system/emails`. Authentication is `auth`'s own service JWT, minted
-  // in process (specs/016, ADR-0048/0049) — there is no shared token any more.
+  // in process (specs/20261013-notify-service-credentials, ADR 20261013-auth-mints-own-service-credential-in-process/0049) — there is no shared token any more.
   NOTIFY_INTERNAL_URL: z
     .string()
     .url("NOTIFY_INTERNAL_URL must be a valid absolute URL"),
-  // ─── App-access eligibility check (specs/013-estimate-sharing, T1/T2) ───────
+  // ─── App-access eligibility check (specs/20260807-estimate-sharing, T1/T2) ───────
   // `POST /authz/app-access-check` is a decision endpoint directly callable by
   // any end user holding their own JWT (plan.md "The catch, and how it is
   // resolved") — it must never let a caller distinguish "no such user" from
@@ -84,7 +84,7 @@ const envSchema = z.object({
     .int()
     .positive()
     .default(600000),
-  // ─── Identities rate limit (specs/013-estimate-sharing, T27) ────────────────
+  // ─── Identities rate limit (specs/20260807-estimate-sharing, T27) ────────────────
   // `POST /authz/users/identities` (T3) shipped WITHOUT rate limiting — a
   // documented drift against plan.md's API contract, which lists `429 +
   // Retry-After` for this route, because neither plan.md nor T1 provisioned a
@@ -95,11 +95,11 @@ const envSchema = z.object({
   // above real usage (roughly one batched call per list render) while still
   // bounding the 100-id-per-call fan-out. Unlike APP_ACCESS_CHECK_*, this
   // route gets NO response-time floor — it resolves ids the caller already
-  // holds and leaks no existence signal (ADR-0039), so there is nothing to
+  // holds and leaks no existence signal (ADR 20260807-live-identity-resolution-by-id-fail-soft), so there is nothing to
   // equalise; a floor here would only slow every list render.
   IDENTITIES_RATE_LIMIT: z.coerce.number().int().positive().default(120),
   IDENTITIES_RATE_WINDOW_MS: z.coerce.number().int().positive().default(600000),
-  // ─── Service tokens (specs/015-hardware-inventory, T4; ADR-0044) ────────────
+  // ─── Service tokens (specs/20261006-hardware-inventory, T4; ADR 20261006-scoped-service-jwt-fourth-notify-caller) ────────────
   // `POST /system/service-token` mints a short-lived RS256 JWT for a SERVICE
   // principal (today: `inventory-api` -> notify-api's `/system/notifications`).
   //
@@ -114,7 +114,7 @@ const envSchema = z.object({
   // in 1Password / the deploy environment only; it is never logged, and a parse
   // failure names the rule that failed, never a value.
   //
-  // SERVICE_AUDIENCE is REQUIRED (specs/016, ADR-0048): `auth` mints its own
+  // SERVICE_AUDIENCE is REQUIRED (specs/20261013-notify-service-credentials, ADR 20261013-auth-mints-own-service-credential-in-process): `auth` mints its own
   // `system:auth` credential with it, regardless of any configured client.
   // SERVICE_CLIENTS stays OPTIONAL: with no clients configured the endpoint
   // authenticates nobody (every call is the same 401).
@@ -132,7 +132,7 @@ const envSchema = z.object({
       }
       return parsed.clients;
     }),
-  // ─── Limits of the two /system endpoints (specs/029 US-7, ADR-0086) ──────────
+  // ─── Limits of the two /system endpoints (specs/20261111-push-notifications US-7, ADR 20261112-system-endpoints-limited-per-verified-service) ──────────
   // `POST /system/service-token` and `POST /system/users/contact` verify the
   // credential FIRST, then consult exactly one count: a valid credential is
   // counted against its own calling service, an invalid one against its source
@@ -146,7 +146,7 @@ const envSchema = z.object({
   SYSTEM_RATE_WINDOW_MS: z.coerce.number().int().min(1000).default(600000),
   // SERVICE_TOKEN_RATE_LIMIT / SERVICE_TOKEN_RATE_WINDOW_MS (one address-keyed bucket for the whole
   // suite, the D-1 starvation) are RETIRED: not read, see RETIRED_SYSTEM_RATE_VARS below.
-  // ─── User directory (specs/015-hardware-inventory, T5; ADR-0047) ────────────
+  // ─── User directory (specs/20261006-hardware-inventory, T5; ADR 20261006-user-directory-endpoint-capability-gated) ────────────
   // `GET /authz/users/directory` returns the roster of active users to holders
   // of the inventory `asset:manage` permission. Unlike app-access-check there
   // is no negative to equalise, so there is no response-time floor: the controls
@@ -171,16 +171,16 @@ const envSchema = z.object({
       v !== undefined && /^(true|1|yes)$/i.test(v) ? true : false,
     ),
 }).superRefine((value, ctx) => {
-  // ADR-0044 point 2: a service token must never be accepted on a user route,
+  // ADR 20261006-scoped-service-jwt-fourth-notify-caller point 2: a service token must never be accepted on a user route,
   // so its audience must differ from the user audience. Fail at startup.
   if (value.SERVICE_AUDIENCE === value.AUTH_AUDIENCE) {
     ctx.addIssue({
       code: z.ZodIssueCode.custom,
       path: ["SERVICE_AUDIENCE"],
-      message: "SERVICE_AUDIENCE must differ from AUTH_AUDIENCE (ADR-0044)",
+      message: "SERVICE_AUDIENCE must differ from AUTH_AUDIENCE (ADR 20261006-scoped-service-jwt-fourth-notify-caller)",
     });
   }
-  // specs/023 plan.md amendment 2026-11-05: a reserved test domain (operai.test, …) is
+  // specs/20261105-signup-gate plan.md amendment 2026-11-05: a reserved test domain (operai.test, …) is
   // local/e2e configuration only; allowing one in production would let anyone who can
   // register such an address past the gate.
   // T14: also refused unless the test-auth gate is on, so the allowance is as narrow as test-auth itself.
@@ -208,9 +208,9 @@ if (!result.success) {
   process.exit(1);
 }
 
-// Retired by specs/029 US-7 (ADR-0086). Ignored, never reused under a new meaning: an override sized for
+// Retired by specs/20261111-push-notifications US-7 (ADR 20261112-system-endpoints-limited-per-verified-service). Ignored, never reused under a new meaning: an override sized for
 // the old per-address rule (20, or the runbook's 60) would silently cap a service below its allowance.
-// A warning rather than a refusal: an unknown variable stopping `auth` is a deploy-order hazard (ADR-0076).
+// A warning rather than a refusal: an unknown variable stopping `auth` is a deploy-order hazard (ADR 20261108-crm-pushes-deal-links-to-estimai).
 // Names only, never a value.
 const RETIRED_SYSTEM_RATE_VARS = ["SERVICE_TOKEN_RATE_LIMIT", "SERVICE_TOKEN_RATE_WINDOW_MS"] as const;
 const retiredPresent = RETIRED_SYSTEM_RATE_VARS.filter((name) => process.env[name] !== undefined);

@@ -33,7 +33,7 @@ app.use(
 // bodies (data-residency constraint: notification title/body may name clients/
 // estimates and must not appear in logs) and never log query strings either:
 // GET /notifications/stream?ticket=<t> carries the single-use SSE ticket
-// (ADR-0008) in its query string, and hono/logger's stock implementation logs
+// (ADR 20260713-sse-stream-auth-short-lived-ticket) in its query string, and hono/logger's stock implementation logs
 // the full path INCLUDING the query string — see src/lib/logger.ts.
 app.use("*", requestLogger());
 
@@ -44,9 +44,9 @@ app.route("/", raiseRouter);
 app.route("/", listRouter);
 app.route("/", markReadRouter);
 app.route("/", streamRouter);
-// Web push device registration (specs/029, ADR-0084): user JWT, exact-path middleware only.
+// Web push device registration (specs/20261111-push-notifications, ADR 20261111-web-push-encrypted-payloads-not-fcm): user JWT, exact-path middleware only.
 app.route("/", pushDevicesRouter);
-// System routes — service-authed only (ADR-0049): a scoped service JWT.
+// System routes — service-authed only (ADR 20261013-all-notify-callers-scoped-credentials-shared-token-retired): a scoped service JWT.
 // NEVER register either router with jwtMiddleware applied anywhere above it in
 // the chain; both must stay reachable exclusively via createSystemAuthMiddleware.
 app.route("/", systemEmailsRouter);

@@ -1,6 +1,6 @@
 /**
  * BatchPdfLink — click-to-download control for a batch's compiled PDF (T10,
- * specs/008-refund-monthly-processing/tasks.md; design.md F2 step 2: "a NEW
+ * specs/20260719-refund-monthly-processing/tasks.md; design.md F2 step 2: "a NEW
  * BatchPdfLink, click → mint → open, following AttachmentDownloadLink's exact
  * contract (GET /batches/:id/pdf-url, then window.open(url, '_blank',
  * 'noopener,noreferrer')) rather than reusing the pdf.url embedded in the

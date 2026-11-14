@@ -1,7 +1,7 @@
 /**
  * @vitest-environment jsdom
  *
- * Integration tests for the root-landing redirect (T10, specs/003-suite-shell,
+ * Integration tests for the root-landing redirect (T10, specs/20260709-suite-shell,
  * AC-3.4, design.md Flow 2): the shell's bare `/` never renders a screen of
  * its own — it redirects to the user's most-recently-used tool, persisted in
  * `localStorage['operai_last_tool']`, falling back to EstimAI when the key is
@@ -25,7 +25,7 @@ import { RouterProvider } from '@tanstack/react-router'
 // ---------------------------------------------------------------------------
 
 // Fully-permissioned fixture shared by usePermissions/ensurePermissions/
-// revalidatePermissions below (T24/T25, specs/004-auth-roles-permissions).
+// revalidatePermissions below (T24/T25, specs/20260713-auth-roles-permissions).
 // These tests exercise both the root `/` redirect (indexRoute's beforeLoad
 // calls `ensurePermissions()`, T25) and tool-route navigation (each tool
 // route's access guard force-revalidates via `revalidatePermissions()`), so
@@ -61,7 +61,7 @@ vi.mock('./lib/session', () => ({
   // (see router.session-guard.test.tsx for the synchronous warm-cache fast
   // path).
   getCachedSession: vi.fn(() => null),
-  // T11 (specs/005-notification-center): Header now mounts Bell, which reads
+  // T11 (specs/20260713-notification-center): Header now mounts Bell, which reads
   // useUnreadCount() (shell/src/lib/notifications.ts) on every render of the
   // shared chrome these tests exercise. notifications.ts imports
   // apiFetch/onSignOut from this same module, so this mock must supply them

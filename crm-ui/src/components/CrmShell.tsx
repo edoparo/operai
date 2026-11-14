@@ -12,14 +12,14 @@ import { LoadFailure, Loading } from './LoadState'
  * routed page (ToolLayout `default` width, building-pages § 1; `wide` on the
  * pipeline, whose six-lane board needs the room, D-25). No suite chrome
  * and no auth guard: the shell owns both and mounts this remote only for
- * `crm:access` holders (ADR-0006, ADR-0007).
+ * `crm:access` holders (ADR 20260709-suite-frontend-module-federation, ADR 20260713-authz-hand-rolled-rbac-abac-epoch-claims).
  *
  * Every tab is open to every CRM user (D-3: reading is `crm:access`), so none
  * is hidden. What varies per person is `GET /scope` — the entities they manage
  * deals for and whether they may erase a contact — loaded once here and handed
  * to the pages through `ScopeContext`. Until it answers the page area shows the
  * loading state; a failure shows the retry banner (the 503 "authorization
- * service unavailable" variant for a fail-closed `auth`, ADR-0014) and a 403
+ * service unavailable" variant for a fail-closed `auth`, ADR 20260716-refund-api-authorization-enforcing-resource-server) and a 403
  * PermissionDenied. The title and tabs stay on screen in every state.
  */
 const loadScope = (signal: AbortSignal) => getScope({ signal })
@@ -58,7 +58,7 @@ export default function CrmShell() {
           <Link to="/tasks" className={tabLinkClassName}>
             {strings.nav.tasks}
           </Link>
-          {/* Offer letterhead and terms: a deal:manage holder's screen (specs/018). */}
+          {/* Offer letterhead and terms: a deal:manage holder's screen (specs/20261101-crm-sales-flow). */}
           {scope.status === 'ready' && scope.data!.deal.length > 0 && (
             <Link to="/settings" className={tabLinkClassName} data-testid="crm-nav-settings">
               {strings.nav.settings}

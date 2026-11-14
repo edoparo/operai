@@ -615,7 +615,7 @@ describe("Admin roles API (T8)", () => {
     },
   );
 
-  // ─── specs/010-self-approval-control, T1 ───────────────────────────────────
+  // ─── specs/20260721-self-approval-control, T1 ───────────────────────────────────
   // Exercises the REAL `REFUND_CATALOG` (not the generic `KNOWN_RESOURCE`
   // fixture above) since AC-1.6/AC-5.2 are about the actual `request`
   // resource's action set. `seedRefundCatalog` is idempotent (full-replace

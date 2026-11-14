@@ -1,5 +1,5 @@
 /**
- * Row lock for one asset (T13-T16, specs/015-hardware-inventory).
+ * Row lock for one asset (T13-T16, specs/20261006-hardware-inventory).
  *
  * Every write that decides from an asset's CURRENT state (edit, status
  * transition, assignment create/confirm/decline/cancel) takes this first, in
@@ -8,7 +8,7 @@
  * decision is a compare-and-set in effect: exactly one of two competing
  * transitions applies, the other finds the new status and is refused.
  *
- * Lock order, where both are needed: the entity advisory lock (ADR-0046) FIRST,
+ * Lock order, where both are needed: the entity advisory lock (ADR 20261006-depreciation-derived-on-read-closed-years-snapshotted) FIRST,
  * the asset row second. A dated write takes both in that order; a write that
  * takes only the row cannot form a cycle with it.
  */

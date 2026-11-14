@@ -1,5 +1,5 @@
 /**
- * T21 — Notification center end-to-end (specs/005-notification-center).
+ * T21 — Notification center end-to-end (specs/20260713-notification-center).
  *
  * Drives the REAL assembled shell + notify-ui + notify-api (+ auth +
  * estimai-api for the cross-remote-link case) — no mocks. Covers the ACs
@@ -213,7 +213,7 @@ test.describe('AC-2.5: activating a linked notification navigates to its destina
 
     // The notification center (notify-ui) is itself the "different remote"
     // relative to the link's target (estimai-ui) — ANY non-/notify link
-    // target is inherently cross-remote here (ADR-0006's per-remote nested-
+    // target is inherently cross-remote here (ADR 20260709-suite-frontend-module-federation's per-remote nested-
     // router model: notify-ui never mounts estimai-ui's routes itself).
     await page.goto('/notify')
     const item = page.getByTestId(new RegExp('^notification-item-'))
@@ -245,7 +245,7 @@ test.describe('AC-2.5: activating a linked notification navigates to its destina
     // AC-2.5's claim is about NAVIGATION crossing the remote boundary. The user was granted
     // `estimai:access` above, so the settled state is real EstimAI content and nothing else. (This test used
     // to accept the shell's `/no-access` screen as well, on the premise that `employee` carries no app grant;
-    // ADR-0068 gave every employee `meetings:access`, so a user without EstimAI is now redirected to Meetings,
+    // ADR 20261104-default-employee-grant-meetings-access gave every employee `meetings:access`, so a user without EstimAI is now redirected to Meetings,
     // which says nothing about the navigation. Granting the access removes that branch.)
     await expect(
       page.getByRole('button', { name: /import json/i }),

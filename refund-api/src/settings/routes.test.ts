@@ -1,6 +1,6 @@
 /**
  * Integration tests for the refund-settings management endpoints (T3,
- * specs/011-refund-settings, plan.md § API contracts).
+ * specs/20260722-refund-settings, plan.md § API contracts).
  *
  * Strategy — mirrors rates/routes.test.ts's header comment: real Postgres
  * (compose, `refund` database), jwt/authz mocked via test-support/testAuth.ts.

@@ -1,8 +1,8 @@
 /**
  * UserMenu — presentational component.
  *
- * Relocated from estimai-ui/src/components/UserMenu.tsx (T6, specs/003-suite-shell,
- * AC-1.4; originally T8, specs/002) — as-is structurally.
+ * Relocated from estimai-ui/src/components/UserMenu.tsx (T6, specs/20260709-suite-shell,
+ * AC-1.4; originally T8, specs/20260606-ui-auth-integration) — as-is structurally.
  *
  * Renders the signed-in user's avatar as a button that opens a dropdown menu
  * containing the full name/email, a "My profile" link, and the sign-out control.
@@ -13,7 +13,7 @@
  * (`shell/session`, T4) so sign-out always terminates the suite-wide session rather than
  * a re-created auth client — still overridable via props for tests/composition.
  *
- * "My profile" (T15, specs/012-employee-address, US-6 AC-6.1, ADR-0034):
+ * "My profile" (T15, specs/20260803-employee-address, US-6 AC-6.1, ADR 20260804-shell-identity-scoped-non-tool-screens-account-route):
  * one new `role="menuitem"` row, between the identity block and "Sign out"
  * (design.md "`UserMenu` addition"), linking to the new `/account` route
  * (T14's `AccountScreen`, router.tsx) — a real `<Link>` (not a `<button>` +
@@ -22,12 +22,12 @@
  * navigation. This is the ONLY existing entry point to that route (design.md
  * F6: "any signed-in user → UserMenu → 'My profile' → /account").
  *
- * "My devices" (T42, specs/015-hardware-inventory, AC-4.1, ADR-0045): a second
+ * "My devices" (T42, specs/20261006-hardware-inventory, AC-4.1, ADR 20261006-ungated-second-federated-entry-of-a-gated-remote): a second
  * real `<Link role="menuitem">` directly after "My profile", to the ungated
  * `/devices` route. Shown to every signed-in user — no permission check here,
  * by design (the route and `/me/*` API are identity-scoped).
  *
- * "My meetings" (specs/021-meetings, AC-10.1, ADR-0045 shape): a third real
+ * "My meetings" (specs/20261104-meetings, AC-10.1, ADR 20261006-ungated-second-federated-entry-of-a-gated-remote shape): a third real
  * `<Link role="menuitem">` after "My devices", to the ungated `/my-meetings`
  * route. Shown to every signed-in user — no permission check here, by design (a
  * participant without `meetings:access` still reads the meetings they were added to).

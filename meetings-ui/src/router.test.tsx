@@ -1,7 +1,7 @@
 /**
  * @vitest-environment jsdom
  *
- * The two inner routers (specs/021-meetings, design.md § Conventions › Routes): `./App`
+ * The two inner routers (specs/20261104-meetings, design.md § Conventions › Routes): `./App`
  * under `/meetings` and `./MyMeetings` under `/my-meetings`. Both render the placeholder
  * pages that later tasks fill in place; this pins the route table and the not-found fallback.
  */

@@ -14,7 +14,7 @@ import type { PromptSegment } from "./transcript";
 
 // AC-7.2 (server-rendered headings, localised "Not discussed", index coverage), AC-7.10 (inputs
 // are the transcript and the template), AC-7.12 (injection), AC-8.6 (built-in headings in the
-// output language), ADR-0067.
+// output language), ADR 20261104-ai-output-structured-validated-plain-text.
 
 const TEMPLATE: TemplateSnapshot = {
   source: "personal",
@@ -38,7 +38,7 @@ const section = (index: number, body = `body ${index}`, notDiscussed = false) =>
 const valid = (n = 3) => ({ sections: Array.from({ length: n }, (_, i) => section(i)) });
 const run = (raw: unknown, over: Partial<typeof input> = {}) => validateSummaryOutput(raw, { ...input, ...over });
 
-describe("the request (AC-7.10, ADR-0067)", () => {
+describe("the request (AC-7.10, ADR 20261104-ai-output-structured-validated-plain-text)", () => {
   const { request, schema } = buildSummaryRequest(input);
 
   it("is the fixed system prompt plus ONE user message: the template, then the transcript", () => {
@@ -216,7 +216,7 @@ describe("built-in headings are in the output language (AC-8.6)", () => {
   });
 });
 
-describe("hostile outputs are rejected (ADR-0067 point 6)", () => {
+describe("hostile outputs are rejected (ADR 20261104-ai-output-structured-validated-plain-text point 6)", () => {
   const rejected = (raw: unknown, over: Partial<typeof input> = {}) => {
     const result = run(raw, over);
     expect(result.ok, String(JSON.stringify(raw)).slice(0, 80)).toBe(false);

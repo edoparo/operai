@@ -1,6 +1,6 @@
 /**
  * strings — the single source of every user-facing string in refund-ui
- * (T14, specs/007-refund-service/tasks.md: "src/strings.ts: a centralized
+ * (T14, specs/20260716-refund-service/tasks.md: "src/strings.ts: a centralized
  * strings module holding ALL user-facing copy in English for v1 … so NO
  * hardcoded UI strings appear in JSX").
  *
@@ -16,7 +16,7 @@
  * shared with refund-api's PDFs, which are English: `en` must keep matching
  * refund-api/src/requests/document-labels.json (documentLabels.parity.test.ts).
  *
- * T15 addition (specs/007-refund-service/tasks.md: "ported shared components
+ * T15 addition (specs/20260716-refund-service/tasks.md: "ported shared components
  * + badges … All copy via strings.ts"): the `components` and `badges`
  * namespaces below hold copy for the five ported patterns (`ErrorBanner`,
  * `SkeletonListRows`, `ConfirmDeleteModal`, `GuardrailDialog`,
@@ -29,7 +29,7 @@
  * survive translation) — same reasoning `Strings` being exported already
  * documents for the rest of this file's i18n-readiness.
  *
- * T17/T18 addition (specs/007-refund-service/tasks.md): `components.
+ * T17/T18 addition (specs/20260716-refund-service/tasks.md): `components.
  * attachmentList` (upload/download copy shared by `AttachmentList`'s draft
  * mode and `AttachmentDownloadLink`'s read-only mode), and the real
  * `pages.reviewQueue`/`pages.reviewDetail` (Screens A1/A2, replacing T14's
@@ -47,7 +47,7 @@ const NO_MOTIVO_FALLBACK = '(no description)'
 /**
  * ownerDisplay — the single place that resolves a request owner's display
  * name, guarding against `owner.name` being `null` (QE-verified defect,
- * specs/007-refund-service: `refund-api` never populates `RefundRequest.
+ * specs/20260716-refund-service: `refund-api` never populates `RefundRequest.
  * ownerName` because the JWT carries no `name` claim, only `sub`/`email` —
  * so the wire contract is `name: string | null`, never guaranteed present).
  * Falls back to the owner's email so accounting screens NEVER render the
@@ -195,7 +195,7 @@ const en = {
         /**
          * Announced on the composer's EXISTING polite status line
          * (`composer-km-status`) after a motivo suggestion is picked (T10,
-         * specs/014-motivo-autocomplete; AC-3.1/AC-3.2/AC-5.6; design.md
+         * specs/20260811-motivo-autocomplete; AC-3.1/AC-3.2/AC-5.6; design.md
          * "## After a pick — making the multi-field change perceivable").
          *
          * Three fields change at once and a fourth (the amount) re-derives a
@@ -210,7 +210,7 @@ const en = {
       },
       lines: {
         emptyDraft: 'No expense lines yet — add one to get started.',
-        /** Heading above the committed-lines list (post-close UX amendment, specs/007, 2026-07-17): "Expense lines (N)". */
+        /** Heading above the committed-lines list (post-close UX amendment, specs/20260716-refund-service, 2026-07-17): "Expense lines (N)". */
         sectionHeading: (count: number) => `Expense lines (${count})`,
         /** A line's distance, and the distance with the per-km rate it was priced at. */
         kmValue: (km: number) => `${km} km`,
@@ -235,7 +235,7 @@ const en = {
          * scanning for what got cut should see nothing where nothing was cut.
          */
         approvedDeltaNote: (requested: string, delta: string) => `requested ${requested} · ${delta}`,
-        /** "N files"/"1 file" — the collapsed summary row's small attachment indicator (post-close amendment, specs/007). */
+        /** "N files"/"1 file" — the collapsed summary row's small attachment indicator (post-close amendment, specs/20260716-refund-service). */
         attachmentsIndicator: (count: number) => `${count} ${count === 1 ? 'file' : 'files'}`,
         editButton: 'Edit',
         deleteButton: 'Delete',
@@ -245,7 +245,7 @@ const en = {
         doneLabel: (motivo: string) => `Done editing line “${motivo || NO_MOTIVO_FALLBACK}”`,
         doneTitle: 'Collapse this expense line back to a summary',
         deleteLineLabel: (motivo: string) => `Delete line “${motivo || NO_MOTIVO_FALLBACK}”`,
-        /** Hover tooltip (`title`) on the summary row's Delete button. Post-close amendment (specs/007, 2026-07-17): deleting a committed line now opens `deleteLineConfirmTitle`/`deleteLineConfirmBody` — overrides the original no-confirm decision. */
+        /** Hover tooltip (`title`) on the summary row's Delete button. Post-close amendment (specs/20260716-refund-service, 2026-07-17): deleting a committed line now opens `deleteLineConfirmTitle`/`deleteLineConfirmBody` — overrides the original no-confirm decision. */
         deleteLineTitle: 'Delete this expense line',
         deleteLineConfirmEntityLabel: 'expense line',
         deleteLineConfirmTitle: 'Delete this expense line?',
@@ -259,11 +259,11 @@ const en = {
         /** INC-19: confirmations shown in the same page-level compact banner as `savedToast`. */
         addedToast: 'Expense line added',
         deletedToast: 'Expense line deleted',
-        /** `summaryCore`'s new "Rate applied" row (specs/009-mileage-rate, T13/T14, AC-6.4) — shown whenever `line.mileage.appliedRate` is non-null, in every mode `summaryCore` renders in. */
+        /** `summaryCore`'s new "Rate applied" row (specs/20260720-mileage-rate, T13/T14, AC-6.4) — shown whenever `line.mileage.appliedRate` is non-null, in every mode `summaryCore` renders in. */
         rateAppliedLabel: 'Rate applied',
         rateAppliedValue: (rate: string, validFrom: string) => `${rate} · valid from ${validFrom}`,
         /**
-         * specs/007 amendment (2026-11-10) — a line the reviewer refused on its
+         * specs/20260716-refund-service amendment (2026-11-10) — a line the reviewer refused on its
          * own. The badge is the line's status; the reason is what the employee
          * is owed, shown under the motivo on every decided-and-paid render.
          */
@@ -315,7 +315,7 @@ const en = {
         motivationHeading: 'Reason for rejection',
         newRequestLink: 'New request',
       },
-      /** `paid` render branch (T13, specs/008-refund-monthly-processing/tasks.md, design.md F5) — sibling to draft/submitted/approved/rejected. */
+      /** `paid` render branch (T13, specs/20260719-refund-monthly-processing/tasks.md, design.md F5) — sibling to draft/submitted/approved/rejected. */
       paid: {
         paidLine: (date: string) => `Paid on ${date}`,
       },
@@ -376,7 +376,7 @@ const en = {
         invalidAmount: 'Enter a valid, non-negative amount.',
       },
       /**
-       * specs/007 amendment (2026-11-10) — rejecting ONE line instead of the
+       * specs/20260716-refund-service amendment (2026-11-10) — rejecting ONE line instead of the
        * whole request. The reason is required: the employee is owed an
        * explanation for every euro not reimbursed. Reversible until the
        * request is decided ("Restore line").
@@ -406,7 +406,7 @@ const en = {
         rejectConfirmation: (employeeName: string) => `Rejected — ${employeeName}’s request`,
         genericError: 'Could not record this decision. Try again.',
         /**
-         * specs/010-self-approval-control (plan.md D5, ADR-0026) — passive,
+         * specs/20260721-self-approval-control (plan.md D5, ADR 20260721-self-approval-condition-and-403-exception) — passive,
          * convenience-only client reflection of the self-approval
          * segregation-of-duties control; the server 403 is authoritative.
          * `selfApprovalTooltip` explains the disabled Approve button
@@ -459,7 +459,7 @@ const en = {
         approvedLine: (date: string, email: string) => `Approved on ${date} by ${email}`,
         rejectedLine: (date: string, email: string) => `Rejected on ${date} by ${email}`,
       },
-      /** `paid` render branch (T13, specs/008-refund-monthly-processing/tasks.md, design.md F4 step 4) — identical to `approved` PLUS this line, MINUS MonthlyProcessingNote. */
+      /** `paid` render branch (T13, specs/20260719-refund-monthly-processing/tasks.md, design.md F4 step 4) — identical to `approved` PLUS this line, MINUS MonthlyProcessingNote. */
       paid: {
         paidLine: (date: string, email: string) => `Paid on ${date} by ${email}`,
       },
@@ -468,7 +468,7 @@ const en = {
       heading: 'Page not found',
       body: 'This refund section doesn’t exist. Use the navigation above to pick My requests or Review queue.',
     },
-    /** Screen B1 (T13, specs/008-refund-monthly-processing/tasks.md, design.md F8). Replaces T9's placeholder. */
+    /** Screen B1 (T13, specs/20260719-refund-monthly-processing/tasks.md, design.md F8). Replaces T9's placeholder. */
     batchHistory: {
       heading: 'Monthly processing',
       newBatchButton: 'Compile new batch',
@@ -484,7 +484,7 @@ const en = {
         countLabel: (count: number) => `${count} request${count === 1 ? '' : 's'}`,
       },
     },
-    /** Screen B2 (T11, specs/008-refund-monthly-processing/tasks.md, design.md F1/Screen B2). */
+    /** Screen B2 (T11, specs/20260719-refund-monthly-processing/tasks.md, design.md F1/Screen B2). */
     compileBatch: {
       heading: 'Compile a new batch',
       cancelLink: 'Cancel',
@@ -521,7 +521,7 @@ const en = {
       },
     },
     /**
-     * Screen B3 (T12, specs/008-refund-monthly-processing/tasks.md, design.md
+     * Screen B3 (T12, specs/20260719-refund-monthly-processing/tasks.md, design.md
      * F2/F3/F4/F6/Screen B3). Replaces T9's placeholder. Also the email
      * deep-link landing page.
      */
@@ -557,7 +557,7 @@ const en = {
         sent: 'Email: sent',
         failed: 'Email: failed',
         /**
-         * specs/011-refund-settings AC-2.2/ADR-0029 — the accounting
+         * specs/20260722-refund-settings AC-2.2/ADR 20260722-batch-email-recipient-live-resolution-amends-0021 — the accounting
          * distribution email was unset at send/resend time, so refund-api
          * never attempted delivery. Deliberately actionable and distinct
          * from `failed` (an ordinary Resend/notify-api outage): it names the
@@ -625,7 +625,7 @@ const en = {
     attachmentList: {
       attachButton: 'Attach files',
       removeLabel: (fileName: string) => `Remove ${fileName}`,
-      /** Hover tooltip (`title`) on the attachment-remove "×". Post-close amendment (specs/007, 2026-07-17): removing now opens `removeConfirmTitle`/`removeConfirmBody` — overrides the original no-confirm decision. */
+      /** Hover tooltip (`title`) on the attachment-remove "×". Post-close amendment (specs/20260716-refund-service, 2026-07-17): removing now opens `removeConfirmTitle`/`removeConfirmBody` — overrides the original no-confirm decision. */
       removeTitle: 'Remove attachment',
       removeConfirmTitle: 'Remove this attachment?',
       removeConfirmEntityLabel: 'attachment',
@@ -649,20 +649,20 @@ const en = {
       rejectedTooLarge: 'File exceeds 10 MB and was not added.',
       rejectedType: 'Unsupported file type — use PDF, JPEG, or PNG.',
     },
-    /** `BatchSubtotalsPanel` (T10, specs/008-refund-monthly-processing/tasks.md) — a one-figure-per-currency card, unlike `SubtotalsPanel`'s requested/approved pair. */
+    /** `BatchSubtotalsPanel` (T10, specs/20260719-refund-monthly-processing/tasks.md) — a one-figure-per-currency card, unlike `SubtotalsPanel`'s requested/approved pair. */
     batchSubtotalsPanel: {
       totalLabel: 'Approved total',
     },
-    /** `BatchEmployeeGroupList` (T10, specs/008-refund-monthly-processing/tasks.md) — modes `preview`|`detail`. */
+    /** `BatchEmployeeGroupList` (T10, specs/20260719-refund-monthly-processing/tasks.md) — modes `preview`|`detail`. */
     batchEmployeeGroupList: {
       requestCountLabel: (count: number) => `${count} request${count === 1 ? '' : 's'}`,
       /** `detail` mode only — each request row's link, disambiguating a list of otherwise-identical controls (design.md Accessibility). */
       openRequestLabel: (employeeName: string, status: string, amount: string) =>
         `Open ${employeeName}’s request, ${status}, ${amount}`,
     },
-    /** `BatchPdfLink` (T10, specs/008-refund-monthly-processing/tasks.md) — mirrors `attachmentList`'s download states, scoped to a batch's compiled PDF. */
+    /** `BatchPdfLink` (T10, specs/20260719-refund-monthly-processing/tasks.md) — mirrors `attachmentList`'s download states, scoped to a batch's compiled PDF. */
     /**
-     * `RequestExportLink` (ADR-0043) — the per-request archive download.
+     * `RequestExportLink` (ADR 20260908-request-archive-export-refund-api-reads-attachment-bytes) — the per-request archive download.
      * Each failure gets its OWN sentence rather than one generic retry
      * message: "too large" and "a receipt is unreadable" need different
      * actions from the person reading them, and a single "try again" would
@@ -690,14 +690,14 @@ const en = {
       unavailable: 'PDF temporarily unavailable',
     },
     /**
-     * `MarkPaidDialog` (T12, specs/008-refund-monthly-processing/tasks.md,
+     * `MarkPaidDialog` (T12, specs/20260719-refund-monthly-processing/tasks.md,
      * design.md F4 step 2 + Accessibility) — the irreversible, money-moving
      * confirm. `acknowledgeLabel` is the full commitment sentence, not a
      * terse "Confirm" (design.md: "so a screen-reader user tabbing to it
      * hears the complete commitment they're making, not just a fragment").
      */
     /**
-     * `MileageAmountField` (T13, specs/009-mileage-rate/tasks.md, design.md
+     * `MileageAmountField` (T13, specs/20260720-mileage-rate/tasks.md, design.md
      * "## Screens & states" Screen R2 state table) — the read-only
      * `km × rate = amount` breakdown that replaces Amount/Currency for a
      * `travel_km` line. `breakdown`/`blocked` are functions since their
@@ -714,7 +714,7 @@ const en = {
       fetchError: 'Could not calculate the mileage amount. Try again.',
     },
     /**
-     * `MotivoSuggestField` (T10/T11, specs/014-motivo-autocomplete/tasks.md;
+     * `MotivoSuggestField` (T10/T11, specs/20260811-motivo-autocomplete/tasks.md;
      * design.md "## Copy — every new string, with its key path") — the motivo
      * autocomplete combobox on a `travel_km` line.
      *
@@ -785,14 +785,14 @@ const en = {
       welld_it: 'WellD Italia',
       welld_ch: 'WellD CH',
     },
-    /** `CurrencyBadge`'s label per currency — see `EntityBadge.tsx`'s doc comment on the entity/currency split (specs/007 post-close change). */
+    /** `CurrencyBadge`'s label per currency — see `EntityBadge.tsx`'s doc comment on the entity/currency split (specs/20260716-refund-service post-close change). */
     currency: {
       EUR: 'EUR',
       CHF: 'CHF',
       USD: 'USD',
       GBP: 'GBP',
     },
-    /** `BatchStatusBadge` (T10, specs/008-refund-monthly-processing/tasks.md) — 3 variants matching `BatchStatus` verbatim. */
+    /** `BatchStatusBadge` (T10, specs/20260719-refund-monthly-processing/tasks.md) — 3 variants matching `BatchStatus` verbatim. */
     batchStatus: {
       compiled: 'Compiled',
       paid: 'Paid',

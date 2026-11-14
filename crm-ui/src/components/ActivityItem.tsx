@@ -29,7 +29,7 @@ import { strings } from '../strings'
  * Delete for the author only (AC-4.2 — the server's 403 `author_only` is the
  * gate). `showCompany` links the company (Tasks, where rows span companies).
  *
- * A task renders through the library's `TaskRow` (specs/028 US-1: a move, not a
+ * A task renders through the library's `TaskRow` (specs/20261110-activities US-1: a move, not a
  * redesign — the copy and the content of every line are unchanged). The one
  * visible difference: a blocked Mark done is `aria-disabled` instead of
  * `disabled`, so it stays reachable and its "Waiting on" line is read.
@@ -56,7 +56,7 @@ export default function ActivityItem({
   const [deleteError, setDeleteError] = useState<string | null>(null)
   const task = activity.task
   const isAuthor = currentUserId !== null && activity.author.id === currentUserId
-  // specs/017 US-6: an open task waiting on an open task cannot be marked done.
+  // specs/20261101-crm US-6: an open task waiting on an open task cannot be marked done.
   const blocked = task !== null && task.completedAt === null && task.blocked === true
   const openBlockers = task?.blockedBy?.filter((blocker) => !blocker.completed) ?? []
 
@@ -93,7 +93,7 @@ export default function ActivityItem({
     <>
       {/* A meeting activity's body is the link and nothing else (AC-14.2): never show one. */}
       {activity.body && !activity.meeting && <p className="whitespace-pre-line text-sm text-soft">{activity.body}</p>}
-      {/* A task's text is its rich description, with its pictures and attachments (ADR-0089). */}
+      {/* A task's text is its rich description, with its pictures and attachments (ADR 20261113-task-description-files-in-activities-api-bucket). */}
       {task && (
         <RichTextFilesView
           doc={task.description ?? null}

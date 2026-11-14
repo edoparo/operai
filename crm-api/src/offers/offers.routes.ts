@@ -1,5 +1,5 @@
 /**
- * Offer documents (specs/018 US-4; specs/020 plan.md § API).
+ * Offer documents (specs/20261101-crm-sales-flow US-4; specs/20261102-crm-offer-document plan.md § API).
  *
  *   GET    /deals/{id}/offers                      versions, deleted ones included (the gap is visible)
  *   GET    /deals/{id}/offers/draft?templateId=    the dialog prefill from a template (placeholders resolved)
@@ -7,12 +7,12 @@
  *   GET    /deals/{id}/offers/{offerId}/download   60 s presigned GET
  *   DELETE /deals/{id}/offers/{offerId}            author or admin; the number is never reused
  *
- * Every route is financial (`deal:financials`, ADR-0054): an offer prints the
+ * Every route is financial (`deal:financials`, ADR 20261101-crm-financial-visibility-permission): an offer prints the
  * price. Drafting and generating also need `deal:manage` over the deal's entity
  * and a ready estimate. The PDF is rendered here from a snapshot that is stored
  * with the row, so the figures a client received can always be shown again; it
  * lives in the CRM's EU bucket. Generating reads the entity's letterhead and the
- * chosen deal PDFs from that bucket (ADR-0057): sizes are bounded from the
+ * chosen deal PDFs from that bucket (ADR 20261102-crm-api-reads-attachment-bytes-for-offer-annexes): sizes are bounded from the
  * database before any byte is read.
  *
  * The reference is `NNNN/YYYY` (D-5): the next number of the deal's entity in
@@ -75,10 +75,10 @@ const DEFAULT_PLACE = "Lugano";
 const OfferSchema = z.object({
   id: z.string(),
   number: z.number().int(),
-  /** "0017/2026", "0017/2026r1"; "OF-…" for offers generated before specs/020. */
+  /** "0017/2026", "0017/2026r1"; "OF-…" for offers generated before specs/20261102-crm-offer-document. */
   reference: z.string(),
   language: z.enum(["en", "it"]),
-  /** One-off lines minus discounts (specs/020 D-6). */
+  /** One-off lines minus discounts (specs/20261102-crm-offer-document D-6). */
   priceCents: z.number().int(),
   /** The yearly lines, shown apart as "+ CHF 2'500 per year"; 0 for older offers. */
   yearlyCents: z.number().int(),
@@ -185,7 +185,7 @@ export const offerReferenceOf = (no: number, year: number, revision: number) =>
 /** A reference as a file name: the slash cannot be part of one. */
 const referenceFileName = (reference: string) => `${reference.replace(/[/\\]/g, "-")}.pdf`;
 
-/** OF-2026-K3X9QZ-3: the specs/018 reference. Stable and unique per deal; kept for the old offers. */
+/** OF-2026-K3X9QZ-3: the specs/20261101-crm-sales-flow reference. Stable and unique per deal; kept for the old offers. */
 export const offerReference = (dealId: string, number: number, issued: Date) =>
   `OF-${issued.getUTCFullYear()}-${dealId.slice(-6).toUpperCase()}-${number}`;
 
@@ -252,7 +252,7 @@ const formRoute = createRoute({
   method: "get",
   path: "/deals/{id}/offers/{offerId}/form",
   tags: ["Offers"],
-  summary: "The dialog's prefill from an offer: to edit it, or to start its next revision (specs/020 US-7)",
+  summary: "The dialog's prefill from an offer: to edit it, or to start its next revision (specs/20261102-crm-offer-document US-7)",
   middleware: generating,
   request: { params: OfferParams },
   responses: {
@@ -293,7 +293,7 @@ const sentRoute = createRoute({
   method: "post",
   path: "/deals/{id}/offers/{offerId}/sent",
   tags: ["Offers"],
-  summary: "Mark an offer sent: it is frozen, and the deal moves to \"Offer sent\" (specs/020 US-7)",
+  summary: "Mark an offer sent: it is frozen, and the deal moves to \"Offer sent\" (specs/20261102-crm-offer-document US-7)",
   middleware: generating,
   request: { params: OfferParams },
   responses: { 200: { description: "The offer", ...json(OfferSchema) }, 404: { description: "Not found" }, ...commonErrors },
@@ -316,7 +316,7 @@ export const offersRouter = new OpenAPIHono<{ Variables: AuthzVariables }>({
 /**
  * Everything draft and generate share: the deal, its scope, the ready estimate,
  * the entity profile and an active template of the deal's entity. A deal whose
- * estimate gate an admin overrode (specs/018 AC-3.7) has an offer without an
+ * estimate gate an admin overrode (specs/20261101-crm-sales-flow AC-3.7) has an offer without an
  * estimate: `link` is then null and the scope, man-days and timeline are empty.
  */
 async function loadContext(dealId: string, templateId: string, scope: ReturnType<typeof dealScope>) {
@@ -403,7 +403,7 @@ const attachmentUnreadable = (fileName: string) =>
   );
 
 /**
- * The chosen deal PDFs, validated and read (ADR-0057): this deal's, stored, not
+ * The chosen deal PDFs, validated and read (ADR 20261102-crm-api-reads-attachment-bytes-for-offer-annexes): this deal's, stored, not
  * deleted, PDF, in the requested order. Their total size is checked from the
  * database BEFORE the first byte is downloaded.
  */
@@ -663,7 +663,7 @@ offersRouter.openapi(generateRoute, async (c) => {
   return c.json(view!, 201);
 });
 
-/** The offer of this deal, not deleted, generated from a template (specs/020), or a 404/409. */
+/** The offer of this deal, not deleted, generated from a template (specs/20261102-crm-offer-document), or a 404/409. */
 async function editableTarget(dealId: string, offerId: string) {
   const offer = await db.dealOffer.findUnique({ where: { id: offerId } });
   if (!offer || offer.dealId !== dealId || offer.deletedAt) throw notFound("Offer not found");

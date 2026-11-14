@@ -1,13 +1,13 @@
 /**
  * @vitest-environment jsdom
  *
- * Component tests for ExpenseLineComposer (T16, specs/007-refund-service/
+ * Component tests for ExpenseLineComposer (T16, specs/20260716-refund-service/
  * tasks.md, AC-1.2). Covers: the km field's show/hide by expense type + its
  * aria-live announcement, "Add expense line" disabled-until-valid, a
  * successful add resetting the draft, and a failed add keeping the draft
  * and surfacing an inline error.
  *
- * T13 (specs/014-motivo-autocomplete/tasks.md) extends this file with the
+ * T13 (specs/20260811-motivo-autocomplete/tasks.md) extends this file with the
  * motivo-autocomplete wiring: AC-1.1, AC-3.1–3.7, AC-5.1, AC-5.2, AC-5.3 and
  * AC-5.4. Those live HERE rather than in `MotivoSuggestField.test.tsx`
  * because they need the real `<form>` — most of all the AC-5.3/AC-5.4 pair,
@@ -95,7 +95,7 @@ describe('ExpenseLineComposer — km show/hide', () => {
   })
 })
 
-describe('ExpenseLineComposer — travel_km hides Amount/Currency (specs/009-mileage-rate AC-1.1/1.5/1.6)', () => {
+describe('ExpenseLineComposer — travel_km hides Amount/Currency (specs/20260720-mileage-rate AC-1.1/1.5/1.6)', () => {
   it('renders MileageAmountField instead of Amount/Currency once type=travel_km is selected', () => {
     render(<ExpenseLineComposer onAdd={vi.fn()} />)
     fireEvent.change(screen.getByTestId('composer-type'), { target: { value: 'travel_km' } })
@@ -149,7 +149,7 @@ describe('ExpenseLineComposer — Add: disabled only while blank, then validates
     }
   })
 
-  it('travel_km: never adds without km > 0 — the failed Add shows the km error and focuses it (amount/currency are not part of the check, specs/009-mileage-rate AC-1.1/1.6)', () => {
+  it('travel_km: never adds without km > 0 — the failed Add shows the km error and focuses it (amount/currency are not part of the check, specs/20260720-mileage-rate AC-1.1/1.6)', () => {
     const onAdd = vi.fn()
     render(<ExpenseLineComposer onAdd={onAdd} />)
     fireEvent.change(screen.getByTestId('composer-date'), { target: { value: '2026-07-16' } })
@@ -281,7 +281,7 @@ describe('ExpenseLineComposer — submit behavior', () => {
     })
   })
 
-  it('calls onAdd with km but WITHOUT requestedAmountCents/currency for a travel_km line (specs/009-mileage-rate AC-1.1/1.6)', async () => {
+  it('calls onAdd with km but WITHOUT requestedAmountCents/currency for a travel_km line (specs/20260720-mileage-rate AC-1.1/1.6)', async () => {
     const onAdd = vi.fn().mockResolvedValue(undefined)
     render(<ExpenseLineComposer onAdd={onAdd} />)
     fireEvent.change(screen.getByTestId('composer-date'), { target: { value: '2026-07-16' } })
@@ -322,7 +322,7 @@ describe('ExpenseLineComposer — submit behavior', () => {
 })
 
 // ─────────────────────────────────────────────────────────────────────────
-// Motivo autocomplete (T13, specs/014-motivo-autocomplete)
+// Motivo autocomplete (T13, specs/20260811-motivo-autocomplete)
 // ─────────────────────────────────────────────────────────────────────────
 
 const LUGANO: TripSuggestion = {
@@ -499,7 +499,7 @@ describe('ExpenseLineComposer — picking a suggestion fills the trip’s stable
     expect((screen.getByTestId('composer-date') as HTMLInputElement).value).not.toBe(LUGANO.lastUsedOn)
   })
 
-  it('introduces no amount and no currency control (AC-3.3, specs/009)', async () => {
+  it('introduces no amount and no currency control (AC-3.3, specs/20260720-mileage-rate)', async () => {
     render(<ExpenseLineComposer onAdd={vi.fn()} />)
     fillMileageDraft()
 

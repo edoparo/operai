@@ -2,7 +2,7 @@
   "schema": "wellforge-run/v1",
   "run_id": "2026-08-08T00-05-00Z-orchestrate-013-estimate-sharing-close",
   "command": "orchestrate",
-  "feature": "013-estimate-sharing",
+  "feature": "20260807-estimate-sharing",
   "rigor": "production",
   "started": "2026-08-07T18:30:00Z",
   "finished": "2026-08-08T00:05:00Z",
@@ -33,7 +33,7 @@
     { "agent": "devops", "outcome": "completed", "commits": ["6e63835"], "note": "Pinned seroval >=1.5.3 via pnpm override, clearing the security floor's critical-CVE block." },
     { "agent": "evaluator", "outcome": "PASS", "score": 92.0, "note": "All six dimensions scored 4; every floor met. Independently re-ran the e2e. Found a test-integrity defect QE missed." },
     { "agent": "quality-engineer", "outcome": "completed", "commits": ["4a6f5af"], "note": "Fixed eval's finding: tests asserted the degraded identity state as expected, passing only because auth returned 401." },
-    { "agent": "adr-writer", "outcome": "completed", "commits": ["3cf47e3"], "note": "Back-linked ADR-0004's LWW amendment to ADR-0038 and annotated spec 001's three stale LWW assertions." },
+    { "agent": "adr-writer", "outcome": "completed", "commits": ["3cf47e3"], "note": "Back-linked ADR 20260703-estimate-persistence-jsonb-document's LWW amendment to ADR 20260807-optimistic-concurrency-version-if-match-cas-amends-0004 and annotated spec 001's three stale LWW assertions." },
     { "agent": "frontend-dev", "outcome": "completed", "commits": ["ed21b98"], "note": "Corrected a false claim in strings.ts about Italian translations shipping in code." }
   ],
   "drift_events": [
@@ -46,13 +46,13 @@
     {
       "agent": "quality-engineer (T25)",
       "artifact": "tasks.md / CLAUDE.md",
-      "summary": "T25 named estimai-ui/e2e/, which no longer exists — specs/003 T18 retired estimai-ui's standalone e2e suite when it became a federated remote, and all estimai e2e journeys now live in shell/e2e/. CLAUDE.md's project-structure listing is stale on this point.",
+      "summary": "T25 named estimai-ui/e2e/, which no longer exists — specs/20260709-suite-shell T18 retired estimai-ui's standalone e2e suite when it became a federated remote, and all estimai e2e journeys now live in shell/e2e/. CLAUDE.md's project-structure listing is stale on this point.",
       "resolved": false
     },
     {
       "agent": "evaluator",
-      "artifact": "docs/adr/0004 + specs/001",
-      "summary": "ADR-0038's supersession of ADR-0004's last-write-wins posture had a forward link but no back-links; spec 001's spec/plan/design still asserted LWW unannotated.",
+      "artifact": "docs/adr/0004 + specs/20260606-estimate-persistence",
+      "summary": "ADR 20260807-optimistic-concurrency-version-if-match-cas-amends-0004's supersession of ADR 20260703-estimate-persistence-jsonb-document's last-write-wins posture had a forward link but no back-links; spec 001's spec/plan/design still asserted LWW unannotated.",
       "resolved": true
     },
     {

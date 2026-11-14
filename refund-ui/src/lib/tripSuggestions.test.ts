@@ -1,5 +1,5 @@
 /**
- * Unit tests for src/lib/tripSuggestions.ts (T8, specs/014-motivo-autocomplete/
+ * Unit tests for src/lib/tripSuggestions.ts (T8, specs/20260811-motivo-autocomplete/
  * tasks.md; plan.md "## Test strategy" AC-1.4/AC-1.5, risk R2).
  *
  * ┌──────────────────────────────────────────────────────────────────────────┐
@@ -20,7 +20,7 @@
  * │ Asserting it here IS plan.md's mitigation for risk R2 (silent fold       │
  * │ divergence). The two apps are not npm-linked (mixed pnpm/Bun monorepo,   │
  * │ no workspace package), so the table cannot be imported — this is the     │
- * │ ADR-0025 mirrored-rule-with-shared-vectors pattern. If this file and     │
+ * │ ADR 20260720-mileage-rate-money-precision-integer-micros mirrored-rule-with-shared-vectors pattern. If this file and     │
  * │ `refund-api`'s ever disagree, the FOLD is broken, not the test.          │
  * └──────────────────────────────────────────────────────────────────────────┘
  */

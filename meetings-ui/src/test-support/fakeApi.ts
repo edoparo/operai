@@ -1,5 +1,5 @@
 /**
- * Test support for every meetings-ui test that talks to meetings-api (specs/021-meetings).
+ * Test support for every meetings-ui test that talks to meetings-api (specs/20261104-meetings).
  *
  * `fakeApi` is a URL-dispatching stand-in for `shell/session`'s `apiFetch`: each route is
  * `METHOD /path` (a `:name` segment matches any one path segment and arrives in `params`) →

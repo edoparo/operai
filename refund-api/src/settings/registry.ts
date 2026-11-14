@@ -1,5 +1,5 @@
 /**
- * The settings descriptor registry (T3, specs/011-refund-settings, plan.md §
+ * The settings descriptor registry (T3, specs/20260722-refund-settings, plan.md §
  * Architecture — "a small settings descriptor registry maps each `key` →
  * `{ label, validate }` so the store *and* the route stay extensible").
  *

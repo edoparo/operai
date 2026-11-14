@@ -1,5 +1,5 @@
 // Test-only resolution stub for the `shell/session` federated module (T24,
-// specs/015-hardware-inventory). Mirrors refund-ui's stub: Vite's import
+// specs/20261006-hardware-inventory). Mirrors refund-ui's stub: Vite's import
 // analysis needs a resolvable module for every static import specifier even
 // when a test's `vi.mock('shell/session', factory)` overrides it afterwards;
 // in production the specifier resolves through `@module-federation/vite`

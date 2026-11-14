@@ -1,6 +1,6 @@
 /**
  * IrreversibleActionDialog — the acknowledged confirm for acts that cannot be
- * undone (T26, specs/015-hardware-inventory). Dispose, close fiscal year and
+ * undone (T26, specs/20261006-hardware-inventory). Dispose, close fiscal year and
  * new depreciation rule render through it.
  *
  * Presentational: the page owns the request, `isConfirming` and the error, and

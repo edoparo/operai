@@ -2,7 +2,7 @@
   "schema": "wellforge-run/v1",
   "run_id": "2026-07-13T07-14-51Z-orchestrate-004-auth-roles-permissions",
   "command": "orchestrate",
-  "feature": "004-auth-roles-permissions",
+  "feature": "20260713-auth-roles-permissions",
   "rigor": "production",
   "started": "2026-07-13T00:00:00Z",
   "finished": "2026-07-13T07:14:51Z",

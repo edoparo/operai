@@ -12,7 +12,7 @@ export type FolderNameDialogProps = {
   onCancel: () => void
 }
 
-/** The name of one of the person's own folders (ADR-0090): create or rename. */
+/** The name of one of the person's own folders (ADR 20261113-personal-meeting-folders): create or rename. */
 export function FolderNameDialog({ mode, initialName = '', onSave, onCancel }: FolderNameDialogProps) {
   const t = strings.folders
   const copy = mode === 'create' ? t.create : t.renameDialog

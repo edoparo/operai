@@ -1,15 +1,15 @@
 /**
- * crm-api's authorization-enforcing middleware (specs/017-crm, ADR-0014).
+ * crm-api's authorization-enforcing middleware (specs/20261101-crm, ADR 20260716-refund-api-authorization-enforcing-resource-server).
  * Copied from inventory-api/src/auth/authz.middleware.ts — the repo has no
- * workspace (ADR-0003), so each resource server owns its copy.
+ * workspace (ADR 20260703-estimai-api-bun-hono-typescript), so each resource server owns its copy.
  *
  * Runs AFTER `jwtMiddleware` on every gated route. Resolves the caller's
  * permissions live from `auth GET /authz/resolve`, forwarding the caller's own
- * already-verified Bearer token verbatim (no new credential, ADR-0014 point 1),
+ * already-verified Bearer token verbatim (no new credential, ADR 20260716-refund-api-authorization-enforcing-resource-server point 1),
  * and sets `c.var.authz = { permissions, entity }`.
  *
- * Caching (ADR-0014 point 2): keyed by `(sub, perm_epoch)` with a 30 s hard TTL
- * backstop. Fail-closed (ADR-0014 point 4): if `/authz/resolve` is unreachable
+ * Caching (ADR 20260716-refund-api-authorization-enforcing-resource-server point 2): keyed by `(sub, perm_epoch)` with a 30 s hard TTL
+ * backstop. Fail-closed (ADR 20260716-refund-api-authorization-enforcing-resource-server point 4): if `/authz/resolve` is unreachable
  * or answers non-2xx, the request is refused with 503 — never "allow", never a
  * stale cache entry.
  */
@@ -96,7 +96,7 @@ export const authzMiddleware = createMiddleware<{
     const resolved = await fetchAuthzResolve(authorizationHeader);
     context = { permissions: resolved.permissions, entity: resolved.entity };
   } catch (err) {
-    // Fail CLOSED (ADR-0014 point 4) — never fall back to "allow", and never
+    // Fail CLOSED (ADR 20260716-refund-api-authorization-enforcing-resource-server point 4) — never fall back to "allow", and never
     // serve a stale cache entry to paper over the outage.
     console.error(
       "[authz] auth GET /authz/resolve failed — denying request (fail-closed):",

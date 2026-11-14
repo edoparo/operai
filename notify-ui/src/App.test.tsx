@@ -2,7 +2,7 @@
  * @vitest-environment jsdom
  *
  * Component tests for App.tsx — notify-ui's exposed `./App` (T14,
- * specs/005-notification-center/tasks.md). Mirrors
+ * specs/20260713-notification-center/tasks.md). Mirrors
  * admin-ui/src/App.test.tsx's split: this file proves the EXACT exposed
  * component — with its hardcoded `/notify` basepath — mounts and resolves
  * under that prefix; src/router.test.tsx separately covers the router's
@@ -12,7 +12,7 @@
  * `resolve.alias` points the bare specifier at a real (empty) local stub so
  * Vite's import-analysis is satisfied; nothing to assert on for it here.
  *
- * T15 (specs/005-notification-center/tasks.md) mocks `./lib/notificationsApi`
+ * T15 (specs/20260713-notification-center/tasks.md) mocks `./lib/notificationsApi`
  * — `NotificationCenterPage` now fetches `GET /notifications` on mount; a
  * never-resolving pending promise keeps this test's assertions (which only
  * ever check the heading, rendered synchronously before any fetch settles)

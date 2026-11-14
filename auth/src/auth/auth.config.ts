@@ -9,9 +9,9 @@ import { findLivePendingInvitationByEmail } from "../invitations/invitations.rep
 import { db } from "../lib/db";
 import { env } from "../lib/env";
 
-// ─── Invitation activation hooks (specs/006-user-invitations, T8) ──────────
+// ─── Invitation activation hooks (specs/20260713-user-invitations, T8) ──────────
 //
-// Two distinct better-auth seams — ADR-0012 explains WHY there are two, not
+// Two distinct better-auth seams — ADR 20260714-invitation-activation-hooks-soft-delete-lifecycle explains WHY there are two, not
 // one: `user.create.after` fires exactly once, when a brand-new user row is
 // first persisted; it does NOT fire again for a returning identity (better-
 // auth matches the existing `account` row and only creates a session), so a
@@ -50,7 +50,7 @@ import { env } from "../lib/env";
  * verified email (`user.emailVerified === true` — the same posture as the
  * bootstrap-admin match in `authz/seed.ts`) and, on a match, applies it.
  *
- * **R9 RESOLVED (security-review fix #5, specs/006-user-invitations): AC-2.3
+ * **R9 RESOLVED (security-review fix #5, specs/20260713-user-invitations): AC-2.3
  * reads STRICTLY — "no more, no fewer".** A named-role invite (`roleIds.length
  * > 0`) grants the user EXACTLY those roles: the baseline `employee` role
  * `assignBaselineRolesToNewUser` just assigned is REMOVED (`userRole` is
@@ -140,7 +140,7 @@ export async function applyLivePendingInvitationOnUserCreate(
         data: { status: "accepted", acceptedByUserId: user.id },
       });
 
-      // specs/023 AC-3.8: an invitation created any other way also closes the
+      // specs/20261105-signup-gate AC-3.8: an invitation created any other way also closes the
       // person's waiting-list request, in the same transaction.
       await tx.accessRequest.updateMany({
         where: { email: user.email.toLowerCase(), status: "pending" },
@@ -180,14 +180,14 @@ export async function applyLivePendingInvitationOnUserCreate(
 type SessionDenialReason =
   /** No `user` row for the id the session would reference (defensive). */
   | "user_row_missing"
-  /** Soft-deleted (ADR-0012 AC-5.2) with no live pending invitation. */
+  /** Soft-deleted (ADR 20260714-invitation-activation-hooks-soft-delete-lifecycle AC-5.2) with no live pending invitation. */
   | "soft_deleted_no_pending_invitation"
   /** Soft-deleted and the OAuth email is unverified — never re-activatable. */
   | "soft_deleted_email_unverified";
 
 /**
  * Structured, parseable log event on every refused sign-in — the same posture
- * (and shape) as refund-api's `refund.self_approval_denied` (ADR-0026 point 5):
+ * (and shape) as refund-api's `refund.self_approval_denied` (ADR 20260721-self-approval-condition-and-403-exception point 5):
  * a security/operational event, not a state transition, so deliberately NOT an
  * `AuditLog` row.
  *
@@ -220,7 +220,7 @@ function logSessionDenied(userId: string, reason: SessionDenialReason): void {
  * `session.create.before` — soft-delete gate + re-activation (AC-5.2,
  * AC-5.10). Fires on EVERY session creation, including a returning OAuth
  * identity whose `account` row already exists (the seam `user.create.after`
- * cannot reach — see ADR-0012). An ACTIVE user (`deletedAt == null`) is
+ * cannot reach — see ADR 20260714-invitation-activation-hooks-soft-delete-lifecycle). An ACTIVE user (`deletedAt == null`) is
  * always allowed with NO invitation logic (an active user's verified email
  * can never hold a live-pending invitation, AC-1.3) — this keeps the
  * per-sign-in cost of this hook to a single indexed lookup for the
@@ -235,7 +235,7 @@ function logSessionDenied(userId: string, reason: SessionDenialReason): void {
  * user row is created because the `account` row still maps to this exact
  * (soft-deleted) user.
  *
- * **Security-review fix #4 (specs/006-user-invitations): existence check
+ * **Security-review fix #4 (specs/20260713-user-invitations): existence check
  * before applying.** Same rationale as `applyLivePendingInvitationOnUserCreate`
  * above — a role/department named on the invitation may have been deleted
  * during the 72h window; applying a dangling id would throw on the FK
@@ -364,7 +364,7 @@ export const auth = betterAuth({
   // `GET /`, so that landed on the RFC 7807 `app.notFound` handler and a
   // refused user was shown raw Problem JSON (`"GET / does not exist"`) with
   // the real reason only in the query string. Pointing this at the hosted
-  // sign-in page (ADR-0002) instead means every OAuth failure lands somewhere
+  // sign-in page (ADR 20260607-sign-in-page-hosted-by-auth-service) instead means every OAuth failure lands somewhere
   // that already renders `?error=<code>` as a human sentence via
   // `signin.routes.ts`'s `ERROR_MESSAGES` allowlist, with the provider
   // buttons right there to retry.
@@ -396,7 +396,7 @@ export const auth = betterAuth({
       clientSecret: env.GITHUB_CLIENT_SECRET,
     },
   },
-  // Authorization bootstrap (specs/004-auth-roles-permissions, T11 —
+  // Authorization bootstrap (specs/20260713-auth-roles-permissions, T11 —
   // AC-6.1, AC-6.3). Fires once, after every new user row is created,
   // regardless of which sign-up path created it (Google, GitHub, or the
   // dev-only test-auth mint endpoint). See `authz/seed.ts` for the full
@@ -409,7 +409,7 @@ export const auth = betterAuth({
   databaseHooks: {
     user: {
       create: {
-        // specs/023 (ADR-0071): only an invited person (or the bootstrap admin)
+        // specs/20261105-signup-gate (ADR 20261105-access-only-by-invitation-waiting-list): only an invited person (or the bootstrap admin)
         // becomes a user; everyone else is refused here, nothing is written by
         // better-auth, and an allowed-domain person joins the waiting list.
         before: async (user, context) => {
@@ -417,7 +417,7 @@ export const auth = betterAuth({
         },
         after: async (user) => {
           await assignBaselineRolesToNewUser(user);
-          // T8, specs/006-user-invitations (AC-2.3/2.4) — see the doc
+          // T8, specs/20260713-user-invitations (AC-2.3/2.4) — see the doc
           // comment on `applyLivePendingInvitationOnUserCreate` above.
           await applyLivePendingInvitationOnUserCreate(user);
         },
@@ -425,7 +425,7 @@ export const auth = betterAuth({
     },
     session: {
       create: {
-        // T8, specs/006-user-invitations (AC-5.2/5.10; R1) — see the doc
+        // T8, specs/20260713-user-invitations (AC-5.2/5.10; R1) — see the doc
         // comment on `gateOrReactivateSoftDeletedSession` above.
         before: async (session) => gateOrReactivateSoftDeletedSession(session.userId),
       },
@@ -448,19 +448,19 @@ export const auth = betterAuth({
         // `fields` lists (node_modules/better-auth/dist/plugins/jwt/sign.mjs:
         // `getJwtToken` falls back to `ctx.context.session.user` verbatim when
         // no `definePayload` is supplied). `definePayload` is the only real
-        // claim seam (plan.md "The JWT claim seam"; ADR-0007; risk R2).
+        // claim seam (plan.md "The JWT claim seam"; ADR 20260713-authz-hand-rolled-rbac-abac-epoch-claims; risk R2).
         //
         // Deliberately minimal + explicit: identity claims existing consumers
         // already read (estimai-api's jwtMiddleware reads `sub`+`email`) plus
         // `perm_epoch`, a forward-looking staleness marker for future resource
-        // servers (ADR-0007 decision 4). Roles/permissions are NEVER embedded
+        // servers (ADR 20260713-authz-hand-rolled-rbac-abac-epoch-claims decision 4). Roles/permissions are NEVER embedded
         // here — they are resolved live via `GET /authz/me` (AC-4.3): a 7-day
         // token can't carry fresh authorization.
         //
         // `sub` is intentionally NOT set here — the plugin always overwrites it
         // with `getSubject()` (default: `session.user.id`) after `definePayload`
         // returns (sign.mjs: `{ iat, ...payload, sub: ... }`), so setting it here
-        // would be misleading dead code. Do not change `sub` semantics (ADR-0005).
+        // would be misleading dead code. Do not change `sub` semantics (ADR 20260703-jwt-resource-server-remote-jwks).
         definePayload: async ({ user }) => {
           // Re-read permissionEpoch directly via the Prisma client rather than
           // trusting `user.permissionEpoch` off the session object: better-auth's
@@ -477,14 +477,14 @@ export const auth = betterAuth({
             name: user.name,
             image: user.image,
             perm_epoch: current?.permissionEpoch ?? user.permissionEpoch ?? 0,
-            // ADR-0010 (specs/005-notification-center T8): the standard `aud`
+            // ADR 20260713-jwt-audience-claim-enforcement (specs/20260713-notification-center T8): the standard `aud`
             // claim, closing the cross-service JWT replay gap now that
             // notify-api is the suite's first real second JWKS resource
             // server. `sign.mjs` reads `payload.aud` and passes it to
             // `SignJWT#setAudience`, so returning it here from
             // `definePayload` is sufficient — no separate `jwt.audience`
             // plugin option needed. v1 is one suite-wide value (not yet
-            // per-resource-server scoped, see ADR-0010 "Consequences"); every
+            // per-resource-server scoped, see ADR 20260713-jwt-audience-claim-enforcement "Consequences"); every
             // resource server must verify against the SAME `AUTH_AUDIENCE`
             // value (T9 — not yet enforced here, issuer-side only).
             aud: env.AUTH_AUDIENCE,

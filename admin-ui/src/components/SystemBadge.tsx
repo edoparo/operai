@@ -4,7 +4,7 @@ import { strings } from '../strings'
 
 /**
  * SystemBadge — marks a seed/system role as not deletable (T15,
- * specs/004-auth-roles-permissions, design.md Screen A1). A library
+ * specs/20260713-auth-roles-permissions, design.md Screen A1). A library
  * `StatusBadge` (INC-23, meaning `info`), always paired with a disabled
  * Delete button carrying the same explanatory `title`.
  */
