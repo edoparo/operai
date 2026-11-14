@@ -1,5 +1,33 @@
 # @operai/refund-api
 
+## 0.3.0
+
+### Minor Changes
+
+- 0b3b843: Second of three pushes that retire the shared notification token (specs/20261013-notify-service-credentials,
+  ADR 20261013-auth-mints-own-service-credential-in-process/0049). Every notify-api caller now authenticates as itself with a scoped,
+  short-lived service credential and no longer reads `NOTIFY_INTERNAL_TOKEN`: `auth`
+  mints its own `emails.send` credential in process for invitation emails,
+  `refund-api` uses `notifications.push` for decisions and `emails.send` for the batch
+  email, and `estimai-api` uses `notifications.push` for collaborator changes. A caller
+  whose credential is missing or refused fails soft exactly as before. `notify-api` still
+  accepts the shared token until it is deleted from the deployed services.
+- 0a96dd7: Accounting can reject a single expense line instead of the whole refund request, and must give a reason. The rejected line pays nothing, shows its reason to the employee once the request is approved (and in the archive PDF), and can be restored until the request is decided. A request whose every line is rejected can no longer be approved — it has to be rejected as a whole. New endpoints `POST`/`DELETE /review/requests/{id}/lines/{lineId}/reject` (gated on `request:reject`), audit actions `line_rejected`/`line_restored`, and a migration adding the rejection columns to `refund_line`.
+
+### Patch Changes
+
+- 27333e4: The compiled monthly batch PDF now uses the same template as the per-request PDF: wellD letterhead, title and
+  reference, a two-column metadata grid (cutoff, contents, expense period, entities / compiled by, batch
+  reference), a payout table per currency with one row per employee and a brand-ruled total, then each
+  employee's requests (period, approved on, requested and approved amounts) with per-currency subtotals, and a
+  "Page N of M" footer. Timestamps are in local time (`14.11.2026 09:20 (CET)`) and amounts use the suffix form
+  (`1414,00 CHF`), as everywhere else. The shared drawing primitives moved to
+  `refund-api/src/requests/documentLayout.ts`, so the two documents cannot drift apart again. Already stored batch PDFs keep their old
+  look; a PDF regenerated after a storage miss uses the new one.
+- 041cf92: Mark the service-token client's shared region in `src/lib/serviceToken.ts` with
+  `shared-copy` begin/end comments so a CI check can fail when the three copies drift.
+  Comment-only: no behaviour change.
+
 ## 0.2.0
 
 ### Minor Changes

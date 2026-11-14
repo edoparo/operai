@@ -1,5 +1,66 @@
 # @operai/refund-ui
 
+## 0.2.0
+
+### Minor Changes
+
+- 28872b4: Tables, paging, forms and feedback now work the same in every tool: record
+  lists are accessible data tables, long lists page the same way, every form
+  marks required fields with an asterisk and explains errors next to the field
+  (moving focus to the first one), amounts accept a comma or a dot, dates use
+  the date picker, every save, invite and delete confirms where you acted,
+  errors you can retry are orange and errors you must fix are red, EstimAI no
+  longer uses browser alert boxes, and the page no longer scrolls behind an open
+  dialog.
+- 28872b4: The whole suite now speaks Italian as well as English: every tool has a
+  complete Italian translation and follows the browser's language, chosen once
+  for all tools. Dates read the same everywhere (31.10.2026), amounts show their
+  currency code with the language's separators, statuses use one shared set of
+  icons and colours so the same symbol always means the same thing, emoji and
+  text symbols are replaced by real icons that render on every system, headings
+  are in sentence case, loading and empty screens look the same in every tool,
+  detail pages are organised in cards, and EstimAI's views are proper tabs.
+- 28872b4: New shared design system `@operai/ui` (operai-ui/, ADR 20261031-shared-ui-library-consumed-as-source): the suite's tokens,
+  themes and component classes move into it from the shell, together with React
+  components (buttons, dialogs, banners, badges, fields, tables, page and tool
+  layout, empty and loading states) and a Storybook. refund-ui is the first app
+  built on it: its dialogs now share one focus and keyboard behaviour, its buttons
+  follow the suite's variants, and its secondary text and status colours meet
+  WCAG AA in both themes. Suite-wide, `font-mono` now renders DM Mono as intended,
+  and the shell's Tailwind scan includes notify-ui.
+- 0a96dd7: Accounting can reject a single expense line instead of the whole refund request, and must give a reason. The rejected line pays nothing, shows its reason to the employee once the request is approved (and in the archive PDF), and can be restored until the request is decided. A request whose every line is rejected can no longer be approved — it has to be rejected as a whole. New endpoints `POST`/`DELETE /review/requests/{id}/lines/{lineId}/reject` (gated on `request:reject`), audit actions `line_rejected`/`line_restored`, and a migration adding the rejection columns to `refund_line`.
+- 9adfd4a: The refund tool's settings (mileage rates per entity and the accounting distribution email) move from Admin to a new Settings tab in Refund (`/refund/settings`), shown to whoever holds `rate:read` or `settings:read`. Admin no longer has a Refund section.
+
+### Patch Changes
+
+- 8380079: A `ConfirmDialog` with `fields` no longer closes on a backdrop click, so a typed reason is not thrown away (Escape, × and Cancel still close it), as the design system already required of every dialog holding input. In Refund, "Reject line" is now a `danger` button like the request-level Reject, and an empty reason moves focus to the field and is also flagged when leaving it after typing.
+- 59e9b48: Dependency security update. better-auth moves to 1.7.18 everywhere, closing the advisory that let an OAuth state be used as a magic link to sign in as another user. The frontends move to vitest 4 and refreshed lockfiles, which clears the critical seroval and tinypool advisories. auth gains a migration adding three optional key columns that better-auth 1.7 expects on its signing-key table.
+- 7f5c0af: A click outside a form dialog no longer closes it and throws away what was typed: `FormDialog` ignores the backdrop, and Cancel, × and Escape still close it. `Dialog` gains `dismissOnBackdrop` for the same behaviour, which the estimate's collaborators dialog and the refund reject dialog now use. In every dialog and drawer, a text selection that starts inside and is released outside no longer counts as a click on the backdrop.
+- 28872b4: Every tool now shares one look for actions, text and page layout: buttons and
+  dialogs come from the shared library with the same meaning-based styles
+  (primary actions meet contrast everywhere, cancel is quiet, destructive is
+  red), text uses one type scale with an 11px minimum, labels drop their "+"
+  and arrow prefixes, each tool has the same title bar, tabs and page header on
+  a common width scale, and every detail page has a "Back to …" link. EstimAI's
+  shortcuts, health and About dialogs are now real modal dialogs.
+- 28872b4: One styling dialect across the suite (ADR 20261031-one-styling-dialect-token-utilities): colours and fonts are Tailwind
+  utilities generated from the shared design tokens, never inline styles, and a
+  lint rule keeps it that way. Hover and focus colours now apply where inline
+  colours used to override them, date pickers follow the light theme, EstimAI's
+  AI purple and tinted highlights follow the theme too, and each tool's
+  standalone build uses the suite's real tokens instead of a stale copy.
+- 46e108f: The compile-batch preview now defaults to the exact current instant (spec 20260719-refund-monthly-processing
+  AC-1.1). The cutoff field only holds minutes, so requests approved earlier in the
+  current minute used to be left out of the preview and the batch.
+- 28872b4: The design system gains `Menu` (the header's logo and account menus, now with
+  full keyboard support) and `CheckboxGroupField` (pick several options from a
+  list), and `ConfirmDialog` can ask for an acknowledgement and hold fields.
+  Refund's "Mark as paid" and Inventory's dispose, close-year and new-rule
+  dialogs now share that confirmation; Admin's role and department checklists
+  and Inventory's invoice linking share the checkbox group. Success messages
+  dismiss themselves after the same time in every tool.
+- c4ba4c3: Pages use more of a wide screen: the default tool column grows from 64rem to 80rem and the wide one (the CRM pipeline) fills the width beside the sidebar; single forms stay at 40rem.
+
 ## 0.1.0
 
 ### Minor Changes
