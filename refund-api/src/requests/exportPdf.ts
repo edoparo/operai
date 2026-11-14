@@ -23,12 +23,33 @@
  * three different number locales reaching an accounting artifact.
  */
 
-import { PDFDocument, type PDFFont, type PDFPage, type RGB } from "pdf-lib";
-import fontkit from "@pdf-lib/fontkit";
+import { PDFDocument, type PDFFont, type PDFPage } from "pdf-lib";
 import type { RefundLineResponse, Subtotal } from "./requests.schemas";
 import { entityLabel, entityHeaderLabel, expenseTypeLabel, requestStatusLabel } from "./labels";
 import { letterheadFor } from "./letterhead";
-import { COLOR, CONTENT_WIDTH, PAGE, TYPE } from "./documentTheme";
+import { COLOR, CONTENT_WIDTH, TYPE } from "./documentTheme";
+import {
+  INK,
+  MARGIN,
+  PAGE_HEIGHT,
+  PAGE_WIDTH,
+  SECTION_GAP,
+  addPage,
+  createDocument,
+  drawFooters,
+  drawLabel,
+  drawLetterhead,
+  drawLine,
+  drawMetadataGrid,
+  drawRight,
+  drawTitleBlock,
+  ensureSpace,
+  hairline,
+  personLabel,
+  wrapText,
+  type Cursor,
+  type Fonts,
+} from "./documentLayout";
 import {
   formatDate,
   formatMoney,
@@ -97,48 +118,14 @@ export interface RequestExportInput {
   readonly settlement: string;
 }
 
-// ─── Embedded Unicode font ───────────────────────────────────────────────────
-//
-// Same bundled Noto Sans as batches/pdf.ts, read from that module's fonts
-// directory rather than duplicating the files: a motivo can contain any
-// Unicode the employee typed, and pdf-lib's built-in StandardFonts are
-// WinAnsi-only and THROW on an unrepresentable character (the OWASP A04 fix
-// recorded in batches/pdf.ts). An archive export must never fail because
-// someone wrote "Mtg CRSS – Zürich".
-
-const FONTS_DIR = import.meta.dir + "/../batches/fonts";
-
-interface LoadedFontBytes {
-  readonly regular: ArrayBuffer;
-  readonly bold: ArrayBuffer;
-}
-
-let fontBytesPromise: Promise<LoadedFontBytes> | undefined;
-
-function loadFontBytes(): Promise<LoadedFontBytes> {
-  if (!fontBytesPromise) {
-    fontBytesPromise = Promise.all([
-      Bun.file(`${FONTS_DIR}/NotoSans-Regular.ttf`).arrayBuffer(),
-      Bun.file(`${FONTS_DIR}/NotoSans-Bold.ttf`).arrayBuffer(),
-    ]).then(([regular, bold]) => ({ regular, bold }));
-  }
-  return fontBytesPromise;
-}
-
 // ─── Layout ─────────────────────────────────────────────────────────────────
 //
-// Colour, type scale and page geometry live in `documentTheme.ts`; this module
-// decides ARRANGEMENT only. See that file for the greyscale floor and for the
-// Ubuntu/Noto-Serif/wordmark asset gap.
+// Shared primitives (letterhead, grid, labels, footer) live in
+// `documentLayout.ts`, so this document and the compiled batch stay one
+// family; colour and type in `documentTheme.ts`. This module decides the
+// request's own ARRANGEMENT only.
 
-const PAGE_WIDTH = PAGE.width;
-const PAGE_HEIGHT = PAGE.height;
-const MARGIN = PAGE.margin;
 const LINE_GAP = 13;
-const SECTION_GAP = 12;
-const INK = COLOR.ink;
-const FOOTER_SIZE = TYPE.small;
-const FOOTER_INK = COLOR.muted;
 
 /**
  * The expense table's columns, in points, summing to the content width.
@@ -169,70 +156,6 @@ const COL_X = (() => {
 
 /** Right edge of a right-aligned money column. */
 const colRight = (key: "requested" | "approved"): number => COL_X[key] + COL[key];
-
-interface Cursor {
-  page: PDFPage;
-  y: number;
-}
-
-/**
- * "Luigi Gambardella (luigi.gambardella@welld.ch)" — the name first, the
- * address as the identifier beside it. Mirrors refund-ui's `ownerDisplay`.
- *
- * A document a human reads and files should lead with the human; a bare
- * address makes the reader do the translation. Falls back to the address
- * alone when no name was recorded, rather than rendering an empty
- * parenthetical.
- */
-/**
- * Greedy word-wrap to a pixel width, measured in the ACTUAL font rather than
- * guessed from a character count — a motivation is free text an employee
- * typed, and a fixed column count overflows the page for wide glyphs and
- * wastes half of it for narrow ones. A single word longer than the line is
- * emitted whole and allowed to overhang rather than being cut mid-word.
- */
-function wrapText(text: string, font: PDFFont, size: number, maxWidth: number): string[] {
-  const lines: string[] = [];
-  let current = "";
-  for (const word of text.split(/\s+/).filter(Boolean)) {
-    const candidate = current === "" ? word : `${current} ${word}`;
-    if (font.widthOfTextAtSize(candidate, size) <= maxWidth || current === "") {
-      current = candidate;
-    } else {
-      lines.push(current);
-      current = word;
-    }
-  }
-  if (current !== "") lines.push(current);
-  return lines;
-}
-
-function personLabel(name: string | null | undefined, email: string): string {
-  return name && name.trim() !== "" ? `${name} (${email})` : email;
-}
-
-function addPage(doc: PDFDocument): PDFPage {
-  return doc.addPage([PAGE_WIDTH, PAGE_HEIGHT]);
-}
-
-function ensureSpace(doc: PDFDocument, cursor: Cursor, needed: number): void {
-  if (cursor.y - needed < MARGIN) {
-    cursor.page = addPage(doc);
-    cursor.y = PAGE_HEIGHT - MARGIN;
-  }
-}
-
-function drawLine(
-  doc: PDFDocument,
-  cursor: Cursor,
-  text: string,
-  font: PDFFont,
-  size: number,
-): void {
-  ensureSpace(doc, cursor, LINE_GAP);
-  cursor.page.drawText(text, { x: MARGIN, y: cursor.y, size, font, color: INK });
-  cursor.y -= LINE_GAP;
-}
 
 /**
  * Thrown when a receipt cannot be embedded — a corrupt PDF, a mislabelled
@@ -319,116 +242,6 @@ async function appendReceipt(
   }
 }
 
-/**
- * Stamps every page with the request reference and "Page N of M".
- *
- * Runs as a LAST pass, after every page (including copied receipt pages)
- * exists — the total is not knowable until then.
- *
- * Copied receipt pages are stamped too, deliberately. These documents get
- * printed and stapled, and a set where half the pages carry no number is
- * exactly the set that loses a page without anyone noticing; the same
- * reasoning behind Bates numbering. The stamp sits in the very bottom margin
- * at 7pt, and uses each page's OWN dimensions rather than A4 — a receipt may
- * be any size, and positioning it against the wrong height would drop the
- * footer into the middle of someone's scanned invoice.
- */
-function drawFooters(doc: PDFDocument, font: PDFFont, reference: string): void {
-  const pages = doc.getPages();
-  const total = pages.length;
-
-  pages.forEach((page, index) => {
-    const { width } = page.getSize();
-    const label = `${reference}`;
-    const pageLabel = `Page ${index + 1} of ${total}`;
-
-    // A rule above the footer, so the reference and pagination read as page
-    // furniture rather than as a stray last line of content.
-    page.drawRectangle({
-      x: MARGIN,
-      y: 34,
-      width: width - MARGIN * 2,
-      height: 0.5,
-      color: COLOR.hairline,
-    });
-
-    page.drawText(label, {
-      x: MARGIN,
-      y: 22,
-      size: FOOTER_SIZE,
-      font,
-      color: FOOTER_INK,
-    });
-    page.drawText(pageLabel, {
-      x: width - MARGIN - font.widthOfTextAtSize(pageLabel, FOOTER_SIZE),
-      y: 22,
-      size: FOOTER_SIZE,
-      font,
-      color: FOOTER_INK,
-    });
-  });
-}
-
-// ─── Drawing primitives ──────────────────────────────────────────────────────
-
-interface Fonts {
-  readonly title: PDFFont;
-  readonly label: PDFFont;
-  readonly value: PDFFont;
-  readonly prose: PDFFont;
-}
-
-function hairline(
-  page: PDFPage,
-  y: number,
-  x: number = MARGIN,
-  width: number = CONTENT_WIDTH,
-  color: RGB = COLOR.hairline,
-  thickness = 0.5,
-): void {
-  page.drawRectangle({ x, y, width, height: thickness, color });
-}
-
-/** Draws text whose RIGHT edge sits at `right` — the money columns' whole point. */
-function drawRight(page: PDFPage, text: string, right: number, y: number, font: PDFFont, size: number, color = INK): void {
-  page.drawText(text, { x: right - font.widthOfTextAtSize(text, size), y, size, font, color });
-}
-
-/** An uppercase, letter-spaced field label. `label.medium`, muted. */
-function drawLabel(page: PDFPage, text: string, x: number, y: number, fonts: Fonts): void {
-  page.drawText(text.toUpperCase(), {
-    x, y, size: TYPE.label, font: fonts.label, color: COLOR.muted,
-  });
-}
-
-// ─── Letterhead ──────────────────────────────────────────────────────────────
-
-/**
- * Wordmark left, issuing entity right, red hairline under.
- *
- * WORDMARK: the kit's `wordmark-red.svg` is not in this repository (see
- * documentTheme.ts). The mark is drawn as brand-red type until the asset
- * exists — pdf-lib cannot rasterise an SVG, so landing it means either a PNG
- * or feeding its path data to `drawSvgPath`. The word "wellD" in brand red is
- * a truthful placeholder, not a silent omission.
- */
-function drawLetterhead(page: PDFPage, y: number, fonts: Fonts, mark: ReturnType<typeof letterheadFor>): number {
-  page.drawText("wellD", { x: MARGIN, y: y - 11, size: 20, font: fonts.title, color: COLOR.brand });
-
-  const right = MARGIN + CONTENT_WIDTH;
-  let cy = y - 4;
-  drawRight(page, mark.name, right, cy, fonts.label, TYPE.letterhead, INK);
-  cy -= 11;
-  for (const detail of [mark.address, mark.taxId, mark.contact]) {
-    drawRight(page, detail, right, cy, fonts.value, TYPE.small, COLOR.muted);
-    cy -= 9.5;
-  }
-
-  const ruleY = Math.min(cy, y - 24) - 4;
-  hairline(page, ruleY, MARGIN, CONTENT_WIDTH, COLOR.brand, 1);
-  return ruleY - SECTION_GAP - 4;
-}
-
 // ─── Status chip ─────────────────────────────────────────────────────────────
 
 /**
@@ -456,48 +269,6 @@ function drawStatusChip(page: PDFPage, status: string, right: number, y: number,
   page.drawText(label.toUpperCase(), {
     x: right - width + padX, y: y + 0.5, size: TYPE.label, font: fonts.label, color: accent,
   });
-}
-
-// ─── Metadata grid ───────────────────────────────────────────────────────────
-
-/**
- * Two grouped columns instead of nine stacked label-value rows.
- *
- * The stack was the page's biggest visual problem: nine lines of the same
- * shape, so nothing could be found without reading all of them. Splitting into
- * *Request* (what is being claimed) and *Processing* (what has happened to it)
- * gives the reader two questions to choose between, and halves the height.
- */
-function drawMetadataGrid(
-  page: PDFPage,
-  y: number,
-  fonts: Fonts,
-  left: readonly (readonly [string, string])[],
-  right: readonly (readonly [string, string])[],
-): number {
-  const colWidth = (CONTENT_WIDTH - 24) / 2;
-  const rightX = MARGIN + colWidth + 24;
-
-  drawLabel(page, "Request", MARGIN, y, fonts);
-  drawLabel(page, "Processing", rightX, y, fonts);
-  hairline(page, y - 5, MARGIN, colWidth);
-  hairline(page, y - 5, rightX, colWidth);
-
-  const drawColumn = (entries: readonly (readonly [string, string])[], x: number): number => {
-    let cy = y - 18;
-    for (const [label, value] of entries) {
-      drawLabel(page, label, x, cy, fonts);
-      cy -= 10;
-      for (const wrapped of wrapText(value, fonts.value, TYPE.value, colWidth)) {
-        page.drawText(wrapped, { x, y: cy, size: TYPE.value, font: fonts.value, color: INK });
-        cy -= 11;
-      }
-      cy -= 4;
-    }
-    return cy;
-  };
-
-  return Math.min(drawColumn(left, MARGIN), drawColumn(right, rightX));
 }
 
 // ─── Expense table ───────────────────────────────────────────────────────────
@@ -559,22 +330,11 @@ async function receiptPageSpans(receipts: readonly ExportReceipt[]): Promise<num
 export async function renderRequestExportPdf(
   input: RequestExportInput,
 ): Promise<Buffer> {
-  const doc = await PDFDocument.create();
-  doc.registerFontkit(fontkit);
-  doc.setCreationDate(input.generatedAt);
-  doc.setModificationDate(input.generatedAt);
-  doc.setTitle(`Refund request ${input.requestId}`);
-  doc.setProducer("wellD Operai refund-api");
-  doc.setCreator("wellD Operai refund-api");
-  doc.setAuthor(input.generatedByEmail);
-
-  const bytes = await loadFontBytes();
-  const regular = await doc.embedFont(bytes.regular, { subset: true });
-  const bold = await doc.embedFont(bytes.bold, { subset: true });
-  // Roles, not files — see documentTheme.ts's asset-gap note. With Ubuntu and
-  // Noto Serif present these become Light/Medium/Regular/Serif and nothing
-  // below changes.
-  const fonts: Fonts = { title: bold, label: bold, value: regular, prose: regular };
+  const { doc, fonts } = await createDocument({
+    title: `Refund request ${input.requestId}`,
+    author: input.generatedByEmail,
+    generatedAt: input.generatedAt,
+  });
 
   const showsApprovedAmounts = input.status !== "rejected";
   const page0 = addPage(doc);
@@ -584,17 +344,9 @@ export async function renderRequestExportPdf(
   let y = drawLetterhead(page0, PAGE_HEIGHT - MARGIN, fonts, mark);
 
   // ── 2. Title block: title + reference left, status chip right ────────────
-  page0.drawText("Expense reimbursement request", {
-    x: MARGIN, y: y - TYPE.title, size: TYPE.title, font: fonts.title, color: INK,
-  });
-  drawStatusChip(page0, input.status, MARGIN + CONTENT_WIDTH, y - TYPE.title, fonts);
-  // Clear of the title's descenders — at 8pt the reference collided with them
-  // and read as a subtitle glued to the headline rather than a separate fact.
-  y -= TYPE.title + 15;
-  page0.drawText(input.requestId, {
-    x: MARGIN, y, size: TYPE.small, font: fonts.value, color: COLOR.muted,
-  });
-  y -= SECTION_GAP + 10;
+  y = drawTitleBlock(page0, y, fonts, "Expense reimbursement request", input.requestId, (right, baseline) =>
+    drawStatusChip(page0, input.status, right, baseline, fonts),
+  );
 
   // ── 3. Metadata, two grouped columns ─────────────────────────────────────
   const period = formatPeriod(input.lines.map((line) => line.date));
@@ -604,17 +356,23 @@ export async function renderRequestExportPdf(
     page0,
     y,
     fonts,
-    [
+    {
+      heading: "Request",
+      entries: [
       ["Employee", personLabel(input.owner.name, input.owner.email)],
       ["Period", period ?? "—"],
       ["Entity", entityHeaderLabel(input.lines.map((line) => line.entity)) || "—"],
-    ],
-    [
+      ],
+    },
+    {
+      heading: "Processing",
+      entries: [
       ["Submitted", input.submittedAt ? formatTimestamp(new Date(input.submittedAt)) : "—"],
       ["Decided", `${input.decidedAt ? formatTimestamp(new Date(input.decidedAt)) : "—"} ${decider}`],
       ["Exported", `${formatTimestamp(input.generatedAt)} ${personLabel(input.generatedByName, input.generatedByEmail)}`],
       ["Settlement", input.settlement],
-    ],
+      ],
+    },
   );
   y -= SECTION_GAP;
 

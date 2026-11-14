@@ -8,6 +8,17 @@
  * no headless browser — ADR 20260719-refund-batch-pdf-generation-pdf-lib decision 1) directly from primitives (text
  * runs, rules, an embedded Unicode font) — no HTML/CSS layout engine.
  *
+ * ONE FAMILY WITH THE REQUEST ARCHIVE (2026-11-14). This document used to be
+ * a stack of bare text lines — raw ISO timestamps, prefixed amounts
+ * (`CHF 1414,00`), no letterhead, no table — while the per-request archive
+ * (`requests/exportPdf.ts`) had the designed layout. Both now draw through
+ * `requests/documentLayout.ts` (letterhead, title block, metadata grid,
+ * labels, rules, footer), `documentTheme.ts` (colour, type) and
+ * `documentFormat.ts` (`1414,00 CHF`, `14.11.2026 09:20 (CET)`), so a reader
+ * holding both can tell they come from the same system. The two renderers
+ * still stay separate: a batch is a cross-employee SUMMARY and never embeds
+ * receipts (AC-1.7); the archive is one request, self-contained.
+ *
  * FONT CHOICE (OWASP A04 fix — chosen over character sanitization): the
  * standard 14 PDF fonts (Helvetica et al.) only support WinAnsi/CP1252 and
  * `pdf-lib` THROWS when asked to draw a character outside that charset.
@@ -15,85 +26,64 @@
  * display name with no charset validation — any emoji/CJK/Cyrillic/Arabic
  * name reaching this renderer previously crashed it, which (via
  * `pdfLink.ts`'s lazy-regenerate-on-miss) turned into a permanently
- * unreadable batch. This module now embeds Noto Sans (Regular + Bold,
+ * unreadable batch. The documents therefore embed Noto Sans (Regular + Bold,
  * `fonts/NotoSans-*.ttf`, SIL Open Font License 1.1 — see
- * `fonts/LICENSE_OFL.txt`) via `@pdf-lib/fontkit` instead of sanitizing
- * characters out: Noto Sans correctly renders Latin Extended, Cyrillic,
- * Greek, and many other scripts (materially more names render CORRECTLY
- * than under Helvetica, which matters for a payroll-adjacent document), and
- * — just as importantly — a custom fontkit-embedded font resolves any
- * codepoint it doesn't cover (CJK ideographs, emoji, Arabic shaping, …) to
- * that font's own `.notdef` glyph via the font's cmap instead of throwing;
- * pdf-lib's `CustomFontEmbedder` has no WinAnsi-style encode-time charset
- * check the way `StandardFonts` do. So the renderer is now a genuinely total
- * function of its Unicode input: legitimate non-Latin names render
- * correctly, anything the bundled font can't shape degrades to a harmless
- * blank glyph, and nothing ever throws. Bundling two ~560KB TTFs was judged
- * "reasonably sized" (ADR 20260719-refund-batch-pdf-generation-pdf-lib's own bar) against the alternative of a
- * lossy sanitize-to-`?` pass that would mangle real people's names on a
- * document accounting relies on for payroll reconciliation. Full CJK/emoji
- * *glyph* coverage was explicitly out of scope — those alphabets need
- * several more MB of separate font families each, which was judged
- * impractical to bundle here; those names still degrade safely (blank
- * glyphs) rather than crashing the renderer, matching the ADR 20260719-refund-batch-pdf-generation-pdf-lib
- * "regenerable, not perfect" posture already established for this cache.
+ * `fonts/LICENSE_OFL.txt`) via `@pdf-lib/fontkit`, loaded by
+ * `documentLayout.ts`: a fontkit-embedded font resolves any codepoint it does
+ * not cover to its own `.notdef` glyph instead of throwing, so the renderer is
+ * a total function of its Unicode input. Full CJK/emoji glyph coverage stays
+ * out of scope (several MB per script); those names degrade to blank glyphs.
  *
  * DETERMINISM (ADR 20260719-refund-batch-pdf-generation-pdf-lib decision 5, ADR regenerable-cache posture): the only
  * "now" this module ever renders is the caller-supplied `generatedAt` — the
- * batch's stored `createdAt` — NEVER `Date.now()`. `pdf-lib` embeds a
- * creation/modification date in the PDF trailer by default when neither is
- * set explicitly, which would make two renders of the same input differ
- * byte-for-byte depending on wall-clock time; this module always calls
- * `setCreationDate`/`setModificationDate` with `generatedAt` to close that
- * gap. Employees and their per-currency subtotals are also sorted into a
- * stable, input-order-independent sequence so a regenerated PDF (cache miss
- * on `pdf-url`, or a resend) is byte-identical to the one originally
- * compiled and possibly already emailed. The embedded font bytes are read
- * once and cached module-scope (`loadFontBytes`) — the font FILES don't
- * change between renders, so this doesn't affect determinism, it only avoids
- * repeated disk reads across the many re-renders a regenerable cache implies.
+ * batch's stored `createdAt` — NEVER `Date.now()`; `createDocument` pins the
+ * PDF's creation/modification dates to it. Employees, requests and
+ * currencies are sorted into a stable, input-order-independent sequence so a
+ * regenerated PDF (cache miss on `pdf-url`, or a resend) is byte-identical to
+ * the one originally compiled and possibly already emailed. For the same
+ * reason the document carries NO batch status: the status moves on
+ * (compiled → paid/discarded) while a regenerated PDF must not, so the page
+ * states what was compiled, and the app states what became of it.
  *
- * CONTENT (AC-1.6/1.7/1.9): one section per requesting employee, each
- * employee's approved lines subtotaled per currency — reusing
- * `computeSubtotals` from `requests.service.ts` (007's "never blended, never
- * grouped by entity" rule, carried forward verbatim) — plus a document
- * header (cutoff, generation timestamp, generating accounting user, batch
- * reference). $0-approved lines are included on the same terms as any other
- * (AC-1.9 — `computeSubtotals` does not filter by amount). This module never
- * reads or references `Attachment` rows — receipt files are never embedded
- * (AC-1.7); only the numeric/textual summary is rendered.
- *
- * Currency amounts render as ISO codes (`EUR 45,50`), not symbols — the
- * embedded font's coverage does not reliably cover every currency glyph
- * across providers either (ADR 20260719-refund-batch-pdf-generation-pdf-lib decision 2, plan.md Risk R7).
+ * CONTENT (AC-1.6/1.7/1.9): a header (cutoff, generation timestamp,
+ * generating accounting user, batch reference); a payout summary, one table
+ * per currency with one row per employee; then one section per requesting
+ * employee listing each included request with its approved amount, subtotaled
+ * per currency — reusing `computeSubtotals` from `requests.service.ts` (007's
+ * "never blended, never grouped by entity" rule, carried forward verbatim).
+ * No total ever adds two currencies. $0-approved lines are included on the
+ * same terms as any other (AC-1.9). This module never reads or references
+ * `Attachment` rows — receipt files are never embedded (AC-1.7).
  */
 
-import { PDFDocument, rgb, type PDFFont, type PDFPage } from "pdf-lib";
-import fontkit from "@pdf-lib/fontkit";
+import type { PDFDocument, PDFPage } from "pdf-lib";
 import { computeSubtotals, type LineRow } from "../requests/requests.service";
 import type { Subtotal } from "../requests/requests.schemas";
-
-// ─── Embedded Unicode font (OWASP A04 fix — see module doc) ─────────────────
-
-const FONTS_DIR = import.meta.dir + "/fonts";
-
-interface LoadedFontBytes {
-  readonly regular: ArrayBuffer;
-  readonly bold: ArrayBuffer;
-}
-
-let fontBytesPromise: Promise<LoadedFontBytes> | undefined;
-
-/** Reads the bundled Noto Sans TTFs once and caches the bytes for the life of the process. */
-function loadFontBytes(): Promise<LoadedFontBytes> {
-  if (!fontBytesPromise) {
-    fontBytesPromise = Promise.all([
-      Bun.file(`${FONTS_DIR}/NotoSans-Regular.ttf`).arrayBuffer(),
-      Bun.file(`${FONTS_DIR}/NotoSans-Bold.ttf`).arrayBuffer(),
-    ]).then(([regular, bold]) => ({ regular, bold }));
-  }
-  return fontBytesPromise;
-}
+import { COLOR, CONTENT_WIDTH, TYPE } from "../requests/documentTheme";
+import { formatMoney, formatPeriod, formatTimestamp } from "../requests/documentFormat";
+import { entityLabel } from "../requests/labels";
+import { letterheadFor } from "../requests/letterhead";
+import {
+  INK,
+  MARGIN,
+  PAGE_HEIGHT,
+  SECTION_GAP,
+  addPage,
+  createDocument,
+  drawFooters,
+  drawLabel,
+  drawLetterhead,
+  drawLine,
+  drawMetadataGrid,
+  drawRight,
+  drawTitleBlock,
+  ensureSpace,
+  hairline,
+  personLabel,
+  wrapText,
+  type Cursor,
+  type Fonts,
+} from "../requests/documentLayout";
 
 // ─── Object key (shared by the compile-time PutObject and the read-time mint) ──
 
@@ -118,6 +108,8 @@ export interface BatchPdfOwner {
 
 export interface BatchPdfRequest {
   readonly id: string;
+  /** When the request was approved — the fact the cutoff was tested against. Optional only for older callers/fixtures. */
+  readonly decidedAt?: Date | null;
   readonly lines: readonly LineRow[];
 }
 
@@ -138,33 +130,6 @@ export interface BatchPdfInput {
   readonly employees: readonly BatchPdfEmployee[];
 }
 
-// ─── Layout constants ────────────────────────────────────────────────────────
-
-const PAGE_WIDTH = 595.28; // A4 portrait, points
-const PAGE_HEIGHT = 841.89;
-const MARGIN = 50;
-const TITLE_SIZE = 16;
-const HEADER_SIZE = 10;
-const SECTION_TITLE_SIZE = 12;
-const BODY_SIZE = 10;
-const LINE_GAP = 16;
-const SECTION_GAP = 10;
-const INK = rgb(0.09, 0.09, 0.1);
-
-// ─── Money formatting (ISO code, comma decimal — see module doc) ────────────
-
-function formatAmount(cents: number, currency: string): string {
-  const negative = cents < 0;
-  const absCents = Math.abs(cents);
-  const whole = Math.trunc(absCents / 100);
-  const decimals = (absCents % 100).toString().padStart(2, "0");
-  return `${currency} ${negative ? "-" : ""}${whole},${decimals}`;
-}
-
-function isoTimestamp(date: Date): string {
-  return date.toISOString();
-}
-
 // ─── Deterministic ordering helpers ─────────────────────────────────────────
 //
 // The renderer must not depend on the order the caller happened to hand it
@@ -172,9 +137,7 @@ function isoTimestamp(date: Date): string {
 // byte-identical to the original render regardless of any incidental query
 // ordering difference (ADR 20260719-refund-batch-pdf-generation-pdf-lib decision 5).
 
-function sortedEmployees(
-  employees: readonly BatchPdfEmployee[],
-): readonly BatchPdfEmployee[] {
+function sortedEmployees(employees: readonly BatchPdfEmployee[]): readonly BatchPdfEmployee[] {
   return [...employees].sort((a, b) => {
     const byEmail = a.owner.email.localeCompare(b.owner.email);
     if (byEmail !== 0) return byEmail;
@@ -182,41 +145,137 @@ function sortedEmployees(
   });
 }
 
-function sortedRequests(
-  requests: readonly BatchPdfRequest[],
-): readonly BatchPdfRequest[] {
+function sortedRequests(requests: readonly BatchPdfRequest[]): readonly BatchPdfRequest[] {
   return [...requests].sort((a, b) => a.id.localeCompare(b.id));
 }
 
-// ─── Page/cursor management ──────────────────────────────────────────────────
+// ─── Small derivations ───────────────────────────────────────────────────────
 
-interface Cursor {
-  page: PDFPage;
-  y: number;
+const isoDay = (date: Date): string => date.toISOString().slice(0, 10);
+
+/** `14.11.2026` — the civil date in the document zone, from the same formatter as every timestamp. */
+const formatDay = (date: Date): string => formatTimestamp(date).split(" ")[0]!;
+
+const plural = (n: number, one: string, many: string): string => `${n} ${n === 1 ? one : many}`;
+
+const approvedOf = (subtotal: Subtotal): number => subtotal.approvedCents ?? 0;
+
+// ─── Tables ──────────────────────────────────────────────────────────────────
+//
+// Fixed column grids summing to the content width, for the same reason as the
+// request archive's: a header repeats on every page and a total sits under the
+// last row, so the grid must be identical everywhere or the totals stop lining
+// up with the figures they sum.
+
+interface Column {
+  readonly key: string;
+  readonly label: string;
+  readonly width: number;
+  readonly align: "left" | "right";
 }
 
-function addPage(doc: PDFDocument): PDFPage {
-  return doc.addPage([PAGE_WIDTH, PAGE_HEIGHT]);
+interface Table {
+  readonly columns: readonly Column[];
+  readonly x: Readonly<Record<string, number>>;
 }
 
-/** Advances to a new page if the next line would overflow the bottom margin. */
-function ensureSpace(doc: PDFDocument, cursor: Cursor, needed: number): void {
-  if (cursor.y - needed < MARGIN) {
-    cursor.page = addPage(doc);
-    cursor.y = PAGE_HEIGHT - MARGIN;
+function table(columns: readonly Column[]): Table {
+  let x = MARGIN;
+  const out: Record<string, number> = {};
+  for (const column of columns) {
+    out[column.key] = x;
+    x += column.width;
   }
+  return { columns, x: out };
 }
 
-function drawLine(
+const SUMMARY = table([
+  { key: "index", label: "#", width: 18, align: "left" },
+  { key: "employee", label: "Employee", width: CONTENT_WIDTH - 18 - 56 - 2 * 86, align: "left" },
+  { key: "requests", label: "Requests", width: 56, align: "right" },
+  { key: "requested", label: "Requested", width: 86, align: "right" },
+  { key: "approved", label: "Approved", width: 86, align: "right" },
+]);
+
+const DETAIL = table([
+  { key: "index", label: "#", width: 18, align: "left" },
+  { key: "request", label: "Request", width: 150, align: "left" },
+  { key: "period", label: "Period", width: CONTENT_WIDTH - 18 - 150 - 62 - 2 * 76, align: "left" },
+  { key: "decided", label: "Approved on", width: 62, align: "left" },
+  { key: "requested", label: "Requested", width: 76, align: "right" },
+  { key: "approved", label: "Approved", width: 76, align: "right" },
+]);
+
+const colRight = (t: Table, key: string): number =>
+  t.x[key]! + t.columns.find((c) => c.key === key)!.width;
+
+function drawTableHeader(page: PDFPage, y: number, fonts: Fonts, t: Table): number {
+  for (const column of t.columns) {
+    if (column.align === "right") {
+      drawRight(page, column.label.toUpperCase(), colRight(t, column.key), y, fonts.label, TYPE.label, COLOR.muted);
+    } else {
+      drawLabel(page, column.label, t.x[column.key]!, y, fonts);
+    }
+  }
+  hairline(page, y - 5, MARGIN, CONTENT_WIDTH, COLOR.ink, 0.8);
+  return y - 16;
+}
+
+interface Cell {
+  readonly key: string;
+  /** One or more wrapped lines; the row grows to the tallest cell. */
+  readonly lines: readonly string[];
+  readonly muted?: boolean;
+}
+
+/**
+ * Draws one row, starting a new page (and repeating the header) rather than
+ * orphaning it under the bottom margin.
+ */
+function drawRow(doc: PDFDocument, cursor: Cursor, fonts: Fonts, t: Table, cells: readonly Cell[]): void {
+  const height = Math.max(14, ...cells.map((c) => c.lines.length * 11)) + 7;
+  if (cursor.y - height < MARGIN + 40) {
+    cursor.page = addPage(doc);
+    cursor.y = drawTableHeader(cursor.page, PAGE_HEIGHT - MARGIN, fonts, t);
+  }
+
+  const top = cursor.y;
+  for (const cell of cells) {
+    const column = t.columns.find((c) => c.key === cell.key)!;
+    const color = cell.muted ? COLOR.muted : INK;
+    cell.lines.forEach((text, i) => {
+      const y = top - i * 11;
+      if (column.align === "right") {
+        drawRight(cursor.page, text, colRight(t, cell.key), y, fonts.value, TYPE.value, color);
+      } else {
+        cursor.page.drawText(text, { x: t.x[cell.key]!, y, size: TYPE.value, font: fonts.value, color });
+      }
+    });
+  }
+
+  cursor.y = top - height + 7;
+  hairline(cursor.page, cursor.y + 3);
+  cursor.y -= 8;
+}
+
+/** A brand-ruled bold total row: the most prominent figures on the page, not the least. */
+function drawTotalRow(
   doc: PDFDocument,
   cursor: Cursor,
-  text: string,
-  font: PDFFont,
-  size: number,
+  fonts: Fonts,
+  t: Table,
+  labelKey: string,
+  label: string,
+  requested: string,
+  approved: string,
 ): void {
-  ensureSpace(doc, cursor, LINE_GAP);
-  cursor.page.drawText(text, { x: MARGIN, y: cursor.y, size, font, color: INK });
-  cursor.y -= LINE_GAP;
+  ensureSpace(doc, cursor, 34);
+  hairline(cursor.page, cursor.y + 8, MARGIN, CONTENT_WIDTH, COLOR.brand, 1);
+  cursor.y -= 4;
+  cursor.page.drawText(label, { x: t.x[labelKey]!, y: cursor.y, size: TYPE.value, font: fonts.title, color: INK });
+  drawRight(cursor.page, requested, colRight(t, "requested"), cursor.y, fonts.title, TYPE.value);
+  drawRight(cursor.page, approved, colRight(t, "approved"), cursor.y, fonts.title, TYPE.value);
+  cursor.y -= SECTION_GAP + 10;
 }
 
 // ─── Renderer ─────────────────────────────────────────────────────────────────
@@ -229,78 +288,154 @@ function drawLine(
  * AC-1.4), but the renderer stays total rather than partial.
  */
 export async function renderBatchPdf(input: BatchPdfInput): Promise<Buffer> {
-  const doc = await PDFDocument.create();
-  // Unicode-capable custom font (OWASP A04 fix, module doc) — must be
-  // registered before embedFont() is called with raw TTF bytes.
-  doc.registerFontkit(fontkit);
-  // Close the "pdf-lib embeds current wall-clock time by default" gap — the
-  // ONLY timestamp this document ever carries is the caller-supplied
-  // generatedAt (module doc; ADR 20260719-refund-batch-pdf-generation-pdf-lib decision 5).
-  doc.setCreationDate(input.generatedAt);
-  doc.setModificationDate(input.generatedAt);
-  doc.setTitle(`Refund batch ${input.batchId}`);
-  doc.setProducer("wellD Operai refund-api");
-  doc.setCreator("wellD Operai refund-api");
-  doc.setAuthor(input.generatedByEmail);
-
-  const fontBytes = await loadFontBytes();
-  const font = await doc.embedFont(fontBytes.regular, { subset: true });
-  const boldFont = await doc.embedFont(fontBytes.bold, { subset: true });
-
-  const cursor: Cursor = { page: addPage(doc), y: PAGE_HEIGHT - MARGIN };
-
-  // ── Header (AC-1.6: cutoff, generation timestamp, generating user, batch reference) ──
-  ensureSpace(doc, cursor, LINE_GAP + 4);
-  cursor.page.drawText("Refund batch — compiled", {
-    x: MARGIN,
-    y: cursor.y,
-    size: TITLE_SIZE,
-    font: boldFont,
-    color: INK,
+  const { doc, fonts } = await createDocument({
+    title: `Refund batch ${input.batchId}`,
+    author: input.generatedByEmail,
+    generatedAt: input.generatedAt,
   });
-  cursor.y -= TITLE_SIZE + 6;
 
-  drawLine(doc, cursor, `Batch reference: ${input.batchId}`, font, HEADER_SIZE);
-  drawLine(doc, cursor, `Cutoff: ${isoTimestamp(input.cutoff)}`, font, HEADER_SIZE);
-  drawLine(doc, cursor, `Generated: ${isoTimestamp(input.generatedAt)}`, font, HEADER_SIZE);
-  drawLine(doc, cursor, `Generated by: ${input.generatedByEmail}`, font, HEADER_SIZE);
-  cursor.y -= SECTION_GAP;
+  const employees = sortedEmployees(input.employees).map((employee) => {
+    const requests = sortedRequests(employee.requests).map((request) => ({
+      request,
+      subtotals: computeSubtotals(request.lines),
+    }));
+    const lines = requests.flatMap(({ request }) => [...request.lines]);
+    return { owner: employee.owner, requests, lines, subtotals: computeSubtotals(lines) };
+  });
+  const allLines = employees.flatMap((e) => e.lines);
+  const requestCount = employees.reduce((n, e) => n + e.requests.length, 0);
 
-  const employees = sortedEmployees(input.employees);
+  const page0 = addPage(doc);
+
+  // ── 1. Letterhead + title ────────────────────────────────────────────────
+  let y = drawLetterhead(page0, PAGE_HEIGHT - MARGIN, fonts, letterheadFor(allLines.map((l) => l.entity)));
+  y = drawTitleBlock(page0, y, fonts, "Monthly refund batch", input.batchId);
+
+  // ── 2. Metadata (AC-1.6: cutoff, generated, generated-by, reference) ─────
+  y = drawMetadataGrid(
+    page0,
+    y,
+    fonts,
+    {
+      heading: "Batch",
+      entries: [
+        ["Cutoff", formatTimestamp(input.cutoff)],
+        ["Contents", `${plural(requestCount, "request", "requests")} · ${plural(employees.length, "employee", "employees")}`],
+        ["Expense period", formatPeriod(allLines.map((l) => isoDay(l.date))) ?? "—"],
+        // Every entity named, not the archive's "Multiple — see each line": this
+        // document prints no lines to see.
+        ["Entity", [...new Set(allLines.map((l) => entityLabel(l.entity)))].sort().join(", ") || "—"],
+      ],
+    },
+    {
+      heading: "Processing",
+      entries: [
+        ["Compiled", `${formatTimestamp(input.generatedAt)} ${personLabel(null, input.generatedByEmail)}`],
+        ["Batch reference", input.batchId],
+      ],
+    },
+  );
+  y -= SECTION_GAP;
+
+  const cursor: Cursor = { page: page0, y };
 
   if (employees.length === 0) {
-    drawLine(doc, cursor, "No requests included in this batch.", font, BODY_SIZE);
+    drawLine(doc, cursor, "No requests included in this batch.", fonts.value, TYPE.value);
+  }
+
+  // ── 3. Payout summary: one table per currency, one row per employee ──────
+  // What payroll actually keys in. Never a grand total across currencies:
+  // summing CHF and EUR would invent a number that does not exist.
+  const currencies = [...new Set(allLines.map((l) => l.currency))].sort();
+  for (const currency of currencies) {
+    ensureSpace(doc, cursor, 70);
+    drawLabel(cursor.page, `Payouts in ${currency}`, MARGIN, cursor.y, fonts);
+    cursor.y -= 14;
+    cursor.y = drawTableHeader(cursor.page, cursor.y, fonts, SUMMARY);
+
+    let requestedTotal = 0;
+    let approvedTotal = 0;
+    let row = 0;
+    for (const employee of employees) {
+      const subtotal = employee.subtotals.find((s) => s.currency === currency);
+      if (!subtotal) continue;
+      row += 1;
+      const requestsInCurrency = employee.requests.filter((r) => r.subtotals.some((s) => s.currency === currency));
+      drawRow(doc, cursor, fonts, SUMMARY, [
+        { key: "index", lines: [String(row)], muted: true },
+        {
+          key: "employee",
+          lines: wrapText(personLabel(employee.owner.name, employee.owner.email), fonts.value, TYPE.value, SUMMARY.columns[1]!.width - 8),
+        },
+        { key: "requests", lines: [String(requestsInCurrency.length)] },
+        { key: "requested", lines: [formatMoney(subtotal.requestedCents, currency)] },
+        { key: "approved", lines: [formatMoney(approvedOf(subtotal), currency)] },
+      ]);
+      requestedTotal += subtotal.requestedCents;
+      approvedTotal += approvedOf(subtotal);
+    }
+    drawTotalRow(
+      doc, cursor, fonts, SUMMARY, "employee", `Total — ${currency}`,
+      formatMoney(requestedTotal, currency), formatMoney(approvedTotal, currency),
+    );
+  }
+
+  // ── 4. One section per employee: the requests behind each payout ─────────
+  if (employees.length > 0) {
+    ensureSpace(doc, cursor, 40);
+    drawLabel(cursor.page, "Requests by employee", MARGIN, cursor.y, fonts);
+    cursor.y -= 6;
+    hairline(cursor.page, cursor.y, MARGIN, CONTENT_WIDTH, COLOR.brand, 1);
+    cursor.y -= SECTION_GAP + 6;
   }
 
   for (const employee of employees) {
-    ensureSpace(doc, cursor, LINE_GAP * 2);
-    const label = employee.owner.name
-      ? `${employee.owner.name} (${employee.owner.email})`
-      : employee.owner.email;
-    drawLine(doc, cursor, `Employee: ${label}`, boldFont, SECTION_TITLE_SIZE);
-
-    const lines: LineRow[] = sortedRequests(employee.requests).flatMap(
-      (request) => [...request.lines],
-    );
-    const subtotals: Subtotal[] = computeSubtotals(lines);
-
-    if (subtotals.length === 0) {
-      drawLine(doc, cursor, "  (no lines)", font, BODY_SIZE);
+    ensureSpace(doc, cursor, 80);
+    for (const text of wrapText(personLabel(employee.owner.name, employee.owner.email), fonts.title, TYPE.value + 1, CONTENT_WIDTH)) {
+      cursor.page.drawText(text, { x: MARGIN, y: cursor.y, size: TYPE.value + 1, font: fonts.title, color: INK });
+      cursor.y -= 13;
     }
-    for (const subtotal of subtotals) {
-      const approvedCents = subtotal.approvedCents ?? 0;
-      drawLine(
-        doc,
-        cursor,
-        `  ${formatAmount(approvedCents, subtotal.currency)}`,
-        font,
-        BODY_SIZE,
+    cursor.y -= 4;
+    cursor.y = drawTableHeader(cursor.page, cursor.y, fonts, DETAIL);
+
+    let row = 0;
+    for (const { request, subtotals } of employee.requests) {
+      row += 1;
+      const period = formatPeriod(request.lines.map((l) => isoDay(l.date))) ?? "—";
+      const decided = request.decidedAt ? formatDay(request.decidedAt) : "—";
+      // A request in two currencies is two figures, stacked in its one row.
+      const cells: Cell[] = [
+        { key: "index", lines: [String(row)], muted: true },
+        { key: "request", lines: [request.id] },
+        { key: "period", lines: wrapText(period, fonts.value, TYPE.value, DETAIL.columns[2]!.width - 8) },
+        { key: "decided", lines: [decided] },
+        {
+          key: "requested",
+          lines: subtotals.length ? subtotals.map((s) => formatMoney(s.requestedCents, s.currency)) : ["—"],
+        },
+        {
+          key: "approved",
+          lines: subtotals.length ? subtotals.map((s) => formatMoney(approvedOf(s), s.currency)) : ["—"],
+        },
+      ];
+      drawRow(doc, cursor, fonts, DETAIL, cells);
+    }
+
+    if (employee.subtotals.length === 0) {
+      drawLine(doc, cursor, "No expense lines.", fonts.value, TYPE.value);
+    }
+    for (const subtotal of employee.subtotals) {
+      drawTotalRow(
+        doc, cursor, fonts, DETAIL, "request", `Subtotal — ${subtotal.currency}`,
+        formatMoney(subtotal.requestedCents, subtotal.currency),
+        formatMoney(approvedOf(subtotal), subtotal.currency),
       );
     }
-
-    cursor.y -= SECTION_GAP;
+    cursor.y -= 4;
   }
 
-  const bytes = await doc.save();
-  return Buffer.from(bytes);
+  // ── 5. Footer ────────────────────────────────────────────────────────────
+  drawFooters(doc, fonts.value, input.batchId);
+
+  return Buffer.from(await doc.save());
 }

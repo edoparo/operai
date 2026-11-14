@@ -116,7 +116,7 @@ export function toBatchPdfEmployees(
       email: reqs[0]!.ownerEmail,
       name: reqs[0]!.ownerName,
     },
-    requests: reqs.map((r) => ({ id: r.id, lines: r.lines })),
+    requests: reqs.map((r) => ({ id: r.id, decidedAt: r.decidedAt, lines: r.lines })),
   }));
 }
 

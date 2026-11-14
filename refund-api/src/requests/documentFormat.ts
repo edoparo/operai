@@ -34,8 +34,8 @@ const suffixFor = (currency: string): string => CURRENCY_SUFFIX[currency] ?? cur
  * Both forms are defensible in isolation — Swiss practice prefixes, Italian
  * suffixes — so the tie-break is that refund-ui already suffixes everywhere,
  * and a reader comparing the PDF against the screen it came from should not
- * have to notice a difference. `batches/pdf.ts` still prefixes; see this
- * module's doc in the changeset for that remaining gap.
+ * have to notice a difference. The compiled batch PDF (`batches/pdf.ts`)
+ * uses this formatter too since 2026-11-14, so every refund document agrees.
  */
 export const formatMoney = (cents: number, currency: string): string => {
   if (!Number.isInteger(cents)) {
