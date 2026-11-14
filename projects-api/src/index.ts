@@ -10,10 +10,13 @@ import { scopeRouter } from "./scope/scope.routes";
 import { projectsRouter } from "./projects/projects.routes";
 import { transitionsRouter } from "./projects/transitions.routes";
 import { teamRouter } from "./projects/team.routes";
-import { contractsRouter } from "./contracts/contracts.routes";
-import { bexioRouter } from "./contracts/bexio.routes";
+import { termsRouter } from "./terms/terms.routes";
+import { bexioRouter } from "./purchase-orders/bexio.routes";
 import { companiesRouter } from "./companies/companies.routes";
 import { activityHostRouter } from "./activity-host/activity-host.routes";
+import { systemRouter } from "./system/system.routes";
+import { queueRouter } from "./queue/queue.routes";
+import { takeRouter } from "./queue/take.routes";
 import { requestLogger } from "./lib/logger";
 import { handleProblemError, problem, validationHook } from "./lib/problem";
 import { setupOpenAPI } from "./openapi/registry";
@@ -37,11 +40,11 @@ app.use(
 );
 
 // Log method / PATH ONLY (no query string) / status / duration — NEVER log
-// bodies (contract terms, who is on which project — see src/lib/logger.ts).
+// bodies (terms, who is on which project — see src/lib/logger.ts).
 // The query string carries search terms, which is why it is dropped too.
 app.use("*", requestLogger());
 
-// A global cap on request bodies: the largest legitimate body is a contract with its
+// A global cap on request bodies: the largest legitimate body is a take with its
 // terms (a handful of positions), so 64 KiB is generous. Refused as a 413 Problem
 // before anything is parsed.
 export const MAX_REQUEST_BODY_BYTES = 64 * 1024;
@@ -54,17 +57,20 @@ app.use(
 );
 
 // ─── Routes ──────────────────────────────────────────────────────────────────
-// Every area router is mounted here, once. T5–T9 fill the stubs in; none edits this file.
+// Every area router is mounted here, once. specs/20261103-projects-handoff T6–T8 fill the queue and take stubs in; none edits this file.
 
 app.route("/", healthRouter);
 app.route("/", scopeRouter);
 app.route("/", projectsRouter);
 app.route("/", transitionsRouter);
 app.route("/", teamRouter);
-app.route("/", contractsRouter);
+app.route("/", termsRouter);
 app.route("/", bexioRouter);
 app.route("/", companiesRouter);
 app.route("/", activityHostRouter);
+app.route("/", systemRouter);
+app.route("/", queueRouter);
+app.route("/", takeRouter);
 
 // ─── OpenAPI + Scalar UI ─────────────────────────────────────────────────────
 

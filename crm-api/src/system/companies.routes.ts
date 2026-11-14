@@ -24,7 +24,7 @@ import { createSystemAuthMiddleware, type SystemAuthVariables } from "../auth/sy
 
 /**
  * The one service principal this route serves. Holding `crm.companies.read` is not enough: a
- * service credential opens only the routes that list its `sub` (ADR 20261104-meeting-host-contract-resolve-and-notices/0073 posture).
+ * service credential opens only the routes that list its `sub` (ADR 20261103-projects-api-reads-crm-companies-with-scoped-service-credential/0073 posture).
  */
 export const COMPANIES_ALLOWED_SUBS = ["system:projects-api"] as const;
 
@@ -32,7 +32,7 @@ export const MAX_IDS = 100;
 export const MAX_LIMIT = 50;
 export const DEFAULT_LIMIT = 20;
 
-const IdsSchema = z
+export const IdsSchema = z
   .string()
   .max(MAX_IDS * 65)
   .transform((value) => value.split(",").map((id) => id.trim()))

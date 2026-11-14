@@ -9,7 +9,7 @@
  *
  * The module's one entity-scoped capability is `project:manage`: a project has one
  * entity, so scope is exact. Every access holder can READ every project and
- * contract (D13), so a write outside the scope is a 403 `out_of_scope`, not a 404
+ * purchase order (D13), so a write outside the scope is a 403 `out_of_scope`, not a 404
  * (ADR 20260807-denial-taxonomy-shared-records-403-vs-404's "relationship exists" branch).
  */
 

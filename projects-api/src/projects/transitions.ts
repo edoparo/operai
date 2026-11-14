@@ -1,9 +1,9 @@
 /**
- * The state machine of a project and the one allowed type change (specs/20261103-projects AC-1.2, AC-1.3,
- * A10, D7, D24). Pure: no database, no request.
+ * The state machine of a project (specs/20261103-projects AC-1.2, AC-1.3, A10). Pure: no database, no request.
+ * Its type never changes (specs/20261103-projects-handoff A30, D40), so there is no type change here.
  */
 
-import type { ProjectState, ProjectType } from "./projects.schemas";
+import type { ProjectState } from "./projects.schemas";
 
 /** The two columns a transition reads and writes. `stateBeforeHold` is set iff `state` is `on_hold` (a CHECK). */
 export interface StateSnapshot {
@@ -32,6 +32,3 @@ export function applyTransition(current: StateSnapshot, to: ProjectState): State
   if (!MOVES[current.state].includes(to)) return null;
   return { state: to, stateBeforeHold: to === "on_hold" ? current.state : null };
 }
-
-/** A project's type is fixed at creation; the one exception is an internal tool that starts being sold (D7, D24). */
-export const canChangeType = (from: ProjectType, to: ProjectType): boolean => from === "internal" && to === "saas";

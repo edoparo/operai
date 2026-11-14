@@ -51,7 +51,8 @@ const renderDialog = (
     task,
     team = [BOB],
     currentUserId = 'u-ada',
-  }: { task?: ProjectTask; team?: (typeof BOB)[]; currentUserId?: string } = {},
+    awaitingManager = false,
+  }: { task?: ProjectTask; team?: (typeof BOB)[]; currentUserId?: string; awaitingManager?: boolean } = {},
 ) => {
   apiFetch.mockImplementation(
     fakeApi({
@@ -61,7 +62,7 @@ const renderDialog = (
       ...routes,
     }),
   )
-  const project = projectDetail({ team })
+  const project = projectDetail({ team, ...(awaitingManager ? { projectManager: null } : {}) })
   render(
     <TaskFormDialog
       project={project}
@@ -151,6 +152,12 @@ describe('adding a task (AC-3.1)', () => {
       'Bob Builder',
       'Cara Coder',
     ])
+  })
+
+  it('offers only the team while a project from a deal awaits its project manager (specs/20261103-projects-handoff D42)', () => {
+    renderDialog({}, { team: [BOB, CARA], awaitingManager: true })
+    const select = screen.getByLabelText('Assignee') as HTMLSelectElement
+    expect([...select.options].map((option) => option.textContent)).toEqual(['Me (the author)', 'Bob Builder', 'Cara Coder'])
   })
 
   it('defaults the assignee to the empty option when the signed-in user is neither manager nor member, and omits it', async () => {

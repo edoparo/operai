@@ -274,12 +274,12 @@ describe("GET /authz/users/directory (T5, specs/20261006-hardware-inventory; ADR
     expect(((await res.json()) as DirectoryBody).users.some((u) => u.id === manager.userId)).toBe(true);
   });
 
-  test("projects:access alone, or contract:bexio, does NOT open the directory", async () => {
+  test("projects:access alone, or purchase-order:bexio, does NOT open the directory", async () => {
     const reader = await mintUser("projects-reader", { grants: [{ resource: "projects", action: "access" }] });
     const accountant = await mintUser("projects-bexio", {
       grants: [
         { resource: "projects", action: "access" },
-        { resource: "contract", action: "bexio" },
+        { resource: "purchase-order", action: "bexio" },
       ],
     });
     expect((await callDirectory(reader.token)).status).toBe(403);

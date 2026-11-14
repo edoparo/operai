@@ -89,7 +89,11 @@
     "0087-push-liveness-answer-reused-30-seconds": "20261112-push-liveness-answer-reused-30-seconds",
     "0088-railway-infrastructure-as-code": "20261113-railway-infrastructure-as-code",
     "0089-task-description-files-in-activities-api-bucket": "20261113-task-description-files-in-activities-api-bucket",
-    "0090-personal-meeting-folders": "20261113-personal-meeting-folders"
+    "0090-personal-meeting-folders": "20261113-personal-meeting-folders",
+    "0091-projects-handoff-live-reads-between-crm-and-projects-over-service-credentials": "20261104-projects-handoff-live-reads-between-crm-and-projects-over-service-credentials",
+    "0092-estimai-api-first-system-route-estimate-man-days-for-a-service-credential": "20261104-estimai-api-first-system-route-estimate-man-days-for-a-service-credential",
+    "0093-terms-and-purchase-order-two-optional-records-of-a-project-contract-retired": "20261105-terms-and-purchase-order-two-optional-records-of-a-project-contract-retired",
+    "0094-handoff-take-and-purchase-order-receive-capabilities-auth-holders-listing-amends-0047": "20261105-handoff-take-and-purchase-order-receive-capabilities-auth-holders-listing-amends-0047"
   },
   "features": {
     "001-estimate-persistence": "20260606-estimate-persistence",

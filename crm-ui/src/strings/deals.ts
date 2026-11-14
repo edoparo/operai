@@ -85,6 +85,14 @@ const en = {
     loading: 'Loading meetings…',
     unavailable: 'Meetings are unavailable. Reload the page to try again.',
   },
+  /** The deal page's Delivery card: the project that carries the deal, read from projects-api (specs/20261103-projects-handoff AC-3.4). */
+  delivery: {
+    title: 'Delivery',
+    project: 'Project',
+    bexioOrderId: 'Bexio order id',
+    unavailable:
+      'The delivery side is unavailable right now, so the project for this deal cannot be shown. Try again later.',
+  },
   form: {
     createTitle: 'New deal',
     editTitle: 'Edit deal',
@@ -199,6 +207,13 @@ const it: typeof en = {
     heading: 'Riunioni',
     loading: 'Caricamento delle riunioni…',
     unavailable: 'Le riunioni non sono disponibili. Ricarica la pagina per riprovare.',
+  },
+  delivery: {
+    title: 'Consegna',
+    project: 'Progetto',
+    bexioOrderId: 'ID ordine Bexio',
+    unavailable:
+      'La parte di consegna non è disponibile al momento, quindi il progetto di questa opportunità non può essere mostrato. Riprova più tardi.',
   },
   form: {
     createTitle: 'Nuova opportunità',

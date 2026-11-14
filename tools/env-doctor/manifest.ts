@@ -92,15 +92,15 @@ export const ORIGINS: Record<string, Partial<Record<ServiceName, string | null>>
 /** Vars that MUST hold a byte-for-byte identical value across the listed services. */
 export const SHARED_VARS: ReadonlyArray<{ name: string; services: ServiceName[] }> = [
   { name: "AUTH_AUDIENCE", services: ["auth", "estimai-api", "notify-api", "refund-api", "inventory-api", "crm-api", "meetings-api", "projects-api", "activities-api"] },
-  // The `aud` auth stamps on scoped service JWTs and notify-api verifies (ADR 20261006-scoped-service-jwt-fourth-notify-caller).
-  // specs/20261101-crm-sales-flow AC-3.3: crm-api verifies estimai-api's notices against it too (ADR 20261105-estimai-closes-the-estimate-crm-follows).
-  // crm-api verifies them too since specs/20261104-meetings: meetings-api posts host notices to it as
-  // `system:meetings-api` with scope `host-notices.send` (ADR 20261104-meeting-host-contract-resolve-and-notices), and projects-api reads
-  // `GET /system/companies` as `system:projects-api` (specs/20261103-projects).
+  // The `aud` auth stamps on scoped service JWTs and the resource servers that take them verify:
+  // notify-api (ADR 20261006-scoped-service-jwt-fourth-notify-caller); crm-api for estimai-api's estimate notices (specs/20261101-crm-sales-flow AC-3.3, ADR 20261105-estimai-closes-the-estimate-crm-follows),
+  // meetings-api's host notices (`system:meetings-api`, scope `host-notices.send`, ADR 20261104-meeting-host-contract-resolve-and-notices) and
+  // `GET /system/companies` (specs/20261103-projects); since specs/20261103-projects-handoff, estimai-api
+  // (`/system/estimates/{id}/summary`, ADR 20261104-estimai-api-first-system-route-estimate-man-days-for-a-service-credential) and projects-api (`/system/purchase-orders`, ADR 20261104-projects-handoff-live-reads-between-crm-and-projects-over-service-credentials).
   // specs/20261108-estimate-list-oversight: estimai-api verifies crm-api's deal-link notices against it (ADR 20261108-crm-pushes-deal-links-to-estimai).
   // specs/20261110-activities (ADR 20261110-caller-chosen-ids-replace-cross-service-transactions): activities-api verifies crm-api's /system/v1/* calls (scope `activities.write`,
   // sub `system:crm-api`) against it.
-  { name: "SERVICE_AUDIENCE", services: ["auth", "notify-api", "crm-api", "estimai-api", "activities-api"] },
+  { name: "SERVICE_AUDIENCE", services: ["auth", "notify-api", "crm-api", "estimai-api", "projects-api", "activities-api"] },
 ];
 
 /**
@@ -118,6 +118,12 @@ export const DISTINCT_VARS: ReadonlyArray<{ a: string; b: string; services: Serv
     b: "AUTH_AUDIENCE",
     services: ["auth", "notify-api", "crm-api", "estimai-api", "activities-api"],
     why: "a service token would be accepted on user routes and a user JWT on /system/notifications, /system/estimate-notices, /system/meeting-host/v1/notices, /system/deal-link-notices, /system/companies or /system/v1/* (ADR 20261006-scoped-service-jwt-fourth-notify-caller)",
+  },
+  {
+    a: "SERVICE_AUDIENCE",
+    b: "AUTH_AUDIENCE",
+    services: ["estimai-api", "projects-api"],
+    why: "a service token would be accepted on user routes and a user JWT on /system/estimates and /system/purchase-orders (ADR 20261006-scoped-service-jwt-fourth-notify-caller, specs/20261103-projects-handoff)",
   },
 ];
 
@@ -190,20 +196,31 @@ export const SERVICE_CLIENT_LINKS: ReadonlyArray<{
   // specs/20261101-crm-sales-flow AC-3.3: estimai-api also tells crm-api an estimate was closed or reopened (ADR 20261105-estimai-closes-the-estimate-crm-follows).
   { ...LINK_BASE, caller: "estimai-api", requiredScopes: ["notifications.push", "estimate-notices.send"] },
   { ...LINK_BASE, caller: "refund-api", requiredScopes: ["notifications.push", "emails.send"] },
-  // specs/20261101-crm-notifications: crm-api pushes CRM notifications, some with an email notice (both scopes, D-3);
-  // notify-api looks up the notice's address in auth (ADR 20261101-notify-api-resolves-email-notice-address-from-auth). Both optional until provisioned.
+  // One service client per caller, whatever it calls. crm-api's is the notifier's (specs/20261101-crm-notifications: CRM
+  // notifications, some with an email notice, both scopes, D-3; notify-api looks up the notice's
+  // address in auth, ADR 20261101-notify-api-resolves-email-notice-address-from-auth) and, since specs/20261103-projects-handoff, also reads projects-api for a deal's purchase
+  // order and Bexio order id (`projects.purchase-orders.read`, ADR 20261104-projects-handoff-live-reads-between-crm-and-projects-over-service-credentials). Optional locally, required in
+  // production (PRODUCTION_REQUIRED_KEYS); once the client is set the entry in auth holds all its
+  // scopes, whichever URL is set.
   // specs/20261108-estimate-list-oversight: crm-api also tells estimai-api which deal an estimate belongs to (ADR 20261108-crm-pushes-deal-links-to-estimai).
   // specs/20261110-activities (ADR 20261110-caller-chosen-ids-replace-cross-service-transactions): crm-api also writes to activities-api (the migration copy, the host's deal
   // delete/erase/transfer calls) as `system:crm-api`.
-  { ...LINK_BASE, caller: "crm-api", requiredScopes: ["notifications.push", "emails.send", "deal-link-notices.send", "activities.write"] },
+  { ...LINK_BASE, caller: "crm-api", requiredScopes: ["notifications.push", "emails.send", "deal-link-notices.send", "activities.write", "projects.purchase-orders.read"] },
   { ...LINK_BASE, caller: "notify-api", requiredScopes: ["users.contact"] },
   // specs/20261104-meetings: meetings-api pushes meeting notifications (notify-api) and posts host notices to
   // crm-api (ADR 20261104-meeting-host-contract-resolve-and-notices). No emails.send: an email notice, if ever wanted, is a deliberate widening.
   { ...LINK_BASE, caller: "meetings-api", requiredScopes: ["notifications.push", "host-notices.send"] },
-  // specs/20261103-projects: projects-api reads CRM company names from crm-api as itself (ADR 20261103-projects-api-reads-crm-companies-with-scoped-service-credential). It sends no
-  // notifications, so it holds exactly this one scope. The group is optional locally and required in
-  // production (PRODUCTION_REQUIRED_KEYS).
-  { ...LINK_BASE, caller: "projects-api", requiredScopes: ["crm.companies.read"] },
+  // specs/20261103-projects: projects-api reads CRM company names from crm-api as itself (ADR 20261103-projects-api-reads-crm-companies-with-scoped-service-credential); specs/20261103-projects-handoff adds
+  // the won deals of the to-start queue (`crm.deals.read`, ADR 20261104-projects-handoff-live-reads-between-crm-and-projects-over-service-credentials), the contacts of a deal's company
+  // for the referent (`crm.contacts.read`, held by this client only), a deal's estimate man-days from
+  // estimai-api (`estimai.estimates.read`, ADR 20261104-estimai-api-first-system-route-estimate-man-days-for-a-service-credential) and, after a take, a push to the PO's ops-manager
+  // through notify-api (`notifications.push`, T22/T25). Exactly these five. The group is optional
+  // locally and required in production (PRODUCTION_REQUIRED_KEYS).
+  {
+    ...LINK_BASE,
+    caller: "projects-api",
+    requiredScopes: ["crm.companies.read", "crm.deals.read", "crm.contacts.read", "estimai.estimates.read", "notifications.push"],
+  },
   // specs/20261110-activities: activities-api pushes task notifications to notify-api, some with an email notice
   // (AC-6.1/6.3, ADR 20261101-notify-api-resolves-email-notice-address-from-auth), so BOTH scopes: without emails.send notify-api refuses every email notice
   // and only the in-app row is written. It calls the hosts as the caller, never as itself.
@@ -257,7 +274,8 @@ export const INTERNAL_URL_VARS: ReadonlyArray<{
   { name: "AUTH_JWKS_URL", services: ["estimai-api", "notify-api", "refund-api", "inventory-api", "crm-api", "meetings-api", "projects-api", "activities-api"], target: "auth" },
   // specs/20261101-crm-notifications: notify-api resolves an email notice's address through auth (ADR 20261101-notify-api-resolves-email-notice-address-from-auth).
   { name: "AUTH_BASE_URL", services: ["refund-api", "inventory-api", "crm-api", "notify-api", "meetings-api", "projects-api", "activities-api"], target: "auth" },
-  { name: "NOTIFY_INTERNAL_URL", services: ["auth", "refund-api", "inventory-api", "crm-api", "meetings-api", "activities-api"], target: "notify-api" },
+  // specs/20261103-projects-handoff: projects-api notifies a PO's ops-manager after a take (T25); the push is a no-op without it.
+  { name: "NOTIFY_INTERNAL_URL", services: ["auth", "refund-api", "inventory-api", "crm-api", "meetings-api", "projects-api", "activities-api"], target: "notify-api" },
   // specs/20261101-crm-sales-flow: crm-api calls estimai-api with the caller's JWT (estimate requests, offers).
   { name: "ESTIMAI_API_URL", services: ["crm-api"], target: "estimai-api" },
   // specs/20261101-crm-sales-flow AC-3.3: estimai-api tells crm-api an estimate was closed or reopened (ADR 20261105-estimai-closes-the-estimate-crm-follows).
@@ -271,6 +289,12 @@ export const INTERNAL_URL_VARS: ReadonlyArray<{
   { name: "PROJECTS_API_URL", services: ["activities-api"], target: "projects-api" },
   // specs/20261110-activities (ADR 20261110-caller-chosen-ids-replace-cross-service-transactions): crm-api calls activities-api's user routes (as the caller) and /system/v1/* (as itself).
   { name: "ACTIVITIES_API_URL", services: ["crm-api"], target: "activities-api" },
+  // specs/20261103-projects-handoff: projects-api reads a deal's estimate man-days from estimai-api with the same service
+  // credential (ADR 20261104-estimai-api-first-system-route-estimate-man-days-for-a-service-credential). Its service-token provider is built only when CRM_INTERNAL_URL is set, so
+  // the two go together.
+  { name: "ESTIMAI_INTERNAL_URL", services: ["projects-api"], target: "estimai-api" },
+  // specs/20261103-projects-handoff: crm-api reads a deal's project and Bexio order id from projects-api as itself (ADR 20261104-projects-handoff-live-reads-between-crm-and-projects-over-service-credentials).
+  { name: "PROJECTS_INTERNAL_URL", services: ["crm-api"], target: "projects-api" },
 ];
 
 /** Browser-facing / identity-claim URLs — must stay PUBLIC (`https://`, not localhost/internal in prod). */
@@ -354,6 +378,9 @@ export const REQUIRED_KEYS: Partial<Record<ServiceName, string[]>> = {
   // specs/20261101-crm-notifications adds NOTIFY_INTERNAL_URL + SERVICE_CLIENT_*, optional the same way (019 D-7, T11).
   // specs/20261101-crm-sales-flow AC-3.3: SERVICE_AUDIENCE is optional in env.ts (the notices route then refuses
   // everything) but required by the contract, like CRM_INTERNAL_URL on estimai-api (ADR 20261105-estimai-closes-the-estimate-crm-follows).
+  // specs/20261103-projects-handoff adds PROJECTS_INTERNAL_URL to the same service client: env.ts requires the client pair
+  // (SERVICE_CLIENT_ID + SERVICE_CLIENT_SECRET) with EITHER URL and never alone, so the group is not
+  // notify-only; production lists the pair and PROJECTS_INTERNAL_URL in PRODUCTION_REQUIRED_KEYS.
   "crm-api": [
     "DATABASE_URL", "ALLOWED_ORIGINS", "AUTH_ISSUER", "AUTH_JWKS_URL", "AUTH_BASE_URL", "AUTH_AUDIENCE", "PORT",
     // specs/20261104-meetings: crm-api verifies the scoped service JWT meetings-api posts host notices with (ADR 20261104-meeting-host-contract-resolve-and-notices).
@@ -403,12 +430,23 @@ export const REQUIRED_KEYS: Partial<Record<ServiceName, string[]>> = {
 export const PRODUCTION_REQUIRED_KEYS: Partial<Record<ServiceName, string[]>> = {
   // crm-api's SERVICE_AUDIENCE is in REQUIRED_KEYS since specs/20261101-crm-sales-flow AC-3.3 (ADR 20261105-estimai-closes-the-estimate-crm-follows); specs/20261103-projects's
   // `GET /system/companies` relies on the same key (ADR 20261103-projects-api-reads-crm-companies-with-scoped-service-credential), so no production-only entry is needed.
+  // specs/20261103-projects-handoff: the deal page reads its project and Bexio order id from projects-api
+  // (PROJECTS_INTERNAL_URL; without it the page says the delivery side is unavailable), which needs the
+  // service client pair — env.ts requires the pair with this URL or with NOTIFY_INTERNAL_URL.
+  // specs/20261110-activities: ACTIVITIES_API_URL is where crm-api reaches activities-api. Without it the CRM's
+  // activity, task and blocker routes have no store.
+  "crm-api": ["PROJECTS_INTERNAL_URL", "SERVICE_CLIENT_ID", "SERVICE_CLIENT_SECRET", "ACTIVITIES_API_URL"],
+  // specs/20261103-projects-handoff: every /system/* route answers 401 until the service knows its audience (ADR 20261104-estimai-api-first-system-route-estimate-man-days-for-a-service-credential); equal
+  // across auth, notify-api, crm-api, estimai-api and projects-api, and different from AUTH_AUDIENCE.
+  "estimai-api": ["SERVICE_AUDIENCE"],
   // specs/20261103-projects: projects-api's all-or-none CRM group — without it a company name is `null` and the
-  // company picker answers 503 `crm_unavailable`.
-  "projects-api": ["CRM_INTERNAL_URL", "SERVICE_CLIENT_ID", "SERVICE_CLIENT_SECRET"],
-  // specs/20261110-activities: where crm-api reaches activities-api. Without it the CRM's activity, task and blocker
-  // routes have no store.
-  "crm-api": ["ACTIVITIES_API_URL"],
+  // company picker answers 503 `crm_unavailable`. specs/20261103-projects-handoff adds SERVICE_AUDIENCE (its own
+  // `/system/purchase-orders`, ADR 20261104-projects-handoff-live-reads-between-crm-and-projects-over-service-credentials), ESTIMAI_INTERNAL_URL (without it taking a deal that has an
+  // estimate answers 503 `estimai_unconfigured`; it goes with CRM_INTERNAL_URL, whose presence builds
+  // the service-token provider both calls use) and NOTIFY_INTERNAL_URL (without it a take still
+  // succeeds but the PO's ops-manager is never notified, AC-4.3 / AC-4.4 — optional in env.ts, so
+  // required here only for production).
+  "projects-api": ["CRM_INTERNAL_URL", "ESTIMAI_INTERNAL_URL", "NOTIFY_INTERNAL_URL", "SERVICE_CLIENT_ID", "SERVICE_CLIENT_SECRET", "SERVICE_AUDIENCE"],
 };
 
 /**

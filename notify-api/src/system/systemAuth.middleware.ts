@@ -55,6 +55,8 @@ const SERVICE_ORIGIN_BINDINGS: Readonly<Record<string, readonly string[]>> = {
   "system:activities-api": ["crm", "projects"],
   // specs/20261105-signup-gate (ADR 20261105-auth-pushes-admin-notifications): auth raises access-request notices in the Admin tool.
   "system:auth": ["admin"],
+  // specs/20261103-projects-handoff AC-4.3: the ops-manager's notification after a handoff take.
+  "system:projects-api": ["projects"],
 };
 
 export type SystemAuthVariables = {

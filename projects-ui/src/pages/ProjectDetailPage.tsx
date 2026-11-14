@@ -1,14 +1,15 @@
-import { useCallback, useId, useState } from 'react'
+import { useCallback, useEffect, useId, useRef, useState } from 'react'
 import { Link, useParams } from '@tanstack/react-router'
 import { Banner, Button, Card, FactList, Icon, PageHeader, StatePanel, formatDate } from '@operai/ui'
 import { EntityBadge, ProjectStateBadge, ProjectTypeBadge } from '../components/Badges'
-import ContractCard from '../components/ContractCard'
-import ContractFormDialog from '../components/ContractFormDialog'
+import PickProjectManagerDialog from '../components/PickProjectManagerDialog'
 import ProjectEditDialog from '../components/ProjectEditDialog'
 import { LoadFailure, Loading, Saved, StaleWriteBanner } from '../components/LoadState'
+import PurchaseOrderCard from '../components/PurchaseOrderCard'
 import StateActions from '../components/StateActions'
 import TasksCard from '../components/TasksCard'
 import TeamCard from '../components/TeamCard'
+import TermsCard from '../components/TermsCard'
 import { useCurrentUserId } from '../hooks/useCurrentUserId'
 import { useResource } from '../hooks/useResource'
 import { useScope } from '../hooks/useScope'
@@ -24,83 +25,60 @@ const BackLink = () => (
   </Link>
 )
 
-/** What the company row says: the client, how many clients a SaaS has, or "Internal" (AC-1.4). */
+/** What the company row says: the client (every client type, `saas` included, has one — D40) or "Internal". */
 function companyFact(project: Project): { term: string; value: string } {
   const t = strings.project.details
   if (project.type === 'internal') return { term: t.company, value: t.internal }
-  if (project.type === 'saas') {
-    const clients = new Set(project.contracts.map((contract) => contract.company.id))
-    return { term: t.clients, value: t.clientCount(clients.size) }
-  }
   return { term: t.company, value: project.company?.name ?? t.companyUnavailable }
 }
 
 /**
- * The contracts of a project (AC-1.5, AC-2.2): one card each, and "Add contract"
- * for a holder of manage projects. An internal project has none; a closed or
- * cancelled one takes no new contract (its existing ones stay editable, so the
- * cards keep their controls).
+ * AwaitingNotice — a project made from a deal has no project manager until its purchase order's ops-manager
+ * picks one (D42, AC-4.6): the notice names them and links to the purchase order card, for everyone who can
+ * read the project. "Pick project manager" is for that ops-manager (the signed-in user is the one the PO was
+ * assigned to) and for an admin who oversees every purchase order (`scope.oversees`, D47) — UX only: the
+ * server refuses anyone else (403 `not_ops_manager`).
  */
-function ContractsCard({
-  project,
-  canManage,
-  onAdd,
-  onChanged,
-  onStale,
-}: {
-  project: Project
-  canManage: boolean
-  onAdd: () => void
-  onChanged: (message: string) => void
-  onStale: () => void
-}) {
-  const t = strings.contracts
-  const open = project.state !== 'closed' && project.state !== 'cancelled'
-  const canAdd = canManage && project.type !== 'internal' && open
+function AwaitingNotice({ project, canPick, onPick }: { project: Project; canPick: boolean; onPick: () => void }) {
+  const t = strings.project.awaiting
+  const po = project.purchaseOrder
+  if (po === null) return null
   return (
-    <Card
+    <Banner
+      tone="info"
       title={t.title}
-      data-testid="project-contracts"
-      action={
-        canAdd && (
-          <Button size="sm" aria-haspopup="dialog" onClick={onAdd} data-testid="project-contract-add">
-            {t.add}
+      data-testid="project-awaiting"
+      actions={
+        canPick && (
+          <Button
+            size="sm"
+            variant="primary"
+            aria-haspopup="dialog"
+            onClick={onPick}
+            data-testid="project-pick-manager"
+          >
+            {t.pick}
           </Button>
         )
       }
     >
-      {project.type === 'internal' ? (
-        <p className="text-sm text-soft">{t.internal}</p>
-      ) : (
-        <>
-          {canManage && !open && <p className="text-sm text-soft">{t.notOpen}</p>}
-          {project.contracts.length === 0 ? (
-            <p className="text-sm text-soft">{t.empty}</p>
-          ) : (
-            <div className="flex flex-col divide-y divide-rule">
-              {project.contracts.map((contract) => (
-                <ContractCard
-                  key={contract.id}
-                  project={project}
-                  contract={contract}
-                  canManage={canManage}
-                  onChanged={onChanged}
-                  onStale={onStale}
-                />
-              ))}
-            </div>
-          )}
-        </>
-      )}
-    </Card>
+      {t.body(personName(po.opsManager))}{' '}
+      <Link to="/$id" params={{ id: project.id }} hash="purchase-order" className="link">
+        {t.seePurchaseOrder}
+      </Link>
+    </Banner>
   )
 }
 
 /**
- * ProjectDetailPage — one project (US-1, AC-1.2 – AC-1.7): its details with the
- * derived dates, the team, the tasks and the contracts. A holder of manage projects for the
- * project's entity gets the state actions, the type change, and the edit
- * dialogs; anyone else reads (the server's 403 is the gate, ADR 20260716-refund-api-authorization-enforcing-resource-server).
+ * ProjectDetailPage — one project (specs/20261103-projects US-1; specs/20261103-projects-handoff US-2, US-3, US-4, US-5): its details with the dates
+ * from its terms, the team, the tasks (specs/20261110-activities), and — by what the project has — a **Purchase order** card (a project made from a
+ * won deal: the deal, the "no longer won" notice, the estimate, the Bexio order id, its terms) or a **Terms**
+ * card (a hand-made one, which never has a purchase order, AC-5.2). A holder of manage projects for the
+ * project's entity gets the state actions and the edit dialogs; anyone else reads (the server's 403 is
+ * the gate, ADR 20260716-refund-api-authorization-enforcing-resource-server). The type of a project never changes (A30), so there is no control for it. A project
+ * awaiting its project manager carries the notice of `AwaitingNotice`, and no control on this page clears a
+ * project manager (AC-4.9).
  */
 export default function ProjectDetailPage() {
   const t = strings.project
@@ -109,12 +87,20 @@ export default function ProjectDetailPage() {
   const currentUserId = useCurrentUserId()
   const load = useCallback((signal: AbortSignal) => getProject(id, { signal }), [id])
   const resource = useResource(load)
-  const { canManageEntity } = useScope()
+  const { canManageEntity, oversees } = useScope()
   const [saved, setSaved] = useState<string | null>(null)
   const [stale, setStale] = useState(false)
   const [actionError, setActionError] = useState<string | null>(null)
   const [editing, setEditing] = useState(false)
-  const [addingContract, setAddingContract] = useState(false)
+  const [picking, setPicking] = useState(false)
+  // The button that opens the pick dialog goes with the notice once a manager is picked, so the dialog has
+  // nowhere to give focus back to: the page takes it to its heading (QE A1). A counter, not a flag, so each
+  // pick is a new request and the effect has no state to reset.
+  const headingRef = useRef<HTMLHeadingElement>(null)
+  const [headingFocusRequests, setHeadingFocusRequests] = useState(0)
+  useEffect(() => {
+    if (headingFocusRequests > 0) headingRef.current?.focus()
+  }, [headingFocusRequests])
 
   if (resource.status === 'loading') return <Loading label={t.loading} />
   if (resource.status === 'error') {
@@ -138,14 +124,17 @@ export default function ProjectDetailPage() {
     setStale(false)
     setActionError(null)
   }
-  // A contract write changes what the project derives from its contracts (dates, the list): read it again.
-  const contractChanged = (message: string) => {
+  // A write of the terms or the purchase order changes what the project derives from them (dates, versions): read it again.
+  const recordChanged = (message: string) => {
     setSaved(message)
     setStale(false)
     setActionError(null)
     getProject(id).then(resource.replace, () => resource.retry())
   }
   const company = companyFact(project)
+  // The deal behind this project, when it is no longer won in the CRM: read live, nothing is changed by it (AC-2.3).
+  const po = project.purchaseOrder
+  const reopenedDeal = po?.deal.won === false ? (po.deal.title ?? strings.purchaseOrder.card.dealUnavailable) : null
   const dateFacts = [
     {
       id: 'start',
@@ -157,7 +146,7 @@ export default function ProjectDetailPage() {
       term: t.details.endDate,
       value: project.endDate
         ? formatDate(project.endDate)
-        : project.contracts.length > 0
+        : project.terms !== null
           ? t.details.openEnded
           : strings.common.none,
     },
@@ -168,6 +157,8 @@ export default function ProjectDetailPage() {
       <PageHeader
         title={project.name}
         titleId={titleId}
+        headingRef={headingRef}
+        focusableHeading
         status={<ProjectStateBadge state={project.state} />}
         back={<BackLink />}
         actions={
@@ -203,6 +194,18 @@ export default function ProjectDetailPage() {
         )}
         {saved && <Saved message={saved} onDismiss={() => setSaved(null)} />}
         {!canManage && <Banner tone="info">{t.readOnly}</Banner>}
+        {project.awaitingProjectManager && (
+          <AwaitingNotice
+            project={project}
+            canPick={po !== null && (currentUserId === po.opsManager.id || oversees)}
+            onPick={() => setPicking(true)}
+          />
+        )}
+        {reopenedDeal !== null && (
+          <Banner tone="warning" title={t.dealNotWon.title} data-testid="project-deal-not-won">
+            {t.dealNotWon.body(reopenedDeal)}
+          </Banner>
+        )}
         <Card
           title={t.details.title}
           action={
@@ -219,7 +222,13 @@ export default function ProjectDetailPage() {
               { id: 'type', term: t.details.type, value: <ProjectTypeBadge type={project.type} /> },
               { id: 'entity', term: t.details.entity, value: <EntityBadge entity={project.entity} /> },
               { id: 'company', term: company.term, value: company.value },
-              { id: 'pm', term: t.details.projectManager, value: personName(project.projectManager, currentUserId) },
+              {
+                id: 'pm',
+                term: t.details.projectManager,
+                value: project.awaitingProjectManager
+                  ? t.details.awaitingProjectManager
+                  : personName(project.projectManager, currentUserId),
+              },
               ...dateFacts,
             ]}
           />
@@ -232,24 +241,28 @@ export default function ProjectDetailPage() {
           onStale={() => setStale(true)}
         />
         <TasksCard project={project} canManage={canManage} currentUserId={currentUserId} />
-        <ContractsCard
-          project={project}
-          canManage={canManage}
-          onAdd={() => setAddingContract(true)}
-          onChanged={contractChanged}
-          onStale={() => setStale(true)}
-        />
+        {project.purchaseOrder !== null ? (
+          <PurchaseOrderCard
+            project={project}
+            canManage={canManage}
+            onChanged={recordChanged}
+            onStale={() => setStale(true)}
+          />
+        ) : (
+          <TermsCard project={project} canManage={canManage} onChanged={recordChanged} onStale={() => setStale(true)} />
+        )}
       </div>
-      {addingContract && (
-        <ContractFormDialog
+      {picking && (
+        <PickProjectManagerDialog
           project={project}
-          onCancel={() => setAddingContract(false)}
-          onSaved={() => {
-            setAddingContract(false)
-            contractChanged(strings.contracts.saved.created)
+          onCancel={() => setPicking(false)}
+          onSaved={(next) => {
+            setPicking(false)
+            changed(next, t.saved.projectManager)
+            setHeadingFocusRequests((count) => count + 1)
           }}
           onStale={() => {
-            setAddingContract(false)
+            setPicking(false)
             setStale(true)
           }}
         />

@@ -4,34 +4,34 @@ import { useScope } from '../hooks/useScope'
 import { isStaleWrite } from '../lib/api'
 import { errorMessage, fieldErrorOf } from '../lib/errors'
 import { setBexioOrderId } from '../lib/projectsApi'
-import type { Contract } from '../lib/types'
+import type { PurchaseOrder } from '../lib/types'
 import { maxLength, optional } from '../lib/validate'
 import { strings } from '../strings'
 
 const MAX_LENGTH = 64
 
 /**
- * BexioOrderField — a contract's Bexio order id (AC-3.1 – AC-3.3). Only a holder
+ * BexioOrderField — a purchase order's Bexio order id (specs/20261103-projects AC-3.1 – AC-3.3). Only a holder
  * of the Bexio-order capability (`GET /scope`'s `bexio`) gets an input; everyone
  * else reads the value, with no control (the server refuses them too). The id is
  * free text up to 64 characters, trimmed; an empty field clears it. Saving sends
- * the contract's `version` as If-Match and bumps it, so a project manager who
- * edited the same contract meanwhile is the one asked to reload (`onStale`).
+ * the purchase order's `version` as If-Match and bumps it, so someone who
+ * edited the same purchase order meanwhile is the one asked to reload (`onStale`).
  */
 export default function BexioOrderField({
   projectId,
-  contract,
+  purchaseOrder,
   onSaved,
   onStale,
 }: {
   projectId: string
-  contract: Pick<Contract, 'id' | 'bexioOrderId' | 'version'>
-  onSaved: (next: Contract) => void
+  purchaseOrder: Pick<PurchaseOrder, 'id' | 'bexioOrderId' | 'version'>
+  onSaved: (next: PurchaseOrder) => void
   onStale: () => void
 }) {
-  const t = strings.contracts.bexio
+  const t = strings.purchaseOrder.bexio
   const { bexio } = useScope()
-  const current = contract.bexioOrderId ?? ''
+  const current = purchaseOrder.bexioOrderId ?? ''
   const [value, setValue] = useState(current)
   const [error, setError] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
@@ -39,8 +39,8 @@ export default function BexioOrderField({
   if (!bexio) {
     return (
       <FactList
-        testId={`contract-bexio-${contract.id}`}
-        items={[{ id: 'bexio', term: t.label, value: contract.bexioOrderId ?? t.none }]}
+        testId={`purchase-order-bexio-${purchaseOrder.id}`}
+        items={[{ id: 'bexio', term: t.label, value: purchaseOrder.bexioOrderId ?? t.none }]}
       />
     )
   }
@@ -50,7 +50,7 @@ export default function BexioOrderField({
     setError(tooLong === null ? null : t.tooLong)
     if (tooLong !== null) return
     setBusy(true)
-    setBexioOrderId(projectId, contract.id, contract.version, optional(value)).then(
+    setBexioOrderId(projectId, purchaseOrder.version, optional(value)).then(
       (next) => {
         setBusy(false)
         setValue(next.bexioOrderId ?? '')
@@ -71,7 +71,7 @@ export default function BexioOrderField({
         event.preventDefault()
         if (!busy) submit()
       }}
-      data-testid={`contract-bexio-${contract.id}`}
+      data-testid={`purchase-order-bexio-${purchaseOrder.id}`}
     >
       <Field label={t.label} hint={t.hint} error={error}>
         {(control) => (

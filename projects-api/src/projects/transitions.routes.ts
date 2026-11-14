@@ -1,8 +1,9 @@
 /**
- * Project states and the type change (specs/20261103-projects T6; AC-1.2, AC-1.3, AC-1.7, AC-4.4).
+ * Project states (specs/20261103-projects T6; AC-1.2, AC-1.3, AC-1.7, AC-4.4). The type change of specs/20261103-projects is gone:
+ * a project's type never changes (specs/20261103-projects-handoff A30, D40).
  *
- * Both are writes on a project: `project:manage` for the project's entity, `If-Match` required,
- * compare-and-set on `version`. They answer `200 Project` like every other project write.
+ * A write on a project: `project:manage` for the project's entity, `If-Match` required,
+ * compare-and-set on `version`. It answers `200 Project` like every other project write.
  */
 
 import { OpenAPIHono, createRoute, z } from "@hono/zod-openapi";
@@ -17,13 +18,12 @@ import {
   type HeaderSource,
 } from "../lib/http";
 import { conflict, notFound, validationHook } from "../lib/problem";
+import { isAwaitingProjectManager } from "./pick";
 import { findProjectRow, toProjectView, updateProjectIfVersion } from "./projects.routes";
-import { ProjectSchema, ProjectStateSchema, ProjectTypeSchema } from "./projects.schemas";
-import { applyTransition, canChangeType } from "./transitions";
+import { ProjectSchema, ProjectStateSchema } from "./projects.schemas";
+import { applyTransition } from "./transitions";
 
 const TransitionSchema = z.object({ to: ProjectStateSchema }).strict();
-/** Any type is a well-formed request; `canChangeType` says which one the project may take. */
-const ChangeTypeSchema = z.object({ type: ProjectTypeSchema }).strict();
 
 const json = (schema: z.ZodTypeAny) => ({ content: { "application/json": { schema } } });
 
@@ -40,26 +40,7 @@ const transitionRoute = createRoute({
   responses: {
     200: { description: "Moved", ...json(ProjectSchema) },
     404: { description: "Not found" },
-    409: { description: "invalid_transition or version_conflict" },
-    428: { description: "precondition_required" },
-    ...commonErrors,
-  },
-});
-
-const changeTypeRoute = createRoute({
-  method: "put",
-  path: "/projects/{id}/type",
-  tags: ["Projects"],
-  summary: "Turn an internal project into a SaaS product; no other type change exists (If-Match required)",
-  middleware: [...authorized, requireCapability(PROJECT_MANAGE)],
-  request: {
-    params: IdParams,
-    body: { content: { "application/json": { schema: ChangeTypeSchema } }, required: true },
-  },
-  responses: {
-    200: { description: "Changed", ...json(ProjectSchema) },
-    404: { description: "Not found" },
-    409: { description: "type_change_refused or version_conflict" },
+    409: { description: "invalid_transition, awaiting_project_manager (to active before the pick) or version_conflict" },
     428: { description: "precondition_required" },
     ...commonErrors,
   },
@@ -87,19 +68,12 @@ transitionsRouter.openapi(transitionRoute, async (c) => {
   const { current, expected } = await loadForWrite(c, id);
   const next = applyTransition(current, to);
   if (!next) throw conflict("invalid_transition", `A ${current.state} project cannot move to ${to}`);
-  const row = await updateProjectIfVersion(id, expected, next);
-  c.header("ETag", etag(row.version));
-  return c.json(await toProjectView(c, row), 200);
-});
-
-transitionsRouter.openapi(changeTypeRoute, async (c) => {
-  const { id } = c.req.valid("param");
-  const { type } = c.req.valid("json");
-  const { current, expected } = await loadForWrite(c, id);
-  if (!canChangeType(current.type, type)) {
-    throw conflict("type_change_refused", `A ${current.type} project cannot become ${type}; only an internal project can become saas`);
+  // A project made from a deal is not started before its ops-manager has picked its project manager (AC-4.7,
+  // D48); every other move, hold and cancellation included, is specs/20261103-projects's as usual.
+  if (to === "active" && isAwaitingProjectManager(current)) {
+    throw conflict("awaiting_project_manager", "This project is awaiting its project manager and cannot be started yet");
   }
-  const row = await updateProjectIfVersion(id, expected, { type });
+  const row = await updateProjectIfVersion(id, expected, next);
   c.header("ETag", etag(row.version));
   return c.json(await toProjectView(c, row), 200);
 });

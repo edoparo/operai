@@ -10,18 +10,24 @@ import { apiFetch } from 'shell/session'
 import { ApiError, getJson, ifMatch, isStaleWrite, query, sendJson } from './api'
 import * as projectsApi from './projectsApi'
 import {
-  createContract,
   createProject,
+  createTerms,
+  deleteTerms,
   getScope,
   listCompanies,
   listDirectory,
+  listOpsManagers,
   listProjects,
+  listPurchaseOrderContacts,
+  listQueue,
+  listQueueContacts,
   replaceTeam,
   setBexioOrderId,
+  takeDealAsProject,
   transitionProject,
-  updateContract,
   updateProject,
-  changeTypeToSaas,
+  updatePurchaseOrder,
+  updateTerms,
 } from './projectsApi'
 
 const json = (status: number, body: unknown, headers: Record<string, string> = {}): Response =>
@@ -48,8 +54,9 @@ const headersOf = (init: RequestInit) => init.headers as Record<string, string>
 
 describe('requests', () => {
   it('GET goes through shell/session apiFetch against projects-api', async () => {
-    vi.mocked(apiFetch).mockResolvedValue(json(200, { manage: [], managesAll: false, bexio: false }))
-    await expect(getScope()).resolves.toEqual({ manage: [], managesAll: false, bexio: false })
+    const body = { manage: [], managesAll: false, bexio: false, take: ['welld_ch'], oversees: false }
+    vi.mocked(apiFetch).mockResolvedValue(json(200, body))
+    await expect(getScope()).resolves.toEqual(body)
     expect(apiFetch).toHaveBeenCalledWith('http://projects-api.test/scope', undefined)
   })
 
@@ -72,19 +79,22 @@ describe('requests', () => {
     expect(headersOf(lastInit())['If-Match']).toBeUndefined()
   })
 
-  it('a state transition and a type change carry If-Match', async () => {
+  it('a state transition carries If-Match', async () => {
     vi.mocked(apiFetch).mockImplementation(async () => json(200, { id: 'p1' }))
     await transitionProject('p1', 3, 'on_hold')
     expect(lastUrl().pathname).toBe('/projects/p1/transitions')
     expect(lastInit().method).toBe('POST')
     expect(headersOf(lastInit())['If-Match']).toBe('"3"')
     expect(JSON.parse(lastInit().body as string)).toEqual({ to: 'on_hold' })
+  })
 
-    await changeTypeToSaas('p1', 4)
-    expect(lastUrl().pathname).toBe('/projects/p1/type')
-    expect(lastInit().method).toBe('PUT')
-    expect(headersOf(lastInit())['If-Match']).toBe('"4"')
-    expect(JSON.parse(lastInit().body as string)).toEqual({ type: 'saas' })
+  it('the project manager is picked with the same PATCH as any edit, with If-Match (T27)', async () => {
+    vi.mocked(apiFetch).mockResolvedValue(json(200, { id: 'p1' }))
+    await updateProject('p1', 3, { projectManagerId: 'u9' })
+    expect(lastUrl().pathname).toBe('/projects/p1')
+    expect(lastInit().method).toBe('PATCH')
+    expect(headersOf(lastInit())['If-Match']).toBe('"3"')
+    expect(JSON.parse(lastInit().body as string)).toEqual({ projectManagerId: 'u9' })
   })
 
   it('the team is replaced as a whole, with If-Match', async () => {
@@ -96,30 +106,87 @@ describe('requests', () => {
     expect(JSON.parse(lastInit().body as string)).toEqual({ memberIds: ['u1', 'u2'] })
   })
 
-  it('a contract is created without If-Match, edited and given a Bexio order id with it', async () => {
-    vi.mocked(apiFetch).mockImplementation(async () => json(200, { id: 'k1' }))
-    await createContract('p1', {
+  it('terms are created without If-Match, edited and removed with it (T23)', async () => {
+    vi.mocked(apiFetch).mockImplementation(async () => json(200, { id: 't1' }))
+    await createTerms('p1', { startDate: '2026-01-01', terms: { positions: [{ profile: 'Dev', plannedManDays: 5 }] } })
+    expect(lastUrl().pathname).toBe('/projects/p1/terms')
+    expect(lastInit().method).toBe('POST')
+    expect(headersOf(lastInit())['If-Match']).toBeUndefined()
+    expect(JSON.parse(lastInit().body as string)).toEqual({
       startDate: '2026-01-01',
       terms: { positions: [{ profile: 'Dev', plannedManDays: 5 }] },
     })
-    expect(lastUrl().pathname).toBe('/projects/p1/contracts')
-    expect(lastInit().method).toBe('POST')
-    expect(headersOf(lastInit())['If-Match']).toBeUndefined()
 
-    await updateContract('p1', 'k1', 2, { endDate: '2026-12-31' })
-    expect(lastUrl().pathname).toBe('/projects/p1/contracts/k1')
+    await updateTerms('p1', 2, { endDate: '2026-12-31' })
+    expect(lastUrl().pathname).toBe('/projects/p1/terms')
     expect(lastInit().method).toBe('PATCH')
     expect(headersOf(lastInit())['If-Match']).toBe('"2"')
+    expect(JSON.parse(lastInit().body as string)).toEqual({ endDate: '2026-12-31' })
 
-    await setBexioOrderId('p1', 'k1', 3, 'SO-1')
-    expect(lastUrl().pathname).toBe('/projects/p1/contracts/k1/bexio-order')
+    vi.mocked(apiFetch).mockResolvedValue(new Response(null, { status: 204 }))
+    await expect(deleteTerms('p1', 4)).resolves.toBeUndefined()
+    expect(lastUrl().pathname).toBe('/projects/p1/terms')
+    expect(lastInit().method).toBe('DELETE')
+    expect(headersOf(lastInit())['If-Match']).toBe('"4"')
+  })
+
+  it('the Bexio order id and the referent are written on the purchase order, with If-Match', async () => {
+    vi.mocked(apiFetch).mockImplementation(async () => json(200, { id: 'po1' }))
+    await setBexioOrderId('p1', 3, 'SO-1')
+    expect(lastUrl().pathname).toBe('/projects/p1/purchase-order/bexio-order')
     expect(lastInit().method).toBe('PUT')
     expect(headersOf(lastInit())['If-Match']).toBe('"3"')
     expect(JSON.parse(lastInit().body as string)).toEqual({ bexioOrderId: 'SO-1' })
+
+    await updatePurchaseOrder('p1', 5, { referentContactId: null })
+    expect(lastUrl().pathname).toBe('/projects/p1/purchase-order')
+    expect(lastInit().method).toBe('PATCH')
+    expect(headersOf(lastInit())['If-Match']).toBe('"5"')
+    expect(JSON.parse(lastInit().body as string)).toEqual({ referentContactId: null })
   })
 
-  it('there is no way to delete a contract: the API client has no such call', () => {
-    expect(Object.keys(projectsApi).join(' ')).not.toMatch(/delete|remove/i)
+  it('the referent candidates are asked of the server by project or by deal — the client never sends a company id (T18)', async () => {
+    vi.mocked(apiFetch).mockImplementation(async () => json(200, { items: [] }))
+    await listPurchaseOrderContacts('p1')
+    expect(lastUrl().pathname).toBe('/projects/p1/purchase-order/contacts')
+    expect(lastUrl().search).toBe('')
+    await listQueueContacts('d1')
+    expect(lastUrl().pathname).toBe('/queue/d1/contacts')
+    expect(lastUrl().search).toBe('')
+    expect(Object.keys(projectsApi)).not.toContain('listCompanyContacts')
+  })
+
+  it('the queue, its ops-manager candidates and the take are projects-api calls; the take carries no If-Match', async () => {
+    vi.mocked(apiFetch).mockImplementation(async () => json(200, { items: [], truncated: false }))
+    await listQueue({ q: 'web', entity: 'welld_it' })
+    expect(lastUrl().pathname).toBe('/queue')
+    expect(Object.fromEntries(lastUrl().searchParams)).toEqual({ q: 'web', entity: 'welld_it' })
+
+    await listOpsManagers('d1')
+    expect(lastUrl().pathname).toBe('/queue/d1/ops-managers')
+
+    await takeDealAsProject('d1', {
+      name: 'Relaunch',
+      type: 'saas',
+      terms: { startDate: '2026-11-01' },
+      opsManagerId: 'u-ops',
+      referentContactId: null,
+    })
+    expect(lastUrl().pathname).toBe('/queue/d1/project')
+    expect(lastInit().method).toBe('POST')
+    expect(headersOf(lastInit())['If-Match']).toBeUndefined()
+    expect(JSON.parse(lastInit().body as string)).toEqual({
+      name: 'Relaunch',
+      type: 'saas',
+      terms: { startDate: '2026-11-01' },
+      opsManagerId: 'u-ops',
+      referentContactId: null,
+    })
+  })
+
+  it('there is no attach, no type change, no purchase-order create or delete: the client has no such call (D38, D39)', () => {
+    const names = Object.keys(projectsApi).join(' ')
+    expect(names).not.toMatch(/attach|changeType|Saas|createPurchaseOrder|deletePurchaseOrder|contract/i)
   })
 
   it('the project list sends only the filters that are set, 25 per page being the server default (AC-1.4)', async () => {

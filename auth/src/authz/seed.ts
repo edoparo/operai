@@ -100,12 +100,16 @@
  *      `meetings` is registered once, here, never through `SUITE_APPS`.
  *
  *  12. {@link seedProjectsCatalog} + {@link seedProjectsGrants} (specs/20261103-
- *      projects — AC-4.1, AC-4.3–4.6) — register the projects module's catalog
- *      (`catalogs/projects.ts`) and attach its grants (`admin` all unconditioned,
- *      the new `project-manager` system role and `sales` `projects:access` +
- *      entity-scoped `project:manage`, `accounting` `projects:access` +
- *      `contract:bexio`). `projects` is registered once, here, never through
- *      `SUITE_APPS`.
+ *      projects — AC-4.1, AC-4.3–4.6; specs/20261103-projects-handoff — AC-1.1,
+ *      AC-1.9, AC-3.4, AC-4.1, AC-4.8) — register the projects module's catalog
+ *      (`catalogs/projects.ts`) and attach its grants (`admin`
+ *      `project:manage`, `purchase-order:bexio|receive` and `handoff:take`
+ *      unconditioned; the `project-manager` and the new `ops-manager` system
+ *      roles `projects:access` + entity-scoped `project:manage` (the ops-manager
+ *      also entity-scoped `purchase-order:receive`); `sales` the same two plus
+ *      entity-scoped `handoff:take`; `accounting` `projects:access` +
+ *      `purchase-order:bexio`). `projects` is registered once, here, never
+ *      through `SUITE_APPS`.
  *
  * A further, per-user concern — assigning the baseline `employee` role (and
  * `admin` for the configured bootstrap email) to every newly created user —
@@ -135,6 +139,8 @@ export const SALES_ROLE_NAME = "sales";
 /** System role holding only `crm:access` (specs/20261101-crm-sales-flow): technical staff who read the CRM, no financials. */
 export const CRM_TECHNICAL_ROLE_NAME = "crm-technical";
 export const PROJECT_MANAGER_ROLE_NAME = "project-manager";
+/** System role (specs/20261103-projects-handoff): receives a won deal's purchase order and picks its project manager. */
+export const OPS_MANAGER_ROLE_NAME = "ops-manager";
 
 /** The four seed system roles (AC-6.2). Order is insignificant; upserts run sequentially for deterministic logging. */
 export const SYSTEM_ROLE_NAMES = [
@@ -244,8 +250,9 @@ export async function seedMeetingsCatalog(): Promise<void> {
 }
 
 /**
- * Registers the projects module's catalog (specs/20261103-projects — AC-4.1):
- * `projects:access`, entity-scoped `project:manage` and `contract:bexio`.
+ * Registers the projects module's catalog (specs/20261103-projects — AC-4.1; specs/20261103-projects-handoff
+ * — AC-1.9, AC-4.1): `projects:access`, entity-scoped `project:manage`,
+ * `purchase-order:bexio|receive` and entity-scoped `handoff:take`.
  * Idempotent (full-replace upsert keyed by `appId`). `projects` is registered
  * ONLY here, never via `SUITE_APPS`.
  */
@@ -693,15 +700,28 @@ export async function seedMeetingsGrants(): Promise<void> {
 
 /**
  * Seeds the projects module's role grants (specs/20261103-projects — AC-4.3–4.6;
- * decisions D13, D35, D36):
+ * decisions D13, D35, D36; specs/20261103-projects-handoff — AC-1.1, AC-1.9, AC-3.4,
+ * AC-4.1, AC-4.8; decisions D38, D44, D47):
  *
- *   - `admin` — `project:manage` and `contract:bexio`, UNCONDITIONED. Its
- *     `projects:access` comes from {@link seedAdminRoleGrants} (`ALL_APP_IDS`).
- *   - `project-manager` (NEW system role) — `projects:access` + `project:manage`
+ *   - `admin` — `project:manage`, `purchase-order:bexio`, `purchase-order:receive`
+ *     and `handoff:take`, UNCONDITIONED (an "admin" is a holder whose grant is
+ *     unconditioned — D44/D47). Its `projects:access` comes from
+ *     {@link seedAdminRoleGrants} (`ALL_APP_IDS`).
+ *   - `project-manager` (system role) — `projects:access` + `project:manage`
  *     conditioned on the entity ({@link REFUND_ENTITY_CONDITION}).
- *   - `sales` — gains the same two grants as `project-manager` (A29).
- *   - `accounting` — gains `projects:access` + `contract:bexio` (no manage).
+ *   - `ops-manager` (NEW system role) — `projects:access` + `project:manage` +
+ *     `purchase-order:receive`, all but the first conditioned on the entity: it
+ *     receives a won deal's purchase order and picks its project manager.
+ *   - `sales` — the same two grants as `project-manager` (A29), plus
+ *     `handoff:take` conditioned on the entity: only sales reads the queue and
+ *     takes a deal.
+ *   - `accounting` — `projects:access` + `purchase-order:bexio` (no manage); the
+ *     latter replaces the retired `contract:bexio`.
  *   - `employee` — nothing: projects access is admin-assigned (specs/20260713-auth-roles-permissions).
+ *
+ * Stale `contract:bexio` rules from specs/20261103-projects are NOT removed here: nothing of
+ * specs/20261103-projects–026 is deployed, and the one local database carrying them is cleaned
+ * by hand (T36).
  *
  * Idempotent and non-destructive, through {@link ensureGrant}, exactly like
  * {@link seedCrmGrants}.
@@ -713,7 +733,9 @@ export async function seedProjectsGrants(): Promise<void> {
     create: { name: ADMIN_ROLE_NAME, isSystem: true },
   });
   await ensureGrant(adminRole.id, "project", "manage");
-  await ensureGrant(adminRole.id, "contract", "bexio");
+  await ensureGrant(adminRole.id, "purchase-order", "bexio");
+  await ensureGrant(adminRole.id, "purchase-order", "receive");
+  await ensureGrant(adminRole.id, "handoff", "take");
 
   const managerRole = await db.role.upsert({
     where: { name: PROJECT_MANAGER_ROLE_NAME },
@@ -729,6 +751,29 @@ export async function seedProjectsGrants(): Promise<void> {
     managerRole.id,
     "project",
     "manage",
+    REFUND_ENTITY_CONDITION as Prisma.InputJsonValue,
+  );
+
+  const opsManagerRole = await db.role.upsert({
+    where: { name: OPS_MANAGER_ROLE_NAME },
+    update: {},
+    create: {
+      name: OPS_MANAGER_ROLE_NAME,
+      description: "Ops manager — receives purchase orders and picks their project manager",
+      isSystem: true,
+    },
+  });
+  await ensureGrant(opsManagerRole.id, PROJECTS_APP_ID, "access");
+  await ensureGrant(
+    opsManagerRole.id,
+    "project",
+    "manage",
+    REFUND_ENTITY_CONDITION as Prisma.InputJsonValue,
+  );
+  await ensureGrant(
+    opsManagerRole.id,
+    "purchase-order",
+    "receive",
     REFUND_ENTITY_CONDITION as Prisma.InputJsonValue,
   );
 
@@ -748,6 +793,12 @@ export async function seedProjectsGrants(): Promise<void> {
     "manage",
     REFUND_ENTITY_CONDITION as Prisma.InputJsonValue,
   );
+  await ensureGrant(
+    salesRole.id,
+    "handoff",
+    "take",
+    REFUND_ENTITY_CONDITION as Prisma.InputJsonValue,
+  );
 
   const accountingRole = await db.role.upsert({
     where: { name: ACCOUNTING_ROLE_NAME },
@@ -755,7 +806,7 @@ export async function seedProjectsGrants(): Promise<void> {
     create: { name: ACCOUNTING_ROLE_NAME, isSystem: true },
   });
   await ensureGrant(accountingRole.id, PROJECTS_APP_ID, "access");
-  await ensureGrant(accountingRole.id, "contract", "bexio");
+  await ensureGrant(accountingRole.id, "purchase-order", "bexio");
 }
 
 /**

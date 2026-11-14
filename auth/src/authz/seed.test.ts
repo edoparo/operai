@@ -48,6 +48,7 @@ import {
   EMPLOYEE_ROLE_NAME,
   ensureBootstrapAdmin,
   INVENTORY_MANAGER_ROLE_NAME,
+  OPS_MANAGER_ROLE_NAME,
   REFUND_ADMIN_ROLE_NAME,
   SALES_ROLE_NAME,
   CRM_TECHNICAL_ROLE_NAME,
@@ -1121,20 +1122,25 @@ describe("seedMeetingsGrants (specs/20261104-meetings — AC-10.8, AC-1.4, AC-10
   });
 });
 
-// ─── specs/20261103-projects ─────────────────────────────────────────────────────
+// ─── specs/20261103-projects, reshaped by specs/20261103-projects-handoff ─────────────
 
-describe("seedProjectsCatalog (specs/20261103-projects — AC-4.1)", () => {
-  test("registers the projects catalog — projects:access + entity-scoped project:manage + contract:bexio, idempotent", async () => {
+describe("seedProjectsCatalog (specs/20261103-projects — AC-4.1; specs/20261103-projects-handoff — AC-1.9, AC-4.1)", () => {
+  test("registers the projects catalog — the five capabilities of specs/20261103-projects-handoff, no `contract`, idempotent", async () => {
     await seedProjectsCatalog();
     await seedProjectsCatalog();
     const catalog = await getAppCatalog(PROJECTS_APP_ID);
     const byResource = new Map(
       catalog.resources.map((r) => [r.key, r.actions.map((a) => [a.key, a.supportedConditions])]),
     );
-    expect([...byResource.keys()].sort()).toEqual(["contract", "project", "projects"]);
+    expect([...byResource.keys()].sort()).toEqual(["handoff", "project", "projects", "purchase-order"]);
     expect(byResource.get("projects")).toEqual([["access", []]]);
     expect(byResource.get("project")).toEqual([["manage", ["entity"]]]);
-    expect(byResource.get("contract")).toEqual([["bexio", []]]);
+    expect(byResource.get("handoff")).toEqual([["take", ["entity"]]]);
+    const purchaseOrder = byResource.get("purchase-order") ?? [];
+    expect([...purchaseOrder].sort()).toEqual([
+      ["bexio", []],
+      ["receive", ["entity"]],
+    ]);
   });
 
   test("projects is excluded from SUITE_APPS but reached by admin through ALL_APP_IDS", () => {
@@ -1143,10 +1149,18 @@ describe("seedProjectsCatalog (specs/20261103-projects — AC-4.1)", () => {
   });
 });
 
-describe("seedProjectsGrants (specs/20261103-projects — AC-4.3–4.6, D13, D35, D36)", () => {
+describe("seedProjectsGrants (specs/20261103-projects — AC-4.3–4.6; specs/20261103-projects-handoff — AC-1.1, AC-1.9, AC-3.4, AC-4.1, AC-4.8)", () => {
   const ENTITY_CONDITION = { attributes: [{ key: "entity", match: "user" }] };
-  const PROJECTS_RESOURCES = [PROJECTS_APP_ID, "project", "contract"];
-  const GRANTED_ROLES = [ADMIN_ROLE_NAME, SALES_ROLE_NAME, ACCOUNTING_ROLE_NAME, PROJECT_MANAGER_ROLE_NAME];
+  // Deliberately without the retired `contract` resource: this suite runs against the shared
+  // dev database and must not delete the stale `contract:*` rules T36 drops by hand.
+  const PROJECTS_RESOURCES = [PROJECTS_APP_ID, "project", "purchase-order", "handoff"];
+  const GRANTED_ROLES = [
+    ADMIN_ROLE_NAME,
+    SALES_ROLE_NAME,
+    ACCOUNTING_ROLE_NAME,
+    PROJECT_MANAGER_ROLE_NAME,
+    OPS_MANAGER_ROLE_NAME,
+  ];
 
   async function clearProjectsGrants() {
     const roles = await db.role.findMany({ where: { name: { in: GRANTED_ROLES } }, select: { id: true } });
@@ -1167,43 +1181,67 @@ describe("seedProjectsGrants (specs/20261103-projects — AC-4.3–4.6, D13, D35
   };
   const names = (rules: { resource: string; action: string }[]) =>
     rules.map((r) => `${r.resource}:${r.action}`).sort();
+  const conditionsOf = (rules: { resource: string; action: string; conditions: unknown }[], capability: string) =>
+    rules.find((r) => `${r.resource}:${r.action}` === capability)?.conditions;
 
-  test("`project-manager` is a new system role with exactly projects:access + entity-conditioned project:manage", async () => {
+  test("`project-manager` is a system role with exactly projects:access + entity-conditioned project:manage", async () => {
     await seedProjectsGrants();
     await seedProjectsGrants(); // re-run must not duplicate
     const role = await db.role.findUniqueOrThrow({ where: { name: PROJECT_MANAGER_ROLE_NAME } });
     expect(role.isSystem).toBe(true);
     const rules = await db.permissionRule.findMany({ where: { roleId: role.id } });
     expect(names(rules)).toEqual(["project:manage", "projects:access"]);
-    expect(rules.find((r) => r.resource === "projects")?.conditions).toBeNull();
-    expect(rules.find((r) => r.resource === "project")?.conditions).toEqual(ENTITY_CONDITION);
+    expect(conditionsOf(rules, "projects:access")).toBeNull();
+    expect(conditionsOf(rules, "project:manage")).toEqual(ENTITY_CONDITION);
   });
 
-  test("`sales` gains projects:access + entity-conditioned project:manage, and no bexio capability", async () => {
+  test("`ops-manager` is one system role with projects:access, own-entity project:manage and own-entity purchase-order:receive, idempotently", async () => {
+    await seedProjectsGrants();
+    await seedProjectsGrants(); // run twice: still one role, no duplicate rule
+    expect(await db.role.count({ where: { name: OPS_MANAGER_ROLE_NAME } })).toBe(1);
+    const role = await db.role.findUniqueOrThrow({ where: { name: OPS_MANAGER_ROLE_NAME } });
+    expect(role.isSystem).toBe(true);
+    expect(role.description).toBe("Ops manager — receives purchase orders and picks their project manager");
+    const rules = await db.permissionRule.findMany({ where: { roleId: role.id } });
+    expect(names(rules)).toEqual(["project:manage", "projects:access", "purchase-order:receive"]);
+    expect(conditionsOf(rules, "projects:access")).toBeNull();
+    expect(conditionsOf(rules, "project:manage")).toEqual(ENTITY_CONDITION);
+    expect(conditionsOf(rules, "purchase-order:receive")).toEqual(ENTITY_CONDITION);
+  });
+
+  test("`sales` gains projects:access, entity-conditioned project:manage and entity-conditioned handoff:take, and no purchase-order capability", async () => {
     await seedSystemRoles();
     await seedProjectsGrants();
     await seedProjectsGrants();
     const rules = await rulesOf(SALES_ROLE_NAME);
-    expect(names(rules)).toEqual(["project:manage", "projects:access"]);
-    expect(rules.find((r) => r.resource === "projects")?.conditions).toBeNull();
-    expect(rules.find((r) => r.resource === "project")?.conditions).toEqual(ENTITY_CONDITION);
+    expect(names(rules)).toEqual(["handoff:take", "project:manage", "projects:access"]);
+    expect(conditionsOf(rules, "projects:access")).toBeNull();
+    expect(conditionsOf(rules, "project:manage")).toEqual(ENTITY_CONDITION);
+    expect(conditionsOf(rules, "handoff:take")).toEqual(ENTITY_CONDITION);
   });
 
-  test("`accounting` gains projects:access + contract:bexio, both unconditioned, and no project:manage", async () => {
+  test("`accounting` gains projects:access + purchase-order:bexio, both unconditioned, and neither project:manage nor handoff:take", async () => {
     await seedSystemRoles();
     await seedProjectsGrants();
     await seedProjectsGrants();
     const rules = await rulesOf(ACCOUNTING_ROLE_NAME);
-    expect(names(rules)).toEqual(["contract:bexio", "projects:access"]);
+    expect(names(rules)).toEqual(["projects:access", "purchase-order:bexio"]);
     for (const rule of rules) expect(rule.conditions).toBeNull();
   });
 
-  test("`admin` gets projects:access, project:manage and contract:bexio, all unconditioned (both entities)", async () => {
+  test("`admin` gets projects:access, project:manage, purchase-order:bexio, purchase-order:receive and handoff:take, all unconditioned (every entity)", async () => {
     await seedSystemRoles();
     await seedAdminRoleGrants();
     await seedProjectsGrants();
+    await seedProjectsGrants();
     const rules = await rulesOf(ADMIN_ROLE_NAME);
-    expect(names(rules)).toEqual(["contract:bexio", "project:manage", "projects:access"]);
+    expect(names(rules)).toEqual([
+      "handoff:take",
+      "project:manage",
+      "projects:access",
+      "purchase-order:bexio",
+      "purchase-order:receive",
+    ]);
     for (const rule of rules) expect(rule.conditions).toBeNull();
   });
 
@@ -1216,8 +1254,19 @@ describe("seedProjectsGrants (specs/20261103-projects — AC-4.3–4.6, D13, D35
   test("seed() registers the catalog and attaches every projects grant", async () => {
     await seed();
     const catalog = await getAppCatalog(PROJECTS_APP_ID);
-    expect(catalog.resources.map((r) => r.key).sort()).toEqual(["contract", "project", "projects"]);
+    expect(catalog.resources.map((r) => r.key).sort()).toEqual(["handoff", "project", "projects", "purchase-order"]);
     expect(names(await rulesOf(PROJECT_MANAGER_ROLE_NAME))).toEqual(["project:manage", "projects:access"]);
-    expect(names(await rulesOf(ADMIN_ROLE_NAME))).toEqual(["contract:bexio", "project:manage", "projects:access"]);
+    expect(names(await rulesOf(OPS_MANAGER_ROLE_NAME))).toEqual([
+      "project:manage",
+      "projects:access",
+      "purchase-order:receive",
+    ]);
+    expect(names(await rulesOf(ADMIN_ROLE_NAME))).toEqual([
+      "handoff:take",
+      "project:manage",
+      "projects:access",
+      "purchase-order:bexio",
+      "purchase-order:receive",
+    ]);
   });
 });

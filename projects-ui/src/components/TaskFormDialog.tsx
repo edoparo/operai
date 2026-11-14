@@ -54,11 +54,15 @@ const SERVER_FIELDS: Record<string, FieldName> = {
   participantIds: 'participants',
 }
 
-/** The project manager and the team, without repeats: who a task can be assigned to (AC-3.1). */
+/**
+ * The project manager and the team, without repeats: who a task can be assigned to (AC-3.1). A
+ * project from a deal has no project manager until its ops-manager picks one (specs/20261103-projects-handoff D42): then
+ * only the team.
+ */
 const assignable = (project: Pick<Project, 'projectManager' | 'team'>): Person[] =>
-  [project.projectManager, ...project.team].filter(
-    (person, index, all) => !person.deleted && all.findIndex((other) => other.id === person.id) === index,
-  )
+  [project.projectManager, ...project.team]
+    .filter((person): person is Person => person !== null)
+    .filter((person, index, all) => !person.deleted && all.findIndex((other) => other.id === person.id) === index)
 
 /**
  * TaskFormDialog — add a task to a project, or edit one (F2, F3, F6). Title is

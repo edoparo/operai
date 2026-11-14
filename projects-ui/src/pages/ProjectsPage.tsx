@@ -16,12 +16,21 @@ import { strings } from '../strings'
 
 const PAGE_SIZE = 25
 
-/** What the company column says: the client, how many clients a SaaS has, or "Internal" (AC-1.4). */
+/** The project-manager filter value that asks for the projects awaiting one (AC-4.5): `projectManagerId=none`. */
+const NO_PROJECT_MANAGER = 'none'
+
+/** What the company column says: the client — a `saas` row carries its own company too (D40) — or "Internal" (AC-1.4). */
 function companyText(project: ProjectSummary): string {
   const t = strings.projects.list
   if (project.type === 'internal') return t.internal
-  if (project.type === 'saas') return project.clientCount === 0 ? t.noClients : t.clients(project.clientCount)
   return project.company?.name ?? t.companyUnavailable
+}
+
+/** The project-manager cell: the person, or "Awaiting project manager" while there is none (AC-4.5), never blank. */
+function projectManagerText(project: ProjectSummary, currentUserId: string | null): string {
+  return project.awaitingProjectManager
+    ? strings.projects.list.awaitingProjectManager
+    : personName(project.projectManager, currentUserId)
 }
 
 /**
@@ -31,9 +40,9 @@ function companyText(project: ProjectSummary): string {
  * manage projects only (AC-4.4); a created project opens on its own page.
  *
  * The project-manager filter lists the people who manage a project today
- * (`GET /project-managers`, open to every reader). It is not the user
- * directory, which only `project:manage` holders may read, so every reader gets
- * the same filter (AC-1.4).
+ * (`GET /project-managers`, open to every reader) and, always, "None yet" for the projects
+ * awaiting one (AC-4.5). It is not the user directory, which only `project:manage` holders
+ * may read, so every reader gets the same filter (AC-1.4).
  */
 export default function ProjectsPage() {
   const t = strings.projects.list
@@ -80,7 +89,7 @@ export default function ProjectsPage() {
     {
       id: 'projectManager',
       header: t.columns.projectManager,
-      render: (project) => personName(project.projectManager, currentUserId),
+      render: (project) => projectManagerText(project, currentUserId),
     },
     { id: 'entity', header: t.columns.entity, render: (project) => <EntityBadge entity={project.entity} /> },
   ]
@@ -207,6 +216,7 @@ export default function ProjectsPage() {
                   }}
                 >
                   <option value="">{strings.common.any}</option>
+                  <option value={NO_PROJECT_MANAGER}>{t.noProjectManagerYet}</option>
                   {(managers.data?.items ?? []).map((manager) => (
                     <option key={manager.id} value={manager.id}>
                       {personName(manager, currentUserId)}

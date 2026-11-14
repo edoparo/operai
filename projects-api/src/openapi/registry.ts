@@ -9,8 +9,8 @@ export function setupOpenAPI(app: OpenAPIHono): void {
       title: "Operai Projects API",
       version: "0.1.0",
       description:
-        "Projects, their teams and contracts, and the Bexio order id, for the Projects " +
-        "tool (specs/20261103-projects). Requires a valid RS256 Bearer JWT issued by the " +
+        "Projects, their teams, terms and purchase orders, and the Bexio order id, for the Projects " +
+        "tool (specs/20261103-projects, specs/20261103-projects-handoff). Requires a valid RS256 Bearer JWT issued by the " +
         "Operai auth service and the projects:access permission.",
       contact: {
         name: "wellD",
@@ -19,11 +19,23 @@ export function setupOpenAPI(app: OpenAPIHono): void {
     },
     servers: [{ url: "http://localhost:8086", description: "Local development" }],
     tags: [
-      { name: "System", description: "Health checks" },
+      { name: "System", description: "Health checks and service-to-service routes (scoped service credential)" },
       { name: "Scope", description: "What the caller may do" },
       { name: "Projects", description: "The delivery work wellD runs" },
-      { name: "Contracts", description: "What each client bought on a project" },
+      { name: "Terms", description: "The type-specific delivery terms of a project" },
+      {
+        name: "Purchase orders",
+        description:
+          "The delivery-side record of a won deal (Bexio order id, and the referent: a CRM contact of the project's company " +
+          "whose data is read live at every opening, never stored or cached; its answers are no-store)",
+      },
       { name: "Companies", description: "CRM companies, read through a service credential" },
+      {
+        name: "Queue",
+        description:
+          "Won deals waiting for a project, and taking one (specs/20261103-projects-handoff): handoff:take holders only; the take's form reads " +
+          "its ops-manager candidates (from auth) and the deal company's contacts (from the CRM) live",
+      },
     ],
   });
 

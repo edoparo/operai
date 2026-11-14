@@ -93,6 +93,11 @@ export const SHARED_COPIES: readonly SharedGroup[] = [
     files: ["crm-api/src/lib/logger.ts", "meetings-api/src/lib/logger.ts", "activities-api/src/lib/logger.ts"],
     why: "the request logger; it must keep logging no business data (data residency)",
   },
+  {
+    name: "manDays",
+    files: ["crm-api/src/offers/scope.ts", "estimai-api/src/system/manDays.ts"],
+    why: "the Expected-effort arithmetic behind a purchase order's man-days (specs/20261103-projects-handoff, ADR 20261104-estimai-api-first-system-route-estimate-man-days-for-a-service-credential); estimai-ui's pertCalc is the source of truth",
+  },
 ];
 
 export type Region = { ok: true; lines: string[]; startLine: number } | { ok: false; reason: string };

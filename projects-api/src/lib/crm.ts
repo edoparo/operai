@@ -1,5 +1,5 @@
 /**
- * crm-api client for CRM companies (specs/20261103-projects T5, ADR 20261103-projects-api-reads-crm-companies-with-scoped-service-credential).
+ * crm-api client for CRM companies (specs/20261103-projects T5, ADR 20261103-projects-api-reads-crm-companies-with-scoped-service-credential) and deals (specs/20261103-projects-handoff T5, ADR 20261104-projects-handoff-live-reads-between-crm-and-projects-over-service-credentials).
  *
  * projects-api reads `GET /system/companies` as ITSELF: a 5-minute service JWT with scope
  * `crm.companies.read` (`serviceTokens`, ADR 20261006-scoped-service-jwt-fourth-notify-caller/0049), never the caller's token — a
@@ -11,6 +11,14 @@
  *     503 `crm_unavailable` (the picker, and a write that must know the company exists);
  *   - `companyRefs` FAILS SOFT: reads show `CompanyRef.name = null` rather than failing
  *     (a page of projects must not die because the CRM is down).
+ *
+ * Deals are read the same way (`GET /system/deals`, scope `crm.deals.read`), live, never cached or
+ * synced: `wonDeals()` (the to-start queue's source) and `dealsById(ids)` (a purchase order's deal) throw
+ * `CrmUnavailableError`; the route decides between a 503 and degrading to unknown.
+ *
+ * Contacts (specs/20261103-projects-handoff T24, scope `crm.contacts.read`) are read the same way and are personal data of a
+ * third party: `companyContacts(companyId)` for the referent picker, `contactsById(ids)` for the checks,
+ * `assertValidReferent(id, companyId)` for a referent being set. Never cached, never stored.
  *
  * Nothing here logs a token or a response body.
  */
@@ -53,7 +61,8 @@ export const crmUnavailable = (): ProblemError =>
     detail: "The CRM is unavailable; companies could not be looked up",
   });
 
-async function fetchCompanies(params: URLSearchParams): Promise<CrmCompany[]> {
+/** The crm-api `/system/*` read `path` with `params`, as the service principal; the parsed body. */
+async function crmGet(path: string, params: URLSearchParams): Promise<{ items?: unknown; truncated?: unknown }> {
   if (!serviceTokens || !env.CRM_INTERNAL_URL) {
     throw new CrmUnavailableError("the crm-api service credential is not configured");
   }
@@ -65,7 +74,7 @@ async function fetchCompanies(params: URLSearchParams): Promise<CrmCompany[]> {
   }
   let res: Response;
   try {
-    res = await fetch(`${env.CRM_INTERNAL_URL}/system/companies?${params}`, {
+    res = await fetch(`${env.CRM_INTERNAL_URL}${path}?${params}`, {
       headers: { Authorization: `Bearer ${token}` },
       signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
     });
@@ -74,10 +83,14 @@ async function fetchCompanies(params: URLSearchParams): Promise<CrmCompany[]> {
   }
   // crm-api answers every credential failure with one 401: drop the token so the next call mints a fresh one.
   if (res.status === 401) serviceTokens.invalidate(token);
-  if (!res.ok) throw new CrmUnavailableError(`crm-api GET /system/companies responded with HTTP ${res.status}`);
-  const body = (await res.json().catch(() => null)) as { items?: unknown } | null;
+  if (!res.ok) throw new CrmUnavailableError(`crm-api GET ${path} responded with HTTP ${res.status}`);
+  const body = (await res.json().catch(() => null)) as { items?: unknown; truncated?: unknown } | null;
   if (!Array.isArray(body?.items)) throw new CrmUnavailableError("crm-api returned an unreadable body");
-  return body.items as CrmCompany[];
+  return body;
+}
+
+async function fetchCompanies(params: URLSearchParams): Promise<CrmCompany[]> {
+  return (await crmGet("/system/companies", params)).items as CrmCompany[];
 }
 
 /** Active (non-archived) companies whose name contains `q`, by name — the company picker. */
@@ -138,4 +151,142 @@ export async function orCrmUnavailable<T>(lookup: Promise<T>): Promise<T> {
     console.error("[crm] lookup failed:", error.message);
     throw crmUnavailable();
   }
+}
+
+// ─── Deals (specs/20261103-projects-handoff) ───────────────────────────────────────────────────────
+
+export type CrmDealStage = "lead" | "qualified" | "proposal" | "negotiation" | "won" | "lost";
+
+/**
+ * crm-api's `DealSummary`. It carries no amount, currency, owner or notes, and projects-api never
+ * asks for them (D14). `wonAt` is the win date while the stage is `won`, else `null`.
+ */
+export interface CrmDeal {
+  readonly id: string;
+  readonly title: string;
+  readonly stage: CrmDealStage;
+  readonly entity: "welld_ch" | "welld_it";
+  readonly company: { readonly id: string; readonly name: string };
+  readonly wonAt: string | null;
+  readonly estimate: { readonly id: string; readonly name: string } | null;
+}
+
+/**
+ * The won deals, newest win first (crm-api caps the list at 500 and says so with `truncated`).
+ * The queue subtracts the deals that already have a purchase order itself.
+ */
+export async function wonDeals(): Promise<{ items: CrmDeal[]; truncated: boolean }> {
+  const body = await crmGet("/system/deals", new URLSearchParams({ stage: "won" }));
+  return { items: body.items as CrmDeal[], truncated: body.truncated === true };
+}
+
+/** The deals with these ids, in any stage, keyed by id; unknown ids are absent. */
+export async function dealsById(ids: readonly string[]): Promise<Map<string, CrmDeal>> {
+  const distinct = [...new Set(ids)];
+  const found = new Map<string, CrmDeal>();
+  for (let i = 0; i < distinct.length; i += MAX_IDS_PER_REQUEST) {
+    const batch = distinct.slice(i, i + MAX_IDS_PER_REQUEST);
+    const body = await crmGet("/system/deals", new URLSearchParams({ ids: batch.join(",") }));
+    for (const deal of body.items as CrmDeal[]) found.set(deal.id, deal);
+  }
+  return found;
+}
+
+// ─── Contacts (specs/20261103-projects-handoff T24; T18 M1, M3, L1, L3) ────────────────────────────
+
+/**
+ * The CRM contacts of a purchase order's company, read as the service principal (`crm.contacts.read`,
+ * `GET /system/contacts`). A contact is PERSONAL DATA of a third party, so nothing here is cached or
+ * stored (D49, T18 M5): every call asks the CRM again, and a caller keeps what it reads for the length
+ * of one request. Each member is picked by name, never spread, so a field the CRM adds later cannot
+ * reach a response.
+ */
+
+/** A contact as the picker lists it: no email, phone, company or archived flag (T18 M2). */
+export interface ContactChoice {
+  readonly id: string;
+  readonly name: string;
+  readonly jobTitle: string | null;
+}
+
+/** crm-api's `ids` mode for one contact: what the referent shows and what the checks read. */
+export interface CrmContact {
+  readonly id: string;
+  readonly companyId: string | null;
+  readonly firstName: string;
+  readonly lastName: string;
+  readonly jobTitle: string | null;
+  readonly email: string | null;
+  readonly phone: string | null;
+  readonly archived: boolean;
+}
+
+/** crm-api's cap on `ids` for `GET /system/contacts`; keep in sync (tasks.md § API contracts, T21). */
+const MAX_CONTACT_IDS_PER_REQUEST = 20;
+/** What a contact id may look like (T18 L1): the CRM's cuids, and nothing that could split or alter the `ids` list. */
+const CONTACT_ID = /^[A-Za-z0-9_-]{1,64}$/;
+
+const text = (value: unknown): string => (typeof value === "string" ? value : "");
+/** A contact's display name: first then last, trimmed (a contact lacking one of them shows the other). */
+export const contactName = (contact: { readonly firstName: string; readonly lastName: string }): string =>
+  `${contact.firstName} ${contact.lastName}`.trim();
+const textOrNull = (value: unknown): string | null => (typeof value === "string" ? value : null);
+
+/** The non-archived contacts of `companyId` (crm-api's `companyId` mode: at most 500, by last then first name). */
+export async function companyContacts(companyId: string): Promise<{ items: ContactChoice[]; truncated: boolean }> {
+  const body = await crmGet("/system/contacts", new URLSearchParams({ companyId }));
+  const items = (body.items as Record<string, unknown>[]).map((raw) => ({
+    id: text(raw["id"]),
+    name: contactName({ firstName: text(raw["firstName"]), lastName: text(raw["lastName"]) }),
+    jobTitle: textOrNull(raw["jobTitle"]),
+  }));
+  return { items, truncated: body.truncated === true };
+}
+
+/** The contacts with these ids (archived included), keyed by id; unknown or erased ids are absent. */
+export async function contactsById(ids: readonly string[]): Promise<Map<string, CrmContact>> {
+  const distinct = [...new Set(ids)];
+  const found = new Map<string, CrmContact>();
+  for (let i = 0; i < distinct.length; i += MAX_CONTACT_IDS_PER_REQUEST) {
+    const batch = distinct.slice(i, i + MAX_CONTACT_IDS_PER_REQUEST);
+    const body = await crmGet("/system/contacts", new URLSearchParams({ ids: batch.join(",") }));
+    for (const raw of body.items as Record<string, unknown>[]) {
+      const id = text(raw["id"]);
+      if (id === "") continue;
+      found.set(id, {
+        id,
+        companyId: textOrNull(raw["companyId"]),
+        firstName: text(raw["firstName"]),
+        lastName: text(raw["lastName"]),
+        jobTitle: textOrNull(raw["jobTitle"]),
+        email: textOrNull(raw["email"]),
+        phone: textOrNull(raw["phone"]),
+        archived: raw["archived"] === true,
+      });
+    }
+  }
+  return found;
+}
+
+/**
+ * The one refusal for a referent that cannot be used (AC-3.6, T18 L1): unknown, of another company, with
+ * no company, archived, or an id that is not even shaped like one. Always this body, with no extras:
+ * it never says which, and never echoes the id, a name or a company.
+ */
+export const referentInvalid = (): ProblemError =>
+  new ProblemError({
+    status: 422,
+    code: "referent_invalid",
+    detail: "The referent must be a current contact of this company",
+  });
+
+/**
+ * 422 `referent_invalid` unless `contactId` is a non-archived CRM contact of `companyId` (T18 M3): the
+ * item whose id equals it EXACTLY, with that company (the live deal's, or the project's; derived by the
+ * server, never from a request body). crm-api down is a 503 `crm_unavailable`, not a refusal.
+ */
+export async function assertValidReferent(contactId: string, companyId: string): Promise<void> {
+  if (!CONTACT_ID.test(contactId)) throw referentInvalid();
+  const contact = (await orCrmUnavailable(contactsById([contactId]))).get(contactId);
+  if (!contact || contact.companyId !== companyId || contact.archived) throw referentInvalid();
 }

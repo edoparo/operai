@@ -8,7 +8,10 @@
  * once the entity is known. A project's entity, company and type are fixed at creation.
  *
  * Names are live: people come from `auth` (fail soft, ADR 20260807-live-identity-resolution-by-id-fail-soft), company names from crm-api
- * with the service credential (fail soft, ADR 20261103-projects-api-reads-crm-companies-with-scoped-service-credential).
+ * with the service credential (fail soft, ADR 20261103-projects-api-reads-crm-companies-with-scoped-service-credential), and so is the deal behind the purchase order of
+ * a project made from one (specs/20261103-projects-handoff: title and whether it is still won, fail soft). The purchase
+ * order's referent is read live too (T26, `purchase-orders/view.ts`): one CRM `ids` call, only when one
+ * is set, never stored or cached — so every answer that carries a `Project` is `Cache-Control: no-store`.
  *
  * `toProjectView`, `projectInclude` and `findProjectRow` are exported for the routes that
  * answer with a `Project` after their own write (transitions, team — T6, T7).
@@ -17,7 +20,7 @@
 import { OpenAPIHono, createRoute, z } from "@hono/zod-openapi";
 import { PROJECT_MANAGE, assertCanManage, authorized, requireCapability } from "../auth/guards";
 import type { AuthzVariables } from "../auth/authz.middleware";
-import { companyRefs, findActiveCompany, orCrmUnavailable } from "../lib/crm";
+import { companyRefs } from "../lib/crm";
 import { db } from "../lib/db";
 import type { Prisma } from "../lib/generated/prisma/client";
 import {
@@ -28,14 +31,23 @@ import {
   etag,
   requireIfMatch,
   skipTake,
+  toDateOnly,
   updateIfVersion,
-  type HeaderSource,
 } from "../lib/http";
-import { contractInclude, contractView } from "../contracts/contracts.routes";
 import { requireProjectUsers } from "../lib/identities";
 import { loadPeople } from "../lib/people";
-import { notFound, unprocessable, validationHook } from "../lib/problem";
-import { deriveDates } from "./dates";
+import { notFound, validationHook } from "../lib/problem";
+import { referentRouter } from "../purchase-orders/referent.routes";
+import { dealRefs, loadReferent, noStore, purchaseOrderView, type ViewContext } from "../purchase-orders/view";
+import { toTermsView } from "../terms/terms";
+import { assertCompanyFits, creationTerms, projectCreateData, termsCreate } from "./create";
+import {
+  AWAITING_PROJECT_MANAGER,
+  NO_PROJECT_MANAGER,
+  assertCanPickProjectManager,
+  isAwaitingProjectManager,
+  projectManagerRequired,
+} from "./pick";
 import {
   CreateProjectSchema,
   ListProjectsQuery,
@@ -43,15 +55,14 @@ import {
   ProjectPageSchema,
   ProjectSchema,
   UpdateProjectSchema,
-  isClientType,
-  type ProjectType,
 } from "./projects.schemas";
 
 // ─── The Project view ────────────────────────────────────────────────────────
 
 export const projectInclude = {
   members: { orderBy: [{ addedAt: "asc" }, { userId: "asc" }] },
-  contracts: { orderBy: [{ startDate: "asc" }, { createdAt: "asc" }, { id: "asc" }], include: contractInclude },
+  terms: { include: { positions: { orderBy: { position: "asc" } } } },
+  purchaseOrder: true,
 } satisfies Prisma.ProjectInclude;
 
 export type ProjectRow = Prisma.ProjectGetPayload<{ include: typeof projectInclude }>;
@@ -76,11 +87,22 @@ export const updateProjectIfVersion = (
     "Project not found",
   );
 
-/** The `Project` of tasks.md § API contracts: details, live names, team, contracts, derived dates. */
-export async function toProjectView(c: HeaderSource, row: ProjectRow) {
-  const [people, company] = await Promise.all([
-    loadPeople(c, [row.projectManagerId, ...row.members.map((member) => member.userId)]),
-    companyRefs([row.companyId, ...row.contracts.map((contract) => contract.companyId)]),
+/**
+ * The `Project` of tasks.md § API contracts: details, live names, team, purchase order, terms and
+ * the dates of the terms. A project awaits its project manager when it has a purchase order and no
+ * project manager yet (specs/20261103-projects-handoff D42).
+ */
+export async function toProjectView(c: ViewContext, row: ProjectRow) {
+  const order = row.purchaseOrder;
+  // The view can carry the referent's personal data (specs/20261103-projects-handoff D49): no browser or proxy may keep it (T18 M5).
+  noStore(c);
+  const [people, company, deal, referent] = await Promise.all([
+    loadPeople(c, [row.projectManagerId, order?.opsManagerId, ...row.members.map((member) => member.userId)]),
+    companyRefs([row.companyId]),
+    // The deal behind the purchase order, live: `won: false` is the AC-2.3 notice.
+    dealRefs([order?.dealId]),
+    // The referent, live, with one `ids` call and only when one is set (AC-3.8 – AC-3.10, T18 L7).
+    loadReferent(order?.referentContactId, row.companyId),
   ]);
   return {
     id: row.id,
@@ -90,36 +112,17 @@ export async function toProjectView(c: HeaderSource, row: ProjectRow) {
     stateBeforeHold: row.stateBeforeHold,
     entity: row.entity,
     company: row.companyId === null ? null : company(row.companyId),
-    projectManager: people.person(row.projectManagerId),
+    projectManager: people.maybe(row.projectManagerId),
+    awaitingProjectManager: isAwaitingProjectManager(row),
     team: row.members.map((member) => people.person(member.userId)),
-    // Whole, with one CRM read for every company above: the page reads no contract on its own.
-    contracts: row.contracts.map((contract) => contractView(contract, company)),
-    ...deriveDates(row.contracts),
+    purchaseOrder: order === null ? null : purchaseOrderView(order, deal, people.person, referent),
+    terms: row.terms === null ? null : toTermsView(row.terms),
+    startDate: toDateOnly(row.terms?.startDate ?? null),
+    endDate: toDateOnly(row.terms?.endDate ?? null),
     version: row.version,
     createdAt: row.createdAt.toISOString(),
     updatedAt: row.updatedAt.toISOString(),
   };
-}
-
-// ─── Rules ───────────────────────────────────────────────────────────────────
-
-/**
- * A client project has exactly one company, which the CRM knows and has not archived (the
- * picker never offers an archived one); `saas` and `internal` have none (AC-1.1, D5, D19, D24).
- */
-async function assertCompanyFits(type: ProjectType, companyId: string | undefined): Promise<void> {
-  if (!isClientType(type)) {
-    if (companyId !== undefined) {
-      throw unprocessable("A saas or internal project has no company of its own", { field: "companyId" }, "company_not_allowed");
-    }
-    return;
-  }
-  if (companyId === undefined) {
-    throw unprocessable("A company is required for this project type", { field: "companyId" }, "company_required");
-  }
-  if (!(await orCrmUnavailable(findActiveCompany(companyId)))) {
-    throw unprocessable("The company does not exist in the CRM", { field: "companyId" }, "company_not_found");
-  }
 }
 
 // ─── Routes ──────────────────────────────────────────────────────────────────
@@ -130,13 +133,18 @@ const createProjectRoute = createRoute({
   method: "post",
   path: "/projects",
   tags: ["Projects"],
-  summary: "Create a project (project:manage for its entity)",
+  summary: "Create a project by hand, optionally with its terms (project:manage for its entity)",
   middleware: [...authorized, requireCapability(PROJECT_MANAGE)],
   request: { body: { content: { "application/json": { schema: CreateProjectSchema } }, required: true } },
   responses: {
     201: { description: "Created, state planned", ...json(ProjectSchema) },
     // 403: forbidden, or out_of_scope for the other entity (commonErrors).
-    422: { description: "company_required, company_not_allowed, company_not_found or not_project_user" },
+    // 400 `validation_failed` names a malformed member by its path in the body: `terms.startDate`, `terms.terms.deadline`.
+    422: {
+      description:
+        "company_required, company_not_allowed, company_not_found, not_project_user, terms_not_allowed (terms on an " +
+        "internal project) or maintenance_needs_sla_or_hours (field `terms.terms`)",
+    },
     ...commonErrors,
   },
 });
@@ -146,6 +154,7 @@ const listProjectsRoute = createRoute({
   path: "/projects",
   tags: ["Projects"],
   summary: "List projects, by name, 25 per page",
+  description: "`projectManagerId=none` lists only the projects awaiting their project manager.",
   middleware: authorized,
   request: { query: ListProjectsQuery },
   responses: { 200: { description: "A page of projects", ...json(ProjectPageSchema) }, ...commonErrors },
@@ -155,7 +164,7 @@ const getProjectRoute = createRoute({
   method: "get",
   path: "/projects/{id}",
   tags: ["Projects"],
-  summary: "A project with its team, contracts and derived dates",
+  summary: "A project with its team, purchase order and terms",
   middleware: authorized,
   request: { params: IdParams },
   responses: { 200: { description: "The project", ...json(ProjectSchema) }, 404: { description: "Not found" }, ...commonErrors },
@@ -174,7 +183,12 @@ const updateProjectRoute = createRoute({
   method: "patch",
   path: "/projects/{id}",
   tags: ["Projects"],
-  summary: "Rename a project or change its project manager (If-Match required)",
+  summary: "Rename a project, change its project manager or pick its first (If-Match required)",
+  description:
+    "`projectManagerId` of a project that has none (made from a deal, awaiting one) can be set only by the " +
+    "purchase order's ops-manager, who must still hold `purchase-order:receive` for the project's entity, or by " +
+    "an admin who holds it for every entity (`403 not_ops_manager`); once it has one, any holder of manage " +
+    "projects for the entity may change it. `null` is refused: a project is never left without one.",
   middleware: [...authorized, requireCapability(PROJECT_MANAGE)],
   request: {
     params: IdParams,
@@ -184,7 +198,7 @@ const updateProjectRoute = createRoute({
     200: { description: "Updated", ...json(ProjectSchema) },
     404: { description: "Not found" },
     409: { description: "version_conflict" },
-    422: { description: "not_project_user" },
+    422: { description: "not_project_user or project_manager_required" },
     428: { description: "precondition_required" },
     ...commonErrors,
   },
@@ -192,22 +206,32 @@ const updateProjectRoute = createRoute({
 
 export const projectsRouter = new OpenAPIHono<{ Variables: AuthzVariables }>({ defaultHook: validationHook });
 
+// The referent routes (specs/20261103-projects-handoff T26) hang off a project: `/projects/:id/purchase-order[/contacts]`.
+projectsRouter.route("/", referentRouter);
+
 projectsRouter.openapi(createProjectRoute, async (c) => {
   const body = c.req.valid("json");
   assertCanManage(c, body.entity);
+  // The terms are checked first: it costs no call, and a refusal names the field of the body (AC-5.3).
+  const terms = creationTerms(body.type, body.terms);
   await assertCompanyFits(body.type, body.companyId);
   const userId = c.get("userId");
   const projectManagerId = body.projectManagerId ?? userId;
   // The caller needs no check (they are in the module right now); anyone else must hold access (AC-1.6).
   await requireProjectUsers(c, [projectManagerId]);
+  // Project and terms are ONE statement (a nested create), as in the take: a refusal leaves nothing behind.
+  // A hand-made project never has a purchase order: only the take makes one (specs/20261103-projects-handoff D38, D50).
   const row = await db.project.create({
     data: {
-      name: body.name,
-      type: body.type,
-      entity: body.entity,
-      companyId: body.companyId ?? null,
-      projectManagerId,
-      createdById: userId,
+      ...projectCreateData({
+        name: body.name,
+        type: body.type,
+        entity: body.entity,
+        companyId: body.companyId ?? null,
+        projectManagerId,
+        createdById: userId,
+      }),
+      ...termsCreate(terms),
     },
     include: projectInclude,
   });
@@ -229,13 +253,13 @@ projectsRouter.openapi(listProjectsRoute, async (c) => {
     ...(q?.trim() ? { name: { contains: q.trim(), mode: "insensitive" } } : {}),
     ...(type ? { type } : {}),
     ...(state ? { state } : {}),
-    ...(projectManagerId ? { projectManagerId } : {}),
+    ...(projectManagerId === NO_PROJECT_MANAGER ? AWAITING_PROJECT_MANAGER : projectManagerId ? { projectManagerId } : {}),
   };
   const [total, rows] = await Promise.all([
     db.project.count({ where }),
     db.project.findMany({
       where,
-      include: { contracts: { select: { companyId: true } } },
+      include: { purchaseOrder: { select: { id: true } } },
       orderBy: [{ name: "asc" }, { id: "asc" }],
       ...skipTake(page, DEFAULT_PAGE_SIZE),
     }),
@@ -251,8 +275,8 @@ projectsRouter.openapi(listProjectsRoute, async (c) => {
     state: row.state,
     entity: row.entity,
     company: row.companyId === null ? null : company(row.companyId),
-    clientCount: new Set(row.contracts.map((contract) => contract.companyId)).size,
-    projectManager: people.person(row.projectManagerId),
+    projectManager: people.maybe(row.projectManagerId),
+    awaitingProjectManager: isAwaitingProjectManager(row),
   }));
   return c.json({ items, page, pageSize: DEFAULT_PAGE_SIZE, total }, 200);
 });
@@ -263,10 +287,16 @@ projectsRouter.openapi(listProjectsRoute, async (c) => {
  * and fail soft; they are sorted after resolving, a person without a name last, ties by id.
  */
 projectsRouter.openapi(listProjectManagersRoute, async (c) => {
-  const rows = await db.project.findMany({ distinct: ["projectManagerId"], select: { projectManagerId: true } });
-  const people = await loadPeople(c, rows.map((row) => row.projectManagerId));
-  const items = rows
-    .map((row) => people.person(row.projectManagerId))
+  // A project awaiting its project manager has none yet (specs/20261103-projects-handoff D42): nobody to list for it.
+  const rows = await db.project.findMany({
+    where: { projectManagerId: { not: null } },
+    distinct: ["projectManagerId"],
+    select: { projectManagerId: true },
+  });
+  const ids = rows.flatMap((row) => (row.projectManagerId === null ? [] : [row.projectManagerId]));
+  const people = await loadPeople(c, ids);
+  const items = ids
+    .map((id) => people.person(id))
     .sort(
       (a, b) =>
         Number(a.name === null) - Number(b.name === null) ||
@@ -283,16 +313,27 @@ projectsRouter.openapi(updateProjectRoute, async (c) => {
   const current = await findProjectRow(id);
   if (!current) throw notFound("Project not found");
   assertCanManage(c, current.entity);
+  // Once a project has a project manager it is never left without one (AC-4.9).
+  const requested = body.projectManagerId;
+  if (requested === null) throw projectManagerRequired();
+  // The FIRST project manager of a project from a deal is the ops-manager's pick (AC-4.8, D46, D47): the
+  // rule reads the purchase order's `opsManagerId` from the row just loaded, and the write below is a
+  // compare-and-set on the version asserted here, so the check and the write cannot be split by another
+  // save (T18 L5). Once the project has one, manage of the entity is all it takes (specs/20261103-projects, A34).
+  const picking = requested !== undefined && current.projectManagerId === null;
+  if (picking) assertCanPickProjectManager(c, current);
   assertVersion(current.version, expected);
   // A project manager who is not being changed is not re-checked: a rename must not fail
   // because they have since lost access to the module (AC-1.6 guards who is GIVEN a project).
-  if (body.projectManagerId !== undefined && body.projectManagerId !== current.projectManagerId) {
-    await requireProjectUsers(c, [body.projectManagerId]);
+  if (requested !== undefined && requested !== current.projectManagerId) {
+    await requireProjectUsers(c, [requested]);
   }
   const row = await updateProjectIfVersion(id, expected, {
     ...(body.name !== undefined ? { name: body.name } : {}),
-    ...(body.projectManagerId !== undefined ? { projectManagerId: body.projectManagerId } : {}),
+    ...(requested !== undefined ? { projectManagerId: requested } : {}),
   });
+  // The audit line (T18 L6): which event, which project, who — nothing of the person picked.
+  if (picking) console.log(JSON.stringify({ event: "project_manager.picked", projectId: id, actorId: c.get("userId") }));
   c.header("ETag", etag(row.version));
   return c.json(await toProjectView(c, row), 200);
 });

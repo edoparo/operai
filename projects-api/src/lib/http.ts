@@ -79,12 +79,15 @@ export function assertVersion(current: number, expected: number): void {
 export const isRecordNotFound = (error: unknown): boolean =>
   typeof error === "object" && error !== null && (error as { code?: unknown }).code === "P2025";
 
+/** The 404 of a record a compare-and-set found gone: a detail, or a coded error of the record's own. */
+export type Gone = string | (() => ProblemError);
+
 /**
  * The error for a compare-and-set that matched no row (AC-1.7, ADR 20260807-optimistic-concurrency-version-if-match-cas-amends-0004): someone saved first
  * (409 `version_conflict` carrying the version now stored) or the record is gone (404).
  */
-export const casMiss = (now: { version: number } | null, notFoundDetail: string): ProblemError =>
-  now ? versionConflict(now.version) : notFound(notFoundDetail);
+export const casMiss = (now: { version: number } | null, gone: Gone): ProblemError =>
+  now ? versionConflict(now.version) : typeof gone === "string" ? notFound(gone) : gone();
 
 /**
  * Compare-and-set on the version: `update` must match `version: expected` in its `where` and
@@ -95,13 +98,13 @@ export const casMiss = (now: { version: number } | null, notFoundDetail: string)
 export async function updateIfVersion<T>(
   update: () => Promise<T>,
   readVersion: () => Promise<{ version: number } | null>,
-  notFoundDetail: string,
+  gone: Gone,
 ): Promise<T> {
   try {
     return await update();
   } catch (error) {
     if (!isRecordNotFound(error)) throw error;
-    throw casMiss(await readVersion(), notFoundDetail);
+    throw casMiss(await readVersion(), gone);
   }
 }
 

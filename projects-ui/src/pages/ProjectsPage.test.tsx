@@ -78,25 +78,46 @@ describe('ProjectsPage list (AC-1.4)', () => {
     expect(screen.getByTestId('projects-pagination-status').textContent).toBe('Page 1 of 1 — showing 1–1 of 1')
   })
 
-  it('shows the number of clients for a SaaS project, "Internal" for an internal one', async () => {
+  it('shows the company of a SaaS project like any client project (D40), and "Internal" for an internal one', async () => {
     await renderPage({
       'GET /projects': () => ({
         status: 200,
         body: page([
-          projectSummary({ id: 's3', name: 'Koordy', type: 'saas', company: null, clientCount: 3 }),
-          projectSummary({ id: 's1', name: 'Sentinel', type: 'saas', company: null, clientCount: 1 }),
-          projectSummary({ id: 's0', name: 'Newcomer', type: 'saas', company: null, clientCount: 0 }),
-          projectSummary({ id: 'i1', name: 'Ops tooling', type: 'internal', company: null, clientCount: 0 }),
+          projectSummary({ id: 's1', name: 'Sentinel', type: 'saas', company: { id: 'c9', name: 'Beta AG' } }),
+          projectSummary({ id: 's0', name: 'Newcomer', type: 'saas', company: { id: 'c8', name: null } }),
+          projectSummary({ id: 'i1', name: 'Ops tooling', type: 'internal', company: null }),
         ]),
       }),
     })
     const table = await screen.findByTestId('projects-table')
     const companyCell = (name: string) =>
       within(within(table).getByRole('rowheader', { name }).closest('tr')!).getByTestId('projects-company')
-    expect(companyCell('Koordy').textContent).toBe('3 clients')
-    expect(companyCell('Sentinel').textContent).toBe('1 client')
-    expect(companyCell('Newcomer').textContent).toBe('No clients yet')
+    expect(companyCell('Sentinel').textContent).toBe('Beta AG')
+    expect(companyCell('Newcomer').textContent).toBe('Company unavailable')
     expect(companyCell('Ops tooling').textContent).toBe('Internal')
+  })
+
+  it('reads "Awaiting project manager" where a project has none yet, never a blank (AC-4.5)', async () => {
+    await renderPage({
+      'GET /projects': () => ({
+        status: 200,
+        body: page([
+          projectSummary({ id: 'w1', name: 'Fresh from a deal', projectManager: null, awaitingProjectManager: true }),
+          projectSummary({ id: 'p1', name: 'Intranet' }),
+        ]),
+      }),
+    })
+    const table = await screen.findByTestId('projects-table')
+    expect(
+      within(within(table).getByRole('rowheader', { name: 'Fresh from a deal' }).closest('tr')!).getByText(
+        'Awaiting project manager',
+      ),
+    ).not.toBeNull()
+    expect(
+      within(within(table).getByRole('rowheader', { name: 'Intranet' }).closest('tr')!).queryByText(
+        'Awaiting project manager',
+      ),
+    ).toBeNull()
   })
 
   it('says so when the CRM could not name a client project’s company', async () => {
@@ -142,12 +163,12 @@ describe('ProjectsPage list (AC-1.4)', () => {
     })
     await screen.findByTestId('projects-table')
     const select = await screen.findByLabelText('Project manager')
-    await waitFor(() => expect(within(select).getAllByRole('option').length).toBe(3))
+    await waitFor(() => expect(within(select).getAllByRole('option').length).toBe(4))
     expect(
       within(select)
         .getAllByRole('option')
         .map((option) => option.textContent),
-    ).toEqual(['Any', 'Ada Lovelace (You)', 'Bob Builder'])
+    ).toEqual(['Any', 'None yet', 'Ada Lovelace (You)', 'Bob Builder'])
     fireEvent.change(select, { target: { value: 'u-bob' } })
     await waitFor(() => expect(lastQuery()).toEqual({ page: '1', projectManagerId: 'u-bob' }))
     fireEvent.change(select, { target: { value: '' } })
@@ -158,6 +179,37 @@ describe('ProjectsPage list (AC-1.4)', () => {
     )
   })
 
+  it('offers "None yet" for the projects awaiting a project manager, asked as projectManagerId=none (AC-4.5)', async () => {
+    await renderPage({
+      'GET /project-managers': () => ({ status: 200, body: { items: [ADA] } }),
+      'GET /projects': () => ({ status: 200, body: page([projectSummary()]) }),
+    })
+    await screen.findByTestId('projects-table')
+    const select = await screen.findByLabelText('Project manager')
+    expect(
+      within(select)
+        .getAllByRole('option')
+        .map((option) => option.textContent),
+    ).toContain('None yet')
+    fireEvent.change(select, { target: { value: 'none' } })
+    await waitFor(() => expect(lastQuery()).toEqual({ page: '1', projectManagerId: 'none' }))
+    fireEvent.change(select, { target: { value: '' } })
+    await waitFor(() => expect(lastQuery()).toEqual({ page: '1' }))
+  })
+
+  it('offers "None yet" even when the project managers cannot be loaded', async () => {
+    await renderPage({
+      'GET /project-managers': () => problem(500, undefined, {}, 'boom'),
+      'GET /projects': () => ({ status: 200, body: page([projectSummary()]) }),
+    })
+    await screen.findByTestId('projects-table')
+    expect(
+      within(screen.getByLabelText('Project manager'))
+        .getAllByRole('option')
+        .map((option) => option.textContent),
+    ).toEqual(['Any', 'None yet'])
+  })
+
   it('has no "Only my projects" fallback: every reader gets the same project-manager filter', async () => {
     await renderPage({
       'GET /authz/users/directory': () => problem(403, 'forbidden'),
@@ -165,7 +217,7 @@ describe('ProjectsPage list (AC-1.4)', () => {
       'GET /projects': () => ({ status: 200, body: page([projectSummary()]) }),
     })
     const select = await screen.findByLabelText('Project manager')
-    await waitFor(() => expect(within(select).getAllByRole('option').length).toBe(2))
+    await waitFor(() => expect(within(select).getAllByRole('option').length).toBe(3))
     expect(screen.queryByLabelText('Only my projects')).toBeNull()
   })
 
@@ -176,7 +228,8 @@ describe('ProjectsPage list (AC-1.4)', () => {
     })
     expect(await screen.findByTestId('projects-table')).not.toBeNull()
     expect(await screen.findByText('The project managers could not be loaded.')).not.toBeNull()
-    expect(within(screen.getByLabelText('Project manager')).getAllByRole('option').length).toBe(1)
+    // Only the fixed choices: "Any" and "None yet".
+    expect(within(screen.getByLabelText('Project manager')).getAllByRole('option').length).toBe(2)
   })
 })
 
@@ -234,7 +287,10 @@ describe('New project (AC-4.4)', () => {
     await renderPage(
       {
         'GET /projects': () => ({ status: 200, body: page([]) }),
-        'POST /projects': () => ({ status: 201, body: { ...projectSummary({ id: 'pNew' }), team: [], contracts: [] } }),
+        'POST /projects': () => ({
+          status: 201,
+          body: { ...projectSummary({ id: 'pNew' }), team: [], purchaseOrder: null, terms: null },
+        }),
         'GET /projects/pNew': () => ({ status: 200, body: projectDetail({ id: 'pNew', name: 'Ops tooling' }) }),
       },
       scope({ manage: ['welld_ch'] }),

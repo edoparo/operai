@@ -43,8 +43,33 @@ const envSchema = z
     CRM_INTERNAL_URL: z.string().url("CRM_INTERNAL_URL must be a valid URL").optional(),
     SERVICE_CLIENT_ID: z.string().min(1).optional(),
     SERVICE_CLIENT_SECRET: z.string().min(32, "SERVICE_CLIENT_SECRET must be at least 32 characters").optional(),
+    // ─── estimai-api, read as ITSELF (specs/20261103-projects-handoff, ADR 20261104-estimai-api-first-system-route-estimate-man-days-for-a-service-credential) ───────────────────
+    // Base URL of estimai-api: `GET /system/estimates/{id}/summary` with the same service
+    // credential as crm-api's (scope `estimai.estimates.read`) gives the man-days the fixed-price
+    // terms of a project made from a deal copy. Optional: unset, taking such a deal answers 503
+    // `estimai_unconfigured`, and nothing else in the module notices.
+    ESTIMAI_INTERNAL_URL: z.string().url("ESTIMAI_INTERNAL_URL must be a valid URL").optional(),
+    // ─── notify-api, pushed to as ITSELF (specs/20261103-projects-handoff, AC-4.3) ──────────────────
+    // Base URL of notify-api: `POST /system/notifications` with the same service credential as
+    // crm-api's (scope `notifications.push`, originApp `projects`) tells the ops-manager of a taken
+    // deal about the new purchase order. Optional, like ESTIMAI_INTERNAL_URL: unset, or without the
+    // service credential, the push is a no-op and the take is unaffected (best-effort, AC-4.4).
+    NOTIFY_INTERNAL_URL: z.string().url("NOTIFY_INTERNAL_URL must be a valid URL").optional(),
+    // ─── Service credentials accepted on /system/* (specs/20261103-projects-handoff, ADR 20261104-projects-handoff-live-reads-between-crm-and-projects-over-service-credentials) ─────
+    // The `aud` of the scoped service JWTs `auth` mints (`POST /system/service-token`);
+    // byte-identical to auth's, and different from AUTH_AUDIENCE so a user JWT is never a
+    // system credential. Optional so the service starts without it; unset, every /system/*
+    // request is a 401 (fail closed). tools/env-doctor lists it as required in production.
+    SERVICE_AUDIENCE: z.string().min(1, "SERVICE_AUDIENCE must not be empty").optional(),
   })
   .superRefine((val, ctx) => {
+    if (val.SERVICE_AUDIENCE !== undefined && val.SERVICE_AUDIENCE === val.AUTH_AUDIENCE) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["SERVICE_AUDIENCE"],
+        message: "SERVICE_AUDIENCE must differ from AUTH_AUDIENCE (ADR 20261006-scoped-service-jwt-fourth-notify-caller)",
+      });
+    }
     const set = CRM_KEYS.filter((key) => val[key] !== undefined);
     if (set.length > 0 && set.length < CRM_KEYS.length) {
       for (const key of CRM_KEYS.filter((k) => val[k] === undefined)) {

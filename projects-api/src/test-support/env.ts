@@ -16,6 +16,8 @@ export const TEST_AUDIENCE = "operai-suite";
 export const TEST_KID = "operai-auth-rs256-v1-test";
 /** crm-api is faked by test-support/world.ts's fetch stub, at this origin. */
 export const TEST_CRM_URL = "http://crm.test";
+/** estimai-api is faked by test-support/world.ts's fetch stub, at this origin (specs/20261103-projects-handoff). */
+export const TEST_ESTIMAI_URL = "http://estimai.test";
 
 function testDatabaseUrl(): string {
   const url = new URL(process.env["DATABASE_URL"] ?? "postgresql://postgres:postgres@localhost:5435/projects_test");
@@ -32,5 +34,9 @@ process.env["AUTH_AUDIENCE"] = TEST_AUDIENCE;
 process.env["AUTH_BASE_URL"] = TEST_ISSUER;
 process.env["NODE_ENV"] = "test";
 process.env["CRM_INTERNAL_URL"] = TEST_CRM_URL;
+process.env["ESTIMAI_INTERNAL_URL"] = TEST_ESTIMAI_URL;
+// Unset: projects-api's own /system/* routes then refuse every request (fail closed); their tests
+// inject the audience they need. A developer's real value must not leak into assertions.
+delete process.env["SERVICE_AUDIENCE"];
 process.env["SERVICE_CLIENT_ID"] = "projects-api";
 process.env["SERVICE_CLIENT_SECRET"] = "test-service-client-secret-of-32-chars-or-more";

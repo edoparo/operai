@@ -49,6 +49,16 @@ import { createHash, timingSafeEqual } from "node:crypto";
  *   estimate-request task, completion, meeting-host state and contact erasure
  *   (specs/20261110-activities, ADR 20261110-activities-service-access-delegated-to-host/0082). Only crm-api holds it; activities-api's sub
  *   allowlist names `system:crm-api`.
+ * - `crm.deals.read`: read won deals through crm-api's `GET /system/deals` (specs/20261103-projects-handoff).
+ *   Only projects-api holds it.
+ * - `estimai.estimates.read`: read an estimate's man-days through estimai-api's
+ *   `GET /system/estimates/{id}/summary` (specs/20261103-projects-handoff). Only projects-api holds it.
+ * - `crm.contacts.read`: read a company's contacts, or contacts by id (the referent of a
+ *   purchase order), through crm-api's `GET /system/contacts` (specs/20261103-projects-handoff, D49). Only
+ *   projects-api holds it.
+ * - `projects.purchase-orders.read`: read the purchase orders of given deals through
+ *   projects-api's `GET /system/purchase-orders` (specs/20261103-projects-handoff; was `projects.contracts.read`,
+ *   retired with "contract", D38). Only crm-api holds it.
  */
 export const KNOWN_SERVICE_SCOPES = [
   "notifications.push",
@@ -59,6 +69,10 @@ export const KNOWN_SERVICE_SCOPES = [
   "deal-link-notices.send",
   "crm.companies.read",
   "activities.write",
+  "crm.deals.read",
+  "crm.contacts.read",
+  "estimai.estimates.read",
+  "projects.purchase-orders.read",
 ] as const;
 
 /**
@@ -68,9 +82,12 @@ export const KNOWN_SERVICE_SCOPES = [
  * env value, validated by {@link parseServiceClients}.
  * - `meetings-api` (specs/20261104-meetings): pushes in-app notifications and relays host
  *   notices to crm-api; it never sends email (AC-12.4), so no `emails.send`.
- * - `projects-api` (specs/20261103-projects): reads CRM companies and nothing else, so exactly
- *   `crm.companies.read` (no push, no email; ADR 20261013-all-notify-callers-scoped-credentials-shared-token-retired one scope per capability).
- * - `crm-api` (specs/20261110-activities): its three existing scopes plus `activities.write`.
+ * - `projects-api` (specs/20261103-projects, 026): reads CRM companies, won deals and a PO's
+ *   referent contacts, an estimate's man-days, and pushes the ops-manager's
+ *   notification; it sends no email, so no `emails.send` (ADR 20261013-all-notify-callers-scoped-credentials-shared-token-retired one scope per
+ *   capability; env-doctor's manifest holds the same five).
+ * - `crm-api` (specs/20261103-projects-handoff, specs/20261110-activities): its notify and deal-link scopes, the purchase
+ *   orders of its deals (`projects.purchase-orders.read`) and `activities.write`.
  * - `activities-api` (specs/20261110-activities): `notifications.push emails.send` — its task notices
  *   (AC-6.1/6.3) are email notices, and notify-api requires `emails.send` as well as
  *   `notifications.push` for `email: true` (ADR 20261101-notify-api-resolves-email-notice-address-from-auth). No `activities.write`: it is the
@@ -78,8 +95,8 @@ export const KNOWN_SERVICE_SCOPES = [
  */
 export const DOCUMENTED_CLIENT_SCOPES = {
   "meetings-api": "notifications.push host-notices.send",
-  "projects-api": "crm.companies.read",
-  "crm-api": "notifications.push emails.send deal-link-notices.send activities.write",
+  "projects-api": "crm.companies.read crm.deals.read crm.contacts.read estimai.estimates.read notifications.push",
+  "crm-api": "notifications.push emails.send deal-link-notices.send activities.write projects.purchase-orders.read",
   "activities-api": "notifications.push emails.send",
 } as const;
 

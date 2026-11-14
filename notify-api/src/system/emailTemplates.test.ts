@@ -301,6 +301,14 @@ describe("renderEmailTemplate — notification_notice (specs/20261101-crm-notifi
     expect(subject).not.toMatch(/[\r\n]/);
   });
 
+  it("names the Projects tool in the footer for the projects origin (specs/20261103-projects-handoff)", () => {
+    const { html } = renderEmailTemplate({
+      template: "notification_notice",
+      data: { ...data, originApp: "projects", href: "/projects/handoff" },
+    });
+    expect(html).toContain("Sent by Operai Projects");
+  });
+
   it("names no tool in the footer for an unknown origin app", () => {
     const { html } = renderEmailTemplate({
       template: "notification_notice",

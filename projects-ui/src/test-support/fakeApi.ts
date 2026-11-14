@@ -6,7 +6,17 @@
  * fixes. Modelled on crm-ui/src/test-support/fakeApi.ts.
  */
 import { vi } from 'vitest'
-import type { Person, Project, ProjectSummary, Scope } from '../lib/types'
+import type {
+  Person,
+  Project,
+  ProjectSummary,
+  PurchaseOrder,
+  Referent,
+  Scope,
+  Terms,
+  TermsType,
+  TermsView,
+} from '../lib/types'
 
 export type FakeAnswer = { status: number; body?: unknown }
 export type FakeHandler = (url: URL, init: RequestInit | undefined) => FakeAnswer | Promise<FakeAnswer>
@@ -38,12 +48,15 @@ export const problem = (status: number, code?: string, extras: Record<string, un
 })
 
 export const ADA: Person = { id: 'u-ada', name: 'Ada Lovelace', deleted: false }
+export const OLGA: Person = { id: 'u-ops', name: 'Olga Ops', deleted: false }
 
 /** A scope: nothing by default, so a test of something gated says what it grants. */
 export const scope = (overrides: Partial<Scope> = {}): Scope => ({
   manage: [],
   managesAll: false,
   bexio: false,
+  take: [],
+  oversees: false,
   ...overrides,
 })
 
@@ -54,12 +67,51 @@ export const projectSummary = (overrides: Partial<ProjectSummary> = {}): Project
   state: 'active',
   entity: 'welld_ch',
   company: { id: 'c1', name: 'Acme SA' },
-  clientCount: 1,
   projectManager: ADA,
+  awaitingProjectManager: false,
   ...overrides,
 })
 
-/** A full `Project` (`GET /projects/:id`): active, no team, no contracts. */
+/** A purchase order made from a won deal: no estimate, no referent, the deal still won. */
+export const purchaseOrderOf = (overrides: Partial<PurchaseOrder> = {}): PurchaseOrder => ({
+  id: 'po1',
+  deal: { id: 'd1', title: 'Website relaunch', won: true },
+  estimate: null,
+  bexioOrderId: null,
+  referent: null,
+  opsManager: OLGA,
+  version: 2,
+  ...overrides,
+})
+
+/** A referent as the CRM read gave it (synthetic contact, T18 L2): all of it there unless a test overrides. */
+export const referentOf = (overrides: Partial<Referent> = {}): Referent => ({
+  id: 'k1',
+  status: 'ok',
+  name: 'Jane Roe',
+  jobTitle: 'CTO',
+  email: 'jane.roe@acme.example',
+  phone: '+41 44 123 45 67',
+  ...overrides,
+})
+
+/** The terms of a project as `GET /projects/:id` reads them: the dates, and the type's members nested under `terms`. */
+export const termsOf = (
+  type: TermsType,
+  members: TermsView,
+  overrides: Partial<Pick<Terms, 'id' | 'startDate' | 'endDate' | 'version'>> = {},
+): Terms =>
+  ({
+    id: 't1',
+    type,
+    startDate: '2026-02-01',
+    endDate: null,
+    version: 4,
+    terms: members,
+    ...overrides,
+  }) as Terms
+
+/** A full `Project` (`GET /projects/:id`): an active, hand-made one — no team, no terms, no purchase order. */
 export const projectDetail = (overrides: Partial<Project> = {}): Project => ({
   id: 'p1',
   name: 'Intranet',
@@ -69,8 +121,10 @@ export const projectDetail = (overrides: Partial<Project> = {}): Project => ({
   entity: 'welld_ch',
   company: { id: 'c1', name: 'Acme SA' },
   projectManager: ADA,
+  awaitingProjectManager: false,
   team: [],
-  contracts: [],
+  purchaseOrder: null,
+  terms: null,
   startDate: null,
   endDate: null,
   version: 3,

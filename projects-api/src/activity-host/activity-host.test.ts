@@ -3,7 +3,7 @@
  * AC-3.8, AC-8.1, plan.md § Host contract). Runs the ASSEMBLED app against the `*_test` database.
  */
 import { beforeEach, describe, expect, it } from "bun:test";
-import { call, db, resetWorld, type PersonaName } from "../test-support/world";
+import { call, db, resetWorld, seedDealProject, type PersonaName } from "../test-support/world";
 import type { Prisma } from "../lib/generated/prisma/client";
 
 beforeEach(resetWorld);
@@ -55,6 +55,13 @@ describe("POST /activity-host/v1/resolve", () => {
       may: { write: false, manage: false },
     });
     expect(item["assignees"]).toEqual(["user-pm-ch", "user-viewer"]); // the PM first, no duplicate
+  });
+
+  it("lists only the team as assignees while a project from a deal awaits its project manager (specs/20261103-projects-handoff D42)", async () => {
+    const { project } = await seedDealProject();
+    await db.projectMember.create({ data: { projectId: project.id, userId: "user-viewer" } });
+    const body = await resolveOne(project.id, "viewer");
+    expect(body.items[0]!["assignees"]).toEqual(["user-viewer"]); // no null where the PM will be
   });
 
   it("answers `may.manage` from project:manage on the project's own entity (AC-3.2)", async () => {

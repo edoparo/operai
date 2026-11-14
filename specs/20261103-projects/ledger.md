@@ -190,6 +190,36 @@ Decided (the user chose):
   the existing **`sales`** role (BD) can create a project — from the queue or by hand —
   user, at 025 review ("il progetto lo possono aprire sia OPS che BD")
 
+Steering of 2026-11-04 (specs/20261103-projects-handoff re-opened at gate 1; nothing of 025/022 was on `main` yet):
+- D37 (amends D2, A20) The **to-start queue is for the sales team only**: it is seen by
+  `sales` (BD) and admins, and only they create a project from a deal. The project-manager
+  role no longer sees the queue nor takes deals — user ("no to start a tutti, ma solo al team
+  sales")
+- D38 (amends D25, D34, A14) The per-deal record is renamed **purchase order** (PO) and a
+  project has **zero or one** PO. A PO is born **only from a won deal**, together with its
+  project; a project born without a PO (created by hand) **never gets one**. So no PO is
+  ever entered by hand, and the type-specific terms (D8–D12, D26) exist only on a PO — user
+  ("rinominare contratto con purchase order e tenere 0-1 col progetto; se il progetto nasce
+  senza PO allora rimarrà per sempre senza PO"), and answer "No, PO solo da deal" over the
+  recommended "a hand-made project may be born with a hand-entered PO"
+- D39 (amends D2, D18–D20, A3, A12) **No attach**: a won deal never joins an existing
+  project; every won deal, a change request included, starts a new project — user ("togliere
+  attach to project")
+- D40 (amends D24, D26) **One project per SaaS licence**: `saas` becomes a client type — a
+  licence deal makes a `saas` project for its company, with its PO; the product itself
+  (Koordy, wellD Fleet) is an `internal` project without a PO — recommended option chosen
+- D41 A PO has a **referent**: one of the CRM contacts of the PO's company, chosen when the
+  PO is created, optional and changeable — user ("referente sul purchase order"),
+  recommended option chosen
+- D42 (amends D15, A29) A new **`ops-manager`** role (responsabile OPS), entity-scoped. When
+  BD creates a project and its PO from a deal, BD assigns the PO to an ops-manager of the
+  deal's entity — **prefilled when the entity has exactly one**; the ops-manager receives a
+  notification and **then picks the project manager**; until then the project has no project
+  manager — user ("assegnamento del PM da parte del responsabile OPS dopo che un purchase
+  order è stato creato; alla creazione il BD assegnerà il PO al responsabile OPS il quale
+  riceverà una notifica"; "nuovo ruolo; se ce ne è solo 1, viene prepopolato; i PM saranno la
+  scelta successiva del ops-manager")
+
 Delegated (the user deferred to the recommendation):
 - D21 An internal project (Koordy) has a fourth type, **Internal**, with no terms — user:
   "Internal or no type makes no difference"; recommended because every project then has a
@@ -274,6 +304,23 @@ Added when writing the spec (not asked; strike any that is wrong):
 - A9 A project belongs to one entity (`welld_ch` | `welld_it`): the deal's, or the
   company's when created by hand (D5), or chosen by hand for an internal project (D19). A
   deal of the other entity may still be linked to it.
+
+Added at the 2026-11-04 steering (my defaults, not asked; strike any that is wrong):
+- A30 With D40 the `internal` → `saas` type change loses its reason (the product stays
+  internal; licences are their own projects): a project's type never changes (D7 without
+  the D24 exception).
+- A31 The ops-manager's notification (D42) is in-app only (notification centre), no email;
+  it links to the project.
+- A32 The rename of D38 is applied everywhere — spec language, UI copy (EN "Purchase order",
+  IT "Ordine d'acquisto"), API and data model — so that code and domain use one word.
+- A33 A project created by hand keeps 025's type and company rules (a client type, `saas`
+  now included, needs a company) and simply has no PO, hence no terms; it is created by any
+  holder of manage projects and its creator is its project manager by default (D15
+  unchanged for it).
+- A34 Once the ops-manager has picked the project manager, changing it later follows 025
+  (any holder of manage projects for the entity).
+- A35 The `ops-manager` role holds module access and entity-scoped manage projects (like the
+  project-manager role) plus being assignable as a PO's ops-manager.
 - A10 `on hold` is reachable from `planned` or `active` and returns to the state it left;
   `closed` can be reopened to `active` by a project manager; `cancelled` is final and
   reachable from any state but `closed`.
@@ -290,3 +337,113 @@ Open (unresolved — each needs an owner):
 - O2 Do unused hours of a yearly package carry over to the next period? Only matters once
   consumption exists — owner: product owner, for the time-tracking spec
 - ~~O3 How is a deal attached to the wrong project undone?~~ Closed by D34.
+
+---
+
+## Grilling of 2026-11-05 — specs/20261103-projects-handoff amended spec (steering D37–D42)
+
+target: specs/20261103-projects-handoff/spec.md (status in-progress, gate 1 re-opened) · complete: true (tree resolved)
+
+### Decision map
+- G1 Creation split: what BD fills when creating project + PO from a deal (type, PO dates
+  and terms) and what OPS fills later — root
+- G2 The ops-manager: who can be one (admins? Q1), prefill, entity with none — depends on G1
+- G3 Who picks the project manager and when (only the assigned ops-manager or any manage
+  holder; reassigning a PO, Q3) — depends on G2
+- G4 A project awaiting its project manager: state moves and edits meanwhile (Q2, S2) —
+  depends on G3
+- G5 The referent: what is shown, to whom, kept or read live (Q4, S4) — independent
+- G6 Projects created by hand: which types, who creates, who is project manager (A33) —
+  independent
+- G7 The ops-manager's notification: language, failure (Q5, S1) — leaf of G2
+
+### Decision ledger — specs/20261103-projects-handoff steering, grilled
+Decided (the user chose):
+- D43 (G1) **BD fills everything** when creating project + PO from a deal: type, PO start
+  and optional end date, and the type's terms under specs/20261103-projects's rules (e.g. a fixed price
+  needs its deadline and max effort); holders of manage projects correct them afterwards
+  — recommended option chosen (the terms are in the offer BD wrote; as built, F13)
+- D44 (G2, closes Q1) A PO's ops-manager is chosen among the holders of the `ops-manager`
+  role for the deal's entity **and the admins** — user chose this over the recommended
+  "role holders only"
+- D45 (G2, amends D42's prefill) The prefill **counts role holders only**: with exactly one
+  `ops-manager` for the entity, that person is prefilled; admins stay pickable by hand —
+  recommended option chosen, asked as a consequence of D44 (counting admins too would
+  almost never prefill: two admins exist today)
+- D46 (G3, closes Q3) The project manager of a project awaiting one is picked **only by the
+  person assigned to its PO at creation** — user's own answer ("chi è assegnato a quel
+  PO/Progetto in fase di creazione"), over the recommended "any ops-manager of the entity or
+  an admin" and over the amended spec's "any holder of manage projects" (AC-4.8)
+- D47 (G3) If the assignee is away or leaves, **an admin picks the project manager in their
+  place**; there is **no reassigning a PO** in v1 — recommended option chosen, asked as a
+  consequence of D46 (admins already hold every capability, specs/20261103-projects AC-4.6)
+- D48 (G4, closes Q2) While a project awaits its project manager, **`planned` → `active` is
+  refused** with a message; every other edit and state move follows specs/20261103-projects as usual —
+  user chose this over the recommended "no restriction" (replaces S2 and the amended
+  AC-4.7)
+- D49 (G5, closes Q4) A PO's page shows its referent's **name, job title, email and phone,
+  read live from the CRM and never copied** onto the PO (a CRM erasure takes effect; a CRM
+  outage shows "referent unavailable"); a security check of this read comes before
+  implementation — recommended option chosen
+- D50 (G6, amends D38's consequence and A33) A project **created by hand** may be of **any
+  type** (a client type, `saas` included, needs a company); its creator is its project
+  manager, changeable; it never has a PO (no deal, Bexio order id, referent or ops-manager)
+  but **may carry its type's terms, optionally** (deadline and max effort, SLA, hour
+  package, positions, licence period), at creation or later — user ("qualunque tipo, ma
+  potrebbe avere il termine; il PM è chi lo crea, modificabile"), then the recommended
+  reading "the type's terms, optional" chosen when asked what "il termine" meant
+- D51 (G7, closes Q5) The ops-manager's notification is **English only**, like the CRM's
+  (F16) — a declared exception to specs/20261103-projects AC-4.7's EN+IT copy — recommended option chosen
+Delegated (the user deferred to the recommendation):
+- (none)
+Found (read from the repo, not asked):
+- F13 The as-built "new project from a deal" request already carries name, type, project
+  manager and the full contract terms in one step — projects-api/src/queue/take.routes.ts:70-78
+- F14 A CRM contact has an optional company and can be archived; crm-api's service routes
+  expose companies and deals, not contacts, so a referent picker needs a new CRM read —
+  crm-api/prisma/schema.prisma:87-97, crm-api/src/system/
+- F15 auth's user directory is opened by project:manage and lists users with their entity;
+  it has no role filter today — auth/src/authz/directory.routes.ts:65-90
+- F16 CRM notifications are English only and strictly best-effort (never block the
+  action) — crm-api/src/lib/notify.ts:8-25
+Assumed (not load-bearing; strike any that is wrong):
+- (carried from the amended spec: S1–S4, A30–A35)
+- A36 (from D44) An entity with no `ops-manager` holder does not block creation: nothing is
+  prefilled and an admin is picked; creation is refused only when the chosen person is
+  neither a role holder for the entity nor an admin (replaces the "no ops-manager" refusal
+  of the amended AC-4.2)
+- A37 (G5) Referent candidates are the non-archived contacts of the PO's company (S4); any
+  holder of manage projects for the entity sets, changes or clears it (amended AC-3.7)
+- A38 (G6) On a hand-made project the terms are optional as a whole; once entered they
+  follow specs/20261103-projects's per-type rules (a fixed price's deadline and max effort together, a
+  maintenance's SLA or hour package, positions > 0)
+Open (unresolved — each needs an owner):
+- (none from this session; O1 of the spec stays open as before)
+
+Gate 1 re-approved 2026-11-05 (recommended option): D43's "correct them afterwards" covers
+the PO's dates and terms, **not the type** — D7 holds; the PO's S5 (a hand-made project's
+terms can be removed as a whole) and S6 (a referent archived after being chosen stays shown)
+accepted; one spec, no split; glossary updated (purchase order, PO's deal, terms, hand-made
+project, referent, ops-manager, awaiting a project manager; "contract" retired).
+
+Constraint of 2026-11-05 (user, after the gate): *"la nuova PR sarà on top alla 7"* — the 026
+PR is stacked on the open PR #7 (specs/20261103-projects as written). 025's migration `20261103163000_init`
+therefore ships first and is kept; only 026's never-shipped `*_handoff` migration is
+replaced, by a guarded `*_purchase_order` migration on top (specs/20261103-projects-handoff tasks.md).
+
+Defect found during the 026 QE window (2026-11-05), added to specs/20261103-projects-handoff by the user:
+- D52 **Browser back/forward across suite modules shows the right page.** Every remote module
+  (admin, crm, estimai, inventory, notify, projects, refund) builds its router once at module
+  load; after the shell switches module and the user comes back with the browser's back
+  button, the module renders a page matched from the *other* module's address (projects-ui:
+  `GET /projects/admin` → "Project not found"; crm-ui: "This page does not exist"). Pre-existing
+  since specs/20261101-crm/025, not caused by 022. User chose "Dentro la 022" over the recommended
+  "separate bugfix after 026" — gate 1 re-opened (35 → 36 ACs).
+- D53 (2026-11-06, after the 026 QE round 2 PASS) Two more defects go **into 026**, by the
+  user's choice ("Dentro la 022") over the recommended "close 026, separate bugfixes after":
+  **D4** — the browser's back/forward *inside* one module changes the address but not the page
+  (e.g. `/projects` → "To start" → back still shows "To start"; same in the CRM); pre-existing
+  (reproduced at the pre-T37 code), every remote module. **D2 remainder** — a field's error
+  message stays after the field is corrected, until the next submit, in projects-ui's take
+  dialog, "Edit details", the terms dialogs (fixed for the hand-made create dialog only).
+  Gate 1 re-opened (36 → 38 ACs).

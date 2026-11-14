@@ -14,7 +14,7 @@
  * network failure is not an ApiError: `fetch`'s rejection propagates.
  *
  * Optimistic concurrency (ADR 20260807-optimistic-concurrency-version-if-match-cas-amends-0004, tasks.md § API contracts): every mutation of
- * an existing project or contract carries `If-Match: "<version>"` —
+ * an existing project, its terms or its purchase order carries `If-Match: "<version>"` —
  * `sendJson`'s `version` argument — and a 428/409 comes back as an ApiError the
  * page turns into the "reload" banner (`isStaleWrite`).
  */
@@ -111,8 +111,8 @@ export const ifMatch = (version: number): string => `"${version}"`
 
 /**
  * POST/PATCH/PUT against projects-api. Omit `body` for a body-less route; pass
- * `version` for a mutation of an existing project or contract, which then sends
- * `If-Match`. Contracts are never deleted (AC-2.10), so no caller sends DELETE.
+ * `version` for a mutation of an existing project, its terms or its purchase order, which then sends
+ * `If-Match`. Only a hand-made project's terms are ever deleted (`DELETE …/terms`, D50); a purchase order never is.
  */
 export const sendJson = <T>(path: string, method: string, body?: unknown, version?: number): Promise<T> => {
   const headers: Record<string, string> = {}
