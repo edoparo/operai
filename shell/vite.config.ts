@@ -132,10 +132,12 @@ const meetingsRemoteUrl = process.env['MEETINGS_REMOTE_URL'] ?? 'http://localhos
 // pattern; dev default targets its own pinned port (5181).
 const projectsRemoteUrl = process.env['PROJECTS_REMOTE_URL'] ?? 'http://localhost:5181/remoteEntry.js'
 
-// @operai/ui (operai-ui/, ADR 20261031-shared-ui-library-consumed-as-source) is compiled from SOURCE by this build; `dedupe`
-// keeps the library's own `react` imports on this project's copy (Module Federation
-// singleton), since operai-ui/node_modules does not exist on Vercel.
-const operaiUiEntry = fileURLToPath(new URL('../operai-ui/src/index.ts', import.meta.url))
+// @operai/ui (operai-ui/, ADR 20261031-shared-ui-library-consumed-as-source) is compiled from SOURCE by this build
+// and PROVIDED to every remote as a Module Federation shared singleton (ADR 20261114-operai-ui-shared-singleton-provided-by-the-shell):
+// the remotes declare it with `import: false` and never bundle it. It resolves through the
+// `link:../operai-ui` devDependency, NOT a Vite alias: an alias bypasses the plugin's sharing.
+// `dedupe` keeps the library's own `react` imports on this project's copy, since
+// operai-ui/node_modules does not exist on Vercel.
 
 // specs/20261111-push-notifications, T7: the push service worker. It must be a CLASSIC script (Firefox
 // does not reliably run module workers) at the stable, unhashed path `/push-sw.js` (the browser
@@ -222,7 +224,6 @@ function suiteVersionEndpoint(): Plugin {
 
 export default defineConfig({
   resolve: {
-    alias: { '@operai/ui': operaiUiEntry },
     dedupe: ['react', 'react-dom'],
   },
   plugins: [
@@ -383,6 +384,10 @@ export default defineConfig({
         // singleton: true keeps it one instance for the whole suite, same
         // rationale as react/react-dom above.
         'better-auth': { singleton: true, requiredVersion: pkg.dependencies['better-auth'] },
+        // ADR 20261114-operai-ui-shared-singleton-provided-by-the-shell: the shell is the ONE provider of the design system; every
+        // remote consumes it with `import: false`. Private library, built from the same commit:
+        // no version range to check.
+        '@operai/ui': { singleton: true, requiredVersion: false },
       },
     }),
   ],

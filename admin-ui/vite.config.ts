@@ -2,7 +2,6 @@ import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 import { federation } from '@module-federation/vite'
 import { readFileSync } from 'node:fs'
-import { fileURLToPath } from 'node:url'
 
 // T13 (specs/20260713-auth-roles-permissions/tasks.md): admin-ui — the Roles &
 // Permissions management GUI's dedicated Module Federation REMOTE (plan.md
@@ -29,14 +28,14 @@ const pkg = JSON.parse(readFileSync(new URL('./package.json', import.meta.url), 
 // admin-ui consumes shell/session + shell/tokens.css from there.
 const shellRemoteUrl = process.env['SHELL_REMOTE_URL'] ?? 'http://localhost:5173/remoteEntry.js'
 
-// @operai/ui (operai-ui/, ADR 20261031-shared-ui-library-consumed-as-source) is compiled from SOURCE by this build; `dedupe`
-// keeps the library's own `react` imports on this project's copy (Module Federation
-// singleton), since operai-ui/node_modules does not exist on Vercel.
-const operaiUiEntry = fileURLToPath(new URL('../operai-ui/src/index.ts', import.meta.url))
+// @operai/ui (operai-ui/, ADR 20261031-shared-ui-library-consumed-as-source) is NOT bundled by this remote: it is a Module
+// Federation shared singleton the shell provides (ADR 20261114-operai-ui-shared-singleton-provided-by-the-shell), declared below with
+// `import: false`. The `link:../operai-ui` devDependency exists only so the plugin can read the
+// library's named exports at build time; a Vite alias would bypass the sharing. tsconfig `paths`
+// still give the types.
 
 export default defineConfig({
   resolve: {
-    alias: { '@operai/ui': operaiUiEntry },
     dedupe: ['react', 'react-dom'],
   },
   plugins: [
@@ -82,6 +81,8 @@ export default defineConfig({
           requiredVersion: pkg.dependencies['@tanstack/react-router'],
         },
         'better-auth': { singleton: true, requiredVersion: pkg.dependencies['better-auth'] },
+        // ADR 20261114-operai-ui-shared-singleton-provided-by-the-shell: consumed from the shell, never bundled here (no fallback).
+        '@operai/ui': { singleton: true, import: false, requiredVersion: false },
       },
     }),
   ],

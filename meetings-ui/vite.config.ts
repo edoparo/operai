@@ -25,10 +25,11 @@ const caret = (version: string) => (/^\d/.test(version) ? `^${version}` : versio
 // remote resolution is separate, ADR 20260709-suite-frontend-module-federation): the shell dev server's pinned port.
 const shellRemoteUrl = process.env['SHELL_REMOTE_URL'] ?? 'http://localhost:5173/remoteEntry.js'
 
-// @operai/ui (operai-ui/, ADR 20261031-shared-ui-library-consumed-as-source) is compiled from SOURCE by this build; `dedupe`
-// keeps the library's own `react` imports on this project's copy (Module Federation
-// singleton), since operai-ui/node_modules does not exist on Vercel.
-const operaiUiEntry = fileURLToPath(new URL('../operai-ui/src/index.ts', import.meta.url))
+// @operai/ui (operai-ui/, ADR 20261031-shared-ui-library-consumed-as-source) is NOT bundled by this remote: it is a Module
+// Federation shared singleton the shell provides (ADR 20261114-operai-ui-shared-singleton-provided-by-the-shell), declared below with
+// `import: false`. The `link:../operai-ui` devDependency exists only so the plugin can read the
+// library's named exports at build time; a Vite alias would bypass the sharing. tsconfig `paths`
+// still give the types.
 // The library's rich-text entry, which needs TipTap: installed HERE and deduped, so the library's
 // `@tiptap/*` imports resolve to this project's copy (operai-ui/README.md § Rich text).
 const operaiUiRichText = fileURLToPath(new URL('../operai-ui/src/richText.ts', import.meta.url))
@@ -45,7 +46,6 @@ export default defineConfig({
   resolve: {
     alias: [
       { find: /^@operai\/ui\/rich-text$/, replacement: operaiUiRichText },
-      { find: /^@operai\/ui$/, replacement: operaiUiEntry },
     ],
     dedupe: ['react', 'react-dom', ...TIPTAP_PACKAGES],
   },
@@ -81,6 +81,8 @@ export default defineConfig({
           requiredVersion: pkg.dependencies['@tanstack/react-router'],
         },
         'better-auth': { singleton: true, requiredVersion: pkg.dependencies['better-auth'] },
+        // ADR 20261114-operai-ui-shared-singleton-provided-by-the-shell: consumed from the shell, never bundled here (no fallback).
+        '@operai/ui': { singleton: true, import: false, requiredVersion: false },
       },
     }),
   ],

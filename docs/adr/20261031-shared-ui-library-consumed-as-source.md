@@ -3,6 +3,7 @@
 **Date:** 2026-10-31
 **Status:** Proposed (experiment on `feat/operai-ui-library`, refund-ui migrated; to be accepted or rejected after review)
 **Deciders:** wellD
+**Amended by:** ADR 20261114-operai-ui-shared-singleton-provided-by-the-shell — the shell alone compiles the library and shares it with the remotes (`import: false`); point 2 and the rejection of option D no longer hold as written.
 **Project:** Operai
 
 ---

@@ -48,23 +48,38 @@ here serves Storybook and the tests only.
 
 ## Adopting the library in an app
 
-The library is compiled from source by the app that uses it (ADR 20261031-shared-ui-library-consumed-as-source). In the
-app directory:
+The library is compiled from source by ONE app, the shell, and shared with every remote as a
+Module Federation singleton (ADR 20261031-shared-ui-library-consumed-as-source, amended by
+ADR 20261114-operai-ui-shared-singleton-provided-by-the-shell). A remote declares the dependency and never bundles it. In the app
+directory:
 
-1. **`vite.config.ts`** — alias the package and keep one React:
+1. **`package.json`** — `pnpm add -D '@operai/ui@link:../operai-ui'`. The symlink is how the
+   federation plugin finds the package: it reads the library's named exports from it at build
+   time. Do NOT alias `@operai/ui` in `vite.config.ts`: an alias bypasses Module Federation's
+   sharing and the library is bundled again.
+   **`vite.config.ts`** — keep one React and declare the share:
 
    ```ts
-   const operaiUiEntry = fileURLToPath(new URL('../operai-ui/src/index.ts', import.meta.url))
    export default defineConfig({
-     resolve: {
-       alias: { '@operai/ui': operaiUiEntry },
-       dedupe: ['react', 'react-dom'],
-     },
-     // …
+     resolve: { dedupe: ['react', 'react-dom'] },
+     plugins: [
+       federation({
+         // …
+         shared: {
+           // …react, react-dom, @tanstack/react-router, better-auth
+           // a REMOTE: consumed from the shell, never bundled, no fallback
+           '@operai/ui': { singleton: true, import: false, requiredVersion: false },
+           // the SHELL (the one provider): the same line without `import: false`
+         },
+       }),
+     ],
    })
    ```
 
-2. **`vitest.config.ts`** — the same alias and `dedupe` under `resolve`.
+   A remote therefore cannot run its standalone `pnpm dev` page with the library: nothing
+   provides it outside the shell. Run it through the shell (`mise run dev`).
+2. **`vitest.config.ts`** — the tests do not load the federation plugin, so alias `@operai/ui`
+   to `../operai-ui/src/index.ts` there, with the same `dedupe` under `resolve`.
 3. **`tsconfig.app.json`** — `compilerOptions.paths`:
 
    ```json
@@ -103,14 +118,25 @@ is in the main entry. An app that uses the rich-text entry:
 
 1. installs `@tiptap/core`, `@tiptap/react`, `@tiptap/pm`, `@tiptap/starter-kit`, `@tiptap/extension-list`
    and `@tiptap/extensions` (the version this library's devDependencies pin, exactly);
-2. aliases both entries with exact matches (an object alias would make `@operai/ui` a prefix of the other):
+2. compiles this entry ITSELF (the shell does not install TipTap, so it cannot provide it): in
+   `vite.config.ts` alias only the rich-text entry, with an exact match, and leave the main entry
+   to the share; in `vitest.config.ts` alias both, the longer first (an object alias would make
+   `@operai/ui` a prefix of the other):
 
    ```ts
+   // vite.config.ts
+   alias: [
+     { find: /^@operai\/ui\/rich-text$/, replacement: fileURLToPath(new URL('../operai-ui/src/richText.ts', import.meta.url)) },
+   ],
+   // vitest.config.ts
    alias: [
      { find: /^@operai\/ui\/rich-text$/, replacement: fileURLToPath(new URL('../operai-ui/src/richText.ts', import.meta.url)) },
      { find: /^@operai\/ui$/, replacement: fileURLToPath(new URL('../operai-ui/src/index.ts', import.meta.url)) },
    ],
    ```
+
+   The rich-text entry imports `AttachmentList` and `Icon` by relative path, so those two
+   stateless components are bundled again in each rich-text remote.
 
 3. adds the six `@tiptap/*` packages to `resolve.dedupe` (vite and vitest), so the library's imports
    resolve from the app (on Vercel `operai-ui/node_modules` does not exist);
@@ -123,6 +149,20 @@ descriptions with images and attachments, ADR 20261113-task-description-files-in
 
 ## Versioning
 
-`@operai/ui` is a Changesets package like the apps (`lerna.json`). Because apps
-compile it from source, its version records what changed; it does not pin what an
-app gets — an app always builds against the library at the same commit.
+`@operai/ui` is a Changesets package like the apps (`lerna.json`). Its version
+records what changed; it does not pin what an app gets. At runtime every remote
+uses the library THE SHELL was built with, which may be a different commit from
+the one the remote was built with (Vercel deploys each project on its own, and a
+remote can be redeployed alone). So a change to the main entry must be
+compatible both ways for one deploy:
+
+- **adding** an export that a remote uses: ship the library change in a push
+  that redeploys the shell, and use it from the remote once the shell is live
+  (a remote importing a name the live shell does not export receives `undefined`
+  and fails where it uses it: the shell's error boundary shows "couldn't load");
+- **removing or renaming** an export, or changing a prop incompatibly: first
+  stop every remote using it, then remove it in a later push;
+- a visual change to a component reaches every remote at the next shell
+  deploy, without the remote being rebuilt.
+
+`/version.json` (the shell) and the About modal tell which shell is live.
