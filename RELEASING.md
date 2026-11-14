@@ -52,9 +52,8 @@ In order, after the push:
   `mise run env:doctor -- --env production --resolve`.
 - Check that the new version is online: `https://operai.welld.io/version.json` must answer
   `{"version":"<X.Y.Z>"}` with the version just tagged once the shell's Vercel deploy is
-  live. Each backend's `GET /health` reports that service's own version. (The public
-  version endpoint is still to be built: until then, open the About modal on
-  https://operai.welld.io.)
+  live, e.g. `curl -s https://operai.welld.io/version.json`. Each backend's `GET /health`
+  reports that service's own version.
 
 ## Never
 

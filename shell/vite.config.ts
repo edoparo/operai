@@ -195,6 +195,31 @@ function pushServiceWorker(): Plugin {
   }
 }
 
+// The public suite-version endpoint: `GET /version.json` answers `{"version":"<operai umbrella>"}`
+// without sign-in, so a release can be checked as online (RELEASING.md § After). It reads the same
+// `suiteVersion` as __APP_VERSION__ (one source, written by scripts/version.mjs), emitted as a static
+// asset on `vite build` and served from memory by the dev server. Vercel serves the static file before
+// the SPA rewrite, and vercel.json's `no-store` rule covers it, so it is never cached stale. Accepted
+// disclosure: anyone can read the suite version, as each backend's `/health` already shows its own.
+const VERSION_PATH = '/version.json'
+const versionBody = `${JSON.stringify({ version: suiteVersion })}\n`
+
+function suiteVersionEndpoint(): Plugin {
+  return {
+    name: 'operai:suite-version-endpoint',
+    configureServer(server) {
+      server.middlewares.use(VERSION_PATH, (_req, res) => {
+        res.setHeader('Content-Type', 'application/json; charset=utf-8')
+        res.setHeader('Cache-Control', 'no-store')
+        res.end(versionBody)
+      })
+    },
+    generateBundle() {
+      this.emitFile({ type: 'asset', fileName: VERSION_PATH.slice(1), source: versionBody })
+    },
+  }
+}
+
 export default defineConfig({
   resolve: {
     alias: { '@operai/ui': operaiUiEntry },
@@ -203,6 +228,7 @@ export default defineConfig({
   plugins: [
     react(),
     pushServiceWorker(),
+    suiteVersionEndpoint(),
     // @module-federation/vite is kept at >= 1.23.9 in package.json on purpose (specs/20261104-meetings, T53):
     // from 1.23 a remote's dev server seeds a React copy into the page-wide
     // `__mf_module_cache__` and the first writer wins, so a host on an older plugin (1.16, no
