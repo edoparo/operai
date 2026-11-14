@@ -34,7 +34,21 @@ const SUITE_VERSION_FILE = 'shell/src/lib/suiteVersion.generated.json'
 
 const RANK = { patch: 1, minor: 2, major: 3 }
 const NAMES = ['patch', 'minor', 'major']
-const dirFor = (name) => name.replace(/^@operai\//, '') // @operai/refund-ui → refund-ui
+// Package name → directory, from the list Changesets itself enumerates
+// (lerna.json). Never derived from the name: `@operai/ui` lives in `operai-ui/`,
+// and a name-stripping guess failed there AFTER `changeset version` had
+// already consumed the changesets (2026-11-14), leaving a half-applied release.
+const DIR_BY_NAME = new Map(
+  JSON.parse(readFileSync('lerna.json', 'utf8')).packages.map((dir) => [
+    JSON.parse(readFileSync(`${dir}/package.json`, 'utf8')).name,
+    dir,
+  ]),
+)
+const dirFor = (name) => {
+  const dir = DIR_BY_NAME.get(name)
+  if (!dir) throw new Error(`[operai] ${name} is not a package listed in lerna.json`)
+  return dir
+}
 
 function pendingReleases() {
   const out = '.changeset/.status.json'
