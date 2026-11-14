@@ -1,7 +1,7 @@
 /**
  * @vitest-environment jsdom
  *
- * Component tests for IrreversibleActionDialog (T26, specs/015-hardware-
+ * Component tests for IrreversibleActionDialog (T26, specs/20261006-hardware-
  * inventory; design.md § NEW components — "generalises MarkPaidDialog
  * (checkbox-acknowledged, trapped tab sequence) … plus a form slot" — and
  * § Accessibility "Dialogs"). Used for dispose, close year and the other acts

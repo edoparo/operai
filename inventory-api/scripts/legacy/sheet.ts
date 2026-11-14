@@ -1,5 +1,5 @@
 /**
- * Reads the register workbook into plain rows (T23, specs/015-hardware-
+ * Reads the register workbook into plain rows (T23, specs/20261006-hardware-
  * inventory). The file is untrusted input and is only ever READ: it is opened
  * from the path given, never copied, and nothing from it is written anywhere but
  * the report the operator asked for.

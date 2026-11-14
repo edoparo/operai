@@ -1,5 +1,5 @@
 /**
- * Integration tests for the permission catalog (T5, specs/004-auth-roles-
+ * Integration tests for the permission catalog (T5, specs/20260713-auth-roles-
  * permissions — refs AC-3.1, AC-3.2) — `PUT /authz/catalog`,
  * `GET /admin/catalog`, and the `isKnownPermission`/`isConditionSupported`
  * validation helpers T8's roles API is expected to import.

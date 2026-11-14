@@ -1,5 +1,5 @@
 /**
- * Parsing and validation of the `SERVICE_CLIENTS` env value (T4, specs/015-
+ * Parsing and validation of the `SERVICE_CLIENTS` env value (T4, specs/20261006-
  * hardware-inventory — ADR 20261006-scoped-service-jwt-fourth-notify-caller): the per-client entries that
  * `POST /system/service-token` authenticates against.
  *

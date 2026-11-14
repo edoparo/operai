@@ -1,5 +1,5 @@
 /**
- * strings.actions — the asset detail page's action region (T33, specs/015-
+ * strings.actions — the asset detail page's action region (T33, specs/20261006-
  * hardware-inventory; design.md F3, F5, § Dialogs, § Error and conflict
  * catalogue): the status actions, the pending-assignment and holder-deleted
  * callouts, and the Assign dialog. Templates with `{name}` placeholders go

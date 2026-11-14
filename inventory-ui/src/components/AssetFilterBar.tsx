@@ -1,5 +1,5 @@
 /**
- * AssetFilterBar — the Assets list's filter form (T29, specs/015-hardware-
+ * AssetFilterBar — the Assets list's filter form (T29, specs/20261006-hardware-
  * inventory; design.md § T1, F7, § Accessibility "T1 list"; Resolutions Q5).
  *
  * Controlled and presentational: it renders `values` (which the page reads

@@ -1,7 +1,7 @@
 /**
  * @vitest-environment jsdom
  *
- * Tests for the `/notify` route registration (T13, specs/005-notification-
+ * Tests for the `/notify` route registration (T13, specs/20260713-notification-
  * center, US-2 AC-2.1; plan.md "Shell changes" + "The `/notify` route is
  * deliberately NOT a permission-gated `tools.ts` entry").
  *

@@ -1,5 +1,5 @@
 /**
- * Integration tests for POST /authz/users/identities (T3, specs/013-estimate-
+ * Integration tests for POST /authz/users/identities (T3, specs/20260807-estimate-
  * sharing — refs AC-2.1, AC-10.5).
  *
  * Strategy + WHY THIS FILE LIVES IN `src/auth/`: identical to

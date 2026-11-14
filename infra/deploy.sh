@@ -116,7 +116,7 @@ ADMIN_REMOTE_URL="${ADMIN_REMOTE_URL:-https://admin.operai.welld.io/remoteEntry.
 INVENTORY_REMOTE_URL="${INVENTORY_REMOTE_URL:-https://inventory.operai.welld.io/remoteEntry.js}"
 SHELL_REMOTE_URL="${SHELL_REMOTE_URL:-https://operai.welld.io/remoteEntry.js}"
 
-# ADR 20260713-jwt-audience-claim-enforcement (specs/20260713-notification-center, extended by specs/007-refund-
+# ADR 20260713-jwt-audience-claim-enforcement (specs/20260713-notification-center, extended by specs/20260716-refund-
 # service): ONE audience value, verified by auth (stamps it) and every
 # resource server (estimai-api, notify-api, refund-api, inventory-api). Not a
 # secret, but must be byte-for-byte identical across all five services — a drift fails
@@ -167,7 +167,7 @@ deploy_or_skip() {
   BLOCKERS=()
 }
 
-# ADR 20260714-notify-api-email-channel-service-trust (specs/20260713-user-invitations, extended by ADR 20260716-system-notifications-cross-user-trigger/specs/007-refund-
+# ADR 20260714-notify-api-email-channel-service-trust (specs/20260713-user-invitations, extended by ADR 20260716-system-notifications-cross-user-trigger/specs/20260716-refund-
 # service): notify-api's Railway PRIVATE-networking address — auth's
 # server-to-server POST /system/emails call AND refund-api's POST
 # /system/notifications call must both stay off the public internet (plan.md

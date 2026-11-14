@@ -11,7 +11,7 @@ import type { AssetView, HistoryChangeValue, HistoryEvent, Identity } from '../l
 import { strings } from '../strings'
 
 /**
- * HistoryTimeline — the History region of the asset detail page (T36, specs/015-
+ * HistoryTimeline — the History region of the asset detail page (T36, specs/20261006-
  * hardware-inventory; design.md F13, § T2 History, § Accessibility "T2 detail";
  * AC-11.1, AC-11.3, AC-11.4). Props fixed by T32.
  *

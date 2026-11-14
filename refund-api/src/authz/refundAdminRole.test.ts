@@ -1,6 +1,6 @@
 /**
  * Proves the `refund-admin` role's seeded grant shape (auth/src/authz/
- * seed.ts's `seedRefundAdminRole`, post-close follow-up to specs/007-refund-
+ * seed.ts's `seedRefundAdminRole`, post-close follow-up to specs/20260716-refund-
  * service) actually authorizes refund-api's real enforcement predicates for
  * EVERY refund route — including reading and deciding a request that is
  * neither owned by the caller nor in the caller's own entity.

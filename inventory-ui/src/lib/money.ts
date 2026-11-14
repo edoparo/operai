@@ -1,5 +1,5 @@
 /**
- * money — display and input helpers for amounts (T25, specs/015-hardware-
+ * money — display and input helpers for amounts (T25, specs/20261006-hardware-
  * inventory; INC-27). Amounts are integer minor units (cents) end to end —
  * inventory-api never puts a float amount on the wire.
  *

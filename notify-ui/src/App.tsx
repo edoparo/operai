@@ -20,7 +20,7 @@ import { createAppRouter } from './router'
  * T14 (specs/20260713-notification-center/tasks.md): scaffold-only. Gives
  * notify-ui its own inner TanStack Router (src/router.tsx) rebased to
  * basepath `/notify` — same federation contract every other remote already
- * established (admin-ui's `./App`, T13/T14 of specs/004-auth-roles-
+ * established (admin-ui's `./App`, T13/T14 of specs/20260713-auth-roles-
  * permissions):
  *
  *   notify-ui (remote)

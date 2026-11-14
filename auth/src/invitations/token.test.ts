@@ -1,5 +1,5 @@
 /**
- * Unit tests for the invite-link token helper (T5, specs/006-user-
+ * Unit tests for the invite-link token helper (T5, specs/20260713-user-
  * invitations — AC-3.3, R3). Pure crypto — no DB, no mocks.
  */
 

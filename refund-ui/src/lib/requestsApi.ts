@@ -101,7 +101,7 @@ export type RefundRequestDetail = {
   id: string
   status: RequestStatus
   /**
-   * `owner.name` is `string | null` (QE-verified defect, specs/007-refund-
+   * `owner.name` is `string | null` (QE-verified defect, specs/20260716-refund-
    * service): `refund-api` never populates it — the JWT carries no `name`
    * claim, only `sub`/`email` — so `POST /requests` always stores `null`.
    * Never read `owner.name` directly for display; use `strings.ts`'s

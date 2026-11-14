@@ -155,7 +155,7 @@ comparing a locally cached `updatedAt` before prompting).
   exactly one of two simultaneous saves wins — a client-side heuristic cannot enforce
   atomicity across two different browser sessions racing the same `PUT`
 - A determined or buggy client could always bypass the prompt and clobber regardless
-- Rejected: does not meet the acceptance criteria; this is precisely the posture spec 013
+- Rejected: does not meet the acceptance criteria; this is precisely the posture spec 20260807-estimate-sharing
   was written to close
 
 ## Consequences

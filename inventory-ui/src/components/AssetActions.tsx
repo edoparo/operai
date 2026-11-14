@@ -14,7 +14,7 @@ import { strings } from '../strings'
 import { fillTemplate } from '../strings/errors'
 
 /**
- * AssetActions — the action region of the asset detail page (T33, specs/015-
+ * AssetActions — the action region of the asset detail page (T33, specs/20261006-
  * hardware-inventory; design.md F3, F5, § Dialogs, § Error and conflict
  * catalogue, § Accessibility "T2 detail"; AC-1.8, AC-2.1, AC-2.2, AC-2.5,
  * AC-2.10, AC-3.1 to AC-3.5). Its props are fixed by T32; the page owns the

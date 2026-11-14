@@ -1,6 +1,6 @@
 /**
  * BatchEmployeeGroupList — mode-driven (`preview`|`detail`) per-employee,
- * per-currency presentation of a batch/candidate set (T10, specs/008-refund-
+ * per-currency presentation of a batch/candidate set (T10, specs/20260719-refund-
  * monthly-processing/tasks.md; design.md Component inventory:
  * "BatchEmployeeGroupList — NEW — Mode-driven (preview|detail), the same
  * mode prop convention ExpenseLineRow/AttachmentList already establish …

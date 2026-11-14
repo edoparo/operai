@@ -1,5 +1,5 @@
 /**
- * Bootstrap seed for the authorization domain (T11/T26, specs/004-auth-roles-
+ * Bootstrap seed for the authorization domain (T11/T26, specs/20260713-auth-roles-
  * permissions — refs AC-6.1, AC-6.2, AC-6.3, AC-3.4; plan.md "Bootstrap &
  * seed" + "Catalog registration"; ADR 20260713-authz-hand-rolled-rbac-abac-epoch-claims).
  *
@@ -45,7 +45,7 @@
  *      separate `accounting-global` role (Gate-2 decision D3 — "global"
  *      scope is composed by an admin adding an unconditioned grant on top of
  *      this same role, via the resolver's widest-wins union).
- *   6. {@link seedRefundAdminRole} (post-close follow-up, specs/007-refund-
+ *   6. {@link seedRefundAdminRole} (post-close follow-up, specs/20260716-refund-
  *      service) — a distinct, explicit `refund-admin` system role bundling
  *      EVERY refund capability at once (`refund:access` + all six `request`
  *      actions), the entity-scoped four (`review`/`set-approved-total`/
@@ -91,7 +91,7 @@
  *      `crm:access` + entity-scoped `deal:manage`). `crm` is registered once,
  *      here, never through `SUITE_APPS`.
  *
- *  11. {@link seedMeetingsCatalog} + {@link seedMeetingsGrants} (specs/021-
+ *  11. {@link seedMeetingsCatalog} + {@link seedMeetingsGrants} (specs/20261104-
  *      meetings — AC-10.8, AC-1.4, AC-10.5) — register the Meetings catalog
  *      (`catalogs/meetings.ts`) and attach its grants: `employee` gets
  *      `meetings:access` (the FIRST default grant on `employee`, a departure
@@ -99,7 +99,7 @@
  *      `meeting:erase` (its `meetings:access` comes from `ALL_APP_IDS`).
  *      `meetings` is registered once, here, never through `SUITE_APPS`.
  *
- *  12. {@link seedProjectsCatalog} + {@link seedProjectsGrants} (specs/021-
+ *  12. {@link seedProjectsCatalog} + {@link seedProjectsGrants} (specs/20261103-
  *      projects — AC-4.1, AC-4.3–4.6) — register the projects module's catalog
  *      (`catalogs/projects.ts`) and attach its grants (`admin` all unconditioned,
  *      the new `project-manager` system role and `sales` `projects:access` +
@@ -214,7 +214,7 @@ export async function seedRefundCatalog(): Promise<void> {
 }
 
 /**
- * Registers inventory's full declared catalog (T3, specs/015-hardware-
+ * Registers inventory's full declared catalog (T3, specs/20261006-hardware-
  * inventory — AC-9.1) — `catalogs/inventory.ts`'s `INVENTORY_CATALOG` (app
  * `access` + `asset:manage` + `ledger:manage`, the latter two entity-scoped).
  * Idempotent: `upsertAppCatalog` is itself a full-replace upsert keyed by
@@ -357,7 +357,7 @@ const REFUND_ADMIN_REQUEST_ACTIONS = [
 ] as const;
 
 /**
- * Seeds the `refund-admin` role (post-close follow-up, specs/007-refund-
+ * Seeds the `refund-admin` role (post-close follow-up, specs/20260716-refund-
  * service — "assign everything at once"): one role that grants EVERY refund
  * capability, unconditioned, to whoever an admin assigns it to. Grants
  * `refund:access` plus all six `request` actions — `create`/`read` the same
@@ -476,7 +476,7 @@ const SETTINGS_ACTIONS = ["read", "manage"] as const;
 const SETTINGS_ADMIN_ROLE_NAMES = [ADMIN_ROLE_NAME, REFUND_ADMIN_ROLE_NAME] as const;
 
 /**
- * Seeds `settings:read`/`settings:manage` grants (T1, specs/011-refund-
+ * Seeds `settings:read`/`settings:manage` grants (T1, specs/20260722-refund-
  * settings — plan.md "Architecture §auth", Decision D2; ADR 20260722-settings-catalog-permission-config-not-rate) onto the
  * `admin` and `refund-admin` system roles. `catalogs/refund.ts`'s NEW
  * `settings` resource declares both actions with NO `supportedConditions` —

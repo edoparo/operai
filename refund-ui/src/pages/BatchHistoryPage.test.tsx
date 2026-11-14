@@ -1,7 +1,7 @@
 /**
  * @vitest-environment jsdom
  *
- * Component tests for BatchHistoryPage — Screen B1 (T13, specs/008-refund-
+ * Component tests for BatchHistoryPage — Screen B1 (T13, specs/20260719-refund-
  * monthly-processing/tasks.md). `../lib/batchesApi` is mocked at the module
  * level (keeping the real `ApiError`). Rendered inside a real, minimal
  * router (mirrors ReviewQueuePage.test.tsx) so `Link` resolves exactly as it

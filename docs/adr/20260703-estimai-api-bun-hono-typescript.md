@@ -121,7 +121,7 @@ runtime.
 ## Compliance notes
 
 - GDPR/nLPD impact: none — this is a stack choice; data handling rules are
-  governed by ADR 20260703-estimate-persistence-jsonb-document (storage shape) and the data-residency constraint in spec 001
+  governed by ADR 20260703-estimate-persistence-jsonb-document (storage shape) and the data-residency constraint in spec 20260606-estimate-persistence
 - Data residency: `estimai-api` must deploy to an EU region (Railway EU) regardless
   of stack — this decision does not affect that constraint
 - Audit trail: not required for this decision

@@ -299,7 +299,7 @@ export default defineConfig({
       stderr: 'pipe',
       env: {
         SHELL_REMOTE_URL: `${shellUrl}/remoteEntry.js`,
-        // admin-ui's first import.meta.env.VITE_* var (specs/012-employee-
+        // admin-ui's first import.meta.env.VITE_* var (specs/20260803-employee-
         // address, T7/T16). googlePlaces.ts's loadPlacesLibrary() throws
         // BEFORE ever checking window.google if this is falsy at BUILD time
         // (this webServer entry runs `pnpm build && pnpm preview`) — so

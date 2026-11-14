@@ -1,7 +1,7 @@
 /**
  * @vitest-environment jsdom
  *
- * Component tests for BatchStatusBadge (T10, specs/008-refund-monthly-
+ * Component tests for BatchStatusBadge (T10, specs/20260719-refund-monthly-
  * processing/tasks.md). Covers: all three variants render a glyph AND a
  * text label (never color-only), and `paid` is distinguishable from
  * `compiled`/`discarded` by a non-color signal.

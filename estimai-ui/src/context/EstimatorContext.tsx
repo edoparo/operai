@@ -68,7 +68,7 @@ export type EstimatorContextValue = {
   /** When the document was last stored (ISO 8601): the loaded `updatedAt`, then each successful auto-save. Drives the header's "Saved … ago". */
   lastSavedAt: string | null
   /**
-   * The caller's relationship to this estimate (T16, specs/013-estimate-
+   * The caller's relationship to this estimate (T16, specs/20260807-estimate-
    * sharing/tasks.md; plan.md "### Frontend"). Fixed for the lifetime of the
    * provider — a change in access level only ever takes effect on the next
    * load (AC-5.1), i.e. a fresh `EstimatorProvider` mount, never a live

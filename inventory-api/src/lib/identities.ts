@@ -1,5 +1,5 @@
 /**
- * Display-identity resolution for holders and actors (T9, specs/015-hardware-
+ * Display-identity resolution for holders and actors (T9, specs/20261006-hardware-
  * inventory; AC-3.7, AC-11.3; ADR 20260807-live-identity-resolution-by-id-fail-soft). Mirrors estimai-api/src/lib/authClient.ts
  * `resolveIdentities`, plus the `system` status this feature adds.
  *

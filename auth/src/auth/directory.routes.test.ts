@@ -1,5 +1,5 @@
 /**
- * Integration tests for GET /authz/users/directory (T5, specs/015-hardware-
+ * Integration tests for GET /authz/users/directory (T5, specs/20261006-hardware-
  * inventory — refs AC-2.1, AC-3.7; ADR 20261006-user-directory-endpoint-capability-gated).
  *
  * WHY THIS FILE LIVES IN `src/auth/` and not next to the route in `src/authz/`

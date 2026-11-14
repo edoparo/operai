@@ -1,5 +1,5 @@
 /**
- * strings.history — the History section of the asset detail page (T36, specs/015-
+ * strings.history — the History section of the asset detail page (T36, specs/20261006-
  * hardware-inventory; design.md F13, § T2 History, § Accessibility "T2 detail";
  * AC-11.1, AC-11.3, AC-11.4). One label per `AssetEventAction` and per field the
  * typed `changes` carry; an action or field a newer server adds renders as its raw

@@ -1,5 +1,5 @@
 /**
- * Pure, DB-free authorization-condition helpers (T7, specs/015-hardware-
+ * Pure, DB-free authorization-condition helpers (T7, specs/20261006-hardware-
  * inventory, ADR 20260716-refund-api-authorization-enforcing-resource-server point 3 + ADR 20260716-entity-scoped-abac-refund-api; AC-9.4, AC-9.5).
  *
  * `auth`'s resolver persists and surfaces `conditions` on each permission but

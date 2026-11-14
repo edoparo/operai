@@ -1,6 +1,6 @@
 /**
  * strings.yearDetail — the Fiscal year detail screen, `/years/$entity/$year`, its
- * roll-forward statement, per-asset table and Close year dialog (T38, specs/015-
+ * roll-forward statement, per-asset table and Close year dialog (T38, specs/20261006-
  * hardware-inventory; design.md T6, F12, § Irreversible actions "Close year",
  * § Error and conflict catalogue; AC-8.1, AC-8.4, AC-8.5, AC-8.7). Templates in
  * `strings.errors` go through `fillTemplate`; money is formatted by the caller

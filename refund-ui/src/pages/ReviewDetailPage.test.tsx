@@ -1,7 +1,7 @@
 /**
  * @vitest-environment jsdom
  *
- * Component tests for ReviewDetailPage — Screen A2 (T18, specs/007-refund-
+ * Component tests for ReviewDetailPage — Screen A2 (T18, specs/20260716-refund-
  * service/tasks.md). `../lib/requestsApi`, `../lib/reviewApi`, and
  * `../lib/attachmentsApi` are mocked at the module level (keeping the real
  * `ApiError`). Rendered inside a real, minimal router (mirrors

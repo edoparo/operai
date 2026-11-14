@@ -1,6 +1,6 @@
 /**
  * batchesApi — typed accounting-facing operations against `refund-api`'s
- * monthly-processing batch endpoints (T9, specs/008-refund-monthly-
+ * monthly-processing batch endpoints (T9, specs/20260719-refund-monthly-
  * processing/tasks.md: "src/lib/batchesApi.ts: typed client functions for
  * the batch endpoints … against plan.md's contract, built on the existing
  * refundApi.ts helpers"), built on `./refundApi.ts`'s generic
@@ -37,7 +37,7 @@ export type BatchStatus = 'compiled' | 'paid' | 'discarded'
 
 /**
  * A batch's email delivery status (plan.md `RefundBatch.emailStatus`) —
- * `null` only pre-first-attempt. `"blocked_unconfigured"` (specs/011-refund-
+ * `null` only pre-first-attempt. `"blocked_unconfigured"` (specs/20260722-refund-
  * settings, ADR 20260722-batch-email-recipient-live-resolution-amends-0021/D5) is a distinct, actionable status: the accounting
  * distribution email is unset at send/resend time, so refund-api never even
  * attempts a delivery — deliberately distinguishable from an ordinary

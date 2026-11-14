@@ -1,5 +1,5 @@
 /**
- * Integration tests for the hosted invite-landing page (T9, specs/006-user-
+ * Integration tests for the hosted invite-landing page (T9, specs/20260713-user-
  * invitations — refs US-2 AC-2.2/AC-2.5, AC-1.9 state, AC-3.3 old-link
  * invalidation).
  *

@@ -1,5 +1,5 @@
 /**
- * Unit tests for inventory's declared catalog constant (T3, specs/015-hardware-
+ * Unit tests for inventory's declared catalog constant (T3, specs/20261006-hardware-
  * inventory — refs AC-9.1, AC-9.3, AC-9.4, AC-9.5). Pure structural checks —
  * no DB, no registration; the registration path (`upsertAppCatalog` via
  * `seedInventoryCatalog`) and the role grants are covered by `../seed.test.ts`.

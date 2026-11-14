@@ -1,7 +1,7 @@
 /**
  * @vitest-environment jsdom
  *
- * Component tests for MarkPaidDialog (T12, specs/008-refund-monthly-
+ * Component tests for MarkPaidDialog (T12, specs/20260719-refund-monthly-
  * processing/tasks.md). Covers: role="alertdialog" + labelling, default
  * focus on Cancel (not the checkbox — design.md Accessibility), the
  * disabled-until-checked confirm gate, the email-status FYI line (with the

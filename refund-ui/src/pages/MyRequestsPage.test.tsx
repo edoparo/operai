@@ -1,7 +1,7 @@
 /**
  * @vitest-environment jsdom
  *
- * Component tests for MyRequestsPage — Screen R1 (T16, specs/007-refund-
+ * Component tests for MyRequestsPage — Screen R1 (T16, specs/20260716-refund-
  * service/tasks.md). Mirrors admin-ui/src/pages/RolesPage.test.tsx's
  * strategy (mock `../lib/requestsApi` at the module level, keep the real
  * `ApiError`) and admin-ui/src/pages/UsersPage.test.tsx's router harness

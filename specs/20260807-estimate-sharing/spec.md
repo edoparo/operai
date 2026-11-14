@@ -218,7 +218,7 @@ of, so that I don't have to ask the owner to do it for me.
   the estimate disappears from their own estimates list, and the owner's collaborator
   list no longer includes them.
 - AC-6.2: Given a user who is the owner of an estimate, then no "leave" action is offered
-  to them for their own estimate — an owner leaves by deleting the estimate (spec 001
+  to them for their own estimate — an owner leaves by deleting the estimate (spec 20260606-estimate-persistence
   US-3), not by removing themselves as a collaborator.
 
 ### US-7: Collaborators are notified of being granted or removed access

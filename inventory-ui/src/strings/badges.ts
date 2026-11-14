@@ -1,5 +1,5 @@
 /**
- * strings.badges — the labels of the status chips (T26, specs/015-hardware-
+ * strings.badges — the labels of the status chips (T26, specs/20261006-hardware-
  * inventory; design.md § NEW components: AssetStatusBadge). The entity and
  * currency chips' labels live in `strings.common` (T25).
  */

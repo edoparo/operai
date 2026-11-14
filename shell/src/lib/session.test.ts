@@ -293,7 +293,7 @@ describe('apiFetch', () => {
     // T20 (specs/20260716-refund-service, tasks.md "Trusted-origin fix"): proves
     // getTrustedOrigins() (session.ts, unexported) includes the refund-api
     // origin once VITE_REFUND_API_URL is set — mirrors this describe block's
-    // own auth-origin assertion above, and matches how specs/005-notification-
+    // own auth-origin assertion above, and matches how specs/20260713-notification-
     // center proved the notify-api entry (shell/src/lib/notifications.test.ts,
     // "trusted origins" describe block) — behaviorally, via apiFetch, since
     // getTrustedOrigins itself is a private helper.

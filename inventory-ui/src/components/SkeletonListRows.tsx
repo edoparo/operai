@@ -1,5 +1,5 @@
 /**
- * SkeletonListRows — presentational loading skeleton (T25, specs/015-hardware-
+ * SkeletonListRows — presentational loading skeleton (T25, specs/20261006-hardware-
  * inventory; design.md § Screens & states: "Loading: SkeletonListRows plus an
  * sr-only aria-live="polite" line"). Re-authored from refund-ui's component
  * (ADR 20260709-suite-frontend-module-federation: no cross-remote imports) with the same props and markup:

@@ -1,5 +1,5 @@
 /**
- * Schema-level guarantees of the initial migration (T2, specs/015-hardware-
+ * Schema-level guarantees of the initial migration (T2, specs/20261006-hardware-
  * inventory; AC-1.2, AC-1.5, AC-2.2, AC-6.5, AC-6.6, AC-8.7, AC-11.2;
  * ADR 20260716-immutable-financial-audit-trail-refund/0024/0033/0046).
  *

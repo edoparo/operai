@@ -1,5 +1,5 @@
 /**
- * No hardcoded user-facing strings anywhere in `src/` (T24, specs/015-hardware-
+ * No hardcoded user-facing strings anywhere in `src/` (T24, specs/20261006-hardware-
  * inventory; design.md § Strings and numbers: "Every string through
  * `inventory-ui/src/strings.ts` with a `noHardcodedStrings` test").
  *

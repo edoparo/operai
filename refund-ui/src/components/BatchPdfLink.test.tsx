@@ -1,7 +1,7 @@
 /**
  * @vitest-environment jsdom
  *
- * Component tests for BatchPdfLink (T10, specs/008-refund-monthly-
+ * Component tests for BatchPdfLink (T10, specs/20260719-refund-monthly-
  * processing/tasks.md). Mirrors AttachmentDownloadLink.test.tsx's structure:
  * mints on click, opens the returned URL, surfaces an inline error on
  * failure. `batchesApi.getPdfUrl` is mocked at the module level (this

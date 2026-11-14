@@ -1,5 +1,5 @@
 /**
- * Startup validation of the service-token env (T4, specs/015-hardware-
+ * Startup validation of the service-token env (T4, specs/20261006-hardware-
  * inventory — ADR 20261006-scoped-service-jwt-fourth-notify-caller): `lib/env.ts` must exit non-zero when
  * `SERVICE_AUDIENCE` equals `AUTH_AUDIENCE`, when clients are configured
  * without an audience, or when `SERVICE_CLIENTS` is malformed — and must never

@@ -517,7 +517,7 @@ GET /estimates/{id}                                             (AC-1.6/3.1)
 ```
 PUT /estimates/{id}                                             (AC-3.1/3.2, US-4)
   headers: If-Match: "<version>"      REQUIRED
-  body: EstimateUpsert                unchanged from spec 001
+  body: EstimateUpsert                unchanged from spec 20260606-estimate-persistence
   200 + ETag: "<new version>" → EstimateFull
   400 → validation
   428 → { …, code: "precondition_required",

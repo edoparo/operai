@@ -1,5 +1,5 @@
 /**
- * Integration tests for POST /authz/app-access-check (T2, specs/013-estimate-
+ * Integration tests for POST /authz/app-access-check (T2, specs/20260807-estimate-
  * sharing — refs AC-1.1, AC-1.2).
  *
  * Strategy: exercise the REAL token-mint flow end-to-end against the live

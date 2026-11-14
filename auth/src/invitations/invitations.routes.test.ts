@@ -1,5 +1,5 @@
 /**
- * Integration tests for the invitation admin API (T6, specs/006-user-
+ * Integration tests for the invitation admin API (T6, specs/20260713-user-
  * invitations — AC-1.1–1.14, AC-3.1–3.6, AC-4.1–4.4; plan.md's test table).
  *
  * Strategy mirrors `admin/departments.routes.test.ts`: `../auth/auth.config`

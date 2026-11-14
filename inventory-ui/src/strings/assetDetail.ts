@@ -1,5 +1,5 @@
 /**
- * strings.assetDetail — the Asset detail page (T2; T32, specs/015-hardware-
+ * strings.assetDetail — the Asset detail page (T2; T32, specs/20261006-hardware-
  * inventory; design.md § T2, F6, § Error and conflict catalogue) and its edit
  * dialog. Region copy belongs to the region's own namespace (`actions`,
  * `ledger`, `invoice`, `history`). Templates with `{name}` placeholders go

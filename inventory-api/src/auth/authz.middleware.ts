@@ -1,5 +1,5 @@
 /**
- * inventory-api's authorization-enforcing middleware (T7, specs/015-hardware-
+ * inventory-api's authorization-enforcing middleware (T7, specs/20261006-hardware-
  * inventory, ADR 20260716-refund-api-authorization-enforcing-resource-server). Copied from refund-api/src/auth/authz.middleware.ts —
  * the repo has no workspace (ADR 20260703-estimai-api-bun-hono-typescript), so each resource server owns its copy.
  *

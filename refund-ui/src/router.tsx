@@ -15,7 +15,7 @@ import NotFoundPage from './pages/NotFoundPage'
 // createAppRouter — factory, not a module-scope singleton (T14,
 // specs/20260716-refund-service/tasks.md: "an inner TanStack Router at
 // basepath:'/refund' with routes requests/requests/new/requests/$id/review/
-// review/$id"). Mirrors admin-ui/src/router.tsx's T14 (specs/004-auth-roles-
+// review/$id"). Mirrors admin-ui/src/router.tsx's T14 (specs/20260713-auth-roles-
 // permissions) factory exactly, same shape:
 //
 //   - Standalone (dev/test bootstrap, src/main.tsx): createAppRouter() with

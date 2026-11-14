@@ -1,5 +1,5 @@
 /**
- * Zod wire schemas for the invitation admin API (T5/T6, specs/006-user-
+ * Zod wire schemas for the invitation admin API (T5/T6, specs/20260713-user-
  * invitations — plan.md "API contracts" / "Invitation admin API").
  *
  * Shared between `invitations.routes.ts` (request validation + OpenAPI

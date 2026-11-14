@@ -1,7 +1,7 @@
 /**
  * @vitest-environment jsdom
  *
- * Component tests for ReviewQueuePage — Screen A1 (T18, specs/007-refund-
+ * Component tests for ReviewQueuePage — Screen A1 (T18, specs/20260716-refund-
  * service/tasks.md). Mirrors MyRequestsPage.test.tsx's strategy (mock
  * `../lib/reviewApi` at the module level, keep the real `ApiError`) and its
  * router harness. Covers loading/empty/populated/error/PD, plus the

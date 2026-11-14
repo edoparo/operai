@@ -17,7 +17,7 @@ import { strings } from '../strings'
 import { fillTemplate } from '../strings/errors'
 
 /**
- * InvoiceFilePanel — the invoice region of the asset detail page (T35, specs/015-
+ * InvoiceFilePanel — the invoice region of the asset detail page (T35, specs/20261006-
  * hardware-inventory; design.md § T2 invoice region, F8, § Accessibility "Invoice
  * panel", Resolutions G6/Q2; AC-10.4, AC-10.5, AC-10.6). Its props are fixed by T32.
  *

@@ -1,7 +1,7 @@
 /**
  * @vitest-environment jsdom
  *
- * Component tests for CurrencyBadge (post-close change, specs/007-refund-
+ * Component tests for CurrencyBadge (post-close change, specs/20260716-refund-
  * service — currency split from entity, see `EntityBadge.tsx`'s doc
  * comment). Covers: every currency renders its ISO code as text (never
  * color-only) and no symbol glyph that duplicates it, in one neutral tone.

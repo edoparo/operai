@@ -1,7 +1,7 @@
 /**
  * @vitest-environment jsdom
  *
- * Component tests for BatchSubtotalsPanel (T10, specs/008-refund-monthly-
+ * Component tests for BatchSubtotalsPanel (T10, specs/20260719-refund-monthly-
  * processing/tasks.md). Mirrors SubtotalsPanel.test.tsx's structure, adapted
  * to the single-figure `BatchSubtotal` shape (no requested/approved pair).
  */

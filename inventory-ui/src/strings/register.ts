@@ -1,5 +1,5 @@
 /**
- * strings.register — the Register asset page (T3; T30, specs/015-hardware-
+ * strings.register — the Register asset page (T3; T30, specs/20261006-hardware-
  * inventory; design.md § T3, F1, § Error and conflict catalogue). Messages with
  * `{name}` placeholders go through `fillTemplate`; the API-code messages live in
  * `strings.errors`.

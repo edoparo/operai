@@ -1,7 +1,7 @@
 /**
  * @vitest-environment jsdom
  *
- * Component tests for BatchEmployeeGroupList (T10, specs/008-refund-monthly-
+ * Component tests for BatchEmployeeGroupList (T10, specs/20260719-refund-monthly-
  * processing/tasks.md). Covers both modes:
  *   - `preview`: name/email, request count, per-currency subtotals — no
  *     per-request rows/links (a dry-run candidate set has nothing persisted

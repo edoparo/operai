@@ -1,5 +1,5 @@
 /**
- * Shared zod wire shapes for the employee-address feature (T2, specs/012-
+ * Shared zod wire shapes for the employee-address feature (T2, specs/20260803-
  * employee-address — refs AC-1.1, AC-1.4), used by both
  * `../admin/userAddress.routes.ts` and `./address.routes.ts`.
  *

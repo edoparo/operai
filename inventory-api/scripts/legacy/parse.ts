@@ -1,5 +1,5 @@
 /**
- * Decodes the legacy Excel register into typed rows (T23, specs/015-hardware-
+ * Decodes the legacy Excel register into typed rows (T23, specs/20261006-hardware-
  * inventory; US-12). Pure: takes rows of plain values, returns data plus the
  * issues it could not resolve. It knows the SHAPE of the sheet (a header, the
  * purchase rows, a blank, the cession rows, the year-end block) and nothing

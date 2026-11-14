@@ -1,5 +1,5 @@
 /**
- * strings.myDevices — the employee devices view D1 (T31, specs/015-hardware-
+ * strings.myDevices — the employee devices view D1 (T31, specs/20261006-hardware-
  * inventory; design.md § D1, F14, Q3 as resolved). No money copy lives here by
  * design (AC-4.2): the view shows no price, book value or entity.
  */

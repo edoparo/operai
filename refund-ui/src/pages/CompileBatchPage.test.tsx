@@ -1,7 +1,7 @@
 /**
  * @vitest-environment jsdom
  *
- * Component tests for CompileBatchPage — Screen B2 (T11, specs/008-refund-
+ * Component tests for CompileBatchPage — Screen B2 (T11, specs/20260719-refund-
  * monthly-processing/tasks.md). `../lib/batchesApi` is mocked at the module
  * level (keeping the real `ApiError` from `../lib/refundApi`). Rendered
  * inside a real, minimal router (mirrors ReviewDetailPage.test.tsx/

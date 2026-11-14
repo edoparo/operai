@@ -1,7 +1,7 @@
 /**
  * BatchSubtotalsPanel — one card per **currency** present in a batch/candidate
  * set's `subtotals[]`, never a blended total and never a synthesized
- * zero-value card for an absent currency (T10, specs/008-refund-monthly-
+ * zero-value card for an absent currency (T10, specs/20260719-refund-monthly-
  * processing/tasks.md; design.md Component inventory: "SubtotalsPanel is NOT
  * reusable as-is: its Subtotal type mandates requestedCents, but every
  * batch/candidate subtotal on the wire is {currency, approvedCents} only …

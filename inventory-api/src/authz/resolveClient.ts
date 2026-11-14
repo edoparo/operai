@@ -1,5 +1,5 @@
 /**
- * Thin HTTP client for `auth GET /authz/resolve` (T7, specs/015-hardware-
+ * Thin HTTP client for `auth GET /authz/resolve` (T7, specs/20261006-hardware-
  * inventory, ADR 20260716-refund-api-authorization-enforcing-resource-server point 1). Copied from refund-api/src/authz/resolveClient.ts.
  *
  * Deliberately isolated in its own module — mirrors `auth/src/lib/notify.ts`'s

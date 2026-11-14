@@ -1,5 +1,5 @@
 /**
- * ConfirmDialog — the generic confirm `alertdialog` (T25, specs/015-hardware-
+ * ConfirmDialog — the generic confirm `alertdialog` (T25, specs/20261006-hardware-
  * inventory; design.md § Component inventory: "Confirm dialogs (return, lost,
  * cancel assignment, decline) — refund-ui/src/components/ConfirmDeleteModal.tsx
  * (generic title/body/tone props)").

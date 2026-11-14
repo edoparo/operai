@@ -800,7 +800,7 @@ export const signOut = async (
 }
 
 /**
- * Suite-wide cross-remote navigation seam (follow-up to specs/005-notification-
+ * Suite-wide cross-remote navigation seam (follow-up to specs/20260713-notification-
  * center, T15/AC-2.5): a remote (e.g. notify-ui's `NotificationItem`) cannot
  * drive a client-side navigation into ANOTHER remote's route — each remote
  * runs its own inner TanStack Router scoped to its own `basepath` (`/notify`,

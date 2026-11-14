@@ -1,7 +1,7 @@
 /**
  * @vitest-environment jsdom
  *
- * Unit tests for src/lib/batchesApi.ts (T9, specs/008-refund-monthly-
+ * Unit tests for src/lib/batchesApi.ts (T9, specs/20260719-refund-monthly-
  * processing/tasks.md). Strategy mirrors reviewApi.test.ts/requestsApi.test.ts:
  * `shell/session`'s `apiFetch` is mocked at the module level — no live
  * refund-api is required (its batch routes, T1-T8, are not implemented yet).

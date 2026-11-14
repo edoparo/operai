@@ -479,7 +479,7 @@ const myMeetingsRoute = createRoute({
 })
 
 // ---------------------------------------------------------------------------
-// `/notify/$` — mounts notify-ui via RemoteMount (T13, specs/005-notification-
+// `/notify/$` — mounts notify-ui via RemoteMount (T13, specs/20260713-notification-
 // center, US-2 AC-2.1). Structurally identical to estimaiRoute/refundRoute/
 // adminRoute above (same catch-all `/$` shape, same RemoteMount boundary,
 // same parent — `shellRoute`, so it still sits under the `_authed` session

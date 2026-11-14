@@ -33,7 +33,7 @@ import { fillTemplate } from '../strings/errors'
 import { strings } from '../strings'
 
 /**
- * AssetsPage — T1, the Assets list at `/assets` (T29, specs/015-hardware-
+ * AssetsPage — T1, the Assets list at `/assets` (T29, specs/20261006-hardware-
  * inventory; design.md § T1, F7; AC-3.7, AC-3.8, AC-10.3, AC-12.10).
  *
  * Reads its filters from the URL search params (shareable, survives back) and

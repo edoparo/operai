@@ -10,7 +10,7 @@ import PermissionDenied from './PermissionDenied'
 import SkeletonListRows from './SkeletonListRows'
 
 /**
- * InventoryShell — inventory-ui's root layout (T28, specs/015-hardware-
+ * InventoryShell — inventory-ui's root layout (T28, specs/20261006-hardware-
  * inventory; design.md § T0 InventoryShell), passed to `createAppRouter` by
  * App.tsx as the router's root route component. Re-authored from refund-ui's
  * RefundShell: an h1, a labelled tab nav and the routed `<Outlet/>` — no suite

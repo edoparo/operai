@@ -1,5 +1,5 @@
 /**
- * strings.common — copy for the shared primitives (T25, specs/015-hardware-
+ * strings.common — copy for the shared primitives (T25, specs/20261006-hardware-
  * inventory): ErrorBanner, PermissionDenied, SkeletonListRows, ConfirmDialog,
  * GuardrailDialog, FormModal and the entity / currency chips. Ported from
  * refund-ui's `components` and `badges` strings, reworded for this tool.

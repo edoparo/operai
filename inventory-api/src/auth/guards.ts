@@ -1,5 +1,5 @@
 /**
- * The two guard stacks every inventory-api route picks from (T7, specs/015-
+ * The two guard stacks every inventory-api route picks from (T7, specs/20261006-
  * hardware-inventory; AC-9.7, ADR 20260716-refund-api-authorization-enforcing-resource-server, ADR 20261006-ungated-second-federated-entry-of-a-gated-remote). Making the choice a named
  * export, rather than two middleware calls repeated on each route, is what
  * makes the split between "needs a capability" and "needs only a login"

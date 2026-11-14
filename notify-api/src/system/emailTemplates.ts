@@ -58,7 +58,7 @@ export type RefundBatchCompiledTemplateData = {
 };
 
 /**
- * refund-api's `data` shapes for the two decision emails (specs/007-refund-
+ * refund-api's `data` shapes for the two decision emails (specs/20260716-refund-
  * service AC-3.6, email-channel extension). `requestUrl` is an in-app deep
  * link (`<REFUND_APP_BASE_URL>/refund/requests/<id>`), same posture as
  * `batchUrl`. `approvedTotals` arrives as integer minor units and is

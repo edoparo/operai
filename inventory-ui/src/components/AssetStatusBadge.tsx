@@ -4,7 +4,7 @@ import { strings } from '../strings'
 import type { AssetStatus } from '../lib/types'
 
 /**
- * AssetStatusBadge — the asset lifecycle chip (T26, specs/015-hardware-
+ * AssetStatusBadge — the asset lifecycle chip (T26, specs/20261006-hardware-
  * inventory; INC-23). A `StatusBadge` from @operai/ui: the status maps to one
  * meaning of the suite's dictionary (`ASSET_STATUS_MEANING`, lib/statusMeanings),
  * which fixes the tone and the icon, and the label comes from

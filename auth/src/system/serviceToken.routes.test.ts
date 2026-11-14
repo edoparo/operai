@@ -1,5 +1,5 @@
 /**
- * Integration tests for POST /system/service-token (T4, specs/015-hardware-
+ * Integration tests for POST /system/service-token (T4, specs/20261006-hardware-
  * inventory — refs AC-2.8, AC-2.9; ADR 20261006-scoped-service-jwt-fourth-notify-caller).
  *
  * Route logic only, with an injected signer backed by a throwaway in-memory

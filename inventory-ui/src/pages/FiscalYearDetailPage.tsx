@@ -19,7 +19,7 @@ import type { Entity, FiscalYearView, Identity } from '../lib/types'
 import { strings } from '../strings'
 
 /**
- * FiscalYearDetailPage — T6, `/years/$entity/$year` (T38, specs/015-hardware-
+ * FiscalYearDetailPage — T6, `/years/$entity/$year` (T38, specs/20261006-hardware-
  * inventory; design.md T6, F12, § Accessibility "T6 year detail"; AC-8.1, AC-8.4,
  * AC-8.5, AC-8.7): the roll-forward statement (five lines, words and signs), the
  * per-asset table (opening, purchase, depreciation, disposal and closing, so the

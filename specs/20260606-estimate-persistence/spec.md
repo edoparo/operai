@@ -118,7 +118,7 @@ work is lost in the transition.
 - **Per-user quotas** — there is no limit on the number of estimates per user; only
   a per-estimate maximum size (AC-1.4) guards against abusive/accidental huge
   payloads. A count-based quota is out of scope (decided 2026-07-02).
-- **Preserving anonymous local mode** — the login wall introduced by spec 002
+- **Preserving anonymous local mode** — the login wall introduced by spec 20260606-ui-auth-integration
   removes anonymous use; localStorage matters here only as the source for the
   one-time import (US-5).
 

@@ -6,7 +6,7 @@ import type { AssetView, Currency, Ledger } from '../lib/types'
 import { strings } from '../strings'
 
 /**
- * ScheduleTable — the depreciation schedule of the Ledger block (T34, specs/015-
+ * ScheduleTable — the depreciation schedule of the Ledger block (T34, specs/20261006-
  * hardware-inventory; design.md § T2 ledger region, § Accessibility "Data
  * tables"; AC-5.8): one row per year with the depreciation, the book value at
  * year end (each with its currency code) and whether the year is closed. A

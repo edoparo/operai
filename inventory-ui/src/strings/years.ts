@@ -1,5 +1,5 @@
 /**
- * strings.years — the Fiscal years list screen, `/years` (T38, specs/015-hardware-
+ * strings.years — the Fiscal years list screen, `/years` (T38, specs/20261006-hardware-
  * inventory; design.md T5, F12; AC-8.1). The year detail, the roll-forward
  * statement and the Close year dialog keep their copy in `yearDetail.ts`.
  */

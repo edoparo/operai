@@ -1,5 +1,5 @@
 /**
- * Unit tests for inventory-api's condition evaluators (T7, specs/015-hardware-
+ * Unit tests for inventory-api's condition evaluators (T7, specs/20261006-hardware-
  * inventory; AC-9.4, AC-9.5; ADR 20260713-authz-hand-rolled-rbac-abac-epoch-claims/0014/0015). Pure functions: no DB, no
  * network.
  */
