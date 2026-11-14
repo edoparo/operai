@@ -1,6 +1,14 @@
 {
   "adopted": "2026-06-06",
-  "updated": "2026-07-02",
-  "plugin": "1.6.0",
-  "layers": ["workflow", "release"]
+  "updated": "2026-11-14",
+  "plugin": {
+    "version": "2.63.0",
+    "set_by": "upgrade",
+    "at": "2026-11-14",
+    "marketplace": "wellforge@wellforge"
+  },
+  "layers": [
+    "workflow",
+    "release"
+  ]
 }

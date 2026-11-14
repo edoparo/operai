@@ -15,5 +15,18 @@
       "Bash(git log:*)"
     ]
   },
-  "worktree": { "baseRef": "head" }
+  "worktree": {
+    "baseRef": "head"
+  },
+  "extraKnownMarketplaces": {
+    "wellforge": {
+      "source": {
+        "source": "github",
+        "repo": "matteocodogno/wellforge"
+      }
+    }
+  },
+  "enabledPlugins": {
+    "wellforge@wellforge": true
+  }
 }
