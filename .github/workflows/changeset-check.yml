@@ -31,12 +31,20 @@ on:
       - "notify-api/**"
       - "refund-api/**"
       - "inventory-api/**"
+      - "crm-api/**"
+      - "meetings-api/**"
+      - "projects-api/**"
+      - "activities-api/**"
       - "shell/**"
       - "estimai-ui/**"
       - "refund-ui/**"
       - "inventory-ui/**"
+      - "crm-ui/**"
+      - "meetings-ui/**"
+      - "projects-ui/**"
       - "notify-ui/**"
       - "admin-ui/**"
+      - "operai-ui/**"
   push:
     branches: [main]
     paths:
@@ -45,12 +53,20 @@ on:
       - "notify-api/**"
       - "refund-api/**"
       - "inventory-api/**"
+      - "crm-api/**"
+      - "meetings-api/**"
+      - "projects-api/**"
+      - "activities-api/**"
       - "shell/**"
       - "estimai-ui/**"
       - "refund-ui/**"
       - "inventory-ui/**"
+      - "crm-ui/**"
+      - "meetings-ui/**"
+      - "projects-ui/**"
       - "notify-ui/**"
       - "admin-ui/**"
+      - "operai-ui/**"
   workflow_dispatch: {}
 
 jobs:
@@ -66,6 +82,7 @@ jobs:
       # local match per the "CI and local toolchains match" mandate.
       - uses: jdx/mise-action@v2
       - run: pnpm install --frozen-lockfile
+      - run: node --test scripts/check-changeset.test.mjs
       - run: node scripts/check-changeset.mjs
         env:
           GH_EVENT_NAME: ${{ github.event_name }}

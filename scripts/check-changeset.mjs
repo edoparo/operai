@@ -3,6 +3,11 @@
  * scripts/check-changeset.mjs — does this diff add a changeset alongside any
  * app-code change under a Changesets-tracked package dir?
  *
+ * The tracked dirs are read from lerna.json `packages` (the list Changesets
+ * itself enumerates) — never a second hand-kept list. Self-test:
+ * `node --test scripts/check-changeset.test.mjs` (also asserts that the
+ * path filters of .github/workflows/changeset-check.yml equal that list).
+ *
  * NOT implemented via `changeset status`'s exit code: verified live in this
  * repo that `pnpm exec changeset status` (with or without `--since`) always
  * exits 0, pending changesets or not — it's an informational command, not a
@@ -24,24 +29,39 @@
  * 1 = app code changed with no changeset, 2 = usage error (can't resolve refs).
  */
 import { execFileSync } from 'node:child_process'
+import { readFileSync, realpathSync } from 'node:fs'
+import { fileURLToPath } from 'node:url'
 
-// The lerna.json package dirs — the exact, un-driftable set of
-// Changesets-tracked apps. An allowlist, not a denylist of docs/specs/etc.,
-// so it can never fall out of sync with a new non-code top-level directory.
-const APP_DIRS = [
-  'auth',
-  'estimai-api',
-  'notify-api',
-  'refund-api',
-  'inventory-api',
-  'shell',
-  'estimai-ui',
-  'refund-ui',
-  'inventory-ui',
-  'notify-ui',
-  'admin-ui',
-  'operai-ui',
-]
+/**
+ * The Changesets-tracked package dirs, from lerna.json `packages`. Only plain
+ * top-level dir names are supported: a glob or nested path would never match
+ * the top-level-segment comparison below, so it throws instead of silently
+ * gating nothing.
+ */
+export function readAppDirs(lernaPath = new URL('../lerna.json', import.meta.url)) {
+  const { packages } = JSON.parse(readFileSync(lernaPath, 'utf8'))
+  if (!Array.isArray(packages) || packages.length === 0) {
+    throw new Error('lerna.json has no "packages" array — cannot derive the tracked app dirs')
+  }
+  for (const p of packages) {
+    if (typeof p !== 'string' || !/^[A-Za-z0-9._-]+$/.test(p)) {
+      throw new Error(
+        `lerna.json package "${p}" is not a plain top-level directory name — check-changeset.mjs cannot gate it`,
+      )
+    }
+  }
+  return packages
+}
+
+/** Tracked app dirs touched by a list of changed file paths. */
+export function changedAppDirsOf(changedFiles, appDirs) {
+  return new Set(changedFiles.map((f) => f.split('/')[0]).filter((dir) => appDirs.includes(dir)))
+}
+
+/** The changesets among the files a diff ADDED (README.md is not one). */
+export function addedChangesetsOf(addedFiles) {
+  return addedFiles.filter((f) => f.startsWith('.changeset/') && f.endsWith('.md') && f !== '.changeset/README.md')
+}
 
 const ALL_ZERO_SHA = '0000000000000000000000000000000000000000'
 
@@ -110,43 +130,47 @@ function resolveRefs() {
   }
 }
 
-const { base, head } = resolveRefs()
+function main() {
+  const appDirs = readAppDirs()
+  const { base, head } = resolveRefs()
 
-let changedFiles
-try {
-  changedFiles = git(['diff', '--name-only', base, head]).split('\n').filter(Boolean)
-} catch (err) {
-  const reason = String(err.message).split('\n')[0]
-  console.log(`::warning::cannot diff ${base}..${head} (${reason}) — changeset gate skipped for this run.`)
-  process.exit(0)
-}
+  let changedFiles
+  try {
+    changedFiles = git(['diff', '--name-only', base, head]).split('\n').filter(Boolean)
+  } catch (err) {
+    const reason = String(err.message).split('\n')[0]
+    console.log(`::warning::cannot diff ${base}..${head} (${reason}) — changeset gate skipped for this run.`)
+    process.exit(0)
+  }
 
-const changedAppDirs = new Set(changedFiles.map((f) => f.split('/')[0]).filter((dir) => APP_DIRS.includes(dir)))
+  const changedAppDirs = changedAppDirsOf(changedFiles, appDirs)
 
-if (changedAppDirs.size === 0) {
-  console.log('[check-changeset] No app-code changes under the tracked package dirs — nothing to gate.')
-  process.exit(0)
-}
+  if (changedAppDirs.size === 0) {
+    console.log('[check-changeset] No app-code changes under the tracked package dirs — nothing to gate.')
+    process.exit(0)
+  }
 
-const addedChangesets = git(['diff', '--name-only', '--diff-filter=A', base, head])
-  .split('\n')
-  .filter(Boolean)
-  .filter((f) => f.startsWith('.changeset/') && f.endsWith('.md') && f !== '.changeset/README.md')
-
-if (addedChangesets.length === 0) {
-  const dirs = [...changedAppDirs].sort().join(', ')
-  console.error(
-    `::error::App code changed under ${dirs} without an accompanying changeset. Run \`mise run changeset\` ` +
-      '(pick the affected package(s) + patch/minor/major + a one-line summary) and commit the resulting ' +
-      '.changeset/*.md file with this change. If this is deliberately a no-release change (docs-only inside ' +
-      'an app dir, CI/tooling-only, etc.), run `pnpm exec changeset add --empty` instead — ' +
-      "Changesets' own convention for an intentional no-op release note — and commit that file.",
+  const addedChangesets = addedChangesetsOf(
+    git(['diff', '--name-only', '--diff-filter=A', base, head]).split('\n').filter(Boolean),
   )
-  process.exit(1)
+
+  if (addedChangesets.length === 0) {
+    const dirs = [...changedAppDirs].sort().join(', ')
+    console.error(
+      `::error::App code changed under ${dirs} without an accompanying changeset. Run \`mise run changeset\` ` +
+        '(pick the affected package(s) + patch/minor/major + a one-line summary) and commit the resulting ' +
+        '.changeset/*.md file with this change. If this is deliberately a no-release change (docs-only inside ' +
+        'an app dir, CI/tooling-only, etc.), run `pnpm exec changeset add --empty` instead — ' +
+        "Changesets' own convention for an intentional no-op release note — and commit that file.",
+    )
+    process.exit(1)
+  }
+
+  console.log(
+    `[check-changeset] OK — app code changed under ${[...changedAppDirs].sort().join(', ')}, ` +
+      `matched changeset(s): ${addedChangesets.join(', ')}`,
+  )
+  process.exit(0)
 }
 
-console.log(
-  `[check-changeset] OK — app code changed under ${[...changedAppDirs].sort().join(', ')}, ` +
-    `matched changeset(s): ${addedChangesets.join(', ')}`,
-)
-process.exit(0)
+if (process.argv[1] && realpathSync(process.argv[1]) === realpathSync(fileURLToPath(import.meta.url))) main()
