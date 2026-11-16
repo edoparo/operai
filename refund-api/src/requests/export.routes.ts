@@ -34,6 +34,7 @@ import { Effect } from "effect";
 import { authzMiddleware, type AuthzVariables } from "../auth/authz.middleware";
 import { jwtMiddleware } from "../auth/jwt.middleware";
 import { db } from "../lib/db";
+import { zodIssuesHook } from "../lib/zodHook";
 import { getObject, MAX_EXPORT_RECEIPT_BYTES } from "../lib/storage";
 import { findRequestWithLines } from "./requests.repo";
 import { ProblemSchema, RequestIdParamSchema } from "./requests.schemas";
@@ -128,7 +129,9 @@ function exportFileName(input: {
   return `${parts.map(safe).join("_")}_${input.requestId}.pdf`;
 }
 
-export const requestExportRouter = new OpenAPIHono<{ Variables: AuthzVariables }>();
+export const requestExportRouter = new OpenAPIHono<{ Variables: AuthzVariables }>({
+  defaultHook: zodIssuesHook,
+});
 
 requestExportRouter.use("/requests/:id/export", jwtMiddleware);
 requestExportRouter.use("/requests/:id/export", authzMiddleware);

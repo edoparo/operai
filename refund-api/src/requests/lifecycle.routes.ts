@@ -18,6 +18,7 @@ import { authzMiddleware, type AuthzVariables } from "../auth/authz.middleware";
 import { jwtMiddleware } from "../auth/jwt.middleware";
 import { hasCapability } from "../authz/conditions";
 import { ConflictError, NotFoundError, ValidationError } from "../lib/errors";
+import { zodIssuesHook } from "../lib/zodHook";
 import { findRequestWithLines } from "./requests.repo";
 import { RequestDetailSchema, RequestIdParamSchema } from "./requests.schemas";
 import { mapRequestDetail } from "./requests.service";
@@ -58,7 +59,9 @@ const unprocessableProblem = (path: string, error: ValidationError) => {
 
 // ─── Router ──────────────────────────────────────────────────────────────────
 
-export const lifecycleRouter = new OpenAPIHono<{ Variables: AuthzVariables }>();
+export const lifecycleRouter = new OpenAPIHono<{ Variables: AuthzVariables }>({
+  defaultHook: zodIssuesHook,
+});
 
 lifecycleRouter.use("/requests/:id/submit", jwtMiddleware);
 lifecycleRouter.use("/requests/:id/submit", authzMiddleware);
