@@ -80,6 +80,10 @@ import { authClient } from './authClient'
 
 /** In-memory JWT cache (module scope — cleared on page reload, never persisted). */
 let cachedJwt: string | null = null
+/** The one `/auth/token` request in flight, shared by every caller that needs a token now. */
+let inFlightJwt: Promise<string | null> | null = null
+/** Bumped by `clearJwtCache()`; a token fetched under an older value is never cached. */
+let jwtGeneration = 0
 
 /**
  * Returns the auth service base URL from the Vite environment.
@@ -178,6 +182,9 @@ export const getActivitiesApiBaseUrl = (): string => import.meta.env.VITE_ACTIVI
 /** Clears the in-memory JWT cache. */
 export const clearJwtCache = (): void => {
   cachedJwt = null
+  // A token request already in flight belongs to the session being cleared: drop its answer.
+  jwtGeneration += 1
+  inFlightJwt = null
 }
 
 /**
@@ -340,16 +347,37 @@ const fetchJwt = async (): Promise<string | null> => {
 }
 
 /**
+ * Fetches a fresh JWT into the cache, single-flight: a page that mounts with N concurrent
+ * `apiFetch` calls (or N concurrent 401s) makes one `/auth/token` request, not N — the same
+ * dedupe the permissions cache already has (`inFlightPermissions`).
+ */
+const refreshJwt = (): Promise<string | null> => {
+  if (inFlightJwt !== null) {
+    return inFlightJwt
+  }
+  const generation = jwtGeneration
+  const request = fetchJwt()
+    .then((token) => {
+      if (generation === jwtGeneration) {
+        cachedJwt = token
+      }
+      return token
+    })
+    .finally(() => {
+      if (inFlightJwt === request) {
+        inFlightJwt = null
+      }
+    })
+  inFlightJwt = request
+  return request
+}
+
+/**
  * Ensures a JWT is present in the module-scope cache.
  * Fetches from /auth/token if the cache is empty.
  * Returns the JWT string, or null if the session is invalid/absent.
  */
-const ensureJwt = async (): Promise<string | null> => {
-  if (cachedJwt === null) {
-    cachedJwt = await fetchJwt()
-  }
-  return cachedJwt
-}
+const ensureJwt = async (): Promise<string | null> => (cachedJwt !== null ? cachedJwt : refreshJwt())
 
 /**
  * Redirects the user to the auth service sign-in page.
@@ -404,10 +432,12 @@ export const apiFetch = async (input: RequestInfo | URL, init?: RequestInit): Pr
     return firstResponse
   }
 
-  // Step 2: first 401 — drop the cached JWT, re-fetch once, retry.
-  cachedJwt = null
-  const refreshedJwt = await fetchJwt()
-  cachedJwt = refreshedJwt
+  // Step 2: first 401 — drop the cached JWT, re-fetch once, retry. When a concurrent call
+  // has already replaced the token that failed, reuse its answer instead of fetching again.
+  if (cachedJwt === jwt) {
+    cachedJwt = null
+  }
+  const refreshedJwt = cachedJwt ?? (await refreshJwt())
 
   const retryResponse = await fetch(input, {
     ...init,

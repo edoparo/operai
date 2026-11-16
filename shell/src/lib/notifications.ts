@@ -308,19 +308,37 @@ const MAX_RECONNECT_DELAY_MS = 30_000
 /** Extra random jitter layered on top of the (capped) delay, as a ratio of it. */
 const RECONNECT_JITTER_RATIO = 0.2
 
+/**
+ * The tab's one SSE connection, as an explicit state machine. Exactly one phase holds at a time:
+ *
+ *   idle ──ensure──▶ minting ──ticket──▶ open ──error──▶ waiting ──timer──▶ minting …
+ *                       │                                   ▲
+ *                       └──transient mint failure───────────┘
+ *                       └──refused mint (signed out, 4xx)──▶ idle
+ *   any ──closeSseConnection (sign-out)──▶ idle, generation + 1
+ *
+ * `generation` changes on every close, so a mint that resolves after a close (or after a
+ * newer attempt started) sees a different generation and abandons its result instead of
+ * opening a second, orphaned EventSource.
+ */
+type SsePhase =
+  | { readonly kind: 'idle' }
+  | { readonly kind: 'minting' }
+  | { readonly kind: 'open'; readonly eventSource: EventSource }
+  | { readonly kind: 'waiting'; readonly timer: ReturnType<typeof setTimeout> }
+
 interface SseConnectionState {
-  eventSource: EventSource | null
-  connecting: boolean
-  reconnectTimer: ReturnType<typeof setTimeout> | null
+  phase: SsePhase
   /** Consecutive failures since the last successful (re)connect — drives the backoff. */
   reconnectAttempt: number
+  /** Bumped by every close; an async step that started under an older value is stale. */
+  generation: number
 }
 
 const connectionState: SseConnectionState = {
-  eventSource: null,
-  connecting: false,
-  reconnectTimer: null,
+  phase: { kind: 'idle' },
   reconnectAttempt: 0,
+  generation: 0,
 }
 
 /**
@@ -356,24 +374,29 @@ async function syncUnreadCountFromRest(): Promise<void> {
 }
 
 /**
- * Mints a fresh, single-use SSE handshake ticket via the normal Bearer/JWKS
- * path (ADR 20260713-sse-stream-auth-short-lived-ticket). Returns `null` (rather than throwing) when the mint
- * fails — e.g. the caller is signed out, in which case there is nothing to
- * connect to yet; a later `ensureSseConnection()` call (the next
- * `useUnreadCount()` mount, or the reconnect path below) tries again.
+ * The outcome of minting an SSE handshake ticket (ADR 20260713-sse-stream-auth-short-lived-ticket):
+ * `refused` when notify-api answered and said no (signed out, forbidden — retrying cannot
+ * help, a later `ensureSseConnection()` after sign-in tries again), `unavailable` when it
+ * could not answer (network failure, 408, 429, 5xx — e.g. notify-api redeploying), which the
+ * manager retries with the reconnect backoff instead of leaving the bell silently dead.
  */
-async function mintStreamTicket(): Promise<string | null> {
+type TicketResult =
+  { readonly kind: 'ticket'; readonly ticket: string } | { readonly kind: 'refused' } | { readonly kind: 'unavailable' }
+
+const isTransientStatus = (status: number): boolean => status === 408 || status === 429 || status >= 500
+
+async function mintStreamTicket(): Promise<TicketResult> {
   try {
     const response = await apiFetch(`${getNotifyBaseUrl()}/notifications/stream-ticket`, {
       method: 'POST',
     })
     if (!response.ok) {
-      return null
+      return isTransientStatus(response.status) ? { kind: 'unavailable' } : { kind: 'refused' }
     }
     const body = (await response.json()) as { ticket: string; expiresIn: number }
-    return body.ticket
+    return { kind: 'ticket', ticket: body.ticket }
   } catch {
-    return null
+    return { kind: 'unavailable' }
   }
 }
 
@@ -403,56 +426,63 @@ function handleUnreadResetEvent(): void {
   setUnreadCount(0)
 }
 
-function clearReconnectTimer(): void {
-  if (connectionState.reconnectTimer !== null) {
-    clearTimeout(connectionState.reconnectTimer)
-    connectionState.reconnectTimer = null
-  }
-}
-
-function teardownEventSource(): void {
-  if (connectionState.eventSource) {
+/** Leaves whatever phase the connection is in for `idle`, releasing its timer or stream. */
+function enterIdle(): void {
+  const { phase } = connectionState
+  if (phase.kind === 'waiting') {
+    clearTimeout(phase.timer)
+  } else if (phase.kind === 'open') {
     // .close() is essential here, not optional: it stops EventSource's OWN
     // built-in retry-to-the-same-URL behavior. That URL's ticket is
     // single-use and already consumed — the browser's native retry would
     // just 401 forever. We reconnect ourselves, with a fresh ticket.
-    connectionState.eventSource.close()
-    connectionState.eventSource = null
+    phase.eventSource.close()
   }
+  connectionState.phase = { kind: 'idle' }
 }
 
 function scheduleReconnect(): void {
-  if (connectionState.reconnectTimer !== null) {
+  if (connectionState.phase.kind === 'waiting') {
     return
   }
   const delay = computeReconnectDelay()
   // Count this attempt now, so a subsequent failure (if this reconnect also
   // fails) backs off further — see computeReconnectDelay's doc comment.
   connectionState.reconnectAttempt += 1
-  connectionState.reconnectTimer = setTimeout(() => {
-    connectionState.reconnectTimer = null
+  const timer = setTimeout(() => {
+    connectionState.phase = { kind: 'idle' }
     void openConnection()
   }, delay)
+  connectionState.phase = { kind: 'waiting', timer }
 }
 
 async function openConnection(): Promise<void> {
-  if (connectionState.connecting || connectionState.eventSource) {
+  if (connectionState.phase.kind !== 'idle') {
     return
   }
-  connectionState.connecting = true
+  connectionState.phase = { kind: 'minting' }
+  const generation = connectionState.generation
 
-  const ticket = await mintStreamTicket()
-  if (!ticket) {
-    connectionState.connecting = false
-    // No session to mint against right now (e.g. signed out) — nothing to
-    // retry from in here; the next useUnreadCount() mount (a fresh sign-in)
-    // or an explicit ensureSseConnection() call tries again.
+  const result = await mintStreamTicket()
+  if (generation !== connectionState.generation || connectionState.phase.kind !== 'minting') {
+    // Closed (sign-out) while the mint was in flight — this attempt no longer owns the connection.
+    return
+  }
+  if (result.kind === 'refused') {
+    // No session to mint against (e.g. signed out) — nothing to retry; the next
+    // useUnreadCount() mount (a fresh sign-in) or ensureSseConnection() tries again.
+    connectionState.phase = { kind: 'idle' }
+    return
+  }
+  if (result.kind === 'unavailable') {
+    // notify-api could not answer (redeploy, network blip): back off and try again.
+    connectionState.phase = { kind: 'idle' }
+    scheduleReconnect()
     return
   }
 
-  const es = new EventSource(`${getNotifyBaseUrl()}/notifications/stream?ticket=${encodeURIComponent(ticket)}`)
-  connectionState.eventSource = es
-  connectionState.connecting = false
+  const es = new EventSource(`${getNotifyBaseUrl()}/notifications/stream?ticket=${encodeURIComponent(result.ticket)}`)
+  connectionState.phase = { kind: 'open', eventSource: es }
 
   es.addEventListener('notification', (event) => {
     handleNotificationEvent((event as MessageEvent<string>).data)
@@ -467,7 +497,12 @@ async function openConnection(): Promise<void> {
     connectionState.reconnectAttempt = 0
   }
   es.onerror = () => {
-    teardownEventSource()
+    const { phase } = connectionState
+    if (phase.kind !== 'open' || phase.eventSource !== es) {
+      es.close()
+      return
+    }
+    enterIdle()
     // R3: reconcile whatever was missed while the connection was down, then
     // reconnect with a FRESH ticket (a consumed/expired one is worthless).
     void syncUnreadCountFromRest()
@@ -486,9 +521,11 @@ async function openConnection(): Promise<void> {
  */
 function ensureSseConnection(): void {
   ensureSignOutTeardownRegistered()
-  if (connectionState.eventSource || connectionState.connecting) {
-    return
+  // A fresh consumer during a backoff wait connects now rather than at the timer, as it always has.
+  if (connectionState.phase.kind === 'waiting') {
+    enterIdle()
   }
+  // A no-op unless idle: minting and open each already lead to a connection.
   void openConnection()
 }
 
@@ -498,10 +535,9 @@ function ensureSseConnection(): void {
  * teardown below is the production caller (ADR 20260713-notification-center-standalone-service-shell-seam R8).
  */
 export function closeSseConnection(): void {
-  clearReconnectTimer()
-  connectionState.connecting = false
+  enterIdle()
   connectionState.reconnectAttempt = 0
-  teardownEventSource()
+  connectionState.generation += 1
 }
 
 // ---------------------------------------------------------------------------

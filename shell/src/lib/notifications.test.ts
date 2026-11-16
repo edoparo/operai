@@ -643,3 +643,99 @@ describe('signOut', () => {
     unmount()
   })
 })
+
+// ---------------------------------------------------------------------------
+// The connection is an explicit state machine (idle → minting → open → waiting → …):
+// a mint notify-api could not answer is retried with the backoff (the bell used to stay
+// dead after a notify-api redeploy), a refused one is not, and a mint answered after a
+// close never opens a stream.
+// ---------------------------------------------------------------------------
+
+describe('SSE ticket mint failures', () => {
+  beforeEach(() => {
+    vi.useFakeTimers()
+    vi.spyOn(Math, 'random').mockReturnValue(0)
+  })
+
+  afterEach(() => {
+    vi.useRealTimers()
+  })
+
+  /** Routes the ticket mint through `mint`, everything else through the default router. */
+  function withTicketMint(mint: () => Promise<Response>) {
+    const router = buildFetchRouter()
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (input: RequestInfo | URL, init?: RequestInit) =>
+        resolveUrl(input) === `${NOTIFY_URL}/notifications/stream-ticket` ? mint() : router(input, init),
+      ),
+    )
+  }
+
+  it('retries with the backoff when notify-api is unreachable during a reconnect, then connects', async () => {
+    const { unmount } = renderHook(() => useUnreadCount())
+    await vi.advanceTimersByTimeAsync(0)
+    expect(MockEventSource.instances).toHaveLength(1)
+
+    // notify-api goes down: the stream drops and the next two mints fail (network, then 503).
+    const outcomes: Array<() => Promise<Response>> = [
+      () => Promise.reject(new TypeError('Failed to fetch')),
+      async () => makeResponse(503, {}),
+      async () => makeResponse(200, { ticket: 'ticket-back', expiresIn: 30 }),
+    ]
+    withTicketMint(() => outcomes.shift()!())
+    act(() => {
+      MockEventSource.instances[0].triggerError()
+    })
+
+    await vi.advanceTimersByTimeAsync(1000) // reconnect #1: network failure
+    await vi.advanceTimersByTimeAsync(2000) // reconnect #2: 503
+    expect(MockEventSource.instances).toHaveLength(1)
+    await vi.advanceTimersByTimeAsync(4000) // reconnect #3: notify-api is back
+    expect(MockEventSource.instances).toHaveLength(2)
+    expect(MockEventSource.instances[1].url).toBe(`${NOTIFY_URL}/notifications/stream?ticket=ticket-back`)
+
+    unmount()
+  })
+
+  it('does not retry a refused mint (403): nothing to reconnect to until a later ensure', async () => {
+    withTicketMint(async () => makeResponse(403, {}))
+    const { unmount } = renderHook(() => useUnreadCount())
+    await vi.advanceTimersByTimeAsync(60_000)
+
+    expect(MockEventSource.instances).toHaveLength(0)
+    const mints = vi.mocked(fetch).mock.calls.filter(
+      ([url]) => resolveUrl(url) === `${NOTIFY_URL}/notifications/stream-ticket`,
+    )
+    expect(mints).toHaveLength(1)
+
+    unmount()
+  })
+
+  it('a mint answered after closeSseConnection() opens no stream, and the next ensure opens exactly one', async () => {
+    let releaseFirst: (response: Response) => void = () => {}
+    let mintCalls = 0
+    withTicketMint(() => {
+      mintCalls += 1
+      return mintCalls === 1
+        ? new Promise<Response>((resolve) => (releaseFirst = resolve))
+        : Promise.resolve(makeResponse(200, { ticket: 'ticket-new', expiresIn: 30 }))
+    })
+
+    const first = renderHook(() => useUnreadCount())
+    await vi.advanceTimersByTimeAsync(0)
+    closeSseConnection() // e.g. sign-out while the first mint is in flight
+    first.unmount()
+
+    const second = renderHook(() => useUnreadCount())
+    await vi.advanceTimersByTimeAsync(0)
+    releaseFirst(makeResponse(200, { ticket: 'ticket-old', expiresIn: 30 }))
+    await vi.advanceTimersByTimeAsync(0)
+
+    expect(MockEventSource.instances.map((es) => es.url)).toEqual([
+      `${NOTIFY_URL}/notifications/stream?ticket=ticket-new`,
+    ])
+
+    second.unmount()
+  })
+})

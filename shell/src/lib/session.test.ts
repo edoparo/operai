@@ -1110,3 +1110,65 @@ describe('getActivitiesApiBaseUrl', () => {
     expect(getActivitiesApiBaseUrl()).toBe('http://second.test')
   })
 })
+
+// ---------------------------------------------------------------------------
+// The JWT cache is single-flight: one /auth/token request however many calls need a token,
+// and a request answered after clearJwtCache() never repopulates the cache.
+// ---------------------------------------------------------------------------
+
+describe('apiFetch — single-flight token fetch', () => {
+  it('makes ONE /auth/token request for concurrent calls on an empty cache', async () => {
+    const mockFetch = vi.mocked(fetch)
+    mockFetch.mockImplementation(async (input) =>
+      String(input) === `${AUTH_URL}/auth/token` ? tokenResponse(FAKE_JWT) : okResponse(),
+    )
+
+    await Promise.all([apiFetch(TARGET_URL), apiFetch(TARGET_URL), apiFetch(TARGET_URL)])
+
+    const tokenCalls = mockFetch.mock.calls.filter(([url]) => url === `${AUTH_URL}/auth/token`)
+    expect(tokenCalls).toHaveLength(1)
+    const targetCalls = mockFetch.mock.calls.filter(([url]) => url === TARGET_URL)
+    expect(targetCalls).toHaveLength(3)
+    for (const [, init] of targetCalls) {
+      expect((init?.headers as Record<string, string>).Authorization).toBe(`Bearer ${FAKE_JWT}`)
+    }
+  })
+
+  it('refreshes ONCE when concurrent calls all meet a 401 with the same expired token', async () => {
+    const mockFetch = vi.mocked(fetch)
+    let tokenRequests = 0
+    mockFetch.mockImplementation(async (input, init) => {
+      if (String(input) === `${AUTH_URL}/auth/token`) {
+        tokenRequests += 1
+        return tokenResponse(tokenRequests === 1 ? FAKE_JWT : REFRESHED_JWT)
+      }
+      const auth = (init?.headers as Record<string, string> | undefined)?.Authorization
+      return auth === `Bearer ${REFRESHED_JWT}` ? okResponse() : unauthorizedResponse()
+    })
+
+    const responses = await Promise.all([apiFetch(TARGET_URL), apiFetch(TARGET_URL)])
+
+    expect(responses.map((r) => r.status)).toEqual([200, 200])
+    expect(tokenRequests).toBe(2) // the first token, then exactly one refresh
+    expect(window.location.assign).not.toHaveBeenCalled()
+  })
+
+  it('never caches a token whose request was answered after clearJwtCache()', async () => {
+    const mockFetch = vi.mocked(fetch)
+    let releaseStale: (response: Response) => void = () => {}
+    mockFetch.mockImplementationOnce(() => new Promise<Response>((resolve) => (releaseStale = resolve)))
+
+    const stale = apiFetch(TARGET_URL)
+    clearJwtCache()
+    mockFetch.mockResolvedValueOnce(okResponse()) // the stale call's own target request
+    releaseStale(tokenResponse(FAKE_JWT))
+    await stale
+
+    // The next call must fetch a token of its own, not reuse the cleared session's.
+    mockFetch.mockResolvedValueOnce(tokenResponse(REFRESHED_JWT)).mockResolvedValueOnce(okResponse())
+    await apiFetch(TARGET_URL)
+
+    const lastCall = mockFetch.mock.calls.at(-1)
+    expect((lastCall?.[1]?.headers as Record<string, string>).Authorization).toBe(`Bearer ${REFRESHED_JWT}`)
+  })
+})
