@@ -41,7 +41,7 @@ export const MAX_CHUNK_SEQ = 19_999;
 
 // ─── Schemas ─────────────────────────────────────────────────────────────────
 
-const PresignedPostSchema = z.object({ url: z.string(), fields: z.record(z.string()), expiresAt: z.string() });
+const PresignedPostSchema = z.object({ url: z.string(), fields: z.record(z.string(), z.string()), expiresAt: z.string() });
 const SessionId = z.string().min(1).max(64);
 const CapturedMs = z.number().int().min(0).max(MAX_RECORDING_MS);
 const ChunkParams = IdParams.extend({ seq: z.coerce.number().int().min(0).max(MAX_CHUNK_SEQ) });

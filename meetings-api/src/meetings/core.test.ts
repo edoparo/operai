@@ -90,6 +90,25 @@ describe("POST /meetings", () => {
     });
   }
 
+  it("takes an offset written with a colon, and refuses a date-time without seconds or an offset without one (zod 4 grammar)", async () => {
+    const ok = await kit.call("creator", "POST", "/meetings", { ...base, startsAt: "2026-11-05T09:00:00+02:00" });
+    expect(ok.status).toBe(201);
+    expect(await json(ok)).toMatchObject({ startsAt: "2026-11-05T07:00:00.000Z" });
+    for (const startsAt of ["2026-11-05T09:00Z", "2026-11-05T09:00:00+0200"]) {
+      const res = await kit.call("creator", "POST", "/meetings", { ...base, startsAt });
+      expect(res.status).toBe(422);
+      expect((await json(res))["field"]).toBe("startsAt");
+    }
+    expect(await count()).toBe(1);
+  });
+
+  it("is 415 Problem JSON for a JSON body sent with another Content-Type, and creates nothing", async () => {
+    const res = await kit.call("creator", "POST", "/meetings", base, { "Content-Type": "text/plain" });
+    expect(res.status).toBe(415);
+    expect(await json(res)).toMatchObject({ status: 415, title: expect.any(String), type: expect.any(String) });
+    expect(await count()).toBe(0);
+  });
+
   it("names every invalid field at once", async () => {
     const res = await kit.call("creator", "POST", "/meetings", { title: "", format: "x", language: "it", source: "recorded" });
     expect(res.status).toBe(422);

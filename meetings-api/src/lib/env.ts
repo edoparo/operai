@@ -36,7 +36,7 @@ const REAL_PROVIDER_KEYS = [
 const PRODUCTION_REQUIRED_KEYS = [...NOTIFY_KEYS, "CRM_API_URL"] as const;
 
 const oneOf = <const T extends readonly [string, ...string[]]>(values: T, name: string) =>
-  z.enum(values, { errorMap: () => ({ message: `${name} must be one of: ${values.join(", ")}` }) });
+  z.enum(values, { error: () => `${name} must be one of: ${values.join(", ")}` });
 
 const optionalString = () => z.string().min(1).optional();
 
@@ -211,7 +211,7 @@ export function parseEnv(source: Readonly<Record<string, string | undefined>>): 
   const result = envSchema.safeParse(source);
   if (result.success) return { ok: true, env: result.data };
   const errors: Record<string, string[]> = {};
-  for (const [key, messages] of Object.entries(result.error.flatten().fieldErrors)) {
+  for (const [key, messages] of Object.entries(z.flattenError(result.error).fieldErrors)) {
     errors[key] = (messages as string[] | undefined) ?? [];
   }
   return { ok: false, errors };

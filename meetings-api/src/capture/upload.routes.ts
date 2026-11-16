@@ -33,7 +33,7 @@ import type { AuthzVariables } from "../auth/authz.middleware";
 import { openForControl, storageCall } from "./caller";
 import { callerOf, creatorControl } from "../meetings/caller";
 
-const PresignedPostSchema = z.object({ url: z.string(), fields: z.record(z.string()), expiresAt: z.string() });
+const PresignedPostSchema = z.object({ url: z.string(), fields: z.record(z.string(), z.string()), expiresAt: z.string() });
 
 const mintRoute = createRoute({
   method: "post",
