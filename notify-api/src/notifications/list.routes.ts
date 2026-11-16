@@ -23,6 +23,7 @@
 import { OpenAPIHono, createRoute } from "@hono/zod-openapi";
 import { Effect } from "effect";
 import { jwtMiddleware, type JwtVariables } from "@/auth/jwt.middleware";
+import { zodIssuesHook } from "@/lib/zodHook";
 import { countUnread, listNotifications } from "./notifications.repo";
 import {
   ListQuerySchema,
@@ -31,7 +32,7 @@ import {
   UnreadCountResponseSchema,
 } from "./notifications.schemas";
 
-export const listRouter = new OpenAPIHono<{ Variables: JwtVariables }>();
+export const listRouter = new OpenAPIHono<{ Variables: JwtVariables }>({ defaultHook: zodIssuesHook });
 
 // jwtMiddleware is scoped to this router's TWO exact paths only — NEVER
 // `.use("*", jwtMiddleware)`. index.ts mounts every notifications router at

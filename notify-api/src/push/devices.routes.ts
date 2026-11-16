@@ -53,7 +53,7 @@ export const pushDevicesRouter = new OpenAPIHono<{ Variables: JwtVariables }>({
   defaultHook: (result, c) => {
     if (!result.success) {
       // Field names only: never the offending value (it may be a subscription secret).
-      const fields = [...new Set(result.error.issues.map((i) => i.path.join(".") || "body"))].join(", ");
+      const fields = [...new Set(result.error.issues.map((i) => i.path.map(String).join(".") || "body"))].join(", ");
       return c.json(coded(400, "Bad Request", "invalid_body", `Invalid request body: ${fields}`, c.req.path), 400);
     }
     return undefined;

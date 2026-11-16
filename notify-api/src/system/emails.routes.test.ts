@@ -33,6 +33,7 @@
 
 import { describe, it, expect, afterEach, mock } from "bun:test";
 import { Hono } from "hono";
+import { expectZodIssuesBody } from "@/lib/zodIssuesBody.fixture";
 import { env } from "@/lib/env";
 
 const ORIGINAL_EMAIL_ENABLED = env.EMAIL_ENABLED;
@@ -293,6 +294,19 @@ describe("POST /system/emails — validation failures → 400", () => {
       body: JSON.stringify(validBody({ to: "not-an-email" })),
     });
     expect(res.status).toBe(400);
+  });
+
+  it("400 body keeps the { success: false, error: { issues, name } } shape (src/lib/zodHook.ts)", async () => {
+    const app = buildApp();
+    const res = await app.request("/system/emails", {
+      method: "POST",
+      headers: {
+        ...(await authHeader()),
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(validBody({ template: "password_reset" })),
+    });
+    await expectZodIssuesBody(res, ["template"]);
   });
 
   it("400: unrecognised `template`", async () => {

@@ -22,6 +22,7 @@
 
 import { describe, it, expect, afterEach, mock } from "bun:test";
 import { Hono } from "hono";
+import { expectZodIssuesBody } from "@/lib/zodIssuesBody.fixture";
 import { env } from "@/lib/env";
 
 
@@ -338,6 +339,20 @@ describe("POST /system/notifications — validation failures → 400", () => {
       body: JSON.stringify(rest),
     });
     expect(res.status).toBe(400);
+  });
+
+  it("400 body keeps the { success: false, error: { issues, name } } shape (src/lib/zodHook.ts)", async () => {
+    const app = buildApp();
+    const { recipientId: _recipientId, ...rest } = validBody() as Record<string, unknown>;
+    const res = await app.request("/system/notifications", {
+      method: "POST",
+      headers: {
+        ...(await authHeader()),
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(rest),
+    });
+    await expectZodIssuesBody(res, ["recipientId"]);
   });
 
   it("400: empty recipientId", async () => {

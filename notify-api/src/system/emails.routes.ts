@@ -27,6 +27,7 @@
 import { OpenAPIHono, createRoute } from "@hono/zod-openapi";
 import { bodyLimit } from "hono/body-limit";
 import { emailChannel } from "@/channels/email.channel";
+import { zodIssuesHook } from "@/lib/zodHook";
 import { ProblemSchema, problem } from "@/notifications/notifications.schemas";
 import { renderEmailTemplate } from "./emailTemplates";
 import { SendEmailRequestSchema, SendEmailResponseSchema } from "./emails.schemas";
@@ -39,7 +40,7 @@ const SYSTEM_EMAILS_BODY_SIZE_LIMIT = 16 * 1024; // 16 KiB
 export const createSystemEmailsRouter = (
   authMiddleware: MiddlewareHandler<{ Variables: SystemAuthVariables }>,
 ) => {
-  const systemEmailsRouter = new OpenAPIHono<{ Variables: SystemAuthVariables }>();
+  const systemEmailsRouter = new OpenAPIHono<{ Variables: SystemAuthVariables }>({ defaultHook: zodIssuesHook });
 
   // Scoped to this router's ONE exact path only — NEVER `.use("*", …)`. See
   // raise.routes.ts's file header for why a "*" middleware on any sub-router

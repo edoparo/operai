@@ -39,6 +39,7 @@ import { bodyLimit } from "hono/body-limit";
 import { emailChannel } from "@/channels/email.channel";
 import { inAppChannel } from "@/channels/inApp.channel";
 import { env } from "@/lib/env";
+import { zodIssuesHook } from "@/lib/zodHook";
 import { userContact, type UserContactClient } from "@/lib/userContact";
 import { ProblemSchema, problem } from "@/notifications/notifications.schemas";
 import {
@@ -116,7 +117,7 @@ export const createSystemNotificationsRouter = (
   authMiddleware: MiddlewareHandler<{ Variables: SystemAuthVariables }>,
   emailNotice: EmailNoticeDeps = defaultEmailNoticeDeps(),
 ) => {
-  const router = new OpenAPIHono<{ Variables: SystemAuthVariables }>();
+  const router = new OpenAPIHono<{ Variables: SystemAuthVariables }>({ defaultHook: zodIssuesHook });
 
   // Scoped to this router's ONE exact path only — NEVER `.use("*", …)`. See
   // raise.routes.ts's and emails.routes.ts's file headers for why a "*"

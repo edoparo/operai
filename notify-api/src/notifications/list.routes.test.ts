@@ -17,6 +17,7 @@
 
 import { describe, it, expect, beforeAll, afterAll, afterEach, mock } from "bun:test";
 import { Hono } from "hono";
+import { expectZodIssuesBody } from "@/lib/zodIssuesBody.fixture";
 import { generateKeyPair, exportJWK, SignJWT, createLocalJWKSet } from "jose";
 
 // ─── Fixture keypairs & jwtMiddleware mock ────────────────────────────────────
@@ -295,6 +296,24 @@ describe("GET /notifications — Italian variant `it`", () => {
 });
 
 // ─── AC-2.4: empty list ───────────────────────────────────────────────────────
+
+describe("GET /notifications — invalid query → 400", () => {
+  it("keeps the { success: false, error: { issues, name } } shape (src/lib/zodHook.ts)", async () => {
+    const app = buildApp();
+    const jwt = await tokenA();
+    const res = await app.request("/notifications?limit=0", { headers: authHeader(jwt) });
+    await expectZodIssuesBody(res, ["limit"]);
+  });
+
+  it("rejects the non-integers and out-of-range limits zod 3 rejected", async () => {
+    const app = buildApp();
+    const jwt = await tokenA();
+    for (const limit of ["201", "-1", "abc", "1.5", "Infinity", ""]) {
+      const res = await app.request(`/notifications?limit=${limit}`, { headers: authHeader(jwt) });
+      expect(res.status, `limit=${limit}`).toBe(400);
+    }
+  });
+});
 
 describe("GET /notifications — empty list (AC-2.4)", () => {
   it("a caller with no notifications gets { items: [], nextCursor: null } — not an error", async () => {

@@ -14,6 +14,7 @@
 
 import { describe, it, expect, beforeAll, afterAll, afterEach, mock } from "bun:test";
 import { Hono } from "hono";
+import { expectZodIssuesBody } from "@/lib/zodIssuesBody.fixture";
 import { generateKeyPair, exportJWK, SignJWT, createLocalJWKSet } from "jose";
 
 // ─── Fixture keypair & jwtMiddleware mock ────────────────────────────────────
@@ -296,6 +297,28 @@ describe("POST /notifications — validation failures → 400 (AC-4.5)", () => {
     title: "Valid title",
     body: "Valid body",
     originApp: "estimai",
+  });
+
+  it("400 body keeps the { success: false, error: { issues, name } } shape (src/lib/zodHook.ts)", async () => {
+    const app = buildApp();
+    const jwt = await tokenA();
+    const res = await app.request("/notifications", {
+      method: "POST",
+      headers: bearerHeader(jwt),
+      body: JSON.stringify({ ...validBody(), title: "" }),
+    });
+    await expectZodIssuesBody(res, ["title"]);
+  });
+
+  it("415: a body that is not declared JSON is refused before validation", async () => {
+    const app = buildApp();
+    const jwt = await tokenA();
+    const res = await app.request("/notifications", {
+      method: "POST",
+      headers: { Authorization: `Bearer ${jwt}`, "Content-Type": "text/plain" },
+      body: JSON.stringify(validBody()),
+    });
+    expect(res.status).toBe(415);
   });
 
   it("400: empty title", async () => {

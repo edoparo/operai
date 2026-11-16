@@ -25,6 +25,7 @@
 import { OpenAPIHono, createRoute } from "@hono/zod-openapi";
 import { bodyLimit } from "hono/body-limit";
 import { jwtMiddleware, type JwtVariables } from "@/auth/jwt.middleware";
+import { zodIssuesHook } from "@/lib/zodHook";
 import { inAppChannel } from "@/channels/inApp.channel";
 import {
   NotificationSchema,
@@ -37,7 +38,7 @@ import {
 // generous-but-bounded envelope cap, well above any legitimate title+body+link.
 const RAISE_BODY_SIZE_LIMIT = 16 * 1024; // 16 KiB
 
-export const raiseRouter = new OpenAPIHono<{ Variables: JwtVariables }>();
+export const raiseRouter = new OpenAPIHono<{ Variables: JwtVariables }>({ defaultHook: zodIssuesHook });
 
 // Both middlewares below are scoped to this router's ONE exact path only —
 // NEVER `.use("*", …)`. index.ts mounts every notifications router at the
