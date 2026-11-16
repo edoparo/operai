@@ -96,7 +96,7 @@ describe('formatters', () => {
   })
 })
 
-describe('short durations and months (specs/029: AC-4.9, AC-4.5)', () => {
+describe('short durations and months (specs/20261112-time-tracking: AC-4.9, AC-4.5)', () => {
   const minutes = (n: number) => n * 60_000
 
   it.each(['en', 'it'] as const)('writes a duration short as "2 h 30", "2 h" or "30 min" in %s', (locale) => {

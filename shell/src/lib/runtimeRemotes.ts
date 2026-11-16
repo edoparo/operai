@@ -59,8 +59,8 @@
  * code from this single entry; where it is served from is orthogonal to who may
  * reach which route.
  *
- * `hours` (specs/029-time-tracking, T23) follows the identical shape — a further optional key.
- * Its one entry is mounted at the UNGATED `/hours/$` route (ADR-0090); where its code is served
+ * `hours` (specs/20261112-time-tracking, T23) follows the identical shape — a further optional key.
+ * Its one entry is mounted at the UNGATED `/hours/$` route (ADR 20261112-hours-ui-ungated-remote); where its code is served
  * from is, again, orthogonal to who may reach the route.
  *
  * HONEST SCOPE NOTE (see T17 report): for the common production case — a
@@ -88,7 +88,7 @@ export interface RuntimeRemoteConfig {
   projects?: string
   /** specs/20261116-letterhead-service: the Letterheads remote's remoteEntry.js. */
   letterheads?: string
-  /** specs/029-time-tracking: the Hours remote's remoteEntry.js (one entry, ungated, plus ./version). */
+  /** specs/20261112-time-tracking: the Hours remote's remoteEntry.js (one entry, ungated, plus ./version). */
   hours?: string
 }
 

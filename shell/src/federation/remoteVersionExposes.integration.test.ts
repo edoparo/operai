@@ -73,7 +73,7 @@ const ALL_REMOTES: readonly RemoteFixture[] = [
   { id: 'meetings', dirName: 'meetings-ui' },
   { id: 'projects', dirName: 'projects-ui' },
   { id: 'letterheads', dirName: 'letterheads-ui' },
-  // specs/029-time-tracking (T23): the Hours remote, built here like the others.
+  // specs/20261112-time-tracking (T23): the Hours remote, built here like the others.
   { id: 'hours', dirName: 'hours-ui' },
 ]
 

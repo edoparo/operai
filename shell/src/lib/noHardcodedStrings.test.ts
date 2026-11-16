@@ -151,7 +151,7 @@ const TECHNICAL = new Set([
   '/projects/$',
   '/letterheads',
   '/letterheads/$',
-  // specs/029-time-tracking: the ungated hours route (router.tsx) and its menu link (UserMenu.tsx).
+  // specs/20261112-time-tracking: the ungated hours route (router.tsx) and its menu link (UserMenu.tsx).
   '/hours',
   '/hours/$',
   '/operai.svg',

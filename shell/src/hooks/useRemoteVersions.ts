@@ -56,7 +56,7 @@ export const REMOTE_VERSION_SOURCES: readonly RemoteVersionSource[] = [
   { id: 'meetings', label: strings.tools.meetings, loader: () => import('meetings/version') },
   { id: 'projects', label: strings.tools.projects, loader: () => import('projects/version') },
   { id: 'letterheads', label: strings.tools.letterheads, loader: () => import('letterheads/version') },
-  // specs/029-time-tracking: like `notify`, a remote that is not a TOOLS entry (it is ungated).
+  // specs/20261112-time-tracking: like `notify`, a remote that is not a TOOLS entry (it is ungated).
   { id: 'hours', label: strings.tools.hours, loader: () => import('hours/version') },
 ]
 
