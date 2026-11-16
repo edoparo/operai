@@ -1,4 +1,5 @@
-import { describe, expect, it } from "bun:test";
+import * as isolated from "../entity-profiles/isolatedPdfCheck";
+import { describe, expect, it, spyOn } from "bun:test";
 import {
   PDFArray,
   PDFDict,
@@ -10,7 +11,9 @@ import {
   type PDFPage,
 } from "pdf-lib";
 import type { ContractSnapshot, OfferCostLine } from "./contract";
-import { AttachmentUnreadableError, formatAmount, formatPercent, renderContractPdf, shortDate } from "./contractPdf";
+import { AttachmentUnreadableError, renderContractPdf } from "./contractPdf";
+import { deflatedRun, objStmBombPdf } from "../test-support/pdfBuild";
+import { formatAmount, formatPercent, shortDate } from "./engine/format";
 import { DEFAULT_TEMPLATES_IT } from "./defaultTemplates";
 
 // ─── Fixtures ────────────────────────────────────────────────────────────────
@@ -172,6 +175,20 @@ describe("renderContractPdf — letterhead, frame and page numbers", () => {
     expect(xobjectCount(pages[0]!)).toBe(0);
     expect(text[0]!.join("\n")).toContain("WellD Sagl");
     expect(text[0]).toContain("1/1");
+  });
+
+  it("folds a line break in the issuer name or address into one line, as the engine does (security I-7)", async () => {
+    const issuer = { legalName: "Acme\nSagl", addressLines: ["Via Pessina 9\r\nint. 3", "", "6900 Lugano"], vatNumber: null, iban: null };
+    const { text } = await render(snapshot({ issuer }), { letterhead: null });
+    const first = text[0]!;
+    // header: the folded name and address lines, never the halves
+    expect(first).toContain("Acme Sagl");
+    expect(first).toContain("Via Pessina 9 int. 3");
+    expect(first).not.toContain("Acme");
+    // footer: one run, folded, so no line starts with a half
+    expect(first.join("\n")).toContain("Acme Sagl · Via Pessina 9 int. 3 · 6900 Lugano");
+    expect(first).not.toContain("Sagl");
+    expect(first).not.toContain("int. 3");
   });
 
   it("is deterministic for the same inputs", async () => {
@@ -385,6 +402,54 @@ describe("renderContractPdf — attachments", () => {
     }).catch((e: unknown) => e);
     expect(error).toBeInstanceOf(AttachmentUnreadableError);
     expect((error as AttachmentUnreadableError).fileName).toBe("broken.pdf");
+  });
+});
+
+describe("renderContractPdf — an attachment is bounded before pdf-lib loads it (security M-7)", () => {
+  it("refuses an object-stream bomb with the file's name and never hands it to PDFDocument.load", async () => {
+    const bomb = objStmBombPdf(await deflatedRun(16));
+    const load = spyOn(PDFDocument, "load");
+    try {
+      const error = await renderContractPdf(snapshot({ attachments: [{ id: "a", fileName: "bomb.pdf", sizeBytes: bomb.length }] }), {
+        letterhead: null,
+        attachments: [bomb],
+      }).catch((e: unknown) => e);
+      expect(error).toBeInstanceOf(AttachmentUnreadableError);
+      expect((error as AttachmentUnreadableError).fileName).toBe("bomb.pdf");
+      expect(load).not.toHaveBeenCalled();
+    } finally {
+      load.mockRestore();
+    }
+  });
+
+  it("an attachment whose check was killed (time or memory) is refused by name and never loaded; a child that cannot answer propagates as a 503", async () => {
+    const check = spyOn(isolated, "boundPdfIsolated").mockResolvedValueOnce({ ok: false, reason: "too_complex" });
+    const load = spyOn(PDFDocument, "load");
+    try {
+      const input = { letterhead: null, attachments: [new Uint8Array([1, 2, 3])] };
+      const killed = await renderContractPdf(snapshot({ attachments: [{ id: "a", fileName: "slow.pdf", sizeBytes: 3 }] }), input).catch((e: unknown) => e);
+      expect(killed).toBeInstanceOf(AttachmentUnreadableError);
+      expect((killed as AttachmentUnreadableError).fileName).toBe("slow.pdf");
+      expect(load).not.toHaveBeenCalled();
+      check.mockRejectedValueOnce(new isolated.PdfCheckUnavailableError());
+      const unanswered = await renderContractPdf(snapshot({ attachments: [{ id: "a", fileName: "slow.pdf", sizeBytes: 3 }] }), input).catch((e: unknown) => e);
+      expect(unanswered).toBeInstanceOf(isolated.PdfCheckUnavailableError);
+    } finally {
+      check.mockRestore();
+      load.mockRestore();
+    }
+  });
+
+  it("refuses every filter the bound cannot measure (LZW here), and still appends a good one", async () => {
+    const lzw = Buffer.from([0x80, 0x0b, 0x60, 0x50, 0x22, 0x0c, 0x0c, 0x85, 0x01]);
+    const bytes = new Uint8Array(Buffer.concat([Buffer.from("%PDF-1.4\n1 0 obj\n<< /Filter /LZWDecode /Length 9 >>\nstream\n"), lzw, Buffer.from("\nendstream\nendobj\n")]));
+    const error = await renderContractPdf(snapshot({ attachments: [{ id: "a", fileName: "old.pdf", sizeBytes: bytes.length }] }), {
+      letterhead: null,
+      attachments: [bytes],
+    }).catch((e: unknown) => e);
+    expect(error).toBeInstanceOf(AttachmentUnreadableError);
+    const ok = await render(snapshot({ attachments: [{ id: "a", fileName: "a.pdf", sizeBytes: 1 }] }), { attachments: [await makeAttachment(1, "Fine")] });
+    expect(ok.pages.length).toBeGreaterThan(1);
   });
 });
 

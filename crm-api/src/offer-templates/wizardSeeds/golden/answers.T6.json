@@ -1,0 +1,53 @@
+{
+  "tpl": "T6",
+  "f": {
+    "DATA": "2026-11-15",
+    "VALIDITA_GIORNI": "45",
+    "DURATA_MESI": "24",
+    "CLIENTE": "Alpina Energia SA",
+    "INDIRIZZO_CLIENTE": "Via Cantonale 12\n6900 Lugano\nSvizzera",
+    "RIF": "0042/2026r1",
+    "REFERENTE_CLIENTE": "Chiara Moretti",
+    "SERVIZIO": "Piattaforma di prenotazione WellBook",
+    "DESCRIZIONE_IN_UNA_FRASE": "Prenotazione di risorse condivise per gli uffici",
+    "DIMENSIONAMENTO": "fino a 200 utenti, 1 ambiente",
+    "PRODOTTO": "Microsoft 365 Business Standard",
+    "N_LICENZE": "25",
+    "PERIODO_LICENZE": "1.1.2027 – 31.12.2027",
+    "TEMPO_ATTIVAZIONE": "10 giorni lavorativi",
+    "UPTIME": "99.5",
+    "PROVIDER_CLOUD": "Exoscale (Svizzera)",
+    "PRODOTTI_DI_TERZI": "Microsoft Entra ID",
+    "PERIODICITÀ": "mensile",
+    "CADENZA_FATTURAZIONE": "trimestrale",
+    "CATEGORIE_DI_INTERESSATI": "dipendenti del Cliente",
+    "TIPI_DI_DATI": "dati identificativi e di utilizzo"
+  },
+  "g": {
+    "licenza_uso": true,
+    "rivendita": true,
+    "utenze": true,
+    "attivazione": true,
+    "rinnovo_tacito": false,
+    "no_rinnovo": true,
+    "dpa": true
+  },
+  "lists": {
+    "COMPONENTE": [
+      "Applicazione web",
+      "App mobile",
+      "Console di amministrazione"
+    ]
+  },
+  "rows": {},
+  "c": {
+    "35:1:unit": "1200",
+    "35:1:qty": "12",
+    "35:2:unit": "15",
+    "35:2:qty": "40",
+    "35:3:unit": "135",
+    "35:3:qty": "25",
+    "35:4:unit": "800"
+  },
+  "x": {}
+}

@@ -1,0 +1,35 @@
+{
+  "tpl": "T6",
+  "f": {
+    "DATA": "2026-11-15",
+    "VALIDITA_GIORNI": "45",
+    "DURATA_MESI": "12",
+    "CLIENTE": "Alpina Energia SA",
+    "INDIRIZZO_CLIENTE": "Via Cantonale 12\n6900 Lugano\nSvizzera",
+    "RIF": "0042/2026r1",
+    "SERVIZIO": "Servizio di monitoraggio WellWatch",
+    "PERIODICITÀ": "annuale",
+    "CADENZA_FATTURAZIONE": "annuale"
+  },
+  "g": {
+    "licenza_uso": false,
+    "rivendita": false,
+    "utenze": false,
+    "attivazione": false,
+    "rinnovo_tacito": true,
+    "no_rinnovo": false,
+    "dpa": false
+  },
+  "lists": {
+    "COMPONENTE": [
+      "Agenti di raccolta",
+      "Cruscotto"
+    ]
+  },
+  "rows": {},
+  "c": {
+    "35:1:unit": "9600",
+    "35:1:qty": "1"
+  },
+  "x": {}
+}

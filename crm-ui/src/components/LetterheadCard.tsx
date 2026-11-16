@@ -1,8 +1,15 @@
 import { useRef, useState } from 'react'
 import { Banner, Button, Card, formatDate } from '@operai/ui'
-import { confirmLetterhead, getLetterheadDownload, postToBucket, startLetterheadUpload } from '../lib/crmApi'
+import {
+  confirmLetterhead,
+  getLetterheadDownload,
+  listEntityProfiles,
+  postToBucket,
+  startLetterheadUpload,
+} from '../lib/crmApi'
 import { ApiError } from '../lib/api'
 import { codeOf, errorMessage } from '../lib/errors'
+import { letterheadUnusableOf } from '../lib/offerErrors'
 import { personName } from '../lib/people'
 import type { Entity, EntityProfile } from '../lib/types'
 import { useCurrentUserId } from '../hooks/useCurrentUserId'
@@ -12,6 +19,8 @@ export const MAX_LETTERHEAD_BYTES = 5 * 1024 * 1024
 
 function letterheadFailure(error: unknown): string {
   const t = strings.templates.letterhead.errors
+  // a stored letterhead the service now refuses (security M-4, DD-76): say to upload it again, whatever the body holds
+  if (letterheadUnusableOf(error)) return t.unusable
   switch (codeOf(error)) {
     case 'letterhead_invalid': {
       const reason = error instanceof ApiError ? error.extras['reason'] : undefined
@@ -27,6 +36,16 @@ function letterheadFailure(error: unknown): string {
       return t.profileMissing
     default:
       return errorMessage(error)
+  }
+}
+
+/** The entity's profile as the service has it now, when it holds a letterhead uploaded since `previousUploadedAt`; else null. */
+async function settledProfile(entity: Entity, previousUploadedAt: string | null): Promise<EntityProfile | null> {
+  try {
+    const row = (await listEntityProfiles()).items.find((item) => item.entity === entity)
+    return row?.letterhead && row.letterhead.uploadedAt !== previousUploadedAt ? row : null
+  } catch {
+    return null
   }
 }
 
@@ -69,8 +88,19 @@ export default function LetterheadCard({
         setError(t.errors.uploadFailed)
         return
       }
-      onChanged(await confirmLetterhead(entity, started.key))
-      setNotice(t.uploaded)
+      try {
+        onChanged(await confirmLetterhead(entity, started.key))
+        setNotice(t.uploaded)
+      } catch (failure) {
+        // The service deletes the upload object once it has copied the checked bytes, so a confirm repeated for a
+        // spent key is 409 `upload_missing` — also when the first answer was lost on the way. The profile says which:
+        // ask it again and call this a success only if it now holds a letterhead other than the one shown before.
+        if (codeOf(failure) !== 'upload_missing') throw failure
+        const settled = await settledProfile(entity, letterhead?.uploadedAt ?? null)
+        if (!settled) throw failure
+        onChanged(settled)
+        setNotice(t.uploaded)
+      }
     } catch (failure) {
       setError(letterheadFailure(failure))
     } finally {

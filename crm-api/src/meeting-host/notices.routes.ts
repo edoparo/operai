@@ -30,7 +30,7 @@ import type { MiddlewareHandler } from "hono";
 import { createSystemAuthMiddleware, type SystemAuthVariables } from "../auth/systemAuth.middleware";
 import { activities } from "../lib/activities";
 import { db } from "../lib/db";
-import { commonErrors } from "../lib/http";
+import { commonErrors, idText } from "../lib/http";
 import { unprocessable, validationHook } from "../lib/problem";
 
 export const HOST_NOTICES_SCOPE = "host-notices.send";
@@ -46,13 +46,13 @@ const NoticeBody = z
     event: z.enum(["linked", "changed", "unlinked", "deleted"]),
     meeting: z
       .object({
-        id: z.string().min(1).max(64),
+        id: idText(),
         title: z.string().min(1).max(200).nullable(),
         startsAt: z.string().datetime({ offset: true }).nullable(),
-        creatorId: z.string().min(1).max(64),
+        creatorId: idText(),
       })
       .strict(),
-    entity: z.object({ type: z.literal("deal"), id: z.string().min(1).max(64) }).strict(),
+    entity: z.object({ type: z.literal("deal"), id: idText() }).strict(),
   })
   .strict()
   .superRefine((notice, ctx) => {

@@ -12,7 +12,7 @@ import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-li
 import { RouterProvider } from '@tanstack/react-router'
 import CrmShell from '../components/CrmShell'
 import { createAppRouter } from '../router'
-import { ADA, fakeApi, page } from '../test-support/fakeApi'
+import { ADA, fakeApi, nulRefusalAnswer, page } from '../test-support/fakeApi'
 import type { FakeHandler } from '../test-support/fakeApi'
 
 const { apiFetch } = vi.hoisted(() => ({ apiFetch: vi.fn() }))
@@ -1051,6 +1051,60 @@ describe('Attachments card (AC-4.3, AC-4.4)', () => {
   })
 })
 
+describe('a text the server refuses for a character that cannot be saved, in the CRM forms (QE F2)', () => {
+  const SENTENCE = 'This text contains a character that cannot be saved.'
+  const RAW = /NUL|Not text|title:|firstName:/
+  const openCompany = (extra: Record<string, FakeHandler>) => {
+    apiFetch.mockImplementation(
+      fakeApi({
+        'GET /scope': () => ({ status: 200, body: { ...MANAGER, canErase: false } }),
+        'GET /companies/c1': () => ({ status: 200, body: companySummaryFixture }),
+        'GET /contacts': () => ({ status: 200, body: page([]) }),
+        'GET /deals': () => ({ status: 200, body: page([]) }),
+        'GET /activities': () => ({ status: 200, body: page([]) }),
+        ...extra,
+      }),
+    )
+    window.history.pushState(null, '', '/companies/c1')
+    render(<RouterProvider router={createAppRouter(undefined, CrmShell)} />)
+  }
+
+  it('a deal title: our sentence at the Title field, focus there, no server line', async () => {
+    openCompany({ 'POST /deals': () => nulRefusalAnswer('title') })
+    fireEvent.click(await screen.findByTestId('crm-company-new-deal'))
+    const dialog = await screen.findByRole('dialog', { name: 'New deal' })
+    const title = within(dialog).getByLabelText(/^Title/)
+    fireEvent.change(title, { target: { value: 'Data platform' } })
+    fireEvent.click(within(dialog).getByTestId('crm-deal-form-submit'))
+    expect(await within(dialog).findByText(SENTENCE)).not.toBeNull()
+    expect(title.getAttribute('aria-invalid')).toBe('true')
+    expect(dialog.textContent).not.toMatch(RAW)
+  })
+
+  it('a deal field the form does not map: a banner in our words, not the server line', async () => {
+    openCompany({ 'POST /deals': () => nulRefusalAnswer('somethingElse') })
+    fireEvent.click(await screen.findByTestId('crm-company-new-deal'))
+    const dialog = await screen.findByRole('dialog', { name: 'New deal' })
+    fireEvent.change(within(dialog).getByLabelText(/^Title/), { target: { value: 'Data platform' } })
+    fireEvent.click(within(dialog).getByTestId('crm-deal-form-submit'))
+    expect(await within(dialog).findByText(SENTENCE)).not.toBeNull()
+    expect(dialog.textContent).not.toMatch(/NUL|Not text|somethingElse/)
+  })
+
+  it('a contact name: our sentence at the First name field, no server line', async () => {
+    openCompany({ 'POST /contacts': () => nulRefusalAnswer('firstName') })
+    fireEvent.click(await screen.findByTestId('crm-company-add-contact'))
+    const dialog = await screen.findByRole('dialog')
+    const first = within(dialog).getByLabelText(/^First name/)
+    fireEvent.change(first, { target: { value: 'Ada' } })
+    fireEvent.change(within(dialog).getByLabelText(/^Last name/), { target: { value: 'Lovelace' } })
+    fireEvent.click(within(dialog).getByTestId('crm-contact-form-submit'))
+    expect(await within(dialog).findByText(SENTENCE)).not.toBeNull()
+    expect(first.getAttribute('aria-invalid')).toBe('true')
+    expect(dialog.textContent).not.toMatch(RAW)
+  })
+})
+
 describe('Settings screen', () => {
   const render_ = async (scope: Scope, extra: Record<string, FakeHandler> = {}) => {
     apiFetch.mockImplementation(
@@ -1088,6 +1142,48 @@ describe('Settings screen', () => {
       }),
     )
     expect(await screen.findByText('wellD CH profile saved.')).not.toBeNull()
+  })
+
+  describe('a text the server refuses for a character that cannot be saved (QE F2)', () => {
+    const RAW = /NUL|addressLines|legalName|Not text|foo/
+    const refuse = async (field: string) => {
+      await render_(MANAGER, {
+        'GET /entity-profiles': () => ({ status: 200, body: { items: [] } }),
+        'PUT /entity-profiles/welld_ch': () => nulRefusalAnswer(field),
+      })
+      const form = await screen.findByTestId('crm-settings-welld_ch')
+      fireEvent.change(within(form).getByLabelText(/Legal name/), { target: { value: 'wellD SA' } })
+      fireEvent.change(within(form).getByLabelText('Address'), { target: { value: 'Via Nassa 1\nLugano' } })
+      fireEvent.click(within(form).getByTestId('crm-settings-welld_ch-save'))
+      return form
+    }
+
+    it('puts the localized sentence at the address field and moves focus there, from the Save button', async () => {
+      const form = await refuse('addressLines.1')
+      const address = within(form).getByLabelText('Address')
+      await waitFor(() => expect(document.activeElement).toBe(address))
+      expect(address.getAttribute('aria-invalid')).toBe('true')
+      expect(within(form).getByText('This text contains a character that cannot be saved.')).not.toBeNull()
+      expect(within(form).queryByTestId('crm-settings-welld_ch-error')).toBeNull()
+      expect(form.textContent).not.toMatch(RAW)
+    })
+
+    it('names the legal name field for a refused legal name', async () => {
+      const form = await refuse('legalName')
+      const legal = within(form).getByLabelText(/Legal name/)
+      await waitFor(() => expect(document.activeElement).toBe(legal))
+      expect(legal.getAttribute('aria-invalid')).toBe('true')
+      expect(form.textContent).not.toMatch(RAW)
+    })
+
+    it('shows an announced, focused banner with our sentence when the server names a field the form lacks', async () => {
+      const form = await refuse('foo')
+      const banner = await within(form).findByTestId('crm-settings-welld_ch-error')
+      expect(banner.getAttribute('role')).toBe('alert')
+      expect(banner.textContent).toBe('This text contains a character that cannot be saved.')
+      await waitFor(() => expect(document.activeElement).toBe(banner))
+      expect(form.textContent).not.toMatch(RAW)
+    })
   })
 
   it('shows one form per entity in the caller’s deal scope only', async () => {

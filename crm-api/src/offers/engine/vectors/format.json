@@ -1,0 +1,55 @@
+{
+  "_doc": "Shared vectors of the document's formatting (specs/20261115-crm-offer-wizard T3, DD-21): run by crm-api and its crm-ui copy. Amounts are integer cents; CHF groups with U+2019 and uses a point, EUR groups with a point and uses a comma; whole units print without cents.",
+  "formatAmount": [
+    { "cents": 0, "currency": "CHF", "expected": "0" },
+    { "cents": 1, "currency": "CHF", "expected": "0.01" },
+    { "cents": 5, "currency": "EUR", "expected": "0,05" },
+    { "cents": 100, "currency": "CHF", "expected": "1" },
+    { "cents": 99999, "currency": "CHF", "expected": "999.99" },
+    { "cents": 100000, "currency": "CHF", "expected": "1’000" },
+    { "cents": 700000, "currency": "CHF", "expected": "7’000" },
+    { "cents": 3630000, "currency": "CHF", "expected": "36’300" },
+    { "cents": 3630050, "currency": "CHF", "expected": "36’300.50" },
+    { "cents": 3630050, "currency": "EUR", "expected": "36.300,50" },
+    { "cents": 120000, "currency": "EUR", "expected": "1.200" },
+    { "cents": 99999999, "currency": "CHF", "expected": "999’999.99" },
+    { "cents": 100000000, "currency": "EUR", "expected": "1.000.000" },
+    { "cents": 10000000000000, "currency": "CHF", "expected": "100’000’000’000" },
+    { "cents": -250, "currency": "CHF", "expected": "-2.50" },
+    { "cents": -123456700, "currency": "EUR", "expected": "-1.234.567" }
+  ],
+  "shortDate": [
+    { "date": "2026-02-09", "expected": "9.2.2026" },
+    { "date": "2026-12-31", "expected": "31.12.2026" },
+    { "date": "2026-01-01", "expected": "1.1.2026" },
+    { "date": "2024-02-29", "expected": "29.2.2024" },
+    { "date": "", "expected": "" },
+    { "date": "not a date", "expected": "not a date" },
+    { "date": "2026-2-9", "expected": "2026-2-9" }
+  ],
+  "formatPercent": [
+    { "bp": 0, "expected": "0%" },
+    { "bp": 1, "expected": "0.01%" },
+    { "bp": 10, "expected": "0.1%" },
+    { "bp": 750, "expected": "7.5%" },
+    { "bp": 1000, "expected": "10%" },
+    { "bp": 1250, "expected": "12.5%" },
+    { "bp": 12345, "expected": "123.45%" },
+    { "bp": 10000, "expected": "100%" }
+  ],
+  "formatNumber": [
+    { "value": "12.5", "language": "it", "expected": "12,5" },
+    { "value": "12.5", "language": "en", "expected": "12.5" },
+    { "value": "30", "language": "it", "expected": "30" },
+    { "value": "30", "language": "en", "expected": "30" },
+    { "value": "-3.25", "language": "it", "expected": "-3,25" },
+    { "value": "0.5", "language": "it", "expected": "0,5" },
+    { "value": "1000", "language": "it", "expected": "1000" },
+    { "value": 12.5, "language": "it", "expected": "12,5" },
+    { "value": 7, "language": "en", "expected": "7" },
+    { "value": "", "language": "it", "expected": "" },
+    { "value": "abc", "language": "it", "expected": "abc" },
+    { "value": "1,5", "language": "it", "expected": "1,5" },
+    { "value": "1e21", "language": "it", "expected": "1e21" }
+  ]
+}

@@ -1,0 +1,1102 @@
+{
+ "templates": {
+  "main": [
+   "@@salutation S",
+   "",
+   "## ALTRO",
+   "@@step conditions",
+   "Saldo [SALDO] e [OPZ] [QUOTA].",
+   "",
+   "## COSTI",
+   "@@step costs",
+   "@@costs position unit",
+   "@@line a one_off | **[TITOLO]** | unit=? | qty=?",
+   "@@line rel yearly | Release | unit=perRelease | qty=1",
+   "@@OPT_START voce2",
+   "@@line v2 one_off | Seconda | unit=500 | qty=2",
+   "@@OPT_END",
+   "@@OPT_START sconto",
+   "@@line sc discount | Sconto | unit=?",
+   "@@OPT_END",
+   "@@line gg one_off each=ATT | Giornate [ATT] | unit=[TARIFFA] | qty=[GIORNI]",
+   "@@OPT_START t2",
+   "@@total Parziale",
+   "@@OPT_END",
+   "@@total **TOTALE**",
+   "@@line opt option | □ Opzione | unit=? | qty=1",
+   "@@end",
+   "Note di costo.",
+   "",
+   "@@field TITOLO",
+   "label: Titolo",
+   "",
+   "@@field TARIFFA",
+   "label: Tariffa",
+   "kind: amount",
+   "",
+   "@@field GIORNI",
+   "label: Giorni",
+   "kind: number",
+   "",
+   "@@field ACC",
+   "label: Acconto",
+   "kind: percentage",
+   "",
+   "@@field SALDO",
+   "label: Saldo",
+   "kind: percentage",
+   "compute: 100 - ACC",
+   "",
+   "@@field OPZ",
+   "label: Opzione",
+   "options: Alfa | Beta",
+   "",
+   "@@field QUOTA",
+   "label: Quota",
+   "kind: amount",
+   "",
+   "@@table ATT",
+   "label: Attività",
+   "columns: ATT, GIORNI",
+   "",
+   "@@block voce2",
+   "label: Seconda voce",
+   "",
+   "@@block sconto",
+   "label: Sconto",
+   "",
+   "@@block t2",
+   "label: Due totali",
+   ""
+  ],
+  "edge": [
+   "@@salutation S",
+   "",
+   "## COSTI",
+   "@@step costs",
+   "@@costs",
+   "@@OPT_START base",
+   "@@line a one_off | A | unit=? | qty=1",
+   "@@OPT_END",
+   "@@OPT_START yearly",
+   "@@line y yearly | Y | unit=? | qty=1",
+   "@@OPT_END",
+   "@@OPT_START d1",
+   "@@line d discount | D | unit=?",
+   "@@OPT_END",
+   "@@OPT_START t2",
+   "@@total Parziale",
+   "@@OPT_END",
+   "@@total TOT",
+   "@@line o option | O | unit=? | qty=1",
+   "@@end",
+   "",
+   "@@block base",
+   "label: Base",
+   "default: on",
+   "",
+   "@@block yearly",
+   "label: Annuale",
+   "",
+   "@@block d1",
+   "label: Sconto",
+   "",
+   "@@block t2",
+   "label: Due totali",
+   ""
+  ]
+ },
+ "cases": [
+  {
+   "name": "rows follow the template: per-release and each= lines expand, a line in an off block is not a row, extra lines land before the last total, an option line after it",
+   "template": "main",
+   "patch": {
+    "fields": {
+     "TITOLO": "Sviluppo",
+     "TARIFFA": 80000,
+     "ACC": "50",
+     "OPZ": "Alfa",
+     "QUOTA": 1000
+    },
+    "tables": {
+     "ATT": [
+      {
+       "id": "r1",
+       "cells": {
+        "ATT": "Analisi",
+        "GIORNI": "3"
+       }
+      },
+      {
+       "id": "r2",
+       "cells": {
+        "ATT": "Dev",
+        "GIORNI": "5"
+       }
+      }
+     ]
+    },
+    "costs": {
+     "lines": {
+      "a": {
+       "unitCents": 100000,
+       "quantity": 2
+      },
+      "opt": {
+       "unitCents": 5000,
+       "quantity": 1
+      }
+     },
+     "extra": [
+      {
+       "id": "x1",
+       "description": "Extra",
+       "kind": "one_off",
+       "unitCents": 1000,
+       "percentBp": null,
+       "quantity": 1
+      }
+     ]
+    }
+   },
+   "expect": {
+    "rows": [
+     [
+      "cost:a",
+      "one_off",
+      100000,
+      null,
+      2,
+      "Sviluppo"
+     ],
+     [
+      "cost:rel#1",
+      "yearly",
+      476200,
+      null,
+      1,
+      "R1"
+     ],
+     [
+      "cost:rel#2",
+      "yearly",
+      523800,
+      null,
+      1,
+      "R2"
+     ],
+     [
+      "cost:gg#1",
+      "one_off",
+      80000,
+      null,
+      3,
+      "Giornate Analisi"
+     ],
+     [
+      "cost:gg#2",
+      "one_off",
+      80000,
+      null,
+      5,
+      "Giornate Dev"
+     ],
+     [
+      "cost:extra:x1",
+      "one_off",
+      1000,
+      null,
+      1,
+      "Extra"
+     ],
+     [
+      "total",
+      "TOTALE"
+     ],
+     [
+      "cost:opt",
+      "option",
+      5000,
+      null,
+      1,
+      "□ Opzione"
+     ]
+    ],
+    "invalid": [],
+    "price": [
+     841000,
+     1000000
+    ]
+   }
+  },
+  {
+   "name": "a block turned on brings its line back",
+   "template": "main",
+   "patch": {
+    "fields": {
+     "TITOLO": "Sviluppo",
+     "TARIFFA": 80000,
+     "ACC": "50",
+     "OPZ": "Alfa",
+     "QUOTA": 1000
+    },
+    "tables": {
+     "ATT": [
+      {
+       "id": "r1",
+       "cells": {
+        "ATT": "Analisi",
+        "GIORNI": "3"
+       }
+      },
+      {
+       "id": "r2",
+       "cells": {
+        "ATT": "Dev",
+        "GIORNI": "5"
+       }
+      }
+     ]
+    },
+    "costs": {
+     "lines": {
+      "a": {
+       "unitCents": 100000,
+       "quantity": 2
+      },
+      "opt": {
+       "unitCents": 5000,
+       "quantity": 1
+      }
+     }
+    },
+    "blocks": {
+     "voce2": true,
+     "t2": true
+    }
+   },
+   "expect": {
+    "rows": [
+     [
+      "cost:a",
+      "one_off",
+      100000,
+      null,
+      2,
+      "Sviluppo"
+     ],
+     [
+      "cost:rel#1",
+      "yearly",
+      476200,
+      null,
+      1,
+      "R1"
+     ],
+     [
+      "cost:rel#2",
+      "yearly",
+      523800,
+      null,
+      1,
+      "R2"
+     ],
+     [
+      "cost:v2",
+      "one_off",
+      50000,
+      null,
+      2,
+      "Seconda"
+     ],
+     [
+      "cost:gg#1",
+      "one_off",
+      80000,
+      null,
+      3,
+      "Giornate Analisi"
+     ],
+     [
+      "cost:gg#2",
+      "one_off",
+      80000,
+      null,
+      5,
+      "Giornate Dev"
+     ],
+     [
+      "total",
+      "Parziale"
+     ],
+     [
+      "total",
+      "TOTALE"
+     ],
+     [
+      "cost:opt",
+      "option",
+      5000,
+      null,
+      1,
+      "□ Opzione"
+     ]
+    ],
+    "invalid": [],
+    "price": [
+     940000,
+     1000000
+    ]
+   }
+  },
+  {
+   "name": "the same lines with a block off: neither row nor count",
+   "template": "main",
+   "patch": {
+    "fields": {
+     "TITOLO": "Sviluppo",
+     "TARIFFA": 80000,
+     "ACC": "50",
+     "OPZ": "Alfa",
+     "QUOTA": 1000
+    },
+    "tables": {
+     "ATT": [
+      {
+       "id": "r1",
+       "cells": {
+        "ATT": "Analisi",
+        "GIORNI": "3"
+       }
+      },
+      {
+       "id": "r2",
+       "cells": {
+        "ATT": "Dev",
+        "GIORNI": "5"
+       }
+      }
+     ]
+    },
+    "costs": {
+     "lines": {
+      "a": {
+       "unitCents": 100000,
+       "quantity": 2
+      },
+      "opt": {
+       "unitCents": 5000,
+       "quantity": 1
+      }
+     }
+    }
+   },
+   "expect": {
+    "rows": [
+     [
+      "cost:a",
+      "one_off",
+      100000,
+      null,
+      2,
+      "Sviluppo"
+     ],
+     [
+      "cost:rel#1",
+      "yearly",
+      476200,
+      null,
+      1,
+      "R1"
+     ],
+     [
+      "cost:rel#2",
+      "yearly",
+      523800,
+      null,
+      1,
+      "R2"
+     ],
+     [
+      "cost:gg#1",
+      "one_off",
+      80000,
+      null,
+      3,
+      "Giornate Analisi"
+     ],
+     [
+      "cost:gg#2",
+      "one_off",
+      80000,
+      null,
+      5,
+      "Giornate Dev"
+     ],
+     [
+      "total",
+      "TOTALE"
+     ],
+     [
+      "cost:opt",
+      "option",
+      5000,
+      null,
+      1,
+      "□ Opzione"
+     ]
+    ],
+    "invalid": [],
+    "price": [
+     840000,
+     1000000
+    ]
+   }
+  },
+  {
+   "name": "a value a cost line needs and the person has not given is missing at the line, with the template's label",
+   "template": "main",
+   "patch": {},
+   "expect": {
+    "missing": [
+     [
+      "OPZ",
+      "Opzione",
+      "conditions"
+     ],
+     [
+      "QUOTA",
+      "Quota",
+      "conditions"
+     ],
+     [
+      "TITOLO",
+      "Titolo",
+      "costs"
+     ],
+     [
+      "cost:a",
+      "Titolo",
+      "costs"
+     ],
+     [
+      "ATT",
+      "Attività",
+      "costs"
+     ],
+     [
+      "cost:opt",
+      "□ Opzione",
+      "costs"
+     ]
+    ]
+   }
+  },
+  {
+   "name": "a line with an amount but no quantity is missing too",
+   "template": "main",
+   "patch": {
+    "fields": {
+     "TITOLO": "Sviluppo",
+     "TARIFFA": 80000,
+     "ACC": "50",
+     "OPZ": "Alfa",
+     "QUOTA": 1000
+    },
+    "tables": {
+     "ATT": [
+      {
+       "id": "r1",
+       "cells": {
+        "ATT": "Analisi",
+        "GIORNI": "3"
+       }
+      },
+      {
+       "id": "r2",
+       "cells": {
+        "ATT": "Dev",
+        "GIORNI": "5"
+       }
+      }
+     ]
+    },
+    "costs": {
+     "lines": {
+      "a": {
+       "unitCents": 1000
+      },
+      "opt": {
+       "unitCents": 5000,
+       "quantity": 1
+      }
+     }
+    }
+   },
+   "expect": {
+    "missing": [
+     [
+      "cost:a",
+      "Titolo",
+      "costs"
+     ]
+    ]
+   }
+  },
+  {
+   "name": "invalid answers: derived out of range, option, fractional amount, date, fractional quantity, cell, negative unit",
+   "template": "main",
+   "patch": {
+    "fields": {
+     "TITOLO": "Sviluppo",
+     "TARIFFA": 80000,
+     "ACC": "150",
+     "OPZ": "Zeta",
+     "QUOTA": 150.5
+    },
+    "tables": {
+     "ATT": [
+      {
+       "id": "r1",
+       "cells": {
+        "ATT": "Analisi",
+        "GIORNI": "x"
+       }
+      }
+     ]
+    },
+    "costs": {
+     "lines": {
+      "a": {
+       "unitCents": 1000,
+       "quantity": 1.5
+      },
+      "opt": {
+       "unitCents": -5,
+       "quantity": 1
+      }
+     }
+    },
+    "client": {
+     "date": "2027-06-01"
+    }
+   },
+   "expect": {
+    "invalid": [
+     [
+      "client:date",
+      null,
+      "client",
+      "date_out_of_range"
+     ],
+     [
+      "SALDO",
+      "Saldo",
+      "conditions",
+      "out_of_range"
+     ],
+     [
+      "OPZ",
+      "Opzione",
+      "conditions",
+      "not_an_option"
+     ],
+     [
+      "QUOTA",
+      "Quota",
+      "conditions",
+      "not_integer"
+     ],
+     [
+      "cost:a",
+      "Titolo",
+      "costs",
+      "not_integer"
+     ],
+     [
+      "ATT#r1.GIORNI",
+      "Giorni",
+      "costs",
+      "not_a_number"
+     ],
+     [
+      "cost:opt",
+      "□ Opzione",
+      "costs",
+      "out_of_range"
+     ]
+    ]
+   }
+  },
+  {
+   "name": "a percentage discount with two total rows is refused at its line, with its label",
+   "template": "main",
+   "patch": {
+    "fields": {
+     "TITOLO": "Sviluppo",
+     "TARIFFA": 80000,
+     "ACC": "50",
+     "OPZ": "Alfa",
+     "QUOTA": 1000
+    },
+    "tables": {
+     "ATT": [
+      {
+       "id": "r1",
+       "cells": {
+        "ATT": "Analisi",
+        "GIORNI": "3"
+       }
+      },
+      {
+       "id": "r2",
+       "cells": {
+        "ATT": "Dev",
+        "GIORNI": "5"
+       }
+      }
+     ]
+    },
+    "costs": {
+     "lines": {
+      "a": {
+       "unitCents": 100000,
+       "quantity": 2
+      },
+      "opt": {
+       "unitCents": 5000,
+       "quantity": 1
+      },
+      "sc": {
+       "percentBp": 1000
+      }
+     }
+    },
+    "blocks": {
+     "sconto": true,
+     "t2": true
+    }
+   },
+   "expect": {
+    "invalid": [
+     [
+      "cost:sc",
+      "Sconto",
+      "costs",
+      "percent_discount_multi_total"
+     ]
+    ]
+   }
+  },
+  {
+   "name": "an extra percentage discount with two total rows has no label",
+   "template": "main",
+   "patch": {
+    "fields": {
+     "TITOLO": "Sviluppo",
+     "TARIFFA": 80000,
+     "ACC": "50",
+     "OPZ": "Alfa",
+     "QUOTA": 1000
+    },
+    "tables": {
+     "ATT": [
+      {
+       "id": "r1",
+       "cells": {
+        "ATT": "Analisi",
+        "GIORNI": "3"
+       }
+      },
+      {
+       "id": "r2",
+       "cells": {
+        "ATT": "Dev",
+        "GIORNI": "5"
+       }
+      }
+     ]
+    },
+    "costs": {
+     "lines": {
+      "a": {
+       "unitCents": 100000,
+       "quantity": 2
+      },
+      "opt": {
+       "unitCents": 5000,
+       "quantity": 1
+      }
+     },
+     "extra": [
+      {
+       "id": "p1",
+       "description": "Sconto extra",
+       "kind": "discount",
+       "unitCents": null,
+       "percentBp": 500,
+       "quantity": 1
+      }
+     ]
+    },
+    "blocks": {
+     "t2": true
+    }
+   },
+   "expect": {
+    "invalid": [
+     [
+      "cost:extra:p1",
+      null,
+      "costs",
+      "percent_discount_multi_total"
+     ]
+    ]
+   }
+  },
+  {
+   "name": "discounts above the span and above the one-off lines are both refused at the discount",
+   "template": "edge",
+   "patch": {
+    "fields": {},
+    "costs": {
+     "lines": {
+      "a": {
+       "unitCents": 1000,
+       "quantity": 1
+      },
+      "y": {
+       "unitCents": 500,
+       "quantity": 1
+      },
+      "d": {
+       "unitCents": 2000
+      },
+      "o": {
+       "unitCents": 100,
+       "quantity": 1
+      }
+     }
+    },
+    "blocks": {
+     "d1": true
+    }
+   },
+   "expect": {
+    "invalid": [
+     [
+      "cost:d",
+      "D",
+      "costs",
+      "discounts_exceed_span"
+     ],
+     [
+      "cost:d",
+      "D",
+      "costs",
+      "discounts_exceed_one_off"
+     ]
+    ]
+   }
+  },
+  {
+   "name": "a percentage discount with nothing to take a percentage of",
+   "template": "edge",
+   "patch": {
+    "fields": {},
+    "costs": {
+     "lines": {
+      "a": {
+       "unitCents": 1000,
+       "quantity": 1
+      },
+      "y": {
+       "unitCents": 500,
+       "quantity": 1
+      },
+      "d": {
+       "percentBp": 1000
+      },
+      "o": {
+       "unitCents": 100,
+       "quantity": 1
+      }
+     }
+    },
+    "blocks": {
+     "base": false,
+     "yearly": true,
+     "d1": true
+    }
+   },
+   "expect": {
+    "invalid": [
+     [
+      "cost:d",
+      "D",
+      "costs",
+      "discount_without_base"
+     ]
+    ]
+   }
+  },
+  {
+   "name": "a line too large",
+   "template": "main",
+   "patch": {
+    "fields": {
+     "TITOLO": "Sviluppo",
+     "TARIFFA": 80000,
+     "ACC": "50",
+     "OPZ": "Alfa",
+     "QUOTA": 1000
+    },
+    "tables": {
+     "ATT": [
+      {
+       "id": "r1",
+       "cells": {
+        "ATT": "Analisi",
+        "GIORNI": "3"
+       }
+      },
+      {
+       "id": "r2",
+       "cells": {
+        "ATT": "Dev",
+        "GIORNI": "5"
+       }
+      }
+     ]
+    },
+    "costs": {
+     "lines": {
+      "a": {
+       "unitCents": 10000000000000,
+       "quantity": 2
+      },
+      "opt": {
+       "unitCents": 5000,
+       "quantity": 1
+      }
+     }
+    }
+   },
+   "expect": {
+    "invalid": [
+     [
+      "cost:a",
+      "Titolo",
+      "costs",
+      "cost_total_too_large"
+     ]
+    ]
+   }
+  },
+  {
+   "name": "more than ten lines",
+   "template": "edge",
+   "patch": {
+    "fields": {},
+    "costs": {
+     "lines": {
+      "a": {
+       "unitCents": 1000,
+       "quantity": 1
+      },
+      "y": {
+       "unitCents": 500,
+       "quantity": 1
+      },
+      "d": {
+       "unitCents": 2000
+      },
+      "o": {
+       "unitCents": 100,
+       "quantity": 1
+      }
+     },
+     "extra": [
+      {
+       "id": "e1",
+       "description": "x",
+       "kind": "one_off",
+       "unitCents": 100,
+       "percentBp": null,
+       "quantity": 1
+      },
+      {
+       "id": "e2",
+       "description": "x",
+       "kind": "one_off",
+       "unitCents": 100,
+       "percentBp": null,
+       "quantity": 1
+      },
+      {
+       "id": "e3",
+       "description": "x",
+       "kind": "one_off",
+       "unitCents": 100,
+       "percentBp": null,
+       "quantity": 1
+      },
+      {
+       "id": "e4",
+       "description": "x",
+       "kind": "one_off",
+       "unitCents": 100,
+       "percentBp": null,
+       "quantity": 1
+      },
+      {
+       "id": "e5",
+       "description": "x",
+       "kind": "one_off",
+       "unitCents": 100,
+       "percentBp": null,
+       "quantity": 1
+      },
+      {
+       "id": "e6",
+       "description": "x",
+       "kind": "one_off",
+       "unitCents": 100,
+       "percentBp": null,
+       "quantity": 1
+      },
+      {
+       "id": "e7",
+       "description": "x",
+       "kind": "one_off",
+       "unitCents": 100,
+       "percentBp": null,
+       "quantity": 1
+      },
+      {
+       "id": "e8",
+       "description": "x",
+       "kind": "one_off",
+       "unitCents": 100,
+       "percentBp": null,
+       "quantity": 1
+      },
+      {
+       "id": "e9",
+       "description": "x",
+       "kind": "one_off",
+       "unitCents": 100,
+       "percentBp": null,
+       "quantity": 1
+      },
+      {
+       "id": "e10",
+       "description": "x",
+       "kind": "one_off",
+       "unitCents": 100,
+       "percentBp": null,
+       "quantity": 1
+      },
+      {
+       "id": "e11",
+       "description": "x",
+       "kind": "one_off",
+       "unitCents": 100,
+       "percentBp": null,
+       "quantity": 1
+      }
+     ]
+    }
+   },
+   "expect": {
+    "invalid": [
+     [
+      "cost:*",
+      null,
+      "costs",
+      "too_many_cost_lines"
+     ]
+    ]
+   }
+  },
+  {
+   "name": "no counted line",
+   "template": "edge",
+   "patch": {
+    "fields": {},
+    "costs": {
+     "lines": {
+      "a": {
+       "unitCents": 1000,
+       "quantity": 1
+      },
+      "y": {
+       "unitCents": 500,
+       "quantity": 1
+      },
+      "d": {
+       "unitCents": 2000
+      },
+      "o": {
+       "unitCents": 100,
+       "quantity": 1
+      }
+     }
+    },
+    "blocks": {
+     "base": false
+    }
+   },
+   "expect": {
+    "invalid": [
+     [
+      "cost:*",
+      null,
+      "costs",
+      "no_counted_line"
+     ]
+    ]
+   }
+  },
+  {
+   "name": "a percentage discount with a second total row in the table",
+   "template": "edge",
+   "patch": {
+    "fields": {},
+    "costs": {
+     "lines": {
+      "a": {
+       "unitCents": 1000,
+       "quantity": 1
+      },
+      "y": {
+       "unitCents": 500,
+       "quantity": 1
+      },
+      "d": {
+       "percentBp": 1000
+      },
+      "o": {
+       "unitCents": 100,
+       "quantity": 1
+      }
+     }
+    },
+    "blocks": {
+     "d1": true,
+     "t2": true
+    }
+   },
+   "expect": {
+    "invalid": [
+     [
+      "cost:d",
+      "D",
+      "costs",
+      "percent_discount_multi_total"
+     ]
+    ]
+   }
+  }
+ ]
+}

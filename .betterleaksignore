@@ -133,3 +133,10 @@ compose.yaml:generic-credential-uri:217
 compose.yaml:generic-credential-uri:270
 compose.yaml:generic-password:288
 compose.yaml:generic-password:235
+
+# crm-api/scripts/render-wizard-samples.ts (T37, specs/20261115-crm-offer-wizard): the inert DATABASE_URL placeholder
+# the script sets so the borrowed module loads ("sample:sample@localhost:1", never contacted) — not a secret. The
+# script now carries no userinfo at all (QE D5); these history entries remain: the commit that introduced it and
+# the QE report and the security review that quote it. After the squash only the security review's quote remains; path-scoped so a
+# rebase or amend does not invalidate it.
+specs/20261115-crm-offer-wizard/security-review.md:generic-credential-uri:74

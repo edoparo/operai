@@ -26,17 +26,18 @@ import { MAX_NAME, announce, clip } from "../lib/notify";
 import { validationHook } from "../lib/problem";
 import { activities, LOCKED_CALL } from "../lib/activities";
 import { createSystemAuthMiddleware, type SystemAuthVariables } from "../auth/systemAuth.middleware";
+import { idText } from "../lib/http";
 
 export const ESTIMATE_NOTICES_SCOPE = "estimate-notices.send";
 const ESTIMAI_CALLER = "system:estimai-api";
 
 const NoticeSchema = z
   .object({
-    estimateId: z.string().min(1).max(64),
+    estimateId: idText(),
     event: z.enum(["closed", "reopened"]),
     version: z.number().int().min(1),
     at: z.string().datetime({ offset: true }),
-    byUserId: z.string().min(1).max(255),
+    byUserId: idText(255),
   })
   .strict();
 

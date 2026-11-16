@@ -1,7 +1,8 @@
-import { beforeEach, describe, expect, it } from "bun:test";
+import { beforeEach, describe, expect, it, spyOn } from "bun:test";
 import { PDFDocument } from "pdf-lib";
 import { bucket, call, db, estimai, estimaiNotice, makeCompany, makeDeal, offerBody, resetWorld } from "../test-support/world";
 import { setStorageForTests } from "../lib/storage";
+import { deflatedRun, objStmBombPdf } from "../test-support/pdfBuild";
 
 /** specs/20261101-crm-sales-flow US-4 (list, download, delete) on the specs/20261102-crm-offer-document generate flow. */
 const YEAR = new Date().getUTCFullYear();
@@ -573,6 +574,28 @@ describe("offer generation (specs/20261102-crm-offer-document US-1, US-3, US-4)"
       const missing = await storeAttachment(deal.id, { fileName: "lost.pdf", bytes: null, sizeBytes: 10 });
       const lost = await generate(deal.id, await body(deal.id, "Training", { attachmentIds: [missing.id] }));
       expect(lost.json).toMatchObject({ code: "attachment_unreadable", fileName: "lost.pdf" });
+    });
+  });
+
+  describe("a deal PDF is bounded before pdf-lib loads it (security M-7)", () => {
+    it("422 attachment_unreadable naming the file for an object-stream bomb, with PDFDocument.load never called on it", async () => {
+      const { deal } = await readyDeal();
+      await putProfile();
+      const bomb = objStmBombPdf(await deflatedRun(16)); // about 16 KB, 16 MiB inflated: over the 8 MiB non-image cap
+      const bad = await storeAttachment(deal.id, { fileName: "bomb.pdf", bytes: bomb });
+      const load = spyOn(PDFDocument, "load");
+      try {
+        const res = await generate(deal.id, await body(deal.id, "Training", { attachmentIds: [bad.id] }));
+        expect(res.status).toBe(422);
+        expect(res.json).toMatchObject({ code: "attachment_unreadable", fileName: "bomb.pdf" });
+        expect(load.mock.calls.some(([bytes]) => bytes === bomb || (bytes as Uint8Array).byteLength === bomb.byteLength)).toBe(false);
+      } finally {
+        load.mockRestore();
+      }
+      expect(await db.dealOffer.count()).toBe(0);
+      // a good annex next to it is untouched by the check
+      const good = await storeAttachment(deal.id, { fileName: "good.pdf" });
+      expect((await generate(deal.id, await body(deal.id, "Training", { attachmentIds: [good.id] }))).status).toBe(201);
     });
   });
 

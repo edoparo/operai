@@ -1,0 +1,55 @@
+{
+  "tpl": "T13",
+  "f": {
+    "DATA": "2026-11-15",
+    "VALIDITA_GIORNI": "45",
+    "ACCONTO": "50",
+    "CLIENTE": "Alpina Energia SA",
+    "INDIRIZZO_CLIENTE": "Via Cantonale 12\n6900 Lugano\nSvizzera",
+    "RIF": "0042/2026r1",
+    "OGGETTO_A_CORPO": "la realizzazione del portale fornitori",
+    "PIATTAFORMA": "Portale fornitori",
+    "PROFILO": "Premium",
+    "ORE": "120",
+    "DURATA": "4 mesi",
+    "DATA_AVVIO_SERVIZIO": "la data di messa in produzione",
+    "INFRASTRUTTURA": "gestita dal Cliente",
+    "TEMPO_S1": "2 ore lavorative",
+    "TEMPO_S2": "4 ore lavorative",
+    "TEMPO_S3": "1 giorno lavorativo",
+    "TEMPO_S4": "3 giorni lavorativi",
+    "COPERTURA_ORARIA": "dal lunedì al venerdì, 08:00–20:00",
+    "CADENZA_FATTURAZIONE": "annuale"
+  },
+  "g": {
+    "allegato_a": false,
+    "ai": false
+  },
+  "lists": {
+    "FUNZIONALITÀ_O_DELIVERABLE": [
+      ""
+    ],
+    "ATTIVITÀ": [
+      ""
+    ],
+    "ESCLUSIONE": [
+      ""
+    ],
+    "COMPONENTE": [
+      ""
+    ]
+  },
+  "rows": {
+    "FUNZIONALITÀ": [
+      {}
+    ],
+    "VOCE_DI_STIMA": [
+      {}
+    ]
+  },
+  "c": {
+    "68:1:unit": "36000",
+    "68:3:unit": "6400"
+  },
+  "x": {}
+}

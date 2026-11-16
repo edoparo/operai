@@ -118,3 +118,67 @@ describe("parseInline", () => {
     expect(parseInline("a ** b")[0]!.bold).toBe(false);
   });
 });
+
+// ─── Shared vectors (specs/20261115-crm-offer-wizard T2) ──────────────────────
+
+import vectors from "./vectors/markup.json";
+
+type CompactRun = string | { t: string; b?: boolean; i?: boolean; u?: boolean; mark?: "missing" | "pending" };
+
+const expandRun = (run: CompactRun) => {
+  if (typeof run === "string") return { text: run, bold: false, italic: false, underline: false };
+  return {
+    text: run.t,
+    bold: run.b === true,
+    italic: run.i === true,
+    underline: run.u === true,
+    ...(run.mark ? { mark: run.mark } : {}),
+  };
+};
+
+const expandBlock = (block: Record<string, unknown>): unknown => {
+  if (block.type === "paragraph") return { type: "paragraph", runs: (block.runs as CompactRun[]).map(expandRun) };
+  if (block.type === "heading") return block;
+  if (block.type === "list") {
+    const items = block.items as { marker: string; runs: CompactRun[]; children: Record<string, unknown>[] }[];
+    return {
+      type: "list",
+      ordered: block.ordered,
+      items: items.map((item) => ({ marker: item.marker, runs: item.runs.map(expandRun), children: item.children.map(expandBlock) })),
+    };
+  }
+  const cells = (rows: { bullet: boolean; runs: CompactRun[] }[][][]) =>
+    rows.map((row) => row.map((cell) => cell.map((line) => ({ bullet: line.bullet, runs: line.runs.map(expandRun) }))));
+  return {
+    type: "table",
+    header: cells([block.header as never])[0],
+    rows: cells(block.rows as never),
+  };
+};
+
+describe("vectors/markup.json", () => {
+  for (const vector of vectors.inline) {
+    it(`parseInline: ${vector.name}`, () => {
+      const runs = parseInline(vector.source);
+      const expected = (vector.runs as CompactRun[]).map(expandRun);
+      if ("joined" in vector) {
+        // A stray marker character is dropped; the text around it stays (possibly as separate runs).
+        expect(runs.map((r) => r.text).join("")).toBe(vector.joined as string);
+        expect(runs.every((r) => r.mark === undefined)).toBe(true);
+      } else {
+        expect(runs).toEqual(expected);
+      }
+    });
+  }
+  for (const vector of vectors.markup) {
+    it(`parseMarkup: ${vector.name}`, () => {
+      expect(parseMarkup(vector.source) as unknown).toEqual((vector.blocks as Record<string, unknown>[]).map(expandBlock));
+    });
+  }
+
+  it("never throws on any prefix of every vector source", () => {
+    for (const source of [...vectors.inline.map((v) => v.source), ...vectors.markup.map((v) => v.source)]) {
+      for (let end = 0; end <= source.length; end += 1) expect(() => parseMarkup(source.slice(0, end))).not.toThrow();
+    }
+  });
+});

@@ -26,13 +26,21 @@ const en = {
         not_a4: 'The page must be A4.',
         unembeddable: 'This PDF cannot be used as a background. Export it again as a plain PDF.',
         too_large: 'The file is larger than 5 MiB.',
+        // security M-4, plan DD-76: the four refusals of the decoded-size bound say the same thing
+        too_complex: 'This PDF is too complex to be used as a letterhead. Export it again as a plain PDF.',
+        decoded_too_large: 'This PDF is too complex to be used as a letterhead. Export it again as a plain PDF.',
+        image_too_large: 'This PDF is too complex to be used as a letterhead. Export it again as a plain PDF.',
+        unbounded_stream: 'This PDF is too complex to be used as a letterhead. Export it again as a plain PDF.',
       } as Record<string, string>,
       invalidFallback: 'The letterhead must be a readable PDF of exactly one A4 page.',
+      // 409 `letterhead_unusable` on Download: the stored file now fails the service's bound
+      unusable: 'This letterhead can no longer be used. Upload it again.',
     },
   },
   list: {
     title: (entity: string) => `${entity} offer templates`,
-    description: 'The starting points of an offer: texts, sections and default cost lines.',
+    description:
+      'The starting points of an offer. Wizard templates drive the offer wizard; classic ones use the previous offer form. The first wizard template of a language archives that language’s classic templates.',
     newTemplate: 'New template',
     showArchived: 'Show archived',
     caption: (entity: string) => `${entity} offer templates`,
@@ -51,6 +59,130 @@ const en = {
     duplicated: (name: string) => `Template ${name} created.`,
     archivedDone: (name: string) => `Template ${name} archived.`,
     restoredDone: (name: string) => `Template ${name} restored.`,
+    format: 'Format',
+    wizard: 'Wizard',
+    classic: 'Classic',
+    errors: {
+      last_template: (lang: string) => `This is the only active template for ${lang}. Create another first.`,
+      template_superseded: (lang: string) =>
+        `A wizard template is active for ${lang}, so classic templates cannot be restored.`,
+    },
+  },
+  /**
+   * The wizard template editor (specs/20261115-crm-offer-wizard, design § Editor). Its own namespace: the classic
+   * `editor` above already owns `description` and the form's fields.
+   */
+  wizardEditor: {
+    views: 'Template views',
+    edit: 'Edit',
+    tryLabel: 'Try the wizard',
+    details: 'Details',
+    description: 'Description',
+    descriptionHint: 'One line, up to 160 characters.',
+    uses: 'Typical uses',
+    usesHint: 'Up to 6, shown on the template card.',
+    text: 'Template text',
+    textHint: 'The contract text with fields, blocks and conditions written inline.',
+    status: (line: number, col: number, n: number, max: number) =>
+      `Line ${line}, column ${col} · ${n} of ${max} characters`,
+    goToProblems: (n: number) => `${n} errors — go to problems`,
+    syntax: 'Syntax reference',
+    syntaxClose: 'Close',
+    usesLimit: 'Up to 6 uses.',
+    problemsSummary: (errors: number, warnings: number) =>
+      `${errors} ${errors === 1 ? 'error' : 'errors'}, ${warnings} ${warnings === 1 ? 'warning' : 'warnings'}`,
+    optional: 'optional',
+    fills: (labels: string) => `Fills: ${labels}`,
+    fillsFor: (option: string, labels: string) => `“${option}” fills: ${labels}`,
+    outlineSections: 'Sections',
+    outlineAnnex: (designation: string, heading: string) => `Annex ${designation} · ${heading}`,
+    costKind: { one_off: 'One-off', yearly: 'Yearly', discount: 'Discount', option: 'Option' },
+    costTotal: (label: string) => `Total row: ${label}`,
+    problems: 'Problems',
+    noProblems: 'No problems',
+    error: 'Error',
+    warning: 'Warning',
+    line: (n: number) => `Line ${n}`,
+    outline: 'What the wizard will ask',
+    outlineEmpty: {
+      title: 'Nothing to ask yet',
+      body: 'Declare fields, blocks or choices in the text and they appear here.',
+    },
+    outlineStale: 'Showing the last readable version.',
+    /** The outline's last group: issuer fields the CRM fills from the entity profile (AC-12.1, AC-12.9). */
+    supplied: {
+      title: 'Supplied by the CRM',
+      hint: 'The wizard does not ask for these. The CRM reads them from the entity profile each time it shows or generates the offer.',
+      issuer: 'Issuer · legal name',
+      issuerAddress: 'Issuer · address',
+      badge: 'From the entity profile',
+    },
+    kind: {
+      text: 'Field · text',
+      longtext: 'Field · long text',
+      number: 'Field · number',
+      percentage: 'Field · percentage',
+      date: 'Field · date',
+      amount: 'Field · amount',
+      list: 'List',
+      table: (n: number) => `Table · ${n} columns`,
+      block: 'Switch',
+      choice: (n: number) => `Choice · ${n} options`,
+      costs: (n: number) => `Cost lines · ${n}`,
+      derived: 'Calculated',
+    },
+    saveBlocked: (n: number) => `Fix ${n} errors first.`,
+    supersede: (lang: string, n: number) =>
+      `Saving this template makes it the first wizard template for ${lang}: the ${n} classic templates for ${lang} will be archived.`,
+    try: {
+      banner: 'Sample answers on the text you have typed. Nothing is saved.',
+      reset: 'Reset sample answers',
+      blocked: (n: number) => `Fix the ${n} errors to try the wizard.`,
+      goProblems: 'Go to problems',
+      noGenerate: 'Generating is not available in the editor.',
+      /** AC-12.8, AC-12.13: `entity` is the entity's badge label. */
+      issuerSample: (entity: string) =>
+        `The supplier's name and address are samples: the profile of ${entity} could not be read.`,
+    },
+    /** One message per `ProblemCode` of the template grammar (plan § Engine contracts); `name` is the field, block or column it is about. */
+    problem: {
+      block_not_closed: (name?: string) => `The block “${name ?? ''}” is opened but never closed.`,
+      unexpected_close: () => 'A block is closed here, but none is open.',
+      field_undeclared: (name?: string) => `Field “${name ?? ''}” is used but not declared.`,
+      label_missing: (name?: string) => `Field “${name ?? ''}” has no label.`,
+      declared_unused: (name?: string) => `Field “${name ?? ''}” is declared but never used.`,
+      choice_too_few_options: (name?: string) => `The choice “${name ?? ''}” needs at least two options.`,
+      choice_option_unknown: (name?: string) => `“${name ?? ''}” is not one of the options of its choice.`,
+      no_costs_section: () => 'The template has no costs section.',
+      costs_not_first: () => 'The cost table must be the first block of its section.',
+      costs_not_closed: () => 'The cost table is not closed.',
+      cost_line_invalid: (name?: string) => `The cost line “${name ?? ''}” cannot be read.`,
+      cost_key_duplicate: (name?: string) => `The cost line key “${name ?? ''}” is used twice.`,
+      name_duplicate: (name?: string) => `“${name ?? ''}” is declared twice.`,
+      table_column_unknown: (name?: string) => `The column “${name ?? ''}” is not declared.`,
+      column_in_two_tables: (name?: string) => `The column “${name ?? ''}” belongs to two tables.`,
+      compute_invalid: (name?: string) => `The calculation of “${name ?? ''}” cannot be read.`,
+      compute_cycle: (name?: string) => `The calculation of “${name ?? ''}” depends on itself.`,
+      fills_unknown: (name?: string) => `“${name ?? ''}” cannot be filled by this switch: no such field.`,
+      source_unknown: (name?: string) => `“${name ?? ''}” is not a known source.`,
+      step_unknown: (name?: string) => `“${name ?? ''}” is not a step of the wizard.`,
+      annex_designation_invalid: () => 'The annex designation cannot be read.',
+      annex_designation_duplicate: () => 'Two annexes have the same designation.',
+      salutation_missing: () => 'The template has no salutation line.',
+      too_many_sections: () => 'The contract has too many sections.',
+      too_many_annexes: () => 'The template has too many annexes.',
+      too_many_annex_sections: () => 'An annex has too many sections.',
+      heading_too_long: () => 'A heading is longer than 120 characters.',
+      too_large: () => 'The template text is too long.',
+      nesting_too_deep: () => 'Blocks are nested too deeply.',
+      reserved_character: () => 'The characters ⟦ and ⟧ are reserved: remove them from the text and labels.',
+      cost_line_after_last_total: () => 'A counted or discount line comes after the last total row.',
+      percent_discount_multi_total: () => 'A percentage discount cannot follow more than one total row.',
+      non_printable_character: () => 'The text has a character the PDF cannot print; it prints as “?”.',
+      optional_heading_not_last: () =>
+        'An optional heading is not the last of its section: numbers after it shift when it drops.',
+      declaration_invalid: (name?: string) => `A declaration has an invalid setting: “${name ?? ''}”.`,
+    },
   },
   editor: {
     newHeading: 'New offer template',
@@ -93,8 +225,7 @@ const en = {
   },
   sections: {
     legend: 'Sections',
-    hint: (min: number, max: number) =>
-      `${min} to ${max} sections. Exactly one of them carries the cost table.`,
+    hint: (min: number, max: number) => `${min} to ${max} sections. Exactly one of them carries the cost table.`,
     item: (n: number) => `Section ${n}`,
     heading: 'Heading',
     body: 'Text',
@@ -172,6 +303,65 @@ const en = {
       ['{validityDays}', 'Days the offer stays valid'],
       ['{release}', 'The release, in a per-release cost line'],
     ] as [string, string][],
+    wizard: {
+      summary: 'Template syntax',
+      intro: 'The text is the offer with fields and conditions written inline. Declarations are never printed.',
+      groups: [
+        {
+          title: 'Fields and conditions',
+          rows: [
+            ['[NAME]', 'Prints the field NAME (capitals, digits and _). It must be declared.'],
+            ['{{block::text}}', 'Text printed only while the block is on.'],
+            ['{{?A,B::text}}', 'Printed when at least one of the fields is filled.'],
+            ['{{!A,B::text}}', 'Printed when none of the fields is filled.'],
+            [
+              '@@OPT_START block ... @@OPT_END',
+              'The same for whole paragraphs, lists, tables, cost lines, sections or annexes.',
+            ],
+            ['\\[  \\*  \\_  \\|', 'A literal character instead of markup.'],
+          ],
+        },
+        {
+          title: 'Structure',
+          rows: [
+            ['@@salutation Dear', 'Required: the salutation line, up to 100 characters.'],
+            ['@@acceptance The Client', 'Optional: the label above the signature lines.'],
+            ['@@effort-annex on|off', 'Whether the effort-detail annex is added by default.'],
+            ['## HEADING', 'A contract section. Write no number: sections are numbered for you.'],
+            [
+              '@@step scope',
+              'On the line after ##: the wizard step that asks for it (client, scope, conditions, costs, annexes).',
+            ],
+            ['@@annex SLA Title', 'Starts an annex after the contract; an optional @@subtitle line follows.'],
+          ],
+        },
+        {
+          title: 'Cost table',
+          rows: [
+            ['@@costs position unit', 'Opens the table, as the first block of exactly one section.'],
+            [
+              '@@line key kind | text | unit=... | qty=...',
+              'One line. Kind: one_off, yearly, discount, option. unit: ?, deal, perRelease, [FIELD], a number or 10%. qty: a number, ?, [FIELD] or manDays.',
+            ],
+            ['@@total label', 'A total row for the lines since the previous one.'],
+            ['@@end', 'Closes the table.'],
+          ],
+        },
+        {
+          title: 'Declarations',
+          rows: [
+            [
+              '@@field NAME',
+              'Keys: label, hint, example, kind (text, longtext, number, percentage, date, amount), default, options: a | b, fills option: FIELD = value, source, compute, step.',
+            ],
+            ['@@list NAME', 'Keys: label, hint, step. A bullet holding only [NAME] prints one bullet per item.'],
+            ['@@table NAME', 'Keys: label, hint, columns: NAME, COL2, step. Lines naming a column repeat per row.'],
+            ['@@block name', 'Keys: label (required), explain, default: on|off, fills: FIELD = value, step.'],
+            ['@@choice name', 'Keys: label, options: block_a | block_b, default, step.'],
+          ],
+        },
+      ] as { title: string; rows: [string, string][] }[],
+    },
   },
 }
 
@@ -202,13 +392,23 @@ const it: typeof en = {
         not_a4: 'La pagina deve essere in formato A4.',
         unembeddable: 'Questo PDF non può essere usato come sfondo. Esportalo di nuovo come PDF semplice.',
         too_large: 'Il file supera i 5 MiB.',
+        too_complex:
+          'Questo PDF è troppo complesso per essere usato come carta intestata. Esportalo di nuovo come PDF semplice.',
+        decoded_too_large:
+          'Questo PDF è troppo complesso per essere usato come carta intestata. Esportalo di nuovo come PDF semplice.',
+        image_too_large:
+          'Questo PDF è troppo complesso per essere usato come carta intestata. Esportalo di nuovo come PDF semplice.',
+        unbounded_stream:
+          'Questo PDF è troppo complesso per essere usato come carta intestata. Esportalo di nuovo come PDF semplice.',
       },
       invalidFallback: 'La carta intestata deve essere un PDF leggibile di una sola pagina A4.',
+      unusable: 'Questa carta intestata non può più essere usata. Caricala di nuovo.',
     },
   },
   list: {
     title: (entity: string) => `Modelli di offerta ${entity}`,
-    description: 'I punti di partenza di un’offerta: testi, sezioni e righe di costo predefinite.',
+    description:
+      'I punti di partenza di un’offerta. I template guidati alimentano la procedura guidata; quelli classici usano il modulo di offerta precedente. Il primo template guidato di una lingua archivia i template classici di quella lingua.',
     newTemplate: 'Nuovo modello',
     showArchived: 'Mostra archiviati',
     caption: (entity: string) => `Modelli di offerta ${entity}`,
@@ -227,6 +427,124 @@ const it: typeof en = {
     duplicated: (name: string) => `Modello ${name} creato.`,
     archivedDone: (name: string) => `Modello ${name} archiviato.`,
     restoredDone: (name: string) => `Modello ${name} ripristinato.`,
+    format: 'Formato',
+    wizard: 'Procedura guidata',
+    classic: 'Classico',
+    errors: {
+      last_template: (lang: string) => `È l'unico template attivo per ${lang}. Creane prima un altro.`,
+      template_superseded: (lang: string) =>
+        `Per ${lang} c'è un template guidato attivo: i template classici non si possono ripristinare.`,
+    },
+  },
+  wizardEditor: {
+    views: 'Viste del template',
+    edit: 'Modifica',
+    tryLabel: 'Prova la procedura',
+    details: 'Dettagli',
+    description: 'Descrizione',
+    descriptionHint: 'Una riga, fino a 160 caratteri.',
+    uses: 'Usi tipici',
+    usesHint: 'Fino a 6, mostrati sulla scheda del template.',
+    text: 'Testo del template',
+    textHint: 'Il testo del contratto con campi, blocchi e condizioni scritti nel testo.',
+    status: (line: number, col: number, n: number, max: number) =>
+      `Riga ${line}, colonna ${col} · ${n} di ${max} caratteri`,
+    goToProblems: (n: number) => `${n} errori — vai ai problemi`,
+    syntax: 'Guida alla sintassi',
+    syntaxClose: 'Chiudi',
+    usesLimit: 'Fino a 6 usi.',
+    problemsSummary: (errors: number, warnings: number) =>
+      `${errors} ${errors === 1 ? 'errore' : 'errori'}, ${warnings} ${warnings === 1 ? 'avviso' : 'avvisi'}`,
+    optional: 'facoltativo',
+    fills: (labels: string) => `Compila: ${labels}`,
+    fillsFor: (option: string, labels: string) => `«${option}» compila: ${labels}`,
+    outlineSections: 'Sezioni',
+    outlineAnnex: (designation: string, heading: string) => `Allegato ${designation} · ${heading}`,
+    costKind: { one_off: 'Una tantum', yearly: 'Annuale', discount: 'Sconto', option: 'Opzione' },
+    costTotal: (label: string) => `Riga di totale: ${label}`,
+    problems: 'Problemi',
+    noProblems: 'Nessun problema',
+    error: 'Errore',
+    warning: 'Avviso',
+    line: (n: number) => `Riga ${n}`,
+    outline: 'Cosa chiederà la procedura',
+    outlineEmpty: {
+      title: 'Ancora nulla da chiedere',
+      body: 'Dichiara campi, blocchi o scelte nel testo e compariranno qui.',
+    },
+    outlineStale: "Mostrata l'ultima versione leggibile.",
+    supplied: {
+      title: 'Fornito dal CRM',
+      hint: "La procedura non li chiede. Il CRM li legge dal profilo dell'entità ogni volta che mostra o genera l'offerta.",
+      issuer: 'Emittente · ragione sociale',
+      issuerAddress: 'Emittente · indirizzo',
+      badge: "Dal profilo dell'entità",
+    },
+    kind: {
+      text: 'Campo · testo',
+      longtext: 'Campo · testo lungo',
+      number: 'Campo · numero',
+      percentage: 'Campo · percentuale',
+      date: 'Campo · data',
+      amount: 'Campo · importo',
+      list: 'Elenco',
+      table: (n: number) => `Tabella · ${n} colonne`,
+      block: 'Interruttore',
+      choice: (n: number) => `Scelta · ${n} opzioni`,
+      costs: (n: number) => `Voci di costo · ${n}`,
+      derived: 'Calcolato',
+    },
+    saveBlocked: (n: number) => `Correggi prima ${n} errori.`,
+    supersede: (lang: string, n: number) =>
+      `Salvando questo template sarà il primo template guidato per ${lang}: i ${n} template classici per ${lang} verranno archiviati.`,
+    try: {
+      banner: 'Risposte di esempio sul testo che hai scritto. Non viene salvato nulla.',
+      reset: 'Reimposta le risposte di esempio',
+      blocked: (n: number) => `Correggi i ${n} errori per provare la procedura.`,
+      goProblems: 'Vai ai problemi',
+      noGenerate: "La generazione non è disponibile nell'editor.",
+      issuerSample: (entity: string) =>
+        `Nome e indirizzo del fornitore sono di esempio: non è stato possibile leggere il profilo di ${entity}.`,
+    },
+    problem: {
+      block_not_closed: (name?: string) => `Il blocco «${name ?? ''}» è aperto ma non viene mai chiuso.`,
+      unexpected_close: () => 'Qui si chiude un blocco, ma nessuno è aperto.',
+      field_undeclared: (name?: string) => `Il campo «${name ?? ''}» è usato ma non dichiarato.`,
+      label_missing: (name?: string) => `Il campo «${name ?? ''}» non ha un'etichetta.`,
+      declared_unused: (name?: string) => `Il campo «${name ?? ''}» è dichiarato ma non viene mai usato.`,
+      choice_too_few_options: (name?: string) => `La scelta «${name ?? ''}» richiede almeno due opzioni.`,
+      choice_option_unknown: (name?: string) => `«${name ?? ''}» non è tra le opzioni della sua scelta.`,
+      no_costs_section: () => 'Il template non ha una sezione dei costi.',
+      costs_not_first: () => 'La tabella dei costi deve essere il primo blocco della sua sezione.',
+      costs_not_closed: () => 'La tabella dei costi non è chiusa.',
+      cost_line_invalid: (name?: string) => `La voce di costo «${name ?? ''}» non si può leggere.`,
+      cost_key_duplicate: (name?: string) => `La chiave della voce di costo «${name ?? ''}» è usata due volte.`,
+      name_duplicate: (name?: string) => `«${name ?? ''}» è dichiarato due volte.`,
+      table_column_unknown: (name?: string) => `La colonna «${name ?? ''}» non è dichiarata.`,
+      column_in_two_tables: (name?: string) => `La colonna «${name ?? ''}» appartiene a due tabelle.`,
+      compute_invalid: (name?: string) => `Il calcolo di «${name ?? ''}» non si può leggere.`,
+      compute_cycle: (name?: string) => `Il calcolo di «${name ?? ''}» dipende da se stesso.`,
+      fills_unknown: (name?: string) =>
+        `«${name ?? ''}» non può essere compilato da questo interruttore: campo inesistente.`,
+      source_unknown: (name?: string) => `«${name ?? ''}» non è una fonte nota.`,
+      step_unknown: (name?: string) => `«${name ?? ''}» non è un passo della procedura.`,
+      annex_designation_invalid: () => "L'indicazione dell'allegato non si può leggere.",
+      annex_designation_duplicate: () => 'Due allegati hanno la stessa indicazione.',
+      salutation_missing: () => 'Il template non ha la riga di saluto.',
+      too_many_sections: () => 'Il contratto ha troppe sezioni.',
+      too_many_annexes: () => 'Il template ha troppi allegati.',
+      too_many_annex_sections: () => 'Un allegato ha troppe sezioni.',
+      heading_too_long: () => 'Un titolo supera i 120 caratteri.',
+      too_large: () => 'Il testo del template è troppo lungo.',
+      nesting_too_deep: () => 'I blocchi sono annidati troppo in profondità.',
+      reserved_character: () => 'I caratteri ⟦ e ⟧ sono riservati: toglili dal testo e dalle etichette.',
+      cost_line_after_last_total: () => "Una voce conteggiata o di sconto viene dopo l'ultima riga di totale.",
+      percent_discount_multi_total: () => 'Uno sconto in percentuale non può seguire più di una riga di totale.',
+      non_printable_character: () => 'Il testo ha un carattere che il PDF non può stampare; viene stampato come «?».',
+      optional_heading_not_last: () =>
+        "Un titolo facoltativo non è l'ultimo della sua sezione: le numerazioni successive cambiano quando viene tolto.",
+      declaration_invalid: (name?: string) => `Una dichiarazione ha un'impostazione non valida: «${name ?? ''}».`,
+    },
   },
   editor: {
     newHeading: 'Nuovo modello di offerta',
@@ -269,8 +587,7 @@ const it: typeof en = {
   },
   sections: {
     legend: 'Sezioni',
-    hint: (min: number, max: number) =>
-      `Da ${min} a ${max} sezioni. Una sola porta la tabella dei costi.`,
+    hint: (min: number, max: number) => `Da ${min} a ${max} sezioni. Una sola porta la tabella dei costi.`,
     item: (n: number) => `Sezione ${n}`,
     heading: 'Titolo',
     body: 'Testo',
@@ -348,6 +665,72 @@ const it: typeof en = {
       ['{validityDays}', 'Giorni di validità dell’offerta'],
       ['{release}', 'La release, in una riga di costo per release'],
     ],
+    wizard: {
+      summary: 'Sintassi del template',
+      intro:
+        'Il testo è l’offerta con campi e condizioni scritti nel testo. Le dichiarazioni non vengono mai stampate.',
+      groups: [
+        {
+          title: 'Campi e condizioni',
+          rows: [
+            ['[NOME]', 'Stampa il campo NOME (maiuscole, cifre e _). Deve essere dichiarato.'],
+            ['{{blocco::testo}}', 'Testo stampato solo finché il blocco è attivo.'],
+            ['{{?A,B::testo}}', 'Stampato quando almeno uno dei campi è compilato.'],
+            ['{{!A,B::testo}}', 'Stampato quando nessun campo è compilato.'],
+            [
+              '@@OPT_START blocco ... @@OPT_END',
+              'Lo stesso per interi paragrafi, elenchi, tabelle, righe di costo, sezioni o allegati.',
+            ],
+            ['\\[  \\*  \\_  \\|', 'Un carattere letterale invece della sintassi.'],
+          ],
+        },
+        {
+          title: 'Struttura',
+          rows: [
+            ['@@salutation Spett.le', 'Obbligatoria: la riga di saluto, fino a 100 caratteri.'],
+            ['@@acceptance Il Cliente', 'Facoltativa: l’etichetta sopra le righe di firma.'],
+            [
+              '@@effort-annex on|off',
+              'Se l’allegato con il dettaglio dell’impegno è aggiunto per impostazione predefinita.',
+            ],
+            ['## TITOLO', 'Una sezione del contratto. Non scrivere il numero: le sezioni sono numerate per te.'],
+            [
+              '@@step scope',
+              'Nella riga dopo ##: il passo della procedura che la chiede (client, scope, conditions, costs, annexes).',
+            ],
+            ['@@annex SLA Titolo', 'Inizia un allegato dopo il contratto; può seguire una riga @@subtitle.'],
+          ],
+        },
+        {
+          title: 'Tabella dei costi',
+          rows: [
+            ['@@costs position unit', 'Apre la tabella, come primo blocco di una sola sezione.'],
+            [
+              '@@line chiave tipo | testo | unit=... | qty=...',
+              'Una riga. Tipo: one_off, yearly, discount, option. unit: ?, deal, perRelease, [CAMPO], un numero o 10%. qty: un numero, ?, [CAMPO] o manDays.',
+            ],
+            ['@@total etichetta', 'Una riga di totale per le righe dopo la precedente.'],
+            ['@@end', 'Chiude la tabella.'],
+          ],
+        },
+        {
+          title: 'Dichiarazioni',
+          rows: [
+            [
+              '@@field NOME',
+              'Chiavi: label, hint, example, kind (text, longtext, number, percentage, date, amount), default, options: a | b, fills opzione: CAMPO = valore, source, compute, step.',
+            ],
+            ['@@list NOME', 'Chiavi: label, hint, step. Un punto elenco con solo [NOME] stampa un punto per voce.'],
+            [
+              '@@table NOME',
+              'Chiavi: label, hint, columns: NOME, COL2, step. Le righe che citano una colonna si ripetono per riga.',
+            ],
+            ['@@block nome', 'Chiavi: label (obbligatoria), explain, default: on|off, fills: CAMPO = valore, step.'],
+            ['@@choice nome', 'Chiavi: label, options: blocco_a | blocco_b, default, step.'],
+          ],
+        },
+      ] as { title: string; rows: [string, string][] }[],
+    },
   },
 }
 

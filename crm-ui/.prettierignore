@@ -1,0 +1,3 @@
+# Byte-identical copy of crm-api/src/offers/engine (specs/20261115-crm-offer-wizard DD-6/DD-51): a formatter run would
+# break the shared-copies check. The engine is formatted by crm-api's style, never by this app's.
+src/lib/offerEngine/

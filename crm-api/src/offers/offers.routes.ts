@@ -42,63 +42,44 @@ import {
   requireIfMatch,
   versionConflict,
   type HeaderSource,
+  idText,
 } from "../lib/http";
 import { MAX_NAME, announce, clip } from "../lib/notify";
 import { loadPeople } from "../lib/people";
-import { ProblemError, conflict, forbidden, notFound, unprocessable, validationHook } from "../lib/problem";
-import { MAX_OFFER_ATTACHMENT_BYTES, requireStorage, type Storage } from "../lib/storage";
+import { conflict, forbidden, notFound, validationHook } from "../lib/problem";
+import { requireStorage } from "../lib/storage";
 import { assertInScope } from "../deals/deals.routes";
-import { computeCosts } from "./costs";
-import type {
-  ContractSnapshot,
-  OfferAttachmentRef,
-  OfferLanguage,
-  OfferSection,
-  OfferTemplateContent,
-} from "./contract";
-import { renderContractPdf } from "./contractPdf";
-import { DEFAULT_VALIDITY_DAYS, buildDraft, type OfferDraft } from "./draft";
-import { CostColumnsSchema, GenerateOfferSchema, SectionSchema } from "./offerSchemas";
-import { scopeLabels, type OfferSnapshot } from "./pdf";
-import { buildScope, roundHalfUp, totalManDays } from "./scope";
+import type { ContractSnapshot } from "./contract";
+import { DEFAULT_VALIDITY_DAYS, buildDraft, type OfferPrefill } from "./draft";
+import {
+  blocksRevision,
+  createOfferVersion,
+  inOfferTransaction,
+  isContract,
+  latestOffer,
+  assertLegacyTemplate,
+  loadContext,
+  notSent,
+  offerOrigin,
+  prepareOffer,
+  referenceFileName,
+  renderOffer,
+  snapshotOf,
+  type OfferRow,
+  type StoredSnapshot,
+} from "./generation";
+import { legacyContent } from "./legacyContent";
+import { CostColumnsSchema, GenerateOfferSchema, OfferSchema, SectionSchema } from "./offerSchemas";
+import { roundHalfUp, totalManDays } from "./scope";
 
+export { offerReference, offerReferenceOf } from "./generation";
 export { DEFAULT_VALIDITY_DAYS };
 
 const json = (schema: z.ZodTypeAny) => ({ content: { "application/json": { schema } } });
 const financial = [...authorized, requireCapability(DEAL_FINANCIALS)];
 const generating = [...authorized, requireCapability(DEAL_FINANCIALS), requireCapability(DEAL_MANAGE)];
 
-const OfferParams = z.object({ id: z.string().min(1).max(64), offerId: z.string().min(1).max(64) });
-
-const DEFAULT_PLACE = "Lugano";
-
-const OfferSchema = z.object({
-  id: z.string(),
-  number: z.number().int(),
-  /** "0017/2026", "0017/2026r1"; "OF-…" for offers generated before specs/20261102-crm-offer-document. */
-  reference: z.string(),
-  language: z.enum(["en", "it"]),
-  /** One-off lines minus discounts (specs/20261102-crm-offer-document D-6). */
-  priceCents: z.number().int(),
-  /** The yearly lines, shown apart as "+ CHF 2'500 per year"; 0 for older offers. */
-  yearlyCents: z.number().int(),
-  currency: z.enum(["CHF", "EUR"]),
-  validityDays: z.number().int(),
-  validUntil: z.string(),
-  aiAssisted: z.boolean(),
-  /** Annex A's total in tenths of a man-day; 0 when the offer has no annex. */
-  manDaysTenths: z.number().int(),
-  /** The template the offer started from; null for older offers. */
-  templateName: z.string().nullable(),
-  sizeBytes: z.number().int(),
-  createdBy: PersonRefSchema,
-  createdAt: z.string(),
-  deleted: z.boolean(),
-  /** When and by whom it was marked sent; null while it can still be edited (US-7). */
-  sent: z.object({ at: z.string(), by: PersonRefSchema }).nullable(),
-  /** The If-Match precondition of an edit. */
-  version: z.number().int(),
-});
+const OfferParams = z.object({ id: idText(), offerId: idText() });
 
 const DraftCostLineSchema = z.object({
   description: z.string(),
@@ -130,15 +111,11 @@ const DraftSchema = z.object({
 });
 
 const DraftQuery = z.object({
-  templateId: z.string().min(1).max(64),
+  templateId: idText(),
   aiAssisted: z.enum(["true", "false"]).default("false"),
 });
 
-type OfferRow = Awaited<ReturnType<typeof db.dealOffer.findMany>>[number];
-type StoredSnapshot = ContractSnapshot | OfferSnapshot;
-const isContract = (snapshot: StoredSnapshot): snapshot is ContractSnapshot => "kind" in snapshot && snapshot.kind === "contract";
-
-async function toViews(c: HeaderSource, rows: readonly OfferRow[]) {
+export async function toViews(c: HeaderSource, rows: readonly OfferRow[]) {
   const { person } = await loadPeople(c, rows.flatMap((row) => [row.createdBy, ...(row.sentBy ? [row.sentBy] : [])]));
   return rows.map((row) => {
     const snapshot = row.snapshot as unknown as StoredSnapshot;
@@ -157,6 +134,7 @@ async function toViews(c: HeaderSource, rows: readonly OfferRow[]) {
       deleted: row.deletedAt !== null,
       sent: row.sentAt ? { at: row.sentAt.toISOString(), by: person(row.sentBy ?? row.createdBy) } : null,
       version: row.version,
+      origin: offerOrigin(snapshot),
     };
     return isContract(snapshot)
       ? {
@@ -175,19 +153,6 @@ async function toViews(c: HeaderSource, rows: readonly OfferRow[]) {
         };
   });
 }
-
-const isoDate = (date: Date) => date.toISOString().slice(0, 10);
-
-/** Four digits, a slash and the year: `0017/2026`; `r1`, `r2`… for the later versions of a deal. */
-export const offerReferenceOf = (no: number, year: number, revision: number) =>
-  `${String(no).padStart(4, "0")}/${year}${revision > 0 ? `r${revision}` : ""}`;
-
-/** A reference as a file name: the slash cannot be part of one. */
-const referenceFileName = (reference: string) => `${reference.replace(/[/\\]/g, "-")}.pdf`;
-
-/** OF-2026-K3X9QZ-3: the specs/20261101-crm-sales-flow reference. Stable and unique per deal; kept for the old offers. */
-export const offerReference = (dealId: string, number: number, issued: Date) =>
-  `OF-${issued.getUTCFullYear()}-${dealId.slice(-6).toUpperCase()}-${number}`;
 
 const listRoute = createRoute({
   method: "get",
@@ -213,7 +178,7 @@ const draftRoute = createRoute({
   responses: {
     200: { description: "The prefill", ...json(DraftSchema) },
     404: { description: "Deal or template not found" },
-    409: { description: "estimate_not_ready / entity_profile_missing / template_archived" },
+    409: { description: "estimate_not_ready / entity_profile_missing / template_archived / template_format_mismatch" },
     ...commonErrors,
   },
 });
@@ -229,7 +194,11 @@ const generateRoute = createRoute({
     ...commonErrors,
     201: { description: "Generated", ...json(OfferSchema) },
     404: { description: "Not found" },
-    409: { description: "estimate_not_ready / entity_profile_missing / template_archived" },
+    409: {
+      description:
+        "estimate_not_ready / entity_profile_missing / template_archived / template_format_mismatch / " +
+        "letterhead_unusable (the stored letterhead of the deal's entity fails the check: `entity`, `reason`; nothing is rendered or written; upload the letterhead again)",
+    },
     422: {
       description:
         "Validation; contact_not_in_company, attachment_invalid, attachment_not_pdf, attachments_too_large, " +
@@ -268,7 +237,7 @@ const formRoute = createRoute({
       ),
     },
     404: { description: "Not found" },
-    409: { description: "offer_legacy" },
+    409: { description: "offer_legacy / offer_wizard" },
     ...commonErrors,
   },
 });
@@ -284,7 +253,7 @@ const editRoute = createRoute({
     ...commonErrors,
     200: { description: "Edited", ...json(OfferSchema) },
     404: { description: "Not found" },
-    409: { description: "offer_sent / offer_not_latest / offer_legacy / version_conflict / template_archived" },
+    409: { description: "offer_sent / offer_not_latest / offer_legacy / offer_wizard / version_conflict / template_archived" },
     428: { description: "precondition_required" },
   },
 });
@@ -313,55 +282,8 @@ export const offersRouter = new OpenAPIHono<{ Variables: AuthzVariables }>({
   defaultHook: validationHook,
 });
 
-/**
- * Everything draft and generate share: the deal, its scope, the ready estimate,
- * the entity profile and an active template of the deal's entity. A deal whose
- * estimate gate an admin overrode (specs/20261101-crm-sales-flow AC-3.7) has an offer without an
- * estimate: `link` is then null and the scope, man-days and timeline are empty.
- */
-async function loadContext(dealId: string, templateId: string, scope: ReturnType<typeof dealScope>) {
-  const deal = await db.deal.findUnique({ where: { id: dealId }, include: { company: true, estimate: true } });
-  if (!deal) throw notFound("Deal not found");
-  assertInScope(scope, deal.entity);
-  const link = deal.estimate?.estimateId && deal.estimate.state === "ready" ? deal.estimate : null;
-  if (!link && !deal.estimate?.overrideAt) {
-    throw new ProblemError({
-      status: 409,
-      code: "estimate_not_ready",
-      detail: "An offer is generated from a ready technical estimate, or once an admin let the deal go without one",
-    });
-  }
-  const profile = await db.entityProfile.findUnique({ where: { entity: deal.entity } });
-  if (!profile) {
-    throw new ProblemError({
-      status: 409,
-      code: "entity_profile_missing",
-      detail: "Set the entity's letterhead in CRM settings before generating an offer",
-      extras: { entity: deal.entity },
-    });
-  }
-  const template = await db.offerTemplate.findUnique({ where: { id: templateId } });
-  // Another entity's template is "not found", like a missing one: no existence leak across entities.
-  if (!template || template.entity !== deal.entity) throw notFound("Template not found");
-  if (template.archivedAt) {
-    throw conflict("template_archived", "This template is archived; choose an active one", { templateId });
-  }
-  return { deal, link, profile, template };
-}
-
-const templateContentOf = (template: NonNullable<Awaited<ReturnType<typeof db.offerTemplate.findUnique>>>) => ({
-  id: template.id,
-  name: template.name,
-  language: template.language,
-  salutation: template.salutation,
-  opening: template.opening,
-  sections: template.sections as unknown as OfferSection[],
-  costLines: template.costLines as unknown as OfferTemplateContent["costLines"],
-  costColumns: template.costColumns as unknown as OfferTemplateContent["costColumns"],
-  showTotal: template.showTotal,
-  acceptanceLabel: template.acceptanceLabel,
-  annex: template.annex,
-});
+/** The prefill reads a template's legacy columns through `legacyContent` (a wizard template is a 409). */
+const templateContentOf = legacyContent;
 
 /** The stand-in for a deal that goes without an estimate: no releases, no activities. */
 const NO_ESTIMATE: EstimateDocument = { id: "", name: "", content: { params: {}, releases: [], acts: [] } };
@@ -377,6 +299,7 @@ offersRouter.openapi(draftRoute, async (c) => {
   const { id } = c.req.valid("param");
   const { templateId, aiAssisted } = c.req.valid("query");
   const { deal, link, profile, template } = await loadContext(id, templateId, dealScope(c));
+  assertLegacyTemplate(template);
   const estimate = link ? await getEstimate(c, link.estimateId) : NO_ESTIMATE;
   const built = buildDraft({
     template: templateContentOf(template),
@@ -388,184 +311,9 @@ offersRouter.openapi(draftRoute, async (c) => {
     validityDays: DEFAULT_VALIDITY_DAYS,
   });
   // Without an estimate there is no scope to append.
-  const draft: OfferDraft = link ? built : { ...built, annex: false };
+  const draft: OfferPrefill = link ? built : { ...built, annex: false };
   return c.json(draft, 200);
 });
-
-const isUnreadable = (error: unknown): error is Error & { fileName?: string } =>
-  error instanceof Error && (error.name === "AttachmentUnreadableError" || error.constructor.name === "AttachmentUnreadableError");
-
-const attachmentUnreadable = (fileName: string) =>
-  unprocessable(
-    `The attachment "${fileName}" cannot be read as a PDF`,
-    { field: "attachmentIds", fileName },
-    "attachment_unreadable",
-  );
-
-/**
- * The chosen deal PDFs, validated and read (ADR 20261102-crm-api-reads-attachment-bytes-for-offer-annexes): this deal's, stored, not
- * deleted, PDF, in the requested order. Their total size is checked from the
- * database BEFORE the first byte is downloaded.
- */
-async function loadAttachments(
-  storage: Storage,
-  dealId: string,
-  ids: readonly string[],
-): Promise<{ refs: OfferAttachmentRef[]; bytes: Uint8Array[] }> {
-  if (ids.length === 0) return { refs: [], bytes: [] };
-  const rows = await db.dealAttachment.findMany({
-    where: { id: { in: [...ids] }, dealId, status: "stored", deletedAt: null },
-  });
-  const byId = new Map(rows.map((row) => [row.id, row]));
-  const ordered = ids.map((attachmentId) => byId.get(attachmentId));
-  if (ordered.some((row) => row === undefined)) {
-    throw unprocessable("An attachment is not one of this deal's files", { field: "attachmentIds" }, "attachment_invalid");
-  }
-  const chosen = ordered as NonNullable<(typeof ordered)[number]>[];
-  const notPdf = chosen.find((row) => row.contentType !== "application/pdf");
-  if (notPdf) {
-    throw unprocessable(
-      `Only PDF files can be appended to an offer: "${notPdf.fileName}"`,
-      { field: "attachmentIds", fileName: notPdf.fileName },
-      "attachment_not_pdf",
-    );
-  }
-  const total = chosen.reduce((sum, row) => sum + row.sizeBytes, 0);
-  if (total > MAX_OFFER_ATTACHMENT_BYTES) {
-    throw unprocessable(
-      "The attachments of an offer are at most 20 MiB together",
-      { field: "attachmentIds", maxBytes: MAX_OFFER_ATTACHMENT_BYTES, totalBytes: total },
-      "attachments_too_large",
-    );
-  }
-  const bytes: Uint8Array[] = [];
-  for (const row of chosen) {
-    try {
-      bytes.push(await storage.getObject(row.objectKey, row.sizeBytes));
-    } catch (error) {
-      console.error("[offers] could not read an attachment:", row.objectKey, error instanceof Error ? error.message : error);
-      throw attachmentUnreadable(row.fileName);
-    }
-  }
-  return { refs: chosen.map((row) => ({ id: row.id, fileName: row.fileName, sizeBytes: row.sizeBytes })), bytes };
-}
-
-type GenerateBody = z.infer<typeof GenerateOfferSchema>;
-
-/**
- * What generating and editing an offer share (US-3, US-7): the context checks,
- * the contacts, the costs, the chosen PDFs, the letterhead and the annex.
- */
-async function prepareOffer(
-  c: Parameters<typeof getEstimate>[0] & { get(key: "userId"): string },
-  scope: ReturnType<typeof dealScope>,
-  dealId: string,
-  body: GenerateBody,
-) {
-  const { deal, link, profile, template } = await loadContext(dealId, body.templateId, scope);
-  const language: OfferLanguage = template.language;
-
-  const contactRows = body.contactIds.length ? await db.contact.findMany({ where: { id: { in: body.contactIds } } }) : [];
-  const contactById = new Map(contactRows.map((contact) => [contact.id, contact]));
-  const contacts = body.contactIds.map((contactId) => {
-    const contact = contactById.get(contactId);
-    if (!contact || contact.companyId !== deal.companyId) {
-      throw unprocessable("A contact is not one of the company's", { field: "contactIds" }, "contact_not_in_company");
-    }
-    return `${contact.firstName} ${contact.lastName}`.trim();
-  });
-
-  const costs = computeCosts({
-    currency: deal.currency,
-    columns: body.costColumns,
-    showTotal: body.showTotal,
-    lines: body.costLines,
-  });
-
-  const storage = requireStorage();
-  const { refs: attachments, bytes: attachmentBytes } = await loadAttachments(storage, dealId, body.attachmentIds);
-  const letterhead = profile.letterheadKey ? await storage.getObject(profile.letterheadKey, 5 * 1024 * 1024) : null;
-  const estimate: EstimateDocument | null = link ? await getEstimate(c, link.estimateId) : null;
-  const userId = c.get("userId");
-  const { person } = await loadPeople(c, [userId]);
-  const annex = body.annex && estimate ? buildScope(estimate, { aiAssisted: body.aiAssisted, ...scopeLabels(language) }) : null;
-  return {
-    deal,
-    profile,
-    template,
-    language,
-    contacts,
-    costs,
-    storage,
-    attachments,
-    attachmentBytes,
-    letterhead,
-    annex,
-    preparedBy: person(userId).name,
-  };
-}
-
-type Prepared = Awaited<ReturnType<typeof prepareOffer>>;
-
-function snapshotOf(prepared: Prepared, body: GenerateBody, reference: string, issued: Date): ContractSnapshot {
-  const { profile, template } = prepared;
-  return {
-    kind: "contract",
-    template: { id: template.id, name: template.name },
-    language: prepared.language,
-    reference,
-    issuedOn: isoDate(issued),
-    validUntil: isoDate(new Date(issued.getTime() + body.validityDays * 86_400_000)),
-    validityDays: body.validityDays,
-    place: profile.placeOfIssue ?? DEFAULT_PLACE,
-    issuer: {
-      legalName: profile.legalName,
-      addressLines: profile.addressLines,
-      vatNumber: profile.vatNumber,
-      iban: profile.iban,
-    },
-    salutation: body.salutation,
-    clientLines: body.clientLines,
-    contacts: prepared.contacts,
-    contactIds: body.contactIds,
-    opening: body.opening,
-    sections: body.sections,
-    costs: prepared.costs,
-    acceptanceLabel: body.acceptanceLabel ?? null,
-    annex: prepared.annex,
-    attachments: prepared.attachments,
-    aiAssisted: body.aiAssisted,
-    preparedBy: prepared.preparedBy,
-  };
-}
-
-async function renderOffer(snapshot: ContractSnapshot, prepared: Prepared): Promise<Uint8Array> {
-  try {
-    return await renderContractPdf(snapshot, { letterhead: prepared.letterhead, attachments: prepared.attachmentBytes });
-  } catch (error) {
-    if (isUnreadable(error)) throw attachmentUnreadable(error.fileName ?? "");
-    throw error;
-  }
-}
-
-/** The deal's newest offer that is not deleted, or null. */
-const latestOffer = (tx: Pick<typeof db, "dealOffer">, dealId: string) =>
-  tx.dealOffer.findFirst({ where: { dealId, deletedAt: null }, orderBy: { number: "desc" } });
-
-/**
- * US-7: a new revision only once the previous one went out; until then it is edited. An
- * offer from before offer documents cannot be edited, so it never blocks the next one.
- */
-const blocksRevision = <T extends { sentAt: Date | null; snapshot: unknown }>(offer: T | null): offer is T =>
-  offer !== null && offer.sentAt === null && isContract(offer.snapshot as StoredSnapshot);
-
-const notSent = (offer: { id: string; snapshot: unknown }) =>
-  new ProblemError({
-    status: 409,
-    code: "offer_not_sent",
-    detail: `Offer ${(offer.snapshot as StoredSnapshot).reference} has not been sent: edit it instead of making a new revision`,
-    extras: { offerId: offer.id },
-  });
 
 offersRouter.openapi(generateRoute, async (c) => {
   const { id } = c.req.valid("param");
@@ -577,74 +325,23 @@ offersRouter.openapi(generateRoute, async (c) => {
   const { deal } = prepared;
   const issued = new Date();
 
-  const created = await db.$transaction(
-    async (tx) => {
-      // One generator at a time per deal, so versions are gap-free and never collide.
-      await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${`crm-offer:${id}`}))`;
-      const newest = await latestOffer(tx, id);
-      if (blocksRevision(newest)) throw notSent(newest);
-      const last = await tx.dealOffer.aggregate({ where: { dealId: id }, _max: { number: true } });
-      const number = (last._max.number ?? 0) + 1;
-
-      // D-5: a deal keeps its number and year; each later version adds a revision. Only an
-      // offer still on the deal, or one the client received (sent), holds the number: when
-      // every earlier one was deleted unsent, the deal takes a new number (the old one stays
-      // a gap, AC-4.2), so the entity's numbering setting applies (AC-8.1).
-      const sequenced = await tx.dealOffer.findMany({
-        where: { dealId: id, sequenceNo: { not: null } },
-        orderBy: { number: "asc" },
-        select: { sequenceYear: true, sequenceNo: true, deletedAt: true, sentAt: true },
-      });
-      const holder = sequenced.find((offer) => offer.deletedAt === null || offer.sentAt !== null);
-      let sequenceYear: number;
-      let sequenceNo: number;
-      let revision = 0;
-      if (holder) {
-        sequenceYear = holder.sequenceYear!;
-        sequenceNo = holder.sequenceNo!;
-        revision = sequenced.filter((offer) => offer.sequenceYear === sequenceYear && offer.sequenceNo === sequenceNo).length;
-      } else {
-        sequenceYear = issued.getUTCFullYear();
-        const [taken] = await tx.$queryRaw<{ last: number }[]>`
-          INSERT INTO "offer_sequence" ("entity", "year", "last")
-          VALUES (${deal.entity}::"Entity", ${sequenceYear}, 1)
-          ON CONFLICT ("entity", "year") DO UPDATE SET "last" = "offer_sequence"."last" + 1
-          RETURNING "last"`;
-        sequenceNo = taken!.last;
-      }
-      const snapshot = snapshotOf(prepared, body, offerReferenceOf(sequenceNo, sequenceYear, revision), issued);
-      const pdf = await renderOffer(snapshot, prepared);
-      const offerId = crypto.randomUUID();
-      const objectKey = `offers/${id}/${offerId}.pdf`;
-      await prepared.storage.putObject(objectKey, pdf, "application/pdf");
-      try {
-        return await tx.dealOffer.create({
-          data: {
-            id: offerId,
-            dealId: id,
-            number,
-            language: prepared.language,
-            priceCents: BigInt(prepared.costs.oneOffCents),
-            currency: deal.currency,
-            validityDays: body.validityDays,
-            terms: null,
-            sequenceYear,
-            sequenceNo,
-            snapshot: snapshot as unknown as object,
-            objectKey,
-            sizeBytes: pdf.byteLength,
-            createdBy: userId,
-            createdAt: issued,
-          },
-        });
-      } catch (error) {
-        // The row did not land: do not leave an unreachable object behind.
-        await prepared.storage.deleteObject(objectKey).catch(() => undefined);
-        throw error;
-      }
-    },
-    { timeout: 30_000 },
-  );
+  const created = await inOfferTransaction(id, async (tx) => {
+    const newest = await latestOffer(tx, id);
+    if (blocksRevision(newest)) throw notSent(newest);
+    return createOfferVersion(tx, {
+      dealId: id,
+      entity: deal.entity,
+      currency: deal.currency,
+      storage: prepared.storage,
+      issued,
+      userId,
+      language: prepared.language,
+      priceCents: prepared.costs.oneOffCents,
+      validityDays: body.validityDays,
+      snapshotFor: (reference) => snapshotOf(prepared, body, reference, issued),
+      render: (snapshot) => renderOffer(snapshot, prepared),
+    });
+  });
   const [view] = await toViews(c, [created]);
   // E9 — the owner learns an offer exists (no figure in it, AC-1.2).
   await announce(c, {
@@ -669,6 +366,9 @@ async function editableTarget(dealId: string, offerId: string) {
   if (!offer || offer.dealId !== dealId || offer.deletedAt) throw notFound("Offer not found");
   if (!isContract(offer.snapshot as unknown as StoredSnapshot)) {
     throw conflict("offer_legacy", "An offer generated before offer documents cannot be edited or revised", { offerId });
+  }
+  if (offerOrigin(offer.snapshot as unknown as StoredSnapshot) === "wizard") {
+    throw conflict("offer_wizard", "An offer made with the wizard is edited through a draft, not the classic dialog", { offerId });
   }
   return offer;
 }
@@ -736,9 +436,9 @@ offersRouter.openapi(editRoute, async (c) => {
   const issued = new Date();
   const previousKey = offer.objectKey;
 
-  const updated = await db.$transaction(
+  const updated = await inOfferTransaction(
+    id,
     async (tx) => {
-      await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${`crm-offer:${id}`}))`;
       const newest = await latestOffer(tx, id);
       if (newest?.id !== offerId) {
         throw conflict("offer_not_latest", "Only the newest version of an offer can be edited", { offerId });
@@ -772,7 +472,6 @@ offersRouter.openapi(editRoute, async (c) => {
       }
       return tx.dealOffer.findUniqueOrThrow({ where: { id: offerId } });
     },
-    { timeout: 30_000 },
   );
   // The old PDF is unreachable now; a failed delete leaves an orphan, never a wrong document.
   await prepared.storage.deleteObject(previousKey).catch((error: unknown) => {

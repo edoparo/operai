@@ -57,7 +57,14 @@ export const COLOR_TOKENS: readonly ColorToken[] = [
   { name: '--org-text', role: 'Warning as text', text: true },
   { name: '--red', role: 'Danger / error: border, tint, glyph', text: false },
   { name: '--red-text', role: 'Danger as text: field errors', text: true },
-  { name: '--ai', role: 'EstimAI\'s AI accent: AI-assisted figures', text: true },
+  { name: '--ai', role: "EstimAI's AI accent: AI-assisted figures", text: true },
+  { name: '--paper', role: 'Preview paper: the printed page, light in both themes', text: false },
+  { name: '--paper-ink', role: 'Text on the paper (17.8:1)', text: false },
+  { name: '--paper-soft', role: 'Secondary text on the paper (8.3:1)', text: false },
+  { name: '--paper-rule', role: 'Rules and borders on the paper', text: false },
+  { name: '--paper-head', role: 'Table-head tint on the paper', text: false },
+  { name: '--paper-mark', role: 'Highlight for a missing value on the paper', text: false },
+  { name: '--paper-mark-ink', role: 'Text on the highlight (11.1:1)', text: false },
 ]
 
 export type FontToken = {

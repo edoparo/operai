@@ -10,7 +10,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { RouterProvider } from '@tanstack/react-router'
 import { createAppRouter } from '../router'
-import { ADA, companySummary, fakeApi, page } from '../test-support/fakeApi'
+import { ADA, companySummary, fakeApi, nulRefusalAnswer, page } from '../test-support/fakeApi'
 import type { FakeHandler } from '../test-support/fakeApi'
 
 const { apiFetch } = vi.hoisted(() => ({ apiFetch: vi.fn() }))
@@ -136,6 +136,24 @@ describe('CompaniesPage', () => {
     fireEvent.click(within(dialog).getByTestId('crm-company-form-submit'))
     await waitFor(() => expect(posted).not.toBeNull())
     expect(posted).toMatchObject({ legalName: 'Acme SA', street: 'Via Nassa 1', postalCode: '6900' })
+  })
+
+  it('a refused character in the name reads as our sentence at the Name field, not the server line (QE F2)', async () => {
+    await renderAt({
+      'GET /companies': () => ({ status: 200, body: page([]) }),
+      'POST /companies': () => nulRefusalAnswer('name'),
+    })
+    await screen.findByText('No companies yet')
+    fireEvent.click(screen.getByTestId('crm-companies-new'))
+    const dialog = await screen.findByRole('dialog', { name: 'New company' })
+    const name = within(dialog).getByLabelText(/^Name/)
+    fireEvent.change(name, { target: { value: 'Acme' } })
+    fireEvent.change(within(dialog).getByLabelText(/Relationship status/), { target: { value: 'prospect' } })
+    fireEvent.change(within(dialog).getByLabelText(/wellD entity/), { target: { value: 'welld_ch' } })
+    fireEvent.click(within(dialog).getByTestId('crm-company-form-submit'))
+    expect(await within(dialog).findByText('This text contains a character that cannot be saved.')).not.toBeNull()
+    expect(name.getAttribute('aria-invalid')).toBe('true')
+    expect(dialog.textContent).not.toMatch(/NUL|Not text|name:/)
   })
 
   it('refuses a postal code over 20 characters before calling the API', async () => {

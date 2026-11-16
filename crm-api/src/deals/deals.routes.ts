@@ -48,6 +48,8 @@ import {
   versionConflict,
   type HeaderSource,
   withSource,
+  idText,
+  searchText,
 } from "../lib/http";
 import { PROMOTED_ON_WIN } from "../companies/status";
 import { requireCrmUsers } from "../lib/identities";
@@ -76,7 +78,7 @@ const BoardYearSchema = z.coerce.number().int().min(2000).max(2100);
 
 const CreateDealSchema = z
   .object({
-    companyId: z.string().min(1).max(64),
+    companyId: idText(),
     title: requiredText(200),
     // Optional: a lead often has no figure until the estimate or qualification (AC-3.2).
     amountCents: AmountSchema.nullable().optional(),
@@ -84,7 +86,7 @@ const CreateDealSchema = z
     stage: StageSchema.optional(),
     entity: EntitySchema.optional(),
     expectedCloseDate: DateOnlySchema.nullable().optional(),
-    ownerUserId: z.string().min(1).max(64).optional(),
+    ownerUserId: idText().optional(),
     notes: optionalText(10_000),
     // US-7: where the lead came from; the detail names the event, the referrer or what else.
     source: LeadSourceSchema.nullable().optional(),
@@ -99,7 +101,7 @@ const UpdateDealSchema = z
     currency: CurrencySchema.optional(),
     entity: EntitySchema.optional(),
     expectedCloseDate: DateOnlySchema.nullable().optional(),
-    ownerUserId: z.string().min(1).max(64).optional(),
+    ownerUserId: idText().optional(),
     notes: optionalText(10_000),
     source: LeadSourceSchema.nullable().optional(),
     sourceDetail: optionalText(200),
@@ -111,7 +113,7 @@ const StageMoveSchema = z
   .strict();
 
 const ListDealsQuery = z.object({
-  q: z.string().max(200).optional(),
+  q: searchText(200).optional(),
   stage: StageSchema.optional(),
   open: z.enum(["true", "false"]).optional(),
   // The pipeline board: open deals plus the deals won or lost this calendar year (the same
@@ -119,8 +121,8 @@ const ListDealsQuery = z.object({
   board: z.enum(["true"]).optional(),
   // specs/20261101-crm AC-3.6: the calendar year whose won and lost deals the board shows (this one by default).
   year: BoardYearSchema.optional(),
-  companyId: z.string().max(64).optional(),
-  ownerId: z.string().max(64).optional(),
+  companyId: idText(64, 0).optional(),
+  ownerId: idText(64, 0).optional(),
   entity: EntitySchema.optional(),
   // The pipeline board loads every open deal at once (D-16).
   ...pageQuery(200),
@@ -449,7 +451,7 @@ const pipelineRoute = createRoute({
   request: {
     query: z.object({
       entity: EntitySchema.optional(),
-      companyId: z.string().max(64).optional(),
+      companyId: idText(64, 0).optional(),
       year: BoardYearSchema.optional(),
     }),
   },

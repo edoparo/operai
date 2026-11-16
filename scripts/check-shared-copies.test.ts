@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { mkdirSync, mkdtempSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, readdirSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { checkGroups, extractRegion, SHARED_COPIES, type SharedGroup } from "./check-shared-copies";
@@ -16,6 +16,7 @@ function tree(files: Record<string, string>): string {
   return root;
 }
 const group = (...files: string[]): SharedGroup => ({ name: "g", files, why: "test" });
+const wholeFile = (...files: string[]): SharedGroup => ({ name: "g", files, why: "test", mode: "whole" });
 
 describe("extractRegion", () => {
   test("returns the lines strictly between the markers", () => {
@@ -90,6 +91,33 @@ describe("checkGroups", () => {
   });
 });
 
+describe("checkGroups, whole-file mode (JSON vectors cannot carry markers)", () => {
+  const json = '{\n  "a": [1, 2]\n}\n';
+
+  test("byte-identical files pass", () => {
+    expect(checkGroups([wholeFile("a.json", "b.json")], tree({ "a.json": json, "b.json": json }))).toEqual([]);
+  });
+
+  test("one changed byte fails, naming both files and the offset", () => {
+    const errors = checkGroups([wholeFile("a.json", "b.json")], tree({ "a.json": json, "b.json": json.replace("2", "3") }));
+    expect(errors).toHaveLength(1);
+    expect(errors[0]).toContain("a.json");
+    expect(errors[0]).toContain("b.json");
+    expect(errors[0]).toContain("byte offset 13"); // 0-based: the "2" of `[1, 2]`
+  });
+
+  test("a missing trailing newline or a CRLF is a difference too (identical BYTES, unlike a marked region)", () => {
+    const root = tree({ "a.json": json, "b.json": json.trimEnd(), "c.json": json.replace(/\n/g, "\r\n") });
+    expect(checkGroups([wholeFile("a.json", "b.json")], root)).toHaveLength(1);
+    expect(checkGroups([wholeFile("a.json", "c.json")], root)).toHaveLength(1);
+  });
+
+  test("a missing file is reported, an empty file guards nothing", () => {
+    expect(checkGroups([wholeFile("a.json", "gone.json")], tree({ "a.json": json })).join("\n")).toContain("gone.json");
+    expect(checkGroups([wholeFile("a.json", "b.json")], tree({ "a.json": "", "b.json": "" })).length).toBeGreaterThan(0);
+  });
+});
+
 describe("the committed registry", () => {
   const repoRoot = join(import.meta.dir, "..");
 
@@ -129,5 +157,42 @@ describe("the committed registry", () => {
       const g = SHARED_COPIES.find((x) => x.name === name);
       expect(g?.files).toContain(`meetings-api/src/lib/${name.startsWith("s3") ? "s3Residency" : name}.ts`);
     }
+  });
+
+  // specs/20261115-crm-offer-wizard T13: the offer engine is copied into crm-ui byte for byte (AC-3.2).
+  const ENGINE_FILES = ["markup", "printable", "format", "words", "costs", "compute", "syntax", "answers", "outline", "resolve", "numbering", "edit"];
+  const apiEngine = "crm-api/src/offers/engine";
+  const uiEngine = "crm-ui/src/lib/offerEngine";
+
+  test("registers one offerEngine.<file> group per engine file, crm-api and crm-ui", () => {
+    for (const file of ENGINE_FILES) {
+      const g = SHARED_COPIES.find((x) => x.name === `offerEngine.${file}`);
+      expect(g?.files, file).toEqual([`${apiEngine}/${file}.ts`, `${uiEngine}/${file}.ts`]);
+      expect(g?.mode ?? "region", file).toBe("region");
+    }
+  });
+
+  test("no engine file and no vector escapes the check (a new one must be registered)", () => {
+    const engine = readdirSync(join(repoRoot, apiEngine)).filter((f) => f.endsWith(".ts") && !f.endsWith(".test.ts"));
+    expect(engine.map((f) => f.replace(/\.ts$/, "")).sort()).toEqual([...ENGINE_FILES].sort());
+    const vectors = readdirSync(join(repoRoot, apiEngine, "vectors")).filter((f) => f.endsWith(".json"));
+    expect(vectors.length).toBeGreaterThan(0);
+    for (const v of vectors) {
+      const g = SHARED_COPIES.find((x) => x.files.includes(`${apiEngine}/vectors/${v}`));
+      expect(g?.mode, v).toBe("whole");
+      expect(g?.files, v).toEqual([`${apiEngine}/vectors/${v}`, `${uiEngine}/vectors/${v}`]);
+    }
+    expect(readdirSync(join(repoRoot, uiEngine, "vectors")).sort()).toEqual([...vectors].sort());
+  });
+
+  test("copies no test file into crm-ui's engine directory", () => {
+    expect(readdirSync(join(repoRoot, uiEngine)).filter((f) => /\.test\.tsx?$/.test(f))).toEqual([]);
+  });
+
+  // specs/20261115-crm-offer-wizard T69 (DD-67): the paper constants are copied into crm-ui byte for byte (AC-11.10).
+  test("registers the offerPaper group, crm-api and crm-ui, compared whole-file (byte-identical, no markers)", () => {
+    const g = SHARED_COPIES.find((x) => x.name === "offerPaper");
+    expect(g?.files).toEqual(["crm-api/src/offers/paper.ts", "crm-ui/src/lib/offerPaper/paper.ts"]);
+    expect(g?.mode).toBe("whole");
   });
 });

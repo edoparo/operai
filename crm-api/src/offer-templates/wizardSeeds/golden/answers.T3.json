@@ -1,0 +1,49 @@
+{
+  "tpl": "T3",
+  "f": {
+    "DATA": "2026-11-15",
+    "VALIDITA_GIORNI": "45",
+    "CLIENTE": "Alpina Energia SA",
+    "INDIRIZZO_CLIENTE": "Via Cantonale 12\n6900 Lugano\nSvizzera",
+    "RIF": "0042/2026r1",
+    "REFERENTE_CLIENTE": "Paolo Bianchi",
+    "PIATTAFORMA": "Portale clienti Alpina",
+    "PROFILO": "Standard",
+    "TEMPO_S1": "6 ore lavorative",
+    "TEMPO_S2": "1 giorno lavorativo",
+    "TEMPO_S3": "2 giorni lavorativi",
+    "TEMPO_S4": "5 giorni lavorativi",
+    "COPERTURA_ORARIA": "dal lunedì al venerdì, 09:00–18:00",
+    "ORE": "80",
+    "INFRASTRUTTURA": "gestita da WellD",
+    "DATA_AVVIO_SERVIZIO": "1.1.2027",
+    "CADENZA_FATTURAZIONE": "trimestrale",
+    "OPZIONI": "reperibilità fuori orario",
+    "EMAIL_REFERENTE_CLIENTE": "paolo.bianchi@alpina.example",
+    "REFERENTE_WELLD": "Luca Verdi",
+    "EMAIL_REFERENTE_WELLD": "luca.verdi@welld.example",
+    "EMAIL_SUPPORTO": "supporto@welld.example",
+    "PM_WELLD": "Giulia Neri",
+    "RESP_CLIENTE": "Anna Gialli",
+    "DIREZIONE_WELLD": "Marco Blu",
+    "DIREZIONE_CLIENTE": "Sara Viola",
+    "ALTRI_AMBIENTI": "collaudo utenti",
+    "PROVIDER_CLOUD": "Infomaniak (Svizzera)"
+  },
+  "g": {
+    "attivazione": true
+  },
+  "lists": {
+    "COMPONENTE": [
+      "Portale web",
+      "API di integrazione",
+      "Database PostgreSQL"
+    ]
+  },
+  "rows": {},
+  "c": {
+    "42:1:unit": "7200",
+    "42:3:unit": "1500"
+  },
+  "x": {}
+}

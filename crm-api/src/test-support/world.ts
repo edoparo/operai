@@ -307,21 +307,26 @@ spyOn(globalThis, "fetch").mockImplementation((async (url: unknown, init?: Reque
 export interface CallOptions {
   readonly as?: PersonaName | null;
   readonly body?: unknown;
+  /** A JSON text sent as it is (a body `JSON.stringify` cannot build, such as a very deep one); wins over `body`. */
+  readonly rawBody?: string;
   readonly ifMatch?: number | string;
+  /** Further request headers (`If-None-Match`, …). */
+  readonly headers?: Record<string, string>;
 }
 
 export async function call(method: string, path: string, options: CallOptions = {}) {
   const headers: Record<string, string> = {};
   const as = options.as === undefined ? "admin" : options.as;
   if (as) headers["Authorization"] = `Bearer ${await tokenFor(as)}`;
-  if (options.body !== undefined) headers["Content-Type"] = "application/json";
+  if (options.body !== undefined || options.rawBody !== undefined) headers["Content-Type"] = "application/json";
   if (options.ifMatch !== undefined) {
     headers["If-Match"] = typeof options.ifMatch === "number" ? `"${options.ifMatch}"` : options.ifMatch;
   }
+  Object.assign(headers, options.headers);
   const res = await app.request(path, {
     method,
     headers,
-    ...(options.body !== undefined ? { body: JSON.stringify(options.body) } : {}),
+    ...(options.rawBody !== undefined ? { body: options.rawBody } : options.body !== undefined ? { body: JSON.stringify(options.body) } : {}),
   });
   const text = await res.text();
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -499,4 +504,216 @@ export async function offerBody(
     aiAssisted: d.aiAssisted,
     ...overrides,
   };
+}
+
+// ─── Wizard templates (specs/20261115-crm-offer-wizard) ──────────────────────
+
+/** The smallest wizard template text that parses with no problem at all. */
+export const WIZARD_SOURCE = [
+  "@@salutation To",
+  "",
+  "Dear client.",
+  "",
+  "## COSTS",
+  "@@step costs",
+  "@@costs",
+  "@@line work one_off | Work | unit=deal | qty=1",
+  "@@total **TOTAL**",
+  "@@end",
+  "",
+].join("\n");
+
+/** A valid `POST /offer-templates` body for a wizard template; `overrides` are applied last. */
+export const wizardBody = (overrides: Record<string, unknown> = {}) => ({
+  entity: "welld_ch",
+  name: "Wizard",
+  language: "it",
+  description: "A wizard template",
+  uses: ["Fixed price"],
+  source: WIZARD_SOURCE,
+  ...overrides,
+});
+
+/** Creates a wizard template through the API and returns its body (throws unless 201). */
+export async function makeWizardTemplate(overrides: Record<string, unknown> = {}, as: PersonaName = "admin") {
+  const res = await call("POST", "/offer-templates", { as, body: wizardBody(overrides) });
+  if (res.status !== 201) throw new Error(`makeWizardTemplate: ${res.status} ${JSON.stringify(res.json)}`);
+  return res.json;
+}
+
+// ─── Offers (specs/20261115-crm-offer-wizard T28) ────────────────────────────
+
+/** The letterhead data an entity needs before it can generate an offer (018 AC-2.1). */
+export const ENTITY_PROFILE = {
+  legalName: "wellD SA",
+  addressLines: ["Via Example 1", "6900 Lugano"],
+  vatNumber: "CHE-123.456.789 MWST",
+  iban: "CH00 0000 0000 0000 0000 0",
+  offerTermsEn: "Payment within 30 days.",
+  offerTermsIt: "Pagamento a 30 giorni.",
+};
+
+/** Sets the entity's profile through the API (throws unless it lands). */
+export async function putEntityProfile(entity: "welld_ch" | "welld_it" = "welld_ch") {
+  const res = await call("PUT", `/entity-profiles/${entity}`, {
+    as: "admin",
+    body: { ...ENTITY_PROFILE, ...(entity === "welld_it" ? { legalName: "wellD Srl" } : {}) },
+  });
+  if (res.status !== 200) throw new Error(`putEntityProfile: ${res.status} ${JSON.stringify(res.json)}`);
+}
+
+/**
+ * A qualified deal of a company with a full address, whose estimate is ready through the real flow (request,
+ * EstimAI document, close notice): Phase 1 = 10 md (Auth), Phase 2 = 20 md (Reports, Billing). It is the deal an
+ * offer can be generated for once `putEntityProfile` ran.
+ */
+export async function makeReadyDeal(overrides: { entity?: "welld_ch" | "welld_it"; title?: string; amountCents?: number | null } = {}) {
+  const entity = overrides.entity ?? "welld_ch";
+  const company = await makeCompany({
+    name: `Acme ${crypto.randomUUID().slice(0, 6)}`,
+    entity,
+    legalName: "Acme Holding SA",
+    street: "Via Roma 1",
+    postalCode: "6900",
+    city: "Lugano",
+    country: "CH",
+  });
+  const deal = await makeDeal(company.id, {
+    stage: "qualified",
+    title: overrides.title ?? "Grid analytics",
+    amountCents: overrides.amountCents === undefined ? 9_000_050 : overrides.amountCents,
+    entity,
+  });
+  await call("POST", `/deals/${deal.id}/estimate`, { as: "admin", body: { technicalUserId: "user-tech" } });
+  const estimate = [...estimai.estimates.values()].at(-1)!;
+  const act = (id: string, epic: string, md: number, release: string) => ({ id, epic, o: md, ml: md, p: md, release });
+  estimate.content = {
+    params: { aiGain: 0.3 },
+    releases: [
+      { id: "r1", name: "Phase 1" },
+      { id: "r2", name: "Phase 2" },
+    ],
+    acts: [act("1", "Auth", 10, "Phase 1"), act("2", "Reports", 12, "Phase 2"), act("3", "Billing", 8, "Phase 2")],
+  };
+  await estimaiNotice(deal.id);
+  return { deal, company };
+}
+
+/**
+ * Inserts an offer row straight in the database with the given snapshot — for the origins no route makes any more:
+ * a 018-summary `OF-…` offer (no `kind`), or a wizard offer (a contract snapshot with a `wizard` member).
+ */
+export async function insertOfferRow(dealId: string, snapshot: Record<string, unknown>, over: { number?: number; language?: "en" | "it"; sent?: boolean } = {}) {
+  return db.dealOffer.create({
+    data: {
+      dealId,
+      number: over.number ?? 1,
+      language: over.language ?? "it",
+      priceCents: 100n,
+      currency: "CHF",
+      validityDays: 30,
+      snapshot: snapshot as object,
+      objectKey: `offers/${dealId}/${crypto.randomUUID()}.pdf`,
+      sizeBytes: 10,
+      createdBy: "user-admin",
+      ...(over.sent ? { sentAt: new Date(), sentBy: "user-admin" } : {}),
+    },
+  });
+}
+
+/** A wizard offer's snapshot, as little of it as a list or a legacy guard reads. */
+export const wizardOfferSnapshot = (over: Record<string, unknown> = {}) => ({
+  kind: "contract",
+  template: { id: "template-x", name: "Wizard" },
+  language: "it",
+  reference: "0001/2026",
+  issuedOn: "2026-02-09",
+  validUntil: "2026-03-11",
+  validityDays: 30,
+  costs: { currency: "CHF", columns: { position: true, unit: false }, showTotal: true, lines: [], oneOffCents: 100, yearlyCents: 0 },
+  annex: null,
+  aiAssisted: false,
+  wizard: { templateVersion: 1, answers: {} },
+  ...over,
+});
+
+// ─── Offer drafts (specs/20261115-crm-offer-wizard T29) ──────────────────────
+
+/**
+ * A wizard template whose fields take what the estimate gives (epics, phases, timeline, man-days, the deal) and a
+ * `default: today` date, with a per-release cost line beside a deal-amount line: what a draft's first answers are made of.
+ */
+export const DRAFT_SOURCE = [
+  "@@salutation Spett.le",
+  "",
+  "Offerta per **[CLIENTE]**, progetto [PROGETTO], data [DATA_OFFERTA].",
+  "",
+  "## OGGETTO",
+  "@@step scope",
+  "Epiche: [EPICI]",
+  "",
+  "Fasi: [FASI]",
+  "",
+  "Tempi: [TEMPI]",
+  "",
+  "Giorni: [GIORNI]",
+  "",
+  "## COSTI",
+  "@@step costs",
+  "@@costs",
+  "@@line fasi one_off | Fase | unit=perRelease | qty=1",
+  "@@line giorni one_off | Giornate | unit=deal | qty=1",
+  "@@total **TOTALE**",
+  "@@end",
+  "",
+  "@@field CLIENTE",
+  "source: client",
+  "",
+  "@@field PROGETTO",
+  "source: deal",
+  "",
+  "@@field EPICI",
+  "label: Epiche",
+  "kind: longtext",
+  "source: epics",
+  "",
+  "@@field FASI",
+  "label: Fasi",
+  "kind: longtext",
+  "source: phases",
+  "",
+  "@@field TEMPI",
+  "label: Tempi",
+  "kind: longtext",
+  "source: timeline",
+  "",
+  "@@field GIORNI",
+  "label: Giorni",
+  "source: manDays",
+  "",
+  "@@field DATA_OFFERTA",
+  "label: Data offerta",
+  "kind: date",
+  "default: today",
+  "",
+].join("\n");
+
+/** Both entities' letterheads, and a deal that can have an offer generated (`makeReadyDeal`). */
+export async function readyDealWithProfiles(overrides: Parameters<typeof makeReadyDeal>[0] = {}) {
+  await putEntityProfile("welld_ch");
+  await putEntityProfile("welld_it");
+  return makeReadyDeal(overrides);
+}
+
+/** Creates a wizard template of `DRAFT_SOURCE` (or `source`) for the entity and language. */
+export const makeDraftTemplate = (overrides: Record<string, unknown> = {}) =>
+  makeWizardTemplate({ name: `Draft ${crypto.randomUUID().slice(0, 6)}`, source: DRAFT_SOURCE, ...overrides });
+
+/** A stored PDF attachment row of a deal (the bytes are in the in-memory bucket when `bytes` is given). */
+export async function storedPdfAttachment(dealId: string, fileName = "brochure.pdf", bytes?: Uint8Array) {
+  const objectKey = `attachments/${dealId}/${crypto.randomUUID()}.pdf`;
+  if (bytes) bucket.objects.set(objectKey, { bytes, contentType: "application/pdf", sizeBytes: bytes.byteLength });
+  return db.dealAttachment.create({
+    data: { dealId, fileName, contentType: "application/pdf", sizeBytes: bytes?.byteLength ?? 1000, objectKey, status: "stored", uploadedBy: "user-admin" },
+  });
 }

@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it } from "bun:test";
-import { call, db, resetWorld } from "../test-support/world";
+import { call, db, resetWorld, wizardBody } from "../test-support/world";
 import { DEFAULT_TEMPLATES_IT } from "../offers/defaultTemplates";
 import { DEFAULT_TEMPLATES_EN } from "../offers/defaultTemplates.en";
 import { TemplateContentSchema } from "../offers/offerSchemas";
@@ -65,8 +65,23 @@ describe("offer templates (specs/20261102-crm-offer-document US-2)", () => {
     annex: false,
     ...over,
   });
+  // specs/20261115-crm-offer-wizard DD-9: a new template is always a wizard template, so `create` posts a wizard
+  // body; the legacy content of a row is exercised through `PUT` on a legacy row (a seeded one, or `legacyRow`).
   const create = (over: Record<string, unknown> = {}, as: "admin" | "salesCh" | "managerNoMoney" = "admin", entity = "welld_ch") =>
-    call("POST", "/offer-templates", { as, body: { entity, ...content(over) } });
+    call("POST", "/offer-templates", { as, body: wizardBody({ entity, name: "Custom", ...over }) });
+  /** A legacy row as 018 created it, inserted directly: the API no longer creates one. */
+  const legacyRow = async (over: Record<string, unknown> = {}) => {
+    const { name, language, salutation, opening, sections, costLines, costColumns, showTotal, acceptanceLabel, annex } = content(over);
+    const row = await db.offerTemplate.create({
+      data: {
+        entity: "welld_ch", name: name as string, language: language as "en" | "it", salutation: salutation as string,
+        opening: opening as string, sections: sections as never, costLines: costLines as never, costColumns: costColumns as never,
+        showTotal: showTotal as boolean, acceptanceLabel: acceptanceLabel as null, annex: annex as boolean,
+        createdBy: "user-admin", updatedBy: "user-admin",
+      },
+    });
+    return { id: row.id as string, version: row.version };
+  };
 
   it("seeds fourteen on the first read of an entity, once, even with concurrent first reads", async () => {
     const reads = await Promise.all(Array.from({ length: 6 }, () => list()));
@@ -85,9 +100,9 @@ describe("offer templates (specs/20261102-crm-offer-document US-2)", () => {
   });
 
   it("does not seed again once the entity has templates, even when all are archived", async () => {
-    for (const t of (await list()).json.items) {
-      await call("POST", `/offer-templates/${t.id}/archive`, { ifMatch: t.version });
-    }
+    // straight in the database: the API refuses to archive the last template of an entity and language (T17)
+    await list();
+    await db.offerTemplate.updateMany({ where: { entity: "welld_ch" }, data: { archivedAt: new Date() } });
     expect((await list()).json.items).toHaveLength(0);
     expect((await list("welld_ch", "&includeArchived=true")).json.items).toHaveLength(14);
   });
@@ -107,6 +122,7 @@ describe("offer templates (specs/20261102-crm-offer-document US-2)", () => {
     expect(created.status).toBe(201);
     expect(created.json).toMatchObject({ entity: "welld_ch", name: "Custom", version: 1, archived: false });
     expect(created.headers.get("ETag")).toBe('"1"');
+    await create({ name: "Keeper" }); // the last template of an entity and language cannot be archived (T17)
     expect((await create({ name: "custom" })).json).toMatchObject({ status: 409, code: "template_name_taken" });
     // another entity may use it; an archived template frees its name
     expect((await create({}, "admin", "welld_it")).status).toBe(201);
@@ -130,7 +146,7 @@ describe("offer templates (specs/20261102-crm-offer-document US-2)", () => {
   });
 
   it("PUT replaces the content and needs If-Match: 428 without, 409 when stale, a bumped version when current", async () => {
-    const t = (await create()).json;
+    const t = await legacyRow();
     const edit = content({ name: "Custom v2", salutation: "Dear", annex: true });
     expect((await call("PUT", `/offer-templates/${t.id}`, { body: edit })).status).toBe(428);
     expect((await call("PUT", `/offer-templates/${t.id}`, { body: edit, ifMatch: 7 })).json).toMatchObject({ status: 409, code: "version_conflict", currentVersion: 1 });
@@ -141,12 +157,12 @@ describe("offer templates (specs/20261102-crm-offer-document US-2)", () => {
     expect((await call("PUT", `/offer-templates/${t.id}`, { body: edit, ifMatch: 1 })).status).toBe(409);
     expect((await call("PUT", "/offer-templates/missing", { body: edit, ifMatch: 1 })).status).toBe(404);
     // renaming onto another active template's name
-    await create({ name: "Other" });
+    await legacyRow({ name: "Other" });
     expect((await call("PUT", `/offer-templates/${t.id}`, { body: content({ name: "other" }), ifMatch: 2 })).json.code).toBe("template_name_taken");
   });
 
   it("a stale write loses against a concurrent one (one winner)", async () => {
-    const t = (await create()).json;
+    const t = await legacyRow();
     const results = await Promise.all([
       call("PUT", `/offer-templates/${t.id}`, { body: content({ name: "A" }), ifMatch: 1 }),
       call("PUT", `/offer-templates/${t.id}`, { body: content({ name: "B" }), ifMatch: 1 }),
@@ -181,14 +197,18 @@ describe("offer templates (specs/20261102-crm-offer-document US-2)", () => {
     const section = { heading: "H", body: "", costs: false };
     const costs = { heading: "Costs", body: "", costs: true };
     const line = { description: "a", kind: "one_off", amount: "deal", quantity: 1 };
-    const refused = async (over: Record<string, unknown>) => (await create({ name: crypto.randomUUID().slice(0, 8), ...over })).status;
+    // 018's content schema, now reached by `PUT` on a legacy row: 200 where a create answered 201
+    const refused = async (over: Record<string, unknown>) => {
+      const t = await legacyRow({ name: crypto.randomUUID().slice(0, 8) });
+      return (await call("PUT", `/offer-templates/${t.id}`, { body: content({ name: crypto.randomUUID().slice(0, 8), ...over }), ifMatch: 1 })).status;
+    };
     expect(await refused({ name: "" })).toBe(422);
     expect(await refused({ name: "x".repeat(81) })).toBe(422);
     expect(await refused({ sections: [] })).toBe(422);
     expect(await refused({ sections: [section] })).toBe(422);
     expect(await refused({ sections: [costs, costs] })).toBe(422);
     expect(await refused({ sections: [costs, ...Array.from({ length: 15 }, () => section)] })).toBe(422);
-    expect(await refused({ sections: Array.from({ length: 14 }, () => section).concat(costs) })).toBe(201);
+    expect(await refused({ sections: Array.from({ length: 14 }, () => section).concat(costs) })).toBe(200);
     expect(await refused({ sections: [{ ...costs, heading: "x".repeat(121) }] })).toBe(422);
     expect(await refused({ sections: [{ ...costs, body: "x".repeat(20_001) }] })).toBe(422);
     expect(await refused({ opening: "" })).toBe(422);
@@ -198,16 +218,16 @@ describe("offer templates (specs/20261102-crm-offer-document US-2)", () => {
     expect(await refused({ costLines: [{ ...line, kind: "yearly" }] })).toBe(422); // no one-off
     expect(await refused({ costLines: [line, { description: "d", kind: "discount", amount: { percentBp: 0 }, quantity: 1 }] })).toBe(422);
     expect(await refused({ costLines: [line, { description: "d", kind: "discount", amount: { percentBp: 10_001 }, quantity: 1 }] })).toBe(422);
-    expect(await refused({ costLines: [line, { description: "d", kind: "discount", amount: { percentBp: 1_000 }, quantity: 1 }] })).toBe(201);
+    expect(await refused({ costLines: [line, { description: "d", kind: "discount", amount: { percentBp: 1_000 }, quantity: 1 }] })).toBe(200);
     expect(await refused({ costLines: [{ ...line, amount: { percentBp: 1_000 } }] })).toBe(422); // percent on a non-discount
     expect(await refused({ costLines: [line, { description: "d", kind: "discount", amount: "deal", quantity: 1 }] })).toBe(422);
     expect(await refused({ costLines: [{ ...line, kind: "yearly", amount: "perRelease" }, line] })).toBe(422);
-    expect(await refused({ costLines: [{ ...line, amount: "perRelease" }] })).toBe(201);
+    expect(await refused({ costLines: [{ ...line, amount: "perRelease" }] })).toBe(200);
     expect(await refused({ costLines: [{ ...line, quantity: 0 }] })).toBe(422);
     expect(await refused({ costLines: [{ ...line, quantity: 3 }] })).toBe(422); // no unit column
-    expect(await refused({ costColumns: { position: false, unit: true }, costLines: [{ ...line, quantity: 100_000 }] })).toBe(201);
+    expect(await refused({ costColumns: { position: false, unit: true }, costLines: [{ ...line, quantity: 100_000 }] })).toBe(200);
     expect(await refused({ costColumns: { position: false, unit: true }, costLines: [{ ...line, quantity: 100_001 }] })).toBe(422);
-    expect(await refused({ costColumns: { position: false, unit: true }, costLines: [{ ...line, quantity: "manDays" }] })).toBe(201);
+    expect(await refused({ costColumns: { position: false, unit: true }, costLines: [{ ...line, quantity: "manDays" }] })).toBe(200);
     expect(await refused({ costLines: [{ ...line, amount: { cents: -1 } }] })).toBe(422);
     expect(await refused({ language: "fr" })).toBe(422);
     expect(await refused({ unknown: 1 })).toBe(422);
@@ -218,5 +238,70 @@ describe("offer templates (specs/20261102-crm-offer-document US-2)", () => {
     const t = await first("Training");
     await call("POST", `/offer-templates/${t.id}/archive`, { ifMatch: 1 });
     expect((await list()).json.items.some((x: { id: string }) => x.id === t.id)).toBe(false);
+  });
+
+  it("refuses U+0000 in a path id, a legacy body member and a wizard body member with 422, never a 500 (QE D7)", async () => {
+    const NUL = "\u0000";
+    const enc = encodeURIComponent(`x${NUL}`);
+    const t = await legacyRow();
+    const wizard = (await create({ name: "Wiz" })).json;
+    expect(wizard.version).toBe(1);
+    const legacyBody = content({ name: "Leg2" });
+    const wizardPut = (over: Record<string, unknown>) => ({ ...wizardBody({ name: "Wiz", ...over }), entity: undefined });
+    // controls: the same bodies without a NUL are accepted, so a 422 below is the NUL and nothing else
+    expect((await call("PUT", `/offer-templates/${wizard.id}`, { ifMatch: 1, body: wizardPut({}) })).status).toBe(200);
+    expect((await call("PUT", `/offer-templates/${t.id}`, { ifMatch: 1, body: legacyBody })).status).toBe(200);
+    const cases: [string, Promise<{ status: number; json: any }>][] = [
+      ["GET :id", call("GET", `/offer-templates/${enc}`)],
+      ["PUT :id", call("PUT", `/offer-templates/${enc}`, { ifMatch: 2, body: legacyBody })],
+      ["POST :id/duplicate", call("POST", `/offer-templates/${enc}/duplicate`, { body: {} })],
+      ["POST :id/archive", call("POST", `/offer-templates/${enc}/archive`, { ifMatch: 2 })],
+      ["POST :id/restore", call("POST", `/offer-templates/${enc}/restore`, { ifMatch: 2 })],
+      ["legacy name", call("PUT", `/offer-templates/${t.id}`, { ifMatch: 2, body: { ...legacyBody, name: `a${NUL}` } })],
+      ["legacy salutation", call("PUT", `/offer-templates/${t.id}`, { ifMatch: 2, body: { ...legacyBody, salutation: `a${NUL}` } })],
+      ["legacy opening", call("PUT", `/offer-templates/${t.id}`, { ifMatch: 2, body: { ...legacyBody, opening: `a${NUL}` } })],
+      ["legacy section heading", call("PUT", `/offer-templates/${t.id}`, { ifMatch: 2, body: { ...legacyBody, sections: [{ heading: `h${NUL}`, body: "", costs: true }] } })],
+      ["legacy section body", call("PUT", `/offer-templates/${t.id}`, { ifMatch: 2, body: { ...legacyBody, sections: [{ heading: "h", body: `b${NUL}`, costs: true }] } })],
+      ["legacy cost line", call("PUT", `/offer-templates/${t.id}`, { ifMatch: 2, body: { ...legacyBody, costLines: [{ description: `d${NUL}`, kind: "one_off", amount: "deal", quantity: 1 }] } })],
+      ["legacy acceptance label", call("PUT", `/offer-templates/${t.id}`, { ifMatch: 2, body: { ...legacyBody, acceptanceLabel: `a${NUL}` } })],
+      ["wizard name", call("PUT", `/offer-templates/${wizard.id}`, { ifMatch: 2, body: wizardPut({ name: `a${NUL}` }) })],
+      ["wizard source", call("PUT", `/offer-templates/${wizard.id}`, { ifMatch: 2, body: wizardPut({ source: `@@salutation S${NUL}` }) })],
+      ["create name", create({ name: `a${NUL}` })],
+      ["list entity", call("GET", `/offer-templates?entity=welld_ch${encodeURIComponent(NUL)}`)],
+      ["list formats", call("GET", `/offer-templates?entity=welld_ch&formats=${enc}`)],
+      ["list includeArchived", call("GET", `/offer-templates?entity=welld_ch&includeArchived=${enc}`)],
+    ];
+    const wrong: string[] = [];
+    for (const [name, pending] of cases) {
+      const res = await pending;
+      if (res.status !== 422 || JSON.stringify(res.json).includes(NUL)) wrong.push(`${name}: ${res.status}`);
+    }
+    expect(wrong).toEqual([]);
+    const after = await db.offerTemplate.findUniqueOrThrow({ where: { id: t.id } });
+    expect([after.version, after.name]).toEqual([2, "Leg2"]);
+  });
+
+  it("answers a deeply nested body with a 4xx in bounded time and still finds a NUL where a body is legitimately deep (QE D10)", async () => {
+    const t = await legacyRow();
+    const base = JSON.stringify(content({ name: "Deep" })).slice(0, -1);
+    const withExtra = (extra: string) => `${base},"zz":${extra}}`;
+    // controls: a NUL in a nest of ordinary depth is still a 422 naming its path; the same body without it is not refused for depth
+    const nested = (depth: number, leaf: string) => "[".repeat(depth) + leaf + "]".repeat(depth);
+    const ok = await call("PUT", `/offer-templates/${t.id}`, { ifMatch: 1, rawBody: withExtra(nested(3, '"x"')) });
+    expect(ok.status).not.toBe(500);
+    expect(ok.json?.detail ?? "").not.toContain("deep");
+    const nul = await call("PUT", `/offer-templates/${t.id}`, { ifMatch: 1, rawBody: withExtra(nested(3, '"x\\u0000"')) });
+    expect([nul.status, nul.json.field]).toEqual([422, "zz.0.0.0"]);
+    // the defect: depth beyond what the stack allows was a RangeError (a 500) and, below it, quadratic path copying
+    for (const depth of [1_000, 20_000, 200_000]) {
+      const started = performance.now();
+      const res = await call("PUT", `/offer-templates/${t.id}`, { ifMatch: 1, rawBody: withExtra(nested(depth, "")) });
+      const ms = performance.now() - started;
+      expect([depth, res.status >= 400 && res.status < 500]).toEqual([depth, true]);
+      expect(res.json.status).toBe(res.status);
+      expect(ms).toBeLessThan(2_000);
+    }
+    const after = await db.offerTemplate.findUniqueOrThrow({ where: { id: t.id } });
+    expect(after.version).toBe(1);
   });
 });

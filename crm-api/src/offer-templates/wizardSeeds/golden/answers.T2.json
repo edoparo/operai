@@ -1,0 +1,53 @@
+{
+  "tpl": "T2",
+  "f": {
+    "DATA": "2026-11-15",
+    "VALIDITA_GIORNI": "45",
+    "CLIENTE": "Alpina Energia SA",
+    "INDIRIZZO_CLIENTE": "Via Cantonale 12\n6900 Lugano\nSvizzera",
+    "RIF": "0042/2026r1",
+    "REFERENTE_CLIENTE": "Fabio Conti",
+    "AMBITO": "del team mobile banking",
+    "DATA_INIZIO": "2027-01-11",
+    "DATA_FINE": "2027-06-30",
+    "IMPIEGO_MINIMO": "80"
+  },
+  "g": {
+    "pacchetto": true,
+    "dati_critici": true,
+    "risorse_extra": true,
+    "sconto": true,
+    "consuntivo": false
+  },
+  "lists": {},
+  "rows": {
+    "PROFILO": [
+      {
+        "PROFILO": "Sviluppatore senior",
+        "FTE": "1",
+        "IMPIEGO": "100%",
+        "GG": "120",
+        "TARIFFA": "950"
+      },
+      {
+        "PROFILO": "Tester",
+        "FTE": "0.5",
+        "IMPIEGO": "50%",
+        "GG": "60",
+        "TARIFFA": "720"
+      }
+    ]
+  },
+  "c": {
+    "30:3:sconto": "1800"
+  },
+  "x": {
+    "30": [
+      {
+        "label": "Trasferta in sede",
+        "unit": "300",
+        "qty": "4"
+      }
+    ]
+  }
+}

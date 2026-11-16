@@ -3,8 +3,10 @@
  * § API contract, plus the directory read on `auth`. Mutations of an existing
  * company, contact or deal pass the record's `version` (sent as `If-Match`).
  */
-import { getAuthBaseUrl } from 'shell/session'
-import { getJson, query, requestJson, sendJson } from './api'
+import { getAuthBaseUrl, getCrmApiBaseUrl } from 'shell/session'
+import { getJson, ifMatch, query, requestAnswered, requestJson, sendJson } from './api'
+import { isPdfBytes, MAX_LETTERHEAD_BYTES } from './letterhead/renderLetterhead'
+import { offerIncompleteOf } from './offerErrors'
 import type {
   Company,
   CompanyStatus,
@@ -26,6 +28,14 @@ import type {
   OfferSection,
   OfferTemplate,
   OfferTemplateContent,
+  OfferTemplateRow,
+  OfferDraftSummary,
+  OfferDraftView,
+  OfferIncomplete,
+  DraftTargetInput,
+  WizardContextResponse,
+  WizardTemplate,
+  WizardTemplateInput,
   CostColumns,
   CostKind,
   Page,
@@ -303,7 +313,57 @@ const letterheadPath = (entity: Entity) => `/entity-profiles/${entity}/letterhea
 export const startLetterheadUpload = (entity: Entity) => sendJson<LetterheadUpload>(letterheadPath(entity), 'POST')
 export const confirmLetterhead = (entity: Entity, key: string) =>
   sendJson<EntityProfile>(`${letterheadPath(entity)}/confirm`, 'POST', { key })
-export const getLetterheadDownload = (entity: Entity) => getJson<{ url: string }>(letterheadPath(entity))
+export const getLetterheadDownload = (entity: Entity, init?: Init) =>
+  getJson<{ url: string }>(letterheadPath(entity), init)
+
+/**
+ * The letterhead's bytes from the presigned link (DD-54). Plain `fetch`, NOT `apiFetch`: the bucket is not a trusted
+ * API origin and must never see the Bearer token. No credentials, no referrer, no cache, no redirect; stops reading
+ * once more than `MAX_LETTERHEAD_BYTES` have arrived; the first bytes must be `%PDF-`. Errors carry no link.
+ */
+export async function fetchLetterheadBytes(url: string, init: { signal?: AbortSignal } = {}): Promise<Uint8Array> {
+  const response = await fetch(url, {
+    cache: 'no-store',
+    credentials: 'omit',
+    referrerPolicy: 'no-referrer',
+    redirect: 'error',
+    signal: init.signal,
+  })
+  if (!response.ok) throw new Error('letterhead_unavailable')
+  const declared = Number(response.headers.get('content-length'))
+  if (Number.isFinite(declared) && declared > MAX_LETTERHEAD_BYTES) {
+    void response.body?.cancel().catch(() => {})
+    throw new Error('letterhead_too_large')
+  }
+  const chunks: Uint8Array[] = []
+  let total = 0
+  if (response.body) {
+    const reader = response.body.getReader()
+    for (;;) {
+      const { done, value } = await reader.read()
+      if (done) break
+      total += value.length
+      if (total > MAX_LETTERHEAD_BYTES) {
+        void reader.cancel().catch(() => {})
+        throw new Error('letterhead_too_large')
+      }
+      chunks.push(value)
+    }
+  } else {
+    const whole = new Uint8Array(await response.arrayBuffer())
+    if (whole.length > MAX_LETTERHEAD_BYTES) throw new Error('letterhead_too_large')
+    chunks.push(whole)
+    total = whole.length
+  }
+  const bytes = new Uint8Array(total)
+  let at = 0
+  for (const chunk of chunks) {
+    bytes.set(chunk, at)
+    at += chunk.length
+  }
+  if (!isPdfBytes(bytes)) throw new Error('letterhead_not_pdf')
+  return bytes
+}
 
 // ─── Offer templates (specs/20261102-crm-offer-document US-2) ───────────────────────────────────────
 
@@ -321,3 +381,103 @@ export const updateOfferTemplate = (id: string, version: number, input: OfferTem
   sendJson<OfferTemplate>(templatePath(id), 'PUT', input, version)
 export const setOfferTemplateArchived = (id: string, version: number, archived: boolean) =>
   sendJson<OfferTemplate>(`${templatePath(id)}/${archived ? 'archive' : 'restore'}`, 'POST', undefined, version)
+
+/** The formats a template list may ask for (the default is the classic ones, so older callers are unchanged). */
+export type TemplateFormats = 'sections' | 'wizard' | 'sections,wizard'
+/** An entity's templates in the formats asked: `wizard` for the Template step, both for Settings. */
+export const listOfferTemplatesOf = (entity: Entity, includeArchived: boolean, formats: TemplateFormats, init?: Init) =>
+  getJson<{ items: OfferTemplateRow[] }>(`/offer-templates${query({ entity, includeArchived, formats })}`, init)
+export const getWizardTemplate = (id: string, init?: Init) => getJson<WizardTemplate>(templatePath(id), init)
+/** A new template is always a wizard template (DD-9); a 422 `template_invalid` lists the text's problems. */
+export const createWizardTemplate = (entity: Entity, input: WizardTemplateInput) =>
+  sendJson<WizardTemplate>('/offer-templates', 'POST', { ...input, entity })
+export const updateWizardTemplate = (id: string, version: number, input: WizardTemplateInput) =>
+  sendJson<WizardTemplate>(templatePath(id), 'PUT', input, version)
+
+// ─── The offer wizard: context and the deal's one draft (specs/20261115-crm-offer-wizard plan § API contracts) ──
+
+/** A draft and the `ETag` it came with: the version the next write names. */
+export type WizardDraftAnswer = { draft: OfferDraftView; etag: string }
+
+const draftPath = (dealId: string) => `/deals/${encodeURIComponent(dealId)}/offer-draft`
+
+/** A call with a JSON body and a precondition header: `If-Match` of a version, or `If-None-Match: *` to create. */
+function draftCall(
+  path: string,
+  method: 'GET' | 'POST' | 'PUT' | 'DELETE',
+  options: { body?: unknown; version?: number; create?: boolean; signal?: AbortSignal } = {},
+) {
+  const headers: Record<string, string> = {}
+  if (options.body !== undefined) headers['Content-Type'] = 'application/json'
+  if (options.version !== undefined) headers['If-Match'] = ifMatch(options.version)
+  if (options.create) headers['If-None-Match'] = '*'
+  return requestAnswered<OfferDraftView>(getCrmApiBaseUrl(), path, {
+    method,
+    headers,
+    ...(options.body !== undefined ? { body: JSON.stringify(options.body) } : {}),
+    ...(options.signal ? { signal: options.signal } : {}),
+  })
+}
+
+const asDraft = ({ body, etag }: { body: OfferDraftView; etag: string | null }): WizardDraftAnswer => ({
+  draft: body,
+  etag: etag ?? ifMatch(body.version),
+})
+
+export const getWizardContext = (dealId: string, init?: Init) =>
+  getJson<WizardContextResponse>(`/deals/${encodeURIComponent(dealId)}/offer-wizard/context`, init)
+
+export const getWizardDraft = async (dealId: string, init?: Init) =>
+  asDraft(await draftCall(draftPath(dealId), 'GET', init))
+
+/** `{ draft: null }` is the common answer on a deal page, and has no ETag. */
+export async function getWizardDraftSummary(dealId: string, init?: Init) {
+  const answered = await requestAnswered<{ draft: OfferDraftSummary | null }>(
+    getCrmApiBaseUrl(),
+    `${draftPath(dealId)}/summary`,
+    init,
+  )
+  return { draft: answered.body.draft, etag: answered.body.draft ? answered.etag : null }
+}
+
+/** `templateId` is required for a new offer and optional for an edit or revision (DD-28). 409 `draft_exists` names who and when. */
+export const createWizardDraft = async (dealId: string, input: { templateId?: string; target?: DraftTargetInput }) =>
+  asDraft(await draftCall(draftPath(dealId), 'POST', { body: input, create: true }))
+
+export type DraftSaveInput = { templateVersion: number; target: DraftTargetInput; answers: OfferDraftView['answers'] }
+/** The whole document under `If-Match`; a body equal to the stored draft is a no-op on the server (200, same version). */
+export const saveWizardDraft = async (dealId: string, version: number, input: DraftSaveInput, init?: Init) =>
+  asDraft(await draftCall(draftPath(dealId), 'PUT', { body: input, version, ...init }))
+
+export const switchWizardDraftTemplate = async (dealId: string, version: number, templateId: string) =>
+  asDraft(await draftCall(`${draftPath(dealId)}/template`, 'POST', { body: { templateId }, version }))
+
+export const discardWizardDraft = async (dealId: string, version: number): Promise<void> => {
+  await requestAnswered<void>(getCrmApiBaseUrl(), draftPath(dealId), {
+    method: 'DELETE',
+    headers: { 'If-Match': ifMatch(version) },
+  })
+}
+
+export type GenerateWizardResult =
+  | { kind: 'generated'; offer: Offer; etag: string | null; created: boolean }
+  | ({ kind: 'incomplete' } & OfferIncomplete)
+
+/**
+ * Generates the offer from the STORED draft at `version` — nothing in the request says what it contains. 201 is a new
+ * offer or a revision, 200 an edit. A 422 `offer_incomplete` is a normal answer, returned typed (DD-32); every other
+ * refusal is an `ApiError` for the page to switch on.
+ */
+export async function generateWizardDraft(dealId: string, version: number): Promise<GenerateWizardResult> {
+  try {
+    const answered = await requestAnswered<Offer>(getCrmApiBaseUrl(), `${draftPath(dealId)}/generate`, {
+      method: 'POST',
+      headers: { 'If-Match': ifMatch(version) },
+    })
+    return { kind: 'generated', offer: answered.body, etag: answered.etag, created: answered.status === 201 }
+  } catch (error) {
+    const incomplete = offerIncompleteOf(error)
+    if (incomplete) return { kind: 'incomplete', ...incomplete }
+    throw error
+  }
+}

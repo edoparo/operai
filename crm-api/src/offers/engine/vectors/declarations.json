@@ -1,0 +1,1499 @@
+{
+ "cases": [
+  {
+   "name": "valid: every name declared and used",
+   "lines": [
+    "@@salutation S",
+    "",
+    "Text [A] {{b::x}} {{?A::y}}",
+    "",
+    "## COSTI",
+    "@@costs",
+    "@@line a one_off | Item | unit=? | qty=1",
+    "@@end",
+    "",
+    "@@field A",
+    "label: Field A",
+    "",
+    "@@block b",
+    "label: Block b",
+    "explain: why"
+   ],
+   "problems": []
+  },
+  {
+   "name": "field_undeclared: a field use with no declaration",
+   "lines": [
+    "@@salutation S",
+    "",
+    "Text [A] [ZZ]",
+    "",
+    "## COSTI",
+    "@@costs",
+    "@@line a one_off | Item | unit=? | qty=1",
+    "@@end",
+    "",
+    "@@field A",
+    "label: Field A"
+   ],
+   "problems": [
+    {
+     "line": 3,
+     "severity": "error",
+     "code": "field_undeclared",
+     "name": "ZZ"
+    }
+   ]
+  },
+  {
+   "name": "field_undeclared: ? and ! conditions on undeclared names",
+   "lines": [
+    "@@salutation S",
+    "",
+    "Text [A] {{?Q::x}}{{!R,A::y}}",
+    "",
+    "## COSTI",
+    "@@costs",
+    "@@line a one_off | Item | unit=? | qty=1",
+    "@@end",
+    "",
+    "@@field A",
+    "label: Field A"
+   ],
+   "problems": [
+    {
+     "line": 3,
+     "severity": "error",
+     "code": "field_undeclared",
+     "name": "Q"
+    },
+    {
+     "line": 3,
+     "severity": "error",
+     "code": "field_undeclared",
+     "name": "R"
+    }
+   ]
+  },
+  {
+   "name": "field_undeclared: a block condition on an undeclared block",
+   "lines": [
+    "@@salutation S",
+    "",
+    "Text [A] {{nope::x}}",
+    "",
+    "## COSTI",
+    "@@costs",
+    "@@line a one_off | Item | unit=? | qty=1",
+    "@@end",
+    "",
+    "@@field A",
+    "label: Field A"
+   ],
+   "problems": [
+    {
+     "line": 3,
+     "severity": "error",
+     "code": "field_undeclared",
+     "name": "nope"
+    }
+   ]
+  },
+  {
+   "name": "field_undeclared: @@OPT_START on an undeclared block",
+   "lines": [
+    "@@salutation S",
+    "",
+    "Text [A]",
+    "@@OPT_START ghost",
+    "x",
+    "@@OPT_END",
+    "",
+    "## COSTI",
+    "@@costs",
+    "@@line a one_off | Item | unit=? | qty=1",
+    "@@end",
+    "",
+    "@@field A",
+    "label: Field A"
+   ],
+   "problems": [
+    {
+     "line": 4,
+     "severity": "error",
+     "code": "field_undeclared",
+     "name": "ghost"
+    }
+   ]
+  },
+  {
+   "name": "field_undeclared: a cost line unit and quantity",
+   "lines": [
+    "@@salutation S",
+    "",
+    "Text [A]",
+    "",
+    "## COSTI",
+    "@@costs",
+    "@@line a one_off each=TAB | Item | unit=[PREZZO] | qty=[Q]",
+    "@@end",
+    "",
+    "@@field A",
+    "label: Field A"
+   ],
+   "problems": [
+    {
+     "line": 7,
+     "severity": "error",
+     "code": "field_undeclared",
+     "name": "TAB"
+    },
+    {
+     "line": 7,
+     "severity": "error",
+     "code": "field_undeclared",
+     "name": "PREZZO"
+    },
+    {
+     "line": 7,
+     "severity": "error",
+     "code": "field_undeclared",
+     "name": "Q"
+    }
+   ]
+  },
+  {
+   "name": "label_missing: a field with neither label nor source",
+   "lines": [
+    "@@salutation S",
+    "",
+    "Text [A] [B]",
+    "",
+    "## COSTI",
+    "@@costs",
+    "@@line a one_off | Item | unit=? | qty=1",
+    "@@end",
+    "",
+    "@@field A",
+    "label: Field A",
+    "",
+    "@@field B",
+    "kind: number"
+   ],
+   "problems": [
+    {
+     "line": 13,
+     "severity": "error",
+     "code": "label_missing",
+     "name": "B"
+    }
+   ]
+  },
+  {
+   "name": "label_missing: a source field needs no label",
+   "lines": [
+    "@@salutation S",
+    "",
+    "Text [A] [CLIENTE]",
+    "",
+    "## COSTI",
+    "@@costs",
+    "@@line a one_off | Item | unit=? | qty=1",
+    "@@end",
+    "",
+    "@@field A",
+    "label: Field A",
+    "",
+    "@@field CLIENTE",
+    "source: client"
+   ],
+   "problems": []
+  },
+  {
+   "name": "label_missing: a block, a list, a table, a choice",
+   "lines": [
+    "@@salutation S",
+    "",
+    "Text [A] [L] [T] {{x::a}}{{y::b}}",
+    "",
+    "## COSTI",
+    "@@costs",
+    "@@line a one_off | Item | unit=? | qty=1",
+    "@@end",
+    "",
+    "@@field A",
+    "label: Field A",
+    "",
+    "@@list L",
+    "",
+    "@@table T",
+    "",
+    "@@block x",
+    "",
+    "@@block y",
+    "label: Y",
+    "",
+    "@@choice c",
+    "options: x | y"
+   ],
+   "problems": [
+    {
+     "line": 13,
+     "severity": "error",
+     "code": "label_missing",
+     "name": "L"
+    },
+    {
+     "line": 15,
+     "severity": "error",
+     "code": "label_missing",
+     "name": "T"
+    },
+    {
+     "line": 17,
+     "severity": "error",
+     "code": "label_missing",
+     "name": "x"
+    },
+    {
+     "line": 22,
+     "severity": "error",
+     "code": "label_missing",
+     "name": "c"
+    }
+   ]
+  },
+  {
+   "name": "label_missing: an empty label",
+   "lines": [
+    "@@salutation S",
+    "",
+    "Text [A]",
+    "",
+    "## COSTI",
+    "@@costs",
+    "@@line a one_off | Item | unit=? | qty=1",
+    "@@end",
+    "",
+    "@@field A",
+    "label:   "
+   ],
+   "problems": [
+    {
+     "line": 10,
+     "severity": "error",
+     "code": "label_missing",
+     "name": "A"
+    }
+   ]
+  },
+  {
+   "name": "declared_unused: warning for a field nothing reads",
+   "lines": [
+    "@@salutation S",
+    "",
+    "Text [A]",
+    "",
+    "## COSTI",
+    "@@costs",
+    "@@line a one_off | Item | unit=? | qty=1",
+    "@@end",
+    "",
+    "@@field A",
+    "label: Field A",
+    "",
+    "@@field B",
+    "label: B"
+   ],
+   "problems": [
+    {
+     "line": 13,
+     "severity": "warning",
+     "code": "declared_unused",
+     "name": "B"
+    }
+   ]
+  },
+  {
+   "name": "declared_unused: warning for an unused block, list and table; a compute reader counts as a use",
+   "lines": [
+    "@@salutation S",
+    "",
+    "Text [A] [S]",
+    "",
+    "## COSTI",
+    "@@costs",
+    "@@line a one_off | Item | unit=? | qty=1",
+    "@@end",
+    "",
+    "@@field A",
+    "label: Field A",
+    "",
+    "@@field S",
+    "label: S",
+    "kind: number",
+    "compute: A + 1",
+    "",
+    "@@block z",
+    "label: Z",
+    "",
+    "@@list L",
+    "label: L",
+    "",
+    "@@table T",
+    "label: T"
+   ],
+   "problems": [
+    {
+     "line": 18,
+     "severity": "warning",
+     "code": "declared_unused",
+     "name": "z"
+    },
+    {
+     "line": 21,
+     "severity": "warning",
+     "code": "declared_unused",
+     "name": "L"
+    },
+    {
+     "line": 24,
+     "severity": "warning",
+     "code": "declared_unused",
+     "name": "T"
+    }
+   ]
+  },
+  {
+   "name": "choice_too_few_options: one option",
+   "lines": [
+    "@@salutation S",
+    "",
+    "Text [A] {{x::a}}",
+    "",
+    "## COSTI",
+    "@@costs",
+    "@@line a one_off | Item | unit=? | qty=1",
+    "@@end",
+    "",
+    "@@field A",
+    "label: Field A",
+    "",
+    "@@block x",
+    "label: X",
+    "",
+    "@@choice c",
+    "label: C",
+    "options: x"
+   ],
+   "problems": [
+    {
+     "line": 16,
+     "severity": "error",
+     "code": "choice_too_few_options",
+     "name": "c"
+    }
+   ]
+  },
+  {
+   "name": "choice_too_few_options: no options key",
+   "lines": [
+    "@@salutation S",
+    "",
+    "Text [A]",
+    "",
+    "## COSTI",
+    "@@costs",
+    "@@line a one_off | Item | unit=? | qty=1",
+    "@@end",
+    "",
+    "@@field A",
+    "label: Field A",
+    "",
+    "@@choice c",
+    "label: C"
+   ],
+   "problems": [
+    {
+     "line": 13,
+     "severity": "error",
+     "code": "choice_too_few_options",
+     "name": "c"
+    }
+   ]
+  },
+  {
+   "name": "choice_option_unknown: an option that is not a declared block",
+   "lines": [
+    "@@salutation S",
+    "",
+    "Text [A] {{x::a}}",
+    "",
+    "## COSTI",
+    "@@costs",
+    "@@line a one_off | Item | unit=? | qty=1",
+    "@@end",
+    "",
+    "@@field A",
+    "label: Field A",
+    "",
+    "@@block x",
+    "label: X",
+    "",
+    "@@choice c",
+    "label: C",
+    "options: x | ghost"
+   ],
+   "problems": [
+    {
+     "line": 18,
+     "severity": "error",
+     "code": "choice_option_unknown",
+     "name": "ghost"
+    }
+   ]
+  },
+  {
+   "name": "choice_option_unknown: a default that is not one of the options",
+   "lines": [
+    "@@salutation S",
+    "",
+    "Text [A] {{x::a}}{{y::b}}",
+    "",
+    "## COSTI",
+    "@@costs",
+    "@@line a one_off | Item | unit=? | qty=1",
+    "@@end",
+    "",
+    "@@field A",
+    "label: Field A",
+    "",
+    "@@block x",
+    "label: X",
+    "",
+    "@@block y",
+    "label: Y",
+    "",
+    "@@choice c",
+    "label: C",
+    "options: x | y",
+    "default: w"
+   ],
+   "problems": [
+    {
+     "line": 22,
+     "severity": "error",
+     "code": "choice_option_unknown",
+     "name": "w"
+    }
+   ]
+  },
+  {
+   "name": "name_duplicate: a field declared twice",
+   "lines": [
+    "@@salutation S",
+    "",
+    "Text [A]",
+    "",
+    "## COSTI",
+    "@@costs",
+    "@@line a one_off | Item | unit=? | qty=1",
+    "@@end",
+    "",
+    "@@field A",
+    "label: Field A",
+    "",
+    "@@field A",
+    "label: again"
+   ],
+   "problems": [
+    {
+     "line": 13,
+     "severity": "error",
+     "code": "name_duplicate",
+     "name": "A"
+    }
+   ]
+  },
+  {
+   "name": "name_duplicate: a list and a field share a name",
+   "lines": [
+    "@@salutation S",
+    "",
+    "Text [A]",
+    "",
+    "## COSTI",
+    "@@costs",
+    "@@line a one_off | Item | unit=? | qty=1",
+    "@@end",
+    "",
+    "@@field A",
+    "label: Field A",
+    "",
+    "@@list A",
+    "label: again"
+   ],
+   "problems": [
+    {
+     "line": 13,
+     "severity": "error",
+     "code": "name_duplicate",
+     "name": "A"
+    }
+   ]
+  },
+  {
+   "name": "name_duplicate: a block and a choice share a name",
+   "lines": [
+    "@@salutation S",
+    "",
+    "Text [A] {{x::a}}{{y::b}}",
+    "",
+    "## COSTI",
+    "@@costs",
+    "@@line a one_off | Item | unit=? | qty=1",
+    "@@end",
+    "",
+    "@@field A",
+    "label: Field A",
+    "",
+    "@@block x",
+    "label: X",
+    "",
+    "@@block y",
+    "label: Y",
+    "",
+    "@@choice x",
+    "label: C",
+    "options: x | y"
+   ],
+   "problems": [
+    {
+     "line": 19,
+     "severity": "error",
+     "code": "name_duplicate",
+     "name": "x"
+    }
+   ]
+  },
+  {
+   "name": "table_column_unknown: a column that is not declared",
+   "lines": [
+    "@@salutation S",
+    "",
+    "Text [A]",
+    "",
+    "| [T] | [P] |",
+    "",
+    "## COSTI",
+    "@@costs",
+    "@@line a one_off | Item | unit=? | qty=1",
+    "@@end",
+    "",
+    "@@field A",
+    "label: Field A",
+    "",
+    "@@field P",
+    "label: P",
+    "",
+    "@@table T",
+    "label: T",
+    "columns: T, P, Q"
+   ],
+   "problems": [
+    {
+     "line": 20,
+     "severity": "error",
+     "code": "table_column_unknown",
+     "name": "Q"
+    }
+   ]
+  },
+  {
+   "name": "table_column_unknown: the first column is not the table's name",
+   "lines": [
+    "@@salutation S",
+    "",
+    "Text [A] [T] [P]",
+    "",
+    "## COSTI",
+    "@@costs",
+    "@@line a one_off | Item | unit=? | qty=1",
+    "@@end",
+    "",
+    "@@field A",
+    "label: Field A",
+    "",
+    "@@field P",
+    "label: P",
+    "",
+    "@@table T",
+    "label: T",
+    "columns: P"
+   ],
+   "problems": [
+    {
+     "line": 18,
+     "severity": "error",
+     "code": "table_column_unknown",
+     "name": "P"
+    }
+   ]
+  },
+  {
+   "name": "column_in_two_tables: one column in two tables",
+   "lines": [
+    "@@salutation S",
+    "",
+    "Text [A] [T] [U] [P]",
+    "",
+    "## COSTI",
+    "@@costs",
+    "@@line a one_off | Item | unit=? | qty=1",
+    "@@end",
+    "",
+    "@@field A",
+    "label: Field A",
+    "",
+    "@@field P",
+    "label: P",
+    "",
+    "@@table T",
+    "label: T",
+    "columns: T, P",
+    "",
+    "@@table U",
+    "label: U",
+    "columns: U, P"
+   ],
+   "problems": [
+    {
+     "line": 22,
+     "severity": "error",
+     "code": "column_in_two_tables",
+     "name": "P"
+    }
+   ]
+  },
+  {
+   "name": "compute_invalid: an operator outside the grammar",
+   "lines": [
+    "@@salutation S",
+    "",
+    "Text [A] [S]",
+    "",
+    "## COSTI",
+    "@@costs",
+    "@@line a one_off | Item | unit=? | qty=1",
+    "@@end",
+    "",
+    "@@field A",
+    "label: Field A",
+    "",
+    "@@field S",
+    "label: S",
+    "kind: number",
+    "compute: A * 2"
+   ],
+   "problems": [
+    {
+     "line": 16,
+     "severity": "error",
+     "code": "compute_invalid",
+     "name": "S"
+    }
+   ]
+  },
+  {
+   "name": "compute_invalid: code instead of an expression",
+   "lines": [
+    "@@salutation S",
+    "",
+    "Text [A] [S]",
+    "",
+    "## COSTI",
+    "@@costs",
+    "@@line a one_off | Item | unit=? | qty=1",
+    "@@end",
+    "",
+    "@@field A",
+    "label: Field A",
+    "",
+    "@@field S",
+    "label: S",
+    "kind: number",
+    "compute: process.exit()"
+   ],
+   "problems": [
+    {
+     "line": 16,
+     "severity": "error",
+     "code": "compute_invalid",
+     "name": "S"
+    }
+   ]
+  },
+  {
+   "name": "compute_invalid: a text field cannot be derived",
+   "lines": [
+    "@@salutation S",
+    "",
+    "Text [A] [S]",
+    "",
+    "## COSTI",
+    "@@costs",
+    "@@line a one_off | Item | unit=? | qty=1",
+    "@@end",
+    "",
+    "@@field A",
+    "label: Field A",
+    "",
+    "@@field S",
+    "label: S",
+    "compute: A + 1"
+   ],
+   "problems": [
+    {
+     "line": 15,
+     "severity": "error",
+     "code": "compute_invalid",
+     "name": "S"
+    }
+   ]
+  },
+  {
+   "name": "compute_cycle: two fields that read each other",
+   "lines": [
+    "@@salutation S",
+    "",
+    "Text [A] [S] [U]",
+    "",
+    "## COSTI",
+    "@@costs",
+    "@@line a one_off | Item | unit=? | qty=1",
+    "@@end",
+    "",
+    "@@field A",
+    "label: Field A",
+    "",
+    "@@field S",
+    "label: S",
+    "kind: number",
+    "compute: U + 1",
+    "",
+    "@@field U",
+    "label: U",
+    "kind: number",
+    "compute: S + 1"
+   ],
+   "problems": [
+    {
+     "line": 16,
+     "severity": "error",
+     "code": "compute_cycle",
+     "name": "S"
+    },
+    {
+     "line": 21,
+     "severity": "error",
+     "code": "compute_cycle",
+     "name": "U"
+    }
+   ]
+  },
+  {
+   "name": "compute_cycle: a field that reads itself",
+   "lines": [
+    "@@salutation S",
+    "",
+    "Text [A] [S]",
+    "",
+    "## COSTI",
+    "@@costs",
+    "@@line a one_off | Item | unit=? | qty=1",
+    "@@end",
+    "",
+    "@@field A",
+    "label: Field A",
+    "",
+    "@@field S",
+    "label: S",
+    "kind: number",
+    "compute: S + 1"
+   ],
+   "problems": [
+    {
+     "line": 16,
+     "severity": "error",
+     "code": "compute_cycle",
+     "name": "S"
+    }
+   ]
+  },
+  {
+   "name": "compute: an undeclared name is field_undeclared, a sum over a non-column is table_column_unknown",
+   "lines": [
+    "@@salutation S",
+    "",
+    "Text [A] [S] [T] [P]",
+    "",
+    "## COSTI",
+    "@@costs",
+    "@@line a one_off | Item | unit=? | qty=1",
+    "@@end",
+    "",
+    "@@field A",
+    "label: Field A",
+    "",
+    "@@field P",
+    "label: P",
+    "kind: number",
+    "",
+    "@@table T",
+    "label: T",
+    "columns: T, P",
+    "",
+    "@@field S",
+    "label: S",
+    "kind: number",
+    "compute: GHOST + sum(A)"
+   ],
+   "problems": [
+    {
+     "line": 24,
+     "severity": "error",
+     "code": "field_undeclared",
+     "name": "GHOST"
+    },
+    {
+     "line": 24,
+     "severity": "error",
+     "code": "table_column_unknown",
+     "name": "A"
+    }
+   ]
+  },
+  {
+   "name": "compute: names, sum over a column and a chain are fine",
+   "lines": [
+    "@@salutation S",
+    "",
+    "Text [A] [S] [T] [P] [R]",
+    "",
+    "## COSTI",
+    "@@costs",
+    "@@line a one_off | Item | unit=? | qty=1",
+    "@@end",
+    "",
+    "@@field A",
+    "label: Field A",
+    "",
+    "@@field P",
+    "label: P",
+    "kind: number",
+    "",
+    "@@table T",
+    "label: T",
+    "columns: T, P",
+    "",
+    "@@field S",
+    "label: S",
+    "kind: number",
+    "compute: 100 - A - sum(P)",
+    "",
+    "@@field R",
+    "label: R",
+    "kind: number",
+    "compute: S + 1"
+   ],
+   "problems": []
+  },
+  {
+   "name": "fills_unknown: a fill on an undeclared field",
+   "lines": [
+    "@@salutation S",
+    "",
+    "Text [A] {{x::a}}",
+    "",
+    "## COSTI",
+    "@@costs",
+    "@@line a one_off | Item | unit=? | qty=1",
+    "@@end",
+    "",
+    "@@field A",
+    "label: Field A",
+    "",
+    "@@block x",
+    "label: X",
+    "fills: GHOST = 1"
+   ],
+   "problems": [
+    {
+     "line": 15,
+     "severity": "error",
+     "code": "fills_unknown",
+     "name": "GHOST"
+    }
+   ]
+  },
+  {
+   "name": "fills_unknown: a fill on a field that has a source",
+   "lines": [
+    "@@salutation S",
+    "",
+    "Text [A] {{x::a}} [C]",
+    "",
+    "## COSTI",
+    "@@costs",
+    "@@line a one_off | Item | unit=? | qty=1",
+    "@@end",
+    "",
+    "@@field A",
+    "label: Field A",
+    "",
+    "@@field C",
+    "source: client",
+    "",
+    "@@block x",
+    "label: X",
+    "fills: C = nope"
+   ],
+   "problems": [
+    {
+     "line": 18,
+     "severity": "error",
+     "code": "fills_unknown",
+     "name": "C"
+    }
+   ]
+  },
+  {
+   "name": "fills_unknown: an option the field does not offer",
+   "lines": [
+    "@@salutation S",
+    "",
+    "Text [A] [P]",
+    "",
+    "## COSTI",
+    "@@costs",
+    "@@line a one_off | Item | unit=? | qty=1",
+    "@@end",
+    "",
+    "@@field A",
+    "label: A",
+    "",
+    "@@field P",
+    "label: P",
+    "options: basic | gold",
+    "fills silver: A = 1"
+   ],
+   "problems": [
+    {
+     "line": 16,
+     "severity": "error",
+     "code": "fills_unknown",
+     "name": "silver"
+    }
+   ]
+  },
+  {
+   "name": "fills: an option fill and a block fill are fine",
+   "lines": [
+    "@@salutation S",
+    "",
+    "Text [A] [P] [B] {{x::a}}",
+    "",
+    "## COSTI",
+    "@@costs",
+    "@@line a one_off | Item | unit=? | qty=1",
+    "@@end",
+    "",
+    "@@field A",
+    "label: A",
+    "",
+    "@@field B",
+    "label: B",
+    "",
+    "@@field P",
+    "label: P",
+    "options: basic | gold",
+    "fills gold: A = 1",
+    "fills gold: B = 2",
+    "fills basic: A = 0",
+    "",
+    "@@block x",
+    "label: X",
+    "fills: A = 5"
+   ],
+   "problems": []
+  },
+  {
+   "name": "source_unknown: a source the engine does not provide",
+   "lines": [
+    "@@salutation S",
+    "",
+    "Text [A] [C]",
+    "",
+    "## COSTI",
+    "@@costs",
+    "@@line a one_off | Item | unit=? | qty=1",
+    "@@end",
+    "",
+    "@@field A",
+    "label: Field A",
+    "",
+    "@@field C",
+    "source: weather"
+   ],
+   "problems": [
+    {
+     "line": 14,
+     "severity": "error",
+     "code": "source_unknown",
+     "name": "weather"
+    }
+   ]
+  },
+  {
+   "name": "source: every system value is known",
+   "lines": [
+    "@@salutation S",
+    "",
+    "Text [A] [C]",
+    "",
+    "## COSTI",
+    "@@costs",
+    "@@line a one_off | Item | unit=? | qty=1",
+    "@@end",
+    "",
+    "@@field A",
+    "label: Field A",
+    "",
+    "",
+    "@@field S0",
+    "source: client",
+    "",
+    "@@field S1",
+    "source: clientAddress",
+    "",
+    "@@field S2",
+    "source: contacts",
+    "",
+    "@@field S3",
+    "source: place",
+    "",
+    "@@field S4",
+    "source: date",
+    "",
+    "@@field S5",
+    "source: reference",
+    "",
+    "@@field S6",
+    "source: issuer",
+    "",
+    "@@field S7",
+    "source: currency",
+    "",
+    "@@field S8",
+    "source: validityDays",
+    "",
+    "@@field S9",
+    "source: deal",
+    "",
+    "@@field S10",
+    "source: epics",
+    "",
+    "@@field S11",
+    "source: phases",
+    "",
+    "@@field S12",
+    "source: timeline",
+    "",
+    "@@field S13",
+    "source: manDays",
+    "",
+    "@@field C",
+    "source: client"
+   ],
+   "problems": [
+    {
+     "line": 14,
+     "severity": "warning",
+     "code": "declared_unused",
+     "name": "S0"
+    },
+    {
+     "line": 17,
+     "severity": "warning",
+     "code": "declared_unused",
+     "name": "S1"
+    },
+    {
+     "line": 20,
+     "severity": "warning",
+     "code": "declared_unused",
+     "name": "S2"
+    },
+    {
+     "line": 23,
+     "severity": "warning",
+     "code": "declared_unused",
+     "name": "S3"
+    },
+    {
+     "line": 26,
+     "severity": "warning",
+     "code": "declared_unused",
+     "name": "S4"
+    },
+    {
+     "line": 29,
+     "severity": "warning",
+     "code": "declared_unused",
+     "name": "S5"
+    },
+    {
+     "line": 32,
+     "severity": "warning",
+     "code": "declared_unused",
+     "name": "S6"
+    },
+    {
+     "line": 35,
+     "severity": "warning",
+     "code": "declared_unused",
+     "name": "S7"
+    },
+    {
+     "line": 38,
+     "severity": "warning",
+     "code": "declared_unused",
+     "name": "S8"
+    },
+    {
+     "line": 41,
+     "severity": "warning",
+     "code": "declared_unused",
+     "name": "S9"
+    },
+    {
+     "line": 44,
+     "severity": "warning",
+     "code": "declared_unused",
+     "name": "S10"
+    },
+    {
+     "line": 47,
+     "severity": "warning",
+     "code": "declared_unused",
+     "name": "S11"
+    },
+    {
+     "line": 50,
+     "severity": "warning",
+     "code": "declared_unused",
+     "name": "S12"
+    },
+    {
+     "line": 53,
+     "severity": "warning",
+     "code": "declared_unused",
+     "name": "S13"
+    }
+   ]
+  },
+  {
+   "name": "step_unknown: a step: key with an unknown step",
+   "lines": [
+    "@@salutation S",
+    "",
+    "Text [A] [B]",
+    "",
+    "## COSTI",
+    "@@costs",
+    "@@line a one_off | Item | unit=? | qty=1",
+    "@@end",
+    "",
+    "@@field A",
+    "label: Field A",
+    "step: sideways",
+    "",
+    "@@field B",
+    "label: B",
+    "step: costs"
+   ],
+   "problems": [
+    {
+     "line": 12,
+     "severity": "error",
+     "code": "step_unknown",
+     "name": "sideways"
+    }
+   ]
+  },
+  {
+   "name": "optional_heading_not_last: an optional sub-heading with a sibling after it",
+   "lines": [
+    "@@salutation S",
+    "",
+    "## S",
+    "### First",
+    "x",
+    "{{x::### Second}}",
+    "y",
+    "### Third",
+    "[A]",
+    "",
+    "## COSTI",
+    "@@costs",
+    "@@line a one_off | Item | unit=? | qty=1",
+    "@@end",
+    "",
+    "@@field A",
+    "label: Field A",
+    "",
+    "@@block x",
+    "label: X"
+   ],
+   "problems": [
+    {
+     "line": 6,
+     "severity": "warning",
+     "code": "optional_heading_not_last"
+    }
+   ]
+  },
+  {
+   "name": "optional_heading_not_last: a block-wrapped sub-heading",
+   "lines": [
+    "@@salutation S",
+    "",
+    "## S",
+    "@@OPT_START x",
+    "### Second",
+    "@@OPT_END",
+    "### Third",
+    "[A]",
+    "",
+    "## COSTI",
+    "@@costs",
+    "@@line a one_off | Item | unit=? | qty=1",
+    "@@end",
+    "",
+    "@@field A",
+    "label: Field A",
+    "",
+    "@@block x",
+    "label: X"
+   ],
+   "problems": [
+    {
+     "line": 5,
+     "severity": "warning",
+     "code": "optional_heading_not_last"
+    }
+   ]
+  },
+  {
+   "name": "optional_heading_not_last: the last sub-heading may be optional",
+   "lines": [
+    "@@salutation S",
+    "",
+    "## S",
+    "### First",
+    "{{x::### Second}}",
+    "[A]",
+    "",
+    "## COSTI",
+    "@@costs",
+    "@@line a one_off | Item | unit=? | qty=1",
+    "@@end",
+    "",
+    "@@field A",
+    "label: Field A",
+    "",
+    "@@block x",
+    "label: X"
+   ],
+   "problems": []
+  },
+  {
+   "name": "declaration_invalid: an unknown key, kind, default, a long label",
+   "lines": [
+    "@@salutation S",
+    "",
+    "Text [A] [B] [C] [D]",
+    "",
+    "## COSTI",
+    "@@costs",
+    "@@line a one_off | Item | unit=? | qty=1",
+    "@@end",
+    "",
+    "@@field A",
+    "label: Field A",
+    "colour: red",
+    "",
+    "@@field B",
+    "label: B",
+    "kind: weird",
+    "",
+    "@@field C",
+    "label: C",
+    "kind: number",
+    "default: abc",
+    "",
+    "@@field D",
+    "label: xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+   ],
+   "problems": [
+    {
+     "line": 12,
+     "severity": "error",
+     "code": "declaration_invalid",
+     "name": "colour"
+    },
+    {
+     "line": 16,
+     "severity": "error",
+     "code": "declaration_invalid",
+     "name": "kind"
+    },
+    {
+     "line": 21,
+     "severity": "error",
+     "code": "declaration_invalid",
+     "name": "default"
+    },
+    {
+     "line": 24,
+     "severity": "error",
+     "code": "declaration_invalid",
+     "name": "label"
+    }
+   ]
+  },
+  {
+   "name": "declaration_invalid: more than 20 options, a default outside the options, options on a number",
+   "lines": [
+    "@@salutation S",
+    "",
+    "Text [A] [B] [C]",
+    "",
+    "## COSTI",
+    "@@costs",
+    "@@line a one_off | Item | unit=? | qty=1",
+    "@@end",
+    "",
+    "@@field A",
+    "label: Field A",
+    "options: o0 | o1 | o2 | o3 | o4 | o5 | o6 | o7 | o8 | o9 | o10 | o11 | o12 | o13 | o14 | o15 | o16 | o17 | o18 | o19 | o20",
+    "",
+    "@@field B",
+    "label: B",
+    "options: a | b",
+    "default: c",
+    "",
+    "@@field C",
+    "label: C",
+    "kind: number",
+    "options: 1 | 2"
+   ],
+   "problems": [
+    {
+     "line": 12,
+     "severity": "error",
+     "code": "declaration_invalid",
+     "name": "options"
+    },
+    {
+     "line": 17,
+     "severity": "error",
+     "code": "declaration_invalid",
+     "name": "default"
+    },
+    {
+     "line": 22,
+     "severity": "error",
+     "code": "declaration_invalid",
+     "name": "options"
+    }
+   ]
+  },
+  {
+   "name": "declaration_invalid: a malformed fills, a key on the wrong declaration, a repeated key",
+   "lines": [
+    "@@salutation S",
+    "",
+    "Text [A] [B] {{x::a}}",
+    "",
+    "## COSTI",
+    "@@costs",
+    "@@line a one_off | Item | unit=? | qty=1",
+    "@@end",
+    "",
+    "@@field A",
+    "label: A",
+    "label: again",
+    "columns: A",
+    "",
+    "@@field B",
+    "label: B",
+    "",
+    "@@block x",
+    "label: X",
+    "fills: B"
+   ],
+   "problems": [
+    {
+     "line": 12,
+     "severity": "error",
+     "code": "declaration_invalid",
+     "name": "label"
+    },
+    {
+     "line": 13,
+     "severity": "error",
+     "code": "declaration_invalid",
+     "name": "columns"
+    },
+    {
+     "line": 20,
+     "severity": "error",
+     "code": "declaration_invalid",
+     "name": "fills"
+    }
+   ]
+  },
+  {
+   "name": "defaults of kinds: today for a date, a number, on/off for a block",
+   "lines": [
+    "@@salutation S",
+    "",
+    "Text [A] [D] [N] {{x::a}}",
+    "",
+    "## COSTI",
+    "@@costs",
+    "@@line a one_off | Item | unit=? | qty=1",
+    "@@end",
+    "",
+    "@@field A",
+    "label: Field A",
+    "",
+    "@@field D",
+    "label: D",
+    "kind: date",
+    "default: today",
+    "",
+    "@@field N",
+    "label: N",
+    "kind: percentage",
+    "default: 12.5",
+    "",
+    "@@block x",
+    "label: X",
+    "default: on"
+   ],
+   "problems": []
+  }
+ ]
+}

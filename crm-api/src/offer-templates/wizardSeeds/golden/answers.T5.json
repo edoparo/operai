@@ -1,0 +1,42 @@
+{
+  "tpl": "T5",
+  "f": {
+    "DATA": "2026-11-15",
+    "VALIDITA_GIORNI": "45",
+    "ACCONTO": "50",
+    "CLIENTE": "Alpina Energia SA",
+    "INDIRIZZO_CLIENTE": "Via Cantonale 12\n6900 Lugano\nSvizzera",
+    "RIF": "0042/2026r1",
+    "REFERENTE_CLIENTE": "Dario Fontana",
+    "OGGETTO_CONSULENZA": "l'assessment tecnico-funzionale del sistema di gestione ordini",
+    "DESCRIZIONE_IN_UNA_FRASE": "Analisi dello stato attuale e proposta di evoluzione",
+    "DELIVERABLE": "documento di requisiti e solution design",
+    "GG": "15",
+    "DURATA": "6 settimane",
+    "MATERIALI_DATI_ACCESSI": "Documentazione di architettura e accesso in lettura al repository",
+    "FORNITURA_SUCCESSIVA": "lo sviluppo dell'MVP",
+    "TERMINE": "6 mesi dalla consegna",
+    "ELENCO_ALLEGATI": "Allegato 1 – Piano delle attività\nAllegato 2 – Condizioni generali"
+  },
+  "g": {
+    "sconto": true,
+    "scalato": true
+  },
+  "lists": {
+    "CONTENUTO": [
+      "Interviste con gli stakeholder",
+      "Analisi del codice esistente"
+    ],
+    "ATTIVITÀ": [
+      "Raccolta dei requisiti",
+      "Valutazione dell'architettura",
+      "Presentazione dei risultati"
+    ]
+  },
+  "rows": {},
+  "c": {
+    "37:1:unit": "13500",
+    "37:2:sconto": "1000"
+  },
+  "x": {}
+}

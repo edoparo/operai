@@ -375,8 +375,18 @@ describe("technical estimates (specs/20261101-crm-sales-flow US-3)", () => {
 
     activitiesApi.fail = {};
     activitiesApi.calls = [];
-    // A reason Postgres cannot store (NUL): recording the override fails after the note was written.
-    expect((await call("POST", `/deals/${deal.id}/estimate/override`, { as: "admin", body: { reason: "x\u0000y" } })).status).toBe(500);
+    // The database fails to record the override after the note was written: a concurrent request recorded one for the
+    // deal while this one was writing the note, so the insert hits the unique `dealId`. (This used to be provoked with a
+    // NUL in the reason, which is now a 422 at the schema, security L-8.)
+    activitiesApi.onCall = async ({ op }) => {
+      if (op !== "put") return;
+      const at = new Date();
+      await db.dealEstimate.create({
+        data: { dealId: deal.id, estimateId: "", estimateName: "", technicalUserId: "user-admin", requestedBy: "user-admin", requestedAt: at, overrideBy: "user-admin", overrideReason: "first", overrideAt: at },
+      });
+    };
+    expect((await call("POST", `/deals/${deal.id}/estimate/override`, { as: "admin", body: { reason: "second" } })).status).toBe(500);
+    activitiesApi.onCall = null;
     expect(activitiesApi.of("delete")).toHaveLength(1);
     expect(activitiesApi.activities.size).toBe(0);
   });

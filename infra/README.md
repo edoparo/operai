@@ -1865,6 +1865,179 @@ Order matters: `auth` refuses to start when `SERVICE_CLIENTS` names a scope it d
    bun scripts/backfill-estimate-links.ts --apply
    ```
 
+## CRM offer wizard rollout (specs/20261115-crm-offer-wizard, ADR 20261115-offer-template-format-supersession-per-entity-language, risks R4, R11, R13)
+
+The wizard adds wizard templates, server-held drafts and new routes to `crm-api`, new design tokens
+to `@operai/ui`, and a new offer flow to `crm-ui`. No new variable, scope or service; the one
+migration is `20261115120000_offer_wizard` (columns, the `offer_draft` table, two CHECK constraints),
+applied by `crm-api`'s `preDeploy` (`bun run db:deploy`). It changes no existing row and never touches
+`deal_offer` (AC-9.4).
+
+### Before the deploy: count the texts a backslash will change (R13)
+
+`markup.ts` now reads a backslash before a markup character (`[` `*` `_` `|` `{` `\`) as an escape: `\*`
+prints `*`. Until now it printed both characters. Only a classic template's opening and section
+bodies, and the same two members of a classic offer's stored snapshot, are read as markup. Run both
+files on the production database (read-only) and keep the numbers:
+
+```sql
+-- r13-count.sql
+SELECT count(*) AS classic_templates_affected
+  FROM offer_template
+ WHERE format = 'sections'
+   AND (opening ~ '\\(\*|_|\||\{|\[|\\)'
+        OR EXISTS (SELECT 1 FROM jsonb_array_elements(sections) AS s WHERE s ->> 'body' ~ '\\(\*|_|\||\{|\[|\\)'));
+
+SELECT count(*) FILTER (WHERE "sentAt" IS NULL)     AS offers_unsent_affected,
+       count(*) FILTER (WHERE "sentAt" IS NOT NULL) AS offers_sent_affected
+  FROM deal_offer
+ WHERE "deletedAt" IS NULL
+   AND snapshot ->> 'kind' = 'contract'
+   AND (snapshot ->> 'opening' ~ '\\(\*|_|\||\{|\[|\\)'
+        OR EXISTS (SELECT 1 FROM jsonb_array_elements(snapshot -> 'sections') AS s WHERE s ->> 'body' ~ '\\(\*|_|\||\{|\[|\\)'));
+```
+
+```bash
+psql "$PRODUCTION_DATABASE_URL" -f r13-count.sql   # the crm database; any read-only role
+```
+
+Zero in all three columns: nothing to do. Otherwise the deploy is not blocked, but each text is read
+by a person first. List them (ids, names and flags only, never the text) with the same `WHERE`
+clauses and `SELECT id, entity, language, name` for templates, `SELECT id, "dealId", number,
+"sentAt" IS NOT NULL AS sent` for offers. A template is corrected in Settings before the deploy
+(the backslash was meant literally, so write it as `\\`). A stored offer is never re-rendered by this
+change: its PDF and snapshot stay as they are (AC-9.4); only editing a classic offer re-renders its
+text, so the unsent ones are the ones to open and check after the deploy.
+
+### Before the deploy: audit the stored letterheads (security M-4, DD-76, DD-78, R35)
+
+The new `crm-api` checks a stored letterhead before it uses it: a file over the decoded-size bound
+(32 MiB decoded, 8 MiB of non-image data, 10 000 objects, 1 000 streams, 40 MP per image) is refused with
+409 `letterhead_unusable` on `GET /entity-profiles/{entity}/letterhead`, on `POST /deals/{id}/offer-draft/generate`
+and on `POST /deals/{id}/offers`. A production letterhead that is over a cap would therefore stop that entity's
+offers the moment the deploy goes live. **Run the audit against production BEFORE the `crm-api` deploy. A
+refusal (exit 1) blocks the deploy**: upload the letterhead again in CRM Settings (the upload is checked and
+stored as a copy), or revisit the caps with the owner, and run it again until it exits 0.
+
+The script is read-only (it reads each stored letterhead, at most 5 MiB, and writes nothing: no row, no object)
+and prints, per entity, `ok` / `REFUSED <reason>` / `UNREADABLE` / `none` and the figures the bound measured,
+never a key, a link or bytes. It is not in the running image yet, so run it from a checkout of the release
+commit, with the production `crm-api` variables (`railway run` injects them, including the bucket) and the
+`crm` database reached through its public connection string (the private one does not resolve from a laptop;
+a read-only role is enough):
+
+```bash
+cd crm-api && bun install
+railway run --service crm-api --environment production -- \
+  sh -c 'DATABASE_URL="$CRM_PUBLIC_DATABASE_URL" bun scripts/check-letterheads.ts'
+echo "exit $?"   # 0: every stored letterhead is usable, deploy. 1: a refusal or an unreadable file, do NOT deploy. 2: bucket not configured
+```
+
+Keep the printed figures: the caps are set at least four times above them (plan DD-74), and a figure that
+has grown close to a cap is a reason to talk to the owner before the deploy rather than after.
+
+### Deploy order: `crm-api`, then the shell, then `crm-ui`. Never the UI first (R4)
+
+1. **`crm-api`.** Safe on its own: `GET /offer-templates` answers classic templates by default
+   (`formats=sections`), so the live `crm-ui` is unchanged, and nothing is seeded or archived. Check
+   the deploy log for `prisma migrate deploy` applying `20261115120000_offer_wizard`, then
+   `GET /health`.
+2. **The shell** (Vercel). It carries `@operai/ui` with the new tokens, and a remote runs on the LIVE
+   shell's library (ADR 20261114-operai-ui-shared-singleton-provided-by-the-shell): the tokens must be
+   live before the remote that uses them.
+3. **`crm-ui`** (Vercel). A new `crm-ui` against an old `crm-api` meets 404 on `/offer-draft` and
+   `/offer-wizard/context` and shows error panels; that is why the UI is last.
+
+The cut-over is not a deploy step. The first read that asks for `formats=wizard` (the first person
+who opens Settings › Templates or the offer flow in the new `crm-ui`) seeds welld_ch's seven Italian
+wizard templates once and, in the same transaction, archives that entity's Italian classic templates
+(AC-9.2). welld_ch English, welld_it Italian and welld_it English keep their classic templates until
+a wizard template is created for them. Do not probe `?formats=wizard` by hand on production unless you
+mean to switch welld_ch Italian over; for a smoke test, use `GET /offer-templates?entity=welld_ch`
+(classic only, changes nothing).
+
+### Release checklist: the CRM bucket must allow GET from the shell origin (R22, DD-54)
+
+The offer preview draws the entity's letterhead in the browser (US-11): `crm-ui` makes a plain `fetch`
+of the 60 s presigned GET that `GET /entity-profiles/{entity}/letterhead` returns. Until now the CRM only
+POSTed to its bucket from the browser (uploads) and opened downloads with `window.open`, which CORS does
+not govern, so **nothing in this repository sets or records the CRM bucket's CORS rule** (it is not in
+`.railway/railway.ts`; `bucket("crm", { region: "ams" })` declares the bucket only), and MinIO, which allows
+every origin, cannot catch a missing `GET` in dev or e2e. Without it the fetch fails in the browser, the
+preview shows no letterhead (a soft failure, AC-11.4) and nothing is logged server-side. Before `crm-ui` is
+released, a person with the bucket's credentials (the `CRM_S3_*` values of `crm-api`, in the environment of
+this one command, never on a command line) checks the rule:
+
+```bash
+export AWS_ACCESS_KEY_ID=<CRM_S3_ACCESS_KEY_ID> AWS_SECRET_ACCESS_KEY=<CRM_S3_SECRET_ACCESS_KEY>
+aws s3api get-bucket-cors --endpoint-url <CRM_S3_ENDPOINT> --region <CRM_S3_REGION> --bucket <CRM_S3_BUCKET> \
+  | jq -e '.CORSRules | any(.[]; (.AllowedOrigins | index("https://operai.welld.io")) and (.AllowedMethods | index("GET")))'
+```
+
+`true` and exit 0: ONE rule allows both the shell origin and `GET` (a single predicate on the same rule: a `GET` rule for
+another origin beside an origin-only `POST` rule for the shell prints `false`). The command does not look for a wildcard
+origin; read the output of `get-bucket-cors` once and refuse a rule that allows `*`. Anything else (`false`, `NoSuchCORSConfiguration`, an error): add it
+with `PutBucketCors`, GET beside POST, the shell origin only (the same rule as § `refund-api` above and the
+activities bucket):
+
+```bash
+aws s3api put-bucket-cors --endpoint-url <CRM_S3_ENDPOINT> --region <CRM_S3_REGION> --bucket <CRM_S3_BUCKET> \
+  --cors-configuration '{"CORSRules":[{"AllowedOrigins":["https://operai.welld.io"],"AllowedMethods":["POST","GET"],"ExposeHeaders":["ETag","Location"],"MaxAgeSeconds":3000}]}'
+```
+
+There is no `AllowedHeaders` on purpose: the letterhead fetch sends no header of its own (no `Authorization`, no
+custom header, `credentials: 'omit'`) and the upload is a form `POST`, so both are simple requests that the browser
+does not preflight, and `*` would only widen the rule. If a browser console ever shows a failed preflight for the
+bucket, add the one header it names, not `*`. Applying it replaces the bucket's whole CORS configuration: read the
+existing rules first and keep any that are there. The shell CSP already lists the bucket origin in `connect-src` and `img-src`
+(`https://t3.storageapi.dev`); the preview's own image is a `blob:` URL. Then open one offer preview on the
+live site with the browser console open: no CORS error, and the letterhead appears. The `pdfjs-dist` chunks
+are crm-ui's own static assets, served by Vercel with the origin that already serves `remoteEntry.js`, so
+they need no rule.
+
+### Supersession rollback (R11)
+
+There is no undo in the product, on purpose: the API refuses to restore a classic template while an
+active wizard template exists for the entity and language (`409 template_superseded`). To go back for
+one entity and language, a person runs this, after `crm-ui` has been rolled back to the classic dialog (an
+archived seed counts as present, so the wizard is not seeded again). It archives the wizard templates
+FIRST (a seeded "Formazione" would otherwise clash with the classic "Formazione" on the active-name
+unique index), then restores the classic templates that supersession archived: those archived from
+one minute before the first wizard template of the pair was created. Offers and drafts are left alone:
+an offer made with a wizard template stays in the deal's list and downloadable, and a draft stays in
+its table, unused.
+
+```sql
+-- rollback-supersession.sql   psql "$PRODUCTION_DATABASE_URL" -v entity=welld_ch -v language=it -f rollback-supersession.sql
+-- DOCUMENTATION: read the first SELECT, and the two row counts psql prints, before COMMIT.
+BEGIN;
+SELECT pg_advisory_xact_lock(hashtext('crm-offer-templates:' || :'entity'));   -- the lock the application takes
+
+SELECT id, name, format, "archivedAt" IS NOT NULL AS archived, "seedKey", "archivedAt"
+  FROM offer_template
+ WHERE entity = :'entity'::"Entity" AND language = :'language'::"OfferLanguage"
+ ORDER BY format, name;
+
+UPDATE offer_template
+   SET "archivedAt" = now(), version = version + 1, "updatedBy" = 'runbook-rollback', "updatedAt" = now()
+ WHERE entity = :'entity'::"Entity" AND language = :'language'::"OfferLanguage"
+   AND format = 'wizard' AND "archivedAt" IS NULL;
+
+UPDATE offer_template
+   SET "archivedAt" = NULL, version = version + 1, "updatedBy" = 'runbook-rollback', "updatedAt" = now()
+ WHERE entity = :'entity'::"Entity" AND language = :'language'::"OfferLanguage"
+   AND format = 'sections' AND "archivedAt" IS NOT NULL
+   AND "archivedAt" >= (SELECT min("createdAt") - interval '1 minute' FROM offer_template
+                         WHERE entity = :'entity'::"Entity" AND language = :'language'::"OfferLanguage" AND format = 'wizard');
+
+COMMIT;   -- or ROLLBACK; if the second count is not the number of classic templates the first SELECT shows archived
+```
+
+A classic template a person archived by hand after the wizard went live cannot be told apart from
+one supersession archived; the first `SELECT` shows each row's `archivedAt` so it can be left out
+(add `AND id NOT IN (…)` to the second `UPDATE`). Afterwards `GET /offer-templates?entity=…` lists the
+classic templates again, and the classic dialog is what that entity and language use.
+
 ## Activities migration (specs/20261110-activities, ADR 20261110-activities-service-access-delegated-to-host/0082/0083)
 
 The CRM's activities, participants, "blocked by" links and meeting host state move into the new

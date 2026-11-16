@@ -10,12 +10,46 @@
  * section, the second prints them in the index. The index has a fixed number of
  * lines, so both passes break pages identically. The renderer never computes
  * money: it prints what the snapshot says.
+ *
+ * It does not number anything either (specs/20261115-crm-offer-wizard DD-29): section and sub-heading numbers,
+ * annex letters, the "Allegati:" lines, the index entries and cost positions are READ from the shared engine
+ * (`numberOffer`, `computeCosts`, `words`), the same copy the wizard's preview reads, for a legacy (018)
+ * snapshot and a wizard snapshot alike. A plain surface (a cost description, a label) is drawn as text:
+ * never parsed as markup, and a marker character (U+E000-U+E003) is split out, not drawn (DD-47).
  */
 
 import { PDFDocument, StandardFonts, rgb, type PDFEmbeddedPage, type PDFFont, type PDFPage } from "pdf-lib";
-import type { ContractSnapshot, OfferCostLine, OfferLanguage, RenderInputs } from "./contract";
-import { parseMarkup, type Block, type CellLine, type ListItem, type Run } from "./markup";
+import { boundPdfIsolated } from "../entity-profiles/isolatedPdfCheck";
+import type { ContractSnapshot, OfferCostLine, OfferCosts, RenderInputs } from "./contract";
+import { computeCosts, type CostRowIn } from "./engine/costs";
+import { formatAmount, formatPercent, shortDate } from "./engine/format";
+import { parseMarkup, type Block, type CellLine, type ListItem, type Run } from "./engine/markup";
+import { numberOffer, type NumberedOffer, type NumberedSection } from "./engine/numbering";
+import { BALLOT_BOX, printable } from "./engine/printable";
+import { words } from "./engine/words";
+import {
+  CELL_PAD,
+  FRAME,
+  HEADING_SIZE,
+  LINE,
+  NUMBER_BASELINE,
+  NUMBER_CORNER,
+  NUMBER_RIGHT_INSET,
+  NUMBER_SIZE,
+  PAGE,
+  SIZE,
+  SPACING,
+  TABLE_SIZE,
+  TITLE_SIZE,
+} from "./paper";
 import { formatManDays, winAnsi } from "./pdf";
+
+/**
+ * The issuer's legal name and address lines as the engine's `[EMITTENTE]` / `[INDIRIZZO_EMITTENTE]` print them: a line
+ * break folds into one space (security I-7). The same rule as `oneLine` in `engine/resolve.ts`, which is not exported
+ * (the engine files are byte-identical copies of crm-ui's).
+ */
+const oneLine = (text: string): string => text.replace(/\s*[\r\n]+\s*/g, " ").trim();
 
 /** An appended PDF that pdf-lib cannot read (encrypted, damaged); the route maps it to a 422. */
 export class AttachmentUnreadableError extends Error {
@@ -25,108 +59,56 @@ export class AttachmentUnreadableError extends Error {
   }
 }
 
+/** One string the renderer drew: a line of text, a table cell's line, an index leader, a page number. */
+export interface DrawnText {
+  /** 1-based page of the document (the appended attachments are not drawn by the renderer). */
+  readonly page: number;
+  readonly text: string;
+}
+
+/** Test hook: with `drawLog`, the final layout pass appends every string it draws, in drawing order. */
+export interface RenderOptions {
+  readonly drawLog?: DrawnText[];
+}
+
+/**
+ * The ballot box of an `option` line (DD-22): not a Helvetica glyph, so it is drawn as a small square and advances
+ * the line by this many em (the square and a gap).
+ */
+const BOX_ADVANCE = 0.85;
+const BOX_SIDE = 0.7;
+
+/** A text's width in the font, a ballot box counting `BOX_ADVANCE` em. */
+function textWidth(font: PDFFont, text: string, size: number): number {
+  if (!text.includes(BALLOT_BOX)) return font.widthOfTextAtSize(text, size);
+  const parts = text.split(BALLOT_BOX);
+  return parts.reduce((sum, part) => sum + (part === "" ? 0 : font.widthOfTextAtSize(part, size)), 0) + (parts.length - 1) * BOX_ADVANCE * size;
+}
+
+/** A marker character (the resolver's missing/pending runs, DD-47): never drawn. */
+const MARKER_CHARACTERS = /[\uE000-\uE003]/g;
+/** A plain surface as drawn: its marker characters removed, everything else literal. */
+const plain = (text: string): string => text.replace(MARKER_CHARACTERS, "");
+
 // ─── Frame (measured on the supplied letterhead, A4 = 595.28 × 841.89 pt) ────
 // Logo ends ~78 pt from the top; a grey rule sits 91 pt from the bottom with the
 // footer under it; the baked-in "1/1" spans x 511–523, 32–43 pt from the bottom.
 
-const PAGE_W = 595.28;
-const PAGE_H = 841.89;
-export const FRAME: Readonly<Record<"top" | "bottom" | "left" | "right", number>> = { top: 120, bottom: 110, left: 71, right: 71 };
+const PAGE_W = PAGE.width;
+const PAGE_H = PAGE.height;
+export { FRAME };
 const BODY_W = PAGE_W - FRAME.left - FRAME.right;
 const LIMIT = PAGE_H - FRAME.bottom; // lowest cursor position (from the top) a line may reach
-/** Painted white over the letterhead's own page number (D-2). */
-export const NUMBER_CORNER = { x: 480, y: 26, width: 60, height: 22 } as const;
-const NUMBER_RIGHT = PAGE_W - 72; // the letterhead rule's right end
-const NUMBER_BASELINE = 35.5;
+/** The page number's corner, right edge and baseline are shared with the preview (`paper.ts`, D-2). */
+const NUMBER_RIGHT = PAGE_W - NUMBER_RIGHT_INSET; // the letterhead rule's right end
 /** Width reserved for the page numbers of the index. */
 const NUMBER_COLUMN = 18;
 
-const SIZE = 10;
-const LINE = 1.35;
-const HEADING_SIZE = 10.5;
 const INK = rgb(0.13, 0.13, 0.13);
 const SOFT = rgb(0.45, 0.45, 0.45);
 const GRID = rgb(0.62, 0.62, 0.62);
 const SHADE = rgb(0.9, 0.9, 0.9);
 const WHITE = rgb(1, 1, 1);
-const CELL_PAD = 4;
-
-// ─── Texts ───────────────────────────────────────────────────────────────────
-
-const TEXT = {
-  it: {
-    offer: "Offerta",
-    title: (reference: string) => `CONTRATTO DI FORNITURA – Rif. ${reference}`,
-    attn: "A.c.a.",
-    index: "INDICE",
-    acceptance: "Per accettazione",
-    place: "Luogo e data:",
-    signature: "Firma valida del Cliente:",
-    annexes: "Allegati:",
-    annex: "Allegato",
-    annexTitle: "Dettaglio dell’impegno",
-    annexHeading: (letter: string) => `ALLEGATO ${letter} – DETTAGLIO DELL’IMPEGNO`,
-    aiNote: "L’impegno considera uno sviluppo assistito da AI.",
-    manDays: "Giorni-uomo",
-    release: "Release",
-    epic: "Epic",
-    total: "TOTALE",
-    annexTotal: "Totale",
-    position: "Pos.",
-    item: "Voce di costo",
-    unit: (currency: string) => `${currency} / unità`,
-    quantity: "Qt.",
-    amount: (currency: string) => `Totale ${currency}`,
-    vat: "P. IVA",
-  },
-  en: {
-    offer: "Offer",
-    title: (reference: string) => `SUPPLY CONTRACT – Ref. ${reference}`,
-    attn: "Attn.",
-    index: "CONTENTS",
-    acceptance: "Acceptance",
-    place: "Place and date:",
-    signature: "Valid signature of the Client:",
-    annexes: "Annexes:",
-    annex: "Annex",
-    annexTitle: "Effort detail",
-    annexHeading: (letter: string) => `ANNEX ${letter} – EFFORT DETAIL`,
-    aiNote: "Effort assumes AI-assisted delivery.",
-    manDays: "Man-days",
-    release: "Release",
-    epic: "Epic",
-    total: "TOTAL",
-    annexTotal: "Total",
-    position: "Pos.",
-    item: "Item",
-    unit: (currency: string) => `${currency} / unit`,
-    quantity: "Qty",
-    amount: (currency: string) => `Total ${currency}`,
-    vat: "VAT",
-  },
-} satisfies Record<OfferLanguage, unknown>;
-
-// ─── Formatting ──────────────────────────────────────────────────────────────
-
-/** `9.2.2026` — no leading zeros on day and month. */
-export function shortDate(isoDate: string): string {
-  const [y, m, d] = isoDate.split("-");
-  return `${Number(d)}.${Number(m)}.${y}`;
-}
-
-/** Whole units without cents, else two decimals; CHF `36’300.50`, EUR `36.300,50`. */
-export function formatAmount(cents: number, currency: "CHF" | "EUR"): string {
-  const sign = cents < 0 ? "-" : "";
-  const absolute = Math.abs(cents);
-  const whole = Math.trunc(absolute / 100).toString();
-  const [group, decimal] = currency === "CHF" ? ["’", "."] : [".", ","];
-  const grouped = whole.replace(/\B(?=(\d{3})+(?!\d))/g, group);
-  const fraction = absolute % 100;
-  return `${sign}${grouped}${fraction === 0 ? "" : `${decimal}${String(fraction).padStart(2, "0")}`}`;
-}
-
-/** Basis points as a percentage, trailing zeros trimmed: 1000 → `10%`, 750 → `7.5%`. */
-export const formatPercent = (bp: number): string => `${String(Number((bp / 100).toFixed(2)))}%`;
 
 // ─── Text layout ─────────────────────────────────────────────────────────────
 
@@ -168,7 +150,7 @@ interface Chunk {
 
 /** Word-wraps runs to `width`, mixing the four Helvetica faces. A "\n" is a hard break. */
 function layoutRuns(runs: readonly Run[], width: number, size: number, fonts: Fonts): Line[] {
-  const measure = (text: string, style: Style) => fontFor(fonts, style).widthOfTextAtSize(text, size);
+  const measure = (text: string, style: Style) => textWidth(fontFor(fonts, style), text, size);
   const spaceWidth = fonts.regular.widthOfTextAtSize(" ", size);
   const widths = new Map<string, number>();
   const charWidth = (char: string, style: Style): number => {
@@ -203,7 +185,7 @@ function layoutRuns(runs: readonly Run[], width: number, size: number, fonts: Fo
           paragraphs.push([]);
           glued = false;
         }
-        const clean = winAnsi(part);
+        const clean = printable(part);
         const words = clean.split(/ +/);
         words.forEach((word, wordIndex) => {
           const spaced = wordIndex > 0 || (clean.startsWith(" ") && word === "");
@@ -289,11 +271,16 @@ interface Placement {
   readonly top: number;
 }
 
+/** The labels of one section's `###` lines, taken in order as the markup is drawn. */
+interface HeadingLabels {
+  readonly labels: readonly string[];
+  taken: number;
+}
+
 interface PassResult {
-  readonly sectionPages: number[];
-  readonly annexPage: number;
+  /** The first page (1-based) of each index target (`NumberedOffer.index[].target`). */
+  readonly pages: ReadonlyMap<string, number>;
   readonly pageCount: number;
-  readonly letters: { readonly annex: string | null; readonly attachments: string[] };
 }
 
 type TextAlign = "left" | "right" | "center";
@@ -327,7 +314,18 @@ class Flow {
     readonly fonts: Fonts,
     readonly letterhead: PDFEmbeddedPage | null,
     readonly snapshot: ContractSnapshot,
+    readonly log: DrawnText[] | null = null,
   ) {}
+
+  /** Every drawn string goes through here, so the test hook sees exactly what the PDF holds. */
+  text(page: PDFPage, value: string, options: Parameters<PDFPage["drawText"]>[1]): void {
+    this.record(page, value);
+    page.drawText(value, options);
+  }
+
+  private record(page: PDFPage, value: string): void {
+    this.log?.push({ page: this.pages.indexOf(page) + 1, text: value });
+  }
 
   // — pages —
 
@@ -345,10 +343,12 @@ class Flow {
   /** The fallback without an uploaded letterhead (AC-2.4): issuer name, address and a footer rule. */
   private plainLetterhead(): void {
     const { issuer, language } = this.snapshot;
-    const t = TEXT[language];
-    this.page.drawText(winAnsi(issuer.legalName), { x: FRAME.left, y: PAGE_H - 52, size: 13, font: this.fonts.bold, color: INK });
-    issuer.addressLines.slice(0, 3).forEach((line, index) => {
-      this.page.drawText(winAnsi(line), { x: FRAME.left, y: PAGE_H - 66 - index * 10, size: 8.5, font: this.fonts.regular, color: SOFT });
+    const t = words(language);
+    const legalName = oneLine(issuer.legalName);
+    const addressLines = issuer.addressLines.map(oneLine).filter((line) => line !== "");
+    this.text(this.page, winAnsi(legalName), { x: FRAME.left, y: PAGE_H - 52, size: 13, font: this.fonts.bold, color: INK });
+    addressLines.slice(0, 3).forEach((line, index) => {
+      this.text(this.page, winAnsi(line), { x: FRAME.left, y: PAGE_H - 66 - index * 10, size: 8.5, font: this.fonts.regular, color: SOFT });
     });
     this.page.drawLine({
       start: { x: FRAME.left, y: 91 },
@@ -356,7 +356,7 @@ class Flow {
       thickness: 0.5,
       color: GRID,
     });
-    const footer = [issuer.legalName, ...issuer.addressLines, issuer.vatNumber ? `${t.vat} ${issuer.vatNumber}` : null, issuer.iban ? `IBAN ${issuer.iban}` : null]
+    const footer = [legalName, ...addressLines,issuer.vatNumber ? `${t.vat} ${issuer.vatNumber}` : null, issuer.iban ? `IBAN ${issuer.iban}` : null]
       .filter(Boolean)
       .join("  ·  ");
     for (const [index, line] of layoutRuns([run(footer)], BODY_W, 8, this.fonts).slice(0, 3).entries()) {
@@ -374,11 +374,12 @@ class Flow {
   /** Draws one laid-out line with its baseline at `baseline` (pt from the BOTTOM of the page). */
   private drawLine(page: PDFPage, line: Line, x: number, baseline: number, size: number, color = INK): void {
     let cursor = x;
+    this.record(page, line.segs.map((seg) => seg.text).join(""));
     for (const seg of line.segs) {
       const font = fontFor(this.fonts, seg.style);
       const text = seg.text;
       const lead = text.length - text.trimStart().length;
-      page.drawText(text, { x: cursor, y: baseline, size, font, color });
+      this.drawSeg(page, text, cursor, baseline, size, font, color);
       if (seg.style.underline) {
         const start = cursor + (lead > 0 ? font.widthOfTextAtSize(text.slice(0, lead), size) : 0);
         page.drawLine({
@@ -390,6 +391,26 @@ class Flow {
       }
       cursor += seg.width;
     }
+  }
+
+  /** One styled run; a ballot box in it is drawn as a square (the font has no glyph for it). */
+  private drawSeg(page: PDFPage, text: string, x: number, baseline: number, size: number, font: PDFFont, color: typeof INK): void {
+    if (!text.includes(BALLOT_BOX)) {
+      page.drawText(text, { x, y: baseline, size, font, color });
+      return;
+    }
+    let at = x;
+    const parts = text.split(BALLOT_BOX);
+    parts.forEach((part, index) => {
+      if (part !== "") {
+        page.drawText(part, { x: at, y: baseline, size, font, color });
+        at += font.widthOfTextAtSize(part, size);
+      }
+      if (index < parts.length - 1) {
+        page.drawRectangle({ x: at + 0.5, y: baseline - size * 0.05, width: size * BOX_SIDE, height: size * BOX_SIDE, borderColor: color, borderWidth: 0.7 });
+        at += BOX_ADVANCE * size;
+      }
+    });
   }
 
   private baseline(top: number, size: number, lineHeight: number): number {
@@ -420,7 +441,7 @@ class Flow {
     const laid = layoutRuns(runs, options.width ?? BODY_W, size, this.fonts);
     if (laid.length === 0) return;
     this.lines(laid, options);
-    this.y += options.after ?? size * 0.6;
+    this.y += options.after ?? size * SPACING.paragraphAfterRatio;
   }
 
   gap(height: number): void {
@@ -429,35 +450,39 @@ class Flow {
 
   // — markup blocks —
 
-  blocks(blocks: readonly Block[], section: number, state: { sub: number }, x = FRAME.left, width = BODY_W): void {
+  /**
+   * `headings` are the section's sub-heading labels from the engine ("2.1 TEXT", depth-first in markup order), taken
+   * one per `###` line; `null` draws the lines unnumbered (the opening, an annex's intro). Nothing is counted here.
+   */
+  blocks(blocks: readonly Block[], headings: HeadingLabels | null, x = FRAME.left, width = BODY_W): void {
     for (const block of blocks) {
       if (block.type === "paragraph") {
         this.paragraph(block.runs, { x, width });
       } else if (block.type === "heading") {
-        state.sub += 1;
-        this.gap(3);
-        this.paragraph([run(winAnsi(`${section}.${state.sub} ${block.text}`.toUpperCase()), true)], { x, width, keep: SIZE * LINE * 2 });
+        const label = headings?.labels[headings.taken++] ?? block.text.toUpperCase();
+        this.gap(SPACING.subHeadingBefore);
+        this.paragraph([run(winAnsi(label), true)], { x, width, keep: SIZE * LINE * 2 });
       } else if (block.type === "list") {
-        this.list(block.items, section, state, x, width);
-        this.y += SIZE * 0.3;
+        this.list(block.items, headings, x, width);
+        this.y += SPACING.listAfter;
       } else {
         this.markupTable(block, x, width);
       }
     }
   }
 
-  private list(items: readonly ListItem[], section: number, state: { sub: number }, x: number, width: number): void {
+  private list(items: readonly ListItem[], headings: HeadingLabels | null, x: number, width: number): void {
     const markerWidth = Math.max(14, ...items.map((item) => this.fonts.regular.widthOfTextAtSize(winAnsi(item.marker), SIZE) + 6));
-    const textX = x + 4 + markerWidth;
+    const textX = x + SPACING.listIndent + markerWidth;
     for (const item of items) {
-      const laid = layoutRuns(item.runs, width - 4 - markerWidth, SIZE, this.fonts);
+      const laid = layoutRuns(item.runs, width - SPACING.listIndent - markerWidth, SIZE, this.fonts);
       this.ensure(SIZE * LINE * Math.min(laid.length, 2));
-      const at = this.lines(laid, { x: textX, width: width - 4 - markerWidth });
+      const at = this.lines(laid, { x: textX, width: width - SPACING.listIndent - markerWidth });
       // The marker sits on the item's first line, which may have moved to a fresh page.
       const markerLine = layoutRuns([run(item.marker)], markerWidth, SIZE, this.fonts)[0];
-      if (at && markerLine) this.drawLine(at.page, markerLine, x + 4, this.baseline(at.top, SIZE, SIZE * LINE), SIZE);
-      this.y += SIZE * 0.15;
-      if (item.children.length > 0) this.blocks(item.children, section, state, textX, width - 4 - markerWidth);
+      if (at && markerLine) this.drawLine(at.page, markerLine, x + SPACING.listIndent, this.baseline(at.top, SIZE, SIZE * LINE), SIZE);
+      this.y += SPACING.listItemAfter;
+      if (item.children.length > 0) this.blocks(item.children, headings, textX, width - SPACING.listIndent - markerWidth);
     }
   }
 
@@ -477,11 +502,11 @@ class Flow {
       ...block.rows.map((row) => ({ cells: row.map((lines) => ({ lines })) })),
     ];
     this.table(widths.map((w) => w * scale), rows, x);
-    this.gap(SIZE * 0.6);
+    this.gap(SPACING.tableAfter);
   }
 
   /** A ruled table; header shaded and repeated after a page break, rows never split. */
-  table(widths: readonly number[], rows: readonly RowSpec[], x = FRAME.left, size = 9.5): void {
+  table(widths: readonly number[], rows: readonly RowSpec[], x = FRAME.left, size = TABLE_SIZE): void {
     const lineHeight = size * LINE;
     const frameHeight = LIMIT - FRAME.top;
 
@@ -496,12 +521,12 @@ class Flow {
         const laid: { lines: Line[]; bullet: boolean }[] = [];
         for (const source of spec.lines) {
           const runs = row.bold || row.header ? asBold(source.runs) : source.runs;
-          const bulletWidth = source.bullet ? 9 : 0;
+          const bulletWidth = source.bullet ? SPACING.cellBulletIndent : 0;
           for (const [index, line] of layoutRuns(runs, inner - bulletWidth, size, this.fonts).entries()) {
             laid.push({ lines: [line], bullet: source.bullet && index === 0 });
           }
         }
-        return { spec, offset, cellWidth, laid, bulletIndent: spec.lines.some((l) => l.bullet) ? 9 : 0 };
+        return { spec, offset, cellWidth, laid, bulletIndent: spec.lines.some((l) => l.bullet) ? SPACING.cellBulletIndent : 0 };
       });
       const lineCount = Math.max(1, ...placed.map((p) => p.laid.length));
       let height = lineCount * lineHeight + 2 * CELL_PAD;
@@ -534,7 +559,7 @@ class Flow {
           const base = this.baseline(lineTop, size, lineHeight);
           this.drawLine(this.page, line, left + CELL_PAD + placed.bulletIndent + shift, base, size);
           if (entry.bullet) {
-            this.page.drawText("•", { x: left + CELL_PAD, y: base, size, font: this.fonts.regular, color: INK });
+            this.text(this.page, "•", { x: left + CELL_PAD, y: base, size, font: this.fonts.regular, color: INK });
           }
         });
       }
@@ -553,6 +578,18 @@ class Flow {
     });
   }
 
+  /** One numbered section: its heading (from the engine), the cost table when it carries it, its text. Returns its first page. */
+  section(numbered: NumberedSection, body: string, costs: boolean): number {
+    this.gap(SPACING.sectionBefore);
+    // A heading never sits alone at the bottom of a page: it needs its first lines (or the table header and row).
+    this.ensure(HEADING_SIZE * LINE + SIZE * LINE * (costs ? 4 : 3));
+    const page = this.pages.length;
+    this.paragraph([run(numbered.heading, true)], { size: HEADING_SIZE, after: SPACING.sectionHeadingAfter });
+    if (costs) this.costTable();
+    this.blocks(parseMarkup(body), { labels: numbered.subheadings, taken: 0 });
+    return page;
+  }
+
   // — fixed blocks —
 
   indexLine(label: string, page: number): void {
@@ -566,11 +603,11 @@ class Flow {
     const dot = this.fonts.regular.widthOfTextAtSize(".", size);
     const available = BODY_W - labelWidth - NUMBER_COLUMN - 8;
     const baseline = PAGE_H - (this.y + (lineHeight - size) / 2 + size * 0.85);
-    this.page.drawText(text, { x: FRAME.left, y: baseline, size, font: this.fonts.regular, color: INK });
+    this.text(this.page, text, { x: FRAME.left, y: baseline, size, font: this.fonts.regular, color: INK });
     if (available > dot * 3) {
       // Leaders end at one x for every line, so the page numbers form a right-aligned column.
       const count = Math.floor(available / dot);
-      this.page.drawText(".".repeat(count), {
+      this.text(this.page, ".".repeat(count), {
         x: FRAME.left + BODY_W - NUMBER_COLUMN - 4 - count * dot,
         y: baseline,
         size,
@@ -578,46 +615,46 @@ class Flow {
         color: INK,
       });
     }
-    this.page.drawText(number, { x: FRAME.left + BODY_W - numberWidth, y: baseline, size, font: this.fonts.regular, color: INK });
+    this.text(this.page, number, { x: FRAME.left + BODY_W - numberWidth, y: baseline, size, font: this.fonts.regular, color: INK });
     this.y += lineHeight;
   }
 
   bulletLine(text: string): void {
-    const laid = layoutRuns([run(text)], BODY_W - 18, SIZE, this.fonts);
+    const laid = layoutRuns([run(text)], BODY_W - SPACING.bulletTextIndent, SIZE, this.fonts);
     this.ensure(SIZE * LINE);
     const top = this.y;
     const page = this.page;
-    this.page.drawText("•", { x: FRAME.left + 4, y: PAGE_H - (top + (SIZE * LINE - SIZE) / 2 + SIZE * 0.85), size: SIZE, font: this.fonts.regular, color: INK });
+    this.text(this.page, "•", { x: FRAME.left + SPACING.bulletMarkerIndent, y: PAGE_H - (top + (SIZE * LINE - SIZE) / 2 + SIZE * 0.85), size: SIZE, font: this.fonts.regular, color: INK });
     void page;
-    this.lines(laid, { x: FRAME.left + 18, width: BODY_W - 18 });
+    this.lines(laid, { x: FRAME.left + SPACING.bulletTextIndent, width: BODY_W - SPACING.bulletTextIndent });
   }
 
   acceptance(): void {
     const { language, acceptanceLabel } = this.snapshot;
-    const t = TEXT[language];
+    const t = words(language);
     const lineHeight = SIZE * LINE;
     // The whole block stays on one page: heading, optional label, two fill-in lines.
-    this.ensure(lineHeight * (acceptanceLabel ? 2 : 1) + 8 + 2 * (lineHeight + 30));
-    this.paragraph([run(t.acceptance, true)], { after: 2 });
-    if (acceptanceLabel) this.paragraph([run(acceptanceLabel, true)], { after: 2 });
+    this.ensure(lineHeight * (acceptanceLabel ? 2 : 1) + 8 + 2 * (lineHeight + SPACING.acceptanceLineHeight));
+    this.paragraph([run(t.acceptance, true)], { after: SPACING.acceptanceTitleAfter });
+    if (acceptanceLabel) this.paragraph([run(acceptanceLabel, true)], { after: SPACING.acceptanceTitleAfter });
     for (const label of [t.place, t.signature]) {
-      this.gap(14);
+      this.gap(SPACING.acceptanceLineGap);
       const width = this.fonts.regular.widthOfTextAtSize(winAnsi(label), SIZE);
       const base = this.baseline(this.y, SIZE, lineHeight);
-      this.page.drawText(winAnsi(label), { x: FRAME.left, y: base, size: SIZE, font: this.fonts.regular, color: INK });
+      this.text(this.page, winAnsi(label), { x: FRAME.left, y: base, size: SIZE, font: this.fonts.regular, color: INK });
       this.page.drawLine({
         start: { x: FRAME.left + width + 6, y: base - 1.5 },
         end: { x: FRAME.left + BODY_W, y: base - 1.5 },
         thickness: 0.5,
         color: GRID,
       });
-      this.y += lineHeight + 14;
+      this.y += lineHeight + SPACING.acceptanceLineGap;
     }
   }
 
   annexTable(scope: NonNullable<ContractSnapshot["annex"]>): void {
     const { language } = this.snapshot;
-    const t = TEXT[language];
+    const t = words(language);
     const days = (tenths: number) => formatManDays(tenths, language);
     const widths = [BODY_W * 0.3, BODY_W * 0.5, BODY_W * 0.2];
     const rows: RowSpec[] = [{ cells: [cell(t.release), cell(t.epic), cell(t.manDays, "right")], header: true }];
@@ -635,10 +672,16 @@ class Flow {
 
   costTable(): void {
     const { costs, language } = this.snapshot;
-    const t = TEXT[language];
+    const t = words(language);
     const { currency, columns } = costs;
-    const unitWidth = columns.unit ? 66 : 0;
-    const qtyWidth = columns.unit ? 32 : 0;
+    // The template's own column headers (plain surfaces, DD-47) replace the defaults, and the columns grow to hold them
+    // (a bold 9.5 pt "Giorni" does not fit the default 32 pt quantity column without being cut in the middle).
+    const unitLabel = costs.labels?.unit != null ? plain(costs.labels.unit) : t.unit(currency);
+    const quantityLabel = costs.labels?.quantity != null ? plain(costs.labels.quantity) : t.quantity;
+    const fitting = (label: string | null | undefined, least: number): number =>
+      label == null ? least : Math.max(least, Math.ceil(textWidth(this.fonts.bold, plain(label), TABLE_SIZE)) + 2 * CELL_PAD + 2);
+    const unitWidth = columns.unit ? fitting(costs.labels?.unit, 66) : 0;
+    const qtyWidth = columns.unit ? fitting(costs.labels?.quantity, 32) : 0;
     const posWidth = columns.position ? 30 : 0;
     const totalWidth = 82;
     const widths = [
@@ -650,34 +693,56 @@ class Flow {
     const head: CellSpec[] = [
       ...(columns.position ? [cell(t.position)] : []),
       cell(t.item),
-      ...(columns.unit ? [cell(t.unit(currency), "right"), cell(t.quantity, "right")] : []),
+      ...(columns.unit ? [cell(unitLabel, "right"), cell(quantityLabel, "right")] : []),
       cell(t.amount(currency), "right"),
     ];
     const rows: RowSpec[] = [{ cells: head, header: true }];
-    let position = 0;
-    for (const line of costs.lines) {
-      // Discount lines carry no position and do not use up a number.
-      if (line.kind !== "discount") position += 1;
-      rows.push({ cells: this.costRow(line, columns, currency, position) });
-    }
-    if (costs.showTotal) {
-      const spanned = widths.length - 1;
-      rows.push({
-        bold: true,
-        cells: [cell(t.total, "left", spanned), cell(formatAmount(costs.oneOffCents, currency), "right")],
+    const spanned = widths.length - 1;
+    const totalRow = (label: string, amount: string): RowSpec => ({ bold: true, cells: [cell(label, "left", spanned), cell(amount, "right")] });
+
+    if (costs.rows) {
+      // A wizard table: lines and total rows in order, every figure and position read from the engine.
+      const result = computeCosts(costRowsOf(costs));
+      costs.rows.forEach((row, index) => {
+        const out = result.rows[index]!;
+        if (row.type === "total") {
+          if (!costs.showTotal) return;
+          // A span with no counted line (or one still incomplete) prints a dash, never a made-up zero.
+          const amount = out.type === "total" && out.state === "ok" && out.totalCents !== null ? formatAmount(out.totalCents, currency) : "–";
+          rows.push(totalRow(plain(row.label), amount));
+        } else if (out.type === "line") {
+          const line: OfferCostLine = {
+            description: row.description,
+            kind: row.kind,
+            unitCents: row.unitCents,
+            percentBp: row.percentBp,
+            quantity: row.quantity ?? 1,
+            totalCents: out.totalCents ?? 0,
+          };
+          rows.push({ cells: this.costRow(line, columns, currency, out.position) });
+        }
       });
+    } else {
+      // A legacy table: its lines are one span with the single TOTAL row of 018.
+      const positions = costPositions(costs);
+      for (const [index, line] of costs.lines.entries()) {
+        rows.push({ cells: this.costRow(line, columns, currency, positions[index] ?? null) });
+      }
+      if (costs.showTotal) rows.push(totalRow(t.total, formatAmount(costs.oneOffCents, currency)));
     }
     this.table(widths, rows);
-    this.gap(SIZE * 0.8);
+    this.gap(SPACING.costTableAfter);
   }
 
-  private costRow(line: OfferCostLine, columns: { position: boolean; unit: boolean }, currency: "CHF" | "EUR", position: number): CellSpec[] {
+  private costRow(line: OfferCostLine, columns: { position: boolean; unit: boolean }, currency: "CHF" | "EUR", position: number | null): CellSpec[] {
     const discount = line.kind === "discount";
     const percent = discount && line.percentBp !== null;
-    const description = percent && !columns.unit ? `${line.description} (${formatPercent(line.percentBp!)})` : line.description;
+    // A cost description is a plain surface: drawn as written, never parsed (DD-47).
+    const text = line.kind === "option" ? `${BALLOT_BOX} ${plain(line.description)}` : plain(line.description);
+    const description = percent && !columns.unit ? `${text} (${formatPercent(line.percentBp!)})` : text;
     const total = `${discount ? "- " : ""}${formatAmount(line.totalCents, currency)}`;
     return [
-      ...(columns.position ? [cell(discount ? "" : String(position))] : []),
+      ...(columns.position ? [cell(position === null ? "" : String(position))] : []),
       cell(description),
       ...(columns.unit
         ? [
@@ -692,17 +757,48 @@ class Flow {
 
 // ─── The document ────────────────────────────────────────────────────────────
 
-const letterOf = (index: number): string => String.fromCharCode(65 + index);
+/** A legacy table has no total rows: its lines are the engine's rows, in order, one span. */
+const costRowsOf = (costs: OfferCosts): CostRowIn[] =>
+  (costs.rows ?? costs.lines.map((line, index) => ({ type: "line" as const, name: `cost:${index}`, ...line }))).map((row) =>
+    row.type === "total"
+      ? { type: "total" as const, label: row.label }
+      : { type: "line" as const, name: row.name, kind: row.kind, unitCents: row.unitCents, percentBp: row.percentBp, quantity: row.quantity },
+  );
 
-const annexLetters = (snapshot: ContractSnapshot) => {
-  const annex = snapshot.annex ? letterOf(0) : null;
-  const offset = annex ? 1 : 0;
-  return { annex, attachments: snapshot.attachments.map((_, index) => letterOf(offset + index)) };
-};
+/** The position of each cost LINE, in line order (null for a discount), as the engine numbers them. */
+function costPositions(costs: OfferCosts): (number | null)[] {
+  const positions: (number | null)[] = [];
+  for (const row of computeCosts(costRowsOf(costs)).rows) if (row.type === "line") positions.push(row.position);
+  return positions;
+}
 
-/** Lays out the contract and Annex A on `doc`; `sectionPages` (1-based) feed the index of the second pass. */
-async function layout(doc: PDFDocument, snapshot: ContractSnapshot, letterhead: Uint8Array | null, known: PassResult | null): Promise<{ flow: Flow; result: PassResult }> {
-  const t = TEXT[snapshot.language];
+const sectionKey = (index: number): string => `section:${index}`;
+
+/** The numbering of the document the snapshot describes: one engine call for a legacy and a wizard snapshot alike. */
+function numberingOf(snapshot: ContractSnapshot): NumberedOffer {
+  return numberOffer({
+    language: snapshot.language,
+    // Headings and titles are plain surfaces (DD-47): a marker character is split out before numbering prints them.
+    sections: snapshot.sections.map((section, index) => ({ key: sectionKey(index), heading: plain(section.heading), body: section.body })),
+    annexes: (snapshot.textAnnexes ?? []).map((annex) => ({
+      designation: annex.designation,
+      title: plain(annex.title),
+      sections: annex.sections.map((section, index) => ({ key: `annex:${annex.designation}:${index}`, heading: plain(section.heading), body: section.body })),
+    })),
+    effortAnnex: snapshot.annex !== null,
+    attachmentNames: snapshot.attachments.map((attachment) => attachment.fileName),
+  });
+}
+
+/** Lays out the contract and the effort-detail annex on `doc`; `known` (a previous pass) feeds the index its page numbers. */
+async function layout(
+  doc: PDFDocument,
+  snapshot: ContractSnapshot,
+  letterhead: Uint8Array | null,
+  known: PassResult | null,
+  log: DrawnText[] | null,
+): Promise<{ flow: Flow; result: PassResult }> {
+  const t = words(snapshot.language);
   const fonts: Fonts = {
     regular: await doc.embedFont(StandardFonts.Helvetica),
     bold: await doc.embedFont(StandardFonts.HelveticaBold),
@@ -710,83 +806,88 @@ async function layout(doc: PDFDocument, snapshot: ContractSnapshot, letterhead: 
     boldItalic: await doc.embedFont(StandardFonts.HelveticaBoldOblique),
   };
   const embedded = letterhead ? (await doc.embedPdf(letterhead))[0]! : null;
-  const flow = new Flow(doc, fonts, embedded, snapshot);
-  const letters = annexLetters(snapshot);
-  const sectionPages: number[] = [];
+  const flow = new Flow(doc, fonts, embedded, snapshot, log);
+  const numbering = numberingOf(snapshot);
+  const pages = new Map<string, number>();
 
   flow.newPage();
 
   // — page 1: salutation, client, contacts, place and date, title —
   flow.paragraph([run(snapshot.salutation)], { after: 0 });
   snapshot.clientLines.forEach((line, index) => flow.paragraph([run(line, index === 0)], { after: 0 }));
-  flow.gap(SIZE * LINE);
+  flow.gap(SPACING.clientAfter);
   if (snapshot.contacts.length > 0) {
     flow.paragraph([run(`${t.attn} ${snapshot.contacts.join(", ")}`, true)], { after: 0 });
-    flow.gap(SIZE * 0.6);
+    flow.gap(SPACING.contactsAfter);
   }
   const date = shortDate(snapshot.issuedOn);
-  flow.paragraph([run(snapshot.place ? `${snapshot.place}, ${date}` : date)], { align: "right", after: SIZE });
-  flow.paragraph([run(t.title(snapshot.reference), true)], { size: 11.5, align: "center", after: SIZE * 1.4 });
+  flow.paragraph([run(snapshot.place ? `${snapshot.place}, ${date}` : date)], { align: "right", after: SPACING.dateAfter });
+  flow.paragraph([run(t.title(snapshot.reference), true)], { size: TITLE_SIZE, align: "center", after: SPACING.titleAfter });
 
-  // — index, only with Annex A (D-8) —
-  const annexHeading = letters.annex ? t.annexHeading(letters.annex) : null;
-  if (annexHeading) {
-    flow.paragraph([run(t.index, true)], { after: 4 });
-    const entries = [
-      ...snapshot.sections.map((section, index) => ({ label: `${index + 1}. ${section.heading.toUpperCase()}`, page: known?.sectionPages[index] ?? 0 })),
-      { label: annexHeading, page: known?.annexPage ?? 0 },
-    ];
-    for (const entry of entries) flow.indexLine(entry.label, entry.page);
-    flow.gap(SIZE);
+  // — index, only with the effort-detail annex (D-8) —
+  if (numbering.index) {
+    flow.paragraph([run(t.index, true)], { after: SPACING.indexTitleAfter });
+    for (const entry of numbering.index) flow.indexLine(entry.label, known?.pages.get(entry.target) ?? 0);
+    flow.gap(SPACING.indexAfter);
   }
 
-  flow.blocks(parseMarkup(snapshot.opening), 0, { sub: 0 });
+  flow.blocks(parseMarkup(snapshot.opening), null);
 
   // — sections —
   for (const [index, section] of snapshot.sections.entries()) {
-    const number = index + 1;
-    flow.gap(SIZE * 0.7);
-    // A heading never sits alone at the bottom of a page: it needs its first lines (or the table header and row).
-    flow.ensure(HEADING_SIZE * LINE + SIZE * LINE * (section.costs ? 4 : 3));
-    sectionPages[index] = flow.pages.length;
-    flow.paragraph([run(`${number}. ${section.heading.toUpperCase()}`, true)], { size: HEADING_SIZE, after: 4 });
-    if (section.costs) flow.costTable();
-    flow.blocks(parseMarkup(section.body), number, { sub: 0 });
+    const numbered = numbering.sections[index]!;
+    pages.set(numbered.key, flow.section(numbered, section.body, section.costs));
   }
 
   // — acceptance —
-  flow.gap(SIZE);
+  flow.gap(SPACING.acceptanceBefore);
   flow.acceptance();
 
   // — annexes list —
-  if (letters.annex || snapshot.attachments.length > 0) {
+  if (numbering.annexList.length > 0) {
     flow.ensure(SIZE * LINE * 3 + 8);
-    flow.paragraph([run(t.annexes, true)], { after: 3, keep: SIZE * LINE });
-    const entries = [
-      ...(letters.annex ? [`${t.annex} ${letters.annex} - ${t.annexTitle}`] : []),
-      ...snapshot.attachments.map((attachment, i) => `${t.annex} ${letters.attachments[i]} - ${attachment.fileName}`),
-    ];
-    for (const entry of entries) flow.bulletLine(entry);
+    flow.paragraph([run(t.annexes, true)], { after: SPACING.annexListTitleAfter, keep: SIZE * LINE });
+    for (const entry of numbering.annexList) flow.bulletLine(entry);
   }
 
-  // — Annex A —
-  let annexPage = 0;
-  if (snapshot.annex && letters.annex) {
+  // — text annexes: each from a new page, in template order, before the effort-detail annex —
+  for (const [index, annex] of (snapshot.textAnnexes ?? []).entries()) {
+    const numbered = numbering.annexes[index]!;
     flow.newPage();
-    annexPage = flow.pages.length;
-    flow.paragraph([run(annexHeading!, true)], { size: HEADING_SIZE, after: 8 });
-    if (snapshot.annex.aiAssisted) flow.paragraph([{ text: t.aiNote, bold: false, italic: true, underline: false }], { after: 8 });
+    pages.set(`annex:${annex.designation}`, flow.pages.length);
+    flow.paragraph([run(numbered.heading, true)], { size: HEADING_SIZE, after: annex.subtitle ? SPACING.annexHeadingAfterWithSubtitle : SPACING.annexHeadingAfter });
+    const subtitle = annex.subtitle === null ? "" : plain(annex.subtitle).trim();
+    if (subtitle !== "") flow.paragraph([{ text: subtitle, bold: false, italic: true, underline: false }], { after: SPACING.annexSubtitleAfter });
+    // What stands between the heading and the first section: unnumbered, so the sections' numbers stay the annex's own.
+    flow.blocks(parseMarkup(annex.intro), null);
+    annex.sections.forEach((section, at) => flow.section(numbered.sections[at]!, section.body, false));
+  }
+
+  // — the effort-detail annex —
+  if (snapshot.annex && numbering.effortAnnexLetter) {
+    flow.newPage();
+    pages.set("annex:effort", flow.pages.length);
+    flow.paragraph([run(t.annexHeading(numbering.effortAnnexLetter), true)], { size: HEADING_SIZE, after: SPACING.annexHeadingAfter });
+    if (snapshot.annex.aiAssisted) flow.paragraph([{ text: t.aiNote, bold: false, italic: true, underline: false }], { after: SPACING.annexSubtitleAfter });
     flow.annexTable(snapshot.annex);
   }
 
-  return { flow, result: { sectionPages, annexPage, pageCount: flow.pages.length, letters } };
+  return { flow, result: { pages, pageCount: flow.pages.length } };
 }
 
-export async function renderContractPdf(snapshot: ContractSnapshot, inputs: RenderInputs): Promise<Uint8Array> {
+export async function renderContractPdf(snapshot: ContractSnapshot, inputs: RenderInputs, options: RenderOptions = {}): Promise<Uint8Array> {
   // Unreadable attachments fail first, before any layout work.
   const appended: PDFDocument[] = [];
   for (const [index, bytes] of inputs.attachments.entries()) {
     const fileName = snapshot.attachments[index]?.fileName ?? `attachment ${index + 1}`;
+    // The decoded-size bound runs on the bytes about to be loaded, whatever was checked when they were uploaded: a deal PDF
+    // is a person's file, pdf-lib inflates every object and cross-reference stream while it loads, and a file stored before
+    // the bound existed (or rewritten inside its upload policy's minute) was never checked (security M-7).
+    const bound = await boundPdfIsolated(bytes);
+    if (!bound.ok) {
+      console.warn(`[offers] attachment refused by the bound reason=${bound.reason}`);
+      throw new AttachmentUnreadableError(fileName);
+    }
     try {
       appended.push(await PDFDocument.load(bytes));
     } catch {
@@ -794,9 +895,10 @@ export async function renderContractPdf(snapshot: ContractSnapshot, inputs: Rend
     }
   }
 
-  const first = await layout(await PDFDocument.create(), snapshot, inputs.letterhead, null);
+  // The first pass finds the pages and logs nothing; the second is the document, and the only one logged.
+  const first = await layout(await PDFDocument.create(), snapshot, inputs.letterhead, null, null);
   const doc = await PDFDocument.create();
-  const { flow, result } = await layout(doc, snapshot, inputs.letterhead, first.result);
+  const { flow, result } = await layout(doc, snapshot, inputs.letterhead, first.result, options.drawLog ?? null);
 
   // Page numbers count the contract and Annex A pages only; the corner is painted over first (D-2).
   flow.pages.forEach((page, index) => {
@@ -804,8 +906,8 @@ export async function renderContractPdf(snapshot: ContractSnapshot, inputs: Rend
       page.drawRectangle({ ...NUMBER_CORNER, color: WHITE, borderWidth: 0 });
     }
     const label = `${index + 1}/${result.pageCount}`;
-    const width = flow.fonts.regular.widthOfTextAtSize(label, 8.5);
-    page.drawText(label, { x: NUMBER_RIGHT - width, y: NUMBER_BASELINE, size: 8.5, font: flow.fonts.regular, color: SOFT });
+    const width = flow.fonts.regular.widthOfTextAtSize(label, NUMBER_SIZE);
+    flow.text(page, label, { x: NUMBER_RIGHT - width, y: NUMBER_BASELINE, size: NUMBER_SIZE, font: flow.fonts.regular, color: SOFT });
   });
 
   for (const source of appended) {
@@ -814,8 +916,8 @@ export async function renderContractPdf(snapshot: ContractSnapshot, inputs: Rend
   }
 
   const issued = new Date(`${snapshot.issuedOn}T00:00:00Z`);
-  doc.setTitle(winAnsi(`${TEXT[snapshot.language].offer} ${snapshot.reference}`));
-  doc.setAuthor(winAnsi(snapshot.issuer.legalName));
+  doc.setTitle(winAnsi(`${words(snapshot.language).offer} ${snapshot.reference}`));
+  doc.setAuthor(winAnsi(oneLine(snapshot.issuer.legalName)));
   doc.setCreator("Operai CRM");
   doc.setProducer("Operai CRM");
   doc.setCreationDate(issued);

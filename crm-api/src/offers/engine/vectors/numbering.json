@@ -1,0 +1,928 @@
+{
+ "cases": [
+  {
+   "name": "a legacy 018 offer (no text annex): the effort annex is A, the deal PDFs follow, and the index lists the sections and the annex",
+   "input": {
+    "language": "it",
+    "sections": [
+     {
+      "key": "OGGETTO#0",
+      "heading": "Oggetto",
+      "body": "Testo.\n\n### Primo\nA\n\n### Secondo\nB\n\n- voce\n  - nidificata"
+     },
+     {
+      "key": "COSTI#0",
+      "heading": "Costi e condizioni",
+      "body": "Note."
+     },
+     {
+      "key": "DURATA#0",
+      "heading": "Durata",
+      "body": "### Unico\nx"
+     }
+    ],
+    "annexes": [],
+    "effortAnnex": true,
+    "attachmentNames": [
+     "a.pdf",
+     "b.pdf"
+    ]
+   },
+   "expect": {
+    "sections": [
+     {
+      "number": "1",
+      "heading": "1. OGGETTO",
+      "subheadings": [
+       "1.1 PRIMO",
+       "1.2 SECONDO"
+      ],
+      "key": "OGGETTO#0"
+     },
+     {
+      "number": "2",
+      "heading": "2. COSTI E CONDIZIONI",
+      "subheadings": [],
+      "key": "COSTI#0"
+     },
+     {
+      "number": "3",
+      "heading": "3. DURATA",
+      "subheadings": [
+       "3.1 UNICO"
+      ],
+      "key": "DURATA#0"
+     }
+    ],
+    "annexes": [],
+    "effortAnnexLetter": "A",
+    "attachmentLetters": [
+     "B",
+     "C"
+    ],
+    "annexList": [
+     "Allegato A - Dettaglio dell’impegno",
+     "Allegato B - a.pdf",
+     "Allegato C - b.pdf"
+    ],
+    "index": [
+     {
+      "label": "1. OGGETTO",
+      "target": "OGGETTO#0"
+     },
+     {
+      "label": "2. COSTI E CONDIZIONI",
+      "target": "COSTI#0"
+     },
+     {
+      "label": "3. DURATA",
+      "target": "DURATA#0"
+     },
+     {
+      "label": "ALLEGATO A – DETTAGLIO DELL’IMPEGNO",
+      "target": "annex:effort"
+     }
+    ]
+   }
+  },
+  {
+   "name": "no effort annex and no text annex: the deal PDFs start at A and there is no index",
+   "input": {
+    "language": "it",
+    "sections": [
+     {
+      "key": "OGGETTO#0",
+      "heading": "Oggetto",
+      "body": "Testo.\n\n### Primo\nA\n\n### Secondo\nB\n\n- voce\n  - nidificata"
+     },
+     {
+      "key": "COSTI#0",
+      "heading": "Costi e condizioni",
+      "body": "Note."
+     },
+     {
+      "key": "DURATA#0",
+      "heading": "Durata",
+      "body": "### Unico\nx"
+     }
+    ],
+    "annexes": [],
+    "effortAnnex": false,
+    "attachmentNames": [
+     "a.pdf"
+    ]
+   },
+   "expect": {
+    "sections": [
+     {
+      "number": "1",
+      "heading": "1. OGGETTO",
+      "subheadings": [
+       "1.1 PRIMO",
+       "1.2 SECONDO"
+      ],
+      "key": "OGGETTO#0"
+     },
+     {
+      "number": "2",
+      "heading": "2. COSTI E CONDIZIONI",
+      "subheadings": [],
+      "key": "COSTI#0"
+     },
+     {
+      "number": "3",
+      "heading": "3. DURATA",
+      "subheadings": [
+       "3.1 UNICO"
+      ],
+      "key": "DURATA#0"
+     }
+    ],
+    "annexes": [],
+    "effortAnnexLetter": null,
+    "attachmentLetters": [
+     "A"
+    ],
+    "annexList": [
+     "Allegato A - a.pdf"
+    ],
+    "index": null
+   }
+  },
+  {
+   "name": "nothing appended: no list, no index",
+   "input": {
+    "language": "it",
+    "sections": [
+     {
+      "key": "OGGETTO#0",
+      "heading": "Oggetto",
+      "body": "Testo.\n\n### Primo\nA\n\n### Secondo\nB\n\n- voce\n  - nidificata"
+     },
+     {
+      "key": "COSTI#0",
+      "heading": "Costi e condizioni",
+      "body": "Note."
+     },
+     {
+      "key": "DURATA#0",
+      "heading": "Durata",
+      "body": "### Unico\nx"
+     }
+    ],
+    "annexes": [],
+    "effortAnnex": false,
+    "attachmentNames": []
+   },
+   "expect": {
+    "sections": [
+     {
+      "number": "1",
+      "heading": "1. OGGETTO",
+      "subheadings": [
+       "1.1 PRIMO",
+       "1.2 SECONDO"
+      ],
+      "key": "OGGETTO#0"
+     },
+     {
+      "number": "2",
+      "heading": "2. COSTI E CONDIZIONI",
+      "subheadings": [],
+      "key": "COSTI#0"
+     },
+     {
+      "number": "3",
+      "heading": "3. DURATA",
+      "subheadings": [
+       "3.1 UNICO"
+      ],
+      "key": "DURATA#0"
+     }
+    ],
+    "annexes": [],
+    "effortAnnexLetter": null,
+    "attachmentLetters": [],
+    "annexList": [],
+    "index": null
+   }
+  },
+  {
+   "name": "a text annex \"A\": the effort-detail annex is B, the deal PDFs C and D",
+   "input": {
+    "language": "it",
+    "sections": [
+     {
+      "key": "OGGETTO#0",
+      "heading": "Oggetto",
+      "body": "Testo.\n\n### Primo\nA\n\n### Secondo\nB\n\n- voce\n  - nidificata"
+     },
+     {
+      "key": "COSTI#0",
+      "heading": "Costi e condizioni",
+      "body": "Note."
+     },
+     {
+      "key": "DURATA#0",
+      "heading": "Durata",
+      "body": "### Unico\nx"
+     }
+    ],
+    "annexes": [
+     {
+      "designation": "A",
+      "title": "Perimetro funzionale",
+      "sections": []
+     }
+    ],
+    "effortAnnex": true,
+    "attachmentNames": [
+     "a.pdf",
+     "b.pdf"
+    ]
+   },
+   "expect": {
+    "sections": [
+     {
+      "number": "1",
+      "heading": "1. OGGETTO",
+      "subheadings": [
+       "1.1 PRIMO",
+       "1.2 SECONDO"
+      ],
+      "key": "OGGETTO#0"
+     },
+     {
+      "number": "2",
+      "heading": "2. COSTI E CONDIZIONI",
+      "subheadings": [],
+      "key": "COSTI#0"
+     },
+     {
+      "number": "3",
+      "heading": "3. DURATA",
+      "subheadings": [
+       "3.1 UNICO"
+      ],
+      "key": "DURATA#0"
+     }
+    ],
+    "annexes": [
+     {
+      "designation": "A",
+      "heading": "ALLEGATO A – PERIMETRO FUNZIONALE",
+      "sections": []
+     }
+    ],
+    "effortAnnexLetter": "B",
+    "attachmentLetters": [
+     "C",
+     "D"
+    ],
+    "annexList": [
+     "Allegato A - Perimetro funzionale",
+     "Allegato B - Dettaglio dell’impegno",
+     "Allegato C - a.pdf",
+     "Allegato D - b.pdf"
+    ],
+    "index": [
+     {
+      "label": "1. OGGETTO",
+      "target": "OGGETTO#0"
+     },
+     {
+      "label": "2. COSTI E CONDIZIONI",
+      "target": "COSTI#0"
+     },
+     {
+      "label": "3. DURATA",
+      "target": "DURATA#0"
+     },
+     {
+      "label": "ALLEGATO A – PERIMETRO FUNZIONALE",
+      "target": "annex:A"
+     },
+     {
+      "label": "ALLEGATO B – DETTAGLIO DELL’IMPEGNO",
+      "target": "annex:effort"
+     }
+    ]
+   }
+  },
+  {
+   "name": "a text annex \"SLA\" uses no letter: the effort-detail annex is A",
+   "input": {
+    "language": "it",
+    "sections": [
+     {
+      "key": "OGGETTO#0",
+      "heading": "Oggetto",
+      "body": "Testo.\n\n### Primo\nA\n\n### Secondo\nB\n\n- voce\n  - nidificata"
+     },
+     {
+      "key": "COSTI#0",
+      "heading": "Costi e condizioni",
+      "body": "Note."
+     },
+     {
+      "key": "DURATA#0",
+      "heading": "Durata",
+      "body": "### Unico\nx"
+     }
+    ],
+    "annexes": [
+     {
+      "designation": "SLA",
+      "title": "Livelli di servizio",
+      "sections": []
+     }
+    ],
+    "effortAnnex": true,
+    "attachmentNames": [
+     "a.pdf"
+    ]
+   },
+   "expect": {
+    "sections": [
+     {
+      "number": "1",
+      "heading": "1. OGGETTO",
+      "subheadings": [
+       "1.1 PRIMO",
+       "1.2 SECONDO"
+      ],
+      "key": "OGGETTO#0"
+     },
+     {
+      "number": "2",
+      "heading": "2. COSTI E CONDIZIONI",
+      "subheadings": [],
+      "key": "COSTI#0"
+     },
+     {
+      "number": "3",
+      "heading": "3. DURATA",
+      "subheadings": [
+       "3.1 UNICO"
+      ],
+      "key": "DURATA#0"
+     }
+    ],
+    "annexes": [
+     {
+      "designation": "SLA",
+      "heading": "ALLEGATO SLA – LIVELLI DI SERVIZIO",
+      "sections": []
+     }
+    ],
+    "effortAnnexLetter": "A",
+    "attachmentLetters": [
+     "B"
+    ],
+    "annexList": [
+     "Allegato SLA - Livelli di servizio",
+     "Allegato A - Dettaglio dell’impegno",
+     "Allegato B - a.pdf"
+    ],
+    "index": [
+     {
+      "label": "1. OGGETTO",
+      "target": "OGGETTO#0"
+     },
+     {
+      "label": "2. COSTI E CONDIZIONI",
+      "target": "COSTI#0"
+     },
+     {
+      "label": "3. DURATA",
+      "target": "DURATA#0"
+     },
+     {
+      "label": "ALLEGATO SLA – LIVELLI DI SERVIZIO",
+      "target": "annex:SLA"
+     },
+     {
+      "label": "ALLEGATO A – DETTAGLIO DELL’IMPEGNO",
+      "target": "annex:effort"
+     }
+    ]
+   }
+  },
+  {
+   "name": "two text annexes keep the template's order, before the effort-detail annex",
+   "input": {
+    "language": "it",
+    "sections": [
+     {
+      "key": "OGGETTO#0",
+      "heading": "Oggetto",
+      "body": "Testo.\n\n### Primo\nA\n\n### Secondo\nB\n\n- voce\n  - nidificata"
+     },
+     {
+      "key": "COSTI#0",
+      "heading": "Costi e condizioni",
+      "body": "Note."
+     },
+     {
+      "key": "DURATA#0",
+      "heading": "Durata",
+      "body": "### Unico\nx"
+     }
+    ],
+    "annexes": [
+     {
+      "designation": "SLA",
+      "title": "Servizio",
+      "sections": []
+     },
+     {
+      "designation": "DPA",
+      "title": "Dati",
+      "sections": []
+     }
+    ],
+    "effortAnnex": true,
+    "attachmentNames": []
+   },
+   "expect": {
+    "sections": [
+     {
+      "number": "1",
+      "heading": "1. OGGETTO",
+      "subheadings": [
+       "1.1 PRIMO",
+       "1.2 SECONDO"
+      ],
+      "key": "OGGETTO#0"
+     },
+     {
+      "number": "2",
+      "heading": "2. COSTI E CONDIZIONI",
+      "subheadings": [],
+      "key": "COSTI#0"
+     },
+     {
+      "number": "3",
+      "heading": "3. DURATA",
+      "subheadings": [
+       "3.1 UNICO"
+      ],
+      "key": "DURATA#0"
+     }
+    ],
+    "annexes": [
+     {
+      "designation": "SLA",
+      "heading": "ALLEGATO SLA – SERVIZIO",
+      "sections": []
+     },
+     {
+      "designation": "DPA",
+      "heading": "ALLEGATO DPA – DATI",
+      "sections": []
+     }
+    ],
+    "effortAnnexLetter": "A",
+    "attachmentLetters": [],
+    "annexList": [
+     "Allegato SLA - Servizio",
+     "Allegato DPA - Dati",
+     "Allegato A - Dettaglio dell’impegno"
+    ],
+    "index": [
+     {
+      "label": "1. OGGETTO",
+      "target": "OGGETTO#0"
+     },
+     {
+      "label": "2. COSTI E CONDIZIONI",
+      "target": "COSTI#0"
+     },
+     {
+      "label": "3. DURATA",
+      "target": "DURATA#0"
+     },
+     {
+      "label": "ALLEGATO SLA – SERVIZIO",
+      "target": "annex:SLA"
+     },
+     {
+      "label": "ALLEGATO DPA – DATI",
+      "target": "annex:DPA"
+     },
+     {
+      "label": "ALLEGATO A – DETTAGLIO DELL’IMPEGNO",
+      "target": "annex:effort"
+     }
+    ]
+   }
+  },
+  {
+   "name": "letters skip every designation in use",
+   "input": {
+    "language": "it",
+    "sections": [
+     {
+      "key": "OGGETTO#0",
+      "heading": "Oggetto",
+      "body": "Testo.\n\n### Primo\nA\n\n### Secondo\nB\n\n- voce\n  - nidificata"
+     },
+     {
+      "key": "COSTI#0",
+      "heading": "Costi e condizioni",
+      "body": "Note."
+     },
+     {
+      "key": "DURATA#0",
+      "heading": "Durata",
+      "body": "### Unico\nx"
+     }
+    ],
+    "annexes": [
+     {
+      "designation": "B",
+      "title": "Due",
+      "sections": []
+     },
+     {
+      "designation": "A",
+      "title": "Uno",
+      "sections": []
+     },
+     {
+      "designation": "C",
+      "title": "Tre",
+      "sections": []
+     }
+    ],
+    "effortAnnex": true,
+    "attachmentNames": [
+     "a.pdf",
+     "b.pdf"
+    ]
+   },
+   "expect": {
+    "sections": [
+     {
+      "number": "1",
+      "heading": "1. OGGETTO",
+      "subheadings": [
+       "1.1 PRIMO",
+       "1.2 SECONDO"
+      ],
+      "key": "OGGETTO#0"
+     },
+     {
+      "number": "2",
+      "heading": "2. COSTI E CONDIZIONI",
+      "subheadings": [],
+      "key": "COSTI#0"
+     },
+     {
+      "number": "3",
+      "heading": "3. DURATA",
+      "subheadings": [
+       "3.1 UNICO"
+      ],
+      "key": "DURATA#0"
+     }
+    ],
+    "annexes": [
+     {
+      "designation": "B",
+      "heading": "ALLEGATO B – DUE",
+      "sections": []
+     },
+     {
+      "designation": "A",
+      "heading": "ALLEGATO A – UNO",
+      "sections": []
+     },
+     {
+      "designation": "C",
+      "heading": "ALLEGATO C – TRE",
+      "sections": []
+     }
+    ],
+    "effortAnnexLetter": "D",
+    "attachmentLetters": [
+     "E",
+     "F"
+    ],
+    "annexList": [
+     "Allegato B - Due",
+     "Allegato A - Uno",
+     "Allegato C - Tre",
+     "Allegato D - Dettaglio dell’impegno",
+     "Allegato E - a.pdf",
+     "Allegato F - b.pdf"
+    ],
+    "index": [
+     {
+      "label": "1. OGGETTO",
+      "target": "OGGETTO#0"
+     },
+     {
+      "label": "2. COSTI E CONDIZIONI",
+      "target": "COSTI#0"
+     },
+     {
+      "label": "3. DURATA",
+      "target": "DURATA#0"
+     },
+     {
+      "label": "ALLEGATO B – DUE",
+      "target": "annex:B"
+     },
+     {
+      "label": "ALLEGATO A – UNO",
+      "target": "annex:A"
+     },
+     {
+      "label": "ALLEGATO C – TRE",
+      "target": "annex:C"
+     },
+     {
+      "label": "ALLEGATO D – DETTAGLIO DELL’IMPEGNO",
+      "target": "annex:effort"
+     }
+    ]
+   }
+  },
+  {
+   "name": "a text annex with no effort-detail annex: no index, the annex is still listed",
+   "input": {
+    "language": "it",
+    "sections": [
+     {
+      "key": "OGGETTO#0",
+      "heading": "Oggetto",
+      "body": "Testo.\n\n### Primo\nA\n\n### Secondo\nB\n\n- voce\n  - nidificata"
+     },
+     {
+      "key": "COSTI#0",
+      "heading": "Costi e condizioni",
+      "body": "Note."
+     },
+     {
+      "key": "DURATA#0",
+      "heading": "Durata",
+      "body": "### Unico\nx"
+     }
+    ],
+    "annexes": [
+     {
+      "designation": "A",
+      "title": "Perimetro",
+      "sections": []
+     }
+    ],
+    "effortAnnex": false,
+    "attachmentNames": [
+     "a.pdf"
+    ]
+   },
+   "expect": {
+    "sections": [
+     {
+      "number": "1",
+      "heading": "1. OGGETTO",
+      "subheadings": [
+       "1.1 PRIMO",
+       "1.2 SECONDO"
+      ],
+      "key": "OGGETTO#0"
+     },
+     {
+      "number": "2",
+      "heading": "2. COSTI E CONDIZIONI",
+      "subheadings": [],
+      "key": "COSTI#0"
+     },
+     {
+      "number": "3",
+      "heading": "3. DURATA",
+      "subheadings": [
+       "3.1 UNICO"
+      ],
+      "key": "DURATA#0"
+     }
+    ],
+    "annexes": [
+     {
+      "designation": "A",
+      "heading": "ALLEGATO A – PERIMETRO",
+      "sections": []
+     }
+    ],
+    "effortAnnexLetter": null,
+    "attachmentLetters": [
+     "B"
+    ],
+    "annexList": [
+     "Allegato A - Perimetro",
+     "Allegato B - a.pdf"
+    ],
+    "index": null
+   }
+  },
+  {
+   "name": "annex sections are numbered within the annex, with their own sub-headings",
+   "input": {
+    "language": "it",
+    "sections": [
+     {
+      "key": "OGGETTO#0",
+      "heading": "Oggetto",
+      "body": "Testo.\n\n### Primo\nA\n\n### Secondo\nB\n\n- voce\n  - nidificata"
+     },
+     {
+      "key": "COSTI#0",
+      "heading": "Costi e condizioni",
+      "body": "Note."
+     },
+     {
+      "key": "DURATA#0",
+      "heading": "Durata",
+      "body": "### Unico\nx"
+     }
+    ],
+    "annexes": [
+     {
+      "designation": "SLA",
+      "title": "Servizio",
+      "sections": [
+       {
+        "key": "PARTE#3",
+        "heading": "Disponibilità",
+        "body": "### Orari\nx\n\n### Eccezioni\ny"
+       },
+       {
+        "key": "PENALI#4",
+        "heading": "Penali",
+        "body": "Testo"
+       }
+      ]
+     }
+    ],
+    "effortAnnex": false,
+    "attachmentNames": []
+   },
+   "expect": {
+    "sections": [
+     {
+      "number": "1",
+      "heading": "1. OGGETTO",
+      "subheadings": [
+       "1.1 PRIMO",
+       "1.2 SECONDO"
+      ],
+      "key": "OGGETTO#0"
+     },
+     {
+      "number": "2",
+      "heading": "2. COSTI E CONDIZIONI",
+      "subheadings": [],
+      "key": "COSTI#0"
+     },
+     {
+      "number": "3",
+      "heading": "3. DURATA",
+      "subheadings": [
+       "3.1 UNICO"
+      ],
+      "key": "DURATA#0"
+     }
+    ],
+    "annexes": [
+     {
+      "designation": "SLA",
+      "heading": "ALLEGATO SLA – SERVIZIO",
+      "sections": [
+       {
+        "key": "PARTE#3",
+        "number": "1",
+        "heading": "1. DISPONIBILITÀ",
+        "subheadings": [
+         "1.1 ORARI",
+         "1.2 ECCEZIONI"
+        ]
+       },
+       {
+        "key": "PENALI#4",
+        "number": "2",
+        "heading": "2. PENALI",
+        "subheadings": []
+       }
+      ]
+     }
+    ],
+    "effortAnnexLetter": null,
+    "attachmentLetters": [],
+    "annexList": [
+     "Allegato SLA - Servizio"
+    ],
+    "index": null
+   }
+  },
+  {
+   "name": "an English offer uses the English words",
+   "input": {
+    "language": "en",
+    "sections": [
+     {
+      "key": "OGGETTO#0",
+      "heading": "Oggetto",
+      "body": "Testo.\n\n### Primo\nA\n\n### Secondo\nB\n\n- voce\n  - nidificata"
+     },
+     {
+      "key": "COSTI#0",
+      "heading": "Costi e condizioni",
+      "body": "Note."
+     },
+     {
+      "key": "DURATA#0",
+      "heading": "Durata",
+      "body": "### Unico\nx"
+     }
+    ],
+    "annexes": [
+     {
+      "designation": "SLA",
+      "title": "Service",
+      "sections": []
+     }
+    ],
+    "effortAnnex": true,
+    "attachmentNames": [
+     "a.pdf"
+    ]
+   },
+   "expect": {
+    "sections": [
+     {
+      "number": "1",
+      "heading": "1. OGGETTO",
+      "subheadings": [
+       "1.1 PRIMO",
+       "1.2 SECONDO"
+      ],
+      "key": "OGGETTO#0"
+     },
+     {
+      "number": "2",
+      "heading": "2. COSTI E CONDIZIONI",
+      "subheadings": [],
+      "key": "COSTI#0"
+     },
+     {
+      "number": "3",
+      "heading": "3. DURATA",
+      "subheadings": [
+       "3.1 UNICO"
+      ],
+      "key": "DURATA#0"
+     }
+    ],
+    "annexes": [
+     {
+      "designation": "SLA",
+      "heading": "ANNEX SLA – SERVICE",
+      "sections": []
+     }
+    ],
+    "effortAnnexLetter": "A",
+    "attachmentLetters": [
+     "B"
+    ],
+    "annexList": [
+     "Annex SLA - Service",
+     "Annex A - Effort detail",
+     "Annex B - a.pdf"
+    ],
+    "index": [
+     {
+      "label": "1. OGGETTO",
+      "target": "OGGETTO#0"
+     },
+     {
+      "label": "2. COSTI E CONDIZIONI",
+      "target": "COSTI#0"
+     },
+     {
+      "label": "3. DURATA",
+      "target": "DURATA#0"
+     },
+     {
+      "label": "ANNEX SLA – SERVICE",
+      "target": "annex:SLA"
+     },
+     {
+      "label": "ANNEX A – EFFORT DETAIL",
+      "target": "annex:effort"
+     }
+    ]
+   }
+  }
+ ]
+}

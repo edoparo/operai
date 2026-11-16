@@ -1,9 +1,16 @@
 /**
  * Checks an uploaded letterhead (specs/20261102-crm-offer-document AC-2.5): a PDF pdf-lib can read, with
  * exactly one A4 page. Pure: bytes in, verdict out.
+ *
+ * The decoded-size bound runs FIRST, before pdf-lib reads a byte (specs/20261115-crm-offer-wizard DD-74, security
+ * M-4): a deflate bomb passes every other check here and then freezes the browser that previews it. The work of DRAWING
+ * the page (forms that call forms, and what each operator costs to paint) is bounded once the file is known to load (security M-6,
+ * QE D23, formGraph.ts).
  */
 
 import { PDFDocument } from "pdf-lib";
+import { boundFormGraph } from "./formGraph";
+import { boundPdf, type BoundsReason } from "./pdfBounds";
 
 /** A4 in points, and how far a page may stray from it (printers and exporters round). */
 export const A4_WIDTH = 595.28;
@@ -12,14 +19,25 @@ export const A4_TOLERANCE = 2;
 
 export type LetterheadVerdict =
   | { readonly ok: true }
-  | { readonly ok: false; readonly reason: "not_pdf" | "page_count" | "not_a4" | "unembeddable" };
+  | {
+      readonly ok: false;
+      readonly reason: "not_pdf" | "page_count" | "not_a4" | "unembeddable" | BoundsReason;
+      /**
+       * The refusal is what an exception made of the check (pdf-lib failed to load or embed), not a finding about the
+       * file: memory pressure while another request inflates a bomb looks the same. It is reported for this request and
+       * never remembered (security I-11, letterheadUse.ts).
+       */
+      readonly fromException?: true;
+    };
 
 export async function checkLetterhead(bytes: Uint8Array): Promise<LetterheadVerdict> {
+  const bounds = await boundPdf(bytes);
+  if (!bounds.ok) return { ok: false, reason: bounds.reason };
   let doc: PDFDocument;
   try {
     doc = await PDFDocument.load(bytes, { updateMetadata: false });
   } catch {
-    return { ok: false, reason: "not_pdf" };
+    return { ok: false, reason: "not_pdf", fromException: true };
   }
   if (doc.getPageCount() !== 1) return { ok: false, reason: "page_count" };
   const page = doc.getPage(0);
@@ -28,6 +46,10 @@ export async function checkLetterhead(bytes: Uint8Array): Promise<LetterheadVerd
   if (page.getRotation().angle % 180 !== 0) [width, height] = [height, width];
   const near = (value: number, target: number) => Math.abs(value - target) <= A4_TOLERANCE;
   if (!(near(width, A4_WIDTH) && near(height, A4_HEIGHT))) return { ok: false, reason: "not_a4" };
+  // How much drawing the page makes the reader do: forms that call forms are bytes of nothing and millions of operators, and one
+  // shading painted 10 000 times is 50 seconds of a viewer's tab (security M-6, QE D23: formGraph.ts prices the drawing).
+  const graph = boundFormGraph(doc);
+  if (!graph.ok) return graph.fromException ? { ok: false, reason: graph.reason, fromException: true } : { ok: false, reason: graph.reason };
   // The renderer draws it as a background on every page: a page it cannot embed
   // (no content stream, say) would fail every offer, so refuse it here.
   try {
@@ -36,7 +58,7 @@ export async function checkLetterhead(bytes: Uint8Array): Promise<LetterheadVerd
     await scratch.embedPdf(bytes);
     await scratch.save();
   } catch {
-    return { ok: false, reason: "unembeddable" };
+    return { ok: false, reason: "unembeddable", fromException: true };
   }
   return { ok: true };
 }

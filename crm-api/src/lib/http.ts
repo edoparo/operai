@@ -114,20 +114,39 @@ export const PersonRefSchema = z.object({
   status: z.enum(["active", "deleted", "unknown", "system"]),
 });
 
-export const IdParams = z.object({ id: z.string().min(1).max(64) });
+/**
+ * Postgres text cannot hold U+0000: an id or a filter with one that reached a `findUnique`, a `where` or an insert was a
+ * driver error, a 500 and a raw message in the log (QE D7 for a path id, QE D9 for every other id and filter). It is a
+ * shape error at the schema instead — no id has one, and a search text with one matches nothing — and it is the ONE
+ * mechanism: every string id or filter a route hands to Prisma (or to another service) is `idText` or `searchText`.
+ */
+export const hasNoNul = (value: string): boolean => !value.includes("\u0000");
+export const NO_NUL_ID = "Not an id: contains a NUL character";
+export const NO_NUL_TEXT = "Not text: contains a NUL character";
 
-/** Optional free text: trimmed, empty → null, `null` clears (PATCH). */
+/** A string id, 1 to `max` characters by default (`min` 0 for an optional filter); never a NUL. */
+export const idText = (max = 64, min = 1) => z.string().min(min).max(max).refine(hasNoNul, NO_NUL_ID);
+
+/** A search text of at most `max` characters; never a NUL. */
+export const searchText = (max: number) => z.string().max(max).refine(hasNoNul, NO_NUL_TEXT);
+
+export const IdParams = z.object({ id: idText() });
+
+/** Optional free text: trimmed, empty → null, `null` clears (PATCH). Never a NUL (security L-8). */
 export const optionalText = (max: number) =>
   z
     .string()
     .max(max)
+    .refine(hasNoNul, NO_NUL_TEXT)
     .transform((v) => (v.trim() === "" ? null : v.trim()))
     .nullable()
     .optional();
 
+/** Required free text, trimmed, 1 to `max` characters. Never a NUL (security L-8). */
 export const requiredText = (max: number) =>
   z
     .string()
+    .refine(hasNoNul, NO_NUL_TEXT)
     .transform((v) => v.trim())
     .pipe(z.string().min(1, "Required").max(max));
 

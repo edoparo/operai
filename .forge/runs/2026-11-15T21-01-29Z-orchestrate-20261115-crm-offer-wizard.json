@@ -1,0 +1,275 @@
+{
+  "schema": "wellforge-run/v3",
+  "plugin_version": "2.63.1",
+  "run_id": "2026-11-15T21-01-29Z-orchestrate-20261115-crm-offer-wizard",
+  "command": "orchestrate",
+  "feature": "20261115-crm-offer-wizard",
+  "rigor": "production",
+  "rigor_recorded": null,
+  "started": "2026-11-15T08:30:00Z",
+  "finished": "2026-11-15T23:58:42Z",
+  "agents": [
+    {
+      "agent": "backend-dev",
+      "tasks": [
+        "fix-round-3 D9 D10 D11"
+      ],
+      "outcome": "completed"
+    },
+    {
+      "agent": "frontend-dev",
+      "tasks": [
+        "owner D12 D13 D19 D20",
+        "QE D14-D18 D21 D22 D24 F1 F2"
+      ],
+      "outcome": "completed"
+    },
+    {
+      "agent": "product-owner",
+      "tasks": [
+        "OA-1 OA-2 OA-3 OA-4 and delegated rewordings"
+      ],
+      "outcome": "completed"
+    },
+    {
+      "agent": "architect",
+      "tasks": [
+        "plan amendments DD-53..DD-79"
+      ],
+      "outcome": "completed"
+    },
+    {
+      "agent": "designer",
+      "tasks": [
+        "design D-22..D-42"
+      ],
+      "outcome": "completed"
+    },
+    {
+      "agent": "frontend-dev",
+      "tasks": [
+        "T59",
+        "T64",
+        "T65",
+        "T66",
+        "T67",
+        "T72",
+        "T73",
+        "T74",
+        "T75"
+      ],
+      "outcome": "completed"
+    },
+    {
+      "agent": "backend-dev",
+      "tasks": [
+        "T60",
+        "T61",
+        "T62",
+        "T63",
+        "T69",
+        "T70",
+        "T71"
+      ],
+      "outcome": "completed"
+    },
+    {
+      "agent": "backend-dev",
+      "tasks": [
+        "security L-7 I-7 I-8 M-5 M-6 M-7 L-8 I-11 D23 M-10 M-11"
+      ],
+      "outcome": "completed"
+    },
+    {
+      "agent": "frontend-dev",
+      "tasks": [
+        "security M-3 L-6 L-9 annotations"
+      ],
+      "outcome": "completed"
+    },
+    {
+      "agent": "adr-writer",
+      "tasks": [
+        "T68",
+        "T76"
+      ],
+      "outcome": "completed"
+    },
+    {
+      "agent": "owasp-reviewer",
+      "outcome": "PASS WITH NOTES (rounds 4-8; round 8 closure cdbabc12)"
+    },
+    {
+      "agent": "quality-engineer",
+      "outcome": "PASS (round 8, 329694cf: B5 green)"
+    },
+    {
+      "agent": "quality-engineer",
+      "outcome": "PASS (rounds 9-11; 36ef5e12)"
+    },
+    {
+      "agent": "owasp-reviewer",
+      "outcome": "PASS WITH NOTES (rounds 9-11; 7fcf041e)"
+    },
+    {
+      "agent": "evaluator",
+      "outcome": "FAIL 74.8 (round 1, d5d58dd7)"
+    },
+    {
+      "agent": "evaluator",
+      "outcome": "FAIL 78.3 (round 2, 9ceaccaa)"
+    },
+    {
+      "agent": "evaluator",
+      "outcome": "PASS",
+      "score": 80.0
+    }
+  ],
+  "drift_events": [
+    {
+      "agent": "owner",
+      "artifact": "spec.md",
+      "summary": "US-11 letterhead behind the preview and US-12 issuer name/address from the profile (53 -> 75 ACs)",
+      "resolved": true
+    },
+    {
+      "agent": "owner",
+      "artifact": "spec.md",
+      "summary": "OA-3 real A4 pages (75 -> 79 ACs)",
+      "resolved": true
+    },
+    {
+      "agent": "owner",
+      "artifact": "spec.md",
+      "summary": "OA-4 page numbers in the preview; letterhead configurator as a separate service next",
+      "resolved": true
+    },
+    {
+      "agent": "owner",
+      "artifact": "decisions.md",
+      "summary": "D19 layout choice reversed by D20 (independent scroll panes)",
+      "resolved": true
+    }
+  ],
+  "collision_events": [],
+  "env_faults": [
+    {
+      "agent": "quality-engineer",
+      "class": "external service config",
+      "detail": "estimai-api lacks CRM_INTERNAL_URL / estimate-notices.send: estimate-ready states unverifiable (B5), rounds 4-7",
+      "resolved_by": "owner set CRM_INTERNAL_URL + estimate-notices.send and restarted estimai-api"
+    },
+    {
+      "agent": "orchestrator",
+      "class": "dev server",
+      "detail": "crm-api bun --hot kept a stale Prisma client / dropped sockets on Generate",
+      "resolved_by": "owner restarted crm-api"
+    },
+    {
+      "agent": "orchestrator",
+      "class": "dev db",
+      "detail": "activities dev DB missing a main migration",
+      "resolved_by": "db:deploy on owner's instruction"
+    }
+  ],
+  "verdicts": {
+    "qe": "PASS",
+    "security": "PASS",
+    "eval": "PASS"
+  },
+  "fix_rounds": {
+    "used": 10,
+    "cap": 2,
+    "extensions": [
+      {
+        "round": 3,
+        "granted": "2026-11-15",
+        "defects": [
+          "D9",
+          "D10",
+          "D11"
+        ]
+      },
+      {
+        "round": 4,
+        "granted": "2026-11-15",
+        "defects": [
+          "D12",
+          "D13"
+        ]
+      },
+      {
+        "round": 5,
+        "granted": "2026-11-15",
+        "defects": [
+          "D14",
+          "D15",
+          "D16",
+          "D17",
+          "D18",
+          "D19"
+        ]
+      },
+      {
+        "round": 6,
+        "granted": "2026-11-15",
+        "defects": [
+          "D20",
+          "D21",
+          "D22",
+          "D23",
+          "D24"
+        ]
+      },
+      {
+        "round": 7,
+        "granted": "2026-11-15",
+        "defects": [
+          "F1",
+          "F2",
+          "F3"
+        ]
+      },
+      {
+        "round": 8,
+        "granted": "2026-11-15",
+        "defects": [
+          "security M-3..M-11, L-6..L-9"
+        ]
+      },
+      {
+        "round": 9,
+        "granted": "2026-11-15",
+        "defects": [
+          "eval: L-10, offers/pdf.ts coverage, H1 flake"
+        ]
+      },
+      {
+        "round": 10,
+        "granted": "2026-11-16",
+        "defects": [
+          "QE D1",
+          "security L-11",
+          "security M-12 + isolation"
+        ]
+      }
+    ]
+  },
+  "security": {
+    "matched_rules": [
+      "always_at_tier:production"
+    ],
+    "dispatched": true,
+    "notes": [
+      "M-8/M-9 owner-accepted residual (preview and generated offer PDFs; insider-only) until the letterhead configurator",
+      "I-17..I-19",
+      "L-12..L-15, I-22, I-23 follow-ups (round 11)",
+      "L-10 closed (round 9)"
+    ]
+  },
+  "result": "completed",
+  "tokens": null,
+  "cost_usd": null,
+  "terse": false,
+  "control_run_id": null
+}

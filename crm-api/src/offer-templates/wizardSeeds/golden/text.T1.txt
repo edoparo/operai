@@ -1,0 +1,122 @@
+Spettabile / Alpina Energia SA / Via Cantonale 12 / 6900 Lugano / Svizzera
+A.c.a. Marta Rossi
+Lugano, 15.11.2026
+CONTRATTO DI FORNITURA – Rif. 0042/2026r1
+Con riferimento alle discussioni intercorse, abbiamo il piacere di sottoporVi la nostra migliore offerta per la fornitura in oggetto.
+Il presente contratto viene stipulato tra WellD Sagl, di seguito denominata «Fornitore», e Alpina Energia SA, di seguito denominato «Cliente».
+1. DEFINIZIONI
+A corpo: attività svolta dal Fornitore presso la propria sede o luogo da esso gestito e fatturata sulla base del rilascio di un prodotto o servizio.
+A regia: attività svolta dal Fornitore su richiesta scritta del Cliente e fatturata sulla base del tempo effettivamente impiegato.
+Collaudo: verifica, da parte del Cliente, che quanto consegnato corrisponda a quanto descritto nel par. 2 e nell'Allegato A.
+Change Request: richiesta di nuove funzionalità o di modifica dei requisiti rispetto a quanto descritto nel par. 2 e nell'Allegato A.
+2. OGGETTO DELLA FORNITURA
+Oggetto della fornitura è la progettazione e lo sviluppo dell'app mobile «Alpina Clienti»: Un'app per consultare consumi e fatture / e aprire segnalazioni. La fornitura comprende:
+- Login e profilo
+- Consumi e fatture
+- Segnalazioni guasti
+Il perimetro funzionale e le stime sono dettagliati nell'Allegato A, parte integrante del presente contratto.
+Le seguenti funzionalità non sono comprese nella presente fornitura e potranno essere sviluppate in una fase successiva, con stima dedicata: Pagamento in app e notifiche push personalizzate.
+3. ATTIVITÀ E TEMPISTICHE
+Per la realizzazione di quanto in oggetto il Fornitore condurrà le seguenti attività:
+- Analisi e disegno
+- Sviluppo
+- Collaudo e rilascio
+Durata prevista: 5 mesi dall'inizio dei lavori. Tale stima è soggetta a variazioni in corso d'opera, fermo restando che al Cliente è garantita evidenza periodica dello stato di avanzamento dei lavori.
+4. CONDIZIONI DI FORNITURA
+La fornitura è da intendersi a corpo. Le attività si svolgeranno di norma presso la sede del Fornitore e, per le attività di coordinamento, presso la sede indicata dal Cliente.
+Le licenze di software specifici, da concordarsi preventivamente, sono a carico del Cliente.
+La fornitura esclude quanto non esplicitamente dichiarato nel par. 2 e nell'Allegato A.
+4.1 Trasferte
+I costi riportati al par. 6 includono le trasferte in Canton Ticino, Svizzera. Eventuali altre trasferte, approvate per iscritto dal Cliente, saranno esposte a rimborso unitamente ai giustificativi di spesa.
+4.2 Collaudo e accettazione
+Il Fornitore rende disponibile quanto realizzato in un ambiente di prova. Il Cliente lo verifica entro 10 giorni lavorativi e segnala le eventuali anomalie in un'unica lista, distinguendo tra:
+- non conformità: quanto previsto dal par. 2 e dall'Allegato A che manca o non funziona;
+- nuove richieste: quanto non previsto, gestito come Change Request (par. 4.3).
+Il Fornitore corregge le non conformità e ripresenta la consegna. A verifica conclusa le Parti sottoscrivono il verbale di collaudo, anche per posta elettronica: è il momento dell'accettazione. In assenza di riscontro del Cliente entro 10 giorni lavorativi dalla messa a disposizione, la consegna si intende accettata.
+Nei progetti articolati in più fasi il collaudo avviene al termine di ciascuna fase.
+4.3 Change Request
+Le richieste che escono dal perimetro descritto nel par. 2 e nell'Allegato A sono segnalate dal Fornitore prima di procedere. Il Cliente può scegliere tra:
+a. richiedere una stima e una quotazione separata;
+b. riconoscere per iscritto i tempi di intervento preventivati, alla tariffa a regia di 140.- CHF/ora oltre IVA.
+In assenza di approvazione scritta la richiesta resta sospesa.
+4.4 Collaborazione del Cliente
+Il rispetto delle tempistiche del par. 3 presuppone che il Cliente:
+- designi un referente unico con potere di approvazione;
+- fornisca i materiali, i dati e gli accessi necessari: Accesso al sistema di fatturazione di test e alle linee guida grafiche del Cliente;
+- dia riscontro alle consegne intermedie entro 5 giorni lavorativi.
+I ritardi dovuti al mancato rispetto di questi punti si riflettono sulle tempistiche del par. 3.
+4.5 Infrastruttura
+I costi dell'infrastruttura di produzione (hosting, domini, certificati, servizi di terzi) sono a carico del Cliente e non sono inclusi nei costi del par. 6. Il Fornitore mette a disposizione un ambiente di pre-produzione per la durata dello sviluppo.
+4.6 Sistemi di Intelligenza Artificiale
+I costi di utilizzo dei sistemi di Intelligenza Artificiale di terzi impiegati dalla soluzione (modelli, token, servizi cloud dedicati) sono a carico del Cliente e non sono inclusi nei costi del par. 6.
+5. RISORSE, GARANZIA, MANUTENZIONE
+5.1 Risorse
+Le risorse tecniche allocate dal Fornitore hanno competenze e qualifiche adeguate allo svolgimento delle attività assegnate. Le risorse possono variare nel corso della fornitura.
+5.2 Garanzia
+Quanto sviluppato con la presente fornitura è rilasciato con un periodo di garanzia di 6 mesi dalla data di primo rilascio in produzione. La garanzia copre la risoluzione di difetti (bug) applicativi rispetto a quanto collaudato e non prevede uno specifico Service Level Agreement.
+Gli interventi successivi alla messa in produzione, richiesti per iscritto dal Cliente e fuori dal perimetro di garanzia o da uno specifico contratto di manutenzione, sono fatturati alla tariffa a regia di 140.- CHF/ora oltre IVA oppure sono oggetto di nuova offerta.
+5.3 Manutenzione
+La manutenzione successiva alla messa in produzione è regolata da un contratto separato (Service Level Agreement).
+6. COSTI
+| Pos. | Voce di costo | CHF / unità | Qt. | Totale CHF |
+| 1 | la progettazione e lo sviluppo dell'app mobile «Alpina Clienti», secondo quanto al par. 2, a corpo | 48'000.- | 1 | 48'000.- |
+| 2 | Fase 2 – integrazioni, a corpo | 12'500.50 | 1 | 12'500.50 |
+| 3 | Licenze librerie grafiche | 450.- | 2 | 900.- |
+|  | Scontistica accordata |  |  | – 2'500.- |
+|  | TOTALE |  |  | 58'900.50 |
+| 4 | □ Modulo reportistica (barrare se desiderata) | 3'900.- | 1 | 3'900.- |
+Note:
+- I costi si intendono IVA esclusa.
+- Le voci contrassegnate con □ non sono comprese nel totale.
+7. VALIDITÀ DELL'OFFERTA
+La presente offerta è valida per 45 giorni solari.
+8. FATTURAZIONE
+La fatturazione avviene in base al seguente piano:
+- 30% acconto a inizio lavori;
+- 30% in 6 rate mensili dalla fine del mese di inizio lavori;
+- 40% alla consegna, previo collaudo.
+Le fatture di acconto sono pagabili a vista, le restanti a 30 giorni data fattura.
+9. CONDIZIONI GENERALI
+In aggiunta a quanto sopra specificato, valgono le seguenti Condizioni Generali di fornitura.
+9.1 Limitazione di responsabilità
+Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite. Le responsabilità del Fornitore e delle sue risorse sono limitate all'esecuzione della fornitura in oggetto, che viene portata avanti a regola d'arte e in conformità con le specifiche concordate con il Cliente.
+9.2 Legislazione del lavoro
+Il personale del Fornitore opera nel pieno rispetto della legislazione del lavoro. Qualora il Cliente necessitasse di documentazione in merito, sarà cura del Fornitore presentarla.
+9.3 Riservatezza e proprietà
+Il Fornitore si impegna a mantenere la massima riservatezza per quanto concerne l'uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto di fornitura.
+I diritti di proprietà, inclusi i diritti di proprietà intellettuale, siano essi registrabili o meno, di tutto quello che verrà sviluppato secondo il presente contratto apparterranno al Cliente.
+Il Fornitore garantisce che quanto fornito in esecuzione del presente accordo non viola diritti di proprietà intellettuale o industriale di terzi.
+9.4 Privacy e trattamento dei dati personali
+Il Cliente e il Fornitore si fanno entrambi garanti del rispetto delle norme vigenti sulla Privacy. Il Cliente è autorizzato a comunicare a terzi i dati del Fornitore per operazioni legate alla fornitura in oggetto. All'accettazione del presente contratto il Cliente accetta egualmente la politica sulla Privacy di WellD Sagl, la cui documentazione integrale viene fornita su richiesta o allegata.
+9.5 Foro competente
+Per qualsiasi controversia che dovesse sorgere in relazione al presente contratto di fornitura, il foro competente è quello di Lugano (Svizzera).
+9.6 Clausola di inefficacia
+Nell'eventualità in cui una qualsiasi clausola del presente contratto dovesse in seguito risultare inefficace per un qualsiasi motivo giuridico, ciò non inficerà la validità delle restanti clausole. In luogo della norma inefficace si considererà come voluta e dichiarata quella regolamentazione giuridicamente valida che maggiormente si avvicinerà al senso e allo scopo della clausola inefficace e del contratto nel suo insieme, tenendo in considerazione la buona fede, l'usanza commerciale nonché gli usi e i costumi del settore. Eventuali lacune contrattuali saranno trattate analogamente.
+Per accettazione / Il Cliente
+Luogo e data:
+Firma valida del Cliente:
+Allegati: Allegato A — Perimetro funzionale e stime
+ALLEGATO A — PERIMETRO FUNZIONALE E STIME
+0042/2026r1
+Il presente allegato integra il par. 2 del contratto di fornitura Rif. 0042/2026r1. Per il contenuto della fornitura e la sua accettazione fa fede il presente allegato; per tutto il resto fa fede il contratto.
+1. Che cosa viene consegnato
+| Funzionalità o deliverable | Descrizione | Criterio di accettazione |
+| Login e profilo | Accesso con credenziali e SSO | Accesso riuscito in meno di 3 secondi |
+| Consumi e fatture | Elenco e dettaglio degli ultimi 24 mesi | Dati coerenti con il sistema di fatturazione |
+| Segnalazioni guasti | Apertura di una segnalazione con foto | Segnalazione visibile al servizio clienti |
+2. Stime
+| Attività | Profilo | Giorni/uomo |
+| Analisi e disegno | Business analyst | 12 |
+| Sviluppo app | Sviluppatore mobile | 46.5 |
+| Collaudo | QA engineer | 9 |
+| Totale |  | 67.5 |
+3. Requisiti tecnici
+- Piattaforme, browser e dispositivi supportati: iOS 17+, Android 14+
+- Integrazioni con sistemi di terzi: Sistema di fatturazione SAP, servizio di autenticazione del Cliente
+- Ambienti: sviluppo, test, produzione
+4. Non incluso
+- Gestione dei contenuti editoriali
+- Migrazione dei dati storici
+5. Responsabilità
+| A carico del Fornitore | A carico del Cliente |
+| Analisi, sviluppo, test, rilascio negli store. | Contenuti, account sviluppatore degli store, accessi ai sistemi. |

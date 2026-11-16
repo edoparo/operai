@@ -1,0 +1,131 @@
+{
+  "_doc": "Shared vectors of the offer markup (specs/20261115-crm-offer-wizard T2): run by crm-api and its crm-ui copy. A run is a string (plain) or {t, b, i, u, mark}; U+E000..U+E001 = missing marker run, U+E002..U+E003 = pending marker run.",
+  "inline": [
+    { "name": "escaped opening bracket", "source": "\\[NAME]", "runs": ["[NAME]"] },
+    { "name": "escaped asterisks are literal, not italic", "source": "\\*not italic\\*", "runs": ["*not italic*"] },
+    { "name": "escaped underscores are literal, not underlined", "source": "\\_\\_not underlined\\_\\_", "runs": ["__not underlined__"] },
+    { "name": "escaped pipe", "source": "a \\| b", "runs": ["a | b"] },
+    { "name": "escaped braces", "source": "\\{\\{x::y}}", "runs": ["{{x::y}}"] },
+    { "name": "escaped backslash", "source": "a \\\\ b", "runs": ["a \\ b"] },
+    { "name": "an escaped backslash does not escape the next character", "source": "\\\\*x*", "runs": ["\\", { "t": "x", "i": true }] },
+    { "name": "an unknown escape stays literal", "source": "a \\q b \\] c", "runs": ["a \\q b \\] c"] },
+    { "name": "a trailing backslash stays literal", "source": "abc\\", "runs": ["abc\\"] },
+    { "name": "an escape inside bold", "source": "**bold \\* star**", "runs": [{ "t": "bold * star", "b": true }] },
+    { "name": "an escaped marker does not pair with a real one", "source": "\\**x*", "runs": ["*", { "t": "x", "i": true }] },
+    { "name": "legacy text without a backslash parses as before", "source": "a **b** *c* __d__ e", "runs": ["a ", { "t": "b", "b": true }, " ", { "t": "c", "i": true }, " ", { "t": "d", "u": true }, " e"] },
+    { "name": "a missing marker run", "source": "Dear \ue000Client name\ue001, hello", "runs": ["Dear ", { "t": "Client name", "mark": "missing" }, ", hello"] },
+    { "name": "a pending marker run", "source": "Ref. \ue002assigned when generated\ue003.", "runs": ["Ref. ", { "t": "assigned when generated", "mark": "pending" }, "."] },
+    { "name": "an empty marker run is kept", "source": "a\ue000\ue001b", "runs": ["a", { "t": "", "mark": "missing" }, "b"] },
+    { "name": "a marker run inside bold keeps the emphasis", "source": "**\ue000Label\ue001**", "runs": [{ "t": "Label", "b": true, "mark": "missing" }] },
+    { "name": "marker content is literal", "source": "\ue000a*b*c \\* d\ue001", "runs": [{ "t": "a*b*c \\* d", "mark": "missing" }] },
+    { "name": "two adjacent marker runs of both kinds", "source": "\ue000A\ue001\ue002B\ue003", "runs": [{ "t": "A", "mark": "missing" }, { "t": "B", "mark": "pending" }] },
+    { "name": "a stray marker character is dropped", "source": "x\ue000y\ue003z", "runs": [], "joined": "xyz" }
+  ],
+  "markup": [
+    {
+      "name": "a backslash before a bullet marker makes a paragraph",
+      "source": "\\- not a bullet",
+      "blocks": [{ "type": "paragraph", "runs": ["- not a bullet"] }]
+    },
+    {
+      "name": "a backslash before a bullet dot marker",
+      "source": "\\• not a bullet",
+      "blocks": [{ "type": "paragraph", "runs": ["• not a bullet"] }]
+    },
+    {
+      "name": "a backslash before an ordered marker",
+      "source": "\\1. not a list\n\n\\a. nor this",
+      "blocks": [
+        { "type": "paragraph", "runs": ["1. not a list"] },
+        { "type": "paragraph", "runs": ["a. nor this"] }
+      ]
+    },
+    {
+      "name": "a backslash before ###",
+      "source": "\\### not a heading",
+      "blocks": [{ "type": "paragraph", "runs": ["### not a heading"] }]
+    },
+    {
+      "name": "a backslash before a table line",
+      "source": "\\| not a table |",
+      "blocks": [{ "type": "paragraph", "runs": ["| not a table |"] }]
+    },
+    {
+      "name": "an escaped line start inside a paragraph is a line break, not a list",
+      "source": "first\n\\- second",
+      "blocks": [{ "type": "paragraph", "runs": ["first\n- second"] }]
+    },
+    {
+      "name": "an escaped line start continues a list item",
+      "source": "- x\n\\- y",
+      "blocks": [{ "type": "list", "ordered": false, "items": [{ "marker": "•", "runs": ["x", "\n- y"], "children": [] }] }]
+    },
+    {
+      "name": "an unescaped line start is still a list",
+      "source": "- x\n- y",
+      "blocks": [{ "type": "list", "ordered": false, "items": [{ "marker": "•", "runs": ["x"], "children": [] }, { "marker": "•", "runs": ["y"], "children": [] }] }]
+    },
+    {
+      "name": "an escaped pipe does not split a table cell",
+      "source": "| a \\| b | c |\n| 1 \\| 2 | 3 |",
+      "blocks": [
+        {
+          "type": "table",
+          "header": [[{ "bullet": false, "runs": ["a | b"] }], [{ "bullet": false, "runs": ["c"] }]],
+          "rows": [[[{ "bullet": false, "runs": ["1 | 2"] }], [{ "bullet": false, "runs": ["3"] }]]]
+        }
+      ]
+    },
+    {
+      "name": "a table row whose last pipe is escaped is not a table line",
+      "source": "| a | b \\|",
+      "blocks": [{ "type": "paragraph", "runs": ["| a | b |"] }]
+    },
+    {
+      "name": "an escaped bullet marker inside a cell is text",
+      "source": "| h |\n| \\- x |",
+      "blocks": [
+        {
+          "type": "table",
+          "header": [[{ "bullet": false, "runs": ["h"] }]],
+          "rows": [[[{ "bullet": false, "runs": ["- x"] }]]]
+        }
+      ]
+    },
+    {
+      "name": "a cell bullet is still a bullet",
+      "source": "| h |\n| - x |",
+      "blocks": [
+        {
+          "type": "table",
+          "header": [[{ "bullet": false, "runs": ["h"] }]],
+          "rows": [[[{ "bullet": true, "runs": ["x"] }]]]
+        }
+      ]
+    },
+    {
+      "name": "a pipe inside a marker run does not split a cell",
+      "source": "| h |\n| \ue000A | B\ue001 |",
+      "blocks": [
+        {
+          "type": "table",
+          "header": [[{ "bullet": false, "runs": ["h"] }]],
+          "rows": [[[{ "bullet": false, "runs": [{ "t": "A | B", "mark": "missing" }] }]]]
+        }
+      ]
+    },
+    {
+      "name": "a marker run in a paragraph and in a heading",
+      "source": "Hello \ue000Name\ue001\n\n### Terms \ue000X\ue001",
+      "blocks": [
+        { "type": "paragraph", "runs": ["Hello ", { "t": "Name", "mark": "missing" }] },
+        { "type": "heading", "text": "Terms X" }
+      ]
+    },
+    {
+      "name": "an escaped answer cannot start a block",
+      "source": "\\### Pwned\n\\- x\n\\1. y",
+      "blocks": [{ "type": "paragraph", "runs": ["### Pwned\n- x\n1. y"] }]
+    }
+  ]
+}

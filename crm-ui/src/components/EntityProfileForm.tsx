@@ -1,13 +1,24 @@
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import type { FormEvent } from 'react'
-import { Banner, Button, Card, Field, formatDateTime } from '@operai/ui'
+import { Banner, Button, Card, Field, focusFirstInvalid, formatDateTime } from '@operai/ui'
 import { saveEntityProfile } from '../lib/crmApi'
-import { errorMessage } from '../lib/errors'
+import { errorMessage, fieldErrorOf, isNulRefusal } from '../lib/errors'
 import type { Entity, EntityProfile } from '../lib/types'
 import { first, maxLength, optional, required } from '../lib/validate'
 import { strings } from '../strings'
 
 type FieldName = 'legalName' | 'address' | 'vat' | 'iban' | 'termsEn' | 'termsIt' | 'place'
+
+/** The wire member the server names in a refusal → the form's field (`addressLines.1` is the address's second line). */
+const SERVER_FIELDS: Record<string, FieldName> = {
+  legalName: 'legalName',
+  addressLines: 'address',
+  vatNumber: 'vat',
+  iban: 'iban',
+  offerTermsEn: 'termsEn',
+  offerTermsIt: 'termsIt',
+  placeOfIssue: 'place',
+}
 
 const splitLines = (text: string): string[] =>
   text
@@ -42,6 +53,15 @@ export default function EntityProfileForm({
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [saved, setSaved] = useState<string | null>(null)
+  const formRef = useRef<HTMLFormElement>(null)
+  const bannerRef = useRef<HTMLDivElement>(null)
+  // After a refusal the person is on Save, far from the top of the card: focus goes to the field the server named, or
+  // to the banner (which scrolls into view and is read out) when it named none this form has.
+  const [refusedAt, setRefusedAt] = useState(0)
+  useEffect(() => {
+    if (refusedAt === 0) return
+    if (!focusFirstInvalid(formRef.current)) bannerRef.current?.focus()
+  }, [refusedAt])
 
   const submit = (event: FormEvent) => {
     event.preventDefault()
@@ -77,16 +97,24 @@ export default function EntityProfileForm({
       },
       (failure: unknown) => {
         setBusy(false)
-        setError(errorMessage(failure))
+        const refused = isNulRefusal(failure) ? fieldErrorOf(failure) : null
+        const mapped = refused ? SERVER_FIELDS[refused.field.split('.')[0] ?? ''] : undefined
+        if (refused && mapped) setErrors({ [mapped]: refused.message })
+        else setError(errorMessage(failure))
+        setRefusedAt((count) => count + 1)
       },
     )
   }
 
   return (
     <Card title={t.profile(label)} data-testid={`crm-settings-${entity}`}>
-      <form noValidate onSubmit={submit} className="flex flex-col gap-3">
+      <form ref={formRef} noValidate onSubmit={submit} className="flex flex-col gap-3">
         {profile === null && <p className="text-xs text-soft">{t.notSet}</p>}
-        {error && <Banner tone="danger">{error}</Banner>}
+        {error && (
+          <Banner ref={bannerRef} tabIndex={-1} tone="danger" data-testid={`crm-settings-${entity}-error`}>
+            {error}
+          </Banner>
+        )}
         {saved && (
           <Banner tone="success" compact autoDismiss onDismiss={() => setSaved(null)} dismissLabel={strings.common.dismiss}>
             {saved}

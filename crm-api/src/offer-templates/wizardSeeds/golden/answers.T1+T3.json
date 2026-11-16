@@ -1,0 +1,86 @@
+{
+  "tpl": "T13",
+  "f": {
+    "DATA": "2026-11-15",
+    "VALIDITA_GIORNI": "45",
+    "ACCONTO": "50",
+    "CLIENTE": "Alpina Energia SA",
+    "INDIRIZZO_CLIENTE": "Via Cantonale 12\n6900 Lugano\nSvizzera",
+    "RIF": "0042/2026r1",
+    "REFERENTE_CLIENTE": "Nicola Ferri",
+    "OGGETTO_A_CORPO": "la realizzazione del portale fornitori",
+    "DESCRIZIONE_IN_UNA_FRASE": "Un portale per gestire anagrafica, ordini e conferme dei fornitori",
+    "PIATTAFORMA": "Portale fornitori",
+    "PROFILO": "Premium",
+    "TEMPO_S1": "2 ore lavorative",
+    "TEMPO_S2": "4 ore lavorative",
+    "TEMPO_S3": "1 giorno lavorativo",
+    "TEMPO_S4": "3 giorni lavorativi",
+    "COPERTURA_ORARIA": "dal lunedì al venerdì, 08:00–20:00",
+    "ORE": "120",
+    "DURATA": "4 mesi",
+    "DATA_AVVIO_SERVIZIO": "la data di messa in produzione",
+    "MATERIALI_DATI_ACCESSI": "Elenco dei fornitori e accesso al sistema ERP di test",
+    "INFRASTRUTTURA": "gestita dal Cliente",
+    "CADENZA_FATTURAZIONE": "annuale",
+    "PIATTAFORME_SUPPORTATE": "Chrome, Edge e Safari recenti",
+    "INTEGRAZIONI": "ERP del Cliente via API REST",
+    "AMBIENTI": "sviluppo, collaudo, produzione",
+    "RESPONSABILITÀ_FORNITORE": "Sviluppo, test e rilascio del portale",
+    "RESPONSABILITÀ_CLIENTE": "Dati dei fornitori e accessi ai sistemi",
+    "OPZIONI": "nessuna opzione aggiuntiva",
+    "EMAIL_REFERENTE_CLIENTE": "nicola.ferri@alpina.example",
+    "REFERENTE_WELLD": "Luca Verdi",
+    "EMAIL_REFERENTE_WELLD": "luca.verdi@welld.example",
+    "EMAIL_SUPPORTO": "supporto@welld.example",
+    "PM_WELLD": "Giulia Neri",
+    "RESP_CLIENTE": "Anna Gialli",
+    "DIREZIONE_WELLD": "Marco Blu",
+    "DIREZIONE_CLIENTE": "Sara Viola",
+    "ALTRI_AMBIENTI": "collaudo utenti",
+    "PROVIDER_CLOUD": "Infomaniak (Svizzera)"
+  },
+  "g": {
+    "allegato_a": true,
+    "ai": true
+  },
+  "lists": {
+    "FUNZIONALITÀ_O_DELIVERABLE": [
+      "Anagrafica fornitori",
+      "Ordini e conferme"
+    ],
+    "ATTIVITÀ": [
+      "Analisi",
+      "Sviluppo",
+      "Collaudo"
+    ],
+    "ESCLUSIONE": [
+      "Integrazione con la contabilità"
+    ],
+    "COMPONENTE": [
+      "Portale web",
+      "API"
+    ]
+  },
+  "rows": {
+    "FUNZIONALITÀ": [
+      {
+        "FUNZIONALITÀ": "Anagrafica fornitori",
+        "DESCRIZIONE": "Gestione e validazione",
+        "CRITERIO": "Dati validati dal Cliente"
+      }
+    ],
+    "VOCE_DI_STIMA": [
+      {
+        "VOCE_DI_STIMA": "Sviluppo portale",
+        "PROFILO_RISORSA": "Sviluppatore",
+        "GG": "40"
+      }
+    ]
+  },
+  "c": {
+    "68:1:unit": "36000",
+    "68:3:unit": "6400"
+  },
+  "x": {}
+}

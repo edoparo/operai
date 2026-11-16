@@ -22,6 +22,7 @@ import type { MiddlewareHandler } from "hono";
 import { db } from "../lib/db";
 import { problem, problemBody } from "../lib/problem";
 import { createSystemAuthMiddleware, type SystemAuthVariables } from "../auth/systemAuth.middleware";
+import { idText, hasNoNul, NO_NUL_ID } from "../lib/http";
 
 /** The one service principal this route serves: contacts are personal data, read by projects-api only (ADR 20261105-handoff-take-and-purchase-order-receive-capabilities-auth-holders-listing-amends-0047). */
 export const CONTACTS_ALLOWED_SUBS = ["system:projects-api"] as const;
@@ -31,11 +32,12 @@ export const CONTACTS_LIMIT = 500;
 /** The most ids the `ids` mode takes: a purchase order has one referent, a page shows a handful. */
 export const MAX_CONTACT_IDS = 20;
 
-const ID = z.string().min(1).max(64);
+const ID = idText();
 
 const ContactIdsSchema = z
   .string()
   .max(MAX_CONTACT_IDS * 65 + 65)
+  .refine(hasNoNul, NO_NUL_ID)
   .transform((value) => value.split(",").map((id) => id.trim()))
   .refine((ids) => ids.length <= MAX_CONTACT_IDS, `At most ${MAX_CONTACT_IDS} ids`)
   .refine((ids) => ids.every((id) => id.length >= 1 && id.length <= 64), "Every id is 1-64 characters")

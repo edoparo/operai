@@ -28,9 +28,9 @@ function ScopeProbe() {
   return <p>{`scope ${dealEntities.join(',') || 'none'} erase ${canErase}`}</p>
 }
 
-const renderShell = async (scope: FakeHandler) => {
+const renderShell = async (scope: FakeHandler, path = '/companies') => {
   apiFetch.mockImplementation(fakeApi({ 'GET /scope': scope }))
-  window.history.pushState(null, '', '/companies')
+  window.history.pushState(null, '', path)
   const rootRoute = createRootRoute({ component: CrmShell })
   const routeTree = rootRoute.addChildren([
     createRoute({ getParentRoute: () => rootRoute, path: '/companies', component: ScopeProbe }),
@@ -38,6 +38,8 @@ const renderShell = async (scope: FakeHandler) => {
     createRoute({ getParentRoute: () => rootRoute, path: '/pipeline', component: () => null }),
     createRoute({ getParentRoute: () => rootRoute, path: '/tasks', component: () => null }),
     createRoute({ getParentRoute: () => rootRoute, path: '/settings', component: () => null }),
+    createRoute({ getParentRoute: () => rootRoute, path: '/deals/$id/offer', component: () => null }),
+    createRoute({ getParentRoute: () => rootRoute, path: '/deals/$id', component: () => null }),
   ])
   render(<RouterProvider router={createRouter({ routeTree })} />)
   await screen.findByRole('heading', { level: 1, name: 'CRM' })
@@ -59,6 +61,40 @@ describe('CrmShell', () => {
     const links = Array.from(nav.querySelectorAll('a'))
     expect(links.map((link) => link.textContent)).toEqual(['Companies', 'Contacts', 'Pipeline', 'Tasks', 'Settings'])
     expect(links[0]!.getAttribute('aria-current')).toBe('page')
+  })
+
+  it('gives the offer wizard the wide column, and a deal page the default one (design S1)', async () => {
+    await renderShell(() => ({ status: 200, body: { deal: ['welld_ch'], canErase: false } }), '/deals/d1/offer')
+    expect(screen.getByTestId('crm-shell').className).toContain('tool-width-wide')
+    cleanup()
+    await renderShell(() => ({ status: 200, body: { deal: ['welld_ch'], canErase: false } }), '/deals/d1')
+    expect(screen.getByTestId('crm-shell').className).not.toContain('tool-width')
+  })
+
+  it('lays the offer wizard’s frame over the scroller from xl up, and no other page (owner D20)', async () => {
+    const scope = () => ({ status: 200, body: { deal: ['welld_ch'], canErase: false } })
+    await renderShell(scope, '/deals/d1/offer')
+    const frame = screen.getByTestId('crm-shell-frame').className.split(' ')
+    // out of the flow, over `<main>`, a column that the page area fills; below xl none of it applies
+    expect(frame).toEqual(
+      expect.arrayContaining([
+        'xl:absolute',
+        'xl:inset-0',
+        'xl:flex-col',
+        'xl:min-h-[40rem]',
+        'xl:[&>div>.tool-main]:flex-1',
+        // the page area scrolls, so it is positioned too: nothing absolute inside it escapes to the frame (D21)
+        'xl:[&>div>.tool-main]:relative',
+        'xl:[&>div>.tool-main]:overflow-y-auto',
+      ]),
+    )
+    expect(frame.every((name) => name.startsWith('xl:'))).toBe(true)
+    cleanup()
+    await renderShell(scope, '/deals/d1')
+    expect(screen.getByTestId('crm-shell-frame').className).toBe('')
+    cleanup()
+    await renderShell(scope, '/pipeline')
+    expect(screen.getByTestId('crm-shell-frame').className).toBe('')
   })
 
   it('hides the Settings tab from a caller who manages no deals', async () => {

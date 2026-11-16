@@ -87,20 +87,31 @@ const toApiError = async (response: Response): Promise<ApiError> => {
   })
 }
 
+/** A successful answer with the headers a caller may need: the `ETag` of a draft, the status of a 200-or-201 route. */
+export type Answered<T> = { body: T; status: number; etag: string | null }
+
 /**
- * Calls `${baseUrl}${path}` through `apiFetch` and parses the JSON body.
- * Resolves `undefined` for a bodyless 204; throws `ApiError` on any non-2xx.
+ * Calls `${baseUrl}${path}` through `apiFetch` and parses the JSON body, keeping the status and the `ETag`.
+ * `body` is `undefined` for a bodyless 204; throws `ApiError` on any non-2xx.
  */
-export const requestJson = async <T>(baseUrl: string, path: string, init?: RequestInit): Promise<T> => {
+export const requestAnswered = async <T>(baseUrl: string, path: string, init?: RequestInit): Promise<Answered<T>> => {
   const response = await apiFetch(`${baseUrl}${path}`, init)
   if (!response.ok) {
     throw await toApiError(response)
   }
+  const etag = response.headers.get('ETag')
   if (response.status === 204) {
-    return undefined as T
+    return { body: undefined as T, status: response.status, etag }
   }
-  return (await response.json()) as T
+  return { body: (await response.json()) as T, status: response.status, etag }
 }
+
+/**
+ * Calls `${baseUrl}${path}` through `apiFetch` and parses the JSON body.
+ * Resolves `undefined` for a bodyless 204; throws `ApiError` on any non-2xx.
+ */
+export const requestJson = async <T>(baseUrl: string, path: string, init?: RequestInit): Promise<T> =>
+  (await requestAnswered<T>(baseUrl, path, init)).body
 
 /** GET against crm-api. `init` is forwarded verbatim (e.g. an `AbortSignal`). */
 export const getJson = <T>(path: string, init?: RequestInit): Promise<T> =>

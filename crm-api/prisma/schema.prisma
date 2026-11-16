@@ -137,6 +137,7 @@ model Deal {
   estimate    DealEstimate?
   offers      DealOffer[]
   attachments DealAttachment[]
+  offerDraft  OfferDraft?
 
   @@index([stage])
   @@index([companyId])
@@ -213,6 +214,9 @@ model DealOffer {
   deletedBy    String?
   deletedAt    DateTime?
 
+  /// The wizard drafts that edit or revise this offer (ADR 20261115-offer-draft-server-held-generated-from-stored-state); no column here.
+  drafts OfferDraft[]
+
   @@unique([dealId, number])
   @@map("deal_offer")
 }
@@ -266,32 +270,88 @@ model EntityProfile {
 /// A named starting point for an offer, owned by one entity (specs/20261102-crm-offer-document AC-2.2).
 /// Raw SQL in the migration, the ENFORCEMENT: offer_template_entity_name_active_key
 /// UNIQUE (entity, lower(name)) WHERE "archivedAt" IS NULL.
+/// `sections`: the 018 dialog's contract text (specs/20261102-crm-offer-document); `wizard`: one self-describing
+/// text the offer wizard reads (specs/20261115-crm-offer-wizard, ADR 20261115-offer-template-format-supersession-per-entity-language).
+enum OfferTemplateFormat {
+  sections
+  wizard
+}
+
+/// A template of an entity and language. Raw SQL in the offer_wizard migration, the enforcement and not a
+/// duplicate: CHECK `offer_template_format_content` (a `sections` row has every legacy column and no
+/// `source`; a `wizard` row has a `source` of at most 150 000 characters) and the partial unique index
+/// `offer_template_entity_seed_key` on (entity, seedKey) where seedKey is not null. The legacy columns
+/// are optional here ONLY because a wizard row has none: read them through `legacyContent(row)`.
 model OfferTemplate {
-  id              String        @id @default(cuid())
+  id              String              @id @default(cuid())
   entity          Entity
   name            String
   language        OfferLanguage
-  salutation      String
-  opening         String
+  format          OfferTemplateFormat @default(sections)
+  salutation      String?
+  opening         String?
   /// [{ heading, body, costs }]
-  sections        Json
+  sections        Json?
   /// [{ description, kind, amount, quantity }] — see src/offers/contract.ts
-  costLines       Json
+  costLines       Json?
   /// { position, unit }
-  costColumns     Json
-  showTotal       Boolean       @default(false)
+  costColumns     Json?
+  showTotal       Boolean             @default(false)
   acceptanceLabel String?
-  annex           Boolean       @default(false)
+  annex           Boolean             @default(false)
+  /// Wizard only: one line of at most 160 characters shown on the template card.
+  description     String?
+  /// Wizard only: up to six short labels naming what the template covers.
+  uses            String[]            @default([])
+  /// Wizard only: the template text (the extended offer markup), at most 150 000 characters.
+  source          String?
+  /// Set on a seeded template, e.g. `welld-ch-it-v1:T1`; a seed is created once per key, archived rows counting.
+  seedKey         String?
   /// If-Match concurrency counter (ADR 20260807-optimistic-concurrency-version-if-match-cas-amends-0004 posture).
-  version         Int           @default(1)
+  version         Int                 @default(1)
   archivedAt      DateTime?
   createdBy       String
-  createdAt       DateTime      @default(now())
+  createdAt       DateTime            @default(now())
   updatedBy       String
-  updatedAt       DateTime      @updatedAt
+  updatedAt       DateTime            @updatedAt
+
+  drafts OfferDraft[]
 
   @@index([entity])
   @@map("offer_template")
+}
+
+enum OfferDraftTarget {
+  new
+  edit
+  revision
+}
+
+/// The wizard's in-progress offer of a deal: at most one per deal, held by the server (ADR
+/// 20261115-offer-draft-server-held-generated-from-stored-state). `answers` is the engine's WizardAnswers (≤ 512 KiB,
+/// checked by the route). Raw SQL in the migration: CHECK `offer_draft_target` — a `new` draft has no target
+/// offer, an `edit` or `revision` draft has the offer and the version it was opened at.
+model OfferDraft {
+  dealId             String           @id
+  deal               Deal             @relation(fields: [dealId], references: [id], onDelete: Cascade)
+  templateId         String
+  template           OfferTemplate    @relation(fields: [templateId], references: [id], onDelete: Restrict)
+  /// The template version the answers match; the template moving on is a notice, not an error.
+  templateVersion    Int
+  targetKind         OfferDraftTarget @default(new)
+  targetOfferId      String?
+  targetOffer        DealOffer?       @relation(fields: [targetOfferId], references: [id], onDelete: Restrict)
+  targetOfferVersion Int?
+  answers            Json
+  /// If-Match concurrency counter.
+  version            Int              @default(1)
+  createdBy          String
+  createdAt          DateTime         @default(now())
+  updatedBy          String
+  updatedAt          DateTime         @updatedAt
+
+  @@index([templateId])
+  @@map("offer_draft")
 }
 
 /// The last offer number taken per entity and year (specs/20261102-crm-offer-document D-5). Taken with

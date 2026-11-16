@@ -1,0 +1,73 @@
+{
+  "tpl": "T4",
+  "f": {
+    "DATA": "2026-11-15",
+    "LINGUA": "italiano",
+    "ORARIO": "09:00–17:00",
+    "GIORNI_CONFERMA": "8",
+    "UNITÀ_DI_PREZZO": "per partecipante",
+    "VALIDITA_GIORNI": "45",
+    "ACCONTO": "40",
+    "CLIENTE": "Alpina Energia SA",
+    "INDIRIZZO_CLIENTE": "Via Cantonale 12\n6900 Lugano\nSvizzera",
+    "RIF": "0042/2026r1",
+    "TITOLO_CORSO": "Sviluppo con TypeScript e React",
+    "DESCRIZIONE_IN_UNA_FRASE": "Un percorso pratico dai fondamenti alle applicazioni complete",
+    "GIORNATE": "4",
+    "ORE": "28",
+    "N_ISTRUTTORI": "2",
+    "ARTICOLAZIONE": "2 blocchi da 2 giornate",
+    "MODALITÀ": "in presenza o da remoto",
+    "MAX_PARTECIPANTI": "12",
+    "PREREQUISITI": "Esperienza di base con JavaScript",
+    "BUDGET_AI": "25 EUR",
+    "PREZZO_PARTECIPANTE_AGGIUNTIVO": "900",
+    "MIN_PARTECIPANTI": "6",
+    "DESTINATARI": "Sviluppatori e sviluppatrici del team digitale"
+  },
+  "g": {
+    "allegato_a": true,
+    "conferma": true,
+    "attestato": true,
+    "cancellazione": true,
+    "ai_corso": true,
+    "sconto": true,
+    "nota_corpo": false,
+    "nota_partecipante": true
+  },
+  "lists": {
+    "OBIETTIVO": [
+      "Strutturare un'applicazione React",
+      "Usare i tipi in modo efficace"
+    ],
+    "MATERIALE": [
+      "Slide del corso",
+      "Repository degli esercizi"
+    ]
+  },
+  "rows": {
+    "MODULO": [
+      {
+        "MODULO": "TypeScript essenziale",
+        "CONTENUTI": "Tipi, generici, narrowing",
+        "ORE": "8"
+      },
+      {
+        "MODULO": "React moderno",
+        "CONTENUTI": "Componenti, hook, stato",
+        "ORE": "12"
+      },
+      {
+        "MODULO": "Progetto finale",
+        "CONTENUTI": "Applicazione completa",
+        "ORE": "8"
+      }
+    ]
+  },
+  "c": {
+    "33:1:unit": "1450",
+    "33:1:qty": "8",
+    "33:2:sconto": "500"
+  },
+  "x": {}
+}

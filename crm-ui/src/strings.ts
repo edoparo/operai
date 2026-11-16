@@ -14,6 +14,7 @@ import { contacts } from './strings/contacts'
 import { deals } from './strings/deals'
 import { estimate } from './strings/estimate'
 import { nav } from './strings/nav'
+import { offerWizard } from './strings/offerWizard'
 import { offers } from './strings/offers'
 import { people } from './strings/people'
 import { settings } from './strings/settings'
@@ -32,6 +33,7 @@ export const en = {
   deals: deals.en,
   estimate: estimate.en,
   nav: nav.en,
+  offerWizard: offerWizard.en,
   offers: offers.en,
   people: people.en,
   settings: settings.en,
@@ -51,6 +53,7 @@ export const it: typeof en = {
   deals: deals.it,
   estimate: estimate.it,
   nav: nav.it,
+  offerWizard: offerWizard.it,
   offers: offers.it,
   people: people.it,
   settings: settings.it,

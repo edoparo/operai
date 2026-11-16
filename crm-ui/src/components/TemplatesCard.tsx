@@ -1,28 +1,34 @@
 import { useCallback, useState } from 'react'
-import { Link } from '@tanstack/react-router'
-import { Banner, Button, Card, DataTable, StatusBadge, buttonClassName, formatDate } from '@operai/ui'
+import { Link, useNavigate } from '@tanstack/react-router'
+import { Badge, Banner, Button, Card, DataTable, StatusBadge, buttonClassName, formatDate } from '@operai/ui'
 import type { DataTableColumn } from '@operai/ui'
-import { duplicateOfferTemplate, listOfferTemplates, setOfferTemplateArchived } from '../lib/crmApi'
+import { duplicateOfferTemplate, listOfferTemplatesOf, setOfferTemplateArchived } from '../lib/crmApi'
 import { isStaleWrite } from '../lib/api'
-import { errorMessage } from '../lib/errors'
-import type { Entity, OfferTemplate } from '../lib/types'
+import { codeOf, errorMessage } from '../lib/errors'
+import type { Entity, OfferTemplateRow } from '../lib/types'
 import { useResource } from '../hooks/useResource'
 import { strings } from '../strings'
 import { LoadFailure, Loading } from './LoadState'
 
 /**
  * TemplatesCard — one entity's offer templates (specs/20261102-crm-offer-document US-2): name,
- * language, last update and the row actions edit / duplicate / archive, with a
+ * format, language, last update and the row actions edit / duplicate / archive, with a
  * "show archived" toggle that turns archive into restore. Archiving is
  * recoverable, so it asks nothing; it carries the row's version (If-Match) and a
  * stale answer reloads the list.
+ *
+ * specs/20261115-crm-offer-wizard (AC-9.2): wizard and classic templates share the list, each marked with its
+ * format; a wizard row shows its description and its copy opens in the wizard editor, a classic row keeps its
+ * own editor. The last active template of a language cannot be archived and a classic one cannot be restored
+ * while a wizard one is active: the card says so.
  */
 export default function TemplatesCard({ entity }: { entity: Entity }) {
   const t = strings.templates.list
   const label = strings.badges.entity[entity]
   const [showArchived, setShowArchived] = useState(false)
+  const navigate = useNavigate()
   const load = useCallback(
-    (signal: AbortSignal) => listOfferTemplates(entity, showArchived, { signal }),
+    (signal: AbortSignal) => listOfferTemplatesOf(entity, showArchived, 'sections,wizard', { signal }),
     [entity, showArchived],
   )
   const templates = useResource(load)
@@ -30,13 +36,32 @@ export default function TemplatesCard({ entity }: { entity: Entity }) {
   const [notice, setNotice] = useState<string | null>(null)
   const [busyId, setBusyId] = useState<string | null>(null)
 
-  const run = (template: OfferTemplate, request: Promise<OfferTemplate>, message: (name: string) => string) => {
+  const refusal = (failure: unknown, template: OfferTemplateRow): string => {
+    const language = strings.offers.languageName[template.language]
+    switch (codeOf(failure)) {
+      case 'last_template':
+        return t.errors.last_template(language)
+      case 'template_superseded':
+        return t.errors.template_superseded(language)
+      default:
+        return errorMessage(failure)
+    }
+  }
+
+  const run = (
+    template: OfferTemplateRow,
+    request: Promise<{ id: string; name: string }>,
+    message: (name: string) => string,
+    then?: (result: { id: string; name: string }) => boolean,
+  ) => {
     setBusyId(template.id)
     setError(null)
     setNotice(null)
     request.then(
       (result) => {
         setBusyId(null)
+        // a wizard copy opens in its editor; otherwise the list says what happened
+        if (then?.(result)) return
         setNotice(message(result.name))
         templates.retry()
       },
@@ -47,12 +72,12 @@ export default function TemplatesCard({ entity }: { entity: Entity }) {
           setError(strings.common.staleWrite.body)
           return
         }
-        setError(errorMessage(failure))
+        setError(refusal(failure, template))
       },
     )
   }
 
-  const columns: DataTableColumn<OfferTemplate>[] = [
+  const columns: DataTableColumn<OfferTemplateRow>[] = [
     {
       id: 'name',
       header: t.columns.name,
@@ -68,8 +93,21 @@ export default function TemplatesCard({ entity }: { entity: Entity }) {
             {template.name}
           </Link>
           {template.archived && <StatusBadge status="voided">{t.archived}</StatusBadge>}
+          {template.format === 'wizard' && template.description ? (
+            <span className="basis-full text-xs text-soft">{template.description}</span>
+          ) : null}
         </span>
       ),
+    },
+    {
+      id: 'format',
+      header: t.format,
+      render: (template) =>
+        template.format === 'wizard' ? (
+          <Badge tone="accent">{t.wizard}</Badge>
+        ) : (
+          <Badge tone="muted">{t.classic}</Badge>
+        ),
     },
     {
       id: 'language',
@@ -95,7 +133,13 @@ export default function TemplatesCard({ entity }: { entity: Entity }) {
             variant="ghost"
             aria-label={t.duplicateOf(template.name)}
             disabled={busyId !== null}
-            onClick={() => run(template, duplicateOfferTemplate(template.id), t.duplicated)}
+            onClick={() =>
+              run(template, duplicateOfferTemplate(template.id), t.duplicated, (copy) => {
+                if (template.format !== 'wizard') return false
+                void navigate({ to: '/settings/templates/$templateId', params: { templateId: copy.id } })
+                return true
+              })
+            }
             data-testid={`crm-template-duplicate-${template.id}`}
           >
             {t.duplicate}

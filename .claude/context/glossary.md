@@ -162,7 +162,41 @@
 - **Awaiting a project manager**: a project made from a deal whose assigned ops-manager has
   not picked a project manager yet; it cannot become `active` until one is picked.
 
+### CRM offer wizard (specs/20261115-crm-offer-wizard)
+- **Offer template**: an entity's named starting point for an offer, in one language; its
+  text declares what the wizard asks for. _Avoid:_ offer kind, model.
+- **Template field**: a named value of a template the person fills in (label, hint, kind,
+  default); **optional** when the text uses it only inside its own conditional text.
+  _Avoid:_ placeholder (the markup that writes it), variable.
+- **List field**: a template field taking any number of items, printed as bullets.
+- **Repeatable table**: a template table whose rows the person adds and removes; each
+  column is a field.
+- **Optional block**: a passage of a template the person switches on or off. _Avoid:_
+  clause (a block may be any passage), group.
+- **Block choice**: a group of optional blocks of which exactly one is on.
+- **Conditional text**: template text printed only when a field is filled in, or only when
+  it is empty (the fallback).
+- **Offer draft**: the wizard's saved work in progress on one deal, one per deal, shared
+  with whoever may generate offers on it; no number, no PDF. Not crm-api's prefill payload
+  of the old dialog. _Avoid:_ bozza offerta in the UI is fine; never "unsent offer" (that is
+  a generated offer not yet marked sent).
+- **Missing field**: a required template field still empty in an offer draft; an offer
+  cannot be generated while one exists.
+- **Hand-edited section**: a section whose text was rewritten for one offer; the wizard's
+  fields no longer change it until it is restored.
+
+- **Text annex**: an annex written in the template's own text, with the designation its
+  author gives it (A, SLA, DPA); printed before the effort-detail annex.
+- **Effort-detail annex**: the annex the CRM generates from the estimate (018's "Annex A");
+  it takes the next free letter after the text annexes. _Avoid:_ "Annex A" for either.
+- **Total row**: a labelled cost-table row summing the one-off and yearly lines since the
+  previous total row, minus that stretch's discounts.
+- **Option line**: a cost line the client may tick; priced and numbered, never counted in a
+  total or in the offer's price. _Avoid:_ optional line (confused with optional block).
+
 ## Relationships
+- An **Offer draft** belongs to one deal and starts from one **Offer template**; generating
+  it creates an offer whose snapshot holds the draft's answers, and removes the draft.
 - A won deal feeds at most one PO, which is born with its own project; a project has zero
   or one PO, and a project created without one never gets one.
 - An **Asset** belongs to exactly one entity for its whole life and has at most one
@@ -180,3 +214,17 @@
 ## Open ambiguities
 - Whether the `welld_ch` **Residual value** is kept until **Disposal** or written off the
   year after the **Schedule** ends (specs/20261006-hardware-inventory O4) — owner: accounting.
+- **Letterhead**: the one-page A4 PDF in an entity profile, drawn behind every page of a generated offer
+  (a profile without one gets a plain header) and behind every page of the wizard's preview (OA-3). _Avoid:_ header, template.
+- **Issuer field**: a template field bound to the entity profile's legal name, supplied by the CRM and
+  never asked of the person. _Avoid:_ supplier name field.
+- **Issuer address field**: a template field bound to the entity profile's address lines, printed on one
+  line joined by ", "; prints nothing when the profile has none.
+- **Issuer**: the wellD entity making the offer; its legal name and address come from its entity profile,
+  never from template text. _Avoid:_ supplier (the template's «Fornitore» is the defined contract term).
+- **Supplied value**: a system value the CRM fills (reference, issuer name, issuer address, …) that the
+  wizard never asks for; an empty supplied value prints nothing and is never a missing field.
+- **Kept seed**: a seeded template edited by a person before the seed upgrade; left exactly as written.
+- **Preview page**: one A4 page of the wizard's preview — a decorative box with the letterhead behind
+  it, over which ONE continuous text flow runs inside the PDF's frame (120/110/71/71 pt); page breaks
+  approximate the PDF's and the PDF is the authority. _Avoid:_ sheet, slide.

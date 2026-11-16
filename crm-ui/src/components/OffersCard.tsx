@@ -1,21 +1,82 @@
-import { useCallback, useState } from 'react'
-import { Banner, Button, Card, ConfirmDialog, DataTable, StatusBadge, formatDate, formatMoney, formatNumber } from '@operai/ui'
+import { useCallback, useEffect, useState } from 'react'
+import { Link, useNavigate } from '@tanstack/react-router'
+import {
+  Banner,
+  Button,
+  Card,
+  ConfirmDialog,
+  Badge,
+  DataTable,
+  Dialog,
+  Icon,
+  StatusBadge,
+  VisuallyHidden,
+  buttonClassName,
+  formatDate,
+  formatDateTime,
+  formatMoney,
+  formatNumber,
+} from '@operai/ui'
 import type { DataTableColumn } from '@operai/ui'
-import { deleteOffer, getDeal, getOfferDownload, listOffers, markOfferSent, moveDealStage } from '../lib/crmApi'
+import {
+  createWizardDraft,
+  deleteOffer,
+  discardWizardDraft,
+  getDeal,
+  getOfferDownload,
+  getWizardDraftSummary,
+  listOfferTemplatesOf,
+  listOffers,
+  markOfferSent,
+  moveDealStage,
+} from '../lib/crmApi'
 import { isStaleWrite } from '../lib/api'
-import { errorMessage } from '../lib/errors'
+import { codeOf, errorMessage, statusOf } from '../lib/errors'
 import { offerFailure } from '../lib/offerErrors'
 import { personName } from '../lib/people'
-import type { Deal, DealStage, Offer } from '../lib/types'
+import type { Deal, DealStage, DraftTarget, Offer, OfferDraftSummary } from '../lib/types'
 import { useCrmCapabilities } from '../hooks/scopeContext'
 import { useCurrentUserId } from '../hooks/useCurrentUserId'
 import { useResource } from '../hooks/useResource'
 import { strings } from '../strings'
 import GenerateOfferDialog from './GenerateOfferDialog'
 import type { OfferSource } from './GenerateOfferDialog'
-import { LoadFailure, Loading } from './LoadState'
+import { LoadFailure, Loading, Saved } from './LoadState'
 
-type Dialog = 'generate' | 'proposal' | { delete: Offer } | { sent: Offer } | { source: OfferSource } | null
+/** An Edit or a New revision of an offer: what the wizard is asked to start (design F11). */
+type Start = { offer: Offer; kind: 'edit' | 'revision' }
+
+type Dialog =
+  | 'generate'
+  | 'proposal'
+  | 'discard'
+  | { delete: Offer }
+  | { sent: Offer }
+  | { source: OfferSource }
+  | { exists: Start }
+  | null
+
+/** What a draft row says about the offer the draft is for (design S11). */
+const targetText = (target: DraftTarget): string =>
+  target.kind === 'new'
+    ? strings.offers.draft.target.new
+    : target.kind === 'edit'
+      ? strings.offers.draft.target.edit(target.reference)
+      : strings.offers.draft.target.revision(target.reference)
+
+/** The polite "checking" line, only if the check is slow (design S11: nothing at all for a quick answer). */
+function CheckingHint({ label }: { label: string }) {
+  const [late, setLate] = useState(false)
+  useEffect(() => {
+    const timer = setTimeout(() => setLate(true), 800)
+    return () => clearTimeout(timer)
+  }, [])
+  return late ? (
+    <VisuallyHidden live role="status">
+      {label}
+    </VisuallyHidden>
+  ) : null
+}
 
 /**
  * OffersCard — the deal's offer versions, newest first (specs/20261101-crm-sales-flow US-4). Only
@@ -33,22 +94,42 @@ export default function OffersCard({
   canManage,
   onDealChanged,
   onStale,
+  proposePrompt = false,
 }: {
   deal: Deal
   canManage: boolean
   onDealChanged: (deal: Deal, message: string) => void
   onStale: () => void
+  /** The wizard just generated an offer on a `qualified` deal: open with the question whether to move it to proposal. */
+  proposePrompt?: boolean
 }) {
   const t = strings.offers
   const currentUserId = useCurrentUserId()
-  const { managesAll } = useCrmCapabilities()
+  const { managesAll, financials } = useCrmCapabilities()
+  const navigate = useNavigate()
   const dealId = deal.id
   const load = useCallback((signal: AbortSignal) => listOffers(dealId, { signal }), [dealId])
   const offers = useResource(load)
-  const [dialog, setDialog] = useState<Dialog>(null)
+  const [dialog, setDialog] = useState<Dialog>(proposePrompt && deal.stage === 'qualified' ? 'proposal' : null)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [notice, setNotice] = useState<string | null>(null)
+  const [starting, setStarting] = useState(false)
+  const [confirmation, setConfirmation] = useState<string | null>(null)
+  const [changedMeanwhile, setChangedMeanwhile] = useState(false)
+
+  // The deal's one wizard draft (AC-6.4): asked only of someone who may continue it — never answers, never a hint.
+  const canAskDraft = canManage && financials
+  const loadDraft = useCallback(
+    (signal: AbortSignal) =>
+      canAskDraft ? getWizardDraftSummary(dealId, { signal }) : Promise.resolve({ draft: null, etag: null }),
+    [dealId, canAskDraft],
+  )
+  const draftState = useResource(loadDraft)
+  const draft: OfferDraftSummary | null = draftState.status === 'ready' ? draftState.data!.draft : null
+  // a refused (403) or missing (404) summary shows nothing: the answer must be the same with or without a draft
+  const draftFailed =
+    draftState.status === 'error' && statusOf(draftState.error) !== 403 && statusOf(draftState.error) !== 404
 
   // A ready estimate, or an admin's go-ahead without one (specs/20261101-crm-sales-flow AC-3.7).
   const ready = deal.estimate?.state === 'ready' || deal.estimateOverridden
@@ -134,7 +215,108 @@ export default function OffersCard({
   const editable = (offer: Offer) => canManage && offer.id === latest?.id && latestIsDocument && !latestSent
   // Decided once the list is in: until then nobody knows whether there is an offer to edit.
   const header: 'generate' | 'revise' | null =
-    offers.status !== 'ready' ? null : !latestIsDocument ? 'generate' : latestSent ? 'revise' : null
+    offers.status !== 'ready' || draft !== null ? null : !latestIsDocument ? 'generate' : latestSent ? 'revise' : null
+
+  const wizardAddress = (start: Start | null = null) =>
+    navigate({
+      to: '/deals/$id/offer',
+      params: { id: dealId },
+      ...(start ? { search: { kind: start.kind, offer: start.offer.id } } : {}),
+    })
+
+  /** Starts the wizard on `offer` by the way it was made (design F11): its own template, a template to pick, or the legacy form. */
+  const begin = async ({ offer, kind }: Start) => {
+    setNotice(null)
+    setStarting(true)
+    try {
+      if (offer.origin === 'wizard') {
+        // its snapshot knows the template: no templateId; an archived one is picked again on the Template step
+        try {
+          await createWizardDraft(dealId, { target: { kind, offerId: offer.id } })
+        } catch (failure) {
+          if (codeOf(failure) === 'template_archived') return void (await wizardAddress({ offer, kind }))
+          if (codeOf(failure) !== 'draft_exists') throw failure
+        }
+        return void (await wizardAddress())
+      }
+      // a classic offer: the wizard only if the offer's language has an active wizard template; otherwise the 018 form
+      const listed = await listOfferTemplatesOf(deal.entity, false, 'wizard').catch(() => null)
+      const wizard = listed?.items.some((row) => row.format === 'wizard' && !row.archived && row.language === offer.language)
+      if (wizard) return void (await wizardAddress({ offer, kind }))
+      setDialog({ source: { offer, mode: kind === 'edit' ? 'edit' : 'revise' } })
+    } catch (failure) {
+      setNotice(offerFailure(failure))
+    } finally {
+      setStarting(false)
+    }
+  }
+
+  /** A draft may already be there: continue it if it is for this very offer, else ask which one wins (F11). */
+  const start = (request: Start) => {
+    if (draft === null) return void begin(request)
+    if (draft.target.kind === request.kind && 'offerId' in draft.target && draft.target.offerId === request.offer.id)
+      return void wizardAddress()
+    setDialog({ exists: request })
+  }
+
+  /** Deletes the draft the card shows, at the version it showed; false when it did not go (the card says why). */
+  const discardDraft = async (): Promise<boolean> => {
+    if (draft === null) return true
+    try {
+      await discardWizardDraft(dealId, draft.version)
+      draftState.replace({ draft: null, etag: null })
+      return true
+    } catch (failure) {
+      if (statusOf(failure) === 404) {
+        draftState.replace({ draft: null, etag: null }) // already gone
+        return true
+      }
+      if (isStaleWrite(failure)) {
+        // the latest summary replaces the row in place, so it does not flicker through a loading state
+        const latest = await getWizardDraftSummary(dealId).catch(() => null)
+        if (latest) draftState.replace(latest)
+        else draftState.retry()
+        setChangedMeanwhile(true)
+        return false
+      }
+      throw failure
+    }
+  }
+
+  const confirmDiscard = () => {
+    setBusy(true)
+    setError(null)
+    discardDraft().then(
+      (done) => {
+        setBusy(false)
+        close()
+        if (done) {
+          setChangedMeanwhile(false)
+          setConfirmation(t.draft.discardDialog.done)
+        }
+      },
+      (failure: unknown) => {
+        setBusy(false)
+        setError(offerFailure(failure))
+      },
+    )
+  }
+
+  const discardAndContinue = (request: Start) => {
+    setBusy(true)
+    setError(null)
+    discardDraft().then(
+      (done) => {
+        setBusy(false)
+        close()
+        if (done) void begin(request)
+      },
+      (failure: unknown) => {
+        setBusy(false)
+        setError(offerFailure(failure))
+      },
+    )
+  }
 
   const columns: DataTableColumn<Offer>[] = [
     {
@@ -147,6 +329,11 @@ export default function OffersCard({
           {offer.templateName && (
             <span className="block text-xs text-soft font-body" data-testid={`crm-offer-template-${offer.id}`}>
               {t.templateOf(offer.templateName)}
+            </span>
+          )}
+          {offer.origin === 'sections' && (
+            <span className="block text-xs text-soft font-body" data-testid={`crm-offer-origin-${offer.id}`}>
+              {t.origin.sections}
             </span>
           )}
           {offer.sent && !offer.deleted && (
@@ -226,7 +413,7 @@ export default function OffersCard({
                 variant="ghost"
                 aria-label={t.editOf(offer.reference)}
                 aria-haspopup="dialog"
-                onClick={() => setDialog({ source: { offer, mode: 'edit' } })}
+                onClick={() => start({ offer, kind: 'edit' })}
                 data-testid={`crm-offer-edit-${offer.id}`}
               >
                 {t.edit}
@@ -268,17 +455,30 @@ export default function OffersCard({
       action={
         canManage &&
         header !== null && (
-          <Button
-            size="sm"
-            variant="primary"
-            disabled={!ready}
-            title={ready ? undefined : t.needsReady}
-            onClick={() => setDialog(header === 'revise' && latest ? { source: { offer: latest, mode: 'revise' } } : 'generate')}
-            aria-haspopup="dialog"
-            data-testid="crm-offer-generate"
-          >
-            {header === 'revise' ? t.revise : t.generate}
-          </Button>
+          <span className="flex flex-wrap items-center gap-2">
+            {header === 'generate' && (
+              <Link
+                to="/deals/$id/offer"
+                params={{ id: dealId }}
+                className={buttonClassName({ variant: 'primary', size: 'sm' })}
+                data-testid="crm-offer-new"
+              >
+                {t.new}
+              </Link>
+            )}
+            <Button
+              size="sm"
+              variant={header === 'generate' ? 'secondary' : 'primary'}
+              disabled={!ready}
+              busy={starting}
+              title={ready ? undefined : t.needsReady}
+              onClick={() => (header === 'revise' && latest ? start({ offer: latest, kind: 'revision' }) : setDialog('generate'))}
+              aria-haspopup="dialog"
+              data-testid="crm-offer-generate"
+            >
+              {starting ? t.starting : header === 'revise' ? t.revise : t.generate}
+            </Button>
+          </span>
         )
       }
     >
@@ -287,6 +487,63 @@ export default function OffersCard({
           <Banner tone="danger" onDismiss={() => setNotice(null)} dismissLabel={strings.common.dismiss} data-testid="crm-offers-notice">
             {notice}
           </Banner>
+        )}
+        {confirmation && <Saved message={confirmation} onDismiss={() => setConfirmation(null)} />}
+        {changedMeanwhile && (
+          <Banner tone="info" onDismiss={() => setChangedMeanwhile(false)} dismissLabel={strings.common.dismiss} data-testid="crm-offer-draft-changed">
+            {t.draft.changedMeanwhile}
+          </Banner>
+        )}
+        {canAskDraft && draftState.status === 'loading' && <CheckingHint label={t.draft.checking} />}
+        {draftFailed && (
+          <p className="flex flex-wrap items-center gap-2 text-sm text-soft" data-testid="crm-offer-draft-check-failed">
+            {t.draft.checkFailed}
+            <Button size="sm" variant="ghost" onClick={draftState.retry}>
+              {t.draft.checkRetry}
+            </Button>
+          </p>
+        )}
+        {draft && (
+          <div
+            className="flex flex-wrap items-center gap-3 rounded-md border border-rule p-3"
+            data-testid="crm-offer-draft-row"
+          >
+            <StatusBadge status="draft">{strings.offerWizard.page.draft}</StatusBadge>
+            <div className="flex min-w-0 flex-1 flex-col gap-1">
+              <span className="flex flex-wrap items-center gap-2 text-sm text-text">
+                {t.draft.row(draft.template.name, targetText(draft.target))}
+                {draft.templateChanged && <Badge tone="neutral">{t.draft.templateChanged}</Badge>}
+                {draft.template.archived && (
+                  <Badge tone="warning" glyph={<Icon name="alert" />}>
+                    {t.draft.templateArchived}
+                  </Badge>
+                )}
+              </span>
+              <span className="text-xs text-soft">
+                {t.draft.changed(personName(draft.updatedBy, currentUserId), formatDateTime(draft.updatedAt))}
+              </span>
+            </div>
+            <span className="flex gap-1">
+              <Link
+                to="/deals/$id/offer"
+                params={{ id: dealId }}
+                className={buttonClassName({ variant: 'primary', size: 'sm' })}
+                data-testid="crm-offer-draft-continue"
+              >
+                {t.draft.continue}
+              </Link>
+              <Button
+                size="sm"
+                variant="ghost"
+                aria-label={t.draft.discardOf(draft.template.name)}
+                aria-haspopup="dialog"
+                onClick={() => setDialog('discard')}
+                data-testid="crm-offer-draft-discard"
+              >
+                {t.draft.discard}
+              </Button>
+            </span>
+          </div>
         )}
         {canManage && !ready && <p className="text-xs text-soft">{t.needsReady}</p>}
         {offers.status === 'loading' && <Loading label={t.loading} rows={2} />}
@@ -355,6 +612,58 @@ export default function OffersCard({
             ? t.sentDialog.body(dialog.sent.reference)
             : t.sentDialog.bodyNoMove(dialog.sent.reference)}
         </ConfirmDialog>
+      )}
+      {dialog === 'discard' && draft && (
+        <ConfirmDialog
+          title={t.draft.discardDialog.title}
+          confirmLabel={t.draft.discardDialog.confirm}
+          busyLabel={t.draft.discardDialog.busy}
+          cancelLabel={strings.common.cancel}
+          closeLabel={strings.common.close}
+          busy={busy}
+          error={error}
+          onConfirm={confirmDiscard}
+          onCancel={close}
+          testIdPrefix="crm-offer-draft-discard-dialog"
+        >
+          {t.draft.discardDialog.body(draft.template.name)}
+          {draft.target.kind !== 'new' ? ` ${t.draft.discardDialog.bodyOffer(draft.target.reference)}` : ''}
+        </ConfirmDialog>
+      )}
+      {typeof dialog === 'object' && dialog !== null && 'exists' in dialog && draft && (
+        <Dialog
+          title={t.draft.exists.title}
+          closeLabel={strings.common.close}
+          onClose={close}
+          busy={busy}
+          testIdPrefix="crm-offer-draft-exists"
+        >
+          <div className="dialog-body flex flex-col gap-3">
+            <p className="text-sm text-text">
+              {t.draft.exists.body(personName(draft.updatedBy, currentUserId), formatDateTime(draft.updatedAt))}
+            </p>
+            {error && (
+              <Banner tone="danger" data-testid="crm-offer-draft-exists-error">
+                {error}
+              </Banner>
+            )}
+          </div>
+          <div className="dialog-footer">
+            <Button variant="ghost" onClick={close} disabled={busy}>
+              {strings.common.cancel}
+            </Button>
+            <Button variant="danger" busy={busy} onClick={() => discardAndContinue(dialog.exists)}>
+              {t.draft.exists.discard}
+            </Button>
+            <Link
+              to="/deals/$id/offer"
+              params={{ id: dealId }}
+              className={buttonClassName({ variant: 'primary' })}
+            >
+              {t.draft.exists.continue}
+            </Link>
+          </div>
+        </Dialog>
       )}
       {typeof dialog === 'object' && dialog !== null && 'delete' in dialog && (
         <ConfirmDialog

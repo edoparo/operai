@@ -1,0 +1,36 @@
+{
+  "tpl": "T6",
+  "f": {
+    "DATA": "2026-11-15",
+    "VALIDITA_GIORNI": "45",
+    "DURATA_MESI": "12",
+    "CLIENTE": "Alpina Energia SA",
+    "INDIRIZZO_CLIENTE": "Via Cantonale 12\n6900 Lugano\nSvizzera",
+    "RIF": "0042/2026r1",
+    "SERVIZIO": "Piattaforma di prenotazione WellBook",
+    "PERIODICITÀ": "mensile",
+    "CADENZA_FATTURAZIONE": "trimestrale"
+  },
+  "g": {
+    "licenza_uso": true,
+    "rivendita": false,
+    "utenze": false,
+    "attivazione": false,
+    "rinnovo_tacito": true,
+    "no_rinnovo": false,
+    "dpa": false
+  },
+  "lists": {
+    "COMPONENTE": [
+      "Applicazione web",
+      "App mobile",
+      "Console di amministrazione"
+    ]
+  },
+  "rows": {},
+  "c": {
+    "35:1:unit": "1200",
+    "35:1:qty": "12"
+  },
+  "x": {}
+}

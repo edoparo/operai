@@ -1,0 +1,52 @@
+{
+  "tpl": "T4",
+  "f": {
+    "DATA": "2026-11-15",
+    "LINGUA": "italiano",
+    "ORARIO": "09:00–18:00",
+    "GIORNI_CONFERMA": "10",
+    "UNITÀ_DI_PREZZO": "a corpo",
+    "VALIDITA_GIORNI": "45",
+    "ACCONTO": "50",
+    "CLIENTE": "Alpina Energia SA",
+    "INDIRIZZO_CLIENTE": "Via Cantonale 12\n6900 Lugano\nSvizzera",
+    "RIF": "0042/2026r1",
+    "REFERENTE_CLIENTE": "Elena Marrone",
+    "TITOLO_CORSO": "Introduzione alla sicurezza applicativa",
+    "GIORNATE": "1",
+    "MODALITÀ": "da remoto",
+    "MAX_PARTECIPANTI": "15"
+  },
+  "g": {
+    "allegato_a": false,
+    "conferma": false,
+    "attestato": false,
+    "cancellazione": false,
+    "ai_corso": false,
+    "sconto": false,
+    "nota_corpo": true,
+    "nota_partecipante": false
+  },
+  "lists": {
+    "OBIETTIVO": [
+      ""
+    ],
+    "MATERIALE": [
+      ""
+    ]
+  },
+  "rows": {
+    "MODULO": [
+      {
+        "MODULO": "Panoramica OWASP",
+        "CONTENUTI": "Rischi principali e contromisure",
+        "ORE": "7"
+      }
+    ]
+  },
+  "c": {
+    "33:1:unit": "4200",
+    "33:1:qty": "1"
+  },
+  "x": {}
+}

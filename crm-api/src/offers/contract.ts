@@ -8,6 +8,9 @@
  * snapshot says.
  */
 
+import type { WizardAnswers } from "./engine/answers";
+import type { CostKind as EngineCostKind } from "./engine/costs";
+import type { ResolvedCostRow } from "./engine/resolve";
 import type { Scope } from "./scope";
 
 export type OfferLanguage = "en" | "it";
@@ -19,6 +22,8 @@ export interface OfferSection {
   readonly body: string;
   /** Exactly one section per template/offer carries the cost table. */
   readonly costs: boolean;
+  /** A wizard offer only: the text was edited by hand (display only; the renderer ignores it). */
+  readonly handEdited?: boolean;
 }
 
 export interface CostColumns {
@@ -61,10 +66,10 @@ export interface OfferTemplateContent {
   readonly annex: boolean;
 }
 
-/** A cost line as the dialog sends it and the snapshot stores it. */
+/** A cost line as the dialog sends it and the snapshot stores it; `option` only on a wizard offer (never counted in a total). */
 export interface OfferCostLine {
   readonly description: string;
-  readonly kind: CostKind;
+  readonly kind: EngineCostKind;
   /** Unit amount in cents; null only for a percentage discount. */
   readonly unitCents: number | null;
   /** Discounts only: basis points of the one-off sum; null otherwise. */
@@ -82,6 +87,27 @@ export interface OfferCosts {
   /** One-off lines minus discounts: the offer's stored price (D-6). */
   readonly oneOffCents: number;
   readonly yearlyCents: number;
+  /**
+   * A wizard offer only: the table as printed — lines and total rows in order, the engine's input. The renderer
+   * hands it to the engine's `computeCosts` for positions and span totals; a legacy snapshot has none and its
+   * `lines` are one span.
+   */
+  readonly rows?: readonly ResolvedCostRow[];
+  /** A wizard offer only: the template's own column headers (plain surfaces, DD-47); null keeps the default. */
+  readonly labels?: { readonly unit: string | null; readonly quantity: string | null };
+}
+
+/** A text annex of a wizard offer (plan § Data model; DD-45): drawn from a new page, before the effort-detail annex. */
+export interface OfferTextAnnex {
+  /** "A", "SLA": the word the heading and the "Allegati:" line print after "Allegato". */
+  readonly designation: string;
+  /** Plain surface (DD-47). */
+  readonly title: string;
+  /** Plain surface (DD-47); null when there is none. */
+  readonly subtitle: string | null;
+  /** 018 markup drawn before the first section, unnumbered ("" when none). */
+  readonly intro: string;
+  readonly sections: readonly { readonly heading: string; readonly body: string }[];
 }
 
 export interface OfferAttachmentRef {
@@ -124,6 +150,10 @@ export interface ContractSnapshot {
   readonly attachments: readonly OfferAttachmentRef[];
   readonly aiAssisted: boolean;
   readonly preparedBy: string | null;
+  /** A wizard offer only (plan § Data model): enough to reopen the wizard. The template text is not stored (DD-20). */
+  readonly wizard?: { readonly templateVersion: number; readonly answers: WizardAnswers };
+  /** A wizard offer only: the text annexes, in template order. */
+  readonly textAnnexes?: readonly OfferTextAnnex[];
 }
 
 /** What the renderer needs besides the snapshot. */

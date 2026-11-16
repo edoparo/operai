@@ -1,0 +1,243 @@
+{
+ "optionalTemplate": [
+  "@@salutation S",
+  "",
+  "@@OPT_START opt",
+  "## OPZ",
+  "Testo",
+  "@@OPT_END",
+  "",
+  "@@block opt",
+  "label: Opz"
+ ],
+ "cases": [
+  {
+   "name": "a section with nothing answered: each missing value is a visible token, listed in text order",
+   "section": "OGGETTO",
+   "patch": {},
+   "expect": {
+    "heading": "OGGETTO",
+    "body": "Oggetto: **⟦Descrizione⟧** del 15.11.2026.\nNessuna nota.\n\n- ⟦Elenco⟧\n\n| Attività | Giorni | Ore |\n|---|---|---|\n| ⟦Attività⟧ | ⟦Attività⟧ | ⟦Attività⟧ |",
+    "tokens": [
+     [
+      "DESC",
+      "Descrizione"
+     ],
+     [
+      "ELENCO",
+      "Elenco"
+     ],
+     [
+      "ATT",
+      "Attività"
+     ]
+    ]
+   }
+  },
+  {
+   "name": "answers are escaped as in the document, and nothing is left to fill",
+   "section": "OGGETTO",
+   "patch": {
+    "fields": {
+     "DESC": "**x**"
+    },
+    "lists": {
+     "ELENCO": [
+      "a"
+     ]
+    },
+    "tables": {
+     "ATT": [
+      {
+       "id": "r1",
+       "cells": {
+        "ATT": "A",
+        "ORE": "1"
+       }
+      }
+     ]
+    }
+   },
+   "expect": {
+    "heading": "OGGETTO",
+    "body": "Oggetto: **\\*\\*x\\*\\*** del 15.11.2026.\nNessuna nota.\n\n- a\n\n| Attività | Giorni | Ore |\n|---|---|---|\n| A |  | 1 |",
+    "tokens": []
+   }
+  },
+  {
+   "name": "a section of an annex is edited the same way",
+   "section": "PARTE",
+   "patch": {},
+   "expect": {
+    "heading": "PARTE",
+    "body": "Testo parte ⟦Percentuale⟧.",
+    "tokens": [
+     [
+      "PERC",
+      "Percentuale"
+     ]
+    ]
+   }
+  },
+  {
+   "name": "the costs section gives its notes only",
+   "section": "COSTI",
+   "patch": {},
+   "expect": {
+    "heading": "COSTI",
+    "body": "Nota costi.",
+    "tokens": []
+   }
+  },
+  {
+   "name": "a section that prints nothing has no text to edit",
+   "section": "VUOTA",
+   "patch": {},
+   "expect": null
+  },
+  {
+   "name": "a key the template does not have",
+   "section": "NOPE",
+   "patch": {},
+   "expect": null
+  },
+  {
+   "name": "a section already edited by hand comes back as stored, token characters and all",
+   "section": "OGGETTO",
+   "patch": {
+    "handEdit": {
+     "OGGETTO": {
+      "heading": "Mio titolo",
+      "body": "Testo **mio** ⟦Resto⟧ [DESC] \\* {{x::y}}",
+      "sourceHeading": "OGGETTO"
+     }
+    }
+   },
+   "expect": {
+    "heading": "Mio titolo",
+    "body": "Testo **mio** ⟦Resto⟧ [DESC] \\* {{x::y}}",
+    "tokens": []
+   }
+  },
+  {
+   "name": "a hand edit whose block is off is not there to edit",
+   "section": "OPZ",
+   "template": "optional",
+   "patch": {
+    "handEdit": {
+     "OPZ": {
+      "heading": "Mio",
+      "body": "Resta",
+      "sourceHeading": "OPZ"
+     }
+    }
+   },
+   "expect": null
+  }
+ ],
+ "findTokens": [
+  {
+   "text": "a ⟦One⟧ b ⟦Two⟧",
+   "expect": [
+    [
+     2,
+     7,
+     "One"
+    ],
+    [
+     10,
+     15,
+     "Two"
+    ]
+   ]
+  },
+  {
+   "text": "no tokens here",
+   "expect": []
+  },
+  {
+   "text": "stray ⟦ alone",
+   "expect": [
+    [
+     6,
+     7,
+     ""
+    ]
+   ]
+  },
+  {
+   "text": "closing ⟧ alone",
+   "expect": [
+    [
+     8,
+     9,
+     ""
+    ]
+   ]
+  },
+  {
+   "text": "⟦a⟦b⟧",
+   "expect": [
+    [
+     0,
+     1,
+     ""
+    ],
+    [
+     2,
+     5,
+     "b"
+    ]
+   ]
+  },
+  {
+   "text": "⟦⟧",
+   "expect": [
+    [
+     0,
+     2,
+     ""
+    ]
+   ]
+  },
+  {
+   "text": "⟦A\\*B⟧ and ⟦C⟧",
+   "expect": [
+    [
+     0,
+     6,
+     "A*B"
+    ],
+    [
+     11,
+     14,
+     "C"
+    ]
+   ]
+  },
+  {
+   "text": "⟦x⟧⟦y⟧",
+   "expect": [
+    [
+     0,
+     3,
+     "x"
+    ],
+    [
+     3,
+     6,
+     "y"
+    ]
+   ]
+  },
+  { "text": "a ⟪REF⟫ b", "expect": [] },
+  { "text": "⟪REF⟫⟪REF⟫", "where": "body", "expect": [] },
+  { "text": "a ⟪REF⟫ b", "where": "heading", "expect": [[2, 3, ""], [6, 7, ""]] },
+  { "text": "⟪ref⟫", "expect": [[0, 1, ""], [4, 5, ""]] },
+  { "text": "a ⟪ b", "expect": [[2, 3, ""]] },
+  { "text": "a ⟫ b", "expect": [[2, 3, ""]] },
+  { "text": "⟪⟪REF⟫⟫", "expect": [[0, 1, ""], [6, 7, ""]] },
+  { "text": "⟦A⟧ ⟪REF⟫ ⟪ ⟦B⟧", "expect": [[0, 3, "A"], [10, 11, ""], [12, 15, "B"]] },
+  { "text": "⟦a ⟪ b⟧", "expect": [[0, 7, "a ⟪ b"], [3, 4, ""]] }
+ ]
+}

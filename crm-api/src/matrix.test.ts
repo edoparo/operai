@@ -70,6 +70,15 @@ describe("authorization matrix", () => {
       "POST /entity-profiles/:entity/letterhead",
       "POST /entity-profiles/:entity/letterhead/confirm",
       "GET /entity-profiles/:entity/letterhead",
+      // specs/20261115-crm-offer-wizard
+      "GET /deals/:id/offer-wizard/context",
+      "GET /deals/:id/offer-draft",
+      "GET /deals/:id/offer-draft/summary",
+      "POST /deals/:id/offer-draft",
+      "PUT /deals/:id/offer-draft",
+      "DELETE /deals/:id/offer-draft",
+      "POST /deals/:id/offer-draft/template",
+      "POST /deals/:id/offer-draft/generate",
       // specs/20261101-crm-sales-flow AC-3.3
       "POST /system/estimate-notices",
     ]) {

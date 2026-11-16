@@ -9,7 +9,7 @@ import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-li
 import { RouterProvider } from '@tanstack/react-router'
 import CrmShell from '../components/CrmShell'
 import { createAppRouter } from '../router'
-import { ADA, fakeApi } from '../test-support/fakeApi'
+import { ADA, fakeApi, nulRefusalAnswer } from '../test-support/fakeApi'
 import type { FakeHandler } from '../test-support/fakeApi'
 
 const { apiFetch } = vi.hoisted(() => ({ apiFetch: vi.fn() }))
@@ -64,7 +64,8 @@ const TEMPLATE = {
 }
 
 const body = (init: RequestInit | undefined) => JSON.parse(String(init?.body)) as Record<string, unknown>
-const header = (init: RequestInit | undefined, name: string) => (init?.headers as Record<string, string> | undefined)?.[name] ?? null
+const header = (init: RequestInit | undefined, name: string) =>
+  (init?.headers as Record<string, string> | undefined)?.[name] ?? null
 
 const open = (path: string, extra: Record<string, FakeHandler> = {}, scope = MANAGER) => {
   apiFetch.mockImplementation(
@@ -117,7 +118,10 @@ describe('letterhead (AC-2.5)', () => {
         order.push('start')
         return {
           status: 201,
-          body: { key: 'letterheads/welld_ch/x.pdf', upload: { url: 'https://bucket.test/up', fields: { key: 'letterheads/welld_ch/x.pdf' } } },
+          body: {
+            key: 'letterheads/welld_ch/x.pdf',
+            upload: { url: 'https://bucket.test/up', fields: { key: 'letterheads/welld_ch/x.pdf' } },
+          },
         }
       },
       'POST /entity-profiles/welld_ch/letterhead/confirm': (_url, init) => {
@@ -142,14 +146,25 @@ describe('letterhead (AC-2.5)', () => {
   })
 
   it('refuses a non-PDF or a file over 5 MiB before any request', async () => {
+    const bucket = vi.fn(async () => new Response(null, { status: 204 }))
+    vi.stubGlobal('fetch', bucket)
     open('/settings')
     await screen.findByTestId('crm-letterhead-welld_ch')
-    const calls = apiFetch.mock.calls.length
+    // Other Settings cards issue their own reads while the page settles, so the total call count moves; what must
+    // stay at zero is every request that would start or confirm an upload (any non-GET, anything on the letterhead
+    // routes) and any call to the bucket.
+    const uploadRequests = () =>
+      apiFetch.mock.calls.filter(
+        ([url, init]) => String(url).includes('/letterhead') || String(init?.method ?? 'GET').toUpperCase() !== 'GET',
+      )
     await pick(new File(['x'], 'a.png', { type: 'image/png' }))
     expect((await screen.findByTestId('crm-letterhead-welld_ch-error')).textContent).toContain('Choose a PDF file')
     await pick(pdf('big.pdf', 5 * 1024 * 1024 + 1))
-    await waitFor(() => expect(screen.getByTestId('crm-letterhead-welld_ch-error').textContent).toContain('larger than 5 MiB'))
-    expect(apiFetch.mock.calls.length).toBe(calls)
+    await waitFor(() =>
+      expect(screen.getByTestId('crm-letterhead-welld_ch-error').textContent).toContain('larger than 5 MiB'),
+    )
+    expect(uploadRequests()).toEqual([])
+    expect(bucket).not.toHaveBeenCalled()
   })
 
   it.each([
@@ -158,8 +173,16 @@ describe('letterhead (AC-2.5)', () => {
     ['not_pdf', 'not a readable PDF'],
     ['unembeddable', 'cannot be used as a background'],
     ['too_large', 'larger than 5 MiB'],
+    // security M-4, DD-76: the four refusals of the decoded-size bound say one thing
+    ['too_complex', 'too complex to be used as a letterhead. Export it again as a plain PDF.'],
+    ['decoded_too_large', 'too complex to be used as a letterhead. Export it again as a plain PDF.'],
+    ['image_too_large', 'too complex to be used as a letterhead. Export it again as a plain PDF.'],
+    ['unbounded_stream', 'too complex to be used as a letterhead. Export it again as a plain PDF.'],
   ])('shows the reason %s inline and keeps the page usable', async (reason, text) => {
-    vi.stubGlobal('fetch', vi.fn(async () => new Response(null, { status: 204 })))
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => new Response(null, { status: 204 })),
+    )
     open('/settings', {
       'POST /entity-profiles/welld_ch/letterhead': () => ({
         status: 201,
@@ -195,6 +218,113 @@ describe('letterhead (AC-2.5)', () => {
   })
 })
 
+describe('letterhead the service now refuses (security M-4, DD-76, design S12b)', () => {
+  const STORED = { ...PROFILE, letterhead: { uploadedBy: ADA, uploadedAt: '2026-11-02T09:00:00.000Z' } }
+  const problem = (status: number, code: string, extras: Record<string, unknown> = {}) => ({
+    status,
+    body: { status, title: 'Problem', code, detail: 'x', ...extras },
+  })
+
+  it('a 409 letterhead_unusable on Download says to upload it again, opens nothing, and leaves Replace usable', async () => {
+    const openTab = vi.fn()
+    vi.stubGlobal('open', openTab)
+    open('/settings', {
+      'GET /entity-profiles': () => ({ status: 200, body: { items: [STORED] } }),
+      'GET /entity-profiles/welld_ch/letterhead': () =>
+        problem(409, 'letterhead_unusable', { entity: 'welld_ch', reason: 'decoded_too_large' }),
+    })
+    fireEvent.click(await screen.findByTestId('crm-letterhead-welld_ch-download'))
+    const banner = await screen.findByTestId('crm-letterhead-welld_ch-error')
+    expect(banner.textContent).toContain('This letterhead can no longer be used. Upload it again.')
+    expect(banner.textContent).not.toContain('decoded_too_large')
+    expect(openTab).not.toHaveBeenCalled()
+    const replace = screen.getByTestId('crm-letterhead-welld_ch-upload') as HTMLButtonElement
+    expect(replace.textContent).toBe('Replace letterhead')
+    expect(replace.disabled).toBe(false)
+  })
+
+  describe('confirming an upload key that was already spent (409 upload_missing)', () => {
+    const file = () => new File(['%PDF'], 'letterhead.pdf', { type: 'application/pdf' })
+    const arrange = (afterwards: () => { status: number; body: unknown }) => {
+      vi.stubGlobal(
+        'fetch',
+        vi.fn(async () => new Response(null, { status: 204 })),
+      )
+      let listed = 0
+      const listing = vi.fn(() => {
+        listed += 1
+        return listed === 1 ? { status: 200, body: { items: [PROFILE] } } : afterwards()
+      })
+      open('/settings', {
+        'GET /entity-profiles': listing,
+        'POST /entity-profiles/welld_ch/letterhead': () => ({
+          status: 201,
+          body: {
+            key: 'letterheads/welld_ch/x.pdf',
+            upload: { url: 'https://bucket.test/up', fields: { key: 'letterheads/welld_ch/x.pdf' } },
+          },
+        }),
+        'POST /entity-profiles/welld_ch/letterhead/confirm': () => problem(409, 'upload_missing'),
+      })
+      return listing
+    }
+    const pick = async () =>
+      fireEvent.change(await screen.findByTestId('crm-letterhead-welld_ch-file'), { target: { files: [file()] } })
+
+    it('refetches the profile and, when it now holds the letterhead, shows it as uploaded (no error)', async () => {
+      const listing = arrange(() => ({ status: 200, body: { items: [STORED] } }))
+      await screen.findByTestId('crm-letterhead-welld_ch')
+      await pick()
+      expect((await screen.findByTestId('crm-letterhead-welld_ch-by')).textContent).toBe(
+        'Uploaded by Ada Lovelace (You) on 02.11.2026',
+      )
+      expect(screen.queryByTestId('crm-letterhead-welld_ch-error')).toBeNull()
+      expect(screen.getByText('Letterhead uploaded.')).not.toBeNull()
+      expect(listing).toHaveBeenCalledTimes(2)
+    })
+
+    it('says the file did not arrive when the refetched profile still has none', async () => {
+      arrange(() => ({ status: 200, body: { items: [PROFILE] } }))
+      await screen.findByTestId('crm-letterhead-welld_ch')
+      await pick()
+      expect((await screen.findByTestId('crm-letterhead-welld_ch-error')).textContent).toContain(
+        'The file did not reach storage. Try again.',
+      )
+      expect(screen.queryByTestId('crm-letterhead-welld_ch-by')).toBeNull()
+    })
+
+    it('says the same when the refetch itself fails', async () => {
+      arrange(() => problem(503, 'storage_unavailable'))
+      await screen.findByTestId('crm-letterhead-welld_ch')
+      await pick()
+      expect((await screen.findByTestId('crm-letterhead-welld_ch-error')).textContent).toContain(
+        'The file did not reach storage. Try again.',
+      )
+    })
+
+    it('does not mistake a letterhead that was already there for the one just sent', async () => {
+      // the profile held a letterhead before the upload and still holds the same one: nothing was replaced
+      vi.stubGlobal(
+        'fetch',
+        vi.fn(async () => new Response(null, { status: 204 })),
+      )
+      open('/settings', {
+        'GET /entity-profiles': () => ({ status: 200, body: { items: [STORED] } }),
+        'POST /entity-profiles/welld_ch/letterhead': () => ({
+          status: 201,
+          body: { key: 'letterheads/welld_ch/x.pdf', upload: { url: 'https://bucket.test/up', fields: {} } },
+        }),
+        'POST /entity-profiles/welld_ch/letterhead/confirm': () => problem(409, 'upload_missing'),
+      })
+      await screen.findByTestId('crm-letterhead-welld_ch-by')
+      await pick()
+      expect((await screen.findByTestId('crm-letterhead-welld_ch-error')).textContent).toContain(
+        'The file did not reach storage. Try again.',
+      )
+    })
+  })
+})
+
 describe('template list (US-2)', () => {
   it('shows name, language and last update, and loads archived ones on request', async () => {
     const queries: string[] = []
@@ -203,7 +333,12 @@ describe('template list (US-2)', () => {
         queries.push(url.search)
         return {
           status: 200,
-          body: { items: url.searchParams.get('includeArchived') === 'true' ? [TEMPLATE, { ...TEMPLATE, id: 't2', name: 'Old one', archived: true }] : [TEMPLATE] },
+          body: {
+            items:
+              url.searchParams.get('includeArchived') === 'true'
+                ? [TEMPLATE, { ...TEMPLATE, id: 't2', name: 'Old one', archived: true }]
+                : [TEMPLATE],
+          },
         }
       },
     })
@@ -212,10 +347,10 @@ describe('template list (US-2)', () => {
     expect(row.textContent).toContain('Fixed price')
     expect(row.textContent).toContain('Italian')
     expect(row.textContent).toContain('30.10.2026')
-    expect(queries[0]).toBe('?entity=welld_ch&includeArchived=false')
+    expect(queries[0]).toBe('?entity=welld_ch&includeArchived=false&formats=sections%2Cwizard')
     fireEvent.click(screen.getByTestId('crm-templates-welld_ch-archived'))
     expect(await screen.findByTestId('crm-template-restore-t2')).not.toBeNull()
-    expect(queries.at(-1)).toBe('?entity=welld_ch&includeArchived=true')
+    expect(queries.at(-1)).toBe('?entity=welld_ch&includeArchived=true&formats=sections%2Cwizard')
     expect(screen.queryByTestId('crm-template-restore-t1')).toBeNull()
   })
 
@@ -261,7 +396,7 @@ describe('template editor (US-2, AC-3.3)', () => {
       },
     })
     await screen.findByTestId('crm-template-page')
-    expect((await screen.findByLabelText(/^Name/) as HTMLInputElement).value).toBe('Fixed price')
+    expect(((await screen.findByLabelText(/^Name/)) as HTMLInputElement).value).toBe('Fixed price')
     fireEvent.change(screen.getByLabelText(/^Name/), { target: { value: 'Fixed price v2' } })
     fireEvent.click(screen.getByTestId('crm-template-save'))
     expect(await screen.findByText('Template saved.')).not.toBeNull()
@@ -304,7 +439,9 @@ describe('template editor (US-2, AC-3.3)', () => {
     fireEvent.click(screen.getByTestId('crm-template-section-add'))
     fireEvent.change(heading(4), { target: { value: 'Allegati' } })
     fireEvent.click(screen.getByTestId('crm-template-section-3-costs'))
-    const checked = [0, 1, 2, 3].filter((n) => (screen.getByTestId(`crm-template-section-${n}-costs`) as HTMLInputElement).checked)
+    const checked = [0, 1, 2, 3].filter(
+      (n) => (screen.getByTestId(`crm-template-section-${n}-costs`) as HTMLInputElement).checked,
+    )
     expect(checked).toEqual([3])
     // Remove "Validità" (now third).
     fireEvent.click(screen.getByTestId('crm-template-section-2-remove'))
@@ -319,7 +456,12 @@ describe('template editor (US-2, AC-3.3)', () => {
   })
 
   it('cannot remove the last section, and the 15-section cap disables Add', async () => {
-    open('/settings/templates/new/welld_ch')
+    open('/settings/templates/t1', {
+      'GET /offer-templates/t1': () => ({
+        status: 200,
+        body: { ...TEMPLATE, sections: [{ heading: 'Corrispettivo', body: '', costs: true }] },
+      }),
+    })
     await screen.findByTestId('crm-template-sections')
     expect((screen.getByTestId('crm-template-section-0-remove') as HTMLButtonElement).disabled).toBe(true)
     for (let i = 0; i < 14; i++) fireEvent.click(screen.getByTestId('crm-template-section-add'))
@@ -327,21 +469,70 @@ describe('template editor (US-2, AC-3.3)', () => {
   })
 
   it('validates before calling the API: required texts, headings and cost amounts', async () => {
-    open('/settings/templates/new/welld_ch')
+    // a classic template emptied out (new templates are wizard ones now, specs/20261115-crm-offer-wizard DD-9)
+    const blank = {
+      ...TEMPLATE,
+      name: '',
+      salutation: '',
+      opening: '',
+      sections: [{ heading: '', body: '', costs: true }],
+      costLines: [{ description: '', kind: 'one_off', amount: 'deal', quantity: 1 }],
+    }
+    open('/settings/templates/t1', { 'GET /offer-templates/t1': () => ({ status: 200, body: blank }) })
     await screen.findByTestId('crm-template-sections')
     fireEvent.click(screen.getByTestId('crm-template-save'))
     expect((await screen.findByTestId('crm-template-error')).textContent).toContain('Some fields need attention')
     expect(screen.getAllByText('This field is required.').length).toBeGreaterThanOrEqual(3)
     expect(screen.getByText('The heading is required.')).not.toBeNull()
     expect(screen.getByText('The description is required.')).not.toBeNull()
-    expect(apiFetch.mock.calls.some(([, init]) => (init as RequestInit | undefined)?.method === 'POST')).toBe(false)
+    expect(apiFetch.mock.calls.some(([, init]) => (init as RequestInit | undefined)?.method === 'PUT')).toBe(false)
+  })
+
+  it('a character the server cannot store lands on the field it named, in our words (QE F2)', async () => {
+    open('/settings/templates/t1', {
+      'GET /offer-templates/t1': () => ({ status: 200, body: TEMPLATE }),
+      'PUT /offer-templates/t1': () => nulRefusalAnswer('opening'),
+    })
+    await screen.findByTestId('crm-template-sections')
+    fireEvent.click(screen.getByTestId('crm-template-save'))
+    const opening = await screen.findByTestId('crm-template-opening')
+    const box = opening.querySelector('textarea')!
+    await waitFor(() => expect(document.activeElement).toBe(box))
+    expect(box.getAttribute('aria-invalid')).toBe('true')
+    expect(opening.textContent).toContain('This text contains a character that cannot be saved.')
+    expect(document.body.textContent).not.toMatch(/NUL|opening:|Not text/)
+    expect(screen.queryByTestId('crm-template-error')).toBeNull()
+  })
+
+  it('a refused character in a section is a banner in our words, not the server line', async () => {
+    open('/settings/templates/t1', {
+      'GET /offer-templates/t1': () => ({ status: 200, body: TEMPLATE }),
+      'PUT /offer-templates/t1': () => nulRefusalAnswer('sections.0.heading'),
+    })
+    await screen.findByTestId('crm-template-sections')
+    fireEvent.click(screen.getByTestId('crm-template-save'))
+    expect((await screen.findByTestId('crm-template-error')).textContent).toBe(
+      'This text contains a character that cannot be saved.',
+    )
+    expect(document.body.textContent).not.toMatch(/sections\.0|NUL/)
   })
 
   it('needs at least one one-off line, and quantity 1 without the unit columns', async () => {
-    open('/settings/templates/t1', { 'GET /offer-templates/t1': () => ({ status: 200, body: { ...TEMPLATE, costColumns: { position: true, unit: true }, costLines: [{ description: 'Hosting', kind: 'yearly', amount: { cents: 100 }, quantity: 4 }] } }) })
+    open('/settings/templates/t1', {
+      'GET /offer-templates/t1': () => ({
+        status: 200,
+        body: {
+          ...TEMPLATE,
+          costColumns: { position: true, unit: true },
+          costLines: [{ description: 'Hosting', kind: 'yearly', amount: { cents: 100 }, quantity: 4 }],
+        },
+      }),
+    })
     await screen.findByTestId('crm-template-costlines')
     fireEvent.click(screen.getByTestId('crm-template-save'))
-    expect((await screen.findByTestId('crm-template-costlines-error')).textContent).toContain('At least one line must be one-off')
+    expect((await screen.findByTestId('crm-template-costlines-error')).textContent).toContain(
+      'At least one line must be one-off',
+    )
     // Turning the unit columns off puts every quantity back to 1.
     fireEvent.click(screen.getByTestId('crm-template-cost-unit'))
     expect(screen.queryByLabelText(/^Quantity \(1\)/)).toBeNull()
@@ -350,7 +541,8 @@ describe('template editor (US-2, AC-3.3)', () => {
   it('a percentage is offered to discounts only; a per-release split to one-off lines only', async () => {
     open('/settings/templates/t1', { 'GET /offer-templates/t1': () => ({ status: 200, body: TEMPLATE }) })
     await screen.findByTestId('crm-template-costlines')
-    const modes = (n: number) => [...(screen.getByLabelText(`Amount type (${n})`) as HTMLSelectElement).options].map((option) => option.value)
+    const modes = (n: number) =>
+      [...(screen.getByLabelText(`Amount type (${n})`) as HTMLSelectElement).options].map((option) => option.value)
     expect(modes(1)).toEqual(['deal', 'perRelease', 'fixed'])
     expect(modes(2)).toEqual(['deal', 'fixed'])
     expect(modes(3)).toEqual(['fixed', 'percent'])
@@ -360,7 +552,10 @@ describe('template editor (US-2, AC-3.3)', () => {
   it('a stale save shows the reload banner; reloading brings the latest version back', async () => {
     let version = 3
     open('/settings/templates/t1', {
-      'GET /offer-templates/t1': () => ({ status: 200, body: { ...TEMPLATE, version, name: version === 3 ? 'Fixed price' : 'Edited elsewhere' } }),
+      'GET /offer-templates/t1': () => ({
+        status: 200,
+        body: { ...TEMPLATE, version, name: version === 3 ? 'Fixed price' : 'Edited elsewhere' },
+      }),
       'PUT /offer-templates/t1': () => ({
         status: 409,
         body: { status: 409, title: 'Conflict', code: 'version_conflict', detail: 'x' },
@@ -377,50 +572,35 @@ describe('template editor (US-2, AC-3.3)', () => {
   it('a missing precondition (428) is handled the same way', async () => {
     open('/settings/templates/t1', {
       'GET /offer-templates/t1': () => ({ status: 200, body: TEMPLATE }),
-      'PUT /offer-templates/t1': () => ({ status: 428, body: { status: 428, title: 'Precondition required', code: 'precondition_required' } }),
+      'PUT /offer-templates/t1': () => ({
+        status: 428,
+        body: { status: 428, title: 'Precondition required', code: 'precondition_required' },
+      }),
     })
     await screen.findByTestId('crm-template-sections')
     fireEvent.click(screen.getByTestId('crm-template-save'))
     expect(await screen.findByTestId('crm-stale-write')).not.toBeNull()
   })
 
-  it('creates a template of the entity in the path, then opens it; a taken name lands on the name field', async () => {
-    let posted: Record<string, unknown> | null = null
-    let taken = true
-    open('/settings/templates/new/welld_ch', {
-      'POST /offer-templates': (_url, init) => {
-        posted = body(init)
-        return taken
-          ? { status: 409, body: { status: 409, title: 'Conflict', code: 'template_name_taken', detail: 'x' } }
-          : { status: 201, body: { ...TEMPLATE, id: 't7', name: 'Brand new', version: 1 } }
-      },
-      'GET /offer-templates/t7': () => ({ status: 200, body: { ...TEMPLATE, id: 't7', name: 'Brand new', version: 1 } }),
+  it('a taken name lands on the name field and keeps what was typed', async () => {
+    open('/settings/templates/t1', {
+      'GET /offer-templates/t1': () => ({ status: 200, body: TEMPLATE }),
+      'PUT /offer-templates/t1': () => ({
+        status: 409,
+        body: { status: 409, title: 'Conflict', code: 'template_name_taken', detail: 'x' },
+      }),
     })
     await screen.findByTestId('crm-template-sections')
     fireEvent.change(screen.getByLabelText(/^Name/), { target: { value: 'Brand new' } })
-    fireEvent.change(screen.getByLabelText(/^Salutation/), { target: { value: 'Dear Sir,' } })
-    fireEvent.change(screen.getByLabelText(/^Opening/), { target: { value: 'Thank you.' } })
-    fireEvent.change(screen.getByLabelText(/^Heading \(1\)/), { target: { value: 'Costs' } })
-    fireEvent.change(screen.getByLabelText(/^Description \(1\)/), { target: { value: 'Development' } })
-    fireEvent.change(screen.getByLabelText('Amount type (1)'), { target: { value: 'deal' } })
     fireEvent.click(screen.getByTestId('crm-template-save'))
     expect(await screen.findByText('A template with this name already exists for this entity.')).not.toBeNull()
-    taken = false
-    fireEvent.click(screen.getByTestId('crm-template-save'))
-    await waitFor(() => expect(window.location.pathname).toBe('/settings/templates/t7'))
-    expect(posted).toMatchObject({
-      entity: 'welld_ch',
-      name: 'Brand new',
-      language: 'it',
-      costLines: [{ description: 'Development', kind: 'one_off', amount: 'deal', quantity: 1 }],
-      sections: [{ heading: 'Costs', body: '', costs: true }],
-      costColumns: { position: true, unit: false },
-      annex: false,
-    })
+    expect((screen.getByLabelText(/^Name/) as HTMLInputElement).value).toBe('Brand new')
   })
 
   it('is read-only for an entity the caller does not manage', async () => {
-    open('/settings/templates/t1', { 'GET /offer-templates/t1': () => ({ status: 200, body: { ...TEMPLATE, entity: 'welld_it' } }) })
+    open('/settings/templates/t1', {
+      'GET /offer-templates/t1': () => ({ status: 200, body: { ...TEMPLATE, entity: 'welld_it' } }),
+    })
     await screen.findByTestId('crm-template-sections')
     expect(screen.getByText(/you do not manage deals for this entity/)).not.toBeNull()
     expect(screen.queryByTestId('crm-template-save')).toBeNull()

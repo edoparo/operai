@@ -1,0 +1,31 @@
+{
+  "tpl": "T5",
+  "f": {
+    "DATA": "2026-11-15",
+    "VALIDITA_GIORNI": "45",
+    "ACCONTO": "50",
+    "CLIENTE": "Alpina Energia SA",
+    "INDIRIZZO_CLIENTE": "Via Cantonale 12\n6900 Lugano\nSvizzera",
+    "RIF": "0042/2026r1",
+    "OGGETTO_CONSULENZA": "l'assessment tecnico-funzionale del sistema di gestione ordini",
+    "DELIVERABLE": "documento di requisiti e solution design",
+    "DURATA": "6 settimane"
+  },
+  "g": {
+    "sconto": false,
+    "scalato": false
+  },
+  "lists": {
+    "CONTENUTO": [
+      ""
+    ],
+    "ATTIVITÀ": [
+      ""
+    ]
+  },
+  "rows": {},
+  "c": {
+    "37:1:unit": "13500"
+  },
+  "x": {}
+}

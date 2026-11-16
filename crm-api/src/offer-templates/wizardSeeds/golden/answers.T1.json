@@ -1,0 +1,103 @@
+{
+  "tpl": "T1",
+  "f": {
+    "DATA": "2026-11-15",
+    "VALIDITA_GIORNI": "45",
+    "ACCONTO": "30",
+    "CLIENTE": "Alpina Energia SA",
+    "INDIRIZZO_CLIENTE": "Via Cantonale 12\n6900 Lugano\nSvizzera",
+    "RIF": "0042/2026r1",
+    "REFERENTE_CLIENTE": "Marta Rossi",
+    "OGGETTO_A_CORPO": "la progettazione e lo sviluppo dell'app mobile «Alpina Clienti»",
+    "DESCRIZIONE_IN_UNA_FRASE": "Un'app per consultare consumi e fatture\ne aprire segnalazioni",
+    "FUNZIONALITÀ_RINVIATE": "Pagamento in app e notifiche push personalizzate",
+    "DURATA": "5 mesi",
+    "MATERIALI_DATI_ACCESSI": "Accesso al sistema di fatturazione di test e alle linee guida grafiche del Cliente",
+    "SECONDA_VOCE": "Fase 2 – integrazioni",
+    "VOCE_A_SCELTA_DEL_CLIENTE": "Modulo reportistica",
+    "RATE": "30",
+    "N_RATE": "6",
+    "PIATTAFORME_SUPPORTATE": "iOS 17+, Android 14+",
+    "INTEGRAZIONI": "Sistema di fatturazione SAP, servizio di autenticazione del Cliente",
+    "AMBIENTI": "sviluppo, test, produzione",
+    "RESPONSABILITÀ_FORNITORE": "Analisi, sviluppo, test, rilascio negli store.",
+    "RESPONSABILITÀ_CLIENTE": "Contenuti, account sviluppatore degli store, accessi ai sistemi."
+  },
+  "g": {
+    "allegato_a": true,
+    "collaudo_fasi": true,
+    "preprod": true,
+    "ai": true,
+    "voce2": true,
+    "sconto": true,
+    "voce_scelta": true,
+    "rate": true
+  },
+  "lists": {
+    "FUNZIONALITÀ_O_DELIVERABLE": [
+      "Login e profilo",
+      "Consumi e fatture",
+      "Segnalazioni guasti"
+    ],
+    "ATTIVITÀ": [
+      "Analisi e disegno",
+      "Sviluppo",
+      "Collaudo e rilascio"
+    ],
+    "ESCLUSIONE": [
+      "Gestione dei contenuti editoriali",
+      "Migrazione dei dati storici"
+    ]
+  },
+  "rows": {
+    "FUNZIONALITÀ": [
+      {
+        "FUNZIONALITÀ": "Login e profilo",
+        "DESCRIZIONE": "Accesso con credenziali e SSO",
+        "CRITERIO": "Accesso riuscito in meno di 3 secondi"
+      },
+      {
+        "FUNZIONALITÀ": "Consumi e fatture",
+        "DESCRIZIONE": "Elenco e dettaglio degli ultimi 24 mesi",
+        "CRITERIO": "Dati coerenti con il sistema di fatturazione"
+      },
+      {
+        "FUNZIONALITÀ": "Segnalazioni guasti",
+        "DESCRIZIONE": "Apertura di una segnalazione con foto",
+        "CRITERIO": "Segnalazione visibile al servizio clienti"
+      }
+    ],
+    "VOCE_DI_STIMA": [
+      {
+        "VOCE_DI_STIMA": "Analisi e disegno",
+        "PROFILO_RISORSA": "Business analyst",
+        "GG": "12"
+      },
+      {
+        "VOCE_DI_STIMA": "Sviluppo app",
+        "PROFILO_RISORSA": "Sviluppatore mobile",
+        "GG": "46.5"
+      },
+      {
+        "VOCE_DI_STIMA": "Collaudo",
+        "PROFILO_RISORSA": "QA engineer",
+        "GG": "9"
+      }
+    ]
+  },
+  "c": {
+    "52:1:unit": "48000",
+    "52:2:unit": "12500.50",
+    "52:3:sconto": "2500",
+    "52:5:unit": "3900"
+  },
+  "x": {
+    "52": [
+      {
+        "label": "Licenze librerie grafiche",
+        "unit": "450",
+        "qty": "2"
+      }
+    ]
+  }
+}

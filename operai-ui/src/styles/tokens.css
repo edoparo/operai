@@ -79,6 +79,13 @@
   --color-red: var(--red);
   --color-red-text: var(--red-text);
   --color-ai: var(--ai);
+  --color-paper: var(--paper);
+  --color-paper-ink: var(--paper-ink);
+  --color-paper-soft: var(--paper-soft);
+  --color-paper-rule: var(--paper-rule);
+  --color-paper-head: var(--paper-head);
+  --color-paper-mark: var(--paper-mark);
+  --color-paper-mark-ink: var(--paper-mark-ink);
 
   --font-mono: var(--mono);
   --font-disp: var(--disp);
@@ -127,6 +134,17 @@
      below WCAG AA for 13px text). Same value in both themes. */
   --acc-solid: #4f5ef0;
   --acc-solid-hi: #4453e0;
+  /* The preview paper (offer wizard, specs/20261115-crm-offer-wizard): a page
+     that represents the PRINT, so it stays light in every theme — the same
+     values in the three theme blocks, on purpose. ink 17.8:1 and soft 8.3:1 on
+     paper, mark-ink 11.1:1 on mark. */
+  --paper: #fdfdfb;
+  --paper-ink: #15151d;
+  --paper-soft: #4b4b5f;
+  --paper-rule: #d6d6de;
+  --paper-head: #ececf2;
+  --paper-mark: #ffe58a;
+  --paper-mark-ink: #3a2a00;
   /* Keyboard focus ring, for every focusable element (see the :focus-visible
      rule in @layer base). --acc-hi is theme-aware (#8b96ff dark, #3d4ce0
      light): >= 5.2:1 against --ink, --ink-soft and --ink-mid in both themes,
@@ -163,6 +181,13 @@
   --grn-text: #137044;
   --org-text: #8f5408;
   --red-text: #b02626;
+  --paper: #fdfdfb;
+  --paper-ink: #15151d;
+  --paper-soft: #4b4b5f;
+  --paper-rule: #d6d6de;
+  --paper-head: #ececf2;
+  --paper-mark: #ffe58a;
+  --paper-mark-ink: #3a2a00;
   --select-chevron: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12' fill='none' stroke='%2360608a' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M2.5 4.5 6 8l3.5-3.5'/%3E%3C/svg%3E");
 }
 
@@ -189,6 +214,13 @@
     --grn-text: #137044;
     --org-text: #8f5408;
     --red-text: #b02626;
+    --paper: #fdfdfb;
+    --paper-ink: #15151d;
+    --paper-soft: #4b4b5f;
+    --paper-rule: #d6d6de;
+    --paper-head: #ececf2;
+    --paper-mark: #ffe58a;
+    --paper-mark-ink: #3a2a00;
     --select-chevron: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12' fill='none' stroke='%2360608a' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M2.5 4.5 6 8l3.5-3.5'/%3E%3C/svg%3E");
   }
 }

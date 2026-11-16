@@ -15,6 +15,10 @@ on:
       - "inventory-api/src/lib/serviceToken.ts"
       - "refund-api/src/lib/serviceToken.ts"
       - "estimai-api/src/lib/serviceToken.ts"
+      - "crm-api/src/offers/engine/**"
+      - "crm-ui/src/lib/offerEngine/**"
+      - "crm-api/src/offers/paper.ts"
+      - "crm-ui/src/lib/offerPaper/**"
       - ".github/workflows/shared-copies.yml"
   workflow_dispatch: {}
 

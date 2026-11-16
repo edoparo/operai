@@ -1,0 +1,304 @@
+{
+  "template": [
+    "@@salutation S",
+    "",
+    "Text [CLIENTE] [DESC] [PROFILO] [IMPORTO] [PERC] [DATA] [SALDO] [N] [DEAL] [EPICS] [PHASES] [TIMELINE] [MD] [ELENCO] [TAB] [PREZZO] [QUOTA] [AMT] [ORFANO]",
+    "{{blocco::a}} {{altro::b}} {{uno::c}} {{tre::e}} {{quattro::f}}",
+    "",
+    "## COSTI",
+    "@@costs position unit",
+    "@@line oggetto one_off | [DEAL] | unit=deal | qty=manDays",
+    "@@line rel yearly | Rel | unit=perRelease | qty=1",
+    "@@line fisso one_off | Fisso | unit=500 | qty=1",
+    "@@line var one_off | Var | unit=? | qty=?",
+    "@@total TOT",
+    "@@end",
+    "",
+    "@@field CLIENTE",
+    "source: client",
+    "",
+    "@@field DESC",
+    "label: Descrizione",
+    "example: es. Portale",
+    "",
+    "@@field PROFILO",
+    "label: Profilo",
+    "options: Base | Gold | Platinum",
+    "default: Gold",
+    "fills Gold: IMPORTO = 5000",
+    "fills Gold: PERC = 10",
+    "fills Platinum: PERC = 20",
+    "fills Platinum: IMPORTO = 9000",
+    "",
+    "@@field IMPORTO",
+    "label: Importo",
+    "kind: amount",
+    "",
+    "@@field PERC",
+    "label: Perc",
+    "kind: percentage",
+    "",
+    "@@field DATA",
+    "label: Data",
+    "kind: date",
+    "default: today",
+    "",
+    "@@field SALDO",
+    "label: Saldo",
+    "kind: percentage",
+    "compute: 100 - PERC",
+    "",
+    "@@field N",
+    "label: N",
+    "kind: number",
+    "",
+    "@@field DEAL",
+    "source: deal",
+    "",
+    "@@field EPICS",
+    "source: epics",
+    "",
+    "@@field PHASES",
+    "source: phases",
+    "",
+    "@@field TIMELINE",
+    "source: timeline",
+    "",
+    "@@field MD",
+    "source: manDays",
+    "",
+    "@@field AMT",
+    "label: Importo fisso",
+    "kind: amount",
+    "default: 150.50",
+    "",
+    "@@field QUOTA",
+    "label: Quota",
+    "kind: number",
+    "default: 12.50",
+    "",
+    "@@field PREZZO",
+    "label: Prezzo",
+    "kind: amount",
+    "",
+    "@@field ORFANO",
+    "label: Orfano",
+    "",
+    "@@list ELENCO",
+    "label: Elenco",
+    "",
+    "@@table TAB",
+    "label: Tabella",
+    "columns: TAB, PREZZO",
+    "",
+    "@@block blocco",
+    "label: Blocco",
+    "default: on",
+    "",
+    "@@block altro",
+    "label: Altro",
+    "",
+    "@@block uno",
+    "label: Uno",
+    "fills: PERC = 7",
+    "",
+    "@@block tre",
+    "label: Tre",
+    "fills: N = 1",
+    "",
+    "@@block quattro",
+    "label: Quattro",
+    "fills: N = 2",
+    "",
+    "@@choice scelta",
+    "label: Scelta",
+    "options: tre | quattro"
+  ],
+  "context": {
+    "language": "it",
+    "today": "2026-11-15",
+    "dealTitle": "Portale clienti",
+    "currency": "CHF",
+    "dealAmountCents": 1000000,
+    "issuerLegalName": "WellD Sagl",
+    "issuerAddressLines": [],
+    "placeOfIssue": "Lugano",
+    "clientLines": { "it": ["Acme SA", "Via Roma 1", "6900 Lugano", "Svizzera"], "en": ["Acme SA", "Via Roma 1", "6900 Lugano", "Switzerland"] },
+    "contacts": [{ "id": "c1", "name": "Mario Rossi" }, { "id": "c2", "name": "Anna Bianchi" }],
+    "attachments": [],
+    "estimate": {
+      "state": "ready",
+      "manDays": 42,
+      "manDaysAi": 30,
+      "epics": ["Login", "Report"],
+      "phases": [{ "release": "R1", "epics": ["Login"] }, { "release": "R2", "epics": ["Report"] }],
+      "timeline": { "it": "| Fase | Durata |", "en": "| Phase | Duration |" },
+      "releases": [{ "name": "R1", "manDays": 20 }, { "name": "R2", "manDays": 22 }]
+    }
+  },
+  "initial": {
+    "v": 1,
+    "client": { "lines": ["Acme SA", "Via Roma 1", "6900 Lugano", "Svizzera"], "contactIds": [], "place": "Lugano", "date": null },
+    "fields": {
+      "PROFILO": "Gold",
+      "IMPORTO": 500000,
+      "PERC": "10",
+      "DATA": "2026-11-15",
+      "N": "1",
+      "DEAL": "Portale clienti",
+      "EPICS": "1. Login\n2. Report",
+      "PHASES": "- R1: Login\n- R2: Report",
+      "TIMELINE": "| Fase | Durata |",
+      "MD": "42",
+      "AMT": 15050,
+      "QUOTA": "12.5"
+    },
+    "prefilled": {
+      "DEAL": "Portale clienti",
+      "EPICS": "1. Login\n2. Report",
+      "PHASES": "- R1: Login\n- R2: Report",
+      "TIMELINE": "| Fase | Durata |",
+      "MD": "42"
+    },
+    "blocks": { "blocco": true, "altro": false, "uno": false, "tre": true, "quattro": false },
+    "lists": { "ELENCO": [] },
+    "tables": { "TAB": [] },
+    "costs": {
+      "lines": {
+        "oggetto": { "unitCents": 1000000, "quantity": 42 },
+        "rel": { "releases": [{ "description": "R1", "unitCents": 476200 }, { "description": "R2", "unitCents": 523800 }] }
+      },
+      "extra": [],
+      "columns": { "position": true, "unit": true },
+      "showTotals": true
+    },
+    "handEdits": {},
+    "orphanedEdits": [],
+    "validityDays": 30,
+    "aiAssisted": false,
+    "effortAnnex": false,
+    "attachmentIds": [],
+    "lastStep": "client"
+  },
+  "ops": [
+    {
+      "name": "choosing an option sets its targets",
+      "steps": [{ "op": "field", "name": "PROFILO", "value": "Platinum" }],
+      "fields": { "PROFILO": "Platinum", "PERC": "20", "IMPORTO": 900000 }
+    },
+    {
+      "name": "a later edit stands",
+      "steps": [
+        { "op": "field", "name": "PROFILO", "value": "Platinum" },
+        { "op": "field", "name": "PERC", "value": "25" }
+      ],
+      "fields": { "PROFILO": "Platinum", "PERC": "25", "IMPORTO": 900000 }
+    },
+    {
+      "name": "choosing another option keeps what no fill of the new option names, and overwrites the rest",
+      "steps": [
+        { "op": "field", "name": "PROFILO", "value": "Platinum" },
+        { "op": "field", "name": "PERC", "value": "25" },
+        { "op": "field", "name": "N", "value": "9" },
+        { "op": "field", "name": "PROFILO", "value": "Gold" }
+      ],
+      "fields": { "PROFILO": "Gold", "PERC": "10", "IMPORTO": 500000, "N": "9" }
+    },
+    {
+      "name": "an option with no fills keeps every current value",
+      "steps": [
+        { "op": "field", "name": "PERC", "value": "15" },
+        { "op": "field", "name": "PROFILO", "value": "Base" }
+      ],
+      "fields": { "PROFILO": "Base", "PERC": "15", "IMPORTO": 500000 }
+    },
+    {
+      "name": "choosing the option already chosen changes nothing",
+      "steps": [
+        { "op": "field", "name": "PERC", "value": "15" },
+        { "op": "field", "name": "PROFILO", "value": "Gold" }
+      ],
+      "fields": { "PROFILO": "Gold", "PERC": "15", "IMPORTO": 500000 }
+    },
+    {
+      "name": "switching a block on sets its targets; off keeps them; on again overwrites",
+      "steps": [{ "op": "block", "name": "uno", "on": true }],
+      "fields": { "PERC": "7" },
+      "blocks": { "uno": true },
+      "then": [
+        {
+          "steps": [{ "op": "field", "name": "PERC", "value": "9" }, { "op": "block", "name": "uno", "on": false }],
+          "fields": { "PERC": "9" },
+          "blocks": { "uno": false }
+        },
+        {
+          "steps": [{ "op": "field", "name": "PERC", "value": "9" }, { "op": "block", "name": "uno", "on": false }, { "op": "block", "name": "uno", "on": true }],
+          "fields": { "PERC": "7" },
+          "blocks": { "uno": true }
+        }
+      ]
+    },
+    {
+      "name": "a block already on is not set again",
+      "steps": [{ "op": "block", "name": "uno", "on": true }, { "op": "field", "name": "PERC", "value": "9" }, { "op": "block", "name": "uno", "on": true }],
+      "fields": { "PERC": "9" }
+    },
+    {
+      "name": "a block without fills only flips",
+      "steps": [{ "op": "block", "name": "altro", "on": true }],
+      "fields": { "PERC": "10", "N": "1" },
+      "blocks": { "altro": true }
+    },
+    {
+      "name": "choosing an option of a block choice: exactly one is on, and its fills apply",
+      "steps": [{ "op": "choose", "choice": "scelta", "option": "quattro" }],
+      "fields": { "N": "2" },
+      "blocks": { "tre": false, "quattro": true }
+    },
+    {
+      "name": "choosing again keeps an edit; choosing the other one overwrites",
+      "steps": [{ "op": "choose", "choice": "scelta", "option": "quattro" }, { "op": "field", "name": "N", "value": "5" }, { "op": "choose", "choice": "scelta", "option": "quattro" }],
+      "fields": { "N": "5" },
+      "blocks": { "tre": false, "quattro": true },
+      "then": [
+        {
+          "steps": [{ "op": "choose", "choice": "scelta", "option": "quattro" }, { "op": "field", "name": "N", "value": "5" }, { "op": "choose", "choice": "scelta", "option": "tre" }],
+          "fields": { "N": "1" },
+          "blocks": { "tre": true, "quattro": false }
+        }
+      ]
+    },
+    {
+      "name": "a fill converts to the target's kind (amount to cents, percentage canonical)",
+      "template": ["@@salutation S", "", "[P] [A] [Q]", "## C", "@@costs", "@@line a one_off | d | unit=? | qty=1", "@@end", "", "@@field P", "label: P", "options: x | y", "fills y: A = 1234.5", "fills y: Q = 12.50", "", "@@field A", "label: A", "kind: amount", "", "@@field Q", "label: Q", "kind: percentage"],
+      "steps": [{ "op": "field", "name": "P", "value": "y" }],
+      "fields": { "P": "y", "A": 123450, "Q": "12.5" }
+    },
+    {
+      "name": "a fill that does not fit its target's kind is skipped, never stored invalid",
+      "template": ["@@salutation S", "", "[P] [A] [S]", "## C", "@@costs", "@@line a one_off | d | unit=? | qty=1", "@@end", "", "@@field P", "label: P", "options: x | y", "fills y: A = abc", "fills y: S = bad", "", "@@field A", "label: A", "kind: amount", "default: 10", "", "@@field S", "label: S", "options: ok | fine"],
+      "steps": [{ "op": "field", "name": "P", "value": "y" }],
+      "fields": { "P": "y", "A": 1000 },
+      "absent": ["S"]
+    }
+  ],
+  "checks": [
+    { "name": "a clean answers document has no issue", "set": [], "issues": [] },
+    { "name": "a reserved character in a field value", "set": [{ "path": "fields.DESC", "value": "bad  value" }], "issues": [{ "path": "fields.DESC", "code": "reserved_character" }] },
+    { "name": "the last reserved character", "set": [{ "path": "fields.DESC", "value": "x " }], "issues": [{ "path": "fields.DESC", "code": "reserved_character" }] },
+    { "name": "the hand-edit token brackets", "set": [{ "path": "fields.DESC", "value": "a ⟦Cliente⟧" }, { "path": "client.place", "value": "⟧" }], "issues": [{ "path": "client.place", "code": "reserved_character" }, { "path": "fields.DESC", "code": "reserved_character" }] },
+    { "name": "in a list item, a table cell and a client line", "set": [{ "path": "lists.ELENCO", "value": ["ok", "no "] }, { "path": "tables.TAB", "value": [{ "id": "r1", "cells": { "TAB": "x" } }] }, { "path": "client.lines.0", "value": "Acme ⟦" }], "issues": [{ "path": "client.lines[0]", "code": "reserved_character" }, { "path": "lists.ELENCO[1]", "code": "reserved_character" }, { "path": "tables.TAB[0].cells.TAB", "code": "reserved_character" }] },
+    { "name": "in a hand edit and an orphaned edit", "set": [{ "path": "handEdits", "value": { "COSTI#0": { "heading": "H", "body": "ok", "sourceHeading": "COSTI" } } }, { "path": "orphanedEdits", "value": [{ "heading": "ok", "body": "⟦X⟧" }] }], "issues": [{ "path": "handEdits[\"COSTI#0\"].heading", "code": "reserved_character" }, { "path": "orphanedEdits[0].body", "code": "reserved_character" }] },
+    { "name": "in an extra cost line", "set": [{ "path": "costs.extra", "value": [{ "id": "e1", "description": "Extra ", "kind": "one_off", "unitCents": 100, "percentBp": null, "quantity": 1 }] }], "issues": [{ "path": "costs.extra[0].description", "code": "reserved_character" }] },
+    { "name": "in a release description", "set": [{ "path": "costs.lines.rel.releases", "value": [{ "description": "R", "unitCents": 1 }] }], "issues": [{ "path": "costs.lines.rel.releases[0].description", "code": "reserved_character" }] },
+    { "name": "a value outside the field's options", "set": [{ "path": "fields.PROFILO", "value": "Silver" }], "issues": [{ "path": "fields.PROFILO", "code": "not_an_option" }] },
+    { "name": "an empty value is not an option violation (it is missing)", "set": [{ "path": "fields.PROFILO", "value": "" }], "issues": [] },
+    { "name": "a value inside the options", "set": [{ "path": "fields.PROFILO", "value": "Base" }], "issues": [] },
+    { "name": "an option check applies to text fields with options only", "set": [{ "path": "fields.PERC", "value": "whatever" }], "issues": [] },
+    { "name": "DD-52: the reference token is accepted in a hand edit's body and an orphaned edit's body", "set": [{ "path": "handEdits", "value": { "COSTI#0": { "heading": "H", "body": "Rif. ⟪REF⟫ e ⟪REF⟫", "sourceHeading": "COSTI" } } }, { "path": "orphanedEdits", "value": [{ "heading": "ok", "body": "⟪REF⟫" }] }], "issues": [] },
+    { "name": "DD-52: the token is refused in a heading", "set": [{ "path": "handEdits", "value": { "COSTI#0": { "heading": "⟪REF⟫", "body": "ok", "sourceHeading": "COSTI" } } }, { "path": "orphanedEdits", "value": [{ "heading": "⟪REF⟫", "body": "ok" }] }], "issues": [{ "path": "handEdits[\"COSTI#0\"].heading", "code": "reserved_character" }, { "path": "orphanedEdits[0].heading", "code": "reserved_character" }] },
+    { "name": "DD-52: the token is refused in a field, a list item and a client line", "set": [{ "path": "fields.DESC", "value": "⟪REF⟫" }, { "path": "lists.ELENCO", "value": ["⟪REF⟫"] }, { "path": "client.lines.0", "value": "Acme ⟪REF⟫" }], "issues": [{ "path": "client.lines[0]", "code": "reserved_character" }, { "path": "fields.DESC", "code": "reserved_character" }, { "path": "lists.ELENCO[0]", "code": "reserved_character" }] },
+    { "name": "DD-52: a doubled, lower-case or lone bracket in a body is refused", "set": [{ "path": "handEdits", "value": { "A#0": { "heading": "H", "body": "⟪⟪REF⟫⟫", "sourceHeading": "A" }, "B#0": { "heading": "H", "body": "⟪ref⟫", "sourceHeading": "B" }, "C#0": { "heading": "H", "body": "a ⟪ b", "sourceHeading": "C" }, "D#0": { "heading": "H", "body": "a ⟫ b", "sourceHeading": "D" }, "E#0": { "heading": "H", "body": "⟪RE⟪REF⟫F⟫", "sourceHeading": "E" } } }], "issues": [{ "path": "handEdits[\"A#0\"].body", "code": "reserved_character" }, { "path": "handEdits[\"B#0\"].body", "code": "reserved_character" }, { "path": "handEdits[\"C#0\"].body", "code": "reserved_character" }, { "path": "handEdits[\"D#0\"].body", "code": "reserved_character" }, { "path": "handEdits[\"E#0\"].body", "code": "reserved_character" }] },
+    { "name": "DD-52: the hand-edit token brackets in a body are still refused next to a token (DD-30 untouched)", "set": [{ "path": "handEdits", "value": { "COSTI#0": { "heading": "H", "body": "⟪REF⟫ ⟦X⟧", "sourceHeading": "COSTI" } } }], "issues": [{ "path": "handEdits[\"COSTI#0\"].body", "code": "reserved_character" }] }
+  ]
+}

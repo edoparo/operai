@@ -1,4 +1,7 @@
 import type { RichTextDoc } from '@operai/ui/rich-text'
+import type { WizardAnswers } from './offerEngine/answers'
+import type { InvalidIssue, Issue } from './offerEngine/resolve'
+import type { Problem } from './offerEngine/syntax'
 /**
  * Wire types for crm-api and the one `auth` read crm-ui makes — exactly the
  * shapes of specs/20261101-crm/plan.md § API contract. Money is integer minor units,
@@ -172,7 +175,11 @@ export type Offer = {
   sent?: { at: string; by: PersonRef } | null
   /** The If-Match precondition of an edit. */
   version?: number
+  /** How it was made (specs/20261115-crm-offer-wizard): the UI picks the edit/revise path from it (AC-7.3). Absent from an older server. */
+  origin?: OfferOrigin
 }
+
+export type OfferOrigin = 'summary' | 'sections' | 'wizard'
 
 /** The dialog's prefill from an existing offer: to edit it, or to start its next revision. */
 export type OfferForm = OfferDraft & { contactIds: string[]; attachmentIds: string[]; version: number; sent: boolean }
@@ -328,3 +335,112 @@ export type Activity = {
 export type DirectoryUser = { id: string; name: string | null; email: string; entity: string | null }
 
 export type PageQuery = { page?: number; pageSize?: number }
+
+// ─── The offer wizard (specs/20261115-crm-offer-wizard plan.md § API contracts) ─────────────────────────
+
+/** A wizard template as `GET /offer-templates?formats=wizard` returns it: the text is `source`, the legacy members are null. */
+export type WizardTemplate = {
+  id: string
+  entity: Entity
+  name: string
+  language: OfferLanguage
+  format: 'wizard'
+  description: string | null
+  uses: string[]
+  source: string
+  seeded: boolean
+  showTotal: boolean
+  annex: boolean
+  version: number
+  archived: boolean
+  updatedBy: PersonRef
+  updatedAt: string
+  createdAt: string
+}
+
+/** A classic template next to wizard ones in a `formats=sections,wizard` list. */
+export type ClassicTemplateRow = OfferTemplate & { format: 'sections' }
+export type OfferTemplateRow = ClassicTemplateRow | WizardTemplate
+
+/** The body of a wizard template (create names its entity beside it). */
+export type WizardTemplateInput = {
+  name: string
+  language: OfferLanguage
+  description: string
+  uses: string[]
+  source: string
+}
+
+/** The estimate's annex A as the context route previews it (`Scope` of crm-api `offers/scope.ts`). */
+export type AnnexScope = {
+  aiAssisted: boolean
+  releases: { name: string; epics: { epic: string; manDaysTenths: number }[]; manDaysTenths: number }[]
+  manDaysTenths: number
+}
+
+/** `GET /deals/{id}/offer-wizard/context`: no language (the template's, DD-41); `today` is the server's UTC day. */
+export type WizardContextResponse = {
+  dealTitle: string
+  currency: Currency
+  dealAmountCents: number | null
+  issuerLegalName: string
+  /** The entity profile's address lines (DD-58); may be empty. */
+  issuerAddressLines: string[]
+  /** The profile has a letterhead (DD-54). Never a link: the bytes come through `getLetterheadDownload`. */
+  letterhead: boolean
+  placeOfIssue: string
+  clientLines: { it: string[]; en: string[] }
+  contacts: { id: string; name: string }[]
+  attachments: { id: string; fileName: string; sizeBytes: number }[]
+  estimate: {
+    state: 'ready' | 'override' | 'missing'
+    manDays: number
+    manDaysAi: number
+    epics: string[]
+    phases: { release: string; epics: string[] }[]
+    timeline: { it: string; en: string }
+    releases: { name: string; manDays: number }[]
+    annex: { it: AnnexScope; en: AnnexScope; itAi: AnnexScope; enAi: AnnexScope } | null
+  }
+  latestOffer: { id: string; reference: string; sent: boolean; version: number; origin: OfferOrigin } | null
+  today: string
+}
+
+export type DraftTarget =
+  { kind: 'new' } | { kind: 'edit' | 'revision'; offerId: string; offerVersion: number; reference: string }
+/** What a request names: the offer, not its reference or version. */
+export type DraftTargetInput = { kind: 'new' } | { kind: 'edit' | 'revision'; offerId: string }
+
+export type DraftTemplateRef = { id: string; name: string; language: OfferLanguage; version: number; archived: boolean }
+
+export type OfferDraftView = {
+  dealId: string
+  template: DraftTemplateRef
+  /** The version the answers were last saved against; ≠ `template.version` ⇒ the template changed (AC-8.4). */
+  templateVersion: number
+  target: DraftTarget
+  answers: WizardAnswers
+  /** = the ETag: the next write's `If-Match`. */
+  version: number
+  updatedBy: PersonRef
+  updatedAt: string
+  createdAt: string
+}
+
+/** What the deal page needs — never `answers` (DD-27). */
+export type OfferDraftSummary = {
+  dealId: string
+  template: Omit<DraftTemplateRef, 'version'>
+  templateChanged: boolean
+  target: DraftTarget
+  version: number
+  updatedBy: PersonRef
+  updatedAt: string
+  createdAt: string
+}
+
+/** The 422 `offer_incomplete` body's members: exactly `resolveOffer(…).missing` / `.invalid` of the stored draft (DD-32). */
+export type OfferIncomplete = { missing: Issue[]; invalid: InvalidIssue[] }
+
+/** A template's problems as a 422 `template_invalid` lists them (positions and codes only). */
+export type TemplateProblem = Problem

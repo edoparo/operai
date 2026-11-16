@@ -31,6 +31,8 @@ import {
   skipTake,
   versionConflict,
   type HeaderSource,
+  idText,
+  searchText,
 } from "../lib/http";
 import { notFound, unprocessable, validationHook } from "../lib/problem";
 
@@ -45,7 +47,7 @@ const EmailSchema = z
   .nullable()
   .optional();
 
-const CompanyIdSchema = z.string().min(1).max(64).nullable().optional();
+const CompanyIdSchema = idText().nullable().optional();
 
 export const CreateContactSchema = z
   .object({
@@ -75,8 +77,8 @@ export const UpdateContactSchema = z
 const CONTACT_SORTS = ["name", "company", "jobTitle", "email"] as const;
 
 const ListContactsQuery = z.object({
-  q: z.string().max(200).optional(),
-  companyId: z.string().max(64).optional(),
+  q: searchText(200).optional(),
+  companyId: idText(64, 0).optional(),
   archived: ArchivedFilterSchema,
   ...sortQuery(CONTACT_SORTS),
   ...pageQuery(),

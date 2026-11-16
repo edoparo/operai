@@ -1,0 +1,1007 @@
+{
+ "template": [
+  "@@salutation Spett.le",
+  "@@acceptance Il Cliente",
+  "",
+  "Apertura{{?DESC:: [DESC]}} per [CLIENTE] - Rif. [RIF]",
+  "",
+  "## OGGETTO",
+  "@@step scope",
+  "Oggetto: **[DESC]** del [DATA].",
+  "{{blk::Blocco: [IN_BLK]}}",
+  "{{?NOTE::Nota: [NOTE]}}",
+  "{{!NOTE::Nessuna nota.}}",
+  "",
+  "- [ELENCO]",
+  "",
+  "| Attività | Giorni | Ore |",
+  "|---|---|---|",
+  "| [ATT] | [GG] | [ORE] |",
+  "",
+  "## VUOTA",
+  "{{blk2::mai}}",
+  "",
+  "## FATTURAZIONE",
+  "@@step conditions",
+  "- **[ACCONTO]**% acconto",
+  "{{rate::- **[RATE]**% in rate}}",
+  "- **[SALDO]**% saldo",
+  "",
+  "### Vuoto",
+  "{{blk2::mai}}",
+  "",
+  "### Pieno",
+  "Testo pieno.",
+  "",
+  "## COSTI",
+  "@@step costs",
+  "@@costs position unit",
+  "@@line a one_off | **[TITOLO]** | unit=[TARIFFA] | qty=1",
+  "@@line b one_off each=ATT | Riga | unit=[TARIFFA] | qty=[ORE]",
+  "@@total **TOTALE**",
+  "@@end",
+  "Nota costi.",
+  "",
+  "@@annex A Perimetro{{?NOTE:: e [NOTE]}}",
+  "@@subtitle [RIF]",
+  "Intro [DESC].",
+  "",
+  "## PARTE",
+  "Testo parte [PERC].",
+  "",
+  "@@field CLIENTE",
+  "source: client",
+  "",
+  "@@field RIF",
+  "label: Riferimento",
+  "source: reference",
+  "",
+  "@@field DATA",
+  "source: date",
+  "",
+  "@@field DESC",
+  "label: Descrizione",
+  "",
+  "@@field NOTE",
+  "label: Nota",
+  "",
+  "@@field IN_BLK",
+  "label: Nel blocco",
+  "",
+  "@@field TITOLO",
+  "label: Titolo",
+  "",
+  "@@field TARIFFA",
+  "label: Tariffa",
+  "kind: amount",
+  "",
+  "@@field PERC",
+  "label: Percentuale",
+  "kind: percentage",
+  "",
+  "@@field ACCONTO",
+  "label: Acconto",
+  "kind: percentage",
+  "default: 50",
+  "",
+  "@@field RATE",
+  "label: Rate",
+  "kind: percentage",
+  "",
+  "@@field SALDO",
+  "label: Saldo",
+  "kind: percentage",
+  "compute: 100 - ACCONTO - RATE",
+  "",
+  "@@field GG",
+  "label: Giorni",
+  "kind: number",
+  "",
+  "@@field ORE",
+  "label: Ore",
+  "kind: number",
+  "",
+  "@@list ELENCO",
+  "label: Elenco",
+  "",
+  "@@table ATT",
+  "label: Attività",
+  "columns: ATT, GG, ORE",
+  "",
+  "@@block blk",
+  "label: Blocco",
+  "",
+  "@@block blk2",
+  "label: Blocco due",
+  "",
+  "@@block rate",
+  "label: Rate",
+  ""
+ ],
+ "cases": [
+  {
+   "name": "nothing answered: every owed value is a marker, an empty list and table are missing once",
+   "patch": {},
+   "expect": {
+    "opening": "Apertura per Acme SA - Rif. \uE002Riferimento\uE003",
+    "sections": {
+     "OGGETTO": "Oggetto: **\uE000Descrizione\uE001** del 15.11.2026.\nNessuna nota.\n\n- \uE000Elenco\uE001\n\n| Attività | Giorni | Ore |\n|---|---|---|\n| \uE000Attività\uE001 | \uE000Attività\uE001 | \uE000Attività\uE001 |",
+     "FATTURAZIONE": "- **50**% acconto\n- **50**% saldo\n\n### Pieno\nTesto pieno.",
+     "COSTI": "Nota costi."
+    },
+    "absent": [
+     "VUOTA"
+    ],
+    "annexes": [
+     {
+      "designation": "A",
+      "title": "Perimetro",
+      "subtitle": "\uE002Riferimento\uE003",
+      "intro": "Intro \uE000Descrizione\uE001.",
+      "sections": {
+       "PARTE": "Testo parte \uE000Percentuale\uE001."
+      }
+     }
+    ],
+    "missing": [
+     [
+      "DESC",
+      "Descrizione",
+      "scope"
+     ],
+     [
+      "ELENCO",
+      "Elenco",
+      "scope"
+     ],
+     [
+      "ATT",
+      "Attività",
+      "scope"
+     ],
+     [
+      "TITOLO",
+      "Titolo",
+      "costs"
+     ],
+     [
+      "TARIFFA",
+      "Tariffa",
+      "costs"
+     ],
+     [
+      "PERC",
+      "Percentuale",
+      "annexes"
+     ]
+    ]
+   }
+  },
+  {
+   "name": "an answer prints literally: bold, heading and table markup in a value are escaped",
+   "patch": {
+    "fields": {
+     "DESC": "**x**"
+    }
+   },
+   "expect": {
+    "sections": {
+     "OGGETTO": "Oggetto: **\\*\\*x\\*\\*** del 15.11.2026.\nNessuna nota.\n\n- \uE000Elenco\uE001\n\n| Attività | Giorni | Ore |\n|---|---|---|\n| \uE000Attività\uE001 | \uE000Attività\uE001 | \uE000Attività\uE001 |"
+    },
+    "annexes": [
+     {
+      "designation": "A",
+      "title": "Perimetro",
+      "subtitle": "\uE002Riferimento\uE003",
+      "intro": "Intro \\*\\*x\\*\\*.",
+      "sections": {
+       "PARTE": "Testo parte \uE000Percentuale\uE001."
+      }
+     }
+    ],
+    "missing": [
+     [
+      "ELENCO",
+      "Elenco",
+      "scope"
+     ],
+     [
+      "ATT",
+      "Attività",
+      "scope"
+     ],
+     [
+      "TITOLO",
+      "Titolo",
+      "costs"
+     ],
+     [
+      "TARIFFA",
+      "Tariffa",
+      "costs"
+     ],
+     [
+      "PERC",
+      "Percentuale",
+      "annexes"
+     ]
+    ]
+   }
+  },
+  {
+   "name": "a block turned on brings its inner field, missing once",
+   "patch": {
+    "fields": {
+     "DESC": "X"
+    },
+    "blocks": {
+     "blk": true
+    }
+   },
+   "expect": {
+    "sections": {
+     "OGGETTO": "Oggetto: **X** del 15.11.2026.\nBlocco: \uE000Nel blocco\uE001\nNessuna nota.\n\n- \uE000Elenco\uE001\n\n| Attività | Giorni | Ore |\n|---|---|---|\n| \uE000Attività\uE001 | \uE000Attività\uE001 | \uE000Attività\uE001 |"
+    },
+    "missing": [
+     [
+      "IN_BLK",
+      "Nel blocco",
+      "scope"
+     ],
+     [
+      "ELENCO",
+      "Elenco",
+      "scope"
+     ],
+     [
+      "ATT",
+      "Attività",
+      "scope"
+     ],
+     [
+      "TITOLO",
+      "Titolo",
+      "costs"
+     ],
+     [
+      "TARIFFA",
+      "Tariffa",
+      "costs"
+     ],
+     [
+      "PERC",
+      "Percentuale",
+      "annexes"
+     ]
+    ]
+   }
+  },
+  {
+   "name": "a filled optional field prints, its none-branch goes",
+   "patch": {
+    "fields": {
+     "DESC": "X",
+     "NOTE": "Fine"
+    }
+   },
+   "expect": {
+    "sections": {
+     "OGGETTO": "Oggetto: **X** del 15.11.2026.\nNota: Fine\n\n- \uE000Elenco\uE001\n\n| Attività | Giorni | Ore |\n|---|---|---|\n| \uE000Attività\uE001 | \uE000Attività\uE001 | \uE000Attività\uE001 |"
+    },
+    "annexes": [
+     {
+      "designation": "A",
+      "title": "Perimetro e Fine",
+      "subtitle": "\uE002Riferimento\uE003",
+      "intro": "Intro X.",
+      "sections": {
+       "PARTE": "Testo parte \uE000Percentuale\uE001."
+      }
+     }
+    ],
+    "missing": [
+     [
+      "ELENCO",
+      "Elenco",
+      "scope"
+     ],
+     [
+      "ATT",
+      "Attività",
+      "scope"
+     ],
+     [
+      "TITOLO",
+      "Titolo",
+      "costs"
+     ],
+     [
+      "TARIFFA",
+      "Tariffa",
+      "costs"
+     ],
+     [
+      "PERC",
+      "Percentuale",
+      "annexes"
+     ]
+    ]
+   }
+  },
+  {
+   "name": "list items and table rows print in the answers' order; empty ones are not printed; only key and unit/quantity columns are required",
+   "patch": {
+    "fields": {
+     "DESC": "X"
+    },
+    "lists": {
+     "ELENCO": [
+      "b",
+      "",
+      "a",
+      "  "
+     ]
+    },
+    "tables": {
+     "ATT": [
+      {
+       "id": "r1",
+       "cells": {
+        "ATT": "Analisi",
+        "GG": "3",
+        "ORE": "8"
+       }
+      },
+      {
+       "id": "r2",
+       "cells": {}
+      },
+      {
+       "id": "r3",
+       "cells": {
+        "ATT": "Dev",
+        "ORE": 5
+       }
+      }
+     ]
+    }
+   },
+   "expect": {
+    "sections": {
+     "OGGETTO": "Oggetto: **X** del 15.11.2026.\nNessuna nota.\n\n- b\n- a\n\n| Attività | Giorni | Ore |\n|---|---|---|\n| Analisi | 3 | 8 |\n| Dev |  | 5 |"
+    },
+    "missing": [
+     [
+      "TITOLO",
+      "Titolo",
+      "costs"
+     ],
+     [
+      "TARIFFA",
+      "Tariffa",
+      "costs"
+     ],
+     [
+      "PERC",
+      "Percentuale",
+      "annexes"
+     ]
+    ]
+   }
+  },
+  {
+   "name": "reordering the list and the rows changes the printed order",
+   "patch": {
+    "fields": {
+     "DESC": "X"
+    },
+    "lists": {
+     "ELENCO": [
+      "a",
+      "b"
+     ]
+    },
+    "tables": {
+     "ATT": [
+      {
+       "id": "r3",
+       "cells": {
+        "ATT": "Dev",
+        "ORE": 5
+       }
+      },
+      {
+       "id": "r1",
+       "cells": {
+        "ATT": "Analisi",
+        "GG": "3",
+        "ORE": "8"
+       }
+      }
+     ]
+    }
+   },
+   "expect": {
+    "sections": {
+     "OGGETTO": "Oggetto: **X** del 15.11.2026.\nNessuna nota.\n\n- a\n- b\n\n| Attività | Giorni | Ore |\n|---|---|---|\n| Dev |  | 5 |\n| Analisi | 3 | 8 |"
+    },
+    "missing": [
+     [
+      "TITOLO",
+      "Titolo",
+      "costs"
+     ],
+     [
+      "TARIFFA",
+      "Tariffa",
+      "costs"
+     ],
+     [
+      "PERC",
+      "Percentuale",
+      "annexes"
+     ]
+    ]
+   }
+  },
+  {
+   "name": "a row with no key and no quantity is missing in both places",
+   "patch": {
+    "fields": {
+     "DESC": "X"
+    },
+    "lists": {
+     "ELENCO": [
+      "a"
+     ]
+    },
+    "tables": {
+     "ATT": [
+      {
+       "id": "r4",
+       "cells": {
+        "GG": "2"
+       }
+      }
+     ]
+    }
+   },
+   "expect": {
+    "sections": {
+     "OGGETTO": "Oggetto: **X** del 15.11.2026.\nNessuna nota.\n\n- a\n\n| Attività | Giorni | Ore |\n|---|---|---|\n| \uE000Attività\uE001 | 2 | \uE000Ore\uE001 |"
+    },
+    "missing": [
+     [
+      "ATT#r4.ATT",
+      "Attività",
+      "scope"
+     ],
+     [
+      "ATT#r4.ORE",
+      "Ore",
+      "scope"
+     ],
+     [
+      "TITOLO",
+      "Titolo",
+      "costs"
+     ],
+     [
+      "TARIFFA",
+      "Tariffa",
+      "costs"
+     ],
+     [
+      "PERC",
+      "Percentuale",
+      "annexes"
+     ]
+    ]
+   }
+  },
+  {
+   "name": "a derived field counts an off block's field as 0",
+   "patch": {
+    "fields": {
+     "DESC": "X"
+    },
+    "lists": {
+     "ELENCO": [
+      "a"
+     ]
+    },
+    "tables": {
+     "ATT": [
+      {
+       "id": "r1",
+       "cells": {
+        "ATT": "A",
+        "ORE": "1"
+       }
+      }
+     ]
+    }
+   },
+   "expect": {
+    "sections": {
+     "OGGETTO": "Oggetto: **X** del 15.11.2026.\nNessuna nota.\n\n- a\n\n| Attività | Giorni | Ore |\n|---|---|---|\n| A |  | 1 |",
+     "FATTURAZIONE": "- **50**% acconto\n- **50**% saldo\n\n### Pieno\nTesto pieno."
+    },
+    "missing": [
+     [
+      "TITOLO",
+      "Titolo",
+      "costs"
+     ],
+     [
+      "TARIFFA",
+      "Tariffa",
+      "costs"
+     ],
+     [
+      "PERC",
+      "Percentuale",
+      "annexes"
+     ]
+    ]
+   }
+  },
+  {
+   "name": "a derived field follows the block that is on",
+   "patch": {
+    "fields": {
+     "DESC": "X",
+     "RATE": "20"
+    },
+    "lists": {
+     "ELENCO": [
+      "a"
+     ]
+    },
+    "tables": {
+     "ATT": [
+      {
+       "id": "r1",
+       "cells": {
+        "ATT": "A",
+        "ORE": "1"
+       }
+      }
+     ]
+    },
+    "blocks": {
+     "rate": true
+    }
+   },
+   "expect": {
+    "sections": {
+     "OGGETTO": "Oggetto: **X** del 15.11.2026.\nNessuna nota.\n\n- a\n\n| Attività | Giorni | Ore |\n|---|---|---|\n| A |  | 1 |",
+     "FATTURAZIONE": "- **50**% acconto\n- **20**% in rate\n- **30**% saldo\n\n### Pieno\nTesto pieno."
+    },
+    "missing": [
+     [
+      "TITOLO",
+      "Titolo",
+      "costs"
+     ],
+     [
+      "TARIFFA",
+      "Tariffa",
+      "costs"
+     ],
+     [
+      "PERC",
+      "Percentuale",
+      "annexes"
+     ]
+    ]
+   }
+  },
+  {
+   "name": "a derived field with an empty input is empty and never missing; the empty input is",
+   "patch": {
+    "fields": {
+     "DESC": "X"
+    },
+    "lists": {
+     "ELENCO": [
+      "a"
+     ]
+    },
+    "tables": {
+     "ATT": [
+      {
+       "id": "r1",
+       "cells": {
+        "ATT": "A",
+        "ORE": "1"
+       }
+      }
+     ]
+    },
+    "blocks": {
+     "rate": true
+    }
+   },
+   "expect": {
+    "sections": {
+     "OGGETTO": "Oggetto: **X** del 15.11.2026.\nNessuna nota.\n\n- a\n\n| Attività | Giorni | Ore |\n|---|---|---|\n| A |  | 1 |",
+     "FATTURAZIONE": "- **50**% acconto\n- **\uE000Rate\uE001**% in rate\n- ****% saldo\n\n### Pieno\nTesto pieno."
+    },
+    "missing": [
+     [
+      "RATE",
+      "Rate",
+      "conditions"
+     ],
+     [
+      "TITOLO",
+      "Titolo",
+      "costs"
+     ],
+     [
+      "TARIFFA",
+      "Tariffa",
+      "costs"
+     ],
+     [
+      "PERC",
+      "Percentuale",
+      "annexes"
+     ]
+    ]
+   }
+  },
+  {
+   "name": "a percentage prints with the offer language's decimal separator",
+   "patch": {
+    "fields": {
+     "DESC": "X",
+     "ACCONTO": "12.5"
+    },
+    "lists": {
+     "ELENCO": [
+      "a"
+     ]
+    },
+    "tables": {
+     "ATT": [
+      {
+       "id": "r1",
+       "cells": {
+        "ATT": "A",
+        "ORE": "1"
+       }
+      }
+     ]
+    }
+   },
+   "expect": {
+    "sections": {
+     "FATTURAZIONE": "- **12,5**% acconto\n- **87,5**% saldo\n\n### Pieno\nTesto pieno."
+    },
+    "missing": [
+     [
+      "TITOLO",
+      "Titolo",
+      "costs"
+     ],
+     [
+      "TARIFFA",
+      "Tariffa",
+      "costs"
+     ],
+     [
+      "PERC",
+      "Percentuale",
+      "annexes"
+     ]
+    ]
+   }
+  },
+  {
+   "name": "the same percentage in an English offer",
+   "patch": {
+    "fields": {
+     "DESC": "X",
+     "ACCONTO": "12.5"
+    },
+    "lists": {
+     "ELENCO": [
+      "a"
+     ]
+    },
+    "tables": {
+     "ATT": [
+      {
+       "id": "r1",
+       "cells": {
+        "ATT": "A",
+        "ORE": "1"
+       }
+      }
+     ]
+    }
+   },
+   "context": {
+    "language": "en"
+   },
+   "expect": {
+    "sections": {
+     "FATTURAZIONE": "- **12.5**% acconto\n- **87.5**% saldo\n\n### Pieno\nTesto pieno."
+    },
+    "missing": [
+     [
+      "TITOLO",
+      "Titolo",
+      "costs"
+     ],
+     [
+      "TARIFFA",
+      "Tariffa",
+      "costs"
+     ],
+     [
+      "PERC",
+      "Percentuale",
+      "annexes"
+     ]
+    ]
+   }
+  },
+  {
+   "name": "characters the PDF cannot print show as ? in the preview",
+   "patch": {
+    "fields": {
+     "DESC": "日本語 €"
+    },
+    "lists": {
+     "ELENCO": [
+      "a"
+     ]
+    },
+    "tables": {
+     "ATT": [
+      {
+       "id": "r1",
+       "cells": {
+        "ATT": "A",
+        "ORE": "1"
+       }
+      }
+     ]
+    }
+   },
+   "expect": {
+    "sections": {
+     "OGGETTO": "Oggetto: **??? €** del 15.11.2026.\nNessuna nota.\n\n- a\n\n| Attività | Giorni | Ore |\n|---|---|---|\n| A |  | 1 |"
+    },
+    "missing": [
+     [
+      "TITOLO",
+      "Titolo",
+      "costs"
+     ],
+     [
+      "TARIFFA",
+      "Tariffa",
+      "costs"
+     ],
+     [
+      "PERC",
+      "Percentuale",
+      "annexes"
+     ]
+    ]
+   }
+  },
+  {
+   "name": "a section and a sub-heading with something printed under them appear",
+   "patch": {
+    "fields": {
+     "DESC": "X"
+    },
+    "lists": {
+     "ELENCO": [
+      "a"
+     ]
+    },
+    "tables": {
+     "ATT": [
+      {
+       "id": "r1",
+       "cells": {
+        "ATT": "A",
+        "ORE": "1"
+       }
+      }
+     ]
+    },
+    "blocks": {
+     "blk2": true
+    }
+   },
+   "expect": {
+    "sections": {
+     "VUOTA": "mai",
+     "FATTURAZIONE": "- **50**% acconto\n- **50**% saldo\n\n### Vuoto\nmai\n\n### Pieno\nTesto pieno."
+    },
+    "missing": [
+     [
+      "TITOLO",
+      "Titolo",
+      "costs"
+     ],
+     [
+      "TARIFFA",
+      "Tariffa",
+      "costs"
+     ],
+     [
+      "PERC",
+      "Percentuale",
+      "annexes"
+     ]
+    ]
+   }
+  },
+  {
+   "name": "the printed date is the person's, else the day the wizard runs",
+   "patch": {
+    "fields": {
+     "DESC": "X"
+    },
+    "lists": {
+     "ELENCO": [
+      "a"
+     ]
+    },
+    "tables": {
+     "ATT": [
+      {
+       "id": "r1",
+       "cells": {
+        "ATT": "A",
+        "ORE": "1"
+       }
+      }
+     ]
+    },
+    "client": {
+     "date": "2026-12-01"
+    }
+   },
+   "expect": {
+    "sections": {
+     "OGGETTO": "Oggetto: **X** del 1.12.2026.\nNessuna nota.\n\n- a\n\n| Attività | Giorni | Ore |\n|---|---|---|\n| A |  | 1 |"
+    },
+    "clientDate": "2026-12-01",
+    "missing": [
+     [
+      "TITOLO",
+      "Titolo",
+      "costs"
+     ],
+     [
+      "TARIFFA",
+      "Tariffa",
+      "costs"
+     ],
+     [
+      "PERC",
+      "Percentuale",
+      "annexes"
+     ]
+    ]
+   }
+  }
+ ],
+ "referenceToken": {
+  "template": [
+   "@@salutation S",
+   "",
+   "Apertura",
+   "",
+   "## OGGETTO",
+   "Testo [RIF] [DESC]",
+   "",
+   "## ALTRA",
+   "Altro [DESC]",
+   "",
+   "@@field RIF",
+   "label: Riferimento",
+   "source: reference",
+   "",
+   "@@field DESC",
+   "label: Descrizione"
+  ],
+  "templateWithoutReference": [
+   "@@salutation S",
+   "",
+   "Apertura",
+   "",
+   "## OGGETTO",
+   "Testo [DESC]",
+   "",
+   "@@field DESC",
+   "label: Descrizione"
+  ],
+  "cases": [
+   { "name": "without a reference: a pending-marker run labelled as the template's reference field", "body": "Rif. ⟪REF⟫ fine", "expect": "Rif. \uE002Riferimento\uE003 fine" },
+   { "name": "without a reference and none declared: the label is REF", "template": "templateWithoutReference", "body": "Rif. ⟪REF⟫ fine", "expect": "Rif. \uE002REF\uE003 fine" },
+   { "name": "with the reference: at a line start", "reference": "0007/2026", "body": "⟪REF⟫ è il riferimento", "expect": "0007/2026 è il riferimento" },
+   { "name": "with the reference: in a table cell", "reference": "0007/2026", "body": "| A | B |\n|---|---|\n| ⟪REF⟫ | x |", "expect": "| A | B |\n|---|---|\n| 0007/2026 | x |" },
+   { "name": "with the reference: inside bold", "reference": "0007/2026", "body": "**Rif. ⟪REF⟫** ok", "expect": "**Rif. 0007/2026** ok" },
+   { "name": "with the reference: in a list item", "reference": "0007/2026", "body": "- Rif. ⟪REF⟫", "expect": "- Rif. 0007/2026" },
+   { "name": "with the reference: twice for two tokens", "reference": "0007/2026r1", "body": "⟪REF⟫ e ⟪REF⟫", "expect": "0007/2026r1 e 0007/2026r1" },
+   { "name": "with the reference: in a section whose template never used it", "reference": "0007/2026", "section": "ALTRA", "body": "Vedi ⟪REF⟫", "expect": "Vedi 0007/2026" },
+   { "name": "the reference is escaped like an answer", "reference": "a|b_c", "body": "| ⟪REF⟫ | x |", "expect": "| a\\|b\\_c | x |" },
+   { "name": "a backslash before the token does not escape it", "reference": "0007/2026", "body": "\\⟪REF⟫", "expect": "\\0007/2026" },
+   { "name": "tokens mode keeps the token as written", "mode": "tokens", "reference": "0007/2026", "body": "Rif. ⟪REF⟫ fine", "expect": "Rif. ⟪REF⟫ fine" },
+   { "name": "any other bracket is not a token: it prints as a question mark", "reference": "0007/2026", "body": "a ⟪ b ⟫ c ⟪ref⟫ ⟪⟪REF⟫⟫", "expect": "a ? b ? c ?ref? ?0007/2026?" }
+  ]
+ },
+ "bounds": {
+  "_doc": "The resolved text is bounded while it is built (QE D1, M-1): a section, an annex section, the opening and an annex intro each print at most 20 000 characters, else the unit is invalid `section_too_long` (name `section:<key>`, `opening`, `annex:<designation>`) and its text stops short of 21 000. `fill` is { FIELD: [text, times] }; `lengths` the printed body length by heading; `atMost` bounds every printed body, opening and intro; a case may carry its own `template` (lines) instead of the group's. A unit over the limit is ALWAYS reported, even when its first line alone passes the bound and nothing of it prints (QE D6).",
+  "template": [
+   "@@salutation S",
+   "@@acceptance C",
+   "",
+   "[O]",
+   "",
+   "## UNO",
+   "@@step scope",
+   "[D]",
+   "",
+   "## TRE",
+   "@@step scope",
+   "[T] [T] [T]",
+   "",
+   "## COSTI",
+   "@@step costs",
+   "@@costs",
+   "@@line a one_off | A | unit=100 | qty=1",
+   "@@total **T**",
+   "@@end",
+   "",
+   "@@annex A Annesso",
+   "[I]",
+   "",
+   "## PARTE",
+   "[P] [P]",
+   "",
+   "@@field D",
+   "label: Dd",
+   "",
+   "@@field T",
+   "label: Tt",
+   "",
+   "@@field O",
+   "label: Oo",
+   "",
+   "@@field I",
+   "label: Ii",
+   "",
+   "@@field P",
+   "label: Pp"
+  ],
+  "cases": [
+   { "name": "a section of exactly 20 000 characters prints", "fill": { "D": ["x", 20000] }, "expect": { "invalid": [], "lengths": { "UNO": 20000 } } },
+   { "name": "one character more is section_too_long at the section, and the text stays bounded", "fill": { "D": ["x", 20001] }, "expect": { "invalid": [["section:UNO#0", "UNO", "scope", "section_too_long"]], "atMost": 21000 } },
+   { "name": "a field used three times counts every use: 3 x 6 666 and two spaces is exactly 20 000", "fill": { "T": ["y", 6666] }, "expect": { "invalid": [], "lengths": { "TRE": 20000 } } },
+   { "name": "three uses of 6 667 characters are over the limit", "fill": { "T": ["y", 6667] }, "expect": { "invalid": [["section:TRE#0", "TRE", "scope", "section_too_long"]], "atMost": 21000 } },
+   { "name": "an answer of 20 000 characters used three times stops after the first use", "fill": { "T": ["z", 20000] }, "expect": { "invalid": [["section:TRE#0", "TRE", "scope", "section_too_long"]], "atMost": 21000 } },
+   { "name": "an answer that escapes to more than it holds is counted as printed: 10 001 stars print as 20 002", "fill": { "D": ["*", 10001] }, "expect": { "invalid": [["section:UNO#0", "UNO", "scope", "section_too_long"]], "atMost": 21000 } },
+   { "name": "the opening of exactly 20 000 characters prints", "fill": { "O": ["o", 20000] }, "expect": { "invalid": [], "lengths": { "": 20000 } } },
+   { "name": "the opening one character over is invalid at `opening`", "fill": { "O": ["o", 20001] }, "expect": { "invalid": [["opening", null, "scope", "section_too_long"]], "atMost": 21000 } },
+   { "name": "an annex intro one character over is invalid at the annex", "fill": { "I": ["i", 20001] }, "expect": { "invalid": [["annex:A", null, "annexes", "section_too_long"]], "atMost": 21000 } },
+   { "name": "an annex section is bounded like a section: two uses of 10 001 characters", "fill": { "P": ["p", 10001] }, "expect": { "invalid": [["section:PARTE#0", "PARTE", "annexes", "section_too_long"]], "atMost": 21000 } },
+   { "name": "a section whose FIRST line alone passes the build bound is invalid, never dropped (QE D6): 10 600 stars print as 21 200", "fill": { "D": ["*", 10600] }, "expect": { "invalid": [["section:UNO#0", "UNO", "scope", "section_too_long"]], "lengths": { "UNO": 0 }, "atMost": 21000 } },
+   { "name": "an annex section whose first line alone passes the build bound is invalid, never dropped (QE D6)", "fill": { "P": ["*", 10600] }, "expect": { "invalid": [["section:PARTE#0", "PARTE", "annexes", "section_too_long"]], "lengths": { "PARTE": 0 }, "atMost": 21000 } },
+   { "name": "an opening whose first line alone passes the build bound is invalid (QE D6)", "fill": { "O": ["*", 10600] }, "expect": { "invalid": [["opening", null, "scope", "section_too_long"]], "atMost": 21000 } },
+   { "name": "an annex made only of an intro whose first line alone passes the build bound is invalid, not dropped silently (QE D6)", "template": ["@@salutation S", "@@acceptance C", "", "## UNO", "@@step scope", "x", "", "@@annex A Annesso", "[I]", "", "@@field I", "label: Ii"], "fill": { "I": ["*", 10600] }, "expect": { "invalid": [["annex:A", null, "annexes", "section_too_long"]], "atMost": 21000 } },
+   { "name": "a heading that passes the build bound keeps its section and is reported (QE D6)", "template": ["@@salutation S", "@@acceptance C", "", "## [D][D][D]", "@@step scope", "x", "", "@@field D", "label: Dd"], "fill": { "D": ["h", 10000] }, "expect": { "invalid": [["section:[D][D][D]#0", "[D][D][D]", "scope", "section_too_long"]], "atMost": 21000 } },
+   { "name": "every unit over the limit is reported once, in the order the document prints", "fill": { "O": ["o", 20001], "D": ["x", 20001], "T": ["y", 20000], "I": ["i", 20001], "P": ["p", 20000] }, "expect": { "invalid": [["opening", null, "scope", "section_too_long"], ["section:UNO#0", "UNO", "scope", "section_too_long"], ["section:TRE#0", "TRE", "scope", "section_too_long"], ["annex:A", null, "annexes", "section_too_long"], ["section:PARTE#0", "PARTE", "annexes", "section_too_long"]], "atMost": 21000 } }
+  ]
+ }
+}

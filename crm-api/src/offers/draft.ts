@@ -26,8 +26,11 @@ export interface DraftCostLine {
   readonly quantity: number;
 }
 
-/** The body of `GET /deals/{id}/offers/draft`: what the generate dialog starts from. */
-export interface OfferDraft {
+/**
+ * The body of `GET /deals/{id}/offers/draft`: what the legacy generate dialog starts from. Not the wizard's
+ * `offer_draft` (specs/20261115-crm-offer-wizard), which is held by the server: this one is only a prefill.
+ */
+export interface OfferPrefill {
   readonly templateId: string;
   readonly templateName: string;
   readonly language: OfferLanguage;
@@ -107,7 +110,7 @@ export function splitByManDays(totalCents: number, weights: readonly number[]): 
   });
 }
 
-export function buildDraft(input: DraftInput): OfferDraft {
+export function buildDraft(input: DraftInput): OfferPrefill {
   const { template, deal, company, estimate, aiAssisted } = input;
   const language = template.language;
   const labels = scopeLabels(language);

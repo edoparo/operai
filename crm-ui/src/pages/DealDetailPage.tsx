@@ -1,5 +1,5 @@
-import { useCallback, useId, useState } from 'react'
-import { Link, useParams } from '@tanstack/react-router'
+import { useCallback, useEffect, useId, useState } from 'react'
+import { Link, useNavigate, useParams, useRouterState } from '@tanstack/react-router'
 import {
   Banner,
   Button,
@@ -68,7 +68,17 @@ export default function DealDetailPage() {
   )
   const deal = useResource(load)
   const [dialog, setDialog] = useState<'edit' | 'stage' | null>(null)
-  const [saved, setSaved] = useState<string | null>(null)
+  // Arriving from the wizard's Generate: confirm it, and on a qualified deal ask about the proposal stage (S1, F4).
+  const arrived = useRouterState({ select: (state) => state.location.state })
+  const navigate = useNavigate()
+  const [saved, setSaved] = useState<string | null>(() =>
+    arrived.generated !== undefined ? strings.offers.generated(arrived.generated) : null,
+  )
+  const [propose] = useState(() => arrived.proposePrompt === true)
+  useEffect(() => {
+    // the confirmation is said once: a reload or a return must not repeat it
+    if (arrived.generated !== undefined) void navigate({ to: '/deals/$id', params: { id }, replace: true })
+  }, [arrived.generated, id, navigate])
   const [stale, setStale] = useState(false)
   // An estimate change creates, completes or removes its task: the timeline reloads.
   const [timelineRevision, setTimelineRevision] = useState(0)
@@ -219,6 +229,7 @@ export default function DealDetailPage() {
             canManage={canManage}
             onDealChanged={(next, message) => updated(next, message)}
             onStale={onStale}
+            proposePrompt={propose}
           />
         )}
         <DeliveryCard delivery={current.delivery ?? null} deliveryKnown={current.deliveryKnown ?? true} />

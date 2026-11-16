@@ -1,0 +1,34 @@
+{
+  "tpl": "T3",
+  "f": {
+    "DATA": "2026-11-15",
+    "VALIDITA_GIORNI": "45",
+    "CLIENTE": "Alpina Energia SA",
+    "INDIRIZZO_CLIENTE": "Via Cantonale 12\n6900 Lugano\nSvizzera",
+    "RIF": "0042/2026r1",
+    "PIATTAFORMA": "Portale clienti Alpina",
+    "PROFILO": "Standard",
+    "ORE": "80",
+    "TEMPO_S1": "6 ore lavorative",
+    "TEMPO_S2": "1 giorno lavorativo",
+    "TEMPO_S3": "2 giorni lavorativi",
+    "TEMPO_S4": "5 giorni lavorativi",
+    "COPERTURA_ORARIA": "dal lunedì al venerdì, 09:00–18:00",
+    "INFRASTRUTTURA": "gestita da WellD",
+    "DATA_AVVIO_SERVIZIO": "1.1.2027",
+    "CADENZA_FATTURAZIONE": "trimestrale"
+  },
+  "g": {
+    "attivazione": false
+  },
+  "lists": {
+    "COMPONENTE": [
+      ""
+    ]
+  },
+  "rows": {},
+  "c": {
+    "42:1:unit": "7200"
+  },
+  "x": {}
+}

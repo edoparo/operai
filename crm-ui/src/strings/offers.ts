@@ -37,7 +37,8 @@ const en = {
     editDescription: 'It has not been sent yet, so the changes replace its PDF; the reference stays the same.',
     editSubmit: 'Save and regenerate',
     reviseTitle: (reference: string) => `New revision of ${reference}`,
-    reviseDescription: 'It starts from the version that was sent. Generating it adds the next revision; the sent one stays as it is.',
+    reviseDescription:
+      'It starts from the version that was sent. Generating it adds the next revision; the sent one stays as it is.',
     formLoading: 'Loading the offer…',
     title: 'Generate an offer',
     description:
@@ -117,15 +118,29 @@ const en = {
     busy: 'Moving…',
   },
   errors: {
+    // Wizard drafts (specs/20261115-crm-offer-wizard, plan § API contracts)
+    draftExists: 'A draft of this deal already exists. Continue it, or discard it first.',
+    draftNotFound: 'This draft no longer exists. It was discarded or turned into an offer.',
+    templateChanged: 'The template changed while you were working. Reload the draft to continue.',
+    templateFormatMismatch: 'This template is not a wizard template. Use the classic form for it.',
+    templateRequired: 'Pick a template to continue.',
+    offerChanged: 'The offer this draft belongs to changed meanwhile. Go back to the deal.',
+    answersInvalid: 'Some answers are not valid, so the draft was not saved.',
+    draftTooLarge: 'The draft is too large to save.',
+    offerIncomplete: 'The offer is not complete.',
     estimateNotReady: 'An offer is generated from a ready estimate. Mark the estimate ready first.',
     profileMissing: 'The entity’s letterhead is not set. Fill it in under Settings, then generate the offer.',
+    // 409 `letterhead_unusable` (security M-4, plan DD-76): the stored letterhead fails the service's size bound
+    letterheadUnusable: (entity: string) =>
+      `The letterhead of ${entity} can no longer be used. Upload it again in CRM Settings.`,
     storageUnconfigured: 'File storage is not set up yet, so offers cannot be generated or downloaded.',
     estimaiUnavailable: 'EstimAI is not reachable right now. Try again shortly.',
     contactNotInCompany: 'A chosen contact does not belong to the company.',
     templateArchived: 'This template has been archived. Choose another one.',
     attachmentInvalid: 'A chosen attachment is not a file of this deal.',
     attachmentNotPdf: (fileName: string) => `${fileName} is not a PDF.`,
-    attachmentUnreadable: (fileName: string) => `${fileName} cannot be read. Remove it or upload it again as a plain PDF.`,
+    attachmentUnreadable: (fileName: string) =>
+      `${fileName} cannot be read. Remove it or upload it again as a plain PDF.`,
     attachmentsTooLarge: 'The chosen PDFs are too large together. Remove some.',
     discountsExceed: 'The discounts exceed the one-off lines.',
     costTotalTooLarge: 'A cost line is too large.',
@@ -135,14 +150,54 @@ const en = {
     offerNotSent: 'The newest offer has not been sent yet: edit it instead of making a new revision.',
     offerNotLatest: 'Only the newest version of an offer can be edited.',
     offerLegacy: 'This offer was generated before offer documents and cannot be edited or revised from.',
+    draftInvalid: 'The saved draft is not valid any more. Discard it and start again from a template.',
+    offerWizard: 'This offer was made with the wizard: edit it from a draft, not from the classic dialog.',
   },
+  // The deal page's draft row and New offer action (specs/20261115-crm-offer-wizard, design S11)
+  new: 'New offer',
+  starting: 'Starting…',
+  draft: {
+    row: (template: string, target: string) => `Draft · ${template} · ${target}`,
+    target: {
+      new: 'New offer',
+      edit: (ref: string) => `Editing ${ref}`,
+      revision: (ref: string) => `Revision of ${ref}`,
+    },
+    changed: (by: string, at: string) => `Changed by ${by}, ${at}`,
+    continue: 'Continue',
+    discard: 'Discard',
+    discardOf: (template: string) => `Discard the draft of ${template}`,
+    discardDialog: {
+      title: 'Discard this draft?',
+      body: (template: string) =>
+        `Everything entered for “${template}” is deleted. The deal and its offers are not affected.`,
+      bodyOffer: (ref: string) => `Offer ${ref} stays as it is.`,
+      confirm: 'Discard draft',
+      busy: 'Discarding…',
+      done: 'Draft discarded',
+    },
+    checking: 'Checking for a draft…',
+    checkFailed: 'Could not check for a draft.',
+    checkRetry: 'Retry',
+    templateChanged: 'Template edited since',
+    templateArchived: 'Template archived',
+    changedMeanwhile: 'The draft changed meanwhile. Here is the latest.',
+    exists: {
+      title: 'A draft already exists',
+      body: (by: string, at: string) =>
+        `${by} started a draft on ${at}. Continue it, or discard it to start something else.`,
+      discard: 'Discard it and continue',
+      continue: 'Continue the draft',
+    },
+  },
+  origin: { sections: 'Classic template' },
   storageMissing: 'File storage is not set up yet. Offers appear here once an administrator configures it.',
 }
 
 const it: typeof en = {
   title: 'Offerte',
   loading: 'Caricamento delle offerte…',
-  empty: "Per questa opportunità non è ancora stata generata nessuna offerta.",
+  empty: 'Per questa opportunità non è ancora stata generata nessuna offerta.',
   generate: 'Genera offerta',
   needsReady: "Un'offerta si genera da una stima pronta, o quando il deal viene fatto procedere senza.",
   caption: 'Versioni dell’offerta, dalla più recente',
@@ -174,10 +229,12 @@ const it: typeof en = {
   },
   dialog: {
     editTitle: (reference: string) => `Modifica l'offerta ${reference}`,
-    editDescription: 'Non è ancora stata inviata, quindi le modifiche sostituiscono il suo PDF; il riferimento resta lo stesso.',
+    editDescription:
+      'Non è ancora stata inviata, quindi le modifiche sostituiscono il suo PDF; il riferimento resta lo stesso.',
     editSubmit: 'Salva e rigenera',
     reviseTitle: (reference: string) => `Nuova revisione di ${reference}`,
-    reviseDescription: 'Parte dalla versione inviata. Generandola si aggiunge la revisione successiva; quella inviata resta com’è.',
+    reviseDescription:
+      'Parte dalla versione inviata. Generandola si aggiunge la revisione successiva; quella inviata resta com’è.',
     formLoading: "Caricamento dell'offerta…",
     title: "Genera un'offerta",
     description:
@@ -211,7 +268,7 @@ const it: typeof en = {
     removeClientLine: (n: number) => `Rimuovi la riga cliente ${n}`,
     contacts: 'Indirizzata a',
     contactsHint: "Fino a 5 contatti dell'azienda.",
-    contactsEmpty: "Questa azienda non ha contatti.",
+    contactsEmpty: 'Questa azienda non ha contatti.',
     contactsMax: 'Scegli al massimo 5 contatti.',
     opening: 'Apertura',
     costsTitle: 'Costi',
@@ -257,13 +314,26 @@ const it: typeof en = {
     busy: 'Spostamento…',
   },
   errors: {
+    // Bozze della procedura guidata (specs/20261115-crm-offer-wizard, plan § API contracts)
+    draftExists: 'Esiste già una bozza di questo deal. Continuala, oppure eliminala prima.',
+    draftNotFound: 'Questa bozza non esiste più. È stata eliminata o trasformata in offerta.',
+    templateChanged: 'Il template è cambiato mentre lavoravi. Ricarica la bozza per continuare.',
+    templateFormatMismatch: 'Questo template non è guidato. Usa il modulo classico.',
+    templateRequired: 'Scegli un template per continuare.',
+    offerChanged: "L'offerta a cui appartiene questa bozza è cambiata nel frattempo. Torna al deal.",
+    answersInvalid: 'Alcune risposte non sono valide: la bozza non è stata salvata.',
+    draftTooLarge: 'La bozza è troppo grande per essere salvata.',
+    offerIncomplete: "L'offerta non è completa.",
     estimateNotReady: "Un'offerta si genera da una stima pronta. Segna prima la stima come pronta.",
     profileMissing: "L'intestazione della società non è impostata. Compilala in Impostazioni, poi genera l'offerta.",
-    storageUnconfigured: "L'archiviazione dei file non è ancora configurata: le offerte non si possono generare né scaricare.",
+    letterheadUnusable: (entity: string) =>
+      `La carta intestata di ${entity} non può più essere usata. Caricala di nuovo nelle Impostazioni CRM.`,
+    storageUnconfigured:
+      "L'archiviazione dei file non è ancora configurata: le offerte non si possono generare né scaricare.",
     estimaiUnavailable: 'EstimAI al momento non è raggiungibile. Riprova tra poco.',
     contactNotInCompany: "Un contatto scelto non appartiene all'azienda.",
     templateArchived: 'Questo modello è stato archiviato. Scegline un altro.',
-    attachmentInvalid: "Un allegato scelto non è un file di questa opportunità.",
+    attachmentInvalid: 'Un allegato scelto non è un file di questa opportunità.',
     attachmentNotPdf: (fileName: string) => `${fileName} non è un PDF.`,
     attachmentUnreadable: (fileName: string) =>
       `${fileName} non si può leggere. Rimuovilo o caricalo di nuovo come PDF semplice.`,
@@ -275,9 +345,52 @@ const it: typeof en = {
     offerSent: "Quest'offerta è stata inviata e non è più modificabile. Crea una nuova revisione.",
     offerNotSent: "L'offerta più recente non è ancora stata inviata: modificala invece di creare una nuova revisione.",
     offerNotLatest: "Si può modificare solo la versione più recente di un'offerta.",
-    offerLegacy: 'Questa offerta è stata generata prima dei documenti d’offerta e non si può modificare né usare come base.',
+    offerLegacy:
+      'Questa offerta è stata generata prima dei documenti d’offerta e non si può modificare né usare come base.',
+    draftInvalid: 'La bozza salvata non è più valida. Eliminala e ricomincia da un template.',
+    offerWizard:
+      "Quest'offerta è stata fatta con la procedura guidata: si modifica da una bozza, non dalla finestra classica.",
   },
-  storageMissing: "L'archiviazione dei file non è ancora configurata. Le offerte compaiono qui quando un amministratore la imposta.",
+  // La riga della bozza e l'azione Nuova offerta nella pagina del deal (specs/20261115-crm-offer-wizard, design S11)
+  new: 'Nuova offerta',
+  starting: 'Avvio…',
+  draft: {
+    row: (template: string, target: string) => `Bozza · ${template} · ${target}`,
+    target: {
+      new: 'Nuova offerta',
+      edit: (ref: string) => `Modifica di ${ref}`,
+      revision: (ref: string) => `Revisione di ${ref}`,
+    },
+    changed: (by: string, at: string) => `Modificata da ${by}, ${at}`,
+    continue: 'Continua',
+    discard: 'Elimina',
+    discardOf: (template: string) => `Elimina la bozza di ${template}`,
+    discardDialog: {
+      title: 'Eliminare questa bozza?',
+      body: (template: string) =>
+        `Tutto ciò che hai inserito per «${template}» viene eliminato. Il deal e le sue offerte non cambiano.`,
+      bodyOffer: (ref: string) => `L'offerta ${ref} resta com'è.`,
+      confirm: 'Elimina la bozza',
+      busy: 'Eliminazione…',
+      done: 'Bozza eliminata',
+    },
+    checking: 'Verifica della bozza in corso…',
+    checkFailed: 'Impossibile verificare se esiste una bozza.',
+    checkRetry: 'Riprova',
+    templateChanged: 'Template modificato da allora',
+    templateArchived: 'Template archiviato',
+    changedMeanwhile: "La bozza è cambiata nel frattempo. Ecco l'ultima versione.",
+    exists: {
+      title: 'Esiste già una bozza',
+      body: (by: string, at: string) =>
+        `${by} ha iniziato una bozza il ${at}. Continuala, oppure eliminala per iniziare altro.`,
+      discard: 'Eliminala e continua',
+      continue: 'Continua la bozza',
+    },
+  },
+  origin: { sections: 'Template classico' },
+  storageMissing:
+    "L'archiviazione dei file non è ancora configurata. Le offerte compaiono qui quando un amministratore la imposta.",
 }
 
 export const offers = { en, it }

@@ -18,7 +18,7 @@
  * Test:   bun test scripts/check-shared-copies.test.ts
  * Exit:   0 = in sync, 1 = drift or a malformed copy.
  */
-import { existsSync, readFileSync } from "node:fs";
+import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 
 export interface SharedGroup {
@@ -26,6 +26,11 @@ export interface SharedGroup {
   /** Repo-relative paths. The first readable one is the reference the others are compared with. */
   readonly files: readonly string[];
   readonly why: string;
+  /**
+   * `region` (default): compare the text between `// shared-copy:begin|end <name>` markers.
+   * `whole`: compare the files byte for byte, for a file that cannot carry markers (JSON test vectors).
+   */
+  readonly mode?: "region" | "whole";
 }
 
 /** The registry: add a group here when a module is copied on purpose. */
@@ -98,7 +103,45 @@ export const SHARED_COPIES: readonly SharedGroup[] = [
     files: ["crm-api/src/offers/scope.ts", "estimai-api/src/system/manDays.ts"],
     why: "the Expected-effort arithmetic behind a purchase order's man-days (specs/20261103-projects-handoff, ADR 20261104-estimai-api-first-system-route-estimate-man-days-for-a-service-credential); estimai-ui's pertCalc is the source of truth",
   },
+  // The offer document's paper (page, frame, type, spacing; specs/20261115-crm-offer-wizard T69, DD-67): the PDF draws from
+  // it and the paginated preview scales it, so the preview's frame cannot drift from the PDF's (AC-11.10). Whole file: pure
+  // constants, no markers, and the header comment is part of what must match.
+  {
+    name: "offerPaper",
+    files: ["crm-api/src/offers/paper.ts", "crm-ui/src/lib/offerPaper/paper.ts"],
+    why: "the offer PDF's page size, frame, type sizes and spacing, scaled by the wizard's preview (AC-11.10); change both copies in one commit",
+    mode: "whole",
+  },
+  ...offerEngineGroups(),
 ];
+
+/**
+ * The offer wizard's interpreter (specs/20261115-crm-offer-wizard, DD-6/DD-51, ADR 20261115-offer-template-self-describing-text-shared-interpreter):
+ * crm-api and crm-ui hold the same reviewed code, so the server's checks and the browser's preview can never
+ * disagree (AC-3.2). One group per engine file (marked region) and one per shared test vector (whole file).
+ * The engine is frozen: a change edits both copies and their vectors in one commit.
+ */
+function offerEngineGroups(): SharedGroup[] {
+  const api = "crm-api/src/offers/engine";
+  const ui = "crm-ui/src/lib/offerEngine";
+  const files = ["markup", "printable", "format", "words", "costs", "compute", "syntax", "answers", "outline", "resolve", "numbering", "edit"];
+  const vectors = readdirSync(join(import.meta.dir, "..", api, "vectors"))
+    .filter((f) => f.endsWith(".json"))
+    .sort();
+  return [
+    ...files.map((f) => ({
+      name: `offerEngine.${f}`,
+      files: [`${api}/${f}.ts`, `${ui}/${f}.ts`],
+      why: "the offer wizard's shared interpreter (AC-3.2); both copies are the same reviewed code, change them in one commit",
+    })),
+    ...vectors.map((v) => ({
+      name: `offerEngine.vectors.${v}`,
+      files: [`${api}/vectors/${v}`, `${ui}/vectors/${v}`],
+      why: "the engine's shared test vectors: both copies must pass the same cases (AC-3.2)",
+      mode: "whole" as const,
+    })),
+  ];
+}
 
 export type Region = { ok: true; lines: string[]; startLine: number } | { ok: false; reason: string };
 
@@ -119,12 +162,45 @@ export function extractRegion(text: string, name: string): Region {
 
 const clip = (s: string | undefined) => (s === undefined ? "<end of region>" : JSON.stringify(s.length > 100 ? `${s.slice(0, 100)}…` : s));
 
+/** `whole` mode: every file must hold the reference's exact bytes (no marker, no CRLF normalisation). */
+function checkWholeFiles(g: SharedGroup, root: string): string[] {
+  const errors: string[] = [];
+  let ref: { file: string; bytes: Buffer } | undefined;
+  for (const file of g.files) {
+    const path = join(root, file);
+    if (!existsSync(path)) {
+      errors.push(`${g.name}: ${file} does not exist`);
+      continue;
+    }
+    const bytes = readFileSync(path);
+    if (bytes.length === 0) {
+      errors.push(`${g.name}: ${file}: the file is empty, so it guards nothing`);
+      continue;
+    }
+    if (!ref) {
+      ref = { file, bytes };
+      continue;
+    }
+    if (ref.bytes.equals(bytes)) continue;
+    let at = 0;
+    while (at < ref.bytes.length && at < bytes.length && ref.bytes[at] === bytes[at]) at++;
+    errors.push(
+      `${g.name}: ${file} differs from ${ref.file} at byte offset ${at} (${ref.bytes.length} vs ${bytes.length} bytes) (${g.why})`,
+    );
+  }
+  return errors;
+}
+
 /** One message per problem; an empty list means every group is in sync. */
 export function checkGroups(groups: readonly SharedGroup[], root: string): string[] {
   const errors: string[] = [];
   for (const g of groups) {
     if (g.files.length < 2) {
       errors.push(`${g.name}: a shared group needs at least two files, got ${g.files.length}`);
+      continue;
+    }
+    if (g.mode === "whole") {
+      errors.push(...checkWholeFiles(g, root));
       continue;
     }
     let ref: { file: string; lines: string[]; startLine: number } | undefined;

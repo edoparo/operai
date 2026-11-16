@@ -14,6 +14,7 @@ import { estimateRouter } from "./estimates/estimate.routes";
 import { estimateNoticesRouter } from "./estimates/estimateNotices.routes";
 import { offerTemplatesRouter } from "./offer-templates/offerTemplates.routes";
 import { offersRouter } from "./offers/offers.routes";
+import { offerDraftsRouter } from "./offer-drafts/offerDrafts.routes";
 import { attachmentsRouter } from "./attachments/attachments.routes";
 import { entityProfilesRouter } from "./entity-profiles/entityProfiles.routes";
 import { offerSequencesRouter } from "./offer-sequences/offerSequences.routes";
@@ -38,8 +39,9 @@ app.use(
   "*",
   cors({
     origin: env.ALLOWED_ORIGINS,
-    // If-Match / ETag carry the optimistic-concurrency version (D-7).
-    allowHeaders: ["Content-Type", "Authorization", "If-Match"],
+    // If-Match / ETag carry the optimistic-concurrency version (D-7); If-None-Match: * creates an offer draft only
+    // when none exists (specs/20261115-crm-offer-wizard AC-6.3). Pinned by src/cors.test.ts.
+    allowHeaders: ["Content-Type", "Authorization", "If-Match", "If-None-Match"],
     exposeHeaders: ["ETag"],
     allowMethods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
     credentials: true,
@@ -62,9 +64,17 @@ export const MAX_DOCUMENT_BODY_BYTES = 1024 * 1024;
 const tooLarge = (c: Context) => problem({ status: 413, detail: "Request body is too large" }, c.req.path);
 const smallBody = bodyLimit({ maxSize: MAX_REQUEST_BODY_BYTES, onError: tooLarge });
 const documentBody = bodyLimit({ maxSize: MAX_DOCUMENT_BODY_BYTES, onError: tooLarge });
+// A wizard draft is saved whole: up to 512 KiB (specs/20261115-crm-offer-wizard § Security), refused as 413 `draft_too_large`.
+const draftTooLarge = (c: Context) =>
+  problem({ status: 413, code: "draft_too_large", detail: "The draft is too large to save" }, c.req.path);
+const draftBody = bodyLimit({ maxSize: 512 * 1024, onError: draftTooLarge });
+const isDraftWrite = (c: Context) =>
+  c.req.method !== "GET" && /^\/deals\/[^/]+\/offer-draft(\/template|\/generate)?$/.test(c.req.path);
 const isDocumentWrite = (c: Context) =>
   c.req.path.startsWith("/offer-templates") || (c.req.method === "POST" && /^\/deals\/[^/]+\/offers$/.test(c.req.path));
-app.use("*", (c, next) => (isDocumentWrite(c) ? documentBody(c, next) : smallBody(c, next)));
+app.use("*", (c, next) =>
+  isDraftWrite(c) ? draftBody(c, next) : isDocumentWrite(c) ? documentBody(c, next) : smallBody(c, next),
+);
 
 // ─── Routes ──────────────────────────────────────────────────────────────────
 
@@ -77,6 +87,7 @@ app.route("/", estimateRouter);
 app.route("/", estimateNoticesRouter);
 app.route("/", offersRouter);
 app.route("/", offerTemplatesRouter);
+app.route("/", offerDraftsRouter);
 app.route("/", attachmentsRouter);
 app.route("/", entityProfilesRouter);
 app.route("/", offerSequencesRouter);

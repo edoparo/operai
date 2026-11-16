@@ -18,7 +18,10 @@
  * with pdf-lib (one A4 page) and only then points the profile at it. A key
  * outside that entity's prefix is refused BEFORE anything is read or deleted,
  * so confirm can never be used to inspect or remove another object (no IDOR on
- * keys).
+ * keys). Confirm then stores a COPY of the bytes it checked under a fresh key that
+ * was never given an upload policy and deletes the upload key, so a stored letterhead
+ * is exactly what was checked and never changes (specs/20261115-crm-offer-wizard DD-75,
+ * security M-4); every later use of it is checked once per process (`letterheadUse.ts`, DD-76).
  */
 
 import { OpenAPIHono, createRoute, z } from "@hono/zod-openapi";
@@ -27,8 +30,10 @@ import type { AuthzVariables } from "../auth/authz.middleware";
 import { db } from "../lib/db";
 import {
   EntitySchema,
+  NO_NUL_TEXT,
   PersonRefSchema,
   commonErrors,
+  hasNoNul,
   optionalText,
   requiredText,
   type HeaderSource,
@@ -37,14 +42,15 @@ import { loadPeople } from "../lib/people";
 import { ProblemError, notFound, unprocessable, validationHook } from "../lib/problem";
 import { MAX_LETTERHEAD_BYTES, requireStorage } from "../lib/storage";
 import { assertInScope } from "../deals/deals.routes";
-import { checkLetterhead } from "./letterhead";
+import { checkLetterheadIsolated } from "./isolatedPdfCheck";
+import { assertLetterheadUsable, rememberUsableLetterhead } from "./letterheadUse";
 
 const json = (schema: z.ZodTypeAny) => ({ content: { "application/json": { schema } } });
 
 const ProfileBodySchema = z
   .object({
     legalName: requiredText(200),
-    addressLines: z.array(z.string().trim().min(1).max(200)).max(5),
+    addressLines: z.array(z.string().refine(hasNoNul, NO_NUL_TEXT).pipe(z.string().trim().min(1).max(200))).max(5),
     vatNumber: optionalText(50),
     iban: optionalText(50),
     offerTermsEn: optionalText(10_000),
@@ -128,7 +134,12 @@ const letterheadConfirmRoute = createRoute({
     200: { description: "The profile, with the new letterhead", ...json(ProfileSchema) },
     403: { description: "out_of_scope" },
     409: { description: "entity_profile_missing / upload_missing" },
-    422: { description: "letterhead_invalid (reason: not_pdf, page_count, not_a4, unembeddable, too_large) / letterhead_key_invalid" },
+    422: {
+      description:
+        "letterhead_invalid (`reason`: not_pdf, page_count, not_a4, unembeddable, too_large, " +
+        "too_complex, decoded_too_large, image_too_large, unbounded_stream) / letterhead_key_invalid. " +
+        "The upload is deleted; on 200 the profile points at a copy of the checked bytes under a fresh key.",
+    },
   },
 });
 
@@ -136,10 +147,36 @@ const letterheadDownloadRoute = createRoute({
   method: "get",
   path: "/entity-profiles/{entity}/letterhead",
   tags: ["Settings"],
-  summary: "A 60 s download link for the entity's letterhead (deal:financials)",
+  summary: "A 60 s download link for the entity's letterhead (deal:financials); `Cache-Control: no-store`",
   middleware: [...authorized, requireCapability(DEAL_FINANCIALS)],
   request: { params: EntityParams },
-  responses: { 200: { description: "Presigned URL", ...json(z.object({ url: z.string() })) }, 404: { description: "No letterhead" }, ...commonErrors },
+  responses: {
+    ...commonErrors,
+    200: { description: "Presigned URL", ...json(z.object({ url: z.string() })) },
+    404: { description: "No letterhead" },
+    409: {
+      description:
+        "letterhead_unusable: the stored letterhead fails the check (`entity`, `reason`: not_pdf, page_count, not_a4, " +
+        "unembeddable, too_complex, decoded_too_large, image_too_large, unbounded_stream); no link is minted, " +
+        "`Cache-Control: no-store`. Upload the letterhead again.",
+      ...json(
+        z.object({
+          code: z.literal("letterhead_unusable"),
+          entity: EntitySchema,
+          reason: z.enum([
+            "not_pdf",
+            "page_count",
+            "not_a4",
+            "unembeddable",
+            "too_complex",
+            "decoded_too_large",
+            "image_too_large",
+            "unbounded_stream",
+          ]),
+        }),
+      ),
+    },
+  },
 });
 
 export const entityProfilesRouter = new OpenAPIHono<{ Variables: AuthzVariables }>({
@@ -242,14 +279,28 @@ entityProfilesRouter.openapi(letterheadConfirmRoute, async (c) => {
     );
   };
   if (head.sizeBytes > MAX_LETTERHEAD_BYTES) return invalid("too_large");
-  const verdict = await checkLetterhead(await storage.getObject(key, MAX_LETTERHEAD_BYTES));
+  const checked = await storage.getObject(key, MAX_LETTERHEAD_BYTES);
+  const verdict = await checkLetterheadIsolated(checked);
   if (!verdict.ok) return invalid(verdict.reason);
 
+  // Store a copy of exactly the bytes that were checked, under a key nobody holds an upload policy for: the upload key
+  // can still be written by whoever holds its POST policy (it stays valid for 60 s from the mint), so it is never stored
+  // (DD-75, security M-4 F-4). A failed copy leaves the upload and the profile as they were, for a retry.
+  const stored = `letterheads/${entity}/${crypto.randomUUID()}.pdf`;
+  await storage.putObject(stored, checked, "application/pdf");
   const previous = profile.letterheadKey;
-  const row = await db.entityProfile.update({
-    where: { entity },
-    data: { letterheadKey: key, letterheadBy: c.get("userId"), letterheadAt: new Date() },
-  });
+  let row: ProfileRow;
+  try {
+    row = await db.entityProfile.update({
+      where: { entity },
+      data: { letterheadKey: stored, letterheadBy: c.get("userId"), letterheadAt: new Date() },
+    });
+  } catch (error) {
+    await deleteQuietly(stored);
+    throw error;
+  }
+  rememberUsableLetterhead(stored);
+  await deleteQuietly(key);
   if (previous && previous !== key) await deleteQuietly(previous);
   return c.json((await toViews(c, [row]))[0]!, 200);
 });
@@ -258,9 +309,14 @@ entityProfilesRouter.openapi(letterheadDownloadRoute, async (c) => {
   const { entity } = c.req.valid("param");
   const profile = await db.entityProfile.findUnique({ where: { entity }, select: { letterheadKey: true } });
   if (!profile?.letterheadKey) throw notFound("No letterhead has been uploaded for this entity");
+  // A bearer link or a refusal about a letterhead: never kept by a cache (DD-54).
+  c.header("Cache-Control", "no-store");
+  // The stored file is checked once per key per process before a link to it is minted (DD-76).
+  await assertLetterheadUsable(requireStorage(), entity, profile.letterheadKey);
   const url = await requireStorage().mintPresignedGet(profile.letterheadKey, {
     contentType: "application/pdf",
     fileName: `letterhead-${entity}.pdf`,
   });
+  // It is not logged: the request logger writes the path only.
   return c.json({ url }, 200);
 });

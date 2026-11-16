@@ -5,7 +5,7 @@
  */
 
 import { z } from "@hono/zod-openapi";
-import { requiredText } from "../lib/http";
+import { PersonRefSchema, requiredText, idText } from "../lib/http";
 
 /** Integer cents on the wire and in the database: same ceiling as a deal's amount. */
 export const MAX_CENTS = 10_000_000_000_000;
@@ -125,10 +125,10 @@ export const OfferCostLineSchema = z
 
 export const GenerateOfferSchema = z
   .object({
-    templateId: z.string().min(1).max(64),
+    templateId: idText(),
     salutation: requiredText(100),
     clientLines: z.array(requiredText(200)).min(1).max(8),
-    contactIds: z.array(z.string().min(1).max(64)).max(5).default([]),
+    contactIds: z.array(idText()).max(5).default([]),
     opening: requiredText(5_000),
     sections: sectionsOf,
     costColumns: CostColumnsSchema,
@@ -141,7 +141,7 @@ export const GenerateOfferSchema = z
       .nullable()
       .optional(),
     annex: z.boolean(),
-    attachmentIds: z.array(z.string().min(1).max(64)).max(5).default([]),
+    attachmentIds: z.array(idText()).max(5).default([]),
     validityDays: z.number().int().min(1).max(365).default(30),
     aiAssisted: z.boolean().default(false),
   })
@@ -191,3 +191,40 @@ export const GenerateOfferSchema = z
   });
 
 export type GenerateOfferInput = z.infer<typeof GenerateOfferSchema>;
+
+/**
+ * Where an offer came from (specs/20261115-crm-offer-wizard AC-7.3, DD-11), which decides how it is edited or revised:
+ * `summary` an 018 `OF-…` offer (never editable), `sections` a contract made with a legacy template (the 018 dialog, or
+ * the wizard when the language has a wizard template), `wizard` an offer made by the wizard (a draft).
+ */
+export const OfferOriginSchema = z.enum(["summary", "sections", "wizard"]);
+
+/** One offer version as the list and the generate/edit/sent routes return it. */
+export const OfferSchema = z.object({
+  id: z.string(),
+  number: z.number().int(),
+  /** "0017/2026", "0017/2026r1"; "OF-…" for offers generated before specs/20261102-crm-offer-document. */
+  reference: z.string(),
+  language: z.enum(["en", "it"]),
+  /** One-off lines minus discounts (specs/20261102-crm-offer-document D-6). */
+  priceCents: z.number().int(),
+  /** The yearly lines, shown apart as "+ CHF 2'500 per year"; 0 for older offers. */
+  yearlyCents: z.number().int(),
+  currency: z.enum(["CHF", "EUR"]),
+  validityDays: z.number().int(),
+  validUntil: z.string(),
+  aiAssisted: z.boolean(),
+  /** Annex A's total in tenths of a man-day; 0 when the offer has no annex. */
+  manDaysTenths: z.number().int(),
+  /** The template the offer started from; null for older offers. */
+  templateName: z.string().nullable(),
+  sizeBytes: z.number().int(),
+  createdBy: PersonRefSchema,
+  createdAt: z.string(),
+  deleted: z.boolean(),
+  /** When and by whom it was marked sent; null while it can still be edited (US-7). */
+  sent: z.object({ at: z.string(), by: PersonRefSchema }).nullable(),
+  /** The If-Match precondition of an edit. */
+  version: z.number().int(),
+  origin: OfferOriginSchema,
+});

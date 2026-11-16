@@ -11,8 +11,8 @@ describe("attachments (specs/20261101-crm-sales-flow)", () => {
       body: { fileName: "../Signed offer ✓.pdf", contentType: "application/pdf", sizeBytes: 1234, ...body },
     });
   /** Simulates the browser's POST landing in the bucket. */
-  const land = (objectKey: string, sizeBytes = 1200) =>
-    bucket.objects.set(objectKey, { bytes: null, contentType: "application/pdf", sizeBytes });
+  const land = (objectKey: string, sizeBytes = 1200, bytes: Uint8Array = new TextEncoder().encode("%PDF-1.4\n%%EOF\n"), contentType = "application/pdf") =>
+    bucket.objects.set(objectKey, { bytes, contentType, sizeBytes });
 
   it("starts with a presigned POST, refuses other types and oversize files", async () => {
     const deal = await makeDeal((await makeCompany()).id);

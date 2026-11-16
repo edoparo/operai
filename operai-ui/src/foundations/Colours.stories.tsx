@@ -39,6 +39,13 @@ const FILL: Record<string, string> = {
   '--red': 'bg-red',
   '--red-text': 'bg-red-text',
   '--ai': 'bg-ai',
+  '--paper': 'bg-paper',
+  '--paper-ink': 'bg-paper-ink',
+  '--paper-soft': 'bg-paper-soft',
+  '--paper-rule': 'bg-paper-rule',
+  '--paper-head': 'bg-paper-head',
+  '--paper-mark': 'bg-paper-mark',
+  '--paper-mark-ink': 'bg-paper-mark-ink',
 }
 
 const TEXT: Record<string, string> = {
@@ -57,6 +64,18 @@ const GROUPS: { title: string; names: string[] }[] = [
   { title: 'Accent', names: ['--acc', '--acc-hi', '--acc-lo', '--acc-solid', '--acc-text'] },
   { title: 'Tones', names: ['--grn', '--grn-text', '--org', '--org-text', '--red', '--red-text'] },
   { title: 'Special', names: ['--ai'] },
+  {
+    title: 'Preview paper (light in both themes)',
+    names: [
+      '--paper',
+      '--paper-ink',
+      '--paper-soft',
+      '--paper-rule',
+      '--paper-head',
+      '--paper-mark',
+      '--paper-mark-ink',
+    ],
+  },
 ]
 
 type Rgb = [number, number, number, number]
@@ -207,6 +226,34 @@ function Usage() {
       </div>
     </div>
   )
+}
+
+function PaperSample() {
+  return (
+    <div className="flex max-w-3xl flex-col gap-3">
+      <h2 className="font-disp text-lg font-bold">Preview paper</h2>
+      <p className="text-sm text-soft">
+        A document preview represents the print, so the paper stays light in the dark theme too. Ink on paper is at
+        least 15:1, soft text at least 6:1, the missing-value mark text at least 7:1. A missing value is never marked by
+        colour alone: it also carries its label in brackets.
+      </p>
+      <div className="flex flex-col gap-2 rounded-md border border-paper-rule bg-paper p-4">
+        <span className="text-sm text-paper-ink">Primary text on the paper</span>
+        <span className="text-xs text-paper-soft">Secondary text: captions, meta</span>
+        <span className="border-b border-paper-rule bg-paper-head px-2 py-1 text-xs text-paper-ink">
+          Table head tint
+        </span>
+        <span className="text-sm text-paper-ink">
+          Value <mark className="bg-paper-mark text-paper-mark-ink">⟦Missing label⟧</mark>
+        </span>
+      </div>
+    </div>
+  )
+}
+
+export const PreviewPaper: StoryObj = {
+  name: 'Preview paper',
+  render: () => <PaperSample />,
 }
 
 export const TextOnSurfaces: StoryObj = {

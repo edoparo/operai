@@ -5,10 +5,11 @@ import { CostColumnSwitches, TemplateCostLinesEditor } from '../components/CostL
 import { LoadFailure, Loading, Saved, StaleWriteBanner } from '../components/LoadState'
 import MarkupHelp from '../components/MarkupHelp'
 import SectionsEditor from '../components/SectionsEditor'
+import WizardTemplateEditor from '../components/templateEditor/WizardTemplateEditor'
 import { ApiError, isStaleWrite } from '../lib/api'
-import { createOfferTemplate, getOfferTemplate, updateOfferTemplate } from '../lib/crmApi'
+import { createOfferTemplate, getWizardTemplate, updateOfferTemplate } from '../lib/crmApi'
 import type { OfferTemplateInput } from '../lib/crmApi'
-import { codeOf, errorMessage, fieldErrorOf } from '../lib/errors'
+import { codeOf, errorMessage, fieldErrorOf, isNulRefusal } from '../lib/errors'
 import {
   LIMITS,
   blankSection,
@@ -22,13 +23,21 @@ import {
 } from '../lib/offerRules'
 import type { TemplateLineDraft } from '../lib/offerRules'
 import { ENTITIES } from '../lib/types'
-import type { CostColumns, Entity, OfferLanguage, OfferSection, OfferTemplate } from '../lib/types'
+import type { CostColumns, Entity, OfferLanguage, OfferSection, OfferTemplate, OfferTemplateRow } from '../lib/types'
 import { first, maxLength, optional, required } from '../lib/validate'
 import { useCrmCapabilities } from '../hooks/scopeContext'
 import { useResource } from '../hooks/useResource'
 import { strings } from '../strings'
 
 type FieldErrors = Partial<Record<'name' | 'salutation' | 'opening' | 'acceptance', string>>
+
+/** The wire member the server names → the field of this form. */
+const SERVER_FIELDS: Record<string, keyof FieldErrors> = {
+  name: 'name',
+  salutation: 'salutation',
+  opening: 'opening',
+  acceptanceLabel: 'acceptance',
+}
 
 const BackLink = () => (
   <Link to="/settings" className="link" data-testid="crm-template-back">
@@ -144,6 +153,15 @@ function TemplateEditor({
         }
         if (codeOf(failure) === 'template_archived') return setError(t.errors.archived)
         if (codeOf(failure) === 'out_of_scope') return setError(t.errors.outOfScope)
+        // A character the server cannot store lands on the field it named (the three texts and the acceptance label),
+        // with our own sentence and focus there; anything else it refuses stays a banner, in our words.
+        const refused = isNulRefusal(failure) ? fieldErrorOf(failure) : null
+        const mapped = refused ? SERVER_FIELDS[refused.field] : undefined
+        if (refused && mapped) {
+          setErrors({ [mapped]: refused.message })
+          requestAnimationFrame(() => focusFirstInvalid(fieldsRef.current))
+          return
+        }
         const field = fieldErrorOf(failure)
         setError(field ? field.message : errorMessage(failure))
       },
@@ -287,10 +305,18 @@ function TemplateEditor({
   )
 }
 
-/** `/settings/templates/$templateId` — loads the template, then edits it. */
+/** A template of either format, as `GET /offer-templates/{id}` answers (`format` says which editor opens it). */
+const getTemplateRow = (id: string, init?: { signal?: AbortSignal }): Promise<OfferTemplateRow> =>
+  getWizardTemplate(id, init)
+
+/**
+ * `/settings/templates/$templateId` — loads the template, then edits it: a wizard template in the wizard editor, a
+ * classic one in the 018 editor (specs/20261115-crm-offer-wizard AC-9.2; a row of an older server has no format and
+ * is classic).
+ */
 export function TemplateEditPage() {
   const { templateId } = useParams({ strict: false }) as { templateId: string }
-  const load = useCallback((signal: AbortSignal) => getOfferTemplate(templateId, { signal }), [templateId])
+  const load = useCallback((signal: AbortSignal) => getTemplateRow(templateId, { signal }), [templateId])
   const resource = useResource(load)
   if (resource.status === 'loading')
     return (
@@ -299,24 +325,39 @@ export function TemplateEditPage() {
       </div>
     )
   if (resource.status === 'error') return <LoadFailure error={resource.error} onRetry={resource.retry} />
-  const template = resource.data!
+  const row = resource.data!
+  if (row.format === 'wizard')
+    return (
+      <WizardTemplateEditor
+        key={row.id}
+        entity={row.entity}
+        template={row}
+        onSaved={(next) => resource.replace(next)}
+        onReload={resource.retry}
+      />
+    )
   return (
     <TemplateEditor
-      key={template.id}
-      entity={template.entity}
-      template={template}
-      onSaved={resource.replace}
+      key={row.id}
+      entity={row.entity}
+      template={row}
+      onSaved={(next) => resource.replace({ ...next, format: 'sections' })}
       onReload={resource.retry}
     />
   )
 }
 
-/** `/settings/templates/new/$entity` — a blank template of the entity in the path. */
+/** `/settings/templates/new/$entity` — a blank wizard template of the entity in the path (new templates are always wizard ones, DD-9). */
 export function TemplateNewPage() {
   const { entity } = useParams({ strict: false }) as { entity: string }
   if (!(ENTITIES as readonly string[]).includes(entity))
     return <Banner tone="warning">{strings.templates.editor.unknownEntity}</Banner>
   return (
-    <TemplateEditor entity={entity as Entity} template={null} onSaved={() => undefined} onReload={() => undefined} />
+    <WizardTemplateEditor
+      entity={entity as Entity}
+      template={null}
+      onSaved={() => undefined}
+      onReload={() => undefined}
+    />
   )
 }

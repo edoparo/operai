@@ -37,7 +37,7 @@ import { db } from "../lib/db";
 import { activities } from "../lib/activities";
 import { sendDealLinkNotice } from "../lib/estimaiNotices";
 import { createEstimate, deleteEstimateQuietly, directoryEmail, shareAsEditor } from "../lib/estimai";
-import { IdParams, commonErrors, requiredText } from "../lib/http";
+import { IdParams, commonErrors, requiredText, idText } from "../lib/http";
 import { requireCrmUsers } from "../lib/identities";
 import { MAX_NAME, MAX_REASON, announce, clip, formatDueDate } from "../lib/notify";
 import { ProblemError, notFound, validationHook } from "../lib/problem";
@@ -63,7 +63,7 @@ const requestRoute = createRoute({
   middleware: managing,
   request: {
     params: IdParams,
-    body: { content: { "application/json": { schema: z.object({ technicalUserId: z.string().min(1).max(64) }).strict() } }, required: true },
+    body: { content: { "application/json": { schema: z.object({ technicalUserId: idText() }).strict() } }, required: true },
   },
   responses: { 201: DealResponse, 404: { description: "Not found" }, 409: { description: "estimate_exists / deal_not_open_for_estimate" }, ...commonErrors },
 });

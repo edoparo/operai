@@ -17,7 +17,7 @@
 import { OpenAPIHono, createRoute, z } from "@hono/zod-openapi";
 import type { MiddlewareHandler } from "hono";
 import { db } from "../lib/db";
-import { EntitySchema } from "../lib/http";
+import { EntitySchema, hasNoNul, NO_NUL_ID, searchText } from "../lib/http";
 import type { Prisma } from "../lib/generated/prisma/client";
 import { problem } from "../lib/problem";
 import { createSystemAuthMiddleware, type SystemAuthVariables } from "../auth/systemAuth.middleware";
@@ -35,13 +35,14 @@ export const DEFAULT_LIMIT = 20;
 export const IdsSchema = z
   .string()
   .max(MAX_IDS * 65)
+  .refine(hasNoNul, NO_NUL_ID)
   .transform((value) => value.split(",").map((id) => id.trim()))
   .refine((ids) => ids.length <= MAX_IDS, `At most ${MAX_IDS} ids`)
   .refine((ids) => ids.every((id) => id.length >= 1 && id.length <= 64), "Every id is 1-64 characters")
   .optional();
 
 const QuerySchema = z.object({
-  q: z.string().max(200).optional(),
+  q: searchText(200).optional(),
   ids: IdsSchema,
   limit: z.coerce.number().int().min(1).max(MAX_LIMIT).optional(),
 });

@@ -124,7 +124,7 @@ export interface Storage {
    * the database BEFORE calling; `maxBytes` is a second, hard stop on what is read.
    */
   getObject(objectKey: string, maxBytes: number): Promise<Uint8Array>;
-  /** Server-authored bytes only (the offer PDF). */
+  /** Bytes the server authored (the offer PDF) or checked (a confirmed letterhead, copied under a fresh key, DD-75). */
   putObject(objectKey: string, body: Uint8Array, contentType: string): Promise<void>;
   deleteObject(objectKey: string): Promise<void>;
 }

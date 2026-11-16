@@ -1,0 +1,949 @@
+{
+ "_doc": "Issuer values (specs/20261115-crm-offer-wizard DD-57, DD-58; AC-12.1, 12.2, 12.7, 12.9, 12.12). `cases`: one template, the answers.json context patched by `context`; `hostile`: names and address lines carrying markup, proven as structure with parseMarkup in a paragraph, a list item and table cells of `hostileTemplate`; `reads`: `systemRead` per template (patch: answers; handEdit: a section edited by its heading); `supplied`: `suppliedFields(ast)` and the items the editor's outline still asks. Run by crm-api issuer.test.ts and crm-ui offerEngine.vectors.test.ts.",
+ "template": [
+  "@@salutation Spett.le",
+  "@@acceptance Il Cliente",
+  "",
+  "Tra [EMITTENTE]{{?INDIRIZZO::, [INDIRIZZO]}} e [CLIENTE]",
+  "",
+  "## PARTI",
+  "@@step scope",
+  "| Parte | Dati |",
+  "|---|---|",
+  "| Fornitore | [EMITTENTE]{{?INDIRIZZO::, [INDIRIZZO]}} |",
+  "| Cliente | [CLIENTE] |",
+  "",
+  "## SOLO INDIRIZZO",
+  "[INDIRIZZO]",
+  "",
+  "## PRESENZA",
+  "{{?INDIRIZZO::Indirizzo noto.}}",
+  "{{!INDIRIZZO::Indirizzo ignoto.}}",
+  "",
+  "@@field CLIENTE",
+  "source: client",
+  "",
+  "@@field EMITTENTE",
+  "label: Emittente",
+  "source: issuer",
+  "",
+  "@@field INDIRIZZO",
+  "label: Indirizzo emittente",
+  "source: issuerAddress"
+ ],
+ "cases": [
+  {
+   "name": "the name and the address lines print on one line, in order, joined by a comma and a space (AC-12.9, AC-12.10)",
+   "context": {
+    "issuerLegalName": "wellD SA",
+    "issuerAddressLines": [
+     "Via Example 1",
+     "6900 Lugano"
+    ]
+   },
+   "expect": {
+    "opening": "Tra wellD SA, Via Example 1, 6900 Lugano e Acme SA",
+    "sections": {
+     "PARTI": "| Parte | Dati |\n|---|---|\n| Fornitore | wellD SA, Via Example 1, 6900 Lugano |\n| Cliente | Acme SA |",
+     "SOLO INDIRIZZO": "Via Example 1, 6900 Lugano",
+     "PRESENZA": "Indirizzo noto."
+    },
+    "missing": [],
+    "invalid": [],
+    "systemRead": [
+     "client",
+     "issuer",
+     "issuerAddress"
+    ]
+   }
+  },
+  {
+   "name": "no address lines: nothing printed, no comma, not missing, the cell reads the name alone (AC-12.12)",
+   "context": {
+    "issuerLegalName": "wellD SA",
+    "issuerAddressLines": []
+   },
+   "expect": {
+    "opening": "Tra wellD SA e Acme SA",
+    "sections": {
+     "PARTI": "| Parte | Dati |\n|---|---|\n| Fornitore | wellD SA |\n| Cliente | Acme SA |",
+     "PRESENZA": "Indirizzo ignoto."
+    },
+    "absent": [
+     "SOLO INDIRIZZO"
+    ],
+    "missing": [],
+    "invalid": [],
+    "systemRead": [
+     "client",
+     "issuer",
+     "issuerAddress"
+    ]
+   }
+  },
+  {
+   "name": "lines that are empty or spaces are the same as none (AC-12.12)",
+   "context": {
+    "issuerLegalName": "wellD SA",
+    "issuerAddressLines": [
+     "",
+     "   ",
+     "\t"
+    ]
+   },
+   "expect": {
+    "opening": "Tra wellD SA e Acme SA",
+    "sections": {
+     "PARTI": "| Parte | Dati |\n|---|---|\n| Fornitore | wellD SA |\n| Cliente | Acme SA |",
+     "PRESENZA": "Indirizzo ignoto."
+    },
+    "absent": [
+     "SOLO INDIRIZZO"
+    ],
+    "missing": [],
+    "invalid": [],
+    "systemRead": [
+     "client",
+     "issuer",
+     "issuerAddress"
+    ]
+   }
+  },
+  {
+   "name": "each line is trimmed and a blank one between two others is skipped (AC-12.9)",
+   "context": {
+    "issuerLegalName": "  wellD SA  ",
+    "issuerAddressLines": [
+     "  Via Example 1  ",
+     "  ",
+     "6900 Lugano "
+    ]
+   },
+   "expect": {
+    "opening": "Tra wellD SA, Via Example 1, 6900 Lugano e Acme SA",
+    "sections": {
+     "PARTI": "| Parte | Dati |\n|---|---|\n| Fornitore | wellD SA, Via Example 1, 6900 Lugano |\n| Cliente | Acme SA |"
+    },
+    "missing": [],
+    "invalid": [],
+    "systemRead": [
+     "client",
+     "issuer",
+     "issuerAddress"
+    ]
+   }
+  },
+  {
+   "name": "a line break inside the name or a line is folded to one space (AC-12.2, AC-12.9)",
+   "context": {
+    "issuerLegalName": "wellD\nSA",
+    "issuerAddressLines": [
+     "Via Example 1\r\n2nd floor",
+     "6900\n\n  Lugano"
+    ]
+   },
+   "expect": {
+    "opening": "Tra wellD SA, Via Example 1 2nd floor, 6900 Lugano e Acme SA",
+    "sections": {
+     "PARTI": "| Parte | Dati |\n|---|---|\n| Fornitore | wellD SA, Via Example 1 2nd floor, 6900 Lugano |\n| Cliente | Acme SA |"
+    },
+    "missing": [],
+    "invalid": [],
+    "systemRead": [
+     "client",
+     "issuer",
+     "issuerAddress"
+    ]
+   }
+  },
+  {
+   "name": "a blank legal name prints nothing and is never a missing field (AC-12.7, engine side)",
+   "context": {
+    "issuerLegalName": "   ",
+    "issuerAddressLines": [
+     "Via Example 1"
+    ]
+   },
+   "expect": {
+    "opening": "Tra , Via Example 1 e Acme SA",
+    "sections": {
+     "PARTI": "| Parte | Dati |\n|---|---|\n| Fornitore | , Via Example 1 |\n| Cliente | Acme SA |"
+    },
+    "missing": [],
+    "invalid": [],
+    "systemRead": [
+     "client",
+     "issuer",
+     "issuerAddress"
+    ]
+   }
+  },
+  {
+   "name": "nothing supplied at all: both print nothing, none missing",
+   "context": {
+    "issuerLegalName": "",
+    "issuerAddressLines": []
+   },
+   "expect": {
+    "opening": "Tra  e Acme SA",
+    "sections": {
+     "PARTI": "| Parte | Dati |\n|---|---|\n| Fornitore |  |\n| Cliente | Acme SA |"
+    },
+    "absent": [
+     "SOLO INDIRIZZO"
+    ],
+    "missing": [],
+    "invalid": [],
+    "systemRead": [
+     "client",
+     "issuer",
+     "issuerAddress"
+    ]
+   }
+  }
+ ],
+ "hostileTemplate": [
+  "@@salutation S",
+  "",
+  "## PARAGRAFO",
+  "[EMITTENTE]{{?INDIRIZZO::, [INDIRIZZO]}}",
+  "",
+  "## ELENCO",
+  "- [EMITTENTE]{{?INDIRIZZO::, [INDIRIZZO]}}",
+  "",
+  "## TABELLA",
+  "| Parte | Dati |",
+  "|---|---|",
+  "| [EMITTENTE] | [INDIRIZZO] |",
+  "| Fornitore | [EMITTENTE]{{?INDIRIZZO::, [INDIRIZZO]}} |",
+  "",
+  "@@field EMITTENTE",
+  "label: Emittente",
+  "source: issuer",
+  "",
+  "@@field INDIRIZZO",
+  "label: Indirizzo",
+  "source: issuerAddress"
+ ],
+ "hostile": [
+  {
+   "name": "a pipe",
+   "legalName": "A | B",
+   "addressLines": [
+    "Via | 1"
+   ],
+   "printedName": "A | B",
+   "printedAddress": "Via | 1",
+   "printed": "A | B, Via | 1"
+  },
+  {
+   "name": "emphasis marks",
+   "legalName": "**wellD** *SA* __x__",
+   "addressLines": [
+    "*Via* **1**"
+   ],
+   "printedName": "**wellD** *SA* __x__",
+   "printedAddress": "*Via* **1**",
+   "printed": "**wellD** *SA* __x__, *Via* **1**"
+  },
+  {
+   "name": "brackets and a field name",
+   "legalName": "[EMITTENTE] [INDIRIZZO] [x]",
+   "addressLines": [
+    "[CLIENTE]",
+    "]6900["
+   ],
+   "printedName": "[EMITTENTE] [INDIRIZZO] [x]",
+   "printedAddress": "[CLIENTE], ]6900[",
+   "printed": "[EMITTENTE] [INDIRIZZO] [x], [CLIENTE], ]6900["
+  },
+  {
+   "name": "a condition and a declaration",
+   "legalName": "{{?INDIRIZZO::x}} {{a::b}}",
+   "addressLines": [
+    "@@field X",
+    "@@block y"
+   ],
+   "printedName": "{{?INDIRIZZO::x}} {{a::b}}",
+   "printedAddress": "@@field X, @@block y",
+   "printed": "{{?INDIRIZZO::x}} {{a::b}}, @@field X, @@block y"
+  },
+  {
+   "name": "backslashes",
+   "legalName": "a\\*b\\|c\\",
+   "addressLines": [
+    "\\\\",
+    "\\["
+   ],
+   "printedName": "a\\*b\\|c\\",
+   "printedAddress": "\\\\, \\[",
+   "printed": "a\\*b\\|c\\, \\\\, \\["
+  },
+  {
+   "name": "a line-start marker",
+   "legalName": "- wellD",
+   "addressLines": [
+    "1. Via",
+    "# 6900"
+   ],
+   "printedName": "- wellD",
+   "printedAddress": "1. Via, # 6900",
+   "printed": "- wellD, 1. Via, # 6900"
+  },
+  {
+   "name": "a pipe at the start",
+   "legalName": "| wellD |",
+   "addressLines": [
+    "|---|"
+   ],
+   "printedName": "| wellD |",
+   "printedAddress": "|---|",
+   "printed": "| wellD |, |---|"
+  },
+  {
+   "name": "line breaks",
+   "legalName": "wellD\n| SA",
+   "addressLines": [
+    "Via\n\n- 1",
+    "a\r\n# b"
+   ],
+   "printedName": "wellD | SA",
+   "printedAddress": "Via - 1, a # b",
+   "printed": "wellD | SA, Via - 1, a # b"
+  },
+  {
+   "name": "the marker characters of the engine",
+   "legalName": "x\ue000y\ue001",
+   "addressLines": [
+    "\ue002z\ue003",
+    "\u27eaREF\u27eb"
+   ],
+   "printedName": "x?y?",
+   "printedAddress": "?z?, ?REF?",
+   "printed": "x?y?, ?z?, ?REF?"
+  }
+ ],
+ "reads": [
+  {
+   "name": "a field named in a printed section is read",
+   "template": [
+    "@@salutation S",
+    "",
+    "## A",
+    "Indirizzo [INDIRIZZO]",
+    "",
+    "@@field EMITTENTE",
+    "label: Emittente",
+    "source: issuer",
+    "",
+    "@@field INDIRIZZO",
+    "label: Indirizzo",
+    "source: issuerAddress",
+    "",
+    "@@field NOTE",
+    "label: Nota"
+   ],
+   "expect": {
+    "systemRead": [
+     "issuerAddress"
+    ]
+   }
+  },
+  {
+   "name": "sources are sorted and listed once",
+   "template": [
+    "@@salutation S",
+    "",
+    "## A",
+    "[INDIRIZZO] [EMITTENTE] [INDIRIZZO]",
+    "",
+    "@@field EMITTENTE",
+    "label: Emittente",
+    "source: issuer",
+    "",
+    "@@field INDIRIZZO",
+    "label: Indirizzo",
+    "source: issuerAddress",
+    "",
+    "@@field NOTE",
+    "label: Nota"
+   ],
+   "expect": {
+    "systemRead": [
+     "issuer",
+     "issuerAddress"
+    ]
+   }
+  },
+  {
+   "name": "a condition naming the field reads it even when its body prints nothing",
+   "template": [
+    "@@salutation S",
+    "",
+    "## A",
+    "Testo",
+    "{{?INDIRIZZO::}}",
+    "",
+    "@@field EMITTENTE",
+    "label: Emittente",
+    "source: issuer",
+    "",
+    "@@field INDIRIZZO",
+    "label: Indirizzo",
+    "source: issuerAddress",
+    "",
+    "@@field NOTE",
+    "label: Nota"
+   ],
+   "expect": {
+    "systemRead": [
+     "issuerAddress"
+    ]
+   }
+  },
+  {
+   "name": "a declared field the text never uses is not read",
+   "template": [
+    "@@salutation S",
+    "",
+    "## A",
+    "Testo",
+    "",
+    "@@field EMITTENTE",
+    "label: Emittente",
+    "source: issuer",
+    "",
+    "@@field INDIRIZZO",
+    "label: Indirizzo",
+    "source: issuerAddress",
+    "",
+    "@@field NOTE",
+    "label: Nota"
+   ],
+   "expect": {
+    "systemRead": []
+   }
+  },
+  {
+   "name": "a block that is off is not read",
+   "template": [
+    "@@salutation S",
+    "",
+    "## A",
+    "Testo",
+    "{{blk::Dopo [INDIRIZZO]}}",
+    "",
+    "@@block blk",
+    "label: Blocco",
+    "",
+    "@@field EMITTENTE",
+    "label: Emittente",
+    "source: issuer",
+    "",
+    "@@field INDIRIZZO",
+    "label: Indirizzo",
+    "source: issuerAddress",
+    "",
+    "@@field NOTE",
+    "label: Nota"
+   ],
+   "expect": {
+    "systemRead": []
+   }
+  },
+  {
+   "name": "the same block turned on is read",
+   "template": [
+    "@@salutation S",
+    "",
+    "## A",
+    "Testo",
+    "{{blk::Dopo [INDIRIZZO]}}",
+    "",
+    "@@block blk",
+    "label: Blocco",
+    "",
+    "@@field EMITTENTE",
+    "label: Emittente",
+    "source: issuer",
+    "",
+    "@@field INDIRIZZO",
+    "label: Indirizzo",
+    "source: issuerAddress",
+    "",
+    "@@field NOTE",
+    "label: Nota"
+   ],
+   "patch": {
+    "blocks": {
+     "blk": true
+    }
+   },
+   "expect": {
+    "systemRead": [
+     "issuerAddress"
+    ]
+   }
+  },
+  {
+   "name": "the body of a condition that does not hold is not read",
+   "template": [
+    "@@salutation S",
+    "",
+    "## A",
+    "Testo",
+    "{{?NOTE::Nota [INDIRIZZO]}}",
+    "",
+    "@@field EMITTENTE",
+    "label: Emittente",
+    "source: issuer",
+    "",
+    "@@field INDIRIZZO",
+    "label: Indirizzo",
+    "source: issuerAddress",
+    "",
+    "@@field NOTE",
+    "label: Nota"
+   ],
+   "expect": {
+    "systemRead": []
+   }
+  },
+  {
+   "name": "the body of a condition that holds is read",
+   "template": [
+    "@@salutation S",
+    "",
+    "## A",
+    "Testo",
+    "{{?NOTE::Nota [INDIRIZZO]}}",
+    "",
+    "@@field EMITTENTE",
+    "label: Emittente",
+    "source: issuer",
+    "",
+    "@@field INDIRIZZO",
+    "label: Indirizzo",
+    "source: issuerAddress",
+    "",
+    "@@field NOTE",
+    "label: Nota"
+   ],
+   "patch": {
+    "fields": {
+     "NOTE": "x"
+    }
+   },
+   "expect": {
+    "systemRead": [
+     "issuerAddress"
+    ]
+   }
+  },
+  {
+   "name": "a section the person edited by hand is stored text and reads nothing, nor does the condition that decides whether it prints",
+   "template": [
+    "@@salutation S",
+    "",
+    "@@OPT_START ?INDIRIZZO",
+    "## A",
+    "Indirizzo [INDIRIZZO]",
+    "@@OPT_END",
+    "",
+    "## B",
+    "Altro",
+    "",
+    "@@field EMITTENTE",
+    "label: Emittente",
+    "source: issuer",
+    "",
+    "@@field INDIRIZZO",
+    "label: Indirizzo",
+    "source: issuerAddress",
+    "",
+    "@@field NOTE",
+    "label: Nota"
+   ],
+   "context": {
+    "issuerLegalName": "wellD SA",
+    "issuerAddressLines": [
+     "Via Example 1",
+     "6900 Lugano"
+    ]
+   },
+   "handEdit": {
+    "heading": "A",
+    "body": "Indirizzo scritto a mano"
+   },
+   "expect": {
+    "systemRead": [],
+    "sections": {
+     "A": "Indirizzo scritto a mano",
+     "B": "Altro"
+    }
+   }
+  },
+  {
+   "name": "the same section as the wizard writes it reads the address, and its condition too",
+   "template": [
+    "@@salutation S",
+    "",
+    "@@OPT_START ?INDIRIZZO",
+    "## A",
+    "Indirizzo [INDIRIZZO]",
+    "@@OPT_END",
+    "",
+    "## B",
+    "Altro",
+    "",
+    "@@field EMITTENTE",
+    "label: Emittente",
+    "source: issuer",
+    "",
+    "@@field INDIRIZZO",
+    "label: Indirizzo",
+    "source: issuerAddress",
+    "",
+    "@@field NOTE",
+    "label: Nota"
+   ],
+   "context": {
+    "issuerLegalName": "wellD SA",
+    "issuerAddressLines": [
+     "Via Example 1",
+     "6900 Lugano"
+    ]
+   },
+   "expect": {
+    "systemRead": [
+     "issuerAddress"
+    ],
+    "sections": {
+     "A": "Indirizzo Via Example 1, 6900 Lugano",
+     "B": "Altro"
+    }
+   }
+  },
+  {
+   "name": "the opening, a heading and an annex's title count",
+   "template": [
+    "@@salutation S",
+    "",
+    "Apertura [EMITTENTE]",
+    "",
+    "## Parti di [INDIRIZZO]",
+    "Testo",
+    "",
+    "@@annex A Allegato [EMITTENTE]",
+    "Intro",
+    "",
+    "@@field EMITTENTE",
+    "label: Emittente",
+    "source: issuer",
+    "",
+    "@@field INDIRIZZO",
+    "label: Indirizzo",
+    "source: issuerAddress",
+    "",
+    "@@field NOTE",
+    "label: Nota"
+   ],
+   "expect": {
+    "systemRead": [
+     "issuer",
+     "issuerAddress"
+    ]
+   }
+  },
+  {
+   "name": "an annex that does not print reads nothing",
+   "template": [
+    "@@salutation S",
+    "",
+    "## A",
+    "Testo",
+    "",
+    "@@OPT_START blk",
+    "@@annex A Allegato",
+    "Intro [INDIRIZZO]",
+    "@@OPT_END",
+    "",
+    "@@block blk",
+    "label: Blocco",
+    "",
+    "@@field EMITTENTE",
+    "label: Emittente",
+    "source: issuer",
+    "",
+    "@@field INDIRIZZO",
+    "label: Indirizzo",
+    "source: issuerAddress",
+    "",
+    "@@field NOTE",
+    "label: Nota"
+   ],
+   "expect": {
+    "systemRead": []
+   }
+  },
+  {
+   "name": "a cost line's description and a total's label are printed text",
+   "template": [
+    "@@salutation S",
+    "",
+    "## COSTI",
+    "@@step costs",
+    "@@costs position unit",
+    "@@line a one_off | Servizio [EMITTENTE] | unit=500 | qty=1",
+    "@@total Totale [INDIRIZZO]",
+    "@@end",
+    "",
+    "@@field EMITTENTE",
+    "label: Emittente",
+    "source: issuer",
+    "",
+    "@@field INDIRIZZO",
+    "label: Indirizzo",
+    "source: issuerAddress",
+    "",
+    "@@field NOTE",
+    "label: Nota"
+   ],
+   "context": {
+    "issuerLegalName": "wellD SA",
+    "issuerAddressLines": [
+     "Via Example 1",
+     "6900 Lugano"
+    ]
+   },
+   "expect": {
+    "systemRead": [
+     "issuer",
+     "issuerAddress"
+    ],
+    "costRows": [
+     [
+      "cost:a",
+      "Servizio wellD SA"
+     ],
+     [
+      "total",
+      "Totale Via Example 1, 6900 Lugano"
+     ]
+    ]
+   }
+  },
+  {
+   "name": "a blank legal name in a cost line's description prints nothing and the row stays complete",
+   "template": [
+    "@@salutation S",
+    "",
+    "## COSTI",
+    "@@step costs",
+    "@@costs position unit",
+    "@@line a one_off | Servizio [EMITTENTE] | unit=500 | qty=1",
+    "@@total Totale",
+    "@@end",
+    "",
+    "@@field EMITTENTE",
+    "label: Emittente",
+    "source: issuer",
+    "",
+    "@@field INDIRIZZO",
+    "label: Indirizzo",
+    "source: issuerAddress",
+    "",
+    "@@field NOTE",
+    "label: Nota"
+   ],
+   "context": {
+    "issuerLegalName": " ",
+    "issuerAddressLines": []
+   },
+   "expect": {
+    "systemRead": [
+     "issuer"
+    ],
+    "missing": [],
+    "costRows": [
+     [
+      "cost:a",
+      "Servizio"
+     ],
+     [
+      "total",
+      "Totale"
+     ]
+    ]
+   }
+  }
+ ],
+ "supplied": [
+  {
+   "name": "declared fields bound to the issuer, in order of first use, with the label or null",
+   "template": [
+    "@@salutation S",
+    "",
+    "Apertura {{?INDIRIZZO::[INDIRIZZO]}} [CLIENTE]",
+    "",
+    "## A",
+    "Testo [EMITTENTE] [ALTRO]",
+    "",
+    "@@field CLIENTE",
+    "source: client",
+    "",
+    "@@field EMITTENTE",
+    "label: Emittente",
+    "source: issuer",
+    "",
+    "@@field INDIRIZZO",
+    "source: issuerAddress",
+    "",
+    "@@field ALTRO",
+    "label: Altro"
+   ],
+   "expect": [
+    {
+     "name": "INDIRIZZO",
+     "label": null,
+     "source": "issuerAddress"
+    },
+    {
+     "name": "EMITTENTE",
+     "label": "Emittente",
+     "source": "issuer"
+    }
+   ],
+   "items": [
+    "ALTRO"
+   ]
+  },
+  {
+   "name": "a field never used is not listed, and one used often is listed once",
+   "template": [
+    "@@salutation S",
+    "",
+    "## A",
+    "[EMITTENTE] [EMITTENTE] {{?EMITTENTE::[EMITTENTE]}}",
+    "",
+    "@@field EMITTENTE",
+    "label: Emittente",
+    "source: issuer",
+    "",
+    "@@field INDIRIZZO",
+    "label: Indirizzo",
+    "source: issuerAddress"
+   ],
+   "expect": [
+    {
+     "name": "EMITTENTE",
+     "label": "Emittente",
+     "source": "issuer"
+    }
+   ],
+   "items": []
+  },
+  {
+   "name": "a use in an inline condition, a heading, a cost line, a total, an annex title or subtitle and its intro counts",
+   "template": [
+    "@@salutation S",
+    "",
+    "{{?E1::}}Apertura",
+    "",
+    "## B [E2]",
+    "Testo",
+    "",
+    "## COSTI",
+    "@@step costs",
+    "@@costs position unit",
+    "@@line a one_off | Voce [E3] | unit=500 | qty=1",
+    "@@total Totale [E4]",
+    "@@end",
+    "",
+    "@@annex A Allegato [E5]",
+    "@@subtitle [E6]",
+    "Intro [E7]",
+    "",
+    "@@field E1",
+    "label: Uno",
+    "source: issuer",
+    "",
+    "@@field E2",
+    "label: Due",
+    "source: issuerAddress",
+    "",
+    "@@field E3",
+    "label: Tre",
+    "source: issuer",
+    "",
+    "@@field E4",
+    "label: Quattro",
+    "source: issuerAddress",
+    "",
+    "@@field E5",
+    "label: Cinque",
+    "source: issuer",
+    "",
+    "@@field E6",
+    "label: Sei",
+    "source: issuerAddress",
+    "",
+    "@@field E7",
+    "label: Sette",
+    "source: issuer"
+   ],
+   "expect": [
+    {
+     "name": "E1",
+     "label": "Uno",
+     "source": "issuer"
+    },
+    {
+     "name": "E2",
+     "label": "Due",
+     "source": "issuerAddress"
+    },
+    {
+     "name": "E3",
+     "label": "Tre",
+     "source": "issuer"
+    },
+    {
+     "name": "E4",
+     "label": "Quattro",
+     "source": "issuerAddress"
+    },
+    {
+     "name": "E5",
+     "label": "Cinque",
+     "source": "issuer"
+    },
+    {
+     "name": "E6",
+     "label": "Sei",
+     "source": "issuerAddress"
+    },
+    {
+     "name": "E7",
+     "label": "Sette",
+     "source": "issuer"
+    }
+   ],
+   "items": []
+  },
+  {
+   "name": "a template with no issuer field supplies nothing",
+   "template": [
+    "@@salutation S",
+    "",
+    "## A",
+    "[CLIENTE]",
+    "",
+    "@@field CLIENTE",
+    "source: client"
+   ],
+   "expect": [],
+   "items": []
+  }
+ ]
+}

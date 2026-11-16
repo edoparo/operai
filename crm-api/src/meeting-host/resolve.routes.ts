@@ -27,7 +27,7 @@ import { authzMiddleware, type AuthzVariables } from "../auth/authz.middleware";
 import { CRM_ACCESS, canSeeFinancials } from "../auth/guards";
 import { hasCapability } from "../authz/conditions";
 import { db } from "../lib/db";
-import { commonErrors } from "../lib/http";
+import { commonErrors, idText } from "../lib/http";
 import { validationHook } from "../lib/problem";
 
 /** The most ids one call may ask about (ADR 20261104-meeting-host-contract-resolve-and-notices). */
@@ -36,7 +36,7 @@ export const MAX_RESOLVE_IDS = 25;
 const ResolveBody = z
   .object({
     entityType: z.literal("deal"),
-    ids: z.array(z.string().min(1).max(64)).min(1).max(MAX_RESOLVE_IDS),
+    ids: z.array(idText()).min(1).max(MAX_RESOLVE_IDS),
   })
   .strict();
 

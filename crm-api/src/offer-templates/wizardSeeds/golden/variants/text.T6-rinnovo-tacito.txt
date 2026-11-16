@@ -1,0 +1,65 @@
+Spettabile / Alpina Energia SA / Via Cantonale 12 / 6900 Lugano / Svizzera
+Lugano, 15.11.2026
+CONTRATTO DI FORNITURA – Rif. 0042/2026r1
+Con riferimento alle discussioni intercorse, abbiamo il piacere di sottoporVi la nostra migliore offerta per la fornitura in oggetto.
+Il presente contratto viene stipulato tra WellD Sagl, di seguito denominata «Fornitore», e Alpina Energia SA, di seguito denominato «Cliente».
+1. DEFINIZIONI
+Servizio: Servizio di monitoraggio WellWatch, come descritto nel par. 2, inclusi aggiornamenti e documentazione.
+Canone: corrispettivo fisso e ricorrente dovuto per la disponibilità del Servizio.
+Utente: persona autorizzata dal Cliente a utilizzare il Servizio.
+Dati del Cliente: tutti i dati caricati o generati nel Servizio dal Cliente e dai suoi Utenti.
+2. OGGETTO DELLA FORNITURA
+Oggetto della fornitura è la messa a disposizione del Servizio. Il Servizio comprende:
+- Agenti di raccolta
+- Cruscotto
+3. ATTIVAZIONE E LIVELLI DI SERVIZIO
+Il supporto è gestito tramite il sistema di ticketing fornito ed è attivo dal lunedì al venerdì, 09:00–18:00, nei giorni lavorativi secondo il calendario ufficiale della Repubblica e Cantone Ticino.
+Gli interventi di manutenzione ordinaria che comportano un disservizio sono segnalati con almeno 24 ore di anticipo tramite posta elettronica.
+Il Servizio non prevede penali. I tempi di risoluzione non rientrano nei livelli di servizio.
+4. CONDIZIONI DI FORNITURA
+Il Servizio è fornito a Canone. La fornitura non prevede trasferte ed esclude quanto non esplicitamente dichiarato nel par. 2.
+4.1 Obblighi del Cliente
+Il Cliente si impegna a:
+- garantire che i propri Utenti rispettino il presente contratto;
+- non condividere gli accessi, non effettuare reverse engineering e non rivendere il Servizio;
+- mantenere sicure le credenziali di accesso;
+- rispettare le leggi applicabili nell'utilizzo del Servizio.
+4.2 Infrastruttura e dati
+Il Servizio è erogato su infrastruttura gestita dal Fornitore. I Dati del Cliente restano di proprietà del Cliente.
+5. RISORSE
+Le risorse tecniche allocate dal Fornitore hanno competenze e qualifiche adeguate allo svolgimento delle attività assegnate. Le risorse possono variare nel corso della fornitura.
+6. COSTI
+| Pos. | Voce di costo | CHF / unità | Qt. | Totale CHF |
+| 1 | Canone del Servizio, annuale | 9'600.- | 1 | 9'600.- |
+|  | TOTALE primo periodo |  |  | 9'600.- |
+Note:
+- I costi si intendono IVA esclusa.
+- Il Canone include il mantenimento e gli aggiornamenti del Servizio.
+- Moduli aggiuntivi, integrazioni e consulenze sono quotati e fatturati separatamente.
+7. DURATA, RINNOVO E DISDETTA
+La presente offerta è valida per 45 giorni solari.
+Il contratto ha durata di 12 mesi dalla data di attivazione del Servizio.
+Alla scadenza il contratto si rinnova tacitamente per un periodo equivalente, salvo disdetta scritta di una delle Parti con preavviso di 3 mesi rispetto alla scadenza.
+Ciascuna Parte può risolvere il contratto in caso di violazione sostanziale dell'altra Parte non sanata entro 30 giorni dalla notifica scritta. Alla cessazione del contratto l'accesso al Servizio termina e il Fornitore restituisce o elimina i Dati del Cliente entro 30 giorni, salvo obblighi di legge di conservazione.
+8. FATTURAZIONE
+Il Canone è fatturato in via anticipata, con cadenza annuale, dalla data di attivazione del Servizio.
+Le fatture sono pagabili a 30 giorni data fattura.
+9. CONDIZIONI GENERALI
+In aggiunta a quanto sopra specificato, valgono le seguenti Condizioni Generali di fornitura.
+9.1 Limitazione di responsabilità
+Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite. Le responsabilità del Fornitore e delle sue risorse sono limitate all'esecuzione della fornitura in oggetto, che viene portata avanti a regola d'arte e in conformità con le specifiche concordate con il Cliente. Salvo nei casi di dolo o colpa grave, la responsabilità complessiva del Fornitore ai sensi del presente contratto non supera l'importo dei Canoni pagati dal Cliente nei 12 mesi precedenti l'evento.
+9.2 Legislazione del lavoro
+Il personale del Fornitore opera nel pieno rispetto della legislazione del lavoro. Qualora il Cliente necessitasse di documentazione in merito, sarà cura del Fornitore presentarla.
+9.3 Riservatezza e proprietà
+Il Fornitore si impegna a mantenere la massima riservatezza per quanto concerne l'uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto di fornitura.
+Tutti i diritti di proprietà intellettuale sul Servizio rimangono di esclusiva proprietà del Fornitore. Il Cliente mantiene la piena proprietà dei Dati del Cliente.
+Il Fornitore garantisce che quanto fornito in esecuzione del presente accordo non viola diritti di proprietà intellettuale o industriale di terzi.
+9.4 Privacy e trattamento dei dati personali
+Il Cliente e il Fornitore si fanno entrambi garanti del rispetto delle norme vigenti sulla Privacy. Il Cliente è autorizzato a comunicare a terzi i dati del Fornitore per operazioni legate alla fornitura in oggetto. All'accettazione del presente contratto il Cliente accetta egualmente la politica sulla Privacy di WellD Sagl, la cui documentazione integrale viene fornita su richiesta o allegata.
+9.5 Foro competente
+Per qualsiasi controversia che dovesse sorgere in relazione al presente contratto di fornitura, il foro competente è quello di Lugano (Svizzera).
+9.6 Clausola di inefficacia
+Nell'eventualità in cui una qualsiasi clausola del presente contratto dovesse in seguito risultare inefficace per un qualsiasi motivo giuridico, ciò non inficerà la validità delle restanti clausole. In luogo della norma inefficace si considererà come voluta e dichiarata quella regolamentazione giuridicamente valida che maggiormente si avvicinerà al senso e allo scopo della clausola inefficace e del contratto nel suo insieme, tenendo in considerazione la buona fede, l'usanza commerciale nonché gli usi e i costumi del settore. Eventuali lacune contrattuali saranno trattate analogamente.
+Per accettazione / Il Cliente
+Luogo e data:
+Firma valida del Cliente:

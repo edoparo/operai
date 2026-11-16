@@ -53,6 +53,8 @@ const en = {
     amount: 'Enter an amount with at most two decimals.',
     date: 'Enter a valid date.',
     fixErrors: 'Some fields need attention.',
+    /** A server 422 for a character no text can hold (U+0000): at the field, or in a banner where none is known. */
+    noNul: 'This text contains a character that cannot be saved.',
   },
 }
 
@@ -90,7 +92,7 @@ const it: typeof en = {
   },
   permissionDenied: {
     heading: 'Non hai accesso a questa sezione',
-    body: "Chiedi il permesso a un amministratore, poi ricarica la pagina.",
+    body: 'Chiedi il permesso a un amministratore, poi ricarica la pagina.',
   },
   staleWrite: {
     title: 'Questo record è cambiato',
@@ -112,6 +114,7 @@ const it: typeof en = {
     amount: 'Inserisci un importo con al massimo due decimali.',
     date: 'Inserisci una data valida.',
     fixErrors: 'Alcuni campi richiedono attenzione.',
+    noNul: 'Questo testo contiene un carattere che non può essere salvato.',
   },
 }
 

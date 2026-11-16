@@ -1,0 +1,106 @@
+Spettabile / Alpina Energia SA / Via Cantonale 12 / 6900 Lugano / Svizzera
+A.c.a. Chiara Moretti
+Lugano, 15.11.2026
+CONTRATTO DI FORNITURA – Rif. 0042/2026r1
+Con riferimento alle discussioni intercorse, abbiamo il piacere di sottoporVi la nostra migliore offerta per la fornitura in oggetto.
+Il presente contratto viene stipulato tra WellD Sagl, di seguito denominata «Fornitore», e Alpina Energia SA, di seguito denominato «Cliente».
+1. DEFINIZIONI
+Servizio: Piattaforma di prenotazione WellBook, come descritto nel par. 2, inclusi aggiornamenti e documentazione.
+Canone: corrispettivo fisso e ricorrente dovuto per la disponibilità del Servizio.
+Utente: persona autorizzata dal Cliente a utilizzare il Servizio.
+Dati del Cliente: tutti i dati caricati o generati nel Servizio dal Cliente e dai suoi Utenti.
+2. OGGETTO DELLA FORNITURA
+Oggetto della fornitura è la messa a disposizione del Servizio: Prenotazione di risorse condivise per gli uffici. Il Servizio comprende:
+- Applicazione web
+- App mobile
+- Console di amministrazione
+Dimensionamento: fino a 200 utenti, 1 ambiente.
+Il Fornitore concede al Cliente una licenza non esclusiva, non trasferibile e revocabile per accedere e utilizzare il Servizio per i propri scopi aziendali interni, per la durata del presente contratto.
+La fornitura comprende le seguenti licenze di terzi, intestate al Cliente e soggette alle condizioni del relativo produttore: Microsoft 365 Business Standard, 25 licenze, periodo 1.1.2027 – 31.12.2027.
+3. ATTIVAZIONE E LIVELLI DI SERVIZIO
+Il Servizio è attivato entro 10 giorni lavorativi dalla sottoscrizione del presente contratto.
+Il supporto è gestito tramite il sistema di ticketing fornito ed è attivo dal lunedì al venerdì, 09:00–18:00, nei giorni lavorativi secondo il calendario ufficiale della Repubblica e Cantone Ticino.
+È garantita una disponibilità minima del Servizio del 99.5% sul periodo di validità del presente contratto.
+Gli interventi di manutenzione ordinaria che comportano un disservizio sono segnalati con almeno 24 ore di anticipo tramite posta elettronica.
+Il Servizio non prevede penali. I tempi di risoluzione non rientrano nei livelli di servizio.
+4. CONDIZIONI DI FORNITURA
+Il Servizio è fornito a Canone. La fornitura non prevede trasferte ed esclude quanto non esplicitamente dichiarato nel par. 2.
+4.1 Obblighi del Cliente
+Il Cliente si impegna a:
+- garantire che i propri Utenti rispettino il presente contratto;
+- non condividere gli accessi, non effettuare reverse engineering e non rivendere il Servizio;
+- mantenere sicure le credenziali di accesso;
+- rispettare le leggi applicabili nell'utilizzo del Servizio.
+4.2 Infrastruttura e dati
+Il Servizio è erogato su infrastruttura gestita dal Fornitore presso Exoscale (Svizzera). I Dati del Cliente restano di proprietà del Cliente.
+4.3 Licenze di terzi a carico del Cliente
+Le licenze dei seguenti prodotti di terzi, necessarie al funzionamento del Servizio, sono a carico del Cliente: Microsoft Entra ID.
+5. RISORSE
+Le risorse tecniche allocate dal Fornitore hanno competenze e qualifiche adeguate allo svolgimento delle attività assegnate. Le risorse possono variare nel corso della fornitura.
+6. COSTI
+| Pos. | Voce di costo | CHF / unità | Qt. | Totale CHF |
+| 1 | Canone del Servizio, mensile | 1'200.- | 12 | 14'400.- |
+| 2 | Utenza aggiuntiva, mensile | 15.- | 40 | 600.- |
+| 3 | Licenze Microsoft 365 Business Standard, periodo 1.1.2027 – 31.12.2027 | 135.- | 25 | 3'375.- |
+| 4 | Attivazione del Servizio, una tantum | 800.- | 1 | 800.- |
+|  | TOTALE primo periodo |  |  | 19'175.- |
+Note:
+- I costi si intendono IVA esclusa.
+- Il Canone include il mantenimento e gli aggiornamenti del Servizio.
+- Moduli aggiuntivi, integrazioni e consulenze sono quotati e fatturati separatamente.
+7. DURATA, RINNOVO E DISDETTA
+La presente offerta è valida per 45 giorni solari.
+Il contratto ha durata di 24 mesi dalla data di attivazione del Servizio.
+Non sono previsti rinnovi automatici: il rinnovo è concordato per iscritto tra le Parti.
+Ciascuna Parte può risolvere il contratto in caso di violazione sostanziale dell'altra Parte non sanata entro 30 giorni dalla notifica scritta. Alla cessazione del contratto l'accesso al Servizio termina e il Fornitore restituisce o elimina i Dati del Cliente entro 30 giorni, salvo obblighi di legge di conservazione.
+8. FATTURAZIONE
+Il Canone è fatturato in via anticipata, con cadenza trimestrale, dalla data di attivazione del Servizio.
+Le fatture sono pagabili a 30 giorni data fattura.
+9. CONDIZIONI GENERALI
+In aggiunta a quanto sopra specificato, valgono le seguenti Condizioni Generali di fornitura.
+9.1 Limitazione di responsabilità
+Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite. Le responsabilità del Fornitore e delle sue risorse sono limitate all'esecuzione della fornitura in oggetto, che viene portata avanti a regola d'arte e in conformità con le specifiche concordate con il Cliente. Salvo nei casi di dolo o colpa grave, la responsabilità complessiva del Fornitore ai sensi del presente contratto non supera l'importo dei Canoni pagati dal Cliente nei 12 mesi precedenti l'evento.
+9.2 Legislazione del lavoro
+Il personale del Fornitore opera nel pieno rispetto della legislazione del lavoro. Qualora il Cliente necessitasse di documentazione in merito, sarà cura del Fornitore presentarla.
+9.3 Riservatezza e proprietà
+Il Fornitore si impegna a mantenere la massima riservatezza per quanto concerne l'uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto di fornitura.
+Tutti i diritti di proprietà intellettuale sul Servizio rimangono di esclusiva proprietà del Fornitore. Il Cliente mantiene la piena proprietà dei Dati del Cliente.
+Il Fornitore garantisce che quanto fornito in esecuzione del presente accordo non viola diritti di proprietà intellettuale o industriale di terzi.
+9.4 Privacy e trattamento dei dati personali
+Il Cliente e il Fornitore si fanno entrambi garanti del rispetto delle norme vigenti sulla Privacy. Il Cliente è autorizzato a comunicare a terzi i dati del Fornitore per operazioni legate alla fornitura in oggetto. All'accettazione del presente contratto il Cliente accetta egualmente la politica sulla Privacy di WellD Sagl, la cui documentazione integrale viene fornita su richiesta o allegata.
+Il Fornitore agisce come Responsabile del trattamento dei dati personali e il Cliente come Titolare. Il trattamento è disciplinato dall'Allegato DPA, parte integrante del presente contratto.
+9.5 Foro competente
+Per qualsiasi controversia che dovesse sorgere in relazione al presente contratto di fornitura, il foro competente è quello di Lugano (Svizzera).
+9.6 Clausola di inefficacia
+Nell'eventualità in cui una qualsiasi clausola del presente contratto dovesse in seguito risultare inefficace per un qualsiasi motivo giuridico, ciò non inficerà la validità delle restanti clausole. In luogo della norma inefficace si considererà come voluta e dichiarata quella regolamentazione giuridicamente valida che maggiormente si avvicinerà al senso e allo scopo della clausola inefficace e del contratto nel suo insieme, tenendo in considerazione la buona fede, l'usanza commerciale nonché gli usi e i costumi del settore. Eventuali lacune contrattuali saranno trattate analogamente.
+Per accettazione / Il Cliente
+Luogo e data:
+Firma valida del Cliente:
+Allegati: Allegato DPA — Accordo sul trattamento dei dati
+ALLEGATO DPA — ACCORDO SUL TRATTAMENTO DEI DATI
+Piattaforma di prenotazione WellBook
+Il presente allegato costituisce parte integrante del contratto di fornitura Rif. 0042/2026r1.
+1. Ruoli
+- Titolare del trattamento: il Cliente.
+- Responsabile del trattamento: il Fornitore.
+2. Scopo e ambito di applicazione
+Il Fornitore tratta i dati personali esclusivamente allo scopo di fornire al Cliente il Servizio e il relativo supporto. Il trattamento non eccede la finalità necessaria all'adempimento degli obblighi contrattuali.
+3. Categorie di dati e interessati
+- Interessati: dipendenti del Cliente
+- Tipi di dati: dati identificativi e di utilizzo
+4. Obblighi del Fornitore
+Il Fornitore si impegna a:
+- trattare i Dati del Cliente solo in base alle istruzioni documentate del Cliente;
+- adottare misure tecniche e organizzative appropriate per garantire la sicurezza e la riservatezza dei dati;
+- garantire che tutto il personale con accesso ai Dati del Cliente sia vincolato da obblighi di riservatezza;
+- assistere il Cliente nel rispondere alle richieste degli interessati e nell'adempimento degli obblighi di legge;
+- informare il Cliente senza indebito ritardo in caso di violazione dei dati, indicandone natura, portata e misure di mitigazione adottate;
+- eliminare o restituire tutti i Dati del Cliente entro 30 giorni dalla cessazione del contratto, salvo obblighi di legge di conservazione.
+5. Sub-responsabili del trattamento
+Il Fornitore può avvalersi di sub-responsabili per l'hosting, l'archiviazione e il supporto operativo. L'elenco aggiornato è messo a disposizione del Cliente su richiesta. Il Fornitore garantisce che i sub-responsabili siano vincolati da obblighi di protezione dei dati equivalenti a quelli del presente allegato.
+6. Trasferimenti all'estero
+Se i dati personali sono trasferiti al di fuori della Svizzera o dello Spazio Economico Europeo, il Fornitore garantisce che siano in atto adeguate misure di salvaguardia, ad esempio clausole contrattuali standard o protezioni equivalenti riconosciute dall'Incaricato federale della protezione dei dati e della trasparenza (IFPDT) e dalla Commissione europea.
+7. Diritto di verifica
+Il Cliente può, non più di una volta all'anno, richiedere documentazione o condurre a proprie spese una verifica della conformità al presente allegato, con un preavviso ragionevole e nel rispetto degli obblighi di riservatezza.
+8. Legge applicabile
+Il presente allegato è regolato dal diritto svizzero, in particolare dalla Legge federale sulla protezione dei dati (LPD). Per le controversie è competente il foro di Lugano (Svizzera).

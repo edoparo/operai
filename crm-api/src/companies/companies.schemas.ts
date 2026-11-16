@@ -9,6 +9,8 @@ import {
   pageQuery,
   requiredText,
   sortQuery,
+  idText,
+  searchText,
 } from "../lib/http";
 
 export const COMPANY_STATUSES = ["prospect", "customer", "former"] as const;
@@ -48,7 +50,7 @@ const editable = {
   /** How the relationship started, and which event or who referred it (US-7). */
   source: LeadSourceSchema.nullable().optional(),
   sourceDetail: optionalText(200),
-  ownerUserId: z.string().min(1).max(64),
+  ownerUserId: idText(),
 };
 
 export const CreateCompanySchema = z
@@ -78,10 +80,10 @@ export const UpdateCompanySchema = z
 export const COMPANY_SORTS = ["name", "status", "entity", "industry", "city", "updatedAt"] as const;
 
 export const ListCompaniesQuery = z.object({
-  q: z.string().max(200).optional(),
+  q: searchText(200).optional(),
   status: CompanyStatusSchema.optional(),
   archived: ArchivedFilterSchema,
-  ownerId: z.string().max(64).optional(),
+  ownerId: idText(64, 0).optional(),
   ...sortQuery(COMPANY_SORTS),
   ...pageQuery(),
 });

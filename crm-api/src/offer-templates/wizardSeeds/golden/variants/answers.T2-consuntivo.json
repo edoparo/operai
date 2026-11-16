@@ -1,0 +1,33 @@
+{
+  "tpl": "T2",
+  "f": {
+    "DATA": "2026-11-15",
+    "VALIDITA_GIORNI": "45",
+    "CLIENTE": "Alpina Energia SA",
+    "INDIRIZZO_CLIENTE": "Via Cantonale 12\n6900 Lugano\nSvizzera",
+    "RIF": "0042/2026r1",
+    "DATA_INIZIO": "2027-02-01",
+    "DATA_FINE": "2027-12-31"
+  },
+  "g": {
+    "pacchetto": false,
+    "dati_critici": false,
+    "risorse_extra": false,
+    "sconto": false,
+    "consuntivo": true
+  },
+  "lists": {},
+  "rows": {
+    "PROFILO": [
+      {
+        "PROFILO": "Architetto software",
+        "FTE": "1",
+        "IMPIEGO": "100%",
+        "GG": "90",
+        "TARIFFA": "1100"
+      }
+    ]
+  },
+  "c": {},
+  "x": {}
+}

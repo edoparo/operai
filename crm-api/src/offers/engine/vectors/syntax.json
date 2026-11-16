@@ -1,0 +1,990 @@
+{
+ "cases": [
+  {
+   "name": "valid template has no problem",
+   "lines": [
+    "@@salutation Spett.le",
+    "",
+    "Opening text.",
+    "",
+    "## COSTI",
+    "@@costs position unit",
+    "@@line a one_off | Item | unit=? | qty=1",
+    "@@total TOTALE",
+    "@@end"
+   ],
+   "problems": []
+  },
+  {
+   "name": "block_not_closed: a block opened and never closed",
+   "lines": [
+    "@@salutation Spett.le",
+    "",
+    "Opening text.",
+    "",
+    "@@OPT_START x",
+    "text",
+    "## COSTI",
+    "@@costs position unit",
+    "@@line a one_off | Item | unit=? | qty=1",
+    "@@total TOTALE",
+    "@@end"
+   ],
+   "problems": [
+    {
+     "line": 5,
+     "severity": "error",
+     "code": "block_not_closed",
+     "name": "x"
+    }
+   ]
+  },
+  {
+   "name": "block_not_closed: an inline condition with no }}",
+   "lines": [
+    "@@salutation Spett.le",
+    "",
+    "Text {{?F::open",
+    "",
+    "## COSTI",
+    "@@costs position unit",
+    "@@line a one_off | Item | unit=? | qty=1",
+    "@@total TOTALE",
+    "@@end"
+   ],
+   "problems": [
+    {
+     "line": 3,
+     "severity": "error",
+     "code": "block_not_closed",
+     "name": "F"
+    }
+   ]
+  },
+  {
+   "name": "unexpected_close: @@OPT_END with nothing open",
+   "lines": [
+    "@@salutation Spett.le",
+    "",
+    "Opening text.",
+    "",
+    "@@OPT_END",
+    "## COSTI",
+    "@@costs position unit",
+    "@@line a one_off | Item | unit=? | qty=1",
+    "@@total TOTALE",
+    "@@end"
+   ],
+   "problems": [
+    {
+     "line": 5,
+     "severity": "error",
+     "code": "unexpected_close"
+    }
+   ]
+  },
+  {
+   "name": "unexpected_close: @@end outside a cost table",
+   "lines": [
+    "@@salutation Spett.le",
+    "",
+    "Opening text.",
+    "",
+    "## COSTI",
+    "@@costs position unit",
+    "@@line a one_off | Item | unit=? | qty=1",
+    "@@total TOTALE",
+    "@@end",
+    "@@end"
+   ],
+   "problems": [
+    {
+     "line": 10,
+     "severity": "error",
+     "code": "unexpected_close"
+    }
+   ]
+  },
+  {
+   "name": "no_costs_section: no @@costs anywhere",
+   "lines": [
+    "@@salutation Spett.le",
+    "",
+    "Opening text.",
+    "",
+    "## OGGETTO",
+    "text"
+   ],
+   "problems": [
+    {
+     "line": 1,
+     "severity": "error",
+     "code": "no_costs_section"
+    }
+   ]
+  },
+  {
+   "name": "costs_not_first: text before @@costs in its section",
+   "lines": [
+    "@@salutation Spett.le",
+    "",
+    "Opening text.",
+    "",
+    "## COSTI",
+    "Intro text.",
+    "@@costs position",
+    "@@line a one_off | Item | unit=? | qty=1",
+    "@@end"
+   ],
+   "problems": [
+    {
+     "line": 7,
+     "severity": "error",
+     "code": "costs_not_first"
+    }
+   ]
+  },
+  {
+   "name": "costs_not_first: a second @@costs",
+   "lines": [
+    "@@salutation Spett.le",
+    "",
+    "Opening text.",
+    "",
+    "## COSTI",
+    "@@costs position unit",
+    "@@line a one_off | Item | unit=? | qty=1",
+    "@@total TOTALE",
+    "@@end",
+    "## ALTRI",
+    "@@costs",
+    "@@line b one_off | Item | unit=? | qty=1",
+    "@@end"
+   ],
+   "problems": [
+    {
+     "line": 11,
+     "severity": "error",
+     "code": "costs_not_first"
+    }
+   ]
+  },
+  {
+   "name": "costs_not_closed: no @@end",
+   "lines": [
+    "@@salutation Spett.le",
+    "",
+    "Opening text.",
+    "",
+    "## COSTI",
+    "@@costs",
+    "@@line a one_off | Item | unit=? | qty=1"
+   ],
+   "problems": [
+    {
+     "line": 6,
+     "severity": "error",
+     "code": "costs_not_closed"
+    }
+   ]
+  },
+  {
+   "name": "costs_not_closed: a heading ends the table",
+   "lines": [
+    "@@salutation Spett.le",
+    "",
+    "Opening text.",
+    "",
+    "## COSTI",
+    "@@costs",
+    "@@line a one_off | Item | unit=? | qty=1",
+    "## NOTE",
+    "Notes."
+   ],
+   "problems": [
+    {
+     "line": 6,
+     "severity": "error",
+     "code": "costs_not_closed"
+    }
+   ]
+  },
+  {
+   "name": "cost_line_invalid: unknown kind",
+   "lines": [
+    "@@salutation Spett.le",
+    "",
+    "Opening text.",
+    "",
+    "## COSTI",
+    "@@costs",
+    "@@line a weekly | Item | unit=? | qty=1",
+    "@@end"
+   ],
+   "problems": [
+    {
+     "line": 7,
+     "severity": "error",
+     "code": "cost_line_invalid",
+     "name": "a"
+    }
+   ]
+  },
+  {
+   "name": "cost_line_invalid: no unit",
+   "lines": [
+    "@@salutation Spett.le",
+    "",
+    "Opening text.",
+    "",
+    "## COSTI",
+    "@@costs",
+    "@@line a one_off | Item | qty=1",
+    "@@end"
+   ],
+   "problems": [
+    {
+     "line": 7,
+     "severity": "error",
+     "code": "cost_line_invalid",
+     "name": "a"
+    }
+   ]
+  },
+  {
+   "name": "cost_line_invalid: a percentage on a one-off line",
+   "lines": [
+    "@@salutation Spett.le",
+    "",
+    "Opening text.",
+    "",
+    "## COSTI",
+    "@@costs",
+    "@@line a one_off | Item | unit=10% | qty=1",
+    "@@end"
+   ],
+   "problems": [
+    {
+     "line": 7,
+     "severity": "error",
+     "code": "cost_line_invalid",
+     "name": "a"
+    }
+   ]
+  },
+  {
+   "name": "cost_line_invalid: a key that is not a key",
+   "lines": [
+    "@@salutation Spett.le",
+    "",
+    "Opening text.",
+    "",
+    "## COSTI",
+    "@@costs",
+    "@@line A-1 one_off | Item | unit=? | qty=1",
+    "@@end"
+   ],
+   "problems": [
+    {
+     "line": 7,
+     "severity": "error",
+     "code": "cost_line_invalid",
+     "name": "A-1"
+    }
+   ]
+  },
+  {
+   "name": "cost_line_invalid: stray text inside the table",
+   "lines": [
+    "@@salutation Spett.le",
+    "",
+    "Opening text.",
+    "",
+    "## COSTI",
+    "@@costs",
+    "just text",
+    "@@line a one_off | Item | unit=? | qty=1",
+    "@@end"
+   ],
+   "problems": [
+    {
+     "line": 7,
+     "severity": "error",
+     "code": "cost_line_invalid"
+    }
+   ]
+  },
+  {
+   "name": "cost_line_invalid: a discount with a quantity",
+   "lines": [
+    "@@salutation Spett.le",
+    "",
+    "Opening text.",
+    "",
+    "## COSTI",
+    "@@costs",
+    "@@line a one_off | Item | unit=? | qty=1",
+    "@@line d discount | Sconto | unit=5 | qty=2",
+    "@@end"
+   ],
+   "problems": [
+    {
+     "line": 8,
+     "severity": "error",
+     "code": "cost_line_invalid",
+     "name": "d"
+    }
+   ]
+  },
+  {
+   "name": "cost_key_duplicate: the second use",
+   "lines": [
+    "@@salutation Spett.le",
+    "",
+    "Opening text.",
+    "",
+    "## COSTI",
+    "@@costs",
+    "@@line a one_off | Item | unit=? | qty=1",
+    "@@line a yearly | Again | unit=? | qty=1",
+    "@@end"
+   ],
+   "problems": [
+    {
+     "line": 8,
+     "severity": "error",
+     "code": "cost_key_duplicate",
+     "name": "a"
+    }
+   ]
+  },
+  {
+   "name": "cost_line_after_last_total: a counted line after the last total",
+   "lines": [
+    "@@salutation Spett.le",
+    "",
+    "Opening text.",
+    "",
+    "## COSTI",
+    "@@costs",
+    "@@line a one_off | Item | unit=? | qty=1",
+    "@@total TOTALE",
+    "@@line b yearly | Canone | unit=? | qty=1",
+    "@@end"
+   ],
+   "problems": [
+    {
+     "line": 9,
+     "severity": "error",
+     "code": "cost_line_after_last_total",
+     "name": "b"
+    }
+   ]
+  },
+  {
+   "name": "cost_line_after_last_total: a discount after the last total",
+   "lines": [
+    "@@salutation Spett.le",
+    "",
+    "Opening text.",
+    "",
+    "## COSTI",
+    "@@costs",
+    "@@line a one_off | Item | unit=? | qty=1",
+    "@@total TOTALE",
+    "@@line d discount | Sconto | unit=5",
+    "@@end"
+   ],
+   "problems": [
+    {
+     "line": 9,
+     "severity": "error",
+     "code": "cost_line_after_last_total",
+     "name": "d"
+    }
+   ]
+  },
+  {
+   "name": "an option line after the last total is fine",
+   "lines": [
+    "@@salutation Spett.le",
+    "",
+    "Opening text.",
+    "",
+    "## COSTI",
+    "@@costs",
+    "@@line a one_off | Item | unit=? | qty=1",
+    "@@total TOTALE",
+    "@@line o option | □ Extra | unit=? | qty=1",
+    "@@end"
+   ],
+   "problems": []
+  },
+  {
+   "name": "percent_discount_multi_total: a percentage with two total rows",
+   "lines": [
+    "@@salutation Spett.le",
+    "",
+    "Opening text.",
+    "",
+    "## COSTI",
+    "@@costs",
+    "@@line a one_off | Item | unit=? | qty=1",
+    "@@total A",
+    "@@line d discount | Sconto | unit=10%",
+    "@@total B",
+    "@@end"
+   ],
+   "problems": [
+    {
+     "line": 9,
+     "severity": "error",
+     "code": "percent_discount_multi_total",
+     "name": "d"
+    }
+   ]
+  },
+  {
+   "name": "percent_discount_multi_total: a @@total inside an @@OPT_START block counts",
+   "lines": [
+    "@@salutation Spett.le",
+    "",
+    "Opening text.",
+    "",
+    "## COSTI",
+    "@@costs",
+    "@@line a one_off | Item | unit=? | qty=1",
+    "@@line d discount | Sconto | unit=10%",
+    "@@total A",
+    "@@OPT_START x",
+    "@@total B",
+    "@@OPT_END",
+    "@@end"
+   ],
+   "problems": [
+    {
+     "line": 8,
+     "severity": "error",
+     "code": "percent_discount_multi_total",
+     "name": "d"
+    }
+   ]
+  },
+  {
+   "name": "unit=? with two total rows is no problem",
+   "lines": [
+    "@@salutation Spett.le",
+    "",
+    "Opening text.",
+    "",
+    "## COSTI",
+    "@@costs",
+    "@@line a one_off | Item | unit=? | qty=1",
+    "@@total A",
+    "@@line d discount | Sconto | unit=?",
+    "@@total B",
+    "@@end"
+   ],
+   "problems": []
+  },
+  {
+   "name": "unit=10% with one total row is no problem",
+   "lines": [
+    "@@salutation Spett.le",
+    "",
+    "Opening text.",
+    "",
+    "## COSTI",
+    "@@costs",
+    "@@line a one_off | Item | unit=? | qty=1",
+    "@@line d discount | Sconto | unit=10%",
+    "@@total A",
+    "@@end"
+   ],
+   "problems": []
+  },
+  {
+   "name": "annex_designation_invalid: lowercase and too long",
+   "lines": [
+    "@@salutation Spett.le",
+    "",
+    "Opening text.",
+    "",
+    "## COSTI",
+    "@@costs position unit",
+    "@@line a one_off | Item | unit=? | qty=1",
+    "@@total TOTALE",
+    "@@end",
+    "@@annex a Titolo",
+    "@@annex ABCDEFGHI Titolo",
+    "@@annex B"
+   ],
+   "problems": [
+    {
+     "line": 10,
+     "severity": "error",
+     "code": "annex_designation_invalid"
+    },
+    {
+     "line": 11,
+     "severity": "error",
+     "code": "annex_designation_invalid"
+    },
+    {
+     "line": 12,
+     "severity": "error",
+     "code": "annex_designation_invalid"
+    }
+   ]
+  },
+  {
+   "name": "annex_designation_duplicate: the second one",
+   "lines": [
+    "@@salutation Spett.le",
+    "",
+    "Opening text.",
+    "",
+    "## COSTI",
+    "@@costs position unit",
+    "@@line a one_off | Item | unit=? | qty=1",
+    "@@total TOTALE",
+    "@@end",
+    "@@annex SLA Uno",
+    "## S",
+    "text",
+    "@@annex SLA Due"
+   ],
+   "problems": [
+    {
+     "line": 13,
+     "severity": "error",
+     "code": "annex_designation_duplicate"
+    }
+   ]
+  },
+  {
+   "name": "salutation_missing: none",
+   "lines": [
+    "",
+    "Opening text.",
+    "",
+    "## COSTI",
+    "@@costs position unit",
+    "@@line a one_off | Item | unit=? | qty=1",
+    "@@total TOTALE",
+    "@@end"
+   ],
+   "problems": [
+    {
+     "line": 1,
+     "severity": "error",
+     "code": "salutation_missing"
+    }
+   ]
+  },
+  {
+   "name": "salutation_missing: empty",
+   "lines": [
+    "@@salutation   ",
+    "",
+    "Opening text.",
+    "",
+    "## COSTI",
+    "@@costs position unit",
+    "@@line a one_off | Item | unit=? | qty=1",
+    "@@total TOTALE",
+    "@@end"
+   ],
+   "problems": [
+    {
+     "line": 1,
+     "severity": "error",
+     "code": "salutation_missing"
+    }
+   ]
+  },
+  {
+   "name": "salutation_missing: over 100 characters",
+   "lines": [
+    "@@salutation {x101}",
+    "",
+    "Opening text.",
+    "",
+    "## COSTI",
+    "@@costs position unit",
+    "@@line a one_off | Item | unit=? | qty=1",
+    "@@total TOTALE",
+    "@@end"
+   ],
+   "problems": [
+    {
+     "line": 1,
+     "severity": "error",
+     "code": "salutation_missing"
+    }
+   ]
+  },
+  {
+   "name": "too_many_sections: the sixteenth",
+   "lines": [
+    "@@salutation Spett.le",
+    "",
+    "Opening text.",
+    "",
+    {
+     "repeat": 15,
+     "line": "## S{i}"
+    },
+    "## COSTI",
+    "@@costs position unit",
+    "@@line a one_off | Item | unit=? | qty=1",
+    "@@total TOTALE",
+    "@@end"
+   ],
+   "problems": [
+    {
+     "line": 20,
+     "severity": "error",
+     "code": "too_many_sections"
+    }
+   ]
+  },
+  {
+   "name": "too_many_annexes: the sixth",
+   "lines": [
+    "@@salutation Spett.le",
+    "",
+    "Opening text.",
+    "",
+    "## COSTI",
+    "@@costs position unit",
+    "@@line a one_off | Item | unit=? | qty=1",
+    "@@total TOTALE",
+    "@@end",
+    {
+     "repeat": 6,
+     "line": "@@annex A{i} Titolo"
+    }
+   ],
+   "problems": [
+    {
+     "line": 15,
+     "severity": "error",
+     "code": "too_many_annexes"
+    }
+   ]
+  },
+  {
+   "name": "too_many_annex_sections: the thirty-first",
+   "lines": [
+    "@@salutation Spett.le",
+    "",
+    "Opening text.",
+    "",
+    "## COSTI",
+    "@@costs position unit",
+    "@@line a one_off | Item | unit=? | qty=1",
+    "@@total TOTALE",
+    "@@end",
+    "@@annex A Titolo",
+    {
+     "repeat": 31,
+     "line": "## S{i}"
+    }
+   ],
+   "problems": [
+    {
+     "line": 41,
+     "severity": "error",
+     "code": "too_many_annex_sections"
+    }
+   ]
+  },
+  {
+   "name": "heading_too_long: a section heading of 121 characters",
+   "lines": [
+    "@@salutation Spett.le",
+    "",
+    "Opening text.",
+    "",
+    "## {x121}",
+    "text",
+    "## COSTI",
+    "@@costs position unit",
+    "@@line a one_off | Item | unit=? | qty=1",
+    "@@total TOTALE",
+    "@@end"
+   ],
+   "problems": [
+    {
+     "line": 5,
+     "severity": "error",
+     "code": "heading_too_long"
+    }
+   ]
+  },
+  {
+   "name": "heading_too_long: an annex title of 121 characters",
+   "lines": [
+    "@@salutation Spett.le",
+    "",
+    "Opening text.",
+    "",
+    "## COSTI",
+    "@@costs position unit",
+    "@@line a one_off | Item | unit=? | qty=1",
+    "@@total TOTALE",
+    "@@end",
+    "@@annex A {x121}"
+   ],
+   "problems": [
+    {
+     "line": 10,
+     "severity": "error",
+     "code": "heading_too_long"
+    }
+   ]
+  },
+  {
+   "name": "too_large: over 150 000 characters",
+   "lines": [
+    {
+     "repeat": 1,
+     "line": "{x150001}"
+    }
+   ],
+   "problems": [
+    {
+     "line": 1,
+     "severity": "error",
+     "code": "too_large"
+    }
+   ]
+  },
+  {
+   "name": "nesting_too_deep: nine blocks",
+   "lines": [
+    "@@salutation Spett.le",
+    "",
+    "Opening text.",
+    "",
+    {
+     "repeat": 9,
+     "line": "@@OPT_START b{i}"
+    },
+    "text",
+    {
+     "repeat": 9,
+     "line": "@@OPT_END"
+    },
+    "## COSTI",
+    "@@costs position unit",
+    "@@line a one_off | Item | unit=? | qty=1",
+    "@@total TOTALE",
+    "@@end"
+   ],
+   "problems": [
+    {
+     "line": 13,
+     "severity": "error",
+     "code": "nesting_too_deep"
+    }
+   ]
+  },
+  {
+   "name": "nesting_too_deep: nine inline conditions",
+   "lines": [
+    "@@salutation Spett.le",
+    "",
+    "Opening text.",
+    "",
+    "{{a::{{b::{{c::{{d::{{e::{{f::{{g::{{h::{{i::x}}}}}}}}}}}}}}}}}}",
+    "## COSTI",
+    "@@costs position unit",
+    "@@line a one_off | Item | unit=? | qty=1",
+    "@@total TOTALE",
+    "@@end"
+   ],
+   "problems": [
+    {
+     "line": 5,
+     "severity": "error",
+     "code": "nesting_too_deep"
+    }
+   ]
+  },
+  {
+   "name": "nesting: eight is allowed",
+   "lines": [
+    "@@salutation Spett.le",
+    "",
+    "Opening text.",
+    "",
+    {
+     "repeat": 8,
+     "line": "@@OPT_START b{i}"
+    },
+    "text",
+    {
+     "repeat": 8,
+     "line": "@@OPT_END"
+    },
+    "## COSTI",
+    "@@costs position unit",
+    "@@line a one_off | Item | unit=? | qty=1",
+    "@@total TOTALE",
+    "@@end"
+   ],
+   "problems": []
+  },
+  {
+   "name": "reserved_character: a marker character and the token brackets",
+   "lines": [
+    "@@salutation Spett.le",
+    "",
+    "Opening text.",
+    "",
+    "Bad  here",
+    "And ⟦ there",
+    "## COSTI",
+    "@@costs position unit",
+    "@@line a one_off | Item | unit=? | qty=1",
+    "@@total TOTALE",
+    "@@end"
+   ],
+   "problems": [
+    {
+     "line": 5,
+     "severity": "error",
+     "code": "reserved_character"
+    },
+    {
+     "line": 6,
+     "severity": "error",
+     "code": "reserved_character"
+    }
+   ]
+  },
+  {
+   "name": "reserved_character: the reference-token brackets, and the token itself, in a template line (DD-52)",
+   "lines": [
+    "@@salutation Spett.le",
+    "",
+    "Opening text.",
+    "",
+    "Bad ⟪ here",
+    "And ⟫ there",
+    "Rif. ⟪REF⟫",
+    "## COSTI",
+    "@@costs position unit",
+    "@@line a one_off | Item | unit=? | qty=1",
+    "@@total TOTALE",
+    "@@end"
+   ],
+   "problems": [
+    {
+     "line": 5,
+     "severity": "error",
+     "code": "reserved_character"
+    },
+    {
+     "line": 6,
+     "severity": "error",
+     "code": "reserved_character"
+    },
+    {
+     "line": 7,
+     "severity": "error",
+     "code": "reserved_character"
+    }
+   ]
+  },
+  {
+   "name": "reserved_character: in a declaration label",
+   "lines": [
+    "@@salutation Spett.le",
+    "",
+    "Opening text.",
+    "",
+    "## COSTI",
+    "@@costs position unit",
+    "@@line a one_off | Item | unit=? | qty=1",
+    "@@total TOTALE",
+    "@@end",
+    "",
+    "@@field X",
+    "label: bad ⟧ label"
+   ],
+   "problems": [
+    {
+     "line": 12,
+     "severity": "error",
+     "code": "reserved_character"
+    }
+   ]
+  },
+  {
+   "name": "non_printable_character: warning for a character the PDF prints as ?",
+   "lines": [
+    "@@salutation Spett.le",
+    "",
+    "Opening text.",
+    "",
+    "Snowman ☃ here",
+    "## COSTI",
+    "@@costs position unit",
+    "@@line a one_off | Item | unit=? | qty=1",
+    "@@total TOTALE",
+    "@@end"
+   ],
+   "problems": [
+    {
+     "line": 5,
+     "severity": "warning",
+     "code": "non_printable_character"
+    }
+   ]
+  },
+  {
+   "name": "step_unknown: @@step with an unknown step",
+   "lines": [
+    "@@salutation Spett.le",
+    "",
+    "Opening text.",
+    "",
+    "## OGGETTO",
+    "@@step nowhere",
+    "text",
+    "## COSTI",
+    "@@costs position unit",
+    "@@line a one_off | Item | unit=? | qty=1",
+    "@@total TOTALE",
+    "@@end"
+   ],
+   "problems": [
+    {
+     "line": 6,
+     "severity": "error",
+     "code": "step_unknown",
+     "name": "nowhere"
+    }
+   ]
+  },
+  {
+   "name": "unknown @@ directive is ordinary text",
+   "lines": [
+    "@@salutation Spett.le",
+    "",
+    "Opening text.",
+    "",
+    "@@whatever 1",
+    "## COSTI",
+    "@@costs position unit",
+    "@@line a one_off | Item | unit=? | qty=1",
+    "@@total TOTALE",
+    "@@end"
+   ],
+   "problems": []
+  }
+ ]
+}

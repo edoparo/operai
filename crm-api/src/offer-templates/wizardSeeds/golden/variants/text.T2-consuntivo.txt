@@ -1,0 +1,58 @@
+Spettabile / Alpina Energia SA / Via Cantonale 12 / 6900 Lugano / Svizzera
+Lugano, 15.11.2026
+CONTRATTO DI FORNITURA – Rif. 0042/2026r1
+Con riferimento alle discussioni intercorse, abbiamo il piacere di sottoporVi la nostra migliore offerta per la fornitura in oggetto.
+Il presente contratto viene stipulato tra WellD Sagl, di seguito denominata «Fornitore», e Alpina Energia SA, di seguito denominato «Cliente».
+1. DEFINIZIONI
+A servizio: attività svolta dal Fornitore presso la sede propria o del Cliente, su richiesta del Cliente stesso, e fatturata a consuntivo sulla base di uno statino di esecuzione lavori.
+Giorno/uomo: otto ore lavorative di una risorsa del Fornitore.
+FTE (Full Time Equivalent): impiego a tempo pieno di una risorsa per il periodo indicato.
+Statino: riepilogo mensile dei giorni/uomo erogati, per profilo.
+2. OGGETTO DELLA FORNITURA
+Oggetto della fornitura è l'attività di consulenza tecnica a servizio, nel periodo 1.2.2027 – 31.12.2027, con i seguenti profili e volumi:
+| Profilo | FTE | Impiego previsto | Giorni/uomo |
+| Architetto software | 1 | 100% | 90 |
+| Totale |  |  | 90 |
+3. ATTIVITÀ E TEMPISTICHE
+Le attività sono pianificate in accordo con il Cliente, che ne indica obiettivi e priorità. Il Fornitore dà evidenza mensile delle attività svolte e dei giorni/uomo erogati tramite lo statino.
+4. CONDIZIONI DI FORNITURA
+La fornitura è da intendersi a servizio. Le attività si svolgeranno presso la sede del Fornitore e, per le riunioni di coordinamento e i passaggi di consegne, presso la sede indicata dal Cliente, con una cadenza da concordarsi tra le Parti.
+Le licenze di software specifici, da concordarsi preventivamente, sono a carico del Cliente.
+La fornitura esclude quanto non esplicitamente dichiarato nel par. 2.
+4.1 Trasferte
+I costi riportati al par. 6 includono le trasferte in Canton Ticino, Svizzera. Eventuali altre trasferte, approvate per iscritto dal Cliente, saranno esposte a rimborso unitamente ai giustificativi di spesa.
+5. RISORSE
+Le risorse tecniche allocate dal Fornitore hanno competenze e qualifiche adeguate allo svolgimento delle attività assegnate. Le risorse possono variare nel corso della fornitura.
+6. COSTI
+| Pos. | Voce di costo | CHF / giorno | Giorni | Totale CHF |
+| 1 | Consulenza tecnica, Architetto software | 1'100.- | 90 | 99'000.- |
+|  | TOTALE |  |  | 99'000.- |
+Note:
+- I costi si intendono IVA esclusa.
+- Le tariffe si intendono per giorno/uomo.
+- Il totale è un tetto massimo: sono fatturati i soli giorni/uomo effettivamente erogati.
+7. DURATA, RINNOVO E DISDETTA
+La presente offerta è valida per 45 giorni solari.
+Il contratto ha durata fino al 31.12.2027, fatto salvo l'esaurimento anticipato dei giorni/uomo indicati al par. 6. Non sono previsti rinnovi taciti né disdette: l'eventuale proroga è concordata per iscritto tra le Parti.
+8. FATTURAZIONE
+I giorni/uomo erogati sono fatturati mensilmente a consuntivo, sulla base dello statino, nel limite del totale del par. 6.
+Le fatture sono pagabili a 30 giorni data fattura.
+9. CONDIZIONI GENERALI
+In aggiunta a quanto sopra specificato, valgono le seguenti Condizioni Generali di fornitura.
+9.1 Limitazione di responsabilità
+Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite. Le responsabilità del Fornitore e delle sue risorse sono limitate all'esecuzione della fornitura in oggetto, che viene portata avanti a regola d'arte e in conformità con le specifiche concordate con il Cliente.
+9.2 Legislazione del lavoro
+Il personale del Fornitore opera nel pieno rispetto della legislazione del lavoro. Qualora il Cliente necessitasse di documentazione in merito, sarà cura del Fornitore presentarla.
+9.3 Riservatezza e proprietà
+Il Fornitore si impegna a mantenere la massima riservatezza per quanto concerne l'uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto di fornitura.
+I diritti di proprietà, inclusi i diritti di proprietà intellettuale, siano essi registrabili o meno, di tutto quello che verrà sviluppato secondo il presente contratto apparterranno al Cliente.
+Il Fornitore garantisce che quanto fornito in esecuzione del presente accordo non viola diritti di proprietà intellettuale o industriale di terzi.
+9.4 Privacy e trattamento dei dati personali
+Il Cliente e il Fornitore si fanno entrambi garanti del rispetto delle norme vigenti sulla Privacy. Il Cliente è autorizzato a comunicare a terzi i dati del Fornitore per operazioni legate alla fornitura in oggetto. All'accettazione del presente contratto il Cliente accetta egualmente la politica sulla Privacy di WellD Sagl, la cui documentazione integrale viene fornita su richiesta o allegata.
+9.5 Foro competente
+Per qualsiasi controversia che dovesse sorgere in relazione al presente contratto di fornitura, il foro competente è quello di Lugano (Svizzera).
+9.6 Clausola di inefficacia
+Nell'eventualità in cui una qualsiasi clausola del presente contratto dovesse in seguito risultare inefficace per un qualsiasi motivo giuridico, ciò non inficerà la validità delle restanti clausole. In luogo della norma inefficace si considererà come voluta e dichiarata quella regolamentazione giuridicamente valida che maggiormente si avvicinerà al senso e allo scopo della clausola inefficace e del contratto nel suo insieme, tenendo in considerazione la buona fede, l'usanza commerciale nonché gli usi e i costumi del settore. Eventuali lacune contrattuali saranno trattate analogamente.
+Per accettazione / Il Cliente
+Luogo e data:
+Firma valida del Cliente:

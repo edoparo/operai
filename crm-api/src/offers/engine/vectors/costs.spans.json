@@ -1,0 +1,953 @@
+{
+  "_doc": "Shared vectors of the cost table (specs/20261115-crm-offer-wizard T4, rules C1-C9, DD-34/35/39): run by crm-api and its crm-ui copy. Each case = CostRowIn[] -> CostResult. Cases of the same group must agree on oneOffCents and yearlyCents (placement invariance, AC-4.6).",
+  "cases": [
+    {
+      "name": "AC-4.6 example: amount discount in a yearly-only span",
+      "rows": [
+        {"type": "line", "name": "cost:a", "kind": "one_off", "unitCents": 100000, "percentBp": null, "quantity": 1},
+        {"type": "line", "name": "cost:b", "kind": "yearly", "unitCents": 50000, "percentBp": null, "quantity": 1},
+        {"type": "total", "label": "TOTALE primo anno"},
+        {"type": "line", "name": "cost:c", "kind": "yearly", "unitCents": 20000, "percentBp": null, "quantity": 1},
+        {"type": "line", "name": "cost:d", "kind": "discount", "unitCents": 5000, "percentBp": null, "quantity": 1},
+        {"type": "total", "label": "TOTALE successivo"}
+      ],
+      "expected": {
+        "rows": [
+          {"type": "line", "name": "cost:a", "position": 1, "discountCents": null, "totalCents": 100000},
+          {"type": "line", "name": "cost:b", "position": 2, "discountCents": null, "totalCents": 50000},
+          {"type": "total", "label": "TOTALE primo anno", "spanIndex": 0, "state": "ok", "totalCents": 150000},
+          {"type": "line", "name": "cost:c", "position": 3, "discountCents": null, "totalCents": 20000},
+          {"type": "line", "name": "cost:d", "position": null, "discountCents": null, "totalCents": 5000},
+          {"type": "total", "label": "TOTALE successivo", "spanIndex": 1, "state": "ok", "totalCents": 15000}
+        ],
+        "oneOffCents": 95000, "yearlyCents": 70000,
+        "errors": []
+      }
+    },
+    {
+      "name": "placement: no total row",
+      "group": "placement",
+      "rows": [
+        {"type": "line", "name": "cost:a", "kind": "one_off", "unitCents": 100000, "percentBp": null, "quantity": 1},
+        {"type": "line", "name": "cost:b", "kind": "yearly", "unitCents": 50000, "percentBp": null, "quantity": 1},
+        {"type": "line", "name": "cost:c", "kind": "yearly", "unitCents": 20000, "percentBp": null, "quantity": 1},
+        {"type": "line", "name": "cost:d", "kind": "discount", "unitCents": 5000, "percentBp": null, "quantity": 1}
+      ],
+      "expected": {
+        "rows": [
+          {"type": "line", "name": "cost:a", "position": 1, "discountCents": null, "totalCents": 100000},
+          {"type": "line", "name": "cost:b", "position": 2, "discountCents": null, "totalCents": 50000},
+          {"type": "line", "name": "cost:c", "position": 3, "discountCents": null, "totalCents": 20000},
+          {"type": "line", "name": "cost:d", "position": null, "discountCents": null, "totalCents": 5000}
+        ],
+        "oneOffCents": 95000, "yearlyCents": 70000,
+        "errors": []
+      }
+    },
+    {
+      "name": "placement: one total row at the end",
+      "group": "placement",
+      "rows": [
+        {"type": "line", "name": "cost:a", "kind": "one_off", "unitCents": 100000, "percentBp": null, "quantity": 1},
+        {"type": "line", "name": "cost:b", "kind": "yearly", "unitCents": 50000, "percentBp": null, "quantity": 1},
+        {"type": "line", "name": "cost:c", "kind": "yearly", "unitCents": 20000, "percentBp": null, "quantity": 1},
+        {"type": "line", "name": "cost:d", "kind": "discount", "unitCents": 5000, "percentBp": null, "quantity": 1},
+        {"type": "total", "label": "T"}
+      ],
+      "expected": {
+        "rows": [
+          {"type": "line", "name": "cost:a", "position": 1, "discountCents": null, "totalCents": 100000},
+          {"type": "line", "name": "cost:b", "position": 2, "discountCents": null, "totalCents": 50000},
+          {"type": "line", "name": "cost:c", "position": 3, "discountCents": null, "totalCents": 20000},
+          {"type": "line", "name": "cost:d", "position": null, "discountCents": null, "totalCents": 5000},
+          {"type": "total", "label": "T", "spanIndex": 0, "state": "ok", "totalCents": 165000}
+        ],
+        "oneOffCents": 95000, "yearlyCents": 70000,
+        "errors": []
+      }
+    },
+    {
+      "name": "placement: two total rows",
+      "group": "placement",
+      "rows": [
+        {"type": "line", "name": "cost:a", "kind": "one_off", "unitCents": 100000, "percentBp": null, "quantity": 1},
+        {"type": "line", "name": "cost:b", "kind": "yearly", "unitCents": 50000, "percentBp": null, "quantity": 1},
+        {"type": "total", "label": "T1"},
+        {"type": "line", "name": "cost:c", "kind": "yearly", "unitCents": 20000, "percentBp": null, "quantity": 1},
+        {"type": "line", "name": "cost:d", "kind": "discount", "unitCents": 5000, "percentBp": null, "quantity": 1},
+        {"type": "total", "label": "T2"}
+      ],
+      "expected": {
+        "rows": [
+          {"type": "line", "name": "cost:a", "position": 1, "discountCents": null, "totalCents": 100000},
+          {"type": "line", "name": "cost:b", "position": 2, "discountCents": null, "totalCents": 50000},
+          {"type": "total", "label": "T1", "spanIndex": 0, "state": "ok", "totalCents": 150000},
+          {"type": "line", "name": "cost:c", "position": 3, "discountCents": null, "totalCents": 20000},
+          {"type": "line", "name": "cost:d", "position": null, "discountCents": null, "totalCents": 5000},
+          {"type": "total", "label": "T2", "spanIndex": 1, "state": "ok", "totalCents": 15000}
+        ],
+        "oneOffCents": 95000, "yearlyCents": 70000,
+        "errors": []
+      }
+    },
+    {
+      "name": "placement: three total rows",
+      "group": "placement",
+      "rows": [
+        {"type": "line", "name": "cost:a", "kind": "one_off", "unitCents": 100000, "percentBp": null, "quantity": 1},
+        {"type": "total", "label": "T1"},
+        {"type": "line", "name": "cost:b", "kind": "yearly", "unitCents": 50000, "percentBp": null, "quantity": 1},
+        {"type": "total", "label": "T2"},
+        {"type": "line", "name": "cost:c", "kind": "yearly", "unitCents": 20000, "percentBp": null, "quantity": 1},
+        {"type": "line", "name": "cost:d", "kind": "discount", "unitCents": 5000, "percentBp": null, "quantity": 1},
+        {"type": "total", "label": "T3"}
+      ],
+      "expected": {
+        "rows": [
+          {"type": "line", "name": "cost:a", "position": 1, "discountCents": null, "totalCents": 100000},
+          {"type": "total", "label": "T1", "spanIndex": 0, "state": "ok", "totalCents": 100000},
+          {"type": "line", "name": "cost:b", "position": 2, "discountCents": null, "totalCents": 50000},
+          {"type": "total", "label": "T2", "spanIndex": 1, "state": "ok", "totalCents": 50000},
+          {"type": "line", "name": "cost:c", "position": 3, "discountCents": null, "totalCents": 20000},
+          {"type": "line", "name": "cost:d", "position": null, "discountCents": null, "totalCents": 5000},
+          {"type": "total", "label": "T3", "spanIndex": 2, "state": "ok", "totalCents": 15000}
+        ],
+        "oneOffCents": 95000, "yearlyCents": 70000,
+        "errors": []
+      }
+    },
+    {
+      "name": "percentage, one total row: 1000.00 + 500.00 - 10% = 1350.00 (the legacy 018 result)",
+      "rows": [
+        {"type": "line", "name": "cost:a", "kind": "one_off", "unitCents": 100000, "percentBp": null, "quantity": 1},
+        {"type": "line", "name": "cost:b", "kind": "one_off", "unitCents": 50000, "percentBp": null, "quantity": 1},
+        {"type": "line", "name": "cost:d", "kind": "discount", "unitCents": null, "percentBp": 1000, "quantity": 1},
+        {"type": "total", "label": "TOTAL"}
+      ],
+      "expected": {
+        "rows": [
+          {"type": "line", "name": "cost:a", "position": 1, "discountCents": null, "totalCents": 100000},
+          {"type": "line", "name": "cost:b", "position": 2, "discountCents": null, "totalCents": 50000},
+          {"type": "line", "name": "cost:d", "position": null, "discountCents": 15000, "totalCents": 15000},
+          {"type": "total", "label": "TOTAL", "spanIndex": 0, "state": "ok", "totalCents": 135000}
+        ],
+        "oneOffCents": 135000, "yearlyCents": 0,
+        "errors": []
+      }
+    },
+    {
+      "name": "percentage, no total row: the same figures",
+      "rows": [
+        {"type": "line", "name": "cost:a", "kind": "one_off", "unitCents": 100000, "percentBp": null, "quantity": 1},
+        {"type": "line", "name": "cost:b", "kind": "one_off", "unitCents": 50000, "percentBp": null, "quantity": 1},
+        {"type": "line", "name": "cost:d", "kind": "discount", "unitCents": null, "percentBp": 1000, "quantity": 1}
+      ],
+      "expected": {
+        "rows": [
+          {"type": "line", "name": "cost:a", "position": 1, "discountCents": null, "totalCents": 100000},
+          {"type": "line", "name": "cost:b", "position": 2, "discountCents": null, "totalCents": 50000},
+          {"type": "line", "name": "cost:d", "position": null, "discountCents": 15000, "totalCents": 15000}
+        ],
+        "oneOffCents": 135000, "yearlyCents": 0,
+        "errors": []
+      }
+    },
+    {
+      "name": "percentage, total row before the discount: the base is still the whole table",
+      "rows": [
+        {"type": "line", "name": "cost:a", "kind": "one_off", "unitCents": 100000, "percentBp": null, "quantity": 1},
+        {"type": "total", "label": "T1"},
+        {"type": "line", "name": "cost:b", "kind": "one_off", "unitCents": 50000, "percentBp": null, "quantity": 1},
+        {"type": "line", "name": "cost:d", "kind": "discount", "unitCents": null, "percentBp": 1000, "quantity": 1}
+      ],
+      "expected": {
+        "rows": [
+          {"type": "line", "name": "cost:a", "position": 1, "discountCents": null, "totalCents": 100000},
+          {"type": "total", "label": "T1", "spanIndex": 0, "state": "ok", "totalCents": 100000},
+          {"type": "line", "name": "cost:b", "position": 2, "discountCents": null, "totalCents": 50000},
+          {"type": "line", "name": "cost:d", "position": null, "discountCents": 15000, "totalCents": 15000}
+        ],
+        "oneOffCents": 135000, "yearlyCents": 0,
+        "errors": []
+      }
+    },
+    {
+      "name": "percentage rounds half up once: 10% of 25 cents is 3",
+      "rows": [
+        {"type": "line", "name": "cost:a", "kind": "one_off", "unitCents": 25, "percentBp": null, "quantity": 1},
+        {"type": "line", "name": "cost:d", "kind": "discount", "unitCents": null, "percentBp": 1000, "quantity": 1}
+      ],
+      "expected": {
+        "rows": [
+          {"type": "line", "name": "cost:a", "position": 1, "discountCents": null, "totalCents": 25},
+          {"type": "line", "name": "cost:d", "position": null, "discountCents": 3, "totalCents": 3}
+        ],
+        "oneOffCents": 22, "yearlyCents": 0,
+        "errors": []
+      }
+    },
+    {
+      "name": "percentage rounds down below the half: 10% of 24 cents is 2",
+      "rows": [
+        {"type": "line", "name": "cost:a", "kind": "one_off", "unitCents": 24, "percentBp": null, "quantity": 1},
+        {"type": "line", "name": "cost:d", "kind": "discount", "unitCents": null, "percentBp": 1000, "quantity": 1}
+      ],
+      "expected": {
+        "rows": [
+          {"type": "line", "name": "cost:a", "position": 1, "discountCents": null, "totalCents": 24},
+          {"type": "line", "name": "cost:d", "position": null, "discountCents": 2, "totalCents": 2}
+        ],
+        "oneOffCents": 22, "yearlyCents": 0,
+        "errors": []
+      }
+    },
+    {
+      "name": "percentage rounds half up: 10% of 35 cents is 4",
+      "rows": [
+        {"type": "line", "name": "cost:a", "kind": "one_off", "unitCents": 35, "percentBp": null, "quantity": 1},
+        {"type": "line", "name": "cost:d", "kind": "discount", "unitCents": null, "percentBp": 1000, "quantity": 1}
+      ],
+      "expected": {
+        "rows": [
+          {"type": "line", "name": "cost:a", "position": 1, "discountCents": null, "totalCents": 35},
+          {"type": "line", "name": "cost:d", "position": null, "discountCents": 4, "totalCents": 4}
+        ],
+        "oneOffCents": 31, "yearlyCents": 0,
+        "errors": []
+      }
+    },
+    {
+      "name": "percentage of the largest base keeps every digit (BigInt)",
+      "rows": [
+        {"type": "line", "name": "cost:a", "kind": "one_off", "unitCents": 10000000000000, "percentBp": null, "quantity": 1},
+        {"type": "line", "name": "cost:d", "kind": "discount", "unitCents": null, "percentBp": 10000, "quantity": 1}
+      ],
+      "expected": {
+        "rows": [
+          {"type": "line", "name": "cost:a", "position": 1, "discountCents": null, "totalCents": 10000000000000},
+          {"type": "line", "name": "cost:d", "position": null, "discountCents": 10000000000000, "totalCents": 10000000000000}
+        ],
+        "oneOffCents": 0, "yearlyCents": 0,
+        "errors": []
+      }
+    },
+    {
+      "name": "percentage base is one-off only: a yearly line is not in it",
+      "rows": [
+        {"type": "line", "name": "cost:a", "kind": "one_off", "unitCents": 100000, "percentBp": null, "quantity": 1},
+        {"type": "line", "name": "cost:y", "kind": "yearly", "unitCents": 50000, "percentBp": null, "quantity": 1},
+        {"type": "line", "name": "cost:d", "kind": "discount", "unitCents": null, "percentBp": 1000, "quantity": 1},
+        {"type": "total", "label": "T"}
+      ],
+      "expected": {
+        "rows": [
+          {"type": "line", "name": "cost:a", "position": 1, "discountCents": null, "totalCents": 100000},
+          {"type": "line", "name": "cost:y", "position": 2, "discountCents": null, "totalCents": 50000},
+          {"type": "line", "name": "cost:d", "position": null, "discountCents": 10000, "totalCents": 10000},
+          {"type": "total", "label": "T", "spanIndex": 0, "state": "ok", "totalCents": 140000}
+        ],
+        "oneOffCents": 90000, "yearlyCents": 50000,
+        "errors": []
+      }
+    },
+    {
+      "name": "percentage with two total rows is refused (template line)",
+      "rows": [
+        {"type": "line", "name": "cost:a", "kind": "one_off", "unitCents": 100000, "percentBp": null, "quantity": 1},
+        {"type": "total", "label": "TOTAL A"},
+        {"type": "line", "name": "cost:b", "kind": "one_off", "unitCents": 50000, "percentBp": null, "quantity": 1},
+        {"type": "line", "name": "cost:d", "kind": "discount", "unitCents": null, "percentBp": 1000, "quantity": 1},
+        {"type": "total", "label": "TOTAL B"}
+      ],
+      "expected": {
+        "rows": [
+          {"type": "line", "name": "cost:a", "position": 1, "discountCents": null, "totalCents": 100000},
+          {"type": "total", "label": "TOTAL A", "spanIndex": 0, "state": "ok", "totalCents": 100000},
+          {"type": "line", "name": "cost:b", "position": 2, "discountCents": null, "totalCents": 50000},
+          {"type": "line", "name": "cost:d", "position": null, "discountCents": null, "totalCents": null},
+          {"type": "total", "label": "TOTAL B", "spanIndex": 1, "state": "incomplete", "totalCents": null}
+        ],
+        "oneOffCents": null, "yearlyCents": null,
+        "errors": [{"code": "percent_discount_multi_total", "name": "cost:d"}]
+      }
+    },
+    {
+      "name": "percentage with two total rows is refused (extra line)",
+      "rows": [
+        {"type": "line", "name": "cost:a", "kind": "one_off", "unitCents": 100000, "percentBp": null, "quantity": 1},
+        {"type": "total", "label": "TOTAL A"},
+        {"type": "line", "name": "cost:b", "kind": "one_off", "unitCents": 50000, "percentBp": null, "quantity": 1},
+        {"type": "line", "name": "cost:extra:x1", "kind": "discount", "unitCents": null, "percentBp": 1000, "quantity": 1},
+        {"type": "total", "label": "TOTAL B"}
+      ],
+      "expected": {
+        "rows": [
+          {"type": "line", "name": "cost:a", "position": 1, "discountCents": null, "totalCents": 100000},
+          {"type": "total", "label": "TOTAL A", "spanIndex": 0, "state": "ok", "totalCents": 100000},
+          {"type": "line", "name": "cost:b", "position": 2, "discountCents": null, "totalCents": 50000},
+          {"type": "line", "name": "cost:extra:x1", "position": null, "discountCents": null, "totalCents": null},
+          {"type": "total", "label": "TOTAL B", "spanIndex": 1, "state": "incomplete", "totalCents": null}
+        ],
+        "oneOffCents": null, "yearlyCents": null,
+        "errors": [{"code": "percent_discount_multi_total", "name": "cost:extra:x1"}]
+      }
+    },
+    {
+      "name": "every percentage is refused with three total rows, one error each, in row order",
+      "rows": [
+        {"type": "line", "name": "cost:a", "kind": "one_off", "unitCents": 100000, "percentBp": null, "quantity": 1},
+        {"type": "line", "name": "cost:d1", "kind": "discount", "unitCents": null, "percentBp": 500, "quantity": 1},
+        {"type": "total", "label": "T1"},
+        {"type": "line", "name": "cost:b", "kind": "one_off", "unitCents": 50000, "percentBp": null, "quantity": 1},
+        {"type": "line", "name": "cost:d2", "kind": "discount", "unitCents": null, "percentBp": 1000, "quantity": 1},
+        {"type": "total", "label": "T2"},
+        {"type": "total", "label": "T3"}
+      ],
+      "expected": {
+        "rows": [
+          {"type": "line", "name": "cost:a", "position": 1, "discountCents": null, "totalCents": 100000},
+          {"type": "line", "name": "cost:d1", "position": null, "discountCents": null, "totalCents": null},
+          {"type": "total", "label": "T1", "spanIndex": 0, "state": "incomplete", "totalCents": null},
+          {"type": "line", "name": "cost:b", "position": 2, "discountCents": null, "totalCents": 50000},
+          {"type": "line", "name": "cost:d2", "position": null, "discountCents": null, "totalCents": null},
+          {"type": "total", "label": "T2", "spanIndex": 1, "state": "incomplete", "totalCents": null},
+          {"type": "total", "label": "T3", "spanIndex": 2, "state": "empty", "totalCents": null}
+        ],
+        "oneOffCents": null, "yearlyCents": null,
+        "errors": [{"code": "percent_discount_multi_total", "name": "cost:d1"}, {"code": "percent_discount_multi_total", "name": "cost:d2"}]
+      }
+    },
+    {
+      "name": "an amount discount with two total rows is valid",
+      "rows": [
+        {"type": "line", "name": "cost:a", "kind": "one_off", "unitCents": 100000, "percentBp": null, "quantity": 1},
+        {"type": "total", "label": "TOTAL A"},
+        {"type": "line", "name": "cost:b", "kind": "one_off", "unitCents": 50000, "percentBp": null, "quantity": 1},
+        {"type": "line", "name": "cost:d", "kind": "discount", "unitCents": 5000, "percentBp": null, "quantity": 1},
+        {"type": "total", "label": "TOTAL B"}
+      ],
+      "expected": {
+        "rows": [
+          {"type": "line", "name": "cost:a", "position": 1, "discountCents": null, "totalCents": 100000},
+          {"type": "total", "label": "TOTAL A", "spanIndex": 0, "state": "ok", "totalCents": 100000},
+          {"type": "line", "name": "cost:b", "position": 2, "discountCents": null, "totalCents": 50000},
+          {"type": "line", "name": "cost:d", "position": null, "discountCents": null, "totalCents": 5000},
+          {"type": "total", "label": "TOTAL B", "spanIndex": 1, "state": "ok", "totalCents": 45000}
+        ],
+        "oneOffCents": 145000, "yearlyCents": 0,
+        "errors": []
+      }
+    },
+    {
+      "name": "a second total row inside an off block is gone before the engine: one total row, the percentage is valid",
+      "rows": [
+        {"type": "line", "name": "cost:a", "kind": "one_off", "unitCents": 100000, "percentBp": null, "quantity": 1},
+        {"type": "line", "name": "cost:b", "kind": "one_off", "unitCents": 50000, "percentBp": null, "quantity": 1},
+        {"type": "line", "name": "cost:d", "kind": "discount", "unitCents": null, "percentBp": 1000, "quantity": 1},
+        {"type": "total", "label": "TOTAL A"}
+      ],
+      "expected": {
+        "rows": [
+          {"type": "line", "name": "cost:a", "position": 1, "discountCents": null, "totalCents": 100000},
+          {"type": "line", "name": "cost:b", "position": 2, "discountCents": null, "totalCents": 50000},
+          {"type": "line", "name": "cost:d", "position": null, "discountCents": 15000, "totalCents": 15000},
+          {"type": "total", "label": "TOTAL A", "spanIndex": 0, "state": "ok", "totalCents": 135000}
+        ],
+        "oneOffCents": 135000, "yearlyCents": 0,
+        "errors": []
+      }
+    },
+    {
+      "name": "C4: a percentage with no one-off line has no base",
+      "rows": [
+        {"type": "line", "name": "cost:y", "kind": "yearly", "unitCents": 50000, "percentBp": null, "quantity": 1},
+        {"type": "line", "name": "cost:d", "kind": "discount", "unitCents": null, "percentBp": 1000, "quantity": 1},
+        {"type": "total", "label": "T"}
+      ],
+      "expected": {
+        "rows": [
+          {"type": "line", "name": "cost:y", "position": 1, "discountCents": null, "totalCents": 50000},
+          {"type": "line", "name": "cost:d", "position": null, "discountCents": 0, "totalCents": 0},
+          {"type": "total", "label": "T", "spanIndex": 0, "state": "ok", "totalCents": 50000}
+        ],
+        "oneOffCents": 0, "yearlyCents": 50000,
+        "errors": [{"code": "discount_without_base", "name": "cost:d"}]
+      }
+    },
+    {
+      "name": "C5 alone: a discount larger than its span but not than the document's one-off lines",
+      "rows": [
+        {"type": "line", "name": "cost:a", "kind": "one_off", "unitCents": 100000, "percentBp": null, "quantity": 1},
+        {"type": "total", "label": "T1"},
+        {"type": "line", "name": "cost:y", "kind": "yearly", "unitCents": 10000, "percentBp": null, "quantity": 1},
+        {"type": "line", "name": "cost:d", "kind": "discount", "unitCents": 20000, "percentBp": null, "quantity": 1},
+        {"type": "total", "label": "T2"}
+      ],
+      "expected": {
+        "rows": [
+          {"type": "line", "name": "cost:a", "position": 1, "discountCents": null, "totalCents": 100000},
+          {"type": "total", "label": "T1", "spanIndex": 0, "state": "ok", "totalCents": 100000},
+          {"type": "line", "name": "cost:y", "position": 2, "discountCents": null, "totalCents": 10000},
+          {"type": "line", "name": "cost:d", "position": null, "discountCents": null, "totalCents": 20000},
+          {"type": "total", "label": "T2", "spanIndex": 1, "state": "incomplete", "totalCents": null}
+        ],
+        "oneOffCents": 80000, "yearlyCents": 10000,
+        "errors": [{"code": "discounts_exceed_span", "name": "cost:d"}]
+      }
+    },
+    {
+      "name": "C6 alone: yearly lines do not count towards what a discount may take (the legacy rule)",
+      "rows": [
+        {"type": "line", "name": "cost:a", "kind": "one_off", "unitCents": 100, "percentBp": null, "quantity": 1},
+        {"type": "line", "name": "cost:y", "kind": "yearly", "unitCents": 500, "percentBp": null, "quantity": 1},
+        {"type": "line", "name": "cost:d", "kind": "discount", "unitCents": 150, "percentBp": null, "quantity": 1}
+      ],
+      "expected": {
+        "rows": [
+          {"type": "line", "name": "cost:a", "position": 1, "discountCents": null, "totalCents": 100},
+          {"type": "line", "name": "cost:y", "position": 2, "discountCents": null, "totalCents": 500},
+          {"type": "line", "name": "cost:d", "position": null, "discountCents": null, "totalCents": 150}
+        ],
+        "oneOffCents": null, "yearlyCents": 500,
+        "errors": [{"code": "discounts_exceed_one_off", "name": "cost:d"}]
+      }
+    },
+    {
+      "name": "C5 and C6 together on one span of one-off lines: both reported, span first",
+      "rows": [
+        {"type": "line", "name": "cost:a", "kind": "one_off", "unitCents": 100, "percentBp": null, "quantity": 1},
+        {"type": "line", "name": "cost:d", "kind": "discount", "unitCents": 101, "percentBp": null, "quantity": 1}
+      ],
+      "expected": {
+        "rows": [
+          {"type": "line", "name": "cost:a", "position": 1, "discountCents": null, "totalCents": 100},
+          {"type": "line", "name": "cost:d", "position": null, "discountCents": null, "totalCents": 101}
+        ],
+        "oneOffCents": null, "yearlyCents": 0,
+        "errors": [{"code": "discounts_exceed_span", "name": "cost:d"}, {"code": "discounts_exceed_one_off", "name": "cost:d"}]
+      }
+    },
+    {
+      "name": "C6 names the LAST discount",
+      "rows": [
+        {"type": "line", "name": "cost:a", "kind": "one_off", "unitCents": 100, "percentBp": null, "quantity": 1},
+        {"type": "line", "name": "cost:d1", "kind": "discount", "unitCents": 60, "percentBp": null, "quantity": 1},
+        {"type": "line", "name": "cost:d2", "kind": "discount", "unitCents": 60, "percentBp": null, "quantity": 1}
+      ],
+      "expected": {
+        "rows": [
+          {"type": "line", "name": "cost:a", "position": 1, "discountCents": null, "totalCents": 100},
+          {"type": "line", "name": "cost:d1", "position": null, "discountCents": null, "totalCents": 60},
+          {"type": "line", "name": "cost:d2", "position": null, "discountCents": null, "totalCents": 60}
+        ],
+        "oneOffCents": null, "yearlyCents": 0,
+        "errors": [{"code": "discounts_exceed_span", "name": "cost:d1"}, {"code": "discounts_exceed_one_off", "name": "cost:d2"}]
+      }
+    },
+    {
+      "name": "a discount equal to its span is valid and prints 0",
+      "rows": [
+        {"type": "line", "name": "cost:a", "kind": "one_off", "unitCents": 1000, "percentBp": null, "quantity": 1},
+        {"type": "line", "name": "cost:d", "kind": "discount", "unitCents": 1000, "percentBp": null, "quantity": 1},
+        {"type": "total", "label": "T"}
+      ],
+      "expected": {
+        "rows": [
+          {"type": "line", "name": "cost:a", "position": 1, "discountCents": null, "totalCents": 1000},
+          {"type": "line", "name": "cost:d", "position": null, "discountCents": null, "totalCents": 1000},
+          {"type": "total", "label": "T", "spanIndex": 0, "state": "ok", "totalCents": 0}
+        ],
+        "oneOffCents": 0, "yearlyCents": 0,
+        "errors": []
+      }
+    },
+    {
+      "name": "an amount discount multiplies unit by quantity",
+      "rows": [
+        {"type": "line", "name": "cost:a", "kind": "one_off", "unitCents": 5000, "percentBp": null, "quantity": 1},
+        {"type": "line", "name": "cost:d", "kind": "discount", "unitCents": 1000, "percentBp": null, "quantity": 2},
+        {"type": "total", "label": "T"}
+      ],
+      "expected": {
+        "rows": [
+          {"type": "line", "name": "cost:a", "position": 1, "discountCents": null, "totalCents": 5000},
+          {"type": "line", "name": "cost:d", "position": null, "discountCents": null, "totalCents": 2000},
+          {"type": "total", "label": "T", "spanIndex": 0, "state": "ok", "totalCents": 3000}
+        ],
+        "oneOffCents": 3000, "yearlyCents": 0,
+        "errors": []
+      }
+    },
+    {
+      "name": "an empty span prints no figure and is not an error",
+      "rows": [
+        {"type": "line", "name": "cost:a", "kind": "one_off", "unitCents": 100000, "percentBp": null, "quantity": 1},
+        {"type": "total", "label": "T1"},
+        {"type": "total", "label": "T2"}
+      ],
+      "expected": {
+        "rows": [
+          {"type": "line", "name": "cost:a", "position": 1, "discountCents": null, "totalCents": 100000},
+          {"type": "total", "label": "T1", "spanIndex": 0, "state": "ok", "totalCents": 100000},
+          {"type": "total", "label": "T2", "spanIndex": 1, "state": "empty", "totalCents": null}
+        ],
+        "oneOffCents": 100000, "yearlyCents": 0,
+        "errors": []
+      }
+    },
+    {
+      "name": "a total row first: the empty span before it",
+      "rows": [
+        {"type": "total", "label": "T0"},
+        {"type": "line", "name": "cost:a", "kind": "one_off", "unitCents": 100000, "percentBp": null, "quantity": 1},
+        {"type": "total", "label": "T1"}
+      ],
+      "expected": {
+        "rows": [
+          {"type": "total", "label": "T0", "spanIndex": 0, "state": "empty", "totalCents": null},
+          {"type": "line", "name": "cost:a", "position": 1, "discountCents": null, "totalCents": 100000},
+          {"type": "total", "label": "T1", "spanIndex": 1, "state": "ok", "totalCents": 100000}
+        ],
+        "oneOffCents": 100000, "yearlyCents": 0,
+        "errors": []
+      }
+    },
+    {
+      "name": "an option line alone in a span makes it empty",
+      "rows": [
+        {"type": "line", "name": "cost:a", "kind": "one_off", "unitCents": 100000, "percentBp": null, "quantity": 1},
+        {"type": "total", "label": "T1"},
+        {"type": "line", "name": "cost:o", "kind": "option", "unitCents": 5000, "percentBp": null, "quantity": 1},
+        {"type": "total", "label": "T2"}
+      ],
+      "expected": {
+        "rows": [
+          {"type": "line", "name": "cost:a", "position": 1, "discountCents": null, "totalCents": 100000},
+          {"type": "total", "label": "T1", "spanIndex": 0, "state": "ok", "totalCents": 100000},
+          {"type": "line", "name": "cost:o", "position": 2, "discountCents": null, "totalCents": 5000},
+          {"type": "total", "label": "T2", "spanIndex": 1, "state": "empty", "totalCents": null}
+        ],
+        "oneOffCents": 100000, "yearlyCents": 0,
+        "errors": []
+      }
+    },
+    {
+      "name": "a counted line with no unit: the span is incomplete and its checks wait",
+      "rows": [
+        {"type": "line", "name": "cost:a", "kind": "one_off", "unitCents": 100000, "percentBp": null, "quantity": 1},
+        {"type": "line", "name": "cost:b", "kind": "one_off", "unitCents": null, "percentBp": null, "quantity": 1},
+        {"type": "line", "name": "cost:d", "kind": "discount", "unitCents": 150000, "percentBp": null, "quantity": 1},
+        {"type": "total", "label": "T"}
+      ],
+      "expected": {
+        "rows": [
+          {"type": "line", "name": "cost:a", "position": 1, "discountCents": null, "totalCents": 100000},
+          {"type": "line", "name": "cost:b", "position": 2, "discountCents": null, "totalCents": null},
+          {"type": "line", "name": "cost:d", "position": null, "discountCents": null, "totalCents": 150000},
+          {"type": "total", "label": "T", "spanIndex": 0, "state": "incomplete", "totalCents": null}
+        ],
+        "oneOffCents": null, "yearlyCents": null,
+        "errors": []
+      }
+    },
+    {
+      "name": "a counted line with no quantity is incomplete too",
+      "rows": [
+        {"type": "line", "name": "cost:a", "kind": "one_off", "unitCents": 1000, "percentBp": null, "quantity": null},
+        {"type": "total", "label": "T"}
+      ],
+      "expected": {
+        "rows": [
+          {"type": "line", "name": "cost:a", "position": 1, "discountCents": null, "totalCents": null},
+          {"type": "total", "label": "T", "spanIndex": 0, "state": "incomplete", "totalCents": null}
+        ],
+        "oneOffCents": null, "yearlyCents": null,
+        "errors": []
+      }
+    },
+    {
+      "name": "a discount with no amount: its span is incomplete",
+      "rows": [
+        {"type": "line", "name": "cost:a", "kind": "one_off", "unitCents": 1000, "percentBp": null, "quantity": 1},
+        {"type": "line", "name": "cost:d", "kind": "discount", "unitCents": null, "percentBp": null, "quantity": 1},
+        {"type": "total", "label": "T"}
+      ],
+      "expected": {
+        "rows": [
+          {"type": "line", "name": "cost:a", "position": 1, "discountCents": null, "totalCents": 1000},
+          {"type": "line", "name": "cost:d", "position": null, "discountCents": null, "totalCents": null},
+          {"type": "total", "label": "T", "spanIndex": 0, "state": "incomplete", "totalCents": null}
+        ],
+        "oneOffCents": null, "yearlyCents": null,
+        "errors": []
+      }
+    },
+    {
+      "name": "an incomplete span does not stop the next one",
+      "rows": [
+        {"type": "line", "name": "cost:a", "kind": "one_off", "unitCents": null, "percentBp": null, "quantity": 1},
+        {"type": "total", "label": "T1"},
+        {"type": "line", "name": "cost:b", "kind": "one_off", "unitCents": 500, "percentBp": null, "quantity": 1},
+        {"type": "total", "label": "T2"}
+      ],
+      "expected": {
+        "rows": [
+          {"type": "line", "name": "cost:a", "position": 1, "discountCents": null, "totalCents": null},
+          {"type": "total", "label": "T1", "spanIndex": 0, "state": "incomplete", "totalCents": null},
+          {"type": "line", "name": "cost:b", "position": 2, "discountCents": null, "totalCents": 500},
+          {"type": "total", "label": "T2", "spanIndex": 1, "state": "ok", "totalCents": 500}
+        ],
+        "oneOffCents": null, "yearlyCents": null,
+        "errors": []
+      }
+    },
+    {
+      "name": "a percentage over an incomplete base waits",
+      "rows": [
+        {"type": "line", "name": "cost:a", "kind": "one_off", "unitCents": null, "percentBp": null, "quantity": 1},
+        {"type": "line", "name": "cost:b", "kind": "one_off", "unitCents": 1000, "percentBp": null, "quantity": 1},
+        {"type": "line", "name": "cost:d", "kind": "discount", "unitCents": null, "percentBp": 1000, "quantity": 1},
+        {"type": "total", "label": "T"}
+      ],
+      "expected": {
+        "rows": [
+          {"type": "line", "name": "cost:a", "position": 1, "discountCents": null, "totalCents": null},
+          {"type": "line", "name": "cost:b", "position": 2, "discountCents": null, "totalCents": 1000},
+          {"type": "line", "name": "cost:d", "position": null, "discountCents": null, "totalCents": null},
+          {"type": "total", "label": "T", "spanIndex": 0, "state": "incomplete", "totalCents": null}
+        ],
+        "oneOffCents": null, "yearlyCents": null,
+        "errors": []
+      }
+    },
+    {
+      "name": "an option line after the last total: numbered, priced, counted nowhere",
+      "rows": [
+        {"type": "line", "name": "cost:a", "kind": "one_off", "unitCents": 100000, "percentBp": null, "quantity": 1},
+        {"type": "line", "name": "cost:y", "kind": "yearly", "unitCents": 20000, "percentBp": null, "quantity": 1},
+        {"type": "total", "label": "TOTALE"},
+        {"type": "line", "name": "cost:o", "kind": "option", "unitCents": 5000, "percentBp": null, "quantity": 2}
+      ],
+      "expected": {
+        "rows": [
+          {"type": "line", "name": "cost:a", "position": 1, "discountCents": null, "totalCents": 100000},
+          {"type": "line", "name": "cost:y", "position": 2, "discountCents": null, "totalCents": 20000},
+          {"type": "total", "label": "TOTALE", "spanIndex": 0, "state": "ok", "totalCents": 120000},
+          {"type": "line", "name": "cost:o", "position": 3, "discountCents": null, "totalCents": 10000}
+        ],
+        "oneOffCents": 100000, "yearlyCents": 20000,
+        "errors": []
+      }
+    },
+    {
+      "name": "discounts are unnumbered; the option follows the counted lines",
+      "rows": [
+        {"type": "line", "name": "cost:a", "kind": "one_off", "unitCents": 100000, "percentBp": null, "quantity": 1},
+        {"type": "line", "name": "cost:d", "kind": "discount", "unitCents": 1000, "percentBp": null, "quantity": 1},
+        {"type": "total", "label": "T"},
+        {"type": "line", "name": "cost:o", "kind": "option", "unitCents": 5000, "percentBp": null, "quantity": 1}
+      ],
+      "expected": {
+        "rows": [
+          {"type": "line", "name": "cost:a", "position": 1, "discountCents": null, "totalCents": 100000},
+          {"type": "line", "name": "cost:d", "position": null, "discountCents": null, "totalCents": 1000},
+          {"type": "total", "label": "T", "spanIndex": 0, "state": "ok", "totalCents": 99000},
+          {"type": "line", "name": "cost:o", "position": 2, "discountCents": null, "totalCents": 5000}
+        ],
+        "oneOffCents": 99000, "yearlyCents": 0,
+        "errors": []
+      }
+    },
+    {
+      "name": "an option line with no price waits for nothing",
+      "rows": [
+        {"type": "line", "name": "cost:a", "kind": "one_off", "unitCents": 100000, "percentBp": null, "quantity": 1},
+        {"type": "total", "label": "T"},
+        {"type": "line", "name": "cost:o", "kind": "option", "unitCents": null, "percentBp": null, "quantity": 1}
+      ],
+      "expected": {
+        "rows": [
+          {"type": "line", "name": "cost:a", "position": 1, "discountCents": null, "totalCents": 100000},
+          {"type": "total", "label": "T", "spanIndex": 0, "state": "ok", "totalCents": 100000},
+          {"type": "line", "name": "cost:o", "position": 2, "discountCents": null, "totalCents": null}
+        ],
+        "oneOffCents": 100000, "yearlyCents": 0,
+        "errors": []
+      }
+    },
+    {
+      "name": "an option line is not the base of a percentage",
+      "rows": [
+        {"type": "line", "name": "cost:a", "kind": "one_off", "unitCents": 100000, "percentBp": null, "quantity": 1},
+        {"type": "line", "name": "cost:o", "kind": "option", "unitCents": 900000, "percentBp": null, "quantity": 1},
+        {"type": "line", "name": "cost:d", "kind": "discount", "unitCents": null, "percentBp": 1000, "quantity": 1},
+        {"type": "total", "label": "T"}
+      ],
+      "expected": {
+        "rows": [
+          {"type": "line", "name": "cost:a", "position": 1, "discountCents": null, "totalCents": 100000},
+          {"type": "line", "name": "cost:o", "position": 2, "discountCents": null, "totalCents": 900000},
+          {"type": "line", "name": "cost:d", "position": null, "discountCents": 10000, "totalCents": 10000},
+          {"type": "total", "label": "T", "spanIndex": 0, "state": "ok", "totalCents": 90000}
+        ],
+        "oneOffCents": 90000, "yearlyCents": 0,
+        "errors": []
+      }
+    },
+    {
+      "name": "no counted line: only an option",
+      "rows": [
+        {"type": "line", "name": "cost:o", "kind": "option", "unitCents": 5000, "percentBp": null, "quantity": 1}
+      ],
+      "expected": {
+        "rows": [
+          {"type": "line", "name": "cost:o", "position": 1, "discountCents": null, "totalCents": 5000}
+        ],
+        "oneOffCents": 0, "yearlyCents": 0,
+        "errors": [{"code": "no_counted_line", "name": "cost:*"}]
+      }
+    },
+    {
+      "name": "no counted line: no row at all",
+      "rows": [
+
+      ],
+      "expected": {
+        "rows": [
+
+        ],
+        "oneOffCents": 0, "yearlyCents": 0,
+        "errors": [{"code": "no_counted_line", "name": "cost:*"}]
+      }
+    },
+    {
+      "name": "ten lines counting the option are allowed",
+      "rows": [
+        {"type": "line", "name": "cost:l1", "kind": "one_off", "unitCents": 100, "percentBp": null, "quantity": 1},
+        {"type": "line", "name": "cost:l2", "kind": "one_off", "unitCents": 100, "percentBp": null, "quantity": 1},
+        {"type": "line", "name": "cost:l3", "kind": "one_off", "unitCents": 100, "percentBp": null, "quantity": 1},
+        {"type": "line", "name": "cost:l4", "kind": "one_off", "unitCents": 100, "percentBp": null, "quantity": 1},
+        {"type": "line", "name": "cost:l5", "kind": "one_off", "unitCents": 100, "percentBp": null, "quantity": 1},
+        {"type": "line", "name": "cost:l6", "kind": "one_off", "unitCents": 100, "percentBp": null, "quantity": 1},
+        {"type": "line", "name": "cost:l7", "kind": "one_off", "unitCents": 100, "percentBp": null, "quantity": 1},
+        {"type": "line", "name": "cost:l8", "kind": "one_off", "unitCents": 100, "percentBp": null, "quantity": 1},
+        {"type": "line", "name": "cost:l9", "kind": "one_off", "unitCents": 100, "percentBp": null, "quantity": 1},
+        {"type": "line", "name": "cost:o", "kind": "option", "unitCents": 100, "percentBp": null, "quantity": 1}
+      ],
+      "expected": {
+        "rows": [
+          {"type": "line", "name": "cost:l1", "position": 1, "discountCents": null, "totalCents": 100},
+          {"type": "line", "name": "cost:l2", "position": 2, "discountCents": null, "totalCents": 100},
+          {"type": "line", "name": "cost:l3", "position": 3, "discountCents": null, "totalCents": 100},
+          {"type": "line", "name": "cost:l4", "position": 4, "discountCents": null, "totalCents": 100},
+          {"type": "line", "name": "cost:l5", "position": 5, "discountCents": null, "totalCents": 100},
+          {"type": "line", "name": "cost:l6", "position": 6, "discountCents": null, "totalCents": 100},
+          {"type": "line", "name": "cost:l7", "position": 7, "discountCents": null, "totalCents": 100},
+          {"type": "line", "name": "cost:l8", "position": 8, "discountCents": null, "totalCents": 100},
+          {"type": "line", "name": "cost:l9", "position": 9, "discountCents": null, "totalCents": 100},
+          {"type": "line", "name": "cost:o", "position": 10, "discountCents": null, "totalCents": 100}
+        ],
+        "oneOffCents": 900, "yearlyCents": 0,
+        "errors": []
+      }
+    },
+    {
+      "name": "eleven lines (option included) are too many",
+      "rows": [
+        {"type": "line", "name": "cost:l1", "kind": "one_off", "unitCents": 100, "percentBp": null, "quantity": 1},
+        {"type": "line", "name": "cost:l2", "kind": "one_off", "unitCents": 100, "percentBp": null, "quantity": 1},
+        {"type": "line", "name": "cost:l3", "kind": "one_off", "unitCents": 100, "percentBp": null, "quantity": 1},
+        {"type": "line", "name": "cost:l4", "kind": "one_off", "unitCents": 100, "percentBp": null, "quantity": 1},
+        {"type": "line", "name": "cost:l5", "kind": "one_off", "unitCents": 100, "percentBp": null, "quantity": 1},
+        {"type": "line", "name": "cost:l6", "kind": "one_off", "unitCents": 100, "percentBp": null, "quantity": 1},
+        {"type": "line", "name": "cost:l7", "kind": "one_off", "unitCents": 100, "percentBp": null, "quantity": 1},
+        {"type": "line", "name": "cost:l8", "kind": "one_off", "unitCents": 100, "percentBp": null, "quantity": 1},
+        {"type": "line", "name": "cost:l9", "kind": "one_off", "unitCents": 100, "percentBp": null, "quantity": 1},
+        {"type": "line", "name": "cost:l10", "kind": "one_off", "unitCents": 100, "percentBp": null, "quantity": 1},
+        {"type": "line", "name": "cost:o", "kind": "option", "unitCents": 100, "percentBp": null, "quantity": 1}
+      ],
+      "expected": {
+        "rows": [
+          {"type": "line", "name": "cost:l1", "position": 1, "discountCents": null, "totalCents": 100},
+          {"type": "line", "name": "cost:l2", "position": 2, "discountCents": null, "totalCents": 100},
+          {"type": "line", "name": "cost:l3", "position": 3, "discountCents": null, "totalCents": 100},
+          {"type": "line", "name": "cost:l4", "position": 4, "discountCents": null, "totalCents": 100},
+          {"type": "line", "name": "cost:l5", "position": 5, "discountCents": null, "totalCents": 100},
+          {"type": "line", "name": "cost:l6", "position": 6, "discountCents": null, "totalCents": 100},
+          {"type": "line", "name": "cost:l7", "position": 7, "discountCents": null, "totalCents": 100},
+          {"type": "line", "name": "cost:l8", "position": 8, "discountCents": null, "totalCents": 100},
+          {"type": "line", "name": "cost:l9", "position": 9, "discountCents": null, "totalCents": 100},
+          {"type": "line", "name": "cost:l10", "position": 10, "discountCents": null, "totalCents": 100},
+          {"type": "line", "name": "cost:o", "position": 11, "discountCents": null, "totalCents": 100}
+        ],
+        "oneOffCents": 1000, "yearlyCents": 0,
+        "errors": [{"code": "too_many_cost_lines", "name": "cost:*"}]
+      }
+    },
+    {
+      "name": "an extra line counts too: ten template lines plus one extra",
+      "rows": [
+        {"type": "line", "name": "cost:l1", "kind": "one_off", "unitCents": 100, "percentBp": null, "quantity": 1},
+        {"type": "line", "name": "cost:l2", "kind": "one_off", "unitCents": 100, "percentBp": null, "quantity": 1},
+        {"type": "line", "name": "cost:l3", "kind": "one_off", "unitCents": 100, "percentBp": null, "quantity": 1},
+        {"type": "line", "name": "cost:l4", "kind": "one_off", "unitCents": 100, "percentBp": null, "quantity": 1},
+        {"type": "line", "name": "cost:l5", "kind": "one_off", "unitCents": 100, "percentBp": null, "quantity": 1},
+        {"type": "line", "name": "cost:l6", "kind": "one_off", "unitCents": 100, "percentBp": null, "quantity": 1},
+        {"type": "line", "name": "cost:l7", "kind": "one_off", "unitCents": 100, "percentBp": null, "quantity": 1},
+        {"type": "line", "name": "cost:l8", "kind": "one_off", "unitCents": 100, "percentBp": null, "quantity": 1},
+        {"type": "line", "name": "cost:l9", "kind": "one_off", "unitCents": 100, "percentBp": null, "quantity": 1},
+        {"type": "line", "name": "cost:l10", "kind": "one_off", "unitCents": 100, "percentBp": null, "quantity": 1},
+        {"type": "line", "name": "cost:extra:e1", "kind": "yearly", "unitCents": 100, "percentBp": null, "quantity": 1}
+      ],
+      "expected": {
+        "rows": [
+          {"type": "line", "name": "cost:l1", "position": 1, "discountCents": null, "totalCents": 100},
+          {"type": "line", "name": "cost:l2", "position": 2, "discountCents": null, "totalCents": 100},
+          {"type": "line", "name": "cost:l3", "position": 3, "discountCents": null, "totalCents": 100},
+          {"type": "line", "name": "cost:l4", "position": 4, "discountCents": null, "totalCents": 100},
+          {"type": "line", "name": "cost:l5", "position": 5, "discountCents": null, "totalCents": 100},
+          {"type": "line", "name": "cost:l6", "position": 6, "discountCents": null, "totalCents": 100},
+          {"type": "line", "name": "cost:l7", "position": 7, "discountCents": null, "totalCents": 100},
+          {"type": "line", "name": "cost:l8", "position": 8, "discountCents": null, "totalCents": 100},
+          {"type": "line", "name": "cost:l9", "position": 9, "discountCents": null, "totalCents": 100},
+          {"type": "line", "name": "cost:l10", "position": 10, "discountCents": null, "totalCents": 100},
+          {"type": "line", "name": "cost:extra:e1", "position": 11, "discountCents": null, "totalCents": 100}
+        ],
+        "oneOffCents": 1000, "yearlyCents": 100,
+        "errors": [{"code": "too_many_cost_lines", "name": "cost:*"}]
+      }
+    },
+    {
+      "name": "too many lines do not stop the arithmetic or hide another error",
+      "rows": [
+        {"type": "line", "name": "cost:l1", "kind": "one_off", "unitCents": 100, "percentBp": null, "quantity": 1},
+        {"type": "line", "name": "cost:l2", "kind": "one_off", "unitCents": 100, "percentBp": null, "quantity": 1},
+        {"type": "line", "name": "cost:l3", "kind": "one_off", "unitCents": 100, "percentBp": null, "quantity": 1},
+        {"type": "line", "name": "cost:l4", "kind": "one_off", "unitCents": 100, "percentBp": null, "quantity": 1},
+        {"type": "line", "name": "cost:l5", "kind": "one_off", "unitCents": 100, "percentBp": null, "quantity": 1},
+        {"type": "line", "name": "cost:l6", "kind": "one_off", "unitCents": 100, "percentBp": null, "quantity": 1},
+        {"type": "line", "name": "cost:l7", "kind": "one_off", "unitCents": 100, "percentBp": null, "quantity": 1},
+        {"type": "line", "name": "cost:l8", "kind": "one_off", "unitCents": 100, "percentBp": null, "quantity": 1},
+        {"type": "line", "name": "cost:l9", "kind": "one_off", "unitCents": 100, "percentBp": null, "quantity": 1},
+        {"type": "line", "name": "cost:l10", "kind": "one_off", "unitCents": 100, "percentBp": null, "quantity": 1},
+        {"type": "line", "name": "cost:d", "kind": "discount", "unitCents": 5000, "percentBp": null, "quantity": 1}
+      ],
+      "expected": {
+        "rows": [
+          {"type": "line", "name": "cost:l1", "position": 1, "discountCents": null, "totalCents": 100},
+          {"type": "line", "name": "cost:l2", "position": 2, "discountCents": null, "totalCents": 100},
+          {"type": "line", "name": "cost:l3", "position": 3, "discountCents": null, "totalCents": 100},
+          {"type": "line", "name": "cost:l4", "position": 4, "discountCents": null, "totalCents": 100},
+          {"type": "line", "name": "cost:l5", "position": 5, "discountCents": null, "totalCents": 100},
+          {"type": "line", "name": "cost:l6", "position": 6, "discountCents": null, "totalCents": 100},
+          {"type": "line", "name": "cost:l7", "position": 7, "discountCents": null, "totalCents": 100},
+          {"type": "line", "name": "cost:l8", "position": 8, "discountCents": null, "totalCents": 100},
+          {"type": "line", "name": "cost:l9", "position": 9, "discountCents": null, "totalCents": 100},
+          {"type": "line", "name": "cost:l10", "position": 10, "discountCents": null, "totalCents": 100},
+          {"type": "line", "name": "cost:d", "position": null, "discountCents": null, "totalCents": 5000}
+        ],
+        "oneOffCents": null, "yearlyCents": 0,
+        "errors": [{"code": "discounts_exceed_span", "name": "cost:d"}, {"code": "discounts_exceed_one_off", "name": "cost:d"}, {"code": "too_many_cost_lines", "name": "cost:*"}]
+      }
+    },
+    {
+      "name": "unit x quantity exactly at the limit is valid",
+      "rows": [
+        {"type": "line", "name": "cost:a", "kind": "one_off", "unitCents": 5000000000000, "percentBp": null, "quantity": 2}
+      ],
+      "expected": {
+        "rows": [
+          {"type": "line", "name": "cost:a", "position": 1, "discountCents": null, "totalCents": 10000000000000}
+        ],
+        "oneOffCents": 10000000000000, "yearlyCents": 0,
+        "errors": []
+      }
+    },
+    {
+      "name": "unit x quantity above the limit: too large, the line is incomplete",
+      "rows": [
+        {"type": "line", "name": "cost:a", "kind": "one_off", "unitCents": 5000000000001, "percentBp": null, "quantity": 2},
+        {"type": "total", "label": "T"}
+      ],
+      "expected": {
+        "rows": [
+          {"type": "line", "name": "cost:a", "position": 1, "discountCents": null, "totalCents": null},
+          {"type": "total", "label": "T", "spanIndex": 0, "state": "incomplete", "totalCents": null}
+        ],
+        "oneOffCents": null, "yearlyCents": null,
+        "errors": [{"code": "cost_total_too_large", "name": "cost:a"}]
+      }
+    },
+    {
+      "name": "a huge product beyond 2^53 is refused, not rounded",
+      "rows": [
+        {"type": "line", "name": "cost:a", "kind": "one_off", "unitCents": 10000000000000, "percentBp": null, "quantity": 100000}
+      ],
+      "expected": {
+        "rows": [
+          {"type": "line", "name": "cost:a", "position": 1, "discountCents": null, "totalCents": null}
+        ],
+        "oneOffCents": null, "yearlyCents": null,
+        "errors": [{"code": "cost_total_too_large", "name": "cost:a"}]
+      }
+    },
+    {
+      "name": "two lines at the limit add up exactly",
+      "rows": [
+        {"type": "line", "name": "cost:a", "kind": "one_off", "unitCents": 10000000000000, "percentBp": null, "quantity": 1},
+        {"type": "line", "name": "cost:b", "kind": "yearly", "unitCents": 10000000000000, "percentBp": null, "quantity": 1}
+      ],
+      "expected": {
+        "rows": [
+          {"type": "line", "name": "cost:a", "position": 1, "discountCents": null, "totalCents": 10000000000000},
+          {"type": "line", "name": "cost:b", "position": 2, "discountCents": null, "totalCents": 10000000000000}
+        ],
+        "oneOffCents": 10000000000000, "yearlyCents": 10000000000000,
+        "errors": []
+      }
+    },
+    {
+      "name": "unit times quantity",
+      "rows": [
+        {"type": "line", "name": "cost:a", "kind": "one_off", "unitCents": 150, "percentBp": null, "quantity": 3},
+        {"type": "line", "name": "cost:b", "kind": "yearly", "unitCents": 75, "percentBp": null, "quantity": 4}
+      ],
+      "expected": {
+        "rows": [
+          {"type": "line", "name": "cost:a", "position": 1, "discountCents": null, "totalCents": 450},
+          {"type": "line", "name": "cost:b", "position": 2, "discountCents": null, "totalCents": 300}
+        ],
+        "oneOffCents": 450, "yearlyCents": 300,
+        "errors": []
+      }
+    },
+    {
+      "name": "a lone yearly line",
+      "rows": [
+        {"type": "line", "name": "cost:y", "kind": "yearly", "unitCents": 70000, "percentBp": null, "quantity": 1},
+        {"type": "total", "label": "T"}
+      ],
+      "expected": {
+        "rows": [
+          {"type": "line", "name": "cost:y", "position": 1, "discountCents": null, "totalCents": 70000},
+          {"type": "total", "label": "T", "spanIndex": 0, "state": "ok", "totalCents": 70000}
+        ],
+        "oneOffCents": 0, "yearlyCents": 70000,
+        "errors": []
+      }
+    },
+    {
+      "name": "a single one-off line with no total row",
+      "rows": [
+        {"type": "line", "name": "cost:a", "kind": "one_off", "unitCents": 250050, "percentBp": null, "quantity": 1}
+      ],
+      "expected": {
+        "rows": [
+          {"type": "line", "name": "cost:a", "position": 1, "discountCents": null, "totalCents": 250050}
+        ],
+        "oneOffCents": 250050, "yearlyCents": 0,
+        "errors": []
+      }
+    }
+  ]
+}

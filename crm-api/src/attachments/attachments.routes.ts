@@ -16,8 +16,9 @@
 import { OpenAPIHono, createRoute, z } from "@hono/zod-openapi";
 import { authorized, canSeeFinancials, managesAllDeals } from "../auth/guards";
 import type { AuthzVariables } from "../auth/authz.middleware";
+import { boundPdfIsolated } from "../entity-profiles/isolatedPdfCheck";
 import { db } from "../lib/db";
-import { IdParams, PersonRefSchema, commonErrors, type HeaderSource } from "../lib/http";
+import { IdParams, PersonRefSchema, commonErrors, type HeaderSource, idText } from "../lib/http";
 import { loadPeople } from "../lib/people";
 import { ProblemError, forbidden, notFound, unprocessable, validationHook } from "../lib/problem";
 import {
@@ -30,7 +31,7 @@ import {
 } from "../lib/storage";
 
 const json = (schema: z.ZodTypeAny) => ({ content: { "application/json": { schema } } });
-const AttachmentParams = z.object({ id: z.string().min(1).max(64), aid: z.string().min(1).max(64) });
+const AttachmentParams = z.object({ id: idText(), aid: idText() });
 
 const CreateAttachmentSchema = z
   .object({
@@ -92,7 +93,16 @@ const confirmRoute = createRoute({
   summary: "Confirm an upload (uploader)",
   middleware: authorized,
   request: { params: AttachmentParams },
-  responses: { 200: { description: "Stored", ...json(AttachmentSchema) }, 404: { description: "Not found" }, 409: { description: "upload_missing" }, ...commonErrors },
+  responses: {
+    200: { description: "Stored", ...json(AttachmentSchema) },
+    404: { description: "Not found" },
+    409: { description: "upload_missing" },
+    ...commonErrors,
+    422: {
+      description: "attachment_unreadable: a PDF whose decoded size cannot be bounded (names the file and a `reason`); the upload is deleted",
+      content: commonErrors[422].content,
+    },
+  },
 });
 
 const listRoute = createRoute({
@@ -176,6 +186,27 @@ attachmentsRouter.openapi(confirmRoute, async (c) => {
     const storage = requireStorage();
     const head = await storage.headObject(row.objectKey);
     if (!head) throw new ProblemError({ status: 409, code: "upload_missing", detail: "The file has not reached storage yet" });
+    // A PDF is measured before any parser meets it (security M-7, ADR 20261115-uploaded-pdf-decoded-size-bound-before-parse):
+    // the offer generation loads it with pdf-lib, which inflates every object and xref stream. A failed read is not a
+    // verdict (it propagates, the row stays pending for a retry); a refusal removes the object and the row.
+    if (row.contentType === "application/pdf") {
+      const bytes = await storage.getObject(row.objectKey, MAX_ATTACHMENT_BYTES);
+      const bound = await boundPdfIsolated(bytes);
+      if (!bound.ok) {
+        console.warn(`[attachments] refused at confirm reason=${bound.reason}`);
+        await db.dealAttachment.update({ where: { id: aid }, data: { deletedAt: new Date(), deletedBy: c.get("userId") } });
+        try {
+          await storage.deleteObject(row.objectKey);
+        } catch (error) {
+          console.error("[attachments] could not delete a refused object:", error instanceof Error ? error.message : error);
+        }
+        throw unprocessable(
+          `The attachment "${row.fileName}" cannot be read as a PDF`,
+          { fileName: row.fileName, reason: bound.reason },
+          "attachment_unreadable",
+        );
+      }
+    }
     // What landed is the truth: the policy capped size and pinned the type, record the real size.
     await db.dealAttachment.update({ where: { id: aid }, data: { status: "stored", sizeBytes: head.sizeBytes } });
   }
