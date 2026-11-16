@@ -1,5 +1,17 @@
 # @operai/refund-ui
 
+## 0.2.1
+
+### Patch Changes
+
+- 0d8b9df: The browser's back and forward buttons show the page of the address in every module,
+  within a module and between modules. Each module now builds its router when it mounts,
+  so coming back from another module no longer shows a page matched from that module's
+  address (a project named "admin", "This page does not exist"). The router also follows
+  the address while the shell hides the module behind its pending fallback, so back from
+  "To start" or from a company shows the list it was opened from, not the page it left.
+- 66ef8fa: The design system `@operai/ui` is compiled once, by the shell, and shared with every remote as a Module Federation singleton: remotes declare it with `import: false` and no longer bundle it (ADR 20261114-operai-ui-shared-singleton-provided-by-the-shell). The rich-text entry is still compiled by crm-ui, meetings-ui and projects-ui.
+
 ## 0.2.0
 
 ### Minor Changes

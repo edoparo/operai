@@ -1,5 +1,13 @@
 # @operai/meetings-ui
 
+## 0.2.1
+
+### Patch Changes
+
+- 0d8b9df: meetings-ui pins `@module-federation/vite` to 1.23.9 like every other federated app, so the suite
+  loads one Module Federation runtime and one React.
+- 66ef8fa: The design system `@operai/ui` is compiled once, by the shell, and shared with every remote as a Module Federation singleton: remotes declare it with `import: false` and no longer bundle it (ADR 20261114-operai-ui-shared-singleton-provided-by-the-shell). The rich-text entry is still compiled by crm-ui, meetings-ui and projects-ui.
+
 ## 0.2.0
 
 ### Minor Changes
