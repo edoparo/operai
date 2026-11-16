@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, spyOn } from "bun:test";
 import * as isolated from "../entity-profiles/isolatedPdfCheck";
 import { deflatedRun, objStmBombPdf } from "../test-support/pdfBuild";
+import { FULL_QUEUE, holdCheckSlots } from "../test-support/pdfSlots";
 import { bucket, call, db, makeCompany, makeDeal, resetWorld } from "../test-support/world";
 
 /**
@@ -9,7 +10,10 @@ import { bucket, call, db, makeCompany, makeDeal, resetWorld } from "../test-sup
  * `attachment_unreadable` naming the file (the shape generation already answers), and the object and the row are gone.
  */
 describe("a PDF attachment is bounded at confirm (security M-7)", () => {
-  beforeEach(resetWorld);
+  beforeEach(async () => {
+    await resetWorld();
+    isolated.resetIsolatedPdfCheckForTests(); // a verdict remembered by an earlier test would answer without a check
+  });
 
   const PDF = new TextEncoder().encode("%PDF-1.4\n%%EOF\n");
   const start = async (dealId: string, body: Record<string, unknown> = {}) =>
@@ -74,6 +78,49 @@ describe("a PDF attachment is bounded at confirm (security M-7)", () => {
     expect(row).toMatchObject({ status: "pending", deletedAt: null });
     land(keyOf(started), PDF);
     expect((await confirm(deal.id, started.attachmentId)).status).toBe(200);
+  });
+
+  it("takes a place for the check BEFORE reading the bytes: busy is a 503 that read nothing, the row stays pending, a retry works (security L-13)", async () => {
+    const deal = await makeDeal((await makeCompany()).id);
+    const started = await start(deal.id);
+    land(keyOf(started), PDF);
+    const release = holdCheckSlots(FULL_QUEUE);
+    try {
+      const res = await confirm(deal.id, started.attachmentId);
+      expect(res.status).toBe(503);
+      expect(res.json).toMatchObject({ code: "pdf_check_busy" });
+      expect(bucket.reads).toEqual([]); // up to 20 MiB per request is not held while the check cannot run
+      expect(await db.dealAttachment.findUniqueOrThrow({ where: { id: started.attachmentId } })).toMatchObject({ status: "pending", deletedAt: null });
+    } finally {
+      release();
+    }
+    expect((await confirm(deal.id, started.attachmentId)).status).toBe(200);
+    expect(bucket.reads).toEqual([keyOf(started)]);
+  });
+
+  it("one user cannot hold the queue: with the user's share taken their confirm is busy, and another user's is not (security L-13)", async () => {
+    const deal = await makeDeal((await makeCompany()).id);
+    const mine = await start(deal.id);
+    land(keyOf(mine), PDF);
+    const { maxConcurrent, maxQueuedPerOwner } = isolated.ISOLATED_PDF_CHECK;
+    const release = holdCheckSlots([...Array.from({ length: maxConcurrent }, () => undefined), ...Array.from({ length: maxQueuedPerOwner }, () => "user-consultant")]);
+    try {
+      const res = await confirm(deal.id, mine.attachmentId);
+      expect(res.status).toBe(503);
+      expect(res.json).toMatchObject({ code: "pdf_check_busy" });
+      expect(bucket.reads).toEqual([]);
+      // somebody else is still let into the queue: it is waiting for a place, which the test gives back
+      const theirs = (await call("POST", `/deals/${deal.id}/attachments`, { as: "admin", body: { fileName: "Other.pdf", contentType: "application/pdf", sizeBytes: 600 } })).json as {
+        attachmentId: string;
+        upload: { fields: Record<string, string> };
+      };
+      land(keyOf(theirs), PDF);
+      const waiting = call("POST", `/deals/${deal.id}/attachments/${theirs.attachmentId}/confirm`, { as: "admin" });
+      release();
+      expect((await waiting).status).toBe(200);
+    } finally {
+      release();
+    }
   });
 
   it("a check killed for time or memory is the refusal `too_complex` (422, the row goes); a child that cannot answer is a 503 and the row stays pending", async () => {

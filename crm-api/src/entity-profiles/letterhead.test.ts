@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, spyOn } from "bun:test";
 import { deflateSync } from "node:zlib";
 import { PDFDocument, PDFName, degrees } from "pdf-lib";
 import { bucket, call, db, memoryStorage, resetWorld } from "../test-support/world";
+import { FULL_QUEUE, holdCheckSlots } from "../test-support/pdfSlots";
 import { checkLetterhead } from "./letterhead";
 
 /** specs/20261102-crm-offer-document US-2: the letterhead upload, validation and download. */
@@ -202,6 +203,23 @@ describe("letterhead routes", () => {
     expect(bucket.reads).toEqual([]);
     expect(bucket.objects.has(foreign)).toBe(true);
     expect(bucket.objects.has(attachment)).toBe(true);
+  });
+
+  it("takes a place for the check BEFORE reading the object: busy is 503 pdf_check_busy, nothing read, the upload kept for a retry (security L-13)", async () => {
+    await withProfile();
+    const key = await upload(await pdf());
+    const release = holdCheckSlots(FULL_QUEUE);
+    try {
+      const res = await confirm(key);
+      expect(res.status).toBe(503);
+      expect(res.json).toMatchObject({ code: "pdf_check_busy" });
+      expect(bucket.reads).toEqual([]); // up to 5 MiB per request is not held while the check cannot run
+      expect(bucket.objects.has(key)).toBe(true);
+      expect(bucket.deleted).toEqual([]);
+    } finally {
+      release();
+    }
+    expect((await confirm(key)).status).toBe(200);
   });
 
   it("answers 409 upload_missing when nothing reached the bucket", async () => {

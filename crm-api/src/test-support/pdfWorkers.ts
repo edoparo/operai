@@ -5,7 +5,9 @@
  * answers with something that is not a verdict, `ok` answers like the real worker.
  */
 
-export {};
+import { armSelfDeadline } from "../entity-profiles/selfDeadline";
+
+armSelfDeadline(Number(process.argv[3])); // like the real worker: a child that loops still ends at its own deadline
 const what = (await Bun.stdin.text()).trim();
 const hold: Uint8Array[] = [];
 if (what === "spin") {
@@ -21,6 +23,10 @@ if (what === "spin") {
   for (;;) process.stdout.write("x".repeat(65_536));
 } else if (what === "crash") {
   process.exit(3);
+} else if (what === "envsize") {
+  // How many environment variables the child holds (security L-12): a bound verdict that carries the count, which the parent passes through.
+  const verdict = { ok: true, decodedBytes: 0, nonImageBytes: 0, objects: 0, streams: 0, imagePixels: 0, envSize: Object.keys(process.env).length };
+  await Bun.write(Bun.stdout, `${JSON.stringify(verdict)}\n`);
 } else if (what === "garbage") {
   await Bun.write(Bun.stdout, "not json\n");
 } else {

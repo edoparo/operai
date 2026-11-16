@@ -5,10 +5,11 @@
  * key; confirm stores a copy of the bytes it checked.
  */
 
-import { beforeEach, describe, expect, it, spyOn } from "bun:test";
+import { beforeEach, describe, expect, it, setSystemTime, spyOn } from "bun:test";
 import { deflateSync } from "node:zlib";
 import { PDFDocument, PDFName } from "pdf-lib";
 import { bucket, call, db, makeDraftTemplate, memoryStorage, offerBody, readyDealWithProfiles, resetWorld } from "../test-support/world";
+import { FULL_QUEUE, holdCheckSlots } from "../test-support/pdfSlots";
 import * as isolated from "./isolatedPdfCheck";
 import { LETTERHEAD_MEMO_LIMIT, resetLetterheadMemoForTests } from "./letterheadUse";
 
@@ -186,6 +187,46 @@ describe("the verdict is remembered per key (DD-76)", () => {
       expect(check).toHaveBeenCalledTimes(1);
     } finally {
       check.mockRestore();
+    }
+    expect(bucket.reads.filter((k) => k === key)).toHaveLength(1);
+  });
+
+  it("a check killed for TIME is remembered for a minute only, not for the life of the process (security L-14)", async () => {
+    await readyDealWithProfiles();
+    const key = await store(await goodPdf());
+    const check = spyOn(isolated, "checkLetterheadIsolated").mockResolvedValueOnce({ ok: false, reason: "too_complex", fromTimeout: true });
+    try {
+      expect((await link()).json).toMatchObject({ code: "letterhead_unusable", reason: "too_complex" });
+      expect((await link()).json).toMatchObject({ code: "letterhead_unusable", reason: "too_complex" });
+      expect(check).toHaveBeenCalledTimes(1); // within the minute the starved host's verdict stands, and nothing is run again
+      setSystemTime(new Date(Date.now() + isolated.ISOLATED_PDF_CHECK.timeoutVerdictTtlMs + 1_000));
+      expect((await link()).status).toBe(200); // after it the file is checked again, and it is fine
+      expect(check).toHaveBeenCalledTimes(2);
+    } finally {
+      check.mockRestore();
+      setSystemTime();
+    }
+    expect(bucket.reads.filter((k) => k === key)).toHaveLength(2);
+  });
+
+  it("a first use takes a place BEFORE the bytes are read (busy: 503, nothing read); a remembered key needs none (security L-13)", async () => {
+    await readyDealWithProfiles();
+    const key = await store(await goodPdf());
+    const release = holdCheckSlots(FULL_QUEUE);
+    try {
+      const res = await link();
+      expect(res.status).toBe(503);
+      expect(res.json).toMatchObject({ code: "pdf_check_busy" });
+      expect(bucket.reads).toEqual([]);
+    } finally {
+      release();
+    }
+    expect((await link()).status).toBe(200); // checked and remembered
+    const again = holdCheckSlots(FULL_QUEUE);
+    try {
+      expect((await link()).status).toBe(200); // a memo hit spawns nothing and takes no place
+    } finally {
+      again();
     }
     expect(bucket.reads.filter((k) => k === key)).toHaveLength(1);
   });

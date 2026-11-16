@@ -43,7 +43,7 @@ import { loadPeople } from "../lib/people";
 import { ProblemError, notFound, unprocessable, validationHook } from "../lib/problem";
 import { MAX_LETTERHEAD_BYTES, requireStorage } from "../lib/storage";
 import { assertInScope } from "../deals/deals.routes";
-import { checkLetterheadIsolated } from "./isolatedPdfCheck";
+import { acquireCheckSlot, checkLetterheadIsolated } from "./isolatedPdfCheck";
 import { assertLetterheadUsable, rememberUsableLetterhead } from "./letterheadUse";
 
 const json = (schema: z.ZodTypeAny) => ({ content: { "application/json": { schema } } });
@@ -282,8 +282,17 @@ entityProfilesRouter.openapi(letterheadConfirmRoute, async (c) => {
     );
   };
   if (head.sizeBytes > MAX_LETTERHEAD_BYTES) return invalid("too_large");
-  const checked = await storage.getObject(key, MAX_LETTERHEAD_BYTES);
-  const verdict = await checkLetterheadIsolated(checked);
+  // The place for the check is taken before the bytes are read (503 `pdf_check_busy` has read nothing, the upload stays for a retry) and
+  // one user holds a bounded share of the queue (security L-13).
+  const slot = await acquireCheckSlot(c.get("userId"));
+  let checked: Uint8Array;
+  let verdict: Awaited<ReturnType<typeof checkLetterheadIsolated>>;
+  try {
+    checked = await storage.getObject(key, MAX_LETTERHEAD_BYTES);
+    verdict = await checkLetterheadIsolated(checked, { slot });
+  } finally {
+    slot.release();
+  }
   if (!verdict.ok) return invalid(verdict.reason);
 
   // Store a copy of exactly the bytes that were checked, under a key nobody holds an upload policy for: the upload key

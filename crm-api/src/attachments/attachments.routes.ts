@@ -16,7 +16,7 @@
 import { OpenAPIHono, createRoute, z } from "@hono/zod-openapi";
 import { authorized, canSeeFinancials, managesAllDeals } from "../auth/guards";
 import type { AuthzVariables } from "../auth/authz.middleware";
-import { boundPdfIsolated } from "../entity-profiles/isolatedPdfCheck";
+import { acquireCheckSlot, boundPdfIsolated } from "../entity-profiles/isolatedPdfCheck";
 import { db } from "../lib/db";
 import { IdParams, PersonRefSchema, commonErrors, pdfCheckErrors, type HeaderSource, idText } from "../lib/http";
 import { loadPeople } from "../lib/people";
@@ -191,8 +191,17 @@ attachmentsRouter.openapi(confirmRoute, async (c) => {
     // the offer generation loads it with pdf-lib, which inflates every object and xref stream. A failed read is not a
     // verdict (it propagates, the row stays pending for a retry); a refusal removes the object and the row.
     if (row.contentType === "application/pdf") {
-      const bytes = await storage.getObject(row.objectKey, MAX_ATTACHMENT_BYTES);
-      const bound = await boundPdfIsolated(bytes);
+      // The place for the check is taken BEFORE the bytes are read: a refusal for busy (503 `pdf_check_busy`, the row stays pending) has
+      // read nothing, so concurrent confirms cannot hold N x 20 MiB while they wait, and one user holds a bounded share of the queue
+      // (security L-13).
+      const slot = await acquireCheckSlot(c.get("userId"));
+      let bound: Awaited<ReturnType<typeof boundPdfIsolated>>;
+      try {
+        const bytes = await storage.getObject(row.objectKey, MAX_ATTACHMENT_BYTES);
+        bound = await boundPdfIsolated(bytes, { slot });
+      } finally {
+        slot.release();
+      }
       if (!bound.ok) {
         console.warn(`[attachments] refused at confirm reason=${bound.reason}`);
         await db.dealAttachment.update({ where: { id: aid }, data: { deletedAt: new Date(), deletedBy: c.get("userId") } });

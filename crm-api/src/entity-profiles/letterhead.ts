@@ -28,6 +28,11 @@ export type LetterheadVerdict =
        * never remembered (security I-11, letterheadUse.ts).
        */
       readonly fromException?: true;
+      /**
+       * The refusal is a kill of the child for TIME (isolatedPdfCheck.ts): a file that loops looks the same as a host that was starved
+       * for 5 s, so the memo keeps it for a minute, not for the life of the process (security L-14). Set by the parent only.
+       */
+      readonly fromTimeout?: true;
     };
 
 export async function checkLetterhead(bytes: Uint8Array): Promise<LetterheadVerdict> {

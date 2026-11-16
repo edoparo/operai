@@ -2,7 +2,8 @@
  * The child process of `isolatedPdfCheck.ts` (security round 10, ADR 20261115-uploaded-pdf-decoded-size-bound-before-parse,
  * amendment of 2026-11-16): reads ONE uploaded PDF from stdin, runs the check named by argv[2], prints one JSON verdict line on
  * stdout and exits. It imports only the pure checks (pdf-lib, node:zlib): no database, no environment, no storage, no secrets, and
- * it is started with an empty environment. A file that makes it loop or allocate is killed by the parent and never answers.
+ * it is started with an empty environment and no dotenv. A file that makes it loop or allocate is killed by the parent and never
+ * answers; if the parent is gone, its own watchdog thread ends it at the deadline the parent gave it.
  *
  *   letterhead  `checkLetterhead` (bounds, pdf-lib load, A4, form graph, embed probe)
  *   bound       `boundPdf` (the decoded-size bound alone: a deal PDF attachment)
@@ -10,8 +11,10 @@
 
 import { checkLetterhead } from "./letterhead";
 import { boundPdf } from "./pdfBounds";
+import { armSelfDeadline } from "./selfDeadline";
 
 const mode = process.argv[2];
+armSelfDeadline(Number(process.argv[3])); // argv[3]: the child's own deadline in ms, from the parent (security L-15)
 const bytes = new Uint8Array(await Bun.stdin.arrayBuffer());
 let verdict: unknown;
 if (mode === "letterhead") verdict = await checkLetterhead(bytes);
