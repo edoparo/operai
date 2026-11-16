@@ -275,7 +275,7 @@ function parseBody<S extends z.ZodTypeAny>(schema: S, value: unknown): z.infer<S
   }
   const parsed = schema.safeParse(value);
   if (parsed.success) return parsed.data;
-  const errors = parsed.error.issues.map((issue) => ({ field: issue.path.join("."), message: issue.message }));
+  const errors = parsed.error.issues.map((issue) => ({ field: issue.path.map(String).join("."), message: issue.message }));
   throw new ProblemError({
     status: 422,
     detail: errors[0] ? `${errors[0].field || "body"}: ${errors[0].message}` : "Invalid request",

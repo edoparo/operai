@@ -31,7 +31,12 @@ const str = (max: number, min = 0) => z.string().min(min).max(max).refine(noNul,
 
 const key = str(200, 1).refine((name) => name !== "__proto__", "Not a name");
 const text = str(TEXT);
-const scalar = z.union([text, z.number().safe()]);
+/**
+ * A finite number inside the safe-integer range, decimals allowed (a quantity of 1.5, a rate). zod 4's `.safe()` is
+ * `.int()` in disguise, so the range is stated outright: same bounds, same OpenAPI `minimum`/`maximum`.
+ */
+const safeNumber = z.number().min(Number.MIN_SAFE_INTEGER).max(Number.MAX_SAFE_INTEGER);
+const scalar = z.union([text, safeNumber]);
 const id = str(64, 1);
 
 /** A template id in a request: bounded, and never a NUL (QE D7). */
@@ -50,11 +55,11 @@ const costKind = z.enum(["one_off", "yearly", "discount", "option"]);
 
 const CostLineAnswerSchema = z
   .object({
-    unitCents: z.number().safe().nullable().optional(),
-    percentBp: z.number().safe().nullable().optional(),
-    quantity: z.number().safe().nullable().optional(),
+    unitCents: safeNumber.nullable().optional(),
+    percentBp: safeNumber.nullable().optional(),
+    quantity: safeNumber.nullable().optional(),
     releases: z
-      .array(z.object({ description: str(500), unitCents: z.number().safe().nullable() }).strict())
+      .array(z.object({ description: str(500), unitCents: safeNumber.nullable() }).strict())
       .max(50)
       .optional(),
   })
@@ -94,9 +99,9 @@ export const AnswersSchema = z
                 id,
                 description: str(500),
                 kind: costKind,
-                unitCents: z.number().safe().nullable(),
-                percentBp: z.number().safe().nullable(),
-                quantity: z.number().safe(),
+                unitCents: safeNumber.nullable(),
+                percentBp: safeNumber.nullable(),
+                quantity: safeNumber,
               })
               .strict(),
           )
@@ -131,10 +136,11 @@ export const PutDraftSchema = z
 
 /** `fields.NAME`, `tables.TAB[0].cells.COL`, `fields["a b"]`: the JSON path the engine's `checkAnswers` reports too. */
 const IDENTIFIER = /^[A-Za-zÀ-ÿ_][A-Za-z0-9À-ÿ_]*$/;
-export function jsonPath(path: readonly (string | number)[]): string {
+export function jsonPath(path: readonly PropertyKey[]): string {
   let out = "";
   for (const part of path) {
     if (typeof part === "number") out += `[${part}]`;
+    else if (typeof part === "symbol") out += `[${JSON.stringify(String(part))}]`;
     else if (IDENTIFIER.test(part)) out += out === "" ? part : `.${part}`;
     else out += `[${JSON.stringify(part)}]`;
   }

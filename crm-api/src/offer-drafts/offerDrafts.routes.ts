@@ -75,7 +75,7 @@ const DraftViewSchema = z.object({
   template: TemplateRefSchema,
   templateVersion: z.number().int(),
   target: TargetSchema,
-  answers: z.record(z.unknown()),
+  answers: z.record(z.string(), z.unknown()),
   version: z.number().int(),
   updatedBy: PersonRefSchema,
   updatedAt: z.string(),
@@ -496,7 +496,7 @@ const switchRoute = createRoute({
 
 /** A refused save is `answers_invalid` with the path under `answers` (a zod issue is turned into the same answer). */
 const putHook = (
-  result: { success: true } | { success: false; error: { issues: readonly { path: (string | number)[]; message: string; code: string; keys?: string[] }[] } },
+  result: { success: true } | { success: false; error: { issues: readonly { path: PropertyKey[]; message: string; code: string; keys?: string[] }[] } },
   c: { req: { path: string } },
 ): Response | undefined => {
   if (result.success) return undefined;
