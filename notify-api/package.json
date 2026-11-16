@@ -19,7 +19,7 @@
     "@scalar/hono-api-reference": "0.12.17",
     "dotenv": "17.4.2",
     "effect": "^3.12.4",
-    "hono": "^4.6.16",
+    "hono": "4.13.16",
     "jose": "6.2.3",
     "resend": "6.17.2",
     "web-push": "3.6.7",
@@ -34,5 +34,8 @@
   "trustedDependencies": [
     "@prisma/engines",
     "prisma"
-  ]
+  ],
+  "overrides": {
+    "@hono/node-server": "2.1.6"
+  }
 }
