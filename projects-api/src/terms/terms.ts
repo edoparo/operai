@@ -33,13 +33,13 @@ export type Terms =
   | { readonly type: "t_and_m"; readonly positions: readonly { profile: string; plannedManDays: number }[] };
 
 interface IssueLike {
-  readonly path: readonly (string | number)[];
+  readonly path: readonly PropertyKey[];
   readonly message: string;
 }
 
 /** The 400 of `validationHook` (src/lib/problem.ts), for a failure found after the body was parsed. */
 export function validationFailed(issues: readonly IssueLike[], prefix: readonly string[] = []): ProblemError {
-  const errors = issues.map((issue) => ({ field: [...prefix, ...issue.path].join("."), message: issue.message }));
+  const errors = issues.map((issue) => ({ field: [...prefix, ...issue.path.map(String)].join("."), message: issue.message }));
   return new ProblemError({
     status: 400,
     code: "validation_failed",

@@ -6,7 +6,7 @@
  * service and crm-api are the fakes of test-support/world.ts.
  */
 import { beforeEach, describe, expect, it, spyOn } from "bun:test";
-import { appAccess, call, crm, db, identities, makeContact, makeDeal, resetWorld, seedDealProject, type FakeContact, type PersonaName } from "../test-support/world";
+import { app, appAccess, bearerFor, call, crm, db, identities, makeContact, makeDeal, resetWorld, seedDealProject, type FakeContact, type PersonaName } from "../test-support/world";
 import type { Prisma } from "../lib/generated/prisma/client";
 import { resetNotifierForTests, setNotifierForTests, type NotifyEvent } from "../lib/notify";
 import { PROJECT_TYPES } from "./projects.schemas";
@@ -55,6 +55,24 @@ const seedTerms = (projectId: string, over: Partial<Prisma.ProjectTermsUnchecked
       ...over,
     },
   });
+
+describe("POST /projects — body media type", () => {
+  // @hono/zod-openapi 1.x refuses a declared JSON body that arrives with another Content-Type (or none)
+  // before validating it; with zod 3 / 0.x it was a 400 `validation_failed`. Still a Problem document.
+  it.each([["text/plain"], [undefined]])("415 Problem JSON for a JSON body sent with Content-Type %p, nothing created", async (contentType) => {
+    const res = await app.request("/projects", {
+      method: "POST",
+      headers: { Authorization: await bearerFor("admin"), ...(contentType ? { "Content-Type": contentType } : {}) },
+      body: JSON.stringify({ name: "Nope", type: "internal", entity: "welld_ch" }),
+    });
+    expect(res.status).toBe(415);
+    const body = (await res.json()) as { status: number; title: string; instance: string };
+    expect(body.status).toBe(415);
+    expect(body.title).toBe("Unsupported Media Type");
+    expect(body.instance).toBe("/projects");
+    expect(await db.project.count({ where: { name: "Nope" } })).toBe(0);
+  });
+});
 
 describe("POST /projects", () => {
   it("creates a client project: planned, 201 with the Project shape, an ETag and the company's live name (AC-1.1)", async () => {

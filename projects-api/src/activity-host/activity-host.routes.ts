@@ -41,7 +41,7 @@ const ResolveBodySchema = z
     ids: z.array(IdSchema).max(MAX_RESOLVE_IDS),
     // The CRM's contacts and deals: accepted so a caller that sends it everywhere is not refused,
     // never read, never answered.
-    related: z.record(z.array(IdSchema).max(100)).optional(),
+    related: z.record(z.string(), z.array(IdSchema).max(100)).optional(),
   })
   .strict();
 

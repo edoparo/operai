@@ -86,7 +86,7 @@ const result = envSchema.safeParse(process.env);
 
 if (!result.success) {
   console.error("❌ Invalid environment variables — fix before starting:");
-  for (const [key, messages] of Object.entries(result.error.flatten().fieldErrors)) {
+  for (const [key, messages] of Object.entries(z.flattenError(result.error).fieldErrors)) {
     // Messages only — never echo a value (secrets live in this environment).
     console.error(`  ${key}: ${messages?.join(", ")}`);
   }

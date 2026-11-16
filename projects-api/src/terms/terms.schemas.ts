@@ -78,7 +78,7 @@ const termsDescription =
   "{ positions: [{ profile, plannedManDays }] } (at least one). Validated against the project's type.";
 
 /** An open object: the type-specific members are known only once the project's type is. */
-export const TermsInput = z.record(z.unknown()).openapi({ description: termsDescription });
+export const TermsInput = z.record(z.string(), z.unknown()).openapi({ description: termsDescription });
 
 const startsBeforeEnd = (body: { startDate?: string | undefined; endDate?: string | null | undefined }, ctx: z.RefinementCtx) => {
   if (body.startDate !== undefined && body.endDate != null && body.endDate < body.startDate) {
