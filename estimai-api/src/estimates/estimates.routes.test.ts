@@ -30,6 +30,7 @@
 
 import { describe, it, expect, beforeAll, afterAll, afterEach, mock } from "bun:test";
 import { Hono } from "hono";
+import { expectZodIssuesBody } from "@/lib/zodIssuesBody.fixture";
 import {
   generateKeyPair,
   exportJWK,
@@ -1811,6 +1812,47 @@ describe("T6 / AC-4.2 — unauthenticated import requests are rejected", () => {
 // The 400 is returned by @hono/zod-openapi validation before the handler runs.
 
 describe("T6 — malformed envelope → 400 Problem JSON", () => {
+  it("400 body keeps the { success: false, error: { issues, name } } shape (src/lib/zodHook.ts)", async () => {
+    const app = buildApp();
+    const jwt = await tokenA();
+
+    const res = await app.request("/estimates/import", {
+      method: "POST",
+      headers: bearerHeader(jwt),
+      body: JSON.stringify({ wrong_field: [] }),
+    });
+
+    await expectZodIssuesBody(res, ["estimates"]);
+  });
+
+  it("POST /estimates, PUT and the list query keep the same 400 body shape", async () => {
+    const app = buildApp();
+    const jwt = await tokenA();
+
+    const created = await app.request("/estimates", {
+      method: "POST",
+      headers: bearerHeader(jwt),
+      body: JSON.stringify({ name: "", content: { params: {}, releases: [], acts: [] } }),
+    });
+    await expectZodIssuesBody(created, ["name"]);
+
+    const listed = await app.request("/estimates?whose=bogus", { headers: bearerHeader(jwt) });
+    await expectZodIssuesBody(listed, ["whose"]);
+  });
+
+  it("415: a JSON body sent with another Content-Type is refused before validation", async () => {
+    const app = buildApp();
+    const jwt = await tokenA();
+
+    const res = await app.request("/estimates", {
+      method: "POST",
+      headers: { Authorization: `Bearer ${jwt}`, "Content-Type": "text/plain" },
+      body: JSON.stringify({ name: "n", content: { params: {}, releases: [], acts: [] } }),
+    });
+
+    expect(res.status).toBe(415);
+  });
+
   it("missing 'estimates' field → 400", async () => {
     const app = buildApp();
     const jwt = await tokenA();

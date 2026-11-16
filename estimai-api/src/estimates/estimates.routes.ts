@@ -71,6 +71,7 @@ import {
   SizeError,
 } from "@/lib/errors";
 import { env } from "@/lib/env";
+import { zodIssuesHook } from "@/lib/zodHook";
 import { resolveIdentities, type Identity as ResolvedIdentity } from "@/lib/authClient";
 import { holdsReadAll, isOversightReadOnly, OversightUnavailableError } from "./oversight";
 import {
@@ -193,7 +194,7 @@ const IMPORT_BODY_SIZE_LIMIT = (() => {
 
 export const estimatesRouter = new OpenAPIHono<{
   Variables: JwtVariables;
-}>();
+}>({ defaultHook: zodIssuesHook });
 
 estimatesRouter.use(
   "*",
@@ -220,7 +221,7 @@ estimatesRouter.use("*", jwtMiddleware);
 
 export const importEstimatesRouter = new OpenAPIHono<{
   Variables: JwtVariables;
-}>();
+}>({ defaultHook: zodIssuesHook });
 
 importEstimatesRouter.use(
   "*",
