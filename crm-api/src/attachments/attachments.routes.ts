@@ -18,7 +18,7 @@ import { authorized, canSeeFinancials, managesAllDeals } from "../auth/guards";
 import type { AuthzVariables } from "../auth/authz.middleware";
 import { boundPdfIsolated } from "../entity-profiles/isolatedPdfCheck";
 import { db } from "../lib/db";
-import { IdParams, PersonRefSchema, commonErrors, type HeaderSource, idText } from "../lib/http";
+import { IdParams, PersonRefSchema, commonErrors, pdfCheckErrors, type HeaderSource, idText } from "../lib/http";
 import { loadPeople } from "../lib/people";
 import { ProblemError, forbidden, notFound, unprocessable, validationHook } from "../lib/problem";
 import {
@@ -98,6 +98,7 @@ const confirmRoute = createRoute({
     404: { description: "Not found" },
     409: { description: "upload_missing" },
     ...commonErrors,
+    ...pdfCheckErrors,
     422: {
       description: "attachment_unreadable: a PDF whose decoded size cannot be bounded (names the file and a `reason`); the upload is deleted",
       content: commonErrors[422].content,

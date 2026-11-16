@@ -33,6 +33,7 @@ import {
   NO_NUL_TEXT,
   PersonRefSchema,
   commonErrors,
+  pdfCheckErrors,
   hasNoNul,
   optionalText,
   requiredText,
@@ -131,6 +132,7 @@ const letterheadConfirmRoute = createRoute({
   },
   responses: {
     ...commonErrors,
+    ...pdfCheckErrors,
     200: { description: "The profile, with the new letterhead", ...json(ProfileSchema) },
     403: { description: "out_of_scope" },
     409: { description: "entity_profile_missing / upload_missing" },
@@ -152,6 +154,7 @@ const letterheadDownloadRoute = createRoute({
   request: { params: EntityParams },
   responses: {
     ...commonErrors,
+    ...pdfCheckErrors,
     200: { description: "Presigned URL", ...json(z.object({ url: z.string() })) },
     404: { description: "No letterhead" },
     409: {

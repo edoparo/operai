@@ -25,6 +25,11 @@ const en = {
   unknownError: 'Something went wrong. Try again.',
   loadErrorTitle: 'Could not load',
   saveError: 'The changes could not be saved. Your input is kept; try again.',
+  /** 503 `pdf_check_busy` / `pdf_check_unavailable`: crm-api's check of an uploaded PDF could not run; nothing was changed. */
+  pdfCheck: {
+    pdf_check_busy: 'The check of uploaded PDFs is busy. Try again in a moment.',
+    pdf_check_unavailable: 'The PDF could not be checked right now. Try again.',
+  },
   authUnavailable: {
     heading: 'Authorization service unavailable',
     body: 'We cannot verify your access right now. Nothing was changed.',
@@ -86,6 +91,10 @@ const it: typeof en = {
   unknownError: 'Qualcosa è andato storto. Riprova.',
   loadErrorTitle: 'Caricamento non riuscito',
   saveError: 'Non è stato possibile salvare le modifiche. I dati inseriti restano; riprova.',
+  pdfCheck: {
+    pdf_check_busy: 'Il controllo dei PDF caricati è occupato. Riprova tra un momento.',
+    pdf_check_unavailable: 'Non è stato possibile controllare il PDF in questo momento. Riprova.',
+  },
   authUnavailable: {
     heading: 'Servizio di autorizzazione non disponibile',
     body: 'Al momento non possiamo verificare i tuoi accessi. Non è stato modificato nulla.',

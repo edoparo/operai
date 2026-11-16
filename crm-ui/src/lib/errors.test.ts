@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { ApiError } from './api'
-import { errorMessage, fieldErrorOf, isNulRefusal, nulRefusedFieldOf } from './errors'
-import { strings } from '../strings'
+import { errorMessage, fieldErrorOf, isNulRefusal, nulRefusedFieldOf, pdfCheckUnavailableOf } from './errors'
+import { en, it as italian, strings } from '../strings'
 
 /** crm-api's answer for a NUL in free text (crm-api/src/lib/nulText.test.ts): a 422 naming the field, never the value. */
 const nulRefusal = (field: string, message = 'Not text: contains a NUL character') =>
@@ -44,5 +44,38 @@ describe('a server 422 for a character that cannot be saved', () => {
     const other = nulRefusal('name', 'Required')
     expect(fieldErrorOf(other)?.message).toBe('name: Required')
     expect(errorMessage(other)).toBe('name: Required')
+  })
+})
+
+// 503 `pdf_check_busy` / `pdf_check_unavailable`: the check of an uploaded PDF could not run (crm-api isolatedPdfCheck.ts)
+const pdfCheck = (code: string, status = 503) =>
+  new ApiError({ status, title: 'Service Unavailable', code, detail: 'Too many files are being checked right now.' })
+
+describe('a 503 from the isolated PDF check', () => {
+  it('is recognised by status and code together, and by nothing else', () => {
+    expect(pdfCheckUnavailableOf(pdfCheck('pdf_check_busy'))).toBe('pdf_check_busy')
+    expect(pdfCheckUnavailableOf(pdfCheck('pdf_check_unavailable'))).toBe('pdf_check_unavailable')
+    expect(pdfCheckUnavailableOf(pdfCheck('pdf_check_busy', 500))).toBeNull()
+    expect(pdfCheckUnavailableOf(pdfCheck('storage_unconfigured'))).toBeNull()
+    expect(pdfCheckUnavailableOf(new ApiError({ status: 503, title: 'x' }))).toBeNull()
+    expect(pdfCheckUnavailableOf(new Error('pdf_check_busy'))).toBeNull()
+  })
+
+  it('reads as our own sentence, never the server English detail', () => {
+    expect(errorMessage(pdfCheck('pdf_check_busy'))).toBe('The check of uploaded PDFs is busy. Try again in a moment.')
+    expect(errorMessage(pdfCheck('pdf_check_unavailable'))).toBe('The PDF could not be checked right now. Try again.')
+  })
+
+  it('has Italian copy that is a translation of each', () => {
+    for (const code of ['pdf_check_busy', 'pdf_check_unavailable'] as const) {
+      expect(italian.common.pdfCheck[code]).not.toBe(en.common.pdfCheck[code])
+      expect(italian.common.pdfCheck[code]).toMatch(/Riprova/)
+    }
+  })
+
+  it('leaves a bare 503 (the authorization outage) with its own wording', () => {
+    expect(errorMessage(new ApiError({ status: 503, title: 'x', detail: 'Authorization service unavailable' }))).toBe(
+      'Authorization service unavailable',
+    )
   })
 })

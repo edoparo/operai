@@ -38,6 +38,7 @@ import {
   PersonRefSchema,
   assertVersion,
   commonErrors,
+  pdfCheckErrors,
   etag,
   requireIfMatch,
   versionConflict,
@@ -192,6 +193,7 @@ const generateRoute = createRoute({
   request: { params: IdParams, body: { content: { "application/json": { schema: GenerateOfferSchema } }, required: true } },
   responses: {
     ...commonErrors,
+    ...pdfCheckErrors,
     201: { description: "Generated", ...json(OfferSchema) },
     404: { description: "Not found" },
     409: {
@@ -251,6 +253,7 @@ const editRoute = createRoute({
   request: { params: OfferParams, body: { content: { "application/json": { schema: GenerateOfferSchema } }, required: true } },
   responses: {
     ...commonErrors,
+    ...pdfCheckErrors,
     200: { description: "Edited", ...json(OfferSchema) },
     404: { description: "Not found" },
     409: { description: "offer_sent / offer_not_latest / offer_legacy / offer_wizard / version_conflict / template_archived" },

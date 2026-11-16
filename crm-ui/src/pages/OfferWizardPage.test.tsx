@@ -602,6 +602,33 @@ describe('OfferWizardPage — generating (AC-3.5, S10)', () => {
     expect(screen.getAllByRole('button', { name: t.bar.generate })[0]!.getAttribute('aria-disabled')).toBeNull()
   })
 
+  it.each([
+    [
+      'pdf_check_busy',
+      strings.common.pdfCheck.pdf_check_busy,
+      'The check of uploaded PDFs is busy. Try again in a moment.',
+    ],
+    [
+      'pdf_check_unavailable',
+      strings.common.pdfCheck.pdf_check_unavailable,
+      'The PDF could not be checked right now. Try again.',
+    ],
+  ])(
+    'a 503 %s says the check could not run in our own words, never the server detail, and Retry generates again',
+    async (code, copy, english) => {
+      await mount({ draft: draftView({ answers: COMPLETE }) })
+      const generate = await toPreview()
+      server.failNext('POST generate', problemAnswer(503, code))
+      fireEvent.click(generate)
+      const banner = await screen.findByTestId('crm-offer-wizard-failure')
+      expect(copy).toBe(english)
+      expect(banner.textContent).toContain(copy)
+      expect(banner.textContent).not.toContain(`detail of ${code}`)
+      fireEvent.click(within(banner).getByRole('button', { name: t.generate.fail.retryAction }))
+      expect(await screen.findByRole('heading', { level: 2, name: 'Platform rebuild' })).not.toBeNull()
+    },
+  )
+
   it('a network failure says nothing was created and retries on request', async () => {
     await mount({ draft: draftView({ answers: COMPLETE }) })
     const generate = await toPreview()

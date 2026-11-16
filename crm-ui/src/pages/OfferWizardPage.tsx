@@ -24,7 +24,7 @@ import { useOfferDraft, type TemplateChangedNotice, type UseOfferDraft } from '.
 import { useResource } from '../hooks/useResource'
 import { ApiError } from '../lib/api'
 import { getDeal, getWizardContext } from '../lib/crmApi'
-import { codeOf, statusOf } from '../lib/errors'
+import { codeOf, errorMessage, pdfCheckUnavailableOf, statusOf } from '../lib/errors'
 import type { WizardAnswers, WizardContext } from '../lib/offerEngine/answers'
 import type { Issue } from '../lib/offerEngine/resolve'
 import { draftExistsOf, invalidAnswersLine, letterheadUnusableOf, offerFailure } from '../lib/offerErrors'
@@ -89,6 +89,7 @@ type Failure =
   | { kind: 'estimate' }
   | { kind: 'offerChanged' }
   | { kind: 'letterheadUnusable' }
+  | { kind: 'pdfCheck'; message: string }
   | { kind: 'retry' }
 
 const ATTACHMENT_CODES = ['attachment_invalid', 'attachment_not_pdf', 'attachment_unreadable', 'attachments_too_large']
@@ -103,6 +104,8 @@ function failureOf(error: unknown): Failure | 'handled' {
   if (code === 'template_archived') return { kind: 'archived' }
   if (code === 'estimate_not_ready') return { kind: 'estimate' }
   if (letterheadUnusableOf(error)) return { kind: 'letterheadUnusable' }
+  // the check of a chosen PDF or of the letterhead could not run (503): nothing was created, and it says why
+  if (pdfCheckUnavailableOf(error)) return { kind: 'pdfCheck', message: errorMessage(error) }
   if (['offer_not_sent', 'offer_sent', 'offer_not_latest', 'offer_changed'].includes(code ?? ''))
     return { kind: 'offerChanged' }
   return { kind: 'retry' }
@@ -535,6 +538,8 @@ function Workspace({ deal, titleId }: { deal: Deal; titleId: string }) {
       case 'letterheadUnusable':
         // the fix is in CRM Settings, outside the wizard: no action (D-41); Generate stays available to try again
         return { text: unusableLine }
+      case 'pdfCheck':
+        return { text: failure.message, actions: action(fail.retryAction, () => void generate()), tone: 'warning' as const }
       case 'retry':
         return { text: fail.retry, actions: action(fail.retryAction, () => void generate()), tone: 'warning' as const }
     }

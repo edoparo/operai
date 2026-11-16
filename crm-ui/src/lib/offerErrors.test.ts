@@ -114,3 +114,13 @@ label: Quantity
     expect(invalidAnswersLine({ path: 'fields.OGGETTO', nul: false }, ast)).toBe(strings.offers.errors.answersInvalid)
   })
 })
+
+describe('offerFailure — the PDF check could not run (503)', () => {
+  it.each([
+    ['pdf_check_busy', strings.common.pdfCheck.pdf_check_busy],
+    ['pdf_check_unavailable', strings.common.pdfCheck.pdf_check_unavailable],
+  ])('%s reads as our own sentence, for generate, edit and revise alike', (code, copy) => {
+    const error = new ApiError({ status: 503, title: 'Unavailable', code, detail: 'The file could not be checked.' })
+    expect(offerFailure(error)).toBe(copy)
+  })
+})

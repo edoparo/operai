@@ -14,6 +14,20 @@ export function activitiesUnavailableOf(error: unknown): ActivitiesUnavailable |
 }
 
 /**
+ * The Problem `code`s with which crm-api says the check of an uploaded PDF could not run (503; ADR
+ * 20261115-uploaded-pdf-decoded-size-bound-before-parse, isolation amendment): `pdf_check_busy` (every check taken, the
+ * queue full) and `pdf_check_unavailable` (the check's process did not start or died). Neither is a verdict about the
+ * file; nothing was changed and a retry is right.
+ */
+export type PdfCheckUnavailable = 'pdf_check_busy' | 'pdf_check_unavailable'
+
+/** Which PDF-check outage a failure is, or null. It reads status and code together: a bare 503 is the authorization outage. */
+export function pdfCheckUnavailableOf(error: unknown): PdfCheckUnavailable | null {
+  if (!(error instanceof ApiError) || error.status !== 503) return null
+  return error.code === 'pdf_check_busy' || error.code === 'pdf_check_unavailable' ? error.code : null
+}
+
+/**
  * crm-api refuses a NUL (U+0000) in free text with a 422 that names the field and carries no code of its own
  * (crm-api/src/lib/http.ts `NO_NUL_TEXT`; the template route says "Must not contain a NUL character"). The wording of
  * the server's message is therefore the only discriminator, and it is matched here and nowhere else. The body never
@@ -44,10 +58,14 @@ export function nulRefusedFieldOf(error: unknown): string | null {
 /**
  * The message to show for a failed request: the Problem `detail`, else a generic line. A refused character is the one
  * server message always rewritten as copy of our own: the server's line is English and carries an internal field key.
+ * The two PDF-check 503s are worded here too, so every placement that shows `errorMessage` (or `offerFailure`, which
+ * falls back to it) says them in the person's language and never shows the server's English `detail`.
  */
 export function errorMessage(error: unknown): string {
   const unavailable = activitiesUnavailableOf(error)
   if (unavailable) return strings.activities.unavailable[unavailable].save
+  const pdfCheck = pdfCheckUnavailableOf(error)
+  if (pdfCheck) return strings.common.pdfCheck[pdfCheck]
   if (isNulRefusal(error)) return strings.common.validation.noNul
   if (error instanceof ApiError) return error.detail ?? strings.common.unknownError
   return strings.common.networkError

@@ -296,18 +296,22 @@ describe('Estimate card (US-3)', () => {
       cleanup()
 
       let posted: Record<string, unknown> | null = null
-      await renderDeal(dealFixture(), { deal: ['welld_ch', 'welld_it'], financials: true, managesAll: true }, {
-        'POST /deals/d1/estimate/override': (_url, init) => {
-          posted = body(init)
-          return {
-            status: 200,
-            body: dealFixture({
-              estimateOverridden: true,
-              estimateOverride: { by: ADA, reason: 'Framework contract', at: '2026-11-01T09:00:00.000Z' },
-            }),
-          }
+      await renderDeal(
+        dealFixture(),
+        { deal: ['welld_ch', 'welld_it'], financials: true, managesAll: true },
+        {
+          'POST /deals/d1/estimate/override': (_url, init) => {
+            posted = body(init)
+            return {
+              status: 200,
+              body: dealFixture({
+                estimateOverridden: true,
+                estimateOverride: { by: ADA, reason: 'Framework contract', at: '2026-11-01T09:00:00.000Z' },
+              }),
+            }
+          },
         },
-      })
+      )
       const overrideButton = screen.getByTestId('crm-estimate-override-open')
       expect(overrideButton.textContent).toBe('Proceed without estimate')
       const tooltip = document.getElementById(overrideButton.getAttribute('aria-describedby') ?? '')
@@ -447,7 +451,12 @@ describe('where the lead came from (specs/20261101-crm US-7)', () => {
         asked = url.searchParams.get('source')
         return {
           status: 200,
-          body: { items: [{ value: 'Swiss Digital Day 2026', count: 3 }, { value: 'Café Tech', count: 1 }] },
+          body: {
+            items: [
+              { value: 'Swiss Digital Day 2026', count: 3 },
+              { value: 'Café Tech', count: 1 },
+            ],
+          },
         }
       },
       'PATCH /deals/d1': (_url, init) => {
@@ -464,7 +473,11 @@ describe('where the lead came from (specs/20261101-crm US-7)', () => {
     // case and accents do not matter
     fireEvent.change(input, { target: { value: 'cafe' } })
     const listbox = await within(dialog).findByRole('listbox')
-    expect(within(listbox).getAllByRole('option').map((option) => option.textContent)).toEqual(['Café Tech'])
+    expect(
+      within(listbox)
+        .getAllByRole('option')
+        .map((option) => option.textContent),
+    ).toEqual(['Café Tech'])
     fireEvent.click(within(listbox).getByRole('option'))
     expect((input as HTMLInputElement).value).toBe('Café Tech')
     // the chosen value is complete: no popup left behind
@@ -488,7 +501,9 @@ describe('new deal stages (AC-3.4)', () => {
     render(<RouterProvider router={createAppRouter(undefined, CrmShell)} />)
     fireEvent.click(await screen.findByTestId('crm-pipeline-new'))
     const dialog = await screen.findByRole('dialog', { name: 'New deal' })
-    const options = Array.from(within(dialog).getByLabelText('Stage').querySelectorAll('option')).map((o) => o.textContent)
+    const options = Array.from(within(dialog).getByLabelText('Stage').querySelectorAll('option')).map(
+      (o) => o.textContent,
+    )
     expect(options).toEqual(['Lead', 'Qualified'])
   })
 })
@@ -581,8 +596,21 @@ describe('Offers card (US-4)', () => {
     archived: false,
     updatedAt: '2026-10-01T10:00:00.000Z',
   }
-  const PDF = { id: 'a1', fileName: 'scope.pdf', contentType: 'application/pdf', sizeBytes: 2048, canDownload: true, uploadedBy: ADA, createdAt: '2026-10-02T10:00:00.000Z' }
-  const DOCX = { ...PDF, id: 'a2', fileName: 'notes.docx', contentType: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' }
+  const PDF = {
+    id: 'a1',
+    fileName: 'scope.pdf',
+    contentType: 'application/pdf',
+    sizeBytes: 2048,
+    canDownload: true,
+    uploadedBy: ADA,
+    createdAt: '2026-10-02T10:00:00.000Z',
+  }
+  const DOCX = {
+    ...PDF,
+    id: 'a2',
+    fileName: 'notes.docx',
+    contentType: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+  }
 
   const openDialog = async (extra: Record<string, FakeHandler> = {}, stage = 'qualified') => {
     await renderDeal(dealFixture({ stage, estimate: readyEstimate, estimateState: 'ready' }), MANAGER, {
@@ -592,7 +620,7 @@ describe('Offers card (US-4)', () => {
       'GET /deals/d1/offers/draft': () => ({ status: 200, body: draftFor() }),
       ...extra,
     })
-    fireEvent.click((await screen.findByTestId('crm-offer-generate')))
+    fireEvent.click(await screen.findByTestId('crm-offer-generate'))
     const dialog = await screen.findByRole('dialog', { name: 'Generate an offer' })
     await within(dialog).findByRole('option', { name: 'Standard EN (English)' })
     return dialog
@@ -629,11 +657,13 @@ describe('Offers card (US-4)', () => {
         listed = url.search
         return {
           status: 200,
-          body: { items: [TEMPLATE_IT, { ...TEMPLATE_EN, archived: true }, { ...TEMPLATE_EN, id: 't-en2', name: 'AAA EN' }] },
+          body: {
+            items: [TEMPLATE_IT, { ...TEMPLATE_EN, archived: true }, { ...TEMPLATE_EN, id: 't-en2', name: 'AAA EN' }],
+          },
         }
       },
     })
-    fireEvent.click((await screen.findByTestId('crm-offer-generate')))
+    fireEvent.click(await screen.findByTestId('crm-offer-generate'))
     const dialog = await screen.findByRole('dialog', { name: 'Generate an offer' })
     await within(dialog).findByRole('option', { name: 'AAA EN (English)' })
     expect(listed).toContain('entity=welld_ch')
@@ -673,7 +703,12 @@ describe('Offers card (US-4)', () => {
     const dialog = await openDialog({
       'GET /deals/d1/offers/draft': (url) => {
         queries.push(url.search)
-        return { status: 200, body: draftFor(url.searchParams.get('templateId') === 't-it' ? { templateId: 't-it', salutation: 'Gentile Cliente,' } : {}) }
+        return {
+          status: 200,
+          body: draftFor(
+            url.searchParams.get('templateId') === 't-it' ? { templateId: 't-it', salutation: 'Gentile Cliente,' } : {},
+          ),
+        }
       },
     })
     await pickTemplate(dialog)
@@ -688,7 +723,9 @@ describe('Offers card (US-4)', () => {
     // Now confirm.
     fireEvent.change(within(dialog).getByLabelText('Template'), { target: { value: 't-it' } })
     fireEvent.click(within(await screen.findByRole('alertdialog')).getByTestId('crm-offer-replace-confirm'))
-    await waitFor(() => expect((within(dialog).getByLabelText(/^Salutation/) as HTMLInputElement).value).toBe('Gentile Cliente,'))
+    await waitFor(() =>
+      expect((within(dialog).getByLabelText(/^Salutation/) as HTMLInputElement).value).toBe('Gentile Cliente,'),
+    )
     expect(queries).toEqual(['?templateId=t-en&aiAssisted=false', '?templateId=t-it&aiAssisted=false'])
   })
 
@@ -776,7 +813,9 @@ describe('Offers card (US-4)', () => {
     fireEvent.change(within(dialog).getByLabelText('Amount (CHF) (3)'), { target: { value: '250' } })
     expect((await within(dialog).findByTestId('crm-offer-discounts-exceed')).textContent).toContain('discounts exceed')
     fireEvent.click(within(dialog).getByTestId('crm-offer-dialog-submit'))
-    expect((await within(dialog).findByTestId('crm-offer-dialog-error')).textContent).toContain('Some fields need attention')
+    expect((await within(dialog).findByTestId('crm-offer-dialog-error')).textContent).toContain(
+      'Some fields need attention',
+    )
     expect(posted).toBe(false)
   })
 
@@ -821,12 +860,20 @@ describe('Offers card (US-4)', () => {
     const dialog = await openDialog({
       'POST /deals/d1/offers': () => ({
         status: 422,
-        body: { status: 422, title: 'Unprocessable', code: 'attachment_unreadable', fileName: 'scope.pdf', detail: 'x' },
+        body: {
+          status: 422,
+          title: 'Unprocessable',
+          code: 'attachment_unreadable',
+          fileName: 'scope.pdf',
+          detail: 'x',
+        },
       }),
     })
     await pickTemplate(dialog)
     fireEvent.click(within(dialog).getByTestId('crm-offer-dialog-submit'))
-    expect((await within(dialog).findByTestId('crm-offer-dialog-error')).textContent).toContain('scope.pdf cannot be read')
+    expect((await within(dialog).findByTestId('crm-offer-dialog-error')).textContent).toContain(
+      'scope.pdf cannot be read',
+    )
   })
 
   it('maps entity_profile_missing to a readable error and keeps the dialog', async () => {
@@ -850,14 +897,38 @@ describe('Offers card (US-4)', () => {
     })
     await pickTemplate(dialog)
     fireEvent.click(within(dialog).getByTestId('crm-offer-dialog-submit'))
-    expect((await within(dialog).findByTestId('crm-offer-dialog-error')).textContent).toContain('File storage is not set up')
+    expect((await within(dialog).findByTestId('crm-offer-dialog-error')).textContent).toContain(
+      'File storage is not set up',
+    )
+  })
+
+  it.each([
+    ['pdf_check_busy', 'The check of uploaded PDFs is busy. Try again in a moment.'],
+    ['pdf_check_unavailable', 'The PDF could not be checked right now. Try again.'],
+  ])('says a 503 %s in our own words, never the server detail, and keeps the dialog', async (code, line) => {
+    const dialog = await openDialog({
+      'POST /deals/d1/offers': () => ({
+        status: 503,
+        body: { status: 503, title: 'Unavailable', code, detail: 'Too many files are being checked right now.' },
+      }),
+    })
+    await pickTemplate(dialog)
+    fireEvent.click(within(dialog).getByTestId('crm-offer-dialog-submit'))
+    const error = await within(dialog).findByTestId('crm-offer-dialog-error')
+    expect(error.textContent).toContain(line)
+    expect(error.textContent).not.toContain('Too many files')
   })
 
   it('the list shows the yearly figure and the template name', async () => {
     await renderDeal(dealFixture({ stage: 'proposal', estimate: readyEstimate, estimateState: 'ready' }), MANAGER, {
       'GET /deals/d1/offers': () => ({
         status: 200,
-        body: { items: [{ ...OFFER, yearlyCents: 120_000, templateName: 'Standard EN' }, { ...OFFER, id: 'o1', number: 1, yearlyCents: 0 }] },
+        body: {
+          items: [
+            { ...OFFER, yearlyCents: 120_000, templateName: 'Standard EN' },
+            { ...OFFER, id: 'o1', number: 1, yearlyCents: 0 },
+          ],
+        },
       }),
     })
     await screen.findByTestId('crm-offers-table')
@@ -902,13 +973,16 @@ describe('Offers card (US-4)', () => {
       'GET /deals/d1/attachments': () => ({ status: 200, body: { items: [PDF, DOCX] } }),
       'GET /deals/d1/offers/o2/form': (url) => {
         formAsked = url.pathname
-        return { status: 200, body: { ...draftFor({ opening: 'As sent.' }), contactIds: [], attachmentIds: [], version: 4, sent: true } }
+        return {
+          status: 200,
+          body: { ...draftFor({ opening: 'As sent.' }), contactIds: [], attachmentIds: [], version: 4, sent: true },
+        }
       },
     })
     expect((await screen.findByTestId('crm-offer-sent-badge-o2')).textContent).toBe('Sent 03.11.2026')
     expect(screen.queryByTestId('crm-offer-edit-o2')).toBeNull()
     expect(screen.queryByTestId('crm-offer-sent-o2')).toBeNull()
-    const revise = (await screen.findByTestId('crm-offer-generate'))
+    const revise = await screen.findByTestId('crm-offer-generate')
     expect(revise.textContent).toBe('New revision')
     fireEvent.click(revise)
     const dialog = await screen.findByRole('dialog', { name: 'New revision of 0001/2026' })
@@ -943,7 +1017,12 @@ describe('Offers card (US-4)', () => {
     fireEvent.click(within(dialog).getByRole('button', { name: 'Save and regenerate' }))
     await waitFor(() => expect(saved).not.toBeNull())
     expect(saved!.ifMatch).toBe('"3"')
-    expect(saved!.body).toMatchObject({ templateId: 't-en', opening: 'Corrected opening.', contactIds: [CONTACT.id], attachmentIds: [PDF.id] })
+    expect(saved!.body).toMatchObject({
+      templateId: 't-en',
+      opening: 'Corrected opening.',
+      contactIds: [CONTACT.id],
+      attachmentIds: [PDF.id],
+    })
   })
 
   it('Download opens the returned link in a new tab', async () => {
@@ -1035,6 +1114,38 @@ describe('Attachments card (AC-4.3, AC-4.4)', () => {
     )
   })
 
+  it.each([
+    ['pdf_check_busy', 'The check of uploaded PDFs is busy. Try again in a moment.'],
+    ['pdf_check_unavailable', 'The PDF could not be checked right now. Try again.'],
+  ])('says a 503 %s at the confirm of a PDF in our own words, never the server detail', async (code, line) => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => new Response(null, { status: 204 })),
+    )
+    await renderDeal(dealFixture(), MANAGER, {
+      'POST /deals/d1/attachments': () => ({
+        status: 201,
+        body: { attachmentId: 'a1', upload: { url: 'https://bucket.test/up', fields: { key: 'deals/d1/a1' } } },
+      }),
+      'POST /deals/d1/attachments/a1/confirm': () => ({
+        status: 503,
+        body: {
+          status: 503,
+          title: 'Unavailable',
+          code,
+          detail: 'The file could not be checked. Try again in a moment.',
+        },
+      }),
+    })
+    fireEvent.change(screen.getByTestId('crm-attachment-input'), {
+      target: { files: [new File(['%PDF'], 'scope.pdf', { type: 'application/pdf' })] },
+    })
+    const error = await screen.findByTestId('crm-attachments-error')
+    expect(error.textContent).toContain(line)
+    expect(error.textContent).not.toContain('could not be checked. Try again in a moment')
+    expect(screen.queryByTestId('crm-attachments-storage-missing')).toBeNull()
+  })
+
   it('offers Download only where canDownload, and Delete to the uploader or an admin', async () => {
     await renderDeal(dealFixture(), MANAGER, {
       'GET /deals/d1/attachments': () => ({
@@ -1122,7 +1233,15 @@ describe('Settings screen', () => {
         put = body(init)
         return {
           status: 200,
-          body: { entity: 'welld_ch', ...put, vatNumber: null, iban: null, offerTermsEn: null, offerTermsIt: null, updatedAt: '2026-11-01T09:00:00.000Z' },
+          body: {
+            entity: 'welld_ch',
+            ...put,
+            vatNumber: null,
+            iban: null,
+            offerTermsEn: null,
+            offerTermsIt: null,
+            updatedAt: '2026-11-01T09:00:00.000Z',
+          },
         }
       },
     })
@@ -1187,9 +1306,12 @@ describe('Settings screen', () => {
   })
 
   it('shows one form per entity in the caller’s deal scope only', async () => {
-    await render_({ deal: ['welld_ch', 'welld_it'], financials: true, managesAll: true }, {
-      'GET /entity-profiles': () => ({ status: 200, body: { items: [] } }),
-    })
+    await render_(
+      { deal: ['welld_ch', 'welld_it'], financials: true, managesAll: true },
+      {
+        'GET /entity-profiles': () => ({ status: 200, body: { items: [] } }),
+      },
+    )
     await screen.findByTestId('crm-settings-welld_ch')
     expect(screen.getByTestId('crm-settings-welld_it')).not.toBeNull()
   })
@@ -1230,4 +1352,3 @@ describe('Settings screen', () => {
     expect(within(card).queryByTestId('crm-settings-welld_ch-numbering-unsaved')).toBeNull()
   })
 })
-

@@ -180,6 +180,21 @@ export const commonErrors = {
 } as const;
 
 /**
+ * The 503 of a route that checks an uploaded PDF in the isolated child (`entity-profiles/isolatedPdfCheck.ts`, ADR
+ * 20261115-uploaded-pdf-decoded-size-bound-before-parse): it replaces `commonErrors[503]` for that route, so the document
+ * says both things a 503 can mean there. The `code` tells them apart; none of them is a verdict about the file.
+ */
+export const pdfCheckErrors = {
+  503: {
+    description:
+      "Nothing was decided and nothing was changed; try again. By `code`: `pdf_check_busy` (the checks of uploaded PDFs are all taken and the queue is full: " +
+      "try again in a moment), `pdf_check_unavailable` (the check could not run: its process did not start or died), " +
+      "or, without those codes, the authorization service is unavailable.",
+    content: { "application/json": { schema: ProblemSchema } },
+  },
+} as const;
+
+/**
  * Drops the members a PATCH body left out, so `exactOptionalPropertyTypes`
  * accepts it as a Prisma update (`undefined` would mean "leave", `null` clears).
  */

@@ -243,6 +243,48 @@ describe('letterhead the service now refuses (security M-4, DD-76, design S12b)'
     expect(replace.disabled).toBe(false)
   })
 
+  describe.each([
+    ['pdf_check_busy', 'The check of uploaded PDFs is busy. Try again in a moment.'],
+    ['pdf_check_unavailable', 'The PDF could not be checked right now. Try again.'],
+  ])('a 503 %s from the isolated PDF check', (code, line) => {
+    const raw = 'Too many files are being checked right now.'
+
+    it('at the confirm says it in our own words, not the server detail, and Replace stays usable', async () => {
+      vi.stubGlobal(
+        'fetch',
+        vi.fn(async () => new Response(null, { status: 204 })),
+      )
+      open('/settings', {
+        'POST /entity-profiles/welld_ch/letterhead': () => ({
+          status: 201,
+          body: { key: 'letterheads/welld_ch/x.pdf', upload: { url: 'https://bucket.test/up', fields: {} } },
+        }),
+        'POST /entity-profiles/welld_ch/letterhead/confirm': () => problem(503, code, { detail: raw }),
+      })
+      fireEvent.change(await screen.findByTestId('crm-letterhead-welld_ch-file'), {
+        target: { files: [new File(['%PDF'], 'letterhead.pdf', { type: 'application/pdf' })] },
+      })
+      const banner = await screen.findByTestId('crm-letterhead-welld_ch-error')
+      expect(banner.textContent).toContain(line)
+      expect(banner.textContent).not.toContain('Too many files')
+      expect((screen.getByTestId('crm-letterhead-welld_ch-upload') as HTMLButtonElement).disabled).toBe(false)
+    })
+
+    it('at the download says it in our own words, opens nothing', async () => {
+      const openTab = vi.fn()
+      vi.stubGlobal('open', openTab)
+      open('/settings', {
+        'GET /entity-profiles': () => ({ status: 200, body: { items: [STORED] } }),
+        'GET /entity-profiles/welld_ch/letterhead': () => problem(503, code, { detail: raw }),
+      })
+      fireEvent.click(await screen.findByTestId('crm-letterhead-welld_ch-download'))
+      const banner = await screen.findByTestId('crm-letterhead-welld_ch-error')
+      expect(banner.textContent).toContain(line)
+      expect(banner.textContent).not.toContain('Too many files')
+      expect(openTab).not.toHaveBeenCalled()
+    })
+  })
+
   describe('confirming an upload key that was already spent (409 upload_missing)', () => {
     const file = () => new File(['%PDF'], 'letterhead.pdf', { type: 'application/pdf' })
     const arrange = (afterwards: () => { status: number; body: unknown }) => {

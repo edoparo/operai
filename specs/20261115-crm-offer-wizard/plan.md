@@ -1557,6 +1557,35 @@ Findings (not edits): crm-api's legacy prefill type `OfferDraft` (`src/offers/dr
 route `GET /deals/{id}/offers/draft` use the glossary's "offer draft" for the 018 prefill; the
 plan renames the type to `OfferPrefill` and documents the route as the legacy prefill.
 
+### Isolated PDF check — 503 `pdf_check_busy` / `pdf_check_unavailable` (post-release note, 2026-11-16)
+
+Added after the release of operai 0.4.0 (eval round 3, spec-fidelity finding): the isolation of the PDF checks
+(ADR 20261115-uploaded-pdf-decoded-size-bound-before-parse, amendment 2026-11-16, `isolatedPdfCheck.ts`) gave the routes
+below two failure responses that this plan had not listed. Both are **503**, an RFC 7807 Problem with the `code` below;
+neither is a verdict about the file — nothing was decided, nothing was written or deleted, and a retry is right. They are
+distinct from the 503 of an unreachable authorization service, which carries no such code.
+
+| `code` | When | What the person is told (`en`; `it` in `crm-ui/src/strings/common.ts`) |
+|---|---|---|
+| `pdf_check_busy` | both isolated checks are taken and the queue (6) is full | "The check of uploaded PDFs is busy. Try again in a moment." |
+| `pdf_check_unavailable` | the check's process did not start, died or answered with something that is not a verdict (nothing is remembered about the file) | "The PDF could not be checked right now. Try again." |
+
+| Route | Where the check runs |
+|---|---|
+| `POST /entity-profiles/{entity}/letterhead/confirm` | the uploaded letterhead (the upload is **kept**, not deleted: a refusal deletes it, a 503 does not) |
+| `GET /entity-profiles/{entity}/letterhead` | the first use of a stored letterhead in this process (the link is not minted) |
+| `POST /deals/{id}/attachments/{aid}/confirm` | a PDF attachment (the row stays `pending` for a retry) |
+| `POST /deals/{id}/offers`, `PUT /deals/{id}/offers/{offerId}` | the stored letterhead and every chosen PDF annex before the render (nothing is written) |
+| `POST /deals/{id}/offer-draft/generate` | the same, for the wizard (the draft is kept) |
+
+**OpenAPI.** Each of the six routes documents its 503 with both codes (`pdfCheckErrors` in `crm-api/src/lib/http.ts`, replacing
+`commonErrors[503]` there); every other route keeps "The authorization service is unavailable". `src/lib/pdfCheckOpenApi.test.ts`
+pins both. **crm-ui.** `errorMessage` (`lib/errors.ts`) words the two codes from the strings module, so every placement that
+shows it, or `offerFailure`, which falls back to it, speaks the person's language and never the server's English `detail`:
+the Settings letterhead card (confirm and download), the deal's attachment card (confirm), the classic offer dialog, the
+wizard's Preview step (a warning banner with Retry). The preview's own letterhead link attempt is not worded:
+it settles as `failed` without reading the message (DD-54).
+
 ## Amendments
 
 - 2026-11-15 (post-design, delegated): closed the design's contract gaps G1–G9 and folded in

@@ -16,7 +16,7 @@ import { OpenAPIHono, createRoute, z } from "@hono/zod-openapi";
 import { DEAL_FINANCIALS, DEAL_MANAGE, authorized, dealScope, requireCapability } from "../auth/guards";
 import type { AuthzVariables } from "../auth/authz.middleware";
 import { db } from "../lib/db";
-import { IdParams, PersonRefSchema, assertVersion, commonErrors, etag, requireIfMatch, versionConflict, type HeaderSource } from "../lib/http";
+import { IdParams, PersonRefSchema, assertVersion, commonErrors, pdfCheckErrors, etag, requireIfMatch, versionConflict, type HeaderSource } from "../lib/http";
 import { loadPeople } from "../lib/people";
 import { ProblemError, conflict, notFound, problem, unprocessable, validationHook } from "../lib/problem";
 import type { ContractSnapshot } from "../offers/contract";
@@ -631,6 +631,7 @@ const generateRouteDef = createRoute({
   request: { params: IdParams },
   responses: {
     ...commonErrors,
+    ...pdfCheckErrors,
     200: { description: "Edited", ...json(OfferSchema) },
     201: { description: "Generated", ...json(OfferSchema) },
     404: { description: "Deal, draft or template not found" },
