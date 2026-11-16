@@ -22,7 +22,7 @@ export type MintBody = z.infer<typeof MintBodySchema>;
 
 export const MintResponseSchema = z.object({
   id: z.string(),
-  upload: z.object({ url: z.string(), fields: z.record(z.string()) }),
+  upload: z.object({ url: z.string(), fields: z.record(z.string(), z.string()) }),
 });
 
 export const ConfirmResponseSchema = z.object({ id: z.string(), fileName: z.string() });

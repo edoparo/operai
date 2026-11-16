@@ -42,7 +42,7 @@ const route = createRoute({
 });
 
 interface IssueLike {
-  readonly path: readonly (string | number)[];
+  readonly path: readonly PropertyKey[];
   readonly message: string;
   readonly code?: string;
   readonly keys?: readonly string[];
