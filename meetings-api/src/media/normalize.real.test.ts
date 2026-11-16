@@ -1,4 +1,4 @@
-import { afterAll, describe, expect, it } from "bun:test";
+import { afterAll, describe, expect, it, setDefaultTimeout } from "bun:test";
 import { mkdtempSync, readFileSync, rmSync, statSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -14,6 +14,11 @@ const hasFfmpeg = Bun.which(ffmpegBinary()) !== null && Bun.which(ffprobeBinary(
 const scratch = mkdtempSync(join(tmpdir(), "normalize-real-"));
 afterAll(() => rmSync(scratch, { recursive: true, force: true }));
 
+// Every test here spawns real ffmpeg/ffprobe processes (each bounded by its own runTool timeout); on a loaded
+// machine the default per-test limit measures the machine, not the cap. The caps are asserted on outcome
+// (error code and output size), not on wall time, except the one generous bound in the duration-cap test.
+setDefaultTimeout(60_000);
+
 /** Seconds of silence the bomb decodes to: a few hundred KB as FLAC, far more audio than any cap used below. */
 const BOMB_SECONDS = 6000;
 
@@ -22,9 +27,9 @@ const BOMB_SECONDS = 6000;
  * byte 21's low nibble and bytes 22-25) is rewritten: 0 means "unknown" (no duration at all), a
  * small number understates it; the decoder ignores the field and decodes every frame.
  */
-async function bomb(name: string, declaredSamples: number): Promise<string> {
+async function bomb(name: string, declaredSamples: number, seconds: number = BOMB_SECONDS): Promise<string> {
   const source = join(scratch, `${name}-src.flac`);
-  const made = await runTool(ffmpegBinary(), ["-v", "error", "-y", "-f", "lavfi", "-i", "anullsrc=r=16000:cl=mono", "-t", String(BOMB_SECONDS), "-c:a", "flac", source], { timeoutMs: 120_000 });
+  const made = await runTool(ffmpegBinary(), ["-v", "error", "-y", "-f", "lavfi", "-i", "anullsrc=r=16000:cl=mono", "-t", String(seconds), "-c:a", "flac", source], { timeoutMs: 120_000 });
   expect(made.code).toBe(0);
   const bytes = new Uint8Array(readFileSync(source));
   bytes[21] = bytes[21]! & 0xf0; // the high 4 bits of total_samples: 0 for any value below 2^32
@@ -77,9 +82,11 @@ describe.skipIf(!hasFfmpeg)("normalizeAudio output caps with the real ffmpeg", (
   });
 
   it("the byte cap stops ffmpeg on its own: output stays within a few pages of the cap, and is too_long", async () => {
-    const input = await bomb("bytes", 0);
+    // 60 kB of Opus silence is ~265 s of audio, so 900 s of bomb is ample (3x) and far cheaper to make than the full
+    // 6000 s one: the test needs only more input than the cap, and the default duration cap (10861 s) is never in play.
+    const input = await bomb("bytes", 0, 900);
     const output = join(scratch, "bytes.ogg");
-    const cap = 60_000; // reached long before the (huge) duration cap
+    const cap = 60_000; // reached long before the duration cap
     const error = await normalizeAudio({ inputs: [input], inputFormats: ["flac"], output, limits: { maxBytes: cap } }).catch((e) => e);
     expect((error as NormalizeError).code).toBe("too_long");
     expect(sizeOf(output)).toBeGreaterThanOrEqual(cap);

@@ -32,7 +32,15 @@ interface Chunks {
   chunks: object[];
   breakAfter?: boolean;
 }
-type Reply = number | object | Chunks;
+type Reply = number | object | Chunks | ((call: Call) => number | object | Chunks);
+
+/** The index of the part a request carries: each part's stub file ends in its own index byte (see `splitter`). Parts run concurrently, so replies keyed to call order would depend on scheduling. */
+const partIndexOf = (call: Call): number => {
+  const bytes = Buffer.from(call.body.contents[0].parts[0].inlineData.data, "base64");
+  return bytes[bytes.length - 1]!;
+};
+/** A reply chosen by the part the request carries, not by the order the requests arrive in. */
+const byPart = (replies: (number | object | Chunks)[]): Reply => (call) => replies[partIndexOf(call)]!;
 
 const sse = (chunk: object) => `data: ${JSON.stringify(chunk)}\r\n\r\n`;
 
@@ -42,8 +50,9 @@ function wire(replies: Reply[], delayMs = 0) {
   const stats = { inFlight: 0, maxInFlight: 0 };
   const fetchImpl = (async (url: string, init: RequestInit) => {
     calls.push({ url: String(url), body: JSON.parse(String(init.body)) });
-    const next = replies.shift();
-    if (next === undefined) throw new Error("no reply left");
+    const queued = replies.shift();
+    if (queued === undefined) throw new Error("no reply left");
+    const next = typeof queued === "function" ? queued(calls.at(-1)!) : queued;
     stats.inFlight += 1;
     stats.maxInFlight = Math.max(stats.maxInFlight, stats.inFlight);
     try {
@@ -294,18 +303,20 @@ describe("failures map to the closed codes", () => {
 describe("long recordings: parts, joined by the stitcher (ADR 20261105-meetings-transcript-parts-speaker-labels-per-part)", () => {
   it("two overlapping parts: the overlap once, the voice joined", async () => {
     const shared = Array.from({ length: 30 }, (_, i) => `comune${i}`).join(" ");
+    // The parts run concurrently, so each request gets the reply of ITS part (by the part's own file), never the next one in line.
+    const reply = byPart([
+      answer([
+        { start: "00:10", end: "00:20", speaker: "Speaker 1", text: "inizio della riunione" },
+        { start: "29:00", end: "29:30", speaker: "Speaker 1", text: shared },
+      ]),
+      answer([
+        // part 2 starts at 28:30; its times are its own
+        { start: "00:30", end: "01:00", speaker: "Speaker 1", text: shared },
+        { start: "05:00", end: "05:05", speaker: "Speaker 1", text: "chiusura" },
+      ]),
+    ]);
     const { t, calls } = await make(
-      [
-        answer([
-          { start: "00:10", end: "00:20", speaker: "Speaker 1", text: "inizio della riunione" },
-          { start: "29:00", end: "29:30", speaker: "Speaker 1", text: shared },
-        ]),
-        answer([
-          // part 2 starts at 28:30; its times are its own
-          { start: "00:30", end: "01:00", speaker: "Speaker 1", text: shared },
-          { start: "05:00", end: "05:05", speaker: "Speaker 1", text: "chiusura" },
-        ]),
-      ],
+      [reply, reply],
       [
         [0, S(1800)],
         [S(1710), S(3000)],
