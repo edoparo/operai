@@ -13,6 +13,8 @@ synced: 2026-11-16
 
 > Re-sync 2026-11-16 (orchestrator, before the close): OA-4 (page numbers in the preview) is T77, done in b8dd6a1d; plan.md's hand-edit limits text aligned with the build (no task change); owner fixes D12–D24, security fixes (rounds 4–11) and eval fixes landed as fix commits recorded in decisions.md. T58 checked: every gate green (QE round 11 PASS, security round 11 PASS WITH NOTES, eval round 3 PASS 80.0), owner review confirmed (SA-1…SA-6, O3, O4, OWNER REVIEW items), O7 confirmed by the owner on the production profile addresses (2026-11-16).
 
+> Re-sync 2026-11-16 (post-release, after commit 07dca8de): plan.md gained the post-release note on the 503 codes `pdf_check_busy` / `pdf_check_unavailable` (documented and translated by that fix commit). No task added or changed; the feature stays done.
+
 # Tasks: CRM offer wizard
 
 Contracts are `plan.md` (approved by delegation 2026-11-15, DD-1…DD-52 and § Amendments);
