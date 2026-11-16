@@ -163,6 +163,17 @@ describe("lib/env.ts — ALLOWED_SIGNUP_DOMAINS (specs/20261105-signup-gate AC-1
     }
   });
 
+  // zod 3 crashed with a TypeError (a transform that failed left the list undefined for the
+  // cross-field check); the failure must be the clean listed one, whatever else is also wrong.
+  test("a malformed list next to another invalid variable still exits with the listed errors, not a crash", async () => {
+    const { exitCode, output } = await importEnv({ ALLOWED_SIGNUP_DOMAINS: "not a domain!", SERVICE_AUDIENCE: undefined });
+    expect(exitCode).toBe(1);
+    expect(output).toContain("Invalid environment variables");
+    expect(output).toContain("ALLOWED_SIGNUP_DOMAINS");
+    expect(output).toContain("SERVICE_AUDIENCE: SERVICE_AUDIENCE is required");
+    expect(output).not.toContain("TypeError");
+  });
+
   // specs/20261105-signup-gate T13: a reserved test domain is local/e2e configuration only (plan.md amendment 2026-11-05).
   test("starts with a reserved test domain outside production when ENABLE_TEST_AUTH is true", async () => {
     const { exitCode, output } = await importEnv({

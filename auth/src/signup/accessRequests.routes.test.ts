@@ -233,6 +233,36 @@ describe("AC-3.2 / AC-3.3 / AC-3.9 approve", () => {
     expect(body.invitation.departments).toEqual([]);
   });
 
+  // @hono/zod-openapi 1.x refuses a declared-JSON body that arrives under another Content-Type (415); an
+  // OPTIONAL body (required: false) must still accept no body at all, with or without a Content-Type.
+  test("the body is optional: no body and no Content-Type approves; a JSON body under another Content-Type is 415 and approves nothing", async () => {
+    const bare = await makeRequest("nobody");
+    const noBody = await accessRequestsRouter.request(`/admin/access-requests/${bare.id}/approve`, { method: "POST" });
+    expect(noBody.status).toBe(200);
+
+    const r = await makeRequest("wrongct");
+    for (const headers of [{ "Content-Type": "text/plain" }, {}] as Record<string, string>[]) {
+      const res = await accessRequestsRouter.request(`/admin/access-requests/${r.id}/approve`, {
+        method: "POST",
+        headers,
+        body: JSON.stringify({ roleIds: [roleId] }),
+      });
+      expect(res.status).toBe(415);
+    }
+    expect((await db.accessRequest.findUniqueOrThrow({ where: { id: r.id } })).status).toBe("pending");
+  });
+
+  test("a malformed body is a 400 problem document naming the field, and leaves the request pending", async () => {
+    const r = await makeRequest("badbody");
+    const res = await approve(r.id, { roleIds: "not-an-array" });
+    expect(res.status).toBe(400);
+    const body = (await res.json()) as { type: string; title: string; status: number; detail: string; instance: string };
+    expect(Object.keys(body).sort()).toEqual(["detail", "instance", "status", "title", "type"]);
+    expect(body).toMatchObject({ type: "https://httpstatuses.com/400", title: "Bad Request", status: 400 });
+    expect(body.detail).toStartWith("roleIds: ");
+    expect((await db.accessRequest.findUniqueOrThrow({ where: { id: r.id } })).status).toBe("pending");
+  });
+
   test("an unknown id is 404; unknown role or department ids are 422 and leave the request pending", async () => {
     expect((await approve("nope-not-an-id")).status).toBe(404);
     const r = await makeRequest("422");

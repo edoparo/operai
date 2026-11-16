@@ -119,7 +119,7 @@ const envSchema = z.object({
   // SERVICE_CLIENTS stays OPTIONAL: with no clients configured the endpoint
   // authenticates nobody (every call is the same 401).
   SERVICE_AUDIENCE: z
-    .string({ required_error: "SERVICE_AUDIENCE is required" })
+    .string({ error: (issue) => (issue.input === undefined ? "SERVICE_AUDIENCE is required" : undefined) })
     .min(1, "SERVICE_AUDIENCE must not be empty"),
   SERVICE_CLIENTS: z
     .string()
@@ -201,7 +201,7 @@ const result = envSchema.safeParse(process.env);
 if (!result.success) {
   console.error("❌ Invalid environment variables — fix before starting:");
   for (const [key, messages] of Object.entries(
-    result.error.flatten().fieldErrors,
+    z.flattenError(result.error).fieldErrors,
   )) {
     console.error(`  ${key}: ${messages?.join(", ")}`);
   }
