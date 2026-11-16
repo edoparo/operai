@@ -1,9 +1,10 @@
-import { useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { DateInput, Field, FormDialog, MoneyInput, focusFirstInvalid, parseDecimal } from '@operai/ui'
 import { ApiError, isStaleWrite } from '../lib/api'
 import { createDeal, updateDeal } from '../lib/crmApi'
 import type { DealUpdate } from '../lib/crmApi'
 import { errorMessage, fieldErrorOf } from '../lib/errors'
+import { focusRefusal } from '../lib/focusRefusal'
 import { centsToInput } from '../lib/money'
 import { personName } from '../lib/people'
 import { CURRENCIES, NEW_DEAL_STAGES } from '../lib/types'
@@ -112,6 +113,11 @@ export default function DealFormDialog({
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const fieldsRef = useRef<HTMLDivElement>(null)
+  // After a server refusal focus moves to the refused field, else to the error banner (lib/focusRefusal).
+  const [refusedAt, setRefusedAt] = useState(0)
+  useEffect(() => {
+    if (refusedAt > 0) focusRefusal(fieldsRef.current?.closest('form'))
+  }, [refusedAt])
 
   const set = <K extends keyof Draft>(key: K, value: Draft[K]) => setDraft((current) => ({ ...current, [key]: value }))
 
@@ -165,6 +171,7 @@ export default function DealFormDialog({
     request.then(onSaved, (failure: unknown) => {
       setBusy(false)
       if (isStaleWrite(failure)) return onStale()
+      setRefusedAt((n) => n + 1)
       const byCode = failure instanceof ApiError && failure.code ? CODE_FIELDS[failure.code] : undefined
       if (byCode && failure instanceof ApiError) {
         setErrors({ [byCode]: failure.detail ?? strings.common.validation.fixErrors })

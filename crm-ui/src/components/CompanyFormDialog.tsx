@@ -1,10 +1,11 @@
-import { useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Link } from '@tanstack/react-router'
 import { Field, FormDialog, focusFirstInvalid } from '@operai/ui'
 import { ApiError, isStaleWrite } from '../lib/api'
 import { createCompany, updateCompany } from '../lib/crmApi'
 import type { CompanyInput } from '../lib/crmApi'
 import { errorMessage, fieldErrorOf } from '../lib/errors'
+import { focusRefusal } from '../lib/focusRefusal'
 import { personName } from '../lib/people'
 import { COMPANY_STATUSES, ENTITIES } from '../lib/types'
 import type { Company, CompanyStatus, Entity, LeadSource } from '../lib/types'
@@ -111,6 +112,11 @@ export default function CompanyFormDialog({
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const fieldsRef = useRef<HTMLDivElement>(null)
+  // After a server refusal focus moves to the refused field, else to the error banner (lib/focusRefusal).
+  const [refusedAt, setRefusedAt] = useState(0)
+  useEffect(() => {
+    if (refusedAt > 0) focusRefusal(fieldsRef.current?.closest('form'))
+  }, [refusedAt])
 
   const set = <K extends keyof Draft>(key: K, value: Draft[K]) => setDraft((current) => ({ ...current, [key]: value }))
 
@@ -143,6 +149,7 @@ export default function CompanyFormDialog({
     request.then(onSaved, (failure: unknown) => {
       setBusy(false)
       if (isStaleWrite(failure)) return onStale()
+      setRefusedAt((n) => n + 1)
       if (failure instanceof ApiError && failure.code === 'company_name_taken') {
         const existing = failure.extras['companyId']
         setTakenId(typeof existing === 'string' ? existing : null)

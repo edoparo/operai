@@ -1,9 +1,10 @@
-import { useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Field, FormDialog, focusFirstInvalid } from '@operai/ui'
 import { ApiError, isStaleWrite } from '../lib/api'
 import { createContact, updateContact } from '../lib/crmApi'
 import type { ContactInput } from '../lib/crmApi'
 import { errorMessage, fieldErrorOf } from '../lib/errors'
+import { focusRefusal } from '../lib/focusRefusal'
 import type { CompanyRef, Contact } from '../lib/types'
 import { email, first, hasErrors, maxLength, optional, required } from '../lib/validate'
 import type { Errors } from '../lib/validate'
@@ -59,6 +60,11 @@ export default function ContactFormDialog({
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const fieldsRef = useRef<HTMLDivElement>(null)
+  // After a server refusal focus moves to the refused field, else to the error banner (lib/focusRefusal).
+  const [refusedAt, setRefusedAt] = useState(0)
+  useEffect(() => {
+    if (refusedAt > 0) focusRefusal(fieldsRef.current?.closest('form'))
+  }, [refusedAt])
 
   const set = (key: keyof Draft, value: string) => setDraft((current) => ({ ...current, [key]: value }))
 
@@ -84,6 +90,7 @@ export default function ContactFormDialog({
     request.then(onSaved, (failure: unknown) => {
       setBusy(false)
       if (isStaleWrite(failure)) return onStale()
+      setRefusedAt((n) => n + 1)
       if (failure instanceof ApiError && failure.code === 'company_not_found') {
         setErrors({ companyId: failure.detail ?? strings.deals.form.companyRequired })
         return
