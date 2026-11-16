@@ -12,7 +12,7 @@ import { checkEuResidency, isAwsS3Endpoint } from "./s3Residency";
 const booleanFlag = z
   .string()
   .transform((v) => v.trim().toLowerCase())
-  .pipe(z.enum(["true", "false"], { errorMap: () => ({ message: "must be true or false" }) }))
+  .pipe(z.enum(["true", "false"], { error: () => "must be true or false" }))
   .transform((v) => v === "true");
 
 /** The notifier's credentials, all or none (crm-api's rule, ADR 20261013-all-notify-callers-scoped-credentials-shared-token-retired): a half-set client is a start error. */
@@ -69,7 +69,7 @@ const envSchema = z
     NODE_ENV: z.enum(["development", "production", "test"]).default("development"),
     // Maintenance switch (AC-2.5, ADR 20261110-activities-migration-write-pause): true = every route but GET /health answers 503
     // `maintenance`. Absent = off. A malformed value stops the start rather than reading as off.
-    ACTIVITIES_MAINTENANCE: booleanFlag.default("false"),
+    ACTIVITIES_MAINTENANCE: booleanFlag.default(false),
     // ─── Task files bucket (ADR 20261113-task-description-files-in-activities-api-bucket) ─────────────────────────────────────────
     // Its OWN private EU bucket, never another tool's. Residency is checked here: an AWS
     // endpoint must name an EU region, any other endpoint must match the operator-declared

@@ -9,7 +9,7 @@
  */
 import { beforeEach, describe, expect, it } from "bun:test";
 import { newBlockerRows } from "./blockers";
-import { appAccess, authStub, bearerOf, call, db, hosts, makeCompany, makeContact, makeDeal, resetWorld } from "../test-support/world";
+import { app, appAccess, authStub, bearerOf, call, db, hosts, makeCompany, makeContact, makeDeal, resetWorld } from "../test-support/world";
 
 beforeEach(resetWorld);
 
@@ -442,5 +442,30 @@ describe("the host decides, as the caller (AC-8.1, AC-8.3)", () => {
     const row = await db.activity.findUniqueOrThrow({ where: { id: note.id } });
     expect(row.subject).toBe("S");
     expect(row.completedAt).toBeNull();
+  });
+});
+
+describe("request body media type and datetime format (zod 4, @hono/zod-openapi 1.x)", () => {
+  it("a JSON body sent without a JSON Content-Type is a 415 Problem document, not a 422 (the library's media-type gate)", async () => {
+    const company = await makeCompany("Acme SA");
+    const res = await app.request("/activities", {
+      method: "POST",
+      headers: { Authorization: await bearerOf("alice") },
+      body: JSON.stringify({ type: "note", subject: "S", companyId: company.id }),
+    });
+    expect(res.status).toBe(415);
+    expect(await res.json()).toMatchObject({ status: 415, title: "Unsupported Media Type", instance: "/activities" });
+  });
+
+  it("occurredAt takes seconds and a colon in the offset; a datetime without seconds or with +0200 is a 422 naming the field", async () => {
+    const company = await makeCompany("Acme SA");
+    const post = (occurredAt: string) => call("POST", "/activities", { body: { type: "note", subject: "S", companyId: company.id, occurredAt } });
+    expect((await post("2026-01-01T00:00:00+02:00")).status).toBe(201);
+    expect((await post("2026-01-01T00:00:00.123Z")).status).toBe(201);
+    for (const bad of ["2026-01-01T00:00Z", "2026-01-01T00:00:00+0200", "2026-01-01"]) {
+      const res = await post(bad);
+      expect(res.status).toBe(422);
+      expect(res.json).toMatchObject({ field: "occurredAt", status: 422, errors: [{ field: "occurredAt" }] });
+    }
   });
 });

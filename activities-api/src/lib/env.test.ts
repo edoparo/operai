@@ -76,4 +76,18 @@ describe("parseEnv", () => {
     expect(parseEnv({ ...BASE, SERVICE_AUDIENCE: "operai-suite" }).ok).toBe(false);
     expect(parseEnv({ ...BASE, SERVICE_AUDIENCE: "operai-services" }).ok).toBe(true);
   });
+
+  it("ACTIVITIES_MAINTENANCE is on only for the literal true (any case, trimmed); absent is off; anything else stops the start", () => {
+    const flag = (value: string | undefined) => parseEnv(value === undefined ? BASE : { ...BASE, ACTIVITIES_MAINTENANCE: value });
+    const on = (r: ReturnType<typeof parseEnv>) => (r.ok ? r.env.ACTIVITIES_MAINTENANCE : "refused");
+    expect(on(flag(undefined))).toBe(false);
+    expect(on(flag("false"))).toBe(false);
+    expect(on(flag("true"))).toBe(true);
+    expect(on(flag("  TRUE "))).toBe(true);
+    for (const bad of ["", "yes", "1", "on"]) {
+      const result = flag(bad);
+      expect(result.ok).toBe(false);
+      if (!result.ok) expect(result.errors["ACTIVITIES_MAINTENANCE"]).toEqual(["must be true or false"]);
+    }
+  });
 });
