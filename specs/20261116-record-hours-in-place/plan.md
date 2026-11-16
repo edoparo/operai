@@ -1,6 +1,7 @@
 ---
 spec: 20261116
-status: draft
+status: approved
+approved: 2026-11-16
 ---
 
 # Plan: Record hours in place — from the project, the deal and the task, and a week view of My hours

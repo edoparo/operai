@@ -1,7 +1,7 @@
 # 20261116 — A view may sum its own figures in the browser only over one complete, all-or-nothing read of a bounded span: the Week view of My hours folds its week from the export's full walk, narrowing the time-tracking "no figure computed in the browser" convention for that view alone
 
 **Date:** 2026-11-16  
-**Status:** Proposed (specs/20261116-record-hours-in-place, plan ADR candidate R1; the plan is a draft awaiting the user's approval)  
+**Status:** Accepted (specs/20261116-record-hours-in-place plan approved 2026-11-16)  
 **Deciders:** wellD  
 **Project:** Operai
 

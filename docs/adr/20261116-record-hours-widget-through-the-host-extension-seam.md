@@ -1,7 +1,7 @@
 # 20261116 — Recording hours from another tool's page is hours-ui's own widget, embedded through the shell's host-extension seam: plain strings in, nothing back, and the host decides only whether to show it
 
 **Date:** 2026-11-16
-**Status:** Proposed (specs/20261116-record-hours-in-place; plan.md is a draft awaiting the user's approval, ADR candidate R2)
+**Status:** Accepted (specs/20261116-record-hours-in-place plan approved 2026-11-16)
 **Deciders:** wellD
 **Project:** Operai
 **Relates to:** [ADR 20261104-host-extension-federated-panel-through-the-shell](20261104-host-extension-federated-panel-through-the-shell.md) (this applies that seam to a second domain widget and to a list row), [ADR 20261110-shell-floating-slot-for-remote-widgets](20261110-shell-floating-slot-for-remote-widgets.md) (same loader, same failure rule), [ADR 20261112-time-bookability-asked-of-owners-meeting-hosts-system-route](20261112-time-bookability-asked-of-owners-meeting-hosts-system-route.md) (who may record is asked of the owner), [ADR 20261112-hours-api-time-entries-own-service-hours-catalog](20261112-hours-api-time-entries-own-service-hours-catalog.md), [ADR 20261112-hours-ui-ungated-remote](20261112-hours-ui-ungated-remote.md), [ADR 20261031-shared-ui-library-consumed-as-source](20261031-shared-ui-library-consumed-as-source.md) (why the dialog is not in `@operai/ui`), [ADR 20260709-suite-frontend-module-federation](20260709-suite-frontend-module-federation.md), [ADR 20260803-suite-version-generated-file-federated-export](20260803-suite-version-generated-file-federated-export.md)
