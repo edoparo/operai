@@ -3,8 +3,9 @@
  * DD-59, DD-60, AC-12.5).
  *
  *   bun scripts/seed-digests.ts            # prints the record
- *   bun scripts/seed-digests.ts --write    # rewrites src/offer-templates/wizardSeeds/v1Digests.ts
- *   bun scripts/seed-digests.ts --check    # exits 1 when the file is not what the history gives
+ *   bun scripts/seed-digests.ts --write    # rewrites src/offer-templates/wizardSeeds/v1Digests.ts (refused when a seed has no v1 revision in the history)
+ *   bun scripts/seed-digests.ts --check    # exits 1 when the history holds v1 revisions that disagree with the file;
+ *                                          # a seed with no v1 revision in the history is skipped (the file is authoritative since the squash)
  *
  * A v1 text is what a seed file exported before the issuer moved to the entity profile: any revision in the file's
  * git history that does not yet declare `EMITTENTE`. A database that was seeded on this branch may hold any of them
@@ -80,10 +81,14 @@ export function v1Revisions(): Record<SeedCode, V1Digest[]> {
       seen.add(digest);
       out[code].push({ sha256: digest, commit: commit.slice(0, 8) });
     }
-    if (out[code].length === 0) throw new Error(`${code}: no v1 revision found in the history of ${FILES[code]}`);
   }
   return out;
 }
+
+/** The codes whose seed file has at least one v1 revision in the reachable history (none at all after the squash of 33ebd929). */
+export const codesWithHistory = (found: Record<SeedCode, readonly V1Digest[]>): SeedCode[] => CODES.filter((code) => found[code].length > 0);
+
+export const NO_HISTORY_NOTE = "no v1 revision in reachable history; v1Digests.ts is authoritative";
 
 /** The data file as `--write` writes it. */
 export function dataFile(found: Record<SeedCode, readonly V1Digest[]>): string {
@@ -129,16 +134,27 @@ export async function runSeedDigests(argv: readonly string[], io: Io): Promise<n
     return 1;
   }
   const found = v1Revisions();
-  const text = dataFile(found);
   if (values.write) {
-    writeFileSync(DATA_FILE, text);
-    io.log(`wrote ${DATA_FILE}`);
-  } else if (values.check) {
-    if (readFileSync(DATA_FILE, "utf8") !== text) {
-      io.error("seed-digests: v1Digests.ts is not what the git history gives; run with --write");
+    const missing = CODES.filter((code) => found[code].length === 0);
+    if (missing.length > 0) {
+      io.error(`seed-digests: refusing to write: no v1 revision in the history of ${missing.join(", ")}; it would wipe the recorded digests (v1Digests.ts is authoritative)`);
       return 1;
     }
-    io.log("v1Digests.ts matches the git history");
+    writeFileSync(DATA_FILE, dataFile(found));
+    io.log(`wrote ${DATA_FILE}`);
+  } else if (values.check) {
+    const present = codesWithHistory(found);
+    if (present.length === 0) {
+      io.log(`seed-digests: ${NO_HISTORY_NOTE}`);
+      return 0;
+    }
+    const recorded = (await import("../src/offer-templates/wizardSeeds/v1Digests")).V1_DIGESTS as Record<SeedCode, readonly V1Digest[]>;
+    const differing = present.filter((code) => JSON.stringify(found[code]) !== JSON.stringify(recorded[code]));
+    if (differing.length > 0) {
+      io.error(`seed-digests: v1Digests.ts disagrees with the git history for ${differing.join(", ")}`);
+      return 1;
+    }
+    io.log(`v1Digests.ts matches the git history (${present.join(", ")})`);
   }
   for (const code of CODES) io.log(`${code}: ${found[code].map((entry) => `${entry.sha256.slice(0, 12)} (${entry.commit})`).join(", ")}`);
   return 0;

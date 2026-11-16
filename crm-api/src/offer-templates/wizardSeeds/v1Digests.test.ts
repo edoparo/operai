@@ -5,8 +5,7 @@
  * `toV1(v2)` hashing into the record proves the conversion changed nothing but the issuer.
  */
 import { describe, expect, it } from "bun:test";
-import { execFileSync } from "node:child_process";
-import { sha256, v1Revisions } from "../../../scripts/seed-digests";
+import { NO_HISTORY_NOTE, codesWithHistory, sha256, v1Revisions } from "../../../scripts/seed-digests";
 import { WELLD_CH_IT_V1 } from "./welldChIt";
 import { toV1 } from "./toV1";
 import { V1_DIGESTS } from "./v1Digests";
@@ -60,17 +59,15 @@ describe("the recorded digests (AC-12.5)", () => {
     }
   });
 
-  const historyAvailable = (() => {
-    try {
-      for (const code of CODES) for (const entry of V1_DIGESTS[code]) execFileSync("git", ["cat-file", "-e", `${entry.commit}^{commit}`], { stdio: "ignore" });
-      return true;
-    } catch {
-      return false;
-    }
-  })();
+  // Since the squash of 33ebd929 the history holds only v2 texts, so v1Digests.ts is authoritative; the check stays for
+  // any branch whose history still has v1 revisions: those must agree with the record.
+  const found = v1Revisions();
+  const withHistory = codesWithHistory(found);
 
-  it.skipIf(!historyAvailable)("regenerating them from the git history gives exactly what is recorded", async () => {
-    const found = await v1Revisions();
-    for (const code of CODES) expect(found[code], code).toEqual([...V1_DIGESTS[code]]);
-  });
+  it.skipIf(withHistory.length === 0)(
+    `regenerating them from the git history gives exactly what is recorded${withHistory.length === 0 ? ` (skipped: ${NO_HISTORY_NOTE})` : ""}`,
+    () => {
+      for (const code of withHistory) expect(found[code], code).toEqual([...V1_DIGESTS[code]]);
+    },
+  );
 });
