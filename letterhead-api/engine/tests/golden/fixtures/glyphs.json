@@ -1,0 +1,37 @@
+{
+ "description": "Characters inside and outside the bundled fonts (AC-7.5, AC-7.6).",
+ "letterhead": "brand",
+ "request": {
+  "contentVersion": 1,
+  "entity": "welld_it",
+  "language": "it",
+  "entityData": {
+   "legalName": "WellD Italia S.r.l. (SAMPLE)",
+   "addressLines": [
+    "Via Esempio 1",
+    "I-16100 Genova (Italia)"
+   ],
+   "vat": "IT00000000000",
+   "iban": "",
+   "contacts": "www.example.com — info@example.com"
+  },
+  "blocks": [
+   {
+    "type": "paragraph",
+    "runs": [
+     {
+      "text": "Coverage: àèéìòù ÀÈÉÌÒÙ äöüß ÄÖÜ çœæ ÇŒÆ ëïÿ « » € CHF l’offerta d’uso ‘’ “” – —"
+     }
+    ]
+   },
+   {
+    "type": "paragraph",
+    "runs": [
+     {
+      "text": "Outside the fonts: 漢字 😀 ⨌ ᚠ"
+     }
+    ]
+   }
+  ]
+ }
+}

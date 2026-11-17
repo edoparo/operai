@@ -1,0 +1,10 @@
+{
+ "fixture": "overflow-footer",
+ "layout": 1,
+ "outcome": "refused",
+ "error": "footer_overflow",
+ "pageCount": 0,
+ "missingPlaceholders": [],
+ "unprintableCharacters": 0,
+ "pages": []
+}

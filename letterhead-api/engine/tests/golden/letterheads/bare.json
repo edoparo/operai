@@ -1,0 +1,70 @@
+{
+ "margins": {
+  "top": 30,
+  "bottom": 28,
+  "left": 24,
+  "right": 22
+ },
+ "fonts": {
+  "body": "Noto Serif",
+  "heading": "Ubuntu",
+  "frame": "Ubuntu"
+ },
+ "look": {
+  "headings": [
+   {
+    "size": 15,
+    "bold": true,
+    "color": "e50339"
+   },
+   {
+    "size": 12,
+    "bold": true,
+    "color": "1f2430"
+   },
+   {
+    "size": 10.5,
+    "bold": true,
+    "color": "595c69"
+   }
+  ],
+  "body": {
+   "size": 10.5,
+   "lineSpacing": 1.2
+  },
+  "table": {
+   "headerFill": "f1f1f4",
+   "borders": true,
+   "borderColor": "c9cad1"
+  },
+  "bulletMarker": "bullet"
+ },
+ "variants": {
+  "default": {
+   "header": {
+    "valign": "top",
+    "rule": {
+     "show": false,
+     "thicknessPt": 0.5,
+     "color": "e50339"
+    },
+    "left": [],
+    "center": [],
+    "right": []
+   },
+   "footer": {
+    "valign": "top",
+    "rule": {
+     "show": false,
+     "thicknessPt": 0.5,
+     "color": "e50339"
+    },
+    "left": [],
+    "center": [],
+    "right": []
+   },
+   "logo": null,
+   "background": null
+  }
+ }
+}

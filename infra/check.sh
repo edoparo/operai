@@ -28,6 +28,9 @@
 # credential. Override PROJECTS_API_URL / PROJECTS_URL (ASSUMED hostnames) if the domains differ.
 # specs/20261110-activities adds activities-api (no UI of its own): healthy, the JWT gate on a user route, the
 # service-credential gate on /system/v1/*, and the CSP connect-src pin. Override ACTIVITIES_API_URL.
+# specs/20261116-letterhead-service adds letterhead-api (no UI probed here: letterheads-ui is a remote of its own): healthy,
+# the service-credential gate on GET /v1/letterheads/status and POST /v1/render/pdf (a call with no credential is the one 401),
+# and the connect-src pin. Override LETTERHEAD_API_URL.
 # Also probes
 # notify-api's two internal endpoints (specs/20260713-user-invitations, specs/20261013-notify-service-credentials) — see § 2b below:
 # neither accepts the retired X-Internal-Token header and neither answers an
@@ -78,6 +81,11 @@ PROJECTS_URL="${PROJECTS_URL:-https://projects.operai.welld.io}"
 # NOT resolve until the Railway service + custom domain + DNS exist (provision-tool skill) — until
 # then the activities-api checks below fail by design. Override if the real domain differs.
 ACTIVITIES_API_URL="${ACTIVITIES_API_URL:-https://activities-api.operai.welld.io}"
+
+# specs/20261116-letterhead-service: the hostname shell/vercel.json's CSP already names (T13 declares it in .railway/railway.ts). It does
+# NOT resolve until the Railway service + custom domain + DNS exist (T40, infra/README.md § letterhead-api service) — until then the
+# letterhead-api checks below fail by design. Override if the real domain differs.
+LETTERHEAD_API_URL="${LETTERHEAD_API_URL:-https://letterhead-api.operai.welld.io}"
 PREREQS_ONLY=false; [[ "${1:-}" == "--prereqs" ]] && PREREQS_ONLY=true
 
 PASS=0; FAIL=0
@@ -177,6 +185,16 @@ ASC="$(curl -s -o /dev/null -m 8 -w '%{http_code}' -X PUT -H 'Content-Type: appl
 if [[ "$ASC" == 401 ]]; then pass "activities-api /system/v1/* rejects a call with no credential (401)"
 elif [[ "$ASC" == 503 ]]; then warn "activities-api PUT /system/v1/activities/{id} answered 503 — maintenance mode? the service-credential gate cannot be proven until it is off"
 else fail "activities-api PUT /system/v1/activities/{id} without a credential did not return 401 (got HTTP ${ASC:-?}) — 404 = a build older than specs/20261110-activities T10, anything else = the service-credential gate is not live (ADR 20261110-caller-chosen-ids-replace-cross-service-transactions)"; fi
+
+# letterhead-api (specs/20261116-letterhead-service, Rust): /health is 200 once its startup checks passed (env, EU bucket, database up to
+# date — it exits rather than serve otherwise). Its service routes answer the single frozen 401 to a call with no credential
+# (letterhead-api/api/src/auth/service.rs), BEFORE any body is read, so no credential is used, read or printed; a 404 means
+# the route is not live, 503 a service that is up but not ready. ASSUMED hostname until DNS exists — see LETTERHEAD_API_URL above.
+[[ "$(code "$LETTERHEAD_API_URL/health")" == 200 ]] && pass "letterhead-api /health 200 ($LETTERHEAD_API_URL)" || fail "letterhead-api /health not 200 ($LETTERHEAD_API_URL) — ASSUMED hostname until DNS exists (specs/20261116-letterhead-service); a failed startup check keeps it down: read its deploy log"
+LSC="$(code "$LETTERHEAD_API_URL/v1/letterheads/status")"
+[[ "$LSC" == 401 ]] && pass "letterhead-api GET /v1/letterheads/status rejects a call with no credential (401)" || fail "letterhead-api GET /v1/letterheads/status without a credential did not return 401 (got HTTP ${LSC:-?}) — the service-credential gate may be missing or the service not deployed"
+LRC="$(curl -s -o /dev/null -m 8 -w '%{http_code}' -X POST -H 'Content-Type: application/json' -d '{}' "$LETTERHEAD_API_URL/v1/render/pdf" 2>/dev/null)"
+[[ "$LRC" == 401 ]] && pass "letterhead-api POST /v1/render/pdf rejects a call with no credential (401)" || fail "letterhead-api POST /v1/render/pdf without a credential did not return 401 (got HTTP ${LRC:-?}) — 404 = the route is not live, anything else = the service-credential gate is not live (specs/20261116-letterhead-service AC-3.1)"
 
 # meetings-api (specs/20261104-meetings): same contract. A healthy answer also means every startup check passed
 # (EU locations, the audio bucket's 29-day rule, the transient Google bucket, Vertex settings) —
@@ -340,6 +358,13 @@ if [[ -n "$CSP" ]]; then
     pass "  CSP connect-src includes $ACTIVITIES_API_URL (activities-api origin — specs/20261110-activities)"
   else
     fail "  CSP connect-src is MISSING $ACTIVITIES_API_URL — the CRM and projects activity/task calls will be blocked (specs/20261110-activities)"
+  fi
+  # specs/20261116-letterhead-service — letterhead-api: the shell's apiFetch calls it from the shell's document (letterheads-ui,
+  # its remote, is not probed here), so its origin needs its connect-src pin.
+  if [[ -n "$CONNECT_SRC" ]] && echo "$CONNECT_SRC" | grep -q "$LETTERHEAD_API_URL"; then
+    pass "  CSP connect-src includes $LETTERHEAD_API_URL (letterhead-api origin — specs/20261116-letterhead-service)"
+  else
+    fail "  CSP connect-src is MISSING $LETTERHEAD_API_URL — the letterheads configurator's API calls will be blocked (specs/20261116-letterhead-service)"
   fi
   # specs/20261103-projects — the same three pins for projects-api and projects-ui.
   if [[ -n "$CONNECT_SRC" ]] && echo "$CONNECT_SRC" | grep -q "$PROJECTS_API_URL"; then

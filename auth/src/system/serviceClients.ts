@@ -59,6 +59,9 @@ import { createHash, timingSafeEqual } from "node:crypto";
  * - `projects.purchase-orders.read`: read the purchase orders of given deals through
  *   projects-api's `GET /system/purchase-orders` (specs/20261103-projects-handoff; was `projects.contracts.read`,
  *   retired with "contract", D38). Only crm-api holds it.
+ * - `letterhead:render`: render a document's pages through the letterhead service
+ *   (specs/20261116-letterhead-service, AC-3.1, AC-9.3). Held by a calling tool's api
+ *   (crm-api first); the letterhead service verifies it.
  */
 export const KNOWN_SERVICE_SCOPES = [
   "notifications.push",
@@ -73,6 +76,7 @@ export const KNOWN_SERVICE_SCOPES = [
   "crm.contacts.read",
   "estimai.estimates.read",
   "projects.purchase-orders.read",
+  "letterhead:render",
 ] as const;
 
 /**

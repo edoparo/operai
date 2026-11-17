@@ -1,0 +1,100 @@
+{
+ "margins": {
+  "top": 10,
+  "bottom": 34,
+  "left": 25.4,
+  "right": 25.4
+ },
+ "fonts": {
+  "body": "Noto Serif",
+  "heading": "Ubuntu",
+  "frame": "Ubuntu"
+ },
+ "look": {
+  "headings": [
+   {
+    "size": 15,
+    "bold": true,
+    "color": "e50339"
+   },
+   {
+    "size": 12,
+    "bold": true,
+    "color": "1f2430"
+   },
+   {
+    "size": 10.5,
+    "bold": true,
+    "color": "595c69"
+   }
+  ],
+  "body": {
+   "size": 10.5,
+   "lineSpacing": 1.2
+  },
+  "table": {
+   "headerFill": "f1f1f4",
+   "borders": true,
+   "borderColor": "c9cad1"
+  },
+  "bulletMarker": "bullet"
+ },
+ "variants": {
+  "default": {
+   "header": {
+    "valign": "top",
+    "rule": {
+     "show": true,
+     "thicknessPt": 0.3,
+     "color": "c9cad1"
+    },
+    "left": [],
+    "center": [],
+    "right": [
+     {
+      "text": {
+       "it": "Offerta – pagina {page} di {pages}",
+       "en": "Offer – page {page} of {pages}"
+      },
+      "size": 8.0,
+      "bold": false,
+      "color": "595c69"
+     }
+    ]
+   },
+   "footer": {
+    "valign": "bottom",
+    "rule": {
+     "show": false,
+     "thicknessPt": 0.5,
+     "color": "e50339"
+    },
+    "left": [
+     {
+      "text": {
+       "it": "{legal_name}",
+       "en": "{legal_name}"
+      },
+      "size": 7.5,
+      "bold": false,
+      "color": "595c69"
+     }
+    ],
+    "center": [],
+    "right": [
+     {
+      "text": {
+       "it": "{page} / {pages}",
+       "en": "{page} / {pages}"
+      },
+      "size": 7.5,
+      "bold": false,
+      "color": "595c69"
+     }
+    ]
+   },
+   "logo": null,
+   "background": null
+  }
+ }
+}

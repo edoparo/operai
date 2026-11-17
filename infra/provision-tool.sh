@@ -24,6 +24,11 @@
 #   --port <n>        the backend's port (default: PORT in its env-doctor template)
 #   --bucket          the backend owns a private EU bucket named <tool>
 #   --no-api          frontend only          --no-ui   backend only
+#   --ui <remote>     the remote's name when it is not `<tool>-ui`: `--ui letterheads-ui`
+#                     (or just `letterheads`) for tool `letterhead`. It sets the UI
+#                     directory, the Vercel project, the host `<remote>.operai.welld.io`
+#                     and the shell variables `<REMOTE>_REMOTE_URL` / `VITE_<REMOTE>_API_URL`.
+#                     The backend (service, database, bucket, host) keeps the <tool> name.
 #   --connect         allow the apply to connect the GitHub repo (the block's
 #                     `source: github(...)`). This starts the FIRST BUILD — add
 #                     the source and pass it only once the service's secrets are
@@ -65,7 +70,7 @@ PUBLIC_RESOLVER="${PUBLIC_RESOLVER:-1.1.1.1}"
 
 # ─── Arguments ────────────────────────────────────────────────────────────────
 TOOL=""; PORT=""; APPLY=false; WITH_BUCKET=false; DO_API=true; DO_UI=true
-CONNECT=false; REDEPLOY_SHELL=false
+CONNECT=false; REDEPLOY_SHELL=false; UI_NAME=""
 while [[ $# -gt 0 ]]; do
   case "$1" in
     --apply) APPLY=true ;;
@@ -75,18 +80,25 @@ while [[ $# -gt 0 ]]; do
     --connect) CONNECT=true ;;
     --redeploy-shell) REDEPLOY_SHELL=true ;;
     --port) PORT="${2:-}"; shift ;;
-    -h|--help) sed -n '2,42p' "$0" | sed 's/^# \{0,1\}//'; exit 0 ;;
+    --ui) UI_NAME="${2:-}"; shift ;;
+    -h|--help) sed -n '2,47p' "$0" | sed 's/^# \{0,1\}//'; exit 0 ;;
     -*) echo "unknown option: $1" >&2; exit 2 ;;
     *) [[ -z "$TOOL" ]] && TOOL="$1" || { echo "unexpected argument: $1" >&2; exit 2; } ;;
   esac
   shift
 done
-[[ "$TOOL" =~ ^[a-z][a-z0-9]{1,30}$ ]] || { echo "usage: $0 <tool> [--port n] [--bucket] [--no-api|--no-ui] [--connect] [--redeploy-shell] [--apply]" >&2; exit 2; }
+[[ "$TOOL" =~ ^[a-z][a-z0-9]{1,30}$ ]] || { echo "usage: $0 <tool> [--port n] [--ui <remote>] [--bucket] [--no-api|--no-ui] [--connect] [--redeploy-shell] [--apply]" >&2; exit 2; }
+
+# --ui accepts the remote's directory name (`letterheads-ui`) or its stem (`letterheads`).
+UI_NAME="${UI_NAME%-ui}"
+[[ -z "$UI_NAME" || "$UI_NAME" =~ ^[a-z][a-z0-9]{1,30}$ ]] || { echo "invalid --ui value: expected a name like letterheads-ui" >&2; exit 2; }
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"; cd "$ROOT" || exit 1
-API_SVC="${TOOL}-api"; UI_DIR="${TOOL}-ui"; DB_NAME="$TOOL"; BUCKET_NAME="$TOOL"; VERCEL_PROJECT="$TOOL"
-API_HOST="${TOOL}-api.${BASE_DOMAIN}"; UI_HOST="${TOOL}.${BASE_DOMAIN}"
-UPPER="$(printf '%s' "$TOOL" | tr '[:lower:]' '[:upper:]')"
+UI_STEM="${UI_NAME:-$TOOL}"   # the remote's name; equal to <tool> unless --ui says otherwise
+API_SVC="${TOOL}-api"; UI_DIR="${UI_STEM}-ui"; DB_NAME="$TOOL"; BUCKET_NAME="$TOOL"; VERCEL_PROJECT="$UI_STEM"
+API_HOST="${TOOL}-api.${BASE_DOMAIN}"; UI_HOST="${UI_STEM}.${BASE_DOMAIN}"
+UPPER="$(printf '%s' "$TOOL" | tr '[:lower:]' '[:upper:]')"          # backend variables (<TOOL>_S3_*)
+UI_UPPER="$(printf '%s' "$UI_STEM" | tr '[:lower:]' '[:upper:]')"    # shell variables (<REMOTE>_REMOTE_URL)
 TEMPLATE="tools/env-doctor/templates/production/${API_SVC}.env"
 
 # ─── Output helpers ───────────────────────────────────────────────────────────
@@ -236,7 +248,7 @@ SNIPPET
   live_src=""
   [[ -n "$svc_id" ]] && live_src="$(railway environment config --json 2>/dev/null | jq -r --arg id "$svc_id" '.services[$id].source.repo // empty' 2>/dev/null)"
   if [[ -n "$live_src" ]]; then have "source ${live_src}"
-  elif grep -q 'source: github(' <<<"$block"; then
+  elif sed -E -e 's#(^|[[:space:]])//.*$##' -e 's#/\*.*\*/##g' <<<"$block" | grep -Eq '(^|[^[:alnum:]_])source:[[:space:]]*github\('; then   # comments never count: the snippet and the todo below say `// source: github(...)`
     if ! $CONNECT; then bad "the ${API_SVC} block declares a source but the service has none: applying it starts the first build — set the variables first, then re-run with --connect"; DECLARED=false
     elif ! $ON_MAIN; then bad "not connecting the source: ${API_SVC} is not on origin/main"; DECLARED=false
     else note "the apply connects ${GITHUB_REPO}@main — the first build starts"; fi
@@ -381,15 +393,15 @@ if $DO_UI; then
   # The shell reads both at BUILD time: without them the tool does not load and
   # apiFetch sends no token to the tool's API (every call 401s, silently).
   section "Shell wiring (Vercel project ${VERCEL_SHELL_PROJECT})"
-  grep -q "${UPPER}_REMOTE_URL" shell/vite.config.ts 2>/dev/null && have "shell/vite.config.ts reads ${UPPER}_REMOTE_URL" || bad "shell/vite.config.ts does not read ${UPPER}_REMOTE_URL — the remote is not wired into the shell's code"
+  grep -q "${UI_UPPER}_REMOTE_URL" shell/vite.config.ts 2>/dev/null && have "shell/vite.config.ts reads ${UI_UPPER}_REMOTE_URL" || bad "shell/vite.config.ts does not read ${UI_UPPER}_REMOTE_URL — the remote is not wired into the shell's code"
   csp="$(jq -r '[.headers[]?.headers[]? | select(.key=="Content-Security-Policy") | .value] | join(" ")' shell/vercel.json 2>/dev/null)"
   for h in "https://${UI_HOST}" $($DO_API && echo "https://${API_HOST}"); do
     [[ "$csp" == *"$h"* ]] && have "shell CSP names ${h}" || bad "shell/vercel.json CSP does not name ${h} — add it (script-src and connect-src for the remote, connect-src for the API), commit and push"
   done
   shell_proj="$(vapi GET "/v9/projects/${VERCEL_SHELL_PROJECT}")"
   changed=false
-  vercel_env "$VERCEL_SHELL_PROJECT" "${UPPER}_REMOTE_URL" "https://${UI_HOST}/remoteEntry.js" "$shell_proj" || changed=true
-  if $DO_API; then vercel_env "$VERCEL_SHELL_PROJECT" "VITE_${UPPER}_API_URL" "https://${API_HOST}" "$shell_proj" || changed=true; fi
+  vercel_env "$VERCEL_SHELL_PROJECT" "${UI_UPPER}_REMOTE_URL" "https://${UI_HOST}/remoteEntry.js" "$shell_proj" || changed=true
+  if $DO_API; then vercel_env "$VERCEL_SHELL_PROJECT" "VITE_${UI_UPPER}_API_URL" "https://${API_HOST}" "$shell_proj" || changed=true; fi
   if $REDEPLOY_SHELL && $APPLY; then
     last="$(vapi GET "/v6/deployments?projectId=${VERCEL_SHELL_PROJECT}&target=production&limit=1" | jq -r '.deployments[0].url // empty')"
     if [[ -n "$last" ]] && vercel redeploy "$last" --scope "$VERCEL_SCOPE" --target production >/dev/null 2>&1; then did "shell redeployed"

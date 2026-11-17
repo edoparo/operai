@@ -35,6 +35,9 @@ export const SERVICES = {
   // specs/20261110-activities: the shared activities/tasks/blockers store (ADR 20261110-activities-service-access-delegated-to-host). No UI of its own:
   // the CRM and projects remotes render it.
   "activities-api": { platform: "railway", kind: "backend" },
+  // specs/20261116-letterhead-service (ADR 20261116-letterhead-api-is-a-rust-service-with-typst-embedded-for-document-layout-only): the one Rust service, in letterhead-api/. It is listed here BY NAME: nothing else
+  // would put it in the contract, because it has no package.json of its own to trigger a check (the ADR's failure shape).
+  "letterhead-api": { platform: "railway", kind: "backend" },
   shell: { platform: "vercel", kind: "frontend" },
   "estimai-ui": { platform: "vercel", kind: "frontend" },
   "refund-ui": { platform: "vercel", kind: "frontend" },
@@ -44,6 +47,8 @@ export const SERVICES = {
   "crm-ui": { platform: "vercel", kind: "frontend" },
   "meetings-ui": { platform: "vercel", kind: "frontend" },
   "projects-ui": { platform: "vercel", kind: "frontend" },
+  // specs/20261116-letterhead-service: the letterhead configurator, a federated remote reached through the shell.
+  "letterheads-ui": { platform: "vercel", kind: "frontend" },
 } as const satisfies Record<string, ServiceDef>;
 
 export type ServiceName = keyof typeof SERVICES;
@@ -71,6 +76,8 @@ export const ORIGINS: Record<string, Partial<Record<ServiceName, string | null>>
     "meetings-ui": "https://meetings.operai.welld.io",
     // ASSUMED (matches the shell CSP in shell/vercel.json, specs/20261103-projects) — confirm once the Vercel project exists.
     "projects-ui": "https://projects.operai.welld.io",
+    // ASSUMED (specs/20261116-letterhead-service) — confirm once the Vercel project exists.
+    "letterheads-ui": "https://letterheads.operai.welld.io",
   },
   preview: {
     // Vercel preview URLs are per-deploy; usually validated via the live-diff
@@ -86,12 +93,13 @@ export const ORIGINS: Record<string, Partial<Record<ServiceName, string | null>>
     "crm-ui": "http://localhost:5179",
     "meetings-ui": "http://localhost:5180",
     "projects-ui": "http://localhost:5181",
+    "letterheads-ui": "http://localhost:5182",
   },
 };
 
 /** Vars that MUST hold a byte-for-byte identical value across the listed services. */
 export const SHARED_VARS: ReadonlyArray<{ name: string; services: ServiceName[] }> = [
-  { name: "AUTH_AUDIENCE", services: ["auth", "estimai-api", "notify-api", "refund-api", "inventory-api", "crm-api", "meetings-api", "projects-api", "activities-api"] },
+  { name: "AUTH_AUDIENCE", services: ["auth", "estimai-api", "notify-api", "refund-api", "inventory-api", "crm-api", "meetings-api", "projects-api", "activities-api", "letterhead-api"] },
   // The `aud` auth stamps on scoped service JWTs and the resource servers that take them verify:
   // notify-api (ADR 20261006-scoped-service-jwt-fourth-notify-caller); crm-api for estimai-api's estimate notices (specs/20261101-crm-sales-flow AC-3.3, ADR 20261105-estimai-closes-the-estimate-crm-follows),
   // meetings-api's host notices (`system:meetings-api`, scope `host-notices.send`, ADR 20261104-meeting-host-contract-resolve-and-notices) and
@@ -100,7 +108,8 @@ export const SHARED_VARS: ReadonlyArray<{ name: string; services: ServiceName[] 
   // specs/20261108-estimate-list-oversight: estimai-api verifies crm-api's deal-link notices against it (ADR 20261108-crm-pushes-deal-links-to-estimai).
   // specs/20261110-activities (ADR 20261110-caller-chosen-ids-replace-cross-service-transactions): activities-api verifies crm-api's /system/v1/* calls (scope `activities.write`,
   // sub `system:crm-api`) against it.
-  { name: "SERVICE_AUDIENCE", services: ["auth", "notify-api", "crm-api", "estimai-api", "projects-api", "activities-api"] },
+  // specs/20261116-letterhead-service: letterhead-api verifies crm-api's /v1/render/* calls (scope `letterhead:render`) against it.
+  { name: "SERVICE_AUDIENCE", services: ["auth", "notify-api", "crm-api", "estimai-api", "projects-api", "activities-api", "letterhead-api"] },
 ];
 
 /**
@@ -116,8 +125,8 @@ export const DISTINCT_VARS: ReadonlyArray<{ a: string; b: string; services: Serv
   {
     a: "SERVICE_AUDIENCE",
     b: "AUTH_AUDIENCE",
-    services: ["auth", "notify-api", "crm-api", "estimai-api", "activities-api"],
-    why: "a service token would be accepted on user routes and a user JWT on /system/notifications, /system/estimate-notices, /system/meeting-host/v1/notices, /system/deal-link-notices, /system/companies or /system/v1/* (ADR 20261006-scoped-service-jwt-fourth-notify-caller)",
+    services: ["auth", "notify-api", "crm-api", "estimai-api", "activities-api", "letterhead-api"],
+    why: "a service token would be accepted on user routes and a user JWT on /system/notifications, /system/estimate-notices, /system/meeting-host/v1/notices, /system/deal-link-notices, /system/companies, /system/v1/* or /v1/render/* (ADR 20261006-scoped-service-jwt-fourth-notify-caller; letterhead-api refuses to start with equal values)",
   },
   {
     a: "SERVICE_AUDIENCE",
@@ -137,7 +146,7 @@ export const DISTINCT_VARS: ReadonlyArray<{ a: string; b: string; services: Serv
 export const FORBIDDEN_VARS: ReadonlyArray<{ name: string; services: ServiceName[]; why: string }> = [
   {
     name: "NOTIFY_INTERNAL_TOKEN",
-    services: ["auth", "estimai-api", "notify-api", "refund-api", "inventory-api", "crm-api", "meetings-api", "projects-api", "activities-api"],
+    services: ["auth", "estimai-api", "notify-api", "refund-api", "inventory-api", "crm-api", "meetings-api", "projects-api", "activities-api", "letterhead-api"],
     why: "the shared notify token was retired (specs/20261013-notify-service-credentials, ADR 20261013-all-notify-callers-scoped-credentials-shared-token-retired): every caller uses its own scoped service credential",
   },
   // specs/20261111-push-notifications US-7 (ADR 20261112-system-endpoints-limited-per-verified-service): the one address-keyed bucket of the two /system endpoints is replaced by
@@ -205,7 +214,9 @@ export const SERVICE_CLIENT_LINKS: ReadonlyArray<{
   // specs/20261108-estimate-list-oversight: crm-api also tells estimai-api which deal an estimate belongs to (ADR 20261108-crm-pushes-deal-links-to-estimai).
   // specs/20261110-activities (ADR 20261110-caller-chosen-ids-replace-cross-service-transactions): crm-api also writes to activities-api (the migration copy, the host's deal
   // delete/erase/transfer calls) as `system:crm-api`.
-  { ...LINK_BASE, caller: "crm-api", requiredScopes: ["notifications.push", "emails.send", "deal-link-notices.send", "activities.write", "projects.purchase-orders.read"] },
+  // specs/20261116-letterhead-service (T44, AC-9.3): crm-api also renders offers through letterhead-api as itself (`letterhead:render`,
+  // verified by letterhead-api's /v1/render/*; the same client, so it is in the entry whatever the switch says).
+  { ...LINK_BASE, caller: "crm-api", requiredScopes: ["notifications.push", "emails.send", "deal-link-notices.send", "activities.write", "projects.purchase-orders.read", "letterhead:render"] },
   { ...LINK_BASE, caller: "notify-api", requiredScopes: ["users.contact"] },
   // specs/20261104-meetings: meetings-api pushes meeting notifications (notify-api) and posts host notices to
   // crm-api (ADR 20261104-meeting-host-contract-resolve-and-notices). No emails.send: an email notice, if ever wanted, is a deliberate widening.
@@ -243,6 +254,9 @@ export const S3_RESIDENCY: ReadonlyArray<{ service: ServiceName; prefix: string 
   // ADR 20261113-task-description-files-in-activities-api-bucket: task images and attachments. Optional like the CRM's: without it the file routes
   // answer 503 storage_unconfigured and the rest of activities-api works.
   { service: "activities-api", prefix: "ACTIVITIES_S3" },
+  // specs/20261116-letterhead-service AC-3.8: REQUIRED, and letterhead-api exits at startup when it fails
+  // (letterhead-api/api/src/env.rs, a port of crm-api's s3Residency.ts): logos and backgrounds live in its own EU bucket.
+  { service: "letterhead-api", prefix: "LETTERHEAD_S3" },
 ];
 export const EU_AWS_REGIONS: ReadonlyArray<string> = [
   "eu-west-1", "eu-west-2", "eu-west-3", "eu-central-1", "eu-central-2",
@@ -257,7 +271,7 @@ export const ISSUER = {
   authService: "auth" as ServiceName,
   authVar: "BETTER_AUTH_URL",
   issuerVar: "AUTH_ISSUER",
-  resourceServers: ["estimai-api", "notify-api", "refund-api", "inventory-api", "crm-api", "meetings-api", "projects-api", "activities-api"] as ServiceName[],
+  resourceServers: ["estimai-api", "notify-api", "refund-api", "inventory-api", "crm-api", "meetings-api", "projects-api", "activities-api", "letterhead-api"] as ServiceName[],
 };
 
 /**
@@ -271,9 +285,9 @@ export const INTERNAL_URL_VARS: ReadonlyArray<{
   services: ServiceName[];
   target: ServiceName;
 }> = [
-  { name: "AUTH_JWKS_URL", services: ["estimai-api", "notify-api", "refund-api", "inventory-api", "crm-api", "meetings-api", "projects-api", "activities-api"], target: "auth" },
+  { name: "AUTH_JWKS_URL", services: ["estimai-api", "notify-api", "refund-api", "inventory-api", "crm-api", "meetings-api", "projects-api", "activities-api", "letterhead-api"], target: "auth" },
   // specs/20261101-crm-notifications: notify-api resolves an email notice's address through auth (ADR 20261101-notify-api-resolves-email-notice-address-from-auth).
-  { name: "AUTH_BASE_URL", services: ["refund-api", "inventory-api", "crm-api", "notify-api", "meetings-api", "projects-api", "activities-api"], target: "auth" },
+  { name: "AUTH_BASE_URL", services: ["refund-api", "inventory-api", "crm-api", "notify-api", "meetings-api", "projects-api", "activities-api", "letterhead-api"], target: "auth" },
   // specs/20261103-projects-handoff: projects-api notifies a PO's ops-manager after a take (T25); the push is a no-op without it.
   { name: "NOTIFY_INTERNAL_URL", services: ["auth", "refund-api", "inventory-api", "crm-api", "meetings-api", "projects-api", "activities-api"], target: "notify-api" },
   // specs/20261101-crm-sales-flow: crm-api calls estimai-api with the caller's JWT (estimate requests, offers).
@@ -295,6 +309,9 @@ export const INTERNAL_URL_VARS: ReadonlyArray<{
   { name: "ESTIMAI_INTERNAL_URL", services: ["projects-api"], target: "estimai-api" },
   // specs/20261103-projects-handoff: crm-api reads a deal's project and Bexio order id from projects-api as itself (ADR 20261104-projects-handoff-live-reads-between-crm-and-projects-over-service-credentials).
   { name: "PROJECTS_INTERNAL_URL", services: ["crm-api"], target: "projects-api" },
+  // specs/20261116-letterhead-service (plan § Architecture): crm-api renders offers through letterhead-api as itself (service JWT,
+  // scope `letterhead:render`). Optional in crm-api until the switch: LETTERHEAD_SERVICE_ENABLED is off and the CRM behaves as before (AC-10.12).
+  { name: "LETTERHEAD_API_URL", services: ["crm-api"], target: "letterhead-api" },
 ];
 
 /** Browser-facing / identity-claim URLs — must stay PUBLIC (`https://`, not localhost/internal in prod). */
@@ -305,6 +322,8 @@ export const PUBLIC_URL_VARS: ReadonlyArray<{ name: string; services: ServiceNam
   { name: "REFUND_APP_BASE_URL", services: ["refund-api"] },
   // specs/20261101-crm-notifications: the shell origin the email notice links to.
   { name: "APP_BASE_URL", services: ["notify-api"] },
+  // specs/20261116-letterhead-service: the configurator talks to letterhead-api's person routes from the browser, so this origin is public.
+  { name: "VITE_LETTERHEADS_API_URL", services: ["letterheads-ui"] },
 ];
 
 /** Each backend's `ALLOWED_ORIGINS` must include the public origin of these frontends (CORS). */
@@ -325,6 +344,8 @@ export const CORS_REQUIREMENTS: ReadonlyArray<{ backend: ServiceName; mustAllow:
   { backend: "projects-api", mustAllow: ["shell"] },
   // The CRM and projects remotes call activities-api from the shell's origin (ADR 20260709-suite-frontend-module-federation); there is no activities-ui.
   { backend: "activities-api", mustAllow: ["shell"] },
+  // letterheads-ui is a remote reached through the shell (specs/20261116-letterhead-service), so the browser Origin is the shell's.
+  { backend: "letterhead-api", mustAllow: ["shell"] },
 ];
 
 /**
@@ -420,6 +441,15 @@ export const REQUIRED_KEYS: Partial<Record<ServiceName, string[]>> = {
     "CRM_API_URL", "PROJECTS_API_URL", "NOTIFY_INTERNAL_URL", "SERVICE_CLIENT_ID", "SERVICE_CLIENT_SECRET",
     "SERVICE_AUDIENCE", "PORT",
   ],
+  // specs/20261116-letterhead-service: a JWKS resource server with two audiences (person tokens on /v1/letterheads/*, service tokens on
+  // /v1/render/*). The whole list is what letterhead-api/api/src/env.rs requires at startup, minus the bucket's name and two credentials (set by reference to the Railway bucket) and its
+  // optional LH_WORKERS / LH_QUEUE (default 2 / 4). The bucket's two credentials are set by reference to the Railway bucket and stay
+  // out of the committed template, as for crm-api / inventory-api. It has no service client: it calls `auth` with the caller's own
+  // token, and a new caller needs a credential at `auth`, not a line here (AC-9.3).
+  "letterhead-api": [
+    "DATABASE_URL", "ALLOWED_ORIGINS", "AUTH_ISSUER", "AUTH_JWKS_URL", "AUTH_BASE_URL", "AUTH_AUDIENCE", "SERVICE_AUDIENCE",
+    "LETTERHEAD_S3_ENDPOINT", "LETTERHEAD_S3_REGION", "LETTERHEAD_S3_EU_ENDPOINT_HOSTS", "PORT",
+  ],
 };
 
 /**
@@ -435,7 +465,13 @@ export const PRODUCTION_REQUIRED_KEYS: Partial<Record<ServiceName, string[]>> = 
   // service client pair — env.ts requires the pair with this URL or with NOTIFY_INTERNAL_URL.
   // specs/20261110-activities: ACTIVITIES_API_URL is where crm-api reaches activities-api. Without it the CRM's
   // activity, task and blocker routes have no store.
-  "crm-api": ["PROJECTS_INTERNAL_URL", "SERVICE_CLIENT_ID", "SERVICE_CLIENT_SECRET", "ACTIVITIES_API_URL"],
+  //
+  // specs/20261116-letterhead-service (T44): LETTERHEAD_API_URL (where crm-api reaches letterhead-api, checked as an internal URL above) and
+  // LETTERHEAD_SERVICE_ENABLED (the switch, AC-10.12, `false` in the production template until the owner turns it on) are optional in
+  // crm-api's env.ts until the switch, but production must state both so the switch is never an implicit default. They are listed in ONE
+  // change with `letterhead:render` in crm-api's SERVICE_CLIENT_LINKS entry and in auth's SERVICE_CLIENTS template (a scope listed on one
+  // side only fails).
+  "crm-api": ["PROJECTS_INTERNAL_URL", "SERVICE_CLIENT_ID", "SERVICE_CLIENT_SECRET", "ACTIVITIES_API_URL", "LETTERHEAD_API_URL", "LETTERHEAD_SERVICE_ENABLED"],
   // specs/20261103-projects-handoff: every /system/* route answers 401 until the service knows its audience (ADR 20261104-estimai-api-first-system-route-estimate-man-days-for-a-service-credential); equal
   // across auth, notify-api, crm-api, estimai-api and projects-api, and different from AUTH_AUDIENCE.
   "estimai-api": ["SERVICE_AUDIENCE"],
@@ -476,6 +512,8 @@ export const SECRET_VARS: ReadonlySet<string> = new Set([
   "MEETINGS_S3_SECRET_ACCESS_KEY",
   "ACTIVITIES_S3_ACCESS_KEY_ID",
   "ACTIVITIES_S3_SECRET_ACCESS_KEY",
+  "LETTERHEAD_S3_ACCESS_KEY_ID",
+  "LETTERHEAD_S3_SECRET_ACCESS_KEY",
   "MEETINGS_GCP_SERVICE_ACCOUNT_KEY", // base64 service-account JSON key, carries a private key (specs/20261104-meetings, G-6/G-7)
   // The retired provider credentials stay redacted: if one is found live it is flagged by name
   // (FORBIDDEN_VARS) and its value must still never be surfaced.

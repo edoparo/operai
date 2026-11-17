@@ -127,6 +127,7 @@ import { type AppCatalogInput, upsertAppCatalog } from "./catalog";
 import { ESTIMAI_CATALOG } from "./catalogs/estimai";
 import { CRM_APP_ID, CRM_CATALOG } from "./catalogs/crm";
 import { INVENTORY_APP_ID, INVENTORY_CATALOG } from "./catalogs/inventory";
+import { LETTERHEADS_APP_ID, LETTERHEADS_CATALOG } from "./catalogs/letterheads";
 import { MEETINGS_APP_ID, MEETINGS_CATALOG } from "./catalogs/meetings";
 import { PROJECTS_APP_ID, PROJECTS_CATALOG } from "./catalogs/projects";
 import { REFUND_APP_ID, REFUND_CATALOG } from "./catalogs/refund";
@@ -261,6 +262,15 @@ export async function seedProjectsCatalog(): Promise<void> {
 }
 
 /**
+ * Registers the letterheads catalog (specs/20261116-letterhead-service — AC-8.1, AC-8.9):
+ * `letterheads:access` and entity-scoped `letterhead:manage`. Idempotent (full-replace
+ * upsert per `appId`). `letterheads` is registered ONLY here, never via `SUITE_APPS`.
+ */
+export async function seedLetterheadsCatalog(): Promise<void> {
+  await upsertAppCatalog(LETTERHEADS_CATALOG);
+}
+
+/**
  * Every catalog a suite app declares itself (everything registered by a
  * `seed<App>Catalog` above; the access-only {@link SUITE_APPS} are separate).
  * `catalogs/uniqueResourceKeys.test.ts` checks no two of them share a resource
@@ -273,6 +283,7 @@ export const DECLARED_CATALOGS: readonly AppCatalogInput[] = [
   CRM_CATALOG,
   MEETINGS_CATALOG,
   PROJECTS_CATALOG,
+  LETTERHEADS_CATALOG,
 ];
 
 /**
@@ -288,6 +299,7 @@ export const ALL_APP_IDS: readonly string[] = [
   CRM_APP_ID,
   MEETINGS_APP_ID,
   PROJECTS_APP_ID,
+  LETTERHEADS_APP_ID,
   ...SUITE_APPS.map((a) => a.appId),
 ];
 
@@ -872,6 +884,25 @@ export async function ensureBootstrapAdmin(): Promise<void> {
   });
 }
 
+/**
+ * Seeds the letterheads role grants (specs/20261116-letterhead-service — AC-8.9, owner O9):
+ * `admin` holds `letterhead:manage`, UNCONDITIONED (every entity). Its `letterheads:access`
+ * comes from {@link seedAdminRoleGrants} (`ALL_APP_IDS`). No other role holds either
+ * capability: an administrator grants them in the Admin tool, and a grant conditioned on
+ * the entity gives the scope of AC-8.2.
+ *
+ * Idempotent and non-destructive, through {@link ensureGrant}, exactly like
+ * {@link seedMeetingsGrants}.
+ */
+export async function seedLetterheadsGrants(): Promise<void> {
+  const adminRole = await db.role.upsert({
+    where: { name: ADMIN_ROLE_NAME },
+    update: {},
+    create: { name: ADMIN_ROLE_NAME, isSystem: true },
+  });
+  await ensureGrant(adminRole.id, "letterhead", "manage");
+}
+
 /** Runs every deploy-time seed step (all idempotent). */
 export async function seed(): Promise<void> {
   await seedSystemRoles();
@@ -882,6 +913,7 @@ export async function seed(): Promise<void> {
   await seedCrmCatalog();
   await seedMeetingsCatalog();
   await seedProjectsCatalog();
+  await seedLetterheadsCatalog();
   await seedAdminRoleGrants();
   await seedAccountingRoleGrants();
   await seedRefundAdminRole();
@@ -892,6 +924,7 @@ export async function seed(): Promise<void> {
   await seedMeetingsGrants();
   await seedEstimaiGrants();
   await seedProjectsGrants();
+  await seedLetterheadsGrants();
   await ensureBootstrapAdmin();
 }
 
@@ -972,6 +1005,7 @@ if (import.meta.main) {
           "+ admin app-access grants + accounting refund grants + refund-admin role + " +
           "rate admin grants + settings admin grants + inventory catalog + inventory grants " +
           "+ CRM catalog + CRM grants + projects catalog + projects grants " +
+          "+ letterheads catalog + letterheads grants " +
           "+ bootstrap admin",
       );
       process.exit(0);

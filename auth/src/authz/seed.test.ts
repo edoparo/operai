@@ -31,6 +31,7 @@
 
 import { afterAll, afterEach, beforeEach, describe, expect, test } from "bun:test";
 import { ADMIN_ROLE_NAME } from "../admin/lastAdminGuard";
+import { Effect } from "effect";
 import { db } from "../lib/db";
 import { env } from "../lib/env";
 import { Prisma } from "../lib/generated/prisma/client";
@@ -38,9 +39,11 @@ import { getAppCatalog } from "./catalog";
 import { CRM_APP_ID } from "./catalogs/crm";
 import { ESTIMAI_APP_ID } from "./catalogs/estimai";
 import { INVENTORY_APP_ID } from "./catalogs/inventory";
+import { LETTERHEADS_APP_ID } from "./catalogs/letterheads";
 import { MEETINGS_APP_ID } from "./catalogs/meetings";
 import { PROJECTS_APP_ID } from "./catalogs/projects";
 import { REFUND_APP_ID } from "./catalogs/refund";
+import { entityGrantFor, resolveEffectivePermissions, toRuleConditions } from "./resolver";
 import {
   ACCOUNTING_ROLE_NAME,
   ALL_APP_IDS,
@@ -63,6 +66,8 @@ import {
   seedEstimaiGrants,
   seedInventoryCatalog,
   seedInventoryGrants,
+  seedLetterheadsCatalog,
+  seedLetterheadsGrants,
   seedMeetingsCatalog,
   seedMeetingsGrants,
   seedProjectsCatalog,
@@ -1268,5 +1273,119 @@ describe("seedProjectsGrants (specs/20261103-projects — AC-4.3–4.6; specs/20
       "purchase-order:bexio",
       "purchase-order:receive",
     ]);
+  });
+});
+
+// ─── specs/20261116-letterhead-service ───────────────────────────────────────────────
+
+describe("seedLetterheadsCatalog (specs/20261116-letterhead-service — AC-8.1, AC-8.9)", () => {
+  test("registers the letterheads catalog — letterheads:access and entity-scoped letterhead:manage, idempotent", async () => {
+    await seedLetterheadsCatalog();
+    await seedLetterheadsCatalog();
+    const catalog = await getAppCatalog(LETTERHEADS_APP_ID);
+    const byResource = new Map(
+      catalog.resources.map((r) => [r.key, r.actions.map((a) => [a.key, a.supportedConditions])]),
+    );
+    expect([...byResource.keys()].sort()).toEqual(["letterhead", "letterheads"]);
+    expect(byResource.get("letterheads")).toEqual([["access", []]]);
+    expect(byResource.get("letterhead")).toEqual([["manage", ["entity"]]]);
+  });
+
+  test("letterheads is excluded from SUITE_APPS but reached by admin through ALL_APP_IDS", () => {
+    expect(SUITE_APPS.some((app) => app.appId === LETTERHEADS_APP_ID)).toBe(false);
+    expect(ALL_APP_IDS).toContain(LETTERHEADS_APP_ID);
+  });
+});
+
+describe("seedLetterheadsGrants (specs/20261116-letterhead-service — AC-8.9)", () => {
+  const LETTERHEADS_RESOURCES = [LETTERHEADS_APP_ID, "letterhead"];
+  const ENTITY_CONDITION = { attributes: [{ key: "entity", match: "user" }] };
+  const createdUserIds: string[] = [];
+  const createdRoleIds: string[] = [];
+
+  async function clearLetterheadsGrants() {
+    await db.permissionRule.deleteMany({ where: { resource: { in: LETTERHEADS_RESOURCES } } });
+  }
+  beforeEach(clearLetterheadsGrants);
+  afterAll(async () => {
+    await db.user.deleteMany({ where: { id: { in: createdUserIds } } });
+    await db.role.deleteMany({ where: { id: { in: createdRoleIds } } });
+    await clearLetterheadsGrants();
+    await seedAdminRoleGrants();
+    await seedLetterheadsGrants();
+  });
+
+  /** Every letterheads rule, with the name of the role that holds it. */
+  const letterheadsRules = async () => {
+    const rules = await db.permissionRule.findMany({
+      where: { resource: { in: LETTERHEADS_RESOURCES } },
+      include: { role: { select: { name: true } } },
+    });
+    return rules.map((r) => ({ role: r.role.name, grant: `${r.resource}:${r.action}`, conditions: r.conditions }));
+  };
+
+  test("after the seed only admin holds the two permissions, both unconditioned, idempotently", async () => {
+    await seedSystemRoles();
+    await seedAdminRoleGrants();
+    await seedLetterheadsGrants();
+    await seedLetterheadsGrants();
+    const rules = await letterheadsRules();
+    expect(rules.map((r) => `${r.role} ${r.grant}`).sort()).toEqual([
+      `${ADMIN_ROLE_NAME} letterhead:manage`,
+      `${ADMIN_ROLE_NAME} letterheads:access`,
+    ]);
+    for (const rule of rules) expect(rule.conditions).toBeNull();
+  });
+
+  test("seed() leaves every other role without either permission", async () => {
+    await seed();
+    await seed();
+    const holders = (await letterheadsRules()).map((r) => r.role);
+    expect(holders).toEqual([ADMIN_ROLE_NAME, ADMIN_ROLE_NAME]);
+  });
+
+  test("an entity-conditioned grant made by an administrator resolves to that entity's scope (AC-8.2)", async () => {
+    await seedLetterheadsCatalog();
+    const suffix = crypto.randomUUID().slice(0, 8);
+    const role = await db.role.create({ data: { name: `lh-entity-${suffix}` } });
+    createdRoleIds.push(role.id);
+    await db.permissionRule.create({
+      data: { roleId: role.id, resource: "letterhead", action: "manage", conditions: ENTITY_CONDITION },
+    });
+    const user = await db.user.create({
+      data: {
+        id: `lh-${suffix}`,
+        name: "Letterhead scope",
+        email: `lh-${suffix}@example.test`,
+        emailVerified: true,
+        entity: "CH",
+      },
+    });
+    createdUserIds.push(user.id);
+    await db.userRole.create({ data: { userId: user.id, roleId: role.id } });
+
+    const permissions = await Effect.runPromise(resolveEffectivePermissions(user.id));
+    expect(permissions).toEqual([
+      { resource: "letterhead", action: "manage", conditions: toRuleConditions(ENTITY_CONDITION) },
+    ]);
+    expect(entityGrantFor(permissions, "letterhead", "manage", { entity: "CH" }, "CH")).toEqual({
+      unconditioned: false,
+    });
+    expect(entityGrantFor(permissions, "letterhead", "manage", { entity: "CH" }, "IT")).toBeNull();
+    expect(entityGrantFor(permissions, "letterhead", "manage", { entity: null }, "CH")).toBeNull();
+    expect(entityGrantFor(permissions, "letterheads", "access", { entity: "CH" }, "CH")).toBeNull();
+  });
+
+  test("the admin's unconditioned grant covers every entity, even for a user with none", async () => {
+    await seedSystemRoles();
+    await seedLetterheadsGrants();
+    const admin = await db.role.findUniqueOrThrow({ where: { name: ADMIN_ROLE_NAME } });
+    const rule = await db.permissionRule.findFirstOrThrow({
+      where: { roleId: admin.id, resource: "letterhead", action: "manage" },
+    });
+    const permissions = [{ resource: "letterhead", action: "manage", conditions: toRuleConditions(rule.conditions) }];
+    expect(entityGrantFor(permissions, "letterhead", "manage", { entity: null }, "IT")).toEqual({
+      unconditioned: true,
+    });
   });
 });

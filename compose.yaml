@@ -297,6 +297,99 @@ services:
       retries: 5
       start_period: 15s
 
+  # ─── letterhead-api ─────────────────────────────────────────────────────────
+  # Rust (axum) service that lays out a whole document, Typst embedded as a library, for every tool
+  # (specs/20261116-letterhead-service, ADR 20261116-letterhead-api-is-a-rust-service-with-typst-embedded-for-document-layout-only). The one backend that is not Bun.
+  #
+  # DATA-RESIDENCY: in production this service is deployed to Railway EU region (europe-west4) with an EU
+  # bucket. Locally it uses the shared Postgres above in its own logical database ('letterhead', created by
+  # the one-shot below: sqlx, unlike Prisma, does not create it) and MinIO's private bucket 'letterhead'.
+  # The startup residency guard runs here too: MinIO is "EU" only because LETTERHEAD_S3_EU_ENDPOINT_HOSTS says
+  # so. It keeps no document content, PDF or image after a render, and logs identifiers and numbers only.
+  #
+  # No env file is needed: every variable has its local value below (an exported variable wins). It reaches
+  # `auth` on the host through host.docker.internal; run the whole suite on the host with `mise run dev`
+  # (which runs it as `mise run dev:letterhead`) when testing against a running auth.
+  #
+  # The image has no curl or wget: its HEALTHCHECK is `letterhead-api healthcheck`.
+  letterhead-createdb:
+    image: docker.io/postgres:${POSTGRES_VERSION:-17}
+    environment:
+      PGPASSWORD: ${POSTGRES_PASSWORD:-postgres}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - |
+        psql -h postgres -U ${POSTGRES_USER:-postgres} -d postgres -tAc "SELECT 1 FROM pg_database WHERE datname = 'letterhead'" | grep -q 1 \
+          || psql -h postgres -U ${POSTGRES_USER:-postgres} -d postgres -c 'CREATE DATABASE letterhead'
+    restart: "no"
+
+  # One-shot: applies the migrations embedded in the image (`letterhead-api migrate`) and exits. It reads
+  # DATABASE_URL and nothing else. `letterhead-api` never migrates and refuses to start on a database that is
+  # not, so it waits for this to complete (amendment 2026-11-17 to the plan, item 4). On Railway the same
+  # command is the service's `preDeploy` (`.railway/railway.ts`, task T13).
+  letterhead-api-migrate:
+    build:
+      context: ./letterhead-api
+      dockerfile: Dockerfile
+      target: production
+    command: ["letterhead-api", "migrate"]
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@postgres:5432/letterhead
+    depends_on:
+      postgres:
+        condition: service_healthy
+      letterhead-createdb:
+        condition: service_completed_successfully
+    # The image's HEALTHCHECK asks a server that this container does not run.
+    healthcheck:
+      disable: true
+    restart: "no"
+
+  letterhead-api:
+    build:
+      context: ./letterhead-api
+      dockerfile: Dockerfile
+      target: production
+    ports:
+      - "8088:8088"
+    environment:
+      PORT: "8088"
+      DATABASE_URL: postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@postgres:5432/letterhead
+      AUTH_ISSUER: ${AUTH_ISSUER:-http://localhost:3001}
+      AUTH_JWKS_URL: ${LETTERHEAD_AUTH_JWKS_URL:-http://host.docker.internal:3001/auth/jwks}
+      AUTH_BASE_URL: ${LETTERHEAD_AUTH_BASE_URL:-http://host.docker.internal:3001}
+      AUTH_AUDIENCE: ${AUTH_AUDIENCE:-operai-suite}
+      SERVICE_AUDIENCE: ${SERVICE_AUDIENCE:-operai-service}
+      ALLOWED_ORIGINS: ${LETTERHEAD_ALLOWED_ORIGINS:-http://localhost:5173}
+      LETTERHEAD_S3_ENDPOINT: http://minio:9000
+      LETTERHEAD_S3_REGION: us-east-1 # placeholder; MinIO ignores it
+      LETTERHEAD_S3_BUCKET: ${LETTERHEAD_S3_BUCKET:-letterhead}
+      LETTERHEAD_S3_ACCESS_KEY_ID: ${MINIO_ROOT_USER:-minioadmin}
+      LETTERHEAD_S3_SECRET_ACCESS_KEY: ${MINIO_ROOT_PASSWORD:-minioadmin}
+      LETTERHEAD_S3_EU_ENDPOINT_HOSTS: minio # residency guard allowlist (non-AWS endpoint)
+      LH_WORKERS: ${LH_WORKERS:-2}
+      LH_QUEUE: ${LH_QUEUE:-4}
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      letterhead-api-migrate:
+        condition: service_completed_successfully
+      minio:
+        condition: service_healthy
+      minio-createbucket:
+        condition: service_completed_successfully
+    healthcheck:
+      test: ["CMD", "letterhead-api", "healthcheck"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
   # ─── minio (local S3-compatible object storage) ─────────────────────────────
   # LOCAL-DEV-ONLY stand-in for the production EU-region bucket refund-api uses
   # for receipt attachments (ADR 20260716-eu-object-storage-refund-attachments). S3-compatible, path-style addressing
@@ -343,7 +436,7 @@ services:
       - operai_minio_data:/bitnami/minio/data
 
   # One-shot: waits for MinIO, creates the dev buckets (refund receipts +
-  # inventory invoices + CRM files + meetings audio) if absent, and asserts it
+  # inventory invoices + CRM files + activities files + letterhead logos and backgrounds + meetings audio) if absent, and asserts it
   # stays PRIVATE (no anonymous access), then exits. Re-running compose is
   # idempotent (`mb --ignore-existing`).
   #
@@ -376,6 +469,9 @@ services:
       mc mb --ignore-existing local/${ACTIVITIES_S3_BUCKET:-operai-activities-files-dev} &&
       mc anonymous set none local/${ACTIVITIES_S3_BUCKET:-operai-activities-files-dev} &&
       echo 'minio bucket ready (private): ${ACTIVITIES_S3_BUCKET:-operai-activities-files-dev}' &&
+      mc mb --ignore-existing local/${LETTERHEAD_S3_BUCKET:-letterhead} &&
+      mc anonymous set none local/${LETTERHEAD_S3_BUCKET:-letterhead} &&
+      echo 'minio bucket ready (private): ${LETTERHEAD_S3_BUCKET:-letterhead}' &&
       mc mb --ignore-existing local/${MEETINGS_S3_BUCKET:-meetings} &&
       mc anonymous set none local/${MEETINGS_S3_BUCKET:-meetings} &&
       (mc ilm rule rm --all --force local/${MEETINGS_S3_BUCKET:-meetings} || true) &&

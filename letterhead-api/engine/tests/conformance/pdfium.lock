@@ -1,0 +1,26 @@
+# The pdfium binary of the conformance runner (specs/20261116-letterhead-service, AC-1.3 / amendment A5; ADR
+# 20261116-a-letterhead-version-pins-its-layout...). Tests only: nothing of it is linked into the service.
+#
+# Pinned like a dependency: one release of https://github.com/bblanchon/pdfium-binaries, the SHA-256 of the
+# archive for each platform, and the SHA-256 of the library inside it. `fetch-pdfium.sh` refuses an archive whose
+# digest differs, and the test refuses a library whose digest differs: a binary that is not this one is never
+# used, because the measured differences (0.4577 % at worst on T7's pages, against a limit of 0.5 %) are a
+# property of this build of pdfium.
+#
+# The digests were checked twice: against the `digest` field of GitHub's release API for the asset, and against
+# the SHA-256 of the file as downloaded. To move to a newer pdfium: change PDFIUM_BUILD, fetch the new archives,
+# copy the digests here, re-run the conformance runner and read the new margins from its table; a newer pdfium
+# that the `pdfium-render` crate in Cargo.toml does not know (its `pdfium_<build>` feature) needs that bumped too.
+#
+# This file is read by `fetch-pdfium.sh` (sourced by sh) and by the test (KEY=value lines): keep it to those.
+PDFIUM_BUILD=8125
+PDFIUM_RELEASE_TAG=chromium/8125
+
+PDFIUM_ARCHIVE_SHA256_linux_x64=e1c3ce6e270cb5e0c20816b379ad9f2c1309972697c505f508de92bf5e7d6659
+PDFIUM_LIBRARY_SHA256_linux_x64=1c251efce460d67437a4c76d4be9033ae2f17bf5603f5bff1af10209b94ca723
+
+PDFIUM_ARCHIVE_SHA256_mac_arm64=4939bd935ac83ddc09a3a4f038bc43a19cea1660316a3667f26cb07a070e139d
+PDFIUM_LIBRARY_SHA256_mac_arm64=a45c44645523968525c710462691dd974f4efb1013ce1c249919a0939cfb373a
+
+PDFIUM_ARCHIVE_SHA256_mac_x64=8a5193535b80c7215d8932f6647ae5097465b6dba2811602c21e120c2af112b0
+PDFIUM_LIBRARY_SHA256_mac_x64=a9f428a16f46bab89646c8724b348e01c3fe707e3126d9356026cd876a74aecb

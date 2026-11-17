@@ -1,0 +1,42 @@
+{
+ "fixture": "every-block",
+ "layout": 1,
+ "outcome": "rendered",
+ "pageCount": 2,
+ "missingPlaceholders": ["iban"],
+ "unprintableCharacters": 0,
+ "pages": [
+  {
+   "text": "B1 Heading one\nB2 Heading two\nB3 Heading three\nB4 Paragraph with bold, italic and underline runs.\n• B5 first bullet\n• B5 second bullet\n1. B6 first step\n2. B6 second step\nB7 Name B7 Note B7 Qty\nB7 alpha B7 first row 1\nB7 beta B7 second row 2\nB8 before the break\nWellD Italia S.r.l. (SAMPLE)\nVia Esempio 1, I-16100 Genova (Italia)\nwww.example.com — info@example.com\nCF/P.IVA IT00000000000   1 / 2",
+   "lines": [
+    {"y":102.709,"x":72.0,"right":183.705,"text":"B1 Heading one"},
+    {"y":129.709,"x":72.0,"right":162.0,"text":"B2 Heading two"},
+    {"y":153.109,"x":72.0,"right":158.94,"text":"B3 Heading three"},
+    {"y":169.909,"x":72.0,"right":324.294,"text":"B4 Paragraph with bold, italic and underline runs.","xs":[168.012,191.784,197.139,221.772,246.363,295.818]},
+    {"y":189.859,"x":75.35,"right":155.223,"text":"• B5 first bullet","xs":[87.75]},
+    {"y":205.084,"x":75.35,"right":169.682,"text":"• B5 second bullet","xs":[87.75]},
+    {"y":225.034,"x":76.105,"right":146.781,"text":"1. B6 first step","xs":[87.75]},
+    {"y":240.259,"x":76.105,"right":161.24,"text":"2. B6 second step","xs":[87.75]},
+    {"y":265.459,"x":77.25,"right":518.026,"text":"B7 Name B7 Note B7 Qty","xs":[227.509,482.305,498.569]},
+    {"y":285.959,"x":77.25,"right":518.026,"text":"B7 alpha B7 first row 1","xs":[227.509,512.156]},
+    {"y":306.459,"x":77.25,"right":518.026,"text":"B7 beta B7 second row 2","xs":[227.509,512.156]},
+    {"y":395.262,"x":72.0,"right":170.532,"text":"B8 before the break"},
+    {"y":768.185,"x":72.0,"right":199.96,"text":"WellD Italia S.r.l. (SAMPLE)"},
+    {"y":778.585,"x":72.0,"right":207.384,"text":"Via Esempio 1, I-16100 Genova (Italia)"},
+    {"y":788.585,"x":72.0,"right":222.688,"text":"www.example.com — info@example.com"},
+    {"y":798.185,"x":72.0,"right":523.276,"text":"CF/P.IVA IT00000000000   1 / 2","xs":[507.484]}
+   ]
+  },
+  {
+   "text": "Offerta – pagina 2 di 2\nB9 after the break\nWellD Italia S.r.l. (SAMPLE)\nVia Esempio 1, I-16100 Genova (Italia)\nwww.example.com — info@example.com\nCF/P.IVA IT00000000000   2 / 2",
+   "lines": [
+    {"y":62.793,"x":442.62,"right":523.276,"text":"Offerta – pagina 2 di 2"},
+    {"y":99.109,"x":72.0,"right":162.017,"text":"B9 after the break"},
+    {"y":768.185,"x":72.0,"right":199.96,"text":"WellD Italia S.r.l. (SAMPLE)"},
+    {"y":778.585,"x":72.0,"right":207.384,"text":"Via Esempio 1, I-16100 Genova (Italia)"},
+    {"y":788.585,"x":72.0,"right":222.688,"text":"www.example.com — info@example.com"},
+    {"y":798.185,"x":72.0,"right":523.276,"text":"CF/P.IVA IT00000000000   2 / 2","xs":[507.484]}
+   ]
+  }
+ ]
+}

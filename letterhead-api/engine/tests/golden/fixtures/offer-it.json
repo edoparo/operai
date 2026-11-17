@@ -1,0 +1,814 @@
+{
+ "description": "The offer in Italian on the brand letterhead: first, middle and last pages differ (AC-5.4, AC-5.5).",
+ "letterhead": "brand",
+ "request": {
+  "contentVersion": 1,
+  "entity": "welld_it",
+  "language": "it",
+  "entityData": {
+   "legalName": "WellD Italia S.r.l. (SAMPLE)",
+   "addressLines": [
+    "Via Esempio 1",
+    "I-16100 Genova (Italia)"
+   ],
+   "vat": "IT00000000000",
+   "iban": "",
+   "contacts": "www.example.com — info@example.com"
+  },
+  "blocks": [
+   {
+    "type": "paragraph",
+    "runs": [
+     {
+      "text": "Genova, 16 novembre 2026"
+     }
+    ],
+    "style": "right"
+   },
+   {
+    "type": "paragraph",
+    "runs": [
+     {
+      "text": "Spett.le\nCliente di esempio SA\nVia Campione 3\n6900 Lugano"
+     }
+    ]
+   },
+   {
+    "type": "paragraph",
+    "runs": [
+     {
+      "text": "OFFERTA N. 2026-0142 – PIATTAFORMA DI GESTIONE ORDINI"
+     }
+    ],
+    "style": "title"
+   },
+   {
+    "type": "paragraph",
+    "runs": [
+     {
+      "text": "Con riferimento alle discussioni intercorse, abbiamo piacere di sottoporVi la nostra migliore offerta per la fornitura in oggetto."
+     }
+    ]
+   },
+   {
+    "type": "paragraph",
+    "runs": [
+     {
+      "text": "Il presente contratto viene stipulato tra "
+     },
+     {
+      "text": "WellD Italia S.r.l.",
+      "bold": true
+     },
+     {
+      "text": ", di seguito denominata ‘Fornitore’ e "
+     },
+     {
+      "text": "Cliente di esempio SA",
+      "bold": true
+     },
+     {
+      "text": ", di seguito denominato ‘Cliente’."
+     }
+    ]
+   },
+   {
+    "type": "heading",
+    "level": 1,
+    "text": "1. Definizioni"
+   },
+   {
+    "type": "paragraph",
+    "runs": [
+     {
+      "text": "A corpo:",
+      "bold": true
+     },
+     {
+      "text": " attività svolta dal Fornitore presso la propria sede o luogo da esso gestito e fatturata sulla base del rilascio di un prodotto/servizio."
+     }
+    ]
+   },
+   {
+    "type": "paragraph",
+    "runs": [
+     {
+      "text": "A servizio:",
+      "bold": true
+     },
+     {
+      "text": " attività svolta dal Fornitore presso la sede propria o del Cliente, su richiesta del Cliente stesso e fatturata sulla base di uno statino di esecuzione dei lavori."
+     }
+    ]
+   },
+   {
+    "type": "heading",
+    "level": 1,
+    "text": "2. Oggetto della fornitura"
+   },
+   {
+    "type": "paragraph",
+    "runs": [
+     {
+      "text": "Oggetto della fornitura è la progettazione e lo sviluppo di una piattaforma web per la gestione degli ordini, comprensiva delle integrazioni con i sistemi esistenti del Cliente."
+     }
+    ]
+   },
+   {
+    "type": "list",
+    "items": [
+     {
+      "runs": [
+       {
+        "text": "Analisi dei requisiti e design dell’esperienza utente"
+       }
+      ]
+     },
+     {
+      "runs": [
+       {
+        "text": "Sviluppo del backend e delle integrazioni"
+       }
+      ]
+     },
+     {
+      "runs": [
+       {
+        "text": "Sviluppo dell’interfaccia web"
+       }
+      ]
+     },
+     {
+      "runs": [
+       {
+        "text": "Test, collaudo e messa in produzione"
+       }
+      ]
+     }
+    ]
+   },
+   {
+    "type": "heading",
+    "level": 1,
+    "text": "3. Service Level Agreement"
+   },
+   {
+    "type": "paragraph",
+    "runs": [
+     {
+      "text": "L’attività di manutenzione applicativa viene offerta sulla base di uno SLA (Service Level Agreement) di intervento per segnalazioni relative all’applicativo."
+     }
+    ]
+   },
+   {
+    "type": "paragraph",
+    "runs": [
+     {
+      "text": "Lo SLA include:",
+      "bold": true
+     }
+    ]
+   },
+   {
+    "type": "list",
+    "items": [
+     {
+      "runs": [
+       {
+        "text": "La disponibilità di personale qualificato alla presa in carico e all’analisi dei ticket secondo le tempistiche riportate."
+       }
+      ]
+     },
+     {
+      "runs": [
+       {
+        "text": "Il tempo effettivo impiegato nella risoluzione delle segnalazioni, fino ad un massimo di 25 ore lavorative annue."
+       }
+      ]
+     }
+    ],
+    "ordered": true
+   },
+   {
+    "type": "paragraph",
+    "runs": [
+     {
+      "text": "Lo SLA esclude:",
+      "bold": true
+     }
+    ]
+   },
+   {
+    "type": "list",
+    "items": [
+     {
+      "runs": [
+       {
+        "text": "Segnalazioni che non vengano comunicate tramite il sistema di ticketing fornito."
+       }
+      ]
+     },
+     {
+      "runs": [
+       {
+        "text": "Richieste che si configurassero come importanti cambiamenti rispetto ai requisiti iniziali (Change Request) nel sistema manutenuto (es. aggiunta di nuove funzionalità, sezioni, requisiti nuovi)."
+       }
+      ]
+     },
+     {
+      "runs": [
+       {
+        "text": "Attività di affiancamento e handover in caso di terminazione del servizio."
+       }
+      ]
+     }
+    ],
+    "ordered": true
+   },
+   {
+    "type": "heading",
+    "level": 2,
+    "text": "Altre condizioni di SLA"
+   },
+   {
+    "type": "paragraph",
+    "runs": [
+     {
+      "text": "Una giornata lavorativa include il tempo tra le ore 9.00 e le ore 18.00 CET. Le giornate lavorative sono quelle previste dal Calendario Ufficiale della Repubblica e Cantone Ticino. Lo SLA non prevede penali o tempi di risoluzione prefissati, essendo questi strettamente dipendenti dal tipo di segnalazione sollevata."
+     }
+    ]
+   },
+   {
+    "type": "heading",
+    "level": 1,
+    "text": "4. Modalità di fornitura"
+   },
+   {
+    "type": "paragraph",
+    "runs": [
+     {
+      "text": "La fornitura è da intendersi a corpo."
+     }
+    ]
+   },
+   {
+    "type": "paragraph",
+    "runs": [
+     {
+      "text": "Le licenze di software specifici, da concordarsi preventivamente, sono a carico del Cliente, così come i costi dell’infrastruttura di produzione."
+     }
+    ]
+   },
+   {
+    "type": "heading",
+    "level": 2,
+    "text": "Trasferte"
+   },
+   {
+    "type": "paragraph",
+    "runs": [
+     {
+      "text": "I costi riportati al par. 6 includono le trasferte in Canton Ticino, Svizzera. Eventuali altre trasferte, approvate per iscritto dal Cliente, saranno esposte a rimborso al Cliente unitamente ai giustificativi di spesa."
+     }
+    ]
+   },
+   {
+    "type": "heading",
+    "level": 1,
+    "text": "5. Risorse e garanzia"
+   },
+   {
+    "type": "paragraph",
+    "runs": [
+     {
+      "text": "Le risorse tecniche allocate dal Fornitore allo sviluppo della fornitura hanno competenze e qualifiche adeguate allo svolgimento delle attività assegnate. Le risorse possono variare nel corso della fornitura."
+     }
+    ]
+   },
+   {
+    "type": "paragraph",
+    "runs": [
+     {
+      "text": "Se l’oggetto prevede la realizzazione di software, questo viene rilasciato con un periodo di "
+     },
+     {
+      "text": "12 mesi di garanzia dalla data di primo rilascio in produzione",
+      "underline": true
+     },
+     {
+      "text": ". La garanzia copre la risoluzione di difetti (bug) applicativi e non prevede uno specifico "
+     },
+     {
+      "text": "Service Level Agreement",
+      "italic": true
+     },
+     {
+      "text": "."
+     }
+    ]
+   },
+   {
+    "type": "heading",
+    "level": 1,
+    "text": "6. Costi"
+   },
+   {
+    "type": "table",
+    "columns": [
+     3,
+     5,
+     1.2,
+     2
+    ],
+    "rows": [
+     [
+      [
+       {
+        "type": "paragraph",
+        "runs": [
+         {
+          "text": "Analisi e design"
+         }
+        ]
+       }
+      ],
+      [
+       {
+        "type": "paragraph",
+        "runs": [
+         {
+          "text": "Workshop, user journey, architettura"
+         }
+        ]
+       }
+      ],
+      [
+       {
+        "type": "paragraph",
+        "runs": [
+         {
+          "text": "12"
+         }
+        ]
+       }
+      ],
+      [
+       {
+        "type": "paragraph",
+        "runs": [
+         {
+          "text": "16 800.00"
+         }
+        ]
+       }
+      ]
+     ],
+     [
+      [
+       {
+        "type": "paragraph",
+        "runs": [
+         {
+          "text": "Sviluppo backend"
+         }
+        ]
+       }
+      ],
+      [
+       {
+        "type": "paragraph",
+        "runs": [
+         {
+          "text": "API, integrazioni, persistenza"
+         }
+        ]
+       }
+      ],
+      [
+       {
+        "type": "paragraph",
+        "runs": [
+         {
+          "text": "38"
+         }
+        ]
+       }
+      ],
+      [
+       {
+        "type": "paragraph",
+        "runs": [
+         {
+          "text": "53 200.00"
+         }
+        ]
+       }
+      ]
+     ],
+     [
+      [
+       {
+        "type": "paragraph",
+        "runs": [
+         {
+          "text": "Sviluppo frontend"
+         }
+        ]
+       }
+      ],
+      [
+       {
+        "type": "paragraph",
+        "runs": [
+         {
+          "text": "Interfaccia web responsive"
+         }
+        ]
+       }
+      ],
+      [
+       {
+        "type": "paragraph",
+        "runs": [
+         {
+          "text": "30"
+         }
+        ]
+       }
+      ],
+      [
+       {
+        "type": "paragraph",
+        "runs": [
+         {
+          "text": "42 000.00"
+         }
+        ]
+       }
+      ]
+     ],
+     [
+      [
+       {
+        "type": "paragraph",
+        "runs": [
+         {
+          "text": "Test e collaudo"
+         }
+        ]
+       }
+      ],
+      [
+       {
+        "type": "paragraph",
+        "runs": [
+         {
+          "text": "Test automatici, UAT con il Cliente"
+         }
+        ]
+       }
+      ],
+      [
+       {
+        "type": "paragraph",
+        "runs": [
+         {
+          "text": "10"
+         }
+        ]
+       }
+      ],
+      [
+       {
+        "type": "paragraph",
+        "runs": [
+         {
+          "text": "14 000.00"
+         }
+        ]
+       }
+      ]
+     ],
+     [
+      [
+       {
+        "type": "paragraph",
+        "runs": [
+         {
+          "text": "Rilascio"
+         }
+        ]
+       }
+      ],
+      [
+       {
+        "type": "paragraph",
+        "runs": [
+         {
+          "text": "Messa in produzione e handover"
+         }
+        ]
+       }
+      ],
+      [
+       {
+        "type": "paragraph",
+        "runs": [
+         {
+          "text": "4"
+         }
+        ]
+       }
+      ],
+      [
+       {
+        "type": "paragraph",
+        "runs": [
+         {
+          "text": "5 600.00"
+         }
+        ]
+       }
+      ]
+     ],
+     [
+      [
+       {
+        "type": "paragraph",
+        "runs": [
+         {
+          "text": "Totale",
+          "bold": true
+         }
+        ]
+       }
+      ],
+      [
+       {
+        "type": "paragraph",
+        "runs": [
+         {
+          "text": ""
+         }
+        ]
+       }
+      ],
+      [
+       {
+        "type": "paragraph",
+        "runs": [
+         {
+          "text": "94",
+          "bold": true
+         }
+        ]
+       }
+      ],
+      [
+       {
+        "type": "paragraph",
+        "runs": [
+         {
+          "text": "131 600.00",
+          "bold": true
+         }
+        ]
+       }
+      ]
+     ]
+    ],
+    "header": [
+     [
+      {
+       "type": "paragraph",
+       "runs": [
+        {
+         "text": "Attività",
+         "bold": true
+        }
+       ]
+      }
+     ],
+     [
+      {
+       "type": "paragraph",
+       "runs": [
+        {
+         "text": "Descrizione",
+         "bold": true
+        }
+       ]
+      }
+     ],
+     [
+      {
+       "type": "paragraph",
+       "runs": [
+        {
+         "text": "GG",
+         "bold": true
+        }
+       ]
+      }
+     ],
+     [
+      {
+       "type": "paragraph",
+       "runs": [
+        {
+         "text": "CHF",
+         "bold": true
+        }
+       ]
+      }
+     ]
+    ],
+    "align": [
+     "left",
+     "left",
+     "right",
+     "right"
+    ]
+   },
+   {
+    "type": "paragraph",
+    "runs": [
+     {
+      "text": "Note:",
+      "bold": true
+     }
+    ]
+   },
+   {
+    "type": "list",
+    "items": [
+     {
+      "runs": [
+       {
+        "text": "I costi si intendono IVA esclusa."
+       }
+      ]
+     },
+     {
+      "runs": [
+       {
+        "text": "La fatturazione avviene al raggiungimento delle milestone concordate."
+       }
+      ]
+     }
+    ]
+   },
+   {
+    "type": "heading",
+    "level": 1,
+    "text": "7. Rinnovi e disdette"
+   },
+   {
+    "type": "paragraph",
+    "runs": [
+     {
+      "text": "Non sono previsti rinnovi o disdette."
+     }
+    ]
+   },
+   {
+    "type": "heading",
+    "level": 1,
+    "text": "8. Validità dell’offerta"
+   },
+   {
+    "type": "paragraph",
+    "runs": [
+     {
+      "text": "La presente offerta è valida per 30 giorni solari."
+     }
+    ]
+   },
+   {
+    "type": "image",
+    "data": "iVBORw0KGgoAAAANSUhEUgAAAGQAAAAoCAIAAACHGsgUAAAAfklEQVR42u3asQnAIBRFUSGDpMkAaV0lk7hwekewTiF8C1PogTfBKT4XNNWnWHAJAaw5WO+RLThYsGDBWgLrvO6hwYL1xeo1xSjW1lEKC9acgnezHHhYsGDBggVLwYtSWAregYcFCxYsWLAUvCiF5ReNXzSe72HBgmWwYP21BoenQe7TFL1PAAAAAElFTkSuQmCC",
+    "widthRatio": 0.25
+   },
+   {
+    "type": "pageBreak"
+   },
+   {
+    "type": "heading",
+    "level": 1,
+    "text": "9. Condizioni generali"
+   },
+   {
+    "type": "paragraph",
+    "runs": [
+     {
+      "text": "In aggiunta a quanto sopra specificato, valgono le seguenti Condizioni Generali di fornitura."
+     }
+    ]
+   },
+   {
+    "type": "heading",
+    "level": 2,
+    "text": "Limitazione di responsabilità"
+   },
+   {
+    "type": "paragraph",
+    "runs": [
+     {
+      "text": "Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite. Le responsabilità del Fornitore e delle sue risorse sono limitate all’esecuzione della fornitura in oggetto, che viene portata avanti a regola d’arte e in conformità con le specifiche concordate con il Cliente."
+     }
+    ]
+   },
+   {
+    "type": "heading",
+    "level": 2,
+    "text": "Legislazione del lavoro"
+   },
+   {
+    "type": "paragraph",
+    "runs": [
+     {
+      "text": "Il personale del Fornitore opera nel pieno rispetto della legislazione del lavoro. Qualora il Cliente necessitasse di documentazione in merito, sarà cura del Fornitore presentarla."
+     }
+    ]
+   },
+   {
+    "type": "heading",
+    "level": 2,
+    "text": "Riservatezza e proprietà"
+   },
+   {
+    "type": "paragraph",
+    "runs": [
+     {
+      "text": "Il Fornitore si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto di fornitura. Il Fornitore garantisce che quanto fornito in esecuzione del presente accordo non viola diritti di proprietà intellettuale/industriale di terzi."
+     }
+    ]
+   },
+   {
+    "type": "heading",
+    "level": 2,
+    "text": "Privacy e trattamento dei dati personali"
+   },
+   {
+    "type": "paragraph",
+    "runs": [
+     {
+      "text": "Il Cliente e il Fornitore si fanno entrambi garanti del rispetto delle norme vigenti sulla Privacy. Il Cliente è autorizzato a comunicare a terzi i dati del Fornitore per operazioni legate alla fornitura in oggetto."
+     }
+    ]
+   },
+   {
+    "type": "heading",
+    "level": 2,
+    "text": "Foro competente"
+   },
+   {
+    "type": "paragraph",
+    "runs": [
+     {
+      "text": "Per qualsiasi controversia che dovesse sorgere in relazione al presente contratto di fornitura, il foro competente è quello di Lugano (Svizzera)."
+     }
+    ]
+   },
+   {
+    "type": "heading",
+    "level": 2,
+    "text": "Clausola di inefficacia"
+   },
+   {
+    "type": "paragraph",
+    "runs": [
+     {
+      "text": "Nell’eventualità in cui una qualsiasi clausola del presente contratto dovesse in seguito risultare inefficace per un qualsiasi motivo giuridico, ciò non inficerà la validità delle restanti clausole. In luogo della norma inefficace si considererà come voluta e dichiarata quella regolamentazione giuridicamente valida che maggiormente si avvicinerà al senso e allo scopo della clausola inefficace e del contratto nel suo insieme, tenendo in considerazione la buona fede, l’usanza commerciale nonché gli usi ed i costumi del settore."
+     }
+    ]
+   },
+   {
+    "type": "paragraph",
+    "runs": [
+     {
+      "text": ""
+     }
+    ]
+   },
+   {
+    "type": "paragraph",
+    "runs": [
+     {
+      "text": "Per accettazione"
+     }
+    ],
+    "style": "right"
+   },
+   {
+    "type": "paragraph",
+    "runs": [
+     {
+      "text": "______________________________"
+     }
+    ],
+    "style": "right"
+   }
+  ]
+ }
+}

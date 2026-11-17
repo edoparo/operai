@@ -1,0 +1,36 @@
+[package]
+name = "letterhead-engine"
+description = "Letterhead engine: the pure core of letterhead-api (no I/O, no clock, no network)"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+publish.workspace = true
+
+# Keep this section free of anything that does I/O (an async runtime, an HTTP, database or S3 client):
+# the engine's determinism (AC-1.4) and its closed file system (AC-2.2) are provable only while it has none.
+# `engine/src/lib.rs` has a test that fails when one appears.
+[dependencies]
+base64 = "0.22"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+xmlparser = "0.13.6"
+# The layout engine (ADR 20261116-a-letterhead-version-pins-its-layout...): Typst 0.15.1 as a library, layout 1.
+# Only the core crates: no `typst-kit` (it reads fonts from the system) and no package or file-system support.
+typst = "=0.15.1"
+typst-layout = "=0.15.1"
+# The outputs of one compile: the PDF, and the preview pages as paletted PNG.
+typst-pdf = "=0.15.1"
+typst-render = "=0.15.1"
+png = "0.18"
+
+[lints]
+workspace = true
+
+[dev-dependencies]
+# Tests only (the conformance runner of AC-1.3, `tests/corpus/conformance.rs`): pdfium, an independent PDF engine,
+# loaded from a pinned and checksummed binary that `tests/conformance/fetch-pdfium.sh` downloads. Nothing of it is
+# linked into the service. `pdfium_8125` names the pdfium build the crate's bindings are for, and the pin of
+# `tests/conformance/pdfium.lock`: change them together.
+pdfium-render = { version = "=0.9.5", default-features = false, features = ["pdfium_8125", "thread_safe"] }
+# Tests only: the SHA-256 pins of the fonts and of the pdfium binary.
+sha2 = "0.10"

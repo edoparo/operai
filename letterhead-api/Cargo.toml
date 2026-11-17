@@ -1,0 +1,27 @@
+# letterhead-api — Cargo workspace (specs/20261116-letterhead-service, ADR 20261116-letterhead-api-is-a-rust-service-with-typst-embedded-for-document-layout-only).
+#
+#   engine/  letterhead-engine  the pure crate: content model, validation, layout, outputs. No I/O, no clock, no network.
+#   api/     letterhead-api     the HTTP supervisor (axum + tokio); it also holds the `worker` mode.
+#
+# The toolchain is pinned in the repo root's mise.toml (`rust`) and in the Dockerfile builder stage;
+# `rust-version` below is the same minimum, so a stale compiler fails with a clear message.
+[workspace]
+resolver = "3"
+members = ["engine", "api"]
+
+[workspace.package]
+# Not the release version: releases are versioned by Changesets from package.json (the shim in this directory).
+version = "0.0.0"
+edition = "2024"
+rust-version = "1.100"
+publish = false
+
+[workspace.lints.rust]
+unsafe_code = "forbid"
+
+[workspace.lints.clippy]
+all = { level = "warn", priority = -1 }
+
+[profile.release]
+debug = false
+strip = "symbols"

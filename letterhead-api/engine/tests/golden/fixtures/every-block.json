@@ -1,0 +1,242 @@
+{
+ "description": "Each block type once, in order (AC-1.5).",
+ "letterhead": "brand",
+ "request": {
+  "contentVersion": 1,
+  "entity": "welld_it",
+  "language": "it",
+  "entityData": {
+   "legalName": "WellD Italia S.r.l. (SAMPLE)",
+   "addressLines": [
+    "Via Esempio 1",
+    "I-16100 Genova (Italia)"
+   ],
+   "vat": "IT00000000000",
+   "iban": "",
+   "contacts": "www.example.com — info@example.com"
+  },
+  "blocks": [
+   {
+    "type": "heading",
+    "level": 1,
+    "text": "B1 Heading one"
+   },
+   {
+    "type": "heading",
+    "level": 2,
+    "text": "B2 Heading two"
+   },
+   {
+    "type": "heading",
+    "level": 3,
+    "text": "B3 Heading three"
+   },
+   {
+    "type": "paragraph",
+    "runs": [
+     {
+      "text": "B4 Paragraph with "
+     },
+     {
+      "text": "bold",
+      "bold": true
+     },
+     {
+      "text": ", "
+     },
+     {
+      "text": "italic",
+      "italic": true
+     },
+     {
+      "text": " and "
+     },
+     {
+      "text": "underline",
+      "underline": true
+     },
+     {
+      "text": " runs."
+     }
+    ]
+   },
+   {
+    "type": "list",
+    "items": [
+     {
+      "runs": [
+       {
+        "text": "B5 first bullet"
+       }
+      ]
+     },
+     {
+      "runs": [
+       {
+        "text": "B5 second bullet"
+       }
+      ]
+     }
+    ]
+   },
+   {
+    "type": "list",
+    "items": [
+     {
+      "runs": [
+       {
+        "text": "B6 first step"
+       }
+      ]
+     },
+     {
+      "runs": [
+       {
+        "text": "B6 second step"
+       }
+      ]
+     }
+    ],
+    "ordered": true
+   },
+   {
+    "type": "table",
+    "columns": [
+     2,
+     3,
+     1
+    ],
+    "rows": [
+     [
+      [
+       {
+        "type": "paragraph",
+        "runs": [
+         {
+          "text": "B7 alpha"
+         }
+        ]
+       }
+      ],
+      [
+       {
+        "type": "paragraph",
+        "runs": [
+         {
+          "text": "B7 first row"
+         }
+        ]
+       }
+      ],
+      [
+       {
+        "type": "paragraph",
+        "runs": [
+         {
+          "text": "1"
+         }
+        ]
+       }
+      ]
+     ],
+     [
+      [
+       {
+        "type": "paragraph",
+        "runs": [
+         {
+          "text": "B7 beta"
+         }
+        ]
+       }
+      ],
+      [
+       {
+        "type": "paragraph",
+        "runs": [
+         {
+          "text": "B7 second row"
+         }
+        ]
+       }
+      ],
+      [
+       {
+        "type": "paragraph",
+        "runs": [
+         {
+          "text": "2"
+         }
+        ]
+       }
+      ]
+     ]
+    ],
+    "header": [
+     [
+      {
+       "type": "paragraph",
+       "runs": [
+        {
+         "text": "B7 Name",
+         "bold": true
+        }
+       ]
+      }
+     ],
+     [
+      {
+       "type": "paragraph",
+       "runs": [
+        {
+         "text": "B7 Note",
+         "bold": true
+        }
+       ]
+      }
+     ],
+     [
+      {
+       "type": "paragraph",
+       "runs": [
+        {
+         "text": "B7 Qty",
+         "bold": true
+        }
+       ]
+      }
+     ]
+    ],
+    "align": [
+     "left",
+     "left",
+     "right"
+    ]
+   },
+   {
+    "type": "image",
+    "data": "iVBORw0KGgoAAAANSUhEUgAAAGQAAAAoCAIAAACHGsgUAAAAfklEQVR42u3asQnAIBRFUSGDpMkAaV0lk7hwekewTiF8C1PogTfBKT4XNNWnWHAJAaw5WO+RLThYsGDBWgLrvO6hwYL1xeo1xSjW1lEKC9acgnezHHhYsGDBggVLwYtSWAregYcFCxYsWLAUvCiF5ReNXzSe72HBgmWwYP21BoenQe7TFL1PAAAAAElFTkSuQmCC",
+    "widthRatio": 0.3
+   },
+   {
+    "type": "paragraph",
+    "runs": [
+     {
+      "text": "B8 before the break"
+     }
+    ]
+   },
+   {
+    "type": "pageBreak"
+   },
+   {
+    "type": "paragraph",
+    "runs": [
+     {
+      "text": "B9 after the break"
+     }
+    ]
+   }
+  ]
+ }
+}

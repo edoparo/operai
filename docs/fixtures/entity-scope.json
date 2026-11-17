@@ -1,0 +1,267 @@
+{
+  "$comment": "One table, two implementations (specs/20261116-letterhead-service plan R3). A resolve answer's permissions, the capability asked about and the caller's own entity, with what scopeFor must answer. Run by crm-api/src/authz/conditions.scope-fixture.test.ts (the TypeScript reference, crm-api/src/authz/conditions.ts) and by letterhead-api/api/src/authz/scope.rs. Change a rule in both, or change neither. `scope` is in the fixed order [welld_ch, welld_it]; an unrecognised condition, a missing grant and a caller with no usable entity all fail closed (nothing is granted).",
+  "entities": ["welld_ch", "welld_it"],
+  "cases": [
+    {
+      "name": "no grant at all: nothing",
+      "resource": "letterhead", "action": "manage", "callerEntity": "welld_it",
+      "permissions": [],
+      "hasCapability": false, "scope": []
+    },
+    {
+      "name": "only the access grant: manage is not held",
+      "resource": "letterhead", "action": "manage", "callerEntity": "welld_it",
+      "permissions": [
+        { "resource": "letterheads", "action": "access", "conditions": null }
+      ],
+      "hasCapability": false, "scope": []
+    },
+    {
+      "name": "an unconditioned grant covers both entities, in the fixed order",
+      "resource": "letterhead", "action": "manage", "callerEntity": "welld_it",
+      "permissions": [
+        { "resource": "letterhead", "action": "manage", "conditions": null }
+      ],
+      "hasCapability": true, "scope": ["welld_ch", "welld_it"]
+    },
+    {
+      "name": "an unconditioned grant does not need the caller to have an entity",
+      "resource": "letterhead", "action": "manage", "callerEntity": null,
+      "permissions": [
+        { "resource": "letterhead", "action": "manage", "conditions": null }
+      ],
+      "hasCapability": true, "scope": ["welld_ch", "welld_it"]
+    },
+    {
+      "name": "empty conditions object is unrestricted",
+      "resource": "letterhead", "action": "manage", "callerEntity": "welld_ch",
+      "permissions": [
+        { "resource": "letterhead", "action": "manage", "conditions": {} }
+      ],
+      "hasCapability": true, "scope": ["welld_ch", "welld_it"]
+    },
+    {
+      "name": "an empty attribute list is unrestricted",
+      "resource": "letterhead", "action": "manage", "callerEntity": "welld_ch",
+      "permissions": [
+        { "resource": "letterhead", "action": "manage", "conditions": { "attributes": [] } }
+      ],
+      "hasCapability": true, "scope": ["welld_ch", "welld_it"]
+    },
+    {
+      "name": "a null attribute list is unrestricted",
+      "resource": "letterhead", "action": "manage", "callerEntity": "welld_ch",
+      "permissions": [
+        { "resource": "letterhead", "action": "manage", "conditions": { "attributes": null } }
+      ],
+      "hasCapability": true, "scope": ["welld_ch", "welld_it"]
+    },
+    {
+      "name": "entity condition narrows to the caller's entity (it)",
+      "resource": "letterhead", "action": "manage", "callerEntity": "welld_it",
+      "permissions": [
+        { "resource": "letterhead", "action": "manage", "conditions": { "attributes": [{ "key": "entity", "match": "user" }] } }
+      ],
+      "hasCapability": true, "scope": ["welld_it"]
+    },
+    {
+      "name": "entity condition narrows to the caller's entity (ch)",
+      "resource": "letterhead", "action": "manage", "callerEntity": "welld_ch",
+      "permissions": [
+        { "resource": "letterhead", "action": "manage", "conditions": { "attributes": [{ "key": "entity", "match": "user" }] } }
+      ],
+      "hasCapability": true, "scope": ["welld_ch"]
+    },
+    {
+      "name": "entity condition and a caller with no entity: nothing, never everything",
+      "resource": "letterhead", "action": "manage", "callerEntity": null,
+      "permissions": [
+        { "resource": "letterhead", "action": "manage", "conditions": { "attributes": [{ "key": "entity", "match": "user" }] } }
+      ],
+      "hasCapability": true, "scope": []
+    },
+    {
+      "name": "entity condition and a caller entity that is not ours: nothing",
+      "resource": "letterhead", "action": "manage", "callerEntity": "welld_de",
+      "permissions": [
+        { "resource": "letterhead", "action": "manage", "conditions": { "attributes": [{ "key": "entity", "match": "user" }] } }
+      ],
+      "hasCapability": true, "scope": []
+    },
+    {
+      "name": "the caller's entity is compared exactly (case)",
+      "resource": "letterhead", "action": "manage", "callerEntity": "WELLD_IT",
+      "permissions": [
+        { "resource": "letterhead", "action": "manage", "conditions": { "attributes": [{ "key": "entity", "match": "user" }] } }
+      ],
+      "hasCapability": true, "scope": []
+    },
+    {
+      "name": "the caller's entity is compared exactly (empty string)",
+      "resource": "letterhead", "action": "manage", "callerEntity": "",
+      "permissions": [
+        { "resource": "letterhead", "action": "manage", "conditions": { "attributes": [{ "key": "entity", "match": "user" }] } }
+      ],
+      "hasCapability": true, "scope": []
+    },
+    {
+      "name": "the same entity condition twice is still the caller's entity",
+      "resource": "letterhead", "action": "manage", "callerEntity": "welld_it",
+      "permissions": [
+        { "resource": "letterhead", "action": "manage", "conditions": { "attributes": [{ "key": "entity", "match": "user" }, { "key": "entity", "match": "user" }] } }
+      ],
+      "hasCapability": true, "scope": ["welld_it"]
+    },
+    {
+      "name": "a condition on another attribute is not understood: the grant gives nothing",
+      "resource": "letterhead", "action": "manage", "callerEntity": "welld_it",
+      "permissions": [
+        { "resource": "letterhead", "action": "manage", "conditions": { "attributes": [{ "key": "department", "match": "user" }] } }
+      ],
+      "hasCapability": true, "scope": []
+    },
+    {
+      "name": "the entity key with another match is not understood",
+      "resource": "letterhead", "action": "manage", "callerEntity": "welld_it",
+      "permissions": [
+        { "resource": "letterhead", "action": "manage", "conditions": { "attributes": [{ "key": "entity", "match": "any" }] } }
+      ],
+      "hasCapability": true, "scope": []
+    },
+    {
+      "name": "an entity condition next to another attribute is not understood",
+      "resource": "letterhead", "action": "manage", "callerEntity": "welld_it",
+      "permissions": [
+        { "resource": "letterhead", "action": "manage", "conditions": { "attributes": [{ "key": "entity", "match": "user" }, { "key": "department", "match": "user" }] } }
+      ],
+      "hasCapability": true, "scope": []
+    },
+    {
+      "name": "an attribute with no key is not understood",
+      "resource": "letterhead", "action": "manage", "callerEntity": "welld_it",
+      "permissions": [
+        { "resource": "letterhead", "action": "manage", "conditions": { "attributes": [{}] } }
+      ],
+      "hasCapability": true, "scope": []
+    },
+    {
+      "name": "ownership 'own' is not understood",
+      "resource": "letterhead", "action": "manage", "callerEntity": "welld_it",
+      "permissions": [
+        { "resource": "letterhead", "action": "manage", "conditions": { "ownership": "own" } }
+      ],
+      "hasCapability": true, "scope": []
+    },
+    {
+      "name": "ownership 'any' is not understood either: a grant never widens on a condition it cannot read",
+      "resource": "letterhead", "action": "manage", "callerEntity": "welld_it",
+      "permissions": [
+        { "resource": "letterhead", "action": "manage", "conditions": { "ownership": "any" } }
+      ],
+      "hasCapability": true, "scope": []
+    },
+    {
+      "name": "ownership next to the entity condition is not understood",
+      "resource": "letterhead", "action": "manage", "callerEntity": "welld_it",
+      "permissions": [
+        { "resource": "letterhead", "action": "manage", "conditions": { "ownership": "own", "attributes": [{ "key": "entity", "match": "user" }] } }
+      ],
+      "hasCapability": true, "scope": []
+    },
+    {
+      "name": "a null ownership is present, so it is not understood",
+      "resource": "letterhead", "action": "manage", "callerEntity": "welld_it",
+      "permissions": [
+        { "resource": "letterhead", "action": "manage", "conditions": { "ownership": null } }
+      ],
+      "hasCapability": true, "scope": []
+    },
+    {
+      "name": "a conditioned and an unconditioned grant: the widest wins",
+      "resource": "letterhead", "action": "manage", "callerEntity": "welld_it",
+      "permissions": [
+        { "resource": "letterhead", "action": "manage", "conditions": { "attributes": [{ "key": "entity", "match": "user" }] } },
+        { "resource": "letterhead", "action": "manage", "conditions": null }
+      ],
+      "hasCapability": true, "scope": ["welld_ch", "welld_it"]
+    },
+    {
+      "name": "the unconditioned grant first: the same",
+      "resource": "letterhead", "action": "manage", "callerEntity": "welld_it",
+      "permissions": [
+        { "resource": "letterhead", "action": "manage", "conditions": null },
+        { "resource": "letterhead", "action": "manage", "conditions": { "attributes": [{ "key": "entity", "match": "user" }] } }
+      ],
+      "hasCapability": true, "scope": ["welld_ch", "welld_it"]
+    },
+    {
+      "name": "two entity-conditioned grants are one entity",
+      "resource": "letterhead", "action": "manage", "callerEntity": "welld_ch",
+      "permissions": [
+        { "resource": "letterhead", "action": "manage", "conditions": { "attributes": [{ "key": "entity", "match": "user" }] } },
+        { "resource": "letterhead", "action": "manage", "conditions": { "attributes": [{ "key": "entity", "match": "user" }] } }
+      ],
+      "hasCapability": true, "scope": ["welld_ch"]
+    },
+    {
+      "name": "a grant that is not understood does not stop an understood one",
+      "resource": "letterhead", "action": "manage", "callerEntity": "welld_it",
+      "permissions": [
+        { "resource": "letterhead", "action": "manage", "conditions": { "ownership": "own" } },
+        { "resource": "letterhead", "action": "manage", "conditions": { "attributes": [{ "key": "entity", "match": "user" }] } }
+      ],
+      "hasCapability": true, "scope": ["welld_it"]
+    },
+    {
+      "name": "a grant that is not understood does not narrow an unconditioned one",
+      "resource": "letterhead", "action": "manage", "callerEntity": "welld_it",
+      "permissions": [
+        { "resource": "letterhead", "action": "manage", "conditions": { "attributes": [{ "key": "department", "match": "user" }] } },
+        { "resource": "letterhead", "action": "manage", "conditions": null }
+      ],
+      "hasCapability": true, "scope": ["welld_ch", "welld_it"]
+    },
+    {
+      "name": "a grant of another action does not count (access is not manage)",
+      "resource": "letterhead", "action": "manage", "callerEntity": "welld_it",
+      "permissions": [
+        { "resource": "letterhead", "action": "access", "conditions": null }
+      ],
+      "hasCapability": false, "scope": []
+    },
+    {
+      "name": "a grant of another resource does not count",
+      "resource": "letterhead", "action": "manage", "callerEntity": "welld_it",
+      "permissions": [
+        { "resource": "deal", "action": "manage", "conditions": null }
+      ],
+      "hasCapability": false, "scope": []
+    },
+    {
+      "name": "the pair is matched whole: a prefix is not a match",
+      "resource": "letterhead", "action": "manage", "callerEntity": "welld_it",
+      "permissions": [
+        { "resource": "letterheads", "action": "manage", "conditions": null },
+        { "resource": "letterhead", "action": "manage-all", "conditions": null }
+      ],
+      "hasCapability": false, "scope": []
+    },
+    {
+      "name": "the CRM's deal:manage reads the same way (entity-conditioned)",
+      "resource": "deal", "action": "manage", "callerEntity": "welld_ch",
+      "permissions": [
+        { "resource": "deal", "action": "manage", "conditions": { "attributes": [{ "key": "entity", "match": "user" }] } },
+        { "resource": "letterhead", "action": "manage", "conditions": null }
+      ],
+      "hasCapability": true, "scope": ["welld_ch"]
+    },
+    {
+      "name": "the access grant is held with no scope question: only presence counts",
+      "resource": "letterheads", "action": "access", "callerEntity": null,
+      "permissions": [
+        { "resource": "letterheads", "action": "access", "conditions": null }
+      ],
+      "hasCapability": true, "scope": ["welld_ch", "welld_it"]
+    }
+  ]
+}

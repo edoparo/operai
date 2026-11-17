@@ -1,0 +1,377 @@
+# letterhead-api — the service's format, lint, tests, golden corpus and pdfium conformance, on every change under
+# letterhead-api/ (specs/20261116-letterhead-service, task T9; ADR
+# 20261116-a-letterhead-version-pins-its-layout-and-old-layouts-stay-compiled-in).
+#
+# This is a DELIBERATE EXCEPTION: no other service's tests run in CI today. A layout guarantee "for as long as the
+# service exists" (AC-4.5) that is only checked by whoever remembers to run it is not a guarantee, so this one
+# runs on every change. It does not make "CI runs service tests" the repo's rule.
+#
+# What it runs, in order, from letterhead-api/:
+#   1. cargo fmt --all --check
+#   2. cargo clippy --workspace --all-targets --locked -- -D warnings
+#   3. cargo test --workspace --locked          the unit tests of both crates, the golden corpus (page count, page
+#                                               text, every line's baseline and x, per layout), the layout-pinning
+#                                               test, the injection property and fuzz tests, and the api's
+#                                               database tests against the postgres:17 service
+#                                               (T47: the residue test runs with a real pg_dump 17, installed before it, and with
+#                                               lsof and pgrep; its REQUIRE variable fails the step without them)
+#   4. the worst-case run (T41, T46)            the worst accepted table (4 984 blocks, 300 pages) against the pool and the
+#                                               HTTP service, in a release build: 422 `too_many_pages` under the default
+#                                               2 GiB worker cap, 503 under a low one (AC-3.3, AC-3.5)
+#   5. the conformance run (AC-1.3)             the preview and the PDF of every fixture, the PDF read by pdfium
+#                                               (a pinned, checksummed binary; tests only), with the 1 pt control
+#
+# Before those, one step from crm-api/ (T43, plan R3): `bun test src/authz/conditions.scope-fixture.test.ts` runs the
+# shared entity-scope table (docs/fixtures/entity-scope.json) against the TypeScript reference
+# (crm-api/src/authz/conditions.ts); step 3 runs the same table against the Rust port (api/src/authz/scope.rs). Both
+# sides run in this one workflow, and it is triggered by a change to the fixture or to crm-api/src/authz/, so a scope
+# rule changed on one side only fails here instead of drifting.
+#
+# A second job, `advisories` (T52; qe-report D4, security-review F8), scans letterhead-api/Cargo.lock against the RustSec
+# advisory database with a pinned cargo-audit. It also runs weekly, because a new advisory on a pinned version appears
+# without any change to the code, and a path-filtered workflow would never see it. See the job for what it ignores and why.
+#
+# Services (of the first job): postgres:17 (compose's version) and MinIO. LETTERHEAD_REQUIRE_DB_TESTS=1 and LETTERHEAD_REQUIRE_PDFIUM=1
+# turn a missing database or a missing pdfium into a failure, so the job cannot go green by skipping what it is
+# there to run (AC-4.7's trigger refusal tests are database tests).
+#
+# IMPORTANT — read before assuming this blocks a bad merge: like changeset-check, the pull_request leg is a gate
+# only once this job is a REQUIRED status check on `main` (a separate, human branch-protection decision; ADR
+# "A workflow is a detection, not a gate, until it is a required check"). The push leg is detection after the fact.
+# Until the check is required, the corpus is a tripwire.
+#
+# Re-recording a golden is never done here: LETTERHEAD_GOLDEN_RECORD is refused when CI is set (see
+# letterhead-api/engine/tests/golden/README.md).
+name: letterhead-api
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - "letterhead-api/**"
+      - "docs/fixtures/**"
+      - "crm-api/src/authz/**"
+      - ".github/workflows/letterhead-api.yml"
+  push:
+    branches: [main]
+    paths:
+      - "letterhead-api/**"
+      - "docs/fixtures/**"
+      - "crm-api/src/authz/**"
+      - ".github/workflows/letterhead-api.yml"
+  # Weekly, Monday 05:17 UTC: only the `advisories` job runs on a schedule (the test job is skipped). A schedule runs
+  # on the default branch only.
+  schedule:
+    - cron: "17 5 * * 1"
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+
+concurrency:
+  group: letterhead-api-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  # The toolchain, pinned EXACT. The same version is in mise.toml, in letterhead-api/Dockerfile (ARG RUST_VERSION)
+  # and, as its minor, in letterhead-api/Cargo.toml (rust-version); the step below fails if mise.toml or the
+  # Dockerfile say something else.
+  RUST_VERSION: "1.100.0"
+  # bun for the crm-api side of the shared scope fixture: an exact patch of the 1.4 line crm-api/Dockerfile builds on,
+  # the same pin meetings-eval.yml uses.
+  BUN_VERSION: "1.4.2"
+  CARGO_TERM_COLOR: always
+  # The advisory scanner, pinned EXACT and installed with `cargo install --locked` (the versions of its own dependencies
+  # are the ones its release was published with). Raising it is a deliberate change of this line.
+  CARGO_AUDIT_VERSION: "0.23.0"
+
+jobs:
+  letterhead-api:
+    name: fmt, clippy, tests, golden corpus, conformance
+    # The weekly schedule is for the advisory scan alone.
+    if: github.event_name != 'schedule'
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    defaults:
+      run:
+        working-directory: letterhead-api
+
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: letterhead_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d letterhead_test"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 12
+      minio:
+        # The image compose uses, at a fixed tag. Its default command runs `minio server`, which is what a service
+        # container needs (a service cannot be given a command), and MINIO_DEFAULT_BUCKETS creates the bucket.
+        image: docker.io/bitnamilegacy/minio:2025.7.23-debian-12-r5
+        env:
+          MINIO_ROOT_USER: minioadmin
+          MINIO_ROOT_PASSWORD: minioadmin
+          MINIO_DEFAULT_BUCKETS: letterhead
+        ports:
+          - 9000:9000
+        options: >-
+          --health-cmd "mc ready local"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 12
+
+    env:
+      # The api's database tests (api/src/db/tests.rs): each test makes a schema of its own in this database.
+      LETTERHEAD_TEST_DATABASE_URL: postgresql://postgres:postgres@localhost:5432/letterhead_test
+      LETTERHEAD_REQUIRE_DB_TESTS: "1"
+      # The bucket, for the tests of T12 and T15 that follow the same rule (plan, amendment 2026-11-17, item 6): the
+      # variables are the service's own (api/src/env.rs); `localhost` is the EU-residency allowlist of the
+      # non-AWS endpoint, as in mise.toml.
+      LETTERHEAD_S3_ENDPOINT: http://localhost:9000
+      LETTERHEAD_S3_REGION: us-east-1
+      LETTERHEAD_S3_BUCKET: letterhead
+      LETTERHEAD_S3_ACCESS_KEY_ID: minioadmin
+      LETTERHEAD_S3_SECRET_ACCESS_KEY: minioadmin
+      LETTERHEAD_S3_EU_ENDPOINT_HOSTS: localhost
+      # The same MinIO, as the route tests of T12 (api/tests/render.rs) read it. Their defaults are these values, so
+      # naming them is what keeps a change of the MinIO service above from silently pointing the tests elsewhere. The
+      # tests create the bucket; one of its own, so that they never share the service's `letterhead` bucket.
+      LETTERHEAD_TEST_S3_ENDPOINT: http://localhost:9000
+      LETTERHEAD_TEST_S3_ACCESS_KEY_ID: minioadmin
+      LETTERHEAD_TEST_S3_SECRET_ACCESS_KEY: minioadmin
+      LETTERHEAD_TEST_S3_BUCKET: letterhead-test
+      # The conformance runner (engine/tests/corpus/conformance.rs) must find its pinned pdfium.
+      LETTERHEAD_REQUIRE_PDFIUM: "1"
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Toolchain pin is the same in mise.toml and the Dockerfile
+        working-directory: .
+        run: |
+          grep -q "rust = { version = \"${RUST_VERSION}\"" mise.toml \
+            || { echo "mise.toml does not pin rust ${RUST_VERSION}" >&2; exit 1; }
+          grep -q "^ARG RUST_VERSION=${RUST_VERSION}$" letterhead-api/Dockerfile \
+            || { echo "letterhead-api/Dockerfile does not pin RUST_VERSION=${RUST_VERSION}" >&2; exit 1; }
+
+      # The TypeScript side of docs/fixtures/entity-scope.json (plan R3). The Rust side is `authz::scope` in the workspace
+      # tests below. `--frozen-lockfile` fails on a bun.lock that does not match package.json; the test is pure (no
+      # database, no environment), so nothing but the install is needed.
+      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
+        with:
+          bun-version: ${{ env.BUN_VERSION }}
+
+      - name: Install crm-api dependencies
+        working-directory: crm-api
+        run: bun install --frozen-lockfile
+
+      - name: Entity-scope fixture, TypeScript side (crm-api)
+        working-directory: crm-api
+        run: bun test src/authz/conditions.scope-fixture.test.ts
+
+      - name: Install Rust ${{ env.RUST_VERSION }} (rustfmt, clippy)
+        run: |
+          rustup toolchain install "${RUST_VERSION}" --profile minimal --component rustfmt --component clippy
+          rustup default "${RUST_VERSION}"
+          rustc --version
+          cargo --version
+
+      - name: Cache cargo registry and build
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry/index
+            ~/.cargo/registry/cache
+            ~/.cargo/git/db
+            letterhead-api/target
+          key: letterhead-api-${{ runner.os }}-${{ env.RUST_VERSION }}-${{ hashFiles('letterhead-api/Cargo.lock') }}
+          restore-keys: |
+            letterhead-api-${{ runner.os }}-${{ env.RUST_VERSION }}-
+
+      # api/tests/render.rs kills a worker with `pkill` to prove that the request it held is answered 503 and that a new
+      # worker takes its place. ubuntu-latest ships pkill (procps); this step makes the dependency explicit and installs
+      # it where an image lacks it, so the test cannot fail for a missing tool instead of for the pool.
+      - name: pkill is available
+        working-directory: .
+        run: |
+          command -v pkill >/dev/null || sudo apt-get install -y --no-install-recommends procps
+          command -v pkill
+
+      # The residue test (api/tests/residue.rs, AC-3.7) searches the database in full with a real `pg_dump`, and its socket
+      # checks need `lsof` and `pgrep`. Without them it only prints a NOTICE and passes on less evidence (a logical dump of
+      # its own; no socket listing), so this step makes the three tools exist and fails if one does not (the test step below
+      # makes a pg_dump that does not work a failure too). `pg_dump` must be of the postgres:17 service's major (a dump from an older client is refused by the
+      # server), and the runner image's own client is not necessarily 17: `postgresql-client-17` comes from the PGDG apt
+      # repository (apt.postgresql.org), whose signing key is pinned by FINGERPRINT here, not trusted for being the one the
+      # download returned. The key file must hold that one key and no other (apt would trust every key in it). A
+      # PGDG source the runner image may already carry is removed first, before any `apt-get update`: two sources for the same suite with different
+      # Signed-By make apt refuse to read either. The binary is then used by its absolute path (/usr/lib/postgresql/17/bin),
+      # not through `pg_wrapper`, which picks the version by cluster and could pick the image's own.
+      - name: Residue test tools (pg_dump 17 from PGDG, lsof, pgrep)
+        working-directory: .
+        env:
+          # ACCC4CF8, the PostgreSQL Debian/Ubuntu archive signing key (https://www.postgresql.org/download/linux/ubuntu/).
+          PGDG_KEY_FINGERPRINT: B97B0AFCAA1A47F044F244A07FCC7D46ACCC4CF8
+        run: |
+          set -euo pipefail
+          { sudo grep -rlE 'apt\.postgresql\.org' /etc/apt/sources.list.d 2>/dev/null || true; } | xargs -r sudo rm -f
+          sudo apt-get update -o Acquire::Retries=3
+          sudo apt-get install -y --no-install-recommends ca-certificates curl gnupg lsof procps
+          keyfile="$(mktemp)"
+          curl --fail --silent --show-error --location --retry 3 \
+            --output "${keyfile}" https://www.postgresql.org/media/keys/ACCC4CF8.asc
+          # One primary key, and it is the pinned one.
+          [ "$(gpg --batch --with-colons --show-keys "${keyfile}" | grep -c '^pub:')" = 1 ] \
+            || { echo "the PGDG key file holds more than one key" >&2; exit 1; }
+          fingerprint="$(gpg --batch --with-colons --show-keys "${keyfile}" | awk -F: '/^fpr:/ { print $10; exit }')"
+          [ "${fingerprint}" = "${PGDG_KEY_FINGERPRINT}" ] \
+            || { echo "PGDG key fingerprint is ${fingerprint}, expected ${PGDG_KEY_FINGERPRINT}" >&2; exit 1; }
+          sudo gpg --batch --yes --dearmor --output /usr/share/keyrings/postgresql-pgdg.gpg "${keyfile}"
+          rm -f "${keyfile}"
+          . /etc/os-release
+          echo "deb [signed-by=/usr/share/keyrings/postgresql-pgdg.gpg] https://apt.postgresql.org/pub/repos/apt ${VERSION_CODENAME}-pgdg main" \
+            | sudo tee /etc/apt/sources.list.d/pgdg-letterhead.list >/dev/null
+          sudo apt-get update -o Acquire::Retries=3
+          sudo apt-get install -y --no-install-recommends postgresql-client-17
+          /usr/lib/postgresql/17/bin/pg_dump --version | grep -q 'pg_dump (PostgreSQL) 17\.' \
+            || { echo "pg_dump is not of major 17" >&2; /usr/lib/postgresql/17/bin/pg_dump --version >&2; exit 1; }
+          command -v lsof pgrep
+          lsof -v 2>&1 | head -n 2
+          pgrep --version
+
+      - name: Format
+        run: cargo fmt --all --check
+
+      - name: Clippy
+        run: cargo clippy --workspace --all-targets --locked -- -D warnings
+
+      # pdfium for the conformance run: the release and the SHA-256 of the archive and of the library are pinned in
+      # engine/tests/conformance/pdfium.lock, and the script refuses anything else.
+      - name: Fetch the pinned pdfium
+        run: sh engine/tests/conformance/fetch-pdfium.sh
+
+      # The golden corpus, the layout-pinning test, the injection tests and the api's database tests all run here.
+      # The conformance test is left to the next step, where its table is the step's summary; it runs once.
+      #
+      # The residue test (api/tests/residue.rs) runs here with a real pg_dump (installed above): the command is the
+      # postgres:17 service's own major, by absolute path, with the host and user; its last word, the database name, is
+      # added by the test, and the password is libpq's PGPASSWORD (the service container's POSTGRES_PASSWORD),
+      # set on this step only. LETTERHEAD_RESIDUE_REQUIRE_PG_DUMP=1 makes a dump that does not work a failure instead of a
+      # NOTICE that the test passed on its own logical dump alone.
+      - name: Test (workspace, golden corpus, database)
+        env:
+          LETTERHEAD_RESIDUE_PG_DUMP: /usr/lib/postgresql/17/bin/pg_dump -h localhost -p 5432 -U postgres
+          LETTERHEAD_RESIDUE_REQUIRE_PG_DUMP: "1"
+          PGPASSWORD: postgres
+        run: cargo test --workspace --locked -- --skip "conformance::"
+
+      # The worst-case tests (T41's done-when, wired here by T46): off unless LETTERHEAD_WORST_CASE_TESTS=1, and they
+      # skip themselves in a debug build (the document takes a debug engine minutes, and the service's own 30 s deadline
+      # is for an optimised one). So this is a release build of the two test files that hold them: the table a little
+      # over 300 pages must be refused 422 `too_many_pages`, not killed for memory, under the default 2 GiB cap
+      # (tests/pool.rs, tests/render.rs), and killed under a deliberately low one. Without this step they never run in
+      # CI and a change that moves the layout or the cap goes unseen. One test at a time: each worker may use about
+      # 1.5 GiB, the cap is on the worker's own memory, and two of them beside the database and MinIO would make the
+      # runner's memory, not the cap, the thing under test. The step also reruns those files' other tests in release.
+      - name: Worst-case table (release, one test at a time)
+        env:
+          LETTERHEAD_WORST_CASE_TESTS: "1"
+        run: cargo test --release -p letterhead-api --locked --test pool --test render -- --test-threads=1
+
+      # The measured differences, one row per fixture, are appended to the job's summary: the limit is 0.5 % and
+      # the margin is what to watch.
+      - name: Conformance (preview against the PDF read by pdfium, with the 1 pt control)
+        run: |
+          LETTERHEAD_CONFORMANCE_REPORT="${GITHUB_STEP_SUMMARY}" \
+            cargo test -p letterhead-engine --test corpus --locked conformance:: -- --nocapture
+
+  # The advisory scan of the Rust dependency tree. `cargo audit` reads letterhead-api/Cargo.lock (what the service is built
+  # from: every build here and in the Dockerfile is `--locked`) and fails on any vulnerability, and on an unsound or a
+  # yanked crate, that is not ignored below. Unmaintained notices are printed and do not fail the job: there is no
+  # fixed version to move to for them (yaml-rust, paste, unsafe-libyaml, bincode, ttf-parser and rustybuzz, all
+  # reached through typst), so they are a decision for a person (a Typst upgrade, or an ADR), not a red build.
+  #
+  # IGNORES. Each is an advisory proven UNREACHABLE from the service; the step after the scan re-checks the two facts
+  # that make it so, and fails if either stops being true, so an ignore cannot outlive its reason.
+  #
+  #   RUSTSEC-2026-0194 and RUSTSEC-2026-0195 (quick-xml 0.38.4: quadratic duplicate-attribute check, and unbounded
+  #   namespace declarations in NsReader; both denial of service by a crafted XML document).
+  #     Why unreachable: the only crate that depends on quick-xml 0.38.4 is citationberg 0.7.0, which hayagriva 0.10.1
+  #     uses to parse CSL (citation style) files, which typst-library calls for `#bibliography` and `#cite`. The service
+  #     never loads a bibliography or a CSL style: (1) its one Typst template (engine/src/layout, LAYOUT_1) is a fixed
+  #     constant, and the test `the_template_calls_no_eval_no_plugin_and_no_read_of_a_caller_s_path` fails if it ever calls
+  #     `cite`, `bibliography`, `read`, `xml`, `yaml`, `eval`, `plugin`, `include` or `import`; (2) a caller's text is
+  #     placed as a string (never as Typst code) and a caller's data is JSON; (3) the World (engine/src/world.rs) refuses
+  #     every file it was not given (AccessDenied) and serves no other Typst source than the template, so no `.bib`,
+  #     `.yml` or `.xml` file can be read. The service's own tree has no XML parser of its own beyond this (SVG assets
+  #     go through xmlparser, a different crate that these advisories do not concern). The other quick-xml in the lock
+  #     (0.42.0, through plist and syntect) is patched. The step below checks the dependency path.
+  #
+  #   RUSTSEC-2026-0459 (libsqlite3-sys 0.37.0: the bundled C SQLite).
+  #     Why unreachable: the crate is in Cargo.lock only because sqlx 0.9 records its optional SQLite driver. The service
+  #     uses sqlx with `postgres` and no `sqlite` feature (api/Cargo.toml), so `cargo tree -i libsqlite3-sys` prints
+  #     nothing: it is not compiled, not linked, and not in the image. The step below checks that too.
+  advisories:
+    name: advisory scan (cargo-audit, Cargo.lock)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+
+      - name: Install Rust ${{ env.RUST_VERSION }}
+        run: |
+          rustup toolchain install "${RUST_VERSION}" --profile minimal
+          rustup default "${RUST_VERSION}"
+          rustc --version
+          cargo --version
+
+      # The binary is cached under the scanner's version and the compiler's, so a run after the first one does not
+      # compile it again; the advisory database is NOT cached, it is fetched fresh by every run (that is the point).
+      - name: Cache cargo-audit
+        id: cargo-audit-cache
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
+        with:
+          path: ~/.cargo/bin/cargo-audit
+          key: cargo-audit-${{ runner.os }}-${{ env.CARGO_AUDIT_VERSION }}-${{ env.RUST_VERSION }}
+
+      - name: Install cargo-audit ${{ env.CARGO_AUDIT_VERSION }}
+        if: steps.cargo-audit-cache.outputs.cache-hit != 'true'
+        run: cargo install --locked --version "${CARGO_AUDIT_VERSION}" cargo-audit
+
+      - name: Scan letterhead-api/Cargo.lock
+        run: |
+          cargo audit --version
+          cargo audit --file letterhead-api/Cargo.lock \
+            --deny unsound --deny yanked \
+            --ignore RUSTSEC-2026-0194 \
+            --ignore RUSTSEC-2026-0195 \
+            --ignore RUSTSEC-2026-0459
+
+      # The facts the ignores rest on, checked on this lockfile (cargo tree reads Cargo.lock and the manifests; with
+      # --locked it builds nothing and changes nothing).
+      - name: The ignored advisories are still unreachable
+        working-directory: letterhead-api
+        run: |
+          set -euo pipefail
+          # RUSTSEC-2026-0459: no path from the workspace to libsqlite3-sys, on any target, with the features it enables.
+          sqlite="$(cargo tree --locked --target all -i libsqlite3-sys 2>/dev/null || true)"
+          if [ -n "${sqlite}" ]; then
+            echo "libsqlite3-sys is in the build now; RUSTSEC-2026-0459 is no longer unreachable:" >&2
+            echo "${sqlite}" >&2
+            exit 1
+          fi
+          # RUSTSEC-2026-0194/0195: quick-xml 0.38.4 is reached only through citationberg (CSL parsing).
+          parents="$(cargo tree --locked --target all -e normal,build -i quick-xml@0.38.4 --depth 1 -f '{p}' --prefix none | tail -n +2 | awk '{print $1}' | sort -u)"
+          if [ "${parents}" != "citationberg" ]; then
+            echo "quick-xml 0.38.4 is now used by: ${parents:-nothing found (did the version change? then drop or update the ignore)}" >&2
+            echo "RUSTSEC-2026-0194/0195 were ignored because only citationberg (bibliography parsing) uses it." >&2
+            exit 1
+          fi
+          echo "libsqlite3-sys is not in the build; quick-xml 0.38.4 is used only by citationberg."

@@ -1566,6 +1566,179 @@ Do not open or `curl` the new hostname before the DNS record is reported live (3
 `/health`, the 401 on a gated route and the 401 on `/system/v1/*`; while maintenance is on it reports
 those two as a warning, not a pass).
 
+### `letterhead-api` service (Railway) — NEW (specs/20261116-letterhead-service)
+
+The one Rust service (ADR 20261116-letterhead-api-is-a-rust-service-with-typst-embedded-for-document-layout-only). Authoritative list:
+`letterhead-api/api/src/env.rs` (validated at startup, exits 1 on any miss). Committed contract:
+`tools/env-doctor/templates/production/letterhead-api.env`. Port **8088**, DB `letterhead`, domain
+`letterhead-api.operai.welld.io`, its own private EU bucket `letterhead` (logos and backgrounds). The browser
+reaches it only for the configurator (`letterheads-ui`, its own Vercel project, provisioned apart from this block);
+crm-api reaches it with a scoped service JWT (`letterhead:render`).
+
+**What `.railway/railway.ts` declares** (task T13; nothing is applied from a branch):
+
+| Setting | Value | Why |
+|---|---|---|
+| `start` / `preDeploy` | `letterhead-api` / `letterhead-api migrate` | Plan, amendment 2026-11-17 item 4. The image has `CMD`, not `ENTRYPOINT`, so both are whole commands. `migrate` reads only `DATABASE_URL`, exits 0 when up to date, and on failure exits non-zero without the URL. `serve` never migrates and refuses a database that is behind, so the `preDeploy` is the only place the schema changes. |
+| `limitOverride` | 2 vCPU, `memoryBytes` 5 000 000 000 | The pool is bounded by memory (ADR 20261116-renders-run-in-killable-worker-processes-and-concurrency-is-bounded-by-memory): `LH_WORKERS=2` x 2 GiB RSS cap (`LH_WORKER_RSS_MB`, default 2048), plus the supervisor, plus up to 6 held 20 MiB bodies: the caps alone are 4.3 GB and the whole is about 4.6 GB of the 5.0 GB limit, so it holds even if both workers sit at their cap. **Cost (T46, owner to confirm):** the limit was 4 GB while the cap was 1 GiB or 1.5 GiB; the worst accepted table (4 984 blocks, 300 pages) peaks at 1.53 GiB in a worker on Linux (VmHWM, `spike.md` § Not measured), above 1.5 GiB, so the cap is 2 GiB and the container 5 GB, 1 GB more than before, billed for as long as the service is up. The 4 GB container with the 1 GiB cap is what `letterhead-api/perf/` (T13, 2.1 GB for two concurrent worst-case previews) measured; repeat that with `--memory=5000000000` before raising `LH_WORKERS` or the cap. Without an override the service would get the plan's maximum, and a runaway would take the whole project's headroom. Raise it with a measurement, never to hide a 429. |
+| `replicas` | `{ "europe-west4-drams3a": 1 }` | EU only. The pool, its queue and the per-caller share are in-process: a second replica doubles the bound, it does not share it. |
+| `domains` | `letterhead-api.operai.welld.io` → 8088 | |
+| `healthcheck` | `/health`, 30 s | The Docker `HEALTHCHECK` is not read by Railway. |
+| bucket | `letterhead`, `ams` | A bucket's region cannot change. |
+| `source` | **none yet** | Declared unbuilt, as the `provision-tool` skill requires: connecting the repo starts the first build, which must wait for the variables (step 3). |
+
+| Variable | Value | Secret |
+|---|---|---|
+| `DATABASE_URL` | `postgresql://${{Postgres.PGUSER}}:${{Postgres.PGPASSWORD}}@${{Postgres.RAILWAY_PRIVATE_DOMAIN}}:5432/letterhead` — **its own logical DB** | yes (by reference) |
+| `ALLOWED_ORIGINS` | `https://operai.welld.io` (the shell only) | no |
+| `AUTH_ISSUER` / `AUTH_JWKS_URL` / `AUTH_BASE_URL` | public claim `https://auth.operai.welld.io`; internal `http://${{auth.RAILWAY_PRIVATE_DOMAIN}}:${{auth.PORT}}/auth/jwks` and `…:${{auth.PORT}}` | no |
+| `AUTH_AUDIENCE` / `SERVICE_AUDIENCE` | `${{shared.AUTH_AUDIENCE}}` / `${{shared.SERVICE_AUDIENCE}}` — must differ (the service refuses to start otherwise) | no |
+| `LETTERHEAD_S3_BUCKET` / `_ACCESS_KEY_ID` / `_SECRET_ACCESS_KEY` | **by reference** to the Railway bucket `letterhead`: `${{letterhead.BUCKET}}`, `${{letterhead.ACCESS_KEY_ID}}`, `${{letterhead.SECRET_ACCESS_KEY}}` (set by `provision-tool.sh --bucket`) | keys: yes |
+| `LETTERHEAD_S3_ENDPOINT` / `_REGION` / `_EU_ENDPOINT_HOSTS` | `https://t3.storageapi.dev` / `ams` / `t3.storageapi.dev` — the residency guard (AC-3.8): without a match the service does not start. ASSUMED to be the other tools' endpoint (template comment): confirm against the bucket once it exists | no |
+| `LH_WORKERS` / `LH_QUEUE` / `PORT` | `2` / `4` / `8088` | no |
+
+The script sets every one of them by reference; there is no secret for a person to enter. `RAILWAY_PRIVATE_DOMAIN` is set by
+Railway, and its presence makes the service bind `::` (private networking is IPv6-only); the same start was tested in a container.
+
+**Owner steps (T40).** Run in the main session, not by an agent: step 2 and step 3 each ask for a yes, and a plan that
+deletes anything is a stop.
+
+```bash
+# 0. The branch is merged: letterhead-api/ and .railway/railway.ts are on origin/main; the root `pnpm install` was run.
+railway login
+railway link -p 3bafd4c0-226f-4621-821b-a063976498a2 -e production
+
+# 1. Read the plan. It must show ONLY additions: + service letterhead-api, + bucket letterhead. Any delete or change of
+#    another resource is a stop; never pass --confirm-destructive.
+railway config plan
+
+# 2. Audit, then create: the logical database `letterhead`, `railway config apply` (it asks), the variables above, the domain, DNS.
+#    --no-ui: letterheads-ui is a Vercel project of its own, provisioned apart from this block. Its name is not
+#    `letterhead-ui`, so when it is time to provision it use `--ui letterheads-ui` (T42): directory `letterheads-ui`,
+#    project and host `letterheads.operai.welld.io`, shell variables LETTERHEADS_REMOTE_URL / VITE_LETTERHEADS_API_URL.
+./infra/provision-tool.sh letterhead --bucket --no-ui --port 8088
+./infra/provision-tool.sh letterhead --bucket --no-ui --port 8088 --apply
+#    The script prints "Bucket 'letterhead': set a CORS rule ...". Not needed here: the browser never talks to the bucket
+#    (plan G3: assets are uploaded to the service as multipart and read back through GET /v1/assets/{id}). Do not open or
+#    curl letterhead-api.operai.welld.io until the script says it resolves (30-minute negative cache).
+
+# 3. Connect the repo (this starts the first build; preDeploy runs `letterhead-api migrate` first).
+#    Add, as the first property of the letterhead-api block in .railway/railway.ts, then commit and push to main:
+#      source: github("matteocodogno/operai", { branch: "main", checkSuites: false, rootDirectory: "/letterhead-api" }),
+./infra/provision-tool.sh letterhead --bucket --no-ui --port 8088 --connect --apply
+
+# 4. Verify (a connection is established only when this says so).
+curl -s -o /dev/null -w '%{http_code}\n' https://letterhead-api.operai.welld.io/health                          # 200
+curl -s -o /dev/null -w '%{http_code}\n' -X POST https://letterhead-api.operai.welld.io/v1/render/pdf          # 401, the one 401
+railway logs --service letterhead-api | head                                                                    # "letterhead-api listening on [::]:8088 (workers 2, queue 4)"
+mise run env:doctor -- --env production
+./infra/check.sh      # T42: lists letterhead-api: /health 200, GET /v1/letterheads/status and POST /v1/render/pdf answer 401 with no credential, and the shell CSP's connect-src names it
+```
+
+**Then the measurement (AC-1.9, AC-1.10).** It needs two things that this task cannot give:
+
+1. **A `welld_it` letterhead version saved through the service** (T14 and T15 deployed; the configurator form, T21 onwards, is not needed: a `curl` with a person token is enough). With none, every render answers
+   409 `letterhead_not_configured`. Do not seed production with `perf/seed-local.ts` (it refuses): the rows can never be removed,
+   and a version 1 that a script made would turn the first real save (`baseVersion` 0) into a `version_conflict`.
+2. **A service credential with the scope `letterhead:render`**: a temporary client in `auth`'s `SERVICE_CLIENTS`, e.g.
+   `"letterhead-perf":{"secret":"${{shared.LETTERHEAD_PERF_CLIENT_SECRET}}","scope":"letterhead:render"}`, with the secret (≥ 32 chars)
+   generated as a Railway **Shared Variable** on the project, never in a command line or a PR. `auth` must be running the code that
+   knows the scope (T18) before the variable is edited, or it refuses to start. Delete the client afterwards.
+
+```bash
+read -rs LETTERHEAD_PERF_CLIENT_SECRET && export LETTERHEAD_PERF_CLIENT_SECRET     # paste, Enter
+export LETTERHEAD_PERF_CLIENT_ID=letterhead-perf
+bun letterhead-api/perf/render-perf.ts --base-url https://letterhead-api.operai.welld.io \
+  --auth-url https://auth.operai.welld.io --json perf-deployed.json
+```
+
+Record preview and PDF p50 and p95 in `specs/20261116-letterhead-service/spike.md` (§ Not measured), client and server side
+(`railway logs --service letterhead-api` has `ms=` for every render). If preview p95 is 1 s or more, or PDF p95 is 3 s or
+more, revisit O10 before the CRM switch. The local proxy numbers (a container with `--cpus=2 --memory=4000000000`) are in the
+same section.
+
+**Rollback.** Before step 3 nothing runs: delete the service and the bucket by removing their blocks from the file and
+reading the plan (a bucket delete is destructive: the bucket is empty, but read it). After step 3 the service has no callers
+until the CRM switch (`LETTERHEAD_SERVICE_ENABLED`, off by default), so a bad deploy affects nobody; redeploy the previous
+deployment from the dashboard. A migration is never rolled back by the service: the tables refuse `UPDATE`, `DELETE` and
+`TRUNCATE`, so a wrong migration is fixed by a new one.
+
+### The CRM switch: offers on the layout service (specs/20261116-letterhead-service T30, AC-10.1, AC-10.11, AC-10.12)
+
+`LETTERHEAD_SERVICE_ENABLED` on `crm-api` is the one switch. Off (the default, `tools/env-doctor/templates/production/crm-api.env`),
+the CRM behaves as it always did: it draws its own pages from the uploaded letterhead PDF. On, every offer's pages come from
+`letterhead-api` (the wizard's generate and the classic `POST /deals/{id}/offers` and `PUT /deals/{id}/offers/{offerId}`),
+the two preview routes exist, `GET /scope` answers `letterheadService: true`, and the three letterhead upload routes answer
+**410** `letterhead_upload_retired`. Only the literal `true` turns it on (`1` and `TRUE` are off, with a warning in the log).
+With it on, one person has at most 2 previews in flight across the two preview routes (a counter per `crm-api` process, keyed by the token's
+`sub`); a third answers **429** `preview_busy` with `Retry-After: 1` and never reaches the service (security review F1).
+
+**There is no way back to the uploaded letterhead (owner, O5).** Step 5 deletes the files. Rolling the switch back after step 5
+makes `crm-api` draw offers without a letterhead, because nothing is left to draw. Until step 5 the switch can be turned off
+again at any time and the CRM is as before. Offers already issued are never changed: their stored PDFs, snapshots and
+references stay as they are and still open, because no offer reads the letterhead object (AC-10.9, AC-10.12).
+
+**Before the switch** (all of them; the check in step 2 proves only the second):
+
+1. `letterhead-api` is deployed and healthy (the block above), `crm-api` has `LETTERHEAD_API_URL`, and the `crm-api` entry of `auth`'s
+   `SERVICE_CLIENTS` holds the scope `letterhead:render` (T18; `auth` must run the code that knows it).
+2. Both entities have an active letterhead version, saved in Letterheads by a person with access (configured to the brand templates).
+3. The owner has signed off real offers drawn by the service (T35, `specs/20261116-letterhead-service/signoff/README.md`).
+
+**The scripts** run from a checkout of the release commit, like `check-letterheads.ts` (§ CRM offer wizard rollout, below): they are not in the running
+image. They need `crm-api`'s production variables (`railway run` injects them, the bucket and the service client included), the `crm`
+database through its public connection string, and the public hosts of `letterhead-api` and `auth`, because the private ones do not
+resolve from a laptop. `LETTERHEAD_SERVICE_ENABLED` is read from the injected variables. None prints a token, a secret, a link or bytes.
+
+```bash
+cd crm-api && bun install
+# 1. The three conditions above hold. In every command below the three overrides are the public database, letterhead-api and
+#    auth: the variables `railway run` injects name their private hosts.
+
+# 2. THE CHECK. Asks GET /v1/letterheads/status as crm-api and prints one line per entity: "active vN" or NONE.
+railway run --service crm-api --environment production -- sh -c \
+  'DATABASE_URL="$CRM_PUBLIC_DATABASE_URL" LETTERHEAD_API_URL=https://letterhead-api.operai.welld.io AUTH_BASE_URL=https://auth.operai.welld.io bun scripts/check-letterhead-service.ts'
+echo "exit $?"   # 0: both entities active, go on. 1: one has none, or the service did not answer: the switch stays OFF. 2: not configured
+
+# 3. Set LETTERHEAD_SERVICE_ENABLED=true on crm-api in Railway and redeploy it. Do this ONLY after step 2 exited 0.
+
+# 4. Verify, with the switch on: GET /scope answers letterheadService true; one test offer on a scratch deal generates (its PDF is
+#    the service's pages, and its `letterheadVersion` is set); the offer wizard's preview shows the service's pages.
+
+# 4b. KEEP A RECOVERABLE COPY before step 5 (the delete is permanent, security review F10). Either enable versioning on the CRM bucket
+#     for the retirement window, or copy the letterhead objects to an archive prefix and check the copy lists both files:
+#       aws s3 sync "s3://$CRM_S3_BUCKET/letterheads/" "s3://$CRM_S3_BUCKET/archive/letterheads-$(date +%F)/" --endpoint-url "$CRM_S3_ENDPOINT"
+#     (any S3 client works; the point is two copies of each file before the script deletes one)
+#     Do not run `--apply` until one of the two is done. Delete the archive after the retirement window, once offers have drawn well.
+
+# 5. RETIRE the uploaded letterheads. DRY RUN first (the default): it runs the check, renders a sample PDF of each entity, then lists
+#    what it would delete.
+railway run --service crm-api --environment production -- sh -c \
+  'DATABASE_URL="$CRM_PUBLIC_DATABASE_URL" LETTERHEAD_API_URL=https://letterhead-api.operai.welld.io AUTH_BASE_URL=https://auth.operai.welld.io bun scripts/retire-uploaded-letterheads.ts'
+#    Read the list. Then, and only then (this deletes the two files from the bucket and clears the references; no rollback):
+railway run --service crm-api --environment production -- sh -c \
+  'DATABASE_URL="$CRM_PUBLIC_DATABASE_URL" LETTERHEAD_API_URL=https://letterhead-api.operai.welld.io AUTH_BASE_URL=https://auth.operai.welld.io bun scripts/retire-uploaded-letterheads.ts --apply'
+echo "exit $?"   # 0: done (or nothing left). 1: refused, or an entity could not be retired: read the message and run it again
+```
+
+`retire-uploaded-letterheads.ts` is safe to run twice. It refuses, and changes nothing, unless the check of step 2 passes (also in
+the dry run), unless a small sample PDF of **each** entity renders through `crm-api`'s own client, the one the offers use (also in
+the dry run: the check proves an active version is listed, not that a render works, and a missing asset still lists; a render that
+fails prints `<entity> sample PDF did NOT render (<code>)` and exits 1: fix the service, never skip it), and, with `--apply`,
+unless the switch is on in this environment. It renders only when there is something to retire. Enable bucket versioning or copy
+`letterheads/` to an archive prefix (step 4b) before `--apply`: the script keeps no copy. For each entity that still holds a letterhead it
+deletes the object, then sets `letterheadKey`, `letterheadBy` and `letterheadAt` to null; a failed delete keeps the reference, so
+running it again finishes the job, and a run with nothing left does nothing and touches neither the bucket nor the database. It
+deletes only `letterheads/<entity>/<uuid>.pdf` of the entity's own row: any other reference (an offer PDF, another entity's file) is
+reported as `SKIPPED` and left, with exit 1, for a person to look at. Offer PDFs (`offers/...`) are never read or deleted. It prints
+the entity and the key it deleted. An upload that was started and never confirmed is not referenced by any row and is not listed by
+the script, and stays in the bucket; if the bucket must hold no letterhead at all, list its `letterheads/` prefix by hand once after step 5.
+
+**If the check fails (exit 1).** Do not enable the switch. `NONE` or `INVALID` names the entity: save a version in Letterheads and run
+step 2 again. A non-200 or a timeout is the service or the credential (`railway logs --service letterhead-api`; the script prints the
+status only; a 401 or 403 usually means the `letterhead:render` scope is missing from the `crm-api` entry of `SERVICE_CLIENTS`).
+Nothing was changed.
+
 ### Provisioning a new tool
 
 `infra/provision-tool.sh <tool>` creates, or audits, everything a tool needs in
@@ -1589,6 +1762,10 @@ The Railway service, its bucket and its domain are declared in `.railway/railway
 apply an uncommitted file, and applies it with `railway config apply`, which asks for
 confirmation. A block that declares a source while the service has none is refused
 without `--connect`, because connecting the repo starts the first build.
+
+`--ui <remote>` names the frontend when it is not `<tool>-ui` (`--ui letterheads-ui` for tool `letterhead`; the stem
+`letterheads` works too): it sets the UI directory, the Vercel project, the host and the two shell variables, while the
+backend keeps the tool's name. A commented `// source: github(...)` line in the block is not a declared source.
 
 Without `--apply` nothing is changed. It is safe to re-run: it fills gaps only, never
 overwrites a variable and never deletes. Needs the `railway`, `vercel` and `cf`

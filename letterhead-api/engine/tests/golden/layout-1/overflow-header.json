@@ -1,0 +1,10 @@
+{
+ "fixture": "overflow-header",
+ "layout": 1,
+ "outcome": "refused",
+ "error": "header_overflow",
+ "pageCount": 0,
+ "missingPlaceholders": [],
+ "unprintableCharacters": 0,
+ "pages": []
+}

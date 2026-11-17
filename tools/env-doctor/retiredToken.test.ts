@@ -33,7 +33,8 @@ describe("the retired shared notify token is absent from every service's src/", 
 
   for (const svc of BACKENDS as readonly ServiceName[]) {
     test(`${svc}/src never mentions the retired token`, () => {
-      const src = join(REPO_ROOT, svc, "src");
+      // letterhead-api is a Cargo workspace (specs/20261116-letterhead-service): its sources are api/src and engine/src.
+      const src = join(REPO_ROOT, svc, svc === "letterhead-api" ? "api/src" : "src");
       expect(existsSync(src)).toBe(true); // a moved service must not make this test vacuous
       const files = [...walk(src)];
       expect(files.length).toBeGreaterThan(0);

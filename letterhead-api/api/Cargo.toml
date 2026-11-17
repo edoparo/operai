@@ -1,0 +1,64 @@
+[package]
+name = "letterhead-api"
+description = "Letterhead service: HTTP supervisor around letterhead-engine"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+publish.workspace = true
+
+[[bin]]
+name = "letterhead-api"
+path = "src/main.rs"
+
+[dependencies]
+# The S3 client for the bucket (`storage.rs`), with its current HTTPS client (rustls on aws-lc-rs, which the JWKS
+# client and the JWT verifier below use too) and without the legacy hyper 0.14 client and SigV4a that the defaults add.
+aws-sdk-s3 = { version = "1", default-features = false, features = ["default-https-client", "http-1x", "rt-tokio"] }
+axum = { version = "0.8", default-features = false, features = ["http1", "json", "query", "tokio"] }
+base64 = "0.22"
+chrono = { version = "0.4", default-features = false, features = ["std"] }
+# The worker evicts Typst's memoisation cache after each job (AC-3.7): the same comemo that typst 0.15.1 links.
+comemo = "0.5.1"
+http-body-util = "0.1"
+# RS256 verification of service tokens (`auth/service.rs`). `aws_lc_rs` is the backend; no PEM reader is needed.
+jsonwebtoken = { version = "12", default-features = false, features = ["aws_lc_rs"] }
+letterhead-engine = { path = "../engine" }
+# Fetches the JWKS of `auth` (`auth/service.rs`), http or https, never following a redirect.
+reqwest = { version = "0.13", default-features = false, features = ["rustls"] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+sha2 = "0.10"
+# Plain `query` calls only (no compile-time-checked macros: they need a database at build time);
+# the `macros` feature is for `sqlx::migrate!`. TLS: Railway's public Postgres proxy needs it.
+sqlx = { version = "0.9", default-features = false, features = ["runtime-tokio", "tls-rustls-ring-webpki", "postgres", "migrate", "macros", "uuid", "chrono", "json"] }
+tokio = { version = "1", features = ["io-util", "macros", "net", "process", "rt-multi-thread", "signal", "sync", "time"] }
+url = "2"
+# `v4`: the id of an uploaded asset is server-chosen (`routes/write.rs`). The dev-dependency below already enabled it
+# for the tests, so the lock file holds its `getrandom` already.
+uuid = { version = "1", features = ["v4"] }
+
+[features]
+# Test layouts for the worker (a render that loops, holds, allocates, panics, or reports its environment): the
+# deadline, the memory cap and the admission tests need a render that misbehaves on demand. NOT in the image:
+# the integration test of the pool compiles the same code into its own binary (`cfg(test)`) and runs the
+# worker from that; this feature builds the real `letterhead-api worker` with them, for the tests of T12.
+test-slow = []
+
+[[test]]
+# Its own `main`: the test binary is also the worker (`pool worker`), so the worker is built with the test
+# layouts without a feature flag and the standard `cargo test --workspace --locked` runs the whole set.
+name = "pool"
+harness = false
+
+[dev-dependencies]
+# Test keys for the fake `auth` (a local JWKS): generated in the test, never stored.
+aws-lc-rs = "1"
+bytes = "1"
+http-body = "1"
+# `pause()`: the deadline of a body that stops coming is tested without waiting for it.
+tokio = { version = "1", features = ["test-util"] }
+tower = { version = "0.5", features = ["util"] }
+uuid = { version = "1", features = ["v4"] }
+
+[lints]
+workspace = true

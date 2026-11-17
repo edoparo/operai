@@ -83,7 +83,30 @@ describe("parseServiceClients", () => {
       "crm.contacts.read",
       "estimai.estimates.read",
       "projects.purchase-orders.read",
+      "letterhead:render",
     ]);
+  });
+
+  test("a client holding letterhead:render parses and authenticates with it, alone or beside other scopes (specs/20261116-letterhead-service AC-3.1, AC-9.3)", () => {
+    const parsed = parseServiceClients(
+      raw({
+        "crm-api": { secret: SECRET_A, scope: "notifications.push letterhead:render" },
+        "refund-api": { secret: SECRET_B, scope: "letterhead:render" },
+      }),
+    );
+    expect(parsed.ok).toBe(true);
+    if (!parsed.ok) return;
+    expect(authenticateServiceClient(parsed.clients, "crm-api", SECRET_A)?.scopes).toEqual([
+      "notifications.push",
+      "letterhead:render",
+    ]);
+    expect(authenticateServiceClient(parsed.clients, "refund-api", SECRET_B)?.scopes).toEqual(["letterhead:render"]);
+  });
+
+  test("near-miss spellings of letterhead:render refuse to start (a typo never widens a token)", () => {
+    for (const scope of ["letterhead.render", "letterheads:render", "letterhead:manage", "letterhead:render:*"]) {
+      expect(parseServiceClients(raw({ "crm-api": { secret: SECRET_A, scope } })).ok).toBe(false);
+    }
   });
 
   test("a client holding deal-link-notices.send parses, beside notifications.push (specs/20261108-estimate-list-oversight)", () => {

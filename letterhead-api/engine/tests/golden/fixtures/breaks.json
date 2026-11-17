@@ -1,0 +1,2178 @@
+{
+ "description": "The page-break rules of AC-1.6 on a letterhead with nothing in the margins.",
+ "letterhead": "bare",
+ "request": {
+  "contentVersion": 1,
+  "entity": "welld_it",
+  "language": "it",
+  "entityData": {
+   "legalName": "WellD Italia S.r.l. (SAMPLE)",
+   "addressLines": [
+    "Via Esempio 1",
+    "I-16100 Genova (Italia)"
+   ],
+   "vat": "IT00000000000",
+   "iban": "",
+   "contacts": "www.example.com — info@example.com"
+  },
+  "blocks": [
+   {
+    "type": "pageBreak"
+   },
+   {
+    "type": "heading",
+    "level": 2,
+    "text": "Sezione 1"
+   },
+   {
+    "type": "paragraph",
+    "runs": [
+     {
+      "text": "P01 Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto. Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto."
+     }
+    ]
+   },
+   {
+    "type": "heading",
+    "level": 2,
+    "text": "Sezione 2"
+   },
+   {
+    "type": "paragraph",
+    "runs": [
+     {
+      "text": "P02 Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto. Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto. Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto."
+     }
+    ]
+   },
+   {
+    "type": "heading",
+    "level": 1,
+    "text": "Sezione 3"
+   },
+   {
+    "type": "paragraph",
+    "runs": [
+     {
+      "text": "P03 Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto. Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto. Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto. Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto."
+     }
+    ]
+   },
+   {
+    "type": "heading",
+    "level": 2,
+    "text": "Sezione 4"
+   },
+   {
+    "type": "paragraph",
+    "runs": [
+     {
+      "text": "P04 Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto. Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto. Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto. Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto. Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto."
+     }
+    ]
+   },
+   {
+    "type": "heading",
+    "level": 2,
+    "text": "Sezione 5"
+   },
+   {
+    "type": "paragraph",
+    "runs": [
+     {
+      "text": "P05 Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto. Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto. Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto. Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto. Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto. Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto."
+     }
+    ]
+   },
+   {
+    "type": "list",
+    "items": [
+     {
+      "runs": [
+       {
+        "text": "L05.1 Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto. Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto. "
+       }
+      ]
+     },
+     {
+      "runs": [
+       {
+        "text": "L05.2 Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto. Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto. "
+       }
+      ]
+     },
+     {
+      "runs": [
+       {
+        "text": "L05.3 Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto. Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto. "
+       }
+      ]
+     }
+    ]
+   },
+   {
+    "type": "heading",
+    "level": 1,
+    "text": "Sezione 6"
+   },
+   {
+    "type": "paragraph",
+    "runs": [
+     {
+      "text": "P06 Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto. Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto. Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto. Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto. Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto. Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto. Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto."
+     }
+    ]
+   },
+   {
+    "type": "heading",
+    "level": 2,
+    "text": "Sezione 7"
+   },
+   {
+    "type": "paragraph",
+    "runs": [
+     {
+      "text": "P07 Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto."
+     }
+    ]
+   },
+   {
+    "type": "heading",
+    "level": 2,
+    "text": "Sezione 8"
+   },
+   {
+    "type": "paragraph",
+    "runs": [
+     {
+      "text": "P08 Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto. Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto."
+     }
+    ]
+   },
+   {
+    "type": "table",
+    "columns": [
+     1,
+     4
+    ],
+    "rows": [
+     [
+      [
+       {
+        "type": "paragraph",
+        "runs": [
+         {
+          "text": "T08r00"
+         }
+        ]
+       }
+      ],
+      [
+       {
+        "type": "paragraph",
+        "runs": [
+         {
+          "text": "Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto. "
+         }
+        ]
+       }
+      ]
+     ],
+     [
+      [
+       {
+        "type": "paragraph",
+        "runs": [
+         {
+          "text": "T08r01"
+         }
+        ]
+       }
+      ],
+      [
+       {
+        "type": "paragraph",
+        "runs": [
+         {
+          "text": "Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto. Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto. "
+         }
+        ]
+       }
+      ]
+     ],
+     [
+      [
+       {
+        "type": "paragraph",
+        "runs": [
+         {
+          "text": "T08r02"
+         }
+        ]
+       }
+      ],
+      [
+       {
+        "type": "paragraph",
+        "runs": [
+         {
+          "text": "Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto. Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto. Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto. "
+         }
+        ]
+       }
+      ]
+     ],
+     [
+      [
+       {
+        "type": "paragraph",
+        "runs": [
+         {
+          "text": "T08r03"
+         }
+        ]
+       }
+      ],
+      [
+       {
+        "type": "paragraph",
+        "runs": [
+         {
+          "text": "Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto. "
+         }
+        ]
+       }
+      ]
+     ],
+     [
+      [
+       {
+        "type": "paragraph",
+        "runs": [
+         {
+          "text": "T08r04"
+         }
+        ]
+       }
+      ],
+      [
+       {
+        "type": "paragraph",
+        "runs": [
+         {
+          "text": "Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto. Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto. "
+         }
+        ]
+       }
+      ]
+     ],
+     [
+      [
+       {
+        "type": "paragraph",
+        "runs": [
+         {
+          "text": "T08r05"
+         }
+        ]
+       }
+      ],
+      [
+       {
+        "type": "paragraph",
+        "runs": [
+         {
+          "text": "Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto. Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto. Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto. "
+         }
+        ]
+       }
+      ]
+     ],
+     [
+      [
+       {
+        "type": "paragraph",
+        "runs": [
+         {
+          "text": "T08r06"
+         }
+        ]
+       }
+      ],
+      [
+       {
+        "type": "paragraph",
+        "runs": [
+         {
+          "text": "Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto. "
+         }
+        ]
+       }
+      ]
+     ],
+     [
+      [
+       {
+        "type": "paragraph",
+        "runs": [
+         {
+          "text": "T08r07"
+         }
+        ]
+       }
+      ],
+      [
+       {
+        "type": "paragraph",
+        "runs": [
+         {
+          "text": "Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto. Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto. "
+         }
+        ]
+       }
+      ]
+     ],
+     [
+      [
+       {
+        "type": "paragraph",
+        "runs": [
+         {
+          "text": "T08r08"
+         }
+        ]
+       }
+      ],
+      [
+       {
+        "type": "paragraph",
+        "runs": [
+         {
+          "text": "Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto. Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto. Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto. "
+         }
+        ]
+       }
+      ]
+     ],
+     [
+      [
+       {
+        "type": "paragraph",
+        "runs": [
+         {
+          "text": "T08r09"
+         }
+        ]
+       }
+      ],
+      [
+       {
+        "type": "paragraph",
+        "runs": [
+         {
+          "text": "Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto. "
+         }
+        ]
+       }
+      ]
+     ],
+     [
+      [
+       {
+        "type": "paragraph",
+        "runs": [
+         {
+          "text": "T08r10"
+         }
+        ]
+       }
+      ],
+      [
+       {
+        "type": "paragraph",
+        "runs": [
+         {
+          "text": "Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto. Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto. "
+         }
+        ]
+       }
+      ]
+     ],
+     [
+      [
+       {
+        "type": "paragraph",
+        "runs": [
+         {
+          "text": "T08r11"
+         }
+        ]
+       }
+      ],
+      [
+       {
+        "type": "paragraph",
+        "runs": [
+         {
+          "text": "Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto. Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto. Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto. "
+         }
+        ]
+       }
+      ]
+     ],
+     [
+      [
+       {
+        "type": "paragraph",
+        "runs": [
+         {
+          "text": "T08r12"
+         }
+        ]
+       }
+      ],
+      [
+       {
+        "type": "paragraph",
+        "runs": [
+         {
+          "text": "Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto. "
+         }
+        ]
+       }
+      ]
+     ],
+     [
+      [
+       {
+        "type": "paragraph",
+        "runs": [
+         {
+          "text": "T08r13"
+         }
+        ]
+       }
+      ],
+      [
+       {
+        "type": "paragraph",
+        "runs": [
+         {
+          "text": "Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto. Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto. "
+         }
+        ]
+       }
+      ]
+     ],
+     [
+      [
+       {
+        "type": "paragraph",
+        "runs": [
+         {
+          "text": "T08r14"
+         }
+        ]
+       }
+      ],
+      [
+       {
+        "type": "paragraph",
+        "runs": [
+         {
+          "text": "Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto. Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto. Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto. "
+         }
+        ]
+       }
+      ]
+     ],
+     [
+      [
+       {
+        "type": "paragraph",
+        "runs": [
+         {
+          "text": "T08r15"
+         }
+        ]
+       }
+      ],
+      [
+       {
+        "type": "paragraph",
+        "runs": [
+         {
+          "text": "Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto. "
+         }
+        ]
+       }
+      ]
+     ],
+     [
+      [
+       {
+        "type": "paragraph",
+        "runs": [
+         {
+          "text": "T08tall"
+         }
+        ]
+       }
+      ],
+      [
+       {
+        "type": "paragraph",
+        "runs": [
+         {
+          "text": "Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto. Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto. Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto. Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto. Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto. Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto. Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto. Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto. Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto. Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto. Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto. Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto. Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto. Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto. Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto. Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto. Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto. Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto. Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto. Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto. Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto. Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto. Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto. Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto. Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto. "
+         }
+        ]
+       }
+      ]
+     ],
+     [
+      [
+       {
+        "type": "paragraph",
+        "runs": [
+         {
+          "text": "T08huge"
+         }
+        ]
+       }
+      ],
+      [
+       {
+        "type": "paragraph",
+        "runs": [
+         {
+          "text": "Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto. Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto. Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto. Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto. Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto. Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto. Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto. Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto. Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto. Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto. Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto. Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto. Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto. Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto. Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto. Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto. Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto. Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto. Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto. Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto. Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto. Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto. Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto. Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto. Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto. Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto. Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto. Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto. Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto. Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto. Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto. Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto. Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto. Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto. Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto. Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto. Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto. Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto. Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto. Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto. Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto. Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto. Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto. Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto. Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto. Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto. Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto. Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto. Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto. Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto. Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto. Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto. Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto. Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto. Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto. Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto. Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto. Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto. Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto. Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto. Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto. Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto. Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto. Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto. Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto. Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto. Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto. Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto. Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto. Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto. "
+         }
+        ]
+       }
+      ]
+     ]
+    ],
+    "header": [
+     [
+      {
+       "type": "paragraph",
+       "runs": [
+        {
+         "text": "Voce",
+         "bold": true
+        }
+       ]
+      }
+     ],
+     [
+      {
+       "type": "paragraph",
+       "runs": [
+        {
+         "text": "Testo",
+         "bold": true
+        }
+       ]
+      }
+     ]
+    ]
+   },
+   {
+    "type": "heading",
+    "level": 1,
+    "text": "Sezione 9"
+   },
+   {
+    "type": "paragraph",
+    "runs": [
+     {
+      "text": "P09 Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto. Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto. Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto."
+     }
+    ]
+   },
+   {
+    "type": "heading",
+    "level": 2,
+    "text": "Sezione 10"
+   },
+   {
+    "type": "paragraph",
+    "runs": [
+     {
+      "text": "P10 Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto. Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto. Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto. Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto."
+     }
+    ]
+   },
+   {
+    "type": "list",
+    "items": [
+     {
+      "runs": [
+       {
+        "text": "L10.1 Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto. Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto. Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto. "
+       }
+      ]
+     },
+     {
+      "runs": [
+       {
+        "text": "L10.2 Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto. Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto. Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto. "
+       }
+      ]
+     },
+     {
+      "runs": [
+       {
+        "text": "L10.3 Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto. Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto. Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto. "
+       }
+      ]
+     }
+    ]
+   },
+   {
+    "type": "heading",
+    "level": 2,
+    "text": "Sezione 11"
+   },
+   {
+    "type": "paragraph",
+    "runs": [
+     {
+      "text": "P11 Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto. Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto. Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto. Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto. Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto."
+     }
+    ]
+   },
+   {
+    "type": "pageBreak"
+   },
+   {
+    "type": "pageBreak"
+   },
+   {
+    "type": "heading",
+    "level": 1,
+    "text": "Sezione 12"
+   },
+   {
+    "type": "paragraph",
+    "runs": [
+     {
+      "text": "P12 Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto. Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto. Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto. Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto. Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto. Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto."
+     }
+    ]
+   },
+   {
+    "type": "heading",
+    "level": 2,
+    "text": "Sezione 13"
+   },
+   {
+    "type": "paragraph",
+    "runs": [
+     {
+      "text": "P13 Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto. Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto. Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto. Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto. Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto. Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto. Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto."
+     }
+    ]
+   },
+   {
+    "type": "heading",
+    "level": 2,
+    "text": "Sezione 14"
+   },
+   {
+    "type": "paragraph",
+    "runs": [
+     {
+      "text": "P14 Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto."
+     }
+    ]
+   },
+   {
+    "type": "heading",
+    "level": 1,
+    "text": "Sezione 15"
+   },
+   {
+    "type": "paragraph",
+    "runs": [
+     {
+      "text": "P15 Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto. Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto."
+     }
+    ]
+   },
+   {
+    "type": "list",
+    "items": [
+     {
+      "runs": [
+       {
+        "text": "L15.1 Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto. Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto. Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto. Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto. "
+       }
+      ]
+     },
+     {
+      "runs": [
+       {
+        "text": "L15.2 Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto. Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto. Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto. Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto. "
+       }
+      ]
+     },
+     {
+      "runs": [
+       {
+        "text": "L15.3 Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto. Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto. Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto. Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto. "
+       }
+      ]
+     }
+    ]
+   },
+   {
+    "type": "heading",
+    "level": 2,
+    "text": "Sezione 16"
+   },
+   {
+    "type": "paragraph",
+    "runs": [
+     {
+      "text": "P16 Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto. Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto. Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto."
+     }
+    ]
+   },
+   {
+    "type": "table",
+    "columns": [
+     1,
+     4
+    ],
+    "rows": [
+     [
+      [
+       {
+        "type": "paragraph",
+        "runs": [
+         {
+          "text": "T16r00"
+         }
+        ]
+       }
+      ],
+      [
+       {
+        "type": "paragraph",
+        "runs": [
+         {
+          "text": "Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto. "
+         }
+        ]
+       }
+      ]
+     ],
+     [
+      [
+       {
+        "type": "paragraph",
+        "runs": [
+         {
+          "text": "T16r01"
+         }
+        ]
+       }
+      ],
+      [
+       {
+        "type": "paragraph",
+        "runs": [
+         {
+          "text": "Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto. Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto. "
+         }
+        ]
+       }
+      ]
+     ],
+     [
+      [
+       {
+        "type": "paragraph",
+        "runs": [
+         {
+          "text": "T16r02"
+         }
+        ]
+       }
+      ],
+      [
+       {
+        "type": "paragraph",
+        "runs": [
+         {
+          "text": "Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto. Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto. Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto. "
+         }
+        ]
+       }
+      ]
+     ],
+     [
+      [
+       {
+        "type": "paragraph",
+        "runs": [
+         {
+          "text": "T16r03"
+         }
+        ]
+       }
+      ],
+      [
+       {
+        "type": "paragraph",
+        "runs": [
+         {
+          "text": "Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto. "
+         }
+        ]
+       }
+      ]
+     ],
+     [
+      [
+       {
+        "type": "paragraph",
+        "runs": [
+         {
+          "text": "T16r04"
+         }
+        ]
+       }
+      ],
+      [
+       {
+        "type": "paragraph",
+        "runs": [
+         {
+          "text": "Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto. Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto. "
+         }
+        ]
+       }
+      ]
+     ],
+     [
+      [
+       {
+        "type": "paragraph",
+        "runs": [
+         {
+          "text": "T16r05"
+         }
+        ]
+       }
+      ],
+      [
+       {
+        "type": "paragraph",
+        "runs": [
+         {
+          "text": "Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto. Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto. Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto. "
+         }
+        ]
+       }
+      ]
+     ],
+     [
+      [
+       {
+        "type": "paragraph",
+        "runs": [
+         {
+          "text": "T16r06"
+         }
+        ]
+       }
+      ],
+      [
+       {
+        "type": "paragraph",
+        "runs": [
+         {
+          "text": "Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto. "
+         }
+        ]
+       }
+      ]
+     ],
+     [
+      [
+       {
+        "type": "paragraph",
+        "runs": [
+         {
+          "text": "T16r07"
+         }
+        ]
+       }
+      ],
+      [
+       {
+        "type": "paragraph",
+        "runs": [
+         {
+          "text": "Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto. Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto. "
+         }
+        ]
+       }
+      ]
+     ],
+     [
+      [
+       {
+        "type": "paragraph",
+        "runs": [
+         {
+          "text": "T16r08"
+         }
+        ]
+       }
+      ],
+      [
+       {
+        "type": "paragraph",
+        "runs": [
+         {
+          "text": "Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto. Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto. Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto. "
+         }
+        ]
+       }
+      ]
+     ],
+     [
+      [
+       {
+        "type": "paragraph",
+        "runs": [
+         {
+          "text": "T16r09"
+         }
+        ]
+       }
+      ],
+      [
+       {
+        "type": "paragraph",
+        "runs": [
+         {
+          "text": "Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto. "
+         }
+        ]
+       }
+      ]
+     ],
+     [
+      [
+       {
+        "type": "paragraph",
+        "runs": [
+         {
+          "text": "T16r10"
+         }
+        ]
+       }
+      ],
+      [
+       {
+        "type": "paragraph",
+        "runs": [
+         {
+          "text": "Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto. Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto. "
+         }
+        ]
+       }
+      ]
+     ],
+     [
+      [
+       {
+        "type": "paragraph",
+        "runs": [
+         {
+          "text": "T16r11"
+         }
+        ]
+       }
+      ],
+      [
+       {
+        "type": "paragraph",
+        "runs": [
+         {
+          "text": "Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto. Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto. Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto. "
+         }
+        ]
+       }
+      ]
+     ],
+     [
+      [
+       {
+        "type": "paragraph",
+        "runs": [
+         {
+          "text": "T16r12"
+         }
+        ]
+       }
+      ],
+      [
+       {
+        "type": "paragraph",
+        "runs": [
+         {
+          "text": "Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto. "
+         }
+        ]
+       }
+      ]
+     ],
+     [
+      [
+       {
+        "type": "paragraph",
+        "runs": [
+         {
+          "text": "T16r13"
+         }
+        ]
+       }
+      ],
+      [
+       {
+        "type": "paragraph",
+        "runs": [
+         {
+          "text": "Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto. Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto. "
+         }
+        ]
+       }
+      ]
+     ],
+     [
+      [
+       {
+        "type": "paragraph",
+        "runs": [
+         {
+          "text": "T16r14"
+         }
+        ]
+       }
+      ],
+      [
+       {
+        "type": "paragraph",
+        "runs": [
+         {
+          "text": "Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto. Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto. Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto. "
+         }
+        ]
+       }
+      ]
+     ],
+     [
+      [
+       {
+        "type": "paragraph",
+        "runs": [
+         {
+          "text": "T16r15"
+         }
+        ]
+       }
+      ],
+      [
+       {
+        "type": "paragraph",
+        "runs": [
+         {
+          "text": "Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto. "
+         }
+        ]
+       }
+      ]
+     ],
+     [
+      [
+       {
+        "type": "paragraph",
+        "runs": [
+         {
+          "text": "T16tall"
+         }
+        ]
+       }
+      ],
+      [
+       {
+        "type": "paragraph",
+        "runs": [
+         {
+          "text": "Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto. Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto. Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto. Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto. Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto. Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto. Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto. Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto. Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto. Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto. Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto. Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto. Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto. Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto. Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto. Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto. Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto. Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto. Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto. Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto. Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto. Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto. Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto. Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto. Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto. "
+         }
+        ]
+       }
+      ]
+     ],
+     [
+      [
+       {
+        "type": "paragraph",
+        "runs": [
+         {
+          "text": "T16huge"
+         }
+        ]
+       }
+      ],
+      [
+       {
+        "type": "paragraph",
+        "runs": [
+         {
+          "text": "Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto. Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto. Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto. Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto. Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto. Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto. Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto. Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto. Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto. Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto. Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto. Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto. Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto. Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto. Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto. Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto. Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto. Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto. Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto. Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto. Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto. Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto. Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto. Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto. Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto. Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto. Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto. Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto. Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto. Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto. Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto. Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto. Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto. Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto. Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto. Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto. Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto. Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto. Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto. Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto. Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto. Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto. Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto. Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto. Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto. Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto. Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto. Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto. Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto. Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto. Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto. Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto. Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto. Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto. Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto. Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto. Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto. Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto. Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto. Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto. Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto. Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto. Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto. Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto. Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto. Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto. Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto. Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto. Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto. Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto. "
+         }
+        ]
+       }
+      ]
+     ]
+    ],
+    "header": [
+     [
+      {
+       "type": "paragraph",
+       "runs": [
+        {
+         "text": "Voce",
+         "bold": true
+        }
+       ]
+      }
+     ],
+     [
+      {
+       "type": "paragraph",
+       "runs": [
+        {
+         "text": "Testo",
+         "bold": true
+        }
+       ]
+      }
+     ]
+    ]
+   },
+   {
+    "type": "heading",
+    "level": 2,
+    "text": "Sezione 17"
+   },
+   {
+    "type": "paragraph",
+    "runs": [
+     {
+      "text": "P17 Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto. Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto. Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto. Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto."
+     }
+    ]
+   },
+   {
+    "type": "heading",
+    "level": 1,
+    "text": "Sezione 18"
+   },
+   {
+    "type": "paragraph",
+    "runs": [
+     {
+      "text": "P18 Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto. Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto. Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto. Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto. Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto."
+     }
+    ]
+   },
+   {
+    "type": "heading",
+    "level": 2,
+    "text": "Sezione 19"
+   },
+   {
+    "type": "paragraph",
+    "runs": [
+     {
+      "text": "P19 Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto. Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto. Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto. Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto. Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto. Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto."
+     }
+    ]
+   },
+   {
+    "type": "heading",
+    "level": 2,
+    "text": "Sezione 20"
+   },
+   {
+    "type": "paragraph",
+    "runs": [
+     {
+      "text": "P20 Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto. Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto. Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto. Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto. Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto. Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto. Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto."
+     }
+    ]
+   },
+   {
+    "type": "list",
+    "items": [
+     {
+      "runs": [
+       {
+        "text": "L20.1 Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto. "
+       }
+      ]
+     },
+     {
+      "runs": [
+       {
+        "text": "L20.2 Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto. "
+       }
+      ]
+     },
+     {
+      "runs": [
+       {
+        "text": "L20.3 Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto. "
+       }
+      ]
+     }
+    ]
+   },
+   {
+    "type": "heading",
+    "level": 1,
+    "text": "Sezione 21"
+   },
+   {
+    "type": "paragraph",
+    "runs": [
+     {
+      "text": "P21 Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto."
+     }
+    ]
+   },
+   {
+    "type": "heading",
+    "level": 2,
+    "text": "Sezione 22"
+   },
+   {
+    "type": "paragraph",
+    "runs": [
+     {
+      "text": "P22 Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto. Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto."
+     }
+    ]
+   },
+   {
+    "type": "pageBreak"
+   },
+   {
+    "type": "pageBreak"
+   },
+   {
+    "type": "heading",
+    "level": 2,
+    "text": "Sezione 23"
+   },
+   {
+    "type": "paragraph",
+    "runs": [
+     {
+      "text": "P23 Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto. Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto. Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto."
+     }
+    ]
+   },
+   {
+    "type": "heading",
+    "level": 1,
+    "text": "Sezione 24"
+   },
+   {
+    "type": "paragraph",
+    "runs": [
+     {
+      "text": "P24 Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto. Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto. Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto. Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto."
+     }
+    ]
+   },
+   {
+    "type": "table",
+    "columns": [
+     1,
+     4
+    ],
+    "rows": [
+     [
+      [
+       {
+        "type": "paragraph",
+        "runs": [
+         {
+          "text": "T24r00"
+         }
+        ]
+       }
+      ],
+      [
+       {
+        "type": "paragraph",
+        "runs": [
+         {
+          "text": "Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto. "
+         }
+        ]
+       }
+      ]
+     ],
+     [
+      [
+       {
+        "type": "paragraph",
+        "runs": [
+         {
+          "text": "T24r01"
+         }
+        ]
+       }
+      ],
+      [
+       {
+        "type": "paragraph",
+        "runs": [
+         {
+          "text": "Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto. Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto. "
+         }
+        ]
+       }
+      ]
+     ],
+     [
+      [
+       {
+        "type": "paragraph",
+        "runs": [
+         {
+          "text": "T24r02"
+         }
+        ]
+       }
+      ],
+      [
+       {
+        "type": "paragraph",
+        "runs": [
+         {
+          "text": "Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto. Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto. Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto. "
+         }
+        ]
+       }
+      ]
+     ],
+     [
+      [
+       {
+        "type": "paragraph",
+        "runs": [
+         {
+          "text": "T24r03"
+         }
+        ]
+       }
+      ],
+      [
+       {
+        "type": "paragraph",
+        "runs": [
+         {
+          "text": "Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto. "
+         }
+        ]
+       }
+      ]
+     ],
+     [
+      [
+       {
+        "type": "paragraph",
+        "runs": [
+         {
+          "text": "T24r04"
+         }
+        ]
+       }
+      ],
+      [
+       {
+        "type": "paragraph",
+        "runs": [
+         {
+          "text": "Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto. Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto. "
+         }
+        ]
+       }
+      ]
+     ],
+     [
+      [
+       {
+        "type": "paragraph",
+        "runs": [
+         {
+          "text": "T24r05"
+         }
+        ]
+       }
+      ],
+      [
+       {
+        "type": "paragraph",
+        "runs": [
+         {
+          "text": "Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto. Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto. Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto. "
+         }
+        ]
+       }
+      ]
+     ],
+     [
+      [
+       {
+        "type": "paragraph",
+        "runs": [
+         {
+          "text": "T24r06"
+         }
+        ]
+       }
+      ],
+      [
+       {
+        "type": "paragraph",
+        "runs": [
+         {
+          "text": "Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto. "
+         }
+        ]
+       }
+      ]
+     ],
+     [
+      [
+       {
+        "type": "paragraph",
+        "runs": [
+         {
+          "text": "T24r07"
+         }
+        ]
+       }
+      ],
+      [
+       {
+        "type": "paragraph",
+        "runs": [
+         {
+          "text": "Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto. Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto. "
+         }
+        ]
+       }
+      ]
+     ],
+     [
+      [
+       {
+        "type": "paragraph",
+        "runs": [
+         {
+          "text": "T24r08"
+         }
+        ]
+       }
+      ],
+      [
+       {
+        "type": "paragraph",
+        "runs": [
+         {
+          "text": "Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto. Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto. Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto. "
+         }
+        ]
+       }
+      ]
+     ],
+     [
+      [
+       {
+        "type": "paragraph",
+        "runs": [
+         {
+          "text": "T24r09"
+         }
+        ]
+       }
+      ],
+      [
+       {
+        "type": "paragraph",
+        "runs": [
+         {
+          "text": "Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto. "
+         }
+        ]
+       }
+      ]
+     ],
+     [
+      [
+       {
+        "type": "paragraph",
+        "runs": [
+         {
+          "text": "T24r10"
+         }
+        ]
+       }
+      ],
+      [
+       {
+        "type": "paragraph",
+        "runs": [
+         {
+          "text": "Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto. Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto. "
+         }
+        ]
+       }
+      ]
+     ],
+     [
+      [
+       {
+        "type": "paragraph",
+        "runs": [
+         {
+          "text": "T24r11"
+         }
+        ]
+       }
+      ],
+      [
+       {
+        "type": "paragraph",
+        "runs": [
+         {
+          "text": "Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto. Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto. Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto. "
+         }
+        ]
+       }
+      ]
+     ],
+     [
+      [
+       {
+        "type": "paragraph",
+        "runs": [
+         {
+          "text": "T24r12"
+         }
+        ]
+       }
+      ],
+      [
+       {
+        "type": "paragraph",
+        "runs": [
+         {
+          "text": "Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto. "
+         }
+        ]
+       }
+      ]
+     ],
+     [
+      [
+       {
+        "type": "paragraph",
+        "runs": [
+         {
+          "text": "T24r13"
+         }
+        ]
+       }
+      ],
+      [
+       {
+        "type": "paragraph",
+        "runs": [
+         {
+          "text": "Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto. Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto. "
+         }
+        ]
+       }
+      ]
+     ],
+     [
+      [
+       {
+        "type": "paragraph",
+        "runs": [
+         {
+          "text": "T24r14"
+         }
+        ]
+       }
+      ],
+      [
+       {
+        "type": "paragraph",
+        "runs": [
+         {
+          "text": "Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto. Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto. Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto. "
+         }
+        ]
+       }
+      ]
+     ],
+     [
+      [
+       {
+        "type": "paragraph",
+        "runs": [
+         {
+          "text": "T24r15"
+         }
+        ]
+       }
+      ],
+      [
+       {
+        "type": "paragraph",
+        "runs": [
+         {
+          "text": "Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto. "
+         }
+        ]
+       }
+      ]
+     ],
+     [
+      [
+       {
+        "type": "paragraph",
+        "runs": [
+         {
+          "text": "T24tall"
+         }
+        ]
+       }
+      ],
+      [
+       {
+        "type": "paragraph",
+        "runs": [
+         {
+          "text": "Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto. Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto. Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto. Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto. Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto. Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto. Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto. Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto. Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto. Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto. Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto. Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto. Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto. Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto. Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto. Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto. Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto. Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto. Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto. Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto. Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto. Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto. Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto. Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto. Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto. "
+         }
+        ]
+       }
+      ]
+     ],
+     [
+      [
+       {
+        "type": "paragraph",
+        "runs": [
+         {
+          "text": "T24huge"
+         }
+        ]
+       }
+      ],
+      [
+       {
+        "type": "paragraph",
+        "runs": [
+         {
+          "text": "Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto. Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto. Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto. Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto. Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto. Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto. Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto. Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto. Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto. Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto. Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto. Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto. Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto. Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto. Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto. Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto. Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto. Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto. Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto. Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto. Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto. Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto. Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto. Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto. Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto. Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto. Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto. Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto. Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto. Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto. Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto. Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto. Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto. Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto. Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto. Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto. Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto. Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto. Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto. Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto. Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto. Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto. Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto. Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto. Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto. Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto. Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto. Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto. Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto. Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto. Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto. Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto. Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto. Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto. Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto. Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto. Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto. Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto. Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto. Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto. Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto. Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto. Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto. Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto. Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto. Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto. Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto. Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto. Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto. Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto. "
+         }
+        ]
+       }
+      ]
+     ]
+    ],
+    "header": [
+     [
+      {
+       "type": "paragraph",
+       "runs": [
+        {
+         "text": "Voce",
+         "bold": true
+        }
+       ]
+      }
+     ],
+     [
+      {
+       "type": "paragraph",
+       "runs": [
+        {
+         "text": "Testo",
+         "bold": true
+        }
+       ]
+      }
+     ]
+    ]
+   },
+   {
+    "type": "heading",
+    "level": 1,
+    "text": "Flusso"
+   },
+   {
+    "type": "paragraph",
+    "runs": [
+     {
+      "text": "F00 Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto. Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto."
+     }
+    ]
+   },
+   {
+    "type": "paragraph",
+    "runs": [
+     {
+      "text": "F01 Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto. Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto. Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto."
+     }
+    ]
+   },
+   {
+    "type": "paragraph",
+    "runs": [
+     {
+      "text": "F02 Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto. Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto. Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto. Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto."
+     }
+    ]
+   },
+   {
+    "type": "paragraph",
+    "runs": [
+     {
+      "text": "F03 Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto. Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto."
+     }
+    ]
+   },
+   {
+    "type": "paragraph",
+    "runs": [
+     {
+      "text": "F04 Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto. Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto. Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto."
+     }
+    ]
+   },
+   {
+    "type": "paragraph",
+    "runs": [
+     {
+      "text": "F05 Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto. Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto. Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto. Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto."
+     }
+    ]
+   },
+   {
+    "type": "paragraph",
+    "runs": [
+     {
+      "text": "F06 Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto. Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto."
+     }
+    ]
+   },
+   {
+    "type": "paragraph",
+    "runs": [
+     {
+      "text": "F07 Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto. Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto. Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto."
+     }
+    ]
+   },
+   {
+    "type": "paragraph",
+    "runs": [
+     {
+      "text": "F08 Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto. Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto. Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto. Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto."
+     }
+    ]
+   },
+   {
+    "type": "paragraph",
+    "runs": [
+     {
+      "text": "F09 Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto. Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto."
+     }
+    ]
+   },
+   {
+    "type": "paragraph",
+    "runs": [
+     {
+      "text": "F10 Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto. Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto. Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto."
+     }
+    ]
+   },
+   {
+    "type": "paragraph",
+    "runs": [
+     {
+      "text": "F11 Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto. Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto. Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto. Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto."
+     }
+    ]
+   },
+   {
+    "type": "paragraph",
+    "runs": [
+     {
+      "text": "F12 Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto. Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto."
+     }
+    ]
+   },
+   {
+    "type": "paragraph",
+    "runs": [
+     {
+      "text": "F13 Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto. Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto. Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto."
+     }
+    ]
+   },
+   {
+    "type": "paragraph",
+    "runs": [
+     {
+      "text": "F14 Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto. Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto. Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto. Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto."
+     }
+    ]
+   },
+   {
+    "type": "paragraph",
+    "runs": [
+     {
+      "text": "F15 Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto. Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto."
+     }
+    ]
+   },
+   {
+    "type": "paragraph",
+    "runs": [
+     {
+      "text": "F16 Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto. Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto. Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto."
+     }
+    ]
+   },
+   {
+    "type": "paragraph",
+    "runs": [
+     {
+      "text": "F17 Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto. Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto. Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto. Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto."
+     }
+    ]
+   },
+   {
+    "type": "paragraph",
+    "runs": [
+     {
+      "text": "F18 Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto. Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto."
+     }
+    ]
+   },
+   {
+    "type": "paragraph",
+    "runs": [
+     {
+      "text": "F19 Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto. Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto. Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto."
+     }
+    ]
+   },
+   {
+    "type": "paragraph",
+    "runs": [
+     {
+      "text": "F20 Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto. Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto. Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto. Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto."
+     }
+    ]
+   },
+   {
+    "type": "paragraph",
+    "runs": [
+     {
+      "text": "F21 Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto. Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto."
+     }
+    ]
+   },
+   {
+    "type": "paragraph",
+    "runs": [
+     {
+      "text": "F22 Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto. Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto. Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto."
+     }
+    ]
+   },
+   {
+    "type": "paragraph",
+    "runs": [
+     {
+      "text": "F23 Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto. Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto. Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto. Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto."
+     }
+    ]
+   },
+   {
+    "type": "paragraph",
+    "runs": [
+     {
+      "text": "F24 Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto. Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto."
+     }
+    ]
+   },
+   {
+    "type": "paragraph",
+    "runs": [
+     {
+      "text": "F25 Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto. Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto. Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto."
+     }
+    ]
+   },
+   {
+    "type": "paragraph",
+    "runs": [
+     {
+      "text": "F26 Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto. Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto. Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto. Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto."
+     }
+    ]
+   },
+   {
+    "type": "paragraph",
+    "runs": [
+     {
+      "text": "F27 Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto. Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto."
+     }
+    ]
+   },
+   {
+    "type": "paragraph",
+    "runs": [
+     {
+      "text": "F28 Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto. Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto. Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto."
+     }
+    ]
+   },
+   {
+    "type": "paragraph",
+    "runs": [
+     {
+      "text": "F29 Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto. Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto. Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto. Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto."
+     }
+    ]
+   },
+   {
+    "type": "paragraph",
+    "runs": [
+     {
+      "text": "F30 Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto. Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto."
+     }
+    ]
+   },
+   {
+    "type": "paragraph",
+    "runs": [
+     {
+      "text": "F31 Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto. Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto. Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto."
+     }
+    ]
+   },
+   {
+    "type": "paragraph",
+    "runs": [
+     {
+      "text": "F32 Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto. Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto. Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto. Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto."
+     }
+    ]
+   },
+   {
+    "type": "paragraph",
+    "runs": [
+     {
+      "text": "F33 Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto. Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto."
+     }
+    ]
+   },
+   {
+    "type": "paragraph",
+    "runs": [
+     {
+      "text": "F34 Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto. Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto. Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto."
+     }
+    ]
+   },
+   {
+    "type": "paragraph",
+    "runs": [
+     {
+      "text": "F35 Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto. Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto. Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto. Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto."
+     }
+    ]
+   },
+   {
+    "type": "paragraph",
+    "runs": [
+     {
+      "text": "F36 Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto. Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto."
+     }
+    ]
+   },
+   {
+    "type": "paragraph",
+    "runs": [
+     {
+      "text": "F37 Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto. Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto. Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto."
+     }
+    ]
+   },
+   {
+    "type": "paragraph",
+    "runs": [
+     {
+      "text": "F38 Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto. Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto. Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto. Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto."
+     }
+    ]
+   },
+   {
+    "type": "paragraph",
+    "runs": [
+     {
+      "text": "F39 Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto. Il Fornitore dichiara di esercitare il controllo diretto delle risorse fornite e si impegna a mantenere la massima riservatezza per quanto concerne l’uso di documenti, disegni e informazioni di cui verrà a conoscenza per effetto del contratto."
+     }
+    ]
+   },
+   {
+    "type": "heading",
+    "level": 1,
+    "text": "Parole lunghe"
+   },
+   {
+    "type": "paragraph",
+    "runs": [
+     {
+      "text": "W01 xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+     }
+    ]
+   },
+   {
+    "type": "paragraph",
+    "runs": [
+     {
+      "text": "W02 https://example.com/percorso-molto-lungo/percorso-molto-lungo/percorso-molto-lungo/percorso-molto-lungo/percorso-molto-lungo/percorso-molto-lungo/percorso-molto-lungo/percorso-molto-lungo/percorso-molto-lungo/percorso-molto-lungo/percorso-molto-lungo/percorso-molto-lungo/fine"
+     }
+    ]
+   },
+   {
+    "type": "table",
+    "columns": [
+     1,
+     1,
+     3
+    ],
+    "rows": [
+     [
+      [
+       {
+        "type": "paragraph",
+        "runs": [
+         {
+          "text": "W03 IBAN"
+         }
+        ]
+       }
+      ],
+      [
+       {
+        "type": "paragraph",
+        "runs": [
+         {
+          "text": "CH9300762011623852957CH9300762011623852957CH9300762011623852957"
+         }
+        ]
+       }
+      ],
+      [
+       {
+        "type": "paragraph",
+        "runs": [
+         {
+          "text": "W03 breve"
+         }
+        ]
+       }
+      ]
+     ]
+    ],
+    "header": [
+     [
+      {
+       "type": "paragraph",
+       "runs": [
+        {
+         "text": "Campo",
+         "bold": true
+        }
+       ]
+      }
+     ],
+     [
+      {
+       "type": "paragraph",
+       "runs": [
+        {
+         "text": "Valore",
+         "bold": true
+        }
+       ]
+      }
+     ],
+     [
+      {
+       "type": "paragraph",
+       "runs": [
+        {
+         "text": "Nota",
+         "bold": true
+        }
+       ]
+      }
+     ]
+    ]
+   },
+   {
+    "type": "heading",
+    "level": 2,
+    "text": "W04 yyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyy"
+   },
+   {
+    "type": "paragraph",
+    "runs": [
+     {
+      "text": "Fine."
+     }
+    ]
+   },
+   {
+    "type": "pageBreak"
+   }
+  ]
+ }
+}

@@ -1,0 +1,34 @@
+{
+ "description": "A footer taller than its margin is refused, never drawn over the body (AC-5.3).",
+ "letterhead": "overflow-footer",
+ "request": {
+  "contentVersion": 1,
+  "entity": "welld_it",
+  "language": "it",
+  "entityData": {
+   "legalName": "WellD Italia S.r.l. (SAMPLE)",
+   "addressLines": [
+    "Via Esempio 1",
+    "I-16100 Genova (Italia)"
+   ],
+   "vat": "IT00000000000",
+   "iban": "",
+   "contacts": "www.example.com — info@example.com"
+  },
+  "blocks": [
+   {
+    "type": "heading",
+    "level": 1,
+    "text": "Una pagina"
+   },
+   {
+    "type": "paragraph",
+    "runs": [
+     {
+      "text": "Un documento di una sola pagina usa la variante della prima pagina, mai quella dell’ultima."
+     }
+    ]
+   }
+  ]
+ }
+}

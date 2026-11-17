@@ -555,7 +555,7 @@ describe("env-doctor checker — meetings (specs/20261104-meetings)", () => {
       "estimai-api": { secret: CLIENT_SECRET_EST, scope: "notifications.push estimate-notices.send" },
       "refund-api": { secret: CLIENT_SECRET_REF, scope: "notifications.push emails.send" },
       // crm-api holds a client of its own since specs/20261103-projects-handoff (it reads projects-api), required in production.
-      "crm-api": { secret: "k".repeat(40), scope: "notifications.push emails.send deal-link-notices.send activities.write projects.purchase-orders.read" },
+      "crm-api": { secret: "k".repeat(40), scope: "notifications.push emails.send deal-link-notices.send activities.write projects.purchase-orders.read letterhead:render" },
       "meetings-api": { secret, scope },
     });
 
@@ -572,6 +572,8 @@ describe("env-doctor checker — meetings (specs/20261104-meetings)", () => {
       AUTH_AUDIENCE: AUD,
       SERVICE_AUDIENCE: SVC_AUD,
       ACTIVITIES_API_URL: "http://activities-api.railway.internal:8087", // specs/20261110-activities, production-required
+      LETTERHEAD_API_URL: "http://letterhead-api.railway.internal:8088", // specs/20261116-letterhead-service (T44), production-required
+      LETTERHEAD_SERVICE_ENABLED: "false", // the switch, production-required
       PROJECTS_INTERNAL_URL: "http://projects-api.railway.internal:8086",
       SERVICE_CLIENT_ID: "crm-api",
       SERVICE_CLIENT_SECRET: "k".repeat(40),
@@ -840,7 +842,7 @@ describe("env-doctor checker — meetings (specs/20261104-meetings)", () => {
 const CLIENT_SECRET_PROJECTS = "p".repeat(40);
 const CLIENT_SECRET_CRM = "m".repeat(40);
 const PROJECTS_SCOPES = "crm.companies.read crm.deals.read crm.contacts.read estimai.estimates.read notifications.push";
-const CRM_SCOPES = "notifications.push emails.send deal-link-notices.send activities.write projects.purchase-orders.read";
+const CRM_SCOPES = "notifications.push emails.send deal-link-notices.send activities.write projects.purchase-orders.read letterhead:render";
 const projectsRegistry = (scope = PROJECTS_SCOPES, crmScope = CRM_SCOPES) =>
   JSON.stringify({
     ...JSON.parse(registry(CLIENT_SECRET)),
@@ -861,6 +863,8 @@ function projectsSuite(): SuiteEnv {
     SERVICE_AUDIENCE: SVC_AUD,
     PROJECTS_INTERNAL_URL: "http://projects-api.railway.internal:8086",
     ACTIVITIES_API_URL: "http://activities-api.railway.internal:8087", // specs/20261110-activities, production-required
+    LETTERHEAD_API_URL: "http://letterhead-api.railway.internal:8088", // specs/20261116-letterhead-service (T44), production-required
+    LETTERHEAD_SERVICE_ENABLED: "false", // the switch, production-required
     SERVICE_CLIENT_ID: "crm-api",
     SERVICE_CLIENT_SECRET: CLIENT_SECRET_CRM,
     PORT: "8084",
@@ -1184,7 +1188,7 @@ describe("env-doctor checker — activities-api (specs/20261110-activities)", ()
   const CLIENT_SECRET_PRJ = "p".repeat(40);
   /** Only the findings about one service (the baseline has several services sharing key names). */
   const errsAbout = (f: Finding[], svc: string) => errs(f).filter((x) => x.scope === svc).map((x) => x.message).join(" | ");
-  const CRM_SCOPES = "notifications.push emails.send deal-link-notices.send activities.write projects.purchase-orders.read";
+  const CRM_SCOPES = "notifications.push emails.send deal-link-notices.send activities.write projects.purchase-orders.read letterhead:render";
   const activitiesRegistry = (crmScope = CRM_SCOPES, actScope = "notifications.push emails.send") =>
     JSON.stringify({
       ...JSON.parse(registry(CLIENT_SECRET)),
@@ -1208,6 +1212,8 @@ describe("env-doctor checker — activities-api (specs/20261110-activities)", ()
       SERVICE_CLIENT_SECRET: CLIENT_SECRET_CRM,
       SERVICE_AUDIENCE: SVC_AUD,
       ACTIVITIES_API_URL: "http://activities-api.railway.internal:8087",
+      LETTERHEAD_API_URL: "http://letterhead-api.railway.internal:8088", // specs/20261116-letterhead-service (T44), production-required
+      LETTERHEAD_SERVICE_ENABLED: "false", // the switch, production-required
       PROJECTS_INTERNAL_URL: "http://projects-api.railway.internal:8086", // specs/20261103-projects-handoff, production-required
       PORT: "8084",
     };
@@ -1331,6 +1337,28 @@ describe("env-doctor checker — activities-api (specs/20261110-activities)", ()
     expect(errText(checkSuite(s, PROD))).toContain('lacks the "activities.write" scope');
     s.auth!.SERVICE_CLIENTS = activitiesRegistry(`${CRM_SCOPES} host-notices.send`);
     expect(errText(checkSuite(s, PROD))).toContain('holds the "host-notices.send" scope, which crm-api does not need');
+  });
+
+  // specs/20261116-letterhead-service (T44, AC-9.3, AC-10.12).
+  test("crm-api LETTERHEAD_API_URL and LETTERHEAD_SERVICE_ENABLED are required in production, not locally", () => {
+    for (const key of ["LETTERHEAD_API_URL", "LETTERHEAD_SERVICE_ENABLED"]) {
+      const s = activitiesSuite();
+      delete s["crm-api"]![key];
+      expect(errsAbout(checkSuite(s, PROD), "crm-api")).toContain(`${key} is missing`);
+      expect(errText(checkSuite(s, LOCAL))).not.toContain(`${key} is missing`);
+    }
+  });
+
+  test("service client: crm-api needs letterhead:render, and a registry without it → error", () => {
+    const s = activitiesSuite();
+    s.auth!.SERVICE_CLIENTS = activitiesRegistry("notifications.push emails.send deal-link-notices.send activities.write projects.purchase-orders.read");
+    expect(errText(checkSuite(s, PROD))).toContain('entry "crm-api" lacks the "letterhead:render" scope');
+  });
+
+  test("service client: letterhead:render is crm-api's alone — held by another client → error", () => {
+    const s = activitiesSuite();
+    s.auth!.SERVICE_CLIENTS = activitiesRegistry(CRM_SCOPES, "notifications.push emails.send letterhead:render");
+    expect(errText(checkSuite(s, PROD))).toContain('entry "activities-api" holds the "letterhead:render" scope, which activities-api does not need');
   });
 
   test("service client: activities-api's id or secret differing from the registry → error", () => {

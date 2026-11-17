@@ -1,0 +1,22 @@
+{
+ "fixture": "one-page",
+ "layout": 1,
+ "outcome": "rendered",
+ "pageCount": 1,
+ "missingPlaceholders": ["iban"],
+ "unprintableCharacters": 0,
+ "pages": [
+  {
+   "text": "Una pagina\nUn documento di una sola pagina usa la variante della prima pagina, mai quella\ndell’ultima.\nWellD Italia S.r.l. (SAMPLE)\nVia Esempio 1, I-16100 Genova (Italia)\nwww.example.com — info@example.com\nCF/P.IVA IT00000000000   1 / 1",
+   "lines": [
+    {"y":102.709,"x":72.0,"right":151.065,"text":"Una pagina"},
+    {"y":123.109,"x":72.0,"right":472.239,"text":"Un documento di una sola pagina usa la variante della prima pagina, mai quella "},
+    {"y":138.229,"x":72.0,"right":128.637,"text":"dell’ultima."},
+    {"y":768.185,"x":72.0,"right":199.96,"text":"WellD Italia S.r.l. (SAMPLE)"},
+    {"y":778.585,"x":72.0,"right":207.384,"text":"Via Esempio 1, I-16100 Genova (Italia)"},
+    {"y":788.585,"x":72.0,"right":222.688,"text":"www.example.com — info@example.com"},
+    {"y":798.185,"x":72.0,"right":523.276,"text":"CF/P.IVA IT00000000000   1 / 1","xs":[507.484]}
+   ]
+  }
+ ]
+}
