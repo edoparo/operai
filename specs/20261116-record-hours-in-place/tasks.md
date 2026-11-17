@@ -19,9 +19,9 @@ Test commands: hours-ui, projects-ui, crm-ui `pnpm lint && pnpm build && pnpm te
 
 ## hours-ui — the dialog and the widget
 
-- [ ] T1: [FE] hours-ui `EntryDialog` recording mode takes `preset`, `fixed` and `focus`; `ActivityField` `lock: 'hidden' | 'fixed'` — refs: AC-1.3, AC-2.3, AC-3.2, AC-3.3, AC-3.4, AC-4.2, AC-5.12, AC-5.13 — deps: none
+- [x] T1: [FE] hours-ui `EntryDialog` recording mode takes `preset`, `fixed` and `focus`; `ActivityField` `lock: 'hidden' | 'fixed'` — refs: AC-1.3, AC-2.3, AC-3.2, AC-3.3, AC-3.4, AC-4.2, AC-5.12, AC-5.13 — deps: none
   - touch: `hours-ui/src/components/EntryDialog*`, `hours-ui/src/components/ActivityField*`, `hours-ui/src/strings/entry.ts`, `hours-ui/src/strings/activity.ts`, `hours-ui/src/test-support/*`
-  - done when: `cd hours-ui && pnpm lint && pnpm build && pnpm test` passes, every existing EntryDialog / ActivityField test unchanged (R9), and new `EntryDialog.preset.test.tsx` shows: `preset` project + `fixed` → the project is read-only text and the dialog's description (design S4), no "What was it on" radio and no picker in the DOM, Day = today, focus on Duration with `focus: 'duration'`; a preset activity + `fixed` → `ActivityField lock="fixed"` shows the task's subject with its own hint and makes no activities read; `preset` none + `fixed` → Other work fixed, category select with nothing chosen (A3); `preset` without `fixed` → day and target set, radio and picker editable, a changed target is what the POST carries (AC-5.13); with `fixed`, a 422 `not_on_project`, a 422 `not_involved_in_deal` and a 404 land in the form-level error, the first two with My hours' sentence and the 404 as `entry.errors.targetGoneFixed` (D13); `targetName` empty → "this project" / "this deal"; `lock="hidden"` is today's "not visible" variant unchanged; every new string in en and it
+  - done when: `cd hours-ui && pnpm lint && pnpm build && pnpm test` passes, every existing EntryDialog / ActivityField test unchanged (R9), and new `EntryDialog.preset.test.tsx` shows: `preset` project + `fixed` → the project is read-only text and the dialog's description (design S4), no "What was it on" radio and no picker in the DOM, Day = today, focus on Duration with `focus: 'duration'`; a preset activity + `fixed` → `ActivityField lock="fixed"` shows the task's subject with its own hint and makes no activities read; `preset` none + `fixed` → Other work fixed, category select with nothing chosen (A3); `preset` without `fixed` → day and target set, radio and picker editable, a changed target is what the POST carries (AC-5.13); with `fixed`, a 403 `not_on_project`, a 403 `not_involved_in_deal` and a 404 land in the form-level error, the first two with My hours' sentence and the 404 as `entry.errors.targetGoneFixed` (D13); `targetName` empty → "this project" / "this deal"; `lock="hidden"` is today's "not visible" variant unchanged; every new string in en and it
 
 - [ ] T2: [FE] hours-ui `./RecordHours` widget and its expose — refs: AC-1.3, AC-2.3, AC-3.2, AC-3.3, AC-3.4, AC-3.5, AC-4.1, AC-4.2, AC-4.3, AC-4.4, AC-4.6 — deps: T1
   - touch: `hours-ui/src/RecordHours*`, `hours-ui/src/strings/recordHours.ts`, `hours-ui/src/strings.ts`, `hours-ui/vite.config.ts`, `hours-ui/src/federation/exposes.test.ts`, `hours-ui/src/test-support/*`
@@ -29,13 +29,13 @@ Test commands: hours-ui, projects-ui, crm-ui `pnpm lint && pnpm build && pnpm te
 
 ## shell — the seam
 
-- [ ] T3: [FE] shell extension `hours.recordHours`: registry, loader, ambient type, test stub — refs: AC-4.5, AC-1.1, AC-2.1, AC-3.1 — deps: none
+- [x] T3: [FE] shell extension `hours.recordHours`: registry, loader, ambient type, test stub — refs: AC-4.5, AC-1.1, AC-2.1, AC-3.1 — deps: none
   - touch: `shell/src/lib/extensions.tsx`, `shell/src/lib/extensions.test.tsx`, `shell/src/federation/remotes.d.ts`, `shell/vitest.config.ts`, `shell/src/federation/__stubs__/*`, `shell/src/lib/noHardcodedStrings.test.ts`, `shell/src/federation/remoteVersionSpecifiers.test.ts`
   - done when: `cd shell && pnpm lint && pnpm build && NODE_OPTIONS=--no-webstorage pnpm test` passes, including: `ExtensionProps['hours.recordHours']` has exactly the six string members of plan § "The shell's extension"; `LOADERS['hours.recordHours']` imports `hours/RecordHours` (aliased to a stub in tests) and renders it with the props; a rejected import, a timeout (5 s) and a render throw each show the host's `fallback` (`extensions.test.tsx`); `remotes.d.ts` declares `hours/RecordHours` and the specifier test pins it; the dotted name is allowlisted in the hardcoded-strings test
 
 ## projects-ui — project page and task rows
 
-- [ ] T4: [FE] projects-ui seam wrapper, the "who" rule and Record hours on the project page — refs: AC-1.1, AC-1.2, AC-4.5, AC-4.6 — deps: none
+- [x] T4: [FE] projects-ui seam wrapper, the "who" rule and Record hours on the project page — refs: AC-1.1, AC-1.2, AC-4.5, AC-4.6 — deps: none
   - touch: `projects-ui/src/federation/remotes.d.ts`, `projects-ui/vitest.config.ts`, `projects-ui/src/federation/__stubs__/*`, `projects-ui/src/lib/recordHours*`, `projects-ui/src/components/RecordHoursAction*`, `projects-ui/src/pages/ProjectDetailPage*`, `projects-ui/src/strings*`
   - done when: `cd projects-ui && pnpm lint && pnpm build && pnpm test` passes, including: `recordHours.test.ts` — `mayRecordOnProject` true for the project manager and a team member, false for a reader, for `projectManager: null` (awaiting) and for `me: null`; `recordHoursPropsOf(project)` takes id and name from the same object (R10); `ProjectDetailPage.recordHours.test.tsx` — `HostExtension` called with `{on:'project', targetId, targetName, activityId:'', activityName:'', placement:'page'}` as the first header action (design S1) for a team member and never for a reader; with the `shell/extensions` stub rendering `fallback`, the page works and shows the link to `/hours` (AC-4.5); with `shell/extensions` failing to import, the page still renders (the wrapper's own boundary); the link's copy in en and it with parity and no hardcoded strings
 
@@ -45,7 +45,7 @@ Test commands: hours-ui, projects-ui, crm-ui `pnpm lint && pnpm build && pnpm te
 
 ## crm-ui — deal page and task rows
 
-- [ ] T6: [FE] crm-ui seam type, the "who" rule and Record hours on the deal page — refs: AC-2.1, AC-2.2, AC-4.5, AC-4.6 — deps: none
+- [x] T6: [FE] crm-ui seam type, the "who" rule and Record hours on the deal page — refs: AC-2.1, AC-2.2, AC-4.5, AC-4.6 — deps: none
   - touch: `crm-ui/src/federation/remotes.d.ts`, `crm-ui/src/federation/__stubs__/*`, `crm-ui/src/lib/recordHours*`, `crm-ui/src/components/RecordHoursAction*`, `crm-ui/src/pages/DealDetailPage*`, `crm-ui/src/strings*`
   - done when: `cd crm-ui && pnpm lint && pnpm build && pnpm test` passes, including: `recordHours.test.ts` — `mayRecordOnDeal` true for the owner and the technical contact (`estimate.technical.id`), false for a reader, for a task assignee who is neither, for `estimate: null` and for `me: null`; props id and title from the same deal (R10); `DealDetailPage.recordHours.test.tsx` — `HostExtension` called with `{on:'deal', …, placement:'page'}` as the first header action for the owner, also when the person cannot manage the deal (the header becomes a fragment, design S1), never for a reader; the stub's fallback link to `/hours` shows and the page works (AC-4.5); `MeetingsSection` tests unchanged; copy in en and it
 
@@ -55,7 +55,7 @@ Test commands: hours-ui, projects-ui, crm-ui `pnpm lint && pnpm build && pnpm te
 
 ## hours-ui — the Week view
 
-- [ ] T8: [FE] hours-ui week model: `lib/week.ts` and the pure `lib/weekGrid.ts` — refs: AC-5.3, AC-5.4, AC-5.6, AC-5.7, AC-5.8, AC-5.9, AC-5.10, AC-5.23, AC-5.24 — deps: none
+- [x] T8: [FE] hours-ui week model: `lib/week.ts` and the pure `lib/weekGrid.ts` — refs: AC-5.3, AC-5.4, AC-5.6, AC-5.7, AC-5.8, AC-5.9, AC-5.10, AC-5.23, AC-5.24 — deps: none
   - touch: `hours-ui/src/lib/week*`, `hours-ui/src/lib/weekGrid*`
   - done when: `cd hours-ui && pnpm lint && pnpm build && pnpm test` passes, including `week.test.ts` (`weekDays` = 7, Monday first; `readWeekParam({}, today)` = today's Monday; a real day → its Monday; garbage → this week; `shiftWeek` ±1 across a month and a year) and `weekGrid.test.ts`: two entries on one project on two days → one row, two cells; a project, a deal, a meeting and two categories → five rows; a meeting linked to a visible deal stays on the meeting's row (AC-5.7); order projects, deals, meetings, other work, by name inside, unnamed after named (AC-5.8); Σ cells = row, Σ rows = `totalMinutes` = Σ `dayMinutes`, each entry in exactly one cell (AC-5.10); a `hidden` entry → `name: null`; `preset: null` for an unreadable row and for a retired category's row (AC-5.24, D12); an entry outside the week throws; an own entry with no id → the kind's `unknown` row
 
