@@ -120,8 +120,9 @@ export default defineRailway(() => {
   //   (LH_WORKERS) x 2 GiB RSS cap (T46: the worst accepted table peaks at 1.53 GiB on Linux), plus the supervisor, 6 queued 20 MiB bodies and the poll's overshoot = 5 GB. cpu 2: one core per worker. Both are the
   //   figures the local perf proxy runs with (letterhead-api/perf/README.md); raise them with a measurement, never to hide a 429.
   // - Single replica: the pool, its queue and the per-caller share are in-process, so a second replica would double the bound, not share it.
-  // - No `source` yet: per .claude/skills/provision-tool/SKILL.md the service is declared unbuilt, its variables are set, and only then is the source added (T40).
+  // - Source added once its variables were set (T40, 2026-11-17), per .claude/skills/provision-tool/SKILL.md.
   const letterheadApi = service("letterhead-api", {
+    source: github("matteocodogno/operai", { branch: "main", checkSuites: false, rootDirectory: "/letterhead-api" }),
     build: { buildEnvironment: "V3", builder: "DOCKERFILE", dockerfilePath: "Dockerfile" },
     start: "letterhead-api",
     healthcheck: "/health",
@@ -129,9 +130,7 @@ export default defineRailway(() => {
     preDeploy: "letterhead-api migrate",
     replicas: { "europe-west4-drams3a": 1 },
     deploy: { restartPolicyMaxRetries: 3, limitOverride: { containers: { cpu: 2, memoryBytes: 5000000000 } } },
-    // Custom domain: Railway configuration cannot register one (`railway config plan` refuses it). Per T40: add
-    // letterhead-api.operai.welld.io → 8088 in the dashboard, run `railway config pull`, then declare it here as
-    // `domains: [{ domain: "letterhead-api.operai.welld.io", port: 8088 }]`, as the other services do.
+    domains: [{ domain: "letterhead-api.operai.welld.io", port: 8088 }],
   });
 
   return project("operai", {
