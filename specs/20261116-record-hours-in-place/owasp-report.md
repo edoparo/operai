@@ -194,3 +194,147 @@ save regardless.
   end to end is carried by hours-api's own suite (`bookability.test.ts`) and by the widget's component tests
   (`RecordHours.test.tsx:464-496`, 403 / 404 / 503 shown with My hours' words), not by an e2e run.
 - The CSP was read from `shell/vercel.json`, not probed on a deployed shell.
+
+---
+
+## Follow-up 2026-11-17 (fix round 1)
+
+Scope: `git diff 8903ad1b..HEAD -- operai-ui/src hours-ui/src crm-ui/src projects-ui/src shell/src ':!*.test.ts' ':!*.test.tsx'` at
+`15078f57` (12 production files, +160 / -26; the round's reasoning is `decisions.md` "QE round 1 …"). Read against the first
+pass above and its notes N1-N5. Frontend only: `git diff --name-only 8903ad1b..HEAD` lists no backend file, `package.json`,
+lockfile, `vercel.json` or `shell/src` file, so no new origin, CSP change or dependency (A05, A06, A08: nothing).
+
+### Verdict: PASS
+
+For the run trace: `verdicts.security: "PASS"`; the two informational notes below go in `security.notes[]`. N1 of the first
+pass is fixed. No finding is medium or higher, so there is no defect to route.
+
+0 critical · 0 high · 0 medium · 0 low · 2 informational
+
+### What was checked, and the evidence
+
+**F1. N1 is fixed: projects-ui passes exactly six strings (A04, data minimisation).**
+- `projects-ui/src/components/RecordHoursAction.tsx:64-71` now destructures `{ on, targetId, targetName, activityId,
+  activityName, placement }` instead of taking the caller's `props`; `:106` rebuilds `const props: RecordHoursProps = { on,
+  targetId, targetName, activityId, activityName, placement }` and `:109` is the only thing handed to `HostExtension`
+  (`<HostExtension name="hours.recordHours" props={props} …>`). Nothing else of the caller's object is reachable on that side
+  of the seam, so it can no longer reach the shell's boundary key `JSON.stringify(props)` (`shell/src/lib/extensions.tsx:155`)
+  or the widget. The six match the contract (`extensions.tsx:45-57`) and crm-ui's rebuild (`crm-ui/.../RecordHoursAction.tsx`,
+  unchanged).
+- The test that pins it: `projects-ui/src/components/RecordHoursAction.test.tsx:80-91` ("passes nothing but the six plain
+  strings across the seam, whatever else the caller spreads in (OWASP N1)") asserts the sorted key set of what the widget received.
+  Ran it: `RecordHoursAction.test.tsx`, `TasksCard.reload.test.tsx`, `MyTasksPage.keepsRows.test.tsx` = 3 files, 15 tests, green.
+- The type is still erased at runtime, which is why the rebuild (not the `RecordHoursProps` annotation) is what closes it.
+
+**F2. No change alters how a save or delete is sent, or as whom (A01, A04).**
+- Not in the diff: `hours-ui/src/RecordHours.tsx`, `lib/hoursApi.ts`, `lib/activitiesRead.ts`, `RecordHoursModel.ts`, `shell/src/lib/session.ts`
+  (the `apiFetch` that attaches the Bearer JWT to trusted origins). Author is still never client input (hours-api `.strict()`
+  schema, first pass S1), and a forged `targetId` / `activityId` still meets the owner's check as the caller before any row is
+  written (first pass S1; backend untouched).
+- `EntryDialog.tsx`: the request is built only at `:279` (`toPatch`) and `:288` (`toInput`), both unchanged, behind the same
+  `if (busy) return` (`:268`) and `validate` gate. The round touches the `catch` only: `failureOf(…, fixed, taskFixed)` (`:290-295`)
+  and `askFocus(Object.keys(failure.fields).length > 0)` (`:301`). `taskFixed = fixed && presetTask !== null` (`:217`) comes from the
+  host's props, not from a server answer.
+- `failureOf` (`EntryDialogModel.ts:446-499`) is a pure mapping from an error code to one of the dialog's own fixed strings. The new
+  `taskFixed` branch for `activity_not_allowed` (`:478-482`) picks the form-level alert instead of the field, with the same
+  string `t.activityNotAllowed[kind]`. No server `message` / `detail` / label is rendered; the default stays `generic`.
+- Focus handling is the only new behaviour, and it moves focus without activating anything: `EntryDialog.tsx:259-262` calls
+  `focusFirstInvalid` (returns a boolean, `operai-ui/src/components/Field.tsx:251`) and, when no field is invalid, `.focus()`
+  on `body.current?.closest('form')?.querySelector('button[type="submit"]')`; `DeleteEntryDialog.tsx:48-53` does the same for Confirm. Both
+  selectors are constants (nothing data-derived). They hit the intended button: the library's `Button` defaults to
+  `type='button'` (`Button.tsx:61`), and the only `type="submit"` in `ConfirmDialog` / `FormDialog` is Confirm / Save, which sits last in the form.
+  A second Confirm or Save is a fresh, explicit activation through the same `confirm` / `submit` and the same `busy` guard
+  (`DeleteEntryDialog.tsx:56`); a repeated DELETE of an entry that already went is the page's "already gone" success (`DeleteEntryDialog.tsx:9-13`,
+  the prop's doc comment), and Cancel still takes focus when the dialog opens (`ConfirmDialog.tsx`, `initialFocusRef={cancelRef}`),
+  so the destructive button is focused only after the person has pressed it and seen the refusal.
+- `MyHoursPage.tsx:603` `onRetry={retryAll}` (was `week.reload`): `retryAll` (`:262-271`) in the Week calls `week.reload()` only. The
+  read is still `weekFilters` with the literal `whose: 'mine'` and no `userId` (first pass S3); no oversight path became reachable. `WeekView.tsx:315-320`
+  `focusRetry` queries the constant selector `[role="alert"] button`.
+- The other hours-ui edits are inert for security: the Week row-label floor (`min-w-28`), an `aria-hidden` scroll hint with a fixed string,
+  and the Italian success message `Hai registrato ${duration} su ${name}.` (`strings/recordHours.ts`), still drawn as a React text node
+  (`RecordHours.tsx:127`, unchanged), never as HTML.
+- `hours-ui/src/test-support/focusFixup.ts` (new, uses `MutationObserver` and `document.body`) has no non-test importer (grep), so it
+  is not in any bundle.
+
+**F3. `@operai/ui` `ListRows` keying: a row key cannot be steered to matter, and the new keying closes a state-carrying hole (A01, A04).**
+- Change: `ListRows.tsx:24-28` keys each `<li>` by the key `Children.toArray` gives the child (`.$<id>` for a keyed element, `.<n>`
+  for an unkeyed one, so it is position-based exactly as before) and by `index` only for text.
+  A React key is never written to the DOM and never parsed; `toArray` escapes `/` in it. There is no injection or selector surface.
+- All 17 `<ListRows>` call sites (estimai-ui 2, refund-ui 5, inventory-ui 2, crm-ui 2, projects-ui 2, hours-ui 2, meetings-ui 1,
+  notify-ui 1; the `LinesCard` wrapper's one caller, `ReviewDetailPage.tsx:405-479`, maps `key={line.id}`) key by a server-assigned
+  primary key of one result set: `row.id`, `task.id`, `item.id`, `entry.id`, `assignmentId`, `assetId`, `line.id`, collaborator `row.id`. The
+  browser cannot choose one: crm-ui's `ActivityInput` has no `id` (`activitiesApi.ts:28-40`), hours-api's create schema is `.strict()`
+  (first pass S1), and a primary key cannot repeat inside one answer. hours-ui's paged List cannot repeat a row across pages
+  either (hours-api's keyset cursor orders by `day desc, createdAt desc, id desc`, `list.routes.ts:7`; `useHoursPages` appends pages).
+  So the only rows ever sharing a list are records the same viewer was already sent.
+- "State or a dialog carried to another record's row": this is what the OLD index key allowed (state of slot *i* stayed when the record in
+  slot *i* changed). The new key makes a row's state follow its own record, and a row that leaves unmounts with its state. The
+  record-specific dialogs also hold the record by value above the row (`TasksCard.tsx` `editing`, `ActivityTimeline.tsx` `composing`),
+  and the Record hours widget is behind `ExtensionErrorBoundary key={JSON.stringify(props)}` (`extensions.tsx:155`), so a change of
+  target or task remounts it whatever the row does.
+- Because `@operai/ui` is the shell's Module Federation singleton, the change reaches all nine apps when the shell deploys; the call-site
+  review above is why that is safe. Ran `operai-ui` `ListRows.test.tsx` (9 tests), green.
+
+**F4. `cacheKey` in crm-ui `ActivityTimeline` and projects-ui `TasksCard`: no data across targets or pages; across a user switch it holds only as before (A01).**
+- Keys name the whole of the fetcher's inputs, which are the `useCallback` dependencies: `TasksCard.tsx:83`
+  `project-tasks:${JSON.stringify([project.id, view, page])}` for `[project.id, view, page]` (`:78`); `ActivityTimeline.tsx:46`
+  `crm-activities:${JSON.stringify([key, page])}` for `[key, page]` (`:41`), where `key = JSON.stringify(target)` and
+  `ActivityTarget` is exactly one of `{companyId}` / `{contactId}` / `{dealId}` (`activitiesApi.ts:26`), so a company, a contact and a deal
+  with the same id never share an entry. JSON-encoding makes the key unambiguous (no separator injection); the prefixes are distinct
+  from every other key in the same app's cache (crm-ui `contacts:` `companies:` `crm-tasks:` `pipeline:` `company-owners`; projects-ui
+  `projects:` `my-tasks:` `project-managers`), and the cache is per app bundle (`hooks/useResource.ts:35`, a copy in each app).
+- `useResource` only shows a remembered answer for the same fetcher or the same key (`useResource.ts:93-104`), so switching
+  project, tab, page or target goes to that key's own entry or to `loading`. Writes `cache.set` only on success (`:62`); a failed
+  re-read is `status: 'error'` with `data: null` (`:82-90`), so a project the person has lost (403 / 404) never keeps showing
+  rows past one request. Row buttons that follow cached `may` flags are a UX convenience for that one request; activities-api asks the
+  host as the caller on every write (AGENTS.md, ADR 20261110-activities-service-access-delegated-to-host).
+- Sign-out and session loss end the document, which empties the cache: `signOut` ends with `window.location.href = <auth>/sign-in?…`
+  in a `finally` (`shell/src/lib/session.ts:793-818`), and a failed refresh after a 401 calls `redirectToSignIn` →
+  `window.location.assign` (`:378-381`). Module-scope caches (`useResource.ts:35`) and the in-memory JWT do not outlive it, and the sign-in
+  and the return are new documents.
+- Ran `TasksCard.reload`, `MyTasksPage.keepsRows` (projects-ui) and `ActivityTimeline.keepsRows`, `TasksPage.keepsRows` (crm-ui) = 4 files, 20 tests,
+  green; `DeleteEntryDialog.focus`, `EntryDialog.fixedActivityRefusal`, `EntryDialog.refusalFocus`, `EntryDialogModel.preset`, `RecordHours`,
+  `RecordHours.it` (hours-ui) = 6 files, 184 tests, green.
+
+### Findings
+
+None at medium or above. Nothing to fix before close. First-pass notes: **N1 fixed** (F1). N2, N3, N4, N5 are unchanged by this
+round (`RecordHours.tsx`, `weekGrid.ts`, `exportPages.ts` and the cell tests are not in the diff) and keep the status given above.
+
+### Notes (informational; for `security.notes[]`)
+
+**[I1 — INFORMATIONAL, A01 / A04: the per-app answer cache is not keyed by the principal]** `projects-ui/src/components/TasksCard.tsx:83`,
+`crm-ui/src/components/ActivityTimeline.tsx:46`, `*/src/hooks/useResource.ts:35`
+The two new cached surfaces (task lists of a project, activity timelines of a company, contact or deal) join eight that already
+exist (`my-tasks:`, `crm-tasks:`, `pipeline:` with money, `companies:`, `contacts:`, `projects:`, …). The cache is in memory for
+the life of the document and its key carries no `sub`. Isolation is the document boundary (F4): every sign-out, 401 or return from sign-in is a new document.
+Residual scenario, not new and not introduced here: the cookie session is changed in another tab while this tab stays open; once this
+tab's in-memory JWT is refreshed from the cookie (`session.ts:350-371`) as the other person, a revisit shows the previous person's
+last answer for a target until the revalidation lands, then the new answer or an error replaces it. That needs the same browser
+profile, the previous page was already on that screen, and the shell's session and permission caches behave the same way, so nothing new
+is disclosed. Fix (optional, one place): a `sub` in the shell's identity that each remote clears its cache on (`onSignOut(clearResourceCache)`
+already exists as a pattern in `session.ts:667-683`), or `sub` in the key. No action required for this feature.
+
+**[I2 — INFORMATIONAL, A04 integrity: `ListRows` trusts its callers' keys to be unique]** `operai-ui/src/components/ListRows.tsx:27`
+Before, the `<li>` key was the index, which never repeats; now it is the caller's key. React answers a duplicate with a warning in
+development, and in production a row can be drawn twice or left out after the list changes. Today this cannot happen: all 17 call sites
+key by the primary key of a single answer (F3) and `decisions.md` records "no guard for duplicate child keys". Exploit scenario: none
+without a future caller that keys a merged list by a non-unique value (a name, or ids from two services), which on an approval
+list (refund-ui `ReviewQueuePage`) would hide an item. Fix (optional): keep the sentence added to `operai-ui/docs/design-system.md` ("give each row a key
+that names its record") and, when a list is ever merged from two sources, prefix the key with its source.
+
+### How this was verified
+
+- Read the whole non-test diff of the range (12 files), plus `ConfirmDialog.tsx`, `FormDialog.tsx`, `Button.tsx`, `Field.tsx`
+  (`focusFirstInvalid`), `useResource.ts` of both apps (byte-identical to each other and not in the diff), `session.ts` sign-out and 401 paths,
+  `extensions.tsx`, all 17 `ListRows` call sites and the cursor/paging code of hours-ui and hours-api (read only).
+- Scans of the diff for `dangerouslySetInnerHTML`, `innerHTML`, `eval`, `localStorage` / `sessionStorage`, `postMessage`, `console.*`, selectors built
+  from data, new origins and credentials: none in production code. The new e2e files (`shell/e2e/hours-in-place.spec.ts`,
+  `helpers/hoursFixtures.ts`, not in scope of this diff) were grepped only: they use the existing gated session helpers, `@operai.test`
+  addresses and localhost defaults, and no credential is written in them.
+
+### Not covered
+
+- The focus behaviour was proven against `test-support/focusFixup.ts` (jsdom emulation of the browser's focus fixup) and the QE's measurement,
+  not re-measured in a browser; it has no security effect either way (focus only, no activation).
+- The e2e journeys and hours-api's own suite were not run (they need the stack, and backend tests truncate the local dev databases).
