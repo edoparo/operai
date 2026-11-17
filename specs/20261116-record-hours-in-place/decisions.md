@@ -186,3 +186,10 @@ It is drift: amend the spec/plan and re-sync tasks — do not quietly edit the c
 - scope: the `TasksCard` placement test is a new case in `TasksCard.reload.test.tsx`; crm-ui `TasksPage` and projects-ui `MyTasksPage` got new `*.keepsRows.test.tsx` files — where: crm-ui, projects-ui
 - default: no placement test added for hours-ui (`EntryDayList`, `WeekCellDialog`) — why: its rows are already keyed by `entry.id` and its 2122 tests are green with the fix — where: report only
 - note: until the shell carrying this library is deployed, the timeline's Delete-above and Log-activity cases fall back to the old behaviour (a remote runs on the live shell's `@operai/ui`); the deploy order (shell before hosts) covers it
+
+## QE round 1 (design defects, delete focus) · frontend-dev · hours-ui · 2026-11-17
+- default: one commit per item (3 commits) rather than one for the round — why: each item is a separate defect with its own tests and can be reverted on its own — where: git history c77d61a5, e07d74a3, 188f4aed (hashes before rebase)
+- scope: the delete-focus fix lives in `DeleteEntryDialog.tsx`, not in `@operai/ui`'s `ConfirmDialog` — why: the library is shared by every remote; follows the D2 fix's route (a ref in the children, then `closest('form')` to the submit button) — where: hours-ui/src/components/DeleteEntryDialog.tsx
+- assumption: the Week scroll hint is placed inside the loaded-with-rows branch (absent on empty, filtered-empty, future-empty, error, replaced and loading), rather than hidden by CSS — why: design S7 says "only while a grid is shown" — where: hours-ui/src/components/WeekView.tsx
+- default: the "a delete that works never asks for focus" and "retry that works takes no focus" tests were dropped — why: jsdom cannot focus a disabled button, so they could not fail even if the fix over-focused; the three failure tests are the guard — where: hours-ui/src/components/DeleteEntryDialog.focus.test.tsx
+- default: the delete-focus page tests extend `MyHoursPage.edit.test.tsx` and `MyHoursPage.weekCells.test.tsx` rather than adding new page files — where: hours-ui/src/pages/
