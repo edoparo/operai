@@ -1,0 +1,167 @@
+/**
+ * @vitest-environment jsdom
+ *
+ * The Week view under `<html lang="it">` (specs/20261116-record-hours-in-place T9; AC-4.6): the heading, the days, the
+ * navigator, the names of the cell buttons and every state come from the Italian catalog and none of the English one,
+ * a weekday and a date are written in Italian, and a name an administrator typed ("Formazione") is shown verbatim.
+ * Completeness of the catalog is checked once for the whole app (strings.test.ts); this proves the view reads it.
+ *
+ * Its own file because the language is resolved when `strings` is first imported, so each test sets `<html lang>` and
+ * imports the view afresh.
+ */
+import { afterEach, describe, expect, it, vi } from 'vitest'
+import { cleanup, render, screen, within } from '@testing-library/react'
+import type { EntryOn } from '../lib/hoursApi.types'
+
+afterEach(() => {
+  cleanup()
+  document.documentElement.removeAttribute('lang')
+  vi.resetModules()
+})
+
+const MONDAY = '2026-11-16'
+const TODAY = '2026-11-19'
+
+/** The view, its strings and a week of entries, all imported after the language is set. */
+const setup = async (lang: 'it' | 'en') => {
+  document.documentElement.setAttribute('lang', lang)
+  const { default: WeekView } = await import('./WeekView')
+  const { strings } = await import('../strings')
+  const { weekGrid } = await import('../lib/weekGrid')
+  const { dealOn, otherWorkOn, projectOn, timeEntryView } = await import('../test-support/fakeApi')
+  const entry = (id: string, day: string, minutes: number, on: EntryOn) => timeEntryView({ id, day, minutes, on })
+  const grid = weekGrid(
+    [
+      entry('a', '2026-11-16', 240, projectOn('p1', 'Alpenstrom')),
+      entry('b', '2026-11-18', 60, projectOn('p2', 'Operai')),
+      entry('c', '2026-11-18', 90, projectOn('p2', 'Operai')),
+      entry('d', '2026-11-17', 60, dealOn('d1', 'Brera')),
+      entry('e', '2026-11-19', 120, otherWorkOn('Formazione', 'c-training')),
+      entry('f', '2026-11-17', 120, projectOn('p3', 'Segreto', 'hidden')),
+    ],
+    MONDAY,
+  )
+  const draw = (props: Record<string, unknown> = {}) =>
+    render(
+      <WeekView
+        monday={MONDAY}
+        today={TODAY}
+        filtered={false}
+        state={{ status: 'loaded', grid }}
+        onWeekChange={vi.fn()}
+        onRetry={vi.fn()}
+        onClearFilters={vi.fn()}
+        onRecordCell={vi.fn()}
+        onOpenCell={vi.fn()}
+        {...props}
+      />,
+    )
+  return { strings, draw, weekGrid }
+}
+
+describe('Italian', () => {
+  it('words the heading, the navigator and the table in Italian, with the week as two dates and an en dash', async () => {
+    const { draw } = await setup('it')
+    draw()
+    expect(screen.getByRole('heading', { level: 3 }).textContent).toBe('Settimana 16.11.2026 – 22.11.2026')
+    const navigator = screen.getByRole('group', { name: 'Scegli una settimana' })
+    expect(within(navigator).getByRole('button', { name: 'Settimana precedente' })).not.toBeNull()
+    expect(within(navigator).getByRole('button', { name: 'Questa settimana' })).not.toBeNull()
+    expect(within(navigator).getByRole('button', { name: 'Settimana successiva' })).not.toBeNull()
+    expect(
+      screen.getByRole('table', {
+        name: 'Ore per progetto, opportunità, riunione e altro lavoro, 16.11.2026 – 22.11.2026',
+      }),
+    ).not.toBeNull()
+  })
+
+  it('has Monday to Sunday as Lun to Dom, marks today "Oggi", and calls the last column and the last row "Totale"', async () => {
+    const { draw } = await setup('it')
+    draw()
+    const headers = within(screen.getByRole('table')).getAllByRole('columnheader')
+    expect(headers.slice(1, 8).map((header) => header.textContent?.slice(0, 3))).toEqual([
+      'Lun',
+      'Mar',
+      'Mer',
+      'Gio',
+      'Ven',
+      'Sab',
+      'Dom',
+    ])
+    expect(headers[4]?.textContent).toContain('Oggi')
+    expect(headers[8]?.textContent).toBe('Totale')
+    expect(within(screen.getByTestId('hours-week-row-total')).getByRole('rowheader').textContent).toBe('Totale')
+  })
+
+  it('names the cell buttons with the Italian weekday and date, and the entries in the singular and the plural', async () => {
+    const { draw } = await setup('it')
+    draw()
+    expect(screen.getByRole('button', { name: 'Registra ore su Operai, lunedì 16 novembre 2026' })).not.toBeNull()
+    expect(
+      screen.getByRole('button', { name: '2 h 30 su Operai, mercoledì 18 novembre 2026, 2 registrazioni' }),
+    ).not.toBeNull()
+    expect(
+      screen.getByRole('button', { name: '4 h su Alpenstrom, lunedì 16 novembre 2026, 1 registrazione' }),
+    ).not.toBeNull()
+    expect(
+      screen.getByRole('button', { name: 'Registra ore su altro lavoro (Formazione), lunedì 16 novembre 2026' }),
+    ).not.toBeNull()
+  })
+
+  it('shows a category as its administrator typed it, the kinds and the hidden name in Italian, and no English', async () => {
+    const { draw } = await setup('it')
+    const { container } = draw()
+    const training = within(screen.getByTestId('hours-week-row-category:c-training')).getByRole('rowheader')
+    expect(within(training).getByText('Altro lavoro')).not.toBeNull()
+    expect(within(training).getByText('Formazione')).not.toBeNull()
+    const hidden = within(screen.getByTestId('hours-week-row-project:p3')).getByRole('rowheader')
+    expect(within(hidden).getByText('Progetto')).not.toBeNull()
+    expect(within(hidden).getByText('Non visibile a te')).not.toBeNull()
+    expect(container.textContent).not.toMatch(/\b(Week|Total|Project|Deal|Mon|Tue|Today|Not visible)\b/)
+    expect(container.textContent).not.toContain('Segreto')
+  })
+
+  it('announces the week and its total in Italian, and says so in Italian when it is empty or still loading', async () => {
+    const { draw, weekGrid } = await setup('it')
+    const { unmount } = draw()
+    expect(screen.getByTestId('hours-week-live').textContent).toBe(
+      '16.11.2026 – 22.11.2026: 11 ore e 30 minuti in totale.',
+    )
+    unmount()
+    draw({ state: { status: 'loaded', grid: weekGrid([], MONDAY) } })
+    expect(screen.getByTestId('hours-week-live').textContent).toBe('16.11.2026 – 22.11.2026: nessuna ora registrata.')
+    cleanup()
+    draw({ state: { status: 'loading' } })
+    expect(screen.getByTestId('hours-week-live').textContent).toBe('Caricamento della tua settimana…')
+  })
+
+  it('words the empty week, the week that has not started, the empty filtered week and the error in Italian', async () => {
+    const { draw, weekGrid } = await setup('it')
+    const loaded = { status: 'loaded', grid: weekGrid([], MONDAY) }
+    draw({ state: loaded })
+    expect(screen.getByRole('heading', { level: 4 }).textContent).toBe('Nessuna ora registrata in questa settimana')
+    cleanup()
+    draw({ state: loaded, monday: '2026-11-23' })
+    expect(screen.getByRole('heading', { level: 4 }).textContent).toBe('Questa settimana non è ancora iniziata')
+    expect(screen.getByTestId('hours-week-empty').textContent).toContain(
+      'Puoi registrare le ore di un giorno quando è arrivato.',
+    )
+    cleanup()
+    draw({ state: loaded, filtered: true })
+    expect(screen.getByRole('heading', { level: 4 }).textContent).toBe(
+      'Nessuna registrazione corrisponde a questi filtri',
+    )
+    expect(screen.getByRole('button', { name: 'Azzera i filtri' })).not.toBeNull()
+    cleanup()
+    draw({ state: { status: 'error', message: 'Riprova tra un momento.' } })
+    expect(within(screen.getByTestId('hours-week-error')).getByText('Impossibile caricare le tue ore')).not.toBeNull()
+    expect(screen.getByRole('button', { name: 'Riprova' })).not.toBeNull()
+  })
+
+  it('keeps English as English, so the test above proves the view follows the language and not a default', async () => {
+    const { draw } = await setup('en')
+    draw()
+    expect(screen.getByRole('heading', { level: 3 }).textContent).toBe('Week 16.11.2026 – 22.11.2026')
+    expect(screen.getByRole('button', { name: 'Record hours on Operai, Monday 16 November 2026' })).not.toBeNull()
+  })
+})

@@ -21,6 +21,7 @@ import { myHours } from './strings/myHours'
 import { names } from './strings/names'
 import { settings } from './strings/settings'
 import { totals } from './strings/totals'
+import { week } from './strings/week'
 
 /** The English catalog: the reference every other language is checked against. */
 export const en = {
@@ -35,6 +36,7 @@ export const en = {
   everyone: everyone.en,
   export: exportStrings.en,
   settings: settings.en,
+  week: week.en,
 }
 
 /** The Italian catalog: typed as the English, so a missing key does not compile. */
@@ -50,6 +52,7 @@ export const it: typeof en = {
   everyone: everyone.it,
   export: exportStrings.it,
   settings: settings.it,
+  week: week.it,
 }
 
 /** The catalog for the person's language, resolved once by @operai/ui (`resolveLocale`). */
