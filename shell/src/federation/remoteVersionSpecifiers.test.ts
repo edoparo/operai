@@ -262,6 +262,22 @@ describe('vercel.json CSP — hours origins', () => {
     expect(remotesDtsSource).toContain("declare module 'hours/version'")
   })
 
+  // specs/20261116-record-hours-in-place, T3 (ADR 20261116-record-hours-widget-through-the-host-extension-seam): the hours
+  // remote's second entry, the Record hours button the hosts embed through `hours.recordHours`. Three things must agree
+  // on the specifier: the ambient declaration, the loader in lib/extensions.tsx, and (T2) hours-ui's `exposes`.
+  it("remotes.d.ts declares 'hours/RecordHours' with the six string props of the hours.recordHours extension", () => {
+    expect(remotesDtsSource).toContain("declare module 'hours/RecordHours'")
+    const declaration = /declare module 'hours\/RecordHours' \{[\s\S]*?\n\}/.exec(remotesDtsSource)?.[0] ?? ''
+    for (const member of ['on', 'targetId', 'targetName', 'activityId', 'activityName', 'placement']) {
+      expect(declaration, `the declaration names '${member}'`).toMatch(new RegExp(`\\b${member}:\\s`))
+    }
+  })
+
+  it("the shell's hours.recordHours loader imports the specifier remotes.d.ts declares", () => {
+    const extensionsSource = readFileSync(path.resolve(__dirname, '../lib/extensions.tsx'), 'utf-8')
+    expect(extensionsSource).toMatch(/'hours\.recordHours':\s*\(\)\s*=>\s*import\('hours\/RecordHours'\)/)
+  })
+
   it("index.css scans hours-ui's source (@source), so the shell's one Tailwind sheet carries the remote's utilities (ADR 20260709-suite-frontend-module-federation addendum)", () => {
     const indexCss = readFileSync(path.resolve(__dirname, '../index.css'), 'utf-8')
     expect(indexCss).toContain('@source "../../hours-ui/src";')
