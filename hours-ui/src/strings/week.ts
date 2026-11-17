@@ -63,6 +63,8 @@ const en = {
     title: 'This week has not started',
     body: 'You can record hours on a day once it has come.',
   },
+  /** A save on a day outside the week shown: say so, or the entry looks lost (design F6; the Week's twin of the List's `savedOutsidePeriod`). */
+  savedOutside: (date: string) => `Entry saved. ${date} is outside the week you are viewing.`,
 }
 
 const it: typeof en = {
@@ -103,6 +105,7 @@ const it: typeof en = {
     title: 'Questa settimana non è ancora iniziata',
     body: 'Puoi registrare le ore di un giorno quando è arrivato.',
   },
+  savedOutside: (date: string) => `Registrazione salvata. Il ${date} è fuori dalla settimana che stai guardando.`,
 }
 
 export const week = { en, it }

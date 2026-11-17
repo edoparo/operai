@@ -1,4 +1,5 @@
-import type { ReactNode } from 'react'
+import { useImperativeHandle, useRef } from 'react'
+import type { ReactNode, Ref } from 'react'
 import {
   Badge,
   Button,
@@ -28,6 +29,18 @@ export type WeekViewState =
   /** The page's own state in place of the grid (the deal filter that cannot be answered, time-tracking AC-4.11). */
   | { status: 'replaced'; content: ReactNode }
 
+/** What the page can ask of the card (design S7 "Focus after a write"): where keyboard focus goes once the week is read again. */
+export type WeekViewHandle = {
+  /**
+   * Moves focus to the card's heading, which is focusable but never a tab stop: the landing place when the cell that was
+   * acted on is gone or is no longer a control (the grid is replaced while it is read again, so the control that had
+   * focus before the write no longer exists).
+   */
+  focusHeading: () => void
+  /** Moves focus to the button of the cell `<row key>:<day>`; `false`, and focus stays where it is, when the grid has none. */
+  focusCell: (cell: string) => boolean
+}
+
 export type WeekViewProps = {
   /** The Monday of the week asked for (`YYYY-MM-DD`): the heading and the navigator. A loaded `grid` is the grid of this week. */
   monday: string
@@ -42,10 +55,11 @@ export type WeekViewProps = {
   onRetry: () => void
   /** Clear filters, from the empty-and-filtered state. */
   onClearFilters: () => void
-  /** An empty cell of today or an earlier day on a row that can be recorded on was chosen (AC-5.12). T11 opens the entry dialog. */
+  /** An empty cell of today or an earlier day on a row that can be recorded on was chosen (AC-5.12): the page opens the entry dialog on it (T11). */
   onRecordCell?: (row: WeekRow, day: string) => void
-  /** A cell that holds hours was chosen (AC-5.15). T12 opens the cell's entries. */
+  /** A cell that holds hours was chosen (AC-5.15): the page opens the cell's entries (T12). */
   onOpenCell?: (row: WeekRow, day: string) => void
+  ref?: Ref<WeekViewHandle>
 }
 
 /** A row of the table: one of the grid's, or the last, the totals of the days. */
@@ -268,37 +282,62 @@ export default function WeekView({
   onClearFilters,
   onRecordCell,
   onOpenCell,
+  ref,
 }: WeekViewProps) {
+  const root = useRef<HTMLDivElement>(null)
+
+  // `Card` has no focusable heading yet, so the heading is found through the card's own `aria-labelledby` (the way
+  // `TotalsCard` does it) and made a programmatic focus target; a cell is found by the `data-cell` it carries.
+  useImperativeHandle(ref, () => ({
+    focusHeading: () => {
+      const labelledBy = root.current?.querySelector('section')?.getAttribute('aria-labelledby')
+      const heading = labelledBy ? document.getElementById(labelledBy) : null
+      if (heading === null) return
+      heading.tabIndex = -1
+      heading.focus()
+    },
+    focusCell: (cell) => {
+      const button = [...(root.current?.querySelectorAll<HTMLElement>('[data-cell]') ?? [])].find(
+        (candidate) => candidate.dataset['cell'] === cell,
+      )
+      if (button === undefined) return false
+      button.focus()
+      return true
+    },
+  }))
+
   return (
-    <Card
-      title={strings.week.title(weekRange(monday))}
-      titleTestId="hours-week-heading"
-      action={<WeekNavigator monday={monday} today={today} onWeekChange={onWeekChange} />}
-      data-testid="hours-week"
-    >
-      <VisuallyHidden live data-testid="hours-week-live">
-        {announcement(state, monday)}
-      </VisuallyHidden>
+    <div ref={root} className="contents">
+      <Card
+        title={strings.week.title(weekRange(monday))}
+        titleTestId="hours-week-heading"
+        action={<WeekNavigator monday={monday} today={today} onWeekChange={onWeekChange} />}
+        data-testid="hours-week"
+      >
+        <VisuallyHidden live data-testid="hours-week-live">
+          {announcement(state, monday)}
+        </VisuallyHidden>
 
-      {state.status === 'loading' && <SkeletonRows rows={4} actions={0} testId="hours-week-skeleton" />}
+        {state.status === 'loading' && <SkeletonRows rows={4} actions={0} testId="hours-week-skeleton" />}
 
-      {state.status === 'loaded' &&
-        (state.grid.rows.length === 0 ? (
-          <EmptyWeek monday={monday} today={today} filtered={filtered} onClearFilters={onClearFilters} />
-        ) : (
-          <WeekTable grid={state.grid} today={today} onRecordCell={onRecordCell} onOpenCell={onOpenCell} />
-        ))}
+        {state.status === 'loaded' &&
+          (state.grid.rows.length === 0 ? (
+            <EmptyWeek monday={monday} today={today} filtered={filtered} onClearFilters={onClearFilters} />
+          ) : (
+            <WeekTable grid={state.grid} today={today} onRecordCell={onRecordCell} onOpenCell={onOpenCell} />
+          ))}
 
-      {state.status === 'error' && (
-        <ErrorBanner
-          title={strings.entries.error.title}
-          message={state.message}
-          onRetry={onRetry}
-          testId="hours-week-error"
-        />
-      )}
+        {state.status === 'error' && (
+          <ErrorBanner
+            title={strings.entries.error.title}
+            message={state.message}
+            onRetry={onRetry}
+            testId="hours-week-error"
+          />
+        )}
 
-      {state.status === 'replaced' && state.content}
-    </Card>
+        {state.status === 'replaced' && state.content}
+      </Card>
+    </div>
   )
 }
