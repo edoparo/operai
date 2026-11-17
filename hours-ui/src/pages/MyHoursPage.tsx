@@ -10,6 +10,7 @@ import {
   StatePanel,
   VisuallyHidden,
   formatDate,
+  tabPanelProps,
 } from '@operai/ui'
 import DealFilterUnavailable from '../components/DealFilterUnavailable'
 import DeleteEntryDialog from '../components/DeleteEntryDialog'
@@ -22,12 +23,24 @@ import type { HoursBannersProps } from '../components/HoursBanners'
 import HoursExport from '../components/HoursExport'
 import HoursFilters from '../components/HoursFilters'
 import type { ListsView } from '../components/HoursFilters'
-import { applyFilterPatch, clearFilterSearch, isFiltered, parseFilterSearch } from '../components/HoursFiltersState'
-import type { FilterPatch } from '../components/HoursFiltersState'
+import {
+  applyFilterPatch,
+  clearFilterSearch,
+  isFiltered,
+  parseFilterSearch,
+  readView,
+  withView,
+  withWeek,
+} from '../components/HoursFiltersState'
+import type { FilterPatch, MyHoursView } from '../components/HoursFiltersState'
 import SuccessBanner from '../components/SuccessBanner'
 import TotalsCard from '../components/TotalsCard'
 import type { TotalsCardHandle, TotalsView } from '../components/TotalsCard'
+import ViewSwitch from '../components/ViewSwitch'
+import WeekView from '../components/WeekView'
+import type { WeekViewState } from '../components/WeekView'
 import { isCode, statusOf } from '../lib/errors'
+import { readAllEntries } from '../lib/exportPages'
 import { createEntry, deleteEntry, getTimeLists, getTotals, listEntries, updateEntry } from '../lib/hoursApi'
 import type { EntryFilters } from '../lib/hoursApi'
 import type { EntriesPage, EntryInput, EntryPatch, TimeEntryView, TotalsAnswer } from '../lib/hoursApi.types'
@@ -37,6 +50,8 @@ import type { DealChoice, ProjectChoice } from '../lib/searchers'
 import { todayZurich } from '../lib/todayZurich'
 import { useHoursPages, useHoursQuery } from '../lib/useHoursQuery'
 import type { HoursQueryState } from '../lib/useHoursQuery'
+import { readWeekParam, weekDays } from '../lib/week'
+import { weekGrid } from '../lib/weekGrid'
 import { strings } from '../strings'
 
 type Search = Record<string, unknown>
@@ -48,6 +63,27 @@ const totalsFailure = (error: unknown): string =>
 /** The words for a failed read of the entries, likewise. */
 const entriesFailure = (error: unknown): string =>
   statusOf(error) === null ? strings.common.networkError : strings.entries.error.body
+
+/**
+ * The words for a failed read of the week: the network line for a request that never got an answer, the List's
+ * "try again" for everything else — a refusal, and the fold refusing an entry that is not of the week asked for (a
+ * server bug, `RangeError`), which is no fault of the connection.
+ */
+const weekFailure = (error: unknown): string =>
+  statusOf(error) === null && !(error instanceof RangeError) ? strings.common.networkError : strings.entries.error.body
+
+/**
+ * The one read of a week: every entry of the week and filters, all or nothing (`readAllEntries`, plan Decision 1),
+ * folded into the grid here, so an entry outside the week (a server bug) is a failed read with Retry rather than an
+ * error thrown while the page draws.
+ */
+const readWeek = async (filters: EntryFilters, monday: string, signal: AbortSignal) => {
+  const { items, unavailable } = await readAllEntries(filters, { signal })
+  return { grid: weekGrid(items, monday), items, unavailable }
+}
+
+/** Prefix of the ids the view switch's tabs and its panel point at each other with. */
+const VIEW_ID = 'hours-view'
 
 const NO_BANNERS: HoursBannersProps = { sources: [], dealGroupingUnavailable: false, hiddenNames: false }
 
@@ -121,21 +157,29 @@ export default function MyHoursPage() {
   }
   const waitingForLists = (requested.categoryId !== '' || requested.workTypeId !== '') && listsView.status === 'loading'
 
-  const { range, errors } = rangeOf(requested.period, requested.from, requested.to, todayZurich())
+  // The view of the page (plan Decision 5): the List, or the Week of `?week`. One page, two reads; the other
+  // view's reads ask nothing (a null key), so only what is on screen is asked.
+  const view = readView(search)
+  const weekShown = view === 'week'
+  const today = todayZurich()
+  const monday = readWeekParam(search, today)
+
+  const { range, errors } = rangeOf(requested.period, requested.from, requested.to, today)
+  const applied = {
+    whose: 'mine' as const,
+    target: state.target || undefined,
+    projectId: project?.id,
+    dealId: deal?.id,
+    categoryId: state.categoryId || undefined,
+    workTypeId: state.workTypeId || undefined,
+  }
   const filters: EntryFilters | null =
-    range === null || waitingForLists
-      ? null
-      : {
-          whose: 'mine',
-          from: range.from,
-          to: range.to,
-          target: state.target || undefined,
-          projectId: project?.id,
-          dealId: deal?.id,
-          categoryId: state.categoryId || undefined,
-          workTypeId: state.workTypeId || undefined,
-        }
+    weekShown || range === null || waitingForLists ? null : { ...applied, from: range.from, to: range.to }
   const filterKey = JSON.stringify(filters)
+  // The Week: the week takes the place of the period, every other filter applies (AC-5.21, WA5).
+  const weekFilters: EntryFilters | null =
+    !weekShown || waitingForLists ? null : { ...applied, from: monday, to: weekDays(monday)[6]! }
+  const weekKey = JSON.stringify(weekFilters)
 
   // The three reads of a filter change: the entries (a cursor-paged list), the day totals that label them,
   // and the totals for the chosen "Group by".
@@ -146,6 +190,9 @@ export default function MyHoursPage() {
   const totals = useHoursQuery(filters && `totals:${state.group}:${filterKey}`, (signal) =>
     getTotals(state.group, filters!, { signal }),
   )
+  // The Week's one read: every entry of the week, complete or failed, folded into the grid (plan Decision 1).
+  const week = useHoursQuery(weekFilters && `week:${weekKey}`, (signal) => readWeek(weekFilters!, monday, signal))
+  const loadedWeek = week.state.status === 'loaded' ? week.state.data : null
 
   const loadedDays = days.state.status === 'loaded' ? days.state.data : null
   const dayTotals = useMemo(() => (loadedDays ? dayTotalsOf(loadedDays) : null), [loadedDays])
@@ -170,16 +217,27 @@ export default function MyHoursPage() {
   const exportRefused = firstPage !== null && exportRefusedFor === firstPage
   const blocked =
     deal !== null &&
-    (refusedDealRead(entries.first) || refusedDealRead(totals.state) || refusedDealRead(days.state) || exportRefused)
+    (refusedDealRead(entries.first) ||
+      refusedDealRead(totals.state) ||
+      refusedDealRead(days.state) ||
+      refusedDealRead(week.state) ||
+      exportRefused)
 
   const totalsCard = useRef<TotalsCardHandle>(null)
   const blocker = useRef<HTMLDivElement>(null)
   const retryFor = useRef<string | null>(null)
-  const reading =
-    entries.first.status === 'loading' || days.state.status === 'loading' || totals.state.status === 'loading'
+  const reading = weekShown
+    ? week.state.status === 'loading'
+    : entries.first.status === 'loading' || days.state.status === 'loading' || totals.state.status === 'loading'
+  // What the view reads is named by one key, so a Retry is remembered as the read it was made for.
+  const readKey = weekShown ? weekKey : filterKey
 
   const retryAll = () => {
-    retryFor.current = filterKey
+    retryFor.current = readKey
+    if (weekShown) {
+      week.reload()
+      return
+    }
     entries.reload()
     days.reload()
     totals.reload()
@@ -189,12 +247,12 @@ export default function MyHoursPage() {
   // they worked and back to the banner when they did not (the Retry button that had focus is gone).
   useEffect(() => {
     if (retryFor.current === null || reading) return
-    const mine = retryFor.current === filterKey
+    const mine = retryFor.current === readKey
     retryFor.current = null
     if (!mine) return
     if (blocked) blocker.current?.focus()
     else totalsCard.current?.focusHeading()
-  }, [filterKey, reading, blocked])
+  }, [readKey, reading, blocked])
 
   // An export the refusal stopped: the Export button had focus and is gone with the Entries card, so the banner
   // takes it (design F5). A person who has gone on to another control keeps theirs.
@@ -207,18 +265,29 @@ export default function MyHoursPage() {
 
   // The notes about names. They keep their last settled content while the next answers load, so the Filters
   // card below them does not jump under the pointer on every filter change; with no data (blocked) none.
-  const live: HoursBannersProps = {
-    sources: unavailableSources(
-      entries.first.status === 'loaded' ? entries.first.data.unavailable : undefined,
-      ...entries.more.map((entriesPage) => entriesPage.unavailable),
-      loadedTotals?.unavailable,
-      loadedDays?.unavailable,
-    ),
-    dealGroupingUnavailable: state.group === 'deal' && (loadedTotals?.unavailable.includes('meeting-deals') ?? false),
-    hiddenNames: hasHiddenName(loadedEntries, loadedTotals),
-  }
-  const [banners, setBanners] = useState(live)
-  if (!reading && !sameBanners(banners, live)) setBanners(live)
+  // In the Week they are what the walk of the week found: the sources it could not ask, and names it may not show.
+  const live: HoursBannersProps = weekShown
+    ? {
+        sources: loadedWeek?.unavailable ?? [],
+        dealGroupingUnavailable: false,
+        hiddenNames: hasHiddenName(loadedWeek?.items ?? []),
+      }
+    : {
+        sources: unavailableSources(
+          entries.first.status === 'loaded' ? entries.first.data.unavailable : undefined,
+          ...entries.more.map((entriesPage) => entriesPage.unavailable),
+          loadedTotals?.unavailable,
+          loadedDays?.unavailable,
+        ),
+        dealGroupingUnavailable:
+          state.group === 'deal' && (loadedTotals?.unavailable.includes('meeting-deals') ?? false),
+        hiddenNames: hasHiddenName(loadedEntries, loadedTotals),
+      }
+  // The last settled notes, kept of the view they were read for: the other view's are not this view's.
+  const [shownBanners, setBanners] = useState<{ view: MyHoursView; props: HoursBannersProps }>({ view, props: live })
+  if (!reading && (shownBanners.view !== view || !sameBanners(shownBanners.props, live)))
+    setBanners({ view, props: live })
+  const banners = shownBanners.view === view ? shownBanners.props : NO_BANNERS
 
   const writeSearch = (next: (previous: Search) => Search) => {
     void navigate({ search: next as never, replace: true })
@@ -231,8 +300,12 @@ export default function MyHoursPage() {
     writeSearch((previous) => applyFilterPatch(previous, withRange))
   }
 
+  // The view and the week are addresses of the page, not filters: they change nothing else in it (AC-5.22).
+  const switchView = (next: MyHoursView) => writeSearch((previous) => withView(previous, next))
+  const changeWeek = (next: string) => writeSearch((previous) => withWeek(previous, next, today))
+
   const clear = () => {
-    writeSearch(clearFilterSearch)
+    writeSearch((previous) => clearFilterSearch(previous, view))
     setProject(null)
     setDeal(null)
     setPickerKey((current) => current + 1)
@@ -243,7 +316,7 @@ export default function MyHoursPage() {
     document.querySelector<HTMLElement>('[data-testid="hours-filter-deal-input"]')?.focus()
   }
 
-  const filtered = isFiltered(state, { project, deal })
+  const filtered = isFiltered(state, { project, deal }, view)
 
   // What the person did here, said where they did it: a save, a delete, or "it was already gone". Each is a new
   // banner (the `count` remounts it, so its 3 s timer starts over).
@@ -253,8 +326,13 @@ export default function MyHoursPage() {
   const say = (kind: 'saved' | 'deleted' | 'gone', message: string) =>
     setNotice((previous) => ({ kind, message, count: (previous?.count ?? 0) + 1 }))
 
-  // Every write that changed what the list shows asks the three reads again with the same filters.
+  // Every write that changed what the page shows asks again, with the same filters, for what is on screen: the
+  // three reads of the List, or the Week's one.
   const readAgain = () => {
+    if (weekShown) {
+      week.reload()
+      return
+    }
     entries.reload()
     days.reload()
     totals.reload()
@@ -274,7 +352,8 @@ export default function MyHoursPage() {
   // it to the button that opened the dialog), asks the three reads again with the same filters, and says so;
   // a save that was refused rejects into the dialog, which words it, and nothing here changes.
   const [recording, setRecording] = useState(false)
-  const outsidePeriod = (day: string) => range !== null && (day < range.from || day > range.to)
+  // The period is the List's: in the Week it is hidden, so nothing is said about it there.
+  const outsidePeriod = (day: string) => !weekShown && range !== null && (day < range.from || day > range.to)
   const savedMessage = (day: string | undefined) =>
     day !== undefined && outsidePeriod(day) ? strings.entry.savedOutsidePeriod(formatDate(day)) : strings.entry.saved
   const record = async (input: EntryInput) => {
@@ -327,6 +406,16 @@ export default function MyHoursPage() {
     setFocusRequest({ on: 'heading' })
   }
 
+  // What the Week shows in place of the grid, or the grid: one state (design S7). The refusal that blocks the List
+  // blocks the Week as well, in the card, with its heading and navigator kept.
+  const weekState: WeekViewState = blocked
+    ? { status: 'replaced', content: <DealFilterUnavailable ref={blocker} onRetry={retryAll} onClear={clearDeal} /> }
+    : week.state.status === 'loaded'
+      ? { status: 'loaded', grid: week.state.data.grid }
+      : week.state.status === 'error'
+        ? { status: 'error', message: weekFailure(week.state.error) }
+        : { status: 'loading' }
+
   return (
     <section aria-labelledby="hours-my-heading" data-testid="hours-my-page" className="flex flex-col gap-4">
       <PageHeader
@@ -348,144 +437,159 @@ export default function MyHoursPage() {
         }
       />
 
-      {notice !== null &&
-        (notice.kind === 'gone' ? (
-          <Banner
-            key={notice.count}
-            tone="info"
-            compact
-            onDismiss={() => setNotice(null)}
-            dismissLabel={strings.common.dismiss}
-            dismissTestId="hours-entry-gone-dismiss"
-            data-testid="hours-entry-gone"
-          >
-            {notice.message}
-          </Banner>
+      <ViewSwitch value={view} idPrefix={VIEW_ID} onChange={switchView} />
+
+      <div {...tabPanelProps(VIEW_ID, view)} className="flex flex-col gap-4">
+        {notice !== null &&
+          (notice.kind === 'gone' ? (
+            <Banner
+              key={notice.count}
+              tone="info"
+              compact
+              onDismiss={() => setNotice(null)}
+              dismissLabel={strings.common.dismiss}
+              dismissTestId="hours-entry-gone-dismiss"
+              data-testid="hours-entry-gone"
+            >
+              {notice.message}
+            </Banner>
+          ) : (
+            <SuccessBanner
+              key={notice.count}
+              message={notice.message}
+              onDismiss={() => setNotice(null)}
+              testId={`hours-entry-${notice.kind}`}
+            />
+          ))}
+
+        <HoursBanners {...(blocked ? NO_BANNERS : banners)} />
+
+        <HoursFilters
+          state={state}
+          rangeErrors={errors}
+          project={project}
+          deal={deal}
+          lists={listsView}
+          showPeriod={!weekShown}
+          filtered={filtered}
+          pickerKey={pickerKey}
+          onChange={change}
+          onProjectChange={setProject}
+          onDealChange={setDeal}
+          onClear={clear}
+          onRetryLists={lists.reload}
+        />
+
+        {weekShown ? (
+          <WeekView
+            monday={monday}
+            today={today}
+            filtered={filtered}
+            state={weekState}
+            onWeekChange={changeWeek}
+            onRetry={week.reload}
+            onClearFilters={clear}
+          />
+        ) : blocked ? (
+          <DealFilterUnavailable ref={blocker} onRetry={retryAll} onClear={clearDeal} />
         ) : (
-          <SuccessBanner
-            key={notice.count}
-            message={notice.message}
-            onDismiss={() => setNotice(null)}
-            testId={`hours-entry-${notice.kind}`}
-          />
-        ))}
+          <>
+            <TotalsCard
+              ref={totalsCard}
+              view={totalsView}
+              groupBy={state.group}
+              onGroupByChange={(group) => change({ group })}
+              onRetry={totals.reload}
+            />
 
-      <HoursBanners {...(blocked ? NO_BANNERS : banners)} />
-
-      <HoursFilters
-        state={state}
-        rangeErrors={errors}
-        project={project}
-        deal={deal}
-        lists={listsView}
-        filtered={filtered}
-        pickerKey={pickerKey}
-        onChange={change}
-        onProjectChange={setProject}
-        onDealChange={setDeal}
-        onClear={clear}
-        onRetryLists={lists.reload}
-      />
-
-      {blocked ? (
-        <DealFilterUnavailable ref={blocker} onRetry={retryAll} onClear={clearDeal} />
-      ) : (
-        <>
-          <TotalsCard
-            ref={totalsCard}
-            view={totalsView}
-            groupBy={state.group}
-            onGroupByChange={(group) => change({ group })}
-            onRetry={totals.reload}
-          />
-
-          <Card
-            title={strings.entries.title}
-            action={
-              filters !== null && firstPage !== null && firstPage.items.length > 0 ? (
-                <HoursExport
-                  filters={filters}
-                  resetKey={filterKey}
-                  onDealFilterUnavailable={() => setExportRefusedFor(firstPage)}
-                />
-              ) : undefined
-            }
-            data-testid="hours-entries"
-          >
-            {range === null ? (
-              <p className="text-sm text-soft" data-testid="hours-entries-invalid">
-                {strings.entries.invalidPeriod}
-              </p>
-            ) : entries.first.status === 'loaded' ? (
-              entries.first.data.items.length === 0 ? (
-                <StatePanel
-                  headingLevel={4}
-                  title={filtered ? strings.entries.emptyFiltered.title : strings.entries.empty.title}
-                  action={
-                    filtered ? (
-                      <Button variant="ghost" onClick={clear} data-testid="hours-entries-clear">
-                        {strings.filters.clear}
-                      </Button>
-                    ) : undefined
-                  }
-                  testId="hours-entries-empty"
-                >
-                  {filtered ? strings.entries.emptyFiltered.body : strings.entries.empty.body}
-                </StatePanel>
-              ) : (
-                <div className="flex flex-col gap-4">
-                  {days.state.status === 'error' && (
-                    <Banner
-                      tone="warning"
-                      compact
-                      onRetry={days.reload}
-                      retryLabel={strings.common.retry}
-                      retryTestId="hours-day-totals-error-retry"
-                      data-testid="hours-day-totals-error"
-                    >
-                      {strings.entries.dayTotalsError}
-                    </Banner>
-                  )}
-                  <EntryDayList
-                    entries={loadedEntries}
-                    dayTotals={dayTotals}
-                    onEdit={setEditing}
-                    onDelete={setDeleting}
+            <Card
+              title={strings.entries.title}
+              action={
+                filters !== null && firstPage !== null && firstPage.items.length > 0 ? (
+                  <HoursExport
+                    filters={filters}
+                    resetKey={filterKey}
+                    onDealFilterUnavailable={() => setExportRefusedFor(firstPage)}
                   />
-                  {(entries.hasMore || entries.more.length > 0 || entries.moreFailed) && (
-                    <LoadMore
-                      hasMore={entries.hasMore}
-                      loading={entries.loadingMore}
-                      onLoadMore={entries.loadMore}
-                      label={strings.entries.loadMore}
-                      loadingLabel={strings.entries.loadingMore}
-                      announcement={
-                        entries.more.length > 0 && !entries.loadingMore && !entries.moreFailed
-                          ? strings.entries.loadedMore(entries.more.at(-1)!.items.length, loadedEntries.length)
-                          : ''
-                      }
-                      error={entries.moreFailed ? strings.entries.loadMoreError : null}
-                      testId="hours-entries-load-more"
+                ) : undefined
+              }
+              data-testid="hours-entries"
+            >
+              {range === null ? (
+                <p className="text-sm text-soft" data-testid="hours-entries-invalid">
+                  {strings.entries.invalidPeriod}
+                </p>
+              ) : entries.first.status === 'loaded' ? (
+                entries.first.data.items.length === 0 ? (
+                  <StatePanel
+                    headingLevel={4}
+                    title={filtered ? strings.entries.emptyFiltered.title : strings.entries.empty.title}
+                    action={
+                      filtered ? (
+                        <Button variant="ghost" onClick={clear} data-testid="hours-entries-clear">
+                          {strings.filters.clear}
+                        </Button>
+                      ) : undefined
+                    }
+                    testId="hours-entries-empty"
+                  >
+                    {filtered ? strings.entries.emptyFiltered.body : strings.entries.empty.body}
+                  </StatePanel>
+                ) : (
+                  <div className="flex flex-col gap-4">
+                    {days.state.status === 'error' && (
+                      <Banner
+                        tone="warning"
+                        compact
+                        onRetry={days.reload}
+                        retryLabel={strings.common.retry}
+                        retryTestId="hours-day-totals-error-retry"
+                        data-testid="hours-day-totals-error"
+                      >
+                        {strings.entries.dayTotalsError}
+                      </Banner>
+                    )}
+                    <EntryDayList
+                      entries={loadedEntries}
+                      dayTotals={dayTotals}
+                      onEdit={setEditing}
+                      onDelete={setDeleting}
                     />
-                  )}
-                </div>
-              )
-            ) : entries.first.status === 'error' ? (
-              <ErrorBanner
-                title={strings.entries.error.title}
-                message={entriesFailure(entries.first.error)}
-                onRetry={entries.reload}
-                testId="hours-entries-error"
-              />
-            ) : (
-              <>
-                <VisuallyHidden live>{strings.entries.loading}</VisuallyHidden>
-                <SkeletonRows rows={4} testId="hours-entries-skeleton" />
-              </>
-            )}
-          </Card>
-        </>
-      )}
+                    {(entries.hasMore || entries.more.length > 0 || entries.moreFailed) && (
+                      <LoadMore
+                        hasMore={entries.hasMore}
+                        loading={entries.loadingMore}
+                        onLoadMore={entries.loadMore}
+                        label={strings.entries.loadMore}
+                        loadingLabel={strings.entries.loadingMore}
+                        announcement={
+                          entries.more.length > 0 && !entries.loadingMore && !entries.moreFailed
+                            ? strings.entries.loadedMore(entries.more.at(-1)!.items.length, loadedEntries.length)
+                            : ''
+                        }
+                        error={entries.moreFailed ? strings.entries.loadMoreError : null}
+                        testId="hours-entries-load-more"
+                      />
+                    )}
+                  </div>
+                )
+              ) : entries.first.status === 'error' ? (
+                <ErrorBanner
+                  title={strings.entries.error.title}
+                  message={entriesFailure(entries.first.error)}
+                  onRetry={entries.reload}
+                  testId="hours-entries-error"
+                />
+              ) : (
+                <>
+                  <VisuallyHidden live>{strings.entries.loading}</VisuallyHidden>
+                  <SkeletonRows rows={4} testId="hours-entries-skeleton" />
+                </>
+              )}
+            </Card>
+          </>
+        )}
+      </div>
 
       {recording && (
         <EntryDialog

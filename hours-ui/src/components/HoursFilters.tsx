@@ -31,6 +31,12 @@ export type HoursFiltersProps = {
    * (My hours), there is none.
    */
   people?: PeopleView
+  /**
+   * Period, with From and To under Custom range (default true). The Week of My hours passes false: the week it shows
+   * takes the place of Period (specs/20261116-record-hours-in-place T10, WA5), so neither is drawn, whatever the
+   * period held in the address is; every other control is as in the List.
+   */
+  showPeriod?: boolean
   /** Whether anything differs from the defaults: only then is "Clear filters" offered. */
   filtered: boolean
   /** A new value gives the pickers a new `key`, which empties text typed and never picked (Clear filters). */
@@ -79,6 +85,7 @@ export default function HoursFilters({
   deal,
   lists,
   people,
+  showPeriod = true,
   filtered,
   pickerKey,
   onChange,
@@ -139,27 +146,29 @@ export default function HoursFilters({
           />
         )}
         <div className="grid items-start gap-3" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))' }}>
-          <Field label={t.period.label}>
-            {(control) => (
-              <select
-                {...control}
-                value={state.period}
-                onChange={(event) => {
-                  const period = PERIODS.find((candidate) => candidate === event.target.value)
-                  if (period !== undefined) onChange({ period })
-                }}
-                data-testid="hours-filter-period"
-              >
-                {PERIODS.map((period) => (
-                  <option key={period} value={period}>
-                    {t.period.options[period]}
-                  </option>
-                ))}
-              </select>
-            )}
-          </Field>
+          {showPeriod && (
+            <Field label={t.period.label}>
+              {(control) => (
+                <select
+                  {...control}
+                  value={state.period}
+                  onChange={(event) => {
+                    const period = PERIODS.find((candidate) => candidate === event.target.value)
+                    if (period !== undefined) onChange({ period })
+                  }}
+                  data-testid="hours-filter-period"
+                >
+                  {PERIODS.map((period) => (
+                    <option key={period} value={period}>
+                      {t.period.options[period]}
+                    </option>
+                  ))}
+                </select>
+              )}
+            </Field>
+          )}
 
-          {state.period === 'custom' && (
+          {showPeriod && state.period === 'custom' && (
             <>
               <Field label={t.from} error={fromError} errorRole="alert">
                 {(control) => (

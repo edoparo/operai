@@ -14,8 +14,16 @@
 import type { EntryTargetType } from '../lib/hoursApi.types'
 import { DEFAULT_PERIOD, PERIODS } from '../lib/period'
 import type { Period } from '../lib/period'
+import { mondayOf } from '../lib/week'
 import { EVERYONE_GROUP_CHOICES, GROUP_CHOICES } from './TotalsCardRows'
 import type { GroupChoice } from './TotalsCardRows'
+
+/**
+ * The view of My hours (specs/20261116-record-hours-in-place T10; plan § My hours' address, Decision 5): the List
+ * (`/hours`, the default, left out of the address) or the Week (`?view=week`). A view of the same page, not a filter:
+ * the filters below apply to both, and `period`, `from`, `to` and `group` are read by the List only.
+ */
+export type MyHoursView = 'list' | 'week'
 
 /** Which screen the filters belong to: Person exists, and is the default Group by, only on Everyone's hours. */
 export type FilterView = 'mine' | 'everyone'
@@ -91,6 +99,32 @@ export const parseFilterSearch = (search: Record<string, unknown>, view: FilterV
   }
 }
 
+/** The view an address names: `week` only for `week`; anything else is the List, so a pasted link lands somewhere real. */
+export const readView = (search: Record<string, unknown>): MyHoursView => (search['view'] === 'week' ? 'week' : 'list')
+
+/**
+ * The search after the person chose `view`: the Week is `view=week`, the List leaves `view` out. Every other key is
+ * kept, `week` too — leaving the Week and coming back lands on the week that was shown, as the List's `period` does.
+ */
+export const withView = (previous: Record<string, unknown>, view: MyHoursView): Record<string, unknown> => {
+  const next = { ...previous }
+  if (view === 'week') next['view'] = 'week'
+  else delete next['view']
+  return next
+}
+
+/**
+ * The search after the person stepped to the week that begins on `monday`: written as that Monday, except this week
+ * (the one holding `today`), which is the default and is left out — a default is never written, and a bookmark of
+ * "this week" keeps meaning the current week. Every other key is kept.
+ */
+export const withWeek = (previous: Record<string, unknown>, monday: string, today: string): Record<string, unknown> => {
+  const next = { ...previous }
+  if (monday === mondayOf(today)) delete next['week']
+  else next['week'] = monday
+  return next
+}
+
 /** The URL's search after `patch`: defaults left out, dates only under Custom, every other key kept. */
 export const applyFilterPatch = (
   previous: Record<string, unknown>,
@@ -118,19 +152,32 @@ export const applyFilterPatch = (
   return next
 }
 
-/** Clear filters: back to the defaults, keeping Group by (a view choice, not a filter) and any other key. */
-export const clearFilterSearch = (previous: Record<string, unknown>): Record<string, unknown> => {
+/**
+ * Clear filters: back to the defaults, keeping Group by (a view choice, not a filter), `view`, `week` and any other
+ * key. In the Week the controls it does not show — Period with its dates — are not reset either: the List reads them
+ * again when the person goes back, and clearing a control nobody can see would be a surprise there (design G5).
+ */
+export const clearFilterSearch = (
+  previous: Record<string, unknown>,
+  view: MyHoursView = 'list',
+): Record<string, unknown> => {
   const next = { ...previous }
-  for (const key of ['period', 'from', 'to', 'person', 'target', 'category', 'workType']) delete next[key]
+  const keys = ['person', 'target', 'category', 'workType']
+  for (const key of view === 'week' ? keys : ['period', 'from', 'to', ...keys]) delete next[key]
   return next
 }
 
-/** Whether anything differs from the defaults — the only time "Clear filters" is offered. */
+/**
+ * Whether anything differs from the defaults — the only time "Clear filters" is offered. In the Week the period is not
+ * a filter: its control is not there, and a "Clear filters" that appears for a setting nobody can see would clear
+ * nothing the person can see (design G5).
+ */
 export const isFiltered = (
   state: HoursFilterState,
   picks: { project: { id: string } | null; deal: { id: string } | null },
+  view: MyHoursView = 'list',
 ): boolean =>
-  state.period !== DEFAULT_FILTERS.period ||
+  (view === 'list' && state.period !== DEFAULT_FILTERS.period) ||
   state.personId !== '' ||
   state.target !== '' ||
   state.categoryId !== '' ||
