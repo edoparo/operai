@@ -36,6 +36,10 @@ declare module 'shell/session' {
   }
 
   export const usePermissions: () => PermissionsResult
+
+  // Cross-remote navigation through the shell's one router (ADR 20260709-suite-frontend-module-federation): the Record
+  // hours message's link to My hours (specs/20261116-record-hours-in-place), a transition and not a reload.
+  export const navigateSuite: (to: string) => void
 }
 
 declare module 'shell/tokens.css' {

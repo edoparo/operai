@@ -10,6 +10,9 @@ export const getProjectsApiBaseUrl = () => ''
 export const getCrmApiBaseUrl = () => ''
 export const getMeetingsApiBaseUrl = () => ''
 export const getActivitiesApiBaseUrl = () => ''
+export const navigateSuite = (to: string): void => {
+  window.location.assign(to)
+}
 
 // No capability by default: a test of something capability-gated says what it grants.
 export const usePermissions = () => ({

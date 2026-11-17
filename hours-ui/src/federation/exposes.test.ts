@@ -7,16 +7,19 @@ import { REMOTE_VERSION } from '../version'
 /**
  * The federation contract the shell depends on (specs/20261112-time-tracking tasks.md T22/T23, plan §
  * Components, ADR 20260803-suite-version-generated-file-federated-export, 20261112-hours-ui-ungated-remote): the remote is named `hours`, serves on the pinned port 5184, and exposes
- * exactly the two entries the shell imports, `./App` and `./version`. A rename here silently breaks
+ * exactly the three entries the shell imports, `./App`, `./RecordHours` (the Record hours button the project page, the
+ * deal page and the task rows embed through the shell's `hours.recordHours` extension, specs/20261116-record-hours-in-place
+ * T2, ADR 20261116-record-hours-widget-through-the-host-extension-seam) and `./version`. A rename here silently breaks
  * the shell at runtime (a dynamic import of a missing export), so the table is asserted against the
  * config source, and every exposed file must exist. The shell's own `remoteVersionSpecifiers` test
- * (T23) reads the same file.
+ * (T23) reads the same file but cannot see this side of `./RecordHours`: this test is where it is pinned.
  */
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..')
 const config = readFileSync(path.join(ROOT, 'vite.config.ts'), 'utf-8')
 
 const EXPOSES: Record<string, string> = {
   './App': './src/App.tsx',
+  './RecordHours': './src/RecordHours.tsx',
   './version': './src/version.ts',
 }
 
@@ -30,9 +33,11 @@ describe('vite.config.ts federation contract', () => {
     expect(existsSync(path.join(ROOT, file))).toBe(true)
   })
 
-  it('exposes nothing else (the screens are one entry: the whole hours screen)', () => {
+  it('exposes nothing else (the screens are one entry: the whole hours screen; the one button is the other)', () => {
     const block = /exposes: \{([^}]*)\}/.exec(config)?.[1] ?? ''
-    expect([...block.matchAll(/'(\.\/[^']+)':/g)].map((match) => match[1]).sort()).toEqual(Object.keys(EXPOSES).sort())
+    const exposed = [...block.matchAll(/'(\.\/[^']+)':/g)].map((match) => match[1]).sort()
+    expect(exposed).toEqual(['./App', './RecordHours', './version'])
+    expect(exposed).toEqual(Object.keys(EXPOSES).sort())
   })
 
   it('serves remoteEntry.js and pins port 5184 for dev and preview (strictPort)', () => {
