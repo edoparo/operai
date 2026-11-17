@@ -389,7 +389,10 @@ indeterminate). Use the plain `<input type="checkbox">` with a `<label>`.
   strengthens. Never `hover:opacity-*` on a row.
 - **`ListRows`** for a list where each row opens one record (`<Link
   className={listRowClassName}>`): a status, one or two meta lines, a figure.
-  More than about three comparable columns → `DataTable`.
+  More than about three comparable columns → `DataTable`. Give each row a `key`
+  that names its record (its id): the list keeps a keyed row's element, and what
+  it holds (a message shown in the row, an open menu), when a row above it is
+  added or removed. A row with no key is kept by its position.
 - **Paging (INC-15) follows the API:** an offset endpoint that reports a total
   uses `Pagination` (Previous / Next, "Page 2 of 5 — showing 26–50 of 112"); a
   cursor endpoint uses `LoadMore`. A list whose endpoint returns everything is
