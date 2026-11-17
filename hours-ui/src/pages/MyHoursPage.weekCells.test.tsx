@@ -38,6 +38,7 @@ import {
   timeEntryView,
 } from '../test-support/fakeApi'
 import type { FakeHandler } from '../test-support/fakeApi'
+import { afterAFrame, emulateFocusFixup } from '../test-support/focusFixup'
 import { LISTS, TODAY_INSTANT, totalsHandler } from '../test-support/fixtures/myHours'
 import { typeDuration } from '../test-support/typeDuration'
 import type { EntryInput, EntryOnInput, EntryPatch, TimeEntryView } from '../lib/hoursApi.types'
@@ -1208,5 +1209,41 @@ describe('after a write from the cell dialog (AC-5.20, design S8)', () => {
 
     expect(screen.queryByRole('dialog')).toBeNull()
     await waitFor(() => expect(document.activeElement).toBe(heading()))
+  })
+})
+
+describe('where the keyboard is after a delete from the cell that failed (QE round 1; design S8 and § Accessibility)', () => {
+  // A request takes a frame or more, and a browser takes focus off the disabled Confirm in that time.
+  let stopFixup: () => void
+  beforeEach(() => {
+    stopFixup = emulateFocusFixup()
+  })
+  afterEach(() => stopFixup())
+
+  const confirmButton = () => within(deleteDialog()).getByRole('button', { name: e.delete.confirm })
+
+  it('Confirm has it again with the error shown, the cell dialog still behind it, and Enter on it asks again', async () => {
+    let calls = 0
+    useApi({
+      'DELETE /time-entries/:id': (_url, _init, params) => {
+        if (++calls === 1) return afterAFrame({ status: 503, body: problem(503) })
+        held = held.filter((item) => item.id !== params['id'])
+        return { status: 204 }
+      },
+    })
+    await renderPage()
+    await screen.findByTestId('hours-week-table')
+    await openCellOf('project:p-alpha', '2026-11-10')
+
+    await userEvent.click(deleteOf(TUE_1))
+    await confirmDelete()
+
+    expect((await within(deleteDialog()).findByRole('alert')).textContent).toBe(e.delete.error)
+    await waitFor(() => expect(document.activeElement).toBe(confirmButton()))
+    expect(cellDialog()).not.toBeNull()
+
+    await userEvent.keyboard('{Enter}')
+    await waitFor(() => expect(deleteCalls()).toHaveLength(2))
+    await waitFor(() => expect(screen.queryByRole('alertdialog')).toBeNull())
   })
 })
