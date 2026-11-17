@@ -1,5 +1,17 @@
 # @operai/crm-ui
 
+## 0.4.0
+
+### Minor Changes
+
+- 4b6e43e: The offer wizard shows the letterhead service's pages when `GET /scope` says `letterheadService` (specs/20261116-letterhead-service): a `ServicePreview` built on `PagePreview` and `useServicePreview` (the latest result wins, with busy and refused states), a `LetterheadNotice` for an entity with no letterhead or a value too long for the header or footer, linking to Letterheads, the same pages in Try the wizard in the template editor, generate errors for the service path, and Settings without the letterhead upload card (the service owns the letterhead). Offers carry `letterheadVersion` in their type, an over-long section is refused like generate does, and English and Italian strings cover the new states. With the switch off, or an older crm-api, the browser-drawn preview and the upload card stay.
+
+### Patch Changes
+
+- 87fe5cf: The company, contact and deal dialogs now move focus to the field the server refused (scrolled into view, marked invalid and described by the message), or to the announced error banner when the refusal names no field, on create and on edit. Before, focus stayed on `<body>` and a refused field in a tall dialog was out of sight.
+- 07dca8d: The 503 of the isolated PDF checks is documented and translated. crm-api's OpenAPI now names `pdf_check_busy` and `pdf_check_unavailable` on the six routes that can answer them (letterhead confirm and link, attachment confirm, offer generate and edit, draft generate), and crm-ui says both in English and Italian instead of showing the server's English detail.
+- bc1bf94: Patch the `zod` and `undici` advisories in the frontends' lockfiles: `zod` (reached through better-auth and eslint-plugin-react-hooks) moves to 4.6.7 and `undici` (reached through jsdom, tests only) to 7.30.1. Lockfile-only, both within the parents' existing ranges; no package.json change.
+
 ## 0.3.0
 
 ### Minor Changes

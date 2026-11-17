@@ -1,5 +1,17 @@
 # @operai/auth
 
+## 0.5.0
+
+### Minor Changes
+
+- 4b6e43e: Add the `letterheads` permission catalog (specs/20261116-letterhead-service): `letterheads:access` and the entity-conditioned `letterhead:manage`, registered in the declared catalogs and the app list. The seed gives both to `admin` only, `letterhead:manage` unconditioned; every other role gets them by an administrator's grant. Add `letterhead:render` to the known service scopes, so a service client (crm-api first) can mint a token the letterhead service verifies.
+
+### Patch Changes
+
+- 1775bbc: Moves auth to zod 4 (4.6.7) and `@hono/zod-openapi` 1.6.3, and `@scalar/hono-api-reference` to 0.12.17, closing the zod memory-exhaustion advisory (GHSA-mrhx-c7xc-m3w5, zod before 4.6.6, no 3.x fix); better-auth already used zod 4, so the service now resolves one zod. Every validation failure keeps its Problem document (type, title, status, detail, instance); only the default wording inside `detail` changes to zod 4's (for example `Required` becomes `Invalid input: expected string, received undefined`). In the OpenAPI document, an enum that is also nullable now lists `null` among its values (six places: the invitation `emailDelivery` in five responses and the `entity` of a user patch); nothing else changes. A JSON body sent with another Content-Type, or none, now answers 415 as a Problem document instead of being read as an empty body; a body that is optional (approving an access request) still accepts no body at all. A malformed `ALLOWED_SIGNUP_DOMAINS` next to another invalid variable now exits with the listed errors instead of a TypeError. A page number above 2^53 and a datetime without seconds are no longer accepted, and the `/docs` page loads Scalar through a different script.
+- 8d5ed71: Pins `hono` to 4.13.16 in every backend (it was a `^4.6.16` range that had resolved to 4.12.12 through 4.13.16 depending on the service), closing the hono advisories reported by `bun audit`, among them the CORS wildcard-origin reflection with credentials (GHSA-88fw-hqm2-52qc), the `bodyLimit()` bypass for chunked bodies (GHSA-9vqf-7f2p-gf9v), the CORS preflight ReDoS (GHSA-8j4g-w8fx-2239), the `mount()` prefix bypass (GHSA-4m76-xfj5-7975) and the RegExpRouter wildcard-middleware skip (GHSA-h7mg-cq63-vhpq). `@hono/node-server`, which only reaches the services through `prisma > @prisma/dev` (pinned there to 1.19.11, used by `prisma dev` and never at runtime), is overridden to 2.1.6 in each `package.json`, closing four path-handling advisories (GHSA-92pp-h63x-v22m, GHSA-frvp-7c67-39w9, GHSA-rmxm-3fg6-px4f, GHSA-jpvv-r467-5p4w). No route, status code or response changes.
+- 4cef202: Removes the stale `pnpm-lock.yaml` and `pnpm-workspace.yaml` from these Bun services. Their only lockfile is now `bun.lock`, which is what the Dockerfiles and CI install from; the leftover pnpm lockfiles still listed zod 3 and kept the zod advisory (GHSA-mrhx-c7xc-m3w5) showing in dependency scanners. No runtime change.
+
 ## 0.4.0
 
 ### Minor Changes

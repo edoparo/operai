@@ -1,5 +1,11 @@
 # @operai/notify-ui
 
+## 0.1.2
+
+### Patch Changes
+
+- bc1bf94: Patch the `zod` and `undici` advisories in the frontends' lockfiles: `zod` (reached through better-auth and eslint-plugin-react-hooks) moves to 4.6.7 and `undici` (reached through jsdom, tests only) to 7.30.1. Lockfile-only, both within the parents' existing ranges; no package.json change.
+
 ## 0.1.1
 
 ### Patch Changes

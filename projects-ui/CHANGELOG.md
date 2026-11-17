@@ -1,5 +1,12 @@
 # @operai/projects-ui
 
+## 0.3.1
+
+### Patch Changes
+
+- bc1bf94: Patch the `zod` and `undici` advisories in the frontends' lockfiles: `zod` (reached through better-auth and eslint-plugin-react-hooks) moves to 4.6.7 and `undici` (reached through jsdom, tests only) to 7.30.1. Lockfile-only, both within the parents' existing ranges; no package.json change.
+- 0927064: Align `vitest` to 4 (`^4.1.12`, as the other frontends), closing the two critical `tinypool` and the `vitest` / `@vitest/mocker` advisories that vitest 3 pulled in. Tests and tooling only; the app bundle is unchanged. `tsconfig.app.json` now declares the `node` types explicitly (vitest 3 used to bring them in transitively).
+
 ## 0.3.0
 
 ### Minor Changes

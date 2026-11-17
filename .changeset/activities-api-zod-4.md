@@ -1,5 +1,0 @@
----
-'@operai/activities-api': patch
----
-
-Moves activities-api to zod 4 (4.6.7) and `@hono/zod-openapi` 1.6.3, and `@scalar/hono-api-reference` to 0.12.17, closing the zod memory-exhaustion advisory (GHSA-mrhx-c7xc-m3w5, zod before 4.6.6, no 3.x fix); the Scalar bump is needed because the old one pulled a second, vulnerable zod. Every rejected request keeps its Problem document (422 with `field` and `errors`), but zod's own wording of the messages changes (for example `Required` for a missing member becomes `Invalid input: expected string, received undefined`). A JSON body sent with another Content-Type, or none, now answers 415 instead of 422. A datetime without seconds or with an offset written `+0200`, a `fileId` or `noticeId` that is not a standard UUID, and a `sizeBytes` beyond the safe integer range are now refused with 422. The OpenAPI document differs only in that the task `description` request member now states `additionalProperties` (any value), which it always allowed. The `/docs` page loads Scalar through a different script. `ACTIVITIES_MAINTENANCE` still turns maintenance on only for the literal `true`.
