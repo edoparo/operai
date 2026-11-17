@@ -10,7 +10,7 @@ import { formatDate, formatDateLong } from '@operai/ui'
 import type { EntryOn } from '../lib/hoursApi.types'
 import { onPhrase, rowName } from '../lib/names'
 import { weekDays } from '../lib/week'
-import type { WeekRow } from '../lib/weekGrid'
+import type { WeekCell, WeekGrid, WeekRow } from '../lib/weekGrid'
 import { strings } from '../strings'
 
 /**
@@ -54,3 +54,22 @@ export const rowLabel = (row: WeekRow): string => {
  * name of a record the viewer may not read.
  */
 export const rowPhrase = (row: WeekRow): string => onPhrase(onOf(row))
+
+/**
+ * The cell of the grid a cell dialog was opened on (design S8): the row, the cell and the day's place in the week
+ * (Monday is 0), looked up by the row's key and the day because the grid itself is replaced every time the week is read
+ * again. `null` once the cell holds no entry — the row is gone from the week, or this day of it is empty — which is the
+ * page's cue that the dialog has nothing left to list.
+ */
+export const cellOf = (
+  grid: WeekGrid,
+  rowKey: string,
+  day: string,
+): { row: WeekRow; cell: WeekCell; index: number } | null => {
+  const row = grid.rows.find((candidate) => candidate.key === rowKey)
+  const cell = row?.cells[day]
+  const index = grid.days.indexOf(day)
+  return row !== undefined && cell !== undefined && cell.entries.length > 0 && index !== -1
+    ? { row, cell, index }
+    : null
+}

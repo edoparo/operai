@@ -12,7 +12,7 @@
  * Sunday 15 have not come.
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
+import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { RouterProvider, createMemoryHistory } from '@tanstack/react-router'
 
@@ -726,5 +726,483 @@ describe('the Week never shows what it read before the entries changed (useHours
     await screen.findByTestId('hours-week-table')
     expect(figuresOf('project:p-alpha')).toEqual(['', '2 h 30', '', '', '', '', '', '2 h 30'])
     expect(figuresOf('total')[7]).toBe('3 h 30')
+  })
+})
+
+/* ─── T12: a cell's entries ───────────────────────────────────────────────────────────────────────────────────── */
+
+const MONDAY_LONG = 'Monday 9 November 2026'
+const patchCalls = () => requests(api, 'PATCH /time-entries/:id')
+const deleteCalls = () => requests(api, 'DELETE /time-entries/:id')
+const cellOpener = (key: string, day: string) => cellButton(key, day) as HTMLElement
+const openCellOf = (key: string, day: string) => userEvent.click(cellOpener(key, day))
+const cellDialog = (name = 'Project: Alpenstrom') => screen.getByRole('dialog', { name })
+const editDialog = () => screen.getByRole('dialog', { name: e.dialog.editTitle })
+const deleteDialog = () => screen.getByRole('alertdialog', { name: e.delete.title })
+const editOf = (id: string) => screen.getByTestId(`hours-entry-${id}-edit`)
+const deleteOf = (id: string) => screen.getByTestId(`hours-entry-${id}-delete`)
+const cellHeading = (name = 'Project: Alpenstrom') => screen.getByRole('heading', { name })
+const saveEdit = () => userEvent.click(within(editDialog()).getByRole('button', { name: e.dialog.save }))
+const editDuration = () => within(editDialog()).getByRole('textbox', { name: f.duration.label })
+const editDay = () => within(editDialog()).getByLabelText(new RegExp(`^${f.day}`)) as HTMLInputElement
+const confirmDelete = () => userEvent.click(within(deleteDialog()).getByRole('button', { name: e.delete.confirm }))
+
+/** A second entry of Alpenstrom on Monday, so that cell holds two: 4 h and 1 h 30. */
+const SUPPORT_CALL = (): TimeEntryView =>
+  timeEntryView({
+    id: 'e-mon2',
+    day: '2026-11-09',
+    minutes: 90,
+    on: projectOn('p-alpha', 'Alpenstrom'),
+    note: 'Support call',
+  })
+
+/** The ids the first Monday entry and the second Tuesday one of the seed have. */
+const MON_1 = SEED[0]!.id
+const TUE_1 = SEED[1]!.id
+const WED_BRERA = SEED[2]!.id
+
+describe('a cell that holds hours opens its entries (AC-5.15)', () => {
+  it('is titled with the row and the day, lists the cell’s entries as the List does, and opens on the first Edit', async () => {
+    useApi()
+    held.push(SUPPORT_CALL())
+    await renderPage()
+    await screen.findByTestId('hours-week-table')
+
+    await userEvent.click(screen.getByRole('button', { name: w.cell.open('5 h 30', ALPENSTROM, MONDAY_LONG, 2) }))
+
+    const open = cellDialog()
+    expect(document.getElementById(open.getAttribute('aria-describedby')!)!.textContent).toBe(
+      'Monday 9 November 2026 · 2 entries, 5 h 30',
+    )
+    const items = within(open).getAllByRole('listitem')
+    expect(items).toHaveLength(2)
+    expect(within(items[0]!).getByTestId(`hours-entry-${MON_1}`)).not.toBeNull()
+    expect(within(items[1]!).getByTestId('hours-entry-e-mon2')).not.toBeNull()
+    expect(within(open).getByTestId('hours-entry-e-mon2').textContent).toContain('Support call')
+    expect(editOf('e-mon2').getAttribute('aria-label')).toBe('Edit 1 h 30 on Alpenstrom, 09.11.2026')
+    expect(document.activeElement).toBe(editOf(MON_1))
+    // Nothing was written or read for it: the entries are the grid's.
+    expect(postCalls()).toHaveLength(0)
+    expect(entriesCalls()).toHaveLength(1)
+  })
+
+  it.each([
+    ['Close', () => userEvent.click(screen.getByTestId('hours-week-cell-done'))],
+    ['×', () => userEvent.click(screen.getByTestId('hours-week-cell-close'))],
+    ['Escape', () => userEvent.keyboard('{Escape}')],
+  ])('%s closes it with nothing sent or read, and focus goes back to the cell', async (_how, close) => {
+    useApi()
+    await renderPage()
+    await screen.findByTestId('hours-week-table')
+    const before = entriesCalls().length
+
+    await openCellOf('project:p-alpha', '2026-11-09')
+    await close()
+
+    expect(screen.queryByRole('dialog')).toBeNull()
+    expect(entriesCalls()).toHaveLength(before)
+    expect(document.activeElement).toBe(cellOpener('project:p-alpha', '2026-11-09'))
+  })
+
+  it('a deal’s cell opens on the deal, and the dialog is that row’s alone', async () => {
+    useApi()
+    await renderPage()
+    await screen.findByTestId('hours-week-table')
+
+    await openCellOf('deal:d-brera', '2026-11-11')
+
+    expect(cellDialog('Deal: Brera configurator')).not.toBeNull()
+    expect(within(cellDialog('Deal: Brera configurator')).getAllByRole('listitem')).toHaveLength(1)
+  })
+
+  it('leaving the week while it is open closes it for good: coming back does not find it open', async () => {
+    useApi()
+    const router = await renderPage()
+    await screen.findByTestId('hours-week-table')
+    await openCellOf('project:p-alpha', '2026-11-09')
+    expect(cellDialog()).not.toBeNull()
+
+    act(() => router.history.push(`/hours?view=week&week=${LAST_MONDAY}`))
+    await waitFor(() => expect(heading().textContent).toContain('02.11.2026'))
+    expect(screen.queryByRole('dialog')).toBeNull()
+
+    act(() => router.history.back())
+    await waitFor(() => expect(heading().textContent).toContain('09.11.2026'))
+    await screen.findByTestId('hours-week-table')
+    expect(screen.queryByRole('dialog')).toBeNull()
+  })
+})
+
+describe('Edit from the cell (AC-5.16, AC-5.20)', () => {
+  it('opens the entry dialog on that entry over the cell dialog, PATCHes only what changed, and the figures follow', async () => {
+    useApi()
+    held.push(SUPPORT_CALL())
+    await renderPage()
+    await screen.findByTestId('hours-week-table')
+    await openCellOf('project:p-alpha', '2026-11-09')
+
+    await userEvent.click(editOf('e-mon2'))
+
+    // Over it: both are there, the entry dialog filled from the entry.
+    expect(cellDialog()).not.toBeNull()
+    expect(editDay().value).toBe('2026-11-09')
+    expect(editDuration()).toHaveProperty('value', '1 h 30')
+    await typeDuration(editDuration(), '2')
+    await saveEdit()
+
+    await waitFor(() => expect(patchCalls()).toHaveLength(1))
+    expect(patchCalls()[0]).toMatchObject({ path: '/time-entries/e-mon2', body: { minutes: 120 } })
+    await waitFor(() => expect(screen.queryByRole('dialog', { name: e.dialog.editTitle })).toBeNull())
+    // The week is read again and every figure follows, behind the dialog and in it.
+    await waitFor(() => expect(figuresOf('project:p-alpha')).toEqual(['6 h', '2 h 30', '', '', '', '', '', '8 h 30']))
+    expect(within(cellDialog()).getByTestId('hours-entry-e-mon2').textContent).toContain('2 h')
+    expect(document.getElementById(cellDialog().getAttribute('aria-describedby')!)!.textContent).toBe(
+      'Monday 9 November 2026 · 2 entries, 6 h',
+    )
+    // Focus is back on that entry’s Edit, in the dialog: not on the page behind it.
+    expect(document.activeElement).toBe(editOf('e-mon2'))
+    expect((await screen.findByTestId('hours-entry-saved')).textContent).toBe(e.saved)
+  })
+
+  it('Cancel sends nothing and gives focus back to that entry’s Edit', async () => {
+    useApi()
+    await renderPage()
+    await screen.findByTestId('hours-week-table')
+    await openCellOf('project:p-alpha', '2026-11-09')
+    const before = entriesCalls().length
+
+    await userEvent.click(editOf(MON_1))
+    await userEvent.click(within(editDialog()).getByRole('button', { name: strings.common.cancel }))
+
+    expect(patchCalls()).toHaveLength(0)
+    expect(entriesCalls()).toHaveLength(before)
+    expect(cellDialog()).not.toBeNull()
+    expect(document.activeElement).toBe(editOf(MON_1))
+  })
+
+  it('moving an entry to another day takes it out of the cell: the dialog lists what is left, focus on its heading', async () => {
+    useApi()
+    held.push(SUPPORT_CALL())
+    await renderPage()
+    await screen.findByTestId('hours-week-table')
+    await openCellOf('project:p-alpha', '2026-11-09')
+
+    await userEvent.click(editOf('e-mon2'))
+    fireEvent.change(editDay(), { target: { value: '2026-11-10' } })
+    await saveEdit()
+
+    await waitFor(() => expect(patchCalls()[0]?.body).toEqual({ day: '2026-11-10' }))
+    await waitFor(() => expect(screen.queryByTestId('hours-entry-e-mon2')).toBeNull())
+    expect(within(cellDialog()).getAllByRole('listitem')).toHaveLength(1)
+    expect(figuresOf('project:p-alpha')).toEqual(['4 h', '4 h', '', '', '', '', '', '8 h'])
+    await waitFor(() => expect(document.activeElement).toBe(cellHeading()))
+    expect(cellDialog().contains(document.activeElement)).toBe(true)
+  })
+
+  it('moving the only entry of a cell closes the dialog once the new figures are there, and focus is on the cell, now empty', async () => {
+    useApi()
+    await renderPage()
+    await screen.findByTestId('hours-week-table')
+    await openCellOf('deal:d-brera', '2026-11-11')
+
+    await userEvent.click(editOf(WED_BRERA))
+    fireEvent.change(editDay(), { target: { value: '2026-11-12' } })
+    await saveEdit()
+
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull())
+    // Brera’s Wednesday is empty and offers recording again; Thursday holds the hour.
+    expect(figuresOf('deal:d-brera')).toEqual(['', '', '', '1 h', '', '', '', '1 h'])
+    const cell = cellOpener('deal:d-brera', '2026-11-11')
+    expect(cell.getAttribute('aria-label')).toMatch(/^Record hours on Brera configurator, Wednesday 11 November 2026$/)
+    await waitFor(() => expect(document.activeElement).toBe(cell))
+  })
+
+  it('an entry that is already gone when saved: the dialog says so, and closing it leaves focus in the cell dialog, not on the page', async () => {
+    useApi({
+      'PATCH /time-entries/:id': (_url, _init, params) => {
+        held = held.filter((item) => item.id !== params['id'])
+        return { status: 404, body: problem(404) }
+      },
+    })
+    held.push(SUPPORT_CALL())
+    await renderPage()
+    await screen.findByTestId('hours-week-table')
+    await openCellOf('project:p-alpha', '2026-11-09')
+    const before = entriesCalls().length
+
+    await userEvent.click(editOf('e-mon2'))
+    await typeDuration(editDuration(), '2')
+    await saveEdit()
+    expect((await within(editDialog()).findByRole('alert')).textContent).toBe(e.errors.entryGone)
+    await userEvent.click(within(editDialog()).getByRole('button', { name: strings.common.cancel }))
+
+    await waitFor(() => expect(entriesCalls()).toHaveLength(before + 1))
+    await waitFor(() => expect(screen.queryByTestId('hours-entry-e-mon2')).toBeNull())
+    await waitFor(() => expect(document.activeElement).toBe(cellHeading()))
+    expect(document.activeElement).not.toBe(screen.getByRole('heading', { level: 2, name: strings.myHours.heading }))
+  })
+})
+
+describe('Delete from the cell (AC-5.17, AC-5.20)', () => {
+  it('asks first: nothing is sent until Confirm, and Cancel sends nothing and gives focus back to Delete', async () => {
+    useApi()
+    await renderPage()
+    await screen.findByTestId('hours-week-table')
+    await openCellOf('project:p-alpha', '2026-11-09')
+    const before = entriesCalls().length
+
+    await userEvent.click(deleteOf(MON_1))
+
+    expect(deleteDialog().textContent).toContain("4 h on Alpenstrom, 09.11.2026. This can't be undone.")
+    expect(cellDialog()).not.toBeNull()
+    expect(deleteCalls()).toHaveLength(0)
+    await userEvent.click(within(deleteDialog()).getByRole('button', { name: strings.common.cancel }))
+    expect(screen.queryByRole('alertdialog')).toBeNull()
+    expect(deleteCalls()).toHaveLength(0)
+    expect(entriesCalls()).toHaveLength(before)
+    expect(document.activeElement).toBe(deleteOf(MON_1))
+  })
+
+  it('Confirm deletes it, the figures follow, the dialog lists the rest with focus on its heading, and the page says so', async () => {
+    useApi()
+    held.push(SUPPORT_CALL())
+    await renderPage()
+    await screen.findByTestId('hours-week-table')
+    await openCellOf('project:p-alpha', '2026-11-09')
+
+    await userEvent.click(deleteOf('e-mon2'))
+    await confirmDelete()
+
+    await waitFor(() => expect(deleteCalls()).toHaveLength(1))
+    expect(deleteCalls()[0]).toMatchObject({ method: 'DELETE', path: '/time-entries/e-mon2' })
+    await waitFor(() => expect(screen.queryByTestId('hours-entry-e-mon2')).toBeNull())
+    expect(figuresOf('project:p-alpha')).toEqual(['4 h', '2 h 30', '', '', '', '', '', '6 h 30'])
+    expect(figuresOf('total')[7]).toBe('7 h 30')
+    expect(within(cellDialog()).getAllByRole('listitem')).toHaveLength(1)
+    await waitFor(() => expect(document.activeElement).toBe(cellHeading()))
+    expect((await screen.findByTestId('hours-entry-deleted')).textContent).toBe(e.delete.deleted)
+  })
+
+  it('deleting the last entry of a cell closes the dialog after the new figures, and focus goes to the cell, now empty', async () => {
+    useApi()
+    await renderPage()
+    await screen.findByTestId('hours-week-table')
+    await openCellOf('project:p-alpha', '2026-11-10')
+
+    await userEvent.click(deleteOf(TUE_1))
+    await confirmDelete()
+
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull())
+    expect(screen.queryByRole('alertdialog')).toBeNull()
+    expect(figuresOf('project:p-alpha')).toEqual(['4 h', '', '', '', '', '', '', '4 h'])
+    const cell = cellOpener('project:p-alpha', '2026-11-10')
+    expect(cell.getAttribute('aria-label')).toBe('Record hours on Alpenstrom, Tuesday 10 November 2026')
+    await waitFor(() => expect(document.activeElement).toBe(cell))
+    expect(screen.getByTestId('hours-entry-deleted')).not.toBeNull()
+  })
+
+  it('deleting the only entry of a row leaves the week without that row, and focus goes to the card’s heading', async () => {
+    useApi()
+    await renderPage()
+    await screen.findByTestId('hours-week-table')
+    await openCellOf('deal:d-brera', '2026-11-11')
+
+    await userEvent.click(deleteOf(WED_BRERA))
+    await confirmDelete()
+
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull())
+    expect(screen.queryByTestId('hours-week-row-deal:d-brera')).toBeNull()
+    await waitFor(() => expect(document.activeElement).toBe(heading()))
+  })
+
+  it('an entry that is already gone (404) is what the person wanted: it says so and the cell follows the same way', async () => {
+    useApi({
+      'DELETE /time-entries/:id': (_url, _init, params) => {
+        held = held.filter((item) => item.id !== params['id'])
+        return { status: 404, body: problem(404) }
+      },
+    })
+    await renderPage()
+    await screen.findByTestId('hours-week-table')
+    await openCellOf('project:p-alpha', '2026-11-10')
+
+    await userEvent.click(deleteOf(TUE_1))
+    await confirmDelete()
+
+    expect((await screen.findByTestId('hours-entry-gone')).textContent).toBe(e.delete.gone)
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull())
+    await waitFor(() => expect(document.activeElement).toBe(cellOpener('project:p-alpha', '2026-11-10')))
+  })
+
+  it('a failed delete keeps the confirmation open with the error, the cell dialog and its entries as they were, and reads nothing', async () => {
+    useApi({ 'DELETE /time-entries/:id': () => ({ status: 500, body: problem(500) }) })
+    await renderPage()
+    await screen.findByTestId('hours-week-table')
+    await openCellOf('project:p-alpha', '2026-11-10')
+    const before = entriesCalls().length
+
+    await userEvent.click(deleteOf(TUE_1))
+    await confirmDelete()
+
+    expect((await within(deleteDialog()).findByRole('alert')).textContent).toBe(e.delete.error)
+    expect(cellDialog()).not.toBeNull()
+    expect(screen.getByTestId(`hours-entry-${TUE_1}`)).not.toBeNull()
+    expect(entriesCalls()).toHaveLength(before)
+  })
+})
+
+describe('Add hours from the cell (AC-5.18, AC-5.20)', () => {
+  it('opens the entry dialog on that day and row with focus on Duration, over the cell dialog; once saved the entry is in the list', async () => {
+    useApi()
+    await renderPage()
+    await screen.findByTestId('hours-week-table')
+    await openCellOf('project:p-alpha', '2026-11-09')
+
+    await userEvent.click(screen.getByTestId('hours-week-cell-add'))
+
+    expect(dayField().value).toBe('2026-11-09')
+    expect(inDialog().getByRole('radio', { name: f.on.options.project })).toHaveProperty('checked', true)
+    expect((inDialog().getByRole('combobox', { name: f.project.label }) as HTMLInputElement).value).toBe(ALPENSTROM)
+    expect(document.activeElement).toBe(durationField())
+    expect(cellDialog()).not.toBeNull()
+    await typeDuration(durationField(), '1')
+    await save()
+
+    await waitFor(() => expect(postCalls()).toHaveLength(1))
+    expect(postCalls()[0]!.body).toEqual({ day: '2026-11-09', minutes: 60, on: { type: 'project', id: 'p-alpha' } })
+    await waitFor(() => expect(within(cellDialog()).getAllByRole('listitem')).toHaveLength(2))
+    expect(figuresOf('project:p-alpha')).toEqual(['5 h', '2 h 30', '', '', '', '', '', '7 h 30'])
+    // Focus is where it was before the dialog opened: Add hours, in the cell dialog — not the page behind it.
+    expect(document.activeElement).toBe(screen.getByTestId('hours-week-cell-add'))
+    expect((await screen.findByTestId('hours-entry-saved')).textContent).toBe(e.saved)
+  })
+
+  it('is not offered on a row the person cannot read nor on a retired category’s, whose entries still offer Edit and Delete', async () => {
+    useApi()
+    const secret = timeEntryView({
+      id: 'e-secret',
+      day: '2026-11-09',
+      minutes: 60,
+      on: projectOn('p-secret', null, 'hidden'),
+    })
+    const seminar = timeEntryView({
+      id: 'e-seminar',
+      day: '2026-11-10',
+      minutes: 120,
+      on: otherWorkOn('Seminars', 'tc-seminars', true),
+    })
+    held.push(secret, seminar)
+    await renderPage()
+    await screen.findByTestId('hours-week-table')
+
+    await openCellOf('project:p-secret', '2026-11-09')
+    expect(cellDialog(`Project: ${strings.names.hidden}`)).not.toBeNull()
+    expect(screen.queryByTestId('hours-week-cell-add')).toBeNull()
+    expect(editOf('e-secret')).not.toBeNull()
+    expect(deleteOf('e-secret')).not.toBeNull()
+    await userEvent.click(screen.getByTestId('hours-week-cell-done'))
+
+    await openCellOf('category:tc-seminars', '2026-11-10')
+    expect(cellDialog('Other work: Seminars (retired)')).not.toBeNull()
+    expect(screen.queryByTestId('hours-week-cell-add')).toBeNull()
+    expect(editOf('e-seminar')).not.toBeNull()
+    expect(deleteOf('e-seminar')).not.toBeNull()
+  })
+
+  it('is not offered on a day after today, should the server hold hours on one', async () => {
+    useApi()
+    held.push(
+      timeEntryView({ id: 'e-future', day: '2026-11-14', minutes: 60, on: otherWorkOn('Formazione', 'tc-formazione') }),
+    )
+    await renderPage()
+    await screen.findByTestId('hours-week-table')
+
+    await openCellOf('category:tc-formazione', '2026-11-14')
+
+    expect(cellDialog('Other work: Formazione')).not.toBeNull()
+    expect(screen.queryByTestId('hours-week-cell-add')).toBeNull()
+  })
+})
+
+describe('after a write from the cell dialog (AC-5.20, design S8)', () => {
+  it('closing the dialog puts focus on the cell: the button it was opened from went with the grid that was read again', async () => {
+    useApi()
+    await renderPage()
+    await screen.findByTestId('hours-week-table')
+    const opener = cellOpener('project:p-alpha', '2026-11-09')
+    await userEvent.click(opener)
+
+    await userEvent.click(editOf(MON_1))
+    await typeDuration(editDuration(), '2')
+    await saveEdit()
+    await waitFor(() => expect(figuresOf('project:p-alpha')[0]).toBe('2 h'))
+    expect(opener.isConnected).toBe(false)
+    await userEvent.keyboard('{Escape}')
+
+    expect(screen.queryByRole('dialog')).toBeNull()
+    await waitFor(() => expect(document.activeElement).toBe(cellOpener('project:p-alpha', '2026-11-09')))
+  })
+
+  it('keeps its entries and its buttons while the week is read again — the grid behind it is a skeleton — and updates in place when the new one lands', async () => {
+    const reading = deferred<{ status: number; body: unknown }>()
+    let holdNext = false
+    useApi({
+      'GET /time-entries': (url, init, params) =>
+        holdNext ? reading.promise : entriesInRange(() => held)(url, init, params),
+    })
+    held.push(SUPPORT_CALL())
+    await renderPage()
+    await screen.findByTestId('hours-week-table')
+    await openCellOf('project:p-alpha', '2026-11-09')
+    const row = screen.getByTestId('hours-entry-e-mon2')
+
+    await userEvent.click(editOf('e-mon2'))
+    await typeDuration(editDuration(), '2')
+    holdNext = true
+    await saveEdit()
+
+    // The read is in flight: the grid is replaced by its skeleton, and the dialog is as it was, in the same DOM.
+    await screen.findByTestId('hours-week-skeleton')
+    expect(screen.queryByTestId('hours-week-table')).toBeNull()
+    expect(cellDialog()).not.toBeNull()
+    expect(screen.getByTestId('hours-entry-e-mon2')).toBe(row)
+    expect(row.textContent).toContain('1 h 30')
+    expect(document.activeElement).toBe(editOf('e-mon2'))
+
+    holdNext = false
+    reading.resolve({ status: 200, body: entriesPage(held.filter((item) => item.day >= THIS_MONDAY)) })
+    await screen.findByTestId('hours-week-table')
+    expect(screen.getByTestId('hours-entry-e-mon2')).toBe(row)
+    expect(row.textContent).toContain('2 h')
+    expect(document.activeElement).toBe(editOf('e-mon2'))
+  })
+
+  it('a re-read that fails leaves the dialog usable with the entries it last had, the error behind it, and closing it goes to the heading', async () => {
+    let failing = false
+    useApi({
+      'GET /time-entries': (url, init, params) =>
+        failing ? { status: 500, body: problem(500) } : entriesInRange(() => held)(url, init, params),
+      'PATCH /time-entries/:id': (_url, init) => {
+        failing = true
+        return { status: 200, body: { ...held[0]!, ...(JSON.parse(String(init?.body)) as object) } }
+      },
+    })
+    await renderPage()
+    await screen.findByTestId('hours-week-table')
+    await openCellOf('project:p-alpha', '2026-11-09')
+
+    await userEvent.click(editOf(MON_1))
+    await typeDuration(editDuration(), '2')
+    await saveEdit()
+
+    await screen.findByTestId('hours-week-error')
+    expect(cellDialog()).not.toBeNull()
+    expect(screen.getByTestId(`hours-entry-${MON_1}`)).not.toBeNull()
+    expect((editOf(MON_1) as HTMLButtonElement).disabled).toBe(false)
+    await userEvent.click(screen.getByTestId('hours-week-cell-done'))
+
+    expect(screen.queryByRole('dialog')).toBeNull()
+    await waitFor(() => expect(document.activeElement).toBe(heading()))
   })
 })

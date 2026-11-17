@@ -49,6 +49,19 @@ const en = {
     open: (duration: string, on: string, day: string, entries: number) =>
       `${duration} on ${on}, ${day}, ${entries === 1 ? '1 entry' : `${entries} entries`}`,
   },
+  /**
+   * The cell dialog (design S8; AC-5.15–AC-5.18): the entries of one row on one day. The title is the row's kind and name,
+   * the description its day and what the cell holds. The Close button, the list's label ("Entries on <date>") and the
+   * entries' own words are the List's, reused from `common` and `entries`.
+   */
+  cellDialog: {
+    /** `kind`: "Project", "Other work"; `name`: the row's name as the row writes it ("Not visible to you" included). */
+    title: (kind: string, name: string) => `${kind}: ${name}`,
+    /** `day`: "Wednesday 18 November 2026"; `total`: the cell's figure, "6 h 30". */
+    description: (day: string, entries: number, total: string) =>
+      `${day} · ${entries === 1 ? '1 entry' : `${entries} entries`}, ${total}`,
+    add: 'Add hours',
+  },
   loading: 'Loading your week…',
   /** Polite, when a week (or its filters) has arrived. `total` is spoken ("38 hours, 30 minutes"). */
   announce: (range: string, total: string) => `${range}: ${total} in total.`,
@@ -93,6 +106,12 @@ const it: typeof en = {
     record: (on: string, day: string) => `Registra ore su ${on}, ${day}`,
     open: (duration: string, on: string, day: string, entries: number) =>
       `${duration} su ${on}, ${day}, ${entries === 1 ? '1 registrazione' : `${entries} registrazioni`}`,
+  },
+  cellDialog: {
+    title: (kind: string, name: string) => `${kind}: ${name}`,
+    description: (day: string, entries: number, total: string) =>
+      `${day} · ${entries === 1 ? '1 registrazione' : `${entries} registrazioni`}, ${total}`,
+    add: 'Aggiungi ore',
   },
   loading: 'Caricamento della tua settimana…',
   announce: (range: string, total: string) => `${range}: ${total} in totale.`,

@@ -37,8 +37,10 @@ import SuccessBanner from '../components/SuccessBanner'
 import TotalsCard from '../components/TotalsCard'
 import type { TotalsCardHandle, TotalsView } from '../components/TotalsCard'
 import ViewSwitch from '../components/ViewSwitch'
+import WeekCellDialog from '../components/WeekCellDialog'
 import WeekView from '../components/WeekView'
 import type { WeekViewHandle, WeekViewState } from '../components/WeekView'
+import { cellOf } from '../components/WeekViewModel'
 import { isCode, statusOf } from '../lib/errors'
 import { readAllEntries } from '../lib/exportPages'
 import { createEntry, deleteEntry, getTimeLists, getTotals, listEntries, updateEntry } from '../lib/hoursApi'
@@ -59,7 +61,7 @@ import { useHoursPages, useHoursQuery } from '../lib/useHoursQuery'
 import type { HoursQueryState } from '../lib/useHoursQuery'
 import { readWeekParam, weekDays } from '../lib/week'
 import { weekGrid } from '../lib/weekGrid'
-import type { WeekRow } from '../lib/weekGrid'
+import type { WeekGrid, WeekRow } from '../lib/weekGrid'
 import { strings } from '../strings'
 
 type Search = Record<string, unknown>
@@ -143,6 +145,12 @@ const dayTotalsOf = (answer: TotalsAnswer): ReadonlyMap<string, number> =>
  * focus on Duration). Every write reads the week again (the grid is replaced meanwhile, so the control that had focus
  * is gone): focus then goes to the cell that was acted on or, when the save moved the entry out of it or the cell is
  * not a control, to the card's heading — never to the page body; a save on a day outside the week says so.
+ *
+ * A cell that holds hours opens `WeekCellDialog` (T12, design F5, S8): its entries with the List's Edit and Delete, and
+ * Add hours. Edit, Delete and Add hours open the same dialogs the List opens, over it. The dialog is drawn from the last
+ * week that loaded, so it keeps its entries while the week is read again after a write and updates in place when the
+ * new one lands; it closes by itself when the cell holds no entry any more, and the focus is the dialog's to keep
+ * (the page's own focus requests are for the List and for a write made with the dialog closed).
  */
 export default function MyHoursPage() {
   const navigate = useNavigate()
@@ -362,24 +370,55 @@ export default function MyHoursPage() {
   // The Week is replaced by a skeleton while it is read again after a write, so the control that had focus is gone:
   // once the new grid is there, focus goes to the cell that was acted on, else to the card's heading — never to
   // the page body (design S7 "Focus after a write"). The request waits for the read to settle and is dropped
-  // with the view.
-  const pendingWeekFocus = useRef<{ cell: string | null } | null>(null)
-  const askWeekFocus = (cell: string | null) => {
-    pendingWeekFocus.current = { cell }
-  }
+  // with the view. It is state, numbered, and the effect remembers the last one it has answered: so a request made when
+  // nothing is being read (a dialog closed by hand) is looked at on the render that follows it, which a ref
+  // read only when the status changed would never do.
+  const [weekFocus, setWeekFocus] = useState<{ id: number; cell: string | null } | null>(null)
+  const handledFocus = useRef(0)
+  const askWeekFocus = (cell: string | null) => setWeekFocus((previous) => ({ id: (previous?.id ?? 0) + 1, cell }))
   const weekStatus = week.state.status
   useEffect(() => {
-    const request = pendingWeekFocus.current
-    if (request === null) return
+    if (weekFocus === null || weekFocus.id === handledFocus.current) return
     if (!weekShown) {
-      pendingWeekFocus.current = null
+      handledFocus.current = weekFocus.id
       return
     }
     if (weekStatus === 'loading' || weekStatus === 'idle') return
-    pendingWeekFocus.current = null
-    if (weekStatus === 'loaded' && request.cell !== null && weekView.current?.focusCell(request.cell)) return
+    handledFocus.current = weekFocus.id
+    if (weekStatus === 'loaded' && weekFocus.cell !== null && weekView.current?.focusCell(weekFocus.cell)) return
     weekView.current?.focusHeading()
-  }, [weekShown, weekStatus])
+  }, [weekFocus, weekShown, weekStatus])
+
+  // The cell dialog (T12; design F5, S8). It is opened on a cell of the week and filters shown, and drawn from the last
+  // grid that loaded — not from the read in flight, which is `loading` after every write — so its list does not blank
+  // while the week is read again and then updates in place. It belongs to the Week and to the week it was opened on:
+  // leaving either closes it for good (coming back does not find it open), and so does its cell running out of entries
+  // (deleted, or edited onto another day or row): the dialog closes once the new figures are there and focus goes to the
+  // cell — an empty one, one Enter from recording again — or to the card's heading when its row is gone. An empty list
+  // in a dialog would be a dead end.
+  const [openCell, setOpenCell] = useState<{ rowKey: string; day: string; weekKey: string } | null>(null)
+  const [lastGrid, setLastGrid] = useState<{ weekKey: string; grid: WeekGrid } | null>(null)
+  if (loadedWeek !== null && lastGrid?.grid !== loadedWeek.grid) setLastGrid({ weekKey, grid: loadedWeek.grid })
+  const cellInGrid =
+    openCell !== null && lastGrid !== null && lastGrid.weekKey === openCell.weekKey
+      ? cellOf(lastGrid.grid, openCell.rowKey, openCell.day)
+      : null
+  if (openCell !== null && (!weekShown || openCell.weekKey !== weekKey)) {
+    setOpenCell(null)
+  } else if (openCell !== null && lastGrid?.weekKey === openCell.weekKey && cellInGrid === null) {
+    setOpenCell(null)
+    askWeekFocus(`${openCell.rowKey}:${openCell.day}`)
+  }
+  // Closing it by hand: the button it was opened from is still there unless a write has replaced the grid, so the
+  // library's "focus goes back to the opener" is not enough on its own.
+  const closeCell = () => {
+    if (openCell !== null) askWeekFocus(`${openCell.rowKey}:${openCell.day}`)
+    setOpenCell(null)
+  }
+  // A write made from the dialog is made over it: the page's own focus after a write (the heading, Record hours) would
+  // pull it from behind a modal. The library gives it back to the button that opened the dialog that wrote, and the
+  // cell dialog keeps the rest.
+  const fromCellDialog = cellInGrid !== null
 
   // Where focus goes once a write has taken the row it came from out of the page (the list is read again, so the
   // button that opened the dialog is gone): the heading after a delete, Record hours after an edit (design F1–F3).
@@ -418,14 +457,18 @@ export default function MyHoursPage() {
   // Recording on an empty cell of the Week (T11; design F4, S9; AC-5.12, AC-5.13): My hours' own dialog, opened on the
   // cell's day and the row's target, which can still be changed (`preset`, not `fixed`: WA6), with the keyboard on
   // Duration (`focus`, G7) because the click already chose the day and the target.
-  const [recordingCell, setRecordingCell] = useState<{ row: WeekRow; day: string } | null>(null)
-  const recordInCell = async (cell: { row: WeekRow; day: string }, input: EntryInput) => {
+  // From the cell dialog's Add hours (T12, AC-5.18) it is the same dialog, opened over the cell dialog: `viaDialog`.
+  const [recordingCell, setRecordingCell] = useState<{ row: WeekRow; day: string; viaDialog: boolean } | null>(null)
+  const recordInCell = async (cell: { row: WeekRow; day: string; viaDialog: boolean }, input: EntryInput) => {
     await createEntry(input)
     setRecordingCell(null)
     say('saved', savedMessage(input.day))
     // The cell it came from now holds the hours — unless the person changed the day or the row, which moved the entry out of it.
-    const landed = rowKeyOf(input.on) === cell.row.key && input.day === cell.day
-    askWeekFocus(landed ? `${cell.row.key}:${cell.day}` : null)
+    // Over the cell dialog the library gives focus back to Add hours, which is still there, and the dialog lists the new entry.
+    if (!cell.viaDialog) {
+      const landed = rowKeyOf(input.on) === cell.row.key && input.day === cell.day
+      askWeekFocus(landed ? `${cell.row.key}:${cell.day}` : null)
+    }
     readAgain()
   }
 
@@ -446,14 +489,14 @@ export default function MyHoursPage() {
     setEditing(null)
     say('saved', savedMessage(patch.day))
     readAgain()
-    setFocusRequest({ on: 'record' })
+    if (!fromCellDialog) setFocusRequest({ on: 'record' })
   }
   const closeEdit = () => {
     setEditing(null)
     if (!listIsStale.current) return
     listIsStale.current = false
     readAgain()
-    setFocusRequest({ on: 'heading' })
+    if (!fromCellDialog) setFocusRequest({ on: 'heading' })
   }
 
   // Deleting (T28; design F3). A 404 is "already gone": it is what the person wanted, so it closes, reads again
@@ -469,7 +512,7 @@ export default function MyHoursPage() {
     }
     setDeleting(null)
     readAgain()
-    setFocusRequest({ on: 'heading' })
+    if (!fromCellDialog) setFocusRequest({ on: 'heading' })
   }
 
   // What the Week shows in place of the grid, or the grid: one state (design S7). The refusal that blocks the List
@@ -556,7 +599,8 @@ export default function MyHoursPage() {
             onWeekChange={changeWeek}
             onRetry={week.reload}
             onClearFilters={clear}
-            onRecordCell={(row, day) => setRecordingCell({ row, day })}
+            onRecordCell={(row, day) => setRecordingCell({ row, day, viaDialog: false })}
+            onOpenCell={(row, day) => setOpenCell({ rowKey: row.key, day, weekKey })}
           />
         ) : blocked ? (
           <DealFilterUnavailable ref={blocker} onRetry={retryAll} onClear={clearDeal} />
@@ -665,6 +709,23 @@ export default function MyHoursPage() {
           onReloadLists={lists.reload}
           onSubmit={record}
           onCancel={() => setRecording(false)}
+        />
+      )}
+
+      {weekShown && openCell !== null && cellInGrid !== null && (
+        <WeekCellDialog
+          row={cellInGrid.row}
+          cell={cellInGrid.cell}
+          day={openCell.day}
+          dayIndex={cellInGrid.index}
+          onEdit={setEditing}
+          onDelete={setDeleting}
+          onAdd={
+            cellInGrid.row.preset !== null && openCell.day <= today
+              ? () => setRecordingCell({ row: cellInGrid.row, day: openCell.day, viaDialog: true })
+              : undefined
+          }
+          onClose={closeCell}
         />
       )}
 
