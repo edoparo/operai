@@ -1,5 +1,5 @@
 import { useCallback, useState } from 'react'
-import { Button, Card, ListRows, Pagination, StatePanel } from '@operai/ui'
+import { Button, Card, Pagination, StatePanel } from '@operai/ui'
 import { listActivities } from '../lib/activitiesApi'
 import type { ActivityTarget } from '../lib/activitiesApi'
 import type { Activity, CompanyRef } from '../lib/types'
@@ -17,7 +17,8 @@ const PAGE_SIZE = 10
  * (AC-1.7, AC-4.5): the activities that concern `target`, newest first,
  * paginated, with "Log activity" in the card's action. Logging, editing,
  * completing or deleting reloads the current page so the order stays the
- * server's; each confirms with a compact success banner (INC-19).
+ * server's, behind the rows already shown (no skeleton: a row that is still
+ * listed is never unmounted); each confirms with a compact success banner (INC-19).
  */
 export default function ActivityTimeline({
   target,
@@ -39,7 +40,10 @@ export default function ActivityTimeline({
       listActivities(JSON.parse(key) as ActivityTarget, { page, pageSize: PAGE_SIZE }, { signal }),
     [key, page],
   )
-  const activities = useResource(load)
+  // A write in the card re-reads the list behind the rows on screen (`cacheKey`, as the Tasks page does): a row the
+  // re-read still lists keeps its element, so the success message of hours-ui's Record hours, which lives in the row,
+  // stays until the person dismisses it, saves again or leaves (specs/20261116-record-hours-in-place, design S3, G1).
+  const activities = useResource(load, { cacheKey: `crm-activities:${JSON.stringify([key, page])}` })
 
   const changed = (message: string) => {
     setSaved(message)
@@ -48,7 +52,8 @@ export default function ActivityTimeline({
 
   let content
   if (activities.status === 'loading') content = <Loading label={t.loading} rows={2} />
-  else if (activities.status === 'error') content = <ActivityLoadFailure error={activities.error} onRetry={activities.retry} />
+  else if (activities.status === 'error')
+    content = <ActivityLoadFailure error={activities.error} onRetry={activities.retry} />
   else if (activities.data!.total === 0)
     content = (
       <StatePanel headingLevel={4} title={t.emptyTitle}>
@@ -58,17 +63,21 @@ export default function ActivityTimeline({
   else
     content = (
       <div className="flex flex-col gap-3">
-        <ListRows label={t.listLabel} testId="crm-activity-list">
+        {/* The markup of the library's `ListRows`, with each `<li>` keyed by its activity. `ListRows` keys its items
+            by position, so a row logged or removed above one shifts every row below it into a new element, and the
+            widget's message in that row goes with it (QE D3). Back to `ListRows` once the library keys by child. */}
+        <ul className="list-rows" aria-label={t.listLabel} data-testid="crm-activity-list">
           {activities.data!.items.map((activity) => (
-            <ActivityItem
-              key={activity.id}
-              activity={activity}
-              onChanged={() => changed(t.saved)}
-              onEdit={(edited) => setComposing({ activity: edited })}
-              onDeleted={() => changed(t.deleted)}
-            />
+            <li key={activity.id}>
+              <ActivityItem
+                activity={activity}
+                onChanged={() => changed(t.saved)}
+                onEdit={(edited) => setComposing({ activity: edited })}
+                onDeleted={() => changed(t.deleted)}
+              />
+            </li>
           ))}
-        </ListRows>
+        </ul>
         {activities.data!.total > PAGE_SIZE && (
           <Pagination
             page={page}
