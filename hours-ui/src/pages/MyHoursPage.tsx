@@ -270,18 +270,21 @@ export default function MyHoursPage() {
     totals.reload()
   }
 
-  // After a Retry of the blocked state, once every read has settled: focus goes to the Totals heading (the Week
-  // card's, in the Week) when they worked and back to the banner when they did not (the Retry button that had focus
-  // is gone).
+  // After a Retry of the blocked state, or of a Week that could not be read, once every read has settled: focus goes
+  // to the Totals heading (the Week card's, in the Week) when they worked and back to the banner when they did not
+  // (the Retry button that had focus is gone: in the blocked state the banner itself, in a failed Week the new Retry).
+  // A Retry whose view was left before it answered moves nothing.
+  const weekFailed = week.state.status === 'error'
   useEffect(() => {
     if (retryFor.current === null || reading) return
     const mine = retryFor.current === readKey
     retryFor.current = null
     if (!mine) return
     if (blocked) blocker.current?.focus()
+    else if (weekShown && weekFailed) weekView.current?.focusRetry()
     else if (weekShown) weekView.current?.focusHeading()
     else totalsCard.current?.focusHeading()
-  }, [readKey, reading, blocked, weekShown])
+  }, [readKey, reading, blocked, weekShown, weekFailed])
 
   // An export the refusal stopped: the Export button had focus and is gone with the Entries card, so the banner
   // takes it (design F5). A person who has gone on to another control keeps theirs.
@@ -597,7 +600,7 @@ export default function MyHoursPage() {
             filtered={filtered}
             state={weekState}
             onWeekChange={changeWeek}
-            onRetry={week.reload}
+            onRetry={retryAll}
             onClearFilters={clear}
             onRecordCell={(row, day) => setRecordingCell({ row, day, viaDialog: false })}
             onOpenCell={(row, day) => setOpenCell({ rowKey: row.key, day, weekKey })}

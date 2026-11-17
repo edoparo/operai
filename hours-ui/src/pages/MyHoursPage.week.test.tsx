@@ -804,6 +804,51 @@ describe('a read that fails (design S7 States)', () => {
     expect(entriesCalls()[1]!.query).toMatchObject({ from: LAST_MONDAY, to: LAST_SUNDAY })
   })
 
+  // QE observation: the Retry button that had focus is gone while the week is read again; nothing then gave focus anywhere.
+  describe('where focus goes after Retry of a failed read (design S7, QE)', () => {
+    const failing = () => ({ status: 500, body: problem(500) }) as FakeAnswer
+    const works: FakeHandler = (url, init, params) => entriesInRange(ENTRIES)(url, init, params)
+
+    it('a Retry that works puts focus on the Week card’s heading, as it does for the deal filter’s refusal', async () => {
+      useApi({ 'GET /time-entries': sequence(failing, works) })
+      await renderPage('/hours?view=week')
+      await userEvent.click(await screen.findByTestId('hours-week-error-retry'))
+
+      await screen.findByTestId('hours-week-table')
+      await waitFor(() => expect(document.activeElement).toBe(heading()))
+    })
+
+    it('a Retry that fails again puts focus on the new Retry button: the one that had it was replaced', async () => {
+      useApi({ 'GET /time-entries': sequence(failing, failing, works) })
+      await renderPage('/hours?view=week')
+      await userEvent.click(await screen.findByTestId('hours-week-error-retry'))
+
+      await waitFor(() => expect(entriesCalls()).toHaveLength(2))
+      const retry = await screen.findByTestId('hours-week-error-retry')
+      await waitFor(() => expect(document.activeElement).toBe(retry))
+
+      // And that one works the same way.
+      await userEvent.click(retry)
+      await screen.findByTestId('hours-week-table')
+      await waitFor(() => expect(document.activeElement).toBe(heading()))
+    })
+
+    it('a Retry whose week was left before it answered moves no focus: the person is on the navigator', async () => {
+      const slow = deferred<FakeAnswer>()
+      useApi({ 'GET /time-entries': sequence(failing, () => slow.promise, works) })
+      await renderPage('/hours?view=week')
+      await userEvent.click(await screen.findByTestId('hours-week-error-retry'))
+      await waitFor(() => expect(entriesCalls()).toHaveLength(2))
+
+      await userEvent.click(screen.getByRole('button', { name: w.nav.previous }))
+      await screen.findByTestId('hours-week-table')
+      slow.resolve({ status: 200, body: entriesPage([]) })
+      await new Promise((resolve) => setTimeout(resolve, 20))
+
+      expect(document.activeElement).toBe(screen.getByRole('button', { name: w.nav.previous }))
+    })
+  })
+
   it('is all or nothing: a later page that fails is an error, never the grid of the pages that arrived', async () => {
     useApi({
       'GET /time-entries': (url) =>

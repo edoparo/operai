@@ -39,6 +39,12 @@ export type WeekViewHandle = {
   focusHeading: () => void
   /** Moves focus to the button of the cell `<row key>:<day>`; `false`, and focus stays where it is, when the grid has none. */
   focusCell: (cell: string) => boolean
+  /**
+   * Moves focus to the Retry button of the failed read; `false`, and focus stays where it is, when the card shows none.
+   * The button that was pressed is replaced by a new one while the week is read again, so a Retry that fails again
+   * would otherwise leave the keyboard on <body>.
+   */
+  focusRetry: () => boolean
 }
 
 export type WeekViewProps = {
@@ -302,6 +308,13 @@ export default function WeekView({
       )
       if (button === undefined) return false
       button.focus()
+      return true
+    },
+    focusRetry: () => {
+      // The failed read's banner is the only alert of the card, and Retry its only button.
+      const retry = root.current?.querySelector<HTMLElement>('[role="alert"] button')
+      if (retry === null || retry === undefined) return false
+      retry.focus()
       return true
     },
   }))
