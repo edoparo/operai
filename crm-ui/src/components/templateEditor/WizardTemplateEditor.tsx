@@ -403,6 +403,7 @@ export default function WizardTemplateEditor({ entity, template, onSaved, onRelo
           <div {...tabPanelProps(VIEWS_PREFIX, 'try')}>
             <TryWizardView
               entity={entity}
+              template={template}
               source={text}
               language={language}
               onGoToProblems={() => {

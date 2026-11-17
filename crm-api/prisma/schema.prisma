@@ -202,6 +202,9 @@ model DealOffer {
   snapshot     Json
   objectKey    String
   sizeBytes    Int
+  /// The version of the entity's letterhead the layout service drew the pages with (specs/20261116-letterhead-service AC-10.2).
+  /// Null for an offer made by crm-api's own renderer: every offer before the switch, and any made while the switch is off.
+  letterheadVersion Int?
   createdBy    String
   createdAt    DateTime      @default(now())
   /// specs/20261102-crm-offer-document US-7: an offer is edited in place until it is marked sent; after that a change

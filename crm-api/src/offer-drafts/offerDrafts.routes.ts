@@ -5,6 +5,7 @@
  *   GET    /deals/{id}/offer-draft                 the deal's one draft, answers included
  *   GET    /deals/{id}/offer-draft/summary         what the deal page needs, never the answers (DD-27)
  *   POST   /deals/{id}/offer-draft                 start a draft; the answers are built here (If-None-Match: *)
+ *   POST   /deals/{id}/offer-draft/preview         the pages the layout service draws for an UNSAVED body (switch on; stores nothing)
  *
  * Every route is "generating": `deal:financials` + `deal:manage`, then the deal is loaded (404) and its entity checked
  * (403 `out_of_scope`) BEFORE anything about a draft is read, so the answer to a caller outside the gate or the scope is
@@ -13,9 +14,11 @@
  */
 
 import { OpenAPIHono, createRoute, z } from "@hono/zod-openapi";
+import type { Context } from "hono";
 import { DEAL_FINANCIALS, DEAL_MANAGE, authorized, dealScope, requireCapability } from "../auth/guards";
 import type { AuthzVariables } from "../auth/authz.middleware";
 import { db } from "../lib/db";
+import { env } from "../lib/env";
 import { IdParams, PersonRefSchema, assertVersion, commonErrors, pdfCheckErrors, etag, requireIfMatch, versionConflict, type HeaderSource } from "../lib/http";
 import { loadPeople } from "../lib/people";
 import { ProblemError, conflict, notFound, problem, unprocessable, validationHook } from "../lib/problem";
@@ -39,6 +42,8 @@ import {
   loadDealInScope,
   notSent,
   renderOffer,
+  renderOfferThroughService,
+  renderedOf,
   requireIssuerName,
   wizardSnapshotOf,
   type OfferRow,
@@ -49,6 +54,8 @@ import type { TemplateAst } from "../offers/engine/syntax";
 import { parseTemplate } from "../offers/engine/syntax";
 import type { Prisma } from "../lib/generated/prisma/client";
 import { isDeepStrictEqual } from "node:util";
+import { draftToBlocks } from "../offers/blocks";
+import { PreviewQuerySchema, PreviewResponseSchema, previewThroughService, profileOf, requireLetterheadService } from "../offers/contentSchema";
 import { AnswersSchema, PutDraftSchema, PutTargetSchema, TemplateIdSchema, jsonPath, parseStoredAnswers } from "./answersSchema";
 import { contextResponse, loadWizardInputs, serverToday, wizardContextOf } from "./context";
 
@@ -435,6 +442,26 @@ offerDraftsRouter.openapi(createRouteDef, async (c) => {
   return c.json(await viewOf(c, row), 201);
 });
 
+/**
+ * What a save and a preview of the same body both ask of it (a preview is a save that is not made, so what cannot be saved
+ * is not drawn): the draft's own target, a template version not yet reached, and the engine's check of the answers' text.
+ * Returns the answers as the engine reads them.
+ */
+function checkedAnswers(row: DraftRow, body: z.infer<typeof PutDraftSchema>): WizardAnswers {
+  const stored = targetOf(row);
+  const sameTarget = body.target.kind === stored.kind && (body.target.kind === "new" || ("offerId" in stored && stored.offerId === body.target.offerId));
+  if (!sameTarget) throw answersInvalid("target", "target_changed");
+  const { template } = row;
+  if (body.templateVersion > template.version) throw answersInvalid("templateVersion", "not_reached");
+  if (template.source === null) throw conflict("template_format_mismatch", "This template is not a wizard template", { templateId: template.id });
+
+  // A draft saved against an older template version is never refused for its options (DD-8, DD-38).
+  const answers = body.answers as unknown as WizardAnswers;
+  const [issue] = checkAnswers(parseTemplate(template.source).ast, answers, { options: body.templateVersion === template.version });
+  if (issue) throw answersInvalid(issue.path, issue.code);
+  return answers;
+}
+
 const putRoute = createRoute({
   method: "put",
   path: "/deals/{id}/offer-draft",
@@ -527,17 +554,7 @@ offerDraftsRouter.openapi(
     if (!row) throw draftNotFound();
     assertVersion(row.version, expected);
 
-    const stored = targetOf(row);
-    const sameTarget = body.target.kind === stored.kind && (body.target.kind === "new" || ("offerId" in stored && stored.offerId === body.target.offerId));
-    if (!sameTarget) throw answersInvalid("target", "target_changed");
-    const { template } = row;
-    if (body.templateVersion > template.version) throw answersInvalid("templateVersion", "not_reached");
-    if (template.source === null) throw conflict("template_format_mismatch", "This template is not a wizard template", { templateId: template.id });
-
-    // A draft saved against an older template version is never refused for its options (DD-8, DD-38).
-    const answers = body.answers as unknown as WizardAnswers;
-    const [issue] = checkAnswers(parseTemplate(template.source).ast, answers, { options: body.templateVersion === template.version });
-    if (issue) throw answersInvalid(issue.path, issue.code);
+    const answers = checkedAnswers(row, body);
 
     noStore(c);
     // Nothing changed (a step click alone sends nothing, but a retry may): no write, same version (DD-31).
@@ -560,6 +577,64 @@ offerDraftsRouter.openapi(
     return c.json(await viewOf(c, saved), 200);
   },
   putHook as never,
+);
+
+const previewRoute = createRoute({
+  method: "post",
+  path: "/deals/{id}/offer-draft/preview",
+  tags: ["Offer wizard"],
+  summary: "The pages the layout service draws for an unsaved draft body (same gate and scope as the draft; nothing is stored)",
+  description:
+    "Only with `LETTERHEAD_SERVICE_ENABLED=true`; otherwise 404, as if the route did not exist. The body is the draft PUT's `{ templateVersion, target, answers }` and is " +
+    "checked as a save would check it (422 `answers_invalid`). It needs the deal's draft (404 `draft_not_found`) for its template and target, but changes nothing: " +
+    "no version moves and no `If-Match` is read. The answer is the service's preview unchanged plus `missingFields`; `?pages=1,2` asks for those pages only. " +
+    "409 `letterhead_not_configured` (the entity has no active letterhead), 409 `letterhead_overflow` with `frame` (a profile value too long for the header or the footer), " +
+    "409 `entity_profile_missing`, and 503 `layout_service_unavailable` for a service that is unreachable, answers an error, is busy or times out. `Cache-Control: no-store`.",
+  middleware: [...generating, requireLetterheadService],
+  request: { params: IdParams, query: PreviewQuerySchema, body: { content: { "application/json": { schema: PutDraftSchema } }, required: true } },
+  responses: {
+    ...commonErrors,
+    200: { description: "The pages", ...json(PreviewResponseSchema) },
+    404: { description: "Deal or draft not found; or the switch is off" },
+    409: { description: "letterhead_not_configured / letterhead_overflow / entity_profile_missing / estimate_not_ready / template_format_mismatch" },
+    413: { description: "Request body is too large" },
+    422: { description: "answers_invalid" },
+    503: { description: "layout_service_unavailable" },
+  },
+});
+
+offerDraftsRouter.openapi(
+  previewRoute,
+  async (c) => {
+    const { id } = c.req.valid("param");
+    const { pages } = c.req.valid("query");
+    const body = c.req.valid("json");
+    const { deal } = await loadDealInScope(id, dealScope(c));
+    const row = await findDraft(id);
+    if (!row) throw draftNotFound();
+    const answers = checkedAnswers(row, body);
+    const { template } = row;
+    // The letterhead is the deal's entity's: a template of another one is not drawn on it (as generate refuses it).
+    if (template.entity !== deal.entity) throw notFound("Template not found");
+
+    // Everything below is what generation reads, from the same places, so the pages are the PDF's (AC-10.3).
+    const inputs = await loadWizardInputs(c, deal, { requireEstimate: true, archivedContacts: true });
+    const { ast } = parseTemplate(template.source!);
+    const context = wizardContextOf(inputs, template.language, serverToday());
+    const first = resolveOffer(ast, answers, context);
+    const annex = first.effortAnnex && inputs.estimate ? buildScope(inputs.estimate, { aiAssisted: first.aiAssisted, ...scopeLabels(template.language) }) : null;
+    // An edit keeps its offer's reference; a new offer and a revision have none yet, and the title says so.
+    const target = targetOf(row);
+    const blocks = draftToBlocks(
+      { entity: deal.entity, ast, answers, context, annex, reference: target.kind === "edit" ? target.reference : null },
+      profileOf(inputs.profile),
+    );
+    noStore(c);
+    return c.json(await previewThroughService(blocks, pages), 200);
+  },
+  // A refused body is a refused save (`answers_invalid`); a refused `pages` is the plain 422 naming it.
+  ((result: { success: boolean; target?: string }, c: Context) =>
+    result.target === "query" ? validationHook(result as never, c) : putHook(result as never, c)) as never,
 );
 
 /** Zero rows matched the version: someone else saved (409) or discarded (404) in between. */
@@ -626,7 +701,10 @@ const generateRouteDef = createRoute({
   description:
     "The offer is made from what is STORED, at the version the person reviewed: nothing in the request says what it contains. " +
     "422 `offer_incomplete` lists, by name and template label only, exactly what `resolveOffer` lists for the stored draft (DD-32). " +
-    "201 for a new offer or a revision, 200 for an edit. The draft is deleted in the same transaction, conditioned on its version.",
+    "201 for a new offer or a revision, 200 for an edit. The draft is deleted in the same transaction, conditioned on its version. " +
+    "With `LETTERHEAD_SERVICE_ENABLED=true` the pages are the layout service's (the deal PDFs follow them, unnumbered) and the offer records the letterhead version it was drawn with; " +
+    "a service that is unreachable, answers an error, is busy or times out is 503 `layout_service_unavailable`, an entity with no active letterhead is 409 `letterhead_not_configured`, " +
+    "and a profile value too long for the header or the footer is 409 `letterhead_overflow` with `frame`: in each case no offer, no number, no PDF, and the draft is kept (AC-10.6).",
   middleware: generating,
   request: { params: IdParams },
   responses: {
@@ -638,10 +716,17 @@ const generateRouteDef = createRoute({
     409: {
       description:
         "version_conflict / template_changed / template_archived / estimate_not_ready / offer_not_sent / offer_sent / offer_not_latest / offer_changed / " +
-        "letterhead_unusable (the stored letterhead of the deal's entity fails the check: `entity`, `reason`; nothing is rendered or written, the draft is kept; upload the letterhead again)",
+        "letterhead_unusable (the stored letterhead of the deal's entity fails the check: `entity`, `reason`; nothing is rendered or written, the draft is kept; upload the letterhead again; switch off only) / " +
+        "letterhead_not_configured (switch on: the entity has no active letterhead; `entity`) / letterhead_overflow (switch on: `frame`, `entity`)",
     },
     422: { description: "offer_incomplete / contact_not_in_company / attachment_invalid / attachment_not_pdf / attachments_too_large / attachment_unreadable" },
     428: { description: "precondition_required" },
+    503: {
+      description:
+        "layout_service_unavailable (switch on: the layout service is unreachable, answers an error, is busy or timed out; nothing was written, try again), " +
+        "or the PDF check / authorization service answers described for `pdfCheckErrors`: `pdf_check_busy`, `pdf_check_unavailable`",
+      content: pdfCheckErrors[503].content,
+    },
   },
 });
 
@@ -701,8 +786,11 @@ offerDraftsRouter.openapi(generateRouteDef, async (c) => {
   }
   const storage = requireStorage();
   const { refs, bytes } = await loadAttachments(storage, id, answers.attachmentIds);
+  // The switch (AC-10.1), read once: the pages are the layout service's, or crm-api's own as they always were.
+  const viaService = env.LETTERHEAD_SERVICE_ENABLED;
   // A stored letterhead is used only once checked in this process: 409 `letterhead_unusable` before any render (DD-76).
-  const letterhead = inputs.profile.letterheadKey ? await usableLetterhead(storage, inputs.profile.entity, inputs.profile.letterheadKey) : null;
+  // With the switch on nothing reads the uploaded letterhead (AC-10.11), so it is neither read nor checked.
+  const letterhead = !viaService && inputs.profile.letterheadKey ? await usableLetterhead(storage, inputs.profile.entity, inputs.profile.letterheadKey) : null;
   const { person } = await loadPeople(c, [userId]);
   const annex = first.effortAnnex && inputs.estimate ? buildScope(inputs.estimate, { aiAssisted: first.aiAssisted, ...scopeLabels(template.language) }) : null;
 
@@ -720,7 +808,14 @@ offerDraftsRouter.openapi(generateRouteDef, async (c) => {
       attachments: refs,
       preparedBy: person(userId).name,
     });
-  const render = (snapshot: ContractSnapshot) => renderOffer(snapshot, { letterhead, attachmentBytes: bytes });
+  const render = viaService
+    ? (snapshot: ContractSnapshot) =>
+        renderOfferThroughService(
+          // The preview's own conversion (AC-10.3), with the reference the offer takes and the profile as it is now (AC-10.10).
+          draftToBlocks({ entity: deal.entity, ast, answers, context, annex, reference: snapshot.reference }, profileOf(inputs.profile)).content,
+          { fileNames: refs.map((ref) => ref.fileName), bytes },
+        )
+    : (snapshot: ContractSnapshot) => renderOffer(snapshot, { letterhead, attachmentBytes: bytes });
 
   // The object is put inside the transaction: whatever fails after it, the object goes too (ADR § Decision 3).
   const written: { objectKey: string | null } = { objectKey: null };
@@ -740,7 +835,7 @@ offerDraftsRouter.openapi(generateRouteDef, async (c) => {
           throw conflict("offer_changed", "The offer was changed since this draft was started: discard the draft and start again", { offerId: target.id });
         }
         const snapshot = snapshotFor((target.snapshot as unknown as ContractSnapshot).reference);
-        const pdf = await render(snapshot);
+        const { pdf, letterheadVersion } = renderedOf(await render(snapshot));
         const objectKey = `offers/${id}/${crypto.randomUUID()}.pdf`;
         await storage.putObject(objectKey, pdf, "application/pdf");
         written.objectKey = objectKey;
@@ -755,6 +850,8 @@ offerDraftsRouter.openapi(generateRouteDef, async (c) => {
             snapshot: snapshot as unknown as Prisma.InputJsonValue,
             objectKey,
             sizeBytes: pdf.byteLength,
+            // The pages were drawn now: with the entity's active letterhead (AC-10.9), or by crm-api (null).
+            letterheadVersion,
             version: { increment: 1 },
             updatedBy: userId,
             updatedAt: issued,
@@ -807,7 +904,7 @@ offerDraftsRouter.openapi(generateRouteDef, async (c) => {
 
   const [view] = await toViews(c, [created]);
   console.log(
-    `[offers] wizard offer generated dealId=${id} offerId=${created.id} templateId=${template.id} templateVersion=${row.templateVersion} target=${row.targetKind}`,
+    `[offers] wizard offer generated dealId=${id} offerId=${created.id} templateId=${template.id} templateVersion=${row.templateVersion} target=${row.targetKind} letterheadVersion=${created.letterheadVersion ?? "-"}`,
   );
   if (row.targetKind !== "edit") {
     // E9 — the owner learns an offer exists (no figure in it, AC-1.2).

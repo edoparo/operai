@@ -21,6 +21,8 @@ export type CrmCapabilities = {
   financials: boolean
   /** `deal:manage` over every entity: may act for others (e.g. delete anyone's offer). */
   managesAll: boolean
+  /** Offers are laid out by the letterhead service: the wizard shows its pages and Settings has no upload card. */
+  letterheadService: boolean
 }
 
 export function useCrmCapabilities(): CrmCapabilities {
@@ -32,5 +34,6 @@ export function useCrmCapabilities(): CrmCapabilities {
     canErase: scope.canErase,
     financials: scope.financials === true,
     managesAll: scope.managesAll === true,
+    letterheadService: scope.letterheadService === true,
   }
 }

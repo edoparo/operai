@@ -47,6 +47,11 @@ export type Scope = {
   financials?: boolean
   /** `deal:manage` over every entity: the admin's reach (override, mark ready for anyone). */
   managesAll?: boolean
+  /**
+   * The CRM's offers are laid out by the letterhead service (specs/20261116-letterhead-service G7, AC-10.12). Absent from an
+   * older server = false: the browser-drawn preview and the upload card stay.
+   */
+  letterheadService?: boolean
 }
 
 export type CompanySummary = {
@@ -177,6 +182,8 @@ export type Offer = {
   version?: number
   /** How it was made (specs/20261115-crm-offer-wizard): the UI picks the edit/revise path from it (AC-7.3). Absent from an older server. */
   origin?: OfferOrigin
+  /** The letterhead version the layout service drew this offer with (specs/20261116-letterhead-service); null when crm-api drew it itself, from before the switch. */
+  letterheadVersion: number | null
 }
 
 export type OfferOrigin = 'summary' | 'sections' | 'wizard'

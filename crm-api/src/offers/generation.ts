@@ -7,6 +7,8 @@
  *   prepareOffer   contacts, costs, the chosen deal PDFs, the letterhead and the estimate's annex
  *   numbering      018's gap-free `number` and `NNNN/YYYY[rN]` reference, taken under the deal's advisory lock
  *   storage        the PDF is put in the CRM's bucket, and removed again when the row does not land (compensation)
+ *   the service    with the switch on (`LETTERHEAD_SERVICE_ENABLED`) the pages are the layout service's, drawn inside the same
+ *                  transaction (`renderOfferThroughService`, specs/20261116-letterhead-service T29); off, nothing here differs
  *
  * No route lives here and nothing answers HTTP; it throws the problems the routes map.
  */
@@ -14,12 +16,18 @@
 import type { dealScope } from "../auth/guards";
 import { assertInScope } from "../deals/deals.routes";
 import { usableLetterhead } from "../entity-profiles/letterheadUse";
+import { PDFDocument } from "pdf-lib";
+import { boundPdfIsolated } from "../entity-profiles/isolatedPdfCheck";
 import { db } from "../lib/db";
+import { env } from "../lib/env";
 import { getEstimate, type EstimateDocument } from "../lib/estimai";
 import type { Prisma } from "../lib/generated/prisma/client";
+import { LAYOUT_SERVICE_UNAVAILABLE, LETTERHEAD_TIMEOUT_MS, letterhead } from "../lib/letterheadClient";
 import { loadPeople } from "../lib/people";
 import { ProblemError, conflict, notFound, unprocessable } from "../lib/problem";
 import { MAX_OFFER_ATTACHMENT_BYTES, requireStorage, type Storage } from "../lib/storage";
+import { entityDataOf, type LetterheadContent } from "./blocks";
+import { overflowOf } from "./contentSchema";
 import { computeCosts } from "./costs";
 import type { WizardAnswers } from "./engine/answers";
 import type { ResolvedOffer } from "./engine/resolve";
@@ -124,13 +132,8 @@ export async function loadProfile(entity: "welld_ch" | "welld_it") {
  * calls it: the context route must answer and an autosave is never refused.
  */
 export function requireIssuerName(profile: { readonly legalName: string }, entity: "welld_ch" | "welld_it"): void {
-  if (profile.legalName.trim() !== "") return;
-  throw new ProblemError({
-    status: 409,
-    code: "entity_profile_missing",
-    detail: "Set the entity's legal name in CRM settings before generating an offer",
-    extras: { entity },
-  });
+  // The one refusal: `entityDataOf` (the service's content) throws it for the same blank name, so the two cannot say different things.
+  entityDataOf({ legalName: profile.legalName, addressLines: [], vatNumber: null, iban: null }, entity);
 }
 
 const isUnreadable = (error: unknown): error is Error & { fileName?: string } =>
@@ -228,7 +231,10 @@ export async function prepareOffer(
   const storage = requireStorage();
   const { refs: attachments, bytes: attachmentBytes } = await loadAttachments(storage, dealId, body.attachmentIds);
   // A stored letterhead is used only once checked in this process: 409 `letterhead_unusable` before any render (DD-76).
-  const letterhead = profile.letterheadKey ? await usableLetterhead(storage, profile.entity, profile.letterheadKey) : null;
+  // With the switch on nothing reads the uploaded letterhead (AC-10.11): it is neither read nor checked, so that answer cannot
+  // be given even in the window before the retirement script has deleted the object (specs/20261116-letterhead-service T30).
+  const letterhead =
+    !env.LETTERHEAD_SERVICE_ENABLED && profile.letterheadKey ? await usableLetterhead(storage, profile.entity, profile.letterheadKey) : null;
   const estimate: EstimateDocument | null = link ? await getEstimate(c, link.estimateId) : null;
   const userId = c.get("userId");
   const { person } = await loadPeople(c, [userId]);
@@ -391,6 +397,80 @@ export async function renderOffer(snapshot: ContractSnapshot, prepared: Pick<Pre
   }
 }
 
+/** What a renderer made: the PDF and the version of the entity's letterhead the service drew it with (null: crm-api drew it). */
+export interface RenderedOffer {
+  readonly pdf: Uint8Array;
+  readonly letterheadVersion: number | null;
+}
+
+/** A renderer may answer just the bytes (crm-api's own, as always) or the bytes with the letterhead version (the service's). */
+export type Rendered = Uint8Array | RenderedOffer;
+export const renderedOf = (rendered: Rendered): RenderedOffer => (rendered instanceof Uint8Array ? { pdf: rendered, letterheadVersion: null } : rendered);
+
+const serviceUnavailable = () =>
+  new ProblemError({ status: 503, code: LAYOUT_SERVICE_UNAVAILABLE, detail: "The layout service is unavailable; try again shortly" });
+
+/**
+ * The offer's PDF through the layout service (switch on; AC-10.1, AC-10.2, AC-10.6, AC-10.10): the service draws every
+ * page, the letterhead, the header, the footer, the margins and "N / M", and crm-api draws none of it. The deal PDFs the
+ * person chose follow the rendered pages, unchanged and unnumbered (as `renderContractPdf` appends them: the count is the
+ * rendered pages only).
+ *
+ * It is called INSIDE the offer's transaction, before anything is stored: whatever it throws (a service that is down,
+ * answers an error, is busy or times out: 503 `layout_service_unavailable`; no active letterhead: 409
+ * `letterhead_not_configured`; a profile value too long for the header or footer: 409 `letterhead_overflow`; an unreadable
+ * deal PDF: 422 `attachment_unreadable`) rolls the transaction back, so no number is consumed, no row lands, no object is put
+ * and the draft stays (AC-10.6).
+ *
+ * The deal PDFs are checked BEFORE the call, so a bad attachment does not cost the person a render. With none, the service's
+ * bytes are the offer's PDF as they came; with some, they are loaded without touching the service's metadata
+ * (`updateMetadata: false`) and the attached pages are copied after the last one.
+ */
+export async function renderOfferThroughService(
+  content: LetterheadContent,
+  attachments: { readonly fileNames: readonly string[]; readonly bytes: readonly Uint8Array[] },
+): Promise<RenderedOffer> {
+  // The same bound and load as `renderContractPdf`, because a deal PDF is a person's file (security M-7).
+  const appended: PDFDocument[] = [];
+  for (const [index, bytes] of attachments.bytes.entries()) {
+    const fileName = attachments.fileNames[index] ?? `attachment ${index + 1}`;
+    const bound = await boundPdfIsolated(bytes);
+    if (!bound.ok) {
+      console.warn(`[offers] attachment refused by the bound reason=${bound.reason}`);
+      throw attachmentUnreadable(fileName);
+    }
+    try {
+      const source = await PDFDocument.load(bytes);
+      // `load` only checks the header, trailer and catalog: a missing or malformed page tree throws on its first read. Read it
+      // here, as an unreadable file (422), not in `copyPages` below, where it would read as the service's own bytes (503).
+      source.getPageIndices();
+      appended.push(source);
+    } catch {
+      throw attachmentUnreadable(fileName);
+    }
+  }
+
+  let rendered;
+  try {
+    rendered = await letterhead.pdf(content);
+  } catch (error) {
+    throw overflowOf(error, content.entity) ?? error;
+  }
+  if (appended.length === 0) return { pdf: rendered.bytes, letterheadVersion: rendered.letterheadVersion };
+
+  try {
+    const doc = await PDFDocument.load(rendered.bytes, { updateMetadata: false });
+    for (const source of appended) {
+      for (const page of await doc.copyPages(source, source.getPageIndices())) doc.addPage(page);
+    }
+    return { pdf: await doc.save({ useObjectStreams: false }), letterheadVersion: rendered.letterheadVersion };
+  } catch (error) {
+    // The service's own bytes cannot be read back: its fault, not the person's, and not an offer to store.
+    console.error("[offers] could not append the deal PDFs to the service's PDF:", error instanceof Error ? error.name : "unknown error");
+    throw serviceUnavailable();
+  }
+}
+
 /** The deal's newest offer that is not deleted, or null. */
 export const latestOffer = (tx: Pick<typeof db, "dealOffer">, dealId: string) =>
   tx.dealOffer.findFirst({ where: { dealId, deletedAt: null }, orderBy: { number: "desc" } });
@@ -414,14 +494,30 @@ export const notSent = (offer: { id: string; snapshot: unknown }) =>
 /** One generator or editor at a time per deal, so versions are gap-free and never collide. */
 export const lockDeal = (tx: OfferTx, dealId: string) => tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${`crm-offer:${dealId}`}))`;
 
-/** Runs `work` in the transaction every offer write takes: the deal's lock first, a 30 s budget for the render and upload. */
+/** The budget of the transaction when crm-api renders itself: the render and the upload. */
+export const OFFER_TRANSACTION_TIMEOUT_MS = 30_000;
+/**
+ * With the layout service the render is a call that may take as long as the client's own bound (`LETTERHEAD_TIMEOUT_MS`), so the
+ * transaction outlives it by the budget of what follows (the append, the upload, the row, the draft): the call can never be the
+ * reason a transaction was already gone. Derived from the client's bound, so the two cannot drift apart.
+ */
+export const SERVICE_OFFER_TRANSACTION_TIMEOUT_MS = LETTERHEAD_TIMEOUT_MS + 15_000;
+
+/** The transaction's budget: 30 s, or 50 s with the switch on (read at the call unless given). */
+export const offerTransactionTimeoutMs = (viaService: boolean = env.LETTERHEAD_SERVICE_ENABLED): number =>
+  viaService ? SERVICE_OFFER_TRANSACTION_TIMEOUT_MS : OFFER_TRANSACTION_TIMEOUT_MS;
+
+/**
+ * Runs `work` in the transaction every offer write takes: the deal's lock first, then a budget for the render and upload
+ * (`offerTransactionTimeoutMs`). The 30 s of the switch off are what they always were.
+ */
 export const inOfferTransaction = <T>(dealId: string, work: (tx: OfferTx) => Promise<T>): Promise<T> =>
   db.$transaction(
     async (tx) => {
       await lockDeal(tx, dealId);
       return work(tx);
     },
-    { timeout: 30_000 },
+    { timeout: offerTransactionTimeoutMs() },
   );
 
 /**
@@ -471,8 +567,8 @@ export interface NewOfferVersion {
   readonly validityDays: number;
   /** The snapshot, given the reference this version takes. */
   readonly snapshotFor: (reference: string) => ContractSnapshot;
-  /** Renders it; the caller maps what its renderer throws. */
-  readonly render: (snapshot: ContractSnapshot) => Promise<Uint8Array>;
+  /** Renders it; the caller maps what its renderer throws. A renderer that is the layout service's says which letterhead version (AC-10.2). */
+  readonly render: (snapshot: ContractSnapshot) => Promise<Rendered>;
 }
 
 /**
@@ -484,7 +580,7 @@ export interface NewOfferVersion {
 export async function createOfferVersion(tx: OfferTx, input: NewOfferVersion): Promise<OfferRow> {
   const { number, sequenceYear, sequenceNo, reference } = await nextOfferNumbering(tx, input.dealId, input.entity, input.issued);
   const snapshot = input.snapshotFor(reference);
-  const pdf = await input.render(snapshot);
+  const { pdf, letterheadVersion } = renderedOf(await input.render(snapshot));
   const offerId = crypto.randomUUID();
   const objectKey = `offers/${input.dealId}/${offerId}.pdf`;
   await input.storage.putObject(objectKey, pdf, "application/pdf");
@@ -504,6 +600,7 @@ export async function createOfferVersion(tx: OfferTx, input: NewOfferVersion): P
         snapshot: snapshot as unknown as object,
         objectKey,
         sizeBytes: pdf.byteLength,
+        letterheadVersion,
         createdBy: input.userId,
         createdAt: input.issued,
       },

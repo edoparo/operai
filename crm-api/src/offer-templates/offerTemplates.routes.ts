@@ -10,6 +10,10 @@
  *   POST   /offer-templates/{id}/duplicate            as create; the copy has its source's format
  *   PUT    /offer-templates/{id}                      as create; If-Match required (428 / 409); the body is the row's format's
  *   POST   /offer-templates/{id}/archive | /restore   as create; If-Match required
+ *   POST   /offer-templates/{id}/try-preview?pages=    deal:financials (the READ guard, no entity scope: reads are team knowledge); the pages the layout
+ *                                                      service draws for the UNSAVED text and sample answers, no deal needed (switch on; stores nothing;
+ *                                                      AC-10.14, plan G1)
+ *   POST   /offer-templates/try-preview?pages=         the same for a template that was never saved: the body names the entity (T53, AC-10.14)
  *
  * Reads are open to every `deal:financials` holder of either entity (a template
  * carries prices; ADR 20261101-crm-tool-shape-and-authorization's "reads are team knowledge" posture). Writes outside
@@ -47,9 +51,14 @@ import {
   type HeaderSource,
 } from "../lib/http";
 import { loadPeople } from "../lib/people";
-import { ProblemError, notFound, validationHook } from "../lib/problem";
+import { ProblemError, conflict, notFound, unprocessable, validationHook } from "../lib/problem";
 import type { OfferTemplateContent } from "../offers/contract";
+import { checkAnswers, type WizardAnswers } from "../offers/engine/answers";
 import { parseTemplate } from "../offers/engine/syntax";
+import { templateToBlocks } from "../offers/blocks";
+import { PreviewQuerySchema, PreviewResponseSchema, previewThroughService, profileOf, requireLetterheadService } from "../offers/contentSchema";
+import { loadProfile } from "../offers/generation";
+import { AnswersSchema } from "../offer-drafts/answersSchema";
 import { legacyContent } from "../offers/legacyContent";
 import { DEFAULT_TEMPLATES_EN } from "../offers/defaultTemplates.en";
 import { DEFAULT_TEMPLATES_IT } from "../offers/defaultTemplates";
@@ -484,6 +493,76 @@ const archiveRoute = (action: "archive" | "restore") =>
   },
   });
 
+/** The body of a try-preview (plan amendment G1): the editor's text as typed, its sample answers, and the entity and language it shows. */
+const TryPreviewBody = z
+  .object({
+    content: WizardTemplateBody,
+    answers: AnswersSchema.optional(),
+    entity: EntitySchema,
+    language: z.enum(["en", "it"]),
+  })
+  .strict();
+
+const TRY_PREVIEW_DESCRIPTION =
+  "Only with `LETTERHEAD_SERVICE_ENABLED=true`; otherwise 404, as if the route did not exist. The guard is the template editor's READ guard: `deal:financials` " +
+  "(a person who may only read the template previews it too; template reads carry no entity scope, so neither does this). The body is `{ content, answers?, entity, language }`: `content` is the template PUT's " +
+  "body, `answers` the editor's sample answers (absent: the template's own samples), `entity` and `language` the template's and the text's. A text with errors is 422 " +
+  "`template_invalid`; answers are checked as a draft's are, except that a value outside its field's options is not refused, because the text moves under the answers " +
+  "while it is being typed. The made-up deal and the sample answers are made by the same conversion as an offer's draft, with the entity profile's issuer values; " +
+  "nothing is saved and no version moves. The answer and the errors are those of `POST /deals/{id}/offer-draft/preview`: the service's preview plus `missingFields`; " +
+  "409 `letterhead_not_configured`, 409 `letterhead_overflow` with `frame`, 409 `entity_profile_missing`, 422 `section_too_long`, 429 `preview_busy` (at most 2 previews " +
+  "in flight per person, across both preview routes), 503 `layout_service_unavailable`. `Cache-Control: no-store`.";
+
+const tryPreviewRoute = createRoute({
+  method: "post",
+  path: "/offer-templates/{id}/try-preview",
+  tags: ["Offer templates"],
+  summary: "The pages the layout service draws for an unsaved wizard template with sample answers (deal:financials; stores nothing)",
+  description:
+    `${TRY_PREVIEW_DESCRIPTION} Here \`entity\` and \`language\` must be the stored template's own (422 when they differ: the pages are drawn on the template's own ` +
+    "entity's letterhead), and only a wizard template can be tried (409 `template_format_mismatch`); an unknown id is 404.",
+  middleware: [...reading, requireLetterheadService],
+  request: {
+    params: IdParams,
+    query: PreviewQuerySchema,
+    body: { content: { "application/json": { schema: z.object({}).passthrough() } }, required: true },
+  },
+  responses: {
+    ...commonErrors,
+    200: { description: "The pages", ...json(PreviewResponseSchema) },
+    404: { description: "Template not found; or the switch is off" },
+    409: { description: "letterhead_not_configured / letterhead_overflow / entity_profile_missing / template_format_mismatch" },
+    422: { description: "Invalid body, entity or language not the template's, template_invalid, answers_invalid, or section_too_long" },
+    429: { description: "preview_busy" },
+    503: { description: "layout_service_unavailable" },
+  },
+});
+
+/** The same preview for a template that has no id yet (T53, AC-10.14): the unsaved text, with the entity it will belong to. */
+const tryPreviewUnsavedRoute = createRoute({
+  method: "post",
+  path: "/offer-templates/try-preview",
+  tags: ["Offer templates"],
+  summary: "The pages the layout service draws for a wizard template that was never saved (deal:financials; stores nothing)",
+  description:
+    `${TRY_PREVIEW_DESCRIPTION} The body is validated as a template create's is (\`name\`, \`language\`, \`description\`, \`uses\`, \`source\`: 422 with the same ` +
+    "codes), and `entity` is the entity the template will be created for; a name that another template holds is not refused here, only a save refuses it.",
+  middleware: [...reading, requireLetterheadService],
+  request: {
+    query: PreviewQuerySchema,
+    body: { content: { "application/json": { schema: z.object({}).passthrough() } }, required: true },
+  },
+  responses: {
+    ...commonErrors,
+    200: { description: "The pages", ...json(PreviewResponseSchema) },
+    404: { description: "The switch is off" },
+    409: { description: "letterhead_not_configured / letterhead_overflow / entity_profile_missing" },
+    422: { description: "Invalid body, language not the text's, template_invalid, answers_invalid, or section_too_long" },
+    429: { description: "preview_busy" },
+    503: { description: "layout_service_unavailable" },
+  },
+});
+
 export const offerTemplatesRouter = new OpenAPIHono<{ Variables: AuthzVariables }>({
   defaultHook: validationHook,
 });
@@ -666,3 +745,55 @@ for (const action of ["archive", "restore"] as const) {
     return c.json((await toViews(c, [row]))[0]!, 200);
   });
 }
+
+/**
+ * The preview both try-preview routes make: the text as typed, the sample answers and the entity's profile through the layout
+ * service, the way an offer's draft is (the cap and the switch are the routes' guard; `section_too_long`, the overflow and the
+ * service's failures are `previewThroughService`'s). Nothing is read from or written to a template row.
+ */
+async function tryPreviewOf(
+  c: { header(name: string, value: string): void },
+  entity: Entity,
+  body: z.infer<typeof TryPreviewBody>,
+  pages: string | undefined,
+) {
+  if (body.language !== body.content.language) throw unprocessable("language: Not the text's language", { field: "language" });
+  assertTemplateValid(body.content.source);
+
+  const { ast } = parseTemplate(body.content.source);
+  const answers = body.answers as unknown as WizardAnswers | undefined;
+  if (answers) {
+    const [issue] = checkAnswers(ast, answers, { options: false });
+    if (issue) {
+      throw new ProblemError({
+        status: 422,
+        code: "answers_invalid",
+        detail: `The answers are not valid at "${issue.path}" (${issue.code})`,
+        extras: { path: issue.path, reason: issue.code },
+      });
+    }
+  }
+  const profile = await loadProfile(entity);
+  const blocks = templateToBlocks({ entity, ast, language: body.language, ...(answers ? { answers } : {}) }, profileOf(profile));
+  c.header("Cache-Control", "no-store");
+  return previewThroughService(blocks, pages);
+}
+
+offerTemplatesRouter.openapi(tryPreviewRoute, async (c) => {
+  const { id } = c.req.valid("param");
+  const { pages } = c.req.valid("query");
+  const raw = c.req.valid("json") as Record<string, unknown>;
+  const found = await loadTemplate(id);
+  const body = parseBody(TryPreviewBody, raw);
+  if (found.format !== "wizard") throw conflict("template_format_mismatch", "Only a wizard template can be tried", { templateId: found.id });
+  // The letterhead is the template's entity's; the body names it and the text's language beside the content only so the three can be told apart.
+  if (body.entity !== found.entity) throw unprocessable("entity: Not the template's entity", { field: "entity" });
+  return c.json(await tryPreviewOf(c, found.entity, body, pages), 200);
+});
+
+offerTemplatesRouter.openapi(tryPreviewUnsavedRoute, async (c) => {
+  const { pages } = c.req.valid("query");
+  const raw = c.req.valid("json") as Record<string, unknown>;
+  const body = parseBody(TryPreviewBody, raw);
+  return c.json(await tryPreviewOf(c, body.entity, body, pages), 200);
+});

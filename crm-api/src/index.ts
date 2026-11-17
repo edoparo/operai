@@ -69,7 +69,7 @@ const draftTooLarge = (c: Context) =>
   problem({ status: 413, code: "draft_too_large", detail: "The draft is too large to save" }, c.req.path);
 const draftBody = bodyLimit({ maxSize: 512 * 1024, onError: draftTooLarge });
 const isDraftWrite = (c: Context) =>
-  c.req.method !== "GET" && /^\/deals\/[^/]+\/offer-draft(\/template|\/generate)?$/.test(c.req.path);
+  c.req.method !== "GET" && /^\/deals\/[^/]+\/offer-draft(\/template|\/generate|\/preview)?$/.test(c.req.path);
 const isDocumentWrite = (c: Context) =>
   c.req.path.startsWith("/offer-templates") || (c.req.method === "POST" && /^\/deals\/[^/]+\/offers$/.test(c.req.path));
 app.use("*", (c, next) =>

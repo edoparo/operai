@@ -45,6 +45,7 @@ import {
   type HeaderSource,
   idText,
 } from "../lib/http";
+import { env } from "../lib/env";
 import { MAX_NAME, announce, clip } from "../lib/notify";
 import { loadPeople } from "../lib/people";
 import { conflict, forbidden, notFound, validationHook } from "../lib/problem";
@@ -65,10 +66,16 @@ import {
   prepareOffer,
   referenceFileName,
   renderOffer,
+  renderOfferThroughService,
+  renderedOf,
   snapshotOf,
   type OfferRow,
+  type Prepared,
+  type Rendered,
   type StoredSnapshot,
 } from "./generation";
+import { snapshotToBlocks } from "./blocks";
+import { profileOf } from "./contentSchema";
 import { legacyContent } from "./legacyContent";
 import { CostColumnsSchema, GenerateOfferSchema, OfferSchema, SectionSchema } from "./offerSchemas";
 import { roundHalfUp, totalManDays } from "./scope";
@@ -136,6 +143,7 @@ export async function toViews(c: HeaderSource, rows: readonly OfferRow[]) {
       sent: row.sentAt ? { at: row.sentAt.toISOString(), by: person(row.sentBy ?? row.createdBy) } : null,
       version: row.version,
       origin: offerOrigin(snapshot),
+      letterheadVersion: row.letterheadVersion,
     };
     return isContract(snapshot)
       ? {
@@ -184,6 +192,20 @@ const draftRoute = createRoute({
   },
 });
 
+/**
+ * The renderer of a classic offer (a legacy-template contract): crm-api's own pages, or with the switch on (AC-10.1, AC-10.8)
+ * the layout service's, from the same snapshot the offer stores and the entity profile as it is now (AC-10.10). Read once per
+ * request. With the switch on the service draws every page, the letterhead included, and the chosen deal PDFs follow them.
+ */
+function rendererOf(prepared: Prepared): (snapshot: ContractSnapshot) => Promise<Rendered> {
+  if (!env.LETTERHEAD_SERVICE_ENABLED) return (snapshot) => renderOffer(snapshot, prepared);
+  return (snapshot) =>
+    renderOfferThroughService(snapshotToBlocks(snapshot, profileOf(prepared.profile), prepared.deal.entity), {
+      fileNames: prepared.attachments.map((attachment) => attachment.fileName),
+      bytes: prepared.attachmentBytes,
+    });
+}
+
 const generateRoute = createRoute({
   method: "post",
   path: "/deals/{id}/offers",
@@ -196,10 +218,15 @@ const generateRoute = createRoute({
     ...pdfCheckErrors,
     201: { description: "Generated", ...json(OfferSchema) },
     404: { description: "Not found" },
+    503: {
+      ...pdfCheckErrors[503],
+      description: `${pdfCheckErrors[503].description} With the switch on, also \`layout_service_unavailable\` (the layout service cannot be reached or is busy: no offer, no number, no PDF; try again).`,
+    },
     409: {
       description:
         "estimate_not_ready / entity_profile_missing / template_archived / template_format_mismatch / " +
-        "letterhead_unusable (the stored letterhead of the deal's entity fails the check: `entity`, `reason`; nothing is rendered or written; upload the letterhead again)",
+        "letterhead_unusable (switch off only: the stored letterhead of the deal's entity fails the check: `entity`, `reason`; nothing is rendered or written; upload the letterhead again) / " +
+        "letterhead_not_configured (switch on: the entity has no active letterhead in the service) / letterhead_overflow (switch on: `frame`, `entity`); nothing is stored, no number is consumed",
     },
     422: {
       description:
@@ -256,8 +283,16 @@ const editRoute = createRoute({
     ...pdfCheckErrors,
     200: { description: "Edited", ...json(OfferSchema) },
     404: { description: "Not found" },
-    409: { description: "offer_sent / offer_not_latest / offer_legacy / offer_wizard / version_conflict / template_archived" },
+    409: {
+      description:
+        "offer_sent / offer_not_latest / offer_legacy / offer_wizard / version_conflict / template_archived / " +
+        "letterhead_not_configured / letterhead_overflow (switch on: nothing is stored, the offer is as it was)",
+    },
     428: { description: "precondition_required" },
+    503: {
+      ...pdfCheckErrors[503],
+      description: `${pdfCheckErrors[503].description} With the switch on, also \`layout_service_unavailable\` (the layout service cannot be reached or is busy: the offer is as it was; try again).`,
+    },
   },
 });
 
@@ -327,6 +362,7 @@ offersRouter.openapi(generateRoute, async (c) => {
   const prepared = await prepareOffer(c, dealScope(c), id, body);
   const { deal } = prepared;
   const issued = new Date();
+  const render = rendererOf(prepared);
 
   const created = await inOfferTransaction(id, async (tx) => {
     const newest = await latestOffer(tx, id);
@@ -342,7 +378,7 @@ offersRouter.openapi(generateRoute, async (c) => {
       priceCents: prepared.costs.oneOffCents,
       validityDays: body.validityDays,
       snapshotFor: (reference) => snapshotOf(prepared, body, reference, issued),
-      render: (snapshot) => renderOffer(snapshot, prepared),
+      render,
     });
   });
   const [view] = await toViews(c, [created]);
@@ -438,6 +474,7 @@ offersRouter.openapi(editRoute, async (c) => {
   const prepared = await prepareOffer(c, dealScope(c), id, body);
   const issued = new Date();
   const previousKey = offer.objectKey;
+  const render = rendererOf(prepared);
 
   const updated = await inOfferTransaction(
     id,
@@ -448,7 +485,7 @@ offersRouter.openapi(editRoute, async (c) => {
       }
       const reference = (offer.snapshot as unknown as ContractSnapshot).reference;
       const snapshot = snapshotOf(prepared, body, reference, issued);
-      const pdf = await renderOffer(snapshot, prepared);
+      const { pdf, letterheadVersion } = renderedOf(await render(snapshot));
       const objectKey = `offers/${id}/${crypto.randomUUID()}.pdf`;
       await prepared.storage.putObject(objectKey, pdf, "application/pdf");
       // Compare-and-set on the version, and never on a sent offer.
@@ -462,6 +499,8 @@ offersRouter.openapi(editRoute, async (c) => {
           snapshot: snapshot as unknown as object,
           objectKey,
           sizeBytes: pdf.byteLength,
+          // The version of the letterhead this PDF was drawn with, or null when crm-api drew it (AC-10.2).
+          letterheadVersion,
           version: { increment: 1 },
           updatedBy: userId,
           updatedAt: issued,

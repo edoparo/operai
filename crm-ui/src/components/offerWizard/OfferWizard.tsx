@@ -4,11 +4,14 @@ import type { WizardAnswers, WizardContext } from '../../lib/offerEngine/answers
 import { outline as outlineOf, type Outline, type OutlineItem } from '../../lib/offerEngine/outline'
 import { resolveOffer, type InvalidCode, type ResolvedOffer } from '../../lib/offerEngine/resolve'
 import type { TemplateAst } from '../../lib/offerEngine/syntax'
+import { useCrmCapabilities } from '../../hooks/scopeContext'
 import { strings } from '../../strings'
 import DocumentPreview, { type EffortAnnexPreview } from './DocumentPreview'
+import ServicePreview from './ServicePreview'
 import StepPanel, { type StepPanelProps } from './StepPanel'
 import type { TemplateStepProps } from './TemplateStep'
 import type { Letterhead } from './useLetterhead'
+import { useServicePreview, type ServicePreviewSource } from './useServicePreview'
 import WizardActionBar from './WizardActionBar'
 import { issueCounts, wizardSteps, type WizardMode, type WizardStep } from './steps'
 import { useWideViewport } from './useWideViewport'
@@ -81,6 +84,13 @@ export interface OfferWizardProps {
    * Absent, the previews have no letterhead layer.
    */
   letterhead?: Letterhead
+  /**
+   * What the service path asks the layout service with (specs/20261116-letterhead-service F12, F15). Used only when the CRM's
+   * `letterheadService` is on, in deal mode (a deal's draft) or sample mode (the editor's Try view, through try-preview):
+   * then the pane and the Drawer show the service's pages and `letterhead` is not read. Off or absent, the browser-drawn
+   * preview is what the wizard shows, as before.
+   */
+  servicePreview?: ServicePreviewSource
   /** The issuer's name in the preview's band and notice when the context's legal name is blank (AC-12.7). */
   issuerLabel?: string
   /**
@@ -120,6 +130,7 @@ export default function OfferWizard({
   templateStep,
   templateName,
   letterhead,
+  servicePreview,
   issuerLabel,
   fill: fillRequested = false,
   renderStep,
@@ -159,6 +170,46 @@ export default function OfferWizard({
   // a step the template no longer asks for (an option switched off) falls back to the Client step
   const current: WizardStep = steps.includes(requested) ? requested : 'client'
   const index = steps.indexOf(current)
+
+  // The path is chosen here, once (design § Which path the UI takes): both slots below follow it, and the old preview is
+  // never asked about the switch. Absent, `false` or not yet loaded is the old path.
+  const { letterheadService } = useCrmCapabilities()
+  // both modes: a deal's draft, and the template editor's Try view (AC-10.14); the view gives no source when it cannot ask
+  const serviceSource = letterheadService ? servicePreview : undefined
+  // a preview is on screen to keep up to date: the wide pane after the Template step, the Drawer while it is open
+  const service = useServicePreview({
+    source: serviceSource,
+    answers,
+    asking: wide ? current !== 'template' : showDrawer,
+  })
+  const issuer = issuerLabel ?? context.issuerLegalName
+  const addressUnset =
+    resolved.systemRead.includes('issuerAddress') && context.issuerAddressLines.every((line) => line.trim() === '')
+  const previewOf = (slot: { heading: boolean; fit?: boolean; fill?: boolean }) =>
+    serviceSource ? (
+      <ServicePreview
+        preview={service}
+        entity={serviceSource.entity}
+        language={context.language}
+        missing={counts.missing}
+        addressUnset={addressUnset}
+        issuer={issuer}
+        heading={slot.heading}
+        fill={slot.fill ?? false}
+      />
+    ) : (
+      <DocumentPreview
+        ast={ast}
+        answers={answers}
+        context={context}
+        effortAnnex={effortAnnex}
+        letterhead={letterhead}
+        issuerLabel={issuerLabel}
+        heading={slot.heading}
+        {...(slot.fit !== undefined ? { fit: slot.fit } : {})}
+        {...(slot.fill !== undefined ? { fill: slot.fill } : {})}
+      />
+    )
 
   const headingRef = useRef<HTMLHeadingElement>(null)
   const focusHeading = useRef(false)
@@ -279,16 +330,7 @@ export default function OfferWizard({
             className={fill ? 'flex min-h-0 min-w-0 flex-col' : 'sticky top-4 min-w-0'}
             data-testid="offer-wizard-pane"
           >
-            <DocumentPreview
-              ast={ast}
-              answers={answers}
-              context={context}
-              effortAnnex={effortAnnex}
-              letterhead={letterhead}
-              issuerLabel={issuerLabel}
-              fit={!fill}
-              fill={fill}
-            />
+            {previewOf({ heading: true, fit: !fill, fill })}
           </aside>
         ) : null}
       </div>
@@ -320,15 +362,7 @@ export default function OfferWizard({
           onClose={() => setDrawerOpen(false)}
           testIdPrefix="crm-wizard-preview-drawer"
         >
-          <DocumentPreview
-            ast={ast}
-            answers={answers}
-            context={context}
-            effortAnnex={effortAnnex}
-            letterhead={letterhead}
-            issuerLabel={issuerLabel}
-            heading={false}
-          />
+          {previewOf({ heading: false })}
         </Drawer>
       ) : null}
     </div>

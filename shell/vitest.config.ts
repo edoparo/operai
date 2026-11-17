@@ -61,6 +61,11 @@ export default defineConfig({
       'projects/version': fileURLToPath(
         new URL('./src/federation/__stubs__/projectsVersion.ts', import.meta.url),
       ),
+      // specs/20261116-letterhead-service: the letterheads remote's tool entry and version.
+      'letterheads/App': fileURLToPath(new URL('./src/federation/__stubs__/letterheadsApp.tsx', import.meta.url)),
+      'letterheads/version': fileURLToPath(
+        new URL('./src/federation/__stubs__/letterheadsVersion.ts', import.meta.url),
+      ),
     },
   },
   test: {

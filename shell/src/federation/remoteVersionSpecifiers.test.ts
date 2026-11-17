@@ -43,6 +43,7 @@ const REMOTE_DIRS: Record<(typeof REMOTE_VERSION_SOURCES)[number]['id'], string>
   crm: 'crm-ui',
   meetings: 'meetings-ui',
   projects: 'projects-ui',
+  letterheads: 'letterheads-ui',
 }
 
 const remotesDtsSource = readFileSync(path.join(__dirname, 'remotes.d.ts'), 'utf-8')
@@ -187,5 +188,38 @@ describe('vercel.json CSP — projects origins', () => {
       readFileSync(path.resolve(__dirname, '../../public/runtime-config.example.json'), 'utf-8'),
     ) as Record<string, string>
     expect(example['projects']).toBe('https://projects.operai.welld.io/remoteEntry.js')
+  })
+})
+
+// specs/20261116-letterhead-service: the shell's CSP lets the page load the Letterheads remote and reach letterhead-api.
+describe('vercel.json CSP — letterheads origins', () => {
+  const vercel = JSON.parse(readFileSync(path.resolve(__dirname, '../../vercel.json'), 'utf-8')) as {
+    headers: { source: string; headers: { key: string; value: string }[] }[]
+  }
+  const csp =
+    vercel.headers
+      .flatMap((h) => h.headers)
+      .find((header) => header['key'] === 'Content-Security-Policy')?.value ?? ''
+  const directive = (name: string): string =>
+    csp
+      .split(';')
+      .map((d) => d.trim())
+      .find((d) => d.startsWith(`${name} `)) ?? ''
+
+  it('script-src allows the letterheads remote; connect-src the remote and letterhead-api', () => {
+    expect(directive('script-src')).toContain('https://letterheads.operai.welld.io')
+    expect(directive('connect-src')).toContain('https://letterheads.operai.welld.io')
+    expect(directive('connect-src')).toContain('https://letterhead-api.operai.welld.io')
+  })
+
+  it("remotes.d.ts declares 'letterheads/App'", () => {
+    expect(remotesDtsSource).toContain("declare module 'letterheads/App'")
+  })
+
+  it('runtime-config.example.json lists the letterheads remote entry', () => {
+    const example = JSON.parse(
+      readFileSync(path.resolve(__dirname, '../../public/runtime-config.example.json'), 'utf-8'),
+    ) as Record<string, string>
+    expect(example['letterheads']).toBe('https://letterheads.operai.welld.io/remoteEntry.js')
   })
 })

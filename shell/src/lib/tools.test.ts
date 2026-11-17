@@ -21,7 +21,16 @@ afterEach(() => {
 
 describe('TOOLS — inventory', () => {
   it('lists Inventory at /inventory, after Admin', () => {
-    expect(TOOLS.map((t) => t.id)).toEqual(['estimai', 'refund', 'admin', 'inventory', 'crm', 'meetings', 'projects'])
+    expect(TOOLS.map((t) => t.id)).toEqual([
+      'estimai',
+      'refund',
+      'admin',
+      'inventory',
+      'crm',
+      'meetings',
+      'projects',
+      'letterheads',
+    ])
     expect(TOOLS.find((t) => t.id === 'inventory')).toEqual({
       id: 'inventory',
       label: 'Inventory',
@@ -101,5 +110,33 @@ describe('TOOLS — projects', () => {
     // `crm:access` or any other grant is not `projects:access` (AC-4.1, D13).
     expect(visibleFor(['estimai', 'refund', 'admin', 'inventory', 'crm'])).not.toContain('projects')
     expect(visibleFor([])).toEqual([])
+  })
+})
+
+// specs/20261116-letterhead-service (AC-8.1): Letterheads is a gated tool, after Projects. The id is the
+// auth catalog's app id (`letterheads`), so the sidebar's `apps.includes(tool.id)` filter shows it exactly to
+// the callers `/authz/me` reports `letterheads:access` for.
+describe('TOOLS — letterheads', () => {
+  it('lists Letterheads at /letterheads and resolves it as a tool id', () => {
+    expect(TOOLS.find((t) => t.id === 'letterheads')).toEqual({
+      id: 'letterheads',
+      label: 'Letterheads',
+      to: '/letterheads',
+    })
+    expect(isToolId('letterheads')).toBe(true)
+    expect(toolPath('letterheads')).toBe('/letterheads')
+  })
+
+  it('round-trips letterheads through the last-tool record', () => {
+    recordLastTool('letterheads')
+    expect(readLastToolId()).toBe('letterheads')
+    expect(resolveLastToolPath()).toBe('/letterheads')
+  })
+
+  it('is offered only to callers whose apps include letterheads (letterheads:access)', () => {
+    const visibleFor = (apps: string[]) => TOOLS.filter((tool) => apps.includes(tool.id)).map((tool) => tool.id)
+    expect(visibleFor(['letterheads'])).toEqual(['letterheads'])
+    expect(visibleFor(['estimai', 'crm', 'letterheads'])).toEqual(['estimai', 'crm', 'letterheads'])
+    expect(visibleFor(['estimai', 'refund', 'admin', 'inventory', 'crm', 'projects'])).not.toContain('letterheads')
   })
 })

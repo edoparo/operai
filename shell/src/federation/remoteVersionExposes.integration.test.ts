@@ -56,7 +56,7 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url))
 
 interface RemoteFixture {
   /** Matches useRemoteVersions.ts's RemoteVersionSource['id']. */
-  id: 'estimai' | 'refund' | 'admin' | 'notify' | 'inventory' | 'crm' | 'meetings' | 'projects'
+  id: 'estimai' | 'refund' | 'admin' | 'notify' | 'inventory' | 'crm' | 'meetings' | 'projects' | 'letterheads'
   /** Directory name, sibling to shell/, per CLAUDE.md's monorepo layout. */
   dirName: string
 }
@@ -72,6 +72,7 @@ const ALL_REMOTES: readonly RemoteFixture[] = [
   { id: 'crm', dirName: 'crm-ui' },
   { id: 'meetings', dirName: 'meetings-ui' },
   { id: 'projects', dirName: 'projects-ui' },
+  { id: 'letterheads', dirName: 'letterheads-ui' },
 ]
 
 function remoteDir(dirName: string): string {

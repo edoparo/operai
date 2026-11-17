@@ -6,6 +6,7 @@
 import { getAuthBaseUrl, getCrmApiBaseUrl } from 'shell/session'
 import { getJson, ifMatch, query, requestAnswered, requestJson, sendJson } from './api'
 import { isPdfBytes, MAX_LETTERHEAD_BYTES } from './letterhead/renderLetterhead'
+import type { WizardAnswers } from './offerEngine/answers'
 import { offerIncompleteOf } from './offerErrors'
 import type {
   Company,
@@ -25,6 +26,7 @@ import type {
   Offer,
   OfferDraft,
   OfferForm,
+  OfferLanguage,
   OfferSection,
   OfferTemplate,
   OfferTemplateContent,
@@ -448,6 +450,71 @@ export type DraftSaveInput = { templateVersion: number; target: DraftTargetInput
 /** The whole document under `If-Match`; a body equal to the stored draft is a no-op on the server (200, same version). */
 export const saveWizardDraft = async (dealId: string, version: number, input: DraftSaveInput, init?: Init) =>
   asDraft(await draftCall(draftPath(dealId), 'PUT', { body: input, version, ...init }))
+
+/** One page of the service's preview: its picture (a base64 PNG) and the text drawn on it, in reading order. */
+export type ServicePreviewPage = { n: number; image: string; text: string }
+
+/** `POST /deals/{id}/offer-draft/preview` (crm-api `offers/contentSchema.ts` `PreviewResponseSchema`). */
+export type ServicePreviewAnswer = {
+  letterheadVersion: number
+  pageCount: number
+  missingPlaceholders: string[]
+  unprintableCharacters: number
+  pages: ServicePreviewPage[]
+  /** What the draft still lacks, from the offer engine: names and the template's labels, never a value. */
+  missingFields: { name: string; label: string | null; step: string }[]
+}
+
+/**
+ * The pages the layout service draws for the UNSAVED draft body (specs/20261116-letterhead-service AC-10.3; the same body a
+ * save sends, `If-Match` not read). Nothing is stored. Only with the service switched on: otherwise 404. Refusals the wizard
+ * tells apart: 409 `letterhead_not_configured`, 409 `letterhead_overflow` (`frame`, `entity`), 409 `entity_profile_missing`,
+ * 422 `answers_invalid`, 503 `layout_service_unavailable`.
+ */
+export const previewOfferDraft = (dealId: string, input: DraftSaveInput, init?: Init) =>
+  requestJson<ServicePreviewAnswer>(getCrmApiBaseUrl(), `${draftPath(dealId)}/preview`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(input),
+    ...(init?.signal ? { signal: init.signal } : {}),
+  })
+
+/** The body of a try-preview: the template as typed (the PUT's own members), the sample answers, the entity and the language. */
+export type TemplateTryPreviewInput = {
+  content: WizardTemplateInput
+  answers: WizardAnswers
+  entity: Entity
+  language: OfferLanguage
+}
+
+/**
+ * `POST /offer-templates/{id}/try-preview` (specs/20261116-letterhead-service AC-10.14, plan G1; crm-api
+ * `offer-templates/offerTemplates.routes.ts`): the pages the layout service draws for the UNSAVED text of a saved wizard template
+ * and its sample answers, no deal needed, made by the same conversion as a draft's. Nothing is stored. A person who may only read
+ * the template may ask (T53): the guard is the template editor's read guard (`crm:access` + `deal:financials`), with no entity
+ * scope, so the only 403 is the guard's, without a code, for a person who lacks either. Only with the service switched on:
+ * otherwise 404. The answer and the refusals are the draft preview's (`previewOfferDraft`), plus 409 `template_format_mismatch`
+ * (a classic template cannot be tried) and 422 `template_invalid`; there is no `out_of_scope` here.
+ */
+export const tryPreviewOfferTemplate = (templateId: string, input: TemplateTryPreviewInput, init?: Init) =>
+  requestJson<ServicePreviewAnswer>(getCrmApiBaseUrl(), `${templatePath(templateId)}/try-preview`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(input),
+    ...(init?.signal ? { signal: init.signal } : {}),
+  })
+
+/**
+ * `POST /offer-templates/try-preview` (T53, AC-10.14): the same for a template that was never saved, so it has no id. The body is
+ * validated as a template create's is, and `entity` is the entity the template will belong to; nothing is stored.
+ */
+export const tryPreviewUnsavedOfferTemplate = (input: TemplateTryPreviewInput, init?: Init) =>
+  requestJson<ServicePreviewAnswer>(getCrmApiBaseUrl(), '/offer-templates/try-preview', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(input),
+    ...(init?.signal ? { signal: init.signal } : {}),
+  })
 
 export const switchWizardDraftTemplate = async (dealId: string, version: number, templateId: string) =>
   asDraft(await draftCall(`${draftPath(dealId)}/template`, 'POST', { body: { templateId }, version }))

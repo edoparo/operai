@@ -92,7 +92,7 @@ const suiteVersion = readSuiteVersion()
 // every remote's own config): shell 5173, estimai-ui 5174, refund-ui 5175,
 // notify-ui 5176 (the slot admin-ui/vite.config.ts deliberately left free —
 // see notify-ui/vite.config.ts, T14), admin-ui 5177, inventory-ui 5178, crm-ui 5179, meetings-ui 5180,
-// projects-ui 5181. The shell consumes
+// projects-ui 5181, letterheads-ui 5182. The shell consumes
 // estimai at :5174, refund at :5175, notify at :5176, and admin at :5177;
 // each remote consumes the shell (shell/session, shell/tokens.css) at :5173.
 // The e2e harness (playwright.config.ts) uses its own explicit ports+env and
@@ -131,6 +131,10 @@ const meetingsRemoteUrl = process.env['MEETINGS_REMOTE_URL'] ?? 'http://localhos
 // specs/20261103-projects: projects-ui, the Projects module's federated remote. Same
 // pattern; dev default targets its own pinned port (5181).
 const projectsRemoteUrl = process.env['PROJECTS_REMOTE_URL'] ?? 'http://localhost:5181/remoteEntry.js'
+
+// specs/20261116-letterhead-service: letterheads-ui, the Letterheads tool's federated remote. Same
+// pattern; dev default targets its own pinned port (5182).
+const letterheadsRemoteUrl = process.env['LETTERHEADS_REMOTE_URL'] ?? 'http://localhost:5182/remoteEntry.js'
 
 // @operai/ui (operai-ui/, ADR 20261031-shared-ui-library-consumed-as-source) is compiled from SOURCE by this build
 // and PROVIDED to every remote as a Module Federation shared singleton (ADR 20261114-operai-ui-shared-singleton-provided-by-the-shell):
@@ -360,6 +364,14 @@ export default defineConfig({
           name: 'projects',
           entry: projectsRemoteUrl,
           entryGlobalName: 'projects',
+          shareScope: 'default',
+        },
+        // specs/20261116-letterhead-service: letterheads-ui, mounted at the access-gated `/letterheads/$`.
+        letterheads: {
+          type: 'module',
+          name: 'letterheads',
+          entry: letterheadsRemoteUrl,
+          entryGlobalName: 'letterheads',
           shareScope: 'default',
         },
       },

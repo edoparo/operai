@@ -158,3 +158,15 @@ declare module 'projects/App' {
 declare module 'projects/version' {
   export const REMOTE_VERSION: string
 }
+
+// specs/20261116-letterhead-service: the `letterheads` remote — `./App` (the gated tool, `/letterheads/*`) and `./version`.
+declare module 'letterheads/App' {
+  import type { ComponentType } from 'react'
+
+  const App: ComponentType
+  export default App
+}
+
+declare module 'letterheads/version' {
+  export const REMOTE_VERSION: string
+}

@@ -41,6 +41,21 @@ import { defineConfig, devices } from '@playwright/test'
  *      VITE_ACTIVITIES_API_URL / VITE_PROJECTS_API_URL on the shell build). projects-ui is served here
  *      on E2E_PROJECTS_REMOTE_PORT (default 5183).
  *
+ *   8. specs/20261116-letterhead-service (letterheads.spec.ts, T26): letterhead-api (Rust; `mise run dev:letterhead`, :8088) with
+ *      its own database and bucket, `auth` running with ENABLE_TEST_AUTH=true and `AUTH_AUDIENCE`, `letterhead-api` reading
+ *      `auth`'s JWKS and `/authz/resolve` (nothing is stubbed: the journeys sign in as real users whose grants are written
+ *      through `auth`'s admin API). letterheads-ui is served here on E2E_LETTERHEADS_REMOTE_PORT (default 5184) and
+ *      the shell's build is told the service's origin (VITE_LETTERHEADS_API_URL, E2E_LETTERHEADS_API_URL; default
+ *      http://localhost:8088).
+ *
+ *   9. specs/20261116-letterhead-service (crm-offer-wizard-service.spec.ts, T34): everything of item 8, PLUS the CRM side on the
+ *      service path: activities-api (:8087, the estimate override's timeline note), crm-api with LETTERHEAD_SERVICE_ENABLED=true,
+ *      its SERVICE_CLIENT_ID/SECRET, and `auth`'s `crm-api` SERVICE_CLIENTS entry holding the scopes `letterhead:render`
+ *      and `activities.write`. crm-api's LETTERHEAD_API_URL must be the RELAY the spec runs itself
+ *      (http://localhost:18240, E2E_LETTERHEAD_RELAY_PORT), which forwards to E2E_LETTERHEADS_API_URL: that is how the spec
+ *      stops "the service" in the middle of a session without touching a container. The spec header has the details; the
+ *      preview timings (40 edits, p50/p95) are letterhead-api/perf/preview-edits.ts, not a Playwright spec.
+ *
  * Every notification the suite raises (invitation email from `auth`, refund
  * decisions and batch emails from `refund-api`, collaborator changes from
  * `estimai-api`, assignments from `inventory-api`) is sent under that caller's
@@ -127,6 +142,14 @@ const activitiesApiUrl =
   process.env['VITE_ACTIVITIES_API_URL'] ??
   'http://localhost:8087'
 
+// letterhead-api base URL (specs/20261116-letterhead-service, T26). The SHELL's build bakes it into its trusted-origin
+// allowlist (ADR 20260607-jwt-in-memory-never-web-storage) and exposes it to letterheads-ui (`getLetterheadsApiBaseUrl`),
+// which ships no VITE_* of its own: without it the configurator sends no Bearer token and every call is a 401.
+const letterheadsApiUrl =
+  process.env['E2E_LETTERHEADS_API_URL'] ??
+  process.env['VITE_LETTERHEADS_API_URL'] ??
+  'http://localhost:8088'
+
 // The shell's preview port. 5173 by default — the origin in auth's committed
 // ALLOWED_ORIGINS. E2E_SHELL_PORT only exists for a machine where 5173 is
 // already taken by an unrelated dev server (the services under test must then
@@ -175,10 +198,15 @@ const projectsRemoteOrigin = `http://localhost:${process.env['E2E_PROJECTS_REMOT
 // wrong remote:
 //   E2E_ESTIMAI_REMOTE_PORT=5174 E2E_REFUND_REMOTE_PORT=5175 E2E_NOTIFY_REMOTE_PORT=5176
 //   E2E_ADMIN_REMOTE_PORT=5177 E2E_INVENTORY_REMOTE_PORT=5178 E2E_CRM_REMOTE_PORT=5179
-//   E2E_MEETINGS_REMOTE_PORT=5180 E2E_PROJECTS_REMOTE_PORT=5181 pnpm e2e
+//   E2E_MEETINGS_REMOTE_PORT=5180 E2E_PROJECTS_REMOTE_PORT=5181 E2E_LETTERHEADS_REMOTE_PORT=5182 pnpm e2e
+// letterheads-ui (specs/20261116-letterhead-service, T26): ./App at /letterheads. The `mise run dev` stack has it on 5182,
+// which the meetings-ui preview above takes in THIS file's numbering, so 5184 is the next free e2e-preview slot
+// (`E2E_LETTERHEADS_REMOTE_PORT=5182 pnpm e2e letterheads` reuses the `mise run dev` one).
+const letterheadsRemoteOrigin = `http://localhost:${process.env['E2E_LETTERHEADS_REMOTE_PORT'] ?? '5184'}`
 const projectsRemotePort = new URL(projectsRemoteOrigin).port
 const crmRemotePort = new URL(crmRemoteOrigin).port
 const meetingsRemotePort = new URL(meetingsRemoteOrigin).port
+const letterheadsRemotePort = new URL(letterheadsRemoteOrigin).port
 
 export default defineConfig({
   testDir: './e2e',
@@ -372,6 +400,20 @@ export default defineConfig({
       },
     },
     {
+      // letterheads-ui (specs/20261116-letterhead-service, T26): the Letterheads configurator at /letterheads.
+      // Reads no VITE_* of its own: the letterhead-api origin comes from the shell.
+      command: `pnpm build && pnpm preview --port ${letterheadsRemotePort} --strictPort`,
+      cwd: '../letterheads-ui',
+      url: letterheadsRemoteOrigin,
+      reuseExistingServer: !process.env['CI'],
+      timeout: 180_000,
+      stdout: 'pipe',
+      stderr: 'pipe',
+      env: {
+        SHELL_REMOTE_URL: `${shellUrl}/remoteEntry.js`,
+      },
+    },
+    {
       command: `pnpm build && pnpm preview --port ${shellPort} --strictPort`,
       url: shellUrl,
       reuseExistingServer: !process.env['CI'],
@@ -387,6 +429,7 @@ export default defineConfig({
         CRM_REMOTE_URL: `${crmRemoteOrigin}/remoteEntry.js`,
         MEETINGS_REMOTE_URL: `${meetingsRemoteOrigin}/remoteEntry.js`,
         PROJECTS_REMOTE_URL: `${projectsRemoteOrigin}/remoteEntry.js`,
+        LETTERHEADS_REMOTE_URL: `${letterheadsRemoteOrigin}/remoteEntry.js`,
         VITE_AUTH_URL: authUrl,
         VITE_API_URL: apiUrl,
         VITE_NOTIFY_API_URL: notifyApiUrl,
@@ -396,6 +439,7 @@ export default defineConfig({
         VITE_MEETINGS_API_URL: meetingsApiUrl,
         VITE_PROJECTS_API_URL: projectsApiUrl,
         VITE_ACTIVITIES_API_URL: activitiesApiUrl,
+        VITE_LETTERHEADS_API_URL: letterheadsApiUrl,
       },
     },
   ],

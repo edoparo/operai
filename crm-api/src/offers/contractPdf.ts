@@ -889,7 +889,11 @@ export async function renderContractPdf(snapshot: ContractSnapshot, inputs: Rend
       throw new AttachmentUnreadableError(fileName);
     }
     try {
-      appended.push(await PDFDocument.load(bytes));
+      const source = await PDFDocument.load(bytes);
+      // `load` only checks the header, trailer and catalog: a missing or malformed page tree throws on its first read, which would
+      // otherwise be `copyPages` below, after the layout work and as a 500 (T45).
+      source.getPageIndices();
+      appended.push(source);
     } catch {
       throw new AttachmentUnreadableError(fileName);
     }

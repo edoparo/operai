@@ -296,6 +296,8 @@ const loadMeetingsApp = () => import('meetings/App')
 const loadMyMeetings = () => import('meetings/MyMeetings')
 // specs/20261103-projects: projects-ui's gated tool entry (`/projects/$`).
 const loadProjectsApp = () => import('projects/App')
+// specs/20261116-letterhead-service: letterheads-ui's gated tool entry (`/letterheads/$`).
+const loadLetterheadsApp = () => import('letterheads/App')
 
 // ---------------------------------------------------------------------------
 // App-access guard (T25, US-7, AC-7.3/7.4/7.5) — one factory shared by every
@@ -431,6 +433,15 @@ const projectsRoute = createRoute({
   component: () => <RemoteMount loader={loadProjectsApp} moduleLabel={strings.tools.projects} />,
 })
 
+// specs/20261116-letterhead-service (AC-8.1): the Letterheads module, gated by `letterheads:access`. Someone without
+// it never sees the sidebar entry, and a deep link is refused here, as for every gated tool.
+const letterheadsRoute = createRoute({
+  getParentRoute: () => shellRoute,
+  path: '/letterheads/$',
+  beforeLoad: createToolAccessBeforeLoad('letterheads'),
+  component: () => <RemoteMount loader={loadLetterheadsApp} moduleLabel={strings.tools.letterheads} />,
+})
+
 // ---------------------------------------------------------------------------
 // `/devices` — "My devices" (specs/20261006-hardware-inventory, T42, US-4 AC-4.1,
 // ADR 20261006-ungated-second-federated-entry-of-a-gated-remote). The second, UNGATED federated entry of the inventory remote:
@@ -544,6 +555,7 @@ export const routeTree = rootRoute.addChildren([
       crmRoute,
       meetingsRoute,
       projectsRoute,
+      letterheadsRoute,
       notifyRoute,
       accountRoute,
       devicesRoute,

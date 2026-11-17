@@ -349,6 +349,49 @@ const en = {
     edited: 'Edited by hand',
     annexAppended: (f: string) => `${f} (PDF, appended)`,
   },
+  /** The preview made by the letterhead service (specs/20261116-letterhead-service design F12, F13, S9). */
+  servicePreview: {
+    pages: (n: number) => (n === 1 ? '1 page' : `${n} pages`),
+    updating: 'Updating…',
+    failedShort: 'Could not update',
+    loading: 'Preparing the preview…',
+    pageAlt: (n: number, total: number) => `Page ${n} of ${total}`,
+    failedTitle: 'The preview could not be updated',
+    failedBody: 'The pages shown are from your last successful preview. You can keep typing and saving.',
+    failedFirstBody: 'There is no preview yet. You can keep working; the draft is still saved.',
+    retry: 'Try again',
+    /** 422 `answers_invalid`: the draft's own save says which answer; the preview follows the next change. */
+    invalidAnswers: 'The preview cannot be made while an answer is not valid. Correct it and the preview will follow.',
+    /** 409 `entity_profile_missing`: the legal name is blank (AC-12.7), as the action bar says. */
+    profileMissing: (entity: string) =>
+      `The preview cannot be made: the legal name of ${entity} is not set. Set it in CRM Settings.`,
+    /** 422 `section_too_long` (T50): generate refuses the same text; the pages shown stay the last ones that could be made. */
+    sectionTooLong: (sections: readonly string[]) =>
+      `${
+        sections.length === 0
+          ? 'A section of the offer is'
+          : sections.length === 1
+            ? `The section “${sections[0]}” is`
+            : `The sections ${sections.map((name) => `“${name}”`).join(', ')} are`
+      } longer than 20 000 characters, so the preview cannot be updated. The pages shown are from your last preview. Shorten the text and the preview will follow.`,
+  },
+  /** No letterhead for the entity, or a value that does not fit it (AC-10.8); the preview and the Generate error share it. */
+  letterhead: {
+    notConfigured: {
+      title: (entity: string) => `No letterhead is set for ${entity}`,
+      preview: 'The preview and the PDF need one.',
+      generate: 'No offer was created.',
+    },
+    overflow: {
+      title: (entity: string, frame: string) => `A value of the ${entity} profile does not fit the letterhead's ${frame}`,
+      body: 'Shorten the value in CRM Settings, or change the letterhead.',
+      bodyAskAdmin: 'Shorten the value in CRM Settings, or ask an administrator to change the letterhead in Letterheads.',
+      header: 'header',
+      footer: 'footer',
+    },
+    open: 'Open Letterheads',
+    askAdmin: 'Ask an administrator to set it up in Letterheads.',
+  },
   generate: {
     fail: {
       incomplete: 'The offer is not complete.',
@@ -360,6 +403,11 @@ const en = {
       retry: 'Nothing was created. Try again.',
       retryAction: 'Retry',
       go: (step: string) => `Go to ${step}`,
+    },
+    /** 503 `layout_service_unavailable` (AC-10.6): the PDF could not be laid out; nothing was created or used. */
+    layoutUnavailable: {
+      title: 'The layout service is not available',
+      body: 'Nothing was created: no offer number was used and the draft is unchanged. Try again in a moment.',
     },
     done: (ref: string) => `Offer ${ref} generated`,
   },
@@ -707,6 +755,47 @@ const it: typeof en = {
     edited: 'Modificata a mano',
     annexAppended: (f: string) => `${f} (PDF, in allegato)`,
   },
+  servicePreview: {
+    pages: (n: number) => (n === 1 ? '1 pagina' : `${n} pagine`),
+    updating: 'Aggiornamento…',
+    failedShort: 'Aggiornamento non riuscito',
+    loading: "Preparazione dell'anteprima…",
+    pageAlt: (n: number, total: number) => `Pagina ${n} di ${total}`,
+    failedTitle: "Non è stato possibile aggiornare l'anteprima",
+    failedBody: "Le pagine mostrate sono dell'ultima anteprima riuscita. Puoi continuare a scrivere e salvare.",
+    failedFirstBody: "Non c'è ancora un'anteprima. Puoi continuare a lavorare; la bozza viene comunque salvata.",
+    retry: 'Riprova',
+    invalidAnswers:
+      "L'anteprima non si può creare finché una risposta non è valida. Correggila e l'anteprima seguirà.",
+    profileMissing: (entity: string) =>
+      `L'anteprima non si può creare: la ragione sociale di ${entity} non è impostata. Impostala nelle Impostazioni CRM.`,
+    sectionTooLong: (sections: readonly string[]) =>
+      `${
+        sections.length === 0
+          ? 'Una sezione dell’offerta supera'
+          : sections.length === 1
+            ? `La sezione «${sections[0]}» supera`
+            : `Le sezioni ${sections.map((name) => `«${name}»`).join(', ')} superano`
+      } i 20 000 caratteri, quindi l’anteprima non si può aggiornare. Le pagine mostrate sono dell’ultima anteprima. Accorcia il testo e l’anteprima seguirà.`,
+  },
+  letterhead: {
+    notConfigured: {
+      title: (entity: string) => `Nessuna carta intestata impostata per ${entity}`,
+      preview: "Servono per l'anteprima e per il PDF.",
+      generate: 'Non è stata creata nessuna offerta.',
+    },
+    overflow: {
+      title: (entity: string, frame: string) =>
+        `Un valore del profilo di ${entity} è troppo lungo per ${frame} della carta intestata`,
+      body: 'Accorcia il valore nelle Impostazioni CRM, oppure modifica la carta intestata.',
+      bodyAskAdmin:
+        'Accorcia il valore nelle Impostazioni CRM, oppure chiedi a un amministratore di modificare la carta intestata in Carte intestate.',
+      header: "l'intestazione",
+      footer: 'il piè di pagina',
+    },
+    open: 'Apri Carte intestate',
+    askAdmin: 'Chiedi a un amministratore di configurarla in Carte intestate.',
+  },
   generate: {
     fail: {
       incomplete: "L'offerta non è completa.",
@@ -718,6 +807,10 @@ const it: typeof en = {
       retry: 'Non è stato creato nulla. Riprova.',
       retryAction: 'Riprova',
       go: (step: string) => `Vai a ${step}`,
+    },
+    layoutUnavailable: {
+      title: 'Il servizio di impaginazione non è disponibile',
+      body: 'Non è stato creato nulla: nessun numero di offerta è stato usato e la bozza è invariata. Riprova tra poco.',
     },
     done: (ref: string) => `Offerta ${ref} generata`,
   },

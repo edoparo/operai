@@ -82,6 +82,8 @@ export interface RuntimeRemoteConfig {
   meetings?: string
   /** specs/20261103-projects: the Projects remote's remoteEntry.js. */
   projects?: string
+  /** specs/20261116-letterhead-service: the Letterheads remote's remoteEntry.js. */
+  letterheads?: string
 }
 
 declare global {
@@ -98,7 +100,7 @@ declare global {
 
 /** Shape `@module-federation/runtime`'s `registerRemotes` expects (mirrors vite.config.ts's static remote entries). */
 export interface RuntimeRemoteEntry {
-  name: 'estimai' | 'refund' | 'admin' | 'notify' | 'inventory' | 'crm' | 'meetings' | 'projects'
+  name: 'estimai' | 'refund' | 'admin' | 'notify' | 'inventory' | 'crm' | 'meetings' | 'projects' | 'letterheads'
   entry: string
   type: 'module'
   entryGlobalName: string
@@ -210,6 +212,16 @@ export async function resolveRuntimeRemotes(): Promise<RuntimeRemoteEntry[]> {
       entry: config.projects,
       type: 'module',
       entryGlobalName: 'projects',
+      shareScope: 'default',
+    })
+  }
+
+  if (config.letterheads) {
+    remotes.push({
+      name: 'letterheads',
+      entry: config.letterheads,
+      type: 'module',
+      entryGlobalName: 'letterheads',
       shareScope: 'default',
     })
   }

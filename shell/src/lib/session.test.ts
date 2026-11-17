@@ -61,6 +61,7 @@ const {
   getRefundApiBaseUrl,
   getInventoryApiBaseUrl,
   getMeetingsApiBaseUrl,
+  getLetterheadsApiBaseUrl,
   getProjectsApiBaseUrl,
   getActivitiesApiBaseUrl,
   registerNavigationBlocker,
@@ -81,6 +82,7 @@ const INVENTORY_API_URL = 'http://inventory-api.test'
 const MEETINGS_API_URL = 'http://meetings-api.test'
 const PROJECTS_API_URL = 'http://projects-api.test'
 const ACTIVITIES_API_URL = 'http://activities-api.test'
+const LETTERHEADS_API_URL = 'http://letterhead-api.test'
 const TARGET_URL = `${API_URL}/estimates`
 const THIRD_PARTY_URL = 'https://evil.example.com/x'
 const SAME_ORIGIN_PATH = '/estimates'
@@ -418,6 +420,35 @@ describe('apiFetch', () => {
       mockFetch.mockResolvedValueOnce(okResponse())
 
       await apiFetch(`${PROJECTS_API_URL}/projects`)
+
+      expect(mockFetch).toHaveBeenCalledTimes(1)
+      const [, init] = mockFetch.mock.calls[0]
+      const headers = (init as (RequestInit & { headers?: Record<string, string> }) | undefined)?.headers
+      expect(headers?.['Authorization']).toBeUndefined()
+    })
+
+    // specs/20261116-letterhead-service: letterhead-api origin, set via VITE_LETTERHEADS_API_URL, is
+    // trusted so letterheads-ui's calls carry the Bearer JWT.
+    it('sends Authorization header for a request to the letterhead-api origin (VITE_LETTERHEADS_API_URL)', async () => {
+      vi.stubEnv('VITE_LETTERHEADS_API_URL', LETTERHEADS_API_URL)
+      const mockFetch = vi.mocked(fetch)
+
+      mockFetch.mockResolvedValueOnce(tokenResponse(FAKE_JWT)).mockResolvedValueOnce(okResponse())
+
+      await apiFetch(`${LETTERHEADS_API_URL}/v1/letterheads`)
+
+      expect(mockFetch).toHaveBeenCalledTimes(2)
+      const [, init] = mockFetch.mock.calls[1]
+      expect((init as RequestInit & { headers: Record<string, string> }).headers).toMatchObject({
+        Authorization: `Bearer ${FAKE_JWT}`,
+      })
+    })
+
+    it('does NOT trust the letterhead-api origin when VITE_LETTERHEADS_API_URL is unset', async () => {
+      const mockFetch = vi.mocked(fetch)
+      mockFetch.mockResolvedValueOnce(okResponse())
+
+      await apiFetch(`${LETTERHEADS_API_URL}/v1/letterheads`)
 
       expect(mockFetch).toHaveBeenCalledTimes(1)
       const [, init] = mockFetch.mock.calls[0]
@@ -1089,6 +1120,24 @@ describe('getProjectsApiBaseUrl', () => {
 
     vi.stubEnv('VITE_PROJECTS_API_URL', 'http://second.test')
     expect(getProjectsApiBaseUrl()).toBe('http://second.test')
+  })
+})
+
+// getLetterheadsApiBaseUrl (specs/20261116-letterhead-service) — mirrors getProjectsApiBaseUrl(): lazily
+// read, exposed so letterheads-ui (a remote with no VITE_* env of its own) sources the API origin from the shell.
+describe('getLetterheadsApiBaseUrl', () => {
+  it('returns the VITE_LETTERHEADS_API_URL configured on the shell', () => {
+    vi.stubEnv('VITE_LETTERHEADS_API_URL', LETTERHEADS_API_URL)
+
+    expect(getLetterheadsApiBaseUrl()).toBe(LETTERHEADS_API_URL)
+  })
+
+  it('reads the env lazily, not at module-evaluation time', () => {
+    vi.stubEnv('VITE_LETTERHEADS_API_URL', 'http://first.test')
+    expect(getLetterheadsApiBaseUrl()).toBe('http://first.test')
+
+    vi.stubEnv('VITE_LETTERHEADS_API_URL', 'http://second.test')
+    expect(getLetterheadsApiBaseUrl()).toBe('http://second.test')
   })
 })
 

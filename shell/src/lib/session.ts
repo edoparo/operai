@@ -47,6 +47,8 @@
  *       (specs/20261104-meetings, T50) — and only that origin.
  *     • The projects-api origin (VITE_PROJECTS_API_URL), if defined
  *       (specs/20261103-projects).
+ *     • The letterhead-api origin (VITE_LETTERHEADS_API_URL), if defined
+ *       (specs/20261116-letterhead-service).
  *     • The activities-api origin (VITE_ACTIVITIES_API_URL), if defined
  *       (specs/20261110-activities).
  *   Requests to any other origin proceed unauthenticated — no Authorization
@@ -171,6 +173,13 @@ export { closeFloating, openFloating } from './floating'
  * Lazily read, mirrors `getCrmApiBaseUrl()`.
  */
 export const getProjectsApiBaseUrl = (): string => import.meta.env.VITE_PROJECTS_API_URL as string
+
+/**
+ * The letterhead-api base URL (`VITE_LETTERHEADS_API_URL`, specs/20261116-letterhead-service), exposed
+ * for the federated `letterheads` remote, which ships no `VITE_*` env of its own.
+ * Lazily read, mirrors `getProjectsApiBaseUrl()`.
+ */
+export const getLetterheadsApiBaseUrl = (): string => import.meta.env.VITE_LETTERHEADS_API_URL as string
 
 /**
  * The activities-api base URL (`VITE_ACTIVITIES_API_URL`, specs/20261110-activities), exposed
@@ -307,6 +316,16 @@ const getTrustedOrigins = (): Set<string> => {
   if (projectsUrl) {
     try {
       trusted.add(new URL(projectsUrl).origin)
+    } catch {
+      /* ignore invalid env value */
+    }
+  }
+
+  // specs/20261116-letterhead-service: letterhead-api origin, trusted only when configured (same shape).
+  const letterheadsUrl = import.meta.env.VITE_LETTERHEADS_API_URL as string | undefined
+  if (letterheadsUrl) {
+    try {
+      trusted.add(new URL(letterheadsUrl).origin)
     } catch {
       /* ignore invalid env value */
     }

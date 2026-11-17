@@ -2,6 +2,9 @@
 const en = {
   heading: 'Settings',
   description: 'The letterhead and standard terms printed on offers, one profile per wellD entity you manage deals for.',
+  /** With the letterhead service on: the letterhead is set up in Letterheads, no longer here (specs/20261116-letterhead-service AC-10.11). */
+  descriptionService:
+    'The issuer details and standard terms printed on offers, one profile per wellD entity you manage deals for.',
   loading: 'Loading the settings…',
   emptyTitle: 'No entity to set up',
   emptyBody: 'You do not manage deals for any entity.',
@@ -46,6 +49,8 @@ const en = {
 const it: typeof en = {
   heading: 'Impostazioni',
   description: "L'intestazione e le condizioni standard stampate sulle offerte, un profilo per ogni società wellD di cui gestisci le opportunità.",
+  descriptionService:
+    "I dati dell'emittente e le condizioni standard stampati sulle offerte, un profilo per ogni società wellD di cui gestisci le opportunità.",
   loading: 'Caricamento delle impostazioni…',
   emptyTitle: 'Nessuna società da configurare',
   emptyBody: 'Non gestisci opportunità per nessuna società.',

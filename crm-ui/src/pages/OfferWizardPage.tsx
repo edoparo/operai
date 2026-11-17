@@ -12,18 +12,20 @@ import {
   formatDateTime,
 } from '@operai/ui'
 import { LoadFailure, Loading } from '../components/LoadState'
+import LetterheadNotice from '../components/offerWizard/LetterheadNotice'
 import OfferWizard from '../components/offerWizard/OfferWizard'
 import SaveStatus from '../components/offerWizard/SaveStatus'
 import TemplateStep, { type TemplateStepProps, type TemplateTarget } from '../components/offerWizard/TemplateStep'
 import type { WizardStep } from '../components/offerWizard/steps'
 import { useLetterhead } from '../components/offerWizard/useLetterhead'
+import { noticeOf, type ServicePreviewNotice } from '../components/offerWizard/useServicePreview'
 import PermissionDenied from '../components/PermissionDenied'
 import { useCrmCapabilities } from '../hooks/scopeContext'
 import { useCurrentUserId } from '../hooks/useCurrentUserId'
 import { useOfferDraft, type TemplateChangedNotice, type UseOfferDraft } from '../hooks/useOfferDraft'
 import { useResource } from '../hooks/useResource'
 import { ApiError } from '../lib/api'
-import { getDeal, getWizardContext } from '../lib/crmApi'
+import { getDeal, getWizardContext, previewOfferDraft } from '../lib/crmApi'
 import { codeOf, errorMessage, pdfCheckUnavailableOf, statusOf } from '../lib/errors'
 import type { WizardAnswers, WizardContext } from '../lib/offerEngine/answers'
 import type { Issue } from '../lib/offerEngine/resolve'
@@ -89,6 +91,10 @@ type Failure =
   | { kind: 'estimate' }
   | { kind: 'offerChanged' }
   | { kind: 'letterheadUnusable' }
+  /** 503 `layout_service_unavailable` (AC-10.6): the layout service could not draw the PDF; nothing was created. */
+  | { kind: 'layoutUnavailable' }
+  /** 409 `letterhead_not_configured` (AC-10.8) or `letterhead_overflow`: the service path's refusals of the entity's letterhead. */
+  | { kind: 'letterhead'; notice: Extract<ServicePreviewNotice, { kind: 'notConfigured' | 'overflow' }> }
   | { kind: 'pdfCheck'; message: string }
   | { kind: 'retry' }
 
@@ -104,6 +110,13 @@ function failureOf(error: unknown): Failure | 'handled' {
   if (code === 'template_archived') return { kind: 'archived' }
   if (code === 'estimate_not_ready') return { kind: 'estimate' }
   if (letterheadUnusableOf(error)) return { kind: 'letterheadUnusable' }
+  // the letterhead service's answers (AC-10.6, AC-10.8): the status must agree with the code, as for every refusal here
+  if (error instanceof ApiError && error.status === 503 && code === 'layout_service_unavailable')
+    return { kind: 'layoutUnavailable' }
+  if (error instanceof ApiError && error.status === 409) {
+    const notice = noticeOf(error)
+    if (notice.kind === 'notConfigured' || notice.kind === 'overflow') return { kind: 'letterhead', notice }
+  }
   // the check of a chosen PDF or of the letterhead could not run (503): nothing was created, and it says why
   if (pdfCheckUnavailableOf(error)) return { kind: 'pdfCheck', message: errorMessage(error) }
   if (['offer_not_sent', 'offer_sent', 'offer_not_latest', 'offer_changed'].includes(code ?? ''))
@@ -535,6 +548,23 @@ function Workspace({ deal, titleId }: { deal: Deal; titleId: string }) {
         return { text: strings.offers.errors.estimateNotReady, actions: link(t.estimate.go) }
       case 'offerChanged':
         return { text: fail.offerChanged, actions: link(t.page.back) }
+      case 'layoutUnavailable':
+        // nothing to fix here: no offer number was used, so trying again is safe (AC-10.6)
+        return {
+          title: t.generate.layoutUnavailable.title,
+          text: t.generate.layoutUnavailable.body,
+          actions: action(fail.retryAction, () => void generate()),
+        }
+      case 'letterhead':
+        // one rule in two places (design F13): the link to Letterheads only for a holder of access (AC-10.8)
+        return {
+          node:
+            failure.notice.kind === 'notConfigured' ? (
+              <LetterheadNotice entity={deal.entity} problem="notConfigured" where="generate" />
+            ) : (
+              <LetterheadNotice entity={deal.entity} problem="overflow" frame={failure.notice.frame} />
+            ),
+        }
       case 'letterheadUnusable':
         // the fix is in CRM Settings, outside the wizard: no action (D-41); Generate stays available to try again
         return { text: unusableLine }
@@ -569,9 +599,12 @@ function Workspace({ deal, titleId }: { deal: Deal; titleId: string }) {
     banners.length > 0 || failureBanner ? (
       <div className="mb-4 flex flex-col gap-3">
         {banners}
-        {failureBanner ? (
+        {failureBanner?.node ? (
+          failureBanner.node
+        ) : failureBanner ? (
           <Banner
             tone={failureBanner.tone ?? 'danger'}
+            {...(failureBanner.title ? { title: failureBanner.title } : {})}
             actions={failureBanner.actions}
             data-testid="crm-offer-wizard-failure"
           >
@@ -622,6 +655,24 @@ function Workspace({ deal, titleId }: { deal: Deal; titleId: string }) {
         templateStep={templateStep}
         templateName={meta.template.name}
         letterhead={letterhead}
+        servicePreview={{
+          entity: deal.entity,
+          identity: `${deal.id}:${meta.templateVersion}:${meta.target.kind === 'new' ? 'new' : `${meta.target.kind}:${meta.target.offerId}`}`,
+          // the unsaved answers, under the draft's own target and template version: what a save would send
+          ask: (answers, signal) =>
+            previewOfferDraft(
+              deal.id,
+              {
+                templateVersion: meta.templateVersion,
+                target:
+                  meta.target.kind === 'new'
+                    ? { kind: 'new' }
+                    : { kind: meta.target.kind, offerId: meta.target.offerId },
+                answers,
+              },
+              { signal },
+            ),
+        }}
         {...(issuerNameBlank ? { issuerLabel: strings.badges.entity[deal.entity] } : {})}
       />
       {dropped && draft.notice ? <DroppedDialog notice={draft.notice} onClose={() => setDropped(false)} /> : null}

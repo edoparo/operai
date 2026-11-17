@@ -227,4 +227,9 @@ export const OfferSchema = z.object({
   /** The If-Match precondition of an edit. */
   version: z.number().int(),
   origin: OfferOriginSchema,
+  /**
+   * The version of the entity's letterhead the layout service drew the PDF with (specs/20261116-letterhead-service AC-10.2);
+   * null for an offer crm-api drew itself, before the switch (AC-10.9).
+   */
+  letterheadVersion: z.number().int().nullable(),
 });

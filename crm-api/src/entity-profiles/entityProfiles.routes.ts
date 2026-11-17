@@ -8,6 +8,9 @@
  *   POST /entity-profiles/{entity}/letterhead/confirm   the same: validate the upload, swap the key
  *   GET  /entity-profiles/{entity}/letterhead       deal:financials: a 60 s presigned GET
  *
+ * With the switch on (`LETTERHEAD_SERVICE_ENABLED`) the three letterhead routes answer 410 `letterhead_upload_retired`
+ * (specs/20261116-letterhead-service AC-10.11); the retirement script then deletes the stored files and the references.
+ *
  * One row per entity, replaced whole on PUT (the letterhead columns are not part
  * of it: only the upload flow moves them). Not an audit record: the offers
  * snapshot what they printed, so changing the letterhead never rewrites one.
@@ -25,9 +28,11 @@
  */
 
 import { OpenAPIHono, createRoute, z } from "@hono/zod-openapi";
+import type { MiddlewareHandler } from "hono";
 import { DEAL_FINANCIALS, DEAL_MANAGE, authorized, dealScope, requireCapability } from "../auth/guards";
 import type { AuthzVariables } from "../auth/authz.middleware";
 import { db } from "../lib/db";
+import { env } from "../lib/env";
 import {
   EntitySchema,
   NO_NUL_TEXT,
@@ -78,6 +83,27 @@ const ProfileSchema = z.object({
 const EntityParams = z.object({ entity: EntitySchema });
 const manage = [...authorized, requireCapability(DEAL_MANAGE)];
 
+export const LETTERHEAD_UPLOAD_RETIRED = "letterhead_upload_retired";
+
+/**
+ * With the switch on (`LETTERHEAD_SERVICE_ENABLED`) the letterhead is the layout service's and an uploaded PDF is not read by
+ * anything (AC-10.11): the routes that start, confirm or read an upload answer 410 `letterhead_upload_retired`, and so
+ * `letterhead_unusable` can no longer be answered. It runs after the guards (a caller who may not use the route still gets
+ * 401/403) and before the params and body are read, so a malformed request answers 410 too. Read at the request, never
+ * cached at import. A 410 is cacheable by default, so it says it is not to be kept: switching back must not leave it behind.
+ */
+const uploadRetired: MiddlewareHandler = async (c, next) => {
+  if (env.LETTERHEAD_SERVICE_ENABLED) {
+    c.header("Cache-Control", "no-store");
+    throw new ProblemError({
+      status: 410,
+      code: LETTERHEAD_UPLOAD_RETIRED,
+      detail: "Uploading a letterhead is retired: the letterhead is configured in Letterheads",
+    });
+  }
+  await next();
+};
+
 const listRoute = createRoute({
   method: "get",
   path: "/entity-profiles",
@@ -104,8 +130,8 @@ const letterheadStartRoute = createRoute({
   method: "post",
   path: "/entity-profiles/{entity}/letterhead",
   tags: ["Settings"],
-  summary: "Start a letterhead upload: a presigned POST for a PDF of at most 5 MiB (deal:manage over that entity)",
-  middleware: manage,
+  summary: "Start a letterhead upload: a presigned POST for a PDF of at most 5 MiB (deal:manage over that entity); 410 with the switch on",
+  middleware: [...manage, uploadRetired],
   request: { params: EntityParams },
   responses: {
     ...commonErrors,
@@ -115,6 +141,7 @@ const letterheadStartRoute = createRoute({
     },
     403: { description: "out_of_scope" },
     409: { description: "entity_profile_missing" },
+    410: { description: "letterhead_upload_retired (switch on: the letterhead is the layout service's)" },
   },
 });
 
@@ -124,8 +151,8 @@ const letterheadConfirmRoute = createRoute({
   method: "post",
   path: "/entity-profiles/{entity}/letterhead/confirm",
   tags: ["Settings"],
-  summary: "Confirm a letterhead upload: one readable A4 page, else the object is deleted (deal:manage over that entity)",
-  middleware: manage,
+  summary: "Confirm a letterhead upload: one readable A4 page, else the object is deleted (deal:manage over that entity); 410 with the switch on",
+  middleware: [...manage, uploadRetired],
   request: {
     params: EntityParams,
     body: { content: { "application/json": { schema: LetterheadConfirmSchema } }, required: true },
@@ -136,6 +163,7 @@ const letterheadConfirmRoute = createRoute({
     200: { description: "The profile, with the new letterhead", ...json(ProfileSchema) },
     403: { description: "out_of_scope" },
     409: { description: "entity_profile_missing / upload_missing" },
+    410: { description: "letterhead_upload_retired (switch on)" },
     422: {
       description:
         "letterhead_invalid (`reason`: not_pdf, page_count, not_a4, unembeddable, too_large, " +
@@ -149,17 +177,18 @@ const letterheadDownloadRoute = createRoute({
   method: "get",
   path: "/entity-profiles/{entity}/letterhead",
   tags: ["Settings"],
-  summary: "A 60 s download link for the entity's letterhead (deal:financials); `Cache-Control: no-store`",
-  middleware: [...authorized, requireCapability(DEAL_FINANCIALS)],
+  summary: "A 60 s download link for the entity's letterhead (deal:financials); `Cache-Control: no-store`; 410 with the switch on",
+  middleware: [...authorized, requireCapability(DEAL_FINANCIALS), uploadRetired],
   request: { params: EntityParams },
   responses: {
     ...commonErrors,
     ...pdfCheckErrors,
     200: { description: "Presigned URL", ...json(z.object({ url: z.string() })) },
     404: { description: "No letterhead" },
+    410: { description: "letterhead_upload_retired (switch on)" },
     409: {
       description:
-        "letterhead_unusable: the stored letterhead fails the check (`entity`, `reason`: not_pdf, page_count, not_a4, " +
+        "letterhead_unusable (switch off only; with it on the route answers 410): the stored letterhead fails the check (`entity`, `reason`: not_pdf, page_count, not_a4, " +
         "unembeddable, too_complex, decoded_too_large, image_too_large, unbounded_stream); no link is minted, " +
         "`Cache-Control: no-store`. Upload the letterhead again.",
       ...json(

@@ -89,6 +89,19 @@ const envSchema = z.object({
   // service client group is required with it. Unset, those calls answer 503
   // `activities_unconfigured`; the production template lists it as required (tools/env-doctor).
   ACTIVITIES_API_URL: z.string().url("ACTIVITIES_API_URL must be a valid URL").optional(),
+  // ─── letterhead-api (specs/20261116-letterhead-service US-10, plan § Architecture) ──────────────────────────────────
+  // Where crm-api reaches letterhead-api (Railway private network), as ITSELF: the scoped service JWT of `serviceToken.ts`
+  // (scope `letterhead:render`, configured on the service client in auth, not requested here). It uses the same client pair as the
+  // other callers, so the pair is required with it. Optional until the switch: unset, the CRM draws its own pages as it always did.
+  LETTERHEAD_API_URL: z.string().url("LETTERHEAD_API_URL must be a valid URL").optional(),
+  // The switch (AC-10.12): on only for the literal "true"; anything else, "1" and "TRUE" included, is off. With it on, the two preview routes
+  // exist (they are a 404 otherwise), `GET /scope` answers `letterheadService: true`, every offer's pages (the wizard's generate and the
+  // classic routes) are the service's and not crm-api's own, and the letterhead upload routes answer 410 `letterhead_upload_retired`
+  // (T28 to T30). Off is the default: the CRM behaves as it always did. Enable it with the runbook in infra/README.md, never by hand.
+  LETTERHEAD_SERVICE_ENABLED: z
+    .string()
+    .optional()
+    .transform((v) => v === "true"),
   // ─── Service credentials accepted on /system/* (specs/20261101-crm-sales-flow AC-3.3 ADR 20261105-estimai-closes-the-estimate-crm-follows, specs/20261104-meetings, specs/20261103-projects ADR 20261103-projects-api-reads-crm-companies-with-scoped-service-credential) ──
   // The `aud` of the scoped service JWTs `auth` mints (`POST /system/service-token`);
   // byte-identical to auth's and notify-api's, and different from AUTH_AUDIENCE so a
@@ -114,15 +127,19 @@ const envSchema = z.object({
     val.NOTIFY_INTERNAL_URL !== undefined ||
     val.PROJECTS_INTERNAL_URL !== undefined ||
     val.ESTIMAI_INTERNAL_URL !== undefined ||
-    val.ACTIVITIES_API_URL !== undefined;
+    val.ACTIVITIES_API_URL !== undefined ||
+    val.LETTERHEAD_API_URL !== undefined;
   const clientSet = CLIENT_KEYS.some((key) => val[key] !== undefined);
   if (urlSet || clientSet) {
     for (const key of CLIENT_KEYS.filter((k) => val[k] === undefined)) {
-      ctx.addIssue({ code: z.ZodIssueCode.custom, path: [key], message: `${key} is required when NOTIFY_INTERNAL_URL, PROJECTS_INTERNAL_URL, ESTIMAI_INTERNAL_URL, ACTIVITIES_API_URL or the other SERVICE_CLIENT_* is set` });
+      ctx.addIssue({ code: z.ZodIssueCode.custom, path: [key], message: `${key} is required when NOTIFY_INTERNAL_URL, PROJECTS_INTERNAL_URL, ESTIMAI_INTERNAL_URL, ACTIVITIES_API_URL, LETTERHEAD_API_URL or the other SERVICE_CLIENT_* is set` });
     }
     if (!urlSet) {
-      ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["NOTIFY_INTERNAL_URL"], message: "NOTIFY_INTERNAL_URL, PROJECTS_INTERNAL_URL, ESTIMAI_INTERNAL_URL or ACTIVITIES_API_URL is required when SERVICE_CLIENT_* is set" });
+      ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["NOTIFY_INTERNAL_URL"], message: "NOTIFY_INTERNAL_URL, PROJECTS_INTERNAL_URL, ESTIMAI_INTERNAL_URL, ACTIVITIES_API_URL or LETTERHEAD_API_URL is required when SERVICE_CLIENT_* is set" });
     }
+  }
+  if (val.LETTERHEAD_SERVICE_ENABLED && val.LETTERHEAD_API_URL === undefined) {
+    ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["LETTERHEAD_API_URL"], message: "LETTERHEAD_API_URL is required when LETTERHEAD_SERVICE_ENABLED is true" });
   }
   const set = S3_KEYS.filter((key) => val[key] !== undefined);
   if (set.length === 0) return;
@@ -153,6 +170,13 @@ if (!result.success) {
     console.error(`  ${key}: ${messages?.join(", ")}`);
   }
   process.exit(1);
+}
+
+// A switch that is set to something other than "true" or "false" is off, and a typo (`TRUE`, `1`, `yes`) must not pass for a decision:
+// say so once at startup, without the value.
+const letterheadSwitch = process.env["LETTERHEAD_SERVICE_ENABLED"];
+if (letterheadSwitch !== undefined && !["", "true", "false"].includes(letterheadSwitch)) {
+  console.warn('LETTERHEAD_SERVICE_ENABLED is set but is not the literal "true" or "false": the layout service is OFF');
 }
 
 export const env = result.data;

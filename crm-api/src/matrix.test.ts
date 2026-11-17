@@ -137,13 +137,14 @@ describe("authorization matrix", () => {
   });
 
   it("GET /scope reports deal entities and erase per persona", async () => {
-    expect((await call("GET", "/scope", { as: "consultant" })).json).toEqual({ deal: [], canErase: false, financials: false, managesAll: false });
-    expect((await call("GET", "/scope", { as: "salesCh" })).json).toEqual({ deal: ["welld_ch"], canErase: false, financials: true, managesAll: false });
+    expect((await call("GET", "/scope", { as: "consultant" })).json).toEqual({ deal: [], canErase: false, financials: false, managesAll: false, letterheadService: false });
+    expect((await call("GET", "/scope", { as: "salesCh" })).json).toEqual({ deal: ["welld_ch"], canErase: false, financials: true, managesAll: false, letterheadService: false });
     expect((await call("GET", "/scope", { as: "admin" })).json).toEqual({
       deal: ["welld_ch", "welld_it"],
       canErase: true,
       financials: true,
       managesAll: true,
+      letterheadService: false,
     });
   });
 });

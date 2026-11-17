@@ -4,12 +4,17 @@
  * exactly the controls the server would accept. An `auth` outage is a 503,
  * never an empty scope. specs/20261101-crm-sales-flow adds `financials` (the caller sees money) and
  * `managesAll` (deal:manage over every entity: the admin's override reach).
+ *
+ * `letterheadService` (specs/20261116-letterhead-service G7, AC-10.12): whether the CRM's offers are laid out by the layout
+ * service (`LETTERHEAD_SERVICE_ENABLED` is the literal "true"). crm-ui reads it once to choose its preview path and whether
+ * Settings offers the letterhead upload. It is read at the request, true or false for every caller alike.
  */
 
 import { OpenAPIHono, createRoute, z } from "@hono/zod-openapi";
 import { CONTACT_ERASE, DEAL_MANAGE, authorized, canSeeFinancials, managesAllDeals } from "../auth/guards";
 import type { AuthzVariables } from "../auth/authz.middleware";
 import { hasCapability, scopeFor } from "../authz/conditions";
+import { env } from "../lib/env";
 import { EntitySchema, commonErrors } from "../lib/http";
 import { validationHook } from "../lib/problem";
 
@@ -29,6 +34,7 @@ const scopeRoute = createRoute({
             canErase: z.boolean(),
             financials: z.boolean(),
             managesAll: z.boolean(),
+            letterheadService: z.boolean(),
           }),
         },
       },
@@ -49,6 +55,7 @@ scopeRouter.openapi(scopeRoute, (c) => {
       canErase: hasCapability(permissions, CONTACT_ERASE[0], CONTACT_ERASE[1]),
       financials: canSeeFinancials(c),
       managesAll: managesAllDeals(c),
+      letterheadService: env.LETTERHEAD_SERVICE_ENABLED,
     },
     200,
   );

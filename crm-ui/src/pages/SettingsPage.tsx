@@ -20,7 +20,7 @@ import { strings } from '../strings'
 export default function SettingsPage() {
   const t = strings.settings
   const titleId = useId()
-  const { dealEntities } = useCrmCapabilities()
+  const { dealEntities, letterheadService } = useCrmCapabilities()
   const load = useCallback((signal: AbortSignal) => listEntityProfiles({ signal }), [])
   const profiles = useResource(load)
 
@@ -38,13 +38,14 @@ export default function SettingsPage() {
       <div className="flex flex-col gap-4">
         {dealEntities.map((entity) => {
           const profile = profiles.data!.items.find((item) => item.entity === entity) ?? null
-          // A saved or re-lettered profile replaces its row, so the letterhead card sees it at once.
+          // A saved or re-lettered profile replaces its row, so the letterhead card (old path) sees it at once.
           const changed = (next: EntityProfile) =>
             profiles.replace({ items: [...profiles.data!.items.filter((item) => item.entity !== entity), next] })
           return (
             <div key={entity} className="flex flex-col gap-4">
               <EntityProfileForm entity={entity} profile={profile} onSaved={changed} />
-              <LetterheadCard entity={entity} profile={profile} onChanged={changed} />
+              {/* retired with the service (AC-10.11): the letterhead is set up in Letterheads; nothing replaces the card */}
+              {letterheadService ? null : <LetterheadCard entity={entity} profile={profile} onChanged={changed} />}
               <OfferNumberingCard entity={entity} />
               <TemplatesCard entity={entity} />
             </div>
@@ -55,7 +56,7 @@ export default function SettingsPage() {
 
   return (
     <section aria-labelledby={titleId} data-testid="crm-settings-page">
-      <PageHeader title={t.heading} titleId={titleId} description={t.description} />
+      <PageHeader title={t.heading} titleId={titleId} description={letterheadService ? t.descriptionService : t.description} />
       {content}
     </section>
   )

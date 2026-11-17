@@ -46,6 +46,20 @@ describe('resolveRuntimeRemotes', () => {
     ])
   })
 
+  it('resolves the letterheads remote from window.__OPERAI_RUNTIME_CONFIG__ (specs/20261116-letterhead-service)', async () => {
+    window.__OPERAI_RUNTIME_CONFIG__ = { letterheads: 'https://letterheads.example.test/remoteEntry.js' }
+
+    await expect(resolveRuntimeRemotes()).resolves.toEqual([
+      {
+        name: 'letterheads',
+        entry: 'https://letterheads.example.test/remoteEntry.js',
+        type: 'module',
+        entryGlobalName: 'letterheads',
+        shareScope: 'default',
+      },
+    ])
+  })
+
   it('resolves the inventory remote from a fetched /runtime-config.json', async () => {
     vi.stubGlobal(
       'fetch',
