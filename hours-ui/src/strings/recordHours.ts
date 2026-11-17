@@ -22,8 +22,10 @@ const en = {
 
 const it: typeof en = {
   buttonOn: (task: string) => `Registra ore su ${task}`,
-  recorded: (duration: string, name: string) => `${duration} registrate su ${name}.`,
-  recordedOther: (duration: string, category: string) => `${duration} registrate su altro lavoro: ${category}.`,
+  // The verb is in the person ("Hai registrato"), so nothing agrees with the duration: a participle after it ("registrate",
+  // feminine plural) suits "ore" but not "1 h" or "30 min" (design § Copy, QE observation).
+  recorded: (duration: string, name: string) => `Hai registrato ${duration} su ${name}.`,
+  recordedOther: (duration: string, category: string) => `Hai registrato ${duration} su altro lavoro: ${category}.`,
   thisProject: 'questo progetto',
   thisDeal: 'questa opportunità',
   seeInMyHours: 'Vedi in Le mie ore',

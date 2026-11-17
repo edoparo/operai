@@ -101,11 +101,31 @@ describe('Record hours in Italian (AC-4.6)', () => {
 
     const message = await screen.findByTestId('hours-record-hours-message')
     expect(within(message).getByTestId('hours-record-hours-recorded').textContent).toBe(
-      '2 h 30 registrate su Alpenstrom — portale clienti.',
+      'Hai registrato 2 h 30 su Alpenstrom — portale clienti.',
     )
     expect(within(message).getByRole('link', { name: 'Vedi in Le mie ore' }).getAttribute('href')).toBe('/hours')
     expect(within(message).getByRole('button', { name: 'Chiudi avviso' })).not.toBeNull()
     expect(message.textContent).not.toMatch(/recorded|See in|Dismiss/)
+  })
+
+  // The first draft, "{duration} registrate su …", made a participle agree with a duration: "registrate" is feminine
+  // plural, which suits "ore" but not "1 h" or "30 min" (design § Copy, QE observation). The verb is now in the person,
+  // so nothing agrees with the figure and the sentence is right for a half hour, one hour and two and a half.
+  it.each([
+    ['0:30', '30 min'],
+    ['1:00', '1 h'],
+    ['2:30', '2 h 30'],
+  ])('says "Hai registrato" with %s as "%s", a verb that agrees with no figure', async (typed, shown) => {
+    const { RecordHours, typeDuration } = await setup('it')
+    render(<RecordHours {...PROJECT_TASK} />)
+    await userEvent.click(screen.getByRole('button', { name: 'Registra ore su Scrivere l’offerta' }))
+    await screen.findByRole('dialog')
+    await typeDuration(screen.getByRole('textbox', { name: 'Durata' }), typed)
+    await userEvent.click(screen.getByRole('button', { name: 'Salva registrazione' }))
+
+    const recorded = (await screen.findByTestId('hours-record-hours-recorded')).textContent
+    expect(recorded).toBe(`Hai registrato ${shown} su Alpenstrom — portale clienti.`)
+    expect(recorded).not.toMatch(/registrate/)
   })
 
   it('says "altro lavoro" with the category, shown as typed, for a CRM task with no deal', async () => {
@@ -118,7 +138,7 @@ describe('Record hours in Italian (AC-4.6)', () => {
     await userEvent.click(screen.getByRole('button', { name: 'Salva registrazione' }))
 
     expect((await screen.findByTestId('hours-record-hours-recorded')).textContent).toBe(
-      '1 h 30 registrate su altro lavoro: Formazione.',
+      'Hai registrato 1 h 30 su altro lavoro: Formazione.',
     )
   })
 
@@ -131,7 +151,7 @@ describe('Record hours in Italian (AC-4.6)', () => {
     await userEvent.click(screen.getByRole('button', { name: 'Salva registrazione' }))
 
     expect((await screen.findByTestId('hours-record-hours-recorded')).textContent).toBe(
-      '1 h registrate su questa opportunità.',
+      'Hai registrato 1 h su questa opportunità.',
     )
   })
 })
