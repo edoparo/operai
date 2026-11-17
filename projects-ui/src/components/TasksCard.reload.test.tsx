@@ -126,6 +126,39 @@ describe('a re-read after an unrelated write (QE D3, design S3)', () => {
     expect(within(mine).getByRole('status').textContent).toBe('2 h recorded on Task t1.')
   })
 
+  it('keeps a row BELOW the one that left, with its message: the rows below it move up one place, the list follows the task and not the slot', async () => {
+    const reread = deferred()
+    let reads = 0
+    apiFetch.mockImplementation(
+      fakeApi({
+        'GET /tasks': () => {
+          reads += 1
+          return reads === 1
+            ? { status: 200, body: page([theirs('t1'), theirs('t2'), projectTask('t3')]) }
+            : reread.answer.then((answer) => answer)
+        },
+        'POST /activities/t2/complete': () => ({ status: 200, body: theirs('t2') }),
+      }),
+    )
+    render(<TasksCard project={projectDetail()} canManage currentUserId="u-ada" />)
+
+    // The message sits on the last row, mine.
+    const mine = await screen.findByTestId('project-task-t3')
+    fireEvent.click(await within(mine).findByRole('button', { name: 'Record hours on Task t3' }))
+    expect(within(mine).getByRole('status').textContent).toBe('2 h recorded on Task t3.')
+
+    // Mark done on the row above it, which then leaves the Open list.
+    fireEvent.click(screen.getByTestId('project-task-t2-toggle'))
+    await waitFor(() => expect(taskReads()).toBe(2))
+    expect(screen.getByTestId('project-task-t3')).toBe(mine)
+
+    reread.release({ status: 200, body: page([theirs('t1'), projectTask('t3')]) })
+    await waitFor(() => expect(screen.queryByTestId('project-task-t2')).toBeNull())
+    expect(screen.getByTestId('project-task-t3')).toBe(mine)
+    expect(mine.isConnected).toBe(true)
+    expect(within(mine).getByRole('status').textContent).toBe('2 h recorded on Task t3.')
+  })
+
   it('still ends in the card’s own error when the re-read fails, instead of showing rows as if they were current', async () => {
     let reads = 0
     apiFetch.mockImplementation(
