@@ -24,16 +24,24 @@
  * attacker to smuggle markup or headers through.
  */
 
-const HTML_ESCAPES: Record<string, string> = {
-  "&": "&amp;",
-  "<": "&lt;",
-  ">": "&gt;",
-  '"': "&quot;",
-  "'": "&#39;",
-};
+import {
+  badge,
+  button,
+  divider,
+  escapeHtml,
+  facts,
+  heading,
+  languageTag,
+  lines,
+  link,
+  paragraph,
+  renderFrame,
+  strong,
+} from "./emailLayout";
 
-const escapeHtml = (value: string): string =>
-  value.replace(/[&<>"']/g, (ch) => HTML_ESCAPES[ch] ?? ch);
+// Every template renders into the Operai frame (emailLayout.ts): the ink header with the wordmark, a light card, one
+// button and a footer. The frame and its blocks escape every text they are given; a template passes caller data only
+// as text, never as markup.
 
 export type InvitationTemplateData = {
   inviteUrl: string;
@@ -105,16 +113,15 @@ export type EmailTemplateName =
   | "notification_notice";
 
 /**
- * Renders an ISO datetime as an escaped, human-legible ISO string. The input
- * is already zod-validated as an ISO 8601 datetime at the route boundary
- * before this is called, but the fallback (echoing the raw escaped input
- * rather than "Invalid Date") is deliberate defense-in-depth if that ever
- * changes.
+ * An ISO datetime in the suite's format, `dd.mm.yyyy HH:mm UTC` (the server knows no reader time zone, so it says
+ * which one it uses). Returns TEXT: the blocks escape it. The input is zod-validated as ISO 8601 at the route
+ * boundary; the fallback (the raw input, escaped by the block) is defence in depth if that ever changes.
  */
 const formatIsoDate = (iso: string): string => {
   const date = new Date(iso);
-  if (Number.isNaN(date.getTime())) return escapeHtml(iso);
-  return escapeHtml(date.toISOString());
+  if (Number.isNaN(date.getTime())) return iso;
+  const two = (n: number) => String(n).padStart(2, "0");
+  return `${two(date.getUTCDate())}.${two(date.getUTCMonth() + 1)}.${date.getUTCFullYear()} ${two(date.getUTCHours())}:${two(date.getUTCMinutes())} UTC`;
 };
 
 /** Copy per invitation-family template variant — kept in one place so IT/EN always ship together. */
@@ -154,22 +161,31 @@ const renderInvitation = (
   template: "invitation" | "invitation_resend",
   data: InvitationTemplateData,
 ): RenderedEmail => {
-  const inviteUrl = escapeHtml(data.inviteUrl);
-  const inviterName = escapeHtml(data.inviterName);
   const expiresAt = formatIsoDate(data.expiresAt);
   const copy = INVITATION_COPY[template];
 
-  const html = [
-    '<div style="font-family: sans-serif; line-height: 1.6; color: #1a1a1a;">',
-    `<p>${copy.introIt(inviterName)}</p>`,
-    `<p><a href="${inviteUrl}">${copy.ctaIt}</a></p>`,
-    `<p>Il link scade il ${expiresAt}.</p>`,
-    "<hr />",
-    `<p>${copy.introEn(inviterName)}</p>`,
-    `<p><a href="${inviteUrl}">${copy.ctaEn}</a></p>`,
-    `<p>This link expires on ${expiresAt}.</p>`,
-    "</div>",
-  ].join("\n");
+  // Both languages in one card (the invitee has no account and so no language): Italian first, then English.
+  const html = renderFrame({
+    lang: "it",
+    title: copy.subject,
+    preheader: copy.introEn(data.inviterName),
+    body: [
+      heading(template === "invitation" ? "Benvenuto in Operai · Welcome to Operai" : "Il tuo invito è stato rinnovato · Your invitation was renewed"),
+      languageTag("Italiano"),
+      paragraph(copy.introIt(data.inviterName)),
+      button(data.inviteUrl, copy.ctaIt),
+      paragraph(`Il link scade il ${expiresAt}.`, { muted: true, small: true }),
+      divider(),
+      languageTag("English"),
+      paragraph(copy.introEn(data.inviterName)),
+      button(data.inviteUrl, copy.ctaEn),
+      paragraph(`This link expires on ${expiresAt}.`, { muted: true, small: true }),
+    ],
+    footer: [
+      "Se non ti aspettavi questo invito, puoi ignorare questa email.",
+      "If you did not expect this invitation, you can ignore this email.",
+    ],
+  });
 
   return { subject: copy.subject, html };
 };
@@ -183,23 +199,28 @@ const renderInvitation = (
 const renderRefundBatchCompiled = (
   data: RefundBatchCompiledTemplateData,
 ): RenderedEmail => {
-  const batchUrl = escapeHtml(data.batchUrl);
-  const batchReference = escapeHtml(data.batchReference);
-  const cutoff = formatIsoDate(data.cutoff);
-  const generatedAt = formatIsoDate(data.generatedAt);
-  // requestCount is zod-validated as a non-negative integer (emails.schemas.ts)
-  // — a plain number, nothing to HTML-escape.
-  const requestCount = data.requestCount;
-
-  const subject = `Refund batch compiled — ${batchReference}`;
-
-  const html = [
-    '<div style="font-family: sans-serif; line-height: 1.6; color: #1a1a1a;">',
-    `<p>Refund batch <strong>${batchReference}</strong> has been compiled (cutoff ${cutoff}, generated ${generatedAt}) with ${requestCount} request(s).</p>`,
-    `<p><a href="${batchUrl}">Open the batch in Operai</a></p>`,
-    "<p>Sign-in is required to view the batch and download the compiled PDF.</p>",
-    "</div>",
-  ].join("\n");
+  // The reference is escaped in the subject as it always was: a subject is shown by mail clients that may render it.
+  const subject = `Refund batch compiled — ${escapeHtml(data.batchReference)}`;
+  // requestCount is zod-validated as a non-negative integer (emails.schemas.ts).
+  const html = renderFrame({
+    lang: "en",
+    title: `Refund batch compiled — ${data.batchReference}`,
+    preheader: `Batch ${data.batchReference} is ready with ${data.requestCount} request(s).`,
+    tool: "Refund",
+    body: [
+      heading("Refund batch compiled"),
+      paragraph(["Refund batch ", strong(data.batchReference), " has been compiled and is ready for payment."]),
+      facts([
+        ["Batch", data.batchReference],
+        ["Requests", String(data.requestCount)],
+        ["Cutoff", formatIsoDate(data.cutoff)],
+        ["Generated", formatIsoDate(data.generatedAt)],
+      ]),
+      button(data.batchUrl, "Open the batch in Operai"),
+      paragraph("Sign-in is required to view the batch and download the compiled PDF.", { muted: true, small: true }),
+    ],
+    footer: ["Sent by Operai Refund to the accounting distribution address."],
+  });
 
   return { subject, html };
 };
@@ -216,15 +237,15 @@ const renderRefundBatchCompiled = (
  * under ADR 20260720-mileage-rate-money-precision-integer-micros's round-exactly-once rule.
  *
  * `currency` is zod-bound to the four supported codes and `amountCents` to an
- * integer (emails.schemas.ts), so neither can carry markup — but the currency
- * is escaped anyway rather than trusting a boundary two files away.
+ * integer (emails.schemas.ts). The result is TEXT: the block it lands in escapes
+ * it, so the currency is still escaped rather than trusting a boundary two files away.
  */
 const formatMinorUnits = (amountCents: number, currency: string): string => {
   const negative = amountCents < 0;
   const abs = Math.abs(amountCents);
   const whole = Math.trunc(abs / 100);
   const decimals = (abs % 100).toString().padStart(2, "0");
-  return `${escapeHtml(currency)} ${negative ? "-" : ""}${whole},${decimals}`;
+  return `${currency} ${negative ? "-" : ""}${whole},${decimals}`;
 };
 
 /**
@@ -241,23 +262,27 @@ const formatMinorUnits = (amountCents: number, currency: string): string => {
 const renderRefundDecisionApproved = (
   data: RefundDecisionApprovedTemplateData,
 ): RenderedEmail => {
-  const requestUrl = escapeHtml(data.requestUrl);
-  const decidedAt = formatIsoDate(data.decidedAt);
-  const totals = data.approvedTotals
-    .map((t) => `<li>${formatMinorUnits(t.amountCents, t.currency)}</li>`)
-    .join("");
-
   const subject = "Your expense request was approved";
-
-  const html = [
-    '<div style="font-family: sans-serif; line-height: 1.6; color: #1a1a1a;">',
-    `<p>Your expense reimbursement request was <strong>approved</strong> on ${decidedAt}.</p>`,
-    "<p>Approved total:</p>",
-    `<ul>${totals}</ul>`,
-    `<p><a href="${requestUrl}">Open the request in Operai</a></p>`,
-    "<p>Sign-in is required to view the request.</p>",
-    "</div>",
-  ].join("\n");
+  const totals = data.approvedTotals.map((t) => formatMinorUnits(t.amountCents, t.currency));
+  const html = renderFrame({
+    lang: "en",
+    title: subject,
+    preheader: `Approved total: ${totals.join(", ")}`,
+    tool: "Refund",
+    tone: "success",
+    body: [
+      badge("Approved", "success"),
+      heading("Your expense request was approved"),
+      paragraph(["Your expense reimbursement request was ", strong("approved"), "."]),
+      facts([
+        ["Approved total", lines(totals)],
+        ["Decided", formatIsoDate(data.decidedAt)],
+      ]),
+      button(data.requestUrl, "Open the request in Operai"),
+      paragraph("Sign-in is required to view the request.", { muted: true, small: true }),
+    ],
+    footer: ["Sent by Operai Refund."],
+  });
 
   return { subject, html };
 };
@@ -275,18 +300,27 @@ const renderRefundDecisionApproved = (
 const renderRefundDecisionRejected = (
   data: RefundDecisionRejectedTemplateData,
 ): RenderedEmail => {
-  const requestUrl = escapeHtml(data.requestUrl);
-  const decidedAt = formatIsoDate(data.decidedAt);
-
   const subject = "Your expense request was rejected";
-
-  const html = [
-    '<div style="font-family: sans-serif; line-height: 1.6; color: #1a1a1a;">',
-    `<p>Your expense reimbursement request was <strong>rejected</strong> on ${decidedAt}.</p>`,
-    `<p><a href="${requestUrl}">Open the request in Operai</a> to see the reason and, if appropriate, submit a corrected request.</p>`,
-    "<p>Sign-in is required to view the request.</p>",
-    "</div>",
-  ].join("\n");
+  const html = renderFrame({
+    lang: "en",
+    title: subject,
+    preheader: "Open the request in Operai to see the reason.",
+    tool: "Refund",
+    tone: "danger",
+    body: [
+      badge("Rejected", "danger"),
+      heading("Your expense request was rejected"),
+      paragraph(["Your expense reimbursement request was ", strong("rejected"), "."]),
+      facts([["Decided", formatIsoDate(data.decidedAt)]]),
+      button(data.requestUrl, "Open the request in Operai"),
+      paragraph(
+        ["See the reason in the request and, if appropriate, submit a corrected one. ", link(data.requestUrl, "Open the request"), "."],
+        { muted: true, small: true },
+      ),
+      paragraph("Sign-in is required to view the request.", { muted: true, small: true }),
+    ],
+    footer: ["Sent by Operai Refund."],
+  });
 
   return { subject, html };
 };
@@ -310,24 +344,22 @@ const ORIGIN_APP_LABELS: Readonly<Record<string, string>> = {
 const renderNotificationNotice = (
   data: NotificationNoticeTemplateData,
 ): RenderedEmail => {
-  const title = escapeHtml(data.title);
-  const body = escapeHtml(data.body);
   const originLabel = ORIGIN_APP_LABELS[data.originApp];
-  const sentBy = originLabel ? `Sent by Operai ${escapeHtml(originLabel)}` : "Sent by Operai";
-  const url = escapeHtml(`${data.appBaseUrl.replace(/\/+$/, "")}${data.href ?? ""}`);
+  const sentBy = originLabel ? `Sent by Operai ${originLabel}` : "Sent by Operai";
+  const url = `${data.appBaseUrl.replace(/\/+$/, "")}${data.href ?? ""}`;
 
   // The subject is the plain title; line breaks are stripped so it can never
   // add a header line.
   const subject = data.title.replace(/[\r\n]+/g, " ");
 
-  const html = [
-    '<div style="font-family: sans-serif; line-height: 1.6; color: #1a1a1a;">',
-    `<p><strong>${title}</strong></p>`,
-    `<p>${body}</p>`,
-    `<p><a href="${url}" style="display: inline-block; padding: 8px 16px; background: #1a1a1a; color: #ffffff; text-decoration: none; border-radius: 4px;">Open in Operai</a></p>`,
-    `<p style="color: #666666; font-size: 12px;">${sentBy}</p>`,
-    "</div>",
-  ].join("\n");
+  const html = renderFrame({
+    lang: "en",
+    title: subject,
+    preheader: data.body,
+    tool: originLabel,
+    body: [heading(data.title), paragraph(data.body), button(url, "Open in Operai")],
+    footer: [sentBy, "You receive this email because the notification asked for one. The same notification is in Operai."],
+  });
 
   return { subject, html };
 };
