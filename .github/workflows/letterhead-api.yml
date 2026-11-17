@@ -45,20 +45,13 @@
 name: letterhead-api
 
 on:
+  # No `paths:` filter on purpose: these jobs are required checks on main, and a required check whose workflow never
+  # starts leaves a pull request waiting forever. The `changes` job below decides; the heavy jobs are skipped when no
+  # relevant file changed, and a skipped required job counts as passed.
   pull_request:
     branches: [main]
-    paths:
-      - "letterhead-api/**"
-      - "docs/fixtures/**"
-      - "crm-api/src/authz/**"
-      - ".github/workflows/letterhead-api.yml"
   push:
     branches: [main]
-    paths:
-      - "letterhead-api/**"
-      - "docs/fixtures/**"
-      - "crm-api/src/authz/**"
-      - ".github/workflows/letterhead-api.yml"
   # Weekly, Monday 05:17 UTC: only the `advisories` job runs on a schedule (the test job is skipped). A schedule runs
   # on the default branch only.
   schedule:
@@ -86,10 +79,49 @@ env:
   CARGO_AUDIT_VERSION: "0.23.0"
 
 jobs:
+  # Which files changed. Required on main too, so that a failure here can never turn the skipped jobs below into a pass.
+  # Relevant: letterhead-api/**, docs/fixtures/**, crm-api/src/authz/**, this workflow. On a schedule or a manual run,
+  # and whenever the base of the comparison is unknown, everything runs.
+  changes:
+    name: changed paths
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      letterhead: ${{ steps.diff.outputs.letterhead }}
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          fetch-depth: 0
+      - id: diff
+        env:
+          EVENT: ${{ github.event_name }}
+          PR_BASE: ${{ github.event.pull_request.base.sha }}
+          PUSH_BEFORE: ${{ github.event.before }}
+        run: |
+          set -euo pipefail
+          relevant='^(letterhead-api/|docs/fixtures/|crm-api/src/authz/|\.github/workflows/letterhead-api\.yml$)'
+          if [ "$EVENT" = "schedule" ] || [ "$EVENT" = "workflow_dispatch" ]; then
+            echo "letterhead=true" >> "$GITHUB_OUTPUT"; exit 0
+          fi
+          if [ "$EVENT" = "pull_request" ]; then base="$PR_BASE"; range_sep="..."; else base="$PUSH_BEFORE"; range_sep=".."; fi
+          if [ -z "$base" ] || [ "$base" = "0000000000000000000000000000000000000000" ] || ! git cat-file -e "${base}^{commit}" 2>/dev/null; then
+            echo "::notice::unknown base ($base): running every job"
+            echo "letterhead=true" >> "$GITHUB_OUTPUT"; exit 0
+          fi
+          changed="$(git diff --name-only "${base}${range_sep}HEAD")"
+          printf '%s\n' "$changed"
+          if printf '%s\n' "$changed" | grep -Eq "$relevant"; then
+            echo "letterhead=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "::notice::no letterhead-related file changed: the letterhead jobs are skipped (a skipped required job passes)"
+            echo "letterhead=false" >> "$GITHUB_OUTPUT"
+          fi
+
   letterhead-api:
     name: fmt, clippy, tests, golden corpus, conformance
-    # The weekly schedule is for the advisory scan alone.
-    if: github.event_name != 'schedule'
+    # The weekly schedule is for the advisory scan alone; otherwise only when a relevant file changed.
+    needs: changes
+    if: github.event_name != 'schedule' && needs.changes.outputs.letterhead == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 60
     defaults:
@@ -319,6 +351,8 @@ jobs:
   #     nothing: it is not compiled, not linked, and not in the image. The step below checks that too.
   advisories:
     name: advisory scan (cargo-audit, Cargo.lock)
+    needs: changes
+    if: needs.changes.outputs.letterhead == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 20
 
