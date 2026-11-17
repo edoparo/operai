@@ -73,16 +73,23 @@ export const minutesOfShort = (text: string): number => {
 const admins = new Map<string, SeededSession>()
 
 /**
- * An admin for THIS run (`hrs-admin-<runId>@operai.test`, removed by cleanupPeople with the other people of the run).
+ * The dedicated persona families a hours journey may create: `hrs` (specs/20261112-time-tracking T35, T36) and `hip`
+ * (specs/20261116-record-hours-in-place T13). `cleanupPeople(runId)` removes both by their `-<runId>@operai.test` tail.
+ */
+export type PersonaPrefix = 'hrs' | 'hip'
+
+/**
+ * An admin for THIS run (`<prefix>-admin-<runId>@operai.test`, `hrs` by default; removed by cleanupPeople with the other people of the run).
  * Per run, not a fixed account: hours-api reads a person's name from auth live, and auth rate-limits that lookup per
  * caller (120 per 10 minutes), so one account shared by every run exhausts the budget when specs are re-run in a
  * dev loop and Everyone's hours then, correctly, shows names as unavailable. One session per run and process.
  */
-export async function hoursAdmin(runId: string): Promise<SeededSession> {
-  let admin = admins.get(runId)
+export async function hoursAdmin(runId: string, prefix: PersonaPrefix = 'hrs'): Promise<SeededSession> {
+  const key = `${prefix}:${runId}`
+  let admin = admins.get(key)
   if (!admin) {
-    admin = await seedAdminSession(`hrs-admin-${runId}@operai.test`, `Hours QE Admin ${runId}`)
-    admins.set(runId, admin)
+    admin = await seedAdminSession(`${prefix}-admin-${runId}@operai.test`, `Hours QE Admin ${runId}`)
+    admins.set(key, admin)
   }
   return admin
 }
@@ -111,11 +118,17 @@ async function authAdminCall<T = Json>(
  * Replaces a user's direct roles by role NAME, through the real admin API. Only ever called for the dedicated
  * `hrs-*` personas this harness creates itself: anything else is refused.
  */
-async function setRoles(userId: string, roleNames: string[], email: string, runId: string): Promise<void> {
-  if (!/^hrs-[a-z-]+-[0-9-]+@operai\.test$/.test(email) || email === SHARED_SEED_EMAIL) {
+async function setRoles(
+  userId: string,
+  roleNames: string[],
+  email: string,
+  runId: string,
+  prefix: PersonaPrefix,
+): Promise<void> {
+  if (!/^(hrs|hip)-[a-z-]+-[0-9-]+@operai\.test$/.test(email) || email === SHARED_SEED_EMAIL) {
     throw new Error(`[hoursFixtures] refusing to change roles of ${email}: not a dedicated hours persona`)
   }
-  const admin = await hoursAdmin(runId)
+  const admin = await hoursAdmin(runId, prefix)
   const roles = await authAdminCall<{ items?: { id: string; name: string }[] } | { id: string; name: string }[]>(
     admin,
     'GET',
@@ -184,11 +197,16 @@ export async function deleteRoleQuietly(admin: SeededSession, roleId: string, ho
  * Seeds a session for a new `@operai.test` user left with exactly `roles` (a per-run e-mail, see newRunId: user
  * rows persist in the shared dev DB, so a journey never reuses one). The token is minted AFTER the role change.
  */
-export async function seedHoursPerson(label: string, roles: string[], runId: string): Promise<HoursPerson> {
-  const name = `Hrs ${label} ${runId}`
-  const email = `hrs-${label}-${runId}@operai.test`
+export async function seedHoursPerson(
+  label: string,
+  roles: string[],
+  runId: string,
+  prefix: PersonaPrefix = 'hrs',
+): Promise<HoursPerson> {
+  const name = `${prefix === 'hrs' ? 'Hrs' : 'Hip'} ${label} ${runId}`
+  const email = `${prefix}-${label}-${runId}@operai.test`
   const first = await seedUserSession(email, name)
-  await setRoles(first.userId, roles, email, runId)
+  await setRoles(first.userId, roles, email, runId, prefix)
   const session = await seedUserSession(email, name)
   return { ...session, name, roles }
 }
