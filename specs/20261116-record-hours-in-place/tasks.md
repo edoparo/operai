@@ -85,7 +85,7 @@ Test commands: hours-ui, projects-ui, crm-ui `pnpm lint && pnpm build && pnpm te
   - touch: `specs/20261116-record-hours-in-place/owasp-report.md`
   - done when: `specs/20261116-record-hours-in-place/owasp-report.md` records verdict PASS over every surface plan § Security names — the `./RecordHours` widget (writes only `POST /time-entries` as the caller; a forged `targetId` meets hours-api's owner check; names rendered as text; the link a fixed path through `navigateSuite`), the `hours.recordHours` props (only what the host already shows; nothing flows back), the hosts' rule as UX only, the Week's `whose=mine` read and its URL (a day and the existing filter ids, no note or name), no new origin — with every finding fixed and re-checked
 
-- [ ] T15: [DOC] AGENTS.md, the deploy order and the changesets — refs: AC-4.5, AC-5.1 — deps: T2, T3, T5, T7, T12
+- [x] T15: [DOC] AGENTS.md, the deploy order and the changesets — refs: AC-4.5, AC-5.1 — deps: T2, T3, T5, T7, T12
   - touch: `AGENTS.md`, `infra/README.md`, `.changeset/*`
   - done when: `mise run changeset:check` passes with one changeset per changed app (hours-ui, shell, projects-ui, crm-ui; minor); AGENTS.md says hours-ui exposes `./RecordHours`, the shell's `hours.recordHours` extension and its hosts (the project and deal pages, the task rows), projects-ui's first use of `shell/extensions`, and My hours' Week view (`/hours?view=week`); `infra/README.md` § Time tracking adds the deploy order hours-ui → shell → projects-ui and crm-ui (plan R2), noting that any other order shows the host's My hours link; `mise run env:doctor` still passes
 
