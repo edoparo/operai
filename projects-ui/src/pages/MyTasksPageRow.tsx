@@ -73,7 +73,18 @@ export default function MyTaskItem({
   const participants = task.participants ?? []
   const where =
     task.kind === 'pre_sales' ? (
-      <p className={listRowMetaClassName}>{my.company(task.company?.name ?? my.unknownCompany)}</p>
+      <>
+        <p className={listRowMetaClassName}>{my.company(task.company?.name ?? my.unknownCompany)}</p>
+        {task.deal && (
+          <p className={listRowMetaClassName}>
+            {my.dealLabel}{' '}
+            {/* The CRM is a sibling tool outside this router's basepath: a plain anchor, its href built from the id. */}
+            <a className="link" href={`/crm/deals/${encodeURIComponent(task.deal.id)}`} data-testid={`my-task-${task.id}-deal`}>
+              {task.deal.title ?? my.unknownDeal}
+            </a>
+          </p>
+        )}
+      </>
     ) : task.project ? (
       <p className={listRowMetaClassName}>
         {my.projectLabel}{' '}

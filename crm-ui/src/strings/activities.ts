@@ -7,7 +7,8 @@ const en = {
   emptyBody: 'Calls, meetings, emails, notes and follow-up tasks appear here, newest first.',
   listLabel: 'Activity, newest first',
   by: (who: string, when: string) => `${who} · ${when}`,
-  about: (what: string) => `About ${what}`,
+  /** Before the contact and the linked deal an activity is about. */
+  aboutLabel: 'About',
   due: (date: string) => `Due ${date}`,
   noDue: 'No due date',
   assignedTo: (who: string) => `Assigned to ${who}`,
@@ -126,7 +127,7 @@ const it: typeof en = {
   emptyBody: 'Telefonate, riunioni, email, note e promemoria compaiono qui, dai più recenti.',
   listLabel: 'Attività, dalla più recente',
   by: (who: string, when: string) => `${who} · ${when}`,
-  about: (what: string) => `Riguarda ${what}`,
+  aboutLabel: 'Riguarda',
   due: (date: string) => `Scadenza ${date}`,
   noDue: 'Nessuna scadenza',
   assignedTo: (who: string) => `Assegnata a ${who}`,

@@ -27,7 +27,8 @@ import { strings } from '../strings'
  * who and when, what it is about, and for a task its due date, assignee and
  * state. Actions: Mark done / Reopen on a task (anyone, AC-4.3); Edit and
  * Delete for the author only (AC-4.2 — the server's 403 `author_only` is the
- * gate). `showCompany` links the company (Tasks, where rows span companies).
+ * gate). `showCompany` links the company (Tasks, where rows span companies). The deal an
+ * activity is about links to the deal's page.
  *
  * A task renders through the library's `TaskRow` (specs/20261110-activities US-1: a move, not a
  * redesign — the copy and the content of every line are unchanged). The one
@@ -87,7 +88,8 @@ export default function ActivityItem({
     )
   }
 
-  const about = [activity.contact?.name, activity.deal?.title].filter((value): value is string => Boolean(value))
+  const contactName = activity.contact?.name ?? null
+  const deal = activity.deal?.title ? activity.deal : null
 
   const body = (
     <>
@@ -143,7 +145,23 @@ export default function ActivityItem({
           </Link>
         </>
       )}
-      {about.length > 0 && ` · ${t.about(about.join(', '))}`}
+      {(contactName !== null || deal !== null) && (
+        <>
+          {` · ${t.aboutLabel} `}
+          {contactName}
+          {contactName !== null && deal !== null && ', '}
+          {deal !== null && (
+            <Link
+              to="/deals/$id"
+              params={{ id: deal.id }}
+              className="link"
+              data-testid={`crm-activity-${activity.id}-deal`}
+            >
+              {deal.title}
+            </Link>
+          )}
+        </>
+      )}
       {(activity.participants?.length ?? 0) > 0 &&
         ` · ${t.with(activity.participants!.map((person) => personName(person, currentUserId)).join(', '))}`}
     </>

@@ -8,6 +8,7 @@
  */
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { cleanup, render, screen } from '@testing-library/react'
+import { createMemoryHistory, createRootRoute, createRouter, RouterProvider } from '@tanstack/react-router'
 import ActivityItem from './ActivityItem'
 import type { Activity } from '../lib/types'
 
@@ -36,54 +37,61 @@ const MEETING_ACTIVITY: Activity = {
 }
 
 const noop = () => undefined
-const show = (activity: Activity) =>
-  render(<ActivityItem activity={activity} onChanged={noop} onEdit={noop} onDeleted={noop} />)
+/** Rendered inside a router: the deal and company lines are router links. */
+const show = async (activity: Activity) => {
+  const router = createRouter({
+    routeTree: createRootRoute({ component: () => <ActivityItem activity={activity} onChanged={noop} onEdit={noop} onDeleted={noop} /> }),
+    history: createMemoryHistory({ initialEntries: ['/'] }),
+  })
+  await router.load()
+  return render(<RouterProvider router={router} />)
+}
 
 afterEach(cleanup)
 
 describe('ActivityItem — a meeting activity', () => {
-  it('links "Open meeting" to the meeting in the Meetings tool', () => {
-    show(MEETING_ACTIVITY)
+  it('links "Open meeting" to the meeting in the Meetings tool', async () => {
+    await show(MEETING_ACTIVITY)
     const link = screen.getByRole('link', { name: 'Open meeting' })
     expect(link.getAttribute('href')).toBe('/my-meetings/m/m-42')
   })
 
-  it('shows the subject, the type and the author by live name, with no body', () => {
-    const { container } = show(MEETING_ACTIVITY)
+  it('shows the subject, the type and the author by live name, with no body', async () => {
+    const { container } = await show(MEETING_ACTIVITY)
     expect(screen.getByText('Kick-off with Acme')).not.toBeNull()
     expect(screen.getByText('Meeting')).not.toBeNull()
     expect(screen.getByText(/Ada Lovelace/)).not.toBeNull()
     expect(container.querySelector('p.whitespace-pre-line')).toBeNull()
   })
 
-  it('never renders a body for a meeting activity, even if the server sent one', () => {
-    show({ ...MEETING_ACTIVITY, body: 'Transcript: …' })
+  it('never renders a body for a meeting activity, even if the server sent one', async () => {
+    await show({ ...MEETING_ACTIVITY, body: 'Transcript: …' })
     expect(screen.queryByText(/Transcript/)).toBeNull()
   })
 
-  it('builds the href from the meeting id, not from the server-supplied href', () => {
-    show({ ...MEETING_ACTIVITY, meeting: { id: 'm 1/2', href: 'javascript:alert(1)' } })
+  it('builds the href from the meeting id, not from the server-supplied href', async () => {
+    await show({ ...MEETING_ACTIVITY, meeting: { id: 'm 1/2', href: 'javascript:alert(1)' } })
     expect(screen.getByRole('link', { name: 'Open meeting' }).getAttribute('href')).toBe('/my-meetings/m/m%201%2F2')
   })
 
-  it('shows an unknown author honestly rather than a name', () => {
-    show({ ...MEETING_ACTIVITY, author: { id: 'u-gone', name: null, status: 'deleted' } })
+  it('shows an unknown author honestly rather than a name', async () => {
+    await show({ ...MEETING_ACTIVITY, author: { id: 'u-gone', name: null, status: 'deleted' } })
     expect(screen.queryByText(/Ada Lovelace/)).toBeNull()
     expect(screen.getByRole('link', { name: 'Open meeting' })).not.toBeNull()
   })
 })
 
 describe('ActivityItem — other activities', () => {
-  it('a note has no "Open meeting" link and keeps its body', () => {
-    show({ ...MEETING_ACTIVITY, id: 'a2', type: 'note', body: 'Called about pricing', meeting: null })
+  it('a note has no "Open meeting" link and keeps its body', async () => {
+    await show({ ...MEETING_ACTIVITY, id: 'a2', type: 'note', body: 'Called about pricing', meeting: null })
     expect(screen.queryByRole('link', { name: 'Open meeting' })).toBeNull()
     expect(screen.getByText('Called about pricing')).not.toBeNull()
   })
 
-  it('an activity from a server that predates the field has no link', () => {
+  it('an activity from a server that predates the field has no link', async () => {
     const older: Activity = { ...MEETING_ACTIVITY, type: 'call', body: 'Quick call' }
     delete older.meeting
-    show(older)
+    await show(older)
     expect(screen.queryByRole('link', { name: 'Open meeting' })).toBeNull()
   })
 })
@@ -111,16 +119,33 @@ describe('ActivityItem — a task with a description and files (ADR 20261113-tas
     },
   }
 
-  it('shows the formatted description and lists only the attachments, as downloads', () => {
-    show(TASK)
+  it('shows the formatted description and lists only the attachments, as downloads', async () => {
+    await show(TASK)
     expect(screen.getByTestId('crm-activity-t1-description-text').textContent).toBe('Bring the cables')
     expect(screen.getByText('cables').closest('strong')).not.toBeNull()
     expect(screen.getByRole('button', { name: 'Download offer.pdf' })).not.toBeNull()
     expect(screen.queryByText('shot.png')).toBeNull()
   })
 
-  it('a task without a description or files shows neither', () => {
-    show({ ...TASK, task: { ...TASK.task!, description: null, files: [] } })
+  it('a task about a deal links straight to the deal page', async () => {
+    await show(TASK)
+    const link = await screen.findByTestId(`crm-activity-${TASK.id}-deal`)
+    expect(link.textContent).toBe('Platform rebuild')
+    expect(link.getAttribute('href')).toBe('/deals/d1')
+  })
+
+  it('an activity with no deal has no deal link, and one whose deal title the CRM lost shows none either', async () => {
+    await show({ ...TASK, deal: null })
+    await screen.findByText(TASK.subject)
+    expect(screen.queryByTestId(`crm-activity-${TASK.id}-deal`)).toBeNull()
+    cleanup()
+    await show({ ...TASK, deal: { id: 'd1', title: null as unknown as string } })
+    await screen.findByText(TASK.subject)
+    expect(screen.queryByTestId(`crm-activity-${TASK.id}-deal`)).toBeNull()
+  })
+
+  it('a task without a description or files shows neither', async () => {
+    await show({ ...TASK, task: { ...TASK.task!, description: null, files: [] } })
     expect(screen.queryByTestId('crm-activity-t1-description-view')).toBeNull()
   })
 })

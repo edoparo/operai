@@ -154,6 +154,10 @@ miss what is mine.
 - AC-7.3 Given a pre-sales task in the project module's list, then the caller can mark it done
   or not done there under the CRM's rules (specs/20261101-crm AC-4.3, AC-6.2), and can open it in the
   CRM for anything else; no other change to it is possible from the project module.
+- AC-7.6 (owner, 2026-11-17) Given a task about a deal, then the deal it is about links straight
+  to the deal's page: in the CRM's Tasks and activity timelines (the deal's title) and in the
+  project module's My tasks (a "Deal:" line under the company). The link is built from the deal's
+  id; a deal whose title the CRM no longer returns is shown as unknown, still linked by id.
 - AC-7.4 Given a caller who cannot read the CRM, then no pre-sales task appears in their
   project module list.
 - AC-7.5 Given the CRM cannot be reached, then the project module's list still shows the

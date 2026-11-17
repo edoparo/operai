@@ -1,7 +1,7 @@
 ---
 spec: 20261110
 generated: 2026-11-10
-synced: 2026-11-11
+synced: 2026-11-17
 ---
 
 # Tasks: Activities — one place for CRM and project activities and tasks
@@ -125,3 +125,7 @@ service.
 - [x] T23: Close: all gates green (typecheck, lint, unit, e2e, env-doctor, shared copies), security review PASS (plan § Security: YES), QE PASS, eval, spec status → done via `/wellforge:done` — refs: all — deps: T11, T14, T21, T22
   - touch: `specs/20261110-activities/qe-report.md`, `specs/20261110-activities/eval-report.md`, `specs/20261110-activities/spec.md`
   - done when: `/wellforge:done 20261110-activities` accepts the transition
+
+- [x] T25: [FE] direct link to the deal on a task about one (AC-7.6, owner 2026-11-17): crm-ui `ActivityItem` renders the deal title as a router link to `/deals/$id`; projects-ui My tasks adds a "Deal:" line with a `/crm/deals/<id>` anchor on a pre-sales task — refs: AC-7.6 — deps: none
+  - touch: `crm-ui/src/components/ActivityItem.tsx`, `crm-ui/src/strings/activities.ts`, `projects-ui/src/pages/MyTasksPageRow.tsx`, `projects-ui/src/strings/tasks.ts`, their tests
+  - done when: crm-ui and projects-ui lint + build + test pass

@@ -124,6 +124,21 @@ describe('the mixed list', () => {
     expect(link.getAttribute('href')).toBe('/crm/companies/c9')
   })
 
+  it('a pre-sales task about a deal links straight to the deal in the CRM, built from the id', async () => {
+    await renderPage({
+      'GET /tasks': () => ({
+        status: 200,
+        body: page([preSalesTask('t1'), preSalesTask('t2', { deal: { id: 'd/2', title: null } }), preSalesTask('t3', { deal: null })]),
+      }),
+    })
+    const link = await screen.findByTestId('my-task-t1-deal')
+    expect(link.textContent).toBe('Website')
+    expect(link.getAttribute('href')).toBe('/crm/deals/d1')
+    expect(screen.getByTestId('my-task-t2-deal').getAttribute('href')).toBe('/crm/deals/d%2F2')
+    expect(screen.getByTestId('my-task-t2-deal').textContent).toBe('Unknown deal')
+    expect(screen.queryByTestId('my-task-t3-deal')).toBeNull()
+  })
+
   it('a pre-sales row has no Edit or Delete, whatever its may flags (AC-7.3)', async () => {
     await renderPage({ 'GET /tasks': () => ({ status: 200, body: page([preSalesTask('s1')]) }) })
     const row = await screen.findByTestId('my-task-s1')
@@ -160,7 +175,7 @@ describe('the mixed list', () => {
   })
 
   it('a pre-sales row with no company at all has no CRM link rather than a broken one', async () => {
-    await renderPage({ 'GET /tasks': () => ({ status: 200, body: page([preSalesTask('s1', { company: null })]) }) })
+    await renderPage({ 'GET /tasks': () => ({ status: 200, body: page([preSalesTask('s1', { company: null, deal: null })]) }) })
     const row = await screen.findByTestId('my-task-s1')
     expect(within(row).queryByRole('link')).toBeNull()
   })
