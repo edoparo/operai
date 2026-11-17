@@ -160,6 +160,11 @@ operai/
 │                        # failing closed; maintenance switch `ACTIVITIES_MAINTENANCE`; pushes to notify-api as
 │                        # `system:activities-api`; scripts/import-crm-activities.ts = one-off CRM copy (specs/20261110-activities,
 │                        # ADR 20261110-activities-service-access-delegated-to-host/0082/0083). No UI: backend-only
+├── letterhead-api/      # Rust (axum + tokio, Typst embedded as a library) backend (port 8088, DB `letterhead`, bucket
+│                        # `letterhead`) — lays out a whole document for every tool; the ONE service that is not Bun/Hono/TypeScript
+│                        # (ADR 20261116-letterhead-api-is-a-rust-service-with-typst-embedded-for-document-layout-only; see ### Rust service).
+│                        # Cargo workspace: engine/ (pure) + api/ (HTTP supervisor); package.json is a Changesets shim only
+│                        # (specs/20261116-letterhead-service)
 ├── .railway/           # railway.ts — the Railway project as code (services, Postgres, buckets, domains, build/deploy,
 │                        # replicas, EU region); variables unmanaged; plan → apply by a person (ADR 20261113-railway-infrastructure-as-code)
 ├── docs/adr/            # Architecture Decision Records (0001–0094; see ## Architecture decisions)
@@ -173,7 +178,7 @@ operai/
 ├── .github/workflows/   # changeset-check.yml, env-doctor.yml
 ├── compose.yaml         # Local PostgreSQL 17 (host port 5435) + MinIO (S3 :9000, console :9001)
 ├── lerna.json           # The package list Changesets reads — NOT a pnpm/Bun workspace (see ### Git)
-├── mise.toml            # Node 24, corepack-managed pnpm; `mise run dev` / `db:migrate` / `changeset` /
+├── mise.toml            # Node 24, corepack-managed pnpm, Rust 1.100.0 (letterhead-api); `mise run dev` / `dev:letterhead` / `db:migrate` / `changeset` /
 │                        # `release:version` / `release:tag` / `env:doctor`
 └── specs/               # Spec-driven workflow (001–024; 015 hardware-inventory, 017 crm, 021 meetings and 024 estimate-list-oversight are in progress; see below)
 ```
@@ -240,7 +245,7 @@ degrades silently when the key is absent (ADR 20260804-google-places-browser-dir
   routes. One byte-identical 429 with `Retry-After`. `SERVICE_TOKEN_RATE_*` are retired and ignored (env-doctor flags them).
 
 ### Resource backends (estimai-api, notify-api, refund-api, inventory-api, crm-api, meetings-api, projects-api, activities-api)
-All eight share the `auth` service's shape (see ADR 20260703-estimai-api-bun-hono-typescript — one backend stack across the monorepo;
+All eight share the `auth` service's shape (see ADR 20260703-estimai-api-bun-hono-typescript — one backend stack across the monorepo, with ONE exception, the Rust `letterhead-api`: see **### Rust service**;
 it supersedes the earlier Kotlin/Spring intention). Six are implemented; `meetings-api` is in
 progress (specs/20261104-meetings).
 
@@ -673,6 +678,42 @@ wrong, update the spec first, then re-sync tasks. Run traces live in `.forge/run
 - When adding a cross-service env var, update `tools/env-doctor`'s manifest — it is the
   contract, and CI checks it (`.github/workflows/env-doctor.yml`)
 
+### Rust service (letterhead-api)
+`letterhead-api/` is the one Rust service (ADR 20261116-letterhead-api-is-a-rust-service-with-typst-embedded-for-document-layout-only): Rust is for document layout ONLY. Every other backend stays Bun + Hono +
+TypeScript, and a second Rust service, or Rust in any other service, needs its own ADR.
+- **Layout:** a Cargo workspace. `engine/` (`letterhead-engine`) is pure: content model, validation, layouts, outputs. It does no
+  I/O — no file system, no network, no clock, no process, no environment, no async runtime — which is what makes the render deterministic
+  (AC-1.4) and its file system closed (AC-2.2); a test in `engine/src/lib.rs` fails when a dependency or a source line breaks that rule.
+  `api/` (`letterhead-api`) is the supervisor: HTTP, authentication, the worker pool, Postgres, the bucket, logging.
+  Everything the engine needs is passed in.
+- **Toolchain:** Rust is pinned EXACT in `mise.toml` (`rust`, with `rustfmt` and `clippy`), in the Dockerfile builder (`ARG RUST_VERSION`)
+  and as `rust-version` in `letterhead-api/Cargo.toml`; change the three together. `Cargo.lock` is committed and every build uses `--locked`.
+- **Format and lint:** `cargo fmt --all --check` and `cargo clippy --workspace --all-targets -- -D warnings`. `unsafe` is forbidden
+  (`[workspace.lints]`). Never silence a lint to pass: fix it, or `#[expect(lint, reason = "…")]` with the reason.
+- **Tests:** `cd letterhead-api && cargo test --workspace --locked` (or `pnpm test` there: the shim runs the same). Unit tests sit beside
+  the code; the engine's golden corpus and the supervisor's integration tests come with the tasks that add them.
+- **Environment:** `api/src/env.rs` reads and validates every variable once at startup and exits 1 listing all problems; it is the only
+  reader of the environment. An error line names the variable and the rule, never a value; secrets are `Secret` (redacted `Debug`).
+  The S3 EU-residency guard is a port of `crm-api/src/lib/s3Residency.ts` and also stops the start. A new variable goes in `env.rs`,
+  in `tools/env-doctor/manifest.ts` and in the README table, in the same change.
+- **Errors:** RFC 7807 `application/problem+json` with a `code`, as in every other backend; no error body repeats request text (AC-3.6).
+- **Release:** Changesets versions it from `letterhead-api/package.json` (a shim: name, version, CHANGELOG; no dependencies). The Cargo
+  version is NOT the release version. `letterhead-api` is in `lerna.json`, `changeset-check.yml` and the env-doctor manifest BY NAME:
+  nothing else triggers them for a service without its own `package.json` of dependencies.
+- **Image:** `letterhead-api/Dockerfile`, multi-stage, ending in non-root `debian:bookworm-slim`; one binary. It has no curl or wget:
+  the HEALTHCHECK is `letterhead-api healthcheck`.
+- **Running it:** `mise run dev:letterhead` (host, port 8088, local defaults, no `.envrc`), or `docker compose up letterhead-api`.
+- **Migrations:** `letterhead-api migrate` applies the migrations embedded in the binary (`sqlx::migrate!`) and exits. It reads only
+  `DATABASE_URL`, exits 0 when nothing is left to apply, and on failure exits non-zero with a message that never holds the URL. `serve`
+  never migrates and refuses to start on a database that is behind. Locally: `mise run db:migrate`, or compose's one-shot
+  `letterhead-api-migrate`, which `letterhead-api` waits for. On Railway it is the service's `preDeploy` (`.railway/railway.ts`:
+  `start: "letterhead-api"`, `preDeploy: "letterhead-api migrate"`); the image has `CMD`, not `ENTRYPOINT`, so both are whole commands. A new
+  migration file is picked up by the next build (`api/build.rs`).
+- **Railway and performance:** the service, its `letterhead` bucket (`ams`) and its custom domain are declared in `.railway/railway.ts`
+  (`limitOverride` 2 vCPU / 4 GB for 2 workers x 1 GiB plus the supervisor). `letterhead-api/perf/` measures the 10-page offer
+  (50 sequential previews and 50 PDFs, p50 and p95, against AC-1.9 and AC-1.10) with a service credential, locally against a container
+  started with the same limits, and on the deployed service in T40; its README has both recipes.
+
 ### All services
 - No hardcoded strings that appear in the UI — use constants (e.g. `src/strings.ts`) or i18n
   from day one; the suite needs Italian and English at minimum. `estimai-ui` enforces this
@@ -693,7 +734,7 @@ mise run dev:preview  # frontends build+preview — no HMR, mirrors the deploy s
 ```
 
 Ports: auth `3001`, estimai-api `8080`, notify-api `8081`, refund-api `8082`, inventory-api `8083`,
-crm-api `8084`, meetings-api `8085`, projects-api `8086`, activities-api `8087`, shell `5173`, estimai-ui `5174`, refund-ui `5175`, notify-ui `5176`,
+crm-api `8084`, meetings-api `8085`, projects-api `8086`, activities-api `8087`, letterhead-api `8088` (Rust), shell `5173`, estimai-ui `5174`, refund-ui `5175`, notify-ui `5176`,
 admin-ui `5177`, inventory-ui `5178`, crm-ui `5179`, meetings-ui `5180`, projects-ui `5181`; MinIO S3 `9000`
 (console `9001`). Frontend ports are pinned in each app's `vite.config.ts`.
 
@@ -754,6 +795,10 @@ bun run dev           # http://localhost:3001 (hot reload)
 bun run typecheck     # tsc --noEmit
 bun test
 ```
+
+### letterhead-api :8088 (Rust)
+Not the shape below: see **### Rust service (letterhead-api)** — `mise run dev:letterhead` (host) or `docker compose up letterhead-api`;
+`cd letterhead-api && cargo test --workspace --locked`.
 
 ### Resource backends (estimai-api :8080, notify-api :8081, refund-api :8082, inventory-api :8083, crm-api :8084, meetings-api :8085, projects-api :8086, activities-api :8087)
 Same shape as the auth service (Bun + Hono + Prisma, own logical DB, own `.envrc`):
@@ -933,3 +978,8 @@ These defaults are optimized for AI coding agents (and humans) working on apps t
 - [20261115] A default that rewrites a copy it once wrote decides from the copy's content, once, under the lock and a version guard — a seeded row is replaced only while its SHA-256 equals a recorded shipped revision, otherwise marked kept and never revisited; an edit that differs only in spacing is still an edit, and no new default may insert a row beside a person's or rewrite text on every read (see docs/adr/20261115-seeded-content-upgraded-in-place-only-when-unedited.md)
 - [20261115] Bytes a person supplied are sized by what a parser would decode, never by what the file says about itself — a length, a dimension or an object count the file writes is a claim, not a bound: any parser or renderer of a user PDF (crm-api, the browser, a deal annex, any future reader) runs only after `boundPdf` (decoded size, objects, streams, image pixels; `/Length` never read; JBIG2, Crypt and unknown filters refused) and stores only the checked bytes under a key nobody can still write (see docs/adr/20261115-uploaded-pdf-decoded-size-bound-before-parse.md)
 - [20261115] A page break in an HTML rendering is layout, never content — one continuous text flow with empty floats for the gaps and a decorative, `aria-hidden`, `inert` page layer behind it: no page element, clipped copy, hidden measuring copy or multicol, and nothing in the flow establishes a block formatting context or paints a border except tables, their cells and a hand-edited section's clipped rule; any new flow element is checked against the in-page measurement (see docs/adr/20261115-paginated-preview-one-flow-float-rail.md)
+- [20261116] A stack exception granted for one capability must not become the template for the next, and a service in another language gets none of the controls that a `package.json` used to trigger — `letterhead-api` is Rust with Typst 0.15.1 embedded for document layout ONLY (amends 20260703's "one backend stack"); every other backend stays Bun/Hono/TypeScript, a second Rust service needs its own ADR, and the missing triggers are attached by hand: mise `rust` pin, slim non-root Docker image, Changesets via a `package.json` shim + CHANGELOG, env-doctor entries, compose/Railway (`europe-west4`, DB `letterhead`, EU bucket) (see docs/adr/20261116-letterhead-api-is-a-rust-service-with-typst-embedded-for-document-layout-only.md)
+- [20261116] A computation that cannot be stopped from inside must not run where other callers' availability, memory or secrets live, and a limit must be in the unit that runs out — Typst cannot be cancelled, so every render runs in a pre-started worker process (cleared environment, no secret, no network) that the supervisor SIGKILLs at 30 s or at the RSS cap; concurrency is set by worst-request memory (~855 MiB), `LH_WORKERS=2`, `LH_QUEUE=4`, 2 per caller, else 429 `busy`; the comemo cache is evicted after each render; image sizes are bounded from the header before decode (see docs/adr/20261116-renders-run-in-killable-worker-processes-and-concurrency-is-bounded-by-memory.md)
+- [20261116] A stored record that promises to reproduce must name the code that produces it, and a guard nobody runs is not a guard — each letterhead version stores a `layout_version` (template + Typst version + fonts pinned by SHA-256), a render always uses the version's own layout (read as well as write; unknown layout refuses), old layouts stay compiled in (newer Typst as a renamed Cargo dependency), and a per-layout golden corpus runs in `.github/workflows/letterhead-api.yml`, a deliberate exception to "no CI runs service tests"; never edit an existing layout to fix a drift (see docs/adr/20261116-a-letterhead-version-pins-its-layout-and-old-layouts-stay-compiled-in.md)
+- [20261116] A preview must be made by the same engine as the thing it previews, and a restricted service is reached through the party that holds its credential — the letterhead preview is the PDF's own compile rasterised to 64-colour PNG pages (1.5 px/pt, ~65 KiB a page) plus page text, never SVG/HTML (browser fonts break AC-1.3); crm-ui calls crm-api `POST /deals/{id}/offer-draft/preview` (unsaved draft body), which calls letterhead-api with a service token, never the browser; at the `LETTERHEAD_SERVICE_ENABLED` switch this supersedes 20261115-paginated-preview-one-flow-float-rail and 20261115-letterhead-preview-pdfjs-main-thread-in-the-remote (those files are deliberately not edited) (see docs/adr/20261116-the-preview-is-the-pdfs-own-compile-as-palette-png-pages-and-the-crm-wizard-reaches-it-through-crm-api.md)
+- [20261116] A record promised permanent must be protected at the database, not by the absence of a route, and its references must be permanent too — `letterhead_version`, `letterhead_version_asset`, `letterhead_change` and any referenced `letterhead_asset` have `BEFORE UPDATE OR DELETE` triggers that raise (Tier 1, as refund), FKs are `ON DELETE RESTRICT`, actor columns carry no FK (an FK `SET NULL` is an UPDATE), restore creates a new version, only unreferenced uploads older than 24 h are swept; any new history or version-dependent table gets the same triggers and a real-Postgres UPDATE/DELETE refusal test (see docs/adr/20261116-letterhead-versions-assets-and-change-record-are-immutable-in-the-database.md)

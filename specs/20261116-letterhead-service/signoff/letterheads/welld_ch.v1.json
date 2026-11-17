@@ -1,0 +1,118 @@
+{
+  "config": {
+    "fonts": {
+      "body": "Noto Serif",
+      "frame": "Ubuntu",
+      "heading": "Ubuntu"
+    },
+    "look": {
+      "body": {
+        "lineSpacing": 1.2,
+        "size": 10.5
+      },
+      "bulletMarker": "bullet",
+      "headings": [
+        {
+          "bold": true,
+          "color": "e50339",
+          "size": 15
+        },
+        {
+          "bold": true,
+          "color": "1f2430",
+          "size": 12
+        },
+        {
+          "bold": true,
+          "color": "595c69",
+          "size": 10.5
+        }
+      ],
+      "table": {
+        "borderColor": "c9cad1",
+        "borders": true,
+        "headerFill": "f1f1f4"
+      }
+    },
+    "margins": {
+      "bottom": 29.1,
+      "left": 25.4,
+      "right": 25.4,
+      "top": 28.4
+    },
+    "variants": {
+      "default": {
+        "background": null,
+        "footer": {
+          "center": [],
+          "left": [
+            {
+              "bold": true,
+              "color": "e50339",
+              "size": 10,
+              "text": {
+                "en": "{legal_name}",
+                "it": "{legal_name}"
+              }
+            },
+            {
+              "bold": false,
+              "color": "595c69",
+              "size": 8,
+              "text": {
+                "en": "{address}",
+                "it": "{address}"
+              }
+            },
+            {
+              "bold": false,
+              "color": "595c69",
+              "size": 8,
+              "text": {
+                "en": "www.welld.ch — info@welld.ch",
+                "it": "www.welld.ch — info@welld.ch"
+              }
+            }
+          ],
+          "right": [
+            {
+              "bold": false,
+              "color": "595c69",
+              "size": 7.5,
+              "text": {
+                "en": "{page} / {pages}",
+                "it": "{page} / {pages}"
+              }
+            }
+          ],
+          "rule": {
+            "color": "cccdd1",
+            "show": true,
+            "thicknessPt": 0.5
+          },
+          "valign": "bottom"
+        },
+        "header": {
+          "center": [],
+          "left": [],
+          "right": [],
+          "rule": {
+            "color": "cccdd1",
+            "show": false,
+            "thicknessPt": 0.5
+          },
+          "valign": "top"
+        },
+        "logo": {
+          "asset": "8a5c401f-5e6a-4b8a-9116-f14696f6c4c8",
+          "heightMm": 12.7,
+          "position": "left"
+        }
+      },
+      "first": null,
+      "last": null
+    }
+  },
+  "layoutVersion": 1,
+  "version": 1
+}

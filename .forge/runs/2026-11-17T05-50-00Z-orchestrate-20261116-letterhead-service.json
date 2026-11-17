@@ -1,0 +1,56 @@
+{
+  "schema": "wellforge-run/v1",
+  "run_id": "2026-11-17T05-50-00Z-orchestrate-20261116-letterhead-service",
+  "command": "orchestrate",
+  "feature": "20261116-letterhead-service",
+  "rigor": "production",
+  "started": "2026-11-17T05:50:00Z",
+  "finished": "2026-11-17T07:05:00Z",
+  "agents": [
+    {
+      "agent": "evaluator",
+      "outcome": "FAIL 73.0 (round 2; all dimensions at or above floor)",
+      "commits": [
+        "5cc37459"
+      ]
+    },
+    {
+      "agent": "quality-engineer",
+      "tasks": [
+        "T54"
+      ],
+      "outcome": "completed: e2e 9/9 twice, configurator e2e 19/19, crm-ui 1615",
+      "commits": [
+        "2fcaa893"
+      ],
+      "worktree": "lh/T54"
+    }
+  ],
+  "drift_events": [
+    {
+      "agent": "evaluator",
+      "artifact": "tests",
+      "summary": "T53 changed behaviour without a QE run; e2e and a unit test still expected the old Try the wizard -> T54",
+      "resolved": true
+    }
+  ],
+  "corrections_to_prior_trace": {
+    "run_id": "2026-11-16T20-24-09Z-orchestrate-20261116-letterhead-service",
+    "items": [
+      "finished was written ahead of the commit that recorded it; actual close of that run ~2026-11-17T05:47Z",
+      "owasp-reviewer delta 2 entry: commit f5ebcd8c",
+      "rust1 (T2,T3,T4,T8,T10) and rust2 (T5,T6,T7) entries omitted their commits; see git log for '(T2,' ... '(T7,'",
+      "the evaluator drift event was marked resolved before eval round 2 ran; it was resolved by T53 + T54"
+    ]
+  },
+  "verdicts": {
+    "qe": "PASS (round 2) + T54 targeted re-run green",
+    "eval": "FAIL 73.0 (round 2, bounded loop exhausted -> escalated to owner)"
+  },
+  "result": "escalated",
+  "notes": "Eval loop limit (2 rounds) reached; no third eval. Remaining gaps per eval-report round 2: CI never ran (branch not pushed), owner confirmations, T35, T40.",
+  "tokens": null,
+  "cost_usd": null,
+  "terse": false,
+  "control_run_id": null
+}
