@@ -15,6 +15,8 @@ import { getJson, query, requestJson, sendJson } from './api'
 import type {
   Agenda,
   AgendaPointInput,
+  Attachment,
+  AttachmentList,
   ChunkConfirm,
   ConversationTurn,
   DirectoryUser,
@@ -251,6 +253,29 @@ export const saveAgenda = (id: string, version: number, points: AgendaPointInput
 /** One point's covered mark; no precondition. 404 `agenda_point_not_found` when the point was removed meanwhile. */
 export const setAgendaPointCovered = (id: string, pointId: string, covered: boolean) =>
   sendJson<Agenda>(`${meetingPath(id)}/agenda/points/${enc(pointId)}/covered`, 'PUT', { covered })
+
+// ─── Attachments ────────────────────────────────────────────────────────────
+
+export const getAttachments = (id: string, init?: Init) => getJson<AttachmentList>(`${meetingPath(id)}/attachments`, init)
+
+/** 201 with the policy to POST the file to the bucket; 422 `unsupported_type` / `file_too_large`, 409 `too_many_files`. */
+export const requestAttachmentUpload = (id: string, file: { name: string; contentType: string; sizeBytes: number }) =>
+  sendJson<{ attachmentId: string; upload: PresignedPost }>(`${meetingPath(id)}/attachments/files`, 'POST', file)
+
+/** After the bucket accepted the file: 409 `upload_missing` / `upload_expired`, 422 `upload_mismatch`. */
+export const confirmAttachment = (id: string, attachmentId: string) =>
+  sendJson<Attachment>(`${meetingPath(id)}/attachments/${enc(attachmentId)}/confirm`, 'POST')
+
+/** 201; 422 `invalid_url`, 409 `too_many_links`. An empty label is left out. */
+export const addAttachmentLink = (id: string, body: { url: string; label?: string }) =>
+  sendJson<Attachment>(`${meetingPath(id)}/attachments/links`, 'POST', body)
+
+/** A 60-second presigned GET that forces a download; 410 `attachment_expired`, 404 `attachment_not_found`. */
+export const getAttachmentDownload = (id: string, attachmentId: string) =>
+  getJson<{ url: string; expiresAt: string }>(`${meetingPath(id)}/attachments/${enc(attachmentId)}/download`)
+
+export const deleteAttachment = (id: string, attachmentId: string) =>
+  sendJson<void>(`${meetingPath(id)}/attachments/${enc(attachmentId)}`, 'DELETE')
 
 // ─── Notes (the caller's own, private) ──────────────────────────────────────
 

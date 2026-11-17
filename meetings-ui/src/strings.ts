@@ -9,6 +9,7 @@
  */
 import { selectStrings } from '@operai/ui'
 import { agenda } from './strings/agenda'
+import { attachments } from './strings/attachments'
 import { ask } from './strings/ask'
 import { audio } from './strings/audio'
 import { capture } from './strings/capture'
@@ -35,6 +36,7 @@ import { upload } from './strings/upload'
 export const en = {
   agenda: agenda.en,
   ask: ask.en,
+  attachments: attachments.en,
   audio: audio.en,
   capture: capture.en,
   common: common.en,
@@ -61,6 +63,7 @@ export const en = {
 export const it: typeof en = {
   agenda: agenda.it,
   ask: ask.it,
+  attachments: attachments.it,
   audio: audio.it,
   capture: capture.it,
   common: common.it,

@@ -86,6 +86,17 @@ enum JobState {
   failed
 }
 
+enum AttachmentKind {
+  file
+  link
+}
+
+// A file is `pending` from its upload mint until the bucket object is confirmed; a link is `stored` at once.
+enum AttachmentStatus {
+  pending
+  stored
+}
+
 enum NoticeEvent {
   linked
   changed
@@ -166,6 +177,7 @@ model Meeting {
   summaries     Summary[]
   agenda        AgendaPoint[]
   notes         MeetingNote[]
+  attachments   MeetingAttachment[]
   folderEntries MeetingFolderEntry[]
   turns         ConversationTurn[]
   jobs          MeetingJob[]
@@ -330,6 +342,32 @@ model AgendaPoint {
 
   @@index([meetingId, position])
   @@map("agenda_point")
+}
+
+// A file or a link attached to a meeting (an agenda, slides, notes, a document) by its creator or an Operai
+// participant. A FILE lives in the meetings bucket under `meetings/<id>/attachments/<uuid>` and is removed by the
+// bucket's 29-day lifecycle rule like the audio: "expired" is derived on read from `storedAt`, never written. A LINK
+// is a reference only: the service never fetches it. Raw SQL CHECKs enforce the per-kind columns and the lengths.
+model MeetingAttachment {
+  id            String           @id @default(cuid())
+  meetingId     String
+  meeting       Meeting          @relation(fields: [meetingId], references: [id], onDelete: Cascade)
+  kind          AttachmentKind
+  status        AttachmentStatus
+  // file only
+  name          String?
+  contentType   String?
+  sizeBytes     Int?
+  objectKey     String?          @unique
+  storedAt      DateTime?
+  // link only
+  url           String?
+  label         String?
+  addedByUserId String
+  createdAt     DateTime         @default(now())
+
+  @@index([meetingId, createdAt])
+  @@map("meeting_attachment")
 }
 
 // One person's private notes on one meeting: read and written only by that person (never the creator of the

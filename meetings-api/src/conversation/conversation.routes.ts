@@ -34,7 +34,9 @@
 import { OpenAPIHono, createRoute, z } from "@hono/zod-openapi";
 import type { AuthzVariables } from "../auth/authz.middleware";
 import { MEETINGS_ACCESS, capability, selfScoped } from "../auth/guards";
-import { LanguageModelError, languageModel } from "../ai/languageModel";
+import { LanguageModelError, completeWithDocuments, languageModel } from "../ai/languageModel";
+import { loadMeetingContext } from "../attachments/aiContext";
+import { requireStorage } from "../lib/storage";
 import { buildAnswerRequest, questionLanguage, validateAnswerOutput, type HistoryTurn, type ValidAnswer } from "../ai/prompts/answer";
 import { db } from "../lib/db";
 import type { Prisma } from "../lib/generated/prisma/client";
@@ -187,7 +189,8 @@ async function askModel(input: AskInput): Promise<Outcome> {
       return stored ? [{ question: turn.question, answer: stored.text }] : [];
     });
   const language = questionLanguage(input.question, input.meeting.language);
-  const { request, schema } = buildAnswerRequest({ question: input.question, history, segments });
+  const context = await loadMeetingContext({ db, storage: requireStorage }, input.meeting.id, new Date());
+  const { request, schema } = buildAnswerRequest({ question: input.question, history, segments, context });
 
   const controller = new AbortController();
   try {
@@ -196,7 +199,7 @@ async function askModel(input: AskInput): Promise<Outcome> {
         const model = await languageModel();
         for (let sample = 1; sample <= OUTPUT_TRIES; sample++) {
           try {
-            const checked = validateAnswerOutput(await model.complete(request, schema, controller.signal), { segments, language, possiblyIncomplete });
+            const checked = validateAnswerOutput(await completeWithDocuments(model, request, schema, controller.signal), { segments, language, possiblyIncomplete });
             if (checked.ok) return { ok: true, answer: checked.value, possiblyIncomplete };
           } catch (error) {
             if (error instanceof LanguageModelError && error.code === "invalid_output") continue;

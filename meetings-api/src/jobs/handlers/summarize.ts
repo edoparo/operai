@@ -39,7 +39,9 @@
  */
 
 import { z } from "zod";
-import { LanguageModelError, languageModel, type LanguageModel } from "../../ai/languageModel";
+import { LanguageModelError, completeWithDocuments, languageModel, type LanguageModel } from "../../ai/languageModel";
+import { loadMeetingContext } from "../../attachments/aiContext";
+import { requireStorage, type Storage } from "../../lib/storage";
 import { MAX_AGENDA_POINTS, MAX_SUMMARY_SECTIONS } from "../../templates/builtin";
 import { buildSummaryRequest, validateSummaryOutput, type RenderedSection, type SummaryInput } from "../../ai/prompts/summary";
 import type { PromptSegment } from "../../ai/prompts/transcript";
@@ -81,6 +83,8 @@ export interface SummarizeDeps {
   readonly model: () => Promise<LanguageModel>;
   readonly announce: (event: NotifyEvent) => void;
   readonly now: () => Date;
+  /** Where the meeting's attachments are read from (ADR 20261117-meeting-attachments-in-the-audio-bucket-forwarded-unparsed). */
+  readonly storage: () => Storage;
 }
 
 /** The segments of a meeting as a prompt sees them. */
@@ -105,7 +109,7 @@ async function loadTranscript(
 }
 
 export function createSummarizeHandler(overrides: Partial<SummarizeDeps> = {}): JobHandler {
-  const deps: SummarizeDeps = { db: defaultDb, model: languageModel, announce: defaultAnnounce, now: () => new Date(), ...overrides };
+  const deps: SummarizeDeps = { db: defaultDb, model: languageModel, announce: defaultAnnounce, now: () => new Date(), storage: requireStorage, ...overrides };
 
   return async (ctx) => {
     const summaryId = ctx.job.summaryId;
@@ -162,14 +166,16 @@ export function createSummarizeHandler(overrides: Partial<SummarizeDeps> = {}): 
     const { segments, transcriptVersion, gaps } = await loadTranscript(deps.db, summary.meetingId, summary.meeting.source === "text", template.data.speakerNames);
     if (segments.length === 0) return finish({ status: "failed", code: "no_transcript" });
 
-    const input: SummaryInput = { template: template.data, language: summary.language, segments, possiblyIncomplete: gaps.length > 0 };
+    // Background the participants attached; best effort, never a reason to fail (attachments/aiContext.ts).
+    const context = await loadMeetingContext({ db: deps.db, storage: deps.storage }, summary.meetingId, deps.now());
+    const input: SummaryInput = { template: template.data, language: summary.language, segments, possiblyIncomplete: gaps.length > 0, context };
     const { request, schema } = buildSummaryRequest(input);
     const model = await deps.model();
     const lastAttempt = ctx.attempt >= ctx.job.maxAttempts;
 
     for (let sample = 1; sample <= OUTPUT_TRIES; sample++) {
       try {
-        const reply = await model.complete(request, schema, ctx.signal);
+        const reply = await completeWithDocuments(model, request, schema, ctx.signal);
         const checked = validateSummaryOutput(reply, input);
         if (checked.ok) return finish({ status: "ready", sections: checked.value, transcriptVersion, gaps });
         // A rejected reply is sampled again, once; its reason is not kept (it is never the model's words, but nor is it needed).

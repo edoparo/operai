@@ -33,6 +33,7 @@ import { join } from "node:path";
 import { LOCALE_OF, TranscriptionError, maxSpeakersFor, transcriber as defaultTranscriber, type Transcriber } from "../../ai/transcriber";
 import { db as defaultDb } from "../../lib/db";
 import type { PrismaClient } from "../../lib/generated/prisma/client";
+import { loadMeetingContext } from "../../attachments/aiContext";
 import { MAX_AUDIO_PUT_BYTES, ObjectTooLargeError, requireStorage, type Storage } from "../../lib/storage";
 import { announce as defaultAnnounce, type NotifyEvent } from "../../lib/notify";
 import { PermanentJobError, TransientJobError, type JobHandler } from "../runner";
@@ -84,10 +85,12 @@ export function createTranscribeHandler(overrides: Partial<TranscribeDeps> = {})
       // ~45 MB for 3 h: held in memory for the one request, so no lazy file outlives the temp dir.
       const audio = new Blob([await Bun.file(file).arrayBuffer()], { type: "audio/ogg" });
       const participants = await deps.db.meetingParticipant.count({ where: { meetingId } });
+      // The files the participants attached, as spelling background (best effort; attachments/aiContext.ts).
+      const { documents } = await loadMeetingContext({ db: deps.db, storage: deps.storage }, meetingId, deps.now());
 
       const outcome = await (
         await deps.transcriber()
-      ).transcribe(audio, LOCALE_OF[meeting.language], maxSpeakersFor(participants), ctx.signal, { meetingId, attempt: ctx.attempt });
+      ).transcribe(audio, LOCALE_OF[meeting.language], maxSpeakersFor(participants), ctx.signal, { meetingId, attempt: ctx.attempt, ...(documents.length > 0 ? { documents } : {}) });
       const segments = outcome.kind === "segments" ? outcome.segments : [];
       // Where each part starts and ends (ADR 20261105-meetings-transcript-parts-speaker-labels-per-part, H-5; they overlap): [0] and its end for one part, none for a meeting
       // that heard nothing. The gaps (AC-6.12) only exist with a transcript.

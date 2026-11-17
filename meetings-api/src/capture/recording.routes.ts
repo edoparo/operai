@@ -454,7 +454,8 @@ recordingRouter.openapi(discardRoute, async (c) => {
   if (meeting.status !== "recording") throw notRecording();
 
   // Objects first: if the store fails, the database still says what is true (AC-4.5 posture).
-  await storageCall(() => requireStorage().deletePrefix(objectKeys.prefix(id)));
+  // The recording's objects only: the meeting's attachments stay.
+  await storageCall(() => requireStorage().deleteAudio(id));
 
   await db.$transaction(async (tx) => {
     const flipped = await tx.meeting.updateMany({ where: { id, status: "recording" }, data: { status: "draft", durationMs: null } });

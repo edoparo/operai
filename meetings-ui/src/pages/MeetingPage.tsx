@@ -13,6 +13,7 @@ import {
 import { Link, useNavigate, useParams, useRouterState, useSearch } from '@tanstack/react-router'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import type { ReactNode } from 'react'
+import AttachmentsCard from '../components/attachments/AttachmentsCard'
 import AgendaCard from '../components/agenda/AgendaCard'
 import AskPanel from '../components/ask/AskPanel'
 import NotesCard from '../components/notes/NotesCard'
@@ -340,6 +341,7 @@ function MeetingView({ meeting, replace, listPath, back, created }: MeetingViewP
         <StatusPanels meeting={meeting} onChanged={changed} onRefresh={() => void refresh()} />
 
         <AgendaCard meetingId={meeting.id} live={meeting.status === 'recording'} />
+        <AttachmentsCard meetingId={meeting.id} />
         <NotesCard meetingId={meeting.id} />
 
         <DetailsCard meeting={meeting} hostInfo={hostInfo} />

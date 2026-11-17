@@ -165,6 +165,13 @@ was not removed. The spec stays vendor-neutral; the body below is already update
   asks or stops: a recorder widget follows the person on every page until the audio is saved, and
   can be moved around the window's edge. Closing or reloading the tab still asks first (the audio
   in the tab would be lost).
+- **A14 — decided by the user 2026-11-17 (AC-7.10, AC-9.2, new US-15, Domain language):** people
+  attach files (agenda, slides, notes, documents) and links to a meeting, to help the people in it
+  and to give the AI context: the transcription, summaries and questions read the attached files.
+  Choices: files live in the meetings bucket and are deleted 29 days after upload like the audio;
+  a link is a reference only, never fetched, and only its label reaches the AI; PDF, images and
+  text reach the AI, Office files are stored for people but never read by the AI. AC-7.10 and
+  AC-9.2 are widened accordingly; an attachment is never evidence of what was said. ADR 20261117-meeting-attachments-in-the-audio-bucket-forwarded-unparsed.
 
 ## Problem
 
@@ -658,8 +665,9 @@ them, so that one conversation can serve the sales note, the minutes and the act
 - AC-7.9: Given an outage or timeout of the AI processing, or a reply that does not have the
   structure the summary requires, then the summary is `failed` with a retry action, no partial
   text is ever shown as `ready`, and transcript, other summaries and questions stay usable. (A7)
-- AC-7.10: Given generation, then it uses only that meeting's transcript and the chosen
-  template: no other meeting, no host record data, and no capability to act on anything.
+- AC-7.10: Given generation, then it uses only that meeting's transcript, the chosen
+  template and that meeting's attachments (US-15): no other meeting, no host record data, and no
+  capability to act on anything. (A14)
 - AC-7.11: Given a summary, then everyone who can open the meeting can read it, and any viewer
   can copy it as text.
 - AC-7.12: Given a transcript containing sentences that address the AI ("ignore your
@@ -705,7 +713,8 @@ the answer comes from, so that I do not re-listen to find one fact.
   a question (1-1,000 characters, English or Italian), then an answer in the language of the
   question appears, labelled "AI-generated".
 - AC-9.2: Given a question, then the answer is based only on that meeting's current
-  transcript: not its summaries, not other meetings, not host data.
+  transcript, with its attachments as background (US-15) and never cited: not its summaries, not
+  other meetings, not host data. (A14)
 - AC-9.3: Given an answer, then it lists the transcript passages that support it, each with
   time and speaker, and selecting one scrolls to and highlights that segment (for a `text`
   meeting, the passage). Given a question the transcript does not answer, then the answer
@@ -869,6 +878,34 @@ history of the relationship in the CRM is complete without logging the meeting t
   creator-less retry is not offered.
 - AC-14.11: Given a standalone meeting or a host other than the CRM, then no CRM activity is
   created.
+
+### US-15: Attachments give the meeting context (A14)
+
+As the creator or an Operai participant, I want to attach the agenda, the slides, notes or other
+documents to a meeting, and links to them, so that everyone has them in one place and the AI
+transcribes and summarises with that context.
+
+- AC-15.1: Given the creator or an Operai participant holding `meetings:access` on a meeting that
+  is not frozen, then they can add a file (PDF, PNG, JPEG, WebP, plain text, Markdown, or an Office /
+  OpenDocument file or CSV; at most 20 MiB, 10 files per meeting) or a link (http or https, no
+  user name or password; 10 per meeting), and remove any attachment. A host reader is refused
+  (`attachment_editors_only`), as are a participant without the grant and anyone on a frozen
+  meeting.
+- AC-15.2: Given a meeting, then everyone who can open it sees its attachments, downloads its
+  files and opens its links; an attachment is never visible to anyone else (the meeting's 404).
+- AC-15.3: Given a file, then it is deleted 29 days after it was added, like the audio: it stays
+  listed as expired, cannot be downloaded, and no longer reaches the AI. Deleting the recording
+  keeps the attachments; deleting the meeting deletes them.
+- AC-15.4: Given PDF, image and text files, then the transcription, summaries and answers read
+  them (the oldest first, at most 5 MiB each and 8 MiB in total); the page shows for each file
+  whether the AI uses it, does not read its type, finds it too large, or it has expired. Office
+  files are never read by the AI. A link is never opened by Operai; only its label reaches the AI.
+- AC-15.5: Given an attachment containing text that addresses the AI, then it is treated as quoted
+  data like the transcript (AC-7.12): never followed, never cited, and never evidence that
+  something was said.
+- AC-15.6: Given an attachment the AI provider refuses, or one that cannot be read, then the
+  transcription, summary or answer is produced without it: an attachment is never the reason
+  they fail.
 
 ## Non-goals
 

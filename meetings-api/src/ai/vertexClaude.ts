@@ -25,7 +25,7 @@
 import { AnthropicVertex } from "@anthropic-ai/vertex-sdk";
 import type { AuthClient } from "google-auth-library";
 import { checkVertexLocation, vertexHost } from "../lib/residency";
-import { LanguageModelError, type LanguageModel, type LlmRequest, type OutputSchema } from "./languageModel";
+import { LanguageModelError, type LanguageModel, type LlmDocument, type LlmRequest, type OutputSchema } from "./languageModel";
 
 const DEFAULT_TIMEOUT_MS = 60_000;
 
@@ -39,9 +39,29 @@ export interface VertexClientLike {
 interface MessageBody {
   readonly model: string;
   readonly system: string;
-  readonly messages: { role: "user" | "assistant"; content: string }[];
+  readonly messages: { role: "user" | "assistant"; content: string | ContentBlock[] }[];
   readonly max_tokens: number;
   readonly tools: { name: string; description: string; input_schema: Record<string, unknown> }[];
+}
+
+type ContentBlock =
+  | { type: "text"; text: string }
+  | { type: "document"; title: string; source: { type: "base64"; media_type: "application/pdf"; data: string } | { type: "text"; media_type: "text/plain"; data: string } }
+  | { type: "image"; source: { type: "base64"; media_type: "image/png" | "image/jpeg" | "image/webp"; data: string } };
+
+/** An attached file as a content block: PDFs and text as documents, images as images. Never parsed here. */
+export function documentBlock(document: LlmDocument): ContentBlock {
+  const base64 = Buffer.from(document.bytes).toString("base64");
+  // A title is metadata the model sees; it is a person's file name, kept short and on one line.
+  const title = document.name.replace(/[\r\n\u2028\u2029]+/g, " ").slice(0, 200);
+  switch (document.mediaType) {
+    case "application/pdf":
+      return { type: "document", title, source: { type: "base64", media_type: "application/pdf", data: base64 } };
+    case "text/plain":
+      return { type: "document", title, source: { type: "text", media_type: "text/plain", data: new TextDecoder().decode(document.bytes) } };
+    default:
+      return { type: "image", source: { type: "base64", media_type: document.mediaType, data: base64 } };
+  }
 }
 
 interface MessageReply {
@@ -130,7 +150,12 @@ export function createVertexLanguageModel(options: VertexOptions): LanguageModel
       const body: MessageBody = {
         model: options.modelId,
         system: request.system,
-        messages: request.messages.map((message) => ({ role: message.role, content: message.text })),
+        // The attached files go before the text of the first user message; every other message stays plain text.
+        messages: request.messages.map((message, index) =>
+          index === 0 && message.role === "user" && (request.documents ?? []).length > 0
+            ? { role: message.role, content: [...request.documents!.map(documentBlock), { type: "text" as const, text: message.text }] }
+            : { role: message.role, content: message.text },
+        ),
         max_tokens: request.maxTokens,
         tools: [{ name: outputSchema.name, description: outputSchema.description, input_schema: { ...outputSchema.jsonSchema } }],
       };

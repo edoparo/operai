@@ -133,6 +133,8 @@ export interface World {
   readonly sharedTemplateId: string;
   readonly consentVersion: string;
   readonly agendaPointId: string;
+  /** A stored PDF attached to the ready meeting, its object in the bucket. */
+  readonly attachmentId: string;
   /** A folder of the caller's own ("none" for the anonymous persona), and one of someone else's. */
   readonly ownFolderId: string;
   readonly otherFolderId: string;
@@ -208,7 +210,15 @@ export async function seedWorld(kit: Kit, persona: Persona, kinds: readonly Meet
   let turnId = "none";
   let failedTurnId = "none";
   let agendaPointId = "none";
+  let attachmentId = "none";
   if (m.ready) {
+    const attachmentKey = `meetings/${m.ready}/attachments/00000000-0000-4000-8000-000000000001`;
+    kit.storage.put(attachmentKey, 8, "application/pdf", new TextEncoder().encode("%PDF-1.7"));
+    attachmentId = (
+      await kit.db.meetingAttachment.create({
+        data: { meetingId: m.ready, kind: "file", status: "stored", name: "agenda.pdf", contentType: "application/pdf", sizeBytes: 8, objectKey: attachmentKey, storedAt: now, addedByUserId: owner },
+      })
+    ).id;
     // someone else's private notes: no caller may ever see them through the notes route
     await kit.db.meetingNote.create({ data: { meetingId: m.ready, userId: "u-someone-else", content: noteDoc(texts.personalNote) } });
     agendaPointId = (await kit.db.agendaPoint.create({ data: { meetingId: m.ready, position: 0, title: texts.agendaTitle, note: texts.agendaNote } })).id;
@@ -287,7 +297,7 @@ export async function seedWorld(kit: Kit, persona: Persona, kinds: readonly Meet
   const ownFolderId = caller === null ? "none" : (await kit.db.meetingFolder.create({ data: { ownerUserId: caller, name: `${texts.folderName} own` } })).id;
   const otherFolderId = (await kit.db.meetingFolder.create({ data: { ownerUserId: "u-someone-else", name: `${texts.folderName} other` } })).id;
 
-  return { persona, caller, owner, texts, m, segmentId, summaryId, failedSummaryId, turnId, failedTurnId, sessionId, ownTemplateId, otherTemplateId, sharedTemplateId, consentVersion: CONSENT_NOTICE_VERSION, agendaPointId, ownFolderId, otherFolderId };
+  return { persona, caller, owner, texts, m, segmentId, summaryId, failedSummaryId, turnId, failedTurnId, sessionId, ownTemplateId, otherTemplateId, sharedTemplateId, consentVersion: CONSENT_NOTICE_VERSION, agendaPointId, attachmentId, ownFolderId, otherFolderId };
 }
 
 // ─── Expectations ────────────────────────────────────────────────────────────
@@ -430,6 +440,7 @@ function row(
 
 /** A host reader opens the meeting but is no agenda editor. */
 const agendaWrite = (r: RouteRow): RouteRow => ({ ...r, cells: { ...r.cells, hostReader: [403, "agenda_editors_only"] } });
+const attachmentWrite = (r: RouteRow): RouteRow => ({ ...r, cells: { ...r.cells, hostReader: [403, "attachment_editors_only"] } });
 
 export const ROWS: readonly RouteRow[] = [
   // ── Meetings ──────────────────────────────────────────────────────────────
@@ -485,6 +496,39 @@ export const ROWS: readonly RouteRow[] = [
     path: (w) => `/meetings/${w.m.ready}/agenda/points/${w.agendaPointId}/covered`,
     body: () => ({ covered: true }),
     ok: 200,
+    cells: AGENDA_EDIT,
+    outage: "unavailable",
+  })),
+
+  // ── Attachments ───────────────────────────────────────────────────────────
+  row("GET /meetings/:id/attachments", "ready", { ok: 200, cells: READ, outage: "serves" }, "/attachments"),
+  row("GET /meetings/:id/attachments/:attachmentId/download", "ready", {
+    path: (w) => `/meetings/${w.m.ready}/attachments/${w.attachmentId}/download`,
+    ok: 200,
+    cells: READ,
+    outage: "serves",
+  }),
+  attachmentWrite(row("POST /meetings/:id/attachments/files", "ready", {
+    body: () => ({ name: "slides.pdf", contentType: "application/pdf", sizeBytes: 1024 }),
+    ok: 201,
+    cells: AGENDA_EDIT,
+    outage: "unavailable",
+  }, "/attachments/files")),
+  attachmentWrite(row("POST /meetings/:id/attachments/:attachmentId/confirm", "ready", {
+    path: (w) => `/meetings/${w.m.ready}/attachments/${w.attachmentId}/confirm`,
+    ok: 200,
+    cells: AGENDA_EDIT,
+    outage: "unavailable",
+  })),
+  attachmentWrite(row("POST /meetings/:id/attachments/links", "ready", {
+    body: () => ({ url: "https://example.com/slides", label: "Slides" }),
+    ok: 201,
+    cells: AGENDA_EDIT,
+    outage: "unavailable",
+  }, "/attachments/links")),
+  attachmentWrite(row("DELETE /meetings/:id/attachments/:attachmentId", "ready", {
+    path: (w) => `/meetings/${w.m.ready}/attachments/${w.attachmentId}`,
+    ok: 204,
     cells: AGENDA_EDIT,
     outage: "unavailable",
   })),

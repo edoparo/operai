@@ -21,7 +21,7 @@ import { db } from "../lib/db";
 import { IdParams, commonErrors } from "../lib/http";
 import { conflict, validationHook } from "../lib/problem";
 import { requireTransientStorage, transientKeys } from "../lib/google/transientStorage";
-import { objectKeys, requireStorage } from "../lib/storage";
+import { requireStorage } from "../lib/storage";
 import { selfScoped } from "../auth/guards";
 import type { AuthzVariables } from "../auth/authz.middleware";
 import { audioState } from "../meetings/derived";
@@ -134,7 +134,8 @@ audioRouter.openapi(deleteRoute, async (c) => {
   // The transient copy first: losing it costs nothing, whereas the main bucket's audio gone under a row that
   // still lists it would be a lie.
   await storageCall(async () => (await requireTransientStorage()).deletePrefix(transientKeys.prefix(id)));
-  await storageCall(() => requireStorage().deletePrefix(objectKeys.prefix(id)));
+  // The audio only: the meeting's attachments stay (ADR 20261117-meeting-attachments-in-the-audio-bucket-forwarded-unparsed).
+  await storageCall(() => requireStorage().deleteAudio(id));
 
   await db.$transaction(async (tx) => {
     await tx.meeting.update({ where: { id }, data: { audioKey: null, audioBytes: null, audioDeletedAt: now } });

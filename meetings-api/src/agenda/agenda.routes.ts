@@ -78,7 +78,17 @@ const isEditorRole = (role: MeetingRole): boolean => role === "creator" || role 
  * failed lookup is a 503), and `meetings:access`.
  */
 export async function assertAgendaEditor(role: MeetingRole, caller: Caller, creatorUserId: string): Promise<void> {
-  if (!isEditorRole(role)) throw forbidden("Only the creator and the participants of the meeting can change its agenda", "agenda_editors_only");
+  await assertMeetingEditor(role, caller, creatorUserId, () =>
+    forbidden("Only the creator and the participants of the meeting can change its agenda", "agenda_editors_only"),
+  );
+}
+
+/**
+ * The same gate for any shared, people-written part of a meeting (the agenda, its attachments): `roleRefusal` is the
+ * 403 for a host reader, the rest is common.
+ */
+export async function assertMeetingEditor(role: MeetingRole, caller: Caller, creatorUserId: string, roleRefusal: () => ProblemError): Promise<void> {
+  if (!isEditorRole(role)) throw roleRefusal();
   const found = await requireIdentities(caller.authorization, [creatorUserId]);
   const status = found.get(creatorUserId)?.status;
   if (status === "deleted") throw forbidden("The creator's account is deactivated: this meeting is frozen", "frozen");
@@ -108,7 +118,7 @@ async function agendaView(meetingId: string, canEdit: boolean): Promise<AgendaVi
 }
 
 /** The `can.edit` hint: conservative, so an unknown creator state withholds it. */
-async function canEditHint(role: MeetingRole, caller: Caller, creatorUserId: string): Promise<boolean> {
+export async function canEditHint(role: MeetingRole, caller: Caller, creatorUserId: string): Promise<boolean> {
   if (!isEditorRole(role) || !caller.holdsAccess) return false;
   return (await creatorFrozen(caller.authorization, creatorUserId)) === false;
 }

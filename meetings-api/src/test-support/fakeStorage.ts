@@ -7,6 +7,7 @@
  */
 
 import { randomUUID } from "node:crypto";
+import { ATTACHMENT_GET_SECONDS, ATTACHMENT_POST_SECONDS, MAX_ATTACHMENT_BYTES, isAttachmentContentType } from "../attachments/policy";
 import {
   CHUNK_POST_SECONDS,
   PLAYBACK_GET_SECONDS,
@@ -33,7 +34,9 @@ export interface FakeStorage extends Storage {
   /** Makes every following call throw `error`; `null` restores normal behaviour. */
   failWith(error: Error | null): void;
   /** The posts minted so far, in order. */
-  readonly minted: readonly { kind: "chunk" | "upload"; key: string }[];
+  readonly minted: readonly { kind: "chunk" | "upload" | "attachment"; key: string; contentType?: string; sizeBytes?: number }[];
+  /** Keys read by `getObjectBytes`, in order. */
+  readonly byteReads: readonly string[];
 }
 
 const PREFIX_PATTERN = /^meetings\/[A-Za-z0-9_-]{1,64}\/$/;
@@ -43,7 +46,8 @@ export function createFakeStorage(): FakeStorage {
   const contents = new Map<string, Uint8Array>();
   const reads: string[] = [];
   const limits: number[] = [];
-  const minted: { kind: "chunk" | "upload"; key: string }[] = [];
+  const minted: { kind: "chunk" | "upload" | "attachment"; key: string; contentType?: string; sizeBytes?: number }[] = [];
+  const byteReads: string[] = [];
   let failure: Error | null = null;
   const check = () => {
     if (failure) throw failure;
@@ -57,6 +61,7 @@ export function createFakeStorage(): FakeStorage {
 
   return {
     minted,
+    byteReads,
     reads,
     limits,
     put(objectKey, sizeBytes, contentType, bytes) {
@@ -127,6 +132,19 @@ export function createFakeStorage(): FakeStorage {
       return deleted;
     },
 
+    async deleteAudio(meetingId) {
+      check();
+      const prefix = objectKeys.prefix(meetingId);
+      let deleted = 0;
+      for (const key of [...objects.keys()]) {
+        if (key.startsWith(prefix) && !key.startsWith(`${prefix}attachments/`)) {
+          objects.delete(key);
+          contents.delete(key);
+          deleted++;
+        }
+      }
+      return deleted;
+    },
     async getObjectToFile(objectKey, destPath, maxBytes) {
       check();
       const found = objects.get(objectKey);
@@ -147,6 +165,26 @@ export function createFakeStorage(): FakeStorage {
       objects.set(key, { sizeBytes: bytes.length, contentType: "audio/ogg" });
       contents.set(key, bytes);
       return { sizeBytes: bytes.length };
+    },
+    async mintAttachmentPost(meetingId, contentType, sizeBytes) {
+      check();
+      if (!isAttachmentContentType(contentType)) throw new Error("content type is not an accepted attachment type");
+      if (!Number.isInteger(sizeBytes) || sizeBytes < 1 || sizeBytes > MAX_ATTACHMENT_BYTES) throw new Error("attachment size is out of range");
+      const key = objectKeys.attachment(meetingId, randomUUID());
+      minted.push({ kind: "attachment", key, contentType, sizeBytes });
+      return { ...post(key, ATTACHMENT_POST_SECONDS, { "Content-Type": contentType }), objectKey: key };
+    },
+    async mintAttachmentGet(objectKey) {
+      check();
+      return { url: `http://storage.fake/meetings-bucket/${objectKey}?download=1`, expiresAt: inSeconds(ATTACHMENT_GET_SECONDS) };
+    },
+    async getObjectBytes(objectKey, maxBytes) {
+      check();
+      const found = objects.get(objectKey);
+      if (!found) return null;
+      if (found.sizeBytes > maxBytes) throw new ObjectTooLargeError();
+      byteReads.push(objectKey);
+      return contents.get(objectKey) ?? new Uint8Array(found.sizeBytes);
     },
   };
 }

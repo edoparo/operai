@@ -2,10 +2,11 @@
  * S3-compatible object storage for meeting audio (specs/20261104-meetings, ADR 20260716-eu-object-storage-refund-attachments
  * posture, ADR 20261104-audio-retention-bucket-lifecycle-verified-at-startup). Adapted from crm-api/src/lib/storage.ts.
  *
- * The bucket holds ONLY audio: recording chunks, an uploaded original, and the
- * normalised `audio.ogg`. Transcripts and everything else live in Postgres. One
- * bucket-wide lifecycle rule removes every object within 30 days of creation;
- * `startupChecks.ts` refuses to start unless that rule is there.
+ * The bucket holds audio (recording chunks, an uploaded original, the normalised
+ * `audio.ogg`) and the files people attach to a meeting (`attachments/<uuid>`,
+ * ADR 20261117-meeting-attachments-in-the-audio-bucket-forwarded-unparsed). Transcripts and everything else live in
+ * Postgres. One bucket-wide lifecycle rule removes every object within 30 days of
+ * creation, attachments included; `startupChecks.ts` refuses to start unless that rule is there.
  *
  * meetings-api never proxies a file a client asked for:
  * - chunks and uploaded originals go up through a presigned POST (the browser
@@ -45,6 +46,7 @@ import { pipeline } from "node:stream/promises";
 import type { ReadableStream as WebReadableStream } from "node:stream/web";
 import { createPresignedPost } from "@aws-sdk/s3-presigned-post";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
+import { ATTACHMENT_GET_SECONDS, ATTACHMENT_POST_SECONDS, MAX_ATTACHMENT_BYTES, isAttachmentContentType } from "../attachments/policy";
 import { env } from "./env";
 import { needsPathStyleAddressing } from "./s3Residency";
 
@@ -95,7 +97,7 @@ const ID_PATTERN = /^[A-Za-z0-9_-]{1,64}$/;
 const MAX_SEQ = 999_999;
 const UUID = "[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}";
 const UPLOAD_TOKEN_PATTERN = new RegExp(`^${UUID}$`);
-const KEY_PATTERN = new RegExp(`^meetings/[A-Za-z0-9_-]{1,64}/(chunks/\\d{6}|upload/${UUID}|audio\\.ogg)$`);
+const KEY_PATTERN = new RegExp(`^meetings/[A-Za-z0-9_-]{1,64}/(chunks/\\d{6}|upload/${UUID}|attachments/${UUID}|audio\\.ogg)$`);
 const PREFIX_PATTERN = /^meetings\/[A-Za-z0-9_-]{1,64}\/$/;
 
 function assertMeetingId(meetingId: string): void {
@@ -124,12 +126,24 @@ export const objectKeys = {
     if (!UPLOAD_TOKEN_PATTERN.test(token)) throw new Error("invalid upload token");
     return `meetings/${meetingId}/upload/${token}`;
   },
+  /** One attached file, under a token minted for that policy alone (ADR 20261117-meeting-attachments-in-the-audio-bucket-forwarded-unparsed). */
+  attachment(meetingId: string, token: string): string {
+    assertMeetingId(meetingId);
+    if (!UPLOAD_TOKEN_PATTERN.test(token)) throw new Error("invalid attachment token");
+    return `meetings/${meetingId}/attachments/${token}`;
+  },
   /** The normalised mono 16 kHz opus audio (AC-3.1). */
   audio(meetingId: string): string {
     assertMeetingId(meetingId);
     return `meetings/${meetingId}/audio.ogg`;
   },
 } as const;
+
+/** Is `key` one of THIS meeting's attachment keys (`meetings/<id>/attachments/<uuid>`)? */
+export function isAttachmentKeyOf(meetingId: string, key: string): boolean {
+  assertMeetingId(meetingId);
+  return key.startsWith(`meetings/${meetingId}/attachments/`) && KEY_PATTERN.test(key);
+}
 
 /** Is `key` one of THIS meeting's upload keys (`meetings/<id>/upload/<uuid>`)? */
 export function isUploadKeyOf(meetingId: string, key: string): boolean {
@@ -197,6 +211,12 @@ export interface Storage {
    */
   deletePrefix(prefix: string): Promise<number>;
   /**
+   * Deletes the AUDIO of one meeting (chunks, uploaded originals, `audio.ogg`): everything under `meetings/<id>/`
+   * except `attachments/`, which a person added for its own sake and which deleting a recording must not take.
+   * Same failure contract as `deletePrefix`.
+   */
+  deleteAudio(meetingId: string): Promise<number>;
+  /**
    * ADR 20261104-meetings-api-reads-audio-bytes-third-reader: the ONE streaming read of object bytes (for `prepare_audio`). Streams the
    * object to `destPath` on disk, never into memory, and fails with `ObjectTooLargeError`
    * as soon as it would pass `maxBytes`. Returns the bytes written.
@@ -204,6 +224,24 @@ export interface Storage {
   getObjectToFile(objectKey: string, destPath: string, maxBytes: number): Promise<number>;
   /** Writes the normalised `meetings/<id>/audio.ogg` from a local file (<= MAX_AUDIO_PUT_BYTES). */
   putAudioFile(meetingId: string, filePath: string): Promise<{ sizeBytes: number }>;
+  /**
+   * A NEW key `meetings/<id>/attachments/<uuid>` per call, EXACTLY `sizeBytes` and `contentType` (allowlisted,
+   * <= 20 MiB), 10 minutes.
+   */
+  mintAttachmentPost(meetingId: string, contentType: string, sizeBytes: number): Promise<UploadPost>;
+  /** A 60 s GET that forces a download under `fileName`; mint only after the visibility check. */
+  mintAttachmentGet(objectKey: string, fileName: string): Promise<{ url: string; expiresAt: string }>;
+  /**
+   * The bytes of one attachment, in memory, failing with `ObjectTooLargeError` past `maxBytes` (the AI context reader,
+   * ADR 20261117-meeting-attachments-in-the-audio-bucket-forwarded-unparsed). `null` when the object is gone.
+   */
+  getObjectBytes(objectKey: string, maxBytes: number): Promise<Uint8Array | null>;
+}
+
+/** `filename*` of a Content-Disposition: RFC 5987, so a name is never header syntax. */
+export function attachmentDisposition(fileName: string): string {
+  const ascii = fileName.replace(/[^\x20-\x7e]|["\\]/g, "_");
+  return `attachment; filename="${ascii}"; filename*=UTF-8''${encodeURIComponent(fileName)}`;
 }
 
 const DELETE_BATCH = 1000;
@@ -328,6 +366,29 @@ export function createStorage(deps: { client: S3Client; bucket: string }): Stora
       return deleted;
     },
 
+    async deleteAudio(meetingId) {
+      const prefix = objectKeys.prefix(meetingId);
+      const kept = `${prefix}attachments/`;
+      let deleted = 0;
+      let token: string | undefined;
+      do {
+        const page = await client.send(
+          new ListObjectsV2Command({ Bucket: bucket, Prefix: prefix, ...(token ? { ContinuationToken: token } : {}) }),
+        );
+        const keys = (page.Contents ?? []).flatMap((o) => (o.Key && !o.Key.startsWith(kept) ? [o.Key] : []));
+        for (let i = 0; i < keys.length; i += DELETE_BATCH) {
+          const batch = keys.slice(i, i + DELETE_BATCH);
+          const result = await client.send(
+            new DeleteObjectsCommand({ Bucket: bucket, Delete: { Objects: batch.map((Key) => ({ Key })), Quiet: true } }),
+          );
+          if ((result.Errors ?? []).length > 0) throw new Error(`storage refused to delete ${result.Errors!.length} audio object(s)`);
+          deleted += batch.length;
+        }
+        token = page.IsTruncated ? page.NextContinuationToken : undefined;
+      } while (token);
+      return deleted;
+    },
+
     async getObjectToFile(objectKey, destPath, maxBytes) {
       assertKey(objectKey);
       const res = await client.send(new GetObjectCommand({ Bucket: bucket, Key: objectKey }));
@@ -357,6 +418,71 @@ export function createStorage(deps: { client: S3Client; bucket: string }): Stora
         new PutObjectCommand({ Bucket: bucket, Key: key, Body: await readFile(filePath), ContentLength: size, ContentType: PLAYBACK_CONTENT_TYPE }),
       );
       return { sizeBytes: size };
+    },
+
+    async mintAttachmentPost(meetingId, contentType, sizeBytes) {
+      if (!isAttachmentContentType(contentType)) throw new Error("content type is not an accepted attachment type");
+      if (!Number.isInteger(sizeBytes) || sizeBytes < 1 || sizeBytes > MAX_ATTACHMENT_BYTES) throw new Error("attachment size is out of range");
+      const key = objectKeys.attachment(meetingId, randomUUID());
+      const { url, fields } = await createPresignedPost(client, {
+        Bucket: bucket,
+        Key: key,
+        Conditions: [
+          ["content-length-range", sizeBytes, sizeBytes],
+          ["eq", "$Content-Type", contentType],
+        ],
+        Fields: { "Content-Type": contentType },
+        Expires: ATTACHMENT_POST_SECONDS,
+      });
+      return { url, fields, expiresAt: inSeconds(ATTACHMENT_POST_SECONDS), objectKey: key };
+    },
+
+    async mintAttachmentGet(objectKey, fileName) {
+      assertKey(objectKey);
+      const url = await getSignedUrl(
+        client,
+        new GetObjectCommand({ Bucket: bucket, Key: objectKey, ResponseContentDisposition: attachmentDisposition(fileName) }),
+        { expiresIn: ATTACHMENT_GET_SECONDS },
+      );
+      return { url, expiresAt: inSeconds(ATTACHMENT_GET_SECONDS) };
+    },
+
+    async getObjectBytes(objectKey, maxBytes) {
+      assertKey(objectKey);
+      let res;
+      try {
+        res = await client.send(new GetObjectCommand({ Bucket: bucket, Key: objectKey }));
+      } catch (err) {
+        const status = (err as { $metadata?: { httpStatusCode?: number } }).$metadata?.httpStatusCode;
+        if (status === 404 || (err as { name?: string }).name === "NoSuchKey") return null;
+        throw err;
+      }
+      if (!res.Body) throw new Error("storage returned no body");
+      const web = res.Body.transformToWebStream();
+      if (res.ContentLength !== undefined && res.ContentLength > maxBytes) {
+        await web.cancel();
+        throw new ObjectTooLargeError();
+      }
+      const reader = web.getReader();
+      const pieces: Uint8Array[] = [];
+      let total = 0;
+      for (;;) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        total += value.byteLength;
+        if (total > maxBytes) {
+          await reader.cancel();
+          throw new ObjectTooLargeError();
+        }
+        pieces.push(value);
+      }
+      const out = new Uint8Array(total);
+      let offset = 0;
+      for (const piece of pieces) {
+        out.set(piece, offset);
+        offset += piece.byteLength;
+      }
+      return out;
     },
   };
 }

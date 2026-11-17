@@ -36,6 +36,17 @@ const PLAN_EXTRA_CODES = [
   'folder_name_taken',
   'folder_limit',
   'folder_not_found',
+  // Attachments.
+  'attachment_editors_only',
+  'file_too_large',
+  'too_many_files',
+  'too_many_links',
+  'upload_missing',
+  'upload_expired',
+  'upload_mismatch',
+  'invalid_url',
+  'attachment_expired',
+  'attachment_not_found',
 ]
 
 describe('problem codes have a message in both languages (exhaustiveness)', () => {

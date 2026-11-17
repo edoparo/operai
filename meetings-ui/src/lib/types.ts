@@ -258,6 +258,45 @@ export type Agenda = { version: number; points: AgendaPoint[]; can: { edit: bool
 /** A point as written: an existing one keeps its `id` (and its covered mark), a new one has none. */
 export type AgendaPointInput = { id?: string; title: string; note: string | null }
 
+// ─── Attachments ────────────────────────────────────────────────────────────
+
+export type AttachmentAiContext = 'used' | 'not_supported' | 'too_large' | 'expired' | 'label_only'
+
+export type FileAttachment = {
+  id: string
+  kind: 'file'
+  name: string
+  contentType: string
+  sizeBytes: number
+  addedByUserId: string
+  addedAt: string
+  expiresAt: string
+  expired: boolean
+  aiContext: Exclude<AttachmentAiContext, 'label_only'>
+}
+
+export type LinkAttachment = {
+  id: string
+  kind: 'link'
+  url: string
+  label: string
+  addedByUserId: string
+  addedAt: string
+  aiContext: 'label_only'
+}
+
+export type Attachment = FileAttachment | LinkAttachment
+
+export type AttachmentLimits = {
+  maxFiles: number
+  maxLinks: number
+  maxFileBytes: number
+  contentTypes: string[]
+  aiContentTypes: string[]
+}
+
+export type AttachmentList = { attachments: Attachment[]; can: { edit: boolean }; limits: AttachmentLimits }
+
 // ─── Notes ──────────────────────────────────────────────────────────────────
 
 /** The caller's own notes on a meeting: a rich-text document (null and `version` 0 while there are none yet). */

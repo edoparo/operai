@@ -49,6 +49,8 @@ describe("self-scoped routes keep working without auth (AC-10.6)", () => {
         "GET /meetings",
         "GET /meetings/:id",
         "GET /meetings/:id/agenda",
+        "GET /meetings/:id/attachments",
+        "GET /meetings/:id/attachments/:attachmentId/download",
         "GET /meetings/:id/audio",
         "GET /meetings/:id/conversation",
         "GET /meetings/:id/notes",

@@ -8,6 +8,7 @@
  * (AC-13.2): `it-IT` or `en-US` and nothing else.
  */
 
+import type { LlmDocument } from "./languageModel";
 import type { DraftSegment } from "./segments";
 
 export type TranscriptionLocale = "it-IT" | "en-US";
@@ -85,6 +86,11 @@ export interface TranscribeContext {
   readonly meetingId: string;
   /** The job's claim number (1-based). */
   readonly attempt: number;
+  /**
+   * The meeting's attached files, as background for names and terms (ADR 20261117-meeting-attachments-in-the-audio-bucket-forwarded-unparsed).
+   * Gemini reads them; Chirp 3 and the fake ignore them.
+   */
+  readonly documents?: readonly LlmDocument[];
 }
 
 export interface Transcriber {

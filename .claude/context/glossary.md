@@ -80,6 +80,10 @@
 - **Frozen meeting**: a meeting whose creator's account is deactivated; still readable by
   participants, not editable, deletable only by a `meeting:erase` holder. _Avoid:_
   orphaned, archived.
+- **Attachment**: a file or a link a person added to a meeting (agenda, slides, notes, a
+  document), seen by everyone who can open the meeting and read by the AI as background, never
+  as evidence of what was said. A file is deleted 29 days after it was added; a link is never
+  opened by Operai. _Avoid:_ document (a file only), upload (the audio source).
 - **Meeting activity**: the CRM activity of type `meeting` that a meeting linked to a deal
   creates on the deal. _Avoid:_ meeting log.
 - **Host registry**: the list of hosts meetings-api accepts (app + entity type, whether it
