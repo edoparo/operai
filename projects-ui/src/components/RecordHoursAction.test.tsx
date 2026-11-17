@@ -77,6 +77,28 @@ describe('RecordHoursAction', () => {
     expect(link()).toBeNull()
   })
 
+  it('passes nothing but the six plain strings across the seam, whatever else the caller spreads in (OWASP N1)', async () => {
+    // A call site that spreads a wider object (a project with its note, a handler) must not carry it across the seam.
+    const extra = {
+      ...PAGE,
+      note: 'a project note',
+      onSaved: () => undefined,
+      'data-testid': 'nope',
+    } as RecordHoursProps
+    render(<RecordHoursAction {...extra} />)
+
+    await screen.findByText('widget')
+    expect(Object.keys(seam.received[0]!.props as object).sort()).toEqual([
+      'activityId',
+      'activityName',
+      'on',
+      'placement',
+      'targetId',
+      'targetName',
+    ])
+    expect(seam.received[0]!.props).toEqual(PAGE)
+  })
+
   it('gives the widget, as its fallback, a link to My hours that is a plain path in the shell (AC-4.5)', async () => {
     seam.mode = 'fallsBack'
     render(<RecordHoursAction {...PAGE} />)

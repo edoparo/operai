@@ -50,7 +50,8 @@ class Contain extends Component<{ fallback: ReactNode; children: ReactNode }, { 
 /**
  * RecordHoursAction — Record hours, hours-ui's own widget, embedded through the shell's `hours.recordHours`
  * extension (specs/20261116-record-hours-in-place, ADR 20261116-record-hours-widget-through-the-host-extension-seam). The host passes six plain strings
- * (built by `recordHoursPropsOf`, from one object) and nothing comes back: the widget owns the dialog, the save and
+ * (built by `recordHoursPropsOf`, from one object; exactly these six cross the seam, however the caller spreads them)
+ * and nothing comes back: the widget owns the dialog, the save and
  * its message. Whether to render this at all is the page's call (`mayRecordOnProject`), made from what the page
  * already shows; hours-api decides every save.
  *
@@ -60,7 +61,14 @@ class Contain extends Component<{ fallback: ReactNode; children: ReactNode }, { 
  * cached, so the link is the whole offer; reloading the page tries again (the `MeetingsSection` posture).
  * projects-ui imports `shell/extensions` dynamically, as crm-ui does, so a shell without it degrades the same way.
  */
-export default function RecordHoursAction(props: RecordHoursProps) {
+export default function RecordHoursAction({
+  on,
+  targetId,
+  targetName,
+  activityId,
+  activityName,
+  placement,
+}: RecordHoursProps) {
   const [seam, setSeam] = useState<Seam>({ status: 'loading' })
 
   useEffect(() => {
@@ -90,9 +98,12 @@ export default function RecordHoursAction(props: RecordHoursProps) {
   }, [])
 
   if (seam.status === 'loading') return null
-  const link = <MyHoursLink placement={props.placement} />
+  const link = <MyHoursLink placement={placement} />
   if (seam.status === 'failed') return link
   const { HostExtension } = seam
+  // Rebuilt member by member, never the caller's object: whatever else a call site spreads in stays on this side of
+  // the seam and out of the shell's boundary key (OWASP N1). Exactly the six of plan § The shell's extension.
+  const props: RecordHoursProps = { on, targetId, targetName, activityId, activityName, placement }
   return (
     <Contain fallback={link}>
       <HostExtension name="hours.recordHours" props={props} fallback={link} />
