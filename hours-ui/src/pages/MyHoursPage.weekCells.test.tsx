@@ -637,8 +637,12 @@ describe('cells that offer no recording stay without it on the page (AC-5.24, D1
     await renderPage()
     await screen.findByTestId('hours-week-table')
 
+    // The keys are the rows' real ones: the cell that HOLDS hours is a button on each, so a wrong key cannot pass the
+    // absences below by finding nothing (QE: this once asserted on `project:unknown`, a key no row here has).
+    expect(cellButton('category:tc-seminars', '2026-11-09')).not.toBeNull()
+    expect(cellButton('project:p-secret', '2026-11-10')).not.toBeNull()
     expect(cellButton('category:tc-seminars', '2026-11-12')).toBeNull()
-    expect(cellButton('project:unknown', '2026-11-12')).toBeNull()
+    expect(cellButton('project:p-secret', '2026-11-12')).toBeNull()
     expect(screen.queryAllByRole('button', { name: /^Record hours on .*(Seminars|not visible to you)/ })).toEqual([])
     // The rows with a name still have theirs.
     expect(cellButton('project:p-alpha', '2026-11-12')).not.toBeNull()

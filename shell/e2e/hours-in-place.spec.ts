@@ -61,6 +61,7 @@ import {
   type ProjectRow,
 } from './helpers/hoursOwnersFixtures'
 import {
+  apiCall,
   findCompanyActivityId,
   findProjectTaskId,
   ACTIVITIES_API_URL,
@@ -193,6 +194,14 @@ test.describe('specs/20261116-record-hours-in-place T13: record hours in place, 
 
   test.afterAll(async () => {
     for (const person of everyone()) await deleteOwnEntriesQuietly(person, cleanupFrom)
+    // The tasks the journeys made go too (their admin may delete them); the company, the deal and the projects cannot be
+    // deleted from here, as in the other specs.
+    for (const id of [projectTaskId, dealTaskId, companyTaskId]) {
+      if (admin && id)
+        await apiCall(ACTIVITIES_API_URL, admin, 'DELETE', `/activities/${encodeURIComponent(id)}`).catch(
+          () => undefined,
+        )
+    }
     await cleanupPeople(runId)
   })
 
@@ -555,6 +564,13 @@ test.describe('specs/20261116-record-hours-in-place T13: record hours in place, 
 
     // The week is last week, so all seven days are in the past whatever day today is. Two projects over three days…
     await createEntryViaApi(weeker, { day: mon, minutes: 120, on: { type: 'project', id: alpha.id } })
+    // …two of them on alpha's Monday, so that one cell holds two entries (its figure is their sum, AC-5.9, AC-5.15).
+    await createEntryViaApi(weeker, {
+      day: mon,
+      minutes: 60,
+      on: { type: 'project', id: alpha.id },
+      note: `Hip F second ${runId}`,
+    })
     const alphaWed = await createEntryViaApi(weeker, {
       day: wed,
       minutes: 180,
@@ -616,7 +632,7 @@ test.describe('specs/20261116-record-hours-in-place T13: record hours in place, 
     await expect(page).toHaveURL(new RegExp(`week=${lastMonday}`))
     await expect(page.getByTestId('hours-week-heading')).toHaveText(weekLabel(lastMonday), { timeout: 30_000 })
     await expect(page.getByTestId('hours-week-this')).not.toHaveAttribute('aria-disabled', 'true')
-    await expect(cell(alphaKey, mon)).toHaveText('2 h', { timeout: 30_000 })
+    await expect(cell(alphaKey, mon)).toHaveText('3 h', { timeout: 30_000 })
     await expect(cell(alphaKey, wed)).toHaveText('3 h')
     await expect(cell(betaKey, tue)).toHaveText('1 h 30')
     await expect(cell(betaKey, wed)).toHaveText('2 h')
@@ -627,13 +643,13 @@ test.describe('specs/20261116-record-hours-in-place T13: record hours in place, 
     await expect(bodyRows.nth(1)).toContainText(beta.name)
     await expect(bodyRows.nth(2)).toContainText(training.name)
     await expect(bodyRows.nth(3)).toContainText('Total')
-    await expect(lastCell(rowOf(alphaKey))).toHaveText('5 h')
+    await expect(lastCell(rowOf(alphaKey))).toHaveText('6 h')
     await expect(lastCell(rowOf(betaKey))).toHaveText('3 h 30')
     await expect(lastCell(rowOf(otherKey))).toHaveText('1 h')
-    await expect(lastCell(dayTotals())).toHaveText('9 h 30')
-    // Day totals (the cells after the row header): Mon 2 h, Tue 1 h 30, Wed 5 h, Thu —, Fri 1 h, Sat —, Sun —, then the week.
+    await expect(lastCell(dayTotals())).toHaveText('10 h 30')
+    // Day totals (the cells after the row header): Mon 3 h, Tue 1 h 30, Wed 5 h, Thu —, Fri 1 h, Sat —, Sun —, then the week.
     const totals = (await dayTotals().getByRole('cell').allInnerTexts()).map((text) => text.trim())
-    expect(totals).toEqual(['2 h', '1 h 30', '5 h', '—', '1 h', '—', '—', '9 h 30'])
+    expect(totals).toEqual(['3 h', '1 h 30', '5 h', '—', '1 h', '—', '—', '10 h 30'])
 
     // AC-5.12 / AC-5.13 / AC-5.20: an empty past cell records, and the figures follow without a reload.
     await page.evaluate(() => {
@@ -653,14 +669,26 @@ test.describe('specs/20261116-record-hours-in-place T13: record hours in place, 
     await record.getByTestId('hours-entry-dialog-submit').click()
     await record.waitFor({ state: 'detached', timeout: 30_000 })
     await expect(cell(alphaKey, thu)).toHaveText('1 h', { timeout: 30_000 })
-    await expect(lastCell(rowOf(alphaKey))).toHaveText('6 h')
-    await expect(lastCell(dayTotals())).toHaveText('10 h 30')
+    await expect(lastCell(rowOf(alphaKey))).toHaveText('7 h')
+    await expect(lastCell(dayTotals())).toHaveText('11 h 30')
     expect((await dayTotals().getByRole('cell').allInnerTexts())[3]!.trim()).toBe('1 h')
     expect(await page.evaluate(() => (window as unknown as { __hipSameDocument?: boolean }).__hipSameDocument)).toBe(
       true,
     )
     await expect(cell(alphaKey, thu)).toBeFocused() // focus lands on the cell it came from
     expect((await entriesOn(weeker, thu)).filter((entry) => entry.on.id === alpha.id)).toHaveLength(1)
+
+    // AC-5.15: a cell of two entries lists both, as the List does; its figure is their sum.
+    await cell(alphaKey, mon).click()
+    const monDialog = page.getByRole('dialog', { name: `Project: ${alpha.name}` })
+    await expect(monDialog).toBeVisible()
+    await expect(monDialog).toContainText('Monday')
+    await expect(monDialog).toContainText('2 entries, 3 h')
+    await expect(monDialog).toContainText(`Hip F second ${runId}`)
+    await expect(monDialog.getByRole('button', { name: /^Edit/ })).toHaveCount(2)
+    await monDialog.getByTestId('hours-week-cell-done').click()
+    await expect(monDialog).toHaveCount(0)
+    await expect(cell(alphaKey, mon)).toBeFocused() // Escape or Close: back on the cell that opened it
 
     // AC-5.16: a cell's Edit changes one entry (PATCH), and the cell dialog stays on it.
     await cell(alphaKey, wed).click()
@@ -678,8 +706,8 @@ test.describe('specs/20261116-record-hours-in-place T13: record hours in place, 
     await cellDialog.getByTestId('hours-week-cell-done').click()
     await expect(cellDialog).toHaveCount(0)
     await expect(cell(alphaKey, wed)).toHaveText('3 h 30', { timeout: 30_000 })
-    await expect(lastCell(rowOf(alphaKey))).toHaveText('6 h 30')
-    await expect(lastCell(dayTotals())).toHaveText('11 h')
+    await expect(lastCell(rowOf(alphaKey))).toHaveText('7 h 30')
+    await expect(lastCell(dayTotals())).toHaveText('12 h')
     expect((await ownEntriesViaApi(weeker, wed, wed)).find((entry) => entry.id === alphaWed.id)?.minutes).toBe(210)
 
     // AC-5.17: Delete asks first. Cancel sends nothing; Confirm deletes, the cell empties and the dialog closes.
@@ -698,7 +726,7 @@ test.describe('specs/20261116-record-hours-in-place T13: record hours in place, 
     await expect(cell(betaKey, tue)).toHaveAccessibleName(/^Record hours on .*Tuesday/, { timeout: 30_000 })
     await expect(cell(betaKey, tue)).toBeFocused() // the now-empty cell
     await expect(lastCell(rowOf(betaKey))).toHaveText('2 h')
-    await expect(lastCell(dayTotals())).toHaveText('9 h 30')
+    await expect(lastCell(dayTotals())).toHaveText('10 h 30')
     expect((await ownEntriesViaApi(weeker, tue, tue)).some((entry) => entry.id === betaTue.id)).toBe(false)
 
     // AC-5.19: recording on something with no hours that week, with the page's Record hours, adds its row.
@@ -716,7 +744,7 @@ test.describe('specs/20261116-record-hours-in-place T13: record hours in place, 
     await expect(rowOf(gammaKey)).toBeVisible({ timeout: 30_000 })
     await expect(cell(gammaKey, fri)).toHaveText('1 h')
     await expect(page.getByTestId('hours-week-table').locator('tbody tr').nth(2)).toContainText(gamma.name) // after beta, before other work
-    await expect(lastCell(dayTotals())).toHaveText('10 h 30')
+    await expect(lastCell(dayTotals())).toHaveText('11 h 30')
     expect(await page.evaluate(() => (window as unknown as { __hipSameDocument?: boolean }).__hipSameDocument)).toBe(
       true,
     )
@@ -734,13 +762,13 @@ test.describe('specs/20261116-record-hours-in-place T13: record hours in place, 
     await expect(page.getByTestId('hours-entry-saved')).toContainText(
       `${dmy(today)} is outside the week you are viewing.`,
     )
-    await expect(lastCell(dayTotals())).toHaveText('10 h 30')
+    await expect(lastCell(dayTotals())).toHaveText('11 h 30')
 
     await expect(page.getByTestId('hours-week-heading')).toHaveText(weekLabel(lastMonday))
     await ctx.close()
 
     // Out-of-band: the person's own hours of last week are exactly what the grid said.
     const mine = await ownEntriesViaApi(weeker, lastMonday, addDays(lastMonday, 6))
-    expect(mine.reduce((sum, entry) => sum + entry.minutes, 0)).toBe(630)
+    expect(mine.reduce((sum, entry) => sum + entry.minutes, 0)).toBe(690)
   })
 })
