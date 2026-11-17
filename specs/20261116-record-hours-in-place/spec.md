@@ -16,6 +16,8 @@ Decision ledger: `ledger.md`
 > WA1–WA10, C1) and the wording of AC-4.3 and AC-4.4 that it touches. Re-approved by the user 2026-11-16.
 > Aligned 2026-11-16, kept approved by the user: AC-5.21 names the Recorded on filter that My hours gained
 > (specs/20261112-time-tracking AC-4.4 as amended, D52), since D11 asks for "the list's existing filters".
+> Amended 2026-11-17 after /wellforge:design, kept approved by the user (their choices, ledger D12, D13): AC-4.2 says
+> where a refusal stands in a dialog whose target is fixed; AC-5.24 covers a row on a retired category.
 
 ## Problem
 
@@ -92,7 +94,8 @@ hours, so that there is one set of rules and one place to correct it.
 - AC-4.2 Given a value or a situation that My hours' dialog refuses — a duration that is not whole
   30-minute steps, a day after today, a project whose team the person has left, a time-tracking
   outage — then the dialog opened from a page refuses it in the same way, with the same message
-  (D3, A2; specs/20261112-time-tracking US-1, US-2).
+  (D3, A2; specs/20261112-time-tracking US-1, US-2). A refusal My hours shows on the project or deal picker is
+  shown for the whole dialog, which has no picker, and drops any invitation to choose another (D13).
 - AC-4.3 Given an entry saved from a project's page, a deal's page or a task's row, then the dialog closes and the page says what was
   recorded and on what (for example "2 h 30 recorded on <project>", or "on other work"), with a
   link that opens My hours; nothing else on the page changes (D6).
@@ -152,8 +155,9 @@ that I see where the week went and record or correct a day from there without go
   still set (D11, WA5).
 - AC-5.23 Given a row on a project, deal or meeting whose name the person cannot read, then the row is
   labelled as My hours' list labels such an entry (WA8; specs/20261112-time-tracking AC-4.10).
-- AC-5.24 Given a row whose name the person cannot read, then it offers no Add hours, neither on its empty
-  cells nor in its cells' lists (WA8).
+- AC-5.24 Given a row whose name the person cannot read, or a row on a retired category, then it offers no Add
+  hours, neither on its empty cells nor in its cells' lists; its entries can still be changed and deleted (WA8,
+  D12; specs/20261112-time-tracking AC-3.4).
 
 ## Non-goals
 

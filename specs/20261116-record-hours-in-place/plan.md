@@ -7,6 +7,11 @@ approved: 2026-11-16
 # Plan: Record hours in place — from the project, the deal and the task, and a week view of My hours
 
 Spec: `spec.md` (approved 2026-11-16, amended and re-approved the same day). Decision ledger: `ledger.md`.
+
+> First amendment, 2026-11-17, after /wellforge:design (design.md § Gaps): the widget's message has no timer (G1);
+> `activityName` may name a deal-less task's button (G3); a retired category's row offers no recording (G4, spec
+> AC-5.24, ledger D12); the Week ignores the List's hidden controls in "filtered" (G5); dialogs from a week cell
+> focus Duration (G7); a fixed dialog shows the picker's refusals for the whole dialog (spec AC-4.2, ledger D13).
 Depends on specs/20261112-time-tracking (hours-api, hours-ui, `EntryDialog`); nothing here changes hours-api.
 
 ## Architecture
@@ -40,7 +45,7 @@ Delete. No hours-api route, schema or permission changes.
 | `hours-ui/src/components/EntryRow.tsx` (new, moved out of `EntryDayList.tsx`) | The list's entry row, exported unchanged so the cell dialog shows exactly what the list shows. `EntryDayList` imports it. | AC-5.15 ("each with what My hours' list shows"). |
 | `hours-ui/src/components/WeekView.tsx`, `WeekCellDialog.tsx`, `WeekNavigator.tsx`, `ViewSwitch.tsx` (new) | The grid card, the cell's entries (Edit, Delete, Add hours), previous / next / this week, the List \| Week switch. | US-5. Exact controls and layout: `/wellforge:design`. |
 | `hours-ui/src/pages/MyHoursPage.tsx` | Reads `view`; in Week it makes the week read instead of the three list reads (entries, day totals, totals), hides Period, Totals, Entries and Export, shows the week card. The record / edit / delete handlers are shared; after any write it re-reads whichever view is shown. The deal-filter refusal (AC-4.11 of time tracking) blocks the week as it blocks the list. | AC-5.1, 5.2, 5.19–5.22, WA10. |
-| `hours-ui/src/components/HoursFiltersState.ts`, `HoursFilters.tsx` | `view` and `week` in the search; `clearFilterSearch` keeps both (a view, not a filter); Period is not rendered in Week. | AC-5.21, 5.22, WA5. |
+| `hours-ui/src/components/HoursFiltersState.ts`, `HoursFilters.tsx` | `view` and `week` in the search; `clearFilterSearch` keeps both (a view, not a filter); Period is not rendered in Week, and in Week `isFiltered` and Clear filters ignore `period`, `from`, `to` and `group` (G5). | AC-5.21, 5.22, WA5. |
 | `hours-ui/src/components/HoursShell.tsx` | `ToolLayout width="wide"` while My hours is in Week (C1, the EstimAI workspace width); `default` everywhere else. | C1. |
 | `hours-ui/src/strings/recordHours.ts`, `strings/week.ts` (new) + `strings.ts` | en + `it: typeof en`. | AC-4.6. |
 | `shell/src/lib/extensions.tsx` | `ExtensionProps['hours.recordHours']` and `LOADERS['hours.recordHours'] = () => import('hours/RecordHours')`. | The seam. |
@@ -111,8 +116,9 @@ Delete. No hours-api route, schema or permission changes.
    cannot import `shell/extensions`, and a library component that took the loader as a prop would hide nothing.
    In crm-ui the dynamic import may be shared with `MeetingsSection` through a small hook; that refactor is
    allowed, not required.
-7. **Rows without a readable name offer no recording** (AC-5.24, WA8): `hidden` and `unavailable` alike — an
-   owner that did not answer cannot be named in the dialog either. Their entries are still listed, edited and
+7. **Rows without a readable name, and rows on a retired category, offer no recording** (AC-5.24, WA8, D12):
+   `hidden` and `unavailable` alike — an owner that did not answer cannot be named in the dialog either — and a
+   retired category is never offered for a new entry (time-tracking AC-3.4). Their entries are still listed, edited and
    deleted from the cell.
 
 ### Sequences
@@ -138,8 +144,8 @@ readAllEntries({ whose: 'mine', from: monday, to: monday+6, target, projectId, d
    ok → weekGrid(items, monday) → WeekView; unavailable → HoursBanners as on the list
    503 host_unavailable with a deal filter → DealFilterUnavailable (time-tracking AC-4.11), nothing drawn
    any other failure → ErrorBanner + Retry (no partial grid)
-empty past cell → EntryDialog(preset: day + row)          cell with hours → WeekCellDialog(entries)
-   → Edit → EntryDialog(entry) → PATCH;  Delete → DeleteEntryDialog → DELETE;  Add hours → EntryDialog(preset)
+empty past cell → EntryDialog(preset: day + row, focus: duration)   cell with hours → WeekCellDialog(entries)
+   → Edit → EntryDialog(entry) → PATCH;  Delete → DeleteEntryDialog → DELETE;  Add hours → EntryDialog(preset, focus: duration)
 any write that worked → readAllEntries again → new figures (AC-5.20)
 ```
 
@@ -161,7 +167,8 @@ the shell and the two hosts.
   targetId: string      // the project or deal id; '' when on = 'none'
   targetName: string    // its name as the host shows it; '' when the host cannot name it, or on = 'none'
   activityId: string    // the task's id when recorded from a task row on a project or a deal; else ''
-  activityName: string  // the task's subject; '' with activityId ''
+  activityName: string  // the task's subject; '' when there is no task. With on = 'none' (a CRM task with no
+                        // deal) it only names the button, never sent (G3)
   placement: 'page' | 'row'   // the page header's button, or a task row's smaller one
 }
 // LOADERS
@@ -181,15 +188,15 @@ The host renders:
 export default function RecordHours(props: RecordHoursProps): ReactNode   // the props above
 ```
 
-- Valid sets: `on: 'project' | 'deal'` with `targetId !== ''`; `on: 'none'` with `targetId`, `activityId`
-  `''`; `activityName` only with `activityId`. Anything else **throws** at render (the host's boundary shows
+- Valid sets: `on: 'project' | 'deal'` with `targetId !== ''`, and `activityName` only with `activityId`;
+  `on: 'none'` with `targetId`, `targetName`, `activityId` `''` and `activityName` free (the button's name only). Anything else **throws** at render (the host's boundary shows
   its fallback): a host bug, never a silent "record on nothing".
 - `targetName === ''` → the dialog and the message say "this project" / "this deal".
 - Writes only `POST /time-entries` with the body `EntryDialog` builds (`toInput`), the same as My hours.
 - No edit, no delete, no read of entries, no permission check (`useHoursAccess` is not used).
 - The message: `role="status"`, the duration in `formatDuration(…, { style: 'short' })`, "on <name>" or "on
-  other work: <category>", and "See in My hours"; dismissible, gone after the hosts' `Saved` delay
-  (`CONFIRMATION_DISMISS_MS`). Placement next to the button (page) or under the row's actions (row):
+  other work: <category>", and "See in My hours"; it goes by ×, by the next save or by leaving the page — never on
+  a timer, so its link stays reachable (WCAG 2.2.1; G1). Placement next to the button (page) or under the row's actions (row):
   `/wellforge:design`.
 
 ### `EntryDialog` (recording mode only)
@@ -215,6 +222,9 @@ type EntryDialogRecordingProps = {
 
 - `fixed` without `preset` is a type error (the union says so). With `fixed` and `kind: 'none'` the kind is
   fixed and the category is chosen as usual.
+- With `fixed`, a refusal S2 shows on the entity picker (`not_on_project`, `not_involved_in_deal`, the target gone)
+  is the form-level error with the same sentence; the target-gone sentence drops its "Choose another"
+  (`strings.entry.errors.targetGoneFixed`) — spec AC-4.2 as amended, D13.
 - A preset day after today is a host bug: the dialog opens on it and Save refuses it with the usual
   `future_day` words (the Week view never offers one, AC-5.14).
 
@@ -241,7 +251,8 @@ type WeekRow = {
   name: string | null          // null: not readable (visibility 'hidden' | 'unavailable')
   visibility: Visibility       // 'visible' for a category
   retired: boolean             // a category's; false otherwise
-  preset: EntryPreset['on'] | null   // what Add hours sets; null when name is null (AC-5.24)
+  preset: EntryPreset['on'] | null   // what Add hours sets; null when name is null or the category is
+                                     // retired (AC-5.24, D12)
   cells: Readonly<Record<string, WeekCell>>   // key: YYYY-MM-DD within the week
   minutes: number
 }
@@ -287,8 +298,8 @@ File names are where the test lives; `*` = new.
 | AC-3.5 | component + e2e | `RecordHours.test.tsx`: the POST body is `{on:{type:'none',categoryId}}` with no `activityId`; e2e D: from a CRM company task with no deal, My hours lists other work with the category, no task |
 | AC-3.6 | unit + component | `recordHoursPropsOf` / `may…` give the same answer with `completedAt` set; row tests render it on a done row |
 | AC-4.1 | component + e2e | `RecordHours.test.tsx`: the POST body equals `toInput` of the same values (My hours' builder); e2e A: after recording from the project page, My hours lists the entry with the same day, duration, project, task, work type and note |
-| AC-4.2 | component | `RecordHours.test.tsx`: a 422 `not_on_project`, a 422 `invalid_minutes`, a future day, a 503 `host_unavailable` each show the string `EntryDialog` shows in My hours (same `strings.entry.errors.*` key), values kept; `EntryDialog.preset.test.tsx`*: the client rules hold with a preset |
-| AC-4.3 | component + e2e | `RecordHours.test.tsx`: after 201 the dialog closes, a `status` says "2 h 30 recorded on <name>" (and "on other work"), "See in My hours" calls `navigateSuite('/hours')`; host tests: no host read is repeated after the widget's save (fetch count unchanged); e2e A: the message shows, the link opens My hours |
+| AC-4.2 | component | `RecordHours.test.tsx`: a 422 `not_on_project`, a 422 `invalid_minutes`, a future day, a 503 `host_unavailable` each show the string `EntryDialog` shows in My hours (same `strings.entry.errors.*` key), values kept; `not_on_project` / `not_involved_in_deal` / a 404 on the target as the form-level error, the 404 as `targetGoneFixed` (D13); `EntryDialog.preset.test.tsx`*: the client rules hold with a preset |
+| AC-4.3 | component + e2e | `RecordHours.test.tsx`: after 201 the dialog closes, a `status` says "2 h 30 recorded on <name>" (and "on other work"), "See in My hours" calls `navigateSuite('/hours')`, and it is still there after 10 s (no timer, G1); host tests: no host read is repeated after the widget's save (fetch count unchanged); e2e A: the message shows, the link opens My hours |
 | AC-4.4 | component | `RecordHours.test.tsx`: no Edit or Delete is ever rendered, and the widget never calls PATCH/DELETE; host tests: no hours action besides Record hours |
 | AC-4.5 | component + e2e | host tests with the `shell/extensions` stub (renders `fallback`): the page and the rows work and show the My hours link; `shell/src/lib/extensions.test.tsx`: `hours.recordHours` falls back on rejection and timeout; e2e E: `**/5184/remoteEntry.js` (hours) aborted → the project page, the deal page and My tasks load, with the link (the `remote-failure.spec.ts` pattern) |
 | AC-4.6 | unit | hours-ui `strings.test.ts` (parity, `catalogGaps`) + `noHardcodedStrings.test.ts`; projects-ui and crm-ui the same for the link; `RecordHours.it.test.tsx`* with `<html lang="it">` |
@@ -303,7 +314,7 @@ File names are where the test lives; `*` = new.
 | AC-5.9 | unit + component | a cell = the sum of its entries; a day with none has no cell and renders empty |
 | AC-5.10 | unit | vectors: Σ cells = row, Σ rows = `totalMinutes` = Σ `dayMinutes`; each entry in exactly one cell |
 | AC-5.11 | component | the Week shows no target, no "incomplete", no comparison: only durations from `weekGrid` (asserted against a 42 h week and a 1 h week, same markup) |
-| AC-5.12 | component | an empty cell of today / yesterday opens `EntryDialog` with that day and the row's target selected |
+| AC-5.12 | component | an empty cell of today / yesterday opens `EntryDialog` with that day and the row's target selected, focus on Duration (G7) |
 | AC-5.13 | component | that dialog's Day and target are editable; a save after changing both posts the changed values |
 | AC-5.14 | component | tomorrow's cells have no button; a future week's grid has none |
 | AC-5.15 | component | a cell with hours opens `WeekCellDialog` listing its entries through `EntryRow` (same text as the list) |
@@ -315,7 +326,7 @@ File names are where the test lives; `*` = new.
 | AC-5.21 | component | with category, work type, recorded on, project and deal set, the week's read carries `categoryId`, `workTypeId`, `target`, `projectId`, `dealId` |
 | AC-5.22 | component | switch List → Week → List: the URL keeps `category`/`workType`/`target`, the picked project and deal stay chosen |
 | AC-5.23 | unit + component | an entry `visibility: 'hidden'` → row `name: null`; the row reads as the list reads it (`rowName`) |
-| AC-5.24 | component | that row's empty cells have no button and its cell list has no Add hours (Edit and Delete stay) |
+| AC-5.24 | unit + component | `weekGrid`: `preset: null` for an unreadable row and for a retired category's row; component: those rows' empty cells have no button and their cell lists have no Add hours (Edit and Delete stay) |
 
 **e2e journeys** (`shell/e2e/hours-in-place.spec.ts`, per-run `hip-*@operai.test` people, entries deleted at the end):
 A. Project page: a team member records 2 h 30 with a work type and a note → message, link, My hours lists it

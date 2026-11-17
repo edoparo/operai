@@ -123,3 +123,24 @@ Open (unresolved — each needs an owner):
 Later note (2026-11-16): specs/20261112-time-tracking added a **Recorded on** filter to My hours (its D52). D11's
 "stessi filtri già esistenti per la lista" includes it, so AC-5.21 names it — the user asked to align the spec
 and keep it approved.
+
+---
+
+## Decision ledger — design review (2026-11-17)
+
+Target: specs/20261116-record-hours-in-place/spec.md (status: approved) — two gaps the design found (design.md § Gaps,
+G2, G4) touched approved ACs; the user chose, and the spec is amended and kept approved.
+
+Decided (the user chose):
+- D12 A Week row on a retired category behaves as an unreadable row: no recording on its empty cells, no Add hours in its
+  cells' lists; its entries stay listed, changed and deleted (AC-5.24 amended) — user chose the recommended option over
+  "open the dialog with no category" (it would offer a different category than the row), 2026-11-17
+- D13 In the dialog opened from a page (target fixed), a refusal My hours shows on the picker (`not_on_project`,
+  `not_involved_in_deal`, the target gone) is shown for the whole dialog with the same sentence, and the target-gone
+  sentence drops "Choose another" (AC-4.2 amended) — user chose the recommended option over the identical text, which
+  invites an action the dialog cannot offer, 2026-11-17
+Found:
+- DF1 A retired category is never offered for a new entry — specs/20261112-time-tracking AC-3.4
+- DF2 The design's other gaps (G1, G3, G5, G7) are plan-level and adopted as the plan's first amendment; G6, G8–G11
+  stand as designed — design.md § Gaps
+
