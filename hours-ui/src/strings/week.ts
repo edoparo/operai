@@ -78,6 +78,11 @@ const en = {
   },
   /** A save on a day outside the week shown: say so, or the entry looks lost (design F6; the Week's twin of the List's `savedOutsidePeriod`). */
   savedOutside: (date: string) => `Entry saved. ${date} is outside the week you are viewing.`,
+  /**
+   * One line between the card's heading and the grid below 1024 px, where the grid scrolls sideways inside the card and
+   * nothing else says so (design S7 "Phone"). Seen, not read: it is `aria-hidden`, the scroll region being already labelled.
+   */
+  scrollHint: 'Scroll sideways to see all seven days.',
 }
 
 const it: typeof en = {
@@ -125,6 +130,7 @@ const it: typeof en = {
     body: 'Puoi registrare le ore di un giorno quando è arrivato.',
   },
   savedOutside: (date: string) => `Registrazione salvata. Il ${date} è fuori dalla settimana che stai guardando.`,
+  scrollHint: 'Scorri di lato per vedere tutti e sette i giorni.',
 }
 
 export const week = { en, it }

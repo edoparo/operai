@@ -87,7 +87,9 @@ function DayHeader({ day, index, today }: { day: string; index: number; today: s
 
 function RowLabel({ row }: { row: WeekRow }) {
   return (
-    <span className="flex min-w-44 flex-wrap items-center gap-x-3 gap-y-1">
+    // The floor is 7 rem: it decides whether a day figure is on a phone's first screen and whether the grid fits at 1024 px
+    // (design S7 "Columns"); a wider one left a phone with a column of names only, and a laptop with 10 px of scroll.
+    <span className="flex min-w-28 flex-wrap items-center gap-x-3 gap-y-1">
       <Badge>{strings.entries.type[row.kind]}</Badge> <span className="break-words">{rowLabel(row)}</span>
     </span>
   )
@@ -337,7 +339,13 @@ export default function WeekView({
           (state.grid.rows.length === 0 ? (
             <EmptyWeek monday={monday} today={today} filtered={filtered} onClearFilters={onClearFilters} />
           ) : (
-            <WeekTable grid={state.grid} today={today} onRecordCell={onRecordCell} onOpenCell={onOpenCell} />
+            <>
+              {/* Below 1024 px the grid scrolls inside the card and nothing else says so; with a grid only (design S7 "Phone"). */}
+              <p className="mb-3 text-xs text-soft lg:hidden" aria-hidden="true">
+                {strings.week.scrollHint}
+              </p>
+              <WeekTable grid={state.grid} today={today} onRecordCell={onRecordCell} onOpenCell={onOpenCell} />
+            </>
           ))}
 
         {state.status === 'error' && (

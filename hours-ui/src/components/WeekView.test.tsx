@@ -501,6 +501,56 @@ describe('the card: the week is its heading and the navigator its action, in eve
   })
 })
 
+describe('the grid on a phone and a laptop: the label floor and the scroll hint (design S7 "Columns", "Phone"; QE observation, G10)', () => {
+  const hint = () => screen.queryByText(w.scrollHint)
+
+  it('floors a row label at 7 rem (min-w-28), not the 11 rem that left a phone with a column of names and a laptop 10 px of scroll', () => {
+    renderWeek()
+    const labels = GRID.rows.map((r) => within(row(r.key)).getByRole('rowheader').firstElementChild as HTMLElement)
+    expect(labels).toHaveLength(GRID.rows.length)
+    for (const label of labels) {
+      expect(label.classList.contains('min-w-28')).toBe(true)
+      expect(label.classList.contains('min-w-44')).toBe(false)
+    }
+    expect(table().querySelector('.min-w-44')).toBeNull()
+  })
+
+  it('says under the heading that the grid scrolls sideways, as a line for the eye that only a screen below 1024 px sees', () => {
+    renderWeek()
+    expect(w.scrollHint).toBe('Scroll sideways to see all seven days.')
+    const line = hint()!
+    expect(line).not.toBeNull()
+    expect(line.tagName).toBe('P')
+    expect(line.classList.contains('lg:hidden')).toBe(true)
+    // a cue for the eye: the region is already a labelled, focusable scroll region and a screen reader moves by cell
+    expect(line.getAttribute('aria-hidden')).toBe('true')
+    expect(within(line).queryByRole('button')).toBeNull()
+    // between the card's heading and the grid, in that order
+    const heading = screen.getByRole('heading', { level: 3 })
+    expect(heading.compareDocumentPosition(line) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+    expect(line.compareDocumentPosition(table()) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+  })
+
+  it('is on a grid only: not while the week loads, on an empty week, on an error nor on a state the page supplies', () => {
+    const EMPTY = weekGrid([], MONDAY)
+    const without: [string, Partial<WeekViewProps>][] = [
+      ['loading', { state: { status: 'loading' } }],
+      ['an empty week', { state: { status: 'loaded', grid: EMPTY } }],
+      ['an empty week that has not started', { monday: '2026-11-23', state: { status: 'loaded', grid: EMPTY } }],
+      ['an empty filtered week', { filtered: true, state: { status: 'loaded', grid: EMPTY } }],
+      ['an error', { state: { status: 'error', message: 'nope' } }],
+      ['a state the page supplies', { state: { status: 'replaced', content: <p>the page says so</p> } }],
+    ]
+    for (const [name, props] of without) {
+      renderWeek(props)
+      expect(hint(), name).toBeNull()
+      cleanup()
+    }
+    renderWeek()
+    expect(hint()).not.toBeNull()
+  })
+})
+
 describe('loading: a skeleton, one polite line, and no figure of another week (design S7 States)', () => {
   it('shows the skeleton hidden from assistive technology and says "Loading your week…" once, politely', () => {
     renderWeek({ state: { status: 'loading' } })

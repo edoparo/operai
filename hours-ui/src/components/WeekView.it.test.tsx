@@ -158,6 +158,15 @@ describe('Italian', () => {
     expect(screen.getByRole('button', { name: 'Riprova' })).not.toBeNull()
   })
 
+  it('says in Italian that the grid scrolls sideways, under the heading and before the table, and not in English', async () => {
+    const { draw } = await setup('it')
+    draw()
+    const hint = screen.getByText('Scorri di lato per vedere tutti e sette i giorni.')
+    expect(hint.getAttribute('aria-hidden')).toBe('true')
+    expect(hint.compareDocumentPosition(screen.getByRole('table')) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+    expect(screen.queryByText('Scroll sideways to see all seven days.')).toBeNull()
+  })
+
   it('keeps English as English, so the test above proves the view follows the language and not a default', async () => {
     const { draw } = await setup('en')
     draw()
