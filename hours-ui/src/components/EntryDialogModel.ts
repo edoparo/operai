@@ -438,12 +438,17 @@ export type Failure = { fields: FieldErrors; form: string | null; reloadLists: b
  * generic alert, never an error nobody can see. A 404 reads the same whether the record is missing or the
  * person may not read it (AC-2.10), and nothing is ever called "saved". When editing (`edit`), a 404 that is
  * about the entry itself (`entryIsGone`) is the dialog's alert, not a picker's.
+ *
+ * `fixed`: the dialog was opened from a page with its target fixed. `taskFixed` (implies `fixed`): it also holds the
+ * task the page chose, shown as a fact, so the Activity has no field to carry an error either (QE D1). A refusal
+ * about something the dialog shows as text is the dialog's one alert, in the same words (AC-4.2, D13).
  */
 export const failureOf = (
   error: unknown,
   kind: EntryKind | null,
   edit?: { moved: boolean },
   fixed = false,
+  taskFixed = false,
 ): Failure => {
   const t = strings.entry.errors
   const generic: Failure = { fields: {}, form: t.generic, reloadLists: false }
@@ -471,7 +476,10 @@ export const failureOf = (
     case 'work_type_not_allowed':
       return on('workType', t.noLongerAvailable, true)
     case 'activity_not_allowed':
-      return kind === 'project' || kind === 'deal' ? on('activity', t.activityNotAllowed[kind]) : generic
+      if (kind !== 'project' && kind !== 'deal') return generic
+      return taskFixed
+        ? { fields: {}, form: t.activityNotAllowed[kind], reloadLists: false }
+        : on('activity', t.activityNotAllowed[kind])
     case 'not_on_project':
       return kind === 'project' ? onTarget(t.notOnProject) : generic
     case 'not_involved_in_deal':

@@ -17,6 +17,7 @@ vi.mock('shell/session', async () => (await import('../test-support/fakeSession'
 
 import { createAppRouter } from '../router'
 import { strings } from '../strings'
+import { afterAFrame, emulateFocusFixup } from '../test-support/focusFixup'
 import { deferred, fakeApi, listsHandler, problem, requests, sequence } from '../test-support/fakeApi'
 import type { FakeHandler } from '../test-support/fakeApi'
 import { entriesHandler, totalsWithDays } from '../test-support/fixtures/entries'
@@ -314,6 +315,38 @@ describe('a save that is refused changes nothing on the page', () => {
 
     await waitFor(() => expect(requests(api, 'GET /time-lists')).toHaveLength(2))
     expect(await inDialog().findByText(e.errors.noLongerAvailable)).not.toBeNull()
+  })
+})
+
+describe('where the keyboard is after a refusal (QE D2; design S4 "Errors")', () => {
+  // A request takes a frame or more, and a browser takes focus off the disabled Save in that time.
+  let stopFixup: () => void
+  beforeEach(() => {
+    stopFixup = emulateFocusFixup()
+  })
+  afterEach(() => stopFixup())
+
+  const saveButton = () => inDialog().getByRole('button', { name: e.dialog.save })
+
+  it.each([
+    ['host_unavailable', 503, 'host_unavailable'],
+    ['something went wrong', 500, undefined],
+  ] as const)('%s: the alert has no field to blame, so Save has the keyboard again', async (_name, status, code) => {
+    useApi({ 'POST /time-entries': () => afterAFrame(refusal(status, code)) })
+    await renderPage()
+    await recordOnProject()
+
+    await inDialog().findByRole('alert')
+    await waitFor(() => expect(document.activeElement).toBe(saveButton()))
+  })
+
+  it('not_on_project has the picker to blame, and the keyboard goes there as it always did', async () => {
+    useApi({ 'POST /time-entries': () => afterAFrame(refusal(403, 'not_on_project')) })
+    await renderPage()
+    await recordOnProject()
+
+    const picker = await inDialog().findByRole('combobox', { name: f.project.label })
+    await waitFor(() => expect(document.activeElement).toBe(picker))
   })
 })
 

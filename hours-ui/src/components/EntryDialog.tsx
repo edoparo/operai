@@ -243,14 +243,23 @@ export default function EntryDialog(props: EntryDialogProps) {
   // list when it gets focus, and the list would cover the error written under it: so for the moment focus
   // is given, the pickers are `quiet` (they ignore it, like a disabled field that can still be focused),
   // and they are live again at the next frame. Typing or the arrow keys open the list as always.
+  //
+  // A refusal with no field to blame (the dialog's one alert: a fixed dialog's `not_on_project`, `host_unavailable`,
+  // "Something went wrong") puts focus back on Save instead. Save, and every field with it, is disabled while the
+  // save runs, and a browser takes focus off a control that stops being focusable: with nothing to give it to, the
+  // keyboard would be left on <body> and the next Tab would land on ×. Save is where the person pressed, and
+  // pressing it again is the retry (design S4 "Errors", QE D2).
   const [quiet, setQuiet] = useState(false)
-  const askFocus = () => {
-    setQuiet(true)
+  const askFocus = (onField = true) => {
+    if (onField) setQuiet(true)
     setFocusRequest((request) => request + 1)
   }
   useEffect(() => {
     if (focusRequest === 0) return
-    focusFirstInvalid(body.current)
+    if (!focusFirstInvalid(body.current)) {
+      // The library's `FormDialog` owns the button and gives no ref to it: it is the form's submit button.
+      body.current?.closest('form')?.querySelector<HTMLButtonElement>('button[type="submit"]')?.focus()
+    }
     const frame = requestAnimationFrame(() => setQuiet(false))
     return () => cancelAnimationFrame(frame)
   }, [focusRequest])
@@ -283,12 +292,13 @@ export default function EntryDialog(props: EntryDialogProps) {
         values.kind,
         editing === null ? undefined : { moved: editing.patch.on !== undefined },
         fixed,
+        taskFixed,
       )
       setErrors(failure.fields)
       setFormError(failure.form)
       setBusy(false)
       if (failure.reloadLists) onReloadLists()
-      if (Object.keys(failure.fields).length > 0) askFocus()
+      askFocus(Object.keys(failure.fields).length > 0)
     }
   }
 

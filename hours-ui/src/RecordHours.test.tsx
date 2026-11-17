@@ -25,6 +25,7 @@ import type { RecordHoursProps } from './RecordHoursModel'
 import { presetValues, toInput } from './components/EntryDialogModel'
 import { strings } from './strings'
 import { deferred, fakeApi, requests } from './test-support/fakeApi'
+import { afterAFrame, emulateFocusFixup } from './test-support/focusFixup'
 import type { FakeAnswer } from './test-support/fakeApi'
 import { activitiesAnswer, projectTasks } from './test-support/fixtures/activity'
 import { DEAL_ROWS, ENTRY_LISTS, PROJECT_ROWS, TODAY, refusal } from './test-support/fixtures/entry'
@@ -527,6 +528,64 @@ describe('what hours-api refuses (AC-4.2): the words and places My hours uses, e
     await waitFor(() => expect(queryDialog()).toBeNull())
     expect(posted()).toHaveLength(2)
     expect(message()).not.toBeNull()
+  })
+})
+
+describe('a task the page fixed that hours-api no longer accepts (AC-4.2, QE D1)', () => {
+  it.each([
+    ['a project task', PROJECT_TASK, e.errors.activityNotAllowed.project],
+    ['a deal task', DEAL_TASK, e.errors.activityNotAllowed.deal],
+  ] as const)(
+    '%s: the refusal is the dialog’s alert, in My hours’ words, and every value is kept',
+    async (_name, props, sentence) => {
+      stubApi({ 'POST /time-entries': () => refusal(422, 'activity_not_allowed') })
+      await record(props, { note: 'Prepared the workshop' })
+
+      expect((await within(dialog()).findByRole('alert')).textContent).toBe(sentence)
+      expect(queryDialog()).not.toBeNull()
+      expect(durationField().value).toBe('2:30')
+      expect(noteField().value).toBe('Prepared the workshop')
+      expect(message()).toBeNull()
+    },
+  )
+})
+
+describe('where the keyboard is after a refusal (QE D2; design S4 "Errors")', () => {
+  // A request takes a frame or more, and a browser takes focus off the disabled Save in that time.
+  let stopFixup: () => void
+  beforeEach(() => {
+    stopFixup = emulateFocusFixup()
+  })
+  afterEach(() => stopFixup())
+
+  const saveButton = () => screen.getByRole('button', { name: e.dialog.save })
+  const refusedAfterAFrame = (status: number, code?: string) =>
+    stubApi({ 'POST /time-entries': () => afterAFrame(refusal(status, code)) })
+
+  it.each([
+    ['the project page', PROJECT, 403, 'not_on_project'],
+    ['the deal page', DEAL, 403, 'not_involved_in_deal'],
+    ['the project page, the project gone', PROJECT, 404, 'not_found'],
+    ['a project task row', PROJECT_TASK, 403, 'not_on_project'],
+    ['a deal task row', DEAL_TASK, 403, 'not_involved_in_deal'],
+    ['a project task row, the task gone (QE D1)', PROJECT_TASK, 422, 'activity_not_allowed'],
+    ['a deal task row, the task gone (QE D1)', DEAL_TASK, 422, 'activity_not_allowed'],
+    ['a project page, hours-api could not ask the owner', PROJECT, 503, 'host_unavailable'],
+    ['a deal task row, something went wrong', DEAL_TASK, 500, undefined],
+  ] as const)('from %s: Save has it again, where pressing it is the retry', async (_where, props, status, code) => {
+    refusedAfterAFrame(status, code)
+    await record(props)
+
+    await within(dialog()).findByRole('alert')
+    await waitFor(() => expect(document.activeElement).toBe(saveButton()))
+  })
+
+  it('a refusal on a field is still the field’s: Duration keeps the keyboard it is given', async () => {
+    refusedAfterAFrame(422, 'invalid_minutes')
+    await record(PROJECT)
+
+    await waitFor(() => expect(durationField().getAttribute('aria-invalid')).toBe('true'))
+    await waitFor(() => expect(document.activeElement).toBe(durationField()))
   })
 })
 

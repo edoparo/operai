@@ -117,4 +117,62 @@ describe('failureOf in a fixed dialog (AC-4.2, D13)', () => {
     expect(failureOf(refused(403, 'not_on_project'), 'none', undefined, true).form).toBe(t.generic)
     expect(failureOf(refused(404, 'not_found'), 'none', undefined, true).form).toBe(t.generic)
   })
+
+  // QE D1: the fixed task is shown as a fact, a place no error can be written on, so its refusal is the one alert.
+  it.each([
+    ['project', t.activityNotAllowed.project],
+    ['deal', t.activityNotAllowed.deal],
+  ] as const)(
+    'puts activity_not_allowed on a fixed task of a %s as the dialog’s one alert, in the words My hours uses',
+    (kind, message) => {
+      expect(failureOf(refused(422, 'activity_not_allowed'), kind, undefined, true, true)).toEqual({
+        fields: {},
+        form: message,
+        reloadLists: false,
+      })
+    },
+  )
+
+  it.each([
+    ['a fixed dialog whose Activity is still a select', true],
+    ['a dialog with a picker', false],
+  ])('keeps activity_not_allowed on the Activity field in %s: there is a field to write it on', (_name, fixed) => {
+    expect(failureOf(refused(422, 'activity_not_allowed'), 'project', undefined, fixed, false)).toEqual({
+      fields: { activity: t.activityNotAllowed.project },
+      form: null,
+      reloadLists: false,
+    })
+  })
+
+  // The class behind D1: a refusal written on a field the dialog does not draw is a Save that does nothing. Every
+  // code failureOf knows, in every kind, in the dialog that draws the least: a task fixed on a fixed target.
+  const CODES: [number, string | null][] = [
+    [422, 'invalid_minutes'],
+    [422, 'future_day'],
+    [422, 'note_too_long'],
+    [422, 'note_required'],
+    [422, 'category_not_found'],
+    [422, 'category_retired'],
+    [422, 'work_type_not_found'],
+    [422, 'work_type_retired'],
+    [422, 'work_type_not_allowed'],
+    [422, 'activity_not_allowed'],
+    [403, 'not_on_project'],
+    [403, 'not_involved_in_deal'],
+    [404, 'not_found'],
+    [503, 'host_unavailable'],
+    [500, null],
+    [418, 'a_code_from_a_server_one_step_ahead'],
+  ]
+  const DRAWN_WHEN_FIXED = ['day', 'minutes', 'category', 'workType', 'note']
+  it.each(
+    CODES.flatMap(([status, code]) =>
+      (['project', 'deal', 'meeting', 'none'] as const).map((kind) => [status, code, kind] as const),
+    ),
+  )('a %s %s on a fixed %s is shown: on a field the fixed dialog draws, or as the one alert', (status, code, kind) => {
+    const failure = failureOf(refused(status, code), kind, undefined, true, true)
+    const fields = Object.keys(failure.fields)
+    expect(fields.filter((field) => !DRAWN_WHEN_FIXED.includes(field))).toEqual([])
+    expect(fields.length > 0 || (failure.form !== null && failure.form !== '')).toBe(true)
+  })
 })

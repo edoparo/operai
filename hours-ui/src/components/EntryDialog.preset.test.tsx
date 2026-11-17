@@ -491,6 +491,30 @@ describe('what hours-api refuses in a fixed dialog (AC-4.2; D13)', () => {
     valuesSurvived()
   })
 
+  it('puts activity_not_allowed on the Activity select when the page chose no task: the field is there to carry it (QE D1)', async () => {
+    useApi({ 'GET /activities': () => activitiesAnswer(projectTasks) })
+    onSubmit.mockRejectedValueOnce(refusedWith(422, 'activity_not_allowed'))
+    renderDialog({ preset: ON_PROJECT, fixed: true, focus: 'duration' })
+    await typeDuration(durationField(), '2:30')
+    await save()
+
+    const activity = await screen.findByRole('combobox', { name: strings.activity.label })
+    await waitFor(() => expect(describedBy(activity)).toContain(e.errors.activityNotAllowed.project))
+    expect(activity.getAttribute('aria-invalid')).toBe('true')
+    expect(screen.queryByTestId('hours-entry-dialog-error')).toBeNull()
+  })
+
+  it('puts activity_not_allowed on a task it shows as a fact in the dialog’s alert, and keeps every value (QE D1)', async () => {
+    await saveRefused(refusedWith(422, 'activity_not_allowed'), {
+      on: { kind: 'project', project: PROJECT },
+      activity: { id: 'a-gone', subject: 'Write the offer' },
+    })
+
+    expect(formError().textContent).toBe(e.errors.activityNotAllowed.project)
+    expect(screen.getByTestId('hours-activity-fixed')).not.toBeNull()
+    valuesSurvived()
+  })
+
   it('puts invalid_minutes on Duration and future_day on Day, where My hours puts them', async () => {
     onSubmit.mockRejectedValueOnce(refusedWith(422, 'invalid_minutes'))
     renderDialog({ preset: ON_PROJECT, fixed: true, focus: 'duration' })
