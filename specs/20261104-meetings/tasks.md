@@ -1,7 +1,7 @@
 ---
 spec: 20261104
 generated: 2026-11-04
-synced: 2026-11-10
+synced: 2026-11-17
 ---
 
 # Tasks: Meetings — record, transcribe, summarise and question meetings
@@ -780,6 +780,23 @@ database after `bun run db:deploy`.
   - touch: `specs/20261104-meetings/spec.md`, `specs/20261104-meetings/tasks.md`
   - done when: every listed command exits 0, the review verdicts are recorded, and `/wellforge:done 021` accepts the transition
 
+## Amendment 2026-11-17 — attachments (spec A14, US-15)
+
+> Re-synced 2026-11-17 after spec A14 (user decisions 2026-11-17, ADR 20261117-meeting-attachments-in-the-audio-bucket-forwarded-unparsed). Built directly on `main` in commit 526fdfe5; T129–T131 are done, T132 is open.
+
+- [x] T129: [BE] meetings-api: `meeting_attachment` (migration `20261117120000_meeting_attachments`, per-kind CHECKs), routes list / files mint / confirm / links / download / delete, `Storage` attachment keys + `mintAttachmentPost`/`mintAttachmentGet`/`getObjectBytes`/`deleteAudio` (recording delete and discard keep attachments) — refs: AC-15.1, AC-15.2, AC-15.3 — deps: none
+  - touch: `meetings-api/src/attachments/*`, `meetings-api/src/lib/storage.ts`, `meetings-api/src/test-support/{fakeStorage,matrixKit}.ts`, `meetings-api/src/audio/audio.routes.ts`, `meetings-api/src/capture/recording.routes.ts`
+  - done when: `src/attachments/attachments.test.ts` and the matrix rows pass on `meetings_test`
+- [x] T130: [BE] meetings-api: attachments as AI context — `aiContextOf` budget, bounded read + signature check, Gemini `inlineData` + `DOCUMENTS_INSTRUCTION`, Claude document/image blocks, `ATTACHED_RULE` in both system prompts, `<attached>` block, retry without documents on a refusal — refs: AC-7.10, AC-9.2, AC-15.4, AC-15.5, AC-15.6 — deps: T129
+  - touch: `meetings-api/src/attachments/aiContext.ts`, `meetings-api/src/ai/*`, `meetings-api/src/jobs/handlers/{transcribe,summarize}.ts`, `meetings-api/src/conversation/conversation.routes.ts`
+  - done when: `src/attachments/prompts.test.ts` passes and the full suite is green
+- [x] T131: [FE] meetings-ui: `AttachmentsCard` on the meeting page (list, AI badges, expiry, upload files → bucket → confirm, link dialog, remove), strings en/it — refs: AC-15.1 to AC-15.4 — deps: none (contract)
+  - touch: `meetings-ui/src/components/attachments/*`, `meetings-ui/src/strings/attachments.ts`, `meetings-ui/src/lib/{meetingsApi,types}.ts`, `meetings-ui/src/pages/MeetingPage.tsx`
+  - done when: `pnpm lint && pnpm build && pnpm test` pass
+- [ ] T132: [QE] evals: an injection case delivered through an attached document (summary and answer), in the injection eval set — refs: AC-15.5 — deps: T130
+  - touch: `meetings-api/evals/*`
+  - done when: the case runs in `bun run eval` and the injected instruction is not followed; required before the next model change
+
 ## Coverage (AC → tasks; T92 closes every AC and is not listed)
 
 | AC | Tasks |
@@ -980,3 +997,5 @@ contracts. Only the e2e tasks (T86–T90) join the two tracks.
 | AC-7.9 / AC-7.10 / AC-9.6 | T100 |
 | AC-7.12 / AC-9.7 | T103, T104 |
 | AC-13.2 | T97 |
+| AC-7.10 / AC-9.2 (A14) | T130 |
+| AC-15.1 to AC-15.6 | T129, T130, T131, T132 |
