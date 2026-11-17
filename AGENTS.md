@@ -13,7 +13,7 @@ Module Federation shell (ADR 20260709-suite-frontend-module-federation):
 | **CRM** | `/crm` | Companies, contacts, deals through a stage pipeline, activities and follow-up tasks (specs/20261101-crm, ADR 20261101-crm-tool-shape-and-authorization) |
 | **Meetings** | `/meetings` | Record (browser), upload or paste a meeting; EU transcription, summaries from editable templates and cited Q&A; files and links attached as AI context; linkable to a host record such as a CRM deal; audio and attached files kept 29 days (specs/20261104-meetings, ADR 20261104-meetings-tool-shape-visibility-by-participation–0068) |
 | **Projects** | `/projects` | The delivery work wellD runs — projects (type, state, project manager, team), their terms (per-type delivery terms) and, for a project made from a won deal, its purchase order (Bexio order id, referent, ops-manager); no money (specs/20261103-projects, 022, ADR 20261103-projects-tool-shape-and-authorization/0080/0093/0094) |
-| **Hours** | `/hours` | Time tracking — every employee records the hours spent on a project, a deal, a meeting or other work (a duration on a day, never a time of day) and reads their own; holders of `time-entry:read-all` also see everyone's, with totals and an XLSX export; ungated, so **not** a `TOOLS` entry; the admin lists (categories, work types) are its Settings tab, `/hours/settings`, for holders of `time-list:manage` (specs/20261112-time-tracking, ADR 20261112-hours-api-time-entries-own-service-hours-catalog to 20261112-hours-ui-ungated-remote) |
+| **Hours** | `/hours` | Time tracking — every employee records the hours spent on a project, a deal, a meeting or other work (a duration on a day, never a time of day) and reads their own, as a list or a week; holders of `time-entry:read-all` also see everyone's, with totals and an XLSX export; the Projects and CRM pages and task rows offer Record hours in place; ungated, so **not** a `TOOLS` entry; the admin lists (categories, work types) are its Settings tab, `/hours/settings`, for holders of `time-list:manage` (specs/20261112-time-tracking, ADR 20261112-hours-api-time-entries-own-service-hours-catalog to 20261112-hours-ui-ungated-remote) |
 
 The first seven are the entries in `shell/src/lib/tools.ts` — access-gated remotes. The
 notification center (`notify-ui`) is a further remote but **not** a `TOOLS` entry: it mounts at
@@ -25,10 +25,20 @@ ADR 20261104-meetings-tool-shape-visibility-by-participation) and exposes a coar
 embeds through the shell's `HostExtension` seam with a timeout and an error boundary (ADR 20261104-host-extension-federated-panel-through-the-shell). It also exposes
 `./RecorderDock`, the recorder widget the shell shows in its floating slot while a recording runs and the person
 is elsewhere in Operai (ADR 20261110-shell-floating-slot-for-remote-widgets). `hours-ui` is a remote with **no gated half at all**: recording and reading your
-own hours is not a tool grant (AC-5.1), so the shell mounts its one entry, `./App`, at the ungated splat route
+own hours is not a tool grant (AC-5.1), so the shell mounts its one routed entry, `./App`, at the ungated splat route
 `/hours/$` (a child of `shellRoute`, no `beforeLoad`), reached from the user menu's **My hours** link and never from
 the sidebar (ADR 20261112-hours-ui-ungated-remote). Its second tab, Everyone's hours (`/hours/all`), is for holders of `time-entry:read-all`;
 its third tab, Settings (`/hours/settings`), holds the admin lists (categories, work types) for holders of `time-list:manage`.
+My hours is a List or a **Week** (`/hours?view=week`: one Monday-to-Sunday week, a row per project, deal, meeting or kind of
+other work, a column per day; an empty cell records, a filled one opens its entries). The Week's figures are folded in the browser
+from ONE complete, all-or-nothing read of that week (`readAllEntries`, the export's walk), so a failed page is an error, never a partial
+grid (specs/20261116-record-hours-in-place, ADR 20261116-week-view-sums-a-complete-read-in-the-browser). `hours-ui` also exposes
+`./RecordHours`, not a route but a widget: a button that opens My hours' own entry dialog on a project, a deal or a task and records as
+the person through the unchanged `POST /time-entries`. Hosts embed it through the shell's `HostExtension` seam as the extension
+**`hours.recordHours`** (six plain strings in, nothing back, the same 5 s timeout and error boundary, and the host's own fallback, a link
+to My hours): projects-ui's project page and task rows (the Tasks card, My tasks; projects-ui's first use of `shell/extensions`) and
+crm-ui's deal page and task rows (the Tasks page, every activity timeline). A host decides only whether to show it, from what it already
+shows; hours-api still decides every save as the caller (ADR 20261116-record-hours-widget-through-the-host-extension-seam).
 
 Backed by ten Bun services: `auth` (identity + authorization), `estimai-api`,
 `notify-api`, `refund-api`, `inventory-api`, `crm-api`, `meetings-api`, `projects-api`,
@@ -81,7 +91,9 @@ operai/
 ├── shell/               # Suite host (Module Federation) — shared chrome + session; mounts remotes (specs/20260709-suite-shell, ADR 20260709-suite-frontend-module-federation).
 │   │                    # Also owns identity-scoped non-tool screens: /account (ADR 20260804-shell-identity-scoped-non-tool-screens-account-route), /notify (ADR 20260713-notification-center-standalone-service-shell-seam),
 │   │                    # the notification bell + SSE manager + ToastHost, the About modal (ADR 20260803-suite-version-generated-file-federated-export), the
-│   │                    # floating slot (`openFloating`/`closeFloating` in shell/session, FloatingHost; ADR 20261110-shell-floating-slot-for-remote-widgets) and
+│   │                    # floating slot (`openFloating`/`closeFloating` in shell/session, FloatingHost; ADR 20261110-shell-floating-slot-for-remote-widgets), the
+│   │                    # host-extension seam (`shell/extensions`: `meetings.hostMeetings`, `meetings.recorderDock`, and `hours.recordHours`, hours-ui's Record hours button
+│   │                    # embedded by projects-ui and crm-ui, specs/20261116-record-hours-in-place) and
 │   │                    # desktop push: the `/push-sw.js` service worker and the My profile push section (specs/20261111-push-notifications).
 │   └── e2e/             # Playwright e2e for the WHOLE suite — every remote's journeys run through the
 │                        # host, since a remote has no standalone authed bootstrap (specs/20260709-suite-shell retired
@@ -98,7 +110,8 @@ operai/
 │                        # (ungated, /devices; ADR 20261006-ungated-second-federated-entry-of-a-gated-remote) and ./version; calls inventory-api and auth's user directory
 │                        # through shell/session (no VITE_* of its own) (specs/20261006-hardware-inventory)
 ├── crm-ui/              # CRM tool — federated remote (port 5179): exposes ./App (gated, /crm) and ./version; calls
-│                        # crm-api, activities-api and auth's user directory through shell/session (specs/20261101-crm, ADR 20261101-crm-tool-shape-and-authorization/0053, 028)
+│                        # crm-api, activities-api and auth's user directory through shell/session (specs/20261101-crm, ADR 20261101-crm-tool-shape-and-authorization/0053, 028);
+│                        # embeds hours-ui's Record hours (`hours.recordHours` via shell/extensions) on the deal page and the task rows (specs/20261116-record-hours-in-place)
 ├── meetings-ui/         # Meetings tool — federated remote (port 5180): exposes ./App (gated, /meetings), ./MyMeetings
 │                        # (ungated, /my-meetings; ADR 20261104-meetings-tool-shape-visibility-by-participation), ./HostMeetings (panel embedded by hosts via shell/extensions,
 │                        # ADR 20261104-host-extension-federated-panel-through-the-shell), ./RecorderDock (the shell's floating recorder widget, ADR 20261110-shell-floating-slot-for-remote-widgets) and ./version;
@@ -106,11 +119,14 @@ operai/
 │                        # (specs/20261104-meetings)
 ├── projects-ui/         # Projects tool — federated remote (port 5181): exposes ./App (gated, /projects) and ./version; calls
 │                        # projects-api, activities-api (project tasks, My tasks) and auth's user directory through
-│                        # shell/session (specs/20261103-projects, 028, ADR 20261103-projects-tool-shape-and-authorization)
+│                        # shell/session (specs/20261103-projects, 028, ADR 20261103-projects-tool-shape-and-authorization); its FIRST use of
+│                        # shell/extensions: hours-ui's Record hours (`hours.recordHours`) on the project page and the task rows (specs/20261116-record-hours-in-place)
 ├── hours-ui/            # Hours (time tracking) — federated remote (port 5184): exposes ./App (UNGATED, mounted at the shell's
-│                        # `/hours/$`, NOT a TOOLS entry; My hours, plus Everyone's hours for `time-entry:read-all`, ADR 20261112-hours-ui-ungated-remote) and
-│                        # ./version; calls hours-api through shell/session (`getHoursApiBaseUrl()`, `VITE_HOURS_API_URL` is the
-│                        # shell's) and, as the person, projects-api, crm-api, meetings-api and activities-api for its pickers (specs/20261112-time-tracking)
+│                        # `/hours/$`, NOT a TOOLS entry; My hours as a List or a Week (`?view=week`), plus Everyone's hours for `time-entry:read-all`, ADR 20261112-hours-ui-ungated-remote),
+│                        # ./RecordHours (a widget, not a route: the Record hours button other tools embed through shell/extensions `hours.recordHours`,
+│                        # ADR 20261116-record-hours-widget-through-the-host-extension-seam) and ./version; calls hours-api through shell/session
+│                        # (`getHoursApiBaseUrl()`, `VITE_HOURS_API_URL` is the shell's) and, as the person, projects-api, crm-api, meetings-api and
+│                        # activities-api for its pickers (specs/20261112-time-tracking, specs/20261116-record-hours-in-place)
 ├── operai-ui/           # @operai/ui — the DESIGN SYSTEM (ADR 20261031-shared-ui-library-consumed-as-source): tokens/themes/fonts + component classes
 │                        # (src/styles/tokens.css, re-exported by shell/tokens.css), React components (src/components),
 │                        # Storybook (`mise run ui:storybook`), rules in docs/. NOT an app: never built or deployed;
@@ -248,7 +264,10 @@ degrades silently when the key is absent (ADR 20260804-google-places-browser-dir
 hours-ui additionally builds its XLSX export in the browser (`exceljs`, lazy-loaded, from every page of
 `GET /time-entries` — hours-api never builds a file) and uses the `@operai/ui` components and formatters added
 for it: `SearchPicker` (a server-side search in a `Field`-wrapped `Combobox`), `ExportButton`, and
-`formatDuration`'s `short` style ("2 h 30") and `formatMonth` (specs/20261112-time-tracking).
+`formatDuration`'s `short` style ("2 h 30") and `formatMonth` (specs/20261112-time-tracking). Its Week view
+(`/hours?view=week`) is the one view that sums its own figures in the browser, over a complete read of the week through the same walk
+(ADR 20261116-week-view-sums-a-complete-read-in-the-browser, specs/20261116-record-hours-in-place); its `./RecordHours` entry imports
+only the entry dialog, `hoursApi` and the pickers, never `exceljs`, the pages or hours-ui's router, because it renders in a host's tree.
 
 ### Auth service (auth)
 - **Runtime:** Bun (`bun run --hot` for dev)

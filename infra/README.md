@@ -3206,6 +3206,41 @@ database to roll back**: take it out of reach and fix forward.
   `auth` built before this release does not know `meetings.hosts.read`, so it refuses to start while
   `SERVICE_CLIENTS` still names it.
 
+### Record hours in place and the Week view (specs/20261116-record-hours-in-place, ADR 20261116-record-hours-widget-through-the-host-extension-seam, plan R2)
+
+A frontend-only release: four Vercel projects change, and no backend, database, variable, `env:doctor` contract, CSP pin or
+`@operai/ui` export does. hours-api, projects-api, crm-api and activities-api are untouched: the Record hours button writes to hours-api
+as the person, from the host's page, through an origin the shell's document-wide CSP already allows.
+
+| Piece | What this release changes |
+|---|---|
+| `hours-ui` | exposes `./RecordHours` (besides `./App` and `./version`); My hours gains the Week view (`/hours?view=week`), which needs nothing else to be live |
+| `shell` | the host extension `hours.recordHours`: its loader imports `hours/RecordHours` |
+| `projects-ui` | Record hours on the project page and the task rows (the Tasks card, My tasks); its first use of `shell/extensions` |
+| `crm-ui` | Record hours on the deal page and the task rows (the Tasks page, every activity timeline) |
+
+**Deploy order: `hours-ui`, then the shell, then `projects-ui` and `crm-ui` (either of those two first).** The button needs all
+three layers, each loading the one before: a host renders the shell's extension, the shell loads hours-ui's module. A push to `main`
+builds the four projects at once, in no fixed order, so this is the order to confirm live, and to promote in if a build has to be redone;
+it is not a gate, because any other order is harmless:
+
+| Live before the piece it needs | What the person sees |
+|---|---|
+| `projects-ui` or `crm-ui` before the shell | the live shell does not know `hours.recordHours`, and an unknown name renders the host's fallback: a link to My hours where the button goes |
+| the shell, or a host, before `hours-ui` | the shell's loader imports `hours/RecordHours`, which the live hours-ui does not expose yet: the import is rejected and the host shows the same link |
+
+The seam never throws into the host: the project page, the deal page and the task lists load and work whatever is missing
+(AC-4.5, `shell/src/lib/extensions.test.tsx`, journey E of `shell/e2e/hours-in-place.spec.ts`). A page that was already open when the last
+piece went live does not show the button until it is reloaded.
+
+Verify once all four are live: `./infra/check.sh` (its remoteEntry, CORS and CSP checks already cover hours-ui and hours-api; nothing new to
+pin), then by hand as a person on a project's team: the project's header shows **Record hours**, not the My hours link; recording 30 minutes
+says so with **See in My hours**, and `/hours?view=week` shows the hours in that project's row and today's cell.
+
+Rollback: redeploy the previous production deployment of the project concerned. Rolling back `projects-ui` or `crm-ui` takes the button off
+that tool; rolling back the shell or `hours-ui` turns every host's button into the link, and `hours-ui` also takes the Week view with it. Nothing
+needs undoing in the data: an entry the widget saves is the entry My hours saves.
+
 ## Rollback & operations
 
 - **Rollback:** each Railway service and each Vercel project keeps its own
