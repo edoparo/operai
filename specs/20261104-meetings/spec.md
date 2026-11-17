@@ -172,6 +172,9 @@ was not removed. The spec stays vendor-neutral; the body below is already update
   a link is a reference only, never fetched, and only its label reaches the AI; PDF, images and
   text reach the AI, Office files are stored for people but never read by the AI. AC-7.10 and
   AC-9.2 are widened accordingly; an attachment is never evidence of what was said. ADR 20261117-meeting-attachments-in-the-audio-bucket-forwarded-unparsed.
+- **A15 — decided by the user 2026-11-17 (new AC-1.9):** titles keep reading "Call with <name>";
+  the creator can ask the AI for a title made from what the meeting was about. It is a
+  suggestion in the edit dialog, never an automatic rename.
 
 ## Problem
 
@@ -309,6 +312,11 @@ it belongs without retyping context.
   (AC-11.8).
 - AC-1.8: Given a meeting, then only its creator can edit title, date-time, format and host
   reference; the language is fixed once processing has started.
+- AC-1.9: Given a `ready` meeting with speech, then its creator can ask the AI to suggest a title
+  from the transcript (and the agenda's points) while editing the details: the suggestion fills
+  the title field, labelled as AI-suggested, and is saved only when the creator saves, like any
+  edit. Nothing is written by the request itself; it counts against the AI request limit
+  (AC-13.4), and the transcript is quoted data as for summaries (AC-7.12). (A15)
 
 ### US-2: Record a meeting in the browser
 As a meeting creator, I want to record in person or an online meeting from my own computer,

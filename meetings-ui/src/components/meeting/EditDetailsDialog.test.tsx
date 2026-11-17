@@ -189,6 +189,38 @@ describe('EditDetailsDialog: form and save', () => {
     expect(onChanged).not.toHaveBeenCalled()
   })
 
+  it('Suggest with AI puts the proposed title in the field, labelled, and saves it only with Save (AC-1.9)', async () => {
+    const current = readyMeeting({ title: 'Call with Mario Rossi' })
+    const { bodies } = servePatch(current, {
+      'POST /meetings/:id/title-suggestion': () => ({ status: 200, body: { title: 'Kubernetes migration for Acme' } }),
+    })
+    open(current)
+    await userEvent.click(screen.getByTestId('meetings-edit-details-suggest-title'))
+    const input = screen.getByLabelText(new RegExp(t.fields.title)) as HTMLInputElement
+    expect(input.value).toBe('Kubernetes migration for Acme')
+    expect(screen.getByText(t.suggestedHint)).toBeTruthy()
+    expect(bodies).toHaveLength(0)
+    await save()
+    expect(bodies).toEqual([{ title: 'Kubernetes migration for Acme' }])
+  })
+
+  it('a failed suggestion shows its reason under the title and keeps what was there', async () => {
+    const current = readyMeeting({ title: 'Call with Mario Rossi' })
+    servePatch(current, { 'POST /meetings/:id/title-suggestion': () => ({ status: 429, body: problem(429, 'ai_rate_limited') }) })
+    open(current)
+    await userEvent.click(screen.getByTestId('meetings-edit-details-suggest-title'))
+    expect(await screen.findByText(en.common.errors.ai_rate_limited)).toBeTruthy()
+    expect((screen.getByLabelText(new RegExp(t.fields.title)) as HTMLInputElement).value).toBe('Call with Mario Rossi')
+  })
+
+  it('is not offered before the transcript is ready, nor without speech', () => {
+    open(draft())
+    expect(screen.queryByTestId('meetings-edit-details-suggest-title')).toBeNull()
+    cleanup()
+    open(readyMeeting({ noSpeech: true }))
+    expect(screen.queryByTestId('meetings-edit-details-suggest-title')).toBeNull()
+  })
+
   it('Cancel closes without a request', async () => {
     const current = draft()
     const { api } = servePatch(current)

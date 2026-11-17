@@ -797,6 +797,15 @@ database after `bun run db:deploy`.
   - touch: `meetings-api/evals/*`
   - done when: the case runs in `bun run eval` and the injected instruction is not followed; required before the next model change
 
+## Amendment 2026-11-17 #2 — AI title suggestion (spec A15, AC-1.9)
+
+- [x] T133: [BE] meetings-api: `POST /meetings/{id}/title-suggestion` (creator control, `readyForAi`, AI limit kind `title`, 45 s, one resample, 503 `title_suggestion_failed`, nothing written), `prompts/title.ts` (transcript + agenda titles as quoted data, `submit_title`, validator: one plain line, ≤ 120, no unknown URL), matrix row — refs: AC-1.9 — deps: none
+  - touch: `meetings-api/src/meetings/title.routes.ts`, `meetings-api/src/ai/prompts/title.ts`, `meetings-api/src/ai/{languageModel,fakeLanguageModel}.ts`, `meetings-api/src/meetings/title.test.ts`, `meetings-api/src/test-support/matrixKit.ts`
+  - done when: the full suite is green on `meetings_test`
+- [x] T134: [FE] meetings-ui: "Suggest with AI" in Edit details on a ready meeting with speech, filling the title field with an AI-suggested hint; saved only by Save — refs: AC-1.9 — deps: none (contract)
+  - touch: `meetings-ui/src/components/meeting/EditDetailsDialog.tsx`, `meetings-ui/src/strings/{editDetails,common}.ts`, `meetings-ui/src/lib/meetingsApi.ts`, tests
+  - done when: `pnpm lint && pnpm build && pnpm test` pass
+
 ## Coverage (AC → tasks; T92 closes every AC and is not listed)
 
 | AC | Tasks |
@@ -999,3 +1008,4 @@ contracts. Only the e2e tasks (T86–T90) join the two tracks.
 | AC-13.2 | T97 |
 | AC-7.10 / AC-9.2 (A14) | T130 |
 | AC-15.1 to AC-15.6 | T129, T130, T131, T132 |
+| AC-1.9 (A15) | T133, T134 |

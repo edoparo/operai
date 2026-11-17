@@ -19,6 +19,9 @@ const en = {
   },
   textClearsConsent: 'Pasting text needs no consent confirmation, so the confirmation is removed.',
   consentAskedAgain: 'Recording or uploading needs a consent confirmation. You will be asked for it next.',
+  suggestTitle: 'Suggest with AI',
+  suggestingTitle: 'Suggesting…',
+  suggestedHint: 'Suggested by AI from the transcript. Check it, then save.',
   removeLink: 'Remove link',
   removeLinkHint: "To link a different record, use that record's meetings panel.",
   errors: {
@@ -48,6 +51,9 @@ const it: typeof en = {
   },
   textClearsConsent: 'Incollare un testo non richiede la conferma del consenso, quindi la conferma viene rimossa.',
   consentAskedAgain: 'Registrare o caricare richiede la conferma del consenso. Ti verrà chiesta subito dopo.',
+  suggestTitle: "Suggerisci con l'IA",
+  suggestingTitle: 'Suggerimento in corso…',
+  suggestedHint: "Suggerito dall'IA dalla trascrizione. Controllalo, poi salva.",
   removeLink: 'Rimuovi collegamento',
   removeLinkHint: 'Per collegare un altro record, usa il pannello riunioni di quel record.',
   errors: {

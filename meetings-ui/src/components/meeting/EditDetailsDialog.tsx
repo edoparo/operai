@@ -1,7 +1,7 @@
-import { DateTimeInput, Field, FormDialog, RadioGroupField, focusFirstInvalid } from '@operai/ui'
+import { Button, DateTimeInput, Field, FormDialog, RadioGroupField, focusFirstInvalid } from '@operai/ui'
 import { useRef, useState } from 'react'
 import { codeOf, errorMessage, fieldErrorsOf } from '../../lib/errors'
-import { getMeeting, updateMeeting } from '../../lib/meetingsApi'
+import { getMeeting, suggestMeetingTitle, updateMeeting } from '../../lib/meetingsApi'
 import type { MeetingPatch } from '../../lib/meetingsApi'
 import type { Meeting, MeetingFormat, MeetingLanguage, MeetingSource } from '../../lib/types'
 import { strings } from '../../strings'
@@ -40,6 +40,9 @@ const LOCKED_CODES = new Set(['language_locked', 'source_locked'])
  * fields read as plain text with the reason. Only what changed is sent (`PATCH`); a refusal
  * because the state moved on (`409 language_locked | source_locked`) shows inline and reloads the
  * meeting so the field locks. Linking and re-linking happen from the host's panel, not here.
+ *
+ * "Suggest with AI" (AC-1.9) is offered on a `ready` meeting with speech: the AI's title replaces the text in the
+ * title field, labelled as a suggestion, and is saved only with Save like any edit.
  */
 export default function EditDetailsDialog({ meeting, onClose, onChanged }: EditDetailsDialogProps) {
   const t = strings.editDetails
@@ -55,6 +58,9 @@ export default function EditDetailsDialog({ meeting, onClose, onChanged }: EditD
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({})
   const [formError, setFormError] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
+  const [suggesting, setSuggesting] = useState(false)
+  const [suggested, setSuggested] = useState<string | null>(null)
+  const canSuggest = meeting.status === 'ready' && !meeting.noSpeech
   const fieldsRef = useRef<HTMLDivElement>(null)
 
   const host = meeting.host
@@ -64,6 +70,21 @@ export default function EditDetailsDialog({ meeting, onClose, onChanged }: EditD
     setFieldErrors(errors)
     setFormError(message)
     requestAnimationFrame(() => focusFirstInvalid(fieldsRef.current))
+  }
+
+  const suggest = async () => {
+    setSuggesting(true)
+    setFieldErrors((errors) => ({ ...errors, title: '' }))
+    try {
+      const { title: proposal } = await suggestMeetingTitle(meeting.id)
+      setTitle(proposal)
+      setSuggested(proposal)
+    } catch (failure) {
+      setSuggested(null)
+      setFieldErrors((errors) => ({ ...errors, title: errorMessage(failure) }))
+    } finally {
+      setSuggesting(false)
+    }
   }
 
   const submit = async () => {
@@ -134,11 +155,30 @@ export default function EditDetailsDialog({ meeting, onClose, onChanged }: EditD
       testIdPrefix="meetings-edit-details"
     >
       <div ref={fieldsRef} className="flex flex-col gap-4">
-        <Field label={t.fields.title} error={fieldErrors['title']} required>
+        <Field
+          label={t.fields.title}
+          error={fieldErrors['title'] || undefined}
+          hint={suggested !== null && title === suggested ? t.suggestedHint : undefined}
+          required
+        >
           {(control) => (
             <input {...control} type="text" value={title} onChange={(event) => setTitle(event.target.value)} />
           )}
         </Field>
+        {canSuggest && (
+          <div>
+            <Button
+              variant="secondary"
+              size="sm"
+              busy={suggesting}
+              disabled={busy}
+              onClick={() => void suggest()}
+              data-testid="meetings-edit-details-suggest-title"
+            >
+              {suggesting ? t.suggestingTitle : t.suggestTitle}
+            </Button>
+          </div>
+        )}
 
         <Field label={t.fields.startsAt} error={fieldErrors['startsAt']} required>
           {(control) => (

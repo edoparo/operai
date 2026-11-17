@@ -47,6 +47,8 @@ export interface OutputSchema {
 /** The names of the two forced tools (ADR 20261104-ai-output-structured-validated-plain-text); the prompt builders and the fake share them. */
 export const SUMMARY_TOOL = "submit_summary";
 export const ANSWER_TOOL = "submit_answer";
+/** The title suggestion's tool (specs/20261104-meetings AC-1.9). */
+export const TITLE_TOOL = "submit_title";
 
 /** What a caller can tell about a failure without reading provider text. */
 export type LanguageModelFailureCode = "provider_unavailable" | "provider_rejected" | "invalid_output";

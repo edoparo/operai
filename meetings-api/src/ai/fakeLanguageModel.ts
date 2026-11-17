@@ -18,7 +18,7 @@
  * test reads.
  */
 
-import { ANSWER_TOOL, SUMMARY_TOOL, type LanguageModel, type LlmRequest, type OutputSchema } from "./languageModel";
+import { ANSWER_TOOL, SUMMARY_TOOL, TITLE_TOOL, type LanguageModel, type LlmRequest, type OutputSchema } from "./languageModel";
 
 type Script = unknown | Error | ((request: LlmRequest, schema: OutputSchema) => unknown | Promise<unknown>);
 
@@ -55,6 +55,7 @@ export function defaultOutput(request: LlmRequest, schema: OutputSchema): unknow
       ? { answer: "Fake answer, based on the cited passage.", citations: [`S${first[1]}`], notInMeeting: false }
       : { answer: "", citations: [], notInMeeting: true };
   }
+  if (schema.name === TITLE_TOOL) return { title: "Fake meeting title" };
   return {};
 }
 

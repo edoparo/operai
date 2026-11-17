@@ -454,6 +454,7 @@ export const ROWS: readonly RouteRow[] = [
   }),
   row("GET /meetings/:id", "ready", { ok: 200, cells: READ, outage: "serves" }),
   row("PATCH /meetings/:id", "ready", { body: (w) => ({ title: `${w.texts.title} v2` }), ok: 200, cells: CONTROL, outage: "unavailable" }),
+  row("POST /meetings/:id/title-suggestion", "ready", { ok: 200, cells: CONTROL, outage: "unavailable" }, "/title-suggestion"),
   row("DELETE /meetings/:id", "ready", { ok: 204, cells: DELETE_MEETING, outage: "serves" }),
   row("PUT /meetings/:id/participants", "ready", {
     body: (w) => ({ participants: [{ name: w.texts.externalName, organisation: w.texts.externalOrg }] }),

@@ -290,6 +290,12 @@ export const saveNotes = (id: string, version: number, content: NotesDoc) =>
 export const listSummaries = (id: string, init?: Init) =>
   getJson<{ items: Summary[] }>(`${meetingPath(id)}/summaries`, init)
 
+/**
+ * A title proposed by the AI from the transcript (creator, `ready` with speech); nothing is saved: the caller puts it in
+ * the edit field. 409 `not_ready` / `no_speech`, 429 `ai_rate_limited`, 503 `title_suggestion_failed`.
+ */
+export const suggestMeetingTitle = (id: string) => sendJson<{ title: string }>(`${meetingPath(id)}/title-suggestion`, 'POST')
+
 /** 202 with the new (`generating`) summary; 409 `not_ready` / `no_speech` / `summary_limit` / `agenda_empty`, 429 `ai_rate_limited`. */
 export const generateSummary = (id: string, body: { templateId: string; language: MeetingLanguage; followAgenda?: boolean }) =>
   sendJson<Summary>(`${meetingPath(id)}/summaries`, 'POST', body)

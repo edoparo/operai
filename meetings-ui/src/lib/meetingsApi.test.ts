@@ -265,6 +265,12 @@ const ROWS: Row[] = [
     body: { templateId: 't1', language: 'it' },
   },
   {
+    name: 'suggestMeetingTitle',
+    call: () => api.suggestMeetingTitle('m1'),
+    method: POST,
+    url: '/meetings/m1/title-suggestion',
+  },
+  {
     name: 'regenerateSummary',
     call: () => api.regenerateSummary('m1', 's1'),
     method: POST,

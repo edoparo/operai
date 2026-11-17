@@ -47,6 +47,8 @@ const PLAN_EXTRA_CODES = [
   'invalid_url',
   'attachment_expired',
   'attachment_not_found',
+  // Title suggestion.
+  'title_suggestion_failed',
 ]
 
 describe('problem codes have a message in both languages (exhaustiveness)', () => {
