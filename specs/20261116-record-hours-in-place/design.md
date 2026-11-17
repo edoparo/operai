@@ -22,7 +22,9 @@ card and a task row), the CRM Tasks page and EstimAI's estimate workspace (C1's 
 design depends on how something lays out, I injected throwaway DOM built from the library's own classes (a
 success banner in the project header and in a task row at 1440, 1024 and 375 px; a Week-shaped `DataTable` in the
 My hours page at 1440 and 375 px) and read the result; nothing was written to the repo (the screenshots are
-in the git-ignored `.playwright-mcp/`). Findings from those checks are marked **(checked)**.
+in the git-ignored `.playwright-mcp/`). Findings from those checks are marked **(checked)**. The 2026-11-17
+amendment (after the QE verdict) re-measured the Week on a live week at 375, 960 and 1024 px, changing the row-label
+floor at run time to compare candidates; nothing was written to the repo.
 
 Surfaces: **two pages change** (My hours gains a view; a project page and a deal page gain one button),
 **two lists change** (project and CRM task rows gain one button; My tasks too), **three dialogs** (the entry
@@ -101,7 +103,9 @@ place to retry.
 4. Any filter change reads the week again with the same span; "Clear filters" keeps the view and the week.
 5. **List** goes back; the List's own Period is as the person left it (kept in the URL, unread in the Week).
 6. Exits: loading, empty (no hours, or none matching the filters), error with Retry, the deal-filter refusal
-   (AC-4.11 of time tracking), and the source-down notes — S7 *States*.
+   (AC-4.11 of time tracking), and the source-down notes — S7 *States*. **After a Retry that works, focus goes to the
+   Week card's heading** (the Retry button went with the error); if the read fails again, focus goes to the banner
+   that replaced it (S7 *Focus after a write or a Retry*).
 
 ### F4 Record on an empty cell — AC-5.12–5.14, 5.19, 5.20, WA6, WA7
 
@@ -269,13 +273,23 @@ Note [                                  ]
   the S2 `select`, required, **nothing chosen** (A3), listing non-retired categories; with none available the
   field says what S2 says and Save is blocked; a category that requires a note makes Note required, as in S2.
 - **Work type** (project / deal) and **Note**: as S2.
-- **Errors — "same surfaces, same words" (AC-4.2).** Field errors (Day, Duration, Category, Note, Activity) land on
-  their fields exactly as in S2. The three errors S2 puts on the entity picker have no picker here, so they appear in
-  the dialog's form-level `.form-error` (`role="alert"`, above the footer), same sentences: `not_on_project`,
-  `not_involved_in_deal` (the person is not, or no longer, on it: A7); `404` (target gone). **G2:** S2's 404 sentence
-  ends "Choose another.", which cannot be done here: fixed mode uses "This project is no longer available to you." /
-  "…deal…" (a one-clause variant). `host_unavailable` fail-closed and "Something went wrong" are the form error as in
-  S2. Values are kept on every failure; Save is pressed again to retry.
+- **Errors — "same surfaces, same words" (AC-4.2).** Field errors (Day, Duration, Category, Note, and Activity **when
+  it is a select**, i.e. a dialog opened from a page with no task) land on their fields exactly as in S2. What S2 puts
+  on a control this dialog does not have appears in the dialog's form-level `.form-error` (`role="alert"`, above the
+  footer), same sentences: the three errors S2 puts on the entity picker — `not_on_project`, `not_involved_in_deal`
+  (the person is not, or no longer, on it: A7) and `404` (target gone) — and, **when a task is fixed**,
+  `activity_not_allowed` (the Activity is a fact with no field to carry it; S2's sentence, "This activity does not
+  belong to the chosen project." / "…deal."). **G2:** S2's 404 sentence ends "Choose another.", which cannot be done
+  here: fixed mode uses "This project is no longer available to you." / "…deal…" (a one-clause variant).
+  `host_unavailable` fail-closed and "Something went wrong" are the form error as in S2. Values are kept on every
+  failure; Save is pressed again to retry.
+- **Focus after a form-level refusal.** Save is `busy` (disabled) while the request runs, and a disabled control cannot
+  keep focus, so when a refusal that has no field arrives (every form-level error above) **focus returns to Save**, the
+  control the person pressed: the next Enter retries, and a keyboard user keeps their place instead of starting from
+  the dialog's ×. The alert is announced by its own role; focus does not move onto the alert's text. A refusal that
+  has a field keeps the rule of S2 (the first invalid field is focused; an entity refusal in a dialog that has a
+  picker focuses the picker). This is how `EntryDialog` behaves wherever it opens: a page, a task row, a week cell,
+  My hours' own button.
 - **Loading / error of the lists.** The dialog opens at once; the Category and Work type selects show S2's "Loading…"
   hints, then fill; if `GET /time-lists` fails they say "could not be loaded" with **Try again** (S2), and a
   project / deal entry can still be saved without a work type. Same strings.
@@ -367,9 +381,26 @@ Time worked on two things at once counts in full …
   words and badge as the List's rows, AC-5.8's kind marker — then the name). Then seven day columns, Monday to Sunday
   (AC-5.3): header line 1 the short weekday (+ a **Today** `Badge tone="accent"` inline for today), line 2
   `formatDate(day)` ("16.11.2026": unambiguous across a month boundary, no date built by hand). Then **Total**.
-  Day and Total columns are `numeric` (right-aligned DM Mono, tabular). The row-header cell has a floor width
-  (`min-w-44`) so a name wraps at two lines rather than being squeezed on a phone (**checked**: without it a
-  263 px content area wraps names to three or four lines).
+  Day and Total columns are `numeric` (right-aligned DM Mono, tabular). The row-header cell has a floor width of
+  **`min-w-28` (7 rem, 112 px)**, so a name is never squeezed to a word or two per line, and no wider: the floor
+  decides whether a day is visible on a phone and how wide a screen the grid fits. A name wraps to two or three lines
+  (**checked**: "Alpenstrom — portale clienti" in two at 375 px). The widths below were **checked** on a live week by
+  changing the floor at run time; the sums for longer Totals follow from them.
+  - **At 375 px (QE observation → defect, 2026-11-17).** The Week card is 258 px wide inside the shell's 64 px rail and
+    its grid region is **220 px** (the first draft reasoned from 263 px). Every day column is about 88 px (an 11 px
+    mono date, nowrap) and the label column is the floor plus 16 px of cell padding. A 176 px floor (`min-w-44`, the
+    first draft) showed 28 px of the Monday column and no figure; 144 px showed 60 px, 128 px showed 76 px, still no
+    figure; **112 px shows the whole Monday column, header and figures**, with Tuesday starting 5 px beyond the edge.
+    The first draft left a phone with a column of names, no day figure and no sign that the grid scrolls; G10 accepted
+    the scroll, not that. The sign is the hint under *Phone* below.
+  - **At 1024 px (QE observation → defect, 2026-11-17).** The grid's minimum width is the sum of its columns: the
+    label column, 7 × ~88 px for the days and the Total column (about 52 px for "5 h", 75 for "11 h 30", 83 for
+    "100 h 30"). The grid region is the viewport minus 155 px in this layout (869 px at 1024). With the 176 px floor
+    the minimum was 858 px for a week of small totals and about 880 px once a total reached ten hours (the QE measured
+    879 against 869): the Total column's last character sat under the card's edge and a sideways scrollbar appeared
+    for 10 px. With the 112 px floor the minimum is 794 px, 825 px with a three-digit-hour Total: it fits at 1024 with
+    44 px or more to spare and at 960 (805 px) for a short Total. The grid fits without a sideways scroll from about
+    980 px up; below that it scrolls inside the card, as designed.
 - **Rows.** Exactly one per project, deal, meeting and category of other work the person has hours on in the week
   (AC-5.6), a meeting's hours on the meeting's row even when it counts for a deal (AC-5.7), ordered projects, deals,
   meetings, other work, by name inside each, unnamed after named (AC-5.8, `weekGrid`). A row label:
@@ -420,15 +451,28 @@ States (exactly one per region; Tabs, Filters, header and the card's heading + n
 - **Retired category row (G4; AC-5.24 as amended 2026-11-17).** Its cells that hold hours open S8 without Add hours, and its empty cells
   are not controls: a retired category is not offered for a new entry (time-tracking AC-3.4), and a preset the
   dialog would then show as "unchosen" is a trap. The row is labelled with "(retired)".
-- **Focus after a write** (F4, F5). The grid is replaced while it reloads, so the library's "focus returns to the opener"
-  would land on nothing: the page asks for focus on `[data-cell=<row>:<day>]` once the new grid is there, else on the
-  card's heading (`focusableHeading`). The same `focusRequest` pattern `MyHoursPage` already uses for the List
-  ("heading after a delete, Record hours after an edit").
+- **Focus after a write or a Retry** (F3, F4, F5). The grid is replaced while it reloads, so the library's "focus
+  returns to the opener" would land on nothing: the page asks for focus on `[data-cell=<row>:<day>]` once the new grid
+  is there, else on the card's heading (`focusableHeading`). The same `focusRequest` pattern `MyHoursPage` already
+  uses for the List ("heading after a delete, Record hours after an edit"). After a **Retry** of a failed week read
+  (the error banner's and the deal-filter refusal's alike) the Retry button is gone with the error: when the read
+  works, focus goes to **the Week card's heading**; when it fails again, to the banner that replaced it (the
+  deal-filter refusal's existing behaviour). Never to `body`.
 - **Phone (R5-style check).** The `DataTable` region scrolls horizontally inside the card (focusable, keyboard
-  scrollable), the page does not (**checked** at 375). The row label is **not sticky** — `DataTable` has no sticky column and
-  adding one is a library change that would have to ship in the shell first (R4); a cell scrolled away from its
-  label still names its row and day in its accessible name and in its dialog's title. If the phone use proves
-  common, an optional `DataTable` prop is the follow-up (not in this feature).
+  scrollable), the page does not (**checked** at 375). **A visible cue (QE observation → defect, 2026-11-17):** below
+  `lg` (1024 px) one line of hint text sits between the card's heading and the grid, "Scroll sideways to see all
+  seven days." (`week.scrollHint`), a plain `<p className="mb-3 text-xs text-soft lg:hidden">` (the footnote of
+  `TimeListCard` is the precedent). It is shown only with a grid (not while loading, on an empty week, on an error or
+  on a replaced state), has no control and no dismissal, and is `aria-hidden="true"`: a cue for the eye, while the
+  region is already a labelled, focusable scroll region and a screen-reader user moves by table cell. A sentence
+  rather than a shadow at the region's edge: the library draws none (a library change, R4), and 5 px of Tuesday is not
+  a cue. Between about 980 and 1023 px it shows although the grid fits; accepted, a breakpoint is sturdier than a
+  width measured against figures that change with a longer total. The hint is the removable half of this fix: the
+  floor alone already puts a day on a phone's first screen. Both classes (`min-w-28`, `lg:hidden`) are new to the
+  suite's one Tailwind sheet, which the shell emits from `hours-ui/src`. The row label is **not sticky** —
+  `DataTable` has no sticky column and adding one is a library change that would have to ship in the shell first
+  (R4); a cell scrolled away from its label still names its row and day in its accessible name and in its dialog's
+  title. If the phone use proves common, an optional `DataTable` prop is the follow-up (not in this feature).
 
 ### S8 A cell's entries — the cell dialog (AC-5.15–5.18, 5.20, 5.24)
 
@@ -467,7 +511,8 @@ Wednesday 18 November 2026 · 2 entries, 6 h 30
 - **States.** The dialog is only opened from a cell that holds hours, so it has no empty state of its own (it closes
   instead); *loading* is the re-read described above (the list stays, the buttons keep working); *error* of the
   re-read is the page's `ErrorBanner` behind the dialog, announced as an alert, with the dialog still usable.
-  Edit, Delete and Add hours report their own refusals inside their own dialogs (S2, S3 of time tracking).
+  Edit, Delete and Add hours report their own refusals inside their own dialogs (S2, S3 of time tracking; an entry
+  dialog's form-level refusal returns focus to its Save, S4).
 - **Edit** opens `EntryDialog` with `entry`; **Delete** opens `DeleteEntryDialog`; both unchanged (AC-5.16, 5.17).
 
 ### S9 The entry dialog opened from a week cell (AC-5.12, 5.13, 5.18, WA6)
@@ -478,7 +523,7 @@ Category select holding the row's category). Because the click already chose the
 Duration** (`focus: 'duration'`; the plan's default `day` is for My hours' own button; no AC asks for either, G7).
 Opened from a cell the title is "Record hours" and there is no description. A meeting row's preset needs a meeting
 choice with the title (it is on the row's entries); a project or deal row's needs the name (`companyName` null).
-All errors on their own fields as in S2.
+All errors on their own fields as in S2; a refusal with no field is the form-level error, with focus back on Save (S4).
 
 ---
 
@@ -493,8 +538,8 @@ crm-ui's ("azienda"); **a native speaker should read the Italian before release*
 |---|---|---|
 | `recordHours.button` | reuse `entry.record` — Record hours | Registra ore |
 | `recordHours.buttonOn(task)` (aria-label) | Record hours on {task} | Registra ore su {task} |
-| `recordHours.recorded(duration, name)` | {duration} recorded on {name}. | {duration} registrate su {name}. |
-| `recordHours.recordedOther(duration, category)` | {duration} recorded on other work: {category}. | {duration} registrate su altro lavoro: {category}. |
+| `recordHours.recorded(duration, name)` | {duration} recorded on {name}. | Hai registrato {duration} su {name}. |
+| `recordHours.recordedOther(duration, category)` | {duration} recorded on other work: {category}. | Hai registrato {duration} su altro lavoro: {category}. |
 | `recordHours.thisProject` / `thisDeal` | this project / this deal | questo progetto / questa opportunità |
 | `recordHours.seeInMyHours` | See in My hours | Vedi in Le mie ore |
 | `recordHours.dialog.onProject(name)` / `onThisProject` | Recording hours on the project {name}. / Recording hours on this project. | Stai registrando ore sul progetto {name}. / Stai registrando ore su questo progetto. |
@@ -522,6 +567,15 @@ crm-ui's ("azienda"); **a native speaker should read the Italian before release*
 | `week.cellDialog.description(day, n, total)` | {day} · 1 entry / {n} entries, {total} | {day} · 1 registrazione / {n} registrazioni, {total} |
 | `week.cellDialog.add` | Add hours | Aggiungi ore |
 | `week.savedOutside(date)` | Entry saved. {date} is outside the week you are viewing. | Registrazione salvata. Il {date} è fuori dalla settimana che stai guardando. |
+| `week.scrollHint` | Scroll sideways to see all seven days. | Scorri di lato per vedere tutti e sette i giorni. |
+
+**The Italian of the success message (QE observation → defect, 2026-11-17).** The first draft, "{duration}
+registrate su …", made a participle agree with a duration: "registrate" is feminine plural, which suits "ore" but not
+"1 h" or "30 min". "Hai registrato {duration} su …" puts the verb in the person (second singular, the voice of "Stai
+registrando ore…" and "la settimana che stai guardando") and nothing agrees with the figure, so it is correct for
+30 min, 1 h, 2 h 30 and 24 h, and for "altro lavoro: Formazione". `{duration}` is the short form ("2 h 30"), the same
+text in both languages. The other Italian strings of this feature were re-read for agreement (ore, registrazione /
+registrazioni, "quando è arrivato" for a day): no other case.
 
 Reused unchanged: `entries.type.*`, `entries.retired`, `entries.dayList`, `entries.emptyFiltered`, `entries.error`,
 `entries.edit*`/`delete*`, `names.*`, `filters.recordedOn.label`, `filters.clear`, `common.dismiss`/`close`/`retry`/`none`,
@@ -606,8 +660,10 @@ Colour is never the only signal (kinds and Today are text badges). QE checks NVD
 - The fixed task is a `dl` (term "Activity") in reading order after the description; it is not focusable and not
   `aria-disabled` (it is not a control). The kind radio and the pickers are absent, not disabled.
 - Errors: field errors as S2 (`role="alert"`, linked by `aria-describedby`, first invalid field focused);
-  the three entity errors are the form-level `.form-error` (`role="alert"`); focus stays on Save after a refusal
-  with no field, as it does today for `host_unavailable`.
+  the three entity errors (and, with a task fixed, `activity_not_allowed`) are the form-level `.form-error`
+  (`role="alert"`); **after any refusal that has no field, focus returns to Save** (it is disabled while the request
+  runs, so focus would otherwise be lost; the alert is announced by its role, focus does not move onto it). The same
+  for `host_unavailable` and "Something went wrong", in every placement of the dialog (S4).
 
 **My hours with the switch (S6).**
 - `Tabs`: a real `tablist` named "View of your hours", one tab stop, ←/→ and Home/End, `aria-selected`; the panel
@@ -633,11 +689,13 @@ Colour is never the only signal (kinds and Today are text badges). QE checks NVD
   technology reads "blank". Not an error: AC-5.14 and AC-5.24 ask for no offer.
 - The week label is the card's heading; the navigator buttons keep focus after a step and "This week" is
   `aria-disabled` rather than `disabled` on the current week. Weeks load with an aria-hidden skeleton and one polite
-  "Loading your week…"; errors are an `alert` (Retry); the deal-filter refusal is the List's, `role="alert"`, focus as
+  "Loading your week…"; errors are an `alert` (Retry: after one that works focus goes to the card's heading, after one
+  that fails again to the banner that replaced it); the deal-filter refusal is the List's, `role="alert"`, focus as
   there.
 - **Focus after a write:** the grid is replaced while it reloads, so the page restores focus to the cell acted on, or
   the card heading if the cell is gone (S7). Never to `body`.
-- Scroll region: a focusable `role="region"` with a label, so a keyboard user can scroll sideways on a phone.
+- Scroll region: a focusable `role="region"` with a label, so a keyboard user can scroll sideways on a phone; the
+  one-line scroll hint above it is `aria-hidden` (S7 *Phone*).
 - Contrast: kind and Today badges and the plus icon are library tokens; day totals are `--text`.
 
 **The cell dialog (S8) and the dialogs over it.**
@@ -676,8 +734,8 @@ entry is, visible only in My hours); AC-5.6–5.10 (computed by `weekGrid`; thei
 **UI added that no AC asks for (small, kept, reported — strike any):** the dialog's read-only description sentence and
 the deal-less task's explanation of "other work, not linked" (S4); the 404 sentence variant without "Choose another"
 (S4); focus on Duration also for dialogs opened from a week cell (S9); the Today badge; the Week's polite
-"…: 38 h 30 in total"; the "This week has not started" variant of the empty state (S7); the "outside the week you
-are viewing" confirmation (F6); × returning focus to Record hours; `aria-disabled` on This week. None changes data, a
+"…: 38 h 30 in total"; the one-line scroll hint under 1024 px (S7); the "This week has not started" variant of the
+empty state (S7); the "outside the week you are viewing" confirmation (F6); × returning focus to Record hours; `aria-disabled` on This week. None changes data, a
 route or a permission.
 
 **Not designed — scope creep or out of spec, reported:** typing hours into a cell (spec non-goal); "Add row", last
@@ -697,6 +755,14 @@ it touches and, where one exists, the smallest resolution. **None blocks the des
 **Resolved 2026-11-17** (main loop, the user deciding G2 and G4): G1, G3, G5 and G7 adopted as recommended (plan,
 first amendment); G4 adopted and AC-5.24 amended to cover a retired category's row (ledger D12); G2 read as
 recommended and AC-4.2 amended to say so (ledger D13); G6, G8, G9, G10 and G11 stand as designed.
+
+**Amended 2026-11-17** (after the QE verdict, `qe-report.md`): D2 — the claim that focus stays on Save "as it does
+today" was false (it falls to `<body>`), so S4 *Errors* (new *Focus after a form-level refusal*, which also names the
+fixed task's `activity_not_allowed` as a form-level error, D1's surface), S8, S9 and § Accessibility now state the
+target, Save, as a behaviour; S7 and F3 add that after a successful Retry focus goes to the Week card's heading · the
+Week at 375 px and the 10 px overflow at 1024 px are one defect with one fix (row-label floor `min-w-44` → `min-w-28`,
+plus a scroll hint below 1024 px, `week.scrollHint`; G10 amended) · the Italian success message is "Hai registrato
+{duration} su …" (§ Copy).
 
 1. **G1 — the message's link vs its 3 s lifetime** (plan § `hours/RecordHours`, "gone after `CONFIRMATION_DISMISS_MS`";
    AC-4.3 "with a link that opens My hours"). A link inside a message that vanishes in 3 s is unreachable for keyboard
@@ -731,6 +797,9 @@ recommended and AC-4.2 amended to say so (ledger D13); G6, G8, G9, G10 and G11 s
    the Filters card (S7 explains). Same behaviour, different home; strike if the filter bar is wanted.
 10. **G10 — phone.** `DataTable` has no sticky first column, so a name scrolls away from its cells on a phone; mitigated by
     names in every cell's accessible name and dialog title; an optional library prop is the follow-up (R4 order).
+    **Amended 2026-11-17 (QE observation):** accepting the scroll did not mean a phone with no figure on its first screen
+    and no sign that the grid scrolls (the grid region is 220 px, not the 263 px this gap assumed): the label floor drops
+    to `min-w-28` and a hint is shown below 1024 px (S7).
 11. **G11 — A7 and S4.** A task row whose assignee is not on the project's team still shows the button and the save is refused
     by hours-api; in `fixed` mode the refusal appears in the form-level error with no way to choose another project, which
     is what A7 and AC-4.2 ask for (stated so QE does not look for a picker).
