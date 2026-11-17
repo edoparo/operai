@@ -40,7 +40,7 @@ import {
 import type { FakeHandler } from '../test-support/fakeApi'
 import { LISTS, TODAY_INSTANT, totalsHandler } from '../test-support/fixtures/myHours'
 import { typeDuration } from '../test-support/typeDuration'
-import type { EntryInput, TimeEntryView } from '../lib/hoursApi.types'
+import type { EntryInput, EntryOnInput, EntryPatch, TimeEntryView } from '../lib/hoursApi.types'
 
 const e = strings.entry
 const f = e.fields
@@ -86,22 +86,21 @@ const entriesInRange =
     return { status: 200, body: entriesPage(items().filter((item) => item.day >= from && item.day <= to)) }
   }
 
+/** The `on` the server answers for the target a body names. */
+const onViewOf = (on: EntryOnInput): TimeEntryView['on'] =>
+  on.type === 'none'
+    ? otherWorkOn(
+        LISTS.categories.find((category) => category.id === on.categoryId)?.name ?? on.categoryId,
+        on.categoryId,
+      )
+    : on.type === 'project'
+      ? projectOn(on.id, NAMES[on.id])
+      : on.type === 'deal'
+        ? dealOn(on.id, NAMES[on.id])
+        : meetingOn(on.id, NAMES[on.id])
+
 /** The entry the server makes of a `POST /time-entries` body. */
-const madeOf = (input: EntryInput): TimeEntryView => {
-  const { on } = input
-  const view =
-    on.type === 'none'
-      ? otherWorkOn(
-          LISTS.categories.find((category) => category.id === on.categoryId)?.name ?? on.categoryId,
-          on.categoryId,
-        )
-      : on.type === 'project'
-        ? projectOn(on.id, NAMES[on.id])
-        : on.type === 'deal'
-          ? dealOn(on.id, NAMES[on.id])
-          : meetingOn(on.id, NAMES[on.id])
-  return entry(input.day, input.minutes, view)
-}
+const madeOf = (input: EntryInput): TimeEntryView => entry(input.day, input.minutes, onViewOf(input.on))
 
 /** The server: what it holds, which a `POST` adds to, so the next read of the week holds the new entry. */
 let held: TimeEntryView[]
@@ -115,6 +114,25 @@ const useApi = (overrides: Parameters<typeof fakeApi>[0] = {}) => {
       const created = madeOf(JSON.parse(String(init?.body)) as EntryInput)
       held.push(created)
       return { status: 201, body: created }
+    },
+    'PATCH /time-entries/:id': (_url, init, params) => {
+      const patch = JSON.parse(String(init?.body)) as EntryPatch
+      const index = held.findIndex((item) => item.id === params['id'])
+      if (index === -1) return { status: 404, body: problem(404) }
+      const patched: TimeEntryView = {
+        ...held[index]!,
+        ...(patch.day !== undefined ? { day: patch.day } : {}),
+        ...(patch.minutes !== undefined ? { minutes: patch.minutes } : {}),
+        ...(patch.note !== undefined ? { note: patch.note } : {}),
+        ...(patch.on !== undefined ? { on: onViewOf(patch.on) } : {}),
+      }
+      held[index] = patched
+      return { status: 200, body: patched }
+    },
+    'DELETE /time-entries/:id': (_url, _init, params) => {
+      const before = held.length
+      held = held.filter((item) => item.id !== params['id'])
+      return held.length === before ? { status: 404, body: problem(404) } : { status: 204 }
     },
     'GET /time-entries/totals': totalsHandler,
     'GET /deals': () => ({ status: 200, body: page([dealItem({ id: 'd1', title: 'Acme renewal' })]) }),
@@ -673,5 +691,40 @@ describe('after a write whose re-read fails (design S7 "States")', () => {
     await screen.findByTestId('hours-week-table')
 
     expect(document.activeElement).toBe(screen.getByRole('tab', { name: w.view.week }))
+  })
+})
+
+describe('the Week never shows what it read before the entries changed (useHoursQuery, T12)', () => {
+  it('Week → List, an entry deleted there → Week: a skeleton, then the new figures — never the old ones, not even for one read', async () => {
+    const reading = deferred<{ status: number; body: unknown }>()
+    let holdWeek = false
+    useApi({
+      'GET /time-entries': (url, init, params) =>
+        holdWeek && url.searchParams.get('to') === THIS_SUNDAY
+          ? reading.promise
+          : entriesInRange(() => held)(url, init, params),
+    })
+    await renderPage()
+    await screen.findByTestId('hours-week-table')
+    expect(figuresOf('project:p-alpha')[7]).toBe('6 h 30')
+
+    await userEvent.click(screen.getByRole('tab', { name: w.view.list }))
+    await screen.findByTestId('hours-day-list')
+    await userEvent.click(screen.getByTestId(`hours-entry-${SEED[0]!.id}-delete`))
+    await userEvent.click(
+      within(screen.getByRole('alertdialog', { name: e.delete.title })).getByRole('button', { name: e.delete.confirm }),
+    )
+    await waitFor(() => expect(screen.queryByTestId(`hours-entry-${SEED[0]!.id}`)).toBeNull())
+
+    // Back to the Week, whose read is slow: what it held before the delete (6 h 30 on Alpenstrom) must not come back.
+    holdWeek = true
+    await userEvent.click(screen.getByRole('tab', { name: w.view.week }))
+
+    expect(screen.queryByTestId('hours-week-table')).toBeNull()
+    expect(screen.getByTestId('hours-week-skeleton')).not.toBeNull()
+    reading.resolve({ status: 200, body: entriesPage(held.filter((item) => item.day >= THIS_MONDAY)) })
+    await screen.findByTestId('hours-week-table')
+    expect(figuresOf('project:p-alpha')).toEqual(['', '2 h 30', '', '', '', '', '', '2 h 30'])
+    expect(figuresOf('total')[7]).toBe('3 h 30')
   })
 })

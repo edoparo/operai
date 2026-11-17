@@ -159,6 +159,64 @@ describe('useHoursQuery', () => {
     expect(result.current.state).toEqual({ status: 'loaded', data: 'second try' })
   })
 
+  it('a key that goes away and comes back is loading again, never the answer it had before it went (T12)', async () => {
+    const run = vi.fn<(signal: AbortSignal) => Promise<string>>()
+    run.mockResolvedValueOnce('before the write')
+    const { result, rerender } = renderHook(({ key }) => useHoursQuery(key, run), {
+      initialProps: { key: 'a' as string | null },
+    })
+    await act(async () => undefined)
+    expect(result.current.state).toEqual({ status: 'loaded', data: 'before the write' })
+
+    // The view that asked goes away (the other tab of the page is shown), and something changes meanwhile.
+    rerender({ key: null })
+    expect(result.current.state).toEqual({ status: 'idle' })
+
+    // It comes back with the very same request: what it held then is not what the server holds now.
+    const fresh = deferred<string>()
+    run.mockReturnValueOnce(fresh.promise)
+    rerender({ key: 'a' })
+
+    expect(result.current.state).toEqual({ status: 'loading' })
+    await act(async () => fresh.resolve('after the write'))
+    expect(result.current.state).toEqual({ status: 'loaded', data: 'after the write' })
+    expect(run).toHaveBeenCalledTimes(2)
+  })
+
+  it('a failure is not remembered across the key going away either', async () => {
+    const run = vi.fn<(signal: AbortSignal) => Promise<string>>()
+    run.mockRejectedValueOnce(new Error('first try'))
+    const { result, rerender } = renderHook(({ key }) => useHoursQuery(key, run), {
+      initialProps: { key: 'a' as string | null },
+    })
+    await act(async () => undefined)
+    expect(result.current.state.status).toBe('error')
+
+    rerender({ key: null })
+    run.mockReturnValueOnce(new Promise<string>(() => undefined))
+    rerender({ key: 'a' })
+
+    expect(result.current.state).toEqual({ status: 'loading' })
+  })
+
+  it('a key left for another before that one answered, and come back to, is loading: the first answer is a stale one', async () => {
+    const run = vi.fn<(signal: AbortSignal) => Promise<string>>()
+    run.mockResolvedValueOnce('old a').mockReturnValueOnce(new Promise<string>(() => undefined))
+    const { result, rerender } = renderHook(({ key }) => useHoursQuery(key, run), { initialProps: { key: 'a' } })
+    await act(async () => undefined)
+    expect(result.current.state).toEqual({ status: 'loaded', data: 'old a' })
+
+    // b is asked and not answered yet; the person goes back to a.
+    rerender({ key: 'b' })
+    const fresh = deferred<string>()
+    run.mockReturnValueOnce(fresh.promise)
+    rerender({ key: 'a' })
+
+    expect(result.current.state).toEqual({ status: 'loading' })
+    await act(async () => fresh.resolve('new a'))
+    expect(result.current.state).toEqual({ status: 'loaded', data: 'new a' })
+  })
+
   it('a reload while one is in flight supersedes it: the first answer is dropped', async () => {
     const first = deferred<string>()
     const second = deferred<string>()
