@@ -129,6 +129,9 @@ the pipeline without a spreadsheet.
   - (owner, 2026-11-07) A card shows the company first, in the prominent line, and the
     deal's title under it. Besides the entity and the year, the board filters by one
     company; the counts and totals follow the filter (`GET /pipeline?companyId=`).
+  - (owner, 2026-11-17) The board also filters by one owner: "Mine" or anyone who owns a deal
+    (`GET /deals/owners`, readable with `crm:access`); the counts and totals follow the filter
+    (`GET /pipeline?ownerId=`).
 - AC-3.5 A user without the capability, or outside its entity scope, sees deals but no
   create/edit/move controls; the server refuses such a write with 403.
 - AC-3.6 The board's open columns show every open deal, whatever year it started in. Won and

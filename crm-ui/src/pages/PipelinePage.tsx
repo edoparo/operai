@@ -8,8 +8,9 @@ import { LoadFailure, Loading, Saved, StaleWriteBanner } from '../components/Loa
 import MoveStageDialog from '../components/MoveStageDialog'
 import PipelineBoard from '../components/PipelineBoard'
 import { isStaleWrite } from '../lib/api'
-import { getPipeline, listDeals, moveDealStage } from '../lib/crmApi'
+import { getPipeline, listDealOwners, listDeals, moveDealStage } from '../lib/crmApi'
 import { codeOf, errorMessage } from '../lib/errors'
+import { personName } from '../lib/people'
 import { ENTITIES } from '../lib/types'
 import type { DealStage, DealSummary, Entity } from '../lib/types'
 import { useCrmCapabilities } from '../hooks/scopeContext'
@@ -27,7 +28,9 @@ const BOARD_PAGE_SIZE = 200
  * deal moves it with the deal's version as If-Match; dropping on Lost first
  * asks for the optional reason. The deal shows in its new column at once and
  * the board reloads with the server's figures; a stale move shows the reload
- * banner. The entity and company filters narrow both the figures and the board, server-side.
+ * banner. The entity, company and owner filters narrow both the figures and the board, server-side.
+ * The owner filter offers "Mine" and everyone who owns a deal (`GET /deals/owners`); if that list
+ * fails to load, it offers "Mine" only.
  */
 export default function PipelinePage() {
   const t = strings.deals.pipeline
@@ -38,6 +41,8 @@ export default function PipelinePage() {
   const [entity, setEntity] = useState<Entity | ''>('')
   /** One company's deals only; null = every company. */
   const [company, setCompany] = useState<CompanyChoice | null>(null)
+  /** One owner's deals only; '' = everyone's. */
+  const [ownerId, setOwnerId] = useState('')
   /** The calendar year whose won and lost deals show (AC-3.6); null = this year, the server's. */
   const [year, setYear] = useState<number | null>(null)
   const [creating, setCreating] = useState(false)
@@ -54,21 +59,25 @@ export default function PipelinePage() {
   const load = useCallback(
     (signal: AbortSignal) =>
       Promise.all([
-        getPipeline(entity, { signal }, year ?? undefined, company?.id),
+        getPipeline(entity, { signal }, year ?? undefined, company?.id, ownerId || undefined),
         listDeals(
           {
             board: true,
             entity,
             ...(year !== null ? { year } : {}),
             ...(company ? { companyId: company.id } : {}),
+            ...(ownerId ? { ownerId } : {}),
             pageSize: BOARD_PAGE_SIZE,
           },
           { signal },
         ),
       ]),
-    [entity, year, company],
+    [entity, year, company, ownerId],
   )
-  const board = useResource(load, { cacheKey: `pipeline:${JSON.stringify([entity, year, company?.id ?? null])}` })
+  const board = useResource(load, { cacheKey: `pipeline:${JSON.stringify([entity, year, company?.id ?? null, ownerId])}` })
+  const loadOwners = useCallback((signal: AbortSignal) => listDealOwners({ signal }), [])
+  const owners = useResource(loadOwners, { cacheKey: 'deal-owners' })
+  const otherOwners = (owners.data?.items ?? []).filter((person) => person.id !== currentUserId)
   const shownYear = board.data?.[0].year ?? year ?? new Date().getFullYear()
   const years = board.data?.[0].years ?? [shownYear]
 
@@ -175,7 +184,7 @@ export default function PipelinePage() {
         }
       />
       <div className="flex flex-col gap-4">
-        <div className="grid max-w-4xl grid-cols-1 items-start gap-3 sm:grid-cols-3">
+        <div className="grid max-w-5xl grid-cols-1 items-start gap-3 sm:grid-cols-2 lg:grid-cols-4">
           <Field label={t.entityFilter} testId="crm-pipeline-entity">
             {(control) => (
               <select {...control} value={entity} onChange={(event) => setEntity(event.target.value as Entity | '')}>
@@ -195,6 +204,19 @@ export default function PipelinePage() {
             onChange={setCompany}
             testId="crm-pipeline-company"
           />
+          <Field label={t.ownerFilter} testId="crm-pipeline-owner">
+            {(control) => (
+              <select {...control} value={ownerId} onChange={(event) => setOwnerId(event.target.value)}>
+                <option value="">{t.allOwners}</option>
+                {currentUserId && <option value={currentUserId}>{t.mine}</option>}
+                {otherOwners.map((person) => (
+                  <option key={person.id} value={person.id}>
+                    {personName(person)}
+                  </option>
+                ))}
+              </select>
+            )}
+          </Field>
           <Field label={t.yearFilter} hint={t.yearHint} testId="crm-pipeline-year">
             {(control) => (
               <select

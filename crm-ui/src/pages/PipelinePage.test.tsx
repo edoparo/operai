@@ -69,6 +69,7 @@ const renderBoard = async ({ financials = true, move: answerMove }: BoardOptions
         status: 200,
         body: page([{ id: 'c1', name: 'Acme SA', entity: 'welld_ch', status: 'client', source: null, sourceDetail: null }]),
       }),
+      'GET /deals/owners': () => ({ status: 200, body: { items: [ADA, { id: 'u-bob', name: 'Bob Builder', status: 'active' }] } }),
       'GET /pipeline': (url) => ({
         status: 200,
         body: financials
@@ -281,6 +282,18 @@ describe('PipelinePage board', () => {
     fireEvent.click(await screen.findByRole('option', { name: /Acme SA/ }))
     await waitFor(() => expect(boardQueries.at(-1)).toContain('companyId=c1'))
     expect(pipelineQueries().at(-1)!.searchParams.get('companyId')).toBe('c1')
+  })
+
+  it('the owner filter offers Mine and the other owners, and narrows both the figures and the board', async () => {
+    const { boardQueries, pipelineQueries } = await renderBoard()
+    expect(boardQueries[0]).not.toContain('ownerId')
+    const select = screen.getByLabelText('Owner') as HTMLSelectElement
+    await waitFor(() => expect(Array.from(select.options).map((o) => o.textContent)).toEqual(['Everyone', 'Mine', 'Bob Builder']))
+    fireEvent.change(select, { target: { value: 'u-bob' } })
+    await waitFor(() => expect(boardQueries.at(-1)).toContain('ownerId=u-bob'))
+    expect(pipelineQueries().at(-1)!.searchParams.get('ownerId')).toBe('u-bob')
+    fireEvent.change(select, { target: { value: 'u-ada' } })
+    await waitFor(() => expect(boardQueries.at(-1)).toContain('ownerId=u-ada'))
   })
 
   it('a lane with two currencies lists each total on its own line, never summed (AC-3.4)', async () => {

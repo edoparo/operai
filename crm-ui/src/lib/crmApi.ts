@@ -179,12 +179,22 @@ export const moveDealStage = (id: string, version: number, stage: DealStage, los
     lostReason !== undefined && lostReason !== '' ? { stage, lostReason } : { stage },
     version,
   )
-/** `year`: whose won and lost deals count (specs/20261101-crm AC-3.6); this year when absent. `companyId`: one company's deals. */
-export const getPipeline = (entity?: Entity | '', init?: Init, year?: number, companyId?: string) =>
+/**
+ * `year`: whose won and lost deals count (specs/20261101-crm AC-3.6); this year when absent. `companyId`: one
+ * company's deals. `ownerId`: one owner's deals.
+ */
+export const getPipeline = (entity?: Entity | '', init?: Init, year?: number, companyId?: string, ownerId?: string) =>
   getJson<Pipeline>(
-    `/pipeline${query({ entity, ...(year !== undefined ? { year } : {}), ...(companyId ? { companyId } : {}) })}`,
+    `/pipeline${query({
+      entity,
+      ...(year !== undefined ? { year } : {}),
+      ...(companyId ? { companyId } : {}),
+      ...(ownerId ? { ownerId } : {}),
+    })}`,
     init,
   )
+/** The people who own a deal, by name: the pipeline's owner filter (needs `crm:access` only). */
+export const listDealOwners = (init?: Init) => getJson<{ items: PersonRef[] }>('/deals/owners', init)
 
 // ─── auth: the user directory (owner/assignee picker, ADR 20261006-user-directory-endpoint-capability-gated/0053) ─────────
 

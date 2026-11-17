@@ -119,6 +119,24 @@ describe("deals (US-3)", () => {
     expect((await call("GET", "/deals?open=true&entity=welld_it")).json.total).toBe(0);
   });
 
+  it("pipeline owner filter: /deals/owners lists each owner once, and ownerId narrows figures and board alike", async () => {
+    const company = await makeCompany({ entity: "welld_ch" });
+    await makeDeal(company.id, { stage: "qualified" }, "salesCh");
+    await makeDeal(company.id, { stage: "qualified" }, "salesCh");
+    await makeDeal(company.id, { stage: "lead" });
+
+    const owners = await call("GET", "/deals/owners", { as: "consultant" });
+    expect(owners.status).toBe(200);
+    expect(owners.json.items.map((p: { id: string }) => p.id).sort()).toEqual(["user-admin", "user-sales-ch"].sort());
+
+    const mine = await call("GET", "/pipeline?ownerId=user-sales-ch", { as: "consultant" });
+    const counts = Object.fromEntries(mine.json.stages.map((s: { stage: string; count: number }) => [s.stage, s.count]));
+    expect(counts).toMatchObject({ qualified: 2, lead: 0 });
+    const board = await call("GET", "/deals?board=true&ownerId=user-sales-ch&pageSize=200", { as: "consultant" });
+    expect(board.json.total).toBe(2);
+    expect((await call("GET", "/pipeline?ownerId=nobody")).json.stages.every((s: { count: number }) => s.count === 0)).toBe(true);
+  });
+
   it("pipeline: per stage and currency, weighted once per deal, won/lost of this year only (AC-3.4, D-8–D-10)", async () => {
     const company = await makeCompany();
     await makeDeal(company.id, { amountCents: 1001, currency: "CHF", stage: "qualified" }); // 25% → 250.25 → 250

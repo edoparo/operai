@@ -452,10 +452,24 @@ const pipelineRoute = createRoute({
     query: z.object({
       entity: EntitySchema.optional(),
       companyId: idText(64, 0).optional(),
+      // One owner's deals only, like the board's list (`GET /deals?ownerId=`).
+      ownerId: idText(64, 0).optional(),
       year: BoardYearSchema.optional(),
     }),
   },
   responses: { 200: { description: "The pipeline", ...json(PipelineSchema) }, ...commonErrors },
+});
+
+const ownersRoute = createRoute({
+  method: "get",
+  path: "/deals/owners",
+  tags: ["Deals"],
+  summary: "The people who own a deal, by name (the pipeline's owner filter)",
+  middleware: authorized,
+  responses: {
+    200: { description: "Deal owners", ...json(z.object({ items: z.array(PersonRefSchema) })) },
+    ...commonErrors,
+  },
 });
 
 export const dealsRouter = new OpenAPIHono<{ Variables: AuthzVariables }>({
@@ -494,6 +508,19 @@ dealsRouter.openapi(listRoute, async (c) => {
     ({ lostReason: _l, notes: _n, createdAt: _c, estimate: _e, estimateOverride: _o, ...summary }) => summary,
   );
   return c.json({ items, total, page, pageSize }, 200);
+});
+
+// Every crm:access holder already reads each deal's owner, so this projection gives them nothing
+// new (ADR 20260811-derived-projection-reuses-existing-gate-reconstructibility-test) and needs no directory permission — the
+// `/companies/owners` shape. Registered before `GET /deals/{id}`, which would otherwise take "owners" as an id.
+dealsRouter.openapi(ownersRoute, async (c) => {
+  const rows = await db.deal.findMany({ distinct: ["ownerUserId"], select: { ownerUserId: true }, take: 500 });
+  const ids = rows.map((row) => row.ownerUserId);
+  const { person } = await loadPeople(c, ids);
+  const items = ids
+    .map(person)
+    .sort((a, b) => (a.name ?? "\uffff").localeCompare(b.name ?? "\uffff") || a.id.localeCompare(b.id));
+  return c.json({ items }, 200);
 });
 
 dealsRouter.openapi(createDealRoute, async (c) => {
@@ -660,10 +687,10 @@ dealsRouter.openapi(stageRoute, async (c) => {
 });
 
 dealsRouter.openapi(pipelineRoute, async (c) => {
-  const { entity, companyId, year: asked } = c.req.valid("query");
+  const { entity, companyId, ownerId, year: asked } = c.req.valid("query");
   const { year, where } = boardWhere(asked);
   const deals = await db.deal.findMany({
-    where: { ...where, ...(entity ? { entity } : {}), ...(companyId ? { companyId } : {}) },
+    where: { ...where, ...(entity ? { entity } : {}), ...(companyId ? { companyId } : {}), ...(ownerId ? { ownerUserId: ownerId } : {}) },
     select: { stage: true, currency: true, amountCents: true },
   });
   const stages = summarisePipeline(deals);
