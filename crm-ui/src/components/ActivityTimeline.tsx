@@ -1,5 +1,5 @@
 import { useCallback, useState } from 'react'
-import { Button, Card, Pagination, StatePanel } from '@operai/ui'
+import { Button, Card, ListRows, Pagination, StatePanel } from '@operai/ui'
 import { listActivities } from '../lib/activitiesApi'
 import type { ActivityTarget } from '../lib/activitiesApi'
 import type { Activity, CompanyRef } from '../lib/types'
@@ -63,21 +63,17 @@ export default function ActivityTimeline({
   else
     content = (
       <div className="flex flex-col gap-3">
-        {/* The markup of the library's `ListRows`, with each `<li>` keyed by its activity. `ListRows` keys its items
-            by position, so a row logged or removed above one shifts every row below it into a new element, and the
-            widget's message in that row goes with it (QE D3). Back to `ListRows` once the library keys by child. */}
-        <ul className="list-rows" aria-label={t.listLabel} data-testid="crm-activity-list">
+        <ListRows label={t.listLabel} testId="crm-activity-list">
           {activities.data!.items.map((activity) => (
-            <li key={activity.id}>
-              <ActivityItem
-                activity={activity}
-                onChanged={() => changed(t.saved)}
-                onEdit={(edited) => setComposing({ activity: edited })}
-                onDeleted={() => changed(t.deleted)}
-              />
-            </li>
+            <ActivityItem
+              key={activity.id}
+              activity={activity}
+              onChanged={() => changed(t.saved)}
+              onEdit={(edited) => setComposing({ activity: edited })}
+              onDeleted={() => changed(t.deleted)}
+            />
           ))}
-        </ul>
+        </ListRows>
         {activities.data!.total > PAGE_SIZE && (
           <Pagination
             page={page}
