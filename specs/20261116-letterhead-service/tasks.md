@@ -245,6 +245,7 @@ pool; it also holds the `worker` mode).
 
 - [ ] T40: Owner step — apply the Railway changes, provision the bucket and variables, deploy letterhead-api, and measure AC-1.9/AC-1.10 on the deployed service — refs: AC-1.9, AC-1.10, AC-3.8, AC-8.4, AC-10.4 — deps: T13, T14, T15, T42
   - touch: `specs/20261116-letterhead-service/spike.md`
+  - Domain (found when merged to main, 2026-11-17): Railway configuration cannot register a custom domain, so `railway.ts` declares none yet — add `letterhead-api.operai.welld.io` → 8088 in the Railway dashboard, run `railway config pull`, then restore the `domains` line in `.railway/railway.ts` (comment there). Until the apply, the `railway-drift` job is red by design (pending additions).
   - Details: run `infra/provision-tool.sh letterhead --bucket` and the Railway apply per `infra/README.md`; run `letterhead-api/perf/` against the deployed service with a service credential; if preview p95 ≥ 1 s or PDF p95 ≥ 3 s, revisit O10 before the CRM switch.
   - done when: the deployed p95 figures are recorded in `spike.md` and meet AC-1.9/AC-1.10; the configurator and wizard previews' deployed p95 (`letterhead-api/perf/preview-edits.ts`) meet AC-8.4/AC-10.4 (< 2 s); the Railway service region and the bucket region are confirmed EU (AC-3.8).
 

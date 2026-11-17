@@ -129,7 +129,9 @@ export default defineRailway(() => {
     preDeploy: "letterhead-api migrate",
     replicas: { "europe-west4-drams3a": 1 },
     deploy: { restartPolicyMaxRetries: 3, limitOverride: { containers: { cpu: 2, memoryBytes: 5000000000 } } },
-    domains: [{ domain: "letterhead-api.operai.welld.io", port: 8088 }],
+    // Custom domain: Railway configuration cannot register one (`railway config plan` refuses it). Per T40: add
+    // letterhead-api.operai.welld.io → 8088 in the dashboard, run `railway config pull`, then declare it here as
+    // `domains: [{ domain: "letterhead-api.operai.welld.io", port: 8088 }]`, as the other services do.
   });
 
   return project("operai", {
