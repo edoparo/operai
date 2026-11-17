@@ -32,9 +32,21 @@ const inSync = (text: string, value: NumberValue): boolean =>
  * the cursor, and shows the value again whenever something else changed it (a line removed, a reload).
  * Nothing is clamped: an out-of-range or non-numeric value is sent as typed and the service refuses it.
  */
-export function NumberField({ label, pointer, value, hint, className }: BoundProps & { value: NumberValue }) {
+export function NumberField({
+  label,
+  pointer,
+  value,
+  hint,
+  className,
+  alsoError,
+}: BoundProps & {
+  value: NumberValue
+  /** A refusal of another value that this one is the likely cause of (a logo too tall for its header). */
+  alsoError?: string
+}) {
   const { dispatch } = useForm()
-  const error = useFieldError(pointer)
+  const own = useFieldError(pointer)
+  const error = [own, alsoError].filter((text) => text !== undefined).join(' ') || undefined
   const [text, setText] = useState(() => numberText(value))
   const shown = inSync(text, value) ? text : numberText(value)
   return (

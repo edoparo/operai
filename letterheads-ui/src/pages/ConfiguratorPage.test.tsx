@@ -337,7 +337,7 @@ describe('a labelled control for every field of the configuration (AC-8.3)', () 
     const height = document.querySelector<HTMLInputElement>('[data-pointer="/variants/default/logo/heightMm"]')!
     expect(height.value).toBe('12.7')
     expect(document.getElementById(height.getAttribute('aria-describedby')!)?.textContent).toBe(
-      'Between 5 and 40 mm. The width follows the proportions.',
+      'Between 5 and 40 mm. It must fit the top margin together with the header lines. The width follows the proportions.',
     )
   })
 

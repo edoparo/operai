@@ -92,7 +92,8 @@ const en = {
     center: 'Centre',
     right: 'Right',
     height: 'Height (mm)',
-    heightHint: (min: number, max: number) => `Between ${min} and ${max} mm. The width follows the proportions.`,
+    heightHint: (min: number, max: number) =>
+      `Between ${min} and ${max} mm. It must fit the top margin together with the header lines. The width follows the proportions.`,
   },
   background: {
     title: 'Background image',
@@ -191,7 +192,8 @@ const it: typeof en = {
     center: 'Centro',
     right: 'Destra',
     height: 'Altezza (mm)',
-    heightHint: (min: number, max: number) => `Tra ${min} e ${max} mm. La larghezza segue le proporzioni.`,
+    heightHint: (min: number, max: number) =>
+      `Tra ${min} e ${max} mm. Deve stare nel margine superiore insieme alle righe dell’intestazione. La larghezza segue le proporzioni.`,
   },
   background: {
     title: 'Immagine di sfondo',

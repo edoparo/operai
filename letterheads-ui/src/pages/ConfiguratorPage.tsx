@@ -702,7 +702,7 @@ function FormEditor({
     }
   }
 
-  const describe = useCallback((problem: Problem) => describeProblem(problem, catalog), [catalog])
+  const describe = useCallback((problem: Problem) => describeProblem(problem, catalog, config), [catalog, config])
   const context = useMemo<FormContextValue>(
     () => ({
       catalog,
@@ -758,12 +758,28 @@ function FormEditor({
       dispatch({ type: 'problemsSet', problems: [] })
     }
   }, [status, error, announce])
+  const refusedByPreview = useMemo(
+    () =>
+      (request.lastRefusal?.problems ?? [])
+        .slice()
+        .sort((a, b) => comparePointers(a.path, b.path))
+        .map((problem) => ({ problem, text: describe(problem) })),
+    [request.lastRefusal, describe],
+  )
+  // From the Drawer, the control is behind it: the Drawer closes first, then focus moves.
+  const goFromPreview = (path: string) => {
+    if (!drawerOpen) return goTo(path)
+    setDrawerOpen(false)
+    requestAnimationFrame(() => goTo(path))
+  }
   const pane = (className?: string, heading = false) => (
     <PreviewPane
       view={previewView}
       language={previewLanguage}
       onLanguage={onPreviewLanguage}
       onRetry={request.retry}
+      problems={refusedByPreview}
+      onGo={goFromPreview}
       heading={heading}
       className={className}
     />

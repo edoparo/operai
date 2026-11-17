@@ -316,7 +316,10 @@ describe('refused values (F3.4; AC-8.3)', () => {
     const notice = await screen.findByTestId('letterheads-preview-refused')
     expect(notice.getAttribute('role')).toBe('note')
     expect(within(notice).getByText('The preview shows the last valid form')).not.toBeNull()
-    expect(notice.textContent).toContain('They are marked in the form.')
+    expect(notice.textContent).toContain('Go to each one:')
+    // One link per refused value, in words; it moves focus to the control (the header can be far above).
+    const link = within(notice).getByTestId('letterheads-preview-refused-item')
+    expect(link.textContent).toBe('Top margin: use a number between 5 and 100 mm.')
     expect(screen.queryByTestId('letterheads-preview-failed')).toBeNull()
     expect(screen.queryAllByRole('alert')).toHaveLength(0)
     expect(region().getAttribute('aria-busy')).toBe('false')
@@ -327,6 +330,10 @@ describe('refused values (F3.4; AC-8.3)', () => {
     await waitFor(() => expect(top().getAttribute('aria-invalid')).toBe('true'))
     expect(document.activeElement).not.toBe(top())
     expect(screen.getByTestId('letterheads-announcer').textContent?.trim()).toBe('1 value is refused')
+    fireEvent.click(
+      within(screen.getByTestId('letterheads-preview-refused')).getByTestId('letterheads-preview-refused-item'),
+    )
+    expect(document.activeElement).toBe(top())
 
     edit('30')
     await waitFor(() => expect(screen.queryByTestId('letterheads-preview-refused')).toBeNull())

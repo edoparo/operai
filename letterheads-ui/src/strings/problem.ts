@@ -12,7 +12,7 @@ const en = {
   summaryHint: 'Fix them and save again.',
   previewCount: (n: number) => (n === 1 ? '1 value is refused' : `${n} values are refused`),
   previewTitle: 'The preview shows the last valid form',
-  previewBody: 'Some values in the form are refused, so the preview was not updated. They are marked in the form.',
+  previewBody: 'Some values in the form are refused, so the preview was not updated. Go to each one:',
   language: { it: 'Italian', en: 'English' },
   side: { top: 'top', bottom: 'bottom' },
   reason: {
@@ -33,6 +33,8 @@ const en = {
       `The body area would be smaller than ${width} × ${height} mm. Reduce the margins.`,
     frame_overflow: (side: string, characters: number) =>
       `It does not fit the ${side} margin, checked with every placeholder replaced by ${characters} characters. Raise the ${side} margin, shorten the text or use fewer lines.`,
+    header_overflow_logo: (heightMm: string) =>
+      `The logo (${heightMm} mm high) and the header lines do not fit the top margin. Raise the top margin, lower the logo or use fewer lines.`,
     asset_unknown: 'This image is no longer available. Upload it again.',
   },
 }
@@ -44,8 +46,7 @@ const it: typeof en = {
   summaryHint: 'Correggili e salva di nuovo.',
   previewCount: (n: number) => (n === 1 ? '1 valore rifiutato' : `${n} valori rifiutati`),
   previewTitle: 'L’anteprima mostra l’ultimo modulo valido',
-  previewBody:
-    'Alcuni valori del modulo sono rifiutati, quindi l’anteprima non è stata aggiornata. Sono segnalati nel modulo.',
+  previewBody: 'Alcuni valori del modulo sono rifiutati, quindi l’anteprima non è stata aggiornata. Vai a ciascuno:',
   language: { it: 'italiano', en: 'inglese' },
   side: { top: 'superiore', bottom: 'inferiore' },
   reason: {
@@ -67,6 +68,8 @@ const it: typeof en = {
       `L’area del testo sarebbe inferiore a ${width} × ${height} mm. Riduci i margini.`,
     frame_overflow: (side: string, characters: number) =>
       `Non sta nel margine ${side}, controllato con ogni segnaposto sostituito da ${characters} caratteri. Aumenta il margine ${side}, accorcia il testo o usa meno righe.`,
+    header_overflow_logo: (heightMm: string) =>
+      `Il logo (alto ${heightMm} mm) e le righe dell’intestazione non stanno nel margine superiore. Aumenta il margine superiore, abbassa il logo o usa meno righe.`,
     asset_unknown: 'Questa immagine non è più disponibile. Caricala di nuovo.',
   },
 }

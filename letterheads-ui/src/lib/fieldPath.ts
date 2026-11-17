@@ -16,8 +16,8 @@
  *   shows them, so "the first refused control" is the first one a person reads.
  */
 import { strings } from '../strings'
-import { parentOf, segmentsOf } from './formState'
-import type { FormCatalog, Problem } from './formStateTypes'
+import { numberText, parentOf, segmentsOf } from './formState'
+import type { FormCatalog, FormConfig, Problem } from './formStateTypes'
 
 // ---------------------------------------------------------------------------------------------------------------
 // The problems of an answer
@@ -243,7 +243,7 @@ const languageOf = (problem: Problem): string | null => {
 }
 
 /** The sentence for the reason alone ("Use a number between 5 and 100 mm."), or the generic one. */
-function reasonSentence(problem: Problem, catalog: FormCatalog): string {
+function reasonSentence(problem: Problem, catalog: FormCatalog, config?: FormConfig): string {
   const r = strings.problem.reason
   const { bounds } = catalog
   switch (problem.reason) {
@@ -275,8 +275,13 @@ function reasonSentence(problem: Problem, catalog: FormCatalog): string {
     }
     case 'body_too_small':
       return r.body_too_small(bounds.bodyMinWidthMm, bounds.bodyMinHeightMm)
-    case 'header_overflow':
-      return r.frame_overflow(strings.problem.side.top, bounds.fitTestValueChars)
+    case 'header_overflow': {
+      // A header with a logo: the logo is most of its height, and often the only thing in it.
+      const logo = logoOfHeader(problem.path, config)
+      return logo === null
+        ? r.frame_overflow(strings.problem.side.top, bounds.fitTestValueChars)
+        : r.header_overflow_logo(numberText(logo.heightMm))
+    }
     case 'footer_overflow':
       return r.frame_overflow(strings.problem.side.bottom, bounds.fitTestValueChars)
     case 'asset_unknown':
@@ -287,12 +292,20 @@ function reasonSentence(problem: Problem, catalog: FormCatalog): string {
   }
 }
 
+/** The logo of the variant whose header is at `path` (`/variants/{name}/header`), if it has one. */
+export function logoOfHeader(path: string, config?: FormConfig): FormConfig['variants']['default']['logo'] {
+  const [first, name, frame] = segmentsOf(path)
+  if (config === undefined || first !== 'variants' || frame !== 'header') return null
+  if (name !== 'default' && name !== 'first' && name !== 'last') return null
+  return config.variants[name]?.logo ?? null
+}
+
 /**
  * The sentence for a refused value, in words (design S4, AC-8.3): "{Setting}: {what is wrong and how to fix it}",
  * or the sentence alone for a value that has no name of its own (the whole configuration).
  */
-export function describeProblem(problem: Problem, catalog: FormCatalog): string {
-  const sentence = reasonSentence(problem, catalog)
+export function describeProblem(problem: Problem, catalog: FormCatalog, config?: FormConfig): string {
+  const sentence = reasonSentence(problem, catalog, config)
   const where = whereOf(problem.path)
   return where === '' ? sentence : `${capitalise(where)}: ${afterColon(sentence)}`
 }

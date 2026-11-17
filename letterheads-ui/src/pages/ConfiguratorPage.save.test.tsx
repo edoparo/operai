@@ -425,6 +425,33 @@ describe('a refused save (F7.3, S4; AC-8.3)', () => {
     expect(described.join(' ')).toContain('First page, logo, file: this image is no longer available. Upload it again.')
   })
 
+  it('names the logo for a header that does not fit, and shows it under the logo’s height too', async () => {
+    const config = fullConfigFixture()
+    await renderPage({
+      list: letterheadList({ welld_it: { activeVersion: 5, canManage: true }, welld_ch: savedList.welld_ch }),
+      routes: {
+        ...versionRoute('welld_it', 5, config),
+        [`POST ${VERSIONS}`]: () => refusal({ path: '/variants/default/header', reason: 'header_overflow' }),
+      },
+    })
+    await userEvent.clear(input('Top'))
+    await userEvent.type(input('Top'), '31')
+    await userEvent.click(save())
+    const summary = await screen.findByTestId('letterheads-summary')
+    const sentence =
+      'Default page, header: the logo (12.7 mm high) and the header lines do not fit the top margin. Raise the top margin, lower the logo or use fewer lines.'
+    expect(within(summary).getByTestId('letterheads-summary-item').textContent).toBe(sentence)
+    const height = byPointer('/variants/default/logo/heightMm')
+    expect(height.getAttribute('aria-invalid')).toBe('true')
+    const described = height
+      .getAttribute('aria-describedby')!
+      .split(' ')
+      .map((id) => document.getElementById(id)?.textContent)
+    expect(described.join(' ')).toContain(sentence)
+    // Only the variant whose header was refused.
+    expect(byPointer('/variants/first/logo/heightMm').getAttribute('aria-invalid')).toBeNull()
+  })
+
   it('has no accessibility violations with the summary and the errors shown', async () => {
     await refused()
     expect(await axeViolations(document.body)).toEqual([])

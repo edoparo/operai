@@ -156,9 +156,15 @@ function LogoSection({
   logo: FormVariant['logo']
 }) {
   const headingId = useId()
-  const { catalog, dispatch } = useForm()
+  const { catalog, dispatch, problemsAt, describeProblem } = useForm()
   const at = pointerOf('variants', variantName, 'logo')
   const { min, max } = catalog.bounds.logoHeightMm
+  // A header that does not fit its margin is refused as a whole, under the Header heading far above; with a logo,
+  // the logo's height is the likely cause, so the same sentence is shown under it too.
+  const headerOverflow = problemsAt(pointerOf('variants', variantName, 'header')).find(
+    (problem) => problem.reason === 'header_overflow',
+  )
+  const tooTall = logo === null || headerOverflow === undefined ? undefined : describeProblem(headerOverflow)
   return (
     <div role="group" aria-labelledby={headingId} className="flex flex-col gap-3">
       <h4 id={headingId} className="text-sm font-semibold text-text">
@@ -209,6 +215,7 @@ function LogoSection({
             hint={strings.form.logo.heightHint(min, max)}
             pointer={`${at}/heightMm`}
             value={logo.heightMm}
+            alsoError={tooTall}
           />
         </>
       )}

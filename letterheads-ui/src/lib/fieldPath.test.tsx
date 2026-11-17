@@ -147,6 +147,17 @@ describe('describeProblem: a sentence for each reason of the closed list of eigh
       `Default page, header: it does not fit the top margin, checked with every placeholder replaced by ${catalog.bounds.fitTestValueChars} characters. Raise the top margin, shorten the text or use fewer lines.`,
     )
     expect(say('/variants/last/footer', 'footer_overflow')).toContain('does not fit the bottom margin')
+    // A header with a logo: the logo's height is named, since it is the likely cause (often the only thing there).
+    const withLogo = fullConfigFixture()
+    withLogo.variants.default.logo = { asset: 'a', position: 'left', heightMm: 20 }
+    withLogo.variants.default.header.left = []
+    expect(describeProblem({ path: '/variants/default/header', reason: 'header_overflow' }, catalog, withLogo)).toBe(
+      'Default page, header: the logo (20 mm high) and the header lines do not fit the top margin. Raise the top margin, lower the logo or use fewer lines.',
+    )
+    withLogo.variants.default.logo = null
+    expect(
+      describeProblem({ path: '/variants/default/header', reason: 'header_overflow' }, catalog, withLogo),
+    ).toContain('shorten the text')
     expect(say('/variants/default/logo/asset', 'asset_unknown')).toBe(
       'Default page, logo, file: this image is no longer available. Upload it again.',
     )
