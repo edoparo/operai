@@ -30,6 +30,24 @@ const en = {
     save: 'Save entry',
     saving: 'Saving…',
   },
+  /**
+   * The dialog opened from another tool's page, its target fixed (specs/20261116-record-hours-in-place, design S4):
+   * the sentence under the title says what the hours are being recorded on, since there is no picker to show it
+   * (and it is the dialog's accessible description, so it is announced although focus lands on Duration). The name is
+   * set apart in the dialog, so a sentence is its two ends: `lead` + name + `trail`. A name the host could not give
+   * reads "this project" / "this deal", never a blank and never an id.
+   */
+  fixed: {
+    onProject: { lead: 'Recording hours on the project ', trail: '.' },
+    onThisProject: 'Recording hours on this project.',
+    onDeal: { lead: 'Recording hours on the deal ', trail: '.' },
+    onThisDeal: 'Recording hours on this deal.',
+    onMeeting: { lead: 'Recording hours on the meeting ', trail: '.' },
+    onThisMeeting: 'Recording hours on this meeting.',
+    /** A CRM task about a company and no deal: its hours are other work, honest about the missing link (AC-3.4, AC-3.5). */
+    onOtherWork:
+      'This task is about a company, not a deal, so its hours are recorded as other work. They are not linked to the task.',
+  },
   fields: {
     day: 'Day',
     duration: {
@@ -178,6 +196,15 @@ const en = {
       meeting: 'This meeting is no longer available to you. Choose another.',
     },
     /**
+     * The same 404 when the target is fixed (specs/20261116-record-hours-in-place AC-4.2, D13): there is no picker to
+     * choose another with, so the sentence stops before the invitation. The form-level error, never a field's.
+     */
+    targetGoneFixed: {
+      project: 'This project is no longer available to you.',
+      deal: 'This deal is no longer available to you.',
+      meeting: 'This meeting is no longer available to you.',
+    },
+    /**
      * A 404 on a save that kept the target (design S2, F2 step 3): the entry itself is gone — or what it is on is,
      * for the caller cannot be told which (AC-2.10). The list reloads when the dialog closes.
      */
@@ -205,6 +232,16 @@ const it: typeof en = {
     editTitle: 'Modifica registrazione',
     save: 'Salva registrazione',
     saving: 'Salvataggio…',
+  },
+  fixed: {
+    onProject: { lead: 'Stai registrando ore sul progetto ', trail: '.' },
+    onThisProject: 'Stai registrando ore su questo progetto.',
+    onDeal: { lead: "Stai registrando ore sull'opportunità ", trail: '.' },
+    onThisDeal: 'Stai registrando ore su questa opportunità.',
+    onMeeting: { lead: 'Stai registrando ore sulla riunione ', trail: '.' },
+    onThisMeeting: 'Stai registrando ore su questa riunione.',
+    onOtherWork:
+      "Questa attività riguarda un'azienda, non un'opportunità, quindi le ore vengono registrate come altro lavoro. Non sono collegate all'attività.",
   },
   fields: {
     day: 'Giorno',
@@ -326,6 +363,11 @@ const it: typeof en = {
       project: 'Questo progetto non è più disponibile per te. Scegline un altro.',
       deal: "Questa opportunità non è più disponibile per te. Scegline un'altra.",
       meeting: "Questa riunione non è più disponibile per te. Scegline un'altra.",
+    },
+    targetGoneFixed: {
+      project: 'Questo progetto non è più disponibile per te.',
+      deal: 'Questa opportunità non è più disponibile per te.',
+      meeting: 'Questa riunione non è più disponibile per te.',
     },
     entryGone:
       'Questa registrazione, o ciò su cui riguarda, non si trova più. Se è ancora in elenco, puoi eliminarla. Chiudi questa finestra: l’elenco verrà ricaricato.',

@@ -61,6 +61,41 @@ export const emptyValues = (today: string): EntryFormValues => ({
   note: '',
 })
 
+/**
+ * What a recording dialog opens with when it was opened from somewhere that already knows the day, the target or the
+ * task (specs/20261116-record-hours-in-place, plan § API contracts "`EntryDialog` (recording mode only)"): a project,
+ * deal or task row on another tool's page, or a cell of My hours' Week view. Nothing but these members is preset:
+ * the duration, the work type and the note always start empty.
+ */
+export type EntryPreset = {
+  /** `YYYY-MM-DD`; absent means today. A day after today is a host bug, which Save refuses with the usual words. */
+  day?: string
+  on:
+    | { kind: 'project'; project: ProjectChoice }
+    | { kind: 'deal'; deal: DealChoice }
+    | { kind: 'meeting'; meeting: MeetingChoice }
+    /** `null`: no category chosen (A3): the person picks one, as in My hours. */
+    | { kind: 'none'; categoryId: string | null }
+  /** The task the hours point at: a project's or a deal's only (time-tracking AC-2.7); ignored on anything else. */
+  activity?: { id: string; subject: string | null }
+}
+
+/** The values a dialog with a `preset` opens with: the day, the target and (on a project or a deal) the task. */
+export const presetValues = (today: string, preset: EntryPreset): EntryFormValues => {
+  const values: EntryFormValues = { ...emptyValues(preset.day ?? today), kind: preset.on.kind }
+  const activityId = preset.activity?.id ?? null
+  switch (preset.on.kind) {
+    case 'project':
+      return { ...values, project: preset.on.project, activityId }
+    case 'deal':
+      return { ...values, deal: preset.on.deal, activityId }
+    case 'meeting':
+      return { ...values, meeting: preset.on.meeting }
+    case 'none':
+      return { ...values, categoryId: preset.on.categoryId ?? '' }
+  }
+}
+
 /** The radio changed: the entity, category, work type and activity no longer apply; day, duration and note stay. */
 export const withKind = (values: EntryFormValues, kind: EntryKind): EntryFormValues => ({
   ...values,
@@ -404,11 +439,20 @@ export type Failure = { fields: FieldErrors; form: string | null; reloadLists: b
  * person may not read it (AC-2.10), and nothing is ever called "saved". When editing (`edit`), a 404 that is
  * about the entry itself (`entryIsGone`) is the dialog's alert, not a picker's.
  */
-export const failureOf = (error: unknown, kind: EntryKind | null, edit?: { moved: boolean }): Failure => {
+export const failureOf = (
+  error: unknown,
+  kind: EntryKind | null,
+  edit?: { moved: boolean },
+  fixed = false,
+): Failure => {
   const t = strings.entry.errors
   const generic: Failure = { fields: {}, form: t.generic, reloadLists: false }
   const on = (field: FieldName, message: string, reloadLists = false): Failure =>
     applies(field, kind) ? { fields: { [field]: message }, form: null, reloadLists } : generic
+  // A fixed dialog (specs/20261116-record-hours-in-place AC-4.2, D13) has no picker to carry what My hours puts on
+  // it: the same sentence is the dialog's one alert, every value kept.
+  const onTarget = (message: string): Failure =>
+    fixed ? { fields: {}, form: message, reloadLists: false } : on('entity', message)
   if (edit !== undefined && entryIsGone(error, edit.moved)) return { fields: {}, form: t.entryGone, reloadLists: false }
   switch (codeOf(error)) {
     case 'invalid_minutes':
@@ -429,11 +473,14 @@ export const failureOf = (error: unknown, kind: EntryKind | null, edit?: { moved
     case 'activity_not_allowed':
       return kind === 'project' || kind === 'deal' ? on('activity', t.activityNotAllowed[kind]) : generic
     case 'not_on_project':
-      return kind === 'project' ? on('entity', t.notOnProject) : generic
+      return kind === 'project' ? onTarget(t.notOnProject) : generic
     case 'not_involved_in_deal':
-      return kind === 'deal' ? on('entity', t.notInvolvedInDeal) : generic
+      return kind === 'deal' ? onTarget(t.notInvolvedInDeal) : generic
     case 'not_found':
-      return kind === 'project' || kind === 'deal' || kind === 'meeting' ? on('entity', t.targetGone[kind]) : generic
+      // "Choose another" cannot be done in a fixed dialog: its sentence stops before the invitation (D13).
+      return kind === 'project' || kind === 'deal' || kind === 'meeting'
+        ? onTarget(fixed ? t.targetGoneFixed[kind] : t.targetGone[kind])
+        : generic
     case 'host_unavailable':
       return kind === 'project' || kind === 'deal' || kind === 'meeting'
         ? { fields: {}, form: t.hostUnavailable[kind], reloadLists: false }
