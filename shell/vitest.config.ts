@@ -71,5 +71,7 @@ export default defineConfig({
   test: {
     environment: 'node',
     include: ['src/**/*.{test,spec}.{ts,tsx}'],
+    // An inert EventSource where the environment has none (see the file).
+    setupFiles: ['./src/test-support/eventSourceStub.ts'],
   },
 })
