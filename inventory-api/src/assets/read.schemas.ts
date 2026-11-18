@@ -33,6 +33,7 @@ export const ListQuerySchema = z.object({
   status: z.enum(STATUSES).optional(),
   category: CategorySchema.optional(),
   holderUserId: z.string().min(1).max(64).optional(),
+  officeId: z.string().min(1).max(64).optional(),
   toVerify: z
     .enum(["true", "false"])
     .transform((v) => v === "true")

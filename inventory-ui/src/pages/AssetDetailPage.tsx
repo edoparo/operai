@@ -16,6 +16,7 @@ import AssetStatusBadge from '../components/AssetStatusBadge'
 import CurrencyBadge from '../components/CurrencyBadge'
 import EditAssetDialog from '../components/EditAssetDialog'
 import EntityBadge from '../components/EntityBadge'
+import OfficeLabel from '../components/OfficeLabel'
 import ErrorBanner from '../components/ErrorBanner'
 import GuardrailDialog from '../components/GuardrailDialog'
 import HistoryTimeline from '../components/HistoryTimeline'
@@ -329,7 +330,11 @@ export default function AssetDetailPage() {
               term: t.facts.purchasePrice,
               value: formatMoney(asset.purchasePriceCents, asset.currency),
             },
-            { id: 'holder', term: t.facts.holder, value: holderLabel(asset.holder) },
+            {
+              id: 'holder',
+              term: t.facts.holder,
+              value: asset.office ? <OfficeLabel office={asset.office} /> : holderLabel(asset.holder),
+            },
             { id: 'location', term: t.facts.location, value: orDash(asset.locationNote) },
             { id: 'supplier', term: t.facts.supplier, value: orDash(asset.supplier) },
           ]}

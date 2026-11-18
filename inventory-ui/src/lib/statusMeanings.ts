@@ -34,3 +34,9 @@ export const FISCAL_YEAR_STATE_MEANING: Record<'open' | 'closed', StatusMeaning>
   open: 'pending',
   closed: 'settled',
 }
+
+/** An office on the offices page: in use, or archived (kept for history, not offered for assignments). */
+export const OFFICE_STATE_MEANING: Record<'active' | 'archived', StatusMeaning> = {
+  active: 'active',
+  archived: 'voided',
+}

@@ -97,7 +97,7 @@ export const buildYearWorkbook = (view: FiscalYearView): ExcelJS.Workbook => {
     row.getCell(1).numFmt = DATE_FORMAT
     row.getCell(2).value = asset.description
     row.getCell(3).value = asset.serialNumber
-    row.getCell(4).value = holderLabel(asset.holder)
+    row.getCell(4).value = asset.office ? asset.office.name : holderLabel(asset.holder)
     row.getCell(5).value = centsToMajor(asset.purchasePriceCents)
     row.getCell(6).value = centsToMajor(asset.depreciationCents)
     row.getCell(7).value = centsToMajor(asset.closingCents)

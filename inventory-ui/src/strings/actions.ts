@@ -20,6 +20,7 @@ const en = {
   done: {
     received: 'Marked as received.',
     assigned: (name: string) => `Assignment offered. Awaiting confirmation from ${name}.`,
+    assignedToOffice: (office: string) => `Assigned to ${office}.`,
     cancelled: 'Assignment cancelled.',
     returned: 'Return recorded.',
     repair: 'Marked in repair.',
@@ -90,6 +91,19 @@ const en = {
     /** The "name, email, entity" of an option. */
     optionDetail: (email: string, entity: string | null) => (entity === null ? email : `${email}, ${entity}`),
     optionNoName: 'Unnamed user',
+    /** Office mode: immediate, nobody confirms. */
+    descriptionOffice: (asset: string) =>
+      `${asset} goes to the office you pick straight away: nobody has to confirm it.`,
+    target: 'Assign to',
+    targetEmployee: 'Employee',
+    targetOffice: 'Office',
+    office: 'Office',
+    officePlaceholder: 'Choose an office',
+    officeLoading: 'Loading offices…',
+    officeEmpty: 'There is no active office. Add one in the Offices tab.',
+    officeRequired: 'Choose an office.',
+    /** An option: "CH - Agno, WellD CH". */
+    officeOption: (name: string, entity: string) => `${name}, ${entity}`,
   },
 }
 
@@ -107,6 +121,7 @@ const it: typeof en = {
   done: {
     received: 'Segnato come ricevuto.',
     assigned: (name: string) => `Assegnazione proposta. In attesa di conferma da ${name}.`,
+    assignedToOffice: (office: string) => `Assegnato a ${office}.`,
     cancelled: 'Assegnazione annullata.',
     returned: 'Reso registrato.',
     repair: 'Segnato in riparazione.',
@@ -173,6 +188,16 @@ const it: typeof en = {
     retry: 'Riprova',
     optionDetail: (email: string, entity: string | null) => (entity === null ? email : `${email}, ${entity}`),
     optionNoName: 'Utente senza nome',
+    descriptionOffice: (asset: string) => `${asset} va subito all'ufficio selezionato: nessuno deve confermarlo.`,
+    target: 'Assegna a',
+    targetEmployee: 'Dipendente',
+    targetOffice: 'Ufficio',
+    office: 'Ufficio',
+    officePlaceholder: 'Scegliere un ufficio',
+    officeLoading: 'Caricamento uffici…',
+    officeEmpty: 'Nessun ufficio attivo. Aggiungerne uno nella scheda Uffici.',
+    officeRequired: 'Scegliere un ufficio.',
+    officeOption: (name: string, entity: string) => `${name}, ${entity}`,
   },
 }
 

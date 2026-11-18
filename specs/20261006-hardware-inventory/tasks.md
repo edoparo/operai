@@ -1,7 +1,7 @@
 ---
 spec: 20261006
 generated: 2026-10-06
-synced: 2026-10-12
+synced: 2026-11-18
 ---
 
 # Tasks: Hardware inventory and depreciation register
@@ -274,6 +274,14 @@ Label in brackets picks the agent: `[backend]`, `[frontend]`, `[devops]`, `[qe]`
   - touch: `inventory-ui/src/lib/suppliersApi.ts`, `inventory-ui/src/components/SupplierField.tsx`, `inventory-ui/src/components/SupplierField.test.tsx`, `inventory-ui/src/components/Combobox.tsx`, `inventory-ui/src/components/EditAssetDialog.tsx`, `inventory-ui/src/pages/RegisterAssetPage.tsx`, `inventory-ui/src/strings/common.ts`, `.changeset/*`
   - Free text stays free text: the list is fetched once per mount and filtered in the browser, a pick fills the input, a failed fetch leaves a plain input with no message. `Combobox` gains `inputClassName` / `inputStyle` so the field looks like its neighbours. One changeset selecting `@operai/inventory-api` and `@operai/inventory-ui`.
   - done when: `pnpm lint && pnpm build && pnpm test` pass in `inventory-ui`, including `SupplierField.test.tsx`: suggestions by case-insensitive substring with the count announced, mouse and keyboard pick, an unused supplier kept as typed with no list, nothing offered when the only match is what is typed, a rejected or throwing lookup is silent.
+
+- [x] T49: [backend] Offices (US-14, A2 2026-11-18): `office` table seeded with CH - Agno, CH - Lugano, YoRoom - Milano (unique name ignoring case), `asset.holderOfficeId` with CHECK `asset_one_holder`, event `assigned_to_office`; `GET/POST /offices`, `PATCH /offices/{id}` (archive refused while holding assets: `office_in_use`), `POST /assets/{id}/office-assignment` (immediate, any entity's office), `officeId` list filter, `office` on the asset view and fiscal-year rows; return/lost/dispose clear the office with its name in history; route matrix rows, `GET /offices` marked cross-entity reference data — refs: AC-14.1 to AC-14.6 — deps: none
+  - touch: `inventory-api/prisma/schema.prisma`, `inventory-api/prisma/migrations/20261118100000_offices/`, `inventory-api/src/offices/*`, `inventory-api/src/assets/{view,register.schemas,read.schemas,read.repo,transitions.repo,register.routes}.ts`, `inventory-api/src/ledger/dispose.repo.ts`, `inventory-api/src/fiscal-years/read.{routes,schemas}.ts`, `inventory-api/src/history/record.ts`, `inventory-api/src/test-support/{dbCleanup,routeMatrix}.ts`, `inventory-api/src/matrix.test.ts`
+  - done when: `bun run typecheck && bun test` pass in `inventory-api` on `inventory_test` (888 tests, 2026-11-18)
+
+- [x] T50: [frontend] Offices in inventory-ui (US-14): assign to an office from the assign dialog, the office shown as holder in list/detail/fiscal-year table, office filter, history labels, `/offices` management page for asset:manage — refs: AC-14.1 to AC-14.4 — deps: T49
+  - touch: `inventory-ui/src/**` (assign dialog, asset list and detail, filter bar, history timeline, new offices page, strings, router, shell tabs)
+  - done when: `pnpm lint && pnpm build && pnpm test` pass in `inventory-ui` (1093 tests, 2026-11-18)
 
 - [ ] T46: [qe] All gates green, feature closed — refs: AC-9.7 — deps: T43, T45, T48
   - touch: `specs/20261006-hardware-inventory/spec.md`

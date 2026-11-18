@@ -4,6 +4,7 @@ import { useEffect, useId, useRef, useState } from 'react'
 import CloseYearDialog from '../components/CloseYearDialog'
 import DataTable from '../components/DataTable'
 import EntityBadge from '../components/EntityBadge'
+import OfficeLabel from '../components/OfficeLabel'
 import ErrorBanner from '../components/ErrorBanner'
 import ExportYearButton from '../components/ExportYearButton'
 import PermissionDenied from '../components/PermissionDenied'
@@ -262,7 +263,11 @@ export default function FiscalYearDetailPage() {
               { id: 'purchaseDate', header: columns.purchaseDate, render: (a) => formatDate(a.purchaseDate) },
               { id: 'description', header: columns.description, rowHeader: true, render: (a) => a.description },
               { id: 'serialNumber', header: columns.serialNumber, render: (a) => a.serialNumber ?? t.assets.noSerial },
-              { id: 'heldBy', header: columns.heldBy, render: (a) => holderLabel(a.holder) },
+              {
+                id: 'heldBy',
+                header: columns.heldBy,
+                render: (a) => (a.office ? <OfficeLabel office={a.office} /> : holderLabel(a.holder)),
+              },
               { id: 'price', header: columns.purchasePrice, numeric: true, render: (a) => money(a.purchasePriceCents) },
               { id: 'opening', header: columns.opening, numeric: true, render: (a) => money(a.openingCents) },
               { id: 'purchases', header: columns.purchases, numeric: true, render: (a) => money(a.purchaseCents) },

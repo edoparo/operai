@@ -17,16 +17,18 @@ import type { Permission } from 'shell/session'
 import { ApiError } from '../lib/api'
 import type { AssetListItem, AssetListPage, Entity } from '../lib/types'
 
-const { usePermissions, listAssets, getScope, listDirectory } = vi.hoisted(() => ({
+const { usePermissions, listAssets, getScope, listDirectory, listOffices } = vi.hoisted(() => ({
   usePermissions: vi.fn(),
   listAssets: vi.fn(),
   getScope: vi.fn(),
   listDirectory: vi.fn(),
+  listOffices: vi.fn(),
 }))
 vi.mock('shell/session', () => ({ usePermissions }))
 vi.mock('../lib/assetsApi', () => ({ listAssets }))
 vi.mock('../lib/scopeApi', () => ({ getScope }))
 vi.mock('../lib/directoryApi', () => ({ listDirectory }))
+vi.mock('../lib/officesApi', () => ({ listOffices }))
 
 import AssetsPage from './AssetsPage'
 
@@ -56,6 +58,11 @@ const asset = (over: Partial<AssetListItem> = {}): AssetListItem => ({
 
 const page = (items: AssetListItem[], nextCursor: string | null = null): AssetListPage => ({ items, nextCursor })
 
+const OFFICES = [
+  { id: 'o1', name: 'CH - Agno', entity: 'welld_ch', archived: false, assetCount: 2 },
+  { id: 'o2', name: 'YoRoom - Milano', entity: 'welld_it', archived: false, assetCount: 0 },
+]
+
 const asUser = (permissions: Permission[], scope: { asset: Entity[]; ledger: Entity[] }) => {
   usePermissions.mockReturnValue({ epoch: 0, apps: ['inventory'], roles: [], departments: [], permissions })
   getScope.mockResolvedValue(scope)
@@ -67,6 +74,7 @@ beforeEach(() => {
   listDirectory.mockResolvedValue({
     users: [{ id: 'u1', name: 'Anna Rossi', email: 'anna@welld.ch', entity: 'welld_ch' }],
   })
+  listOffices.mockResolvedValue({ items: OFFICES })
   window.scrollTo = () => undefined
 })
 
@@ -267,6 +275,30 @@ describe('filters live in the URL and drive the request (AC-3.7, AC-3.8, AC-10.3
     fireEvent.click(screen.getByLabelText('To verify'))
     await waitFor(() => expect(lastFilters()).toMatchObject({ toVerify: true }))
     expect(router.state.location.search).toMatchObject({ toVerify: true })
+  })
+
+  it('the office filter lists the offices, updates the URL and sends officeId', async () => {
+    const router = await renderPage()
+    await screen.findByRole('table')
+
+    await screen.findByRole('option', { name: 'CH - Agno' })
+    fireEvent.change(screen.getByLabelText('Office'), { target: { value: 'o1' } })
+    await waitFor(() => expect(lastFilters()).toMatchObject({ officeId: 'o1' }))
+    expect(router.state.location.search).toMatchObject({ officeId: 'o1' })
+  })
+
+  it('reads officeId from the URL into the request', async () => {
+    await renderPage('/assets?officeId=o2')
+    await waitFor(() => expect(lastFilters()).toMatchObject({ officeId: 'o2' }))
+  })
+
+  it('shows an office-held asset by the office name instead of a person', async () => {
+    listAssets.mockResolvedValue(page([asset({ holder: null, office: { id: 'o1', name: 'CH - Agno' } })]))
+    await renderPage()
+    const table = await screen.findByRole('table')
+
+    expect(within(table).getByTestId('office-holder').textContent).toContain('CH - Agno')
+    expect(within(table).queryByText('Anna Rossi')).toBeNull()
   })
 
   it('the entity filter updates the URL and the request', async () => {

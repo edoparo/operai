@@ -32,6 +32,7 @@ export type AssetEventAction =
   | 'repair_finished'
   | 'marked_lost'
   | 'marked_found'
+  | 'assigned_to_office'
   | 'disposed'
   | 'invoice_file_linked'
   | 'verified'
@@ -44,6 +45,14 @@ export type AssetEventAction =
 
 /** `system` marks actor ids starting with `system:` (launch seed, legacy import); never sent to auth. */
 export type Identity = { id: string; name: string | null; status: 'active' | 'deleted' | 'unknown' | 'system' }
+
+/** An office as an asset carries it: id and name only (an asset's view never names the office's entity). */
+export type OfficeRef = { id: string; name: string }
+
+/** `GET /offices` item (the only place the entity appears); `assetCount` is the number of assets it holds now. */
+export type Office = OfficeRef & { entity: Entity; archived: boolean; assetCount: number }
+export type OfficeInput = { name: string; entity: Entity }
+export type OfficePatch = Partial<{ name: string; entity: Entity; archived: boolean }>
 
 export type Rule = {
   id: string
@@ -82,6 +91,8 @@ export type AssetView = {
   purchasePriceCents: number
   status: AssetStatus
   holder: Identity | null
+  /** Set when an office holds the asset (status `assigned`, no `holder`); absent from older servers. */
+  office?: OfficeRef | null
   pendingAssignment: { id: string; assignee: Identity; createdAt: string } | null
   locationNote: string | null
   supplier: string | null
@@ -116,6 +127,7 @@ export type AssetListFilters = {
   status?: AssetStatus
   category?: AssetCategory
   holderUserId?: string
+  officeId?: string
   toVerify?: boolean
   invoiceRef?: string
   /** Case-insensitive substring of description or serial number (AC-3.8). */
@@ -188,6 +200,7 @@ export type FiscalYearView = {
     description: string
     serialNumber: string | null
     holder: Identity | null
+    office?: OfficeRef | null
     purchasePriceCents: number
     openingCents: number
     purchaseCents: number
@@ -250,6 +263,9 @@ export const INVENTORY_ERROR_CODES = [
   'upload_not_found',
   'year_in_future',
   'too_many_pending_uploads',
+  'office_name_taken',
+  'office_in_use',
+  'office_not_found',
 ] as const
 
 export type InventoryErrorCode = (typeof INVENTORY_ERROR_CODES)[number]
@@ -273,6 +289,9 @@ export type InventoryErrorExtras = {
   upload_not_found: Record<never, never>
   year_in_future: { year?: number }
   too_many_pending_uploads: Record<never, never>
+  office_name_taken: Record<never, never>
+  office_in_use: Record<never, never>
+  office_not_found: Record<never, never>
 }
 
 export type InventoryError = {
@@ -297,6 +316,9 @@ const EXTRA_TYPES: { [C in InventoryErrorCode]: Partial<Record<string, 'string' 
   upload_not_found: {},
   year_in_future: { year: 'number' },
   too_many_pending_uploads: {},
+  office_name_taken: {},
+  office_in_use: {},
+  office_not_found: {},
 }
 
 const isKnownCode = (code: string | undefined): code is InventoryErrorCode =>

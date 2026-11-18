@@ -48,7 +48,8 @@ export type AssetEventAction =
   | "invoice_file_linked"
   | "verified"
   | "fiscal_year_closed"
-  | "imported";
+  | "imported"
+  | "assigned_to_office";
 
 export type ChangeValue = string | number | boolean | null;
 

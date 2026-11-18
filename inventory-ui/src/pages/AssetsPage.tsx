@@ -10,6 +10,7 @@ import type { DataTableColumn } from '../components/DataTable'
 import EntityBadge from '../components/EntityBadge'
 import ErrorBanner from '../components/ErrorBanner'
 import LoadMore from '../components/LoadMore'
+import OfficeLabel from '../components/OfficeLabel'
 import PermissionDenied from '../components/PermissionDenied'
 import SkeletonListRows from '../components/SkeletonListRows'
 import { useInventoryCapabilities } from '../hooks/useInventoryCapabilities'
@@ -17,6 +18,7 @@ import { useScope } from '../hooks/useScope'
 import { ApiError } from '../lib/api'
 import { listAssets } from '../lib/assetsApi'
 import { listDirectory } from '../lib/directoryApi'
+import { listOffices } from '../lib/officesApi'
 import { formatDate } from '../lib/dates'
 import { formatMoney } from '../lib/money'
 import { TO_VERIFY_MEANING } from '../lib/statusMeanings'
@@ -28,6 +30,7 @@ import type {
   DirectoryUser,
   Entity,
   Identity,
+  Office,
 } from '../lib/types'
 import { fillTemplate } from '../strings/errors'
 import { strings } from '../strings'
@@ -73,12 +76,14 @@ const parseFilters = (search: Record<string, unknown>, canFilterByHolder: boolea
   const category = oneOf(search.category, CATEGORIES)
   const entity = oneOf(search.entity, ENTITIES)
   const holderUserId = asTrimmed(search.holderUserId)
+  const officeId = asTrimmed(search.officeId)
   const invoiceRef = asTrimmed(search.invoiceRef)
   const q = asTrimmed(search.q)
   if (status) filters.status = status
   if (category) filters.category = category
   if (entity) filters.entity = entity
   if (canFilterByHolder && holderUserId) filters.holderUserId = holderUserId
+  if (officeId) filters.officeId = officeId
   if (search.toVerify === true || search.toVerify === 'true') filters.toVerify = true
   if (invoiceRef) filters.invoiceRef = invoiceRef
   if (q) filters.q = q
@@ -229,6 +234,20 @@ export default function AssetsPage() {
   )
   const directoryError = directoryCurrent !== null && !directoryCurrent.ok ? directoryCurrent.error : null
 
+  // --- the office filter (every inventory:access holder may read the list; a failure only hides the filter) ---
+  const [offices, setOffices] = useState<Office[]>([])
+  useEffect(() => {
+    const controller = new AbortController()
+    listOffices({ signal: controller.signal }).then(
+      (result) => {
+        if (!controller.signal.aborted) setOffices(result.items)
+      },
+      () => undefined,
+    )
+    return () => controller.abort()
+  }, [])
+  const officeOptions = useMemo(() => offices.map((office) => ({ id: office.id, label: office.name })), [offices])
+
   // --- filters <-> URL --------------------------------------------------
   const entitiesInScope = useMemo<Entity[]>(
     () =>
@@ -243,6 +262,7 @@ export default function AssetsPage() {
     category: filters.category,
     entity: filters.entity,
     holderUserId: filters.holderUserId,
+    officeId: filters.officeId,
     toVerify: filters.toVerify === true,
     invoiceRef: filters.invoiceRef ?? '',
     q: filters.q ?? '',
@@ -269,7 +289,7 @@ export default function AssetsPage() {
 
   const clearFilters = () => {
     writeSearch((next) => {
-      for (const key of ['status', 'category', 'entity', 'holderUserId', 'toVerify', 'invoiceRef', 'q'])
+      for (const key of ['status', 'category', 'entity', 'holderUserId', 'officeId', 'toVerify', 'invoiceRef', 'q'])
         delete next[key]
     })
     document.getElementById('asset-filter-q')?.focus()
@@ -285,6 +305,10 @@ export default function AssetsPage() {
     if (filters.category) parts.push(t.captionFilterItem(t.filters.category, strings.categories[filters.category]))
     if (filters.entity) parts.push(t.captionFilterItem(t.filters.entity, strings.common.entity[filters.entity]))
     if (filters.holderUserId) parts.push(t.filters.holder)
+    if (filters.officeId) {
+      const office = offices.find((o) => o.id === filters.officeId)
+      parts.push(t.captionFilterItem(t.filters.office, office?.name ?? t.filters.officeUnknown))
+    }
     if (filters.toVerify) parts.push(t.captionToVerify)
     if (filters.invoiceRef) parts.push(t.captionFilterItem(t.filters.invoiceRef, filters.invoiceRef))
     if (filters.q) parts.push(t.captionFilterItem(t.filters.search, filters.q))
@@ -342,7 +366,11 @@ export default function AssetsPage() {
         </div>
       ),
     },
-    { id: 'holder', header: strings.assets.columns.holder, render: (asset) => holderLabel(asset.holder) },
+    {
+      id: 'holder',
+      header: strings.assets.columns.holder,
+      render: (asset) => (asset.office ? <OfficeLabel office={asset.office} /> : holderLabel(asset.holder)),
+    },
     { id: 'purchased', header: strings.assets.columns.purchased, render: (asset) => formatDate(asset.purchaseDate) },
     {
       id: 'price',
@@ -481,6 +509,7 @@ export default function AssetsPage() {
         canFilterByHolder={canManageAssets}
         holderOptions={holderOptions}
         holderLoading={holderLoading}
+        officeOptions={officeOptions}
         onChange={setFilters}
       />
 

@@ -19,6 +19,7 @@ const toQuery = (filters: AssetListFilters): string => {
   if (filters.status) params.set('status', filters.status)
   if (filters.category) params.set('category', filters.category)
   if (filters.holderUserId) params.set('holderUserId', filters.holderUserId)
+  if (filters.officeId) params.set('officeId', filters.officeId)
   if (filters.toVerify) params.set('toVerify', 'true')
   if (filters.invoiceRef) params.set('invoiceRef', filters.invoiceRef)
   if (filters.q) params.set('q', filters.q)

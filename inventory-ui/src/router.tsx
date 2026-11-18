@@ -11,6 +11,7 @@ import AssetsPage from './pages/AssetsPage'
 import FiscalYearDetailPage from './pages/FiscalYearDetailPage'
 import FiscalYearsPage from './pages/FiscalYearsPage'
 import NotFoundPage from './pages/NotFoundPage'
+import OfficesPage from './pages/OfficesPage'
 import RegisterAssetPage from './pages/RegisterAssetPage'
 import RulesPage from './pages/RulesPage'
 
@@ -21,6 +22,7 @@ import RulesPage from './pages/RulesPage'
  *   /assets                       T1 Assets list
  *   /assets/new                   T3 Register asset
  *   /assets/$id                   T2 Asset detail
+ *   /offices                      Offices (asset:manage)
  *   /rules                        T4 Depreciation rules
  *   /years                        T5 Fiscal years
  *   /years/$entity/$year          T6 Fiscal year detail
@@ -75,6 +77,12 @@ export function createAppRouter(basepath?: string, Root: RouteComponent = Outlet
     component: RulesPage,
   })
 
+  const officesRoute = createRoute({
+    getParentRoute: () => rootRoute,
+    path: '/offices',
+    component: OfficesPage,
+  })
+
   const yearsRoute = createRoute({
     getParentRoute: () => rootRoute,
     path: '/years',
@@ -92,6 +100,7 @@ export function createAppRouter(basepath?: string, Root: RouteComponent = Outlet
     assetsRoute,
     registerAssetRoute,
     assetDetailRoute,
+    officesRoute,
     rulesRoute,
     yearsRoute,
     yearDetailRoute,

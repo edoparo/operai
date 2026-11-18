@@ -96,6 +96,7 @@ enum AssetEventAction {
   verified
   fiscal_year_closed
   imported
+  assigned_to_office
 }
 
 model Asset {
@@ -112,6 +113,9 @@ model Asset {
   status             AssetStatus
   // auth user id, deliberately not a FK (auth owns identity, ADR 20260807-live-identity-resolution-by-id-fail-soft)
   holderUserId       String?
+  // The office holding it (specs/20261006-hardware-inventory US-14); never together with a person (CHECK asset_one_holder)
+  holderOfficeId     String?
+  holderOffice       Office?          @relation(fields: [holderOfficeId], references: [id], onDelete: Restrict)
   locationNote       String?
   supplier           String?
   invoiceRef         String?
@@ -129,9 +133,25 @@ model Asset {
 
   @@index([entity, status])
   @@index([holderUserId])
+  @@index([holderOfficeId])
   @@index([entity, invoiceRef])
   @@index([entity, purchaseDate])
   @@map("asset")
+}
+
+/// An office that can hold assets (specs/20261006-hardware-inventory US-14): managed by inventory managers, never
+/// deleted (archived instead, so history and held assets keep pointing at it). The entity is information only: an asset
+/// of either entity may sit in any office. Name unique ignoring case (index in raw SQL).
+model Office {
+  id         String    @id @default(cuid())
+  name       String
+  entity     Entity
+  archivedAt DateTime?
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+  assets     Asset[]
+
+  @@map("office")
 }
 
 model Assignment {

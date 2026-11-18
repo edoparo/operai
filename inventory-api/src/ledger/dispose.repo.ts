@@ -13,6 +13,7 @@
  * close, like every other figure.
  */
 
+import { officeName } from "../assets/transitions.repo";
 import { db } from "../lib/db";
 import { conflict, notFound, unprocessable } from "../lib/problem";
 import { assertYearOpen, lockEntity, yearOf, type Tx } from "../fiscal-years/guard";
@@ -77,6 +78,7 @@ export async function disposeAsset({ id, body, actor }: DisposeInput): Promise<v
         data: {
           status: "disposed",
           holderUserId: null,
+          holderOfficeId: null,
           disposedOn,
           disposalReason: body.reason,
           salePriceCents: body.salePriceCents ?? null,
@@ -88,6 +90,7 @@ export async function disposeAsset({ id, body, actor }: DisposeInput): Promise<v
 
       const changes: Change[] = [{ field: "status", from: cur.status, to: "disposed" }];
       if (cur.holderUserId !== null) changes.push({ field: "holder", from: cur.holderUserId, to: null });
+      if (cur.holderOfficeId !== null) changes.push({ field: "office", from: await officeName(tx, cur.holderOfficeId), to: null });
       changes.push(
         { field: "disposedOn", from: null, to: body.disposedOn },
         { field: "reason", from: null, to: body.reason },

@@ -12,6 +12,7 @@ import { db } from "../lib/db";
 import { conflict, notFound } from "../lib/problem";
 import { recordEvent, type AssetEventAction, type Change } from "../history/record";
 import { lockAsset } from "./lockAsset";
+import type { Prisma } from "../lib/generated/prisma/client";
 
 export type Transition = "receive" | "return" | "repair" | "repair-done" | "lost" | "found";
 type Status = "ordered" | "in_stock" | "assigned" | "in_repair" | "lost" | "disposed";
@@ -86,10 +87,11 @@ export async function applyTransition({ id, kind, actor }: TransitionInput): Pro
       }
     }
 
-    const to = rule.to(cur.holderUserId !== null);
+    // A person or an office (US-14) is a holder alike.
+    const to = rule.to(cur.holderUserId !== null || cur.holderOfficeId !== null);
     const cas = await tx.asset.updateMany({
       where: { id, status: cur.status },
-      data: { status: to, ...(rule.clearsHolder ? { holderUserId: null } : {}) },
+      data: { status: to, ...(rule.clearsHolder ? { holderUserId: null, holderOfficeId: null } : {}) },
     });
     if (cas.count !== 1) {
       throw conflict("invalid_transition", "The asset changed while this was being applied", {
@@ -101,6 +103,15 @@ export async function applyTransition({ id, kind, actor }: TransitionInput): Pro
     if (rule.clearsHolder && cur.holderUserId !== null) {
       changes.unshift({ field: "holder", from: cur.holderUserId, to: null });
     }
+    if (rule.clearsHolder && cur.holderOfficeId !== null) {
+      changes.unshift({ field: "office", from: await officeName(tx, cur.holderOfficeId), to: null });
+    }
     await recordEvent(tx, { assetId: id, entity: cur.entity, action: rule.action, actor, changes });
   });
+}
+
+/** An office's name as history records it (a snapshot: a later rename does not rewrite the past). */
+export async function officeName(tx: Prisma.TransactionClient, officeId: string): Promise<string> {
+  const office = await tx.office.findUnique({ where: { id: officeId }, select: { name: true } });
+  return office?.name ?? officeId;
 }

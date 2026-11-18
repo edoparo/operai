@@ -102,7 +102,7 @@ describe('tabs by capability (absent from the DOM, never disabled)', () => {
     asUser([ASSETS])
     await renderShellAt('/assets')
 
-    expect(tabLabels()).toEqual(['Assets'])
+    expect(tabLabels()).toEqual(['Assets', 'Offices'])
     expect(screen.queryByRole('link', { name: 'Depreciation rules' })).toBeNull()
     expect(screen.queryByRole('link', { name: 'Fiscal years' })).toBeNull()
     expect(screen.queryByText('Depreciation rules')).toBeNull()
@@ -119,7 +119,7 @@ describe('tabs by capability (absent from the DOM, never disabled)', () => {
     asUser([ASSETS, LEDGER])
     await renderShellAt('/assets')
 
-    expect(tabLabels()).toEqual(['Assets', 'Depreciation rules', 'Fiscal years'])
+    expect(tabLabels()).toEqual(['Assets', 'Offices', 'Depreciation rules', 'Fiscal years'])
   })
 
   it('neither capability: no tab at all', async () => {
@@ -211,7 +211,7 @@ describe('scope states', () => {
     expect(await screen.findByRole('heading', { level: 2, name: 'No entity in your scope' })).not.toBeNull()
     expect(screen.getByText(/ask an administrator/i)).not.toBeNull()
     expect(screen.queryByText('assets page')).toBeNull()
-    expect(tabLabels()).toEqual(['Assets'])
+    expect(tabLabels()).toEqual(['Assets', 'Offices'])
   })
 
   it('the empty-scope state is plain page text, not an alert', async () => {
@@ -276,6 +276,6 @@ describe('scope states', () => {
     await screen.findByRole('alert')
 
     expect(screen.getByRole('heading', { level: 1, name: 'Inventory' })).not.toBeNull()
-    expect(tabLabels()).toEqual(['Assets', 'Depreciation rules', 'Fiscal years'])
+    expect(tabLabels()).toEqual(['Assets', 'Offices', 'Depreciation rules', 'Fiscal years'])
   })
 })

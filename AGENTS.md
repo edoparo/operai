@@ -478,7 +478,8 @@ The authoritative glossary is `specs/20261006-hardware-inventory/spec.md` § Dom
 | Term | Meaning |
 |---|---|
 | `asset` | One physical hardware unit owned by one `entity` — never a quantity (13 monitors = 13 assets) |
-| `holder` | The Operai account an asset is assigned to; no holder = company stock |
+| `holder` | The Operai account an asset is assigned to, or the **office** it is in (never both); no holder = company stock |
+| `office` | A wellD place holding assets (CH - Agno, CH - Lugano, YoRoom - Milano at launch), managed by inventory managers, archived never deleted; assigning to it is immediate; its entity is information only (US-14) |
 | `status` | `ordered` · `in_stock` · `assigned` · `in_repair` · `lost` (still on the books) · `disposed` (off the books) |
 | `assignment` | `pending` until the employee confirms receipt, then `confirmed`/`declined`/`cancelled` |
 | `depreciation rule` | Per-entity, effective-dated parameters (life, first-year share, threshold, residual); resolved on read (ADR 20261006-depreciation-derived-on-read-closed-years-snapshotted) |

@@ -387,6 +387,22 @@ describe('Assign (AC-2.1)', () => {
     expect(screen.queryByTestId('assign-fake')).toBeNull()
   })
 
+  it('announces an immediate office assignment by the office name', async () => {
+    fakeState.assigned = {
+      id: 'a1',
+      status: 'assigned',
+      holder: null,
+      pendingAssignment: null,
+      office: { id: 'o1', name: 'CH - Agno' },
+    }
+    renderActions({ status: 'in_stock' })
+
+    fireEvent.click(screen.getByRole('button', { name: 'Assign...' }))
+    fireEvent.click(await screen.findByText('fake assigned'))
+
+    expect(announce).toHaveBeenCalledWith('Assigned to CH - Agno.')
+  })
+
   it('cancelling the dialog closes it and changes nothing', async () => {
     renderActions({ status: 'in_stock' })
     fireEvent.click(screen.getByRole('button', { name: 'Assign...' }))

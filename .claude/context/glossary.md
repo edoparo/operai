@@ -8,9 +8,13 @@
   item, row.
 - **Asset category**: the kind of asset, from a fixed list; for filtering and reporting
   only, never an input to depreciation. _Avoid:_ type, class.
-- **Holder**: the Operai account an asset is currently assigned to; an asset with no
-  holder is company stock. A party without an account is never a holder. _Avoid:_
-  assignee, owner (the entity owns the asset).
+- **Holder**: the Operai account an asset is currently assigned to, or the **Office** it is
+  in, never both; an asset with no holder is company stock. Apart from an office, a party
+  without an account is never a holder. _Avoid:_ assignee, owner (the entity owns the asset).
+- **Office**: a wellD place that holds assets (CH - Agno, CH - Lugano, YoRoom - Milano at
+  launch), managed by inventory managers, archived never deleted; its entity is information
+  only, any asset may be in any office. Assigning to it is immediate. _Avoid:_ location
+  (the free-text location/note), site.
 - **Asset status**: exactly one of `ordered`, `in_stock`, `assigned`, `in_repair`, `lost`,
   `disposed`. `lost` (lost or stolen) is still on the books; only `disposed` is not.
 - **Assignment**: the act of giving an asset to a holder; `pending` until the employee

@@ -50,6 +50,7 @@ export const FiscalYearViewSchema = z.object({
       description: z.string(),
       serialNumber: z.string().nullable(),
       holder: IdentitySchema.nullable(),
+      office: z.object({ id: z.string(), name: z.string() }).nullable(),
       purchasePriceCents: z.number().int(),
       openingCents: z.number().int(),
       purchaseCents: z.number().int(),

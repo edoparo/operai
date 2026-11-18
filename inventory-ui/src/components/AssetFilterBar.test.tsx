@@ -220,3 +220,23 @@ describe('debounced text inputs', () => {
     expect(fireEvent.submit(screen.getByRole('search'))).toBe(false)
   })
 })
+
+describe('office filter', () => {
+  it('is absent without offices and offers Any plus each office otherwise', () => {
+    const { rerender } = render(<AssetFilterBar {...baseProps()} />)
+    expect(screen.queryByLabelText('Office')).toBeNull()
+
+    rerender(<AssetFilterBar {...baseProps({ officeOptions: [{ id: 'o1', label: 'CH - Agno' }] })} />)
+    const select = screen.getByLabelText('Office') as HTMLSelectElement
+    expect(Array.from(select.options).map((o) => o.textContent)).toEqual(['Any office', 'CH - Agno'])
+  })
+
+  it('reports the chosen office, and undefined for Any', () => {
+    const onChange = vi.fn()
+    render(<AssetFilterBar {...baseProps({ officeOptions: [{ id: 'o1', label: 'CH - Agno' }], onChange })} />)
+    fireEvent.change(screen.getByLabelText('Office'), { target: { value: 'o1' } })
+    expect(onChange).toHaveBeenLastCalledWith({ officeId: 'o1' })
+    fireEvent.change(screen.getByLabelText('Office'), { target: { value: '' } })
+    expect(onChange).toHaveBeenLastCalledWith({ officeId: undefined })
+  })
+})

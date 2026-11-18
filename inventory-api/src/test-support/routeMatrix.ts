@@ -243,7 +243,7 @@ export interface Snapshot {
 
 export async function snapshot(): Promise<Snapshot> {
   const o = { orderBy: { id: "asc" as const } };
-  const [assets, assignments, rules, years, figures, files, events] = await Promise.all([
+  const [assets, assignments, rules, years, figures, files, events, offices] = await Promise.all([
     db.asset.findMany(o),
     db.assignment.findMany(o),
     db.depreciationRule.findMany(o),
@@ -251,13 +251,15 @@ export async function snapshot(): Promise<Snapshot> {
     db.assetYearFigure.findMany(o),
     db.invoiceFile.findMany(o),
     db.assetEvent.findMany(o),
+    // Offices are reference data shared by both entities (US-14): in the snapshot, never in `entityOf`.
+    db.office.findMany(o),
   ]);
   const entityOf = new Map<string, string>();
   for (const r of [...assets, ...rules, ...years, ...figures, ...files]) entityOf.set(r.id, r.entity);
   const assetEntity = new Map(assets.map((a) => [a.id, a.entity as string]));
   for (const a of assignments) entityOf.set(a.id, assetEntity.get(a.assetId) ?? "unknown");
   return {
-    json: JSON.stringify({ assets, assignments, rules, years, figures, files, events }),
+    json: JSON.stringify({ assets, assignments, rules, years, figures, files, events, offices }),
     eventIds: new Set(events.map((e) => e.id)),
     events: events.map((e) => ({
       id: e.id,
@@ -356,6 +358,12 @@ export interface MatrixCase {
   readonly mutating: boolean;
   /** Keep the body-scan from flagging the `ledger` key (the `/scope` shape). */
   readonly keyRuleOff?: boolean;
+  /**
+   * Reference data deliberately shared across entities: the body's entity rules are not applied. Only `GET /offices`
+   * (US-14: an asset of either entity may sit in any office, owner decision 2026-11-18). Never set it on a route that
+   * returns an asset, a ledger or a person.
+   */
+  readonly crossEntityReference?: boolean;
   /** `detail` or `list`: a ledger-scope caller MUST get the matching `ledger` member. */
   readonly ledgerShape?: "detail" | "list";
   readonly build: (e: Entity, p: Persona, w: World) => Promise<Req>;
@@ -566,6 +574,46 @@ export const CASES: readonly MatrixCase[] = [
       body: { assigneeUserId: "emp-9" },
       subject: byId(e, w),
     }),
+  }),
+  // ── Offices (US-14) ──
+  {
+    route: "GET /offices",
+    method: "GET",
+    perEntity: false,
+    mutating: false,
+    crossEntityReference: true,
+    verdict: (p) => (holds(p, "either") ? 200 : 403),
+    events: [],
+    build: async () => ({ path: "/offices" }),
+  },
+  post("POST /offices", {
+    verdict: gate("asset", 201, 403, 403),
+    events: [],
+    build: async (e) => {
+      seq++;
+      return { path: "/offices", body: { name: `Matrix office ${e} ${seq}`, entity: e } };
+    },
+  }),
+  {
+    route: "PATCH /offices/{id}",
+    method: "PATCH",
+    perEntity: true,
+    mutating: true,
+    verdict: gate("asset", 200),
+    events: [],
+    build: async (e) => {
+      seq++;
+      const office = await db.office.create({ data: { name: `Matrix office ${e} ${seq}`, entity: e } });
+      return { path: `/offices/${office.id}`, body: { name: `Renamed ${e} ${seq}` }, subject: office.id };
+    },
+  },
+  post("POST /assets/{id}/office-assignment", {
+    verdict: gate("asset", 200),
+    events: ["assigned_to_office"],
+    build: async (e) => {
+      const a = await mkAsset(e);
+      return { path: `/assets/${a.id}/office-assignment`, body: { officeId: "office_ch_agno" }, subject: a.id };
+    },
   }),
   post("POST /assignments/{id}/cancel", {
     verdict: gate("asset", 200),

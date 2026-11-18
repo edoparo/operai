@@ -11,6 +11,7 @@ const en = {
   assets: 'Assets',
   rules: 'Depreciation rules',
   years: 'Fiscal years',
+  offices: 'Offices',
   /** sr-only polite line while `GET /scope` loads. */
   loading: 'Loading inventory…',
   /** Tool access, but both capability scopes are empty (not an empty list). */
@@ -26,6 +27,7 @@ const it: typeof en = {
   assets: 'Beni',
   rules: 'Regole di ammortamento',
   years: 'Esercizi',
+  offices: 'Uffici',
   loading: 'Caricamento inventario…',
   scopeEmpty: {
     heading: 'Nessuna entità di competenza',

@@ -37,6 +37,9 @@ const en = {
   upload_not_found: 'The upload did not complete. Try again.',
   year_in_future: '{year} is in the future and cannot be closed yet.',
   too_many_pending_uploads: 'Too many uploads are waiting to be completed. Try again in an hour.',
+  office_name_taken: 'An office with this name already exists.',
+  office_in_use: 'This office still holds assets: return or move them first.',
+  office_not_found: 'That office no longer exists or has been archived. Pick another one.',
 
   // --- Variants of a code, by where it is shown -----------------------------
   /** `fiscal_year_closed` on the edit dialog's price / purchase date: a banner, not a field error. */
@@ -72,6 +75,9 @@ const it: typeof en = {
   upload_not_found: 'Il caricamento non è stato completato. Riprovare.',
   year_in_future: "L'esercizio {year} è nel futuro e non può ancora essere chiuso.",
   too_many_pending_uploads: "Troppi caricamenti in attesa di completamento. Riprovare tra un'ora.",
+  office_name_taken: 'Esiste già un ufficio con questo nome.',
+  office_in_use: 'Questo ufficio ha ancora degli asset: rientrali o spostali prima.',
+  office_not_found: 'Questo ufficio non esiste più o è stato archiviato. Sceglierne un altro.',
 
   fiscal_year_closed_edit:
     "Prezzo e data di acquisto non possono essere modificati perché l'esercizio {year} è chiuso.",

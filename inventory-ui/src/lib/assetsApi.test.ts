@@ -300,3 +300,13 @@ describe('validationField', () => {
     expect(validationField(new Error('x'))).toBeUndefined()
   })
 })
+
+describe('assetsApi — office filter', () => {
+  it('sends officeId, combined with the other filters', async () => {
+    vi.mocked(apiFetch).mockResolvedValue(ok(200, { items: [], nextCursor: null }))
+    await listAssets({ status: 'assigned', officeId: 'o-1' })
+    const url = new URL(lastRequest().url)
+    expect(url.searchParams.get('officeId')).toBe('o-1')
+    expect(url.searchParams.get('status')).toBe('assigned')
+  })
+})

@@ -203,7 +203,11 @@ export default function AssetActions({ asset, capabilities, onChanged, announce,
   }
 
   const assigneeName = pending === null ? '' : identityLabel(pending.assignee)
-  const holderName = asset.holder === null || asset.holder.name === null ? null : asset.holder.name
+  const holderName = asset.office
+    ? asset.office.name
+    : asset.holder === null || asset.holder.name === null
+      ? null
+      : asset.holder.name
 
   const actionButton = (key: ActionKey, destructive = false) => (
     <Button
@@ -286,9 +290,13 @@ export default function AssetActions({ asset, capabilities, onChanged, announce,
             setAssigning(false)
             onChanged(updated)
             announce(
-              t.done.assigned(
-                updated.pendingAssignment == null ? assigneeName : identityLabel(updated.pendingAssignment.assignee),
-              ),
+              updated.office
+                ? t.done.assignedToOffice(updated.office.name)
+                : t.done.assigned(
+                    updated.pendingAssignment == null
+                      ? assigneeName
+                      : identityLabel(updated.pendingAssignment.assignee),
+                  ),
             )
             focusHeading()
           }}

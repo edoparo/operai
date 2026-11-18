@@ -19,6 +19,7 @@ import { fiscalYearReadRouter } from "./fiscal-years/read.routes";
 import { fiscalYearCloseRouter } from "./fiscal-years/close.routes";
 import { invoicesRouter } from "./invoices/invoices.routes";
 import { historyRouter } from "./history/history.routes";
+import { officesRouter } from "./offices/offices.routes";
 import { requestLogger } from "./lib/logger";
 import { handleProblemError, problem } from "./lib/problem";
 import { setupOpenAPI } from "./openapi/registry";
@@ -75,6 +76,7 @@ app.route("/", fiscalYearReadRouter);
 app.route("/", fiscalYearCloseRouter);
 app.route("/", invoicesRouter);
 app.route("/", historyRouter);
+app.route("/", officesRouter);
 
 // ─── OpenAPI + Scalar UI ─────────────────────────────────────────────────────
 

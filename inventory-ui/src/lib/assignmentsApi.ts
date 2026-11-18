@@ -9,3 +9,7 @@ export const createAssignment = (assetId: string, assigneeUserId: string): Promi
 /** 409 `assignment_not_pending` when someone else already confirmed, declined or cancelled it. */
 export const cancelAssignment = (assignmentId: string): Promise<AssetView> =>
   sendJson<AssetView>(`/assignments/${encodeURIComponent(assignmentId)}/cancel`, 'POST')
+
+/** Immediate, no confirmation step. 422 `office_not_found` for an unknown or archived office. */
+export const assignToOffice = (assetId: string, officeId: string): Promise<AssetView> =>
+  sendJson<AssetView>(`/assets/${encodeURIComponent(assetId)}/office-assignment`, 'POST', { officeId })

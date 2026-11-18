@@ -99,6 +99,11 @@ export default function InventoryShell() {
               {strings.nav.assets}
             </Link>
           )}
+          {canManageAssets && (
+            <Link to="/offices" className={tabLinkClassName}>
+              {strings.nav.offices}
+            </Link>
+          )}
           {canManageLedger && (
             <Link to="/rules" className={tabLinkClassName}>
               {strings.nav.rules}

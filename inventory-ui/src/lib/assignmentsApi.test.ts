@@ -46,7 +46,7 @@ const rejection = async (promise: Promise<unknown>): Promise<ApiError> => {
 beforeEach(() => {
   vi.mocked(apiFetch).mockReset()
 })
-import { cancelAssignment, createAssignment } from './assignmentsApi'
+import { assignToOffice, cancelAssignment, createAssignment } from './assignmentsApi'
 
 const asset = { id: 'a-1', status: 'in_stock' }
 
@@ -91,5 +91,29 @@ describe('assignmentsApi — manager side', () => {
       status: 409,
     })
     expect((await rejection(cancelAssignment('as-3'))).status).toBe(404)
+  })
+})
+
+describe('assignmentsApi — office assignment', () => {
+  it('POST /assets/{id}/office-assignment sends {officeId} and returns the asset', async () => {
+    vi.mocked(apiFetch).mockResolvedValue(ok(200, asset))
+
+    await expect(assignToOffice('a-1', 'o-2')).resolves.toEqual(asset)
+
+    expect(lastRequest()).toMatchObject({
+      url: `${BASE}/assets/a-1/office-assignment`,
+      method: 'POST',
+      body: { officeId: 'o-2' },
+    })
+  })
+
+  it('maps office_not_found (422) and invalid_transition (409) to known errors', async () => {
+    vi.mocked(apiFetch).mockResolvedValueOnce(problem(422, { code: 'office_not_found' }))
+    vi.mocked(apiFetch).mockResolvedValueOnce(problem(409, { code: 'invalid_transition', from: 'assigned' }))
+
+    expect(toInventoryError(await rejection(assignToOffice('a-1', 'o-2')))).toMatchObject({ code: 'office_not_found' })
+    expect(toInventoryError(await rejection(assignToOffice('a-1', 'o-2')))).toMatchObject({
+      code: 'invalid_transition',
+    })
   })
 })

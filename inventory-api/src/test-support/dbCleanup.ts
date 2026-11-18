@@ -45,10 +45,26 @@ export const LAUNCH_RULES = [
 export const LAUNCH_RULE_ACTOR = "system:launch-seed";
 export const LAUNCH_RULE_EFFECTIVE_FROM = "2000-01-01";
 
+/** Mirrors the seed of migration 20261118100000_offices (specs/20261006-hardware-inventory US-14). */
+export const SEEDED_OFFICES = [
+  { id: "office_ch_agno", name: "CH - Agno", entity: "welld_ch" },
+  { id: "office_ch_lugano", name: "CH - Lugano", entity: "welld_ch" },
+  { id: "office_yoroom_milano", name: "YoRoom - Milano", entity: "welld_it" },
+] as const;
+
 export async function truncateInventoryTables(): Promise<void> {
   await db.$executeRawUnsafe(
-    'TRUNCATE TABLE "asset_event", "asset_year_figure", "fiscal_year", "depreciation_rule", "assignment", "asset", "invoice_file" RESTART IDENTITY CASCADE',
+    'TRUNCATE TABLE "asset_event", "asset_year_figure", "fiscal_year", "depreciation_rule", "assignment", "asset", "invoice_file", "office" RESTART IDENTITY CASCADE',
   );
+  // The offices the migration seeds, so every test starts from what production starts from.
+  for (const office of SEEDED_OFFICES) {
+    await db.$executeRawUnsafe(
+      `INSERT INTO "office" ("id", "name", "entity", "updatedAt") VALUES ($1, $2, $3::"Entity", CURRENT_TIMESTAMP)`,
+      office.id,
+      office.name,
+      office.entity,
+    );
+  }
   for (const rule of LAUNCH_RULES) {
     await db.$executeRawUnsafe(
       `INSERT INTO "depreciation_rule"

@@ -37,6 +37,7 @@ const en = {
     repair_finished: 'Repair finished',
     marked_lost: 'Marked lost',
     marked_found: 'Marked found',
+    assigned_to_office: 'Assigned to an office',
     disposed: 'Disposed',
     invoice_file_linked: 'Invoice file linked',
     verified: 'Marked as verified',
@@ -47,6 +48,7 @@ const en = {
   field: {
     holder: 'Holder',
     assignee: 'Assignee',
+    office: 'Office',
     status: 'Status',
     category: 'Category',
     description: 'Description',
@@ -91,6 +93,7 @@ const it: typeof en = {
     repair_finished: 'Riparazione completata',
     marked_lost: 'Segnato come smarrito',
     marked_found: 'Segnato come ritrovato',
+    assigned_to_office: 'Assegnato a un ufficio',
     disposed: 'Dismesso',
     invoice_file_linked: 'File fattura collegato',
     verified: 'Segnato come verificato',
@@ -101,6 +104,7 @@ const it: typeof en = {
   field: {
     holder: 'Assegnatario',
     assignee: 'Destinatario',
+    office: 'Ufficio',
     status: 'Stato',
     category: 'Categoria',
     description: 'Descrizione',

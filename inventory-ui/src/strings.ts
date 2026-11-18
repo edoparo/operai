@@ -31,6 +31,7 @@ import { invoice } from './strings/invoice'
 import { ledger } from './strings/ledger'
 import { myDevices } from './strings/myDevices'
 import { nav } from './strings/nav'
+import { offices } from './strings/offices'
 import { notFound } from './strings/notFound'
 import { register } from './strings/register'
 import { rules } from './strings/rules'
@@ -54,6 +55,7 @@ export const en = {
   ledger: ledger.en,
   myDevices: myDevices.en,
   nav: nav.en,
+  offices: offices.en,
   notFound: notFound.en,
   register: register.en,
   rules: rules.en,
@@ -78,6 +80,7 @@ export const it: typeof en = {
   ledger: ledger.it,
   myDevices: myDevices.it,
   nav: nav.it,
+  offices: offices.it,
   notFound: notFound.it,
   register: register.it,
   rules: rules.it,

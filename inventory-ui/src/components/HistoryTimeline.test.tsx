@@ -73,6 +73,29 @@ afterEach(() => {
   vi.clearAllMocks()
 })
 
+describe('HistoryTimeline — offices', () => {
+  it('labels an office assignment and its office change with the office name', async () => {
+    getAssetHistory.mockResolvedValue({
+      events: [
+        event('e1', '2026-10-01T09:00:00Z', {
+          action: 'assigned_to_office',
+          changes: [{ field: 'office', from: null, to: 'CH - Agno' }],
+        }),
+        event('e2', '2026-10-02T09:00:00Z', {
+          action: 'returned',
+          changes: [{ field: 'office', from: 'CH - Agno', to: null }],
+        }),
+      ],
+    })
+    renderTimeline()
+    await waitFor(() => expect(entries()).toHaveLength(2))
+
+    expect(entries()[0].textContent).toContain('Assigned to an office')
+    expect(entries()[0].textContent).toContain('Office: none → CH - Agno')
+    expect(entries()[1].textContent).toContain('Office: CH - Agno → none')
+  })
+})
+
 describe('HistoryTimeline — events (AC-11.3)', () => {
   it('shows a loading state with a polite announcement while the events load', async () => {
     getAssetHistory.mockReturnValue(new Promise(() => undefined))

@@ -121,6 +121,16 @@ const renderPage = async (state?: Record<string, unknown>, { settle = true } = {
   return router
 }
 
+describe('office holder', () => {
+  it('shows the office name, with no entity, in the facts instead of a person', async () => {
+    getAsset.mockResolvedValue(asset({ status: 'assigned', holder: null, office: { id: 'o1', name: 'CH - Agno' } }))
+    await renderPage()
+
+    const facts = screen.getByTestId('asset-facts')
+    expect(within(facts).getByTestId('office-holder').textContent).toContain('CH - Agno')
+  })
+})
+
 describe('loading, not found and failures', () => {
   it('shows a skeleton and a polite loading line while the asset loads', async () => {
     getAsset.mockReturnValue(new Promise(() => undefined))

@@ -150,11 +150,11 @@ async function cell(
   }
 
   // ── 2xx: field level ──
-  if (!p.outage || !c.identity) {
+  if ((!p.outage || !c.identity) && !c.crossEntityReference) {
     for (const v of M.scanBody(json, p, c.keyRuleOff ? { keyRuleOff: true } : {})) bad.push(`${tag}: ${v}`);
   }
   const hidden = M.ENTITIES.filter((x) => !M.visibleTo(p).includes(x));
-  if (!c.identity) {
+  if (!c.identity && !c.crossEntityReference) {
     for (const [id, ent] of after.entityOf) {
       if (hidden.includes(ent as Entity) && text.includes(id)) {
         bad.push(`${tag}: body carries ${ent} record ${id} outside the caller's scope`);

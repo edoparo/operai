@@ -34,8 +34,12 @@ New terms; the suite has no glossary entry for any of them yet. `entity` (`welld
 - **category** — the kind of asset, from a fixed list (e.g. laptop, desktop, phone, tablet,
   monitor, peripheral, other). Used for filtering and reporting only; it never changes
   how an asset depreciates.
-- **holder** — the Operai account an asset is currently assigned to. An asset with no
-  holder is company stock. A party without an Operai account can never be a holder.
+- **holder** — the Operai account an asset is currently assigned to, or the **office** it is
+  in (US-14), never both. An asset with no holder is company stock. A party without an Operai
+  account can never be a holder unless it is one of the managed offices.
+- **office** — a place of wellD that holds assets (today CH - Agno, CH - Lugano, YoRoom -
+  Milano), managed by inventory managers, never deleted, only archived. Its entity is
+  information only: an asset of either entity may be in any office.
 - **status** — exactly one of `ordered`, `in_stock`, `assigned`, `in_repair`, `lost`,
   `disposed`. `lost` covers lost and stolen, and is still on the books; only `disposed`
   removes an asset from the books.
@@ -381,6 +385,29 @@ from the books as they stand.
 - AC-12.10: Given an inventory manager filters by the "to verify" mark, then exactly the
   assets still carrying it are listed.
 
+### US-14: Assets held by an office (A2)
+
+As an inventory manager, I want to assign an asset to an office instead of a person, so the
+register says where shared hardware (screens, docking stations, meeting-room devices) is.
+
+- AC-14.1: Given the offices CH - Agno, CH - Lugano and YoRoom - Milano, then they exist at
+  launch; an inventory manager adds, renames, moves to another entity, archives and restores
+  an office of an entity in their scope. Names are unique ignoring case. An office is never
+  deleted; one that still holds assets cannot be archived.
+- AC-14.2: Given an `in_stock` asset with no pending assignment, when an inventory manager
+  assigns it to a non-archived office of any entity, then it is `assigned` at once, held by the
+  office and by no person, and no one is asked to confirm.
+- AC-14.3: Given an asset held by an office, then return, lost and dispose clear the office as
+  they clear a person, repair keeps it, and repair-done brings the asset back to `assigned`.
+- AC-14.4: Given an asset held by an office, then the list, the detail and the fiscal-year table
+  show the office's name as its holder, the list filters by office, and the history records
+  the assignment and its end with the office's name as it was then.
+- AC-14.5: Given an asset and an office, then the database refuses an asset held by a person
+  and an office together.
+- AC-14.6: Given an inventory manager or a hardware accountant of either entity, then they read
+  every office (reference data shared by both entities); an asset's own view names its office
+  but never the office's entity.
+
 ## Non-goals
 
 - **Anything that is not hardware.** Furniture, vehicles, software licences and other
@@ -414,6 +441,11 @@ from the books as they stand.
 - 2026-10-06, after the design stage, agreed by Matteo Codogno: AC-3.8 added (text
   search); US-4 reworded from "can correct it" to "can decline what I did not receive";
   two non-goals added (reporting a confirmed device as not held; Italian copy at launch).
+
+- 2026-11-18, decided by Matteo Codogno (A2): assets can be held by an office as well as by
+  a person (US-14). Offices are managed in the app, assigning to one needs no confirmation,
+  and any asset may go to any office whatever its entity. The holder definition widens
+  accordingly.
 
 ## Constraints
 

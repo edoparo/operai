@@ -49,6 +49,7 @@ export async function findAssetPage(
   if (query.status) and.push({ status: query.status });
   if (query.category) and.push({ category: query.category });
   if (query.holderUserId) and.push({ holderUserId: query.holderUserId });
+  if (query.officeId) and.push({ holderOfficeId: query.officeId });
   if (query.toVerify !== undefined) and.push({ toVerify: query.toVerify });
   if (query.invoiceRef) and.push({ invoiceRef: query.invoiceRef });
   if (query.q) {

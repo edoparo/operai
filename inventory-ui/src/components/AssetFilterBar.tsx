@@ -6,7 +6,7 @@
  * from the URL search params) and reports every change as a patch through
  * `onChange`; it never fetches. A labelled `form role="search"`, every control
  * with a visible label. Tab order is the design's: the free-text search first
- * (AC-3.8), then Status, Category, Entity, Holder, "To verify" and the invoice
+ * (AC-3.8), then Status, Category, Entity, Holder, Office (when any exists), "To verify" and the invoice
  * reference.
  *
  * Gating (absent from the DOM, never disabled):
@@ -30,6 +30,7 @@ export type AssetFilterValues = {
   category?: AssetCategory
   entity?: Entity
   holderUserId?: string
+  officeId?: string
   toVerify: boolean
   invoiceRef: string
   q: string
@@ -41,6 +42,7 @@ export type AssetFilterPatch = Partial<{
   category: AssetCategory | undefined
   entity: Entity | undefined
   holderUserId: string | undefined
+  officeId: string | undefined
   toVerify: boolean
   invoiceRef: string
   q: string
@@ -53,6 +55,8 @@ export type AssetFilterBarProps = {
   canFilterByHolder: boolean
   holderOptions: readonly { id: string; label: string }[]
   holderLoading?: boolean
+  /** Every office (archived too: an archived office still holds history). The Office filter shows only when given and non-empty. */
+  officeOptions?: readonly { id: string; label: string }[]
   onChange: (patch: AssetFilterPatch) => void
   /** Debounce of the text inputs in ms. */
   debounceMs?: number
@@ -170,10 +174,12 @@ export default function AssetFilterBar({
   canFilterByHolder,
   holderOptions,
   holderLoading = false,
+  officeOptions = [],
   onChange,
   debounceMs = 300,
 }: AssetFilterBarProps) {
   const t = strings.assets.filters
+  const officeListed = officeOptions.some((option) => option.id === values.officeId)
   const holderListed = holderOptions.some((option) => option.id === values.holderUserId)
 
   return (
@@ -236,6 +242,22 @@ export default function AssetFilterBar({
               ]}
               anyLabel={holderLoading ? t.holderLoading : t.holderAny}
               onChange={(holderUserId) => onChange({ holderUserId })}
+            />
+          )}
+
+          {(officeOptions.length > 0 || values.officeId !== undefined) && (
+            <SelectFilter<string>
+              id="asset-filter-office"
+              label={t.office}
+              value={values.officeId}
+              options={[
+                ...officeOptions.map((option) => ({ value: option.id, label: option.label })),
+                ...(values.officeId !== undefined && !officeListed
+                  ? [{ value: values.officeId, label: t.officeUnknown }]
+                  : []),
+              ]}
+              anyLabel={t.officeAny}
+              onChange={(officeId) => onChange({ officeId })}
             />
           )}
 

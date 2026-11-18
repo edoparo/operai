@@ -252,6 +252,14 @@ describe('FiscalYearDetailPage — roll-forward and per-asset table', () => {
     expect(screen.getByText('Deleted account')).not.toBeNull()
   })
 
+  it('shows the office name for an office-held asset', async () => {
+    getFiscalYear.mockResolvedValue(
+      view({ assets: [{ ...view().assets[0], holder: null, office: { id: 'o1', name: 'CH - Agno' } }] }),
+    )
+    await renderPage()
+    expect(screen.getByTestId('office-holder').textContent).toContain('CH - Agno')
+  })
+
   it('has the Export XLSX control for the shown year', async () => {
     await renderPage()
     expect(screen.getByRole('button', { name: 'Export XLSX' })).not.toBeNull()

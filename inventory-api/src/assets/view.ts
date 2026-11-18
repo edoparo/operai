@@ -15,11 +15,22 @@ import { formatDate } from "../depreciation/rules.schemas";
 /** An asset row with the file link the view needs. */
 export type AssetRow = Asset & {
   readonly invoiceFile: { readonly id: string; readonly fileName: string } | null;
+  readonly holderOffice: OfficeRef | null;
 };
 
-/** The `invoiceFile` relation selection every asset read uses. */
+/**
+ * An office as an asset shows it (specs/20261006-hardware-inventory US-14): id and name only. The office's entity is
+ * not repeated on the asset, so an asset's view never names the other entity (the office list carries it).
+ */
+export interface OfficeRef {
+  readonly id: string;
+  readonly name: string;
+}
+
+/** The relations every asset read uses: its invoice file and the office holding it. */
 export const ASSET_INCLUDE = {
   invoiceFile: { select: { id: true, fileName: true } },
+  holderOffice: { select: { id: true, name: true } },
 } as const;
 
 export interface PendingAssignmentRow {
@@ -39,6 +50,8 @@ export interface AssetViewBase {
   purchasePriceCents: number;
   status: Asset["status"];
   holder: Identity | null;
+  /** The office holding the asset; never together with `holder`. */
+  office: OfficeRef | null;
   pendingAssignment: { id: string; assignee: Identity; createdAt: string } | null;
   locationNote: string | null;
   supplier: string | null;
@@ -84,6 +97,7 @@ export function toAssetView(
     purchasePriceCents: row.purchasePriceCents,
     status: row.status,
     holder: row.holderUserId ? identity(row.holderUserId) : null,
+    office: row.holderOffice ? { id: row.holderOffice.id, name: row.holderOffice.name } : null,
     pendingAssignment: context.pending
       ? {
           id: context.pending.id,

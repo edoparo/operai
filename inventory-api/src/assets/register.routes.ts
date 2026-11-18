@@ -76,7 +76,7 @@ assetRegisterRouter.openapi(route, async (c) => {
   // for auth to resolve.
   const identities = new Map();
   const assets = rows.map((row) =>
-    toAssetView({ ...row, invoiceFile: null } satisfies Parameters<typeof toAssetView>[0], {
+    toAssetView({ ...row, invoiceFile: null, holderOffice: null } satisfies Parameters<typeof toAssetView>[0], {
       identities,
       pending: null,
     }),

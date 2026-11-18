@@ -79,6 +79,7 @@ vi.mock('./lib/assignmentsApi', () => ({
   cancelAssignment: m.cancelAssignment,
 }))
 vi.mock('./lib/directoryApi', () => ({ listDirectory: m.listDirectory }))
+vi.mock('./lib/officesApi', () => ({ listOffices: () => Promise.resolve({ items: [] }) }))
 vi.mock('./lib/historyApi', () => ({ getAssetHistory: m.getAssetHistory }))
 vi.mock('./lib/rulesApi', () => ({ listRules: m.listRules, createRule: m.createRule }))
 vi.mock('./lib/fiscalYearsApi', () => ({

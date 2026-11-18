@@ -130,6 +130,14 @@ export async function fiscalYearView(entity: Entity, year: number, authorization
   const holderIds = [...new Set(listed.flatMap(({ a }) => (a.holderUserId ? [a.holderUserId] : [])))];
   const identities = await resolveIdentities(authorization, holderIds);
   const identity = (id: string): Identity => identities.get(id) ?? { id, name: null, status: "unknown" };
+  // The office holding an asset (US-14), named as it is now.
+  const officeIds = [...new Set(listed.flatMap(({ a }) => (a.holderOfficeId ? [a.holderOfficeId] : [])))];
+  const offices = new Map(
+    (officeIds.length > 0
+      ? await db.office.findMany({ where: { id: { in: officeIds } }, select: { id: true, name: true } })
+      : []
+    ).map((o) => [o.id, o]),
+  );
 
   return {
     entity,
@@ -144,6 +152,7 @@ export async function fiscalYearView(entity: Entity, year: number, authorization
       description: a.description,
       serialNumber: a.serialNumber,
       holder: a.holderUserId ? identity(a.holderUserId) : null,
+      office: a.holderOfficeId ? (offices.get(a.holderOfficeId) ?? null) : null,
       purchasePriceCents: a.purchasePriceCents,
       openingCents: r.openingCents,
       purchaseCents: r.purchaseCents,

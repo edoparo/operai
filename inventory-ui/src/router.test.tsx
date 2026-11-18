@@ -53,7 +53,7 @@ describe('router structure', () => {
       .sort()
 
     expect(childPaths).toEqual(
-      ['/', '/assets', '/assets/new', '/assets/$id', '/rules', '/years', '/years/$entity/$year'].sort(),
+      ['/', '/assets', '/assets/new', '/assets/$id', '/offices', '/rules', '/years', '/years/$entity/$year'].sort(),
     )
   })
 
@@ -78,6 +78,7 @@ describe('the six routes and the not-found route render client-side', () => {
     ['/assets/new', 'inventory-register-asset-page'],
     ['/assets/a-1', 'inventory-asset-detail-page'],
     ['/rules', 'inventory-rules-page'],
+    ['/offices', 'inventory-offices-page'],
     ['/years', 'inventory-fiscal-years-page'],
     ['/years/welld_ch/2025', 'inventory-fiscal-year-detail-page'],
     ['/no/such/path', 'inventory-not-found-page'],

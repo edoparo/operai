@@ -11,9 +11,15 @@ import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-li
 import { ApiError } from '../lib/api'
 import type { AssetView, DirectoryUser } from '../lib/types'
 
-const { listDirectory, createAssignment } = vi.hoisted(() => ({ listDirectory: vi.fn(), createAssignment: vi.fn() }))
+const { listDirectory, createAssignment, assignToOffice, listOffices } = vi.hoisted(() => ({
+  listDirectory: vi.fn(),
+  createAssignment: vi.fn(),
+  assignToOffice: vi.fn(),
+  listOffices: vi.fn(),
+}))
 vi.mock('../lib/directoryApi', () => ({ listDirectory }))
-vi.mock('../lib/assignmentsApi', () => ({ createAssignment }))
+vi.mock('../lib/assignmentsApi', () => ({ createAssignment, assignToOffice }))
+vi.mock('../lib/officesApi', () => ({ listOffices }))
 
 import AssignDialog from './AssignDialog'
 
@@ -61,6 +67,18 @@ const pick = async (name: string) => {
 beforeEach(() => {
   listDirectory.mockResolvedValue({ users: USERS })
   createAssignment.mockResolvedValue({ ...asset, pendingAssignment: { id: 'p1' } })
+  listOffices.mockResolvedValue({
+    items: [
+      { id: 'o1', name: 'CH - Agno', entity: 'welld_ch', archived: false, assetCount: 1 },
+      { id: 'o2', name: 'CH - Lugano', entity: 'welld_ch', archived: true, assetCount: 0 },
+      { id: 'o3', name: 'YoRoom - Milano', entity: 'welld_it', archived: false, assetCount: 0 },
+    ],
+  })
+  assignToOffice.mockResolvedValue({
+    ...asset,
+    status: 'assigned',
+    office: { id: 'o1', name: 'CH - Agno' },
+  })
   window.scrollTo = () => undefined
 })
 
@@ -76,7 +94,7 @@ describe('the picker', () => {
     expect(within(dialog).getByRole('heading', { name: 'Assign asset' })).not.toBeNull()
     expect(dialog.getAttribute('aria-describedby')).not.toBeNull()
     expect(document.getElementById(dialog.getAttribute('aria-describedby')!)!.textContent).toContain('MacBook Pro 14')
-    expect(document.activeElement).toBe(picker())
+    expect(document.activeElement).toBe(screen.getByRole('radio', { name: 'Employee' }))
   })
 
   it('shows a loading line inside the list while the directory loads, and announces it', async () => {
@@ -277,5 +295,69 @@ describe('failures', () => {
     expect((await screen.findByTestId('assign-asset-error')).textContent).toContain('Could not reach the server')
     expect(picker().value).toBe('Anna Rossi')
     expect(submit().disabled).toBe(false)
+  })
+})
+
+describe('assigning to an office', () => {
+  const chooseOffice = async () => {
+    await renderDialog()
+    fireEvent.click(screen.getByRole('radio', { name: 'Office' }))
+    return (await screen.findByLabelText(/^Office/, { selector: 'select' })) as HTMLSelectElement
+  }
+
+  it('defaults to Employee and makes no office request until Office is chosen', async () => {
+    await renderDialog()
+    expect((screen.getByRole('radio', { name: 'Employee' }) as HTMLInputElement).checked).toBe(true)
+    expect(listOffices).not.toHaveBeenCalled()
+  })
+
+  it('offers only non-archived offices with their entity, and no Assign until one is picked', async () => {
+    const select = await chooseOffice()
+    await waitFor(() => expect(select.options.length).toBeGreaterThan(1))
+
+    expect(Array.from(select.options).map((o) => o.textContent)).toEqual([
+      'Choose an office',
+      'CH - Agno, WellD CH',
+      'YoRoom - Milano, WellD Italia',
+    ])
+    expect(submit().disabled).toBe(true)
+  })
+
+  it('posts the office assignment straight away and reports the updated asset', async () => {
+    const select = await chooseOffice()
+    await waitFor(() => expect(select.options.length).toBeGreaterThan(1))
+    fireEvent.change(select, { target: { value: 'o1' } })
+    fireEvent.click(submit())
+
+    await waitFor(() => expect(assignToOffice).toHaveBeenCalledWith('a1', 'o1'))
+    expect(createAssignment).not.toHaveBeenCalled()
+    await waitFor(() =>
+      expect(onAssigned).toHaveBeenCalledWith(
+        expect.objectContaining({ office: expect.objectContaining({ id: 'o1' }) }),
+      ),
+    )
+  })
+
+  it('office_not_found keeps the dialog open, says so and reloads the offices', async () => {
+    assignToOffice.mockRejectedValue(new ApiError({ status: 422, title: 'Unprocessable', code: 'office_not_found' }))
+    const select = await chooseOffice()
+    await waitFor(() => expect(select.options.length).toBeGreaterThan(1))
+    fireEvent.change(select, { target: { value: 'o1' } })
+    fireEvent.click(submit())
+
+    expect((await screen.findByRole('alert')).textContent).toContain('no longer exists or has been archived')
+    expect(onConflict).not.toHaveBeenCalled()
+    await waitFor(() => expect(listOffices).toHaveBeenCalledTimes(2))
+  })
+
+  it('a stale asset (invalid_transition) goes to the page', async () => {
+    const error = new ApiError({ status: 409, title: 'Conflict', code: 'invalid_transition' })
+    assignToOffice.mockRejectedValue(error)
+    const select = await chooseOffice()
+    await waitFor(() => expect(select.options.length).toBeGreaterThan(1))
+    fireEvent.change(select, { target: { value: 'o1' } })
+    fireEvent.click(submit())
+
+    await waitFor(() => expect(onConflict).toHaveBeenCalledWith(error))
   })
 })

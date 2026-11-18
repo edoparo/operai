@@ -24,6 +24,9 @@ const en = {
     /** A `holderUserId` in the URL that the directory does not list (e.g. a deleted account). */
     holderUnknown: 'Unknown user',
     holderLoading: 'Loading users…',
+    office: 'Office',
+    officeAny: 'Any office',
+    officeUnknown: 'Unknown office',
     clear: 'Clear filters',
   },
 
@@ -50,6 +53,8 @@ const en = {
   toVerifyChip: 'To verify',
   awaitingConfirmation: 'Awaiting confirmation',
   noHolder: '—',
+  /** Prefix of the visually hidden text beside the office icon: "Office: CH - Agno". */
+  officeLabel: 'Office',
   holderDeleted: 'Deleted account',
   holderUnknown: 'Unknown',
   holderSystem: 'System',
@@ -91,6 +96,9 @@ const it: typeof en = {
     holderAny: 'Tutti gli assegnatari',
     holderUnknown: 'Utente sconosciuto',
     holderLoading: 'Caricamento utenti…',
+    office: 'Ufficio',
+    officeAny: 'Tutti gli uffici',
+    officeUnknown: 'Ufficio sconosciuto',
     clear: 'Azzera filtri',
   },
 
@@ -115,6 +123,7 @@ const it: typeof en = {
   toVerifyChip: 'Da verificare',
   awaitingConfirmation: 'In attesa di conferma',
   noHolder: '—',
+  officeLabel: 'Ufficio',
   holderDeleted: 'Account eliminato',
   holderUnknown: 'Sconosciuto',
   holderSystem: 'Sistema',

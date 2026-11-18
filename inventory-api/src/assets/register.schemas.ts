@@ -62,6 +62,7 @@ export const AssetViewSchema = z
     purchasePriceCents: z.number().int(),
     status: z.enum(["ordered", "in_stock", "assigned", "in_repair", "lost", "disposed"]),
     holder: IdentitySchema.nullable(),
+    office: z.object({ id: z.string(), name: z.string() }).nullable(),
     pendingAssignment: z
       .object({ id: z.string(), assignee: IdentitySchema, createdAt: z.string() })
       .nullable(),
