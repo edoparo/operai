@@ -61,6 +61,8 @@ describe('whereOf: a pointer in words', () => {
     ['/variants/first', 'first page'],
     ['/variants/default/footer', 'default page, footer'],
     ['/variants/default/header/valign', 'default page, header, alignment'],
+    ['/variants/default/header/gapMm', 'default page, header, distance from the body'],
+    ['/variants/last/footer/gapMm', 'last page, footer, distance from the body'],
     ['/variants/last/footer/rule/thicknessPt', 'last page, footer, rule, thickness'],
     ['/variants/default/footer/left', 'default page, footer, left zone'],
     ['/variants/first/footer/left/1/text/en', 'first page, footer, left zone, line 2, English text'],
@@ -111,6 +113,10 @@ describe('describeProblem: a sentence for each reason of the closed list of eigh
     expect(say('/variants/default/logo/heightMm', 'out_of_range')).toContain(
       `${logoHeightMm.min} and ${logoHeightMm.max} mm`,
     )
+    expect(say('/variants/default/header/gapMm', 'out_of_range')).toBe(
+      'Default page, header, distance from the body: use a number between 0 and 40 mm.',
+    )
+    expect(say('/variants/first/footer/gapMm', 'not_a_number')).toContain('footer, distance from the body')
   })
 
   it('falls back to the generic sentence for an out-of-range value it has no bounds for', () => {
@@ -144,7 +150,7 @@ describe('describeProblem: a sentence for each reason of the closed list of eigh
       `Left margin: the body area would be smaller than ${catalog.bounds.bodyMinWidthMm} × ${catalog.bounds.bodyMinHeightMm} mm. Reduce the margins.`,
     )
     expect(say('/variants/default/header', 'header_overflow')).toBe(
-      `Default page, header: it does not fit the top margin, checked with every placeholder replaced by ${catalog.bounds.fitTestValueChars} characters. Raise the top margin, shorten the text or use fewer lines.`,
+      `Default page, header: it does not fit the top margin, checked with every placeholder replaced by ${catalog.bounds.fitTestValueChars} characters. Raise the top margin, shorten the text, use fewer lines or reduce its distance from the body.`,
     )
     expect(say('/variants/last/footer', 'footer_overflow')).toContain('does not fit the bottom margin')
     // A header with a logo: the logo's height is named, since it is the likely cause (often the only thing there).
@@ -152,7 +158,7 @@ describe('describeProblem: a sentence for each reason of the closed list of eigh
     withLogo.variants.default.logo = { asset: 'a', position: 'left', heightMm: 20 }
     withLogo.variants.default.header.left = []
     expect(describeProblem({ path: '/variants/default/header', reason: 'header_overflow' }, catalog, withLogo)).toBe(
-      'Default page, header: the logo (20 mm high) and the header lines do not fit the top margin. Raise the top margin, lower the logo or use fewer lines.',
+      'Default page, header: the logo (20 mm high) and the header lines do not fit the top margin. Raise the top margin, lower the logo, use fewer lines or reduce the header’s distance from the body.',
     )
     withLogo.variants.default.logo = null
     expect(
@@ -255,6 +261,9 @@ describe('comparePointers: the page order', () => {
     expect(at('/fonts/frame')).toBeLessThan(at('/look/headings/0/size'))
     expect(at('/look/body/lineSpacing')).toBeLessThan(at('/look/table/headerFill'))
     expect(at('/look/bulletMarker')).toBeLessThan(at('/variants/default/header/valign'))
+    // The distance sits under the alignment and above the rule, as its control does.
+    expect(at('/variants/default/header/valign')).toBeLessThan(at('/variants/default/header/gapMm'))
+    expect(at('/variants/default/header/gapMm')).toBeLessThan(at('/variants/default/header/rule/show'))
     expect(at('/variants/default/footer/right/0/color')).toBeLessThan(at('/variants/default/logo/asset'))
     expect(at('/variants/default/background')).toBeLessThan(at('/variants/first/header/valign'))
   })

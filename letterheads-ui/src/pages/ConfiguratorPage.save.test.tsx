@@ -236,6 +236,107 @@ describe('Save as version n+1 (F7.1, F7.2; AC-4.1)', () => {
   })
 })
 
+describe('the distance of a header or footer from the body (gapMm)', () => {
+  const frame = (name: 'header' | 'footer') =>
+    document.querySelector(`[data-frame="/variants/default/${name}"]`) as HTMLElement
+  const gap = (name: 'header' | 'footer') =>
+    within(frame(name)).getByRole('textbox', { name: 'Distance from the body (mm)' }) as HTMLInputElement
+  const typeGap = async (name: 'header' | 'footer', value: string) => {
+    await userEvent.clear(gap(name))
+    await userEvent.type(gap(name), value)
+  }
+
+  it('is a labelled input of each frame, 3 mm to begin with, and is sent with the configuration', async () => {
+    await renderPage({ routes: { [`POST ${VERSIONS}`]: () => created(4) } })
+    expect(gap('header').value).toBe('3')
+    expect(gap('footer').value).toBe('3')
+    expect(status()).toBe('No unsaved changes')
+    await typeGap('header', '12.5')
+    expect(status()).toBe('Unsaved changes')
+    await userEvent.click(save())
+    await screen.findByTestId('letterheads-saved')
+    const { config } = sentBodies()[0]
+    expect(config.variants.default.header.gapMm).toBe(12.5)
+    expect(config.variants.default.footer.gapMm).toBe(3)
+  })
+
+  it('opens a version stored without it at 3 mm, unchanged, and sends 3 with the next save', async () => {
+    const stored = defaultConfigFixture() as unknown as {
+      variants: { default: Record<string, Record<string, unknown>> }
+    }
+    delete stored.variants.default.header.gapMm
+    delete stored.variants.default.footer.gapMm
+    await renderPage({
+      routes: {
+        ...versionRoute('welld_it', 3, stored as unknown as FormConfig),
+        [`POST ${VERSIONS}`]: () => created(4),
+      },
+    })
+    expect(gap('header').value).toBe('3')
+    expect(gap('footer').value).toBe('3')
+    expect(status()).toBe('No unsaved changes')
+    await edit('Top', '26')
+    await userEvent.click(save())
+    await screen.findByTestId('letterheads-saved')
+    const { config } = sentBodies()[0]
+    expect(config.variants.default.header.gapMm).toBe(3)
+    expect(config.variants.default.footer.gapMm).toBe(3)
+  })
+
+  it('shows the refusal of the service on the field it names, with the range, and focus goes there', async () => {
+    await renderPage({
+      routes: {
+        [`POST ${VERSIONS}`]: () =>
+          refusal({ path: '/variants/default/header/gapMm', reason: 'out_of_range', name: 'gapMm' }),
+      },
+    })
+    await typeGap('header', '41')
+    await userEvent.click(save())
+    const summary = await screen.findByTestId('letterheads-summary')
+    expect(within(summary).getByTestId('letterheads-summary-item').textContent).toBe(
+      'Default page, header, distance from the body: use a number between 0 and 40 mm.',
+    )
+    const field = gap('header')
+    await waitFor(() => expect(document.activeElement).toBe(field))
+    expect(field.getAttribute('aria-invalid')).toBe('true')
+    const described = field
+      .getAttribute('aria-describedby')!
+      .split(' ')
+      .map((id) => document.getElementById(id)?.textContent)
+      .join(' ')
+    expect(described).toContain('use a number between 0 and 40 mm.')
+    // The footer's own field is not marked.
+    expect(gap('footer').getAttribute('aria-invalid')).toBeNull()
+    // Editing the field takes its refusal away.
+    await typeGap('header', '10')
+    expect(gap('header').getAttribute('aria-invalid')).toBeNull()
+  })
+
+  it('names the frame for a distance that pushes the header out of its margin', async () => {
+    await renderPage({
+      routes: { [`POST ${VERSIONS}`]: () => refusal({ path: '/variants/default/header', reason: 'header_overflow' }) },
+    })
+    await typeGap('header', '40')
+    await userEvent.click(save())
+    const summary = await screen.findByTestId('letterheads-summary')
+    expect(within(summary).getByTestId('letterheads-summary-item').textContent).toContain(
+      'reduce its distance from the body',
+    )
+  })
+
+  it('has no accessibility violation with its refusal showing', async () => {
+    await renderPage({
+      routes: {
+        [`POST ${VERSIONS}`]: () => refusal({ path: '/variants/default/footer/gapMm', reason: 'out_of_range' }),
+      },
+    })
+    await typeGap('footer', '99')
+    await userEvent.click(save())
+    await screen.findByTestId('letterheads-summary')
+    expect(await axeViolations(document.body)).toEqual([])
+  })
+})
+
 describe('a refused save (F7.3, S4; AC-8.3)', () => {
   // In the order the service found them, which is not the order of the page.
   const problems = [
@@ -440,7 +541,7 @@ describe('a refused save (F7.3, S4; AC-8.3)', () => {
     await userEvent.click(save())
     const summary = await screen.findByTestId('letterheads-summary')
     const sentence =
-      'Default page, header: the logo (12.7 mm high) and the header lines do not fit the top margin. Raise the top margin, lower the logo or use fewer lines.'
+      'Default page, header: the logo (12.7 mm high) and the header lines do not fit the top margin. Raise the top margin, lower the logo, use fewer lines or reduce the header’s distance from the body.'
     expect(within(summary).getByTestId('letterheads-summary-item').textContent).toBe(sentence)
     const height = byPointer('/variants/default/logo/heightMm')
     expect(height.getAttribute('aria-invalid')).toBe('true')

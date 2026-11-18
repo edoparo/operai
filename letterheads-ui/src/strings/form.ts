@@ -56,6 +56,9 @@ const en = {
     top: 'Top',
     bottom: 'Bottom',
     valignHint: 'Bottom lines up a one-line zone with the last line of a longer one.',
+    gap: 'Distance from the body (mm)',
+    gapHint: (min: number, max: number) =>
+      `Between ${min} and ${max} mm. The header or footer keeps this far from the body text; with it, it must fit its margin.`,
     placeholdersHint:
       'Placeholders such as {page} and {pages} are described in "Placeholders and special characters" above.',
   },
@@ -156,6 +159,9 @@ const it: typeof en = {
     top: 'Alto',
     bottom: 'Basso',
     valignHint: "«Basso» allinea una zona di una riga all'ultima riga di una più lunga.",
+    gap: 'Distanza dal testo (mm)',
+    gapHint: (min: number, max: number) =>
+      `Tra ${min} e ${max} mm. L’intestazione o il piè di pagina resta a questa distanza dal testo; con essa deve stare nel suo margine.`,
     placeholdersHint:
       'I segnaposto come {page} e {pages} sono descritti in «Segnaposto e caratteri speciali» qui sopra.',
   },

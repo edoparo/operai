@@ -78,6 +78,7 @@ function FrameSection({
   // A `group`, not a `section`: three cards hold a Header and a Footer each, and landmarks must have distinct names.
   const headingId = useId()
   const errorId = `${headingId}-error`
+  const { catalog } = useForm()
   const at = pointerOf('variants', variantName, frameName)
   // A refusal of the frame as a whole (it does not fit its margin) sits under the heading and describes the first control.
   const frameError = useFieldError(at)
@@ -104,6 +105,13 @@ function FrameSection({
           { value: 'top', label: strings.form.frame.top },
           { value: 'bottom', label: strings.form.frame.bottom },
         ]}
+      />
+      <NumberField
+        className="w-40"
+        label={strings.form.frame.gap}
+        hint={strings.form.frame.gapHint(catalog.bounds.gapMm.min, catalog.bounds.gapMm.max)}
+        pointer={`${at}/gapMm`}
+        value={frame.gapMm}
       />
       <div className="flex flex-wrap items-end gap-x-4 gap-y-3">
         <BoolField

@@ -157,6 +157,53 @@ describe('formReducer: baseline and dirty', () => {
     expect(isDirty(loaded)).toBe(false)
   })
 
+  it('a version stored without the distance from the body opens with the catalog’s 3 mm, and is not dirty for it', () => {
+    const stored = fullConfigFixture() as unknown as {
+      variants: Record<'default' | 'first' | 'last', Record<'header' | 'footer', Record<string, unknown>>>
+    }
+    for (const name of ['default', 'first', 'last'] as const) {
+      delete stored.variants[name].header.gapMm
+      delete stored.variants[name].footer.gapMm
+    }
+    const state = start(stored as unknown as FormConfig)
+    for (const name of ['default', 'first', 'last'] as const) {
+      expect(state.config.variants[name]?.header.gapMm).toBe(3)
+      expect(state.config.variants[name]?.footer.gapMm).toBe(3)
+    }
+    expect(isDirty(state)).toBe(false)
+    // The control's pointer now exists, so a change lands.
+    const changed = run(state, { type: 'set', pointer: '/variants/first/header/gapMm', value: 7 })
+    expect(changed.config.variants.first?.header.gapMm).toBe(7)
+    expect(isDirty(changed)).toBe(true)
+    // A stored value is kept, and so is an absent first or last page.
+    const kept = fullConfigFixture()
+    kept.variants.default.header.gapMm = 11
+    kept.variants.last = null
+    const again = start(kept)
+    expect(again.config.variants.default.header.gapMm).toBe(11)
+    expect(again.config.variants.last).toBeNull()
+    // Loading a version does the same.
+    const loaded = run(start(), { type: 'loaded', config: stored as unknown as FormConfig })
+    expect(loaded.config.variants.default.footer.gapMm).toBe(3)
+    expect(isDirty(loaded)).toBe(false)
+  })
+
+  it('a typed distance is held as typed, so the service, not the form, refuses it', () => {
+    const state = run(
+      start(),
+      { type: 'set', pointer: '/variants/default/header/gapMm', value: parseNumber('4,5') },
+      { type: 'set', pointer: '/variants/default/footer/gapMm', value: parseNumber('far') },
+    )
+    expect(state.config.variants.default.header.gapMm).toBe(4.5)
+    expect(state.config.variants.default.footer.gapMm).toBe('far')
+  })
+
+  it('refuses a catalog that has no bound for the distance (an older service)', () => {
+    const old = catalogFixture() as unknown as { bounds: Record<string, unknown> }
+    delete old.bounds.gapMm
+    expect(readCatalog(old as unknown as ReturnType<typeof catalogFixture>)).toBeNull()
+  })
+
   it('saved makes the form clean without touching what is shown', () => {
     const edited = run(start(), { type: 'set', pointer: '/margins/top', value: 30 })
     const saved = run(edited, { type: 'saved', config: edited.config })
@@ -247,6 +294,7 @@ describe('formReducer: the lines of a zone', () => {
     bare.variants.default.footer = { ...bare.variants.default.footer, left: [], right: [] }
     const nothingToCopy = createFormState(bare, {
       maxLines: 4,
+      defaultGapMm: 3,
       fallbackLook: { size: 6, bold: false, color: '000000' },
     })
     const state = run(nothingToCopy, { type: 'lineAdded', zone: '/variants/default/header/left' })
@@ -341,7 +389,7 @@ describe('formReducer: the first and last page (design F6)', () => {
 
 describe('readCatalog', () => {
   it('narrows the answer of the service', () => {
-    expect(catalog.fonts).toEqual(['DM Sans', 'DM Mono', 'Syne', 'Ubuntu', 'Noto Serif'])
+    expect(catalog.fonts).toEqual(['DM Sans', 'DM Mono', 'Syne', 'Ubuntu', 'Noto Serif', 'Inter'])
     expect(catalog.bounds.maxLinesPerZone).toBe(4)
     expect(catalog.defaultConfig.variants.default.footer.left).toHaveLength(2)
   })

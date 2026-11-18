@@ -232,6 +232,75 @@ describe('VariantCard: Background image (AC-7.7)', () => {
   })
 })
 
+describe('VariantCard: distance from the body', () => {
+  const frame = (name: 'header' | 'footer') =>
+    document.querySelector(`[data-frame="/variants/default/${name}"]`) as HTMLElement
+  const gap = (name: 'header' | 'footer') =>
+    within(frame(name)).getByRole('textbox', { name: 'Distance from the body (mm)' }) as HTMLInputElement
+
+  it('is a labelled number input in the header and in the footer, 3 mm to begin with, with its range as a hint', () => {
+    renderCard()
+    for (const name of ['header', 'footer'] as const) {
+      const field = gap(name)
+      expect(field.value).toBe('3')
+      expect(field.getAttribute('data-pointer')).toBe(`/variants/default/${name}/gapMm`)
+      expect(field.getAttribute('inputmode')).toBe('decimal')
+      expect(document.getElementById(field.getAttribute('aria-describedby')!)?.textContent).toContain(
+        'Between 0 and 40 mm.',
+      )
+    }
+  })
+
+  it('changing it changes that frame only, and makes the form dirty; typing the value back makes it clean', async () => {
+    renderCard()
+    await userEvent.clear(gap('header'))
+    await userEvent.type(gap('header'), '8.5')
+    expect(latest.config.variants.default.header.gapMm).toBe(8.5)
+    expect(latest.config.variants.default.footer.gapMm).toBe(3)
+    expect(isDirty(latest)).toBe(true)
+    await userEvent.clear(gap('header'))
+    await userEvent.type(gap('header'), '3')
+    expect(isDirty(latest)).toBe(false)
+  })
+
+  it('keeps what is typed when it is not a number, for the service to refuse', async () => {
+    renderCard()
+    await userEvent.clear(gap('footer'))
+    await userEvent.type(gap('footer'), 'abc')
+    expect(latest.config.variants.default.footer.gapMm).toBe('abc')
+    expect(gap('footer').value).toBe('abc')
+  })
+
+  it('is on the first and last page too, with their own values', () => {
+    const config = fullConfigFixture()
+    config.variants.first!.header.gapMm = 6
+    renderCard('first', { config })
+    const field = within(document.querySelector('[data-frame="/variants/first/header"]') as HTMLElement).getByRole(
+      'textbox',
+      { name: 'Distance from the body (mm)' },
+    ) as HTMLInputElement
+    expect(field.value).toBe('6')
+  })
+
+  it('shows the refusal of the service on the field, and has no accessibility violation', async () => {
+    renderCard('default', {
+      problems: [{ path: '/variants/default/header/gapMm', reason: 'out_of_range', name: 'gapMm' }],
+    })
+    const field = gap('header')
+    expect(field.getAttribute('aria-invalid')).toBe('true')
+    expect(gap('footer').getAttribute('aria-invalid')).toBeNull()
+    expect(document.getElementById(field.getAttribute('aria-describedby')!.split(' ').at(-1)!)?.textContent).toBe(
+      'refused',
+    )
+    expect(await axeViolations(document.body)).toEqual([])
+  })
+
+  it('is disabled in a read-only form', () => {
+    renderCard('default', { readOnly: true })
+    expect(gap('header').matches(':disabled')).toBe(true)
+  })
+})
+
 describe('VariantCard: the other pages and the modes', () => {
   it('a first page that is switched off shows no file field; switched on it has its own, for its own slots', async () => {
     renderCard('first')

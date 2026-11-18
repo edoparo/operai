@@ -25,7 +25,7 @@ const en = {
   segment:
     'Text in square brackets around placeholders prints only when every placeholder in it has a value. [VAT: {vat}] prints "VAT: CHE-123.456.789" when a VAT number is sent, and nothing at all, label included, when it is not. A segment needs at least one placeholder and cannot hold another segment.',
   fit: (chars: number) =>
-    `A header or footer must fit its margin. When you save, the service checks it with every placeholder replaced by a ${chars}-character value, and tells you which one does not fit. Raise the margin, shorten the text or use fewer lines.`,
+    `A header or footer must fit its margin. When you save, the service checks it with every placeholder replaced by a ${chars}-character value, and tells you which one does not fit. Raise the margin, shorten the text, use fewer lines or reduce the distance from the body.`,
   lines: (max: number, min: number, top: number) =>
     `Each zone holds up to ${max} lines. Each line has its own size (${min} to ${top} pt), weight and colour.`,
   placeholdersLabel: 'Placeholders',
@@ -55,7 +55,7 @@ const it: typeof en = {
   segment:
     'Il testo tra parentesi quadre attorno a dei segnaposto viene stampato solo se ogni segnaposto al suo interno ha un valore. [P.IVA: {vat}] stampa «P.IVA: CHE-123.456.789» quando la partita IVA è presente, e niente affatto, etichetta compresa, quando manca. Un segmento richiede almeno un segnaposto e non può contenerne un altro.',
   fit: (chars: number) =>
-    `Intestazione e piè di pagina devono stare nel loro margine. Al salvataggio il servizio li controlla con ogni segnaposto sostituito da un valore di ${chars} caratteri e indica quale non ci sta. Aumenta il margine, accorcia il testo o usa meno righe.`,
+    `Intestazione e piè di pagina devono stare nel loro margine. Al salvataggio il servizio li controlla con ogni segnaposto sostituito da un valore di ${chars} caratteri e indica quale non ci sta. Aumenta il margine, accorcia il testo, usa meno righe o riduci la distanza dal testo.`,
   lines: (max: number, min: number, top: number) =>
     `Ogni zona contiene al massimo ${max} righe. Ogni riga ha la propria dimensione (da ${min} a ${top} pt), peso e colore.`,
   placeholdersLabel: 'Segnaposto',

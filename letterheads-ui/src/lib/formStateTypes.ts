@@ -45,6 +45,8 @@ export interface FormRule {
 
 export interface FormFrame {
   valign: Valign
+  /** The distance between the frame and the body, in mm. */
+  gapMm: NumberValue
   rule: FormRule
   left: FormLine[]
   center: FormLine[]
@@ -105,6 +107,7 @@ export interface CatalogBounds {
   fitTestValueChars: number
   lineSizePt: Range
   ruleThicknessPt: Range
+  gapMm: Range
   headingLevels: number
   headingSizePt: Range
   bodySizePt: Range
@@ -137,6 +140,7 @@ const RANGE_BOUNDS = [
   'marginMm',
   'lineSizePt',
   'ruleThicknessPt',
+  'gapMm',
   'headingSizePt',
   'bodySizePt',
   'lineSpacing',

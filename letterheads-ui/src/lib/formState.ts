@@ -129,6 +129,8 @@ export interface LineLook {
 export interface FormLimits {
   /** `bounds.maxLinesPerZone` of the catalog. */
   maxLines: number
+  /** The distance of a frame from the body that a stored version without one has: the catalog's starting value. */
+  defaultGapMm: number
   /** The look of a line when its frame has no line to copy from: taken from the catalog's `defaultConfig`. */
   fallbackLook: LineLook
 }
@@ -177,11 +179,35 @@ function anyLineLook(config: FormConfig, fallback: LineLook): LineLook {
 /** The limits the form needs from the catalog: the line count, and a look for a line with nothing to copy. */
 export function limitsFromCatalog(maxLinesPerZone: number, lineSizePt: Range, defaultConfig: FormConfig): FormLimits {
   const fallback: LineLook = { size: lineSizePt.min, bold: false, color: '000000' }
-  return { maxLines: maxLinesPerZone, fallbackLook: anyLineLook(defaultConfig, fallback) }
+  const gap = defaultConfig.variants.default.header.gapMm
+  return {
+    maxLines: maxLinesPerZone,
+    defaultGapMm: typeof gap === 'number' ? gap : FALLBACK_GAP_MM,
+    fallbackLook: anyLineLook(defaultConfig, fallback),
+  }
+}
+
+/** Only if the catalog's own starting configuration lacks a distance (it does not): what layout 1 always drew. */
+const FALLBACK_GAP_MM = 3
+
+/**
+ * A version stored before frames had a distance from the body has none in its JSON, and the service reads
+ * that as the starting value. The form shows that value and sends it, so the field is never empty and a
+ * stored version is not "changed" by being opened: the baseline and the configuration are given it alike.
+ */
+export function withFrameGaps(config: FormConfig, gapMm: number): FormConfig {
+  const frame = (value: FormFrame): FormFrame => (value.gapMm === undefined ? { ...value, gapMm } : value)
+  const variant = (value: FormVariant | null): FormVariant | null =>
+    value === null || value === undefined
+      ? value
+      : { ...value, header: frame(value.header), footer: frame(value.footer) }
+  const { default: base, first, last } = config.variants
+  return { ...config, variants: { default: variant(base) as FormVariant, first: variant(first), last: variant(last) } }
 }
 
 export function createFormState(config: FormConfig, limits: FormLimits): FormState {
-  return { baseline: config, config, kept: { first: null, last: null }, problems: {}, limits }
+  const filled = withFrameGaps(config, limits.defaultGapMm)
+  return { baseline: filled, config: filled, kept: { first: null, last: null }, problems: {}, limits }
 }
 
 export const isDirty = (state: FormState): boolean => !deepEqual(state.config, state.baseline)
@@ -268,14 +294,16 @@ export function formReducer(state: FormState, action: FormAction): FormState {
     case 'problemsSet':
       return { ...state, problems: groupByPath(action.problems) }
 
-    case 'loaded':
+    case 'loaded': {
+      const config = withFrameGaps(action.config, state.limits.defaultGapMm)
       return {
         ...state,
-        baseline: action.config,
-        config: action.config,
+        baseline: config,
+        config,
         kept: { first: null, last: null },
         problems: {},
       }
+    }
 
     case 'saved':
       return { ...state, baseline: action.config }

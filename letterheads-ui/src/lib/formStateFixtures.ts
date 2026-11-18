@@ -15,6 +15,7 @@ const line = (text: string, size: number, bold: boolean, color: string): FormLin
 
 const emptyFrame = (show: boolean): FormVariant['header'] => ({
   valign: 'top',
+  gapMm: 3,
   rule: { show, thicknessPt: 0.5, color: 'c9cad1' },
   left: [],
   center: [],
@@ -40,6 +41,7 @@ export const defaultConfigFixture = (): FormConfig => ({
       header: emptyFrame(false),
       footer: {
         valign: 'bottom',
+        gapMm: 3,
         rule: { show: true, thicknessPt: 0.5, color: 'c9cad1' },
         left: [line('{legal_name}', 9, true, '1f2430'), line('{address}', 8, false, '595c69')],
         center: [],
@@ -58,7 +60,7 @@ export const catalogFixture = (): Catalog => ({
   layoutVersion: 1,
   entities: ['welld_it', 'welld_ch'],
   languages: ['it', 'en'],
-  fonts: ['DM Sans', 'DM Mono', 'Syne', 'Ubuntu', 'Noto Serif'],
+  fonts: ['DM Sans', 'DM Mono', 'Syne', 'Ubuntu', 'Noto Serif', 'Inter'],
   placeholders: [
     { name: 'legal_name', perPage: false },
     { name: 'address', perPage: false },
@@ -86,6 +88,7 @@ export const catalogFixture = (): Catalog => ({
     fitTestValueChars: 40,
     lineSizePt: { min: 6, max: 14 },
     ruleThicknessPt: { min: 0.1, max: 5 },
+    gapMm: { min: 0, max: 40 },
     headingLevels: 3,
     headingSizePt: { min: 8, max: 24 },
     bodySizePt: { min: 8, max: 14 },
@@ -102,6 +105,7 @@ const BACKGROUND_ID = '9d7c6a41-52b3-4c0e-a7f4-6b1e2d3c4a55'
 /** A frame with one line in each zone and a visible rule. */
 const fullFrame = (name: string): FormVariant['header'] => ({
   valign: 'bottom',
+  gapMm: 3,
   rule: { show: true, thicknessPt: 0.75, color: 'e50339' },
   left: [
     {

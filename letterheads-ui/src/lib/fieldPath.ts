@@ -68,6 +68,7 @@ const PAGE_ORDER = [
   'logo',
   'background',
   'valign',
+  'gapMm',
   'rule',
   'top',
   'bottom',
@@ -148,6 +149,7 @@ function frameWords(segments: readonly string[], from: number): string[] {
   if (frame === undefined) return words
   words.push(frame)
   if (member === 'valign') words.push(w.valign)
+  else if (member === 'gapMm') words.push(w.gap)
   else if (member === 'rule') {
     words.push(w.rule.rule)
     const leaf = own({ show: w.rule.show, thicknessPt: w.rule.thickness, color: w.rule.colour }, a)
@@ -229,6 +231,7 @@ function rangeOf(path: string, bounds: FormCatalog['bounds']): Range | null {
   }
   if (first === 'variants') {
     if (third === 'logo' && fourth === 'heightMm') return mm(bounds.logoHeightMm)
+    if ((third === 'header' || third === 'footer') && fourth === 'gapMm') return mm(bounds.gapMm)
     if ((third === 'header' || third === 'footer') && fourth === 'rule' && fifth === 'thicknessPt') {
       return pt(bounds.ruleThicknessPt)
     }
