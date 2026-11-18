@@ -16,6 +16,7 @@ import type { ActivityTarget } from '../lib/activitiesApi'
 import type { Activity, PersonRef } from '../lib/types'
 import { fakeApi, page } from '../test-support/fakeApi'
 import type { FakeAnswer } from '../test-support/fakeApi'
+import { RouterWrapper } from '../test-support/RouterWrapper'
 
 const { apiFetch } = vi.hoisted(() => ({ apiFetch: vi.fn() }))
 vi.mock('shell/session', () => ({
@@ -131,7 +132,7 @@ const TARGETS: [string, ActivityTarget][] = [
 ]
 
 const showTimeline = (target: ActivityTarget) =>
-  render(<ActivityTimeline target={target} company={{ id: 'c1', name: 'Acme SA' }} />)
+  render(<ActivityTimeline target={target} company={{ id: 'c1', name: 'Acme SA' }} />, { wrapper: RouterWrapper })
 const rowOf = (id: string) => screen.getByTestId(`crm-activity-${id}`)
 
 /** Mine has recorded hours: its row now holds the widget's message. */

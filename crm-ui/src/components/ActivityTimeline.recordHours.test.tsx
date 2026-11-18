@@ -14,6 +14,7 @@ import ActivityTimeline from './ActivityTimeline'
 import type { ActivityTarget } from '../lib/activitiesApi'
 import type { Activity, PersonRef } from '../lib/types'
 import { fakeApi, page } from '../test-support/fakeApi'
+import { RouterWrapper } from '../test-support/RouterWrapper'
 
 const { apiFetch, extensionCalls } = vi.hoisted(() => ({
   apiFetch: vi.fn(),
@@ -98,7 +99,7 @@ describe('ActivityTimeline — Record hours on its task rows', () => {
     ['a contact’s page', { contactId: 'k1' }],
   ])('%s: offered on my tasks, the ones I take part in and my done ones, never elsewhere', async (_page, target) => {
     apiFetch.mockImplementation(fakeApi({ 'GET /activities': () => ({ status: 200, body: page(ITEMS) }) }))
-    render(<ActivityTimeline target={target} company={{ id: 'c1', name: 'Acme SA' }} />)
+    render(<ActivityTimeline target={target} company={{ id: 'c1', name: 'Acme SA' }} />, { wrapper: RouterWrapper })
 
     await screen.findByText('Send the offer')
     const rowOf = (id: string) => screen.getByTestId(`crm-activity-${id}`)
@@ -126,7 +127,9 @@ describe('ActivityTimeline — Record hours on its task rows', () => {
         }),
       }),
     )
-    render(<ActivityTimeline target={{ companyId: 'c1' }} company={{ id: 'c1', name: 'Acme SA' }} />)
+    render(<ActivityTimeline target={{ companyId: 'c1' }} company={{ id: 'c1', name: 'Acme SA' }} />, {
+      wrapper: RouterWrapper,
+    })
 
     await screen.findByText('Send the offer')
     await within(screen.getByTestId('crm-activity-no-deal')).findByTestId('hours-widget')

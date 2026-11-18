@@ -16,6 +16,7 @@ import { cleanup, render, screen, within } from '@testing-library/react'
 import type { ReactNode } from 'react'
 import ActivityItem from './ActivityItem'
 import type { Activity, ActivityTask, PersonRef } from '../lib/types'
+import { RouterWrapper } from '../test-support/RouterWrapper'
 
 const { session, extensionCalls } = vi.hoisted(() => ({
   session: { id: 'u-me' as string | null },
@@ -70,7 +71,7 @@ const noop = () => undefined
 const row = (activity: Activity) => (
   <ActivityItem key={activity.id} activity={activity} onChanged={noop} onEdit={noop} onDeleted={noop} />
 )
-const show = (...activities: Activity[]) => render(<>{activities.map(row)}</>)
+const show = (...activities: Activity[]) => render(<>{activities.map(row)}</>, { wrapper: RouterWrapper })
 
 /** The control: a task the signed-in person is assigned to. Its widget proves the seam has loaded. */
 const CONTROL = taskActivity({ id: 'control', subject: 'The control task' })
