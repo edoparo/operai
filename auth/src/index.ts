@@ -20,6 +20,11 @@ import { rolesRouter } from "./admin/roles.routes";
 import { usersRouter } from "./admin/users.routes";
 import { userAddressRouter } from "./admin/userAddress.routes";
 import { addressRouter } from "./profile/address.routes";
+import { legalEntityReadRouter } from "./legalEntities/read.routes";
+import { legalEntityHistoryRouter } from "./legalEntities/history.routes";
+import { legalEntityCheckRouter } from "./legalEntities/check.routes";
+import { legalEntityWriteRouter } from "./legalEntities/write.routes";
+import { createSystemLegalEntitiesRouter } from "./legalEntities/system.routes";
 import { healthRouter } from "./health/health.routes";
 import { inviteRouter } from "./invite/invite.routes";
 import { invitationsRouter } from "./invitations/invitations.routes";
@@ -29,11 +34,12 @@ import { signinRouter } from "./signin/signin.routes";
 import { createServiceTokenRouter, signWithAuth } from "./system/serviceToken.routes";
 import { createUserContactRouter, jwksFromAuth } from "./system/userContact.routes";
 import { createSelfServiceTokenProvider } from "./system/selfServiceToken";
-import { createSystemRateLimits } from "./system/systemRateLimits";
+import { createSystemRateLimits, LEGAL_ENTITIES_SERVICE_LIMIT } from "./system/systemRateLimits";
 import { setNotifyTokenProvider } from "./lib/notify";
 import { setupOpenAPI } from "./openapi/registry";
 
-const app = new OpenAPIHono();
+// Exported so `legalEntities/routerTable.test.ts` can read the real route table (AC-2.7).
+export const app = new OpenAPIHono();
 
 // ─── Middleware ───────────────────────────────────────────────────────────────
 
@@ -43,6 +49,8 @@ app.use(
     origin: env.ALLOWED_ORIGINS,
     allowHeaders: ["Content-Type", "Authorization"],
     allowMethods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+    // `Retry-After` is not CORS-safelisted: without this a cross-origin page cannot read the wait of a 429 (T74).
+    exposeHeaders: ["Retry-After"],
     credentials: true,
   }),
 );
@@ -72,18 +80,36 @@ app.route("/", rolesRouter);
 app.route("/", usersRouter);
 app.route("/", userAddressRouter);
 app.route("/", addressRouter);
+// The legal-entity registry, person read API (specs/20261117-legal-entities, T5). `/legal-entities/manageable` is
+// registered inside this router before `/legal-entities/{entity}` (E2).
+app.route("/", legalEntityReadRouter);
+// The history and the read-only version view (T7): GET only, each path with its own authentication and `no-store`.
+app.route("/", legalEntityHistoryRouter);
+// Save and restore (T8): POST only, per exact path, each with its own session, grant check and `no-store`. The registry
+// is append-only: there is no PUT, PATCH or DELETE under `/legal-entities` (`routerTable.test.ts` reads this table).
+app.route("/", legalEntityWriteRouter);
+// The dry run of a save (T55): POST only, its own exact path, read-only; shares the write router's limiter pair.
+app.route("/", legalEntityCheckRouter);
 app.route("/", invitationsRouter);
 app.route("/", accessRequestsRouter);
 app.route("/", inviteRouter);
 const signServiceJwt = signWithAuth(auth);
-// One set of limits for both /system endpoints: the invalid-credential count is shared (specs/20261111-push-notifications US-7, ADR 20261112-system-endpoints-limited-per-verified-service).
+// One set of limits for the /system endpoints: the invalid-credential count is shared (specs/20261111-push-notifications US-7, ADR 20261112-system-endpoints-limited-per-verified-service).
 const systemLimits = createSystemRateLimits();
 console.log(
   `[system] limits per ${env.SYSTEM_RATE_WINDOW_MS} ms: service-token ${env.SERVICE_TOKEN_SERVICE_LIMIT} per service, ` +
-    `users/contact ${env.USERS_CONTACT_SERVICE_LIMIT} per service, invalid credentials ${env.SYSTEM_INVALID_CREDENTIAL_LIMIT} per source`,
+    `users/contact ${env.USERS_CONTACT_SERVICE_LIMIT} per service, legal-entities ${LEGAL_ENTITIES_SERVICE_LIMIT} per service, ` +
+    `invalid credentials ${env.SYSTEM_INVALID_CREDENTIAL_LIMIT} per source`,
+);
+console.log(
+  `[legal-entities] limits per ${env.LEGAL_ENTITY_RATE_WINDOW_MS} ms: save+restore ${env.LEGAL_ENTITY_WRITE_RATE_LIMIT} per person, ` +
+    `check ${env.LEGAL_ENTITY_CHECK_RATE_LIMIT} per person`,
 );
 app.route("/", createServiceTokenRouter({ signJwt: signServiceJwt, limits: systemLimits }));
 app.route("/", createUserContactRouter({ getJwks: jwksFromAuth(auth), limits: systemLimits }));
+// The service read API of the legal-entity registry (specs/20261117-legal-entities, T6): the same limits object (one
+// shared invalid-credential count); its own key-set cache, so a re-read here never spends the contact route's cooldown.
+app.route("/", createSystemLegalEntitiesRouter({ getJwks: jwksFromAuth(auth), limits: systemLimits }));
 // `auth`'s own notify credential (specs/20261013-notify-service-credentials T7, ADR 20261013-auth-mints-own-service-credential-in-process): invitation emails
 // authenticate with it. Injected here, not imported by lib/notify.ts, so that
 // module never depends on auth.config (see serviceToken.routes.ts).
@@ -110,7 +136,13 @@ setupOpenAPI(app);
 // ─── Global error handler (RFC 7807 Problem JSON) ───────────────────────────
 
 app.onError((err: Error, c: Context) => {
-  console.error("[uncaught]", err);
+  // Name and code only (D9-3): a message or the object can carry a database call's arguments, an address among them.
+  const code = (err as { code?: unknown } | null)?.code;
+  console.error(
+    "[uncaught]",
+    err instanceof Error ? err.name : "UnknownError",
+    typeof code === "string" || typeof code === "number" ? code : "",
+  );
 
   const status =
     "status" in err && typeof (err as { status: number }).status === "number"

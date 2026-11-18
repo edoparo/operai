@@ -1,6 +1,20 @@
 import { describe, expect, test } from "bun:test";
+import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
 import { checkSuite, hasErrors, showValue, type Finding, type SuiteEnv } from "./check";
-import { BACKENDS, ORIGINS, SECRET_VARS, SERVICES, isSecretVar } from "./manifest";
+import {
+  BACKENDS,
+  LEGAL_ENTITY_NOTICE_EMAIL,
+  LEGAL_ENTITY_RATE_VARS,
+  LEGAL_ENTITY_WRITE_RATE_LIMIT_PRODUCTION_MAX,
+  ORIGINS,
+  REQUIRED_KEYS,
+  SECRET_VARS,
+  SERVICES,
+  isSecretVar,
+  legalEntityConfigProblems,
+} from "./manifest";
+import { parseEnvFile } from "./parse";
 
 const TOKEN = "x".repeat(40);
 const AUD = "operai-suite";
@@ -555,7 +569,7 @@ describe("env-doctor checker — meetings (specs/20261104-meetings)", () => {
       "estimai-api": { secret: CLIENT_SECRET_EST, scope: "notifications.push estimate-notices.send" },
       "refund-api": { secret: CLIENT_SECRET_REF, scope: "notifications.push emails.send" },
       // crm-api holds a client of its own since specs/20261103-projects-handoff (it reads projects-api), required in production.
-      "crm-api": { secret: "k".repeat(40), scope: "notifications.push emails.send deal-link-notices.send activities.write projects.purchase-orders.read letterhead:render" },
+      "crm-api": { secret: "k".repeat(40), scope: "notifications.push emails.send deal-link-notices.send activities.write projects.purchase-orders.read letterhead:render legal-entities:read" },
       "meetings-api": { secret, scope },
     });
 
@@ -842,7 +856,7 @@ describe("env-doctor checker — meetings (specs/20261104-meetings)", () => {
 const CLIENT_SECRET_PROJECTS = "p".repeat(40);
 const CLIENT_SECRET_CRM = "m".repeat(40);
 const PROJECTS_SCOPES = "crm.companies.read crm.deals.read crm.contacts.read estimai.estimates.read notifications.push";
-const CRM_SCOPES = "notifications.push emails.send deal-link-notices.send activities.write projects.purchase-orders.read letterhead:render";
+const CRM_SCOPES = "notifications.push emails.send deal-link-notices.send activities.write projects.purchase-orders.read letterhead:render legal-entities:read";
 const projectsRegistry = (scope = PROJECTS_SCOPES, crmScope = CRM_SCOPES) =>
   JSON.stringify({
     ...JSON.parse(registry(CLIENT_SECRET)),
@@ -1188,7 +1202,7 @@ describe("env-doctor checker — activities-api (specs/20261110-activities)", ()
   const CLIENT_SECRET_PRJ = "p".repeat(40);
   /** Only the findings about one service (the baseline has several services sharing key names). */
   const errsAbout = (f: Finding[], svc: string) => errs(f).filter((x) => x.scope === svc).map((x) => x.message).join(" | ");
-  const CRM_SCOPES = "notifications.push emails.send deal-link-notices.send activities.write projects.purchase-orders.read letterhead:render";
+  const CRM_SCOPES = "notifications.push emails.send deal-link-notices.send activities.write projects.purchase-orders.read letterhead:render legal-entities:read";
   const activitiesRegistry = (crmScope = CRM_SCOPES, actScope = "notifications.push emails.send") =>
     JSON.stringify({
       ...JSON.parse(registry(CLIENT_SECRET)),
@@ -1377,5 +1391,255 @@ describe("env-doctor checker — activities-api (specs/20261110-activities)", ()
 
   test("the service-client secret is redacted", () => {
     expect(isSecretVar("SERVICE_CLIENT_SECRET")).toBe(true);
+  });
+});
+
+// specs/20261117-legal-entities (T12, AC-3.2): the registry's service read takes the scope `legal-entities:read`. crm-api holds it
+// besides its other scopes; letterhead-api is a NEW service client holding exactly it. A scope listed on one side only fails.
+describe("env-doctor checker — legal-entities:read (specs/20261117-legal-entities)", () => {
+  const CLIENT_SECRET_CRM = "m".repeat(40);
+  const CLIENT_SECRET_ACT = "a".repeat(40);
+  const CLIENT_SECRET_PRJ = "p".repeat(40);
+  const CLIENT_SECRET_LH = "l".repeat(40);
+  const CRM_SCOPES = "notifications.push emails.send deal-link-notices.send activities.write projects.purchase-orders.read letterhead:render legal-entities:read";
+  const LH_SCOPES = "legal-entities:read";
+  /** Findings about one service only (the baseline has several services sharing key names). */
+  const errsAbout = (f: Finding[], svc: string) => errs(f).filter((x) => x.scope === svc).map((x) => x.message).join(" | ");
+  const fullRegistry = (crmScope = CRM_SCOPES, lhScope: string | null = LH_SCOPES, lhSecret = CLIENT_SECRET_LH) => {
+    const r: Record<string, unknown> = {
+      ...JSON.parse(registry(CLIENT_SECRET)),
+      "crm-api": { secret: CLIENT_SECRET_CRM, scope: crmScope },
+      "projects-api": { secret: CLIENT_SECRET_PRJ, scope: PROJECTS_SCOPES },
+      "activities-api": { secret: CLIENT_SECRET_ACT, scope: "notifications.push emails.send" },
+    };
+    if (lhScope !== null) r["letterhead-api"] = { secret: lhSecret, scope: lhScope };
+    return JSON.stringify(r);
+  };
+
+  function legalSuite(): SuiteEnv {
+    const s = validSuite();
+    s.auth!.SERVICE_CLIENTS = fullRegistry();
+    const rs = {
+      ALLOWED_ORIGINS: SHELL,
+      AUTH_ISSUER: AUTH_URL,
+      AUTH_JWKS_URL: "http://auth.railway.internal:3001/auth/jwks",
+      AUTH_BASE_URL: "http://auth.railway.internal:3001",
+      AUTH_AUDIENCE: AUD,
+      SERVICE_AUDIENCE: SVC_AUD,
+    };
+    s["crm-api"] = {
+      ...rs,
+      DATABASE_URL: "postgres://…/crm",
+      NOTIFY_INTERNAL_URL: "http://notify-api.railway.internal:8080",
+      SERVICE_CLIENT_ID: "crm-api",
+      SERVICE_CLIENT_SECRET: CLIENT_SECRET_CRM,
+      ACTIVITIES_API_URL: "http://activities-api.railway.internal:8087",
+      LETTERHEAD_API_URL: "http://letterhead-api.railway.internal:8088",
+      LETTERHEAD_SERVICE_ENABLED: "false",
+      PROJECTS_INTERNAL_URL: "http://projects-api.railway.internal:8086",
+      PORT: "8084",
+    };
+    s["projects-api"] = {
+      ...rs,
+      DATABASE_URL: "postgres://…/projects",
+      CRM_INTERNAL_URL: "http://crm-api.railway.internal:8084",
+      ESTIMAI_INTERNAL_URL: "http://estimai-api.railway.internal:8080",
+      NOTIFY_INTERNAL_URL: "http://notify-api.railway.internal:8080",
+      SERVICE_CLIENT_ID: "projects-api",
+      SERVICE_CLIENT_SECRET: CLIENT_SECRET_PRJ,
+      PORT: "8086",
+    };
+    s["activities-api"] = {
+      ...rs,
+      DATABASE_URL: "postgres://…/activities",
+      CRM_API_URL: "http://crm-api.railway.internal:8084",
+      PROJECTS_API_URL: "http://projects-api.railway.internal:8086",
+      NOTIFY_INTERNAL_URL: "http://notify-api.railway.internal:8080",
+      SERVICE_CLIENT_ID: "activities-api",
+      SERVICE_CLIENT_SECRET: CLIENT_SECRET_ACT,
+      PORT: "8087",
+    };
+    s["letterhead-api"] = {
+      ...rs,
+      DATABASE_URL: "postgres://…/letterhead",
+      SERVICE_CLIENT_ID: "letterhead-api",
+      SERVICE_CLIENT_SECRET: CLIENT_SECRET_LH,
+      LETTERHEAD_S3_ENDPOINT: "https://t3.storageapi.dev",
+      LETTERHEAD_S3_REGION: "ams",
+      LETTERHEAD_S3_EU_ENDPOINT_HOSTS: "t3.storageapi.dev",
+      PORT: "8088",
+    };
+    return s;
+  }
+  const LOCAL = { env: "local", isProdLike: false };
+
+  test("a fully-correct suite with the registry read on crm-api and letterhead-api passes with no errors or warnings", () => {
+    const f = checkSuite(legalSuite(), PROD);
+    expect(errs(f)).toEqual([]);
+    expect(warns(f)).toEqual([]);
+  });
+
+  test("a resolved production fixture whose registry lacks the scope fails naming letterhead-api and legal-entities:read", () => {
+    const s = legalSuite();
+    s.auth!.SERVICE_CLIENTS = fullRegistry(CRM_SCOPES, "letterhead:render");
+    const text = errText(checkSuite(s, { ...PROD, resolved: true }));
+    expect(text).toContain('auth.SERVICE_CLIENTS entry "letterhead-api" lacks the "legal-entities:read" scope');
+    expect(text).toContain('entry "letterhead-api" holds the "letterhead:render" scope, which letterhead-api does not need');
+  });
+
+  test("crm-api needs legal-entities:read, and a registry without it → error naming crm-api and the scope", () => {
+    const s = legalSuite();
+    s.auth!.SERVICE_CLIENTS = fullRegistry("notifications.push emails.send deal-link-notices.send activities.write projects.purchase-orders.read letterhead:render");
+    expect(errText(checkSuite(s, PROD))).toContain('entry "crm-api" lacks the "legal-entities:read" scope');
+  });
+
+  test("no letterhead-api entry in the registry → error: the token endpoint would answer 401 to it", () => {
+    const s = legalSuite();
+    s.auth!.SERVICE_CLIENTS = fullRegistry(CRM_SCOPES, null);
+    const text = errText(checkSuite(s, PROD));
+    expect(text).toContain('no entry for client id "letterhead-api"');
+    expect(text).toContain("letterhead-api");
+  });
+
+  test("letterhead-api holds exactly legal-entities:read: an extra scope on its entry → error", () => {
+    const s = legalSuite();
+    s.auth!.SERVICE_CLIENTS = fullRegistry(CRM_SCOPES, `${LH_SCOPES} crm.companies.read`);
+    expect(errText(checkSuite(s, PROD))).toContain('entry "letterhead-api" holds the "crm.companies.read" scope, which letterhead-api does not need');
+  });
+
+  test("legal-entities:read is held by crm-api and letterhead-api only — another client holding it → error", () => {
+    const s = legalSuite();
+    s.auth!.SERVICE_CLIENTS = JSON.stringify({
+      ...JSON.parse(fullRegistry()),
+      "activities-api": { secret: CLIENT_SECRET_ACT, scope: "notifications.push emails.send legal-entities:read" },
+    });
+    expect(errText(checkSuite(s, PROD))).toContain('entry "activities-api" holds the "legal-entities:read" scope, which activities-api does not need');
+  });
+
+  test("letterhead-api's secret differing from the registry entry's → error; a wrong id → error", () => {
+    const s = legalSuite();
+    s["letterhead-api"]!.SERVICE_CLIENT_SECRET = "z".repeat(40);
+    expect(errText(checkSuite(s, PROD))).toContain("letterhead-api.SERVICE_CLIENT_SECRET does not match");
+    s["letterhead-api"]!.SERVICE_CLIENT_ID = "someone-else";
+    expect(errText(checkSuite(s, PROD))).toContain('no entry for client id "someone-else"');
+  });
+
+  test("letterhead-api's secret must be 32 characters at least", () => {
+    const s = legalSuite();
+    s.auth!.SERVICE_CLIENTS = fullRegistry(CRM_SCOPES, LH_SCOPES, "s".repeat(31));
+    s["letterhead-api"]!.SERVICE_CLIENT_SECRET = "s".repeat(31);
+    expect(errsAbout(checkSuite(s, PROD), "letterhead-api")).toContain("SERVICE_CLIENT_SECRET is shorter than 32 characters");
+  });
+
+  test("letterhead-api SERVICE_CLIENT_ID and SERVICE_CLIENT_SECRET are required in production, not locally", () => {
+    for (const key of ["SERVICE_CLIENT_ID", "SERVICE_CLIENT_SECRET"]) {
+      const s = legalSuite();
+      delete s["letterhead-api"]![key];
+      expect(errsAbout(checkSuite(s, PROD), "letterhead-api")).toContain(`${key} is missing`);
+      expect(errText(checkSuite(s, LOCAL))).not.toContain(`${key} is missing`);
+    }
+  });
+
+  test("the same Railway reference on both sides is drift-proof (no warning), different references warn", () => {
+    const s = legalSuite();
+    const ref = "${{shared.LETTERHEAD_SERVICE_CLIENT_SECRET}}";
+    s.auth!.SERVICE_CLIENTS = fullRegistry(CRM_SCOPES, LH_SCOPES, ref);
+    s["letterhead-api"]!.SERVICE_CLIENT_SECRET = ref;
+    const same = checkSuite(s, PROD);
+    expect(errs(same)).toEqual([]);
+    expect(warns(same)).toEqual([]);
+    s["letterhead-api"]!.SERVICE_CLIENT_SECRET = "${{shared.OTHER}}";
+    expect(warns(checkSuite(s, PROD)).map((x) => x.message).join(" | ")).toContain("letterhead-api.SERVICE_CLIENT_SECRET and the secret in auth.SERVICE_CLIENTS entry");
+  });
+
+  test("letterhead-api's client secret is redacted when surfaced", () => {
+    expect(showValue("SERVICE_CLIENT_SECRET", CLIENT_SECRET_LH)).toStartWith("<redacted sha256:");
+  });
+});
+
+describe("env-doctor — legal-entity registry configuration (specs/20261117-legal-entities, T67)", () => {
+  const PROD_LIKE = { prodLike: true };
+  const LOCAL_LIKE = { prodLike: false };
+  const AUTH_TEMPLATE = readFileSync(resolve(import.meta.dir, "templates/production/auth.env"), "utf8");
+  /** The shipped template with one more line appended, parsed the way the doctor loads it. */
+  const templateWith = (...lines: string[]) => parseEnvFile(`${AUTH_TEMPLATE}\n${lines.join("\n")}\n`);
+
+  test("the shipped auth template sets none of them (optional, defaults apply) and carries no address", () => {
+    const t = parseEnvFile(AUTH_TEMPLATE);
+    for (const name of [LEGAL_ENTITY_NOTICE_EMAIL, ...Object.keys(LEGAL_ENTITY_RATE_VARS)]) expect(name in t).toBe(false);
+    expect(legalEntityConfigProblems(t, PROD_LIKE)).toEqual([]);
+    // documented by name in comments, so the runbook and the template cannot drift apart unnoticed
+    for (const name of [LEGAL_ENTITY_NOTICE_EMAIL, ...Object.keys(LEGAL_ENTITY_RATE_VARS)]) expect(AUTH_TEMPLATE).toContain(name);
+    // a template holds references, never values: no address-shaped text after the variable's name
+    expect(AUTH_TEMPLATE).not.toMatch(/LEGAL_ENTITY_NOTICE_EMAIL\s*=?\s*[^\s@=]+@/);
+  });
+
+  test("none of them is required: a suite without them passes, and the contract does not list them", () => {
+    for (const keys of Object.values(REQUIRED_KEYS)) {
+      for (const name of [LEGAL_ENTITY_NOTICE_EMAIL, ...Object.keys(LEGAL_ENTITY_RATE_VARS)]) expect(keys).not.toContain(name);
+    }
+    const f = checkSuite(validSuite(), PROD);
+    expect(errs(f)).toEqual([]);
+    expect(warns(f)).toEqual([]);
+  });
+
+  test("a production template that sets the write limit above 10 is refused, naming the variable and never the value", () => {
+    expect(LEGAL_ENTITY_WRITE_RATE_LIMIT_PRODUCTION_MAX).toBe(10);
+    for (const bad of ["11", "1000", "99999999"]) {
+      const problems = legalEntityConfigProblems(templateWith(`LEGAL_ENTITY_WRITE_RATE_LIMIT=${bad}`), PROD_LIKE);
+      expect(problems.join(" | ")).toContain("LEGAL_ENTITY_WRITE_RATE_LIMIT must not exceed 10 in production");
+      expect(problems.join(" | ")).not.toContain(bad);
+    }
+    // 10 (the default) and anything below is fine; the same raise is allowed outside production (the e2e stack)
+    for (const ok of ["1", "5", "10"]) expect(legalEntityConfigProblems(templateWith(`LEGAL_ENTITY_WRITE_RATE_LIMIT=${ok}`), PROD_LIKE)).toEqual([]);
+    expect(legalEntityConfigProblems(templateWith("LEGAL_ENTITY_WRITE_RATE_LIMIT=1000"), LOCAL_LIKE)).toEqual([]);
+  });
+
+  test("auth/.env.example raises the write limit for local and e2e use only, and says so", () => {
+    const example = readFileSync(resolve(import.meta.dir, "../../auth/.env.example"), "utf8");
+    const vars = parseEnvFile(example);
+    expect(Number(vars.LEGAL_ENTITY_WRITE_RATE_LIMIT)).toBeGreaterThan(LEGAL_ENTITY_WRITE_RATE_LIMIT_PRODUCTION_MAX);
+    expect(legalEntityConfigProblems(vars, LOCAL_LIKE)).toEqual([]);
+    expect(legalEntityConfigProblems(vars, PROD_LIKE).join(" | ")).toContain("LEGAL_ENTITY_WRITE_RATE_LIMIT must not exceed 10");
+    expect(example).toMatch(/LOCAL DEVELOPMENT AND THE E2E STACK ONLY/);
+    expect(example).toContain("NEVER copy this value");
+    expect(LEGAL_ENTITY_NOTICE_EMAIL in vars).toBe(false); // unset locally: no outside recipient
+    for (const name of [LEGAL_ENTITY_NOTICE_EMAIL, "LEGAL_ENTITY_CHECK_RATE_LIMIT", "LEGAL_ENTITY_RATE_WINDOW_MS"]) expect(example).toContain(name);
+  });
+
+  test("LEGAL_ENTITY_NOTICE_EMAIL: one email address when set; unset, empty or a reference is fine", () => {
+    const check = (v: string | undefined) => legalEntityConfigProblems({ [LEGAL_ENTITY_NOTICE_EMAIL]: v }, PROD_LIKE);
+    for (const ok of ["notices@welld.example", "a.b+legal@sub.domain.io", undefined, "", "${{shared.LEGAL_ENTITY_NOTICE_EMAIL}}", "${OP:Employee/item/field}"]) {
+      expect(check(ok)).toEqual([]);
+    }
+    for (const bad of ["not-an-email", "two@welld.example, other@welld.example", "a@b", "Name <a@welld.example>", "a b@welld.example", "@welld.example", "a@@welld.example", "mailto:a@welld.example;x"]) {
+      const p = check(bad);
+      expect(p.length).toBe(1);
+      expect(p[0]).toContain("LEGAL_ENTITY_NOTICE_EMAIL must be one email address");
+      expect(p[0]).not.toContain(bad); // the value is never echoed
+    }
+  });
+
+  test("the three rate variables: integers at or above their floor, and the window at least 1000 ms", () => {
+    const p = (name: string, v: string) => legalEntityConfigProblems({ [name]: v }, LOCAL_LIKE);
+    for (const [name, rule] of Object.entries(LEGAL_ENTITY_RATE_VARS)) {
+      expect(p(name, String(rule.default))).toEqual([]);
+      for (const bad of ["abc", "1.5", "-3", String(rule.min - 1), "1e3", "0x10"]) {
+        expect(p(name, bad).join(" | ")).toContain(`${name} must be an integer of at least ${rule.min}`);
+      }
+    }
+    expect(p("LEGAL_ENTITY_RATE_WINDOW_MS", "999").length).toBe(1);
+    expect(p("LEGAL_ENTITY_RATE_WINDOW_MS", "1000")).toEqual([]);
+    expect(p("LEGAL_ENTITY_CHECK_RATE_LIMIT", "0").length).toBe(1);
+  });
+
+  test("the defaults the doctor knows are the ones the plan fixes (G9) and auth's env.ts declares", () => {
+    expect(LEGAL_ENTITY_RATE_VARS.LEGAL_ENTITY_WRITE_RATE_LIMIT.default).toBe(10);
+    expect(LEGAL_ENTITY_RATE_VARS.LEGAL_ENTITY_CHECK_RATE_LIMIT.default).toBe(60);
+    expect(LEGAL_ENTITY_RATE_VARS.LEGAL_ENTITY_RATE_WINDOW_MS.default).toBe(600000);
+    const envTs = readFileSync(resolve(import.meta.dir, "../../auth/src/lib/env.ts"), "utf8");
+    expect(envTs).toMatch(/LEGAL_ENTITY_WRITE_RATE_LIMIT: z\.coerce\.number\(\)\.int\(\)\.positive\(\)\.default\(10\)/);
+    expect(envTs).toMatch(/LEGAL_ENTITY_CHECK_RATE_LIMIT: z\.coerce\.number\(\)\.int\(\)\.positive\(\)\.default\(60\)/);
+    expect(envTs).toMatch(/LEGAL_ENTITY_RATE_WINDOW_MS: z\.coerce\.number\(\)\.int\(\)\.min\(1000\)\.default\(600000\)/);
   });
 });

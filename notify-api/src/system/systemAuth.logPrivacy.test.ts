@@ -48,11 +48,11 @@ afterAll(async () => {
   await freshDb.emailDelivery.deleteMany({ where: { to: TO } });
 });
 
-const jwt = (scope: string) =>
+const jwt = (scope: string, sub: string = "system:refund-api") =>
   new SignJWT({ scope })
     .setProtectedHeader({ alg: "RS256", kid: "qe" })
     .setIssuedAt().setIssuer(env.AUTH_ISSUER).setAudience(AUD)
-    .setSubject("system:refund-api").setExpirationTime("5m").sign(key);
+    .setSubject(sub).setExpirationTime("5m").sign(key);
 
 describe("caller log line through the real routes", () => {
   it("push and email each log exactly one caller line; no token/address/title/body anywhere", async () => {
@@ -82,5 +82,119 @@ describe("caller log line through the real routes", () => {
     } finally {
       spies.forEach((s) => s.mockRestore());
     }
+  });
+});
+
+// specs/20261117-legal-entities T79 (D9, plan J6): the author's account email is notice content, never a log value.
+// Through the REAL router and middleware, a `legal_entity_change` request logs exactly the caller line whether it is
+// accepted or refused, and the sentinel address (and a refused value) reaches no console channel.
+describe("legal_entity_change author address — no log line carries it (AC-9.12 as amended by D9)", () => {
+  const LEGAL_TO = "qe-logprivacy-legal-recipient@example.com";
+  const SENTINEL = "qe-sentinel-author-5521@sentinel-logprivacy.example";
+  const REFUSED = "qe-sentinel-refused-8830";
+  const legalData = (over: Record<string, unknown> = {}) => ({
+    entity: "welld_ch",
+    action: "save",
+    restoredFrom: null,
+    actorEmail: SENTINEL,
+    storedAt: "2026-11-17T09:12:00.000Z",
+    version: 8,
+    protectedChanged: ["legalName"],
+    otherChanged: [],
+    ...over,
+  });
+
+  afterAll(async () => {
+    await freshDb.emailDelivery.deleteMany({ where: { to: LEGAL_TO } });
+  });
+
+  it("an accepted request, a refused address, a refused name and an over-long address log the caller line only", async () => {
+    // The shared app has no APP_BASE_URL (the link cannot be built); this one does, with the same auth chain.
+    const pair = await generateKeyPair("RS256");
+    const localJwks = createLocalJWKSet({
+      keys: [{ ...(await exportJWK(pair.publicKey)), kid: "qe2", alg: "RS256", use: "sig" }],
+    });
+    const guarded = new Hono();
+    guarded.route(
+      "/",
+      createSystemEmailsRouter(createSystemAuthMiddleware({ scope: "emails.send", jwks: localJwks, audience: AUD }), {
+        appBaseUrl: "https://operai.example.test",
+      }),
+    );
+    const token = await new SignJWT({ scope: "emails.send" })
+      .setProtectedHeader({ alg: "RS256", kid: "qe2" })
+      .setIssuedAt().setIssuer(env.AUTH_ISSUER).setAudience(AUD)
+      .setSubject("system:auth").setExpirationTime("5m").sign(pair.privateKey);
+
+    const spies = (["log", "info", "warn", "error"] as const).map((m) => spyOn(console, m).mockImplementation(() => {}));
+    try {
+      const post = (data: Record<string, unknown>) =>
+        guarded.request("/system/emails", {
+          method: "POST",
+          headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+          body: JSON.stringify({ to: LEGAL_TO, template: "legal_entity_change", data }),
+        });
+      const accepted = await post(legalData());
+      const badAddress = await post(legalData({ actorEmail: REFUSED }));
+      const aName = await post(legalData({ actorName: REFUSED }));
+      const tooLong = await post(legalData({ actorEmail: `${REFUSED}${"x".repeat(320)}@example.com` }));
+      expect(accepted.status).toBe(200);
+      expect([badAddress.status, aName.status, tooLong.status]).toEqual([400, 400, 400]);
+      const bodies = [await accepted.text(), await badAddress.text(), await aName.text(), await tooLong.text()];
+
+      const lines = spies.flatMap((s) => s.mock.calls.map((a) => a.join(" ")));
+      expect(lines).toEqual(Array(4).fill("[system-auth] POST /system/emails caller=system:auth"));
+      const all = lines.join("\n");
+      for (const value of [SENTINEL, REFUSED, "sentinel-logprivacy", LEGAL_TO, token]) expect(all).not.toContain(value);
+      // A refusal never echoes the refused value; an accepted answer never echoes the address either.
+      for (const body of bodies) {
+        expect(body).not.toContain(REFUSED);
+        expect(body).not.toContain(SENTINEL);
+      }
+      // The stored delivery row has the recipient, the template and a status: no `data`.
+      const rows = await freshDb.emailDelivery.findMany({ where: { to: LEGAL_TO } });
+      expect(rows).toHaveLength(1);
+      expect(JSON.stringify(rows)).not.toContain("sentinel-logprivacy");
+    } finally {
+      spies.forEach((s) => s.mockRestore());
+    }
+  });
+});
+
+// specs/20261117-legal-entities T89 (D9-3): the top-level error handler logs the error's name and code only.
+// Run in a child process (own module registry): importing src/index.ts in-process would wire this file's mocked
+// modules into the shared registry (see src/index.test.ts header). The child makes GET /health throw an error whose
+// message carries a sentinel address, drives the REAL assembled app, and prints what console.error received.
+describe("top-level error handler — logs no error message (D9-3)", () => {
+  it("an error whose message carries a sentinel address is logged without it", async () => {
+    const SENTINEL_ADDR = "qe-sentinel-uncaught-4417@sentinel-logprivacy.example";
+    const script = `
+      const { eventBus } = await import("./src/notifications/eventBus");
+      eventBus.connectionCount = () => {
+        throw Object.assign(new Error("delivery to " + process.env.QE_SENTINEL + " failed"), { code: "E_QE_BOOM" });
+      };
+      const server = (await import("./src/index")).default;
+      const logged = [];
+      for (const m of ["log", "info", "warn", "error"]) console[m] = (...a) => logged.push(a.join(" "));
+      const res = await server.fetch(new Request("http://localhost/health"));
+      process.stdout.write("RESULT:" + JSON.stringify({ status: res.status, body: await res.text(), logged }));
+      process.exit(0);
+    `;
+    const proc = Bun.spawn({
+      cmd: [process.execPath, "-e", script],
+      cwd: new URL("../..", import.meta.url).pathname,
+      env: { ...process.env, QE_SENTINEL: SENTINEL_ADDR, NODE_ENV: "test" },
+      stdout: "pipe",
+      stderr: "pipe",
+    });
+    const out = await new Response(proc.stdout).text();
+    await proc.exited;
+    const result = JSON.parse(out.slice(out.indexOf("RESULT:") + 7)) as { status: number; body: string; logged: string[] };
+    expect(result.status).toBe(500);
+    expect(result.body).not.toContain(SENTINEL_ADDR);
+    // The caller-visible log line is the name and code, nothing else — no message, stack or cause.
+    const uncaught = result.logged.filter((l) => l.startsWith("[uncaught]"));
+    expect(uncaught).toEqual(["[uncaught] Error E_QE_BOOM"]);
+    expect(result.logged.join("\n")).not.toContain("sentinel-logprivacy");
   });
 });

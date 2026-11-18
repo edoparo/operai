@@ -15,6 +15,7 @@
 
 import { z } from "zod";
 import { EMAIL_TEMPLATES } from "@/channels/email.channel";
+import { IdempotencyKeySchema } from "./notifications.schemas";
 
 export const SendEmailTemplateSchema = z.enum(EMAIL_TEMPLATES);
 
@@ -103,40 +104,138 @@ export const RefundDecisionRejectedDataSchema = z.object({
   // is to make the decision impossible to miss and link to the detail.
 });
 
-const ToSchema = z.string().email("to must be a valid email address").max(320);
+// specs/20261117-legal-entities T57 (AC-9.11, AC-9.12; plan "Amendment 2026-11-17 after security review" G5) —
+// `legal_entity_change`'s `data`. STRICT and CLOSED: every member is an enum, a number, a timestamp, one bounded
+// address (the author's account email, D9) or an IBAN token whose only free-form member is four characters. There is no member that can
+// hold a legal name, a VAT number, an address, a contacts line or more than the last 4 characters of an IBAN, so
+// AC-9.12 is enforced by the receiver as well as by the sender. An extra member is a 400 (`strictObject`).
+export const LEGAL_ENTITIES = ["welld_it", "welld_ch"] as const;
+/** Closed order = the order the notice lists them in. */
+export const LEGAL_ENTITY_PROTECTED_NAMES = ["legalName", "vatNumber", "iban"] as const;
+export const LEGAL_ENTITY_OTHER_NAMES = ["address.it", "address.en", "contacts.it", "contacts.en"] as const;
 
-export const SendEmailRequestSchema = z.discriminatedUnion("template", [
-  z.object({
-    to: ToSchema,
-    template: z.literal("invitation"),
-    data: SendEmailDataSchema,
-  }),
-  z.object({
-    to: ToSchema,
-    template: z.literal("invitation_resend"),
-    data: SendEmailDataSchema,
-  }),
-  z.object({
-    to: ToSchema,
-    template: z.literal("refund_batch_compiled"),
-    data: RefundBatchCompiledDataSchema,
-  }),
-  z.object({
-    to: ToSchema,
-    template: z.literal("refund_decision_approved"),
-    data: RefundDecisionApprovedDataSchema,
-  }),
-  z.object({
-    to: ToSchema,
-    template: z.literal("refund_decision_rejected"),
-    data: RefundDecisionRejectedDataSchema,
+const IbanTokenSchema = z.discriminatedUnion("state", [
+  z.strictObject({ state: z.literal("none") }),
+  z.strictObject({ state: z.literal("set") }),
+  z.strictObject({
+    state: z.literal("tail"),
+    last4: z.string().regex(/^[A-Z0-9]{4}$/, "data.iban last4 must be 4 characters, A-Z or 0-9"),
   }),
 ]);
 
+const isUnique = (names: readonly string[]): boolean => new Set(names).size === names.length;
+
+export const LegalEntityChangeDataSchema = z
+  .strictObject({
+    entity: z.enum(LEGAL_ENTITIES),
+    action: z.enum(["save", "restore"]),
+    // The version a restore copied from; null for a save.
+    restoredFrom: z.number().int().min(1).max(2147483647).nullable(),
+    // specs/20261117-legal-entities T79 (D9, plan J4): the author's account email as recorded when the version was
+    // stored, by the same rule as `to` (ToSchema below); null = "no email address on record". Required. There is no
+    // display name member: `actorName` is an unknown member of this strict object, so a caller that sends it gets a
+    // 400. The 400 names the path and the message only, never the value (zod issues carry no input).
+    actorEmail: z.string().email("data.actorEmail must be an email address").max(320).nullable(),
+    storedAt: z.string().datetime({ offset: true, message: "data.storedAt must be ISO 8601" }),
+    version: z.number().int().min(1).max(2147483647),
+    protectedChanged: z.array(z.enum(LEGAL_ENTITY_PROTECTED_NAMES)).min(1).max(3).refine(isUnique, "names must be unique"),
+    otherChanged: z.array(z.enum(LEGAL_ENTITY_OTHER_NAMES)).max(4).refine(isUnique, "names must be unique"),
+    iban: z.strictObject({ old: IbanTokenSchema, new: IbanTokenSchema }).optional(),
+  })
+  .superRefine((data, ctx) => {
+    if (data.action === "restore" && data.restoredFrom === null) {
+      ctx.addIssue({ code: "custom", path: ["restoredFrom"], message: "a restore names the version it restored" });
+    }
+    if (data.action === "save" && data.restoredFrom !== null) {
+      ctx.addIssue({ code: "custom", path: ["restoredFrom"], message: "a save has no restoredFrom" });
+    }
+    // `iban` is present if and only if the IBAN changed: its tails are the only values a notice may carry.
+    const ibanChanged = data.protectedChanged.includes("iban");
+    if (ibanChanged && data.iban === undefined) {
+      ctx.addIssue({ code: "custom", path: ["iban"], message: "data.iban is required when iban changed" });
+    }
+    if (!ibanChanged && data.iban !== undefined) {
+      ctx.addIssue({ code: "custom", path: ["iban"], message: "data.iban is only accepted when iban changed" });
+    }
+  });
+
+const ToSchema = z.string().email("to must be a valid email address").max(320);
+
+// specs/20261117-legal-entities T56 (AC-9.13, plan G5): a recipient is named either by a raw address (`to`, the
+// way every template has always been addressed) or, for a template that allows it, by an auth user id
+// (`recipientId`, notify-api resolves the address — ADR 20261101-notify-api-resolves-email-notice-address-from-auth).
+// Exactly one of the two, checked below for every template; WHICH templates accept `recipientId` is policy, not
+// shape, and lives with the route (emails.routes.ts, EMAIL_TEMPLATE_POLICY) so a template cannot widen it by
+// accident. The shared members of every variant:
+const RecipientIdSchema = z
+  .string()
+  .min(1, "recipientId must not be empty")
+  .max(200, "recipientId must be at most 200 characters");
+
+const envelope = {
+  to: ToSchema.optional(),
+  recipientId: RecipientIdSchema.optional(),
+  // Repeat protection (T56, AC-9.14): scoped by notify-api to the calling service.
+  idempotencyKey: IdempotencyKeySchema.optional(),
+};
+
+export const SendEmailRequestSchema = z
+  .discriminatedUnion("template", [
+    z.object({
+      ...envelope,
+      template: z.literal("invitation"),
+      data: SendEmailDataSchema,
+    }),
+    z.object({
+      ...envelope,
+      template: z.literal("invitation_resend"),
+      data: SendEmailDataSchema,
+    }),
+    z.object({
+      ...envelope,
+      template: z.literal("refund_batch_compiled"),
+      data: RefundBatchCompiledDataSchema,
+    }),
+    z.object({
+      ...envelope,
+      template: z.literal("refund_decision_approved"),
+      data: RefundDecisionApprovedDataSchema,
+    }),
+    z.object({
+      ...envelope,
+      template: z.literal("refund_decision_rejected"),
+      data: RefundDecisionRejectedDataSchema,
+    }),
+    z.object({
+      ...envelope,
+      template: z.literal("legal_entity_change"),
+      data: LegalEntityChangeDataSchema,
+    }),
+  ])
+  // `to` and `recipientId` together, or neither: 400 (the same body shape as any other schema failure).
+  .superRefine((value, ctx) => {
+    const hasTo = value.to !== undefined;
+    const hasRecipient = value.recipientId !== undefined;
+    if (hasTo === hasRecipient) {
+      ctx.addIssue({
+        code: "custom",
+        path: [hasTo ? "recipientId" : "to"],
+        message: hasTo
+          ? "send either to or recipientId, not both"
+          : "to or recipientId is required",
+      });
+    }
+  });
+
 export type SendEmailRequest = z.infer<typeof SendEmailRequestSchema>;
 
+// `skipped` and `reason` arrive with `recipientId` (T56): no address means no delivery row, so `deliveryId` is
+// absent then. For a `to` send the answer is what it has always been.
+export const EMAIL_SKIP_REASONS = ["recipient_inactive", "not_configured"] as const;
+export const EMAIL_FAIL_REASONS = ["contact_lookup_failed"] as const;
 export const SendEmailResponseSchema = z.object({
-  deliveryId: z.string(),
-  status: z.enum(["sent", "failed"]),
+  deliveryId: z.string().optional(),
+  status: z.enum(["sent", "failed", "skipped"]),
   error: z.string().optional(),
+  reason: z.enum([...EMAIL_SKIP_REASONS, ...EMAIL_FAIL_REASONS]).optional(),
 });

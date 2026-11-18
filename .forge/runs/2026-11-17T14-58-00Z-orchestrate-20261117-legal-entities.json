@@ -1,0 +1,1812 @@
+{
+  "schema": "wellforge-run/v1",
+  "run_id": "2026-11-17T14-58-00Z-orchestrate-20261117-legal-entities",
+  "command": "orchestrate",
+  "feature": "20261117-legal-entities",
+  "rigor": "production",
+  "started": "2026-11-17T14:58:00Z",
+  "finished": "2026-11-18T11:38:15Z",
+  "agents": [
+    {
+      "agent": "product-owner",
+      "tasks": [],
+      "outcome": "docs(spec): legal entities \u2014 one registry of the group's companies (specs/20261117)",
+      "commits": [
+        "89f82fa8"
+      ],
+      "committed_at": "2026-11-18T12:30:27+01:00"
+    },
+    {
+      "agent": "architect",
+      "tasks": [],
+      "outcome": "docs(plan): legal entities (specs/20261117)",
+      "commits": [
+        "076acf2b"
+      ],
+      "committed_at": "2026-11-18T12:30:27+01:00"
+    },
+    {
+      "agent": "orchestrator",
+      "tasks": [],
+      "outcome": "docs(spec): legal entities amendments D1\u2013D6; plan approved (specs/20261117)",
+      "commits": [
+        "8c850d58"
+      ],
+      "committed_at": "2026-11-18T12:30:27+01:00",
+      "note": "records owner decisions / mechanical amendment"
+    },
+    {
+      "agent": "designer",
+      "tasks": [],
+      "outcome": "docs(design): legal entities (specs/20261117)",
+      "commits": [
+        "0245f90a"
+      ],
+      "committed_at": "2026-11-18T12:30:27+01:00"
+    },
+    {
+      "agent": "adr-writer",
+      "tasks": [],
+      "outcome": "docs(adr): legal entities \u2014 registry in auth, issuer read by the letterhead service, admin by capability, CRM move (specs/20261117)",
+      "commits": [
+        "f2588ab3"
+      ],
+      "committed_at": "2026-11-18T12:30:36+01:00"
+    },
+    {
+      "agent": "designer",
+      "tasks": [],
+      "outcome": "docs(design): legal entities \u2014 owner picks B/B/B: one page with entity tabs, four address lines, reapply on conflict (specs/20261117)",
+      "commits": [
+        "53af2fe7"
+      ],
+      "committed_at": "2026-11-18T12:30:36+01:00"
+    },
+    {
+      "agent": "architect",
+      "tasks": [],
+      "outcome": "docs(plan): legal entities \u2014 amendment after design (specs/20261117)",
+      "commits": [
+        "5a4df1e7"
+      ],
+      "committed_at": "2026-11-18T12:30:36+01:00"
+    },
+    {
+      "agent": "orchestrator",
+      "tasks": [],
+      "outcome": "docs(tasks): legal entities (specs/20261117)",
+      "commits": [
+        "a59f577d"
+      ],
+      "committed_at": "2026-11-18T12:30:36+01:00"
+    },
+    {
+      "agent": "orchestrator",
+      "tasks": [],
+      "outcome": "docs(spec): legal entities \u2014 D7, D8 decided; R13 gate lifted; in progress (specs/20261117)",
+      "commits": [
+        "daab88df"
+      ],
+      "committed_at": "2026-11-18T12:30:36+01:00",
+      "note": "records owner decisions / mechanical amendment"
+    },
+    {
+      "agent": "orchestrator",
+      "tasks": [],
+      "outcome": "docs(tasks): legal entities \u2014 gate R13 lifted (specs/20261117)",
+      "commits": [
+        "58d732d3"
+      ],
+      "committed_at": "2026-11-18T12:30:37+01:00"
+    },
+    {
+      "agent": "frontend-dev",
+      "tasks": [
+        "T33"
+      ],
+      "outcome": "feat(admin-ui): Legal entities strings in en and it, section label, audit description (T33, specs/20261117)",
+      "commits": [
+        "c6fc707b"
+      ],
+      "committed_at": "2026-11-18T12:30:37+01:00"
+    },
+    {
+      "agent": "backend-dev",
+      "tasks": [
+        "T3"
+      ],
+      "outcome": "feat(auth): ADMIN_CATALOG with legal-entity:manage, admin out of SUITE_APPS, admin role grant (T3, specs/20261117)",
+      "commits": [
+        "b5fcacd4"
+      ],
+      "committed_at": "2026-11-18T12:30:37+01:00"
+    },
+    {
+      "agent": "backend-dev",
+      "tasks": [
+        "T1"
+      ],
+      "outcome": "feat(auth): legal_entity_version table, immutability triggers and LEGAL_ENTITIES (T1, specs/20261117)",
+      "commits": [
+        "b87842a3"
+      ],
+      "committed_at": "2026-11-18T12:30:37+01:00"
+    },
+    {
+      "agent": "backend-dev",
+      "tasks": [
+        "T2"
+      ],
+      "outcome": "feat(auth): rules of a legal-entity save (T2, specs/20261117)",
+      "commits": [
+        "898b6f60"
+      ],
+      "committed_at": "2026-11-18T12:30:37+01:00"
+    },
+    {
+      "agent": "backend-dev",
+      "tasks": [
+        "T4"
+      ],
+      "outcome": "feat(auth): legal-entity:manage coverage and admin derived into /authz/me apps (T4, specs/20261117)",
+      "commits": [
+        "293100bb"
+      ],
+      "committed_at": "2026-11-18T12:30:37+01:00"
+    },
+    {
+      "agent": "frontend-dev",
+      "tasks": [
+        "T10"
+      ],
+      "outcome": "feat(ui): Tabs and TabNav can wrap, opt-in (T10, specs/20261117)",
+      "commits": [
+        "58318bd7"
+      ],
+      "committed_at": "2026-11-18T12:30:37+01:00"
+    },
+    {
+      "agent": "backend-dev",
+      "tasks": [
+        "T29"
+      ],
+      "outcome": "feat(crm): entity settings keep only the CRM's own values; legacy legal keys accepted and ignored (T29, specs/20261117)",
+      "commits": [
+        "cbbbe3dc"
+      ],
+      "committed_at": "2026-11-18T12:30:37+01:00"
+    },
+    {
+      "agent": "orchestrator",
+      "tasks": [],
+      "outcome": "docs(tasks): push 1 is built from main with push-1 commits only (specs/20261117)",
+      "commits": [
+        "aa48452f"
+      ],
+      "committed_at": "2026-11-18T12:30:37+01:00"
+    },
+    {
+      "agent": "frontend-dev",
+      "tasks": [
+        "T11"
+      ],
+      "outcome": "feat(ui): lift ErrorSummary, VersionTable and VersionBanner into @operai/ui (T11, specs/20261117)",
+      "commits": [
+        "acf19ed0"
+      ],
+      "committed_at": "2026-11-18T12:30:37+01:00"
+    },
+    {
+      "agent": "backend-dev",
+      "tasks": [
+        "T5"
+      ],
+      "outcome": "feat(auth): person read API of the legal-entity registry, one serializer and the shared fixture (T5, specs/20261117)",
+      "commits": [
+        "a7990709"
+      ],
+      "committed_at": "2026-11-18T12:30:37+01:00"
+    },
+    {
+      "agent": "backend-dev",
+      "tasks": [
+        "T9"
+      ],
+      "outcome": "feat(auth): import of the CRM's legal details into the registry (T9, specs/20261117)",
+      "commits": [
+        "19a71783"
+      ],
+      "committed_at": "2026-11-18T12:30:37+01:00"
+    },
+    {
+      "agent": "orchestrator",
+      "tasks": [],
+      "outcome": "docs(tasks): T12 also ships the import script in auth's image (specs/20261117)",
+      "commits": [
+        "cbbc6b3d"
+      ],
+      "committed_at": "2026-11-18T12:30:37+01:00"
+    },
+    {
+      "agent": "backend-dev",
+      "tasks": [
+        "T6"
+      ],
+      "outcome": "feat(auth): service read API of the legal-entity registry, scope legal-entities:read and its per-service limit (T6, specs/20261117)",
+      "commits": [
+        "06e68bcb"
+      ],
+      "committed_at": "2026-11-18T12:30:37+01:00"
+    },
+    {
+      "agent": "frontend-dev",
+      "tasks": [
+        "T30"
+      ],
+      "outcome": "feat(crm-ui): Settings note and useCanManageLegalEntity in place of the four legal fields (T30, specs/20261117)",
+      "commits": [
+        "05e7b85e"
+      ],
+      "committed_at": "2026-11-18T12:30:37+01:00"
+    },
+    {
+      "agent": "quality-engineer",
+      "tasks": [
+        "T24"
+      ],
+      "outcome": "test(crm): golden issuer lines of today's document paths, captured before the switch (T24, specs/20261117)",
+      "commits": [
+        "d06cd5a9"
+      ],
+      "committed_at": "2026-11-18T12:30:37+01:00"
+    },
+    {
+      "agent": "frontend-dev",
+      "tasks": [
+        "T34"
+      ],
+      "outcome": "feat(admin-ui): registry API client and the pure mappings (status, problem sentence, value names, address problem target, merge on conflict) (T34, specs/20261117)",
+      "commits": [
+        "6a971856"
+      ],
+      "committed_at": "2026-11-18T12:30:37+01:00"
+    },
+    {
+      "agent": "backend-dev",
+      "tasks": [
+        "T7"
+      ],
+      "outcome": "feat(auth): history and read-only version view of the legal-entity registry, with restorable (T7, specs/20261117)",
+      "commits": [
+        "4e5065c9"
+      ],
+      "committed_at": "2026-11-18T12:30:37+01:00"
+    },
+    {
+      "agent": "backend-dev",
+      "tasks": [
+        "T25"
+      ],
+      "outcome": "feat(crm): registry client with the 30 s / 60 s cache rule, a fake and a contract test (T25, specs/20261117)",
+      "commits": [
+        "3d228263"
+      ],
+      "committed_at": "2026-11-18T12:30:37+01:00"
+    },
+    {
+      "agent": "devops",
+      "tasks": [
+        "T12"
+      ],
+      "outcome": "chore(infra): env-doctor contract for the registry read, scope legal-entities:read on crm-api and a letterhead-api client (T12, specs/20261117)",
+      "commits": [
+        "9238a4e5"
+      ],
+      "committed_at": "2026-11-18T12:30:53+01:00"
+    },
+    {
+      "agent": "devops",
+      "tasks": [
+        "T12"
+      ],
+      "outcome": "chore(auth): image ships the CRM legal-details import script; .env.example documents letterhead-api and the copy's env (T12, specs/20261117)",
+      "commits": [
+        "a2830c0f"
+      ],
+      "committed_at": "2026-11-18T12:30:53+01:00"
+    },
+    {
+      "agent": "devops",
+      "tasks": [
+        "T12"
+      ],
+      "outcome": "docs(infra): legal entities rollout runbook, letterhead-api client and secret (T12, specs/20261117)",
+      "commits": [
+        "9d101a30"
+      ],
+      "committed_at": "2026-11-18T12:31:10+01:00"
+    },
+    {
+      "agent": "frontend-dev",
+      "tasks": [
+        "T35"
+      ],
+      "outcome": "feat(admin-ui): sections by capability, the /legal-entities route and its index and hidden-section redirects (T35, specs/20261117)",
+      "commits": [
+        "62beab02"
+      ],
+      "committed_at": "2026-11-18T12:31:10+01:00"
+    },
+    {
+      "agent": "backend-dev",
+      "tasks": [
+        "T19"
+      ],
+      "outcome": "feat(letterhead-api): content version 2 with optional legalEntityVersion, entityData parsed in both versions (T19, specs/20261117)",
+      "commits": [
+        "7fc2eaf4"
+      ],
+      "committed_at": "2026-11-18T12:31:10+01:00"
+    },
+    {
+      "agent": "backend-dev",
+      "tasks": [
+        "T8"
+      ],
+      "outcome": "feat(auth): save and restore of the legal-entity registry, with its append-only tripwire (T8, specs/20261117)",
+      "commits": [
+        "856b3ac7"
+      ],
+      "committed_at": "2026-11-18T12:31:10+01:00"
+    },
+    {
+      "agent": "devops",
+      "tasks": [
+        "T13"
+      ],
+      "outcome": "chore(changeset): push 1 changesets for auth, @operai/ui and shell (T13, specs/20261117)",
+      "commits": [
+        "d426053b"
+      ],
+      "committed_at": "2026-11-18T12:31:10+01:00"
+    },
+    {
+      "agent": "backend-dev",
+      "tasks": [
+        "T20"
+      ],
+      "outcome": "feat(letterhead-api): engine \"mark missing\" option for the configurator preview (T20, specs/20261117)",
+      "commits": [
+        "05ac06d9"
+      ],
+      "committed_at": "2026-11-18T12:31:10+01:00"
+    },
+    {
+      "agent": "backend-dev",
+      "tasks": [
+        "T20"
+      ],
+      "outcome": "feat(letterhead-api): mark-missing draws the label only, the page text adds the marks (T20, specs/20261117)",
+      "commits": [
+        "f5828e56"
+      ],
+      "committed_at": "2026-11-18T12:31:10+01:00"
+    },
+    {
+      "agent": "backend-dev",
+      "tasks": [
+        "T26"
+      ],
+      "outcome": "feat(crm): the issuer of an offer comes from the legal entities registry; entity_profile_missing leaves the document paths (T26, specs/20261117)",
+      "commits": [
+        "5bd133ea"
+      ],
+      "committed_at": "2026-11-18T12:31:10+01:00"
+    },
+    {
+      "agent": "quality-engineer",
+      "tasks": [
+        "T41"
+      ],
+      "outcome": "test(e2e): legal-entity fixtures, global setup and CRM helpers off the legal fields (T41, specs/20261117)",
+      "commits": [
+        "c1ce702c"
+      ],
+      "committed_at": "2026-11-18T12:31:10+01:00"
+    },
+    {
+      "agent": "backend-dev",
+      "tasks": [
+        "T21"
+      ],
+      "outcome": "feat(letterhead-api): service token client and the legal entities registry cache (T21, specs/20261117)",
+      "commits": [
+        "4e657b0d"
+      ],
+      "committed_at": "2026-11-18T12:31:10+01:00"
+    },
+    {
+      "agent": "frontend-dev",
+      "tasks": [
+        "T36"
+      ],
+      "outcome": "feat(admin-ui): the Legal entities page host, entity tabs with status marks, per-entity drafts, read-only panel and leave-the-page guard (T36, specs/20261117)",
+      "commits": [
+        "8d90994d"
+      ],
+      "committed_at": "2026-11-18T12:31:10+01:00"
+    },
+    {
+      "agent": "backend-dev",
+      "tasks": [
+        "T27"
+      ],
+      "outcome": "feat(crm): snapshots carry legalEntityVersion; the classic PDF prints the registry's issuer as the golden says (T27, specs/20261117)",
+      "commits": [
+        "9081f94c"
+      ],
+      "committed_at": "2026-11-18T12:31:10+01:00"
+    },
+    {
+      "agent": "frontend-dev",
+      "tasks": [
+        "T31"
+      ],
+      "outcome": "feat(crm-ui): LegalEntityNotice, the refusal codes of the legal entities registry, the issuer address in the document's language (T31, specs/20261117)",
+      "commits": [
+        "d260bd89"
+      ],
+      "committed_at": "2026-11-18T12:31:10+01:00"
+    },
+    {
+      "agent": "orchestrator",
+      "tasks": [],
+      "outcome": "docs(tasks): follow-ups found during implementation (specs/20261117)",
+      "commits": [
+        "57b5fd28"
+      ],
+      "committed_at": "2026-11-18T12:31:10+01:00"
+    },
+    {
+      "agent": "frontend-dev",
+      "tasks": [
+        "T37"
+      ],
+      "outcome": "feat(admin-ui): the legal entity form \u2014 address line inputs, save, refusal summary and focus, outcomes, moved marks (T37, specs/20261117)",
+      "commits": [
+        "1583506f"
+      ],
+      "committed_at": "2026-11-18T12:31:10+01:00"
+    },
+    {
+      "agent": "backend-dev",
+      "tasks": [
+        "T22"
+      ],
+      "outcome": "feat(letterhead-api): renders print the registry's issuer, with the version pin and 503/409 answers (T22, specs/20261117)",
+      "commits": [
+        "2b15c240"
+      ],
+      "committed_at": "2026-11-18T12:31:10+01:00"
+    },
+    {
+      "agent": "frontend-dev",
+      "tasks": [
+        "T38"
+      ],
+      "outcome": "feat(admin-ui): two people editing \u2014 conflict banner, reapply with \"Use theirs\", discard (T38, specs/20261117)",
+      "commits": [
+        "fb71be3b"
+      ],
+      "committed_at": "2026-11-18T12:31:10+01:00"
+    },
+    {
+      "agent": "orchestrator",
+      "tasks": [],
+      "outcome": "docs(tasks): follow-ups FU-7, FU-8 (specs/20261117)",
+      "commits": [
+        "8b9b0ace"
+      ],
+      "committed_at": "2026-11-18T12:31:10+01:00"
+    },
+    {
+      "agent": "frontend-dev",
+      "tasks": [
+        "T39"
+      ],
+      "outcome": "feat(admin-ui): history, version view and restore with the lifted VersionTable and VersionBanner (T39, specs/20261117)",
+      "commits": [
+        "99c4296b"
+      ],
+      "committed_at": "2026-11-18T12:31:10+01:00"
+    },
+    {
+      "agent": "orchestrator",
+      "tasks": [],
+      "outcome": "docs(tasks): FU-7 gains T39's missing strings (specs/20261117)",
+      "commits": [
+        "5e3492d4"
+      ],
+      "committed_at": "2026-11-18T12:31:10+01:00"
+    },
+    {
+      "agent": "backend-dev",
+      "tasks": [
+        "T23"
+      ],
+      "outcome": "feat(letterhead-api): the configurator preview shows the registry's issuer details, empty values marked (T23, specs/20261117)",
+      "commits": [
+        "ce4f51ab"
+      ],
+      "committed_at": "2026-11-18T12:31:10+01:00"
+    },
+    {
+      "agent": "orchestrator",
+      "tasks": [],
+      "outcome": "docs(tasks): FU-9 sample intro wording (specs/20261117)",
+      "commits": [
+        "551c81fe"
+      ],
+      "committed_at": "2026-11-18T12:31:10+01:00"
+    },
+    {
+      "agent": "frontend-dev",
+      "tasks": [
+        "T32"
+      ],
+      "outcome": "feat(letterheads-ui): preview names the registry as the source of the company details, legend of the missing look, unavailable notice (T32, specs/20261117)",
+      "commits": [
+        "36b1bc7d"
+      ],
+      "committed_at": "2026-11-18T12:31:10+01:00"
+    },
+    {
+      "agent": "orchestrator",
+      "tasks": [],
+      "outcome": "docs(tasks): FU-10 (specs/20261117)",
+      "commits": [
+        "f83eb6ed"
+      ],
+      "committed_at": "2026-11-18T12:31:10+01:00"
+    },
+    {
+      "agent": "backend-dev",
+      "tasks": [
+        "T28"
+      ],
+      "outcome": "feat(crm): the service path sends content v2 without entityData, pins legalEntityVersion and retries once (T28, specs/20261117)",
+      "commits": [
+        "652fc804"
+      ],
+      "committed_at": "2026-11-18T12:31:10+01:00"
+    },
+    {
+      "agent": "owasp-reviewer",
+      "tasks": [
+        "T46"
+      ],
+      "outcome": "docs(security): legal entities security review \u2014 REVIEW REQUIRED, 1 medium (T46, specs/20261117)",
+      "commits": [
+        "c9da53a3"
+      ],
+      "committed_at": "2026-11-18T12:31:10+01:00",
+      "note": "report committed by the orchestrator"
+    },
+    {
+      "agent": "quality-engineer",
+      "tasks": [
+        "T42"
+      ],
+      "outcome": "test(e2e): Legal entities page journeys \u2014 capability, edit, refusal, conflict, history and restore, keyboard, Italian, axe (T42, specs/20261117)",
+      "commits": [
+        "8292a46d"
+      ],
+      "committed_at": "2026-11-18T12:31:10+01:00"
+    },
+    {
+      "agent": "backend-dev",
+      "tasks": [
+        "D1"
+      ],
+      "outcome": "fix(auth): mount Better Auth on \"/*\" - \"/**\" 404'd every /auth route once the router fell back to TrieRouter (D1, specs/20261117)",
+      "commits": [
+        "f1b550e6"
+      ],
+      "committed_at": "2026-11-18T12:32:16+01:00"
+    },
+    {
+      "agent": "product-owner",
+      "tasks": [],
+      "outcome": "docs(spec): legal entities US-9 \u2014 protected details confirmed and notified (security review F1); owner approved 2026-11-17 (specs/20261117)",
+      "commits": [
+        "68f4fa23"
+      ],
+      "committed_at": "2026-11-18T12:32:16+01:00"
+    },
+    {
+      "agent": "architect",
+      "tasks": [],
+      "outcome": "docs(plan): legal entities amendment after the security review \u2014 US-9 notices and confirmation, F2\u2013F7 fixes, release at the end (specs/20261117)",
+      "commits": [
+        "c43d638c"
+      ],
+      "committed_at": "2026-11-18T12:32:16+01:00"
+    },
+    {
+      "agent": "orchestrator",
+      "tasks": [],
+      "outcome": "docs(tasks): legal entities re-sync after the security review \u2014 T51\u2013T71 for US-9, F2\u2013F7 and the follow-ups; T40 widened; release at the end (specs/20261117)",
+      "commits": [
+        "17895e2f"
+      ],
+      "committed_at": "2026-11-18T12:32:16+01:00"
+    },
+    {
+      "agent": "orchestrator",
+      "tasks": [],
+      "outcome": "docs(tasks): reconcile checkboxes \u2014 T1\u2013T13, T19\u2013T39, T41, T42, T46 done (specs/20261117)",
+      "commits": [
+        "724117a5"
+      ],
+      "committed_at": "2026-11-18T12:32:16+01:00"
+    },
+    {
+      "agent": "architect",
+      "tasks": [],
+      "outcome": "docs(plan): security-review amendment approved by the owner (specs/20261117)",
+      "commits": [
+        "bfc3d933"
+      ],
+      "committed_at": "2026-11-18T12:32:16+01:00"
+    },
+    {
+      "agent": "frontend-dev",
+      "tasks": [
+        "T66"
+      ],
+      "outcome": "refactor(letterheads-ui): declare getAuthBaseUrl in the federation types, drop the cast (T66, specs/20261117)",
+      "commits": [
+        "af8f50bf"
+      ],
+      "committed_at": "2026-11-18T12:32:16+01:00"
+    },
+    {
+      "agent": "frontend-dev",
+      "tasks": [
+        "T62"
+      ],
+      "outcome": "fix(admin-ui): Audit page builds Before/After from data.changes for legal entity rows (T62, specs/20261117)",
+      "commits": [
+        "b7bebd01"
+      ],
+      "committed_at": "2026-11-18T12:32:16+01:00"
+    },
+    {
+      "agent": "backend-dev",
+      "tasks": [
+        "T54"
+      ],
+      "outcome": "fix(auth): the copy names who last edited the CRM row and shows each IBAN's tail by one shared rule (T54, specs/20261117)",
+      "commits": [
+        "49e208cf"
+      ],
+      "committed_at": "2026-11-18T12:32:16+01:00"
+    },
+    {
+      "agent": "backend-dev",
+      "tasks": [
+        "T52"
+      ],
+      "outcome": "fix(auth): deleted person refused in the registry; save/restore throttled; history paged (T52, specs/20261117)",
+      "commits": [
+        "b250bda3"
+      ],
+      "committed_at": "2026-11-18T12:32:16+01:00"
+    },
+    {
+      "agent": "backend-dev",
+      "tasks": [
+        "T56"
+      ],
+      "outcome": "feat(notify): repeat protection, per-template caller binding and recipientId addressing on the system routes (T56, specs/20261117)",
+      "commits": [
+        "162a628e"
+      ],
+      "committed_at": "2026-11-18T12:32:16+01:00"
+    },
+    {
+      "agent": "backend-dev",
+      "tasks": [
+        "T55"
+      ],
+      "outcome": "feat(auth): POST /legal-entities/{entity}/versions/check, what a save would change, read-only (T55, specs/20261117)",
+      "commits": [
+        "2f48f58d"
+      ],
+      "committed_at": "2026-11-18T12:32:16+01:00"
+    },
+    {
+      "agent": "designer",
+      "tasks": [
+        "T51"
+      ],
+      "outcome": "docs(design): protected-change confirmation, notice copy, 429 and paging states, follow-up copy (T51, specs/20261117)",
+      "commits": [
+        "a5ff8d5f"
+      ],
+      "committed_at": "2026-11-18T12:32:16+01:00"
+    },
+    {
+      "agent": "orchestrator",
+      "tasks": [],
+      "outcome": "docs(tasks): orchestrator decisions on T51's design drift (specs/20261117)",
+      "commits": [
+        "d9008f31"
+      ],
+      "committed_at": "2026-11-18T12:32:16+01:00"
+    },
+    {
+      "agent": "backend-dev",
+      "tasks": [
+        "T53"
+      ],
+      "outcome": "fix(auth): committed-transaction tests run only on a local database host; crm-api documented with letterhead:render (T53, specs/20261117)",
+      "commits": [
+        "04572ef2"
+      ],
+      "committed_at": "2026-11-18T12:32:16+01:00"
+    },
+    {
+      "agent": "devops",
+      "tasks": [
+        "T67"
+      ],
+      "outcome": "docs(infra): copy role, notice mailbox and registry limits in the contract, release order of G15 with step 7 (T67, specs/20261117)",
+      "commits": [
+        "8cfce096"
+      ],
+      "committed_at": "2026-11-18T12:32:16+01:00"
+    },
+    {
+      "agent": "orchestrator",
+      "tasks": [],
+      "outcome": "docs(tasks): FU-11 (specs/20261117)",
+      "commits": [
+        "c3360e7e"
+      ],
+      "committed_at": "2026-11-18T12:32:16+01:00"
+    },
+    {
+      "agent": "backend-dev",
+      "tasks": [
+        "T64"
+      ],
+      "outcome": "fix(letterhead-api): coalesce the pin-forced registry refresh to one per second per process (T64, specs/20261117)",
+      "commits": [
+        "47572e8e"
+      ],
+      "committed_at": "2026-11-18T12:32:16+01:00"
+    },
+    {
+      "agent": "orchestrator",
+      "tasks": [],
+      "outcome": "docs(tasks): T72 \u2014 crm-api waits past the forced-refresh window before its pin retry (specs/20261117)",
+      "commits": [
+        "93d73122"
+      ],
+      "committed_at": "2026-11-18T12:32:16+01:00"
+    },
+    {
+      "agent": "backend-dev",
+      "tasks": [
+        "T72"
+      ],
+      "outcome": "fix(crm): wait past letterhead-api's forced-refresh window before the pin retry (T72, specs/20261117)",
+      "commits": [
+        "44e40cf2"
+      ],
+      "committed_at": "2026-11-18T12:32:16+01:00"
+    },
+    {
+      "agent": "orchestrator",
+      "tasks": [],
+      "outcome": "docs(tasks): T57 touch gains T56's policy-table test (specs/20261117)",
+      "commits": [
+        "cad0f856"
+      ],
+      "committed_at": "2026-11-18T12:32:16+01:00"
+    },
+    {
+      "agent": "orchestrator",
+      "tasks": [],
+      "outcome": "docs(tasks): T63 touch gains DealSalesFlow.test.tsx (specs/20261117)",
+      "commits": [
+        "b2ee5750"
+      ],
+      "committed_at": "2026-11-18T12:32:16+01:00"
+    },
+    {
+      "agent": "backend-dev",
+      "tasks": [
+        "T57"
+      ],
+      "outcome": "feat(notify): legal_entity_change email template, bound to system:auth (T57, specs/20261117)",
+      "commits": [
+        "c4fa9472"
+      ],
+      "committed_at": "2026-11-18T12:32:16+01:00"
+    },
+    {
+      "agent": "backend-dev",
+      "tasks": [
+        "T57"
+      ],
+      "outcome": "test(notify): production email policy table binds legal_entity_change (T57, specs/20261117)",
+      "commits": [
+        "3aeb7751"
+      ],
+      "committed_at": "2026-11-18T12:32:16+01:00"
+    },
+    {
+      "agent": "frontend-dev",
+      "tasks": [
+        "T63"
+      ],
+      "outcome": "feat(crm-ui): overflow notice points at Legal entities; classic Generate dialog and offers card show LegalEntityNotice (T63, specs/20261117)",
+      "commits": [
+        "466dc903"
+      ],
+      "committed_at": "2026-11-18T12:32:16+01:00"
+    },
+    {
+      "agent": "frontend-dev",
+      "tasks": [
+        "T63"
+      ],
+      "outcome": "test(crm-ui): the classic dialog's incomplete-entity refusal shows the notice (T63, specs/20261117)",
+      "commits": [
+        "038afdf4"
+      ],
+      "committed_at": "2026-11-18T12:32:16+01:00"
+    },
+    {
+      "agent": "backend-dev",
+      "tasks": [
+        "T58"
+      ],
+      "outcome": "feat(auth): notice duty of a protected change, rows written in the version's transaction (T58, specs/20261117)",
+      "commits": [
+        "0e19a590"
+      ],
+      "committed_at": "2026-11-18T12:32:16+01:00"
+    },
+    {
+      "agent": "orchestrator",
+      "tasks": [],
+      "outcome": "docs(tasks): T59 also cleans notice rows in the committed test group (specs/20261117)",
+      "commits": [
+        "fb6ba4f2"
+      ],
+      "committed_at": "2026-11-18T12:32:16+01:00"
+    },
+    {
+      "agent": "backend-dev",
+      "tasks": [
+        "T65"
+      ],
+      "outcome": "fix(letterhead-api): reword the sample document's intro for real company details (T65, specs/20261117)",
+      "commits": [
+        "d5d1a8d5"
+      ],
+      "committed_at": "2026-11-18T12:32:16+01:00"
+    },
+    {
+      "agent": "orchestrator",
+      "tasks": [],
+      "outcome": "docs(tasks): FU-12 flaky server start in letterhead-api tests (specs/20261117)",
+      "commits": [
+        "c4184d9a"
+      ],
+      "committed_at": "2026-11-18T12:32:16+01:00"
+    },
+    {
+      "agent": "devops",
+      "tasks": [
+        "T69"
+      ],
+      "outcome": "chore(changeset): notify-api minor and auth patch for the push-1 additions (T69, specs/20261117)",
+      "commits": [
+        "b2e0a1e4"
+      ],
+      "committed_at": "2026-11-18T12:32:16+01:00"
+    },
+    {
+      "agent": "orchestrator",
+      "tasks": [],
+      "outcome": "docs(tasks): T60 touch widened; T73 ConfirmDialog library gaps, T74 Retry-After over CORS (specs/20261117)",
+      "commits": [
+        "fc1866c5"
+      ],
+      "committed_at": "2026-11-18T12:32:16+01:00"
+    },
+    {
+      "agent": "frontend-dev",
+      "tasks": [
+        "T60"
+      ],
+      "outcome": "feat(admin-ui): protected-change confirmation on save and restore, check and 429 states (T60, specs/20261117)",
+      "commits": [
+        "ba1f67a0"
+      ],
+      "committed_at": "2026-11-18T12:32:16+01:00"
+    },
+    {
+      "agent": "frontend-dev",
+      "tasks": [
+        "T60"
+      ],
+      "outcome": "test(admin-ui): mock the check in the panel tests, restore read failure shown in the dialog, drop dead onLoadFailed (T60, specs/20261117)",
+      "commits": [
+        "2288ce84"
+      ],
+      "committed_at": "2026-11-18T12:32:16+01:00"
+    },
+    {
+      "agent": "backend-dev",
+      "tasks": [
+        "T74"
+      ],
+      "outcome": "fix(auth): expose Retry-After over CORS so admin-ui can read the 429 wait (T74, specs/20261117)",
+      "commits": [
+        "b4cafdc0"
+      ],
+      "committed_at": "2026-11-18T12:32:16+01:00"
+    },
+    {
+      "agent": "frontend-dev",
+      "tasks": [
+        "T61"
+      ],
+      "outcome": "feat(admin-ui): history in pages, Show older versions with loading, failure and focus states (T61, specs/20261117)",
+      "commits": [
+        "80ce160e"
+      ],
+      "committed_at": "2026-11-18T12:32:16+01:00"
+    },
+    {
+      "agent": "frontend-dev",
+      "tasks": [
+        "T73"
+      ],
+      "outcome": "feat(ui): ConfirmDialog opt-ins: scrollBody, confirmDisabledReason, size (T73, specs/20261117)",
+      "commits": [
+        "cdb58fd8"
+      ],
+      "committed_at": "2026-11-18T12:32:16+01:00"
+    },
+    {
+      "agent": "frontend-dev",
+      "tasks": [
+        "T73"
+      ],
+      "outcome": "feat(admin-ui): protected-change and restore dialogs adopt the ConfirmDialog opt-ins (T73, specs/20261117)",
+      "commits": [
+        "d9a28718"
+      ],
+      "committed_at": "2026-11-18T12:32:17+01:00"
+    },
+    {
+      "agent": "backend-dev",
+      "tasks": [
+        "T59"
+      ],
+      "outcome": "feat(auth): notice dispatcher for protected legal-entity changes: kick, sweep, leases, 24 h retries, audit outcomes (T59, specs/20261117)",
+      "commits": [
+        "068f201a"
+      ],
+      "committed_at": "2026-11-18T12:32:17+01:00"
+    },
+    {
+      "agent": "orchestrator",
+      "tasks": [],
+      "outcome": "docs(tasks): T75 \u2014 duty.test.ts committed group behind the local-host guard (specs/20261117)",
+      "commits": [
+        "456cf9f0"
+      ],
+      "committed_at": "2026-11-18T12:32:17+01:00"
+    },
+    {
+      "agent": "backend-dev",
+      "tasks": [
+        "T75"
+      ],
+      "outcome": "test(auth): duty.test.ts real-transactions group uses the local-host guard (T75, specs/20261117)",
+      "commits": [
+        "dd6eb0cb"
+      ],
+      "committed_at": "2026-11-18T12:32:17+01:00"
+    },
+    {
+      "agent": "frontend-dev",
+      "tasks": [
+        "T40"
+      ],
+      "outcome": "fix(admin-ui): FU-7 string gaps wired into their components, FU-8 and stale restore test fixed (T40, specs/20261117)",
+      "commits": [
+        "f3ae2223"
+      ],
+      "committed_at": "2026-11-18T12:32:17+01:00"
+    },
+    {
+      "agent": "frontend-dev",
+      "tasks": [
+        "T40"
+      ],
+      "outcome": "test(admin-ui): accessibility sweep of the Legal entities page, S1-S8 and S12, both themes, Italian once (T40, specs/20261117)",
+      "commits": [
+        "6808859c"
+      ],
+      "committed_at": "2026-11-18T12:32:17+01:00"
+    },
+    {
+      "agent": "orchestrator",
+      "tasks": [],
+      "outcome": "docs(tasks): S12 busy-state reading (specs/20261117)",
+      "commits": [
+        "bb608ede"
+      ],
+      "committed_at": "2026-11-18T12:32:17+01:00"
+    },
+    {
+      "agent": "owasp-reviewer",
+      "tasks": [],
+      "outcome": "docs(security): legal entities re-review \u2014 PASS WITH NOTES (T70); T76 for N2 (specs/20261117)",
+      "commits": [
+        "0cde5142"
+      ],
+      "committed_at": "2026-11-18T12:32:17+01:00",
+      "note": "report committed by the orchestrator"
+    },
+    {
+      "agent": "backend-dev",
+      "tasks": [
+        "T76"
+      ],
+      "outcome": "fix(letterhead-api): a pin forces a registry refresh only when newer than the held version, within a per-process budget (T76, specs/20261117)",
+      "commits": [
+        "37e7d186"
+      ],
+      "committed_at": "2026-11-18T12:32:17+01:00"
+    },
+    {
+      "agent": "devops",
+      "tasks": [
+        "T44"
+      ],
+      "outcome": "chore(changeset): push 2 changesets for crm-api, crm-ui, letterhead-api, letterheads-ui, admin-ui and auth (T44, specs/20261117)",
+      "commits": [
+        "a6803cab"
+      ],
+      "committed_at": "2026-11-18T12:32:17+01:00"
+    },
+    {
+      "agent": "quality-engineer",
+      "tasks": [
+        "T43"
+      ],
+      "outcome": "test(e2e): the CRM and the configurator use the registry \u2014 Settings note, offers print it, incomplete entity refused, overflow notice, preview with real details (T43, specs/20261117)",
+      "commits": [
+        "da96ddda"
+      ],
+      "committed_at": "2026-11-18T12:32:17+01:00"
+    },
+    {
+      "agent": "orchestrator",
+      "tasks": [],
+      "outcome": "docs(tasks): D2 (wrapped missing label), T68 widened for T42 robustness, FU-13 (specs/20261117)",
+      "commits": [
+        "61d29fbe"
+      ],
+      "committed_at": "2026-11-18T12:32:17+01:00"
+    },
+    {
+      "agent": "backend-dev",
+      "tasks": [
+        "D2"
+      ],
+      "outcome": "fix(letterhead-api): keep the brackets of a missing label that wraps onto a second line (D2, specs/20261117)",
+      "commits": [
+        "bafe957a"
+      ],
+      "committed_at": "2026-11-18T12:32:17+01:00"
+    },
+    {
+      "agent": "quality-engineer",
+      "tasks": [
+        "T68"
+      ],
+      "outcome": "test(e2e): protected legal details \u2014 confirmation, restore dialog, notice in the centre; T42 history independent of the version count (T68, specs/20261117)",
+      "commits": [
+        "90e3c75e"
+      ],
+      "committed_at": "2026-11-18T12:32:17+01:00"
+    },
+    {
+      "agent": "orchestrator",
+      "tasks": [],
+      "outcome": "docs(tasks): D3 \u2014 Confirm must save; dialog description holds the values (specs/20261117)",
+      "commits": [
+        "9c0e79e7"
+      ],
+      "committed_at": "2026-11-18T12:32:17+01:00"
+    },
+    {
+      "agent": "frontend-dev",
+      "tasks": [
+        "D3"
+      ],
+      "outcome": "fix(admin-ui): Confirm saves and the dialogs describe their Old/New values (D3, specs/20261117)",
+      "commits": [
+        "0d2b2874"
+      ],
+      "committed_at": "2026-11-18T12:32:17+01:00"
+    },
+    {
+      "agent": "quality-engineer",
+      "tasks": [
+        "T45"
+      ],
+      "outcome": "test(e2e): fresh-stack isolation of four journeys \u2014 version line of a moved entity, preview-call promise, D2 margin, settle after overflow (T45, specs/20261117)",
+      "commits": [
+        "afe2da23"
+      ],
+      "committed_at": "2026-11-18T12:32:17+01:00"
+    },
+    {
+      "agent": "quality-engineer",
+      "tasks": [
+        "T45"
+      ],
+      "outcome": "docs(qe): final verdict of legal-entities \u2014 every AC to executed evidence, MIG and US-9 rehearsals, skew pairings, FU-12 (T45, specs/20261117)",
+      "commits": [
+        "71c324e7"
+      ],
+      "committed_at": "2026-11-18T12:32:17+01:00"
+    },
+    {
+      "agent": "orchestrator",
+      "tasks": [],
+      "outcome": "docs(tasks): reconcile checkboxes after QE PASS (specs/20261117)",
+      "commits": [
+        "582add6b"
+      ],
+      "committed_at": "2026-11-18T12:32:17+01:00"
+    },
+    {
+      "agent": "adr-writer",
+      "tasks": [],
+      "outcome": "docs(adr): record the durable notices, notify-api repeat protection, the check-backed confirmation, the missing mark, the nested-form rule and the pin refresh bound (specs/20261117)",
+      "commits": [
+        "f4b52980"
+      ],
+      "committed_at": "2026-11-18T12:32:17+01:00"
+    },
+    {
+      "agent": "designer",
+      "tasks": [],
+      "outcome": "docs(design): sync after implementation (specs/20261117)",
+      "commits": [
+        "3937e1ee"
+      ],
+      "committed_at": "2026-11-18T12:32:17+01:00"
+    },
+    {
+      "agent": "designer",
+      "tasks": [],
+      "outcome": "docs(design): FU-5 ADR is written, close the open item (specs/20261117)",
+      "commits": [
+        "a0f4c5b2"
+      ],
+      "committed_at": "2026-11-18T12:32:17+01:00"
+    },
+    {
+      "agent": "architect",
+      "tasks": [],
+      "outcome": "docs(plan): legal entities sync after implementation (specs/20261117)",
+      "commits": [
+        "123e7c30"
+      ],
+      "committed_at": "2026-11-18T12:32:17+01:00"
+    },
+    {
+      "agent": "evaluator",
+      "tasks": [],
+      "outcome": "docs(legal-entities): eval round 1 (FAIL 76.5), security delta review, run trace, T44 kept open until T16 (specs/20261117)",
+      "commits": [
+        "4eb061b7"
+      ],
+      "committed_at": "2026-11-18T12:32:17+01:00",
+      "note": "commit bundles the round-1 eval report, the T76/D2/D3 security delta (owasp-reviewer), the run trace and T44 (orchestrator)"
+    },
+    {
+      "agent": "adr-writer",
+      "tasks": [],
+      "outcome": "docs(adr): forward pointers for the legal-entities amendments (specs/20261117)",
+      "commits": [
+        "30b3be3b"
+      ],
+      "committed_at": "2026-11-18T12:32:17+01:00"
+    },
+    {
+      "agent": "orchestrator",
+      "tasks": [],
+      "outcome": "docs(tasks): T77 recorded (specs/20261117)",
+      "commits": [
+        "659bba93"
+      ],
+      "committed_at": "2026-11-18T12:32:17+01:00"
+    },
+    {
+      "agent": "backend-dev",
+      "tasks": [
+        "T77"
+      ],
+      "outcome": "fix(letterhead-api): keep the held entry as fallback of a forced pin refresh, pin budget 30 per 10 min (T77, specs/20261117)",
+      "commits": [
+        "23b9535e"
+      ],
+      "committed_at": "2026-11-18T12:32:17+01:00"
+    },
+    {
+      "agent": "orchestrator",
+      "tasks": [],
+      "outcome": "docs(tasks): T77 done (specs/20261117)",
+      "commits": [
+        "15bcbccd"
+      ],
+      "committed_at": "2026-11-18T12:32:17+01:00"
+    },
+    {
+      "agent": "architect",
+      "tasks": [],
+      "outcome": "docs(plan): legal entities sync updated for T77 (specs/20261117)",
+      "commits": [
+        "21aaa307"
+      ],
+      "committed_at": "2026-11-18T12:32:17+01:00"
+    },
+    {
+      "agent": "orchestrator",
+      "tasks": [],
+      "outcome": "chore(forge): run trace updated with eval round 1 fixes (specs/20261117)",
+      "commits": [
+        "760d6782"
+      ],
+      "committed_at": "2026-11-18T12:32:17+01:00"
+    },
+    {
+      "agent": "evaluator",
+      "tasks": [
+        "T47"
+      ],
+      "outcome": "docs(eval): legal entities eval round 2 \u2014 FAIL 78.3 (T47, specs/20261117)",
+      "commits": [
+        "0fe87e9f"
+      ],
+      "committed_at": "2026-11-18T12:32:17+01:00",
+      "note": "report committed by the orchestrator"
+    },
+    {
+      "agent": "architect",
+      "tasks": [],
+      "outcome": "docs(legal-entities): approval states and replica arithmetic corrected (specs/20261117)",
+      "commits": [
+        "97ab4cd1"
+      ],
+      "committed_at": "2026-11-18T12:32:17+01:00"
+    },
+    {
+      "agent": "backend-dev",
+      "tasks": [],
+      "outcome": "docs(letterhead-api): correct the pin budget replica arithmetic (specs/20261117)",
+      "commits": [
+        "f2eeac8c"
+      ],
+      "committed_at": "2026-11-18T12:32:17+01:00"
+    },
+    {
+      "agent": "orchestrator",
+      "tasks": [
+        "T77"
+      ],
+      "outcome": "docs(agents): pin refresh budget is 30 (T77, specs/20261117)",
+      "commits": [
+        "4f923944"
+      ],
+      "committed_at": "2026-11-18T12:32:17+01:00"
+    },
+    {
+      "agent": "quality-engineer",
+      "tasks": [],
+      "outcome": "docs(qe): delta for T77 (specs/20261117)",
+      "commits": [
+        "447a6d55"
+      ],
+      "committed_at": "2026-11-18T12:32:17+01:00"
+    },
+    {
+      "agent": "orchestrator",
+      "tasks": [],
+      "outcome": "docs(legal-entities): QE delta for T77 merged, FU-14, eval escalated after round 2, run trace corrected (specs/20261117)",
+      "commits": [
+        "080eb450"
+      ],
+      "committed_at": "2026-11-18T12:32:17+01:00"
+    },
+    {
+      "agent": "orchestrator",
+      "tasks": [],
+      "outcome": "docs(legal-entities): owner approves the orchestrator decisions and the design; N1 decided \u2014 author by email (specs/20261117)",
+      "commits": [
+        "fa21103a"
+      ],
+      "committed_at": "2026-11-18T12:32:17+01:00"
+    },
+    {
+      "agent": "product-owner",
+      "tasks": [],
+      "outcome": "docs(spec): legal entities amendment D9 \u2014 the notice names the author by account email (owner 2026-11-18, specs/20261117)",
+      "commits": [
+        "4898096a"
+      ],
+      "committed_at": "2026-11-18T12:32:17+01:00"
+    },
+    {
+      "agent": "architect",
+      "tasks": [],
+      "outcome": "docs(plan): legal entities amendment 2026-11-18 \u2014 the notice names its author by the account email captured in the version's transaction, D9 (specs/20261117)",
+      "commits": [
+        "545d3add"
+      ],
+      "committed_at": "2026-11-18T12:32:17+01:00"
+    },
+    {
+      "agent": "orchestrator",
+      "tasks": [],
+      "outcome": "docs(tasks): legal entities tasks T78\u2013T87 for amendment D9 \u2014 author by account email (specs/20261117)",
+      "commits": [
+        "d1f8dd45"
+      ],
+      "committed_at": "2026-11-18T12:32:17+01:00"
+    },
+    {
+      "agent": "orchestrator",
+      "tasks": [],
+      "outcome": "docs(spec): R-D9a \u2014 a malformed author email counts as none on record (specs/20261117)",
+      "commits": [
+        "b1618493"
+      ],
+      "committed_at": "2026-11-18T12:32:17+01:00",
+      "note": "records owner decisions / mechanical amendment"
+    },
+    {
+      "agent": "adr-writer",
+      "tasks": [],
+      "outcome": "docs(adr): a notice identifies its author by the account email captured in the version's transaction, D9 (specs/20261117)",
+      "commits": [
+        "fde599e5"
+      ],
+      "committed_at": "2026-11-18T12:32:17+01:00"
+    },
+    {
+      "agent": "designer",
+      "tasks": [
+        "T78"
+      ],
+      "outcome": "docs(design): N1 copy names the author by account email, no display name; clear stale approval lines \u2014 D9 (T78, specs/20261117)",
+      "commits": [
+        "84c60f93"
+      ],
+      "committed_at": "2026-11-18T12:32:17+01:00"
+    },
+    {
+      "agent": "designer",
+      "tasks": [],
+      "outcome": "docs(design): T78 D9 copy merged; owner-approved items ticked (specs/20261117)",
+      "commits": [
+        "13e0c0d9"
+      ],
+      "committed_at": "2026-11-18T12:32:17+01:00"
+    },
+    {
+      "agent": "backend-dev",
+      "tasks": [
+        "T80"
+      ],
+      "outcome": "feat(auth): capture the author's account email on the notice rows (T80, specs/20261117)",
+      "commits": [
+        "70a33be7"
+      ],
+      "committed_at": "2026-11-18T12:32:17+01:00"
+    },
+    {
+      "agent": "backend-dev",
+      "tasks": [
+        "T79"
+      ],
+      "outcome": "feat(notify): legal_entity_change names the author by account email, not a display name (T79, specs/20261117)",
+      "commits": [
+        "0e4125fc"
+      ],
+      "committed_at": "2026-11-18T12:32:17+01:00"
+    },
+    {
+      "agent": "devops",
+      "tasks": [
+        "T82"
+      ],
+      "outcome": "chore(changeset): legal_entity_change names the author by actorEmail (T82, specs/20261117)",
+      "commits": [
+        "ffc06dc8"
+      ],
+      "committed_at": "2026-11-18T12:32:17+01:00"
+    },
+    {
+      "agent": "backend-dev",
+      "tasks": [
+        "T81"
+      ],
+      "outcome": "feat(auth): the change notice states the author's captured account email (T81, specs/20261117)",
+      "commits": [
+        "87859633"
+      ],
+      "committed_at": "2026-11-18T12:32:17+01:00"
+    },
+    {
+      "agent": "devops",
+      "tasks": [
+        "T83"
+      ],
+      "outcome": "chore(changeset): notice identifies author by account email (T83, specs/20261117)",
+      "commits": [
+        "e176344a"
+      ],
+      "committed_at": "2026-11-18T12:32:17+01:00"
+    },
+    {
+      "agent": "owasp-reviewer",
+      "tasks": [],
+      "outcome": "docs(legal-entities): D9 security delta \u2014 PASS WITH NOTES, N1 closed; T88, T89 for its lows (specs/20261117)",
+      "commits": [
+        "c83d2dfa"
+      ],
+      "committed_at": "2026-11-18T12:32:17+01:00",
+      "note": "review committed by the orchestrator together with the tasks it routed"
+    },
+    {
+      "agent": "backend-dev",
+      "tasks": [
+        "T89"
+      ],
+      "outcome": "fix(notify): log only error name and code at the top-level handler (T89, specs/20261117)",
+      "commits": [
+        "6edfd6b7"
+      ],
+      "committed_at": "2026-11-18T12:32:17+01:00"
+    },
+    {
+      "agent": "backend-dev",
+      "tasks": [
+        "T88"
+      ],
+      "outcome": "fix(auth): clear the notice author email at the terminal status; pin that the holder cannot change user.email; log error name and code only (T88, specs/20261117)",
+      "commits": [
+        "71093faf"
+      ],
+      "committed_at": "2026-11-18T12:32:17+01:00"
+    },
+    {
+      "agent": "orchestrator",
+      "tasks": [],
+      "outcome": "docs(tasks): T88, T89 done (specs/20261117)",
+      "commits": [
+        "93e6ad5f"
+      ],
+      "committed_at": "2026-11-18T12:32:18+01:00"
+    },
+    {
+      "agent": "architect",
+      "tasks": [],
+      "outcome": "docs(legal-entities): authorEmail cleared at the terminal status (T88) (specs/20261117)",
+      "commits": [
+        "fcace630"
+      ],
+      "committed_at": "2026-11-18T12:32:18+01:00"
+    },
+    {
+      "agent": "quality-engineer",
+      "tasks": [
+        "T84"
+      ],
+      "outcome": "test(e2e): notices name the author by account email, never the display name (T84, specs/20261117)",
+      "commits": [
+        "86956b3f"
+      ],
+      "committed_at": "2026-11-18T12:32:18+01:00"
+    },
+    {
+      "agent": "quality-engineer",
+      "tasks": [
+        "T85"
+      ],
+      "outcome": "docs(qe): delta for D9 (T85, specs/20261117)",
+      "commits": [
+        "7aa1ecbe"
+      ],
+      "committed_at": "2026-11-18T12:32:18+01:00"
+    },
+    {
+      "agent": "orchestrator",
+      "tasks": [],
+      "outcome": "docs(tasks): D9 tasks T78\u2013T85 done (specs/20261117)",
+      "commits": [
+        "097dda28"
+      ],
+      "committed_at": "2026-11-18T12:32:18+01:00"
+    },
+    {
+      "agent": "devops",
+      "tasks": [],
+      "outcome": "chore(changeset): auth notices after T88, notify-api log after T89 (specs/20261117)",
+      "commits": [
+        "b0682478"
+      ],
+      "committed_at": "2026-11-18T12:32:18+01:00"
+    },
+    {
+      "agent": "orchestrator",
+      "tasks": [],
+      "outcome": "chore(forge): run trace with the owner's 2026-11-18 decisions and D9 (specs/20261117)",
+      "commits": [
+        "e2f7d748"
+      ],
+      "committed_at": "2026-11-18T12:32:18+01:00"
+    },
+    {
+      "agent": "evaluator",
+      "tasks": [
+        "T47"
+      ],
+      "outcome": "docs(eval): legal entities eval round 3 \u2014 FAIL 78.3 (T47, specs/20261117)",
+      "commits": [
+        "cddcfa22"
+      ],
+      "committed_at": "2026-11-18T12:32:18+01:00",
+      "note": "report committed by the orchestrator"
+    },
+    {
+      "agent": "orchestrator",
+      "tasks": [],
+      "outcome": "chore(forge): run trace rebuilt from git \u2014 one entry per commit, corrected attributions and hashes (specs/20261117)",
+      "commits": [
+        "d6b43edc"
+      ],
+      "committed_at": "2026-11-18T12:32:18+01:00"
+    },
+    {
+      "agent": "orchestrator",
+      "tasks": [],
+      "outcome": "docs(legal-entities): eval round 3 documentation fixes (specs/20261117)",
+      "commits": [
+        "1d438497"
+      ],
+      "committed_at": "2026-11-18T12:32:18+01:00"
+    },
+    {
+      "agent": "backend-dev",
+      "tasks": [],
+      "outcome": "test(auth): assert the email-change refusals and the accepted session (specs/20261117)",
+      "commits": [
+        "4abc77c9"
+      ],
+      "committed_at": "2026-11-18T12:32:18+01:00"
+    },
+    {
+      "agent": "orchestrator",
+      "tasks": [],
+      "outcome": "chore(forge): run trace regenerated from git (specs/20261117)",
+      "commits": [
+        "02c2209a"
+      ],
+      "committed_at": "2026-11-18T12:32:18+01:00"
+    },
+    {
+      "agent": "orchestrator",
+      "tasks": [],
+      "outcome": "docs(legal-entities): owner confirms R-D9a (specs/20261117)",
+      "commits": [
+        "f75ab530"
+      ],
+      "committed_at": "2026-11-18T12:32:18+01:00"
+    },
+    {
+      "agent": "orchestrator",
+      "tasks": [],
+      "outcome": "chore(forge): run trace regenerated from git (specs/20261117)",
+      "commits": [
+        "ace25e60"
+      ],
+      "committed_at": "2026-11-18T12:32:18+01:00"
+    },
+    {
+      "agent": "adr-writer",
+      "tasks": [],
+      "outcome": "docs(adr): R-D9a confirmed by the owner (specs/20261117)",
+      "commits": [
+        "45fffb2b"
+      ],
+      "committed_at": "2026-11-18T12:32:18+01:00"
+    },
+    {
+      "agent": "orchestrator",
+      "tasks": [],
+      "outcome": "chore(forge): run trace regenerated from git (specs/20261117)",
+      "commits": [
+        "4c7d74a7"
+      ],
+      "committed_at": "2026-11-18T12:32:18+01:00"
+    },
+    {
+      "agent": "orchestrator",
+      "tasks": [],
+      "outcome": "docs(legal-entities): eval round 4 PASS 80.0 (T47); plan J11 R-D9a confirmed (specs/20261117)",
+      "commits": [
+        "899138ab"
+      ],
+      "committed_at": "2026-11-18T12:32:18+01:00"
+    },
+    {
+      "agent": "orchestrator",
+      "tasks": [],
+      "outcome": "chore(forge): run trace \u2014 attribution of review, eval and test commits; verdict-only dispatches listed apart (specs/20261117)",
+      "commits": [
+        "35e51e89"
+      ],
+      "committed_at": "2026-11-18T12:32:18+01:00"
+    },
+    {
+      "agent": "orchestrator",
+      "tasks": [],
+      "outcome": "fix(notify): legal_entity_change renders into the branded Operai frame",
+      "commits": [
+        "562b8262"
+      ],
+      "committed_at": "2026-11-18T12:37:08+01:00",
+      "note": "rebase follow-up: template moved onto main's branded email frame (56fbbfa3)"
+    }
+  ],
+  "verdict_only_dispatches": [
+    {
+      "agent": "owasp-reviewer",
+      "tasks": [
+        "T46"
+      ],
+      "outcome": "REVIEW REQUIRED: 1 medium (F1), 6 low, 8 info",
+      "commits": []
+    },
+    {
+      "agent": "quality-engineer",
+      "tasks": [
+        "T42"
+      ],
+      "outcome": "e2e 15/15 only with a scratch workaround; found blocking defect D1",
+      "commits": []
+    },
+    {
+      "agent": "quality-engineer",
+      "tasks": [
+        "T43"
+      ],
+      "outcome": "FAIL: defect D-T43-1 (fixed as D2)",
+      "commits": []
+    },
+    {
+      "agent": "quality-engineer",
+      "tasks": [
+        "T68"
+      ],
+      "outcome": "FAIL: D-T68-1 high, D-T68-2 medium (fixed as D3)",
+      "commits": []
+    },
+    {
+      "agent": "quality-engineer",
+      "tasks": [
+        "T84"
+      ],
+      "outcome": "e2e 30/30 at its base; 2 of 15 failed at head after T88 until QE T85 fixed the test (qe-report \u00a716.6)",
+      "commits": []
+    }
+  ],
+  "drift_events": [
+    {
+      "agent": "architect",
+      "artifact": "spec.md",
+      "summary": "D1-D6, D7, D8 amendments",
+      "resolved": true
+    },
+    {
+      "agent": "designer",
+      "artifact": "plan.md",
+      "summary": "DR-1..DR-12 into plan amendment E1-E14",
+      "resolved": true
+    },
+    {
+      "agent": "owasp-reviewer",
+      "artifact": "spec.md",
+      "summary": "F1 medium into US-9 (owner approved); F2-F7 into T52-T62",
+      "resolved": true
+    },
+    {
+      "agent": "quality-engineer",
+      "artifact": "code",
+      "summary": "D1 auth routes 404; D2 wrapped missing label; D3 Confirm did not save",
+      "resolved": true
+    },
+    {
+      "agent": "owasp-reviewer",
+      "artifact": "spec.md",
+      "summary": "N1/O-1 (editable display name in the notice) into owner decision D9: author by account email; plan J1-J13, T78-T89",
+      "resolved": true
+    },
+    {
+      "agent": "orchestrator",
+      "artifact": "tasks.md",
+      "summary": "gate R13 lifted (owner); push 1 at the end with push 2 (owner); touch lists widened and tasks T72-T77, T88-T89, D1-D3 added from agent reports",
+      "resolved": true
+    }
+  ],
+  "collision_events": [],
+  "env_faults": [
+    {
+      "agent": "all",
+      "class": "toolchain",
+      "detail": "mise refuses the untrusted worktree config",
+      "resolved_by": "toolchains by PATH; no mise trust"
+    },
+    {
+      "agent": "backend-dev",
+      "class": "databases",
+      "detail": "tests need isolated databases",
+      "resolved_by": "per-task databases on the compose Postgres"
+    },
+    {
+      "agent": "quality-engineer",
+      "class": "browser",
+      "detail": "Playwright wants chromium 1228, 1208 installed",
+      "resolved_by": "scratch config with executablePath, deleted after"
+    },
+    {
+      "agent": "all",
+      "class": "hooks",
+      "detail": "a Bash hook blocks command text naming secret-like files and destructive SQL; one agent tried a spelling workaround, which the classifier denied",
+      "resolved_by": "not worked around; Write/Edit tools used; databases left for the owner"
+    },
+    {
+      "agent": "quality-engineer",
+      "class": "databases",
+      "detail": "letterhead-api tests exhaust Postgres connections under parallel load (FU-12); pool test race FU-14",
+      "resolved_by": "triaged; recommendations recorded"
+    }
+  ],
+  "verdicts": {
+    "qe": "PASS (T45) + delta PASS for T77 (\u00a715) + delta PASS for D9 (\u00a716)",
+    "owasp": "T46 REVIEW REQUIRED, T70 PASS WITH NOTES, deltas for T76/D2/D3 and D9 PASS WITH NOTES; N1 closed",
+    "eval": "FAIL 76.5 (r1), FAIL 78.3 (r2, 0fe87e9f), FAIL 78.3 (r3, cddcfa22), PASS 80.0 (r4, owner-requested)"
+  },
+  "result": "partial",
+  "notes": "Rebuilt 2026-11-18 from git: one entry per branch commit (origin/main..HEAD), agent assigned from the commit's task tag or type; entries with empty commits are verdict-only dispatches. An earlier version of this trace had wrong attributions and a non-existent hash (3db7dbe4, really 0fe87e9f). Owner decisions of 2026-11-18 recorded: all orchestrator decisions approved, design approved, N1 decided as D9 (closed). Owner steps outstanding: T15-T18, T48, T49, T71, T87. Eval PASS in round 4; spec stays in-progress until the owner's release chain (T16-T18, T87, T44, T48, T49, T71) and T50. Rebased 2026-11-18 onto origin/main 512851c2: every hash in this trace is post-rebase (old ones remapped by subject); conflicts resolved in AGENTS.md, auth.env, infra/README.md and auth.routes.ts, and legal_entity_change moved onto the branded email frame.",
+  "tokens": null,
+  "cost_usd": null,
+  "terse": false,
+  "control_run_id": null
+}
