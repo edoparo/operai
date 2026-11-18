@@ -23,6 +23,7 @@ const en = {
   look: {
     title: 'Look of the document',
     heading: (n: number) => `Heading ${n}`,
+    documentTitle: 'Document title',
     size: 'Size (pt)',
     bold: 'Bold',
     colour: 'Colour',
@@ -126,6 +127,7 @@ const it: typeof en = {
   look: {
     title: 'Aspetto del documento',
     heading: (n: number) => `Titolo ${n}`,
+    documentTitle: 'Titolo del documento',
     size: 'Dimensione (pt)',
     bold: 'Grassetto',
     colour: 'Colore',

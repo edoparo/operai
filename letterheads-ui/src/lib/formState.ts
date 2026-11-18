@@ -20,6 +20,7 @@ import { parseDecimal } from '@operai/ui'
 import type {
   FormConfig,
   FormFrame,
+  FormHeadingLook,
   FormLine,
   FormVariant,
   OptionalVariantName,
@@ -131,6 +132,8 @@ export interface FormLimits {
   maxLines: number
   /** The distance of a frame from the body that a stored version without one has: the catalog's starting value. */
   defaultGapMm: number
+  /** The look of the document title that a stored version without one has: the catalog's starting value. */
+  defaultTitle: FormHeadingLook
   /** The look of a line when its frame has no line to copy from: taken from the catalog's `defaultConfig`. */
   fallbackLook: LineLook
 }
@@ -180,15 +183,20 @@ function anyLineLook(config: FormConfig, fallback: LineLook): LineLook {
 export function limitsFromCatalog(maxLinesPerZone: number, lineSizePt: Range, defaultConfig: FormConfig): FormLimits {
   const fallback: LineLook = { size: lineSizePt.min, bold: false, color: '000000' }
   const gap = defaultConfig.variants.default.header.gapMm
+  const title = defaultConfig.look.title
   return {
     maxLines: maxLinesPerZone,
     defaultGapMm: typeof gap === 'number' ? gap : FALLBACK_GAP_MM,
+    defaultTitle: title === undefined || title === null ? FALLBACK_TITLE : { ...title },
     fallbackLook: anyLineLook(defaultConfig, fallback),
   }
 }
 
 /** Only if the catalog's own starting configuration lacks a distance (it does not): what layout 1 always drew. */
 const FALLBACK_GAP_MM = 3
+
+/** Only if the catalog's own starting configuration lacks a title look (it does not): what layout 1 always drew. */
+const FALLBACK_TITLE: FormHeadingLook = { size: 20, bold: true, color: '000000' }
 
 /**
  * A version stored before frames had a distance from the body has none in its JSON, and the service reads
@@ -205,8 +213,23 @@ export function withFrameGaps(config: FormConfig, gapMm: number): FormConfig {
   return { ...config, variants: { default: variant(base) as FormVariant, first: variant(first), last: variant(last) } }
 }
 
+/**
+ * A version stored before the document title had a look has no `look.title`, and the service reads that as the
+ * starting look. The form shows that look and sends it, for the same reason as the frame distance above.
+ */
+export function withDocumentTitle(config: FormConfig, title: FormHeadingLook): FormConfig {
+  return config.look.title === undefined || config.look.title === null
+    ? { ...config, look: { ...config.look, title: { ...title } } }
+    : config
+}
+
+/** What a stored version lacks and the service fills in: both are given to the baseline and the configuration alike. */
+function withStoredDefaults(config: FormConfig, limits: FormLimits): FormConfig {
+  return withDocumentTitle(withFrameGaps(config, limits.defaultGapMm), limits.defaultTitle)
+}
+
 export function createFormState(config: FormConfig, limits: FormLimits): FormState {
-  const filled = withFrameGaps(config, limits.defaultGapMm)
+  const filled = withStoredDefaults(config, limits)
   return { baseline: filled, config: filled, kept: { first: null, last: null }, problems: {}, limits }
 }
 
@@ -295,7 +318,7 @@ export function formReducer(state: FormState, action: FormAction): FormState {
       return { ...state, problems: groupByPath(action.problems) }
 
     case 'loaded': {
-      const config = withFrameGaps(action.config, state.limits.defaultGapMm)
+      const config = withStoredDefaults(action.config, state.limits)
       return {
         ...state,
         baseline: config,

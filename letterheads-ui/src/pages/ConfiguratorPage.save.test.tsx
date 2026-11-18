@@ -337,6 +337,99 @@ describe('the distance of a header or footer from the body (gapMm)', () => {
   })
 })
 
+describe('the look of the document title (look.title)', () => {
+  const group = () => screen.getByRole('group', { name: 'Document title' })
+  const size = () => within(group()).getByRole('textbox', { name: 'Size (pt)' }) as HTMLInputElement
+  const bold = () => within(group()).getByRole('checkbox', { name: 'Bold' }) as HTMLInputElement
+  const colour = () => within(group()).getByRole('textbox', { name: 'Colour' }) as HTMLInputElement
+  const retype = async (field: HTMLInputElement, value: string) => {
+    await userEvent.clear(field)
+    await userEvent.type(field, value)
+  }
+
+  it('is a group of size, bold and colour beside the heading levels, 20 pt bold black to begin with', async () => {
+    await renderPage()
+    expect(size().value).toBe('20')
+    expect(bold().checked).toBe(true)
+    expect(colour().value).toBe('000000')
+    expect(status()).toBe('No unsaved changes')
+    // It sits after the three heading levels and before the body text.
+    const legends = [...document.querySelectorAll('fieldset > legend')].map((legend) => legend.textContent)
+    expect(legends.indexOf('Document title')).toBeGreaterThan(legends.indexOf('Heading 3'))
+    expect(legends.indexOf('Document title')).toBeLessThan(legends.indexOf('Body text'))
+  })
+
+  it('sends what was changed with the configuration, and only that', async () => {
+    await renderPage({ routes: { [`POST ${VERSIONS}`]: () => created(4) } })
+    await retype(size(), '26.5')
+    await userEvent.click(bold())
+    await retype(colour(), 'E50339')
+    expect(status()).toBe('Unsaved changes')
+    await userEvent.click(save())
+    await screen.findByTestId('letterheads-saved')
+    const { config } = sentBodies()[0]
+    expect(config.look.title).toEqual({ size: 26.5, bold: false, color: 'E50339' })
+    expect(config.look.headings).toEqual(defaultConfigFixture().look.headings)
+  })
+
+  it('opens a version stored without it at the starting look, unchanged, and sends it with the next save', async () => {
+    const stored = defaultConfigFixture() as unknown as { look: Record<string, unknown> }
+    delete stored.look.title
+    await renderPage({
+      routes: {
+        ...versionRoute('welld_it', 3, stored as unknown as FormConfig),
+        [`POST ${VERSIONS}`]: () => created(4),
+      },
+    })
+    expect(size().value).toBe('20')
+    expect(bold().checked).toBe(true)
+    expect(colour().value).toBe('000000')
+    expect(status()).toBe('No unsaved changes')
+    await edit('Top', '26')
+    await userEvent.click(save())
+    await screen.findByTestId('letterheads-saved')
+    expect(sentBodies()[0].config.look.title).toEqual({ size: 20, bold: true, color: '000000' })
+  })
+
+  it('shows the refusal of the service on the field it names, with the range, and focus goes there', async () => {
+    await renderPage({
+      routes: {
+        [`POST ${VERSIONS}`]: () => refusal({ path: '/look/title/size', reason: 'out_of_range', name: 'size' }),
+      },
+    })
+    await retype(size(), '40')
+    await userEvent.click(save())
+    const summary = await screen.findByTestId('letterheads-summary')
+    expect(within(summary).getByTestId('letterheads-summary-item').textContent).toBe(
+      'Document title, size: use a number between 8 and 36 pt.',
+    )
+    await waitFor(() => expect(document.activeElement).toBe(size()))
+    expect(size().getAttribute('aria-invalid')).toBe('true')
+    const described = size()
+      .getAttribute('aria-describedby')!
+      .split(' ')
+      .map((id) => document.getElementById(id)?.textContent)
+      .join(' ')
+    expect(described).toContain('use a number between 8 and 36 pt.')
+    // The heading levels' own size fields are not marked.
+    expect(byPointer('/look/headings/0/size').getAttribute('aria-invalid')).toBeNull()
+    await retype(size(), '30')
+    expect(size().getAttribute('aria-invalid')).toBeNull()
+  })
+
+  it('shows a refused colour on the colour field, and has no accessibility violation with it showing', async () => {
+    await renderPage({
+      routes: { [`POST ${VERSIONS}`]: () => refusal({ path: '/look/title/color', reason: 'bad_colour', name: 'red' }) },
+    })
+    await retype(colour(), 'red')
+    await userEvent.click(save())
+    const summary = await screen.findByTestId('letterheads-summary')
+    expect(within(summary).getByTestId('letterheads-summary-item').textContent).toContain('Document title, colour')
+    expect(colour().getAttribute('aria-invalid')).toBe('true')
+    expect(await axeViolations(document.body)).toEqual([])
+  })
+})
+
 describe('a refused save (F7.3, S4; AC-8.3)', () => {
   // In the order the service found them, which is not the order of the page.
   const problems = [

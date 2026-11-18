@@ -99,7 +99,7 @@ describe('the table (F8, S8; AC-8.7)', () => {
       within(rowOf(n))
         .getAllByRole('cell')
         .map((td) => td.textContent)
-    expect(cells(3).slice(0, 3)).toEqual(['Person 3', '03.11.2026 ' + cells(3)[1].slice(-5), 'Headings, Tables'])
+    expect(cells(3).slice(0, 3)).toEqual(['Person 3', '03.11.2026 ' + cells(3)[1].slice(-5), 'Headings and document title, Tables'])
     expect(cells(2)[2]).toBe('Margins, First page footer')
     // A restore says whose settings it copied, not the names it happened to differ in.
     expect(cells(4)[2]).toBe('Same settings as version 2')

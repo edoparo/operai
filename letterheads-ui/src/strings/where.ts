@@ -9,6 +9,7 @@ const en = {
   fonts: { body: 'body text font', heading: 'headings font', frame: 'header and footer font' },
   look: {
     heading: (n: number) => `heading ${n}`,
+    title: 'document title',
     body: 'body text',
     table: 'table',
     bulletMarker: 'list marker',
@@ -41,6 +42,7 @@ const it: typeof en = {
   },
   look: {
     heading: (n: number) => `titolo ${n}`,
+    title: 'titolo del documento',
     body: 'testo',
     table: 'tabella',
     bulletMarker: 'simbolo dell’elenco',

@@ -55,6 +55,7 @@ const PAGE_ORDER = [
   'look',
   'variants',
   'headings',
+  'title',
   'body',
   'heading',
   'frame',
@@ -127,6 +128,10 @@ function lookWords(segments: readonly string[]): string[] {
     const heading = w.heading(Number(a) + 1)
     const leaf = b === 'size' ? w.size : b === 'bold' ? w.bold : b === 'color' ? w.colour : undefined
     return leaf === undefined ? [heading] : [heading, leaf]
+  }
+  if (member === 'title') {
+    const leaf = a === 'size' ? w.size : a === 'bold' ? w.bold : a === 'color' ? w.colour : undefined
+    return leaf === undefined ? [w.title] : [w.title, leaf]
   }
   if (member === 'body') {
     const leaf = a === 'size' ? w.size : a === 'lineSpacing' ? w.lineSpacing : undefined
@@ -225,6 +230,7 @@ function rangeOf(path: string, bounds: FormCatalog['bounds']): Range | null {
   const pt = (range: { min: number; max: number }): Range => ({ ...range, unit: 'pt' })
   if (first === 'margins') return mm(bounds.marginMm)
   if (first === 'look' && second === 'headings' && fourth === 'size') return pt(bounds.headingSizePt)
+  if (first === 'look' && second === 'title' && third === 'size') return pt(bounds.titleSizePt)
   if (first === 'look' && second === 'body') {
     if (third === 'size') return pt(bounds.bodySizePt)
     if (third === 'lineSpacing') return { ...bounds.lineSpacing, unit: '' }

@@ -188,6 +188,33 @@ describe('formReducer: baseline and dirty', () => {
     expect(isDirty(loaded)).toBe(false)
   })
 
+  it('a version stored without the document title look opens with the catalog’s, and is not dirty for it', () => {
+    const stored = fullConfigFixture() as unknown as { look: Record<string, unknown> }
+    delete stored.look.title
+    const state = start(stored as unknown as FormConfig)
+    expect(state.config.look.title).toEqual({ size: 20, bold: true, color: '000000' })
+    expect(isDirty(state)).toBe(false)
+    // The default is a copy: changing the form never changes the limits.
+    const changed = run(state, { type: 'set', pointer: '/look/title/size', value: 28 })
+    expect(changed.config.look.title.size).toBe(28)
+    expect(isDirty(changed)).toBe(true)
+    expect(changed.limits.defaultTitle.size).toBe(20)
+    // A stored look is kept.
+    const kept = fullConfigFixture()
+    kept.look.title = { size: 30, bold: false, color: 'e50339' }
+    expect(start(kept).config.look.title).toEqual({ size: 30, bold: false, color: 'e50339' })
+    // Loading a version does the same.
+    const loaded = run(start(), { type: 'loaded', config: stored as unknown as FormConfig })
+    expect(loaded.config.look.title).toEqual({ size: 20, bold: true, color: '000000' })
+    expect(isDirty(loaded)).toBe(false)
+  })
+
+  it('refuses a catalog that has no bound for the title size (an older service)', () => {
+    const old = catalogFixture() as unknown as { bounds: Record<string, unknown> }
+    delete old.bounds.titleSizePt
+    expect(readCatalog(old as unknown as ReturnType<typeof catalogFixture>)).toBeNull()
+  })
+
   it('a typed distance is held as typed, so the service, not the form, refuses it', () => {
     const state = run(
       start(),
@@ -295,6 +322,7 @@ describe('formReducer: the lines of a zone', () => {
     const nothingToCopy = createFormState(bare, {
       maxLines: 4,
       defaultGapMm: 3,
+      defaultTitle: { size: 20, bold: true, color: '000000' },
       fallbackLook: { size: 6, bold: false, color: '000000' },
     })
     const state = run(nothingToCopy, { type: 'lineAdded', zone: '/variants/default/header/left' })

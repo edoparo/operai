@@ -58,6 +58,10 @@ describe('whereOf: a pointer in words', () => {
     ['/look/table/headerFill', 'table, header row background'],
     ['/look/table/borderColor', 'table, border colour'],
     ['/look/bulletMarker', 'list marker'],
+    ['/look/title', 'document title'],
+    ['/look/title/size', 'document title, size'],
+    ['/look/title/bold', 'document title, bold'],
+    ['/look/title/color', 'document title, colour'],
     ['/variants/first', 'first page'],
     ['/variants/default/footer', 'default page, footer'],
     ['/variants/default/header/valign', 'default page, header, alignment'],
@@ -113,6 +117,8 @@ describe('describeProblem: a sentence for each reason of the closed list of eigh
     expect(say('/variants/default/logo/heightMm', 'out_of_range')).toContain(
       `${logoHeightMm.min} and ${logoHeightMm.max} mm`,
     )
+    expect(say('/look/title/size', 'out_of_range')).toBe('Document title, size: use a number between 8 and 36 pt.')
+    expect(say('/look/title/color', 'bad_colour')).toContain('Document title, colour')
     expect(say('/variants/default/header/gapMm', 'out_of_range')).toBe(
       'Default page, header, distance from the body: use a number between 0 and 40 mm.',
     )
@@ -259,6 +265,10 @@ describe('comparePointers: the page order', () => {
     expect(at('/margins/left')).toBeLessThan(at('/margins/right'))
     expect(at('/margins/right')).toBeLessThan(at('/fonts/body'))
     expect(at('/fonts/frame')).toBeLessThan(at('/look/headings/0/size'))
+    // The title's group follows the heading levels and precedes the body text, as on the page.
+    expect(at('/look/headings/2/color')).toBeLessThan(at('/look/title/size'))
+    expect(at('/look/title/size')).toBeLessThan(at('/look/title/color'))
+    expect(at('/look/title/color')).toBeLessThan(at('/look/body/size'))
     expect(at('/look/body/lineSpacing')).toBeLessThan(at('/look/table/headerFill'))
     expect(at('/look/bulletMarker')).toBeLessThan(at('/variants/default/header/valign'))
     // The distance sits under the alignment and above the rule, as its control does.

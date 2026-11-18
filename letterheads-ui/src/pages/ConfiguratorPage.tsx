@@ -1041,6 +1041,27 @@ function LookCard({ config }: { config: FormConfig }) {
           </Group>
         )
       })}
+      <Group legend={strings.form.look.documentTitle}>
+        <div className="flex flex-wrap items-end gap-x-4 gap-y-3">
+          <NumberField
+            className="w-24"
+            label={strings.form.look.size}
+            pointer={pointer('look', 'title', 'size')}
+            value={look.title.size}
+          />
+          <BoolField
+            className="pb-2"
+            label={strings.form.look.bold}
+            pointer={pointer('look', 'title', 'bold')}
+            checked={look.title.bold}
+          />
+          <ColourField
+            label={strings.form.look.colour}
+            pointer={pointer('look', 'title', 'color')}
+            value={look.title.color}
+          />
+        </div>
+      </Group>
       <Group legend={strings.form.look.bodyText}>
         <div className="flex flex-wrap items-end gap-x-4 gap-y-3">
           <NumberField

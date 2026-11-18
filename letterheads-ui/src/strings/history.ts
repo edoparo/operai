@@ -23,7 +23,7 @@ const en = {
   setting: {
     margins: 'Margins',
     fonts: 'Fonts',
-    'look.headings': 'Headings',
+    'look.headings': 'Headings and document title',
     'look.body': 'Body text',
     'look.table': 'Tables',
     'look.bulletMarker': 'List marker',
@@ -64,7 +64,7 @@ const it: typeof en = {
   setting: {
     margins: 'Margini',
     fonts: 'Caratteri',
-    'look.headings': 'Titoli',
+    'look.headings': 'Titoli e titolo del documento',
     'look.body': 'Testo',
     'look.table': 'Tabelle',
     'look.bulletMarker': 'Simbolo dell’elenco puntato',

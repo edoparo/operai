@@ -78,6 +78,8 @@ export interface FormConfig {
   fonts: { body: string; heading: string; frame: string }
   look: {
     headings: FormHeadingLook[]
+    /** The document title (the `title` named style); heading font, size, weight and colour. */
+    title: FormHeadingLook
     body: { size: NumberValue; lineSpacing: NumberValue }
     table: { headerFill: string; borders: boolean; borderColor: string }
     bulletMarker: BulletMarker
@@ -110,6 +112,7 @@ export interface CatalogBounds {
   gapMm: Range
   headingLevels: number
   headingSizePt: Range
+  titleSizePt: Range
   bodySizePt: Range
   lineSpacing: Range
   logoHeightMm: Range
@@ -142,6 +145,7 @@ const RANGE_BOUNDS = [
   'ruleThicknessPt',
   'gapMm',
   'headingSizePt',
+  'titleSizePt',
   'bodySizePt',
   'lineSpacing',
   'logoHeightMm',
