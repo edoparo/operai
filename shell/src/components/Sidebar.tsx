@@ -49,8 +49,8 @@
  * Settings group: rarely used tools (`SETTINGS_TOOL_IDS`, today Letterheads) leave the scrollable list for a
  * "Settings" disclosure pinned at the bottom, above the divider and Admin. Its button is a standalone tab stop
  * (`aria-expanded` / `aria-controls`); it opens by itself when one of its tools is the current route, and otherwise
- * remembers the last open/closed choice (localStorage, best effort). Collapsed to icons, the rail has no room for a
- * heading, so the group's tools show as icon links like every other entry.
+ * remembers the last open/closed choice (localStorage, best effort). Collapsed to icons, the group shows its own icon
+ * (the wrench), never its tools' icons: a click expands the rail with the group open.
  */
 import { useId, useRef, useState, type KeyboardEvent, type ReactNode } from 'react'
 import { Link, useMatchRoute } from '@tanstack/react-router'
@@ -221,7 +221,21 @@ export default function Sidebar() {
       {settingsTools.length > 0 && (
         <div className="flex shrink-0 flex-col gap-1 px-2 pb-2">
           {collapsed ? (
-            settingsTools.map((tool) => <div key={tool.id}>{pinnedLink(tool, false)}</div>)
+            // Icons only: the group's own icon. It expands the rail with the group open, so its tools are one click away
+            // and read with their names; highlighted while one of them is the current route.
+            <button
+              type="button"
+              onClick={() => {
+                setSettingsOpen(true)
+                writeSettingsOpen(true)
+                toggle()
+              }}
+              title={strings.sidebar.settings}
+              className={`w-full ${itemClass(true)}${settingsActive ? ' bg-acc-lo text-acc hover:bg-acc-lo hover:text-acc' : ''}`}
+            >
+              <Icon name="wrench" size={TOOL_ICON_SIZE} className="shrink-0" />
+              <span className="sr-only">{strings.sidebar.settings}</span>
+            </button>
           ) : (
             <>
               <button

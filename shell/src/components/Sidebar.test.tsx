@@ -369,15 +369,29 @@ describe('Sidebar Settings group (rarely used tools pinned above Admin)', () => 
     expect(screen.queryByText('Settings')).toBeNull()
   })
 
-  it('collapsed to icons: no heading, Letterheads is an icon link with its accessible name', async () => {
+  it('collapsed to icons: shows the Settings icon, not its tools; a click expands the rail with the group open', async () => {
+    const user = userEvent.setup()
     localStorage.setItem('operai_sidebar_collapsed', 'true')
     withSettings()
     await renderSidebarAt('/estimai')
 
-    expect(screen.queryByRole('button', { name: 'Settings' })).toBeNull()
-    const link = screen.getByRole('link', { name: 'Letterheads' })
-    expect(link.getAttribute('title')).toBe('Letterheads')
-    expect(screen.getByText('Letterheads').classList.contains('sr-only')).toBe(true)
+    expect(screen.queryByRole('link', { name: 'Letterheads' })).toBeNull()
+    const button = screen.getByRole('button', { name: 'Settings' })
+    expect(button.getAttribute('title')).toBe('Settings')
+
+    await user.click(button)
+
+    expect(screen.getByRole('button', { name: /collapse sidebar/i }).getAttribute('aria-expanded')).toBe('true')
+    expect(screen.getByRole('button', { name: 'Settings' }).getAttribute('aria-expanded')).toBe('true')
+    expect(screen.getByRole('link', { name: 'Letterheads' }).getAttribute('href')).toBe('/letterheads')
+  })
+
+  it('collapsed on a Letterheads route: the Settings icon is highlighted', async () => {
+    localStorage.setItem('operai_sidebar_collapsed', 'true')
+    withSettings()
+    await renderSidebarAt('/letterheads/versions')
+
+    expect(screen.getByRole('button', { name: 'Settings' }).className).toContain('text-acc')
   })
 
   it('keeps Letterheads out of the arrow-key group of the tool list', async () => {
