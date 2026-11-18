@@ -71,6 +71,8 @@ const en = {
     expand: 'Expand sidebar',
     collapse: 'Collapse sidebar',
     collapseShort: 'Collapse',
+    /** The pinned group of rarely used tools above Admin (Letterheads). */
+    settings: 'Settings',
   },
   theme: {
     system: 'System theme (auto)',
@@ -251,6 +253,7 @@ const it: typeof en = {
     expand: 'Espandi barra laterale',
     collapse: 'Comprimi barra laterale',
     collapseShort: 'Comprimi',
+    settings: 'Impostazioni',
   },
   theme: {
     system: 'Tema di sistema (automatico)',

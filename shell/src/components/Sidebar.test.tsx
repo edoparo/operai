@@ -99,7 +99,12 @@ async function renderSidebarAt(path: string) {
     path: '/admin/$',
     component: () => <p data-testid="admin-content">admin</p>,
   })
-  const routeTree = rootRoute.addChildren([indexRoute, estimaiRoute, refundRoute, adminRoute])
+  const letterheadsRoute = createRoute({
+    getParentRoute: () => rootRoute,
+    path: '/letterheads/$',
+    component: () => <p data-testid="letterheads-content">letterheads</p>,
+  })
+  const routeTree = rootRoute.addChildren([indexRoute, estimaiRoute, refundRoute, adminRoute, letterheadsRoute])
   const router = createRouter({ routeTree })
   const utils = render(<RouterProvider router={router} />)
   await screen.findByRole('button', { name: /collapse sidebar|expand sidebar/i })
@@ -296,5 +301,94 @@ describe('Sidebar collapse toggle', () => {
 
     expect(screen.getByRole('button', { name: /expand sidebar/i }).getAttribute('aria-expanded')).toBe('false')
     expect(screen.getByText('EstimAI').classList.contains('sr-only')).toBe(true)
+  })
+})
+
+describe('Sidebar Settings group (rarely used tools pinned above Admin)', () => {
+  const withSettings = () => usePermissions.mockReturnValue(permissionsWith(['estimai', 'refund', 'admin', 'letterheads']))
+  const settingsButton = () => screen.getByRole('button', { name: 'Settings' })
+
+  it('moves Letterheads out of the scrollable list into a closed Settings group, between the list and Admin', async () => {
+    withSettings()
+    await renderSidebarAt('/estimai')
+
+    const button = settingsButton()
+    expect(button.getAttribute('aria-expanded')).toBe('false')
+    // Closed: the entry is not shown (hidden list), so it is not a link to anyone.
+    expect(screen.queryByRole('link', { name: 'Letterheads' })).toBeNull()
+    // Not in the scrollable list of workflow tools.
+    const toolList = screen.getByRole('link', { name: 'EstimAI' }).closest('ul')!
+    expect(toolList.contains(button)).toBe(false)
+    // Order: the tool list, then Settings, then Admin.
+    const admin = screen.getByRole('link', { name: 'Admin' })
+    expect(toolList.compareDocumentPosition(button) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+    expect(button.compareDocumentPosition(admin) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+  })
+
+  it('opens on click, shows Letterheads linking to /letterheads, and remembers it', async () => {
+    const user = userEvent.setup()
+    withSettings()
+    await renderSidebarAt('/estimai')
+
+    await user.click(settingsButton())
+
+    expect(settingsButton().getAttribute('aria-expanded')).toBe('true')
+    const list = document.getElementById(settingsButton().getAttribute('aria-controls')!)!
+    const link = screen.getByRole('link', { name: 'Letterheads' })
+    expect(list.contains(link)).toBe(true)
+    expect(link.getAttribute('href')).toBe('/letterheads')
+    expect(localStorage.getItem('operai_sidebar_settings_open')).toBe('true')
+
+    await user.click(settingsButton())
+    expect(settingsButton().getAttribute('aria-expanded')).toBe('false')
+    expect(localStorage.getItem('operai_sidebar_settings_open')).toBe('false')
+  })
+
+  it('starts open when localStorage says so', async () => {
+    localStorage.setItem('operai_sidebar_settings_open', 'true')
+    withSettings()
+    await renderSidebarAt('/estimai')
+
+    expect(settingsButton().getAttribute('aria-expanded')).toBe('true')
+    expect(screen.getByRole('link', { name: 'Letterheads' })).toBeDefined()
+  })
+
+  it('is open, with Letterheads marked current, on a Letterheads route', async () => {
+    withSettings()
+    await renderSidebarAt('/letterheads/versions')
+
+    expect(settingsButton().getAttribute('aria-expanded')).toBe('true')
+    expect((await screen.findByRole('link', { name: 'Letterheads' })).getAttribute('aria-current')).toBe('page')
+  })
+
+  it('is absent when the person has no settings tool', async () => {
+    usePermissions.mockReturnValue(permissionsWith(['estimai', 'refund', 'admin']))
+    await renderSidebarAt('/estimai')
+
+    expect(screen.queryByRole('button', { name: 'Settings' })).toBeNull()
+    expect(screen.queryByText('Settings')).toBeNull()
+  })
+
+  it('collapsed to icons: no heading, Letterheads is an icon link with its accessible name', async () => {
+    localStorage.setItem('operai_sidebar_collapsed', 'true')
+    withSettings()
+    await renderSidebarAt('/estimai')
+
+    expect(screen.queryByRole('button', { name: 'Settings' })).toBeNull()
+    const link = screen.getByRole('link', { name: 'Letterheads' })
+    expect(link.getAttribute('title')).toBe('Letterheads')
+    expect(screen.getByText('Letterheads').classList.contains('sr-only')).toBe(true)
+  })
+
+  it('keeps Letterheads out of the arrow-key group of the tool list', async () => {
+    const user = userEvent.setup()
+    withSettings()
+    await renderSidebarAt('/estimai')
+
+    const estimai = screen.getByRole('link', { name: 'EstimAI' })
+    estimai.focus()
+    await user.keyboard('{ArrowDown}{ArrowDown}')
+    // EstimAI → Refund → wraps to EstimAI: only the two list tools take part.
+    expect(document.activeElement).toBe(estimai)
   })
 })

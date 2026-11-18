@@ -12,6 +12,7 @@
 
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { cleanup, render, screen } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
 import { RouterProvider } from '@tanstack/react-router'
 
 const { getSession, usePermissions, ensurePermissions, revalidatePermissions, apiFetch } = vi.hoisted(() => ({
@@ -145,6 +146,8 @@ describe('/letterheads/$ — the access-gated tool route (AC-8.1)', () => {
     await renderShellAt('/estimai')
     await screen.findByTestId('estimai-app')
 
+    // Letterheads lives in the sidebar's Settings group (pinned above Admin), closed by default.
+    await userEvent.setup().click(screen.getByRole('button', { name: 'Settings' }))
     expect(screen.getByRole('link', { name: 'Letterheads' }).getAttribute('href')).toBe('/letterheads')
   })
 
@@ -154,5 +157,6 @@ describe('/letterheads/$ — the access-gated tool route (AC-8.1)', () => {
     await screen.findByTestId('estimai-app')
 
     expect(screen.queryByRole('link', { name: 'Letterheads' })).toBeNull()
+    expect(screen.queryByRole('button', { name: 'Settings' })).toBeNull()
   })
 })

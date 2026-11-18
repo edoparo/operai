@@ -61,6 +61,13 @@ export const TOOLS: readonly SuiteTool[] = [
   { id: 'letterheads', label: strings.tools.letterheads, to: '/letterheads' },
 ]
 
+/**
+ * Tools the sidebar groups under "Settings", pinned at the bottom above Admin instead of in the scrollable list:
+ * useful, but opened rarely. Still ordinary gated tools (same route, same `apps` filter, same last-used writer); only
+ * where the sidebar shows them changes.
+ */
+export const SETTINGS_TOOL_IDS: readonly ToolId[] = ['letterheads']
+
 /** First-visit / invalid-storage fallback tool (AC-3.4). */
 export const DEFAULT_TOOL_ID: ToolId = 'estimai'
 
