@@ -3,7 +3,7 @@
 //! A layout is a template, the Typst version that runs it and the font files it uses. A letterhead version
 //! records its layout number and is always rendered with that layout, so an upgrade of Typst or an edit of a
 //! template can never move the lines of a version that exists (AC-4.5). Layout 1 is Typst 0.15.1,
-//! `layouts/1/main.typ` and the 13 font files of [`fonts::LAYOUT_1_FONTS`]. A new layout is added beside it;
+//! `layouts/1/main.typ` and the 15 font files of [`fonts::LAYOUT_1_FONTS`]. A new layout is added beside it;
 //! an existing one is never edited except to fix a defect, with the golden corpus updated in the same commit.
 //!
 //! The template is the only code that places anything on a page. Text reaches it as JSON strings in
@@ -52,10 +52,12 @@ pub const CURRENT_LAYOUT: u32 = 1;
 pub type Assets = BTreeMap<String, Vec<u8>>;
 
 /// The header and footer of a page are drawn inside the margin, hugging the body. They keep this far from the
-/// page's edge and this far from the body: a frame is *fit* when its height, with the rule's thickness, is at
-/// most the margin less these two (AC-5.2, AC-5.3). Constants of layout 1: the template holds the same two.
+/// page's edge and, by default, this far from the body: a frame is *fit* when its height, with the rule's
+/// thickness, is at most the margin less the edge and its gap (AC-5.2, AC-5.3). The edge is a constant of
+/// layout 1 (the template holds the same one); the gap is the frame's own `gapMm`, and this is what it is when
+/// a stored configuration does not say ([`crate::config::bounds::DEFAULT_GAP_MM`]).
 pub const FRAME_EDGE_MM: f64 = 5.0;
-pub const FRAME_GAP_MM: f64 = 3.0;
+pub const FRAME_GAP_MM: f64 = crate::config::bounds::DEFAULT_GAP_MM;
 
 /// Typst state shared by every render of a layout: parsed fonts, the library and the template source.
 pub(crate) struct Shared {

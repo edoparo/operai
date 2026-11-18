@@ -6,7 +6,7 @@
 
 use serde::{Deserialize, Serialize};
 
-/// The closed font list (AC-7.5): the suite's fonts and wellD's brand fonts, 13 files in all. Names are the
+/// The closed font list (AC-7.5): the suite's fonts, wellD's brand fonts and Inter, 15 files in all. Names are the
 /// families' names as the configurator shows and the template looks them up.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum Font {
@@ -20,15 +20,18 @@ pub enum Font {
     Ubuntu,
     #[serde(rename = "Noto Serif")]
     NotoSerif,
+    #[serde(rename = "Inter")]
+    Inter,
 }
 
 impl Font {
-    pub const ALL: [Font; 5] = [
+    pub const ALL: [Font; 6] = [
         Font::DmSans,
         Font::DmMono,
         Font::Syne,
         Font::Ubuntu,
         Font::NotoSerif,
+        Font::Inter,
     ];
 
     pub fn name(self) -> &'static str {
@@ -38,6 +41,7 @@ impl Font {
             Font::Syne => "Syne",
             Font::Ubuntu => "Ubuntu",
             Font::NotoSerif => "Noto Serif",
+            Font::Inter => "Inter",
         }
     }
 
@@ -149,11 +153,19 @@ pub struct Rule {
     pub color: String,
 }
 
+fn default_gap_mm() -> f64 {
+    super::bounds::DEFAULT_GAP_MM
+}
+
 /// A header or a footer.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-#[serde(deny_unknown_fields)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct Frame {
     pub valign: Valign,
+    /// The distance between the frame and the body, in mm (`gapMm`). Optional in stored configurations: one
+    /// saved before the field existed has the 3 mm that layout 1 always drew.
+    #[serde(default = "default_gap_mm")]
+    pub gap_mm: f64,
     pub rule: Rule,
     pub left: Vec<Line>,
     pub center: Vec<Line>,

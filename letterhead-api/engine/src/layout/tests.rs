@@ -24,8 +24,8 @@ fn normalised(text: &str) -> String {
 // ─── AC-7.5 the closed list of fonts ─────────────────────────────────────────
 
 #[test]
-fn ac_7_5_there_are_13_font_files_and_each_is_pinned_by_its_sha_256() {
-    assert_eq!(LAYOUT_1_FONTS.len(), 13);
+fn ac_7_5_there_are_15_font_files_and_each_is_pinned_by_its_sha_256() {
+    assert_eq!(LAYOUT_1_FONTS.len(), 15);
     for file in &LAYOUT_1_FONTS {
         assert_eq!(hex(file.bytes), file.sha256, "{} was replaced", file.file);
         assert_eq!(file.sha256.len(), 64);
@@ -33,13 +33,13 @@ fn ac_7_5_there_are_13_font_files_and_each_is_pinned_by_its_sha_256() {
     let mut names: Vec<_> = LAYOUT_1_FONTS.iter().map(|f| f.file).collect();
     names.sort_unstable();
     names.dedup();
-    assert_eq!(names.len(), 13, "no file twice");
+    assert_eq!(names.len(), 15, "no file twice");
 }
 
 #[test]
 fn ac_7_5_every_file_is_a_face_of_the_family_it_is_listed_under() {
     let shared = LAYOUT_1.shared();
-    assert_eq!(shared.fonts.len(), 13, "one face per file");
+    assert_eq!(shared.fonts.len(), 15, "one face per file");
     for file in &LAYOUT_1_FONTS {
         let faces: Vec<_> =
             typst::text::Font::iter(typst::foundations::Bytes::new(file.bytes)).collect();
@@ -51,7 +51,7 @@ fn ac_7_5_every_file_is_a_face_of_the_family_it_is_listed_under() {
             file.file
         );
     }
-    // Each of the closed list's five families has a file.
+    // Each of the closed list's six families has a file.
     for font in Font::ALL {
         assert!(LAYOUT_1_FONTS.iter().any(|f| f.font == font), "{font:?}");
     }
@@ -65,6 +65,7 @@ fn ac_7_5_each_family_has_a_licence_file_beside_the_fonts() {
         ("DM Mono", include_str!("../../fonts/DMMono-OFL.txt")),
         ("Syne", include_str!("../../fonts/Syne-OFL.txt")),
         ("Noto Serif", include_str!("../../fonts/NotoSerif-OFL.txt")),
+        ("Inter", include_str!("../../fonts/Inter-OFL.txt")),
     ] {
         assert!(
             text.contains("SIL OPEN FONT LICENSE Version 1.1"),
@@ -97,6 +98,55 @@ fn ac_7_5_every_font_prints_the_coverage_string_in_every_role() {
             assert_eq!(run.family, typst_family(font), "{font:?}: {run:?}");
         }
     }
+}
+
+#[test]
+fn ac_7_5_inter_is_set_in_its_own_files_in_regular_bold_and_italic() {
+    let mut config = bare_config();
+    config.fonts.body = Font::Inter;
+    config.fonts.heading = Font::Inter;
+    config.fonts.frame = Font::Inter;
+    config.variants.default.footer.left = vec![line("Inter piè", "Inter piè", 9.0, true, "1f2430")];
+    let word = "Hamburgefonstiv";
+    let blocks = json!([
+        paragraph(word),
+        json!({ "type": "paragraph", "runs": [{ "text": word, "bold": true }] }),
+        json!({ "type": "paragraph", "runs": [{ "text": word, "italic": true }] }),
+        json!({ "type": "paragraph", "runs": [{ "text": word, "bold": true, "italic": true }] }),
+        heading(2, word),
+    ]);
+    let compiled = compiled(&config, &request("it", blocks));
+    let page = &compiled.document.pages()[0];
+    assert_eq!(inspect::unprintable_characters(page), 0);
+    let runs = inspect::text_runs(page);
+    assert!(runs.iter().all(|r| r.family == "Inter"), "{runs:?}");
+    // The body's four paragraphs, then the heading, then the footer.
+    let of_word: Vec<_> = runs.iter().filter(|r| r.text == word).collect();
+    assert_eq!(of_word.len(), 5, "{runs:?}");
+    let (regular, bold, italic, bold_italic, heading) =
+        (of_word[0], of_word[1], of_word[2], of_word[3], of_word[4]);
+    assert_eq!((regular.weight, regular.italic), (400, false));
+    assert_eq!((bold.weight, bold.italic), (700, false));
+    assert_eq!((italic.weight, italic.italic), (400, true));
+    assert_eq!((bold_italic.weight, bold_italic.italic), (700, true));
+    assert_eq!(
+        heading.weight, 700,
+        "headings are bold in the starting look"
+    );
+    // The weights are real: bold is wider than regular, and the italic file is another face from the upright.
+    assert!(
+        bold.width > regular.width + 0.5,
+        "{} {}",
+        bold.width,
+        regular.width
+    );
+    assert!((italic.width - regular.width).abs() > 0.1);
+    assert!(bold_italic.width > italic.width + 0.5);
+    let footer = runs
+        .iter()
+        .find(|r| r.text.contains("Inter"))
+        .expect("footer");
+    assert_eq!(footer.weight, 700);
 }
 
 // ─── AC-7.6 characters the fonts lack ────────────────────────────────────────
@@ -290,13 +340,13 @@ fn ac_7_5_the_world_has_no_font_path() {
     let world = world::LayoutWorld::new(LAYOUT_1.shared(), vec![]);
     assert_eq!(
         world.book().families().count(),
-        5,
-        "the five families of the closed list"
+        6,
+        "the six families of the closed list"
     );
-    for index in 0..13 {
+    for index in 0..15 {
         assert!(world.font(index).is_some());
     }
-    assert!(world.font(13).is_none());
+    assert!(world.font(15).is_none());
     assert!(world.today(None).is_none());
 }
 

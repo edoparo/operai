@@ -16,6 +16,7 @@ pub(super) const LOGO2_ID: &str = "33333333-3333-4333-8333-333333333333";
 pub(super) fn empty_frame(valign: Valign) -> Frame {
     Frame {
         valign,
+        gap_mm: crate::config::bounds::DEFAULT_GAP_MM,
         rule: Rule {
             show: false,
             thickness_pt: 0.5,
@@ -162,6 +163,7 @@ pub(super) fn entity_data() -> Value {
 pub(super) fn brand_footer() -> Frame {
     Frame {
         valign: Valign::Bottom,
+        gap_mm: crate::config::bounds::DEFAULT_GAP_MM,
         rule: Rule {
             show: true,
             thickness_pt: 0.5,

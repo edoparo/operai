@@ -36,6 +36,8 @@ fn zone(lines: &[ResolvedLine]) -> Value {
 fn frame(config: &Frame, resolved: &ResolvedFrame) -> Value {
     json!({
         "valign": config.valign,
+        // Millimetres between the frame and the body (a number: the template multiplies it by 1mm).
+        "gap": config.gap_mm,
         "rule": {
             "show": config.rule.show,
             "thickness": config.rule.thickness_pt,

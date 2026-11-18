@@ -42,6 +42,15 @@ pub const LINE_SIZE_PT: Range = Range::new(6.0, 14.0);
 /// hairline-to-thick line that fits the margin it is drawn in (plan decision, to confirm).
 pub const RULE_THICKNESS_PT: Range = Range::new(0.1, 5.0);
 
+/// The distance between a header or footer and the body, in mm (the `gapMm` of a frame). The spec names no
+/// bounds (a product-owner request after AC-5.6); 0 lets a frame touch the body, and 40 is as far as the
+/// tallest logo (40 mm, `LOGO_HEIGHT_MM`) is high. Like the other mm bounds it is a closed range of any
+/// number, with no step.
+pub const GAP_MM: Range = Range::new(0.0, 40.0);
+/// What a frame's gap is when a stored configuration has none: the 3 mm that layout 1 drew before the gap
+/// was configurable, so that every configuration stored earlier renders as it did.
+pub const DEFAULT_GAP_MM: f64 = 3.0;
+
 /// AC-5.9: headings have this many levels, each with its own look.
 pub const HEADING_LEVELS: usize = 3;
 /// AC-5.9: heading size, body size and line spacing.

@@ -1,6 +1,7 @@
 //! The starting configuration (amendment G2): what the configurator shows for an entity that has no
 //! version yet, and what the first save (`baseVersion: 0`) starts from.
 
+use super::bounds;
 use super::model::{
     BodyLook, BulletMarker, Font, Fonts, Frame, HeadingLook, LetterheadConfig, Line, LocalText,
     Look, Margins, Rule, TableLook, Valign, Variant, Variants,
@@ -41,6 +42,7 @@ fn heading(size: f64, color: &str) -> HeadingLook {
 pub fn default_config() -> LetterheadConfig {
     let header = Frame {
         valign: Valign::Top,
+        gap_mm: bounds::DEFAULT_GAP_MM,
         rule: rule(false),
         left: Vec::new(),
         center: Vec::new(),
@@ -48,6 +50,7 @@ pub fn default_config() -> LetterheadConfig {
     };
     let footer = Frame {
         valign: Valign::Bottom,
+        gap_mm: bounds::DEFAULT_GAP_MM,
         rule: rule(true),
         left: vec![
             line("{legal_name}", 9.0, true, "1f2430"),

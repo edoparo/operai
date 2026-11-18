@@ -86,6 +86,7 @@ pub fn catalog_body() -> Value {
             "fitTestValueChars": bounds::FIT_TEST_VALUE_CHARS,
             "lineSizePt": range(bounds::LINE_SIZE_PT),
             "ruleThicknessPt": range(bounds::RULE_THICKNESS_PT),
+            "gapMm": range(bounds::GAP_MM),
             "headingLevels": bounds::HEADING_LEVELS,
             "headingSizePt": range(bounds::HEADING_SIZE_PT),
             "bodySizePt": range(bounds::BODY_SIZE_PT),
@@ -330,7 +331,14 @@ mod tests {
         };
         assert_eq!(
             names("fonts"),
-            ["DM Sans", "DM Mono", "Syne", "Ubuntu", "Noto Serif"]
+            [
+                "DM Sans",
+                "DM Mono",
+                "Syne",
+                "Ubuntu",
+                "Noto Serif",
+                "Inter"
+            ]
         );
         assert_eq!(
             names("styles"),

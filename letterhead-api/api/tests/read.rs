@@ -1071,12 +1071,22 @@ async fn read_the_catalog_lists_the_closed_sets_and_a_default_that_is_the_engine
             "pages"
         ]
     );
-    assert_eq!(catalog["fonts"].as_array().map(Vec::len), Some(5));
+    assert_eq!(catalog["fonts"].as_array().map(Vec::len), Some(6));
+    assert_eq!(catalog["fonts"][5], "Inter");
     assert_eq!(catalog["styles"].as_array().map(Vec::len), Some(7));
     assert_eq!(catalog["escapes"].as_array().map(Vec::len), Some(4));
     assert_eq!(
         catalog["bounds"]["marginMm"],
         json!({ "min": 5.0, "max": 100.0 })
+    );
+    // The distance of a header or footer from the body, and the 3 mm that the starting values say.
+    assert_eq!(
+        catalog["bounds"]["gapMm"],
+        json!({ "min": 0.0, "max": 40.0 })
+    );
+    assert_eq!(
+        catalog["defaultConfig"]["variants"]["default"]["footer"]["gapMm"],
+        3.0
     );
 
     // G2: the starting values are the engine's own default, which the save rules accept.

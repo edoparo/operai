@@ -1053,3 +1053,219 @@ mod mark_missing {
         }
     }
 }
+
+// ─── the distance between a frame and the body (gapMm) ───────────────────────
+
+/// A page with one line in the header and one in the footer, margins of 25 mm, and the given distances.
+fn gap_config(header_gap: f64, footer_gap: f64) -> crate::config::LetterheadConfig {
+    let mut config = bare_config();
+    config.variants.default.header.left = vec![plain_line("{legal_name}")];
+    config.variants.default.header.gap_mm = header_gap;
+    config.variants.default.footer.left = vec![plain_line("{legal_name}")];
+    config.variants.default.footer.gap_mm = footer_gap;
+    config
+}
+
+fn gap_document(config: &crate::config::LetterheadConfig) -> Compiled {
+    compiled(
+        config,
+        &request_with("it", json!({ "legalName": "WellD" }), paragraphs(1, 6)),
+    )
+}
+
+/// The baselines of the header's line, the body's first line and the footer's line of page 1.
+fn baselines(compiled: &Compiled, margins: &Margins) -> (f64, f64, f64) {
+    let all = runs(compiled, 1);
+    let header = all
+        .iter()
+        .find(|r| r.y < mm(margins.top))
+        .expect("a header line");
+    let footer = all
+        .iter()
+        .find(|r| r.y > A4_HEIGHT_PT - mm(margins.bottom))
+        .expect("a footer line");
+    let body = body_runs(compiled, 1, margins);
+    (header.y, body[0].y, footer.y)
+}
+
+#[test]
+fn the_header_moves_away_from_the_body_by_the_distance_and_the_body_stays() {
+    let m = bare_config().margins;
+    let (h3, b3, f3) = baselines(&gap_document(&gap_config(3.0, 3.0)), &m);
+    let (h10, b10, f10) = baselines(&gap_document(&gap_config(10.0, 3.0)), &m);
+    let (h0, b0, _) = baselines(&gap_document(&gap_config(0.0, 3.0)), &m);
+    let (h17, b17, _) = baselines(&gap_document(&gap_config(17.0, 3.0)), &m);
+    // 7 mm more distance: the header is 7 mm higher on the page.
+    assert!((h3 - h10 - mm(7.0)).abs() < 0.05, "{h3} {h10}");
+    assert!((h0 - h3 - mm(3.0)).abs() < 0.05, "{h0} {h3}");
+    assert!((h3 - h17 - mm(14.0)).abs() < 0.05, "{h3} {h17}");
+    // The body is anchored to the margin: it does not move, and neither does the footer.
+    assert_eq!((b3, b0, b17), (b10, b10, b10));
+    assert_eq!(f3, f10);
+}
+
+#[test]
+fn the_footer_moves_away_from_the_body_by_the_distance_and_the_body_stays() {
+    let m = bare_config().margins;
+    let (h3, b3, f3) = baselines(&gap_document(&gap_config(3.0, 3.0)), &m);
+    let (h9, b9, f9) = baselines(&gap_document(&gap_config(3.0, 9.0)), &m);
+    assert!((f9 - f3 - mm(6.0)).abs() < 0.05, "{f3} {f9}");
+    assert_eq!(b3, b9);
+    assert_eq!(h3, h9);
+}
+
+#[test]
+fn the_edge_of_a_frame_is_the_margin_less_its_distance() {
+    for gap in [0.0, 3.0, 8.0, 15.0] {
+        let config = gap_config(gap, gap);
+        let m = &config.margins;
+        let compiled = gap_document(&config);
+        for item in ink(&compiled, 1) {
+            if item.bottom <= mm(m.top) {
+                // The header's ink ends at the margin less the distance, and no higher than the line needs.
+                assert!(item.bottom <= mm(m.top) - mm(gap) + 0.5, "{gap}: {item:?}");
+                assert!(
+                    item.bottom >= mm(m.top) - mm(gap) - mm(4.0),
+                    "{gap}: {item:?}"
+                );
+            } else if item.top >= A4_HEIGHT_PT - mm(m.bottom) {
+                assert!(
+                    item.top >= A4_HEIGHT_PT - mm(m.bottom) + mm(gap) - 0.5,
+                    "{gap}: {item:?}"
+                );
+                assert!(
+                    item.top <= A4_HEIGHT_PT - mm(m.bottom) + mm(gap) + mm(4.0),
+                    "{gap}: {item:?}"
+                );
+            }
+        }
+    }
+}
+
+#[test]
+fn the_rule_goes_with_its_frame() {
+    // The rule is the frame's edge towards the body: at 12 mm it is 12 mm from the body's edge.
+    let mut config = gap_config(12.0, 12.0);
+    config.variants.default.header.rule.show = true;
+    config.variants.default.footer.rule.show = true;
+    let m = config.margins;
+    let compiled = gap_document(&config);
+    let rules: Vec<_> = ink(&compiled, 1)
+        .into_iter()
+        .filter(|i| i.kind == InkKind::Shape)
+        .collect();
+    assert_eq!(rules.len(), 2, "{rules:?}");
+    let header = rules
+        .iter()
+        .find(|r| r.bottom < mm(m.top))
+        .expect("header rule");
+    let footer = rules
+        .iter()
+        .find(|r| r.top > A4_HEIGHT_PT - mm(m.bottom))
+        .expect("footer rule");
+    assert!(
+        (header.bottom - (mm(m.top) - mm(12.0))).abs() < 0.1,
+        "{header:?}"
+    );
+    assert!(
+        (footer.top - (A4_HEIGHT_PT - mm(m.bottom) + mm(12.0))).abs() < 0.1,
+        "{footer:?}"
+    );
+}
+
+#[test]
+fn the_distance_is_that_of_the_variant_a_page_uses() {
+    let mut config = gap_config(3.0, 3.0);
+    let mut first = config.variants.default.clone();
+    first.header.gap_mm = 10.0;
+    config.variants.first = Some(first);
+    let compiled = compiled(
+        &config,
+        &request_with("it", json!({ "legalName": "WellD" }), pages_of(2)),
+    );
+    let header_of = |page: usize| {
+        runs(&compiled, page)
+            .into_iter()
+            .find(|r| r.text == "WellD" && r.y < mm(config.margins.top))
+            .expect("a header line")
+            .y
+    };
+    assert!((header_of(2) - header_of(1) - mm(7.0)).abs() < 0.05);
+}
+
+#[test]
+fn a_configuration_stored_without_the_distance_draws_what_one_with_3_mm_draws() {
+    let explicit = gap_config(3.0, 3.0);
+    let mut stored = serde_json::to_value(&explicit).expect("json");
+    for frame in ["header", "footer"] {
+        stored["variants"]["default"][frame]
+            .as_object_mut()
+            .expect("frame")
+            .remove("gapMm")
+            .expect("there");
+    }
+    let read: crate::config::LetterheadConfig = serde_json::from_value(stored).expect("reads");
+    let (a, b) = (gap_document(&explicit), gap_document(&read));
+    assert_eq!(runs(&a, 1), runs(&b, 1));
+    assert_eq!(ink(&a, 1), ink(&b, 1));
+}
+
+#[test]
+fn ac_5_3_a_distance_that_pushes_the_header_out_of_its_margin_overflows() {
+    // One line of 8 pt is 8 pt = 2.82 mm high. In a 25 mm margin the room is 25 - 5 (edge) - gap: a distance
+    // of 17 mm leaves 3 mm, which holds the line; 18 mm leaves 2 mm, which does not.
+    let request = request_with("it", json!({ "legalName": "WellD" }), paragraphs(1, 3));
+    for gap in [0.0, 3.0, 17.0] {
+        assert!(
+            try_compile(&gap_config(gap, 3.0), &request).is_ok(),
+            "{gap}"
+        );
+    }
+    for gap in [18.0, 40.0] {
+        assert_eq!(
+            try_compile(&gap_config(gap, 3.0), &request).err(),
+            Some(LayoutError::Overflow {
+                variant: "default",
+                frame: FrameKind::Header
+            }),
+            "{gap}"
+        );
+    }
+}
+
+#[test]
+fn ac_5_3_a_distance_that_pushes_the_footer_out_of_its_margin_overflows() {
+    let request = request_with("it", json!({ "legalName": "WellD" }), paragraphs(1, 3));
+    assert!(try_compile(&gap_config(3.0, 17.0), &request).is_ok());
+    assert_eq!(
+        try_compile(&gap_config(3.0, 18.0), &request).err(),
+        Some(LayoutError::Overflow {
+            variant: "default",
+            frame: FrameKind::Footer
+        })
+    );
+}
+
+#[test]
+fn ac_5_2_the_save_time_fit_check_uses_the_distance() {
+    let fits = check_fit(&LAYOUT_1, &gap_config(3.0, 3.0), &assets()).expect("checks");
+    assert!(fits.is_empty(), "{fits:?}");
+    let mut config = gap_config(30.0, 3.0);
+    config.variants.last = Some(config.variants.default.clone());
+    config.variants.last.as_mut().unwrap().header.gap_mm = 3.0;
+    config.variants.last.as_mut().unwrap().footer.gap_mm = 35.0;
+    let problems = check_fit(&LAYOUT_1, &config, &assets()).expect("checks");
+    let mut found: Vec<(String, &str)> = problems
+        .iter()
+        .map(|p| (p.path.clone(), p.reason.as_str()))
+        .collect();
+    found.sort();
+    found.dedup();
+    assert_eq!(
+        found,
+        [
+            ("/variants/default/header".to_owned(), "header_overflow"),
+            ("/variants/last/footer".to_owned(), "footer_overflow"),
+        ]
+    );
+}

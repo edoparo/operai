@@ -1341,6 +1341,61 @@ async fn write_a_header_or_footer_that_does_not_fit_its_margin_is_refused_with_t
 }
 
 #[tokio::test]
+async fn write_the_distance_from_the_body_is_saved_bounded_and_part_of_the_fit() {
+    let Some(world) = world().await else { return };
+    // A configuration written before the member existed (no `gapMm` anywhere) is still saved, and is read
+    // back with the 3 mm it always had.
+    let mut stored = config("Footer", None);
+    for frame in ["header", "footer"] {
+        stored["variants"]["default"][frame]
+            .as_object_mut()
+            .expect("a frame")
+            .remove("gapMm")
+            .expect("the starting configuration has it");
+    }
+    assert_eq!(
+        save_as(&world, "welld_it", "u-it", 0, &stored).await.status,
+        201
+    );
+
+    // Out of 0..=40 mm: refused at the member, naming the setting.
+    let mut wide = config("Footer", None);
+    wide["variants"]["default"]["header"]["gapMm"] = json!(40.5);
+    let reply = save_as(&world, "welld_it", "u-it", 1, &wide).await;
+    assert_problem(&reply, 422, "invalid_letterhead");
+    assert_eq!(
+        problems(&reply),
+        [(
+            "/variants/default/header/gapMm".to_owned(),
+            "out_of_range".to_owned()
+        )],
+        "{}",
+        reply.text()
+    );
+
+    // A footer that fits at 3 mm and does not at 30 mm: the same frame error as a taller footer.
+    let mut far = config("Footer", None);
+    far["margins"]["bottom"] = json!(34);
+    assert_eq!(
+        save_as(&world, "welld_it", "u-it", 1, &far).await.status,
+        201
+    );
+    far["variants"]["default"]["footer"]["gapMm"] = json!(30);
+    let reply = save_as(&world, "welld_it", "u-it", 2, &far).await;
+    assert_problem(&reply, 422, "invalid_letterhead");
+    assert_eq!(
+        problems(&reply),
+        [(
+            "/variants/default/footer".to_owned(),
+            "footer_overflow".to_owned()
+        )],
+        "{}",
+        reply.text()
+    );
+    assert_eq!(rows(&world).await.versions, 2);
+}
+
+#[tokio::test]
 async fn write_an_asset_that_is_not_the_entitys_or_not_of_the_slots_kind_is_asset_unknown() {
     let Some(world) = world().await else { return };
     let f = &world.fixture;

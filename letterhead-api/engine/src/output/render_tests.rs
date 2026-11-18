@@ -15,6 +15,7 @@ fn version() -> LetterheadVersion {
     config.margins.bottom = 30.0;
     config.variants.default.footer = Frame {
         valign: Valign::Bottom,
+        gap_mm: crate::config::bounds::DEFAULT_GAP_MM,
         rule: Rule {
             show: true,
             thickness_pt: 0.5,
@@ -89,6 +90,35 @@ fn decode(png_bytes: &[u8]) -> (png::Info<'static>, Vec<u8>) {
     let frame = reader.next_frame(&mut data).expect("its pixels");
     data.truncate(frame.buffer_size());
     (reader.info().clone(), data)
+}
+
+// ─── Inter ───────────────────────────────────────────────────────────────────
+
+#[test]
+fn ac_7_5_a_letterhead_in_inter_renders_a_pdf_and_a_preview_that_carry_it() {
+    let mut inter = version();
+    inter.config.fonts.body = crate::config::Font::Inter;
+    inter.config.fonts.heading = crate::config::Font::Inter;
+    inter.config.fonts.frame = crate::config::Font::Inter;
+    let blocks = json!([
+        { "type": "heading", "level": 1, "text": "Offerta" },
+        { "type": "paragraph", "runs": [
+            { "text": "Testo normale, " },
+            { "text": "in grassetto, ", "bold": true },
+            { "text": "in corsivo.", "italic": true }
+        ] }
+    ]);
+    let rendered = render(&request(blocks.clone()), &inter, &assets()).expect("renders");
+    let pdf = rendered.pdf().expect("a pdf");
+    assert!(pdf.starts_with(b"%PDF-"));
+    // The font is embedded, by the name of its file (a subset has a tag before the "+").
+    assert!(contains(&pdf, b"Inter"), "no Inter in the PDF");
+    assert!(!contains(&pdf, b"NotoSerif"));
+    // Deterministic like the others (AC-1.4).
+    let again = render(&request(blocks), &inter, &assets()).expect("renders");
+    assert_eq!(pdf, again.pdf().expect("a pdf"));
+    let preview = rendered.preview(&PageSelection::All).expect("preview");
+    assert_eq!(preview.len(), 1);
 }
 
 // ─── AC-1.4 deterministic ────────────────────────────────────────────────────

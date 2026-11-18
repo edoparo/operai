@@ -245,6 +245,7 @@ mod mark_missing_tests {
         config.margins.bottom = 30.0;
         config.variants.default.footer = Frame {
             valign: Valign::Bottom,
+            gap_mm: crate::config::bounds::DEFAULT_GAP_MM,
             rule: Rule {
                 show: false,
                 thickness_pt: 0.5,

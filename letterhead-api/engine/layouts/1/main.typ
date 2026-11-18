@@ -19,9 +19,9 @@
 #let body-width = 210mm - (m.left + m.right) * 1mm
 #let body-height = 297mm - (m.top + m.bottom) * 1mm
 
-// A header or footer is drawn inside its margin, hugging the body: `gap` from the body, and it keeps `edge`
-// from the edge of the page. Both are in the engine too (layout::FRAME_GAP_MM, FRAME_EDGE_MM).
-#let gap = 3mm
+// A header or footer is drawn inside its margin, hugging the body: its own `gap` (frame.gap, in mm; 3 mm unless
+// the configuration says otherwise) from the body, and it keeps `edge` from the edge of the page. `edge` is in
+// the engine too (layout::FRAME_EDGE_MM).
 #let edge = 5mm
 #let between = 2mm // between the text of a frame and its rule, and between a logo and the text under it
 
@@ -256,7 +256,7 @@
 
 // The real height of a frame (lines that wrap, logo, rule) must fit its margin (AC-5.3): never drawn over the
 // body, never cut. Panics with a tag that the engine reads.
-#let check-fit(content, margin, which, name) = {
+#let check-fit(content, margin, gap, which, name) = {
   let avail = margin * 1mm - edge - gap
   let h = measure(block(width: body-width, content)).height
   if h > avail { panic("LH_ERR:" + which + "_overflow:" + name) }
@@ -266,7 +266,8 @@
   let (p, n, name, v) = current()
   if d.only != "footer" {
     let inner = frame-content(v, "header", p, n)
-    check-fit(inner, m.top, "header", name)
+    let gap = v.header.gap * 1mm
+    check-fit(inner, m.top, gap, "header", name)
     block(width: 100%, height: m.top * 1mm, inset: (bottom: gap), align(bottom, inner))
   }
 }
@@ -275,7 +276,8 @@
   let (p, n, name, v) = current()
   if d.only != "header" {
     let inner = frame-content(v, "footer", p, n)
-    check-fit(inner, m.bottom, "footer", name)
+    let gap = v.footer.gap * 1mm
+    check-fit(inner, m.bottom, gap, "footer", name)
     block(width: 100%, height: m.bottom * 1mm, inset: (top: gap), align(top, inner))
   }
 }

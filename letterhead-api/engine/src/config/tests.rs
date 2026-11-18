@@ -138,11 +138,40 @@ mod default_and_shape {
     }
 
     #[test]
-    fn the_font_list_is_the_five_families() {
+    fn inter_is_accepted_for_the_body_the_headings_and_the_frame() {
+        let mut value = base();
+        value["fonts"] = json!({ "body": "Inter", "heading": "Inter", "frame": "Inter" });
+        let config = typed(&value);
+        assert_eq!(config.fonts.body, Font::Inter);
+        assert_eq!(config.fonts.heading, Font::Inter);
+        assert_eq!(config.fonts.frame, Font::Inter);
+        // It is stored as "Inter" and reads back.
+        let stored = serde_json::to_value(&config).expect("json");
+        assert_eq!(stored["fonts"]["body"], json!("Inter"));
+        assert_eq!(
+            serde_json::from_value::<LetterheadConfig>(stored).expect("back"),
+            config
+        );
+        // Only the exact name: the list is closed and case-sensitive.
+        for wrong in ["inter", "Inter Tight", "Inter Display", "INTER"] {
+            let value = set(base(), "/fonts/body", json!(wrong));
+            expect(&value, "/fonts/body", "unknown_font");
+        }
+    }
+
+    #[test]
+    fn the_font_list_is_the_six_families() {
         let names: Vec<&str> = Font::ALL.iter().map(|f| f.name()).collect();
         assert_eq!(
             names,
-            ["DM Sans", "DM Mono", "Syne", "Ubuntu", "Noto Serif"]
+            [
+                "DM Sans",
+                "DM Mono",
+                "Syne",
+                "Ubuntu",
+                "Noto Serif",
+                "Inter"
+            ]
         );
         for font in Font::ALL {
             assert_eq!(
@@ -400,6 +429,18 @@ mod bounds_one_test_each {
     }
 
     #[test]
+    fn the_distance_of_a_frame_from_the_body_is_0_to_40_mm() {
+        for pointer in [
+            "/variants/default/header/gapMm",
+            "/variants/default/footer/gapMm",
+            "/variants/first/header/gapMm",
+            "/variants/last/footer/gapMm",
+        ] {
+            check_range(pointer, bounds::GAP_MM, "gapMm");
+        }
+    }
+
+    #[test]
     fn a_logo_is_5_to_40_mm_high() {
         check_range(
             "/variants/first/logo/heightMm",
@@ -437,6 +478,8 @@ mod bounds_one_test_each {
             (bounds::LOGO_HEIGHT_MM.min, bounds::LOGO_HEIGHT_MM.max),
             (5.0, 40.0)
         );
+        assert_eq!((bounds::GAP_MM.min, bounds::GAP_MM.max), (0.0, 40.0));
+        assert_eq!(bounds::DEFAULT_GAP_MM, 3.0);
         assert_eq!(bounds::HEADING_LEVELS, 3);
     }
 
@@ -1613,5 +1656,82 @@ mod diff {
         names.dedup();
         assert_eq!(names.len(), SETTING_NAMES.len());
         assert_eq!(SETTING_NAMES.len(), 8 + 12);
+    }
+}
+
+mod frame_gap {
+    use super::*;
+
+    /// A configuration stored before `gapMm` existed: no frame has the member.
+    fn stored_before() -> Value {
+        let mut value = rich();
+        for variant in ["default", "first", "last"] {
+            for frame in ["header", "footer"] {
+                value["variants"][variant][frame]
+                    .as_object_mut()
+                    .expect("a frame")
+                    .remove("gapMm")
+                    .expect("the member is there to remove");
+            }
+        }
+        value
+    }
+
+    #[test]
+    fn the_starting_configuration_says_3_mm_in_every_frame() {
+        let value = base();
+        assert_eq!(value["variants"]["default"]["header"]["gapMm"], json!(3.0));
+        assert_eq!(value["variants"]["default"]["footer"]["gapMm"], json!(3.0));
+        assert_eq!(default_config().variants.default.header.gap_mm, 3.0);
+    }
+
+    #[test]
+    fn a_configuration_without_the_member_validates_and_has_3_mm() {
+        let config = validate_config(&stored_before()).expect("a stored v1 stays valid");
+        for variant in [
+            Some(&config.variants.default),
+            config.variants.first.as_ref(),
+            config.variants.last.as_ref(),
+        ] {
+            let variant = variant.expect("rich has all three");
+            assert_eq!(variant.header.gap_mm, 3.0);
+            assert_eq!(variant.footer.gap_mm, 3.0);
+        }
+    }
+
+    #[test]
+    fn a_stored_configuration_read_back_without_the_member_has_3_mm() {
+        // The store reads a version back with serde, not with the validator.
+        let config: LetterheadConfig = serde_json::from_value(stored_before()).expect("reads back");
+        assert_eq!(config.variants.default.header.gap_mm, 3.0);
+        assert_eq!(config.variants.first.expect("first").footer.gap_mm, 3.0);
+        // And it is the same configuration as one that says 3 mm.
+        assert_eq!(
+            validate_config(&stored_before()).expect("valid"),
+            validate_config(&rich()).expect("valid")
+        );
+    }
+
+    #[test]
+    fn a_distance_is_kept_per_frame() {
+        let mut value = set(base(), "/variants/default/header/gapMm", json!(12.5));
+        value = set(value, "/variants/default/footer/gapMm", json!(0));
+        let config = validate_config(&value).expect("valid");
+        assert_eq!(config.variants.default.header.gap_mm, 12.5);
+        assert_eq!(config.variants.default.footer.gap_mm, 0.0);
+        // Round trip through JSON.
+        let back: LetterheadConfig =
+            serde_json::from_value(serde_json::to_value(&config).expect("json")).expect("back");
+        assert_eq!(back, config);
+    }
+
+    #[test]
+    fn a_misspelt_distance_is_an_unknown_member() {
+        let mut value = base();
+        value["variants"]["default"]["header"]["gap"] = json!(5);
+        assert_eq!(
+            pairs(&value),
+            [("/variants/default/header".into(), "unknown_member")]
+        );
     }
 }

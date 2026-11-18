@@ -34,7 +34,7 @@ const BODY: &[&str] = &["size", "lineSpacing"];
 const TABLE: &[&str] = &["headerFill", "borders", "borderColor"];
 const VARIANTS: &[&str] = &["default", "first", "last"];
 const VARIANT: &[&str] = &["header", "footer", "logo", "background"];
-const FRAME: &[&str] = &["valign", "rule", "left", "center", "right"];
+const FRAME: &[&str] = &["valign", "gapMm", "rule", "left", "center", "right"];
 const RULE: &[&str] = &["show", "thicknessPt", "color"];
 const LINE: &[&str] = &["text", "size", "bold", "color"];
 const TEXT: &[&str] = &["it", "en"];
@@ -504,6 +504,10 @@ impl Walker {
         }) {
             frame.valign = valign;
         }
+        // Optional, so that a configuration stored before the field existed is still valid: the gap it had.
+        if let Some(value) = object.get("gapMm") {
+            frame.gap_mm = self.at("gapMm", |w| w.number(value, bounds::GAP_MM, "gapMm"));
+        }
         if let Some(rule) = self.member(object, "rule", |w, v| w.rule(v)) {
             frame.rule = rule;
         }
@@ -688,6 +692,7 @@ fn placeholder_look() -> Look {
 fn placeholder_frame() -> Frame {
     Frame {
         valign: Valign::Top,
+        gap_mm: bounds::DEFAULT_GAP_MM,
         rule: Rule {
             show: false,
             thickness_pt: bounds::RULE_THICKNESS_PT.min,

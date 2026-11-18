@@ -1,4 +1,4 @@
-//! The fonts of layout 1: a closed list of 13 files bundled with the service (AC-7.5).
+//! The fonts of layout 1: a closed list of 15 files bundled with the service (AC-7.5).
 //!
 //! Each file is pinned by its SHA-256 here, in code, and a test recomputes the digest of the bytes that are
 //! compiled in. A font file that is replaced, even by an upstream "fix" under the same name, fails that test:
@@ -6,9 +6,10 @@
 //! lines. The World has no font path of its own: these are the only fonts a render can ever see, and nothing
 //! is fetched at render time.
 //!
-//! Licences are beside the files in `engine/fonts/`: the SIL Open Font License 1.1 for DM Sans, DM Mono, Syne
-//! and Noto Serif, the Ubuntu Font Licence 1.0 for Ubuntu. All five families have `fsType = 0` (installable
-//! embedding), so a PDF may embed them (spike, § Results).
+//! Licences are beside the files in `engine/fonts/`: the SIL Open Font License 1.1 for DM Sans, DM Mono, Syne,
+//! Noto Serif and Inter, the Ubuntu Font Licence 1.0 for Ubuntu. All six families have `fsType = 0` (installable
+//! embedding), so a PDF may embed them (spike, § Results; Inter checked when it was added: both of its files
+//! read `fsType = 0`).
 
 use crate::config::Font;
 
@@ -25,7 +26,8 @@ pub struct FontFile {
 
 /// The name that Typst knows a family by. It is the family in the font file's name table, which for the
 /// DM Sans variable font is "DM Sans 9pt" (its default optical size) and not the "DM Sans" that the closed
-/// list and the configurator show.
+/// list and the configurator show. Inter's variable files carry plain "Inter" (name ID 1, no typographic
+/// family), so it needs no mapping.
 pub fn typst_family(font: Font) -> &'static str {
     match font {
         Font::DmSans => "DM Sans 9pt",
@@ -44,8 +46,8 @@ macro_rules! font_file {
     };
 }
 
-/// The 13 files of layout 1.
-pub static LAYOUT_1_FONTS: [FontFile; 13] = [
+/// The 15 files of layout 1.
+pub static LAYOUT_1_FONTS: [FontFile; 15] = [
     font_file!(
         "Ubuntu-Regular.ttf",
         Font::Ubuntu,
@@ -110,5 +112,15 @@ pub static LAYOUT_1_FONTS: [FontFile; 13] = [
         "Syne[wght].ttf",
         Font::Syne,
         "ce5ac77142a65cab2248a1a2ebb740b1d4d9c20b52488877d3ff664d1356104a"
+    ),
+    font_file!(
+        "Inter[opsz,wght].ttf",
+        Font::Inter,
+        "29160a80ff49ddcab2c97711247e08b1fab27a484a329ce8b813d820dc559031"
+    ),
+    font_file!(
+        "Inter-Italic[opsz,wght].ttf",
+        Font::Inter,
+        "acd98e64795781b2058f07b18475e0ecee2a0fe2b42a49e2f9e37d0d6bf66ce6"
     ),
 ];
