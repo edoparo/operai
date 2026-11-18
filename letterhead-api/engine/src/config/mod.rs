@@ -14,6 +14,7 @@ pub use diff::{SETTING_NAMES, changed_settings, initial_settings};
 pub use model::{
     BodyLook, BulletMarker, Font, Fonts, Frame, HeadingLook, LetterheadConfig, Line, LocalText,
     Logo, LogoPosition, Look, Margins, Rule, TableLook, Valign, Variant, Variants,
+    default_title_look,
 };
 pub use problem::{MAX_NAME_CHARS, Problem, Reason};
 pub use text::{Placeholder, TextError, Token, parse_text};

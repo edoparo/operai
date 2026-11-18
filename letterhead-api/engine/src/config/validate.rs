@@ -20,6 +20,7 @@ use super::bounds::{
 use super::model::{
     BodyLook, BulletMarker, Font, Fonts, Frame, HeadingLook, LetterheadConfig, Line, LocalText,
     Logo, LogoPosition, Look, Margins, Rule, TableLook, Valign, Variant, Variants,
+    default_title_look,
 };
 use super::problem::{Problem, Reason, shown};
 use super::text::parse_text;
@@ -28,7 +29,7 @@ use crate::content::Language;
 const ROOT: &[&str] = &["margins", "fonts", "look", "variants"];
 const MARGINS: &[&str] = &["top", "bottom", "left", "right"];
 const FONTS: &[&str] = &["body", "heading", "frame"];
-const LOOK: &[&str] = &["headings", "body", "table", "bulletMarker"];
+const LOOK: &[&str] = &["headings", "title", "body", "table", "bulletMarker"];
 const HEADING: &[&str] = &["size", "bold", "color"];
 const BODY: &[&str] = &["size", "lineSpacing"];
 const TABLE: &[&str] = &["headerFill", "borders", "borderColor"];
@@ -308,6 +309,12 @@ impl Walker {
         if let Some(headings) = self.member(object, "headings", |w, v| w.headings(v)) {
             look.headings = headings;
         }
+        // Optional, so that a configuration stored before the field existed is still valid: the title it had.
+        if let Some(value) = object.get("title") {
+            look.title = self.at("title", |w| {
+                w.heading_look(value, bounds::TITLE_SIZE_PT, default_title_look())
+            });
+        }
         if let Some(body) = self.member(object, "body", |w, v| w.body_look(v)) {
             look.body = body;
         }
@@ -342,30 +349,39 @@ impl Walker {
         }
         for (index, item) in array.iter().enumerate() {
             let look = self.at(&index.to_string(), |w| {
-                let mut look = HeadingLook {
+                let placeholder = HeadingLook {
                     size: bounds::HEADING_SIZE_PT.min,
                     bold: false,
                     color: "000000".to_owned(),
                 };
-                let Some(object) = w.object(item, HEADING) else {
-                    return look;
-                };
-                if let Some(size) = w.member(object, "size", |w, v| {
-                    w.number(v, bounds::HEADING_SIZE_PT, "size")
-                }) {
-                    look.size = size;
-                }
-                if let Some(bold) = w.member(object, "bold", |w, v| w.boolean(v)) {
-                    look.bold = bold;
-                }
-                if let Some(color) = w.member(object, "color", |w, v| w.colour(v, "color")) {
-                    look.color = color;
-                }
-                look
+                w.heading_look(item, bounds::HEADING_SIZE_PT, placeholder)
             });
             out.push(look);
         }
         out
+    }
+
+    /// One look of text: a size in `range`, bold, a colour. `look` is what stands in for a member that is
+    /// wrong, so that the walk goes on and finds the other problems.
+    fn heading_look(
+        &mut self,
+        value: &Value,
+        range: bounds::Range,
+        mut look: HeadingLook,
+    ) -> HeadingLook {
+        let Some(object) = self.object(value, HEADING) else {
+            return look;
+        };
+        if let Some(size) = self.member(object, "size", |w, v| w.number(v, range, "size")) {
+            look.size = size;
+        }
+        if let Some(bold) = self.member(object, "bold", |w, v| w.boolean(v)) {
+            look.bold = bold;
+        }
+        if let Some(color) = self.member(object, "color", |w, v| w.colour(v, "color")) {
+            look.color = color;
+        }
+        look
     }
 
     fn body_look(&mut self, value: &Value) -> BodyLook {
@@ -676,6 +692,7 @@ fn placeholder_config() -> LetterheadConfig {
 fn placeholder_look() -> Look {
     Look {
         headings: Vec::new(),
+        title: default_title_look(),
         body: BodyLook {
             size: bounds::BODY_SIZE_PT.min,
             line_spacing: bounds::LINE_SPACING.min,

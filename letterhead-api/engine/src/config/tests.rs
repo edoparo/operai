@@ -376,6 +376,15 @@ mod bounds_one_test_each {
     }
 
     #[test]
+    fn the_document_title_size_is_8_to_36_pt() {
+        check_range("/look/title/size", bounds::TITLE_SIZE_PT, "size");
+        assert_eq!(
+            (bounds::TITLE_SIZE_PT.min, bounds::TITLE_SIZE_PT.max),
+            (8.0, 36.0)
+        );
+    }
+
+    #[test]
     fn heading_size_is_8_to_24_pt_for_each_level() {
         for level in 0..3 {
             check_range(
@@ -615,8 +624,9 @@ mod body_area {
 mod colours_and_choices {
     use super::*;
 
-    const COLOUR_PATHS: [&str; 7] = [
+    const COLOUR_PATHS: [&str; 8] = [
         "/look/headings/0/color",
+        "/look/title/color",
         "/look/headings/2/color",
         "/look/table/headerFill",
         "/look/table/borderColor",
@@ -1513,6 +1523,18 @@ mod diff {
     }
 
     #[test]
+    fn the_document_title_is_set_beside_the_headings_in_the_same_name() {
+        for pointer in ["/look/title/color", "/look/title/size", "/look/title/bold"] {
+            let value = match pointer {
+                "/look/title/color" => json!("e50339"),
+                "/look/title/size" => json!(30),
+                _ => json!(false),
+            };
+            assert_eq!(changed(set(rich(), pointer, value)), ["look.headings"]);
+        }
+    }
+
+    #[test]
     fn switching_a_variant_on_is_one_name_not_its_parts() {
         let old = typed(&base());
         let new = typed(&rich());
@@ -1732,6 +1754,99 @@ mod frame_gap {
         assert_eq!(
             pairs(&value),
             [("/variants/default/header".into(), "unknown_member")]
+        );
+    }
+}
+
+mod document_title {
+    use super::*;
+
+    /// A configuration stored before `look.title` existed.
+    fn stored_before() -> Value {
+        remove(rich(), "/look/title")
+    }
+
+    #[test]
+    fn the_starting_configuration_says_20_pt_bold_black() {
+        let value = base();
+        assert_eq!(
+            value["look"]["title"],
+            json!({ "size": 20.0, "bold": true, "color": "000000" })
+        );
+        let title = default_config().look.title;
+        assert_eq!(
+            (title.size, title.bold, title.color.as_str()),
+            (20.0, true, "000000")
+        );
+        assert_eq!(default_title_look(), title);
+    }
+
+    #[test]
+    fn a_configuration_without_the_member_validates_and_has_the_default_title() {
+        let config = validate_config(&stored_before()).expect("a stored v1 stays valid");
+        assert_eq!(config.look.title, default_title_look());
+        assert_eq!(config, validate_config(&rich()).expect("valid"));
+    }
+
+    #[test]
+    fn a_stored_configuration_read_back_without_the_member_has_the_default_title() {
+        // The store reads a version back with serde, not with the validator.
+        let config: LetterheadConfig = serde_json::from_value(stored_before()).expect("reads back");
+        assert_eq!(config.look.title, default_title_look());
+        // And it is written back with the member, so a new save says what it renders.
+        let written = serde_json::to_value(&config).expect("json");
+        assert_eq!(written["look"]["title"]["size"], json!(20.0));
+    }
+
+    #[test]
+    fn a_configured_title_is_kept_and_its_colour_is_lower_case() {
+        let value = set(
+            rich(),
+            "/look/title",
+            json!({ "size": 28.5, "bold": false, "color": "E50339" }),
+        );
+        let config = validate_config(&value).expect("valid");
+        assert_eq!(config.look.title.size, 28.5);
+        assert!(!config.look.title.bold);
+        assert_eq!(config.look.title.color, "e50339");
+        let back: LetterheadConfig =
+            serde_json::from_value(serde_json::to_value(&config).expect("json")).expect("back");
+        assert_eq!(back, config);
+    }
+
+    #[test]
+    fn a_bad_title_names_its_member() {
+        let value = set(base(), "/look/title/color", json!("red"));
+        expect(&value, "/look/title/color", "bad_colour");
+        let value = set(base(), "/look/title/bold", json!("yes"));
+        expect(&value, "/look/title/bold", "wrong_type");
+        let value = remove(base(), "/look/title/size");
+        expect(&value, "/look/title/size", "missing_member");
+        let mut value = base();
+        value["look"]["title"]["font"] = json!("Syne");
+        assert_eq!(
+            pairs(&value),
+            [("/look/title".into(), "unknown_member")],
+            "the font of the title is the heading font, not a setting"
+        );
+        let value = set(base(), "/look/title", json!(20));
+        expect(&value, "/look/title", "wrong_type");
+    }
+
+    #[test]
+    fn a_title_problem_does_not_hide_the_others() {
+        let mut value = set(base(), "/look/title/size", json!(99));
+        value = set(value, "/look/title/color", json!("nope"));
+        value = set(value, "/look/headings/0/size", json!(1));
+        let mut found = pairs(&value);
+        found.sort();
+        assert_eq!(
+            found,
+            [
+                ("/look/headings/0/size".into(), "out_of_range"),
+                ("/look/title/color".into(), "bad_colour"),
+                ("/look/title/size".into(), "out_of_range"),
+            ]
         );
     }
 }

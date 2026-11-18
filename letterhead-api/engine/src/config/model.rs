@@ -99,12 +99,26 @@ pub enum BulletMarker {
     Dash,
 }
 
+/// What the document title looks like when a stored configuration has no `title`: the 20 pt bold in black
+/// that layout 1 always drew.
+pub fn default_title_look() -> HeadingLook {
+    HeadingLook {
+        size: super::bounds::DEFAULT_TITLE_SIZE_PT,
+        bold: true,
+        color: super::bounds::DEFAULT_TITLE_COLOR.to_owned(),
+    }
+}
+
 /// AC-5.9: the look of each block type.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct Look {
     /// Levels 1 to 3, in this order.
     pub headings: Vec<HeadingLook>,
+    /// The document title, the `title` named style. Optional in stored configurations: one saved before the
+    /// field existed has the 20 pt bold black that layout 1 always drew. The font is the heading font.
+    #[serde(default = "default_title_look")]
+    pub title: HeadingLook,
     pub body: BodyLook,
     pub table: TableLook,
     pub bullet_marker: BulletMarker,

@@ -1083,6 +1083,156 @@ fn ac_1_7_a_run_s_own_style_comes_first_and_the_block_s_style_is_added() {
     assert!((by("tre").size - 20.0).abs() < 0.01, "{}", by("tre").size);
 }
 
+// ─── the look of the document title (look.title) ─────────────────────────────────────
+
+fn with_title(size: f64, bold: bool, color: &str) -> LetterheadConfig {
+    let mut config = bare_config();
+    config.look.title = crate::config::HeadingLook {
+        size,
+        bold,
+        color: color.to_owned(),
+    };
+    config
+}
+
+#[test]
+fn the_title_with_no_setting_is_20_pt_bold_in_the_default_text_colour() {
+    // Today's rendering, which every stored configuration keeps.
+    assert_eq!(
+        bare_config().look.title,
+        crate::config::HeadingLook {
+            size: 20.0,
+            bold: true,
+            color: "000000".to_owned()
+        }
+    );
+    for kind in ["heading", "paragraph", "list", "table"] {
+        let title = sample(&bare(json!([styled(kind, "title")])));
+        let plain = sample(&bare(json!([styled(kind, "plain")])));
+        assert_eq!(
+            (title.size, title.weight, title.family.as_str()),
+            (20.0, 700, "Ubuntu"),
+            "{kind}"
+        );
+        // The colour is the one the text has without the style (black; a heading's own colour): the template
+        // adds none.
+        assert_eq!(title.fill, plain.fill, "{kind}");
+        if kind != "heading" {
+            assert_eq!(title.fill, Some("000000".to_owned()), "{kind}");
+        }
+    }
+}
+
+#[test]
+fn a_configured_title_is_what_renders_on_every_block_type() {
+    let config = with_title(28.5, false, "e50339");
+    for kind in ["heading", "paragraph", "list", "table"] {
+        let c = render(&config, json!([styled(kind, "title")]));
+        let title = sample(&c);
+        assert!((title.size - 28.5).abs() < 0.01, "{kind}: {}", title.size);
+        assert_eq!(title.weight, 400, "{kind}");
+        assert_eq!(title.fill.as_deref(), Some("e50339"), "{kind}");
+        // The font stays the heading font.
+        assert_eq!(title.family, "Ubuntu", "{kind}");
+        // Only the title changed: the same text with no style is the body's.
+        let plain = sample(&render(&config, json!([styled(kind, "plain")])));
+        assert_ne!(plain.fill.as_deref(), Some("e50339"), "{kind}");
+    }
+    // Bold, and only the size and the colour changed.
+    let bold = sample(&render(
+        &with_title(12.0, true, "000000"),
+        json!([styled("paragraph", "title")]),
+    ));
+    assert_eq!((bold.size, bold.weight), (12.0, 700));
+    // The heading font is the title's font.
+    let mut syne = with_title(20.0, true, "000000");
+    syne.fonts.heading = crate::config::Font::Syne;
+    assert_eq!(
+        sample(&render(&syne, json!([styled("paragraph", "title")]))).family,
+        "Syne"
+    );
+}
+
+#[test]
+fn the_title_setting_leaves_headings_body_and_the_other_styles_alone() {
+    let config = with_title(30.0, false, "e50339");
+    let plain = bare(json!([
+        styled("heading", "plain"),
+        styled("paragraph", "plain")
+    ]));
+    let moved = render(
+        &config,
+        json!([styled("heading", "plain"), styled("paragraph", "plain")]),
+    );
+    assert_eq!(
+        inspect::text_runs(&moved.document.pages()[0]),
+        inspect::text_runs(&plain.document.pages()[0])
+    );
+    for style in ["muted", "small"] {
+        let before = sample(&bare(json!([styled("paragraph", style)])));
+        let after = sample(&render(&config, json!([styled("paragraph", style)])));
+        assert_eq!(before, after, "{style}");
+    }
+}
+
+#[test]
+fn an_italic_title_run_is_italic_at_the_configured_size() {
+    // The CRM sends the title run in italic while its reference is pending.
+    let blocks = json!([{
+        "type": "paragraph",
+        "runs": [{ "text": "SAMPLE", "italic": true, "style": "title" }],
+    }]);
+    let config = with_title(26.0, true, "1f2430");
+    let title = sample(&render(&config, blocks.clone()));
+    assert!(title.italic, "{title:?}");
+    assert!((title.size - 26.0).abs() < 0.01);
+    assert_eq!((title.weight, title.fill.as_deref()), (700, Some("1f2430")));
+    // With no setting it is today's: italic, 20 pt, bold.
+    let title = sample(&bare(blocks));
+    assert!(title.italic);
+    assert_eq!((title.size, title.weight), (20.0, 700));
+}
+
+#[test]
+fn a_title_that_is_missing_is_still_highlighted_with_the_configured_size() {
+    // `missing` on the block with the title on the run, and the other way round, in the default colour.
+    let config = with_title(24.0, true, "000000");
+    let run_title = json!([{
+        "type": "paragraph", "style": "missing",
+        "runs": [{ "text": "SAMPLE", "style": "title" }],
+    }]);
+    let block_title = json!([{
+        "type": "paragraph", "style": "title",
+        "runs": [{ "text": "SAMPLE", "style": "missing" }],
+    }]);
+    for blocks in [run_title, block_title] {
+        let c = render(&config, blocks);
+        let run = sample(&c);
+        assert!((run.size - 24.0).abs() < 0.01, "{run:?}");
+        assert_eq!(run.fill.as_deref(), Some("b35c00"), "{run:?}");
+        assert!(
+            ink(&c, 1)
+                .iter()
+                .any(|i| i.fill.as_deref() == Some("fff3bf"))
+        );
+    }
+}
+
+#[test]
+fn the_largest_title_still_keeps_a_long_word_inside_the_margins() {
+    // The break logic bounds a text by the biggest size a document has: the title's 36 pt is above a heading's 24.
+    let long = "m".repeat(300);
+    let config = with_title(36.0, true, "000000");
+    let blocks = json!([
+        { "type": "paragraph", "style": "title", "runs": [{ "text": long.clone() }] },
+        { "type": "table", "columns": [1.0, 1.0], "header": [cell("x"), cell("y")], "rows": [[
+            json!([{ "type": "paragraph", "style": "title", "runs": [{ "text": long.clone() }] }]),
+            cell("b"),
+        ]] },
+    ]);
+    assert_inside_body(&render(&config, blocks));
+}
+
 // ─── images ──────────────────────────────────────────────────────────────────
 
 fn image_ink(c: &Compiled) -> Ink {

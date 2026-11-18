@@ -53,7 +53,7 @@
 // `avail` is the width of the line the text is in, which the caller knows exactly; `wrap` puts the run's own
 // look (bold, a named style, ...) on a piece of text, so that what is measured is what is drawn.
 #let widest-glyph = 1.25 // em: no glyph of the bundled fonts is wider
-#let largest-text = 24pt // the biggest size any text of a document has (a heading, AC-5.9)
+#let largest-text = calc.max(24pt, look.title.size * 1pt) // the biggest size any text of a document has (a heading, AC-5.9, or the title)
 
 #let break-segment(segment, avail, wrap, width) = {
   let clusters = segment.clusters()
@@ -304,7 +304,7 @@
 //   small     85 % size    85 % size    85 % size    85 % size    -
 //   right     right        right        items right  -            right
 //   center    centred      centred      items centre -            centred
-//   title     20 pt bold   20 pt bold   20 pt bold   20 pt bold   -
+//   title     look.title   look.title   look.title   look.title   - (20 pt bold by default)
 //             heading font heading font heading font heading font
 //   missing   highlighted  highlighted  highlighted  highlighted  -
 //
@@ -313,10 +313,20 @@
 
 #let grey = hex("595c69")
 
+// The document title: the heading font, the configured size and weight (look.title; 20 pt bold unless the
+// configuration says otherwise). The colour is only set when it is not the default (black): a title in the
+// default colour takes whatever colour the text around it has, as it always did (a `missing` or `muted`
+// run keeps its own colour), and a configured colour is the title's own.
+#let title-style(c) = {
+  let t = look.title
+  let c = if t.color != "000000" { text(fill: hex(t.color), c) } else { c }
+  text(font: fonts.heading, size: t.size * 1pt, weight: if t.bold { "bold" } else { "regular" }, c)
+}
+
 #let text-style(name, c) = {
   if name == "muted" { text(fill: grey, c) }
   else if name == "small" { text(size: 0.85em, c) }
-  else if name == "title" { text(font: fonts.heading, size: 20pt, weight: "bold", c) }
+  else if name == "title" { title-style(c) }
   else if name == "missing" { highlight(fill: hex("fff3bf"), top-edge: 0.8em, bottom-edge: -0.2em, text(fill: hex("b35c00"), c)) }
   else { c }
 }

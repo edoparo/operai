@@ -90,7 +90,9 @@ pub fn changed_settings(old: &LetterheadConfig, new: &LetterheadConfig) -> Vec<&
     if old.fonts != new.fonts {
         out.push("fonts");
     }
-    if old.look.headings != new.look.headings {
+    // The document title is set beside the headings, so a change of it is a change of `look.headings`: the
+    // vocabulary of the change record stays closed and unchanged.
+    if old.look.headings != new.look.headings || old.look.title != new.look.title {
         out.push("look.headings");
     }
     if old.look.body != new.look.body {

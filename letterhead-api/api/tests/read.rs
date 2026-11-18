@@ -1088,6 +1088,15 @@ async fn read_the_catalog_lists_the_closed_sets_and_a_default_that_is_the_engine
         catalog["defaultConfig"]["variants"]["default"]["footer"]["gapMm"],
         3.0
     );
+    // The document title: its size bound, and the 20 pt bold black that the starting values say.
+    assert_eq!(
+        catalog["bounds"]["titleSizePt"],
+        json!({ "min": 8.0, "max": 36.0 })
+    );
+    assert_eq!(
+        catalog["defaultConfig"]["look"]["title"],
+        json!({ "size": 20.0, "bold": true, "color": "000000" })
+    );
 
     // G2: the starting values are the engine's own default, which the save rules accept.
     let default = serde_json::to_value(default_config()).expect("json");

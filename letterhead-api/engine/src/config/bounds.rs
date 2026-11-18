@@ -51,6 +51,14 @@ pub const GAP_MM: Range = Range::new(0.0, 40.0);
 /// was configurable, so that every configuration stored earlier renders as it did.
 pub const DEFAULT_GAP_MM: f64 = 3.0;
 
+/// The size of the document title (the `title` named style), in points. Wider than a heading's: a title is
+/// the biggest text a document may have, and the template widens its "largest text" to it.
+pub const TITLE_SIZE_PT: Range = Range::new(8.0, 36.0);
+/// What the document title is when a stored configuration has none: the 20 pt bold, in the body's own text
+/// colour (black), that layout 1 drew before the title was configurable.
+pub const DEFAULT_TITLE_SIZE_PT: f64 = 20.0;
+pub const DEFAULT_TITLE_COLOR: &str = "000000";
+
 /// AC-5.9: headings have this many levels, each with its own look.
 pub const HEADING_LEVELS: usize = 3;
 /// AC-5.9: heading size, body size and line spacing.

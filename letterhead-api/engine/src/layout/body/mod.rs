@@ -20,6 +20,7 @@ use crate::world;
 pub(super) fn look(look: &Look) -> Value {
     json!({
         "headings": look.headings,
+        "title": look.title,
         "body": look.body,
         "table": look.table,
         "bullet": look.bullet_marker,

@@ -1,6 +1,6 @@
 {
   "layout": 1,
-  "templateBytes": 25355,
-  "templateSha256": "bdca58185e96f6f7bb6284b352a2c471259ac6b398575eb0e5b58d54e8615024",
+  "templateBytes": 26002,
+  "templateSha256": "db134e7ac35a1fd2cec34e27a910c6ebfdd23555a1dbb29ccbddb1ed1330cd9d",
   "typst": "0.15.1"
 }

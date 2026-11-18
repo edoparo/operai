@@ -89,6 +89,7 @@ pub fn catalog_body() -> Value {
             "gapMm": range(bounds::GAP_MM),
             "headingLevels": bounds::HEADING_LEVELS,
             "headingSizePt": range(bounds::HEADING_SIZE_PT),
+            "titleSizePt": range(bounds::TITLE_SIZE_PT),
             "bodySizePt": range(bounds::BODY_SIZE_PT),
             "lineSpacing": range(bounds::LINE_SPACING),
             "logoHeightMm": range(bounds::LOGO_HEIGHT_MM),
@@ -401,6 +402,10 @@ mod tests {
         assert_eq!(catalog["bounds"]["maxLinesPerZone"], 4);
         assert_eq!(catalog["bounds"]["fitTestValueChars"], 40);
         assert_eq!(catalog["bounds"]["headingLevels"], 3);
+        assert_eq!(
+            catalog["bounds"]["titleSizePt"],
+            json!({ "min": 8.0, "max": 36.0 })
+        );
         assert_eq!(
             catalog["bounds"]["logoHeightMm"],
             json!({ "min": 5.0, "max": 40.0 })

@@ -1396,6 +1396,49 @@ async fn write_the_distance_from_the_body_is_saved_bounded_and_part_of_the_fit()
 }
 
 #[tokio::test]
+async fn write_the_document_title_look_is_saved_bounded_and_optional() {
+    let Some(world) = world().await else { return };
+    // A configuration written before the member existed (no `look.title`) is still saved.
+    let mut stored = config("Footer", None);
+    stored["look"]
+        .as_object_mut()
+        .expect("a look")
+        .remove("title")
+        .expect("the starting configuration has it");
+    assert_eq!(
+        save_as(&world, "welld_it", "u-it", 0, &stored).await.status,
+        201
+    );
+
+    // A size past the bound, and a colour that is not six hex digits: refused at the members.
+    let mut bad = config("Footer", None);
+    bad["look"]["title"]["size"] = json!(36.5);
+    bad["look"]["title"]["color"] = json!("blue");
+    let reply = save_as(&world, "welld_it", "u-it", 1, &bad).await;
+    assert_problem(&reply, 422, "invalid_letterhead");
+    let mut found = problems(&reply);
+    found.sort();
+    assert_eq!(
+        found,
+        [
+            ("/look/title/color".to_owned(), "bad_colour".to_owned()),
+            ("/look/title/size".to_owned(), "out_of_range".to_owned()),
+        ],
+        "{}",
+        reply.text()
+    );
+
+    // A title of its own is saved.
+    let mut own = config("Footer", None);
+    own["look"]["title"] = json!({ "size": 30, "bold": false, "color": "E50339" });
+    assert_eq!(
+        save_as(&world, "welld_it", "u-it", 1, &own).await.status,
+        201
+    );
+    assert_eq!(rows(&world).await.versions, 2);
+}
+
+#[tokio::test]
 async fn write_an_asset_that_is_not_the_entitys_or_not_of_the_slots_kind_is_asset_unknown() {
     let Some(world) = world().await else { return };
     let f = &world.fixture;

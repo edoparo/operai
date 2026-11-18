@@ -4,7 +4,7 @@
 use super::bounds;
 use super::model::{
     BodyLook, BulletMarker, Font, Fonts, Frame, HeadingLook, LetterheadConfig, Line, LocalText,
-    Look, Margins, Rule, TableLook, Valign, Variant, Variants,
+    Look, Margins, Rule, TableLook, Valign, Variant, Variants, default_title_look,
 };
 
 fn line(text: &str, size: f64, bold: bool, color: &str) -> Line {
@@ -77,6 +77,7 @@ pub fn default_config() -> LetterheadConfig {
                 heading(12.0, "1f2430"),
                 heading(10.5, "595c69"),
             ],
+            title: default_title_look(),
             body: BodyLook {
                 size: 10.5,
                 line_spacing: 1.2,
