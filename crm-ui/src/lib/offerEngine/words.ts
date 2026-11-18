@@ -10,10 +10,20 @@
 
 export type DocLanguage = "en" | "it";
 
+/** The words of the document title before the reference, when the template sets none. */
+const TITLE = { it: "CONTRATTO DI FORNITURA", en: "SUPPLY CONTRACT" } as const;
+
+/**
+ * The words of the title before the reference: the template's own (an offer template may set them, for each language), or the
+ * language's default when it sets none (absent, null or blank). The reference and its label are always the document's.
+ */
+const titleWords = (text: string | null | undefined, fallback: string): string => (text !== undefined && text !== null && text.trim() !== "" ? text.trim() : fallback);
+
 const WORDS = {
   it: {
     offer: "Offerta",
-    title: (reference: string) => `CONTRATTO DI FORNITURA – Rif. ${reference}`,
+    titleText: TITLE.it,
+    title: (reference: string, text?: string | null) => `${titleWords(text, TITLE.it)} – Rif. ${reference}`,
     attn: "A.c.a.",
     index: "INDICE",
     acceptance: "Per accettazione",
@@ -38,7 +48,8 @@ const WORDS = {
   },
   en: {
     offer: "Offer",
-    title: (reference: string) => `SUPPLY CONTRACT – Ref. ${reference}`,
+    titleText: TITLE.en,
+    title: (reference: string, text?: string | null) => `${titleWords(text, TITLE.en)} – Ref. ${reference}`,
     attn: "Attn.",
     index: "CONTENTS",
     acceptance: "Acceptance",

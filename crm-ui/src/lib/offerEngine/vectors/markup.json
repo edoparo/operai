@@ -126,6 +126,136 @@
       "name": "an escaped answer cannot start a block",
       "source": "\\### Pwned\n\\- x\n\\1. y",
       "blocks": [{ "type": "paragraph", "runs": ["### Pwned\n- x\n1. y"] }]
+    },
+    {
+      "name": "alignment: ->text<- is a centred paragraph",
+      "source": "->Hello<-",
+      "blocks": [{"type": "paragraph", "runs": ["Hello"], "align": "center"}]
+    },
+    {
+      "name": "alignment: ->text-> is a right-aligned paragraph",
+      "source": "->Hello->",
+      "blocks": [{"type": "paragraph", "runs": ["Hello"], "align": "right"}]
+    },
+    {
+      "name": "alignment: the blanks right inside the markers are trimmed",
+      "source": "->   Hello world   <-\n\n->  Bye  ->",
+      "blocks": [{"type": "paragraph", "runs": ["Hello world"], "align": "center"}, {"type": "paragraph", "runs": ["Bye"], "align": "right"}]
+    },
+    {
+      "name": "alignment: a paragraph of several lines is enclosed by its first and its last line",
+      "source": "->Line one\nline two\nline three<-",
+      "blocks": [{"type": "paragraph", "runs": ["Line one\nline two\nline three"], "align": "center"}]
+    },
+    {
+      "name": "alignment: the markers may stand on lines of their own",
+      "source": "->\nBetween\n<-",
+      "blocks": [{"type": "paragraph", "runs": ["Between"], "align": "center"}]
+    },
+    {
+      "name": "alignment: emphasis works inside",
+      "source": "->**Bold** and *italic* and __under__<-",
+      "blocks": [{"type": "paragraph", "runs": [{"t": "Bold", "b": true}, " and ", {"t": "italic", "i": true}, " and ", {"t": "under", "u": true}], "align": "center"}]
+    },
+    {
+      "name": "alignment: a marker run inside keeps its mark",
+      "source": "->Dear \ue000Name\ue001->",
+      "blocks": [{"type": "paragraph", "runs": ["Dear ", {"t": "Name", "mark": "missing"}], "align": "right"}]
+    },
+    {
+      "name": "alignment: an aligned paragraph among others",
+      "source": "before\n\n->middle<-\n\nafter",
+      "blocks": [{"type": "paragraph", "runs": ["before"]}, {"type": "paragraph", "runs": ["middle"], "align": "center"}, {"type": "paragraph", "runs": ["after"]}]
+    },
+    {
+      "name": "alignment: markers with nothing between them are nothing, not an empty paragraph",
+      "source": "before\n\n-><-\n\n->  ->\n\nafter",
+      "blocks": [{"type": "paragraph", "runs": ["before"]}, {"type": "paragraph", "runs": ["after"]}]
+    },
+    {
+      "name": "alignment: a backslash before the opening marker makes it literal",
+      "source": "\\->not centred<-",
+      "blocks": [{"type": "paragraph", "runs": ["->not centred<-"]}]
+    },
+    {
+      "name": "alignment: a backslash before the closing marker makes it literal",
+      "source": "->not centred\\<-\n\n->not right\\->",
+      "blocks": [{"type": "paragraph", "runs": ["->not centred<-"]}, {"type": "paragraph", "runs": ["->not right->"]}]
+    },
+    {
+      "name": "alignment: an even number of backslashes before the closing marker leaves it a marker",
+      "source": "->a\\\\<-",
+      "blocks": [{"type": "paragraph", "runs": ["a\\"], "align": "center"}]
+    },
+    {
+      "name": "alignment: an escaped ending of a middle line is literal",
+      "source": "->one\\<-\ntwo<-",
+      "blocks": [{"type": "paragraph", "runs": ["one<-\ntwo"], "align": "center"}]
+    },
+    {
+      "name": "alignment: an escaped ending of a plain paragraph line loses its backslash",
+      "source": "a\\<-\nb\\->",
+      "blocks": [{"type": "paragraph", "runs": ["a<-\nb->"]}]
+    },
+    {
+      "name": "alignment: an opening marker alone is plain text",
+      "source": "->Hello",
+      "blocks": [{"type": "paragraph", "runs": ["->Hello"]}]
+    },
+    {
+      "name": "alignment: a closing marker alone is plain text",
+      "source": "Hello<-\n\nHello->",
+      "blocks": [{"type": "paragraph", "runs": ["Hello<-"]}, {"type": "paragraph", "runs": ["Hello->"]}]
+    },
+    {
+      "name": "alignment: the markers the other way round are plain text",
+      "source": "<-Hello->\n\n<-Hello<-",
+      "blocks": [{"type": "paragraph", "runs": ["<-Hello->"]}, {"type": "paragraph", "runs": ["<-Hello<-"]}]
+    },
+    {
+      "name": "alignment: an arrow alone is plain text",
+      "source": "->",
+      "blocks": [{"type": "paragraph", "runs": ["->"]}]
+    },
+    {
+      "name": "alignment: a marker that does not enclose the whole paragraph is plain text",
+      "source": "->Hello<- and more\n\nsome ->Hello<-",
+      "blocks": [{"type": "paragraph", "runs": ["->Hello<- and more"]}, {"type": "paragraph", "runs": ["some ->Hello<-"]}]
+    },
+    {
+      "name": "alignment: a blank line ends the paragraph, so the markers must be in one",
+      "source": "->first\n\nsecond<-",
+      "blocks": [{"type": "paragraph", "runs": ["->first"]}, {"type": "paragraph", "runs": ["second<-"]}]
+    },
+    {
+      "name": "alignment: a list item is not aligned",
+      "source": "- ->item<-\n- ->item->",
+      "blocks": [{"type": "list", "ordered": false, "items": [{"marker": "\u2022", "runs": ["->item<-"], "children": []}, {"marker": "\u2022", "runs": ["->item->"], "children": []}]}]
+    },
+    {
+      "name": "alignment: a line after a list item continues the item, it is not aligned",
+      "source": "- item\n->more<-",
+      "blocks": [{"type": "list", "ordered": false, "items": [{"marker": "\u2022", "runs": ["item", "\n->more<-"], "children": []}]}]
+    },
+    {
+      "name": "alignment: a table cell is not aligned",
+      "source": "| h |\n| ->cell<- |",
+      "blocks": [{"type": "table", "header": [[{"bullet": false, "runs": ["h"]}]], "rows": [[[{"bullet": false, "runs": ["->cell<-"]}]]]}]
+    },
+    {
+      "name": "alignment: a sub-heading is not aligned",
+      "source": "### ->Heading<-",
+      "blocks": [{"type": "heading", "text": "->Heading<-"}]
+    },
+    {
+      "name": "alignment: a paragraph that follows a list is aligned after a blank line",
+      "source": "- a\n\n->after<-",
+      "blocks": [{"type": "list", "ordered": false, "items": [{"marker": "\u2022", "runs": ["a"], "children": []}]}, {"type": "paragraph", "runs": ["after"], "align": "center"}]
+    },
+    {
+      "name": "alignment: the markers leave an unpaired asterisk alone",
+      "source": "->2 * 3<-",
+      "blocks": [{"type": "paragraph", "runs": ["2 * 3"], "align": "center"}]
     }
   ]
 }

@@ -19,6 +19,18 @@
  *                    the label, literal inside (no emphasis, no escapes)
  * A backslash before anything else stays a literal backslash, as before.
  *
+ * Paragraph alignment (the offer template title and alignment change) adds, and nothing else — MultiMarkdown style:
+ *   ->text<-   a paragraph whose text starts with `->` and ends with `<-` is centred (`align: "center"`)
+ *   ->text->   one that starts with `->` and ends with `->` is right-aligned (`align: "right"`)
+ *                    the markers enclose the WHOLE paragraph (several lines with single newlines are fine), the blanks
+ *                    right inside them are trimmed, emphasis works inside. Anything else — a marker without its
+ *                    partner, `->` alone, a marker inside a list item, a table cell or a heading — is plain text; markers
+ *                    with nothing between them are nothing (a paragraph whose every part was conditional and off).
+ *                    `\->` at the line start is literal (the line-start rule above); a backslash right before a `<-` or
+ *                    `->` that ends a line of a paragraph is the escape of that ending, removed (an odd number of
+ *                    backslashes: `\\<-` is a backslash and a real marker). The resolver escapes an answer's line
+ *                    start and line end this way, so an answer never becomes an alignment marker.
+ *
  * Shared with the CRM UI: byte-identical copy (scripts/check-shared-copies.ts, group offerEngine.markup).
  */
 // shared-copy:begin offerEngine.markup
@@ -54,8 +66,11 @@ export interface CellLine {
   readonly runs: readonly Run[];
 }
 
+/** How an aligned paragraph is laid out; absent = left, as before. */
+export type ParagraphAlign = "center" | "right";
+
 export type Block =
-  | { readonly type: "paragraph"; readonly runs: readonly Run[] }
+  | { readonly type: "paragraph"; readonly runs: readonly Run[]; /** Only on a paragraph enclosed in `->` … `<-` or `->` … `->`. */ readonly align?: ParagraphAlign }
   | { readonly type: "heading"; readonly text: string }
   | { readonly type: "list"; readonly ordered: boolean; readonly items: ListItem[] }
   | {
@@ -265,6 +280,50 @@ const LIST_ITEM = /^(\s*)(?:(-|•)|(\d+|[a-z])\.)\s+(.*)$/;
 /** A backslash before a line-start marker: the line is plain text (the resolver escapes answers this way). */
 const ESCAPED_LINE_START = /^(\s*)\\(?=[-•#]|\d+\.|[a-z]\.)/;
 
+/** The opening and the two closing alignment markers. */
+const ALIGN_OPEN = "->";
+const ALIGN_CENTER_CLOSE = "<-";
+const ALIGN_RIGHT_CLOSE = "->";
+
+/** True when an odd number of backslashes stands right before `end` in `text`: the character at `end` is escaped. */
+function escapedAt(text: string, end: number): boolean {
+  let count = 0;
+  for (let i = end - 1; i >= 0 && text[i] === "\\"; i -= 1) count += 1;
+  return count % 2 === 1;
+}
+
+const endsWithMarker = (text: string): boolean => text.endsWith(ALIGN_CENTER_CLOSE) || text.endsWith(ALIGN_RIGHT_CLOSE);
+
+/** A line of a paragraph with the escape of its ending removed: `text\<-` → `text<-` (linear; no regular expression). */
+function unescapeEnd(line: string): string {
+  const text = line.trimEnd();
+  if (!endsWithMarker(text) || !escapedAt(text, text.length - 2)) return line;
+  return text.slice(0, text.length - 3) + text.slice(text.length - 2);
+}
+
+/**
+ * The paragraph's lines (as written, line-start escapes still in place) as an aligned paragraph, or null when it is not one:
+ * the first line starts with `->` (not escaped), the last ends with `<-` or `->` (not escaped), and the two markers do not
+ * overlap. The lines come back without the markers, the escapes of the other line endings removed and the blank ends dropped.
+ */
+function aligned(raw: readonly string[]): { align: ParagraphAlign; lines: string[] } | null {
+  const text = raw.map((line) => line.trim());
+  const open = text[0]!;
+  const close = text[text.length - 1]!;
+  if (!open.startsWith(ALIGN_OPEN)) return null;
+  const align: ParagraphAlign | null = close.endsWith(ALIGN_CENTER_CLOSE) ? "center" : close.endsWith(ALIGN_RIGHT_CLOSE) ? "right" : null;
+  if (align === null || escapedAt(close, close.length - 2)) return null;
+  if (text.length === 1 && open.length < ALIGN_OPEN.length + ALIGN_CENTER_CLOSE.length) return null;
+  const end = text.length - 1;
+  const lines = text.map((line, index) => {
+    const own = index === 0 ? line.slice(ALIGN_OPEN.length) : line.replace(ESCAPED_LINE_START, "$1");
+    return index === end ? own.slice(0, own.length - ALIGN_CENTER_CLOSE.length) : unescapeEnd(own);
+  });
+  while (lines.length > 1 && lines[0]!.trim() === "") lines.shift();
+  while (lines.length > 1 && lines[lines.length - 1]!.trim() === "") lines.pop();
+  return { align, lines };
+}
+
 interface Frame {
   readonly indent: number;
   readonly list: Extract<Block, { type: "list" }>;
@@ -282,7 +341,14 @@ export function parseMarkup(source: string): Block[] {
   let tableLines: string[] = [];
 
   const closeParagraph = () => {
-    if (paragraph.length > 0) blocks.push({ type: "paragraph", runs: inlineLines(paragraph) });
+    if (paragraph.length > 0) {
+      const enclosed = aligned(paragraph);
+      // Markers with nothing between them (every part of the line conditional and off) are nothing, not an empty line.
+      if (enclosed) {
+        const runs = inlineLines(enclosed.lines);
+        if (runs.length > 0) blocks.push({ type: "paragraph", runs, align: enclosed.align });
+      } else blocks.push({ type: "paragraph", runs: inlineLines(paragraph.map((line) => unescapeEnd(line.replace(ESCAPED_LINE_START, "$1")))) });
+    }
     paragraph = [];
   };
   const closeList = () => {
@@ -342,10 +408,10 @@ export function parseMarkup(source: string): Block[] {
     }
     if (lastItem && stack.length > 0) {
       // A non-marker line right after an item continues it, with a line break.
-      lastItem.runs.push(...parseInline(`\n${line.replace(ESCAPED_LINE_START, "$1").trim()}`));
+      lastItem.runs.push(...parseInline(`\n${unescapeEnd(line.replace(ESCAPED_LINE_START, "$1")).trim()}`));
       continue;
     }
-    paragraph.push(line.replace(ESCAPED_LINE_START, "$1"));
+    paragraph.push(line);
   }
   closeParagraph();
   closeTable();

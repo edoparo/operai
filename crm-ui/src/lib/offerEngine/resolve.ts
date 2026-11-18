@@ -10,7 +10,10 @@
  *                on (`answers.blocks`), a field/list/table is filled (`?`) or none is (`!`).
  *   escaping     an answer is escaped before it enters markup — `\ [ * _ | {` anywhere, a line-start marker at a
  *                line start (and a cell start in a table row), newlines folded to what the line can hold — so a
- *                value never becomes markup (DD-5). It first goes through `printable` (DD-22), so the preview
+ *                value never becomes markup (DD-5). The paragraph alignment markers are part of it: a line that starts
+ *                with `->`, or ends with `<-` or `->`, where an answer supplies the marker (all of it or a part, next to
+ *                the template's own text) gets a backslash before it, which the markup reads as a literal
+ *                (`escapeAlignment`). It first goes through `printable` (DD-22), so the preview
  *                shows what the PDF prints. Template text goes through `printable` too.
  *   markers      a value the person still owes is `U+E000 label U+E001` ("missing"), the offer reference before
  *                it is assigned `U+E002 label U+E003` ("pending"); `markup.ts` reads them as marked runs. A plain
@@ -213,6 +216,46 @@ function atCellStart(prefix: string): boolean {
   return prefix.slice(last + 1).trim() === "";
 }
 
+/** A piece of a line that came from an answer: the half-open range it covers in the buffer. */
+type ValueRange = readonly [number, number];
+
+/** The buffer a line is built in: the text so far and where the answers' pieces are in it. */
+interface LineBuffer {
+  s: string;
+  readonly values: ValueRange[];
+}
+
+const ALIGN_OPEN = "->";
+const ALIGN_CLOSES = ["<-", "->"] as const;
+const closesAlignment = (line: string): boolean => ALIGN_CLOSES.some((marker) => line.endsWith(marker));
+
+/** A backslash before the ending marker of a line: `x<-` → `x\<-` (the markup reads it as the literal). */
+const escapeEnding = (line: string): string => {
+  const text = line.trimEnd();
+  return closesAlignment(text) ? `${text.slice(0, -2)}\\${text.slice(-2)}${line.slice(text.length)}` : line;
+};
+
+/**
+ * The finished line of the markup an answer went into, with the alignment markers an answer wrote — in whole or in part, the
+ * marker straddling the template text and the answer — made literal (a backslash before them): the line's start `->`, and the ending `<-` or
+ * `->` of its last line. Only a plain line (not a table row, a heading, a list item): the other kinds read no alignment. The
+ * ends of the lines before the last one inside an answer are escaped by `escapeValue`.
+ */
+function escapeAlignment(buffer: LineBuffer): string {
+  let text = buffer.s;
+  const inValue = (at: number): boolean => buffer.values.some(([from, to]) => at >= from && at < to);
+  const lastStart = text.lastIndexOf("\n") + 1;
+  const last = text.slice(lastStart);
+  const trimmed = last.trimEnd();
+  if (lineKind(last) === "plain" && closesAlignment(trimmed) && trimmed.length >= 2) {
+    const at = lastStart + trimmed.length - 2;
+    if (inValue(at) || inValue(at + 1)) text = `${text.slice(0, at)}\\${text.slice(at)}`;
+  }
+  const lead = /^[ \t]*/.exec(text)![0].length;
+  if (text.startsWith(ALIGN_OPEN, lead) && (inValue(lead) || inValue(lead + 1))) text = `${text.slice(0, lead)}\\${text.slice(lead)}`;
+  return text;
+}
+
 /** A line start in a value: a backslash before a marker the markup would read. A cell start knows only the bullets. */
 function escapeStart(line: string, cell: boolean): string {
   return line.replace(cell ? /^(\s*)(?=[-•])/ : /^(\s*)(?=[-•#]|\d+\.|[a-z]\.)/, "$1\\");
@@ -232,10 +275,14 @@ function escapeValue(text: string, prefix: string): string {
   else value = value.replace(/\n(?:[ \t]*\n){2,}/g, "\n\n");
   const lineStart = prefix.trim() === "";
   const cellStart = kind === "table" && atCellStart(prefix);
-  return value
-    .split("\n")
+  const lines = value.split("\n");
+  return lines
     .map((line, index) => {
-      const escaped = escapeChars(line);
+      // A line of the answer that ends before the answer does is a line of the document that ends there: its alignment marker is
+      // escaped (a plain line, or the continuation of a list item; the item's own line reads none). The last one ends where the
+      // template text after the answer says: `escapeAlignment`.
+      const ends = index < lines.length - 1 && (kind === "plain" || (kind === "list" && index > 0));
+      const escaped = ends ? escapeEnding(escapeChars(line)) : escapeChars(line);
       if (index > 0) return escapeStart(escaped, false);
       if (kind === "table") return cellStart ? escapeStart(escaped, true) : escaped;
       return lineStart ? escapeStart(escaped, false) : escaped;
@@ -621,15 +668,17 @@ class Resolver {
   }
 
   /** Writes `piece` to the line being built unless the unit is over: the one place the output grows. */
-  private append(buffer: { s: string }, piece: string): void {
+  private append(buffer: LineBuffer, piece: string): void {
     if (this.charge(piece.length)) buffer.s += piece;
   }
 
-  private emit(value: Value, buffer: { s: string }, surface: Surface, raised: Raised[]): void {
+  private emit(value: Value, buffer: LineBuffer, surface: Surface, raised: Raised[]): void {
     if (this.over) return;
     if (value.kind === "text") {
       if (value.invalid) raised.push(value.invalid);
+      const from = buffer.s.length;
       this.append(buffer, surface === "markup" ? escapeValue(value.text, currentLine(buffer.s)) : plainValue(value.text));
+      if (buffer.s.length > from) buffer.values.push([from, buffer.s.length]);
       return;
     }
     const label = printable(value.raised.label ?? "");
@@ -649,7 +698,7 @@ class Resolver {
     }
   }
 
-  private render(nodes: readonly Inline[], scope: Scope, surface: Surface, raised: Raised[], buffer: { s: string }): void {
+  private render(nodes: readonly Inline[], scope: Scope, surface: Surface, raised: Raised[], buffer: LineBuffer): void {
     for (const node of nodes) {
       if (this.over) return;
       if (node.type === "text") {
@@ -665,9 +714,9 @@ class Resolver {
   }
 
   private text(nodes: readonly Inline[], scope: Scope, surface: Surface, raised: Raised[]): string {
-    const buffer = { s: "" };
+    const buffer: LineBuffer = { s: "", values: [] };
     this.render(nodes, scope, surface, raised, buffer);
-    return surface === "markup" ? buffer.s : buffer.s.trim();
+    return surface === "markup" ? escapeAlignment(buffer) : buffer.s.trim();
   }
 
   /** The first list or repeatable table a line names: the line is printed once per item or row of it. */
@@ -702,9 +751,9 @@ class Resolver {
     }));
   }
 
-  /** A line with nothing but a list marker, a heading mark or empty table cells left on it. */
+  /** A line with nothing but a list marker, a heading mark, empty table cells or alignment markers with nothing between them left on it. */
   private static blankRendered(text: string): boolean {
-    return /^\s*(?:#{1,6}|[-•]|(?:\d+|[a-z])\.)?\s*$/.test(text) || /^\s*\|[\s|]*$/.test(text);
+    return /^\s*(?:#{1,6}|[-•]|(?:\d+|[a-z])\.)?\s*$/.test(text) || /^\s*\|[\s|]*$/.test(text) || /^\s*->\s*(?:<-|->)\s*$/.test(text);
   }
 
   private bodyLines(lines: readonly BodyLine[]): OutLine[] {

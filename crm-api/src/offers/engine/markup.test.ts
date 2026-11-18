@@ -119,6 +119,34 @@ describe("parseInline", () => {
   });
 });
 
+/** Paragraph alignment: `->text<-` centres, `->text->` right-aligns; anything else is a plain paragraph. */
+describe("paragraph alignment", () => {
+  const first = (source: string) => parseMarkup(source)[0] as unknown as { type: string; runs: { text: string }[]; align?: string };
+
+  it("leaves the `align` member out of an ordinary paragraph", () => {
+    expect("align" in first("plain text")).toBe(false);
+    expect("align" in first("->only opened")).toBe(false);
+  });
+
+  it("centres and right-aligns a paragraph and keeps the text between the markers", () => {
+    expect(first("->Offerta<-")).toMatchObject({ align: "center" });
+    expect(first("->Offerta->")).toMatchObject({ align: "right" });
+    expect(text(first("->  Offerta  <-").runs)).toBe("Offerta");
+  });
+
+  it("reads an indented paragraph the same (leading blanks are not part of the marker)", () => {
+    expect(first("   ->x<-")).toMatchObject({ align: "center" });
+  });
+
+  it("never throws and stays linear on a very long run of backslashes and on repeated markers", () => {
+    const started = Date.now();
+    for (const source of ["\\".repeat(150_000), `->${"\\".repeat(150_000)}<-`, `${"->".repeat(50_000)}`, `${"<-".repeat(50_000)}`, "->\n".repeat(20_000) + "<-"]) {
+      expect(() => parseMarkup(source)).not.toThrow();
+    }
+    expect(Date.now() - started).toBeLessThan(3000);
+  });
+});
+
 // ─── Shared vectors (specs/20261115-crm-offer-wizard T2) ──────────────────────
 
 import vectors from "./vectors/markup.json";
@@ -137,7 +165,9 @@ const expandRun = (run: CompactRun) => {
 };
 
 const expandBlock = (block: Record<string, unknown>): unknown => {
-  if (block.type === "paragraph") return { type: "paragraph", runs: (block.runs as CompactRun[]).map(expandRun) };
+  if (block.type === "paragraph") {
+    return { type: "paragraph", runs: (block.runs as CompactRun[]).map(expandRun), ...(block.align ? { align: block.align } : {}) };
+  }
   if (block.type === "heading") return block;
   if (block.type === "list") {
     const items = block.items as { marker: string; runs: CompactRun[]; children: Record<string, unknown>[] }[];

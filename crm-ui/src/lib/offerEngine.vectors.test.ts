@@ -117,7 +117,13 @@ describe('vectors/markup.json', () => {
   }
 
   const expandBlock = (block: Record<string, unknown>): unknown => {
-    if (block.type === 'paragraph') return { type: 'paragraph', runs: (block.runs as CompactRun[]).map(expandRun) }
+    if (block.type === 'paragraph') {
+      return {
+        type: 'paragraph',
+        runs: (block.runs as CompactRun[]).map(expandRun),
+        ...(block.align ? { align: block.align } : {}),
+      }
+    }
     if (block.type === 'heading') return block
     if (block.type === 'list') {
       const items = block.items as { marker: string; runs: CompactRun[]; children: Record<string, unknown>[] }[]
