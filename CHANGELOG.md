@@ -1,5 +1,14 @@
 # Operai — suite changelog
 
+## operai 0.7.0 — 2026-11-18
+
+- @operai/admin-ui → 0.3.0 (minor)
+- @operai/auth → 0.7.0 (minor)
+- @operai/crm-api → 0.6.0 (minor)
+- @operai/crm-ui → 0.6.0 (minor)
+- @operai/letterhead-api → 0.2.0 (minor)
+- @operai/letterheads-ui → 0.3.0 (minor)
+
 ## operai 0.6.0 — 2026-11-18
 
 - @operai/activities-api → 0.2.2 (patch)
