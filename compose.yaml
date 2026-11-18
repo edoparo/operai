@@ -439,7 +439,7 @@ services:
       dockerfile: Dockerfile
       target: production
     ports:
-      - "8088:8088"
+      - "8089:8089"
     env_file:
       - ./hours-api/.env
     environment:
@@ -452,7 +452,7 @@ services:
       postgres:
         condition: service_healthy
     healthcheck:
-      test: ["CMD-SHELL", "wget -qO- http://localhost:8088/health || exit 1"]
+      test: ["CMD-SHELL", "wget -qO- http://localhost:8089/health || exit 1"]
       interval: 10s
       timeout: 5s
       retries: 5

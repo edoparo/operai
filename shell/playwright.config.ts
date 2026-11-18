@@ -40,7 +40,7 @@ import { defineConfig, devices } from '@playwright/test'
  *      (activities-api's URL on crm-api, its SERVICE_CLIENTS entry and `activities.write` in `auth`,
  *      VITE_ACTIVITIES_API_URL / VITE_PROJECTS_API_URL on the shell build). projects-ui is served here
  *      on E2E_PROJECTS_REMOTE_PORT (default 5183).
- *   8. specs/20261112-time-tracking (hours-*.spec.ts, T35/T36): hours-api (8088) with its own environment
+ *   8. specs/20261112-time-tracking (hours-*.spec.ts, T35/T36): hours-api (8089) with its own environment
  *      (hours-api/.envrc, which a person creates: the variables are in hours-api/.env.example; the
  *      `hours` database migrated by `mise run db:migrate`), plus projects-api (8086), crm-api (8084),
  *      activities-api (8087) and meetings-api (8085) as the owners it asks. A meeting's deal also needs
@@ -49,14 +49,14 @@ import { defineConfig, devices } from '@playwright/test'
  *      hours-ui is served here on E2E_HOURS_REMOTE_PORT (default 5185); the shell build gets
  *      VITE_HOURS_API_URL (the hours-api origin, its trusted-origin allowlist) and HOURS_REMOTE_URL.
  *
- *   8. specs/20261116-letterhead-service (letterheads.spec.ts, T26): letterhead-api (Rust; `mise run dev:letterhead`, :8088) with
+ *   9. specs/20261116-letterhead-service (letterheads.spec.ts, T26): letterhead-api (Rust; `mise run dev:letterhead`, :8088) with
  *      its own database and bucket, `auth` running with ENABLE_TEST_AUTH=true and `AUTH_AUDIENCE`, `letterhead-api` reading
  *      `auth`'s JWKS and `/authz/resolve` (nothing is stubbed: the journeys sign in as real users whose grants are written
- *      through `auth`'s admin API). letterheads-ui is served here on E2E_LETTERHEADS_REMOTE_PORT (default 5184) and
+ *      through `auth`'s admin API). letterheads-ui is served here on E2E_LETTERHEADS_REMOTE_PORT (default 5186) and
  *      the shell's build is told the service's origin (VITE_LETTERHEADS_API_URL, E2E_LETTERHEADS_API_URL; default
  *      http://localhost:8088).
  *
- *   9. specs/20261116-letterhead-service (crm-offer-wizard-service.spec.ts, T34): everything of item 8, PLUS the CRM side on the
+ *  10. specs/20261116-letterhead-service (crm-offer-wizard-service.spec.ts, T34): everything of item 9, PLUS the CRM side on the
  *      service path: activities-api (:8087, the estimate override's timeline note), crm-api with LETTERHEAD_SERVICE_ENABLED=true,
  *      its SERVICE_CLIENT_ID/SECRET, and `auth`'s `crm-api` SERVICE_CLIENTS entry holding the scopes `letterhead:render`
  *      and `activities.write`. crm-api's LETTERHEAD_API_URL must be the RELAY the spec runs itself
@@ -167,7 +167,7 @@ const letterheadsApiUrl =
 // into its trusted-origin allowlist (ADR 20260607-jwt-in-memory-never-web-storage) and exposes it to hours-ui
 // (`getHoursApiBaseUrl`); without VITE_HOURS_API_URL they send no Bearer token to hours-api and every call 401s.
 const hoursApiUrl =
-  process.env['E2E_HOURS_API_URL'] ?? process.env['VITE_HOURS_API_URL'] ?? 'http://localhost:8088'
+  process.env['E2E_HOURS_API_URL'] ?? process.env['VITE_HOURS_API_URL'] ?? 'http://localhost:8089'
 
 // The shell's preview port. 5173 by default — the origin in auth's committed
 // ALLOWED_ORIGINS. E2E_SHELL_PORT only exists for a machine where 5173 is
@@ -224,9 +224,10 @@ const hoursRemoteOrigin = `http://localhost:${process.env['E2E_HOURS_REMOTE_PORT
 //   E2E_ADMIN_REMOTE_PORT=5177 E2E_INVENTORY_REMOTE_PORT=5178 E2E_CRM_REMOTE_PORT=5179
 //   E2E_MEETINGS_REMOTE_PORT=5180 E2E_PROJECTS_REMOTE_PORT=5181 E2E_LETTERHEADS_REMOTE_PORT=5182 E2E_HOURS_REMOTE_PORT=5184 pnpm e2e
 // letterheads-ui (specs/20261116-letterhead-service, T26): ./App at /letterheads. The `mise run dev` stack has it on 5182,
-// which the meetings-ui preview above takes in THIS file's numbering, so 5184 is the next free e2e-preview slot
+// which the meetings-ui preview above takes in THIS file's numbering; 5184 is hours-ui's dev port and 5185 its e2e
+// preview, so 5186 is the next free e2e-preview slot (a default on 5184 would reuse a running hours-ui as letterheads-ui)
 // (`E2E_LETTERHEADS_REMOTE_PORT=5182 pnpm e2e letterheads` reuses the `mise run dev` one).
-const letterheadsRemoteOrigin = `http://localhost:${process.env['E2E_LETTERHEADS_REMOTE_PORT'] ?? '5184'}`
+const letterheadsRemoteOrigin = `http://localhost:${process.env['E2E_LETTERHEADS_REMOTE_PORT'] ?? '5186'}`
 const projectsRemotePort = new URL(projectsRemoteOrigin).port
 const hoursRemotePort = new URL(hoursRemoteOrigin).port
 const crmRemotePort = new URL(crmRemoteOrigin).port
