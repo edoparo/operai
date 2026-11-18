@@ -203,10 +203,6 @@ export type Attachment = {
 
 export type EntityProfile = {
   entity: Entity
-  legalName: string
-  addressLines: string[]
-  vatNumber: string | null
-  iban: string | null
   offerTermsEn: string | null
   offerTermsIt: string | null
   /** Printed beside the date of an offer; null = the server's default. */
@@ -391,7 +387,12 @@ export type WizardContextResponse = {
   currency: Currency
   dealAmountCents: number | null
   issuerLegalName: string
-  /** The entity profile's address lines (DD-58); may be empty. */
+  /**
+   * The issuer's address in each language, from the legal entities registry (specs/20261117-legal-entities E4; AC-6.2). Absent
+   * from an older crm-api, which sends `issuerAddressLines` alone: the wizard falls back to those.
+   */
+  issuerAddress?: { it: string[]; en: string[] }
+  /** The issuer's address lines in Italian (DD-58); may be empty. Kept by crm-api for an older crm-ui. */
   issuerAddressLines: string[]
   /** The profile has a letterhead (DD-54). Never a link: the bytes come through `getLetterheadDownload`. */
   letterhead: boolean

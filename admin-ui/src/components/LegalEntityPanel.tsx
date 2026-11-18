@@ -1,0 +1,331 @@
+/**
+ * LegalEntityPanel — one entity's panel inside its tab (T36, specs/20261117-legal-entities, design S1–S4; the
+ * `LegalEntityPanel` of the component inventory: "one host for the four states of one record").
+ *
+ * From the top: the entity header (h3 = the entity's name, the status badge, the Read-only mark, and the version
+ * line "Version n · saved by X · date"), the view tabs (Details | History, tablist "Views of {entity}"), then the
+ * banner slot and the body of the selected view.
+ *
+ *   - Details of an entity the person may change: the FORM (`LegalEntityForm`, T37, mounted at `DetailsBody`). It is
+ *     a controlled view of the page's per-entity draft (`draft` / `onDraftChange`), so what is typed survives a
+ *     switch of entity, of view or of version. A 403 on its save is `onLost()` of the host AND, here, the danger
+ *     Banner "You can no longer change {entity}" (focused, assertive) above the read-only note it turns into.
+ *   - Details of an entity the person may NOT change (S4), and of one not moved yet: values as facts, no input, no
+ *     disabled control; a persistent info Banner says why (live="off": read in place, not announced on arrival).
+ *   - Incomplete / Needs correction (S3): a persistent warning Banner listing what is missing and what is out of
+ *     rule, in words, above the values.
+ *   - History (T39): `LegalEntityHistory` at `HistoryBody` lists the versions and, with `version` (the URL's
+ *     `&version=n`), shows that version read-only (`LegalEntityVersionView`); `onVersionChange` pushes/clears it. A
+ *     not-moved entity has nothing to list. A restore made there ends here: the entity as read (`onEntityChange`),
+ *     the Details view, a compact "Version n created from version m" over it, and focus on the heading (h3), because
+ *     the row or button that had it is gone.
+ *
+ * What the host (LegalEntitiesPage) owns and this panel only calls: the URL (`onViewChange`, `onVersionChange`), the
+ * drafts (`onDraftChange`), the entity as last read (`onEntityChange`, after a save or a restore) and the loss of the
+ * grant (`onLost`, a 403: the page turns the entity read-only and drops its draft).
+ *
+ * Heading outline: the page's h2, this panel's h3, the cards' h4.
+ */
+import { useCallback, useEffect, useRef, useState } from 'react'
+import { Banner, StatePanel, Tabs, formatDateTime, tabPanelProps } from '@operai/ui'
+import { EntityReadOnlyBadge, EntityStatusBadge } from './LegalEntityPanelBadges'
+import LegalEntityFacts from './LegalEntityFacts'
+import LegalEntityForm from './LegalEntityForm'
+import LegalEntityHistory from './LegalEntityHistory'
+import { getVersion } from '../lib/legalEntitiesApi'
+import type { SaveResult } from '../lib/legalEntitiesApi'
+import { valueNameList } from '../lib/legalEntityMappings'
+import type { LegalEntity, LegalEntityDetails, LegalEntityField } from '../lib/legalEntityModel'
+import { strings } from '../strings'
+
+const t = strings.legalEntities
+
+export type LegalEntityView = 'details' | 'history'
+
+export type LegalEntityPanelProps = {
+  entity: LegalEntity
+  /** May this person change the entity (and has the grant not been lost since)? False: read-only. */
+  canChange: boolean
+  view: LegalEntityView
+  /** The open version of the History view (`&version=n`), when there is one. */
+  version: number | undefined
+  /** The page's unsaved draft of this entity, when there is one. */
+  draft: LegalEntityDetails | undefined
+  /** Selecting a view replaces the history entry. */
+  onViewChange: (view: LegalEntityView) => void
+  /** Opening or closing a version pushes an entry (Back returns from the version to the list). */
+  onVersionChange: (version: number | undefined) => void
+  /** `undefined` drops the draft. */
+  onDraftChange: (draft: LegalEntityDetails | undefined) => void
+  /** The entity was read again (a save, a restore, a conflict reload). */
+  onEntityChange: (entity: LegalEntity) => void
+  /** A 403 on a write: the person can no longer change this entity. */
+  onLost: () => void
+}
+
+const VIEW_PREFIX = 'admin-legal-entity-view'
+
+/** "Version n · saved by X · date", from the current version's own record (the entity answer carries no author). */
+function useVersionLine(entity: LegalEntity): string | null {
+  const key = `${entity.entity}:${entity.version}`
+  const [loaded, setLoaded] = useState<{ key: string; line: string } | null>(null)
+
+  useEffect(() => {
+    if (entity.version < 1) return
+    let current = true
+    getVersion(entity.entity, entity.version).then(
+      (v) => {
+        if (!current) return
+        const when = formatDateTime(v.createdAt)
+        const line =
+          v.action === 'import'
+            ? t.entity.moved(when)
+            : t.entity.version(entity.version, v.createdBy?.name ?? t.history.system, when)
+        setLoaded({ key, line })
+      },
+      // The line is a convenience: the panel works without it, and the history says the same.
+      () => undefined,
+    )
+    return () => {
+      current = false
+    }
+  }, [entity.entity, entity.version, key])
+
+  return loaded?.key === key ? loaded.line : null
+}
+
+/** The values the registry holds out of rule (E6 `invalid[]`), once each, in the API's order. */
+const invalidFields = (entity: LegalEntity): LegalEntityField[] => [...new Set(entity.invalid.map((p) => p.field))]
+
+/** S3: what is missing and what needs correcting, in words. `null` when the entity needs neither. */
+function StatusBanner({ entity, name }: { entity: LegalEntity; name: string }) {
+  if (entity.version === 0) return null
+  const toCorrect = entity.invalid.length > 0 ? t.entity.toCorrect(valueNameList(invalidFields(entity))) : null
+  if (!entity.complete) {
+    return (
+      <Banner tone="warning" live="off" title={t.incomplete.title} data-testid="admin-legal-entity-incomplete">
+        {t.incomplete.body(valueNameList(entity.missing), name)}
+        {toCorrect !== null && <> {toCorrect}</>}
+      </Banner>
+    )
+  }
+  if (toCorrect !== null) {
+    return (
+      <Banner tone="warning" live="off" title={t.toCorrect.title} data-testid="admin-legal-entity-to-correct">
+        {toCorrect}
+      </Banner>
+    )
+  }
+  return null
+}
+
+type DetailsBodyProps = Pick<
+  LegalEntityPanelProps,
+  'entity' | 'canChange' | 'draft' | 'onDraftChange' | 'onEntityChange' | 'onLost'
+>
+
+/** The Details view's body: the form for an entity the person may change, the facts for everything else (S4). */
+function DetailsBody({ entity, canChange, draft, onDraftChange, onEntityChange, onLost }: DetailsBodyProps) {
+  if (canChange) {
+    return (
+      <LegalEntityForm
+        entity={entity}
+        draft={draft}
+        onDraftChange={onDraftChange}
+        onEntityChange={onEntityChange}
+        onLost={onLost}
+      />
+    )
+  }
+  return (
+    <LegalEntityFacts
+      details={entity}
+      ibanPrint={entity.ibanPrint}
+      missing={entity.missing}
+      testId="admin-legal-entity-facts"
+    />
+  )
+}
+
+type HistoryBodyProps = Pick<
+  LegalEntityPanelProps,
+  'entity' | 'canChange' | 'version' | 'onVersionChange' | 'onViewChange' | 'onEntityChange'
+> & {
+  onLost: () => void
+  onRestored: (result: SaveResult, from: number) => void
+}
+
+/** The History view's body: the versions, or one of them (S5, S6); a restore opens its dialog from either (S7). */
+function HistoryBody({
+  entity,
+  canChange,
+  version,
+  onVersionChange,
+  onViewChange,
+  onEntityChange,
+  onLost,
+  onRestored,
+}: HistoryBodyProps) {
+  if (entity.version === 0) {
+    return <StatePanel title={t.history.empty} headingLevel={4} testId="admin-legal-entity-history-empty" />
+  }
+  return (
+    <LegalEntityHistory
+      entity={entity}
+      canChange={canChange}
+      version={version}
+      onVersionChange={onVersionChange}
+      onOpenCurrent={() => onViewChange('details')}
+      onEntityChange={onEntityChange}
+      onLost={onLost}
+      onRestored={onRestored}
+    />
+  )
+}
+
+/** What a restore reports on Details: a new version, or "already these details" (nothing was created). */
+type RestoredNotice = { created: boolean; version: number; from: number }
+
+export default function LegalEntityPanel(props: LegalEntityPanelProps) {
+  const { entity, canChange, view, version, onViewChange, onVersionChange, onEntityChange, onLost } = props
+  const name = strings.common.entities[entity.entity]
+  const versionLine = useVersionLine(entity)
+  const headingRef = useRef<HTMLHeadingElement>(null)
+
+  // A 403 on a save: the host turns the entity read-only and drops its draft; this panel says why, once, and takes
+  // focus there (the form, and the Save button that had it, is gone).
+  const [lostNotice, setLostNotice] = useState(false)
+  const lostRef = useRef<HTMLDivElement>(null)
+  const handleLost = useCallback(() => {
+    setLostNotice(true)
+    onLost()
+  }, [onLost])
+  const showLost = lostNotice && !canChange && view === 'details'
+  const lostFocused = useRef(false)
+  useEffect(() => {
+    // Once: coming back to Details after a look at History must not pull focus off the tab.
+    if (showLost && !lostFocused.current) {
+      lostFocused.current = true
+      lostRef.current?.focus()
+    }
+  }, [showLost])
+
+  // A restore (T39) ends on Details: the notice says what was made, and focus goes to the heading once the view is there.
+  const [restored, setRestored] = useState<RestoredNotice | null>(null)
+  const focusHeadingOnDetails = useRef(false)
+  const handleRestored = useCallback(
+    (result: SaveResult, from: number) => {
+      onEntityChange(result.entity)
+      setRestored({ created: result.created, version: result.version, from })
+      focusHeadingOnDetails.current = true
+      onViewChange('details')
+    },
+    [onEntityChange, onViewChange],
+  )
+  useEffect(() => {
+    // After the dialog has closed and the History view has gone: the dialog gives focus back to its trigger first.
+    if (view === 'details' && focusHeadingOnDetails.current) {
+      focusHeadingOnDetails.current = false
+      headingRef.current?.focus()
+    }
+  }, [view])
+  // The notice belongs to Details: leaving it for History (or Back out of it) ends it.
+  const [viewSeen, setViewSeen] = useState(view)
+  if (viewSeen !== view) {
+    setViewSeen(view)
+    if (view !== 'details') setRestored(null)
+  }
+
+  return (
+    <div data-testid={`admin-legal-entity-panel-${entity.entity}`}>
+      <div className="mb-3">
+        <div className="page-title-row">
+          <h3 ref={headingRef} tabIndex={-1} className="page-title" data-testid="admin-legal-entity-heading">
+            {name}
+          </h3>
+          <EntityStatusBadge entity={entity} />
+          {!canChange && <EntityReadOnlyBadge />}
+        </div>
+        {versionLine !== null && (
+          <p className="page-description" data-testid="admin-legal-entity-version-line">
+            {versionLine}
+          </p>
+        )}
+      </div>
+
+      <Tabs
+        label={t.tabs.views(name)}
+        tabs={[
+          { id: 'details', label: t.views.details },
+          { id: 'history', label: t.views.history },
+        ]}
+        value={view}
+        onChange={onViewChange}
+        idPrefix={`${VIEW_PREFIX}-${entity.entity}`}
+        testId="admin-legal-entity-view-tabs"
+      />
+
+      <div {...tabPanelProps(`${VIEW_PREFIX}-${entity.entity}`, view)} className="pt-4">
+        {view === 'details' ? (
+          <div className="flex flex-col gap-4">
+            {restored !== null && (
+              <Banner
+                tone="success"
+                compact
+                autoDismiss
+                dismissible={false}
+                onDismiss={() => setRestored(null)}
+                data-testid="admin-legal-restored"
+              >
+                {restored.created ? t.restore.done(restored.version, restored.from) : t.noop(restored.version)}
+              </Banner>
+            )}
+            {showLost && (
+              <Banner
+                ref={lostRef}
+                tabIndex={-1}
+                tone="danger"
+                title={t.lost.title(name)}
+                data-testid="admin-legal-entity-lost"
+              >
+                {t.lost.body}
+              </Banner>
+            )}
+            {!canChange && entity.version > 0 && (
+              <Banner tone="info" live="off" data-testid="admin-legal-entity-readonly-note">
+                {t.readOnly.note(name)}
+              </Banner>
+            )}
+            {entity.version === 0 && (
+              <Banner tone="info" live="off" data-testid="admin-legal-entity-not-moved">
+                {t.entity.notMoved}
+              </Banner>
+            )}
+            <StatusBanner entity={entity} name={name} />
+            {entity.version > 0 && (
+              <DetailsBody
+                entity={entity}
+                canChange={canChange}
+                draft={props.draft}
+                onDraftChange={props.onDraftChange}
+                onEntityChange={props.onEntityChange}
+                onLost={handleLost}
+              />
+            )}
+          </div>
+        ) : (
+          <HistoryBody
+            entity={entity}
+            canChange={canChange}
+            version={version}
+            onVersionChange={onVersionChange}
+            onViewChange={onViewChange}
+            onEntityChange={onEntityChange}
+            onLost={handleLost}
+            onRestored={handleRestored}
+          />
+        )}
+      </div>
+    </div>
+  )
+}

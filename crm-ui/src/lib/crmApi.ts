@@ -303,11 +303,8 @@ export async function postToBucket(upload: AttachmentUpload['upload'], file: Blo
 
 // ─── Entity profiles (settings) ─────────────────────────────────────────────
 
+/** What the CRM keeps of an entity: the legal details moved to the registry (specs/20261117-legal-entities T29, AC-6.1). */
 export type EntityProfileInput = {
-  legalName: string
-  addressLines: string[]
-  vatNumber?: string | null
-  iban?: string | null
   offerTermsEn?: string | null
   offerTermsIt?: string | null
   placeOfIssue?: string | null
@@ -316,6 +313,12 @@ export type EntityProfileInput = {
 export const listEntityProfiles = (init?: Init) => getJson<{ items: EntityProfile[] }>('/entity-profiles', init)
 export const saveEntityProfile = (entity: Entity, input: EntityProfileInput) =>
   sendJson<EntityProfile>(`/entity-profiles/${entity}`, 'PUT', input)
+
+// ─── auth: the legal entities the caller may manage (specs/20261117-legal-entities plan E2) ──────────────
+
+/** `GET /legal-entities/manageable` on `auth`: the entities the caller may edit; `[]` for none. UX only, the registry's own 403 is the gate. */
+export const listManageableLegalEntities = (init?: Init) =>
+  requestJson<{ entities: string[] }>(getAuthBaseUrl(), '/legal-entities/manageable', init)
 
 // ─── Letterhead: three calls, like a deal attachment (specs/20261102-crm-offer-document AC-2.5) ──────
 
@@ -478,8 +481,9 @@ export type ServicePreviewAnswer = {
 /**
  * The pages the layout service draws for the UNSAVED draft body (specs/20261116-letterhead-service AC-10.3; the same body a
  * save sends, `If-Match` not read). Nothing is stored. Only with the service switched on: otherwise 404. Refusals the wizard
- * tells apart: 409 `letterhead_not_configured`, 409 `letterhead_overflow` (`frame`, `entity`), 409 `entity_profile_missing`,
- * 422 `answers_invalid`, 503 `layout_service_unavailable`.
+ * tells apart: 409 `letterhead_not_configured`, 409 `letterhead_overflow` (`frame`, `entity`), 409 `legal_entity_incomplete`
+ * (`entity`, `missing[]`: the registry's details of the issuer, specs/20261117-legal-entities E4), 422 `answers_invalid`,
+ * 503 `layout_service_unavailable` (and 503 `legal_entities_unavailable` with `Retry-After: 5`).
  */
 export const previewOfferDraft = (dealId: string, input: DraftSaveInput, init?: Init) =>
   requestJson<ServicePreviewAnswer>(getCrmApiBaseUrl(), `${draftPath(dealId)}/preview`, {

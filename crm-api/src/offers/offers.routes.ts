@@ -60,11 +60,14 @@ import {
   isContract,
   latestOffer,
   assertLegacyTemplate,
+  legalEntitiesRetryAfter,
+  letterheadProfileOf,
   loadContext,
   notSent,
   offerOrigin,
   prepareOffer,
   referenceFileName,
+  withIssuerPin,
   renderOffer,
   renderOfferThroughService,
   renderedOf,
@@ -75,7 +78,6 @@ import {
   type StoredSnapshot,
 } from "./generation";
 import { snapshotToBlocks } from "./blocks";
-import { profileOf } from "./contentSchema";
 import { legacyContent } from "./legacyContent";
 import { CostColumnsSchema, GenerateOfferSchema, OfferSchema, SectionSchema } from "./offerSchemas";
 import { roundHalfUp, totalManDays } from "./scope";
@@ -181,14 +183,15 @@ const draftRoute = createRoute({
   description:
     "Resolves the template's placeholders against the deal, the company and the ready estimate. " +
     "404 when the template does not exist or belongs to another entity, 409 `template_archived`, " +
-    "409 `estimate_not_ready`, 409 `entity_profile_missing`.",
-  middleware: generating,
+    "409 `estimate_not_ready`, 409 `legal_entity_incomplete` (the registry's details of the entity are incomplete), 503 `legal_entities_unavailable` with `Retry-After: 5`.",
+  middleware: [...generating, legalEntitiesRetryAfter],
   request: { params: IdParams, query: DraftQuery },
   responses: {
     200: { description: "The prefill", ...json(DraftSchema) },
     404: { description: "Deal or template not found" },
-    409: { description: "estimate_not_ready / entity_profile_missing / template_archived / template_format_mismatch" },
+    409: { description: "estimate_not_ready / legal_entity_incomplete / template_archived / template_format_mismatch" },
     ...commonErrors,
+    503: { description: "legal_entities_unavailable (Retry-After: 5), or the authorization service is unavailable" },
   },
 });
 
@@ -200,10 +203,13 @@ const draftRoute = createRoute({
 function rendererOf(prepared: Prepared): (snapshot: ContractSnapshot) => Promise<Rendered> {
   if (!env.LETTERHEAD_SERVICE_ENABLED) return (snapshot) => renderOffer(snapshot, prepared);
   return (snapshot) =>
-    renderOfferThroughService(snapshotToBlocks(snapshot, profileOf(prepared.profile), prepared.deal.entity), {
-      fileNames: prepared.attachments.map((attachment) => attachment.fileName),
-      bytes: prepared.attachmentBytes,
-    });
+    renderOfferThroughService(
+      snapshotToBlocks(snapshot, letterheadProfileOf(prepared.issuer, snapshot.language, prepared.profile?.placeOfIssue ?? null), prepared.deal.entity),
+      {
+        fileNames: prepared.attachments.map((attachment) => attachment.fileName),
+        bytes: prepared.attachmentBytes,
+      },
+    );
 }
 
 const generateRoute = createRoute({
@@ -211,7 +217,7 @@ const generateRoute = createRoute({
   path: "/deals/{id}/offers",
   tags: ["Offers"],
   summary: "Generate the next offer version (deal:manage in scope + deal:financials)",
-  middleware: generating,
+  middleware: [...generating, legalEntitiesRetryAfter],
   request: { params: IdParams, body: { content: { "application/json": { schema: GenerateOfferSchema } }, required: true } },
   responses: {
     ...commonErrors,
@@ -220,11 +226,11 @@ const generateRoute = createRoute({
     404: { description: "Not found" },
     503: {
       ...pdfCheckErrors[503],
-      description: `${pdfCheckErrors[503].description} With the switch on, also \`layout_service_unavailable\` (the layout service cannot be reached or is busy: no offer, no number, no PDF; try again).`,
+      description: `${pdfCheckErrors[503].description} With the switch on, also \`layout_service_unavailable\` (the layout service cannot be reached or is busy: no offer, no number, no PDF; try again), and \`legal_entities_unavailable\` (the registry of the issuer's details cannot be read; \`Retry-After: 5\`).`,
     },
     409: {
       description:
-        "estimate_not_ready / entity_profile_missing / template_archived / template_format_mismatch / " +
+        "estimate_not_ready / legal_entity_incomplete (`entity`, `missing[]`: the registry says the issuer is incomplete; no number is used) / template_archived / template_format_mismatch / " +
         "letterhead_unusable (switch off only: the stored letterhead of the deal's entity fails the check: `entity`, `reason`; nothing is rendered or written; upload the letterhead again) / " +
         "letterhead_not_configured (switch on: the entity has no active letterhead in the service) / letterhead_overflow (switch on: `frame`, `entity`); nothing is stored, no number is consumed",
     },
@@ -276,7 +282,7 @@ const editRoute = createRoute({
   path: "/deals/{id}/offers/{offerId}",
   tags: ["Offers"],
   summary: "Edit an offer that has not been sent: same reference, new PDF (If-Match required)",
-  middleware: generating,
+  middleware: [...generating, legalEntitiesRetryAfter],
   request: { params: OfferParams, body: { content: { "application/json": { schema: GenerateOfferSchema } }, required: true } },
   responses: {
     ...commonErrors,
@@ -285,13 +291,13 @@ const editRoute = createRoute({
     404: { description: "Not found" },
     409: {
       description:
-        "offer_sent / offer_not_latest / offer_legacy / offer_wizard / version_conflict / template_archived / " +
+        "offer_sent / offer_not_latest / offer_legacy / offer_wizard / version_conflict / template_archived / legal_entity_incomplete (`entity`, `missing[]`) / " +
         "letterhead_not_configured / letterhead_overflow (switch on: nothing is stored, the offer is as it was)",
     },
     428: { description: "precondition_required" },
     503: {
       ...pdfCheckErrors[503],
-      description: `${pdfCheckErrors[503].description} With the switch on, also \`layout_service_unavailable\` (the layout service cannot be reached or is busy: the offer is as it was; try again).`,
+      description: `${pdfCheckErrors[503].description} With the switch on, also \`layout_service_unavailable\` (the layout service cannot be reached or is busy: the offer is as it was; try again), and \`legal_entities_unavailable\` (the registry of the issuer's details cannot be read; \`Retry-After: 5\`).`,
     },
   },
 });
@@ -336,14 +342,14 @@ offersRouter.openapi(listRoute, async (c) => {
 offersRouter.openapi(draftRoute, async (c) => {
   const { id } = c.req.valid("param");
   const { templateId, aiAssisted } = c.req.valid("query");
-  const { deal, link, profile, template } = await loadContext(id, templateId, dealScope(c));
+  const { deal, link, issuer, template } = await loadContext(id, templateId, dealScope(c));
   assertLegacyTemplate(template);
   const estimate = link ? await getEstimate(c, link.estimateId) : NO_ESTIMATE;
   const built = buildDraft({
     template: templateContentOf(template),
     deal: { title: deal.title, amountCents: deal.amountCents === null ? null : Number(deal.amountCents), currency: deal.currency },
     company: deal.company,
-    issuerLegalName: profile.legalName,
+    issuerLegalName: issuer.legalName,
     estimate,
     aiAssisted: aiAssisted === "true",
     validityDays: DEFAULT_VALIDITY_DAYS,
@@ -359,28 +365,34 @@ offersRouter.openapi(generateRoute, async (c) => {
   const userId = c.get("userId");
   const latest = await latestOffer(db, id);
   if (blocksRevision(latest)) throw notSent(latest);
-  const prepared = await prepareOffer(c, dealScope(c), id, body);
-  const { deal } = prepared;
-  const issued = new Date();
-  const render = rendererOf(prepared);
+  // The pin of the issuer's details (AC-6.2, decision 8): the registry is read, the snapshot built and the service called inside, so a
+  // `legal_entity_version_mismatch` rolls the transaction back (no number, nothing stored) and everything is built again, once.
+  const { created, deal } = await withIssuerPin(async () => {
+    const prepared = await prepareOffer(c, dealScope(c), id, body);
+    const { deal } = prepared;
+    const issued = new Date();
+    const render = rendererOf(prepared);
 
-  const created = await inOfferTransaction(id, async (tx) => {
-    const newest = await latestOffer(tx, id);
-    if (blocksRevision(newest)) throw notSent(newest);
-    return createOfferVersion(tx, {
-      dealId: id,
-      entity: deal.entity,
-      currency: deal.currency,
-      storage: prepared.storage,
-      issued,
-      userId,
-      language: prepared.language,
-      priceCents: prepared.costs.oneOffCents,
-      validityDays: body.validityDays,
-      snapshotFor: (reference) => snapshotOf(prepared, body, reference, issued),
-      render,
+    const created = await inOfferTransaction(id, async (tx) => {
+      const newest = await latestOffer(tx, id);
+      if (blocksRevision(newest)) throw notSent(newest);
+      return createOfferVersion(tx, {
+        dealId: id,
+        entity: deal.entity,
+        currency: deal.currency,
+        storage: prepared.storage,
+        issued,
+        userId,
+        language: prepared.language,
+        priceCents: prepared.costs.oneOffCents,
+        validityDays: body.validityDays,
+        snapshotFor: (reference) => snapshotOf(prepared, body, reference, issued),
+        render,
+      });
     });
+    return { created, deal };
   });
+
   const [view] = await toViews(c, [created]);
   // E9 — the owner learns an offer exists (no figure in it, AC-1.2).
   await announce(c, {
@@ -471,52 +483,56 @@ offersRouter.openapi(editRoute, async (c) => {
   if (offer.sentAt) {
     throw conflict("offer_sent", "This offer has been sent: make a new revision instead", { offerId });
   }
-  const prepared = await prepareOffer(c, dealScope(c), id, body);
-  const issued = new Date();
   const previousKey = offer.objectKey;
-  const render = rendererOf(prepared);
+  // The pin of the issuer's details (AC-6.2, decision 8): as in the generation, everything that reads the registry is inside.
+  const { updated, storage } = await withIssuerPin(async () => {
+    const prepared = await prepareOffer(c, dealScope(c), id, body);
+    const issued = new Date();
+    const render = rendererOf(prepared);
 
-  const updated = await inOfferTransaction(
-    id,
-    async (tx) => {
-      const newest = await latestOffer(tx, id);
-      if (newest?.id !== offerId) {
-        throw conflict("offer_not_latest", "Only the newest version of an offer can be edited", { offerId });
-      }
-      const reference = (offer.snapshot as unknown as ContractSnapshot).reference;
-      const snapshot = snapshotOf(prepared, body, reference, issued);
-      const { pdf, letterheadVersion } = renderedOf(await render(snapshot));
-      const objectKey = `offers/${id}/${crypto.randomUUID()}.pdf`;
-      await prepared.storage.putObject(objectKey, pdf, "application/pdf");
-      // Compare-and-set on the version, and never on a sent offer.
-      const changed = await tx.dealOffer.updateMany({
-        where: { id: offerId, version: expected, sentAt: null, deletedAt: null },
-        data: {
-          language: prepared.language,
-          priceCents: BigInt(prepared.costs.oneOffCents),
-          currency: prepared.deal.currency,
-          validityDays: body.validityDays,
-          snapshot: snapshot as unknown as object,
-          objectKey,
-          sizeBytes: pdf.byteLength,
-          // The version of the letterhead this PDF was drawn with, or null when crm-api drew it (AC-10.2).
-          letterheadVersion,
-          version: { increment: 1 },
-          updatedBy: userId,
-          updatedAt: issued,
-        },
-      });
-      if (changed.count === 0) {
-        await prepared.storage.deleteObject(objectKey).catch(() => undefined);
-        const now = await tx.dealOffer.findUnique({ where: { id: offerId }, select: { version: true, sentAt: true } });
-        if (now?.sentAt) throw conflict("offer_sent", "This offer has been sent: make a new revision instead", { offerId });
-        throw versionConflict(now?.version ?? expected);
-      }
-      return tx.dealOffer.findUniqueOrThrow({ where: { id: offerId } });
-    },
-  );
+    const updated = await inOfferTransaction(
+      id,
+      async (tx) => {
+        const newest = await latestOffer(tx, id);
+        if (newest?.id !== offerId) {
+          throw conflict("offer_not_latest", "Only the newest version of an offer can be edited", { offerId });
+        }
+        const reference = (offer.snapshot as unknown as ContractSnapshot).reference;
+        const snapshot = snapshotOf(prepared, body, reference, issued);
+        const { pdf, letterheadVersion } = renderedOf(await render(snapshot));
+        const objectKey = `offers/${id}/${crypto.randomUUID()}.pdf`;
+        await prepared.storage.putObject(objectKey, pdf, "application/pdf");
+        // Compare-and-set on the version, and never on a sent offer.
+        const changed = await tx.dealOffer.updateMany({
+          where: { id: offerId, version: expected, sentAt: null, deletedAt: null },
+          data: {
+            language: prepared.language,
+            priceCents: BigInt(prepared.costs.oneOffCents),
+            currency: prepared.deal.currency,
+            validityDays: body.validityDays,
+            snapshot: snapshot as unknown as object,
+            objectKey,
+            sizeBytes: pdf.byteLength,
+            // The version of the letterhead this PDF was drawn with, or null when crm-api drew it (AC-10.2).
+            letterheadVersion,
+            version: { increment: 1 },
+            updatedBy: userId,
+            updatedAt: issued,
+          },
+        });
+        if (changed.count === 0) {
+          await prepared.storage.deleteObject(objectKey).catch(() => undefined);
+          const now = await tx.dealOffer.findUnique({ where: { id: offerId }, select: { version: true, sentAt: true } });
+          if (now?.sentAt) throw conflict("offer_sent", "This offer has been sent: make a new revision instead", { offerId });
+          throw versionConflict(now?.version ?? expected);
+        }
+        return tx.dealOffer.findUniqueOrThrow({ where: { id: offerId } });
+      },
+    );
+    return { updated, storage: prepared.storage };
+  });
   // The old PDF is unreachable now; a failed delete leaves an orphan, never a wrong document.
-  await prepared.storage.deleteObject(previousKey).catch((error: unknown) => {
+  await storage.deleteObject(previousKey).catch((error: unknown) => {
     console.error("[offers] could not delete the replaced PDF:", previousKey, error instanceof Error ? error.message : error);
   });
   const [view] = await toViews(c, [updated]);

@@ -68,6 +68,13 @@ pub fn entity_data(entity: Entity) -> EntityData {
 
 /// The sample document for `entity` in `language`: the render request the configurator's preview makes.
 pub fn request(entity: Entity, language: Language) -> RenderRequest {
+    request_with(entity, language, entity_data(entity))
+}
+
+/// The sample document with the entity's details of the caller's choosing: the configurator preview shows the
+/// registry's details on the sample's body (specs/20261117-legal-entities AC-5.4). The body is the same as in
+/// [`request`], byte for byte; `EntityData::default()` is every placeholder missing.
+pub fn request_with(entity: Entity, language: Language, data: EntityData) -> RenderRequest {
     let t = texts(language);
     // Page 1: headings, paragraphs and their emphasis and styles, lists.
     let mut blocks: Vec<Block> = vec![
@@ -126,8 +133,9 @@ pub fn request(entity: Entity, language: Language) -> RenderRequest {
         content_version: CONTENT_VERSION,
         entity,
         letterhead_version: None,
+        legal_entity_version: None,
         language,
-        entity_data: entity_data(entity),
+        entity_data: data,
         blocks,
     }
 }
@@ -281,7 +289,7 @@ fn texts(language: Language) -> Texts {
     match language {
         Language::It => Texts {
             title: "Documento di esempio",
-            intro: "Questo documento serve solo a vedere la carta intestata. I dati dell'azienda sono segnaposto e portano l'indicazione (SAMPLE).",
+            intro: "Questo documento serve solo a vedere la carta intestata. I dati dell'azienda che vi compaiono sono quelli reali; un dato non ancora compilato è evidenziato. Il resto del testo è un testo di esempio.",
             text_heading: "Titoli e paragrafi",
             plain: "Testo normale,",
             bold: "grassetto,",
@@ -319,7 +327,7 @@ fn texts(language: Language) -> Texts {
         },
         Language::En => Texts {
             title: "Sample document",
-            intro: "This document is only here to show the letterhead. The company's data are placeholders and carry the mark (SAMPLE).",
+            intro: "This document is only here to show the letterhead. The company's details in it are the real ones; a detail that is not filled in yet is marked. The rest of the text is sample text.",
             text_heading: "Headings and paragraphs",
             plain: "Plain text,",
             bold: "bold,",

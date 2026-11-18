@@ -26,6 +26,7 @@ mod log;
     reason = "parts of the pool are for the worker mode and the tests; the routes use admit, run and shutdown"
 )]
 mod pool;
+mod registry;
 mod routes;
 mod storage;
 mod worker;
@@ -143,10 +144,15 @@ async fn run(config: Config) -> Result<(), String> {
         .map_err(|_| "cannot build the HTTP client of the key set".to_owned())?;
     let authorization = AuthzClient::new(&config.auth.base_url)
         .map_err(|_| "cannot build the HTTP client of the permission service".to_owned())?;
+    // The registry of the legal entities (T21): the service token and the cache live here, in the supervisor, which
+    // is the only process that has the secret. The routes read it through `AppState`.
+    let registry = build_registry(&config)
+        .map_err(|_| "cannot build the HTTP client of the legal entities registry".to_owned())?;
     let state = AppState {
         repo,
         pool: pool.clone(),
         storage: Arc::new(storage::Storage::new(&config.s3)),
+        registry,
     };
 
     let addr = SocketAddr::new(config.bind_ip, config.port);
@@ -171,6 +177,20 @@ async fn run(config: Config) -> Result<(), String> {
     // Workers are killed with the supervisor; this ends the idle ones now and turns away the waiting.
     pool.shutdown();
     served.map_err(|e| format!("the server stopped: {}", e.kind()))
+}
+
+/// The client of the legal entities registry: `auth`'s `/system/legal-entities`, read as this service's own client.
+fn build_registry(config: &Config) -> Result<registry::Registry, reqwest::Error> {
+    let options = registry::RegistryOptions::default();
+    let source = registry::HttpSource::new(
+        &config.auth.base_url,
+        registry::ServiceClient::new(
+            config.service_client.id.clone(),
+            config.service_client.secret.expose(),
+        ),
+        options.clock.clone(),
+    )?;
+    Ok(registry::Registry::new(Arc::new(source), options))
 }
 
 /// `letterhead-api migrate`: the embedded migrations, applied. It reads `DATABASE_URL` and nothing else (no
@@ -338,6 +358,8 @@ mod tests {
                     "AUTH_JWKS_URL" => "http://localhost:3001/auth/jwks",
                     "AUTH_AUDIENCE" => "operai-suite",
                     "SERVICE_AUDIENCE" => "operai-service",
+                    "SERVICE_CLIENT_ID" => "letterhead-api",
+                    "SERVICE_CLIENT_SECRET" => "main-test-client-secret-0123456789abcdef",
                     "ALLOWED_ORIGINS" => "http://localhost:5173",
                     "LETTERHEAD_S3_ENDPOINT" => "https://s3.us-east-1.amazonaws.com",
                     "LETTERHEAD_S3_REGION" => "us-east-1",
