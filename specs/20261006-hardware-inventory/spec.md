@@ -408,6 +408,23 @@ register says where shared hardware (screens, docking stations, meeting-room dev
   every office (reference data shared by both entities); an asset's own view names its office
   but never the office's entity.
 
+### US-15: Remind an employee who has not confirmed (A3)
+
+As an inventory manager, I want an employee who has not answered an assignment to be reminded,
+so the register does not show in stock a device that sits on their desk.
+
+- AC-15.1: Given an assignment still `pending` 24 hours after it was offered, then the employee
+  receives a reminder by email and in Operai, linking to My devices; then one every 7 days
+  after the last one, until they confirm or decline or the assignment is cancelled.
+- AC-15.2: Given a pending assignment, when an inventory manager sends a reminder from the
+  asset, then it goes at once and the next automatic one is due 7 days later; a second one
+  within the hour is refused with when to try again.
+- AC-15.3: Given a pending assignment, then the asset shows how many reminders were sent, the
+  last one, and when the next automatic one goes out; each reminder is in the asset's history.
+- AC-15.4: Given a reminder that could not be delivered to the notification service, then
+  nothing records it as sent and it is tried again; a reminder is never sent twice for the same
+  turn.
+
 ## Non-goals
 
 - **Anything that is not hardware.** Furniture, vehicles, software licences and other
@@ -446,6 +463,8 @@ register says where shared hardware (screens, docking stations, meeting-room dev
   a person (US-14). Offices are managed in the app, assigning to one needs no confirmation,
   and any asset may go to any office whatever its entity. The holder definition widens
   accordingly.
+- 2026-11-18, decided by Matteo Codogno (A3): an unanswered assignment is reminded by email
+  after 24 hours and then weekly, and a manager can force a reminder (US-15).
 
 ## Constraints
 

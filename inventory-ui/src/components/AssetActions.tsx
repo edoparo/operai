@@ -6,7 +6,7 @@ import GuardrailDialog from './GuardrailDialog'
 import type { InventoryCapabilities } from '../hooks/useInventoryCapabilities'
 import { ApiError } from '../lib/api'
 import { finishRepair, markFound, markLost, receiveAsset, returnAsset, startRepair } from '../lib/assetsApi'
-import { cancelAssignment } from '../lib/assignmentsApi'
+import { cancelAssignment, remindAssignment } from '../lib/assignmentsApi'
 import { formatDate } from '../lib/dates'
 import { toInventoryError } from '../lib/types'
 import type { AssetView, Identity } from '../lib/types'
@@ -45,7 +45,7 @@ export type AssetActionsProps = {
   focusHeading: () => void
 }
 
-type ActionKey = 'receive' | 'assign' | 'repair' | 'repairDone' | 'return' | 'lost' | 'found' | 'cancel'
+type ActionKey = 'receive' | 'assign' | 'repair' | 'repairDone' | 'return' | 'lost' | 'found' | 'cancel' | 'remind'
 type ConfirmKind = 'return' | 'lost' | 'cancel'
 
 /** Actions that need no confirmation: the request, and the line announced on success. */
@@ -79,6 +79,16 @@ const LABELS: Record<ActionKey, string> = {
   lost: strings.actions.lost,
   found: strings.actions.found,
   cancel: strings.actions.pending.cancel,
+  remind: strings.actions.pending.remind,
+}
+
+/** The reminder line (US-15), or null when the server sent no reminder facts. */
+const remindersText = (pending: NonNullable<AssetView['pendingAssignment']>): string | null => {
+  if (!pending.nextReminderAt) return null
+  const t = strings.actions.pending
+  const next = formatDate(pending.nextReminderAt)
+  const count = pending.reminderCount ?? 0
+  return count > 0 && pending.lastReminderAt ? t.remindersSent(count, formatDate(pending.lastReminderAt), next) : t.remindersNone(next)
 }
 
 const identityLabel = (identity: Identity): string => {
@@ -148,6 +158,11 @@ export default function AssetActions({ asset, capabilities, onChanged, announce,
       return showGuardrail(fillTemplate(strings.errors.assignment_pending, { name: t.someone }))
     }
     if (known?.code === 'asset_disposed') return showGuardrail(strings.errors.asset_disposed)
+    if (known?.code === 'reminder_too_soon') {
+      const minutes = Math.max(1, Math.ceil((known.extras.retryAfterSeconds ?? 60) / 60))
+      return setActionError(fillTemplate(strings.errors.reminder_too_soon, { n: minutes }))
+    }
+    if (known?.code === 'reminder_not_sent') return setActionError(strings.errors.reminder_not_sent)
     if (known?.code === 'assignment_not_pending') {
       setConfirm(null)
       setActionError(strings.errors.assignment_not_pending)
@@ -162,7 +177,7 @@ export default function AssetActions({ asset, capabilities, onChanged, announce,
     else setActionError(message)
   }
 
-  const perform = async (key: ActionKey, call: () => Promise<AssetView>, done: string) => {
+  const perform = async (key: ActionKey, call: () => Promise<AssetView>, done: string, moveFocus = true) => {
     if (inFlight.current) return
     inFlight.current = true
     setBusy(key)
@@ -172,8 +187,8 @@ export default function AssetActions({ asset, capabilities, onChanged, announce,
       setConfirm(null)
       onChanged(updated)
       announce(done)
-      // The trigger is gone with the status change: the heading is the focus anchor.
-      focusHeading()
+      // The trigger is gone with the status change: the heading is the focus anchor. A reminder keeps its button.
+      if (moveFocus) focusHeading()
     } catch (error) {
       fail(error)
     } finally {
@@ -187,6 +202,12 @@ export default function AssetActions({ asset, capabilities, onChanged, announce,
     setActionError(null)
     if (key === 'assign') return setAssigning(true)
     if (key === 'return' || key === 'lost' || key === 'cancel') return setConfirm({ kind: key, error: null })
+    if (key === 'remind') {
+      if (pending === null) return
+      // No confirmation: a reminder changes nothing on the asset, and a second one within the hour is refused.
+      void perform('remind', () => remindAssignment(pending.id), t.done.reminded, false)
+      return
+    }
     const { call, done } = ONE_CLICK[key]
     void perform(key, () => call(asset.id), done)
   }
@@ -260,8 +281,27 @@ export default function AssetActions({ asset, capabilities, onChanged, announce,
   return (
     <div data-testid="asset-actions" className="flex flex-col gap-3">
       {pending !== null && (
-        <Banner tone="info" data-testid="pending-callout" actions={canManage && actionButton('cancel')}>
+        <Banner
+          tone="info"
+          data-testid="pending-callout"
+          actions={
+            canManage && (
+              <>
+                {actionButton('remind')}
+                {actionButton('cancel')}
+              </>
+            )
+          }
+        >
           {pendingText(assigneeName, pending.createdAt)}
+          {remindersText(pending) !== null && (
+            <>
+              <br />
+              <span className="text-sm text-soft" data-testid="pending-reminders">
+                {remindersText(pending)}
+              </span>
+            </>
+          )}
         </Banner>
       )}
 

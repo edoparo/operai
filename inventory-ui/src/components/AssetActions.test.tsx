@@ -21,6 +21,7 @@ const api = vi.hoisted(() => ({
   markLost: vi.fn(),
   markFound: vi.fn(),
   cancelAssignment: vi.fn(),
+  remindAssignment: vi.fn(),
 }))
 vi.mock('../lib/assetsApi', () => ({
   receiveAsset: api.receiveAsset,
@@ -30,7 +31,7 @@ vi.mock('../lib/assetsApi', () => ({
   markLost: api.markLost,
   markFound: api.markFound,
 }))
-vi.mock('../lib/assignmentsApi', () => ({ cancelAssignment: api.cancelAssignment }))
+vi.mock('../lib/assignmentsApi', () => ({ cancelAssignment: api.cancelAssignment, remindAssignment: api.remindAssignment }))
 
 const fakeState = vi.hoisted(() => ({
   conflict: null as unknown,
@@ -300,6 +301,66 @@ describe('the pending assignment callout (AC-2.1, AC-2.5)', () => {
     const text = screen.getByTestId('pending-callout').textContent!
     expect(text).toContain('today')
     expect(text.toLowerCase()).not.toMatch(/expire|days left|deadline/)
+  })
+
+  it('shows the reminders sent and when the next automatic one goes out (US-15)', () => {
+    renderActions(
+      pendingAsset({
+        pendingAssignment: {
+          id: 'p1',
+          assignee: anna,
+          createdAt: '2026-10-04T08:00:00Z',
+          reminderCount: 2,
+          lastReminderAt: '2026-10-12T08:00:00Z',
+          nextReminderAt: '2026-10-19T08:00:00Z',
+        },
+      }),
+    )
+    expect(screen.getByTestId('pending-reminders').textContent).toBe(
+      '2 reminders sent, the last on 12.10.2026. Next automatic reminder: 19.10.2026.',
+    )
+  })
+
+  it('before any reminder, says when the first one goes out', () => {
+    renderActions(
+      pendingAsset({
+        pendingAssignment: { id: 'p1', assignee: anna, createdAt: '2026-10-04T08:00:00Z', reminderCount: 0, lastReminderAt: null, nextReminderAt: '2026-10-05T08:00:00Z' },
+      }),
+    )
+    expect(screen.getByTestId('pending-reminders').textContent).toBe('No reminder sent yet. The first goes out automatically on 05.10.2026.')
+  })
+
+  it('Send reminder sends at once, by the assignment id, and announces it', async () => {
+    const updated = pendingAsset({
+      pendingAssignment: { id: 'p1', assignee: anna, createdAt: '2026-10-04T08:00:00Z', reminderCount: 1, lastReminderAt: '2026-10-07T09:00:00Z', nextReminderAt: '2026-10-14T09:00:00Z' },
+    })
+    api.remindAssignment.mockResolvedValue(updated)
+    renderActions(pendingAsset())
+    fireEvent.click(screen.getByRole('button', { name: 'Send reminder' }))
+    await waitFor(() => expect(onChanged).toHaveBeenCalledWith(updated))
+    expect(api.remindAssignment).toHaveBeenCalledWith('p1')
+    expect(announce).toHaveBeenCalledWith('Reminder sent by email and in Operai.')
+    expect(focusHeading).not.toHaveBeenCalled()
+  })
+
+  it('a reminder within the hour says when to try again; one that could not be sent says so', async () => {
+    api.remindAssignment.mockRejectedValueOnce(
+      new ApiError({ status: 409, title: 'Conflict', code: 'reminder_too_soon', extras: { retryAfterSeconds: 1500 } }),
+    )
+    renderActions(pendingAsset())
+    fireEvent.click(screen.getByRole('button', { name: 'Send reminder' }))
+    expect((await screen.findByTestId('asset-actions-error')).textContent).toBe(
+      'A reminder was sent less than an hour ago. Try again in 25 min.',
+    )
+
+    api.remindAssignment.mockRejectedValueOnce(new ApiError({ status: 502, title: 'Bad Gateway', code: 'reminder_not_sent' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Send reminder' }))
+    await waitFor(() =>
+      expect(screen.getByTestId('asset-actions-error').textContent).toBe(
+        'The reminder could not be sent. Nothing was changed: try again later.',
+      ),
+    )
+    expect(onChanged).not.toHaveBeenCalled()
   })
 
   it('Cancel assignment asks first, then cancels the assignment by its id', async () => {

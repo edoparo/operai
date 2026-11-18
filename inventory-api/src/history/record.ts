@@ -49,7 +49,8 @@ export type AssetEventAction =
   | "verified"
   | "fiscal_year_closed"
   | "imported"
-  | "assigned_to_office";
+  | "assigned_to_office"
+  | "assignment_reminded";
 
 export type ChangeValue = string | number | boolean | null;
 

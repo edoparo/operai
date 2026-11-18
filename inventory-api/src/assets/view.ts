@@ -11,6 +11,7 @@
 import type { Asset } from "../lib/generated/prisma/client";
 import type { Identity } from "../lib/identities";
 import { formatDate } from "../depreciation/rules.schemas";
+import { nextReminderAt } from "../assignments/reminderClock";
 
 /** An asset row with the file link the view needs. */
 export type AssetRow = Asset & {
@@ -37,6 +38,9 @@ export interface PendingAssignmentRow {
   readonly id: string;
   readonly assigneeUserId: string;
   readonly createdAt: Date;
+  /** Reminders to confirm (US-15); absent on rows read without them. */
+  readonly lastReminderAt?: Date | null;
+  readonly reminderCount?: number;
 }
 
 export interface AssetViewBase {
@@ -52,7 +56,15 @@ export interface AssetViewBase {
   holder: Identity | null;
   /** The office holding the asset; never together with `holder`. */
   office: OfficeRef | null;
-  pendingAssignment: { id: string; assignee: Identity; createdAt: string } | null;
+  pendingAssignment: {
+    id: string;
+    assignee: Identity;
+    createdAt: string;
+    /** US-15: how many reminders went out, the last one, and when the next automatic one is due. */
+    reminderCount: number;
+    lastReminderAt: string | null;
+    nextReminderAt: string | null;
+  } | null;
   locationNote: string | null;
   supplier: string | null;
   invoiceRef: string | null;
@@ -103,6 +115,10 @@ export function toAssetView(
           id: context.pending.id,
           assignee: identity(context.pending.assigneeUserId),
           createdAt: context.pending.createdAt.toISOString(),
+          reminderCount: context.pending.reminderCount ?? 0,
+          lastReminderAt: context.pending.lastReminderAt?.toISOString() ?? null,
+          nextReminderAt:
+            nextReminderAt({ status: "pending", createdAt: context.pending.createdAt, lastReminderAt: context.pending.lastReminderAt ?? null })?.toISOString() ?? null,
         }
       : null,
     locationNote: row.locationNote,

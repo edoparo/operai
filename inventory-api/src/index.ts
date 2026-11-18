@@ -20,6 +20,7 @@ import { fiscalYearCloseRouter } from "./fiscal-years/close.routes";
 import { invoicesRouter } from "./invoices/invoices.routes";
 import { historyRouter } from "./history/history.routes";
 import { officesRouter } from "./offices/offices.routes";
+import { startReminderScheduler } from "./assignments/reminders";
 import { requestLogger } from "./lib/logger";
 import { handleProblemError, problem } from "./lib/problem";
 import { setupOpenAPI } from "./openapi/registry";
@@ -129,6 +130,8 @@ app.notFound((c) =>
 // ─── Start ───────────────────────────────────────────────────────────────────
 
 console.log(`Inventory API → http://localhost:${env.PORT}`);
+// Reminders to confirm a pending assignment (US-15): off in tests and with ASSIGNMENT_REMINDERS=off.
+startReminderScheduler();
 console.log(`API docs      → http://localhost:${env.PORT}/docs`);
 
 export default {

@@ -40,6 +40,8 @@ const en = {
   office_name_taken: 'An office with this name already exists.',
   office_in_use: 'This office still holds assets: return or move them first.',
   office_not_found: 'That office no longer exists or has been archived. Pick another one.',
+  reminder_too_soon: 'A reminder was sent less than an hour ago. Try again in {n} min.',
+  reminder_not_sent: 'The reminder could not be sent. Nothing was changed: try again later.',
 
   // --- Variants of a code, by where it is shown -----------------------------
   /** `fiscal_year_closed` on the edit dialog's price / purchase date: a banner, not a field error. */
@@ -78,6 +80,8 @@ const it: typeof en = {
   office_name_taken: 'Esiste già un ufficio con questo nome.',
   office_in_use: 'Questo ufficio ha ancora degli asset: rientrali o spostali prima.',
   office_not_found: 'Questo ufficio non esiste più o è stato archiviato. Sceglierne un altro.',
+  reminder_too_soon: "Un promemoria è stato inviato meno di un'ora fa. Riprova tra {n} min.",
+  reminder_not_sent: 'Non è stato possibile inviare il promemoria. Nulla è cambiato: riprova più tardi.',
 
   fiscal_year_closed_edit:
     "Prezzo e data di acquisto non possono essere modificati perché l'esercizio {year} è chiuso.",

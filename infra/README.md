@@ -440,7 +440,7 @@ verified by `notify-api` through its existing `AUTH_JWKS_URL`. The callers are:
 | `auth` | `system:auth` | `emails.send` | minting it in process (ADR 20261013-auth-mints-own-service-credential-in-process); the client id `auth` is **reserved** — a `SERVICE_CLIENTS` entry named `auth` refuses to start |
 | `refund-api` | `system:refund-api` | `notifications.push` + `emails.send` | `auth POST /system/service-token` with `SERVICE_CLIENT_ID` / `SERVICE_CLIENT_SECRET` |
 | `estimai-api` | `system:estimai-api` | `notifications.push` + `estimate-notices.send` (crm-api `POST /system/estimate-notices`, ADR 20261105-estimai-closes-the-estimate-crm-follows; needs `CRM_INTERNAL_URL` on estimai-api and `SERVICE_AUDIENCE` on crm-api) | same |
-| `inventory-api` | `system:inventory-api` | `notifications.push` | same |
+| `inventory-api` | `system:inventory-api` | `notifications.push emails.send` (the weekly reminder to confirm an assignment is an email notice, specs/20261006-hardware-inventory US-15; grant it BEFORE deploying inventory-api with reminders) | same |
 | `crm-api` | `system:crm-api` | `notifications.push` + `emails.send` + `deal-link-notices.send` (estimai-api `POST /system/deal-link-notices`, specs/20261108-estimate-list-oversight, ADR 20261108-crm-pushes-deal-links-to-estimai; needs `ESTIMAI_INTERNAL_URL` on crm-api and `SERVICE_AUDIENCE` on estimai-api) | same |
 
 A person creates, per client, one Railway **Shared Variable** `<NAME>_SERVICE_CLIENT_SECRET`
@@ -448,8 +448,8 @@ A person creates, per client, one Railway **Shared Variable** `<NAME>_SERVICE_CL
 that client's `SERVICE_CLIENT_SECRET` (`${{shared.<NAME>_SERVICE_CLIENT_SECRET}}`) and from
 its entry in `auth`'s `SERVICE_CLIENTS` JSON (shape in § Notify credential rollout); the
 client's `SERVICE_CLIENT_ID` is its literal service name, a key of `SERVICE_CLIENTS`. Each
-client holds exactly the scopes it needs (`estimai-api` and `inventory-api` must not hold
-`emails.send`); `notify-api` additionally binds each `sub` to the origin app it may push for.
+client holds exactly the scopes it needs (`estimai-api` must not hold `emails.send`;
+`inventory-api` holds it since its assignment reminders, specs/20261006-hardware-inventory US-15); `notify-api` additionally binds each `sub` to the origin app it may push for.
 `SERVICE_AUDIENCE` is a Shared Variable required on **both** `auth` and `notify-api`, identical
 on the two and different from `AUTH_AUDIENCE`. To **revoke** one caller, remove its entry from
 `SERVICE_CLIENTS` (credentials already minted expire within 5 minutes); the others keep
@@ -922,7 +922,7 @@ follows bucket ①).
 | `APP_ACCESS_CHECK_FLOOR_MS` / `APP_ACCESS_CHECK_RATE_LIMIT` / `APP_ACCESS_CHECK_RATE_WINDOW_MS` | **NEW (specs/20260807-estimate-sharing, T1/T2).** In-process anti-enumeration floor + rate limit for `POST /authz/app-access-check` (ADR 20260807-third-party-app-access-decision-endpoint-forwarded-jwt). Optional — code defaults `150`/`40`/`600000` apply if unset; set explicitly only to tune per environment. | no |
 | `IDENTITIES_RATE_LIMIT` / `IDENTITIES_RATE_WINDOW_MS` | **NEW (specs/20260807-estimate-sharing, T27).** In-process rate limit for `POST /authz/users/identities` (reuses the same `rateLimiter.ts` module as the pair above, a second instance keyed separately). Optional — code defaults `120`/`600000` apply if unset. No response-time floor needed (ADR 20260807-live-identity-resolution-by-id-fail-soft — this endpoint leaks no existence signal the caller doesn't already hold). | no |
 | `SERVICE_AUDIENCE` | **ADR 20261006-scoped-service-jwt-fourth-notify-caller, required since specs/20261013-notify-service-credentials (ADR 20261013-auth-mints-own-service-credential-in-process).** The `aud` stamped on scoped service JWTs, including `auth`'s own in-process credential for `POST /system/emails`: `${{shared.SERVICE_AUDIENCE}}`, byte-identical to `notify-api`'s and **different from `AUTH_AUDIENCE`** (startup exits otherwise). Startup also exits if it is absent. | no |
-| `SERVICE_CLIENTS` | **ADR 20261006-scoped-service-jwt-fourth-notify-caller/0049.** JSON object keyed by client id, one entry per caller that asks `POST /system/service-token` (`inventory-api`, `estimai-api`, `refund-api`): `{"inventory-api":{"secret":"${{shared.INVENTORY_SERVICE_CLIENT_SECRET}}","scope":"notifications.push"},…}` — full shape in § Notify credential rollout. Secret 32–256 chars; scopes are `notifications.push` and/or `emails.send`, each client only what it needs; client id is lower-case alphanumerics and single hyphens, and `auth` is reserved (ADR 20261013-auth-mints-own-service-credential-in-process). Never logged; a parse failure names the rule, never a value. Revoking a client = removing its entry (tokens already minted expire within 5 minutes). Verify the shared references resolved inside the JSON in the Variables tab. | **yes** |
+| `SERVICE_CLIENTS` | **ADR 20261006-scoped-service-jwt-fourth-notify-caller/0049.** JSON object keyed by client id, one entry per caller that asks `POST /system/service-token` (`inventory-api`, `estimai-api`, `refund-api`): `{"inventory-api":{"secret":"${{shared.INVENTORY_SERVICE_CLIENT_SECRET}}","scope":"notifications.push emails.send"},…}` — full shape in § Notify credential rollout. Secret 32–256 chars; scopes are `notifications.push` and/or `emails.send`, each client only what it needs; client id is lower-case alphanumerics and single hyphens, and `auth` is reserved (ADR 20261013-auth-mints-own-service-credential-in-process). Never logged; a parse failure names the rule, never a value. Revoking a client = removing its entry (tokens already minted expire within 5 minutes). Verify the shared references resolved inside the JSON in the Variables tab. | **yes** |
 | `SERVICE_TOKEN_SERVICE_LIMIT` | **NEW (specs/20261111-push-notifications US-7, ADR 20261112-system-endpoints-limited-per-verified-service).** Service tokens `POST /system/service-token` mints per calling service (the verified `system:<clientId>`) per window. Positive integer, optional, default `300` (steady state is about 3 per service per window). | no |
 | `USERS_CONTACT_SERVICE_LIMIT` | **NEW (specs/20261111-push-notifications US-7, ADR 20261112-system-endpoints-limited-per-verified-service).** Contact lookups `POST /system/users/contact` answers per calling service per window. Only `system:notify-api` holds `users.contact`. Positive integer, optional, default `600`. | no |
 | `SYSTEM_INVALID_CREDENTIAL_LIMIT` | **NEW (specs/20261111-push-notifications US-7, ADR 20261112-system-endpoints-limited-per-verified-service).** Requests with an INVALID credential per source address per window, one count shared by both routes. Positive integer, optional, default `20`. It never touches a valid credential. | no |
@@ -1867,12 +1867,12 @@ reads or prints a variable value; where a check lists variables it lists **names
 
 `SERVICE_CLIENTS` on `auth` after Manual A (as in
 `tools/env-doctor/templates/production/auth.env`; the secrets are Railway references, never
-literals). Each client holds exactly the scopes it needs; `estimai-api` and `inventory-api`
-must not hold `emails.send`, and a client id of `auth` is refused at startup (ADR 20261013-auth-mints-own-service-credential-in-process):
+literals). Each client holds exactly the scopes it needs; `estimai-api` must not hold
+`emails.send` (`inventory-api` does, for its assignment reminders, US-15), and a client id of `auth` is refused at startup (ADR 20261013-auth-mints-own-service-credential-in-process):
 
 ```json
 {
-  "inventory-api": { "secret": "${{shared.INVENTORY_SERVICE_CLIENT_SECRET}}", "scope": "notifications.push" },
+  "inventory-api": { "secret": "${{shared.INVENTORY_SERVICE_CLIENT_SECRET}}", "scope": "notifications.push emails.send" },
   "estimai-api":   { "secret": "${{shared.ESTIMAI_SERVICE_CLIENT_SECRET}}",   "scope": "notifications.push" },
   "refund-api":    { "secret": "${{shared.REFUND_SERVICE_CLIENT_SECRET}}",    "scope": "notifications.push emails.send" }
 }

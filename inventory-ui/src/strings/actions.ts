@@ -22,6 +22,7 @@ const en = {
     assigned: (name: string) => `Assignment offered. Awaiting confirmation from ${name}.`,
     assignedToOffice: (office: string) => `Assigned to ${office}.`,
     cancelled: 'Assignment cancelled.',
+    reminded: 'Reminder sent by email and in Operai.',
     returned: 'Return recorded.',
     repair: 'Marked in repair.',
     repairDone: 'Repair finished.',
@@ -37,6 +38,11 @@ const en = {
 
   pending: {
     cancel: 'Cancel assignment',
+    remind: 'Send reminder',
+    /** The reminder line under the pending callout (US-15). */
+    remindersNone: (next: string) => `No reminder sent yet. The first goes out automatically on ${next}.`,
+    remindersSent: (count: number, last: string, next: string) =>
+      `${count === 1 ? '1 reminder' : `${count} reminders`} sent, the last on ${last}. Next automatic reminder: ${next}.`,
     /** "Awaiting confirmation from Anna Rossi, offered 06.10.2026, 3 days ago". */
     text: (name: string, date: string, age: string) => `Awaiting confirmation from ${name}, offered ${date}, ${age}`,
     textNoAge: (name: string, date: string) => `Awaiting confirmation from ${name}, offered ${date}`,
@@ -123,6 +129,7 @@ const it: typeof en = {
     assigned: (name: string) => `Assegnazione proposta. In attesa di conferma da ${name}.`,
     assignedToOffice: (office: string) => `Assegnato a ${office}.`,
     cancelled: 'Assegnazione annullata.',
+    reminded: 'Promemoria inviato via email e in Operai.',
     returned: 'Reso registrato.',
     repair: 'Segnato in riparazione.',
     repairDone: 'Riparazione completata.',
@@ -136,6 +143,10 @@ const it: typeof en = {
 
   pending: {
     cancel: 'Annulla assegnazione',
+    remind: 'Invia promemoria',
+    remindersNone: (next: string) => `Nessun promemoria inviato. Il primo parte automaticamente il ${next}.`,
+    remindersSent: (count: number, last: string, next: string) =>
+      `${count === 1 ? '1 promemoria inviato' : `${count} promemoria inviati`}, l'ultimo il ${last}. Prossimo promemoria automatico: ${next}.`,
     text: (name: string, date: string, age: string) => `In attesa di conferma da ${name}, proposto il ${date}, ${age}`,
     textNoAge: (name: string, date: string) => `In attesa di conferma da ${name}, proposto il ${date}`,
     ageToday: 'oggi',

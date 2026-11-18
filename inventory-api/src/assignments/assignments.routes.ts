@@ -30,6 +30,7 @@ import {
   type AssignmentEvent,
 } from "./assignments.schemas";
 import { cancelAssignment, createAssignment, findAssignmentWithAsset } from "./assignments.repo";
+import { remindNow } from "./reminders";
 
 /** The notification push (T17). Replaceable object property so tests can observe it. */
 export const assignmentHooks: {
@@ -81,6 +82,21 @@ const cancelRouteDef = createRoute({
     200: { description: "The asset, assignable again", content: { "application/json": { schema: AssetViewSchema } } },
     404: { description: "Unknown or out of scope" },
     409: { description: "assignment_not_pending | asset_disposed" },
+  },
+});
+
+const remindRouteDef = createRoute({
+  method: "post",
+  path: "/assignments/{id}/remind",
+  tags: ["Assignments"],
+  summary: "Send the employee a reminder to confirm a pending assignment now (in-app and email)",
+  middleware: [...authorized, requireCapability(ASSET_MANAGE)],
+  request: { params: AssignmentIdParamSchema },
+  responses: {
+    200: { description: "The asset, with the reminder recorded", content: { "application/json": { schema: AssetViewSchema } } },
+    404: { description: "Unknown or out of scope" },
+    409: { description: "assignment_not_pending | reminder_too_soon (retryAfterSeconds)" },
+    502: { description: "reminder_not_sent: notify-api did not take it; nothing changed" },
   },
 });
 
@@ -144,5 +160,23 @@ assignmentsRouter.openapi(cancelRouteDef, async (c) => {
     scopeFor(permissions, "ledger", "manage", entity),
     true,
   );
+  return c.json(view!, 200);
+});
+
+assignmentsRouter.openapi(remindRouteDef, async (c) => {
+  const { id } = c.req.valid("param");
+  const { permissions, entity } = c.get("authz");
+
+  const found = await findAssignmentWithAsset(id);
+  const asset = found ? await findAsset(found.assetId) : null;
+  if (!asset || !assetInScope(asset, scopeFor(permissions, "asset", "manage", entity))) {
+    throw notFound("Assignment not found");
+  }
+
+  await remindNow(id, { userId: c.get("userId"), email: c.get("email") });
+
+  const fresh = await findAsset(asset.id);
+  if (!fresh) throw notFound("Asset not found");
+  const [view] = await project([fresh], c.req.header("Authorization")!, scopeFor(permissions, "ledger", "manage", entity), true);
   return c.json(view!, 200);
 });

@@ -117,7 +117,7 @@ export async function findPendingAssignments(
   if (assetIds.length === 0) return new Map();
   const rows = await db.assignment.findMany({
     where: { assetId: { in: [...assetIds] }, status: "pending" },
-    select: { id: true, assetId: true, assigneeUserId: true, createdAt: true },
+    select: { id: true, assetId: true, assigneeUserId: true, createdAt: true, lastReminderAt: true, reminderCount: true },
   });
   return new Map(rows.map((r) => [r.assetId, r]));
 }

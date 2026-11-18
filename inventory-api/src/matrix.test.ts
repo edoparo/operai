@@ -81,6 +81,8 @@ let cells = 0;
 const PROBLEM_MEMBERS = new Set([
   "type", "title", "status", "detail", "instance", "code", "field", "errors", "issues",
   "from", "year", "serialNumber", "assetId", "assignmentId",
+  // `reminder_too_soon` (US-15): when a forced reminder may be sent again.
+  "retryAfterSeconds",
 ]);
 
 async function send(method: string, req: Req, authorization: string | null): Promise<Response> {

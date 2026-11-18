@@ -97,6 +97,7 @@ enum AssetEventAction {
   fiscal_year_closed
   imported
   assigned_to_office
+  assignment_reminded
 }
 
 model Asset {
@@ -163,8 +164,13 @@ model Assignment {
   createdAt        DateTime         @default(now())
   resolvedAt       DateTime?
   resolvedByUserId String?
+  // Reminders to confirm (US-15): the first 24 h after the offer, then every 7 days while pending. The last one sent
+  // (automatic or forced from the UI) is the clock; a reminder is claimed by a CAS on this column before it is sent.
+  lastReminderAt   DateTime?
+  reminderCount    Int              @default(0)
 
   @@index([assigneeUserId, status])
+  @@index([status, createdAt])
   @@index([assetId, createdAt])
   @@map("assignment")
 }

@@ -13,7 +13,7 @@ const CLIENT_SECRET = "c".repeat(40);
 const CLIENT_SECRET_EST = "e".repeat(40);
 const CLIENT_SECRET_REF = "r".repeat(40);
 /** The three-client registry after Manual A. Scopes of inventory-api are overridable (its tests predate the rest). */
-const registry = (secret: string, scope = "notifications.push") =>
+const registry = (secret: string, scope = "notifications.push emails.send") =>
   JSON.stringify({
     "inventory-api": { secret, scope },
     "estimai-api": { secret: CLIENT_SECRET_EST, scope: "notifications.push estimate-notices.send" },
@@ -551,7 +551,7 @@ describe("env-doctor checker — meetings (specs/20261104-meetings)", () => {
   const GCP_KEY = "eyJzeW50aGV0aWMta2V5LW5ldmVyLXByaW50ZWQi" + "Z".repeat(24);
   const meetingsRegistry = (scope = "notifications.push host-notices.send", secret = CLIENT_SECRET_MEET) =>
     JSON.stringify({
-      "inventory-api": { secret: CLIENT_SECRET, scope: "notifications.push" },
+      "inventory-api": { secret: CLIENT_SECRET, scope: "notifications.push emails.send" },
       "estimai-api": { secret: CLIENT_SECRET_EST, scope: "notifications.push estimate-notices.send" },
       "refund-api": { secret: CLIENT_SECRET_REF, scope: "notifications.push emails.send" },
       // crm-api holds a client of its own since specs/20261103-projects-handoff (it reads projects-api), required in production.

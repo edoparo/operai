@@ -283,6 +283,14 @@ Label in brackets picks the agent: `[backend]`, `[frontend]`, `[devops]`, `[qe]`
   - touch: `inventory-ui/src/**` (assign dialog, asset list and detail, filter bar, history timeline, new offices page, strings, router, shell tabs)
   - done when: `pnpm lint && pnpm build && pnpm test` pass in `inventory-ui` (1093 tests, 2026-11-18)
 
+- [x] T51: [backend] Reminders to confirm (US-15, A3): `assignment.lastReminderAt`/`reminderCount`, event `assignment_reminded`, pure `reminderClock.ts`, in-process `startReminderScheduler` (15 min, CAS claim, give back on failure), `POST /assignments/{id}/remind`, reminder facts on `pendingAssignment`, notifier email notice; env-doctor requires `emails.send` for inventory-api; ADR 20261118-assignment-reminders-in-process-scheduler-claimed-by-cas — refs: AC-15.1 to AC-15.4 — deps: none
+  - touch: `inventory-api/prisma/`, `inventory-api/src/assignments/{reminders,reminderClock,assignments.routes}.ts`, `inventory-api/src/lib/notify.ts`, `inventory-api/src/assets/{view,read.repo,register.schemas}.ts`, `inventory-api/src/index.ts`, matrix, `tools/env-doctor/`
+  - done when: `bun run typecheck && bun test` pass in `inventory-api` on `inventory_test` (902 tests, 2026-11-18)
+
+- [x] T52: [frontend] Reminders in inventory-ui (US-15): the pending callout shows reminders sent / next one and a Send reminder action; `reminder_too_soon` and `reminder_not_sent` copy; history labels — refs: AC-15.2, AC-15.3 — deps: T51
+  - touch: `inventory-ui/src/components/AssetActions.tsx`, `inventory-ui/src/lib/{assignmentsApi,types}.ts`, `inventory-ui/src/strings/{actions,errors,history}.ts`, tests
+  - done when: `pnpm lint && pnpm build && pnpm test` pass in `inventory-ui` (1099 tests, 2026-11-18)
+
 - [ ] T46: [qe] All gates green, feature closed — refs: AC-9.7 — deps: T43, T45, T48
   - touch: `specs/20261006-hardware-inventory/spec.md`
   - done when: `bun run typecheck && bun test` pass in `auth`, `notify-api`, `inventory-api`; `pnpm lint && pnpm build && pnpm test` pass in `shell`, `notify-ui`, `inventory-ui`; `cd shell && pnpm e2e` passes; `mise run env:doctor` and `mise run changeset:check` pass; QE, security review and eval verdicts are PASS; then `/wellforge:done 20261006-hardware-inventory` sets the status.

@@ -41,6 +41,8 @@ const MAX_NAME = 100;
 export type NotifiableAssignmentEvent = AssignmentEvent;
 
 interface Copy {
+  /** Also an email notice (notify-api resolves the address; needs the `emails.send` scope). */
+  readonly email?: boolean;
   readonly recipientId: string;
   readonly severity: "info" | "success" | "warning";
   readonly title: string;
@@ -92,9 +94,37 @@ export interface NotifierOptions {
   readonly enabled?: boolean;
 }
 
+/** A reminder to confirm a pending assignment (US-15). */
+export interface ReminderEvent {
+  readonly assignmentId: string;
+  readonly assetDescription: string;
+  readonly assigneeUserId: string;
+  readonly offeredAt: Date;
+}
+
+const two = (n: number) => String(n).padStart(2, "0");
+const ddmmyyyy = (d: Date) => `${two(d.getUTCDate())}.${two(d.getUTCMonth() + 1)}.${d.getUTCFullYear()}`;
+
+function reminderCopy(event: ReminderEvent): Copy {
+  const description = clip(event.assetDescription, MAX_DESCRIPTION);
+  return {
+    email: true,
+    recipientId: event.assigneeUserId,
+    severity: "warning",
+    title: "Reminder: confirm the device assigned to you",
+    body: `${description} was assigned to you on ${ddmmyyyy(event.offeredAt)} and is still waiting for your answer. Confirm that you received it, or decline it if you did not.`,
+    href: "/devices",
+  };
+}
+
 export interface Notifier {
   /** Never throws, never rejects. */
   notifyAssignment(event: NotifiableAssignmentEvent): Promise<void>;
+  /**
+   * The reminder, in-app and by email. Never throws: `true` when notify-api accepted it, `false` otherwise (the
+   * caller gives the reminder back so it is tried again).
+   */
+  notifyReminder(event: ReminderEvent): Promise<boolean>;
 }
 
 export function createNotifier(options: NotifierOptions): Notifier {
@@ -113,13 +143,38 @@ export function createNotifier(options: NotifierOptions): Notifier {
         title: copy.title,
         body: copy.body,
         link: { href: copy.href },
+        ...(copy.email ? { email: true } : {}),
       }),
       signal: AbortSignal.timeout(timeoutMs),
       redirect: "error",
     });
   }
 
+  /** One push with the one 401 retry; `true` when notify-api answered 2xx. Never throws. */
+  async function send(copy: Copy, ref: string): Promise<boolean> {
+    try {
+      for (let attempt = 0; ; attempt++) {
+        const token = await options.tokens.getToken();
+        const res = await post(token, copy);
+        await res.body?.cancel().catch(() => {});
+        if (res.status === 401 && attempt === 0) {
+          options.tokens.invalidate(token);
+          continue;
+        }
+        if (!res.ok) console.error(`[notify] notify-api answered HTTP ${res.status} for ${ref}`);
+        return res.ok;
+      }
+    } catch (error) {
+      console.error(`[notify] could not push ${ref}:`, error instanceof Error ? error.message : "unknown error");
+      return false;
+    }
+  }
+
   return {
+    async notifyReminder(event) {
+      if (!enabled) return true;
+      return send(reminderCopy(event), `reminder for assignment ${event.assignmentId}`);
+    },
     async notifyAssignment(event) {
       if (!enabled) return;
       const ref = `${event.kind} assignment ${event.assignmentId}`;

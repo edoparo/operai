@@ -626,6 +626,17 @@ export const CASES: readonly MatrixCase[] = [
       return { path: `/assignments/${as.id}/cancel`, subject: as.id };
     },
   }),
+  post("POST /assignments/{id}/remind", {
+    verdict: gate("asset", 200),
+    events: ["assignment_reminded"],
+    build: async (e) => {
+      const a = await mkAsset(e);
+      const as = await db.assignment.create({
+        data: { assetId: a.id, assigneeUserId: "emp-9", createdByUserId: "mgr" },
+      });
+      return { path: `/assignments/${as.id}/remind`, subject: as.id };
+    },
+  }),
 
   // ── Ledger ──
   post("POST /assets/{id}/dispose", {

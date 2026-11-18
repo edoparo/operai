@@ -201,7 +201,8 @@ export const SERVICE_CLIENT_LINKS: ReadonlyArray<{
   /** Exactly the scopes the caller needs: a missing one fails, so does an extra one (least privilege, specs/20261013-notify-service-credentials AC-2.1). */
   requiredScopes: readonly string[];
 }> = [
-  { ...LINK_BASE, caller: "inventory-api", requiredScopes: ["notifications.push"] },
+  // specs/20261006-hardware-inventory US-15: the weekly reminder to confirm an assignment is also an email notice.
+  { ...LINK_BASE, caller: "inventory-api", requiredScopes: ["notifications.push", "emails.send"] },
   // specs/20261101-crm-sales-flow AC-3.3: estimai-api also tells crm-api an estimate was closed or reopened (ADR 20261105-estimai-closes-the-estimate-crm-follows).
   { ...LINK_BASE, caller: "estimai-api", requiredScopes: ["notifications.push", "estimate-notices.send"] },
   { ...LINK_BASE, caller: "refund-api", requiredScopes: ["notifications.push", "emails.send"] },

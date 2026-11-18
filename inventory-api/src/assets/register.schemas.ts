@@ -64,7 +64,14 @@ export const AssetViewSchema = z
     holder: IdentitySchema.nullable(),
     office: z.object({ id: z.string(), name: z.string() }).nullable(),
     pendingAssignment: z
-      .object({ id: z.string(), assignee: IdentitySchema, createdAt: z.string() })
+      .object({
+        id: z.string(),
+        assignee: IdentitySchema,
+        createdAt: z.string(),
+        reminderCount: z.number().int(),
+        lastReminderAt: z.string().nullable(),
+        nextReminderAt: z.string().nullable(),
+      })
       .nullable(),
     locationNote: z.string().nullable(),
     supplier: z.string().nullable(),

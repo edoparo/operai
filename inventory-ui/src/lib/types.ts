@@ -33,6 +33,7 @@ export type AssetEventAction =
   | 'marked_lost'
   | 'marked_found'
   | 'assigned_to_office'
+  | 'assignment_reminded'
   | 'disposed'
   | 'invoice_file_linked'
   | 'verified'
@@ -93,7 +94,15 @@ export type AssetView = {
   holder: Identity | null
   /** Set when an office holds the asset (status `assigned`, no `holder`); absent from older servers. */
   office?: OfficeRef | null
-  pendingAssignment: { id: string; assignee: Identity; createdAt: string } | null
+  pendingAssignment: {
+    id: string
+    assignee: Identity
+    createdAt: string
+    /** Reminders to confirm (US-15); absent from an older server. */
+    reminderCount?: number
+    lastReminderAt?: string | null
+    nextReminderAt?: string | null
+  } | null
   locationNote: string | null
   supplier: string | null
   invoiceRef: string | null
@@ -266,6 +275,8 @@ export const INVENTORY_ERROR_CODES = [
   'office_name_taken',
   'office_in_use',
   'office_not_found',
+  'reminder_too_soon',
+  'reminder_not_sent',
 ] as const
 
 export type InventoryErrorCode = (typeof INVENTORY_ERROR_CODES)[number]
@@ -292,6 +303,8 @@ export type InventoryErrorExtras = {
   office_name_taken: Record<never, never>
   office_in_use: Record<never, never>
   office_not_found: Record<never, never>
+  reminder_too_soon: { retryAfterSeconds?: number }
+  reminder_not_sent: Record<never, never>
 }
 
 export type InventoryError = {
@@ -319,6 +332,8 @@ const EXTRA_TYPES: { [C in InventoryErrorCode]: Partial<Record<string, 'string' 
   office_name_taken: {},
   office_in_use: {},
   office_not_found: {},
+  reminder_too_soon: { retryAfterSeconds: 'number' },
+  reminder_not_sent: {},
 }
 
 const isKnownCode = (code: string | undefined): code is InventoryErrorCode =>
