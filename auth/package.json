@@ -7,7 +7,7 @@
     "dev": "bun run --hot src/index.ts",
     "build": "bun build src/index.ts --outdir dist --target bun",
     "db:migrate": "node node_modules/prisma/build/index.js migrate dev",
-    "db:deploy": "node node_modules/prisma/build/index.js migrate deploy",
+    "db:deploy": "node node_modules/prisma/build/index.js migrate deploy 2>&1",
     "db:generate": "node node_modules/prisma/build/index.js generate",
     "db:seed": "bun run src/authz/seed.ts",
     "db:release": "bun run db:deploy && bun run db:seed",
