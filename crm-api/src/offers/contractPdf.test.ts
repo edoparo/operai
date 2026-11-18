@@ -288,6 +288,64 @@ describe("renderContractPdf — page 1 and sections", () => {
   });
 });
 
+describe("renderContractPdf — the document title and paragraph alignment", () => {
+  it("prints the template's own words before the reference, and the fixed words when it sets none", async () => {
+    expect((await render(snapshot({ documentTitle: "OFFERTA" }))).text[0]).toContain("OFFERTA – Rif. 0017/2026");
+    expect((await render(snapshot({ documentTitle: "OFFERTA" }))).text.flat()).not.toContain("CONTRATTO DI FORNITURA – Rif. 0017/2026");
+    expect((await render(snapshot({ language: "en", documentTitle: "OFFER" }))).text[0]).toContain("OFFER – Ref. 0017/2026");
+    expect((await render(snapshot())).text[0]).toContain("CONTRATTO DI FORNITURA – Rif. 0017/2026");
+  });
+
+  it("a snapshot with no title member renders the very bytes it always did", async () => {
+    const plain = await render(snapshot());
+    const explicit = await render({ ...snapshot(), documentTitle: "CONTRATTO DI FORNITURA" });
+    expect(Buffer.from(plain.bytes).equals(Buffer.from(explicit.bytes))).toBe(true);
+  });
+
+  /** The x of the first drawn line that holds `needle` on the first page. */
+  const xOf = (page: PDFPage, needle: string): number => {
+    for (const match of contentsOf(page).matchAll(/1 0 0 1 ([\d.]+) [\d.]+ Tm\s+<([0-9A-Fa-f]+)>\s*Tj/g)) {
+      const text = (match[2]!.match(/../g) ?? []).map((hex) => String.fromCharCode(parseInt(hex, 16))).join("");
+      if (text.includes(needle)) return Number(match[1]);
+    }
+    throw new Error(`"${needle}" is not drawn`);
+  };
+
+  it("centres a `->text<-` paragraph and right-aligns a `->text->` one, in the body and in the opening", async () => {
+    const body = "Allineato\n\n->Allineato<-\n\n->Allineato->";
+    const { pages } = await render(
+      snapshot({ opening: "Apertura\n\n->Apertura<-\n\n->Apertura->", sections: [{ heading: "Costi", body, costs: true }], annex: null }),
+    );
+    const xs = (needle: string) =>
+      [...contentsOf(pages[0]!).matchAll(/1 0 0 1 ([\d.]+) [\d.]+ Tm\s+<([0-9A-Fa-f]+)>\s*Tj/g)]
+        .filter((match) => (match[2]!.match(/../g) ?? []).map((hex) => String.fromCharCode(parseInt(hex, 16))).join("") === needle)
+        .map((match) => Number(match[1]));
+    for (const word of ["Apertura", "Allineato"]) {
+      const [left, centre, right] = xs(word);
+      expect(centre!).toBeGreaterThan(left! + 1);
+      expect(right!).toBeGreaterThan(centre! + 1);
+      // The offsets are width/2 and width of the same free space.
+      expect(Math.abs(right! - left! - 2 * (centre! - left!))).toBeLessThan(0.2);
+    }
+    expect(() => xOf(pages[0]!, "Apertura")).not.toThrow();
+  });
+
+  it("a paragraph of several lines is aligned line by line, and its markers are never printed", async () => {
+    const { text, pages } = await render(snapshot({ opening: "->Prima riga\nseconda riga<-" }));
+    const all = text.flat().join("|");
+    expect(all).not.toContain("->");
+    expect(all).not.toContain("<-");
+    expect(xOf(pages[0]!, "Prima riga")).toBeGreaterThan(xOf(pages[0]!, "Esempio SA") + 1);
+    expect(xOf(pages[0]!, "seconda riga")).toBeGreaterThan(xOf(pages[0]!, "Esempio SA") + 1);
+  });
+
+  it("a malformed marker prints as written, left aligned", async () => {
+    const { text, pages } = await render(snapshot({ opening: "->solo apertura" }));
+    expect(text[0]).toContain("->solo apertura");
+    expect(xOf(pages[0]!, "->solo apertura")).toBe(xOf(pages[0]!, "Esempio SA"));
+  });
+});
+
 describe("renderContractPdf — cost table (AC-1.5)", () => {
   const costs = (over: Partial<ContractSnapshot["costs"]>): ContractSnapshot["costs"] => ({ ...snapshot().costs, ...over });
 

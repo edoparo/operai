@@ -165,6 +165,55 @@ describe("a section over the length limit (T50; AC-10.14, AC-10.4)", () => {
   });
 });
 
+describe("the document title and the alignment markers of the text as typed", () => {
+  const titleOnWire = () => JSON.stringify(fake.calls[0]!.body);
+
+  it("draws the title words the editor holds for the template's language, with the pending reference's placeholder", async () => {
+    const t = await template();
+    const res = await tryPreview(t, tryBody(t, { content: { ...tryBody(t).content, documentTitle: { it: "OFFERTA", en: "OFFER" } } }));
+    expect(res.status).toBe(200);
+    expect(titleOnWire()).toContain("OFFERTA – Rif. NNNN/AAAA");
+    expect(titleOnWire()).not.toContain("CONTRATTO DI FORNITURA");
+    expect(titleOnWire()).not.toContain("OFFER –");
+  });
+
+  it("with none typed it draws the fixed words, and a blank one is none", async () => {
+    const t = await template();
+    await tryPreview(t, tryBody(t));
+    expect(titleOnWire()).toContain("CONTRATTO DI FORNITURA – Rif. NNNN/AAAA");
+    fake.calls = [];
+    await tryPreview(t, tryBody(t, { content: { ...tryBody(t).content, documentTitle: { it: "  " } } }));
+    expect(titleOnWire()).toContain("CONTRATTO DI FORNITURA – Rif. NNNN/AAAA");
+  });
+
+  it("the unsaved twin draws it too, in English as well", async () => {
+    const res = await tryUnsaved(unsavedBody({ content: { ...unsavedBody().content, language: "en", documentTitle: { en: "OFFER" } }, language: "en" }, "welld_ch", "en"));
+    expect(res.status).toBe(200);
+    expect(titleOnWire()).toContain("OFFER – Ref. NNNN/YYYY");
+  });
+
+  it("a bad title is a 422 on the field and the service is never called; the stored words are not read or changed", async () => {
+    const t = await template({ documentTitle: { it: "STORED" } });
+    const res = await tryPreview(t, tryBody(t, { content: { ...tryBody(t).content, documentTitle: { it: "two\nlines" } } }));
+    expect(res.status).toBe(422);
+    expect(fake.calls).toEqual([]);
+    const typedOnly = await tryPreview(t, tryBody(t));
+    expect(typedOnly.status).toBe(200);
+    expect(titleOnWire()).not.toContain("STORED");
+    expect(titleOnWire()).toContain("CONTRATTO DI FORNITURA");
+    expect((await call("GET", `/offer-templates/${t.id}`)).json.documentTitle).toEqual({ it: "STORED", en: null });
+  });
+
+  it("an aligned paragraph of the text goes to the service as a centred or right paragraph", async () => {
+    const t = await template();
+    const source = TYPED.replace("TYPED-ONLY-TEXT", "->CENTRED-TEXT<-\n\n->RIGHT-TEXT->");
+    await tryPreview(t, { ...tryBody(t), content: { ...tryBody(t).content, source } });
+    const blocks = fake.calls[0]!.body.blocks as { type: string; style?: string; runs?: { text: string }[] }[];
+    expect(blocks.find((b) => b.runs?.[0]?.text === "CENTRED-TEXT")).toMatchObject({ type: "paragraph", style: "center" });
+    expect(blocks.find((b) => b.runs?.[0]?.text === "RIGHT-TEXT")).toMatchObject({ type: "paragraph", style: "right" });
+  });
+});
+
 describe("POST /offer-templates/{id}/try-preview", () => {
   it("draws the unsaved text with the sample answers and the entity profile, with no deal, and answers as the draft preview does (AC-10.14)", async () => {
     const t = await template();

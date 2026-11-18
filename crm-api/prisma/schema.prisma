@@ -285,7 +285,8 @@ enum OfferTemplateFormat {
 /// A template of an entity and language. Raw SQL in the offer_wizard migration, the enforcement and not a
 /// duplicate: CHECK `offer_template_format_content` (a `sections` row has every legacy column and no
 /// `source`; a `wizard` row has a `source` of at most 150 000 characters) and the partial unique index
-/// `offer_template_entity_seed_key` on (entity, seedKey) where seedKey is not null. The legacy columns
+/// `offer_template_entity_seed_key` on (entity, seedKey) where seedKey is not null; CHECK `offer_template_document_title`
+/// (the title words, when set, are 1 to 60 characters on one line, in the 20261118120000 migration). The legacy columns
 /// are optional here ONLY because a wizard row has none: read them through `legacyContent(row)`.
 model OfferTemplate {
   id              String              @id @default(cuid())
@@ -310,6 +311,10 @@ model OfferTemplate {
   uses            String[]            @default([])
   /// Wizard only: the template text (the extended offer markup), at most 150 000 characters.
   source          String?
+  /// Wizard only: the words of the document title before the reference, per language; null = the language's default
+  /// ("CONTRATTO DI FORNITURA" / "SUPPLY CONTRACT"). At most 60 characters, one line, printable (src/offers/documentTitle.ts).
+  documentTitleIt String?
+  documentTitleEn String?
   /// Set on a seeded template, e.g. `welld-ch-it-v1:T1`; a seed is created once per key, archived rows counting.
   seedKey         String?
   /// If-Match concurrency counter (ADR 20260807-optimistic-concurrency-version-if-match-cas-amends-0004 posture).

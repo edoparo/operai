@@ -388,6 +388,71 @@ describe("with the switch on", () => {
   });
 });
 
+describe("the template's own document title", () => {
+  const titleSent = () => JSON.stringify(fake.calls[0]!.body.blocks);
+
+  it("goes to the service with the reference the offer takes, and is copied into the snapshot", async () => {
+    const s = await startDraft("welld_ch", { documentTitle: { it: "OFFERTA", en: "OFFER" } });
+    expect((await generate(s)).status).toBe(201);
+    expect(titleSent()).toContain(`OFFERTA – Rif. 0001/${YEAR}`);
+    expect(titleSent()).not.toContain("CONTRATTO DI FORNITURA");
+    const [row] = await offers(s.dealId);
+    expect((row!.snapshot as any).documentTitle).toBe("OFFERTA");
+  });
+
+  it("is the preview's title too: the pending placeholder with the same words (one conversion)", async () => {
+    const s = await startDraft("welld_ch", { documentTitle: { it: "OFFERTA" } });
+    const previews: any[] = [];
+    const previewSpy = spyOn(letterhead, "preview").mockImplementation(async (content) => {
+      previews.push(content);
+      return { letterheadVersion: 7, legalEntityVersion: content.legalEntityVersion ?? 0, pageCount: 1, missingPlaceholders: [], unprintableCharacters: 0, pages: [] };
+    });
+    try {
+      const body = { templateVersion: s.draft.templateVersion, target: { kind: "new" }, answers: s.draft.answers };
+      expect((await call("POST", `/deals/${s.dealId}/offer-draft/preview`, { body })).status).toBe(200);
+    } finally {
+      previewSpy.mockRestore();
+    }
+    expect(JSON.stringify(previews[0].blocks)).toContain("OFFERTA – Rif. NNNN/AAAA");
+  });
+
+  it("a template that sets none leaves the snapshot without the member: what every offer was before the setting existed", async () => {
+    const s = await startDraft();
+    expect((await generate(s)).status).toBe(201);
+    expect(titleSent()).toContain(`CONTRATTO DI FORNITURA – Rif. 0001/${YEAR}`);
+    const [row] = await offers(s.dealId);
+    expect("documentTitle" in (row!.snapshot as object)).toBe(false);
+  });
+
+  it("an issued offer keeps its title when the template changes: the stored snapshot, and what is drawn from it, are as they were", async () => {
+    const s = await startDraft("welld_ch", { documentTitle: { it: "OFFERTA" } });
+    expect((await generate(s)).status).toBe(201);
+    const [before] = await offers(s.dealId);
+    const templateId = (before!.snapshot as any).template.id as string;
+
+    // The template's words change, and then are cleared.
+    const current = await call("GET", `/offer-templates/${templateId}`);
+    const { id: _id, entity: _entity, ...rest } = current.json;
+    const changed = await call("PUT", `/offer-templates/${templateId}`, {
+      ifMatch: current.json.version,
+      body: { name: rest.name, language: rest.language, description: rest.description ?? "", uses: rest.uses, source: rest.source, documentTitle: { it: "PROPOSTA" } },
+    });
+    expect(changed.json.documentTitle).toEqual({ it: "PROPOSTA", en: null });
+    const cleared = await call("PUT", `/offer-templates/${templateId}`, {
+      ifMatch: changed.json.version,
+      body: { name: rest.name, language: rest.language, description: rest.description ?? "", uses: rest.uses, source: rest.source, documentTitle: {} },
+    });
+    expect(cleared.json.documentTitle).toEqual({ it: null, en: null });
+
+    const [after] = await offers(s.dealId);
+    expect(after!.snapshot).toEqual(before!.snapshot);
+    expect(after!.objectKey).toBe(before!.objectKey);
+    const { snapshotToBlocks } = await import("./blocks");
+    const content = snapshotToBlocks(after!.snapshot as any, { legalEntityVersion: 1 }, "welld_ch");
+    expect(JSON.stringify(content.blocks)).toContain(`OFFERTA – Rif. 0001/${YEAR}`);
+  });
+});
+
 describe("a service that fails leaves nothing behind (AC-10.6)", () => {
   const unavailable = { status: 503, code: "layout_service_unavailable" };
   const cases: { name: string; answers: () => Promise<Answer[]>; timeoutMs?: number; expected: Record<string, unknown> }[] = [

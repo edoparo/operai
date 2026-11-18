@@ -457,7 +457,7 @@ class Flow {
   blocks(blocks: readonly Block[], headings: HeadingLabels | null, x = FRAME.left, width = BODY_W): void {
     for (const block of blocks) {
       if (block.type === "paragraph") {
-        this.paragraph(block.runs, { x, width });
+        this.paragraph(block.runs, { x, width, ...(block.align ? { align: block.align } : {}) });
       } else if (block.type === "heading") {
         const label = headings?.labels[headings.taken++] ?? block.text.toUpperCase();
         this.gap(SPACING.subHeadingBefore);
@@ -822,7 +822,7 @@ async function layout(
   }
   const date = shortDate(snapshot.issuedOn);
   flow.paragraph([run(snapshot.place ? `${snapshot.place}, ${date}` : date)], { align: "right", after: SPACING.dateAfter });
-  flow.paragraph([run(t.title(snapshot.reference), true)], { size: TITLE_SIZE, align: "center", after: SPACING.titleAfter });
+  flow.paragraph([run(t.title(snapshot.reference, snapshot.documentTitle), true)], { size: TITLE_SIZE, align: "center", after: SPACING.titleAfter });
 
   // — index, only with the effort-detail annex (D-8) —
   if (numbering.index) {

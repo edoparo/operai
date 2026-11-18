@@ -413,6 +413,11 @@ export interface WizardSnapshotInput {
   /** `resolveOffer(…, { reference })`: every text is final, no pending reference. */
   readonly resolved: ResolvedOffer;
   readonly reference: string;
+  /**
+   * The words of the title before the reference that the template sets for the offer's language, as stored on the template when
+   * the offer is generated; absent or null: the language's default. Copied into the snapshot, never re-read from the template.
+   */
+  readonly documentTitle?: string | null;
   readonly currency: "CHF" | "EUR";
   /**
    * The issuer's values as the offer prints them (`issuerValuesOf` of the registry's details, in the offer's language), with
@@ -493,6 +498,8 @@ export function wizardSnapshotOf(input: WizardSnapshotInput): ContractSnapshot {
     attachments: input.attachments,
     aiAssisted: resolved.aiAssisted,
     preparedBy: input.preparedBy,
+    // Only a template that sets its own words leaves a trace: every other snapshot is what it was before the setting existed.
+    ...(input.documentTitle ? { documentTitle: input.documentTitle } : {}),
     wizard: { templateVersion: input.templateVersion, answers },
     textAnnexes: resolved.annexes.map((annex) => ({
       designation: annex.designation,

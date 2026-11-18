@@ -165,6 +165,21 @@ describe("wizardSnapshotOf", () => {
     expect(Object.keys(withVersion.issuer).sort()).toEqual(["addressLines", "iban", "legalName", "vatNumber"]);
   });
 
+  it("copies the template's document title into the snapshot when it sets one, and leaves the member out otherwise", () => {
+    const { ast } = parseTemplate(seed("T1").source);
+    const answers = sampleAnswers(ast, "it");
+    const resolved = resolveOffer(ast, answers, sampleContext("it"), { reference: REFERENCE });
+    const input = { template: { id: "t", name: "T" }, templateVersion: 1, answers, resolved, reference: REFERENCE, currency: "CHF" as const, profile: PROFILE, annex: null, attachments: [], preparedBy: null };
+    const plain = wizardSnapshotOf(input);
+    expect("documentTitle" in plain).toBe(false);
+    for (const none of [null, ""]) expect(JSON.stringify(wizardSnapshotOf({ ...input, documentTitle: none }))).toBe(JSON.stringify(plain));
+    const titled = wizardSnapshotOf({ ...input, documentTitle: "OFFERTA" });
+    expect(titled.documentTitle).toBe("OFFERTA");
+    // Nothing else of the snapshot moves.
+    const { documentTitle: _title, ...rest } = titled;
+    expect(JSON.stringify(rest)).toBe(JSON.stringify(plain));
+  });
+
   it("refuses a resolved offer that is not complete: no printed date, or a cost with no amount", () => {
     const { ast } = parseTemplate(seed("T1").source);
     const answers = sampleAnswers(ast, "it");

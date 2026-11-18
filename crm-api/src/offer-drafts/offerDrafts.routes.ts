@@ -58,6 +58,7 @@ import { parseTemplate } from "../offers/engine/syntax";
 import type { Prisma } from "../lib/generated/prisma/client";
 import { isDeepStrictEqual } from "node:util";
 import { draftToBlocks } from "../offers/blocks";
+import { documentTitleOf } from "../offers/documentTitle";
 import { PreviewQuerySchema, PreviewResponseSchema, previewThroughService, requireLetterheadService } from "../offers/contentSchema";
 import { AnswersSchema, PutDraftSchema, PutTargetSchema, TemplateIdSchema, jsonPath, parseStoredAnswers } from "./answersSchema";
 import { contextResponse, loadWizardInputs, serverToday, wizardContextOf } from "./context";
@@ -639,7 +640,15 @@ offerDraftsRouter.openapi(
       // An edit keeps its offer's reference; a new offer and a revision have none yet, and the title says so.
       const target = targetOf(row);
       const blocks = draftToBlocks(
-        { entity: deal.entity, ast, answers, context, annex, reference: target.kind === "edit" ? target.reference : null },
+        {
+          entity: deal.entity,
+          ast,
+          answers,
+          context,
+          annex,
+          reference: target.kind === "edit" ? target.reference : null,
+          documentTitle: documentTitleOf(template, template.language),
+        },
         letterheadProfileOf(inputs.issuer, template.language, inputs.profile?.placeOfIssue ?? null),
       );
       noStore(c);
@@ -826,6 +835,7 @@ offerDraftsRouter.openapi(generateRouteDef, async (c) => {
         // The second resolve, with the reference the offer takes: it prints where the template says so (DD-44, DD-52).
         resolved: resolveOffer(ast, answers, context, { reference }),
         reference,
+        documentTitle: documentTitleOf(template, template.language),
         currency: deal.currency,
         profile: issuerValuesOf(inputs.issuer, template.language),
         annex,
@@ -837,7 +847,7 @@ offerDraftsRouter.openapi(generateRouteDef, async (c) => {
           renderOfferThroughService(
             // The preview's own conversion (AC-10.3), with the reference the offer takes and the profile as it is now (AC-10.10).
             draftToBlocks(
-              { entity: deal.entity, ast, answers, context, annex, reference: snapshot.reference },
+              { entity: deal.entity, ast, answers, context, annex, reference: snapshot.reference, documentTitle: documentTitleOf(template, template.language) },
               letterheadProfileOf(inputs.issuer, template.language, inputs.profile?.placeOfIssue ?? null),
             ).content,
             { fileNames: refs.map((ref) => ref.fileName), bytes },

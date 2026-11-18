@@ -60,6 +60,7 @@ import { PreviewQuerySchema, PreviewResponseSchema, previewThroughService, requi
 import { legalEntitiesRetryAfter, letterheadProfileOf, loadIssuer, loadProfile, withIssuerPin } from "../offers/generation";
 import { AnswersSchema } from "../offer-drafts/answersSchema";
 import { legacyContent } from "../offers/legacyContent";
+import { DocumentTitleSchema, DocumentTitleViewSchema, documentTitleData, documentTitleFrom, documentTitleView } from "../offers/documentTitle";
 import { DEFAULT_TEMPLATES_EN } from "../offers/defaultTemplates.en";
 import { DEFAULT_TEMPLATES_IT } from "../offers/defaultTemplates";
 import { upgradeWizardSeeds } from "./wizardSeeds/upgrade";
@@ -100,6 +101,11 @@ const TemplateSchema = z.object({
   uses: z.array(z.string()),
   /** Wizard only: the template text; null for a legacy template. */
   source: z.string().nullable(),
+  /**
+   * Wizard only: the words of the document title before the reference, per language (`null` = the language's default, "CONTRATTO DI
+   * FORNITURA" / "SUPPLY CONTRACT"); the offer prints them in its own language, the template's. Both members are always there.
+   */
+  documentTitle: DocumentTitleViewSchema,
   /** The legacy content members are null for a wizard template. */
   salutation: z.string().nullable(),
   opening: z.string().nullable(),
@@ -134,6 +140,11 @@ export const WizardTemplateBody = z
       .refine(noNul, NO_NUL),
     uses: z.array(requiredText(40).refine(noNul, NO_NUL)).max(6),
     source: z.string().min(1).max(150_000).refine(noNul, NO_NUL),
+    /**
+     * The words of the offer's title before the reference, for each language (≤ 60 characters, one line, printable; blank or `null`
+     * = the default). Absent: a create sets none and a PUT leaves the stored words as they are; present: both languages are replaced.
+     */
+    documentTitle: DocumentTitleSchema.optional(),
   })
   .strict();
 const CreateWizardTemplateBody = WizardTemplateBody.extend({ entity: EntitySchema });
@@ -161,6 +172,7 @@ async function toViews(c: HeaderSource, rows: readonly TemplateRow[]) {
       description: row.description,
       uses: row.uses,
       source: row.source,
+      documentTitle: documentTitleView(row),
       salutation: legacy?.salutation ?? null,
       opening: legacy?.opening ?? null,
       sections: legacy?.sections ?? null,
@@ -201,6 +213,7 @@ const wizardDataOf = (content: WizardTemplateInput) => ({
   description: content.description.trim() === "" ? null : content.description.trim(),
   uses: content.uses,
   source: content.source,
+  ...documentTitleData(content.documentTitle),
 });
 
 /**
@@ -455,7 +468,7 @@ const updateRoute = createRoute({
   tags: ["Offer templates"],
   summary: "Replace a template's content (If-Match required)",
   description:
-    "The body is the row's format's: a wizard template takes `{ name, language, description, uses, source }`, a legacy " +
+    "The body is the row's format's: a wizard template takes `{ name, language, description, uses, source, documentTitle? }` (`documentTitle` absent leaves the stored words alone), a legacy " +
     "one its 018 content. 422 `template_invalid` lists a wizard text's `problems`.",
   middleware: writing,
   request: {
@@ -638,6 +651,7 @@ offerTemplatesRouter.openapi(duplicateRoute, async (c) => {
         description: source.description ?? "",
         uses: source.uses,
         source: source.source ?? "",
+        documentTitle: { it: source.documentTitleIt, en: source.documentTitleEn },
       });
     } else {
       // A copy of a legacy template is an active legacy template: not in a pair a wizard template replaced.
@@ -780,7 +794,7 @@ async function tryPreviewOf(
     const issuer = await loadIssuer(entity, { requireComplete: true });
     const profile = await loadProfile(entity);
     const blocks = templateToBlocks(
-      { entity, ast, language: body.language, ...(answers ? { answers } : {}) },
+      { entity, ast, language: body.language, documentTitle: documentTitleFrom(body.content.documentTitle, body.language), ...(answers ? { answers } : {}) },
       letterheadProfileOf(issuer, body.language, profile?.placeOfIssue ?? null),
     );
     c.header("Cache-Control", "no-store");

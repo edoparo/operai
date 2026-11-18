@@ -159,6 +159,13 @@ export interface ContractSnapshot {
   readonly wizard?: { readonly templateVersion: number; readonly answers: WizardAnswers };
   /** A wizard offer only: the text annexes, in template order. */
   readonly textAnnexes?: readonly OfferTextAnnex[];
+  /**
+   * A wizard offer only, and only when its template set its own: the words of the document title before the reference
+   * ("OFFERTA"), as printed. Absent: the language's default ("CONTRATTO DI FORNITURA" / "SUPPLY CONTRACT"), as every offer
+   * generated before the setting existed. Copied at generation like the other template-derived texts, so a later edit of the
+   * template never changes an issued offer.
+   */
+  readonly documentTitle?: string;
 }
 
 /** What the renderer needs besides the snapshot. */

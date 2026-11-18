@@ -37,6 +37,11 @@
  *               (decision 8: one document, one version of the details; `withIssuerPin` in generation.ts).
  *   deal PDFs   the PDFs appended to the offer are neither drawn nor listed (G5): they are appended by crm-api
  *               after the rendered pages, unnumbered, so the "Allegati:" list names the annexes of the document only.
+ *   title       the words before the reference are the template's own (`documentTitle`, per language; the snapshot's for an offer
+ *               already generated) or the language's default; the reference, its label and the pending placeholder (italics) are
+ *               the document's, as they were.
+ *   alignment   a paragraph the markup centres (`->text<-`) or right-aligns (`->text->`) is a paragraph with `style` `center` /
+ *               `right`; any other paragraph has no `style`. A list item, a table cell and a heading are never aligned.
  *   text        the characters the offer engine already limited are kept as they are, with one exception: the ballot
  *               box of an `option` line (U+25A1), which no bundled font holds, is "[ ]" with a no-break space.
  *
@@ -168,6 +173,8 @@ export interface DraftInput {
   readonly annex?: Scope | null;
   /** The offer's reference when it is known (an edit, a generation); null: it is not assigned yet and the title says so. */
   readonly reference?: string | null;
+  /** The words of the title before the reference that the template sets for the offer's language; absent or null: the language's default. */
+  readonly documentTitle?: string | null;
 }
 
 /** A template with no deal (G1, AC-10.14): the editor's sample answers, or the template's own samples. */
@@ -178,6 +185,8 @@ export interface TemplateInput {
   /** The editor's sample answers; absent: `sampleAnswers`. */
   readonly answers?: WizardAnswers;
   readonly annex?: Scope | null;
+  /** The words of the title before the reference that the template (as typed) sets for `language`; absent or null: the default. */
+  readonly documentTitle?: string | null;
 }
 
 export interface MissingField {
@@ -201,7 +210,7 @@ export interface DraftBlocks {
 export function draftToBlocks(input: DraftInput, issuer: IssuerPin): DraftBlocks {
   const reference = input.reference ?? null;
   const resolved = resolveOffer(input.ast, input.answers, input.context, { reference });
-  const printed = printedFromResolved(resolved, { currency: input.context.currency, reference, annex: input.annex ?? null });
+  const printed = printedFromResolved(resolved, { currency: input.context.currency, reference, annex: input.annex ?? null, documentTitle: input.documentTitle ?? null });
   return {
     content: {
       contentVersion: CONTENT_VERSION,
@@ -231,7 +240,7 @@ export function templateToBlocks(input: TemplateInput, profile: LetterheadProfil
   // The editor's answers are its own; the template's samples take the profile's place of issue like the context does.
   const sample = input.answers ? null : sampleAnswers(input.ast, input.language);
   const answers = input.answers ?? { ...sample!, client: { ...sample!.client, place: context.placeOfIssue } };
-  return draftToBlocks({ entity: input.entity, ast: input.ast, answers, context, annex: input.annex ?? null }, profile);
+  return draftToBlocks({ entity: input.entity, ast: input.ast, answers, context, annex: input.annex ?? null, documentTitle: input.documentTitle ?? null }, profile);
 }
 
 /** An offer that was generated before (a contract snapshot, wizard or legacy template) as content, pinned to the registry's version `issuer`. */
@@ -285,6 +294,8 @@ interface PrintedOffer {
   readonly clientLines: readonly string[];
   readonly contacts: readonly string[];
   readonly place: string;
+  /** The words of the title before the reference, when the template set its own; null: the language's default. */
+  readonly documentTitle: string | null;
   /** `YYYY-MM-DD`; null when the draft has none. */
   readonly issuedOn: string | null;
   readonly opening: string;
@@ -298,7 +309,7 @@ interface PrintedOffer {
 
 function printedFromResolved(
   resolved: ResolvedOffer,
-  extra: { currency: "CHF" | "EUR"; reference: string | null; annex: Scope | null },
+  extra: { currency: "CHF" | "EUR"; reference: string | null; annex: Scope | null; documentTitle: string | null },
 ): PrintedOffer {
   const { costs } = resolved;
   const result = costs.result;
@@ -321,6 +332,7 @@ function printedFromResolved(
     clientLines: resolved.client.lines,
     contacts: resolved.client.contacts,
     place: resolved.client.place,
+    documentTitle: extra.documentTitle,
     issuedOn: resolved.client.date,
     opening: resolved.opening,
     sections: resolved.sections.map(({ heading, body, costs: carries }) => ({ heading, body, costs: carries })),
@@ -404,6 +416,7 @@ function printedFromSnapshot(snapshot: ContractSnapshot): PrintedOffer {
     clientLines: snapshot.clientLines,
     contacts: snapshot.contacts,
     place: snapshot.place,
+    documentTitle: snapshot.documentTitle ?? null,
     issuedOn: snapshot.issuedOn,
     opening: snapshot.opening,
     sections: snapshot.sections.map(({ heading, body, costs }) => ({ heading, body, costs })),
@@ -541,7 +554,7 @@ function markupBlocks(source: readonly MarkupBlock[], headings: Headings | null,
   for (const block of source) {
     if (block.type === "paragraph") {
       const runs = markupRuns(block.runs);
-      if (runs.length > 0) out.push(paragraph(runs));
+      if (runs.length > 0) out.push(paragraph(runs, block.align));
     } else if (block.type === "heading") {
       const at = headings?.taken ?? 0;
       const label = headings?.labels[at] ?? block.text.toUpperCase();
@@ -700,7 +713,7 @@ function documentBlocks(offer: PrintedOffer): ContentBlock[] {
   const dateLine = place !== "" && date !== "" ? `${place}, ${date}` : place !== "" ? place : date;
   if (dateLine !== "") out.push(paragraph(plainRuns(dateLine), "right"));
   const reference = offer.reference ?? PENDING_REFERENCE[offer.language];
-  out.push(paragraph([run(layoutText(t.title(reference)), offer.reference === null ? { italic: true } : {}, "title")], "center"));
+  out.push(paragraph([run(layoutText(t.title(reference, offer.documentTitle)), offer.reference === null ? { italic: true } : {}, "title")], "center"));
 
   // — index, only with the effort-detail annex: the entries, without page numbers (the pages are the service's) —
   if (numbering.index) {

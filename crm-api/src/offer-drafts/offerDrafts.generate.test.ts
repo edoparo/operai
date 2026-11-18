@@ -4,6 +4,7 @@
  */
 
 import { afterEach, beforeEach, describe, expect, it, setSystemTime, spyOn } from "bun:test";
+import { PDFArray, PDFDocument, PDFRawStream, decodePDFRawStream } from "pdf-lib";
 // The test world first: it sets the environment the other modules read when they load.
 import {
   bucket,
@@ -28,9 +29,9 @@ afterEach(() => setSystemTime());
 const YEAR = new Date().getUTCFullYear();
 const noMatch = { "If-None-Match": "*" };
 
-async function startDraft(source?: string, entity: "welld_ch" | "welld_it" = "welld_ch", language: "it" | "en" = "it") {
+async function startDraft(source?: string, entity: "welld_ch" | "welld_it" = "welld_ch", language: "it" | "en" = "it", templateOverrides: Record<string, unknown> = {}) {
   const { deal } = await readyDealWithProfiles({ entity });
-  const template = await makeDraftTemplate({ entity, language, ...(source ? { source } : {}) });
+  const template = await makeDraftTemplate({ entity, language, ...(source ? { source } : {}), ...templateOverrides });
   const created = await call("POST", `/deals/${deal.id}/offer-draft`, { body: { templateId: template.id }, headers: noMatch });
   if (created.status !== 201) throw new Error(`draft: ${created.status} ${JSON.stringify(created.json)}`);
   return { dealId: deal.id, template, draft: created.json };
@@ -105,6 +106,24 @@ describe("a complete draft", () => {
     expect(res.status).toBe(201);
     expect(res.json.language).toBe("en");
     expect(((await offers(s.dealId))[0]!.snapshot as any).clientLines[3]).toBe("Switzerland");
+  });
+
+  it("copies the template's document title into the snapshot, and crm-api's own renderer prints it; one that sets none leaves the snapshot without it", async () => {
+    const titled = await startDraft(undefined, "welld_ch", "it", { documentTitle: { it: "OFFERTA" } });
+    expect((await generate(titled)).status).toBe(201);
+    const [row] = await offers(titled.dealId);
+    expect((row!.snapshot as any).documentTitle).toBe("OFFERTA");
+    const doc = await PDFDocument.load(bucket.objects.get(row!.objectKey)!.bytes!);
+    const streams = doc.getPage(0).node.Contents();
+    const drawn = (streams instanceof PDFArray ? streams.asArray().map((ref) => doc.context.lookup(ref)) : [streams])
+      .map((stream) => (stream instanceof PDFRawStream ? Buffer.from(decodePDFRawStream(stream).decode()).toString("latin1") : ""))
+      .join("\n");
+    expect(drawn).toContain(Buffer.from("OFFERTA", "latin1").toString("hex").toUpperCase());
+    expect(drawn).not.toContain(Buffer.from("CONTRATTO", "latin1").toString("hex").toUpperCase());
+
+    const plain = await startDraft();
+    expect((await generate(plain)).status).toBe(201);
+    expect("documentTitle" in ((await offers(plain.dealId))[0]!.snapshot as object)).toBe(false);
   });
 
   it("dates a draft with no printed date on the server's day (DD-16)", async () => {

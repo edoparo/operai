@@ -1006,3 +1006,92 @@ describe("what the content holds (AC-10.4, AC-10.10, G5)", () => {
     }
   });
 });
+
+describe("the document title: the template's own words before the reference, in both converters", () => {
+  const italian = CASES[0]!;
+  const english = CASES.find((entry) => entry.language === "en")!;
+  const titleOf = (content: LetterheadContent) => content.blocks.find((block) => block.type === "paragraph" && block.style === "center");
+  const withTitle = (item: Case, documentTitle: string | null | undefined, reference: string | null = REFERENCE) =>
+    draftToBlocks({ entity: "welld_ch", ast: item.ast, answers: item.answers, context: item.context, annex: item.annex, reference, ...(documentTitle !== undefined ? { documentTitle } : {}) }, PROFILE);
+
+  it("an absent, null or blank title is the language's default, and the content is the one built before the setting existed", () => {
+    for (const item of [italian, english]) {
+      const before = draftOf(item);
+      for (const none of [undefined, null, "", "   "]) expect(withTitle(item, none)).toEqual(before);
+    }
+  });
+
+  it("the template's words replace the fixed ones; the reference and its label are still the document's", () => {
+    expect(titleOf(withTitle(italian, "OFFERTA").content)).toMatchObject({ runs: [{ text: "OFFERTA – Rif. 0017/2026", style: "title" }] });
+    expect(titleOf(withTitle(english, "OFFER").content)).toMatchObject({ runs: [{ text: "OFFER – Ref. 0017/2026", style: "title" }] });
+    // Only the words before the reference move: every other block of the document is the same.
+    const others = (content: LetterheadContent) => content.blocks.filter((block) => block !== titleOf(content));
+    expect(others(withTitle(italian, "OFFERTA").content)).toEqual(others(draftOf(italian).content));
+  });
+
+  it("while the reference is pending the title keeps its placeholder and its italics", () => {
+    expect(titleOf(withTitle(italian, "OFFERTA", null).content)).toMatchObject({ runs: [{ text: "OFFERTA – Rif. NNNN/AAAA", italic: true, style: "title" }] });
+    expect(titleOf(withTitle(english, "OFFER", null).content)).toMatchObject({ runs: [{ text: "OFFER – Ref. NNNN/YYYY", italic: true, style: "title" }] });
+  });
+
+  it("is valid content for the service", () => {
+    expectAccepted(withTitle(italian, "OFFERTA COMMERCIALE").content, "custom title");
+  });
+
+  it("a template with no deal (the editor's try-preview) draws the title as typed", () => {
+    const content = templateToBlocks({ entity: "welld_ch", ast: italian.ast, language: "it", documentTitle: "PROPOSTA" }, PROFILE).content;
+    expect(titleOf(content)).toMatchObject({ runs: [{ text: "PROPOSTA – Rif. NNNN/AAAA" }] });
+    const fixed = templateToBlocks({ entity: "welld_ch", ast: italian.ast, language: "it" }, PROFILE).content;
+    expect(titleOf(fixed)).toMatchObject({ runs: [{ text: "CONTRATTO DI FORNITURA – Rif. NNNN/AAAA" }] });
+  });
+
+  it("an issued offer is drawn from its snapshot: its own title, whatever the template says now", () => {
+    const issued = { ...SNAPSHOT, documentTitle: "OFFERTA" };
+    expect(titleOf(snapshotToBlocks(issued, PROFILE, "welld_ch"))).toMatchObject({ runs: [{ text: expect.stringMatching(/^OFFERTA – Rif\. /) }] });
+    // A snapshot made before the setting (or by a template that set none) has no title member and prints the default, unchanged.
+    expect("documentTitle" in SNAPSHOT).toBe(false);
+    expect(titleOf(snapshotToBlocks(SNAPSHOT, PROFILE, "welld_ch"))).toMatchObject({ runs: [{ text: expect.stringMatching(/^CONTRATTO DI FORNITURA – Rif\. /) }] });
+  });
+});
+
+describe("paragraph alignment: the template's `->text<-` and `->text->` are paragraphs with `style` center and right", () => {
+  const snapshotWith = (opening: string, body = "plain"): ContractSnapshot => ({ ...SNAPSHOT, opening, sections: [{ heading: "Terms", body, costs: false }] });
+  const paragraphsOf = (content: LetterheadContent) => content.blocks.filter((block): block is Extract<ContentBlock, { type: "paragraph" }> => block.type === "paragraph");
+  const find = (content: LetterheadContent, text: string) => paragraphsOf(content).find((block) => block.runs.map((run) => run.text).join("") === text);
+
+  it("maps to the content's paragraph style and nothing else of the paragraph changes", () => {
+    const content = snapshotToBlocks(snapshotWith("->Opening<-", "->Centred body<-\n\n->Right body->\n\nplain"), PROFILE, "welld_ch");
+    expect(find(content, "Opening")).toEqual({ type: "paragraph", runs: [{ text: "Opening" }], style: "center" });
+    expect(find(content, "Centred body")).toEqual({ type: "paragraph", runs: [{ text: "Centred body" }], style: "center" });
+    expect(find(content, "Right body")).toEqual({ type: "paragraph", runs: [{ text: "Right body" }], style: "right" });
+    expect(find(content, "plain")).toEqual({ type: "paragraph", runs: [{ text: "plain" }] });
+    expectAccepted(content, "aligned paragraphs");
+  });
+
+  it("keeps the emphasis inside, the line breaks of a several-line paragraph, and omits `style` on a left paragraph", () => {
+    const content = snapshotToBlocks(snapshotWith("->**Bold** line\nsecond line<-\n\nleft"), PROFILE, "welld_ch");
+    const centred = paragraphsOf(content).find((block) => block.style === "center" && block.runs[0]?.text === "Bold")!;
+    expect(centred.runs).toEqual([{ text: "Bold", bold: true }, { text: " line\nsecond line" }]);
+    expect("style" in find(content, "left")!).toBe(false);
+  });
+
+  it("markers with nothing between them leave no paragraph, not an empty line", () => {
+    const content = snapshotToBlocks(snapshotWith("-><-\n\nkept"), PROFILE, "welld_ch");
+    expect(paragraphsOf(content).some((block) => block.runs.length === 0 && block.style === "center")).toBe(false);
+    expect(find(content, "kept")).toBeDefined();
+  });
+
+  it("a malformed marker is a plain paragraph with the text as written", () => {
+    const content = snapshotToBlocks(snapshotWith("->only opened\n\nonly closed<-"), PROFILE, "welld_ch");
+    expect(find(content, "->only opened")).toEqual({ type: "paragraph", runs: [{ text: "->only opened" }] });
+    expect(find(content, "only closed<-")).toEqual({ type: "paragraph", runs: [{ text: "only closed<-" }] });
+  });
+
+  it("a list item and a table cell keep their text, with no alignment", () => {
+    const content = snapshotToBlocks(snapshotWith("- ->item<-\n\n| h |\n| ->cell<- |"), PROFILE, "welld_ch");
+    const holders = JSON.stringify(content.blocks.filter((block) => block.type === "list" || block.type === "table"));
+    expect(holders).toContain("->item<-");
+    expect(holders).toContain("->cell<-");
+    expect(holders).not.toContain('"center"');
+  });
+});
