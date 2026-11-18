@@ -93,6 +93,8 @@ export interface OfferWizardProps {
   servicePreview?: ServicePreviewSource
   /** The issuer's name in the preview's band and notice when the context's legal name is blank (AC-12.7). */
   issuerLabel?: string
+  /** The words of the document title before the reference when the template sets its own (the browser-drawn preview); absent: the default. */
+  documentTitle?: string | null
   /**
    * The page gives the wizard the whole height of the content scroller (owner D20): at `xl` the form column and the
    * preview pane scroll on their own, so the page, its title, the step tabs and the action bar never scroll away. Off
@@ -132,6 +134,7 @@ export default function OfferWizard({
   letterhead,
   servicePreview,
   issuerLabel,
+  documentTitle,
   fill: fillRequested = false,
   renderStep,
 }: OfferWizardProps) {
@@ -205,6 +208,7 @@ export default function OfferWizard({
         effortAnnex={effortAnnex}
         letterhead={letterhead}
         issuerLabel={issuerLabel}
+        {...(documentTitle !== undefined ? { documentTitle } : {})}
         heading={slot.heading}
         {...(slot.fit !== undefined ? { fit: slot.fit } : {})}
         {...(slot.fill !== undefined ? { fill: slot.fill } : {})}

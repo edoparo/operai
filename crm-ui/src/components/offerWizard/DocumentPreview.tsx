@@ -69,6 +69,8 @@ export interface DocumentPreviewProps {
   letterhead?: Letterhead
   /** The issuer's name in the band and the notice; default the context's legal name (the page passes the entity's label when that is blank, AC-12.7). */
   issuerLabel?: string
+  /** The words of the document title before the reference when the template sets its own; absent or null: the language's default. */
+  documentTitle?: string | null
 }
 
 /** Settled inputs: the preview shows these, and catches up 250 ms after the last change. */
@@ -340,7 +342,11 @@ function Blocks({ blocks, labels, order, scope }: BlocksProps): ReactNode {
         switch (block.type) {
           case 'paragraph':
             return (
-              <FlowText key={index} style={{ marginBottom: sp.paragraphAfterRatio * g.type.body.fontPx }}>
+              <FlowText
+                key={index}
+                {...(block.align ? { className: block.align === 'center' ? 'text-center' : 'text-right' } : {})}
+                style={{ marginBottom: sp.paragraphAfterRatio * g.type.body.fontPx }}
+              >
                 <Runs runs={block.runs} />
               </FlowText>
             )
@@ -685,6 +691,7 @@ export default function DocumentPreview({
   fill = false,
   letterhead,
   issuerLabel,
+  documentTitle = null,
 }: DocumentPreviewProps) {
   const regionRef = useRef<HTMLDivElement>(null)
   const flowRef = useRef<HTMLElement>(null)
@@ -747,7 +754,7 @@ export default function DocumentPreview({
   const pageNumber = pageNumberGeometry(g)
   const flowRail = useMemo(() => quantiseRail(layout?.rail ?? [], RAIL_EPS), [layout])
 
-  const [titleBefore, titleAfter] = w.title(REFERENCE_SPOT).split(REFERENCE_SPOT)
+  const [titleBefore, titleAfter] = w.title(REFERENCE_SPOT, documentTitle).split(REFERENCE_SPOT)
   const { client } = resolved
   const printedDate = client.date === null ? '' : shortDate(client.date)
 

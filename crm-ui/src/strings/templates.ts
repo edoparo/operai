@@ -89,6 +89,14 @@ const en = {
     syntax: 'Syntax reference',
     syntaxClose: 'Close',
     usesLimit: 'Up to 6 uses.',
+    /** The document title's words, one field per language (the offer prints the one of its own language). */
+    documentTitle: {
+      field: (language: string) => `Document title (${language})`,
+      hint: (suffix: string) =>
+        `The words before the reference on page 1; the reference is added for you (“…${suffix}”). Leave empty for the default.`,
+      count: (n: number, max: number) => `${n} / ${max}`,
+      unprintable: 'Use letters, digits and common punctuation only.',
+    },
     problemsSummary: (errors: number, warnings: number) =>
       `${errors} ${errors === 1 ? 'error' : 'errors'}, ${warnings} ${warnings === 1 ? 'warning' : 'warnings'}`,
     optional: 'optional',
@@ -289,6 +297,8 @@ const en = {
       ['1. item  /  a. item', 'Numbered or lettered list'],
       ['### Heading', 'Sub-heading'],
       ['| A | B |', 'Table: one row per line, cells between bars; <br> for a line break'],
+      ['->text<-', 'Centred paragraph'],
+      ['->text->', 'Right-aligned paragraph'],
     ] as [string, string][],
     placeholders: 'Placeholders',
     placeholderRows: [
@@ -319,6 +329,10 @@ const en = {
               'The same for whole paragraphs, lists, tables, cost lines, sections or annexes.',
             ],
             ['\\[  \\*  \\_  \\|', 'A literal character instead of markup.'],
+            [
+              '\\->  \\<-',
+              'A literal “->” or “<-”, not an alignment: before the opening marker, or before the closing one at the end of a line. Without both markers around the whole paragraph the text prints as written.',
+            ],
           ],
         },
         {
@@ -453,6 +467,13 @@ const it: typeof en = {
     syntax: 'Guida alla sintassi',
     syntaxClose: 'Chiudi',
     usesLimit: 'Fino a 6 usi.',
+    documentTitle: {
+      field: (language: string) => `Titolo del documento (${language})`,
+      hint: (suffix: string) =>
+        `Le parole prima del riferimento nella prima pagina; il riferimento è aggiunto da solo («…${suffix}»). Lascia vuoto per il titolo predefinito.`,
+      count: (n: number, max: number) => `${n} / ${max}`,
+      unprintable: 'Usa solo lettere, cifre e punteggiatura comune.',
+    },
     problemsSummary: (errors: number, warnings: number) =>
       `${errors} ${errors === 1 ? 'errore' : 'errori'}, ${warnings} ${warnings === 1 ? 'avviso' : 'avvisi'}`,
     optional: 'facoltativo',
@@ -651,6 +672,8 @@ const it: typeof en = {
       ['1. voce  /  a. voce', 'Elenco numerato o con lettere'],
       ['### Titolo', 'Sottotitolo'],
       ['| A | B |', 'Tabella: una riga per linea, celle tra barre; <br> per andare a capo'],
+      ['->testo<-', 'Paragrafo centrato'],
+      ['->testo->', 'Paragrafo allineato a destra'],
     ],
     placeholders: 'Segnaposto',
     placeholderRows: [
@@ -682,6 +705,10 @@ const it: typeof en = {
               'Lo stesso per interi paragrafi, elenchi, tabelle, righe di costo, sezioni o allegati.',
             ],
             ['\\[  \\*  \\_  \\|', 'Un carattere letterale invece della sintassi.'],
+            [
+              '\\->  \\<-',
+              'Un «->» o «<-» letterale, non un allineamento: prima del segno di apertura, o prima di quello di chiusura a fine riga. Senza i due segni attorno a tutto il paragrafo il testo è stampato così com’è.',
+            ],
           ],
         },
         {

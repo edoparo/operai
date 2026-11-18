@@ -17,10 +17,12 @@ import { ApiError, isStaleWrite } from '../../lib/api'
 import { createWizardTemplate, listOfferTemplatesOf, updateWizardTemplate } from '../../lib/crmApi'
 import { codeOf, errorMessage, fieldErrorOf, isNulRefusal } from '../../lib/errors'
 import { outline as outlineOf, suppliedFields, type OutlineItem } from '../../lib/offerEngine/outline'
+import { printable } from '../../lib/offerEngine/printable'
+import { words } from '../../lib/offerEngine/words'
 import { parseTemplate, type Problem } from '../../lib/offerEngine/syntax'
 import { templateProblemsOf } from '../../lib/offerErrors'
 import type { Entity, OfferLanguage, WizardTemplate, WizardTemplateInput } from '../../lib/types'
-import { first, maxLength, required } from '../../lib/validate'
+import { first, maxLength, optional, required } from '../../lib/validate'
 import { useCrmCapabilities } from '../../hooks/scopeContext'
 import { useResource } from '../../hooks/useResource'
 import { strings } from '../../strings'
@@ -42,8 +44,32 @@ const MAX_NAME = 80
 const MAX_DESCRIPTION = 160
 const MAX_USES = 6
 const MAX_USE = 40
+/** crm-api's `DOCUMENT_TITLE_MAX`: the words of the document title, trimmed. */
+export const MAX_DOCUMENT_TITLE = 60
 
-type FieldErrors = Partial<Record<'name' | 'description' | 'source', string>>
+type FieldErrors = Partial<Record<'name' | 'description' | 'source' | 'titleIt' | 'titleEn', string>>
+
+/** The server's field names of the document title, and the editor's fields they land on. */
+const TITLE_FIELDS = { 'documentTitle.it': 'titleIt', 'documentTitle.en': 'titleEn' } as const
+
+/** The reference the hint spells out, so the author sees what is added after the words. */
+const EXAMPLE_REFERENCE = '0017/2026'
+const titleSuffix = (language: OfferLanguage): string => {
+  const doc = words(language)
+  return doc.title(EXAMPLE_REFERENCE).slice(doc.titleText.length)
+}
+
+/** What a title field says is wrong with its text, or null: too long (counted trimmed), or a character the document cannot print. */
+function titleError(value: string): string | null {
+  const text = value.normalize('NFC').trim()
+  return first(maxLength(text, MAX_DOCUMENT_TITLE), printable(text) === text ? null : w.documentTitle.unprintable)
+}
+
+/** The title as the server takes it: a blank language is `null`. */
+const titleOf = (value: string): string | null => optional(value.normalize('NFC'))
+
+/** What the preview draws: the words of a field that holds a valid title, else the default (`null`). */
+const previewTitle = (value: string): string | null => (titleError(value) === null ? titleOf(value) : null)
 
 const USES_ITEM: Extract<OutlineItem, { type: 'list' }> = {
   type: 'list',
@@ -108,6 +134,8 @@ export default function WizardTemplateEditor({ entity, template, onSaved, onRelo
   const [description, setDescription] = useState(template?.description ?? '')
   const [uses, setUses] = useState<string[]>(template?.uses ?? [])
   const [text, setText] = useState(template?.source ?? '')
+  const [titleIt, setTitleIt] = useState(template?.documentTitle?.it ?? '')
+  const [titleEn, setTitleEn] = useState(template?.documentTitle?.en ?? '')
 
   const [errors, setErrors] = useState<FieldErrors>({})
   const [busy, setBusy] = useState(false)
@@ -178,6 +206,8 @@ export default function WizardTemplateEditor({ entity, template, onSaved, onRelo
   const validate = (): FieldErrors => ({
     name: first(required(name), maxLength(name, MAX_NAME)) ?? undefined,
     description: maxLength(description, MAX_DESCRIPTION) ?? undefined,
+    titleIt: titleError(titleIt) ?? undefined,
+    titleEn: titleError(titleEn) ?? undefined,
   })
 
   const submit = () => {
@@ -204,6 +234,7 @@ export default function WizardTemplateEditor({ entity, template, onSaved, onRelo
       description: description.trim(),
       uses: uses.map((use) => use.trim()).filter((use) => use !== ''),
       source: text,
+      documentTitle: { it: titleOf(titleIt), en: titleOf(titleEn) },
     }
     setBusy(true)
     const request = template
@@ -254,6 +285,13 @@ export default function WizardTemplateEditor({ entity, template, onSaved, onRelo
           return
         }
         const field = fieldErrorOf(failure)
+        const titleField = field ? TITLE_FIELDS[field.field as keyof typeof TITLE_FIELDS] : undefined
+        if (field && titleField) {
+          setErrors({ [titleField]: field.message })
+          setView('edit')
+          requestAnimationFrame(() => focusFirstInvalid(fieldsRef.current))
+          return
+        }
         setError(field ? field.message : errorMessage(failure))
       },
     )
@@ -339,6 +377,41 @@ export default function WizardTemplateEditor({ entity, template, onSaved, onRelo
                           {w.supersede(languageName[language], archivedByThis)}
                         </Banner>
                       ) : null}
+                      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2" data-testid="crm-template-document-title">
+                        {(['it', 'en'] as const).map((option) => {
+                          const value = option === 'it' ? titleIt : titleEn
+                          const set = option === 'it' ? setTitleIt : setTitleEn
+                          const error = option === 'it' ? errors.titleIt : errors.titleEn
+                          return (
+                            <Field
+                              key={option}
+                              label={w.documentTitle.field(languageName[option])}
+                              hint={
+                                <>
+                                  {w.documentTitle.hint(titleSuffix(option))}{' '}
+                                  <span className="font-mono">
+                                    {w.documentTitle.count(value.trim().length, MAX_DOCUMENT_TITLE)}
+                                  </span>
+                                </>
+                              }
+                              error={error}
+                              testId={`crm-template-title-${option}`}
+                            >
+                              {(control) => (
+                                <input
+                                  {...control}
+                                  value={value}
+                                  placeholder={words(option).titleText}
+                                  onChange={(event) => {
+                                    set(event.target.value)
+                                    setErrors((current) => ({ ...current, [option === 'it' ? 'titleIt' : 'titleEn']: undefined }))
+                                  }}
+                                />
+                              )}
+                            </Field>
+                          )
+                        })}
+                      </div>
                       <Field
                         label={w.description}
                         hint={
@@ -406,6 +479,7 @@ export default function WizardTemplateEditor({ entity, template, onSaved, onRelo
               template={template}
               source={text}
               language={language}
+              documentTitle={{ it: previewTitle(titleIt), en: previewTitle(titleEn) }}
               onGoToProblems={() => {
                 focusOnReturn.current = true
                 setView('edit')

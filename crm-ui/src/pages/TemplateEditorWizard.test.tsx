@@ -289,6 +289,7 @@ describe('the wizard editor (AC-8.1)', () => {
       description: 'Sviluppo a prezzo fisso',
       uses: ['Sviluppo', 'Manutenzione'],
       source: SOURCE,
+      documentTitle: { it: null, en: null },
     })
   })
 
@@ -625,6 +626,123 @@ describe('refusals (AC-8.1)', () => {
   })
 })
 
+describe('the document title (one field per language)', () => {
+  const titleIt = () => screen.getByLabelText(w.documentTitle.field(strings.offers.languageName.it)) as HTMLInputElement
+  const titleEn = () => screen.getByLabelText(w.documentTitle.field(strings.offers.languageName.en)) as HTMLInputElement
+  const putOf = (puts: Record<string, unknown>[]) => ({
+    'PUT /offer-templates/w1': (_url: URL, init?: RequestInit) => {
+      puts.push(body(init))
+      return { status: 200, body: { ...WIZARD, ...body(init), version: 4 } }
+    },
+  })
+
+  it('shows a field per language, each with the default words as its placeholder and the hint spelling what is added', async () => {
+    open('/settings/templates/w1')
+    await textArea()
+    expect(titleIt().placeholder).toBe('CONTRATTO DI FORNITURA')
+    expect(titleEn().placeholder).toBe('SUPPLY CONTRACT')
+    expect(titleIt().value).toBe('')
+    expect(titleEn().value).toBe('')
+    expect(screen.getByTestId('crm-template-title-it').textContent).toContain(w.documentTitle.hint(' – Rif. 0017/2026'))
+    expect(screen.getByTestId('crm-template-title-en').textContent).toContain(w.documentTitle.hint(' – Ref. 0017/2026'))
+  })
+
+  it('loads the words the template has, and none for a template that predates them', async () => {
+    open('/settings/templates/w1', {
+      'GET /offer-templates/w1': () => ({ status: 200, body: { ...WIZARD, documentTitle: { it: 'OFFERTA', en: null } } }),
+    })
+    await textArea()
+    expect(titleIt().value).toBe('OFFERTA')
+    expect(titleEn().value).toBe('')
+  })
+
+  it('saves what is typed, trimmed, and a blank language as null; both languages travel in the one body', async () => {
+    const puts: Record<string, unknown>[] = []
+    open('/settings/templates/w1', putOf(puts))
+    await textArea()
+    fireEvent.change(titleIt(), { target: { value: '  OFFERTA  ' } })
+    fireEvent.change(titleEn(), { target: { value: '   ' } })
+    fireEvent.click(save())
+    expect(await screen.findByText(t.editor.saved)).not.toBeNull()
+    expect(puts[0]!['documentTitle']).toEqual({ it: 'OFFERTA', en: null })
+    // clearing a stored one sends null: the default again
+    fireEvent.change(titleIt(), { target: { value: '' } })
+    fireEvent.click(save())
+    await waitFor(() => expect(puts).toHaveLength(2))
+    expect(puts[1]!['documentTitle']).toEqual({ it: null, en: null })
+  })
+
+  it('counts the characters against the limit and refuses more, naming the limit, before it asks the server', async () => {
+    const puts: Record<string, unknown>[] = []
+    open('/settings/templates/w1', putOf(puts))
+    await textArea()
+    fireEvent.change(titleEn(), { target: { value: 'x'.repeat(61) } })
+    expect(screen.getByTestId('crm-template-title-en').textContent).toContain(w.documentTitle.count(61, 60))
+    fireEvent.click(save())
+    expect(await screen.findByText(strings.common.validation.tooLong(60))).not.toBeNull()
+    expect(titleEn().getAttribute('aria-invalid')).toBe('true')
+    await waitFor(() => expect(document.activeElement).toBe(titleEn()))
+    expect(puts).toEqual([])
+    // exactly the limit is fine, and the error goes away with the next keystroke
+    fireEvent.change(titleEn(), { target: { value: 'x'.repeat(60) } })
+    expect(titleEn().getAttribute('aria-invalid')).toBeNull()
+    fireEvent.click(save())
+    await waitFor(() => expect(puts).toHaveLength(1))
+  })
+
+  it('refuses a character the document cannot print, in our words', async () => {
+    const puts: Record<string, unknown>[] = []
+    open('/settings/templates/w1', putOf(puts))
+    await textArea()
+    fireEvent.change(titleIt(), { target: { value: 'OFFERTA 日本' } })
+    fireEvent.click(save())
+    expect(await screen.findByText(w.documentTitle.unprintable)).not.toBeNull()
+    expect(puts).toEqual([])
+  })
+
+  it('puts the server’s refusal of a title on its field, and keeps what was typed', async () => {
+    open('/settings/templates/w1', {
+      'PUT /offer-templates/w1': () =>
+        problemAnswer(422, 'validation_failed', { detail: 'documentTitle.en: Must be one line', field: 'documentTitle.en' }),
+    })
+    await textArea()
+    fireEvent.change(titleEn(), { target: { value: 'OFFER' } })
+    fireEvent.click(save())
+    expect(await screen.findByText('documentTitle.en: Must be one line')).not.toBeNull()
+    expect(titleEn().value).toBe('OFFER')
+    expect(titleEn().getAttribute('aria-invalid')).toBe('true')
+  })
+
+  it('is read-only with the rest of the form for an entity the caller does not manage', async () => {
+    open('/settings/templates/w1', {
+      'GET /offer-templates/w1': () => ({ status: 200, body: { ...WIZARD, entity: 'welld_it', documentTitle: { it: 'OFFERTA', en: null } } }),
+    })
+    await textArea()
+    expect(titleIt().matches(':disabled')).toBe(true)
+    expect(titleIt().value).toBe('OFFERTA')
+  })
+
+  it('a new template starts with both empty and creates with them as null', async () => {
+    let posted: Record<string, unknown> | null = null
+    open('/settings/templates/new/welld_ch', {
+      'POST /offer-templates': (_url, init) => {
+        posted = body(init)
+        return { status: 201, body: { ...WIZARD, id: 'w7', name: 'Brand new', version: 1 } }
+      },
+      'GET /offer-templates/w7': () => ({ status: 200, body: { ...WIZARD, id: 'w7', name: 'Brand new', version: 1 } }),
+    })
+    await textArea()
+    expect(titleIt().value).toBe('')
+    fireEvent.change(screen.getByLabelText(/^Name/), { target: { value: 'Brand new' } })
+    fireEvent.change(titleEn(), { target: { value: 'OFFER' } })
+    await setText(SOURCE)
+    await waitFor(() => expect(save().getAttribute('aria-disabled')).toBeNull())
+    fireEvent.click(save())
+    await waitFor(() => expect(window.location.pathname).toBe('/settings/templates/w7'))
+    expect((posted as unknown as Record<string, unknown>)['documentTitle']).toEqual({ it: null, en: 'OFFER' })
+  })
+})
+
 describe('a new template', () => {
   it('is created in the entity of the path with only the readable fields, then opened', async () => {
     let posted: Record<string, unknown> | null = null
@@ -651,6 +769,7 @@ describe('a new template', () => {
       description: 'Fresh',
       uses: [],
       source: SOURCE,
+      documentTitle: { it: null, en: null },
     })
   })
 

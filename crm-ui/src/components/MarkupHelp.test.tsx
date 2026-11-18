@@ -9,7 +9,7 @@ import { afterEach, describe, expect, it } from 'vitest'
 import { cleanup, render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { Drawer } from '@operai/ui'
-import { WizardMarkupReference } from './MarkupHelp'
+import MarkupHelp, { WizardMarkupReference } from './MarkupHelp'
 import { strings } from '../strings'
 
 afterEach(cleanup)
@@ -30,5 +30,24 @@ describe('WizardMarkupReference in a drawer', () => {
     const reached = document.activeElement
     await user.tab()
     expect([reached, document.activeElement]).toContain(region)
+  })
+})
+
+describe('the alignment syntax in the references', () => {
+  it('the template syntax reference documents ->text<- and ->text-> and how to print the markers literally', () => {
+    render(<WizardMarkupReference />)
+    const region = screen.getByRole('region', { name: strings.templates.markup.wizard.summary })
+    expect(region.textContent).toContain('->text<-')
+    expect(region.textContent).toContain('Centred paragraph')
+    expect(region.textContent).toContain('->text->')
+    expect(region.textContent).toContain('Right-aligned paragraph')
+    expect(region.textContent).toContain('\\->')
+  })
+
+  it('the formatting reference of the other text fields lists them too', () => {
+    render(<MarkupHelp placeholders={false} />)
+    const help = screen.getByTestId('crm-markup-help')
+    expect(help.textContent).toContain('->text<-')
+    expect(help.textContent).toContain('->text->')
   })
 })

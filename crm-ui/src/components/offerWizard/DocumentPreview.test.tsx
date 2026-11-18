@@ -261,6 +261,53 @@ afterEach(() => {
   vi.unstubAllGlobals()
 })
 
+describe('DocumentPreview — the template’s document title and paragraph alignment', () => {
+  const small = (body: string) =>
+    parseTemplate(`@@salutation Dear
+
+${body}
+
+## COSTS
+@@step costs
+@@costs position unit
+@@line a one_off | Work | unit=100 | qty=1
+@@end
+`).ast
+  const draw = (tree: ReturnType<typeof small>, documentTitle?: string | null) => {
+    const context = { ...sampleContext('en'), estimate: null }
+    render(
+      <DocumentPreview
+        ast={tree}
+        answers={initialAnswers(tree, context)}
+        context={context}
+        {...(documentTitle !== undefined ? { documentTitle } : {})}
+      />,
+    )
+  }
+  const article = () => screen.getByRole('region', { name: t.preview.title }).querySelector('article')!
+
+  it('prints the template’s words before the reference, and the fixed ones when it sets none', () => {
+    draw(small('Hello.'), 'OFFER')
+    expect(article().textContent).toContain('OFFER – Ref. ')
+    expect(article().textContent).not.toContain('SUPPLY CONTRACT')
+    cleanup()
+    draw(small('Hello.'))
+    expect(article().textContent).toContain('SUPPLY CONTRACT – Ref. ')
+    cleanup()
+    draw(small('Hello.'), '  ')
+    expect(article().textContent).toContain('SUPPLY CONTRACT – Ref. ')
+  })
+
+  it('centres a `->text<-` paragraph and right-aligns a `->text->` one; a malformed one is plain text', () => {
+    draw(small('->Centred words<-\n\n->Right words->\n\n->Not closed\n\nPlain words'))
+    const paragraph = (text: string) => within(article()).getByText(text).closest('p')!
+    expect(paragraph('Centred words').className).toContain('text-center')
+    expect(paragraph('Right words').className).toContain('text-right')
+    expect(paragraph('->Not closed').className).not.toMatch(/text-(center|right)/)
+    expect(paragraph('Plain words').className).not.toMatch(/text-(center|right)/)
+  })
+})
+
 describe('DocumentPreview — the document (AC-3.2, DD-21, DD-29)', () => {
   it('says exactly what documentText says: numbers, letters, span totals, dashes and document words', () => {
     const answers = complete()

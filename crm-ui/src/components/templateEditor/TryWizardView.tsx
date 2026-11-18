@@ -11,7 +11,7 @@ import {
   type WizardContext,
 } from '../../lib/offerEngine/answers'
 import { parseTemplate, type TemplateAst } from '../../lib/offerEngine/syntax'
-import type { Entity, WizardTemplate } from '../../lib/types'
+import type { DocumentTitle, Entity, WizardTemplate } from '../../lib/types'
 import { strings } from '../../strings'
 import OfferWizard from '../offerWizard/OfferWizard'
 import { useLetterhead, type Letterhead } from '../offerWizard/useLetterhead'
@@ -35,6 +35,8 @@ export interface TryWizardViewProps {
   source: string
   /** The editor's language now, which is the document's. */
   language: OfferLanguage
+  /** The words of the document title as typed (a title the editor refuses is `null`, the default): what the pages are asked with. */
+  documentTitle: DocumentTitle
   /** A text with errors cannot be tried: this takes the author back to the problem list. */
   onGoToProblems: () => void
 }
@@ -43,12 +45,15 @@ export interface TryWizardViewProps {
 function TrySession({
   ast,
   language,
+  documentTitle,
   issuerLabel,
   letterhead,
   servicePreview,
 }: {
   ast: TemplateAst
   language: OfferLanguage
+  /** The words of the title for the browser-drawn preview; null: the default. */
+  documentTitle: string | null
   /** The entity's badge label: the sample supplier is never spoken as the entity's own name. */
   issuerLabel: string
   /** The browser-drawn preview's letterhead (the old path); absent on the service path. */
@@ -85,6 +90,7 @@ function TrySession({
         {...(servicePreview ? { servicePreview } : {})}
         // a sample name is never spoken as the supplier's: the band and notice name the entity by its badge
         issuerLabel={issuerLabel}
+        documentTitle={documentTitle}
       />
       <p className="text-xs text-soft">{w.try.noGenerate}</p>
     </div>
@@ -108,7 +114,14 @@ function TrySession({
  * (a new template sends fixed ones): they do not change a page, and a half-typed name must not make the request invalid.
  * There is no approximate preview and no note about one on this path; the letterhead is then not read at all.
  */
-export default function TryWizardView({ entity, template, source, language, onGoToProblems }: TryWizardViewProps) {
+export default function TryWizardView({
+  entity,
+  template,
+  source,
+  language,
+  documentTitle,
+  onGoToProblems,
+}: TryWizardViewProps) {
   const { letterheadService } = useCrmCapabilities()
   const loadProfiles = useCallback((signal: AbortSignal) => listEntityProfiles({ signal }), [])
   const profiles = useResource(loadProfiles)
@@ -122,7 +135,7 @@ export default function TryWizardView({ entity, template, source, language, onGo
     ? {
         entity,
         // the template and the language decide what is drawn (the text is the session's key); a change of either asks again
-        identity: `${template?.id ?? `unsaved:${entity}`}:${language}`,
+        identity: `${template?.id ?? `unsaved:${entity}`}:${language}:${documentTitle[language] ?? ''}`,
         ask: (answers, signal) => {
           const input = {
             content: {
@@ -131,6 +144,7 @@ export default function TryWizardView({ entity, template, source, language, onGo
               description: template ? (template.description ?? '') : '',
               uses: template?.uses ?? [],
               source,
+              documentTitle,
             },
             answers,
             entity,
@@ -163,6 +177,7 @@ export default function TryWizardView({ entity, template, source, language, onGo
       key={`${language}:${source}`}
       ast={parsed.ast}
       language={language}
+      documentTitle={documentTitle[language]}
       issuerLabel={strings.badges.entity[entity]}
       letterhead={letterheadService ? undefined : letterhead}
       servicePreview={servicePreview}

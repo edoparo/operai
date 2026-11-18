@@ -351,6 +351,11 @@ export type WizardTemplate = {
   description: string | null
   uses: string[]
   source: string
+  /**
+   * The words of the document title before the reference, per language; `null` = the language's default ("CONTRATTO DI FORNITURA" /
+   * "SUPPLY CONTRACT"). Absent from an API that predates it.
+   */
+  documentTitle?: DocumentTitle
   seeded: boolean
   showTotal: boolean
   annex: boolean
@@ -360,6 +365,9 @@ export type WizardTemplate = {
   updatedAt: string
   createdAt: string
 }
+
+/** The words of an offer template's document title, one member per language; `null` = not set. */
+export type DocumentTitle = { it: string | null; en: string | null }
 
 /** A classic template next to wizard ones in a `formats=sections,wizard` list. */
 export type ClassicTemplateRow = OfferTemplate & { format: 'sections' }
@@ -372,6 +380,8 @@ export type WizardTemplateInput = {
   description: string
   uses: string[]
   source: string
+  /** Both languages replace what is stored; a blank one is `null`. Absent: the stored words stay as they are. */
+  documentTitle?: DocumentTitle
 }
 
 /** The estimate's annex A as the context route previews it (`Scope` of crm-api `offers/scope.ts`). */

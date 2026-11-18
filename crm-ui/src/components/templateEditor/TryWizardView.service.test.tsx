@@ -247,6 +247,49 @@ describe('the pages come from the service (AC-10.14)', () => {
   })
 })
 
+describe('the document title as typed', () => {
+  const titleField = (language: 'it' | 'en') =>
+    screen.getByLabelText(w.documentTitle.field(strings.offers.languageName[language])) as HTMLInputElement
+
+  it('asks with the words typed in both languages (a blank one as null), unsaved like the text', async () => {
+    await open()
+    fireEvent.change(titleField('it'), { target: { value: '  OFFERTA ' } })
+    fireEvent.change(titleField('en'), { target: { value: '' } })
+    await goTry()
+    await waitFor(() => expect(tries()).toHaveLength(1))
+    expect(tries()[0]!.content).toMatchObject({ documentTitle: { it: 'OFFERTA', en: null } })
+  })
+
+  it('asks again with the new words when the title changes, and not before', async () => {
+    await open()
+    await goTry()
+    await waitFor(() => expect(tries()).toHaveLength(1))
+    expect(tries()[0]!.content).toMatchObject({ documentTitle: { it: null, en: null } })
+    fireEvent.click(screen.getByRole('tab', { name: w.edit }))
+    fireEvent.change(titleField('it'), { target: { value: 'PROPOSTA' } })
+    await goTry()
+    await waitFor(() => expect(tries().length).toBeGreaterThan(1))
+    expect(tries().at(-1)!.content).toMatchObject({ documentTitle: { it: 'PROPOSTA', en: null } })
+  })
+
+  it('never sends a title the editor refuses: the preview is asked with the default for it', async () => {
+    await open()
+    fireEvent.change(titleField('it'), { target: { value: 'x'.repeat(61) } })
+    await goTry()
+    await waitFor(() => expect(tries()).toHaveLength(1))
+    expect(tries()[0]!.content).toMatchObject({ documentTitle: { it: null, en: null } })
+  })
+
+  it('a new template asks the id-less route with the same members', async () => {
+    await open({ path: '/settings/templates/new/welld_ch' })
+    fireEvent.change(textArea(), { target: { value: SOURCE } })
+    fireEvent.change(titleField('en'), { target: { value: 'OFFER' } })
+    await goTry()
+    await waitFor(() => expect(tryPaths()).toEqual(['/offer-templates/try-preview']))
+    expect(tries()[0]!.content).toMatchObject({ documentTitle: { it: null, en: 'OFFER' } })
+  })
+})
+
 describe('when the preview cannot be made (AC-10.7, AC-10.8)', () => {
   it('keeps the wizard usable: a polite notice with Try again, the pages stay, no dialog', async () => {
     const user = userEvent.setup()
