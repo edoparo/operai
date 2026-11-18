@@ -1,5 +1,12 @@
 # @operai/ui
 
+## 0.5.0
+
+### Minor Changes
+
+- a07f57d: `ConfirmDialog` gets three opt-in props; without them every dialog looks and behaves as before. `scrollBody` caps the dialog at the screen's height and scrolls its body between the title and the footer, so Cancel and Confirm stay in view with a long body on a 320 px phone (`Dialog` takes the same `scrollBody`). `confirmDisabledReason` makes Confirm `aria-disabled` and described by a reason while it cannot be used yet (details still loading or unreadable), keeping it a focus stop while Cancel, Escape and × keep working. `size` sets the dialog's width, and `Dialog` gets a `wide` size (520 px).
+- a07f57d: `Tabs` and `TabNav` take an optional `wrap` prop, so long labels with badges wrap onto more lines instead of scrolling sideways; without it they look as before. `ErrorSummary`, `VersionTable` and `VersionBanner` move into the library from the letterheads app, so other apps can show a list of form errors, a version history and a banner for the version being viewed.
+
 ## 0.4.0
 
 ### Minor Changes

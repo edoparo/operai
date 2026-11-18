@@ -1,5 +1,16 @@
 # @operai/meetings-api
 
+## 0.3.0
+
+### Minor Changes
+
+- 526fdfe: Meetings: attach files (agenda, slides, notes, documents) and links to a meeting. PDF, images and text give the AI context for the transcription, summaries and questions; Office files are kept for people only; links are never opened. Files are deleted 29 days after upload, like the audio, and deleting the recording keeps them.
+- b2b93b1: Meetings: "Suggest with AI" in Edit details proposes a title from the transcript (and the agenda), so a meeting no longer has to stay "Call with <name>". The suggestion fills the title field and is saved only with Save.
+
+### Patch Changes
+
+- 080a1fb: Migration logs on Railway no longer show as errors: `bun run` no longer echoes the command on stderr (`[run] silent = true`) and `db:deploy` sends Prisma's informational stderr to stdout. A failing migration still exits non-zero and fails the deploy.
+
 ## 0.2.1
 
 ### Patch Changes

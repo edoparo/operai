@@ -1,5 +1,15 @@
 # @operai/crm-api
 
+## 0.5.0
+
+### Minor Changes
+
+- 268ef4e: CRM pipeline: filter the board by owner ("Mine" or anyone who owns a deal); the stage counts and totals follow the filter. New `GET /deals/owners` and `ownerId` on `GET /pipeline`.
+
+### Patch Changes
+
+- 080a1fb: Migration logs on Railway no longer show as errors: `bun run` no longer echoes the command on stderr (`[run] silent = true`) and `db:deploy` sends Prisma's informational stderr to stdout. A failing migration still exits non-zero and fails the deploy.
+
 ## 0.4.0
 
 ### Minor Changes

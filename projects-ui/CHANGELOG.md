@@ -1,5 +1,11 @@
 # @operai/projects-ui
 
+## 0.4.0
+
+### Minor Changes
+
+- d9d06a1: Tasks about a deal link straight to the deal: the deal's title in the CRM's Tasks and activity timelines, and a "Deal:" line on a pre-sales task in My tasks.
+
 ## 0.3.1
 
 ### Patch Changes

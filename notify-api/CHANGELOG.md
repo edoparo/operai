@@ -1,5 +1,16 @@
 # @operai/notify-api
 
+## 0.5.0
+
+### Minor Changes
+
+- 56fbbfa: Emails in the Operai look: every template (invitations, refund batch and decisions, notification notices) renders in one frame — the ink header with the Operai wordmark and the sending tool, a light card with a clear heading, an outcome badge where there is one, label/value rows, a proper button, and a footer with the tagline. Dates read dd.mm.yyyy HH:mm UTC. No image, web font or other external request.
+- a07f57d: The system routes `POST /system/notifications` and `POST /system/emails` take an optional `idempotencyKey` (1 to 200 characters of letters, digits and `. _ : -`), counted per calling service. A repeat of a notification answers 200 with the stored one and shows, pushes and mails nothing more; a repeat of an email that was already sent answers 200 with the same `deliveryId` and sends nothing, while an email whose earlier attempts all failed is sent again. Another service using the same key gets its own notification or email. An email template can now be limited to named callers (any other service gets 403 `template_not_allowed` and nothing is written), and a template can allow addressing by `recipientId` instead of an address: notify-api looks the address up in auth, and a person who is no longer active, an unreachable lookup or an unset mail group are reported as skipped or failed with a reason rather than sent. New email template `legal_entity_change`, in English, which only `system:auth` can send and the only one that can be addressed by `recipientId`; it tells the recipient that a legal entity's protected details changed, shows an IBAN by its last 4 characters only and prints the time in Europe/Zurich. The template's data carries `actorEmail`, the account email of the author of the change (at most 320 characters) or null, which is printed escaped in the body only, never in the subject, and no display name is shown; with null the body says there is no email address on record. `actorName` is not accepted: a caller that sends it gets 400. A database migration adds the key columns and indexes (additive, no data is changed). The top-level error log of notify-api carries only the error name and code, never the message or the request data.
+
+### Patch Changes
+
+- 080a1fb: Migration logs on Railway no longer show as errors: `bun run` no longer echoes the command on stderr (`[run] silent = true`) and `db:deploy` sends Prisma's informational stderr to stdout. A failing migration still exits non-zero and fails the deploy.
+
 ## 0.4.1
 
 ### Patch Changes

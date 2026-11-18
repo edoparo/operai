@@ -1,5 +1,24 @@
 # Operai — suite changelog
 
+## operai 0.6.0 — 2026-11-18
+
+- @operai/activities-api → 0.2.2 (patch)
+- @operai/auth → 0.6.0 (minor)
+- @operai/crm-api → 0.5.0 (minor)
+- @operai/crm-ui → 0.5.0 (minor)
+- @operai/estimai-api → 0.3.2 (patch)
+- @operai/inventory-api → 0.3.0 (minor)
+- @operai/inventory-ui → 0.3.0 (minor)
+- @operai/letterheads-ui → 0.2.1 (patch)
+- @operai/meetings-api → 0.3.0 (minor)
+- @operai/meetings-ui → 0.3.0 (minor)
+- @operai/notify-api → 0.5.0 (minor)
+- @operai/projects-api → 0.3.2 (patch)
+- @operai/projects-ui → 0.4.0 (minor)
+- @operai/refund-api → 0.3.2 (patch)
+- @operai/shell → 0.3.1 (patch)
+- @operai/ui → 0.5.0 (minor)
+
 ## operai 0.5.0 — 2026-11-17
 
 - @operai/activities-api → 0.2.1 (patch)

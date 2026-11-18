@@ -1,5 +1,17 @@
 # @operai/auth
 
+## 0.6.0
+
+### Minor Changes
+
+- a07f57d: Auth now holds the legal-entity registry: the name, VAT number, IBAN, address and contact lines of each legal entity, kept as numbered versions. Any signed-in person can read the entities, and a service holding the new `legal-entities:read` scope can read them too, with a limit per service. Saving and restoring an earlier version are checked against the person's grant for that entity and recorded in the audit log in the same step, and a save that changes nothing creates no version. The admin area now shows in `/authz/me` for anyone who can manage at least one entity. Until the details are moved, both entities answer version 0. A script, `mise run legal-entities:import`, copies the CRM's legal details into version 1; it is a dry run unless given `--apply` and prints a report without any of the values.
+
+### Patch Changes
+
+- 512851c: Sign-in rate limiting reads the real client address: Railway's internal hops are trusted proxies, so a caller-written X-Forwarded-For can no longer land in the shared "no IP" bucket, and requests from Operai's own services on the private network get their own bucket instead of a warning.
+- a07f57d: Hardening of the legal-entity registry. A person who has been deleted is refused everywhere in it: reads answer 401, history and version views answer 403, the list of entities they can manage is empty and they cannot save, even if their session is still open. Saving and restoring share a limit per person (10 in 10 minutes by default) that answers 429 `too_many_requests` with `Retry-After`, counted after the grant check; the history is paged (`limit` 1 to 100, default 50, and a `before` cursor, with `nextBefore` in the answer), and any other query parameter answers 422. New route `POST /legal-entities/{entity}/versions/check` shows what a save would change (the changed fields, and whether the legal name, VAT number or IBAN among them) without writing anything, with its own limit (60 in 10 minutes by default) and the same refusals as a save. The import report now shows each entity's IBAN by its last 4 characters (`IBAN …1234`, `IBAN set` for 8 characters or fewer, `IBAN none`) so it can be checked against the bank's letter, and its audit row names who last edited the CRM row (`updatedBy`). The tests that commit real transactions run only against a local database and say so when they skip. The `crm-api` service client is documented with the `letterhead:render` scope.
+- 080a1fb: Migration logs on Railway no longer show as errors: `bun run` no longer echoes the command on stderr (`[run] silent = true`) and `db:deploy` sends Prisma's informational stderr to stdout. A failing migration still exits non-zero and fails the deploy.
+
 ## 0.5.0
 
 ### Minor Changes

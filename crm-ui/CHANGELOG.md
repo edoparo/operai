@@ -1,5 +1,12 @@
 # @operai/crm-ui
 
+## 0.5.0
+
+### Minor Changes
+
+- 268ef4e: CRM pipeline: filter the board by owner ("Mine" or anyone who owns a deal); the stage counts and totals follow the filter. New `GET /deals/owners` and `ownerId` on `GET /pipeline`.
+- d9d06a1: Tasks about a deal link straight to the deal: the deal's title in the CRM's Tasks and activity timelines, and a "Deal:" line on a pre-sales task in My tasks.
+
 ## 0.4.0
 
 ### Minor Changes

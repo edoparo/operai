@@ -1,5 +1,11 @@
 # @operai/shell
 
+## 0.3.1
+
+### Patch Changes
+
+- a07f57d: The shell is released to ship the new `@operai/ui` components (`ErrorSummary`, `VersionTable`, `VersionBanner` and the `wrap` option of `Tabs` and `TabNav`), which the apps reach only through the live shell. Nothing changes in how the shell itself works.
+
 ## 0.3.0
 
 ### Minor Changes

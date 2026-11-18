@@ -1,5 +1,11 @@
 # @operai/projects-api
 
+## 0.3.2
+
+### Patch Changes
+
+- 080a1fb: Migration logs on Railway no longer show as errors: `bun run` no longer echoes the command on stderr (`[run] silent = true`) and `db:deploy` sends Prisma's informational stderr to stdout. A failing migration still exits non-zero and fails the deploy.
+
 ## 0.3.1
 
 ### Patch Changes

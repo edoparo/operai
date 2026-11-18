@@ -1,5 +1,16 @@
 # @operai/inventory-api
 
+## 0.3.0
+
+### Minor Changes
+
+- e64a774: Inventory: an asset can be held by an office (CH - Agno, CH - Lugano, YoRoom - Milano) instead of a person. Assigning to an office is immediate and works for any office whatever the asset's entity; return, lost and dispose clear it like a person. Offices are managed on a new Offices page (add, rename, archive); the asset list filters by office, and the holder column, detail, fiscal-year table, export and history show the office.
+- 58c62d3: Inventory: an employee who has not confirmed or declined an assigned device is reminded by email and in Operai 24 hours after the offer, then every week until they answer. An inventory manager can send a reminder now from the asset (at most one an hour); the asset shows how many reminders went out and when the next one is due, and each one is in its history. Requires `emails.send` for inventory-api's service client in auth's `SERVICE_CLIENTS` before deploying.
+
+### Patch Changes
+
+- 080a1fb: Migration logs on Railway no longer show as errors: `bun run` no longer echoes the command on stderr (`[run] silent = true`) and `db:deploy` sends Prisma's informational stderr to stdout. A failing migration still exits non-zero and fails the deploy.
+
 ## 0.2.1
 
 ### Patch Changes
