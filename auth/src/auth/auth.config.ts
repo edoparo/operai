@@ -1,4 +1,5 @@
 import { betterAuth } from "better-auth";
+import { RAILWAY_INTERNAL_RANGES } from "./clientAddress";
 import { prismaAdapter } from "better-auth/adapters/prisma";
 import { jwt } from "better-auth/plugins";
 import { enforceSignupGate } from "../signup/signupGate";
@@ -357,6 +358,18 @@ export const auth = betterAuth({
   // that originate from the UI (localhost:5173 in dev, Vercel origin in prod)
   // with 403 INVALID_ORIGIN — so sign-out can never terminate the server session.
   trustedOrigins: env.ALLOWED_ORIGINS,
+  // The client address for better-auth's rate limiter and session tracking (see `clientAddress.ts`).
+  // Railway's edge proxy APPENDS the client's address to X-Forwarded-For, so a caller who sends its own header gets a
+  // chain; better-auth's default skips any chain and charges it to one shared bucket, which anyone could fill. With
+  // trusted proxies the chain is walked right to left past Railway's internal hops (CGNAT range, IPv6 ULA) and the
+  // first other address is the client: the one the proxy saw, never one the caller wrote. The same reading as the
+  // `/system` limiters' `callerAddress` (rightmost entry).
+  advanced: {
+    ipAddress: {
+      ipAddressHeaders: ["x-forwarded-for"],
+      trustedProxies: RAILWAY_INTERNAL_RANGES,
+    },
+  },
   // Where better-auth sends a failed OAuth callback.
   //
   // Its default is `${baseURL}/error` — i.e. `/auth/error` — whose handler
