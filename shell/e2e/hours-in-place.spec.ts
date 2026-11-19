@@ -1,7 +1,7 @@
 /**
- * T13 — Record hours in place, from the project, the deal and the task, and the Week view of My hours
- * (specs/20261116-record-hours-in-place: AC-1.1, AC-1.2, AC-2.1, AC-2.2, AC-3.1, AC-3.2, AC-3.3, AC-3.4, AC-3.5, AC-4.1,
- * AC-4.3, AC-4.5, AC-5.1, AC-5.2, AC-5.13, AC-5.14, AC-5.16–AC-5.20, AC-5.28, AC-5.32).
+ * T13, T24 — Record hours in place, from the project, the deal and the task, and the table view of My hours: a week or a
+ * month (specs/20261116-record-hours-in-place: AC-1.1, AC-1.2, AC-2.1, AC-2.2, AC-3.1, AC-3.2, AC-3.3, AC-3.4, AC-3.5, AC-4.1,
+ * AC-4.3, AC-4.5, AC-5.1, AC-5.2, AC-5.5, AC-5.13, AC-5.14, AC-5.16–AC-5.20, AC-5.25–AC-5.34).
  *
  * Nothing is stubbed: the project and deal pages are projects-ui and crm-ui, the button is hours-ui's `./RecordHours`
  * loaded through the shell's `hours.recordHours` extension, the entry is written by hours-api, which asks projects-api,
@@ -10,18 +10,36 @@
  * hours-owners.spec.ts does (helpers/hoursOwnersFixtures.ts, helpers/activitiesFixtures.ts).
  *
  *  A. A team member records 2 h 30 with a work type and a note from the project page; the message and its link open
- *     My hours, which lists the entry with the same values; a salesperson who can read the project sees no button
- *     (AC-1.1, 1.2, 4.1, 4.3), and nothing else on the page is read again (AC-4.3).
+ *     My hours, on the table view's current week, which shows the entry in today's cell; the List lists it with the
+ *     same values; a salesperson who can read the project sees no button (AC-1.1, 1.2, 4.1, 4.3, 5.1), and nothing else
+ *     on the page is read again (AC-4.3).
  *  B. The deal's owner records from the header; a person who is on the deal only through one of its tasks sees none
  *     there and one on their task's row, whose entry points at the task (AC-2.1, 2.2, 3.1, 3.3).
  *  C. A project task's assignee records from the Tasks card row; the entry points at the task (AC-3.1, 3.2).
- *  D. A CRM company task with no deal records other work with a category, and the entry carries no task (AC-3.4, 3.5).
+ *  D. A CRM company task with no deal records other work with a category and no task (AC-3.4, 3.5).
  *  E. With hours-ui's `remoteEntry.js` aborted, the project page, the deal page and My tasks load and show the My
  *     hours link (AC-4.5, the remote-failure.spec.ts pattern).
- *  F. The table view, week: entries on two projects over three days with the right cells and totals, an empty cell
- *     does nothing, Add hours in a cell's list records, a cell's Edit changes an entry, Delete asks first, and the
- *     figures follow without a reload (AC-5.1, 5.2, 5.13, 5.14, 5.16–5.20, 5.28, 5.32; reversed default and the address:
- *     T19; the empty cell withdrawn and Next unavailable on the current week: T20. T24 rewrites F).
+ *  F. The table view, week (rewritten by T24). `/hours` opens on it, the List and back through the switch, Next
+ *     unavailable on the current week and keeping the keyboard once it is reached from the week before; last week: the
+ *     cells, rows, order and totals; an empty cell does nothing; Add hours in a cell's list records with day and row set
+ *     and changeable, Edit changes, Delete asks first, a cell that empties is blank and the keyboard goes to the card's
+ *     heading; Record hours in the header on something new to the week adds its row; the figures follow without a reload
+ *     (AC-5.1, 5.2, 5.5, 5.13, 5.14, 5.16–5.20, 5.28, 5.32).
+ *  G. (new, T24; its own describe and people.) One person with entries on two projects in last month and one today:
+ *       G.1 the addresses, `?view=list`, `?view=week&week=<a past day>`, `?view=month&month=<last month>`, and the weeks and
+ *           months after the current one, which open the current one (AC-5.2, 5.29);
+ *       G.2 the current week → Month → Previous → Week, and past weeks → Month → Week, every expected period computed here
+ *           with the rules of the spec (R21): the day columns, the cells, the totals, Next unavailable on the current
+ *           month and keeping the keyboard, an empty cell inert (AC-5.25–5.28, 5.32); the month's first grid time is
+ *           logged (R13);
+ *       G.3 the date field in each period: `max` is today, a day after today is refused, a day of last month picked or
+ *           typed key by key under a slow read lands on its period (AC-5.30, 5.31, R16);
+ *       G.4 as an admin at 1440 px (and again at 1920 px, where the frame is wider than the default column, so a page that
+ *           kept the cap would show), the tool container and each page's root have one width, the frame's, over the List,
+ *           the week, the month, Everyone's hours and Settings (AC-5.33);
+ *       G.5 at 1280 px the month scrolls inside its region and the page does not; a focused cell is never hidden under
+ *           a pinned column (AC-5.34, R-D3);
+ *       G.6 R13: a past month of 300 own entries, its first grid time logged (not asserted) and its figures checked.
  *
  * Needs the stack up (`mise run dev`) with the specs/20261112-time-tracking and specs/20261110-activities wiring (see the
  * headers of hours-owners.spec.ts and activities-crm.spec.ts). Against the dev stack Playwright reuses the servers when
@@ -34,17 +52,19 @@
  * The people are per-run (`hip-*@operai.test`, an admin included) and every entry they record is deleted afterwards;
  * companies, deals, projects and tasks cannot be deleted from here (their owners keep them, like the other specs).
  */
-import { expect, test, type Locator, type Page } from '@playwright/test'
+import { expect, test, type Browser, type BrowserContext, type Locator, type Page } from '@playwright/test'
 import {
   cleanupPeople,
   createEntryViaApi,
   deleteOwnEntriesQuietly,
   hoursAdmin,
+  hoursCall,
   newRunId,
   ownEntriesViaApi,
   personContext,
   pickCategories,
   seedHoursPerson,
+  signInContext,
   timeListsViaApi,
   todayZurich,
   type CategoryRow,
@@ -309,8 +329,13 @@ test.describe('specs/20261116-record-hours-in-place T13: record hours in place, 
     expect(await page.evaluate(() => (window as unknown as { __hipSameDocument?: boolean }).__hipSameDocument)).toBe(
       true,
     )
-    // My hours opens on the table view (AC-5.1 reversed 2026-11-19): the current week shows the entry's 2 h 30 in today's
-    // cell, on the project's row …
+    // My hours opens on the table view (AC-5.1 reversed 2026-11-19): the Table tab is the selected one, the List is not
+    // drawn, and the current week shows the entry's 2 h 30 in today's cell, on the project's row …
+    await expect(page.getByTestId('hours-view-switch').getByRole('tab', { name: 'Table' })).toHaveAttribute(
+      'aria-selected',
+      'true',
+    )
+    await expect(page.getByTestId('hours-entries')).toHaveCount(0)
     await expect(page.getByTestId('hours-table-heading')).toHaveText(weekLabel(currentMonday), { timeout: 30_000 })
     await expect(page.locator(`[data-cell="project:${project.id}:${today}"]`)).toHaveText('2 h 30', {
       timeout: 30_000,
@@ -576,7 +601,7 @@ test.describe('specs/20261116-record-hours-in-place T13: record hours in place, 
 
   // ─── F ────────────────────────────────────────────────────────────────────
 
-  test('F: the Week shows two projects over three days; an empty cell does nothing, Add hours in a cell records, Edit changes, Delete asks first, and the figures follow without a reload (AC-5.1, 5.2, 5.13, 5.14, 5.16–5.20, 5.28, 5.32)', async ({
+  test('F: the table view, week: the List and back, Next unavailable, two projects over three days; an empty cell does nothing, Add hours in a cell records, Edit changes, Delete asks first, and the figures follow without a reload (AC-5.1, 5.2, 5.5, 5.13, 5.14, 5.16–5.20, 5.28, 5.32)', async ({
     browser,
   }) => {
     // Three projects, the person on each team; named so that alpha, beta, gamma sort in that order.
@@ -629,6 +654,7 @@ test.describe('specs/20261116-record-hours-in-place T13: record hours in place, 
     await expect(page.getByTestId('hours-my-page')).toBeVisible({ timeout: 30_000 })
     const switcher = page.getByTestId('hours-view-switch')
     await expect(switcher.getByRole('tab', { name: 'Table' })).toHaveAttribute('aria-selected', 'true')
+    await expect(switcher.getByRole('tab', { name: 'List' })).toHaveAttribute('aria-selected', 'false')
     await expect(page.getByTestId('hours-table-heading')).toHaveText(weekLabel(currentMonday), { timeout: 30_000 })
     await expect(page.getByTestId('hours-entries')).toHaveCount(0)
 
@@ -637,8 +663,15 @@ test.describe('specs/20261116-record-hours-in-place T13: record hours in place, 
     await expect(page.getByTestId('hours-table')).toBeVisible({ timeout: 30_000 })
     await expect(page.getByTestId('hours-table-heading')).toHaveText(weekLabel(currentMonday))
     await expect(page.getByTestId('hours-period-current')).toHaveAttribute('aria-disabled', 'true')
-    // AC-5.28: the future is not browsed, so Next is unavailable on the current week (T20).
-    await expect(page.getByTestId('hours-period-next')).toHaveAttribute('aria-disabled', 'true')
+    // AC-5.28: the future is not browsed, so Next is unavailable on the current week, and pressing it does nothing (a
+    // forced click: Playwright will not click what is `aria-disabled`, and the point is what the page does when it is).
+    const next = page.getByTestId('hours-period-next')
+    await expect(next).toHaveAttribute('aria-disabled', 'true')
+    const urlOnTheCurrentWeek = page.url()
+    await next.click({ force: true })
+    await page.waitForTimeout(400)
+    expect(page.url()).toBe(urlOnTheCurrentWeek)
+    await expect(page.getByTestId('hours-table-heading')).toHaveText(weekLabel(currentMonday))
     // Seven days, Monday to Sunday (AC-5.3), today marked.
     await expect(page.getByTestId('hours-table-table').locator('thead th')).toHaveCount(9)
     await expect(page.getByTestId('hours-table-table').locator('thead')).toContainText('Today')
@@ -649,21 +682,36 @@ test.describe('specs/20261116-record-hours-in-place T13: record hours in place, 
     }
     await expect(cell(alphaKey, today)).toHaveText('30 min')
 
-    // The List has its own address and the switch agrees: `?view=list` opens it, and the Table tab takes `view` out again.
-    await page.goto('/hours?view=list')
-    await expect(page.getByTestId('hours-my-page')).toBeVisible({ timeout: 30_000 })
+    // The List through the switch and back (AC-5.1, 5.2): the List has its own address (`view=list`), the table is not
+    // drawn under it, and the Table tab takes `view` out again and returns to this week.
+    await switcher.getByRole('tab', { name: 'List' }).click()
+    await expect(page).toHaveURL(/view=list/)
     await expect(switcher.getByRole('tab', { name: 'List' })).toHaveAttribute('aria-selected', 'true')
+    await expect(page.getByTestId('hours-entries')).toBeVisible({ timeout: 30_000 })
     await expect(page.getByTestId('hours-table')).toHaveCount(0)
     await switcher.getByRole('tab', { name: 'Table' }).click()
     await expect(page).not.toHaveURL(/view=/)
     await expect(page.getByTestId('hours-table-heading')).toHaveText(weekLabel(currentMonday), { timeout: 30_000 })
 
-    // Last week: the figures. Rows in order (projects by name, then other work), a total row last.
+    // AC-5.5, AC-5.28 (R18): Previous goes to last week and Next comes back to this one, which makes Next unavailable under
+    // the very press that reached it: the keyboard stays on it (a real browser drops the focus of a control that becomes
+    // `disabled`, which jsdom does not show; `aria-disabled` keeps it). Then Previous again, for the figures.
     await page.getByTestId('hours-period-previous').click()
     await expect(page).toHaveURL(new RegExp(`week=${lastMonday}`))
     await expect(page.getByTestId('hours-table-heading')).toHaveText(weekLabel(lastMonday), { timeout: 30_000 })
+    await expect(page.getByTestId('hours-period-previous')).toBeFocused()
+    await expect(next).not.toHaveAttribute('aria-disabled', 'true')
+    await next.click()
+    await expect(page.getByTestId('hours-table-heading')).toHaveText(weekLabel(currentMonday), { timeout: 30_000 })
+    await expect(next).toHaveAttribute('aria-disabled', 'true')
+    await expect(next).toBeFocused()
+    await page.getByTestId('hours-period-previous').click()
+    await expect(page).toHaveURL(new RegExp(`week=${lastMonday}`))
+
+    // Last week: the figures. Rows in order (projects by name, then other work), a total row last.
+    await expect(page.getByTestId('hours-table-heading')).toHaveText(weekLabel(lastMonday), { timeout: 30_000 })
     await expect(page.getByTestId('hours-period-current')).not.toHaveAttribute('aria-disabled', 'true')
-    await expect(page.getByTestId('hours-period-next')).not.toHaveAttribute('aria-disabled', 'true')
+    await expect(next).not.toHaveAttribute('aria-disabled', 'true')
     await expect(cell(alphaKey, mon)).toHaveText('3 h', { timeout: 30_000 })
     await expect(cell(alphaKey, wed)).toHaveText('3 h')
     await expect(cell(betaKey, tue)).toHaveText('1 h 30')
@@ -815,5 +863,790 @@ test.describe('specs/20261116-record-hours-in-place T13: record hours in place, 
     // Out-of-band: the person's own hours of last week are exactly what the grid said.
     const mine = await ownEntriesViaApi(weeker, lastMonday, addDays(lastMonday, 6))
     expect(mine.reduce((sum, entry) => sum + entry.minutes, 0)).toBe(690)
+  })
+})
+
+// ═══ G (T24): the table view's addresses, the month, the date field and the widths ═══════════════════════════════════════
+//
+// A describe of its own, with its own run id and people: the first describe's `afterAll` removes every person of ITS run.
+
+// ─── The spec's rules for a period, written here again (R21): hours-ui is not imported ───────────────────────────────
+
+type Period = { kind: 'week'; monday: string } | { kind: 'month'; month: string }
+const weekOf = (monday: string): Period => ({ kind: 'week', monday })
+const monthPeriod = (month: string): Period => ({ kind: 'month', month })
+
+const WEEKDAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday']
+const MONTH_NAMES = [
+  'January',
+  'February',
+  'March',
+  'April',
+  'May',
+  'June',
+  'July',
+  'August',
+  'September',
+  'October',
+  'November',
+  'December',
+]
+
+/** `YYYY-MM` of a day. */
+const monthKey = (day: string): string => day.slice(0, 7)
+/** The month `by` months from `month`, by the calendar (January − 1 is the December before). */
+const shiftMonth = (month: string, by: number): string => {
+  const [year, number] = month.split('-').map(Number) as [number, number]
+  const index = year * 12 + (number - 1) + by
+  return `${Math.floor(index / 12)}-${String((index % 12) + 1).padStart(2, '0')}`
+}
+const lengthOfMonth = (month: string): number => {
+  const [year, number] = month.split('-').map(Number) as [number, number]
+  return new Date(Date.UTC(year, number, 0)).getUTCDate()
+}
+const daysOfMonth = (month: string): string[] =>
+  Array.from({ length: lengthOfMonth(month) }, (_, index) => `${month}-${String(index + 1).padStart(2, '0')}`)
+const daysOfWeek = (monday: string): string[] => Array.from({ length: 7 }, (_, index) => addDays(monday, index))
+const daysOfPeriod = (period: Period): string[] =>
+  period.kind === 'week' ? daysOfWeek(period.monday) : daysOfMonth(period.month)
+/** The place of a day in its own week, Monday 0: from the date, never from a column. */
+const weekdayIndex = (day: string): number => (dayOf(day).getUTCDay() + 6) % 7
+/** The card's heading for a period: "Week 16.11.2026 – 22.11.2026", "November 2026". */
+const periodHeading = (period: Period): string =>
+  period.kind === 'week'
+    ? weekLabel(period.monday)
+    : `${MONTH_NAMES[Number(period.month.slice(5)) - 1]} ${period.month.slice(0, 4)}`
+/** "Thursday 1 October 2026": what a cell button and a month's column header call a day. */
+const longDate = (day: string): string =>
+  `${WEEKDAYS[weekdayIndex(day)]} ${Number(day.slice(8))} ${MONTH_NAMES[Number(day.slice(5, 7)) - 1]} ${day.slice(0, 4)}`
+
+/**
+ * AC-5.26 (D25): Month from a week shows the month holding today when the week is the current one, else the month holding
+ * the week's Monday. A current week that straddles two months (Mon 30 Nov – Sun 6 Dec, today 2 December) shows December.
+ */
+const monthForWeek = (monday: string): string => monthKey(monday === currentMonday ? today : monday)
+
+/**
+ * AC-5.27 (D26): Week from a month shows the week the month was reached from (`left`: the address's week, the current one
+ * when it names none) when any of its seven days is in the month; else the current week when any of its days is in the
+ * month; else the first week whose Monday is in the month (November 2026, which begins on a Sunday: Monday 2 November).
+ */
+const weekForMonth = (month: string, left: string): string => {
+  const holds = (monday: string): boolean => daysOfWeek(monday).some((day) => monthKey(day) === month)
+  if (holds(left)) return left
+  if (holds(currentMonday)) return currentMonday
+  const first = `${month}-01`
+  return addDays(first, (7 - weekdayIndex(first)) % 7)
+}
+
+/** The screen's short duration for a number of minutes ("2 h", "1 h 30", "30 min"). */
+const shortDuration = (minutes: number): string => {
+  const hours = Math.floor(minutes / 60)
+  const rest = minutes % 60
+  return hours === 0 ? `${rest} min` : rest === 0 ? `${hours} h` : `${hours} h ${rest}`
+}
+
+// ─── What a grid must say, folded from what the journey recorded ─────────────────────────────────────────────────────
+
+/** One entry a journey recorded: its row (`project:<id>`, `category:<id>`), its day and its minutes. */
+interface Seeded {
+  row: string
+  day: string
+  minutes: number
+}
+
+/** What the grid says, by the figures it holds (a cell is `<row>:<day>=<figure>`), as `snapshotOf` reads it from the page. */
+interface GridSnapshot {
+  /** Column headers: the row label, one per day and Total. */
+  columns: number
+  cells: string[]
+  rowTotals: string[]
+  /** One per day, "—" for none, then the period's total in `total`. */
+  dayTotals: string[]
+  total: string
+}
+
+/** The grid the person's entries make over `days` (AC-5.6, 5.9, 5.10 by hand), or `null` when none falls on them: the empty period. */
+function expectedSnapshot(seeded: readonly Seeded[], days: readonly string[]): GridSnapshot | null {
+  const inside = seeded.filter((entry) => days.includes(entry.day))
+  if (inside.length === 0) return null
+  const sums = (key: (entry: Seeded) => string): Map<string, number> => {
+    const map = new Map<string, number>()
+    for (const entry of inside) map.set(key(entry), (map.get(key(entry)) ?? 0) + entry.minutes)
+    return map
+  }
+  const byCell = sums((entry) => `${entry.row}:${entry.day}`)
+  const byRow = sums((entry) => entry.row)
+  const byDay = sums((entry) => entry.day)
+  return {
+    columns: days.length + 2,
+    cells: [...byCell].map(([key, minutes]) => `${key}=${shortDuration(minutes)}`).sort(),
+    rowTotals: [...byRow].map(([key, minutes]) => `${key}=${shortDuration(minutes)}`).sort(),
+    dayTotals: days.map((day) => (byDay.has(day) ? shortDuration(byDay.get(day)!) : '—')),
+    total: shortDuration(inside.reduce((sum, entry) => sum + entry.minutes, 0)),
+  }
+}
+
+/** The grid as the page draws it, or `null` while there is none (loading, empty, error). */
+async function snapshotOf(page: Page): Promise<GridSnapshot | null> {
+  const table = page.getByTestId('hours-table-table')
+  try {
+    if ((await table.count()) === 0) return null
+    return await table.evaluate((element) => {
+      const text = (node: Element | null | undefined): string => (node?.textContent ?? '').replace(/\s+/g, ' ').trim()
+      const total = element.querySelector('tbody tr[data-testid="hours-table-row-total"]')
+      const dataRows = [...element.querySelectorAll('tbody tr')].filter((row) => row !== total)
+      const lastTd = (row: Element): Element | undefined => [...row.querySelectorAll('td')].at(-1)
+      const totalCells = [...(total?.querySelectorAll('td') ?? [])].map((node) => text(node))
+      return {
+        columns: element.querySelectorAll('thead th').length,
+        cells: [...element.querySelectorAll('[data-cell]')]
+          .map((node) => `${(node as HTMLElement).dataset['cell']}=${text(node)}`)
+          .sort(),
+        rowTotals: dataRows
+          .map((row) => `${row.getAttribute('data-testid')!.replace('hours-table-row-', '')}=${text(lastTd(row))}`)
+          .sort(),
+        dayTotals: totalCells.slice(0, -1),
+        total: totalCells.at(-1) ?? '',
+      }
+    })
+  } catch {
+    return null // the table went away between the count and the read: a read in progress
+  }
+}
+
+/**
+ * The card shows `period`: its heading, and either its grid with every figure the journey's entries make (one comparison of
+ * the whole snapshot: columns, cells, row totals, day totals, grand total) or, when none falls in it, the empty state. A
+ * grid that is shown must carry no error banner.
+ */
+async function expectPeriodShown(page: Page, period: Period, seeded: readonly Seeded[]): Promise<void> {
+  await expect(page.getByTestId('hours-table-heading')).toHaveText(periodHeading(period), { timeout: 30_000 })
+  const expected = expectedSnapshot(seeded, daysOfPeriod(period))
+  if (expected === null) {
+    await expect(page.getByTestId('hours-table-empty')).toBeVisible({ timeout: 30_000 })
+    await expect(page.getByTestId('hours-table-table')).toHaveCount(0)
+  } else {
+    await expect
+      .poll(() => snapshotOf(page), { timeout: 30_000, message: `the grid of ${periodHeading(period)}` })
+      .toEqual(expected)
+  }
+  await expect(page.getByTestId('hours-table-error')).toHaveCount(0)
+}
+
+/** Widths in px of the tool's own frame and a page's root: what AC-5.33 says must not change. */
+interface Widths {
+  shell: number
+  main: number
+  root: number
+}
+async function widthsOf(page: Page, rootTestId: string): Promise<Widths> {
+  return page.evaluate((root) => {
+    const width = (node: Element | null): number => (node ? node.getBoundingClientRect().width : Number.NaN)
+    const shell = document.querySelector('[data-testid="hours-shell"]')
+    return {
+      shell: width(shell),
+      main: width(shell?.querySelector('.tool-main') ?? null),
+      root: width(document.querySelector(`[data-testid="${root}"]`)),
+    }
+  }, rootTestId)
+}
+
+/** The box of a locator, or a failure that says which one had none (a hidden or detached element). */
+async function boxOf(locator: Locator): Promise<{ x: number; y: number; width: number; height: number }> {
+  const box = await locator.boundingBox()
+  if (box === null) throw new Error(`no box for ${String(locator)}`)
+  return box
+}
+
+/** A context signed in as `session`, in en-GB (the date field reads dd/mm/yyyy whatever the machine's own locale is). */
+async function gContext(
+  browser: Browser,
+  session: SeededSession,
+  viewport?: { width: number; height: number },
+): Promise<BrowserContext> {
+  const context = await browser.newContext({ locale: 'en-GB', ...(viewport ? { viewport } : {}) })
+  await signInContext(context, session)
+  return context
+}
+
+/** Everything `session` recorded since `from`, deleted in parallel batches (a person deletes their OWN entries only). */
+async function deleteAllQuietly(session: SeededSession, from: string): Promise<void> {
+  try {
+    const entries = await ownEntriesViaApi(session, from, todayZurich())
+    for (let start = 0; start < entries.length; start += 10) {
+      await Promise.all(
+        entries
+          .slice(start, start + 10)
+          .map((entry) => hoursCall(session, 'DELETE', `/time-entries/${encodeURIComponent(entry.id)}`)),
+      )
+    }
+  } catch {
+    // cleanup must never fail a run
+  }
+}
+
+const gRunId = newRunId()
+/** This month, and last month: the one the journey's entries are in. */
+const thisMonth = monthKey(today)
+const lastMonth = shiftMonth(thisMonth, -1)
+/** A day in the middle of last month, its first and its last day. */
+const midLastMonth = `${lastMonth}-15`
+const firstOfLastMonth = `${lastMonth}-01`
+const lastOfLastMonth = `${lastMonth}-${String(lengthOfMonth(lastMonth)).padStart(2, '0')}`
+const tomorrow = addDays(today, 1)
+
+test.describe('specs/20261116-record-hours-in-place T24: the table view — addresses, week and month, the date field, widths', () => {
+  test.describe.configure({ mode: 'serial' })
+  test.setTimeout(180_000)
+
+  let gAdmin: SeededSession
+  let gper: HoursPerson // the person with entries on two projects in last month and one today
+  let heavy: HoursPerson // R13: 300 entries in last month
+  let training: CategoryRow
+  let administration: CategoryRow
+  let alpha: ProjectRow
+  let beta: ProjectRow
+  /** Everything `gper` recorded, as the grid must say it. */
+  let gSeeded: Seeded[]
+
+  const alphaKey = (): string => `project:${alpha.id}`
+  const betaKey = (): string => `project:${beta.id}`
+  const cell = (page: Page, key: string, day: string): Locator => page.locator(`[data-cell="${key}:${day}"]`)
+
+  test.beforeAll(async () => {
+    gAdmin = await hoursAdmin(gRunId, PREFIX)
+    gper = await seedHoursPerson('gper', SALES, gRunId, PREFIX)
+    heavy = await seedHoursPerson('heavy', SALES, gRunId, PREFIX)
+    ;[training, administration] = await pickCategories(gAdmin)
+    const team = [gper.userId, heavy.userId]
+    alpha = await setTeamViaApi(gAdmin, await createProjectViaApi(gAdmin, `Hip G alpha ${gRunId}`), team)
+    beta = await setTeamViaApi(gAdmin, await createProjectViaApi(gAdmin, `Hip G beta ${gRunId}`), team)
+
+    // Two projects on a day of last month (the 15th), the first and the last day of last month on alpha (both ends of the
+    // month's columns), and one today.
+    gSeeded = [
+      { row: alphaKey(), day: midLastMonth, minutes: 120 },
+      { row: betaKey(), day: midLastMonth, minutes: 90 },
+      { row: alphaKey(), day: firstOfLastMonth, minutes: 60 },
+      { row: alphaKey(), day: lastOfLastMonth, minutes: 30 },
+      { row: alphaKey(), day: today, minutes: 60 },
+    ]
+    for (const entry of gSeeded) {
+      await createEntryViaApi(gper, {
+        day: entry.day,
+        minutes: entry.minutes,
+        on: { type: 'project', id: entry.row.slice('project:'.length) },
+      })
+    }
+    // The admin's own hours, so that the pages measured at AC-5.33 hold a grid: one hour of Training today.
+    await createEntryViaApi(gAdmin, { day: today, minutes: 60, on: { type: 'none', categoryId: training.id } })
+  })
+
+  test.afterAll(async () => {
+    for (const person of [gper, heavy, gAdmin]) if (person) await deleteAllQuietly(person, firstOfLastMonth)
+    await cleanupPeople(gRunId)
+  })
+
+  // ─── G.1 ──────────────────────────────────────────────────────────────────
+
+  test('G.1: the addresses open the view and the period they name; a week or a month after the current one opens the current one (AC-5.2, 5.29)', async ({
+    browser,
+  }) => {
+    const ctx = await gContext(browser, gper)
+    const page = await ctx.newPage()
+    const switcher = page.getByTestId('hours-view-switch')
+    const next = page.getByTestId('hours-period-next')
+
+    // The List has an address of its own.
+    await page.goto('/hours?view=list')
+    await expect(page.getByTestId('hours-my-page')).toBeVisible({ timeout: 30_000 })
+    await expect(switcher.getByRole('tab', { name: 'List' })).toHaveAttribute('aria-selected', 'true')
+    await expect(page.getByTestId('hours-entries')).toBeVisible({ timeout: 30_000 })
+    await expect(page.getByTestId('hours-table')).toHaveCount(0)
+
+    // A week by a day in it (the first contract's `?view=week&week=`, any day of the week): the week holding it, whose
+    // Monday is not the day named, with the two entries of that day in their cells.
+    const pastWeek = addDays(midLastMonth, -weekdayIndex(midLastMonth))
+    await page.goto(`/hours?view=week&week=${midLastMonth}`)
+    await expect(switcher.getByRole('tab', { name: 'Table' })).toHaveAttribute('aria-selected', 'true')
+    await expect(page.getByTestId('hours-period-switch-week')).toBeChecked()
+    await expectPeriodShown(page, weekOf(pastWeek), gSeeded)
+    await expect(cell(page, alphaKey(), midLastMonth)).toHaveText('2 h')
+    await expect(cell(page, betaKey(), midLastMonth)).toHaveText('1 h 30')
+    // A past week offers its way back to the present.
+    await expect(next).not.toHaveAttribute('aria-disabled', 'true')
+    await expect(page.getByTestId('hours-period-current')).not.toHaveAttribute('aria-disabled', 'true')
+
+    // A month by its key: seven or more weeks of columns, the same two entries, and the other entries of that month.
+    await page.goto(`/hours?view=month&month=${lastMonth}`)
+    await expect(page.getByTestId('hours-period-switch-month')).toBeChecked()
+    await expectPeriodShown(page, monthPeriod(lastMonth), gSeeded)
+    await expect(cell(page, alphaKey(), midLastMonth)).toHaveText('2 h')
+    await expect(cell(page, betaKey(), midLastMonth)).toHaveText('1 h 30')
+
+    // AC-5.29: an address naming a week or a month after the current one opens the current one, Next unavailable.
+    const nextMonday = addDays(currentMonday, 7)
+    for (const address of [
+      `/hours?week=${nextMonday}`,
+      `/hours?week=${addDays(nextMonday, 3)}`,
+      '/hours?week=2999-12-31',
+    ]) {
+      await page.goto(address)
+      await expectPeriodShown(page, weekOf(currentMonday), gSeeded)
+      await expect(next).toHaveAttribute('aria-disabled', 'true')
+      await expect(page.getByTestId('hours-period-current')).toHaveAttribute('aria-disabled', 'true')
+    }
+    for (const address of [`/hours?view=month&month=${shiftMonth(thisMonth, 1)}`, '/hours?view=month&month=2999-01']) {
+      await page.goto(address)
+      await expect(page.getByTestId('hours-period-switch-month')).toBeChecked()
+      await expectPeriodShown(page, monthPeriod(thisMonth), gSeeded)
+      await expect(next).toHaveAttribute('aria-disabled', 'true')
+      await expect(page.getByTestId('hours-period-current')).toHaveAttribute('aria-disabled', 'true')
+    }
+    await ctx.close()
+  })
+
+  // ─── G.2 ──────────────────────────────────────────────────────────────────
+
+  test('G.2: Month from the current week, Previous, Week; Month and Week again from past weeks; every day a column, Next unavailable on the current month, an empty cell does nothing (AC-5.25–5.28, 5.32; R13 first grid logged)', async ({
+    browser,
+  }) => {
+    const ctx = await gContext(browser, gper)
+    const page = await ctx.newPage()
+    const heading = page.getByTestId('hours-table-heading')
+    const next = page.getByTestId('hours-period-next')
+    const previous = page.getByTestId('hours-period-previous')
+    const monthRadio = page.getByTestId('hours-period-switch-month')
+    const weekRadio = page.getByTestId('hours-period-switch-week')
+
+    // The current week, Week selected.
+    await page.goto('/hours')
+    await expect(weekRadio).toBeChecked({ timeout: 30_000 })
+    await expectPeriodShown(page, weekOf(currentMonday), gSeeded)
+    await expect(cell(page, alphaKey(), today)).toHaveText('1 h')
+
+    // AC-5.26: Month shows the month of the current week by the rule (the month holding today). The radio keeps the focus
+    // (design S7), the address says the month, and the first grid of a month is timed (R13: logged, never asserted).
+    const startedMonth = performance.now()
+    await monthRadio.check()
+    const thisMonthPeriod = monthPeriod(monthForWeek(currentMonday))
+    await expect(page.getByTestId('hours-table-table').locator('thead th')).toHaveCount(lengthOfMonth(thisMonth) + 2, {
+      timeout: 30_000,
+    })
+    console.log(
+      `[T24] G.2 R13: the month's first grid (${periodHeading(thisMonthPeriod)}, ${gSeeded.length} entries held) ` +
+        `${Math.round(performance.now() - startedMonth)} ms from the press of Month to the grid drawn`,
+    )
+    await expect(monthRadio).toBeFocused()
+    await expectPeriodShown(page, thisMonthPeriod, gSeeded)
+    // AC-5.25: every day of the month is a column (a header per day, the row label and Total besides), today marked.
+    await expect(page.getByTestId('hours-table-table').locator('thead th')).toHaveCount(lengthOfMonth(thisMonth) + 2)
+    await expect(page.getByTestId('hours-table-table').locator('thead')).toContainText('Today')
+    // AC-5.28 in the month: the current month has no Next, the return is as unavailable, and a press changes nothing.
+    await expect(next).toHaveAttribute('aria-disabled', 'true')
+    await expect(page.getByTestId('hours-period-current')).toHaveAttribute('aria-disabled', 'true')
+    const urlOnTheCurrentMonth = page.url()
+    await next.click({ force: true })
+    await page.waitForTimeout(400)
+    expect(page.url()).toBe(urlOnTheCurrentMonth)
+    await expect(heading).toHaveText(periodHeading(thisMonthPeriod))
+
+    // Previous: last month, with its entries on both ends of the month and in its middle, and their totals by hand.
+    await previous.click()
+    await expect(previous).toBeFocused()
+    await expectPeriodShown(page, monthPeriod(lastMonth), gSeeded)
+    expect(new URL(page.url()).searchParams.get('view')).toBe('month')
+    expect(new URL(page.url()).searchParams.get('month')).toBe(lastMonth)
+    await expect(cell(page, alphaKey(), midLastMonth)).toHaveText('2 h')
+    await expect(cell(page, betaKey(), midLastMonth)).toHaveText('1 h 30')
+    await expect(cell(page, alphaKey(), firstOfLastMonth)).toHaveText('1 h')
+    await expect(cell(page, alphaKey(), lastOfLastMonth)).toHaveText('30 min')
+    const lastTd = (row: Locator): Locator => row.getByRole('cell').last()
+    await expect(lastTd(page.getByTestId(`hours-table-row-${alphaKey()}`))).toHaveText('3 h 30')
+    await expect(lastTd(page.getByTestId(`hours-table-row-${betaKey()}`))).toHaveText('1 h 30')
+    await expect(lastTd(page.getByTestId('hours-table-row-total'))).toHaveText('5 h')
+    // A day is named by its date, never by its column (R17): the month's first day is a weekday of its own, whatever
+    // weekday the first column would be.
+    await expect(cell(page, alphaKey(), firstOfLastMonth)).toHaveAttribute(
+      'aria-label',
+      new RegExp(`, ${longDate(firstOfLastMonth)}, 1 entry$`),
+    )
+    await expect(page.getByTestId('hours-table-table').locator('thead th').nth(1)).toContainText(
+      longDate(firstOfLastMonth),
+    )
+    await expect(page.getByTestId('hours-table-table').locator('thead th').nth(lengthOfMonth(lastMonth))).toContainText(
+      longDate(lastOfLastMonth),
+    )
+
+    // AC-5.32: an empty cell is plain text in a `td`, on a past day too: no control, no tab stop, and a click opens nothing.
+    const emptyDay = `${lastMonth}-02`
+    expect(emptyDay === firstOfLastMonth || emptyDay === midLastMonth || emptyDay === lastOfLastMonth).toBe(false)
+    const alphaRow = page.getByTestId(`hours-table-row-${alphaKey()}`)
+    const emptyTd = alphaRow.getByRole('cell').nth(1) // the second day of the month
+    await expect(emptyTd).toHaveText('')
+    await expect(cell(page, alphaKey(), emptyDay)).toHaveCount(0)
+    await expect(emptyTd.locator('button, a, input, [tabindex]')).toHaveCount(0)
+    expect(await emptyTd.evaluate((td) => (td as HTMLElement).tabIndex)).toBe(-1)
+    await emptyTd.click()
+    await page.waitForTimeout(300)
+    await expect(page.getByRole('dialog')).toHaveCount(0)
+
+    // AC-5.28 / R18 once more, in the month: Next reaches the current month and keeps the keyboard, unavailable.
+    await next.click()
+    await expectPeriodShown(page, monthPeriod(thisMonth), gSeeded)
+    await expect(next).toHaveAttribute('aria-disabled', 'true')
+    await expect(next).toBeFocused()
+    await previous.click()
+    await expectPeriodShown(page, monthPeriod(lastMonth), gSeeded)
+
+    // AC-5.27: Week shows the week the month was reached from when it has a day in the month; else the current week when it
+    // has; else the first week whose Monday is in the month. Here the month was reached from the current week.
+    await weekRadio.check()
+    const afterMonth = weekForMonth(lastMonth, currentMonday)
+    await expectPeriodShown(page, weekOf(afterMonth), gSeeded)
+    await expect(weekRadio).toBeFocused()
+
+    // Past weeks, week → Month → Week (AC-5.26, AC-5.27): the week holding the 15th, and the week holding the 1st (whose
+    // Monday may be in the month before). Month is the month of the Monday; Week comes back to the week it left, past
+    // weeks included.
+    for (const day of [midLastMonth, firstOfLastMonth]) {
+      const left = addDays(day, -weekdayIndex(day))
+      await page.goto(`/hours?week=${left}`)
+      await expectPeriodShown(page, weekOf(left), gSeeded)
+      await page.getByTestId('hours-period-switch-month').check()
+      const month = monthForWeek(left)
+      await expectPeriodShown(page, monthPeriod(month), gSeeded)
+      await page.getByTestId('hours-period-switch-week').check()
+      await expectPeriodShown(page, weekOf(weekForMonth(month, left)), gSeeded)
+      expect(weekForMonth(month, left)).toBe(left) // the rule's own answer: the week left has a day in the month
+    }
+    await ctx.close()
+  })
+
+  // ─── G.3 ──────────────────────────────────────────────────────────────────
+
+  for (const kind of ['week', 'month'] as const) {
+    test(`G.3 (${kind}): the date field offers no day after today, refuses one, and a day of last month picked or typed key by key shows its ${kind} (AC-5.30, 5.31, R16)`, async ({
+      browser,
+    }) => {
+      const ctx = await gContext(browser, gper)
+      const page = await ctx.newPage()
+      const field = page.getByTestId('hours-period-date')
+      const heading = page.getByTestId('hours-table-heading')
+      const holding = (day: string): Period =>
+        kind === 'week' ? weekOf(addDays(day, -weekdayIndex(day))) : monthPeriod(monthKey(day))
+      const current = holding(today)
+      const last = holding(midLastMonth)
+      const open = async (): Promise<void> => {
+        await page.goto(kind === 'week' ? '/hours' : '/hours?view=month')
+        await expectPeriodShown(page, current, gSeeded)
+      }
+      const tableReads: string[] = []
+      page.on('request', (request) => {
+        if (request.method() === 'GET' && /\/time-entries\?/.test(request.url())) tableReads.push(request.url())
+      })
+
+      await open()
+      // AC-5.31: the field offers no day after today, in either period; it opens on today, the current period's day.
+      await expect(field).toHaveAttribute('max', today)
+      await expect(field).toHaveValue(today)
+
+      // AC-5.31: a day after today, however it got there, shows nothing new and reads nothing; the field gives the period's
+      // own day back once it loses the keyboard.
+      tableReads.length = 0
+      await field.fill(tomorrow)
+      await page.waitForTimeout(500)
+      expect(tableReads, 'a day after today asks nothing of hours-api').toEqual([])
+      await expect(heading).toHaveText(periodHeading(current))
+      await field.blur()
+      await expect(field).toHaveValue(today)
+
+      // AC-5.30: a day of last month, picked (the value the native picker writes), shows the period holding it, at once.
+      await field.fill(midLastMonth)
+      await expectPeriodShown(page, last, gSeeded)
+      await expect(cell(page, alphaKey(), midLastMonth)).toHaveText('2 h')
+      await expect(cell(page, betaKey(), midLastMonth)).toHaveText('1 h 30')
+      await expect(field).toBeFocused() // the keyboard stays where the person was (design F7)
+      await expect(field).toHaveAttribute('max', today)
+
+      // AC-5.30, R16: the same day typed key by key, in a fresh page. The days the field passes through on its way (the day 15
+      // over today's period, then the month, then the year 0002, 0020, 0202, 2026) are complete days or days no one can show:
+      // those in range navigate and the next aborts them, those out of range do nothing, and what has been typed is never
+      // written over. Two ways round, both in a real Chromium: (1) fast keys over SLOW reads, so every read is in flight while
+      // the person goes on typing; (2) slow keys over fast reads, so a read lands and the page re-renders under a half-typed
+      // date. Only the final period is asserted, never how many reads it took (they are logged).
+      const [year, month, day] = midLastMonth.split('-') as [string, string, string]
+      for (const { keyDelay, readDelay } of [
+        { keyDelay: 60, readDelay: 700 },
+        { keyDelay: 250, readDelay: 0 },
+      ]) {
+        await open()
+        await page.route(/\/time-entries\?/, async (route) => {
+          if (readDelay > 0) await new Promise((resolve) => setTimeout(resolve, readDelay))
+          await route.continue().catch(() => undefined)
+        })
+        tableReads.length = 0
+        await field.click({ position: { x: 8, y: 12 } }) // the first segment: dd (en-GB: dd/mm/yyyy)
+        await page.keyboard.type(`${day}${month}${year}`, { delay: keyDelay })
+        // The typed value is there still: it was not written over by the navigations and reads the typing caused.
+        await expect(field).toHaveValue(midLastMonth)
+        await expectPeriodShown(page, last, gSeeded)
+        await expect(field).toHaveValue(midLastMonth)
+        await expect(page.getByTestId('hours-table-error')).toHaveCount(0)
+        console.log(
+          `[T24] G.3 (${kind}) typed ${day}${month}${year} at ${keyDelay} ms a key over ${readDelay} ms reads: ` +
+            `${tableReads.length} read(s) asked for ${tableReads.map((url) => new URL(url).searchParams.get('from')).join(', ')}`,
+        )
+        await page.unroute(/\/time-entries\?/)
+      }
+
+      // The field loses the keyboard: it says the period it is on again (its first day: the Monday of the week, the 1st of the month).
+      await field.blur()
+      await expect(field).toHaveValue(
+        kind === 'week' ? addDays(midLastMonth, -weekdayIndex(midLastMonth)) : firstOfLastMonth,
+      )
+      await expect(heading).toHaveText(periodHeading(last))
+      await ctx.close()
+    })
+  }
+
+  // ─── G.4 ──────────────────────────────────────────────────────────────────
+
+  test("G.4: as an admin at 1440 and 1920 px, the tool container and each page's root are full width and one width over the List, the week, the month, Everyone's hours and Settings (AC-5.33)", async ({
+    browser,
+  }) => {
+    const ctx = await gContext(browser, gAdmin, { width: 1440, height: 900 })
+    const page = await ctx.newPage()
+    const settled = {
+      list: async () => {
+        await expect(page.getByTestId('hours-entries')).toBeVisible({ timeout: 30_000 })
+        await expect(page.getByTestId('hours-entries-skeleton')).toHaveCount(0)
+      },
+      table: async () => {
+        await expect(page.getByTestId('hours-table-table')).toBeVisible({ timeout: 30_000 })
+      },
+      everyone: async () => {
+        await expect(page.getByTestId('hours-everyone-gate-skeleton')).toHaveCount(0, { timeout: 30_000 })
+        await expect(page.getByTestId('hours-entries')).toBeVisible({ timeout: 30_000 })
+        await expect(page.getByTestId('hours-entries-skeleton')).toHaveCount(0, { timeout: 30_000 })
+      },
+      settings: async () => {
+        await expect(page.getByTestId('time-lists-loaded')).toBeVisible({ timeout: 30_000 })
+      },
+    }
+    const pages: Array<{ name: string; url: string; root: string; settle: () => Promise<void> }> = [
+      { name: 'List', url: '/hours?view=list', root: 'hours-my-page', settle: settled.list },
+      { name: 'the week', url: '/hours', root: 'hours-my-page', settle: settled.table },
+      { name: 'the month', url: '/hours?view=month', root: 'hours-my-page', settle: settled.table },
+      { name: "Everyone's hours", url: '/hours/all', root: 'hours-everyone-page', settle: settled.everyone },
+      { name: 'Settings', url: '/hours/settings', root: 'time-lists-page', settle: settled.settings },
+    ]
+    // 1440 px is the width the AC is measured at. There the shell leaves the tool a frame of about 1210 px, narrower than the
+    // default column's 80 rem (1280 px), so one width at 1440 would hold for the default column too: the same pages are measured
+    // again at 1920 px, where the frame is wider than that cap and a page that kept it would measure narrower than its frame.
+    for (const viewport of [
+      { width: 1440, height: 900 },
+      { width: 1920, height: 1080 },
+    ]) {
+      await page.setViewportSize(viewport)
+      const measured: Array<Widths & { name: string }> = []
+      for (const target of pages) {
+        await page.goto(target.url)
+        await expect(page.getByTestId(target.root)).toBeVisible({ timeout: 30_000 })
+        await target.settle()
+        measured.push({ name: target.name, ...(await widthsOf(page, target.root)) })
+      }
+      console.log(
+        `[T24] G.4 widths at ${viewport.width} px (shell frame / tool container / page root): ` +
+          measured.map((entry) => `${entry.name} ${entry.shell}/${entry.main}/${entry.root}`).join(', '),
+      )
+      for (const entry of measured) {
+        const at = `${entry.name} at ${viewport.width} px`
+        if (viewport.width === 1920) {
+          // The instrument is proved before it is trusted: this window leaves the tool more than the default column.
+          expect(entry.shell, `${at}: the tool's frame is wider than the default column`).toBeGreaterThan(1280)
+        }
+        // Full width: the container takes everything its frame has, as EstimAI's workspace does (C1) …
+        expect(entry.main, `${at}: the tool container is as wide as its frame`).toBeCloseTo(entry.shell, 0)
+        // … and a page's root fills the container's own content box (its gutter is 24 px a side).
+        expect(entry.root, `${at}: the page fills the container`).toBeCloseTo(entry.main - 48, 0)
+      }
+      // One width: switching view, period or tab changes neither the container nor the page.
+      const mains = measured.map((entry) => entry.main)
+      const roots = measured.map((entry) => entry.root)
+      expect(
+        Math.max(...mains) - Math.min(...mains),
+        `tool container widths at ${viewport.width} px: ${mains}`,
+      ).toBeLessThanOrEqual(1)
+      expect(
+        Math.max(...roots) - Math.min(...roots),
+        `page root widths at ${viewport.width} px: ${roots}`,
+      ).toBeLessThanOrEqual(1)
+    }
+
+    // The same without a reload: through the tabs and the switches the tool's own frame is the one it was.
+    await page.goto('/hours')
+    await expect(page.getByTestId('hours-table-table')).toBeVisible({ timeout: 30_000 })
+    const before = await widthsOf(page, 'hours-my-page')
+    await page.getByTestId('hours-period-switch-month').check()
+    await expect(page.getByTestId('hours-table-table').locator('thead th')).toHaveCount(lengthOfMonth(thisMonth) + 2, {
+      timeout: 30_000,
+    })
+    await page.getByRole('tab', { name: 'List' }).click()
+    await expect(page.getByTestId('hours-entries')).toBeVisible({ timeout: 30_000 })
+    const after = await widthsOf(page, 'hours-my-page')
+    expect(Math.abs(after.main - before.main)).toBeLessThanOrEqual(1)
+    expect(Math.abs(after.root - before.root)).toBeLessThanOrEqual(1)
+    await ctx.close()
+  })
+
+  // ─── G.5 ──────────────────────────────────────────────────────────────────
+
+  test('G.5: at 1280 px the month scrolls inside its region and the page does not; every day is reachable; a focused cell is never hidden under a pinned column (AC-5.34, R-D3)', async ({
+    browser,
+  }) => {
+    const ctx = await gContext(browser, gper, { width: 1280, height: 800 })
+    const page = await ctx.newPage()
+    const regionOf = (): Locator => page.getByTestId('hours-table').locator('.table-region')
+    const headers = (): Locator => page.getByTestId('hours-table-table').locator('thead th')
+    const days = lengthOfMonth(lastMonth)
+
+    // The week first: its tool container is the reference the month must keep.
+    await page.goto('/hours')
+    await expect(page.getByTestId('hours-table-table')).toBeVisible({ timeout: 30_000 })
+    const week = await widthsOf(page, 'hours-my-page')
+
+    await page.goto(`/hours?view=month&month=${lastMonth}`)
+    await expectPeriodShown(page, monthPeriod(lastMonth), gSeeded)
+    const region = regionOf()
+    await expect(region).toHaveCount(1)
+    const month = await widthsOf(page, 'hours-my-page')
+    // The page's own width does not change with the month, and nothing scrolls the page sideways …
+    expect(month.main, 'the tool container of the month is the one of the week').toBeCloseTo(week.main, 0)
+    expect(month.root, 'the page root of the month is the one of the week').toBeCloseTo(week.root, 0)
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true)
+    // … the table scrolls inside its own, focusable and labelled, region.
+    const metrics = await region.evaluate((element) => ({
+      scrollWidth: element.scrollWidth,
+      clientWidth: element.clientWidth,
+      tabIndex: (element as HTMLElement).tabIndex,
+      role: element.getAttribute('role'),
+      label: element.getAttribute('aria-label'),
+    }))
+    console.log(
+      `[T24] G.5 the month's region at 1280 px: scrollWidth ${metrics.scrollWidth}, clientWidth ${metrics.clientWidth}`,
+    )
+    expect(metrics.scrollWidth, 'the month is wider than its region').toBeGreaterThan(metrics.clientWidth)
+    expect(metrics.role).toBe('region')
+    expect(metrics.tabIndex).toBe(0)
+    expect(metrics.label).toContain(periodHeading(monthPeriod(lastMonth)))
+
+    // Every day can be reached: at the start the first day's header sits clear of the pinned label column, at the end the last
+    // day's header sits clear of the pinned Total, and neither is outside the region.
+    const label = headers().first()
+    const total = headers().last()
+    const clearOfPins = async (header: Locator): Promise<void> => {
+      const box = await boxOf(header)
+      const labelBox = await boxOf(label)
+      const totalBox = await boxOf(total)
+      const regionBox = await boxOf(region)
+      expect(box.x, 'not under the pinned label').toBeGreaterThanOrEqual(labelBox.x + labelBox.width - 1)
+      expect(box.x + box.width, 'not under the pinned Total').toBeLessThanOrEqual(totalBox.x + 1)
+      expect(box.x + box.width, 'inside the region').toBeLessThanOrEqual(regionBox.x + regionBox.width + 1)
+    }
+    await region.evaluate((element) => (element.scrollLeft = 0))
+    await clearOfPins(headers().nth(1))
+    await region.evaluate((element) => (element.scrollLeft = element.scrollWidth))
+    await clearOfPins(headers().nth(days))
+    await expect(headers().nth(days)).toContainText(longDate(lastOfLastMonth))
+    // The pins hold: the label and Total columns did not move while the days scrolled under them.
+    expect((await boxOf(label)).x).toBeCloseTo((await boxOf(region)).x, 0)
+
+    // R-D3 / WCAG 2.4.11: a focused cell is never hidden under a pinned column. The region is at its end; focusing the
+    // first day's cell scrolls it back into the clear, and Tab and Shift+Tab along the row keep every cell clear of both.
+    const alphaCell = (day: string): Locator => cell(page, alphaKey(), day)
+    const slack: string[] = []
+    const clearOfPinnedColumns = async (target: Locator): Promise<void> => {
+      await expect(target).toBeFocused()
+      const name = (await target.getAttribute('data-cell'))!.split(':').slice(-1)[0]!
+      const row = target.locator('xpath=ancestor::tr')
+      const box = await boxOf(target)
+      const labelBox = await boxOf(row.locator('th').first())
+      const totalBox = await boxOf(row.getByRole('cell').last())
+      const left = box.x - (labelBox.x + labelBox.width) // the room between the pinned label and the cell
+      const right = totalBox.x - (box.x + box.width) // and between the cell and the pinned Total
+      slack.push(`${name}: ${Math.round(left)} px / ${Math.round(right)} px`)
+      expect(left, `${name}: the cell is not under the pinned label`).toBeGreaterThanOrEqual(-1)
+      expect(right, `${name}: the cell is not under the pinned Total`).toBeGreaterThanOrEqual(-1)
+    }
+    await region.evaluate((element) => (element.scrollLeft = element.scrollWidth))
+    const scrolledToTheEnd = await region.evaluate((element) => element.scrollLeft)
+    expect(scrolledToTheEnd, 'the region is scrolled away from its start').toBeGreaterThan(0)
+    await alphaCell(firstOfLastMonth).focus()
+    // The browser had to scroll the first day's cell back into view, and it did so clear of the pinned label.
+    expect(await region.evaluate((element) => element.scrollLeft)).toBeLessThan(scrolledToTheEnd)
+    await clearOfPinnedColumns(alphaCell(firstOfLastMonth))
+    await page.keyboard.press('Tab')
+    await clearOfPinnedColumns(alphaCell(midLastMonth))
+    await page.keyboard.press('Tab')
+    await clearOfPinnedColumns(alphaCell(lastOfLastMonth))
+    await page.keyboard.press('Shift+Tab')
+    await clearOfPinnedColumns(alphaCell(midLastMonth))
+    await page.keyboard.press('Shift+Tab')
+    await clearOfPinnedColumns(alphaCell(firstOfLastMonth))
+    console.log(`[T24] G.5 room between a focused cell and the pinned columns (label / Total): ${slack.join(', ')}`)
+    await ctx.close()
+  })
+
+  // ─── G.6 ──────────────────────────────────────────────────────────────────
+
+  test('G.6 (R13): a past month of 300 own entries: its first grid time is logged, and its figures are the entries’ sums', async ({
+    browser,
+  }) => {
+    test.setTimeout(300_000)
+    // 300 entries over last month on four rows (two projects, two kinds of other work), scattered over its days and rows.
+    const rows: Array<{ row: string; on: unknown }> = [
+      { row: alphaKey(), on: { type: 'project', id: alpha.id } },
+      { row: betaKey(), on: { type: 'project', id: beta.id } },
+      { row: `category:${training.id}`, on: { type: 'none', categoryId: training.id } },
+      { row: `category:${administration.id}`, on: { type: 'none', categoryId: administration.id } },
+    ]
+    const monthDays = daysOfMonth(lastMonth)
+    const seeded: Seeded[] = []
+    const bodies: unknown[] = []
+    for (let index = 0; index < 300; index += 1) {
+      const target = rows[(index + Math.floor(index / monthDays.length)) % rows.length]!
+      const day = monthDays[index % monthDays.length]!
+      const minutes = 30 * (1 + (index % 3))
+      seeded.push({ row: target.row, day, minutes })
+      bodies.push({ day, minutes, on: target.on })
+    }
+    const seeding = performance.now()
+    for (let start = 0; start < bodies.length; start += 10) {
+      await Promise.all(bodies.slice(start, start + 10).map((body) => createEntryViaApi(heavy, body)))
+    }
+    console.log(`[T24] G.6 R13: 300 entries recorded through the API in ${Math.round(performance.now() - seeding)} ms`)
+    expect(await ownEntriesViaApi(heavy, firstOfLastMonth, lastOfLastMonth)).toHaveLength(300)
+
+    const ctx = await gContext(browser, heavy)
+    const page = await ctx.newPage()
+    // The current month first (the person has nothing in it), so that Previous is a month read, as a person does it.
+    await page.goto('/hours?view=month')
+    await expect(page.getByTestId('hours-table-empty')).toBeVisible({ timeout: 30_000 })
+    const started = performance.now()
+    await page.getByTestId('hours-period-previous').click()
+    await expect(page.getByTestId('hours-table-table').locator('thead th')).toHaveCount(monthDays.length + 2, {
+      timeout: 60_000,
+    })
+    const firstGrid = Math.round(performance.now() - started)
+    console.log(
+      `[T24] G.6 R13: first grid of ${periodHeading(monthPeriod(lastMonth))} with 300 entries, ${monthDays.length} days, ` +
+        `${rows.length} rows: ${firstGrid} ms from Previous to the grid drawn` +
+        (firstGrid > 800 ? ' (above the 800 ms that R13 reports; not a failure)' : ''),
+    )
+    // The figures are the entries' sums (AC-5.9, 5.10): every cell, every row, every day and the month.
+    await expectPeriodShown(page, monthPeriod(lastMonth), seeded)
+    await ctx.close()
   })
 })
