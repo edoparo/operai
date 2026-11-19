@@ -999,12 +999,12 @@ async function snapshotOf(page: Page): Promise<GridSnapshot | null> {
     return await table.evaluate((element) => {
       const text = (node: Element | null | undefined): string => (node?.textContent ?? '').replace(/\s+/g, ' ').trim()
       const total = element.querySelector('tbody tr[data-testid="hours-table-row-total"]')
-      const dataRows = [...element.querySelectorAll('tbody tr')].filter((row) => row !== total)
-      const lastTd = (row: Element): Element | undefined => [...row.querySelectorAll('td')].at(-1)
-      const totalCells = [...(total?.querySelectorAll('td') ?? [])].map((node) => text(node))
+      const dataRows = Array.from(element.querySelectorAll('tbody tr')).filter((row) => row !== total)
+      const lastTd = (row: Element): Element | undefined => Array.from(row.querySelectorAll('td')).at(-1)
+      const totalCells = Array.from(total?.querySelectorAll('td') ?? []).map((node) => text(node))
       return {
         columns: element.querySelectorAll('thead th').length,
-        cells: [...element.querySelectorAll('[data-cell]')]
+        cells: Array.from(element.querySelectorAll('[data-cell]'))
           .map((node) => `${(node as HTMLElement).dataset['cell']}=${text(node)}`)
           .sort(),
         rowTotals: dataRows
