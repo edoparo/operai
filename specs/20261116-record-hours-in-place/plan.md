@@ -556,8 +556,9 @@ Writing (each keeps every other key; a replacing navigation, as today):
   reached from, which Month → Week returns to (AC-5.27, D26) and which only the week reads; `month` = `YYYY-MM`, removed
   when it is the current month. Used by the navigator, the period switch and the date field.
 - `withList(search, shown: TablePeriod)` — `view=list`. When the month was shown, `month` is written, the current month
-  included, and `week` removed, so going back finds the month; when the week was shown, `week` stays as it was and
-  `month` is removed (T10's behaviour).
+  included, and `week` **kept as it was** (corrected 2026-11-19 at T22: removing it lost the week left that D26 /
+  AC-5.27 return to after a List detour), so going back finds the month and then the week; when the week was shown,
+  `week` stays as it was and `month` is removed (T10's behaviour).
 - `withTable(search, today)` — back from the List: `view=month` when the address holds a valid `month` (removed again
   when it is the current month), else `view` removed (the week of `week`, or the current week).
 - `clearFilterSearch(search, view)` — in the table view clears `person`, `target`, `category`, `workType` and keeps

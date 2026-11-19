@@ -22,6 +22,9 @@ month's header, blank empty cells, `pin`). The design now EXTENDS one `@operai/u
 plan R4/R12 triggers: T21 ships it, and the shell deploys it before hours-ui. T16, the first close, was undone by the
 revert 9ab6b879; T27 is the close now.
 
+Re-checked 2026-11-19 after T22: plan § The address corrected so `withList` after the month keeps `week` (D26,
+AC-5.27); T22 already built it that way; no task added, changed or reordered.
+
 Test commands: hours-ui, projects-ui, crm-ui `pnpm lint && pnpm build && pnpm test`; shell the same with
 `NODE_OPTIONS=--no-webstorage pnpm test`; e2e `cd shell && pnpm e2e <spec>` with the stack up (`mise run dev`).
 
