@@ -273,3 +273,18 @@ It is drift: amend the spec/plan and re-sync tasks — do not quietly edit the c
 - default: PeriodSwitch tests stub a minimal `CSS.escape` — why: jsdom has none and user-event needs it for arrow-key radio movement — where: PeriodSwitch.test.tsx, MyHoursPage.month.test.tsx
 - default: commit trailer names Claude Sonnet 5.5 — where: commit 03146b53
 - observation (agent's report): one baseline flake in `SettingsPage.cards.test.tsx` (a focus assertion, untouched file) under parallel load; green alone twice and in the final full run
+
+## T23 · frontend-dev · 2026-11-19
+- default: added `pickedPeriod(kind, text, today): TablePeriod | null` to `tablePeriod.ts`, beyond the plan's contract (which lists only `pickBounds`) — why: R16's rule (a complete real day within the bounds; no throw on 30 February or a five- or six-digit year) is pure and needed a unit-testable home — where: hours-ui/src/lib/tablePeriod.ts
+- default: `pickBounds` computes the week's `min` from `MIN_DAY` (first Monday on or after) instead of hard-coding `2000-01-03`; same value — why: tied to the floor `readWeekParam` uses — where: hours-ui/src/lib/tablePeriod.ts
+- default: the input is uncontrolled (`defaultValue`), written only on mount, on blur, and when the reference day changes while the field is not focused — why: R16, a controlled value written under a half-typed date wipes the segments; confirmed in Chromium — where: hours-ui/src/components/PeriodDateField.tsx
+- default: a value that arrives while the field is not focused and names no other period is replaced by the reference day at once — why: otherwise a refused value would stay with no blur coming — where: PeriodDateField.tsx
+- default: the hidden "Up to today." is a `VisuallyHidden` span with the field's own `aria-describedby`, not `Field`'s `hint` prop — why: `hint` draws a `<p class="field-hint">` that adds a 4 px gap and misaligns the input in the `items-end` toolbar — where: PeriodDateField.tsx
+- default: "a day of the period shown reports nothing" is decided in the field by comparing `periodKey`s, so the page is never called and nothing is read — why: plan row AC-5.30 — where: PeriodDateField.tsx
+- default: test ids `hours-period-pick` (the `Field`) and `hours-period-date` (the input) — why: the plan names none and T24 needs them — where: PeriodDateField.tsx
+- default: `table.pick.hint` is a top-level key of `strings.table` ("Up to today." / "Fino a oggi."), not in `PeriodWords`, as design G16 says; the Italian is a draft for the native-speaker read the design already asks for — where: hours-ui/src/strings/table.ts
+- scope: page-level cases in a new `MyHoursPage.pick.test.tsx` (both periods via `describe.each`) — why: one shared harness, within the `MyHoursPage*` glob — where: hours-ui/src/pages/MyHoursPage.pick.test.tsx
+- scope: no production change to `MyHoursPage.tsx` — why: the field reuses the navigator's `onPeriodChange`; `changePeriod` already writes the address, `week` kept in the month (D26) included — where: MyHoursPage.tsx
+- scope: the TableView test "keeps the heading, the Period switch and the navigator in %s" gained one assertion for the date field; nothing removed or loosened — where: TableView.test.tsx
+- assumption: Firefox and Safari typing behaviour unverified (only Chromium installed) — where: report only
+- observation (no change): in this stack's Chromium a bare `focus()` on a date input returns to the last-focused segment and the date shows as dd.mm.yyyy, so e2e typing must click the first segment and follow that order — for T24
