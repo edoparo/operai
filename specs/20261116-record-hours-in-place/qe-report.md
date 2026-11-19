@@ -2,8 +2,160 @@
 
 Spec `specs/20261116-record-hours-in-place/` · rigor `production` (full mode, every row blocks) · branch `feat/record-hours-in-place`
 
-This file holds the latest pass on top (**pass 4, 2026-11-19, after the reopening**: the table view, week and month) and the earlier passes below it
-(pass 3, then pass 2) as history, unedited. A reader who wants the verdict reads the first heading that says `QE verdict`.
+This file holds the latest pass on top (**pass 5, 2026-11-19, the re-check after the fix round for pass 4's D1 and O3**) and the earlier passes below it
+(pass 4, the full sweep after the reopening, then pass 3, then pass 2) as history, unedited. A reader who wants the verdict reads the first heading that
+says `QE verdict`: pass 5's.
+
+## QE pass 5 (2026-11-19, re-check after the fix round: D1, O3)
+
+By a fresh QE agent, full mode (rigor `production`, every row blocks). A re-verification of the fix round recorded in `decisions.md` § "Fix round (QE pass 4 D1, O3)"
+(commit 7e7397e5, decisions 86a5acb2), not a second full sweep: it re-checks D1 in a real browser by an independent measurement, re-runs every gate and journey
+the fix could have moved, tests the two guards the round added for strength, and says what it carries over from pass 4 and why. Measured at **86a5acb2**
+(`git rev-parse --short HEAD`); the working tree was clean before and after (`git status --short` empty, mutants restored by `git checkout`); the commit that
+carries this file adds only this file. Evidence lives in the session scratch directory
+`/private/tmp/claude-331608204/-Users-edoardo-paronzini-Work-Experiments-operai/f2ce1f1a-3ebd-4e72-83ca-8155e69a4eef/scratchpad/qe5/` (logs `*.log`, the placement
+results `q5-results.final.txt`, screenshots `explore/shots/q5-*.png`, the scratch Playwright files `explore/q5-*.ts`); it is outside the repo and not committed.
+Only Chromium (Playwright's headless shell) is installed here: **Firefox and WebKit were not run and nothing below is claimed for them.**
+
+### Read this first
+
+1. **Verdict: PASS.** D1 is fixed in every placement pass 4 listed and in the five more this pass looked at (the CRM deal page and its task row, My tasks, the
+   Edit dialog, the entry's meta line): 98 placement checks, 0 failing, at 1920, 1280 and 375 px, for a 200-character unbroken name and for an ordinary long name
+   (no word broken). O3 is closed: the hardened G.3 step kills the mutant that survived pass 4 and the old step does not. Every other row of pass 4 carries
+   (see *What carried from pass 4*).
+2. **The two new guards can fail.** G.8 killed 6 of 6 mutants (one per placement of the fix); G.3's new step killed the pass-4 mutant M1 that the old step let through
+   on this very day (Thursday 19 November: tomorrow is in the same week and the same month).
+3. **What is not in this verdict, as before.** The screen-reader readback is out of the gate by D14 (not run, not verified, not claimed). Firefox and WebKit: not
+   installed. The unreadable-name live drives and the deal-filter 503 (pass 4's *Read this first*, 2) stay on their unit tests.
+4. **Not defects, listed so the next reader finds them:** O1, O2, O4, O5 of pass 4 are unchanged and still follow-ups; the same-class placements outside this
+   feature's diff are re-measured below with fresh numbers (two of the five pass 4 listed are now fixed by the shared components; three remain).
+
+## QE verdict: PASS (full mode, rigor production — every row blocks; measured at 86a5acb2)
+
+| Check | Threshold | Actual | Result |
+|---|---|---|---|
+| **D1: a long third-party name does not spill or hide controls** (re-checked live, independently of G.8) | every placement, 1920 / 1280 / 375 px, 200-character and ordinary name | **98/98 placement checks OK, 0 failing** (long: 16 / 16 / 17 at 1920 / 1280 / 375; ordinary: 16 / 16 / 17): box scroll = client (e.g. 638/638, 382/382, 341/341), no descendant outside its box, none off the window, every button and link inside the window and the element on top at its centre; the page's document never wider than the window; the host's Record hours button not covered by the message (rectangles do not overlap: side by side with an 8 px gap at 1920 and 1280, stacked at 375); an ordinary name: no word broken by a line break anywhere (a detector that does see the 200-character run broken: 1 to 3 per placement) | ✓ |
+| D1 placement 1: cell dialog title and × (week and month, project row; deal row too) | × inside the window, title wrapped | title 568 px wide in the 640 px dialog (was 3,401), × at x = 921..939 of 1280 (was 3,760), 1241..1259 of 1920, 320..338 of 375 (was 3,456); the dialog is still named by its title (accessible name exactly "Project: <name>", "Deal: <name>") | ✓ |
+| D1 placement 2: the entry's target link and its meta line (a 200-character task subject) in the cell dialog and in the List's card | inside | cell dialog 638/638; List card 1,001/1,001 at 1280, 1,641/1,641 at 1920, 256/256 at 375 (was 2,592/1,641 at 1920) | ✓ |
+| D1 placement 3: delete confirmation (from a cell, and from the List) | inside | 382/382 at 1920 and 1280, 341/341 at 375, Cancel, × and Delete entry on top | ✓ |
+| D1 placement 4: Record hours dialog description (project page, project task row, My tasks row, deal page, deal task row) | inside | 638/638 at 1920 and 1280, 341/341 at 375, 7 to 8 controls each, all pressable | ✓ |
+| D1 placement 5: the success message on the host (project page, deal page: header; project task row, My tasks row, deal task row: in the row) | inside, host button uncovered | header: 454..838 at 1920, 248..632 at 1280, 88..346 at 375 (was out to x = 472 of 375); rows: 490..1650 in a 473..1667 row, 284..1215 in 267..1232, 124..310 in 107..327; the message's link and × pressable | ✓ |
+| D1 placement 6: Edit dialog opened from the cell | inside | 638/638 at 1280 and 1920, 341/341 at 375 (a native select reports its longest option as scrollWidth and clips it itself; not a spill) | ✓ |
+| G.8 can fail (mutants of the fix, one per placement) | each killed | **6/6 killed** (table below) | ✓ |
+| G.3 / O3: the future-day step can fail | the mutant that survived pass 4 is killed | mutant M1 (`pickedPeriod` without `text > max`) killed by the new step ("2026-11-23, a day after today, leaves the address as it was": expected `/hours`, received `/hours/?week=2026-11-23`); the **old** tomorrow-only step against the same mutant: 2 passed (it still cannot see it today) | ✓ |
+| e2e `hours-in-place.spec.ts` + `hours-in-place.round1.spec.ts` + `hours.spec.ts` + `hours-owners.spec.ts` | 31/31 (30 of pass 4 + G.8) | **31/31** (2.9 min), dev stack reused | ✓ |
+| hours-ui lint / build / unit | green | lint 0, build 0, **2709/2709** (87 files), 0 "same key" warnings | ✓ |
+| projects-ui unit (embeds RecordHours through the shell) | green | **941 passed + 2 expected fail** (45 files), as pass 4 | ✓ |
+| crm-ui unit (embeds RecordHours through the shell) | green | **1824/1824** (94 files) | ✓ |
+| shell lint / `npx tsc -p tsconfig.e2e.json --noEmit` | 0 / 0 | 0 / 0 | ✓ |
+| `mise run changeset:check` / `mise run shared:check` | pass | OK (matched `.changeset/hours-ui-record-in-place.md`, the unreleased `@operai/hours-ui` minor, among others) / 33 groups in sync | ✓ |
+| Secret scan, security floor | 0 leaks | `betterleaks` is not installed; `gitleaks` 8.30.1 run directly over `b1d85618..HEAD`: **25 commits, ~594 KB, no leaks** | ✓ |
+| Dependency change | none new | `git diff 687204b8..HEAD --stat`: 7 files, no `package.json`, lockfile or env file | n/a ✓ |
+| Coverage | no gate configured | not measured (no provider in these apps) | n/a |
+| Design: states and placements, width, month scroll, accessibility, Italian copy, component reuse (pass 4's rows) | as pass 4 | carried (see below); the dialog's accessible name re-checked live, its Escape and focus-return steps re-run inside the 31/31 (F, G.8), no new library component (the library `Dialog` already takes a node as `title`) | ✓ |
+| Screen-reader readback (NVDA, VoiceOver) | — | out of the gate by D14; not executed, not verified, not claimed | excluded |
+| Firefox / WebKit | — | not installed; not run | not run |
+
+### D1, placement by placement: pass 4 against now
+
+Input: a project and a deal of 200 characters with no space (`W`/`D`-padded, the bound of a name), a task of 200 `T`s on each, one 1 h entry on the project (pointing at
+its task) and one 30 min entry on the deal, today, the person on the project's team and the deal's owner; and the same records with ordinary long names
+(`Q5 Internationalisation roadmap for the regional wholesale distribution platform …`, task `Prepare the internationalisation roadmap workshop …`). Chromium 1920×1000,
+1280×800 and 375×812 (the shell's rail collapsed at 375, as pass 4's x10 and the fixer's G.8: an open rail on a phone is O4). The measurement is mine
+(`explore/q5-measure.ts`), not G.8's helpers: the box's `scrollWidth` against `clientWidth`, every descendant's rectangle against the box and against the window, a hit test
+at the centre of every control with only vertical scrolling allowed (a `scrollIntoView` would hide a pushed-out control), and `Range` rectangles for broken words.
+
+| # | Placement | Pass 4 (1280 unless stated) | Now | Result |
+|---|---|---|---|---|
+| 1 | Cell dialog title and × (week and month) | title 3,401 px in a 640 px dialog, × at x = 3,760 (3,456 at 375) | title 568 px (271 at 375), × at 921..939 (320..338 at 375), box 638/638 | ✓ fixed |
+| 2 | Entry link in the cell dialog (and the meta line) | link 2,563 px, under the figure and Edit/Delete | wrapped, 638/638; Edit, Delete, Close, Add hours on top | ✓ fixed |
+| 3 | Delete confirmation from a cell | sentence ran out of the dialog | 382/382, 341/341 at 375 | ✓ fixed |
+| 4 | Record hours dialog description | scroll 2,255 / client 638 (at 1280 and 375) | 638/638, 341/341 at 375 | ✓ fixed |
+| 5 | Success message on the host page | scroll 2,577 / client 382, across the Record hours button; right edge x = 472 at 375 | 382/382; 88..346 at 375; button uncovered | ✓ fixed |
+| 6 | Meta line and task-row message (the fix also touched them) | not measured | task subject wraps in the cell dialog and in the List, row message inside its row at every width | ✓ |
+| 7 | Same widget on the CRM deal page, the deal's task row and My tasks (never listed in pass 4) | not measured | all inside, button uncovered, 7 to 8 controls pressable | ✓ |
+| — | Edit dialog from the cell (was fine in pass 4) | 638 = 638 | 638/638, still fine | ✓ no regression |
+| — | Ordinary long name, every placement above, three widths | (not measured) | no word broken, no spill: it wraps at its spaces | ✓ |
+
+Screenshots (all present, checked with `ls`): `explore/shots/q5-long-375-cell-week-project.png`, `q5-long-1280-cell-week-project.png`, `q5-long-375-message.png`,
+`q5-long-1280-message.png`, `q5-long-375-delete.png`, `q5-ordinary-375-cell-week-project.png`, `q5-ordinary-375-message.png`, and, for contrast, the mutant:
+`q5-MUTANT-title-1280-cell-week-project.png` (title running off the dialog, × not on screen).
+
+### Tests of the guards (mutants, one at a time, restored by `git checkout` after each)
+
+| # | Mutant (production line) | Guard | Result |
+|---|---|---|---|
+| 1 | `TableCellDialog` title without `wrap-anywhere` | G.8 | **killed**: "the cell dialog stays inside its box" and "every control can be pressed" at 1280 week and 375 month; title 3,414 px, × at x = 3,767 / 3,463. My own spec flags it too (box scroll 3,489/638, × off-window), so my measurement can fail |
+| 2 | `RecordHours` message span without `wrap-anywhere` | G.8 | **killed**: the success message and the task-row message leave their boxes, the controls cannot be pressed |
+| 3 | `DeleteEntryDialog` sentence without `break-words` | G.8 | **killed**: "the delete confirmation stays inside its box" |
+| 4 | `EntryDialog` fixed description without `break-words` | G.8 | **killed**: the Record hours dialog (and from a task row) leaves its box |
+| 5 | `EntryRow` link without `min-w-0` | G.8 | **killed**: the cell dialog and the List |
+| 6 | `EntryRow` `MetaLine` piece without `min-w-0` | G.8 | **killed**: the cell dialog and the List |
+| 7 | `pickedPeriod` without the `text > max` clamp (the date field accepts a day after today; pass 4's M1) | G.3 new step | **killed**: URL becomes `/hours/?week=2026-11-23` |
+| 7b | same mutant | G.3 with the old step (`futureDays = [tomorrow]`, a scratch copy of the spec, deleted) | **survives** (2 passed): the hardening is what kills it |
+
+Logs: `mut-title.log`, `mut-message.log`, `mut-delete.log`, `mut-desc.log`, `mut-link.log`, `mut-meta.log`, `mut-m1-new.log`, `mut-m1-old.log`. No new unit test was added (jsdom has no
+layout); the guard is G.8, as the fixer decided and I agree.
+
+### What carried from pass 4, and why
+
+`git diff 687204b8..HEAD --stat` (pass 4's report commit to the handed-over commit): 7 files, 378 insertions, 18 deletions —
+
+- hours-ui, five components: `RecordHours.tsx`, `DeleteEntryDialog.tsx`, `EntryDialog.tsx`, `EntryRow.tsx`, `TableCellDialog.tsx`. Every change is a class string (`wrap-anywhere`, `break-words`,
+  `min-w-0`), a comment, or, in `TableCellDialog`, the `title` prop wrapped in a `<span>` (a node, which the library's `Dialog` accepts). No logic, no copy (`strings.ts` untouched), no import.
+- `shell/e2e/hours-in-place.spec.ts`: G.3's future-day step and the new G.8 with its helpers (e2e only).
+- `specs/.../decisions.md`: the fix round's entries.
+
+Nothing under `operai-ui`, `shell/src`, `projects-ui`, `crm-ui`, the backends, `package.json`, a lockfile or an env file changed. So these rows of pass 4 carry **unchanged** and I did not repeat
+them: the 51/51 AC table (its evidence is the 30 journeys that re-ran green inside the 31/31, plus unit suites that re-ran green in 2709/2709), operai-ui lint / typecheck / unit and `ui:check`,
+shell build and unit, `react:skew`, `env:doctor`, the design rows (width of every hours page, month scroll, states and placements), the accessibility row (Tab order, radios, navigator, date field),
+the Italian row, component reuse, and the pass-4 live drives x1 to x9. What I did re-measure because the diff could reach it: every long-name placement (above), the dialog's accessible name and
+Escape / focus return (F's focus-return steps and G.8's Escape run inside the 31/31; the accessible name is asserted exactly in my spec), and the width and scroll journeys G.4, G.5, G.7 (inside the 31/31). The one place a class-string
+change could still hide a regression on ordinary content is an ordinary name in a shrink-to-fit box (`wrap-anywhere` lowers a box's minimum content): that is why the ordinary-name run covers every placement
+at three widths, and it found none.
+
+### Findings that are not defects (reported, not counted)
+
+- **O1, O2, O4, O5, O6 of pass 4: unchanged, still follow-ups** (O1 the Week's scroll hint is keyed to the window, not to the room: designer; O2 a filled cell reads as plain text at rest: designer / product owner;
+  O4 at 375 px with the shell's default rail the toolbar overflows its card: the shell, as its own spec; O5 the current month opens at its left edge: product owner; O6 as designed).
+- **O3: closed by this round** (the hardened step, shown above).
+- **Same class, outside this feature's diff, re-measured now (listed so one fix at the cause covers them):**
+  - The List's entry row and the delete confirmation opened from the List are **now fixed** (the components are shared): card 1,001/1,001 at 1280, 1,641/1,641 at 1920, 256/256 at 375; confirmation 382/382, 341/341.
+  - Still open: the List's Totals "by project" region holds 2,684 px in 1,605 (1920), 965 (1280) and 220 (375); Everyone's hours' entries table region holds 3,035 px in 965 at 1280 (admin). Both scroll **inside their
+    own region** and the page does not (document = window at every width); projects-ui's own page title (`Q5F…` project): the heading is 4,418 px wide, runs 248..4,666 in a 1,280 px window and is cut at the right edge
+    (`q5-long-1280-message.png` shows it), the document does not scroll. Owners: hours-ui (the two tables), projects-ui (the title); none is in `b1d85618..HEAD` except through the shared `EntryRow`.
+  - At 375 px with the shell's default **open rail** (O4) the content column is 60 to 146 px: the feature's own overlays are unaffected (cell dialog title 271 px, × at 320..338), the header message wraps inside 105 px, a task-row
+    message ends 20 px past a 60 px row (273..336 in 256..316) and the List's own Export button is off the window at 332..399, for an ordinary name as well. The same state as O4, before and after the fix: the shell's matter.
+
+### Defects
+
+None. Pass 4's D1 is fixed at its root (the name is wrapped where it is printed: a `wrap-anywhere` span on the title and the success message, `break-words` on the definite-width blocks, `min-w-0 break-words` on the flex items),
+checked in every placement of the class, both periods, both name kinds and three widths.
+
+### Environment faults (not defects, no fix round)
+
+- **Node 26.10.0 without `NODE_OPTIONS=--no-webstorage`:** `localStorage` is undefined in the unit suites (pass 4 and 3 recorded it). I ran every unit suite with the flag, as the brief says.
+- **`betterleaks` is not installed:** `gitleaks` 8.30.1 was run directly from its mise install path, same scan, read-only.
+- **My own first measurement flagged the Edit dialog's native `<select>`** (its `scrollWidth` is its longest option's, 1,580 px, and the control clips it itself); that was a false positive of my script, not of the product, and the script now excludes
+  `select`, `input`, `textarea` and `option` (`explore/q5-measure.ts`). Run 1 of the 6 combinations is kept as `q5-d1.run1-with-select-false-positive.log`.
+- **Data left in the dev databases** (companies, deals and projects have no delete route): 13 `Q5 company …` companies, 27 projects (26 named `Q5P…` or `Q5 Internationalisation roadmap …`, one `Q5F…`), 26 deals `Q5D…` / `Q5 Internationalisation framework …`
+  (13 seeds of my measurement spec; several runs re-seeded because a failing soft assertion makes Playwright restart its worker), and G.8's own `HipDlg…` / `Hip Internationalisation…` projects from the 7 runs of G.8 this pass (1 in the 31, 6 mutant runs).
+  Every task I or G.8 made was deleted, every time entry too (`deleteOwnEntriesQuietly`), every `hip-*` person by `cleanupPeople` (checked: no `hip-qfive*` or `hip-qfivef*` account is left in auth). The unit suites, `hours-ui/dist` (a build output, ignored) and
+  Playwright's `test-results` (ignored) are the only other writes. `git status` is clean. No dev server was started or stopped by me; the `zz-mutant.spec.ts` copy was deleted; every mutant was restored; no background process of mine is left.
+
+### Tests added or changed
+
+None committed (the brief says to commit only this file). The independent measurement is `explore/q5-d1.spec.ts` with `explore/q5-measure.ts` (6 combinations, 98 checks) and `explore/q5-followups.spec.ts`, in the scratch directory; running them again against a
+tree where any of the six mutants above is applied fails them.
+
+### Recommendations
+
+- **Nothing blocks.** T27 can be closed from this pass; tasks.md is not edited by QE.
+- Follow-ups, in order of cost: the List's Totals "by project" row, Everyone's hours' table and projects-ui's page title (one `overflow-wrap` rule where the name is printed, or once in the library's table cell and heading text, which would ship through the shell:
+  the deploy order of the changeset applies); then O1, O2 (designer), O4 (the shell), O5 (product owner).
+- Owasp-reviewer pass: **not needed**; the round changed class strings and tests, no input handling, no dependency, no endpoint.
+
+---
 
 ## QE pass 4 (2026-11-19, after the reopening: the table view, week and month)
 
