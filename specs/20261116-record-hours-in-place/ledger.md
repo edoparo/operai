@@ -200,6 +200,10 @@ Decided (the user chose):
 - D24 Next stops at the current period: on the current week or month it moves nowhere, and an address naming a future
   period opens the current one — user chose the recommended option over Next reaching future, empty periods; amends
   AC-5.5 and design S7's "Next week is always offered" and its "not started" state, 2026-11-19
+- D25 From the current week, Month shows the current month (today's), also when the week straddles two months; from a
+  past week, the month of its Monday — user chose the recommended option at the plan gate over "always the Monday's
+  month" (the current week Mon 30 Nov – Sun 6 Dec 2026, today 2 December, would have shown November); amends AC-5.26,
+  2026-11-19
 
 Found (read from the repo, not asked):
 - MF1 The jump is the column width: hours-ui's root layout gives My hours' List the design system's `default` width

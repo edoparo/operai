@@ -1,13 +1,14 @@
 ---
 spec: 20261116
-status: draft
+status: approved
+approved: 2026-11-19
 ---
 
 # Plan: Record hours in place — from the project, the deal and the task, and a week and month view of My hours
 
 Spec: `spec.md` (approved 2026-11-16; amended and re-approved 2026-11-16, 2026-11-17 and 2026-11-19). Decision ledger: `ledger.md`.
-Plan history: approved 2026-11-16; first amendment 2026-11-17 (below), kept approved; **second amendment 2026-11-19, for
-re-approval** (status back to `draft`).
+Plan history: approved 2026-11-16; first amendment 2026-11-17 (below), kept approved; **second amendment 2026-11-19**,
+re-approved by the user 2026-11-19 with AC-5.26 settled (ledger D25).
 
 > Second amendment, 2026-11-19, after the spec was reopened and re-approved (ledger D15–D24, MF1–MF7, MA1–MA9): the Week
 > view becomes the **table view**, with a week or a month as its period, and My hours opens on it; the List moves to
@@ -582,7 +583,8 @@ hasNext(p, today): boolean        // p is before the current period (AC-5.5, AC-
 hasPrevious(p): boolean           // firstDayOf(shift(p, -1)) >= MIN_DAY (decision 12)
 clamp(p, today): TablePeriod      // a period after the current one → the current one (AC-5.29)
 switchTo(p, kind, today): TablePeriod
-  // week → month: the month holding the week's Monday                                   (AC-5.26)
+  // week → month: the current month when p is the current week, else the month holding  (AC-5.26, D25)
+  //               the week's Monday
   // month → week: the current week when any of its seven days is in the month,
   //               else the week holding the month's 1st                                  (AC-5.27)
   // same kind: p
@@ -598,13 +600,11 @@ pickBounds(kind, today): { min: string; max: string }
   `week.ts` (decisions T8). `switchTo` and `shift(p, -1)` never give a future period; `shift(p, +1)` is called only
   when `hasNext`.
 - **AC-5.27, the reading this plan makes of "falls in that month":** the current week falls in a month when any of its
-  seven days does. "Today is in that month" was rejected: it breaks the round trip (the current week Mon 30 Nov – Sun
-  6 Dec 2026 → Month shows November by AC-5.26 → Week would show the week of 1 November, not the week the person came
-  from). "Its Monday is in that month" gives the same week in every case (a current week that only reaches into the
-  month holds the month's 1st). So week → month → week always lands on the week left.
-- **AC-5.26, a consequence for the reader's eye:** on a current week that straddles two months (Mon 30 Nov – Sun 6 Dec
-  2026, today 2 December), Month shows **November**, the month of the Monday, not the month holding today. The plan
-  implements AC-5.26 as written.
+  seven days does, so the current week → Month (the current month, AC-5.26) → Week lands on the current week again,
+  and so does the month before when the current week reaches back into it.
+- **AC-5.26, settled at the plan gate (2026-11-19, ledger D25):** on a current week that straddles two months (Mon 30
+  Nov – Sun 6 Dec 2026, today 2 December), Month shows **December**, the month holding today; a past week shows the
+  month of its Monday. The spec was amended to say so.
 
 ### The period's read (extends Decision 1)
 
@@ -753,7 +753,7 @@ component cases run for the week and the month (`describe.each(['week', 'month']
 | AC-5.22 (amended) | unit + component | `MyHoursPage.table.test.tsx`: category, work type, recorded on (address) and the picked project and deal survive List → week → month → week → List, every read carrying them, the List's `period` untouched throughout; `clearFilterSearch` in the month keeps `view` and `month` (unit) |
 | AC-5.24 (amended) | unit + component | `lib/tableGrid.test.ts` (→ `weekGrid`): `preset: null` for an unreadable row and a retired category; `components/TableCellDialog.test.tsx` (→ `WeekCellDialog`) and `MyHoursPage.cells.test.tsx`: those rows' cell lists have no Add hours, Edit and Delete stay, in both periods |
 | AC-5.25 | unit + component + e2e | `lib/month.test.ts`*: `monthDays` of February 2026 (28), February 2028 (29), November 2026 (30), December 2026 (31), first the 1st, last the last; `tableGrid` over a month: entries on the 1st and the last day land, one on the next month's 1st throws; `components/TableView.test.tsx` (→ `WeekView`): a month draws the row-label column, one column per day and Total; e2e G: the month shown has that many day columns |
-| AC-5.26 | unit + component + e2e | `switchTo(week, 'month')` for a week inside one month and for Mon 30 Nov – Sun 6 Dec 2026 (→ November); page: the switch writes `view=month` (and `month` unless current) and reads that month's span; e2e G from the current week, expectation computed with the same rule |
+| AC-5.26 | unit + component + e2e | `switchTo(week, 'month')` for a week inside one month, for the current week Mon 30 Nov – Sun 6 Dec 2026 with today 2 December (→ December, D25) and for that week as a past week, today 9 December (→ November); page: the switch writes `view=month` (and `month` unless current) and reads that month's span; e2e G from the current week, expectation computed with the same rule |
 | AC-5.27 | unit + component + e2e | `switchTo(month, 'week')`: the current month → the current week; the month before when the current week reaches into it (today Sunday 1 November 2026: October → the week of Monday 26 October) → the current week; any other month → the week holding its 1st (September 2026 → Monday 31 August); the round trip week → month → week lands on the week left; page and e2e G as AC-5.26 |
 | AC-5.28 | unit + component + e2e | `hasNext(current) === false` in both periods; `PeriodNavigator`: Next `aria-disabled="true"` on the current week and month and a press reports nothing (page: address and read unchanged); Next pressed on the period before keeps the focus on Next, now `aria-disabled`; e2e F (week) and G (month) |
 | AC-5.29 | unit + component + e2e | `readWeekParam`: next week, a day of next week, `9999-12-20` → the current week; `readMonthParam`: next month, `9999-12` → the current month; page: `/hours?week=<next Monday>` reads the current week and its Next is `aria-disabled`; e2e G: both addresses |
