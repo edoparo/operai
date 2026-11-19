@@ -142,7 +142,7 @@ Test commands: hours-ui, projects-ui, crm-ui `pnpm lint && pnpm build && pnpm te
   - touch: `AGENTS.md`, `infra/README.md`, `.changeset/hours-ui-record-in-place.md`
   - done when: AGENTS.md describes My hours as the table view (week or month, `/hours`, `?view=month`, `?view=list`) and the List, every hours page at full width, and the hours-ui paragraph's browser-sum sentence follows ADR 20261116-week-view-sums-a-complete-read-in-the-browser's amendment; infra/README.md § Record hours in place verifies on `/hours` and says the shell (with `@operai/ui`'s `pin`) deploys before hours-ui, an earlier hours-ui showing the month unpinned; the pending hours-ui changeset text describes the table view (no new hours-ui changeset, D22); `mise run changeset:check` passes
 
-- [ ] T26: [QE] owasp-reviewer delta pass (plan § Security (2026-11-19)) — refs: AC-5.2, AC-5.29, AC-5.31 — deps: T23
+- [x] T26: [QE] owasp-reviewer delta pass (plan § Security (2026-11-19)) — refs: AC-5.2, AC-5.29, AC-5.31 — deps: T23
   - touch: `specs/20261116-record-hours-in-place/owasp-report.md`
   - done when: owasp-report.md gains a re-check section with verdict PASS over what plan § Security (2026-11-19) names: `readMyHoursAddress` / `readMonthParam` / `readWeekParam` never put an unchecked value in a request, `whose=mine` on every table read, the date field cannot send a day after today or before the floor, and the `DataTable` `pin` change adds no injection or layout-hiding surface
 

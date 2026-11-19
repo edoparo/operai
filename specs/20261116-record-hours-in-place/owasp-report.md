@@ -338,3 +338,64 @@ that names its record") and, when a list is ever merged from two sources, prefix
 - The focus behaviour was proven against `test-support/focusFixup.ts` (jsdom emulation of the browser's focus fixup) and the QE's measurement,
   not re-measured in a browser; it has no security effect either way (focus only, no activation).
 - The e2e journeys and hours-api's own suite were not run (they need the stack, and backend tests truncate the local dev databases).
+
+---
+
+## Re-check 2026-11-19 (table view: week and month, T26)
+
+Scope: `git diff b1d85618..HEAD` at `41b8735f`, production code of hours-ui and operai-ui (`HEAD` is now `32d05c87`, which adds only docs: AGENTS.md, infra/README.md, decisions.md, tasks.md, the changeset). Read against plan.md § Security (2026-11-19), § The address of My hours, § `TablePeriod`, § The period's read, and the earlier sections of this file.
+
+Files read in full:
+- hours-ui: `HoursFiltersState.ts`, `PeriodDateField.tsx`, `PeriodNavigator.tsx`, `PeriodSwitch.tsx`, `TableView.tsx`, `TableViewModel.ts`, `TableCellDialog.tsx`, `ViewSwitch.tsx`, `HoursShell.tsx`, `HoursFilters.tsx` (comment only), `lib/month.ts`, `lib/tablePeriod.ts`, `lib/week.ts`, `lib/exportPages.ts` (unchanged), `pages/MyHoursPage.tsx`, `strings/table.ts` (grepped for markup and URLs).
+- operai-ui: `DataTable.tsx` and `styles/tokens.css` (diffs plus the surrounding rules), and `docs/decisions.md` D-69.
+
+Frontend only: no backend, `package.json`, lockfile, `vercel.json`, Dockerfile or Railway file is in the range, so A06 and A08 have nothing to report. `git diff --name-only` outside hours-ui/operai-ui/specs lists only `.changeset/operai-ui-datatable-pin.md` and four `shell/e2e/hours*.spec.ts` files; a grep of those for credentials or external URLs found nothing.
+
+### Verdict: PASS WITH NOTES
+
+For the run trace: `verdicts.security: "PASS"`; L1 goes in `security.notes[]`. Nothing at medium or higher, so no defect to route. The plan's own checklist (address input, `whose=mine`, no write path, XSS, `from`/`to` bounds) holds without a finding. L1 comes from an interaction the checklist did not name: the new `pin` prop with server-supplied row labels.
+
+0 critical · 0 high · 0 medium · 1 low · 0 informational
+
+### What was checked, and the evidence
+
+**C1. No unchecked address or date-field value reaches a request (A03, A04).**
+- `readMyHoursAddress` (`HoursFiltersState.ts:117-122`) takes `view` by strict equality (`'list'`, `'month'`); anything else, arrays, objects and numbers included, is the week. `readMonthParam` (`lib/month.ts:96-100`) goes through `parseMonth` (`:86-87`): `typeof === 'string'` and `^(\d{4})-(0[1-9]|1[0-2])$` (JS `$` does not match before a trailing newline, `\d` is ASCII-only), then `>= MIN_MONTH` and `<= thisMonth` as fixed-width text, else the current month. `readWeekParam` (`lib/week.ts:75-81`) uses `dayOf` (`:19-24`): strict pattern plus a `Date.UTC` round trip (30 February and years 0000-0099 fail); the Monday must be `>= MIN_DAY`, `<= thisWeek` and inside year 9999, else the current week.
+- `pickedPeriod` (`lib/tablePeriod.ts:172-176`) returns a period only for a calendar day (`isCalendarDay`, `:157-162`) with `min <= text <= max`; `pickBounds` (`:147-152`) gives `max = today`, `min = 2000-01-03` / `2000-01-01`, so a day typed digit by digit (0002, 0202, five-digit years) names nothing. `PeriodDateField.tsx:62-70` calls `onPeriodChange` only for `asked !== null` and a different `periodKey`. The input's `min`/`max` attributes are not what enforces this; the function is.
+- The only request the table makes is `MyHoursPage.tsx:204-205`: `from = firstDayOf(period)`, `to = lastDayOf(period)`, from a `TablePeriod` that only `holding`, `current`, `shift` and the readers above produce. `target` is `oneOf(TARGETS)` (`HoursFiltersState.ts:101`); `categoryId` and `workTypeId` are kept only if the loaded lists hold them (`MyHoursPage.tsx:169-179`); `projectId` and `dealId` are picker objects in memory. Queries go out through `URLSearchParams` (`lib/hoursApi.ts:53-61`).
+- Probe (Bun, real modules, today 2026-11-19): about 50 hostile values (`undefined`, `null`, numbers, arrays, objects, `2026-11\n`, `2026-13`, `0000-01`, `0099-12`, `1999-12`, `9999-12`, `10000-01`, fullwidth and Arabic-Indic digits, `2026-02-30`, `__proto__`, a 17 KB string) into `readMonthParam`, `readWeekParam`, `pickedPeriod`, `firstDayOf`/`lastDayOf`: no violation — every month in [2000-01, 2026-11], every week Monday in [2000-01-03, 2026-11-16], every `from` in [2000-01-01, today], every span 7–31 days; `pickedPeriod` never threw. `hasPrevious` is false at 2000-01-03 and 2000-01; `switchTo` from the floor month lands on 2000-01-03.
+- A clamped or ignored address is not rewritten (`HoursFiltersState.ts:108-116`); the writers put only a checked Monday or month into the address (`withTablePeriod` `:133-150`, `withList` `:158-163`); `withTable` (`:170-180`) may keep a stray future or ancient `month`, used only by the checked reader.
+- "No future request": `from` is never after today; `to` is the last day of the current week or month (at most 30 days ahead, plan § The period's read). hours-api raises `future_day` only on writes (`entries/entries.routes.ts:249`, `rules.ts:51`); the list takes any real day from 2000-01-01 within the 366-day span (`filters.ts:27`, `:73-81`).
+
+**C2. Every table read is `whose=mine`, 7 to 31 days (A01).** `whose: 'mine' as const` is the single literal (`MyHoursPage.tsx:193`); `userId` is never in the table's filters and `parseFilterSearch(search)` runs without the `'everyone'` view, so `personId` is always `''` here (`HoursFiltersState.ts:100`); no oversight path in the diff. The read is the unchanged `readAllEntries` (`limit=500`, every page, all or nothing, repeated-cursor stop at `exportPages.ts:47`); `useHoursQuery` aborts on a key change and drops late answers (`useHoursQuery.ts:49-61`).
+
+**C3. No new write path; the empty cell no longer records (A01, A04).** `Cell` (`TableView.tsx:131-148`) renders nothing for an empty day and a button with `data-cell` only for a cell holding entries; `onRecordCell` is gone. The only creates are the unchanged List `record` and `recordInCell` (`MyHoursPage.tsx:464-482`), reachable only through `TableCellDialog` `onAdd` (`:731-735`) from a filled cell, hidden after today and for a row with no `preset` (a convenience; hours-api still decides every save as the caller).
+
+**C4. XSS and injection (A03).** No `dangerouslySetInnerHTML`, `innerHTML`, `eval`, `new Function`, `document.write`, web storage, `postMessage`, `location`, `window.open`, `href`, inline `style={}` or `fetch` in the non-test diff. Names and labels are React text or attribute values (`RowLabel` `TableView.tsx:119`; `rowLabel`/`rowPhrase` `TableViewModel.ts:78-88`; the cell `aria-label` `:141`; dialog title and description `TableCellDialog.tsx:61-69`); the month label is `formatMonth` of a checked `YYYY-MM`; `strings/table.ts` holds no markup or URL. DOM lookups use constants or `===` (`focusCell` compares `dataset.cell` after `querySelectorAll('[data-cell]')`, so a server row key is never in a selector). A failed read is worded from the catalog only; a `RangeError` from `tableGrid` names an id and a day, never a note, and is not rendered.
+
+**C5. The `pin` change (A03, A04).** The only dynamic style is `region.style.setProperty(<constant>, \`${Math.ceil(width)}px\`)` (`DataTable.tsx:120`) — a number from layout, not data or a prop; removed on cleanup (`:127`); an unset variable falls back to `auto`. `pin` is a two-literal union; `pinClass` (`:94-100`) yields fixed classes. Opaque pinned cells are also the pointer target (paint and hit target agree); `z-index: 1` (`tokens.css:1558`) stays under the listbox (10), floating panel (40), dialogs and toasts (50). The documented edge (a control inside a pinned cell) is not reachable: the month's pinned cells are the row label and the Total, text only. Below 48 rem and on an older shell the table is unpinned with no error.
+
+**C6. Other categories.** A01: `HoursShell` no longer reads the route or the address and renders no new link. A09/A02: no new log line; the address carries a day, a month and existing filter ids, no name, note or person; a month of one person's own entries is held in memory for the screen only. A05/A10: no new origin or credential. Router: `navigate({ search, replace: true })` never changes `to` (no open redirect). A04 request volume: each complete in-range day in the date field starts a walk and aborts the previous one (no debounce, plan decision 14); a walk is bounded by one person's own entries over at most 31 days (≤ 1,488 entries, about 3 pages); same posture as the List's filters and the navigator.
+
+### Findings
+
+**[L1 — LOW, A04 Insecure Design (robustness of a view against third-party text; UI availability)]** `hours-ui/src/components/TableView.tsx:119` with `:165` (`pin: 'start'`) and `operai-ui/src/styles/tokens.css:1556-1566`
+- **What.** In the month the row-label column is pinned and opaque; its width is the widest label, and the label span's `break-words` (`overflow-wrap: break-word`) does not reduce a table cell's min-content width. A label is a project name, deal title or meeting title written by its owner, not the viewer. A long unbroken string (a URL pasted as a meeting title, 200 characters of one letter) widens the pinned column past the scroll region, so the day columns scroll under it and can never be brought into view; `scroll-padding-inline-start` is that same width plus 8 px, so keyboard focus cannot reveal them either.
+- **Who.** Another signed-in colleague who names a record the viewer has hours on (meeting creator, project manager, deal manager). Meetings bound a title at 200 characters (`meetings-api/src/meetings/schemas.ts:34`); the bound of a project name or deal title was not found.
+- **Impact.** The month view of affected viewers is unusable while that row has hours in the month; no data exposed or changed; the week (unpinned) and the List are unaffected. Low.
+- **Evidence.** Chromium replica of the table (1,200 px region, same label span, sticky opaque first and last columns, 31 days): a 27-character label → pinned column 136 px, first day button at x = 291 and hit-testable; 200 unbroken characters → 2,046 px, first day button at x = 2,201 outside the region, the hit test lands on the pinned cell. The live app was not run.
+- **Fix (hours-ui, one line).** Let the label break anywhere: `overflow-wrap: anywhere` (Tailwind `wrap-anywhere`, or `[overflow-wrap:anywhere]`) on the label span; in the replica the 200-character case went back to 136 px with the day button reachable. Cover it with a Playwright journey (a meeting titled with 200 unbroken characters; the first day button hit-testable). Optional library guard: a `max-width` on `.data-table .is-pinned-start`.
+
+### Notes (informational; for `security.notes[]`)
+
+None beyond L1.
+
+### How this was verified
+
+Read the full production diff of the scope files plus `lib/hoursApi.ts`, `lib/useHoursQuery.ts`, `lib/todayZurich.ts`, and hours-api `entries/filters.ts`, `schemas.ts`, `rules.ts` (read only), and the `tokens.css` z-index layering. Ran in hours-ui (`NODE_OPTIONS=--no-webstorage`): `month`, `tablePeriod`, `week`, `HoursFiltersState`, `MyHoursPage.pick`, `.table`, `.month` — 7 files, 360 tests, green. No backend suite run. Probe of the address readers and `pickedPeriod`, and the Chromium replica, as scratch scripts outside the tree.
+
+### Not covered
+
+L1 reproduced on a replica, not in the running shell, and only in Chromium; Firefox, Safari and the native date input's typed-year behaviour not tried (the field's safety rests on `pickedPeriod` being pure). The e2e journeys were not run. Whether the shell's compiled CSS applies exactly the replica's rules was not checked (the source rules and classes match).
+
+SELF-CRITIQUE: the plan's checklist was tested first and found clean by reading and by probe, then what the checklist leaves out was looked for, which is how L1 turned up; it may be over-called as Low (Week or List is one click away), but the trigger is another person's text, so it is not left as a note. The probe imports the real modules; the replica is a structural copy and the live month is untested. Unit suites passing says only that tests agree with code, hence the hostile values.
