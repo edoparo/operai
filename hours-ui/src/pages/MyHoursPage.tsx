@@ -46,14 +46,7 @@ import { isCode, statusOf } from '../lib/errors'
 import { readAllEntries } from '../lib/exportPages'
 import { createEntry, deleteEntry, getTimeLists, getTotals, listEntries, updateEntry } from '../lib/hoursApi'
 import type { EntryFilters } from '../lib/hoursApi'
-import type {
-  EntriesPage,
-  EntryInput,
-  EntryOnInput,
-  EntryPatch,
-  TimeEntryView,
-  TotalsAnswer,
-} from '../lib/hoursApi.types'
+import type { EntriesPage, EntryInput, EntryPatch, TimeEntryView, TotalsAnswer } from '../lib/hoursApi.types'
 import { hasHiddenName, unavailableSources } from '../lib/names'
 import { rangeOf } from '../lib/period'
 import type { DealChoice, ProjectChoice } from '../lib/searchers'
@@ -93,10 +86,6 @@ const readTable = async (filters: EntryFilters, period: TablePeriod, signal: Abo
   const { items, unavailable } = await readAllEntries(filters, { signal })
   return { grid: tableGrid(items, daysOf(period)), items, unavailable }
 }
-
-/** The grid row an entry of this `on` lands on, by `tableGrid`'s key: `project:<id>`, `deal:<id>`, `meeting:<id>`, `category:<id>`. */
-const rowKeyOf = (on: EntryOnInput): string =>
-  on.type === 'none' ? `category:${on.categoryId}` : `${on.type}:${on.id}`
 
 /** Prefix of the ids the view switch's tabs and its panel point at each other with. */
 const VIEW_ID = 'hours-view'
@@ -144,17 +133,18 @@ const dayTotalsOf = (answer: TotalsAnswer): ReadonlyMap<string, number> =>
  * export's walk (T30) can meet the same refusal: it tells the page, which shows the same alert (the Export
  * button is gone with the Entries card, so the alert takes focus) and nothing is downloaded.
  *
- * The Week (specs/20261116-record-hours-in-place T10, T11): one complete read of the week folded into a grid. An empty
- * cell of today or an earlier day opens the same entry dialog, set on the cell's day and the row's target (changeable,
- * focus on Duration). Every write reads the week again (the grid is replaced meanwhile, so the control that had focus
- * is gone): focus then goes to the cell that was acted on or, when the save moved the entry out of it or the cell is
- * not a control, to the card's heading — never to the page body; a save on a day outside the week says so.
+ * The table (specs/20261116-record-hours-in-place T10, T12, T20): one complete read of the period folded into a grid. An
+ * empty cell is not a control and the page hears nothing of it (AC-5.32). Every write reads the period again (the grid is
+ * replaced meanwhile, so the control that had focus is gone): focus then goes to the cell that was acted on or, when that
+ * cell is blank now or is not a control, to the card's heading — never to the page body; a save on a day outside the
+ * period says so.
  *
- * A cell that holds hours opens `TableCellDialog` (T12, design F5, S8): its entries with the List's Edit and Delete, and
- * Add hours. Edit, Delete and Add hours open the same dialogs the List opens, over it. The dialog is drawn from the last
- * week that loaded, so it keeps its entries while the week is read again after a write and updates in place when the
- * new one lands; it closes by itself when the cell holds no entry any more, and the focus is the dialog's to keep
- * (the page's own focus requests are for the List and for a write made with the dialog closed).
+ * A cell that holds hours opens `TableCellDialog` (design F5, S8): its entries with the List's Edit and Delete, and Add
+ * hours, which opens My hours' own entry dialog on that day and row, both still changeable (AC-5.13, AC-5.18). Edit,
+ * Delete and Add hours open the same dialogs the List opens, over it. The dialog is drawn from the last grid that
+ * loaded, so it keeps its entries while the period is read again after a write and updates in place when the new one
+ * lands; it closes by itself when the cell holds no entry any more, and the focus is the dialog's to keep (the page's own
+ * focus requests are for the List and for a write made with the dialog closed).
  */
 export default function MyHoursPage() {
   const navigate = useNavigate()
@@ -378,10 +368,10 @@ export default function MyHoursPage() {
     totals.reload()
   }
 
-  // The Week is replaced by a skeleton while it is read again after a write, so the control that had focus is gone:
-  // once the new grid is there, focus goes to the cell that was acted on, else to the card's heading — never to
-  // the page body (design S7 "Focus after a write"). The request waits for the read to settle and is dropped
-  // with the view. It is state, numbered, and the effect remembers the last one it has answered: so a request made when
+  // The table is replaced by a skeleton while it is read again after a write, so the control that had focus is gone:
+  // once the new grid is there, focus goes to the cell that was acted on if it is still a control, else to the card's
+  // heading — never to the page body (design S7 "Focus after a write"). The request waits for the read to settle and is
+  // dropped with the view. It is state, numbered, and the effect remembers the last one it has answered: so a request made when
   // nothing is being read (a dialog closed by hand) is looked at on the render that follows it, which a ref
   // read only when the status changed would never do.
   const [tableFocus, setTableFocus] = useState<{ id: number; cell: string | null } | null>(null)
@@ -400,13 +390,12 @@ export default function MyHoursPage() {
     tableView.current?.focusHeading()
   }, [tableFocus, tableShown, tableStatus])
 
-  // The cell dialog (T12; design F5, S8). It is opened on a cell of the week and filters shown, and drawn from the last
+  // The cell dialog (T12; design F5, S8). It is opened on a cell of the period and filters shown, and drawn from the last
   // grid that loaded — not from the read in flight, which is `loading` after every write — so its list does not blank
-  // while the week is read again and then updates in place. It belongs to the Week and to the week it was opened on:
+  // while the period is read again and then updates in place. It belongs to the table and to the period it was opened on:
   // leaving either closes it for good (coming back does not find it open), and so does its cell running out of entries
   // (deleted, or edited onto another day or row): the dialog closes once the new figures are there and focus goes to the
-  // cell — an empty one, one Enter from recording again — or to the card's heading when its row is gone. An empty list
-  // in a dialog would be a dead end.
+  // card's heading, since a blank cell is no control (T20, AC-5.32). An empty list in a dialog would be a dead end.
   const [openCell, setOpenCell] = useState<{ rowKey: string; day: string; tableKey: string } | null>(null)
   const [lastGrid, setLastGrid] = useState<{ tableKey: string; grid: TableGrid } | null>(null)
   if (loadedTable !== null && lastGrid?.grid !== loadedTable.grid) setLastGrid({ tableKey, grid: loadedTable.grid })
@@ -418,7 +407,7 @@ export default function MyHoursPage() {
     setOpenCell(null)
   } else if (openCell !== null && lastGrid?.tableKey === openCell.tableKey && cellInGrid === null) {
     setOpenCell(null)
-    askTableFocus(`${openCell.rowKey}:${openCell.day}`)
+    askTableFocus(null)
   }
   // Closing it by hand: the button it was opened from is still there unless a write has replaced the grid, so the
   // library's "focus goes back to the opener" is not enough on its own.
@@ -465,23 +454,16 @@ export default function MyHoursPage() {
     readAgain()
   }
 
-  // Recording on an empty cell of the Week (T11; design F4, S9; AC-5.12, AC-5.13): My hours' own dialog, opened on the
-  // cell's day and the row's target, which can still be changed (`preset`, not `fixed`: WA6), with the keyboard on
-  // Duration (`focus`, G7) because the click already chose the day and the target.
-  // From the cell dialog's Add hours (T12, AC-5.18) it is the same dialog, opened over the cell dialog: `viaDialog`.
-  const [recordingCell, setRecordingCell] = useState<{ row: TableGridRow; day: string; viaDialog: boolean } | null>(
-    null,
-  )
-  const recordInCell = async (cell: { row: TableGridRow; day: string; viaDialog: boolean }, input: EntryInput) => {
+  // Add hours in a cell's list (T12; design F5, S9; AC-5.13, AC-5.18): My hours' own dialog, opened over the cell dialog on
+  // the cell's day and the row's target, which can still be changed (`preset`, not `fixed`: WA6), with the keyboard on
+  // Duration (`focus`, G7) because the choice of the cell already chose the day and the target. It is the only way into a
+  // preset dialog: an empty cell records nothing (AC-5.32). The library gives focus back to Add hours, which is still
+  // there, and the cell dialog lists the new entry once the table is read again — unless the person moved it elsewhere.
+  const [recordingCell, setRecordingCell] = useState<{ row: TableGridRow; day: string } | null>(null)
+  const recordInCell = async (input: EntryInput) => {
     await createEntry(input)
     setRecordingCell(null)
     say('saved', savedMessage(input.day))
-    // The cell it came from now holds the hours — unless the person changed the day or the row, which moved the entry out of it.
-    // Over the cell dialog the library gives focus back to Add hours, which is still there, and the dialog lists the new entry.
-    if (!cell.viaDialog) {
-      const landed = rowKeyOf(input.on) === cell.row.key && input.day === cell.day
-      askTableFocus(landed ? `${cell.row.key}:${cell.day}` : null)
-    }
     readAgain()
   }
 
@@ -612,7 +594,6 @@ export default function MyHoursPage() {
             onPeriodChange={changePeriod}
             onRetry={retryAll}
             onClearFilters={clear}
-            onRecordCell={(row, day) => setRecordingCell({ row, day, viaDialog: false })}
             onOpenCell={(row, day) => setOpenCell({ rowKey: row.key, day, tableKey })}
           />
         ) : blocked ? (
@@ -734,7 +715,7 @@ export default function MyHoursPage() {
           onDelete={setDeleting}
           onAdd={
             cellInGrid.row.preset !== null && openCell.day <= today
-              ? () => setRecordingCell({ row: cellInGrid.row, day: openCell.day, viaDialog: true })
+              ? () => setRecordingCell({ row: cellInGrid.row, day: openCell.day })
               : undefined
           }
           onClose={closeCell}
@@ -747,7 +728,7 @@ export default function MyHoursPage() {
           onReloadLists={lists.reload}
           preset={{ day: recordingCell.day, on: recordingCell.row.preset }}
           focus="duration"
-          onSubmit={(input) => recordInCell(recordingCell, input)}
+          onSubmit={recordInCell}
           onCancel={() => setRecordingCell(null)}
         />
       )}

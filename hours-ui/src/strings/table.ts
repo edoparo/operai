@@ -41,11 +41,12 @@ const en = {
     /** The last column's header and the last row's header (the day totals). */
     total: 'Total',
   },
-  /** The accessible names of a cell's button: they carry the row and the day, since a button is reached out of the table. */
+  /**
+   * The accessible name of a cell's button: it carries the row and the day, since a button is reached out of the table. Only a
+   * cell that holds hours is a button: an empty cell is not a control and has no name (AC-5.32).
+   */
   cell: {
-    /** An empty cell of today or an earlier day on a row that can be recorded on (AC-5.12). `day`: "Thursday 19 November 2026". */
-    record: (on: string, day: string) => `Record hours on ${on}, ${day}`,
-    /** A cell that holds hours (AC-5.15). */
+    /** A cell that holds hours (AC-5.15). `day`: "Thursday 19 November 2026". */
     open: (duration: string, on: string, day: string, entries: number) =>
       `${duration} on ${on}, ${day}, ${entries === 1 ? '1 entry' : `${entries} entries`}`,
   },
@@ -70,11 +71,6 @@ const en = {
   empty: {
     title: 'No hours recorded this week',
     body: 'Record the hours you worked and they appear here, by project and day.',
-  },
-  /** The week begins after today: nothing can be recorded on it yet, whatever the filters. */
-  emptyFuture: {
-    title: 'This week has not started',
-    body: 'You can record hours on a day once it has come.',
   },
   /** A save on a day outside the week shown: say so, or the entry looks lost (design F6; the Week's twin of the List's `savedOutsidePeriod`). */
   savedOutside: (date: string) => `Entry saved. ${date} is outside the week you are viewing.`,
@@ -108,7 +104,6 @@ const it: typeof en = {
     total: 'Totale',
   },
   cell: {
-    record: (on: string, day: string) => `Registra ore su ${on}, ${day}`,
     open: (duration: string, on: string, day: string, entries: number) =>
       `${duration} su ${on}, ${day}, ${entries === 1 ? '1 registrazione' : `${entries} registrazioni`}`,
   },
@@ -124,10 +119,6 @@ const it: typeof en = {
   empty: {
     title: 'Nessuna ora registrata in questa settimana',
     body: 'Registra le ore lavorate e compaiono qui, per progetto e giorno.',
-  },
-  emptyFuture: {
-    title: 'Questa settimana non è ancora iniziata',
-    body: 'Puoi registrare le ore di un giorno quando è arrivato.',
   },
   savedOutside: (date: string) => `Registrazione salvata. Il ${date} è fuori dalla settimana che stai guardando.`,
   scrollHint: 'Scorri di lato per vedere tutti e sette i giorni.',

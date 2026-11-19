@@ -3,7 +3,7 @@
  *
  * My hours, T10's and T19's part: the Table | List switch, the address of the table view, the week read, the filters in the
  * table view and the wide layout (specs/20261116-record-hours-in-place; AC-5.1, AC-5.2, AC-5.4, AC-5.5, AC-5.21, AC-5.22,
- * AC-4.6; plan Decision 1, 5 and 10, § The address of My hours; design F3, S6, S7, G5). `/hours` is the table view since
+ * AC-5.28, AC-5.29, AC-4.6; plan Decision 1, 5, 10 and 12, § The address of My hours; design F3, S6, S7, G5). `/hours` is the table view since
  * T19 (AC-5.1 reversed); the List is `?view=list`. Rendered through the inner router with a
  * memory history and `fakeApi` behind `apiFetch`, so an assertion about a request is about the query string the real
  * `hoursApi` builds. The week's own grid is T9's (`TableView`) and T8's (`tableGrid`); the cells' dialogs are T11's and
@@ -54,6 +54,8 @@ const THIS_SUNDAY = '2026-11-15'
 const LAST_MONDAY = '2026-11-02'
 const LAST_SUNDAY = '2026-11-08'
 const NEXT_MONDAY = '2026-11-16'
+const nextButton = () => screen.getByRole('button', { name: w.nav.next })
+const previousButton = () => screen.getByRole('button', { name: w.nav.previous })
 
 let entrySeq = 0
 const entry = (day: string, minutes: number, on: TimeEntryView['on']): TimeEntryView =>
@@ -283,6 +285,39 @@ describe('the table view at its own address (AC-5.2, AC-5.4)', () => {
     expect(heading().textContent).toBe(w.title(rangeOf(LAST_MONDAY, LAST_SUNDAY)))
   })
 
+  it.each([
+    ['next Monday', NEXT_MONDAY],
+    ['a day of next week', '2026-11-18'],
+    ['next Sunday', '2026-11-22'],
+    ['a week well after', '2027-01-01'],
+    ['the last week the format holds', '9999-12-20'],
+  ])(
+    'an address naming a week after this one (%s) shows this week, with Next unavailable (AC-5.29)',
+    async (_what, week) => {
+      useApi()
+      const router = await renderPage(`/hours?week=${week}`)
+      await screen.findByTestId('hours-table-table')
+
+      expect(entriesCalls().map((request) => [request.query['from'], request.query['to']])).toEqual([
+        [THIS_MONDAY, THIS_SUNDAY],
+      ])
+      expect(heading().textContent).toBe(w.title(rangeOf(THIS_MONDAY, THIS_SUNDAY)))
+      expect(nextButton().getAttribute('aria-disabled')).toBe('true')
+      // Nothing is said and nothing is rewritten: the period shown is derived, and the next write puts it in the address.
+      expect(urlOf(router)).toEqual({ week })
+    },
+  )
+
+  it('the first contract’s address naming a week after this one is clamped too: ?view=week&week=<next Monday>', async () => {
+    useApi()
+    await renderPage(`/hours?view=week&week=${NEXT_MONDAY}`)
+    await screen.findByTestId('hours-table-table')
+    expect(entriesCalls().map((request) => [request.query['from'], request.query['to']])).toEqual([
+      [THIS_MONDAY, THIS_SUNDAY],
+    ])
+    expect(nextButton().getAttribute('aria-disabled')).toBe('true')
+  })
+
   it('the month’s keys name no period yet (T22): ?view=month opens the current week and reads one week, nothing of it sent', async () => {
     useApi()
     await renderPage('/hours?view=month&month=2026-10')
@@ -310,17 +345,35 @@ describe('changing the week (AC-5.5)', () => {
     expect(within(rowOf('project:p-alpha')).getAllByText('3 h')).toHaveLength(2)
   })
 
-  it('Next week reads the week after, and a week that has not started is drawn as such, with no entry asked for it twice', async () => {
+  it('Next week is unavailable on the current week: aria-disabled, and a press changes nothing — no read, no address, no focus lost (AC-5.5, AC-5.28)', async () => {
     useApi()
     const router = await renderPage('/hours')
     await screen.findByTestId('hours-table-table')
+    expect(nextButton().getAttribute('aria-disabled')).toBe('true')
+    nextButton().focus()
 
-    await userEvent.click(screen.getByRole('button', { name: w.nav.next }))
+    await userEvent.click(nextButton())
+    await userEvent.keyboard('{Enter}')
+
+    expect(entriesCalls()).toHaveLength(1)
+    expect(urlOf(router)).toEqual({})
+    expect(heading().textContent).toBe(w.title(rangeOf(THIS_MONDAY, THIS_SUNDAY)))
+    expect(screen.getByTestId('hours-table-table')).not.toBeNull()
+    expect(document.activeElement).toBe(nextButton())
+  })
+
+  it('Next week reads the week after one that is before the current week, and is available there (AC-5.5)', async () => {
+    useApi()
+    const router = await renderPage(`/hours?week=2026-10-26`)
+    await screen.findByTestId('hours-table-empty')
+    expect(nextButton().getAttribute('aria-disabled')).toBeNull()
+
+    await userEvent.click(nextButton())
 
     await waitFor(() => expect(entriesCalls()).toHaveLength(2))
-    expect(entriesCalls()[1]!.query).toMatchObject({ from: NEXT_MONDAY, to: '2026-11-22' })
-    expect(urlOf(router)).toEqual({ week: NEXT_MONDAY })
-    await screen.findByText(w.emptyFuture.title)
+    expect(entriesCalls()[1]!.query).toMatchObject({ from: LAST_MONDAY, to: LAST_SUNDAY })
+    expect(urlOf(router)).toEqual({ week: LAST_MONDAY })
+    expect(nextButton().getAttribute('aria-disabled')).toBeNull()
   })
 
   it('This week goes back to the current week and takes ?week out of the address: this week is the default', async () => {
@@ -335,15 +388,35 @@ describe('changing the week (AC-5.5)', () => {
     expect(urlOf(router)).toEqual({})
   })
 
-  it('stepping forward onto this week from the week before also leaves ?week out', async () => {
+  it('stepping forward onto this week from the week before also leaves ?week out, and the keyboard stays on Next, now unavailable (R18)', async () => {
     useApi()
     const router = await renderPage(`/hours?week=${LAST_MONDAY}`)
     await screen.findByTestId('hours-table-table')
+    nextButton().focus()
 
-    await userEvent.click(screen.getByRole('button', { name: w.nav.next }))
+    await userEvent.keyboard('{Enter}')
 
     await waitFor(() => expect(entriesCalls()).toHaveLength(2))
     expect(urlOf(router)).toEqual({})
+    await screen.findByTestId('hours-table-table')
+    expect(heading().textContent).toBe(w.title(rangeOf(THIS_MONDAY, THIS_SUNDAY)))
+    expect(nextButton().getAttribute('aria-disabled')).toBe('true')
+    expect(document.activeElement).toBe(nextButton())
+  })
+
+  it('Previous week is unavailable on the first week hours-api answers, Monday 3 January 2000, and a press changes nothing (decision 12)', async () => {
+    useApi()
+    const router = await renderPage('/hours?week=2000-01-03')
+    await screen.findByTestId('hours-table-empty')
+    expect(entriesCalls()[0]!.query).toMatchObject({ from: '2000-01-03', to: '2000-01-09' })
+    expect(previousButton().getAttribute('aria-disabled')).toBe('true')
+
+    await userEvent.click(previousButton())
+
+    expect(entriesCalls()).toHaveLength(1)
+    expect(urlOf(router)).toEqual({ week: '2000-01-03' })
+    // The way forward is open from there.
+    expect(nextButton().getAttribute('aria-disabled')).toBeNull()
   })
 
   it('shows the skeleton at once, never the previous week’s figures under the new span', async () => {

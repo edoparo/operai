@@ -3,9 +3,9 @@
  *
  * TableView — the Week card of My hours: a table of what the person worked on, row by row and day by day, with its
  * totals, its states and its navigator (specs/20261116-record-hours-in-place T9; design S7; AC-5.3, AC-5.5,
- * AC-5.9–AC-5.11, AC-5.14, AC-5.23, AC-5.24, AC-4.6). Presentational: it is handed a `TableGrid` (the pure fold of one
- * complete read, T8) and what the page knows, and it computes nothing — every figure is one the grid states. A cell's
- * actions are callbacks (T11 and T12 give them handlers).
+ * AC-5.9–AC-5.11, AC-5.14, AC-5.23, AC-5.24, AC-4.6; T20: AC-5.14, AC-5.24, AC-5.28, AC-5.32). Presentational: it is
+ * handed a `TableGrid` (the pure fold of one complete read, T8) and what the page knows, and it computes nothing — every
+ * figure is one the grid states. A cell that holds hours is a button that calls back; an empty cell is not a control.
  */
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { cleanup, render, screen, within } from '@testing-library/react'
@@ -222,82 +222,94 @@ describe('the figures: a cell, a row, a day and the week, each as the grid state
   })
 })
 
-describe('a cell is a control only where an action is offered (AC-5.12, AC-5.14, AC-5.15, AC-5.24)', () => {
+describe('a cell that holds hours is the only control: an empty cell is a blank td (AC-5.14, AC-5.15, AC-5.24, AC-5.32)', () => {
   const rowOfKey = (key: string) => GRID.rows.find((gridRow) => gridRow.key === key)!
-  const handlers = () => ({ onRecordCell: vi.fn(), onOpenCell: vi.fn() })
+  const handlers = () => ({ onOpenCell: vi.fn() })
   const buttonIn = (key: string, day: string) => within(dayCell(key, day)).queryByRole('button')
   const recordButtons = () => screen.queryAllByRole('button', { name: /^Record hours on / })
+  /** Every cell of the grid that holds no hours, with the row and the day it is on. */
+  const emptyCells = (grid: TableGrid) =>
+    grid.rows.flatMap((gridRow) => grid.days.filter((day) => !gridRow.cells[day]).map((day) => ({ gridRow, day })))
+  /** What Tab reaches inside the table: a control, a link, a field, or anything with a tabindex that is not -1 (a row header's is, for focus by script). */
+  const tabStopsIn = (container: HTMLElement) => [
+    ...container.querySelectorAll<HTMLElement>(
+      'button, a[href], input, select, textarea, summary, [tabindex]:not([tabindex="-1"])',
+    ),
+  ]
 
-  it('makes an empty cell of today or an earlier day, on a row with a name, a plus button named for the row and the day', () => {
+  it('draws an empty cell as nothing: no text, no element in it, no name, on every row and every day', () => {
     renderWeek(handlers())
-    const monday = within(dayCell('project:p2', MON)).getByRole('button', {
-      name: 'Record hours on Operai, Monday 16 November 2026',
-    })
-    const today = within(dayCell('project:p2', THU)).getByRole('button', {
-      name: 'Record hours on Operai, Thursday 19 November 2026',
-    })
-    for (const button of [monday, today]) {
-      expect(button.getAttribute('aria-haspopup')).toBe('dialog')
-      expect(button.textContent).toBe('')
-      expect(button.querySelector('svg')?.getAttribute('aria-hidden')).toBe('true')
+    const empties = emptyCells(GRID)
+    // Six rows of seven days, less the cells that hold hours: the test has a body to look at.
+    expect(empties.length).toBeGreaterThan(20)
+    for (const { gridRow, day } of empties) {
+      const cell = dayCell(gridRow.key, day)
+      expect(cell.tagName, `${gridRow.key} ${day}`).toBe('TD')
+      expect(cell.textContent, `${gridRow.key} ${day}`).toBe('')
+      expect(cell.children, `${gridRow.key} ${day}`).toHaveLength(0)
+      expect(cell.hasAttribute('data-cell'), `${gridRow.key} ${day}`).toBe(false)
+      expect(cell.hasAttribute('tabindex'), `${gridRow.key} ${day}`).toBe(false)
+      expect(cell.hasAttribute('aria-label'), `${gridRow.key} ${day}`).toBe(false)
     }
   })
 
-  it('names other work by its category and a deal and a meeting by their title, as the List does in its buttons', () => {
+  it('is blank on a day after today, on today and on an earlier day, on a row with a name (AC-5.14, AC-5.32)', () => {
     renderWeek(handlers())
-    expect(buttonIn('category:c-training', MON)?.getAttribute('aria-label')).toBe(
-      'Record hours on other work (Training), Monday 16 November 2026',
-    )
-    expect(buttonIn('deal:d1', MON)?.getAttribute('aria-label')).toBe('Record hours on Brera, Monday 16 November 2026')
-    expect(buttonIn('meeting:m1', TUE)?.getAttribute('aria-label')).toBe(
-      'Record hours on Retrospective, Tuesday 17 November 2026',
-    )
-  })
-
-  it('calls back with the row and the day when an empty cell is pressed, by pointer and by keyboard', async () => {
-    const { onRecordCell, onOpenCell } = handlers()
-    renderWeek({ onRecordCell, onOpenCell })
-    await userEvent.click(buttonIn('project:p2', MON)!)
-    expect(onRecordCell).toHaveBeenLastCalledWith(rowOfKey('project:p2'), MON)
-    buttonIn('deal:d1', THU)!.focus()
-    await userEvent.keyboard('{Enter}')
-    expect(onRecordCell).toHaveBeenLastCalledWith(rowOfKey('deal:d1'), THU)
-    expect(onRecordCell).toHaveBeenCalledTimes(2)
-    expect(onOpenCell).not.toHaveBeenCalled()
-  })
-
-  it('offers nothing on a day after today, in any row: the first day without is the day after today (AC-5.14)', () => {
-    renderWeek(handlers())
-    for (const gridRow of GRID.rows) {
-      for (const day of [FRI, DAYS[5]!, SUN]) expect(buttonIn(gridRow.key, day)).toBeNull()
+    // Alpenstrom holds hours on Monday and Tuesday only: Wednesday (earlier), Thursday (today) and Friday (after) are empty.
+    for (const day of [WED, THU, FRI, DAYS[5]!, SUN]) {
+      expect(dayCell('project:p1', day).textContent).toBe('')
+      expect(buttonIn('project:p1', day)).toBeNull()
     }
-    expect(buttonIn('project:p1', THU)).not.toBeNull()
-    expect(buttonIn('project:p1', FRI)).toBeNull()
+    expect(buttonIn('project:p1', MON)).not.toBeNull()
   })
 
-  it('offers nothing at all in a week that has not started, and an empty cell everywhere in a week long past', () => {
-    const { unmount } = renderWeek({ ...handlers(), today: '2026-11-09' })
-    expect(recordButtons()).toHaveLength(0)
-    unmount()
-    renderWeek({ ...handlers(), today: '2026-11-30' })
-    // five rows with a name, seven days each, less the seven cells of those rows that hold hours
-    const withHours = GRID.rows
-      .filter((gridRow) => gridRow.preset !== null)
-      .flatMap((gridRow) => Object.keys(gridRow.cells))
-    expect(recordButtons()).toHaveLength(5 * 7 - withHours.length)
-  })
-
-  it('offers no recording on a row whose name the person cannot read, on any day (AC-5.24)', () => {
-    renderWeek({ ...handlers(), today: '2026-11-30' })
-    for (const day of DAYS)
-      expect(buttonIn('project:p3', day)?.getAttribute('aria-label') ?? '').not.toMatch(/^Record hours/)
-    expect(within(row('project:p3')).queryByRole('button', { name: /^Record hours/ })).toBeNull()
-  })
-
-  it('offers no recording on a retired category, on any day (AC-5.24)', () => {
-    const grid = tableGrid([entry(TUE, 60, otherWorkOn('Old training', 'c-old', true))], DAYS)
+  it('is blank on a row whose name the person cannot read and on a retired category: the same cell as any other (AC-5.24)', () => {
+    const grid = tableGrid(
+      [entry(TUE, 60, otherWorkOn('Old training', 'c-old', true)), entry(MON, 60, projectOn('p3', 'Secret', 'hidden'))],
+      DAYS,
+    )
     renderWeek({ ...handlers(), state: { status: 'loaded', grid }, today: '2026-11-30' })
-    expect(within(row('category:c-old')).queryByRole('button', { name: /^Record hours/ })).toBeNull()
+    for (const key of ['category:c-old', 'project:p3']) {
+      const blank = DAYS.filter((day) => dayCell(key, day).querySelector('[data-cell]') === null)
+      expect(blank, key).toHaveLength(6)
+      for (const day of blank) {
+        expect(dayCell(key, day).children, `${key} ${day}`).toHaveLength(0)
+        expect(dayCell(key, day).textContent, `${key} ${day}`).toBe('')
+      }
+    }
+    expect(recordButtons()).toHaveLength(0)
+  })
+
+  it('offers no "Record hours on" button anywhere, in a week long past, in the current week or in one that has not come', () => {
+    for (const today of ['2026-11-30', TODAY, '2026-11-09']) {
+      renderWeek({ ...handlers(), today })
+      expect(recordButtons(), today).toHaveLength(0)
+      cleanup()
+    }
+  })
+
+  it('has no tab stop but the cells that hold hours: a keyboard reaches only the figures', () => {
+    renderWeek(handlers())
+    const withHours = GRID.rows.flatMap((gridRow) => Object.keys(gridRow.cells).map((day) => `${gridRow.key}:${day}`))
+    const stops = tabStopsIn(table())
+    expect(stops).toHaveLength(withHours.length)
+    expect(stops.map((stop) => stop.getAttribute('data-cell')).sort()).toEqual([...withHours].sort())
+  })
+
+  it('does nothing when an empty cell is pressed: no callback, and no cell button takes the focus', async () => {
+    const { onOpenCell } = handlers()
+    renderWeek({ onOpenCell })
+    for (const [key, day] of [
+      ['project:p1', WED],
+      ['project:p2', MON],
+      ['deal:d1', THU],
+      ['project:p3', FRI],
+    ] as const) {
+      await userEvent.click(dayCell(key, day))
+      // The click may land in the table's scroll region, which is focusable as a whole; it never lands on a cell.
+      expect(document.activeElement?.hasAttribute('data-cell'), `${key} ${day}`).toBe(false)
+    }
+    expect(onOpenCell).not.toHaveBeenCalled()
   })
 
   it('makes a cell that holds hours a button with the figure and a name with the figure, the row, the day and the entries (AC-5.15)', () => {
@@ -321,11 +333,18 @@ describe('a cell is a control only where an action is offered (AC-5.12, AC-5.14,
   })
 
   it('calls back with the row and the day when a cell with hours is pressed (AC-5.15)', async () => {
-    const { onRecordCell, onOpenCell } = handlers()
-    renderWeek({ onRecordCell, onOpenCell })
+    const { onOpenCell } = handlers()
+    renderWeek({ onOpenCell })
     await userEvent.click(buttonIn('project:p1', TUE)!)
     expect(onOpenCell).toHaveBeenCalledExactlyOnceWith(rowOfKey('project:p1'), TUE)
-    expect(onRecordCell).not.toHaveBeenCalled()
+  })
+
+  it('opens a cell from the keyboard too, with Enter on the focused figure', async () => {
+    const { onOpenCell } = handlers()
+    renderWeek({ onOpenCell })
+    buttonIn('deal:d1', WED)!.focus()
+    await userEvent.keyboard('{Enter}')
+    expect(onOpenCell).toHaveBeenCalledExactlyOnceWith(rowOfKey('deal:d1'), WED)
   })
 
   it('still opens the hours of a row with no name, named as the List names it, so they can be changed and deleted (AC-5.24)', () => {
@@ -347,19 +366,13 @@ describe('a cell is a control only where an action is offered (AC-5.12, AC-5.14,
   it('gives every cell button its row and day for the page to find it again after the week is read anew', () => {
     renderWeek(handlers())
     expect(buttonIn('project:p1', TUE)?.getAttribute('data-cell')).toBe(`project:p1:${TUE}`)
-    expect(buttonIn('project:p2', MON)?.getAttribute('data-cell')).toBe(`project:p2:${MON}`)
+    expect(buttonIn('project:p2', WED)?.getAttribute('data-cell')).toBe(`project:p2:${WED}`)
   })
 
   it('offers no button where the page gave no handler: the grid is read-only and still shows every figure', () => {
     renderWeek()
     expect(within(table()).queryAllByRole('button')).toHaveLength(0)
     expect(dayCell('project:p1', MON).textContent).toBe('4 h')
-  })
-
-  it('offers a button only for the handler the page gave', () => {
-    renderWeek({ onOpenCell: vi.fn() })
-    expect(buttonIn('project:p1', MON)).not.toBeNull()
-    expect(buttonIn('project:p2', MON)).toBeNull()
   })
 })
 
@@ -446,7 +459,6 @@ describe('the same markup for a 42 h week and a 1 h week, and nothing compares a
   const render42or1 = (grid: TableGrid) => {
     const { container, unmount } = renderWeek({
       state: { status: 'loaded', grid },
-      onRecordCell: vi.fn(),
       onOpenCell: vi.fn(),
     })
     const html = container.innerHTML
@@ -493,26 +505,39 @@ describe('the card: the week is its heading and the navigator its action, in eve
   })
 
   it('names the week it is told, not the one the figures belong to, so a week that is still loading has its own heading', () => {
-    renderWeek({ period: week('2026-11-23'), state: { status: 'loading' } })
-    expect(heading().textContent).toBe('Week 23.11.2026 – 29.11.2026')
+    renderWeek({ period: week('2026-11-09'), state: { status: 'loading' } })
+    expect(heading().textContent).toBe('Week 09.11.2026 – 15.11.2026')
   })
 
-  it('has the navigator, which asks for the week after or before the one shown, and for this week', async () => {
+  it('has the navigator, which asks for the week before the one shown, the week after it and this week', async () => {
+    const onPeriodChange = vi.fn()
+    renderWeek({ period: week('2026-11-09'), onPeriodChange })
+    const navigator = screen.getByRole('group', { name: strings.table.nav.label })
+    await userEvent.click(within(navigator).getByRole('button', { name: strings.table.nav.next }))
+    expect(onPeriodChange).toHaveBeenLastCalledWith(week(MONDAY))
+    await userEvent.click(within(navigator).getByRole('button', { name: strings.table.nav.previous }))
+    expect(onPeriodChange).toHaveBeenLastCalledWith(week('2026-11-02'))
+    expect(
+      within(navigator).getByRole('button', { name: strings.table.nav.thisWeek }).getAttribute('aria-disabled'),
+    ).toBeNull()
+  })
+
+  it('has Next and This week unavailable on the current week, and a press of Next asks for nothing (AC-5.28)', async () => {
     const onPeriodChange = vi.fn()
     renderWeek({ onPeriodChange })
     const navigator = screen.getByRole('group', { name: strings.table.nav.label })
-    await userEvent.click(within(navigator).getByRole('button', { name: strings.table.nav.next }))
-    expect(onPeriodChange).toHaveBeenLastCalledWith(week('2026-11-23'))
-    await userEvent.click(within(navigator).getByRole('button', { name: strings.table.nav.previous }))
-    expect(onPeriodChange).toHaveBeenLastCalledWith(week('2026-11-09'))
+    const nextWeek = within(navigator).getByRole('button', { name: strings.table.nav.next })
+    expect(nextWeek.getAttribute('aria-disabled')).toBe('true')
     expect(
       within(navigator).getByRole('button', { name: strings.table.nav.thisWeek }).getAttribute('aria-disabled'),
     ).toBe('true')
+    await userEvent.click(nextWeek)
+    expect(onPeriodChange).not.toHaveBeenCalled()
   })
 
   it('asks for this week from another week: the week that holds today', async () => {
     const onPeriodChange = vi.fn()
-    renderWeek({ period: week('2026-12-07'), onPeriodChange })
+    renderWeek({ period: week('2026-11-02'), onPeriodChange })
     await userEvent.click(screen.getByRole('button', { name: strings.table.nav.thisWeek }))
     expect(onPeriodChange).toHaveBeenCalledExactlyOnceWith(week(MONDAY))
   })
@@ -565,7 +590,6 @@ describe('the grid on a phone and a laptop: the label floor and the scroll hint 
     const without: [string, Partial<TableViewProps>][] = [
       ['loading', { state: { status: 'loading' } }],
       ['an empty week', { state: { status: 'loaded', grid: EMPTY } }],
-      ['an empty week that has not started', { period: week('2026-11-23'), state: { status: 'loaded', grid: EMPTY } }],
       ['an empty filtered week', { filtered: true, state: { status: 'loaded', grid: EMPTY } }],
       ['an error', { state: { status: 'error', message: 'nope' } }],
       ['a state the page supplies', { state: { status: 'replaced', content: <p>the page says so</p> } }],
@@ -596,7 +620,7 @@ describe('loading: a skeleton, one polite line, and no figure of another week (d
     expect(screen.getByRole('table')).not.toBeNull()
     rerender(
       <TableView
-        period={week('2026-11-23')}
+        period={week('2026-11-09')}
         today={TODAY}
         filtered={false}
         state={{ status: 'loading' }}
@@ -625,20 +649,17 @@ describe('a week with no entries (design S7 States; AC-5.14)', () => {
     expect(screen.queryByRole('table')).toBeNull()
   })
 
-  it('says the week has not started when it begins after today, however the filters are set', () => {
-    empty({ period: week('2026-11-23') })
-    expect(screen.getByRole('heading', { level: 4, name: w.emptyFuture.title })).not.toBeNull()
-    expect(screen.getByTestId('hours-table-empty').textContent).toContain(w.emptyFuture.body)
-    cleanup()
-    // clearing a filter cannot put hours in a week that has not come, so it is not offered
+  it('has no "not started" state: whatever day today is, an empty week says the same, and a filter offers Clear filters (AC-5.28, AC-5.29)', () => {
+    // No period after today is ever shown, so a week that begins after it needs no sentence of its own.
+    for (const today of [MONDAY, '2026-11-09', '2026-11-30']) {
+      empty({ today })
+      expect(screen.getByRole('heading', { level: 4, name: w.empty.title }), today).not.toBeNull()
+      expect(screen.getByTestId('hours-table-empty').textContent).not.toMatch(/not started|has not come/i)
+      cleanup()
+    }
     empty({ period: week('2026-11-23'), filtered: true })
-    expect(screen.getByRole('heading', { level: 4, name: w.emptyFuture.title })).not.toBeNull()
-    expect(screen.queryByRole('button', { name: strings.filters.clear })).toBeNull()
-  })
-
-  it('counts the week that holds today as started, even when today is its Monday', () => {
-    empty({ today: MONDAY })
-    expect(screen.getByRole('heading', { level: 4, name: w.empty.title })).not.toBeNull()
+    expect(screen.getByRole('heading', { level: 4, name: strings.entries.emptyFiltered.title })).not.toBeNull()
+    expect(screen.getByRole('button', { name: strings.filters.clear })).not.toBeNull()
   })
 
   it('says no entry matches the filters, as the List does, and offers Clear filters, which asks the page to clear them', async () => {

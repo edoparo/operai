@@ -67,16 +67,17 @@ export const shiftWeek = (monday: string, weeks: number): string => {
  * The Monday of the week an address names (`?week=<day>`, AC-5.5): the week holding that day, whichever day of
  * the week it is; this week (the one holding `today`, AC-5.4) when the address names none or names anything
  * that is not a week hours-api would answer for — text, a day that is not on the calendar, a week that begins
- * before the first day it takes (`MIN_DAY`) or ends after the last year the format holds. A pasted link never
- * reaches the API as a request it would refuse (the rule of `HoursFiltersState`). `today` is a `YYYY-MM-DD`
- * (hours-ui passes `todayZurich()`); one that is not a day is a caller bug, a `TypeError`.
+ * before the first day it takes (`MIN_DAY`) or ends after the last year the format holds — and when it names a week
+ * after this one: the future is not shown (AC-5.29). A pasted link never reaches the API as a request it would refuse
+ * (the rule of `HoursFiltersState`). `today` is a `YYYY-MM-DD` (hours-ui passes `todayZurich()`); one that is not a
+ * day is a caller bug, a `TypeError`.
  */
 export const readWeekParam = (search: Record<string, unknown>, today: string): string => {
   const thisWeek = mondayOf(today)
   const named = search['week']
   if (typeof named !== 'string' || dayOf(named) === null) return thisWeek
   const monday = mondayOf(named)
-  return monday >= MIN_DAY && addDays(dayOf(monday)!, 6) !== null ? monday : thisWeek
+  return monday >= MIN_DAY && monday <= thisWeek && addDays(dayOf(monday)!, 6) !== null ? monday : thisWeek
 }
 
 /** The seven days of the week that begins on `monday`, Monday first, Sunday last (AC-5.3). */

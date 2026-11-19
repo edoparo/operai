@@ -5,14 +5,17 @@
  * the card (`TableView`), the cell dialog and the page take a `TablePeriod` and know nothing else about how one kind
  * differs from another.
  *
- * Only the week is written so far: the month, `switchTo`, the clamp to today and the date field's bounds arrive with the
- * tasks that need them (T20, T22, T23), as further members of the union and further functions of this module.
+ * Only the week is written so far: the month, `switchTo` and the date field's bounds arrive with the tasks that need
+ * them (T22, T23), as further members of the union and further functions of this module. The availability of the
+ * previous and the next period and the clamp to today (T20) are written here for the week and say nothing a month
+ * cannot say: each is a comparison of first days, which is how the month joins them.
  *
  * Like `week.ts` and `period.ts`, everything is arithmetic on days written `YYYY-MM-DD`, done in UTC on the date alone,
  * so a time zone or a daylight-saving change cannot move a day, and "today" is never read here: the caller passes
  * `todayZurich()`. A caller bug (a `monday` that is not a Monday, a `today` that is not a day, a fractional `n`) is a
  * `TypeError`, as in `week.ts`.
  */
+import { MIN_DAY } from './period'
 import { mondayOf, shiftWeek, weekDays } from './week'
 
 export type TablePeriodKind = 'week'
@@ -54,3 +57,26 @@ export const shift = (period: TablePeriod, n: number): TablePeriod => ({
  */
 export const referenceDay = (period: TablePeriod, today: string): string =>
   isCurrent(period, today) ? today : firstDayOf(period)
+
+/**
+ * Whether the period after `period` can be shown: only while `period` is before the current one (AC-5.5, AC-5.28). The
+ * future is not browsed, so the navigator's Next is unavailable on the current period and nothing asks for one after it.
+ */
+export const hasNext = (period: TablePeriod, today: string): boolean =>
+  firstDayOf(period) < firstDayOf(current(period.kind, today))
+
+/**
+ * Whether the period before `period` can be shown: while it begins on or after `MIN_DAY`, the first day hours-api answers
+ * for (plan decision 12). A defensive rule no AC asks for: the navigator never writes an address the reader would refuse.
+ */
+export const hasPrevious = (period: TablePeriod): boolean => firstDayOf(shift(period, -1)) >= MIN_DAY
+
+/**
+ * `period`, or the current period of its kind when it is after it (AC-5.29): an address naming the future shows the
+ * present, with Next unavailable. The same rule `readWeekParam` applies to a `week` in an address, for a period that is
+ * already made.
+ */
+export const clamp = (period: TablePeriod, today: string): TablePeriod => {
+  const now = current(period.kind, today)
+  return firstDayOf(period) > firstDayOf(now) ? now : period
+}

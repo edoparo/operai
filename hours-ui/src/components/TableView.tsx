@@ -5,7 +5,6 @@ import {
   Button,
   Card,
   DataTable,
-  Icon,
   SkeletonRows,
   StatePanel,
   VisuallyHidden,
@@ -14,7 +13,6 @@ import {
 } from '@operai/ui'
 import type { DataTableColumn } from '@operai/ui'
 import type { TableGrid, TableGridRow } from '../lib/tableGrid'
-import { firstDayOf } from '../lib/tablePeriod'
 import type { TablePeriod } from '../lib/tablePeriod'
 import { strings } from '../strings'
 import ErrorBanner from './ErrorBanner'
@@ -52,7 +50,7 @@ export type TableViewHandle = {
 export type TableViewProps = {
   /** The period asked for: the heading and the navigator. A loaded `grid` is the grid of this period. */
   period: TablePeriod
-  /** Today as hours-api counts it (`todayZurich()`): marks its column; a day after it offers no recording (AC-5.14). */
+  /** Today as hours-api counts it (`todayZurich()`): marks its column and decides which way the navigator can move (AC-5.28). */
   today: string
   /** A filter the table applies is set: an empty period then says no entry matches, and offers Clear filters. */
   filtered: boolean
@@ -63,9 +61,7 @@ export type TableViewProps = {
   onRetry: () => void
   /** Clear filters, from the empty-and-filtered state. */
   onClearFilters: () => void
-  /** An empty cell of today or an earlier day on a row that can be recorded on was chosen (AC-5.12): the page opens the entry dialog on it (T11). */
-  onRecordCell?: (row: TableGridRow, day: string) => void
-  /** A cell that holds hours was chosen (AC-5.15): the page opens the cell's entries (T12). */
+  /** A cell that holds hours was chosen (AC-5.15): the page opens the cell's entries. An empty cell is not a control (AC-5.32). */
   onOpenCell?: (row: TableGridRow, day: string) => void
   ref?: Ref<TableViewHandle>
 }
@@ -98,53 +94,28 @@ function RowLabel({ row }: { row: TableGridRow }) {
   )
 }
 
-type CellActions = Pick<TableViewProps, 'onRecordCell' | 'onOpenCell'>
-
 /**
- * One cell of a row (design S7 "Cells"). A cell that holds hours shows the total and, when the page can open it,
- * is the button that does; an empty one is a plus button only on a day that is today or earlier and on a row that
- * can be recorded on (`preset`: not an unreadable row, not a retired category — AC-5.24), and is blank otherwise.
- * A button names its row and its day, since it can be reached out of the table.
+ * One cell of a row (design S7 "Cells"). A cell that holds hours shows the total and, when the page can open it, is the
+ * button that does, named for its row and its day since it can be reached out of the table. An empty cell is nothing: a
+ * blank `td` with no button, no `data-cell`, no tab stop and no handler, on any day, any row and any state of the row
+ * (AC-5.14, AC-5.24, AC-5.32) — hours are recorded with Record hours, or with Add hours in the list of a cell that holds
+ * some, never from an empty cell.
  */
-function Cell({
-  row,
-  day,
-  today,
-  onRecordCell,
-  onOpenCell,
-}: CellActions & { row: TableGridRow; day: string; today: string }) {
+function Cell({ row, day, onOpenCell }: Pick<TableViewProps, 'onOpenCell'> & { row: TableGridRow; day: string }) {
   const cell = row.cells[day]
-  const on = rowPhrase(row)
-  const dayName = longDay(day)
-  const dataCell = `${row.key}:${day}`
-  if (cell) {
-    const figure = short(cell.minutes)
-    if (!onOpenCell) return figure
-    return (
-      <Button
-        variant="ghost"
-        size="sm"
-        aria-haspopup="dialog"
-        aria-label={strings.table.cell.open(figure, on, dayName, cell.entries.length)}
-        onClick={() => onOpenCell(row, day)}
-        data-cell={dataCell}
-      >
-        <span className="font-mono">{figure}</span>
-      </Button>
-    )
-  }
-  if (day > today || row.preset === null || !onRecordCell) return null
+  if (!cell) return null
+  const figure = short(cell.minutes)
+  if (!onOpenCell) return figure
   return (
     <Button
       variant="ghost"
       size="sm"
-      iconOnly
       aria-haspopup="dialog"
-      aria-label={strings.table.cell.record(on, dayName)}
-      onClick={() => onRecordCell(row, day)}
-      data-cell={dataCell}
+      aria-label={strings.table.cell.open(figure, rowPhrase(row), longDay(day), cell.entries.length)}
+      onClick={() => onOpenCell(row, day)}
+      data-cell={`${row.key}:${day}`}
     >
-      <Icon name="plus" />
+      <span className="font-mono">{figure}</span>
     </Button>
   )
 }
@@ -153,9 +124,8 @@ function GridTable({
   grid,
   label,
   today,
-  onRecordCell,
   onOpenCell,
-}: CellActions & { grid: TableGrid; label: string; today: string }) {
+}: Pick<TableViewProps, 'onOpenCell'> & { grid: TableGrid; label: string; today: string }) {
   const columns: DataTableColumn<TableRow>[] = [
     {
       id: 'on',
@@ -180,7 +150,7 @@ function GridTable({
             short(grid.dayMinutes[index]!)
           )
         ) : (
-          <Cell row={item.row} day={day} today={today} onRecordCell={onRecordCell} onOpenCell={onOpenCell} />
+          <Cell row={item.row} day={day} onOpenCell={onOpenCell} />
         ),
     })),
     {
@@ -206,24 +176,11 @@ function GridTable({
 }
 
 /**
- * A period with no entries (design S7 States). A period that begins after today says it has not started, whatever the
- * filters are: nothing can be recorded on a day that has not come, so clearing a filter would change nothing and is
- * not offered. Otherwise the List's own sentence for "a filter is set" with Clear filters, or the plain one — the
- * page header has the Record hours action, so the panel has none.
+ * A period with no entries (design S7 States): the List's own sentence for "a filter is set" with Clear filters, or the
+ * plain one — the page header has the Record hours action, so the panel has none. There is no "not started" state: no
+ * period after today is ever shown (AC-5.28, AC-5.29).
  */
-function EmptyPeriod({
-  period,
-  today,
-  filtered,
-  onClearFilters,
-}: Pick<TableViewProps, 'period' | 'today' | 'filtered' | 'onClearFilters'>) {
-  if (firstDayOf(period) > today) {
-    return (
-      <StatePanel headingLevel={4} title={strings.table.emptyFuture.title} testId="hours-table-empty">
-        {strings.table.emptyFuture.body}
-      </StatePanel>
-    )
-  }
+function EmptyPeriod({ filtered, onClearFilters }: Pick<TableViewProps, 'filtered' | 'onClearFilters'>) {
   if (filtered) {
     return (
       <StatePanel
@@ -261,8 +218,8 @@ const announcement = (state: TableViewState, label: string): string => {
 }
 
 /**
- * TableView — the table card of My hours, drawn for a `TablePeriod` (specs/20261116-record-hours-in-place T9, T18; design
- * S7; AC-5.3, AC-5.5, AC-5.9–AC-5.11, AC-5.14, AC-5.23, AC-5.24).
+ * TableView — the table card of My hours, drawn for a `TablePeriod` (specs/20261116-record-hours-in-place T9, T18, T20;
+ * design S7; AC-5.3, AC-5.5, AC-5.9–AC-5.11, AC-5.14, AC-5.23, AC-5.24, AC-5.28, AC-5.32).
  *
  * Presentational. It is handed `period` (the period asked for), `today` (`todayZurich()`), the `state` of the one read
  * of that period and, when loaded, the `TableGrid` the pure fold of T8 made of it. It sums nothing and compares nothing:
@@ -275,10 +232,10 @@ const announcement = (state: TableViewState, label: string): string => {
  * is all or nothing: never a partial grid), or whatever the page supplies in place of the grid (`replaced`: the deal
  * filter that cannot be answered).
  *
- * A cell's actions are callbacks that give the row and the day (T11 records on an empty cell, T12 lists a cell's
- * entries): a cell is a button only where the page gave the handler for it, and a grid given none is read-only.
- * Every cell button carries `data-cell="<row key>:<day>"` so the page can put focus back on it once the week has been
- * read again.
+ * A cell that holds hours is a button that gives the row and the day to the page, which lists the cell's entries; a grid
+ * given no handler is read-only. An empty cell is not a control (AC-5.32). Every cell button carries
+ * `data-cell="<row key>:<day>"` so the page can put focus back on it once the period has been read again; an empty cell
+ * has none, so a cell that has run out of entries is found by no one and focus goes to the card's heading.
  */
 export default function TableView({
   period,
@@ -288,7 +245,6 @@ export default function TableView({
   onPeriodChange,
   onRetry,
   onClearFilters,
-  onRecordCell,
   onOpenCell,
   ref,
 }: TableViewProps) {
@@ -338,20 +294,14 @@ export default function TableView({
 
         {state.status === 'loaded' &&
           (state.grid.rows.length === 0 ? (
-            <EmptyPeriod period={period} today={today} filtered={filtered} onClearFilters={onClearFilters} />
+            <EmptyPeriod filtered={filtered} onClearFilters={onClearFilters} />
           ) : (
             <>
               {/* Below 1024 px the grid scrolls inside the card and nothing else says so; with a grid only (design S7 "Phone"). */}
               <p className="mb-3 text-xs text-soft lg:hidden" aria-hidden="true">
                 {strings.table.scrollHint}
               </p>
-              <GridTable
-                grid={state.grid}
-                label={label}
-                today={today}
-                onRecordCell={onRecordCell}
-                onOpenCell={onOpenCell}
-              />
+              <GridTable grid={state.grid} label={label} today={today} onOpenCell={onOpenCell} />
             </>
           ))}
 

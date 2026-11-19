@@ -1,5 +1,5 @@
 import { Button, Icon } from '@operai/ui'
-import { current, isCurrent, shift } from '../lib/tablePeriod'
+import { current, hasNext, hasPrevious, isCurrent, shift } from '../lib/tablePeriod'
 import type { TablePeriod } from '../lib/tablePeriod'
 import { strings } from '../strings'
 
@@ -13,16 +13,20 @@ export type PeriodNavigatorProps = {
 }
 
 /**
- * PeriodNavigator — previous week, this week, next week (specs/20261116-record-hours-in-place T9, T18; design S7
- * "Navigator"; AC-5.5). It keeps no state and no address: it reports the period asked for and the page changes the
- * address, so the buttons stay mounted and keep focus across a step.
+ * PeriodNavigator — previous week, this week, next week (specs/20261116-record-hours-in-place T9, T18, T20; design S7
+ * "Navigator"; AC-5.5, AC-5.28; plan decision 12). It keeps no state and no address: it reports the period asked for and
+ * the page changes the address, so the buttons stay mounted and keep focus across a step.
  *
- * Next week is always offered, a week that has not started included (its grid is blank, with its own state).
- * "This week" is `aria-disabled` rather than `disabled` while the current week is shown: it stays in the tab order
- * and keeps focus after a click, and the click asks for nothing.
+ * Three of the buttons are unavailable where they cannot move: Next on the current period (the future is not browsed,
+ * AC-5.28), Previous on the first period hours-api answers (`hasPrevious`), and "This week" on the period that is already
+ * the current one. Each is `aria-disabled` rather than `disabled`: it stays in the tab order and keeps focus, so the press
+ * that reached the current period leaves the keyboard on Next instead of dropping it to the page (R18), and a press on it
+ * asks for nothing.
  */
 export default function PeriodNavigator({ period, today, onPeriodChange }: PeriodNavigatorProps) {
   const showingCurrent = isCurrent(period, today)
+  const canGoBack = hasPrevious(period)
+  const canGoForward = hasNext(period, today)
   return (
     <div
       role="group"
@@ -35,7 +39,10 @@ export default function PeriodNavigator({ period, today, onPeriodChange }: Perio
         size="sm"
         iconOnly
         aria-label={strings.table.nav.previous}
-        onClick={() => onPeriodChange(shift(period, -1))}
+        aria-disabled={canGoBack ? undefined : 'true'}
+        onClick={() => {
+          if (canGoBack) onPeriodChange(shift(period, -1))
+        }}
         data-testid="hours-period-previous"
       >
         <Icon name="chevron-left" />
@@ -56,7 +63,10 @@ export default function PeriodNavigator({ period, today, onPeriodChange }: Perio
         size="sm"
         iconOnly
         aria-label={strings.table.nav.next}
-        onClick={() => onPeriodChange(shift(period, 1))}
+        aria-disabled={canGoForward ? undefined : 'true'}
+        onClick={() => {
+          if (canGoForward) onPeriodChange(shift(period, 1))
+        }}
         data-testid="hours-period-next"
       >
         <Icon name="chevron-right" />

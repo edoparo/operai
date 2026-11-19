@@ -52,7 +52,6 @@ const setup = async (lang: 'it' | 'en') => {
         onPeriodChange={vi.fn()}
         onRetry={vi.fn()}
         onClearFilters={vi.fn()}
-        onRecordCell={vi.fn()}
         onOpenCell={vi.fn()}
         {...props}
       />,
@@ -97,7 +96,6 @@ describe('Italian', () => {
   it('names the cell buttons with the Italian weekday and date, and the entries in the singular and the plural', async () => {
     const { draw } = await setup('it')
     draw()
-    expect(screen.getByRole('button', { name: 'Registra ore su Operai, lunedì 16 novembre 2026' })).not.toBeNull()
     expect(
       screen.getByRole('button', { name: '2 h 30 su Operai, mercoledì 18 novembre 2026, 2 registrazioni' }),
     ).not.toBeNull()
@@ -105,8 +103,18 @@ describe('Italian', () => {
       screen.getByRole('button', { name: '4 h su Alpenstrom, lunedì 16 novembre 2026, 1 registrazione' }),
     ).not.toBeNull()
     expect(
-      screen.getByRole('button', { name: 'Registra ore su altro lavoro (Formazione), lunedì 16 novembre 2026' }),
+      screen.getByRole('button', {
+        name: '2 h su altro lavoro (Formazione), giovedì 19 novembre 2026, 1 registrazione',
+      }),
     ).not.toBeNull()
+  })
+
+  it('has a button only for a cell that holds hours: an empty cell offers no "Registra ore" and no name of any kind (AC-5.32)', async () => {
+    const { draw } = await setup('it')
+    draw()
+    expect(screen.queryAllByRole('button', { name: /^Registra ore/ })).toHaveLength(0)
+    // five cells hold hours in this week, and nothing else in the table is a button
+    expect(within(screen.getByRole('table')).getAllByRole('button')).toHaveLength(5)
   })
 
   it('shows a category as its administrator typed it, the kinds and the hidden name in Italian, and no English', async () => {
@@ -136,17 +144,11 @@ describe('Italian', () => {
     expect(screen.getByTestId('hours-table-live').textContent).toBe('Caricamento della tua settimana…')
   })
 
-  it('words the empty week, the week that has not started, the empty filtered week and the error in Italian', async () => {
+  it('words the empty week, the empty filtered week and the error in Italian, and has no sentence for a week that has not started', async () => {
     const { draw, tableGrid } = await setup('it')
     const loaded = { status: 'loaded', grid: tableGrid([], daysOf(holding('week', MONDAY))) }
     draw({ state: loaded })
     expect(screen.getByRole('heading', { level: 4 }).textContent).toBe('Nessuna ora registrata in questa settimana')
-    cleanup()
-    draw({ state: loaded, period: { kind: 'week', monday: '2026-11-23' } })
-    expect(screen.getByRole('heading', { level: 4 }).textContent).toBe('Questa settimana non è ancora iniziata')
-    expect(screen.getByTestId('hours-table-empty').textContent).toContain(
-      'Puoi registrare le ore di un giorno quando è arrivato.',
-    )
     cleanup()
     draw({ state: loaded, filtered: true })
     expect(screen.getByRole('heading', { level: 4 }).textContent).toBe(
@@ -172,6 +174,6 @@ describe('Italian', () => {
     const { draw } = await setup('en')
     draw()
     expect(screen.getByRole('heading', { level: 3 }).textContent).toBe('Week 16.11.2026 – 22.11.2026')
-    expect(screen.getByRole('button', { name: 'Record hours on Operai, Monday 16 November 2026' })).not.toBeNull()
+    expect(screen.getByRole('button', { name: '4 h on Alpenstrom, Monday 16 November 2026, 1 entry' })).not.toBeNull()
   })
 })

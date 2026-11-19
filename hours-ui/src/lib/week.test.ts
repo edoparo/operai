@@ -1,5 +1,5 @@
 /**
- * The Week view's calendar arithmetic (specs/20261116-record-hours-in-place T8; AC-5.3, AC-5.4, AC-5.5; plan § My
+ * The Week view's calendar arithmetic (specs/20261116-record-hours-in-place T8, T20; AC-5.3, AC-5.4, AC-5.5, AC-5.29; plan § My
  * hours' address). Weeks run Monday to Sunday, all seven days shown (WA1). Everything is arithmetic on days
  * written `YYYY-MM-DD`, in UTC on the date alone, so a time zone or a daylight-saving change cannot move a day;
  * "today" is passed in (`todayZurich()` in the app), never read here.
@@ -107,15 +107,29 @@ describe("readWeekParam: the week an address names (AC-5.4, AC-5.5; plan § My h
   })
 
   it('is the Monday of the week holding the day it names, whichever day of the week that is (AC-5.5)', () => {
-    expect(readWeekParam({ week: '2026-11-25' }, WEDNESDAY)).toBe('2026-11-23')
-    expect(readWeekParam({ week: '2026-11-23' }, WEDNESDAY)).toBe('2026-11-23')
-    expect(readWeekParam({ week: '2026-11-29' }, WEDNESDAY)).toBe('2026-11-23') // a Sunday
-    expect(readWeekParam({ week: '2027-01-01' }, WEDNESDAY)).toBe('2026-12-28')
-    expect(readWeekParam({ week: '2026-11-04' }, WEDNESDAY)).toBe('2026-11-02') // a past week
+    expect(readWeekParam({ week: '2026-11-04' }, WEDNESDAY)).toBe('2026-11-02') // a Wednesday
+    expect(readWeekParam({ week: '2026-11-02' }, WEDNESDAY)).toBe('2026-11-02') // the Monday itself
+    expect(readWeekParam({ week: '2026-11-08' }, WEDNESDAY)).toBe('2026-11-02') // a Sunday
+    expect(readWeekParam({ week: '2026-01-01' }, WEDNESDAY)).toBe('2025-12-29') // a week that begins in the year before
+    expect(readWeekParam({ week: '2026-11-16' }, WEDNESDAY)).toBe(MONDAY) // this week's own Monday
+    expect(readWeekParam({ week: '2026-11-22' }, WEDNESDAY)).toBe(MONDAY) // this week's Sunday
+  })
+
+  it('is this week for a week after it: the future is not shown, whichever day of that week the address names (AC-5.29)', () => {
+    expect(readWeekParam({ week: '2026-11-23' }, WEDNESDAY)).toBe(MONDAY) // next week's Monday
+    expect(readWeekParam({ week: '2026-11-25' }, WEDNESDAY)).toBe(MONDAY) // a day of next week
+    expect(readWeekParam({ week: '2026-11-29' }, WEDNESDAY)).toBe(MONDAY) // next week's Sunday
+    expect(readWeekParam({ week: '2027-01-01' }, WEDNESDAY)).toBe(MONDAY) // a week well after
+    expect(readWeekParam({ week: '9999-12-26' }, WEDNESDAY)).toBe(MONDAY) // the last week the format holds
+  })
+
+  it('moves the line with today: a week is the future until its Monday has come, and next week is this week on that Monday', () => {
+    expect(readWeekParam({ week: '2026-11-23' }, '2026-11-22')).toBe(MONDAY) // today is Sunday: 23 November is next week
+    expect(readWeekParam({ week: '2026-11-23' }, '2026-11-23')).toBe('2026-11-23') // today is that Monday
   })
 
   it('ignores the other keys of the address', () => {
-    expect(readWeekParam({ view: 'week', period: 'lastMonth', week: '2026-11-25' }, WEDNESDAY)).toBe('2026-11-23')
+    expect(readWeekParam({ view: 'week', period: 'lastMonth', week: '2026-11-04' }, WEDNESDAY)).toBe('2026-11-02')
     expect(readWeekParam({ view: 'week', period: 'lastMonth' }, WEDNESDAY)).toBe(MONDAY)
   })
 
@@ -148,7 +162,8 @@ describe("readWeekParam: the week an address names (AC-5.4, AC-5.5; plan § My h
     expect(readWeekParam({ week: '0001-01-01' }, WEDNESDAY)).toBe(MONDAY)
     // 9999-12-31 is a Friday: its Sunday would be in the year 10000.
     expect(readWeekParam({ week: '9999-12-31' }, WEDNESDAY)).toBe(MONDAY)
-    expect(readWeekParam({ week: '9999-12-26' }, WEDNESDAY)).toBe('9999-12-20')
+    // The last whole week the format holds is in the future, so it is this week as well (AC-5.29).
+    expect(readWeekParam({ week: '9999-12-26' }, WEDNESDAY)).toBe(MONDAY)
   })
 
   it('refuses a "today" that is not a day: a caller bug', () => {

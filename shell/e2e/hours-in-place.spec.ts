@@ -1,7 +1,7 @@
 /**
  * T13 — Record hours in place, from the project, the deal and the task, and the Week view of My hours
  * (specs/20261116-record-hours-in-place: AC-1.1, AC-1.2, AC-2.1, AC-2.2, AC-3.1, AC-3.2, AC-3.3, AC-3.4, AC-3.5, AC-4.1,
- * AC-4.3, AC-4.5, AC-5.1, AC-5.2, AC-5.12, AC-5.14, AC-5.16, AC-5.17, AC-5.19, AC-5.20).
+ * AC-4.3, AC-4.5, AC-5.1, AC-5.2, AC-5.13, AC-5.14, AC-5.16–AC-5.20, AC-5.28, AC-5.32).
  *
  * Nothing is stubbed: the project and deal pages are projects-ui and crm-ui, the button is hours-ui's `./RecordHours`
  * loaded through the shell's `hours.recordHours` extension, the entry is written by hours-api, which asks projects-api,
@@ -18,10 +18,10 @@
  *  D. A CRM company task with no deal records other work with a category, and the entry carries no task (AC-3.4, 3.5).
  *  E. With hours-ui's `remoteEntry.js` aborted, the project page, the deal page and My tasks load and show the My
  *     hours link (AC-4.5, the remote-failure.spec.ts pattern).
- *  F. The table view, week: entries on two projects over three days with the right cells and totals, an empty past cell
- *     records, a cell's Edit changes an entry, Delete asks first, and the figures follow without a reload
- *     (AC-5.1, 5.2, 5.12, 5.14, 5.16, 5.17, 5.19, 5.20; reversed default and the address: T19. The empty cell still
- *     records until T20 withdraws it, and T24 rewrites F).
+ *  F. The table view, week: entries on two projects over three days with the right cells and totals, an empty cell
+ *     does nothing, Add hours in a cell's list records, a cell's Edit changes an entry, Delete asks first, and the
+ *     figures follow without a reload (AC-5.1, 5.2, 5.13, 5.14, 5.16–5.20, 5.28, 5.32; reversed default and the address:
+ *     T19; the empty cell withdrawn and Next unavailable on the current week: T20. T24 rewrites F).
  *
  * Needs the stack up (`mise run dev`) with the specs/20261112-time-tracking and specs/20261110-activities wiring (see the
  * headers of hours-owners.spec.ts and activities-crm.spec.ts). Against the dev stack Playwright reuses the servers when
@@ -576,7 +576,7 @@ test.describe('specs/20261116-record-hours-in-place T13: record hours in place, 
 
   // ─── F ────────────────────────────────────────────────────────────────────
 
-  test('F: the Week shows two projects over three days; an empty past cell records, Edit changes, Delete asks first, and the figures follow without a reload (AC-5.1, 5.2, 5.12, 5.14, 5.16, 5.17, 5.19, 5.20)', async ({
+  test('F: the Week shows two projects over three days; an empty cell does nothing, Add hours in a cell records, Edit changes, Delete asks first, and the figures follow without a reload (AC-5.1, 5.2, 5.13, 5.14, 5.16–5.20, 5.28, 5.32)', async ({
     browser,
   }) => {
     // Three projects, the person on each team; named so that alpha, beta, gamma sort in that order.
@@ -637,10 +637,12 @@ test.describe('specs/20261116-record-hours-in-place T13: record hours in place, 
     await expect(page.getByTestId('hours-table')).toBeVisible({ timeout: 30_000 })
     await expect(page.getByTestId('hours-table-heading')).toHaveText(weekLabel(currentMonday))
     await expect(page.getByTestId('hours-period-current')).toHaveAttribute('aria-disabled', 'true')
+    // AC-5.28: the future is not browsed, so Next is unavailable on the current week (T20).
+    await expect(page.getByTestId('hours-period-next')).toHaveAttribute('aria-disabled', 'true')
     // Seven days, Monday to Sunday (AC-5.3), today marked.
     await expect(page.getByTestId('hours-table-table').locator('thead th')).toHaveCount(9)
     await expect(page.getByTestId('hours-table-table').locator('thead')).toContainText('Today')
-    // AC-5.14: a day after today offers no recording (when the week has one: it has not on a Sunday).
+    // AC-5.14, AC-5.32: a day after today offers no recording (when the week has one: it has not on a Sunday).
     if (today < addDays(currentMonday, 6)) {
       await expect(cell(alphaKey, addDays(today, 1))).toHaveCount(0)
       await expect(cell(alphaKey, addDays(currentMonday, 6))).toHaveCount(0)
@@ -661,6 +663,7 @@ test.describe('specs/20261116-record-hours-in-place T13: record hours in place, 
     await expect(page).toHaveURL(new RegExp(`week=${lastMonday}`))
     await expect(page.getByTestId('hours-table-heading')).toHaveText(weekLabel(lastMonday), { timeout: 30_000 })
     await expect(page.getByTestId('hours-period-current')).not.toHaveAttribute('aria-disabled', 'true')
+    await expect(page.getByTestId('hours-period-next')).not.toHaveAttribute('aria-disabled', 'true')
     await expect(cell(alphaKey, mon)).toHaveText('3 h', { timeout: 30_000 })
     await expect(cell(alphaKey, wed)).toHaveText('3 h')
     await expect(cell(betaKey, tue)).toHaveText('1 h 30')
@@ -680,20 +683,37 @@ test.describe('specs/20261116-record-hours-in-place T13: record hours in place, 
     const totals = (await dayTotals().getByRole('cell').allInnerTexts()).map((text) => text.trim())
     expect(totals).toEqual(['3 h', '1 h 30', '5 h', '—', '1 h', '—', '—', '10 h 30'])
 
-    // AC-5.12 / AC-5.13 / AC-5.20: an empty past cell records, and the figures follow without a reload.
+    // AC-5.32 (AC-5.12 withdrawn): an empty cell is not a control, on a past day too; a click on it opens nothing.
     await page.evaluate(() => {
       ;(window as unknown as { __hipSameDocument: boolean }).__hipSameDocument = true
     })
-    await expect(cell(alphaKey, thu)).toHaveAccessibleName(/^Record hours on .*Thursday/)
-    await cell(alphaKey, thu).click()
+    await expect(cell(alphaKey, thu)).toHaveCount(0)
+    const alphaThuTd = rowOf(alphaKey).getByRole('cell').nth(3)
+    await expect(alphaThuTd).toHaveText('')
+    await alphaThuTd.click()
+    await expect(page.getByRole('dialog')).toHaveCount(0)
+
+    // AC-5.15: a cell of two entries lists both, as the List does; its figure is their sum.
+    await cell(alphaKey, mon).click()
+    const monDialog = page.getByRole('dialog', { name: `Project: ${alpha.name}` })
+    await expect(monDialog).toBeVisible()
+    await expect(monDialog).toContainText('Monday')
+    await expect(monDialog).toContainText('2 entries, 3 h')
+    await expect(monDialog).toContainText(`Hip F second ${runId}`)
+    await expect(monDialog.getByRole('button', { name: /^Edit/ })).toHaveCount(2)
+
+    // AC-5.13 / AC-5.18 / AC-5.20: Add hours in the cell's list records, with the cell's day and row set and still
+    // changeable, and the figures follow without a reload.
+    await monDialog.getByTestId('hours-table-cell-add').click()
     const record = hoursDialog(page)
     await expect(record).toBeVisible({ timeout: 30_000 })
-    await expect(record.getByTestId('hours-entry-day')).toHaveValue(thu)
+    await expect(record.getByTestId('hours-entry-day')).toHaveValue(mon)
     await expect(record.getByTestId('hours-entry-day')).toBeEnabled()
     // The row's project is chosen, and still a choice (My hours' own dialog, not a fixed one).
     await expect(record.getByTestId('hours-entry-on-project')).toBeChecked()
     await expect(record.getByTestId('hours-entry-project-input')).toHaveValue(alpha.name)
     await expect(record.getByTestId('hours-entry-duration')).toBeFocused()
+    await record.getByTestId('hours-entry-day').fill(thu)
     await record.getByTestId('hours-entry-duration').fill('1')
     await record.getByTestId('hours-entry-dialog-submit').click()
     await record.waitFor({ state: 'detached', timeout: 30_000 })
@@ -704,17 +724,11 @@ test.describe('specs/20261116-record-hours-in-place T13: record hours in place, 
     expect(await page.evaluate(() => (window as unknown as { __hipSameDocument?: boolean }).__hipSameDocument)).toBe(
       true,
     )
-    await expect(cell(alphaKey, thu)).toBeFocused() // focus lands on the cell it came from
     expect((await entriesOn(weeker, thu)).filter((entry) => entry.on.id === alpha.id)).toHaveLength(1)
-
-    // AC-5.15: a cell of two entries lists both, as the List does; its figure is their sum.
-    await cell(alphaKey, mon).click()
-    const monDialog = page.getByRole('dialog', { name: `Project: ${alpha.name}` })
+    // The cell dialog is still open on Monday, which the new entry did not change, and the keyboard is back on Add hours.
     await expect(monDialog).toBeVisible()
-    await expect(monDialog).toContainText('Monday')
     await expect(monDialog).toContainText('2 entries, 3 h')
-    await expect(monDialog).toContainText(`Hip F second ${runId}`)
-    await expect(monDialog.getByRole('button', { name: /^Edit/ })).toHaveCount(2)
+    await expect(monDialog.getByTestId('hours-table-cell-add')).toBeFocused()
     await monDialog.getByTestId('hours-table-cell-done').click()
     await expect(monDialog).toHaveCount(0)
     await expect(cell(alphaKey, mon)).toBeFocused() // Escape or Close: back on the cell that opened it
@@ -752,8 +766,10 @@ test.describe('specs/20261116-record-hours-in-place T13: record hours in place, 
     await betaDialog.getByTestId(`hours-entry-${betaTue.id}-delete`).click()
     await confirm.click()
     await expect(betaDialog).toHaveCount(0, { timeout: 30_000 })
-    await expect(cell(betaKey, tue)).toHaveAccessibleName(/^Record hours on .*Tuesday/, { timeout: 30_000 })
-    await expect(cell(betaKey, tue)).toBeFocused() // the now-empty cell
+    // The cell is blank now (no control), and the keyboard is on the card's heading, never on <body> (AC-5.32).
+    await expect(cell(betaKey, tue)).toHaveCount(0, { timeout: 30_000 })
+    await expect(rowOf(betaKey).getByRole('cell').nth(1)).toHaveText('')
+    await expect(page.getByTestId('hours-table-heading')).toBeFocused()
     await expect(lastCell(rowOf(betaKey))).toHaveText('2 h')
     await expect(lastCell(dayTotals())).toHaveText('10 h 30')
     expect((await ownEntriesViaApi(weeker, tue, tue)).some((entry) => entry.id === betaTue.id)).toBe(false)

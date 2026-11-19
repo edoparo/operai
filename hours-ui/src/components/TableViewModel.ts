@@ -61,7 +61,7 @@ export const rowLabel = (row: TableGridRow): string => {
 }
 
 /**
- * How the row is named inside a button's accessible name ("Record hours on <this>", "2 h on <this>, …"): the List's
+ * How the row is named inside a cell button's accessible name ("2 h on <this>, Monday 16 November 2026, 1 entry"): the List's
  * `onPhrase`, so "a project not visible to you" and "other work (Training)" read the same in both views. Never the
  * name of a record the viewer may not read.
  */
