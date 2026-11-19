@@ -6,7 +6,7 @@
  * view", § `EntryDialog` contract and its first amendment G7; design F4, F6, S7 "Focus after a write", S9).
  * Rendered through the inner router with a memory history and `fakeApi` behind `apiFetch`, so an assertion about a
  * request is about the body the real `hoursApi` builds. The dialog's own rules are `EntryDialog.test.tsx` and
- * `EntryDialog.preset.test.tsx`; the grid is `WeekView.test.tsx`; this is the page around them.
+ * `EntryDialog.preset.test.tsx`; the grid is `TableView.test.tsx`; this is the page around them.
  *
  * Today is Friday 13 November 2026 (`TODAY_INSTANT`): this week is Monday 9 – Sunday 15 November, and Saturday 14 and
  * Sunday 15 have not come.
@@ -45,7 +45,7 @@ import type { EntryInput, EntryOnInput, EntryPatch, TimeEntryView } from '../lib
 
 const e = strings.entry
 const f = e.fields
-const w = strings.week
+const w = strings.table
 
 let api: ReturnType<typeof fakeApi>
 
@@ -160,7 +160,7 @@ const inDialog = () => within(dialog())
 const dayField = () => inDialog().getByLabelText(new RegExp(`^${f.day}`)) as HTMLInputElement
 const durationField = () => inDialog().getByRole('textbox', { name: f.duration.label })
 const save = () => userEvent.click(inDialog().getByRole('button', { name: e.dialog.save }))
-const heading = () => screen.getByTestId('hours-week-heading')
+const heading = () => screen.getByTestId('hours-table-heading')
 const cellButton = (key: string, day: string) => document.querySelector(`[data-cell="${key}:${day}"]`)
 
 const ALPENSTROM = 'Alpenstrom'
@@ -187,7 +187,7 @@ describe('an empty cell of today or an earlier day records (AC-5.12, G7)', () =>
     async (_when, dayName, day) => {
       useApi()
       await renderPage()
-      await screen.findByTestId('hours-week-table')
+      await screen.findByTestId('hours-table-table')
 
       await userEvent.click(recordCell(ALPENSTROM, dayName))
 
@@ -201,7 +201,7 @@ describe('an empty cell of today or an earlier day records (AC-5.12, G7)', () =>
   it('is the same dialog as Record hours in the header: nothing fixed, the kind and the pickers are there', async () => {
     useApi()
     await renderPage()
-    await screen.findByTestId('hours-week-table')
+    await screen.findByTestId('hours-table-table')
 
     await userEvent.click(recordCell(ALPENSTROM, THURSDAY))
 
@@ -216,7 +216,7 @@ describe('an empty cell of today or an earlier day records (AC-5.12, G7)', () =>
       entry('2026-11-10', 120, otherWorkOn('Formazione', 'tc-formazione')),
     )
     await renderPage()
-    await screen.findByTestId('hours-week-table')
+    await screen.findByTestId('hours-table-table')
 
     await userEvent.click(recordCell(BRERA, THURSDAY))
     expect(inDialog().getByRole('radio', { name: f.on.options.deal })).toHaveProperty('checked', true)
@@ -240,7 +240,7 @@ describe('an empty cell of today or an earlier day records (AC-5.12, G7)', () =>
   it('Cancel closes it with nothing sent and the week as it was', async () => {
     useApi()
     await renderPage()
-    await screen.findByTestId('hours-week-table')
+    await screen.findByTestId('hours-table-table')
     const before = entriesCalls().length
 
     await userEvent.click(recordCell(ALPENSTROM, THURSDAY))
@@ -258,7 +258,7 @@ describe('the day and the target stay changeable (AC-5.13, WA6)', () => {
   it('a save after changing the day and the target posts the changed values, not the cell’s', async () => {
     useApi()
     await renderPage()
-    await screen.findByTestId('hours-week-table')
+    await screen.findByTestId('hours-table-table')
 
     await userEvent.click(recordCell(ALPENSTROM, THURSDAY))
     fireEvent.change(dayField(), { target: { value: '2026-11-11' } })
@@ -275,7 +275,7 @@ describe('the day and the target stay changeable (AC-5.13, WA6)', () => {
   it('saved untouched, it posts the cell’s own day and the row’s own target', async () => {
     useApi()
     await renderPage()
-    await screen.findByTestId('hours-week-table')
+    await screen.findByTestId('hours-table-table')
 
     await userEvent.click(recordCell(ALPENSTROM, THURSDAY))
     await typeDuration(durationField(), '2')
@@ -292,7 +292,7 @@ describe('a day that has not come offers nothing (AC-5.14, WA7)', () => {
   it('tomorrow’s and the day after’s cells are not controls, on any row; today’s and the days before are', async () => {
     useApi()
     await renderPage()
-    await screen.findByTestId('hours-week-table')
+    await screen.findByTestId('hours-table-table')
 
     const names = recordButtons().map((button) => button.getAttribute('aria-label'))
     // Alpenstrom: Wed, Thu, Fri. Brera: Mon, Tue, Thu, Fri. Nothing on Saturday 14 or Sunday 15.
@@ -307,7 +307,7 @@ describe('a day that has not come offers nothing (AC-5.14, WA7)', () => {
     useApi()
     await renderPage('/hours?view=week&week=2026-11-16')
 
-    await screen.findByTestId('hours-week-empty')
+    await screen.findByTestId('hours-table-empty')
     expect(recordButtons()).toEqual([])
   })
 
@@ -315,7 +315,7 @@ describe('a day that has not come offers nothing (AC-5.14, WA7)', () => {
     useApi()
     held.push(entry('2026-11-03', 180, projectOn('p-alpha', 'Alpenstrom')))
     await renderPage(`/hours?view=week&week=${LAST_MONDAY}`)
-    await screen.findByTestId('hours-week-table')
+    await screen.findByTestId('hours-table-table')
 
     expect(heading().textContent).toContain('02.11.2026 – 08.11.2026')
     expect(recordButtons().map((button) => button.getAttribute('aria-label'))).toEqual(
@@ -328,7 +328,7 @@ describe('a day that has not come offers nothing (AC-5.14, WA7)', () => {
 
 /** The eight figures of a row of the table — Monday to Sunday, then its total — as the grid draws them. */
 const figuresOf = (rowKey: string) =>
-  within(screen.getByTestId(`hours-week-row-${rowKey}`))
+  within(screen.getByTestId(`hours-table-row-${rowKey}`))
     .getAllByRole('cell')
     .map((cell) => cell.textContent)
 const NONE = strings.common.none
@@ -337,7 +337,7 @@ describe('the figures follow a save without a reload (AC-5.20)', () => {
   it('closes the dialog, reads the same week again, and the cell, its row, its day and the week all show the new hours', async () => {
     useApi()
     await renderPage()
-    await screen.findByTestId('hours-week-table')
+    await screen.findByTestId('hours-table-table')
     expect(figuresOf('project:p-alpha')).toEqual(['4 h', '2 h 30', '', '', '', '', '', '6 h 30'])
     const before = entriesCalls().length
 
@@ -365,7 +365,7 @@ describe('the figures follow a save without a reload (AC-5.20)', () => {
   it('says so where the person acted: "Entry saved."', async () => {
     useApi()
     await renderPage()
-    await screen.findByTestId('hours-week-table')
+    await screen.findByTestId('hours-table-table')
 
     await userEvent.click(recordCell(ALPENSTROM, THURSDAY))
     await typeDuration(durationField(), '2')
@@ -385,7 +385,7 @@ describe('focus after a save (design S7 "Focus after a write", F4 step 3)', () =
   it('goes to the Week card’s heading when the save moved the entry to another day: the cell it came from is not the one that changed', async () => {
     useApi()
     await renderPage()
-    await screen.findByTestId('hours-week-table')
+    await screen.findByTestId('hours-table-table')
 
     await openThursday()
     fireEvent.change(dayField(), { target: { value: '2026-11-11' } })
@@ -400,7 +400,7 @@ describe('focus after a save (design S7 "Focus after a write", F4 step 3)', () =
   it('goes to the heading too when the save moved the entry to another row', async () => {
     useApi()
     await renderPage()
-    await screen.findByTestId('hours-week-table')
+    await screen.findByTestId('hours-table-table')
 
     await openThursday()
     await userEvent.click(inDialog().getByRole('radio', { name: f.on.options.deal }))
@@ -408,28 +408,28 @@ describe('focus after a save (design S7 "Focus after a write", F4 step 3)', () =
     await userEvent.click(await screen.findByRole('option', { name: /Acme renewal/ }))
     await save()
 
-    await waitFor(() => expect(screen.queryByTestId('hours-week-row-deal:d1')).not.toBeNull())
+    await waitFor(() => expect(screen.queryByTestId('hours-table-row-deal:d1')).not.toBeNull())
     await waitFor(() => expect(document.activeElement).toBe(heading()))
   })
 
   it('is on the heading for a cell that is no control any more: never on the page body', async () => {
     useApi()
     await renderPage()
-    await screen.findByTestId('hours-week-table')
+    await screen.findByTestId('hours-table-table')
 
     await openThursday()
     await save()
 
     await waitFor(() => expect(figuresOf('project:p-alpha')[3]).toBe('1 h'))
     await waitFor(() => expect(document.activeElement).not.toBe(document.body))
-    expect(screen.getByTestId('hours-week').contains(document.activeElement)).toBe(true)
+    expect(screen.getByTestId('hours-table').contains(document.activeElement)).toBe(true)
   })
 
   it('goes back to the cell it came from when the new grid still offers it as a control', async () => {
     // The server does not yet hold the new entry when the week is read again, so the cell is still an empty one.
     useApi({ 'POST /time-entries': (_url, init) => ({ status: 201, body: madeOf(JSON.parse(String(init?.body))) }) })
     await renderPage()
-    await screen.findByTestId('hours-week-table')
+    await screen.findByTestId('hours-table-table')
     const before = entriesCalls().length
 
     await openThursday()
@@ -442,7 +442,7 @@ describe('focus after a save (design S7 "Focus after a write", F4 step 3)', () =
   it('does not move focus when the person cancels: the library gives it back to the cell’s plus', async () => {
     useApi()
     await renderPage()
-    await screen.findByTestId('hours-week-table')
+    await screen.findByTestId('hours-table-table')
 
     await userEvent.click(recordCell(ALPENSTROM, THURSDAY))
     await userEvent.click(inDialog().getByRole('button', { name: strings.common.cancel }))
@@ -464,7 +464,7 @@ describe('a save on a day outside the week shown says so (design F6, S7)', () =>
   it('Record hours in the header on a day of an earlier week: the week shown is not the one it landed in', async () => {
     useApi()
     await renderPage()
-    await screen.findByTestId('hours-week-table')
+    await screen.findByTestId('hours-table-table')
 
     await recordFromHeader('2026-11-02')
 
@@ -474,7 +474,7 @@ describe('a save on a day outside the week shown says so (design F6, S7)', () =>
   it('says the plain "Entry saved." for a day of the week shown, the first and the last of it included', async () => {
     useApi()
     await renderPage()
-    await screen.findByTestId('hours-week-table')
+    await screen.findByTestId('hours-table-table')
 
     await recordFromHeader(THIS_MONDAY)
     expect((await screen.findByTestId('hours-entry-saved')).textContent).toBe(e.saved)
@@ -484,7 +484,7 @@ describe('a save on a day outside the week shown says so (design F6, S7)', () =>
     useApi()
     held.push(entry('2026-11-03', 180, projectOn('p-alpha', 'Alpenstrom')))
     const router = await renderPage(`/hours?view=week&week=${LAST_MONDAY}`)
-    await screen.findByTestId('hours-week-table')
+    await screen.findByTestId('hours-table-table')
 
     await userEvent.click(recordCell(ALPENSTROM, 'Thursday 5 November 2026'))
     expect(dayField().value).toBe('2026-11-05')
@@ -522,19 +522,19 @@ describe('Record hours in the header while the Week is shown (AC-5.19, F6)', () 
   it('a target with no hours in the week gets its row, in its place, and the week total follows', async () => {
     useApi()
     await renderPage()
-    await screen.findByTestId('hours-week-table')
-    expect(screen.queryByTestId('hours-week-row-project:p1')).toBeNull()
+    await screen.findByTestId('hours-table-table')
+    expect(screen.queryByTestId('hours-table-row-project:p1')).toBeNull()
 
     await recordOnProjectAlpha('2026-11-12')
 
-    const row = await screen.findByTestId('hours-week-row-project:p1')
+    const row = await screen.findByTestId('hours-table-row-project:p1')
     expect(within(row).getByText(NAMES['p1']!)).not.toBeNull()
     expect(figuresOf('project:p1')).toEqual(['', '', '', '3 h', '', '', '', '3 h'])
     // Projects come in name order: Alpenstrom, then Project Alpha.
-    const keys = within(screen.getByTestId('hours-week-table'))
+    const keys = within(screen.getByTestId('hours-table-table'))
       .getAllByRole('row')
       .map((r) => r.getAttribute('data-testid'))
-    expect(keys.indexOf('hours-week-row-project:p-alpha')).toBeLessThan(keys.indexOf('hours-week-row-project:p1'))
+    expect(keys.indexOf('hours-table-row-project:p-alpha')).toBeLessThan(keys.indexOf('hours-table-row-project:p1'))
     expect(figuresOf('total')[7]).toBe('10 h 30')
     expect((await screen.findByTestId('hours-entry-saved')).textContent).toBe(e.saved)
   })
@@ -543,23 +543,23 @@ describe('Record hours in the header while the Week is shown (AC-5.19, F6)', () 
     useApi()
     held.push(entry('2026-11-12', 60, projectOn('p1', 'Project Alpha')))
     await renderPage()
-    await screen.findByTestId('hours-week-table')
+    await screen.findByTestId('hours-table-table')
     expect(figuresOf('project:p1')[7]).toBe('1 h')
 
     await recordOnProjectAlpha('2026-11-12')
 
     await waitFor(() => expect(figuresOf('project:p1')[7]).toBe('4 h'))
-    expect(screen.getAllByTestId('hours-week-row-project:p1')).toHaveLength(1)
+    expect(screen.getAllByTestId('hours-table-row-project:p1')).toHaveLength(1)
   })
 
   it('focus comes back to Record hours, which is not in the grid that was replaced', async () => {
     useApi()
     await renderPage()
-    await screen.findByTestId('hours-week-table')
+    await screen.findByTestId('hours-table-table')
 
     await recordOnProjectAlpha()
 
-    await screen.findByTestId('hours-week-row-project:p1')
+    await screen.findByTestId('hours-table-row-project:p1')
     await waitFor(() => expect(document.activeElement).toBe(screen.getByTestId('hours-record')))
   })
 })
@@ -580,7 +580,7 @@ describe('focus after a Retry of the deal filter’s refusal that then works (T1
     healthy = false
     useApi({ 'GET /time-entries': refusedUnlessHealthy })
     await renderPage()
-    await screen.findByTestId('hours-week-table')
+    await screen.findByTestId('hours-table-table')
     await pickDeal()
     await screen.findByTestId('hours-deal-filter-unavailable')
     healthy = true
@@ -589,7 +589,7 @@ describe('focus after a Retry of the deal filter’s refusal that then works (T1
       within(screen.getByTestId('hours-deal-filter-unavailable')).getByRole('button', { name: strings.common.retry }),
     )
 
-    await screen.findByTestId('hours-week-table')
+    await screen.findByTestId('hours-table-table')
     await waitFor(() => expect(document.activeElement).toBe(heading()))
   })
 
@@ -597,7 +597,7 @@ describe('focus after a Retry of the deal filter’s refusal that then works (T1
     healthy = false
     useApi({ 'GET /time-entries': refusedUnlessHealthy })
     await renderPage()
-    await screen.findByTestId('hours-week-table')
+    await screen.findByTestId('hours-table-table')
     await pickDeal()
     const alert = await screen.findByTestId('hours-deal-filter-unavailable')
 
@@ -611,7 +611,7 @@ describe('a refused save leaves everything as it was (AC-5.13, WA3)', () => {
   it('a 403 not_on_project is worded on the project picker with every value kept, and the week is not read again', async () => {
     useApi({ 'POST /time-entries': () => ({ status: 403, body: problem(403, 'not_on_project') }) })
     await renderPage()
-    await screen.findByTestId('hours-week-table')
+    await screen.findByTestId('hours-table-table')
     const before = entriesCalls().length
 
     await userEvent.click(recordCell(ALPENSTROM, THURSDAY))
@@ -636,7 +636,7 @@ describe('cells that offer no recording stay without it on the page (AC-5.24, D1
       entry('2026-11-10', 60, projectOn('p-secret', null, 'hidden')),
     )
     await renderPage()
-    await screen.findByTestId('hours-week-table')
+    await screen.findByTestId('hours-table-table')
 
     // The keys are the rows' real ones: the cell that HOLDS hours is a button on each, so a wrong key cannot pass the
     // absences below by finding nothing (QE: this once asserted on `project:unknown`, a key no row here has).
@@ -662,14 +662,14 @@ describe('after a write whose re-read fails (design S7 "States")', () => {
       },
     })
     await renderPage()
-    await screen.findByTestId('hours-week-table')
+    await screen.findByTestId('hours-table-table')
 
     await userEvent.click(recordCell(ALPENSTROM, THURSDAY))
     await typeDuration(durationField(), '2')
     await save()
 
-    await screen.findByTestId('hours-week-error')
-    expect(screen.queryByTestId('hours-week-table')).toBeNull()
+    await screen.findByTestId('hours-table-error')
+    expect(screen.queryByTestId('hours-table-table')).toBeNull()
     await waitFor(() => expect(document.activeElement).toBe(heading()))
   })
 
@@ -681,7 +681,7 @@ describe('after a write whose re-read fails (design S7 "States")', () => {
         holdNext ? reading.promise : entriesInRange(() => held)(url, init, params),
     })
     await renderPage()
-    await screen.findByTestId('hours-week-table')
+    await screen.findByTestId('hours-table-table')
 
     await userEvent.click(recordCell(ALPENSTROM, THURSDAY))
     await typeDuration(durationField(), '2')
@@ -693,7 +693,7 @@ describe('after a write whose re-read fails (design S7 "States")', () => {
     reading.resolve({ status: 200, body: entriesPage(held) })
     await screen.findByTestId('hours-entries')
     await userEvent.click(screen.getByRole('tab', { name: w.view.week }))
-    await screen.findByTestId('hours-week-table')
+    await screen.findByTestId('hours-table-table')
 
     expect(document.activeElement).toBe(screen.getByRole('tab', { name: w.view.week }))
   })
@@ -710,7 +710,7 @@ describe('the Week never shows what it read before the entries changed (useHours
           : entriesInRange(() => held)(url, init, params),
     })
     await renderPage()
-    await screen.findByTestId('hours-week-table')
+    await screen.findByTestId('hours-table-table')
     expect(figuresOf('project:p-alpha')[7]).toBe('6 h 30')
 
     await userEvent.click(screen.getByRole('tab', { name: w.view.list }))
@@ -725,10 +725,10 @@ describe('the Week never shows what it read before the entries changed (useHours
     holdWeek = true
     await userEvent.click(screen.getByRole('tab', { name: w.view.week }))
 
-    expect(screen.queryByTestId('hours-week-table')).toBeNull()
-    expect(screen.getByTestId('hours-week-skeleton')).not.toBeNull()
+    expect(screen.queryByTestId('hours-table-table')).toBeNull()
+    expect(screen.getByTestId('hours-table-skeleton')).not.toBeNull()
     reading.resolve({ status: 200, body: entriesPage(held.filter((item) => item.day >= THIS_MONDAY)) })
-    await screen.findByTestId('hours-week-table')
+    await screen.findByTestId('hours-table-table')
     expect(figuresOf('project:p-alpha')).toEqual(['', '2 h 30', '', '', '', '', '', '2 h 30'])
     expect(figuresOf('total')[7]).toBe('3 h 30')
   })
@@ -772,7 +772,7 @@ describe('a cell that holds hours opens its entries (AC-5.15)', () => {
     useApi()
     held.push(SUPPORT_CALL())
     await renderPage()
-    await screen.findByTestId('hours-week-table')
+    await screen.findByTestId('hours-table-table')
 
     await userEvent.click(screen.getByRole('button', { name: w.cell.open('5 h 30', ALPENSTROM, MONDAY_LONG, 2) }))
 
@@ -793,13 +793,13 @@ describe('a cell that holds hours opens its entries (AC-5.15)', () => {
   })
 
   it.each([
-    ['Close', () => userEvent.click(screen.getByTestId('hours-week-cell-done'))],
-    ['×', () => userEvent.click(screen.getByTestId('hours-week-cell-close'))],
+    ['Close', () => userEvent.click(screen.getByTestId('hours-table-cell-done'))],
+    ['×', () => userEvent.click(screen.getByTestId('hours-table-cell-close'))],
     ['Escape', () => userEvent.keyboard('{Escape}')],
   ])('%s closes it with nothing sent or read, and focus goes back to the cell', async (_how, close) => {
     useApi()
     await renderPage()
-    await screen.findByTestId('hours-week-table')
+    await screen.findByTestId('hours-table-table')
     const before = entriesCalls().length
 
     await openCellOf('project:p-alpha', '2026-11-09')
@@ -813,7 +813,7 @@ describe('a cell that holds hours opens its entries (AC-5.15)', () => {
   it('a deal’s cell opens on the deal, and the dialog is that row’s alone', async () => {
     useApi()
     await renderPage()
-    await screen.findByTestId('hours-week-table')
+    await screen.findByTestId('hours-table-table')
 
     await openCellOf('deal:d-brera', '2026-11-11')
 
@@ -824,7 +824,7 @@ describe('a cell that holds hours opens its entries (AC-5.15)', () => {
   it('leaving the week while it is open closes it for good: coming back does not find it open', async () => {
     useApi()
     const router = await renderPage()
-    await screen.findByTestId('hours-week-table')
+    await screen.findByTestId('hours-table-table')
     await openCellOf('project:p-alpha', '2026-11-09')
     expect(cellDialog()).not.toBeNull()
 
@@ -834,7 +834,7 @@ describe('a cell that holds hours opens its entries (AC-5.15)', () => {
 
     act(() => router.history.back())
     await waitFor(() => expect(heading().textContent).toContain('09.11.2026'))
-    await screen.findByTestId('hours-week-table')
+    await screen.findByTestId('hours-table-table')
     expect(screen.queryByRole('dialog')).toBeNull()
   })
 })
@@ -844,7 +844,7 @@ describe('Edit from the cell (AC-5.16, AC-5.20)', () => {
     useApi()
     held.push(SUPPORT_CALL())
     await renderPage()
-    await screen.findByTestId('hours-week-table')
+    await screen.findByTestId('hours-table-table')
     await openCellOf('project:p-alpha', '2026-11-09')
 
     await userEvent.click(editOf('e-mon2'))
@@ -873,7 +873,7 @@ describe('Edit from the cell (AC-5.16, AC-5.20)', () => {
   it('Cancel sends nothing and gives focus back to that entry’s Edit', async () => {
     useApi()
     await renderPage()
-    await screen.findByTestId('hours-week-table')
+    await screen.findByTestId('hours-table-table')
     await openCellOf('project:p-alpha', '2026-11-09')
     const before = entriesCalls().length
 
@@ -890,7 +890,7 @@ describe('Edit from the cell (AC-5.16, AC-5.20)', () => {
     useApi()
     held.push(SUPPORT_CALL())
     await renderPage()
-    await screen.findByTestId('hours-week-table')
+    await screen.findByTestId('hours-table-table')
     await openCellOf('project:p-alpha', '2026-11-09')
 
     await userEvent.click(editOf('e-mon2'))
@@ -908,7 +908,7 @@ describe('Edit from the cell (AC-5.16, AC-5.20)', () => {
   it('moving the only entry of a cell closes the dialog once the new figures are there, and focus is on the cell, now empty', async () => {
     useApi()
     await renderPage()
-    await screen.findByTestId('hours-week-table')
+    await screen.findByTestId('hours-table-table')
     await openCellOf('deal:d-brera', '2026-11-11')
 
     await userEvent.click(editOf(WED_BRERA))
@@ -932,7 +932,7 @@ describe('Edit from the cell (AC-5.16, AC-5.20)', () => {
     })
     held.push(SUPPORT_CALL())
     await renderPage()
-    await screen.findByTestId('hours-week-table')
+    await screen.findByTestId('hours-table-table')
     await openCellOf('project:p-alpha', '2026-11-09')
     const before = entriesCalls().length
 
@@ -953,7 +953,7 @@ describe('Delete from the cell (AC-5.17, AC-5.20)', () => {
   it('asks first: nothing is sent until Confirm, and Cancel sends nothing and gives focus back to Delete', async () => {
     useApi()
     await renderPage()
-    await screen.findByTestId('hours-week-table')
+    await screen.findByTestId('hours-table-table')
     await openCellOf('project:p-alpha', '2026-11-09')
     const before = entriesCalls().length
 
@@ -973,7 +973,7 @@ describe('Delete from the cell (AC-5.17, AC-5.20)', () => {
     useApi()
     held.push(SUPPORT_CALL())
     await renderPage()
-    await screen.findByTestId('hours-week-table')
+    await screen.findByTestId('hours-table-table')
     await openCellOf('project:p-alpha', '2026-11-09')
 
     await userEvent.click(deleteOf('e-mon2'))
@@ -992,7 +992,7 @@ describe('Delete from the cell (AC-5.17, AC-5.20)', () => {
   it('deleting the last entry of a cell closes the dialog after the new figures, and focus goes to the cell, now empty', async () => {
     useApi()
     await renderPage()
-    await screen.findByTestId('hours-week-table')
+    await screen.findByTestId('hours-table-table')
     await openCellOf('project:p-alpha', '2026-11-10')
 
     await userEvent.click(deleteOf(TUE_1))
@@ -1010,14 +1010,14 @@ describe('Delete from the cell (AC-5.17, AC-5.20)', () => {
   it('deleting the only entry of a row leaves the week without that row, and focus goes to the card’s heading', async () => {
     useApi()
     await renderPage()
-    await screen.findByTestId('hours-week-table')
+    await screen.findByTestId('hours-table-table')
     await openCellOf('deal:d-brera', '2026-11-11')
 
     await userEvent.click(deleteOf(WED_BRERA))
     await confirmDelete()
 
     await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull())
-    expect(screen.queryByTestId('hours-week-row-deal:d-brera')).toBeNull()
+    expect(screen.queryByTestId('hours-table-row-deal:d-brera')).toBeNull()
     await waitFor(() => expect(document.activeElement).toBe(heading()))
   })
 
@@ -1029,7 +1029,7 @@ describe('Delete from the cell (AC-5.17, AC-5.20)', () => {
       },
     })
     await renderPage()
-    await screen.findByTestId('hours-week-table')
+    await screen.findByTestId('hours-table-table')
     await openCellOf('project:p-alpha', '2026-11-10')
 
     await userEvent.click(deleteOf(TUE_1))
@@ -1043,7 +1043,7 @@ describe('Delete from the cell (AC-5.17, AC-5.20)', () => {
   it('a failed delete keeps the confirmation open with the error, the cell dialog and its entries as they were, and reads nothing', async () => {
     useApi({ 'DELETE /time-entries/:id': () => ({ status: 500, body: problem(500) }) })
     await renderPage()
-    await screen.findByTestId('hours-week-table')
+    await screen.findByTestId('hours-table-table')
     await openCellOf('project:p-alpha', '2026-11-10')
     const before = entriesCalls().length
 
@@ -1061,10 +1061,10 @@ describe('Add hours from the cell (AC-5.18, AC-5.20)', () => {
   it('opens the entry dialog on that day and row with focus on Duration, over the cell dialog; once saved the entry is in the list', async () => {
     useApi()
     await renderPage()
-    await screen.findByTestId('hours-week-table')
+    await screen.findByTestId('hours-table-table')
     await openCellOf('project:p-alpha', '2026-11-09')
 
-    await userEvent.click(screen.getByTestId('hours-week-cell-add'))
+    await userEvent.click(screen.getByTestId('hours-table-cell-add'))
 
     expect(dayField().value).toBe('2026-11-09')
     expect(inDialog().getByRole('radio', { name: f.on.options.project })).toHaveProperty('checked', true)
@@ -1079,7 +1079,7 @@ describe('Add hours from the cell (AC-5.18, AC-5.20)', () => {
     await waitFor(() => expect(within(cellDialog()).getAllByRole('listitem')).toHaveLength(2))
     expect(figuresOf('project:p-alpha')).toEqual(['5 h', '2 h 30', '', '', '', '', '', '7 h 30'])
     // Focus is where it was before the dialog opened: Add hours, in the cell dialog — not the page behind it.
-    expect(document.activeElement).toBe(screen.getByTestId('hours-week-cell-add'))
+    expect(document.activeElement).toBe(screen.getByTestId('hours-table-cell-add'))
     expect((await screen.findByTestId('hours-entry-saved')).textContent).toBe(e.saved)
   })
 
@@ -1099,18 +1099,18 @@ describe('Add hours from the cell (AC-5.18, AC-5.20)', () => {
     })
     held.push(secret, seminar)
     await renderPage()
-    await screen.findByTestId('hours-week-table')
+    await screen.findByTestId('hours-table-table')
 
     await openCellOf('project:p-secret', '2026-11-09')
     expect(cellDialog(`Project: ${strings.names.hidden}`)).not.toBeNull()
-    expect(screen.queryByTestId('hours-week-cell-add')).toBeNull()
+    expect(screen.queryByTestId('hours-table-cell-add')).toBeNull()
     expect(editOf('e-secret')).not.toBeNull()
     expect(deleteOf('e-secret')).not.toBeNull()
-    await userEvent.click(screen.getByTestId('hours-week-cell-done'))
+    await userEvent.click(screen.getByTestId('hours-table-cell-done'))
 
     await openCellOf('category:tc-seminars', '2026-11-10')
     expect(cellDialog('Other work: Seminars (retired)')).not.toBeNull()
-    expect(screen.queryByTestId('hours-week-cell-add')).toBeNull()
+    expect(screen.queryByTestId('hours-table-cell-add')).toBeNull()
     expect(editOf('e-seminar')).not.toBeNull()
     expect(deleteOf('e-seminar')).not.toBeNull()
   })
@@ -1121,12 +1121,12 @@ describe('Add hours from the cell (AC-5.18, AC-5.20)', () => {
       timeEntryView({ id: 'e-future', day: '2026-11-14', minutes: 60, on: otherWorkOn('Formazione', 'tc-formazione') }),
     )
     await renderPage()
-    await screen.findByTestId('hours-week-table')
+    await screen.findByTestId('hours-table-table')
 
     await openCellOf('category:tc-formazione', '2026-11-14')
 
     expect(cellDialog('Other work: Formazione')).not.toBeNull()
-    expect(screen.queryByTestId('hours-week-cell-add')).toBeNull()
+    expect(screen.queryByTestId('hours-table-cell-add')).toBeNull()
   })
 })
 
@@ -1134,7 +1134,7 @@ describe('after a write from the cell dialog (AC-5.20, design S8)', () => {
   it('closing the dialog puts focus on the cell: the button it was opened from went with the grid that was read again', async () => {
     useApi()
     await renderPage()
-    await screen.findByTestId('hours-week-table')
+    await screen.findByTestId('hours-table-table')
     const opener = cellOpener('project:p-alpha', '2026-11-09')
     await userEvent.click(opener)
 
@@ -1158,7 +1158,7 @@ describe('after a write from the cell dialog (AC-5.20, design S8)', () => {
     })
     held.push(SUPPORT_CALL())
     await renderPage()
-    await screen.findByTestId('hours-week-table')
+    await screen.findByTestId('hours-table-table')
     await openCellOf('project:p-alpha', '2026-11-09')
     const row = screen.getByTestId('hours-entry-e-mon2')
 
@@ -1168,8 +1168,8 @@ describe('after a write from the cell dialog (AC-5.20, design S8)', () => {
     await saveEdit()
 
     // The read is in flight: the grid is replaced by its skeleton, and the dialog is as it was, in the same DOM.
-    await screen.findByTestId('hours-week-skeleton')
-    expect(screen.queryByTestId('hours-week-table')).toBeNull()
+    await screen.findByTestId('hours-table-skeleton')
+    expect(screen.queryByTestId('hours-table-table')).toBeNull()
     expect(cellDialog()).not.toBeNull()
     expect(screen.getByTestId('hours-entry-e-mon2')).toBe(row)
     expect(row.textContent).toContain('1 h 30')
@@ -1177,7 +1177,7 @@ describe('after a write from the cell dialog (AC-5.20, design S8)', () => {
 
     holdNext = false
     reading.resolve({ status: 200, body: entriesPage(held.filter((item) => item.day >= THIS_MONDAY)) })
-    await screen.findByTestId('hours-week-table')
+    await screen.findByTestId('hours-table-table')
     expect(screen.getByTestId('hours-entry-e-mon2')).toBe(row)
     expect(row.textContent).toContain('2 h')
     expect(document.activeElement).toBe(editOf('e-mon2'))
@@ -1194,18 +1194,18 @@ describe('after a write from the cell dialog (AC-5.20, design S8)', () => {
       },
     })
     await renderPage()
-    await screen.findByTestId('hours-week-table')
+    await screen.findByTestId('hours-table-table')
     await openCellOf('project:p-alpha', '2026-11-09')
 
     await userEvent.click(editOf(MON_1))
     await typeDuration(editDuration(), '2')
     await saveEdit()
 
-    await screen.findByTestId('hours-week-error')
+    await screen.findByTestId('hours-table-error')
     expect(cellDialog()).not.toBeNull()
     expect(screen.getByTestId(`hours-entry-${MON_1}`)).not.toBeNull()
     expect((editOf(MON_1) as HTMLButtonElement).disabled).toBe(false)
-    await userEvent.click(screen.getByTestId('hours-week-cell-done'))
+    await userEvent.click(screen.getByTestId('hours-table-cell-done'))
 
     expect(screen.queryByRole('dialog')).toBeNull()
     await waitFor(() => expect(document.activeElement).toBe(heading()))
@@ -1232,7 +1232,7 @@ describe('where the keyboard is after a delete from the cell that failed (QE rou
       },
     })
     await renderPage()
-    await screen.findByTestId('hours-week-table')
+    await screen.findByTestId('hours-table-table')
     await openCellOf('project:p-alpha', '2026-11-10')
 
     await userEvent.click(deleteOf(TUE_1))

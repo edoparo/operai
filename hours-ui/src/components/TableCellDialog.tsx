@@ -1,16 +1,16 @@
 import { useEffect, useRef } from 'react'
 import { Button, Dialog, ListRows, formatDateLong, formatDuration } from '@operai/ui'
 import type { TimeEntryView } from '../lib/hoursApi.types'
-import type { WeekCell, WeekRow } from '../lib/weekGrid'
+import type { TableGridCell, TableGridRow } from '../lib/tableGrid'
 import { strings } from '../strings'
 import EntryRow from './EntryRow'
-import { longDay, rowLabel } from './WeekViewModel'
+import { longDay, rowLabel } from './TableViewModel'
 
-export type WeekCellDialogProps = {
+export type TableCellDialogProps = {
   /** The row of the grid the cell is on: its kind and name title the dialog, its `preset` says whether hours can be added. */
-  row: WeekRow
+  row: TableGridRow
   /** What the cell holds: the entries, in the server's order, and their total. Never empty (the page closes the dialog then). */
-  cell: WeekCell
+  cell: TableGridCell
   /** `YYYY-MM-DD` and its place in the week (Monday is 0), for the weekday the title's description names. */
   day: string
   dayIndex: number
@@ -23,7 +23,7 @@ export type WeekCellDialogProps = {
 }
 
 /**
- * WeekCellDialog — the entries of one cell of the Week: one row, one day (specs/20261116-record-hours-in-place T12;
+ * TableCellDialog — the entries of one cell of the table: one row, one day (specs/20261116-record-hours-in-place T12;
  * design S8; AC-5.15–AC-5.18, AC-5.24).
  *
  * A `Dialog`, not a drawer or a popover: it holds Edit and Delete, and a modal gives the stack the library already
@@ -38,7 +38,7 @@ export type WeekCellDialogProps = {
  * focus has gone from the cell (deleted, or edited onto another day or row) focus goes to the dialog's heading, never
  * to the page behind it. An empty cell is not drawn: the page closes the dialog.
  */
-export default function WeekCellDialog({
+export default function TableCellDialog({
   row,
   cell,
   day,
@@ -47,7 +47,7 @@ export default function WeekCellDialog({
   onDelete,
   onAdd,
   onClose,
-}: WeekCellDialogProps) {
+}: TableCellDialogProps) {
   const body = useRef<HTMLDivElement>(null)
   const date = formatDateLong(day)
 
@@ -68,15 +68,15 @@ export default function WeekCellDialog({
   return (
     <Dialog
       size="lg"
-      title={strings.week.cellDialog.title(strings.entries.type[row.kind], rowLabel(row))}
-      description={strings.week.cellDialog.description(
+      title={strings.table.cellDialog.title(strings.entries.type[row.kind], rowLabel(row))}
+      description={strings.table.cellDialog.description(
         longDay(day, dayIndex),
         cell.entries.length,
         formatDuration(cell.minutes * 60_000, { style: 'short' }),
       )}
       closeLabel={strings.common.close}
       onClose={onClose}
-      testIdPrefix="hours-week-cell"
+      testIdPrefix="hours-table-cell"
     >
       <div ref={body} className="mb-4">
         <ListRows label={strings.entries.dayList(date)}>
@@ -86,12 +86,12 @@ export default function WeekCellDialog({
         </ListRows>
       </div>
       <div className="dialog-footer">
-        <Button variant="ghost" onClick={onClose} data-testid="hours-week-cell-done">
+        <Button variant="ghost" onClick={onClose} data-testid="hours-table-cell-done">
           {strings.common.close}
         </Button>
         {onAdd && (
-          <Button variant="primary" aria-haspopup="dialog" onClick={onAdd} data-testid="hours-week-cell-add">
-            {strings.week.cellDialog.add}
+          <Button variant="primary" aria-haspopup="dialog" onClick={onAdd} data-testid="hours-table-cell-add">
+            {strings.table.cellDialog.add}
           </Button>
         )}
       </div>

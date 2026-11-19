@@ -22,7 +22,7 @@ import { names } from './strings/names'
 import { recordHours } from './strings/recordHours'
 import { settings } from './strings/settings'
 import { totals } from './strings/totals'
-import { week } from './strings/week'
+import { table } from './strings/table'
 
 /** The English catalog: the reference every other language is checked against. */
 export const en = {
@@ -37,7 +37,7 @@ export const en = {
   everyone: everyone.en,
   export: exportStrings.en,
   settings: settings.en,
-  week: week.en,
+  table: table.en,
   recordHours: recordHours.en,
 }
 
@@ -54,7 +54,7 @@ export const it: typeof en = {
   everyone: everyone.it,
   export: exportStrings.it,
   settings: settings.it,
-  week: week.it,
+  table: table.it,
   recordHours: recordHours.it,
 }
 

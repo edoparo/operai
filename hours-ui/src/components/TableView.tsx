@@ -13,24 +13,24 @@ import {
   formatDuration,
 } from '@operai/ui'
 import type { DataTableColumn } from '@operai/ui'
-import type { WeekGrid, WeekRow } from '../lib/weekGrid'
+import type { TableGrid, TableGridRow } from '../lib/tableGrid'
 import { strings } from '../strings'
 import ErrorBanner from './ErrorBanner'
-import WeekNavigator from './WeekNavigator'
-import { longDay, rowLabel, rowPhrase, weekRange } from './WeekViewModel'
+import PeriodNavigator from './PeriodNavigator'
+import { longDay, rowLabel, rowPhrase, weekRange } from './TableViewModel'
 
-export type WeekViewState =
+export type TableViewState =
   /** The week is being read (or read again after a write): nothing of any other week is shown. */
   | { status: 'loading' }
-  /** The grid of the week the page asked for (`weekGrid(entries, monday)`); no rows is an empty week. */
-  | { status: 'loaded'; grid: WeekGrid }
+  /** The grid of the week the page asked for (`tableGrid(entries, monday)`); no rows is an empty week. */
+  | { status: 'loaded'; grid: TableGrid }
   /** The read failed, in whole or in part; `message` is the sentence in the person's language. No partial grid. */
   | { status: 'error'; message: string }
   /** The page's own state in place of the grid (the deal filter that cannot be answered, time-tracking AC-4.11). */
   | { status: 'replaced'; content: ReactNode }
 
 /** What the page can ask of the card (design S7 "Focus after a write"): where keyboard focus goes once the week is read again. */
-export type WeekViewHandle = {
+export type TableViewHandle = {
   /**
    * Moves focus to the card's heading, which is focusable but never a tab stop: the landing place when the cell that was
    * acted on is gone or is no longer a control (the grid is replaced while it is read again, so the control that had
@@ -47,14 +47,14 @@ export type WeekViewHandle = {
   focusRetry: () => boolean
 }
 
-export type WeekViewProps = {
+export type TableViewProps = {
   /** The Monday of the week asked for (`YYYY-MM-DD`): the heading and the navigator. A loaded `grid` is the grid of this week. */
   monday: string
   /** Today as hours-api counts it (`todayZurich()`): marks its column; a day after it offers no recording (AC-5.14). */
   today: string
   /** A filter the Week applies is set: an empty week then says no entry matches, and offers Clear filters. */
   filtered: boolean
-  state: WeekViewState
+  state: TableViewState
   /** The Monday of the week the navigator asks for: the one before, the one after, or the one holding today. */
   onWeekChange: (monday: string) => void
   /** Retry after a failed read. */
@@ -62,14 +62,14 @@ export type WeekViewProps = {
   /** Clear filters, from the empty-and-filtered state. */
   onClearFilters: () => void
   /** An empty cell of today or an earlier day on a row that can be recorded on was chosen (AC-5.12): the page opens the entry dialog on it (T11). */
-  onRecordCell?: (row: WeekRow, day: string) => void
+  onRecordCell?: (row: TableGridRow, day: string) => void
   /** A cell that holds hours was chosen (AC-5.15): the page opens the cell's entries (T12). */
-  onOpenCell?: (row: WeekRow, day: string) => void
-  ref?: Ref<WeekViewHandle>
+  onOpenCell?: (row: TableGridRow, day: string) => void
+  ref?: Ref<TableViewHandle>
 }
 
 /** A row of the table: one of the grid's, or the last, the totals of the days. */
-type TableRow = { type: 'row'; row: WeekRow } | { type: 'total' }
+type TableRow = { type: 'row'; row: TableGridRow } | { type: 'total' }
 
 const short = (minutes: number) => formatDuration(minutes * 60_000, { style: 'short' })
 
@@ -77,15 +77,15 @@ function DayHeader({ day, index, today }: { day: string; index: number; today: s
   return (
     <span className="inline-flex flex-col items-end gap-0.5">
       <span className="inline-flex items-center gap-1">
-        {strings.week.weekday.short[index]}
-        {day === today && <Badge tone="accent">{strings.week.today}</Badge>}
+        {strings.table.weekday.short[index]}
+        {day === today && <Badge tone="accent">{strings.table.today}</Badge>}
       </span>{' '}
       <span>{formatDate(day)}</span>
     </span>
   )
 }
 
-function RowLabel({ row }: { row: WeekRow }) {
+function RowLabel({ row }: { row: TableGridRow }) {
   return (
     // The floor is 7 rem: it decides whether a day figure is on a phone's first screen and whether the grid fits at 1024 px
     // (design S7 "Columns"); a wider one left a phone with a column of names only, and a laptop with 10 px of scroll.
@@ -95,7 +95,7 @@ function RowLabel({ row }: { row: WeekRow }) {
   )
 }
 
-type CellActions = Pick<WeekViewProps, 'onRecordCell' | 'onOpenCell'>
+type CellActions = Pick<TableViewProps, 'onRecordCell' | 'onOpenCell'>
 
 /**
  * One cell of a row (design S7 "Cells"). A cell that holds hours shows the total and, when the page can open it,
@@ -110,7 +110,7 @@ function Cell({
   today,
   onRecordCell,
   onOpenCell,
-}: CellActions & { row: WeekRow; day: string; index: number; today: string }) {
+}: CellActions & { row: TableGridRow; day: string; index: number; today: string }) {
   const cell = row.cells[day]
   const on = rowPhrase(row)
   const dayName = longDay(day, index)
@@ -123,7 +123,7 @@ function Cell({
         variant="ghost"
         size="sm"
         aria-haspopup="dialog"
-        aria-label={strings.week.cell.open(figure, on, dayName, cell.entries.length)}
+        aria-label={strings.table.cell.open(figure, on, dayName, cell.entries.length)}
         onClick={() => onOpenCell(row, day)}
         data-cell={dataCell}
       >
@@ -138,7 +138,7 @@ function Cell({
       size="sm"
       iconOnly
       aria-haspopup="dialog"
-      aria-label={strings.week.cell.record(on, dayName)}
+      aria-label={strings.table.cell.record(on, dayName)}
       onClick={() => onRecordCell(row, day)}
       data-cell={dataCell}
     >
@@ -147,7 +147,7 @@ function Cell({
   )
 }
 
-function WeekTable({ grid, today, onRecordCell, onOpenCell }: CellActions & { grid: WeekGrid; today: string }) {
+function GridTable({ grid, today, onRecordCell, onOpenCell }: CellActions & { grid: TableGrid; today: string }) {
   const columns: DataTableColumn<TableRow>[] = [
     {
       id: 'on',
@@ -155,7 +155,7 @@ function WeekTable({ grid, today, onRecordCell, onOpenCell }: CellActions & { gr
       rowHeader: true,
       render: (item) =>
         item.type === 'total' ? (
-          <span className="font-medium">{strings.week.grid.total}</span>
+          <span className="font-medium">{strings.table.grid.total}</span>
         ) : (
           <RowLabel row={item.row} />
         ),
@@ -184,7 +184,7 @@ function WeekTable({ grid, today, onRecordCell, onOpenCell }: CellActions & { gr
     })),
     {
       id: 'total',
-      header: strings.week.grid.total,
+      header: strings.table.grid.total,
       numeric: true,
       render: (item) => (
         <span className="font-medium">{short(item.type === 'total' ? grid.totalMinutes : item.row.minutes)}</span>
@@ -195,12 +195,12 @@ function WeekTable({ grid, today, onRecordCell, onOpenCell }: CellActions & { gr
   const range = weekRange(grid.days[0]!)
   return (
     <DataTable
-      caption={strings.week.grid.caption(range)}
+      caption={strings.table.grid.caption(range)}
       columns={columns}
       rows={rows}
       getRowKey={(item) => (item.type === 'total' ? 'total' : item.row.key)}
-      rowTestIdPrefix="hours-week-row"
-      testId="hours-week-table"
+      rowTestIdPrefix="hours-table-row"
+      testId="hours-table-table"
     />
   )
 }
@@ -211,16 +211,16 @@ function WeekTable({ grid, today, onRecordCell, onOpenCell }: CellActions & { gr
  * not offered. Otherwise the List's own sentence for "a filter is set" with Clear filters, or the plain one — the
  * page header has the Record hours action, so the panel has none.
  */
-function EmptyWeek({
+function EmptyPeriod({
   monday,
   today,
   filtered,
   onClearFilters,
-}: Pick<WeekViewProps, 'monday' | 'today' | 'filtered' | 'onClearFilters'>) {
+}: Pick<TableViewProps, 'monday' | 'today' | 'filtered' | 'onClearFilters'>) {
   if (monday > today) {
     return (
-      <StatePanel headingLevel={4} title={strings.week.emptyFuture.title} testId="hours-week-empty">
-        {strings.week.emptyFuture.body}
+      <StatePanel headingLevel={4} title={strings.table.emptyFuture.title} testId="hours-table-empty">
+        {strings.table.emptyFuture.body}
       </StatePanel>
     )
   }
@@ -230,19 +230,19 @@ function EmptyWeek({
         headingLevel={4}
         title={strings.entries.emptyFiltered.title}
         action={
-          <Button variant="ghost" onClick={onClearFilters} data-testid="hours-week-clear">
+          <Button variant="ghost" onClick={onClearFilters} data-testid="hours-table-clear">
             {strings.filters.clear}
           </Button>
         }
-        testId="hours-week-empty"
+        testId="hours-table-empty"
       >
         {strings.entries.emptyFiltered.body}
       </StatePanel>
     )
   }
   return (
-    <StatePanel headingLevel={4} title={strings.week.empty.title} testId="hours-week-empty">
-      {strings.week.empty.body}
+    <StatePanel headingLevel={4} title={strings.table.empty.title} testId="hours-table-empty">
+      {strings.table.empty.body}
     </StatePanel>
   )
 }
@@ -252,21 +252,21 @@ function EmptyWeek({
  * and as the Totals card says its figure). Nothing on an error — its banner is an alert — and nothing on a state the page
  * supplies, which words itself.
  */
-const announcement = (state: WeekViewState, monday: string): string => {
-  if (state.status === 'loading') return strings.week.loading
+const announcement = (state: TableViewState, monday: string): string => {
+  if (state.status === 'loading') return strings.table.loading
   if (state.status !== 'loaded') return ''
   const range = weekRange(monday)
   return state.grid.rows.length === 0
-    ? strings.week.announceEmpty(range)
-    : strings.week.announce(range, formatDuration(state.grid.totalMinutes * 60_000, { style: 'spoken' }))
+    ? strings.table.announceEmpty(range)
+    : strings.table.announce(range, formatDuration(state.grid.totalMinutes * 60_000, { style: 'spoken' }))
 }
 
 /**
- * WeekView — the Week card of My hours (specs/20261116-record-hours-in-place T9; design S7; AC-5.3, AC-5.5,
+ * TableView — the table card of My hours, its period the week (specs/20261116-record-hours-in-place T9; design S7; AC-5.3, AC-5.5,
  * AC-5.9–AC-5.11, AC-5.14, AC-5.23, AC-5.24).
  *
  * Presentational. It is handed `monday` (the week asked for), `today` (`todayZurich()`), the `state` of the one read
- * of that week and, when loaded, the `WeekGrid` the pure fold of T8 made of it. It sums nothing and compares nothing:
+ * of that week and, when loaded, the `TableGrid` the pure fold of T8 made of it. It sums nothing and compares nothing:
  * every figure is one the grid states, and the same markup draws a 1 h week and a 42 h week (AC-5.11).
  *
  * The card's heading is the week as two dates and its action the navigator, in every state, so the week can be changed
@@ -280,7 +280,7 @@ const announcement = (state: WeekViewState, monday: string): string => {
  * Every cell button carries `data-cell="<row key>:<day>"` so the page can put focus back on it once the week has been
  * read again.
  */
-export default function WeekView({
+export default function TableView({
   monday,
   today,
   filtered,
@@ -291,7 +291,7 @@ export default function WeekView({
   onRecordCell,
   onOpenCell,
   ref,
-}: WeekViewProps) {
+}: TableViewProps) {
   const root = useRef<HTMLDivElement>(null)
 
   // `Card` has no focusable heading yet, so the heading is found through the card's own `aria-labelledby` (the way
@@ -324,27 +324,27 @@ export default function WeekView({
   return (
     <div ref={root} className="contents">
       <Card
-        title={strings.week.title(weekRange(monday))}
-        titleTestId="hours-week-heading"
-        action={<WeekNavigator monday={monday} today={today} onWeekChange={onWeekChange} />}
-        data-testid="hours-week"
+        title={strings.table.title(weekRange(monday))}
+        titleTestId="hours-table-heading"
+        action={<PeriodNavigator monday={monday} today={today} onWeekChange={onWeekChange} />}
+        data-testid="hours-table"
       >
-        <VisuallyHidden live data-testid="hours-week-live">
+        <VisuallyHidden live data-testid="hours-table-live">
           {announcement(state, monday)}
         </VisuallyHidden>
 
-        {state.status === 'loading' && <SkeletonRows rows={4} actions={0} testId="hours-week-skeleton" />}
+        {state.status === 'loading' && <SkeletonRows rows={4} actions={0} testId="hours-table-skeleton" />}
 
         {state.status === 'loaded' &&
           (state.grid.rows.length === 0 ? (
-            <EmptyWeek monday={monday} today={today} filtered={filtered} onClearFilters={onClearFilters} />
+            <EmptyPeriod monday={monday} today={today} filtered={filtered} onClearFilters={onClearFilters} />
           ) : (
             <>
               {/* Below 1024 px the grid scrolls inside the card and nothing else says so; with a grid only (design S7 "Phone"). */}
               <p className="mb-3 text-xs text-soft lg:hidden" aria-hidden="true">
-                {strings.week.scrollHint}
+                {strings.table.scrollHint}
               </p>
-              <WeekTable grid={state.grid} today={today} onRecordCell={onRecordCell} onOpenCell={onOpenCell} />
+              <GridTable grid={state.grid} today={today} onRecordCell={onRecordCell} onOpenCell={onOpenCell} />
             </>
           ))}
 
@@ -353,7 +353,7 @@ export default function WeekView({
             title={strings.entries.error.title}
             message={state.message}
             onRetry={onRetry}
-            testId="hours-week-error"
+            testId="hours-table-error"
           />
         )}
 

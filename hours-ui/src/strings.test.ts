@@ -23,7 +23,7 @@ const AREAS = [
   'everyone',
   'export',
   'settings',
-  'week',
+  'table',
   'recordHours',
 ]
 

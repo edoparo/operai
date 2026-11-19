@@ -1,5 +1,5 @@
 /**
- * The Week view of My hours (specs/20261116-record-hours-in-place T9; design S7 and § Copy; AC-4.6): the card's
+ * The table view of My hours (specs/20261116-record-hours-in-place T9; design S7 and § Copy; AC-4.6): the card's
  * heading, the navigator, the grid's headers and the names of a cell's buttons, the states and the sentence a
  * screen reader hears when a week arrives. The kind badges, the retired and "not visible" wording, "Recorded on",
  * "Clear filters" and the empty-filter and error sentences are the List's, reused from `entries`, `names`,
@@ -7,7 +7,7 @@
  *
  * Weekday names are copy, not a date format (the library has no weekday formatter): seven short and seven long,
  * Monday first (WA1), picked by a day's place in the week. The week itself is written as two `formatDate`s with an
- * en dash by `WeekViewModel.weekRange` and arrives here already made (`range`).
+ * en dash by `TableViewModel.weekRange` and arrives here already made (`range`).
  */
 
 /** One name for each day of the week, Monday first. */
@@ -133,4 +133,4 @@ const it: typeof en = {
   scrollHint: 'Scorri di lato per vedere tutti e sette i giorni.',
 }
 
-export const week = { en, it }
+export const table = { en, it }

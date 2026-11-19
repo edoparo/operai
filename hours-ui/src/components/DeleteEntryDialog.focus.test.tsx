@@ -8,7 +8,7 @@
  * pressed and where pressing it again is the retry. jsdom does not take focus off a disabled control, so these tests do it as
  * a browser does (`emulateFocusFixup`) and answer a frame later, as a request does: without it they would find focus on Confirm
  * because nothing ever took it away. The same dialog is used by the List and by the Week's cell dialog; both are tested through
- * the page (`MyHoursPage.edit.test.tsx`, `MyHoursPage.weekCells.test.tsx`).
+ * the page (`MyHoursPage.edit.test.tsx`, `MyHoursPage.cells.test.tsx`).
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { cleanup, render, screen, waitFor, within } from '@testing-library/react'

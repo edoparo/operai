@@ -25,12 +25,12 @@ const TODAY = '2026-11-19'
 /** The view, its strings and a week of entries, all imported after the language is set. */
 const setup = async (lang: 'it' | 'en') => {
   document.documentElement.setAttribute('lang', lang)
-  const { default: WeekView } = await import('./WeekView')
+  const { default: TableView } = await import('./TableView')
   const { strings } = await import('../strings')
-  const { weekGrid } = await import('../lib/weekGrid')
+  const { tableGrid } = await import('../lib/tableGrid')
   const { dealOn, otherWorkOn, projectOn, timeEntryView } = await import('../test-support/fakeApi')
   const entry = (id: string, day: string, minutes: number, on: EntryOn) => timeEntryView({ id, day, minutes, on })
-  const grid = weekGrid(
+  const grid = tableGrid(
     [
       entry('a', '2026-11-16', 240, projectOn('p1', 'Alpenstrom')),
       entry('b', '2026-11-18', 60, projectOn('p2', 'Operai')),
@@ -43,7 +43,7 @@ const setup = async (lang: 'it' | 'en') => {
   )
   const draw = (props: Record<string, unknown> = {}) =>
     render(
-      <WeekView
+      <TableView
         monday={MONDAY}
         today={TODAY}
         filtered={false}
@@ -56,7 +56,7 @@ const setup = async (lang: 'it' | 'en') => {
         {...props}
       />,
     )
-  return { strings, draw, weekGrid }
+  return { strings, draw, tableGrid }
 }
 
 describe('Italian', () => {
@@ -90,7 +90,7 @@ describe('Italian', () => {
     ])
     expect(headers[4]?.textContent).toContain('Oggi')
     expect(headers[8]?.textContent).toBe('Totale')
-    expect(within(screen.getByTestId('hours-week-row-total')).getByRole('rowheader').textContent).toBe('Totale')
+    expect(within(screen.getByTestId('hours-table-row-total')).getByRole('rowheader').textContent).toBe('Totale')
   })
 
   it('names the cell buttons with the Italian weekday and date, and the entries in the singular and the plural', async () => {
@@ -111,10 +111,10 @@ describe('Italian', () => {
   it('shows a category as its administrator typed it, the kinds and the hidden name in Italian, and no English', async () => {
     const { draw } = await setup('it')
     const { container } = draw()
-    const training = within(screen.getByTestId('hours-week-row-category:c-training')).getByRole('rowheader')
+    const training = within(screen.getByTestId('hours-table-row-category:c-training')).getByRole('rowheader')
     expect(within(training).getByText('Altro lavoro')).not.toBeNull()
     expect(within(training).getByText('Formazione')).not.toBeNull()
-    const hidden = within(screen.getByTestId('hours-week-row-project:p3')).getByRole('rowheader')
+    const hidden = within(screen.getByTestId('hours-table-row-project:p3')).getByRole('rowheader')
     expect(within(hidden).getByText('Progetto')).not.toBeNull()
     expect(within(hidden).getByText('Non visibile a te')).not.toBeNull()
     expect(container.textContent).not.toMatch(/\b(Week|Total|Project|Deal|Mon|Tue|Today|Not visible)\b/)
@@ -122,28 +122,28 @@ describe('Italian', () => {
   })
 
   it('announces the week and its total in Italian, and says so in Italian when it is empty or still loading', async () => {
-    const { draw, weekGrid } = await setup('it')
+    const { draw, tableGrid } = await setup('it')
     const { unmount } = draw()
-    expect(screen.getByTestId('hours-week-live').textContent).toBe(
+    expect(screen.getByTestId('hours-table-live').textContent).toBe(
       '16.11.2026 – 22.11.2026: 11 ore e 30 minuti in totale.',
     )
     unmount()
-    draw({ state: { status: 'loaded', grid: weekGrid([], MONDAY) } })
-    expect(screen.getByTestId('hours-week-live').textContent).toBe('16.11.2026 – 22.11.2026: nessuna ora registrata.')
+    draw({ state: { status: 'loaded', grid: tableGrid([], MONDAY) } })
+    expect(screen.getByTestId('hours-table-live').textContent).toBe('16.11.2026 – 22.11.2026: nessuna ora registrata.')
     cleanup()
     draw({ state: { status: 'loading' } })
-    expect(screen.getByTestId('hours-week-live').textContent).toBe('Caricamento della tua settimana…')
+    expect(screen.getByTestId('hours-table-live').textContent).toBe('Caricamento della tua settimana…')
   })
 
   it('words the empty week, the week that has not started, the empty filtered week and the error in Italian', async () => {
-    const { draw, weekGrid } = await setup('it')
-    const loaded = { status: 'loaded', grid: weekGrid([], MONDAY) }
+    const { draw, tableGrid } = await setup('it')
+    const loaded = { status: 'loaded', grid: tableGrid([], MONDAY) }
     draw({ state: loaded })
     expect(screen.getByRole('heading', { level: 4 }).textContent).toBe('Nessuna ora registrata in questa settimana')
     cleanup()
     draw({ state: loaded, monday: '2026-11-23' })
     expect(screen.getByRole('heading', { level: 4 }).textContent).toBe('Questa settimana non è ancora iniziata')
-    expect(screen.getByTestId('hours-week-empty').textContent).toContain(
+    expect(screen.getByTestId('hours-table-empty').textContent).toContain(
       'Puoi registrare le ore di un giorno quando è arrivato.',
     )
     cleanup()
@@ -154,7 +154,7 @@ describe('Italian', () => {
     expect(screen.getByRole('button', { name: 'Azzera i filtri' })).not.toBeNull()
     cleanup()
     draw({ state: { status: 'error', message: 'Riprova tra un momento.' } })
-    expect(within(screen.getByTestId('hours-week-error')).getByText('Impossibile caricare le tue ore')).not.toBeNull()
+    expect(within(screen.getByTestId('hours-table-error')).getByText('Impossibile caricare le tue ore')).not.toBeNull()
     expect(screen.getByRole('button', { name: 'Riprova' })).not.toBeNull()
   })
 

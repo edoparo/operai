@@ -1,27 +1,27 @@
 /**
  * @vitest-environment jsdom
  *
- * WeekNavigator — previous week, this week, next week (specs/20261116-record-hours-in-place T9; design S7
+ * PeriodNavigator — previous week, this week, next week (specs/20261116-record-hours-in-place T9; design S7
  * "Navigator"; AC-5.5). It holds no state: it is told the week shown and today, and reports the Monday asked for.
  */
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { cleanup, render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { strings } from '../strings'
-import WeekNavigator from './WeekNavigator'
-import type { WeekNavigatorProps } from './WeekNavigator'
+import PeriodNavigator from './PeriodNavigator'
+import type { PeriodNavigatorProps } from './PeriodNavigator'
 
 afterEach(() => cleanup())
 
-const n = strings.week.nav
+const n = strings.table.nav
 
 // Today is Wednesday 18 November 2026: its week begins on Monday 16 November.
 const TODAY = '2026-11-18'
 const THIS_WEEK = '2026-11-16'
 
-const renderNavigator = (props: Partial<WeekNavigatorProps> = {}) => {
+const renderNavigator = (props: Partial<PeriodNavigatorProps> = {}) => {
   const onWeekChange = vi.fn()
-  const view = render(<WeekNavigator monday={THIS_WEEK} today={TODAY} onWeekChange={onWeekChange} {...props} />)
+  const view = render(<PeriodNavigator monday={THIS_WEEK} today={TODAY} onWeekChange={onWeekChange} {...props} />)
   return { onWeekChange, ...view }
 }
 
@@ -65,7 +65,7 @@ describe('previous and next week call back with the shifted Monday (AC-5.5)', ()
     const { onWeekChange, rerender } = renderNavigator({ monday: '2026-12-28' })
     await userEvent.click(next())
     expect(onWeekChange).toHaveBeenLastCalledWith('2027-01-04')
-    rerender(<WeekNavigator monday="2026-11-02" today={TODAY} onWeekChange={onWeekChange} />)
+    rerender(<PeriodNavigator monday="2026-11-02" today={TODAY} onWeekChange={onWeekChange} />)
     await userEvent.click(previous())
     expect(onWeekChange).toHaveBeenLastCalledWith('2026-10-26')
   })
@@ -86,7 +86,7 @@ describe('previous and next week call back with the shifted Monday (AC-5.5)', ()
   it('keeps focus on the button once the week has changed, so a second step needs no new Tab', async () => {
     const { onWeekChange, rerender } = renderNavigator()
     await userEvent.click(next())
-    rerender(<WeekNavigator monday="2026-11-23" today={TODAY} onWeekChange={onWeekChange} />)
+    rerender(<PeriodNavigator monday="2026-11-23" today={TODAY} onWeekChange={onWeekChange} />)
     expect(document.activeElement).toBe(next())
   })
 })

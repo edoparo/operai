@@ -1,5 +1,5 @@
 /**
- * WeekViewModel — what the Week view says about a week and about a row (specs/20261116-record-hours-in-place T9;
+ * TableViewModel — what the table view says about a week and about a row (specs/20261116-record-hours-in-place T9;
  * design S7; AC-5.5, AC-5.23). Pure functions, so the component stays markup.
  *
  * A row is named by the List's own functions (`lib/names.ts`: `rowName`, `onPhrase`), fed an `EntryOn` made from
@@ -10,7 +10,7 @@ import { formatDate, formatDateLong } from '@operai/ui'
 import type { EntryOn } from '../lib/hoursApi.types'
 import { onPhrase, rowName } from '../lib/names'
 import { weekDays } from '../lib/week'
-import type { WeekCell, WeekGrid, WeekRow } from '../lib/weekGrid'
+import type { TableGridCell, TableGrid, TableGridRow } from '../lib/tableGrid'
 import { strings } from '../strings'
 
 /**
@@ -28,10 +28,10 @@ export const weekRange = (monday: string): string => {
  * week (Monday is 0; the library has no weekday formatter) and the date as `formatDateLong` writes it.
  */
 export const longDay = (day: string, index: number): string =>
-  `${strings.week.weekday.long[index]} ${formatDateLong(day)}`
+  `${strings.table.weekday.long[index]} ${formatDateLong(day)}`
 
 /** The row as the entry it holds would be for `rowName` and `onPhrase`: its kind, its name and why it may have none. */
-const onOf = (row: WeekRow): EntryOn => {
+const onOf = (row: TableGridRow): EntryOn => {
   if (row.kind === 'none')
     return { type: 'none', category: { id: row.key, name: row.name ?? '', retired: row.retired } }
   const named = { id: null, label: row.name, href: null, visibility: row.visibility }
@@ -43,7 +43,7 @@ const onOf = (row: WeekRow): EntryOn => {
  * "Not visible to you" or "Name unavailable" for one they may not or whose owner did not answer, the category's name
  * for other work — and, for a retired category, "(retired)" after it, as the List writes that too.
  */
-export const rowLabel = (row: WeekRow): string => {
+export const rowLabel = (row: TableGridRow): string => {
   if (row.kind === 'none') return row.retired ? strings.entries.retired(row.name ?? '') : (row.name ?? '')
   return rowName(onOf(row))?.text ?? ''
 }
@@ -53,7 +53,7 @@ export const rowLabel = (row: WeekRow): string => {
  * `onPhrase`, so "a project not visible to you" and "other work (Training)" read the same in both views. Never the
  * name of a record the viewer may not read.
  */
-export const rowPhrase = (row: WeekRow): string => onPhrase(onOf(row))
+export const rowPhrase = (row: TableGridRow): string => onPhrase(onOf(row))
 
 /**
  * The cell of the grid a cell dialog was opened on (design S8): the row, the cell and the day's place in the week
@@ -62,10 +62,10 @@ export const rowPhrase = (row: WeekRow): string => onPhrase(onOf(row))
  * page's cue that the dialog has nothing left to list.
  */
 export const cellOf = (
-  grid: WeekGrid,
+  grid: TableGrid,
   rowKey: string,
   day: string,
-): { row: WeekRow; cell: WeekCell; index: number } | null => {
+): { row: TableGridRow; cell: TableGridCell; index: number } | null => {
   const row = grid.rows.find((candidate) => candidate.key === rowKey)
   const cell = row?.cells[day]
   const index = grid.days.indexOf(day)

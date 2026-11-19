@@ -2,7 +2,7 @@ import { Button, Icon } from '@operai/ui'
 import { mondayOf, shiftWeek } from '../lib/week'
 import { strings } from '../strings'
 
-export type WeekNavigatorProps = {
+export type PeriodNavigatorProps = {
   /** The Monday of the week shown (`YYYY-MM-DD`). */
   monday: string
   /** Today as hours-api counts it (`todayZurich()`): "This week" returns to the week holding it. */
@@ -12,7 +12,7 @@ export type WeekNavigatorProps = {
 }
 
 /**
- * WeekNavigator — previous week, this week, next week (specs/20261116-record-hours-in-place T9; design S7
+ * PeriodNavigator — previous week, this week, next week (specs/20261116-record-hours-in-place T9; design S7
  * "Navigator"; AC-5.5). It keeps no state and no address: it reports the Monday asked for and the page changes
  * `week`, so the buttons stay mounted and keep focus across a step.
  *
@@ -20,23 +20,23 @@ export type WeekNavigatorProps = {
  * "This week" is `aria-disabled` rather than `disabled` while the current week is shown: it stays in the tab order
  * and keeps focus after a click, and the click asks for nothing.
  */
-export default function WeekNavigator({ monday, today, onWeekChange }: WeekNavigatorProps) {
+export default function PeriodNavigator({ monday, today, onWeekChange }: PeriodNavigatorProps) {
   const current = mondayOf(today)
   const showingCurrent = monday === current
   return (
     <div
       role="group"
-      aria-label={strings.week.nav.label}
+      aria-label={strings.table.nav.label}
       className="flex items-center gap-2"
-      data-testid="hours-week-nav"
+      data-testid="hours-period-nav"
     >
       <Button
         variant="ghost"
         size="sm"
         iconOnly
-        aria-label={strings.week.nav.previous}
+        aria-label={strings.table.nav.previous}
         onClick={() => onWeekChange(shiftWeek(monday, -1))}
-        data-testid="hours-week-previous"
+        data-testid="hours-period-previous"
       >
         <Icon name="chevron-left" />
       </Button>
@@ -47,17 +47,17 @@ export default function WeekNavigator({ monday, today, onWeekChange }: WeekNavig
         onClick={() => {
           if (!showingCurrent) onWeekChange(current)
         }}
-        data-testid="hours-week-this"
+        data-testid="hours-period-current"
       >
-        {strings.week.nav.thisWeek}
+        {strings.table.nav.thisWeek}
       </Button>
       <Button
         variant="ghost"
         size="sm"
         iconOnly
-        aria-label={strings.week.nav.next}
+        aria-label={strings.table.nav.next}
         onClick={() => onWeekChange(shiftWeek(monday, 1))}
-        data-testid="hours-week-next"
+        data-testid="hours-period-next"
       >
         <Icon name="chevron-right" />
       </Button>

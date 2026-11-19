@@ -318,15 +318,15 @@ test.describe("specs/20261116-record-hours-in-place QE pass 2: the fix round's r
         body: JSON.stringify({ type: 'about:blank', title: 'Internal Server Error', status: 500 }),
       })
     })
-    await page.getByTestId('hours-week-previous').click()
-    const retry = page.getByTestId('hours-week-error-retry')
+    await page.getByTestId('hours-period-previous').click()
+    const retry = page.getByTestId('hours-table-error-retry')
     await expect(retry).toBeVisible({ timeout: 30_000 })
     await retry.focus()
     await page.keyboard.press('Enter') // still failing
     await expect(retry).toBeFocused({ timeout: 10_000 })
     failing = false
     await page.keyboard.press('Enter') // works
-    await expect(page.getByTestId('hours-week-heading')).toBeFocused({ timeout: 30_000 })
+    await expect(page.getByTestId('hours-table-heading')).toBeFocused({ timeout: 30_000 })
     await expect(retry).toHaveCount(0)
     await page.unroute(reads)
     await ctx.close()

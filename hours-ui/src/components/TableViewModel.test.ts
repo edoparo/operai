@@ -1,5 +1,5 @@
 /**
- * WeekViewModel — what the Week view says about a week and about a row (specs/20261116-record-hours-in-place T9;
+ * TableViewModel — what the Week view says about a week and about a row (specs/20261116-record-hours-in-place T9;
  * design S7; AC-5.5, AC-5.23). Pure: the week as two dates, a row's name and the phrase that names it in a button,
  * both worded by the List's own functions (`lib/names.ts`) so the two views never disagree about one entry.
  */
@@ -8,16 +8,16 @@ import { formatDate } from '@operai/ui'
 import { strings } from '../strings'
 import type { EntryOn } from '../lib/hoursApi.types'
 import { onPhrase, rowName } from '../lib/names'
-import { weekGrid } from '../lib/weekGrid'
-import type { WeekRow } from '../lib/weekGrid'
+import { tableGrid } from '../lib/tableGrid'
+import type { TableGridRow } from '../lib/tableGrid'
 import { dealOn, meetingOn, otherWorkOn, projectOn, timeEntryView } from '../test-support/fakeApi'
-import { rowLabel, rowPhrase, weekRange } from './WeekViewModel'
+import { rowLabel, rowPhrase, weekRange } from './TableViewModel'
 
 const MONDAY = '2026-11-16'
 
 /** The one row an entry on `on` makes in the week of `MONDAY`. */
-const rowOf = (on: EntryOn): WeekRow => {
-  const [row] = weekGrid([timeEntryView({ id: 'e', day: MONDAY, minutes: 60, on })], MONDAY).rows
+const rowOf = (on: EntryOn): TableGridRow => {
+  const [row] = tableGrid([timeEntryView({ id: 'e', day: MONDAY, minutes: 60, on })], MONDAY).rows
   if (!row) throw new Error('no row')
   return row
 }

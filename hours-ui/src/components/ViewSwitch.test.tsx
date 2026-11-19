@@ -13,7 +13,7 @@ import type { ViewSwitchProps } from './ViewSwitch'
 
 afterEach(() => cleanup())
 
-const v = strings.week.view
+const v = strings.table.view
 
 const renderSwitch = (props: Partial<ViewSwitchProps> = {}) => {
   const onChange = vi.fn()

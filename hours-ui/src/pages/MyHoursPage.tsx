@@ -37,10 +37,10 @@ import SuccessBanner from '../components/SuccessBanner'
 import TotalsCard from '../components/TotalsCard'
 import type { TotalsCardHandle, TotalsView } from '../components/TotalsCard'
 import ViewSwitch from '../components/ViewSwitch'
-import WeekCellDialog from '../components/WeekCellDialog'
-import WeekView from '../components/WeekView'
-import type { WeekViewHandle, WeekViewState } from '../components/WeekView'
-import { cellOf } from '../components/WeekViewModel'
+import TableCellDialog from '../components/TableCellDialog'
+import TableView from '../components/TableView'
+import type { TableViewHandle, TableViewState } from '../components/TableView'
+import { cellOf } from '../components/TableViewModel'
 import { isCode, statusOf } from '../lib/errors'
 import { readAllEntries } from '../lib/exportPages'
 import { createEntry, deleteEntry, getTimeLists, getTotals, listEntries, updateEntry } from '../lib/hoursApi'
@@ -60,8 +60,8 @@ import { todayZurich } from '../lib/todayZurich'
 import { useHoursPages, useHoursQuery } from '../lib/useHoursQuery'
 import type { HoursQueryState } from '../lib/useHoursQuery'
 import { readWeekParam, weekDays } from '../lib/week'
-import { weekGrid } from '../lib/weekGrid'
-import type { WeekGrid, WeekRow } from '../lib/weekGrid'
+import { tableGrid } from '../lib/tableGrid'
+import type { TableGrid, TableGridRow } from '../lib/tableGrid'
 import { strings } from '../strings'
 
 type Search = Record<string, unknown>
@@ -79,7 +79,7 @@ const entriesFailure = (error: unknown): string =>
  * "try again" for everything else — a refusal, and the fold refusing an entry that is not of the week asked for (a
  * server bug, `RangeError`), which is no fault of the connection.
  */
-const weekFailure = (error: unknown): string =>
+const tableFailure = (error: unknown): string =>
   statusOf(error) === null && !(error instanceof RangeError) ? strings.common.networkError : strings.entries.error.body
 
 /**
@@ -87,12 +87,12 @@ const weekFailure = (error: unknown): string =>
  * folded into the grid here, so an entry outside the week (a server bug) is a failed read with Retry rather than an
  * error thrown while the page draws.
  */
-const readWeek = async (filters: EntryFilters, monday: string, signal: AbortSignal) => {
+const readTable = async (filters: EntryFilters, monday: string, signal: AbortSignal) => {
   const { items, unavailable } = await readAllEntries(filters, { signal })
-  return { grid: weekGrid(items, monday), items, unavailable }
+  return { grid: tableGrid(items, monday), items, unavailable }
 }
 
-/** The grid row an entry of this `on` lands on, by `weekGrid`'s key: `project:<id>`, `deal:<id>`, `meeting:<id>`, `category:<id>`. */
+/** The grid row an entry of this `on` lands on, by `tableGrid`'s key: `project:<id>`, `deal:<id>`, `meeting:<id>`, `category:<id>`. */
 const rowKeyOf = (on: EntryOnInput): string =>
   on.type === 'none' ? `category:${on.categoryId}` : `${on.type}:${on.id}`
 
@@ -146,7 +146,7 @@ const dayTotalsOf = (answer: TotalsAnswer): ReadonlyMap<string, number> =>
  * is gone): focus then goes to the cell that was acted on or, when the save moved the entry out of it or the cell is
  * not a control, to the card's heading — never to the page body; a save on a day outside the week says so.
  *
- * A cell that holds hours opens `WeekCellDialog` (T12, design F5, S8): its entries with the List's Edit and Delete, and
+ * A cell that holds hours opens `TableCellDialog` (T12, design F5, S8): its entries with the List's Edit and Delete, and
  * Add hours. Edit, Delete and Add hours open the same dialogs the List opens, over it. The dialog is drawn from the last
  * week that loaded, so it keeps its entries while the week is read again after a write and updates in place when the
  * new one lands; it closes by itself when the cell holds no entry any more, and the focus is the dialog's to keep
@@ -186,7 +186,7 @@ export default function MyHoursPage() {
   // The view of the page (plan Decision 5): the List, or the Week of `?week`. One page, two reads; the other
   // view's reads ask nothing (a null key), so only what is on screen is asked.
   const view = readView(search)
-  const weekShown = view === 'week'
+  const tableShown = view === 'week'
   const today = todayZurich()
   const monday = readWeekParam(search, today)
 
@@ -200,12 +200,12 @@ export default function MyHoursPage() {
     workTypeId: state.workTypeId || undefined,
   }
   const filters: EntryFilters | null =
-    weekShown || range === null || waitingForLists ? null : { ...applied, from: range.from, to: range.to }
+    tableShown || range === null || waitingForLists ? null : { ...applied, from: range.from, to: range.to }
   const filterKey = JSON.stringify(filters)
   // The Week: the week takes the place of the period, every other filter applies (AC-5.21, WA5).
-  const weekFilters: EntryFilters | null =
-    !weekShown || waitingForLists ? null : { ...applied, from: monday, to: weekDays(monday)[6]! }
-  const weekKey = JSON.stringify(weekFilters)
+  const tableFilters: EntryFilters | null =
+    !tableShown || waitingForLists ? null : { ...applied, from: monday, to: weekDays(monday)[6]! }
+  const tableKey = JSON.stringify(tableFilters)
 
   // The three reads of a filter change: the entries (a cursor-paged list), the day totals that label them,
   // and the totals for the chosen "Group by".
@@ -217,8 +217,10 @@ export default function MyHoursPage() {
     getTotals(state.group, filters!, { signal }),
   )
   // The Week's one read: every entry of the week, complete or failed, folded into the grid (plan Decision 1).
-  const week = useHoursQuery(weekFilters && `week:${weekKey}`, (signal) => readWeek(weekFilters!, monday, signal))
-  const loadedWeek = week.state.status === 'loaded' ? week.state.data : null
+  const tableRead = useHoursQuery(tableFilters && `table:${tableKey}`, (signal) =>
+    readTable(tableFilters!, monday, signal),
+  )
+  const loadedTable = tableRead.state.status === 'loaded' ? tableRead.state.data : null
 
   const loadedDays = days.state.status === 'loaded' ? days.state.data : null
   const dayTotals = useMemo(() => (loadedDays ? dayTotalsOf(loadedDays) : null), [loadedDays])
@@ -246,23 +248,23 @@ export default function MyHoursPage() {
     (refusedDealRead(entries.first) ||
       refusedDealRead(totals.state) ||
       refusedDealRead(days.state) ||
-      refusedDealRead(week.state) ||
+      refusedDealRead(tableRead.state) ||
       exportRefused)
 
   const totalsCard = useRef<TotalsCardHandle>(null)
-  const weekView = useRef<WeekViewHandle>(null)
+  const tableView = useRef<TableViewHandle>(null)
   const blocker = useRef<HTMLDivElement>(null)
   const retryFor = useRef<string | null>(null)
-  const reading = weekShown
-    ? week.state.status === 'loading'
+  const reading = tableShown
+    ? tableRead.state.status === 'loading'
     : entries.first.status === 'loading' || days.state.status === 'loading' || totals.state.status === 'loading'
   // What the view reads is named by one key, so a Retry is remembered as the read it was made for.
-  const readKey = weekShown ? weekKey : filterKey
+  const readKey = tableShown ? tableKey : filterKey
 
   const retryAll = () => {
     retryFor.current = readKey
-    if (weekShown) {
-      week.reload()
+    if (tableShown) {
+      tableRead.reload()
       return
     }
     entries.reload()
@@ -274,17 +276,17 @@ export default function MyHoursPage() {
   // to the Totals heading (the Week card's, in the Week) when they worked and back to the banner when they did not
   // (the Retry button that had focus is gone: in the blocked state the banner itself, in a failed Week the new Retry).
   // A Retry whose view was left before it answered moves nothing.
-  const weekFailed = week.state.status === 'error'
+  const tableFailed = tableRead.state.status === 'error'
   useEffect(() => {
     if (retryFor.current === null || reading) return
     const mine = retryFor.current === readKey
     retryFor.current = null
     if (!mine) return
     if (blocked) blocker.current?.focus()
-    else if (weekShown && weekFailed) weekView.current?.focusRetry()
-    else if (weekShown) weekView.current?.focusHeading()
+    else if (tableShown && tableFailed) tableView.current?.focusRetry()
+    else if (tableShown) tableView.current?.focusHeading()
     else totalsCard.current?.focusHeading()
-  }, [readKey, reading, blocked, weekShown, weekFailed])
+  }, [readKey, reading, blocked, tableShown, tableFailed])
 
   // An export the refusal stopped: the Export button had focus and is gone with the Entries card, so the banner
   // takes it (design F5). A person who has gone on to another control keeps theirs.
@@ -298,11 +300,11 @@ export default function MyHoursPage() {
   // The notes about names. They keep their last settled content while the next answers load, so the Filters
   // card below them does not jump under the pointer on every filter change; with no data (blocked) none.
   // In the Week they are what the walk of the week found: the sources it could not ask, and names it may not show.
-  const live: HoursBannersProps = weekShown
+  const live: HoursBannersProps = tableShown
     ? {
-        sources: loadedWeek?.unavailable ?? [],
+        sources: loadedTable?.unavailable ?? [],
         dealGroupingUnavailable: false,
-        hiddenNames: hasHiddenName(loadedWeek?.items ?? []),
+        hiddenNames: hasHiddenName(loadedTable?.items ?? []),
       }
     : {
         sources: unavailableSources(
@@ -361,8 +363,8 @@ export default function MyHoursPage() {
   // Every write that changed what the page shows asks again, with the same filters, for what is on screen: the
   // three reads of the List, or the Week's one.
   const readAgain = () => {
-    if (weekShown) {
-      week.reload()
+    if (tableShown) {
+      tableRead.reload()
       return
     }
     entries.reload()
@@ -376,21 +378,21 @@ export default function MyHoursPage() {
   // with the view. It is state, numbered, and the effect remembers the last one it has answered: so a request made when
   // nothing is being read (a dialog closed by hand) is looked at on the render that follows it, which a ref
   // read only when the status changed would never do.
-  const [weekFocus, setWeekFocus] = useState<{ id: number; cell: string | null } | null>(null)
+  const [tableFocus, setTableFocus] = useState<{ id: number; cell: string | null } | null>(null)
   const handledFocus = useRef(0)
-  const askWeekFocus = (cell: string | null) => setWeekFocus((previous) => ({ id: (previous?.id ?? 0) + 1, cell }))
-  const weekStatus = week.state.status
+  const askTableFocus = (cell: string | null) => setTableFocus((previous) => ({ id: (previous?.id ?? 0) + 1, cell }))
+  const tableStatus = tableRead.state.status
   useEffect(() => {
-    if (weekFocus === null || weekFocus.id === handledFocus.current) return
-    if (!weekShown) {
-      handledFocus.current = weekFocus.id
+    if (tableFocus === null || tableFocus.id === handledFocus.current) return
+    if (!tableShown) {
+      handledFocus.current = tableFocus.id
       return
     }
-    if (weekStatus === 'loading' || weekStatus === 'idle') return
-    handledFocus.current = weekFocus.id
-    if (weekStatus === 'loaded' && weekFocus.cell !== null && weekView.current?.focusCell(weekFocus.cell)) return
-    weekView.current?.focusHeading()
-  }, [weekFocus, weekShown, weekStatus])
+    if (tableStatus === 'loading' || tableStatus === 'idle') return
+    handledFocus.current = tableFocus.id
+    if (tableStatus === 'loaded' && tableFocus.cell !== null && tableView.current?.focusCell(tableFocus.cell)) return
+    tableView.current?.focusHeading()
+  }, [tableFocus, tableShown, tableStatus])
 
   // The cell dialog (T12; design F5, S8). It is opened on a cell of the week and filters shown, and drawn from the last
   // grid that loaded — not from the read in flight, which is `loading` after every write — so its list does not blank
@@ -399,23 +401,23 @@ export default function MyHoursPage() {
   // (deleted, or edited onto another day or row): the dialog closes once the new figures are there and focus goes to the
   // cell — an empty one, one Enter from recording again — or to the card's heading when its row is gone. An empty list
   // in a dialog would be a dead end.
-  const [openCell, setOpenCell] = useState<{ rowKey: string; day: string; weekKey: string } | null>(null)
-  const [lastGrid, setLastGrid] = useState<{ weekKey: string; grid: WeekGrid } | null>(null)
-  if (loadedWeek !== null && lastGrid?.grid !== loadedWeek.grid) setLastGrid({ weekKey, grid: loadedWeek.grid })
+  const [openCell, setOpenCell] = useState<{ rowKey: string; day: string; tableKey: string } | null>(null)
+  const [lastGrid, setLastGrid] = useState<{ tableKey: string; grid: TableGrid } | null>(null)
+  if (loadedTable !== null && lastGrid?.grid !== loadedTable.grid) setLastGrid({ tableKey, grid: loadedTable.grid })
   const cellInGrid =
-    openCell !== null && lastGrid !== null && lastGrid.weekKey === openCell.weekKey
+    openCell !== null && lastGrid !== null && lastGrid.tableKey === openCell.tableKey
       ? cellOf(lastGrid.grid, openCell.rowKey, openCell.day)
       : null
-  if (openCell !== null && (!weekShown || openCell.weekKey !== weekKey)) {
+  if (openCell !== null && (!tableShown || openCell.tableKey !== tableKey)) {
     setOpenCell(null)
-  } else if (openCell !== null && lastGrid?.weekKey === openCell.weekKey && cellInGrid === null) {
+  } else if (openCell !== null && lastGrid?.tableKey === openCell.tableKey && cellInGrid === null) {
     setOpenCell(null)
-    askWeekFocus(`${openCell.rowKey}:${openCell.day}`)
+    askTableFocus(`${openCell.rowKey}:${openCell.day}`)
   }
   // Closing it by hand: the button it was opened from is still there unless a write has replaced the grid, so the
   // library's "focus goes back to the opener" is not enough on its own.
   const closeCell = () => {
-    if (openCell !== null) askWeekFocus(`${openCell.rowKey}:${openCell.day}`)
+    if (openCell !== null) askTableFocus(`${openCell.rowKey}:${openCell.day}`)
     setOpenCell(null)
   }
   // A write made from the dialog is made over it: the page's own focus after a write (the heading, Record hours) would
@@ -441,9 +443,9 @@ export default function MyHoursPage() {
   // so nothing is said about it there), the Week's is the week it shows, Monday to Sunday (design F6, S7).
   const savedMessage = (day: string | undefined) => {
     if (day === undefined) return strings.entry.saved
-    if (weekShown) {
+    if (tableShown) {
       return day < monday || day > weekDays(monday)[6]!
-        ? strings.week.savedOutside(formatDate(day))
+        ? strings.table.savedOutside(formatDate(day))
         : strings.entry.saved
     }
     return range !== null && (day < range.from || day > range.to)
@@ -461,8 +463,10 @@ export default function MyHoursPage() {
   // cell's day and the row's target, which can still be changed (`preset`, not `fixed`: WA6), with the keyboard on
   // Duration (`focus`, G7) because the click already chose the day and the target.
   // From the cell dialog's Add hours (T12, AC-5.18) it is the same dialog, opened over the cell dialog: `viaDialog`.
-  const [recordingCell, setRecordingCell] = useState<{ row: WeekRow; day: string; viaDialog: boolean } | null>(null)
-  const recordInCell = async (cell: { row: WeekRow; day: string; viaDialog: boolean }, input: EntryInput) => {
+  const [recordingCell, setRecordingCell] = useState<{ row: TableGridRow; day: string; viaDialog: boolean } | null>(
+    null,
+  )
+  const recordInCell = async (cell: { row: TableGridRow; day: string; viaDialog: boolean }, input: EntryInput) => {
     await createEntry(input)
     setRecordingCell(null)
     say('saved', savedMessage(input.day))
@@ -470,7 +474,7 @@ export default function MyHoursPage() {
     // Over the cell dialog the library gives focus back to Add hours, which is still there, and the dialog lists the new entry.
     if (!cell.viaDialog) {
       const landed = rowKeyOf(input.on) === cell.row.key && input.day === cell.day
-      askWeekFocus(landed ? `${cell.row.key}:${cell.day}` : null)
+      askTableFocus(landed ? `${cell.row.key}:${cell.day}` : null)
     }
     readAgain()
   }
@@ -520,12 +524,12 @@ export default function MyHoursPage() {
 
   // What the Week shows in place of the grid, or the grid: one state (design S7). The refusal that blocks the List
   // blocks the Week as well, in the card, with its heading and navigator kept.
-  const weekState: WeekViewState = blocked
+  const tableState: TableViewState = blocked
     ? { status: 'replaced', content: <DealFilterUnavailable ref={blocker} onRetry={retryAll} onClear={clearDeal} /> }
-    : week.state.status === 'loaded'
-      ? { status: 'loaded', grid: week.state.data.grid }
-      : week.state.status === 'error'
-        ? { status: 'error', message: weekFailure(week.state.error) }
+    : tableRead.state.status === 'loaded'
+      ? { status: 'loaded', grid: tableRead.state.data.grid }
+      : tableRead.state.status === 'error'
+        ? { status: 'error', message: tableFailure(tableRead.state.error) }
         : { status: 'loading' }
 
   return (
@@ -582,7 +586,7 @@ export default function MyHoursPage() {
           project={project}
           deal={deal}
           lists={listsView}
-          showPeriod={!weekShown}
+          showPeriod={!tableShown}
           filtered={filtered}
           pickerKey={pickerKey}
           onChange={change}
@@ -592,18 +596,18 @@ export default function MyHoursPage() {
           onRetryLists={lists.reload}
         />
 
-        {weekShown ? (
-          <WeekView
-            ref={weekView}
+        {tableShown ? (
+          <TableView
+            ref={tableView}
             monday={monday}
             today={today}
             filtered={filtered}
-            state={weekState}
+            state={tableState}
             onWeekChange={changeWeek}
             onRetry={retryAll}
             onClearFilters={clear}
             onRecordCell={(row, day) => setRecordingCell({ row, day, viaDialog: false })}
-            onOpenCell={(row, day) => setOpenCell({ rowKey: row.key, day, weekKey })}
+            onOpenCell={(row, day) => setOpenCell({ rowKey: row.key, day, tableKey })}
           />
         ) : blocked ? (
           <DealFilterUnavailable ref={blocker} onRetry={retryAll} onClear={clearDeal} />
@@ -715,8 +719,8 @@ export default function MyHoursPage() {
         />
       )}
 
-      {weekShown && openCell !== null && cellInGrid !== null && (
-        <WeekCellDialog
+      {tableShown && openCell !== null && cellInGrid !== null && (
+        <TableCellDialog
           row={cellInGrid.row}
           cell={cellInGrid.cell}
           day={openCell.day}
@@ -732,7 +736,7 @@ export default function MyHoursPage() {
         />
       )}
 
-      {weekShown && recordingCell !== null && recordingCell.row.preset !== null && (
+      {tableShown && recordingCell !== null && recordingCell.row.preset !== null && (
         <EntryDialog
           lists={listsView}
           onReloadLists={lists.reload}

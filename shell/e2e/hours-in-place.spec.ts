@@ -607,9 +607,9 @@ test.describe('specs/20261116-record-hours-in-place T13: record hours in place, 
     const ctx = await personContext(browser, weeker)
     const page = await ctx.newPage()
     const cell = (key: string, day: string): Locator => page.locator(`[data-cell="${key}:${day}"]`)
-    const rowOf = (key: string): Locator => page.getByTestId(`hours-week-row-${key}`)
+    const rowOf = (key: string): Locator => page.getByTestId(`hours-table-row-${key}`)
     const lastCell = (row: Locator): Locator => row.getByRole('cell').last()
-    const dayTotals = (): Locator => page.getByTestId('hours-week-row-total')
+    const dayTotals = (): Locator => page.getByTestId('hours-table-row-total')
     const alphaKey = `project:${alpha.id}`
     const betaKey = `project:${beta.id}`
     const gammaKey = `project:${gamma.id}`
@@ -620,16 +620,16 @@ test.describe('specs/20261116-record-hours-in-place T13: record hours in place, 
     await expect(page.getByTestId('hours-my-page')).toBeVisible({ timeout: 30_000 })
     const switcher = page.getByTestId('hours-view-switch')
     await expect(switcher.getByRole('tab', { name: 'List' })).toHaveAttribute('aria-selected', 'true')
-    await expect(page.getByTestId('hours-week')).toHaveCount(0)
+    await expect(page.getByTestId('hours-table')).toHaveCount(0)
 
     // AC-5.2 and AC-5.4: the Week opens, on this week, from its own address.
     await page.goto('/hours?view=week')
-    await expect(page.getByTestId('hours-week')).toBeVisible({ timeout: 30_000 })
-    await expect(page.getByTestId('hours-week-heading')).toHaveText(weekLabel(currentMonday))
-    await expect(page.getByTestId('hours-week-this')).toHaveAttribute('aria-disabled', 'true')
+    await expect(page.getByTestId('hours-table')).toBeVisible({ timeout: 30_000 })
+    await expect(page.getByTestId('hours-table-heading')).toHaveText(weekLabel(currentMonday))
+    await expect(page.getByTestId('hours-period-current')).toHaveAttribute('aria-disabled', 'true')
     // Seven days, Monday to Sunday (AC-5.3), today marked.
-    await expect(page.getByTestId('hours-week-table').locator('thead th')).toHaveCount(9)
-    await expect(page.getByTestId('hours-week-table').locator('thead')).toContainText('Today')
+    await expect(page.getByTestId('hours-table-table').locator('thead th')).toHaveCount(9)
+    await expect(page.getByTestId('hours-table-table').locator('thead')).toContainText('Today')
     // AC-5.14: a day after today offers no recording (when the week has one: it has not on a Sunday).
     if (today < addDays(currentMonday, 6)) {
       await expect(cell(alphaKey, addDays(today, 1))).toHaveCount(0)
@@ -642,19 +642,19 @@ test.describe('specs/20261116-record-hours-in-place T13: record hours in place, 
     await expect(page.getByTestId('hours-my-page')).toBeVisible({ timeout: 30_000 })
     await switcher.getByRole('tab', { name: 'Week' }).click()
     await expect(page).toHaveURL(/view=week/)
-    await expect(page.getByTestId('hours-week-heading')).toHaveText(weekLabel(currentMonday), { timeout: 30_000 })
+    await expect(page.getByTestId('hours-table-heading')).toHaveText(weekLabel(currentMonday), { timeout: 30_000 })
 
     // Last week: the figures. Rows in order (projects by name, then other work), a total row last.
-    await page.getByTestId('hours-week-previous').click()
+    await page.getByTestId('hours-period-previous').click()
     await expect(page).toHaveURL(new RegExp(`week=${lastMonday}`))
-    await expect(page.getByTestId('hours-week-heading')).toHaveText(weekLabel(lastMonday), { timeout: 30_000 })
-    await expect(page.getByTestId('hours-week-this')).not.toHaveAttribute('aria-disabled', 'true')
+    await expect(page.getByTestId('hours-table-heading')).toHaveText(weekLabel(lastMonday), { timeout: 30_000 })
+    await expect(page.getByTestId('hours-period-current')).not.toHaveAttribute('aria-disabled', 'true')
     await expect(cell(alphaKey, mon)).toHaveText('3 h', { timeout: 30_000 })
     await expect(cell(alphaKey, wed)).toHaveText('3 h')
     await expect(cell(betaKey, tue)).toHaveText('1 h 30')
     await expect(cell(betaKey, wed)).toHaveText('2 h')
     await expect(cell(otherKey, fri)).toHaveText('1 h')
-    const bodyRows = page.getByTestId('hours-week-table').locator('tbody tr')
+    const bodyRows = page.getByTestId('hours-table-table').locator('tbody tr')
     await expect(bodyRows).toHaveCount(4)
     await expect(bodyRows.nth(0)).toContainText(alpha.name)
     await expect(bodyRows.nth(1)).toContainText(beta.name)
@@ -703,7 +703,7 @@ test.describe('specs/20261116-record-hours-in-place T13: record hours in place, 
     await expect(monDialog).toContainText('2 entries, 3 h')
     await expect(monDialog).toContainText(`Hip F second ${runId}`)
     await expect(monDialog.getByRole('button', { name: /^Edit/ })).toHaveCount(2)
-    await monDialog.getByTestId('hours-week-cell-done').click()
+    await monDialog.getByTestId('hours-table-cell-done').click()
     await expect(monDialog).toHaveCount(0)
     await expect(cell(alphaKey, mon)).toBeFocused() // Escape or Close: back on the cell that opened it
 
@@ -720,7 +720,7 @@ test.describe('specs/20261116-record-hours-in-place T13: record hours in place, 
     await expect(cellDialog).toBeVisible()
     await expect(cellDialog).toContainText('3 h 30')
     await expect(cellDialog.getByTestId(`hours-entry-${alphaWed.id}-edit`)).toBeFocused()
-    await cellDialog.getByTestId('hours-week-cell-done').click()
+    await cellDialog.getByTestId('hours-table-cell-done').click()
     await expect(cellDialog).toHaveCount(0)
     await expect(cell(alphaKey, wed)).toHaveText('3 h 30', { timeout: 30_000 })
     await expect(lastCell(rowOf(alphaKey))).toHaveText('7 h 30')
@@ -760,7 +760,7 @@ test.describe('specs/20261116-record-hours-in-place T13: record hours in place, 
     await header.waitFor({ state: 'detached', timeout: 30_000 })
     await expect(rowOf(gammaKey)).toBeVisible({ timeout: 30_000 })
     await expect(cell(gammaKey, fri)).toHaveText('1 h')
-    await expect(page.getByTestId('hours-week-table').locator('tbody tr').nth(2)).toContainText(gamma.name) // after beta, before other work
+    await expect(page.getByTestId('hours-table-table').locator('tbody tr').nth(2)).toContainText(gamma.name) // after beta, before other work
     await expect(lastCell(dayTotals())).toHaveText('11 h 30')
     expect(await page.evaluate(() => (window as unknown as { __hipSameDocument?: boolean }).__hipSameDocument)).toBe(
       true,
@@ -781,7 +781,7 @@ test.describe('specs/20261116-record-hours-in-place T13: record hours in place, 
     )
     await expect(lastCell(dayTotals())).toHaveText('11 h 30')
 
-    await expect(page.getByTestId('hours-week-heading')).toHaveText(weekLabel(lastMonday))
+    await expect(page.getByTestId('hours-table-heading')).toHaveText(weekLabel(lastMonday))
     await ctx.close()
 
     // Out-of-band: the person's own hours of last week are exactly what the grid said.

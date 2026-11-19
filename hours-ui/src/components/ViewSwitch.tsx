@@ -19,7 +19,7 @@ export type ViewSwitchProps = {
  * the page keeps the view in the address and the panel below it.
  */
 export default function ViewSwitch({ value, idPrefix, onChange }: ViewSwitchProps) {
-  const t = strings.week.view
+  const t = strings.table.view
   const tabs: readonly TabItem<MyHoursView>[] = [
     { id: 'list', label: t.list },
     { id: 'week', label: t.week },

@@ -1,10 +1,10 @@
 /**
  * @vitest-environment jsdom
  *
- * WeekCellDialog — the entries of one cell of the Week, one row on one day (specs/20261116-record-hours-in-place T12;
+ * TableCellDialog — the entries of one cell of the Week, one row on one day (specs/20261116-record-hours-in-place T12;
  * design S8; AC-5.15, AC-5.16, AC-5.17, AC-5.18, AC-5.24). Presentational: it is handed the row, the cell and what the
  * page can do (Edit, Delete, Add hours, Close); the stacked entry dialog and delete confirmation, the write and the
- * re-read are the page's, and are `MyHoursPage.weekCells.test.tsx`.
+ * re-read are the page's, and are `MyHoursPage.cells.test.tsx`.
  */
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { cleanup, render, screen, within } from '@testing-library/react'
@@ -12,16 +12,16 @@ import userEvent from '@testing-library/user-event'
 import { formatDateLong } from '@operai/ui'
 import { strings } from '../strings'
 import type { TimeEntryView } from '../lib/hoursApi.types'
-import { weekGrid } from '../lib/weekGrid'
-import type { WeekRow } from '../lib/weekGrid'
+import { tableGrid } from '../lib/tableGrid'
+import type { TableGridRow } from '../lib/tableGrid'
 import { dealOn, meetingOn, otherWorkOn, projectOn, timeEntryView } from '../test-support/fakeApi'
 import EntryDayList from './EntryDayList'
-import WeekCellDialog from './WeekCellDialog'
-import type { WeekCellDialogProps } from './WeekCellDialog'
+import TableCellDialog from './TableCellDialog'
+import type { TableCellDialogProps } from './TableCellDialog'
 
 afterEach(() => cleanup())
 
-const w = strings.week
+const w = strings.table
 const e = strings.entries
 
 const MONDAY = '2026-11-16'
@@ -31,8 +31,8 @@ let sequence = 0
 const entry = (overrides: Partial<TimeEntryView> & Pick<TimeEntryView, 'on'>): TimeEntryView =>
   timeEntryView({ id: `c${++sequence}`, day: WEDNESDAY, minutes: 60, ...overrides })
 
-const rowOf = (entries: TimeEntryView[], key: string): WeekRow => {
-  const row = weekGrid(entries, MONDAY).rows.find((candidate) => candidate.key === key)
+const rowOf = (entries: TimeEntryView[], key: string): TableGridRow => {
+  const row = tableGrid(entries, MONDAY).rows.find((candidate) => candidate.key === key)
   if (row === undefined) throw new Error(`no row ${key}`)
   return row
 }
@@ -48,11 +48,11 @@ const KICKOFF = entry({
 const SUPPORT = entry({ minutes: 150, on: projectOn('p1', 'Alpenstrom — portale clienti') })
 const ALPENSTROM = rowOf([KICKOFF, SUPPORT], 'project:p1')
 
-const renderDialog = (props: Partial<WeekCellDialogProps> = {}) => {
+const renderDialog = (props: Partial<TableCellDialogProps> = {}) => {
   const row = props.row ?? ALPENSTROM
   const day = props.day ?? WEDNESDAY
   return render(
-    <WeekCellDialog
+    <TableCellDialog
       row={row}
       cell={row.cells[day]!}
       day={day}
@@ -249,7 +249,7 @@ describe('focus (design S8, a11y "The cell dialog")', () => {
     const afterDelete = rowOf([SUPPORT], 'project:p1')
 
     view.rerender(
-      <WeekCellDialog
+      <TableCellDialog
         row={afterDelete}
         cell={afterDelete.cells[WEDNESDAY]!}
         day={WEDNESDAY}
@@ -274,7 +274,7 @@ describe('focus (design S8, a11y "The cell dialog")', () => {
     const grown = rowOf([KICKOFF, SUPPORT, third], 'project:p1')
 
     view.rerender(
-      <WeekCellDialog
+      <TableCellDialog
         row={grown}
         cell={grown.cells[WEDNESDAY]!}
         day={WEDNESDAY}

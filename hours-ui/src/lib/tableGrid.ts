@@ -1,6 +1,6 @@
 /**
- * weekGrid — the Week view's grid, folded from one complete read of a person's week (specs/20261116-record-hours-in-place
- * T8; plan § `weekGrid`, decision 1; ADR 20261116-week-view-sums-a-complete-read-in-the-browser). A pure function:
+ * tableGrid — the table view's grid, folded from one complete read of a person's week (specs/20261116-record-hours-in-place
+ * T8; plan § `tableGrid`, decision 1; ADR 20261116-week-view-sums-a-complete-read-in-the-browser). A pure function:
  * entries in, rows × days out, no I/O, no state.
  */
 import type { TimeEntryView, Visibility } from './hoursApi.types'
@@ -10,18 +10,18 @@ import { weekDays } from './week'
 /**
  * What "Add hours" on a row sets in the entry dialog. This is `EntryPreset['on']` of plan § `EntryDialog`, declared
  * here, member for member, because `EntryPreset` is defined in `EntryDialogModel.ts` by another task (T1): the two
- * are structurally identical, so a `WeekRow['preset']` is assignable to `EntryPreset['on']` as it is.
+ * are structurally identical, so a `TableGridRow['preset']` is assignable to `EntryPreset['on']` as it is.
  */
-export type WeekRowPreset =
+export type TableGridRowPreset =
   | { kind: 'project'; project: ProjectChoice }
   | { kind: 'deal'; deal: DealChoice }
   | { kind: 'meeting'; meeting: MeetingChoice }
   | { kind: 'none'; categoryId: string | null }
 
 /** One day of one row: the entries on that row and day, as the server sent them, and their total. */
-export type WeekCell = { minutes: number; entries: TimeEntryView[] }
+export type TableGridCell = { minutes: number; entries: TimeEntryView[] }
 
-export type WeekRow = {
+export type TableGridRow = {
   /** `project:<id>` | `deal:<id>` | `meeting:<id>` | `category:<id>`; `<kind>:unknown` for entries with no id. Never shown. */
   key: string
   kind: 'project' | 'deal' | 'meeting' | 'none'
@@ -32,22 +32,22 @@ export type WeekRow = {
   /** A category's; `false` otherwise. */
   retired: boolean
   /** What Add hours sets; `null` for a row with no name and for a retired category (AC-5.24, D12). */
-  preset: WeekRowPreset | null
+  preset: TableGridRowPreset | null
   /** Key: `YYYY-MM-DD` within the week; only the days that hold entries. */
-  cells: Readonly<Record<string, WeekCell>>
+  cells: Readonly<Record<string, TableGridCell>>
   minutes: number
 }
 
-export type WeekGrid = {
+export type TableGrid = {
   /** Seven, Monday to Sunday. */
   days: readonly string[]
   /** Seven; `0` for a day with nothing. */
   dayMinutes: readonly number[]
-  rows: readonly WeekRow[]
+  rows: readonly TableGridRow[]
   totalMinutes: number
 }
 
-type Kind = WeekRow['kind']
+type Kind = TableGridRow['kind']
 
 /** The kinds in the order the rows come (AC-5.8). */
 const KIND_ORDER: readonly Kind[] = ['project', 'deal', 'meeting', 'none']
@@ -82,7 +82,7 @@ const summaryOf = (kind: Kind, id: string | null, entries: readonly TimeEntryVie
       name: first.category.name,
       visibility: 'visible' as Visibility,
       retired,
-      preset: retired ? null : ({ kind: 'none', categoryId: first.category.id } satisfies WeekRowPreset),
+      preset: retired ? null : ({ kind: 'none', categoryId: first.category.id } satisfies TableGridRowPreset),
     }
   }
 
@@ -94,7 +94,7 @@ const summaryOf = (kind: Kind, id: string | null, entries: readonly TimeEntryVie
   return { name, visibility, retired: false, preset: id === null || name === null ? null : presetOf(kind, id, name) }
 }
 
-const presetOf = (kind: Kind, id: string, name: string): WeekRowPreset | null => {
+const presetOf = (kind: Kind, id: string, name: string): TableGridRowPreset | null => {
   switch (kind) {
     case 'project':
       return { kind: 'project', project: { id, name, companyName: null } }
@@ -128,14 +128,14 @@ const collatorOfPage = (): Intl.Collator => {
  * order the entries came in (AC-5.8). An entry on a day outside the week is a server bug (the read asked for
  * this week): it throws, so no figure is drawn from a set that is not the week's.
  */
-export const weekGrid = (entries: readonly TimeEntryView[], monday: string): WeekGrid => {
+export const tableGrid = (entries: readonly TimeEntryView[], monday: string): TableGrid => {
   const days = weekDays(monday)
   const dayMinutes = days.map(() => 0)
   const groups = new Map<string, { kind: Kind; id: string | null; entries: TimeEntryView[] }>()
 
   for (const entry of entries) {
     if (!days.includes(entry.day)) {
-      throw new RangeError(`weekGrid: entry ${entry.id} is on ${entry.day}, outside the week of ${monday}`)
+      throw new RangeError(`tableGrid: entry ${entry.id} is on ${entry.day}, outside the week of ${monday}`)
     }
     const { key, kind, id } = rowOf(entry)
     const group = groups.get(key) ?? { kind, id, entries: [] }
@@ -143,8 +143,8 @@ export const weekGrid = (entries: readonly TimeEntryView[], monday: string): Wee
     groups.set(key, group)
   }
 
-  const rows = [...groups].map(([key, { kind, id, entries: onRow }]): WeekRow => {
-    const cells: Record<string, WeekCell> = {}
+  const rows = [...groups].map(([key, { kind, id, entries: onRow }]): TableGridRow => {
+    const cells: Record<string, TableGridCell> = {}
     for (const entry of onRow) {
       const cell = (cells[entry.day] ??= { minutes: 0, entries: [] })
       cell.minutes += entry.minutes

@@ -103,7 +103,7 @@ Test commands: hours-ui, projects-ui, crm-ui `pnpm lint && pnpm build && pnpm te
 
 ## Amendment 2026-11-19 — the table view: week and month
 
-- [ ] T17: [FE] Rename the week's code to the table's, no behaviour change (plan decision 9) — refs: AC-5.3, AC-5.6–5.11, AC-5.15–5.24 — deps: none
+- [x] T17: [FE] Rename the week's code to the table's, no behaviour change (plan decision 9) — refs: AC-5.3, AC-5.6–5.11, AC-5.15–5.24 — deps: none
   - touch: `hours-ui/src/lib/weekGrid*.ts`, `hours-ui/src/lib/tableGrid*.ts`, `hours-ui/src/components/WeekView*`, `hours-ui/src/components/TableView*`, `hours-ui/src/components/WeekNavigator*`, `hours-ui/src/components/PeriodNavigator*`, `hours-ui/src/components/WeekViewModel*`, `hours-ui/src/components/TableViewModel*`, `hours-ui/src/components/WeekCellDialog*`, `hours-ui/src/components/TableCellDialog*`, `hours-ui/src/strings/week.ts`, `hours-ui/src/strings/table.ts`, `hours-ui/src/strings.ts`, `hours-ui/src/strings.test.ts`, `hours-ui/src/pages/MyHoursPage*`, `shell/e2e/hours-in-place.spec.ts`, `shell/e2e/hours-in-place.round1.spec.ts`
   - done when: `weekGrid`→`tableGrid`, `WeekView`→`TableView`, `WeekNavigator`→`PeriodNavigator`, `WeekViewModel`→`TableViewModel`, `WeekCellDialog`→`TableCellDialog`, `strings/week.ts`→`strings/table.ts` (`AREAS` holds `table`), test ids `hours-week-*`→`hours-table-*` (the navigator's `hours-period-previous` / `-current` / `-next`) in hours-ui and both e2e files; `cd hours-ui && pnpm lint && pnpm build && pnpm test` passes with the same number of tests as before (2153) and no assertion changed but names (R19); `cd shell && pnpm e2e hours-in-place.spec.ts hours-in-place.round1.spec.ts` 10/10
 
