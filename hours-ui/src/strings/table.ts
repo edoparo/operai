@@ -23,7 +23,7 @@ export type PeriodWords = {
   loading: string
   /** The previous / this / next buttons, one group (AC-5.5). */
   nav: { label: string; previous: string; current: string; next: string }
-  /** The date field's label (T23, AC-5.30). */
+  /** The date field's label (AC-5.30): "Show the week of" / "Show the month of". Its description is `table.pick.hint`, shared. */
   pick: { label: string }
   /** No filter is set and the period has no entries (the page header has the action). */
   empty: { title: string }
@@ -81,6 +81,13 @@ const en = {
   },
   week: weekEn,
   month: monthEn,
+  /**
+   * The date field's description, one for both periods (design G16): the field's limit stated for a reader, since a screen
+   * reader does not describe the days the picker greys. Not drawn; it is not part of `PeriodWords`.
+   */
+  pick: {
+    hint: 'Up to today.',
+  },
   weekday: {
     short: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'] as Week7,
     long: ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'] as Week7,
@@ -167,6 +174,9 @@ const it: typeof en = {
   },
   week: weekIt,
   month: monthIt,
+  pick: {
+    hint: 'Fino a oggi.',
+  },
   weekday: {
     short: ['Lun', 'Mar', 'Mer', 'Gio', 'Ven', 'Sab', 'Dom'] as Week7,
     long: ['lunedì', 'martedì', 'mercoledì', 'giovedì', 'venerdì', 'sabato', 'domenica'] as Week7,

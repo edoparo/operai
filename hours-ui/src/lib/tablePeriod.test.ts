@@ -16,12 +16,15 @@ import {
   holding,
   isCurrent,
   lastDayOf,
+  pickBounds,
+  pickedPeriod,
   periodKey,
   referenceDay,
   shift,
   switchTo,
 } from './tablePeriod'
 import type { TablePeriod } from './tablePeriod'
+import { MIN_DAY } from './period'
 import { weekDays } from './week'
 
 const week = (monday: string): TablePeriod => ({ kind: 'week', monday })
@@ -500,5 +503,130 @@ describe('switchTo, month to week: the week left, else the current week, else th
         key,
       ).toBe(true)
     }
+  })
+})
+
+describe('pickBounds: the days the period date field offers (AC-5.31, D20)', () => {
+  it('offers no day after today, for the week and for the month', () => {
+    expect(pickBounds('week', '2026-11-19').max).toBe('2026-11-19')
+    expect(pickBounds('month', '2026-11-19').max).toBe('2026-11-19')
+    // Sunday 1 November 2026 and the 1st of a month are today like any other day.
+    expect(pickBounds('week', SUNDAY_1_NOV).max).toBe(SUNDAY_1_NOV)
+    expect(pickBounds('month', TUESDAY_1_SEP).max).toBe(TUESDAY_1_SEP)
+  })
+
+  it('starts the week at the first Monday on or after the floor, 2000-01-03, and the month at the floor’s month, 2000-01-01', () => {
+    expect(pickBounds('week', '2026-11-19').min).toBe('2000-01-03')
+    expect(pickBounds('month', '2026-11-19').min).toBe('2000-01-01')
+  })
+
+  it('names a first day whose period begins on or after the floor, and no earlier day does', () => {
+    // 2000-01-01 is a Saturday: its week begins on 1999-12-27, before the floor hours-api answers for, so the week's
+    // `min` is the next Monday; the month of the floor begins on the floor. A day below `min` would name a period the
+    // address would refuse (the current one shown instead).
+    for (const kind of ['week', 'month'] as const) {
+      const { min } = pickBounds(kind, '2026-11-19')
+      expect(firstDayOf(holding(kind, min)) >= MIN_DAY, `${kind}: min is in a period on or after the floor`).toBe(true)
+      expect(hasPrevious(holding(kind, min)), `${kind}: min is in the first period`).toBe(false)
+      const before = new Date(Date.parse(`${min}T00:00:00Z`) - 86_400_000).toISOString().slice(0, 10)
+      expect(
+        firstDayOf(holding(kind, before)) < MIN_DAY,
+        `${kind}: the day before min is in a period that begins before the floor`,
+      ).toBe(true)
+    }
+  })
+
+  it('moves only `max` with today: the floor is the same on any day', () => {
+    expect(pickBounds('week', '2027-03-10').min).toBe('2000-01-03')
+    expect(pickBounds('month', '2027-03-10').min).toBe('2000-01-01')
+  })
+
+  it('treats a today that is not a day as a caller bug', () => {
+    expect(() => pickBounds('week', '2026-11')).toThrow(TypeError)
+    expect(() => pickBounds('month', 'today')).toThrow(TypeError)
+  })
+})
+
+describe('pickedPeriod: only a complete day within the bounds names a period (AC-5.30, AC-5.31, R16)', () => {
+  const TODAY = '2026-11-19'
+
+  it('is the week or the month holding a complete day within the bounds', () => {
+    expect(pickedPeriod('week', '2026-10-14', TODAY)).toEqual(week('2026-10-12'))
+    expect(pickedPeriod('month', '2026-10-14', TODAY)).toEqual(month('2026-10'))
+    // A Sunday belongs to the week that began six days before; the 1st and the last day to their own month.
+    expect(pickedPeriod('week', SUNDAY_1_NOV, TODAY)).toEqual(week('2026-10-26'))
+    expect(pickedPeriod('month', SUNDAY_1_NOV, TODAY)).toEqual(month('2026-11'))
+    expect(pickedPeriod('month', '2026-10-31', TODAY)).toEqual(month('2026-10'))
+  })
+
+  it('accepts today and the floor, the two ends of the bounds', () => {
+    expect(pickedPeriod('week', TODAY, TODAY)).toEqual(week('2026-11-16'))
+    expect(pickedPeriod('month', TODAY, TODAY)).toEqual(month('2026-11'))
+    expect(pickedPeriod('week', '2000-01-03', TODAY)).toEqual(week('2000-01-03'))
+    expect(pickedPeriod('month', '2000-01-01', TODAY)).toEqual(month('2000-01'))
+  })
+
+  it('names nothing for an emptied value, which is what a date input holds until its date is complete', () => {
+    expect(pickedPeriod('week', '', TODAY)).toBeNull()
+    expect(pickedPeriod('month', '', TODAY)).toBeNull()
+  })
+
+  it('names nothing for a day after today, tomorrow and the far future alike (AC-5.31)', () => {
+    expect(pickedPeriod('week', '2026-11-20', TODAY)).toBeNull()
+    expect(pickedPeriod('month', '2026-11-20', TODAY)).toBeNull()
+    expect(pickedPeriod('week', '2027-01-01', TODAY)).toBeNull()
+    expect(pickedPeriod('month', '9999-12-31', TODAY)).toBeNull()
+  })
+
+  it('names nothing for a day before the first the period offers: the floor’s Saturday for a week, a day before the floor for a month', () => {
+    expect(pickedPeriod('week', '2000-01-02', TODAY)).toBeNull()
+    expect(pickedPeriod('week', '2000-01-01', TODAY)).toBeNull()
+    expect(pickedPeriod('month', '1999-12-31', TODAY)).toBeNull()
+    // The month offers the floor itself, which a week does not.
+    expect(pickedPeriod('month', '2000-01-01', TODAY)).toEqual(month('2000-01'))
+  })
+
+  it('names nothing for the intermediate days of a date typed digit by digit: the years 0002, 0020 and 0202 are below the floor', () => {
+    for (const day of ['0002-11-19', '0020-11-19', '0202-11-19']) {
+      expect(pickedPeriod('week', day, TODAY), day).toBeNull()
+      expect(pickedPeriod('month', day, TODAY), day).toBeNull()
+    }
+    // … and 2026 is the first of them to be a day worth showing.
+    expect(pickedPeriod('week', '2026-11-19', TODAY)).toEqual(week('2026-11-16'))
+  })
+
+  it('names nothing for a year of more than four digits, which a date input also holds', () => {
+    for (const day of ['20260-11-19', '10000-01-01', '275760-09-13']) {
+      expect(pickedPeriod('week', day, TODAY), day).toBeNull()
+      expect(pickedPeriod('month', day, TODAY), day).toBeNull()
+    }
+  })
+
+  it('names nothing for text that is not a real day, and does not throw on it', () => {
+    for (const text of [
+      '2026-02-30',
+      '2026-13-01',
+      '2026-11-00',
+      '2026-11',
+      '2026-1-5',
+      '19.11.2026',
+      'garbage',
+      ' 2026-11-19',
+      '2026-11-19 ',
+    ]) {
+      expect(() => pickedPeriod('week', text, TODAY), text).not.toThrow()
+      expect(pickedPeriod('week', text, TODAY), text).toBeNull()
+      expect(pickedPeriod('month', text, TODAY), text).toBeNull()
+    }
+  })
+
+  it('treats a today that is not a day as a caller bug, not as a reason to name nothing', () => {
+    expect(() => pickedPeriod('week', '2026-10-14', 'today')).toThrow(TypeError)
+    expect(() => pickedPeriod('month', '2026-10-14', '2026-11')).toThrow(TypeError)
+  })
+
+  it('moves the upper bound with today: a day that is the future on one day is the past on the next', () => {
+    expect(pickedPeriod('week', '2026-11-20', '2026-11-19')).toBeNull()
+    expect(pickedPeriod('week', '2026-11-20', '2026-11-20')).toEqual(week('2026-11-16'))
   })
 })

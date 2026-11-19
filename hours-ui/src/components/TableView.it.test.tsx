@@ -199,6 +199,33 @@ describe('Italian, the toolbar and the Period switch (AC-4.6)', () => {
   })
 })
 
+describe('Italian, the date field (AC-4.6, AC-5.30, AC-5.31)', () => {
+  const descriptionOf = (input: HTMLElement) =>
+    document.getElementById(input.getAttribute('aria-describedby') ?? '')?.textContent
+
+  it('is labelled "Mostra la settimana del" on a week and "Mostra il mese del" on a month, and described "Fino a oggi."', async () => {
+    const { draw, drawMonth } = await setup('it')
+    const { container } = draw()
+    const week = screen.getByLabelText('Mostra la settimana del')
+    expect(descriptionOf(week)).toBe('Fino a oggi.')
+    expect(container.textContent).not.toMatch(/Show the|Up to today/)
+    cleanup()
+    const month = drawMonth()
+    const field = screen.getByLabelText('Mostra il mese del')
+    expect(descriptionOf(field)).toBe('Fino a oggi.')
+    expect(month.container.textContent).not.toMatch(/Show the|Up to today/)
+  })
+
+  it('keeps the field in English as English, so the above proves the view follows the language and not a default', async () => {
+    const { draw, drawMonth } = await setup('en')
+    draw()
+    expect(descriptionOf(screen.getByLabelText('Show the week of'))).toBe('Up to today.')
+    cleanup()
+    drawMonth()
+    expect(descriptionOf(screen.getByLabelText('Show the month of'))).toBe('Up to today.')
+  })
+})
+
 describe('Italian, the month (AC-4.6, AC-5.25)', () => {
   it('heads the card with the month and the year in Italian, and names the table and the navigator for the month', async () => {
     const { drawMonth } = await setup('it')

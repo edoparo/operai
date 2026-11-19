@@ -13,7 +13,7 @@
  * the month's grid is the week's with 23 more days, and only the words, the header and the width differ.
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { cleanup, fireEvent, render, screen, within } from '@testing-library/react'
+import { act, cleanup, fireEvent, render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { formatDate } from '@operai/ui'
 import { strings } from '../strings'
@@ -22,7 +22,7 @@ import type { TimeEntryView } from '../lib/hoursApi.types'
 import { rowName } from '../lib/names'
 import { tableGrid } from '../lib/tableGrid'
 import type { TableGrid } from '../lib/tableGrid'
-import { daysOf } from '../lib/tablePeriod'
+import { daysOf, holding } from '../lib/tablePeriod'
 import type { TablePeriod } from '../lib/tablePeriod'
 import { dealOn, meetingOn, otherWorkOn, projectOn, timeEntryView } from '../test-support/fakeApi'
 import TableView from './TableView'
@@ -600,6 +600,7 @@ describe.each(CASES)('the $kind: the grid, its figures, its cells and its rows',
       expect(heading().textContent).toBe(c.words.title(c.label))
       expect(navigator()).not.toBeNull()
       expect(screen.getByRole('radiogroup', { name: w.period.label })).not.toBeNull()
+      expect(screen.getByLabelText(c.words.pick.label)).not.toBeNull()
     })
   })
 
@@ -621,6 +622,118 @@ describe.each(CASES)('the $kind: the grid, its figures, its cells and its rows',
       expect(onKindChange).not.toHaveBeenCalled()
       await userEvent.click(screen.getByRole('radio', { name: w.period[other] }))
       expect(onKindChange).toHaveBeenCalledExactlyOnceWith(other)
+    })
+  })
+
+  describe('the date field in the toolbar (AC-5.30, AC-5.31, design S7 "Toolbar", F7)', () => {
+    const dateField = () => screen.getByLabelText(c.words.pick.label) as HTMLInputElement
+    const EMPTY: TableGrid = tableGrid([], DAYS)
+    const pick = (value: string) => fireEvent.change(dateField(), { target: { value } })
+    /** A day in another period, and the period that holds it. */
+    const ELSEWHERE = c.kind === 'week' ? '2026-10-14' : '2026-09-03'
+
+    it('is the last of the toolbar: after the Period switch and the navigator, which the keyboard reaches first', () => {
+      renderTable()
+      const toolbar = screen.getByTestId('hours-table-toolbar')
+      expect(toolbar.contains(dateField())).toBe(true)
+      const switchGroup = within(toolbar).getByRole('radiogroup', { name: w.period.label })
+      const navigator = within(toolbar).getByRole('group', { name: c.words.nav.label })
+      const field = screen.getByTestId('hours-period-pick')
+      expect(switchGroup.compareDocumentPosition(field) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+      expect(navigator.compareDocumentPosition(field) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+      expect(toolbar.lastElementChild).toBe(field)
+    })
+
+    it('shows today on the current period and the period’s first day on another, offering no day after today', () => {
+      const { rerender } = renderTable()
+      expect(dateField().value).toBe(TODAY)
+      expect(dateField().max).toBe(TODAY)
+      rerender(
+        <TableView
+          period={c.before.period}
+          today={TODAY}
+          filtered={false}
+          state={{ status: 'loaded', grid: GRID }}
+          onPeriodChange={vi.fn()}
+          onKindChange={vi.fn()}
+          onRetry={vi.fn()}
+          onClearFilters={vi.fn()}
+        />,
+      )
+      expect(dateField().value).toBe(c.kind === 'week' ? '2026-11-09' : '2026-10-01')
+    })
+
+    it('asks for the period holding a day picked in another period, in the same kind, and for nothing else', () => {
+      const onPeriodChange = vi.fn()
+      renderTable({ onPeriodChange })
+      pick(ELSEWHERE)
+      expect(onPeriodChange).toHaveBeenCalledExactlyOnceWith(holding(c.kind, ELSEWHERE))
+      onPeriodChange.mockClear()
+      // A day of the period shown, a day after today and an emptied value ask for nothing.
+      pick(c.kind === 'week' ? '2026-11-18' : '2026-11-02')
+      pick('2026-11-20')
+      pick('')
+      expect(onPeriodChange).not.toHaveBeenCalled()
+    })
+
+    it.each<[string, () => Partial<TableViewProps>]>([
+      ['loading', () => ({ state: { status: 'loading' } })],
+      ['loaded', () => ({ state: { status: 'loaded', grid: GRID } })],
+      ['an empty period', () => ({ state: { status: 'loaded', grid: EMPTY } })],
+      ['an error', () => ({ state: { status: 'error', message: 'nope' } })],
+      ['a state the page supplies', () => ({ state: { status: 'replaced', content: <p>the page says so</p> } })],
+    ])('is the same input, with the same text, through a read that ends in %s', (_name, next) => {
+      const { rerender } = renderTable({ state: { status: 'loading' } })
+      const before = dateField()
+      act(() => before.focus())
+      pick('')
+      const props: TableViewProps = {
+        period: c.period,
+        today: TODAY,
+        filtered: false,
+        state: { status: 'loading' },
+        onPeriodChange: vi.fn(),
+        onKindChange: vi.fn(),
+        onRetry: vi.fn(),
+        onClearFilters: vi.fn(),
+        ...next(),
+      }
+      rerender(<TableView {...props} />)
+      expect(dateField()).toBe(before)
+      expect(document.activeElement).toBe(before)
+      // The half-typed (here: emptied) text survives the read, and is given back to the reference day on blur.
+      expect(before.value).toBe('')
+      act(() => before.blur())
+      expect(before.value).toBe(TODAY)
+    })
+
+    it('stays the same input from one state to the next, so focus and typing are never lost to a read', () => {
+      const { rerender } = renderTable({ state: { status: 'loading' } })
+      const before = dateField()
+      const states: TableViewProps['state'][] = [
+        { status: 'loaded', grid: GRID },
+        { status: 'loading' },
+        { status: 'error', message: 'nope' },
+        { status: 'loading' },
+        { status: 'loaded', grid: EMPTY },
+        { status: 'replaced', content: <p>the page says so</p> },
+        { status: 'loaded', grid: GRID },
+      ]
+      for (const state of states) {
+        rerender(
+          <TableView
+            period={c.period}
+            today={TODAY}
+            filtered={false}
+            state={state}
+            onPeriodChange={vi.fn()}
+            onKindChange={vi.fn()}
+            onRetry={vi.fn()}
+            onClearFilters={vi.fn()}
+          />,
+        )
+        expect(dateField()).toBe(before)
+      }
     })
   })
 

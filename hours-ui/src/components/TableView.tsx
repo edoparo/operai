@@ -18,6 +18,7 @@ import type { TablePeriod, TablePeriodKind } from '../lib/tablePeriod'
 import { strings } from '../strings'
 import type { PeriodWords } from '../strings/table'
 import ErrorBanner from './ErrorBanner'
+import PeriodDateField from './PeriodDateField'
 import PeriodNavigator from './PeriodNavigator'
 import PeriodSwitch from './PeriodSwitch'
 import { dayHeaderName, dayNumber, longDay, periodLabel, rowLabel, rowPhrase, shortDay } from './TableViewModel'
@@ -58,7 +59,7 @@ export type TableViewProps = {
   /** A filter the table applies is set: an empty period then says no entry matches, and offers Clear filters. */
   filtered: boolean
   state: TableViewState
-  /** The period the navigator asks for: the one before, the one after, or the one holding today. */
+  /** The period the navigator or the date field asks for: the one before, the one after, the one holding today, or the one holding a day picked. */
   onPeriodChange: (period: TablePeriod) => void
   /** The kind the Period switch asks for (never the one shown); the page decides which period that is (`switchTo`, AC-5.26, AC-5.27). */
   onKindChange: (kind: TablePeriodKind) => void
@@ -265,17 +266,17 @@ const HINT_CLASS: Record<TablePeriodKind, string> = {
 
 /**
  * TableView — the table card of My hours, drawn for a `TablePeriod`, a week or a month (specs/20261116-record-hours-in-place
- * T9, T18, T20, T22; design S7; AC-5.3, AC-5.5, AC-5.9–AC-5.11, AC-5.14, AC-5.23–AC-5.28, AC-5.32, AC-5.34).
+ * T9, T18, T20, T22, T23; design S7; AC-5.3, AC-5.5, AC-5.9–AC-5.11, AC-5.14, AC-5.23–AC-5.28, AC-5.30–AC-5.32, AC-5.34).
  *
  * Presentational. It is handed `period` (the period asked for), `today` (`todayZurich()`), the `state` of the one read
  * of that period and, when loaded, the `TableGrid` the pure fold of T8 made of it. It sums nothing and compares nothing:
  * every figure is one the grid states, and the same markup draws a 1 h week and a 42 h week (AC-5.11). A day is named by
  * its date — the weekday in a column header and in a cell's name — never by the column's place (R17).
  *
- * The card's heading is the period's label, and under it, in every state, the toolbar: the Period switch and the navigator
- * (G17: not the card's action, where the longer buttons of the month and the two controls more would not fit at 375 px), so
- * the period can be changed out of an error or an empty one and the controls keep focus across every read. The date field
- * of T23 sits in the same row. The body is exactly one of: a skeleton while the period is read (so the previous period's
+ * The card's heading is the period's label, and under it, in every state, the toolbar: the Period switch, the navigator and
+ * the date field (G17: not the card's action, where the longer buttons of the month and the two controls more would not fit
+ * at 375 px), so the period can be changed out of an error or an empty one and the controls keep focus — and the date field a
+ * half-typed date — across every read. The body is exactly one of: a skeleton while the period is read (so the previous period's
  * figures are never on screen under the new span), the table, the empty period, one error with Retry (the read is all or
  * nothing: never a partial grid), or whatever the page supplies in place of the grid (`replaced`: the deal filter that
  * cannot be answered).
@@ -357,7 +358,7 @@ export default function TableView({
         <div className="flex flex-wrap items-end gap-x-6 gap-y-3" data-testid="hours-table-toolbar">
           <PeriodSwitch value={period.kind} onChange={onKindChange} />
           <PeriodNavigator period={period} today={today} onPeriodChange={onPeriodChange} />
-          {/* The period's date field (T23) sits here, last in the row. */}
+          <PeriodDateField period={period} today={today} onPeriodChange={onPeriodChange} />
         </div>
 
         <VisuallyHidden live data-testid="hours-table-live">

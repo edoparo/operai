@@ -5,9 +5,10 @@
  * the card (`TableView`), the cell dialog and the page take a `TablePeriod` and know nothing else about how one kind
  * differs from another.
  *
- * The union has two members, the week (T18) and the month (T22: AC-5.25–5.29); the date field's bounds (`pickBounds`)
- * arrive with the task that needs them (T23). The availability of the previous and the next period and the clamp to today
- * (T20) say nothing a month cannot say: each is a comparison of first days, which is how the month joins them.
+ * The union has two members, the week (T18) and the month (T22: AC-5.25–5.29). The date field's rules are here too
+ * (T23: AC-5.30, AC-5.31, R16): the days it offers (`pickBounds`) and the period a day typed or picked names
+ * (`pickedPeriod`). The availability of the previous and the next period and the clamp to today (T20) say nothing a month
+ * cannot say: each is a comparison of first days, which is how the month joins them.
  *
  * Like `week.ts` and `period.ts`, everything is arithmetic on days written `YYYY-MM-DD`, done in UTC on the date alone,
  * so a time zone or a daylight-saving change cannot move a day, and "today" is never read here: the caller passes
@@ -134,4 +135,42 @@ export const switchTo = (period: TablePeriod, kind: TablePeriodKind, today: stri
   const first = monthFirstDay(period.month)
   const firstMonday = mondayOf(first)
   return { kind: 'week', monday: firstMonday === first ? first : shiftWeek(firstMonday, 1) }
+}
+
+/**
+ * The first and the last day the period date field offers (AC-5.31, D20): `max` is today, never a day after it, and `min` is
+ * the first day of the earliest period the address accepts, so no day the field offers names a period that begins before
+ * `MIN_DAY` and would be shown as the current one instead. `MIN_DAY` is a Saturday: the first week a pick can name begins on
+ * the Monday after it, `2000-01-03`, while the first month begins on `2000-01-01` itself. A `today` that is not a day is a
+ * caller bug, a `TypeError`.
+ */
+export const pickBounds = (kind: TablePeriodKind, today: string): { min: string; max: string } => {
+  monthOf(today)
+  if (kind === 'month') return { min: monthFirstDay(monthOf(MIN_DAY)), max: today }
+  const monday = mondayOf(MIN_DAY)
+  return { min: monday >= MIN_DAY ? monday : shiftWeek(monday, 1), max: today }
+}
+
+const DAY_TEXT = /^(\d{4})-(\d{2})-(\d{2})$/
+
+/** Whether `text` is a day on the calendar, written `YYYY-MM-DD` with a four-digit year (30 February is not). */
+const isCalendarDay = (text: string): boolean => {
+  const parts = DAY_TEXT.exec(text)
+  if (!parts) return false
+  const ms = Date.UTC(Number(parts[1]), Number(parts[2]) - 1, Number(parts[3]))
+  return new Date(ms).toISOString().slice(0, 10) === text
+}
+
+/**
+ * The period of `kind` that the date field's text asks for, or `null` when it asks for none (AC-5.30, AC-5.31; R16): only a
+ * complete day within `pickBounds` names a period. A native date input holds `''` until its date is complete, and typed digit
+ * by digit it passes through days of no use — the years 0002, 0020, 0202, a year of five or six digits — which are all
+ * outside the bounds, so nothing names a period until the person has a day worth showing. A day after today, a day before
+ * the first period and text that is not a day name nothing, and none of them throws. Whether the period named is the one
+ * already shown is for the caller to say.
+ */
+export const pickedPeriod = (kind: TablePeriodKind, text: string, today: string): TablePeriod | null => {
+  const { min, max } = pickBounds(kind, today)
+  if (!isCalendarDay(text) || text < min || text > max) return null
+  return holding(kind, text)
 }
