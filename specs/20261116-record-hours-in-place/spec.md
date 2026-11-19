@@ -1,10 +1,10 @@
 ---
 id: 20261116
 slug: record-hours-in-place
-status: draft
+status: approved
 rigor: production
 created: 2026-11-16
-approved: 2026-11-16
+approved: 2026-11-19
 depends-on: 20261112-time-tracking
 ---
 
@@ -22,7 +22,7 @@ Decision ledger: `ledger.md`
 > 9ab6b879): the Week view becomes the **table view**, with a week or a month as its period, and is where My hours
 > opens (AC-5.1 reversed); a date field picks the period; Next stops at the current period (AC-5.5 amended); an
 > empty cell offers nothing (AC-5.12 withdrawn, AC-5.13 and AC-5.24 amended); every hours page uses the full width.
-> New: AC-5.25–AC-5.34. Waiting for re-approval.
+> New: AC-5.25–AC-5.34. Re-approved by the user 2026-11-19.
 
 ## Problem
 
