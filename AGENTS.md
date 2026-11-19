@@ -13,7 +13,7 @@ Module Federation shell (ADR 20260709-suite-frontend-module-federation):
 | **CRM** | `/crm` | Companies, contacts, deals through a stage pipeline, activities and follow-up tasks (specs/20261101-crm, ADR 20261101-crm-tool-shape-and-authorization) |
 | **Meetings** | `/meetings` | Record (browser), upload or paste a meeting; EU transcription, summaries from editable templates and cited Q&A; files and links attached as AI context; linkable to a host record such as a CRM deal; audio and attached files kept 29 days (specs/20261104-meetings, ADR 20261104-meetings-tool-shape-visibility-by-participation–0068) |
 | **Projects** | `/projects` | The delivery work wellD runs — projects (type, state, project manager, team), their terms (per-type delivery terms) and, for a project made from a won deal, its purchase order (Bexio order id, referent, ops-manager); no money (specs/20261103-projects, 022, ADR 20261103-projects-tool-shape-and-authorization/0080/0093/0094) |
-| **Hours** | `/hours` | Time tracking — every employee records the hours spent on a project, a deal, a meeting or other work (a duration on a day, never a time of day) and reads their own, as a list or a week; holders of `time-entry:read-all` also see everyone's, with totals and an XLSX export; the Projects and CRM pages and task rows offer Record hours in place; ungated, so **not** a `TOOLS` entry; the admin lists (categories, work types) are its Settings tab, `/hours/settings`, for holders of `time-list:manage` (specs/20261112-time-tracking, ADR 20261112-hours-api-time-entries-own-service-hours-catalog to 20261112-hours-ui-ungated-remote) |
+| **Hours** | `/hours` | Time tracking — every employee records the hours spent on a project, a deal, a meeting or other work (a duration on a day, never a time of day) and reads their own, as a table (a week or a month) or a list; holders of `time-entry:read-all` also see everyone's, with totals and an XLSX export; the Projects and CRM pages and task rows offer Record hours in place; ungated, so **not** a `TOOLS` entry; the admin lists (categories, work types) are its Settings tab, `/hours/settings`, for holders of `time-list:manage` (specs/20261112-time-tracking, ADR 20261112-hours-api-time-entries-own-service-hours-catalog to 20261112-hours-ui-ungated-remote) |
 
 The first seven are the entries in `shell/src/lib/tools.ts` — access-gated remotes. The
 notification center (`notify-ui`) is a further remote but **not** a `TOOLS` entry: it mounts at
@@ -29,10 +29,16 @@ own hours is not a tool grant (AC-5.1), so the shell mounts its one routed entry
 `/hours/$` (a child of `shellRoute`, no `beforeLoad`), reached from the user menu's **My hours** link and never from
 the sidebar (ADR 20261112-hours-ui-ungated-remote). Its second tab, Everyone's hours (`/hours/all`), is for holders of `time-entry:read-all`;
 its third tab, Settings (`/hours/settings`), holds the admin lists (categories, work types) for holders of `time-list:manage`.
-My hours is a List or a **Week** (`/hours?view=week`: one Monday-to-Sunday week, a row per project, deal, meeting or kind of
-other work, a column per day; an empty cell records, a filled one opens its entries). The Week's figures are folded in the browser
-from ONE complete, all-or-nothing read of that week (`readAllEntries`, the export's walk), so a failed page is an error, never a partial
-grid (specs/20261116-record-hours-in-place, ADR 20261116-week-view-sums-a-complete-read-in-the-browser). `hours-ui` also exposes
+My hours is a **table view** or a List (a `Table | List` switch), and opens on the table: one Monday-to-Sunday week or one calendar month
+(a `Period` switch, `Week | Month`), a row per project, deal, meeting or kind of other work, a column per day, Previous / This week or month /
+Next and a date field that shows the week or month holding the day picked. `/hours` is the current week, `?week=<day>` another,
+`?view=month[&month=YYYY-MM]` a month and `?view=list` the List (the old `?view=week` is still read). A filled cell opens its
+entries; an empty cell offers nothing. The date field offers no day after today, Next stops at the current period and an address naming a
+later week or month shows the current one. A month scrolls sideways with its row-label and Total columns pinned (`@operai/ui`
+`DataTable`'s `pin`). Every hours page — My hours in either view and period, Everyone's hours, Settings — takes the full width
+(`ToolLayout` `wide`, as EstimAI's), so switching view, period or tab never resizes the page. The table view's figures are folded in the
+browser from ONE complete, all-or-nothing read of the period (`readAllEntries`, the export's walk), so a failed page is an error, never a
+partial grid (specs/20261116-record-hours-in-place, ADR 20261116-week-view-sums-a-complete-read-in-the-browser). `hours-ui` also exposes
 `./RecordHours`, not a route but a widget: a button that opens My hours' own entry dialog on a project, a deal or a task and records as
 the person through the unchanged `POST /time-entries`. Hosts embed it through the shell's `HostExtension` seam as the extension
 **`hours.recordHours`** (six plain strings in, nothing back, the same 5 s timeout and error boundary, and the host's own fallback, a link
@@ -122,7 +128,7 @@ operai/
 │                        # shell/session (specs/20261103-projects, 028, ADR 20261103-projects-tool-shape-and-authorization); its FIRST use of
 │                        # shell/extensions: hours-ui's Record hours (`hours.recordHours`) on the project page and the task rows (specs/20261116-record-hours-in-place)
 ├── hours-ui/            # Hours (time tracking) — federated remote (port 5184): exposes ./App (UNGATED, mounted at the shell's
-│                        # `/hours/$`, NOT a TOOLS entry; My hours as a List or a Week (`?view=week`), plus Everyone's hours for `time-entry:read-all`, ADR 20261112-hours-ui-ungated-remote),
+│                        # `/hours/$`, NOT a TOOLS entry; My hours as a table view, week or month (`/hours`, `?view=month`), or a List (`?view=list`), plus Everyone's hours for `time-entry:read-all`, ADR 20261112-hours-ui-ungated-remote),
 │                        # ./RecordHours (a widget, not a route: the Record hours button other tools embed through shell/extensions `hours.recordHours`,
 │                        # ADR 20261116-record-hours-widget-through-the-host-extension-seam) and ./version; calls hours-api through shell/session
 │                        # (`getHoursApiBaseUrl()`, `VITE_HOURS_API_URL` is the shell's) and, as the person, projects-api, crm-api, meetings-api and
@@ -264,9 +270,10 @@ degrades silently when the key is absent (ADR 20260804-google-places-browser-dir
 hours-ui additionally builds its XLSX export in the browser (`exceljs`, lazy-loaded, from every page of
 `GET /time-entries` — hours-api never builds a file) and uses the `@operai/ui` components and formatters added
 for it: `SearchPicker` (a server-side search in a `Field`-wrapped `Combobox`), `ExportButton`, and
-`formatDuration`'s `short` style ("2 h 30") and `formatMonth` (specs/20261112-time-tracking). Its Week view
-(`/hours?view=week`) is the one view that sums its own figures in the browser, over a complete read of the week through the same walk
-(ADR 20261116-week-view-sums-a-complete-read-in-the-browser, specs/20261116-record-hours-in-place); its `./RecordHours` entry imports
+`formatDuration`'s `short` style ("2 h 30") and `formatMonth` (specs/20261112-time-tracking), and, for the month, `DataTable`'s column
+`pin` (a remote on a shell that predates it shows the month unpinned). Its table view (`/hours`, a week or a month) is the one view that sums
+its own figures in the browser, over one complete read of the period through the same walk
+(ADR 20261116-week-view-sums-a-complete-read-in-the-browser, amended 2026-11-19, specs/20261116-record-hours-in-place); its `./RecordHours` entry imports
 only the entry dialog, `hoursApi` and the pickers, never `exceljs`, the pages or hours-ui's router, because it renders in a host's tree.
 
 ### Auth service (auth)

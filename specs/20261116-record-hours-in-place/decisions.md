@@ -288,3 +288,11 @@ It is drift: amend the spec/plan and re-sync tasks — do not quietly edit the c
 - scope: the TableView test "keeps the heading, the Period switch and the navigator in %s" gained one assertion for the date field; nothing removed or loosened — where: TableView.test.tsx
 - assumption: Firefox and Safari typing behaviour unverified (only Chromium installed) — where: report only
 - observation (no change): in this stack's Chromium a bare `focus()` on a date input returns to the last-focused segment and the date shows as dd.mm.yyyy, so e2e typing must click the first segment and follow that order — for T24
+
+## T25 · devops · 2026-11-19
+- scope: added a short `DataTable` `pin` clause (and "a month scrolls sideways with pinned row-label and Total columns") to AGENTS.md, which the task did not list — why: `pin` is a library capability added for hours-ui and was missing from the hours-ui paragraph that lists what `@operai/ui` gained for it — where: AGENTS.md (My hours paragraph, hours-ui tech-stack paragraph)
+- reinterpretation: the infra deploy order becomes shell, then hours-ui, then the hosts (it was hours-ui, shell, hosts): the button's old order becomes a harmless transient and "hours-ui before the shell" a harmless wrong order (month unpinned), so "not a gate" still holds — why: the shell carries the `pin` library and every other order degrades without error — where: infra/README.md § Record hours in place
+- scope: renamed the infra section heading from "Week view" to "table view" — why: the old name no longer describes the feature; no anchor links to it — where: infra/README.md
+- scope: added one `pin` verification step on `/hours?view=month` and the rollback note that rolling back the shell leaves the month unpinned — why: the observable effects of the new shell-before-hours-ui dependency — where: infra/README.md
+- assumption: the hours-ui rollback line says "My hours is the List again, as before this release" — why: nothing of this feature has shipped (D22, PR #11 a draft), so the previous production hours-ui is List-only — where: infra/README.md
+- scope: the hours-ui changeset states the shell-first requirement for the month's pinned columns, duplicating `operai-ui-datatable-pin.md` — why: the hours-ui release notes are what the deployer reads — where: .changeset/hours-ui-record-in-place.md
