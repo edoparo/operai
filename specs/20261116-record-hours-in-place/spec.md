@@ -1,7 +1,7 @@
 ---
 id: 20261116
 slug: record-hours-in-place
-status: approved
+status: in-progress
 rigor: production
 created: 2026-11-16
 approved: 2026-11-19

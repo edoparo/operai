@@ -1,10 +1,10 @@
 ---
 spec: 20261116
 generated: 2026-11-17
-synced: 2026-11-17
+synced: 2026-11-19
 ---
 
-# Tasks: Record hours in place — from the project, the deal and the task, and a week view of My hours
+# Tasks: Record hours in place — from the project, the deal and the task, and a week and month view of My hours
 
 Contracts are `plan.md` (approved 2026-11-16, first amendment 2026-11-17 after design: G1, G3, G4, G5, G7, D12, D13):
 Components, Decisions 1–7, Sequences, API contracts (`hours.recordHours`, `hours/RecordHours`, `EntryDialog`
@@ -13,6 +13,14 @@ R1–R10 and Security. Screens, flows, states, copy (en + it) and the component 
 no NEW or EXTENDED `@operai/ui` component, so plan R4 never triggers). Decisions with rejected alternatives are ADR
 20261116-week-view-sums-a-complete-read-in-the-browser and ADR 20261116-record-hours-widget-through-the-host-extension-seam.
 hours-api, projects-api, crm-api and activities-api are not changed by any task.
+
+**Re-synced 2026-11-19** after the spec was reopened (ledger D15–D27) and the plan and design re-approved: T1–T16 stay
+checked as delivered; T17–T27 implement plan § Amendment 2026-11-19 (Decisions 8–15, Components (2026-11-19), the
+address, `TablePeriod`, `tableGrid`, the period's read, Copy, Test strategy (2026-11-19), Risks R11–R21, Security
+(2026-11-19), Order of change) and design.md § Amendment 2026-11-19 (Table | List, Period Week | Month, the toolbar, the
+month's header, blank empty cells, `pin`). The design now EXTENDS one `@operai/ui` component (`DataTable` `pin`, D27), so
+plan R4/R12 triggers: T21 ships it, and the shell deploys it before hours-ui. T16, the first close, was undone by the
+revert 9ab6b879; T27 is the close now.
 
 Test commands: hours-ui, projects-ui, crm-ui `pnpm lint && pnpm build && pnpm test`; shell the same with
 `NODE_OPTIONS=--no-webstorage pnpm test`; e2e `cd shell && pnpm e2e <spec>` with the stack up (`mise run dev`).
@@ -93,6 +101,52 @@ Test commands: hours-ui, projects-ui, crm-ui `pnpm lint && pnpm build && pnpm te
   - touch: `specs/20261116-record-hours-in-place/qe-report.md`, `specs/20261116-record-hours-in-place/eval-report.md`, `specs/20261116-record-hours-in-place/spec.md`
   - done when: `/wellforge:done 20261116-record-hours-in-place` accepts the transition
 
+## Amendment 2026-11-19 — the table view: week and month
+
+- [ ] T17: [FE] Rename the week's code to the table's, no behaviour change (plan decision 9) — refs: AC-5.3, AC-5.6–5.11, AC-5.15–5.24 — deps: none
+  - touch: `hours-ui/src/lib/weekGrid*.ts`, `hours-ui/src/lib/tableGrid*.ts`, `hours-ui/src/components/WeekView*`, `hours-ui/src/components/TableView*`, `hours-ui/src/components/WeekNavigator*`, `hours-ui/src/components/PeriodNavigator*`, `hours-ui/src/components/WeekViewModel*`, `hours-ui/src/components/TableViewModel*`, `hours-ui/src/components/WeekCellDialog*`, `hours-ui/src/components/TableCellDialog*`, `hours-ui/src/strings/week.ts`, `hours-ui/src/strings/table.ts`, `hours-ui/src/strings.ts`, `hours-ui/src/strings.test.ts`, `hours-ui/src/pages/MyHoursPage*`, `shell/e2e/hours-in-place.spec.ts`, `shell/e2e/hours-in-place.round1.spec.ts`
+  - done when: `weekGrid`→`tableGrid`, `WeekView`→`TableView`, `WeekNavigator`→`PeriodNavigator`, `WeekViewModel`→`TableViewModel`, `WeekCellDialog`→`TableCellDialog`, `strings/week.ts`→`strings/table.ts` (`AREAS` holds `table`), test ids `hours-week-*`→`hours-table-*` (the navigator's `hours-period-previous` / `-current` / `-next`) in hours-ui and both e2e files; `cd hours-ui && pnpm lint && pnpm build && pnpm test` passes with the same number of tests as before (2153) and no assertion changed but names (R19); `cd shell && pnpm e2e hours-in-place.spec.ts hours-in-place.round1.spec.ts` 10/10
+
+- [ ] T18: [FE] `TablePeriod` (week only) and the table on a period, no behaviour change — refs: AC-5.3, AC-5.4, AC-5.5, AC-5.6–5.10 — deps: T17
+  - touch: `hours-ui/src/lib/tablePeriod*.ts`, `hours-ui/src/lib/tableGrid*.ts`, `hours-ui/src/components/TableView*`, `hours-ui/src/components/TableViewModel*`, `hours-ui/src/components/TableCellDialog*`, `hours-ui/src/components/PeriodNavigator*`, `hours-ui/src/pages/MyHoursPage*`
+  - done when: `lib/tablePeriod.ts` exports the plan's contract for `kind: 'week'` (`daysOf`, `firstDayOf`, `lastDayOf`, `current`, `isCurrent`, `shift`, `holding`, `referenceDay`) with `lib/tablePeriod.test.ts` over the boundary days (Sunday 1 Nov 2026, Mon 30 Nov – Sun 6 Dec 2026); `tableGrid(entries, days)` replaces `tableGrid(entries, monday)` with an entry outside `days` a `RangeError`; `TableView`, `TableCellDialog` and the page take a `TablePeriod`, the weekday from the date (`longDay(day)`, index arguments gone, R17); hours-ui `pnpm lint && pnpm build && pnpm test` green with every pre-existing assertion unchanged
+
+- [ ] T19: [FE] The address, the table view as default, and the full width (plan § The address, § Width; R15) — refs: AC-5.1, AC-5.2, AC-5.4, AC-5.22, AC-5.33 — deps: T18
+  - touch: `hours-ui/src/components/HoursFiltersState*`, `hours-ui/src/components/ViewSwitch*`, `hours-ui/src/components/HoursShell*`, `hours-ui/src/components/HoursFilters*`, `hours-ui/src/pages/MyHoursPage*`, `hours-ui/src/router*`, `hours-ui/src/strings/table.ts`, `shell/e2e/hours.spec.ts`, `shell/e2e/hours-owners.spec.ts`, `shell/e2e/hours-in-place.spec.ts`, `shell/e2e/hours-in-place.round1.spec.ts`
+  - done when: `readMyHoursAddress`, `withTablePeriod` (week; month keys reserved), `withList`, `withTable`, `clearFilterSearch` / `isFiltered` per plan § The address, with `HoursFiltersState.address.test.ts` covering every row of the address table and the legacy `?view=week&week=`; `ViewSwitch` is "Table | List" (Table first, design); `/hours` opens the table view's current week and `?view=list` the List (plan Test strategy rows AC-5.1, 5.2, 5.4); `HoursShell` is `wide` on every route (`HoursShell.width.test.tsx` as plan AC-5.33 unit row); the List suites' default path and explicit List paths carry `view=list` with their assertions unchanged (plan "Existing tests that change", first two bullets); filters survive List ↔ table (AC-5.22, week part); hours-ui gates green; `cd shell && pnpm e2e hours.spec.ts hours-owners.spec.ts hours-in-place.spec.ts hours-in-place.round1.spec.ts` green with the changes plan § Existing tests names for them (R15)
+
+- [ ] T20: [FE] Inert empty cells, Next and Previous availability, the future clamp, no "not started" — refs: AC-5.5, AC-5.13, AC-5.14, AC-5.24, AC-5.28, AC-5.29, AC-5.32 — deps: T19
+  - touch: `hours-ui/src/lib/week*.ts`, `hours-ui/src/lib/tablePeriod*.ts`, `hours-ui/src/components/TableView*`, `hours-ui/src/components/PeriodNavigator*`, `hours-ui/src/components/TableCellDialog*`, `hours-ui/src/pages/MyHoursPage*`, `hours-ui/src/strings/table.ts`
+  - done when: an empty cell is a blank `td` (no button, no `data-cell`, no tab stop, no handler) on every day and row (plan row AC-5.32); `onRecordCell`, `week.cell.record` and `week.emptyFuture.*` are gone; Add hours in a cell's list keeps day and row set and changeable (row AC-5.13); `hasNext` / `hasPrevious` with Next and Previous `aria-disabled` where they cannot move and focus kept on Next (rows AC-5.5, 5.28, R18); `readWeekParam` clamps a future week to the current one (row AC-5.29); a cell that runs out of entries sends focus to the card's heading; the tests plan § Existing tests names under "The empty-cell plus" and "Next into the future" are changed or removed as listed; hours-ui gates green
+
+- [ ] T21: [FE] `@operai/ui` `DataTable` column `pin` (D27, plan R12) — refs: AC-5.34 — deps: none
+  - touch: `operai-ui/src/components/DataTable*`, `operai-ui/src/styles/*`, `operai-ui/src/index.ts`, `operai-ui/docs/decisions.md`, `.changeset/operai-ui-datatable-pin.md`
+  - done when: `DataTableColumn.pin?: 'start' | 'end'` (at most one of each) keeps that column in view while the table's region scrolls sideways, from 48 rem up and ignored below, with scroll padding so a focused cell is never under a pinned one, exactly as design.md § Amendment 2026-11-19 requires; a story shows a 31-column table with both pins; `DataTable` tests cover the classes / styles per pin and the default (no pin) unchanged; `cd operai-ui && pnpm lint && pnpm typecheck && pnpm test` and `mise run ui:check` green; a changeset for `@operai/ui` (minor) says the shell must deploy it before hours-ui uses it
+
+- [ ] T22: [FE] The month: `month.ts`, `switchTo`, the period switch, the toolbar, the month's table and copy — refs: AC-4.6, AC-5.3, AC-5.6–5.11, AC-5.14–5.21, AC-5.22, AC-5.23, AC-5.25, AC-5.26, AC-5.27, AC-5.28, AC-5.29, AC-5.34 — deps: T20, T21
+  - touch: `hours-ui/src/lib/month*.ts`, `hours-ui/src/lib/tablePeriod*.ts`, `hours-ui/src/components/HoursFiltersState*`, `hours-ui/src/components/PeriodSwitch*`, `hours-ui/src/components/TableView*`, `hours-ui/src/components/TableViewModel*`, `hours-ui/src/components/TableCellDialog*`, `hours-ui/src/components/PeriodNavigator*`, `hours-ui/src/pages/MyHoursPage*`, `hours-ui/src/strings/table.ts`, `hours-ui/src/strings.test.ts`
+  - done when: `lib/month.test.ts` and `tablePeriod.test.ts` pass the plan's rows AC-5.25–5.29 for the month, `switchTo` per D25 (current week → current month) and D26 (the week left, else the current week, else the first week whose Monday is in the month) with the address keeping `week` while the month shows; the period switch is the design's `RadioGroupField` "Period" (Week | Month) in the toolbar under the card heading with the navigator (moved out of `Card`'s `action`, design G17) and its place for the date field; the month table has the design's compact day header (weekday from the date, Today badge, long-date accessible name), the label and Total columns `pin`ned, the scroll hint at every width, its scroll position kept across a re-read (design G18); `PeriodWords` for week and month in en and it with parity (plan Copy, row AC-4.6); the month cases of plan row "AC-5.3, 5.6–5.11, 5.14–5.21, 5.23 in the month" pass (`describe.each(['week', 'month'])`, `MyHoursPage.month.test.tsx`); filters survive week ↔ month (AC-5.22); hours-ui gates green
+
+- [ ] T23: [FE] The period's date field — refs: AC-5.30, AC-5.31 — deps: T22
+  - touch: `hours-ui/src/components/PeriodDateField*`, `hours-ui/src/components/TableView*`, `hours-ui/src/lib/tablePeriod*.ts`, `hours-ui/src/pages/MyHoursPage*`, `hours-ui/src/strings/table.ts`
+  - done when: `PeriodDateField` (`Field` + `DateInput`, "Show the week of" / "Show the month of", the hidden "Up to today." hint `table.pick.hint`, design G16) passes plan rows AC-5.30 and AC-5.31 and R16: `min`/`max` from `pickBounds` (`max` = today), a complete in-range day of another period writes that period, a day of the period shown, an incomplete, emptied or out-of-range value changes nothing, its own text kept while focused and the reference day shown again on blur; it stays mounted through every read; hours-ui gates green
+
+- [ ] T24: [QE] e2e A, F (rewritten) and G (new) of plan § e2e journeys (2026-11-19) — refs: AC-4.1, AC-5.1, AC-5.2, AC-5.5, AC-5.13, AC-5.16–5.20, AC-5.25–5.34 — deps: T23
+  - touch: `shell/e2e/hours-in-place.spec.ts`, `shell/e2e/helpers/hoursFixtures.ts`, `shell/e2e/helpers/hoursOwnersFixtures.ts`
+  - done when: `cd shell && pnpm e2e hours-in-place.spec.ts hours-in-place.round1.spec.ts hours.spec.ts hours-owners.spec.ts` passes with the stack up, nothing stubbed, per-run `@operai.test` people and their entries deleted at the end; A follows "See in My hours" to the table view; F and G cover every step the plan lists, expected periods computed with the same rules (R21), AC-5.33 measured as `admin@operai.test` at 1440 px over the List, the week, the month, Everyone's hours and Settings (page roots including `time-lists-page`, design G19), AC-5.34 at 1280 px, a focused cell never hidden under a pinned column, the month's first-grid time logged (R13)
+
+- [ ] T25: [DOC] AGENTS.md, infra/README.md and the pending changeset for the table view — refs: AC-5.1, AC-5.2, AC-5.33 — deps: T23
+  - touch: `AGENTS.md`, `infra/README.md`, `.changeset/hours-ui-record-in-place.md`
+  - done when: AGENTS.md describes My hours as the table view (week or month, `/hours`, `?view=month`, `?view=list`) and the List, every hours page at full width, and the hours-ui paragraph's browser-sum sentence follows ADR 20261116-week-view-sums-a-complete-read-in-the-browser's amendment; infra/README.md § Record hours in place verifies on `/hours` and says the shell (with `@operai/ui`'s `pin`) deploys before hours-ui, an earlier hours-ui showing the month unpinned; the pending hours-ui changeset text describes the table view (no new hours-ui changeset, D22); `mise run changeset:check` passes
+
+- [ ] T26: [QE] owasp-reviewer delta pass (plan § Security (2026-11-19)) — refs: AC-5.2, AC-5.29, AC-5.31 — deps: T23
+  - touch: `specs/20261116-record-hours-in-place/owasp-report.md`
+  - done when: owasp-report.md gains a re-check section with verdict PASS over what plan § Security (2026-11-19) names: `readMyHoursAddress` / `readMonthParam` / `readWeekParam` never put an unchecked value in a request, `whose=mine` on every table read, the date field cannot send a day after today or before the floor, and the `DataTable` `pin` change adds no injection or layout-hiding surface
+
+- [ ] T27: Close: all gates green (lint, build/typecheck, unit in hours-ui, shell, projects-ui, crm-ui, operai-ui; e2e; `shared:check`, `changeset:check`, React skew), owasp PASS (T26), QE PASS, eval, spec status → done via `/wellforge:done` — refs: all — deps: T24, T25, T26
+  - touch: `specs/20261116-record-hours-in-place/qe-report.md`, `specs/20261116-record-hours-in-place/eval-report.md`, `specs/20261116-record-hours-in-place/spec.md`
+  - done when: `/wellforge:done 20261116-record-hours-in-place` accepts the transition
+
 ## Coverage
 
 | AC | Tasks |
@@ -114,25 +168,31 @@ Test commands: hours-ui, projects-ui, crm-ui `pnpm lint && pnpm build && pnpm te
 | AC-4.3 | T2, T13 |
 | AC-4.4 | T2, T14 |
 | AC-4.5 | T3, T4, T6, T13, T15 |
-| AC-4.6 | T2, T4, T6, T9, T10 |
-| AC-5.1, 5.2 | T10 (5.1 also T15) |
-| AC-5.3 | T8, T9 |
-| AC-5.4 | T8, T10 |
-| AC-5.5 | T9, T10 |
-| AC-5.6–5.8 | T8 |
-| AC-5.9, 5.10 | T8, T9 |
-| AC-5.11 | T9 |
-| AC-5.12 | T1, T11, T13 |
-| AC-5.13 | T1, T11 |
-| AC-5.14 | T9, T11 |
-| AC-5.15, 5.17, 5.18 | T12 |
-| AC-5.16 | T12, T13 |
-| AC-5.19 | T11, T13 |
-| AC-5.20 | T11, T12, T13 |
-| AC-5.21 | T10, T14 |
-| AC-5.22 | T10 |
-| AC-5.23 | T8, T9 |
-| AC-5.24 | T8, T12 |
+| AC-4.6 | T2, T4, T6, T9, T10, T22 |
+| AC-5.1, 5.2 | T10 (5.1 also T15); amended: T19, T24, T25 |
+| AC-5.3 | T8, T9, T17, T18, T22 |
+| AC-5.4 | T8, T10, T18, T19 |
+| AC-5.5 | T9, T10; amended: T18, T20, T24 |
+| AC-5.6–5.8 | T8, T17, T18, T22 |
+| AC-5.9, 5.10 | T8, T9, T17, T18, T22 |
+| AC-5.11 | T9, T17, T22 |
+| AC-5.12 | T1, T11, T13 — withdrawn 2026-11-19 (D17); its removal is T20 |
+| AC-5.13 | T1, T11; amended: T20, T24 |
+| AC-5.14 | T9, T11, T20, T22 |
+| AC-5.15, 5.17, 5.18 | T12, T17, T22, T24 |
+| AC-5.16 | T12, T13, T17, T22, T24 |
+| AC-5.19 | T11, T13, T22, T24 |
+| AC-5.20 | T11, T12, T13, T22, T24 |
+| AC-5.21 | T10, T14, T22 |
+| AC-5.22 | T10; amended: T19, T22 |
+| AC-5.23 | T8, T9, T17, T22 |
+| AC-5.24 | T8, T12; amended: T20 |
+| AC-5.25, 5.26, 5.27 | T22, T24 |
+| AC-5.28, 5.29 | T20, T22, T24, T26 (5.29) |
+| AC-5.30, 5.31 | T23, T24, T26 (5.31) |
+| AC-5.32 | T20, T24 |
+| AC-5.33 | T19, T24, T25 |
+| AC-5.34 | T21, T22, T24 |
 
 Every task serves at least one AC; none was added that no AC asks for.
 
@@ -146,3 +206,11 @@ Every task serves at least one AC; none was added that no AC asks for.
   `MyHoursPage*`, `strings/week.ts` with T9/T10, already ordered; both share `hours-ui/src/test-support/*` with T2, an
   induced edge if T2 is still running).
 - Batch 5, in parallel: T13, T14, T15. Then T16.
+
+Amendment 2026-11-19 (overlaps resolved now):
+- T17 → T18 → T19 → T20 → T22 → T23: a chain by `deps:`, and every one shares `hours-ui/src/pages/MyHoursPage*`,
+  `TableView*` and `strings/table.ts`, so it is one track whatever the declared deps.
+- T21 (operai-ui only) has no path in common with T17–T20 and may run beside them; T22 waits for it (it uses `pin`).
+- T19 and T24 share `shell/e2e/hours-in-place.spec.ts` (T19 adapts A's and R3's List parts to the new default, T24
+  rewrites F and adds G): ordered by T24's deps. T17 also touches both e2e files (test ids), ordered before T19.
+- After T23, in parallel: T24, T25, T26 (no shared path). Then T27.
