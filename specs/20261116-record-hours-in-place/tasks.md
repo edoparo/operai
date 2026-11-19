@@ -146,7 +146,7 @@ Test commands: hours-ui, projects-ui, crm-ui `pnpm lint && pnpm build && pnpm te
   - touch: `specs/20261116-record-hours-in-place/owasp-report.md`
   - done when: owasp-report.md gains a re-check section with verdict PASS over what plan § Security (2026-11-19) names: `readMyHoursAddress` / `readMonthParam` / `readWeekParam` never put an unchecked value in a request, `whose=mine` on every table read, the date field cannot send a day after today or before the floor, and the `DataTable` `pin` change adds no injection or layout-hiding surface
 
-- [ ] T27: Close: all gates green (lint, build/typecheck, unit in hours-ui, shell, projects-ui, crm-ui, operai-ui; e2e; `shared:check`, `changeset:check`, React skew), owasp PASS (T26), QE PASS, eval, spec status → done via `/wellforge:done` — refs: all — deps: T24, T25, T26
+- [x] T27: Close: all gates green (lint, build/typecheck, unit in hours-ui, shell, projects-ui, crm-ui, operai-ui; e2e; `shared:check`, `changeset:check`, React skew), owasp PASS (T26), QE PASS, eval, spec status → done via `/wellforge:done` — refs: all — deps: T24, T25, T26
   - touch: `specs/20261116-record-hours-in-place/qe-report.md`, `specs/20261116-record-hours-in-place/eval-report.md`, `specs/20261116-record-hours-in-place/spec.md`
   - done when: `/wellforge:done 20261116-record-hours-in-place` accepts the transition
 
