@@ -1,7 +1,7 @@
 # 20261116 — A view may sum its own figures in the browser only over one complete, all-or-nothing read of a bounded span: the Week view of My hours folds its week from the export's full walk, narrowing the time-tracking "no figure computed in the browser" convention for that view alone
 
 **Date:** 2026-11-16  
-**Status:** Accepted (specs/20261116-record-hours-in-place plan approved 2026-11-16)  
+**Status:** Accepted (specs/20261116-record-hours-in-place plan approved 2026-11-16), amended 2026-11-19 (plan re-approved 2026-11-19)  
 **Deciders:** wellD  
 **Project:** Operai
 
@@ -102,6 +102,51 @@ A two-dimension `groupBy` on `GET /time-entries/totals`, or a new `GET /time-ent
 - GDPR / data-protection impact: none beyond the existing list. The browser already receives these entries for the list and the export; the Week view holds one person's own entries in memory for the length of the screen.
 - Data residency: unaffected. No new data flow or service; hours-api stays the only source.
 - Audit trail: not required. Reads are not recorded beyond ordinary request logs, as for the list.
+
+## Amendment 2026-11-19 — the table view: week or month
+
+**Scope widened.** The Week view of My hours is now the table view of My hours, which takes a period: one calendar week
+(Monday to Sunday) or one calendar month (its first day to its last, 28 to 31 days). Wherever the decision above says
+"the Week view", it now means the table view in either period. The rule is unchanged: a figure is a sum only over one
+complete, all-or-nothing read of a bounded span. The bounded span is now "one calendar week or one calendar month (at
+most 31 days) of one person's own entries".
+
+**Decision.** The month's figures are summed in the browser from ONE complete read of that calendar month, through the
+same `readAllEntries` walk the week uses (`GET /time-entries`, `limit=500`, following `nextCursor` until it is `null`,
+all or nothing), and folded by the same pure grid over the period's days. Every figure of the month (cell, row total,
+day total, month total) is a sum over that one set, so they agree by construction. A failed page is an error for the
+whole table, never a partial grid. Changing the period, a filter or the view aborts the walk in flight (its signal
+reaches every page's request) and its late answer is dropped, so no page of one period ever reaches the grid of
+another. The period's days and boundaries come from one pure module (`lib/tablePeriod.ts`), so the table does not
+decide them itself.
+
+**Rejected alternatives** (as the plan records them, ADR candidate R3):
+
+- **A server month grid** — a two-dimension `groupBy` on `GET /time-entries/totals`, or a month route. This is Option B
+  above again, with 31 columns on the totals contract, and the cell's entry list is still needed, so the browser reads
+  the entries anyway.
+- **A month assembled from its weeks' reads.** Several reads taken at different moments are summed on one screen (the
+  "two sources" failure shape above), and one failed week would leave a partial month.
+- **The month's day and row totals from `groupBy=day` and `groupBy=project`, with the cells summed in the browser.**
+  Two sources for figures that must add up on one screen (Option C above).
+- **A cap on the month's entries.** A cap makes the read partial, which this decision forbids (Option D above).
+
+**Consequences.**
+
+- *Positive:* one fold, one rule and one view serve both periods. The month needs no server change: hours-api accepts a
+  span of up to 366 days, and a month is at most 31.
+- *Negative / trade-offs:* the read size is up to a month of one person's entries, over possibly several pages of 500.
+  The month's first grid waits for the whole walk. The convention "No figure on screen is computed in the browser" now
+  holds for the list, the totals card and Everyone's hours only; it is narrowed for the table view in both periods.
+  Everyone's hours must still not reuse this fold.
+- *Risks:* the month's walk is slower than the week's. Mitigation: the e2e journey logs the month's first-grid time
+  (not a failing threshold), and a cap is not the answer, because it would make the read partial.
+- *Revisit this amendment if:* a longer period (a quarter, a year) is asked of the table view, or the month's walk is
+  measurably slow for one person's month.
+
+**Compliance notes (amended).** The browser holds up to one calendar month of the person's own entries in memory for the
+length of the screen, where the week held one week. The same data flows, to the same service, and no new data is
+received. GDPR / data-protection impact: none beyond the existing list (the same person's own entries, already received for the list and the export). Data residency and audit trail are unchanged.
 
 ---
 
