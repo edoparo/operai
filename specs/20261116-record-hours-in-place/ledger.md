@@ -144,3 +144,11 @@ Found:
 - DF2 The design's other gaps (G1, G3, G5, G7) are plan-level and adopted as the plan's first amendment; G6, G8–G11
   stand as designed — design.md § Gaps
 
+
+## Decision ledger — closing (2026-11-19)
+
+Decided:
+- D14 The screen-reader readback (NVDA, VoiceOver) of the success status, the Week cells' labels, the phone-width scroll
+  hint and a refused save's alert is not part of this feature's gate; the roles, texts, `aria-hidden` and focus stay
+  verified by the unit and e2e tests, the readback is a follow-up (design.md § Amendment 2026-11-19) — user chose
+  removing it from the design over running the five-step VoiceOver check (recommended), 2026-11-19

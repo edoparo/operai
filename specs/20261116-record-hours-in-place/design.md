@@ -226,8 +226,10 @@ Due 18.11.2026 · Assigned to Anna Rossi
   Record hours** (the × is gone, so focus would otherwise fall to the page). **No auto-dismiss** (G1, plan amendment 2026-11-17):
   a link that disappears in 3 s cannot be reached by a keyboard or screen-reader user (WCAG 2.2.1). The message
   goes by ×, by the next save (replaced), or by leaving the page.
-- **Announcement.** `role="status"`; QE checks the readback in NVDA and VoiceOver (a status inserted with its
-  text already in it is not announced by every combination; the suite's other success banners work the same way).
+- **Announcement.** `role="status"` (a status inserted with its text already in it is not announced by every
+  combination; the suite's other success banners work the same way). Verified by the automated checks of the role, the
+  text and the focus only: a readback in a real screen reader (NVDA, VoiceOver) is **not** part of this feature's gate —
+  decided by the user on 2026-11-19 (amendment below); it is a follow-up.
 - **Never.** Not the shell's `ToastHost` (reserved for notifications from elsewhere, design-system § Feedback);
   no Undo; no Edit link; no hours shown on the host page (spec § Non-goals).
 
@@ -634,8 +636,9 @@ Ratio: **~17 library components and ~10 in-repo pieces reused**, **6 in-repo fil
 Common: one h1 (Hours), one h2 (My hours), cards h3, `StatePanel` titles h4, dialog titles h2 in their dialog; the
 shell owns `<main>`; every icon-only button has an `aria-label`; icons `aria-hidden`; the focus ring is the
 library's; QE checks both themes (no `--muted` text; token utilities only); `prefers-reduced-motion` is the library's.
-Colour is never the only signal (kinds and Today are text badges). QE checks NVDA and VoiceOver readback of
-"2 h 30" in the new `aria-label`s (the existing design's open point; fallback is the `spoken` style).
+Colour is never the only signal (kinds and Today are text badges). How NVDA and VoiceOver read "2 h 30" in the new
+`aria-label`s (the existing design's open point; fallback is the `spoken` style) is a follow-up, not part of this
+feature's gate (amendment 2026-11-19 below).
 
 **Record hours on a page (S1, S2, S5).**
 - Keyboard: the button is a tab stop in header or row order (page: first in the header's actions; row: after the
@@ -807,3 +810,15 @@ plus a scroll hint below 1024 px, `week.scrollHint`; G10 amended) · the Italian
 
 No contradiction in the spec itself was found: AC-5.1–5.24, WA1–WA10 and C1 are consistent with each other and with the
 plan's address and contracts.
+
+## Amendment 2026-11-19 — screen-reader readback out of the gate
+
+Decided by the user on 2026-11-19, after QE's passes left one row BLOCKED (`qe-report.md`: "screen-reader readback (NVDA,
+VoiceOver) — not executed"). The readback in a real screen reader of the success status ("2 h 30 recorded on <name>. See
+in My hours"), of the Week cells' `aria-label`s, of the phone-width scroll hint (`aria-hidden`) and of a refused save's
+alert is **no longer a check of this feature**. What stays verified, by unit and e2e tests: the roles (`status`, `alert`,
+the labelled grid region), the texts and labels as designed in both languages, `aria-hidden` on the scroll hint, and where
+focus goes. What is not verified: whether every browser and screen-reader combination speaks them as intended (the design's
+own caveat above). Follow-up, not scheduled: a person runs the five-step readback in the old qe-report.md script with
+NVDA and VoiceOver and files any defect as a bugfix.
+
