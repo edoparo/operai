@@ -296,3 +296,18 @@ It is drift: amend the spec/plan and re-sync tasks — do not quietly edit the c
 - scope: added one `pin` verification step on `/hours?view=month` and the rollback note that rolling back the shell leaves the month unpinned — why: the observable effects of the new shell-before-hours-ui dependency — where: infra/README.md
 - assumption: the hours-ui rollback line says "My hours is the List again, as before this release" — why: nothing of this feature has shipped (D22, PR #11 a draft), so the previous production hours-ui is List-only — where: infra/README.md
 - scope: the hours-ui changeset states the shell-first requirement for the month's pinned columns, duplicating `operai-ui-datatable-pin.md` — why: the hours-ui release notes are what the deployer reads — where: .changeset/hours-ui-record-in-place.md
+
+## T24 · quality-engineer · 2026-11-19
+- reinterpretation: the expected Month from the current week is the month holding today (AC-5.26 / D25), not "the month of its Monday" as the plan's e2e line says; the two agree except when the current week straddles two months, and the AC is the rule — where: `monthForWeek` in shell/e2e/hours-in-place.spec.ts
+- scope: the admin for AC-5.33 is the per-run `hip-admin-<runId>@operai.test` (real `admin` role), not the literal `admin@operai.test`, as F, hours.spec.ts and hours-owners.spec.ts already do — why: auth rate-limits identity lookups per caller (120 per 10 minutes) — where: G's `hoursAdmin(gRunId, PREFIX)`
+- scope: AC-5.33 also measured at 1920 px, beyond the plan's 1440 px — why: at 1440 the shell's frame is 1211 px, narrower than the default 80 rem column, so 1440 alone would pass a page that fell back to the default width — where: G.4
+- default: G is its own `test.describe` with its own run id and people — why: the first describe's `afterAll` cleans every person of its run — where: `gRunId`
+- default: G's browser context is en-GB, so the native date input is dd/mm/yyyy whatever the machine's locale; typing clicks the first segment and types ddmmyyyy (T23's advice) — where: `gContext`, G.3
+- default: the "half-typed under a read" case is two scenarios (slow reads / fast keys, slow keys / fast reads), asserting the final period and that the typed value survives, never a read count — where: G.3
+- default: G.6 (R13) seeds 300 entries every run (the plan's number) and only logs the time (+~3 s) — where: G.6
+- default: assertions from design.md beyond the plan's list — focus stays on the control used (Previous, the Month and Week radios, the date field), R18 focus on Next, 8 px clearance from the pinned columns, a refused day given back on blur, extra clamps `?week=2999-12-31` and `month=2999-01` — where: G.2–G.5
+- default: hoursFixtures.ts and hoursOwnersFixtures.ts untouched; helpers are local to the spec — where: shell/e2e/hours-in-place.spec.ts
+- assumption: G.5's pinned-column check assumes the live shell carries `DataTable` `pin` (true here, the shell compiles operai-ui from source); an older shell would fail G.5 by design — where: G.5
+- observation: a one-off entry-count script left one stray `hip-admin-*@operai.test` user in the local dev auth DB (its run id was lost before cleanup was added); harmless; every other per-run person was cleaned, and whose=all entries since 2026-09-01 were 1272 before and after the run
+- observation: D25's straddling-current-week case cannot occur on 2026-11-19 (Monday 16 Nov); only unit tests pin it; e2e covers the Monday rule on a past straddling week (Thu 1 Oct 2026 → September)
+- observation: T26's L1 (a long row label can hide the month's days) is not covered by any e2e step
