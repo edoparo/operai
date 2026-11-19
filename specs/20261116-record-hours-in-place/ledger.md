@@ -152,3 +152,83 @@ Decided:
   hint and a refused save's alert is not part of this feature's gate; the roles, texts, `aria-hidden` and focus stay
   verified by the unit and e2e tests, the readback is a follow-up (design.md § Amendment 2026-11-19) — user chose
   removing it from the design over running the five-step VoiceOver check (recommended), 2026-11-19
+
+
+## Decision ledger — table view: week and month (grilled 2026-11-19)
+
+Target: specs/20261116-record-hours-in-place/spec.md, reopened (D22). The user's asks, after using the Week view: "il
+passaggio tra list e week ridimensiona la pagina con un brutto effetto", "non c'è un datepicker per il cambio di
+settimana", "sarebbe utile avere anche una vista mensile, sempre con un datepicker per la selezione", "rimuovi il bottone
+`+` su una cella vuota". Grilled first as a free-form idea (`.forge/grill/my-hours-calendar-views.md`, now folded in
+here and removed); renumbered from D15 so no number repeats an earlier section's.
+
+Map (all closed): month shape (D15) · page width (D16) · empty cells (D17) · date field (D18, D20) · views and default
+(D19, D23) · where the change lands (D21, D22) · Next (D24).
+
+Decided (the user chose):
+- D15 Month: the Week's grid over one calendar month — a row per project, deal, meeting and category of other work held
+  that month, a column per day of the month (28–31), row, day and month totals, the same rows, cells and cell dialog as
+  the week; it scrolls sideways where the month does not fit — user chose the recommended "Foglio ore" over a classic
+  Monday-to-Sunday calendar (fits, but no split by project) and a per-week summary (no day detail), 2026-11-19
+- D16 Every hours page uses the full page width (My hours in either view and period, Everyone's hours, Settings), so
+  neither a view switch nor a tab change resizes the page — user chose the recommended option over full width for My
+  hours only (the jump stays between tabs) and 80rem everywhere (drops C1); accepted cost: long lines for the List and
+  the Settings forms on very wide screens, 2026-11-19
+- D17 An empty cell is not a control, in the week and the month: no plus, no action; hours are recorded with Record
+  hours or with Add hours in the list of a cell that holds hours — user chose this over the whole empty cell as a button
+  with no icon (recommended) and a plus shown only on hover or focus; withdraws AC-5.12, 2026-11-19
+- D18 The week and the month each offer a date field (the date input hours-ui's filters already use) beside previous /
+  current / next: choosing a day shows the week or the month that holds it — user chose the recommended option over a
+  new calendar component in the design system (week highlighted, month picked directly) and a month + year select for
+  the month, 2026-11-19
+- D19 Week and month are one view, the table view, with a choice of period; the List is a different view; My hours opens
+  on the table view — the user, correcting the assumption "List | Week | Month, opening on the List": "week e month sono
+  accomunate, la vista a lista è proprio una cosa diversa, inoltre la vista tabellare (settimana / mese) deve essere la
+  default"; reverses AC-5.1 and the non-goal "Opening My hours on the Week view", 2026-11-19
+- D20 The date field reaches only the current period and past ones, never a future day — the user, correcting the
+  assumption "any day, a future one included": "no, corrente e passati", 2026-11-19
+- D21 The change amends this spec, no follow-up spec — the user, correcting the assumption "a new spec that depends on
+  this one": "modifica la spec attuale, non crearne un'altra", 2026-11-19
+- D22 The feature is reopened on purpose: the close commit 29c97359 is reverted (9ab6b879), status back to
+  `in-progress`; PR #11 is a draft and not merged, so nothing has shipped, and the earlier close stays in git history
+  and in run trace 2026-11-19T07-40-00Z; spec, plan and design are amended and re-approved, tasks re-synced, then
+  implement, QE, security, eval and /wellforge:done again — user chose the recommended option over a follow-up spec that
+  would keep this one done (WellForge refuses a reopening by editing the status; a revert is its sanctioned way),
+  2026-11-19
+- D23 The table view opens on the week, the current one — user chose the recommended option over the month (it scrolls
+  below ~1500 px) and the last period used, 2026-11-19
+- D24 Next stops at the current period: on the current week or month it moves nowhere, and an address naming a future
+  period opens the current one — user chose the recommended option over Next reaching future, empty periods; amends
+  AC-5.5 and design S7's "Next week is always offered" and its "not started" state, 2026-11-19
+
+Found (read from the repo, not asked):
+- MF1 The jump is the column width: hours-ui's root layout gives My hours' List the design system's `default` width
+  (80rem) and the Week `wide` (full width), per C1 (2026-11-16) — `hours-ui/src/components/HoursShell.tsx`
+- MF2 This spec was `done` (29c97359) with PR #11 a draft; WellForge's post-spec-guard refuses moving a closed spec's
+  status backwards by edit and names a revert of the closing commit as the way for a close made too early
+- MF3 The week's address is `?view=week&week=<Monday>`; the navigator offers previous / this week / next only (AC-5.5)
+- MF4 The design system has a date input (the browser's own), used by hours-ui's filters and entry dialog; it has no
+  week or month picker
+- MF5 The plus on an empty cell was deliberate (design.md S7: hover does not exist on a phone, a hidden control is not
+  discoverable); AC-5.12 required an empty cell to open the entry dialog
+- MF6 ADR 20261116-week-view-sums-a-complete-read-in-the-browser allows browser sums over one complete read of a bounded
+  span for the Week view only; the month summed the same way amends it
+- MF7 The complete read walks `GET /time-entries` in pages of 500 (`hours-ui/src/lib/exportPages.ts`)
+
+Assumed (not load-bearing; strike any that is wrong):
+- MA1 The month's cells behave as the week's: a cell that holds hours opens the same list (entries, Edit, Delete, Add
+  hours on today or earlier); an empty cell does nothing (D15, D17)
+- MA2 The List, the table view's week and its month each have an address of their own, opened directly; the words
+  naming the table view and its periods are the designer's
+- MA3 The month offers the previous month, the next month up to the current one (D24) and a return to the current month
+- MA4 The month applies the same filters as the week, kept when switching view or period
+- MA5 The month's figures are summed in the browser from one complete, all-or-nothing read of that month, as the week's:
+  a failed page is an error, never a partial grid (MF6; the plan's to write)
+- MA6 Switching period keeps the time in view: week to month shows the month of the week's Monday; month to week shows
+  the current week when it falls in that month, otherwise the month's first week
+- MA7 Everyone's hours gets no table view; it only follows D16's width
+- MA8 Where the month does not fit, its table scrolls sideways with the week's scroll hint; every day of the month is a
+  column, weekends included, with no target or comparison (WA2)
+- MA9 Tier `production`, unchanged
+
+Open: none.
