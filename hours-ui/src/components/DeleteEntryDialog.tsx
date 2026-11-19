@@ -79,7 +79,8 @@ export default function DeleteEntryDialog({ entry, onConfirm, onCancel }: Delete
       onCancel={onCancel}
       testIdPrefix="hours-entry-delete-dialog"
     >
-      <div ref={body}>
+      {/* The sentence names the record (up to 200 characters with no break in it): it wraps inside the dialog (QE pass 4 D1). */}
+      <div ref={body} className="break-words">
         {t.body(formatDuration(entry.minutes * 60_000, { style: 'short' }), named(entry.on), formatDate(entry.day))}
       </div>
     </ConfirmDialog>

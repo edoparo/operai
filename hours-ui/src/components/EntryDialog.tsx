@@ -107,7 +107,8 @@ const INERT = 'aria-disabled:cursor-not-allowed aria-disabled:opacity-60'
 /**
  * The sentence under the title of a dialog whose target is fixed (design S4): what the hours are being recorded on,
  * the name set apart. A name the host could not give reads "this project" / "this deal"; other work is the task
- * about no deal (A3). It is the dialog's accessible description, so it is read as the dialog opens.
+ * about no deal (A3). It is the dialog's accessible description, so it is read as the dialog opens. The name is the
+ * record's owner's, up to 200 characters with no break in it: it wraps inside the dialog (QE pass 4 D1).
  */
 const fixedDescription = (on: EntryPreset['on']): ReactNode => {
   const t = strings.entry.fixed
@@ -117,7 +118,7 @@ const fixedDescription = (on: EntryPreset['on']): ReactNode => {
     ) : (
       <>
         {sentence.lead}
-        <span className="font-medium text-text">{name}</span>
+        <span className="font-medium break-words text-text">{name}</span>
         {sentence.trail}
       </>
     )

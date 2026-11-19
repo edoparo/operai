@@ -58,7 +58,15 @@ export default function TableCellDialog({ row, cell, day, onEdit, onDelete, onAd
   return (
     <Dialog
       size="lg"
-      title={strings.table.cellDialog.title(strings.entries.type[row.kind], rowLabel(row))}
+      // The row's name is a project's, a deal's or a meeting's title, up to 200 characters and no break in it. The library's
+      // header is a flex row whose heading is a flex item sized by its longest unbreakable run, so an unwrapped name pushes
+      // the × out of the window (QE pass 4 D1). `wrap-anywhere` lets the heading shrink to the dialog and break only a run
+      // that does not fit on a line of its own: an ordinary name stays whole.
+      title={
+        <span className="wrap-anywhere">
+          {strings.table.cellDialog.title(strings.entries.type[row.kind], rowLabel(row))}
+        </span>
+      }
       description={strings.table.cellDialog.description(
         longDay(day),
         cell.entries.length,

@@ -124,7 +124,13 @@ function RecordHoursButton(props: RecordHoursProps) {
         className={placement === 'page' ? 'max-w-sm' : 'basis-full'}
         data-testid="hours-record-hours-message"
       >
-        <span data-testid="hours-record-hours-recorded">{recorded}</span>{' '}
+        {/* The name is the host's record's (up to 200 characters, no break in it) and the message sits in the host's header, whose
+            width is what is left of the window. `wrap-anywhere`, not `break-words`: the box is shrunk to that width by its
+            ancestors' minimum content, which only `anywhere` lowers, so a long name no longer holds the box at its cap past a
+            phone's edge and across the button it answers; an ordinary name still wraps at its spaces (QE pass 4 D1). */}
+        <span className="wrap-anywhere" data-testid="hours-record-hours-recorded">
+          {recorded}
+        </span>{' '}
         <a
           className="link"
           href={MY_HOURS_PATH}

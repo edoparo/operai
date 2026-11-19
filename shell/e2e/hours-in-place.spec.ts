@@ -43,7 +43,13 @@
  *       G.7 a project named with 200 unbroken characters (the bound of a name) does not hide the month's days behind the
  *           pinned label column: the first day's button is hit-testable and the last day's header clears the pins, by
  *           scrolling and by keyboard, and the week, which draws the same label, still fits its region (AC-5.34,
- *           owasp-report L1).
+ *           owasp-report L1);
+ *       G.8 the same name (200 unbroken characters, and an ordinary long one) in the cell dialog, the delete confirmation
+ *           opened from it, the List's row, the Record hours dialog and the message that follows its save, on the page's
+ *           header and on a task's row (whose subject is as long): it stays inside
+ *           its box, every control (the ×, the buttons, the host's Record hours) is inside the window and on top, and an
+ *           ordinary name keeps its words whole (QE pass 4, D1). G.3 also offers the date field next Monday and the 1st
+ *           of next month, so a future day is refused whatever today is (QE pass 4, O3).
  *
  * Needs the stack up (`mise run dev`) with the specs/20261112-time-tracking and specs/20261110-activities wiring (see the
  * headers of hours-owners.spec.ts and activities-crm.spec.ts). Against the dev stack Playwright reuses the servers when
@@ -1090,6 +1096,88 @@ async function deleteAllQuietly(session: SeededSession, from: string): Promise<v
   }
 }
 
+// ─── A name that does not fit (QE pass 4, D1) ────────────────────────────────
+
+/**
+ * What leaves `container`'s box sideways: the elements whose rectangle does, and the ones whose own text runs past their right
+ * edge (a block holding a run of text with no break in it is as wide as the run, which its `scrollWidth` says and its rectangle
+ * does not). Visually hidden text (a 1 px clip) is not drawn and is not counted. An empty list is the answer.
+ */
+async function spillsOf(container: Locator): Promise<string[]> {
+  return container.evaluate((root) => {
+    const frame = root.getBoundingClientRect()
+    const found: string[] = []
+    if (root.scrollWidth > root.clientWidth + 1)
+      found.push(`the box itself holds ${root.scrollWidth} px of content in ${root.clientWidth} px`)
+    for (const element of Array.from(root.querySelectorAll<HTMLElement>('*'))) {
+      const box = element.getBoundingClientRect()
+      if (box.width <= 1 && box.height <= 1) continue
+      const what = `${element.tagName.toLowerCase()}${element.dataset['testid'] ? `[${element.dataset['testid']}]` : ''}`
+      if (box.left < frame.left - 1 || box.right > frame.right + 1)
+        found.push(
+          `${what} spans ${Math.round(box.left)}–${Math.round(box.right)} px, outside ${Math.round(frame.left)}–${Math.round(frame.right)} px`,
+        )
+      else if (element.clientWidth > 1 && element.scrollWidth > element.clientWidth + 1)
+        found.push(`${what} holds ${element.scrollWidth} px of text in ${element.clientWidth} px`)
+    }
+    return found
+  })
+}
+
+/**
+ * The words of the text inside `locator` that a line break falls inside. A word is a run of characters with no space and no
+ * hyphen (a hyphen is a place a line may end); a word shown whole is one rectangle, a word broken across lines is two. An
+ * ordinary name must come out empty: only a run wider than its box may be broken.
+ */
+async function brokenWordsOf(locator: Locator): Promise<string[]> {
+  return locator.evaluate((root) => {
+    const broken: string[] = []
+    const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT)
+    for (let node = walker.nextNode(); node; node = walker.nextNode()) {
+      for (const word of (node.textContent ?? '').matchAll(/[^\s-]+/g)) {
+        const range = document.createRange()
+        range.setStart(node, word.index)
+        range.setEnd(node, word.index + word[0].length)
+        if (range.getClientRects().length > 1) broken.push(word[0])
+      }
+    }
+    return broken
+  })
+}
+
+/**
+ * What stops each control from being used, by name: not inside the window sideways, or covered at its centre (the element on
+ * top there is not the control or something inside it). Empty when every control can be pressed. The ancestors that scroll
+ * vertically are moved to the control's row first, and only those: `scrollIntoView` would also scroll a box sideways, which
+ * is exactly what a control pushed out of the window needs, and would hide the defect (G.7's hit test does the same).
+ */
+async function unreachableOf(controls: Record<string, Locator>): Promise<string[]> {
+  const problems: string[] = []
+  for (const [name, control] of Object.entries(controls)) {
+    const problem = await control.evaluate((element) => {
+      for (let node = element.parentElement; node; node = node.parentElement) {
+        if (node.scrollHeight <= node.clientHeight || !/(auto|scroll)/.test(getComputedStyle(node).overflowY)) continue
+        const frame = node.getBoundingClientRect()
+        const at = element.getBoundingClientRect()
+        node.scrollTop += at.top + at.height / 2 - (frame.top + node.clientHeight / 2)
+      }
+      // A link that wraps onto two lines is two boxes, and the centre of the one rectangle around both can be blank: each
+      // fragment is held to the window, and the first one is what is pressed.
+      const boxes = Array.from(element.getClientRects())
+      const outside = boxes.find((box) => box.left < 0 || box.right > window.innerWidth)
+      if (outside !== undefined)
+        return `is at ${Math.round(outside.left)}–${Math.round(outside.right)} px in a ${window.innerWidth} px window`
+      const box = boxes[0] ?? element.getBoundingClientRect()
+      const top = document.elementFromPoint(box.left + box.width / 2, box.top + box.height / 2)
+      return top !== null && (top === element || element.contains(top))
+        ? null
+        : `is covered at its centre by ${top === null ? 'nothing' : top.tagName.toLowerCase()}`
+    })
+    if (problem !== null) problems.push(`${name} ${problem}`)
+  }
+  return problems
+}
+
 const gRunId = newRunId()
 /** This month, and last month: the one the journey's entries are in. */
 const thisMonth = monthKey(today)
@@ -1099,6 +1187,14 @@ const midLastMonth = `${lastMonth}-15`
 const firstOfLastMonth = `${lastMonth}-01`
 const lastOfLastMonth = `${lastMonth}-${String(lengthOfMonth(lastMonth)).padStart(2, '0')}`
 const tomorrow = addDays(today, 1)
+/**
+ * The days after today that G.3 offers the date field. Tomorrow is inside the period being shown on most days (a Thursday's
+ * tomorrow is in the same week and the same month), so a field that accepted it would navigate nowhere and tomorrow alone
+ * could not fail on those days (QE pass 4, O3). Next Monday is always in another week and the 1st of next month always in
+ * another month, whatever today is: in either period one of them is outside it, so a field that took a future day would
+ * show or ask for another period on any day the suite runs.
+ */
+const futureDays = [...new Set([tomorrow, addDays(currentMonday, 7), `${shiftMonth(thisMonth, 1)}-01`])]
 
 test.describe('specs/20261116-record-hours-in-place T24: the table view — addresses, week and month, the date field, widths', () => {
   test.describe.configure({ mode: 'serial' })
@@ -1114,6 +1210,8 @@ test.describe('specs/20261116-record-hours-in-place T24: the table view — addr
   let beta: ProjectRow
   /** Everything `gper` recorded, as the grid must say it. */
   let gSeeded: Seeded[]
+  /** G.8's task (its subject is a 200-character name): deleted afterwards, as the first describe's tasks are. */
+  let g8TaskId: string | undefined
 
   const alphaKey = (): string => `project:${alpha.id}`
   const betaKey = (): string => `project:${beta.id}`
@@ -1150,6 +1248,10 @@ test.describe('specs/20261116-record-hours-in-place T24: the table view — addr
   })
 
   test.afterAll(async () => {
+    if (gAdmin && g8TaskId)
+      await apiCall(ACTIVITIES_API_URL, gAdmin, 'DELETE', `/activities/${encodeURIComponent(g8TaskId)}`).catch(
+        () => undefined,
+      )
     for (const person of [gper, heavy, wide, gAdmin]) if (person) await deleteAllQuietly(person, firstOfLastMonth)
     await cleanupPeople(gRunId)
   })
@@ -1359,14 +1461,22 @@ test.describe('specs/20261116-record-hours-in-place T24: the table view — addr
       await expect(field).toHaveValue(today)
 
       // AC-5.31: a day after today, however it got there, shows nothing new and reads nothing; the field gives the period's
-      // own day back once it loses the keyboard.
-      tableReads.length = 0
-      await field.fill(tomorrow)
-      await page.waitForTimeout(500)
-      expect(tableReads, 'a day after today asks nothing of hours-api').toEqual([])
-      await expect(heading).toHaveText(periodHeading(current))
-      await field.blur()
-      await expect(field).toHaveValue(today)
+      // own day back once it loses the keyboard. Tomorrow, next Monday and the 1st of next month: at least one of them is in
+      // another period than the one shown, on any day (QE pass 4, O3), so the step fails for a field that accepts a day
+      // after today whatever today is, and the address is asked about as well as the heading and the reads.
+      const shownAt = page.url()
+      for (const future of futureDays) {
+        tableReads.length = 0
+        await field.fill(future)
+        await page.waitForTimeout(500)
+        expect(tableReads, `${future}, a day after today, asks nothing of hours-api`).toEqual([])
+        await expect(heading, `${future}, a day after today, shows the period it was on`).toHaveText(
+          periodHeading(current),
+        )
+        expect(page.url(), `${future}, a day after today, leaves the address as it was`).toBe(shownAt)
+        await field.blur()
+        await expect(field).toHaveValue(today)
+      }
 
       // AC-5.30: a day of last month, picked (the value the native picker writes), shows the period holding it, at once.
       await field.fill(midLastMonth)
@@ -1779,5 +1889,221 @@ test.describe('specs/20261116-record-hours-in-place T24: the table view — addr
       .soft(await hitBy(longCell(midLastMonth)), "the week's cell is on top at its centre")
       .toBe(`${longKey}:${midLastMonth}`)
     await ctx.close()
+  })
+
+  // ─── G.8 ──────────────────────────────────────────────────────────────────
+
+  test('G.8: a 200-character name stays inside the cell dialog, the delete confirmation, the Record hours dialog and its message, with every control on screen; an ordinary name keeps its words whole (QE pass 4, D1)', async ({
+    browser,
+  }) => {
+    // The same input as G.7 and the same bound: a name written by the record's owner, up to 200 characters, with no space, no
+    // hyphen and no slash. It is printed in the Week's and the Month's cell dialog (the title, the entry's link), in the
+    // delete confirmation opened from it, in the description of the Record hours dialog and in the message that follows its
+    // save, which sits in the host page's header. Each of them sizes to its content unless told otherwise, so an unwrapped
+    // name pushed the cell dialog's × to x = 3,760 px of a 1,280 px window, and the message past a phone's edge and across the
+    // Record hours button it answers. A name that does fit is the other half: the fix must not break an ordinary word.
+    const digits = gRunId.replace(/\D/g, '')
+    const longName = `HipDlg${digits}`.padEnd(200, 'W')
+    expect(longName).toMatch(/^[A-Za-z0-9]{200}$/)
+    const ordinaryName = `Hip Internationalisation roadmap for the regional wholesale distribution platform ${gRunId}`
+    // The entry the long name's cell holds points at a task named the same way: the task's subject is printed on the entry's
+    // own line (the cell dialog, the List), written by whoever made the task, up to the same bound.
+    const taskSubject = `HipTask${digits}`.padEnd(200, 'T')
+    const made = async (name: string, subject?: string): Promise<{ project: ProjectRow; taskId?: string }> => {
+      const project = await setTeamViaApi(gAdmin, await createProjectViaApi(gAdmin, name), [wide.userId])
+      let taskId: string | undefined
+      if (subject !== undefined) {
+        await createTaskViaApi(gAdmin, { subject, projectId: project.id, assigneeUserId: wide.userId })
+        taskId = await findProjectTaskId(gAdmin, project.id, subject)
+      }
+      await createEntryViaApi(wide, {
+        day: today,
+        minutes: 60,
+        on: { type: 'project', id: project.id },
+        ...(taskId === undefined ? {} : { activityId: taskId }),
+      })
+      return { project, ...(taskId === undefined ? {} : { taskId }) }
+    }
+    const { project: longProject, taskId: longTaskId } = await made(longName, taskSubject)
+    g8TaskId = longTaskId
+    const { project: ordinaryProject } = await made(ordinaryName)
+
+    // The Week at 1280 px, the Month at 375 px (the shell's rail collapsed: on a phone it does not collapse by itself, which is the
+    // shell's own matter, so a 98 px card says nothing about these dialogs), and an ordinary name at 375 px, where it wraps.
+    const runs = [
+      {
+        label: 'a 200-character name, 1280 px, week',
+        name: longName,
+        project: longProject,
+        view: 'week',
+        width: 1280,
+        height: 800,
+      },
+      {
+        label: 'a 200-character name, 375 px, month',
+        name: longName,
+        project: longProject,
+        view: 'month',
+        width: 375,
+        height: 812,
+      },
+      {
+        label: 'an ordinary name, 375 px, week',
+        name: ordinaryName,
+        project: ordinaryProject,
+        view: 'week',
+        width: 375,
+        height: 812,
+      },
+    ] as const
+
+    for (const run of runs) {
+      const ctx = await gContext(browser, wide, { width: run.width, height: run.height })
+      if (run.width < 768) await ctx.addInitScript(() => localStorage.setItem('operai_sidebar_collapsed', 'true'))
+      const page = await ctx.newPage()
+      const ordinary = run.name === ordinaryName
+      // No spill, and every control usable, in one place for each placement, all reported at once (soft).
+      const fits = async (placement: string, box: Locator): Promise<void> => {
+        expect.soft(await spillsOf(box), `${run.label}: ${placement} stays inside its box`).toEqual([])
+        if (ordinary)
+          expect.soft(await brokenWordsOf(box), `${run.label}: ${placement} breaks no ordinary word`).toEqual([])
+      }
+      const usable = async (placement: string, controls: Record<string, Locator>): Promise<void> => {
+        expect
+          .soft(await unreachableOf(controls), `${run.label}: ${placement}, every control can be pressed`)
+          .toEqual([])
+      }
+
+      // 1. The cell dialog, from today's cell (the keyboard opens it, as G.7's cells are reached): its title, the entry's link,
+      //    Edit, Delete, Close and Add hours.
+      await page.goto(run.view === 'week' ? '/hours' : '/hours?view=month')
+      await expect(page.getByTestId('hours-table-table')).toBeVisible({ timeout: 30_000 })
+      const todayCell = cell(page, `project:${run.project.id}`, today)
+      await expect(todayCell).toBeVisible({ timeout: 30_000 })
+      await todayCell.focus()
+      await page.keyboard.press('Enter')
+      const dialog = page.getByRole('dialog')
+      await expect(dialog).toBeVisible()
+      // The name is printed in full, wrapped and never cut.
+      await expect(dialog.locator('.dialog-title')).toContainText(run.name)
+      if (!ordinary) await expect(dialog).toContainText(taskSubject)
+      // (A second run on the same project finds the entry its first run recorded: every entry has the link.)
+      await expect(dialog.getByRole('link', { name: run.name }).first()).toBeVisible()
+      const closeBox = await boxOf(dialog.getByTestId('hours-table-cell-close'))
+      const titleBox = await boxOf(dialog.locator('.dialog-title'))
+      console.log(
+        `[D1] G.8 ${run.label}: the cell dialog's title is ${Math.round(titleBox.width)} px wide and its × at x = ${Math.round(closeBox.x)} ` +
+          `in a ${run.width} px window`,
+      )
+      await fits('the cell dialog', dialog)
+      await usable('the cell dialog', {
+        'the ×': dialog.getByTestId('hours-table-cell-close'),
+        'the entry link': dialog.getByRole('link', { name: run.name }).first(),
+        Edit: dialog.getByRole('button', { name: /^Edit / }).first(),
+        Delete: dialog.getByRole('button', { name: /^Delete / }).first(),
+        Close: dialog.getByTestId('hours-table-cell-done'),
+        'Add hours': dialog.getByTestId('hours-table-cell-add'),
+      })
+
+      // 2. The delete confirmation opened from the cell: the sentence, and its three controls.
+      await dialog
+        .getByRole('button', { name: /^Delete / })
+        .first()
+        .click()
+      const confirmation = page.getByRole('alertdialog')
+      await expect(confirmation).toBeVisible()
+      await expect(confirmation).toContainText(run.name)
+      await fits('the delete confirmation', confirmation)
+      await usable('the delete confirmation', {
+        'the ×': confirmation.getByRole('button', { name: 'Close' }),
+        Cancel: confirmation.getByRole('button', { name: 'Cancel' }),
+        'Delete entry': confirmation.getByRole('button', { name: 'Delete entry' }),
+      })
+      await confirmation.getByRole('button', { name: 'Cancel' }).click()
+      await expect(confirmation).toHaveCount(0)
+      await page.keyboard.press('Escape')
+      await expect(dialog).toHaveCount(0)
+
+      // 3. The List shows the same entry with the same row: the name, and for the long name the task's subject.
+      await page.goto('/hours?view=list')
+      const entries = page.getByTestId('hours-entries')
+      await expect(entries.getByRole('link', { name: run.name }).first()).toBeVisible({ timeout: 30_000 })
+      if (!ordinary) await expect(entries).toContainText(taskSubject)
+      // The List holds all of the person's entries of the day, the long name's rows included: an ordinary name is judged on its
+      // own row (a 200-character run is one "word", and it is meant to be broken).
+      await fits('the List', ordinary ? entries.getByRole('listitem').filter({ hasText: run.name }) : entries)
+
+      // 4. The Record hours dialog from the project's page: its description, and its three controls.
+      await openProject(page, run.project)
+      await pageRecordHours(page).click()
+      const widget = hoursDialog(page)
+      await expect(widget).toBeVisible({ timeout: 30_000 })
+      await expect(widget).toContainText(`Recording hours on the project ${run.name}.`)
+      await fits('the Record hours dialog', widget)
+      await usable('the Record hours dialog', {
+        'the ×': widget.getByRole('button', { name: 'Close' }),
+        Cancel: widget.getByRole('button', { name: 'Cancel' }),
+        'Save entry': widget.getByRole('button', { name: 'Save entry' }),
+      })
+
+      // 5. The message after the save, in the host's header, and the host's own Record hours button beside it.
+      await widget.getByTestId('hours-entry-duration').fill('1')
+      await widget.getByTestId('hours-entry-dialog-submit').click()
+      await widget.waitFor({ state: 'detached', timeout: 30_000 })
+      const message = page.getByTestId('hours-record-hours-message')
+      await expect(message).toContainText(`1 h recorded on ${run.name}.`)
+      const messageBox = await boxOf(message)
+      console.log(
+        `[D1] G.8 ${run.label}: the message is at x = ${Math.round(messageBox.x)}–${Math.round(messageBox.x + messageBox.width)} ` +
+          `in a ${run.width} px window`,
+      )
+      await fits('the success message', message)
+      await usable('the success message', {
+        'the message': message,
+        'See in My hours': message.getByRole('link'),
+        'the message’s ×': page.getByTestId('hours-record-hours-dismiss'),
+        'the host’s Record hours': pageRecordHours(page),
+      })
+
+      // 6. The same widget on the task's row (the long name's project has a task named the same way): its dialog shows the task's
+      //    subject as a fact, and its message goes in the row, which the host sizes, not in the page's header.
+      if (!ordinary) {
+        const taskRow = page.getByTestId(`project-task-${longTaskId}`)
+        const rowRecord = taskRow.getByRole('button', { name: /^Record hours on / })
+        await rowRecord.click()
+        const taskWidget = hoursDialog(page)
+        await expect(taskWidget).toBeVisible({ timeout: 30_000 })
+        await expect(taskWidget).toContainText(taskSubject)
+        await fits('the Record hours dialog from a task row', taskWidget)
+        await usable('the Record hours dialog from a task row', {
+          'the ×': taskWidget.getByRole('button', { name: 'Close' }),
+          Cancel: taskWidget.getByRole('button', { name: 'Cancel' }),
+          'Save entry': taskWidget.getByRole('button', { name: 'Save entry' }),
+        })
+        await taskWidget.getByTestId('hours-entry-duration').fill('1')
+        await taskWidget.getByTestId('hours-entry-dialog-submit').click()
+        await taskWidget.waitFor({ state: 'detached', timeout: 30_000 })
+        const rowMessage = taskRow.getByTestId('hours-record-hours-message')
+        await expect(rowMessage).toContainText(`1 h recorded on ${run.name}.`)
+        const rowBox = await boxOf(taskRow)
+        const rowMessageBox = await boxOf(rowMessage)
+        console.log(
+          `[D1] G.8 ${run.label}: the task row's message is at x = ${Math.round(rowMessageBox.x)}–${Math.round(rowMessageBox.x + rowMessageBox.width)}, ` +
+            `the row at ${Math.round(rowBox.x)}–${Math.round(rowBox.x + rowBox.width)}`,
+        )
+        // Inside the row the host drew (the row's own text is the host's, and is not judged here).
+        expect
+          .soft(rowMessageBox.x + rowMessageBox.width, `${run.label}: the task row's message ends inside its row`)
+          .toBeLessThanOrEqual(rowBox.x + rowBox.width + 1)
+        await fits("the task row's success message", rowMessage)
+        await usable("the task row's success message", {
+          'the message': rowMessage,
+          'See in My hours': rowMessage.getByRole('link'),
+          'the message’s ×': taskRow.getByTestId('hours-record-hours-dismiss'),
+          'the row’s Record hours': rowRecord,
+        })
+      }
+      await ctx.close()
+    }
   })
 })

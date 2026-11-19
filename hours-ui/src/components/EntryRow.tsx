@@ -44,14 +44,18 @@ const detailName = (entry: TimeEntryView): string | null => {
   return named.retired ? strings.entries.retired(named.name) : named.name
 }
 
-/** Pieces on one meta line, a middle dot between them (the dot is not read). */
+/**
+ * Pieces on one meta line, a middle dot between them (the dot is not read). Each piece is an item of a wrapping flex row, and
+ * an item is never narrower than its longest unbreakable run unless it is told it may be: `min-w-0` lets a piece that is
+ * a name of 200 characters with no break shrink to the row and wrap there (`break-words` alone does not).
+ */
 function MetaLine({ pieces }: { pieces: (string | null)[] }) {
   const shown = pieces.filter((piece): piece is string => piece !== null)
   if (shown.length === 0) return null
   return (
     <p className={cx(listRowMetaClassName, 'flex flex-wrap gap-x-2')}>
       {shown.map((piece, index) => (
-        <span key={index} className="break-words">
+        <span key={index} className="min-w-0 break-words">
           {index > 0 && (
             <span aria-hidden="true" className="mr-2">
               ·
@@ -85,13 +89,15 @@ export default function EntryRow({ entry, onEdit, onDelete, autoFocusEdit = fals
       <div className="flex min-w-0 flex-1 basis-60 flex-col gap-1">
         <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
           <Badge>{strings.entries.type[entry.on.type]}</Badge>
+          {/* The name is written by the record's owner (up to 200 characters, no break in it): `min-w-0` lets this flex item shrink
+              to the row and `break-words` wrap it there, in the List's card and in the Week's cell dialog alike (QE pass 4 D1). */}
           {name !== null &&
             (name.href !== null ? (
-              <a href={name.href} className="link text-sm break-words">
+              <a href={name.href} className="link min-w-0 text-sm break-words">
                 {name.text}
               </a>
             ) : (
-              <span className="text-sm break-words">{name.text}</span>
+              <span className="min-w-0 text-sm break-words">{name.text}</span>
             ))}
         </div>
         <MetaLine pieces={[detailName(entry), activityLine(entry.activity)]} />
