@@ -373,6 +373,11 @@ indeterminate). Use the plain `<input type="checkbox">` with a `<label>`.
   added"), `numeric` columns right-aligned in DM Mono with tabular figures, a
   keyboard-scrollable region when wide. It never formats, sorts or paginates;
   the cell text carries its own currency.
+- **Pinning:** `pin: 'start' | 'end'` on a column keeps it in view at that edge while a wide table scrolls
+  sideways (the row's name at the start, its total at the end), from 48 rem up; below that, and in a shell that
+  predates the prop, it scrolls like the others. At most one column per edge. Use it only on a table that always
+  scrolls (a month of days); a table that fits does not need it. Keep the pinned cells to text: keyboard focus on a
+  control inside one scrolls the table (D-69).
 - **Sorting:** mark a column `sortable` and give the table `sort` + `onSortChange`.
   The header becomes a button and the `th` carries `aria-sort`; a first click
   sorts ascending (`firstSortDirection: 'desc'` for dates and amounts), a second
