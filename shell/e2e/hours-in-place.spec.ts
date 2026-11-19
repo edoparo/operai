@@ -115,6 +115,24 @@ async function openDeal(page: Page, deal: DealRow): Promise<void> {
   await expect(page.getByTestId('crm-activity-card')).toBeVisible({ timeout: 30_000 })
 }
 
+/**
+ * Waits until a "this person is offered no Record hours" assertion (A and B) can mean something. Not
+ * `waitForLoadState('networkidle')`: the shell's notification stream (the SSE from notify-api) keeps a request open for
+ * the whole session, so the network never goes idle (estimai-import.spec.ts and its siblings say the same). Two things
+ * must hold, and neither is the network:
+ *  - the session has answered. A host offers the button only to a person it can name (`mayRecordOnProject`,
+ *    `mayRecordOnDeal` and `mayRecordOnTask` are all false while `useSession()` holds no id), so until then a count of 0
+ *    would be true for anybody. The shell's header draws the person's menu from that same session store, and only
+ *    once it holds the person: the menu is the proof.
+ *  - the seam has had its chance. The button is hours-ui's widget, reached through `shell/extensions` and a federated
+ *    remote after the page has drawn, so one that wrongly appeared would come some time after the page did. A negative
+ *    cannot wait for the thing it expects never to happen, so a fixed grace bounds that.
+ */
+async function recordHoursSettled(page: Page): Promise<void> {
+  await expect(page.getByTestId('user-menu-trigger')).toBeVisible({ timeout: 30_000 })
+  await page.waitForTimeout(1_500)
+}
+
 /** The header's Record hours (a task row's button is named "Record hours on <task>", so the exact name is the page's). */
 const pageRecordHours = (page: Page): Locator => page.getByRole('button', { name: 'Record hours', exact: true })
 
@@ -302,12 +320,12 @@ test.describe('specs/20261116-record-hours-in-place T13: record hours in place, 
     const readerCtx = await personContext(browser, reader)
     const readerPage = await readerCtx.newPage()
     await openProject(readerPage, project)
-    await readerPage.waitForLoadState('networkidle')
-    await readerPage.waitForTimeout(1_500) // the seam loads after the page: a missing button must stay missing
+    // The task row is on the page before the grace starts, so a button that wrongly came in it has as long as one in the header.
+    await expect(readerPage.getByTestId(`project-task-${projectTaskId}`)).toBeVisible({ timeout: 30_000 })
+    await recordHoursSettled(readerPage) // the seam loads after the page: a missing button must stay missing
     await expect(pageRecordHours(readerPage)).toHaveCount(0)
     await expect(readerPage.getByTestId('record-hours-fallback')).toHaveCount(0)
     // …and no task row of the Tasks card offers it to them either (the task is the member's).
-    await expect(readerPage.getByTestId(`project-task-${projectTaskId}`)).toBeVisible()
     await expect(readerPage.getByTestId(`project-task-${projectTaskId}`).getByTestId('hours-record-hours')).toHaveCount(
       0,
     )
@@ -388,8 +406,7 @@ test.describe('specs/20261116-record-hours-in-place T13: record hours in place, 
     const readerPage = await readerCtx.newPage()
     await openDeal(readerPage, deal)
     await expect(readerPage.getByTestId(`crm-activity-${dealTaskId}`)).toBeVisible({ timeout: 30_000 })
-    await readerPage.waitForLoadState('networkidle')
-    await readerPage.waitForTimeout(1_500)
+    await recordHoursSettled(readerPage)
     await expect(pageRecordHours(readerPage)).toHaveCount(0)
     await expect(readerPage.getByTestId('hours-record-hours')).toHaveCount(0)
     await readerCtx.close()
