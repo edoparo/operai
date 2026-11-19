@@ -22,7 +22,7 @@ Decision ledger: `ledger.md`
 > 9ab6b879): the Week view becomes the **table view**, with a week or a month as its period, and is where My hours
 > opens (AC-5.1 reversed); a date field picks the period; Next stops at the current period (AC-5.5 amended); an
 > empty cell offers nothing (AC-5.12 withdrawn, AC-5.13 and AC-5.24 amended); every hours page uses the full width.
-> New: AC-5.25–AC-5.34. Re-approved by the user 2026-11-19; AC-5.26 settled the same day at the plan gate (D25).
+> New: AC-5.25–AC-5.34. Re-approved by the user 2026-11-19; AC-5.26 settled the same day at the plan gate (D25), AC-5.27 at the design gate (D26).
 
 ## Problem
 
@@ -172,8 +172,9 @@ Unless an AC names one period, it holds for the week and for the month (D15).
   day to its last (D15).
 - AC-5.26 Given a week shown, when the person switches the period to the month, then the current month is shown
   if the week is the current week, and otherwise the month holding that week's Monday (MA6, D25).
-- AC-5.27 Given a month shown, when the person switches the period to the week, then the current week is shown
-  if it falls in that month, and otherwise the week holding the month's first day (MA6).
+- AC-5.27 Given a month shown, when the person switches the period to the week, then the week shown before the
+  month is shown again if it has a day in that month; otherwise the current week if it has a day in that month;
+  otherwise the first week whose Monday is in that month (MA6, D26).
 - AC-5.28 Given the current week or the current month shown, then moving to the next period is unavailable
   (D24).
 - AC-5.29 Given an address naming a week or a month after the current one, when it is opened, then the current

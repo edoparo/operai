@@ -204,6 +204,15 @@ Decided (the user chose):
   past week, the month of its Monday — user chose the recommended option at the plan gate over "always the Monday's
   month" (the current week Mon 30 Nov – Sun 6 Dec 2026, today 2 December, would have shown November); amends AC-5.26,
   2026-11-19
+- D26 Month → Week shows the week the month was reached from when it has a day in that month, else the current week when
+  it has one, else the first week whose Monday is in the month — user chose the recommended option at the design gate
+  over the plan's rule (current week, else the week holding the 1st), which lost the week left (12–18 Oct → October →
+  28 Sep – 4 Oct) and could show a week mostly in the previous month (November 2026 → 26 Oct – 1 Nov); amends AC-5.27,
+  2026-11-19
+- D27 The month's row-label and Total columns stay in view while it scrolls sideways, through a new optional `pin` prop
+  on the design system's table — user chose the recommended option at the design gate over a month with no fixed
+  columns (row names and totals scroll out of sight); a design-system change shipped in the shell before hours-ui,
+  2026-11-19
 
 Found (read from the repo, not asked):
 - MF1 The jump is the column width: hours-ui's root layout gives My hours' List the design system's `default` width

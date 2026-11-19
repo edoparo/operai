@@ -1,11 +1,12 @@
 ---
 spec: 20261116
-status: draft
+status: approved
+approved: 2026-11-19
 ---
 
 # Design: Record hours in place, and a table view of My hours (week and month)
 
-> **Reopened 2026-11-19, back to `draft` for the user's re-approval** (spec reopened, ledger D15–D25, AC-5.1–5.34; plan
+> **Reopened 2026-11-19 and re-approved by the user the same day** (with D26: Month → Week returns to the week left; D27: the `pin` prop accepted) (spec reopened, ledger D15–D25, AC-5.1–5.34; plan
 > § Amendment 2026-11-19). The Week view became the **table view** — a week or a calendar month, My hours' default — with
 > a date field, a Next that stops at the current period, empty cells that offer nothing, and the full width on every hours
 > page. **What this changes is stated in § Amendment 2026-11-19 — the table view: week and month (end of file).** Where an
@@ -923,8 +924,8 @@ a pinned first and last column; scrolled; the toolbar at 1440 and 375 px). Nothi
 2. The card's heading says the period ("Week 16.11.2026 – 22.11.2026"); under it the toolbar: **Period** (Week selected),
    the navigator, the date field showing today.
 3. **Month** (click, or ← / → in the group) shows the month by the plan's rule (AC-5.26, D25): the current month from the
-   current week, the month of the week's Monday from a past one. **Week** shows the week by AC-5.27 (G14, G15 say what that
-   rule does and does not keep). The radio keeps focus; the grid is replaced by the skeleton and the heading, the toolbar
+   current week, the month of the week's Monday from a past one. **Week** shows the week by AC-5.27 as settled by D26: the week the month
+   was reached from, else the current week, else the first week whose Monday is in the month (G14, G15 resolved). The radio keeps focus; the grid is replaced by the skeleton and the heading, the toolbar
    and the date field stay (never-replaced part, plan).
 4. **Previous** steps one period back; **This week / This month** returns to the current one; **Next** steps forward **only
    while the period shown is before the current one**: on the current period it is `aria-disabled` and does nothing (AC-5.5,

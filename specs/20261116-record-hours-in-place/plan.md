@@ -497,6 +497,7 @@ view, week or month" (ADR candidate R3).
 | `HoursFiltersState.ts` | § The address: `readMyHoursAddress`, `withTablePeriod`, `withList`, `withTable`; `clearFilterSearch` and `isFiltered` for the table view in either period. `readView` and `withWeek` are replaced. | AC-5.1, 5.2, 5.4, 5.22, 5.29 |
 | `HoursFilters.tsx` | `showPeriod` false in the table view, either period (the prop exists). | WA5 |
 | `HoursShell.tsx` | `width="wide"` always; no longer reads the route or the address. | AC-5.33 |
+| `operai-ui/src/components/DataTable.tsx` (+ story, test; changeset `@operai/ui` minor) | **Added at the design gate (D27, R12):** an optional `DataTableColumn.pin?: 'start' \| 'end'` — the month's row-label column and its Total column stay in view while the table scrolls, from 48 rem up (ignored below); scroll padding so a focused cell never sits under a pinned one (design.md § the table view). Ships in the shell before hours-ui uses it (ADR 20261114-operai-ui-shared-singleton-provided-by-the-shell): a hours-ui on an older shell passes a prop the live library ignores, so the month shows unpinned until the shell is live — no error. | AC-5.34 |
 | `pages/MyHoursPage.tsx` | Reads the address; one table read keyed by the period's span and the filters; writes the period with `withTablePeriod`; the empty-cell recording path goes (`recordingCell` keeps Add hours only; `rowKeyOf` and the "landed" focus go); `savedMessage` by period; a cell that empties sends focus to the card's heading. | AC-5.1, 5.2, 5.4, 5.13, 5.19–5.22, 5.26–5.30, 5.32 |
 | `strings/week.ts` → `strings/table.ts`, `strings.ts`, `strings.test.ts` (`AREAS`) | § Copy. | AC-4.6 |
 | `lib/exportPages.ts`, `lib/useHoursQuery.ts`, `EntryDialog*`, `EntryRow.tsx`, `DeleteEntryDialog.tsx`, `RecordHours*` | **Unchanged.** "See in My hours" and the hosts' fallbacks keep `/hours`, which is now the current week. | — |
@@ -551,8 +552,9 @@ Reading — `readMyHoursAddress(search, today): { view: 'list' } | { view: 'tabl
 
 Writing (each keeps every other key; a replacing navigation, as today):
 - `withTablePeriod(search, period, today)` — the table view at `period`. Week: `view` and `month` removed; `week` = its
-  Monday, removed when it is the current week. Month: `view=month`; `week` removed; `month` = `YYYY-MM`, removed when it
-  is the current month. Used by the navigator, the period switch and the date field.
+  Monday, removed when it is the current week. Month: `view=month`; `week` **kept as it was** — the week the month was
+  reached from, which Month → Week returns to (AC-5.27, D26) and which only the week reads; `month` = `YYYY-MM`, removed
+  when it is the current month. Used by the navigator, the period switch and the date field.
 - `withList(search, shown: TablePeriod)` — `view=list`. When the month was shown, `month` is written, the current month
   included, and `week` removed, so going back finds the month; when the week was shown, `week` stays as it was and
   `month` is removed (T10's behaviour).
@@ -585,8 +587,9 @@ clamp(p, today): TablePeriod      // a period after the current one → the curr
 switchTo(p, kind, today): TablePeriod
   // week → month: the current month when p is the current week, else the month holding  (AC-5.26, D25)
   //               the week's Monday
-  // month → week: the current week when any of its seven days is in the month,
-  //               else the week holding the month's 1st                                  (AC-5.27)
+  // month → week: the week left (the address's `week`) when any of its days is in the month,
+  //               else the current week when any of its days is in the month,
+  //               else the first week whose Monday is in the month                       (AC-5.27, D26)
   // same kind: p
 referenceDay(p, today): string    // the date field's value: today in the current period, else firstDayOf(p)
 pickBounds(kind, today): { min: string; max: string }
@@ -599,9 +602,11 @@ pickBounds(kind, today): { min: string; max: string }
 - A caller bug (a `monday` that is not a Monday, a malformed `month`, a fractional `n`) is a `TypeError`, as in
   `week.ts` (decisions T8). `switchTo` and `shift(p, -1)` never give a future period; `shift(p, +1)` is called only
   when `hasNext`.
-- **AC-5.27, the reading this plan makes of "falls in that month":** the current week falls in a month when any of its
-  seven days does, so the current week → Month (the current month, AC-5.26) → Week lands on the current week again,
-  and so does the month before when the current week reaches back into it.
+- **AC-5.27, settled at the design gate (2026-11-19, ledger D26):** a week "has a day in" a month when any of its seven
+  days is in it. Month → Week shows, in this order: the week the month was reached from (kept in the address's `week`
+  while the month shows), the current week, the first week whose Monday is in the month (for November 2026, whose 1st
+  is a Sunday, Mon 2 – Sun 8 November, not Mon 26 Oct – Sun 1 Nov). So week → month → week always lands on the week
+  left, past weeks included (design.md G14, G15).
 - **AC-5.26, settled at the plan gate (2026-11-19, ledger D25):** on a current week that straddles two months (Mon 30
   Nov – Sun 6 Dec 2026, today 2 December), Month shows **December**, the month holding today; a past week shows the
   month of its Monday. The spec was amended to say so.
@@ -754,7 +759,7 @@ component cases run for the week and the month (`describe.each(['week', 'month']
 | AC-5.24 (amended) | unit + component | `lib/tableGrid.test.ts` (→ `weekGrid`): `preset: null` for an unreadable row and a retired category; `components/TableCellDialog.test.tsx` (→ `WeekCellDialog`) and `MyHoursPage.cells.test.tsx`: those rows' cell lists have no Add hours, Edit and Delete stay, in both periods |
 | AC-5.25 | unit + component + e2e | `lib/month.test.ts`*: `monthDays` of February 2026 (28), February 2028 (29), November 2026 (30), December 2026 (31), first the 1st, last the last; `tableGrid` over a month: entries on the 1st and the last day land, one on the next month's 1st throws; `components/TableView.test.tsx` (→ `WeekView`): a month draws the row-label column, one column per day and Total; e2e G: the month shown has that many day columns |
 | AC-5.26 | unit + component + e2e | `switchTo(week, 'month')` for a week inside one month, for the current week Mon 30 Nov – Sun 6 Dec 2026 with today 2 December (→ December, D25) and for that week as a past week, today 9 December (→ November); page: the switch writes `view=month` (and `month` unless current) and reads that month's span; e2e G from the current week, expectation computed with the same rule |
-| AC-5.27 | unit + component + e2e | `switchTo(month, 'week')`: the current month → the current week; the month before when the current week reaches into it (today Sunday 1 November 2026: October → the week of Monday 26 October) → the current week; any other month → the week holding its 1st (September 2026 → Monday 31 August); the round trip week → month → week lands on the week left; page and e2e G as AC-5.26 |
+| AC-5.27 | unit + component + e2e | `switchTo(month, 'week', today, left)` (D26): the week left when it has a day in the month (Mon 12 – Sun 18 Oct 2026 → October → back to 12 Oct; Mon 28 Sep – Sun 4 Oct → October → back to it); else the current week when it has a day in the month (the current month; the month before when the current week reaches into it, today Sunday 1 November 2026: October → the week of Monday 26 October); else the first week whose Monday is in the month (November 2026 → Monday 2 November; September 2026 → Monday 7 September); the address keeps `week` while the month shows; page: the round trip week → month → week lands on the week left, past weeks included; e2e G as AC-5.26 |
 | AC-5.28 | unit + component + e2e | `hasNext(current) === false` in both periods; `PeriodNavigator`: Next `aria-disabled="true"` on the current week and month and a press reports nothing (page: address and read unchanged); Next pressed on the period before keeps the focus on Next, now `aria-disabled`; e2e F (week) and G (month) |
 | AC-5.29 | unit + component + e2e | `readWeekParam`: next week, a day of next week, `9999-12-20` → the current week; `readMonthParam`: next month, `9999-12` → the current month; page: `/hours?week=<next Monday>` reads the current week and its Next is `aria-disabled`; e2e G: both addresses |
 | AC-5.30 | unit + component + e2e | `holding('week' \| 'month', day)`; `components/PeriodDateField.test.tsx`*: a complete day of another period reports `holding(kind, day)`, a day of the period shown reports nothing; page: address and read follow, week and month; e2e G: a day of last month picked in each period; a day typed key by key in Chromium (`pressSequentially`) lands on its period (R16) |
@@ -829,7 +834,7 @@ component cases run for the week and the month (`describe.each(['week', 'month']
 | Risk | Mitigation | Early check |
 |---|---|---|
 | R11 The month is wide: about 2,000 px with compact day headers and about 2,800 px with `formatDate` headers (31 × the ~88 px measured on the week, plus label and Total), so it scrolls on almost every screen — wider than the "~1500 px" the ledger assumed (D23) — and a row's name scrolls away from its cells | The design picks a compact month header; a cell keeps its full accessible name (row and date), so a scrolled cell still says what it is; a sticky row-label column is the design's option, R12 | the design measures a 31-day month of 10 rows at 1280, 1440 and 1920 px before tasks; e2e G asserts AC-5.34 at 1280 |
-| R12 A sticky first column, or a compact date formatter, is a change to `@operai/ui` (`DataTable` has no sticky column; the library writes dates as dd.mm.yyyy) | Only if the design asks: an optional `DataTable` prop or a formatter, with a story and a test, shipped in the shell in its own push before hours-ui uses it (ADR 20261114-operai-ui-shared-singleton-provided-by-the-shell; plan R4) | the design's component inventory names it; tasks order it first |
+| R12 A sticky first column, or a compact date formatter, is a change to `@operai/ui` (`DataTable` has no sticky column; the library writes dates as dd.mm.yyyy) | **The design asked and the user accepted (D27):** the optional `DataTableColumn.pin` prop, with a story and a test, in the shell before hours-ui uses it (ADR 20261114-operai-ui-shared-singleton-provided-by-the-shell; plan R4); no date formatter (the design's month header uses `formatNumber`) | its own task, before the month; a real-browser e2e proves a focused cell is never hidden under a pinned column |
 | R13 The month's read is bigger: up to 31 days, maybe several pages, each page's names asked of projects-api, crm-api, meetings-api and activities-api as the person | A bounded span (the ADR's rule); the walk the List's Export already runs for its default period, This month; aborted on every change | e2e G logs the month's first-grid time; an early run with 300 own entries in one past month reports above 800 ms, not fails (time tracking's R2 posture) |
 | R14 Address back-compat: bookmarks of `?view=week&week=`, old List links (`/hours?period=…`), the hosts' fallbacks and "See in My hours" (`/hours`) | `view=week` is read as before; an old List link opens the table on the current week with its `period` kept, one click from the List; `/hours` is the current week, which holds an entry recorded today from a page (one recorded on an earlier day is a Previous or the List away; accepted, the link stays a fixed path, ADR 20261116-record-hours-widget-through-the-host-extension-seam) | the address test's legacy rows; e2e F opens `?view=week`; e2e A follows the link |
 | R15 The reversed default breaks time tracking's e2e (`hours.spec.ts`, `hours-owners.spec.ts`), two journeys of this feature and seven hours-ui page suites, which open `/hours` and expect the List | Named above; changed in the same task as the reversal | run `hours.spec.ts`, `hours-owners.spec.ts`, `hours-in-place*.spec.ts` and the hours-ui suite right after the default flips, before any month work |
@@ -877,8 +882,8 @@ cell is blank or carries a non-interactive mark. design.md text that this plan s
    behaviour change.
 3. The address, the reversed default and the `wide` column, with every List test and time-tracking e2e of R15.
 4. Empty cells inert, Next and Previous availability, the future clamp, "not started" removed, focus to the heading.
-5. The month: `month.ts`, `switchTo`, the period switch, the month's copy. (R12's library addition, if any, before this
-   step, in its own push.)
+5. The month: `month.ts`, `switchTo`, the period switch, the month's copy. (R12's library addition — the `pin` prop, D27
+   — before this step, in its own task; the shell deploys it before hours-ui.)
 6. The date field.
 7. e2e A, F and G; AGENTS.md, infra/README.md, the pending changeset; ADR R3.
 
