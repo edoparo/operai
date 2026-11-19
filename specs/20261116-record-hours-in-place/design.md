@@ -1,6 +1,7 @@
 ---
 spec: 20261116
-status: draft
+status: approved
+approved: 2026-11-19
 ---
 
 # Design: Record hours in place, and a Week view of My hours
@@ -201,7 +202,7 @@ Due 18.11.2026 · Assigned to Anna Rossi
 ### S3 The success message — page and row (AC-4.3, R5)
 
 - **What it is.** A compact `Banner tone="success"` (`role="status"`, polite) rendered by the widget, one at a
-  time per widget (a second save replaces it and restarts its timer).
+  time per widget (a second save replaces it; it has no timer, see Dismissal).
 - **Text.** "<duration> recorded on <name>." — "2 h 30 recorded on Alpenstrom — portale clienti." For other work:
   "2 h 30 recorded on other work: Training." With no name from the host: "… on this project." / "… on this deal."
   Then the link **See in My hours**, inline in the message (a `.link` anchor, design-system rule 4: inline
@@ -292,9 +293,12 @@ Note [                                  ]
   has a field keeps the rule of S2 (the first invalid field is focused; an entity refusal in a dialog that has a
   picker focuses the picker). This is how `EntryDialog` behaves wherever it opens: a page, a task row, a week cell,
   My hours' own button.
-- **Loading / error of the lists.** The dialog opens at once; the Category and Work type selects show S2's "Loading…"
-  hints, then fill; if `GET /time-lists` fails they say "could not be loaded" with **Try again** (S2), and a
-  project / deal entry can still be saved without a work type. Same strings.
+- **Loading / error of the lists.** Pressing Record hours reads the categories and work types first: the button is
+  `busy` until `GET /time-lists` answers, and the dialog opens once it has answered or failed (plan § Components and
+  § Sequences: `getTimeLists()`, then `EntryDialog`; the lists are read on press, so a long task list that mounts many buttons reads nothing until one is used). If the read
+  fails the dialog still opens, the Category and Work type selects say "could not be loaded" with **Try again** (S2),
+  which shows S2's "Loading…" hints while it reads again, and a project / deal entry can still be saved without a work
+  type. Same strings.
 - **Saving.** `busy` on Save, dialog not dismissible, as in the library.
 
 ### S5 The host fallback link (AC-4.5)
@@ -626,8 +630,11 @@ Library in use: **`@operai/ui`** (`operai-ui/`), Tailwind token utilities, TanSt
 | `ViewSwitch` | Binds `Tabs` to the `view` search param and the copy; thin, may stay inline in `MyHoursPage` |
 
 Ratio: **~17 library components and ~10 in-repo pieces reused**, **6 in-repo files extended**, **6 NEW app-level compositions
-(2 of them one thin file per host) and 0 NEW or EXTENDED library components**. None duplicates an existing one;
-`WeekNavigator` and `ViewSwitch` are the two a reviewer may fold away.
+(2 of them one thin file per host) and 0 NEW library components**. None duplicates an existing one;
+`WeekNavigator` and `ViewSwitch` are the two a reviewer may fold away. One library component changed behaviour during
+the fix round, with no new prop: `ListRows` keeps a row by its own `key` instead of by its position, so a success message
+in a task row survives the host list's re-read after a row above it is added or removed (AC-4.3; changeset
+`operai-ui-list-rows-keyed`, amendment below).
 
 ---
 
@@ -822,3 +829,21 @@ focus goes. What is not verified: whether every browser and screen-reader combin
 own caveat above). Follow-up, not scheduled: a person runs the five-step readback in the old qe-report.md script with
 NVDA and VoiceOver and files any defect as a bugfix.
 
+
+## Amendment 2026-11-19 — design text brought in line with the build
+
+Approved by the user on 2026-11-19, with the stale lines the eval found (`eval-report.md` § Design fidelity, (b)–(d),
+and § Spec fidelity, (a) and (e)) corrected to what was built and verified:
+- **S3.** The success message has no timer since G1 (plan amendment 2026-11-17); a second save replaces it. The sentence
+  that said a second save "restarts its timer" now says it has none.
+- **S4.** The dialog does not open at once: the button is `busy` while the categories and work types are read, and the
+  dialog opens once they have answered or failed, as the plan's sequence has it. A failed read opens the dialog with S2's
+  "could not be loaded" and Try again, unchanged.
+- **Component inventory.** `ListRows` (`@operai/ui`) keeps a row by its `key`, so a message shown in a task row stays
+  when the host list re-reads after a row above it changes (AC-4.3, decisions.md, fix round 1). It is a behaviour change
+  of an existing component with no new prop, so the count of NEW library components stays 0.
+- **Front matter.** `status: approved`.
+
+Not changed here: the plan's Components table does not yet list the fix round's changes outside it (`ListRows`,
+`cacheKey` on projects-ui `TasksCard` and crm-ui `ActivityTimeline`, the `useHoursQuery` stale-outcome fix, the
+`DeleteEntryDialog` focus fix); that is a plan note, recorded in `decisions.md`.
