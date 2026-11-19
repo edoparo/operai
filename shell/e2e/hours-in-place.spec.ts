@@ -39,7 +39,11 @@
  *           the week, the month, Everyone's hours and Settings (AC-5.33);
  *       G.5 at 1280 px the month scrolls inside its region and the page does not; a focused cell is never hidden under
  *           a pinned column (AC-5.34, R-D3);
- *       G.6 R13: a past month of 300 own entries, its first grid time logged (not asserted) and its figures checked.
+ *       G.6 R13: a past month of 300 own entries, its first grid time logged (not asserted) and its figures checked;
+ *       G.7 a project named with 200 unbroken characters (the bound of a name) does not hide the month's days behind the
+ *           pinned label column: the first day's button is hit-testable and the last day's header clears the pins, by
+ *           scrolling and by keyboard, and the week, which draws the same label, still fits its region (AC-5.34,
+ *           owasp-report L1).
  *
  * Needs the stack up (`mise run dev`) with the specs/20261112-time-tracking and specs/20261110-activities wiring (see the
  * headers of hours-owners.spec.ts and activities-crm.spec.ts). Against the dev stack Playwright reuses the servers when
@@ -1103,6 +1107,7 @@ test.describe('specs/20261116-record-hours-in-place T24: the table view — addr
   let gAdmin: SeededSession
   let gper: HoursPerson // the person with entries on two projects in last month and one today
   let heavy: HoursPerson // R13: 300 entries in last month
+  let wide: HoursPerson // G.7: hours on a project whose name is 200 unbroken characters
   let training: CategoryRow
   let administration: CategoryRow
   let alpha: ProjectRow
@@ -1118,6 +1123,7 @@ test.describe('specs/20261116-record-hours-in-place T24: the table view — addr
     gAdmin = await hoursAdmin(gRunId, PREFIX)
     gper = await seedHoursPerson('gper', SALES, gRunId, PREFIX)
     heavy = await seedHoursPerson('heavy', SALES, gRunId, PREFIX)
+    wide = await seedHoursPerson('wide', SALES, gRunId, PREFIX)
     ;[training, administration] = await pickCategories(gAdmin)
     const team = [gper.userId, heavy.userId]
     alpha = await setTeamViaApi(gAdmin, await createProjectViaApi(gAdmin, `Hip G alpha ${gRunId}`), team)
@@ -1144,7 +1150,7 @@ test.describe('specs/20261116-record-hours-in-place T24: the table view — addr
   })
 
   test.afterAll(async () => {
-    for (const person of [gper, heavy, gAdmin]) if (person) await deleteAllQuietly(person, firstOfLastMonth)
+    for (const person of [gper, heavy, wide, gAdmin]) if (person) await deleteAllQuietly(person, firstOfLastMonth)
     await cleanupPeople(gRunId)
   })
 
@@ -1647,6 +1653,131 @@ test.describe('specs/20261116-record-hours-in-place T24: the table view — addr
     )
     // The figures are the entries' sums (AC-5.9, 5.10): every cell, every row, every day and the month.
     await expectPeriodShown(page, monthPeriod(lastMonth), seeded)
+    await ctx.close()
+  })
+
+  // ─── G.7 ──────────────────────────────────────────────────────────────────
+
+  test('G.7: a project named with 200 unbroken characters does not hide the month’s days behind the pinned label column (AC-5.34, owasp-report L1)', async ({
+    browser,
+  }) => {
+    // A name is bounded at 200 characters (projects-api), and it is written by whoever manages the project, not by the person
+    // who reads their hours: 200 characters with no space, no hyphen and no slash, so the browser has nowhere to break it.
+    const digits = gRunId.replace(/\D/g, '')
+    const longName = `HipLong${digits}`.padEnd(200, 'W')
+    expect(longName).toHaveLength(200)
+    expect(longName).toMatch(/^[A-Za-z0-9]{200}$/)
+    const longProject = await setTeamViaApi(gAdmin, await createProjectViaApi(gAdmin, longName), [wide.userId])
+    const longKey = `project:${longProject.id}`
+    // A first, a middle and a last day: both ends of the month's columns, and the one between.
+    const longDays = [firstOfLastMonth, midLastMonth, lastOfLastMonth]
+    for (const day of longDays) {
+      await createEntryViaApi(wide, { day, minutes: 60, on: { type: 'project', id: longProject.id } })
+    }
+
+    const ctx = await gContext(browser, wide, { width: 1280, height: 800 })
+    const page = await ctx.newPage()
+    const longCell = (day: string): Locator => cell(page, longKey, day)
+    await page.goto(`/hours?view=month&month=${lastMonth}`)
+    await expect(page.getByTestId('hours-table-table')).toBeVisible({ timeout: 30_000 })
+    await expect(longCell(firstOfLastMonth)).toBeVisible({ timeout: 30_000 })
+    // The row is named in full: a long name wraps, it is never cut (the label is the only place the name is read).
+    await expect(page.getByTestId('hours-table-table').locator('tbody th').first()).toContainText(longName)
+
+    const region = page.getByTestId('hours-table').locator('.table-region')
+    const headers = page.getByTestId('hours-table-table').locator('thead th')
+    const days = lengthOfMonth(lastMonth)
+    const label = headers.first()
+    const total = headers.last()
+
+    const pinned = await boxOf(label)
+    const regionBox = await boxOf(region)
+    const firstButton = await boxOf(longCell(firstOfLastMonth))
+    console.log(
+      `[L1] G.7 at 1280 px, a 200-character row label: the pinned label column is ${Math.round(pinned.width)} px, ` +
+        `the region ${Math.round(regionBox.width)} px (the first day's button at x = ${Math.round(firstButton.x)}, ` +
+        `the region's right edge at x = ${Math.round(regionBox.x + regionBox.width)})`,
+    )
+    // The pinned column is a small part of the region, never the whole of it (a month's 31 day columns need the rest).
+    expect.soft(pinned.width, 'the pinned label column leaves room for the days').toBeLessThan(regionBox.width / 3)
+
+    // Hit-testable: the element on top at a cell's centre is that cell's own button — not the pinned label, not nothing (a point
+    // outside the window has no element).
+    const hitBy = async (target: Locator): Promise<string | null> => {
+      // A long name wraps into a tall row, below the window's bottom edge: the ancestors that scroll vertically (the shell's
+      // `<main>`, not the window) are moved to the button's row, and only those. The region's own `scrollLeft`, which is what
+      // is under test, is never touched (`scrollIntoView` would move it).
+      await target.evaluate((element) => {
+        for (let node = element.parentElement; node; node = node.parentElement) {
+          if (node.scrollHeight <= node.clientHeight || !/(auto|scroll)/.test(getComputedStyle(node).overflowY))
+            continue
+          const frame = node.getBoundingClientRect()
+          const box = element.getBoundingClientRect()
+          node.scrollTop += box.top + box.height / 2 - (frame.top + node.clientHeight / 2)
+        }
+      })
+      const box = await boxOf(target)
+      return page.evaluate(
+        ({ x, y }) => document.elementFromPoint(x, y)?.closest<HTMLElement>('[data-cell]')?.dataset['cell'] ?? null,
+        { x: box.x + box.width / 2, y: box.y + box.height / 2 },
+      )
+    }
+    await region.evaluate((element) => (element.scrollLeft = 0))
+    expect
+      .soft(await hitBy(longCell(firstOfLastMonth)), "the first day's button is on top at its centre")
+      .toBe(`${longKey}:${firstOfLastMonth}`)
+
+    // Every day can be reached: the last day's header clears the pinned Total, inside the region, and its button is on top.
+    await region.evaluate((element) => (element.scrollLeft = element.scrollWidth))
+    const lastHeader = await boxOf(headers.nth(days))
+    const totalBox = await boxOf(total)
+    const regionNow = await boxOf(region)
+    expect
+      .soft(lastHeader.x + lastHeader.width, 'the last day is not under the pinned Total')
+      .toBeLessThanOrEqual(totalBox.x + 1)
+    expect
+      .soft(lastHeader.x + lastHeader.width, 'the last day is inside the region')
+      .toBeLessThanOrEqual(regionNow.x + regionNow.width + 1)
+    expect
+      .soft(lastHeader.x, 'the last day is not under the pinned label')
+      .toBeGreaterThanOrEqual((await boxOf(label)).x + (await boxOf(label)).width - 1)
+    expect
+      .soft(await hitBy(longCell(lastOfLastMonth)), "the last day's button is on top at its centre")
+      .toBe(`${longKey}:${lastOfLastMonth}`)
+
+    // By keyboard, too: focus the first day's button from the end of the region; the browser scrolls it into the clear.
+    const scrolledToTheEnd = await region.evaluate((element) => element.scrollLeft)
+    await longCell(firstOfLastMonth).focus()
+    await expect(longCell(firstOfLastMonth)).toBeFocused()
+    expect(await region.evaluate((element) => element.scrollLeft)).toBeLessThan(scrolledToTheEnd)
+    expect
+      .soft(await hitBy(longCell(firstOfLastMonth)), 'focused, the first day’s button is on top at its centre')
+      .toBe(`${longKey}:${firstOfLastMonth}`)
+    await page.keyboard.press('Tab')
+    await expect(longCell(midLastMonth)).toBeFocused()
+    expect
+      .soft(await hitBy(longCell(midLastMonth)), "focused, the middle day's button is on top at its centre")
+      .toBe(`${longKey}:${midLastMonth}`)
+
+    // The week (not pinned) draws the same label: it wraps too, so the week still fits its region at 1280 px, where it has
+    // no scroll hint (design S7), instead of scrolling past a name 2,600 px wide to reach its days.
+    await page.goto(`/hours?view=week&week=${mondayOf(midLastMonth)}`)
+    await expect(longCell(midLastMonth)).toBeVisible({ timeout: 30_000 })
+    const weekMetrics = await region.evaluate((element) => ({
+      scrollWidth: element.scrollWidth,
+      clientWidth: element.clientWidth,
+    }))
+    const weekLabel = await boxOf(headers.first())
+    console.log(
+      `[L1] G.7 the week, same label: the label column is ${Math.round(weekLabel.width)} px, the region scrollWidth ` +
+        `${weekMetrics.scrollWidth} px for ${weekMetrics.clientWidth} px`,
+    )
+    expect
+      .soft(weekMetrics.scrollWidth, 'the week fits its region at 1280 px')
+      .toBeLessThanOrEqual(weekMetrics.clientWidth + 1)
+    expect
+      .soft(await hitBy(longCell(midLastMonth)), "the week's cell is on top at its centre")
+      .toBe(`${longKey}:${midLastMonth}`)
     await ctx.close()
   })
 })

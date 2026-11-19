@@ -115,8 +115,14 @@ function RowLabel({ row }: { row: TableGridRow }) {
   return (
     // The floor is 7 rem: it decides whether a day figure is on a phone's first screen and whether the grid fits at 1024 px
     // (design S7 "Columns"); a wider one left a phone with a column of names only, and a laptop with 10 px of scroll.
+    //
+    // The name is written by whoever owns the record (a project's, a deal's or a meeting's title, up to 200 characters, a
+    // pasted link with no space in it), so it must be able to break anywhere: `wrap-anywhere` (`overflow-wrap: anywhere`)
+    // lowers the label's min-content width to a character, which `break-words` does not, and it is that width the pinned,
+    // opaque label column takes. Without it a long unbroken name widens the column past the scroll region and no day of the
+    // month can be brought into view (owasp-report L1, AC-5.34). The week, which does not pin, wraps the same way.
     <span className="flex min-w-28 flex-wrap items-center gap-x-3 gap-y-1">
-      <Badge>{strings.entries.type[row.kind]}</Badge> <span className="break-words">{rowLabel(row)}</span>
+      <Badge>{strings.entries.type[row.kind]}</Badge> <span className="wrap-anywhere">{rowLabel(row)}</span>
     </span>
   )
 }
