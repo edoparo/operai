@@ -1,6 +1,135 @@
 # QE report — Record hours in place, and the Week view of My hours
 
 Spec `specs/20261116-record-hours-in-place/` · rigor `production` (full mode, every row blocks) · branch `feat/record-hours-in-place`
+
+This file holds the latest pass on top (**pass 3, 2026-11-19**) and the earlier pass below it as history, unedited. A reader who wants
+the verdict reads the first heading that says `QE verdict`.
+
+# Pass 3 — 2026-11-19 — after the rebase onto the new `feat/time-tracking` and the user's decision D14
+
+By a fresh QE agent. Scope: only what this branch adds on top of `feat/time-tracking` (`git diff --name-only feat/time-tracking...HEAD`:
+52 commits; problems in other modules are context, never findings). This is a re-verification, not a second full sweep: it re-runs
+every gate and the end-to-end journeys at the commit handed over, re-measures the layout on the new base, tests the one test change
+since pass 2 for strength, and says plainly what it carries over and why.
+
+## Read this first
+
+1. **The screen-reader readback (NVDA, VoiceOver) is out of the gate by the user's decision D14 (2026-11-19; `ledger.md` D14, `design.md`
+   § "Amendment 2026-11-19", commit c4b4f0cd). It was never executed in any pass and it is NOT verified. This PASS does not claim it.**
+   What stays verified, by tests I re-ran green here: the roles (`role="status"` on the success message, `role="alert"` on a refusal, the
+   labelled scroll region), the texts and labels in both languages, `aria-hidden="true"` on the scroll hint (read from the live DOM
+   below), and where focus goes after every write, refusal and retry (`toBeFocused()` in R1–R3). What is not verified, and nobody
+   should read this PASS as saying so: that any browser and screen-reader pair *speaks* them as designed. The follow-up (a person runs
+   the five-step readback with NVDA and VoiceOver and files a bugfix if it finds one) is design.md's, not scheduled; its script is in
+   pass 2's **Blocked** section below, kept verbatim for that reason.
+2. **Nothing is BLOCKED.** Every row of the table was executed in this pass, at the commit named in the verdict line.
+3. **What was carried over from pass 2, and why that is sound.** The live drives of pass 2 (D1/D2/D3 in every placement, both languages,
+   the Italian messages) were not repeated. The basis: I compared the added and removed lines of the non-spec diff pass 2 measured
+   (`72a2760e..6c638586`) with this branch's now (`feat/time-tracking...HEAD`). **No production line differs.** The whole difference is
+   test code: a new crm-ui test helper `src/test-support/RouterWrapper.tsx` and its use in three crm-ui test files (main's `ActivityItem`
+   now renders a router `<Link>` for a task's deal, 8ffd408c), and the `shell/e2e/hours-in-place.spec.ts` helper (bbe8747c). The same
+   comparison against the pre-rebase backup tip (`backup/record-hours-pre-rebase-20261119`) differs only in that e2e spec. Since the
+   OWASP follow-up (239a6302) the only commits touch tests and docs. What *did* change under the branch is its base (origin/main
+   cc2c3f46), so the rows that depend on the base (gates, e2e through the real shell, layout) were re-run, not carried.
+4. **Environment fault, kept out of Defects** (details under *Environment faults*): this machine's `pnpm test` runs on Node 26.10.0 and one
+   crm-ui test from main fails there without `NODE_OPTIONS=--no-webstorage`. Under the pinned Node 24.22.1 (`mise.toml`) every suite passes with
+   no flag.
+5. No coverage gate and no dependency-audit job exist in these apps (unchanged since pass 2); those two rows are n/a, not passed.
+
+## QE verdict: PASS (full mode, rigor production — every row blocks; measured at c4b4f0cd; the report commit that follows adds only this file)
+
+No row failed, none is blocked. Defects: **0**. Environment faults: 1 (does not block). The screen-reader readback is **excluded by D14,
+not verified**.
+
+| Check | Threshold | Actual | Result |
+|---|---|---|---|
+| AC coverage (an executed check behind every AC) | 41/41 | 41/41: every AC's unit suites and e2e A–F / R1–R4 re-run green at c4b4f0cd; the AC rows of pass 2 stand (production patch identical, see Read this first 3) | ✓ |
+| Branch patch unchanged since pass 2's measured tree (6c638586) and by the rebase | no production difference | **0 production lines differ**; the only differences are test code: crm-ui `RouterWrapper` + 3 test files (8ffd408c) and the e2e helper in `hours-in-place.spec.ts` (bbe8747c) | ✓ |
+| e2e `hours-in-place.spec.ts` + `hours-in-place.round1.spec.ts` | 10/10 | **10/10** (52 s), notify-api up (`/health` 200), nothing stubbed except R's named failures | ✓ |
+| e2e `hours.spec.ts` + `hours-owners.spec.ts` (time-tracking, on the new base) | 12/12 | **12/12** (56 s) | ✓ |
+| Strength of bbe8747c ("no Record hours" for a reader, A and B) | the assertion fails when the button is there | mutated in a scratch copy of the spec (not committed, deleted): A with the team member in the reader's place and B with the deal's owner: both stop at `toHaveCount(0)` with `Expected: 0 Received: 1` after the wait; the wait does not mask a present button (`mutant-A.log`, `mutant-B.log`) | ✓ |
+| hours-ui lint / build / unit | green | lint 0, build 0, **2153/2153** (81 files) | ✓ |
+| projects-ui lint / build / unit | green | lint 0, build 0, **941 passed + 2 expected fail** (45 files) | ✓ |
+| crm-ui lint / build / unit | green | lint 0, build 0, **1824/1824** (94 files) on Node 24.22.1 with no flag, and on Node 26.10.0 with `--no-webstorage`; 1823/1824 on Node 26 without it (Environment faults) | ✓ |
+| shell lint / build / unit | green | lint 0, build 0, **706/706** (43 files), on both Nodes | ✓ |
+| operai-ui lint / typecheck / unit | green | lint 0, typecheck 0, **379/379** (31 files), on both Nodes | ✓ |
+| `ListRows` consumers on the new base (refund-ui, meetings-ui, admin-ui, inventory-ui, notify-ui, estimai-ui) | unit green, no duplicate-key warning | 789, 1091, 1100, 1099, 53, 360 passed; **0** "same key" warnings in any of the ten suite outputs | ✓ |
+| `mise run shared:check` | in sync | 33 groups in sync | ✓ |
+| `mise run changeset:check` | pass | OK (22 changesets matched, `hours-ui-record-in-place`, `projects-ui-record-hours`, `crm-ui-record-hours`, `shell-hours-record-hours-extension`, `operai-ui-list-rows-keyed` among them) | ✓ |
+| `mise run react:skew` | one React | OK, 12 frontends | ✓ |
+| `mise run env:doctor` | all pass | all checks passed | ✓ |
+| Secret scan, `mise x gitleaks@8.30.1 -- gitleaks git --log-opts=feat/time-tracking..HEAD` | 0 | 52 commits scanned, no leaks | ✓ |
+| Dependency change / audit | none new | no `package.json` or lockfile in the diff; no audit job exists | n/a ✓ |
+| Coverage | no gate configured | not measured (no coverage provider in hours-ui, none configured in the others) | n/a |
+| OWASP (`owasp-report.md`, follow-up at 239a6302) | PASS | PASS; the commits since touch tests and docs only, so no new sink, storage, origin or dependency | ✓ |
+| Design: Week at 1024 px | no overflow of the grid region | 869 = 869 px with day figures and with a 144 h 30 total (`week-1024-pass3-small.png`, `-big.png`) | ✓ |
+| Design: Week at 960 px | scrolls inside the card, as designed | 805 px region, 807 px grid (small) / 824 px (144 h 30): sideways scroll inside the card, hint shown, no page overflow | ✓ (as designed) |
+| Design: Week at 375 px | the whole Monday column with its figure visible unscrolled | region 220 px; Monday's header 235–323 and Monday's figure 235–323 inside the region 107–327; page overflow 0 (`week-375-pass3b-small.png`) | ✓ |
+| Design: scroll hint | below `lg` only, only with a grid, `aria-hidden` | `display:none` at 1440, 1100, 1024; `block` at 1023, 960, 768, 375; `aria-hidden="true"` every time; absent on an empty week at 1440, 1024, 960 and 375 | ✓ |
+| Design states (S1–S9) and a11y plan (roles, labels, focus) | all present | unchanged code; the unit suites and e2e A–F, R1–R4 (incl. `toBeFocused` after a refusal, a failed delete, a failed Week read) green; region `aria-label` "Hours by project, deal, meeting and other work, 09.11.2026 – 15.11.2026", `tabindex="0"` read from the live DOM | ✓ |
+| Component reuse (design.md inventory) | no NEW library component | `operai-ui` diff is `ListRows` (one key rule) and its test, plus a docs line; no new component | ✓ |
+| Exploratory UI pass | every designed flow walked | the journeys A–F and R1–R4 in a real browser against the real stack, plus the layout probe above, both measured at c4b4f0cd; the per-placement and both-language live drives of pass 2 are carried (Read this first 3) | ✓ (part re-run, part carried) |
+| Screen-reader readback (NVDA, VoiceOver) | — | **out of the gate by user decision D14 (2026-11-19); not executed, not verified, not claimed** | excluded |
+
+## Defects
+
+None. Nothing is new since the fix round and nothing was missed earlier. The two findings pass 2 filed as **not defects of this feature**
+stand unchanged (outside the diff or wording only): hours-ui Settings → Add category leaves focus on `<body>` after a refused save
+(`TimeListItemDialog`, specs/20261112-time-tracking, the cause is `@operai/ui` `FormDialog`), and design.md's "fits at 960 (805 px)" is
+a few pixels optimistic (the measure above: 805 px region against a 807 px grid; its threshold "from about 980 px up" is right).
+
+## Blocked
+
+None. (The readback is not blocked: it is not part of the gate, D14.)
+
+## Environment faults (not defects, no fix round)
+
+- **`crm-ui/src/hooks/useOfferDraft.test.tsx` > "a whole editing session touches neither web storage nor cookies" fails on this machine's
+  Node 26.10.0 without `NODE_OPTIONS=--no-webstorage`** (`TypeError: Cannot convert undefined or null to object` at `Object.keys(window.localStorage)`;
+  `crm-ui.test.log`). What I checked: the file and the hook it tests are not in this branch's diff (they come from main's offer wizard,
+  33ebd929); `pnpm test` here runs on Node 26.10.0 (`pnpm exec node -v`), while `mise.toml` pins Node 24; run directly under the pinned
+  Node 24.22.1 with no flag, **crm-ui 1824/1824, projects-ui 941 + 2 expected fail, hours-ui 2153/2153, shell 706/706, operai-ui 379/379**
+  (`*.node24.log`); and with the flag on Node 26 crm-ui is also 1824/1824. It is the cause `specs/20261112-time-tracking/decisions.md`
+  already records for the shell's tests (Node 26, `localStorage` undefined, "not verified under CI's Node": now it is, for these five
+  suites). Note for whoever runs the gates here: Node 24 refuses `--no-webstorage` in `NODE_OPTIONS` ("not allowed in NODE_OPTIONS"), so the flag is for the
+  local Node 26 only. I did not run the failing test on a baseline checkout (a second worktree would need its own install); the
+  attribution rests on the above, not on that run.
+- **Data left in the dev databases** by the journeys and my probes (no delete route exists for them): companies, deals and projects named
+  `Hip …`; every time entry, task and `hip-*@operai.test` user the runs made was deleted (the specs' own cleanup; my scratch probes cleaned
+  their entries and people in `finally`). `git status` is clean at the end.
+
+## Observations (not defects, outside this diff)
+
+- **The shell's rail does not collapse on a phone.** `Sidebar.tsx` documents it ("Collapsible (desktop-only; no mobile drawer)"), and the
+  collapsed state is a per-browser preference (`operai_sidebar_collapsed`). In a **fresh browser context the rail is expanded (224 px) at
+  every width**, so at 375 px the content area of every page is 151 px and the Week's grid region is 60 px (measured: 1440 → 1125 px,
+  1024 → 709 px, 960 → 645 px, 375 → 60 px, the Monday column outside the region). The design's 375 px, 1024 px and 960 px figures (and
+  pass 2's) are with the rail collapsed, which is how I measured the rows above, and every one of them matches pass 2's numbers on the
+  new base. This is the shell's responsiveness, not the Week's, and it is the same for every tool. Owner if anyone wants it:
+  **frontend-dev** on the shell, as its own spec.
+- The project page's 409 "reload" path unmounts the header widget's message; `/hours/?view=week&week=…` gains a trailing slash after the first
+  in-app navigation; the hint shows between about 980 and 1023 px though the grid fits; the dev-only Duration error under StrictMode.
+  All as in pass 2.
+
+## Tests added or changed (this pass)
+
+None committed. Three scratch Playwright files were used and deleted (they are in the scratchpad, not in the tree): two mutants of
+`hours-in-place.spec.ts` (A and B's reader replaced by a person who is offered the button) and a layout probe of the Week at seven widths.
+Each was removed with `rm` after its run; `git status` is clean.
+
+## Recommendations
+
+- **Owasp-reviewer pass: not needed.** No production line has changed since the follow-up that passed (239a6302); the rebase changed the base,
+  not the branch.
+- The close (T16, `/wellforge:done`) can proceed on this verdict; the evaluator is the next step. tasks.md is not edited by QE.
+- Follow-ups, none part of this feature's gate: the screen-reader readback (D14); Settings → Add category focus (pass 2, finding 1); the
+  shell's phone-width rail (above).
+
+---
+
+# History — pass 2 (re-run after fix round 1), superseded by pass 3 above, kept unedited
+
+Spec `specs/20261116-record-hours-in-place/` · rigor `production` (full mode, every row blocks) · branch `feat/record-hours-in-place`
 Pass 2 (re-run after fix round 1), by a fresh QE agent. It re-verifies D1, D2, D3 and the designer's findings of pass 1 in the
 running app, re-runs every gate, and re-checks the 41 ACs. Round under test: `git log 109448a0..HEAD`.
 
