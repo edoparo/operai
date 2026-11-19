@@ -1,7 +1,7 @@
 /**
  * @vitest-environment jsdom
  *
- * The Week view under `<html lang="it">` (specs/20261116-record-hours-in-place T9; AC-4.6): the heading, the days, the
+ * The table view under `<html lang="it">`, a week and a month (specs/20261116-record-hours-in-place T9, T22; AC-4.6): the heading, the days, the
  * navigator, the names of the cell buttons and every state come from the Italian catalog and none of the English one,
  * a weekday and a date are written in Italian, and a name an administrator typed ("Formazione") is shown verbatim.
  * Completeness of the catalog is checked once for the whole app (strings.test.ts); this proves the view reads it.
@@ -31,17 +31,16 @@ const setup = async (lang: 'it' | 'en') => {
   const { tableGrid } = await import('../lib/tableGrid')
   const { dealOn, otherWorkOn, projectOn, timeEntryView } = await import('../test-support/fakeApi')
   const entry = (id: string, day: string, minutes: number, on: EntryOn) => timeEntryView({ id, day, minutes, on })
-  const grid = tableGrid(
-    [
-      entry('a', '2026-11-16', 240, projectOn('p1', 'Alpenstrom')),
-      entry('b', '2026-11-18', 60, projectOn('p2', 'Operai')),
-      entry('c', '2026-11-18', 90, projectOn('p2', 'Operai')),
-      entry('d', '2026-11-17', 60, dealOn('d1', 'Brera')),
-      entry('e', '2026-11-19', 120, otherWorkOn('Formazione', 'c-training')),
-      entry('f', '2026-11-17', 120, projectOn('p3', 'Segreto', 'hidden')),
-    ],
-    daysOf(holding('week', MONDAY)),
-  )
+  const entries = [
+    entry('a', '2026-11-16', 240, projectOn('p1', 'Alpenstrom')),
+    entry('b', '2026-11-18', 60, projectOn('p2', 'Operai')),
+    entry('c', '2026-11-18', 90, projectOn('p2', 'Operai')),
+    entry('d', '2026-11-17', 60, dealOn('d1', 'Brera')),
+    entry('e', '2026-11-19', 120, otherWorkOn('Formazione', 'c-training')),
+    entry('f', '2026-11-17', 120, projectOn('p3', 'Segreto', 'hidden')),
+  ]
+  const grid = tableGrid(entries, daysOf(holding('week', MONDAY)))
+  const monthGrid = tableGrid(entries, daysOf(holding('month', MONDAY)))
   const draw = (props: Record<string, unknown> = {}) =>
     render(
       <TableView
@@ -50,13 +49,17 @@ const setup = async (lang: 'it' | 'en') => {
         filtered={false}
         state={{ status: 'loaded', grid }}
         onPeriodChange={vi.fn()}
+        onKindChange={vi.fn()}
         onRetry={vi.fn()}
         onClearFilters={vi.fn()}
         onOpenCell={vi.fn()}
         {...props}
       />,
     )
-  return { strings, draw, tableGrid }
+  /** The same entries in the month that holds them, November 2026. */
+  const drawMonth = (props: Record<string, unknown> = {}) =>
+    draw({ period: { kind: 'month', month: '2026-11' }, state: { status: 'loaded', grid: monthGrid }, ...props })
+  return { strings, draw, drawMonth, tableGrid }
 }
 
 describe('Italian', () => {
@@ -175,5 +178,90 @@ describe('Italian', () => {
     draw()
     expect(screen.getByRole('heading', { level: 3 }).textContent).toBe('Week 16.11.2026 – 22.11.2026')
     expect(screen.getByRole('button', { name: '4 h on Alpenstrom, Monday 16 November 2026, 1 entry' })).not.toBeNull()
+  })
+})
+
+describe('Italian, the toolbar and the Period switch (AC-4.6)', () => {
+  it('words the Period group, its two radios and the navigator in Italian, for a week and for a month, and no English', async () => {
+    const { draw, drawMonth } = await setup('it')
+    const { container } = draw()
+    const group = screen.getByRole('radiogroup', { name: 'Periodo' })
+    expect(
+      within(group)
+        .getAllByRole('radio')
+        .map((radio) => radio.closest('label')?.textContent),
+    ).toEqual(['Settimana', 'Mese'])
+    expect(container.textContent).not.toMatch(/\b(Period|Week|Month)\b/)
+    cleanup()
+    drawMonth()
+    expect(screen.getByRole('radiogroup', { name: 'Periodo' })).not.toBeNull()
+    expect(within(screen.getByRole('radiogroup')).getByRole('radio', { name: 'Mese' })).toHaveProperty('checked', true)
+  })
+})
+
+describe('Italian, the month (AC-4.6, AC-5.25)', () => {
+  it('heads the card with the month and the year in Italian, and names the table and the navigator for the month', async () => {
+    const { drawMonth } = await setup('it')
+    drawMonth()
+    expect(screen.getByRole('heading', { level: 3 }).textContent).toBe('novembre 2026')
+    const navigator = screen.getByRole('group', { name: 'Scegli un mese' })
+    expect(within(navigator).getByRole('button', { name: 'Mese precedente' })).not.toBeNull()
+    expect(within(navigator).getByRole('button', { name: 'Questo mese' })).not.toBeNull()
+    expect(within(navigator).getByRole('button', { name: 'Mese successivo' })).not.toBeNull()
+    expect(
+      screen.getByRole('table', { name: 'Ore per progetto, opportunità, riunione e altro lavoro, novembre 2026' }),
+    ).not.toBeNull()
+  })
+
+  it('heads the days compactly in Italian and names each for a reader by its long Italian date, today as "oggi"', async () => {
+    const { drawMonth } = await setup('it')
+    drawMonth()
+    const table = screen.getByRole('table')
+    // 1 November 2026 is a Sunday: "Dom", not "Lun"
+    expect(within(table).getByRole('columnheader', { name: 'domenica 1 novembre 2026' })).not.toBeNull()
+    expect(within(table).getByRole('columnheader', { name: 'giovedì 19 novembre 2026, oggi' })).not.toBeNull()
+    expect(within(table).getByRole('columnheader', { name: 'lunedì 30 novembre 2026' })).not.toBeNull()
+    const first = within(table).getAllByRole('columnheader')[1]!
+    expect(first.querySelector('[aria-hidden="true"]')?.textContent).toBe('Dom1')
+    expect(within(table).getAllByRole('columnheader').at(-1)?.textContent).toBe('Totale')
+  })
+
+  it('says in Italian that the month scrolls sideways, and not in English', async () => {
+    const { drawMonth } = await setup('it')
+    drawMonth()
+    const hint = screen.getByText('Scorri di lato per vedere tutti i giorni del mese.')
+    expect(hint.getAttribute('aria-hidden')).toBe('true')
+    expect(screen.queryByText('Scroll sideways to see every day of the month.')).toBeNull()
+  })
+
+  it('announces the month and its total in Italian, words the empty month and its loading, and names a cell by its Italian date', async () => {
+    const { drawMonth, tableGrid } = await setup('it')
+    const { unmount } = drawMonth()
+    expect(screen.getByTestId('hours-table-live').textContent).toBe('novembre 2026: 11 ore e 30 minuti in totale.')
+    expect(
+      screen.getByRole('button', { name: '4 h su Alpenstrom, lunedì 16 novembre 2026, 1 registrazione' }),
+    ).not.toBeNull()
+    unmount()
+    drawMonth({ state: { status: 'loaded', grid: tableGrid([], daysOf(holding('month', MONDAY))) } })
+    expect(screen.getByTestId('hours-table-live').textContent).toBe('novembre 2026: nessuna ora registrata.')
+    expect(screen.getByRole('heading', { level: 4 }).textContent).toBe('Nessuna ora registrata in questo mese')
+    cleanup()
+    drawMonth({ state: { status: 'loading' } })
+    expect(screen.getByTestId('hours-table-live').textContent).toBe('Caricamento del tuo mese…')
+  })
+
+  it('has no English left on the month: not the heading, the header, the navigator, nor the states', async () => {
+    const { drawMonth } = await setup('it')
+    const { container } = drawMonth()
+    expect(container.textContent).not.toMatch(
+      /\b(Week|Month|Total|Project|Deal|Mon|Tue|Sun|Today|today|November|Not visible)\b/,
+    )
+  })
+
+  it('keeps the month in English as English, so the above proves the view follows the language and not a default', async () => {
+    const { drawMonth } = await setup('en')
+    drawMonth()
+    expect(screen.getByRole('heading', { level: 3 }).textContent).toBe('November 2026')
+    expect(screen.getByRole('columnheader', { name: 'Thursday 19 November 2026, today' })).not.toBeNull()
   })
 })

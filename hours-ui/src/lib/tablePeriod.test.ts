@@ -16,13 +16,16 @@ import {
   holding,
   isCurrent,
   lastDayOf,
+  periodKey,
   referenceDay,
   shift,
+  switchTo,
 } from './tablePeriod'
 import type { TablePeriod } from './tablePeriod'
 import { weekDays } from './week'
 
 const week = (monday: string): TablePeriod => ({ kind: 'week', monday })
+const month = (key: string): TablePeriod => ({ kind: 'month', month: key })
 
 // 2026-11-01 is a Sunday, 2026-11-30 a Monday, 2026-09-01 a Tuesday.
 const SUNDAY_1_NOV = '2026-11-01'
@@ -251,5 +254,251 @@ describe('clamp: a period after the current one is the current one (AC-5.29)', (
   it('refuses a period that is not a week, and a today that is not a day: caller bugs', () => {
     expect(() => clamp(week('2026-11-18'), '2026-12-02')).toThrow(TypeError)
     expect(() => clamp(week('2026-11-16'), 'today')).toThrow(TypeError)
+  })
+})
+
+describe('the month: the days it reads and the month holding a day (AC-5.25, AC-5.30)', () => {
+  it('holds a day in its own calendar month, the first and the last included', () => {
+    expect(holding('month', '2026-11-01')).toEqual(month('2026-11'))
+    expect(holding('month', '2026-11-19')).toEqual(month('2026-11'))
+    expect(holding('month', '2026-11-30')).toEqual(month('2026-11'))
+    expect(holding('month', '2026-12-01')).toEqual(month('2026-12'))
+  })
+
+  it('refuses text that is not a day: a caller bug, never a month', () => {
+    expect(() => holding('month', '2026-02-30')).toThrow(TypeError)
+    expect(() => holding('month', '2026-11')).toThrow(TypeError)
+  })
+
+  it.each([
+    ['February 2026', '2026-02', 28],
+    ['February 2028', '2028-02', 29],
+    ['November 2026, which begins on a Sunday', '2026-11', 30],
+    ['December 2026', '2026-12', 31],
+  ])('%s is read from its 1st to its last day, every day between: %s (%i days)', (_name, key, count) => {
+    const days = daysOf(month(key))
+    expect(days).toHaveLength(count)
+    expect(firstDayOf(month(key))).toBe(`${key}-01`)
+    expect(lastDayOf(month(key))).toBe(days.at(-1))
+    expect(lastDayOf(month(key))).toBe(`${key}-${String(count).padStart(2, '0')}`)
+    expect(new Set(days).size).toBe(count)
+  })
+
+  it('is the month`s own days, none of the next, so one read and one fold agree on the span', () => {
+    expect(daysOf(month('2026-11'))[0]).toBe('2026-11-01')
+    expect(daysOf(month('2026-11')).at(-1)).toBe('2026-11-30')
+    expect(daysOf(month('2026-11'))).not.toContain('2026-12-01')
+  })
+
+  it('refuses a month that is not one: a caller bug, so a span it did not name is never read', () => {
+    expect(() => daysOf(month('2026-13'))).toThrow(TypeError)
+    expect(() => firstDayOf(month('2026-1'))).toThrow(TypeError)
+    expect(() => lastDayOf(month(''))).toThrow(TypeError)
+  })
+})
+
+describe('the month: current, isCurrent and shift (AC-5.5, AC-5.28)', () => {
+  it('the current month is the one holding today, for today the 1st, the last day and a Sunday', () => {
+    expect(current('month', '2026-11-01')).toEqual(month('2026-11'))
+    expect(current('month', '2026-11-30')).toEqual(month('2026-11'))
+    expect(current('month', '2026-12-02')).toEqual(month('2026-12'))
+  })
+
+  it('knows every day of the month holding today, and no day of its neighbours', () => {
+    expect(isCurrent(month('2026-12'), '2026-12-01')).toBe(true)
+    expect(isCurrent(month('2026-12'), '2026-12-31')).toBe(true)
+    expect(isCurrent(month('2026-12'), '2026-11-30')).toBe(false)
+    expect(isCurrent(month('2026-11'), '2026-12-01')).toBe(false)
+  })
+
+  it('shifts by the calendar: December to January and back, from the month shown and not from today', () => {
+    expect(shift(month('2026-11'), 1)).toEqual(month('2026-12'))
+    expect(shift(month('2026-11'), -1)).toEqual(month('2026-10'))
+    expect(shift(month('2026-12'), 1)).toEqual(month('2027-01'))
+    expect(shift(month('2027-01'), -1)).toEqual(month('2026-12'))
+    expect(shift(month('2026-03'), -1)).toEqual(month('2026-02'))
+    expect(shift(month('2026-11'), 0)).toEqual(month('2026-11'))
+  })
+
+  it('refuses a fraction of a month and a month that is not one: caller bugs', () => {
+    expect(() => shift(month('2026-11'), 0.5)).toThrow(TypeError)
+    expect(() => shift(month('2026-13'), 1)).toThrow(TypeError)
+  })
+
+  it('does not touch the period it was given', () => {
+    const shown = month('2026-11')
+    shift(shown, 1)
+    expect(shown).toEqual(month('2026-11'))
+  })
+})
+
+describe('the month: hasNext, hasPrevious and clamp (AC-5.28, AC-5.29, plan decision 12)', () => {
+  it('has no next month on the current one, whichever day of it today is, and one on any month before it', () => {
+    expect(hasNext(month('2026-12'), '2026-12-01')).toBe(false)
+    expect(hasNext(month('2026-12'), '2026-12-31')).toBe(false)
+    expect(hasNext(month('2026-11'), '2026-12-01')).toBe(true)
+    expect(hasNext(month('2000-01'), '2026-12-02')).toBe(true)
+  })
+
+  it('has no next month after the current one, which no address can show', () => {
+    expect(hasNext(month('2027-01'), '2026-12-02')).toBe(false)
+    expect(hasNext(month('9999-12'), '2026-12-02')).toBe(false)
+  })
+
+  it('moves with today: the month that was current yesterday has a next the day the new month begins', () => {
+    expect(hasNext(month('2026-11'), '2026-11-30')).toBe(false)
+    expect(hasNext(month('2026-11'), '2026-12-01')).toBe(true)
+  })
+
+  it('has a previous month down to the first one hours-api answers for: January 2000 has none', () => {
+    expect(hasPrevious(month('2026-11'))).toBe(true)
+    expect(hasPrevious(month('2000-02'))).toBe(true)
+    expect(hasPrevious(month('2000-01'))).toBe(false)
+  })
+
+  it('clamps a month after the current one to the current one, and leaves the rest', () => {
+    expect(clamp(month('2026-12'), '2026-12-02')).toEqual(month('2026-12'))
+    expect(clamp(month('2026-10'), '2026-12-02')).toEqual(month('2026-10'))
+    expect(clamp(month('2027-01'), '2026-12-02')).toEqual(month('2026-12'))
+    expect(clamp(month('9999-12'), '2026-12-02')).toEqual(month('2026-12'))
+    expect(clamp(month('2026-12'), '2026-11-30')).toEqual(month('2026-11'))
+  })
+})
+
+describe('referenceDay on a month: the day the date field shows (AC-5.30)', () => {
+  it('is today in the current month and the 1st of any other', () => {
+    expect(referenceDay(month('2026-12'), '2026-12-02')).toBe('2026-12-02')
+    expect(referenceDay(month('2026-11'), '2026-12-02')).toBe('2026-11-01')
+    expect(referenceDay(month('2026-12'), '2026-12-01')).toBe('2026-12-01')
+  })
+})
+
+describe('periodKey: one key for a period, never shown, so a kind and a day cannot be mistaken for each other', () => {
+  it('names the kind and the week’s Monday or the month', () => {
+    expect(periodKey(week('2026-11-16'))).toBe('week:2026-11-16')
+    expect(periodKey(month('2026-11'))).toBe('month:2026-11')
+  })
+
+  it('differs between a week and the month that begins on its Monday', () => {
+    expect(periodKey(week('2026-06-01'))).not.toBe(periodKey(month('2026-06')))
+  })
+
+  it('refuses a period that is not one: a caller bug', () => {
+    expect(() => periodKey(week('2026-11-18'))).toThrow(TypeError)
+    expect(() => periodKey(month('2026-13'))).toThrow(TypeError)
+  })
+})
+
+describe('switchTo, week to month: the month in view (AC-5.26, D25)', () => {
+  it('is the month holding the Monday of a past week that is inside one month', () => {
+    expect(switchTo(week('2026-11-09'), 'month', '2026-11-19')).toEqual(month('2026-11'))
+    expect(switchTo(week('2026-11-02'), 'month', '2026-12-02')).toEqual(month('2026-11'))
+  })
+
+  it('is the current month from the current week, also when the week straddles two months (D25)', () => {
+    // Monday 30 November – Sunday 6 December 2026, today Wednesday 2 December: December, the month holding today.
+    expect(switchTo(week('2026-11-30'), 'month', '2026-12-02')).toEqual(month('2026-12'))
+    expect(switchTo(week('2026-11-30'), 'month', '2026-11-30')).toEqual(month('2026-11'))
+    expect(switchTo(week('2026-11-30'), 'month', '2026-12-06')).toEqual(month('2026-12'))
+  })
+
+  it('is the month of the Monday from that same week once it is a past week: November, today Wednesday 9 December', () => {
+    expect(switchTo(week('2026-11-30'), 'month', '2026-12-09')).toEqual(month('2026-11'))
+  })
+
+  it('is today`s month from the current week that ends on Sunday 1 November, and October from it once it is past', () => {
+    expect(switchTo(week('2026-10-26'), 'month', '2026-11-01')).toEqual(month('2026-11'))
+    expect(switchTo(week('2026-10-26'), 'month', '2026-11-02')).toEqual(month('2026-10'))
+  })
+
+  it('is the month of a week that begins in August, Tuesday 1 September being today: September from the current week, August once past', () => {
+    expect(switchTo(week('2026-08-31'), 'month', '2026-09-01')).toEqual(month('2026-09'))
+    expect(switchTo(week('2026-08-31'), 'month', '2026-09-08')).toEqual(month('2026-08'))
+  })
+
+  it('never gives a month after the current one', () => {
+    for (const monday of ['2026-11-30', '2026-11-23', '2026-10-26', '2000-01-03']) {
+      const shown = switchTo(week(monday), 'month', '2026-12-02')
+      expect(firstDayOf(shown) <= '2026-12-02', monday).toBe(true)
+    }
+  })
+
+  it('stays where it is when the kind is the kind shown', () => {
+    const shown = week('2026-11-16')
+    expect(switchTo(shown, 'week', '2026-11-19')).toBe(shown)
+    const shownMonth = month('2026-10')
+    expect(switchTo(shownMonth, 'month', '2026-11-19')).toBe(shownMonth)
+  })
+})
+
+describe('switchTo, month to week: the week left, else the current week, else the first one that begins in the month (AC-5.27, D26)', () => {
+  it('is the week left when it has a day in the month: Monday 12 – Sunday 18 October 2026, and Monday 28 September – Sunday 4 October', () => {
+    expect(switchTo(month('2026-10'), 'week', '2026-12-02', '2026-10-12')).toEqual(week('2026-10-12'))
+    expect(switchTo(month('2026-10'), 'week', '2026-12-02', '2026-09-28')).toEqual(week('2026-09-28'))
+  })
+
+  it('counts a week as in the month when any of its seven days is, the last one or the first one included', () => {
+    // Monday 26 October – Sunday 1 November: November holds only its Sunday.
+    expect(switchTo(month('2026-11'), 'week', '2026-12-02', '2026-10-26')).toEqual(week('2026-10-26'))
+    // Monday 30 November – Sunday 6 December: November holds only its Monday.
+    expect(switchTo(month('2026-11'), 'week', '2026-12-09', '2026-11-30')).toEqual(week('2026-11-30'))
+  })
+
+  it('goes round: week, month, week lands on the week left, for a past week, a week that straddles and the current week', () => {
+    for (const [monday, today] of [
+      ['2026-10-12', '2026-12-02'],
+      ['2026-11-30', '2026-12-09'],
+      ['2026-10-26', '2026-12-02'],
+      ['2026-11-30', '2026-12-02'],
+      ['2026-11-16', '2026-11-19'],
+    ] as const) {
+      const shownMonth = switchTo(week(monday), 'month', today)
+      expect(switchTo(shownMonth, 'week', today, monday), `${monday} on ${today}`).toEqual(week(monday))
+    }
+  })
+
+  it('is the current week when the week left has no day in the month, and the current week has one', () => {
+    // The month before the current one, reached from a week long past; the current week Monday 26 October – Sunday 1
+    // November 2026 reaches into October.
+    expect(switchTo(month('2026-10'), 'week', '2026-11-01', '2026-03-02')).toEqual(week('2026-10-26'))
+    // No week left in the address at all: the current week stands for it.
+    expect(switchTo(month('2026-10'), 'week', '2026-11-01')).toEqual(week('2026-10-26'))
+    expect(switchTo(month('2026-11'), 'week', '2026-11-19')).toEqual(week('2026-11-16'))
+  })
+
+  it('is the current week from the current month, whichever week was left, and with none left', () => {
+    expect(switchTo(month('2026-11'), 'week', '2026-11-19', '2026-09-07')).toEqual(week('2026-11-16'))
+    expect(switchTo(month('2026-12'), 'week', '2026-12-02')).toEqual(week('2026-11-30'))
+  })
+
+  it('is the first week whose Monday is in the month when neither has a day in it: Monday 2 November, not Monday 26 October', () => {
+    // November 2026 begins on a Sunday: the week holding the 1st is mostly October.
+    expect(switchTo(month('2026-11'), 'week', '2026-12-09', '2026-03-02')).toEqual(week('2026-11-02'))
+    expect(switchTo(month('2026-11'), 'week', '2026-12-09')).toEqual(week('2026-11-02'))
+    // September 2026 begins on a Tuesday: its first Monday is the 7th.
+    expect(switchTo(month('2026-09'), 'week', '2026-12-02', '2026-03-02')).toEqual(week('2026-09-07'))
+    // A month that begins on a Monday: that Monday.
+    expect(switchTo(month('2026-06'), 'week', '2026-12-02')).toEqual(week('2026-06-01'))
+  })
+
+  it('never gives a week after the current one: a week left that is after it is not the week left', () => {
+    // Next week, Monday 7 December, has December days, but is not shown: the current week is.
+    expect(switchTo(month('2026-12'), 'week', '2026-12-02', '2026-12-07')).toEqual(week('2026-11-30'))
+  })
+
+  it('refuses a week left that is not a Monday: a caller bug', () => {
+    expect(() => switchTo(month('2026-10'), 'week', '2026-12-02', '2026-10-14')).toThrow(TypeError)
+  })
+
+  it('always gives a week that has a day in the month, and never a month it was not asked for', () => {
+    for (const key of ['2026-02', '2026-09', '2026-10', '2026-11', '2027-01']) {
+      const shown = switchTo(month(key), 'week', '2027-01-20')
+      expect(shown.kind).toBe('week')
+      const days = daysOf(shown)
+      expect(
+        days.some((day) => day.startsWith(key)),
+        key,
+      ).toBe(true)
+    }
   })
 })

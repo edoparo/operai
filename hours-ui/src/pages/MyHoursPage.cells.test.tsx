@@ -406,7 +406,7 @@ describe('a save on a day outside the week shown says so (design F6, S7)', () =>
 
     await recordFromHeader('2026-11-02')
 
-    expect((await screen.findByTestId('hours-entry-saved')).textContent).toBe(w.savedOutside('02.11.2026'))
+    expect((await screen.findByTestId('hours-entry-saved')).textContent).toBe(w.week.savedOutside('02.11.2026'))
   })
 
   it('says the plain "Entry saved." for a day of the week shown, the first and the last of it included', async () => {
@@ -430,7 +430,7 @@ describe('a save on a day outside the week shown says so (design F6, S7)', () =>
     await typeDuration(durationField(), '1')
     await save()
 
-    expect((await screen.findByTestId('hours-entry-saved')).textContent).toBe(w.savedOutside('09.11.2026'))
+    expect((await screen.findByTestId('hours-entry-saved')).textContent).toBe(w.week.savedOutside('09.11.2026'))
     expect(new URLSearchParams(router.state.location.searchStr).get('week')).toBe(LAST_MONDAY)
     expect(entriesCalls().at(-1)!.query).toMatchObject({ from: LAST_MONDAY, to: LAST_SUNDAY })
   })
@@ -1192,5 +1192,203 @@ describe('where the keyboard is after a delete from the cell that failed (QE rou
     await userEvent.keyboard('{Enter}')
     await waitFor(() => expect(deleteCalls()).toHaveLength(2))
     await waitFor(() => expect(screen.queryByRole('alertdialog')).toBeNull())
+  })
+})
+
+/**
+ * The same cells in the month (specs/20261116-record-hours-in-place T22; AC-5.15–AC-5.20, D15, MA1): a month cell that holds
+ * hours opens the same list with the same Edit, Delete and Add hours, each of which reads the month again in whole and shows
+ * the new figures, the month's row total and day totals included. The week's own cases above are the reference; this block
+ * runs the ones that depend on what the person acted on (the span of the re-read, the sentence for a day outside the period,
+ * the row a first entry makes) against the month, so a month that drifted from the week fails here.
+ */
+describe('the same from the cells of the month (AC-5.15–AC-5.20, MA1)', () => {
+  const MONTH = '/hours?view=month'
+  /** The month's figures of a row: one cell for each of November's 30 days, then the row's total. */
+  const monthCells = (rowKey: string) =>
+    within(screen.getByTestId(`hours-table-row-${rowKey}`))
+      .getAllByRole('cell')
+      .map((cell) => cell.textContent)
+  const onDay = (rowKey: string, day: string) => monthCells(rowKey)[Number(day.slice(8)) - 1]
+  const rowTotal = (rowKey: string) => monthCells(rowKey).at(-1)
+  const NOVEMBER = ['2026-11-01', '2026-11-30']
+  const spanOf = (call: ReturnType<typeof entriesCalls>[number]) => [call.query['from'], call.query['to']]
+
+  it('is the month that is read: its first and last day, in full, and the Monday entry is a cell of it', async () => {
+    useApi()
+    await renderPage(MONTH)
+    await screen.findByTestId('hours-table-table')
+
+    expect(entriesCalls().map(spanOf)).toEqual([NOVEMBER])
+    expect(monthCells('project:p-alpha')).toHaveLength(31)
+    expect(onDay('project:p-alpha', '2026-11-09')).toBe('4 h')
+    expect(onDay('project:p-alpha', '2026-11-10')).toBe('2 h 30')
+    expect(rowTotal('project:p-alpha')).toBe('6 h 30')
+    expect(document.querySelectorAll('[data-cell]')).toHaveLength(SEED.length)
+  })
+
+  it('a month cell opens its entries as a week cell does: titled with the row and the day, the first Edit focused', async () => {
+    useApi()
+    held.push(SUPPORT_CALL())
+    await renderPage(MONTH)
+    await screen.findByTestId('hours-table-table')
+
+    await userEvent.click(screen.getByRole('button', { name: w.cell.open('5 h 30', ALPENSTROM, MONDAY_LONG, 2) }))
+
+    const open = cellDialog()
+    expect(document.getElementById(open.getAttribute('aria-describedby')!)!.textContent).toBe(
+      'Monday 9 November 2026 · 2 entries, 5 h 30',
+    )
+    expect(within(open).getAllByRole('listitem')).toHaveLength(2)
+    expect(document.activeElement).toBe(editOf(MON_1))
+    expect(entriesCalls()).toHaveLength(1)
+  })
+
+  it('Add hours in a month cell: the dialog has that day and that row, and once saved the month is read again, the figures following (AC-5.18, AC-5.20)', async () => {
+    useApi()
+    await renderPage(MONTH)
+    await screen.findByTestId('hours-table-table')
+    expect(rowTotal('project:p-alpha')).toBe('6 h 30')
+    const before = entriesCalls().length
+
+    await addHoursIn('project:p-alpha', '2026-11-09')
+    expect(dayField().value).toBe('2026-11-09')
+    await typeDuration(durationField(), '2')
+    await save()
+
+    await waitFor(() => expect(postCalls()).toHaveLength(1))
+    expect(postCalls()[0]!.body).toEqual({ day: '2026-11-09', minutes: 120, on: { type: 'project', id: 'p-alpha' } })
+    await waitFor(() => expect(onDay('project:p-alpha', '2026-11-09')).toBe('6 h'))
+    expect(entriesCalls()).toHaveLength(before + 1)
+    expect(spanOf(entriesCalls().at(-1)!)).toEqual(NOVEMBER)
+    expect(entriesCalls().at(-1)!.query['limit']).toBe('500')
+    expect(rowTotal('project:p-alpha')).toBe('8 h 30')
+    // the month's day total and the month's total follow, in the totals row
+    expect(onDay('total', '2026-11-09')).toBe('6 h')
+    expect(rowTotal('total')).toBe('9 h 30')
+    expect(requests(api, 'GET /time-entries/totals')).toHaveLength(0)
+    expect((await screen.findByTestId('hours-entry-saved')).textContent).toBe(e.saved)
+  })
+
+  it('Edit from a month cell PATCHes only what changed, reads the month again, and the focus is back on that entry’s Edit', async () => {
+    useApi()
+    held.push(SUPPORT_CALL())
+    await renderPage(MONTH)
+    await screen.findByTestId('hours-table-table')
+    await openCellOf('project:p-alpha', '2026-11-09')
+
+    await userEvent.click(editOf('e-mon2'))
+    await typeDuration(editDuration(), '2')
+    await saveEdit()
+
+    await waitFor(() => expect(patchCalls()).toHaveLength(1))
+    expect(patchCalls()[0]).toMatchObject({ path: '/time-entries/e-mon2', body: { minutes: 120 } })
+    await waitFor(() => expect(onDay('project:p-alpha', '2026-11-09')).toBe('6 h'))
+    expect(spanOf(entriesCalls().at(-1)!)).toEqual(NOVEMBER)
+    expect(rowTotal('project:p-alpha')).toBe('8 h 30')
+    expect(document.activeElement).toBe(editOf('e-mon2'))
+  })
+
+  it('Delete from a month cell asks first, deletes on Confirm, reads the month again, and the figures follow', async () => {
+    useApi()
+    await renderPage(MONTH)
+    await screen.findByTestId('hours-table-table')
+    await openCellOf('project:p-alpha', '2026-11-09')
+
+    await userEvent.click(deleteOf(MON_1))
+    expect(deleteCalls()).toHaveLength(0)
+    await confirmDelete()
+
+    await waitFor(() => expect(deleteCalls()).toHaveLength(1))
+    // the only entry of that cell: the dialog closes, the cell is blank, and focus goes to the card's heading
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull())
+    expect(onDay('project:p-alpha', '2026-11-09')).toBe('')
+    expect(cellButton('project:p-alpha', '2026-11-09')).toBeNull()
+    expect(rowTotal('project:p-alpha')).toBe('2 h 30')
+    expect(spanOf(entriesCalls().at(-1)!)).toEqual(NOVEMBER)
+    await waitFor(() => expect(document.activeElement).toBe(heading()))
+  })
+
+  it('deleting the only entry of a row leaves the month without that row, and focus goes to the card’s heading', async () => {
+    useApi()
+    await renderPage(MONTH)
+    await screen.findByTestId('hours-table-table')
+    await openCellOf('deal:d-brera', '2026-11-11')
+
+    await userEvent.click(deleteOf(WED_BRERA))
+    await confirmDelete()
+
+    await waitFor(() => expect(screen.queryByTestId('hours-table-row-deal:d-brera')).toBeNull())
+    expect(screen.queryByRole('dialog')).toBeNull()
+    await waitFor(() => expect(document.activeElement).toBe(heading()))
+  })
+
+  it('Record hours in the header on a target with no hours this month gets its row, the month total following (AC-5.19)', async () => {
+    useApi()
+    await renderPage(MONTH)
+    await screen.findByTestId('hours-table-table')
+    expect(screen.queryByTestId('hours-table-row-project:p1')).toBeNull()
+
+    await userEvent.click(screen.getByTestId('hours-record'))
+    fireEvent.change(dayField(), { target: { value: '2026-11-12' } })
+    await typeDuration(durationField(), '3')
+    await userEvent.click(inDialog().getByRole('radio', { name: f.on.options.project }))
+    await userEvent.type(inDialog().getByRole('combobox', { name: f.project.label }), 'p')
+    await userEvent.click(await screen.findByRole('option', { name: /Project Alpha/ }))
+    await save()
+
+    await screen.findByTestId('hours-table-row-project:p1')
+    expect(onDay('project:p1', '2026-11-12')).toBe('3 h')
+    expect(rowTotal('project:p1')).toBe('3 h')
+    expect(rowTotal('total')).toBe('10 h 30')
+    expect(spanOf(entriesCalls().at(-1)!)).toEqual(NOVEMBER)
+    expect((await screen.findByTestId('hours-entry-saved')).textContent).toBe(e.saved)
+  })
+
+  it('a save on a day of another month says so in the month’s words, and the month shown stays the one it was', async () => {
+    useApi()
+    const router = await renderPage(MONTH)
+    await screen.findByTestId('hours-table-table')
+
+    await userEvent.click(screen.getByTestId('hours-record'))
+    fireEvent.change(dayField(), { target: { value: '2026-10-30' } })
+    await typeDuration(durationField(), '1')
+    await userEvent.click(inDialog().getByRole('radio', { name: f.on.options.none }))
+    await userEvent.selectOptions(inDialog().getByRole('combobox', { name: f.category.label }), 'Formazione')
+    await save()
+
+    expect((await screen.findByTestId('hours-entry-saved')).textContent).toBe(w.month.savedOutside('30.10.2026'))
+    expect(new URLSearchParams(router.state.location.searchStr).get('view')).toBe('month')
+    expect(spanOf(entriesCalls().at(-1)!)).toEqual(NOVEMBER)
+  })
+
+  it('a day of the month shown, its first and its last included, is the plain "Entry saved."', async () => {
+    useApi()
+    await renderPage(MONTH)
+    await screen.findByTestId('hours-table-table')
+
+    await userEvent.click(screen.getByTestId('hours-record'))
+    fireEvent.change(dayField(), { target: { value: '2026-11-01' } })
+    await typeDuration(durationField(), '1')
+    await userEvent.click(inDialog().getByRole('radio', { name: f.on.options.none }))
+    await userEvent.selectOptions(inDialog().getByRole('combobox', { name: f.category.label }), 'Formazione')
+    await save()
+
+    expect((await screen.findByTestId('hours-entry-saved')).textContent).toBe(e.saved)
+  })
+
+  it('leaving the month while a cell is open closes it for good: the previous month does not find it open', async () => {
+    useApi()
+    await renderPage(MONTH)
+    await screen.findByTestId('hours-table-table')
+    await openCellOf('project:p-alpha', '2026-11-09')
+    expect(cellDialog()).not.toBeNull()
+
+    act(() => {
+      screen.getByRole('button', { name: w.month.nav.previous }).click()
+    })
+
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull())
+    await waitFor(() => expect(heading().textContent).toBe('October 2026'))
   })
 })

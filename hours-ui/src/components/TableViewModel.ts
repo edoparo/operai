@@ -6,9 +6,10 @@
  * the row, so a project the viewer may not read is "Not visible to you" here exactly as it is in the List and in the
  * export, and no second copy of that rule can drift. The row carries no link and no id (design G6).
  */
-import { formatDate, formatDateLong } from '@operai/ui'
+import { formatDate, formatDateLong, formatMonth, formatNumber } from '@operai/ui'
 import type { EntryOn } from '../lib/hoursApi.types'
 import { onPhrase, rowName } from '../lib/names'
+import { monthOf } from '../lib/month'
 import { mondayOf, weekDays } from '../lib/week'
 import type { TableGridCell, TableGrid, TableGridRow } from '../lib/tableGrid'
 import type { TablePeriod } from '../lib/tablePeriod'
@@ -25,10 +26,11 @@ export const weekRange = (monday: string): string => {
 }
 
 /**
- * The period as the card's heading, the table's caption and the sentence read when a period arrives name it (AC-5.5):
- * for a week, `weekRange` of its Monday.
+ * The period as the card's heading, the table's caption and the sentence read when a period arrives name it (AC-5.5,
+ * AC-5.25): for a week, `weekRange` of its Monday; for a month, `formatMonth` of it, "November 2026" / "novembre 2026".
  */
-export const periodLabel = (period: TablePeriod): string => weekRange(period.monday)
+export const periodLabel = (period: TablePeriod): string =>
+  period.kind === 'week' ? weekRange(period.monday) : formatMonth(period.month)
 
 /**
  * A day's place in its own week, Monday 0, from the date alone (R17). Never a column's index: in a week the two
@@ -41,6 +43,24 @@ export const shortDay = (day: string): string => strings.table.weekday.short[wee
 
 /** A day as a button names it, "Thursday 19 November 2026": the long weekday by the date, then `formatDateLong`. */
 export const longDay = (day: string): string => `${strings.table.weekday.long[weekdayOf(day)]} ${formatDateLong(day)}`
+
+/**
+ * A day's number in its month, "1" … "31": the second line of the month's compact column header (design S7, decision 4).
+ * A week's header says `formatDate` instead, since a week can cross a month and a bare number would be ambiguous there; a
+ * month never does.
+ */
+export const dayNumber = (day: string): string => {
+  monthOf(day)
+  return formatNumber(Number(day.slice(8)))
+}
+
+/**
+ * What a reader is told a day's column is, where the compact header is `aria-hidden` (design S7, decision 4): the long date,
+ * "Thursday 19 November 2026", with the word for today added on today's column. Made of existing words (`longDay`,
+ * `table.today`), so it adds no key.
+ */
+export const dayHeaderName = (day: string, today: string): string =>
+  day === today ? `${longDay(day)}, ${strings.table.today.toLowerCase()}` : longDay(day)
 
 /** The row as the entry it holds would be for `rowName` and `onPhrase`: its kind, its name and why it may have none. */
 const onOf = (row: TableGridRow): EntryOn => {

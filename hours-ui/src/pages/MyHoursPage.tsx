@@ -55,8 +55,9 @@ import { useHoursPages, useHoursQuery } from '../lib/useHoursQuery'
 import type { HoursQueryState } from '../lib/useHoursQuery'
 import { tableGrid } from '../lib/tableGrid'
 import type { TableGrid, TableGridRow } from '../lib/tableGrid'
-import { daysOf, firstDayOf, lastDayOf } from '../lib/tablePeriod'
-import type { TablePeriod } from '../lib/tablePeriod'
+import { daysOf, firstDayOf, lastDayOf, switchTo } from '../lib/tablePeriod'
+import type { TablePeriod, TablePeriodKind } from '../lib/tablePeriod'
+import { readWeekParam } from '../lib/week'
 import { strings } from '../strings'
 
 type Search = Record<string, unknown>
@@ -107,7 +108,8 @@ const dayTotalsOf = (answer: TotalsAnswer): ReadonlyMap<string, number> =>
 
 /**
  * My hours — `/hours`, which opens on the table view of the current week (T19, AC-5.1 reversed: it opened on the List); the
- * List is `?view=list`, and `?week=<day>` shows another week (`readMyHoursAddress`, plan § The address of My hours). The
+ * List is `?view=list`, `?week=<day>` shows another week and `?view=month[&month=<YYYY-MM>]` a month (T22, AC-5.2;
+ * `readMyHoursAddress`, plan § The address of My hours). The
  * filters and the Totals card (T24), the entries by day with the server's day totals and the banners (T25); the entry
  * dialog (T27, T28); the Export button of the Entries card (T30, `HoursExport`: every page of the same filters as one
  * XLSX) are the List's.
@@ -268,9 +270,9 @@ export default function MyHoursPage() {
     totals.reload()
   }
 
-  // After a Retry of the blocked state, or of a Week that could not be read, once every read has settled: focus goes
-  // to the Totals heading (the Week card's, in the Week) when they worked and back to the banner when they did not
-  // (the Retry button that had focus is gone: in the blocked state the banner itself, in a failed Week the new Retry).
+  // After a Retry of the blocked state, or of a period that could not be read, once every read has settled: focus goes
+  // to the Totals heading (the table card's, in the table view) when they worked and back to the banner when they did not
+  // (the Retry button that had focus is gone: in the blocked state the banner itself, in a failed period the new Retry).
   // A Retry whose view was left before it answered moves nothing.
   const tableFailed = tableRead.state.status === 'error'
   useEffect(() => {
@@ -295,7 +297,7 @@ export default function MyHoursPage() {
 
   // The notes about names. They keep their last settled content while the next answers load, so the Filters
   // card below them does not jump under the pointer on every filter change; with no data (blocked) none.
-  // In the Week they are what the walk of the week found: the sources it could not ask, and names it may not show.
+  // In the table view they are what the walk of the period found: the sources it could not ask, and names it may not show.
   const live: HoursBannersProps = tableShown
     ? {
         sources: loadedTable?.unavailable ?? [],
@@ -330,9 +332,21 @@ export default function MyHoursPage() {
     writeSearch((previous) => applyFilterPatch(previous, withRange))
   }
 
-  // The view and the period are addresses of the page, not filters: they change nothing else in it (AC-5.22).
-  const switchView = (next: MyHoursView) => writeSearch(next === 'list' ? withList : withTable)
+  // The view and the period are addresses of the page, not filters: they change nothing else in it (AC-5.22). Choosing the
+  // view already shown writes nothing (a stray `month` in a week's address must not turn it into the month's).
+  const switchView = (next: MyHoursView) => {
+    if (next === view) return
+    writeSearch((previous) => (period === null ? withTable(previous, today) : withList(previous, period)))
+  }
   const changePeriod = (next: TablePeriod) => writeSearch((previous) => withTablePeriod(previous, next, today))
+  // The Period switch (AC-5.26, AC-5.27): which period the other kind shows is `switchTo`'s, with the week the month was
+  // reached from — the address's `week` — as the one Month → Week returns to.
+  const changeKind = (kind: TablePeriodKind) => {
+    if (period === null) return
+    writeSearch((previous) =>
+      withTablePeriod(previous, switchTo(period, kind, today, readWeekParam(previous, today)), today),
+    )
+  }
 
   const clear = () => {
     writeSearch((previous) => clearFilterSearch(previous, view))
@@ -357,7 +371,7 @@ export default function MyHoursPage() {
     setNotice((previous) => ({ kind, message, count: (previous?.count ?? 0) + 1 }))
 
   // Every write that changed what the page shows asks again, with the same filters, for what is on screen: the
-  // three reads of the List, or the Week's one.
+  // three reads of the List, or the table's one.
   const readAgain = () => {
     if (tableShown) {
       tableRead.reload()
@@ -440,7 +454,7 @@ export default function MyHoursPage() {
     if (day === undefined) return strings.entry.saved
     if (period !== null) {
       return day < firstDayOf(period) || day > lastDayOf(period)
-        ? strings.table.savedOutside(formatDate(day))
+        ? strings.table[period.kind].savedOutside(formatDate(day))
         : strings.entry.saved
     }
     return range !== null && (day < range.from || day > range.to)
@@ -510,8 +524,8 @@ export default function MyHoursPage() {
     if (!fromCellDialog) setFocusRequest({ on: 'heading' })
   }
 
-  // What the Week shows in place of the grid, or the grid: one state (design S7). The refusal that blocks the List
-  // blocks the Week as well, in the card, with its heading and navigator kept.
+  // What the table view shows in place of the grid, or the grid: one state (design S7). The refusal that blocks the List
+  // blocks the table as well, in the card, with its heading and toolbar kept.
   const tableState: TableViewState = blocked
     ? { status: 'replaced', content: <DealFilterUnavailable ref={blocker} onRetry={retryAll} onClear={clearDeal} /> }
     : tableRead.state.status === 'loaded'
@@ -592,6 +606,7 @@ export default function MyHoursPage() {
             filtered={filtered}
             state={tableState}
             onPeriodChange={changePeriod}
+            onKindChange={changeKind}
             onRetry={retryAll}
             onClearFilters={clear}
             onOpenCell={(row, day) => setOpenCell({ rowKey: row.key, day, tableKey })}

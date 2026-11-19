@@ -5,10 +5,9 @@
  * the card (`TableView`), the cell dialog and the page take a `TablePeriod` and know nothing else about how one kind
  * differs from another.
  *
- * Only the week is written so far: the month, `switchTo` and the date field's bounds arrive with the tasks that need
- * them (T22, T23), as further members of the union and further functions of this module. The availability of the
- * previous and the next period and the clamp to today (T20) are written here for the week and say nothing a month
- * cannot say: each is a comparison of first days, which is how the month joins them.
+ * The union has two members, the week (T18) and the month (T22: AC-5.25–5.29); the date field's bounds (`pickBounds`)
+ * arrive with the task that needs them (T23). The availability of the previous and the next period and the clamp to today
+ * (T20) say nothing a month cannot say: each is a comparison of first days, which is how the month joins them.
  *
  * Like `week.ts` and `period.ts`, everything is arithmetic on days written `YYYY-MM-DD`, done in UTC on the date alone,
  * so a time zone or a daylight-saving change cannot move a day, and "today" is never read here: the caller passes
@@ -16,40 +15,61 @@
  * `TypeError`, as in `week.ts`.
  */
 import { MIN_DAY } from './period'
+import { monthDays, monthFirstDay, monthLastDay, monthOf, shiftMonth } from './month'
 import { mondayOf, shiftWeek, weekDays } from './week'
 
-export type TablePeriodKind = 'week'
+export type TablePeriodKind = 'week' | 'month'
 
-/** What the table view shows: a week, by its Monday (`YYYY-MM-DD`, always a Monday). */
-export type TablePeriod = { kind: 'week'; monday: string }
+/**
+ * What the table view shows: a week, by its Monday (`YYYY-MM-DD`, always a Monday), or a calendar month (`YYYY-MM`,
+ * the key `formatMonth` and the address take).
+ */
+export type TablePeriod = { kind: 'week'; monday: string } | { kind: 'month'; month: string }
 
-/** The days of the period, consecutive and ascending: seven for a week, Monday first (AC-5.3). */
-export const daysOf = (period: TablePeriod): string[] => weekDays(period.monday)
+/**
+ * The days of the period, consecutive and ascending: seven for a week, Monday first (AC-5.3), 28 to 31 for a month, the
+ * 1st to the last (AC-5.25).
+ */
+export const daysOf = (period: TablePeriod): string[] =>
+  period.kind === 'week' ? weekDays(period.monday) : monthDays(period.month)
 
 /** The period's first day: what a read asks `from` (AC-5.4). */
-export const firstDayOf = (period: TablePeriod): string => daysOf(period)[0]!
+export const firstDayOf = (period: TablePeriod): string =>
+  period.kind === 'week' ? weekDays(period.monday)[0]! : monthFirstDay(period.month)
 
 /** The period's last day: what a read asks `to` (AC-5.4). */
-export const lastDayOf = (period: TablePeriod): string => daysOf(period).at(-1)!
+export const lastDayOf = (period: TablePeriod): string =>
+  period.kind === 'week' ? weekDays(period.monday)[6]! : monthLastDay(period.month)
+
+/**
+ * One key for a period, `week:<Monday>` or `month:<YYYY-MM>`: what the card remembers a sideways scroll position under
+ * (design G18). Never shown. A period that is not one is a `TypeError`, as every function here says.
+ */
+export const periodKey = (period: TablePeriod): string => {
+  firstDayOf(period)
+  return period.kind === 'week' ? `week:${period.monday}` : `month:${period.month}`
+}
 
 /** The period of `kind` that holds `day`, whichever day of it that is (AC-5.30). */
-export const holding = (_kind: TablePeriodKind, day: string): TablePeriod => ({ kind: 'week', monday: mondayOf(day) })
+export const holding = (kind: TablePeriodKind, day: string): TablePeriod =>
+  kind === 'week' ? { kind: 'week', monday: mondayOf(day) } : { kind: 'month', month: monthOf(day) }
 
 /** The period of `kind` holding today: where My hours opens (AC-5.4) and what "This week" returns to (AC-5.5). */
 export const current = (kind: TablePeriodKind, today: string): TablePeriod => holding(kind, today)
 
 /** Whether `period` is the one holding today. */
 export const isCurrent = (period: TablePeriod, today: string): boolean =>
-  firstDayOf(period) === current(period.kind, today).monday
+  firstDayOf(period) === firstDayOf(current(period.kind, today))
 
 /**
  * The period `n` whole periods after `period` (negative: before): the navigator's previous (-1) and next (+1) (AC-5.5).
- * A week outside the calendar the format can write is a `RangeError`, as `shiftWeek` says.
+ * A week is `n` times seven days, a month `n` calendar months (December to January and back). A period outside the
+ * calendar the format can write is a `RangeError`, as `shiftWeek` and `shiftMonth` say.
  */
-export const shift = (period: TablePeriod, n: number): TablePeriod => ({
-  kind: 'week',
-  monday: shiftWeek(period.monday, n),
-})
+export const shift = (period: TablePeriod, n: number): TablePeriod =>
+  period.kind === 'week'
+    ? { kind: 'week', monday: shiftWeek(period.monday, n) }
+    : { kind: 'month', month: shiftMonth(period.month, n) }
 
 /**
  * The day the date field shows for `period` (AC-5.30): today while the period holds it, else the period's first day. It
@@ -79,4 +99,39 @@ export const hasPrevious = (period: TablePeriod): boolean => firstDayOf(shift(pe
 export const clamp = (period: TablePeriod, today: string): TablePeriod => {
   const now = current(period.kind, today)
   return firstDayOf(period) > firstDayOf(now) ? now : period
+}
+
+/** Whether any of the seven days of the week that begins on `monday` is in `month`: the first day on or before its last, the last on or after its first. */
+const weekTouches = (monday: string, month: string): boolean =>
+  monday <= monthLastDay(month) && weekDays(monday)[6]! >= monthFirstDay(month)
+
+/**
+ * `period` as `kind` — what the Period switch asks for, keeping the time in view (AC-5.26, AC-5.27; ledger D25, D26).
+ *
+ * - **Week to month** (AC-5.26, D25): the current month when the week is the current week, also when it straddles two months
+ *   (Monday 30 November – Sunday 6 December 2026 on 2 December is December: the month holding today); otherwise the month
+ *   holding the week's Monday. Never a month after the current one.
+ * - **Month to week** (AC-5.27, D26), in this order: the week the month was reached from (`left`, the address's `week`: a
+ *   Monday) when any of its seven days is in the month; else the current week when any of its days is; else the first
+ *   week whose Monday is in the month (November 2026, whose 1st is a Sunday: Monday 2 November, not Monday 26 October).
+ *   A week left that is after the current week is not the week left (the future is not shown, AC-5.29); with none left
+ *   the current week stands for it. So week, month, week lands on the week left, a past one included.
+ * - The kind already shown: `period` itself.
+ *
+ * A caller bug (a `left` that is not a Monday, a period that is not one, a `today` that is not a day) is a `TypeError`.
+ */
+export const switchTo = (period: TablePeriod, kind: TablePeriodKind, today: string, left?: string): TablePeriod => {
+  if (period.kind === kind) return period
+  if (period.kind === 'week') {
+    return isCurrent(period, today) ? current('month', today) : { kind: 'month', month: monthOf(period.monday) }
+  }
+  const thisMonday = mondayOf(today)
+  // The week left must be a real Monday even when it is not used; a future one is dropped, as the address would drop it.
+  const leftMonday = left === undefined ? undefined : (weekDays(left), left)
+  if (leftMonday !== undefined && leftMonday <= thisMonday && weekTouches(leftMonday, period.month))
+    return { kind: 'week', monday: leftMonday }
+  if (weekTouches(thisMonday, period.month)) return { kind: 'week', monday: thisMonday }
+  const first = monthFirstDay(period.month)
+  const firstMonday = mondayOf(first)
+  return { kind: 'week', monday: firstMonday === first ? first : shiftWeek(firstMonday, 1) }
 }

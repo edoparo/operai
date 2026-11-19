@@ -1,4 +1,4 @@
-import { useImperativeHandle, useRef } from 'react'
+import { useImperativeHandle, useLayoutEffect, useRef } from 'react'
 import type { ReactNode, Ref } from 'react'
 import {
   Badge,
@@ -13,11 +13,14 @@ import {
 } from '@operai/ui'
 import type { DataTableColumn } from '@operai/ui'
 import type { TableGrid, TableGridRow } from '../lib/tableGrid'
-import type { TablePeriod } from '../lib/tablePeriod'
+import { periodKey } from '../lib/tablePeriod'
+import type { TablePeriod, TablePeriodKind } from '../lib/tablePeriod'
 import { strings } from '../strings'
+import type { PeriodWords } from '../strings/table'
 import ErrorBanner from './ErrorBanner'
 import PeriodNavigator from './PeriodNavigator'
-import { longDay, periodLabel, rowLabel, rowPhrase, shortDay } from './TableViewModel'
+import PeriodSwitch from './PeriodSwitch'
+import { dayHeaderName, dayNumber, longDay, periodLabel, rowLabel, rowPhrase, shortDay } from './TableViewModel'
 
 export type TableViewState =
   /** The period is being read (or read again after a write): nothing of any other period is shown. */
@@ -48,7 +51,7 @@ export type TableViewHandle = {
 }
 
 export type TableViewProps = {
-  /** The period asked for: the heading and the navigator. A loaded `grid` is the grid of this period. */
+  /** The period asked for: the heading, the Period switch and the navigator. A loaded `grid` is the grid of this period. */
   period: TablePeriod
   /** Today as hours-api counts it (`todayZurich()`): marks its column and decides which way the navigator can move (AC-5.28). */
   today: string
@@ -57,6 +60,8 @@ export type TableViewProps = {
   state: TableViewState
   /** The period the navigator asks for: the one before, the one after, or the one holding today. */
   onPeriodChange: (period: TablePeriod) => void
+  /** The kind the Period switch asks for (never the one shown); the page decides which period that is (`switchTo`, AC-5.26, AC-5.27). */
+  onKindChange: (kind: TablePeriodKind) => void
   /** Retry after a failed read. */
   onRetry: () => void
   /** Clear filters, from the empty-and-filtered state. */
@@ -81,6 +86,27 @@ function DayHeader({ day, today }: { day: string; today: string }) {
       </span>{' '}
       <span>{formatDate(day)}</span>
     </span>
+  )
+}
+
+/**
+ * A day's column header in a month (design S7 "Columns", decision 4): the short weekday of its date with the Today badge
+ * beside it, and the day's number below, "Sun 1" — compact, because a month has 28 to 31 of them. It is `aria-hidden`, and
+ * followed by the long date for a reader, "Thursday 19 November 2026, today", so a column is heard as a date and not as "Sun
+ * 1". The week keeps `DayHeader`: a week can cross a month, so a bare number would be ambiguous there; a month never does.
+ */
+function MonthDayHeader({ day, today }: { day: string; today: string }) {
+  return (
+    <>
+      <span className="inline-flex flex-col items-end gap-0.5" aria-hidden="true">
+        <span className="inline-flex items-center gap-1">
+          {shortDay(day)}
+          {day === today && <Badge tone="accent">{strings.table.today}</Badge>}
+        </span>
+        <span>{dayNumber(day)}</span>
+      </span>
+      <VisuallyHidden>{dayHeaderName(day, today)}</VisuallyHidden>
+    </>
   )
 }
 
@@ -123,14 +149,19 @@ function Cell({ row, day, onOpenCell }: Pick<TableViewProps, 'onOpenCell'> & { r
 function GridTable({
   grid,
   label,
+  kind,
   today,
   onOpenCell,
-}: Pick<TableViewProps, 'onOpenCell'> & { grid: TableGrid; label: string; today: string }) {
+}: Pick<TableViewProps, 'onOpenCell'> & { grid: TableGrid; label: string; kind: TablePeriodKind; today: string }) {
+  // The month always scrolls sideways (design decision 7), so its row-label and Total columns stay in view (decision 6, D27):
+  // the library's `pin`, which a shell that predates it ignores, so the month then shows unpinned. The week does not pin.
+  const month = kind === 'month'
   const columns: DataTableColumn<TableRow>[] = [
     {
       id: 'on',
       header: strings.filters.recordedOn.label,
       rowHeader: true,
+      ...(month ? { pin: 'start' as const } : {}),
       render: (item) =>
         item.type === 'total' ? (
           <span className="font-medium">{strings.table.grid.total}</span>
@@ -140,7 +171,7 @@ function GridTable({
     },
     ...grid.days.map((day, index): DataTableColumn<TableRow> => ({
       id: day,
-      header: <DayHeader day={day} today={today} />,
+      header: month ? <MonthDayHeader day={day} today={today} /> : <DayHeader day={day} today={today} />,
       numeric: true,
       render: (item) =>
         item.type === 'total' ? (
@@ -157,6 +188,7 @@ function GridTable({
       id: 'total',
       header: strings.table.grid.total,
       numeric: true,
+      ...(month ? { pin: 'end' as const } : {}),
       render: (item) => (
         <span className="font-medium">{short(item.type === 'total' ? grid.totalMinutes : item.row.minutes)}</span>
       ),
@@ -180,7 +212,11 @@ function GridTable({
  * plain one — the page header has the Record hours action, so the panel has none. There is no "not started" state: no
  * period after today is ever shown (AC-5.28, AC-5.29).
  */
-function EmptyPeriod({ filtered, onClearFilters }: Pick<TableViewProps, 'filtered' | 'onClearFilters'>) {
+function EmptyPeriod({
+  filtered,
+  onClearFilters,
+  words,
+}: Pick<TableViewProps, 'filtered' | 'onClearFilters'> & { words: PeriodWords }) {
   if (filtered) {
     return (
       <StatePanel
@@ -198,7 +234,7 @@ function EmptyPeriod({ filtered, onClearFilters }: Pick<TableViewProps, 'filtere
     )
   }
   return (
-    <StatePanel headingLevel={4} title={strings.table.empty.title} testId="hours-table-empty">
+    <StatePanel headingLevel={4} title={words.empty.title} testId="hours-table-empty">
       {strings.table.empty.body}
     </StatePanel>
   )
@@ -209,8 +245,8 @@ function EmptyPeriod({ filtered, onClearFilters }: Pick<TableViewProps, 'filtere
  * and as the Totals card says its figure). Nothing on an error — its banner is an alert — and nothing on a state the page
  * supplies, which words itself.
  */
-const announcement = (state: TableViewState, label: string): string => {
-  if (state.status === 'loading') return strings.table.loading
+const announcement = (state: TableViewState, label: string, words: PeriodWords): string => {
+  if (state.status === 'loading') return words.loading
   if (state.status !== 'loaded') return ''
   return state.grid.rows.length === 0
     ? strings.table.announceEmpty(label)
@@ -218,24 +254,41 @@ const announcement = (state: TableViewState, label: string): string => {
 }
 
 /**
- * TableView — the table card of My hours, drawn for a `TablePeriod` (specs/20261116-record-hours-in-place T9, T18, T20;
- * design S7; AC-5.3, AC-5.5, AC-5.9–AC-5.11, AC-5.14, AC-5.23, AC-5.24, AC-5.28, AC-5.32).
+ * What the hint above the grid says and shows, by period (design S7 "Scroll hint"): the week's hides from 1024 px, where a
+ * week fits; the month's has no breakpoint, since a month is 2,000 to 2,800 px wide and scrolls on every ordinary window
+ * (decision 7). Complete class strings, as the one styling dialect has it.
+ */
+const HINT_CLASS: Record<TablePeriodKind, string> = {
+  week: 'mb-3 text-xs text-soft lg:hidden',
+  month: 'mb-3 text-xs text-soft',
+}
+
+/**
+ * TableView — the table card of My hours, drawn for a `TablePeriod`, a week or a month (specs/20261116-record-hours-in-place
+ * T9, T18, T20, T22; design S7; AC-5.3, AC-5.5, AC-5.9–AC-5.11, AC-5.14, AC-5.23–AC-5.28, AC-5.32, AC-5.34).
  *
  * Presentational. It is handed `period` (the period asked for), `today` (`todayZurich()`), the `state` of the one read
  * of that period and, when loaded, the `TableGrid` the pure fold of T8 made of it. It sums nothing and compares nothing:
  * every figure is one the grid states, and the same markup draws a 1 h week and a 42 h week (AC-5.11). A day is named by
  * its date — the weekday in a column header and in a cell's name — never by the column's place (R17).
  *
- * The card's heading is the period's label and its action the navigator, in every state, so the period can be changed
- * out of an error or an empty one. The body is exactly one of: a skeleton while the period is read (so the previous
- * period's figures are never on screen under the new span), the table, the empty period, one error with Retry (the read
- * is all or nothing: never a partial grid), or whatever the page supplies in place of the grid (`replaced`: the deal
- * filter that cannot be answered).
+ * The card's heading is the period's label, and under it, in every state, the toolbar: the Period switch and the navigator
+ * (G17: not the card's action, where the longer buttons of the month and the two controls more would not fit at 375 px), so
+ * the period can be changed out of an error or an empty one and the controls keep focus across every read. The date field
+ * of T23 sits in the same row. The body is exactly one of: a skeleton while the period is read (so the previous period's
+ * figures are never on screen under the new span), the table, the empty period, one error with Retry (the read is all or
+ * nothing: never a partial grid), or whatever the page supplies in place of the grid (`replaced`: the deal filter that
+ * cannot be answered).
  *
  * A cell that holds hours is a button that gives the row and the day to the page, which lists the cell's entries; a grid
  * given no handler is read-only. An empty cell is not a control (AC-5.32). Every cell button carries
  * `data-cell="<row key>:<day>"` so the page can put focus back on it once the period has been read again; an empty cell
  * has none, so a cell that has run out of entries is found by no one and focus goes to the card's heading.
+ *
+ * The grid is replaced by a skeleton while it is read again, which unmounts the scroll region: it would come back at the
+ * left edge, and in a month that is a loss of place. So the card remembers the region's `scrollLeft` for the period shown
+ * and puts it back when that period's grid returns, before anything asks for focus (design G18); a change of period starts
+ * at the left.
  */
 export default function TableView({
   period,
@@ -243,6 +296,7 @@ export default function TableView({
   filtered,
   state,
   onPeriodChange,
+  onKindChange,
   onRetry,
   onClearFilters,
   onOpenCell,
@@ -250,6 +304,18 @@ export default function TableView({
 }: TableViewProps) {
   const root = useRef<HTMLDivElement>(null)
   const label = periodLabel(period)
+  const words = strings.table[period.kind]
+
+  // The sideways scroll position of the period shown. A scroll event does not bubble, but React's capture phase sees it.
+  const scrolled = useRef<{ period: string; left: number } | null>(null)
+  const shown = periodKey(period)
+  const grid = state.status === 'loaded' ? state.grid : null
+  useLayoutEffect(() => {
+    if (scrolled.current !== null && scrolled.current.period !== shown) scrolled.current = null
+    const left = scrolled.current?.left
+    const region = left === undefined ? null : root.current?.querySelector<HTMLElement>('.table-region')
+    if (region) region.scrollLeft = left!
+  }, [shown, grid])
 
   // `Card` has no focusable heading yet, so the heading is found through the card's own `aria-labelledby` (the way
   // `TotalsCard` does it) and made a programmatic focus target; a cell is found by the `data-cell` it carries.
@@ -279,29 +345,37 @@ export default function TableView({
   }))
 
   return (
-    <div ref={root} className="contents">
-      <Card
-        title={strings.table.title(label)}
-        titleTestId="hours-table-heading"
-        action={<PeriodNavigator period={period} today={today} onPeriodChange={onPeriodChange} />}
-        data-testid="hours-table"
-      >
+    <div
+      ref={root}
+      className="contents"
+      onScrollCapture={(event) => {
+        const target = event.target as HTMLElement
+        if (target.classList?.contains('table-region')) scrolled.current = { period: shown, left: target.scrollLeft }
+      }}
+    >
+      <Card title={words.title(label)} titleTestId="hours-table-heading" data-testid="hours-table">
+        <div className="flex flex-wrap items-end gap-x-6 gap-y-3" data-testid="hours-table-toolbar">
+          <PeriodSwitch value={period.kind} onChange={onKindChange} />
+          <PeriodNavigator period={period} today={today} onPeriodChange={onPeriodChange} />
+          {/* The period's date field (T23) sits here, last in the row. */}
+        </div>
+
         <VisuallyHidden live data-testid="hours-table-live">
-          {announcement(state, label)}
+          {announcement(state, label, words)}
         </VisuallyHidden>
 
         {state.status === 'loading' && <SkeletonRows rows={4} actions={0} testId="hours-table-skeleton" />}
 
         {state.status === 'loaded' &&
           (state.grid.rows.length === 0 ? (
-            <EmptyPeriod filtered={filtered} onClearFilters={onClearFilters} />
+            <EmptyPeriod filtered={filtered} onClearFilters={onClearFilters} words={words} />
           ) : (
             <>
-              {/* Below 1024 px the grid scrolls inside the card and nothing else says so; with a grid only (design S7 "Phone"). */}
-              <p className="mb-3 text-xs text-soft lg:hidden" aria-hidden="true">
-                {strings.table.scrollHint}
+              {/* The grid scrolls inside the card and nothing else says so: below 1024 px for a week, at every width for a month. */}
+              <p className={HINT_CLASS[period.kind]} aria-hidden="true">
+                {words.scrollHint}
               </p>
-              <GridTable grid={state.grid} label={label} today={today} onOpenCell={onOpenCell} />
+              <GridTable grid={state.grid} label={label} kind={period.kind} today={today} onOpenCell={onOpenCell} />
             </>
           ))}
 

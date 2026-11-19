@@ -10,7 +10,9 @@
  * a week that straddles two months. The other boundary days are the plan's: Sunday 1 November 2026 (the last day of a
  * week that is mostly October) and Tuesday 1 September 2026 (a week that begins in August).
  *
- * The month is not an address yet (T22 gives `TablePeriod` its second member): its keys are reserved, see the last block.
+ * The month is the table view's second period (T22): `?view=month` is the current month, `?view=month&month=<YYYY-MM>` another;
+ * `week` is read in the week only and kept in the address while the month shows, so Month → Week returns to the week
+ * left (AC-5.27, D26), and `month` is read in the month only.
  */
 import { describe, expect, it } from 'vitest'
 import {
@@ -31,7 +33,9 @@ const NO_PICKS = { project: null, deal: null }
 const WEDNESDAY = '2026-12-02'
 const THIS_MONDAY = '2026-11-30'
 const week = (monday: string): TablePeriod => ({ kind: 'week', monday })
+const month = (key: string): TablePeriod => ({ kind: 'month', month: key })
 const table = (monday: string) => ({ view: 'table', period: week(monday) })
+const monthTable = (key: string) => ({ view: 'table', period: month(key) })
 
 describe('readMyHoursAddress: no view is the table view, and no week the current week (AC-5.1, AC-5.4)', () => {
   it('/hours is the current week', () => {
@@ -43,7 +47,7 @@ describe('readMyHoursAddress: no view is the table view, and no week the current
     ['a Sunday', '2026-12-06'],
     ['a Tuesday that begins a month', '2026-09-01'],
   ])('the current week when today is %s: Monday to Sunday of the week holding it', (_name, today) => {
-    expect(readMyHoursAddress({}, today)).toEqual(table(holding('week', today).monday))
+    expect(readMyHoursAddress({}, today)).toEqual({ view: 'table', period: holding('week', today) })
   })
 
   it('Sunday 1 November 2026 is in the week that began on Monday 26 October', () => {
@@ -154,25 +158,28 @@ describe('withTablePeriod: the table view at a week, a default left out (AC-5.4,
 
 describe('withList and withTable: the switch between the views keeps what the person set (AC-5.1, AC-5.22)', () => {
   it('the List sets view=list, and keeps every other key: the week held for coming back included', () => {
-    expect(withList({ week: '2026-11-02', category: 'tc-1', target: 'deal' })).toEqual({
+    expect(withList({ week: '2026-11-02', category: 'tc-1', target: 'deal' }, week('2026-11-02'))).toEqual({
       view: 'list',
       week: '2026-11-02',
       category: 'tc-1',
       target: 'deal',
     })
-    expect(withList({})).toEqual({ view: 'list' })
+    expect(withList({}, week(THIS_MONDAY))).toEqual({ view: 'list' })
   })
 
-  it('the List replaces the first contract’s view=week, and takes a month out: the week was the period shown', () => {
-    expect(withList({ view: 'week', week: '2026-11-02' })).toEqual({ view: 'list', week: '2026-11-02' })
-    expect(withList({ view: 'month', month: '2026-10' })).toEqual({ view: 'list' })
+  it('the List replaces the first contract’s view=week, and takes a month out when the week was the period shown', () => {
+    expect(withList({ view: 'week', week: '2026-11-02' }, week('2026-11-02'))).toEqual({
+      view: 'list',
+      week: '2026-11-02',
+    })
+    expect(withList({ view: 'month', month: '2026-10' }, week('2026-10-12'))).toEqual({ view: 'list' })
   })
 
   it('the table view takes view out, and keeps every other key: the week held and the List’s own period', () => {
     expect(
-      withTable({ view: 'list', week: '2026-11-02', period: 'lastMonth', target: 'deal', category: 'tc-1' }),
+      withTable({ view: 'list', week: '2026-11-02', period: 'lastMonth', target: 'deal', category: 'tc-1' }, WEDNESDAY),
     ).toEqual({ week: '2026-11-02', period: 'lastMonth', target: 'deal', category: 'tc-1' })
-    expect(withTable({ view: 'list' })).toEqual({})
+    expect(withTable({ view: 'list' }, WEDNESDAY)).toEqual({})
   })
 
   it('List then the table view returns to the address it left: the current week, and a past week', () => {
@@ -180,20 +187,27 @@ describe('withList and withTable: the switch between the views keeps what the pe
       { target: 'deal' },
       { week: '2026-11-02', period: 'custom', from: '2026-10-01', to: '2026-10-09' },
     ]) {
-      expect(withTable(withList(left)), JSON.stringify(left)).toEqual(left)
+      const shown = readMyHoursAddress(left, WEDNESDAY)
+      expect(shown.view).toBe('table')
+      expect(
+        withTable(withList(left, (shown as { period: TablePeriod }).period), WEDNESDAY),
+        JSON.stringify(left),
+      ).toEqual(left)
     }
   })
 
   it('and the week held in the address is the week shown when the person comes back', () => {
     const left = withTablePeriod({}, week('2026-11-02'), WEDNESDAY)
-    expect(readMyHoursAddress(withTable(withList(left)), WEDNESDAY)).toEqual(table('2026-11-02'))
+    expect(readMyHoursAddress(withTable(withList(left, week('2026-11-02')), WEDNESDAY), WEDNESDAY)).toEqual(
+      table('2026-11-02'),
+    )
   })
 
   it('does not change the object it is given', () => {
     const previous = { view: 'list' }
-    withTable(previous)
+    withTable(previous, WEDNESDAY)
     expect(previous).toEqual({ view: 'list' })
-    withList(previous)
+    withList(previous, month('2026-10'))
     expect(previous).toEqual({ view: 'list' })
   })
 })
@@ -274,12 +288,218 @@ describe('applyFilterPatch keeps view and week', () => {
   })
 })
 
-describe('the month’s keys are reserved until T22 (plan § The address: ?view=month, ?view=month&month=<YYYY-MM>)', () => {
-  // `TablePeriod` has no month yet. Until it does the keys are neither read nor written as a period: an address that names
-  // one shows the current week, and nothing of it reaches a request. T22 replaces this block with the month's rows.
-  it('?view=month and ?month= name no period yet: the current week shows', () => {
-    expect(readMyHoursAddress({ view: 'month' }, WEDNESDAY)).toEqual(table(THIS_MONDAY))
-    expect(readMyHoursAddress({ view: 'month', month: '2026-10' }, WEDNESDAY)).toEqual(table(THIS_MONDAY))
+describe('readMyHoursAddress: the month (AC-5.2, AC-5.29, plan § The address of My hours)', () => {
+  it('?view=month is the current month: the month holding today, Wednesday 2 December 2026 being in December', () => {
+    expect(readMyHoursAddress({ view: 'month' }, WEDNESDAY)).toEqual(monthTable('2026-12'))
+  })
+
+  it.each([
+    ['the month before', '2026-11'],
+    ['a month of the year before', '2025-12'],
+    ['the first month hours-api answers for', '2000-01'],
+  ])('?view=month&month=<YYYY-MM> is that month: %s', (_name, named) => {
+    expect(readMyHoursAddress({ view: 'month', month: named }, WEDNESDAY)).toEqual(monthTable(named))
+  })
+
+  it.each(['2027-01', '2030-06', '9999-12'])(
+    'a month after the current one (%s) is the current month, not the future (AC-5.29)',
+    (named) => {
+      expect(readMyHoursAddress({ view: 'month', month: named }, WEDNESDAY)).toEqual(monthTable('2026-12'))
+    },
+  )
+
+  it.each([
+    'nope',
+    '2026-1',
+    '2026-00',
+    '2026-13',
+    '2026-11-05',
+    '202611',
+    '1999-12',
+    '',
+    202611,
+    null,
+    ['2026-11'],
+    { month: '2026-11' },
+  ])(
+    'a month that is not a real month hours-api would answer for (%j) is the current month: a pasted link never reaches the API as a refused request',
+    (named) => {
+      expect(readMyHoursAddress({ view: 'month', month: named }, WEDNESDAY)).toEqual(monthTable('2026-12'))
+    },
+  )
+
+  it('reads `month` in the month only: with no view, or the week, it names nothing and the current week shows', () => {
     expect(readMyHoursAddress({ month: '2026-10' }, WEDNESDAY)).toEqual(table(THIS_MONDAY))
+    expect(readMyHoursAddress({ view: 'week', month: '2026-10' }, WEDNESDAY)).toEqual(table(THIS_MONDAY))
+  })
+
+  it('reads `week` in the week only: the month ignores it, and the week it left is kept for the way back', () => {
+    expect(readMyHoursAddress({ view: 'month', week: '2026-11-04' }, WEDNESDAY)).toEqual(monthTable('2026-12'))
+    expect(readMyHoursAddress({ view: 'month', month: '2026-10', week: '2026-10-12' }, WEDNESDAY)).toEqual(
+      monthTable('2026-10'),
+    )
+  })
+
+  it('is the month named however it was reached: view=month exactly, as view=list is exactly the List', () => {
+    for (const view of ['MONTH', 'Month', 'month ', '', 3, null, ['month']]) {
+      expect(readMyHoursAddress({ view, month: '2026-10' }, WEDNESDAY), String(view)).toEqual(table(THIS_MONDAY))
+    }
+  })
+
+  it('does not change the object it is given', () => {
+    const search = { view: 'month', month: '2027-01' }
+    readMyHoursAddress(search, WEDNESDAY)
+    expect(search).toEqual({ view: 'month', month: '2027-01' })
+  })
+})
+
+describe('withTablePeriod: the month, a default left out, the week left kept (AC-5.2, AC-5.27, D26)', () => {
+  it('another month is view=month and month=<YYYY-MM>, every other key kept', () => {
+    expect(withTablePeriod({ target: 'deal' }, month('2026-10'), WEDNESDAY)).toEqual({
+      target: 'deal',
+      view: 'month',
+      month: '2026-10',
+    })
+  })
+
+  it('the current month is the default month: view=month stays, month is taken out, so a bookmark keeps meaning "this month"', () => {
+    expect(withTablePeriod({ month: '2026-10', view: 'month' }, month('2026-12'), WEDNESDAY)).toEqual({ view: 'month' })
+    expect(withTablePeriod({}, month('2026-12'), WEDNESDAY)).toEqual({ view: 'month' })
+  })
+
+  it('keeps `week` as it was while the month shows: it is the week Month → Week returns to (D26)', () => {
+    expect(withTablePeriod({ week: '2026-10-12' }, month('2026-10'), WEDNESDAY)).toEqual({
+      week: '2026-10-12',
+      view: 'month',
+      month: '2026-10',
+    })
+    expect(
+      withTablePeriod({ week: '2026-10-12', view: 'month', month: '2026-10' }, month('2026-09'), WEDNESDAY),
+    ).toEqual({ week: '2026-10-12', view: 'month', month: '2026-09' })
+  })
+
+  it('replaces the first contract’s view=week with view=month', () => {
+    expect(withTablePeriod({ view: 'week', week: '2026-11-02' }, month('2026-11'), WEDNESDAY)).toEqual({
+      week: '2026-11-02',
+      view: 'month',
+      month: '2026-11',
+    })
+  })
+
+  it('a week written after the month takes view and month out and puts its own Monday in, the week left replaced', () => {
+    expect(
+      withTablePeriod({ week: '2026-10-12', view: 'month', month: '2026-10' }, week('2026-10-12'), WEDNESDAY),
+    ).toEqual({ week: '2026-10-12' })
+    expect(
+      withTablePeriod({ week: '2026-10-12', view: 'month', month: '2026-11' }, week('2026-11-02'), WEDNESDAY),
+    ).toEqual({ week: '2026-11-02' })
+  })
+
+  it('keeps the List’s period, dates and grouping, and every filter, untouched (design G5)', () => {
+    const held = {
+      period: 'custom',
+      from: '2026-10-01',
+      to: '2026-10-31',
+      group: 'deal',
+      target: 'deal',
+      category: 'tc-1',
+    }
+    expect(withTablePeriod(held, month('2026-10'), WEDNESDAY)).toEqual({ ...held, view: 'month', month: '2026-10' })
+  })
+
+  it('writes an address that reads back as the period written, for every month and week, current ones included', () => {
+    for (const period of [
+      month('2026-12'),
+      month('2026-10'),
+      month('2000-01'),
+      week(THIS_MONDAY),
+      week('2026-11-02'),
+    ]) {
+      expect(readMyHoursAddress(withTablePeriod({}, period, WEDNESDAY), WEDNESDAY), JSON.stringify(period)).toEqual({
+        view: 'table',
+        period,
+      })
+    }
+  })
+
+  it('does not change the object it is given', () => {
+    const previous = { view: 'week', week: '2026-11-02' }
+    withTablePeriod(previous, month('2026-11'), WEDNESDAY)
+    expect(previous).toEqual({ view: 'week', week: '2026-11-02' })
+  })
+})
+
+describe('withList and withTable: the month survives a visit to the List (AC-5.1, AC-5.22)', () => {
+  it('the List after the month writes the month, the current one included, so going back finds it', () => {
+    expect(withList({ view: 'month', target: 'deal' }, month('2026-12'))).toEqual({
+      view: 'list',
+      month: '2026-12',
+      target: 'deal',
+    })
+    expect(withList({ view: 'month', month: '2026-10' }, month('2026-10'))).toEqual({ view: 'list', month: '2026-10' })
+  })
+
+  it('keeps the week left through the List: Month → List → Table → Week still lands on it (AC-5.27)', () => {
+    expect(withList({ week: '2026-10-12', view: 'month', month: '2026-10' }, month('2026-10'))).toEqual({
+      week: '2026-10-12',
+      view: 'list',
+      month: '2026-10',
+    })
+  })
+
+  it('the table view after the List is the month when the address holds one, else the week', () => {
+    expect(withTable({ view: 'list', month: '2026-10', target: 'deal' }, WEDNESDAY)).toEqual({
+      view: 'month',
+      month: '2026-10',
+      target: 'deal',
+    })
+    expect(withTable({ view: 'list', week: '2026-11-02' }, WEDNESDAY)).toEqual({ week: '2026-11-02' })
+  })
+
+  it('the current month is the month’s default again: view=month, month taken out', () => {
+    expect(withTable({ view: 'list', month: '2026-12' }, WEDNESDAY)).toEqual({ view: 'month' })
+  })
+
+  it('a month that is not one is not a month to come back to: the week shows, and the key is left as it was', () => {
+    expect(withTable({ view: 'list', month: 'nope' }, WEDNESDAY)).toEqual({ month: 'nope' })
+    expect(withTable({ view: 'list', month: '2026-13' }, WEDNESDAY)).toEqual({ month: '2026-13' })
+  })
+
+  it('round trips: a past month, the current month, a past week and the current week come back as they were', () => {
+    for (const period of [month('2026-10'), month('2026-12'), week('2026-11-02'), week(THIS_MONDAY)]) {
+      const left = withTablePeriod({ target: 'deal', period: 'lastMonth' }, period, WEDNESDAY)
+      const back = withTable(withList(left, period), WEDNESDAY)
+      expect(back, JSON.stringify(period)).toEqual(left)
+      expect(readMyHoursAddress(back, WEDNESDAY), JSON.stringify(period)).toEqual({ view: 'table', period })
+    }
+  })
+
+  it('does not change the object it is given', () => {
+    const previous = { view: 'list', month: '2026-10' }
+    withTable(previous, WEDNESDAY)
+    expect(previous).toEqual({ view: 'list', month: '2026-10' })
+  })
+})
+
+describe('Clear filters and isFiltered with the month (AC-5.21, AC-5.22)', () => {
+  it('in the month it clears Recorded on, Category and Work type and keeps view=month, month and week', () => {
+    expect(
+      clearFilterSearch(
+        {
+          view: 'month',
+          month: '2026-10',
+          week: '2026-10-12',
+          target: 'deal',
+          category: 'tc-1',
+          workType: 'wt-1',
+          period: 'lastMonth',
+        },
+        'table',
+      ),
+    ).toEqual({ view: 'month', month: '2026-10', week: '2026-10-12', period: 'lastMonth' })
+  })
+
+  it('the period is not a filter in the month either', () => {
+    expect(isFiltered({ ...DEFAULT_FILTERS, period: 'lastMonth' }, NO_PICKS, 'table')).toBe(false)
   })
 })

@@ -54,8 +54,8 @@ const THIS_SUNDAY = '2026-11-15'
 const LAST_MONDAY = '2026-11-02'
 const LAST_SUNDAY = '2026-11-08'
 const NEXT_MONDAY = '2026-11-16'
-const nextButton = () => screen.getByRole('button', { name: w.nav.next })
-const previousButton = () => screen.getByRole('button', { name: w.nav.previous })
+const nextButton = () => screen.getByRole('button', { name: w.week.nav.next })
+const previousButton = () => screen.getByRole('button', { name: w.week.nav.previous })
 
 let entrySeq = 0
 const entry = (day: string, minutes: number, on: TimeEntryView['on']): TimeEntryView =>
@@ -138,7 +138,7 @@ describe('My hours opens on the table view, with a switch to the List (AC-5.1)',
     expect(viewTab(w.view.table).getAttribute('aria-selected')).toBe('true')
     expect(viewTab(w.view.list).getAttribute('aria-selected')).toBe('false')
     expect(screen.getByRole('tabpanel').getAttribute('aria-labelledby')).toBe(viewTab(w.view.table).id)
-    expect(heading().textContent).toBe(w.title(rangeOf(THIS_MONDAY, THIS_SUNDAY)))
+    expect(heading().textContent).toBe(w.week.title(rangeOf(THIS_MONDAY, THIS_SUNDAY)))
     expect(screen.queryByTestId('hours-entries')).toBeNull()
     expect(screen.queryByTestId('hours-totals')).toBeNull()
   })
@@ -206,7 +206,7 @@ describe('the List at its own address (AC-5.1, AC-5.2)', () => {
     const router = await renderPage('/hours?period=lastMonth')
     await screen.findByTestId('hours-table-table')
 
-    expect(heading().textContent).toBe(w.title(rangeOf(THIS_MONDAY, THIS_SUNDAY)))
+    expect(heading().textContent).toBe(w.week.title(rangeOf(THIS_MONDAY, THIS_SUNDAY)))
     // Nothing writes the address on a read: the person arrives on a view, not on a rewritten link.
     expect(urlOf(router)).toEqual({ period: 'lastMonth' })
 
@@ -233,7 +233,7 @@ describe('the table view at its own address (AC-5.2, AC-5.4)', () => {
     await screen.findByTestId('hours-table-table')
 
     expect(viewTab(w.view.table).getAttribute('aria-selected')).toBe('true')
-    expect(heading().textContent).toBe(w.title(rangeOf(THIS_MONDAY, THIS_SUNDAY)))
+    expect(heading().textContent).toBe(w.week.title(rangeOf(THIS_MONDAY, THIS_SUNDAY)))
     expect(urlOf(router)).toEqual({ view: 'week' })
   })
 
@@ -241,7 +241,7 @@ describe('the table view at its own address (AC-5.2, AC-5.4)', () => {
     useApi()
     await renderPage(`/hours?view=week&week=${LAST_MONDAY}`)
     await screen.findByTestId('hours-table-table')
-    expect(heading().textContent).toBe(w.title(rangeOf(LAST_MONDAY, LAST_SUNDAY)))
+    expect(heading().textContent).toBe(w.week.title(rangeOf(LAST_MONDAY, LAST_SUNDAY)))
   })
 
   it('draws the rows of the week from the read: a row for the project and one for the deal, with the week’s figures', async () => {
@@ -282,7 +282,7 @@ describe('the table view at its own address (AC-5.2, AC-5.4)', () => {
     await renderPage('/hours?week=2026-11-04')
     await screen.findByTestId('hours-table-table')
     expect(entriesCalls()[0]!.query).toMatchObject({ from: LAST_MONDAY, to: LAST_SUNDAY })
-    expect(heading().textContent).toBe(w.title(rangeOf(LAST_MONDAY, LAST_SUNDAY)))
+    expect(heading().textContent).toBe(w.week.title(rangeOf(LAST_MONDAY, LAST_SUNDAY)))
   })
 
   it.each([
@@ -301,7 +301,7 @@ describe('the table view at its own address (AC-5.2, AC-5.4)', () => {
       expect(entriesCalls().map((request) => [request.query['from'], request.query['to']])).toEqual([
         [THIS_MONDAY, THIS_SUNDAY],
       ])
-      expect(heading().textContent).toBe(w.title(rangeOf(THIS_MONDAY, THIS_SUNDAY)))
+      expect(heading().textContent).toBe(w.week.title(rangeOf(THIS_MONDAY, THIS_SUNDAY)))
       expect(nextButton().getAttribute('aria-disabled')).toBe('true')
       // Nothing is said and nothing is rewritten: the period shown is derived, and the next write puts it in the address.
       expect(urlOf(router)).toEqual({ week })
@@ -317,15 +317,6 @@ describe('the table view at its own address (AC-5.2, AC-5.4)', () => {
     ])
     expect(nextButton().getAttribute('aria-disabled')).toBe('true')
   })
-
-  it('the month’s keys name no period yet (T22): ?view=month opens the current week and reads one week, nothing of it sent', async () => {
-    useApi()
-    await renderPage('/hours?view=month&month=2026-10')
-    await screen.findByTestId('hours-table-table')
-    expect(entriesCalls().map((request) => request.query)).toEqual([
-      { whose: 'mine', from: THIS_MONDAY, to: THIS_SUNDAY, limit: '500' },
-    ])
-  })
 })
 
 describe('changing the week (AC-5.5)', () => {
@@ -334,12 +325,12 @@ describe('changing the week (AC-5.5)', () => {
     const router = await renderPage('/hours')
     await screen.findByTestId('hours-table-table')
 
-    await userEvent.click(screen.getByRole('button', { name: w.nav.previous }))
+    await userEvent.click(screen.getByRole('button', { name: w.week.nav.previous }))
 
     await waitFor(() => expect(entriesCalls()).toHaveLength(2))
     expect(entriesCalls()[1]!.query).toMatchObject({ whose: 'mine', from: LAST_MONDAY, to: LAST_SUNDAY })
     expect(urlOf(router)).toEqual({ week: LAST_MONDAY })
-    await waitFor(() => expect(heading().textContent).toBe(w.title(rangeOf(LAST_MONDAY, LAST_SUNDAY))))
+    await waitFor(() => expect(heading().textContent).toBe(w.week.title(rangeOf(LAST_MONDAY, LAST_SUNDAY))))
     await screen.findByTestId('hours-table-table')
     // The one entry of the week before, in its day's cell and in the row's total.
     expect(within(rowOf('project:p-alpha')).getAllByText('3 h')).toHaveLength(2)
@@ -357,7 +348,7 @@ describe('changing the week (AC-5.5)', () => {
 
     expect(entriesCalls()).toHaveLength(1)
     expect(urlOf(router)).toEqual({})
-    expect(heading().textContent).toBe(w.title(rangeOf(THIS_MONDAY, THIS_SUNDAY)))
+    expect(heading().textContent).toBe(w.week.title(rangeOf(THIS_MONDAY, THIS_SUNDAY)))
     expect(screen.getByTestId('hours-table-table')).not.toBeNull()
     expect(document.activeElement).toBe(nextButton())
   })
@@ -381,7 +372,7 @@ describe('changing the week (AC-5.5)', () => {
     const router = await renderPage(`/hours?week=${LAST_MONDAY}`)
     await screen.findByTestId('hours-table-table')
 
-    await userEvent.click(screen.getByRole('button', { name: w.nav.thisWeek }))
+    await userEvent.click(screen.getByRole('button', { name: w.week.nav.current }))
 
     await waitFor(() => expect(entriesCalls()).toHaveLength(2))
     expect(entriesCalls()[1]!.query).toMatchObject({ from: THIS_MONDAY, to: THIS_SUNDAY })
@@ -399,7 +390,7 @@ describe('changing the week (AC-5.5)', () => {
     await waitFor(() => expect(entriesCalls()).toHaveLength(2))
     expect(urlOf(router)).toEqual({})
     await screen.findByTestId('hours-table-table')
-    expect(heading().textContent).toBe(w.title(rangeOf(THIS_MONDAY, THIS_SUNDAY)))
+    expect(heading().textContent).toBe(w.week.title(rangeOf(THIS_MONDAY, THIS_SUNDAY)))
     expect(nextButton().getAttribute('aria-disabled')).toBe('true')
     expect(document.activeElement).toBe(nextButton())
   })
@@ -428,12 +419,12 @@ describe('changing the week (AC-5.5)', () => {
     await renderPage('/hours')
     await screen.findByTestId('hours-table-table')
 
-    await userEvent.click(screen.getByRole('button', { name: w.nav.previous }))
+    await userEvent.click(screen.getByRole('button', { name: w.week.nav.previous }))
 
     expect(screen.queryByTestId('hours-table-table')).toBeNull()
     expect(screen.getByTestId('hours-table-skeleton')).not.toBeNull()
     slow.resolve({ status: 200, body: entriesPage([]) })
-    await screen.findByText(w.empty.title)
+    await screen.findByText(w.week.empty.title)
   })
 
   it('a week left before its answer came is never drawn: the answer of the week asked for last wins', async () => {
@@ -445,12 +436,12 @@ describe('changing the week (AC-5.5)', () => {
     await renderPage('/hours')
     await waitFor(() => expect(entriesCalls()).toHaveLength(1))
 
-    await userEvent.click(screen.getByRole('button', { name: w.nav.previous }))
+    await userEvent.click(screen.getByRole('button', { name: w.week.nav.previous }))
     await screen.findByTestId('hours-table-table')
     slow.resolve({ status: 200, body: entriesPage([ENTRIES[2]!]) })
     await Promise.resolve()
 
-    expect(heading().textContent).toBe(w.title(rangeOf(LAST_MONDAY, LAST_SUNDAY)))
+    expect(heading().textContent).toBe(w.week.title(rangeOf(LAST_MONDAY, LAST_SUNDAY)))
     expect(screen.queryByTestId('hours-table-row-deal:d-brera')).toBeNull()
   })
 })
@@ -498,7 +489,7 @@ describe('the switch between the views (AC-5.1, AC-5.2)', () => {
     await screen.findByTestId('hours-table-table')
 
     expect(urlOf(router)).toEqual({ week: LAST_MONDAY })
-    expect(heading().textContent).toBe(w.title(rangeOf(LAST_MONDAY, LAST_SUNDAY)))
+    expect(heading().textContent).toBe(w.week.title(rangeOf(LAST_MONDAY, LAST_SUNDAY)))
   })
 
   it('the legacy ?view=week is replaced by what the person does: a step writes ?week and no view', async () => {
@@ -506,7 +497,7 @@ describe('the switch between the views (AC-5.1, AC-5.2)', () => {
     const router = await renderPage('/hours?view=week')
     await screen.findByTestId('hours-table-table')
 
-    await userEvent.click(screen.getByRole('button', { name: w.nav.previous }))
+    await userEvent.click(screen.getByRole('button', { name: w.week.nav.previous }))
 
     await waitFor(() => expect(urlOf(router)).toEqual({ week: LAST_MONDAY }))
   })
@@ -743,7 +734,7 @@ describe('what the Week does not have (WA5, WA10)', () => {
     await screen.findByTestId('hours-table-table')
     expect(screen.getAllByRole('heading', { level: 3 }).map((h) => h.textContent)).toEqual([
       f.title,
-      w.title(rangeOf(THIS_MONDAY, THIS_SUNDAY)),
+      w.week.title(rangeOf(THIS_MONDAY, THIS_SUNDAY)),
     ])
   })
 
@@ -815,7 +806,7 @@ describe('Clear filters in the table view (G5)', () => {
 
     await userEvent.click(screen.getByTestId('hours-table-clear'))
 
-    await screen.findByText(w.empty.title)
+    await screen.findByText(w.week.empty.title)
     expect(urlOf(router)).toEqual({})
   })
 })
@@ -845,7 +836,7 @@ describe('a read that fails (design S7 States)', () => {
     expect(screen.queryByTestId('hours-table-empty')).toBeNull()
     expect(screen.queryByTestId('hours-table-error')).toBeNull()
     // The card keeps its heading and navigator, and the Filters card keeps the deal.
-    expect(within(tableCard()).getByRole('button', { name: w.nav.next })).not.toBeNull()
+    expect(within(tableCard()).getByRole('button', { name: w.week.nav.next })).not.toBeNull()
     expect(tableCard().contains(blocker())).toBe(true)
     expect(input(f.deal.label).value).toBe('Acme renewal')
   })
@@ -916,7 +907,7 @@ describe('a read that fails (design S7 States)', () => {
     expect(screen.queryByTestId('hours-table-table')).toBeNull()
     expect(screen.queryByTestId('hours-table-empty')).toBeNull()
     // The heading and the navigator stay, so a person can leave the week that failed.
-    expect(within(tableCard()).getByRole('button', { name: w.nav.previous })).not.toBeNull()
+    expect(within(tableCard()).getByRole('button', { name: w.week.nav.previous })).not.toBeNull()
   })
 
   it('a request that never got an answer says so, in the network words', async () => {
@@ -981,12 +972,12 @@ describe('a read that fails (design S7 States)', () => {
       await userEvent.click(await screen.findByTestId('hours-table-error-retry'))
       await waitFor(() => expect(entriesCalls()).toHaveLength(2))
 
-      await userEvent.click(screen.getByRole('button', { name: w.nav.previous }))
+      await userEvent.click(screen.getByRole('button', { name: w.week.nav.previous }))
       await screen.findByTestId('hours-table-table')
       slow.resolve({ status: 200, body: entriesPage([]) })
       await new Promise((resolve) => setTimeout(resolve, 20))
 
-      expect(document.activeElement).toBe(screen.getByRole('button', { name: w.nav.previous }))
+      expect(document.activeElement).toBe(screen.getByRole('button', { name: w.week.nav.previous }))
     })
   })
 
@@ -1039,7 +1030,7 @@ describe('one complete read (plan Decision 1)', () => {
   it('an empty week is the empty state, with no row and nothing to total', async () => {
     useApi({ 'GET /time-entries': () => ({ status: 200, body: entriesPage([]) }) })
     await renderPage('/hours')
-    await screen.findByText(w.empty.title)
+    await screen.findByText(w.week.empty.title)
     expect(screen.queryByTestId('hours-table-table')).toBeNull()
   })
 })

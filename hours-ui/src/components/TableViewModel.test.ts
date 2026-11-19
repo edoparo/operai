@@ -4,7 +4,7 @@
  * both worded by the List's own functions (`lib/names.ts`) so the two views never disagree about one entry.
  */
 import { describe, expect, it } from 'vitest'
-import { formatDate, formatDateLong } from '@operai/ui'
+import { formatDate, formatDateLong, formatMonth } from '@operai/ui'
 import { strings } from '../strings'
 import type { EntryOn } from '../lib/hoursApi.types'
 import { onPhrase, rowName } from '../lib/names'
@@ -12,7 +12,17 @@ import { tableGrid } from '../lib/tableGrid'
 import type { TableGridRow } from '../lib/tableGrid'
 import { daysOf, holding } from '../lib/tablePeriod'
 import { dealOn, meetingOn, otherWorkOn, projectOn, timeEntryView } from '../test-support/fakeApi'
-import { cellOf, longDay, periodLabel, rowLabel, rowPhrase, shortDay, weekRange } from './TableViewModel'
+import {
+  cellOf,
+  dayHeaderName,
+  dayNumber,
+  longDay,
+  periodLabel,
+  rowLabel,
+  rowPhrase,
+  shortDay,
+  weekRange,
+} from './TableViewModel'
 
 const MONDAY = '2026-11-16'
 const DAYS = daysOf(holding('week', MONDAY))
@@ -88,6 +98,40 @@ describe('periodLabel: the period as the card heads it (AC-5.5)', () => {
     expect(periodLabel(holding('week', '2026-11-18'))).toBe('16.11.2026 – 22.11.2026')
     expect(periodLabel(holding('week', '2026-12-02'))).toBe(weekRange('2026-11-30'))
     expect(periodLabel(holding('week', '2026-12-02'))).toBe('30.11.2026 – 06.12.2026')
+  })
+
+  it('is, for a month, the month and the year in the person’s language, as formatMonth writes them (AC-5.25)', () => {
+    expect(periodLabel(holding('month', '2026-11-19'))).toBe(formatMonth('2026-11'))
+    expect(periodLabel(holding('month', '2026-11-19'))).toBe('November 2026')
+    expect(periodLabel(holding('month', '2026-12-01'))).toBe('December 2026')
+    expect(periodLabel(holding('month', '2028-02-29'))).toBe('February 2028')
+  })
+})
+
+describe('dayNumber and dayHeaderName: the month\'s compact day header (design S7 "Columns", decision 4; R17)', () => {
+  it('numbers a day by its day of the month, with no leading zero: 1 … 31', () => {
+    expect(dayNumber('2026-11-01')).toBe('1')
+    expect(dayNumber('2026-11-09')).toBe('9')
+    expect(dayNumber('2026-11-30')).toBe('30')
+    expect(dayNumber('2026-12-31')).toBe('31')
+  })
+
+  it('names a day for a reader as its long date: the weekday of the date and formatDateLong', () => {
+    expect(dayHeaderName('2026-11-01', '2026-11-19')).toBe('Sunday 1 November 2026')
+    expect(dayHeaderName('2026-11-18', '2026-11-19')).toBe('Wednesday 18 November 2026')
+  })
+
+  it('adds the word for today, in lower case, on today and on no other day', () => {
+    expect(dayHeaderName('2026-11-19', '2026-11-19')).toBe(
+      `Thursday 19 November 2026, ${strings.table.today.toLowerCase()}`,
+    )
+    expect(dayHeaderName('2026-11-19', '2026-11-19')).toBe('Thursday 19 November 2026, today')
+    expect(dayHeaderName('2026-11-20', '2026-11-19')).not.toContain('today')
+  })
+
+  it('refuses text that is not a day: a caller bug', () => {
+    expect(() => dayNumber('2026-02-30')).toThrow(TypeError)
+    expect(() => dayHeaderName('', '2026-11-19')).toThrow(TypeError)
   })
 })
 
