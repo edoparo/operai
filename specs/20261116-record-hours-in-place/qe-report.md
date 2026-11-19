@@ -2,8 +2,174 @@
 
 Spec `specs/20261116-record-hours-in-place/` · rigor `production` (full mode, every row blocks) · branch `feat/record-hours-in-place`
 
-This file holds the latest pass on top (**pass 3, 2026-11-19**) and the earlier pass below it as history, unedited. A reader who wants
-the verdict reads the first heading that says `QE verdict`.
+This file holds the latest pass on top (**pass 4, 2026-11-19, after the reopening**: the table view, week and month) and the earlier passes below it
+(pass 3, then pass 2) as history, unedited. A reader who wants the verdict reads the first heading that says `QE verdict`.
+
+## QE pass 4 (2026-11-19, after the reopening: the table view, week and month)
+
+By a fresh QE agent, full mode (rigor `production`, every row blocks). A fresh, full sweep of the reopened feature (spec approved 2026-11-19: AC-5.1–5.34,
+5.12 withdrawn; ledger D15–D27; plan and design amendments of 2026-11-19; tasks T17–T26), not a check of the last fix. Measured at **1ff16599**
+(`git rev-parse --short HEAD`); the working tree was clean before and after (`git status --short` empty); the commit that carries this file adds only this file.
+Evidence lives in the session scratch directory
+`/private/tmp/claude-331608204/-Users-edoardo-paronzini-Work-Experiments-operai/f2ce1f1a-3ebd-4e72-83ca-8155e69a4eef/scratchpad/qe4/` (logs `*.log`,
+screenshots `explore/shots/`, the scratch Playwright files `explore/x*.spec.ts`); it is outside the repo and not committed. Only Chromium
+(Playwright's headless shell) is installed here: **Firefox and WebKit were not run and nothing below is claimed for them.**
+
+### Read this first
+
+1. **Verdict: FAIL, on one defect class, severity low (D1).** A project name, deal title or meeting title can be 200 characters with no space (the bound of
+   a name; owasp-report L1 used that input). The L1 fix covered the month's and the week's row label only. The same input spills out of
+   the cell dialog (new in this feature), the delete confirmation opened from a cell, and — in the feature's earlier scope, never
+   tried with a long name in passes 1–3 — the Record hours dialog's description and the success message on a host page. Nothing becomes unusable except
+   the cell dialog's × (Close in the footer, Escape and every action still work). Everything else passed: 51 of 51 ACs executed, 30/30 e2e, every gate green.
+   The fix is small and the re-run is one row (see Defects, Recommendations).
+2. **What is not in this verdict.** The screen-reader readback is out of the gate by D14 (not run, not verified, not claimed). Firefox and WebKit: not installed.
+   The live drives of the unreadable-name row (AC-5.23 and the unreadable half of AC-5.24), of a meeting that counts for a deal (AC-5.7) and of the deal-filter
+   503 (design S7 refusal state) were not done: they need a deal or meeting whose reader lost access, or hours-api's 503, and stay on their unit tests (named below).
+3. **Test strength was measured, not assumed.** Seven mutants of the headline new behaviours were applied to the production code one at a time and the e2e
+   journey G run: **6 of 7 killed**. The 7th (M1: the date field accepts a day after today) survived the e2e because on today's date (Thursday 19 November, so
+   tomorrow is in the same week and the same month) G.3's "a day after today reads nothing" cannot see it; **12 unit tests kill it**. The tree was restored by
+   `git checkout` after each; `git status` is clean.
+4. Environment: see *Environment faults*. None counts as a defect.
+
+## QE verdict: FAIL (full mode, rigor production — every row blocks; measured at 1ff16599)
+
+| Check | Threshold | Actual | Result |
+|---|---|---|---|
+| AC coverage (an executed check behind every AC) | 51/51 (US-1–4: 18; US-5: 33, AC-5.12 withdrawn) | 51/51 executed, 51/51 pass (table below) | ✓ |
+| e2e `hours-in-place.spec.ts` + `hours-in-place.round1.spec.ts` + `hours.spec.ts` + `hours-owners.spec.ts` | 30/30 | **30/30** (2.7 min; A–F, G.1–G.7, R1–R4, 7 owners, 3 hours), dev stack reused, nothing stubbed except the failures R1–R3 name | ✓ |
+| Other e2e specs that open `/hours` | none besides the four | `grep` of `shell/e2e` for `/hours` and "My hours": only those four plus their helpers | ✓ |
+| hours-ui lint / build / unit | green | lint 0, build 0, **2709/2709** (87 files), 0 "same key" warnings | ✓ |
+| projects-ui lint / build / unit | green | lint 0, build 0, **941 passed + 2 expected fail** (45 files) | ✓ |
+| crm-ui lint / build / unit | green | lint 0, build 0, **1824/1824** (94 files) | ✓ |
+| shell lint / build / unit | green | lint 0, build 0, **706/706** (43 files) | ✓ |
+| operai-ui lint / typecheck / unit | green | lint 0, typecheck 0, **389/389** (32 files) | ✓ |
+| `mise run ui:check` (library change `DataTable` `pin` reaches every consumer) | exit 0 | exit 0 with `NODE_OPTIONS=--no-webstorage` (operai-ui 389, shell 706, refund-ui 789, meetings-ui 1091, hours-ui 2709); exit 1 without it (Environment faults) | ✓ |
+| `cd shell && npx tsc -p tsconfig.e2e.json --noEmit` | 0 errors | 0 (the 4 errors the owasp-L1 round recorded are gone) | ✓ |
+| `mise run shared:check` / `changeset:check` / `react:skew` / `env:doctor` | pass | 33 groups in sync / OK (`hours-ui-record-in-place`, `operai-ui-datatable-pin` among the matched) / OK, 12 frontends one React / all checks passed | ✓ |
+| Secret scan of the 22 commits `b1d85618..HEAD` | 0 leaks | `betterleaks` is not installed here; `gitleaks` 8.30.1 (the mise-installed binary, run directly): 22 commits, ~543 KB, **no leaks** | ✓ |
+| Dependency change / audit | none new | no `package.json` or lockfile in `git diff b1d85618..HEAD`; no audit job exists | n/a ✓ |
+| Coverage | no gate configured | not measured (no provider in these apps) | n/a |
+| Test strength (mutants of the new behaviours against e2e G) | every effective mutant killed | 6/7 killed by e2e; M1 survives e2e on a Thursday and is killed by 12 unit tests (Read this first, 3) | ✓ |
+| Design: states and placements (design.md § Amendment 2026-11-19: S6, S7, F3, F5, F7, width) | all present | toolbar under the heading (Period · navigator · date field, wraps), month header compact with hidden long date, blank empty cells, `aria-disabled` Next/This week at the current period, pinned label and Total from 768 px, scroll hint at every width in the month, skeleton / empty / filtered-empty / error with Retry, scroll position kept across a re-read (G18), focus to the heading when a cell empties — all seen live (screenshots below), except the deal-filter 503 refusal and the source-down notes, which stay on their unit tests (`MyHoursPage.table` / `.month`, `HoursBanners`) | ✓ |
+| Design: width of every hours page (AC-5.33, D16) | one width over List, week, month, Everyone's, Settings | 8 window configurations × 5 pages: tool container and page root identical to 0.00 px at 1920 (1691/1643), 1440 (1211/1163), 1280 (1051/1003), 1024 (795/747 with the shell rail, 955/907 collapsed), 800 (731/683), 375 (306/258 collapsed, 146/98 with the rail); no page-level horizontal overflow in any of the 40 measurements | ✓ |
+| Design: month scroll (AC-5.34, decision 6/7) | scrolls inside its region, pins hold, hint at every width | region/grid 1605/1720 (1920), 1125/1720 (1440), 965/1720 (1280), 709/1720 (1024 with rail), 869/1720 (1024 collapsed), 645/1720 (800), 220/1720 (375); label and Total `position: sticky` from 800 px, static at 375; hint `display: block` at every width; page overflow 0 | ✓ |
+| Accessibility (design.md § Accessibility, amended) | tab order, ARIA, focus per design | Tab order read live in both periods: Record hours → view tab → panel → Filters (5) → Period radio (one stop) → Previous → This week/month (`aria-disabled`, still a stop) → Next (`aria-disabled`, still a stop) → date field → table region → cells that hold hours, row by row; no stop on an empty cell, a total or a pin. Arrow keys switch the radio and keep focus; Enter/Space on Previous/This week/Next as designed; cell dialog traps Tab, Escape returns to the cell; Edit→Escape returns to Edit; Delete confirm opens on Cancel, Escape returns to Delete. Dark theme: pinned surfaces opaque and equal to the card (`rgb(19,19,30)`; light `rgb(240,240,248)`) | ✓ |
+| Language (AC-4.6) on the new copy | Italian complete, no English | `<html lang="it">`: Periodo/Settimana/Mese, Questa settimana/Questo mese, Mostra la settimana del/il mese del, Fino a oggi., hint, empty/filtered/error states, announcements ("5 ore e 30 minuti in totale"), month heading "novembre 2026", header long date "domenica 1 novembre 2026, oggi", saved-outside in both periods | ✓ |
+| Component reuse (design.md inventory) | no NEW library component | `operai-ui` diff: `DataTable` `pin` (prop, story, tests, docs), `tokens.css`; hours-ui new files `PeriodDateField`, `PeriodSwitch` (planned); the rest renamed | ✓ |
+| **Long third-party names do not spill or hide controls (owasp L1 class) on this feature's surfaces** | no spill, no control off-screen | row label ✓ (month, week; every day reachable 1920–375); cell dialog ✗, delete confirmation from a cell ✗, Record hours dialog description ✗, success message ✗ — **D1** | **✗** |
+| Screen-reader readback (NVDA, VoiceOver) | — | out of the gate by D14; not executed, not verified, not claimed | excluded |
+| Firefox / WebKit | — | not installed; not run | not run |
+
+### Defects
+
+**D1 — a long unbreakable name is printed without wrapping or a cap in this feature's dialogs and messages (low).** Class: the same input and the same root
+cause as owasp-report L1 (a name written by the record's owner, up to 200 characters, no break opportunity, in a container that sizes to its content). The L1 fix
+(39ceb3de, b3725fb6) capped the table's row label only. Input used: a project of 200 `W`-padded characters, team = the person, 1 h on it, exactly G.7's input. **Missed
+earlier** (the cell dialog since T12, the widget since T2; no pass tried a long name there); not new since the fix.
+
+| # | Placement | Measured (Chromium, 1280 px unless stated) | Result |
+|---|---|---|---|
+| 1 | Cell dialog title, week and month (`TableCellDialog`, "Project: <name>") | title 3,401 px wide in a 640 px dialog (scroll 3,451 / client 638) at 1920, 1280, 1024, 800; at 375 the title is clipped at the dialog's edge; the dialog's **×** sits at x = 3,760 (3,456 at 375): off-screen, unreachable by pointer (`explore/shots/x5-dialog-1280d.png`, `x5b-dialog-375.png`) | ✗ |
+| 2 | Cell dialog, the entry's target link (`EntryRow` inside the dialog) | link 2,563 px (x 358..2,921) in a 640 px dialog, runs under the figure, Edit and Delete; **Edit, Delete, footer Close and Add hours are still on top and hit-testable** | ✗ (cosmetic) |
+| 3 | Delete confirmation opened from a cell | the sentence "1 h on <name>, 18.11.2026. This can't be undone." runs out of the dialog; Cancel and Delete entry usable (`x5c-delete.png`) | ✗ (cosmetic) |
+| 4 | Record hours dialog from a project page (`./RecordHours`, description "Recording hours on the project <name>") | scroll 2,255 / client 638 at 1280 and at 375 | ✗ (cosmetic) |
+| 5 | The success message on the host page ("1 h recorded on <name>. See in My hours") | scroll 2,577 / client 382; the name runs across the Record hours button; at 375 the message box's right edge is at x = 472 for a 375 px window (`x10-message-1280.png`) | ✗ (cosmetic) |
+| — | Row label, month and week (the L1 fix) | label column 272 px (month, cap `max-w-64`) / 284 px (week at 1280); the first and last day reachable at 1920, 1280, 1024 (both rail states), 800, 375 (unpinned, by scrolling); hit-tests on the cells land on the cells | ✓ |
+| — | Cell dialog's Edit dialog; Filters' project picker with the long name chosen | no overflow (638 = 638; card 1,001 = 1,001) | ✓ |
+
+Same class, **not counted as defects of this feature** (the code is time-tracking's or a host's, outside `b1d85618..HEAD`; listed so one fix at the cause covers them):
+the List's `EntryRow` (link 2,563 px in a 1,001 px card at 1280; card scroll 2,592 / client 1,641 at 1920; `x5b-list-entries-1280.png`), the List's Totals "by project" row
+(clipped at the card edge), the delete confirmation opened from the List, and projects-ui's own page title on a project with that name. Everyone's hours was not conclusive (its entries card measured 1,001 / 1,001 after 0.8 s; whether the person's row had rendered was not checked).
+
+Repro: as the e2e G.7 builds it (`createProjectViaApi` with a 200-character name, `setTeamViaApi`, one entry), open `/hours?view=month`, focus the cell, press Enter; or open
+the project's page and press Record hours, save. Scratch versions: `explore/x5b-dialog-controls.spec.ts`, `explore/x10-widget-longname.spec.ts`. jsdom has no layout, so the guard
+is an e2e step like G.7 (an unreachable × is `boundingBox().x > window width`).
+Owner: **frontend-dev**: `overflow-wrap` / a width cap where the name is printed (`TableCellDialog` title, `EntryRow`'s link, the widget's description and message), or once in the
+library's dialog and banner text — which would ship through the shell, so the deploy order of the changeset applies. If the fix goes into `@operai/ui`, the designer decides the rule.
+
+### Findings that are not defects of this reopening (reported, not counted)
+
+- **O1 — the Week's scroll hint is keyed to the window, not to the room (design gap, missed earlier, unchanged code).** The hint is `lg:hidden` (design S7, "as built"). With the shell's rail expanded
+  (the default in a fresh browser, 224 px) an ordinary week (3 projects of 17–28 characters, 31 h 30) scrolls sideways by 108 px at 1024 px and by 32 px at 1100 px with **no hint**; at 1280 it fits. With the rail collapsed it fits at 1024
+  (869 = 869) and scrolls 12 px at 960 with the hint — the numbers the design and passes 2–3 measured. The Month always shows its hint. Owner: **designer** (key the hint to overflow or to the content width).
+- **O2 — R-D1, the check the design asked QE to make: a filled cell reads as plain text at rest.** Computed at rest: transparent background and border, no underline; hover: pointer cursor and background
+  `rgb(232,232,244)`; keyboard focus: 2 px solid ring. There is no signal at rest and none on a touch screen. The design names the smallest remedy (`variant="secondary"` on filled cells). Owner: **designer / product owner** (it is the user's
+  own request, D17, that removed the plus); not a defect.
+- **O3 — G.3's future-day step cannot fail on most days** (Read this first, 3): "a day after today reads nothing" passes whatever `pickedPeriod` does when tomorrow is in the period shown. The 12 unit tests carry it. A one-line
+  hardening is to use `max + 1 day` only on a day that crosses a period, or to also assert it against next Monday / the 1st of next month. Owner: **frontend-dev**, optional.
+- **O4 — at 375 px with the shell's default rail the toolbar overflows the card** (navigator group 150 px in a 98 px card; `x1` log, `375d`). The rail does not collapse on a phone (pass 3, observation; `Sidebar.tsx` "desktop-only"). With the rail collapsed, the toolbar wraps inside the card
+  and nothing overflows. Owner: the shell, as its own spec.
+- **O5 — the current month opens at its left edge**, so today's column (the 19th of 30) is off-screen on a 1440 px window until the person scrolls. The design lists this under "Not designed" (scrolling today into view); recorded for the product owner.
+- **O6 — as designed, stated so nobody files them:** typing 15/10/2026 key by key passes through other periods (the 1st, then the 15th of November, then January, then October; F7 step 3); `?week=2000-01-01` (a Saturday) opens the current week because the first reachable week begins on 2000-01-03; the trailing slash in `/hours/?view=month` after the first in-app navigation (pass 2).
+
+### Environment faults (not defects, no fix round)
+
+- **Node 26.10.0 without `NODE_OPTIONS=--no-webstorage`:** `localStorage` is undefined, so `mise run ui:check` failed at the shell's unit tests (`TypeError: Cannot read properties of undefined (reading 'getItem')`, `ui-check.log`) while the library part passed. The same shell suite is 706/706 with the flag and `ui:check` exit 0 with it (`ui-check2.log`). Same cause as pass 3's finding; `mise.toml` pins Node 24, which refuses the flag. I ran every suite with the flag, as the brief says.
+- **`betterleaks` is not installed.** `mise x gitleaks@8.30.1 -- gitleaks …` was refused by the permission classifier; I ran the already-installed binary from its install path (`~/.local/share/mise/installs/gitleaks/8.30.1/gitleaks`), same scan, read-only.
+- **Data left in the dev databases** (projects have no delete route): about 40 projects named `QE4 …`, `QE4Long…`, `Alpenstrom — portale clienti`, `Rete vendite …`, `Migrazione ERP fase 2` (13 scratch seeds × 3 plus the realistic week's three), plus the official specs' `Hip …` companies, deals and projects as in pass 3. Every time entry I and the specs recorded was deleted by `deleteOwnEntriesQuietly`, every `hip-*@operai.test` person by `cleanupPeople`. The seeded category "Talk preparation" was retired and **restored** for the AC-5.24 drive (`retired=false` read back). `git status` is clean. No dev server was started or stopped by me; no background process of mine is left.
+
+### Acceptance criteria — 51 of 51 executed, 51 pass
+
+`G`, `F`, `A`–`E`, `R1`–`R4` = `shell/e2e/hours-in-place.spec.ts` and `hours-in-place.round1.spec.ts`, all green in the 30/30 run; `unit` = the hours-ui suites named, green in 2709/2709; `live` = driven by me in Chromium
+(`explore/x1`–`x10`); `M#` = the mutant the e2e killed.
+
+| AC | Evidence | Result |
+|---|---|---|
+| 1.1–1.3, 2.1–2.3 | e2e A, B (the button for the team member / owner, none for a reader / task-only assignee; dialog with the target fixed, Day today, focus on Duration); unit `recordHours.test.ts`, `ProjectDetailPage.recordHours`, `DealDetailPage.recordHours`; the widget with a 200-character project opened live (x10) | ✓ |
+| 3.1–3.6 | e2e B, C, D, R1, R4; unit `ProjectTaskItem` / `MyTasksPageRow` / `ActivityItem.recordHours`, `RecordHours.test.tsx` | ✓ |
+| 4.1, 4.3, 4.4 | e2e A (My hours lists the entry, same values; message with link, no host re-read); unit `RecordHours.test.tsx` (POST only) | ✓ |
+| 4.2 | e2e R1, R2; unit `EntryDialog.preset`, `EntryDialog.refusalFocus` | ✓ |
+| 4.5 | e2e E (hours remote aborted: project page, deal page, My tasks keep working with the link) | ✓ |
+| 4.6 | unit `strings.test.ts` parity, `TableView.it`, `PeriodNavigator`, `PeriodDateField`; live Italian drive (x3), English drive (x2, x4) | ✓ |
+| 5.1 | e2e F, `hours.spec` ("opens My hours from the user menu" lands on the table); unit `ViewSwitch`, `HoursShell`, `MyHoursPage.table`; live: `/hours` opens Table first, tabs Table \| List | ✓ |
+| 5.2 | e2e G.1 (`?view=list`, `?view=week&week=<day>`, `?view=month&month=<last month>`); unit `HoursFiltersState.address`; live x6 (floor, garbage and array values, `2026-13`, `2026-1`) | ✓ |
+| 5.3 | unit `TableView`, `tablePeriod`, `week`; e2e F, G.2; live (Mon–Sun headers, Today badge) | ✓ |
+| 5.4 | unit address / `tablePeriod`; e2e F, G.2; live (`/hours` = 16.11.–22.11.2026 on Thu 19.11.) | ✓ |
+| 5.5 | unit `PeriodNavigator`, `tablePeriod`; e2e F, G.2; live x2 (Enter on Previous, Space on This week, Enter+Space on `aria-disabled` Next: URL unchanged, focus kept) | ✓ |
+| 5.6, 5.8, 5.9, 5.10 | unit `tableGrid`, `TableView` (both periods); e2e F, G.2, G.6 (300 entries: every cell, row, day and month sum); live x4 (month grid 18 h 30 = API 1,110 min after an add, an edit, a delete and a header record) | ✓ |
+| 5.7 | unit `tableGrid` ("a meeting linked to a visible deal stays on its own row"); **not driven live** (needs a deal-linked meeting) | ✓ (unit) |
+| 5.11 | unit `TableView` (1 h and 160 h week/month, one markup); screenshots: no target, mark or comparison | ✓ |
+| 5.13, 5.18 | unit `EntryDialog.preset`, `MyHoursPage.cells` (week and month blocks); e2e F (day and project changeable, the changed values posted); live x4 (Add hours in a month cell: Day = the cell's, project = the row's, focus on Duration; save; the cell dialog stays, focus back on Add hours) | ✓ |
+| 5.14, 5.32 | e2e F, G.2 (an empty past cell: blank `td`, no button, no tab stop, click opens nothing); **M4 killed**; live x2 (no tab stop on any empty cell) | ✓ |
+| 5.15, 5.16, 5.17 | e2e F (week); unit `TableCellDialog`, `MyHoursPage.cells`; live x4 and x2 in the **month**: open, Edit (PATCH, figure follows, focus back on that Edit), Delete (confirm on Cancel, Escape back to Delete; confirmed delete empties the cell, focus on the card heading) | ✓ |
+| 5.19, 5.20 | e2e F; unit `MyHoursPage.cells` / `.month`; live x4 (Record hours in the header on a new category adds its row in the month, scroll position 420 → 420; figures follow without a reload) | ✓ |
+| 5.21, 5.22 | unit `MyHoursPage.table`, `.month`, `.pick`, `HoursFiltersState.address`; live x4: category and project filters carried by every read through week → month → List → Table → week; the List keeps its Period; Clear filters in the month keeps `view=month` | ✓ |
+| 5.23 | unit `TableView`, `TableViewModel`, `tableGrid`; **not driven live** | ✓ (unit) |
+| 5.24 | unit `tableGrid`, `TableCellDialog`, `MyHoursPage.cells`; live x6: a retired category's row in the week and the month — label "Other work Talk preparation (retired)", its cell dialog has no Add hours, one Edit, one Delete; the unreadable half is unit-only | ✓ |
+| 5.25 | e2e G.2 (header count = days + 2, first and last day named by date); unit `month`, `tablePeriod`; live (30 columns for November, which starts on a Sunday: first column "Sun 1") | ✓ |
+| 5.26, 5.27 | unit `tablePeriod.switchTo` (D25 and D26 vectors), `PeriodSwitch`, `MyHoursPage.month`; e2e G.2 (current week → month → week, past weeks → month → week back to the week left); **M3 killed**; live x2 (ArrowRight/Left on the radios keep focus and the address) | ✓ |
+| 5.28 | e2e F, G.2; **M2 killed**; live x2 | ✓ |
+| 5.29 | e2e G.1; **M7 killed**; live x6 (`?week=2000-01-01`, `1999-12-27`, `month=1999-12`, `2026-13`, `garbage`, `week[]=…` all open a real period, every request `whose=mine` and ≤ 31 days) | ✓ |
+| 5.30 | e2e G.3 (picked and typed key by key under slow and fast reads, both periods); live x2 (typed 15/10/2026 digit by digit: navigates only on complete in-range days, the year 0002/0020/0202 change nothing, the typed text survives, the reference day returns on blur) | ✓ |
+| 5.31 | unit `tablePeriod`, `PeriodDateField`, `MyHoursPage.pick` (12 tests kill M1); e2e G.3 (`max` = today); live x2/x6 (a future day typed or filled: no request; `min` 2000-01-03 week, 2000-01-01 month; `fill('2000-01-02')`, `1999-12-31` read nothing; the floor day's period has Previous `aria-disabled`) | ✓ |
+| 5.33 | e2e G.4 (1440 and 1920, admin); **M5 killed**; live x1 (8 configurations × 5 pages, 0.00 px spread) | ✓ |
+| 5.34 | e2e G.5 (1280: region scrolls, page does not, focused cell clear of the pins), G.7; **M6 killed**; live x1 (region wider than its viewport at every width, page overflow 0), x5 (every day reachable with the 200-character label) | ✓ |
+
+### Exploratory evidence (what was driven)
+
+Real Chromium against the real dev stack, `@operai.test` people only (per-run `hip-*` people and a per-run admin, never Google or GitHub), nothing stubbed except where named. `x1` widths (8 configurations × List/week/month/Everyone's/Settings, with
+screenshots); `x2` keyboard (Tab order in both periods, radios, navigator, date field typed digit by digit, cell dialog trap and Escape); `x3` Italian (week, month, states, cell dialog, saved-outside in both periods, error with Retry);
+`x4` the month's cell flows and the filters; `x5`, `x5b`, `x5c`, `x10` the long name in every placement; `x6` rapid period changes under random 100–800 ms read delays (a 15 ms DOM recorder saw 14 distinct states, **0** with a grid under another
+period's heading), a browser in Auckland (its day is the 20th; Today badge and `max` stayed on Zurich's 19th), the floor and junk addresses, a retired category; `x7` light and dark; `x8` a realistic week; `x9` the cell affordance. Console errors and warnings during `x6`: none.
+First month grid 61 ms (G.2) and 64 ms with 300 entries (G.6): far under R13's 800 ms.
+
+Screenshots cited: `explore/shots/month-1440d.png`, `month-1440d-end.png`, `week-1024d.png`, `x5-dialog-1280d.png`, `x5b-dialog-375.png`, `x5b-list-entries-1280.png`, `x5c-delete.png`, `x10-message-1280.png`, `x7-dark.png`, `x9-rest.png`, `x8-week-1024d.png`,
+`x8-week-1024c.png`, `it-month.png`, `everyone-1440d.png`, `settings-1920d.png` (all present, checked with `ls`).
+
+### Tests added or changed
+
+None committed (the brief says to commit only this file). The scratch Playwright files stay in the scratchpad. The failing repro for D1 is `explore/x5b-dialog-controls.spec.ts` (asserts nothing; it prints the boxes) and, as an assertion, the G.7 pattern: a `boundingBox()` of the dialog's × inside the window.
+
+### Recommendations
+
+- **Fix round, frontend-dev, one defect (D1):** wrap or cap the name where it is printed (placements 1–5), with one e2e step in G in the G.7 style (dialog ×, link and message inside their containers); then re-run QE for that row and e2e G/A. The same class on the List and Totals (not counted) is cheapest fixed in the same change.
+- Owasp-reviewer pass: **not needed again** unless the fix goes into `@operai/ui` (then a look at the deploy order only); the commits since the delta pass are class strings and tests.
+- Designer: O1 (Week hint) and O2 (R-D1) are decisions, not defects. Product owner: O5.
+- tasks.md is not edited by QE; T27 stays open until D1 is fixed and re-verified.
+
+---
+
 
 # Pass 3 — 2026-11-19 — after the rebase onto the new `feat/time-tracking` and the user's decision D14
 
