@@ -89,7 +89,7 @@ Test commands: hours-ui, projects-ui, crm-ui `pnpm lint && pnpm build && pnpm te
   - touch: `AGENTS.md`, `infra/README.md`, `.changeset/*`
   - done when: `mise run changeset:check` passes with one changeset per changed app (hours-ui, shell, projects-ui, crm-ui; minor); AGENTS.md says hours-ui exposes `./RecordHours`, the shell's `hours.recordHours` extension and its hosts (the project and deal pages, the task rows), projects-ui's first use of `shell/extensions`, and My hours' Week view (`/hours?view=week`); `infra/README.md` § Time tracking adds the deploy order hours-ui → shell → projects-ui and crm-ui (plan R2), noting that any other order shows the host's My hours link; `mise run env:doctor` still passes
 
-- [ ] T16: Close: all gates green (typecheck, lint, unit in hours-ui, shell, projects-ui, crm-ui, operai-ui; e2e; `env:doctor`, `shared:check`, `changeset:check`), owasp PASS (T14), QE PASS, eval, spec status → done via `/wellforge:done` — refs: all — deps: T13, T14, T15
+- [x] T16: Close: all gates green (typecheck, lint, unit in hours-ui, shell, projects-ui, crm-ui, operai-ui; e2e; `env:doctor`, `shared:check`, `changeset:check`), owasp PASS (T14), QE PASS, eval, spec status → done via `/wellforge:done` — refs: all — deps: T13, T14, T15
   - touch: `specs/20261116-record-hours-in-place/qe-report.md`, `specs/20261116-record-hours-in-place/eval-report.md`, `specs/20261116-record-hours-in-place/spec.md`
   - done when: `/wellforge:done 20261116-record-hours-in-place` accepts the transition
 
