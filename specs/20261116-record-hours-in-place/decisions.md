@@ -322,3 +322,12 @@ It is drift: amend the spec/plan and re-sync tasks — do not quietly edit the c
 - default: no component or unit test — why: jsdom has no layout; a test of the class would be vacuous
 - observation: the 200-character test project stays in the dev database (projects cannot be deleted from e2e; the existing convention); the person and the entries are cleaned
 - observation: 4 pre-existing `tsc -p tsconfig.e2e.json` errors in T24's `expectPeriodShown` (NodeListOf iteration, spec lines ~1002–1007); not part of `pnpm build` (shell's tsconfig.json does not reference tsconfig.e2e.json)
+
+## owasp L1 follow-up (label cap, e2e types) · frontend-dev · 2026-11-19
+- default: the row label keeps whole words (`break-words`) with a width cap `max-w-64` (16 rem) instead of `wrap-anywhere` — why: `wrap-anywhere` broke ordinary words mid-word ("Internationalisati / on roadmap"); the cap clamps the cell's min-content in Chromium, so a 200-character name gives a 272 px column (region/3 = 322 px) and ordinary names stay whole; 16 rem leaves G.7 49 px of margin, 18 rem ~17 px, 20 rem fails — where: hours-ui/src/components/TableView.tsx (`RowLabel`)
+- scope: the same cap applies to the week's unpinned label — why: the week had the same defect (a 200-character name scrolled its region 3,285 px); cost: names over ~36 characters wrap at 16 rem even where the week's column is wider — where: TableView.tsx
+- scope: the e2e type errors fixed with `Array.from`, not by adding `DOM.Iterable` to `tsconfig.e2e.json` — why: fix the code, not the type configuration — where: shell/e2e/hours-in-place.spec.ts (`snapshotOf`)
+- default: no unit test for the class change; G.7 is the guard, proven red by removing the cap (pinned column 2,621 px, day buttons not hit, week scrollWidth 3,285 px) — why: jsdom has no layout
+- assumption: measured by injecting label text into a seeded person's real month and week tables (throwaway spec, deleted), not by creating one project per label — why: projects cannot be deleted from e2e
+- observation: an ordinary-only month's label column grows 128 → 202 px (the month scrolls 74 px more) as the price of whole words — the pre-39ceb3de behaviour for ordinary names
+- observation: at 375 px a very long unbreakable name makes the label column 272 px against a 220 px region; the month is unpinned below 768 px, so the days stay reachable by scrolling; a narrower cap below `md` was not added
